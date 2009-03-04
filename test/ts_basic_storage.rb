@@ -15,7 +15,18 @@ class TS_BasicStorage < Test::Unit::TestCase
     end
     
     (0..10).each do |i|
-      assert_equal(Record.new(:key => "key#{i}", :value => "value#{i}"), @server.get("getput", "key#{i}"))
+      assert_equal("value#{i}", @server.get("getput", "key#{i}"))
     end
   end
+  
+  def test_update_value
+  end
+  
+  def test_set_nil
+  end
 end
+
+
+
+
+

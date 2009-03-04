@@ -15,13 +15,14 @@ class StorageServer
   def initialize
     handler = SimpleStorageHandler.new()
     processor = Storage::Processor.new(handler)
-    transport = Thrift::ServerSocket.new(9090)
+    @transport = Thrift::ServerSocket.new(9090)
     transportFactory = Thrift::BufferedTransportFactory.new()
-    @server = Thrift::SimpleServer.new(processor, transport, transportFactory)
+    @server = Thrift::SimpleServer.new(processor, @transport, transportFactory)
     @thread = Thread.new do 
       begin
         @server.serve
       rescue Exception => e
+        puts e
         puts e.backtrace
         raise "server died"
       end      
@@ -38,10 +39,14 @@ class StorageServer
   end
   
   def stop
-    @server = nil
+    @thread.kill
+    @transport.close
   end
 end
 
 require 'test/ts_basic_storage'
+require 'test/ts_sets'
+require 'test/ts_syncing'
+require 'test/ts_responsibility'
 
 puts "test"
