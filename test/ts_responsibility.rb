@@ -91,15 +91,15 @@ class TS_Responsibility < Test::Unit::TestCase
     end
     record_list = @server.get_set("listresp",desired) # request a set of records
     
-    assert_equal(4,record_list.size,"how many of the requested values should be in the list<Record>")
+    assert_equal(4,record_list.size,"# records expected")
   
     # check get back all *existing* values in the desired range
-    assert(!list_contains(record_list,Record.new(:key => "04", :value => "val04"))) # not desired
+    assert(!list_contains(record_list,Record.new(:key => "04", :value => "val04")),"list has extra value") # not desired
     (5..8).each do |i| # got all desired that exist
-      assert(list_contains(record_list,Record.new(:key => "0#{i}", :value => "val0#{i}")))
+      assert(list_contains(record_list,Record.new(:key => "0#{i}", :value => "val0#{i}")),"list missing value")
     end
-    assert(!list_contains(record_list,Record.new(:key => "09", :value => "val09"))) # desired, but doesn't exist
-    assert(!list_contains(record_list,Record.new(:key => "10", :value => "val10"))) # not desired
+    assert(!list_contains(record_list,Record.new(:key => "09", :value => "val09")),"list has extra value") # desired, but doesn't exist
+    assert(!list_contains(record_list,Record.new(:key => "10", :value => "val10")),"list has extra value") # not desired
 
     # now check if part of desired records are out of this server's responsibility
     # weird semantics, but since server is not responsibility for ALL the keys...
@@ -135,12 +135,12 @@ class TS_Responsibility < Test::Unit::TestCase
       )
       
     @server.set_responsibility_policy("funcresp", policy)
-
+  
     assert(@server.put("funcresp", Record.new(:key => "04", :value => "val04"))) # inside    
     assert_raise(NotResponsible) do     # outside
       @server.put("funcresp", Record.new(:key => "01", :value => "val01"))
     end
-
+  
   end
   
   
