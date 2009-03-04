@@ -6,7 +6,7 @@ class RecordSet
     when RecordSetType::NONE
       false
     when RecordSetType::RANGE
-      key >= start_key && key <= end_key
+      key >= range.start_key && key <= range.end_key
     else
       raise "UNIMPLEMENTED"
     end

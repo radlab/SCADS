@@ -1,3 +1,5 @@
+require 'test/unit'
+
 class TS_Sets < Test::Unit::TestCase
   def setup
     @server = StorageServer.new
@@ -14,12 +16,15 @@ class TS_Sets < Test::Unit::TestCase
     #test both sides
   end
   
-  def test_trivial_range
+  def test_trivial_range # same start and end
   end
   
   def test_range_limit
   end
   
   def test_user_function
+  end
+  
+  def test_range_or_func
   end
 end

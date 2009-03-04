@@ -10,7 +10,7 @@ class SimpleStorageHandler
   end
   
   def get(ns, key)
-    raise "NOT RESPONSIBLE" unless @responsibility_policies[ns].includes?(key)
+    raise "NotResponsible" unless @responsibility_policies[ns].includes?(key)
     @data[ns][key]
   end
   
@@ -19,14 +19,18 @@ class SimpleStorageHandler
   end
   
 	def put(ns, rec)
-	  raise "NOT RESPONSIBLE" unless @responsibility_policies[ns].includes?(rec.key)
+	  raise "NotResponsible" unless @responsibility_policies[ns].includes?(rec.key)
 	  @data[ns][rec.key] = rec.value
 	  return true
   end
 	
-	def install_responsibility_policy(ns, policy)
+	def set_responsibility_policy(ns, policy)
 	  @responsibility_policies[ns] = policy
 	  true
+  end
+  
+  def get_responsibility_policy(ns)
+    return @responsibility_policies[ns]
   end
   
 	def install_conflict_policy(ns, policy)

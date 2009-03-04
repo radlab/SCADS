@@ -1,3 +1,5 @@
+require 'test/unit'
+
 class TS_Syncing < Test::Unit::TestCase
   def setup
     @server1 = StorageServer.new

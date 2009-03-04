@@ -1,4 +1,4 @@
-#!/usr/bin/ruby
+
 
 $:.push('storage/gen-rb')
 $:.push('storage/simple_ruby')
