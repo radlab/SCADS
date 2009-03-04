@@ -27,4 +27,7 @@ class TS_Sets < Test::Unit::TestCase
   
   def test_range_or_func
   end
+  
+  def test_invalid_description
+  end
 end

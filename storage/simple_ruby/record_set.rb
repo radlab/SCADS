@@ -8,7 +8,7 @@ class RecordSet
     when RecordSetType::RANGE
       key >= range.start_key && key <= range.end_key
     else
-      raise "UNIMPLEMENTED"
+      raise NotImplemented
     end
   end
 end

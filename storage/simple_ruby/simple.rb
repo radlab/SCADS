@@ -10,7 +10,7 @@ class SimpleStorageHandler
   end
   
   def get(ns, key)
-    raise "NotResponsible" unless @responsibility_policies[ns].includes?(key)
+    raise NotResponsible unless @responsibility_policies[ns].includes?(key)
     @data[ns][key]
   end
   
@@ -19,7 +19,7 @@ class SimpleStorageHandler
   end
   
 	def put(ns, rec)
-	  raise "NotResponsible" unless @responsibility_policies[ns].includes?(rec.key)
+	  raise NotResponsible unless @responsibility_policies[ns].includes?(rec.key)
 	  @data[ns][rec.key] = rec.value
 	  return true
   end
