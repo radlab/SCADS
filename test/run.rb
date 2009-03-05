@@ -7,7 +7,7 @@ require 'thrift'
 require 'thrift/protocol/binaryprotocol'
 require 'thrift/server/tserver'
 
-Thread.abort_on_exception = true
+#Thread.abort_on_exception = true
 
 class StorageServer
   require 'simple'
