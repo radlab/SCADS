@@ -1,6 +1,7 @@
 #!/usr/local/bin/thrift --gen rb
 
 namespace ruby SCADS
+namespace cpp SCADS
 
 typedef string RecordKey 
 typedef binary RecordValue
