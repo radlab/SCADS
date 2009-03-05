@@ -45,9 +45,8 @@ class TS_Responsibility < Test::Unit::TestCase
         )
       @server.set_responsibility_policy("getresp2", policy)
         
-      server_rs = @server.get_responsibility_policy("getresp2")  
-      assert_equal(RecordSetType::KEY_FUNC, server_rs.type)
-      assert_equal("Proc.new {|val| val.to_i%2==0}",server_rs.func.func)
+      server_rp = @server.get_responsibility_policy("getresp2")  
+      assert_equal(policy, server_rp)
   end
 
   def test_range 
