@@ -91,6 +91,8 @@ class TS_Responsibility < Test::Unit::TestCase
     end
     record_list = @server.get_set("listresp",desired) # request a set of records
     
+    assert_equal((5..8).map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}, record_list)
+    
     assert_equal(4,record_list.size,"# records expected")
   
     # check get back all *existing* values in the desired range

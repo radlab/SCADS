@@ -11,7 +11,7 @@ class SimpleStorageHandler
   
   def get(ns, key)
     raise NotResponsible unless @responsibility_policies[ns].includes?(key)
-    @data[ns][key]
+    Record.new(:value => @data[ns][key])
   end
   
   def get_set(ns, rs)

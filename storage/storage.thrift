@@ -68,7 +68,7 @@ exception InvalidSetDescription {
 }
 
 service Storage {
-	RecordValue get(1:NameSpace ns, 2:RecordKey key) throws (1: NotResponsible nr),
+	Record get(1:NameSpace ns, 2:RecordKey key) throws (1: NotResponsible nr),
 	list<Record> get_set(1: NameSpace ns, 2:RecordSet rs) throws (1: InvalidSetDescription bs, 2: NotImplemented ni),
 	bool put(1:NameSpace ns, 2: Record rec) throws (1: NotResponsible nr),
 	

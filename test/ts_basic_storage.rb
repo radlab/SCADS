@@ -15,7 +15,7 @@ class TS_BasicStorage < Test::Unit::TestCase
     end
     
     (0..10).each do |i|
-      assert_equal("value#{i}", @server.get("getput", "key#{i}"))
+      assert_equal("value#{i}", @server.get("getput", "key#{i}").value)
     end
   end
   
@@ -25,7 +25,7 @@ class TS_BasicStorage < Test::Unit::TestCase
     end
     
     (0..10).each do |i| # make sure intial values are there
-      assert_equal("value#{i}", @server.get("updateval", "key#{i}"))
+      assert_equal("value#{i}", @server.get("updateval", "key#{i}").value)
     end
     
     (0..10).each do |i| # change intial values
@@ -33,7 +33,7 @@ class TS_BasicStorage < Test::Unit::TestCase
     end
     
    (0..10).each do |i| # make sure changed values are there
-      assert_equal("value#{i*2}", @server.get("updateval", "key#{i}"))
+      assert_equal("value#{i*2}", @server.get("updateval", "key#{i}").value)
     end
     
   end
@@ -48,13 +48,13 @@ class TS_BasicStorage < Test::Unit::TestCase
     end
 
     (0..1).each do |i| # make sure unchanged values are there
-       assert_equal("value#{i}", @server.get("setnil", "key#{i}"))
+       assert_equal("value#{i}", @server.get("setnil", "key#{i}").value)
      end
     (7..10).each do |i| # make sure unchanged values are there
-        assert_equal("value#{i}", @server.get("setnil", "key#{i}"))
+        assert_equal("value#{i}", @server.get("setnil", "key#{i}").value)
     end
     (2..6).each do |i| # make sure nil values are there
-       assert_nil(@server.get("setnil", "key#{i}"))
+       assert_nil(@server.get("setnil", "key#{i}").value)
     end
   end
     
@@ -68,13 +68,13 @@ class TS_BasicStorage < Test::Unit::TestCase
       end
 
       (0..1).each do |i| # make sure unchanged values are there
-         assert_equal("value#{i}", @server.get("setempty", "key#{i}"))
+         assert_equal("value#{i}", @server.get("setempty", "key#{i}").value)
       end
       (7..10).each do |i| # make sure unchanged values are there
-          assert_equal("value#{i}", @server.get("setempty", "key#{i}"))
+          assert_equal("value#{i}", @server.get("setempty", "key#{i}").value)
       end
       (2..6).each do |i| # make sure empty values are there
-         assert_equal("",@server.get("setempty", "key#{i}"))
+         assert_equal("",@server.get("setempty", "key#{i}").value)
       end
     end
 end
