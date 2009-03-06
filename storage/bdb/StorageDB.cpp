@@ -15,6 +15,8 @@
 
 #include <db.h>
 
+#include <signal.h>
+
 #include "gen-cpp/Storage.h"
 
 using namespace std;
@@ -122,6 +124,17 @@ public:
     }
   }
 
+  void close() {
+    map<const NameSpace,DB*>::iterator iter;
+    for( iter = dbs.begin(); iter != dbs.end(); ++iter ) {
+      cout << "Closing: "<<iter->first;
+      if(iter->second->close(iter->second, 0))
+	cout << " [FAILED]"<<endl;
+      else
+	cout << " [OK]"<<endl;
+    }
+  }
+
   void get(Record& _return, const NameSpace& ns, const RecordKey& key) {
     DB* db_ptr;
     DBT db_key, db_data;
@@ -222,6 +235,8 @@ public:
 
 };
 
+static shared_ptr<StorageDB> storageDB;
+
 static
 void usage(const char* prgm) {
   fprintf(stderr, "Usage: %s [-p PORT] [-d DIRECTORY]\n\
@@ -262,8 +277,14 @@ void parseArgs(int argc, char* argv[]) {
 }
 
 
-int main(int argc, char **argv) {
+static void ex_program(int sig) {
+  cout << "Shutting down."<<endl;
+  storageDB->close();
+  exit(0);
+}
 
+
+int main(int argc, char **argv) {
   parseArgs(argc,argv);
 
   shared_ptr<TProtocolFactory> protocolFactory(new TBinaryProtocolFactory());
@@ -271,6 +292,9 @@ int main(int argc, char **argv) {
   shared_ptr<TProcessor> processor(new StorageProcessor(handler));
   shared_ptr<TServerTransport> serverTransport(new TServerSocket(port));
   shared_ptr<TTransportFactory> transportFactory(new TBufferedTransportFactory());
+
+  storageDB = handler;
+  signal(SIGINT, ex_program);
 
   TSimpleServer server(processor,
                        serverTransport,
