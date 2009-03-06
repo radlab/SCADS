@@ -11,6 +11,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <sstream>
+#include <map>
 
 #include <db.h>
 
@@ -26,26 +27,30 @@ using namespace boost;
 
 using namespace SCADS;
 
+// program wide config stuff
+static char* env_dir;
+static int port;
 
 class StorageDB : public StorageIf {
 
 private:
-  DB* db_ptr;
+  map<const NameSpace,DB*> dbs;
+  DB_ENV *db_env;
 
 private:
-  int
-  open_database(DB **dbpp,       /* The DB handle that we are opening */
-		const char *file_name,     /* The file in which the db lives */
-		const char *program_name,  /* Name of the program calling this 
-					    * function */
-		FILE *error_file_pointer)  /* File where we want error messages sent */
+  int open_database(DB **dbpp,       /* The DB handle that we are opening */
+		    const char *file_name,     /* The file in which the db lives */
+		    const char *program_name,  /* Name of the program calling this function */
+		    const char *env_dir,       /* environment dir */
+		    FILE *error_file_pointer)  /* File where we want error messages sent */
   {
     DB *dbp;    /* For convenience */
     u_int32_t open_flags;
     int ret;
-    
+
+
     /* Initialize the DB handle */
-    ret = db_create(&dbp, NULL, 0);
+    ret = db_create(&dbp, db_env, 0);
     if (ret != 0) {
       fprintf(error_file_pointer, "%s: %s\n", program_name,
 	      db_strerror(ret));
@@ -78,17 +83,51 @@ private:
     return (0);
   }
 
+  DB* getDB(const NameSpace& ns) {
+    map<const NameSpace,DB*>::iterator it;
+    it = dbs.find(ns);
+    if (it == dbs.end()) { // haven't opened this db yet
+      DB* db;
+      open_database(&db,ns.c_str(),"storage.bdb",env_dir,stderr);
+      dbs[ns] = db;
+      return db;
+    }
+    return dbs[ns];
+  }
+
 
 
 public:
 
   StorageDB() {
-    open_database(&db_ptr,"scads_db_file","storage.bdb",stderr);
+    u_int32_t env_flags;
+    int ret;
+    
+    ret = db_env_create(&db_env, 0);
+    if (ret != 0) {
+      fprintf(stderr, "Error creating env handle: %s\n", db_strerror(ret));
+      exit(-1);
+    }
+
+    env_flags = DB_CREATE |    /* If the environment does not exist, create it. */
+      DB_INIT_MPOOL;           /* Initialize the in-memory cache. */
+    
+    ret = db_env->open(db_env,      /* DB_ENV ptr */
+		       env_dir,    /* env home directory */
+		       env_flags,  /* Open flags */
+		       0);         /* File mode (default) */
+    if (ret != 0) {
+      fprintf(stderr, "Environment open failed: %s", db_strerror(ret));
+      exit(-1);
+    }
   }
 
   void get(Record& _return, const NameSpace& ns, const RecordKey& key) {
+    DB* db_ptr;
     DBT db_key, db_data;
     char data_buf[256];
+
+    db_ptr = getDB(ns);
 
     /* Zero out the DBTs before using them. */
     memset(&db_key, 0, sizeof(DBT));
@@ -110,8 +149,10 @@ public:
   }
 
   bool put(const NameSpace& ns, const Record& rec) {
+    DB* db_ptr;
     DBT key, data;
     int ret;
+    db_ptr = getDB(ns);
     memset(&key, 0, sizeof(DBT));
     memset(&data, 0, sizeof(DBT));
     key.data = const_cast<char*>(rec.key.c_str());
@@ -180,9 +221,6 @@ public:
   }
 
 };
-
-static char* env_dir;
-static int port;
 
 static
 void usage(const char* prgm) {
