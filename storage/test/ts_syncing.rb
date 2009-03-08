@@ -1,8 +1,8 @@
 require 'test/unit'
 
-class TS_Syncing < Test::Unit::TestCase
+class TS_Syncing < Test::Unit::TestCase  
   def setup
-    @server1 = StorageServer.new
+    @server1 = $ENGINE.new
 #    @server2 = StorageServer.new
   end
   

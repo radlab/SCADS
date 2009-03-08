@@ -1,8 +1,10 @@
 require 'test/unit'
 
 class TS_BasicStorage < Test::Unit::TestCase
+  include SCADS::Storage
+  
   def setup
-    @server = StorageServer.new
+    @server = $ENGINE.new
   end
   
   def teardown

@@ -1,8 +1,10 @@
 require 'test/unit'
 
 class TS_Responsibility < Test::Unit::TestCase
+  include SCADS::Storage
+  
   def setup
-    @server = StorageServer.new
+    @server = $ENGINE.new
     @evensfunc = UserFunction.new(:lang=> Language::RUBY, :func=>"Proc.new {|val| val.to_i%2==0}")
     @favlist = ["1","18","45","32","22"]
   end

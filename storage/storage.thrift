@@ -1,6 +1,6 @@
 #!/usr/local/bin/thrift --gen rb
 
-namespace ruby SCADS
+namespace rb SCADS.Storage
 namespace cpp SCADS
 
 typedef string RecordKey 
