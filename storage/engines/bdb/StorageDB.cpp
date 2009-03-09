@@ -119,7 +119,7 @@ public:
 		       env_flags,  /* Open flags */
 		       0);         /* File mode (default) */
     if (ret != 0) {
-      fprintf(stderr, "Environment open failed: %s", db_strerror(ret));
+      fprintf(stderr, "Environment open failed: %s\n", db_strerror(ret));
       exit(-1);
     }
   }
