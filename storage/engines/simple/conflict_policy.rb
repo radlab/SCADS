@@ -5,8 +5,14 @@ module SCADS
         case type
         when ConflictPolicyType::GREATER
           val1 > val2 ? val1 : val2
+        when ConflictPolicyType::FUNC
+          begin
+            (eval func.func).call(val1,val2)
+          rescue Exception => e
+            raise InvalidSetDescription.new(:s => self, :info => "Exception running function: #{e.to_s}")
+          end
         else
-          raise "UNIMPLEMENTED"
+          raise NotImplemented.new
         end
       end
     end
