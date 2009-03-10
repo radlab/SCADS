@@ -58,7 +58,7 @@ class TS_Syncing < Test::Unit::TestCase
       :type =>RecordSetType::RANGE,
       :range => RangeSet.new(:start_key=>"01",:end_key=>"09",:start_limit => nil,:end_limit => nil)
       )
-    record_list = @server.get_set("removeset",desired)
+    record_list = @server1.get_set("removeset",desired)
     assert_equal((1..4).map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}, record_list)
   end
   
