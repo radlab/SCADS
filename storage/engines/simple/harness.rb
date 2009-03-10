@@ -17,21 +17,37 @@ module SCADS
         end
 
         def method_missing(symbol, *args)
-          Timeout::timeout(5) do
-            @client.send(symbol, *args)
+          puts "Attempting connection to #{@port}" if $DEBUG
+          transport = Thrift::BufferedTransport.new(Thrift::Socket.new('localhost', @port))
+          protocol = Thrift::BinaryProtocol.new(transport)
+          transport.open
+          client = Storage::Client.new(protocol)
+
+          puts "Calling #{symbol} with #{args.inspect}" if $DEBUG
+          ret = nil
+
+          begin
+            Timeout::timeout(5) do
+              ret = client.send(symbol, *args)
+            end
+          rescue Exception =>e
+            transport.close
+            raise e
           end
+
+          transport.close
+          return ret
         end
 
         def stop
           @thread.kill
-          @transport.close
         end
 
         def start
+          @port = rand(65000 - 1024) + 1024
+
           @thread = Thread.new do 
             while true
-              @port = rand(65000 - 1024) + 1024
-
               handler = Handler.new()
               processor = Storage::Processor.new(handler)
               @transport = Thrift::ServerSocket.new(@port)
@@ -47,11 +63,6 @@ module SCADS
               end  
             end    
           end
-
-          transport = Thrift::BufferedTransport.new(Thrift::Socket.new('localhost', @port))
-          protocol = Thrift::BinaryProtocol.new(transport)
-          transport.open
-          @client = Storage::Client.new(protocol)
         end
 
         def host
