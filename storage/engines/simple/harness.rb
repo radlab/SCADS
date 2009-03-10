@@ -53,6 +53,10 @@ module SCADS
           transport.open
           @client = Storage::Client.new(protocol)
         end
+
+        def host
+          return "localhost:#{@port}"
+        end
       end
     end
   end
