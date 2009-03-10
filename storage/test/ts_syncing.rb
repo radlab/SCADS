@@ -9,7 +9,7 @@ class TS_Syncing < Test::Unit::TestCase
     
     @policy_greater = ConflictPolicy.new(:type=> ConflictPolicyType::GREATER)
     @policy_merge= ConflictPolicy.new(:type=> ConflictPolicyType::FUNC, 
-    :func=>"Proc.new {|val1,val2| return [val1, val2].flatten.uniq.sort}")
+    :func=>"Proc.new {|val1,val2| return [eval(val1),eval(val2)].flatten.uniq.sort.inspect}")
   end
   
   def teardown
@@ -102,13 +102,13 @@ class TS_Syncing < Test::Unit::TestCase
   
   def test_sync_user_function
     (1..8).each do |i| # set some values for one server
-      @server1.put("syncfunc", Record.new(:key => "0#{i}", :value => ["0#{i}"]))
+      @server1.put("syncfunc", Record.new(:key => "0#{i}", :value => ["0#{i}"].inspect))
     end
     (1..4).each do |i| # set some values for other server
-      @server2.put("syncfunc", Record.new(:key => "0#{i}", :value => ["0#{i*2}"]))
+      @server2.put("syncfunc", Record.new(:key => "0#{i}", :value => ["0#{i*2}"].inspect))
     end
     (5..8).each do |i| # set some values for other server
-      @server2.put("syncfunc", Record.new(:key => "0#{i}", :value => ["#{i*2}"]))
+      @server2.put("syncfunc", Record.new(:key => "0#{i}", :value => ["#{i*2}"].inspect))
     end
     
     # sync some of the values from server1 and server2
@@ -125,12 +125,12 @@ class TS_Syncing < Test::Unit::TestCase
       )
     record_list1 = @server1.get_set("syncfunc",desired) # vals [01],[02],[03],[04],[05,10],[06,12],[07,14],[08,16]
     assert_equal(
-      (1..4).map{|i| Record.new(:key => "0#{i}", :value => ["0#{i}"])}.concat((5..8).map{|i| Record.new(:key => "0#{i}", :value => ["0#{i}","#{i*2}"])}), 
+      (1..4).map{|i| Record.new(:key => "0#{i}", :value => ["0#{i}"].inspect)}.concat((5..8).map{|i| Record.new(:key => "0#{i}", :value => ["0#{i}","#{i*2}"].inspect)}), 
       record_list1)
   
     record_list2 = @server2.get_set("syncfunc",desired) # vals [02],[04],[06],[08],[05,10],[06,12],[07,14],[08,16]
     assert_equal(
-      (1..4).map{|i| Record.new(:key => "0#{i}", :value => ["0#{i*2}"])}.concat((5..8).map{|i| Record.new(:key => "0#{i}", :value => ["0#{i}","#{i*2}"])}), 
+      (1..4).map{|i| Record.new(:key => "0#{i}", :value => ["0#{i*2}"].inspect)}.concat((5..8).map{|i| Record.new(:key => "0#{i}", :value => ["0#{i}","#{i*2}"].inspect)}), 
       record_list2)
   end
   
