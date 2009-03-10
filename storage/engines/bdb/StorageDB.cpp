@@ -209,18 +209,20 @@ public:
 
     if (rs.type == RST_KEY_FUNC ||
 	rs.type == RST_KEY_VALUE_FUNC) {
-      //if (rs.func.lang == RUBY) {
+      if (rs.func.lang == LANG_RUBY) {
 	if (!did_ruby_init) {
 	  ruby_init();
 	  did_ruby_init = 1;
 	}
-	/*} else {
+	
+
+      } else {
 	NotImplemented ni;
 	ni.function_name = "get_set only supports ruby functions at the moment";
 	if (cursorp != NULL) 
 	  cursorp->close(cursorp); 
 	throw ni;
-	}*/
+      }
     }
 
     Record r;
