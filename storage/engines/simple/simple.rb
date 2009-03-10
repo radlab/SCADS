@@ -55,16 +55,68 @@ module SCADS
           return true
         end
 
-        def sync_set(ns, rs, h)
-          raise NotImplemented.new
+        def sync_set(ns, rs, h, p)
+          rs.check_validity
+
+          host = h[/^([^:]*):([^:]*)$/,1]
+          port = h[/^([^:]*):([^:]*)$/,2]
+
+          transport = Thrift::BufferedTransport.new(Thrift::Socket.new(host, port))
+          protocol = Thrift::BinaryProtocol.new(transport)
+          transport.open
+          client = Storage::Client.new(protocol)
+
+          remote_data = {}
+          client.get_set(ns, rs).each {|r| remote_data[r.key] = r.value}
+          local_data = @data[ns]
+          result = {}
+
+
+          (remote_data.keys + local_data.keys).uniq.select{|k| rs.includes?(k)}.each do |key|
+            if remote_data[key].nil?
+              result[key] = local_data[key]
+            elsif local_data[key].nil?
+              result[key] = remote_data[key]
+            else
+              result[key] = p.which(local_data[key], remote_data[key])
+            end
+          end
+
+          result.each do |key,value|
+            @data[ns][key] = value
+            client.put(ns, Record.new(:key => key, :value => value))
+          end
+
+          transport.close
+          true
         end
 
         def copy_set(ns, rs, h)
-          raise NotImplemented.new
+          rs.check_validity
+
+          host = h[/^([^:]*):([^:]*)$/,1]
+          port = h[/^([^:]*):([^:]*)$/,2]
+
+          puts "connecting to #{host}:#{port}"
+
+          transport = Thrift::BufferedTransport.new(Thrift::Socket.new(host, port))
+          protocol = Thrift::BinaryProtocol.new(transport)
+          transport.open
+          client = Storage::Client.new(protocol)
+
+          @data[ns].select {|key, value| rs.includes?(key)}.each do |key,value|
+            client.put(ns, Record.new(:key => key, :value => value))
+          end
+
+          transport.close
+          true
         end
 
         def remove_set(ns, rs)
-          raise NotImplemented.new
+          rs.check_validity
+
+          @data[ns] = @data[ns].select {|key, value| !rs.includes?(key)}
+          true
         end
       end
     end
