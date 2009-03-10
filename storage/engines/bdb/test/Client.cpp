@@ -25,10 +25,10 @@ int main(int argc, char** argv) {
   shared_ptr<TProtocol> protocol(new TBinaryProtocol(transport));
   StorageClient client(protocol);
   
-  int op = -1; // 0 = get, 1 = put
+  int op = -1; // 0 = get, 1 = put, 2 = getall, 3 = getrange
 
-  if (argc < 3) {
-    fprintf(stderr,"Too few args.  Need [get|put] key [value]\n");
+  if (argc < 2) {
+    fprintf(stderr,"Too few args.  Need [get|getall|put] [key] [value|startkey] [endkey]\n");
     exit(1);
   }
 
@@ -36,6 +36,10 @@ int main(int argc, char** argv) {
     op = 0;
   if (!strcmp(argv[1],"put"))
     op = 1;
+  if (!strcmp(argv[1],"getall"))
+    op = 2;
+  if (!strcmp(argv[1],"getrange"))
+    op = 3;
 
   if (op == -1) {
     fprintf(stderr,"Invalid op: %s\n",argv[1]);
@@ -44,6 +48,11 @@ int main(int argc, char** argv) {
 
   if (op == 1 && argc < 4) {
     fprintf(stderr,"Put needs arg to put\n");
+    exit(1);
+  }
+
+  if (op == 3 && argc < 4) {
+    fprintf(stderr,"getrange needs start and end keys\n");
     exit(1);
   }
 
@@ -66,6 +75,32 @@ int main(int argc, char** argv) {
 	cout << "Put okay"<<endl;
       else
 	cout << "Put failed"<<endl;
+      break;
+    case 2: {
+      std::vector<Record> vals;
+      RecordSet rs;
+      rs.type = ALL;
+      client.get_set(vals,"my_NS",rs);
+      std::vector<Record>::iterator it;
+      for (it = vals.begin();it!=vals.end();it++) 
+	cout << "\nKey:\t"<<((*it).key)<<"\nValue:\t"<<((*it).value)<<endl;	
+    }
+      break;
+    case 3: {
+      std::vector<Record> vals;
+      RecordSet rs;
+      rs.type = RANGE;
+      RangeSet range;
+      range.offset = 0;
+      range.limit = 10;
+      range.start_key = string(argv[2]);
+      range.end_key = string(argv[3]);
+      rs.range = range;
+      client.get_set(vals,"my_NS",rs);
+      std::vector<Record>::iterator it;
+      for (it = vals.begin();it!=vals.end();it++) 
+	cout << "\nKey:\t"<<((*it).key)<<"\nValue:\t"<<((*it).value)<<endl;	
+    }
       break;
     default:
       cout << "Nothing to do"<<endl;

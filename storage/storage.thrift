@@ -25,8 +25,8 @@ enum RecordSetType {
 struct RangeSet {
 	1: RecordKey start_key,
 	2: RecordKey end_key,
-	3: i32 start_limit
-	4: i32 end_limit
+	3: i32 offset,
+	4: i32 limit
 }
 
 enum Language {

@@ -19,6 +19,8 @@
 
 #include "gen-cpp/Storage.h"
 
+#include "ruby.h"
+
 using namespace std;
 using namespace apache::thrift;
 using namespace apache::thrift::protocol;
@@ -32,6 +34,7 @@ using namespace SCADS;
 // program wide config stuff
 static char* env_dir;
 static int port;
+static int did_ruby_init;
 
 class StorageDB : public StorageIf {
 
@@ -138,7 +141,7 @@ public:
   void get(Record& _return, const NameSpace& ns, const RecordKey& key) {
     DB* db_ptr;
     DBT db_key, db_data;
-    char data_buf[256];
+    //char data_buf[256];
 
     db_ptr = getDB(ns);
 
@@ -149,16 +152,109 @@ public:
     db_key.data = const_cast<char*>(key.c_str());
     db_key.size = key.length()+1;
 
-    db_data.data = data_buf;
-    db_data.ulen = 256;
-    db_data.flags = DB_DBT_USERMEM;
+    //db_data.data = data_buf;
+    //db_data.ulen = 256;
+    //db_data.flags = DB_DBT_USERMEM;
     db_ptr->get(db_ptr, NULL, &db_key, &db_data, 0);
-    string ret(data_buf);
+    string ret((char*)db_data.data);
     _return.value = ret;
   }
 
   void get_set(std::vector<Record> & _return, const NameSpace& ns, const RecordSet& rs) {
+    DB* db_ptr;
+    DBC *cursorp;
+    DBT key, data;
+    int ret,count=0;
+    u_int32_t cursor_flags;
 
+    if (rs.type == NONE || (rs.type == RANGE && rs.range.limit <= 0))
+      return;
+
+    db_ptr = getDB(ns);
+    db_ptr->cursor(db_ptr, NULL, &cursorp, 0); 
+
+    memset(&key, 0, sizeof(DBT));
+    memset(&data, 0, sizeof(DBT));
+   
+    switch (rs.type) {
+    case ALL:
+    case KEY_FUNC:
+    case KEY_VALUE_FUNC:
+      ret = cursorp->get(cursorp, &key, &data, DB_FIRST);
+      break;
+    case RANGE:
+      key.data = const_cast<char*>(rs.range.start_key.c_str());
+      key.size = rs.range.start_key.length()+1;
+      ret = cursorp->get(cursorp, &key, &data, DB_SET_RANGE);
+      break;
+    default:
+      NotImplemented ni;
+      ni.function_name = "get_set with specified set type";
+      if (cursorp != NULL) 
+	cursorp->close(cursorp); 
+      throw ni;
+    }
+
+    if (ret == DB_NOTFOUND) { // nothing to return
+      if (cursorp != NULL) 
+	cursorp->close(cursorp); 
+      return;
+    }
+    if (ret != 0) { // another error
+      cerr << "Error in first cursor get"<<endl;
+      if (cursorp != NULL) 
+	cursorp->close(cursorp); 
+      return;
+    }
+
+    if (rs.type == KEY_FUNC ||
+	rs.type == KEY_VALUE_FUNC) {
+      //if (rs.func.lang == RUBY) {
+	if (!did_ruby_init) {
+	  ruby_init();
+	}
+	/*} else {
+	NotImplemented ni;
+	ni.function_name = "get_set only supports ruby functions at the moment";
+	if (cursorp != NULL) 
+	  cursorp->close(cursorp); 
+	throw ni;
+	}*/
+    }
+
+    Record r;
+    r.key = string((char*)key.data);
+    r.value = string((char*)data.data);
+    _return.push_back(r);
+    count++;
+
+    if (rs.type == RANGE && count > rs.range.limit) {
+      if (cursorp != NULL) 
+	cursorp->close(cursorp); 
+      return;
+    }
+
+    while ((ret = cursorp->get(cursorp, &key, &data, DB_NEXT)) == 0) {
+      r.key = string((char*)key.data);
+      r.value = string((char*)data.data);
+      if (rs.type == RANGE && (rs.range.end_key < r.key)) {
+	ret = DB_NOTFOUND;
+	break;
+      }
+      _return.push_back(r);
+      count++;
+      if (rs.type == RANGE && count > rs.range.limit) {
+	ret = DB_NOTFOUND;
+	break;
+      }
+    }
+    if (ret != DB_NOTFOUND) {
+      /* Error handling goes here */
+      cerr << "Umm, error in get_set"<<endl;
+    }
+  
+    if (cursorp != NULL) 
+      cursorp->close(cursorp); 
   }
 
   bool put(const NameSpace& ns, const Record& rec) {
@@ -278,7 +374,7 @@ void parseArgs(int argc, char* argv[]) {
 
 
 static void ex_program(int sig) {
-  cout << "Shutting down."<<endl;
+  cout << "\n\nShutting down."<<endl;
   storageDB->close();
   exit(0);
 }
@@ -292,6 +388,8 @@ int main(int argc, char **argv) {
   shared_ptr<TProcessor> processor(new StorageProcessor(handler));
   shared_ptr<TServerTransport> serverTransport(new TServerSocket(port));
   shared_ptr<TTransportFactory> transportFactory(new TBufferedTransportFactory());
+
+  did_ruby_init = 0;
 
   storageDB = handler;
   signal(SIGINT, ex_program);
