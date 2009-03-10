@@ -40,7 +40,7 @@ module SCADS
         def set_responsibility_policy(ns, policy)
           #check to see if the rs they gave us is valid
           policy.check_validity
-          raise InvalidSetDescription.new(:s => policy, :info => "start and end limit don't make sence here") if policy.type == RecordSetType::RANGE && (!policy.range.start_limit.nil? || !policy.range.end_limit.nil?)
+          raise InvalidSetDescription.new(:s => policy, :info => "start and end limit don't make sense here") if policy.type == RecordSetType::RANGE && (!policy.range.start_limit.nil? || !policy.range.end_limit.nil?)
 
           @responsibility_policies[ns] = policy
           true
@@ -56,15 +56,15 @@ module SCADS
         end
 
         def sync_set(ns, rs, h)
-          raise "UNIMPLEMENTED"
+          raise NotImplemented.new
         end
 
         def copy_set(ns, rs, h)
-          raise "UNIMPLEMENTED"
+          raise NotImplemented.new
         end
 
         def remove_set(ns, rs)
-          raise "UNIMPLEMENTED"
+          raise NotImplemented.new
         end
       end
     end
