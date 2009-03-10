@@ -25,8 +25,12 @@ module SCADS
 
         def start
           port = rand(65000 - 1024) + 1024
-          
+
           @child = Kernel.fork do
+            $stdout.reopen(File.new("bdb.log", "w")) or
+              puts "failed to redirect"
+            $stderr.reopen(File.new("bdb.log", "w")) or
+              puts "failed to redirect"
             exec "engines/bdb/storage.bdb -p #{port}"
           end
 
