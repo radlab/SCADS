@@ -2,6 +2,8 @@ require 'thrift'
 require 'thrift/protocol/binaryprotocol'
 require 'thrift/server/tserver'
 
+require 'timeout'
+
 ["simple", "record_set", "conflict_policy"].each do |file|
   require File.dirname(__FILE__) + "/" + file
 end
@@ -15,7 +17,9 @@ module SCADS
         end
 
         def method_missing(symbol, *args)
-          @client.send(symbol, *args)
+          Timeout::timeout(5) do
+            @client.send(symbol, *args)
+          end
         end
 
         def stop
