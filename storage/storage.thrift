@@ -14,12 +14,12 @@ struct Record {
 }
 
 enum RecordSetType {
-	ALL = 1,
-	NONE = 2
-	RANGE = 3,
-	LIST = 4,
-	KEY_FUNC = 5,
-	KEY_VALUE_FUNC = 6
+	RST_ALL = 1,
+	RST_NONE = 2
+	RST_RANGE = 3,
+	RST_LIST = 4,
+	RST_KEY_FUNC = 5,
+	RST_KEY_VALUE_FUNC = 6
 }
 
 struct RangeSet {
@@ -30,7 +30,7 @@ struct RangeSet {
 }
 
 enum Language {
-	RUBY = 1,
+	LANG_RUBY = 1,
 }
 
 struct UserFunction {
@@ -45,8 +45,8 @@ struct RecordSet {
 }
 
 enum ConflictPolicyType {
-	GREATER = 1,
-	FUNC = 2,
+	CPT_GREATER = 1,
+	CPT_FUNC = 2,
 }
 
 struct ConflictPolicy {

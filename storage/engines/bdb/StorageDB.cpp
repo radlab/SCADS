@@ -167,7 +167,7 @@ public:
     int ret,count=0;
     u_int32_t cursor_flags;
 
-    if (rs.type == NONE || (rs.type == RANGE && rs.range.limit <= 0))
+    if (rs.type == RST_NONE || (rs.type == RST_RANGE && rs.range.limit <= 0))
       return;
 
     db_ptr = getDB(ns);
@@ -177,12 +177,12 @@ public:
     memset(&data, 0, sizeof(DBT));
    
     switch (rs.type) {
-    case ALL:
-    case KEY_FUNC:
-    case KEY_VALUE_FUNC:
+    case RST_ALL:
+    case RST_KEY_FUNC:
+    case RST_KEY_VALUE_FUNC:
       ret = cursorp->get(cursorp, &key, &data, DB_FIRST);
       break;
-    case RANGE:
+    case RST_RANGE:
       key.data = const_cast<char*>(rs.range.start_key.c_str());
       key.size = rs.range.start_key.length()+1;
       ret = cursorp->get(cursorp, &key, &data, DB_SET_RANGE);
@@ -207,11 +207,12 @@ public:
       return;
     }
 
-    if (rs.type == KEY_FUNC ||
-	rs.type == KEY_VALUE_FUNC) {
+    if (rs.type == RST_KEY_FUNC ||
+	rs.type == RST_KEY_VALUE_FUNC) {
       //if (rs.func.lang == RUBY) {
 	if (!did_ruby_init) {
 	  ruby_init();
+	  did_ruby_init = 1;
 	}
 	/*} else {
 	NotImplemented ni;
@@ -228,7 +229,7 @@ public:
     _return.push_back(r);
     count++;
 
-    if (rs.type == RANGE && count > rs.range.limit) {
+    if (rs.type == RST_RANGE && count > rs.range.limit) {
       if (cursorp != NULL) 
 	cursorp->close(cursorp); 
       return;
@@ -237,13 +238,13 @@ public:
     while ((ret = cursorp->get(cursorp, &key, &data, DB_NEXT)) == 0) {
       r.key = string((char*)key.data);
       r.value = string((char*)data.data);
-      if (rs.type == RANGE && (rs.range.end_key < r.key)) {
+      if (rs.type == RST_RANGE && (rs.range.end_key < r.key)) {
 	ret = DB_NOTFOUND;
 	break;
       }
       _return.push_back(r);
       count++;
-      if (rs.type == RANGE && count > rs.range.limit) {
+      if (rs.type == RST_RANGE && count > rs.range.limit) {
 	ret = DB_NOTFOUND;
 	break;
       }
