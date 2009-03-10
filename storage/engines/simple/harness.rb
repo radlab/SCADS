@@ -30,11 +30,14 @@ module SCADS
         def start
           @thread = Thread.new do 
             while true
+              @port = rand(65000 - 1024) + 1024
+
               handler = Handler.new()
               processor = Storage::Processor.new(handler)
-              @transport = Thrift::ServerSocket.new(9090)
+              @transport = Thrift::ServerSocket.new(@port)
               transportFactory = Thrift::BufferedTransportFactory.new()
               @server = Thrift::SimpleServer.new(processor, @transport, transportFactory)
+
               begin
                 @server.serve
               rescue Exception => e
@@ -45,7 +48,7 @@ module SCADS
             end    
           end
 
-          transport = Thrift::BufferedTransport.new(Thrift::Socket.new('localhost', 9090))
+          transport = Thrift::BufferedTransport.new(Thrift::Socket.new('localhost', @port))
           protocol = Thrift::BinaryProtocol.new(transport)
           transport.open
           @client = Storage::Client.new(protocol)
