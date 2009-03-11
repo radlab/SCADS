@@ -11,9 +11,9 @@
 #include <iostream>
 
 using namespace std;
-using namespace facebook::thrift;
-using namespace facebook::thrift::protocol;
-using namespace facebook::thrift::transport;
+using namespace apache::thrift;
+using namespace apache::thrift::protocol;
+using namespace apache::thrift::transport;
 
 using namespace SCADS;
 
@@ -40,6 +40,8 @@ int main(int argc, char** argv) {
     op = 2;
   if (!strcmp(argv[1],"getrange"))
     op = 3;
+  if (!strcmp(argv[1],"getruby"))
+    op = 4;
 
   if (op == -1) {
     fprintf(stderr,"Invalid op: %s\n",argv[1]);
@@ -53,6 +55,11 @@ int main(int argc, char** argv) {
 
   if (op == 3 && argc < 4) {
     fprintf(stderr,"getrange needs start and end keys\n");
+    exit(1);
+  }
+
+  if (op == 4 && argc < 3) {
+    fprintf(stderr,"getruby needs ruby string\n");
     exit(1);
   }
 
@@ -79,7 +86,7 @@ int main(int argc, char** argv) {
     case 2: {
       std::vector<Record> vals;
       RecordSet rs;
-      rs.type = ALL;
+      rs.type = RST_ALL;
       client.get_set(vals,"my_NS",rs);
       std::vector<Record>::iterator it;
       for (it = vals.begin();it!=vals.end();it++) 
@@ -89,7 +96,7 @@ int main(int argc, char** argv) {
     case 3: {
       std::vector<Record> vals;
       RecordSet rs;
-      rs.type = RANGE;
+      rs.type = RST_RANGE;
       RangeSet range;
       range.offset = 0;
       range.limit = 10;
@@ -102,13 +109,32 @@ int main(int argc, char** argv) {
 	cout << "\nKey:\t"<<((*it).key)<<"\nValue:\t"<<((*it).value)<<endl;	
     }
       break;
+    case 4: {
+      std::vector<Record> vals;
+      RecordSet rs;
+      rs.type = RST_KEY_FUNC;
+      UserFunction uf;
+      uf.lang = LANG_RUBY;
+      uf.func = string(argv[2]);
+      rs.func = uf;
+      cout << "Passing ruby string: "<<argv[2]<<endl;
+      client.get_set(vals,"my_NS",rs);
+      std::vector<Record>::iterator it;
+      for (it = vals.begin();it!=vals.end();it++) 
+	cout << "\nKey:\t"<<((*it).key)<<"\nValue:\t"<<((*it).value)<<endl;	
+    }
+      break;
     default:
       cout << "Nothing to do"<<endl;
     }
 
 
     transport->close();
-  } catch (TException &tx) {
+  } 
+  catch (InvalidSetDescription &tx) {
+    printf("INVALID SET DESCRIPTION: %s\n", tx.info.c_str());
+  }
+  catch (TException &tx) {
     printf("ERROR: %s\n", tx.what());
   }
 

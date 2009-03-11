@@ -34,7 +34,10 @@ using namespace SCADS;
 // program wide config stuff
 static char* env_dir;
 static int port;
+
+// some ruby stuff
 static int did_ruby_init;
+static ID call_id = 0;
 
 class StorageDB : public StorageIf {
 
@@ -166,6 +169,7 @@ public:
     DBT key, data;
     int ret,count=0;
     u_int32_t cursor_flags;
+    VALUE ruby_proc;
 
     if (rs.type == RST_NONE || (rs.type == RST_RANGE && rs.range.limit <= 0))
       return;
@@ -212,10 +216,18 @@ public:
       if (rs.func.lang == LANG_RUBY) {
 	if (!did_ruby_init) {
 	  ruby_init();
+	  call_id = rb_intern("call");
 	  did_ruby_init = 1;
 	}
-	
-
+	ruby_proc = rb_eval_string(rs.func.func.c_str());
+	if (!rb_respond_to(ruby_proc,call_id)) {
+	  InvalidSetDescription isd;
+	  isd.s = rs;
+	  isd.info = "Your ruby string does not return something that responds to 'call'";
+	  if (cursorp != NULL)
+	    cursorp->close(cursorp);
+	  throw isd;
+	}
       } else {
 	NotImplemented ni;
 	ni.function_name = "get_set only supports ruby functions at the moment";
@@ -228,8 +240,24 @@ public:
     Record r;
     r.key = string((char*)key.data);
     r.value = string((char*)data.data);
-    _return.push_back(r);
-    count++;
+    if (rs.type == RST_ALL ||
+	rs.type == RST_RANGE) {
+      _return.push_back(r);
+      count++;
+    }
+    else if (rs.type == RST_KEY_FUNC) {
+      VALUE v = rb_funcall(ruby_proc, call_id, 1, rb_str_new2((const char*)(key.data)));
+      if (v == Qtrue)
+	_return.push_back(r);
+      else if (v != Qfalse) {
+	InvalidSetDescription isd;
+	isd.s = rs;
+	isd.info = "Your ruby string does not return true or false";
+	if (cursorp != NULL)
+	  cursorp->close(cursorp);
+	throw isd;
+      }
+    }
 
     if (rs.type == RST_RANGE && count > rs.range.limit) {
       if (cursorp != NULL) 
@@ -240,15 +268,38 @@ public:
     while ((ret = cursorp->get(cursorp, &key, &data, DB_NEXT)) == 0) {
       r.key = string((char*)key.data);
       r.value = string((char*)data.data);
-      if (rs.type == RST_RANGE && (rs.range.end_key < r.key)) {
-	ret = DB_NOTFOUND;
-	break;
+
+      // RST_ALL set
+      if (rs.type == RST_ALL)
+	_return.push_back(r);
+
+      // RST_RANGE set
+      else if (rs.type == RST_RANGE) {
+	if (rs.range.end_key < r.key) {
+	  ret = DB_NOTFOUND;
+	  break;
+	}
+	_return.push_back(r);
+	count++;
+	if (count > rs.range.limit) {
+	  ret = DB_NOTFOUND;
+	  break;
+	}
       }
-      _return.push_back(r);
-      count++;
-      if (rs.type == RST_RANGE && count > rs.range.limit) {
-	ret = DB_NOTFOUND;
-	break;
+
+      // RST_KEY_FUNC set
+      else if (rs.type == RST_KEY_FUNC) {
+	VALUE v = rb_funcall(ruby_proc, call_id, 1, rb_str_new2((const char*)(key.data)));
+	if (v == Qtrue)
+	  _return.push_back(r);
+	else if (v != Qfalse) {
+	  InvalidSetDescription isd;
+	  isd.s = rs;
+	  isd.info = "Your ruby string does not return true or false";
+	  if (cursorp != NULL)
+	    cursorp->close(cursorp);
+	  throw isd;
+	}
       }
     }
     if (ret != DB_NOTFOUND) {
