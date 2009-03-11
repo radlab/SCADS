@@ -1,7 +1,4 @@
-#!/usr/bin/env ruby
 
-# $:.push('../../../gen-rb')
-# $:.push('../.')
 require 'thrift'
 require 'thrift/protocol/binaryprotocol'
 require 'thrift/server/tserver'

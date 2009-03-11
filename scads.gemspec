@@ -5,6 +5,7 @@ Gem::Specification.new do |s|
   s.summary = "SCADS modules"
   s.require_paths = ["lib", "storage/gen-rb","storage/engines/simple"]
   s.files = Dir['storage/gen-rb/*.rb'] + Dir['storage/engines/simple/*.rb'] + Dir['storage/engines/simple/bin/*']
-  #s.autorequire = "storage/engines/simple/client.rb"
+  s.bindir = "storage/engines/simple/bin"
+  s.executables = ["start_server.rb"]
   s.add_dependency('thrift', '>= 0.0.1')
 end
