@@ -5,7 +5,7 @@ class TS_Sets < Test::Unit::TestCase
   
   def setup
     @server = $ENGINE.new
-    @evensfunc = UserFunction.new(:lang=> Language::RUBY, :func=>"Proc.new {|val| val.to_i%2==0}")
+    @evensfunc = UserFunction.new(:lang=> Language::LANG_RUBY, :func=>"Proc.new {|val| val.to_i%2==0}")
   end
   
   def teardown
@@ -18,8 +18,8 @@ class TS_Sets < Test::Unit::TestCase
     end
     
     desired = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"05",:end_key=>"09",:start_limit => nil,:end_limit => nil)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"05",:end_key=>"09",:offset => nil,:limit => nil)
       )
     record_list = @server.get_set("rangeset",desired)
     
@@ -33,8 +33,8 @@ class TS_Sets < Test::Unit::TestCase
     
     # these values don't exist
     desired = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"09",:end_key=>"11",:start_limit => nil,:end_limit => nil)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"09",:end_key=>"11",:offset => nil,:limit => nil)
       )
     record_list = @server.get_set("emptyrange",desired)
     assert_equal([], record_list)
@@ -50,8 +50,8 @@ class TS_Sets < Test::Unit::TestCase
     
     # same start and end... one value that exists
     desired = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"07",:end_key=>"07",:start_limit => nil,:end_limit => nil)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"07",:end_key=>"07",:offset => nil,:limit => nil)
       )
     record_list = @server.get_set("trivialrange",desired)
     assert_equal([Record.new(:key => "07", :value => "val07")], record_list)  
@@ -64,16 +64,16 @@ class TS_Sets < Test::Unit::TestCase
     
     # should return first four values from values matching the range
     desired = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"01",:end_key=>"08",:start_limit => 0,:end_limit => 3)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"01",:end_key=>"08",:offset => 0,:limit => 3)
       )
     record_list = @server.get_set("rangelimit",desired)
     assert_equal((1..4).map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}, record_list)
     
    # should return last two values from values matching the range
     desired = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"01",:end_key=>"08",:start_limit => 6,:end_limit => 10)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"01",:end_key=>"08",:offset => 6,:limit => 10)
       )
     record_list = @server.get_set("rangelimit",desired)
     assert_equal((7..8).map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}, record_list)
@@ -86,7 +86,7 @@ class TS_Sets < Test::Unit::TestCase
     
     # ask for only the evens
     desired = RecordSet.new(
-      :type =>RecordSetType::KEY_FUNC,
+      :type =>RecordSetType::RST_KEY_FUNC,
       :func => @evensfunc
       )
     record_list = @server.get_set("userrange",desired)
@@ -99,15 +99,15 @@ class TS_Sets < Test::Unit::TestCase
     end
     
     desired = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>nil,:end_key=>"05",:start_limit => nil,:end_limit => nil)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>nil,:end_key=>"05",:offset => nil,:limit => nil)
       )
     record_list = @server.get_set("nilrange",desired) # get everything up to 05
     assert_equal((1..5).map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}, record_list)  
     
     desired = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"02",:end_key=>nil,:start_limit => nil,:end_limit => nil)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"02",:end_key=>nil,:offset => nil,:limit => nil)
       )
     record_list = @server.get_set("nilrange",desired) # get from 02 to end
     assert_equal((2..8).map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}, record_list)
@@ -115,8 +115,8 @@ class TS_Sets < Test::Unit::TestCase
 
   def test_invalid_description
     desired = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"1",:end_key=>"0",:start_limit => nil,:end_limit => nil)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"1",:end_key=>"0",:offset => nil,:limit => nil)
       )
       
     assert_raise(InvalidSetDescription,"end key is less than start key") do
@@ -125,8 +125,8 @@ class TS_Sets < Test::Unit::TestCase
     
     
     desired = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"01",:end_key=>"09",:start_limit => 5,:end_limit => 1)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"01",:end_key=>"09",:offset => 5,:limit => 1)
       )
       
     assert_raise(InvalidSetDescription,"start limit is more than end limit") do
@@ -134,8 +134,8 @@ class TS_Sets < Test::Unit::TestCase
     end
     
     desired = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"01",:end_key=>"09",:start_limit => nil,:end_limit => nil),
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"01",:end_key=>"09",:offset => nil,:limit => nil),
       :func=>@evensfunc
       )
       

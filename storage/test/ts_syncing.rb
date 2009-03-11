@@ -7,8 +7,8 @@ class TS_Syncing < Test::Unit::TestCase
     @server1 = $ENGINE.new
     @server2 = $ENGINE.new
     
-    @policy_greater = ConflictPolicy.new(:type=> ConflictPolicyType::GREATER)
-    @policy_merge= ConflictPolicy.new(:type=> ConflictPolicyType::FUNC, 
+    @policy_greater = ConflictPolicy.new(:type=> ConflictPolicyType::CPT_GREATER)
+    @policy_merge= ConflictPolicy.new(:type=> ConflictPolicyType::CPT_FUNC, 
     :func=>"Proc.new {|val1,val2| return [eval(val1),eval(val2)].flatten.uniq.sort.inspect}")
   end
   
@@ -24,15 +24,15 @@ class TS_Syncing < Test::Unit::TestCase
     
     # copy some of the values to another server
     to_copy = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"05",:end_key=>"09",:start_limit => nil,:end_limit => nil)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"05",:end_key=>"09",:offset => nil,:limit => nil)
       )
     @server1.copy_set("copyset", to_copy,@server2.host)
     
     # try to get values from both servers
     desired = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"01",:end_key=>"09",:start_limit => nil,:end_limit => nil)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"01",:end_key=>"09",:offset => nil,:limit => nil)
       )
     record_list1 = @server1.get_set("copyset",desired) # should sucessfully get 01-09
     assert_equal((1..9).map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}, record_list1)
@@ -48,15 +48,15 @@ class TS_Syncing < Test::Unit::TestCase
     
     # remove some of the values
     to_remove = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"05",:end_key=>"09",:start_limit => nil,:end_limit => nil)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"05",:end_key=>"09",:offset => nil,:limit => nil)
       )
     @server1.remove_set("removeset", to_remove)
     
     # try to get all the values, should only get part of list that hasn't been removed
     desired = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"01",:end_key=>"09",:start_limit => nil,:end_limit => nil)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"01",:end_key=>"09",:offset => nil,:limit => nil)
       )
     record_list = @server1.get_set("removeset",desired)
     assert_equal((1..4).map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}, record_list)
@@ -78,15 +78,15 @@ class TS_Syncing < Test::Unit::TestCase
     
     # sync some of the values from server1 and server2
     to_sync = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"07",:end_key=>"08",:start_limit => nil,:end_limit => nil)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"07",:end_key=>"08",:offset => nil,:limit => nil)
       )
     @server1.sync_set("syncgreater", to_sync,@server2.host, @policy_greater)
     
     # try to get values from both servers
     desired = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"01",:end_key=>"08",:start_limit => nil,:end_limit => nil)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"01",:end_key=>"08",:offset => nil,:limit => nil)
       )
     record_list1 = @server1.get_set("syncgreater",desired) # vals 01,02,03,04,06,07,08,09
     assert_equal(
@@ -113,15 +113,15 @@ class TS_Syncing < Test::Unit::TestCase
     
     # sync some of the values from server1 and server2
     to_sync = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"05",:end_key=>"08",:start_limit => nil,:end_limit => nil)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"05",:end_key=>"08",:offset => nil,:limit => nil)
       )
     @server1.sync_set("syncfunc", to_sync,@server2.host, @policy_merge)
   
     # try to get values from both servers
     desired = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"01",:end_key=>"08",:start_limit => nil,:end_limit => nil)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"01",:end_key=>"08",:offset => nil,:limit => nil)
       )
     record_list1 = @server1.get_set("syncfunc",desired) # vals [01],[02],[03],[04],[05,10],[06,12],[07,14],[08,16]
     assert_equal(

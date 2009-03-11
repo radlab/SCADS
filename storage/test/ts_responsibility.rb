@@ -5,7 +5,7 @@ class TS_Responsibility < Test::Unit::TestCase
   
   def setup
     @server = $ENGINE.new
-    @evensfunc = UserFunction.new(:lang=> Language::RUBY, :func=>"Proc.new {|val| val.to_i%2==0}")
+    @evensfunc = UserFunction.new(:lang=> Language::LANG_RUBY, :func=>"Proc.new {|val| val.to_i%2==0}")
     @favlist = ["1","18","45","32","22"]
   end
 
@@ -15,8 +15,8 @@ class TS_Responsibility < Test::Unit::TestCase
 
   def test_responsibility_limit_nil 
     policy = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"01",:end_key=>"10",:start_limit => 1,:end_limit => 10)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"01",:end_key=>"10",:offset => 1,:limit => 10)
       )
       
     assert_raise(InvalidSetDescription,"start and end limits don't make sense for responsibility policies") do
@@ -28,21 +28,21 @@ class TS_Responsibility < Test::Unit::TestCase
   def test_get_responsibility      
       # try a range responsibility
       policy = RecordSet.new(
-        :type =>RecordSetType::RANGE,
-        :range => RangeSet.new(:start_key=>"01",:end_key=>"10",:start_limit => nil,:end_limit => nil)
+        :type =>RecordSetType::RST_RANGE,
+        :range => RangeSet.new(:start_key=>"01",:end_key=>"10",:offset => nil,:limit => nil)
         )
       @server.set_responsibility_policy("getresp1", policy)
         
       server_rs = @server.get_responsibility_policy("getresp1")  
-      assert_equal(RecordSetType::RANGE, server_rs.type)
+      assert_equal(RecordSetType::RST_RANGE, server_rs.type)
       assert_equal("01",server_rs.range.start_key)
       assert_equal("10",server_rs.range.end_key)
-      assert_nil(server_rs.range.start_limit)
-      assert_nil(server_rs.range.end_limit)
+      assert_nil(server_rs.range.offset)
+      assert_nil(server_rs.range.limit)
       
       # try a function responsibility
       policy = RecordSet.new(
-        :type =>RecordSetType::KEY_FUNC,
+        :type =>RecordSetType::RST_KEY_FUNC,
         :func =>@evensfunc
         )
       @server.set_responsibility_policy("getresp2", policy)
@@ -53,8 +53,8 @@ class TS_Responsibility < Test::Unit::TestCase
 
   def test_range 
     policy = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"05",:end_key=>"10",:start_limit => nil,:end_limit => nil)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"05",:end_key=>"10",:offset => nil,:limit => nil)
       )
       
     @server.set_responsibility_policy("rangeresp", policy)
@@ -79,14 +79,14 @@ class TS_Responsibility < Test::Unit::TestCase
 
   def test_set 
     desired = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"05",:end_key=>"09",:start_limit => nil,:end_limit => nil)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"05",:end_key=>"09",:offset => nil,:limit => nil)
       )
     
     # desired records are a subset of the policy
     policy = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"01",:end_key=>"10",:start_limit => nil,:end_limit => nil)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"01",:end_key=>"10",:offset => nil,:limit => nil)
       )
     @server.set_responsibility_policy("listresp", policy) 
     (5..8).each do |i| # set some values
@@ -99,8 +99,8 @@ class TS_Responsibility < Test::Unit::TestCase
     # now check if part of desired records are out of this server's responsibility
     # weird semantics, but since server is not responsibility for ALL the keys...
     policy = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"01",:end_key=>"08",:start_limit => nil,:end_limit => nil)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"01",:end_key=>"08",:offset => nil,:limit => nil)
       )
     @server.set_responsibility_policy("listresp2", policy)
     (5..8).each do |i| # set some values
@@ -114,7 +114,7 @@ class TS_Responsibility < Test::Unit::TestCase
 
   def test_user_function
     policy = RecordSet.new(
-      :type =>RecordSetType::KEY_FUNC,
+      :type =>RecordSetType::RST_KEY_FUNC,
       :func =>@evensfunc
       ) 
     @server.set_responsibility_policy("funcresp", policy)
@@ -127,14 +127,14 @@ class TS_Responsibility < Test::Unit::TestCase
 
   def test_right_responsibility
     policy = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"06",:end_key=>"10",:start_limit => nil,:end_limit => nil)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"06",:end_key=>"10",:offset => nil,:limit => nil)
       )
     @server.set_responsibility_policy("rightresp1", policy)
     
     policy2 = RecordSet.new(
-      :type =>RecordSetType::RANGE,
-      :range => RangeSet.new(:start_key=>"01",:end_key=>"05",:start_limit => nil,:end_limit => nil)
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"01",:end_key=>"05",:offset => nil,:limit => nil)
       )  
     @server.set_responsibility_policy("rightresp2", policy2)
     

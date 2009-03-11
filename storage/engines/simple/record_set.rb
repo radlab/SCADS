@@ -3,13 +3,13 @@ module SCADS
     class RecordSet
       def includes?(key)
         case type
-        when RecordSetType::ALL
+        when RecordSetType::RST_ALL
           true
-        when RecordSetType::NONE
+        when RecordSetType::RST_NONE
           false
-        when RecordSetType::RANGE
+        when RecordSetType::RST_RANGE
           (range.start_key.nil? || key >= range.start_key) && (range.end_key.nil? || key <= range.end_key)
-        when RecordSetType::KEY_FUNC
+        when RecordSetType::RST_KEY_FUNC
           begin
             (eval func.func).call(key)
           rescue Exception => e
@@ -23,20 +23,20 @@ module SCADS
       def check_validity
         #check to make sure we don't have extra things set
 
-        if type != RecordSetType::RANGE
+        if type != RecordSetType::RST_RANGE
           raise InvalidSetDescription.new(:s => self, :info => "range should be empty unless you are doing a range query") if !range.nil?
-        elsif type != RecordSetType::KEY_FUNC
+        elsif type != RecordSetType::RST_KEY_FUNC
           raise InvalidSetDescription.new(:s => self, :info => "func should be empty unless you are doing a user function") if !func.nil?
         end
 
         case type
-        when RecordSetType::ALL
-        when RecordSetType::NONE
-        when RecordSetType::RANGE
+        when RecordSetType::RST_ALL
+        when RecordSetType::RST_NONE
+        when RecordSetType::RST_RANGE
           raise InvalidSetDescription.new(:s => self, :info => "start_key !<= end_key") if (!range.start_key.nil? && !range.end_key.nil?) && range.start_key > range.end_key
-          raise InvalidSetDescription.new(:s => self, :info => "start_limit !<= end_limit") if (!range.start_limit.nil? && !range.end_limit.nil?) && range.start_limit > range.end_limit
-        when RecordSetType::KEY_FUNC
-          raise InvalidSetDescription.new(:s => self, :info => "what language is this!") if func.lang != Language::RUBY
+          raise InvalidSetDescription.new(:s => self, :info => "offset !<= limit") if (!range.offset.nil? && !range.limit.nil?) && range.offset > range.limit
+        when RecordSetType::RST_KEY_FUNC
+          raise InvalidSetDescription.new(:s => self, :info => "what language is this!") if func.lang != Language::LANG_RUBY
         else
           raise NotImplemented.new
         end

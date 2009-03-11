@@ -6,8 +6,8 @@ module SCADS
       class Handler
         def initialize
           @data = Hash.new({})
-          @responsibility_policies = Hash.new(RecordSet.new(:type => RecordSetType::ALL))
-          @conflict_policies = Hash.new(ConflictPolicy.new(:type => ConflictPolicyType::GREATER))
+          @responsibility_policies = Hash.new(RecordSet.new(:type => RecordSetType::RST_ALL))
+          @conflict_policies = Hash.new(ConflictPolicy.new(:type => ConflictPolicyType::CPT_GREATER))
         end
 
         def get(ns, key)
@@ -20,12 +20,12 @@ module SCADS
           rs.check_validity
 
           rp = @responsibility_policies[ns]
-          raise NotResponsible.new if rs.type == RecordSetType::RANGE && (!rp.includes?(rs.range.start_key) || !rp.includes?(rs.range.end_key))
+          raise NotResponsible.new if rs.type == RecordSetType::RST_RANGE && (!rp.includes?(rs.range.start_key) || !rp.includes?(rs.range.end_key))
 
           ret = @data[ns].map {|rec| Record.new(:key => rec[0], :value => rec[1])}.select {|rec| rs.includes?(rec.key)}
 
-          if rs.type == RecordSetType::RANGE
-            ret[((rs.range.start_limit || 0)..(rs.range.end_limit || ret.size))]
+          if rs.type == RecordSetType::RST_RANGE
+            ret[((rs.range.offset || 0)..(rs.range.limit || ret.size))]
           else
             ret
           end
@@ -40,7 +40,7 @@ module SCADS
         def set_responsibility_policy(ns, policy)
           #check to see if the rs they gave us is valid
           policy.check_validity
-          raise InvalidSetDescription.new(:s => policy, :info => "start and end limit don't make sense here") if policy.type == RecordSetType::RANGE && (!policy.range.start_limit.nil? || !policy.range.end_limit.nil?)
+          raise InvalidSetDescription.new(:s => policy, :info => "start and end limit don't make sense here") if policy.type == RecordSetType::RST_RANGE && (!policy.range.offset.nil? || !policy.range.limit.nil?)
 
           @responsibility_policies[ns] = policy
           true

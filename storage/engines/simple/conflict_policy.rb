@@ -3,9 +3,9 @@ module SCADS
     class ConflictPolicy
       def which(val1, val2)
         case type
-        when ConflictPolicyType::GREATER
+        when ConflictPolicyType::CPT_GREATER
           val1 > val2 ? val1 : val2
-        when ConflictPolicyType::FUNC
+        when ConflictPolicyType::CPT_FUNC
           begin
             (eval func.func).call(val1,val2)
           rescue Exception => e
