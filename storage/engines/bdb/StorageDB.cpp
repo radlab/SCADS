@@ -261,9 +261,9 @@ public:
       VALUE v;
       funcall_args[0] = ruby_proc;
       funcall_args[1] = rb_str_new2((const char*)(key.data));
-      if (rs.type == RST_KEY_FUNC) 
+      if (rs.type == RST_KEY_FUNC)
 	funcall_args[2] = 0;
-      else 
+      else
 	funcall_args[2] = rb_str_new2((const char*)(data.data));
       v = rb_protect(rb_funcall_wrap,((VALUE)funcall_args),&rb_err);
       if (rb_err) {
@@ -321,7 +321,7 @@ public:
 	VALUE v;
 	funcall_args[0] = ruby_proc;
 	funcall_args[1] = rb_str_new2((const char*)(key.data));
-	if (rs.type == RST_KEY_FUNC) 
+	if (rs.type == RST_KEY_FUNC)
 	  funcall_args[2] = 0;
 	else
 	  funcall_args[2] = rb_str_new2((const char*)(data.data));
