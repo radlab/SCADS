@@ -36,8 +36,19 @@ static char* env_dir;
 static int port;
 
 // some ruby stuff
-static int did_ruby_init;
+static int did_ruby_init,rb_err;
 static ID call_id = 0;
+static VALUE funcall_args[3];
+
+// this is gross, but it's the only way to avoid a segfault
+// if the passed procedure has a syntax error
+VALUE rb_funcall_wrap(VALUE vargs) {
+  VALUE* args = (VALUE*)vargs;
+  return
+    (args[2] == 0)? // only passing one arg
+    rb_funcall(args[0], call_id, 1, args[1]):
+    rb_funcall(args[0], call_id, 2, args[1], args[2]);
+}
 
 class StorageDB : public StorageIf {
 
@@ -219,7 +230,8 @@ public:
 	  call_id = rb_intern("call");
 	  did_ruby_init = 1;
 	}
-	ruby_proc = rb_eval_string(rs.func.func.c_str());
+	int stat;
+	ruby_proc = rb_eval_string_protect(rs.func.func.c_str(),&stat);
 	if (!rb_respond_to(ruby_proc,call_id)) {
 	  InvalidSetDescription isd;
 	  isd.s = rs;
@@ -247,10 +259,23 @@ public:
     }
     else if (rs.type == RST_KEY_FUNC || RST_KEY_VALUE_FUNC) {
       VALUE v;
-      if (rs.type == RST_KEY_FUNC)
-	v = rb_funcall(ruby_proc, call_id, 1, rb_str_new2((const char*)(key.data)));
-      else
-	v = rb_funcall(ruby_proc, call_id, 2, rb_str_new2((const char*)(key.data)), rb_str_new2((const char*)(data.data)));
+      funcall_args[0] = ruby_proc;
+      funcall_args[1] = rb_str_new2((const char*)(key.data));
+      if (rs.type == RST_KEY_FUNC) 
+	funcall_args[2] = 0;
+      else 
+	funcall_args[2] = rb_str_new2((const char*)(data.data));
+      v = rb_protect(rb_funcall_wrap,((VALUE)funcall_args),&rb_err);
+      if (rb_err) {
+	InvalidSetDescription isd;
+	isd.s = rs;
+	VALUE lasterr = rb_gv_get("$!");
+	VALUE message = rb_obj_as_string(lasterr);
+	isd.info = rb_string_value_cstr(&message);
+	if (cursorp != NULL)
+	  cursorp->close(cursorp);
+	throw isd;
+      }
       if (v == Qtrue)
 	_return.push_back(r);
       else if (v != Qfalse) {
@@ -294,10 +319,23 @@ public:
       // RST_KEY_FUNC/RST_KEY_VALUE_FUNC set
       else if (rs.type == RST_KEY_FUNC || rs.type == RST_KEY_VALUE_FUNC) {
 	VALUE v;
-	if (rs.type == RST_KEY_FUNC)
-	  v = rb_funcall(ruby_proc, call_id, 1, rb_str_new2((const char*)(key.data)));
+	funcall_args[0] = ruby_proc;
+	funcall_args[1] = rb_str_new2((const char*)(key.data));
+	if (rs.type == RST_KEY_FUNC) 
+	  funcall_args[2] = 0;
 	else
-	  v = rb_funcall(ruby_proc, call_id, 2, rb_str_new2((const char*)(key.data)), rb_str_new2((const char*)(data.data)));
+	  funcall_args[2] = rb_str_new2((const char*)(data.data));
+	v = rb_protect(rb_funcall_wrap,((VALUE)funcall_args),&rb_err);
+	if (rb_err) {
+	  InvalidSetDescription isd;
+	  isd.s = rs;
+	  VALUE lasterr = rb_gv_get("$!");
+	  VALUE message = rb_obj_as_string(lasterr);
+	  isd.info = rb_string_value_cstr(&message);
+	  if (cursorp != NULL)
+	    cursorp->close(cursorp);
+	  throw isd;
+	}
 	if (v == Qtrue)
 	  _return.push_back(r);
 	else if (v != Qfalse) {
