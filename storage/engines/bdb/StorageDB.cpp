@@ -245,8 +245,12 @@ public:
       _return.push_back(r);
       count++;
     }
-    else if (rs.type == RST_KEY_FUNC) {
-      VALUE v = rb_funcall(ruby_proc, call_id, 1, rb_str_new2((const char*)(key.data)));
+    else if (rs.type == RST_KEY_FUNC || RST_KEY_VALUE_FUNC) {
+      VALUE v;
+      if (rs.type == RST_KEY_FUNC)
+	v = rb_funcall(ruby_proc, call_id, 1, rb_str_new2((const char*)(key.data)));
+      else
+	v = rb_funcall(ruby_proc, call_id, 2, rb_str_new2((const char*)(key.data)), rb_str_new2((const char*)(data.data)));
       if (v == Qtrue)
 	_return.push_back(r);
       else if (v != Qfalse) {
@@ -287,9 +291,13 @@ public:
 	}
       }
 
-      // RST_KEY_FUNC set
-      else if (rs.type == RST_KEY_FUNC) {
-	VALUE v = rb_funcall(ruby_proc, call_id, 1, rb_str_new2((const char*)(key.data)));
+      // RST_KEY_FUNC/RST_KEY_VALUE_FUNC set
+      else if (rs.type == RST_KEY_FUNC || rs.type == RST_KEY_VALUE_FUNC) {
+	VALUE v;
+	if (rs.type == RST_KEY_FUNC)
+	  v = rb_funcall(ruby_proc, call_id, 1, rb_str_new2((const char*)(key.data)));
+	else
+	  v = rb_funcall(ruby_proc, call_id, 2, rb_str_new2((const char*)(key.data)), rb_str_new2((const char*)(data.data)));
 	if (v == Qtrue)
 	  _return.push_back(r);
 	else if (v != Qfalse) {
