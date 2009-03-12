@@ -50,6 +50,24 @@ VALUE rb_funcall_wrap(VALUE vargs) {
     rb_funcall(args[0], call_id, 2, args[1], args[2]);
 }
 
+// set application functions
+void apply_get(void* vec,DB* db, void* k, void* d) {
+  vector<Record>* _return = (std::vector<Record>*)vec;
+  Record r;
+  DBT *key,*data;
+  key = (DBT*)k;
+  data = (DBT*)d;
+  r.key = string((char*)key->data);
+  r.value = string((char*)data->data);
+  _return->push_back(r);
+}
+
+void apply_del(void* v, DB* db, void* k, void* d) {
+  DBT *key = (DBT*)k;
+  db->del(db,NULL,key,0);
+}
+
+
 class StorageDB : public StorageIf {
 
 private:
@@ -114,67 +132,8 @@ private:
     return dbs[ns];
   }
 
-
-
-public:
-
-  StorageDB() {
-    u_int32_t env_flags;
-    int ret;
-    
-    ret = db_env_create(&db_env, 0);
-    if (ret != 0) {
-      fprintf(stderr, "Error creating env handle: %s\n", db_strerror(ret));
-      exit(-1);
-    }
-
-    env_flags = DB_CREATE |    /* If the environment does not exist, create it. */
-      DB_INIT_MPOOL;           /* Initialize the in-memory cache. */
-    
-    ret = db_env->open(db_env,      /* DB_ENV ptr */
-		       env_dir,    /* env home directory */
-		       env_flags,  /* Open flags */
-		       0);         /* File mode (default) */
-    if (ret != 0) {
-      fprintf(stderr, "Environment open failed: %s\n", db_strerror(ret));
-      exit(-1);
-    }
-  }
-
-  void close() {
-    map<const NameSpace,DB*>::iterator iter;
-    for( iter = dbs.begin(); iter != dbs.end(); ++iter ) {
-      cout << "Closing: "<<iter->first;
-      if(iter->second->close(iter->second, 0))
-	cout << " [FAILED]"<<endl;
-      else
-	cout << " [OK]"<<endl;
-    }
-  }
-
-  void get(Record& _return, const NameSpace& ns, const RecordKey& key) {
-    DB* db_ptr;
-    DBT db_key, db_data;
-    //char data_buf[256];
-
-    db_ptr = getDB(ns);
-
-    /* Zero out the DBTs before using them. */
-    memset(&db_key, 0, sizeof(DBT));
-    memset(&db_data, 0, sizeof(DBT));
-
-    db_key.data = const_cast<char*>(key.c_str());
-    db_key.size = key.length()+1;
-
-    //db_data.data = data_buf;
-    //db_data.ulen = 256;
-    //db_data.flags = DB_DBT_USERMEM;
-    db_ptr->get(db_ptr, NULL, &db_key, &db_data, 0);
-    string ret((char*)db_data.data);
-    _return.value = ret;
-  }
-
-  void get_set(std::vector<Record> & _return, const NameSpace& ns, const RecordSet& rs) {
+  void apply_to_set(const NameSpace& ns, const RecordSet& rs,
+		    void(*to_apply)(void*,DB*,void*,void*),void* apply_arg) {
     DB* db_ptr;
     DBC *cursorp;
     DBT key, data;
@@ -184,7 +143,7 @@ public:
 
     if (rs.type == RST_NONE || (rs.type == RST_RANGE && rs.range.limit <= 0))
       return;
-
+    
     db_ptr = getDB(ns);
     db_ptr->cursor(db_ptr, NULL, &cursorp, 0); 
 
@@ -249,12 +208,9 @@ public:
       }
     }
 
-    Record r;
-    r.key = string((char*)key.data);
-    r.value = string((char*)data.data);
     if (rs.type == RST_ALL ||
 	rs.type == RST_RANGE) {
-      _return.push_back(r);
+      (*to_apply)(apply_arg,db_ptr,&key,&data);
       count++;
     }
     else if (rs.type == RST_KEY_FUNC || RST_KEY_VALUE_FUNC) {
@@ -277,7 +233,7 @@ public:
 	throw isd;
       }
       if (v == Qtrue)
-	_return.push_back(r);
+	(*to_apply)(apply_arg,db_ptr,&key,&data);
       else if (v != Qfalse) {
 	InvalidSetDescription isd;
 	isd.s = rs;
@@ -295,20 +251,17 @@ public:
     }
 
     while ((ret = cursorp->get(cursorp, &key, &data, DB_NEXT)) == 0) {
-      r.key = string((char*)key.data);
-      r.value = string((char*)data.data);
-
       // RST_ALL set
       if (rs.type == RST_ALL)
-	_return.push_back(r);
+	(*to_apply)(apply_arg,db_ptr,&key,&data);
 
       // RST_RANGE set
       else if (rs.type == RST_RANGE) {
-	if (rs.range.end_key < r.key) {
+	if (strcmp(rs.range.end_key.c_str(),(char*)key.data) < 0) {
 	  ret = DB_NOTFOUND;
 	  break;
 	}
-	_return.push_back(r);
+	(*to_apply)(apply_arg,db_ptr,&key,&data);
 	count++;
 	if (count > rs.range.limit) {
 	  ret = DB_NOTFOUND;
@@ -337,7 +290,7 @@ public:
 	  throw isd;
 	}
 	if (v == Qtrue)
-	  _return.push_back(r);
+	  (*to_apply)(apply_arg,db_ptr,&key,&data);
 	else if (v != Qfalse) {
 	  InvalidSetDescription isd;
 	  isd.s = rs;
@@ -355,6 +308,82 @@ public:
   
     if (cursorp != NULL) 
       cursorp->close(cursorp); 
+  }
+
+
+public:
+
+  StorageDB() {
+    u_int32_t env_flags;
+    int ret;
+    
+    ret = db_env_create(&db_env, 0);
+    if (ret != 0) {
+      fprintf(stderr, "Error creating env handle: %s\n", db_strerror(ret));
+      exit(-1);
+    }
+
+    env_flags = DB_CREATE |    /* If the environment does not exist, create it. */
+      DB_INIT_MPOOL;           /* Initialize the in-memory cache. */
+    
+    ret = db_env->open(db_env,      /* DB_ENV ptr */
+		       env_dir,    /* env home directory */
+		       env_flags,  /* Open flags */
+		       0);         /* File mode (default) */
+    if (ret != 0) {
+      fprintf(stderr, "Environment open failed: %s\n", db_strerror(ret));
+      exit(-1);
+    }
+  }
+
+  void close() {
+    map<const NameSpace,DB*>::iterator iter;
+    for( iter = dbs.begin(); iter != dbs.end(); ++iter ) {
+      cout << "Closing: "<<iter->first;
+      if(iter->second->close(iter->second, 0))
+	cout << " [FAILED]"<<endl;
+      else
+	cout << " [OK]"<<endl;
+    }
+  }
+
+  void get(Record& _return, const NameSpace& ns, const RecordKey& key) {
+    DB* db_ptr;
+    DBT db_key, db_data;
+    //char data_buf[256];
+
+    db_ptr = getDB(ns);
+
+    /* Zero out the DBTs before using them. */
+    memset(&db_key, 0, sizeof(DBT));
+    memset(&db_data, 0, sizeof(DBT));
+
+    db_key.data = const_cast<char*>(key.c_str());
+    db_key.size = key.length()+1;
+
+    //db_data.data = data_buf;
+    //db_data.ulen = 256;
+    //db_data.flags = DB_DBT_USERMEM;
+    db_ptr->get(db_ptr, NULL, &db_key, &db_data, 0);
+    string ret((char*)db_data.data);
+    _return.value = ret;
+  }
+
+  void get_set(std::vector<Record> & _return, const NameSpace& ns, const RecordSet& rs) {
+    apply_to_set(ns,rs,apply_get,&_return);
+  }
+
+  bool sync_set(const NameSpace& ns, const RecordSet& rs, const Host& h, const ConflictPolicy& policy) {
+    return false;
+  }
+
+  bool copy_set(const NameSpace& ns, const RecordSet& rs, const Host& h) {
+    return false;
+  }
+
+  bool remove_set(const NameSpace& ns, const RecordSet& rs) {
+    apply_to_set(ns,rs,apply_del,NULL);
+    return true;
   }
 
   bool put(const NameSpace& ns, const Record& rec) {
@@ -415,18 +444,6 @@ public:
 
   void get_responsibility_policy(RecordSet& _return, const NameSpace& ns) {
 
-  }
-
-  bool sync_set(const NameSpace& ns, const RecordSet& rs, const Host& h, const ConflictPolicy& policy) {
-    return false;
-  }
-
-  bool copy_set(const NameSpace& ns, const RecordSet& rs, const Host& h) {
-    return false;
-  }
-
-  bool remove_set(const NameSpace& ns, const RecordSet& rs) {
-    return false;
   }
 
 };
