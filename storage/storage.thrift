@@ -55,7 +55,6 @@ struct ConflictPolicy {
 }
 
 exception NotResponsible {
-	1:RecordKey key,
 	2:RecordSet policy
 }
 

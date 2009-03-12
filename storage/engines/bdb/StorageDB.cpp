@@ -169,6 +169,28 @@ private:
       }
       return (v == Qtrue);
     }
+
+    return false; // if we don't understand, we'll say no
+  }
+
+  bool responsible_for_set(const NameSpace& ns, const RecordSet& rs) {
+    RecordSet policy;
+    get_responsibility_policy(policy,ns);
+    
+    if (policy.type == RST_ALL || policy.type == RST_KEY_FUNC)
+      return true;
+    if (rs.type == RST_NONE)
+      return false;
+    
+    if (rs.type == RST_RANGE) {
+      if ( (rs.range.start_key >= policy.range.start_key) &&
+	   (rs.range.end_key <= policy.range.end_key) )
+	return true;
+      else
+	return false;
+    }
+    
+    return false; // if we don't understand, we'll say no
   }
 
   DB* getDB(const NameSpace& ns) {
@@ -402,7 +424,6 @@ public:
 
     if (!responsible_for_key(ns,key)) {
       NotResponsible nse;
-      nse.key =key;
       get_responsibility_policy(nse.policy,ns);
       throw nse;
     }
@@ -422,6 +443,11 @@ public:
   }
 
   void get_set(std::vector<Record> & _return, const NameSpace& ns, const RecordSet& rs) {
+    if (!responsible_for_set(ns,rs)) {
+      NotResponsible nse;
+      get_responsibility_policy(nse.policy,ns);
+      throw nse;
+    }
     apply_to_set(ns,rs,apply_get,&_return);
   }
 
