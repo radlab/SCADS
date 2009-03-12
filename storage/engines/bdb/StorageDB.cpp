@@ -45,7 +45,7 @@ static VALUE funcall_args[3];
 VALUE rb_funcall_wrap(VALUE vargs) {
   VALUE* args = (VALUE*)vargs;
   return
-    (args[2] == 0)? // only passing one arg
+    (args[2] == 0)? 
     rb_funcall(args[0], call_id, 1, args[1]):
     rb_funcall(args[0], call_id, 2, args[1], args[2]);
 }

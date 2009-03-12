@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
   int op = -1; // 0 = get, 1 = put, 2 = getall, 3 = getrange
 
   if (argc < 2) {
-    fprintf(stderr,"Too few args.  Need [get|getall|put] [key] [value|startkey] [endkey]\n");
+    fprintf(stderr,"Too few args.  Need [get|getall|getrange|getruby|put] [key] [value|startkey] [endkey]\n");
     exit(1);
   }
 
