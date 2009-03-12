@@ -5,10 +5,7 @@ require 'thrift/protocol/binaryprotocol'
 require 'thrift/server/tserver'
 require 'timeout'
 require 'optparse'
-# 
-# ["simple", "record_set", "conflict_policy"].each do |file|
-#   require file
-# end
+
 require 'scads'
 
 # get commnd line args
