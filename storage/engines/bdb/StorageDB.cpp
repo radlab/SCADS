@@ -72,6 +72,7 @@ class StorageDB : public StorageIf {
 
 private:
   map<const NameSpace,DB*> dbs;
+  map<const NameSpace,RecordSet*> key_policies;
   DB_ENV *db_env;
 
 private:
@@ -120,6 +121,56 @@ private:
     return (0);
   }
 
+  void do_ruby_init() {
+    ruby_init();
+    call_id = rb_intern("call");
+    did_ruby_init = 1;
+  }
+
+  bool responsible_for_key(const NameSpace& ns, const RecordKey& key) {
+    RecordSet rs;
+    get_responsibility_policy(rs,ns);
+
+    if (rs.type == RST_ALL) 
+      return true;
+    if (rs.type == RST_NONE)
+      return false;
+
+    if (rs.type == RST_RANGE) {
+      if (key >= rs.range.start_key &&
+	  key <= rs.range.end_key)
+	return true;
+      else
+	return false;
+    }
+
+    if (rs.type == RST_KEY_FUNC) {
+      if (!did_ruby_init) 
+	do_ruby_init();
+      VALUE ruby_proc = rb_eval_string_protect(rs.func.func.c_str(),&rb_err);
+      if (!rb_respond_to(ruby_proc,call_id)) {
+	InvalidSetDescription isd;
+	isd.s = rs;
+	isd.info = "Your ruby string for your responsiblity policy does not return something that responds to 'call'";
+	throw isd;
+      }
+      VALUE v;
+      funcall_args[0] = ruby_proc;
+      funcall_args[1] = rb_str_new2((const char*)(key.c_str()));
+      funcall_args[2] = 0;
+      v = rb_protect(rb_funcall_wrap,((VALUE)funcall_args),&rb_err);
+      if (rb_err) {
+	InvalidSetDescription isd;
+	isd.s = rs;
+	VALUE lasterr = rb_gv_get("$!");
+	VALUE message = rb_obj_as_string(lasterr);
+	isd.info = rb_string_value_cstr(&message);
+	throw isd;
+      }
+      return (v == Qtrue);
+    }
+  }
+
   DB* getDB(const NameSpace& ns) {
     map<const NameSpace,DB*>::iterator it;
     it = dbs.find(ns);
@@ -131,6 +182,7 @@ private:
     }
     return dbs[ns];
   }
+
 
   void apply_to_set(const NameSpace& ns, const RecordSet& rs,
 		    void(*to_apply)(void*,DB*,void*,void*),void* apply_arg) {
@@ -184,11 +236,8 @@ private:
     if (rs.type == RST_KEY_FUNC ||
 	rs.type == RST_KEY_VALUE_FUNC) {
       if (rs.func.lang == LANG_RUBY) {
-	if (!did_ruby_init) {
-	  ruby_init();
-	  call_id = rb_intern("call");
-	  did_ruby_init = 1;
-	}
+	if (!did_ruby_init) 
+	  do_ruby_init();
 	int stat;
 	ruby_proc = rb_eval_string_protect(rs.func.func.c_str(),&stat);
 	if (!rb_respond_to(ruby_proc,call_id)) {
@@ -350,7 +399,13 @@ public:
   void get(Record& _return, const NameSpace& ns, const RecordKey& key) {
     DB* db_ptr;
     DBT db_key, db_data;
-    //char data_buf[256];
+
+    if (!responsible_for_key(ns,key)) {
+      NotResponsible nse;
+      nse.key =key;
+      get_responsibility_policy(nse.policy,ns);
+      throw nse;
+    }
 
     db_ptr = getDB(ns);
 
@@ -361,9 +416,6 @@ public:
     db_key.data = const_cast<char*>(key.c_str());
     db_key.size = key.length()+1;
 
-    //db_data.data = data_buf;
-    //db_data.ulen = 256;
-    //db_data.flags = DB_DBT_USERMEM;
     db_ptr->get(db_ptr, NULL, &db_key, &db_data, 0);
     string ret((char*)db_data.data);
     _return.value = ret;
@@ -439,11 +491,56 @@ public:
   }
 
   bool set_responsibility_policy(const NameSpace& ns, const RecordSet& policy) {
-    return false;
+    // TODO:  should probably lock to make this atomic
+    
+    // first let's see if there's an existing one
+    map<const NameSpace,RecordSet*>::iterator it;
+    it = key_policies.find(ns);
+    RecordSet *rs;
+    if (it == key_policies.end()) { // haven't set this policy yet, make a new one
+      rs = new RecordSet();
+      key_policies[ns] = rs;
+    }
+    else
+      rs = it->second;
+
+    // really just an int, so no need to delete
+    rs->type = policy.type; 
+
+    if (policy.type == RST_RANGE) { // copy range params
+      rs->range.start_key.assign(policy.range.start_key);
+      rs->range.end_key.assign(policy.range.end_key);
+      rs->range.offset = policy.range.offset;
+      rs->range.limit = policy.range.limit;
+    }
+
+    if (policy.type == RST_KEY_FUNC) { // copy func info
+      rs->func.lang = policy.func.lang;
+      rs->func.func.assign(policy.func.func);
+    }
+
+    if (policy.type == RST_KEY_VALUE_FUNC) { // illegal
+      InvalidSetDescription isd;
+      isd.s = policy;
+      isd.info = "Cannot specify a key value function as a responsibility function";
+      throw isd;
+    }
+    
+    return true;
   }
 
   void get_responsibility_policy(RecordSet& _return, const NameSpace& ns) {
-
+    map<const NameSpace,RecordSet*>::iterator it;
+    it = key_policies.find(ns);
+    RecordSet *rs;
+    if (it == key_policies.end()) { // haven't set this policy yet
+      rs = new RecordSet();
+      rs->type = RST_ALL; // policies default to ALL
+      key_policies[ns] = rs;
+    }
+    else
+      rs = it->second;
+    _return = *rs;
   }
 
 };
