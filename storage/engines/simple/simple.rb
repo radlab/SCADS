@@ -12,7 +12,7 @@ module SCADS
 
         def get(ns, key)
           raise NotResponsible.new unless @responsibility_policies[ns].includes?(key)
-          Record.new(:value => @data[ns][key])
+          Record.new(:key=>key,:value => @data[ns][key])
         end
 
         def get_set(ns, rs)
