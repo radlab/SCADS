@@ -19,7 +19,7 @@ module SCADS
         end
 
         def stop
-          Process.kill("TERM", @child)
+          Process.kill("KILL", @child)
           Process.waitpid(@child)
         end
 
