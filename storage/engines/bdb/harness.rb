@@ -23,20 +23,24 @@ module SCADS
           Process.waitpid(@child)
         end
 
+        def host
+          "localhost:#{@port}"
+        end
+
         def start
-          port = rand(65000 - 1024) + 1024
+          @port = rand(65000 - 1024) + 1024
 
           @child = Kernel.fork do
             $stdout.reopen(File.new("bdb.log", "w")) or
               puts "failed to redirect"
             $stderr.reopen(File.new("bdb.log", "w")) or
               puts "failed to redirect"
-            exec "engines/bdb/storage.bdb -p #{port}"
+            exec "engines/bdb/storage.bdb -p #{@port}"
           end
 
           sleep 1
 
-          transport = Thrift::BufferedTransport.new(Thrift::Socket.new('localhost', port))
+          transport = Thrift::BufferedTransport.new(Thrift::Socket.new('localhost', @port))
           protocol = Thrift::BinaryProtocol.new(transport)
           transport.open
           @client = Storage::Client.new(protocol)
