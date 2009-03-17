@@ -10,7 +10,7 @@ typedef string Host
 
 struct Record {
 	1: RecordKey key,
-	2: RecordValue value
+	2: optional RecordValue value
 }
 
 enum RecordSetType {

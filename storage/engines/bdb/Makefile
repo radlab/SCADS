@@ -39,6 +39,8 @@ LIBS = ${LIB_DIRS} -lthrift -ldb-4.7 -lruby1.8
 
 default: arch_warning storage.bdb
 
+debug: arch_warning storage.bdb.debug
+
 #print warning if couldn't determine the arch
 arch_warning:
 ifneq ($(DIDINC), yes)
@@ -48,10 +50,14 @@ endif
 # THRIFT RULES
 $(SRCS_TO_GEN): $(THRIFT_FILE)
 	$(THRIFT) $(THRIFT_FLAGS) $(THRIFT_FILE)
+	sed -i "s/UserFunction() : func(\"\")/UserFunction() : func(""), lang(LANG_RUBY)/" gen-cpp/storage_types.h # workaround for thrift bug
 
 # C/C++ RULES
 storage.bdb: $(SRCS_TO_GEN) StorageDB.cpp
 	$(CXX) $(CFLAGS) $(RUBY_INCLUDES) -o $@ StorageDB.cpp ${GEN_SRC} $(LIBS)
+
+storage.bdb.debug: $(SRCS_TO_GEN) StorageDB.cpp
+	$(CXX) -g $(CFLAGS) $(RUBY_INCLUDES) -DDEBUG -o storage.bdb StorageDB.cpp ${GEN_SRC} $(LIBS)
 
 clean:
 	rm -rf gen-cpp storage.bdb

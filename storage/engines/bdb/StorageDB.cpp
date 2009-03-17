@@ -59,6 +59,7 @@ void apply_get(void* vec,DB* db, void* k, void* d) {
   data = (DBT*)d;
   r.key = string((char*)key->data);
   r.value = string((char*)data->data);
+  r.__isset.value = true;
   _return->push_back(r);
 }
 
@@ -211,12 +212,48 @@ private:
     DB* db_ptr;
     DBC *cursorp;
     DBT key, data;
-    int ret,count=0;
+    int ret,count=0,skipped=0;
     u_int32_t cursor_flags;
     VALUE ruby_proc;
 
-    if (rs.type == RST_NONE || (rs.type == RST_RANGE && rs.range.limit <= 0))
+#ifdef DEBUG
+    cout << "apply_to_set called"<<endl<<
+      "\tNamespace: "<<ns<<endl<<
+      "\tSET:"<<endl;
+    if (rs.type == RST_ALL)
+      cout << "\tRST_ALL"<<endl;
+    else if (rs.type == RST_NONE)
+      cout << "\tRST_NONE"<<endl;
+    else if (rs.type == RST_RANGE) {
+      cout << "\tRST_RANGE"<<endl<<
+	"\tstart_key: "<<rs.range.start_key<<endl<<
+	"\tend_key: "<<rs.range.end_key<<endl<<
+	"\toffset: "<<rs.range.offset<<endl<<
+	"\tlimit: "<<rs.range.limit<<endl;
+    }
+    else if (rs.type == RST_KEY_FUNC ||
+	     rs.type == RST_KEY_VALUE_FUNC) {
+      cout << (rs.type == RST_KEY_FUNC?"\tRST_KEY_FUNC":"\tRST_KEY_VALUE_FUNC")<<endl<<
+	"Lang: "<<(rs.func.lang==LANG_RUBY?"\tLANG_RUBY":"UNKNOWN LANG")<<endl<<
+	"Func: "<<rs.func.func<<endl;
+    }
+    else
+      cout << "Unknown set type"<<endl;
+#endif
+
+
+    if (rs.type == RST_NONE || (rs.type == RST_RANGE && rs.range.limit < 0))
       return;
+
+    if (rs.type == RST_RANGE) { // validate set/start end
+      if (rs.range.start_key > rs.range.end_key) {
+	InvalidSetDescription isd;
+	cout << "Lang here: "<<rs.func.lang<<endl;
+	isd.s = rs;
+	isd.info = "Your start key is greater than your end key";
+	throw isd;
+      }
+    }
     
     db_ptr = getDB(ns);
     db_ptr->cursor(db_ptr, NULL, &cursorp, 0); 
@@ -279,11 +316,18 @@ private:
       }
     }
 
-    if (rs.type == RST_ALL ||
-	rs.type == RST_RANGE) {
+    if (rs.type == RST_ALL)
       (*to_apply)(apply_arg,db_ptr,&key,&data);
-      count++;
+    
+    else if (rs.type == RST_RANGE) {
+      if (skipped < rs.range.offset) 
+	skipped++;
+      else {
+	(*to_apply)(apply_arg,db_ptr,&key,&data);
+	count++;
+      }
     }
+    
     else if (rs.type == RST_KEY_FUNC || RST_KEY_VALUE_FUNC) {
       VALUE v;
       funcall_args[0] = ruby_proc;
@@ -315,7 +359,8 @@ private:
       }
     }
 
-    if (rs.type == RST_RANGE && count > rs.range.limit) {
+    if (rs.type == RST_RANGE && 
+	(rs.range.limit != 0 && count > rs.range.limit)) {
       if (cursorp != NULL) 
 	cursorp->close(cursorp); 
       return;
@@ -332,9 +377,14 @@ private:
 	  ret = DB_NOTFOUND;
 	  break;
 	}
-	(*to_apply)(apply_arg,db_ptr,&key,&data);
-	count++;
-	if (count > rs.range.limit) {
+	if (skipped < rs.range.offset) 
+	  skipped++;
+	else {
+	  (*to_apply)(apply_arg,db_ptr,&key,&data);
+	  count++;
+	}
+	if (rs.range.limit != 0 &&
+	    count > rs.range.limit) {
 	  ret = DB_NOTFOUND;
 	  break;
 	}
@@ -421,6 +471,7 @@ public:
   void get(Record& _return, const NameSpace& ns, const RecordKey& key) {
     DB* db_ptr;
     DBT db_key, db_data;
+    int retval;
 
     if (!responsible_for_key(ns,key)) {
       NotResponsible nse;
@@ -437,9 +488,13 @@ public:
     db_key.data = const_cast<char*>(key.c_str());
     db_key.size = key.length()+1;
 
-    db_ptr->get(db_ptr, NULL, &db_key, &db_data, 0);
-    string ret((char*)db_data.data);
-    _return.value = ret;
+    retval = db_ptr->get(db_ptr, NULL, &db_key, &db_data, 0);
+    _return.key = key;
+    if (!retval) {  // return 0 means success
+      string ret((char*)db_data.data);
+      _return.__isset.value = true;
+      _return.value = ret;
+    }
   }
 
   void get_set(std::vector<Record> & _return, const NameSpace& ns, const RecordSet& rs) {
@@ -468,14 +523,40 @@ public:
     DB* db_ptr;
     DBT key, data;
     int ret;
+
+#ifdef DEBUG
+    cout << "Put called:"<<endl<<
+      "Namespace:\t"<<ns<<endl<<
+      "Key:\t"<<rec.key<<endl<<
+      "Value:\t"<<rec.value<<endl;
+    if (rec.value == "")
+      cout << "is empty string"<<endl;
+    if (rec.__isset.value)
+      cout << "val is set"<<endl;
+    else
+      cout << "val is NOT set"<<endl;
+#endif
+
+    if (!responsible_for_key(ns,rec.key)) {
+      NotResponsible nse;
+      get_responsibility_policy(nse.policy,ns);
+      throw nse;
+    }
+
     db_ptr = getDB(ns);
     memset(&key, 0, sizeof(DBT));
     memset(&data, 0, sizeof(DBT));
     key.data = const_cast<char*>(rec.key.c_str());
     key.size = rec.key.length()+1;
-    data.data = const_cast<char*>(rec.value.c_str());
-    data.size = rec.value.length()+1;
-    ret = db_ptr->put(db_ptr, NULL, &key, &data, 0);
+
+    if (!rec.__isset.value) { // really a delete
+      ret = db_ptr->del(db_ptr,NULL,&key,0);
+    }
+    else {
+      data.data = const_cast<char*>(rec.value.c_str());
+      data.size = rec.value.length()+1;
+      ret = db_ptr->put(db_ptr, NULL, &key, &data, 0);
+    }
 
     /* gross that we're going in and out of c++ strings,
        consider storing the whole string object */
@@ -519,6 +600,22 @@ public:
   bool set_responsibility_policy(const NameSpace& ns, const RecordSet& policy) {
     // TODO:  should probably lock to make this atomic
     
+    if (policy.type == RST_KEY_VALUE_FUNC) { // illegal
+      InvalidSetDescription isd;
+      isd.s = policy;
+      isd.info = "Cannot specify a key value function as a responsibility function";
+      throw isd;
+    }
+
+    if (policy.type == RST_RANGE &&
+	(policy.range.offset != 0 ||
+	 policy.range.limit != 0)) {
+      InvalidSetDescription isd;
+      isd.s = policy;
+      isd.info = "offset/limit don't make sense for responsibility policies";
+      throw isd;
+    }
+
     // first let's see if there's an existing one
     map<const NameSpace,RecordSet*>::iterator it;
     it = key_policies.find(ns);
@@ -543,13 +640,6 @@ public:
     if (policy.type == RST_KEY_FUNC) { // copy func info
       rs->func.lang = policy.func.lang;
       rs->func.func.assign(policy.func.func);
-    }
-
-    if (policy.type == RST_KEY_VALUE_FUNC) { // illegal
-      InvalidSetDescription isd;
-      isd.s = policy;
-      isd.info = "Cannot specify a key value function as a responsibility function";
-      throw isd;
     }
     
     return true;
@@ -628,6 +718,11 @@ int main(int argc, char **argv) {
   shared_ptr<TProcessor> processor(new StorageProcessor(handler));
   shared_ptr<TServerTransport> serverTransport(new TServerSocket(port));
   shared_ptr<TTransportFactory> transportFactory(new TBufferedTransportFactory());
+
+#ifdef DEBUG
+  cout << "Running in debug mode"<<endl;
+#endif
+
 
   did_ruby_init = 0;
 
