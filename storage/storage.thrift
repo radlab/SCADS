@@ -23,10 +23,10 @@ enum RecordSetType {
 }
 
 struct RangeSet {
-	1: RecordKey start_key,
-	2: RecordKey end_key,
-	3: i32 offset,
-	4: i32 limit
+	1: optional RecordKey start_key,
+	2: optional RecordKey end_key,
+	3: optional i32 offset,
+	4: optional i32 limit
 }
 
 enum Language {
@@ -40,8 +40,8 @@ struct UserFunction {
 
 struct RecordSet {
 	1: RecordSetType type,
-	2: RangeSet range,
-	3: UserFunction func
+	2: optional RangeSet range,
+	3: optional UserFunction func
 }
 
 enum ConflictPolicyType {
