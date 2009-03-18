@@ -75,9 +75,15 @@ int main(int argc, char** argv) {
     switch (op) {
     case 0:
       client.get(r,"my_NS",string(argv[2]));
-      cout << "Key:\t"<<argv[2]<<"\nValue:\t"<<r.value<<endl;
+      cout << "kset: "<<r.__isset.key<<" vset: "<<r.__isset.value<<endl;
+      if (!r.__isset.value) 
+	cout << "key "<<argv[2]<<" not found"<<endl;
+      else
+	cout << "Key:\t"<<argv[2]<<"\nValue:\t"<<r.value<<endl;
       break;
     case 1:
+      cout << "Putting Key: "<<r.key<<" Value: "<<r.value<<endl;
+      r.__isset.value = true;
       if (client.put("my_NS",r))
 	cout << "Put okay"<<endl;
       else
@@ -98,8 +104,8 @@ int main(int argc, char** argv) {
       RecordSet rs;
       rs.type = RST_RANGE;
       RangeSet range;
-      range.offset = 0;
-      range.limit = 10;
+      range.offset = NULL;
+      range.limit = NULL;
       range.start_key = string(argv[2]);
       range.end_key = string(argv[3]);
       rs.range = range;
