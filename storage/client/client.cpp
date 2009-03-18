@@ -109,15 +109,17 @@ static void range(StorageClient &client,
 		  vector<Record> &results,
 		  const NameSpace &ns,
 		  const RecordKey &start_key,
-		  const RecordKey &end_key) {
+		  const RecordKey &end_key,
+		  int32_t offset= 0,
+		  int32_t limit = 0) {
   RangeSet range;
   range.start_key = start_key;
   range.end_key = end_key;
   RecordSet rs;
   rs.type = RST_RANGE;
   rs.range = range;
-  rs.range.offset = 0;
-  rs.range.limit = 100;
+  rs.range.offset = offset;
+  rs.range.limit = limit;
   client.get_set(results,ns,rs);
 }
 
@@ -162,7 +164,7 @@ static void printGetUsage() {
 
 static void printRangeUsage() {
   printf("invalid range, range is used as:\n");
-  printf("range namespace start_key end_key\n");
+  printf("range namespace start_key end_key [offset] [limit]\n");
 }
 
 static void printRemoveRangeUsage() {
@@ -288,14 +290,16 @@ int main(int argc,char* argv[]) {
       }
 
       else if (cmd == "range") {
-	if (v.size() != 4) {
+	if (v.size() < 4) {
 	  printRangeUsage();
 	  continue;
 	}
 	try {
 	  vector<Record> recs;
 	  start_timing();
-	  range(client,recs,v[1],v[2],v[3]);
+	  range(client,recs,v[1],v[2],v[3],
+		v.size()>4?atoi(v[4].c_str()):0,
+		v.size()>6?atoi(v[5].c_str()):0);
 	  end_timing();
 	  printf("returned: %i values\n\n",(int)(recs.size()));
 	  if (recs.size() != 0) {
