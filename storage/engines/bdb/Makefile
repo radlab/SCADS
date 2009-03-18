@@ -50,7 +50,6 @@ endif
 # THRIFT RULES
 $(SRCS_TO_GEN): $(THRIFT_FILE)
 	$(THRIFT) $(THRIFT_FLAGS) $(THRIFT_FILE)
-	sed -i "s/UserFunction() : func(\"\")/UserFunction() : func(""), lang(LANG_RUBY)/" gen-cpp/storage_types.h # workaround for thrift bug
 
 # C/C++ RULES
 storage.bdb: $(SRCS_TO_GEN) StorageDB.cpp

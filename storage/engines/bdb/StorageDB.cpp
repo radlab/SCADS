@@ -138,8 +138,10 @@ private:
       return false;
 
     if (rs.type == RST_RANGE) {
-      if (key >= rs.range.start_key &&
-	  key <= rs.range.end_key)
+      if ( (!rs.range.__isset.start_key ||
+	    key >= rs.range.start_key) &&
+	   (!rs.range.__isset.end_key ||
+	    key <= rs.range.end_key)  )
 	return true;
       else
 	return false;
@@ -184,8 +186,20 @@ private:
       return false;
     
     if (rs.type == RST_RANGE) {
-      if ( (rs.range.start_key >= policy.range.start_key) &&
-	   (rs.range.end_key <= policy.range.end_key) )
+      if (!rs.__isset.range) {
+	InvalidSetDescription isd;
+	isd.s = rs;
+	isd.info = "You specified a range set but did not provide a range description";
+	throw isd;
+      }
+      if (
+	  ( !rs.range.__isset.start_key ||
+	    (policy.range.__isset.start_key &&
+	     rs.range.start_key >= policy.range.start_key) ) &&
+	  ( !rs.range.__isset.end_key ||
+	    (policy.range.__isset.end_key &&
+	     rs.range.end_key <= policy.range.end_key) ) 
+	  )
 	return true;
       else
 	return false;
@@ -216,6 +230,31 @@ private:
     u_int32_t cursor_flags;
     VALUE ruby_proc;
 
+    if (rs.__isset.range &&
+	rs.__isset.func) {
+      InvalidSetDescription isd;
+      isd.s = rs;
+      isd.info = "You specified both a range and function in your set";
+      throw isd;
+    }
+
+    if (rs.type == RST_RANGE &&
+	!rs.__isset.range) {
+      InvalidSetDescription isd;
+      isd.s = rs;
+      isd.info = "You specified a range set but did not provide a range description";
+      throw isd;
+    }
+
+    if ( (rs.type == RST_KEY_FUNC  ||
+	  rs.type == RST_KEY_VALUE_FUNC) &&
+	 !rs.__isset.func ) {
+      InvalidSetDescription isd;
+      isd.s = rs;
+      isd.info = "You specified a function set but did not provide a function";
+      throw isd;
+    }
+
 #ifdef DEBUG
     cout << "apply_to_set called"<<endl<<
       "\tNamespace: "<<ns<<endl<<
@@ -225,11 +264,14 @@ private:
     else if (rs.type == RST_NONE)
       cout << "\tRST_NONE"<<endl;
     else if (rs.type == RST_RANGE) {
+      ostringstream oo,ol;
+      oo << rs.range.offset;
+      ol << rs.range.limit;
       cout << "\tRST_RANGE"<<endl<<
-	"\tstart_key: "<<rs.range.start_key<<endl<<
-	"\tend_key: "<<rs.range.end_key<<endl<<
-	"\toffset: "<<rs.range.offset<<endl<<
-	"\tlimit: "<<rs.range.limit<<endl;
+	"\tstart_key: "<<(rs.range.__isset.start_key?rs.range.start_key:"unset")<<endl<<
+	"\tend_key: "<<(rs.range.__isset.end_key?rs.range.end_key:"unset")<<endl<<
+	"\toffset: "<<(rs.range.__isset.offset?oo.str():"unset")<<endl<<
+	"\tlimit: "<<(rs.range.__isset.limit?ol.str():"unset")<<endl;
     }
     else if (rs.type == RST_KEY_FUNC ||
 	     rs.type == RST_KEY_VALUE_FUNC) {
@@ -242,13 +284,14 @@ private:
 #endif
 
 
-    if (rs.type == RST_NONE || (rs.type == RST_RANGE && rs.range.limit < 0))
+    if (rs.type == RST_NONE || (rs.type == RST_RANGE && rs.range.__isset.limit && rs.range.limit <= 0))
       return;
 
     if (rs.type == RST_RANGE) { // validate set/start end
-      if (rs.range.start_key > rs.range.end_key) {
+      if ( rs.range.__isset.start_key &&
+	   rs.range.__isset.end_key &&
+	   (rs.range.start_key > rs.range.end_key) ) {
 	InvalidSetDescription isd;
-	cout << "Lang here: "<<rs.func.lang<<endl;
 	isd.s = rs;
 	isd.info = "Your start key is greater than your end key";
 	throw isd;
@@ -268,9 +311,13 @@ private:
       ret = cursorp->get(cursorp, &key, &data, DB_FIRST);
       break;
     case RST_RANGE:
-      key.data = const_cast<char*>(rs.range.start_key.c_str());
-      key.size = rs.range.start_key.length()+1;
-      ret = cursorp->get(cursorp, &key, &data, DB_SET_RANGE);
+      if (rs.range.__isset.start_key) {
+	key.data = const_cast<char*>(rs.range.start_key.c_str());
+	key.size = rs.range.start_key.length()+1;
+	ret = cursorp->get(cursorp, &key, &data, DB_SET_RANGE);
+      } else { // start from the beginning
+	ret = cursorp->get(cursorp, &key, &data, DB_FIRST);
+      }
       break;
     default:
       NotImplemented ni;
@@ -320,7 +367,8 @@ private:
       (*to_apply)(apply_arg,db_ptr,&key,&data);
     
     else if (rs.type == RST_RANGE) {
-      if (skipped < rs.range.offset) 
+      if (rs.range.__isset.offset &&
+	  skipped < rs.range.offset) 
 	skipped++;
       else {
 	(*to_apply)(apply_arg,db_ptr,&key,&data);
@@ -360,7 +408,7 @@ private:
     }
 
     if (rs.type == RST_RANGE && 
-	(rs.range.limit != 0 && count > rs.range.limit)) {
+	(rs.range.__isset.limit && count > rs.range.limit)) {
       if (cursorp != NULL) 
 	cursorp->close(cursorp); 
       return;
@@ -373,17 +421,19 @@ private:
 
       // RST_RANGE set
       else if (rs.type == RST_RANGE) {
-	if (strcmp(rs.range.end_key.c_str(),(char*)key.data) < 0) {
+	if ( rs.range.__isset.end_key &&
+	     (strcmp(rs.range.end_key.c_str(),(char*)key.data) < 0) ) {
 	  ret = DB_NOTFOUND;
 	  break;
 	}
-	if (skipped < rs.range.offset) 
+	if (rs.range.__isset.offset &&
+	    skipped < rs.range.offset) 
 	  skipped++;
 	else {
 	  (*to_apply)(apply_arg,db_ptr,&key,&data);
 	  count++;
 	}
-	if (rs.range.limit != 0 &&
+	if (rs.range.__isset.limit &&
 	    count > rs.range.limit) {
 	  ret = DB_NOTFOUND;
 	  break;
@@ -607,14 +657,39 @@ public:
       throw isd;
     }
 
+    if (policy.__isset.range &&
+	policy.__isset.func) {
+      InvalidSetDescription isd;
+      isd.s = policy;
+      isd.info = "You specified both a range and function in your policy";
+      throw isd;
+    }
+
     if (policy.type == RST_RANGE &&
-	(policy.range.offset != 0 ||
-	 policy.range.limit != 0)) {
+	!policy.__isset.range) {
+      InvalidSetDescription isd;
+      isd.s = policy;
+      isd.info = "You specified a range set but did not provide a range description";
+      throw isd;
+    }
+
+    if ( policy.type == RST_RANGE &&
+	 (policy.range.__isset.offset ||
+	  policy.range.__isset.limit) ) {
       InvalidSetDescription isd;
       isd.s = policy;
       isd.info = "offset/limit don't make sense for responsibility policies";
       throw isd;
     }
+
+    if ( policy.type == RST_KEY_FUNC  &&
+	 !policy.__isset.func ) {
+      InvalidSetDescription isd;
+      isd.s = policy;
+      isd.info = "You specified a function set but did not provide a function";
+      throw isd;
+    }
+    
 
     // first let's see if there's an existing one
     map<const NameSpace,RecordSet*>::iterator it;
@@ -622,6 +697,7 @@ public:
     RecordSet *rs;
     if (it == key_policies.end()) { // haven't set this policy yet, make a new one
       rs = new RecordSet();
+      rs->__isset.type = true;
       key_policies[ns] = rs;
     }
     else
@@ -631,13 +707,26 @@ public:
     rs->type = policy.type; 
 
     if (policy.type == RST_RANGE) { // copy range params
-      rs->range.start_key.assign(policy.range.start_key);
-      rs->range.end_key.assign(policy.range.end_key);
-      rs->range.offset = policy.range.offset;
-      rs->range.limit = policy.range.limit;
+      rs->__isset.range = true;
+      rs->__isset.func = false;
+      if (policy.range.__isset.start_key) {
+	rs->range.start_key.assign(policy.range.start_key);
+	rs->range.__isset.start_key = true;
+      }
+      else 
+	rs->range.__isset.start_key = false;
+
+      if (policy.range.__isset.end_key) {
+	rs->range.end_key.assign(policy.range.end_key);
+	rs->range.__isset.end_key = true;
+      }
+      else
+	rs->range.__isset.end_key = false;
     }
 
     if (policy.type == RST_KEY_FUNC) { // copy func info
+      rs->__isset.range = false;
+      rs->__isset.func = true;
       rs->func.lang = policy.func.lang;
       rs->func.func.assign(policy.func.func);
     }
