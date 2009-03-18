@@ -123,16 +123,6 @@ class TS_Sets < Test::Unit::TestCase
       record_list = @server.get_set("invalidset",desired)
     end
     
-    
-    desired = RecordSet.new(
-      :type =>RecordSetType::RST_RANGE,
-      :range => RangeSet.new(:start_key=>"01",:end_key=>"09",:offset => 5,:limit => 1)
-      )
-      
-    assert_raise(InvalidSetDescription,"start limit is more than end limit") do
-      record_list = @server.get_set("invalidset",desired)
-    end
-    
     desired = RecordSet.new(
       :type =>RecordSetType::RST_RANGE,
       :range => RangeSet.new(:start_key=>"01",:end_key=>"09",:offset => nil,:limit => nil),
