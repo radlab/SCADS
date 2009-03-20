@@ -8,10 +8,13 @@
 #include <transport/TServerSocket.h>
 #include <transport/TTransportUtils.h>
 
+#include <cerrno>
 #include <iostream>
 #include <stdexcept>
 #include <sstream>
 #include <map>
+
+#include "pthread.h"
 
 #include <db.h>
 
@@ -23,6 +26,7 @@
 
 using namespace std;
 using namespace apache::thrift;
+using namespace apache::thrift::concurrency;
 using namespace apache::thrift::protocol;
 using namespace apache::thrift::transport;
 using namespace apache::thrift::server;
@@ -35,10 +39,9 @@ using namespace SCADS;
 static char* env_dir;
 static int port;
 
-// some ruby stuff
-static int did_ruby_init,rb_err;
-static ID call_id = 0;
-static VALUE funcall_args[3];
+// this is only ever read, so it's thread safe
+static ID call_id;
+
 
 // this is gross, but it's the only way to avoid a segfault
 // if the passed procedure has a syntax error
@@ -50,6 +53,7 @@ VALUE rb_funcall_wrap(VALUE vargs) {
     rb_funcall(args[0], call_id, 2, args[1], args[2]);
 }
 
+
 // set application functions
 void apply_get(void* vec,DB* db, void* k, void* d) {
   vector<Record>* _return = (std::vector<Record>*)vec;
@@ -57,8 +61,8 @@ void apply_get(void* vec,DB* db, void* k, void* d) {
   DBT *key,*data;
   key = (DBT*)k;
   data = (DBT*)d;
-  r.key = string((char*)key->data);
-  r.value = string((char*)data->data);
+  r.key.assign((const char*)key->data);
+  r.value.assign((const char*)data->data);
   r.__isset.value = true;
   _return->push_back(r);
 }
@@ -72,12 +76,12 @@ void apply_del(void* v, DB* db, void* k, void* d) {
 class StorageDB : public StorageIf {
 
 private:
-  map<const NameSpace,DB*> dbs;
-  map<const NameSpace,RecordSet*> key_policies;
   DB_ENV *db_env;
+  pthread_rwlock_t dbmap_lock;
+  map<const NameSpace,DB*> dbs;
 
 private:
-  int open_database(DB **dbpp,       /* The DB handle that we are opening */
+  int open_database(DB **dbpp,                  /* The DB handle that we are opening */
 		    const char *file_name,     /* The file in which the db lives */
 		    const char *program_name,  /* Name of the program calling this function */
 		    const char *env_dir,       /* environment dir */
@@ -104,7 +108,7 @@ private:
     dbp->set_errpfx(dbp, program_name);
 
     /* Set the open flags */
-    open_flags = DB_CREATE;
+    open_flags = DB_CREATE | DB_THREAD;
 
     /* Now open the database */
     ret = dbp->open(dbp,        /* Pointer to the database */
@@ -120,12 +124,6 @@ private:
     }
                                                                                                                                
     return (0);
-  }
-
-  void do_ruby_init() {
-    ruby_init();
-    call_id = rb_intern("call");
-    did_ruby_init = 1;
   }
 
   bool responsible_for_key(const NameSpace& ns, const RecordKey& key) {
@@ -147,9 +145,9 @@ private:
 	return false;
     }
 
+    int rb_err;
+    VALUE funcall_args[3];
     if (rs.type == RST_KEY_FUNC) {
-      if (!did_ruby_init) 
-	do_ruby_init();
       VALUE ruby_proc = rb_eval_string_protect(rs.func.func.c_str(),&rb_err);
       if (!rb_respond_to(ruby_proc,call_id)) {
 	InvalidSetDescription isd;
@@ -208,16 +206,51 @@ private:
     return false; // if we don't understand, we'll say no
   }
 
+  void chkLock(int rc, const string lock, const string action) {
+    switch (rc) {
+    case 0: // success
+      return;
+    case EINVAL:
+      cerr << "Couldn't get "<<lock<< " for "<<action<<":\n\t"<<
+	" The value specified by rwlock does not refer to  an  initialized read-write lock object."<<endl;
+      exit(EXIT_FAILURE);
+    case EAGAIN:
+      cerr << "Couldn't get "<<lock<< " for "<<action<<":\n\t"<<
+	"The  read  lock could not be acquired because the maximum number of read locks for rwlock has been exceeded."<<endl;
+      exit(EXIT_FAILURE);
+    case EDEADLK:
+      cerr << "Couldn't get "<<lock<< " for "<<action<<":\n\t"<<      
+	"The current thread already owns the read-write lock for writing or reading."<<endl;
+    case EPERM:
+      cerr << "WARNING: tried to unlock "<<lock<< " for "<<action<<" but the lock is not held."<<endl;
+      return; // hopefully this isn't the end of the world
+    default:
+      cerr << "An unknown error in getting: "<<lock<<" for "<<action<<endl;
+      exit(EXIT_FAILURE);
+    }
+  }
+
   DB* getDB(const NameSpace& ns) {
     map<const NameSpace,DB*>::iterator it;
+    DB* db;
+    int rc = pthread_rwlock_rdlock(&dbmap_lock); // get the read lock
+    chkLock(rc,"dbmap_lock","top read lock");
     it = dbs.find(ns);
     if (it == dbs.end()) { // haven't opened this db yet
-      DB* db;
       open_database(&db,ns.c_str(),"storage.bdb",env_dir,stderr);
+      rc = pthread_rwlock_unlock(&dbmap_lock); // unlock read lock
+      chkLock(rc,"dbmap_lock","unlock read lock for upgrade");
+      rc = pthread_rwlock_wrlock(&dbmap_lock); // need a write lock here
+      chkLock(rc,"dbmap_lock","modify dbs map");
       dbs[ns] = db;
+      rc = pthread_rwlock_unlock(&dbmap_lock); // unlock write lock
+      chkLock(rc,"dbmap_lock","unlock write lock");
       return db;
     }
-    return dbs[ns];
+    db = it->second;
+    rc = pthread_rwlock_unlock(&dbmap_lock); // unlock read lock
+    chkLock(rc,"dbmap_lock","unlock top read lock");
+    return db;
   }
 
 
@@ -226,9 +259,10 @@ private:
     DB* db_ptr;
     DBC *cursorp;
     DBT key, data;
-    int ret,count=0,skipped=0;
+    int ret,count=0,skipped=0,rb_err;
     u_int32_t cursor_flags;
     VALUE ruby_proc;
+    VALUE funcall_args[3];
 
     if (rs.__isset.range &&
 	rs.__isset.func) {
@@ -303,6 +337,7 @@ private:
 
     memset(&key, 0, sizeof(DBT));
     memset(&data, 0, sizeof(DBT));
+    data.flags = DB_DBT_MALLOC;
    
     switch (rs.type) {
     case RST_ALL:
@@ -342,14 +377,13 @@ private:
     if (rs.type == RST_KEY_FUNC ||
 	rs.type == RST_KEY_VALUE_FUNC) {
       if (rs.func.lang == LANG_RUBY) {
-	if (!did_ruby_init) 
-	  do_ruby_init();
 	int stat;
 	ruby_proc = rb_eval_string_protect(rs.func.func.c_str(),&stat);
 	if (!rb_respond_to(ruby_proc,call_id)) {
 	  InvalidSetDescription isd;
 	  isd.s = rs;
 	  isd.info = "Your ruby string does not return something that responds to 'call'";
+	  free(data.data); // free because we're returning
 	  if (cursorp != NULL)
 	    cursorp->close(cursorp);
 	  throw isd;
@@ -357,6 +391,7 @@ private:
       } else {
 	NotImplemented ni;
 	ni.function_name = "get_set only supports ruby functions at the moment";
+	free(data.data);  // ditto
 	if (cursorp != NULL) 
 	  cursorp->close(cursorp); 
 	throw ni;
@@ -391,6 +426,7 @@ private:
 	VALUE lasterr = rb_gv_get("$!");
 	VALUE message = rb_obj_as_string(lasterr);
 	isd.info = rb_string_value_cstr(&message);
+	free(data.data);
 	if (cursorp != NULL)
 	  cursorp->close(cursorp);
 	throw isd;
@@ -401,6 +437,7 @@ private:
 	InvalidSetDescription isd;
 	isd.s = rs;
 	isd.info = "Your ruby string does not return true or false";
+	free(data.data);
 	if (cursorp != NULL)
 	  cursorp->close(cursorp);
 	throw isd;
@@ -409,10 +446,13 @@ private:
 
     if (rs.type == RST_RANGE && 
 	(rs.range.__isset.limit && count > rs.range.limit)) {
+      free(data.data);
       if (cursorp != NULL) 
 	cursorp->close(cursorp); 
       return;
     }
+
+    free(data.data);
 
     while ((ret = cursorp->get(cursorp, &key, &data, DB_NEXT)) == 0) {
       // RST_ALL set
@@ -424,6 +464,7 @@ private:
 	if ( rs.range.__isset.end_key &&
 	     (strcmp(rs.range.end_key.c_str(),(char*)key.data) < 0) ) {
 	  ret = DB_NOTFOUND;
+	  free(data.data);
 	  break;
 	}
 	if (rs.range.__isset.offset &&
@@ -436,6 +477,7 @@ private:
 	if (rs.range.__isset.limit &&
 	    count > rs.range.limit) {
 	  ret = DB_NOTFOUND;
+	  free(data.data);
 	  break;
 	}
       }
@@ -456,6 +498,7 @@ private:
 	  VALUE lasterr = rb_gv_get("$!");
 	  VALUE message = rb_obj_as_string(lasterr);
 	  isd.info = rb_string_value_cstr(&message);
+	  free(data.data);
 	  if (cursorp != NULL)
 	    cursorp->close(cursorp);
 	  throw isd;
@@ -466,11 +509,13 @@ private:
 	  InvalidSetDescription isd;
 	  isd.s = rs;
 	  isd.info = "Your ruby string does not return true or false";
+	  free(data.data);
 	  if (cursorp != NULL)
 	    cursorp->close(cursorp);
 	  throw isd;
 	}
       }
+      free(data.data);
     }
     if (ret != DB_NOTFOUND) {
       /* Error handling goes here */
@@ -495,6 +540,7 @@ public:
     }
 
     env_flags = DB_CREATE |    /* If the environment does not exist, create it. */
+      DB_THREAD |              /* This gets used by multiple threads */
       DB_INIT_MPOOL;           /* Initialize the in-memory cache. */
     
     ret = db_env->open(db_env,      /* DB_ENV ptr */
@@ -505,18 +551,46 @@ public:
       fprintf(stderr, "Environment open failed: %s\n", db_strerror(ret));
       exit(-1);
     }
+    
+    // create the dbs rwlock
+    ret = pthread_rwlock_init(&dbmap_lock, NULL);
+    switch (ret) {
+    case 0: // success
+      break;
+    case EBUSY:
+      cerr << "Could not init rwlock for dbs: \
+	The  implementation  has detected an attempt to reinitialize the \
+	object referenced by rwlock, a previously  initialized  but  not \
+	yet destroyed read-write lock."<<endl;
+      exit(EXIT_FAILURE);
+    case EINVAL:
+      cerr << "Could not init rwlock for dbs: The value specified by attr is invalid."<<endl;
+      exit(EXIT_FAILURE);
+    default:
+      cerr << "Some random error initing rwlock for dbs"<<endl;
+      exit(EXIT_FAILURE);
+    }
+
+    // let's init ruby
+    ruby_init();
+    call_id = rb_intern("call");
   }
 
   void close() {
     map<const NameSpace,DB*>::iterator iter;
+    int rc = pthread_rwlock_wrlock(&dbmap_lock); // need a write lock here
+    chkLock(rc,"dbmap_lock","closing down system");
     for( iter = dbs.begin(); iter != dbs.end(); ++iter ) {
       cout << "Closing: "<<iter->first;
       if(iter->second->close(iter->second, 0))
-	cout << " [FAILED]"<<endl;
+        cout << " [FAILED]"<<endl;
       else
-	cout << " [OK]"<<endl;
+        cout << " [OK]"<<endl;
     }
+    rc = pthread_rwlock_unlock(&dbmap_lock);
+    chkLock(rc,"dbmap_lock","unlock after cloing down");
   }
+
 
   void get(Record& _return, const NameSpace& ns, const RecordKey& key) {
     DB* db_ptr;
@@ -534,6 +608,7 @@ public:
     /* Zero out the DBTs before using them. */
     memset(&db_key, 0, sizeof(DBT));
     memset(&db_data, 0, sizeof(DBT));
+    db_data.flags = DB_DBT_MALLOC;
 
     db_key.data = const_cast<char*>(key.c_str());
     db_key.size = key.length()+1;
@@ -541,9 +616,9 @@ public:
     retval = db_ptr->get(db_ptr, NULL, &db_key, &db_data, 0);
     _return.key = key;
     if (!retval) {  // return 0 means success
-      string ret((char*)db_data.data);
       _return.__isset.value = true;
-      _return.value = ret;
+      _return.value.assign((const char*)db_data.data);
+      free(db_data.data);
     }
   }
 
@@ -689,75 +764,187 @@ public:
       isd.info = "You specified a function set but did not provide a function";
       throw isd;
     }
-    
 
-    // first let's see if there's an existing one
-    map<const NameSpace,RecordSet*>::iterator it;
-    it = key_policies.find(ns);
-    RecordSet *rs;
-    if (it == key_policies.end()) { // haven't set this policy yet, make a new one
-      rs = new RecordSet();
-      rs->__isset.type = true;
-      key_policies[ns] = rs;
-    }
-    else
-      rs = it->second;
-
-    // really just an int, so no need to delete
-    rs->type = policy.type; 
-
-    if (policy.type == RST_RANGE) { // copy range params
-      rs->__isset.range = true;
-      rs->__isset.func = false;
-      if (policy.range.__isset.start_key) {
-	rs->range.start_key.assign(policy.range.start_key);
-	rs->range.__isset.start_key = true;
-      }
-      else 
-	rs->range.__isset.start_key = false;
-
-      if (policy.range.__isset.end_key) {
-	rs->range.end_key.assign(policy.range.end_key);
-	rs->range.__isset.end_key = true;
-      }
-      else
-	rs->range.__isset.end_key = false;
+    // okay, let's serialize
+    ostringstream os;
+    os << policy.type;
+    switch (policy.type) {
+    case RST_RANGE:
+      os << " "<<
+	policy.range.start_key<<" "<<
+	policy.range.end_key;
+      break;
+    case RST_KEY_FUNC:
+      os << " "<<policy.func.lang<< " "<<policy.func.func;
+      break;
     }
 
-    if (policy.type == RST_KEY_FUNC) { // copy func info
-      rs->__isset.range = false;
-      rs->__isset.func = true;
-      rs->func.lang = policy.func.lang;
-      rs->func.func.assign(policy.func.func);
-    }
-    
-    return true;
+
+#ifdef DEBUG
+    cout << "Setting resp_pol:"<<endl<<
+      "\tType: "<<policy.type<<endl<<
+      "\tLang: "<<LANG_RUBY<<endl<<
+      "\tSK: "<<policy.range.start_key<<endl<<
+      "\tEK: "<<policy.range.end_key<<endl<<
+      "\tFUNC: "<<policy.func.func<<endl<<
+      "serialized string:"<<endl<<
+      os.str()<<endl;
+#endif
+
+
+    DB* mdDB = getDB("storage_metadata");
+    DBT db_key, db_data;
+    int retval;
+
+
+    /* Zero out the DBTs before using them. */
+
+
+    memset(&db_key, 0, sizeof(DBT));
+    memset(&db_data, 0, sizeof(DBT));
+
+    db_key.data = const_cast<char*>(ns.c_str());
+    db_key.size = ns.length()+1;
+
+    db_data.data = const_cast<char*>(os.str().c_str());
+    db_data.size = os.str().length()+1;
+    retval = mdDB->put(mdDB, NULL, &db_key, &db_data, 0);
+   
+    if (!retval)    
+      return true;
+    TException te("Something went wrong storing your responsibility policy");
+    throw te;
   }
 
   void get_responsibility_policy(RecordSet& _return, const NameSpace& ns) {
-    map<const NameSpace,RecordSet*>::iterator it;
-    it = key_policies.find(ns);
-    RecordSet *rs;
-    if (it == key_policies.end()) { // haven't set this policy yet
-      rs = new RecordSet();
-      rs->type = RST_ALL; // policies default to ALL
-      key_policies[ns] = rs;
+    DB* mdDB = getDB("storage_metadata");
+    DBT db_key, db_data;
+    int retval;
+
+
+    /* Zero out the DBTs before using them. */
+
+    
+    memset(&db_key, 0, sizeof(DBT));
+    memset(&db_data, 0, sizeof(DBT));
+
+    db_key.data = const_cast<char*>(ns.c_str());
+    db_key.size = ns.length()+1;
+    db_data.flags = DB_DBT_MALLOC;
+
+
+    retval = mdDB->get(mdDB, NULL, &db_key, &db_data, 0);
+    if (!retval) { // okay, something was there
+      string pol((char*)db_data.data);
+#ifdef DEBUG
+      cout << "deserialized str:"<<endl<<
+	pol<<endl;
+#endif
+      int type;
+      istringstream is(pol,istringstream::in);
+      is >> type;
+      _return.type = (SCADS::RecordSetType)type;
+      switch (_return.type) {
+      case RST_RANGE:
+	is >> _return.range.start_key>>_return.range.end_key;
+	_return.__isset.range = true;
+	_return.range.__isset.start_key = true;
+	_return.range.__isset.end_key = true;
+	break;
+      case RST_KEY_FUNC: {
+	int lang;
+	stringbuf sb;
+	is >> lang >> (&sb);
+	_return.func.lang = (SCADS::Language)lang;
+	_return.func.func.assign(sb.str());
+	_return.__isset.func = true;
+	_return.func.__isset.lang = true;
+	_return.func.__isset.func = true;
+      }
+	break;
+      }
+
+#ifdef DEBUG
+      cout << "Deserizalized resp_pol:"<<endl<<
+	"\tType: "<<_return.type<<endl<<
+	"\tLang: "<<_return.func.lang<<endl<<
+	"\tSK: "<<_return.range.start_key<<endl<<
+	"\tEK: "<<_return.range.end_key<<endl<<
+	"\tFUNC: "<<_return.func.func<<endl;
+#endif
+      free(db_data.data);
+    } else if (retval == DB_NOTFOUND) {
+      // not found means RST_ALL
+      _return.type = RST_ALL;
+    } else {
+      TException te("Error getting responsibility policy");
+      throw te;
     }
-    else
-      rs = it->second;
-    _return = *rs;
   }
 
 };
 
+/*
+RecordSet& RecordSet::operator=(const RecordSet &rhs) const {
+  type = rhs.type; 
+  
+  if (rhs.type == RST_RANGE) { // copy range params
+    __isset.range = true;
+    __isset.func = false;
+    if (rhs.range.__isset.start_key) {
+      range.start_key.assign(rhs.range.start_key);
+      range.__isset.start_key = true;
+    }
+    else 
+      range.__isset.start_key = false;
+    
+    if (rhs.range.__isset.end_key) {
+      range.end_key.assign(rhs.range.end_key);
+      range.__isset.end_key = true;
+    }
+    else
+      range.__isset.end_key = false;
+  }
+  
+  if (rhs.type == RST_KEY_FUNC) { // copy func info
+    __isset.range = false;
+    __isset.func = true;
+    func.lang = rhs.func.lang;
+    func.func.assign(rhs.func.func);
+  }
+
+  return *this;  // Return a reference to myself.
+}
+*/
+
+enum ServerType {
+  ST_SIMPLE,
+  ST_POOL,
+  ST_THREAD
+};
+enum ServerType serverType;
+
+TSimpleServer* simpleServer;
+TThreadPoolServer* poolServer;
+TThreadedServer* threadedServer;
+
 static shared_ptr<StorageDB> storageDB;
+
+int workerCount;
 
 static
 void usage(const char* prgm) {
   fprintf(stderr, "Usage: %s [-p PORT] [-d DIRECTORY]\n\
 Starts the BerkeleyDB storage layer.\n\n\
-  -p PORT\tRun the thrift server on port PORT (Default: 9090)\n\
-  -d DIRECTORY\tStore data files in directory DIRECTORY (Default: .)\n\
+  -p PORT\tRun the thrift server on port PORT\n\
+         \tDefault: 9090\n\
+  -d DIRECTORY\tStore data files in directory DIRECTORY\n\
+              \tDefault: .\n\
+  -t TYPE\tWhat thrift server type to run simple,threaded, or pooled\n\
+         \tDefault: pooled\n\
+  -n NUM\tHow many threads to use for pooled server.\n\
+        \tIgnored if not running pooled.\n\
+        \tDefault: 10\n\
   -h\t\tShow this help\n\n",
 	  prgm);
 }
@@ -767,8 +954,10 @@ void parseArgs(int argc, char* argv[]) {
   int opt;
   env_dir = 0;
   port = 9090;
+  serverType = ST_POOL;
+  workerCount = 10;
 
-  while ((opt = getopt(argc, argv, "hp:d:")) != -1) {
+  while ((opt = getopt(argc, argv, "hp:d:t:n:")) != -1) {
     switch (opt) {
     case 'p':
       port = atoi(optarg);
@@ -776,6 +965,21 @@ void parseArgs(int argc, char* argv[]) {
     case 'd':
       env_dir = (char*)malloc(sizeof(char)*(strlen(optarg)+1));
       strcpy(env_dir,optarg);
+      break;
+    case 't':
+      if (!strcmp(optarg,"simple"))
+	serverType = ST_SIMPLE;
+      else if (!strcmp(optarg,"threaded"))
+	serverType = ST_THREAD;
+      else if (!strcmp(optarg,"pooled"))
+	serverType = ST_POOL;
+      else {
+	cerr << "argument to -t must be one of: simple, threaded, or pooled"<<endl;
+	exit(EXIT_FAILURE);
+      }
+      break;
+    case 'n':
+      workerCount = atoi(optarg);
       break;
     case 'h':
     default: /* '?' */
@@ -785,15 +989,33 @@ void parseArgs(int argc, char* argv[]) {
   }
   
   if (!env_dir) {
-    fprintf(stderr,"Warning: -d not specified, running in local dir\n");
+    cerr << "Warning: -d not specified, running in local dir"<<endl;
     env_dir = (char*)malloc(strlen(".")+1);
     strcpy(env_dir,".");
   }
 }
 
 
+// our server, saved so we can
+// stop at exit
+
+
+
 static void ex_program(int sig) {
   cout << "\n\nShutting down."<<endl;
+  switch (serverType) {
+  case ST_SIMPLE:
+    simpleServer->stop();
+    break;
+  case ST_POOL:
+    poolServer->stop();
+    break;
+  case ST_THREAD:
+    threadedServer->stop();
+    break;
+  default:
+    cerr << "Warning, don't know what kind of server you're running, not calling stop."<<endl;;
+  }
   storageDB->close();
   exit(0);
 }
@@ -813,39 +1035,53 @@ int main(int argc, char **argv) {
 #endif
 
 
-  did_ruby_init = 0;
-
   storageDB = handler;
   signal(SIGINT, ex_program);
 
-  TSimpleServer server(processor,
-                       serverTransport,
-                       transportFactory,
-                       protocolFactory);
 
-  /**
-   * Or you could do one of these
-
-  shared_ptr<ThreadManager> threadManager =
-    ThreadManager::newSimpleThreadManager(workerCount);
-  shared_ptr<PosixThreadFactory> threadFactory =
-    shared_ptr<PosixThreadFactory>(new PosixThreadFactory());
-  threadManager->threadFactory(threadFactory);
-  threadManager->start();
-  TThreadPoolServer server(processor,
-                           serverTransport,
-                           transportFactory,
-                           protocolFactory,
-                           threadManager);
-
-  TThreadedServer server(processor,
-                         serverTransport,
-                         transportFactory,
-                         protocolFactory);
-  */
-
-  printf("Starting the server...\n");
-  server.serve();
+  switch (serverType) {
+  case ST_SIMPLE: {
+    TSimpleServer server(processor,
+			 serverTransport,
+			 transportFactory,
+			 protocolFactory);
+    simpleServer = &server;
+    printf("Starting simple server...\n");
+    server.serve();
+  }
+    break;
+  case ST_POOL: {
+    shared_ptr<ThreadManager> threadManager =
+      ThreadManager::newSimpleThreadManager(workerCount);
+    shared_ptr<PosixThreadFactory> threadFactory =
+      shared_ptr<PosixThreadFactory>(new PosixThreadFactory());
+    threadManager->threadFactory(threadFactory);
+    threadManager->start();
+    TThreadPoolServer server(processor,
+			     serverTransport,
+			     transportFactory,
+			     protocolFactory,
+			     threadManager);
+    poolServer = &server;
+    printf("Starting pooled server with %i worker threads...\n",workerCount);
+    server.serve();
+  }
+    break;
+  case ST_THREAD: {
+    TThreadedServer server(processor,
+			   serverTransport,
+			   transportFactory,
+			   protocolFactory);
+    threadedServer = &server;
+    printf("Starting threaded server...\n");
+    server.serve();
+  }
+    break;
+  default:
+    cerr << "Invalid server type, nothing to start"<<endl;
+    exit(EXIT_FAILURE);
+  }
+  
   printf("done.\n");
   return 0;
 }
