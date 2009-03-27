@@ -38,7 +38,7 @@ GEN_SRC = gen-cpp/storage_types.cpp gen-cpp/Storage.cpp
 # C/C++ MACROS
 CXX=g++
 CFLAGS = -g -I${THRIFT_DIR} -I${BOOST_DIR} -Igen-cpp ${BDB}
-LIBS = ${LIB_DIRS} -lthrift -ldb-4.7 -lruby1.8 -lreadline
+LIBS = ${LIB_DIRS} -lthrift -ldb-4.7 -l${RUBY_LIB} -lreadline
 
 default: arch_warning client
 
