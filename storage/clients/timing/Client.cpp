@@ -59,25 +59,34 @@ int main(int argc, char** argv) {
 	char table[512];
 	char key[512];
 	char value[4096];
-
+	int success;
 	Record r;
+	struct timeval start_time, end_time, diff_time;
 	
 	transport->open();
-	
 	while (EOF != scanf("%15s", cmd)) {
+		success = -1;
 		if (!strcmp(cmd,"get")) {
 			scanf("%511s %511s", table, key);
-			printf("get\t%s\t%s\t=>\t", table, key);
+			gettimeofday(&start_time,NULL);
 			client.get(r, table, key);
+			gettimeofday(&end_time,NULL);
+			timersub(&end_time,&start_time,&diff_time);
+			printf("%ld.%.6ld\tget\t%s\t%s\t=>\t", diff_time.tv_sec, diff_time.tv_usec, table, key);
 			cout << r.value << "\n";
 		} else if (!strcmp(cmd,"put")) {
 			scanf("%511s %511s %4095s", table, key, value);
 			r.key = key;
 			r.value = value;
-			r.__isset.value = true;
-			printf("put\t%s\t%s\t%s\t=>\t", table, key, value);
-			cout << client.put(table, r) << "\n";
+			r.__isset.value = true;	
+			gettimeofday(&start_time,NULL);
+			success = client.put(table, r);
+			gettimeofday(&end_time,NULL);
+			timersub(&end_time,&start_time,&diff_time);
+			printf("%ld.%.6ld\tput\t%s\t%s\t%s\t=>\t", diff_time.tv_sec, diff_time.tv_usec, table, key, value);
+			cout << success << "\n";
 		} else if (!strcmp(cmd, "quit") or !strcmp(cmd, "exit")) {
+			transport->close();
 			exit(0);
 	  } else {
 			printf("Error: Unrecognized cmd %s\n", cmd);
