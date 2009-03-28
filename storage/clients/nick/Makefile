@@ -29,7 +29,7 @@ endif
 # Generic thrift macros
 THRIFT = thrift
 THRIFT_FLAGS = --gen cpp
-THRIFT_FILE = ../storage.thrift
+THRIFT_FILE = ../../storage.thrift
 
 # Source Listings
 SRCS_TO_GEN = gen-cpp/storage_constants.cpp gen-cpp/Storage.h gen-cpp/storage_types.h gen-cpp/storage_constants.h gen-cpp/Storage_server.skeleton.cpp gen-cpp/Storage.cpp gen-cpp/storage_types.cpp
