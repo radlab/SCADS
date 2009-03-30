@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
 			scanf("%511s %511s %4095s", table, key, value);
 			r.key = key;
 			r.value = value;
-			r.__isset.value = true;	
+			r.__isset.value = true;	//TODO: Fix cargo-cult
 			start_timer();
 			success = client.put(table, r);
 			end_timer();
