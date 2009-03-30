@@ -20,7 +20,7 @@ endif
 #MACOS
 ifeq ($(UNAME), Darwin)
 ifeq ($(ARCH), i386)
-include ./makefile.inc.osx_i386
+include ./makefile.inc.osx
 DIDINC=yes
 endif
 endif
