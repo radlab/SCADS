@@ -4,6 +4,7 @@
 THRIFT_DIR = /usr/local/include/thrift
 BOOST_DIR = /opt/local/include/
 LIB_DIRS = -L/usr/local/lib -L/opt/local/lib/ -L/opt/local/lib/db47
-BDB = -I/opt/local/include/db47
+BDB_DIR = -I/opt/local/include/db47
 RUBY_INCLUDES = -I/opt/local/lib/ruby/1.8/i686-darwin9/
 RUBY_LIB = ruby-static
+BDB_LIB = db-4.7

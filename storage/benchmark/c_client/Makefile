@@ -8,19 +8,23 @@ DIDINC=no
 # Linux
 ifeq ($(UNAME), Linux)
 ifeq ($(ARCH), x86_64)
-include ./makefile.inc.linux
+include ./makefile.inc/linux_x64
 DIDINC=yes
 endif
 ifeq ($(ARCH), i386)
-include ./makefile.inc.linux
+include ./makefile.inc/linux_i386
 DIDINC=yes
+endif
+ifeq ($(ARCH), i686)
+include ./makefile.inc/linux_i686
+DIDINC=no
 endif
 endif
 
 #MACOS
 ifeq ($(UNAME), Darwin)
 ifeq ($(ARCH), i386)
-include ./makefile.inc.osx
+include ./makefile.inc/osx_i386
 DIDINC=yes
 endif
 endif
@@ -37,7 +41,7 @@ GEN_SRC = gen-cpp/storage_types.cpp gen-cpp/Storage.cpp
 # C/C++ MACROS
 CXX=g++
 CFLAGS = -I${THRIFT_DIR} -I${BOOST_DIR} -Igen-cpp
-LIBS = ${LIB_DIRS} -lthrift -ldb-4.7
+LIBS = ${LIB_DIRS} -lthrift -l${BDB_LIB}
 
 default: arch_warning client
 
