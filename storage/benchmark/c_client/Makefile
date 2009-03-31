@@ -17,7 +17,7 @@ DIDINC=yes
 endif
 ifeq ($(ARCH), i686)
 include ./makefile.inc/linux_i686
-DIDINC=no
+DIDINC=yes
 endif
 endif
 
