@@ -14,7 +14,7 @@ end
 
 begin
   loop do
-    puts (0...(1+rand(100))).map{(33+rand(93)).chr}.join
+    puts((0...(1+rand(100))).map{(33+rand(93)).chr}.join)
   end
 rescue Errno::EPIPE => e
   #Consumers will just exit when full

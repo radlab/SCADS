@@ -8,7 +8,7 @@ opts = GetoptLong.new(
   [ '--data' , '-d', GetoptLong::REQUIRED_ARGUMENT]
 )
 
-table = "default"
+table = "scads-default"
 line_limit = nil # Number of lines of output
 data_limit = nil # Approximate total amount of data (in chars) to transfer
 seed = rand.hash
