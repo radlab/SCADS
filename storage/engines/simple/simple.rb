@@ -22,7 +22,7 @@ module SCADS
           rp = @responsibility_policies[ns]
           raise NotResponsible.new if rs.type == RecordSetType::RST_RANGE && (!rp.includes?(rs.range.start_key) || !rp.includes?(rs.range.end_key))
 
-          ret = @data[ns].map {|rec| Record.new(:key => rec[0], :value => rec[1])}.select {|rec| rs.includes?(rec.key)}
+          ret = @data[ns].map {|rec| Record.new(:key => rec[0], :value => rec[1])}.select {|rec| rs.includes?(rec.key, rec.value)}
 
           if rs.type == RecordSetType::RST_RANGE
             ret[((rs.range.offset || 0)..(rs.range.limit || ret.size))]

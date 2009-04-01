@@ -1,7 +1,7 @@
 module SCADS
   module Storage
     class RecordSet
-      def includes?(key)
+      def includes?(key, value = nil)
         case type
         when RecordSetType::RST_ALL
           true
@@ -12,6 +12,12 @@ module SCADS
         when RecordSetType::RST_KEY_FUNC
           begin
             (eval func.func).call(key)
+          rescue Exception => e
+            raise InvalidSetDescription.new(:s => self, :info => "Exception running function: #{e.to_s}")
+          end
+        when RecordSetType::RST_KEY_VALUE_FUNC
+          begin
+            (eval func.func).call(key, value)
           rescue Exception => e
             raise InvalidSetDescription.new(:s => self, :info => "Exception running function: #{e.to_s}")
           end
