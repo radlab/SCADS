@@ -18,6 +18,7 @@ class TS_BasicStorage < Test::Unit::TestCase
     
     (0..10).each do |i|
       assert_equal("value#{i}", @server.get("getput", "key#{i}").value)
+      assert_equal("key#{i}", @server.get("getput", "key#{i}").key)
     end
   end
   

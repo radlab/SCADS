@@ -5,7 +5,9 @@ class TS_Sets < Test::Unit::TestCase
   
   def setup
     @server = $ENGINE.new
-    @evensfunc = UserFunction.new(:lang=> Language::LANG_RUBY, :func=>"Proc.new {|val| val.to_i%2==0}")
+    @evensfunc = UserFunction.new(:lang=> Language::LANG_RUBY, :func=>"Proc.new {|key| key.to_i%2==0}")
+    @evensfunc_key = UserFunction.new(:lang=> Language::LANG_RUBY, :func=>"Proc.new {|key,val| key.to_i%2==0 and val.to_i%2==0}")
+
   end
   
   def teardown
@@ -41,6 +43,40 @@ class TS_Sets < Test::Unit::TestCase
     
     # test both sides
     # ?
+  end
+  
+  def test_delete_some
+    (1..8).each do |i| # set some values
+      @server.put("deletesome", Record.new(:key => "0#{i}", :value => "val0#{i}"))
+    end
+    
+    # delete a value
+    @server.put("deletesome", Record.new(:key => "01", :value => nil))
+    
+    desired = RecordSet.new(
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"01",:end_key=>"08",:offset => nil,:limit => nil)
+      )
+    record_list = @server.get_set("deletesome",desired)
+    assert_equal([Record.new(:key => "01", :value => nil)].concat((2..8).map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}), record_list)
+  end
+  
+  def test_delete_all
+    (1..8).each do |i| # set some values
+      @server.put("deleteall", Record.new(:key => "0#{i}", :value => "val0#{i}"))
+    end
+    
+    (1..8).each do |i| # delete all values
+      @server.put("deleteall", Record.new(:key => "0#{i}", :value => nil))
+    end
+    
+    desired = RecordSet.new(
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>"01",:end_key=>"08",:offset => nil,:limit => nil)
+      )
+    
+    record_list = @server.get_set("deleteall",desired)
+    assert_equal((1..8).map{|i| Record.new(:key => "0#{i}", :value => nil)}, record_list)
   end
 
   def test_trivial_range 
@@ -91,6 +127,39 @@ class TS_Sets < Test::Unit::TestCase
       )
     record_list = @server.get_set("userrange",desired)
     assert_equal([2,4,6,8].map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}, record_list)
+  end
+
+  def test_key_value_func
+    (1..8).each do |i| # set some values
+      @server.put("keyvalfunc", Record.new(:key => "0#{i}", :value => "0#{i}"))
+    end
+    
+    # ask for only ones with both keys and values even
+    desired = RecordSet.new(
+      :type =>RecordSetType::RST_KEY_VALUE_FUNC,
+      :func => @evensfunc_key
+      )
+    record_list = @server.get_set("keyvalfunc",desired)
+    assert_equal([2,4,6,8].map{|i| Record.new(:key => "0#{i}", :value => "0#{i}")}, record_list)
+    
+  end
+  
+  def test_rst_all_ns
+    (1..4).each do |i| # set some values in one ns
+      @server.put("ns1", Record.new(:key => "0#{i}", :value => "val0#{i}"))
+    end
+    (5..9).each do |i| # set some values in another ns
+      @server.put("ns2", Record.new(:key => "0#{i}", :value => "val0#{i}"))
+    end
+    
+    # ask for ALL, but each time from different ns
+    desired = RecordSet.new(
+      :type =>RecordSetType::RST_ALL
+      )
+    record_list1 = @server.get_set("ns1",desired)
+    record_list2 = @server.get_set("ns2",desired)
+    assert_equal((1..4).map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}, record_list1)
+    assert_equal((5..9).map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}, record_list2)
   end
 
   def test_nil_range_ends
