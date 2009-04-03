@@ -9,7 +9,7 @@ require 'optparse'
 require 'scads'
 
 # get commnd line args
-opts = {:host=>'localhost'}
+opts = {:host=>'0.0.0.0'}
 ARGV.options do |o|
   o.set_summary_indent('  ')
   o.banner =    "Usage: #{File.basename($0)} [opts]"
@@ -23,6 +23,11 @@ ARGV.options do |o|
   o.on("-p", "--port=num", Integer,
        "Port number (required)")  do |p| 
           opts[:port] = p
+        end
+  o.on("-d", "--debug",
+       "Turn on debugging (optional)")  do |d| 
+          opts[:debug] = d
+          $DEBUG = true
         end
   o.separator ""
   o.on_tail("-h", "--help", "Show this help message") { puts o; Process.exit }
