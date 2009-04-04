@@ -34,6 +34,6 @@ abstract class RandomReader(mKey: Int) extends RequestMaker(0) {
 	def makeRequest(client: SCADS.Storage.Client): Map[String, String] = {
 		val key = getKey(rand.nextInt(maxKey))
 		client.get("perfTest", key)
-		Map("request_type" -> "read", "request_pattern" -> "random", "key" -> key)
+		Map("request_type" -> "read", "request_pattern" -> "random", "key" -> key, "max_key" -> maxKey.toString())
 	}
 }
