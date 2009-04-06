@@ -14,8 +14,8 @@ object RandomConcurrencyTest  {
 	}
 
 	def main(args: Array[String]) = {
-		for(maxKey <- (1024 to (1024 * 2) by (1024*100))) {
-			for(numThreads <- (1 to 1)) {
+		for(maxKey <- (1024 to (1024 * 1024) by (1024*100))) {
+			for(numThreads <- (1 to 15)) {
 				println("Execing " + maxKey + " "+ numThreads)
 				val threads = (1 to numThreads).toList.map((id) => {new Thread(new RandomClient(maxKey, 500000/numThreads))})
 
