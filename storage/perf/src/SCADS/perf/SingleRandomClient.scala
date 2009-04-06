@@ -12,15 +12,17 @@ object RandomConcurrencyTest  {
 			exec(rCount)
 		}
 	}
-	
+
 	def main(args: Array[String]) = {
-		(1024 to (1024*1024) by (1024*100)).foreach( (maxKey) =>
-			(1 to 15).foreach( (numThreads) => {
-				val threads = (1 to numThreads).map( (id) => new Thread(new RandomClient(maxKey, 500000/numThreads)))
+		for(maxKey <- (1024 to (1024 * 2) by (1024*100))) {
+			for(numThreads <- (1 to 1)) {
+				println("Execing " + maxKey + " "+ numThreads)
+				val threads = (1 to numThreads).toList.map((id) => {new Thread(new RandomClient(maxKey, 500000/numThreads))})
+
 				threads.foreach((thread) => thread.start())
-				threads.foreach((thread) => thread.join())
+				for(t <- threads) t.join()
 			}
-			)
-		)
+		}
 	}
 }
+
