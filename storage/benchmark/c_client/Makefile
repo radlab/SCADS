@@ -41,7 +41,7 @@ GEN_SRC = gen-cpp/storage_types.cpp gen-cpp/Storage.cpp
 # C/C++ MACROS
 CXX=g++
 CFLAGS = -I${THRIFT_DIR} -I${BOOST_DIR} -Igen-cpp
-LIBS = ${LIB_DIRS} -lthrift -l${BDB_LIB}
+LIBS = ${LIB_DIRS} -lthrift
 
 default: arch_warning client
 
