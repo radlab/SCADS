@@ -5,6 +5,7 @@
 #include <server/TSimpleServer.h>
 #include <server/TThreadPoolServer.h>
 #include <server/TThreadedServer.h>
+#include <server/TNonblockingServer.h>
 #include <transport/TServerSocket.h>
 #include <transport/TTransportUtils.h>
 
@@ -920,13 +921,15 @@ RecordSet& RecordSet::operator=(const RecordSet &rhs) const {
 enum ServerType {
   ST_SIMPLE,
   ST_POOL,
-  ST_THREAD
+  ST_THREAD,
+  ST_NONBLOCK
 };
 enum ServerType serverType;
 
 TSimpleServer* simpleServer;
 TThreadPoolServer* poolServer;
 TThreadedServer* threadedServer;
+TNonblockingServer *nonblockingServer;
 
 static shared_ptr<StorageDB> storageDB;
 
@@ -940,7 +943,7 @@ Starts the BerkeleyDB storage layer.\n\n\
          \tDefault: 9090\n\
   -d DIRECTORY\tStore data files in directory DIRECTORY\n\
               \tDefault: .\n\
-  -t TYPE\tWhat thrift server type to run simple,threaded, or pooled\n\
+  -t TYPE\tWhat thrift server type to run simple,threaded, nonblocking or pooled\n\
          \tDefault: pooled\n\
   -n NUM\tHow many threads to use for pooled server.\n\
         \tIgnored if not running pooled.\n\
@@ -973,8 +976,10 @@ void parseArgs(int argc, char* argv[]) {
 	serverType = ST_THREAD;
       else if (!strcmp(optarg,"pooled"))
 	serverType = ST_POOL;
+      else if (!strcmp(optarg,"nonblocking"))
+	serverType = ST_NONBLOCK;
       else {
-	cerr << "argument to -t must be one of: simple, threaded, or pooled"<<endl;
+	cerr << "argument to -t must be one of: simple, threaded, nonblocking or pooled"<<endl;
 	exit(EXIT_FAILURE);
       }
       break;
@@ -1012,6 +1017,9 @@ static void ex_program(int sig) {
     break;
   case ST_THREAD:
     threadedServer->stop();
+    break;
+  case ST_NONBLOCK:
+    nonblockingServer->stop();
     break;
   default:
     cerr << "Warning, don't know what kind of server you're running, not calling stop."<<endl;;
@@ -1074,6 +1082,15 @@ int main(int argc, char **argv) {
 			   protocolFactory);
     threadedServer = &server;
     printf("Starting threaded server...\n");
+    server.serve();
+  }
+    break;
+  case ST_NONBLOCK: {
+    TNonblockingServer server(processor,
+			      protocolFactory,
+			      port);
+    nonblockingServer = &server;
+    printf("Starting nonblocking server...\n");
     server.serve();
   }
     break;
