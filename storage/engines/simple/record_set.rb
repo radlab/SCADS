@@ -43,6 +43,8 @@ module SCADS
           raise InvalidSetDescription.new(:s => self, :info => "offset !<= limit") if (!range.offset.nil? && !range.limit.nil?) && range.offset > range.limit
         when RecordSetType::RST_KEY_FUNC
           raise InvalidSetDescription.new(:s => self, :info => "what language is this!") if func.lang != Language::LANG_RUBY
+        when RecordSetType::RST_KEY_VALUE_FUNC
+          raise InvalidSetDescription.new(:s => self, :info => "what language is this!") if func.lang != Language::LANG_RUBY
         else
           raise NotImplemented.new
         end
