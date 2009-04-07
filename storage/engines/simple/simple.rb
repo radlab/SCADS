@@ -5,7 +5,7 @@ module SCADS
     module Simple
       class Handler
         def initialize
-          @data = Hash.new({})
+          @data = Hash.new {|hash, key| hash[key] = {}}
           @responsibility_policies = Hash.new(RecordSet.new(:type => RecordSetType::RST_ALL))
           @conflict_policies = Hash.new(ConflictPolicy.new(:type => ConflictPolicyType::CPT_GREATER))
         end
