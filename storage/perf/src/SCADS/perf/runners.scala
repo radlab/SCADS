@@ -9,10 +9,12 @@ trait Runner {
 	def useConnection(): Map[String, String]
 	def timeRequest(): Map[String, String] = {
 		val start = System.currentTimeMillis()
+		val start_nano = System.nanoTime()
 		var ret = useConnection()
+		val end_nano = System.nanoTime()
 		val end = System.currentTimeMillis()
 		
-		ret + ("start_time" -> ("" + start), "end_time" -> ("" + end)) ++ otherData
+		ret + ("start_time" -> ("" + start), "end_time" -> ("" + end), "duration" -> (end_nano-start_nano).toString) ++ otherData
 	}
 	
 	def report(stats: Map[String, String])
