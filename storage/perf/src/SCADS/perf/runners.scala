@@ -4,8 +4,8 @@ import java.io.BufferedWriter
 import java.io.FileWriter
 
 trait Runner {
-	var otherData: Map[String, String] = Map("client" -> java.net.InetAddress.getLocalHost().getHostName(), "test_id" -> System.currentTimeMillis().toString())
-	
+	var otherData: Map[String, String] = Map("client" -> java.net.InetAddress.getLocalHost().getHostName())
+
 	def useConnection(): Map[String, String]
 	def timeRequest(): Map[String, String] = {
 		val start = System.currentTimeMillis()
