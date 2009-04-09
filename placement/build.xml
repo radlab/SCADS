@@ -30,7 +30,7 @@
 	<target name="compile" depends="thrift">
 		<mkdir dir="${build.dir}"/>
 
-		<javac srcdir="gen-java/" destdir="${build.dir}" classpathref="project.classpath">
+		<javac srcdir="../storage/gen-java/" destdir="${build.dir}" classpathref="project.classpath">
 			<include name="**/*.java"/>
 		</javac>
 
@@ -51,15 +51,15 @@
 		</java>
 	</target>
 -->
-	<uptodate property="thriftBuild.notRequired" targetfile="gen-java/SCADS/Storage.java" >
-		<srcfiles dir= "storage" includes="storage.thrift"/>
+	<uptodate property="thriftBuild.notRequired" targetfile="../storage/gen-java/SCADS/Storage.java" >
+		<srcfiles dir= "../storage" includes="storage.thrift"/>
 	</uptodate>
 
 	<target name="thrift" unless="thriftBuild.notRequired">
 		<exec executable="thrift">
 			<arg value="-gen"/>
 			<arg value="java"/>
-			<arg value="storage.thrift"/>
+			<arg value="../storage/storage.thrift"/>
 		</exec>
 	</target>
 </project>
