@@ -21,7 +21,7 @@ trait Runner {
 }
 
 trait ReportToCSVFile {
-	val file = new FileWriter("perf_data" + System.currentTimeMillis().toString() + ".csv")
+	var file: FileWriter = null
 	var keys: Seq[String] = null
 	
 	def report(stats: Map[String, String]){

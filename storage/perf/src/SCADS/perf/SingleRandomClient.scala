@@ -1,15 +1,17 @@
 package SCADS.perf;
 
 object RandomConcurrencyTest  {
-	
+
 	class RandomClient(keySpace: Int, rCount: Int) extends RandomReader(keySpace) with ClosedRunner with SingleConnection with ReportToCSVFile with Runnable {
 		val host = "localhost"
 		val port = 9000
 		val reqCount= rCount
+
 		otherData += ("engine" -> "bdb", "instance_type" -> "small", "version" -> "6bb0cf346abce5e6063070a6c5e59af1a6a60f87")
 
 		def run() = {
 			otherData += ("test_id" -> ("proc" + getPid() + Thread.currentThread().getName()))
+			file = new java.io.FileWriter("perf_data." + otherData("test_id") + "." + System.currentTimeMillis().toString() + ".csv")
 			exec(rCount)
 		}
 
