@@ -17,8 +17,6 @@
 
 #include "pthread.h"
 
-#include <db.h>
-
 #include <signal.h>
 
 #include "StorageDB.h"
@@ -63,8 +61,8 @@ void apply_get(void* vec,DB* db, void* k, void* d) {
   DBT *key,*data;
   key = (DBT*)k;
   data = (DBT*)d;
-  r.key.assign((const char*)key->data);
-  r.value.assign((const char*)data->data);
+  r.key.assign((const char*)key->data,key->size);
+  r.value.assign((const char*)data->data,data->size);
   r.__isset.value = true;
   _return->push_back(r);
 }
@@ -350,7 +348,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
   case RST_RANGE:
     if (rs.range.__isset.start_key) {
       key.data = const_cast<char*>(rs.range.start_key.c_str());
-      key.size = rs.range.start_key.length()+1;
+      key.size = rs.range.start_key.length();
       ret = cursorp->get(cursorp, &key, &data, DB_SET_RANGE);
     } else { // start from the beginning
       ret = cursorp->get(cursorp, &key, &data, DB_FIRST);
@@ -529,7 +527,8 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 }
 
 StorageDB::
-StorageDB() {
+StorageDB(int lp) :
+  listen_port(lp) {
   u_int32_t env_flags = 0;
   int ret;
     
@@ -571,13 +570,18 @@ StorageDB() {
     exit(EXIT_FAILURE);
   }
 
+  // start up the thread that will listen for incomming copy/syncs
+  (void) pthread_create(&listen_thread,NULL,
+			run_listen,this);
+
   // let's init ruby
   ruby_init();
   call_id = rb_intern("call");
 }
 
 void StorageDB::
-close() {
+closeDBs() {
+  //pthread_join(listen_thread,NULL);
   map<const NameSpace,DB*>::iterator iter;
   int rc = pthread_rwlock_wrlock(&dbmap_lock); // need a write lock here
   chkLock(rc,"dbmap_lock","closing down system");
@@ -613,13 +617,13 @@ get(Record& _return, const NameSpace& ns, const RecordKey& key) {
   db_data.flags = DB_DBT_MALLOC;
 
   db_key.data = const_cast<char*>(key.c_str());
-  db_key.size = key.length()+1;
+  db_key.size = key.length();
 
   retval = db_ptr->get(db_ptr, NULL, &db_key, &db_data, 0);
   _return.key = key;
   if (!retval) {  // return 0 means success
     _return.__isset.value = true;
-    _return.value.assign((const char*)db_data.data);
+    _return.value.assign((const char*)db_data.data,db_data.size);
     free(db_data.data);
   }
 }
@@ -632,16 +636,6 @@ get_set(std::vector<Record> & _return, const NameSpace& ns, const RecordSet& rs)
     throw nse;
   }
   apply_to_set(ns,rs,apply_get,&_return);
-}
-
-bool StorageDB::
-sync_set(const NameSpace& ns, const RecordSet& rs, const Host& h, const ConflictPolicy& policy) {
-  return false;
-}
-
-bool StorageDB::
-copy_set(const NameSpace& ns, const RecordSet& rs, const Host& h) {
-  return false;
 }
 
 bool StorageDB::
@@ -679,14 +673,14 @@ put(const NameSpace& ns, const Record& rec) {
   memset(&key, 0, sizeof(DBT));
   memset(&data, 0, sizeof(DBT));
   key.data = const_cast<char*>(rec.key.c_str());
-  key.size = rec.key.length()+1;
+  key.size = rec.key.length();
 
   if (!rec.__isset.value) { // really a delete
     ret = db_ptr->del(db_ptr,NULL,&key,0);
   }
   else {
     data.data = const_cast<char*>(rec.value.c_str());
-    data.size = rec.value.length()+1;
+    data.size = rec.value.length();
     ret = db_ptr->put(db_ptr, NULL, &key, &data, 0);
   }
 
@@ -812,10 +806,10 @@ set_responsibility_policy(const NameSpace& ns, const RecordSet& policy) {
   memset(&db_data, 0, sizeof(DBT));
 
   db_key.data = const_cast<char*>(ns.c_str());
-  db_key.size = ns.length()+1;
+  db_key.size = ns.length();
 
   db_data.data = const_cast<char*>(os.str().c_str());
-  db_data.size = os.str().length()+1;
+  db_data.size = os.str().length();
   retval = mdDB->put(mdDB, NULL, &db_key, &db_data, 0);
    
   if (!retval)    
@@ -838,13 +832,13 @@ get_responsibility_policy(RecordSet& _return, const NameSpace& ns) {
   memset(&db_data, 0, sizeof(DBT));
 
   db_key.data = const_cast<char*>(ns.c_str());
-  db_key.size = ns.length()+1;
+  db_key.size = ns.length();
   db_data.flags = DB_DBT_MALLOC;
 
 
   retval = mdDB->get(mdDB, NULL, &db_key, &db_data, 0);
   if (!retval) { // okay, something was there
-    string pol((char*)db_data.data);
+    string pol((char*)db_data.data,db_data.size);
 #ifdef DEBUG
     cout << "deserialized str:"<<endl<<
       pol<<endl;
@@ -932,6 +926,8 @@ enum ServerType {
 };
 enum ServerType serverType;
 
+// our server, saved so we can
+// stop at exit
 TSimpleServer* simpleServer;
 TThreadPoolServer* poolServer;
 TThreadedServer* threadedServer;
@@ -939,11 +935,13 @@ TNonblockingServer *nonblockingServer;
 
 static shared_ptr<StorageDB> storageDB;
 
-int workerCount;
+int workerCount,lp;
+
+char stopping = 0;
 
 static
 void usage(const char* prgm) {
-  fprintf(stderr, "Usage: %s [-p PORT] [-d DIRECTORY]\n\
+  fprintf(stderr, "Usage: %s [-p PORT] [-d DIRECTORY] [-t TYPE] [-n NUM] [-l PORT]\n\
 Starts the BerkeleyDB storage layer.\n\n\
   -p PORT\tRun the thrift server on port PORT\n\
          \tDefault: 9090\n\
@@ -954,6 +952,8 @@ Starts the BerkeleyDB storage layer.\n\n\
   -n NUM\tHow many threads to use for pooled server.\n\
         \tIgnored if not running pooled.\n\
         \tDefault: 10\n\
+  -l PORT\tStart sync/move listen thread on port PORT\n\
+	\tDefault: 9091\n\
   -h\t\tShow this help\n\n",
 	  prgm);
 }
@@ -965,8 +965,9 @@ void parseArgs(int argc, char* argv[]) {
   port = 9090;
   serverType = ST_POOL;
   workerCount = 10;
+  lp = 9091;
 
-  while ((opt = getopt(argc, argv, "hp:d:t:n:")) != -1) {
+  while ((opt = getopt(argc, argv, "hp:d:t:n:l:")) != -1) {
     switch (opt) {
     case 'p':
       port = atoi(optarg);
@@ -992,6 +993,9 @@ void parseArgs(int argc, char* argv[]) {
     case 'n':
       workerCount = atoi(optarg);
       break;
+    case 'l':
+      lp = atoi(optarg);
+      break;
     case 'h':
     default: /* '?' */
       usage(argv[0]);
@@ -1007,13 +1011,10 @@ void parseArgs(int argc, char* argv[]) {
 }
 
 
-// our server, saved so we can
-// stop at exit
-
-
 
 static void ex_program(int sig) {
   cout << "\n\nShutting down."<<endl;
+  stopping = 1;
   switch (serverType) {
   case ST_SIMPLE:
     simpleServer->stop();
@@ -1030,7 +1031,7 @@ static void ex_program(int sig) {
   default:
     cerr << "Warning, don't know what kind of server you're running, not calling stop."<<endl;;
   }
-  storageDB->close();
+  storageDB->closeDBs();
   exit(0);
 }
 
@@ -1039,7 +1040,7 @@ int main(int argc, char **argv) {
   parseArgs(argc,argv);
 
   shared_ptr<TProtocolFactory> protocolFactory(new TBinaryProtocolFactory());
-  shared_ptr<StorageDB> handler(new StorageDB());
+  shared_ptr<StorageDB> handler(new StorageDB(lp));
   shared_ptr<TProcessor> processor(new StorageProcessor(handler));
   shared_ptr<TServerTransport> serverTransport(new TServerSocket(port));
   shared_ptr<TTransportFactory> transportFactory(new TBufferedTransportFactory());

@@ -1,11 +1,14 @@
 #ifndef STORAGEDB_H
 #define STORAGEDB_H
 
+#include <db.h>
 #include "gen-cpp/Storage.h"
 
 using namespace std;
 
 namespace SCADS {
+
+void* run_listen(void *args);
 
 class StorageDB : public StorageIf {
 
@@ -13,9 +16,11 @@ private:
   DB_ENV *db_env;
   pthread_rwlock_t dbmap_lock;
   map<const NameSpace,DB*> dbs;
+  pthread_t listen_thread;
+  int listen_port;
 
 public:
-  StorageDB();
+  StorageDB(int);
 
 private:
   int open_database(DB **dbpp,                  /* The DB handle that we are opening */
@@ -29,13 +34,15 @@ private:
 
   void chkLock(int rc, const string lock, const string action);
 
-  DB* getDB(const NameSpace& ns);
-
   void apply_to_set(const NameSpace& ns, const RecordSet& rs,
 		    void(*to_apply)(void*,DB*,void*,void*),void* apply_arg);
 
 public:
-  void close();
+
+  DB* getDB(const NameSpace& ns);
+  int get_listen_port() { return listen_port; }
+
+  void closeDBs();
   void get(Record& _return, const NameSpace& ns, const RecordKey& key);
   void get_set(std::vector<Record> & _return, const NameSpace& ns, const RecordSet& rs);
   bool sync_set(const NameSpace& ns, const RecordSet& rs, const Host& h, const ConflictPolicy& policy);

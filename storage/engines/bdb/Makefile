@@ -56,11 +56,11 @@ $(SRCS_TO_GEN): $(THRIFT_FILE)
 	$(THRIFT) $(THRIFT_FLAGS) $(THRIFT_FILE)
 
 # C/C++ RULES
-storage.bdb: $(SRCS_TO_GEN) StorageDB.cpp
-	$(CXX) $(CFLAGS) $(RUBY_INCLUDES) -o $@ StorageDB.cpp ${GEN_SRC} $(LIBS)
+storage.bdb: $(SRCS_TO_GEN) StorageDB.cpp Network.cpp
+	$(CXX) $(CFLAGS) $(RUBY_INCLUDES) -o $@ StorageDB.cpp Network.cpp ${GEN_SRC} $(LIBS)
 
-storage.bdb.debug: $(SRCS_TO_GEN) StorageDB.cpp
-	$(CXX) -g $(CFLAGS) $(RUBY_INCLUDES) -DDEBUG -o storage.bdb StorageDB.cpp ${GEN_SRC} $(LIBS)
+storage.bdb.debug: $(SRCS_TO_GEN) StorageDB.cpp Network.cpp
+	$(CXX) -g $(CFLAGS) $(RUBY_INCLUDES) -DDEBUG -o storage.bdb StorageDB.cpp Network.cpp ${GEN_SRC} $(LIBS)
 
 clean:
 	rm -rf gen-cpp storage.bdb
