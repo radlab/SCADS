@@ -25,6 +25,9 @@ trait ReportToCSVFile {
 	var keys: Seq[String] = null
 	
 	def report(stats: Map[String, String]){
+		if(file == null){
+			file = new FileWriter("perf.csv")
+		}
 		if(keys == null) {
 			keys = stats.keys.collect
 			file.write("#" + keys.mkString("", ",", "") + "\n")
