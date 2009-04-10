@@ -15,4 +15,6 @@ while(true)
     file.puts(([Time.now.to_i, hostname] + line.split(" ")).join(","))
     puts(([Time.now.to_i, hostname] + line.split(" ")).join(",")) if (count += 1) % 10 == 0
   end
+  file.flush
+  STDOUT.flush
 end
