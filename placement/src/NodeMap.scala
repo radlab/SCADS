@@ -3,12 +3,15 @@ import SCADS.Record
 
 import scala.collection.mutable.HashMap
 
+case class KeyRange(start: String, end: String)
 
 class NodeMap {
-	/* State */
-	var nodes = new HashMap[StorageThriftNode,Map[String,RecordSet]]  // maps a node to its responsibility within each namespace
-
-	/* Methods */
+	def add(node: StorageThriftNode) = {
+		nodes += node -> null
+	}
+	def remove(node: StorageThriftNode) = {
+		nodes - node
+	}
 	def lookup(ns: String, key: String): List[StorageThriftNode] = {// find nodes responsible for this key in this String 
 		null
 	}
@@ -16,7 +19,8 @@ class NodeMap {
 		null
 	}
 }
-class MutableNodeMap extends NodeMap {
+
+abstract class MutableNodeMap extends NodeMap {
 	/* Methods */
 	def add(node: StorageThriftNode) = {
 		nodes += node -> null
