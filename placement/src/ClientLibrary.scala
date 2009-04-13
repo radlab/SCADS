@@ -21,7 +21,6 @@ import scala.collection.mutable.HashSet
 
 class SimpleClientLibrary(dp: DataPlacement) extends ROWAClientLibrary(dp) {
 	var nodes = new NodeMap
-	
 
 	// get the key, contacting cached location or first asking DP if necessary
 	override def get(ns: String, key: String): Record = {
@@ -92,7 +91,7 @@ class SimpleClientLibrary(dp: DataPlacement) extends ROWAClientLibrary(dp) {
 
 class ClientLibraryServer(p: Int,d_port:Int) extends ThriftServer {
 	val port = p
-	private val dp = new DataPlacementSocket(d_port)
+	private val dp = new SimpleDataPlacement
 	val processor = new SCADS.ClientLibrary.Processor(new SimpleClientLibrary(dp))
 }
 
