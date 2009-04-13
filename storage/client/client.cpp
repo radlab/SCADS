@@ -112,14 +112,17 @@ static void range(StorageClient &client,
 		  const RecordKey &end_key,
 		  int32_t offset= 0,
 		  int32_t limit = 0) {
-  RangeSet range;
-  range.start_key = start_key;
-  range.end_key = end_key;
   RecordSet rs;
   rs.type = RST_RANGE;
+  rs.__isset.range = true;
+  RangeSet range;
+  range.__isset.start_key = true;
+  range.__isset.end_key = true;
+  range.offset = 0;
+  range.limit = 0;
+  range.start_key = start_key;
+  range.end_key = end_key;
   rs.range = range;
-  rs.range.offset = offset;
-  rs.range.limit = limit;
   client.get_set(results,ns,rs);
 }
 
@@ -150,6 +153,25 @@ static void removeRange(StorageClient &client,
   rs.range.offset = 0;
   rs.range.limit = 100;
   client.remove_set(ns,rs);
+}
+
+static void copyRange(StorageClient &client,
+		      const Host &h,
+		      const NameSpace &ns,
+		      const RecordKey &start_key,
+		      const RecordKey &end_key) {
+  RecordSet rs;
+  rs.type = RST_RANGE;
+  rs.__isset.range = true;
+  RangeSet range;
+  range.__isset.start_key = true;
+  range.__isset.end_key = true;
+  range.offset = 0;
+  range.limit = 0;
+  range.start_key = start_key;
+  range.end_key = end_key;
+  rs.range = range;
+  client.copy_set(ns,rs,h);
 }
 	
 static void printPutUsage() {
@@ -192,14 +214,18 @@ void ex_program(int sig) {
 int main(int argc,char* argv[]) {
   string* line;
   int opt,timing = 0;
+  int port = THRIFT_PORT;
   char pbuf[32];
-  while ((opt = getopt(argc,argv, "t")) != -1) {
+  while ((opt = getopt(argc,argv, "tp:")) != -1) {
     switch (opt) {
     case 't':
       timing = 1;
       break;
+    case 'p':
+      port = atoi(optarg);
+      break;
     default:
-      fprintf(stderr,"Usage: %s [-t] [hostname]\n",argv[0]);
+      fprintf(stderr,"Usage: %s [-t] [-p port] [hostname]\n",argv[0]);
       exit(EXIT_FAILURE);
     }
   }
@@ -207,7 +233,7 @@ int main(int argc,char* argv[]) {
   //cout << "Connecting to: "<<host<<endl;
   if (timing)
     cout << "Will print timing info"<<endl;
-  shared_ptr<TTransport> socket(new TSocket(host, THRIFT_PORT));
+  shared_ptr<TTransport> socket(new TSocket(host, port));
   shared_ptr<TTransport> transport(new TBufferedTransport(socket));
   shared_ptr<TProtocol> protocol(new TBinaryProtocol(transport));
   StorageClient client(protocol);
@@ -226,7 +252,7 @@ int main(int argc,char* argv[]) {
       perror("Couldn't read history: ");
   }
 
-  snprintf(pbuf,32,"%s:%i> ",THRIFT_HOST,THRIFT_PORT);
+  snprintf(pbuf,32,"%s:%i> ",host,port);
   pbuf[30]=' ';
   pbuf[29]='>';
 
@@ -265,7 +291,9 @@ int main(int argc,char* argv[]) {
 	//cout << "doing: put |"<<v[1]<<"| |"<<v[2]<<"| |"<<v[3]<<"|"<<endl;
 	Record r;
 	r.key = v[2];
+	r.__isset.key = true;
 	r.value = v[3];
+	r.__isset.value = true;
 	start_timing();
 	put(client,v[1],r);
 	cout << "Done"<<endl;
@@ -283,9 +311,12 @@ int main(int argc,char* argv[]) {
 	  start_timing();
 	  get(client,r,v[1],v[2]);
 	  end_timing();
-	  cout << r.value << endl;
+	  if (r.__isset.value)
+	    cout << r.value << endl;
+	  else
+	    cout << "No value for "<<v[2]<<endl;
  	} catch (TException e) {
-	  cout << "No such column."<<endl ;
+	  cout << "[Exception]: "<<e.what()<<endl;
         }
       }
 
@@ -363,6 +394,21 @@ int main(int argc,char* argv[]) {
 	} catch (TException e) {
 	  cout << "[Exception]: "<<e.what()<<endl;
         }
+      }
+
+      else if (cmd == "copy") {
+	if (v.size() != 5) {
+	  printf("invalid copy.  do: copy host:port namespace start_key end_key\n");
+	  continue;
+	}
+	try {
+	  start_timing();
+	  copyRange(client,v[1],v[2],v[3],v[4]);
+	  end_timing();
+	  cout << "Done"<<endl;
+	} catch(TException e) {
+	  cout << "[Exception]: "<<e.what()<<endl;
+	}
       }
 
       /*
