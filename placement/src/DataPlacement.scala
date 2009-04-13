@@ -54,7 +54,7 @@ class DataPlacementSocket(port: Int) extends SimpleDataPlacement {
 }
 
 class SimpleDataPlacement extends DataPlacement {
-	var nodes = new NodeMap
+	var nodes = new MutableNodeMap
 
 	override def add_node(node: Node) = {
 		node match {
@@ -69,6 +69,17 @@ class SimpleDataPlacement extends DataPlacement {
 	override def get_map: NodeMap = {
 		nodes
 	}
+	override def ask_responsibility(node: Node, namespace: String): RecordSet = {
+		node match {
+			case n:StorageThriftNode => val rs = n.get_responsibility_policy(namespace); rs
+		}
+	}
+	override def set_responsibility(node: Node, namespace: String, records: RecordSet) = {
+		node match {
+			case n:StorageThriftNode => {}
+		}
+	}
+	
 }
 
 abstract class DataPlacement {
@@ -80,10 +91,10 @@ abstract class DataPlacement {
 	def add_node(node: Node)	// start an entry in the node map with blank responsibility
 	def remove_node(node: Node)	// remove all map entries for this node
 	def get_map: NodeMap		// return a copy of the NodeMap; used by the Client Library to update itself
-	/*
-	def set_responsibility(node: Node, namespace: String, records: RecordSet) 	// assign a set of records to a node
-	def ask_responsibility(node: Node, namespace: String, records: RecordSet) 	// ask a node what its responsibility is
 	
+	def set_responsibility(node: Node, namespace: String, records: RecordSet) 	// assign a set of records to a node
+	def ask_responsibility(node: Node, namespace: String): RecordSet 	// ask a node what its responsibility is
+	/*
 	def move(source: Node, target: Node, namespace: String, records: RecordSet) // move a responsibility from one node to another
 	def copy(source: Node, target: Node, namespace: String, records: RecordSet) // copy a responsibility from one node to another	
 	*/
@@ -103,8 +114,6 @@ case class Node(h: String, p: Int) {
 	val port: Int = p
 }
 
-
-
 trait ThriftServer {
 	def port: Int
 	def processor: TProcessor
@@ -120,7 +129,7 @@ trait ThriftServer {
 		} catch { case x: Exception => x.printStackTrace }		
 	}
 	def stop = {
-		server.stop
+		server.stop // doesn't do shit
 	}
 }
 
@@ -138,34 +147,45 @@ class StorageThriftNode(host: String, port: Int) extends Node(host,port) with Th
 	
 	def get(namespace: String, key: String): Record = {
 		transport.open
-		//try {
+		try {
 			val rec = client.get(namespace,key)
-		//} catch { 
-		//    case x: Exception => { transport.close; return null }
-		//}
-		transport.close
-		rec
+			transport.close
+			rec
+		} catch { 
+		    case x: Exception => { transport.close; null }
+		}
 	}
 	def get_set(namespace: String, keys: RecordSet): java.util.List[Record] = {
 		transport.open
-		//try {
+		try {
 			val recs = client.get_set(namespace,keys)
-		//} catch { 
-		//    case x: Exception => { transport.close; return null }
-		//}
-		transport.close
-		recs
+			transport.close
+			recs
+		} catch { 
+		    case x: Exception => { transport.close; null }
+		}
 	}
 	
 	def put(namespace: String, rec: Record): Boolean = {
 		transport.open
-		//try {
+		try {
 			val success = client.put(namespace,rec)
-		//} catch { 
-		//    case x: Exception => { transport.close; return null }
-		//}
-		transport.close
-		success
+			transport.close
+			success
+		} catch { 
+		    case x: Exception => { transport.close; false }
+		}
+	}
+	
+	def get_responsibility_policy(namespace: String): RecordSet = {
+		transport.open
+		try {
+			val recs = client.get_responsibility_policy(namespace)
+			transport.close
+			recs
+		} catch { 
+			case x: Exception => { transport.close; null }
+		}
 	}
 }
 

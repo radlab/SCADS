@@ -89,7 +89,7 @@ class SimpleClientLibrary(dp: DataPlacement) extends ROWAClientLibrary(dp) {
 
 }
 
-class ClientLibraryServer(p: Int,d_port:Int) extends ThriftServer {
+class ClientLibraryServer(p: Int) extends ThriftServer {
 	val port = p
 	private val dp = new SimpleDataPlacement
 	val processor = new SCADS.ClientLibrary.Processor(new SimpleClientLibrary(dp))
