@@ -33,6 +33,10 @@
 		<javac srcdir="../storage/gen-java/" destdir="${build.dir}" classpathref="project.classpath">
 			<include name="**/*.java"/>
 		</javac>
+		
+		<javac srcdir="gen-java/" destdir="${build.dir}" classpathref="project.classpath">
+			<include name="**/*.java"/>
+		</javac>
 
 		<scalac srcdir="src/" destdir="${build.dir}" classpathref="project.classpath" force="changed" deprecation="yes">
 			<include name="**/*.scala"/>
@@ -54,12 +58,21 @@
 	<uptodate property="thriftBuild.notRequired" targetfile="../storage/gen-java/SCADS/Storage.java" >
 		<srcfiles dir= "../storage" includes="storage.thrift"/>
 	</uptodate>
+	
+	<uptodate property="thriftBuild.notRequired" targetfile="gen-java/SCADS/ClientLibrary.java" >
+		<srcfiles dir= "." includes="clientlibrary.thrift"/>
+	</uptodate>
 
 	<target name="thrift" unless="thriftBuild.notRequired">
 		<exec executable="thrift">
 			<arg value="-gen"/>
 			<arg value="java"/>
 			<arg value="../storage/storage.thrift"/>
+		</exec>
+		 <exec executable="thrift">
+			<arg value="-gen"/>
+			<arg value="java"/>
+			<arg value="clientlibrary.thrift"/>
 		</exec>
 	</target>
 </project>
