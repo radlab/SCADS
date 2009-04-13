@@ -38,23 +38,32 @@ int fill_buf(int* sock, char* buf, int off) {
   return recvd;
 }
 
-int fill_dbt(int* sock, DBT* k, char* buf, char* pos, char** endp) {
-  int len,used;
+int fill_dbt(int* sock, DBT* k, DBT* other, char* buf, char* pos, char** endp) {
+  int len;
   char *end = *endp;
   if (k->flags)
-    len = k->size;
+    len = (k->size - k->dlen);
   else { 
     if ((end-pos) < 4) {
       memcpy(buf,pos,(end-pos)); // move data to the front
+      if (other != NULL &&
+	  !other->flags) { // other dbt isn't malloced and needs its data saved and moved
+	void* od = malloc(sizeof(char)*other->size);
+	memcpy(od,other->data,other->size);
+	other->data = od;
+	other->flags = 1; // is malloced now
+      }
       len = fill_buf(sock,buf,(end-pos));
       *endp = buf+len;
-      return fill_dbt(sock,k,buf,buf,endp);
+      return fill_dbt(sock,k,other,buf,buf,endp);
     }
     memcpy(&len,pos,4);
     k->size = len;
+    pos+=4;
   }
   if (len == 0) // means we're done
     return len;
+
 
   if (pos+len > end) { // we're spilling over a page
     if (k->flags) {
@@ -67,22 +76,25 @@ int fill_dbt(int* sock, DBT* k, char* buf, char* pos, char** endp) {
       k->dlen = (end-pos);
       memcpy(k->data,pos,end-pos);
     }
+    if (other != NULL &&
+	!other->flags) { // other dbt isn't malloced and needs its data saved and moved
+      void* od = malloc(sizeof(char)*other->size);
+      memcpy(od,other->data,other->size);
+      other->data = od;
+      other->flags = 1; // is malloced now
+    }
     len = fill_buf(sock,buf,0);
     *endp = buf+len;
-    return fill_dbt(sock,k,buf,buf,endp);
+    return fill_dbt(sock,k,other,buf,buf,endp);
   }
-  else {
-    if (k->flags) {
-      memcpy(((char*)k->data)+k->dlen,pos,end-pos);
-      used = end-pos;
-    }
-    else {
-      k->data = pos+4;
-      used = len+4;
-    }
+  else { // okay, enough data in buf to finish off
+    if (k->flags) 
+      memcpy(((char*)k->data)+k->dlen,pos,len);
+    else 
+      k->data = pos;
   }
 
-  return used;
+  return ((pos+len)-buf);
 }
 
 
@@ -143,14 +155,15 @@ void* run_listen(void* arg) {
   while(!stopping) {
     char *end;
     int off = 0;
-    int usd = 0;
     peer_addr_len = sizeof(struct sockaddr_storage);
     as = accept(sock,(struct sockaddr *)&peer_addr,&peer_addr_len);
 
     inet_ntop(peer_addr.ss_family,
 	      get_in_addr((struct sockaddr *)&peer_addr),
 	      abuf, sizeof(abuf));
+#ifdef DEBUG
     printf("server: got connection from %s\n", abuf);
+#endif
     
     // fire off new thread here
     {
@@ -165,26 +178,28 @@ void* run_listen(void* arg) {
       // do all the work
       memset(&k, 0, sizeof(DBT));
       end = dbuf;
-      off = fill_dbt(&as,&k,dbuf,dbuf,&end);
+      off = fill_dbt(&as,&k,NULL,dbuf,dbuf,&end);
 
       string ns = string((char*)k.data,k.size);
       if (k.flags)
 	free(k.data);
 
+#ifdef DEBUG
       cout << "Namespace is: "<<ns<<endl;
+#endif
       db_ptr = storageDB->getDB(ns);
 
       for(;;) { // now read all our key/vals
 	int kf,df;
 	memset(&k, 0, sizeof(DBT));
 	memset(&d, 0, sizeof(DBT));
-	usd = fill_dbt(&as,&k,dbuf,dbuf+off,&end);
-	if (usd == 0)
+	off = fill_dbt(&as,&k,NULL,dbuf,dbuf+off,&end);
+	if (off == 0)
 	  break;
-	off+=usd;
-	usd = fill_dbt(&as,&d,dbuf,dbuf+off,&end);
-	off+=usd;
+	off = fill_dbt(&as,&d,&k,dbuf,dbuf+off,&end);
+#ifdef DEBUG
 	cout << "key: "<<string((char*)k.data,k.size)<<" data: "<<string((char*)d.data,d.size)<<endl;
+#endif
 	kf=k.flags;
 	df=d.flags;
 	k.flags = 0;
@@ -202,8 +217,9 @@ void* run_listen(void* arg) {
 	if (df)
 	  free(d.data);
       }
-      
+#ifdef DEBUG      
       cout << "done"<<endl;
+#endif
 
       close(as);
     }
