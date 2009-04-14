@@ -15,16 +15,6 @@ trait KeySpaceProvider {
 class NonCoveredRangeException extends Exception
 
 abstract class ClientLibrary extends SCADS.ClientLibrary.Iface {
-	def ns_map: Map[String,KeySpace]
-	
-	def add_namespace(ns: String): Boolean = {
-		this.add_namespace(ns,null)
-		true
-	}
-	def add_namespace(ns: String, ks: KeySpace): Boolean = {
-		ns_map.update(ns,ks)
-		true
-	}
 	
 	def get(namespace: String, key: String): Record
 	def get_set(namespace: String, keys: RecordSet): java.util.List[Record]
@@ -34,6 +24,15 @@ abstract class ClientLibrary extends SCADS.ClientLibrary.Iface {
 class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider {
 	var ns_map = new HashMap[String,SimpleKeySpace]
 	var dp_map = new HashMap[String,DataPlacement]
+	
+	def add_namespace(ns: String): Boolean = {
+		this.add_namespace(ns,null)
+		true
+	}
+	def add_namespace(ns: String, ks: SimpleKeySpace): Boolean = {
+		ns_map.update(ns,ks)
+		true
+	}
 	
 	/**
 	* Asks key space provider for latest keyspace for the specified namespace.
@@ -81,6 +80,7 @@ class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider {
 		var records = new HashSet[Record]
 		val ns_keyspace = ns_map(namespace)
 		val target_range = new KeyRange(keys.range.start_key, keys.range.end_key)
+		var ranges = Set[KeyRange]()
 
 		// determine which ranges to ask from which nodes
 		// assumes no gaps in range, but someone should tell user if entire range isn't covered
@@ -88,6 +88,7 @@ class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider {
 
 		// now do the getting
 		query_nodes.foreach( {case (node,keyrange)=> {
+			ranges += keyrange
 			val rset = new RecordSet(3,new RangeSet(keyrange.start,keyrange.end,0,0),null)
 			try {
 				val records_subset = node.get_set(namespace,rset)
@@ -103,8 +104,11 @@ class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider {
 			}
 		}
 		})
-		// TODO: check for gaps in desired RecordSet, throw exception?
 		
+		// make sure desired range was actually covered by what we gots
+		if ( !ns_keyspace.isCovered(target_range,ranges) ) 
+			throw new NonCoveredRangeException
+			 
 		java.util.Arrays.asList(records.toArray: _*) // shitty, but convert to java array
 	}
 	

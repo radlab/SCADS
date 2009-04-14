@@ -1,5 +1,6 @@
 import SCADS.RecordSet
 import SCADS.Record
+import SCADS.ConflictPolicy
 
 import org.apache.thrift.TException
 import org.apache.thrift.TProcessor
@@ -26,12 +27,10 @@ abstract class StorageNode(h: String, p: Int) extends Node(h,p) {
 	def get_set(namespace: String, keys: RecordSet): java.util.List[Record]
 	def put(namespace: String, rec: Record): Boolean
 	def get_responsibility_policy(namespace: String): RecordSet
-	
-	/* 	TODO: uncomment after overriding
+
 	def sync_set(ns: String, rs: RecordSet, host:String, policy: ConflictPolicy): Boolean
 	def copy_set(ns: String, rs: RecordSet, host:String): Boolean
 	def remove_set(ns: String, rs: RecordSet): Boolean
-	*/
 	
 }
 
@@ -112,6 +111,37 @@ class StorageThriftNode(host: String, port: Int) extends StorageNode(host,port) 
 			recs
 		} catch { 
 			case x: Exception => { transport.close; null }
+		}
+	}
+	
+	def sync_set(ns: String, rs: RecordSet, host:String, policy: ConflictPolicy): Boolean = {
+		transport.open
+		try {
+			val success = client.sync_set(ns,rs,host,policy)
+			transport.close
+			success
+		} catch { 
+			case x: Exception => { transport.close; false }
+		}
+	}
+	def copy_set(ns: String, rs: RecordSet, host:String): Boolean = {
+		transport.open
+		try {
+			val success = client.copy_set(ns,rs,host)
+			transport.close
+			success
+		} catch { 
+			case x: Exception => { transport.close; false }
+		}
+	}
+	def remove_set(ns: String, rs: RecordSet): Boolean = {
+		transport.open
+		try {
+			val success = client.remove_set(ns,rs)
+			transport.close
+			success
+		} catch { 
+			case x: Exception => { transport.close; false }
 		}
 	}
 }

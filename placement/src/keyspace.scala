@@ -73,6 +73,7 @@ abstract class KeySpace {
 	def lookup(key: String):Iterator[StorageNode]
 	def lookup(range: KeyRange): Map[StorageNode, KeyRange]
 	def coverage: Iterator[KeyRange]
+	def isCovered(desired_range: KeyRange, ranges: Set[KeyRange]): Boolean
 }
 
 class SimpleKeySpace extends KeySpace {
@@ -91,5 +92,7 @@ class SimpleKeySpace extends KeySpace {
 	space.filter((pair) => (pair._2 & range) != KeyRange.EmptyRange)
 
 	def coverage: Iterator[KeyRange] = space.values
+	
+	def isCovered(desired_range: KeyRange, ranges: Set[KeyRange]): Boolean = { true } // TODO
 }
 
