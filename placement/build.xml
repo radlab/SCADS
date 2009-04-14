@@ -5,7 +5,8 @@
 	<property name="build.dir" value="bin/"/>
 
 	<path id="scala.classpath">
-		<pathelement location="/Users/trush/Documents/svn_workspace/thrift/lib/java/libthrift.jar"/>
+		<pathelement location="/usr/share/java/libthrift.jar"/>
+		<pathelement location="/usr/share/java/scalatest-0.9.5.jar"/>
 		<pathelement location="/opt/local/share/scala/lib/scala-library.jar"/>
 		<pathelement location="/opt/local/share/scala/lib/scala-compiler.jar"/>
 	</path>
@@ -44,17 +45,17 @@
 	</target>
 
 	<!-- 6. Runs scala executable. -->
-<!--
-	<target name="run" depends="compile">
+
+	<target name="test" depends="compile">
 		<java classname="scala.tools.nsc.MainGenericRunner" fork="true">
 			<classpath>
 				<path refid="project.classpath"/>
 			</classpath>
 
-			<arg line="SCADS.perf.PerfClient"/>
+			<arg line="RunTests"/>
 		</java>
 	</target>
--->
+
 	<uptodate property="thriftBuild.notRequired" targetfile="../storage/gen-java/SCADS/Storage.java" >
 		<srcfiles dir= "../storage" includes="storage.thrift"/>
 	</uptodate>
