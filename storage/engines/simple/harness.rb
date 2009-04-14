@@ -68,6 +68,10 @@ module SCADS
         def host
           return "localhost:#{@port}"
         end
+
+        def sync_host
+          return "localhost:#{@port}"
+        end
       end
     end
   end

@@ -27,7 +27,7 @@ class TS_Syncing < Test::Unit::TestCase
       :type =>RecordSetType::RST_RANGE,
       :range => RangeSet.new(:start_key=>"05",:end_key=>"09",:offset => nil,:limit => nil)
       )
-    @server1.copy_set("copyset", to_copy,@server2.host)
+    @server1.copy_set("copyset", to_copy,@server2.sync_host)
     
     # try to get values from both servers
     desired = RecordSet.new(
@@ -81,7 +81,7 @@ class TS_Syncing < Test::Unit::TestCase
       :type =>RecordSetType::RST_RANGE,
       :range => RangeSet.new(:start_key=>"07",:end_key=>"08",:offset => nil,:limit => nil)
       )
-    @server1.sync_set("syncgreater", to_sync,@server2.host, @policy_greater)
+    @server1.sync_set("syncgreater", to_sync,@server2.sync_host, @policy_greater)
     
     # try to get values from both servers
     desired = RecordSet.new(
@@ -116,7 +116,7 @@ class TS_Syncing < Test::Unit::TestCase
       :type =>RecordSetType::RST_RANGE,
       :range => RangeSet.new(:start_key=>"05",:end_key=>"08",:offset => nil,:limit => nil)
       )
-    @server1.sync_set("syncfunc", to_sync,@server2.host, @policy_merge)
+    @server1.sync_set("syncfunc", to_sync,@server2.sync_host, @policy_merge)
   
     # try to get values from both servers
     desired = RecordSet.new(

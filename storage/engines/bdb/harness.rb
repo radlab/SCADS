@@ -27,15 +27,25 @@ module SCADS
           "localhost:#{@port}"
         end
 
+        def sync_host
+          "localhost:#{@syncport}"
+        end
+
         def start
           @port = rand(65000 - 1024) + 1024
+          @sync_port = rand(65000 - 1024) + 1024
+          @directory = "testdb/#{@port}"
+
+          `rm -rf #{@directory}` if File.exists?(@directory)
+          Dir.mkdir('testdb') unless File.exists?('testdb')
+          Dir.mkdir(@directory)
 
           @child = Kernel.fork do
-            $stdout.reopen(File.new("bdb.log", "w")) or
-              puts "failed to redirect"
-            $stderr.reopen(File.new("bdb.log", "w")) or
-              puts "failed to redirect"
-            exec "engines/bdb/storage.bdb -p #{@port}"
+            $stdout.reopen(File.new("bdb.log", "w+")) or
+            puts "failed to redirect"
+            $stderr.reopen(File.new("bdb.log", "w+")) or
+            puts "failed to redirect"
+            exec "engines/bdb/storage.bdb -p #{@port} -l #{@sync_port} -d #{@directory}"
           end
 
           sleep 1
