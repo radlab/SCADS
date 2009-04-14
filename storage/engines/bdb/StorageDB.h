@@ -4,6 +4,10 @@
 #include <db.h>
 #include "gen-cpp/Storage.h"
 
+#ifndef MSG_MORE
+	#define MSG_MORE 0
+#endif
+
 using namespace std;
 
 namespace SCADS {
