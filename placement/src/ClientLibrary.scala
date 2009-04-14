@@ -40,7 +40,7 @@ class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider {
 	* Updates the local copy's keyspace.
 	*/
 	override def getKeySpace(ns: String) = {
-		val ks = dp_map.get(ns).keySpace
+		val ks = dp_map(ns).keySpace
 		ns_map.update(ns,ks)
 	}
 	
@@ -59,10 +59,10 @@ class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider {
 	* Does update from KeySpaceProvider if local copy is out of date.
 	*/
 	override def get(namespace: String, key: String): Record = {
-		val ns_keyspace = ns_map.get(namespace)
+		val ns_keyspace = ns_map(namespace)
 		try {
-			val node = ns_keyspace.lookup(key).elements.next // just get the first node
-			val record = node.get(ns,key)
+			val node = ns_keyspace.lookup(key).next // just get the first node
+			val record = node.get(namespace,key)
 			record
 		} catch {
 			case e:NotResponsible => {
@@ -79,7 +79,7 @@ class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider {
 	*/
 	override def get_set(namespace: String, keys: RecordSet): java.util.List[Record] = {
 		var records = new HashSet[Record]
-		val ns_keyspace = ns_map.get(namespace)
+		val ns_keyspace = ns_map(namespace)
 		val target_range = new KeyRange(keys.range.start_key, keys.range.end_key)
 
 		// determine which ranges to ask from which nodes
@@ -91,12 +91,14 @@ class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider {
 			val rset = new RecordSet(3,new RangeSet(keyrange.start,keyrange.end,0,0),null)
 			try {
 				val records_subset = node.get_set(namespace,rset)
-				records ++= records_subset.iterator()
+				val iter = records_subset.iterator()
+				while (iter.hasNext()) { records += iter.next() }
 			} catch {
 				case e:NotResponsible => {
 					this.getKeySpace(namespace)
 					val records_subset = node.get_set(namespace,rset)
-					records ++= records_subset.iterator()
+					val iter = records_subset.iterator()
+					while (iter.hasNext()) { records += iter.next() }
 				}
 			}
 		}
@@ -106,8 +108,8 @@ class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider {
 		java.util.Arrays.asList(records.toArray: _*) // shitty, but convert to java array
 	}
 	
-	private def get_set_queries(nodes: Map[Node, KeyRange], target_range: KeyRange): HashMap[Node, KeyRange] = {
-		var resultmap = new HashMap[Node, KeyRange]
+	private def get_set_queries(nodes: Map[StorageNode, KeyRange], target_range: KeyRange): HashMap[StorageNode, KeyRange] = {
+		var resultmap = new HashMap[StorageNode, KeyRange]
 		
 		var start = target_range.start
 		val end = target_range.end
@@ -120,7 +122,7 @@ class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider {
 		resultmap
 	}
 	
-	private def find_node_at_start(nodes: Map[Node,KeyRange], start: String): (Node,KeyRange) = {
+	private def find_node_at_start(nodes: Map[StorageNode,KeyRange], start: String): (StorageNode,KeyRange) = {
 		var potential_nodes = nodes.filter((entry) => entry._2.start <= start) // nodes that start at or before target start
 		var chosen_node = potential_nodes.elements.next // init to first one?
 		var end = chosen_node._2.end
@@ -141,20 +143,22 @@ class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider {
 	*/
 	override def put(namespace: String, rec:Record): Boolean = {
 		val key = rec.getKey()
-		val ns_keyspace = ns_map.get(namespace)
+		val ns_keyspace = ns_map(namespace)
 		val put_nodes = ns_keyspace.lookup(key)
 		
 		put_nodes.foreach({ case(node)=>{
 			try {
-				val success = node.put(ns,rec)
+				val success = node.put(namespace,rec)
 				success
 			} catch {
 				case e:NotResponsible => {
 					this.getKeySpace(namespace)
-					this.put(namespace,rec) // recursion may redo some work
+					val success = this.put(namespace,rec) // recursion may redo some work
+					success
 				}
 			}
 		}})
+		true // TODO: make accurate
 	}
 }
 
