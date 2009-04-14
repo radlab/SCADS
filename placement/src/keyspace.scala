@@ -28,7 +28,7 @@ case class KeyRange(start: String, end: String) {
 		else
 			throw new NotContiguousException
 	}
-	
+
 	def - (that: KeyRange): KeyRange = {
 		if(this.end > that.start && this.end <= that.end && this.start < that.start)
 			new KeyRange(this.start, that.start)
@@ -41,7 +41,7 @@ case class KeyRange(start: String, end: String) {
 		else
 			throw new NotContiguousException
 	}
-	
+
 	def & (that: KeyRange): KeyRange = {
 		if((this.start == null || that.start == null) && (this.end == null || that.end == null))
 			new KeyRange(null, null)
