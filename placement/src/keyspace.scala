@@ -61,6 +61,8 @@ case class KeyRange(start: String, end: String) {
 			KeyRange.EmptyRange
 	}
 
+	def includes(key: String) = key >= start && key < end
+
 	private def min(a: String, b: String) = if(a < b) a else b
 	private def max(a: String, b: String) = if(a > b) a else b
 	private def coalesce(a: String, b:String) = if(a != null) a else b
