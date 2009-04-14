@@ -69,10 +69,28 @@ case class KeyRange(start: String, end: String) {
 }
 
 abstract class KeySpace {
-	def add(node: Node, range: KeyRange)
+	def assign(node: Node, range: KeyRange)
 	def remove(node: Node, range: KeyRange)
 
-	def lookup(key: String):Set[Node]
+	def lookup(key: String):Iterator[Node]
 	def lookup(range: KeyRange): Map[Node, KeyRange]
-	def coverage: Set[KeyRange]
+	def coverage: Iterator[KeyRange]
+}
+
+class SimpleKeySpace extends KeySpace {
+	var space = Map[Node, KeyRange]()
+
+	def assign(node: Node, range: KeyRange) =
+	space = (space + (node -> range))
+
+	def remove(node: Node, range: KeyRange) =
+	space = (space - node)
+
+	def lookup(key: String):Iterator[Node] =
+	space.filter((pair) => pair._2.includes(key)).keys
+
+	def lookup(range: KeyRange): Map[Node, KeyRange] =
+	space.filter((pair) => (pair._2 & range) != KeyRange.EmptyRange)
+
+	def coverage: Iterator[KeyRange] = space.values
 }

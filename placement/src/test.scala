@@ -1,5 +1,24 @@
 import org.scalatest.Suite
 
+class KeySpaceSuite extends Suite {
+	def testKeySpace() = {
+		val n1 = Node("test1", 0)
+		val n2 = Node("test2", 0)
+		val n3 = Node("test3", 0)
+		val n4 = Node("test4", 0)
+
+		val ks = new SimpleKeySpace()
+
+		ks.assign(n1, KeyRange("a", "c"))
+		ks.assign(n2, KeyRange("b", "m"))
+		ks.assign(n3, KeyRange("m", "n"))
+		ks.assign(n4, KeyRange("n", "z"))
+
+		assert(ks.lookup("a") contains n1)
+		assert(ks.lookup("b") contains n1)
+		assert(ks.lookup("b") contains n2)
+	}
+}
 
 class KeyRangeSuite extends Suite {
 	def testAddition() {
@@ -48,5 +67,6 @@ class KeyRangeSuite extends Suite {
 object RunTests {
 	def main(args: Array[String]) = {
 		(new KeyRangeSuite).execute()
+		(new KeySpaceSuite).execute()
 	}
 }
