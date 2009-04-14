@@ -1,22 +1,10 @@
 import SCADS.RecordSet
+import SCADS.RangeSet
 import SCADS.Record
 import SCADS.NotResponsible
 import SCADS.ClientLibrary
 
-import org.apache.thrift.TException
-import org.apache.thrift.TProcessor
-import org.apache.thrift.TProcessorFactory
-import org.apache.thrift.protocol.TProtocol
-import org.apache.thrift.protocol.TProtocolFactory
-import org.apache.thrift.transport.TServerTransport
-import org.apache.thrift.transport.TServerSocket
-import org.apache.thrift.transport.TTransport
-import org.apache.thrift.transport.TTransportFactory
-import org.apache.thrift.transport.TTransportException
-import org.apache.thrift.server.TServer
-import org.apache.thrift.server.TThreadPoolServer
-import org.apache.thrift.protocol.TBinaryProtocol
-
+import scala.collection.mutable.HashMap
 import scala.collection.mutable.HashSet
 
 trait KeySpaceProvider {
@@ -24,105 +12,124 @@ trait KeySpaceProvider {
 	def refreshKeySpace()
 }
 
-class SimpleClientLibrary(dp: DataPlacement) extends ROWAClientLibrary(dp) {
-	var nodes = new NodeMap
+abstract class ClientLibrary extends SCADS.ClientLibrary.Iface {
+	def ns_map: Map[String,KeySpace]
+	
+	def add_namespace(ns: String): Boolean = {
+		this.add_namespace(ns,null)
+		true
+	}
+	def add_namespace(ns: String, ks: KeySpace): Boolean = {
+		ns_map.update(ns,ks)
+		true
+	}
+	
+	def get(namespace: String, key: String): Record
+	def get_set(namespace: String, keys: RecordSet): java.util.List[Record]
+	def put(namespace: String, rec:Record): Boolean 
+}
 
-	// get the key, contacting cached location or first asking DP if necessary
-	override def get(ns: String, key: String): Record = {
-		// try local first
+class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider {
+	var ns_map = new HashMap[String,InefficientKeySpace]
+	var dp_map = new HashMap[String,DataPlacement]
+	
+	/**
+	* Asks key space provider for latest keyspace for the specified namespace.
+	* Updates the local copy's keyspace.
+	*/
+	def getKeySpace(ns: String) = {
+		val ks = dp_map.get(ns).keySpace
+		ns_map.update(ns,ks)
+	}
+	
+	/**
+	* Asks key space provider for all known namespaces.
+	* Updates all the keyspaces.
+	*/
+	def refreshKeySpace() = {
+		ns_map.foreach({ case(ns,ks) => {
+			this.getKeySpace(ns)
+		}})
+	}
+
+	/**
+	* Read value from one node. Uses local map. 
+	* Does update from KeySpaceProvider if local copy is out of date.
+	*/
+	override def get(namespace: String, key: String): Record = {
+		val ns_keyspace = ns_map.get(namespace)
 		try {
-			val node= nodes.lookup(ns,key).toArray(0) // just read the first one for now
+			val node = ns_keyspace.lookup(key).elements.next // just get the first node
 			val record = node.get(ns,key)
 			record
 		} catch {
 			case e:NotResponsible => {
-				set_map(dp.get_map)
-				val node= nodes.lookup(ns,key).toArray(0) // just read the first one for now
-				val record = node.get(ns,key)
+				this.getKeySpace(namespace)
+				val record = this.get(namespace,key) // recursion, will this work?
 				record
 			}
 		}
 	}
-
-	// determine set of nodes to interrogate, then do as many appropriate get_sets
-	override def get_set(ns: String, rset: SCADS.RecordSet): java.util.List[Record]  = {
+	
+	/**
+	* Read values from one node. Uses local map.
+	* Does update from KeySpaceProvider if local copy is out of date.
+	*/
+	override def get_set(namespace: String, keys: RecordSet): java.util.List[Record] = {
 		var records = new HashSet[Record]
-		val query_nodes = nodes.lookup_set(ns,rset)
-		
-		query_nodes.foreach( {case (node,range_set)=> {
+		val ns_keyspace = ns_map.get(namespace)
+		val target_range = new KeyRange(keys.range.start_key, keys.range.end_key)
+
+		// determine which ranges to ask from which nodes
+		// assumes no gaps in range, but someone should tell user if entire range isn't covered
+		val query_nodes = this.get_set_queries(ns_keyspace.lookup(target_range))
+
+		// now do the getting
+		query_nodes.foreach( {case (node,keyrange)=> {
+			val rset = new RecordSet(3,new RangeSet(keyrange.start,keyrange.end,0,0),null)
 			try {
-				val subset = node.get_set(ns,range_set)
-				val iter = subset.iterator()
-				while (iter.hasNext()) {
-					records += iter.next()
-				}
+				val records_subset = node.get_set(namespace,rset)
+				records ++= records_subset.iterator()
 			} catch {
 				case e:NotResponsible => {
-					set_map(dp.get_map)
-					val subset = node.get_set(ns,range_set)
-					val iter = subset.iterator()
-					while (iter.hasNext()) {
-						records += iter.next()
-					}
+					// TODO
 				}
 			}
 		}
 		})
-		java.util.Arrays.asList(records.toArray: _*) 
+		java.util.Arrays.asList(records.toArray: _*) // shitty, but convert to java array
 	}
-
-	// put key to all storage nodes, first asking DP for location if necessary
-	override def put(ns: String, rec: Record): Boolean = {
+	
+	private def get_set_queries(nodes: Map[Node, KeyRange]): Map[Node, KeyRange] = {
+	
+	}
+	
+	/**
+	* Write records to all responsible nodes.
+	* Does update from KeySpaceProvider if local copy is out of date.
+	*/
+	override def put(namespace: String, rec:Record): Boolean = {
 		val key = rec.getKey()
-		val put_nodes= nodes.lookup(ns,key)
+		val ns_keyspace = ns_map.get(namespace)
+		val put_nodes = ns_keyspace.lookup(key)
+		
 		put_nodes.foreach({ case(node)=>{
 			try {
-				node.put(ns,rec)
+				val success = node.put(ns,rec)
+				success
 			} catch {
 				case e:NotResponsible => {
-					set_map(dp.get_map)
-					node.put(ns,rec)
+					this.getKeySpace(namespace)
+					this.put(namespace,rec) // recursion may redo some work
 				}
 			}
 		}})
-		true // TODO: make this accurate
 	}
-
-	def set_map(m: NodeMap) = {
-		this.nodes = m
-	}
-
 }
+
 
 class ClientLibraryServer(p: Int) extends ThriftServer {
 	val port = p
-	private val dp = new SimpleDataPlacement
-	val processor = new SCADS.ClientLibrary.Processor(new SimpleClientLibrary(dp))
+	val processor = new SCADS.ClientLibrary.Processor(new ROWAClientLibrary)
 }
-
-
-abstract class ClientLibrary(dp: DataPlacement) extends SCADS.ClientLibrary.Iface {
-	/* State */
-	val placement = dp		// instance of Data Placement class
-	def nodes: NodeMap		// read-only version of map of node responsibilities
-	
-	/* Methods */
-	// get the Records matching the key, ask DP for map if necessary; calls get() on node
-	def get(namespace: String, key: String): Record
-	
-	// determine set of nodes to interrogate, then do as many appropriate get_sets from nodes; gets map from DP if necessary
-	def get_set(namespace: String, keys: RecordSet): java.util.List[Record] 
-	
-	// put key to responsible storage node(s), asking DP for location if necessary
-	def put(namespace: String, rec:Record): Boolean 
-}
-
-abstract class ROWAClientLibrary(dp: DataPlacement) extends ClientLibrary(dp) {
-	/* Methods */
-	def get(namespace: String, key: String): Record 						// read from one node
-	def get_set(namespace: String, keys: RecordSet): java.util.List[Record]			// read from one node
-	def put(namespace: String, rec:Record): Boolean 	// write to all responsible nodes
-}
-
-
 

@@ -5,7 +5,7 @@ abstract class ClusterMembership(dp: DataPlacement) {
 	
 	/* Methods */
 	private def add_node (node: Node) = {		// add to cluster list
-		members += node->"active"
+		members += node
 		dp.add_node(node)
 	}
 	
@@ -19,10 +19,6 @@ abstract class SimpleCluster(dp: DataPlacement) extends ClusterMembership(dp) {
 	/* Methods */
 	def join(node: Node) 	// a node joins the cluster; cluster membership informs its placement instance
 	def leave(node: Node) 	// a node leaves, cluster memberships informs placement
-}
-
-abstract class MulticastCluster(dp: DataPlacement) extends ClusterMembership(dp) {
-	// TODO
 }
 
 trait HeartBeat {

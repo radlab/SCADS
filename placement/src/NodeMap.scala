@@ -1,3 +1,5 @@
+/*
+
 import SCADS.RecordSet
 import SCADS.Record
 
@@ -32,3 +34,4 @@ abstract class MutableNodeMap extends NodeMap {
 		nodes - node
 	}
 }
+*/

@@ -1,3 +1,4 @@
+/*
 abstract class MulticastCluster(dp: DataPlacement) extends ClusterMembership(dp) {
 	// TODO
 }
@@ -12,3 +13,4 @@ abstract class QuorumClientLibrary(read_q: Int, write_q: Int, dp: DataPlacement)
 	def get_set(namespace: String, keys: RecordSet): java.util.List[Record]			// read from quorum nodes
 	def put(namespace: String, rec:Record): Boolean 	// write to quorum responsible nodes
 }
+*/
