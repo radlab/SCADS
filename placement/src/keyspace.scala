@@ -1,5 +1,3 @@
-case class Node(host: String, port: Int)
-
 class NotContiguousException extends Exception
 
 object KeyRange {
@@ -69,28 +67,29 @@ case class KeyRange(start: String, end: String) {
 }
 
 abstract class KeySpace {
-	def assign(node: Node, range: KeyRange)
-	def remove(node: Node, range: KeyRange)
+	def assign(node: StorageNode, range: KeyRange)
+	def remove(node: StorageNode)
 
-	def lookup(key: String):Iterator[Node]
-	def lookup(range: KeyRange): Map[Node, KeyRange]
+	def lookup(key: String):Iterator[StorageNode]
+	def lookup(range: KeyRange): Map[StorageNode, KeyRange]
 	def coverage: Iterator[KeyRange]
 }
 
 class SimpleKeySpace extends KeySpace {
-	var space = Map[Node, KeyRange]()
+	var space = Map[StorageNode, KeyRange]()
 
-	def assign(node: Node, range: KeyRange) =
+	def assign(node: StorageNode, range: KeyRange) =
 	space = (space + (node -> range))
 
-	def remove(node: Node, range: KeyRange) =
+	def remove(node: StorageNode, range: KeyRange) =
 	space = (space - node)
 
-	def lookup(key: String):Iterator[Node] =
+	def lookup(key: String):Iterator[StorageNode] =
 	space.filter((pair) => pair._2.includes(key)).keys
 
-	def lookup(range: KeyRange): Map[Node, KeyRange] =
+	def lookup(range: KeyRange): Map[StorageNode, KeyRange] =
 	space.filter((pair) => (pair._2 & range) != KeyRange.EmptyRange)
 
 	def coverage: Iterator[KeyRange] = space.values
 }
+

@@ -35,6 +35,10 @@ abstract class StorageNode(h: String, p: Int) extends Node(h,p) {
 	
 }
 
+/**
+* Use Thrift to connect over socket to a host:port.
+* Intended for clients to connect to servers.
+*/
 trait ThriftConnection {
 	def host: String
 	def port: Int
@@ -43,6 +47,9 @@ trait ThriftConnection {
 	protected val protocol = new TBinaryProtocol(transport)
 }
 
+/**
+* Use Thrift to start a server listening on a socket at localhost:port.
+*/
 trait ThriftServer {
 	def port: Int
 	def processor: TProcessor
