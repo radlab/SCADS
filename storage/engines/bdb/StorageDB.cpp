@@ -1052,7 +1052,7 @@ int main(int argc, char **argv) {
 
   storageDB = handler;
   signal(SIGINT, ex_program);
-
+  signal(SIGTERM, ex_program);
 
   switch (serverType) {
   case ST_SIMPLE: {
