@@ -82,7 +82,7 @@ class SimpleKeySpace extends KeySpace {
 	def assign(node: StorageNode, range: KeyRange) =
 	space = (space + (node -> range))
 
-	def remove(node: StorageNode, range: KeyRange) =
+	def remove(node: StorageNode) =
 	space = (space - node)
 
 	def lookup(key: String):Iterator[StorageNode] =
