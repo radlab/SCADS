@@ -2,7 +2,6 @@ import SCADS.RecordSet
 import SCADS.RangeSet
 import SCADS.Record
 import SCADS.NotResponsible
-import SCADS.ClientLibrary
 
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.HashSet
