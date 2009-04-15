@@ -76,7 +76,7 @@ class TS_Sets < Test::Unit::TestCase
       )
     
     record_list = @server.get_set("deleteall",desired)
-    assert_equal((1..8).map{|i| Record.new(:key => "0#{i}", :value => nil)}, record_list)
+    assert_equal([],record_list)
   end
 
   def test_trivial_range 
