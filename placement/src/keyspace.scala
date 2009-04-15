@@ -70,6 +70,7 @@ abstract class KeySpace {
 	def assign(node: StorageNode, range: KeyRange)
 	def remove(node: StorageNode)
 
+	def lookup(node: StorageNode): KeyRange
 	def lookup(key: String):Iterator[StorageNode]
 	def lookup(range: KeyRange): Map[StorageNode, KeyRange]
 	def coverage: Iterator[KeyRange]
@@ -80,16 +81,19 @@ class SimpleKeySpace extends KeySpace {
 	var space = Map[StorageNode, KeyRange]()
 
 	def assign(node: StorageNode, range: KeyRange) =
-	space = (space + (node -> range))
+		space = (space + (node -> range))
 
 	def remove(node: StorageNode) =
-	space = (space - node)
+		space = (space - node)
+
+	def lookup(node: StorageNode): KeyRange =
+		space(node)
 
 	def lookup(key: String):Iterator[StorageNode] =
-	space.filter((pair) => pair._2.includes(key)).keys
+		space.filter((pair) => pair._2.includes(key)).keys
 
 	def lookup(range: KeyRange): Map[StorageNode, KeyRange] =
-	space.filter((pair) => (pair._2 & range) != KeyRange.EmptyRange)
+		space.filter((pair) => (pair._2 & range) != KeyRange.EmptyRange)
 
 	def coverage: Iterator[KeyRange] = space.values
 	
