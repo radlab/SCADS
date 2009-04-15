@@ -1,5 +1,6 @@
 #include "StorageDB.h"
 
+#include <errno.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -169,6 +170,7 @@ void* run_listen(void* arg) {
     {
       DB* db_ptr;
       DBT k,d;
+      int fail = 0;
       if (send(as,VERSTR,11,0) == -1) {
 	perror("send");
 	close(as);
@@ -208,8 +210,8 @@ void* run_listen(void* arg) {
 	d.dlen = 0;
 
 	if (db_ptr->put(db_ptr, NULL, &k, &d, 0) != 0) {
-	  cerr << "Fail to put!"<<endl;
-	  exit(EXIT_FAILURE);
+	  fail = 1;
+	  break;
 	}	
 
 	if (kf)
@@ -220,7 +222,8 @@ void* run_listen(void* arg) {
 #ifdef DEBUG      
       cout << "done"<<endl;
 #endif
-
+      if (send(as,&fail,1,0) == -1) 
+	perror("send STAT");
       close(as);
     }
   }
@@ -229,37 +232,19 @@ void* run_listen(void* arg) {
   printf("Shutting down listen thread\n");
 }
 
-void apply_copy(void* s, DB* db, void* k, void* d) {
-  int *sock = (int*)s;
-  DBT *key,*data;
-  key = (DBT*)k;
-  data = (DBT*)d;
-  if (send(*sock,&(key->size),4,MSG_MORE) == -1) {
-    TException te("Failed to send data len");
-    throw te;
-  }
-  if (send(*sock,((const char*)key->data),key->size,MSG_MORE) == -1) {
-    TException te("Failed to send a key");
-    throw te;
-  }
-  if (send(*sock,&(data->size),4,MSG_MORE) == -1) {
-    TException te("Failed to send data len");
-    throw te;
-  }
-  if (send(*sock,data->data,data->size,MSG_MORE) == -1) {
-    TException te("Failed to send data");
-    throw te;
-  }
+void do_throw(int errnum, string msg) {
+  char* err = strerror(errnum);
+  int b = strlen(err);
+  msg.append(err);
+  TException te(msg);
+  throw te;
 }
 
-
-bool StorageDB::
-copy_set(const NameSpace& ns, const RecordSet& rs, const Host& h) {
+int open_socket(const Host& h) {
   int sock, numbytes;
   struct addrinfo hints, *res, *rp;
 
   int rv;
-  char s[INET6_ADDRSTRLEN];
   char buf[12];
 
   string::size_type loc;
@@ -286,13 +271,13 @@ copy_set(const NameSpace& ns, const RecordSet& rs, const Host& h) {
   for(rp = res; rp != NULL; rp = rp->ai_next) {
     if ((sock = socket(rp->ai_family, rp->ai_socktype,
 		       rp->ai_protocol)) == -1) {
-      perror("copy_set: socket");
+      perror("open_socket: socket");
       continue;
     }
     
     if (connect(sock, rp->ai_addr, rp->ai_addrlen) == -1) {
       close(sock);
-      perror("copy_set: connect");
+      perror("open_socket: connect");
       continue;
     }
     
@@ -304,52 +289,140 @@ copy_set(const NameSpace& ns, const RecordSet& rs, const Host& h) {
     throw te;
   }
   
+#ifdef DEBUG
+  char s[INET6_ADDRSTRLEN];
   inet_ntop(rp->ai_family, get_in_addr((struct sockaddr *)rp->ai_addr),
             s, sizeof s);
-  printf("copy: connecting to %s\n", s);
+  printf("connecting to %s\n", s);
+#endif
   
   freeaddrinfo(res);
   
-  if ((numbytes = recv(sock, buf, 11, 0)) == -1) {
-    perror("recv");
-    exit(1);
-  }
+  if ((numbytes = recv(sock, buf, 11, 0)) == -1)
+    do_throw(errno,"Error receiving version string: ");
   
   buf[numbytes] = '\0';
   
   if (strncmp(VERSTR,buf,11)) {
-    TException te("Version strings didn't match for copy");
+    TException te("Version strings didn't match");
     throw te;
   }
 
+  return sock;
+}
+
+void apply_copy(void* s, DB* db, void* k, void* d) {
+  int *sock = (int*)s;
+  DBT *key,*data;
+  key = (DBT*)k;
+  data = (DBT*)d;
+  if (send(*sock,&(key->size),4,MSG_MORE) == -1) 
+    do_throw(errno,"Failed to send data length: ");
+  if (send(*sock,((const char*)key->data),key->size,MSG_MORE) == -1)
+    do_throw(errno,"Failed to send a key: ");
+  if (send(*sock,&(data->size),4,MSG_MORE) == -1) 
+    do_throw(errno,"Failed to send data length: ");
+  if (send(*sock,data->data,data->size,MSG_MORE) == -1)
+    do_throw(errno,"Failed to send data: ");
+}
+
+bool StorageDB::
+copy_set(const NameSpace& ns, const RecordSet& rs, const Host& h) {
+  int numbytes;
+  char stat;
+
+  int sock = open_socket(h);
   int nslen = ns.length();
-  if (send(sock,&nslen,4,MSG_MORE) == -1) {
-    TException te("Failed to send namespace len");
-    throw te;
-  }
-  
-  if (send(sock,ns.c_str(),ns.length(),MSG_MORE) == -1) {
-    perror("send ns");
-    TException te("Failed to send namespace");
-    throw te;
-  }
 
+  if (send(sock,&nslen,4,MSG_MORE) == -1) 
+    do_throw(errno,"Error sending namespace length: ");
+  
+  if (send(sock,ns.c_str(),nslen,MSG_MORE) == -1) 
+    do_throw(errno,"Error sending namespace: ");
 
   apply_to_set(ns,rs,apply_copy,&sock);
   
   // send done message
   nslen = 0;
-  if (send(sock,&nslen,4,0) == -1) {
-    TException te("Failed to send done message");
-    throw te;
-  }
-  
+  if (send(sock,&nslen,4,0) == -1) 
+    do_throw(errno,"Failed to send done message: ");
+
+  if ((numbytes = recv(sock, &stat, 1, 0)) == -1) 
+    do_throw(errno,"Could not read final status: ");
+
+  if(stat) // non-zero means a fail
+    return false;
+
   return true;
+}
+
+struct sync_args {
+  int sock;
+  const ConflictPolicy policy;
+};
+
+
+void apply_sync(void* s, DB* db, void* k, void* d) {
+  struct sync_args* args = (struct sync_args*)d;
+  int sock = args->sock;
+  DBT *key,*data;
+  key = (DBT*)k;
+  data = (DBT*)d;
+  if (send(sock,&(key->size),4,MSG_MORE) == -1) 
+    do_throw(errno,"Failed to send data length: ");
+  if (send(sock,((const char*)key->data),key->size,MSG_MORE) == -1)
+    do_throw(errno,"Failed to send a key: ");
+  if (send(sock,&(data->size),4,MSG_MORE) == -1) 
+    do_throw(errno,"Failed to send data length: ");
+  if (send(sock,data->data,data->size,MSG_MORE) == -1)
+    do_throw(errno,"Failed to send data: ");
 }
 
 bool StorageDB::
 sync_set(const NameSpace& ns, const RecordSet& rs, const Host& h, const ConflictPolicy& policy) {
-  return false;
+  int numbytes;
+  char stat;
+
+  if(1)return false;
+
+  int sock = open_socket(h);
+  int nslen = ns.length();
+
+  if (send(sock,&nslen,4,MSG_MORE) == -1) 
+    do_throw(errno,"Error sending namespace length: ");
+  
+  if (send(sock,ns.c_str(),nslen,MSG_MORE) == -1) 
+    do_throw(errno,"Error sending namespace: ");
+
+  if (send(sock,&(policy.type),4,MSG_MORE) == -1) 
+    do_throw(errno,"Error sending policy type: ");
+
+  if (policy.type == CPT_FUNC) {
+    if (send(sock,&(policy.func.lang),4,MSG_MORE) == -1) 
+      do_throw(errno,"Error sending policy language: ");
+
+    nslen = policy.func.func.length();
+    if (send(sock,&nslen,4,MSG_MORE) == -1) 
+      do_throw(errno,"Error sending policy function length: ");
+
+    if (send(sock,policy.func.func.c_str(),nslen,MSG_MORE) == -1) 
+      do_throw(errno,"Error sending policy language: ");
+  }
+
+  apply_to_set(ns,rs,apply_copy,&sock);
+  
+  // send done message
+  nslen = 0;
+  if (send(sock,&nslen,4,0) == -1) 
+    do_throw(errno,"Failed to send done message: ");
+
+  if ((numbytes = recv(sock, &stat, 1, 0)) == -1) 
+    do_throw(errno,"Could not read final status: ");
+
+  if(stat) // non-zero means a fail
+    return false;
+
+  return true;
 }
 
 
