@@ -21,7 +21,7 @@ abstract class ClientLibrary extends SCADS.ClientLibrary.Iface {
 }
 
 class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider {
-	var ns_map = new HashMap[String,SimpleKeySpace]
+	var ns_map = new HashMap[String,KeySpace]
 	var dp_map = new HashMap[String,DataPlacement]
 	
 	def add_namespace(ns: String): Boolean = {
