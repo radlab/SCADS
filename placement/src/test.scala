@@ -2,10 +2,10 @@ import org.scalatest.Suite
 
 class KeySpaceSuite extends Suite {
 	def testKeySpace() = {
-		val n1 = new StorageThriftNode("test1", 0)
-		val n2 = new StorageThriftNode("test2", 0)
-		val n3 = new StorageThriftNode("test3", 0)
-		val n4 = new StorageThriftNode("test4", 0)
+		val n1 = new StorageNode("localhost", 9000)
+		val n2 = new StorageNode("localhost", 9001)
+		val n3 = new StorageNode("localhost", 9002)
+		val n4 = new StorageNode("localhost", 9003)
 
 		val ks = new SimpleKeySpace()
 
