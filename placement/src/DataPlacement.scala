@@ -1,9 +1,48 @@
 
-class DataPlacement {
-	val keySpace = new KeySpace
-	
-	def assign(range: KeyRange, node: StorageNode) = null
-	def copy(keyRange: KeyRange, src: StorageNode, dest: StorageNode) = null
-	def move(keyRange: KeyRange, src: StorageNode, dest: StorageNode) = null
-	def remove(keyRange: KeyRange, node: StorageNode) = null
+trait DataPlacement {
+	def assign(node: StorageNode, range: KeyRange)
+	def copy(keyRange: KeyRange, src: StorageNode, dest: StorageNode)
+	def move(keyRange: KeyRange, src: StorageNode, dest: StorageNode)
+	def remove(keyRange: KeyRange, node: StorageNode)
+}
+
+
+
+class SimpleDataPlacement(ns: String) extends SimpleKeySpace with ThriftConversions with DataPlacement {
+	val nameSpace = ns
+
+	override def assign(node: StorageNode, range: KeyRange) {
+		super.assign(node, range)
+		node.set_responsibility_policy(nameSpace, range)
+	}
+
+	def copy(keyRange: KeyRange, src: StorageNode, dest: StorageNode) {
+		val newDestRange = lookup(dest) + keyRange
+
+		//Verify the src has our keyRange
+		assert((lookup(src) & keyRange) == keyRange)
+
+		//Tell the servers to copy the data
+		src.copy_set(nameSpace, keyRange, dest.syncHost)
+
+		//Change the assigment
+		assign(src, newDestRange)
+	}
+
+	def move(keyRange: KeyRange, src: StorageNode, dest: StorageNode) {
+		val newSrcRange = lookup(src) - keyRange
+		val newDestRange = lookup(dest) + keyRange
+
+		src.copy_set(nameSpace, keyRange, dest.syncHost)
+		assign(src, newSrcRange)
+		assign(src, newDestRange)
+		dest.remove_set(nameSpace, keyRange)
+	}
+
+	def remove(keyRange: KeyRange, node: StorageNode) {
+		val newRange = lookup(node) - keyRange
+
+		assign(node, newRange)
+		node.remove_set(nameSpace, keyRange)
+	}
 }
