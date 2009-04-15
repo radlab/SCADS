@@ -38,6 +38,18 @@ $stdin.each_line do |line|
     before = Time.now
     result = client.put(line[1], r)
     after = Time.now
+  when "set_responsibility_policy":
+    #p = SCADS::Storage::RecordSet.new
+    #p.type = SCADS::Storage::RecordSet::FUNC
+    #p.func = "true"
+    #before = Time.now
+    #result = client.set_responsibility_policy(line[1], p)
+    #after = Time.now
+  when "get_responsibility_policy":
+    before = Time.now
+    result = client.get_responsibility_policy(line[1])
+    puts result.func.inspect
+    after = Time.now
   else
     raise "Invalid command: #{line[0]}"
   end
