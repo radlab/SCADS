@@ -28,7 +28,7 @@ module SCADS
         end
 
         def sync_host
-          "localhost:#{@syncport}"
+          "localhost:#{@sync_port}"
         end
 
         def start
@@ -41,9 +41,9 @@ module SCADS
           Dir.mkdir(@directory)
 
           @child = Kernel.fork do
-            $stdout.reopen(File.new("bdb.log", "w+")) or
+            $stdout.reopen(File.new("bdb.log", "a")) or
             puts "failed to redirect"
-            $stderr.reopen(File.new("bdb.log", "w+")) or
+            $stderr.reopen(File.new("bdb.log", "a")) or
             puts "failed to redirect"
             exec "engines/bdb/storage.bdb -p #{@port} -l #{@sync_port} -d #{@directory}"
           end
