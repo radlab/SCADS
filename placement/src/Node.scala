@@ -25,7 +25,7 @@ trait ThriftConversions {
 	implicit def keyRangeToScadsRangeSet(x: KeyRange):SCADS.RecordSet = {
 		val recSet = new SCADS.RecordSet
 		val range = new SCADS.RangeSet
-		recSet.setType(SCADS.RecordSet.RANGE)
+		recSet.setType(SCADS.RecordSetType.RST_RANGE)
 		recSet.setRange(range)
 		range.setStart_key(x.start)
 		range.setEnd_key(x.end)
