@@ -20,6 +20,8 @@ trait KeySpaceProvider {
 		ns_map.update(ns,ks)
 		true
 	}
+	
+	def getMap: HashMap[String,KeySpace] = ns_map
 }
 
 class NonCoveredRangeException extends Exception
@@ -66,6 +68,7 @@ class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider 
 	override def get(namespace: String, key: String): Record = {
 		val ns_keyspace = ns_map(namespace)
 		try {
+			println("keyspace size for "+key+": "+ ns_keyspace.lookup(key).toList.size)
 			val node = ns_keyspace.lookup(key).next // just get the first node
 			val record = node.get(namespace,key)
 			record
@@ -159,8 +162,10 @@ class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider 
 		val put_nodes = ns_keyspace.lookup(key)
 		
 		put_nodes.foreach({ case(node)=>{
+				println("trying to put  "+key+" in node "+node.thriftPort)
 			try {
 				val success = node.put(namespace,rec)
+				println("put "+key+": " +success)
 				success
 			} catch {
 				case e:NotResponsible => {

@@ -24,6 +24,7 @@ class ClientLibrarySuite extends Suite {
 	def testSingleNode() = {
 		val clientlib = new ROWAClientLibrary
 		val n1 = new StorageNode("localhost", 9000)
+		n1.connect
 		
 		val ks = new SimpleKeySpace()
 		ks.assign(n1, KeyRange("a", "c"))
@@ -46,26 +47,53 @@ class ClientLibrarySuite extends Suite {
 		val results = clientlib.get_set("db_single",desired)
 
 		assert(results.size()==2)
-		//assert(rec1==results.get(0))
-		//assert(rec2==results.get(1))
+		assert(rec1==results.get(0)) // should really do a sort first
+		assert(rec2==results.get(1))
 	}
-	/*
+	
 	def testDoubleNode() = {
 		val clientlib = new ROWAClientLibrary
 		val n1 = new StorageNode("localhost", 9000)
+		n1.connect
 		val n2 = new StorageNode("localhost", 9001)
+		n2.connect
 
 		val ks = new SimpleKeySpace()
 		ks.assign(n1, KeyRange("a", "c"))
-		ks.assign(n2, KeyRange("a", "c"))
+		ks.assign(n2, KeyRange("b", "d"))
 		clientlib.add_namespace("db_double",ks)
 		
-		clientlib.put("db_double",new SCADS.Record("a","hi".getBytes()))
+		assert(clientlib.getMap contains "db_double")
+		assert(clientlib.getMap("db_double").lookup("b") contains n1)
+		assert(clientlib.getMap("db_double").lookup("b") contains n2)
+		
+		
+		/*
+		val rec1 = new SCADS.Record("a","a-val".getBytes())
+		val rec2 = new SCADS.Record("b","b-val".getBytes())
+		//val rec3 = new SCADS.Record("c","c-val".getBytes())
+		
+		clientlib.put("db_double",rec1)
+		clientlib.put("db_double",rec2)
+		//clientlib.put("db_double",rec3)
+		
+		// do a single get
 		val result = clientlib.get("db_double","a")
-		assert(result==(new SCADS.Record("a","hi".getBytes())))	
+		assert(result==(new SCADS.Record("a","a-val".getBytes())))
+		//val result2 = clientlib.get("db_double","b")
+		//assert(result2==(new SCADS.Record("b","b-val".getBytes())))
+	
+		// get a range of records
+		//val desired = new SCADS.RecordSet(3, new SCADS.RangeSet("a","c",0,100),null) // TODO: fix limit
+		//val results = clientlib.get_set("db_double",desired)
+	
+		//assert(results.size()==3)
+		//assert(result==(new SCADS.Record("a","hi".getBytes())))	
+		*/
+		assert(true)
 	
 	}
-	*/
+	
 }
 
 class KeySpaceSuite extends Suite {
