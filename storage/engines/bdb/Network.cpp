@@ -253,6 +253,14 @@ int open_socket(const Host& h) {
     TException te("Host parameter must be of form host:port");
     throw te;
   }
+  if (loc == 0) {
+    TException te("Host parameter cannot start with a :");
+    throw te;
+  }
+  if (loc == (h.length()-1)) {
+    TException te("Host parameter cannot end with a :");
+    throw te;
+  }
   string host = h.substr(0,loc);
   string port = h.substr(loc+1);
 
@@ -330,6 +338,10 @@ bool StorageDB::
 copy_set(const NameSpace& ns, const RecordSet& rs, const Host& h) {
   int numbytes;
   char stat;
+
+#ifdef DEBUG
+  cerr << "copy_set called.  copying to host: "<<h<<endl;
+#endif
 
   int sock = open_socket(h);
   int nslen = ns.length();
