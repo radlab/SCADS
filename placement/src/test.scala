@@ -1,5 +1,73 @@
 import org.scalatest.Suite
 
+case class ClientApp(h: String, p: Int) extends ThriftConnection {
+	val host = h
+	val port = p 
+
+	val client = new SCADS.ClientLibrary.Client(protocol)
+	
+}
+
+class ClientLibraryServer(p: Int) extends ThriftServer {
+	val port = p
+	val clientlib = new ROWAClientLibrary
+	val processor = new SCADS.ClientLibrary.Processor(clientlib)
+
+	val n1 = new StorageNode("localhost", 9000)
+	val ks = new SimpleKeySpace()
+	ks.assign(n1, KeyRange("a", "c"))
+	clientlib.add_namespace("db",ks)
+}
+
+class ClientLibrarySuite extends Suite {
+	
+	def testSingleNode() = {
+		val clientlib = new ROWAClientLibrary
+		val n1 = new StorageNode("localhost", 9000)
+		
+		val ks = new SimpleKeySpace()
+		ks.assign(n1, KeyRange("a", "c"))
+		clientlib.add_namespace("db_single",ks)
+		
+		val rec1 = new SCADS.Record("a","a-val".getBytes())
+		val rec2 = new SCADS.Record("b","b-val".getBytes())
+		
+		clientlib.put("db_single",rec1)
+		clientlib.put("db_single",rec2)
+		
+		// do a single get
+		val result = clientlib.get("db_single","a")
+		assert(result==(new SCADS.Record("a","a-val".getBytes())))
+		val result2 = clientlib.get("db_single","b")
+		assert(result2==(new SCADS.Record("b","b-val".getBytes())))	
+		
+		// get a range of records
+		val desired = new SCADS.RecordSet(3, new SCADS.RangeSet("a","c",0,100),null) // TODO: fix limit
+		val results = clientlib.get_set("db_single",desired)
+
+		assert(results.size()==2)
+		//assert(rec1==results.get(0))
+		//assert(rec2==results.get(1))
+	}
+	/*
+	def testDoubleNode() = {
+		val clientlib = new ROWAClientLibrary
+		val n1 = new StorageNode("localhost", 9000)
+		val n2 = new StorageNode("localhost", 9001)
+
+		val ks = new SimpleKeySpace()
+		ks.assign(n1, KeyRange("a", "c"))
+		ks.assign(n2, KeyRange("a", "c"))
+		clientlib.add_namespace("db_double",ks)
+		
+		clientlib.put("db_double",new SCADS.Record("a","hi".getBytes()))
+		val result = clientlib.get("db_double","a")
+		assert(result==(new SCADS.Record("a","hi".getBytes())))	
+	
+	}
+	*/
+}
+
 class KeySpaceSuite extends Suite {
 	def testKeySpace() = {
 		val n1 = new StorageNode("localhost", 9000)
@@ -66,7 +134,8 @@ class KeyRangeSuite extends Suite {
 
 object RunTests {
 	def main(args: Array[String]) = {
-		(new KeyRangeSuite).execute()
-		(new KeySpaceSuite).execute()
+		//(new KeyRangeSuite).execute()
+		//(new KeySpaceSuite).execute()
+		(new ClientLibrarySuite).execute()
 	}
 }

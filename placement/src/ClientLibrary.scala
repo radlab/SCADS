@@ -7,22 +7,10 @@ import scala.collection.mutable.HashMap
 import scala.collection.mutable.HashSet
 
 trait KeySpaceProvider {
+	var ns_map = new HashMap[String,KeySpace]
+	
 	def getKeySpace(ns: String)
 	def refreshKeySpace()
-}
-
-class NonCoveredRangeException extends Exception
-
-abstract class ClientLibrary extends SCADS.ClientLibrary.Iface {
-	
-	def get(namespace: String, key: String): Record
-	def get_set(namespace: String, keys: RecordSet): java.util.List[Record]
-	def put(namespace: String, rec:Record): Boolean 
-}
-
-class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider {
-	var ns_map = new HashMap[String,KeySpace]
-	var dp_map = new HashMap[String,DataPlacement]
 	
 	def add_namespace(ns: String): Boolean = {
 		this.add_namespace(ns,null)
@@ -32,14 +20,31 @@ class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider {
 		ns_map.update(ns,ks)
 		true
 	}
+}
+
+class NonCoveredRangeException extends Exception
+
+/*
+abstract class ClientLibrary extends SCADS.ClientLibrary.Iface {
 	
+	def get(namespace: String, key: String): Record
+	def get_set(namespace: String, keys: RecordSet): java.util.List[Record]
+	def put(namespace: String, rec:Record): Boolean 
+}
+*/
+
+class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider {
+
+
 	/**
 	* Asks key space provider for latest keyspace for the specified namespace.
 	* Updates the local copy's keyspace.
 	*/
 	override def getKeySpace(ns: String) = {
-		val ks = dp_map(ns).keySpace
+		/* does nothing right now
+		val ks = dp_map(ns).getspace
 		ns_map.update(ns,ks)
+		*/
 	}
 	
 	/**
@@ -47,9 +52,11 @@ class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider {
 	* Updates all the keyspaces.
 	*/
 	override def refreshKeySpace() = {
+		/* does nothing right now
 		ns_map.foreach({ case(ns,ks) => {
 			this.getKeySpace(ns)
 		}})
+		*/
 	}
 
 	/**
@@ -65,7 +72,7 @@ class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider {
 		} catch {
 			case e:NotResponsible => {
 				this.getKeySpace(namespace)
-				val record = this.get(namespace,key) // recursion, will this work?
+				val record = this.get(namespace,key) // recursion, TODO: needs to be bounded
 				record
 			}
 		}
@@ -88,11 +95,13 @@ class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider {
 		// now do the getting
 		query_nodes.foreach( {case (node,keyrange)=> {
 			ranges += keyrange
-			val rset = new RecordSet(3,new RangeSet(keyrange.start,keyrange.end,0,0),null)
+			val rset = new RecordSet(3,new RangeSet(keyrange.start,keyrange.end,0,100),null) // TODO: ugh wtf fix this limit
 			try {
 				val records_subset = node.get_set(namespace,rset)
+				
 				val iter = records_subset.iterator()
 				while (iter.hasNext()) { records += iter.next() }
+				
 			} catch {
 				case e:NotResponsible => {
 					this.getKeySpace(namespace)
@@ -163,11 +172,5 @@ class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider {
 		}})
 		true // TODO: make accurate
 	}
-}
-
-
-class ClientLibraryServer(p: Int) extends ThriftServer {
-	val port = p
-	val processor = new SCADS.ClientLibrary.Processor(new ROWAClientLibrary)
 }
 
