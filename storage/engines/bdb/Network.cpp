@@ -98,6 +98,61 @@ int fill_dbt(int* sock, DBT* k, DBT* other, char* buf, char* pos, char** endp) {
   return ((pos+len)-buf);
 }
 
+int do_copy(int sock,StorageDB* storageDB, char* dbuf) {
+  char *end;
+  int off = 0;
+  DB* db_ptr;
+  DBT k,d;
+  int fail = 0;
+
+  // do all the work
+  memset(&k, 0, sizeof(DBT));
+  end = dbuf;
+  off = fill_dbt(&sock,&k,NULL,dbuf,dbuf,&end);
+
+  string ns = string((char*)k.data,k.size);
+  if (k.flags)
+    free(k.data);
+
+#ifdef DEBUG
+  cout << "Namespace is: "<<ns<<endl;
+#endif
+  db_ptr = storageDB->getDB(ns);
+
+  for(;;) { // now read all our key/vals
+    int kf,df;
+    memset(&k, 0, sizeof(DBT));
+    memset(&d, 0, sizeof(DBT));
+    off = fill_dbt(&sock,&k,NULL,dbuf,dbuf+off,&end);
+    if (off == 0)
+      break;
+    off = fill_dbt(&sock,&d,&k,dbuf,dbuf+off,&end);
+#ifdef DEBUG
+    cout << "key: "<<string((char*)k.data,k.size)<<" data: "<<string((char*)d.data,d.size)<<endl;
+#endif
+    kf=k.flags;
+    df=d.flags;
+    k.flags = 0;
+    k.dlen = 0;
+    d.flags = 0;
+    d.dlen = 0;
+
+    if (db_ptr->put(db_ptr, NULL, &k, &d, 0) != 0) {
+      fail = 1;
+      break;
+    }	
+
+    if (kf)
+      free(k.data);
+    if (df)
+      free(d.data);
+  }
+  return fail;
+}
+
+int do_sync(int sock, StorageDB* storageDB, char* dbuf) {
+  return 1;
+}
 
 void* run_listen(void* arg) {
   int status,recvd;
@@ -153,10 +208,9 @@ void* run_listen(void* arg) {
       
   printf("Listening for sync/copy on port %s...\n",dbuf);
 
+  peer_addr_len = sizeof(struct sockaddr_storage);
+
   while(!stopping) {
-    char *end;
-    int off = 0;
-    peer_addr_len = sizeof(struct sockaddr_storage);
     as = accept(sock,(struct sockaddr *)&peer_addr,&peer_addr_len);
 
     inet_ntop(peer_addr.ss_family,
@@ -165,67 +219,38 @@ void* run_listen(void* arg) {
 #ifdef DEBUG
     printf("server: got connection from %s\n", abuf);
 #endif
-    
-    // fire off new thread here
-    {
-      DB* db_ptr;
-      DBT k,d;
-      int fail = 0;
-      if (send(as,VERSTR,11,0) == -1) {
-	perror("send");
-	close(as);
-	continue;
-      }
 
-      // do all the work
-      memset(&k, 0, sizeof(DBT));
-      end = dbuf;
-      off = fill_dbt(&as,&k,NULL,dbuf,dbuf,&end);
-
-      string ns = string((char*)k.data,k.size);
-      if (k.flags)
-	free(k.data);
-
-#ifdef DEBUG
-      cout << "Namespace is: "<<ns<<endl;
-#endif
-      db_ptr = storageDB->getDB(ns);
-
-      for(;;) { // now read all our key/vals
-	int kf,df;
-	memset(&k, 0, sizeof(DBT));
-	memset(&d, 0, sizeof(DBT));
-	off = fill_dbt(&as,&k,NULL,dbuf,dbuf+off,&end);
-	if (off == 0)
-	  break;
-	off = fill_dbt(&as,&d,&k,dbuf,dbuf+off,&end);
-#ifdef DEBUG
-	cout << "key: "<<string((char*)k.data,k.size)<<" data: "<<string((char*)d.data,d.size)<<endl;
-#endif
-	kf=k.flags;
-	df=d.flags;
-	k.flags = 0;
-	k.dlen = 0;
-	d.flags = 0;
-	d.dlen = 0;
-
-	if (db_ptr->put(db_ptr, NULL, &k, &d, 0) != 0) {
-	  fail = 1;
-	  break;
-	}	
-
-	if (kf)
-	  free(k.data);
-	if (df)
-	  free(d.data);
-      }
-#ifdef DEBUG      
-      cout << "done"<<endl;
-#endif
-      if (send(as,&fail,1,0) == -1) 
-	perror("send STAT");
+    if (send(as,VERSTR,11,0) == -1) {
+      perror("send");
       close(as);
+      continue;
     }
+    
+    if ((recvd = recv(as, dbuf, 1, 0)) == -1) {
+      perror("Could not read operation");
+      close(as);
+      continue;
+    }
+    
+    // should maybe fire off new thread for the actual copy/sync?
+    // would need to make dbuf private to each thread
+    int stat = 0;
+    if (dbuf[0] == 0) // copy
+      stat = do_copy(as,storageDB,dbuf);
+    else if (dbuf[0] == 1) // sync
+      stat = do_sync(as,storageDB,dbuf);
+    else {
+      cerr <<"Unknown operation requested on copy/sync port"<<endl;
+      close(as);
+      continue;
+    }
+
+#ifdef DEBUG      
+    cout << "done"<<endl;
+#endif
+    if (send(sock,&stat,1,0) == -1) 
+      perror("send STAT");
+    close(as);
   }
 
 
@@ -344,8 +369,12 @@ copy_set(const NameSpace& ns, const RecordSet& rs, const Host& h) {
 #endif
 
   int sock = open_socket(h);
-  int nslen = ns.length();
 
+  stat = 0; // copy command
+  if (send(sock,&stat,1,MSG_MORE) == -1) 
+    do_throw(errno,"Error sending copy operation: ");
+
+  int nslen = ns.length();  
   if (send(sock,&nslen,4,MSG_MORE) == -1) 
     do_throw(errno,"Error sending namespace length: ");
   
