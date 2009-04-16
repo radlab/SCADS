@@ -2,7 +2,7 @@
 
 require 'thrift'
 require 'thrift/protocol/binaryprotocol'
-require 'thrift/server/tserver'
+require 'thrift/server/nonblockingserver'
 require 'timeout'
 require 'optparse'
 
@@ -47,9 +47,9 @@ puts "Setting up SCADS storage handler" if $DEBUG
 processor = SCADS::Storage::Storage::Processor.new(handler)
 puts "Opening socket on #{host}:#{port}" if $DEBUG
 @transport = Thrift::ServerSocket.new(host,port)
-transportFactory = Thrift::BufferedTransportFactory.new()
+transportFactory = Thrift::FramedTransportFactory.new()
 puts "Attempting to start server on #{host}:#{port}" if $DEBUG
-@server = Thrift::SimpleServer.new(processor, @transport, transportFactory)
+@server = Thrift::NonblockingServer.new(processor, @transport, transportFactory)
 
 begin
   puts "Starting server on #{host}:#{port}"
