@@ -105,6 +105,17 @@ void get(StorageClient &client,
   client.get(r,ns,key);
 }
 
+static 
+void remove(StorageClient &client,
+	    const NameSpace &ns,
+	    const RecordKey &key) {
+  Record r;
+  r.key = key;
+  r.__isset.key = true;
+  r.__isset.value = false;
+  put(client,ns,r);
+}
+
 static void range(StorageClient &client,
 		  vector<Record> &results,
 		  const NameSpace &ns,
@@ -277,6 +288,7 @@ int main(int argc,char* argv[]) {
 	  " get\t\tget a record"<<endl<<
 	  " range\t\tget a sequential range of records between two keys"<<endl<<
 	  " ruby\t\tget a set of records that match a ruby function"<<endl<<
+	  " remote\t\t remove a key"<<endl<<
 	  " removeRange\t\tremove a sequential range of records between two keys"<<endl<<
 	  " quit\t\tquit the program"<<endl<<
 	  " help\t\tthis help"<<endl;
@@ -345,6 +357,19 @@ int main(int argc,char* argv[]) {
 	} catch (TException e) {
 	  cout << "[Exception]: "<<e.what()<<endl;
         }
+      }
+      else if (cmd == "remove") {
+	if (v.size() != 3) {
+	  cout << "Invalid remove"<<endl;
+	  continue;
+	}
+	try {
+	  start_timing();
+	  remove(client,v[1],v[2]);
+	  end_timing();
+	} catch (TException e) {
+	  cout << "[Exception]: "<<e.what()<<endl;
+	}
       }
 
       else if (cmd == "ruby") {

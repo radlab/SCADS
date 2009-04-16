@@ -462,7 +462,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     // RST_RANGE set
     else if (rs.type == RST_RANGE) {
       if ( rs.range.__isset.end_key &&
-	   (strcmp(rs.range.end_key.c_str(),(char*)key.data) < 0) ) {
+	   (strncmp(rs.range.end_key.c_str(),(char*)key.data,key.size) < 0) ) {
 	ret = DB_NOTFOUND;
 	free(data.data);
 	break;
@@ -765,6 +765,18 @@ set_responsibility_policy(const NameSpace& ns, const RecordSet& policy) {
     isd.s = policy;
     isd.info = "You specified a function set but did not provide a function";
     throw isd;
+  }
+
+  if (policy.type == RST_KEY_FUNC) {
+    int rb_err;
+    VALUE funcall_args[3];
+    VALUE ruby_proc = rb_eval_string_protect(policy.func.func.c_str(),&rb_err);
+    if (!rb_respond_to(ruby_proc,call_id)) {
+      InvalidSetDescription isd;
+      isd.s = policy;
+      isd.info = "Your ruby string for your responsiblity policy does not return something that responds to 'call'";
+      throw isd;
+    }
   }
 
   // okay, let's serialize

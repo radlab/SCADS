@@ -58,7 +58,7 @@ class TS_Sets < Test::Unit::TestCase
       :range => RangeSet.new(:start_key=>"01",:end_key=>"08",:offset => nil,:limit => nil)
       )
     record_list = @server.get_set("deletesome",desired)
-    assert_equal([Record.new(:key => "01", :value => nil)].concat((2..8).map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}), record_list)
+    assert_equal((2..8).map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}, record_list)
   end
   
   def test_delete_all
