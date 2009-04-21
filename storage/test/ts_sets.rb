@@ -203,4 +203,19 @@ class TS_Sets < Test::Unit::TestCase
     end    
   end
 
+  def test_count
+    ('a'..'z').each {|l| @server.put("count", Record.new(:key => l, :value => "value#{l}"))}
+
+    range = Proc.new{|s, e| RecordSet.new(
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>s,:end_key=>e))
+    }
+
+    assert_equal(1, @server.count("count", range.call('a', 'a')))
+    assert_equal(2, @server.count("count", range.call('a', 'b')))
+    assert_equal(3, @server.count("count", range.call('a', 'c')))
+    assert_equal(26, @server.count("count", range.call('a', 'z')))
+    assert_equal(1, @server.count("count", range.call(' ', 'a')))
+    assert_equal(0, @server.count("count", range.call('A', 'Z')))
+  end
 end

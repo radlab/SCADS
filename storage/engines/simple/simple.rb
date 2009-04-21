@@ -41,6 +41,16 @@ module SCADS
           return true
         end
 
+        def count(ns, rs)
+          #check to see if the rs they gave us is valid
+          rs.check_validity
+
+          rp = @responsibility_policies[ns]
+          raise NotResponsible.new if rs.type == RecordSetType::RST_RANGE && (!rp.includes?(rs.range.start_key) || !rp.includes?(rs.range.end_key))
+
+          @data[ns].map {|rec| Record.new(:key => rec[0], :value => rec[1])}.select {|rec| rs.includes?(rec.key, rec.value)}.size
+        end
+
         def set_responsibility_policy(ns, policy)
           #check to see if the rs they gave us is valid
           policy.check_validity
