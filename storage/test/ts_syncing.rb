@@ -9,7 +9,7 @@ class TS_Syncing < Test::Unit::TestCase
     
     @policy_greater = ConflictPolicy.new(:type=> ConflictPolicyType::CPT_GREATER)
     @policy_merge= ConflictPolicy.new(:type=> ConflictPolicyType::CPT_FUNC, 
-    :func=>UserFunction.new(:lang=> Language::LANG_RUBY, :func=>"Proc.new {|val1,val2| return [eval(val1),eval(val2)].flatten.uniq.sort.inspect}"))
+    :func=>UserFunction.new(:lang=> Language::LANG_RUBY, :func=>"Proc.new {|val1,val2| [eval(val1),eval(val2)].flatten.uniq.sort.inspect}"))
   end
   
   def teardown
