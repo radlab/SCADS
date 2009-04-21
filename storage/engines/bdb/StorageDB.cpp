@@ -255,7 +255,8 @@ getDB(const NameSpace& ns) {
 
 void StorageDB::
 apply_to_set(const NameSpace& ns, const RecordSet& rs,
-	     void(*to_apply)(void*,DB*,void*,void*),void* apply_arg) {
+	     void(*to_apply)(void*,DB*,void*,void*),void* apply_arg,
+	     bool invokeNone) {
   DB* db_ptr;
   DBC *cursorp;
   DBT key, data;
@@ -365,6 +366,9 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
   if (ret == DB_NOTFOUND) { // nothing to return
     if (cursorp != NULL) 
       cursorp->close(cursorp); 
+    if (invokeNone)
+      // no vals, but apply function wants to know that so invoke with nulls
+      (*to_apply)(apply_arg,db_ptr,NULL,NULL);      
     return;
   }
   if (ret != 0) { // another error

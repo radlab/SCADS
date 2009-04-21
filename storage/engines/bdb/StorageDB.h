@@ -38,10 +38,11 @@ private:
 
   void chkLock(int rc, const string lock, const string action);
 
-  void apply_to_set(const NameSpace& ns, const RecordSet& rs,
-		    void(*to_apply)(void*,DB*,void*,void*),void* apply_arg);
 
 public:
+  void apply_to_set(const NameSpace& ns, const RecordSet& rs,
+		    void(*to_apply)(void*,DB*,void*,void*),void* apply_arg,
+		    bool invokeNone = false);
 
   DB* getDB(const NameSpace& ns);
   int get_listen_port() { return listen_port; }
