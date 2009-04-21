@@ -70,6 +70,11 @@ void apply_del(void* v, DB* db, void* k, void* d) {
   db->del(db,NULL,key,0);
 }
 
+void apply_inc(void* c, DB* db, void*k, void *d) {
+  int *i = (int*)c;
+  (*i)++;
+}
+
 
 
 int StorageDB::
@@ -644,6 +649,13 @@ bool StorageDB::
 remove_set(const NameSpace& ns, const RecordSet& rs) {
   apply_to_set(ns,rs,apply_del,NULL);
   return true;
+}
+
+int32_t StorageDB::
+count_set(const NameSpace& ns, const RecordSet& rs) {
+  int r = 0;
+  apply_to_set(ns,rs,apply_inc,&r);
+  return r;
 }
 
 bool StorageDB::

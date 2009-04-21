@@ -57,6 +57,7 @@ public:
   bool copy_set(const NameSpace& ns, const RecordSet& rs, const Host& h);
   bool remove_set(const NameSpace& ns, const RecordSet& rs);
   bool put(const NameSpace& ns, const Record& rec);
+  int32_t count_set(const NameSpace& ns, const RecordSet& rs);
 
   bool set_responsibility_policy(const NameSpace& ns, const RecordSet& policy);
   void get_responsibility_policy(RecordSet& _return, const NameSpace& ns);
