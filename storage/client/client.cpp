@@ -184,6 +184,27 @@ static void copyRange(StorageClient &client,
   rs.range = range;
   client.copy_set(ns,rs,h);
 }
+
+static void syncRangeGreater(StorageClient &client,
+			     const Host &h,
+			     const NameSpace &ns,
+			     const RecordKey &start_key,
+			     const RecordKey &end_key) {
+  RecordSet rs;
+  rs.type = RST_RANGE;
+  rs.__isset.range = true;
+  RangeSet range;
+  range.__isset.start_key = true;
+  range.__isset.end_key = true;
+  range.offset = 0;
+  range.limit = 0;
+  range.start_key = start_key;
+  range.end_key = end_key;
+  rs.range = range;
+  ConflictPolicy pol;
+  pol.type = CPT_GREATER;
+  client.sync_set(ns,rs,h,pol);
+}
 	
 static void printPutUsage() {
   printf("invalid put, put is used as:\n");
@@ -431,6 +452,25 @@ int main(int argc,char* argv[]) {
 	  copyRange(client,v[1],v[2],v[3],v[4]);
 	  end_timing();
 	  cout << "Done"<<endl;
+	} catch(TException e) {
+	  cout << "[Exception]: "<<e.what()<<endl;
+	}
+      }
+
+      else if (cmd == "sync") {
+	if (v.size() != 6) {
+	  printf("invalid sync.  do: sync host:port namespace start_key end_key greater/func [func]\n");
+	  continue;
+	}
+	try {
+	  if (v[5] == "greater") {
+	    start_timing();
+	    syncRangeGreater(client,v[1],v[2],v[3],v[4]);
+	    end_timing();
+	    cout << "Done"<<endl;
+	  } else {
+	    cout << "Only support greater for the moment"<<endl;
+	  }
 	} catch(TException e) {
 	  cout << "[Exception]: "<<e.what()<<endl;
 	}
