@@ -1,4 +1,5 @@
 import SCADS.RecordSet
+import SCADS.RecordSetType
 import SCADS.RangeSet
 import SCADS.Record
 import SCADS.NotResponsible
@@ -35,7 +36,7 @@ abstract class ClientLibrary extends SCADS.ClientLibrary.Iface {
 }
 */
 
-class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider {
+class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider with ThriftConversions {
 
 
 	/**
@@ -68,7 +69,7 @@ class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider 
 	override def get(namespace: String, key: String): Record = {
 		val ns_keyspace = ns_map(namespace)
 		try {
-			println("keyspace size for "+key+": "+ ns_keyspace.lookup(key).toList.size)
+			//println("keyspace size for "+key+": "+ ns_keyspace.lookup(key).toList.size)
 			val node = ns_keyspace.lookup(key).next // just get the first node
 			val record = node.get(namespace,key)
 			record
@@ -98,7 +99,8 @@ class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider 
 		// now do the getting
 		query_nodes.foreach( {case (node,keyrange)=> {
 			ranges += keyrange
-			val rset = new RecordSet(3,new RangeSet(keyrange.start,keyrange.end,0,100),null) // TODO: ugh wtf fix this limit
+			val rset = this.keyRangeToScadsRangeSet(keyrange)
+
 			try {
 				val records_subset = node.get_set(namespace,rset)
 				
@@ -117,9 +119,10 @@ class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider 
 		})
 		
 		// make sure desired range was actually covered by what we gots
-		if ( !ns_keyspace.isCovered(target_range,ranges) ) 
+		if ( !ns_keyspace.isCovered(target_range,ranges) ) {
+			//println("not covered")
 			throw new NonCoveredRangeException
-			 
+		}	 
 		java.util.Arrays.asList(records.toArray: _*) // shitty, but convert to java array
 	}
 	
@@ -160,22 +163,21 @@ class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider 
 		val key = rec.getKey()
 		val ns_keyspace = ns_map(namespace)
 		val put_nodes = ns_keyspace.lookup(key)
+		var total_success = true
 		
 		put_nodes.foreach({ case(node)=>{
-				println("trying to put  "+key+" in node "+node.thriftPort)
 			try {
 				val success = node.put(namespace,rec)
-				println("put "+key+": " +success)
-				success
+				total_success && success 
 			} catch {
 				case e:NotResponsible => {
 					this.getKeySpace(namespace)
 					val success = this.put(namespace,rec) // recursion may redo some work
-					success
+					total_success && success
 				}
 			}
 		}})
-		true // TODO: make accurate
+		total_success
 	}
 }
 
