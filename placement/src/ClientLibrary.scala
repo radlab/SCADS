@@ -4,6 +4,8 @@ import SCADS.RangeSet
 import SCADS.Record
 import SCADS.NotResponsible
 
+import java.util.Comparator
+
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.HashSet
 
@@ -35,6 +37,14 @@ abstract class ClientLibrary extends SCADS.ClientLibrary.Iface {
 	def put(namespace: String, rec:Record): Boolean 
 }
 */
+
+class RecordComparator extends java.util.Comparator[SCADS.Record] {
+	def compare(o1: SCADS.Record, o2: SCADS.Record): Int = {
+		if (o1.key < o2.key) -1
+		else if (o1.key > o2.key) 1
+		else 0 // equal
+	}
+}
 
 class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider with ThriftConversions {
 
@@ -123,7 +133,10 @@ class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider 
 			//println("not covered")
 			throw new NonCoveredRangeException
 		}	 
-		java.util.Arrays.asList(records.toArray: _*) // shitty, but convert to java array
+		// sort an array
+		val records_array = records.toArray
+		java.util.Arrays.sort(records_array,new RecordComparator()) 
+		java.util.Arrays.asList(records_array: _*) // shitty, but convert to java array
 	}
 	
 	private def get_set_queries(nodes: Map[StorageNode, KeyRange], target_range: KeyRange): HashMap[StorageNode, KeyRange] = {
