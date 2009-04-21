@@ -33,7 +33,11 @@ module SCADS
 
         def put(ns, rec)
           raise NotResponsible.new unless @responsibility_policies[ns].includes?(rec.key)
-          @data[ns][rec.key] = rec.value
+          if rec.value.nil?
+            @data[ns].delete(rec.key)
+          else
+            @data[ns][rec.key] = rec.value
+          end
           return true
         end
 
