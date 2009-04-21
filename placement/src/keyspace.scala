@@ -89,7 +89,7 @@ class SimpleKeySpace extends KeySpace {
 		space = (space - node)
 
 	def lookup(node: StorageNode): KeyRange =
-		space(node)
+		space.get(node).getOrElse(KeyRange(null, null))
 
 	def lookup(key: String):Iterator[StorageNode] =
 		space.filter((pair) => pair._2.includes(key)).keys
