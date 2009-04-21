@@ -24,7 +24,7 @@ class TestableStorageNode(host: String, port: Int) extends StorageNode(host, por
 	thread.start()
 
 	def run() {
-		Runtime.getRuntime().exec("start_scads.rb -p "+ port)
+		Runtime.getRuntime().exec("start_scads.rb -d -p "+ port)
 	}
 }
 
