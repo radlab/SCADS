@@ -137,6 +137,26 @@ static void range(StorageClient &client,
   client.get_set(results,ns,rs);
 }
 
+static int32_t count(StorageClient &client,
+		     const NameSpace &ns,
+		     const RecordKey &start_key,
+		     const RecordKey &end_key,
+		     int32_t offset= 0,
+		     int32_t limit = 0) {
+  RecordSet rs;
+  rs.type = RST_RANGE;
+  rs.__isset.range = true;
+  RangeSet range;
+  range.__isset.start_key = true;
+  range.__isset.end_key = true;
+  range.offset = 0;
+  range.limit = 0;
+  range.start_key = start_key;
+  range.end_key = end_key;
+  rs.range = range;
+  return client.count_set(ns,rs);
+}
+
 static void ruby(StorageClient &client,
 		 vector<Record> &results,
 		 RecordSetType &rst,
@@ -219,6 +239,11 @@ static void printGetUsage() {
 static void printRangeUsage() {
   printf("invalid range, range is used as:\n");
   printf("range namespace start_key end_key [offset] [limit]\n");
+}
+
+static void printCountUsage() {
+  printf("invalid count, count is used as:\n");
+  printf("count namespace start_key end_key [offset] [limit]\n");
 }
 
 static void printRemoveRangeUsage() {
@@ -379,6 +404,25 @@ int main(int argc,char* argv[]) {
 	  cout << "[Exception]: "<<e.what()<<endl;
         }
       }
+
+      else if (cmd == "count") {
+	if (v.size() < 4) {
+	  printCountUsage();
+	  continue;
+	}
+	try {
+	  int32_t c;
+	  start_timing();
+	  c = count(client,v[1],v[2],v[3],
+		    v.size()>4?atoi(v[4].c_str()):0,
+		    v.size()>6?atoi(v[5].c_str()):0);
+	  end_timing();
+	  cout << c << endl;
+	} catch (TException e) {
+	  cout << "[Exception]: "<<e.what()<<endl;
+        }
+      }
+
       else if (cmd == "remove") {
 	if (v.size() != 3) {
 	  cout << "Invalid remove"<<endl;
