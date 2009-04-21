@@ -17,6 +17,7 @@
 #define BUFSZ 1024
 
 extern char stopping;
+extern ID call_id;
 
 namespace SCADS {
 
@@ -237,7 +238,7 @@ void sync_sync(void* s, DB* db, void* k, void* d) {
     }
     args->off = fill_dbt(&(args->sock),&(args->d),&(args->k),args->dbuf,args->dbuf+(args->off),&(args->end));
 #ifdef DEBUG
-    cout << "[read for sync] key: "<<string((char*)args->k.data,args->k.size)<<" data: "<<string((char*)args->d.data,args->d.size)<<endl;
+    cerr << "[read for sync] key: "<<string((char*)args->k.data,args->k.size)<<" data: "<<string((char*)args->d.data,args->d.size)<<endl;
 #endif
   }
   
@@ -327,7 +328,7 @@ void sync_sync(void* s, DB* db, void* k, void* d) {
       }
       args->off = fill_dbt(&(args->sock),&(args->d),&(args->k),args->dbuf,args->dbuf+args->off,&(args->end));
 #ifdef DEBUG
-      cout << "[read for sync] key: "<<string((char*)args->k.data,args->k.size)<<" data: "<<string((char*)args->d.data,args->d.size)<<endl;
+      cerr << "[read for sync] key: "<<string((char*)args->k.data,args->k.size)<<" data: "<<string((char*)args->d.data,args->d.size)<<endl;
 #endif
     }
 
@@ -336,6 +337,9 @@ void sync_sync(void* s, DB* db, void* k, void* d) {
 
     // okay, keys are the same length, let's see what we need to do
     int cmp = strncmp((char*)key->data,(char*)args->k.data,key->size);
+#ifdef DEBUG
+    cerr << "Keys are same length, cmp is: "<<cmp<<endl;
+#endif
     if (cmp < 0) {
       // local key is shorter, send it over
 #ifdef DEBUG
@@ -376,7 +380,7 @@ void sync_sync(void* s, DB* db, void* k, void* d) {
       }
       args->off = fill_dbt(&(args->sock),&(args->d),&(args->k),args->dbuf,args->dbuf+args->off,&(args->end));
 #ifdef DEBUG
-      cout << "[read for sync] key: "<<string((char*)args->k.data,args->k.size)<<" data: "<<string((char*)args->d.data,args->d.size)<<endl;
+      cerr << "[read for sync] key: "<<string((char*)args->k.data,args->k.size)<<" data: "<<string((char*)args->d.data,args->d.size)<<endl;
 #endif      
       continue; // back to top since this new key could fall into any of the categories
     }
@@ -392,12 +396,15 @@ void sync_sync(void* s, DB* db, void* k, void* d) {
   args->d.flags = 0;
   args->d.dlen = 0;
   
-  int dcmp;
+  int dcmp = 0;
   if (data->size == args->d.size)
     dcmp = memcmp(data->data,args->d.data,data->size);
 
+#ifdef DEBUG
+  cerr << "Same keys, dmp is: "<<dcmp<<" local size is: "<<data->size<<" remote size is: "<<args->d.size<<endl;
+#endif
+
   if (data->size != args->d.size || dcmp) { // data didn't match
-    // put if for ruby func here
     if (args->pol->type == CPT_GREATER) {
 
       if (data->size > args->d.size ||
@@ -418,7 +425,53 @@ void sync_sync(void* s, DB* db, void* k, void* d) {
       }
 
     }
+    else if (args->pol->type == CPT_FUNC) {
+#ifdef DEBUG
+      cerr << "Executing ruby conflict policy"<<endl;
+#endif
+      int stat,rb_err;
+      VALUE funcall_args[3];
+      DBT rd;
+      VALUE ruby_proc = rb_eval_string_protect(args->pol->func.func.c_str(),&stat);
+      if (!rb_respond_to(ruby_proc,call_id)) {
+	// TODO: Validate earlier so this can't happen
+	cerr << "Invalid ruby policy specified"<<endl;
+      }
+      VALUE v;
+      funcall_args[0] = ruby_proc;
+      funcall_args[1] = rb_str_new((const char*)(data->data),data->size);
+      funcall_args[2] = rb_str_new((const char*)(args->d.data),args->d.size);
+      v = rb_protect(rb_funcall_wrap,((VALUE)funcall_args),&rb_err);
+      if (rb_err) {
+	VALUE lasterr = rb_gv_get("$!");
+	VALUE message = rb_obj_as_string(lasterr);
+	cerr <<  "Error evaling ruby conflict pol"<< rb_string_value_cstr(&message)<<endl;
+      }
+      char* newval = rb_string_value_cstr(&v);
+#ifdef DEBUG
+      cerr << "Ruby resolved to: "<<newval<<endl;
+#endif
 
+      if (strncmp(newval,(char*)data->data,data->size)) {
+#ifdef DEBUG
+	cerr<<"Ruby func returned something different from my local value, inserting locally"<<endl;
+#endif
+	memset(&rd, 0, sizeof(DBT));
+	rd.data = newval;
+	rd.size = strlen(newval);
+	if (db->put(db, NULL, key, &rd, 0) != 0) 
+	  cerr << "Failed to put ruby key: "<<string((char*)args->k.data,args->k.size)<<endl;
+      }
+      if (strncmp(newval,(char*)args->d.data,args->d.size)) {
+#ifdef DEBUG
+	cerr<<"Ruby func returned something different from remote key, sending over"<<endl;
+#endif
+	memset(&rd, 0, sizeof(DBT));
+	rd.data = newval;
+	rd.size = strlen(newval);
+	send_vals(args->sock,key,&rd);
+      }
+    }
     else {
       cerr << "Invalid policy way down in sync_sync"<<endl;
     }

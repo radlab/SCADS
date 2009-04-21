@@ -22,8 +22,6 @@
 #include "StorageDB.h"
 
 
-#include "ruby.h"
-
 using namespace std;
 using namespace apache::thrift;
 using namespace apache::thrift::concurrency;
@@ -40,7 +38,7 @@ static char* env_dir;
 static int port;
 
 // this is only ever read, so it's thread safe
-static ID call_id;
+ID call_id;
 
 
 // this is gross, but it's the only way to avoid a segfault
@@ -153,7 +151,7 @@ responsible_for_key(const NameSpace& ns, const RecordKey& key) {
     }
     VALUE v;
     funcall_args[0] = ruby_proc;
-    funcall_args[1] = rb_str_new2((const char*)(key.c_str()));
+    funcall_args[1] = rb_str_new((const char*)(key.c_str()),key.length());
     funcall_args[2] = 0;
     v = rb_protect(rb_funcall_wrap,((VALUE)funcall_args),&rb_err);
     if (rb_err) {
@@ -418,11 +416,11 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
   else if (rs.type == RST_KEY_FUNC || RST_KEY_VALUE_FUNC) {
     VALUE v;
     funcall_args[0] = ruby_proc;
-    funcall_args[1] = rb_str_new2((const char*)(key.data));
+    funcall_args[1] = rb_str_new((const char*)(key.data),key.size);
     if (rs.type == RST_KEY_FUNC)
       funcall_args[2] = 0;
     else
-      funcall_args[2] = rb_str_new2((const char*)(data.data));
+      funcall_args[2] = rb_str_new((const char*)(data.data),data.size);
     v = rb_protect(rb_funcall_wrap,((VALUE)funcall_args),&rb_err);
     if (rb_err) {
       InvalidSetDescription isd;
@@ -490,11 +488,11 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     else if (rs.type == RST_KEY_FUNC || rs.type == RST_KEY_VALUE_FUNC) {
       VALUE v;
       funcall_args[0] = ruby_proc;
-      funcall_args[1] = rb_str_new2((const char*)(key.data));
+      funcall_args[1] = rb_str_new((const char*)(key.data),key.size);
       if (rs.type == RST_KEY_FUNC)
 	funcall_args[2] = 0;
       else
-	funcall_args[2] = rb_str_new2((const char*)(data.data));
+	funcall_args[2] = rb_str_new((const char*)(data.data),data.size);
       v = rb_protect(rb_funcall_wrap,((VALUE)funcall_args),&rb_err);
       if (rb_err) {
 	InvalidSetDescription isd;

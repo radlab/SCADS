@@ -3,12 +3,15 @@
 
 #include <db.h>
 #include "gen-cpp/Storage.h"
+#include "ruby.h"
 
 #ifndef MSG_MORE
 #define MSG_MORE 0
 #endif
 
 using namespace std;
+
+VALUE rb_funcall_wrap(VALUE vargs);
 
 namespace SCADS {
 
