@@ -53,7 +53,7 @@ class ClientLibrarySuite extends Suite {
 		val results = clientlib.get_set("db_single",desired)
 
 		assert(results.size()==2)
-		assert(rec1==results.get(0)) // should really do a sort first
+		assert(rec1==results.get(0))
 		assert(rec2==results.get(1))
 	}
 
@@ -98,14 +98,15 @@ class ClientLibrarySuite extends Suite {
 		range.setEnd_key("ca")
 		val results = clientlib.get_set("db_double",desired)
 	
-		assert(results.size()==3)
-		//assert(rec1==results.get(0))
-		//assert(rec2==results.get(1))
-		//assert(rec3==results.get(2))
+		assert(results.size()==3) // return all and in sorted order by key
+		assert(rec1==results.get(0))
+		assert(rec2==results.get(1))
+		assert(rec3==results.get(2))
 	}
 
-	/*
-	def testNonCovered() = {
+	
+	def testGetSetFailure() = {
+		/*
 		val clientlib = new ROWAClientLibrary
 		val n1 = new StorageNode("localhost", 9000)
 		n1.connect
@@ -121,12 +122,15 @@ class ClientLibrarySuite extends Suite {
 		clientlib.put("db_cover",rec2)
 		
 		// get a range of records
-		val desired = new SCADS.RecordSet(3, new SCADS.RangeSet("a","da",0,100),null) // TODO: fix limit
 		//val results = clientlib.get_set("db_cover",desired)
+		*/
+		assert(true)
+
 		
-		assert( !ks.isCovered(KeyRange("a","da"), Set(KeyRange("a","c"))) )
+		
+		
 	}
-	*/
+	
 }
 
 class KeySpaceSuite extends Suite {
@@ -146,6 +150,20 @@ class KeySpaceSuite extends Suite {
 		assert(ks.lookup("a") contains n1)
 		assert(ks.lookup("b") contains n1)
 		assert(ks.lookup("b") contains n2)
+	}
+	def testNonCovered() = {
+		val ks = new SimpleKeySpace()
+		
+		assert( !ks.isCovered(KeyRange("a","da"), Set(KeyRange("a","c"))) )
+		assert( !ks.isCovered(KeyRange("a","da"), Set(KeyRange("b","d"),KeyRange("a","b"))) )
+		assert( !ks.isCovered(KeyRange("aa","e"), Set(KeyRange("ab","b"),KeyRange("d","e"))) )
+		
+		assert( ks.isCovered(KeyRange("a","c"), Set(KeyRange("a","b"),KeyRange("a","c"))) )
+		assert( ks.isCovered(KeyRange("a","c"), Set(KeyRange("b","c"),KeyRange("a","b"))) )
+		assert( ks.isCovered(KeyRange("a","d"), Set(KeyRange("a","b"),KeyRange("b","c"),KeyRange("c","d"))) )
+		assert( ks.isCovered(KeyRange("a","ef"), Set(KeyRange("a","b"),KeyRange("b","c"),KeyRange("c","f"))) )
+
+		assert( ks.isCovered(KeyRange("a","f"), Set(KeyRange("a","c"),KeyRange("d","f"),KeyRange("a","d"))) )
 	}
 }
 

@@ -1,3 +1,5 @@
+import scala.util.Sorting
+
 class NotContiguousException extends Exception
 
 object KeyRange {
@@ -97,6 +99,23 @@ class SimpleKeySpace extends KeySpace {
 
 	def coverage: Iterator[KeyRange] = space.values
 	
-	def isCovered(desired_range: KeyRange, ranges: Set[KeyRange]): Boolean = { true } // TODO
+	def isCovered(desired_range: KeyRange, ranges: Set[KeyRange]): Boolean = {
+		val rangesArray = ranges.toArray
+		Sorting.stableSort(rangesArray,(r1:KeyRange,r2:KeyRange)=> (r1.start < r2.start) && (r1.end <= r2.end) )
+		//Sorting.stableSort(rangesArray,(r1:KeyRange,r2:KeyRange)=>r1.end < r2.end)
+		
+		try {
+			val firststart = rangesArray(0).start
+			var span_range = KeyRange(firststart,firststart) // init with start-start range
+			rangesArray.foreach(r=>	span_range += r)
+
+			if (span_range.start <= desired_range.start && span_range.end >= desired_range.end) true
+			else false
+		} catch {
+			
+			case e:NotContiguousException => false
+			case _ => false
+		}
+	}
 }
 
