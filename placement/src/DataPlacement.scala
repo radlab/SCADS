@@ -10,6 +10,8 @@ trait DataPlacement {
 
 class SimpleDataPlacement(ns: String) extends SimpleKeySpace with ThriftConversions with DataPlacement {
 	val nameSpace = ns
+	val conflictPolicy = new SCADS.ConflictPolicy()
+	conflictPolicy.setType(SCADS.ConflictPolicyType.CPT_GREATER)
 
 	override def assign(node: StorageNode, range: KeyRange) {
 		super.assign(node, range)
@@ -27,6 +29,9 @@ class SimpleDataPlacement(ns: String) extends SimpleKeySpace with ThriftConversi
 
 		//Change the assigment
 		assign(src, newDestRange)
+
+		//Sync keys that might have changed
+		src.sync_set(nameSpace, keyRange, dest.syncHost, conflictPolicy)
 	}
 
 	def move(keyRange: KeyRange, src: StorageNode, dest: StorageNode) {
@@ -35,8 +40,10 @@ class SimpleDataPlacement(ns: String) extends SimpleKeySpace with ThriftConversi
 
 		src.copy_set(nameSpace, keyRange, dest.syncHost)
 		assign(src, newSrcRange)
-		assign(src, newDestRange)
-		dest.remove_set(nameSpace, keyRange)
+		assign(dest, newDestRange)
+
+		src.sync_set(nameSpace, keyRange, dest.syncHost, conflictPolicy)
+		src.remove_set(nameSpace, keyRange)
 	}
 
 	def remove(keyRange: KeyRange, node: StorageNode) {
