@@ -65,6 +65,27 @@ public:
 };
 
 
+class ReadDBTException : public std::exception {
+public:
+  ReadDBTException() {}
+
+  ReadDBTException(const std::string& msg) :
+    message_(msg) {}
+
+  virtual ~ReadDBTException() throw() {}
+
+  virtual const char* what() const throw() {
+    return
+      message_.empty()?
+      "Default ReadDBTException.":
+      message_.c_str();
+  }
+
+protected:
+  std::string message_;
+
+};
+
 }
 
 

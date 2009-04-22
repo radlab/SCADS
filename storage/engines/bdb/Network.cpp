@@ -65,6 +65,10 @@ int fill_dbt(int* sock, DBT* k, DBT* other, char* buf, char* pos, char** endp) {
 	other->flags = 1; // is malloced now
       }
       len = fill_buf(sock,buf,(end-pos));
+      if (len == 0) { // socket got closed down
+	ReadDBTException e("Socket was orderly shutdown by peer");
+	throw e;
+      }
       *endp = buf+len;
       return fill_dbt(sock,k,other,buf,buf,endp);
     }
@@ -95,6 +99,10 @@ int fill_dbt(int* sock, DBT* k, DBT* other, char* buf, char* pos, char** endp) {
       other->flags = 1; // is malloced now
     }
     len = fill_buf(sock,buf,0);
+    if (len == 0) {
+      ReadDBTException e("Socket was orderly shutdown by peer");
+      throw e;      
+    }
     *endp = buf+len;
     return fill_dbt(sock,k,other,buf,buf,endp);
   }
@@ -118,7 +126,14 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
   // do all the work
   memset(&k, 0, sizeof(DBT));
   end = dbuf;
-  off = fill_dbt(&sock,&k,NULL,dbuf,dbuf,&end);
+  try {
+    off = fill_dbt(&sock,&k,NULL,dbuf,dbuf,&end);
+  } catch (ReadDBTException &e) {
+    cerr << "Could not read namespace: "<<e.what()<<endl;
+    if (k.flags)
+      free(k.data);
+    return 1;
+  }
 
   string ns = string((char*)k.data,k.size);
   if (k.flags)
@@ -133,10 +148,26 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
     int kf,df;
     memset(&k, 0, sizeof(DBT));
     memset(&d, 0, sizeof(DBT));
-    off = fill_dbt(&sock,&k,NULL,dbuf,dbuf+off,&end);
+    try {
+      off = fill_dbt(&sock,&k,NULL,dbuf,dbuf+off,&end);
+    } catch (ReadDBTException &e) {
+      cerr << "Could not read key in copy: "<<e.what()<<endl;
+      if (k.flags)
+	free(k.data);
+      return 1;
+    }
     if (off == 0)
       break;
-    off = fill_dbt(&sock,&d,&k,dbuf,dbuf+off,&end);
+    try {
+      off = fill_dbt(&sock,&d,&k,dbuf,dbuf+off,&end);
+    } catch (ReadDBTException &e) {
+      cerr << "Could not read data in copy: "<<e.what()<<endl;
+      if (k.flags)
+	free(k.data);
+      if (d.flags)
+	free(d.data);
+      return 1;
+    }
 #ifdef DEBUG
     cout << "key: "<<string((char*)k.data,k.size)<<" data: "<<string((char*)d.data,d.size)<<endl;
 #endif
@@ -230,13 +261,31 @@ void sync_sync(void* s, DB* db, void* k, void* d) {
   }
 
   if (args->k.size == 0) { // need a new one
-    args->off = fill_dbt(&(args->sock),&(args->k),NULL,args->dbuf,args->dbuf+(args->off),&(args->end));
+    try {
+      args->off = fill_dbt(&(args->sock),&(args->k),NULL,args->dbuf,args->dbuf+(args->off),&(args->end));
+    } catch (ReadDBTException &e) {
+      cerr << "Could not read key for sync: "<<e.what()<<endl;
+      // TODO: rethrow or return fail code
+      if (args->k.flags)
+	free(args->k.data);
+      return;
+    }
     if (args->off == 0) {
       args->remdone = 1;
       send_vals(args->sock,key,data);
       return;
     }
-    args->off = fill_dbt(&(args->sock),&(args->d),&(args->k),args->dbuf,args->dbuf+(args->off),&(args->end));
+    try {
+      args->off = fill_dbt(&(args->sock),&(args->d),&(args->k),args->dbuf,args->dbuf+(args->off),&(args->end));
+    } catch (ReadDBTException &e) {
+      cerr << "Could not read data for sync: "<<e.what()<<endl;
+      if (args->k.flags)
+	free(args->k.data);
+      if (args->d.flags)
+	free(args->d.data);
+      // TODO: rethrow or return fail code
+      return;
+    }
 #ifdef DEBUG
     cerr << "[read for sync] key: "<<string((char*)args->k.data,args->k.size)<<" data: "<<string((char*)args->d.data,args->d.size)<<endl;
 #endif
@@ -251,14 +300,32 @@ void sync_sync(void* s, DB* db, void* k, void* d) {
       int kf,df;
 
       if (args->k.size == 0) {
-	args->off = fill_dbt(&(args->sock),&(args->k),NULL,args->dbuf,args->dbuf+(args->off),&(args->end));
+	try {
+	  args->off = fill_dbt(&(args->sock),&(args->k),NULL,args->dbuf,args->dbuf+(args->off),&(args->end));
+	  if (args->k.flags)
+	    free(args->k.data);
+	} catch (ReadDBTException &e) {
+	  cerr << "Could not read key for sync: "<<e.what()<<endl;
+	  // TODO: rethrow or return fail code
+	  return;
+	}
 	if (args->off == 0) {
 #ifdef DEBUG
 	  cerr<<"Okay, read all remote keys, returning"<<endl;
 #endif
 	  return;
 	}
-	args->off = fill_dbt(&(args->sock),&(args->d),&(args->k),args->dbuf,args->dbuf+(args->off),&(args->end));
+	try {
+	  args->off = fill_dbt(&(args->sock),&(args->d),&(args->k),args->dbuf,args->dbuf+(args->off),&(args->end));
+	} catch (ReadDBTException &e) {
+	  cerr << "Could not read data for sync: "<<e.what()<<endl;
+	  if (args->k.flags)
+	    free(args->k.data);
+	  if (args->d.flags)
+	    free(args->d.data);
+	  // TODO: rethrow or return fail code
+	  return;
+	}
       }
 
 #ifdef DEBUG
@@ -321,12 +388,30 @@ void sync_sync(void* s, DB* db, void* k, void* d) {
 
       memset(&(args->k), 0, sizeof(DBT));
       memset(&(args->d), 0, sizeof(DBT));  
-      args->off = fill_dbt(&(args->sock),&(args->k),NULL,args->dbuf,args->dbuf+args->off,&(args->end));
+      try {
+	args->off = fill_dbt(&(args->sock),&(args->k),NULL,args->dbuf,args->dbuf+args->off,&(args->end));
+      } catch (ReadDBTException &e) {
+	cerr << "Could not read key for sync: "<<e.what()<<endl;
+	// TODO: rethrow or return fail code
+	if (args->k.flags)
+	  free(args->k.data);
+	return;
+      }
       if (args->off == 0) {
 	args->remdone = 1;
 	return; // kick out, we'll see that there's no more remote keys and send over anything else we have
       }
-      args->off = fill_dbt(&(args->sock),&(args->d),&(args->k),args->dbuf,args->dbuf+args->off,&(args->end));
+      try {
+	args->off = fill_dbt(&(args->sock),&(args->d),&(args->k),args->dbuf,args->dbuf+args->off,&(args->end));
+      } catch (ReadDBTException &e) {
+	cerr << "Could not read data for sync: "<<e.what()<<endl;
+	if (args->k.flags)
+	  free(args->k.data);
+	if (args->d.flags)
+	  free(args->d.data);
+	// TODO: rethrow or return fail code
+	return;
+      }
 #ifdef DEBUG
       cerr << "[read for sync] key: "<<string((char*)args->k.data,args->k.size)<<" data: "<<string((char*)args->d.data,args->d.size)<<endl;
 #endif
@@ -373,12 +458,30 @@ void sync_sync(void* s, DB* db, void* k, void* d) {
 
       memset(&(args->k), 0, sizeof(DBT));
       memset(&(args->d), 0, sizeof(DBT));  
-      args->off = fill_dbt(&(args->sock),&(args->k),NULL,args->dbuf,args->dbuf+args->off,&(args->end));
+      try {
+	args->off = fill_dbt(&(args->sock),&(args->k),NULL,args->dbuf,args->dbuf+args->off,&(args->end));
+      } catch (ReadDBTException &e) {
+	cerr << "Could not read key for sync: "<<e.what()<<endl;
+	// TODO: rethrow or return fail code
+	if (args->k.flags)
+	  free(args->k.data);
+	return;
+      }
       if (args->off == 0) {
 	args->remdone = 1;
 	return; // ditto to above remdone comment
       }
-      args->off = fill_dbt(&(args->sock),&(args->d),&(args->k),args->dbuf,args->dbuf+args->off,&(args->end));
+      try {
+	args->off = fill_dbt(&(args->sock),&(args->d),&(args->k),args->dbuf,args->dbuf+args->off,&(args->end));
+      } catch (ReadDBTException &e) {
+	cerr << "Could not read data for sync: "<<e.what()<<endl;
+	// TODO: rethrow or return fail code
+	if (args->k.flags)
+	  free(args->k.data);
+	if (args->d.flags)
+	  free(args->d.data);
+	return;
+      }
 #ifdef DEBUG
       cerr << "[read for sync] key: "<<string((char*)args->k.data,args->k.size)<<" data: "<<string((char*)args->d.data,args->d.size)<<endl;
 #endif      
@@ -499,7 +602,14 @@ int do_sync(int sock, StorageDB* storageDB, char* dbuf) {
   // do all the work
   memset(&k, 0, sizeof(DBT));
   end = dbuf;
-  off = fill_dbt(&sock,&k,NULL,dbuf,dbuf+off,&end); // read the namespace
+  try {
+    off = fill_dbt(&sock,&k,NULL,dbuf,dbuf+off,&end); // read the namespace
+  } catch (ReadDBTException &e) {
+    cerr << "Could not read namespace for do_sync: "<<e.what()<<endl;
+    if (k.flags)
+      free(k.data);
+    return 1;
+  }
 
   string ns = string((char*)k.data,k.size);
   if (k.flags)
@@ -509,9 +619,18 @@ int do_sync(int sock, StorageDB* storageDB, char* dbuf) {
   cout << "Namespace is: "<<ns<<endl;
 #endif
 
-  off = fill_dbt(&sock,&k,NULL,dbuf,dbuf+off,&end); // read the policy
+  try {
+    off = fill_dbt(&sock,&k,NULL,dbuf,dbuf+off,&end); // read the policy
+  } catch (ReadDBTException &e) {
+    cerr << "Could not read policy for do_sync: "<<e.what()<<endl;
+    if (k.flags)
+      free(k.data);
+    return 1;
+  }
   if (deserialize_policy((char*)k.data,&policy)) {
     cerr<<"Failed to read sync policy"<<endl;
+    if (k.flags)
+      free(k.data);
     return 1;
   }
 
@@ -521,7 +640,14 @@ int do_sync(int sock, StorageDB* storageDB, char* dbuf) {
     (policy.type == CPT_GREATER?"":policy.func.func)<<endl;
 #endif
 
-  off = fill_dbt(&sock,&k,NULL,dbuf,dbuf+off,&end); // read the record set
+  try {
+    off = fill_dbt(&sock,&k,NULL,dbuf,dbuf+off,&end); // read the record set
+  } catch (ReadDBTException &e) {
+    cerr << "Could not read record set for do_sync: "<<e.what()<<endl;
+    if (k.flags)
+      free(k.data);
+    return 1;
+  }
   RecordSet rs;
   string rss((char*)k.data,k.size);
 #ifdef DEBUG
@@ -851,6 +977,7 @@ void sync_send(void* s, DB* db, void* k, void* d) {
 struct sync_recv_args {
   int sock;
   DB* db_ptr;
+  int stat;
 };
 
 // receive keys as a response from a sync and insert them
@@ -864,18 +991,39 @@ void* sync_recv(void* arg) {
   
   int sock = args->sock;
   DB* db_ptr = args->db_ptr;
+  args->stat = 0;
   end = dbuf;
 
   for(;;) { // now read all our key/vals
     int kf,df;
     memset(&k, 0, sizeof(DBT));
     memset(&d, 0, sizeof(DBT));
-    off = fill_dbt(&sock,&k,NULL,dbuf,dbuf+off,&end);
+    try {
+      off = fill_dbt(&sock,&k,NULL,dbuf,dbuf+off,&end);
+    } catch (ReadDBTException &e) {
+      cerr << "Could not recieve sync key back: "<<e.what()<<endl;
+      args->stat = 1; // fail
+      if (k.flags)
+	free(k.data);
+      if (d.flags)
+	free(d.data);
+      break;
+    }
     if (off == 0) {
       cerr << "off is 0, breaking"<<endl;
       break;
     }
-    off = fill_dbt(&sock,&d,&k,dbuf,dbuf+off,&end);
+    try {
+      off = fill_dbt(&sock,&d,&k,dbuf,dbuf+off,&end);
+    } catch (ReadDBTException &e) {
+      cerr << "Could not read sync data back: "<<e.what()<<endl;
+      args->stat = 1; // fail
+      if (k.flags)
+	free(k.data);
+      if (d.flags)
+	free(d.data);
+      break;
+    }
 #ifdef DEBUG
     cout << "[to update] key: "<<string((char*)k.data,k.size)<<" [synced] data: "<<string((char*)d.data,d.size)<<endl;
 #endif
@@ -985,7 +1133,7 @@ sync_set(const NameSpace& ns, const RecordSet& rs, const Host& h, const Conflict
 
   close(sock);
 
-  if(stat) // non-zero means a fail
+  if(stat || args.stat) // non-zero means a fail
     return false;
 
   return true;
