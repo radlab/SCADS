@@ -182,6 +182,9 @@ class KeyRangeSuite extends Suite {
 		assert(KeyRange("a", "z") + KeyRange("m","n") == KeyRange("a", "z"))
 		assert(KeyRange("m", "n") + KeyRange("a","z") == KeyRange("a", "z"))
 
+		assert(KeyRange.EmptyRange + KeyRange("a", "z") ==  KeyRange("a", "z"))
+		assert(KeyRange("a", "z") + KeyRange.EmptyRange ==  KeyRange("a", "z"))
+
 		intercept[NotContiguousException] {
 			KeyRange("a","b") + KeyRange("c", "d")
 		}
@@ -199,6 +202,9 @@ class KeyRangeSuite extends Suite {
 		assert(KeyRange("b", "d") - KeyRange("b", "c") == KeyRange("c", "d"))
 
 		assert(KeyRange("a", "b") - KeyRange("a", "b") == KeyRange.EmptyRange)
+
+		assert(KeyRange.EmptyRange - KeyRange("a", "z") ==  KeyRange.EmptyRange)
+		assert(KeyRange("a", "z") - KeyRange.EmptyRange ==  KeyRange("a", "z"))
 	}
 
 	def testAnd() {
@@ -208,6 +214,8 @@ class KeyRangeSuite extends Suite {
 		assert((KeyRange("a",null) & KeyRange("b", "d")) == KeyRange("b", "d"))
 		assert((KeyRange("a","c") & KeyRange(null, "d")) == KeyRange("a", "c"))
 		assert((KeyRange("a","c") & KeyRange("b", null)) == KeyRange("b", "c"))
+		assert((KeyRange("a","c") & KeyRange.EmptyRange) == KeyRange.EmptyRange)
+		assert((KeyRange.EmptyRange & KeyRange("a","c")) == KeyRange.EmptyRange)
 	}
 }
 

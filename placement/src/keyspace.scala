@@ -11,7 +11,11 @@ case class KeyRange(start: String, end: String) {
 		assert(start <= end)
 
 	def + (that: KeyRange): KeyRange = {
-		if((this.start == null || that.start == null) && (this.end == null || that.end == null))
+		if(this == KeyRange.EmptyRange)
+			that
+		else if(that == KeyRange.EmptyRange)
+			this
+		else if((this.start == null || that.start == null) && (this.end == null || that.end == null))
 			new KeyRange(null, null)
 		else if (this.start == null || that.start == null)
 			new KeyRange(null, max(this.end, that.end))
@@ -89,7 +93,7 @@ class SimpleKeySpace extends KeySpace {
 		space = (space - node)
 
 	def lookup(node: StorageNode): KeyRange =
-		space.get(node).getOrElse(KeyRange(null, null))
+		space.get(node).getOrElse(KeyRange("", ""))
 
 	def lookup(key: String):Iterator[StorageNode] =
 		space.filter((pair) => pair._2.includes(key)).keys
