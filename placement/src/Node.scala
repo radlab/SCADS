@@ -19,12 +19,43 @@ case class StorageNode(host: String, thriftPort: Int, syncPort: Int) extends SCA
 	}
 }
 
-class TestableStorageNode(host: String, port: Int) extends StorageNode(host, port) with Runnable {
-	val thread = new Thread(this)
-	thread.start()
+class TestableStorageNode(port: Int) extends StorageNode("localhost", port) with Runnable {
+	class ProcKiller(p: Process) extends Runnable {
+		def run() = p.destroy()
+	}
+
+	var proc: Process = null
+	val thread = new Thread(this, "StorageNode"+port)
+	var lines = new Array[String](0)
+
+	thread.start
+
+	while(!lines.contains("Opening socket on 0.0.0.0:" + port))
+	Thread.`yield`
+
+	connect()
 
 	def run() {
-		Runtime.getRuntime().exec("start_scads.rb -d -p "+ port)
+		proc = Runtime.getRuntime().exec("ruby -I ../lib -I ../storage/engines/simple/ -I ../storage/gen-rb/ ../storage/engines/simple/bin/start_scads.rb -d -p "+ port + " 2>&1")
+		Runtime.getRuntime().addShutdownHook(new Thread(new ProcKiller(proc)))
+
+		val reader = new java.io.BufferedReader(new java.io.InputStreamReader(proc.getInputStream()), 1)
+
+		try{
+			var line = reader.readLine()
+			while(line != null) {
+				lines = lines ++ Array(line)
+				println(line)
+				line = reader.readLine()
+			}
+		}
+		catch {
+			case ex: java.io.IOException => println("StorageEngine " + port + " Exited")
+		}
+	}
+
+	override def finalize() {
+		proc.destroy()
 	}
 }
 

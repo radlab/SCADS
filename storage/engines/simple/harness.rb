@@ -1,6 +1,6 @@
 require 'thrift'
 require 'thrift/protocol/binaryprotocol'
-require 'thrift/server/tserver'
+require 'thrift/server/nonblockingserver'
 
 require 'timeout'
 
@@ -18,7 +18,7 @@ module SCADS
 
         def method_missing(symbol, *args)
           puts "Attempting connection to #{@port}" if $DEBUG
-          transport = Thrift::BufferedTransport.new(Thrift::Socket.new('localhost', @port))
+          transport = Thrift::FramedTransport.new(Thrift::Socket.new('localhost', @port))
           protocol = Thrift::BinaryProtocol.new(transport)
           transport.open
           client = Storage::Client.new(protocol)
@@ -48,11 +48,14 @@ module SCADS
 
           @thread = Thread.new do 
             while true
-              handler = Handler.new()
-              processor = Storage::Processor.new(handler)
-              @transport = Thrift::ServerSocket.new(@port)
-              transportFactory = Thrift::BufferedTransportFactory.new()
-              @server = Thrift::SimpleServer.new(processor, @transport, transportFactory)
+              handler = SCADS::Storage::Simple::Handler.new()
+              puts "Setting up SCADS storage handler" if $DEBUG
+              processor = SCADS::Storage::Storage::Processor.new(handler)
+              puts "Opening socket on #{host}:#{port}" if $DEBUG
+              @transport = Thrift::ServerSocket.new("0.0.0.0",@port)
+              transportFactory = Thrift::FramedTransportFactory.new()
+              puts "Attempting to start server on #{host}:#{port}" if $DEBUG
+              @server = Thrift::NonblockingServer.new(processor, @transport, transportFactory)
 
               begin
                 @server.serve

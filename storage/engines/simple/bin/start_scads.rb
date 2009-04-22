@@ -8,6 +8,8 @@ require 'optparse'
 
 require 'scads'
 
+$stdout.sync = true
+
 # get commnd line args
 opts = {:host=>'0.0.0.0'}
 ARGV.options do |o|

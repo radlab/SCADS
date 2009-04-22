@@ -211,6 +211,38 @@ class KeyRangeSuite extends Suite {
 	}
 }
 
+class MovementMechanismTest extends Suite {
+	def testMove() {
+		val keyFormat = new java.text.DecimalFormat("0000")
+		val n1 = new TestableStorageNode(9010)
+		val n2 = new TestableStorageNode(9011)
+		val dp = new SimpleDataPlacement("test")
+		val keys = (0 to 1000).map((k) => keyFormat.format(k))
+
+		dp.assign(n1, KeyRange("0000", "1000"))
+
+		val test = (ks: KeySpace) => {
+			keys.foreach((k) => {
+				dp.lookup(k).foreach((n) =>
+					assert(new String(n.get("test", k).value) == "value"+k)
+				)
+			})
+		}
+
+		keys.foreach((k) =>
+			n1.put("test", new SCADS.Record(k, ("value" + k).getBytes))
+		)
+
+		test(dp)
+
+		dp.move(KeyRange("0000", "0010"), n1,n2)
+
+		test(dp)
+
+		Array(n1,n2).foreach(_.proc.destroy)
+	}
+}
+
 object RunTests {
 	def main(args: Array[String]) = {
 		//(new KeyRangeSuite).execute()
