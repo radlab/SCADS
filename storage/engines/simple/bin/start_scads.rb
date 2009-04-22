@@ -45,12 +45,12 @@ if host.nil? or port.nil?
 end
 
 handler = SCADS::Storage::Simple::Handler.new()
-puts "Setting up SCADS storage handler" if $DEBUG
+puts "Setting up SCADS storage handler"
 processor = SCADS::Storage::Storage::Processor.new(handler)
-puts "Opening socket on #{host}:#{port}" if $DEBUG
+puts "Opening socket on #{host}:#{port}"
 @transport = Thrift::ServerSocket.new(host,port)
 transportFactory = Thrift::FramedTransportFactory.new()
-puts "Attempting to start server on #{host}:#{port}" if $DEBUG
+puts "Attempting to start server on #{host}:#{port}"
 @server = Thrift::NonblockingServer.new(processor, @transport, transportFactory)
 
 begin
