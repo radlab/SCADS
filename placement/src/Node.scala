@@ -45,7 +45,7 @@ class TestableStorageNode(port: Int) extends StorageNode("localhost", port) with
 			var line = reader.readLine()
 			while(line != null) {
 				lines = lines ++ Array(line)
-				println(line)
+				println("" + port + ":" + line)
 				line = reader.readLine()
 			}
 		}
