@@ -36,7 +36,7 @@ class TestableStorageNode(port: Int) extends StorageNode("localhost", port) with
 	connect()
 
 	def run() {
-		proc = Runtime.getRuntime().exec("ruby -I ../lib -I ../storage/engines/simple/ -I ../storage/gen-rb/ ../storage/engines/simple/bin/start_scads.rb -d -p "+ port + " 2>&1")
+		proc = Runtime.getRuntime().exec("ruby -I ../lib -I ../storage/engines/simple/ -I ../storage/gen-rb/ ../storage/engines/simple/bin/start_scads.rb -p "+ port + " 2>&1")
 		Runtime.getRuntime().addShutdownHook(new Thread(new ProcKiller(proc)))
 
 		val reader = new java.io.BufferedReader(new java.io.InputStreamReader(proc.getInputStream()), 1)
