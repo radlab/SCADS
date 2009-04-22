@@ -19,118 +19,261 @@ class ClientLibraryServer(p: Int) extends ThriftServer {
 	clientlib.add_namespace("db",ks)
 }
 
-class ClientLibrarySuite extends Suite {
-	
+class ClientLibrarySuite extends Suite with ThriftConversions {
+
+	val rec1 = new SCADS.Record("a","a-val".getBytes())
+	val rec2 = new SCADS.Record("b","b-val".getBytes())
+	val rec3 = new SCADS.Record("c","c-val".getBytes())
+	val rec4 = new SCADS.Record("d","d-val".getBytes())
+	val rec5 = new SCADS.Record("e","e-val".getBytes())
+
 	def testSingleNode() = {
 		val clientlib = new ROWAClientLibrary
 		val n1 = new StorageNode("localhost", 9000)
 		n1.connect
 		
 		val ks = new SimpleKeySpace()
-		ks.assign(n1, KeyRange("a", "c"))
+		ks.assign(n1, KeyRange("a", "ca"))
 		clientlib.add_namespace("db_single",ks)
 		
-		val rec1 = new SCADS.Record("a","a-val".getBytes())
-		val rec2 = new SCADS.Record("b","b-val".getBytes())
+		// put two records
+		assert( clientlib.put("db_single",rec1) )
+		assert( clientlib.put("db_single",rec2) )
 		
-		clientlib.put("db_single",rec1)
-		clientlib.put("db_single",rec2)
+		// do a single get in range, on boundaries, outside responsibility
+		assert( clientlib.get("db_single","a") == (new SCADS.Record("a","a-val".getBytes())) )
+		assert( clientlib.get("db_single","b") == (new SCADS.Record("b","b-val".getBytes())) )
+		assert( clientlib.get("db_single","c") == (new SCADS.Record("c",null)) )
+		intercept[NoNodeResponsibleException] {
+			clientlib.get("db_single","d")
+		}	
 		
-		// do a single get
-		val result = clientlib.get("db_single","a")
-		assert(result==(new SCADS.Record("a","a-val".getBytes())))
-		val result2 = clientlib.get("db_single","b")
-		assert(result2==(new SCADS.Record("b","b-val".getBytes())))	
-		
-		// get a range of records
-		val desired = new SCADS.RecordSet
-		val range = new SCADS.RangeSet
-		desired.setType(SCADS.RecordSetType.RST_RANGE)
-		desired.setRange(range)
-		range.setStart_key("a")
-		range.setEnd_key("c")
-			
-		val results = clientlib.get_set("db_single",desired)
-
+		// get a range of records, within range and outside range
+		var results = clientlib.get_set("db_single", this.keyRangeToScadsRangeSet(KeyRange("a","bb")) )
 		assert(results.size()==2)
 		assert(rec1==results.get(0))
 		assert(rec2==results.get(1))
+		results = clientlib.get_set("db_single", this.keyRangeToScadsRangeSet(KeyRange("a","c")) )
+		assert(results.size()==2)
+		assert(rec1==results.get(0))
+		assert(rec2==results.get(1))
+		
+		intercept[NonCoveredRangeException] {
+			clientlib.get_set("db_single", this.keyRangeToScadsRangeSet(KeyRange("1","b")) )
+		}
+		intercept[NonCoveredRangeException] {
+			clientlib.get_set("db_single", this.keyRangeToScadsRangeSet(KeyRange("a","d")) )
+		}
 	}
 
-	def testDoubleNode() = {
+	def testDoubleNodePartition() = {
 		val clientlib = new ROWAClientLibrary
 		val n1 = new StorageNode("localhost", 9000)
-		n1.connect
 		val n2 = new StorageNode("localhost", 9001)
+		n1.connect
 		n2.connect
 
 		val ks = new SimpleKeySpace()
 		ks.assign(n1, KeyRange("a", "c"))
-		ks.assign(n2, KeyRange("b", "d"))
-		clientlib.add_namespace("db_double",ks)
-		
-		assert(clientlib.getMap contains "db_double")
-		assert(clientlib.getMap("db_double").lookup("b") contains n1)
-		assert(clientlib.getMap("db_double").lookup("b") contains n2)
-		
-		val rec1 = new SCADS.Record("a","a-val".getBytes())
-		val rec2 = new SCADS.Record("b","b-val".getBytes())
-		val rec3 = new SCADS.Record("c","c-val".getBytes())
-		
-		clientlib.put("db_double",rec1)
-		clientlib.put("db_double",rec2)
-		clientlib.put("db_double",rec3)
+		ks.assign(n2, KeyRange("c", "e"))
+		clientlib.add_namespace("db_double_p",ks)
+
+		// put some records
+		assert( clientlib.put("db_double_p",rec1) )
+		assert( clientlib.put("db_double_p",rec2) )
+		assert( clientlib.put("db_double_p",rec3) )
+		assert( clientlib.put("db_double_p",rec4) )
+		intercept[NoNodeResponsibleException] {
+			clientlib.put("db_double_p",rec5)
+		}
 		
 		// do a single get
-		val result = clientlib.get("db_double","a")
-		assert(result==(new SCADS.Record("a","a-val".getBytes())))
-		val result2 = clientlib.get("db_double","b")
-		assert(result2==(new SCADS.Record("b","b-val".getBytes())))
-		val result3 = clientlib.get("db_double","c")
-		assert(result3==(new SCADS.Record("c","c-val".getBytes())))
-	
-		// get a range of records
-		val desired = new SCADS.RecordSet
-		val range = new SCADS.RangeSet
-		desired.setType(SCADS.RecordSetType.RST_RANGE)
-		desired.setRange(range)
-		range.setStart_key("a")
-		range.setEnd_key("ca")
-		val results = clientlib.get_set("db_double",desired)
-	
-		assert(results.size()==3) // return all and in sorted order by key
+		assert( clientlib.get("db_double_p","a") == (new SCADS.Record("a","a-val".getBytes())) )
+		assert( clientlib.get("db_double_p","b") == (new SCADS.Record("b","b-val".getBytes())) )
+		assert( clientlib.get("db_double_p","c") == (new SCADS.Record("c","c-val".getBytes())) )
+		assert( clientlib.get("db_double_p","d") == (new SCADS.Record("d","d-val".getBytes())) )
+		intercept[NoNodeResponsibleException] {
+			clientlib.get("db_double_p","e")
+		}
+		
+		// get a range of records, within range and outside range
+		var results = clientlib.get_set("db_double_p", this.keyRangeToScadsRangeSet(KeyRange("a","bb")) )
+		assert(results.size()==2)
+		assert(rec1==results.get(0))
+		assert(rec2==results.get(1))
+		/* TODO: this case doesn't work with the differing inclusiveness semantics of KeyRange and RangeSet
+		results = clientlib.get_set("db_double_p", this.keyRangeToScadsRangeSet(KeyRange("c","d")) )
+		assert(results.size()==1)
+		assert(rec3==results.get(0))
+		*/
+		results = clientlib.get_set("db_double_p", this.keyRangeToScadsRangeSet(KeyRange("c","dd")) )
+		assert(results.size()==2)
+		assert(rec3==results.get(0))
+		assert(rec4==results.get(1))
+		results = clientlib.get_set("db_double_p", this.keyRangeToScadsRangeSet(KeyRange("b","dd")) )
+		assert(results.size()==3)
+		assert(rec2==results.get(0))
+		assert(rec3==results.get(1))
+		assert(rec4==results.get(2))
+		results = clientlib.get_set("db_double_p", this.keyRangeToScadsRangeSet(KeyRange("a","dd")) )
+		assert(results.size()==4)
 		assert(rec1==results.get(0))
 		assert(rec2==results.get(1))
 		assert(rec3==results.get(2))
+		assert(rec4==results.get(3))
+		
+		intercept[NonCoveredRangeException] {
+			clientlib.get_set("db_double_p", this.keyRangeToScadsRangeSet(KeyRange("1","c")) )
+		}		
+		intercept[NonCoveredRangeException] {
+			clientlib.get_set("db_double_p", this.keyRangeToScadsRangeSet(KeyRange("a","f")) )
+		}
 	}
-
-	
-	def testGetSetFailure() = {
-		/*
+	def testDoubleNodeReplica() = {
 		val clientlib = new ROWAClientLibrary
 		val n1 = new StorageNode("localhost", 9000)
+		val n2 = new StorageNode("localhost", 9001)
 		n1.connect
+		n2.connect
 		
 		val ks = new SimpleKeySpace()
-		ks.assign(n1, KeyRange("a", "c"))
-		clientlib.add_namespace("db_cover",ks)
+		ks.assign(n1, KeyRange("a", "ca"))
+		ks.assign(n2, KeyRange("a", "ca"))
+		clientlib.add_namespace("db_double_r",ks)
 		
-		val rec1 = new SCADS.Record("a","a-val".getBytes())
-		val rec2 = new SCADS.Record("b","b-val".getBytes())
+		// put two records
+		assert( clientlib.put("db_double_r",rec1) )
+		assert( clientlib.put("db_double_r",rec2) )
 		
-		clientlib.put("db_cover",rec1)
-		clientlib.put("db_cover",rec2)
+		// do a single get in range, on boundaries, outside responsibility
+		assert( clientlib.get("db_double_r","a") == (new SCADS.Record("a","a-val".getBytes())) )
+		assert( clientlib.get("db_double_r","b") == (new SCADS.Record("b","b-val".getBytes())) )
+		assert( clientlib.get("db_double_r","c") == (new SCADS.Record("c",null)) )
+		intercept[NoNodeResponsibleException] {
+			clientlib.get("db_double_r","d")
+		}	
 		
-		// get a range of records
-		//val results = clientlib.get_set("db_cover",desired)
-		*/
-		assert(true)
+		// get a range of records, within range and outside range
+		var results = clientlib.get_set("db_double_r", this.keyRangeToScadsRangeSet(KeyRange("a","bb")) )
+		assert(results.size()==2)
+		assert(rec1==results.get(0))
+		assert(rec2==results.get(1))
+		
+		results = clientlib.get_set("db_double_r", this.keyRangeToScadsRangeSet(KeyRange("a","c")) )
+		assert(results.size()==2)
+		assert(rec1==results.get(0))
+		assert(rec2==results.get(1))
+		
+		intercept[NonCoveredRangeException] {
+			clientlib.get_set("db_double_r", this.keyRangeToScadsRangeSet(KeyRange("1","b")) )
+		}
+		intercept[NonCoveredRangeException] {
+			clientlib.get_set("db_double_r", this.keyRangeToScadsRangeSet(KeyRange("a","d")) )
+		}
+	}
 
+	def testDoubleNodeOverlapPartition() = {
+		val clientlib = new ROWAClientLibrary
+		val n1 = new StorageNode("localhost", 9000)
+		val n2 = new StorageNode("localhost", 9001)
+		n1.connect
+		n2.connect
+
+		val ks = new SimpleKeySpace()
+		ks.assign(n1, KeyRange("a", "c"))
+		ks.assign(n2, KeyRange("b", "e"))
+		clientlib.add_namespace("db_double_op",ks)
 		
+		// put some records
+		assert( clientlib.put("db_double_op",rec1) )
+		assert( clientlib.put("db_double_op",rec2) )
+		assert( clientlib.put("db_double_op",rec3) )
+		assert( clientlib.put("db_double_op",rec4) )
+		intercept[NoNodeResponsibleException] {
+			clientlib.put("db_double_op",rec5)
+		}
 		
+		// do a single get
+		assert( clientlib.get("db_double_op","a") == (new SCADS.Record("a","a-val".getBytes())) )
+		assert( clientlib.get("db_double_op","b") == (new SCADS.Record("b","b-val".getBytes())) )
+		assert( clientlib.get("db_double_op","c") == (new SCADS.Record("c","c-val".getBytes())) )
+		assert( clientlib.get("db_double_op","d") == (new SCADS.Record("d","d-val".getBytes())) )
+		intercept[NoNodeResponsibleException] {
+			clientlib.get("db_double_op","e")
+		}
 		
+		// get a range of records, within range and outside range
+		var results = clientlib.get_set("db_double_op", this.keyRangeToScadsRangeSet(KeyRange("a","bb")) )
+		assert(results.size()==2)
+		assert(rec1==results.get(0))
+		assert(rec2==results.get(1))
+		results = clientlib.get_set("db_double_op", this.keyRangeToScadsRangeSet(KeyRange("a","cc")) )
+		assert(results.size()==3)
+		assert(rec1==results.get(0))
+		assert(rec2==results.get(1))
+		assert(rec3==results.get(2))
+		results = clientlib.get_set("db_double_op", this.keyRangeToScadsRangeSet(KeyRange("c","dd")) )
+		assert(results.size()==2)
+		assert(rec3==results.get(0))
+		assert(rec4==results.get(1))
+		results = clientlib.get_set("db_double_op", this.keyRangeToScadsRangeSet(KeyRange("b","e")) )
+		assert(results.size()==3)
+		assert(rec2==results.get(0))
+		assert(rec3==results.get(1))
+		assert(rec4==results.get(2))
+		
+		intercept[NonCoveredRangeException] {
+			clientlib.get_set("db_double_op", this.keyRangeToScadsRangeSet(KeyRange("1","c")) )
+		}
+		intercept[NonCoveredRangeException] {
+			clientlib.get_set("db_double_op", this.keyRangeToScadsRangeSet(KeyRange("a","f")) )
+		}
 	}
 	
+	def testDoubleNodePartitionGap() {
+		val clientlib = new ROWAClientLibrary
+		val n1 = new StorageNode("localhost", 9000)
+		val n2 = new StorageNode("localhost", 9001)
+		n1.connect
+		n2.connect
+
+		val ks = new SimpleKeySpace()
+		ks.assign(n1, KeyRange("a", "c"))
+		ks.assign(n2, KeyRange("d", "f"))
+		clientlib.add_namespace("db_double_gp",ks)
+		
+		// put some records
+		assert( clientlib.put("db_double_gp",rec1) )
+		assert( clientlib.put("db_double_gp",rec2) )
+		assert( clientlib.put("db_double_gp",rec5) )
+		assert( clientlib.put("db_double_gp",rec4) )
+		intercept[NoNodeResponsibleException] {
+			clientlib.put("db_double_gp",rec3) // key "c" should be left out this time
+		}
+		
+		// do a single get
+		assert( clientlib.get("db_double_gp","a") == (new SCADS.Record("a","a-val".getBytes())) )
+		assert( clientlib.get("db_double_gp","b") == (new SCADS.Record("b","b-val".getBytes())) )
+		assert( clientlib.get("db_double_gp","e") == (new SCADS.Record("e","e-val".getBytes())) )
+		assert( clientlib.get("db_double_gp","d") == (new SCADS.Record("d","d-val".getBytes())) )
+		intercept[NoNodeResponsibleException] {
+			clientlib.get("db_double_gp","c")
+		}
+		
+		// get a range of records, within range and outside range
+		var results = clientlib.get_set("db_double_gp", this.keyRangeToScadsRangeSet(KeyRange("a","c")) )
+		assert(results.size()==2)
+		assert(rec1==results.get(0))
+		assert(rec2==results.get(1))
+		results = clientlib.get_set("db_double_gp", this.keyRangeToScadsRangeSet(KeyRange("d","f")) )
+		assert(results.size()==2)
+		assert(rec4==results.get(0))
+		assert(rec5==results.get(1))
+		
+		intercept[NonCoveredRangeException] {
+			clientlib.get_set("db_double_gp", this.keyRangeToScadsRangeSet(KeyRange("b","d")) )
+		}
+	}
 }
 
 class KeySpaceSuite extends Suite {
