@@ -75,7 +75,7 @@ module SCADS
           host = h[/^([^:]*):([^:]*)$/,1]
           port = h[/^([^:]*):([^:]*)$/,2]
 
-          transport = Thrift::BufferedTransport.new(Thrift::Socket.new(host, port))
+          transport = Thrift::FramedTransport.new(Thrift::Socket.new(host, port))
           protocol = Thrift::BinaryProtocol.new(transport)
           transport.open
           client = Storage::Client.new(protocol)
@@ -111,7 +111,7 @@ module SCADS
           host = h[/^([^:]*):([^:]*)$/,1]
           port = h[/^([^:]*):([^:]*)$/,2]
 
-          transport = Thrift::BufferedTransport.new(Thrift::Socket.new(host, port))
+          transport = Thrift::FramedTransport.new(Thrift::Socket.new(host, port))
           protocol = Thrift::BinaryProtocol.new(transport)
           transport.open
           client = Storage::Client.new(protocol)
@@ -127,7 +127,7 @@ module SCADS
         def remove_set(ns, rs)
           rs.check_validity
 
-          @data[ns] = @data[ns].select {|key, value| !rs.includes?(key)}
+          @data[ns] = @data[ns].select {|key, value| !rs.includes?(key)}.inject({}){|h, r| h[r[0]] = r[1]; h}
           true
         end
       end

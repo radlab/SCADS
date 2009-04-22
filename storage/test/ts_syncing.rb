@@ -60,6 +60,9 @@ class TS_Syncing < Test::Unit::TestCase
       )
     record_list = @server1.get_set("removeset",desired)
     assert_equal((1..4).map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}, record_list)
+
+    (1..4).each {|i| assert_equal(@server1.get("removeset", "0#{i}"), Record.new(:key => "0#{i}", :value => "val0#{i}"))}
+    (5..10).each {|i| assert_equal(@server1.get("removeset", "0#{i}"), Record.new(:key => "0#{i}", :value => nil))}
   end
   
   def test_sync_greater
