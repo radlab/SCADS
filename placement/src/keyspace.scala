@@ -117,5 +117,8 @@ class SimpleKeySpace extends KeySpace {
 			case _ => false
 		}
 	}
+
+	override def toString() =
+		"KeySpace\n==============\n"+ space.map((pair) => pair._1 + " => " + pair._2).reduceLeft((a,b) => a + "\n" + b)
 }
 
