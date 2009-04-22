@@ -1,6 +1,8 @@
 import scala.util.Sorting
 
 class NotContiguousException extends Exception
+class NonCoveredRangeException extends Exception
+class NoNodeResponsibleException extends Exception
 
 object KeyRange {
 	val EmptyRange = new KeyRange("", "")
@@ -106,7 +108,6 @@ class SimpleKeySpace extends KeySpace {
 	def isCovered(desired_range: KeyRange, ranges: Set[KeyRange]): Boolean = {
 		val rangesArray = ranges.toArray
 		Sorting.stableSort(rangesArray,(r1:KeyRange,r2:KeyRange)=> (r1.start < r2.start) && (r1.end <= r2.end) )
-		//Sorting.stableSort(rangesArray,(r1:KeyRange,r2:KeyRange)=>r1.end < r2.end)
 		
 		try {
 			val firststart = rangesArray(0).start

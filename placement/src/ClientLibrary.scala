@@ -9,6 +9,7 @@ import java.util.Comparator
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.HashSet
 
+
 trait KeySpaceProvider {
 	var ns_map = new HashMap[String,KeySpace]
 	
@@ -27,7 +28,6 @@ trait KeySpaceProvider {
 	def getMap: HashMap[String,KeySpace] = ns_map
 }
 
-class NonCoveredRangeException extends Exception
 
 /*
 abstract class ClientLibrary extends SCADS.ClientLibrary.Iface {
@@ -79,10 +79,13 @@ class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider 
 	override def get(namespace: String, key: String): Record = {
 		val ns_keyspace = ns_map(namespace)
 		try {
-			//println("keyspace size for "+key+": "+ ns_keyspace.lookup(key).toList.size)
-			val node = ns_keyspace.lookup(key).next // just get the first node
-			val record = node.get(namespace,key)
-			record
+			val potentials = ns_keyspace.lookup(key)
+			if ( potentials.hasNext ) {
+				val node = potentials.next // just get the first node
+				val record = node.get(namespace,key)
+				record
+			}
+			else throw new NoNodeResponsibleException
 		} catch {
 			case e:NotResponsible => {
 				this.getKeySpace(namespace)
@@ -104,16 +107,16 @@ class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider 
 
 		// determine which ranges to ask from which nodes
 		// assumes no gaps in range, but someone should tell user if entire range isn't covered
-		val query_nodes = this.get_set_queries(ns_keyspace.lookup(target_range),target_range)
+		val potentials = ns_keyspace.lookup(target_range)
+		val query_nodes = this.get_set_queries(potentials,target_range)		
 
 		// now do the getting
-		query_nodes.foreach( {case (node,keyrange)=> {
+		query_nodes.foreach( {case (node,keyrange)=> {			
 			ranges += keyrange
 			val rset = this.keyRangeToScadsRangeSet(keyrange)
 
-			try {
-				val records_subset = node.get_set(namespace,rset)
-				
+			try {			
+				val records_subset = node.get_set(namespace,rset)				
 				val iter = records_subset.iterator()
 				while (iter.hasNext()) { records += iter.next() }
 				
@@ -129,9 +132,8 @@ class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider 
 		})
 		
 		// make sure desired range was actually covered by what we gots
-		if ( !ns_keyspace.isCovered(target_range,ranges) ) {
-			//println("not covered")
-			throw new NonCoveredRangeException
+		if ( !ns_keyspace.isCovered(target_range,ranges) ) { 
+			throw new NonCoveredRangeException // do we ever reach here?
 		}	 
 		// sort an array
 		val records_array = records.toArray
@@ -145,16 +147,20 @@ class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider 
 		var start = target_range.start
 		val end = target_range.end
 		
+		var nodes_used = Set[StorageNode]() // which nodes we've checked so far, assumes nodes have only one range
 		while (start < end) {
-			val node_tuple = this.find_node_at_start(nodes,start)
-			resultmap += node_tuple._1 -> node_tuple._2
+			val node_tuple = this.find_node_at_start(nodes.filter((entry)=> !nodes_used.contains(entry._1)),start)
+			if (node_tuple._2.end > end) resultmap += node_tuple._1 -> KeyRange(node_tuple._2.start,end)
+			else resultmap += node_tuple._1 -> node_tuple._2
 			start = node_tuple._2.end
+			nodes_used += node_tuple._1
 		}
 		resultmap
 	}
 	
 	private def find_node_at_start(nodes: Map[StorageNode,KeyRange], start: String): (StorageNode,KeyRange) = {
 		var potential_nodes = nodes.filter((entry) => entry._2.start <= start) // nodes that start at or before target start
+		if ( !potential_nodes.elements.hasNext ) throw new NonCoveredRangeException
 		var chosen_node = potential_nodes.elements.next // init to first one?
 		var end = chosen_node._2.end
 		
@@ -176,6 +182,7 @@ class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider 
 		val key = rec.getKey()
 		val ns_keyspace = ns_map(namespace)
 		val put_nodes = ns_keyspace.lookup(key)
+		if ( !put_nodes.hasNext ) throw new NoNodeResponsibleException
 		var total_success = true
 		
 		put_nodes.foreach({ case(node)=>{
