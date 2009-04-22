@@ -9,6 +9,8 @@ require 'optparse'
 require 'scads'
 
 $stdout.sync = true
+Thread.abort_on_exception = true
+STDERR.reopen(STDOUT)
 
 # get commnd line args
 opts = {:host=>'0.0.0.0'}
