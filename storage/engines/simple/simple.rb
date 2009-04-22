@@ -113,7 +113,7 @@ module SCADS
         def remove_set(ns, rs)
           rs.check_validity
 
-          @data[ns] = @data[ns].select {|key, value| !rs.includes?(key)}
+          @data[ns] = @data[ns].select {|key, value| !rs.includes?(key)}.inject({}){|h, r| h[r[0]] = r[1]; h}
           true
         end
       end
