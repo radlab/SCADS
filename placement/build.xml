@@ -31,10 +31,6 @@
 
 	<target name="compile" depends="thrift">
 		<mkdir dir="${build.dir}"/>
-
-		<javac srcdir="../storage/gen-java/" destdir="${build.dir}" classpathref="project.classpath">
-			<include name="**/*.java"/>
-		</javac>
 		
 		<javac srcdir="gen-java/" destdir="${build.dir}" classpathref="project.classpath">
 			<include name="**/*.java"/>
