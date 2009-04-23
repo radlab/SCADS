@@ -105,6 +105,17 @@ void get(StorageClient &client,
   client.get(r,ns,key);
 }
 
+static
+void getall(StorageClient &client,
+	    vector<Record> &results,
+	    const NameSpace &ns) {
+ RecordSet rs;
+ rs.type = RST_ALL;
+ rs.__isset.range = false;
+ rs.__isset.func = false;
+ client.get_set(results,ns,rs);
+}
+
 static 
 void remove(StorageClient &client,
 	    const NameSpace &ns,
@@ -374,6 +385,30 @@ int main(int argc,char* argv[]) {
 	  else
 	    cout << "No value for "<<v[2]<<endl;
  	} catch (TException e) {
+	  cout << "[Exception]: "<<e.what()<<endl;
+        }
+      }
+
+      else if (cmd == "getall") {
+	if (v.size() != 2) {
+	  cout << "Invalid getall, getall is used as: getall namespace"<<endl;
+	  continue;
+	}
+	try {
+	  vector<Record> recs;
+	  start_timing();
+	  getall(client,recs,v[1]);
+	  end_timing();
+	  if (recs.size() != 0) {
+	    vector<Record>::iterator it;
+	    it = recs.begin();
+	    while(it != recs.end()) {
+	      cout << "Key:\t"<<(*it).key<<endl;
+	      cout << "Value:\t"<<(*it).value<<endl<<endl;
+	      it++;
+	    }
+	  }
+	} catch (TException e) {
 	  cout << "[Exception]: "<<e.what()<<endl;
         }
       }
