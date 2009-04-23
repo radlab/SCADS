@@ -54,12 +54,12 @@ class TestableStorageNode(port: Int) extends StorageNode("localhost", port) with
 			var line = reader.readLine()
 			while(line != null) {
 				lines = lines ++ Array(line)
-				println("" + port + ":" + line)
+//				println("" + port + ":" + line)
 				line = reader.readLine()
 			}
 		}
 		catch {
-			case ex: java.io.IOException => println("StorageEngine " + port + " Exited")
+			case ex: java.io.IOException => //println("StorageEngine " + port + " Exited")
 		}
 	}
 
