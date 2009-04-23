@@ -19,6 +19,10 @@ case class StorageNode(host: String, thriftPort: Int, syncPort: Int) extends SCA
 	}
 }
 
+object TestableStorageNode {
+	var port = 9000
+}
+
 class TestableStorageNode(port: Int) extends StorageNode("localhost", port) with Runnable {
 	class ProcKiller(p: Process) extends Runnable {
 		def run() = p.destroy()
@@ -34,6 +38,11 @@ class TestableStorageNode(port: Int) extends StorageNode("localhost", port) with
 	Thread.`yield`
 
 	connect()
+
+	def this() {
+		this(TestableStorageNode.port)
+		TestableStorageNode.port += 1
+	}
 
 	def run() {
 		proc = Runtime.getRuntime().exec("ruby -I ../lib -I ../storage/engines/simple/ -I ../storage/gen-rb/ ../storage/engines/simple/bin/start_scads.rb -p "+ port + " 2>&1")
