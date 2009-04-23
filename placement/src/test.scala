@@ -13,7 +13,7 @@ class ClientLibraryServer(p: Int) extends ThriftServer {
 	val clientlib = new ROWAClientLibrary
 	val processor = new SCADS.ClientLibrary.Processor(clientlib)
 
-	val n1 = new StorageNode("localhost", 9000)
+	val n1 = new TestableStorageNode()
 	val ks = new SimpleKeySpace()
 	ks.assign(n1, KeyRange("a", "c"))
 	clientlib.add_namespace("db",ks)
@@ -29,8 +29,7 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 
 	def testSingleNode() = {
 		val clientlib = new ROWAClientLibrary
-		val n1 = new StorageNode("localhost", 9000)
-		n1.connect
+		val n1 = new TestableStorageNode()
 		
 		val ks = new SimpleKeySpace()
 		ks.assign(n1, KeyRange("a", "ca"))
@@ -68,10 +67,8 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 
 	def testDoubleNodePartition() = {
 		val clientlib = new ROWAClientLibrary
-		val n1 = new StorageNode("localhost", 9000)
-		val n2 = new StorageNode("localhost", 9001)
-		n1.connect
-		n2.connect
+		val n1 = new TestableStorageNode()
+		val n2 = new TestableStorageNode()
 
 		val ks = new SimpleKeySpace()
 		ks.assign(n1, KeyRange("a", "c"))
@@ -131,10 +128,8 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 	}
 	def testDoubleNodeReplica() = {
 		val clientlib = new ROWAClientLibrary
-		val n1 = new StorageNode("localhost", 9000)
-		val n2 = new StorageNode("localhost", 9001)
-		n1.connect
-		n2.connect
+		val n1 = new TestableStorageNode()
+		val n2 = new TestableStorageNode()
 		
 		val ks = new SimpleKeySpace()
 		ks.assign(n1, KeyRange("a", "ca"))
@@ -174,10 +169,8 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 
 	def testDoubleNodeOverlapPartition() = {
 		val clientlib = new ROWAClientLibrary
-		val n1 = new StorageNode("localhost", 9000)
-		val n2 = new StorageNode("localhost", 9001)
-		n1.connect
-		n2.connect
+		val n1 = new TestableStorageNode()
+		val n2 = new TestableStorageNode()
 
 		val ks = new SimpleKeySpace()
 		ks.assign(n1, KeyRange("a", "c"))
@@ -232,10 +225,8 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 	
 	def testDoubleNodePartitionGap() {
 		val clientlib = new ROWAClientLibrary
-		val n1 = new StorageNode("localhost", 9000)
-		val n2 = new StorageNode("localhost", 9001)
-		n1.connect
-		n2.connect
+		val n1 = new TestableStorageNode()
+		val n2 = new TestableStorageNode()
 
 		val ks = new SimpleKeySpace()
 		ks.assign(n1, KeyRange("a", "c"))
@@ -278,10 +269,10 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 
 class KeySpaceSuite extends Suite {
 	def testKeySpace() = {
-		val n1 = new StorageNode("localhost", 9000)
-		val n2 = new StorageNode("localhost", 9001)
-		val n3 = new StorageNode("localhost", 9002)
-		val n4 = new StorageNode("localhost", 9003)
+		val n1 = new TestableStorageNode()
+		val n2 = new TestableStorageNode()
+		val n3 = new TestableStorageNode()
+		val n4 = new TestableStorageNode()
 
 		val ks = new SimpleKeySpace()
 
@@ -367,8 +358,8 @@ class MovementMechanismTest extends Suite {
 	val keys = (0 to 1000).map((k) => keyFormat.format(k))
 
 	def testSimpleMove() {
-		val n1 = new TestableStorageNode(9010)
-		val n2 = new TestableStorageNode(9011)
+		val n1 = new TestableStorageNode()
+		val n2 = new TestableStorageNode()
 		val dp = new SimpleDataPlacement("test")
 
 		dp.assign(n1, KeyRange("0000", "1001"))
