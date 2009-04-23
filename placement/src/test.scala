@@ -380,6 +380,28 @@ class MovementMechanismTest extends Suite {
 		checkKeys(dp, "value")
 	}
 	
+	def testSimpleCopy() {
+		val n1 = new TestableStorageNode()
+		val n2 = new TestableStorageNode()
+		val dp = new SimpleDataPlacement("test")
+
+		dp.assign(n1, KeyRange("0000", "1001"))
+		putKeys(dp, "value")
+		checkKeys(dp, "value")
+
+		dp.copy(KeyRange("0000", "1001"), n1,n2)
+
+		assert(dp.lookup("0000").contains(n1))
+		assert(dp.lookup("0000").contains(n2))
+		assert(dp.lookup("0499").contains(n1))
+		assert(dp.lookup("0499").contains(n2))
+		assert(dp.lookup("0500").contains(n1))
+		assert(dp.lookup("0500").contains(n2))
+		assert(dp.lookup("1000").contains(n1))
+		assert(dp.lookup("1000").contains(n2))
+
+		checkKeys(dp, "value")
+	}
 	
 	private def putKeys(ks: KeySpace, prefix: String) {		
 		keys.foreach((k) => {

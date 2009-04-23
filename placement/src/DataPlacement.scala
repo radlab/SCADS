@@ -28,7 +28,7 @@ class SimpleDataPlacement(ns: String) extends SimpleKeySpace with ThriftConversi
 		src.copy_set(nameSpace, keyRange, dest.syncHost)
 
 		//Change the assigment
-		assign(src, newDestRange)
+		assign(dest, newDestRange)
 
 		//Sync keys that might have changed
 		src.sync_set(nameSpace, keyRange, dest.syncHost, conflictPolicy)
