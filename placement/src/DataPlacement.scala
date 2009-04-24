@@ -50,6 +50,9 @@ class SimpleDataPlacement(ns: String) extends SimpleKeySpace with ThriftConversi
 		val newRange = lookup(node) - keyRange
 
 		assign(node, newRange)
+		lookup(keyRange).foreach((n) => {
+			node.sync_set(nameSpace, n._2, n._1.syncHost, conflictPolicy)
+		})
 		node.remove_set(nameSpace, keyRange)
 	}
 }
