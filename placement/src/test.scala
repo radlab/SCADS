@@ -447,6 +447,23 @@ class MovementMechanismTest extends Suite {
 		checkKeys(dp, "01value")
 	}
 
+	def testConcurrentCopy(){
+		val n1 = new TestableStorageNode()
+		val n2 = new TestableStorageNode()
+		val dp = new SimpleDataPlacement("test")
+
+		dp.assign(n1, KeyRange("0000", "1001"))
+		putKeys(dp, "00value")
+		checkKeys(dp, "00value")
+
+		val thread = new Thread(new ConcurrentWriter(dp, "01value"), "concurrentWriter")
+		thread.start
+		dp.copy(KeyRange("0500", "1001"), n1.clone(),n2.clone())
+		thread.join
+
+		checkKeys(dp, "01value")
+	}
+
 	private def putKeys(ks: KeySpace, prefix: String) {		
 		keys.foreach((k) => {
 			assert(ks.lookup(k).toList.length >= 1, "no one has key: " + k)
