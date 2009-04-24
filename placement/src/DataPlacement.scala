@@ -39,8 +39,8 @@ class SimpleDataPlacement(ns: String) extends SimpleKeySpace with ThriftConversi
 		val newDestRange = lookup(dest) + keyRange
 
 		src.copy_set(nameSpace, keyRange, dest.syncHost)
-		assign(src, newSrcRange)
 		assign(dest, newDestRange)
+		assign(src, newSrcRange)
 
 		src.sync_set(nameSpace, keyRange, dest.syncHost, conflictPolicy)
 		src.remove_set(nameSpace, keyRange)
