@@ -9,7 +9,9 @@ import org.apache.thrift.transport.TServerSocket
 import org.apache.thrift.server.TServer
 import org.apache.thrift.server.TThreadPoolServer
 
-case class StorageNode(host: String, thriftPort: Int, syncPort: Int) extends SCADS.Storage.Client(new TBinaryProtocol(new TFramedTransport(new TSocket(host, thriftPort)))) {
+case class StorageNode(host: String, thriftPort: Int, sp: Int) extends SCADS.Storage.Client(new TBinaryProtocol(new TFramedTransport(new TSocket(host, thriftPort)))) {
+	var syncPort: Int = sp
+
 
 	def this(host: String, port: Int) = this(host, port, port)
 	def syncHost = host + ":" + syncPort
@@ -34,8 +36,9 @@ class TestableStorageNode(port: Int) extends StorageNode("localhost", port) with
 
 	thread.start
 
-	while(!lines.contains("Opening socket on 0.0.0.0:" + port))
-	Thread.`yield`
+	while(!lines.contains("Opening socket on 0.0.0.0:" + port) && !lines.contains("Starting nonblocking server...")) {
+		Thread.`yield`
+	}
 
 	connect()
 
@@ -45,7 +48,15 @@ class TestableStorageNode(port: Int) extends StorageNode("localhost", port) with
 	}
 
 	def run() {
-		proc = Runtime.getRuntime().exec("ruby -I ../lib -I ../storage/engines/simple/ -I ../storage/gen-rb/ ../storage/engines/simple/bin/start_scads.rb -p "+ port + " 2>&1")
+		if((System.getProperty("storage.engine") != null) && (System.getProperty("storage.engine") equals "bdb")) {
+			syncPort = port + 1000
+			new java.io.File("db/test" + port).mkdir()
+			println("../storage/engines/bdb/storage.bdb -p " + port + " -l " + syncPort + " -d db/test" + port + " -t nonblocking 2>&1")
+			proc = Runtime.getRuntime().exec("../storage/engines/bdb/storage.bdb -p " + port + " -l " + syncPort + " -d db/test" + port + " -t nonblocking 2>&1")
+		}
+		else {
+			proc = Runtime.getRuntime().exec("ruby -I ../lib -I ../storage/engines/simple/ -I ../storage/gen-rb/ ../storage/engines/simple/bin/start_scads.rb -p "+ port + " 2>&1")
+		}
 		Runtime.getRuntime().addShutdownHook(new Thread(new ProcKiller(proc)))
 
 		val reader = new java.io.BufferedReader(new java.io.InputStreamReader(proc.getInputStream()), 1)

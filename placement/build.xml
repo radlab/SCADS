@@ -45,6 +45,8 @@
 
 	<target name="test" depends="compile">
 		<java classname="scala.tools.nsc.MainGenericRunner" fork="true">
+			<sysproperty key="storage.engine" value="${storage.engine}"/>
+
 			<classpath>
 				<path refid="project.classpath"/>
 			</classpath>
