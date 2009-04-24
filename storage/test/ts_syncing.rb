@@ -18,27 +18,28 @@ class TS_Syncing < Test::Unit::TestCase
   end
   
   def test_copy
-    (1..9).each do |i| # set some values
-      @server1.put("copyset", Record.new(:key => "0#{i}", :value => "val0#{i}"))
+    recs = (1..1000).map {|i| sprintf("%04d", i)}.map {|k| Record.new(:key => k, :value => ("value" + k))}
+    recs.each do |r| # set some values
+      @server1.put("copyset", r)
     end
     
     # copy some of the values to another server
     to_copy = RecordSet.new(
       :type =>RecordSetType::RST_RANGE,
-      :range => RangeSet.new(:start_key=>"05",:end_key=>"09",:offset => nil,:limit => nil)
+      :range => RangeSet.new(:start_key=>"0500",:end_key=>"1001",:offset => nil,:limit => nil)
       )
     @server1.copy_set("copyset", to_copy,@server2.sync_host)
     
     # try to get values from both servers
     desired = RecordSet.new(
       :type =>RecordSetType::RST_RANGE,
-      :range => RangeSet.new(:start_key=>"01",:end_key=>"09",:offset => nil,:limit => nil)
+      :range => RangeSet.new(:start_key=>"0000",:end_key=>"1001",:offset => nil,:limit => nil)
       )
     record_list1 = @server1.get_set("copyset",desired) # should sucessfully get 01-09
-    assert_equal((1..9).map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}, record_list1)
+    assert_equal(recs, record_list1)
   
     record_list2 = @server2.get_set("copyset",desired) # should get the copied values, 05-09
-    assert_equal((5..9).map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}, record_list2)
+    assert_equal(recs[499..1000], record_list2)
   end
   
   def test_remove
