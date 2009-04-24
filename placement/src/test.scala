@@ -357,6 +357,10 @@ class MovementMechanismTest extends Suite {
 	val keyFormat = new java.text.DecimalFormat("0000")
 	val keys = (0 to 1000).map((k) => keyFormat.format(k))
 
+	class ConcurrentWriter(ks: KeySpace, prefix: String) extends Runnable{
+		def run() = putKeys(ks, prefix)
+	}
+
 	def testSimpleMove() {
 		val n1 = new TestableStorageNode()
 		val n2 = new TestableStorageNode()
@@ -403,11 +407,56 @@ class MovementMechanismTest extends Suite {
 		checkKeys(dp, "value")
 	}
 	
+	def testRemove() {
+		val n1 = new TestableStorageNode()
+		val n2 = new TestableStorageNode()
+		val dp = new SimpleDataPlacement("test")
+
+		dp.assign(n1, KeyRange("0000", "1001"))
+		putKeys(dp, "value")
+		checkKeys(dp, "value")
+
+		dp.copy(KeyRange("0000", "1001"), n1,n2)
+
+		checkKeys(dp, "value")
+
+		dp.remove(KeyRange("0000", "1001"), n1)
+
+		assert(!dp.lookup("0000").contains(n1))
+		assert(!dp.lookup("0499").contains(n1))
+		assert(!dp.lookup("0500").contains(n1))
+		assert(!dp.lookup("1000").contains(n1))
+
+		checkKeys(dp, "value")
+	}
+
+	def testConcurrentMove(){
+		val n1 = new TestableStorageNode()
+		val n2 = new TestableStorageNode()
+		val dp = new SimpleDataPlacement("test")
+
+		dp.assign(n1, KeyRange("0000", "1001"))
+		putKeys(dp, "00value")
+		checkKeys(dp, "00value")
+
+		val thread = new Thread(new ConcurrentWriter(dp, "01value"), "concurrentWriter")
+		thread.start
+		dp.move(KeyRange("0500", "1001"), n1.clone(),n2.clone())
+		thread.join
+
+		checkKeys(dp, "01value")
+	}
+
 	private def putKeys(ks: KeySpace, prefix: String) {		
 		keys.foreach((k) => {
 			assert(ks.lookup(k).toList.length >= 1, "no one has key: " + k)
 			ks.lookup(k).foreach((n) => {
-				n.put("test", new SCADS.Record(k, (prefix + k).getBytes))
+				try {
+					n.put("test", new SCADS.Record(k, (prefix + k).getBytes))
+				}
+				catch {
+					case ex: SCADS.NotResponsible =>
+				}
 			})
 		})
 	}
