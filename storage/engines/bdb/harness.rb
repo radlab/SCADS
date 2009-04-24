@@ -13,7 +13,7 @@ module SCADS
         end
 
         def method_missing(symbol, *args)
-          Timeout::timeout(5) do
+          Timeout::timeout(30) do
             @client.send(symbol, *args)
           end
         end
