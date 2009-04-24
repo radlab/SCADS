@@ -28,7 +28,7 @@ module SCADS
             ret[((rs.range.offset || 0)..(rs.range.limit || ret.size))]
           else
             ret
-          end
+          end.sort{|x,y| x.key <=> y.key}
         end
 
         def put(ns, rec)
