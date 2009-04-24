@@ -211,11 +211,11 @@ class TS_Sets < Test::Unit::TestCase
       :range => RangeSet.new(:start_key=>s,:end_key=>e))
     }
 
-    assert_equal(1, @server.count("count", range.call('a', 'a')))
-    assert_equal(2, @server.count("count", range.call('a', 'b')))
-    assert_equal(3, @server.count("count", range.call('a', 'c')))
-    assert_equal(26, @server.count("count", range.call('a', 'z')))
-    assert_equal(1, @server.count("count", range.call(' ', 'a')))
-    assert_equal(0, @server.count("count", range.call('A', 'Z')))
+    assert_equal(1, @server.count_set("count", range.call('a', 'a')))
+    assert_equal(2, @server.count_set("count", range.call('a', 'b')))
+    assert_equal(3, @server.count_set("count", range.call('a', 'c')))
+    assert_equal(26, @server.count_set("count", range.call('a', 'z')))
+    assert_equal(1, @server.count_set("count", range.call(' ', 'a')))
+    assert_equal(0, @server.count_set("count", range.call('A', 'Z')))
   end
 end

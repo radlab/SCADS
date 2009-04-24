@@ -41,7 +41,7 @@ module SCADS
           return true
         end
 
-        def count(ns, rs)
+        def count_set(ns, rs)
           #check to see if the rs they gave us is valid
           rs.check_validity
 
