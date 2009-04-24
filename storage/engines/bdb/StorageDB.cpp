@@ -51,6 +51,29 @@ VALUE rb_funcall_wrap(VALUE vargs) {
     rb_funcall(args[0], call_id, 2, args[1], args[2]);
 }
 
+char * strnstr(const char *s, const char *find, size_t slen)
+{
+  char c, sc;
+  size_t len;
+  
+  if ((c = *find++) != '\0') {
+    len = strlen(find);
+    do {
+      do {
+	if (slen < 1 || (sc = *s) == '\0')
+	  return (NULL);
+	--slen;
+	++s;
+      } while (sc != c);
+      if (len > slen)
+	return (NULL);
+    } while (strncmp(s, find, len) != 0);
+    s--;
+  }
+  return (char*)s;
+}
+
+
 
 // set application functions
 void apply_get(void* vec,DB* db, void* k, void* d) {
@@ -152,6 +175,8 @@ responsible_for_key(const NameSpace& ns, const RecordKey& key) {
       InvalidSetDescription isd;
       isd.s = rs;
       isd.info = "Your ruby string for your responsiblity policy does not return something that responds to 'call'";
+      isd.__isset.s = true;
+      isd.__isset.info = true;
       throw isd;
     }
     VALUE v;
@@ -165,6 +190,8 @@ responsible_for_key(const NameSpace& ns, const RecordKey& key) {
       VALUE lasterr = rb_gv_get("$!");
       VALUE message = rb_obj_as_string(lasterr);
       isd.info = rb_string_value_cstr(&message);
+      isd.__isset.s = true;
+      isd.__isset.info = true;
       throw isd;
     }
     return (v == Qtrue);
@@ -188,6 +215,8 @@ responsible_for_set(const NameSpace& ns, const RecordSet& rs) {
       InvalidSetDescription isd;
       isd.s = rs;
       isd.info = "You specified a range set but did not provide a range description";
+      isd.__isset.s = true;
+      isd.__isset.info = true;
       throw isd;
     }
     if (
@@ -273,6 +302,8 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     InvalidSetDescription isd;
     isd.s = rs;
     isd.info = "You specified both a range and function in your set";
+    isd.__isset.s = true;
+    isd.__isset.info = true;
     throw isd;
   }
 
@@ -281,6 +312,8 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     InvalidSetDescription isd;
     isd.s = rs;
     isd.info = "You specified a range set but did not provide a range description";
+    isd.__isset.s = true;
+    isd.__isset.info = true;
     throw isd;
   }
 
@@ -290,6 +323,18 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     InvalidSetDescription isd;
     isd.s = rs;
     isd.info = "You specified a function set but did not provide a function";
+    isd.__isset.s = true;
+    isd.__isset.info = true;
+    throw isd;
+  }
+
+  if (rs.type == RST_FILTER &&
+      !rs.__isset.filter) {
+    InvalidSetDescription isd;
+    isd.s = rs;
+    isd.info = "You asked for a filter but didn't supply a string to filter on";
+    isd.__isset.s = true;
+    isd.__isset.info = true;
     throw isd;
   }
 
@@ -315,7 +360,11 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 	   rs.type == RST_KEY_VALUE_FUNC) {
     cout << (rs.type == RST_KEY_FUNC?"\tRST_KEY_FUNC":"\tRST_KEY_VALUE_FUNC")<<endl<<
       "Lang: "<<(rs.func.lang==LANG_RUBY?"\tLANG_RUBY":"UNKNOWN LANG")<<endl<<
-      "Func: "<<rs.func.func<<endl;
+      "Func: \t"<<rs.func.func<<endl;
+  }
+  else if (rs.type == RST_FILTER) {
+    cout << "\tRST_FILTER"<<endl<<
+      "\t filter: "<<rs.filter<<endl;
   }
   else
     cout << "Unknown set type"<<endl;
@@ -332,6 +381,8 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       InvalidSetDescription isd;
       isd.s = rs;
       isd.info = "Your start key is greater than your end key";
+      isd.__isset.s = true;
+      isd.__isset.info = true;
       throw isd;
     }
   }
@@ -347,6 +398,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
   case RST_ALL:
   case RST_KEY_FUNC:
   case RST_KEY_VALUE_FUNC:
+  case RST_FILTER:
     ret = cursorp->get(cursorp, &key, &data, DB_FIRST);
     break;
   case RST_RANGE:
@@ -393,6 +445,8 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 	free(data.data); // free because we're returning
 	if (cursorp != NULL)
 	  cursorp->close(cursorp);
+	isd.__isset.s = true;
+	isd.__isset.info = true;
 	throw isd;
       }
     } else {
@@ -417,6 +471,13 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       count++;
     }
   }
+
+  else if (rs.type == RST_FILTER) {
+    count = rs.filter.length();
+    if (data.size > count &&
+	strnstr((const char*)data.data,rs.filter.c_str(),data.size)) 
+      (*to_apply)(apply_arg,db_ptr,&key,&data);      
+  }
     
   else if (rs.type == RST_KEY_FUNC || RST_KEY_VALUE_FUNC) {
     VALUE v;
@@ -436,6 +497,8 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       free(data.data);
       if (cursorp != NULL)
 	cursorp->close(cursorp);
+      isd.__isset.s = true;
+      isd.__isset.info = true;
       throw isd;
     }
     if (v == Qtrue)
@@ -447,6 +510,8 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       free(data.data);
       if (cursorp != NULL)
 	cursorp->close(cursorp);
+      isd.__isset.s = true;
+      isd.__isset.info = true;
       throw isd;
     }
   }
@@ -489,6 +554,12 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       }
     }
 
+    else if (rs.type == RST_FILTER) {
+      if (data.size > count &&
+	  strnstr((const char*)data.data,rs.filter.c_str(),data.size)) 
+	(*to_apply)(apply_arg,db_ptr,&key,&data);      
+    }
+
     // RST_KEY_FUNC/RST_KEY_VALUE_FUNC set
     else if (rs.type == RST_KEY_FUNC || rs.type == RST_KEY_VALUE_FUNC) {
       VALUE v;
@@ -508,6 +579,11 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 	free(data.data);
 	if (cursorp != NULL)
 	  cursorp->close(cursorp);
+	isd.__isset.s = true;
+	isd.__isset.info = true;
+#ifdef DEBUG
+	cerr << "Error in calling ruby function for key: "<<string((char*)key.data,key.size)<<" message: "<<isd.info<<endl;
+#endif
 	throw isd;
       }
       if (v == Qtrue)
@@ -519,6 +595,8 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 	free(data.data);
 	if (cursorp != NULL)
 	  cursorp->close(cursorp);
+	isd.__isset.s = true;
+	isd.__isset.info = true;
 	throw isd;
       }
     }
@@ -531,6 +609,9 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
   
   if (cursorp != NULL) 
     cursorp->close(cursorp); 
+#ifdef DEBUG
+  cerr << "apply_to_set done"<<endl;
+#endif
 }
 
 StorageDB::
@@ -745,6 +826,8 @@ set_responsibility_policy(const NameSpace& ns, const RecordSet& policy) {
     InvalidSetDescription isd;
     isd.s = policy;
     isd.info = "Cannot specify a key value function as a responsibility function";
+    isd.__isset.s = true;
+    isd.__isset.info = true;
     throw isd;
   }
 
@@ -753,6 +836,8 @@ set_responsibility_policy(const NameSpace& ns, const RecordSet& policy) {
     InvalidSetDescription isd;
     isd.s = policy;
     isd.info = "You specified both a range and function in your policy";
+    isd.__isset.s = true;
+    isd.__isset.info = true;
     throw isd;
   }
 
@@ -761,6 +846,8 @@ set_responsibility_policy(const NameSpace& ns, const RecordSet& policy) {
     InvalidSetDescription isd;
     isd.s = policy;
     isd.info = "You specified a range set but did not provide a range description";
+    isd.__isset.s = true;
+    isd.__isset.info = true;
     throw isd;
   }
 
@@ -770,6 +857,8 @@ set_responsibility_policy(const NameSpace& ns, const RecordSet& policy) {
     InvalidSetDescription isd;
     isd.s = policy;
     isd.info = "offset/limit don't make sense for responsibility policies";
+    isd.__isset.s = true;
+    isd.__isset.info = true;
     throw isd;
   }
 
@@ -778,6 +867,8 @@ set_responsibility_policy(const NameSpace& ns, const RecordSet& policy) {
     InvalidSetDescription isd;
     isd.s = policy;
     isd.info = "You specified a function set but did not provide a function";
+    isd.__isset.s = true;
+    isd.__isset.info = true;
     throw isd;
   }
 
@@ -789,6 +880,8 @@ set_responsibility_policy(const NameSpace& ns, const RecordSet& policy) {
       InvalidSetDescription isd;
       isd.s = policy;
       isd.info = "Your ruby string for your responsiblity policy does not return something that responds to 'call'";
+      isd.__isset.s = true;
+      isd.__isset.info = true;
       throw isd;
     }
   }

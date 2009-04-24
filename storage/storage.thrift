@@ -21,6 +21,7 @@ enum RecordSetType {
 	RST_LIST = 4,
 	RST_KEY_FUNC = 5,
 	RST_KEY_VALUE_FUNC = 6
+	RST_FILTER = 7
 }
 
 struct RangeSet {
@@ -42,7 +43,8 @@ struct UserFunction {
 struct RecordSet {
 	1: RecordSetType type,
 	2: optional RangeSet range,
-	3: optional UserFunction func
+	3: optional UserFunction func,
+	4: optional string filter
 }
 
 enum ConflictPolicyType {
