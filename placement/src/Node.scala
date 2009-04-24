@@ -63,6 +63,12 @@ class TestableStorageNode(port: Int) extends StorageNode("localhost", port) with
 		}
 	}
 
+	override def clone(): StorageNode = {
+		val n = new StorageNode("localhost", port)
+		n.connect()
+		return n
+	}
+
 	override def finalize() {
 		proc.destroy()
 	}
