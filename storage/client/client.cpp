@@ -148,6 +148,17 @@ static void range(StorageClient &client,
   client.get_set(results,ns,rs);
 }
 
+static void filter(StorageClient &client,
+		   vector<Record> &results,
+		   const NameSpace &ns,
+		   const string filter) {
+  RecordSet rs;
+  rs.type = RST_FILTER;
+  rs.__isset.filter = true;
+  rs.filter = filter;
+  client.get_set(results,ns,rs);
+}
+
 static int32_t count(StorageClient &client,
 		     const NameSpace &ns,
 		     const RecordKey &start_key,
@@ -179,6 +190,8 @@ static void ruby(StorageClient &client,
   RecordSet rs;
   rs.type = rst; // Should be RST_KEY_FUNC or RST_KEY_VALUE_FUNC
   rs.func = uf;
+  rs.__isset.range = false;
+  rs.__isset.func = true;
   client.get_set(results,ns,rs);
 }
 
@@ -245,6 +258,11 @@ static void printPutUsage() {
 static void printGetUsage() {
   printf("invalid get, get is used as:\n");
   printf("get namespace key\n");
+}
+
+static void printFilterUsage() {
+  printf("invalid filter, filter is used as:\n");
+  printf("filter namespace pattern\n");
 }
 
 static void printRangeUsage() {
@@ -331,6 +349,8 @@ int main(int argc,char* argv[]) {
       char* l = readline(pbuf);
       if (l && *l)
 	add_history(l);
+      else
+	continue;
       line = new string(l);
       free(l);
       vector<string> v = strsplit(*line);
@@ -438,6 +458,31 @@ int main(int argc,char* argv[]) {
 	} catch (TException e) {
 	  cout << "[Exception]: "<<e.what()<<endl;
         }
+      }
+
+      else if (cmd == "filter") {
+	if (v.size() != 3) {
+	  printFilterUsage();
+	  continue;
+	}
+	try {
+	  vector<Record> recs;
+	  start_timing();
+	  filter(client,recs,v[1],v[2]);
+	  end_timing();
+	  printf("returned: %i values\n\n",(int)(recs.size()));
+	  if (recs.size() != 0) {
+	    vector<Record>::iterator it;
+	    it = recs.begin();
+	    while(it != recs.end()) {
+	      cout << "Key:\t"<<(*it).key<<endl;
+	      cout << "Value:\t"<<(*it).value<<endl<<endl;
+	      it++;
+	    }
+	  }
+	} catch (TException e) {
+	  cout << "[Exception]: "<<e.what()<<endl;
+        }	  
       }
 
       else if (cmd == "count") {
