@@ -116,6 +116,14 @@ int fill_dbt(int* sock, DBT* k, DBT* other, char* buf, char* pos, char** endp) {
   return ((pos+len)-buf);
 }
 
+void do_throw(int errnum, string msg) {
+  char* err = strerror(errnum);
+  int b = strlen(err);
+  msg.append(err);
+  TException te(msg);
+  throw te;
+}
+
 int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
   char *end;
   int off = 0;
@@ -229,22 +237,19 @@ struct sync_sync_args {
 };
 
 void send_vals(int sock,DBT* key, DBT* data) {
-  if (send(sock,&(key->size),4,MSG_MORE) == -1) {
-    cerr<<"Failed to send data length: "<<strerror(errno)<<endl;
-    return;
-  }
-  if (send(sock,((const char*)key->data),key->size,MSG_MORE) == -1) {
-    cerr<<"Failed to send a key: "<<strerror(errno)<<endl;
-    return;
-  }
-  if (send(sock,&(data->size),4,MSG_MORE) == -1) {
-    cerr<<"Failed to send data length: "<<strerror(errno)<<endl;
-    return;
-  }
-  if (send(sock,data->data,data->size,MSG_MORE) == -1) {
-    cerr<<"Failed to send data: "<<strerror(errno)<<endl;
-    return;
-  }
+  if (send(sock,&(key->size),4,MSG_MORE) == -1) 
+    do_throw(errno,"Failed to send key length: ");
+  if (send(sock,((const char*)key->data),key->size,MSG_MORE) == -1) 
+    do_throw(errno,"Failed to send a key: ");
+  if (send(sock,&(data->size),4,MSG_MORE) == -1) 
+    do_throw(errno,"Failed to send data length: ");
+  if (send(sock,data->data,data->size,MSG_MORE) == -1) 
+    do_throw(errno,"Failed to send data: ");
+}
+
+void apply_dump(void *s, DB* db, void *k, void *d) {
+  int* sock = (int*)s;
+  send_vals(*sock,(DBT*)k,(DBT*)d);
 }
 
 void sync_sync(void* s, DB* db, void* k, void* d) {
@@ -786,6 +791,46 @@ void* run_listen(void* arg) {
       stat = do_copy(as,storageDB,dbuf);
     else if (dbuf[0] == 1) // sync
       stat = do_sync(as,storageDB,dbuf);
+    else if (dbuf[0] == 2) { // dump
+#ifdef DEBUG
+      cerr << "Dumping all data"<<endl;
+#endif
+      DBT k;
+      memset(&k, 0, sizeof(DBT));
+      char* end = dbuf;
+      try {
+	fill_dbt(&as,&k,NULL,dbuf,dbuf,&end);
+      } catch (ReadDBTException &e) {
+	cerr << "Could not read namespace: "<<e.what()<<endl;
+	if (k.flags)
+	  free(k.data);
+	stat = 1;
+      }
+      if (!stat) {
+	string ns = string((char*)k.data,k.size);
+#ifdef DEBUG
+	cout << "Namespace is: "<<ns<<endl;
+#endif
+	if (k.flags)
+	  free(k.data);
+
+	RecordSet rs;
+	rs.type = RST_ALL;
+	rs.__isset.range = false;
+	rs.__isset.func = false;
+	try {
+	  storageDB->apply_to_set(ns,rs,apply_dump,&as);
+	} catch (TException &e) {
+	  stat = 1;
+	  stat = 1;
+	  cerr << "An error occured while dumping: "<<e.what()<<endl;
+	}
+	if (send(as,&stat,4,0) == -1) {
+	  perror("Could not send done key for dump: ");
+	  stat = 1;
+	}
+      }
+    }
     else {
       cerr <<"Unknown operation requested on copy/sync port"<<endl;
       close(as);
@@ -802,14 +847,6 @@ void* run_listen(void* arg) {
 
 
   printf("Shutting down listen thread\n");
-}
-
-void do_throw(int errnum, string msg) {
-  char* err = strerror(errnum);
-  int b = strlen(err);
-  msg.append(err);
-  TException te(msg);
-  throw te;
 }
 
 int open_socket(const Host& h) {
