@@ -87,18 +87,18 @@ module SCADS
 
 
           (remote_data.keys + local_data.keys).uniq.select{|k| rs.includes?(k)}.each do |key|
-            if remote_data[key].nil?
-              result[key] = local_data[key]
-            elsif local_data[key].nil?
-              result[key] = remote_data[key]
-            else
-              result[key] = p.which(local_data[key], remote_data[key])
-            end
-          end
+            if local_data[key] != remote_data[key]
+              if remote_data[key].nil?
+                client.put(ns, Record.new(:key => key, :value => local_data[key]))
+              elsif local_data[key].nil?
+                @data[ns][key] = remote_data[key]
+              else
+                merged = p.which(local_data[key], remote_data[key])
+                client.put(ns, Record.new(:key => key, :value => merged)) unless remote_data[key] == merged
+                @data[ns][key] = merged unless local_data[key] == merged
 
-          result.each do |key,value|
-            @data[ns][key] = value
-            client.put(ns, Record.new(:key => key, :value => value))
+              end
+            end
           end
 
           transport.close
