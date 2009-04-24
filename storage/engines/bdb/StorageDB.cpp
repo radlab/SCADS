@@ -1217,6 +1217,7 @@ int main(int argc, char **argv) {
 			      port);
     nonblockingServer = &server;
     printf("Starting nonblocking server...\n");
+	fflush(stdout);
     server.serve();
   }
     break;
