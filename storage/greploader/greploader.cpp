@@ -11,8 +11,16 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include<readline/readline.h>
-#include<readline/history.h>
+#include <stdio.h>
+#include <errno.h>
+#include <netdb.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+
+#include <arpa/inet.h>
+
+#define VERSTR "SCADSBDB0.1"
 
 #include <sys/time.h>
 #include <time.h>
@@ -89,6 +97,8 @@ int main(int argc,char* argv[]) {
   int opt,timing = 1;
   string keystring;
   string valstring;
+  char loadType = 0;
+
 
   unsigned int s;
   FILE* f = fopen("/dev/urandom","r");
@@ -99,7 +109,7 @@ int main(int argc,char* argv[]) {
 
   sprintf(pattern,"%s","foo");
   int port = THRIFT_PORT;
-  while ((opt = getopt(argc,argv, "s:p:c:P:")) != -1) {
+  while ((opt = getopt(argc,argv, "s:p:c:P:b")) != -1) {
     switch (opt) {
     case 's':
       size = atoi(optarg);
@@ -113,6 +123,9 @@ int main(int argc,char* argv[]) {
     case 'c':
       snprintf(pattern,4,"%s",optarg);
       break;
+    case 'b':
+      loadType = 1;
+      break;
     default:
       fprintf(stderr,"Usage: %s -s [size] -p [percent] -c [pattern] -P [port]\n",argv[0]);
       exit(EXIT_FAILURE);
@@ -122,59 +135,185 @@ int main(int argc,char* argv[]) {
   //cout << "Connecting to: "<<host<<endl;
   if (timing)
     cout << "Will print timing info"<<endl;
-  shared_ptr<TTransport> socket(new TSocket(host, port));
-  shared_ptr<TTransport> transport(new TBufferedTransport(socket));
-  shared_ptr<TProtocol> protocol(new TBinaryProtocol(transport));
-  StorageClient client(protocol);
 
   long records = size*10000;
   int pos = ceil(perc/100*records);
   int m = (records/pos)-1;
-  int p = 0;
+  int pcount = 0;
   int waspos = 1;
-  Record r;
-  r.__isset.key = true;
-  r.__isset.value = true;
 
   cout << "loading "<<records<<" records.  "<<pos<<" positives with pattern: "<<pattern<<endl;
 
-  try {
+  
+  if (loadType) { // do binary copy
+    int sockfd, numbytes;  
+    int keylen = 10;
+    int dlen = 90;
+    struct addrinfo hints, *servinfo, *p;
+    int rv;
+    int nslen;
+    char buf[12];
+    string ns("greptest");
+    sprintf(buf,"%i",port);
 
-    transport->open();
+    cout << "doing a binary load on copy/sync port"<<endl;
+
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+
+    if ((rv = getaddrinfo(host, buf, &hints, &servinfo)) != 0) {
+      fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+      return 1;
+    }
+
+    // loop through all the results and connect to the first we can
+    for(p = servinfo; p != NULL; p = p->ai_next) {
+      if ((sockfd = socket(p->ai_family, p->ai_socktype,
+			 p->ai_protocol)) == -1) {
+	perror("client: socket");
+	continue;
+      }
+
+      if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+	close(sockfd);
+	perror("client: connect");
+	continue;
+      }
+      
+      break;
+    }
+
+    if (p == NULL) {
+      fprintf(stderr, "client: failed to connect\n");
+      return 2;
+    }
+
+    freeaddrinfo(servinfo); // all done with this structure
+
+    if ((numbytes = recv(sockfd, buf, 11, 0)) == -1) {
+      perror("Error receiving version string: ");
+      return 2;
+    }
+  
+    buf[numbytes] = '\0';
+    
+    if (strncmp(VERSTR,buf,11)) {
+      fprintf(stderr,"Version strings didn't match");
+      return 2;
+    }
+
+    // now send copy
+    nslen = 0;
+    if (send(sockfd,&nslen,1,MSG_MORE) == -1) {
+      perror("Error sending copy op: ");
+      return 2;
+    }
+
+    // now send our namespace
+    nslen = ns.length();
+    if (send(sockfd,&nslen,4,MSG_MORE) == -1) {
+      perror("Error sending namespace length: ");
+      return 2;
+    }
+    printf("Sending namespace: %s\n",ns.c_str());
+    if (send(sockfd,ns.c_str(),nslen,MSG_MORE) == -1) {
+      perror("Error sending namespace: ");
+      return 2;
+    }
 
     printProgress(0,0);
-    
     start_timing();
+    // now send all our keys
     for(int i = 0;i < records;i++) {
-
       if (i % 1000 == 0) 
 	printProgress(((100*i)/records),i);
-
+      
       sprintf(key,"%010i",i);
       if (waspos) {
 	fillval(val,pattern,0);
-	valstring.assign(val);
 	waspos = 0;
       }
-      keystring.assign(key);
-      if (i%m==0 && p<pos) {
+      if (i%m==0 && pcount<pos) {
 	// make pos here
-	p++;
+	pcount++;
 	fillval(val,pattern,1);
-	valstring.assign(val);
 	waspos = 1;
       }
-      r.key = keystring;
-      r.value = valstring;
-      client.put("greptest",r);
+      if (send(sockfd,&keylen,4,MSG_MORE) == -1) {
+	perror("Error sending keylen: ");
+	return 1;
+      }
+      if (send(sockfd,key,keylen,MSG_MORE) == -1) {
+	perror("Error sending key: ");
+	return 1;
+      }
+      if (send(sockfd,&dlen,4,MSG_MORE) == -1) {
+	perror("Error sending dlen: ");
+	return 1;
+      }
+      if (send(sockfd,val,dlen,MSG_MORE) == -1) {
+	perror("Error sending data: ");
+	return 1;
+      }
     }
-  } catch (TException &tx) {
-    printf("ERROR: %s\n", tx.what());
-  }
-  end_timing();
-  printProgress(100,records);
+    keylen = 0;
+    if (send(sockfd,&keylen,4,MSG_MORE) == -1) {
+      perror("Error sending final key: ");
+      return 1;
+    }
+    printProgress(100,records);
+    end_timing();
+  } else {
+    shared_ptr<TTransport> socket(new TSocket(host, port));
+    shared_ptr<TTransport> transport(new TBufferedTransport(socket));
+    shared_ptr<TProtocol> protocol(new TBinaryProtocol(transport));
+    StorageClient client(protocol);
 
-  cout << "actual pos: "<<p<<endl;
+    Record r;
+    r.__isset.key = true;
+    r.__isset.value = true;
+    
+    cout << "Loading through the thrift interface"<<endl;
+
+    try {
+
+      transport->open();
+
+      printProgress(0,0);
+    
+      start_timing();
+      for(int i = 0;i < records;i++) {
+
+	if (i % 1000 == 0) 
+	  printProgress(((100*i)/records),i);
+
+	sprintf(key,"%010i",i);
+	if (waspos) {
+	  fillval(val,pattern,0);
+	  valstring.assign(val);
+	  waspos = 0;
+	}
+	keystring.assign(key);
+	if (i%m==0 && pcount<pos) {
+	  // make pos here
+	  pcount++;
+	  fillval(val,pattern,1);
+	  valstring.assign(val);
+	  waspos = 1;
+	}
+	r.key = keystring;
+	r.value = valstring;
+	client.put("greptest",r);
+      }
+    } catch (TException &tx) {
+      printf("ERROR: %s\n", tx.what());
+    }
+    printProgress(100,records);
+    end_timing();
+  }
+
+  cout << "actual pos: "<<pcount<<endl;
 
 
 }
