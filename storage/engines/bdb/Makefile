@@ -45,6 +45,8 @@ default: arch_warning storage.bdb
 
 debug: arch_warning storage.bdb.debug
 
+debugquiet: arch_warning storage.bdb.debugquiet
+
 #print warning if couldn't determine the arch
 arch_warning:
 ifneq ($(DIDINC), yes)
@@ -61,6 +63,9 @@ storage.bdb: $(SRCS_TO_GEN) StorageDB.cpp Network.cpp
 
 storage.bdb.debug: $(SRCS_TO_GEN) StorageDB.cpp Network.cpp
 	$(CXX) -g $(CFLAGS) $(RUBY_INCLUDES) -DDEBUG -o storage.bdb StorageDB.cpp Network.cpp ${GEN_SRC} $(LIBS)
+
+storage.bdb.debugquiet: $(SRCS_TO_GEN) StorageDB.cpp Network.cpp
+	$(CXX) -g $(CFLAGS) $(RUBY_INCLUDES) -o storage.bdb StorageDB.cpp Network.cpp ${GEN_SRC} $(LIBS)
 
 clean:
 	rm -rf gen-cpp storage.bdb
