@@ -463,6 +463,17 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     (*to_apply)(apply_arg,db_ptr,&key,&data);
     
   else if (rs.type == RST_RANGE) {
+    if (rs.range.__isset.end_key && 
+	(strncmp(rs.range.end_key.c_str(),
+		 (char*)key.data,key.size) < 0) ) { // nothing to return
+      free(data.data);
+      if (cursorp != NULL)
+	cursorp->close(cursorp);
+      if (invokeNone)
+	// no vals, but apply function wants to know that so invoke with nulls
+	(*to_apply)(apply_arg,db_ptr,NULL,NULL);      
+      return;
+    }
     if (rs.range.__isset.offset &&
 	skipped < rs.range.offset) 
       skipped++;
