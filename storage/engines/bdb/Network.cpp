@@ -52,11 +52,13 @@ int fill_buf(int* sock, char* buf, int off) {
 int fill_dbt(int* sock, DBT* k, DBT* other, char* buf, char* pos, char** endp) {
   int len;
   char *end = *endp;
-  if (k->flags)
+  if (k->flags) {
     len = (k->size - k->dlen);
+  }
   else { 
     if ((end-pos) < 4) {
-      memcpy(buf,pos,(end-pos)); // move data to the front
+      int rem = end-pos;
+      memcpy(buf,pos,rem); // move data to the front
       if (other != NULL &&
 	  !other->flags) { // other dbt isn't malloced and needs its data saved and moved
 	void* od = malloc(sizeof(char)*other->size);
@@ -64,12 +66,12 @@ int fill_dbt(int* sock, DBT* k, DBT* other, char* buf, char* pos, char** endp) {
 	other->data = od;
 	other->flags = 1; // is malloced now
       }
-      len = fill_buf(sock,buf,(end-pos));
+      len = fill_buf(sock,buf,rem);
       if (len == 0) { // socket got closed down
 	ReadDBTException e("Socket was orderly shutdown by peer");
 	throw e;
       }
-      *endp = buf+len;
+      *endp = buf+len+rem;
       return fill_dbt(sock,k,other,buf,buf,endp);
     }
     memcpy(&len,pos,4);
