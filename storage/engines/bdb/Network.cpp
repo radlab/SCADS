@@ -15,6 +15,7 @@
 #define BACKLOG 10
 #define VERSTR "SCADSBDB0.1"
 #define BUFSZ 1024
+#define SO_TOUT 10 // 10 second timeout on reads/writes
 
 extern char stopping;
 extern ID call_id;
@@ -719,6 +720,9 @@ void* run_listen(void* arg) {
   int sock,as;
   struct sockaddr_storage peer_addr;
   socklen_t peer_addr_len;
+  struct timeval to;
+
+  to.tv_sec = SO_TOUT;
 
   memset(&hints,0, sizeof(addrinfo));
   //hints.ai_family = AF_UNSPEC; // uncomment for possible ipv6
@@ -733,6 +737,7 @@ void* run_listen(void* arg) {
     fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
     exit(1);
   }
+
 
 
   // loop and find something to bind to
@@ -766,6 +771,19 @@ void* run_listen(void* arg) {
 
   while(!stopping) {
     as = accept(sock,(struct sockaddr *)&peer_addr,&peer_addr_len);
+
+    if (setsockopt(as, SOL_SOCKET, SO_RCVTIMEO,
+		   &to,sizeof(struct timeval)) == -1) {
+      perror("accepter: setsockopt");
+      close(as);
+      continue;
+    }
+    if (setsockopt(as, SOL_SOCKET, SO_SNDTIMEO,
+		   &to,sizeof(struct timeval)) == -1) {
+      perror("accepter: setsockopt");
+      close(as);
+      continue;
+    }
 
     inet_ntop(peer_addr.ss_family,
 	      get_in_addr((struct sockaddr *)&peer_addr),
@@ -854,6 +872,7 @@ void* run_listen(void* arg) {
 int open_socket(const Host& h) {
   int sock, numbytes;
   struct addrinfo hints, *res, *rp;
+  struct timeval to;
 
   int rv;
   char buf[12];
@@ -893,10 +912,24 @@ int open_socket(const Host& h) {
       perror("open_socket: socket");
       continue;
     }
+
+    to.tv_sec = SO_TOUT;
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,
+		   &to,sizeof(struct timeval)) == -1) {
+      perror("open_socket: setsockopt");
+      close(sock);
+      continue;
+    }
+    if (setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO,
+		   &to,sizeof(struct timeval)) == -1) {
+      perror("open_socket: setsockopt");
+      close(sock);
+      continue;
+    }
     
     if (connect(sock, rp->ai_addr, rp->ai_addrlen) == -1) {
-      close(sock);
       perror("open_socket: connect");
+      close(sock);
       continue;
     }
     
