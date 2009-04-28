@@ -22,6 +22,10 @@
 
 #define VERSTR "SCADSBDB0.1"
 
+#ifndef MSG_MORE
+	#define MSG_MORE 0
+#endif
+
 #include <sys/time.h>
 #include <time.h>
 
