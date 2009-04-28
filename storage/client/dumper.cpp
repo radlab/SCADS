@@ -13,6 +13,10 @@
 #define MAXDATASIZE 256 // max number of bytes we can get at once 
 #define VERSTR "SCADSBDB0.1"
 
+#ifndef MSG_MORE
+	#define MSG_MORE 0
+#endif
+
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
 {
