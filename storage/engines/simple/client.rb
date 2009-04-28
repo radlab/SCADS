@@ -18,7 +18,7 @@ module SCADS
     
     def method_missing(symbol, *args)
       puts "Attempting connection to #{@host}:#{@port}" if $DEBUG
-      transport = Thrift::BufferedTransport.new(Thrift::Socket.new(@host, @port))
+      transport = Thrift::FramedTransport.new(Thrift::Socket.new(@host, @port))
       protocol = Thrift::BinaryProtocol.new(transport)
       transport.open
       client = SCADS::Storage::Storage::Client.new(protocol)
