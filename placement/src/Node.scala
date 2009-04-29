@@ -48,14 +48,25 @@ class TestableStorageNode(port: Int) extends StorageNode("localhost", port) with
 	}
 
 	def run() {
+		var logFile: java.io.FileOutputStream = null
+
 		if((System.getProperty("storage.engine") != null) && (System.getProperty("storage.engine") equals "bdb")) {
+			val dbDir = new java.io.File("db")
+			val testDir = new java.io.File("db/test" + port)
+			logFile = new java.io.FileOutputStream("db/test" + port + "/bdb.log", true)
 			syncPort = port + 1000
-			new java.io.File("db/test" + port).mkdir()
-			println("../storage/engines/bdb/storage.bdb -p " + port + " -l " + syncPort + " -d db/test" + port + " -t nonblocking 2>&1")
+
+			if(!dbDir.exists() || !dbDir.isDirectory())
+			dbDir.mkdir()
+			if(testDir.exists())
+			testDir.delete()
+			testDir.mkdir()
+
 			proc = Runtime.getRuntime().exec("../storage/engines/bdb/storage.bdb -p " + port + " -l " + syncPort + " -d db/test" + port + " -t nonblocking 2>&1")
 		}
 		else {
-			proc = Runtime.getRuntime().exec("ruby -I ../lib -I ../storage/engines/simple/ -I ../storage/gen-rb/ ../storage/engines/simple/bin/start_scads.rb -p "+ port + " 2>&1")
+			logFile = new java.io.FileOutputStream("ruby.log", true)
+			proc = Runtime.getRuntime().exec("ruby -I ../lib -I ../storage/engines/simple/ -I ../storage/gen-rb/ ../storage/engines/simple/bin/start_scads.rb -d -p "+ port + " 2>&1")
 		}
 		Runtime.getRuntime().addShutdownHook(new Thread(new ProcKiller(proc)))
 
@@ -65,7 +76,8 @@ class TestableStorageNode(port: Int) extends StorageNode("localhost", port) with
 			var line = reader.readLine()
 			while(line != null) {
 				lines = lines ++ Array(line)
-//				println("" + port + ":" + line)
+				logFile.write((line + "\n").getBytes())
+				logFile.flush()
 				line = reader.readLine()
 			}
 		}
