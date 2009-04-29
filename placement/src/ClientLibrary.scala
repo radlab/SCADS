@@ -138,7 +138,7 @@ class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider 
 		
 		// make sure desired range was actually covered by what we gots
 		if ( !ns_keyspace.isCovered(target_range,ranges) ) { 
-			throw new NonCoveredRangeException // do we ever reach here?
+			//throw new NonCoveredRangeException // do we ever reach here?
 		}	 
 		// sort an array
 		val records_array = records.toArray
@@ -152,29 +152,35 @@ class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider 
 		var start = target_range.start
 		val end = target_range.end
 		
+		var done = false // have we found everything we can get?
 		var nodes_used = Set[StorageNode]() // which nodes we've checked so far, assumes nodes have only one range
-		while (start < end) {
+		while (!done) {
 			val node_tuple = this.find_node_at_start(nodes.filter((entry)=> !nodes_used.contains(entry._1)),start)
-			if (node_tuple._2.end > end) resultmap += node_tuple._1 -> KeyRange(node_tuple._2.start,end)
+			if (node_tuple._2.end==null || node_tuple._2.end > end) resultmap += node_tuple._1 -> KeyRange(node_tuple._2.start,end)
 			else resultmap += node_tuple._1 -> node_tuple._2
 			start = node_tuple._2.end
 			nodes_used += node_tuple._1
+			if ( (start==null ) || (start >= end) ) { done = true }
 		}
 		resultmap
 	}
-	
+
 	private def find_node_at_start(nodes: Map[StorageNode,KeyRange], start: String): (StorageNode,KeyRange) = {
-		var potential_nodes = nodes.filter((entry) => entry._2.start <= start) // nodes that start at or before target start
+		// nodes that start at or before target start, null target start needs a null start
+		var potential_nodes = Map[StorageNode,KeyRange]()
+		if (start == null) { potential_nodes = nodes.filter((entry) => entry._2.start==null) }
+		else { potential_nodes = nodes.filter((entry) => entry._2.start==null || entry._2.start <= start) } 
+	
 		if ( !potential_nodes.elements.hasNext ) throw new NonCoveredRangeException
 		var chosen_node = potential_nodes.elements.next // init to first one?
 		var end = chosen_node._2.end
 		
-		potential_nodes.foreach((entry) =>
-			if (entry._2.end > end) {
+		potential_nodes.foreach((entry) => {
+			if (entry._2.end==null || entry._2.end > end) {
 				chosen_node = entry
 				end = chosen_node._2.end
 			}
-		)
+		})
 		val range_covered = new KeyRange(start,end)
 		(chosen_node._1, range_covered)
 	}
