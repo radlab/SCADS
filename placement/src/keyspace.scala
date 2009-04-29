@@ -124,6 +124,9 @@ class SimpleKeySpace extends KeySpace {
 	}
 
 	override def toString() =
-		"KeySpace\n==============\n"+ space.map((pair) => pair._1 + " => " + pair._2).reduceLeft((a,b) => a + "\n" + b)
+		if(!space.isEmpty)
+			"KeySpace\n==============\n"+ space.map((pair) => pair._1 + " => " + pair._2).reduceLeft((a,b) => a + "\n" + b)
+		else
+			"Empty"
 }
 
