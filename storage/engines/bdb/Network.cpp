@@ -764,7 +764,21 @@ void* run_listen(void* arg) {
 
   peer_addr_len = sizeof(struct sockaddr_storage);
 
+  fd_set readfds;
+  struct timeval tv;
+
+
   while(!stopping) {
+    FD_ZERO(&readfds);
+    FD_SET(sock, &readfds);
+    tv.tv_sec = 2;
+    tv.tv_usec = 500000;
+    // don't care about writefds and exceptfds:
+    select(sock+1, &readfds, NULL, NULL, &tv);
+ 
+    if (!FD_ISSET(sock, &readfds)) // timeout
+      continue;
+
     as = accept(sock,(struct sockaddr *)&peer_addr,&peer_addr_len);
 
     inet_ntop(peer_addr.ss_family,
@@ -847,8 +861,7 @@ void* run_listen(void* arg) {
     close(as);
   }
 
-
-  printf("Shutting down listen thread\n");
+  close(sock);
 }
 
 int open_socket(const Host& h) {

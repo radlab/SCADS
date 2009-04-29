@@ -680,7 +680,10 @@ StorageDB(int lp) :
 
 void StorageDB::
 closeDBs() {
-  //pthread_join(listen_thread,NULL);
+  cout << "Waiting for copy/sync thread to shut down... ";
+  flush(cout);
+  pthread_join(listen_thread,NULL);
+  cout << "[OK]"<<endl;
   map<const NameSpace,DB*>::iterator iter;
   int rc = pthread_rwlock_wrlock(&dbmap_lock); // need a write lock here
   chkLock(rc,"dbmap_lock","closing down system");
