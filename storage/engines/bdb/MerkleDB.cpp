@@ -7,11 +7,11 @@ MerkleDB::MerkleDB() {
   char *dbp_filename = "merkledb.db";
   char *pup_filename = "pupdb.db";
   
-  /* Initialize the DB handle */
+  /* Initialize the DB handles */
   db_create(&dbp, NULL, 0);
   db_create(&pup, NULL, 0);
 
-  /* Now open the database */
+  /* Now open the databases */
   dbp->open(dbp, NULL, dbp_filename, NULL, DB_BTREE, DB_CREATE, 0);
   dbp->open(pup, NULL, pup_filename, NULL, DB_BTREE, DB_CREATE, 0);
   //TODO: Define sorting order on pup database, longest keys first
@@ -51,6 +51,7 @@ void MerkleDB::put(DBT * key, DBT * data) {
 void MerkleDB::flush() {
 	//TODO: We're going to need to lock this queue and send 
 	// updates to an overflow queue of some type
+	// Or.. do we?  We move long to short, updates to long will just reside behind cursor...
   DBC *cursorp;
   pup->cursor(pup, NULL, &cursorp, 0);
   int ret;
@@ -72,25 +73,21 @@ void MerkleDB::insert(DBT * key, DBT * mnode) {
 
   ret = cursorp->get(cursorp, &skey, &sdata, DB_SET_RANGE);
 	/*
-		if skey == key
-			update_hash(key, mnode->data)
-			pup->put(parent(key))
+		if node exists
+			update it's hash
+			add it's parent to pending
 		else
-			left = prefix(skey, key)	//length of common prefix
-			cursorp->get(NEXT)
-			right = prefix(skey, key)
-			prefix_len = max(left, right)
+			make a new node
+			find it's longest common prefix, this is its parent
 			
-			//See if parent node exists, if not, add it.
-			if (!parent(key)) {
-				MerkleNode new_node;
-				new_node.suffix_length = length(key) - prefix_len
-				dbp->put(new_node)
-				
-				//If our prefix doesn't exist as a node, that means we're splitting an edge
-				child(parent(key)).parent = new_node
-				pup->put(new_node)
+			if the parent node isn't in the db, then we have to split an edge {
+				find the longest prefix for which a node does exist, this is the old parent
+				make a node for the (new) parent
+				make the old parent node the parent of the new parent node
+				find the (solitary) child of the old parent node, make the new parent it's parent
 			}
+			set the new nodes parent
+			add the new nodes parent to pending
 		end
 	*/
 }
