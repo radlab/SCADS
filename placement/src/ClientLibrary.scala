@@ -11,6 +11,11 @@ import scala.collection.mutable.HashSet
 
 
 trait KeySpaceProvider {
+	def getKeySpace(ns: String)
+	def refreshKeySpace()
+}
+
+trait LocalKeySpaceProvider extends KeySpaceProvider {
 	var ns_map = new HashMap[String,KeySpace]
 	
 	def getKeySpace(ns: String)
