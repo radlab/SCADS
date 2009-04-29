@@ -3,8 +3,7 @@
 #include <iostream>
 
 MerkleDB::MerkleDB() {
-  //DB *dbp;//Instance variables
-  //DB *pup;
+	//TODO: We'll need a different merkledb for each namespace.  Ditto for the pending queue (unless we put more info in struct)
   char *dbp_filename = "merkledb.db";
   char *pup_filename = "pupdb.db";
   
@@ -38,36 +37,54 @@ MerkleDB::MerkleDB() {
   }
 }
 
-//Adds key->value pair to pending update queue
-void MerkleDB::schedule(DBT * key, DBT * data) {
+//Adds key->hash(data) to pending update queue
+void MerkleDB::put(DBT * key, DBT * data) {
   MerkleHash hash = (MerkleHash)rand; //TODO: hash(data);
   DBT h;
   memset(&h, 0, sizeof(DBT));
   h.data = &hash;
   h.size = sizeof(MerkleHash);
-  //pup->put(pup, NULL, &key, &h, 0);
+  pup->put(pup, NULL, key, &h, 0);
 }
 
-//Clear out the pending update queue
+//Clear the pending update queue
 void MerkleDB::flush() {
+	//TODO: We're going to need to lock this queue and send 
+	// updates to an overflow queue of some type
   DBC *cursorp;
   pup->cursor(pup, NULL, &cursorp, 0);
   int ret;
   DBT key, data;
-  while (cursorp->get(cursorp, &key, &data, DB_NEXT)) {
-    update(&key, &data);
+  while (cursorp->get(cursorp, &key, &data, DB_NEXT)) {  //TODO: proper check of ret code
+    insert(&key, &data);
   }
 }
 
-void MerkleDB::update(DBT * key, DBT * data) {
-  int ret;
-  ret = cursorp->get(cursorp, &key, &data, DB_SET_RANGE);
-  if (ret == DB_NOTFOUND) {
+//Take key,hash pair and insert into patricia-merkle trie db
+void MerkleDB::insert(DBT * key, DBT * mnode) {
+	int ret;
+	DBC *cursorp;
+  dbp->cursor(dbp, NULL, &cursorp, 0);
+
+	DBT skey, sdata;
+	memcpy(&skey, key, sizeof(DBT));
+	memset(&sdata, 0, sizeof(DBT));
+
+  ret = cursorp->get(cursorp, &skey, &sdata, DB_SET_RANGE);
+  
+	//Can't do a struct comparison in C
+	//if (skey == *key) {	//node exists in database
+	//	update_hash(&skey, mnode);
+	//} else {
+	//	
+	//}
+	
+	if (ret == DB_NOTFOUND) {
     printf("could not find prefix\n");
     //Key shares no prefix, attaches directly to root.
     //dbp->put(dbp, NULL, &key, &data, 0);
   } else {
-    printf("found %s\n", key.data);
+		printf("found prefix");
   }
   if (cursorp != NULL) {
     cursorp->close(cursorp);
@@ -77,8 +94,9 @@ void MerkleDB::update(DBT * key, DBT * data) {
   //schedule(&pkey, &pdata);
 }
 
-MerkleNode MerkleDB::get(DBT *key, DBT *data) {
-  ;
+//hashes the supplied value with the hashes of the children on key
+void MerkleDB::update_hash(DBT * key, MerkleHash hash) {
+	;
 }
 
 void MerkleDB::close() {
@@ -94,16 +112,14 @@ void MerkleDB::close() {
   }
 }
 
-void MerkleDB::toDBT(MerkleNode *m, DBT *dbt) {
-  dbt.data = m;
-  dbt.size = sizeof(MerkleNode);
+void MerkleDB::toDBT(MerkleNode * m, DBT *dbt) {
+	dbt->data = m;
+  dbt->size = sizeof(MerkleNode);
 }
 
 int main( int argc, char** argv )
 {
   MerkleDB * merkle = new MerkleDB();
-  merkle->put("abc\0", 4, "abc", 3);
-  merkle->get("abc", 3);
   merkle->close();
   return 0;
 }

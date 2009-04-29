@@ -4,12 +4,12 @@
 #include <db.h>
 //#include "gen-cpp/Storage.h"
 
+typedef int MerkleHash;
+
 typedef struct {
   int suffix_length; //|MerkleNode.key| - |MerkleNode.parent.key|
-  int digest;//hash (of data for leaf, children's digests if interior node)
+  MerkleHash digest; //hash (of data for leaf, children's digests if interior node)
 } MerkleNode;
-
-typedef int MerkleHash;
 
 class MerkleDB {
 
@@ -18,12 +18,14 @@ class MerkleDB {
   DB * pup;//Pending update database
   
  private:
-  MerkleNode parent(MerkleNode * node);
-  
+  void put(DBT * key, DBT * data);
+	void flush();
+
  public:
-  void schedule(DBT * key, DBT * data);
+  MerkleNode parent(MerkleNode * node);
   MerkleNode get(DBT * key);
-  void MerkleDB::flush();
+	void insert(DBT * key, DBT * data);
+	void update_hash(DBT * key, MerkleHash hash);
   void toDBT(MerkleNode *m, DBT *dbt);
   void close();
   MerkleDB();
