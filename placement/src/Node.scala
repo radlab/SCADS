@@ -1,4 +1,5 @@
 import org.apache.thrift.transport.TSocket
+import org.apache.thrift.transport.TTransportException
 import org.apache.thrift.transport.TFramedTransport
 import org.apache.thrift.protocol.TBinaryProtocol
 import org.apache.thrift.TProcessor
@@ -18,6 +19,10 @@ case class StorageNode(host: String, thriftPort: Int, sp: Int) extends SCADS.Sto
 
 	def connect() {
 		iprot_.getTransport.open()
+	}
+	
+	def disconnect() {
+		iprot_.getTransport.close()
 	}
 }
 
@@ -111,6 +116,52 @@ trait ThriftConversions {
 		return recSet
 	}
 }
+
+trait Cluster {
+	def nodes: Set[StorageNode]
+	def add(n: StorageNode): Boolean
+	def remove(n: StorageNode): Boolean
+}
+
+class SynchronousHeartbeatCluster(node_list: Set[StorageNode], freq: Int) extends Cluster {
+	import java.util.Timer;
+	import java.util.TimerTask;
+	
+	var nodes = node_list
+	val timer = new Timer()
+	val interval = freq // seconds
+	
+	def start() = {
+		timer.schedule(new PingTask(),0,interval*1000)
+	}
+	
+	def stop() = {
+		timer.cancel
+	}
+	
+	private class PingTask extends TimerTask {
+		override def run() = {
+			nodes.foreach({ case(node) => {
+				try {
+					node.connect
+					node.disconnect
+				} catch {
+					case e:TTransportException => node.disconnect; println("node unresponsive: "+node.host+":"+node.thriftPort)
+				}
+			}})
+		}
+	}
+	
+	override def add(n: StorageNode): Boolean = {
+		nodes += n
+		nodes.contains(n)
+	}
+	override def remove(n: StorageNode): Boolean = {
+		nodes -= n
+		!nodes.contains(n)
+	}
+}
+
 
 /**
 * Use Thrift to connect over socket to a host:port.
