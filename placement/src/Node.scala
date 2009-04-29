@@ -42,6 +42,8 @@ class TestableStorageNode(port: Int) extends StorageNode("localhost", port) with
 
 	connect()
 
+	println("connected to localhost, " + port + ", " + syncPort)
+
 	def this() {
 		this(TestableStorageNode.port)
 		TestableStorageNode.port += 1
