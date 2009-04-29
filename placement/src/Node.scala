@@ -87,7 +87,7 @@ class TestableStorageNode(port: Int) extends StorageNode("localhost", port) with
 	}
 
 	override def clone(): StorageNode = {
-		val n = new StorageNode("localhost", port)
+		val n = new StorageNode("localhost", port, syncPort)
 		n.connect()
 		return n
 	}
