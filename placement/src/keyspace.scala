@@ -67,7 +67,19 @@ case class KeyRange(start: String, end: String) {
 			KeyRange.EmptyRange
 	}
 
-	def includes(key: String) = key >= start && key < end
+	def includes(key: String):Boolean = {
+		if ( this.start ==null && this.end== null)
+			true
+		else if (this.start==null && key < end)
+			true
+		else if (key >= this.start && this.end==null)
+			true
+		else if (key >= this.start && key < this.end)
+			true
+		else
+			false
+			
+	}
 
 	private def min(a: String, b: String) = if(a < b) a else b
 	private def max(a: String, b: String) = if(a > b) a else b
@@ -129,4 +141,3 @@ class SimpleKeySpace extends KeySpace {
 		else
 			"Empty"
 }
-
