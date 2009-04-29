@@ -71,27 +71,28 @@ void MerkleDB::insert(DBT * key, DBT * mnode) {
 	memset(&sdata, 0, sizeof(DBT));
 
   ret = cursorp->get(cursorp, &skey, &sdata, DB_SET_RANGE);
-  
-	//Can't do a struct comparison in C
-	//if (skey == *key) {	//node exists in database
-	//	update_hash(&skey, mnode);
-	//} else {
-	//	
-	//}
-	
-	if (ret == DB_NOTFOUND) {
-    printf("could not find prefix\n");
-    //Key shares no prefix, attaches directly to root.
-    //dbp->put(dbp, NULL, &key, &data, 0);
-  } else {
-		printf("found prefix");
-  }
-  if (cursorp != NULL) {
-    cursorp->close(cursorp);
-  }
-  //TODO: main insertion logic
-  //Add parent to pending update queue
-  //schedule(&pkey, &pdata);
+	/*
+		if skey == key
+			update_hash(key, mnode->data)
+			pup->put(parent(key))
+		else
+			left = prefix(skey, key)	//length of common prefix
+			cursorp->get(NEXT)
+			right = prefix(skey, key)
+			prefix_len = max(left, right)
+			
+			//See if parent node exists, if not, add it.
+			if (!parent(key)) {
+				MerkleNode new_node;
+				new_node.suffix_length = length(key) - prefix_len
+				dbp->put(new_node)
+				
+				//If our prefix doesn't exist as a node, that means we're splitting an edge
+				child(parent(key)).parent = new_node
+				pup->put(new_node)
+			}
+		end
+	*/
 }
 
 //hashes the supplied value with the hashes of the children on key
