@@ -127,18 +127,17 @@ trait ThriftConversions {
 }
 
 trait Cluster {
-	def nodes: Set[StorageNode]
-	def add(n: StorageNode): Boolean
-	def remove(n: StorageNode): Boolean
+	def nodes: Iterable[StorageNode]
+	def join(n: StorageNode): Boolean
+	def leave(n: StorageNode): Boolean
 }
 
-class SynchronousHeartbeatCluster(node_list: Set[StorageNode], freq: Int) extends Cluster {
+trait SynchronousHeartbeatCluster extends Cluster {
 	import java.util.Timer;
 	import java.util.TimerTask;
 	
-	var nodes = node_list
 	val timer = new Timer()
-	val interval = freq // seconds
+	def interval: Int
 	
 	def start() = {
 		timer.schedule(new PingTask(),0,interval*1000)
@@ -148,28 +147,24 @@ class SynchronousHeartbeatCluster(node_list: Set[StorageNode], freq: Int) extend
 		timer.cancel
 	}
 	
+	def log_failure(node: StorageNode) = {
+		println("node unresponsive: "+node.host+":"+node.thriftPort)
+	}
+	
 	private class PingTask extends TimerTask {
 		override def run() = {
 			nodes.foreach({ case(node) => {
 				try {
-					//FIXME
+					node.connect
+					val recordset = node.getClient().get_responsibility_policy("metadata")
+					node.disconnect
 				} catch {
-					case e:TTransportException => println("node unresponsive: "+node.host+":"+node.thriftPort)
+					case e:TTransportException => node.disconnect; log_failure(node)
 				}
 			}})
 		}
 	}
-	
-	override def add(n: StorageNode): Boolean = {
-		nodes += n
-		nodes.contains(n)
-	}
-	override def remove(n: StorageNode): Boolean = {
-		nodes -= n
-		!nodes.contains(n)
-	}
 }
-
 
 /**
 * Use Thrift to connect over socket to a host:port.
