@@ -21,7 +21,7 @@ class MerkleDB {
 	DB * aly;//set of updates to apply
   
  private:
-  void put(DBT * key, DBT * data);
+  void enqueue(DBT * key, DBT * data);
 	void flushp();
 
  public:

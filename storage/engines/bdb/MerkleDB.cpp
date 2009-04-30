@@ -43,7 +43,7 @@ MerkleDB::MerkleDB() {
 }
 
 //Adds key->hash(data) to pending update queue
-void MerkleDB::put(DBT * key, DBT * data) {
+void MerkleDB::enqueue(DBT * key, DBT * data) {
   MerkleHash hash = (MerkleHash)rand; //TODO: hash(data);
   DBT h;
   memset(&h, 0, sizeof(DBT));
