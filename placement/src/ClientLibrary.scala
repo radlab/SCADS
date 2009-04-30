@@ -23,11 +23,10 @@ trait LocalKeySpaceProvider extends KeySpaceProvider {
 	
 	def add_namespace(ns: String): Boolean = {
 		this.add_namespace(ns,null)
-		true
 	}
 	def add_namespace(ns: String, ks: SimpleKeySpace): Boolean = {
 		ns_map.update(ns,ks)
-		true
+		ns_map.contains(ns)
 	}
 	
 	def getMap: HashMap[String,KeySpace] = ns_map
