@@ -471,7 +471,7 @@ class MovementMechanismTest extends Suite {
 			assert(ks.lookup(k).toList.length >= 1, "no one has key: " + k)
 			ks.lookup(k).foreach((n) => {
 				try {
-					n.put("test", new SCADS.Record(k, (prefix + k).getBytes))
+					n.getClient().put("test", new SCADS.Record(k, (prefix + k).getBytes))
 				}
 				catch {
 					case ex: SCADS.NotResponsible =>
@@ -484,7 +484,7 @@ class MovementMechanismTest extends Suite {
 		keys.foreach((k) => {
 			assert(ks.lookup(k).toList.length >= 1, "no one has key: " + k)
 			ks.lookup(k).foreach((n) => {
-				val ret = new String(n.get("test", k).value)
+				val ret = new String(n.getClient().get("test", k).value)
 				assert(ret == (prefix + k), "check failed on node: " + n + ", for key: " + k + ", got: " + ret + ", expected: " + (prefix + k))
 			})
 		})
@@ -493,9 +493,9 @@ class MovementMechanismTest extends Suite {
 
 object RunTests {
 	def main(args: Array[String]) = {
-		//(new KeyRangeSuite).execute()
-		//(new KeySpaceSuite).execute()
-		//(new MovementMechanismTest).execute()
+		(new KeyRangeSuite).execute()
+		(new KeySpaceSuite).execute()
+		(new MovementMechanismTest).execute()
 		(new ClientLibrarySuite).execute()
 		System.exit(0)
 	}

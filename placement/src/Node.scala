@@ -10,47 +10,56 @@ import org.apache.thrift.transport.TServerSocket
 import org.apache.thrift.server.TServer
 import org.apache.thrift.server.TThreadPoolServer
 
-case class StorageNode(host: String, thriftPort: Int, sp: Int) extends SCADS.Storage.Client(new TBinaryProtocol(new TFramedTransport(new TSocket(host, thriftPort)))) {
-	var syncPort: Int = sp
-
-
+case class StorageNode(host: String, thriftPort: Int, syncPort: Int) {
+	@transient
+	var client: SCADS.Storage.Client = null
 	def this(host: String, port: Int) = this(host, port, port)
 	def syncHost = host + ":" + syncPort
 
-	def connect() {
-		iprot_.getTransport.open()
+	def getClient(): SCADS.Storage.Client = {
+		if(client == null) {
+			val transport = new TFramedTransport(new TSocket(host, thriftPort))
+			client = new SCADS.Storage.Client(new TBinaryProtocol(transport))
+			transport.open()
+		}
+		return client
 	}
 	
-	def disconnect() {
-		iprot_.getTransport.close()
+	override def clone() = {
+		new StorageNode(host, thriftPort, syncPort)
 	}
 }
 
 object TestableStorageNode {
 	var port = 9000
+
+	def syncPort(thriftPort: Int): Int = {
+		if((System.getProperty("storage.engine") != null) && (System.getProperty("storage.engine") equals "bdb"))
+			thriftPort+1000
+		else
+			thriftPort
+	}
 }
 
-class TestableStorageNode(port: Int) extends StorageNode("localhost", port) with Runnable {
+class TestableStorageNode(thriftPort: Int, syncPort: Int) extends StorageNode("127.0.0.1", thriftPort, syncPort) with Runnable {
 	class ProcKiller(p: Process) extends Runnable {
 		def run() = p.destroy()
 	}
 
 	var proc: Process = null
-	val thread = new Thread(this, "StorageNode"+port)
+	val thread = new Thread(this, "StorageNode"+thriftPort)
 	var lines = new Array[String](0)
 
 	thread.start
 
-	while(!lines.contains("Opening socket on 0.0.0.0:" + port) && !lines.contains("Starting nonblocking server...")) {
+	while(!lines.contains("Opening socket on 0.0.0.0:" + thriftPort) && !lines.contains("Starting nonblocking server...")) {
 		Thread.`yield`
 	}
 
-	connect()
-
-	println("connected to localhost, " + port + ", " + syncPort)
+	println("connected to localhost, " + thriftPort + ", " + syncPort)
 
 	def this() {
-		this(TestableStorageNode.port)
+		this(TestableStorageNode.port, TestableStorageNode.syncPort(TestableStorageNode.port))
 		TestableStorageNode.port += 1
 	}
 
@@ -59,21 +68,24 @@ class TestableStorageNode(port: Int) extends StorageNode("localhost", port) with
 
 		if((System.getProperty("storage.engine") != null) && (System.getProperty("storage.engine") equals "bdb")) {
 			val dbDir = new java.io.File("db")
-			val testDir = new java.io.File("db/test" + port)
-			logFile = new java.io.FileOutputStream("db/test" + port + "/bdb.log", true)
-			syncPort = port + 1000
-
 			if(!dbDir.exists() || !dbDir.isDirectory())
-			dbDir.mkdir()
-			if(testDir.exists())
-			testDir.delete()
+				dbDir.mkdir()
+
+			val testDir = new java.io.File("db/test" + thriftPort)
+
+			if(testDir.exists()) {
+				testDir.delete()
+			}
+
 			testDir.mkdir()
 
-			proc = Runtime.getRuntime().exec("../storage/engines/bdb/storage.bdb -p " + port + " -l " + syncPort + " -d db/test" + port + " -t nonblocking 2>&1")
+			logFile = new java.io.FileOutputStream("db/test" + thriftPort + "/bdb.log", true)
+
+			proc = Runtime.getRuntime().exec("../storage/engines/bdb/storage.bdb -p " + thriftPort + " -l " + syncPort + " -d db/test" + thriftPort + " -t nonblocking 2>&1")
 		}
 		else {
 			logFile = new java.io.FileOutputStream("ruby.log", true)
-			proc = Runtime.getRuntime().exec("ruby -I ../lib -I ../storage/engines/simple/ -I ../storage/gen-rb/ ../storage/engines/simple/bin/start_scads.rb -d -p "+ port + " 2>&1")
+			proc = Runtime.getRuntime().exec("ruby -I ../lib -I ../storage/engines/simple/ -I ../storage/gen-rb/ ../storage/engines/simple/bin/start_scads.rb -d -p "+ thriftPort + " 2>&1")
 		}
 		Runtime.getRuntime().addShutdownHook(new Thread(new ProcKiller(proc)))
 
@@ -91,12 +103,6 @@ class TestableStorageNode(port: Int) extends StorageNode("localhost", port) with
 		catch {
 			case ex: java.io.IOException => //println("StorageEngine " + port + " Exited")
 		}
-	}
-
-	override def clone(): StorageNode = {
-		val n = new StorageNode("localhost", port, syncPort)
-		n.connect()
-		return n
 	}
 
 	override def finalize() {
@@ -143,10 +149,9 @@ class SynchronousHeartbeatCluster(node_list: Set[StorageNode], freq: Int) extend
 		override def run() = {
 			nodes.foreach({ case(node) => {
 				try {
-					node.connect
-					node.disconnect
+					//FIXME
 				} catch {
-					case e:TTransportException => node.disconnect; println("node unresponsive: "+node.host+":"+node.thriftPort)
+					case e:TTransportException => println("node unresponsive: "+node.host+":"+node.thriftPort)
 				}
 			}})
 		}

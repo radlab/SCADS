@@ -15,7 +15,7 @@ class SimpleDataPlacement(ns: String) extends SimpleKeySpace with ThriftConversi
 
 	override def assign(node: StorageNode, range: KeyRange) {
 		super.assign(node, range)
-		node.set_responsibility_policy(nameSpace, range)
+		node.getClient().set_responsibility_policy(nameSpace, range)
 	}
 
 	def copy(keyRange: KeyRange, src: StorageNode, dest: StorageNode) {
@@ -25,25 +25,25 @@ class SimpleDataPlacement(ns: String) extends SimpleKeySpace with ThriftConversi
 		assert((lookup(src) & keyRange) == keyRange)
 
 		//Tell the servers to copy the data
-		src.copy_set(nameSpace, keyRange, dest.syncHost)
+		src.getClient().copy_set(nameSpace, keyRange, dest.syncHost)
 
 		//Change the assigment
 		assign(dest, newDestRange)
 
 		//Sync keys that might have changed
-		src.sync_set(nameSpace, keyRange, dest.syncHost, conflictPolicy)
+		src.getClient().sync_set(nameSpace, keyRange, dest.syncHost, conflictPolicy)
 	}
 
 	def move(keyRange: KeyRange, src: StorageNode, dest: StorageNode) {
 		val newSrcRange = lookup(src) - keyRange
 		val newDestRange = lookup(dest) + keyRange
 
-		src.copy_set(nameSpace, keyRange, dest.syncHost)
+		src.getClient().copy_set(nameSpace, keyRange, dest.syncHost)
 		assign(dest, newDestRange)
 		assign(src, newSrcRange)
 
-		src.sync_set(nameSpace, keyRange, dest.syncHost, conflictPolicy)
-		src.remove_set(nameSpace, keyRange)
+		src.getClient().sync_set(nameSpace, keyRange, dest.syncHost, conflictPolicy)
+		src.getClient().remove_set(nameSpace, keyRange)
 	}
 
 	def remove(keyRange: KeyRange, node: StorageNode) {
@@ -51,8 +51,8 @@ class SimpleDataPlacement(ns: String) extends SimpleKeySpace with ThriftConversi
 
 		assign(node, newRange)
 		lookup(keyRange).foreach((n) => {
-			node.sync_set(nameSpace, n._2, n._1.syncHost, conflictPolicy)
+			node.getClient().sync_set(nameSpace, n._2, n._1.syncHost, conflictPolicy)
 		})
-		node.remove_set(nameSpace, keyRange)
+		node.getClient().remove_set(nameSpace, keyRange)
 	}
 }

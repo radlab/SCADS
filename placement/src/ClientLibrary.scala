@@ -65,7 +65,7 @@ abstract class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpace
 			val potentials = ns_keyspace.lookup(key)
 			if ( potentials.hasNext ) {
 				val node = potentials.next // just get the first node
-				val record = node.get(namespace,key)
+				val record = node.getClient().get(namespace,key)
 				record
 			}
 			else throw new NoNodeResponsibleException
@@ -99,14 +99,14 @@ abstract class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpace
 			val rset = this.keyRangeToScadsRangeSet(keyrange)
 
 			try {			
-				val records_subset = node.get_set(namespace,rset)				
+				val records_subset = node.getClient().get_set(namespace,rset)
 				val iter = records_subset.iterator()
 				while (iter.hasNext()) { records += iter.next() }
 				
 			} catch {
 				case e:NotResponsible => {
 					this.refreshKeySpace()
-					val records_subset = node.get_set(namespace,rset)
+					val records_subset = node.getClient().get_set(namespace,rset)
 					val iter = records_subset.iterator()
 					while (iter.hasNext()) { records += iter.next() }
 				}
@@ -176,7 +176,7 @@ abstract class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpace
 		
 		put_nodes.foreach({ case(node)=>{
 			try {
-				val success = node.put(namespace,rec)
+				val success = node.getClient().put(namespace,rec)
 				total_success && success 
 			} catch {
 				case e:NotResponsible => {
