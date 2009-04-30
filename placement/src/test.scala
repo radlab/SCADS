@@ -352,6 +352,8 @@ class KeyRangeSuite extends Suite {
 		assert((KeyRange("a","c") & KeyRange("b", null)) == KeyRange("b", "c"))
 		assert((KeyRange("a","c") & KeyRange.EmptyRange) == KeyRange.EmptyRange)
 		assert((KeyRange.EmptyRange & KeyRange("a","c")) == KeyRange.EmptyRange)
+
+		assert((KeyRange("m",null) & KeyRange("friend-8a43af10-180a-012c-331d-001b6391e19a-of-", "friend-8a43af10-180a-012c-331d-001b6391e19a-of/")) == KeyRange.EmptyRange)
 	}
 }
 
