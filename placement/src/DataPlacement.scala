@@ -6,7 +6,30 @@ trait DataPlacement {
 	def remove(keyRange: KeyRange, node: StorageNode)
 }
 
+class SimpleDataPlacementCluster(ns:String, freq:Int) extends SimpleDataPlacement(ns) with SynchronousHeartbeatCluster {
+	val interval = freq
+	var nodes = Set[StorageNode]()
 
+	def join(n: StorageNode): Boolean = {
+		nodes += n
+		nodes.contains(n)
+	}
+	
+	def leave(n: StorageNode): Boolean = {
+		nodes -= n
+		!nodes.contains(n)
+	}
+	
+	override def assign(node: StorageNode, range: KeyRange) = {
+		super.assign(node,range)
+		join(node)
+	}
+	
+	override def remove(node: StorageNode) = {
+		super.remove(node)
+		leave(node)
+	}
+}
 
 class SimpleDataPlacement(ns: String) extends SimpleKeySpace with ThriftConversions with DataPlacement {
 	val nameSpace = ns
