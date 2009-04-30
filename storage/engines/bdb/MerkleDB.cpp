@@ -6,17 +6,22 @@ MerkleDB::MerkleDB() {
 	//TODO: We'll need a different merkledb for each namespace.  Ditto for the pending queue (unless we put more info in struct)
   char *dbp_filename = "merkledb.db";
   char *pup_filename = "pupdb.db";
+	char *aly_filename = "alydb.db";
   
   /* Initialize the DB handles */
   db_create(&dbp, NULL, 0);
   db_create(&pup, NULL, 0);
+	db_create(&aly, NULL, 0);
 
   /* Now open the databases */
   dbp->open(dbp, NULL, dbp_filename, NULL, DB_BTREE, DB_CREATE, 0);
-  dbp->open(pup, NULL, pup_filename, NULL, DB_BTREE, DB_CREATE, 0);
-  //TODO: Define sorting order on pup database, longest keys first
+  pup->open(pup, NULL, pup_filename, NULL, DB_BTREE, DB_CREATE, 0);
+	aly->open(aly, NULL, aly_filename, NULL, DB_BTREE, DB_CREATE, 0);
+  //TODO: Define sorting order on aly & pup database, longest keys first
   //TODO: Create secondary database to give parent->children mapping
-  
+
+	pthread_mutex_init(&sync_lock, NULL);
+
   /** Create root node for dbp, if it doesn't exist **/
   DBT key, data;
   memset(&key, 0, sizeof(DBT));
@@ -48,17 +53,20 @@ void MerkleDB::put(DBT * key, DBT * data) {
 }
 
 //Clear the pending update queue
-void MerkleDB::flush() {
-	//TODO: We're going to need to lock this queue and send 
-	// updates to an overflow queue of some type
-	// Or.. do we?  We move long to short, updates to long will just reside behind cursor...
+void MerkleDB::flushp() {
   DBC *cursorp;
-  pup->cursor(pup, NULL, &cursorp, 0);
   int ret;
   DBT key, data;
-  while (cursorp->get(cursorp, &key, &data, DB_NEXT)) {  //TODO: proper check of ret code
-    insert(&key, &data);
-  }
+	pthread_mutex_lock(&sync_lock);
+	//Turn pending queue into the apply queue, turn (empty) apply queue into pending queue.
+	DB * tmp = aly;
+	apply = pup;
+	pup = tmp;
+	aly->cursor(aly, NULL, &cursorp, 0);
+	while (cursorp->get(cursorp, &key, &data, DB_NEXT)) {  //TODO: proper check of ret code
+   	insert(&key, &data);
+	}
+	pthread_mutex_unlock(&sync_lock);
 }
 
 //Take key,hash pair and insert into patricia-merkle trie db

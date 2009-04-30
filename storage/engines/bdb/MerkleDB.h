@@ -2,6 +2,7 @@
 #define MERKLEDB_H
 
 #include <db.h>
+#include <pthread.h>
 //#include "gen-cpp/Storage.h"
 
 typedef int MerkleHash;
@@ -14,12 +15,14 @@ typedef struct {
 class MerkleDB {
 
  private:
-  DB * dbp;//Merkle trie database
-  DB * pup;//Pending update database
+	pthread_mutex_t sync_lock;
+  DB * dbp; //Merkle trie database
+  DB * pup; //Pending update database
+	DB * aly;//set of updates to apply
   
  private:
   void put(DBT * key, DBT * data);
-	void flush();
+	void flushp();
 
  public:
   MerkleNode parent(MerkleNode * node);
