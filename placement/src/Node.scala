@@ -52,7 +52,10 @@ class TestableStorageNode(thriftPort: Int, syncPort: Int) extends StorageNode("1
 
 	thread.start
 
+	var startTime = System.currentTimeMillis() 
 	while(!lines.contains("Opening socket on 0.0.0.0:" + thriftPort) && !lines.contains("Starting nonblocking server...")) {
+		if(System.currentTimeMillis() - startTime > 20000)
+			throw new Exception("failed to connect to " + this + " after " + (System.currentTimeMillis() - startTime))
 		Thread.`yield`
 	}
 
