@@ -82,7 +82,7 @@ class TestableStorageNode(thriftPort: Int, syncPort: Int) extends StorageNode("1
 
 			testDir.mkdir()
 
-			logFile = new java.io.FileOutputStream("db/test" + thriftPort + "/bdb.log", true)
+			logFile = new java.io.FileOutputStream("db/test" + thriftPort + "/bdb.log", false)
 
 			proc = Runtime.getRuntime().exec("../storage/engines/bdb/storage.bdb -p " + thriftPort + " -l " + syncPort + " -d db/test" + thriftPort + " -t nonblocking 2>&1")
 		}
