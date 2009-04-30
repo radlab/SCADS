@@ -68,17 +68,17 @@ case class KeyRange(start: String, end: String) {
 	}
 
 	def includes(key: String):Boolean = {
-		if ( this.start ==null && this.end== null)
-			true
-		else if (this.start==null && key < end)
-			true
-		else if (key >= this.start && this.end==null)
-			true
-		else if (key >= this.start && key < this.end)
-			true
-		else
-			false
-			
+		if ( this.start==null) {
+			if ( this.end==null ) true
+			else if ( key< this.end ) true
+			else false
+		}
+		else if (this.end==null) {
+			if ( key>=this.start ) true
+			else false
+		}
+		else 
+			key >= this.start && key < this.end	
 	}
 
 	private def min(a: String, b: String) = if(a < b) a else b
