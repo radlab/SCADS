@@ -11,15 +11,15 @@ import scala.collection.mutable.HashSet
 
 
 trait KeySpaceProvider {
-	def getKeySpace(ns: String)
+	def getKeySpace(ns: String):KeySpace
 	def refreshKeySpace()
 }
 
 trait LocalKeySpaceProvider extends KeySpaceProvider {
 	var ns_map = new HashMap[String,KeySpace]
 	
-	def getKeySpace(ns: String)
-	def refreshKeySpace()
+	override def getKeySpace(ns: String): KeySpace = { ns_map(ns) }
+	override def refreshKeySpace() = {}
 	
 	def add_namespace(ns: String): Boolean = {
 		this.add_namespace(ns,null)
@@ -51,38 +51,16 @@ class RecordComparator extends java.util.Comparator[SCADS.Record] {
 	}
 }
 
-class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider with ThriftConversions {
+class LocalROWAClientLibrary extends ROWAClientLibrary with LocalKeySpaceProvider
 
-
-	/**
-	* Asks key space provider for latest keyspace for the specified namespace.
-	* Updates the local copy's keyspace.
-	*/
-	override def getKeySpace(ns: String) = {
-		/* does nothing right now
-		val ks = dp_map(ns).getspace
-		ns_map.update(ns,ks)
-		*/
-	}
-	
-	/**
-	* Asks key space provider for all known namespaces.
-	* Updates all the keyspaces.
-	*/
-	override def refreshKeySpace() = {
-		/* does nothing right now
-		ns_map.foreach({ case(ns,ks) => {
-			this.getKeySpace(ns)
-		}})
-		*/
-	}
+abstract class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider with ThriftConversions {
 
 	/**
 	* Read value from one node. Uses local map. 
 	* Does update from KeySpaceProvider if local copy is out of date.
 	*/
 	override def get(namespace: String, key: String): Record = {
-		val ns_keyspace = ns_map(namespace)
+		val ns_keyspace = getKeySpace(namespace)
 		try {
 			val potentials = ns_keyspace.lookup(key)
 			if ( potentials.hasNext ) {
@@ -93,7 +71,7 @@ class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider 
 			else throw new NoNodeResponsibleException
 		} catch {
 			case e:NotResponsible => {
-				this.getKeySpace(namespace)
+				this.refreshKeySpace()
 				val record = this.get(namespace,key) // recursion, TODO: needs to be bounded
 				record
 			}
@@ -106,7 +84,7 @@ class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider 
 	*/
 	override def get_set(namespace: String, keys: RecordSet): java.util.List[Record] = {
 		var records = new HashSet[Record]
-		val ns_keyspace = ns_map(namespace)
+		val ns_keyspace = getKeySpace(namespace)
 		val target_range = new KeyRange(keys.range.start_key, keys.range.end_key)
 		var ranges = Set[KeyRange]()
 
@@ -127,7 +105,7 @@ class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider 
 				
 			} catch {
 				case e:NotResponsible => {
-					this.getKeySpace(namespace)
+					this.refreshKeySpace()
 					val records_subset = node.get_set(namespace,rset)
 					val iter = records_subset.iterator()
 					while (iter.hasNext()) { records += iter.next() }
@@ -191,7 +169,7 @@ class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider 
 	*/
 	override def put(namespace: String, rec:Record): Boolean = {
 		val key = rec.getKey()
-		val ns_keyspace = ns_map(namespace)
+		val ns_keyspace = getKeySpace(namespace)
 		val put_nodes = ns_keyspace.lookup(key)
 		if ( !put_nodes.hasNext ) throw new NoNodeResponsibleException
 		var total_success = true
@@ -202,7 +180,7 @@ class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider 
 				total_success && success 
 			} catch {
 				case e:NotResponsible => {
-					this.getKeySpace(namespace)
+					this.refreshKeySpace()
 					val success = this.put(namespace,rec) // recursion may redo some work
 					total_success && success
 				}

@@ -10,7 +10,7 @@ case class ClientApp(h: String, p: Int) extends ThriftConnection {
 
 class ClientLibraryServer(p: Int) extends ThriftServer {
 	val port = p
-	val clientlib = new ROWAClientLibrary
+	val clientlib = new LocalROWAClientLibrary
 	val processor = new SCADS.ClientLibrary.Processor(clientlib)
 
 	val n1 = new TestableStorageNode()
@@ -28,7 +28,7 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 	val rec5 = new SCADS.Record("e","e-val".getBytes())
 
 	def testSingleNode() = {
-		val clientlib = new ROWAClientLibrary
+		val clientlib = new LocalROWAClientLibrary
 		val n1 = new TestableStorageNode()
 		
 		val ks = new SimpleKeySpace()
@@ -64,9 +64,9 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 			clientlib.get_set("db_single", this.keyRangeToScadsRangeSet(KeyRange("a","d")) )
 		}
 	}
-
+	
 	def testDoubleNodePartition() = {
-		val clientlib = new ROWAClientLibrary
+		val clientlib = new LocalROWAClientLibrary
 		val n1 = new TestableStorageNode()
 		val n2 = new TestableStorageNode()
 
@@ -74,7 +74,7 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		ks.assign(n1, KeyRange("a", "c"))
 		ks.assign(n2, KeyRange("c", "e"))
 		clientlib.add_namespace("db_double_p",ks)
-
+		
 		// put some records
 		assert( clientlib.put("db_double_p",rec1) )
 		assert( clientlib.put("db_double_p",rec2) )
@@ -125,9 +125,11 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		intercept[NonCoveredRangeException] {
 			clientlib.get_set("db_double_p", this.keyRangeToScadsRangeSet(KeyRange("a","f")) )
 		}
+		
 	}
+	
 	def testDoubleNodeReplica() = {
-		val clientlib = new ROWAClientLibrary
+		val clientlib = new LocalROWAClientLibrary
 		val n1 = new TestableStorageNode()
 		val n2 = new TestableStorageNode()
 		
@@ -168,7 +170,7 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 	}
 
 	def testDoubleNodeOverlapPartition() = {
-		val clientlib = new ROWAClientLibrary
+		val clientlib = new LocalROWAClientLibrary
 		val n1 = new TestableStorageNode()
 		val n2 = new TestableStorageNode()
 
@@ -224,7 +226,7 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 	}
 	
 	def testDoubleNodePartitionGap() {
-		val clientlib = new ROWAClientLibrary
+		val clientlib = new LocalROWAClientLibrary
 		val n1 = new TestableStorageNode()
 		val n2 = new TestableStorageNode()
 
@@ -491,9 +493,9 @@ class MovementMechanismTest extends Suite {
 
 object RunTests {
 	def main(args: Array[String]) = {
-		(new KeyRangeSuite).execute()
-		(new KeySpaceSuite).execute()
-		(new MovementMechanismTest).execute()
+		//(new KeyRangeSuite).execute()
+		//(new KeySpaceSuite).execute()
+		//(new MovementMechanismTest).execute()
 		(new ClientLibrarySuite).execute()
 		System.exit(0)
 	}
