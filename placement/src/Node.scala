@@ -138,6 +138,7 @@ trait SynchronousHeartbeatCluster extends Cluster {
 	
 	val timer = new Timer()
 	def interval: Int
+	def nameSpace: String
 	
 	def start() = {
 		timer.schedule(new PingTask(),0,interval*1000)
@@ -155,11 +156,10 @@ trait SynchronousHeartbeatCluster extends Cluster {
 		override def run() = {
 			nodes.foreach({ case(node) => {
 				try {
-					node.connect
-					val recordset = node.getClient().get_responsibility_policy("metadata")
-					node.disconnect
+					node.getClient().get(nameSpace,"akey")
 				} catch {
-					case e:TTransportException => node.disconnect; log_failure(node)
+					case e:SCADS.NotResponsible => // do nothing, node is still kicking
+					case e:TTransportException => log_failure(node)
 				}
 			}})
 		}
