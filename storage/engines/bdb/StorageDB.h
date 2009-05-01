@@ -46,7 +46,7 @@ private:
 public:
   void apply_to_set(const NameSpace& ns, const RecordSet& rs,
 		    void(*to_apply)(void*,DB*,DBC*,DB_TXN*,void*,void*),void* apply_arg,
-		    bool invokeNone = false);
+		    bool invokeNone = false, bool bulk = false);
 
   DB* getDB(const NameSpace& ns);
   int get_listen_port() { return listen_port; }

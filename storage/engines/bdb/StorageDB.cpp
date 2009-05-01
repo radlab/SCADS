@@ -21,6 +21,8 @@
 
 #include "StorageDB.h"
 
+// for bulk get, read in 20mb chunks
+#define	BUFFER_LENGTH	(20 * 1024 * 1024)
 
 using namespace std;
 using namespace apache::thrift;
@@ -302,15 +304,17 @@ getDB(const NameSpace& ns) {
 void StorageDB::
 apply_to_set(const NameSpace& ns, const RecordSet& rs,
 	     void(*to_apply)(void*,DB*,DBC*,DB_TXN*,void*,void*),void* apply_arg,
-	     bool invokeNone) {
+	     bool invokeNone, bool bulk) {
   DB* db_ptr;
   DBC *cursorp;
-  DBT key, data;
+  DBT cursor_key, cursor_data, key, data;
   DB_TXN *txn;
   int ret,count=0,skipped=0,rb_err;
   u_int32_t cursor_get_flags;
   VALUE ruby_proc;
   VALUE funcall_args[3];
+  size_t retklen, retdlen;
+  void *retkey, *retdata, *p;
 
   if (rs.__isset.range &&
       rs.__isset.func) {
@@ -402,8 +406,32 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     }
   }
   
-  cursor_get_flags = 0;
+  if (bulk)
+    cursor_get_flags = DB_MULTIPLE_KEY;
+  else
+    cursor_get_flags = 0;
 
+  memset(&cursor_key, 0, sizeof(DBT));
+  memset(&cursor_data, 0, sizeof(DBT));
+  memset(&key, 0, sizeof(DBT));
+  memset(&data, 0, sizeof(DBT));
+
+
+  if (bulk) {
+    if ((cursor_data.data = malloc(BUFFER_LENGTH)) == NULL) {
+      string msg("Could not malloc for bulk get: ");
+      char* err = strerror(errno);
+      msg.append(err);
+      TException te(msg);
+      throw te;
+    }
+    cursor_data.ulen = BUFFER_LENGTH;
+    cursor_data.flags = DB_DBT_USERMEM;
+  }
+  else
+    cursor_data.flags = DB_DBT_MALLOC;
+
+  // get the database
   db_ptr = getDB(ns);
   txn = NULL;
   /*
@@ -418,24 +446,30 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
   else
     db_ptr->cursor(db_ptr, txn, &cursorp, 0);
 
-  memset(&key, 0, sizeof(DBT));
-  memset(&data, 0, sizeof(DBT));
-  data.flags = DB_DBT_MALLOC;
+
    
+  /* get the initial cursor
+   *
+   * start at the beginning for all, key/value funcs, and filters since
+   * they have to scan everything.  start at start_key for ranges
+   */
+
+  cout << "first get"<<endl;
+
   switch (rs.type) {
   case RST_ALL:
   case RST_KEY_FUNC:
   case RST_KEY_VALUE_FUNC:
   case RST_FILTER:
-    ret = cursorp->get(cursorp, &key, &data, DB_FIRST | cursor_get_flags);
+    ret = cursorp->get(cursorp, &cursor_key, &cursor_data, DB_FIRST | cursor_get_flags);
     break;
   case RST_RANGE:
     if (rs.range.__isset.start_key) {
-      key.data = const_cast<char*>(rs.range.start_key.c_str());
-      key.size = rs.range.start_key.length();
-      ret = cursorp->get(cursorp, &key, &data, DB_SET_RANGE | cursor_get_flags);
+      cursor_key.data = const_cast<char*>(rs.range.start_key.c_str());
+      cursor_key.size = rs.range.start_key.length();
+      ret = cursorp->get(cursorp, &cursor_key, &cursor_data, DB_SET_RANGE | cursor_get_flags);
     } else { // start from the beginning
-      ret = cursorp->get(cursorp, &key, &data, DB_FIRST | cursor_get_flags);
+      ret = cursorp->get(cursorp, &cursor_key, &cursor_data, DB_FIRST | cursor_get_flags);
     }
     break;
   default:
@@ -445,6 +479,8 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       cursorp->close(cursorp); 
     if (txn!=NULL && txn->abort(txn)) 
       cerr << "Transaction abort failed"<<endl;
+    if (bulk)
+      free(cursor_data.data);
     throw ni;
   }
 
@@ -455,15 +491,19 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       cerr << "Transaction commit failed"<<endl;
     if (invokeNone)
       // no vals, but apply function wants to know that so invoke with nulls
-      (*to_apply)(apply_arg,db_ptr,cursorp,txn,NULL,NULL);      
+      (*to_apply)(apply_arg,db_ptr,cursorp,txn,NULL,NULL);
+    if (bulk)
+      free(cursor_data.data);
     return;
   }
   if (ret != 0) { // another error
-    cerr << "Error in first cursor get"<<endl;
+    db_ptr->err(db_ptr,ret,"Could not get cursor");
     if (cursorp != NULL) 
       cursorp->close(cursorp); 
     if (txn!=NULL && txn->abort(txn)) 
       cerr << "Transaction abort failed"<<endl;
+    if (bulk)
+      free(cursor_data.data);
     return;
   }
 
@@ -476,7 +516,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 	InvalidSetDescription isd;
 	isd.s = rs;
 	isd.info = "Your ruby string does not return something that responds to 'call'";
-	free(data.data); // free because we're returning
+	free(cursor_data.data); // free because we're returning
 	if (cursorp != NULL)
 	  cursorp->close(cursorp);
 	if (txn!=NULL && txn->abort(txn)) 
@@ -488,7 +528,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     } else {
       NotImplemented ni;
       ni.function_name = "get_set only supports ruby functions at the moment";
-      free(data.data);  // ditto
+      free(cursor_data.data);  // ditto
       if (cursorp != NULL) 
 	cursorp->close(cursorp); 
       if (txn!=NULL && txn->abort(txn)) 
@@ -497,93 +537,37 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     }
   }
 
-  if (rs.type == RST_ALL)
-    (*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);
-    
-  else if (rs.type == RST_RANGE) {
-    if (rs.range.__isset.end_key && 
-	(strncmp(rs.range.end_key.c_str(),
-		 (char*)key.data,key.size) < 0) ) { // nothing to return
-      free(data.data);
-      if (cursorp != NULL)
-	cursorp->close(cursorp);
+  cout << "done"<<endl;
+
+  if (bulk) {
+    DB_MULTIPLE_INIT(p, &cursor_data);
+    DB_MULTIPLE_KEY_NEXT(p,&cursor_data, retkey, retklen, retdata, retdlen);
+    if (p == NULL) {
+      if (cursorp != NULL) 
+	cursorp->close(cursorp); 
       if (txn!=NULL && txn->commit(txn,0)) 
 	cerr << "Transaction commit failed"<<endl;
       if (invokeNone)
 	// no vals, but apply function wants to know that so invoke with nulls
-	(*to_apply)(apply_arg,db_ptr,cursorp,txn,NULL,NULL);      
+	(*to_apply)(apply_arg,db_ptr,cursorp,txn,NULL,NULL);
+      if (bulk)
+	free(cursor_data.data);
       return;
     }
-    if (rs.range.__isset.offset &&
-	skipped < rs.range.offset) 
-      skipped++;
-    else {
-      (*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);
-      count++;
-    }
+  }
+  else {
+    retkey = cursor_key.data;
+    retklen = cursor_key.size;
+    retdata = cursor_data.data;
+    retdlen = cursor_data.size;
   }
 
-  else if (rs.type == RST_FILTER) {
-    count = rs.filter.length();
-    if (data.size > count &&
-	strnstr((const char*)data.data,rs.filter.c_str(),data.size)) 
-      (*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);      
-  }
-    
-  else if (rs.type == RST_KEY_FUNC || RST_KEY_VALUE_FUNC) {
-    VALUE v;
-    funcall_args[0] = ruby_proc;
-    funcall_args[1] = rb_str_new((const char*)(key.data),key.size);
-    if (rs.type == RST_KEY_FUNC)
-      funcall_args[2] = 0;
-    else
-      funcall_args[2] = rb_str_new((const char*)(data.data),data.size);
-    v = rb_protect(rb_funcall_wrap,((VALUE)funcall_args),&rb_err);
-    if (rb_err) {
-      InvalidSetDescription isd;
-      isd.s = rs;
-      VALUE lasterr = rb_gv_get("$!");
-      VALUE message = rb_obj_as_string(lasterr);
-      isd.info = rb_string_value_cstr(&message);
-      free(data.data);
-      if (cursorp != NULL)
-	cursorp->close(cursorp);
-      if (txn!=NULL && txn->abort(txn)) 
-	cerr << "Transaction abort failed"<<endl;
-      isd.__isset.s = true;
-      isd.__isset.info = true;
-      throw isd;
-    }
-    if (v == Qtrue)
-      (*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);
-    else if (v != Qfalse) {
-      InvalidSetDescription isd;
-      isd.s = rs;
-      isd.info = "Your ruby string does not return true or false";
-      free(data.data);
-      if (cursorp != NULL)
-	cursorp->close(cursorp);
-      if (txn!=NULL && txn->abort(txn)) 
-	cerr << "Transaction abort failed"<<endl;
-      isd.__isset.s = true;
-      isd.__isset.info = true;
-      throw isd;
-    }
-  }
+  key.data = retkey;
+  key.size = retklen;
+  data.data = retdata;
+  data.size = retdlen;
 
-  if (rs.type == RST_RANGE && 
-      (rs.range.__isset.limit && count > rs.range.limit)) {
-    free(data.data);
-    if (cursorp != NULL) 
-      cursorp->close(cursorp); 
-    if (txn!=NULL && txn->commit(txn,0)) 
-	cerr << "Transaction commit failed"<<endl;
-    return;
-  }
-
-  free(data.data);
-
-  while ((ret = cursorp->get(cursorp, &key, &data, DB_NEXT | cursor_get_flags)) == 0) {
+  for(;;) {
     // RST_ALL set
     if (rs.type == RST_ALL)
       (*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);
@@ -593,7 +577,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       if ( rs.range.__isset.end_key &&
 	   (strncmp(rs.range.end_key.c_str(),(char*)key.data,key.size) < 0) ) {
 	ret = DB_NOTFOUND;
-	free(data.data);
+	free(cursor_data.data);
 	break;
       }
       if (rs.range.__isset.offset &&
@@ -606,7 +590,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       if (rs.range.__isset.limit &&
 	  count >= rs.range.limit) {
 	ret = DB_NOTFOUND;
-	free(data.data);
+	free(cursor_data.data);
 	break;
       }
     }
@@ -633,7 +617,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 	VALUE lasterr = rb_gv_get("$!");
 	VALUE message = rb_obj_as_string(lasterr);
 	isd.info = rb_string_value_cstr(&message);
-	free(data.data);
+	free(cursor_data.data);
 	if (cursorp != NULL)
 	  cursorp->close(cursorp);
 	if (txn!=NULL && txn->abort(txn))
@@ -651,7 +635,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 	InvalidSetDescription isd;
 	isd.s = rs;
 	isd.info = "Your ruby string does not return true or false";
-	free(data.data);
+	free(cursor_data.data);
 	if (cursorp != NULL)
 	  cursorp->close(cursorp);
 	if (txn!=NULL && txn->abort(txn))
@@ -661,18 +645,49 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 	throw isd;
       }
     }
-    free(data.data);
+
+    // okay, now get next key
+    if (bulk) {
+      DB_MULTIPLE_KEY_NEXT(p,&cursor_data, retkey, retklen, retdata, retdlen);
+      if (p == NULL) { // need to advance the cursor
+	cout << "advancing cursor"<<endl;
+	if ((ret = cursorp->get(cursorp, &cursor_key, &cursor_data, DB_NEXT | cursor_get_flags)) != 0) {
+	  if (ret != DB_NOTFOUND) 
+	    db_ptr->err(db_ptr,ret,"Cursor advance failed");
+	  free(cursor_data.data);
+	  break;
+	}
+	cout << "done"<<endl;
+	DB_MULTIPLE_INIT(p, &cursor_data);
+	DB_MULTIPLE_KEY_NEXT(p,&cursor_data, retkey, retklen, retdata, retdlen);
+      }
+      key.data = retkey;
+      key.size = retklen;
+      data.data = retdata;
+      data.size = retdlen;
+    }
+    else {
+      free(cursor_data.data);
+      if ((ret = cursorp->get(cursorp, &cursor_key, &cursor_data, DB_NEXT | cursor_get_flags)) != 0) {
+	if (ret != DB_NOTFOUND)
+	  db_ptr->err(db_ptr,ret,"Cursor advance failed");
+	break;
+      }
+      key.data = cursor_key.data;
+      key.size = cursor_key.size;
+      data.data = cursor_data.data;
+      data.size = cursor_data.size;
+    }
   }
   if (ret != DB_NOTFOUND) {
-    /* Error handling goes here */
-    cerr << "Umm, error in get_set"<<endl;
+    db_ptr->err(db_ptr,ret,"Error in apply_to_set");
   }
   
-  if (cursorp != NULL) 
-    cursorp->close(cursorp); 
+  if (cursorp != NULL)
+    cursorp->close(cursorp);
   if (txn!=NULL &&
-      txn->commit(txn,0))
-    cerr << "Final transaction commit failed!"<<endl;
+      (ret = txn->commit(txn,0)))
+    db_ptr->err(db_ptr,ret,"Could not commit apply_to_set transaction");
 #ifdef DEBUG
   cerr << "apply_to_set done"<<endl;
 #endif
@@ -829,7 +844,8 @@ get_set(std::vector<Record> & _return, const NameSpace& ns, const RecordSet& rs)
     nse.__isset.policy = true;
     throw nse;
   }
-  apply_to_set(ns,rs,apply_get,&_return);
+  // don't invoke if no vals, but use bulk retrieval
+  apply_to_set(ns,rs,apply_get,&_return,false,true);
 }
 
 bool StorageDB::
@@ -841,7 +857,8 @@ remove_set(const NameSpace& ns, const RecordSet& rs) {
 int32_t StorageDB::
 count_set(const NameSpace& ns, const RecordSet& rs) {
   int r = 0;
-  apply_to_set(ns,rs,apply_inc,&r);
+  // don't invoke if no vals, but use bulk retrieval
+  apply_to_set(ns,rs,apply_inc,&r,false,true);
   return r;
 }
 
