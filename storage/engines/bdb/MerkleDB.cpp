@@ -6,7 +6,7 @@
 #define dbt_string(dp) std::string((char*)(dp)->data,(dp)->size)
 #define min(i1, i2) ((i1) < (i2) ? (i1) : (i2))
 #define max(i1, i2) ((i1) > (i2) ? (i1) : (i2))
-#define return_with_error(error) std::cout << db_strerror(error); cursorp->close(cursorp); return error;
+#define return_with_error(error) std::cout << db_strerror(error) << "\n"; cursorp->close(cursorp); return error;
 #define return_with_success() cursorp->close(cursorp); return 0;
 
 MerkleDB::MerkleDB() {
@@ -76,7 +76,7 @@ void MerkleDB::flushp() {
 	pup = tmp;
 	aly->cursor(aly, NULL, &cursorp, 0);
 	while ((ret = cursorp->get(cursorp, &key, &data, DB_NEXT)) == 0) {
-   	insert(&key, &data);
+   	insert(&key, *((MerkleHash *)(data.data)));
 	}
 	pthread_mutex_unlock(&sync_lock);
 }
@@ -91,8 +91,8 @@ u_int32_t MerkleDB::prefix_length(DBT * key1, DBT * key2) {
 }
 
 //Take key,hash pair and insert into patricia-merkle trie db
-int MerkleDB::insert(DBT * key, DBT * hash) {
-	std::cout << "insert(\"" << dbt_string(key) << "\", " << *((int *)hash->data) << ")\n";
+int MerkleDB::insert(DBT * key, MerkleHash hash) {
+	std::cout << "insert(\"" << dbt_string(key) << "\", " << hash << ")\n";
 	int ret;
 	DBC *cursorp;
   dbp->cursor(dbp, NULL, &cursorp, 0);
@@ -101,100 +101,114 @@ int MerkleDB::insert(DBT * key, DBT * hash) {
 	memcpy(&ckey, key, sizeof(DBT));
 	memset(&cdata, 0, sizeof(DBT));
 	
-	/* Update hash entry for "key".  We may need to do some manipulations of the tree 
-	 * so we use cursors to get as close as possible. 
-	 */
+	DBT leftk, rightk;	//keys to the left and right (lexically) of the input key
+	memset(&leftk, 0, sizeof(DBT));
+	memset(&rightk, 0, sizeof(DBT));
+	
+	//position the cursor at the key (or to the right of the key, if first insertion)
 	ret = cursorp->get(cursorp, &ckey, &cdata, DB_SET_RANGE);
-	if (0 == ret) {	//success
+	if (ret == 0) {
 		if (dbt_equal(key, &ckey)) {
 			/* A node for this exact key exists.  Update it and we're done */
 			//TODO: update(&ckey, &m.digest)
 			//TODO: add parent to pending (with data with length zero)
 			return_with_success();
-		}
-		
-		/* 	We're inserting a new node, so we need to find out where this node belongs
-		*		(i.e. who his parent is going to be)  The parent of our node is the longest
-		*		common prefix of the elements that sort lexically on either side of the key.
-		*/
-		DBT leftk, rightk;
-		memset(&leftk, 0, sizeof(DBT));
-		memset(&rightk, 0, sizeof(DBT));
-		rightk = ckey;
-		ret = cursorp->get(cursorp, &ckey, &cdata, DB_PREV);
-		if (DB_NOTFOUND == ret) {
-			//We are the leftmost key, so we can't share a prefix on that side.
-			leftk.size = 0;
-		} else if (0 == ret) { //succeeded
-			leftk = ckey;
 		} else {
-			return_with_error(ret);
-		}
-	
-		/*	At this point, we have the prefixes we share with our left and right neighbors.
-		* 	The longest prefix is our parent node (this parent node may or may not yet exist)
-		*   (side effect of patricia trie and lexical sorting)
-		*/
-		u_int32_t prefixl = max(prefix_length(key, &leftk), prefix_length(key, &rightk));
-		DBT parentk;
-		memset(&parentk, 0, sizeof(DBT));
-		parentk.data = key->data;
-		parentk.size = prefixl; //Take inserted key, truncate to prefix_length
-
-		ckey.data = parentk.data;
-		ckey.size = parentk.size;
-		
-		/* Let's see if our parent already exists.  If not, we'll create it. */
-		ret = cursorp->get(cursorp, &ckey, &cdata, DB_SET_RANGE);
-		if (0 == ret) {
-			if (!dbt_equal(&ckey, &parentk)) {
-				/* Parent node doesn't exist, so create it */
-				DBT parentd;
-				MerkleNode parentn;
-				memset(&parentd, 0, sizeof(DBT));
-				memset(&parentn, 0, sizeof(MerkleNode));
-				parentd.data = &parentn;
-				parentd.size = sizeof(MerkleNode);
-				
-				/*	Since our parent doesn't exist (as a node) and the empty string represents the root
-				*		There's some edge that our parent falls on (since we're a patricia trie).  Thus we
-				*   need to split an edge.  At this point, the cursor is conveniently pointed at the
-				*		node whose up-edge we're splitting.  This node will be a child of our new parent
-				*		and his old parent will be our parent's parent.
-				*/
-				MerkleNode * sibling = (MerkleNode *)(&cdata.data);
-				DBT grandparentk = parent(&ckey, sibling);
-				int parentk_suffix_len = grandparentk.size - parentk.size;
-					
-				sibling->offset = (sibling->offset - parentk_suffix_len);
-				ret = cursorp->put(cursorp, &ckey, &cdata, DB_CURRENT); //Sibling is under cursor.
-				return_with_error(ret);
-				
-				parentn.offset = parentk_suffix_len;
-				ret = cursorp->put(cursorp, &parentk, &parentd, 0);
-				return_with_error(ret);
-			}
-			/* Our parent is guaranteed to exist now. (Parent node either existed, or we created it)  */
-			MerkleNode * selfn = (MerkleNode *)(&cdata.data); //.size of data items are always sizeof(MerkleNode)
-			selfn->offset = key->size - parentk.size;
-			ckey.data = key->data;
-			ckey.size = key->size;
-			ret = cursorp->put(cursorp, &ckey, &cdata, 0);
-			return_with_error(ret);
-		} else if (DB_NOTFOUND == ret) {	//impossible
-			std::cerr << "Inconceivable!\n";
-			exit(1);
-		} else {
-			return_with_error(ret);
+			//Key doesn't exist, cursor is now at key on right-hand side of insertion point.
+			rightk = ckey;
 		}
 	} else if (DB_NOTFOUND == ret) {
-			std::cerr << "Inconceivable!\n";
-			exit(1);	
+		//key is all the way to the right, no right-side neighbor
+		rightk.size = 0;
 	} else {
 		return_with_error(ret);
 	}
 	
+	/*	No exact match exists (or we would have returned from this procedure call already),
+	* 	so we're inserting a new node.  We need to find out where this node belongs (i.e. who
+	* 	his parent is going to be)  We're constructing a patricia trie, so the parent of the
+	*   new key is the longest prefix it shares with it's right & left-hand neighbors. (exercise
+	*   left to reader) At this point, we have those neighbors, so we can calculate where the
+	*   the parent should go. The parent node may or may not exist.  If it doesn't we'll need
+	*   to split an edge to an existing node. (patricia trie nodes may have multiple characters
+	*   per edge)
+	*/
 	
+	//Find the left-side neighbor
+	ret = cursorp->get(cursorp, &ckey, &cdata, DB_PREV);
+	if (DB_NOTFOUND == ret) {
+		std::cerr << "Inconceivable! The root node sorts first! It should be here!\n";
+		exit(1);
+	} else if (0 == ret) {
+		leftk = ckey;
+	} else {
+		return_with_error(ret);
+	}
+	
+	u_int32_t prefixl = max(prefix_length(key, &leftk), prefix_length(key, &rightk));
+	
+	//Create structures for new key-merkle node pair. offset is the number of chararacters to  
+	//remove from string to yield key of parent.
+	DBT newd;
+	MerkleNode newn;
+	memset(&newd, 0, sizeof(DBT));
+	memset(&newn, 0, sizeof(MerkleNode));
+	newd.size = sizeof(MerkleNode);
+	newn.offset = key->size - prefixl;
+	
+	DBT parentk;
+	memset(&parentk, 0, sizeof(DBT));
+	parentk.data = key->data;
+	parentk.size = prefixl; //Take inserted key, truncate to prefix_length
+	
+	/* position the cursor to see if the parent node exists (and create it if necessary) */
+	ckey.data = parentk.data;
+	ckey.size = parentk.size;
+	ret = cursorp->get(cursorp, &ckey, &cdata, DB_SET_RANGE);
+	if (0 == ret) {
+		//check if node exists for our prefix
+		if (not dbt_equal(&ckey, &parentk)) { 
+			//It doesn't, so create it.
+			DBT parentd;
+			MerkleNode parentn;
+			memset(&parentd, 0, sizeof(DBT));
+			memset(&parentn, 0, sizeof(MerkleNode));
+			parentd.data = &parentn;
+			parentd.size = sizeof(MerkleNode);
+			
+			/* Creating a new node representing a prefix implies that were
+			 * splitting an existing edge.  The descendant of that edge will
+			 * be our new sibling, and his (old) parent will be the parent of 
+			 * the new (parent) node we are inserting. 
+			*/
+			MerkleNode * siblingn = (MerkleNode *)(&cdata.data);
+			DBT sibling_parentk = parent(&ckey, siblingn);
+			//The MerkleNode structure uses an int as a pointer to it's parent.
+			//Since nodes are named by their complete key, a node's parent
+			//is its own key minus the last node->offset characters.
+			//We need to update these values for the elements involved in the split.
+			parentn.offset = parentk.size - sibling_parentk.size;
+				
+			siblingn->offset = (siblingn->offset - parentn.offset);
+			ret = cursorp->put(cursorp, &ckey, &cdata, DB_CURRENT); //Sibling is under cursor.
+			return_with_error(ret);
+			
+			ret = cursorp->put(cursorp, &parentk, &parentd, 0);
+			return_with_error(ret);
+		}
+		/* Our parent is guaranteed to exist now. (Parent node either existed, or we created it)  */
+		newn.offset = key->size - parentk.size;
+		ret = cursorp->put(cursorp, key, &newd, 0);
+		return_with_error(ret);
+	} else if (DB_NOTFOUND == ret) {
+		//Should be impossible, our parent is a prefix of us and if we can't find it directly, there
+		//must be some key containing it as a sole prefix (which would lexically sort after it).
+		std::cerr << "Inconceivable!\n";
+		exit(1);
+	} else {
+		return_with_error(ret);
+	}
+
 	/*
 	  ret = cursorp->get(cursorp, &skey, &sdata, DB_SET_RANGE);
 		if node exists

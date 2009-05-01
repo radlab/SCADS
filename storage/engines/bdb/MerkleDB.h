@@ -33,7 +33,7 @@ class MerkleDB {
  private:
   MerkleNode parent(MerkleNode * node);
   MerkleNode get(DBT * key);
-	int insert(DBT * key, DBT * data);
+	int insert(DBT * key, MerkleHash hash);
 	void update(DBT * key, MerkleHash hash);
 	DBT parent(DBT * key, MerkleNode * node);
 		
