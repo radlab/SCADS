@@ -4,15 +4,14 @@ import scala.collection._;
 
 case class Options(options : Map[String, String], args : Seq[String]);
 
-object OptionParser{
+object Options{
   import scala.util.matching.Regex;
 
-  val ShortOption = new Regex("""-(\w)""")
-  val ShortSquashedOption = new Regex("""-([^-\s])(\w+)""")
-  val LongOption = new Regex("""--(\w+)""")
-  val OptionTerminator = "--"
-  val True = "true";
-  val False = "false";
+  private val ShortOption = new Regex("""-(\w)""")
+  private val ShortSquashedOption = new Regex("""-([^-\s])(\w+)""")
+  private val LongOption = new Regex("""--(\w+)""")
+  private val OptionTerminator = "--"
+  private val True = "true";
 
   /**
    * Take a list of string arguments and parse them into options.
