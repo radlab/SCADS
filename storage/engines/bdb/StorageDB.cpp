@@ -73,6 +73,7 @@ char * strnstr(const char *s, const char *find, size_t slen)
   return (char*)s;
 }
 
+int uf;
 
 
 // set application functions
@@ -94,8 +95,10 @@ void apply_del(void* v, DB* db, DBC* cursor, DB_TXN* txn, void* k, void* d) {
 #ifdef DEBUG
   cerr << "Deleting: "<<string((char*)key->data,key->size)<<endl;
 #endif
-  ret = db->del(db,NULL,key,0);
-  //cursor->del(cursor,0);
+  if (uf & DB_INIT_TXN)
+    ret = db->del(db,NULL,key,0);
+  else
+    ret = cursor->del(cursor,0);
   if (ret)
     db->err(db,ret,"Delete failed");
 }
@@ -1122,7 +1125,7 @@ TNonblockingServer *nonblockingServer;
 
 static shared_ptr<StorageDB> storageDB;
 
-int workerCount,lp,uf;
+int workerCount,lp;
 
 char stopping = 0;
 

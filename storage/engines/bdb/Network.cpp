@@ -607,7 +607,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
 #ifdef DEBUG
 	cerr << "Local data is less, inserting greater value locally."<<endl;
 #endif
-	sync_sync_put(db,cursor,txn,key,data,args);
+	sync_sync_put(db,cursor,txn,key,data,args,false);
       }
 
     }
@@ -646,7 +646,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
 	u_int32_t ts = args->d.size;
 	args->d.data = newval;
 	args->d.size = strlen(newval);
-	sync_sync_put(db,cursor,txn,key,data,args);
+	sync_sync_put(db,cursor,txn,key,data,args,false);
 	args->d.data = td;
 	args->d.size = ts;
       }
