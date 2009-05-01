@@ -174,15 +174,17 @@ static void range(StorageClient &client,
 		  int32_t limit = 0) {
   RecordSet rs;
   rs.type = RST_RANGE;
-  rs.__isset.range = true;
   RangeSet range;
-  range.__isset.start_key = true;
-  range.__isset.end_key = true;
-  range.offset = 0;
-  range.limit = 0;
   range.start_key = start_key;
+  range.__isset.start_key = true;
   range.end_key = end_key;
+  range.__isset.end_key = true;
+  range.offset = offset;
+  range.__isset.offset = (offset != 0);
+  range.limit = limit;
+  range.__isset.limit = (limit != 0);
   rs.range = range;
+  rs.__isset.range = true;
   client.get_set(results,ns,rs);
 }
 
@@ -520,7 +522,7 @@ int main(int argc,char* argv[]) {
 	  start_timing();
 	  range(client,recs,v[1],v[2],v[3],
 		v.size()>4?atoi(v[4].c_str()):0,
-		v.size()>6?atoi(v[5].c_str()):0);
+		v.size()>5?atoi(v[5].c_str()):0);
 	  end_timing();
 	  printf("returned: %i values\n\n",(int)(recs.size()));
 	  if (recs.size() != 0) {
@@ -546,7 +548,6 @@ int main(int argc,char* argv[]) {
 	  vector<Record> recs;
 	  start_timing();
 	  filter(client,recs,v[1],v[2]);
-	  end_timing();
 	  printf("returned: %i values\n\n",(int)(recs.size()));
 	  if (recs.size() != 0) {
 	    vector<Record>::iterator it;
@@ -557,6 +558,7 @@ int main(int argc,char* argv[]) {
 	      it++;
 	    }
 	  }
+	  end_timing();
 	} catch (TException e) {
 	  cout << "[Exception]: "<<e.what()<<endl;
         }	  
