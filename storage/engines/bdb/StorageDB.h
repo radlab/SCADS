@@ -51,6 +51,7 @@ public:
   DB* getDB(const NameSpace& ns);
   int get_listen_port() { return listen_port; }
   DB_ENV* getENV() { return db_env; }
+  bool isTXN() { return user_flags & DB_INIT_TXN; }
 
   void closeDBs();
   void get(Record& _return, const NameSpace& ns, const RecordKey& key);

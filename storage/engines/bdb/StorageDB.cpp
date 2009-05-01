@@ -134,7 +134,11 @@ open_database(DB **dbpp,                  /* The DB handle that we are opening *
   dbp->set_errpfx(dbp, program_name);
 
   /* Set the open flags */
-  open_flags = DB_CREATE | DB_THREAD | DB_AUTO_COMMIT | DB_MULTIVERSION;
+  if (user_flags &
+      DB_INIT_TXN)
+    open_flags = DB_CREATE | DB_THREAD | DB_AUTO_COMMIT | DB_MULTIVERSION;
+  else
+    open_flags = DB_CREATE | DB_THREAD;
 
   /* Now open the database */
   ret = dbp->open(dbp,        /* Pointer to the database */
@@ -146,7 +150,8 @@ open_database(DB **dbpp,                  /* The DB handle that we are opening *
 		  0);         /* File mode. Using defaults */
   if (ret != 0) {
     dbp->err(dbp, ret, "Database '%s' open failed.", file_name);
-    return(ret);
+    TException te("Could not open database");
+    throw te;
   }
                                                                                                                                
   return (0);
@@ -393,7 +398,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       throw isd;
     }
   }
-    
+  
   cursor_get_flags = 0;
 
   db_ptr = getDB(ns);
@@ -405,7 +410,10 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     throw te;
   }
   */
-  db_ptr->cursor(db_ptr, txn, &cursorp, DB_TXN_SNAPSHOT);
+  if (user_flags & DB_INIT_TXN)
+    db_ptr->cursor(db_ptr, txn, &cursorp, DB_TXN_SNAPSHOT);
+  else
+    db_ptr->cursor(db_ptr, txn, &cursorp, 0);
 
   memset(&key, 0, sizeof(DBT));
   memset(&data, 0, sizeof(DBT));
@@ -1133,8 +1141,10 @@ Starts the BerkeleyDB storage layer.\n\n\
         \tDefault: 10\n\
   -l PORT\tStart sync/move listen thread on port PORT\n\
 	\tDefault: 9091\n\
-  -x\t\tDon't use transactions.\n\
+  -x\t\tUse transactions.\n\
 	\t(Once an env has txn support enabled it cannot be disabled, and vice versa)\n\
+  -L\t\tDon't do write ahead logging.\n\
+	\t(Logging is always on if you use transactions)\n\
   -h\t\tShow this help\n\n",
 	  prgm);
 }
@@ -1142,14 +1152,15 @@ Starts the BerkeleyDB storage layer.\n\n\
 static 
 void parseArgs(int argc, char* argv[]) {
   int opt;
+  char dtxn = 0;
+  char dlog = 1;
   env_dir = 0;
   port = 9090;
   serverType = ST_POOL;
   workerCount = 10;
   lp = 9091;
-  uf = DB_INIT_TXN | DB_INIT_LOG | DB_MULTIVERSION;
 
-  while ((opt = getopt(argc, argv, "hxp:d:t:n:l:")) != -1) {
+  while ((opt = getopt(argc, argv, "hxLp:d:t:n:l:")) != -1) {
     switch (opt) {
     case 'p':
       port = atoi(optarg);
@@ -1179,7 +1190,10 @@ void parseArgs(int argc, char* argv[]) {
       lp = atoi(optarg);
       break;
     case 'x':
-      uf = 0;
+      dtxn = 1;
+      break;
+    case 'L':
+      dlog = 0;
       break;
     case 'h':
     default: /* '?' */
@@ -1188,6 +1202,13 @@ void parseArgs(int argc, char* argv[]) {
     }
   }
   
+  if (dtxn)
+    uf = DB_INIT_TXN | DB_INIT_LOG | DB_MULTIVERSION;
+  else if(dlog)
+    uf = DB_INIT_LOG;
+  else
+    uf = 0;
+
   if (!env_dir) {
     cerr << "Warning: -d not specified, running in local dir"<<endl;
     env_dir = (char*)malloc(strlen(".")+1);
@@ -1234,10 +1255,15 @@ int main(int argc, char **argv) {
   cout << "Running in debug mode"<<endl;
 #endif
 
-
   storageDB = handler;
   signal(SIGINT, ex_program);
   signal(SIGTERM, ex_program);
+
+  if (!storageDB->isTXN()) {
+    cout << "Running without transactions"<<endl;
+    if (uf & DB_INIT_LOG)
+      cout << "Running with write ahead logging"<<endl;
+  }
 
   switch (serverType) {
   case ST_SIMPLE: {

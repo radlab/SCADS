@@ -159,11 +159,13 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
 
   DB_TXN *txn;
   txn = NULL;
-  db_env = storageDB->getENV();
-  fail = db_env->txn_begin(db_env, NULL, &txn, DB_TXN_SNAPSHOT);
-  if (fail != 0) {
-    TException te("Could not start transaction");
-    throw te;
+  if (storageDB->isTXN()) {
+    db_env = storageDB->getENV();
+    fail = db_env->txn_begin(db_env, NULL, &txn, DB_TXN_SNAPSHOT);
+    if (fail != 0) {
+      TException te("Could not start transaction");
+      throw te;
+    }
   }
   
   for(ic=0;;ic++) { // now read all our key/vals
@@ -237,8 +239,6 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
   else {
     if (txn!=NULL && txn->commit(txn,0)) 
       cerr << "Commit of copy transaction failed"<<endl;
-    else
-      cerr << "Commited final copy transaction"<<endl;
   }
       
   return fail;
@@ -275,6 +275,7 @@ struct sync_sync_args {
   int sock;
   int off;
   int ic;
+  bool isTXN;
   char* dbuf;
   char *end;
   ConflictPolicy* pol;
@@ -299,9 +300,19 @@ void apply_dump(void *s, DB* db, DBC* cursor, DB_TXN *txn, void *k, void *d) {
   send_vals(*sock,(DBT*)k,(DBT*)d);
 }
 
-void sync_sync_put(DB* db, DB_TXN* txn, struct sync_sync_args* args) {
-  if (db->put(db, txn, &(args->k), &(args->d), 0) != 0) 
-    cerr << "Failed to put remote key: "<<string((char*)args->k.data,args->k.size)<<endl;
+void sync_sync_put(DB* db, DBC* cursor, DB_TXN* txn, DBT* lkey, DBT* ldata, struct sync_sync_args* args, bool adv=true) {
+  if (cursor == NULL || args->isTXN) {
+    if (db->put(db, txn, &(args->k), &(args->d), 0) != 0) 
+      cerr << "Failed to put remote key: "<<string((char*)args->k.data,args->k.size)<<endl;
+  }
+  else {
+    if (cursor->put(cursor, &(args->k), &(args->d), DB_KEYFIRST) != 0) 
+      cerr << "Failed to put remote key: "<<string((char*)args->k.data,args->k.size)<<endl;
+    if (adv) {
+      if (cursor->get(cursor, lkey, ldata, DB_NEXT))
+	cerr << "Failed to advance local cursor"<<endl;
+    } 
+  }
 
   if (txn!=NULL) {
     if ((++(args->ic) % COMMIT_LIMIT) == 0) {
@@ -359,6 +370,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
     }
 #ifdef DEBUG
     cerr << "[read for sync] key: "<<string((char*)args->k.data,args->k.size)<<" data: "<<string((char*)args->d.data,args->d.size)<<endl;
+    //cerr << "[Local info is] key: "<<string((char*)key->data,key->size)<<" data: "<<string((char*)data->data,data->size)<<endl;
 #endif
   }
   
@@ -412,7 +424,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
       args->d.dlen = 0;
 
       
-      sync_sync_put(db,txn,args);
+      sync_sync_put(db,cursor,txn,NULL,NULL,args,false);
 
       if (kf)
 	free(args->k.data);
@@ -429,7 +441,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
       // local key is shorter, and therefore less
       // send over local key since other side is missing it
 #ifdef DEBUG
-      cerr << "Local key is shorter, sending my local value over"<<endl;
+      cerr << "Local key "<<string((char*)key->data,key->size)<<" is shorter, sending my local value over"<<endl;
 #endif
       send_vals(args->sock,key,data);
       // don't want to clear keys, will deal with on next pass
@@ -447,10 +459,10 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
       args->d.dlen = 0;
 
 #ifdef DEBUG
-      cerr << "Local key is longer, Inserting to catch up."<<endl;
+      cerr << "Local key "<<string((char*)key->data,key->size)<<" is longer, Inserting to catch up."<<endl;
 #endif
 
-      sync_sync_put(db,txn,args);
+      sync_sync_put(db,cursor,txn,key,data,args);
 
       if (kf)
 	free(args->k.data);
@@ -485,6 +497,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
       }
 #ifdef DEBUG
       cerr << "[read for sync] key: "<<string((char*)args->k.data,args->k.size)<<" data: "<<string((char*)args->d.data,args->d.size)<<endl;
+      //cerr << "[Local info is] key: "<<string((char*)key->data,key->size)<<" data: "<<string((char*)data->data,data->size)<<endl;
 #endif
     }
 
@@ -499,7 +512,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
     if (cmp < 0) {
       // local key is shorter, send it over
 #ifdef DEBUG
-      cerr << "Local key is less, sending over."<<endl;
+      cerr << "Local key "<<string((char*)key->data,key->size)<<" is less, sending over."<<endl;
 #endif
       send_vals(args->sock,key,data);
       // don't want to clear keys, will deal with on next pass
@@ -510,7 +523,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
       // remote key is shorter
       // need to keep inserting remote keys until we catch up
 #ifdef DEBUG
-      cerr << "Local key is greater, inserting to catch up."<<endl;
+      cerr << "Local key "<<string((char*)key->data,key->size)<<" is greater, inserting to catch up."<<endl;
 #endif
       kf=args->k.flags;
       df=args->d.flags;
@@ -519,7 +532,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
       args->d.flags = 0;
       args->d.dlen = 0;
 
-      sync_sync_put(db,txn,args);
+      sync_sync_put(db,cursor,txn,key,data,args);
 
       if (kf)
 	free(args->k.data);
@@ -554,6 +567,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
       }
 #ifdef DEBUG
       cerr << "[read for sync] key: "<<string((char*)args->k.data,args->k.size)<<" data: "<<string((char*)args->d.data,args->d.size)<<endl;
+      //cerr << "[Local info is] key: "<<string((char*)key->data,key->size)<<" data: "<<string((char*)data->data,data->size)<<endl;
 #endif      
       continue; // back to top since this new key could fall into any of the categories
     }
@@ -593,7 +607,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
 #ifdef DEBUG
 	cerr << "Local data is less, inserting greater value locally."<<endl;
 #endif
-	sync_sync_put(db,txn,args);
+	sync_sync_put(db,cursor,txn,key,data,args);
       }
 
     }
@@ -632,7 +646,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
 	u_int32_t ts = args->d.size;
 	args->d.data = newval;
 	args->d.size = strlen(newval);
-	sync_sync_put(db,txn,args);
+	sync_sync_put(db,cursor,txn,key,data,args);
 	args->d.data = td;
 	args->d.size = ts;
       }
@@ -761,14 +775,13 @@ int do_sync(int sock, StorageDB* storageDB, char* dbuf) {
   args.pol = &policy;
   args.db_env = storageDB->getENV();
   args.remdone = 0;
+  args.isTXN = storageDB->isTXN();
   memset(&(args.k), 0, sizeof(DBT));
   memset(&(args.d), 0, sizeof(DBT));
 
   storageDB->apply_to_set(ns,rs,sync_sync,&args,true);
   if (!args.remdone) {
     DB *db = storageDB->getDB(ns);
-    memset(&(args.k), 0, sizeof(DBT));
-    memset(&(args.d), 0, sizeof(DBT));
     sync_sync(&args,db,NULL,NULL,NULL,NULL);
   }
 
@@ -1103,9 +1116,10 @@ void sync_send(void* s, DB* db, DBC* cursor, DB_TXN* txn, void* k, void* d) {
 
 struct sync_recv_args {
   int sock;
+  int stat;
+  int isTXN;
   DB* db_ptr;
   DB_ENV* db_env;
-  int stat;
 };
 
 // receive keys as a response from a sync and insert them
@@ -1126,9 +1140,12 @@ void* sync_recv(void* arg) {
   end = dbuf;
 
   txn = NULL;
-  if (db_env->txn_begin(db_env, NULL, &txn, DB_TXN_SNAPSHOT)) {
-    cerr << "Could not start transaction in sync_recv"<<endl;
-    return NULL;
+
+  if (args->isTXN) {
+    if (db_env->txn_begin(db_env, NULL, &txn, DB_TXN_SNAPSHOT)) {
+      cerr << "Could not start transaction in sync_recv"<<endl;
+      return NULL;
+    }
   }
 
   for(ic=0;;ic++) { // now read all our key/vals
@@ -1268,6 +1285,7 @@ sync_set(const NameSpace& ns, const RecordSet& rs, const Host& h, const Conflict
   args.sock = sock;
   args.db_ptr = getDB(ns);
   args.db_env = db_env;
+  args.isTXN = (user_flags & DB_INIT_TXN);
 
   pthread_t recv_thread;
   (void) pthread_create(&recv_thread,NULL,
