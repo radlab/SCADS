@@ -680,13 +680,15 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 
 StorageDB::
 StorageDB(int lp,
-	  u_int32_t uf) :
+	  u_int32_t uf,
+	  u_int32_t cache) :
   listen_port(lp),
   user_flags(uf) 
 {
   u_int32_t env_flags = 0;
   int ret;
-    
+  u_int32_t gb;
+  
   ret = db_env_create(&db_env, 0);
   if (ret != 0) {
     fprintf(stderr, "Error creating env handle: %s\n", db_strerror(ret));
@@ -698,9 +700,25 @@ StorageDB(int lp,
     DB_THREAD |     /* This gets used by multiple threads */
     DB_INIT_LOCK |  /* Multiple threads might write */
     DB_INIT_MPOOL|  /* Initialize the in-memory cache. */
+    //DB_SYSTEM_MEM |
+    DB_PRIVATE |
     user_flags;     /* Add in user specified flags */
   
   ret = db_env->set_lk_detect(db_env,DB_LOCK_DEFAULT);
+
+  if (cache != 0) {
+    gb = cache/1000;
+    u_int32_t bytes = cache-(gb*1000);
+    bytes*=1000000;
+    cout << "Setting cache size to: "<<gb<<" gigs, "<<bytes<<" bytes"<<endl;
+    ret = db_env->set_cachesize(db_env, gb, bytes, 0);
+    if (ret != 0) {
+      cerr << "Could not set cache size"<<endl;
+      exit(-1);
+    }
+  }
+
+
   if (ret != 0) {
     cerr << "Could not set auto deadlock detection."<<endl;
     exit(-1);
@@ -1125,7 +1143,7 @@ TNonblockingServer *nonblockingServer;
 
 static shared_ptr<StorageDB> storageDB;
 
-int workerCount,lp;
+int workerCount,lp,cache;
 
 char stopping = 0;
 
@@ -1162,8 +1180,9 @@ void parseArgs(int argc, char* argv[]) {
   serverType = ST_POOL;
   workerCount = 10;
   lp = 9091;
+  cache = 500;
 
-  while ((opt = getopt(argc, argv, "hxLp:d:t:n:l:")) != -1) {
+  while ((opt = getopt(argc, argv, "hxLp:d:t:n:l:c:")) != -1) {
     switch (opt) {
     case 'p':
       port = atoi(optarg);
@@ -1172,6 +1191,9 @@ void parseArgs(int argc, char* argv[]) {
       env_dir = (char*)malloc(sizeof(char)*(strlen(optarg)+1));
       strcpy(env_dir,optarg);
       break;
+    case 'c':
+      cache = atoi(optarg);
+      break;	
     case 't':
       if (!strcmp(optarg,"simple"))
 	serverType = ST_SIMPLE;
@@ -1249,7 +1271,7 @@ int main(int argc, char **argv) {
   parseArgs(argc,argv);
 
   shared_ptr<TProtocolFactory> protocolFactory(new TBinaryProtocolFactory());
-  shared_ptr<StorageDB> handler(new StorageDB(lp,uf));
+  shared_ptr<StorageDB> handler(new StorageDB(lp,uf,cache));
   shared_ptr<TProcessor> processor(new StorageProcessor(handler));
   shared_ptr<TServerTransport> serverTransport(new TServerSocket(port));
   shared_ptr<TTransportFactory> transportFactory(new TBufferedTransportFactory());

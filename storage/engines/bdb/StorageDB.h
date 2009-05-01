@@ -28,7 +28,7 @@ private:
   u_int32_t user_flags;
 
 public:
-  StorageDB(int,u_int32_t);
+  StorageDB(int,u_int32_t,u_int32_t);
 
 private:
   int open_database(DB **dbpp,                  /* The DB handle that we are opening */
