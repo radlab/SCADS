@@ -3,6 +3,7 @@ import scala.util.Sorting
 class NotContiguousException extends Exception
 class NonCoveredRangeException extends Exception
 class NoNodeResponsibleException extends Exception
+class NullKeyLookupException extends Exception
 
 object KeyRange {
 	val EmptyRange = new KeyRange("", "")
@@ -10,7 +11,7 @@ object KeyRange {
 
 case class KeyRange(start: String, end: String) {
 	if(start != null && end != null)
-		assert(start <= end)
+		assert(start <= end,"keyspace.scala: "+start +" !<= "+end)
 
 	def + (that: KeyRange): KeyRange = {
 		if(this == KeyRange.EmptyRange)
@@ -51,23 +52,29 @@ case class KeyRange(start: String, end: String) {
 	def & (that: KeyRange): KeyRange = {
 		if((this.start == null || that.start == null) && (this.end == null || that.end == null))
 			new KeyRange(null, null)
-		else if (this.start == null || that.start == null)
+		else if ( (this.start == null && this.end >= that.start) || (that.start == null && that.end >= this.start))
 			new KeyRange(coalesce(this.start, that.start), min(this.end, that.end))
-		else if (this.end == null || that.end == null)
-			new KeyRange(max(this.start, that.start), coalesce(this.end, that.end))
-		else if((this.end >= that.start) && (this.end < that.end) && (this.start < that.start))
-			new KeyRange(that.start, this.end)
-		else if((that.end >= this.start) && (that.end < this.end) && (that.start < this.start))
-			new KeyRange(this.start, that.end)
-		else if(this.start >= that.start && this.end <= that.end)
-			this
-		else if(that.start >= this.start && that.end <= this.end)
-			that
+		else if ( (this.end == null && this.start < that.end) || (that.end == null && that.start < this.end) )
+			new KeyRange(max(this.start, that.start), coalesce(this.end, that.end))			
+		else if (this.end != null && that.end!=null && this.start != null && that.start != null) {
+			if( (this.end >= that.start) && (this.end < that.end) && (this.start < that.start) )
+				new KeyRange(that.start, this.end)
+			else if( (that.end >= this.start) && (that.end < this.end) && (that.start < this.start) )
+				new KeyRange(this.start, that.end)
+			else if(this.start >= that.start && this.end <= that.end)
+				this
+			else if(that.start >= this.start && that.end <= this.end)
+				that
+			else
+				KeyRange.EmptyRange
+		 }
 		else
 			KeyRange.EmptyRange
 	}
 
 	def includes(key: String):Boolean = {
+		if (key==null) throw new NullKeyLookupException
+		else {
 		if ( this.start==null) {
 			if ( this.end==null ) true
 			else if ( key< this.end ) true
@@ -79,6 +86,7 @@ case class KeyRange(start: String, end: String) {
 		}
 		else 
 			key >= this.start && key < this.end	
+		}
 	}
 
 	private def min(a: String, b: String) = if(a < b) a else b
