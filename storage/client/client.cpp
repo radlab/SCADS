@@ -96,6 +96,24 @@ void put(StorageClient &client,
 	 const Record &rec) {
   client.put(ns,rec);
 }
+
+static void putRange(StorageClient &client,
+		     const NameSpace &ns,
+		     int s, int e) {
+  Record r;
+  r.__isset.key = true;
+  r.__isset.value = true;
+  ostringstream oss;
+  while(s <= e) {
+    oss.str("");
+    oss.width(5);
+    oss.fill('0');
+    oss << s++;
+    r.key.assign(oss.str());
+    r.value.assign(oss.str());
+    put(client,ns,r);    
+  }
+}
 	
 static 
 void get(StorageClient &client,
@@ -386,6 +404,19 @@ int main(int argc,char* argv[]) {
 	start_timing();
 	put(client,v[1],r);
 	cout << "Done"<<endl;
+	end_timing();
+	continue;
+      }
+
+      else if (cmd == "putrange") {
+	if (v.size() != 4) {
+	  cout << "Invalid putrange, use as: putrange namespace startkey endkey"<<endl;
+	  continue;
+	}
+	int s = atoi(v[2].c_str());
+	int e = atoi(v[3].c_str());
+	start_timing();
+	putRange(client,v[1],s,e);
 	end_timing();
 	continue;
       }
