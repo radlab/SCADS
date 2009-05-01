@@ -36,7 +36,7 @@ int fill_buf(int* sock, char* buf, int off) {
   if((recvd = recv(*sock,buf+off,BUFSZ-off,0)) == -1) { 
     perror("fill_buf");
     close(*sock);
-    exit(EXIT_FAILURE);
+    return 0;
   }
 #ifdef DEBUG
   if (recvd > 0) {
@@ -309,10 +309,10 @@ void sync_sync(void* s, DB* db, void* k, void* d) {
       if (args->k.size == 0) {
 	try {
 	  args->off = fill_dbt(&(args->sock),&(args->k),NULL,args->dbuf,args->dbuf+(args->off),&(args->end));
-	  if (args->k.flags)
-	    free(args->k.data);
 	} catch (ReadDBTException &e) {
 	  cerr << "Could not read key for sync: "<<e.what()<<endl;
+	  if (args->k.flags)
+	    free(args->k.data);
 	  // TODO: rethrow or return fail code
 	  return;
 	}
