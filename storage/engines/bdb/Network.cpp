@@ -121,7 +121,6 @@ int fill_dbt(int* sock, DBT* k, DBT* other, char* buf, char* pos, char** endp) {
 
 void do_throw(int errnum, string msg) {
   char* err = strerror(errnum);
-  int b = strlen(err);
   msg.append(err);
   TException te(msg);
   throw te;
