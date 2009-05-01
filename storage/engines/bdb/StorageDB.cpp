@@ -797,6 +797,7 @@ get_set(std::vector<Record> & _return, const NameSpace& ns, const RecordSet& rs)
   if (!responsible_for_set(ns,rs)) {
     NotResponsible nse;
     get_responsibility_policy(nse.policy,ns);
+    nse.__isset.policy = true;
     throw nse;
   }
   apply_to_set(ns,rs,apply_get,&_return);
@@ -869,6 +870,10 @@ put(const NameSpace& ns, const Record& rec) {
 bool StorageDB::
 set_responsibility_policy(const NameSpace& ns, const RecordSet& policy) {
   // TODO:  should probably lock to make this atomic
+
+#ifdef DEBUG
+  cerr << "Setting resp policy"<<endl;
+#endif
     
   if (policy.type == RST_KEY_VALUE_FUNC) { // illegal
     InvalidSetDescription isd;
@@ -1014,8 +1019,8 @@ get_responsibility_policy(RecordSet& _return, const NameSpace& ns) {
   if (!retval) { // okay, something was there
     string pol((char*)db_data.data,db_data.size);
 #ifdef DEBUG
-    cout << "deserialized str:"<<endl<<
-      pol<<endl;
+    //cout << "deserialized str:"<<endl<<
+    //pol<<endl;
 #endif
     int type;
     istringstream is(pol,istringstream::in);
@@ -1042,12 +1047,12 @@ get_responsibility_policy(RecordSet& _return, const NameSpace& ns) {
     }
 
 #ifdef DEBUG
-    cout << "Deserizalized resp_pol:"<<endl<<
+    /*cout << "Deserizalized resp_pol:"<<endl<<
       "\tType: "<<_return.type<<endl<<
       "\tLang: "<<_return.func.lang<<endl<<
       "\tSK: "<<_return.range.start_key<<endl<<
       "\tEK: "<<_return.range.end_key<<endl<<
-      "\tFUNC: "<<_return.func.func<<endl;
+      "\tFUNC: "<<_return.func.func<<endl;*/
 #endif
     free(db_data.data);
   } else if (retval == DB_NOTFOUND) {

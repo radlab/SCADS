@@ -764,6 +764,12 @@ int do_sync(int sock, StorageDB* storageDB, char* dbuf) {
   memset(&(args.d), 0, sizeof(DBT));
 
   storageDB->apply_to_set(ns,rs,sync_sync,&args,true);
+  if (!args.remdone) {
+    DB *db = storageDB->getDB(ns);
+    memset(&(args.k), 0, sizeof(DBT));
+    memset(&(args.d), 0, sizeof(DBT));
+    sync_sync(&args,db,NULL,NULL,NULL,NULL);
+  }
 
 #ifdef DEBUG
   cerr << "sync_sync set done, sending end message"<<endl;
