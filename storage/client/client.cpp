@@ -114,6 +114,26 @@ static void putRange(StorageClient &client,
     put(client,ns,r);    
   }
 }
+
+static void putRandom(StorageClient &client,
+		      const NameSpace &ns,
+		      int s, int e, int c) {
+  Record r;
+  r.__isset.key = true;
+  r.__isset.value = true;
+  ostringstream oss;
+  int rng = e-s;
+  for(int i = 0;i < c;i++) {
+    int v = (rand()%rng)+s;
+    oss.str("");
+    oss.width(5);
+    oss.fill('0');
+    oss << v;
+    r.key.assign(oss.str());
+    r.value.assign(oss.str());
+    put(client,ns,r);    
+  }
+}
 	
 static 
 void get(StorageClient &client,
@@ -179,21 +199,25 @@ static void filter(StorageClient &client,
 
 static int32_t count(StorageClient &client,
 		     const NameSpace &ns,
-		     const RecordKey &start_key,
-		     const RecordKey &end_key,
+		     const RecordKey *start_key,
+		     const RecordKey *end_key,
 		     int32_t offset= 0,
 		     int32_t limit = 0) {
   RecordSet rs;
-  rs.type = RST_RANGE;
-  rs.__isset.range = true;
-  RangeSet range;
-  range.__isset.start_key = true;
-  range.__isset.end_key = true;
-  range.offset = 0;
-  range.limit = 0;
-  range.start_key = start_key;
-  range.end_key = end_key;
-  rs.range = range;
+  if (start_key != NULL) {
+    rs.type = RST_RANGE;
+    rs.__isset.range = true;
+    RangeSet range;
+    range.__isset.start_key = true;
+    range.__isset.end_key = true;
+    range.offset = 0;
+    range.limit = 0;
+    range.start_key = *start_key;
+    range.end_key = *end_key;
+    rs.range = range;
+  } else {
+    rs.type = RST_ALL;
+  }
   return client.count_set(ns,rs);
 }
 
@@ -333,6 +357,14 @@ int main(int argc,char* argv[]) {
       exit(EXIT_FAILURE);
     }
   }
+
+  unsigned int s;
+  FILE* f = fopen("/dev/urandom","r");
+  fread(&s,sizeof(unsigned int),1,f);
+  fclose(f);
+  srand(s);
+
+
   const char* host = (optind>=argc)?THRIFT_HOST:argv[optind];
   //cout << "Connecting to: "<<host<<endl;
   if (timing)
@@ -417,6 +449,20 @@ int main(int argc,char* argv[]) {
 	int e = atoi(v[3].c_str());
 	start_timing();
 	putRange(client,v[1],s,e);
+	end_timing();
+	continue;
+      }
+
+      else if (cmd == "putrand") {
+	if (v.size() != 5) {
+	  cout << "Invalid putrand, use as: putrange namespace startkey endkey count"<<endl;
+	  continue;
+	}
+	int s = atoi(v[2].c_str());
+	int e = atoi(v[3].c_str());
+	int c = atoi(v[4].c_str());
+	start_timing();
+	putRandom(client,v[1],s,e,c);
 	end_timing();
 	continue;
       }
@@ -517,14 +563,16 @@ int main(int argc,char* argv[]) {
       }
 
       else if (cmd == "count") {
-	if (v.size() < 4) {
+	if (v.size() < 2) {
 	  printCountUsage();
 	  continue;
 	}
 	try {
 	  int32_t c;
 	  start_timing();
-	  c = count(client,v[1],v[2],v[3],
+	  c = count(client,v[1],
+		    v.size()<3?NULL:&v[2],
+		    v.size()<4?NULL:&v[3],
 		    v.size()>4?atoi(v[4].c_str()):0,
 		    v.size()>6?atoi(v[5].c_str()):0);
 	  end_timing();
