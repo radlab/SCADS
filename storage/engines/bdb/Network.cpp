@@ -342,7 +342,8 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
     }
     if (args->off == 0) {
       args->remdone = 1;
-      send_vals(args->sock,key,data);
+      if (key != NULL)
+	send_vals(args->sock,key,data);
       return;
     }
     try {
