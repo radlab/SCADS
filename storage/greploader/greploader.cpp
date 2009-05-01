@@ -1,12 +1,20 @@
 // load data in 100-byte records for grep test
 // loads 100 byte records
+// records will be sequential ids starting from a starting key (default 0, use -k to change)
+
 // -s [megabytes] to set number of megabytes to load (default: 10 megs)
 // -p [percent] percent of docs to have pattern (default: .0092337)
 // -c [xxx] three char pattern to put in positives (default: foo)
+// -T load over thrift (default is to use copy/sync port)
+// -P [port] (default: 9091)
+// -q quiet,don't print anything (except timing if you asked for it)
+// -t print load time
+// -k [start key] first key to load (default: 0)
 
 #include <string.h>
 #include <sstream>
 #include <iostream>
+#include <iomanip>
 #include <stdlib.h>
 #include <signal.h>
 #include <unistd.h>
@@ -23,7 +31,7 @@
 #define VERSTR "SCADSBDB0.1"
 
 #ifndef MSG_MORE
-	#define MSG_MORE 0
+#define MSG_MORE 0
 #endif
 
 #include <sys/time.h>
@@ -48,9 +56,8 @@ using namespace SCADS;
 
 using namespace boost;
 
-// Set these to the location and port of your thrift interface
 #define THRIFT_HOST "localhost"
-#define THRIFT_PORT 9090
+#define THRIFT_PORT 9091
 
 // timing stuff
 static struct timeval start_time, cur_time, diff_time;
@@ -64,7 +71,7 @@ static struct timeval start_time, cur_time, diff_time;
     }									\
   }
 
-static void printProgress(int perc, unsigned int curKey) {
+static void printProgress(int perc, unsigned long curKey) {
   int i;
   int ne = perc/4; //using 25 spaces
   ostringstream oss;
@@ -73,7 +80,7 @@ static void printProgress(int perc, unsigned int curKey) {
     cout << "=";
   for (i = (ne+1);i < 25;i++)
     cout << " ";
-  cout << "] "<<perc<<"% (Key: "<<curKey<<")";
+  cout << "] "<<perc<<"% (Key: "<<setfill('0')<<setw(10)<<curKey<<")";
   flush(cout);
 }
 
@@ -98,11 +105,12 @@ int main(int argc,char* argv[]) {
   char pattern[4];
   char key[11];
   char val[91];
-  int opt,timing = 1;
+  int opt,timing = 0;
   string keystring;
   string valstring;
-  char loadType = 0;
-
+  char loadType = 1;
+  char quiet = 0;
+  long startkey = 0;
 
   unsigned int s;
   FILE* f = fopen("/dev/urandom","r");
@@ -113,7 +121,7 @@ int main(int argc,char* argv[]) {
 
   sprintf(pattern,"%s","foo");
   int port = THRIFT_PORT;
-  while ((opt = getopt(argc,argv, "s:p:c:P:b")) != -1) {
+  while ((opt = getopt(argc,argv, "Ttqs:p:c:P:k:")) != -1) {
     switch (opt) {
     case 's':
       size = atoi(optarg);
@@ -127,26 +135,36 @@ int main(int argc,char* argv[]) {
     case 'c':
       snprintf(pattern,4,"%s",optarg);
       break;
-    case 'b':
-      loadType = 1;
+    case 'T':
+      loadType = 0;
+      break;
+    case 'q':
+      quiet = 1;
+      break;
+    case 't':
+      timing = 1;
+      break;
+    case 'k':
+      startkey = atol(optarg);
       break;
     default:
-      fprintf(stderr,"Usage: %s -s [size] -p [percent] -c [pattern] -P [port]\n",argv[0]);
+      fprintf(stderr,"Usage: %s [-Ttq] -s [size] -p [percent] -c [pattern] -P [port] -k [start key]\n",argv[0]);
       exit(EXIT_FAILURE);
     }
   }
   const char* host = (optind>=argc)?THRIFT_HOST:argv[optind];
-  //cout << "Connecting to: "<<host<<endl;
-  if (timing)
+  if (timing & !quiet)
     cout << "Will print timing info"<<endl;
 
-  long records = size*10000;
+  unsigned long records = size*10000;
+  unsigned long rlim = records+startkey;
   int pos = ceil(perc/100*records);
   int m = (records/pos)-1;
   int pcount = 0;
   int waspos = 1;
 
-  cout << "loading "<<records<<" records.  "<<pos<<" positives with pattern: "<<pattern<<endl;
+  if (!quiet)
+    cout << "loading "<<records<<" records. ("<<size<<" megs). "<<pos<<" positives with pattern: "<<pattern<<endl;
 
   
   if (loadType) { // do binary copy
@@ -160,7 +178,8 @@ int main(int argc,char* argv[]) {
     string ns("greptest");
     sprintf(buf,"%i",port);
 
-    cout << "doing a binary load on copy/sync port"<<endl;
+    if (!quiet)
+      cout << "doing a binary load on copy/sync port"<<endl;
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
@@ -226,19 +245,20 @@ int main(int argc,char* argv[]) {
       return 2;
     }
 
-    printProgress(0,0);
+    if (!quiet)
+      printProgress(0,0);
     start_timing();
     // now send all our keys
-    for(int i = 0;i < records;i++) {
-      if (i % 1000 == 0) 
-	printProgress(((100*i)/records),i);
+    for (unsigned long cr = 0,i = startkey;i < rlim;i++,cr++) {
+      if (!quiet && (cr % 1000 == 0))
+	printProgress(((100*cr)/records),i);
       
-      sprintf(key,"%010i",i);
+      sprintf(key,"%010li",i);
       if (waspos) {
 	fillval(val,pattern,0);
 	waspos = 0;
       }
-      if (i%m==0 && pcount<pos) {
+      if (cr%m==0 && pcount<pos) {
 	// make pos here
 	pcount++;
 	fillval(val,pattern,1);
@@ -266,7 +286,10 @@ int main(int argc,char* argv[]) {
       perror("Error sending final key: ");
       return 1;
     }
-    printProgress(100,records);
+    if (!quiet) {
+      printProgress(100,(rlim-1));
+      cout<<endl;
+    }
     end_timing();
   } else {
     shared_ptr<TTransport> socket(new TSocket(host, port));
@@ -278,21 +301,22 @@ int main(int argc,char* argv[]) {
     r.__isset.key = true;
     r.__isset.value = true;
     
-    cout << "Loading through the thrift interface"<<endl;
+    if (!quiet)
+      cout << "Loading through the thrift interface"<<endl;
 
     try {
 
       transport->open();
 
-      printProgress(0,0);
+      if (!quiet)
+	printProgress(0,0);
     
       start_timing();
-      for(int i = 0;i < records;i++) {
+      for (unsigned long cr = 0,i = startkey;i < rlim;i++,cr++) {
+	if (!quiet & (cr % 1000 == 0))
+	  printProgress(((100*cr)/records),i);
 
-	if (i % 1000 == 0) 
-	  printProgress(((100*i)/records),i);
-
-	sprintf(key,"%010i",i);
+	sprintf(key,"%010li",i);
 	if (waspos) {
 	  fillval(val,pattern,0);
 	  valstring.assign(val);
@@ -313,11 +337,13 @@ int main(int argc,char* argv[]) {
     } catch (TException &tx) {
       printf("ERROR: %s\n", tx.what());
     }
-    printProgress(100,records);
+    if (!quiet) {
+      printProgress(100,(rlim-1));
+      cout<<endl;
+    }
     end_timing();
   }
-
-  cout << "actual pos: "<<pcount<<endl;
-
+  if (!quiet)
+    cout << "actual pos: "<<pcount<<endl;
 
 }
