@@ -98,13 +98,13 @@ class TS_Sets < Test::Unit::TestCase
       @server.put("rangelimit", Record.new(:key => "0#{i}", :value => "val0#{i}"))
     end
     
-    # should return first four values from values matching the range
+    # should return first three values from values matching the range
     desired = RecordSet.new(
       :type =>RecordSetType::RST_RANGE,
       :range => RangeSet.new(:start_key=>"01",:end_key=>"08",:offset => 0,:limit => 3)
       )
     record_list = @server.get_set("rangelimit",desired)
-    assert_equal((1..4).map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}, record_list)
+    assert_equal((1..3).map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}, record_list)
     
    # should return last two values from values matching the range
     desired = RecordSet.new(

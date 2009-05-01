@@ -604,7 +604,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 	count++;
       }
       if (rs.range.__isset.limit &&
-	  count > rs.range.limit) {
+	  count >= rs.range.limit) {
 	ret = DB_NOTFOUND;
 	free(data.data);
 	break;
