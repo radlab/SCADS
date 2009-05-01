@@ -454,8 +454,6 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
    * they have to scan everything.  start at start_key for ranges
    */
 
-  cout << "first get"<<endl;
-
   switch (rs.type) {
   case RST_ALL:
   case RST_KEY_FUNC:
@@ -536,8 +534,6 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       throw ni;
     }
   }
-
-  cout << "done"<<endl;
 
   if (bulk) {
     DB_MULTIPLE_INIT(p, &cursor_data);
@@ -650,14 +646,12 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     if (bulk) {
       DB_MULTIPLE_KEY_NEXT(p,&cursor_data, retkey, retklen, retdata, retdlen);
       if (p == NULL) { // need to advance the cursor
-	cout << "advancing cursor"<<endl;
 	if ((ret = cursorp->get(cursorp, &cursor_key, &cursor_data, DB_NEXT | cursor_get_flags)) != 0) {
 	  if (ret != DB_NOTFOUND) 
 	    db_ptr->err(db_ptr,ret,"Cursor advance failed");
 	  free(cursor_data.data);
 	  break;
 	}
-	cout << "done"<<endl;
 	DB_MULTIPLE_INIT(p, &cursor_data);
 	DB_MULTIPLE_KEY_NEXT(p,&cursor_data, retkey, retklen, retdata, retdlen);
       }
