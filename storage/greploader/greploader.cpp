@@ -111,6 +111,7 @@ int main(int argc,char* argv[]) {
   char loadType = 1;
   char quiet = 0;
   long startkey = 0;
+  char stat;
 
   unsigned int s;
   FILE* f = fopen("/dev/urandom","r");
@@ -288,8 +289,14 @@ int main(int argc,char* argv[]) {
     }
     if (!quiet) {
       printProgress(100,(rlim-1));
-      cout<<endl;
+      cout<<endl<<"Waiting for success code."<<endl;
     }
+
+    if ((numbytes = recv(sockfd, &stat, 1, 0)) == -1)  
+      cerr << "Could not read final status, your load might not have worked"<<endl;
+    else if(!quiet)
+      cout << "Done"<<endl;
+
     end_timing();
   } else {
     shared_ptr<TTransport> socket(new TSocket(host, port));
