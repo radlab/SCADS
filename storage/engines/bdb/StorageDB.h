@@ -48,6 +48,8 @@ public:
 		    void(*to_apply)(void*,DB*,DBC*,DB_TXN*,void*,void*),void* apply_arg,
 		    bool invokeNone = false, bool bulk = false);
 
+  int flush_log(DB*);
+
   DB* getDB(const NameSpace& ns);
   int get_listen_port() { return listen_port; }
   DB_ENV* getENV() { return db_env; }

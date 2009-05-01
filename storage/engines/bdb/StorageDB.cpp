@@ -446,7 +446,8 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
   else
     db_ptr->cursor(db_ptr, txn, &cursorp, 0);
 
-
+  if (rs.type == RST_FILTER) 
+    count = rs.filter.length();
    
   /* get the initial cursor
    *
@@ -770,6 +771,12 @@ StorageDB(int lp,
   call_id = rb_intern("call");
 }
 
+int StorageDB::
+flush_log(DB* db) {
+  if (!(user_flags & DB_INIT_TXN))
+    db->sync(db,0);
+}
+
 void StorageDB::
 closeDBs() {
   cout << "Waiting for copy/sync thread to shut down... ";
@@ -903,6 +910,12 @@ put(const NameSpace& ns, const Record& rec) {
     db_ptr->err(db_ptr,ret,"Put failed");
     return false;
   }
+
+  ret = flush_log(db_ptr);
+  if (ret) {
+    db_ptr->err(db_ptr,ret,"Flush failed");
+    return false;
+  }
     
   return true;
 }
@@ -1030,8 +1043,9 @@ set_responsibility_policy(const NameSpace& ns, const RecordSet& policy) {
 #endif
 
   retval = mdDB->put(mdDB, NULL, &db_key, &db_data, 0);
-   
-  if (!retval)    
+  retval |= flush_log(mdDB);
+
+  if (!retval)
     return true;
   TException te("Something went wrong storing your responsibility policy");
   throw te;

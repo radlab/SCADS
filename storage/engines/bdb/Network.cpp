@@ -239,6 +239,9 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
     if (txn!=NULL && txn->commit(txn,0)) 
       cerr << "Commit of copy transaction failed"<<endl;
   }
+
+  if (!fail)
+    fail = storageDB->flush_log(db_ptr);
       
   return fail;
 }
@@ -779,10 +782,9 @@ int do_sync(int sock, StorageDB* storageDB, char* dbuf) {
   memset(&(args.d), 0, sizeof(DBT));
 
   storageDB->apply_to_set(ns,rs,sync_sync,&args,true);
-  if (!args.remdone) {
-    DB *db = storageDB->getDB(ns);
+  DB *db = storageDB->getDB(ns);
+  if (!args.remdone) 
     sync_sync(&args,db,NULL,NULL,NULL,NULL);
-  }
 
 #ifdef DEBUG
   cerr << "sync_sync set done, sending end message"<<endl;
@@ -792,7 +794,7 @@ int do_sync(int sock, StorageDB* storageDB, char* dbuf) {
   if (send(sock,&type,4,MSG_MORE) == -1) 
     cerr<<"Error sending end of sync_sync"<<endl;
 
-  return 0;
+  return storageDB->flush_log(db);
 }
 
 void* run_listen(void* arg) {
@@ -939,7 +941,6 @@ void* run_listen(void* arg) {
       close(as);
       continue;
     }
-
 #ifdef DEBUG      
     cout << "done.  stat: "<<stat<<endl;
 #endif
@@ -1307,6 +1308,9 @@ sync_set(const NameSpace& ns, const RecordSet& rs, const Host& h, const Conflict
   close(sock);
 
   if(stat || args.stat) // non-zero means a fail
+    return false;
+
+  if (flush_log(args.db_ptr))
     return false;
 
   return true;
