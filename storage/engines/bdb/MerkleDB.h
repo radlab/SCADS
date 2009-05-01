@@ -20,19 +20,23 @@ class MerkleDB {
   DB * pup; //Pending update database
 	DB * aly;//set of updates to apply
   
- private:
+ public:
   void enqueue(DBT * key, DBT * data);
 	void flushp();
-
- public:
+	void examine(DBT * key);
+	void close();
+	int direct_get(DB_TXN *txnid, DBT *key, DBT *data, u_int32_t flags);
+  MerkleDB();
+	
+ private:
   MerkleNode parent(MerkleNode * node);
   MerkleNode get(DBT * key);
 	void insert(DBT * key, DBT * data);
 	void update_hash(DBT * key, MerkleHash hash);
-  void toDBT(MerkleNode *m, DBT *dbt);
-  void close();
-  MerkleDB();
-
+	
+		
+  DBT dbtize(MerkleNode *m);
+	MerkleNode * merklize(DBT *dbt);
 };
 
 #endif // MERKLEDB_H
