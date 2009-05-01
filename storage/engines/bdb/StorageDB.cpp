@@ -76,7 +76,7 @@ char * strnstr(const char *s, const char *find, size_t slen)
 
 
 // set application functions
-void apply_get(void* vec,DB* db, void* k, void* d) {
+void apply_get(void* vec, DB* db, DBC* cursor, DB_TXN* txn, void* k, void* d) {
   vector<Record>* _return = (std::vector<Record>*)vec;
   Record r;
   DBT *key,*data;
@@ -88,16 +88,22 @@ void apply_get(void* vec,DB* db, void* k, void* d) {
   _return->push_back(r);
 }
 
-void apply_del(void* v, DB* db, void* k, void* d) {
+void apply_del(void* v, DB* db, DBC* cursor, DB_TXN* txn, void* k, void* d) {
+  int ret;
   DBT *key = (DBT*)k;
-  db->del(db,NULL,key,0);
+#ifdef DEBUG
+  cerr << "Deleting: "<<string((char*)key->data,key->size)<<endl;
+#endif
+  ret = db->del(db,NULL,key,0);
+  //cursor->del(cursor,0);
+  if (ret)
+    db->err(db,ret,"Delete failed");
 }
 
-void apply_inc(void* c, DB* db, void*k, void *d) {
+void apply_inc(void* c, DB* db, DBC* cursor, DB_TXN* txn, void*k, void *d) {
   int *i = (int*)c;
   (*i)++;
 }
-
 
 
 int StorageDB::
@@ -128,7 +134,7 @@ open_database(DB **dbpp,                  /* The DB handle that we are opening *
   dbp->set_errpfx(dbp, program_name);
 
   /* Set the open flags */
-  open_flags = DB_CREATE | DB_THREAD;
+  open_flags = DB_CREATE | DB_THREAD | DB_AUTO_COMMIT | DB_MULTIVERSION;
 
   /* Now open the database */
   ret = dbp->open(dbp,        /* Pointer to the database */
@@ -287,13 +293,14 @@ getDB(const NameSpace& ns) {
 
 void StorageDB::
 apply_to_set(const NameSpace& ns, const RecordSet& rs,
-	     void(*to_apply)(void*,DB*,void*,void*),void* apply_arg,
+	     void(*to_apply)(void*,DB*,DBC*,DB_TXN*,void*,void*),void* apply_arg,
 	     bool invokeNone) {
   DB* db_ptr;
   DBC *cursorp;
   DBT key, data;
+  DB_TXN *txn;
   int ret,count=0,skipped=0,rb_err;
-  u_int32_t cursor_flags;
+  u_int32_t cursor_get_flags;
   VALUE ruby_proc;
   VALUE funcall_args[3];
 
@@ -387,8 +394,18 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     }
   }
     
+  cursor_get_flags = 0;
+
   db_ptr = getDB(ns);
-  db_ptr->cursor(db_ptr, NULL, &cursorp, 0); 
+  txn = NULL;
+  /*
+  ret = db_env->txn_begin(db_env, NULL, &txn, DB_TXN_SNAPSHOT);
+  if (ret != 0) {
+    TException te("Could not start transaction");
+    throw te;
+  }
+  */
+  db_ptr->cursor(db_ptr, txn, &cursorp, DB_TXN_SNAPSHOT);
 
   memset(&key, 0, sizeof(DBT));
   memset(&data, 0, sizeof(DBT));
@@ -399,15 +416,15 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
   case RST_KEY_FUNC:
   case RST_KEY_VALUE_FUNC:
   case RST_FILTER:
-    ret = cursorp->get(cursorp, &key, &data, DB_FIRST);
+    ret = cursorp->get(cursorp, &key, &data, DB_FIRST | cursor_get_flags);
     break;
   case RST_RANGE:
     if (rs.range.__isset.start_key) {
       key.data = const_cast<char*>(rs.range.start_key.c_str());
       key.size = rs.range.start_key.length();
-      ret = cursorp->get(cursorp, &key, &data, DB_SET_RANGE);
+      ret = cursorp->get(cursorp, &key, &data, DB_SET_RANGE | cursor_get_flags);
     } else { // start from the beginning
-      ret = cursorp->get(cursorp, &key, &data, DB_FIRST);
+      ret = cursorp->get(cursorp, &key, &data, DB_FIRST | cursor_get_flags);
     }
     break;
   default:
@@ -415,21 +432,27 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     ni.function_name = "get_set with specified set type";
     if (cursorp != NULL) 
       cursorp->close(cursorp); 
+    if (txn!=NULL && txn->abort(txn)) 
+      cerr << "Transaction abort failed"<<endl;
     throw ni;
   }
 
   if (ret == DB_NOTFOUND) { // nothing to return
     if (cursorp != NULL) 
       cursorp->close(cursorp); 
+    if (txn!=NULL && txn->commit(txn,0)) 
+      cerr << "Transaction commit failed"<<endl;
     if (invokeNone)
       // no vals, but apply function wants to know that so invoke with nulls
-      (*to_apply)(apply_arg,db_ptr,NULL,NULL);      
+      (*to_apply)(apply_arg,db_ptr,cursorp,txn,NULL,NULL);      
     return;
   }
   if (ret != 0) { // another error
     cerr << "Error in first cursor get"<<endl;
     if (cursorp != NULL) 
       cursorp->close(cursorp); 
+    if (txn!=NULL && txn->abort(txn)) 
+      cerr << "Transaction abort failed"<<endl;
     return;
   }
 
@@ -445,6 +468,8 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 	free(data.data); // free because we're returning
 	if (cursorp != NULL)
 	  cursorp->close(cursorp);
+	if (txn!=NULL && txn->abort(txn)) 
+	  cerr << "Transaction abort failed"<<endl;
 	isd.__isset.s = true;
 	isd.__isset.info = true;
 	throw isd;
@@ -455,12 +480,14 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       free(data.data);  // ditto
       if (cursorp != NULL) 
 	cursorp->close(cursorp); 
+      if (txn!=NULL && txn->abort(txn)) 
+	cerr << "Transaction abort failed"<<endl;
       throw ni;
     }
   }
 
   if (rs.type == RST_ALL)
-    (*to_apply)(apply_arg,db_ptr,&key,&data);
+    (*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);
     
   else if (rs.type == RST_RANGE) {
     if (rs.range.__isset.end_key && 
@@ -469,16 +496,18 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       free(data.data);
       if (cursorp != NULL)
 	cursorp->close(cursorp);
+      if (txn!=NULL && txn->commit(txn,0)) 
+	cerr << "Transaction commit failed"<<endl;
       if (invokeNone)
 	// no vals, but apply function wants to know that so invoke with nulls
-	(*to_apply)(apply_arg,db_ptr,NULL,NULL);      
+	(*to_apply)(apply_arg,db_ptr,cursorp,txn,NULL,NULL);      
       return;
     }
     if (rs.range.__isset.offset &&
 	skipped < rs.range.offset) 
       skipped++;
     else {
-      (*to_apply)(apply_arg,db_ptr,&key,&data);
+      (*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);
       count++;
     }
   }
@@ -487,7 +516,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     count = rs.filter.length();
     if (data.size > count &&
 	strnstr((const char*)data.data,rs.filter.c_str(),data.size)) 
-      (*to_apply)(apply_arg,db_ptr,&key,&data);      
+      (*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);      
   }
     
   else if (rs.type == RST_KEY_FUNC || RST_KEY_VALUE_FUNC) {
@@ -508,12 +537,14 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       free(data.data);
       if (cursorp != NULL)
 	cursorp->close(cursorp);
+      if (txn!=NULL && txn->abort(txn)) 
+	cerr << "Transaction abort failed"<<endl;
       isd.__isset.s = true;
       isd.__isset.info = true;
       throw isd;
     }
     if (v == Qtrue)
-      (*to_apply)(apply_arg,db_ptr,&key,&data);
+      (*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);
     else if (v != Qfalse) {
       InvalidSetDescription isd;
       isd.s = rs;
@@ -521,6 +552,8 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       free(data.data);
       if (cursorp != NULL)
 	cursorp->close(cursorp);
+      if (txn!=NULL && txn->abort(txn)) 
+	cerr << "Transaction abort failed"<<endl;
       isd.__isset.s = true;
       isd.__isset.info = true;
       throw isd;
@@ -532,15 +565,17 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     free(data.data);
     if (cursorp != NULL) 
       cursorp->close(cursorp); 
+    if (txn!=NULL && txn->commit(txn,0)) 
+	cerr << "Transaction commit failed"<<endl;
     return;
   }
 
   free(data.data);
 
-  while ((ret = cursorp->get(cursorp, &key, &data, DB_NEXT)) == 0) {
+  while ((ret = cursorp->get(cursorp, &key, &data, DB_NEXT | cursor_get_flags)) == 0) {
     // RST_ALL set
     if (rs.type == RST_ALL)
-      (*to_apply)(apply_arg,db_ptr,&key,&data);
+      (*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);
 
     // RST_RANGE set
     else if (rs.type == RST_RANGE) {
@@ -554,7 +589,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 	  skipped < rs.range.offset) 
 	skipped++;
       else {
-	(*to_apply)(apply_arg,db_ptr,&key,&data);
+	(*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);
 	count++;
       }
       if (rs.range.__isset.limit &&
@@ -568,7 +603,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     else if (rs.type == RST_FILTER) {
       if (data.size > count &&
 	  strnstr((const char*)data.data,rs.filter.c_str(),data.size)) 
-	(*to_apply)(apply_arg,db_ptr,&key,&data);      
+	(*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);      
     }
 
     // RST_KEY_FUNC/RST_KEY_VALUE_FUNC set
@@ -590,6 +625,8 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 	free(data.data);
 	if (cursorp != NULL)
 	  cursorp->close(cursorp);
+	if (txn!=NULL && txn->abort(txn))
+	  cerr << "Transaction abort failed"<<endl;
 	isd.__isset.s = true;
 	isd.__isset.info = true;
 #ifdef DEBUG
@@ -598,7 +635,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 	throw isd;
       }
       if (v == Qtrue)
-	(*to_apply)(apply_arg,db_ptr,&key,&data);
+	(*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);
       else if (v != Qfalse) {
 	InvalidSetDescription isd;
 	isd.s = rs;
@@ -606,6 +643,8 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 	free(data.data);
 	if (cursorp != NULL)
 	  cursorp->close(cursorp);
+	if (txn!=NULL && txn->abort(txn))
+	  cerr << "Transaction abort failed"<<endl;
 	isd.__isset.s = true;
 	isd.__isset.info = true;
 	throw isd;
@@ -620,14 +659,20 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
   
   if (cursorp != NULL) 
     cursorp->close(cursorp); 
+  if (txn!=NULL &&
+      txn->commit(txn,0))
+    cerr << "Final transaction commit failed!"<<endl;
 #ifdef DEBUG
   cerr << "apply_to_set done"<<endl;
 #endif
 }
 
 StorageDB::
-StorageDB(int lp) :
-  listen_port(lp) {
+StorageDB(int lp,
+	  u_int32_t uf) :
+  listen_port(lp),
+  user_flags(uf) 
+{
   u_int32_t env_flags = 0;
   int ret;
     
@@ -637,9 +682,18 @@ StorageDB(int lp) :
     exit(-1);
   }
 
-  env_flags = DB_CREATE |    /* If the environment does not exist, create it. */
-    DB_THREAD |              /* This gets used by multiple threads */
-    DB_INIT_MPOOL;           /* Initialize the in-memory cache. */
+  env_flags = 
+    DB_CREATE |     /* If the environment does not exist, create it. */
+    DB_THREAD |     /* This gets used by multiple threads */
+    DB_INIT_LOCK |  /* Multiple threads might write */
+    DB_INIT_MPOOL|  /* Initialize the in-memory cache. */
+    user_flags;     /* Add in user specified flags */
+  
+  ret = db_env->set_lk_detect(db_env,DB_LOCK_DEFAULT);
+  if (ret != 0) {
+    cerr << "Could not set auto deadlock detection."<<endl;
+    exit(-1);
+  }
 
   ret = db_env->open(db_env,      /* DB_ENV ptr */
 		     env_dir,    /* env home directory */
@@ -694,6 +748,14 @@ closeDBs() {
     else
       cout << " [OK]"<<endl;
   }
+  if (db_env != NULL) {
+    rc = db_env->close(db_env, 0);
+    if (rc != 0) {
+      fprintf(stderr, "environment close failed: %s\n",
+ 	      db_strerror(rc));
+    }
+  }
+
   rc = pthread_rwlock_unlock(&dbmap_lock);
   chkLock(rc,"dbmap_lock","unlock after cloing down");
 }
@@ -795,41 +857,13 @@ put(const NameSpace& ns, const Record& rec) {
 
   /* gross that we're going in and out of c++ strings,
      consider storing the whole string object */
-
-  switch (ret) {
-  case DB_KEYEXIST:
-    db_ptr->err(db_ptr, ret,"Put failed because key %s already exists", key.data);
-    break;
-  case DB_LOCK_DEADLOCK:
-    db_ptr->err(db_ptr, ret,"Put failed because a transactional database environment operation was selected to resolve a deadlock.");
-    break;
-  case DB_LOCK_NOTGRANTED:
-    db_ptr->err(db_ptr, ret,"Put failed because a Berkeley DB Concurrent Data Store database environment configured for lock timeouts was unable to grant a lock in the allowed time.");
-    break;
-  case DB_REP_HANDLE_DEAD:
-    db_ptr->err(db_ptr, ret,"Put failed because the database handle has been invalidated because a replication election unrolled a committed transaction.");
-    break;
-  case DB_REP_LOCKOUT:
-    db_ptr->err(db_ptr, ret,"Put failed because the operation was blocked by client/master synchronization.");
-    break;
-    /*
-      case EACCES:
-      db_ptr->err(db_ptr, ret,"Put failed because an attempt was made to modify a read-only database.");
-      break;
-      case INVAL:
-      db_ptr->err(db_ptr, ret,"Put failed because an attempt was made to add a record to a fixed-length database that was too large to fit; an attempt was made to do a partial put; an attempt was made to add a record to a secondary index; or if an invalid flag value or parameter was specified.");
-      break;
-      case ENOSPC:
-      db_ptr->err(db_ptr, ret,"Put failed because a btree exceeded the maximum btree depth (255).");
-      break;
-    */
-  default:
-    break;
+  
+  if (ret) {
+    db_ptr->err(db_ptr,ret,"Put failed");
+    return false;
   }
     
-  if (!ret) 
-    return true;
-  return false;
+  return true;
 }
 
 bool StorageDB::
@@ -941,8 +975,15 @@ set_responsibility_policy(const NameSpace& ns, const RecordSet& policy) {
   db_key.data = const_cast<char*>(ns.c_str());
   db_key.size = ns.length();
 
-  db_data.data = const_cast<char*>(os.str().c_str());
+  char buf[os.str().length()+1];
+  sprintf(buf,"%s",os.str().c_str());
+  db_data.data = buf;
   db_data.size = os.str().length();
+
+#ifdef DEBUG
+  printf("About to put: %s\n",buf);
+#endif
+
   retval = mdDB->put(mdDB, NULL, &db_key, &db_data, 0);
    
   if (!retval)    
@@ -1068,7 +1109,7 @@ TNonblockingServer *nonblockingServer;
 
 static shared_ptr<StorageDB> storageDB;
 
-int workerCount,lp;
+int workerCount,lp,uf;
 
 char stopping = 0;
 
@@ -1087,6 +1128,8 @@ Starts the BerkeleyDB storage layer.\n\n\
         \tDefault: 10\n\
   -l PORT\tStart sync/move listen thread on port PORT\n\
 	\tDefault: 9091\n\
+  -x\t\tDon't use transactions.\n\
+	\t(Once an env has txn support enabled it cannot be disabled, and vice versa)\n\
   -h\t\tShow this help\n\n",
 	  prgm);
 }
@@ -1099,8 +1142,9 @@ void parseArgs(int argc, char* argv[]) {
   serverType = ST_POOL;
   workerCount = 10;
   lp = 9091;
+  uf = DB_INIT_TXN | DB_INIT_LOG | DB_MULTIVERSION;
 
-  while ((opt = getopt(argc, argv, "hp:d:t:n:l:")) != -1) {
+  while ((opt = getopt(argc, argv, "hxp:d:t:n:l:")) != -1) {
     switch (opt) {
     case 'p':
       port = atoi(optarg);
@@ -1128,6 +1172,9 @@ void parseArgs(int argc, char* argv[]) {
       break;
     case 'l':
       lp = atoi(optarg);
+      break;
+    case 'x':
+      uf = 0;
       break;
     case 'h':
     default: /* '?' */
@@ -1173,7 +1220,7 @@ int main(int argc, char **argv) {
   parseArgs(argc,argv);
 
   shared_ptr<TProtocolFactory> protocolFactory(new TBinaryProtocolFactory());
-  shared_ptr<StorageDB> handler(new StorageDB(lp));
+  shared_ptr<StorageDB> handler(new StorageDB(lp,uf));
   shared_ptr<TProcessor> processor(new StorageProcessor(handler));
   shared_ptr<TServerTransport> serverTransport(new TServerSocket(port));
   shared_ptr<TTransportFactory> transportFactory(new TBufferedTransportFactory());

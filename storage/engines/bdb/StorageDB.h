@@ -25,9 +25,10 @@ private:
   map<const NameSpace,DB*> dbs;
   pthread_t listen_thread;
   int listen_port;
+  u_int32_t user_flags;
 
 public:
-  StorageDB(int);
+  StorageDB(int,u_int32_t);
 
 private:
   int open_database(DB **dbpp,                  /* The DB handle that we are opening */
@@ -44,11 +45,12 @@ private:
 
 public:
   void apply_to_set(const NameSpace& ns, const RecordSet& rs,
-		    void(*to_apply)(void*,DB*,void*,void*),void* apply_arg,
+		    void(*to_apply)(void*,DB*,DBC*,DB_TXN*,void*,void*),void* apply_arg,
 		    bool invokeNone = false);
 
   DB* getDB(const NameSpace& ns);
   int get_listen_port() { return listen_port; }
+  DB_ENV* getENV() { return db_env; }
 
   void closeDBs();
   void get(Record& _return, const NameSpace& ns, const RecordKey& key);

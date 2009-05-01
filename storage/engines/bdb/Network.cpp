@@ -15,6 +15,7 @@
 #define BACKLOG 10
 #define VERSTR "SCADSBDB0.1"
 #define BUFSZ 1024
+#define COMMIT_LIMIT 20000
 
 extern char stopping;
 extern ID call_id;
@@ -130,8 +131,10 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
   char *end;
   int off = 0;
   DB* db_ptr;
+  DB_ENV* db_env;
   DBT k,d;
   int fail = 0;
+  int ic;
 
   // do all the work
   memset(&k, 0, sizeof(DBT));
@@ -154,8 +157,33 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
 #endif
   db_ptr = storageDB->getDB(ns);
 
-  for(;;) { // now read all our key/vals
+  DB_TXN *txn;
+  txn = NULL;
+  db_env = storageDB->getENV();
+  fail = db_env->txn_begin(db_env, NULL, &txn, DB_TXN_SNAPSHOT);
+  if (fail != 0) {
+    TException te("Could not start transaction");
+    throw te;
+  }
+  
+  for(ic=0;;ic++) { // now read all our key/vals
     int kf,df;
+    
+    if (ic != 0 &&
+	txn != NULL &&
+	ic % COMMIT_LIMIT == 0) {
+      // gross, commit every 10000 so we don't run out of locks
+      if (txn!=NULL && txn->commit(txn,0)) {
+	cerr << "Commit of copy transaction failed in loop"<<endl;
+	return 1;
+      }
+      fail = db_env->txn_begin(db_env, NULL, &txn, DB_TXN_SNAPSHOT);
+      if (fail != 0) {
+	TException te("Could not start transaction");
+	throw te;
+      }
+    }
+
     memset(&k, 0, sizeof(DBT));
     memset(&d, 0, sizeof(DBT));
     try {
@@ -164,6 +192,8 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
       cerr << "Could not read key in copy: "<<e.what()<<endl;
       if (k.flags)
 	free(k.data);
+      if (txn!=NULL && txn->abort(txn)) 
+	cerr << "Transaction abort failed"<<endl;
       return 1;
     }
     if (off == 0)
@@ -176,6 +206,8 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
 	free(k.data);
       if (d.flags)
 	free(d.data);
+      if (txn!=NULL && txn->abort(txn)) 
+	cerr << "Transaction abort failed"<<endl;
       return 1;
     }
 #ifdef DEBUG
@@ -188,7 +220,7 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
     d.flags = 0;
     d.dlen = 0;
 
-    if (db_ptr->put(db_ptr, NULL, &k, &d, 0) != 0) {
+    if (db_ptr->put(db_ptr, txn, &k, &d, 0) != 0) {
       fail = 1;
       break;
     }
@@ -198,6 +230,17 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
     if (df)
       free(d.data);
   }
+  if (fail) {
+    if (txn!=NULL && txn->abort(txn)) 
+      cerr << "Transaction abort failed"<<endl;
+  }
+  else {
+    if (txn!=NULL && txn->commit(txn,0)) 
+      cerr << "Commit of copy transaction failed"<<endl;
+    else
+      cerr << "Commited final copy transaction"<<endl;
+  }
+      
   return fail;
 }
 
@@ -231,10 +274,12 @@ int deserialize_policy(char* buf, ConflictPolicy* pol) {
 struct sync_sync_args {
   int sock;
   int off;
+  int ic;
   char* dbuf;
   char *end;
   ConflictPolicy* pol;
   DBT k,d;
+  DB_ENV *db_env;
   int remdone;
 };
 
@@ -249,13 +294,31 @@ void send_vals(int sock,DBT* key, DBT* data) {
     do_throw(errno,"Failed to send data: ");
 }
 
-void apply_dump(void *s, DB* db, void *k, void *d) {
+void apply_dump(void *s, DB* db, DBC* cursor, DB_TXN *txn, void *k, void *d) {
   int* sock = (int*)s;
   send_vals(*sock,(DBT*)k,(DBT*)d);
 }
 
-void sync_sync(void* s, DB* db, void* k, void* d) {
-  int kf,df,minl;
+void sync_sync_put(DB* db, DB_TXN* txn, struct sync_sync_args* args) {
+  if (db->put(db, txn, &(args->k), &(args->d), 0) != 0) 
+    cerr << "Failed to put remote key: "<<string((char*)args->k.data,args->k.size)<<endl;
+
+  if (txn!=NULL) {
+    if ((++(args->ic) % COMMIT_LIMIT) == 0) {
+      if (txn->commit(txn,0)) {
+	cerr << "Commit of sync_sync transaction failed in loop"<<endl;
+	return;
+      }
+      if ((args->db_env)->txn_begin(args->db_env, NULL, &txn, DB_TXN_SNAPSHOT)) {
+	TException te("Could not start transaction");
+	throw te;
+      }
+    }
+  }
+}
+
+void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
+  int kf,df,minl,ic;
   DBT *key,*data;
   struct sync_sync_args* args = (struct sync_sync_args*)s;
   key = (DBT*)k;
@@ -303,7 +366,8 @@ void sync_sync(void* s, DB* db, void* k, void* d) {
 #ifdef DEBUG
     cerr<<"No local data, inserting all remote keys"<<endl;
 #endif
-    for(;;) { 
+    
+    for(ic=0;;ic++) { 
       int kf,df;
 
       if (args->k.size == 0) {
@@ -346,8 +410,8 @@ void sync_sync(void* s, DB* db, void* k, void* d) {
       args->d.flags = 0;
       args->d.dlen = 0;
 
-      if (db->put(db, NULL, &(args->k), &(args->d), 0) != 0) 
-	cerr << "Failed to put remote key: "<<string((char*)args->k.data,args->k.size)<<endl;
+      
+      sync_sync_put(db,txn,args);
 
       if (kf)
 	free(args->k.data);
@@ -385,8 +449,7 @@ void sync_sync(void* s, DB* db, void* k, void* d) {
       cerr << "Local key is longer, Inserting to catch up."<<endl;
 #endif
 
-      if (db->put(db, NULL, &(args->k), &(args->d), 0) != 0) 
-	cerr << "Failed to put remote key: "<<string((char*)args->k.data,args->k.size)<<endl;
+      sync_sync_put(db,txn,args);
 
       if (kf)
 	free(args->k.data);
@@ -455,8 +518,7 @@ void sync_sync(void* s, DB* db, void* k, void* d) {
       args->d.flags = 0;
       args->d.dlen = 0;
 
-      if (db->put(db, NULL, &(args->k), &(args->d), 0) != 0) 
-	cerr << "Failed to put remote key: "<<string((char*)args->k.data,args->k.size)<<endl;
+      sync_sync_put(db,txn,args);
 
       if (kf)
 	free(args->k.data);
@@ -528,10 +590,9 @@ void sync_sync(void* s, DB* db, void* k, void* d) {
       else if (data->size < args->d.size ||
 	       dcmp < 0) { // remote is greater, insert, no need to send back
 #ifdef DEBUG
-      cerr << "Local data is less, inserting greater value locally."<<endl;
+	cerr << "Local data is less, inserting greater value locally."<<endl;
 #endif
-	if (db->put(db, NULL, &(args->k), &(args->d), 0) != 0) 
-	  cerr << "Failed to put remote key: "<<string((char*)args->k.data,args->k.size)<<endl;
+	sync_sync_put(db,txn,args);
       }
 
     }
@@ -566,20 +627,25 @@ void sync_sync(void* s, DB* db, void* k, void* d) {
 #ifdef DEBUG
 	cerr<<"Ruby func returned something different from my local value, inserting locally"<<endl;
 #endif
-	memset(&rd, 0, sizeof(DBT));
-	rd.data = newval;
-	rd.size = strlen(newval);
-	if (db->put(db, NULL, key, &rd, 0) != 0) 
-	  cerr << "Failed to put ruby key: "<<string((char*)args->k.data,args->k.size)<<endl;
+	void *td = args->d.data;
+	u_int32_t ts = args->d.size;
+	args->d.data = newval;
+	args->d.size = strlen(newval);
+	sync_sync_put(db,txn,args);
+	args->d.data = td;
+	args->d.size = ts;
       }
       if (strncmp(newval,(char*)args->d.data,args->d.size)) {
 #ifdef DEBUG
 	cerr<<"Ruby func returned something different from remote key, sending over"<<endl;
 #endif
-	memset(&rd, 0, sizeof(DBT));
-	rd.data = newval;
-	rd.size = strlen(newval);
-	send_vals(args->sock,key,&rd);
+	void *td = args->d.data;
+	u_int32_t ts = args->d.size;
+	args->d.data = newval;
+	args->d.size = strlen(newval);
+	send_vals(args->sock,key,&(args->d));
+	args->d.data = td;
+	args->d.size = ts;
       }
     }
     else {
@@ -690,7 +756,9 @@ int do_sync(int sock, StorageDB* storageDB, char* dbuf) {
   args.dbuf = dbuf;
   args.end = end;
   args.off = off;
+  args.ic = 0;
   args.pol = &policy;
+  args.db_env = storageDB->getENV();
   args.remdone = 0;
   memset(&(args.k), 0, sizeof(DBT));
   memset(&(args.d), 0, sizeof(DBT));
@@ -781,10 +849,10 @@ void* run_listen(void* arg) {
 
     as = accept(sock,(struct sockaddr *)&peer_addr,&peer_addr_len);
 
+#ifdef DEBUG
     inet_ntop(peer_addr.ss_family,
 	      get_in_addr((struct sockaddr *)&peer_addr),
 	      abuf, sizeof(abuf));
-#ifdef DEBUG
     printf("server: got connection from %s\n", abuf);
 #endif
 
@@ -848,7 +916,7 @@ void* run_listen(void* arg) {
       }
     }
     else {
-      cerr <<"Unknown operation requested on copy/sync port"<<endl;
+      cerr <<"Unknown operation requested on copy/sync port: "<<((int)dbuf[0])<<endl;
       close(as);
       continue;
     }
@@ -943,7 +1011,7 @@ int open_socket(const Host& h) {
   return sock;
 }
 
-void apply_copy(void* s, DB* db, void* k, void* d) {
+void apply_copy(void* s, DB* db, DBC* cursor, DB_TXN* txn, void* k, void* d) {
   int *sock = (int*)s;
   DBT *key,*data;
   key = (DBT*)k;
@@ -1008,7 +1076,7 @@ copy_set(const NameSpace& ns, const RecordSet& rs, const Host& h) {
 
 
 // same as copy, just send all our keys
-void sync_send(void* s, DB* db, void* k, void* d) {
+void sync_send(void* s, DB* db, DBC* cursor, DB_TXN* txn, void* k, void* d) {
   int *sock = (int*)s;
   DBT *key,*data;
   key = (DBT*)k;
@@ -1029,6 +1097,7 @@ void sync_send(void* s, DB* db, void* k, void* d) {
 struct sync_recv_args {
   int sock;
   DB* db_ptr;
+  DB_ENV* db_env;
   int stat;
 };
 
@@ -1037,17 +1106,41 @@ struct sync_recv_args {
 void* sync_recv(void* arg) {
   char *end;
   int off = 0;
+  int ic;
   DBT k,d;
   char dbuf[BUFSZ];
   struct sync_recv_args* args = (struct sync_recv_args*)arg;
   
   int sock = args->sock;
   DB* db_ptr = args->db_ptr;
+  DB_ENV* db_env = args->db_env;
+  DB_TXN* txn;
   args->stat = 0;
   end = dbuf;
 
-  for(;;) { // now read all our key/vals
+  txn = NULL;
+  if (db_env->txn_begin(db_env, NULL, &txn, DB_TXN_SNAPSHOT)) {
+    cerr << "Could not start transaction in sync_recv"<<endl;
+    return NULL;
+  }
+
+  for(ic=0;;ic++) { // now read all our key/vals
     int kf,df;
+
+    if (txn != NULL) {
+      if ( ic != 0 &&
+	   (ic % COMMIT_LIMIT) == 0 ) {
+	if (txn->commit(txn,0)) {
+	  cerr << "Commit of sync_recv transaction failed in loop"<<endl;
+	  return NULL;
+	}
+	if (db_env->txn_begin(db_env, NULL, &txn, DB_TXN_SNAPSHOT)) {
+	  cerr << "Could not start transaction in sync_recv"<<endl;
+	  return NULL;
+	}
+      }
+    }
+
     memset(&k, 0, sizeof(DBT));
     memset(&d, 0, sizeof(DBT));
     try {
@@ -1086,7 +1179,7 @@ void* sync_recv(void* arg) {
     d.flags = 0;
     d.dlen = 0;
 
-    if (db_ptr->put(db_ptr, NULL, &k, &d, 0) != 0) {
+    if (db_ptr->put(db_ptr, txn, &k, &d, 0) != 0) {
       cerr<<"Couldn't insert synced key: "<<string((char*)k.data,k.size)<<endl;
       continue;
     }
@@ -1095,6 +1188,9 @@ void* sync_recv(void* arg) {
       free(k.data);
     if (df)
       free(d.data);
+  }
+  if (txn != NULL && txn->commit(txn,0)) {
+    cerr<<"could not commit sync_recv transaction"<<endl;
   }
 }
 
@@ -1164,6 +1260,7 @@ sync_set(const NameSpace& ns, const RecordSet& rs, const Host& h, const Conflict
   struct sync_recv_args args;
   args.sock = sock;
   args.db_ptr = getDB(ns);
+  args.db_env = db_env;
 
   pthread_t recv_thread;
   (void) pthread_create(&recv_thread,NULL,
