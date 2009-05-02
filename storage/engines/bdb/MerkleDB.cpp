@@ -128,11 +128,16 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
 	* 	so we're inserting a new node.  We need to find out where this node belongs (i.e. who
 	* 	his parent is going to be)  We're constructing a patricia trie, so the parent of the
 	*   new key is the longest prefix it shares with it's right & left-hand neighbors. (exercise
-	*   left to reader) At this point, we have those neighbors, so we can calculate where the
-	*   the parent should go. The parent node may or may not exist.  If it doesn't we'll need
-	*   to split an edge to an existing node. (patricia trie nodes may have multiple characters
-	*   per edge)
+	*   left to reader) At this point, we have the right neighbors, so we need the left neighbor
+	*   to calculate where our new node integrates into the tree. 
 	*/
+	
+	//We're going to have to create (at least) on additional node, so set up data structures for them
+	DBT newd;
+	MerkleNode newn;
+	memset(&newd, 0, sizeof(DBT));
+	memset(&newn, 0, sizeof(MerkleNode));
+	newd.size = sizeof(MerkleNode);
 	
 	//Find the left-side neighbor
 	ret = cursorp->get(cursorp, &ckey, &cdata, DB_PREV);
@@ -145,61 +150,63 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
 		return_with_error(ret);
 	}
 	
+	//The longest prefix our new node shares with it's neighbors will be its new parent
 	u_int32_t prefixl = max(prefix_length(key, &leftk), prefix_length(key, &rightk));
-	
-	//Create structures for new key-merkle node pair. offset is the number of chararacters to  
-	//remove from string to yield key of parent.
-	DBT newd;
-	MerkleNode newn;
-	memset(&newd, 0, sizeof(DBT));
-	memset(&newn, 0, sizeof(MerkleNode));
-	newd.size = sizeof(MerkleNode);
-	newn.offset = key->size - prefixl;
-	
+
+	//prefixl may be equal to length of the key.  In this case, the inserted node 
+	//(conceptually) has an "empty string" edge from its parent.  As an optimization,
+	//in this case, we just merge the data of the child with the parent and don't
+	//actually create a distinct node for the child.
 	DBT parentk;
 	memset(&parentk, 0, sizeof(DBT));
 	parentk.data = key->data;
-	parentk.size = prefixl; //Take inserted key, truncate to prefix_length
+	parentk.size = prefixl; //Take inserted key, truncate to prefix_length 
 	
-	/* position the cursor to see if the parent node exists (and create it if necessary) */
+	/* configure the cursor to see if the parent node exists (or position ourselves to create it) */
 	ckey.data = parentk.data;
 	ckey.size = parentk.size;
 	ret = cursorp->get(cursorp, &ckey, &cdata, DB_SET_RANGE);
 	if (0 == ret) {
-		//check if node exists for our prefix
+		//check if parent node exists
 		if (not dbt_equal(&ckey, &parentk)) { 
-			//It doesn't, so create it.
-			DBT parentd;
-			MerkleNode parentn;
-			memset(&parentd, 0, sizeof(DBT));
-			memset(&parentn, 0, sizeof(MerkleNode));
-			parentd.data = &parentn;
-			parentd.size = sizeof(MerkleNode);
+			// No node exists, so we have to split an edge.  Conveniently, the node
+			// immediately after our parent is the child whose parent edge we need
+			// to split (he'll become our new sibling) and the cursor is now pointing at him.
+			// Since we're already using the word "parent," we'll call our siblings' parent
+			// "estranged_parent"
+			DBT estranged_parentk = parent(&ckey, (MerkleNode *)(&cdata.data));
 			
-			/* Creating a new node representing a prefix implies that were
-			 * splitting an existing edge.  The descendant of that edge will
-			 * be our new sibling, and his (old) parent will be the parent of 
-			 * the new (parent) node we are inserting. 
-			*/
-			MerkleNode * siblingn = (MerkleNode *)(&cdata.data);
-			DBT sibling_parentk = parent(&ckey, siblingn);
-			//The MerkleNode structure uses an int as a pointer to it's parent.
-			//Since nodes are named by their complete key, a node's parent
-			//is its own key minus the last node->offset characters.
-			//We need to update these values for the elements involved in the split.
-			parentn.offset = parentk.size - sibling_parentk.size;
-				
-			siblingn->offset = (siblingn->offset - parentn.offset);
-			ret = cursorp->put(cursorp, &ckey, &cdata, DB_CURRENT); //Sibling is under cursor.
+			//TODO: Consider the impact of the order of these pointer updates on the "children_of(key)" index 
+			
+			//Need to update our siblings parent pointer
+			(((MerkleNode *)(&cdata.data))->offset) = ckey.size - estranged_parentk.size;
+			ret = cursorp->put(cursorp, &ckey, &cdata, DB_CURRENT);
 			return_with_error(ret);
 			
-			ret = cursorp->put(cursorp, &parentk, &parentd, 0);
+			//Now we need to insert the node that splits the edge
+			ckey.data = parentk.data;
+			ckey.size = parentk.size;
+			cdata.data = &newn;
+			cdata.size = sizeof(MerkleNode);
+			newn.offset = parentk.size - estranged_parentk.size;
+			//We don't need to set the hash here, since that will happen naturally when we start walking up the tree
+			ret = cursorp->put(cursorp, &ckey, &cdata, DB_KEYFIRST);
 			return_with_error(ret);
 		}
-		/* Our parent is guaranteed to exist now. (Parent node either existed, or we created it)  */
-		newn.offset = key->size - parentk.size;
-		ret = cursorp->put(cursorp, key, &newd, 0);
-		return_with_error(ret);
+		/* parent is guaranteed to exist now. (Parent node either existed, or we created it)  */
+		if (parentk.size != key->size) {
+			//The inserted node has a non-empty string suffix relative to it's common prefix, so we
+			//need to add a node for it.
+			ckey.data = key->data;
+			ckey.size = key->size;
+			cdata.data = &newn;
+			memset(&newn, 0, sizeof(MerkleNode));
+			newn.offset = key->size - parentk.size;
+			ret = cursorp->put(cursorp, &ckey, &cdata, DB_KEYFIRST);
+			return_with_error(ret);
+		}
+		//update_hash(key)
+		//add parent to apply_set
 	} else if (DB_NOTFOUND == ret) {
 		//Should be impossible, our parent is a prefix of us and if we can't find it directly, there
 		//must be some key containing it as a sole prefix (which would lexically sort after it).
@@ -229,6 +236,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
 		end
 	*/
 }
+
 
 //hashes the supplied value with the hashes of the children on key
 void MerkleDB::update(DBT * key, MerkleHash hash) {
