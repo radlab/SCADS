@@ -27,7 +27,7 @@ public:
 	DB * aly;//set of updates to apply
   
  public:
-  void enqueue(DBT * key, DBT * data);
+  int enqueue(DBT * key, DBT * data);
   void flushp();
   void examine(DBT * key);
   void close();

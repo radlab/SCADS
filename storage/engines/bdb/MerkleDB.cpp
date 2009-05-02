@@ -18,11 +18,11 @@ using namespace SCADS;
 
 int length_sort(DB *dbp, const DBT *a, const DBT *b) {
   if (a->size > b->size) {
-    return 1;
-  } else if (a->size == b->size) {
-    return 0;
-  } else {
     return -1;
+  } else if (a->size == b->size) {
+		return memcmp(a->data, b->data, a->size);
+  } else {
+    return 1;
   }
 }
 
@@ -41,6 +41,7 @@ MerkleDB::MerkleDB(const string& ns,
   db_create(&aly, db_env, 0);
 
   //Define longest-key first sorting for queue db's
+	//TODO: Error; method not permitted after handle's open method
   pup->set_bt_compare(pup, length_sort);
   aly->set_bt_compare(aly, length_sort);
   //TODO: Define sorting order on aly & pup database, longest keys first
@@ -54,8 +55,6 @@ MerkleDB::MerkleDB(const string& ns,
   sprintf(filebuf,"%s.alydb",ns.c_str());
   aly->open(aly, NULL, filebuf, NULL, DB_BTREE, DB_CREATE, 0);
 	
-
-
   pthread_mutex_init(&sync_lock, NULL);
 
   /** Create root node for dbp, if it doesn't exist **/
@@ -84,15 +83,17 @@ MerkleDB::MerkleDB(const string& ns,
 }
 
 //Adds key->hash(data) to pending update queue
-void MerkleDB::enqueue(DBT * key, DBT * data) {
+int MerkleDB::enqueue(DBT * key, DBT * data) {
   int rdm = rand() % 1000;
-  std::cout << "enqueue(\"" << dbt_string(key) << "\",\"" << dbt_string(data) << "\") with hash:" << rdm << "\n";
+  std::cout << "enqueue(\"" << dbt_string(key) << "\",\"" << dbt_string(data) << "\") with hash:" << rdm << "\t";
   MerkleHash hash = (MerkleHash)(rdm); //TODO: hash(data);
   DBT h;
   memset(&h, 0, sizeof(DBT));
   h.data = &hash;
   h.size = sizeof(MerkleHash);
-  pup->put(pup, NULL, key, &h, 0);
+	rdm = pup->put(pup, NULL, key, &h, 0);
+	std::cout << db_strerror(rdm) << "\n";
+	return rdm;
 }
 
 //Clear the pending update queue
@@ -274,7 +275,10 @@ void MerkleDB::print_tree() {
       std::cout << " ";
     }
     char * sstart = ((char *)(key.data)+prefix);
-    std::cout << std::string(sstart,suffix);
+    std::cout << std::string(sstart,suffix); 
+//		DBT parent = parent(&key, ((MerkleNode *)data.data));
+		DBT parentk = parent(&key, (MerkleNode *)(data.data));
+		std::cout << "-->" << dbt_string(&parentk);
     std::cout << "                     ";
     std::cout << ((MerkleNode *)data.data)->digest << "\n";
   }
@@ -344,10 +348,7 @@ void MerkleDB::examine(DBT * key) {
 
 int MerkleDB::dbt_equal(DBT * db1, DBT * db2) {
   bool c1 = ((db1)->size) == ((db2)->size);
-  int c2;
-  for (int i = 0; i < db1->size; i++) {
-    c2 = memcmp(((db1)->data), ((db2)->data), db1->size);
-  }
+  int c2 = memcmp(((db1)->data), ((db2)->data), db1->size);
   return (c1 and (c2 == 0));
 }
 
