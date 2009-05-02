@@ -29,6 +29,7 @@ class MerkleDB {
 	//debug methods
 	u_int32_t prefix_length(DBT * key1, DBT * key2);
 	int direct_get(DB_TXN *txnid, DBT *key, DBT *data, u_int32_t flags);
+	void print_tree();
 	
  private:
   MerkleNode parent(MerkleNode * node);

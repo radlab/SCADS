@@ -53,7 +53,7 @@ MerkleDB::MerkleDB() {
 //Adds key->hash(data) to pending update queue
 void MerkleDB::enqueue(DBT * key, DBT * data) {
 	int rdm = rand() % 1000;
-	std::cout << "enqueue(\"" << dbt_string(key) << "\",\"" << dbt_string(key) << "\") with hash:" << rdm << "\n";
+	std::cout << "enqueue(\"" << dbt_string(key) << "\",\"" << dbt_string(data) << "\") with hash:" << rdm << "\n";
   MerkleHash hash = (MerkleHash)(rdm); //TODO: hash(data);
   DBT h;
   memset(&h, 0, sizeof(DBT));
@@ -174,14 +174,14 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
 			// to split (he'll become our new sibling) and the cursor is now pointing at him.
 			// Since we're already using the word "parent," we'll call our siblings' parent
 			// "estranged_parent"
-			DBT estranged_parentk = parent(&ckey, (MerkleNode *)(&cdata.data));
+			DBT estranged_parentk = parent(&ckey, (MerkleNode *)(cdata.data));
 			
 			//TODO: Consider the impact of the order of these pointer updates on the "children_of(key)" index 
 			
 			//Need to update our siblings parent pointer
-			(((MerkleNode *)(&cdata.data))->offset) = ckey.size - estranged_parentk.size;
+			(((MerkleNode *)(cdata.data))->offset) = ckey.size - parentk.size;
 			ret = cursorp->put(cursorp, &ckey, &cdata, DB_CURRENT);
-			return_with_error(ret);
+			if (ret != 0) { return_with_error(ret); }
 			
 			//Now we need to insert the node that splits the edge
 			ckey.data = parentk.data;
@@ -191,7 +191,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
 			newn.offset = parentk.size - estranged_parentk.size;
 			//We don't need to set the hash here, since that will happen naturally when we start walking up the tree
 			ret = cursorp->put(cursorp, &ckey, &cdata, DB_KEYFIRST);
-			return_with_error(ret);
+			if (ret != 0) { return_with_error(ret); }
 		}
 		/* parent is guaranteed to exist now. (Parent node either existed, or we created it)  */
 		if (parentk.size != key->size) {
@@ -202,8 +202,9 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
 			cdata.data = &newn;
 			memset(&newn, 0, sizeof(MerkleNode));
 			newn.offset = key->size - parentk.size;
+			newn.digest = hash;
 			ret = cursorp->put(cursorp, &ckey, &cdata, DB_KEYFIRST);
-			return_with_error(ret);
+			if (ret != 0) { return_with_error(ret); }
 		}
 		//update_hash(key)
 		//add parent to apply_set
@@ -215,7 +216,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
 	} else {
 		return_with_error(ret);
 	}
-
+	return_with_success();
 	/*
 	  ret = cursorp->get(cursorp, &skey, &sdata, DB_SET_RANGE);
 		if node exists
@@ -236,7 +237,39 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
 		end
 	*/
 }
+void MerkleDB::print_tree() {
+	DBC *cursorp;
+	DBT key, data;
+	int ret;
 
+	/* Get a cursor */
+	dbp->cursor(dbp, NULL, &cursorp, 0); 
+
+	/* Initialize our DBTs. */
+	memset(&key, 0, sizeof(DBT));
+	memset(&data, 0, sizeof(DBT));
+
+	/* Iterate over the database, retrieving each record in turn. */
+	MerkleNode * mn;
+	int i;
+	while ((ret = cursorp->get(cursorp, &key, &data, DB_NEXT)) == 0) {
+		int suffix = ((MerkleNode *)data.data)->offset;
+		int prefix = key.size - suffix;
+		for (i = 0; i < prefix; i++) {
+			std::cout << " ";
+		}
+		char * sstart = ((char *)(key.data)+prefix);
+		std::cout << std::string(sstart,suffix) << "\n";
+	}
+	if (ret != DB_NOTFOUND) {
+		std::cout << "DONE\n";
+	}
+
+	/* Cursors must be closed */
+	if (cursorp != NULL) {
+	    cursorp->close(cursorp);
+	}
+}
 
 //hashes the supplied value with the hashes of the children on key
 void MerkleDB::update(DBT * key, MerkleHash hash) {
@@ -325,7 +358,7 @@ int test_macro() {
 int test_pending() {
 	std::cout << "Initialize MerkleDB\n";
   MerkleDB * merkle = new MerkleDB();
-	DBT key, data;
+	DBT key, key2, data;
 	memset(&key, 0, sizeof(DBT));
 	memset(&data, 0, sizeof(DBT));
   int ret;
@@ -347,32 +380,48 @@ int test_pending() {
 	
 	std::cout << "Schedule update of key1 & key2\n";
 	memset(&key, 0, sizeof(DBT));
+	memset(&key2, 0, sizeof(DBT));
 	memset(&data, 0, sizeof(DBT));
 	key.data = (char *)"key1";
-	key.size = 5;
+	key.size = 4;
 	data.data = (char *)"data1";
 	data.size = 5;
 	merkle->enqueue(&key, &data);
 
 	memset(&data, 0, sizeof(DBT));
-	DBT key2;
-	memset(&key2, 0, sizeof(DBT));
 	key2.data = (char *)"key2";
-	key2.size = 5;
+	key2.size = 4;
 	data.data = (char *)"data2";
 	data.size = 5;
 	merkle->enqueue(&key2, &data);
 	
-	std::cout << "Look for key1 & key2 node via examine\n";
+	data.data = (char *)"data3";
+	data.size = 5;
+	merkle->enqueue(&key, &data);
+	
+	std::cout << "Look for keys via examine\n";
 	merkle->examine(&key);
 	merkle->examine(&key2);
 	
 	std::cout << "flushing\n";
 	merkle->flushp();
 	
-	std::cout << "Look for key1 and key2 node via examine\n";
+	std::cout << "Look for keys node via examine\n";
 	merkle->examine(&key);
 	merkle->examine(&key2);
+	
+	data.data = (char *)"data4";
+	data.size = 5;
+	merkle->enqueue(&key, &data);
+	
+	std::cout << "flushing\n";
+	merkle->flushp();
+	
+	std::cout << "Look for keys node via examine\n";
+	merkle->examine(&key);
+	merkle->examine(&key2);
+	
+	merkle->print_tree();
 	
   merkle->close();
 	
