@@ -8,6 +8,17 @@
 #define return_with_error(error) std::cout << db_strerror(error) << "\n"; cursorp->close(cursorp); return error;
 #define return_with_success() cursorp->close(cursorp); return 0;
 
+
+int length_sort(DB *dbp, const DBT *a, const DBT *b) {
+	if (a->size > b->size) {
+		return 1;
+	} else if (a->size == b->size) {
+		return 0;
+	} else {
+		return -1;
+	}
+}
+
 MerkleDB::MerkleDB() {
 	//TODO: We'll need a different merkledb for each namespace.  Ditto for the pending queue (unless we put more info in struct)
   char *dbp_filename = "merkledb.db";
@@ -23,6 +34,10 @@ MerkleDB::MerkleDB() {
   dbp->open(dbp, NULL, dbp_filename, NULL, DB_BTREE, DB_CREATE, 0);
   pup->open(pup, NULL, pup_filename, NULL, DB_BTREE, DB_CREATE, 0);
 	aly->open(aly, NULL, aly_filename, NULL, DB_BTREE, DB_CREATE, 0);
+	
+	//Define longest-key first sorting for queue db's
+	pup->set_bt_compare(pup, length_sort);
+	aly->set_bt_compare(aly, length_sort);
   //TODO: Define sorting order on aly & pup database, longest keys first
   //TODO: Create secondary database to give parent->children mapping
 
@@ -431,25 +446,24 @@ int test_pending() {
 	merkle->examine(&key);
 	merkle->examine(&key2);
 	
-	std::cout << "flushing\n";
 	merkle->flushp();
-	
-	std::cout << "Look for keys node via examine\n";
-	merkle->examine(&key);
-	merkle->examine(&key2);
-	
-	data.data = (char *)"data4";
-	data.size = 5;
-	merkle->enqueue(&key, &data);
-	
-	std::cout << "flushing\n";
-	merkle->flushp();
-	
-	std::cout << "Look for keys node via examine\n";
-	merkle->examine(&key);
-	merkle->examine(&key2);
-	
-	merkle->print_tree();
+	//
+	//std::cout << "Look for keys node via examine\n";
+	//merkle->examine(&key);
+	//merkle->examine(&key2);
+	//
+	//data.data = (char *)"data4";
+	//data.size = 5;
+	//merkle->enqueue(&key, &data);
+	//
+	//std::cout << "flushing\n";
+	//merkle->flushp();
+	//
+	//std::cout << "Look for keys node via examine\n";
+	//merkle->examine(&key);
+	//merkle->examine(&key2);
+	//
+	//merkle->print_tree();
 	
   merkle->close();
 	
