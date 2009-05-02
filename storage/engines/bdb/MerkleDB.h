@@ -37,7 +37,8 @@ class MerkleDB {
 	int insert(DBT * key, MerkleHash hash);
 	void update(DBT * key, MerkleHash hash);
 	DBT parent(DBT * key, MerkleNode * node);
-		
+	int dbt_equal(DBT * db1, DBT * db2);
+
   DBT dbtize(MerkleNode *m);
 };
 

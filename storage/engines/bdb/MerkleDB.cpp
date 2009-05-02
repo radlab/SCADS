@@ -2,7 +2,6 @@
 
 #include <iostream>
 
-#define dbt_equal(dp1, dp2) (((dp1)->size == (dp2)->size) and (memcmp(&((dp1)->data), &((dp2)->data), (dp1)->size) == 0))
 #define dbt_string(dp) std::string((char*)(dp)->data,(dp)->size)
 #define min(i1, i2) ((i1) < (i2) ? (i1) : (i2))
 #define max(i1, i2) ((i1) > (i2) ? (i1) : (i2))
@@ -77,6 +76,7 @@ void MerkleDB::flushp() {
 	aly->cursor(aly, NULL, &cursorp, 0);
 	while ((ret = cursorp->get(cursorp, &key, &data, DB_NEXT)) == 0) {
    	insert(&key, *((MerkleHash *)(data.data)));
+		print_tree();
 	}
 	pthread_mutex_unlock(&sync_lock);
 }
@@ -269,6 +269,7 @@ void MerkleDB::print_tree() {
 	if (cursorp != NULL) {
 	    cursorp->close(cursorp);
 	}
+	std::cout << "\n";
 }
 
 //hashes the supplied value with the hashes of the children on key
@@ -324,35 +325,44 @@ void MerkleDB::examine(DBT * key) {
 	}
 }
 
+int MerkleDB::dbt_equal(DBT * db1, DBT * db2) {
+	bool c1 = ((db1)->size) == ((db2)->size);
+	int c2;
+	for (int i = 0; i < db1->size; i++) {
+		c2 = memcmp(((db1)->data), ((db2)->data), db1->size);
+	}
+	return (c1 and (c2 == 0));
+}
+
 int MerkleDB::direct_get(DB_TXN *txnid, DBT *key, DBT *data, u_int32_t flags) {
 	return dbp->get(dbp, txnid, key, data, flags);
 }
 
 int test_macro() {
-	DBT db1, db2, db3, db4;
-		
-	memset(&db1, 0, sizeof(DBT));
-	memset(&db2, 0, sizeof(DBT));
-	memset(&db3, 0, sizeof(DBT));
-	memset(&db4, 0, sizeof(DBT));
-	
-	db1.data = (char *)"value1";
-	db1.size = 6;
-	
-	db2.data = (char *)"value2";
-	db2.size = 6;
-	
-	db3.data = (char *)"value1";
-	db3.size = 5;
-	
-	db4.data = (char *)"value1";
-	db4.size = 6;
-	
-	if (dbt_equal(&db1, &db2) || dbt_equal(&db1,&db3) || !dbt_equal(&db1,&db4)) {
-		printf("Failed test_macro\n");
-	} else {
-		printf("Succeeded test_macro\n");
-	}
+	//DBT db1, db2, db3, db4;
+	//	
+	//memset(&db1, 0, sizeof(DBT));
+	//memset(&db2, 0, sizeof(DBT));
+	//memset(&db3, 0, sizeof(DBT));
+	//memset(&db4, 0, sizeof(DBT));
+	//
+	//db1.data = (char *)"value1";
+	//db1.size = 6;
+	//
+	//db2.data = (char *)"value2";
+	//db2.size = 6;
+	//
+	//db3.data = (char *)"value1";
+	//db3.size = 5;
+	//
+	//db4.data = (char *)"value1";
+	//db4.size = 6;
+	//
+	//if (dbt_equal(&db1, &db2) || dbt_equal(&db1,&db3) || !dbt_equal(&db1,&db4)) {
+	//	printf("Failed test_macro\n");
+	//} else {
+	//	printf("Succeeded test_macro\n");
+	//}
 }
 
 int test_pending() {
@@ -382,15 +392,33 @@ int test_pending() {
 	memset(&key, 0, sizeof(DBT));
 	memset(&key2, 0, sizeof(DBT));
 	memset(&data, 0, sizeof(DBT));
-	key.data = (char *)"key1";
-	key.size = 4;
+	key.data = (char *)"user_1234";
+	key.size = 8;
 	data.data = (char *)"data1";
 	data.size = 5;
 	merkle->enqueue(&key, &data);
+	key.data = (char *)"abcdefgh";
+	key.size = 8;
+	merkle->enqueue(&key, &data);
+	key.data = (char *)"abcdjekl";
+	key.size = 8;
+	merkle->enqueue(&key, &data);
+	key.data = (char *)"bbcdjekl";
+	key.size = 8;
+	merkle->enqueue(&key, &data);
+	key.data = (char *)"bbcxxxxx";
+	key.size = 8;
+	merkle->enqueue(&key, &data);
+	key.data = (char *)"bbcxxxyy";
+	key.size = 8;
+	merkle->enqueue(&key, &data);
+	key.data = (char *)"bbcxxxxz";
+	key.size = 8;
+	merkle->enqueue(&key, &data);
 
 	memset(&data, 0, sizeof(DBT));
-	key2.data = (char *)"key2";
-	key2.size = 4;
+	key2.data = (char *)"user_234";
+	key2.size = 7;
 	data.data = (char *)"data2";
 	data.size = 5;
 	merkle->enqueue(&key2, &data);
