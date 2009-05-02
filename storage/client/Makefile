@@ -15,6 +15,10 @@ ifeq ($(ARCH), i386)
 include ./makefile.inc.linux_i386
 DIDINC=yes
 endif
+ifeq ($(ARCH), i686)
+include ./makefile.inc.linux_i686
+DIDINC=yes
+endif
 endif
 
 #MACOS
@@ -37,8 +41,8 @@ GEN_SRC = gen-cpp/storage_types.cpp gen-cpp/Storage.cpp
 
 # C/C++ MACROS
 CXX=g++
-CFLAGS = -g -I${THRIFT_DIR} -I${BOOST_DIR} -Igen-cpp ${BDB}
-LIBS = ${LIB_DIRS} -lthrift -ldb-4.7 -l${RUBY_LIB} -lreadline
+CFLAGS = -g -I${THRIFT_DIR} -I${BOOST_DIR} -Igen-cpp
+LIBS = ${LIB_DIRS} -lthrift -lreadline
 
 default: arch_warning client
 
