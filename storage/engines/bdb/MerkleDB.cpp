@@ -16,7 +16,7 @@
 using namespace std;
 using namespace SCADS;
 
-int length_sort(DB *dbp, const DBT *a, const DBT *b) {
+int longest_first(DB *dbp, const DBT *a, const DBT *b) {
   if (a->size > b->size) {
     return -1;
   } else if (a->size == b->size) {
@@ -31,29 +31,24 @@ MerkleDB::MerkleDB(const string& ns,
 		   DB_ENV* db_env) {
   //TODO: We'll need a different merkledb for each namespace.  Ditto for the pending queue (unless we put more info in struct)
   char filebuf[10+ns.length()];
-  //char *dbp_filename = "merkledb.db";
-  //char *pup_filename = "pupdb.db";
-  //char *aly_filename = "alydb.db";
   
   /* Initialize the DB handles */
   db_create(&dbp, db_env, 0);
   db_create(&pup, db_env, 0);
   db_create(&aly, db_env, 0);
 
-  //Define longest-key first sorting for queue db's
-	//TODO: Error; method not permitted after handle's open method
-  pup->set_bt_compare(pup, length_sort);
-  aly->set_bt_compare(aly, length_sort);
-  //TODO: Define sorting order on aly & pup database, longest keys first
-  //TODO: Create secondary database to give parent->children mapping
+  pup->set_bt_compare(pup, longest_first);
+  aly->set_bt_compare(aly, longest_first);
 
   /* Now open the databases */
-  sprintf(filebuf,"%s.merkledb",ns.c_str());
+  sprintf(filebuf,"%s_merkle.bdb",ns.c_str());
   dbp->open(dbp, NULL, filebuf, NULL, DB_BTREE, DB_CREATE, 0);
-  sprintf(filebuf,"%s.pubdb",ns.c_str());
+  sprintf(filebuf,"%s_pub.bdb",ns.c_str());
   pup->open(pup, NULL, filebuf, NULL, DB_BTREE, DB_CREATE, 0);
-  sprintf(filebuf,"%s.alydb",ns.c_str());
+  sprintf(filebuf,"%s_aly.bdb",ns.c_str());
   aly->open(aly, NULL, filebuf, NULL, DB_BTREE, DB_CREATE, 0);
+	
+	//TODO: Create secondary database to give parent->children mapping
 	
   pthread_mutex_init(&sync_lock, NULL);
 
@@ -140,6 +135,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
   memset(&leftk, 0, sizeof(DBT));
   memset(&rightk, 0, sizeof(DBT));
 	
+	//TODO: Check code coverage during tests
   //position the cursor at the key (or to the right of the key, if first insertion)
   ret = cursorp->get(cursorp, &ckey, &cdata, DB_SET_RANGE);
   if (ret == 0) {
