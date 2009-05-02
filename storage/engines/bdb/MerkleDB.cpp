@@ -125,7 +125,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
 	if (ret == 0) {
 		if (dbt_equal(key, &ckey)) {
 			/* A node for this exact key exists.  Update it and we're done */
-			//TODO: update(&ckey, &m.digest)
+			//TODO: update(&ckey, &m.digest...?)
 			//TODO: add parent to pending (with data with length zero)
 			return_with_success();
 		} else {
@@ -143,8 +143,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
 	* 	so we're inserting a new node.  We need to find out where this node belongs (i.e. who
 	* 	his parent is going to be)  We're constructing a patricia trie, so the parent of the
 	*   new key is the longest prefix it shares with it's right & left-hand neighbors. (exercise
-	*   left to reader) At this point, we have the right neighbors, so we need the left neighbor
-	*   to calculate where our new node integrates into the tree. 
+	*   left to reader) At this point, we have the right neighbor, so we need the left neighbor. 
 	*/
 	
 	//We're going to have to create (at least) on additional node, so set up data structures for them
@@ -232,26 +231,8 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
 		return_with_error(ret);
 	}
 	return_with_success();
-	/*
-	  ret = cursorp->get(cursorp, &skey, &sdata, DB_SET_RANGE);
-		if node exists
-			update it's hash
-			add it's parent to pending
-		else
-			make a new node
-			find it's longest common prefix, this is its parent
-			
-			if the parent node isn't in the db, then we have to split an edge {
-				find the longest prefix for which a node does exist, this is the old parent
-				make a node for the (new) parent
-				make the old parent node the parent of the new parent node
-				find the (solitary) child of the old parent node, make the new parent it's parent
-			}
-			set the new nodes parent
-			add the new nodes parent to pending
-		end
-	*/
 }
+
 void MerkleDB::print_tree() {
 	DBC *cursorp;
 	DBT key, data;
@@ -274,7 +255,9 @@ void MerkleDB::print_tree() {
 			std::cout << " ";
 		}
 		char * sstart = ((char *)(key.data)+prefix);
-		std::cout << std::string(sstart,suffix) << "\n";
+		std::cout << std::string(sstart,suffix);
+		std::cout << "                     ";
+		std::cout << ((MerkleNode *)data.data)->digest << "\n";
 	}
 	if (ret != DB_NOTFOUND) {
 		std::cout << "DONE\n";
