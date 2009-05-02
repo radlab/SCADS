@@ -1,1 +1,23 @@
 optional is a command line option parser and library for writing simple applications that use it.
+
+The motivation for Optional is that command line parsing is a pain in the ass. It's always the same, and it's always boilerplaty. However, all the metadata to generate a set of command line options is already there in the bytecode. So we make use of it:
+
+object MyCoolApp extends optional.Application{
+  def main(count : Option[Int], someParam : String){
+    ...
+  }
+} 
+
+and we can invoke this as
+
+scala MyCoolApp --someParam aValue
+
+which will invoke it as
+
+MyCoolApp.main(None, "aValue");
+
+All handling of type conversions, missing parameters, etc. is all worked out for you out of the box.
+
+Neat, huh?
+
+Currently it's not very far along. It doesn't do a lot of error handling, there's no way to hook into usage to provide explanations of parameters, and only a small set of types are supported. But as far as I can tell, all the metadata that is needed to make this work is either present or can be provided with annotations. So I'm hopeful that in the long run this can be made easy and fully featured.
