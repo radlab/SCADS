@@ -1,11 +1,9 @@
 package optional.examples;
 
 object Hello extends Application{
-  default("greeting", "hello");
-  default("name", "world");
-
-  def main(greeting : String, name : String, args : Array[String]){
-    println(greeting + " " + name);
+  def main(times : Option[Int], greeting : Option[String], name : Option[String], args : Array[String]){
+    for(i <- 0 until times.getOrElse(1))
+      println(greeting.getOrElse("hello") + " " + name.getOrElse("world"));
     println("Arguments:");
     args.foreach(x => println("  " + x));
   }

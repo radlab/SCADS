@@ -35,20 +35,9 @@ trait Application{
     new com.thoughtworks.paranamer.BytecodeReadingParanamer().
     lookupParameterNames(mainMethod);      
 
-  private lazy val argumentTypes = 
-    mainMethod.getParameterTypes
+  private lazy val parameterTypes = 
+    mainMethod.getGenericParameterTypes
   
-  private val defaults = new scala.collection.mutable.OpenHashMap[String, String];
-
-  /**
-   * Set a default value for this option name. 
-   * I hope this will eventually go away and be replaced by Just Doing The Right Thing
-   * when you give an argument a default value. But for now it's needed, as that feature
-   * isn't available yet.
-   */
-  def default(option : String, value : String) = 
-    defaults(option) = value;
-  // todo: deal with the case where it's just "arg" correctly
   private val Argument = new scala.util.matching.Regex("""arg(\d+)""") 
   private object Numeric{
     def unapply(x : String) = 
@@ -58,21 +47,53 @@ trait Application{
           => None 
       }
   }
+  import java.lang.reflect.{Array => _, _};
 
-  def callWithOptions(options : Options) = {
-    val methodArguments = new Array[AnyRef](argumentTypes.length);
-    import options.{args => arguments};
+  private val boxing = Map[Class[_], Class[_]](
+    classOf[Int] -> classOf[java.lang.Integer],
+    classOf[Byte] -> classOf[java.lang.Byte],
+    classOf[Float] -> classOf[java.lang.Float],
+    classOf[Double] -> classOf[java.lang.Double],
+    classOf[Long] -> classOf[java.lang.Long],
+    classOf[Char] -> classOf[java.lang.Character],
+    classOf[Short] -> classOf[java.lang.Short],
+    classOf[Boolean] -> classOf[java.lang.Boolean]
+  )
 
-    val opts = options.options.orElse(defaults); 
+
+  /**
+   * Magic method to take a string and turn it into something of a given type.
+   */
+  private def coerceTo(value : String, tpe : Type) : AnyRef = tpe match {
+    case x if x == classOf[String] => value;
+    // we don't currently support other array types. This is sheer laziness.
+    case clazz if clazz == classOf[Array[String]] => value.split(java.io.File.separator); 
+    case (clazz : Class[_]) => boxing.getOrElse(clazz, clazz).getMethod("valueOf", classOf[String]).invoke(null, value);
+    case (x : ParameterizedType) if x.getRawType == classOf[Option[_]] => Some(coerceTo(value, x.getActualTypeArguments()(0)));
+  }
+
+  private def defaultFor(tpe : Type) : AnyRef = tpe match {
+    case (x : ParameterizedType) if x.getRawType == classOf[Option[_]] => None
+    case x if x == classOf[Boolean] => java.lang.Boolean.FALSE;
+    case (clazz : Class[_]) if clazz.isPrimitive => boxing(clazz).getMethod("valueOf", classOf[String]).invoke(null, "0");
+  }
+
+  def callWithOptions(opts : Options) = {
+    val methodArguments = new Array[AnyRef](parameterTypes.length);
+    import opts.{args => arguments, options};
 
     for(i <- 0 until methodArguments.length){
+      val tpe = parameterTypes(i);
+      def valueOf(x : Option[String]) = x.map(coerceTo(_, tpe)).getOrElse(defaultFor(tpe));
       methodArguments(i) = argumentNames(i) match {
         case "args" | "arguments" => {
           val x = arguments.toArray[String];
           x // work around for retarded array boxing
         }
-        case Argument(Numeric(num)) => arguments(i);
-        case x => opts(x); // TODO: Deal with type coercion.
+        case Argument(Numeric(num)) => 
+          if(num < arguments.length) coerceTo(arguments(num), tpe);
+          else defaultFor(tpe);
+        case x => valueOf(options.get(x));
       }
     }
 
