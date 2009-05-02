@@ -3,6 +3,7 @@
 
 #include <db.h>
 #include "gen-cpp/Storage.h"
+#include "MerkleDB.h"
 #include "ruby.h"
 
 #ifndef MSG_MORE
@@ -23,6 +24,7 @@ private:
   DB_ENV *db_env;
   pthread_rwlock_t dbmap_lock;
   map<const NameSpace,DB*> dbs;
+  map<const NameSpace,MerkleDB*> merkle_dbs;
   pthread_t listen_thread;
   int listen_port;
   u_int32_t user_flags;

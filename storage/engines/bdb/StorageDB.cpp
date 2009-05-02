@@ -285,6 +285,7 @@ getDB(const NameSpace& ns) {
   it = dbs.find(ns);
   if (it == dbs.end()) { // haven't opened this db yet
     open_database(&db,ns.c_str(),"storage.bdb",env_dir,stderr);
+    //MerkleDB* mdb = new MerkleDB(ns,db_env);
     rc = pthread_rwlock_unlock(&dbmap_lock); // unlock read lock
     chkLock(rc,"dbmap_lock","unlock read lock for upgrade");
     rc = pthread_rwlock_wrlock(&dbmap_lock); // need a write lock here

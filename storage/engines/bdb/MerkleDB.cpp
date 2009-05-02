@@ -1,3 +1,5 @@
+// MerkleDB File
+
 #include "MerkleDB.h"
 
 #include <iostream>
@@ -11,6 +13,9 @@
 #define return_with_success() cursorp->close(cursorp); return 0;
 
 
+using namespace std;
+using namespace SCADS;
+
 int length_sort(DB *dbp, const DBT *a, const DBT *b) {
   if (a->size > b->size) {
     return 1;
@@ -21,27 +26,35 @@ int length_sort(DB *dbp, const DBT *a, const DBT *b) {
   }
 }
 
-MerkleDB::MerkleDB() {
+
+MerkleDB::MerkleDB(const string& ns,
+		   DB_ENV* db_env) {
   //TODO: We'll need a different merkledb for each namespace.  Ditto for the pending queue (unless we put more info in struct)
-  char *dbp_filename = "merkledb.db";
-  char *pup_filename = "pupdb.db";
-  char *aly_filename = "alydb.db";
+  char filebuf[10+ns.length()];
+  //char *dbp_filename = "merkledb.db";
+  //char *pup_filename = "pupdb.db";
+  //char *aly_filename = "alydb.db";
   
   /* Initialize the DB handles */
-  db_create(&dbp, NULL, 0);
-  db_create(&pup, NULL, 0);
-  db_create(&aly, NULL, 0);
+  db_create(&dbp, db_env, 0);
+  db_create(&pup, db_env, 0);
+  db_create(&aly, db_env, 0);
 
-  /* Now open the databases */
-  dbp->open(dbp, NULL, dbp_filename, NULL, DB_BTREE, DB_CREATE, 0);
-  pup->open(pup, NULL, pup_filename, NULL, DB_BTREE, DB_CREATE, 0);
-  aly->open(aly, NULL, aly_filename, NULL, DB_BTREE, DB_CREATE, 0);
-	
   //Define longest-key first sorting for queue db's
   pup->set_bt_compare(pup, length_sort);
   aly->set_bt_compare(aly, length_sort);
   //TODO: Define sorting order on aly & pup database, longest keys first
   //TODO: Create secondary database to give parent->children mapping
+
+  /* Now open the databases */
+  sprintf(filebuf,"%s.merkledb",ns.c_str());
+  dbp->open(dbp, NULL, filebuf, NULL, DB_BTREE, DB_CREATE, 0);
+  sprintf(filebuf,"%s.pubdb",ns.c_str());
+  pup->open(pup, NULL, filebuf, NULL, DB_BTREE, DB_CREATE, 0);
+  sprintf(filebuf,"%s.alydb",ns.c_str());
+  aly->open(aly, NULL, filebuf, NULL, DB_BTREE, DB_CREATE, 0);
+	
+
 
   pthread_mutex_init(&sync_lock, NULL);
 
@@ -54,16 +67,20 @@ MerkleDB::MerkleDB() {
   int ret;
   ret = dbp->get(dbp, NULL, &key, &data, 0);
   if (ret == DB_NOTFOUND) {
+#ifdef DEBUG
     printf("MerkleDB(): inserting root\n");
+#endif
     MerkleNode root;
     root.offset = 0;
     root.digest = 100;//Canary for debugging, overwritten in regular operation.
     data.data = &root;
     data.size = sizeof(MerkleNode);
     dbp->put(dbp, NULL, &key, &data, DB_NOOVERWRITE);
-  } else {
-    printf("MerkleDB(): found root: \n");
   }
+#ifdef DEBUG
+  else
+    printf("MerkleDB(): found root: \n");
+#endif
 }
 
 //Adds key->hash(data) to pending update queue
@@ -338,7 +355,8 @@ int MerkleDB::direct_get(DB_TXN *txnid, DBT *key, DBT *data, u_int32_t flags) {
   return dbp->get(dbp, txnid, key, data, flags);
 }
 
-int test_macro() {
+#ifdef MERKLETEST
+int test_macro(DB_ENV* db_env) {
   //DBT db1, db2, db3, db4;
   //	
   //memset(&db1, 0, sizeof(DBT));
@@ -365,12 +383,14 @@ int test_macro() {
   //}
 }
 
-int test_pending() {
+int test_pending(DB_ENV* db_env) {
   std::cout << "Initialize MerkleDB\n";
-  MerkleDB * merkle = new MerkleDB();
+
+  MerkleDB * merkle = new MerkleDB("testns",db_env);
   DBT key, key2, data;
   memset(&key, 0, sizeof(DBT));
   memset(&data, 0, sizeof(DBT));
+
   int ret;
 	
   std::cout << "Look for root node via direct_get\n";
@@ -455,8 +475,8 @@ int test_pending() {
 }
 
 
-int test_prefix() {
-  MerkleDB * merkle = new MerkleDB();
+int test_prefix(DB_ENV* db_env) {
+  MerkleDB * merkle = new MerkleDB("testns",db_env);
   DBT db1, db2, db3, db4,db5;
 		
   memset(&db1, 0, sizeof(DBT));
@@ -485,10 +505,40 @@ int test_prefix() {
   std::cout << merkle->prefix_length(&db2, &db4)<<"\n";
   std::cout << merkle->prefix_length(&db2, &db5)<<"\n";
 }
+
 int main( int argc, char** argv )
 {
-  test_macro();
-  test_pending();
+  u_int32_t env_flags = 0;
+  int ret;
+  u_int32_t gb;
+  DB_ENV* db_env;
+
+  ret = db_env_create(&db_env, 0);
+  if (ret != 0) {
+    fprintf(stderr, "Error creating env handle: %s\n", db_strerror(ret));
+    exit(-1);
+  }
+
+  env_flags = 
+    DB_CREATE |     /* If the environment does not exist, create it. */
+    DB_INIT_LOCK |  /* Multiple threads might write */
+    DB_INIT_MPOOL|  /* Initialize the in-memory cache. */
+    //DB_SYSTEM_MEM |
+    DB_PRIVATE;
+  
+  ret = db_env->set_lk_detect(db_env,DB_LOCK_DEFAULT);
+
+  ret = db_env->open(db_env,      /* DB_ENV ptr */
+		     ".",    /* env home directory */
+		     env_flags,  /* Open flags */
+		     0);         /* File mode (default) */
+  if (ret != 0) {
+    fprintf(stderr, "Environment open failed: %s\n", db_strerror(ret));
+    exit(-1);
+  }
+  test_macro(db_env);
+  test_pending(db_env);
   //test_prefix();
   return 0;
 }
+#endif

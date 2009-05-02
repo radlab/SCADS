@@ -59,16 +59,16 @@ $(SRCS_TO_GEN): $(THRIFT_FILE)
 
 # C/C++ RULES
 storage.bdb: $(SRCS_TO_GEN) StorageDB.cpp Network.cpp
-	$(CXX) $(CFLAGS) $(RUBY_INCLUDES) -o $@ StorageDB.cpp Network.cpp ${GEN_SRC} $(LIBS)
+	$(CXX) $(CFLAGS) $(RUBY_INCLUDES) -o $@ StorageDB.cpp Network.cpp MerkleDB.cpp ${GEN_SRC} $(LIBS)
 
 storage.bdb.debug: $(SRCS_TO_GEN) StorageDB.cpp Network.cpp
-	$(CXX) -g $(CFLAGS) $(RUBY_INCLUDES) -DDEBUG -o storage.bdb StorageDB.cpp Network.cpp ${GEN_SRC} $(LIBS)
+	$(CXX) -g $(CFLAGS) $(RUBY_INCLUDES) -DDEBUG -o storage.bdb StorageDB.cpp Network.cpp MerkleDB.cpp ${GEN_SRC} $(LIBS)
 
 storage.bdb.debugquiet: $(SRCS_TO_GEN) StorageDB.cpp Network.cpp
-	$(CXX) -g $(CFLAGS) $(RUBY_INCLUDES) -o storage.bdb StorageDB.cpp Network.cpp ${GEN_SRC} $(LIBS)
+	$(CXX) -g $(CFLAGS) $(RUBY_INCLUDES) -o storage.bdb StorageDB.cpp Network.cpp MerkleDB.cpp ${GEN_SRC} $(LIBS)
 
 merkle: MerkleDB.cpp
-	$(CXX) $(CFLAGS) -g -o a.out MerkleDB.cpp $(LIBS)
+	$(CXX) $(CFLAGS) -g -DMERKLETEST -o MerkleDB MerkleDB.cpp $(LIBS)
 
 clean:
 	rm -rf gen-cpp storage.bdb

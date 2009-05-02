@@ -3,7 +3,11 @@
 
 #include <db.h>
 #include <pthread.h>
-//#include "gen-cpp/Storage.h"
+#include "gen-cpp/Storage.h"
+
+using namespace std;
+
+namespace SCADS {
 
 typedef int MerkleHash;
 
@@ -13,6 +17,8 @@ typedef struct {
 } MerkleNode;
 
 class MerkleDB {
+public:
+  MerkleDB(const NameSpace& ns, DB_ENV* db_env);
 
  private:
 	pthread_mutex_t sync_lock;
@@ -22,25 +28,26 @@ class MerkleDB {
   
  public:
   void enqueue(DBT * key, DBT * data);
-	void flushp();
-	void examine(DBT * key);
-	void close();
-  MerkleDB();
-	//debug methods
-	u_int32_t prefix_length(DBT * key1, DBT * key2);
-	int direct_get(DB_TXN *txnid, DBT *key, DBT *data, u_int32_t flags);
-	void print_tree();
+  void flushp();
+  void examine(DBT * key);
+  void close();
+  //debug methods
+  u_int32_t prefix_length(DBT * key1, DBT * key2);
+  int direct_get(DB_TXN *txnid, DBT *key, DBT *data, u_int32_t flags);
+  void print_tree();
 	
  private:
   MerkleNode parent(MerkleNode * node);
   MerkleNode get(DBT * key);
-	int insert(DBT * key, MerkleHash hash);
-	void update(DBT * key, MerkleHash hash);
-	DBT parent(DBT * key, MerkleNode * node);
-	int dbt_equal(DBT * db1, DBT * db2);
+  int insert(DBT * key, MerkleHash hash);
+  void update(DBT * key, MerkleHash hash);
+  DBT parent(DBT * key, MerkleNode * node);
+  int dbt_equal(DBT * db1, DBT * db2);
 
   DBT dbtize(MerkleNode *m);
 };
+
+}
 
 #endif // MERKLEDB_H
 
