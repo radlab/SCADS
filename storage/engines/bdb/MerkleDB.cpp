@@ -38,7 +38,7 @@ int child_extractor(DB *dbp, const DBT *pkey, const DBT *pdata, DBT *ikey) {
 		return 0;
 	} else {
 		//TODO: make sure root node (who is own parent) doesn't add child link to itself 
-		return 0;//return 1;
+		return DB_DONOTINDEX;
 	}
 }
 
