@@ -115,7 +115,7 @@ abstract class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpace
 		
 		// make sure desired range was actually covered by what we gots
 		if ( !ns_keyspace.isCovered(target_range,ranges) ) { 
-			//throw new NonCoveredRangeException // do we ever reach here?
+			throw new NonCoveredRangeException // do we ever reach here?
 		}	 
 		// sort an array
 		val records_array = records.toArray
@@ -133,11 +133,13 @@ abstract class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpace
 		var nodes_used = Set[StorageNode]() // which nodes we've checked so far, assumes nodes have only one range
 		while (!done) {
 			val node_tuple = this.find_node_at_start(nodes.filter((entry)=> !nodes_used.contains(entry._1)),start)
-			if (node_tuple._2.end==null || node_tuple._2.end > end) resultmap += node_tuple._1 -> KeyRange(node_tuple._2.start,end)
+			if (node_tuple._2.end==null || (end != null && node_tuple._2.end > end)) 
+				resultmap += node_tuple._1 -> KeyRange(node_tuple._2.start,end)
 			else resultmap += node_tuple._1 -> node_tuple._2
 			start = node_tuple._2.end
 			nodes_used += node_tuple._1
-			if ( (start==null ) || (start >= end) ) { done = true }
+			if ( (start==null ) || (end !=null && start >= end) ) { done = true } 
+			// even if start was null to begin with, will only be again if get to an end being null
 		}
 		resultmap
 	}
