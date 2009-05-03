@@ -34,7 +34,6 @@ public:
   void close();
   //debug methods
   u_int32_t prefix_length(DBT * key1, DBT * key2);
-  int direct_get(DB_TXN *txnid, DBT *key, DBT *data, u_int32_t flags);
   void print_tree();
 	void print_children(DBT *key);
 	
@@ -45,8 +44,6 @@ public:
   void update(DBT * key, MerkleHash hash);
   DBT parent(DBT * key, MerkleNode * node);
   int dbt_equal(DBT * db1, DBT * db2);
-
-  DBT dbtize(MerkleNode *m);
 };
 
 }
