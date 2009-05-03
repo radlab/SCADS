@@ -13,6 +13,7 @@
 #define return_with_success() return 0;
 #define close_if_not_null(db) if ((db) != NULL) { (db)->close((db), 0); }
 #define cleanup_after_bdb() cursorp->close(cursorp); while (data_ptrs.size() > 0) { free(data_ptrs.back()); data_ptrs.pop_back(); }
+
 using namespace std;
 using namespace SCADS;
 
@@ -27,17 +28,18 @@ int cmp_longest_first(DB *dbp, const DBT *a, const DBT *b) {
 }
 
 //Used by children index.  Each node add a pointer from its parent to itself
+//TODO: Need to make sure tombstoned nodes aren't included in hashing! 
 int child_extractor(DB *dbp, const DBT *pkey, const DBT *pdata, DBT *ikey) {
 	if (pkey->size != 0) {
-		MerkleNode * mn;
-		mn = (MerkleNode *)pdata->data;
-		memset(ikey, 0, sizeof(DBT));
+		//memset(ikey, 0, sizeof(DBT));
+		// TODO: Example code does above, even though ikey is parameter.  Unclear how this'll work with 
+		// multi-threaded environment (i.e. DB_DBT_MALLOC).  *Seems* to work without it.
+		//		http://www.oracle.com/technology/documentation/berkeley-db/db/gsg/C/keyCreator.html
 		ikey->data = pkey->data;
-		ikey->size = (pkey->size - mn->offset);
-		//duplicates supported in child index
+		ikey->size = (pkey->size - ((MerkleNode *)pdata->data)->offset);
 		return 0;
 	} else {
-		//TODO: make sure root node (who is own parent) doesn't add child link to itself 
+		//make sure root node (who is own parent) doesn't add child link to itself 
 		return DB_DONOTINDEX;
 	}
 }
