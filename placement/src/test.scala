@@ -19,6 +19,40 @@ class ClientLibraryServer(p: Int) extends ThriftServer {
 	clientlib.add_namespace("db",ks)
 }
 
+class TestableHeartbeatCluster extends SimpleDataPlacementCluster("metadata", 1) {
+	var failures = Set[StorageNode]()
+	
+	override def log_failure(node: StorageNode) = {
+		failures += node
+	}
+	def get_failures(): Set[StorageNode] = {
+		failures
+	}
+}
+
+class HeartbeatSuite extends Suite {
+	def testNoFailure() = {
+		val hb = new TestableHeartbeatCluster
+		val n1 = new TestableStorageNode()
+		val n2 = new TestableStorageNode()
+		
+		hb.start
+		Thread.sleep(1000) // wait long enough to have heartbeated
+		assert(hb.get_failures().size==0)
+		
+		hb.assign(n1, new KeyRange(null,null))
+		Thread.sleep(1000) 
+		assert(hb.get_failures().size==0) // node has joined
+		
+		hb.assign(n2, new KeyRange(null,null))
+		Thread.sleep(1000) 
+		assert(hb.get_failures().size==0) // another node has joined
+		
+		hb.stop
+	}
+
+}
+
 class ClientLibrarySuite extends Suite with ThriftConversions {
 
 	val rec1 = new SCADS.Record("a","a-val".getBytes())
@@ -126,6 +160,32 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 			clientlib.get_set("db_double_p", this.keyRangeToScadsRangeSet(KeyRange("a","f")) )
 		}
 		
+	}
+	
+	def testDoubleNodeNulls() = {
+		val clientlib = new LocalROWAClientLibrary
+		val n1 = new TestableStorageNode()
+		val n2 = new TestableStorageNode()
+
+		val ks = new SimpleKeySpace()
+		ks.assign(n1, KeyRange(null, "c"))
+		ks.assign(n2, KeyRange("c", null))
+		clientlib.add_namespace("db_double_null",ks)
+	
+		// put some records
+		assert( clientlib.put("db_double_null",rec1) )
+		assert( clientlib.put("db_double_null",rec2) )
+		assert( clientlib.put("db_double_null",rec3) )
+		assert( clientlib.put("db_double_null",rec4) )
+		assert( clientlib.put("db_double_null",rec5) )
+
+		// do a single get
+		assert( clientlib.get("db_double_null","a") == (new SCADS.Record("a","a-val".getBytes())) )
+		assert( clientlib.get("db_double_null","b") == (new SCADS.Record("b","b-val".getBytes())) )
+		assert( clientlib.get("db_double_null","c") == (new SCADS.Record("c","c-val".getBytes())) )
+		assert( clientlib.get("db_double_null","d") == (new SCADS.Record("d","d-val".getBytes())) )
+		assert( clientlib.get("db_double_null","e") == (new SCADS.Record("e","e-val".getBytes())) )
+
 	}
 	
 	def testDoubleNodeReplica() = {
@@ -352,8 +412,10 @@ class KeyRangeSuite extends Suite {
 		assert((KeyRange("a","c") & KeyRange("b", null)) == KeyRange("b", "c"))
 		assert((KeyRange("a","c") & KeyRange.EmptyRange) == KeyRange.EmptyRange)
 		assert((KeyRange.EmptyRange & KeyRange("a","c")) == KeyRange.EmptyRange)
-
-		assert((KeyRange("m",null) & KeyRange("friend-8a43af10-180a-012c-331d-001b6391e19a-of-", "friend-8a43af10-180a-012c-331d-001b6391e19a-of/")) == KeyRange.EmptyRange)
+		assert((KeyRange("m",null) & KeyRange("friend-8a43af10-", "friend-8a43af10/")) == KeyRange.EmptyRange)
+		assert((KeyRange("friend-8a43af10-", "friend-8a43af10/") & KeyRange("m",null)) == KeyRange.EmptyRange)
+		assert((KeyRange("friend-8a43af10-", "friend-8a43af10/") & KeyRange(null,"f")) == KeyRange.EmptyRange)
+		assert(( KeyRange(null,"e") & KeyRange("friend-8a43af10-", "friend-8a43af10/")) == KeyRange.EmptyRange)
 	}
 }
 
@@ -495,10 +557,11 @@ class MovementMechanismTest extends Suite {
 
 object RunTests {
 	def main(args: Array[String]) = {
-		(new KeyRangeSuite).execute()
+		//(new KeyRangeSuite).execute()
 		(new KeySpaceSuite).execute()
-		(new MovementMechanismTest).execute()
-		(new ClientLibrarySuite).execute()
+		//(new MovementMechanismTest).execute()
+		//(new ClientLibrarySuite).execute()
+		//(new HeartbeatSuite).execute()
 		System.exit(0)
 	}
 }
