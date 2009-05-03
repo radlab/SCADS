@@ -15,7 +15,9 @@
 #include <sstream>
 #include <map>
 
-#include "pthread.h"
+
+#include <sys/stat.h>
+#include <pthread.h>
 
 #include <signal.h>
 
@@ -1292,10 +1294,48 @@ static void ex_program(int sig) {
   exit(0);
 }
 
+static int chkdir(const char* d) {
+  struct stat buffer;
+  if (stat(d,&buffer)) {
+    switch (errno) {
+    case ENOENT: {
+      cout<<d<<" doesn't exist, attempting to create"<<endl;
+      if (mkdir(d,S_IRWXU | S_IRGRP |  S_IXGRP)) {
+	perror("Could not create dir");
+	return -1;
+      }
+      stat(d,&buffer);
+      break;
+    }
+    default: {
+      perror("Couldn't stat");
+      return -1;
+    }
+    }
+  }
+  if (!S_ISDIR(buffer.st_mode)) {
+    cout <<d<<" is not a directory"<<endl;
+    return -1;
+  }
+  return 0;
+}
+
+static int chkdirs(const char* d) {
+  int ret;
+  ret = chkdir(d);
+  if (ret)
+    return ret;
+  ostringstream oss;
+  oss <<d<<"/merkle";
+  return chkdir(oss.str().c_str());
+}
+
 
 int main(int argc, char **argv) {
   parseArgs(argc,argv);
-
+  if(chkdirs(env_dir)) {
+    exit(-1);
+  }
   shared_ptr<TProtocolFactory> protocolFactory(new TBinaryProtocolFactory());
   shared_ptr<StorageDB> handler(new StorageDB(lp,uf,cache));
   shared_ptr<TProcessor> processor(new StorageProcessor(handler));
@@ -1305,6 +1345,8 @@ int main(int argc, char **argv) {
 #ifdef DEBUG
   cout << "Running in debug mode"<<endl;
 #endif
+
+
 
   storageDB = handler;
   signal(SIGINT, ex_program);
