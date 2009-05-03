@@ -18,7 +18,7 @@ typedef struct {
 
 class MerkleDB {
 public:
-  MerkleDB(const NameSpace& ns, DB_ENV* db_env);
+  MerkleDB(const NameSpace& ns, DB_ENV* db_env, const char* env_dir);
 
  private:
 	pthread_mutex_t sync_lock;

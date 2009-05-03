@@ -44,22 +44,49 @@ int child_extractor(DB *dbp, const DBT *pkey, const DBT *pdata, DBT *ikey) {
 
 //TODO: Write destructor that closes db
 
-MerkleDB::MerkleDB(const string& ns, DB_ENV* db_env) {
+MerkleDB::MerkleDB(const string& ns, DB_ENV* db_env, const char* env_dir) {
   //TODO: We'll need a different merkledb for each namespace.  Ditto for the pending queue (unless we put more info in struct)
   char filebuf[10+ns.length()];
-	int ret;
+  int ret;
 	
+  // open the tree env
+  u_int32_t env_flags = 0;
+  u_int32_t gb;
+  DB_ENV* tree_env;
+
+  ret = db_env_create(&tree_env, 0);
+  if (ret != 0) {
+    fprintf(stderr, "Error creating tree_env handle: %s\n", db_strerror(ret));
+    exit(-1);
+  }
+
+  env_flags = 
+    DB_CREATE |     /* If the environment does not exist, create it. */
+    DB_INIT_MPOOL|  /* Initialize the in-memory cache. */
+    DB_PRIVATE;
+  
+
+  ret = db_env->open(tree_env,   /* DB_ENV ptr */
+		     env_dir,    /* env home directory */
+		     env_flags,  /* Open flags */
+		     0);         /* File mode (default) */
+  if (ret != 0) {
+    fprintf(stderr, "Environment open failed: %s\n", db_strerror(ret));
+    exit(-1);
+  }
+
+
   /* Initialize the DB handles */
-	//TODO: Add error checking here and elsewhere
-  db_create(&dbp, db_env, 0);
+  //TODO: Add error checking here and elsewhere
+  db_create(&dbp, tree_env, 0);
   db_create(&pup, db_env, 0);
   db_create(&aly, db_env, 0);
 
-	//Create index (secondary database) to give parent->children mapping
-	db_create(&cld, db_env, 0);
-	cld->set_flags(cld, DB_DUPSORT);
+  //Create index (secondary database) to give parent->children mapping
+  db_create(&cld, tree_env, 0);
+  cld->set_flags(cld, DB_DUPSORT);
 
-	//Set sorting functions for queues
+  //Set sorting functions for queues
   pup->set_bt_compare(pup, cmp_longest_first);
   aly->set_bt_compare(aly, cmp_longest_first);
 
@@ -67,14 +94,14 @@ MerkleDB::MerkleDB(const string& ns, DB_ENV* db_env) {
   sprintf(filebuf,"%s_merkledb.bdb",ns.c_str());
   dbp->open(dbp, NULL, filebuf, NULL, DB_BTREE, DB_CREATE, 0);
   sprintf(filebuf,"%s_pendingq.bdb",ns.c_str());
-  pup->open(pup, NULL, filebuf, NULL, DB_BTREE, DB_CREATE, 0);
+  pup->open(pup, NULL, filebuf, NULL, DB_BTREE, DB_CREATE | DB_THREAD, 0);
   sprintf(filebuf,"%s_applyq.bdb",ns.c_str());
-  aly->open(aly, NULL, filebuf, NULL, DB_BTREE, DB_CREATE, 0);
-	sprintf(filebuf, "%s_chldix.bdb", ns.c_str());
-	cld->open(cld, NULL, filebuf, NULL, DB_BTREE, DB_CREATE, 0);
-	dbp->associate(dbp, NULL, cld, child_extractor, 0);
+  aly->open(aly, NULL, filebuf, NULL, DB_BTREE, DB_CREATE | DB_THREAD, 0);
+  sprintf(filebuf, "%s_chldix.bdb", ns.c_str());
+  cld->open(cld, NULL, filebuf, NULL, DB_BTREE, DB_CREATE, 0);
+  dbp->associate(dbp, NULL, cld, child_extractor, 0);
 
-	//TODO: Create secondary database to give parent->children mapping
+  //TODO: Create secondary database to give parent->children mapping
 	
   pthread_mutex_init(&sync_lock, NULL);
 
@@ -428,7 +455,7 @@ int test_macro(DB_ENV* db_env) {
 int test_pending(DB_ENV* db_env) {
   std::cout << "Initialize MerkleDB\n";
 
-  MerkleDB * merkle = new MerkleDB("testns",db_env);
+  MerkleDB * merkle = new MerkleDB("testns",db_env,".");
   DBT key, key2, data;
   memset(&key, 0, sizeof(DBT));
   memset(&data, 0, sizeof(DBT));
@@ -523,7 +550,7 @@ int test_pending(DB_ENV* db_env) {
 
 
 int test_prefix(DB_ENV* db_env) {
-  MerkleDB * merkle = new MerkleDB("testns",db_env);
+  MerkleDB * merkle = new MerkleDB("testns",db_env,".");
   DBT db1, db2, db3, db4,db5;
 		
   memset(&db1, 0, sizeof(DBT));
@@ -570,7 +597,7 @@ int main( int argc, char** argv )
     DB_CREATE |     /* If the environment does not exist, create it. */
     DB_INIT_LOCK |  /* Multiple threads might write */
     DB_INIT_MPOOL|  /* Initialize the in-memory cache. */
-    //DB_SYSTEM_MEM |
+    DB_THREAD |
     DB_PRIVATE;
   
   ret = db_env->set_lk_detect(db_env,DB_LOCK_DEFAULT);
