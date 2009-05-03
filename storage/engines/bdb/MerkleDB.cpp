@@ -14,7 +14,7 @@
 #define return_with_success() return 0;
 #define close_if_not_null(db) if ((db) != NULL) { (db)->close((db), 0); }
 #define cleanup_after_bdb() cursorp->close(cursorp); while (data_ptrs.size() > 0) { free(data_ptrs.back()); data_ptrs.pop_back(); }
-#define dbt_print_hex(buf, len) for (int i = 0; i < (len); i++) { printf("%x%x", (0xF0 & (((char *)buf)[i]) >> 4), (0x0F & (((char *)buf)[i]))); }
+#define print_hex(buf, len) for (int i = 0; i < (len); i++) { printf("%x%x", (0xF0 & (((char *)buf)[i]) >> 4), (0x0F & (((char *)buf)[i]))); }
 
 using namespace std;
 using namespace SCADS;
@@ -118,7 +118,7 @@ MerkleDB::MerkleDB(const string& ns, DB_ENV* db_env, const char* env_dir) {
   if (ret == DB_NOTFOUND) {
     MerkleNode root;
     root.offset = 0;
-    root.digest = 100;//Canary for debugging, overwritten in regular operation.
+    root.digest = 0;//Canary for debugging, overwritten in regular operation.
     data.data = &root;
     data.size = sizeof(MerkleNode);
     dbp->put(dbp, NULL, &key, &data, DB_NOOVERWRITE);
@@ -152,7 +152,7 @@ int MerkleDB::enqueue(DBT * key, DBT * data) {
 	h.size = sizeof(MerkleHash);
   MerkleHash hash = *((MerkleHash *)(h.data));
   std::cout << "enqueue(\"" << dbt_string(key) << "\",\"" << dbt_string(data) << "\") with hash:\t";
-	dbt_print_hex(h.data, h.size);
+	print_hex(h.data, h.size);
 	std::cout << "\n";
 	
 	ret = pup->put(pup, NULL, key, &h, 0);
@@ -352,7 +352,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
 }
 
 //rehash the targeted key and 
-void MerkleDB::recalculate(DBT * key, DBT * data, MerkleHash hash, DBC * cursorp) {
+int MerkleDB::recalculate(DBT * key, DBT * data, MerkleHash hash, DBC * cursorp) {
 	int ret;
 	MHASH td;
 	
@@ -367,7 +367,7 @@ void MerkleDB::recalculate(DBT * key, DBT * data, MerkleHash hash, DBC * cursorp
 	td = mhash_init(MERKLEDB_HASH_FUNC);
 	if (td == MHASH_FAILED) {
 		std::cerr << "HASH Failed";
-		return;	//TODO return error code
+		return -1;	//TODO: We're returning error codes from both mhash and bdb...
 	}
 	
 	//Hash in the data for this node (and it's hash, if necessary)
@@ -395,16 +395,30 @@ void MerkleDB::recalculate(DBT * key, DBT * data, MerkleHash hash, DBC * cursorp
 	void * digest = malloc(MERKLEDB_HASH_WIDTH / 8);
 	//TODO: use mhash_end instead.  Not clear if we need to 'free' mhash_end, so playing safe.
 	mhash_deinit(td, digest);
-	MerkleNode * mn = (MerkleNode *)data->data;
+	MerkleNode * mn = (MerkleNode *)data->data; //TODO: Note, we're changing the state of the data DBT passed in, icky.
 	mn->digest = *((int *)digest);	//TODO: We're only using a little bit of the hash.. decide which way to go.
 	free(digest);
 	
 	//Put back into the main database
 	ret = cursorp->put(cursorp, key, data, DB_KEYFIRST);
+	if (ret != 0) { return_with_error(ret); }
+	
+	//Now put this nodes parent into the apply queue to recurse up the tree
+	//TODO: Following code is hanging on aly->put (since we've already got an open cursor in flushp?)
+	/*DBT parentk;
+	if (key->size > 0) {
+		parentk = parent(key, mn);
+		std::cout << "putting: " << dbt_string(&parentk) << "\n";
+		ret = aly->put(aly, NULL, &parentk, data, DB_NOOVERWRITE);
+		if (ret != 0) { return_with_error(ret); } 
+	}
+	*/
 	
   //TODO: implement has and add parent to pending queue
   std::cout << "update(" << dbt_string(key) << ", ";
-	dbt_print_hex(&hash, sizeof(MerkleHash));
+	print_hex(&hash, sizeof(MerkleHash));
+
+	return_with_success();
 }
 
 void MerkleDB::print_tree() {
@@ -441,7 +455,7 @@ void MerkleDB::print_tree() {
 		print_children(&key);
     std::cout << "                                  ";
 		MerkleNode * m = (MerkleNode *)data.data;
-		dbt_print_hex(&(m->digest), sizeof(MerkleHash));
+		print_hex(&(m->digest), sizeof(MerkleHash));
     std::cout << ";\n";
 		free(key.data);
 		free(data.data);	//TODO: Memory Leak??
