@@ -130,6 +130,7 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
   char *end;
   int off = 0;
   DB* db_ptr;
+  MerkleDB* mdb_ptr;
   DB_ENV* db_env;
   DBT k,d;
   int fail = 0;
@@ -155,6 +156,7 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
   cout << "Namespace is: "<<ns<<endl;
 #endif
   db_ptr = storageDB->getDB(ns);
+  mdb_ptr = storageDB->getMerkleDB(ns);
 
   DB_TXN *txn;
   txn = NULL;
@@ -221,16 +223,19 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
     d.flags = 0;
     d.dlen = 0;
 
-    if (db_ptr->put(db_ptr, txn, &k, &d, 0) != 0) {
+    if ( (db_ptr->put(db_ptr, txn, &k, &d, 0) != 0) ||
+	 (mdb_ptr->enqueue(&k,&d) != 0) )
       fail = 1;
-      break;
-    }
 
     if (kf)
       free(k.data);
     if (df)
       free(d.data);
+
+    if (fail)
+      break;
   }
+
   if (fail) {
     if (txn!=NULL && txn->abort(txn)) 
       cerr << "Transaction abort failed"<<endl;

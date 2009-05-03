@@ -53,6 +53,7 @@ public:
   int flush_log(DB*);
 
   DB* getDB(const NameSpace& ns);
+  MerkleDB* getMerkleDB(const NameSpace& ns);
   int get_listen_port() { return listen_port; }
   DB_ENV* getENV() { return db_env; }
   bool isTXN() { return user_flags & DB_INIT_TXN; }

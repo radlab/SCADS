@@ -287,15 +287,33 @@ getDB(const NameSpace& ns) {
   it = dbs.find(ns);
   if (it == dbs.end()) { // haven't opened this db yet
     open_database(&db,ns.c_str(),"storage.bdb",env_dir,stderr);
-    //MerkleDB* mdb = new MerkleDB(ns,db_env,env_dir);
+    MerkleDB* mdb = new MerkleDB(ns,db_env,env_dir);
     rc = pthread_rwlock_unlock(&dbmap_lock); // unlock read lock
     chkLock(rc,"dbmap_lock","unlock read lock for upgrade");
     rc = pthread_rwlock_wrlock(&dbmap_lock); // need a write lock here
     chkLock(rc,"dbmap_lock","modify dbs map");
     dbs[ns] = db;
+    merkle_dbs[ns] = mdb;
     rc = pthread_rwlock_unlock(&dbmap_lock); // unlock write lock
     chkLock(rc,"dbmap_lock","unlock write lock");
     return db;
+  }
+  db = it->second;
+  rc = pthread_rwlock_unlock(&dbmap_lock); // unlock read lock
+  chkLock(rc,"dbmap_lock","unlock top read lock");
+  return db;
+}
+
+MerkleDB* StorageDB::
+getMerkleDB(const NameSpace& ns) {
+  map<const NameSpace,MerkleDB*>::iterator it;
+  MerkleDB* db;
+  int rc = pthread_rwlock_rdlock(&dbmap_lock); // get the read lock
+  chkLock(rc,"dbmap_lock","top read lock");
+  it = merkle_dbs.find(ns);
+  if (it == merkle_dbs.end()) { // this is bad, merkle db should have been opened by getDB first
+    cerr << "Couldn't find MerkleDB for "<<ns<<" make sure you call getDB BEFORE calling getMerkleDB."<<endl;
+    return NULL;
   }
   db = it->second;
   rc = pthread_rwlock_unlock(&dbmap_lock); // unlock read lock
@@ -869,6 +887,7 @@ count_set(const NameSpace& ns, const RecordSet& rs) {
 bool StorageDB::
 put(const NameSpace& ns, const Record& rec) {
   DB* db_ptr;
+  MerkleDB* mdb_ptr;
   DBT key, data;
   int ret;
 
@@ -892,6 +911,9 @@ put(const NameSpace& ns, const Record& rec) {
   }
 
   db_ptr = getDB(ns);
+  mdb_ptr = getMerkleDB(ns);
+  if (mdb_ptr == NULL) 
+    cerr << "Warning, couldn't get MerkleDB, not going to maintain"<<endl;
   memset(&key, 0, sizeof(DBT));
   memset(&data, 0, sizeof(DBT));
   key.data = const_cast<char*>(rec.key.c_str());
@@ -904,6 +926,7 @@ put(const NameSpace& ns, const Record& rec) {
     data.data = const_cast<char*>(rec.value.c_str());
     data.size = rec.value.length();
     ret = db_ptr->put(db_ptr, NULL, &key, &data, 0);
+    ret |= mdb_ptr->enqueue(&key,&data);
   }
 
   /* gross that we're going in and out of c++ strings,
