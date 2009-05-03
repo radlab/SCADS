@@ -24,8 +24,9 @@ public:
 	pthread_mutex_t sync_lock;
   DB * dbp; //Merkle trie database
   DB * pup; //Pending update database
-	DB * aly;//set of updates to apply
-  
+	DB * aly; //Set of updates to apply
+	DB * cld; //Secondary index (key) -> (children);
+	
  public:
   int enqueue(DBT * key, DBT * data);
   void flushp();

@@ -11,12 +11,12 @@
 #define max(i1, i2) ((i1) > (i2) ? (i1) : (i2))
 #define return_with_error(error) std::cout << db_strerror(error) << "\n"; cursorp->close(cursorp); return error;
 #define return_with_success() cursorp->close(cursorp); return 0;
-
+#define close_if_not_null(db) if ((db) != NULL) { (db)->close((db), 0); }
 
 using namespace std;
 using namespace SCADS;
 
-int longest_first(DB *dbp, const DBT *a, const DBT *b) {
+int cmp_longest_first(DB *dbp, const DBT *a, const DBT *b) {
   if (a->size > b->size) {
     return -1;
   } else if (a->size == b->size) {
@@ -26,28 +26,49 @@ int longest_first(DB *dbp, const DBT *a, const DBT *b) {
   }
 }
 
+//Used by children index.  Each node add a pointer from its parent to itself
+int child_extractor(DB *dbp, const DBT *pkey, const DBT *pdata, DBT *ikey) {
+	MerkleNode * mn;
+	mn = (MerkleNode *)pdata->data;
+	memset(ikey, 0, sizeof(DBT));
+	ikey->data = pkey->data;
+	ikey->size = (pkey->size - mn->offset);
+	//duplicates supported in child index
+	return (0);
+}
 
-MerkleDB::MerkleDB(const string& ns,
-		   DB_ENV* db_env) {
+//TODO: Write destructor that closes db
+
+MerkleDB::MerkleDB(const string& ns, DB_ENV* db_env) {
   //TODO: We'll need a different merkledb for each namespace.  Ditto for the pending queue (unless we put more info in struct)
   char filebuf[10+ns.length()];
-  
+	int ret;
+	
   /* Initialize the DB handles */
+	//TODO: Add error checking here and elsewhere
   db_create(&dbp, db_env, 0);
   db_create(&pup, db_env, 0);
   db_create(&aly, db_env, 0);
 
-  pup->set_bt_compare(pup, longest_first);
-  aly->set_bt_compare(aly, longest_first);
+	//Create index (secondary database) to give parent->children mapping
+	db_create(&cld, db_env, 0);
+	cld->set_flags(cld, DB_DUPSORT);
+
+	//Set sorting functions for queues
+  pup->set_bt_compare(pup, cmp_longest_first);
+  aly->set_bt_compare(aly, cmp_longest_first);
 
   /* Now open the databases */
-  sprintf(filebuf,"%s_merkle.bdb",ns.c_str());
+  sprintf(filebuf,"%s_merkledb.bdb",ns.c_str());
   dbp->open(dbp, NULL, filebuf, NULL, DB_BTREE, DB_CREATE, 0);
-  sprintf(filebuf,"%s_pub.bdb",ns.c_str());
+  sprintf(filebuf,"%s_pendingq.bdb",ns.c_str());
   pup->open(pup, NULL, filebuf, NULL, DB_BTREE, DB_CREATE, 0);
-  sprintf(filebuf,"%s_aly.bdb",ns.c_str());
+  sprintf(filebuf,"%s_applyq.bdb",ns.c_str());
   aly->open(aly, NULL, filebuf, NULL, DB_BTREE, DB_CREATE, 0);
-	
+	sprintf(filebuf, "%s_chldix.bdb", ns.c_str());
+	cld->open(cld, NULL, filebuf, NULL, DB_BTREE, DB_CREATE, 0);
+	dbp->associate(dbp, NULL, cld, child_extractor, 0);
+
 	//TODO: Create secondary database to give parent->children mapping
 	
   pthread_mutex_init(&sync_lock, NULL);
@@ -58,7 +79,6 @@ MerkleDB::MerkleDB(const string& ns,
   memset(&data, 0, sizeof(DBT));
   key.size = 0;//Not necessary (since already memset to zero), but let's be explicit
   
-  int ret;
   ret = dbp->get(dbp, NULL, &key, &data, 0);
   if (ret == DB_NOTFOUND) {
 #ifdef DEBUG
@@ -272,7 +292,6 @@ void MerkleDB::print_tree() {
     }
     char * sstart = ((char *)(key.data)+prefix);
     std::cout << std::string(sstart,suffix); 
-//		DBT parent = parent(&key, ((MerkleNode *)data.data));
 		DBT parentk = parent(&key, (MerkleNode *)(data.data));
 		std::cout << "-->" << dbt_string(&parentk);
     std::cout << "                     ";
@@ -297,16 +316,10 @@ void MerkleDB::update(DBT * key, MerkleHash hash) {
 }
 
 void MerkleDB::close() {
-  if (dbp != NULL) {
-    dbp->close(dbp, 0);
-  } else {
-    printf("dbp is null");
-  }
-  if (pup != NULL) {
-    pup->close(pup, 0);
-  } else {
-    printf("pup is null");
-  }
+	close_if_not_null(dbp);
+	close_if_not_null(aly);
+	close_if_not_null(pup);
+	close_if_not_null(cld);
 }
 
 DBT MerkleDB::parent(DBT * key, MerkleNode * node) {
