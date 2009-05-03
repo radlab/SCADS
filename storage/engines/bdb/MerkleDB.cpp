@@ -28,13 +28,18 @@ int cmp_longest_first(DB *dbp, const DBT *a, const DBT *b) {
 
 //Used by children index.  Each node add a pointer from its parent to itself
 int child_extractor(DB *dbp, const DBT *pkey, const DBT *pdata, DBT *ikey) {
-	MerkleNode * mn;
-	mn = (MerkleNode *)pdata->data;
-	memset(ikey, 0, sizeof(DBT));
-	ikey->data = pkey->data;
-	ikey->size = (pkey->size - mn->offset);
-	//duplicates supported in child index
-	return (0);
+	if (pkey->size != 0) {
+		MerkleNode * mn;
+		mn = (MerkleNode *)pdata->data;
+		memset(ikey, 0, sizeof(DBT));
+		ikey->data = pkey->data;
+		ikey->size = (pkey->size - mn->offset);
+		//duplicates supported in child index
+		return 0;
+	} else {
+		//TODO: make sure root node (who is own parent) doesn't add child link to itself 
+		return 0;//return 1;
+	}
 }
 
 //TODO: Write destructor that closes db
@@ -288,13 +293,18 @@ void MerkleDB::print_tree() {
     int suffix = ((MerkleNode *)data.data)->offset;
     int prefix = key.size - suffix;
     for (i = 0; i < prefix; i++) {
-      std::cout << " ";
+			if (i == (prefix - 1)) {
+				std::cout << "|";
+			} else {
+				std::cout << " ";
+			}
     }
     char * sstart = ((char *)(key.data)+prefix);
     std::cout << std::string(sstart,suffix); 
 		DBT parentk = parent(&key, (MerkleNode *)(data.data));
-		std::cout << "-->" << dbt_string(&parentk);
-    std::cout << "                     ";
+		std::cout << "-->(" << dbt_string(&parentk) << ")";
+		print_children(&key);
+    std::cout << "                                  ";
     std::cout << ((MerkleNode *)data.data)->digest << "\n";
   }
   if (ret != DB_NOTFOUND) {
@@ -306,6 +316,28 @@ void MerkleDB::print_tree() {
     cursorp->close(cursorp);
   }
   std::cout << "\n";
+}
+
+void MerkleDB::print_children(DBT *key) {
+	DBT pkey, pdata; /* Used to return the primary key and data */
+	int ret;
+	
+	memset(&pkey, 0, sizeof(DBT));
+	memset(&pdata, 0, sizeof(DBT));
+	DBC *cursorp;
+	cld->cursor(cld, NULL, &cursorp, 0);
+	
+	ret = cursorp->pget(cursorp, key, &pkey, &pdata, DB_SET);
+	if (ret == 0) {
+		std::cout << "-->[";
+		do {
+			std::cout << "(";
+			std::cout << dbt_string(&pkey);
+			std::cout << ")";
+		} while ((ret = cursorp->pget(cursorp, key, &pkey, &pdata, DB_NEXT_DUP)) == 0);
+		std::cout << "]";
+	}
+	cursorp->close(cursorp);
 }
 
 //hashes the supplied value with the hashes of the children on key
@@ -462,7 +494,12 @@ int test_pending(DB_ENV* db_env) {
   merkle->examine(&key2);
 	
   merkle->flushp();
-  //
+
+	key.data = (char *)"bbc";
+	key.size = 3;
+	std::cout << "printing_children of: " << dbt_string(&key) << "\n";
+	merkle->print_children(&key);
+	std::cout << "\n"	;
   //std::cout << "Look for keys node via examine\n";
   //merkle->examine(&key);
   //merkle->examine(&key2);
