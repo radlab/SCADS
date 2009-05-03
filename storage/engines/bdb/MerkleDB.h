@@ -5,6 +5,9 @@
 #include <pthread.h>
 #include "gen-cpp/Storage.h"
 
+#define MERKLEDB_HASH_FUNC MHASH_TIGER128
+#define MERKLEDB_HASH_WIDTH 128
+
 using namespace std;
 
 namespace SCADS {
@@ -41,7 +44,7 @@ public:
   MerkleNode parent(MerkleNode * node);
   MerkleNode get(DBT * key);
   int insert(DBT * key, MerkleHash hash);
-  void update(DBT * key, MerkleHash hash);
+	void recalculate(DBT * key, MerkleHash hash, DBC *cursorp);
   DBT parent(DBT * key, MerkleNode * node);
   int dbt_equal(DBT * db1, DBT * db2);
 };

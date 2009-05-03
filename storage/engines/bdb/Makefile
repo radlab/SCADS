@@ -39,7 +39,7 @@ GEN_SRC = gen-cpp/storage_types.cpp gen-cpp/Storage.cpp
 # C/C++ MACROS
 CXX=g++
 CFLAGS = -I${THRIFT_DIR} -I${BOOST_DIR} -Igen-cpp ${BDB_DIR}
-LIBS = ${LIB_DIRS} -lthrift -lthriftnb -levent -l${BDB_LIB} -l${RUBY_LIB}
+LIBS = ${LIB_DIRS} -lthrift -lthriftnb -levent -l${BDB_LIB} -l${RUBY_LIB} -lmhash
 
 default: arch_warning storage.bdb
 

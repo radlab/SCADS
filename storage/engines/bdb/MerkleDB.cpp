@@ -5,14 +5,16 @@
 #include <iostream>
 #include <string.h>
 #include <stdlib.h>
+#include "mhash.h"
 
-#define dbt_string(dp) std::string((char*)(dp)->data,(dp)->size)
+#define dbt_string(dbt) std::string((char*)(dbt)->data,(dbt)->size)
 #define min(i1, i2) ((i1) < (i2) ? (i1) : (i2))
 #define max(i1, i2) ((i1) > (i2) ? (i1) : (i2))
 #define return_with_error(error) std::cout << db_strerror(error) << "\n"; return error;
 #define return_with_success() return 0;
 #define close_if_not_null(db) if ((db) != NULL) { (db)->close((db), 0); }
 #define cleanup_after_bdb() cursorp->close(cursorp); while (data_ptrs.size() > 0) { free(data_ptrs.back()); data_ptrs.pop_back(); }
+#define dbt_print_hex(buf, len) for (int i = 0; i < (len); i++) { printf("%x%x", (0xF0 & (((char *)buf)[i]) >> 4), (0x0F & (((char *)buf)[i]))); }
 
 using namespace std;
 using namespace SCADS;
@@ -40,7 +42,7 @@ int child_extractor(DB *dbp, const DBT *pkey, const DBT *pdata, DBT *ikey) {
 		return 0;
 	} else {
 		//make sure root node (who is own parent) doesn't add child link to itself 
-		return DB_DONOTINDEX;
+		return DB_DONOTINDEX;	
 	}
 }
 
@@ -128,17 +130,35 @@ MerkleDB::MerkleDB(const string& ns, DB_ENV* db_env, const char* env_dir) {
 
 //Adds key->hash(data) to pending update queue
 int MerkleDB::enqueue(DBT * key, DBT * data) {
-  int rdm = rand() % 1000;
-  std::cout << "enqueue(\"" << dbt_string(key) << "\",\"" << dbt_string(data) << "\") with hash:" << rdm << "\t";
-  MerkleHash hash = (MerkleHash)(rdm); //TODO: hash(data);
+  int ret;
   DBT h;
-  memset(&h, 0, sizeof(DBT));
+  MHASH td;
+	
+	memset(&h, 0, sizeof(DBT));
 	h.flags = DB_DBT_MALLOC;
-  h.data = &hash;
-  h.size = sizeof(MerkleHash);
-	rdm = pup->put(pup, NULL, key, &h, 0);
-	std::cout << db_strerror(rdm) << "\n";
-	return rdm;
+	
+	td = mhash_init(MERKLEDB_HASH_FUNC);
+	if (td == MHASH_FAILED) {
+		std::cerr << "HASH Failed";
+		return -1;
+	}
+	mhash(td, (unsigned char *)key->data, key->size);
+	mhash(td, (unsigned char *)data->data, data->size);
+	//TODO: use mhash_end instead.  Not clear if we need to 'free' mhash_end, so playing safe.
+	h.data = malloc(MERKLEDB_HASH_WIDTH / 8);
+	mhash_deinit(td, h.data);	
+
+	//TODO: clean this up, don't need to be passing MerkleHashs all over and we should be using the full hash
+	h.size = sizeof(MerkleHash);
+  MerkleHash hash = *((MerkleHash *)(h.data));
+  std::cout << "enqueue(\"" << dbt_string(key) << "\",\"" << dbt_string(data) << "\") with hash:\t";
+	dbt_print_hex(h.data, h.size);
+	std::cout << "\n";
+	
+	ret = pup->put(pup, NULL, key, &h, 0);
+	free(h.data);
+	if (ret != 0) { return_with_error(ret); }
+	return_with_success();
 }
 
 //Clear the pending update queue
@@ -208,6 +228,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
     
 		if (dbt_equal(key, &ckey)) {
       /* A node for this exact key exists.  Update it and we're done */
+			recalculate(key, hash, cursorp);
       //TODO: update(&ckey, &m.digest...?)
       //TODO: add parent to pending (with data with length zero)
 			cleanup_after_bdb(); 
@@ -312,8 +333,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
       ret = cursorp->put(cursorp, &ckey, &cdata, DB_KEYFIRST);
       if (ret != 0) { return_with_error(ret); }
     }
-    //update_hash(key)
-    //add parent to apply_set
+		recalculate(key, hash, cursorp);
   } else {
 		if (ret == DB_NOTFOUND) {
 			//Should be impossible, our parent is a prefix of us and if we can't find it directly, there
@@ -325,6 +345,12 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
   }
 	cleanup_after_bdb();
   return_with_success();
+}
+
+//rehash the targeted key and 
+void MerkleDB::recalculate(DBT * key, MerkleHash hash, DBC *cursorp) {
+  //TODO: implement has and add parent to pending queue
+  std::cout << "update(" << dbt_string(key) << ", " << hash << ") //update hash\n";
 }
 
 void MerkleDB::print_tree() {
@@ -360,7 +386,9 @@ void MerkleDB::print_tree() {
 		std::cout << "-->(" << dbt_string(&parentk) << ")";
 		print_children(&key);
     std::cout << "                                  ";
-    std::cout << ((MerkleNode *)data.data)->digest << "\n";
+		MerkleNode * m = (MerkleNode *)data.data;
+		dbt_print_hex(&(m->digest), sizeof(MerkleHash));
+    std::cout << ";\n";
 		free(key.data);
 		free(data.data);	//TODO: Memory Leak??
   }
@@ -399,13 +427,6 @@ void MerkleDB::print_children(DBT *key) {
 		std::cout << "]";
 	}
 	cursorp->close(cursorp);
-}
-
-//hashes the supplied value with the hashes of the children on key
-void MerkleDB::update(DBT * key, MerkleHash hash) {
-  //TODO: implement
-  //cursorp->put(...., DB_CURRENT)
-  std::cout << "update(" << dbt_string(key) << ", " << hash << ") //update hash\n";
 }
 
 void MerkleDB::close() {
@@ -606,7 +627,7 @@ int test_prefix(DB_ENV* db_env) {
 
 int main( int argc, char** argv )
 {
-  u_int32_t env_flags = 0;
+	u_int32_t env_flags = 0;
   int ret;
   u_int32_t gb;
   DB_ENV* db_env;
