@@ -135,7 +135,7 @@ int MerkleDB::enqueue(DBT * key, DBT * data) {
   MHASH td;
 	
 	memset(&h, 0, sizeof(DBT));
-	h.flags = DB_DBT_MALLOC;
+	//h.flags = DB_DBT_MALLOC; //We're not currently 'get()-ing' here
 	
 	td = mhash_init(MERKLEDB_HASH_FUNC);
 	if (td == MHASH_FAILED) {
@@ -228,7 +228,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
     
 		if (dbt_equal(key, &ckey)) {
       /* A node for this exact key exists.  Update it and we're done */
-			recalculate(key, hash, cursorp);
+			recalculate(key, &cdata, hash, cursorp);
       //TODO: update(&ckey, &m.digest...?)
       //TODO: add parent to pending (with data with length zero)
 			cleanup_after_bdb(); 
@@ -321,6 +321,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
       if (ret != 0) { return_with_error(ret); }
     }
     /* parent is guaranteed to exist now. (Parent node either existed, or we created it)  */
+		/* We just need to check if we should coalesce with our parent, or actually add ourselves */
     if (parentk.size != key->size) {
       //The inserted node has a non-empty string suffix relative to it's common prefix, so we
       //need to add a node for it.
@@ -333,7 +334,10 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
       ret = cursorp->put(cursorp, &ckey, &cdata, DB_KEYFIRST);
       if (ret != 0) { return_with_error(ret); }
     }
-		recalculate(key, hash, cursorp);
+		//Now we reposition the cursor, and update the new nodes hash
+		ret = cursorp->get(cursorp, key, &cdata, DB_SET);
+    if (ret != 0) { return_with_error(ret); }
+		recalculate(key, &cdata, hash, cursorp);
   } else {
 		if (ret == DB_NOTFOUND) {
 			//Should be impossible, our parent is a prefix of us and if we can't find it directly, there
@@ -348,9 +352,59 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
 }
 
 //rehash the targeted key and 
-void MerkleDB::recalculate(DBT * key, MerkleHash hash, DBC *cursorp) {
+void MerkleDB::recalculate(DBT * key, DBT * data, MerkleHash hash, DBC * cursorp) {
+	int ret;
+	MHASH td;
+	
+	/* Data structures for key's children */
+	DBT childk, childd; /* Used to return the primary key and data */
+	memset(&childk, 0, sizeof(DBT));
+	memset(&childd, 0, sizeof(DBT));
+	childk.flags = DB_DBT_MALLOC;
+	childd.flags = DB_DBT_MALLOC;
+
+	//Setup the hash function
+	td = mhash_init(MERKLEDB_HASH_FUNC);
+	if (td == MHASH_FAILED) {
+		std::cerr << "HASH Failed";
+		return;	//TODO return error code
+	}
+	
+	//Hash in the data for this node (and it's hash, if necessary)
+	mhash(td, (unsigned char *)key->data, key->size);
+	if (hash != NULL) {
+		mhash(td, &hash, sizeof(MerkleHash));	//TODO: Switch away from MerkleHash
+	}
+	
+	//Hash in the children (in lexical order) //TODO: Confirm lexical ordering
+	DBC *childc;
+	cld->cursor(cld, NULL, &childc, 0);
+	MerkleNode * childn;
+	ret = childc->pget(childc, key, &childk, &childd, DB_SET);
+	if (ret == 0) {
+		do {
+			mhash(td, (unsigned char *)childk.data, childk.size);
+			childn = (MerkleNode *)childd.data;
+			mhash(td, (unsigned char *)&(childn->digest), sizeof(MerkleHash));
+			free(childk.data);
+			free(childd.data);
+		} while ((ret = childc->pget(childc, key, &childk, &childd, DB_NEXT_DUP)) == 0);
+	}
+	childc->close(childc);
+	
+	void * digest = malloc(MERKLEDB_HASH_WIDTH / 8);
+	//TODO: use mhash_end instead.  Not clear if we need to 'free' mhash_end, so playing safe.
+	mhash_deinit(td, digest);
+	MerkleNode * mn = (MerkleNode *)data->data;
+	mn->digest = *((int *)digest);	//TODO: We're only using a little bit of the hash.. decide which way to go.
+	free(digest);
+	
+	//Put back into the main database
+	ret = cursorp->put(cursorp, key, data, DB_KEYFIRST);
+	
   //TODO: implement has and add parent to pending queue
-  std::cout << "update(" << dbt_string(key) << ", " << hash << ") //update hash\n";
+  std::cout << "update(" << dbt_string(key) << ", ";
+	dbt_print_hex(&hash, sizeof(MerkleHash));
 }
 
 void MerkleDB::print_tree() {

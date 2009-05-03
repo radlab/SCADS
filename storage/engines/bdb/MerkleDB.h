@@ -44,7 +44,7 @@ public:
   MerkleNode parent(MerkleNode * node);
   MerkleNode get(DBT * key);
   int insert(DBT * key, MerkleHash hash);
-	void recalculate(DBT * key, MerkleHash hash, DBC *cursorp);
+	void recalculate(DBT * key, DBT * data, MerkleHash hash, DBC * cursorp);
   DBT parent(DBT * key, MerkleNode * node);
   int dbt_equal(DBT * db1, DBT * db2);
 };
