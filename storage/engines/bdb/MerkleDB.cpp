@@ -164,27 +164,43 @@ int MerkleDB::enqueue(DBT * key, DBT * data) {
 }
 
 //Clear the pending update queue
-void MerkleDB::flushp() {
-  DBC *cursorp;
-  int ret;
+int MerkleDB::flushp() {
   DBT key, data;
   memset(&key, 0, sizeof(DBT));
-	key.flags = DB_DBT_MALLOC;
   memset(&data, 0, sizeof(DBT));
 	data.flags = DB_DBT_MALLOC;
+	key.flags = DB_DBT_MALLOC;
+	
   pthread_mutex_lock(&sync_lock);
-  //Turn pending queue into the apply queue, turn (empty) apply queue into pending queue.
+
+  //Swap pending and apply queues
   DB * tmp = aly;
   aly = pup;
   pup = tmp;
+
+  int ret = 0;
+  DBC *cursorp;
   aly->cursor(aly, NULL, &cursorp, 0);
-  while ((ret = cursorp->get(cursorp, &key, &data, DB_NEXT)) == 0) {
+	while ((ret = cursorp->get(cursorp, &key, &data, DB_FIRST)) == 0) {
+		ret = cursorp->del(cursorp, 0); //TODO: Switch to a transactional store for these queues, not crash safe here
+		if (ret != 0) { 
+			pthread_mutex_unlock(&sync_lock);
+			return_with_error(ret);
+		}
+		cursorp->close(cursorp);
     insert(&key, *((MerkleHash *)(data.data)));
 		free(key.data);
 		free(data.data);
     print_tree();
-  }
-  pthread_mutex_unlock(&sync_lock);
+		aly->cursor(aly, NULL, &cursorp, 0);
+	}
+	if (ret != DB_NOTFOUND) { 
+		pthread_mutex_unlock(&sync_lock);
+		return_with_error(ret);
+	} else {
+  	pthread_mutex_unlock(&sync_lock);
+		return_with_success();
+	}
 }
 
 u_int32_t MerkleDB::prefix_length(DBT * key1, DBT * key2) {
@@ -238,11 +254,11 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
     } else {
       //Key doesn't exist, cursor is now at key on right-hand side of insertion point.
       rightk = ckey;
-			//TODO: Test
     }
   } else if (DB_NOTFOUND == ret) {
     //key is all the way to the right, no right-side neighbor
     rightk.size = 0;
+		//TODO: We need to do something besides DB_PREV in next call to find left neighbor
   } else {
 		cleanup_after_bdb();
     return_with_error(ret);
@@ -263,7 +279,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
   memset(&newn, 0, sizeof(MerkleNode));
   newd.size = sizeof(MerkleNode);
 	
-  //Find the left-side neighbor
+  //Find the left-side neighbor (if cursor failed finding right, DB_PREV will give us DB_LAST (which is correct))
   ret = cursorp->get(cursorp, &ckey, &cdata, DB_PREV);
   if (DB_NOTFOUND == ret) {
     std::cerr << "Inconceivable! The root node sorts first! It should be here!\n";
@@ -354,7 +370,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
   return_with_success();
 }
 
-//rehash the targeted key and 
+//rehash the targeted key and add it's parent to aly queue
 int MerkleDB::recalculate(DBT * key, DBT * data, MerkleHash hash, DBC * cursorp) {
 	int ret;
 	MHASH td;
@@ -412,8 +428,12 @@ int MerkleDB::recalculate(DBT * key, DBT * data, MerkleHash hash, DBC * cursorp)
 	if (key->size > 0) {	//The root is its own parent 
 		parentk = parent(key, mn);
 		std::cout << "putting: " << dbt_string(&parentk) << "\n";
-//		ret = aly->put(aly, txn, &parentk, data, DB_NOOVERWRITE);
-//		if (ret != 0) { return_with_error(ret); }
+		ret = aly->put(aly, NULL, &parentk, data, DB_NOOVERWRITE);
+		if (ret == DB_KEYEXIST) {
+			std::cout << "Already existed. nm.\n";
+		} else if (ret != 0) {
+			return_with_error(ret);
+		}
 	}
 	
   //TODO: implement has and add parent to pending queue

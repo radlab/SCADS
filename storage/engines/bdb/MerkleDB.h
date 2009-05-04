@@ -8,13 +8,21 @@
 #define MERKLEDB_HASH_FUNC MHASH_TIGER128
 #define MERKLEDB_HASH_WIDTH 128
 
+//MerkleNode
+
 using namespace std;
 
 namespace SCADS {
 
 typedef int MerkleHash;
 
+//MerkleNode types
+#define MN_LEAF 0
+#define MN_INTERIOR 1
+#define MN_INTERIOR_WITH_DATA 2
+
 typedef struct {
+	char type;
   int offset; //|MerkleNode.key| - |MerkleNode.parent.key| (i.e. suffix length)
   MerkleHash digest; //hash (of data for leaf, children's digests if interior node)
 } MerkleNode;
@@ -25,7 +33,8 @@ public:
 
  public:
 	int flush_flag;
-
+	int type;
+	
  private:
 	pthread_mutex_t sync_lock;
   DB * dbp; //Merkle trie database
@@ -35,7 +44,7 @@ public:
 	
  public:
   int enqueue(DBT * key, DBT * data);
-  void flushp();
+  int flushp();
   void examine(DBT * key);
   void close();
   //debug methods
