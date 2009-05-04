@@ -153,9 +153,9 @@ int MerkleDB::enqueue(DBT * key, DBT * data) {
 	//TODO: clean this up, don't need to be passing MerkleHashs all over and we should be using the full hash
 	h.size = sizeof(MerkleHash);
   MerkleHash hash = *((MerkleHash *)(h.data));
-  std::cout << "enqueue(\"" << dbt_string(key) << "\",\"" << dbt_string(data) << "\") with hash:\t";
-	print_hex(h.data, h.size);
-	std::cout << "\n";
+  //std::cout << "enqueue(\"" << dbt_string(key) << "\",\"" << dbt_string(data) << "\") with hash:\t";
+	//print_hex(h.data, h.size);
+	//std::cout << "\n";
 	
 	ret = pup->put(pup, NULL, key, &h, 0);
 	free(h.data);
@@ -214,9 +214,9 @@ u_int32_t MerkleDB::prefix_length(DBT * key1, DBT * key2) {
 
 //Take key,hash pair and insert into patricia-merkle trie db
 int MerkleDB::insert(DBT * key, MerkleHash hash) {
-  std::cout << "insert(\"" << dbt_string(key) << "\", ";
-	print_hex(&hash, sizeof(MerkleHash));
-	std::cout << "\n";
+  //std::cout << "insert(\"" << dbt_string(key) << "\", ";
+	//print_hex(&hash, sizeof(MerkleHash));
+	//std::cout << "\n";
   int ret;
 	
 	//This code is only executed by a single thread, but BDB requires us
@@ -433,7 +433,7 @@ int MerkleDB::recalculate(DBT * key, DBT * data, DBC * cursorp) {
 	parentd.flags = DB_DBT_MALLOC;
 	if (key->size > 0) {	//The root is its own parent 
 		parentk = parent(key, mn);
-		std::cout << "putting: " << dbt_string(&parentk) << "\n";
+		//std::cout << "putting: " << dbt_string(&parentk) << "\n";
 		
 		//We need to get the parent's data node to add it to the apply queue correctly
 		//TODO: Alter apply queue so it differentiates between sets and recurse-ups
@@ -447,16 +447,16 @@ int MerkleDB::recalculate(DBT * key, DBT * data, DBC * cursorp) {
 		ret = aly->put(aly, NULL, &parentk, &mh, DB_NOOVERWRITE);
 		free(parentd.data);
 		if (ret == DB_KEYEXIST) {
-			std::cout << "Already existed. nm.\n";
+//			std::cout << "Already existed. nm.\n";
 		} else if (ret != 0) {
 			return_with_error(ret);
 		}
 	}
 	
   //TODO: implement has and add parent to pending queue
-  std::cout << "update(" << dbt_string(key) << ", ";
-	print_hex(&mn->data_digest, sizeof(MerkleHash));
-	std::cout << "\n";
+  //std::cout << "update(" << dbt_string(key) << ", ";
+	//print_hex(&mn->data_digest, sizeof(MerkleHash));
+	//std::cout << "\n";
 	
 	return_with_success();
 }
@@ -490,9 +490,9 @@ void MerkleDB::print_tree() {
     }
     char * sstart = ((char *)(key.data)+prefix);
     std::cout << std::string(sstart,suffix); 
-		DBT parentk = parent(&key, (MerkleNode *)(data.data));
-		std::cout << "-->(" << dbt_string(&parentk) << ")";
-		print_children(&key);
+		//DBT parentk = parent(&key, (MerkleNode *)(data.data));
+		//std::cout << "-->(" << dbt_string(&parentk) << ")";
+		//print_children(&key);
     std::cout << "                                  ";
 		MerkleNode * m = (MerkleNode *)data.data;
 		print_hex(&(m->digest), sizeof(MerkleHash));
@@ -830,6 +830,60 @@ int test_pending2(DB_ENV* db_env) {
   merkle->close();
 }
 
+
+void build_random_tree(MerkleDB * merkle, int seed) {
+	std::cout << "build_tree(" << merkle << ", " << seed << ")\n";
+	srand(seed);
+	vector<std::string> keys;
+	vector<std::string> data;
+	keys.push_back("deefafdfebe");
+	keys.push_back("ccaacdcbddbc");
+	keys.push_back("cedfccdfbdccffbbbfccd");
+	keys.push_back("ffaeceaefffebfcbb");
+	keys.push_back("cbdcaaf");
+	keys.push_back("ceda");
+	keys.push_back("dedaccedfff");
+	keys.push_back("efacac");
+	keys.push_back("addabdaacafccd");
+	keys.push_back("edbdf");
+	
+	data.push_back("1");
+	data.push_back("2");
+	data.push_back("3");
+	data.push_back("4");
+	data.push_back("5");
+	data.push_back("6");
+	data.push_back("7");
+	data.push_back("8");
+	data.push_back("9");
+	data.push_back("10");
+	
+	unsigned int i;
+	int max;
+	char * key;
+	char * datum;
+	while (keys.size() > 0) {
+		max = keys.size();
+		i = rand() % max;
+		key = (char *)keys[i].c_str();
+		datum = (char *)data[i].c_str();
+		//std::cout << key << " , " << datum << "\n";
+		DBT keyd, datad;
+		memset(&keyd, 0, sizeof(DBT));
+		memset(&datad, 0, sizeof(DBT));
+		keyd.data = key;
+		keyd.size = strlen(key);
+		datad.data = datum;
+		datad.size = strlen(datum);
+		
+		merkle->enqueue(&keyd, &datad);
+		keys.erase(keys.begin()+i);
+		data.erase(data.begin()+i);
+	}
+	merkle->flushp();
+	merkle->print_tree();
+}
+
 int main( int argc, char** argv )
 {
 	u_int32_t env_flags = 0;
@@ -860,9 +914,26 @@ int main( int argc, char** argv )
     fprintf(stderr, "Environment open failed: %s\n", db_strerror(ret));
     exit(-1);
   }
-  test_macro(db_env);
+	MerkleDB * mdb1 = new MerkleDB("tree1",db_env,".");
+	MerkleDB * mdb2 = new MerkleDB("tree2",db_env,".");
+	build_random_tree(mdb1, 10);
+	build_random_tree(mdb2, 30433);
+	std::cout << "alter with: dedaccedff := dsfkj\n";
+	DBT key, data;
+	memset(&key, 0, sizeof(DBT));
+	memset(&data, 0, sizeof(DBT));
+	char * key_s = "dedaccedfff";
+	char * data_s = "dsfkj";
+	key.data = key_s;
+	key.size = strlen(key_s);
+	data.data = data_s;
+	data.size = strlen(data_s);
+	mdb1->enqueue(&key, &data);
+	mdb1->flushp();
+	mdb1->print_tree();
+  //test_macro(db_env);
 	//test_pending(db_env);
-  test_pending2(db_env);
+  //test_pending2(db_env);
   //test_prefix();
   return 0;
 }
