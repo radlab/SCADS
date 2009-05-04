@@ -16,15 +16,11 @@ namespace SCADS {
 
 typedef int MerkleHash;
 
-//MerkleNode types
-#define MN_LEAF 0
-#define MN_INTERIOR 1
-#define MN_INTERIOR_WITH_DATA 2
 
 typedef struct {
-	char type;
   int offset; //|MerkleNode.key| - |MerkleNode.parent.key| (i.e. suffix length)
   MerkleHash digest; //hash (of data for leaf, children's digests if interior node)
+	MerkleHash data_digest;
 } MerkleNode;
 
 class MerkleDB {
@@ -56,7 +52,7 @@ public:
   MerkleNode parent(MerkleNode * node);
   MerkleNode get(DBT * key);
   int insert(DBT * key, MerkleHash hash);
-	int recalculate(DBT * key, DBT * data, MerkleHash hash, DBC * cursorp);
+	int recalculate(DBT * key, DBT * data, DBC * cursorp);
   DBT parent(DBT * key, MerkleNode * node);
   int dbt_equal(DBT * db1, DBT * db2);
 };
