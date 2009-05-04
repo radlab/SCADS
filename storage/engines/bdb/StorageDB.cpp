@@ -40,6 +40,7 @@ using namespace SCADS;
 // program wide config stuff
 static char* env_dir;
 static int port;
+char stopping = 0;
 
 // this is only ever read, so it's thread safe
 ID call_id;
@@ -253,8 +254,7 @@ responsible_for_set(const NameSpace& ns, const RecordSet& rs) {
   return false; // if we don't understand, we'll say no
 }
 
-void StorageDB::
-chkLock(int rc, const string lock, const string action) {
+void chkLock(int rc, const string lock, const string action) {
   switch (rc) {
   case 0: // success
     return;
@@ -709,6 +709,48 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 #endif
 }
 
+static void* flush_thread(void* arg) {
+  StorageDB* storageDB = (StorageDB*)arg;
+  pthread_rwlock_t *dbmap_lock = storageDB->get_dbmap_lock();
+  map<const NameSpace,MerkleDB*> * merkle_dbs = storageDB->get_merkle_dbs();
+  struct timeval wakeup, now, diff;
+  map<const NameSpace,MerkleDB*>::iterator it;
+  MerkleDB* db;
+  int rc;
+  char cur_flag = 0;
+
+  gettimeofday(&wakeup,NULL);
+  wakeup.tv_sec+=60; // set target wakeup time to 60 seconds from now
+
+  while(!stopping) {
+    int found_one = 0;
+    rc = pthread_rwlock_rdlock(dbmap_lock); // get the read lock
+    chkLock(rc,"dbmap_lock","read lock for flush thread");
+    for (it = merkle_dbs->begin(); it != merkle_dbs->end(); ++it) {
+      db = it->second;
+      if (it->second->flush_flag != cur_flag) { // need to flush
+	db->flush_flag = cur_flag;
+	found_one = 1;
+	rc = pthread_rwlock_unlock(dbmap_lock); // unlock read lock	
+	chkLock(rc,"dbmap_lock","unlock read lock for flush thread");
+	db->flushp();
+	break;
+      }
+    }
+    if (found_one) continue;
+    // okay, here we've flushed them all
+    rc = pthread_rwlock_unlock(dbmap_lock); // unlock read lock
+    chkLock(rc,"dbmap_lock","unlock read lock for flush thread");
+    cur_flag = (cur_flag==0?1:0);
+    gettimeofday(&now,NULL);
+    timersub(&wakeup,&now,&diff);
+    if (diff.tv_sec > 0) 
+      sleep(diff.tv_sec);
+    gettimeofday(&wakeup,NULL);
+    wakeup.tv_sec+=60; // set target wakeup time to 60 seconds from now
+  }
+}
+
 StorageDB::
 StorageDB(int lp,
 	  u_int32_t uf,
@@ -786,6 +828,8 @@ StorageDB(int lp,
   // start up the thread that will listen for incomming copy/syncs
   (void) pthread_create(&listen_thread,NULL,
 			run_listen,this);
+  (void) pthread_create(&flush_threadp,NULL,
+			flush_thread,this);
 
   // let's init ruby
   ruby_init();
@@ -800,9 +844,10 @@ flush_log(DB* db) {
 
 void StorageDB::
 closeDBs() {
-  cout << "Waiting for copy/sync thread to shut down... ";
+  cout << "Waiting for copy/sync and flush threads to shut down... ";
   flush(cout);
   pthread_join(listen_thread,NULL);
+  pthread_join(flush_threadp,NULL);
   cout << "[OK]"<<endl;
   map<const NameSpace,DB*>::iterator iter;
   int rc = pthread_rwlock_wrlock(&dbmap_lock); // need a write lock here
@@ -1196,8 +1241,6 @@ static shared_ptr<StorageDB> storageDB;
 
 int workerCount,lp,cache;
 
-char stopping = 0;
-
 static
 void usage(const char* prgm) {
   fprintf(stderr, "Usage: %s [-p PORT] [-d DIRECTORY] [-t TYPE] [-n NUM] [-l PORT]\n\
@@ -1352,7 +1395,6 @@ static int chkdirs(const char* d) {
   oss <<d<<"/merkle";
   return chkdir(oss.str().c_str());
 }
-
 
 int main(int argc, char **argv) {
   parseArgs(argc,argv);

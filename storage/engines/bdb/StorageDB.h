@@ -25,7 +25,7 @@ private:
   pthread_rwlock_t dbmap_lock;
   map<const NameSpace,DB*> dbs;
   map<const NameSpace,MerkleDB*> merkle_dbs;
-  pthread_t listen_thread;
+  pthread_t listen_thread,flush_threadp;
   int listen_port;
   u_int32_t user_flags;
 
@@ -41,8 +41,6 @@ private:
 
   bool responsible_for_key(const NameSpace& ns, const RecordKey& key);
   bool responsible_for_set(const NameSpace& ns, const RecordSet& rs);
-
-  void chkLock(int rc, const string lock, const string action);
 
 
 public:
@@ -69,6 +67,9 @@ public:
 
   bool set_responsibility_policy(const NameSpace& ns, const RecordSet& policy);
   void get_responsibility_policy(RecordSet& _return, const NameSpace& ns);
+
+  pthread_rwlock_t* get_dbmap_lock() { return &dbmap_lock; }
+  map<const NameSpace,MerkleDB*>* get_merkle_dbs() { return &merkle_dbs; }
 
 };
 
