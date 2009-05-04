@@ -709,20 +709,32 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 #endif
 }
 
+void StorageDB::
+flush_wait(struct timespec* time) {
+  (void)pthread_mutex_lock(&flush_tex);
+  int ret = pthread_cond_timedwait(&flush_cond, &flush_tex, time);
+  (void)pthread_mutex_unlock(&flush_tex);
+}
+
 static void* flush_thread(void* arg) {
   StorageDB* storageDB = (StorageDB*)arg;
   pthread_rwlock_t *dbmap_lock = storageDB->get_dbmap_lock();
   map<const NameSpace,MerkleDB*> * merkle_dbs = storageDB->get_merkle_dbs();
-  struct timeval wakeup, now, diff;
+  struct timeval wakeup;
+  struct timespec spec;
   map<const NameSpace,MerkleDB*>::iterator it;
   MerkleDB* db;
   int rc;
   char cur_flag = 0;
 
+  spec.tv_nsec = 0;
   gettimeofday(&wakeup,NULL);
   wakeup.tv_sec+=60; // set target wakeup time to 60 seconds from now
 
   while(!stopping) {
+#ifdef DEBUG
+    cout << "Running flush thread"<<endl;
+#endif
     int found_one = 0;
     rc = pthread_rwlock_rdlock(dbmap_lock); // get the read lock
     chkLock(rc,"dbmap_lock","read lock for flush thread");
@@ -733,6 +745,9 @@ static void* flush_thread(void* arg) {
 	found_one = 1;
 	rc = pthread_rwlock_unlock(dbmap_lock); // unlock read lock	
 	chkLock(rc,"dbmap_lock","unlock read lock for flush thread");
+#ifdef DEBUG
+	cout << "Flushing "<<it->first<<endl;
+#endif
 	db->flushp();
 	break;
       }
@@ -742,10 +757,8 @@ static void* flush_thread(void* arg) {
     rc = pthread_rwlock_unlock(dbmap_lock); // unlock read lock
     chkLock(rc,"dbmap_lock","unlock read lock for flush thread");
     cur_flag = (cur_flag==0?1:0);
-    gettimeofday(&now,NULL);
-    timersub(&wakeup,&now,&diff);
-    if (diff.tv_sec > 0) 
-      sleep(diff.tv_sec);
+    spec.tv_sec = wakeup.tv_sec;
+    storageDB->flush_wait(&spec);
     gettimeofday(&wakeup,NULL);
     wakeup.tv_sec+=60; // set target wakeup time to 60 seconds from now
   }
@@ -807,21 +820,16 @@ StorageDB(int lp,
   }
     
   // create the dbs rwlock
-  ret = pthread_rwlock_init(&dbmap_lock, NULL);
-  switch (ret) {
-  case 0: // success
-    break;
-  case EBUSY:
-    cerr << "Could not init rwlock for dbs: \
-	The  implementation  has detected an attempt to reinitialize the \
-	object referenced by rwlock, a previously  initialized  but  not \
-	yet destroyed read-write lock."<<endl;
+  if (pthread_rwlock_init(&dbmap_lock, NULL)) {
+    perror("Could not create dbmap_lock");
     exit(EXIT_FAILURE);
-  case EINVAL:
-    cerr << "Could not init rwlock for dbs: The value specified by attr is invalid."<<endl;
+  }
+  if (pthread_mutex_init(&flush_tex,NULL)) {
+    perror("Could not create flush_tex");
     exit(EXIT_FAILURE);
-  default:
-    cerr << "Some random error initing rwlock for dbs"<<endl;
+  }
+  if (pthread_cond_init(&flush_cond,NULL)) {
+    perror("Could not create flush_cond");
     exit(EXIT_FAILURE);
   }
 
@@ -847,6 +855,7 @@ closeDBs() {
   cout << "Waiting for copy/sync and flush threads to shut down... ";
   flush(cout);
   pthread_join(listen_thread,NULL);
+  pthread_cond_signal(&flush_cond);
   pthread_join(flush_threadp,NULL);
   cout << "[OK]"<<endl;
   map<const NameSpace,DB*>::iterator iter;

@@ -26,6 +26,8 @@ private:
   map<const NameSpace,DB*> dbs;
   map<const NameSpace,MerkleDB*> merkle_dbs;
   pthread_t listen_thread,flush_threadp;
+  pthread_cond_t flush_cond;
+  pthread_mutex_t flush_tex;
   int listen_port;
   u_int32_t user_flags;
 
@@ -70,6 +72,7 @@ public:
 
   pthread_rwlock_t* get_dbmap_lock() { return &dbmap_lock; }
   map<const NameSpace,MerkleDB*>* get_merkle_dbs() { return &merkle_dbs; }
+  void flush_wait(struct timespec* time);
 
 };
 
