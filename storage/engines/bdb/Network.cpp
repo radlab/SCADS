@@ -291,7 +291,9 @@ struct sync_sync_args {
   int remdone;
 };
 
+static 
 void send_vals(int sock,DBT* key, DBT* data) {
+  // DBTSEND
   if (send(sock,&(key->size),4,MSG_MORE) == -1) 
     do_throw(errno,"Failed to send key length: ");
   if (send(sock,((const char*)key->data),key->size,MSG_MORE) == -1) 
@@ -300,6 +302,18 @@ void send_vals(int sock,DBT* key, DBT* data) {
     do_throw(errno,"Failed to send data length: ");
   if (send(sock,data->data,data->size,MSG_MORE) == -1) 
     do_throw(errno,"Failed to send data: ");
+}
+
+static
+void send_string(int sock, const string& str) {
+  // DBTSEND
+  int len = str.length();
+  if (send(sock,&len,4,MSG_MORE) == -1) 
+    do_throw(errno,"Failed to send string length: ");
+  if (len != 0) {
+    if (send(sock,str.c_str(),len,MSG_MORE) == -1) 
+      do_throw(errno,"Failed to send string: ");  
+  }
 }
 
 void apply_dump(void *s, DB* db, DBC* cursor, DB_TXN *txn, void *k, void *d) {
@@ -795,9 +809,7 @@ int do_sync(int sock, StorageDB* storageDB, char* dbuf) {
   cerr << "sync_sync set done, sending end message"<<endl;
 #endif
 
-  type = 0;
-  if (send(sock,&type,4,MSG_MORE) == -1) 
-    cerr<<"Error sending end of sync_sync"<<endl;
+  send_string(sock,"");
 
   return storageDB->flush_log(db);
 }
@@ -935,10 +947,7 @@ void* run_listen(void* arg) {
 	  stat = 1;
 	  cerr << "An error occured while dumping: "<<e.what()<<endl;
 	}
-	if (send(as,&stat,4,0) == -1) {
-	  perror("Could not send done key for dump: ");
-	  stat = 1;
-	}
+	send_string(as,"");
       }
     }
     else {
@@ -1041,14 +1050,7 @@ void apply_copy(void* s, DB* db, DBC* cursor, DB_TXN* txn, void* k, void* d) {
   DBT *key,*data;
   key = (DBT*)k;
   data = (DBT*)d;
-  if (send(*sock,&(key->size),4,MSG_MORE) == -1) 
-    do_throw(errno,"Failed to send data length: ");
-  if (send(*sock,((const char*)key->data),key->size,MSG_MORE) == -1)
-    do_throw(errno,"Failed to send a key: ");
-  if (send(*sock,&(data->size),4,MSG_MORE) == -1) 
-    do_throw(errno,"Failed to send data length: ");
-  if (send(*sock,data->data,data->size,MSG_MORE) == -1)
-    do_throw(errno,"Failed to send data: ");
+  send_vals(*sock,key,data);
 }
 
 bool StorageDB::
@@ -1066,19 +1068,12 @@ copy_set(const NameSpace& ns, const RecordSet& rs, const Host& h) {
   if (send(sock,&stat,1,MSG_MORE) == -1) 
     do_throw(errno,"Error sending copy operation: ");
 
-  int nslen = ns.length();  
-  if (send(sock,&nslen,4,MSG_MORE) == -1) 
-    do_throw(errno,"Error sending namespace length: ");
-  
-  if (send(sock,ns.c_str(),nslen,MSG_MORE) == -1) 
-    do_throw(errno,"Error sending namespace: ");
+  send_string(sock,ns);
 
   apply_to_set(ns,rs,apply_copy,&sock);
   
   // send done message
-  nslen = 0;
-  if ((numbytes = send(sock,&nslen,4,0)) == -1)
-    do_throw(errno,"Failed to send done message: ");
+  send_string(sock,"");
 
 #ifdef DEBUG
   cerr << "Sent done. "<<numbytes<<" bytes"<<endl;
@@ -1109,14 +1104,7 @@ void sync_send(void* s, DB* db, DBC* cursor, DB_TXN* txn, void* k, void* d) {
 #ifdef DEBUG
   cerr << "[Sending for sync] key: "<<string((char*)key->data,key->size)<<" data: "<<string((char*)data->data,data->size)<<endl;
 #endif
-  if (send(*sock,&(key->size),4,MSG_MORE) == -1) 
-    do_throw(errno,"Failed to send key length: ");
-  if (send(*sock,((const char*)key->data),key->size,MSG_MORE) == -1)
-    do_throw(errno,"Failed to send a key: ");
-  if (send(*sock,&(data->size),4,MSG_MORE) == -1) 
-    do_throw(errno,"Failed to send data length: ");
-  if (send(*sock,data->data,data->size,MSG_MORE) == -1)
-    do_throw(errno,"Failed to send data: ");
+  send_vals(*sock,key,data);
 }
 
 struct sync_recv_args {
@@ -1237,12 +1225,10 @@ sync_set(const NameSpace& ns, const RecordSet& rs, const Host& h, const Conflict
   if (send(sock,&stat,1,MSG_MORE) == -1) 
     do_throw(errno,"Error sending sync operation: ");
 
-  if (send(sock,&nslen,4,MSG_MORE) == -1) 
-    do_throw(errno,"Error sending namespace length: ");
+  send_string(sock,ns);
   
-  if (send(sock,ns.c_str(),nslen,MSG_MORE) == -1) 
-    do_throw(errno,"Error sending namespace: ");
-  
+  // DBTSEND ?
+
   nslen =
     (policy.type == CPT_GREATER)?
     4:
@@ -1280,11 +1266,7 @@ sync_set(const NameSpace& ns, const RecordSet& rs, const Host& h, const Conflict
     break;
   }
 
-  nslen = os.str().length();
-  if (send(sock,&nslen,4,MSG_MORE) == -1) 
-    do_throw(errno,"Error sending RecordSet length: ");
-  if (send(sock,os.str().c_str(),nslen,MSG_MORE) == -1)
-    do_throw(errno,"Error sending RecordSet for sync: ");
+  send_string(sock,os.str());
 
   struct sync_recv_args args;
   args.sock = sock;
@@ -1299,9 +1281,7 @@ sync_set(const NameSpace& ns, const RecordSet& rs, const Host& h, const Conflict
   apply_to_set(ns,rs,sync_send,&sock);
   
   // send done message
-  nslen = 0;
-  if (send(sock,&nslen,4,0) == -1) 
-    do_throw(errno,"Failed to send done message: ");
+  send_string(sock,"");
 
   // wait for recv thread to read back all the keys
   pthread_join(recv_thread,NULL);
