@@ -23,6 +23,9 @@ class MerkleDB {
 public:
   MerkleDB(const NameSpace& ns, DB_ENV* db_env, const char* env_dir);
 
+ public:
+	int flush_flag;
+
  private:
 	pthread_mutex_t sync_lock;
   DB * dbp; //Merkle trie database

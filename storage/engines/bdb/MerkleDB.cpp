@@ -49,7 +49,9 @@ int child_extractor(DB *dbp, const DBT *pkey, const DBT *pdata, DBT *ikey) {
 //TODO: Write destructor that closes db
 
 MerkleDB::MerkleDB(const string& ns, DB_ENV* db_env, const char* env_dir) {
-  //TODO: We'll need a different merkledb for each namespace.  Ditto for the pending queue (unless we put more info in struct)
+	flush_flag = 0;
+	
+	//TODO: We'll need a different merkledb for each namespace.  Ditto for the pending queue (unless we put more info in struct)
   char filebuf[10+ns.length()];
   int ret;
 	
@@ -67,7 +69,7 @@ MerkleDB::MerkleDB(const string& ns, DB_ENV* db_env, const char* env_dir) {
   env_flags = 
     DB_CREATE |     /* If the environment does not exist, create it. */
     DB_INIT_MPOOL|  /* Initialize the in-memory cache. */
-    DB_PRIVATE;
+    DB_PRIVATE ;
   
   ret = db_env->open(tree_env,   /* DB_ENV ptr */
 		     env_dir,    /* env home directory */
@@ -236,6 +238,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
     } else {
       //Key doesn't exist, cursor is now at key on right-hand side of insertion point.
       rightk = ckey;
+			//TODO: Test
     }
   } else if (DB_NOTFOUND == ret) {
     //key is all the way to the right, no right-side neighbor
@@ -405,14 +408,13 @@ int MerkleDB::recalculate(DBT * key, DBT * data, MerkleHash hash, DBC * cursorp)
 	
 	//Now put this nodes parent into the apply queue to recurse up the tree
 	//TODO: Following code is hanging on aly->put (since we've already got an open cursor in flushp?)
-	/*DBT parentk;
+	DBT parentk;
 	if (key->size > 0) {
 		parentk = parent(key, mn);
 		std::cout << "putting: " << dbt_string(&parentk) << "\n";
-		ret = aly->put(aly, NULL, &parentk, data, DB_NOOVERWRITE);
-		if (ret != 0) { return_with_error(ret); } 
+		//ret = aly->put(aly, NULL, &parentk, data, DB_NOOVERWRITE);
+		//if (ret != 0) { return_with_error(ret); } 
 	}
-	*/
 	
   //TODO: implement has and add parent to pending queue
   std::cout << "update(" << dbt_string(key) << ", ";
