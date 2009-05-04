@@ -30,10 +30,10 @@ public:
  public:
 	int flush_flag;
 	int type;
+	DB * dbp; //Merkle trie database
 	
  private:
 	pthread_mutex_t sync_lock;
-  DB * dbp; //Merkle trie database
   DB * pup; //Pending update database
 	DB * aly; //Set of updates to apply
 	DB * cld; //Secondary index (key) -> (children);
