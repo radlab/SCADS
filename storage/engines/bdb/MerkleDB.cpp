@@ -56,38 +56,38 @@ MerkleDB::MerkleDB(const string& ns, DB_ENV* db_env, const char* env_dir) {
   int ret;
 	
   // open the tree env
-  u_int32_t env_flags = 0;
-  u_int32_t gb;
-  DB_ENV* tree_env;
+  //u_int32_t env_flags = 0;
+  //u_int32_t gb;
+  //DB_ENV* tree_env;
 
-  ret = db_env_create(&tree_env, 0);
-  if (ret != 0) {
-    fprintf(stderr, "Error creating tree_env handle: %s\n", db_strerror(ret));
-    exit(-1);
-  }
+  //ret = db_env_create(&tree_env, 0);
+  //if (ret != 0) {
+  //  fprintf(stderr, "Error creating tree_env handle: %s\n", db_strerror(ret));
+  //  exit(-1);
+  //}
 
-  env_flags = 
-    DB_CREATE |     /* If the environment does not exist, create it. */
-    DB_INIT_MPOOL|  /* Initialize the in-memory cache. */
-    DB_PRIVATE ;
-  
-  ret = db_env->open(tree_env,   /* DB_ENV ptr */
-		     env_dir,    /* env home directory */
-		     env_flags,  /* Open flags */
-		     0);         /* File mode (default) */
-  if (ret != 0) {
-    fprintf(stderr, "Environment open failed: %s\n", db_strerror(ret));
-    exit(-1);
-  }
+  //env_flags = 
+  //  DB_CREATE |     /* If the environment does not exist, create it. */
+  //  DB_INIT_MPOOL|  /* Initialize the in-memory cache. */
+  //  DB_PRIVATE ;
+  //
+  //ret = db_env->open(tree_env,   /* DB_ENV ptr */
+	//	     env_dir,    /* env home directory */
+	//	     env_flags,  /* Open flags */
+	//	     0);         /* File mode (default) */
+  //if (ret != 0) {
+  //  fprintf(stderr, "Environment open failed: %s\n", db_strerror(ret));
+  //  exit(-1);
+  //}
 
   /* Initialize the DB handles */
   //TODO: Add error checking here and elsewhere
-  db_create(&dbp, tree_env, 0);
+  db_create(&dbp, db_env, 0);
   db_create(&pup, db_env, 0);
   db_create(&aly, db_env, 0);
 
   //Create index (secondary database) to give parent->children mapping
-  db_create(&cld, tree_env, 0);
+  db_create(&cld, db_env, 0);
   cld->set_flags(cld, DB_DUPSORT);
 
   //Set sorting functions for queues
@@ -409,17 +409,18 @@ int MerkleDB::recalculate(DBT * key, DBT * data, MerkleHash hash, DBC * cursorp)
 	//Now put this nodes parent into the apply queue to recurse up the tree
 	//TODO: Following code is hanging on aly->put (since we've already got an open cursor in flushp?)
 	DBT parentk;
-	if (key->size > 0) {
+	if (key->size > 0) {	//The root is its own parent 
 		parentk = parent(key, mn);
 		std::cout << "putting: " << dbt_string(&parentk) << "\n";
-		//ret = aly->put(aly, NULL, &parentk, data, DB_NOOVERWRITE);
-		//if (ret != 0) { return_with_error(ret); } 
+//		ret = aly->put(aly, txn, &parentk, data, DB_NOOVERWRITE);
+//		if (ret != 0) { return_with_error(ret); }
 	}
 	
   //TODO: implement has and add parent to pending queue
   std::cout << "update(" << dbt_string(key) << ", ";
 	print_hex(&hash, sizeof(MerkleHash));
-
+	std::cout << "\n";
+	
 	return_with_success();
 }
 
