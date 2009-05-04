@@ -10,6 +10,9 @@
 #define MSG_MORE 0
 #endif
 
+#define NODE_DATA 0
+#define NODE_MERKLE 1
+
 using namespace std;
 
 VALUE rb_funcall_wrap(VALUE vargs);

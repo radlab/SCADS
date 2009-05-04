@@ -837,7 +837,7 @@ StorageDB(int lp,
   (void) pthread_create(&listen_thread,NULL,
 			run_listen,this);
   (void) pthread_create(&flush_threadp,NULL,
-			flush_thread,this);
+  		flush_thread,this);
 
   // let's init ruby
   ruby_init();
@@ -867,6 +867,11 @@ closeDBs() {
       cout << " [FAILED]"<<endl;
     else
       cout << " [OK]"<<endl;
+  }
+  map<const NameSpace,MerkleDB*>::iterator mit;
+  for( mit = merkle_dbs.begin(); mit != merkle_dbs.end(); ++mit ) {
+    cout << "Closing merkle trie for: "<<mit->first<<endl;
+    mit->second->close();
   }
   if (db_env != NULL) {
     rc = db_env->close(db_env, 0);

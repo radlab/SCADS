@@ -22,6 +22,9 @@ extern ID call_id;
 
 namespace SCADS {
 
+int node_data = NODE_DATA;
+int node_merkle = NODE_MERKLE;
+
 using namespace std;
 using namespace apache::thrift;
 
@@ -53,11 +56,11 @@ int fill_buf(int* sock, char* buf, int off) {
 int fill_dbt(int* sock, DBT* k, DBT* other, char* buf, char* pos, char** endp) {
   int len;
   char *end = *endp;
-  if (k->flags) {
+  if (k->flags) { // in the middle of processing, so no need to read type
     len = (k->size - k->dlen);
   }
-  else { 
-    if ((end-pos) < 4) {
+  else {
+    if ((end-pos) < 5) {
       int rem = end-pos;
       memcpy(buf,pos,rem); // move data to the front
       if (other != NULL &&
@@ -75,9 +78,13 @@ int fill_dbt(int* sock, DBT* k, DBT* other, char* buf, char* pos, char** endp) {
       *endp = buf+len+rem;
       return fill_dbt(sock,k,other,buf,buf,endp);
     }
-    memcpy(&len,pos,4);
+    // here we have at least 5 bytes to work with
+    // set the type
+    k->doff = (int)(*pos);
+    // now get the length
+    memcpy(&len,pos+1,4);
     k->size = len;
-    pos+=4;
+    pos+=5;
   }
   if (len == 0) // means we're done
     return len;
@@ -293,11 +300,15 @@ struct sync_sync_args {
 
 static 
 void send_vals(int sock,DBT* key, DBT* data) {
-  // DBTSEND
+  // DBTSEND OK
+  if (send(sock,&node_data,1,MSG_MORE) == -1)
+    do_throw(errno,"Failed to send message type: ");
   if (send(sock,&(key->size),4,MSG_MORE) == -1) 
     do_throw(errno,"Failed to send key length: ");
   if (send(sock,((const char*)key->data),key->size,MSG_MORE) == -1) 
     do_throw(errno,"Failed to send a key: ");
+  if (send(sock,&node_data,1,MSG_MORE) == -1)
+    do_throw(errno,"Failed to send message type: ");
   if (send(sock,&(data->size),4,MSG_MORE) == -1) 
     do_throw(errno,"Failed to send data length: ");
   if (send(sock,data->data,data->size,MSG_MORE) == -1) 
@@ -306,8 +317,10 @@ void send_vals(int sock,DBT* key, DBT* data) {
 
 static
 void send_string(int sock, const string& str) {
-  // DBTSEND
+  // DBTSEND OK
   int len = str.length();
+  if (send(sock,&node_data,1,MSG_MORE) == -1)
+    do_throw(errno,"Failed to send string type: ");
   if (send(sock,&len,4,MSG_MORE) == -1) 
     do_throw(errno,"Failed to send string length: ");
   if (len != 0) {
@@ -1227,12 +1240,15 @@ sync_set(const NameSpace& ns, const RecordSet& rs, const Host& h, const Conflict
 
   send_string(sock,ns);
   
-  // DBTSEND ?
+  // DBTSEND OK
 
   nslen =
     (policy.type == CPT_GREATER)?
     4:
     (12+policy.func.func.length());
+
+  if (send(sock,&node_data,1,MSG_MORE) == -1)
+    do_throw(errno,"Failed to send message type: ");
   
   if (send(sock,&(nslen),4,MSG_MORE) == -1) 
     do_throw(errno,"Error sending policy length: ");
