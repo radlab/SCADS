@@ -193,7 +193,7 @@ int MerkleDB::flushp() {
     free(key.data);
     free(data.data);
 #ifdef DEBUG
-    print_tree();
+    //print_tree();
 #endif
     aly->cursor(aly, NULL, &cursorp, 0);
   }
@@ -541,7 +541,7 @@ void MerkleDB::print_children(DBT *key) {
   cursorp->close(cursorp);
 }
 
-void MerkleDB::queue_children(DBT *key, std::vector<string>* mq) {
+void MerkleDB::queue_children(DBT *key, std::vector<DBT>* mq) {
   DBT pkey, pdata; /* Used to return the primary key and data */
   int ret;
 	
@@ -558,8 +558,13 @@ void MerkleDB::queue_children(DBT *key, std::vector<string>* mq) {
 #ifdef DEBUG
       std::cout << "Queuing child: "<<dbt_string(&pkey)<<endl;
 #endif
-      mq->push_back(string((char*)pkey.data,pkey.size));
-      //printf("data before: %p\n",pdata.data);
+      DBT pb;
+      pb.size = pkey.size;
+      pb.data = malloc(sizeof(char)*pb.size);
+      memcpy(pb.data,pkey.data,pb.size);
+      mq->push_back(pb);
+      //mq->push_back(string((char*)pkey.data,pkey.size));
+      //printf("[%p] [%p] [%p]\n",key->data,pkey.data,pdata.data);
       //free(pdata.data);
       //pkey.flags = 0;
       //qdb->put(qdb,NULL,&pdata,&pkey,DB_APPEND);

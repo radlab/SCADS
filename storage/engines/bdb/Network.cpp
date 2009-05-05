@@ -821,7 +821,10 @@ int do_merkle_sync(int sock, const NameSpace& ns,
 #endif
   memset(&key, 0, sizeof(DBT));
   memset(&data, 0, sizeof(DBT));
+  int kf,df;
   for(;;) {
+    kf = 0;
+    df = 0;
     try {
       off = fill_dbt(&sock,&key,NULL,dbuf,dbuf+off,&end);
     } catch (ReadDBTException &e) {
@@ -832,7 +835,6 @@ int do_merkle_sync(int sock, const NameSpace& ns,
     }
     if (off == 0)
       break;
-
     switch(key.doff) { // doff is where we store the type
     case NODE_DATA: {
 #ifdef DEBUG
@@ -849,6 +851,10 @@ int do_merkle_sync(int sock, const NameSpace& ns,
 	return 1;
       }
       int res;
+      kf = key.flags;
+      key.flags = 0;
+      df = data.flags;
+      data.flags = 0;
       memset(&ldata, 0, sizeof(DBT));
       ldata.flags = DB_DBT_MALLOC;
       ret = db->get(db,NULL,&key,&ldata,0);
@@ -909,6 +915,10 @@ int do_merkle_sync(int sock, const NameSpace& ns,
 	  free(key.data);
 	return 1;
       }
+      kf = key.flags;
+      key.flags = 0;
+      df = data.flags;
+      data.flags = 0;
       memset(&ldata, 0, sizeof(DBT));
       ldata.flags = DB_DBT_MALLOC;
       ret = mdb->dbp->get(mdb->dbp,NULL,&key,&ldata,0);
@@ -932,10 +942,15 @@ int do_merkle_sync(int sock, const NameSpace& ns,
 #ifdef DEBUG
       cout << "Got merkle mark in do_merkle_sync.  Sending mark back"<<endl;
 #endif
+      kf = key.flags;
       send_mark(sock);
       break;
     }
     }
+    if (kf)
+      free(key.data);
+    if (df)
+      free(data.data);
   }
 }
 
@@ -1555,7 +1570,7 @@ simple_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
   return true;
 }
 
-vector<string> mq(20);
+vector<DBT> mq(200);
 
 bool send_merkle_queue(int sock, DB* mdb, DB* qdb) {
   int ret;
@@ -1574,21 +1589,23 @@ bool send_merkle_queue(int sock, DB* mdb, DB* qdb) {
   //ret = cursor->get(cursor,&key,&data,DB_FIRST);
   //if (ret == 0) {
   //do {
-  vector<string>::iterator it;
+  vector<DBT>::iterator it;
   {
     for (it = mq.begin(); it != mq.end(); it++ ) {
 #ifdef DEBUG
-      cout << "Sending merklenode: "<<string((char*)data.data,data.size)<<endl;
+      cout << "Need to send merklenode with key: "<<dbt_string(&(*it))<<" size: "<<(*it).size<<endl;
 #endif
       empty = false;
 
-      data.data = const_cast<char*>((*it).c_str());
-      data.size = (*it).length();
-      data.flags = 0; // don't let it remalloc the key
       
-      ret = mdb->get(mdb,NULL,&data,&mdata,0);
+      //data.data = const_cast<char*>((*it).c_str());
+      //data.size = (*it).length();
+      //data.flags = 0; // don't let it remalloc the key
+      (*it).flags = 0;
+      
+      ret = mdb->get(mdb,NULL,&(*it),&mdata,0);
       if (ret == DB_NOTFOUND) {
-	cerr << string((char*)data.data,data.size)<<" was on the queue, but there was no data in the tree"<<endl;
+	cerr << string((char*)(*it).data,(*it).size)<<" was on the queue, but there was no data in the tree, "<<(*it).size<<endl;
 	continue;
       }
       if (ret != 0) {
@@ -1598,9 +1615,10 @@ bool send_merkle_queue(int sock, DB* mdb, DB* qdb) {
 	throw te;
       }
       MerkleNode * mn =  (MerkleNode *)((&mdata)->data);
-      send_vals(sock,&data,NULL,node_merkle);
+      send_vals(sock,&(*it),NULL,node_merkle);
       send_hash(sock,mn->digest);
       //free(data.data);
+      free((*it).data);
       free(mdata.data);
       //cursor->del(cursor,0);
     }

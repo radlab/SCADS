@@ -48,7 +48,7 @@ namespace SCADS {
     u_int32_t prefix_length(DBT * key1, DBT * key2);
     void print_tree();
     void print_children(DBT *key);
-    void queue_children(DBT *key,std::vector<string>*);
+    void queue_children(DBT *key,std::vector<DBT>*);
 	
   private:
     MerkleNode parent(MerkleNode * node);

@@ -26,6 +26,8 @@
 // for bulk get, read in 20mb chunks
 #define	BUFFER_LENGTH	(20 * 1024 * 1024)
 
+#define FLUSH_WAIT 20
+
 using namespace std;
 using namespace apache::thrift;
 using namespace apache::thrift::concurrency;
@@ -740,7 +742,7 @@ static void* flush_thread(void* arg) {
 
   spec.tv_nsec = 0;
   gettimeofday(&wakeup,NULL);
-  wakeup.tv_sec+=60; // set target wakeup time to 60 seconds from now
+  wakeup.tv_sec+=FLUSH_WAIT; // set target wakeup time to 60 seconds from now
   storageDB->flush_lock(false);
 
   while(!stopping) {
@@ -761,6 +763,10 @@ static void* flush_thread(void* arg) {
 	cout << "Flushing "<<it->first<<endl;
 #endif
 	db->flushp();
+#ifdef DEBUG
+	cout << "Flushed: "<<endl;
+	db->print_tree();
+#endif
 	break;
       }
     }
@@ -776,7 +782,7 @@ static void* flush_thread(void* arg) {
 #endif
     storageDB->flush_wait(&spec);
     gettimeofday(&wakeup,NULL);
-    wakeup.tv_sec+=60; // set target wakeup time to 60 seconds from now
+    wakeup.tv_sec+=FLUSH_WAIT; // set target wakeup time to 60 seconds from now
     storageDB->flush_lock(false);
   }
 }
