@@ -70,5 +70,8 @@ storage.bdb.debugquiet: $(SRCS_TO_GEN) StorageDB.cpp Network.cpp MerkleDB.cpp
 merkle: $(SRCS_TO_GEN) MerkleDB.cpp
 	$(CXX) $(CFLAGS) -g -DMERKLETEST -o MerkleDB MerkleDB.cpp $(LIBS)
 
+merklebench: $(SRCS_TO_GEN) MerkleDB.cpp MerkleBench.cpp
+	$(CXX) $(CFLAGS) -g -o MerkleBench MerkleDB.cpp MerkleBench.cpp $(LIBS)
+
 clean:
 	rm -rf gen-cpp storage.bdb
