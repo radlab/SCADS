@@ -14,7 +14,7 @@
 #define return_with_success() return 0;
 #define close_if_not_null(db) if ((db) != NULL) { (db)->close((db), 0); }
 #define cleanup_after_bdb() cursorp->close(cursorp); while (data_ptrs.size() > 0) { free(data_ptrs.back()); data_ptrs.pop_back(); }
-#define print_hex(buf, len) for (int i = 0; i < (len); i++) { printf("%02X:%02X:", (0xF0 & (((char *)buf)[i]) >> 4), (0x0F & (((char *)buf)[i]))); }
+#define print_hex(buf, len) for (int i = (len) - 1; i >= 0 ; i--) { printf("%X%X", (0x0F & (((char *)buf)[i]) >> 4), (0x0F & (((char *)buf)[i])));}
 
 //#define is_leaf(keyd) false
 #define dbt_string(dbt) std::string((char*)(dbt)->data,(dbt)->size)
