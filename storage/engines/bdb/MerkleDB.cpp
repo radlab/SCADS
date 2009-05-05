@@ -15,7 +15,7 @@
 #define close_if_not_null(db) if ((db) != NULL) { (db)->close((db), 0); }
 #define cleanup_after_bdb() cursorp->close(cursorp); while (data_ptrs.size() > 0) { free(data_ptrs.back()); data_ptrs.pop_back(); }
 #define print_hex(buf, len) for (int i = 0; i < (len); i++) { printf("%x%x", (0xF0 & (((char *)buf)[i]) >> 4), (0x0F & (((char *)buf)[i]))); }
-#define is_leaf(keyd) ((((char *)(keyd)->data)[(keyd)->size - 1]) == 0)
+#define is_leaf(keyd) ((keyd)->size > 0 and (((char *)(keyd)->data)[(keyd)->size - 1]) == 0)
 
 //#define is_leaf(keyd) false
 #define dbt_string(dbt) std::string((char*)(dbt)->data,(dbt)->size)
@@ -178,8 +178,8 @@ int MerkleDB::flushp() {
   DBC *cursorp;
   aly->cursor(aly, NULL, &cursorp, 0);
   while ((ret = cursorp->get(cursorp, &key, &data, DB_FIRST)) == 0) {
-		bool c_str = ((data.size == sizeof(MerkleHash)) ? true : false);
-		if (!c_str) {
+		bool repair = ((data.size == sizeof(MerkleHash)) ? false : true);
+		if (repair) {
 			((char *)key.data)[key.size - 1] = '\0'; //Force last character to null for null-termination [Hack #1]
 		}
 		ret = cursorp->del(cursorp, 0); //TODO: Switch to a transactional store for these queues, not crash safe here
