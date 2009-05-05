@@ -1,5 +1,6 @@
 // MerkleDB File
 
+#include "StorageDB.h"
 #include "MerkleDB.h"
 
 #include <iostream>
@@ -7,7 +8,6 @@
 #include <stdlib.h>
 #include "mhash.h"
 
-#define dbt_string(dbt) std::string((char*)(dbt)->data,(dbt)->size)
 #define min(i1, i2) ((i1) < (i2) ? (i1) : (i2))
 #define max(i1, i2) ((i1) > (i2) ? (i1) : (i2))
 #define return_with_error(error) std::cout << db_strerror(error) << "\n"; return error;
@@ -23,7 +23,7 @@ int cmp_longest_first(DB *dbp, const DBT *a, const DBT *b) {
   if (a->size > b->size) {
     return -1;
   } else if (a->size == b->size) {
-		return memcmp(a->data, b->data, a->size);
+    return memcmp(a->data, b->data, a->size);
   } else {
     return 1;
   }
@@ -32,26 +32,27 @@ int cmp_longest_first(DB *dbp, const DBT *a, const DBT *b) {
 //Used by children index.  Each node add a pointer from its parent to itself
 //TODO: Need to make sure tombstoned nodes aren't included in hashing! 
 int child_extractor(DB *dbp, const DBT *pkey, const DBT *pdata, DBT *ikey) {
-	if (pkey->size != 0) {
-		//memset(ikey, 0, sizeof(DBT));
-		// TODO: Example code does above, even though ikey is parameter.  Unclear how this'll work with 
-		// multi-threaded environment (i.e. DB_DBT_MALLOC).  *Seems* to work without it.
-		//		http://www.oracle.com/technology/documentation/berkeley-db/db/gsg/C/keyCreator.html
-		ikey->data = pkey->data;
-		ikey->size = (pkey->size - ((MerkleNode *)pdata->data)->offset);
-		return 0;
-	} else {
-		//make sure root node (who is own parent) doesn't add child link to itself 
-		return DB_DONOTINDEX;	
-	}
+  if (pkey->size != 0) {
+    //memset(ikey, 0, sizeof(DBT));
+    // TODO: Example code does above, even though ikey is parameter.  Unclear how this'll work with 
+    // multi-threaded environment (i.e. DB_DBT_MALLOC).  *Seems* to work without it.
+    //		http://www.oracle.com/technology/documentation/berkeley-db/db/gsg/C/keyCreator.html
+    ikey->data = pkey->data;
+    ikey->size = (pkey->size - ((MerkleNode *)pdata->data)->offset);
+    return 0;
+  } else {
+    //make sure root node (who is own parent) doesn't add child link to itself 
+    return DB_DONOTINDEX;	
+  }
 }
 
 //TODO: Write destructor that closes db
 
-MerkleDB::MerkleDB(const string& ns, DB_ENV* db_env, const char* env_dir) {
-	flush_flag = 0;
+MerkleDB::MerkleDB(const string& ns, DB_ENV* db_env, const char* env_dir) :
+  flush_flag(0)
+{
 	
-	//TODO: We'll need a different merkledb for each namespace.  Ditto for the pending queue (unless we put more info in struct)
+  //TODO: We'll need a different merkledb for each namespace.  Ditto for the pending queue (unless we put more info in struct)
   char filebuf[10+ns.length()];
   int ret;
 	
@@ -72,13 +73,18 @@ MerkleDB::MerkleDB(const string& ns, DB_ENV* db_env, const char* env_dir) {
   //  DB_PRIVATE ;
   //
   //ret = db_env->open(tree_env,   /* DB_ENV ptr */
-	//	     env_dir,    /* env home directory */
-	//	     env_flags,  /* Open flags */
-	//	     0);         /* File mode (default) */
+  //	     env_dir,    /* env home directory */
+  //	     env_flags,  /* Open flags */
+  //	     0);         /* File mode (default) */
   //if (ret != 0) {
   //  fprintf(stderr, "Environment open failed: %s\n", db_strerror(ret));
   //  exit(-1);
   //}
+
+  if (qdb == NULL) { // it's static so only init it once
+    db_create(&qdb, db_env, 0);
+    qdb->open(qdb, NULL, "merkle_queue",NULL, DB_RECNO, DB_CREATE , 0);
+  }
 
   /* Initialize the DB handles */
   //TODO: Add error checking here and elsewhere
@@ -102,7 +108,7 @@ MerkleDB::MerkleDB(const string& ns, DB_ENV* db_env, const char* env_dir) {
   sprintf(filebuf,"%s_applyq.bdb",ns.c_str());
   aly->open(aly, NULL, filebuf, NULL, DB_BTREE, DB_CREATE | DB_THREAD, 0);
   sprintf(filebuf, "%s_chldix.bdb", ns.c_str());
-	//Create child index
+  //Create child index
   cld->open(cld, NULL, filebuf, NULL, DB_BTREE, DB_CREATE, 0);
   dbp->associate(dbp, NULL, cld, child_extractor, 0);
 	
@@ -111,9 +117,9 @@ MerkleDB::MerkleDB(const string& ns, DB_ENV* db_env, const char* env_dir) {
   /** Create root node for dbp, if it doesn't exist **/
   DBT key, data;
   memset(&key, 0, sizeof(DBT));
-	key.flags = DB_DBT_MALLOC;
+  key.flags = DB_DBT_MALLOC;
   memset(&data, 0, sizeof(DBT));
-	data.flags = DB_DBT_MALLOC;
+  data.flags = DB_DBT_MALLOC;
   key.size = 0;//Not necessary (since already memset to zero), but let's be explicit
   
   ret = dbp->get(dbp, NULL, &key, &data, 0);
@@ -125,10 +131,12 @@ MerkleDB::MerkleDB(const string& ns, DB_ENV* db_env, const char* env_dir) {
     data.size = sizeof(MerkleNode);
     dbp->put(dbp, NULL, &key, &data, DB_NOOVERWRITE);
   } else {
-  	free(key.data);
-		free(data.data);
-	}
+    free(key.data);
+    free(data.data);
+  }
 }
+
+DB* MerkleDB::qdb = NULL;
 
 //Adds key->hash(data) to pending update queue
 int MerkleDB::enqueue(DBT * key, DBT * data) {
@@ -136,40 +144,43 @@ int MerkleDB::enqueue(DBT * key, DBT * data) {
   DBT h;
   MHASH td;
 	
-	memset(&h, 0, sizeof(DBT));
-	//h.flags = DB_DBT_MALLOC; //We're not currently 'get()-ing' here
+  memset(&h, 0, sizeof(DBT));
+  //h.flags = DB_DBT_MALLOC; //We're not currently 'get()-ing' here
 	
-	td = mhash_init(MERKLEDB_HASH_FUNC);
-	if (td == MHASH_FAILED) {
-		std::cerr << "HASH Failed";
-		return -1;
-	}
-	mhash(td, (unsigned char *)key->data, key->size);
-	mhash(td, (unsigned char *)data->data, data->size);
-	//TODO: use mhash_end instead.  Not clear if we need to 'free' mhash_end, so playing safe.
-	h.data = malloc(MERKLEDB_HASH_WIDTH / 8);
-	mhash_deinit(td, h.data);	
+  td = mhash_init(MERKLEDB_HASH_FUNC);
+  if (td == MHASH_FAILED) {
+    std::cerr << "HASH Failed";
+    return -1;
+  }
+  mhash(td, (unsigned char *)key->data, key->size);
+  mhash(td, (unsigned char *)data->data, data->size);
+  //TODO: use mhash_end instead.  Not clear if we need to 'free' mhash_end, so playing safe.
+  h.data = malloc(MERKLEDB_HASH_WIDTH / 8);
+  mhash_deinit(td, h.data);	
 
-	//TODO: clean this up, don't need to be passing MerkleHashs all over and we should be using the full hash
-	h.size = sizeof(MerkleHash);
+  //TODO: clean this up, don't need to be passing MerkleHashs all over and we should be using the full hash
+  h.size = sizeof(MerkleHash);
   MerkleHash hash = *((MerkleHash *)(h.data));
   //std::cout << "enqueue(\"" << dbt_string(key) << "\",\"" << dbt_string(data) << "\") with hash:\t";
-	//print_hex(h.data, h.size);
-	//std::cout << "\n";
+  //print_hex(h.data, h.size);
+  //std::cout << "\n";
 	
-	ret = pup->put(pup, NULL, key, &h, 0);
-	free(h.data);
-	if (ret != 0) { return_with_error(ret); }
-	return_with_success();
+  ret = pup->put(pup, NULL, key, &h, 0);
+  free(h.data);
+  if (ret != 0) { return_with_error(ret); }
+  return_with_success();
 }
 
 //Clear the pending update queue
 int MerkleDB::flushp() {
   DBT key, data;
+#ifdef DEBUG
+  cout << "Flushing"<<endl;
+#endif
   memset(&key, 0, sizeof(DBT));
   memset(&data, 0, sizeof(DBT));
-	data.flags = DB_DBT_MALLOC;
-	key.flags = DB_DBT_MALLOC;
+  data.flags = DB_DBT_MALLOC;
+  key.flags = DB_DBT_MALLOC;
 	
   pthread_mutex_lock(&sync_lock);
 
@@ -181,26 +192,28 @@ int MerkleDB::flushp() {
   int ret = 0;
   DBC *cursorp;
   aly->cursor(aly, NULL, &cursorp, 0);
-	while ((ret = cursorp->get(cursorp, &key, &data, DB_FIRST)) == 0) {
-		ret = cursorp->del(cursorp, 0); //TODO: Switch to a transactional store for these queues, not crash safe here
-		if (ret != 0) { 
-			pthread_mutex_unlock(&sync_lock);
-			return_with_error(ret);
-		}
-		cursorp->close(cursorp);
+  while ((ret = cursorp->get(cursorp, &key, &data, DB_FIRST)) == 0) {
+    ret = cursorp->del(cursorp, 0); //TODO: Switch to a transactional store for these queues, not crash safe here
+    if (ret != 0) { 
+      pthread_mutex_unlock(&sync_lock);
+      return_with_error(ret);
+    }
+    cursorp->close(cursorp);
     insert(&key, *((MerkleHash *)(data.data)));
-		free(key.data);
-		free(data.data);
-    //print_tree();
-		aly->cursor(aly, NULL, &cursorp, 0);
-	}
-	if (ret != DB_NOTFOUND) { 
-		pthread_mutex_unlock(&sync_lock);
-		return_with_error(ret);
-	} else {
-  	pthread_mutex_unlock(&sync_lock);
-		return_with_success();
-	}
+    free(key.data);
+    free(data.data);
+#ifdef DEBUG
+    print_tree();
+#endif
+    aly->cursor(aly, NULL, &cursorp, 0);
+  }
+  if (ret != DB_NOTFOUND) { 
+    pthread_mutex_unlock(&sync_lock);
+    return_with_error(ret);
+  } else {
+    pthread_mutex_unlock(&sync_lock);
+    return_with_success();
+  }
 }
 
 u_int32_t MerkleDB::prefix_length(DBT * key1, DBT * key2) {
@@ -215,44 +228,44 @@ u_int32_t MerkleDB::prefix_length(DBT * key1, DBT * key2) {
 //Take key,hash pair and insert into patricia-merkle trie db
 int MerkleDB::insert(DBT * key, MerkleHash hash) {
   //std::cout << "insert(\"" << dbt_string(key) << "\", ";
-	//print_hex(&hash, sizeof(MerkleHash));
-	//std::cout << "\n";
+  //print_hex(&hash, sizeof(MerkleHash));
+  //std::cout << "\n";
   int ret;
 	
-	//This code is only executed by a single thread, but BDB requires us
-	//to be thread-safe since we're in a multi-threaded environment, so we
-	//need to keep track of all the data buffers cursor->get returns to us
-	vector<void *> data_ptrs;
+  //This code is only executed by a single thread, but BDB requires us
+  //to be thread-safe since we're in a multi-threaded environment, so we
+  //need to keep track of all the data buffers cursor->get returns to us
+  vector<void *> data_ptrs;
 
   DBC *cursorp;
   dbp->cursor(dbp, NULL, &cursorp, 0);
 
   DBT ckey, cdata;	//key & data under cursor
   memcpy(&ckey, key, sizeof(DBT));
-	ckey.flags = DB_DBT_MALLOC;
+  ckey.flags = DB_DBT_MALLOC;
   memset(&cdata, 0, sizeof(DBT));
-	cdata.flags = DB_DBT_MALLOC;
+  cdata.flags = DB_DBT_MALLOC;
 	
   DBT leftk, rightk;	//keys to the left and right (lexically) of the input key
   memset(&leftk, 0, sizeof(DBT));
-	leftk.flags = DB_DBT_MALLOC;
+  leftk.flags = DB_DBT_MALLOC;
   memset(&rightk, 0, sizeof(DBT));
-	rightk.flags = DB_DBT_MALLOC;
+  rightk.flags = DB_DBT_MALLOC;
 	
-	//TODO: Check code coverage during tests
+  //TODO: Check code coverage during tests
   //position the cursor at the key (or to the right of the key, if first insertion)
   ret = cursorp->get(cursorp, &ckey, &cdata, DB_SET_RANGE);
   if (ret == 0) {
-		data_ptrs.push_back(ckey.data);
-		data_ptrs.push_back(cdata.data);
+    data_ptrs.push_back(ckey.data);
+    data_ptrs.push_back(cdata.data);
     
-		if (dbt_equal(key, &ckey)) {
+    if (dbt_equal(key, &ckey)) {
       /* A node for this exact key exists.  Update it and we're done */
-			((MerkleNode *)cdata.data)->data_digest = hash;
-			recalculate(&ckey, &cdata, cursorp);
+      ((MerkleNode *)cdata.data)->data_digest = hash;
+      recalculate(&ckey, &cdata, cursorp);
       //TODO: update(&ckey, &m.digest...?)
       //TODO: add parent to pending (with data with length zero)
-			cleanup_after_bdb(); 
+      cleanup_after_bdb(); 
       return_with_success();
     } else {
       //Key doesn't exist, cursor is now at key on right-hand side of insertion point.
@@ -261,9 +274,9 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
   } else if (DB_NOTFOUND == ret) {
     //key is all the way to the right, no right-side neighbor
     rightk.size = 0;
-		//TODO: We need to do something besides DB_PREV in next call to find left neighbor
+    //TODO: We need to do something besides DB_PREV in next call to find left neighbor
   } else {
-		cleanup_after_bdb();
+    cleanup_after_bdb();
     return_with_error(ret);
   }
 	
@@ -278,7 +291,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
   DBT newd;
   MerkleNode newn;
   memset(&newd, 0, sizeof(DBT));
-	newd.flags = DB_DBT_MALLOC;
+  newd.flags = DB_DBT_MALLOC;
   memset(&newn, 0, sizeof(MerkleNode));
   newd.size = sizeof(MerkleNode);
 	
@@ -286,13 +299,13 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
   ret = cursorp->get(cursorp, &ckey, &cdata, DB_PREV);
   if (DB_NOTFOUND == ret) {
     std::cerr << "Inconceivable! The root node sorts first! It should be here!\n";
-		return_with_error(ret);
+    return_with_error(ret);
   } else if (0 == ret) {
-		data_ptrs.push_back(ckey.data);
-		data_ptrs.push_back(cdata.data);
+    data_ptrs.push_back(ckey.data);
+    data_ptrs.push_back(cdata.data);
     leftk = ckey;
   } else {
-		cleanup_after_bdb();
+    cleanup_after_bdb();
     return_with_error(ret);
   }
 	
@@ -305,7 +318,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
   //actually create a distinct node for the child.
   DBT parentk;
   memset(&parentk, 0, sizeof(DBT));
-	parentk.flags = DB_DBT_MALLOC;
+  parentk.flags = DB_DBT_MALLOC;
   parentk.data = key->data;
   parentk.size = prefixl; //Take inserted key, truncate to prefix_length 
 	
@@ -314,8 +327,8 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
   ckey.size = parentk.size;
   ret = cursorp->get(cursorp, &ckey, &cdata, DB_SET_RANGE);
   if (0 == ret) {
-		data_ptrs.push_back(ckey.data);
-		data_ptrs.push_back(cdata.data);
+    data_ptrs.push_back(ckey.data);
+    data_ptrs.push_back(cdata.data);
     //check if parent node exists
     if (not dbt_equal(&ckey, &parentk)) { 
       // No node exists, so we have to split an edge.  Conveniently, the node
@@ -338,16 +351,16 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
       cdata.data = &newn;
       cdata.size = sizeof(MerkleNode);
       newn.offset = parentk.size - estranged_parentk.size;
-			newn.data_digest = 0;
+      newn.data_digest = 0;
       //We don't need to set the hash here, since that will happen naturally when we start walking up the tree
       ret = cursorp->put(cursorp, &ckey, &cdata, DB_KEYFIRST);
       if (ret != 0) { return_with_error(ret); }
     }
     /* parent is guaranteed to exist now. (Parent node either existed, or we created it)  */
-		/* We just need to check if we should coalesce with our parent, or actually add ourselves */
+    /* We just need to check if we should coalesce with our parent, or actually add ourselves */
     if (parentk.size != key->size) {
       //The inserted node has a non-empty string suffix relative to it's common prefix, i.e. it's not coalescing with
-			//it's parent, so we need to add a node for it.
+      //it's parent, so we need to add a node for it.
       ckey.data = key->data;
       ckey.size = key->size;
       cdata.data = &newn;
@@ -357,108 +370,108 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
       ret = cursorp->put(cursorp, &ckey, &cdata, DB_KEYFIRST);
       if (ret != 0) { return_with_error(ret); }
     }
-		//Now we reposition the cursor, and update the new nodes hash
-		ret = cursorp->get(cursorp, key, &cdata, DB_SET);
+    //Now we reposition the cursor, and update the new nodes hash
+    ret = cursorp->get(cursorp, key, &cdata, DB_SET);
     if (ret != 0) { return_with_error(ret); }
-		recalculate(key, &cdata, cursorp);
+    recalculate(key, &cdata, cursorp);
   } else {
-		if (ret == DB_NOTFOUND) {
-			//Should be impossible, our parent is a prefix of us and if we can't find it directly, there
-	    //must be some key containing it as a sole prefix (which would lexically sort after it).
-			std::cerr << "Inconceivable!\n";
-		}
-		cleanup_after_bdb();
+    if (ret == DB_NOTFOUND) {
+      //Should be impossible, our parent is a prefix of us and if we can't find it directly, there
+      //must be some key containing it as a sole prefix (which would lexically sort after it).
+      std::cerr << "Inconceivable!\n";
+    }
+    cleanup_after_bdb();
     return_with_error(ret);
   }
-	cleanup_after_bdb();
+  cleanup_after_bdb();
   return_with_success();
 }
 
 //rehash the targeted key and add it's parent to aly queue
 int MerkleDB::recalculate(DBT * key, DBT * data, DBC * cursorp) {
-	int ret;
-	MHASH td;
+  int ret;
+  MHASH td;
 	
-	/* Data structures for key's children */
-	DBT childk, childd; /* Used to return the primary key and data */
-	memset(&childk, 0, sizeof(DBT));
-	memset(&childd, 0, sizeof(DBT));
-	childk.flags = DB_DBT_MALLOC;
-	childd.flags = DB_DBT_MALLOC;
+  /* Data structures for key's children */
+  DBT childk, childd; /* Used to return the primary key and data */
+  memset(&childk, 0, sizeof(DBT));
+  memset(&childd, 0, sizeof(DBT));
+  childk.flags = DB_DBT_MALLOC;
+  childd.flags = DB_DBT_MALLOC;
 
-	//Setup the hash function
-	td = mhash_init(MERKLEDB_HASH_FUNC);
-	if (td == MHASH_FAILED) {
-		std::cerr << "HASH Failed";
-		return -1;	//TODO: We're returning error codes from both mhash and bdb...
-	}
+  //Setup the hash function
+  td = mhash_init(MERKLEDB_HASH_FUNC);
+  if (td == MHASH_FAILED) {
+    std::cerr << "HASH Failed";
+    return -1;	//TODO: We're returning error codes from both mhash and bdb...
+  }
 	
-	MerkleNode * mn = ((MerkleNode *)data->data);
-	//Hash in the data for this node (and it's hash, if necessary)
-	mhash(td, (unsigned char *)key->data, key->size);
-	mhash(td, (unsigned char *)&(mn->data_digest), sizeof(MerkleHash));
+  MerkleNode * mn = ((MerkleNode *)data->data);
+  //Hash in the data for this node (and it's hash, if necessary)
+  mhash(td, (unsigned char *)key->data, key->size);
+  mhash(td, (unsigned char *)&(mn->data_digest), sizeof(MerkleHash));
 	
-	//Hash in the children (in lexical order) //TODO: Confirm lexical ordering
-	DBC *childc;
-	cld->cursor(cld, NULL, &childc, 0);
-	MerkleNode * childn;
-	ret = childc->pget(childc, key, &childk, &childd, DB_SET);
-	if (ret == 0) {
-		do {
-			mhash(td, (unsigned char *)childk.data, childk.size);
-			childn = (MerkleNode *)childd.data;
-			mhash(td, (unsigned char *)&(childn->digest), sizeof(MerkleHash));
-			free(childk.data);
-			free(childd.data);
-		} while ((ret = childc->pget(childc, key, &childk, &childd, DB_NEXT_DUP)) == 0);
-	}
-	childc->close(childc);
+  //Hash in the children (in lexical order) //TODO: Confirm lexical ordering
+  DBC *childc;
+  cld->cursor(cld, NULL, &childc, 0);
+  MerkleNode * childn;
+  ret = childc->pget(childc, key, &childk, &childd, DB_SET);
+  if (ret == 0) {
+    do {
+      mhash(td, (unsigned char *)childk.data, childk.size);
+      childn = (MerkleNode *)childd.data;
+      mhash(td, (unsigned char *)&(childn->digest), sizeof(MerkleHash));
+      free(childk.data);
+      free(childd.data);
+    } while ((ret = childc->pget(childc, key, &childk, &childd, DB_NEXT_DUP)) == 0);
+  }
+  childc->close(childc);
 	
-	void * digest = malloc(MERKLEDB_HASH_WIDTH / 8);
-	//TODO: use mhash_end instead.  Not clear if we need to 'free' mhash_end, so playing safe.
-	mhash_deinit(td, digest);
-	mn = (MerkleNode *)data->data; //TODO: Note, we're changing the state of the data DBT passed in, icky.
-	mn->digest = *((int *)digest);	//TODO: We're only using a little bit of the hash.. decide which way to go.
-	free(digest);
+  void * digest = malloc(MERKLEDB_HASH_WIDTH / 8);
+  //TODO: use mhash_end instead.  Not clear if we need to 'free' mhash_end, so playing safe.
+  mhash_deinit(td, digest);
+  mn = (MerkleNode *)data->data; //TODO: Note, we're changing the state of the data DBT passed in, icky.
+  mn->digest = *((int *)digest);	//TODO: We're only using a little bit of the hash.. decide which way to go.
+  free(digest);
 	
-	//Put back into the main database
-	ret = cursorp->put(cursorp, key, data, DB_KEYFIRST);
-	if (ret != 0) { return_with_error(ret); }
+  //Put back into the main database
+  ret = cursorp->put(cursorp, key, data, DB_KEYFIRST);
+  if (ret != 0) { return_with_error(ret); }
 	
-	//Now put this nodes parent into the apply queue to recurse up the tree
-	DBT parentk, parentd;
-	memset(&parentk, 0, sizeof(DBT));
-	memset(&parentd, 0, sizeof(DBT));
-	parentk.flags = DB_DBT_MALLOC;
-	parentd.flags = DB_DBT_MALLOC;
-	if (key->size > 0) {	//The root is its own parent 
-		parentk = parent(key, mn);
-		//std::cout << "putting: " << dbt_string(&parentk) << "\n";
+  //Now put this nodes parent into the apply queue to recurse up the tree
+  DBT parentk, parentd;
+  memset(&parentk, 0, sizeof(DBT));
+  memset(&parentd, 0, sizeof(DBT));
+  parentk.flags = DB_DBT_MALLOC;
+  parentd.flags = DB_DBT_MALLOC;
+  if (key->size > 0) {	//The root is its own parent 
+    parentk = parent(key, mn);
+    //std::cout << "putting: " << dbt_string(&parentk) << "\n";
 		
-		//We need to get the parent's data node to add it to the apply queue correctly
-		//TODO: Alter apply queue so it differentiates between sets and recurse-ups
-		ret = cursorp->get(cursorp, &parentk, &parentd, DB_SET);
-		if (ret != 0) { return_with_error(ret); }
+    //We need to get the parent's data node to add it to the apply queue correctly
+    //TODO: Alter apply queue so it differentiates between sets and recurse-ups
+    ret = cursorp->get(cursorp, &parentk, &parentd, DB_SET);
+    if (ret != 0) { return_with_error(ret); }
 		
-		DBT mh;
-		memset(&mh, 0, sizeof(DBT));
-		mh.data = &(((MerkleNode *)parentd.data)->data_digest);
+    DBT mh;
+    memset(&mh, 0, sizeof(DBT));
+    mh.data = &(((MerkleNode *)parentd.data)->data_digest);
 		
-		ret = aly->put(aly, NULL, &parentk, &mh, DB_NOOVERWRITE);
-		free(parentd.data);
-		if (ret == DB_KEYEXIST) {
-//			std::cout << "Already existed. nm.\n";
-		} else if (ret != 0) {
-			return_with_error(ret);
-		}
-	}
+    ret = aly->put(aly, NULL, &parentk, &mh, DB_NOOVERWRITE);
+    free(parentd.data);
+    if (ret == DB_KEYEXIST) {
+      //			std::cout << "Already existed. nm.\n";
+    } else if (ret != 0) {
+      return_with_error(ret);
+    }
+  }
 	
   //TODO: implement has and add parent to pending queue
   //std::cout << "update(" << dbt_string(key) << ", ";
-	//print_hex(&mn->data_digest, sizeof(MerkleHash));
-	//std::cout << "\n";
+  //print_hex(&mn->data_digest, sizeof(MerkleHash));
+  //std::cout << "\n";
 	
-	return_with_success();
+  return_with_success();
 }
 
 void MerkleDB::print_tree() {
@@ -471,36 +484,37 @@ void MerkleDB::print_tree() {
 
   /* Initialize our DBTs. */
   memset(&key, 0, sizeof(DBT));
-	key.flags = DB_DBT_MALLOC;
+  key.flags = DB_DBT_MALLOC;
   memset(&data, 0, sizeof(DBT));
-	data.flags = DB_DBT_MALLOC;
+  data.flags = DB_DBT_MALLOC;
 
   /* Iterate over the database, retrieving each record in turn. */
   MerkleNode * mn;
   int i;
   while ((ret = cursorp->get(cursorp, &key, &data, DB_NEXT)) == 0) {
+    //std::cout << "(key: "<<string((char*)key.data,key.size)<<") ";
     int suffix = ((MerkleNode *)data.data)->offset;
     int prefix = key.size - suffix;
     for (i = 0; i < prefix; i++) {
-			if (i == (prefix - 1)) {
-				std::cout << "|";
-			} else {
-				std::cout << " ";
-			}
+      if (i == (prefix - 1)) {
+	std::cout << "|";
+      } else {
+	std::cout << " ";
+      }
     }
     char * sstart = ((char *)(key.data)+prefix);
     std::cout << std::string(sstart,suffix); 
-		//DBT parentk = parent(&key, (MerkleNode *)(data.data));
-		//std::cout << "-->(" << dbt_string(&parentk) << ")";
-		//print_children(&key);
-    std::cout << "                                  ";
-		MerkleNode * m = (MerkleNode *)data.data;
-		print_hex(&(m->digest), sizeof(MerkleHash));
-		std::cout << ",";
-		print_hex(&(m->data_digest), sizeof(MerkleHash));
+    //DBT parentk = parent(&key, (MerkleNode *)(data.data));
+    //std::cout << "-->(" << dbt_string(&parentk) << ")";
+    //print_children(&key);
+    std::cout << "\t\t\t";
+    MerkleNode * m = (MerkleNode *)data.data;
+    print_hex(&(m->digest), sizeof(MerkleHash));
+    std::cout << ",";
+    print_hex(&(m->data_digest), sizeof(MerkleHash));
     std::cout << ";\n";
-		free(key.data);
-		free(data.data);	//TODO: Memory Leak??
+    free(key.data);
+    free(data.data);	//TODO: Memory Leak??
   }
   if (ret != DB_NOTFOUND) {
     std::cout << "DONE\n";
@@ -514,42 +528,72 @@ void MerkleDB::print_tree() {
 }
 
 void MerkleDB::print_children(DBT *key) {
-	DBT pkey, pdata; /* Used to return the primary key and data */
-	int ret;
+  DBT pkey, pdata; /* Used to return the primary key and data */
+  int ret;
 	
-	memset(&pkey, 0, sizeof(DBT));
-	pkey.flags = DB_DBT_MALLOC;
-	memset(&pdata, 0, sizeof(DBT));
-	pdata.flags = DB_DBT_MALLOC;
-	DBC *cursorp;
-	cld->cursor(cld, NULL, &cursorp, 0);
+  memset(&pkey, 0, sizeof(DBT));
+  pkey.flags = DB_DBT_MALLOC;
+  memset(&pdata, 0, sizeof(DBT));
+  pdata.flags = DB_DBT_MALLOC;
+  DBC *cursorp;
+  cld->cursor(cld, NULL, &cursorp, 0);
 	
-	ret = cursorp->pget(cursorp, key, &pkey, &pdata, DB_SET);
-	if (ret == 0) {
-		std::cout << "-->[";
-		do {
-			std::cout << "(";
-			std::cout << dbt_string(&pkey);
-			std::cout << ")";
-			free(pkey.data);
-			free(pdata.data);
-		} while ((ret = cursorp->pget(cursorp, key, &pkey, &pdata, DB_NEXT_DUP)) == 0);
-		std::cout << "]";
-	}
-	cursorp->close(cursorp);
+  ret = cursorp->pget(cursorp, key, &pkey, &pdata, DB_SET);
+  if (ret == 0) {
+    std::cout << "-->[";
+    do {
+      std::cout << "(";
+      std::cout << dbt_string(&pkey);
+      std::cout << ")";
+      free(pkey.data);
+      free(pdata.data);
+    } while ((ret = cursorp->pget(cursorp, key, &pkey, &pdata, DB_NEXT_DUP)) == 0);
+    std::cout << "]";
+  }
+  cursorp->close(cursorp);
+}
+
+void MerkleDB::queue_children(DBT *key) {
+  DBT pkey, pdata; /* Used to return the primary key and data */
+  int ret;
+	
+  memset(&pkey, 0, sizeof(DBT));
+  pkey.flags = DB_DBT_MALLOC;
+  memset(&pdata, 0, sizeof(DBT));
+  pdata.flags = DB_DBT_MALLOC;
+  DBC *cursorp;
+  cld->cursor(cld, NULL, &cursorp, 0);
+	
+  ret = cursorp->pget(cursorp, key, &pkey, &pdata, DB_SET);
+  if (ret == 0) {
+    do {
+#ifdef DEBUG
+      std::cout << "Queuing child: "<<dbt_string(&pkey)<<endl;
+#endif
+      //printf("data before: %p\n",pdata.data);
+      //free(pdata.data);
+      //pkey.flags = 0;
+      qdb->put(qdb,NULL,&pdata,&pkey,DB_APPEND);
+      //printf("data after: %p\n",pdata.data);
+      //free(pdata.data);
+      //free(pkey.data);
+      //pkey.flags = DB_DBT_MALLOC;
+    } while ((ret = cursorp->pget(cursorp, key, &pkey, &pdata, DB_NEXT_DUP)) == 0);
+  }
+  cursorp->close(cursorp);
 }
 
 void MerkleDB::close() {
-	close_if_not_null(dbp);
-	close_if_not_null(aly);
-	close_if_not_null(pup);
-	close_if_not_null(cld);
+  close_if_not_null(dbp);
+  close_if_not_null(aly);
+  close_if_not_null(pup);
+  close_if_not_null(cld);
 }
 
 DBT MerkleDB::parent(DBT * key, MerkleNode * node) {
   DBT parentk;
   memset(&parentk, 0, sizeof(DBT));
-	parentk.flags = DB_DBT_MALLOC;
+  parentk.flags = DB_DBT_MALLOC;
   parentk.data = key->data;
   parentk.size = (key->size) - (node->offset);
   return parentk;
@@ -558,14 +602,14 @@ DBT MerkleDB::parent(DBT * key, MerkleNode * node) {
 void MerkleDB::examine(DBT * key) {
   DBT data;
   memset(&data, 0, sizeof(DBT));
-	data.flags = DB_DBT_MALLOC;
+  data.flags = DB_DBT_MALLOC;
   std::cout << "examine(" << dbt_string(key) << ") => ";
   int ret;
   ret = dbp->get(dbp, NULL, key, &data, 0);
   if (0 == ret) {
-    MerkleNode * m =  (MerkleNode *)((&data)->data);;
+    MerkleNode * m =  (MerkleNode *)((&data)->data);
     printf("MerkleNode<digest:%i, offset:%i>\n", m->digest, m->offset);		
-		free(data.data);
+    free(data.data);
   } else if (DB_NOTFOUND == ret) {
     std::cout << "nil\n";
   } else {
@@ -677,11 +721,11 @@ int test_pending(DB_ENV* db_env) {
 	
   merkle->flushp();
 
-	key.data = (char *)"bbc";
-	key.size = 3;
-	std::cout << "printing_children of: " << dbt_string(&key) << "\n";
-	merkle->print_children(&key);
-	std::cout << "\n"	;
+  key.data = (char *)"bbc";
+  key.size = 3;
+  std::cout << "printing_children of: " << dbt_string(&key) << "\n";
+  merkle->print_children(&key);
+  std::cout << "\n"	;
   //std::cout << "Look for keys node via examine\n";
   //merkle->examine(&key);
   //merkle->examine(&key2);
@@ -805,11 +849,11 @@ int test_pending2(DB_ENV* db_env) {
 	
   merkle->flushp();
 
-	key.data = (char *)"bbc";
-	key.size = 3;
-	std::cout << "printing_children of: " << dbt_string(&key) << "\n";
-	merkle->print_children(&key);
-	std::cout << "\n"	;
+  key.data = (char *)"bbc";
+  key.size = 3;
+  std::cout << "printing_children of: " << dbt_string(&key) << "\n";
+  merkle->print_children(&key);
+  std::cout << "\n"	;
   //std::cout << "Look for keys node via examine\n";
   //merkle->examine(&key);
   //merkle->examine(&key2);
@@ -832,61 +876,61 @@ int test_pending2(DB_ENV* db_env) {
 
 
 void build_random_tree(MerkleDB * merkle, int seed) {
-	std::cout << "build_tree(" << merkle << ", " << seed << ")\n";
-	srand(seed);
-	vector<std::string> keys;
-	vector<std::string> data;
-	keys.push_back("deefafdfebe");
-	keys.push_back("ccaacdcbddbc");
-	keys.push_back("cedfccdfbdccffbbbfccd");
-	keys.push_back("ffaeceaefffebfcbb");
-	keys.push_back("cbdcaaf");
-	keys.push_back("ceda");
-	keys.push_back("dedaccedfff");
-	keys.push_back("efacac");
-	keys.push_back("addabdaacafccd");
-	keys.push_back("edbdf");
+  std::cout << "build_tree(" << merkle << ", " << seed << ")\n";
+  srand(seed);
+  vector<std::string> keys;
+  vector<std::string> data;
+  keys.push_back("deefafdfebe");
+  keys.push_back("ccaacdcbddbc");
+  keys.push_back("cedfccdfbdccffbbbfccd");
+  keys.push_back("ffaeceaefffebfcbb");
+  keys.push_back("cbdcaaf");
+  keys.push_back("ceda");
+  keys.push_back("dedaccedfff");
+  keys.push_back("efacac");
+  keys.push_back("addabdaacafccd");
+  keys.push_back("edbdf");
 	
-	data.push_back("1");
-	data.push_back("2");
-	data.push_back("3");
-	data.push_back("4");
-	data.push_back("5");
-	data.push_back("6");
-	data.push_back("7");
-	data.push_back("8");
-	data.push_back("9");
-	data.push_back("10");
+  data.push_back("1");
+  data.push_back("2");
+  data.push_back("3");
+  data.push_back("4");
+  data.push_back("5");
+  data.push_back("6");
+  data.push_back("7");
+  data.push_back("8");
+  data.push_back("9");
+  data.push_back("10");
 	
-	unsigned int i;
-	int max;
-	char * key;
-	char * datum;
-	while (keys.size() > 0) {
-		max = keys.size();
-		i = rand() % max;
-		key = (char *)keys[i].c_str();
-		datum = (char *)data[i].c_str();
-		//std::cout << key << " , " << datum << "\n";
-		DBT keyd, datad;
-		memset(&keyd, 0, sizeof(DBT));
-		memset(&datad, 0, sizeof(DBT));
-		keyd.data = key;
-		keyd.size = strlen(key);
-		datad.data = datum;
-		datad.size = strlen(datum);
+  unsigned int i;
+  int max;
+  char * key;
+  char * datum;
+  while (keys.size() > 0) {
+    max = keys.size();
+    i = rand() % max;
+    key = (char *)keys[i].c_str();
+    datum = (char *)data[i].c_str();
+    //std::cout << key << " , " << datum << "\n";
+    DBT keyd, datad;
+    memset(&keyd, 0, sizeof(DBT));
+    memset(&datad, 0, sizeof(DBT));
+    keyd.data = key;
+    keyd.size = strlen(key);
+    datad.data = datum;
+    datad.size = strlen(datum);
 		
-		merkle->enqueue(&keyd, &datad);
-		keys.erase(keys.begin()+i);
-		data.erase(data.begin()+i);
-	}
-	merkle->flushp();
-	merkle->print_tree();
+    merkle->enqueue(&keyd, &datad);
+    keys.erase(keys.begin()+i);
+    data.erase(data.begin()+i);
+  }
+  merkle->flushp();
+  merkle->print_tree();
 }
 
 int main( int argc, char** argv )
 {
-	u_int32_t env_flags = 0;
+  u_int32_t env_flags = 0;
   int ret;
   u_int32_t gb;
   DB_ENV* db_env;
@@ -914,25 +958,25 @@ int main( int argc, char** argv )
     fprintf(stderr, "Environment open failed: %s\n", db_strerror(ret));
     exit(-1);
   }
-	MerkleDB * mdb1 = new MerkleDB("tree1",db_env,".");
-	MerkleDB * mdb2 = new MerkleDB("tree2",db_env,".");
-	build_random_tree(mdb1, 10);
-	build_random_tree(mdb2, 30433);
-	std::cout << "alter with: dedaccedff := dsfkj\n";
-	DBT key, data;
-	memset(&key, 0, sizeof(DBT));
-	memset(&data, 0, sizeof(DBT));
-	char * key_s = "dedaccedfff";
-	char * data_s = "dsfkj";
-	key.data = key_s;
-	key.size = strlen(key_s);
-	data.data = data_s;
-	data.size = strlen(data_s);
-	mdb1->enqueue(&key, &data);
-	mdb1->flushp();
-	mdb1->print_tree();
+  MerkleDB * mdb1 = new MerkleDB("tree1",db_env,".");
+  MerkleDB * mdb2 = new MerkleDB("tree2",db_env,".");
+  build_random_tree(mdb1, 10);
+  build_random_tree(mdb2, 30433);
+  std::cout << "alter with: dedaccedff := dsfkj\n";
+  DBT key, data;
+  memset(&key, 0, sizeof(DBT));
+  memset(&data, 0, sizeof(DBT));
+  char * key_s = "dedaccedfff";
+  char * data_s = "dsfkj";
+  key.data = key_s;
+  key.size = strlen(key_s);
+  data.data = data_s;
+  data.size = strlen(data_s);
+  mdb1->enqueue(&key, &data);
+  mdb1->flushp();
+  mdb1->print_tree();
   //test_macro(db_env);
-	//test_pending(db_env);
+  //test_pending(db_env);
   //test_pending2(db_env);
   //test_prefix();
   return 0;

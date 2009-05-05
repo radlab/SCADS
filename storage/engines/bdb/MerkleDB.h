@@ -14,48 +14,50 @@ using namespace std;
 
 namespace SCADS {
 
-typedef int MerkleHash;
+  typedef int MerkleHash;
 
 
-typedef struct {
-  int offset; //|MerkleNode.key| - |MerkleNode.parent.key| (i.e. suffix length)
-  MerkleHash digest; //hash (of data for leaf, children's digests if interior node)
-	MerkleHash data_digest;
-} MerkleNode;
+  typedef struct {
+    int offset; //|MerkleNode.key| - |MerkleNode.parent.key| (i.e. suffix length)
+    MerkleHash digest; //hash (of data for leaf, children's digests if interior node)
+    MerkleHash data_digest;
+  } MerkleNode;
 
-class MerkleDB {
-public:
-  MerkleDB(const NameSpace& ns, DB_ENV* db_env, const char* env_dir);
+  class MerkleDB {
+  public:
+    MerkleDB(const NameSpace& ns, DB_ENV* db_env, const char* env_dir);
 
- public:
-	int flush_flag;
-	int type;
-	DB * dbp; //Merkle trie database
+  public:
+    int flush_flag;
+    int type;
+    DB * dbp; //Merkle trie database
+    static DB * qdb; // queue database for running syncs
 	
- private:
-	pthread_mutex_t sync_lock;
-  DB * pup; //Pending update database
-	DB * aly; //Set of updates to apply
-	DB * cld; //Secondary index (key) -> (children);
+  private:
+    pthread_mutex_t sync_lock;
+    DB * pup; //Pending update database
+    DB * aly; //Set of updates to apply
+    DB * cld; //Secondary index (key) -> (children);
 	
- public:
-  int enqueue(DBT * key, DBT * data);
-  int flushp();
-  void examine(DBT * key);
-  void close();
-  //debug methods
-  u_int32_t prefix_length(DBT * key1, DBT * key2);
-  void print_tree();
-	void print_children(DBT *key);
+  public:
+    int enqueue(DBT * key, DBT * data);
+    int flushp();
+    void examine(DBT * key);
+    void close();
+    //debug methods
+    u_int32_t prefix_length(DBT * key1, DBT * key2);
+    void print_tree();
+    void print_children(DBT *key);
+    void queue_children(DBT *key);
 	
- private:
-  MerkleNode parent(MerkleNode * node);
-  MerkleNode get(DBT * key);
-  int insert(DBT * key, MerkleHash hash);
-	int recalculate(DBT * key, DBT * data, DBC * cursorp);
-  DBT parent(DBT * key, MerkleNode * node);
-  int dbt_equal(DBT * db1, DBT * db2);
-};
+  private:
+    MerkleNode parent(MerkleNode * node);
+    MerkleNode get(DBT * key);
+    int insert(DBT * key, MerkleHash hash);
+    int recalculate(DBT * key, DBT * data, DBC * cursorp);
+    DBT parent(DBT * key, MerkleNode * node);
+    int dbt_equal(DBT * db1, DBT * db2);
+  };
 
 }
 

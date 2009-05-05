@@ -305,14 +305,15 @@ getDB(const NameSpace& ns) {
 }
 
 MerkleDB* StorageDB::
-getMerkleDB(const NameSpace& ns) {
+getMerkleDB(const NameSpace& ns, bool nullOk) {
   map<const NameSpace,MerkleDB*>::iterator it;
   MerkleDB* db;
   int rc = pthread_rwlock_rdlock(&dbmap_lock); // get the read lock
   chkLock(rc,"dbmap_lock","top read lock");
   it = merkle_dbs.find(ns);
   if (it == merkle_dbs.end()) { // this is bad, merkle db should have been opened by getDB first
-    cerr << "Couldn't find MerkleDB for "<<ns<<" make sure you call getDB BEFORE calling getMerkleDB."<<endl;
+    if (!nullOk) // sync doesn't mind getting null back, just means no one has inserted on this db yet
+      cerr << "Couldn't find MerkleDB for "<<ns<<" make sure you call getDB BEFORE calling getMerkleDB."<<endl;
     return NULL;
   }
   db = it->second;
@@ -716,6 +717,16 @@ flush_wait(struct timespec* time) {
   (void)pthread_mutex_unlock(&flush_tex);
 }
 
+
+// this allows us to block the flush thread while sync is in progress
+void StorageDB::
+flush_lock(bool unlock) {
+  if (unlock)
+    (void)pthread_mutex_unlock(&flushing_tex); 
+  else
+    (void)pthread_mutex_lock(&flushing_tex); 
+}
+
 static void* flush_thread(void* arg) {
   StorageDB* storageDB = (StorageDB*)arg;
   pthread_rwlock_t *dbmap_lock = storageDB->get_dbmap_lock();
@@ -730,6 +741,7 @@ static void* flush_thread(void* arg) {
   spec.tv_nsec = 0;
   gettimeofday(&wakeup,NULL);
   wakeup.tv_sec+=60; // set target wakeup time to 60 seconds from now
+  storageDB->flush_lock(false);
 
   while(!stopping) {
 #ifdef DEBUG
@@ -756,11 +768,16 @@ static void* flush_thread(void* arg) {
     // okay, here we've flushed them all
     rc = pthread_rwlock_unlock(dbmap_lock); // unlock read lock
     chkLock(rc,"dbmap_lock","unlock read lock for flush thread");
+    storageDB->flush_lock(true);
     cur_flag = (cur_flag==0?1:0);
     spec.tv_sec = wakeup.tv_sec;
+#ifdef DEBUG
+    cout << "Finished running flush thread, sleeping"<<endl;
+#endif
     storageDB->flush_wait(&spec);
     gettimeofday(&wakeup,NULL);
     wakeup.tv_sec+=60; // set target wakeup time to 60 seconds from now
+    storageDB->flush_lock(false);
   }
 }
 
@@ -828,6 +845,10 @@ StorageDB(int lp,
     perror("Could not create flush_tex");
     exit(EXIT_FAILURE);
   }
+  if (pthread_mutex_init(&flushing_tex,NULL)) {
+    perror("Could not create flushing_tex");
+    exit(EXIT_FAILURE);
+  }
   if (pthread_cond_init(&flush_cond,NULL)) {
     perror("Could not create flush_cond");
     exit(EXIT_FAILURE);
@@ -873,6 +894,8 @@ closeDBs() {
     cout << "Closing merkle trie for: "<<mit->first<<endl;
     mit->second->close();
   }
+  if (MerkleDB::qdb != NULL)
+    MerkleDB::qdb->close(MerkleDB::qdb,0);
   if (db_env != NULL) {
     rc = db_env->close(db_env, 0);
     if (rc != 0) {
@@ -944,11 +967,38 @@ count_set(const NameSpace& ns, const RecordSet& rs) {
 }
 
 bool StorageDB::
+putDBTs(DB* db_ptr, MerkleDB* mdb_ptr,DBT* key, DBT* data) {
+  int ret;
+  if (data==NULL)  // really a delete
+    ret = db_ptr->del(db_ptr,NULL,key,0);
+  else {
+    ret = db_ptr->put(db_ptr, NULL, key, data, 0);
+    ret |= mdb_ptr->enqueue(key,data);
+  }
+  
+  if (ret) {
+    db_ptr->err(db_ptr,ret,"Put failed");
+    return false;
+  }
+
+  ret = flush_log(db_ptr);
+  if (ret) {
+    db_ptr->err(db_ptr,ret,"Flush failed");
+    return false;
+  }
+    
+  return true;
+}
+
+bool StorageDB::
 put(const NameSpace& ns, const Record& rec) {
   DB* db_ptr;
   MerkleDB* mdb_ptr;
   DBT key, data;
   int ret;
+
+  /* gross that we're going in and out of c++ strings,
+     consider storing the whole string object */
 
 #ifdef DEBUG
   cout << "Put called:"<<endl<<
@@ -978,31 +1028,13 @@ put(const NameSpace& ns, const Record& rec) {
   key.data = const_cast<char*>(rec.key.c_str());
   key.size = rec.key.length();
 
-  if (!rec.__isset.value) { // really a delete
-    ret = db_ptr->del(db_ptr,NULL,&key,0);
-  }
-  else {
-    data.data = const_cast<char*>(rec.value.c_str());
-    data.size = rec.value.length();
-    ret = db_ptr->put(db_ptr, NULL, &key, &data, 0);
-    ret |= mdb_ptr->enqueue(&key,&data);
-  }
+  if (!rec.__isset.value)  // really a delete
+    return putDBTs(db_ptr,mdb_ptr,&key,NULL);
 
-  /* gross that we're going in and out of c++ strings,
-     consider storing the whole string object */
-  
-  if (ret) {
-    db_ptr->err(db_ptr,ret,"Put failed");
-    return false;
-  }
 
-  ret = flush_log(db_ptr);
-  if (ret) {
-    db_ptr->err(db_ptr,ret,"Flush failed");
-    return false;
-  }
-    
-  return true;
+  data.data = const_cast<char*>(rec.value.c_str());
+  data.size = rec.value.length();
+  return putDBTs(db_ptr,mdb_ptr,&key,&data);
 }
 
 bool StorageDB::

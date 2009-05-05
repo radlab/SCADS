@@ -17,13 +17,19 @@
 #define BUFSZ 1024
 #define COMMIT_LIMIT 20000
 
+#define SYNC_SIMPLE 0
+#define SYNC_MERKLE 1
+
 extern char stopping;
 extern ID call_id;
 
 namespace SCADS {
 
-int node_data = NODE_DATA;
-int node_merkle = NODE_MERKLE;
+char node_data = NODE_DATA;
+char node_merkle = NODE_MERKLE;
+char merkle_no = MERKLE_NO;
+char merkle_yes = MERKLE_YES;
+char merkle_mark = MERKLE_MARK;
 
 using namespace std;
 using namespace apache::thrift;
@@ -53,6 +59,31 @@ int fill_buf(int* sock, char* buf, int off) {
   return recvd;
 }
 
+int readHash(int* sock, MerkleHash* hash, DBT* save, char* buf, char* pos, char** endp) {
+  int len = sizeof(MerkleHash);
+  char *end = *endp;
+  if ((end-pos) < len) {
+    int rem = end-pos;
+    memcpy(buf,pos,rem); // move data to the front
+    if (save != NULL &&
+	!save->flags) { // other dbt isn't malloced and needs its data saved and moved
+      void* od = malloc(sizeof(char)*save->size);
+      memcpy(od,save->data,save->size);
+      save->data = od;
+      save->flags = 1; // is malloced now
+    }
+    len = fill_buf(sock,buf,rem);
+    if (len == 0) { // socket got closed down
+      ReadDBTException e("Socket was orderly shutdown by peer");
+      throw e;
+    }
+    *endp = buf+len+rem;
+    return readHash(sock,hash,save,buf,buf,endp);
+  }
+  memcpy(hash,pos,len);
+  return ((pos+len)-buf);
+}
+
 int fill_dbt(int* sock, DBT* k, DBT* other, char* buf, char* pos, char** endp) {
   int len;
   char *end = *endp;
@@ -61,6 +92,11 @@ int fill_dbt(int* sock, DBT* k, DBT* other, char* buf, char* pos, char** endp) {
   }
   else {
     if ((end-pos) < 5) {
+      if ((end-pos) > 0 &&
+	  *pos == MERKLE_MARK) { // just kick out here
+	k->doff = (int)(*pos);
+	return ((pos+1)-buf);
+      }
       int rem = end-pos;
       memcpy(buf,pos,rem); // move data to the front
       if (other != NULL &&
@@ -81,12 +117,14 @@ int fill_dbt(int* sock, DBT* k, DBT* other, char* buf, char* pos, char** endp) {
     // here we have at least 5 bytes to work with
     // set the type
     k->doff = (int)(*pos);
+    if (k->doff == MERKLE_MARK) // no data for marks
+      return ((pos+1)-buf);
     // now get the length
     memcpy(&len,pos+1,4);
     k->size = len;
     pos+=5;
   }
-  if (len == 0) // means we're done
+  if (k->doff == NODE_DATA && len == 0) // means we're done
     return len;
 
 
@@ -299,20 +337,34 @@ struct sync_sync_args {
 };
 
 static 
-void send_vals(int sock,DBT* key, DBT* data) {
+void send_mark(int sock) {
+  if (send(sock,&merkle_mark,1,MSG_MORE) == -1)
+    do_throw(errno,"Failed to send mark: ");
+}
+
+static 
+void send_vals(int sock,DBT* key, DBT* data, char type) {
   // DBTSEND OK
-  if (send(sock,&node_data,1,MSG_MORE) == -1)
+  if (send(sock,&type,1,MSG_MORE) == -1)
     do_throw(errno,"Failed to send message type: ");
   if (send(sock,&(key->size),4,MSG_MORE) == -1) 
     do_throw(errno,"Failed to send key length: ");
   if (send(sock,((const char*)key->data),key->size,MSG_MORE) == -1) 
     do_throw(errno,"Failed to send a key: ");
-  if (send(sock,&node_data,1,MSG_MORE) == -1)
-    do_throw(errno,"Failed to send message type: ");
-  if (send(sock,&(data->size),4,MSG_MORE) == -1) 
-    do_throw(errno,"Failed to send data length: ");
-  if (send(sock,data->data,data->size,MSG_MORE) == -1) 
-    do_throw(errno,"Failed to send data: ");
+  if (data != NULL) {
+    if (send(sock,&type,1,MSG_MORE) == -1)
+      do_throw(errno,"Failed to send message type: ");
+    if (send(sock,&(data->size),4,MSG_MORE) == -1) 
+      do_throw(errno,"Failed to send data length: ");
+    if (send(sock,data->data,data->size,MSG_MORE) == -1) 
+      do_throw(errno,"Failed to send data: ");
+  }
+}
+
+static
+void send_hash(int sock, MerkleHash hash) {
+  if (send(sock,&hash,sizeof(MerkleHash),MSG_MORE) == -1)
+    do_throw(errno,"Failed to send hash: ");
 }
 
 static
@@ -331,7 +383,7 @@ void send_string(int sock, const string& str) {
 
 void apply_dump(void *s, DB* db, DBC* cursor, DB_TXN *txn, void *k, void *d) {
   int* sock = (int*)s;
-  send_vals(*sock,(DBT*)k,(DBT*)d);
+  send_vals(*sock,(DBT*)k,(DBT*)d,node_data);
 }
 
 void sync_sync_put(DB* db, DBC* cursor, DB_TXN* txn, DBT* lkey, DBT* ldata, struct sync_sync_args* args, bool adv=true) {
@@ -371,7 +423,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
 
 
   if (args->remdone) { // no more remote keys, just send over whatever else we have
-    send_vals(args->sock,key,data);
+    send_vals(args->sock,key,data,node_data);
     return;
   }
 
@@ -388,7 +440,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
     if (args->off == 0) {
       args->remdone = 1;
       if (key != NULL)
-	send_vals(args->sock,key,data);
+	send_vals(args->sock,key,data,node_data);
       return;
     }
     try {
@@ -477,7 +529,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
 #ifdef DEBUG
       cerr << "Local key "<<string((char*)key->data,key->size)<<" is shorter, sending my local value over"<<endl;
 #endif
-      send_vals(args->sock,key,data);
+      send_vals(args->sock,key,data,node_data);
       // don't want to clear keys, will deal with on next pass
       return;
     }
@@ -548,7 +600,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
 #ifdef DEBUG
       cerr << "Local key "<<string((char*)key->data,key->size)<<" is less, sending over."<<endl;
 #endif
-      send_vals(args->sock,key,data);
+      send_vals(args->sock,key,data,node_data);
       // don't want to clear keys, will deal with on next pass
       return;
     }
@@ -631,9 +683,9 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
       if (data->size > args->d.size ||
 	  dcmp > 0) { // local is greater, keep that, send over our value
 #ifdef DEBUG
-      cerr << "Local data is greater, sending over."<<endl;
+	cerr << "Local data is greater, sending over."<<endl;
 #endif
-	send_vals(args->sock,key,data);
+	send_vals(args->sock,key,data,node_data);
       }
 
       else if (data->size < args->d.size ||
@@ -692,7 +744,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
 	u_int32_t ts = args->d.size;
 	args->d.data = newval;
 	args->d.size = strlen(newval);
-	send_vals(args->sock,key,&(args->d));
+	send_vals(args->sock,key,&(args->d),node_data);
 	args->d.data = td;
 	args->d.size = ts;
       }
@@ -712,7 +764,179 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
   memset(&(args->d), 0, sizeof(DBT));
 }
 
-int do_sync(int sock, StorageDB* storageDB, char* dbuf) {
+#define DATA_EQUAL 0
+#define REM_REPLS  1
+#define LOC_REPLS  2
+#define BOTH_REPL  3
+
+
+/* resolve data according to a policy
+ * returns: 
+ *   DATA_EQUAL if the data was equal
+ *   REM_REPLS if remote data replaces local data
+ *   LOC_REPLS if local data should replace remote data
+ *   BOTH_REPL if both local and remote data need to be updated
+ */
+int resolve_data(DBT* ld, DBT* rd,
+		 ConflictPolicy& pol) {
+  int dcmp = 0;
+  if (ld->size == rd->size)
+    dcmp = memcmp(ld->data,rd->data,ld->size);
+
+  if (ld->size != rd->size || dcmp) { // data didn't match
+    if (pol.type == CPT_GREATER) {
+      if (ld->size > rd->size ||
+	  dcmp > 0) { // local is greater
+#ifdef DEBUG
+	cerr << "Local data is greater"<<endl;
+#endif
+	return LOC_REPLS;
+      }
+
+      else if (ld->size < rd->size ||
+	       dcmp < 0) { // remote is greater, insert, no need to send back
+#ifdef DEBUG
+	cerr << "Local data is less"<<endl;
+#endif
+	return REM_REPLS;
+      }
+    }
+    else if (pol.type == CPT_FUNC) {
+      cerr << "Don't support ruby conflict just at the moment"<<endl;
+      return DATA_EQUAL;
+    }
+  }
+  return DATA_EQUAL; // matched
+}
+
+int do_merkle_sync(int sock, const NameSpace& ns,
+		   StorageDB* storageDB,
+		   DB* db, MerkleDB* mdb,
+		   char* dbuf, char* end, int off, 
+		   ConflictPolicy& pol) {
+  DBT key,data,lkey,ldata;
+  int ret;
+#ifdef DEBUG
+    cout << "Doing a merkle sync"<<endl;
+#endif
+  memset(&key, 0, sizeof(DBT));
+  memset(&data, 0, sizeof(DBT));
+  for(;;) {
+    try {
+      off = fill_dbt(&sock,&key,NULL,dbuf,dbuf+off,&end);
+    } catch (ReadDBTException &e) {
+      cerr << "Could not read key in do_merkle_sync: "<<e.what()<<endl;
+      if (key.flags)
+	free(key.data);
+      return 1;
+    }
+    if (off == 0)
+      break;
+
+    switch(key.doff) { // doff is where we store the type
+    case NODE_DATA: {
+#ifdef DEBUG
+      cout << "Got data node in do_merkle_sync"<<endl;
+#endif
+      try {
+	off = fill_dbt(&sock,&data,&key,dbuf,dbuf+off,&end);
+      } catch (ReadDBTException &e) {
+	cerr << "Could not read data in do_merkle_sync: "<<e.what()<<endl;
+	if (key.flags)
+	  free(key.data);
+	if (data.flags)
+	  free(data.data);
+	return 1;
+      }
+      int res;
+      memset(&ldata, 0, sizeof(DBT));
+      ldata.flags = DB_DBT_MALLOC;
+      ret = db->get(db,NULL,&key,&ldata,0);
+      if (ret == DB_NOTFOUND) {
+#ifdef DEBUG
+	cout << "Local data missing, inserting"<<endl;
+	cout << "[remote] key: "<<dbt_string(&key)<<" data: "<<dbt_string(&data)<<endl;
+#endif
+	res = REM_REPLS;
+      } else if (ret == 0) {
+#ifdef DEBUG
+	cout << "[local]  key: "<<dbt_string(&key)<<" data: "<<dbt_string(&ldata)<<endl;
+	cout << "[remote] key: "<<dbt_string(&key)<<" data: "<<dbt_string(&data)<<endl;
+#endif
+	res = resolve_data(&ldata,&data,pol);
+      } else {
+	db->err(db,ret,"Getting local data");
+	cerr << "[remote] key: "<<dbt_string(&key)<<" data: "<<dbt_string(&data)<<endl;
+	res = DATA_EQUAL;
+      }
+      switch (res) {
+      case DATA_EQUAL: // nothing to do
+	break;
+      case REM_REPLS: { // need to insert locally
+#ifdef DEBUG
+	cout << "Local is less, inerting"<<endl;
+#endif
+	storageDB->putDBTs(db,mdb,&key,&data);
+	break;
+      }
+      case LOC_REPLS: { // local replaces, send back over
+#ifdef DEBUG
+	cout << "Local is greater, sending back"<<endl;
+#endif
+	send_vals(sock,&key,&ldata,node_data);
+	break;
+      }
+      case BOTH_REPL: { // do both
+	cout << "BOTH_REPL not handled at the moment"<<endl;
+	break;
+      }
+      default:
+	cerr << "Wrong value for data resolution, something is bad"<<endl;
+      }
+    }
+      // this breaks the NODE_DATA case
+      break;
+    case NODE_MERKLE: {
+#ifdef DEBUG
+      cout << "Got merkle node in do_merkle_sync.  Key is: "<<string((char*)key.data,key.size)<<endl;
+#endif
+      MerkleHash hash;
+      try {
+	off = readHash(&sock,&hash,&key,dbuf,dbuf+off,&end);
+      } catch (ReadDBTException &e) {
+	cerr << "Could not read hash in do_merkle_sync: "<<e.what()<<endl;
+	if (key.flags)
+	  free(key.data);
+	return 1;
+      }
+      memset(&ldata, 0, sizeof(DBT));
+      ldata.flags = DB_DBT_MALLOC;
+      ret = mdb->dbp->get(mdb->dbp,NULL,&key,&ldata,0);
+      if (ret == DB_NOTFOUND) { // I don't have it, that's a no
+	send_vals(sock,&key,NULL,merkle_no);
+	break;
+      }
+      MerkleNode * ln =  (MerkleNode *)((&ldata)->data);
+#ifdef DEBUG
+      cout<<"local node: "<<ln->digest<<endl;
+      cout<<"remote node: "<<hash<<endl;
+#endif
+      if (ln->digest != hash)
+	send_vals(sock,&key,NULL,merkle_no);
+      break;
+    }
+    case MERKLE_MARK: {
+#ifdef DEBUG
+      cout << "Got merkle mark in do_merkle_sync.  Sending mark back"<<endl;
+#endif
+      send_mark(sock);
+      break;
+    }
+    }
+  }
+}
+
+int do_sync(int sock, StorageDB* storageDB, char* dbuf, char sync_type) {
   char *end;
   int off = 0;
   DB* db_ptr;
@@ -800,23 +1024,34 @@ int do_sync(int sock, StorageDB* storageDB, char* dbuf) {
     break;
   }
 
-  struct sync_sync_args args;
-  args.sock = sock;
-  args.dbuf = dbuf;
-  args.end = end;
-  args.off = off;
-  args.ic = 0;
-  args.pol = &policy;
-  args.db_env = storageDB->getENV();
-  args.remdone = 0;
-  args.isTXN = storageDB->isTXN();
-  memset(&(args.k), 0, sizeof(DBT));
-  memset(&(args.d), 0, sizeof(DBT));
-
-  storageDB->apply_to_set(ns,rs,sync_sync,&args,true);
   DB *db = storageDB->getDB(ns);
-  if (!args.remdone) 
-    sync_sync(&args,db,NULL,NULL,NULL,NULL);
+
+  if (sync_type == SYNC_SIMPLE) {
+    struct sync_sync_args args;
+    args.sock = sock;
+    args.dbuf = dbuf;
+    args.end = end;
+    args.off = off;
+    args.ic = 0;
+    args.pol = &policy;
+    args.db_env = storageDB->getENV();
+    args.remdone = 0;
+    args.isTXN = storageDB->isTXN();
+    memset(&(args.k), 0, sizeof(DBT));
+    memset(&(args.d), 0, sizeof(DBT));
+    
+    storageDB->apply_to_set(ns,rs,sync_sync,&args,true);
+    if (!args.remdone) 
+      sync_sync(&args,db,NULL,NULL,NULL,NULL);
+  }
+
+  else if (sync_type == SYNC_MERKLE) {
+    MerkleDB *mdb = storageDB->getMerkleDB(ns);
+    storageDB->flush_lock(false);
+    mdb->flushp();
+    do_merkle_sync(sock,ns,storageDB,db,mdb,dbuf,end,off,policy);
+    storageDB->flush_lock(true);
+  }
 
 #ifdef DEBUG
   cerr << "sync_sync set done, sending end message"<<endl;
@@ -925,7 +1160,7 @@ void* run_listen(void* arg) {
     if (dbuf[0] == 0) // copy
       stat = do_copy(as,storageDB,dbuf);
     else if (dbuf[0] == 1) // sync
-      stat = do_sync(as,storageDB,dbuf);
+      stat = do_sync(as,storageDB,dbuf,SYNC_MERKLE);
     else if (dbuf[0] == 2) { // dump
 #ifdef DEBUG
       cerr << "Dumping all data"<<endl;
@@ -1063,7 +1298,7 @@ void apply_copy(void* s, DB* db, DBC* cursor, DB_TXN* txn, void* k, void* d) {
   DBT *key,*data;
   key = (DBT*)k;
   data = (DBT*)d;
-  send_vals(*sock,key,data);
+  send_vals(*sock,key,data,node_data);
 }
 
 bool StorageDB::
@@ -1117,7 +1352,7 @@ void sync_send(void* s, DB* db, DBC* cursor, DB_TXN* txn, void* k, void* d) {
 #ifdef DEBUG
   cerr << "[Sending for sync] key: "<<string((char*)key->data,key->size)<<" data: "<<string((char*)data->data,data->size)<<endl;
 #endif
-  send_vals(*sock,key,data);
+  send_vals(*sock,key,data,node_data);
 }
 
 struct sync_recv_args {
@@ -1225,7 +1460,7 @@ void* sync_recv(void* arg) {
 }
 
 bool StorageDB::
-sync_set(const NameSpace& ns, const RecordSet& rs, const Host& h, const ConflictPolicy& policy) {
+simple_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const ConflictPolicy& policy) {
   int numbytes;
   char stat;
 
@@ -1315,6 +1550,280 @@ sync_set(const NameSpace& ns, const RecordSet& rs, const Host& h, const Conflict
     return false;
 
   return true;
+}
+
+
+bool send_merkle_queue(int sock, DB* mdb, DB* qdb) {
+  int ret;
+  DBT key, data,mdata;
+  DBC* cursor;
+  memset(&key, 0, sizeof(DBT));
+  memset(&data, 0, sizeof(DBT));
+  memset(&mdata, 0, sizeof(DBT));
+  key.flags = DB_DBT_MALLOC;
+  data.flags = DB_DBT_MALLOC;
+  mdata.flags = DB_DBT_MALLOC;
+#ifdef DEBUG
+  cout << "Sending merkle queue"<<endl;
+#endif
+  bool empty = true;
+  qdb->cursor(qdb,NULL,&cursor,0);
+  ret = cursor->get(cursor,&key,&data,DB_FIRST);
+  if (ret == 0) {
+    do {
+#ifdef DEBUG
+      cout << "Sending merklenode: "<<string((char*)data.data,data.size)<<endl;
+#endif
+      empty = false;
+      free(key.data);
+      data.flags = 0; // don't let it remalloc the key
+      
+      ret = mdb->get(mdb,NULL,&data,&mdata,0);
+      if (ret == DB_NOTFOUND) {
+	cerr << string((char*)key.data,key.size)<<" was on the queue, but there was no data in the tree"<<endl;
+	continue;
+      }
+      if (ret != 0) {
+	ostringstream oss;
+	oss << "Error getting from merkle db: "<<db_strerror(ret);
+	TException te(oss.str());
+	throw te;
+      }
+      MerkleNode * mn =  (MerkleNode *)((&mdata)->data);
+      send_vals(sock,&data,NULL,node_merkle);
+      send_hash(sock,mn->digest);
+      free(data.data);
+      free(mdata.data);
+      cursor->del(cursor,0);
+    } while ((ret = cursor->get(cursor,&key,&data,DB_NEXT)) == 0);
+  }
+  cursor->close(cursor);
+  if (empty) {  // empty queue, we're all done
+#ifdef DEBUG
+    cout << "Empty queue, sending finish message"<<endl;
+#endif
+    send_string(sock,"");
+    return true;
+  }
+  else
+    send_mark(sock);
+#ifdef DEBUG
+  cout << "Done sending queue"<<endl;
+#endif
+  return false;
+}
+
+int handle_merkle_reply(int sock, char* dbuf, int off, char** end, DB* db, MerkleDB* mdb) {
+  int ret,kf,df;
+  DBT key, data;
+  memset(&key, 0, sizeof(DBT));
+  memset(&data, 0, sizeof(DBT));
+#ifdef DEBUG
+  cout << "Handing merkle reply"<<endl;
+#endif
+  for (;;) {
+    try {
+      off = fill_dbt(&sock,&key,NULL,dbuf,dbuf+off,end);
+    } catch (ReadDBTException &e) {
+      cerr << "Could not read next item in handle_merkle_reply: "<<e.what()<<endl;
+      if (key.flags)
+	free(key.data);
+      return 0;
+    }
+    kf = key.flags;
+    df = 0;
+    key.flags = 0;
+    switch (key.doff) {
+    case MERKLE_MARK:
+#ifdef DEBUG
+      cout << "Got mark in merkle reply, returning"<<endl;
+#endif
+      return off;
+    case NODE_DATA: {
+#ifdef DEBUG
+      cout << "Got data in merkle reply, inserting locally"<<endl;
+#endif
+      try {
+	off = fill_dbt(&sock,&data,&key,dbuf,dbuf+off,end);
+      } catch (ReadDBTException &e) {
+	cerr << "Could not read next item in handle_merkle_reply: "<<e.what()<<endl;
+	if (kf)
+	  free(key.data);
+	if (data.flags)
+	  free(data.data);
+	return 0;
+      }
+      df = data.flags;
+      data.flags = 0;
+#ifdef DEBUG
+      cout << "key: "<<dbt_string(&key)<<" data: "<<dbt_string(&data)<<endl;
+#endif
+      db->put(db,NULL,&key,&data,0);
+      break;
+    }
+    case MERKLE_YES: {
+#ifdef DEBUG
+      cout << "Merkle yes in handle"<<endl;
+#endif
+      break;
+    }
+    case MERKLE_NO: {
+#ifdef DEBUG
+      cout << "Merkle no in handle for: "<<string((char*)key.data,key.size)<<". Need to add this nodes children to queue"<<endl;
+#endif
+      data.flags = DB_DBT_MALLOC;
+      //mdb->dbp->get(mdb->dbp,NULL,&key,&data,0);
+      //MerkleNode * m =  (MerkleNode *)((&data)->data);
+      //cout<<"node: "<<m->offset<<", "<<m->digest<<", "<<m->data_digest<<endl;
+      ret = db->get(db,NULL,&key,&data,0);
+      if (ret == 0)  // i had data there, send it over
+	send_vals(sock,&key,&data,node_data);
+      mdb->queue_children(&key);
+      break;
+    }
+    }
+    if (kf)
+      free(key.data);
+    if (df)
+      free(data.data);
+  }
+  
+  return off;
+}
+
+bool StorageDB::
+merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const ConflictPolicy& policy) {
+  int numbytes,ret;
+  char stat;
+  DBT key,data;
+  char *end;
+  int off = 0;
+  char dbuf[BUFSZ];
+
+  // TODO:MAKE SURE POLICY IS VALID
+  DB* dbp = getDB(ns);
+  MerkleDB* mdb = getMerkleDB(ns,true);
+  if (dbp == NULL ||
+      mdb == NULL ||
+      mdb->qdb == NULL)
+    return true; // nothing to do
+
+  // block the flushing thread, if a flush is currently in progress
+  // this will block until it is finished
+  flush_lock(false);  
+
+  // run a flush now to catch up
+  mdb->flushp();
+
+  memset(&key, 0, sizeof(DBT));
+  memset(&data, 0, sizeof(DBT));
+
+  int sock = open_socket(h);
+  int nslen = ns.length();
+
+  stat = 1; // sync command
+  if (send(sock,&stat,1,MSG_MORE) == -1) 
+    do_throw(errno,"Error sending sync operation: ");
+
+  send_string(sock,ns);
+  
+  // DBTSEND OK
+
+  nslen =
+    (policy.type == CPT_GREATER)?
+    4:
+    (12+policy.func.func.length());
+
+  if (send(sock,&node_data,1,MSG_MORE) == -1)
+    do_throw(errno,"Failed to send message type: ");
+  
+  if (send(sock,&(nslen),4,MSG_MORE) == -1) 
+    do_throw(errno,"Error sending policy length: ");
+
+  if (send(sock,&(policy.type),4,MSG_MORE) == -1) 
+    do_throw(errno,"Error sending policy type: ");
+
+  if (policy.type == CPT_FUNC) {
+    if (send(sock,&(policy.func.lang),4,MSG_MORE) == -1) 
+      do_throw(errno,"Error sending policy language: ");
+
+    nslen = policy.func.func.length();
+    if (send(sock,&nslen,4,MSG_MORE) == -1) 
+      do_throw(errno,"Error sending policy function length: ");
+
+    if (send(sock,policy.func.func.c_str(),nslen,MSG_MORE) == -1) 
+      do_throw(errno,"Error sending policy language: ");
+  }
+
+  // gross, but let's serialize the record set okay, let's serialize
+  ostringstream os;
+  os << rs.type;
+  switch (rs.type) {
+  case RST_RANGE:
+    os << " "<<
+      rs.range.start_key<<" "<<
+      rs.range.end_key;
+    break;
+  case RST_KEY_FUNC:
+    os << " "<<rs.func.lang<< " "<<rs.func.func;
+    break;
+  }
+
+  send_string(sock,os.str());
+
+  key.flags = DB_DBT_MALLOC;
+  data.flags = DB_DBT_MALLOC;
+
+  /* TODO: CLEAR QUEUE
+  for(;;) { // clear out the queue if there's anything in it (maybe an old sync in which we crashed or something)
+    ret = mdb->qdb->get(mdb->qdb,NULL,&key,&data,DB_CONSUME);
+    if (ret == DB_NOTFOUND ||
+	ret == DB_KEYEMPTY)
+      break;
+    else if (ret != 0) {
+      mdb->qdb->err(mdb->qdb,ret,"Clearing queue");
+      return false;
+    }
+    free(key.data);
+    free(data.data);
+  }
+  */
+  
+  key.flags = 0;
+
+  memset(&key, 0, sizeof(DBT)); // this represents the root
+  ret = mdb->dbp->get(mdb->dbp,NULL,&key,&data,0);
+  if (ret == DB_NOTFOUND) { // no root node?
+    cerr << "Umm, no root node found in merkle tree, something's wrong"<<endl;
+    return false;
+  }
+#ifdef DEBUG
+  cout << "Found root node, going ahead with sync"<<endl;
+#endif
+  // okay, sent over all meta-data, now let's really sync
+
+  // first send the root
+  MerkleNode * root =  (MerkleNode *)((&data)->data);
+  send_vals(sock,&key,NULL,node_merkle);
+  send_hash(sock,root->digest);
+  send_mark(sock);
+  end = dbuf;
+  off = 0;
+  for (;;) {
+    // we started by sending the root, handle replies first
+    off = handle_merkle_reply(sock,dbuf,off,&end,dbp,mdb);
+    if (send_merkle_queue(sock,mdb->dbp,mdb->qdb))
+      break;
+  }
+
+  flush_lock(true);
+
+  return false;
+}
+
+bool StorageDB::
+sync_set(const NameSpace& ns, const RecordSet& rs, const Host& h, const ConflictPolicy& policy) {
+  return merkle_sync(ns,rs,h,policy);
 }
 
 
