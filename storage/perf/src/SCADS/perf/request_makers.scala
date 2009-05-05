@@ -37,3 +37,14 @@ abstract class RandomReader(mKey: Int) extends RequestMaker(0) {
 		Map("request_type" -> "read", "request_pattern" -> "random", "key" -> key, "max_key" -> maxKey.toString())
 	}
 }
+
+abstract class RandomWriter(mKey: Int) extends RequestMaker(0) {
+	val rand = new java.util.Random
+	val maxKey = mKey
+
+	def makeRequest(client: SCADS.Storage.Client): Map[String, String] = {
+		val record = getRecord(rand.nextInt(maxKey))
+		client.put("perfTest", record)
+		Map("request_type" -> "write", "request_pattern" -> "random", "key" -> record.key, "max_key" -> maxKey.toString())
+	}
+}
