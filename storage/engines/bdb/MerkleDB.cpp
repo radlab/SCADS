@@ -118,6 +118,7 @@ MerkleDB::MerkleDB(const string& ns, DB_ENV* db_env, const char* env_dir) :
 DB* MerkleDB::qdb = NULL;
 
 //Adds key->hash(data) to pending update queue
+//NOTE! Enqueue only takes null-terminated strings
 int MerkleDB::enqueue(DBT * key, DBT * data) {
   int ret;
   DBT h;
@@ -144,7 +145,13 @@ int MerkleDB::enqueue(DBT * key, DBT * data) {
   //print_hex(h.data, h.size);
   //std::cout << "\n";
 	
+	//TODO: enqueue accepts both null and non-null terminated keys, but the MerkleDB needs null-terminated strings.
+	//If input queue is non-null terminated, we read one garbage byte past end of string to make space for null terminator
+	//and repair it when we get the key back in flushp.  [Hack #1]
+	bool c_str = ((((char *)key->data)[key->size] == '\0') ? true : false);
+	if (!c_str) { key->size += 1; }	
   ret = pup->put(pup, NULL, key, &h, 0);
+	if (!c_str) { key->size -= 1; }
   free(h.data);
   if (ret != 0) { return_with_error(ret); }
   return_with_success();
@@ -169,6 +176,7 @@ int MerkleDB::flushp() {
   DBC *cursorp;
   aly->cursor(aly, NULL, &cursorp, 0);
   while ((ret = cursorp->get(cursorp, &key, &data, DB_FIRST)) == 0) {
+		((char *)key.data)[key.size] = '\0'; //Force last character to null for null-termination [Hack #1]
     ret = cursorp->del(cursorp, 0); //TODO: Switch to a transactional store for these queues, not crash safe here
     if (ret != 0) { 
       pthread_mutex_unlock(&sync_lock);
@@ -816,8 +824,6 @@ int test_pending2(DB_ENV* db_env) {
   key.data = (char *)"bbcxxxxz";
   key.size = 8;
   merkle->enqueue(&key, &data);
-
-
 	
   std::cout << "Look for keys via examine\n";
   merkle->examine(&key);
