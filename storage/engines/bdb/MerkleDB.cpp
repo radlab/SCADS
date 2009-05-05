@@ -1,6 +1,6 @@
 // MerkleDB File
 
-#include "StorageDB.h"
+//#include "StorageDB.h"
 #include "MerkleDB.h"
 
 #include <iostream>
@@ -15,8 +15,10 @@
 #define close_if_not_null(db) if ((db) != NULL) { (db)->close((db), 0); }
 #define cleanup_after_bdb() cursorp->close(cursorp); while (data_ptrs.size() > 0) { free(data_ptrs.back()); data_ptrs.pop_back(); }
 #define print_hex(buf, len) for (int i = 0; i < (len); i++) { printf("%x%x", (0xF0 & (((char *)buf)[i]) >> 4), (0x0F & (((char *)buf)[i]))); }
-//#define is_leaf(keyd) ((((keyd)->data)[(keyd)->size-1]) == 0)
-#define is_leaf(keyd) true
+#define is_leaf(keyd) ((((char *)(keyd)->data)[(keyd)->size - 1]) == 0)
+
+//#define is_leaf(keyd) false
+#define dbt_string(dbt) std::string((char*)(dbt)->data,(dbt)->size)
 
 using namespace std;
 using namespace SCADS;
@@ -890,7 +892,7 @@ void build_random_tree(MerkleDB * merkle, int seed) {
     memset(&keyd, 0, sizeof(DBT));
     memset(&datad, 0, sizeof(DBT));
     keyd.data = key;
-    keyd.size = strlen(key);
+    keyd.size = strlen(key)+1;
     datad.data = datum;
     datad.size = strlen(datum);
 		
@@ -934,8 +936,8 @@ int main( int argc, char** argv )
   }
   MerkleDB * mdb1 = new MerkleDB("tree1",db_env,".");
   MerkleDB * mdb2 = new MerkleDB("tree2",db_env,".");
-  build_random_tree(mdb1, 10);
-  build_random_tree(mdb2, 30433);
+  build_random_tree(mdb1, 11230);
+  build_random_tree(mdb2, 301433);
   std::cout << "alter with: dedaccedff := dsfkj\n";
   DBT key, data;
   memset(&key, 0, sizeof(DBT));
@@ -943,7 +945,7 @@ int main( int argc, char** argv )
   char * key_s = "dedaccedfff";
   char * data_s = "dsfkj";
   key.data = key_s;
-  key.size = strlen(key_s);
+  key.size = strlen(key_s)+1;
   data.data = data_s;
   data.size = strlen(data_s);
   mdb1->enqueue(&key, &data);

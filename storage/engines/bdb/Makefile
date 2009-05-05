@@ -68,7 +68,7 @@ storage.bdb.debugquiet: $(SRCS_TO_GEN) StorageDB.cpp Network.cpp MerkleDB.cpp
 	$(CXX) -g $(CFLAGS) $(RUBY_INCLUDES) -o storage.bdb StorageDB.cpp Network.cpp MerkleDB.cpp ${GEN_SRC} $(LIBS)
 
 merkle: $(SRCS_TO_GEN) MerkleDB.cpp
-	$(CXX) $(CFLAGS) -g $(RUBY_INCLUDES) -DMERKLETEST -o MerkleDB MerkleDB.cpp $(LIBS)
+	$(CXX) $(CFLAGS) -g -DMERKLETEST -o MerkleDB MerkleDB.cpp $(LIBS)
 
 clean:
 	rm -rf gen-cpp storage.bdb
