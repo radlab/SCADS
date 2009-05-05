@@ -19,7 +19,6 @@ namespace SCADS {
   typedef struct {
     int offset; //|MerkleNode.key| - |MerkleNode.parent.key| (i.e. suffix length)
     MerkleHash digest; //hash (of data for leaf, children's digests if interior node)
-    MerkleHash data_digest;
   } MerkleNode;
 
   class MerkleDB {

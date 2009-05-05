@@ -15,6 +15,8 @@
 #define close_if_not_null(db) if ((db) != NULL) { (db)->close((db), 0); }
 #define cleanup_after_bdb() cursorp->close(cursorp); while (data_ptrs.size() > 0) { free(data_ptrs.back()); data_ptrs.pop_back(); }
 #define print_hex(buf, len) for (int i = 0; i < (len); i++) { printf("%x%x", (0xF0 & (((char *)buf)[i]) >> 4), (0x0F & (((char *)buf)[i]))); }
+//#define is_leaf(keyd) ((((keyd)->data)[(keyd)->size-1]) == 0)
+#define is_leaf(keyd) true
 
 using namespace std;
 using namespace SCADS;
@@ -233,7 +235,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
     
     if (dbt_equal(key, &ckey)) {
       /* A node for this exact key exists.  Update it and we're done */
-      ((MerkleNode *)cdata.data)->data_digest = hash;
+      ((MerkleNode *)cdata.data)->digest = hash;
       recalculate(&ckey, &cdata, cursorp);
       //TODO: update(&ckey, &m.digest...?)
       //TODO: add parent to pending (with data with length zero)
@@ -284,10 +286,11 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
   //The longest prefix our new node shares with it's neighbors will be its new parent
   u_int32_t prefixl = max(prefix_length(key, &leftk), prefix_length(key, &rightk));
 
-  //prefixl may be equal to length of the key.  In this case, the inserted node 
-  //(conceptually) has an "empty string" edge from its parent.  As an optimization,
-  //in this case, we just merge the data of the child with the parent and don't
-  //actually create a distinct node for the child.
+	//We only support C-style null terminated keys, so prefixl must be shorter than key.size
+	if (prefixl == key->size) {
+		std::cerr << "Inconceivable! : Key length shouldn't be able to be same!";
+		exit(1);
+	}
   DBT parentk;
   memset(&parentk, 0, sizeof(DBT));
   parentk.flags = DB_DBT_MALLOC;
@@ -323,27 +326,25 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
       cdata.data = &newn;
       cdata.size = sizeof(MerkleNode);
       newn.offset = parentk.size - estranged_parentk.size;
-      newn.data_digest = 0;
+      newn.digest = 0;
       //We don't need to set the hash here, since that will happen naturally when we start walking up the tree
       ret = cursorp->put(cursorp, &ckey, &cdata, DB_KEYFIRST);
       if (ret != 0) { return_with_error(ret); }
     }
     /* parent is guaranteed to exist now. (Parent node either existed, or we created it)  */
-    /* We just need to check if we should coalesce with our parent, or actually add ourselves */
-    if (parentk.size != key->size) {
-      //The inserted node has a non-empty string suffix relative to it's common prefix, i.e. it's not coalescing with
-      //it's parent, so we need to add a node for it.
-      ckey.data = key->data;
-      ckey.size = key->size;
-      cdata.data = &newn;
-      memset(&newn, 0, sizeof(MerkleNode));
-      newn.offset = key->size - parentk.size;
-      newn.data_digest = hash;
-      ret = cursorp->put(cursorp, &ckey, &cdata, DB_KEYFIRST);
-      if (ret != 0) { return_with_error(ret); }
-    }
-    //Now we reposition the cursor, and update the new nodes hash
-    ret = cursorp->get(cursorp, key, &cdata, DB_SET);
+    /* We should never have the same key as our parent (TODO: redundant check) */
+		if (parentk.size == key->size) { 
+			std:cerr << "Inconceivable! : Parent length shouldn't be able to be same!";
+			exit(1);
+		}
+    //Add a node for this key
+		ckey.data = key->data;
+    ckey.size = key->size;
+    cdata.data = &newn;
+    memset(&newn, 0, sizeof(MerkleNode));
+    newn.offset = key->size - parentk.size;
+    newn.digest = hash;
+    ret = cursorp->put(cursorp, &ckey, &cdata, DB_KEYFIRST);
     if (ret != 0) { return_with_error(ret); }
     recalculate(key, &cdata, cursorp);
   } else {
@@ -379,35 +380,37 @@ int MerkleDB::recalculate(DBT * key, DBT * data, DBC * cursorp) {
   }
 	
   MerkleNode * mn = ((MerkleNode *)data->data);
-  //Hash in the data for this node (and it's hash, if necessary)
-  mhash(td, (unsigned char *)key->data, key->size);
-  mhash(td, (unsigned char *)&(mn->data_digest), sizeof(MerkleHash));
-	
-  //Hash in the children (in lexical order) //TODO: Confirm lexical ordering
-  DBC *childc;
-  cld->cursor(cld, NULL, &childc, 0);
-  MerkleNode * childn;
-  ret = childc->pget(childc, key, &childk, &childd, DB_SET);
-  if (ret == 0) {
-    do {
-      mhash(td, (unsigned char *)childk.data, childk.size);
-      childn = (MerkleNode *)childd.data;
-      mhash(td, (unsigned char *)&(childn->digest), sizeof(MerkleHash));
-      free(childk.data);
-      free(childd.data);
-    } while ((ret = childc->pget(childc, key, &childk, &childd, DB_NEXT_DUP)) == 0);
-  }
-  childc->close(childc);
+	if (is_leaf(key)) {
+		//Hash in the data for this node
+  	mhash(td, (unsigned char *)key->data, key->size);
+  	mhash(td, (unsigned char *)&(mn->digest), sizeof(MerkleHash));
+	} else {
+		//Hash in the children (in lexical order) //TODO: Confirm lexical ordering
+  	DBC *childc;
+  	MerkleNode * childn;
+		cld->cursor(cld, NULL, &childc, 0);
+  	ret = childc->pget(childc, key, &childk, &childd, DB_SET);
+  	if (ret == 0) {
+  	  do {
+  	    mhash(td, (unsigned char *)childk.data, childk.size);
+  	    childn = (MerkleNode *)childd.data;
+  	    mhash(td, (unsigned char *)&(childn->digest), sizeof(MerkleHash));
+  	    free(childk.data);
+  	    free(childd.data);
+  	  } while ((ret = childc->pget(childc, key, &childk, &childd, DB_NEXT_DUP)) == 0);
+  	}
+  	childc->close(childc);
+	}
 	
   void * digest = malloc(MERKLEDB_HASH_WIDTH / 8);
   //TODO: use mhash_end instead.  Not clear if we need to 'free' mhash_end, so playing safe.
   mhash_deinit(td, digest);
   mn = (MerkleNode *)data->data; //TODO: Note, we're changing the state of the data DBT passed in, icky.
   mn->digest = *((int *)digest);	//TODO: We're only using a little bit of the hash.. decide which way to go.
-  free(digest);
 	
   //Put back into the main database
   ret = cursorp->put(cursorp, key, data, DB_KEYFIRST);
+  free(digest);
   if (ret != 0) { return_with_error(ret); }
 	
   //Now put this nodes parent into the apply queue to recurse up the tree
@@ -416,18 +419,19 @@ int MerkleDB::recalculate(DBT * key, DBT * data, DBC * cursorp) {
   memset(&parentd, 0, sizeof(DBT));
   parentk.flags = DB_DBT_MALLOC;
   parentd.flags = DB_DBT_MALLOC;
-  if (key->size > 0) {	//The root is its own parent 
+  if (key->size > 0) {	//The root is its own parent, but don't add it.
     parentk = parent(key, mn);
     //std::cout << "putting: " << dbt_string(&parentk) << "\n";
 		
     //We need to get the parent's data node to add it to the apply queue correctly
-    //TODO: Alter apply queue so it differentiates between sets and recurse-ups
+    //TODO: Alter apply queue so it differentiates between sets and recurse-ups (and insert, tec)
     ret = cursorp->get(cursorp, &parentk, &parentd, DB_SET);
     if (ret != 0) { return_with_error(ret); }
 		
     DBT mh;
     memset(&mh, 0, sizeof(DBT));
-    mh.data = &(((MerkleNode *)parentd.data)->data_digest);
+    mh.data = &(((MerkleNode *)parentd.data)->digest);
+		mh.size = sizeof(MerkleHash);
 		
     ret = aly->put(aly, NULL, &parentk, &mh, DB_NOOVERWRITE);
     free(parentd.data);
@@ -482,8 +486,6 @@ void MerkleDB::print_tree() {
     std::cout << "\t\t\t";
     MerkleNode * m = (MerkleNode *)data.data;
     print_hex(&(m->digest), sizeof(MerkleHash));
-    std::cout << ",";
-    print_hex(&(m->data_digest), sizeof(MerkleHash));
     std::cout << ";\n";
     free(key.data);
     free(data.data);	//TODO: Memory Leak??
