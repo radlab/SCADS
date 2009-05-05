@@ -6,6 +6,7 @@ import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransportException;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocol;
+import org.apache.thrift.transport.TFramedTransport;
 
 trait Connector {
 	def host: String
@@ -16,7 +17,7 @@ trait Connector {
 }
 
 trait SingleConnection extends Connector {
-	private val transport = new TSocket(host, port)
+	private val transport = new TFramedTransport(new TSocket(host, port))
 	private val protocol = new TBinaryProtocol(transport)
 	private val client = new SCADS.Storage.Client(protocol)
 	transport.open()
@@ -28,7 +29,7 @@ trait SingleConnection extends Connector {
 
 trait SingleUseConnection extends Connector {
 	override def useConnection(): Map[String, String] = {
-		val transport = new TSocket(host, port)
+		val transport = new TFramedTransport(new TSocket(host, port))
 		val protocol = new TBinaryProtocol(transport)
 		val client = new SCADS.Storage.Client(protocol)
 		transport.open()
