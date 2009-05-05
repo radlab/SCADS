@@ -967,12 +967,16 @@ count_set(const NameSpace& ns, const RecordSet& rs) {
 }
 
 bool StorageDB::
-putDBTs(DB* db_ptr, MerkleDB* mdb_ptr,DBT* key, DBT* data) {
+putDBTs(DB* db_ptr, MerkleDB* mdb_ptr,DBT* key, DBT* data, bool hasNull) {
   int ret;
+  if (hasNull)
+    key->size--;
   if (data==NULL)  // really a delete
     ret = db_ptr->del(db_ptr,NULL,key,0);
   else {
     ret = db_ptr->put(db_ptr, NULL, key, data, 0);
+    if (hasNull)
+      key->size++;
     ret |= mdb_ptr->enqueue(key,data);
   }
   
@@ -1026,15 +1030,15 @@ put(const NameSpace& ns, const Record& rec) {
   memset(&key, 0, sizeof(DBT));
   memset(&data, 0, sizeof(DBT));
   key.data = const_cast<char*>(rec.key.c_str());
-  key.size = rec.key.length();
+  key.size = rec.key.length()+1;
 
   if (!rec.__isset.value)  // really a delete
-    return putDBTs(db_ptr,mdb_ptr,&key,NULL);
+    return putDBTs(db_ptr,mdb_ptr,&key,NULL,true);
 
 
   data.data = const_cast<char*>(rec.value.c_str());
   data.size = rec.value.length();
-  return putDBTs(db_ptr,mdb_ptr,&key,&data);
+  return putDBTs(db_ptr,mdb_ptr,&key,&data,true);
 }
 
 bool StorageDB::

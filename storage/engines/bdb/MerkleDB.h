@@ -8,6 +8,8 @@
 #define MERKLEDB_HASH_FUNC MHASH_TIGER128
 #define MERKLEDB_HASH_WIDTH 128
 
+#define is_leaf(keyd) ((keyd)->size > 0 and (((char *)(keyd)->data)[(keyd)->size - 1]) == 0)
+
 //MerkleNode
 
 using namespace std;
@@ -46,7 +48,7 @@ namespace SCADS {
     u_int32_t prefix_length(DBT * key1, DBT * key2);
     void print_tree();
     void print_children(DBT *key);
-    void queue_children(DBT *key);
+    void queue_children(DBT *key,std::vector<string>*);
 	
   private:
     MerkleNode parent(MerkleNode * node);

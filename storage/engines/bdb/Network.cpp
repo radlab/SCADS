@@ -913,6 +913,9 @@ int do_merkle_sync(int sock, const NameSpace& ns,
       ldata.flags = DB_DBT_MALLOC;
       ret = mdb->dbp->get(mdb->dbp,NULL,&key,&ldata,0);
       if (ret == DB_NOTFOUND) { // I don't have it, that's a no
+#ifdef DEBUG
+	cout << "I don't have this node, I'm going to reply no"<<endl;
+#endif
 	send_vals(sock,&key,NULL,merkle_no);
 	break;
       }
@@ -1552,6 +1555,7 @@ simple_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
   return true;
 }
 
+vector<string> mq(20);
 
 bool send_merkle_queue(int sock, DB* mdb, DB* qdb) {
   int ret;
@@ -1566,15 +1570,20 @@ bool send_merkle_queue(int sock, DB* mdb, DB* qdb) {
   cout << "Sending merkle queue"<<endl;
 #endif
   bool empty = true;
-  qdb->cursor(qdb,NULL,&cursor,0);
-  ret = cursor->get(cursor,&key,&data,DB_FIRST);
-  if (ret == 0) {
-    do {
+  //qdb->cursor(qdb,NULL,&cursor,0);
+  //ret = cursor->get(cursor,&key,&data,DB_FIRST);
+  //if (ret == 0) {
+  //do {
+  vector<string>::iterator it;
+  {
+    for (it = mq.begin(); it != mq.end(); it++ ) {
 #ifdef DEBUG
       cout << "Sending merklenode: "<<string((char*)data.data,data.size)<<endl;
 #endif
       empty = false;
 
+      data.data = const_cast<char*>((*it).c_str());
+      data.size = (*it).length();
       data.flags = 0; // don't let it remalloc the key
       
       ret = mdb->get(mdb,NULL,&data,&mdata,0);
@@ -1591,12 +1600,15 @@ bool send_merkle_queue(int sock, DB* mdb, DB* qdb) {
       MerkleNode * mn =  (MerkleNode *)((&mdata)->data);
       send_vals(sock,&data,NULL,node_merkle);
       send_hash(sock,mn->digest);
-      free(data.data);
+      //free(data.data);
       free(mdata.data);
-      cursor->del(cursor,0);
-    } while ((ret = cursor->get(cursor,&key,&data,DB_NEXT)) == 0);
+      //cursor->del(cursor,0);
+    }
   }
-  cursor->close(cursor);
+  mq.clear();
+  // } while ((ret = cursor->get(cursor,&key,&data,DB_NEXT)) == 0);
+  //}
+  //cursor->close(cursor);
   if (empty) {  // empty queue, we're all done
 #ifdef DEBUG
     cout << "Empty queue, sending finish message"<<endl;
@@ -1612,7 +1624,7 @@ bool send_merkle_queue(int sock, DB* mdb, DB* qdb) {
   return false;
 }
 
-int handle_merkle_reply(int sock, char* dbuf, int off, char** end, DB* db, MerkleDB* mdb) {
+int handle_merkle_reply(int sock, char* dbuf, int off, char** end, DB* db, StorageDB *storageDB, MerkleDB* mdb) {
   int ret,kf,df;
   DBT key, data;
   memset(&key, 0, sizeof(DBT));
@@ -1629,6 +1641,8 @@ int handle_merkle_reply(int sock, char* dbuf, int off, char** end, DB* db, Merkl
 	free(key.data);
       return 0;
     }
+    if (off == 0)
+      break;
     kf = key.flags;
     df = 0;
     key.flags = 0;
@@ -1657,7 +1671,7 @@ int handle_merkle_reply(int sock, char* dbuf, int off, char** end, DB* db, Merkl
 #ifdef DEBUG
       cout << "key: "<<dbt_string(&key)<<" data: "<<dbt_string(&data)<<endl;
 #endif
-      db->put(db,NULL,&key,&data,0);
+      storageDB->putDBTs(db,mdb,&key,&data);
       break;
     }
     case MERKLE_YES: {
@@ -1674,11 +1688,18 @@ int handle_merkle_reply(int sock, char* dbuf, int off, char** end, DB* db, Merkl
       //mdb->dbp->get(mdb->dbp,NULL,&key,&data,0);
       //MerkleNode * m =  (MerkleNode *)((&data)->data);
       //cout<<"node: "<<m->offset<<", "<<m->digest<<", "<<m->data_digest<<endl;
-      // TODO: ADD CHECK HERE IF m ISN'T A DATA NODE, DON'T DO db->get
-      ret = db->get(db,NULL,&key,&data,0);
-      if (ret == 0)  // i had data there, send it over
-	send_vals(sock,&key,&data,node_data);
-      mdb->queue_children(&key);
+      if (is_leaf(&key)) {
+	key.size--; // remove null term
+	ret = db->get(db,NULL,&key,&data,0);
+	if (ret == 0) {  // i had data there, send it over
+#ifdef DEBUG
+	  cout << "Sending over my local data: "<<dbt_string(&key)<<endl;
+#endif
+	  send_vals(sock,&key,&data,node_data);
+	}
+	key.size++;
+      }
+      mdb->queue_children(&key,&mq);
       break;
     }
     }
@@ -1788,6 +1809,8 @@ merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
     free(data.data);
   }
   */
+
+  mq.clear();
   
   key.flags = 0;
 
@@ -1811,10 +1834,12 @@ merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
   off = 0;
   for (;;) {
     // we started by sending the root, handle replies first
-    off = handle_merkle_reply(sock,dbuf,off,&end,dbp,mdb);
+    off = handle_merkle_reply(sock,dbuf,off,&end,dbp,this,mdb);
     if (send_merkle_queue(sock,mdb->dbp,mdb->qdb))
       break;
   }
+  // read any final data vals that might have been sent back
+  handle_merkle_reply(sock,dbuf,off,&end,dbp,this,mdb);
 
   flush_lock(true);
 
