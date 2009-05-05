@@ -15,7 +15,6 @@
 #define close_if_not_null(db) if ((db) != NULL) { (db)->close((db), 0); }
 #define cleanup_after_bdb() cursorp->close(cursorp); while (data_ptrs.size() > 0) { free(data_ptrs.back()); data_ptrs.pop_back(); }
 #define print_hex(buf, len) for (int i = 0; i < (len); i++) { printf("%x%x", (0xF0 & (((char *)buf)[i]) >> 4), (0x0F & (((char *)buf)[i]))); }
-#define is_leaf(keyd) ((keyd)->size > 0 and (((char *)(keyd)->data)[(keyd)->size - 1]) == 0)
 
 //#define is_leaf(keyd) false
 #define dbt_string(dbt) std::string((char*)(dbt)->data,(dbt)->size)
@@ -542,7 +541,7 @@ void MerkleDB::print_children(DBT *key) {
   cursorp->close(cursorp);
 }
 
-void MerkleDB::queue_children(DBT *key) {
+void MerkleDB::queue_children(DBT *key, std::vector<string>* mq) {
   DBT pkey, pdata; /* Used to return the primary key and data */
   int ret;
 	
@@ -559,13 +558,14 @@ void MerkleDB::queue_children(DBT *key) {
 #ifdef DEBUG
       std::cout << "Queuing child: "<<dbt_string(&pkey)<<endl;
 #endif
+      mq->push_back(string((char*)pkey.data,pkey.size));
       //printf("data before: %p\n",pdata.data);
       //free(pdata.data);
       //pkey.flags = 0;
-      qdb->put(qdb,NULL,&pdata,&pkey,DB_APPEND);
+      //qdb->put(qdb,NULL,&pdata,&pkey,DB_APPEND);
       //printf("data after: %p\n",pdata.data);
-      //free(pdata.data);
-      //free(pkey.data);
+      free(pdata.data);
+      free(pkey.data);
       //pkey.flags = DB_DBT_MALLOC;
     } while ((ret = cursorp->pget(cursorp, key, &pkey, &pdata, DB_NEXT_DUP)) == 0);
   }
