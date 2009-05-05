@@ -1560,7 +1560,6 @@ bool send_merkle_queue(int sock, DB* mdb, DB* qdb) {
   memset(&key, 0, sizeof(DBT));
   memset(&data, 0, sizeof(DBT));
   memset(&mdata, 0, sizeof(DBT));
-  key.flags = DB_DBT_MALLOC;
   data.flags = DB_DBT_MALLOC;
   mdata.flags = DB_DBT_MALLOC;
 #ifdef DEBUG
@@ -1575,12 +1574,12 @@ bool send_merkle_queue(int sock, DB* mdb, DB* qdb) {
       cout << "Sending merklenode: "<<string((char*)data.data,data.size)<<endl;
 #endif
       empty = false;
-      free(key.data);
+
       data.flags = 0; // don't let it remalloc the key
       
       ret = mdb->get(mdb,NULL,&data,&mdata,0);
       if (ret == DB_NOTFOUND) {
-	cerr << string((char*)key.data,key.size)<<" was on the queue, but there was no data in the tree"<<endl;
+	cerr << string((char*)data.data,data.size)<<" was on the queue, but there was no data in the tree"<<endl;
 	continue;
       }
       if (ret != 0) {
@@ -1675,6 +1674,7 @@ int handle_merkle_reply(int sock, char* dbuf, int off, char** end, DB* db, Merkl
       //mdb->dbp->get(mdb->dbp,NULL,&key,&data,0);
       //MerkleNode * m =  (MerkleNode *)((&data)->data);
       //cout<<"node: "<<m->offset<<", "<<m->digest<<", "<<m->data_digest<<endl;
+      // TODO: ADD CHECK HERE IF m ISN'T A DATA NODE, DON'T DO db->get
       ret = db->get(db,NULL,&key,&data,0);
       if (ret == 0)  // i had data there, send it over
 	send_vals(sock,&key,&data,node_data);
