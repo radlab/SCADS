@@ -126,7 +126,8 @@ int MerkleDB::enqueue(DBT * key, DBT * data) {
   memset(&h, 0, sizeof(DBT));
   //h.flags = DB_DBT_MALLOC; //We're not currently 'get()-ing' here
 	
-	//TODO: HACK: enqueue accepts both null and non-null terminated keys, but the MerkleDB needs null-terminated strings. [Hack #1]
+	//TODO: HACK: enqueue accepts both null and non-null terminated keys, but the MerkleDB needs null-terminated strings.
+	//If our string ends in the null character, we're fine. [Hack #1]
 	bool c_str = ((((char *)key->data)[key->size - 1] == '\0') ? true : false);
 	
   td = mhash_init(MERKLEDB_HASH_FUNC);
@@ -141,17 +142,18 @@ int MerkleDB::enqueue(DBT * key, DBT * data) {
   h.data = malloc(MERKLEDB_HASH_WIDTH / 8);
   mhash_deinit(td, h.data);	//TODO: use mhash_end instead.  Not clear if we need to 'free' mhash_end, so playing safe.
 
-	//TODO: HACK: flushp needs to know what we've done in this hack, so we increase the 
-	//size of the data item to one larger than it's "supposed" to be.  That lets flushp know we're converting from a
-	//pascal string. :()**** [Hack #1]
+	//TODO: HACK: If we don't have a c-style string, we increase the size of the data item to one larger than it's
+	//"supposed" to be.  This is just a flag that lets flushp know we're dealing with a pascal string. :()**** [Hack #1]
   h.size = sizeof(MerkleHash)+(c_str ? 0 : 1);
   MerkleHash hash = *((MerkleHash *)(h.data));
   //std::cout << "enqueue(\"" << dbt_string(key) << "\",\"" << dbt_string(data) << "\") with hash:\t";
   //print_hex(h.data, h.size);
   //std::cout << "\n";
 	
-	//TODO: HACK: If input queue is non-null terminated, we read one garbage byte past end of string to make space for null terminator
-	//and repair it when we get the key back in flushp.  [Hack #1]
+	//TODO: HACK: If we're dealing with a pascal string, we increase the size of the key by one to make space for the 
+	//null terminator.  We don't set it now for efficiency reasons.  Instead we repair it when we dequeue in flushp
+	//BDB will read one extra (garbage) byte past the end of the string into the database, but we'll overwrite it
+	//before using it. [Hack #1]
 	if (!c_str) { key->size += 1; }	
   ret = pup->put(pup, NULL, key, &h, 0);
 	if (!c_str) { key->size -= 1; }
@@ -928,6 +930,26 @@ void test_print_hex() {
 	}
 }
 
+void pascal_and_c_test(MerkleDB * mdb) {
+	char * testkey = "abcdef";
+	char * testdata = "data";
+	DBT key, data;
+	memset(&key, 0, sizeof(DBT));
+	memset(&data, 0, sizeof(DBT));
+	key.data = testkey;
+	key.size = strlen(testkey);
+	data.data = testdata;
+	data.size = strlen(testdata);
+	
+	mdb->enqueue(&key, &data);
+	mdb->flushp();
+	
+	key.size = strlen(testkey) + 1;
+	testkey[strlen(testkey)] = (char) rand();
+	mdb->enqueue(&key, &data);
+	mdb->flushp();
+}
+
 int main( int argc, char** argv )
 {
   u_int32_t env_flags = 0;
@@ -958,12 +980,14 @@ int main( int argc, char** argv )
     fprintf(stderr, "Environment open failed: %s\n", db_strerror(ret));
     exit(-1);
   }
-  MerkleDB * mdb1 = new MerkleDB("tree1",db_env);
-  MerkleDB * mdb2 = new MerkleDB("tree2",db_env);
-	MerkleDB * mdb3 = new MerkleDB("tree3",db_env);
-  random_order_insertion_test(mdb1, 11230, true);
-  random_order_insertion_test(mdb2, 301433, true);
-	random_order_insertion_test(mdb3, 301433, false);
+  //MerkleDB * mdb1 = new MerkleDB("tree1",db_env);
+  //MerkleDB * mdb2 = new MerkleDB("tree2",db_env);
+	//MerkleDB * mdb3 = new MerkleDB("tree3",db_env);
+  //random_order_insertion_test(mdb1, 11230, true);
+  //random_order_insertion_test(mdb2, 301433, true);
+	//random_order_insertion_test(mdb3, 301433, false);
+	MerkleDB * mdb4 = new MerkleDB("tree4",db_env);
+	pascal_and_c_test(mdb4);
  // std::cout << "alter with: dedaccedff := dsfkj\n";
  // DBT key, data;
  // memset(&key, 0, sizeof(DBT));
