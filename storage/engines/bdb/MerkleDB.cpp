@@ -55,31 +55,6 @@ MerkleDB::MerkleDB(const string& ns, DB_ENV* db_env, const char* env_dir) :
   //TODO: We'll need a different merkledb for each namespace.  Ditto for the pending queue (unless we put more info in struct)
   char filebuf[10+ns.length()];
   int ret;
-	
-  // open the tree env
-  //u_int32_t env_flags = 0;
-  //u_int32_t gb;
-  //DB_ENV* tree_env;
-
-  //ret = db_env_create(&tree_env, 0);
-  //if (ret != 0) {
-  //  fprintf(stderr, "Error creating tree_env handle: %s\n", db_strerror(ret));
-  //  exit(-1);
-  //}
-
-  //env_flags = 
-  //  DB_CREATE |     /* If the environment does not exist, create it. */
-  //  DB_INIT_MPOOL|  /* Initialize the in-memory cache. */
-  //  DB_PRIVATE ;
-  //
-  //ret = db_env->open(tree_env,   /* DB_ENV ptr */
-  //	     env_dir,    /* env home directory */
-  //	     env_flags,  /* Open flags */
-  //	     0);         /* File mode (default) */
-  //if (ret != 0) {
-  //  fprintf(stderr, "Environment open failed: %s\n", db_strerror(ret));
-  //  exit(-1);
-  //}
 
   if (qdb == NULL) { // it's static so only init it once
     db_create(&qdb, db_env, 0);
@@ -174,9 +149,6 @@ int MerkleDB::enqueue(DBT * key, DBT * data) {
 //Clear the pending update queue
 int MerkleDB::flushp() {
   DBT key, data;
-#ifdef DEBUG
-  cout << "Flushing"<<endl;
-#endif
   memset(&key, 0, sizeof(DBT));
   memset(&data, 0, sizeof(DBT));
   data.flags = DB_DBT_MALLOC;

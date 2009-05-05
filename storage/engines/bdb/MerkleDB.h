@@ -16,7 +16,6 @@ namespace SCADS {
 
   typedef int MerkleHash;
 
-
   typedef struct {
     int offset; //|MerkleNode.key| - |MerkleNode.parent.key| (i.e. suffix length)
     MerkleHash digest; //hash (of data for leaf, children's digests if interior node)
