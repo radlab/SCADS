@@ -482,27 +482,25 @@ void MerkleDB::print_tree() {
 
   /* Iterate over the database, retrieving each record in turn. */
   MerkleNode * mn;
-  int i;
   while ((ret = cursorp->get(cursorp, &key, &data, DB_NEXT)) == 0) {
     //std::cout << "(key: "<<string((char*)key.data,key.size)<<") ";
+    MerkleNode * m = (MerkleNode *)data.data;
+    print_hex(&(m->digest), sizeof(MerkleHash));
+    std::cout << " ";
     int suffix = ((MerkleNode *)data.data)->offset;
     int prefix = key.size - suffix;
-    for (i = 0; i < prefix; i++) {
-      if (i == (prefix - 1)) {
-	std::cout << "|";
+    for (int i = 0; i < prefix; i++) {
+      if (i == (prefix-1)) {
+				std::cout << "|";
       } else {
-	std::cout << " ";
+				std::cout << " ";
       }
     }
     char * sstart = ((char *)(key.data)+prefix);
-    std::cout << std::string(sstart,suffix); 
+    std::cout << std::string(sstart,suffix) << "\n"; 
     //DBT parentk = parent(&key, (MerkleNode *)(data.data));
     //std::cout << "-->(" << dbt_string(&parentk) << ")";
     //print_children(&key);
-    std::cout << "\t\t\t";
-    MerkleNode * m = (MerkleNode *)data.data;
-    print_hex(&(m->digest), sizeof(MerkleHash));
-    std::cout << "\n";
     free(key.data);
     free(data.data);	//TODO: Memory Leak??
   }
