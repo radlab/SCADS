@@ -25,7 +25,7 @@ namespace SCADS {
 
   class MerkleDB {
   public:
-    MerkleDB(const NameSpace& ns, DB_ENV* db_env, const char* env_dir);
+    MerkleDB(const NameSpace& ns, DB_ENV* db_env);
 
   public:
     int flush_flag;
