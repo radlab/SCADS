@@ -14,7 +14,7 @@
 #define return_with_success() return 0;
 #define close_if_not_null(db) if ((db) != NULL) { (db)->close((db), 0); }
 #define cleanup_after_bdb() cursorp->close(cursorp); while (data_ptrs.size() > 0) { free(data_ptrs.back()); data_ptrs.pop_back(); }
-#define print_hex(buf, len) for (int i = 0; i < (len); i++) { printf("%x%x", (0xF0 & (((char *)buf)[i]) >> 4), (0x0F & (((char *)buf)[i]))); }
+#define print_hex(buf, len) for (int i = 0; i < (len); i++) { printf("%02X:%02X:", (0xF0 & (((char *)buf)[i]) >> 4), (0x0F & (((char *)buf)[i]))); }
 
 //#define is_leaf(keyd) false
 #define dbt_string(dbt) std::string((char*)(dbt)->data,(dbt)->size)
@@ -126,12 +126,16 @@ int MerkleDB::enqueue(DBT * key, DBT * data) {
   memset(&h, 0, sizeof(DBT));
   //h.flags = DB_DBT_MALLOC; //We're not currently 'get()-ing' here
 	
+	//TODO: HACK: enqueue accepts both null and non-null terminated keys, but the MerkleDB needs null-terminated strings. [Hack #1]
+	bool c_str = ((((char *)key->data)[key->size - 1] == '\0') ? true : false);
+	
   td = mhash_init(MERKLEDB_HASH_FUNC);
   if (td == MHASH_FAILED) {
     std::cerr << "HASH Failed";
     return -1;
   }
-  mhash(td, (unsigned char *)key->data, key->size);
+	//TODO: HACK: We only hash in the non-null part of the key for uniformity between pascal & c-strings[Hack #1]
+  mhash(td, (unsigned char *)key->data, key->size - (c_str ? 1 : 0));
   mhash(td, (unsigned char *)data->data, data->size);
  
   h.data = malloc(MERKLEDB_HASH_WIDTH / 8);
@@ -140,15 +144,13 @@ int MerkleDB::enqueue(DBT * key, DBT * data) {
 	//TODO: HACK: flushp needs to know what we've done in this hack, so we increase the 
 	//size of the data item to one larger than it's "supposed" to be.  That lets flushp know we're converting from a
 	//pascal string. :()**** [Hack #1]
-	bool c_str = ((((char *)key->data)[key->size - 1] == '\0') ? true : false);
   h.size = sizeof(MerkleHash)+(c_str ? 0 : 1);
   MerkleHash hash = *((MerkleHash *)(h.data));
   //std::cout << "enqueue(\"" << dbt_string(key) << "\",\"" << dbt_string(data) << "\") with hash:\t";
   //print_hex(h.data, h.size);
   //std::cout << "\n";
 	
-	//TODO: enqueue accepts both null and non-null terminated keys, but the MerkleDB needs null-terminated strings.
-	//If input queue is non-null terminated, we read one garbage byte past end of string to make space for null terminator
+	//TODO: HACK: If input queue is non-null terminated, we read one garbage byte past end of string to make space for null terminator
 	//and repair it when we get the key back in flushp.  [Hack #1]
 	if (!c_str) { key->size += 1; }	
   ret = pup->put(pup, NULL, key, &h, 0);
@@ -396,7 +398,7 @@ int MerkleDB::recalculate(DBT * key, DBT * data, DBC * cursorp) {
   MerkleNode * mn = ((MerkleNode *)data->data);
 	if (is_leaf(key)) {
 		//Hash in the data for this node
-  	mhash(td, (unsigned char *)key->data, key->size);
+  	mhash(td, (unsigned char *)key->data, key->size - 1); //HACK: We don't hash in the null terminator [Hack #1]
   	mhash(td, (unsigned char *)&(mn->digest), sizeof(MerkleHash));
 	} else {
 		//Hash in the children (in lexical order) //TODO: Confirm lexical ordering
@@ -500,7 +502,7 @@ void MerkleDB::print_tree() {
     std::cout << "\t\t\t";
     MerkleNode * m = (MerkleNode *)data.data;
     print_hex(&(m->digest), sizeof(MerkleHash));
-    std::cout << ";\n";
+    std::cout << "\n";
     free(key.data);
     free(data.data);	//TODO: Memory Leak??
   }
@@ -915,6 +917,14 @@ void build_random_tree(MerkleDB * merkle, int seed) {
   merkle->print_tree();
 }
 
+void test_print_hex() {
+	unsigned int i = 0xFFFFFFFF;
+	for (unsigned int j = 0; j < i; j++) {
+		print_hex(&j, sizeof(int));
+		std::cout << "\n";
+	}
+}
+
 int main( int argc, char** argv )
 {
   u_int32_t env_flags = 0;
@@ -962,6 +972,7 @@ int main( int argc, char** argv )
   mdb1->enqueue(&key, &data);
   mdb1->flushp();
   mdb1->print_tree();
+	//test_print_hex();
   //test_macro(db_env);
   //test_pending(db_env);
   //test_pending2(db_env);
