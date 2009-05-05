@@ -864,7 +864,7 @@ int test_pending2(DB_ENV* db_env) {
 }
 
 
-void build_random_tree(MerkleDB * merkle, int seed) {
+void build_random_tree(MerkleDB * merkle, int seed, bool c_style) {
   std::cout << "build_tree(" << merkle << ", " << seed << ")\n";
   srand(seed);
   vector<std::string> keys;
@@ -905,7 +905,7 @@ void build_random_tree(MerkleDB * merkle, int seed) {
     memset(&keyd, 0, sizeof(DBT));
     memset(&datad, 0, sizeof(DBT));
     keyd.data = key;
-    keyd.size = strlen(key)+1;
+    keyd.size = strlen(key)+(c_style ? 1 : 0);
     datad.data = datum;
     datad.size = strlen(datum);
 		
@@ -957,21 +957,27 @@ int main( int argc, char** argv )
   }
   MerkleDB * mdb1 = new MerkleDB("tree1",db_env,".");
   MerkleDB * mdb2 = new MerkleDB("tree2",db_env,".");
-  build_random_tree(mdb1, 11230);
-  build_random_tree(mdb2, 301433);
-  std::cout << "alter with: dedaccedff := dsfkj\n";
-  DBT key, data;
-  memset(&key, 0, sizeof(DBT));
-  memset(&data, 0, sizeof(DBT));
-  char * key_s = "dedaccedfff";
-  char * data_s = "dsfkj";
-  key.data = key_s;
-  key.size = strlen(key_s);
-  data.data = data_s;
-  data.size = strlen(data_s);
-  mdb1->enqueue(&key, &data);
-  mdb1->flushp();
-  mdb1->print_tree();
+	MerkleDB * mdb3 = new MerkleDB("tree3",db_env,".");
+  build_random_tree(mdb1, 11230, true);
+  build_random_tree(mdb2, 301433, true);
+	build_random_tree(mdb3, 301433, false);
+ // std::cout << "alter with: dedaccedff := dsfkj\n";
+ // DBT key, data;
+ // memset(&key, 0, sizeof(DBT));
+ // memset(&data, 0, sizeof(DBT));
+ // char * key_s = "dedaccedfff";
+ // char * data_s = "dsfkj";
+ // key.data = key_s;
+ // key.size = strlen(key_s);
+ // data.data = data_s;
+ // data.size = strlen(data_s);
+ // mdb1->enqueue(&key, &data);
+ // mdb1->flushp();
+//  mdb1->print_tree();
+	mdb1->flushp();
+	mdb1->print_tree();
+	mdb3->flushp();
+	mdb3->print_tree();
 	//test_print_hex();
   //test_macro(db_env);
   //test_pending(db_env);
