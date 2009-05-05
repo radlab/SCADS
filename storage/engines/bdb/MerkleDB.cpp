@@ -148,7 +148,7 @@ int MerkleDB::enqueue(DBT * key, DBT * data) {
 	//TODO: enqueue accepts both null and non-null terminated keys, but the MerkleDB needs null-terminated strings.
 	//If input queue is non-null terminated, we read one garbage byte past end of string to make space for null terminator
 	//and repair it when we get the key back in flushp.  [Hack #1]
-	bool c_str = ((((char *)key->data)[key->size] == '\0') ? true : false);
+	bool c_str = ((((char *)key->data)[key->size - 1] == '\0') ? true : false);
 	if (!c_str) { key->size += 1; }	
   ret = pup->put(pup, NULL, key, &h, 0);
 	if (!c_str) { key->size -= 1; }
@@ -176,7 +176,7 @@ int MerkleDB::flushp() {
   DBC *cursorp;
   aly->cursor(aly, NULL, &cursorp, 0);
   while ((ret = cursorp->get(cursorp, &key, &data, DB_FIRST)) == 0) {
-		((char *)key.data)[key.size] = '\0'; //Force last character to null for null-termination [Hack #1]
+		((char *)key.data)[key.size - 1] = '\0'; //Force last character to null for null-termination [Hack #1]
     ret = cursorp->del(cursorp, 0); //TODO: Switch to a transactional store for these queues, not crash safe here
     if (ret != 0) { 
       pthread_mutex_unlock(&sync_lock);
@@ -951,7 +951,7 @@ int main( int argc, char** argv )
   char * key_s = "dedaccedfff";
   char * data_s = "dsfkj";
   key.data = key_s;
-  key.size = strlen(key_s)+1;
+  key.size = strlen(key_s);
   data.data = data_s;
   data.size = strlen(data_s);
   mdb1->enqueue(&key, &data);
