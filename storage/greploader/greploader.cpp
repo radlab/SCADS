@@ -99,6 +99,8 @@ void fillval(char* val,char* pattern, char pos) {
   }
 }
 
+char node_data = 0;
+
 int main(int argc,char* argv[]) {
   int size = 10;
   double perc = 0.0092337;
@@ -236,6 +238,10 @@ int main(int argc,char* argv[]) {
 
     // now send our namespace
     nslen = ns.length();
+    if (send(sockfd,&node_data,1,MSG_MORE) == -1) {
+      perror("Error sending data type: ");
+      return 2;
+    }
     if (send(sockfd,&nslen,4,MSG_MORE) == -1) {
       perror("Error sending namespace length: ");
       return 2;
@@ -265,12 +271,20 @@ int main(int argc,char* argv[]) {
 	fillval(val,pattern,1);
 	waspos = 1;
       }
+      if (send(sockfd,&node_data,1,MSG_MORE) == -1) {
+	perror("Error sending data type: ");
+	return 1;
+      }
       if (send(sockfd,&keylen,4,MSG_MORE) == -1) {
 	perror("Error sending keylen: ");
 	return 1;
       }
       if (send(sockfd,key,keylen,MSG_MORE) == -1) {
 	perror("Error sending key: ");
+	return 1;
+      }
+      if (send(sockfd,&node_data,1,MSG_MORE) == -1) {
+	perror("Error sending data type: ");
 	return 1;
       }
       if (send(sockfd,&dlen,4,MSG_MORE) == -1) {
@@ -283,6 +297,10 @@ int main(int argc,char* argv[]) {
       }
     }
     keylen = 0;
+    if (send(sockfd,&node_data,1,MSG_MORE) == -1) {
+      perror("Error sending data type: ");
+      return 1;
+    }
     if (send(sockfd,&keylen,4,MSG_MORE) == -1) {
       perror("Error sending final key: ");
       return 1;
