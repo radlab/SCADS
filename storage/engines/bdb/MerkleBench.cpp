@@ -139,32 +139,31 @@ int run() {
 	memset(&data, 0, sizeof(DBT));
 	key.flags = DB_DBT_MALLOC;	//foh
 	data.flags = DB_DBT_MALLOC; //foh
-	key.data = &keybuf;
+	key.data = keybuf;
 	data.data = &databuf;
 	data.size = data_size;
 	srand(13424);
 	for (int i = 0; i < rows; i++) {
-//		keylen = (rand() % max_keylength) + 1;
-		keylen = 4;
+		keylen = (rand() % max_keylength) + 1;
 		for (int j = 0; j < keylen; j++) {
-			keybuf[j] = ((char) (rand() % ('z' - '0' + 1) + '0'));
-//			keybuf[j] = (rand() % 94) + 33; //printable
+//			keybuf[j] = ((char) (rand() % ('z' - '0' + 1) + '0'));
+			keybuf[j] = (rand() % 94) + 33; //printable
 //			keybuf[j] = (rand() % 255) + 1; //unprintable (but not null)
 		} 
 		keybuf[keylen] = '\0';
 		key.size = keylen;
 		
-		printf("going to enqueue key:(\"%s\"\t\t\t", keybuf);
-		print_hex(keybuf, key.size);
-		std::cout << "\t:\t" << key.size << ")" << endl;
+//		printf("going to enqueue key:(\"%s\"\t\t\t", keybuf);
+//		print_hex(keybuf, key.size);
+//		std::cout << "\t:\t" << key.size << ")" << endl;
 		mdb->enqueue(&key, &data);
 		//if ((i % flush_period) == 0) {
 		//	mdb->flushp();
 		//}
 	}
 	mdb->flushp();
-	std::cout << "Printing tree"<<endl;
-	mdb->print_tree();
+//	std::cout << "Printing tree"<<endl;
+//	mdb->print_tree();
 }
 
 int main(int argc, char **argv) {
