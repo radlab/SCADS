@@ -3,13 +3,22 @@
 #include <sstream>
 #include <sys/stat.h>
 #include <signal.h>
+#include <sys/time.h>
 
 #include "MerkleDB.h"
 
 #define print_hex(buf, len) for (int i = 0; i < len ; i++) { printf("%X%X", (0x0F & (((char *)buf)[i]) >> 4), (0x0F & (((char *)buf)[i])));}
-
+#define start_timer() gettimeofday(&start_time,NULL)
+#define end_timer() { \
+    gettimeofday(&end_time,NULL); \
+    timersub(&end_time,&start_time,&diff_time); \
+    printf("%ld.%.6ld\n", diff_time.tv_sec, diff_time.tv_usec); \
+  }
+//printf("%ld.%.6ld\t%ld.%.6ld\n", start_time.tv_sec, start_time.tv_usec, diff_time.tv_sec, diff_time.tv_usec); 
 using namespace std;
 using namespace SCADS;
+
+struct timeval start_time, end_time, diff_time;
 
 MerkleDB * mdb;
 unsigned int rows;
@@ -38,7 +47,7 @@ Starts the BerkeleyDB storage layer.\n\n\
 
 void ex_program(int sig) {
   cout << "\n\nShutting down."<<endl;
-	((MerkleDB *)mdb)->close();
+	mdb->close();
   exit(0);
 }
 
@@ -143,6 +152,7 @@ int run() {
 	data.data = &databuf;
 	data.size = data_size;
 	srand(13424);
+	start_timer();
 	for (int i = 0; i < rows; i++) {
 		keylen = (rand() % max_keylength) + 1;
 		for (int j = 0; j < keylen; j++) {
@@ -161,9 +171,12 @@ int run() {
 		//	mdb->flushp();
 		//}
 	}
+	end_timer();
+	start_timer();
 	mdb->flushp();
-//	std::cout << "Printing tree"<<endl;
-//	mdb->print_tree();
+	end_timer();
+	std::cout << endl << "Printing tree"<<endl;
+	mdb->print_tree();
 }
 
 int main(int argc, char **argv) {
