@@ -306,7 +306,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
 
 	//We only support C-style null terminated keys, so prefixl must be shorter than key.size
 	if (prefixl == key->size) {
-		std::cerr << "Inconceivable! : Key length shouldn't be able to be same!";
+		std::cerr << "Inconceivable! : Key length shouldn't be able to be same!\n ";
 		exit(1);
 	}
   DBT parentk;
@@ -352,7 +352,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
     /* parent is guaranteed to exist now. (Parent node either existed, or we created it)  */
     /* We should never have the same key as our parent (TODO: redundant check) */
 		if (parentk.size == key->size) { 
-			std:cerr << "Inconceivable! : Parent length shouldn't be able to be same!";
+			std:cerr << "Inconceivable! : Parent length shouldn't be able to be same!\n";
 			exit(1);
 		}
     //Add a node for this key
