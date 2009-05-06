@@ -38,9 +38,10 @@ private:
   pthread_mutex_t flush_tex, flushing_tex;
   int listen_port;
   u_int32_t user_flags;
+  bool doMerkle;
 
 public:
-  StorageDB(int,u_int32_t,u_int32_t);
+  StorageDB(int,u_int32_t,u_int32_t,bool);
 
 private:
   int open_database(DB **dbpp,                  /* The DB handle that we are opening */
@@ -67,6 +68,7 @@ public:
   int get_listen_port() { return listen_port; }
   DB_ENV* getENV() { return db_env; }
   bool isTXN() { return user_flags & DB_INIT_TXN; }
+  bool isMerkle() { return doMerkle; }
 
   void closeDBs();
   void get(Record& _return, const NameSpace& ns, const RecordKey& key);

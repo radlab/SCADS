@@ -268,9 +268,14 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
     d.flags = 0;
     d.dlen = 0;
 
-    if ( (db_ptr->put(db_ptr, txn, &k, &d, 0) != 0) ||
-	 (mdb_ptr->enqueue(&k,&d) != 0) )
-      fail = 1;
+    if (mdb_ptr == NULL) {
+      if (db_ptr->put(db_ptr, txn, &k, &d, 0) != 0)
+	fail = 1;
+    } else {	  
+      if ( (db_ptr->put(db_ptr, txn, &k, &d, 0) != 0) ||
+	   (mdb_ptr->enqueue(&k,&d) != 0) )
+	fail = 1;
+    }
 
     if (kf)
       free(k.data);
@@ -1178,7 +1183,7 @@ void* run_listen(void* arg) {
     if (dbuf[0] == 0) // copy
       stat = do_copy(as,storageDB,dbuf);
     else if (dbuf[0] == 1) // sync
-      stat = do_sync(as,storageDB,dbuf,SYNC_MERKLE);
+      stat = do_sync(as,storageDB,dbuf,storageDB->isMerkle()?SYNC_MERKLE:SYNC_SIMPLE);
     else if (dbuf[0] == 2) { // dump
 #ifdef DEBUG
       cerr << "Dumping all data"<<endl;
@@ -1866,7 +1871,10 @@ merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
 
 bool StorageDB::
 sync_set(const NameSpace& ns, const RecordSet& rs, const Host& h, const ConflictPolicy& policy) {
-  return merkle_sync(ns,rs,h,policy);
+  if (doMerkle)
+    return merkle_sync(ns,rs,h,policy);
+  else
+    return simple_sync(ns,rs,h,policy);
 }
 
 

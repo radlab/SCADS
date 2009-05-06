@@ -289,13 +289,16 @@ getDB(const NameSpace& ns) {
   it = dbs.find(ns);
   if (it == dbs.end()) { // haven't opened this db yet
     open_database(&db,ns.c_str(),"storage.bdb",env_dir,stderr);
-    MerkleDB* mdb = new MerkleDB(ns,db_env);
+    MerkleDB* mdb;
+    if (doMerkle)
+      mdb = new MerkleDB(ns,db_env);
     rc = pthread_rwlock_unlock(&dbmap_lock); // unlock read lock
     chkLock(rc,"dbmap_lock","unlock read lock for upgrade");
     rc = pthread_rwlock_wrlock(&dbmap_lock); // need a write lock here
     chkLock(rc,"dbmap_lock","modify dbs map");
     dbs[ns] = db;
-    merkle_dbs[ns] = mdb;
+    if (doMerkle)
+      merkle_dbs[ns] = mdb;
     rc = pthread_rwlock_unlock(&dbmap_lock); // unlock write lock
     chkLock(rc,"dbmap_lock","unlock write lock");
     return db;
@@ -308,6 +311,8 @@ getDB(const NameSpace& ns) {
 
 MerkleDB* StorageDB::
 getMerkleDB(const NameSpace& ns, bool nullOk) {
+  if (!doMerkle)
+    return NULL;
   map<const NameSpace,MerkleDB*>::iterator it;
   MerkleDB* db;
   int rc = pthread_rwlock_rdlock(&dbmap_lock); // get the read lock
@@ -790,9 +795,11 @@ static void* flush_thread(void* arg) {
 StorageDB::
 StorageDB(int lp,
 	  u_int32_t uf,
-	  u_int32_t cache) :
+	  u_int32_t cache,
+	  bool m) :
   listen_port(lp),
-  user_flags(uf) 
+  user_flags(uf),
+  doMerkle(m)
 {
   u_int32_t env_flags = 0;
   int ret;
@@ -847,24 +854,29 @@ StorageDB(int lp,
     perror("Could not create dbmap_lock");
     exit(EXIT_FAILURE);
   }
-  if (pthread_mutex_init(&flush_tex,NULL)) {
-    perror("Could not create flush_tex");
-    exit(EXIT_FAILURE);
-  }
-  if (pthread_mutex_init(&flushing_tex,NULL)) {
-    perror("Could not create flushing_tex");
-    exit(EXIT_FAILURE);
-  }
-  if (pthread_cond_init(&flush_cond,NULL)) {
-    perror("Could not create flush_cond");
-    exit(EXIT_FAILURE);
+  if (doMerkle) {
+    if (pthread_mutex_init(&flush_tex,NULL)) {
+      perror("Could not create flush_tex");
+      exit(EXIT_FAILURE);
+    }
+    if (pthread_mutex_init(&flushing_tex,NULL)) {
+      perror("Could not create flushing_tex");
+      exit(EXIT_FAILURE);
+    }
+    if (pthread_cond_init(&flush_cond,NULL)) {
+      perror("Could not create flush_cond");
+      exit(EXIT_FAILURE);
+    }
   }
 
   // start up the thread that will listen for incomming copy/syncs
   (void) pthread_create(&listen_thread,NULL,
 			run_listen,this);
-  (void) pthread_create(&flush_threadp,NULL,
-  		flush_thread,this);
+
+  if (doMerkle) {
+    (void) pthread_create(&flush_threadp,NULL,
+			  flush_thread,this);
+  }
 
   // let's init ruby
   ruby_init();
@@ -882,8 +894,10 @@ closeDBs() {
   cout << "Waiting for copy/sync and flush threads to shut down... ";
   flush(cout);
   pthread_join(listen_thread,NULL);
-  pthread_cond_signal(&flush_cond);
-  pthread_join(flush_threadp,NULL);
+  if (doMerkle) {
+    pthread_cond_signal(&flush_cond);
+    pthread_join(flush_threadp,NULL);
+  }
   cout << "[OK]"<<endl;
   map<const NameSpace,DB*>::iterator iter;
   int rc = pthread_rwlock_wrlock(&dbmap_lock); // need a write lock here
@@ -895,18 +909,20 @@ closeDBs() {
     else
       cout << " [OK]"<<endl;
   }
-  map<const NameSpace,MerkleDB*>::iterator mit;
-  for( mit = merkle_dbs.begin(); mit != merkle_dbs.end(); ++mit ) {
-    cout << "Closing merkle trie for: "<<mit->first<<endl;
-    mit->second->close();
+  if (doMerkle) {
+    map<const NameSpace,MerkleDB*>::iterator mit;
+    for( mit = merkle_dbs.begin(); mit != merkle_dbs.end(); ++mit ) {
+      cout << "Closing merkle trie for: "<<mit->first<<endl;
+      mit->second->close();
+    }
+    if (MerkleDB::qdb != NULL)
+      MerkleDB::qdb->close(MerkleDB::qdb,0);
   }
-  if (MerkleDB::qdb != NULL)
-    MerkleDB::qdb->close(MerkleDB::qdb,0);
   if (db_env != NULL) {
     rc = db_env->close(db_env, 0);
     if (rc != 0) {
       fprintf(stderr, "environment close failed: %s\n",
- 	      db_strerror(rc));
+	      db_strerror(rc));
     }
   }
 
@@ -983,7 +999,8 @@ putDBTs(DB* db_ptr, MerkleDB* mdb_ptr,DBT* key, DBT* data, bool hasNull) {
     ret = db_ptr->put(db_ptr, NULL, key, data, 0);
     if (hasNull)
       key->size++;
-    ret |= mdb_ptr->enqueue(key,data);
+    if (doMerkle)
+      ret |= mdb_ptr->enqueue(key,data);
   }
   
   if (ret) {
@@ -1031,7 +1048,7 @@ put(const NameSpace& ns, const Record& rec) {
 
   db_ptr = getDB(ns);
   mdb_ptr = getMerkleDB(ns);
-  if (mdb_ptr == NULL) 
+  if (doMerkle && mdb_ptr == NULL) 
     cerr << "Warning, couldn't get MerkleDB, not going to maintain"<<endl;
   memset(&key, 0, sizeof(DBT));
   memset(&data, 0, sizeof(DBT));
@@ -1296,6 +1313,7 @@ TNonblockingServer *nonblockingServer;
 static shared_ptr<StorageDB> storageDB;
 
 int workerCount,lp,cache;
+bool doMerkle;
 
 static
 void usage(const char* prgm) {
@@ -1316,6 +1334,7 @@ Starts the BerkeleyDB storage layer.\n\n\
 	\t(Once an env has txn support enabled it cannot be disabled, and vice versa)\n\
   -L\t\tDon't do write ahead logging.\n\
 	\t(Logging is always on if you use transactions)\n\
+  -m\t\tUse merkle trees.  (WARNING, not working for syncs right now, will segfault)\n\
   -h\t\tShow this help\n\n",
 	  prgm);
 }
@@ -1331,8 +1350,9 @@ void parseArgs(int argc, char* argv[]) {
   workerCount = 10;
   lp = 9091;
   cache = 500;
+  doMerkle = false;
 
-  while ((opt = getopt(argc, argv, "hxLp:d:t:n:l:c:")) != -1) {
+  while ((opt = getopt(argc, argv, "mhxLp:d:t:n:l:c:")) != -1) {
     switch (opt) {
     case 'p':
       port = atoi(optarg);
@@ -1357,6 +1377,9 @@ void parseArgs(int argc, char* argv[]) {
 	cerr << "argument to -t must be one of: simple, threaded, nonblocking or pooled"<<endl;
 	exit(EXIT_FAILURE);
       }
+      break;
+    case 'm':
+      doMerkle = true;
       break;
     case 'n':
       workerCount = atoi(optarg);
@@ -1458,7 +1481,7 @@ int main(int argc, char **argv) {
     exit(-1);
   }
   shared_ptr<TProtocolFactory> protocolFactory(new TBinaryProtocolFactory());
-  shared_ptr<StorageDB> handler(new StorageDB(lp,uf,cache));
+  shared_ptr<StorageDB> handler(new StorageDB(lp,uf,cache,doMerkle));
   shared_ptr<TProcessor> processor(new StorageProcessor(handler));
   shared_ptr<TServerTransport> serverTransport(new TServerSocket(port));
   shared_ptr<TTransportFactory> transportFactory(new TBufferedTransportFactory());
