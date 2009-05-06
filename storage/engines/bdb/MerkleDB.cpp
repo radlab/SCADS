@@ -156,6 +156,10 @@ int MerkleDB::enqueue(DBT * key, DBT * data) {
 	//before using it. [Hack #1]
 	if (!c_str) { key->size += 1; }	
   ret = pup->put(pup, NULL, key, &h, 0);
+	//std::cout << "pup->put(";
+	//std::cout << key->size << "\t:\t";
+	//print_hex(&key, key->size);
+	//std::cout << ")"<<endl;
 	if (!c_str) { key->size -= 1; }
   free(h.data);
   if (ret != 0) { return_with_error(ret); }
@@ -307,7 +311,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
 	//We only support C-style null terminated keys, so prefixl must be shorter than key.size
 	if (prefixl == key->size) {
 		std::cerr << "Inconceivable! : Key length shouldn't be able to be same!\n ";
-		exit(1);
+		exit(-1);
 	}
   DBT parentk;
   memset(&parentk, 0, sizeof(DBT));
@@ -353,7 +357,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
     /* We should never have the same key as our parent (TODO: redundant check) */
 		if (parentk.size == key->size) { 
 			std:cerr << "Inconceivable! : Parent length shouldn't be able to be same!\n";
-			exit(1);
+			exit(-1);
 		}
     //Add a node for this key
 		ckey.data = key->data;
@@ -931,8 +935,8 @@ void test_print_hex() {
 }
 
 void pascal_and_c_test(MerkleDB * mdb) {
-	char * testkey = "abcdef";
-	char * testdata = "data";
+  char testkey[] = "abcdef";
+	char testdata[] = "data";
 	DBT key, data;
 	memset(&key, 0, sizeof(DBT));
 	memset(&data, 0, sizeof(DBT));
@@ -945,7 +949,7 @@ void pascal_and_c_test(MerkleDB * mdb) {
 	mdb->flushp();
 	
 	key.size = strlen(testkey) + 1;
-	testkey[strlen(testkey)] = (char) rand();
+	testkey[3] = ((char) (rand() % ('z' - '0' + 1) + '0')); 
 	mdb->enqueue(&key, &data);
 	mdb->flushp();
 }
@@ -980,27 +984,27 @@ int main( int argc, char** argv )
     fprintf(stderr, "Environment open failed: %s\n", db_strerror(ret));
     exit(-1);
   }
-  //MerkleDB * mdb1 = new MerkleDB("tree1",db_env);
-  //MerkleDB * mdb2 = new MerkleDB("tree2",db_env);
-	//MerkleDB * mdb3 = new MerkleDB("tree3",db_env);
-  //random_order_insertion_test(mdb1, 11230, true);
-  //random_order_insertion_test(mdb2, 301433, true);
-	//random_order_insertion_test(mdb3, 301433, false);
+  MerkleDB * mdb1 = new MerkleDB("tree1",db_env);
+  MerkleDB * mdb2 = new MerkleDB("tree2",db_env);
+	MerkleDB * mdb3 = new MerkleDB("tree3",db_env);
+  random_order_insertion_test(mdb1, 11230, true);
+  random_order_insertion_test(mdb2, 301433, true);
+	random_order_insertion_test(mdb3, 301433, false);
 	MerkleDB * mdb4 = new MerkleDB("tree4",db_env);
-	pascal_and_c_test(mdb4);
- // std::cout << "alter with: dedaccedff := dsfkj\n";
- // DBT key, data;
- // memset(&key, 0, sizeof(DBT));
- // memset(&data, 0, sizeof(DBT));
- // char * key_s = "dedaccedfff";
- // char * data_s = "dsfkj";
- // key.data = key_s;
- // key.size = strlen(key_s);
- // data.data = data_s;
- // data.size = strlen(data_s);
- // mdb1->enqueue(&key, &data);
- // mdb1->flushp();
-//  mdb1->print_tree();
+	//pascal_and_c_test(mdb4);
+  std::cout << "alter with: dedaccedff := dsfkj\n";
+  DBT key, data;
+  memset(&key, 0, sizeof(DBT));
+  memset(&data, 0, sizeof(DBT));
+  char key_s[] = "dedaccedfff";
+  char data_s[] = "dsfkj";
+  key.data = key_s;
+  key.size = strlen(key_s);
+  data.data = data_s;
+  data.size = strlen(data_s);
+  mdb1->enqueue(&key, &data);
+  mdb1->flushp();
+  mdb1->print_tree();
 	//mdb1->flushp();
 	//mdb1->print_tree();
 	//mdb3->flushp();
