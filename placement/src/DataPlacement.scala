@@ -31,6 +31,61 @@ class SimpleDataPlacementCluster(ns:String, freq:Int) extends SimpleDataPlacemen
 	}
 }
 
+trait RemoteKeySpaceProvider extends KeySpaceProvider {
+	val host: String
+	val port: Int
+	var cachedKeySpaces = new scala.collection.mutable.HashMap[String, KeySpace]
+
+	def getKeySpace(ns: String): KeySpace = {
+		val ret = cachedKeySpaces.get(ns)
+		if(ret.isEmpty)
+		getFromRemote(ns)
+		else
+		ret.getOrElse(null)
+	}
+
+	def refreshKeySpace() = cachedKeySpaces.clear
+
+	private def getFromRemote(ns:String): KeySpace = {
+		val sock = new java.net.Socket(host, port)
+		val oStream = new java.io.ObjectOutputStream(sock.getOutputStream())
+		oStream.flush()
+		val iStream = new java.io.ObjectInputStream(sock.getInputStream())
+
+		oStream.writeObject(ns)
+		oStream.flush()
+		val ks = iStream.readObject.asInstanceOf[KeySpace]
+		cachedKeySpaces += (ns -> ks)
+		return ks
+	}
+}
+
+case class KeySpaceServer(port: Int) extends Runnable {
+	val spaces = new scala.collection.mutable.HashMap[String, KeySpace]
+	val thread = new Thread(this, "KeySpaceServer" + port)
+	thread.start
+
+	def add(ns: String, ks: KeySpace) = spaces += (ns -> ks)
+
+	def run() {
+		val serverSocket = new java.net.ServerSocket(port);
+		while(true) {
+			val clientSocket = serverSocket.accept()
+			println("connection received from " + clientSocket.getInetAddress())
+			val oStream = new java.io.ObjectOutputStream(clientSocket.getOutputStream())
+			oStream.flush
+			val iStream = new java.io.ObjectInputStream(clientSocket.getInputStream())
+
+			val ns = iStream.readObject().asInstanceOf[String]
+			oStream.writeObject(spaces(ns))
+			iStream.close
+			oStream.close
+			clientSocket.close
+		}
+	}
+}
+
+@serializable
 class SimpleDataPlacement(ns: String) extends SimpleKeySpace with ThriftConversions with DataPlacement {
 	val nameSpace = ns
 	val conflictPolicy = new SCADS.ConflictPolicy()

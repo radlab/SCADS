@@ -46,8 +46,11 @@ class TestableStorageNode(thriftPort: Int, syncPort: Int) extends StorageNode("1
 		def run() = p.destroy()
 	}
 
+	@transient
 	var proc: Process = null
+	@transient
 	val thread = new Thread(this, "StorageNode"+thriftPort)
+	@transient
 	var lines = new Array[String](0)
 
 	thread.start

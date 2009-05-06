@@ -105,6 +105,7 @@ abstract class KeySpace {
 	def isCovered(desired_range: KeyRange, ranges: Set[KeyRange]): Boolean
 }
 
+@serializable
 class SimpleKeySpace extends KeySpace {
 	var space = Map[StorageNode, KeyRange]()
 
