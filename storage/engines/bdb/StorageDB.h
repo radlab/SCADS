@@ -15,6 +15,7 @@
 #define MERKLE_NO   2
 #define MERKLE_YES  3
 #define MERKLE_MARK 4
+#define MERKLE_STOP 5
 
 #define dbt_string(dbt) std::string((char*)(dbt)->data,(dbt)->size)
 

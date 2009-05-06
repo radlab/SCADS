@@ -30,6 +30,7 @@ char node_merkle = NODE_MERKLE;
 char merkle_no = MERKLE_NO;
 char merkle_yes = MERKLE_YES;
 char merkle_mark = MERKLE_MARK;
+char merkle_stop = MERKLE_STOP;
 
 using namespace std;
 using namespace apache::thrift;
@@ -93,7 +94,8 @@ int fill_dbt(int* sock, DBT* k, DBT* other, char* buf, char* pos, char** endp) {
   else {
     if ((end-pos) < 5) {
       if ((end-pos) > 0 &&
-	  *pos == MERKLE_MARK) { // just kick out here
+	  (*pos == MERKLE_MARK ||
+	   *pos == MERKLE_STOP) ) { // just kick out here
 	k->doff = (int)(*pos);
 	return ((pos+1)-buf);
       }
@@ -117,7 +119,7 @@ int fill_dbt(int* sock, DBT* k, DBT* other, char* buf, char* pos, char** endp) {
     // here we have at least 5 bytes to work with
     // set the type
     k->doff = (int)(*pos);
-    if (k->doff == MERKLE_MARK) // no data for marks
+    if (k->doff == MERKLE_MARK || k->doff == MERKLE_STOP) // no data for marks/stops
       return ((pos+1)-buf);
     // now get the length
     memcpy(&len,pos+1,4);
@@ -344,6 +346,12 @@ struct sync_sync_args {
 static 
 void send_mark(int sock) {
   if (send(sock,&merkle_mark,1,MSG_MORE) == -1)
+    do_throw(errno,"Failed to send mark: ");
+}
+
+static 
+void send_merkle_stop(int sock) {
+  if (send(sock,&merkle_stop,1,MSG_MORE) == -1)
     do_throw(errno,"Failed to send mark: ");
 }
 
@@ -835,12 +843,17 @@ int do_merkle_sync(int sock, const NameSpace& ns,
       return 1;
     }
     if (off == 0) { 
+      cerr << "Got final flag too early, was expecting a STOP first"<<endl;
+      return 1;
+    }
+    switch(key.doff) { // doff is where we store the type
+    case MERKLE_STOP: {
       // okay, his queue is empty, now we wait for him to finish reading our stuff
       cout << "Queue empty, sending mark"<<endl;
       send_mark(sock);
       cout << "waiting for final flag"<<endl;
       try {
-	off = fill_dbt(&sock,&key,NULL,dbuf,dbuf+prevoff+4,&end);
+	off = fill_dbt(&sock,&key,NULL,dbuf,dbuf+off,&end);
       } catch (ReadDBTException &e) {
 	cerr << "Could not read final finsih in do_merkle_sync: "<<e.what()<<endl;
 	if (key.flags)
@@ -852,10 +865,9 @@ int do_merkle_sync(int sock, const NameSpace& ns,
 	return 1;
       }
       cout << "Got it"<<endl;
-      break;
+      // we're really done
+      return 0;
     }
-
-    switch(key.doff) { // doff is where we store the type
     case NODE_DATA: {
 #ifdef DEBUG
       //cout << "Got data node in do_merkle_sync"<<endl;
@@ -1652,7 +1664,7 @@ bool send_merkle_queue(int sock, DB* mdb, DB* qdb) {
 #ifdef DEBUG
     cout << "Empty queue, sending finish message"<<endl;
 #endif
-    send_string(sock,"");
+    send_merkle_stop(sock);
     return true;
   }
   else
@@ -1892,6 +1904,8 @@ merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
 
   if ((numbytes = recv(sock, &stat, 1, 0)) == -1) 
     do_throw(errno,"Could not read final status: ");
+
+  cout << "okay, all done"<<endl;
 
   flush_lock(true);
   close(sock);
