@@ -49,12 +49,12 @@ int fill_buf(int* sock, char* buf, int off) {
     return 0;
   }
 #ifdef DEBUG
-  if (recvd > 0) {
+  /*  if (recvd > 0) {
     printf("filled buffer:\n[");
     for(int i = 0;i<recvd;i++) 
       printf("%i ",buf[i]);
     printf("\b]\n");
-  }
+    }*/
 #endif
   return recvd;
 }
@@ -792,17 +792,11 @@ int resolve_data(DBT* ld, DBT* rd,
     if (pol.type == CPT_GREATER) {
       if (ld->size > rd->size ||
 	  dcmp > 0) { // local is greater
-#ifdef DEBUG
-	cerr << "Local data is greater"<<endl;
-#endif
 	return LOC_REPLS;
       }
 
       else if (ld->size < rd->size ||
 	       dcmp < 0) { // remote is greater, insert, no need to send back
-#ifdef DEBUG
-	cerr << "Local data is less"<<endl;
-#endif
 	return REM_REPLS;
       }
     }
@@ -827,10 +821,12 @@ int do_merkle_sync(int sock, const NameSpace& ns,
   memset(&key, 0, sizeof(DBT));
   memset(&data, 0, sizeof(DBT));
   int kf,df;
+  int prevoff;
   for(;;) {
     kf = 0;
     df = 0;
     try {
+      prevoff = off;
       off = fill_dbt(&sock,&key,NULL,dbuf,dbuf+off,&end);
     } catch (ReadDBTException &e) {
       cerr << "Could not read key in do_merkle_sync: "<<e.what()<<endl;
@@ -838,12 +834,31 @@ int do_merkle_sync(int sock, const NameSpace& ns,
 	free(key.data);
       return 1;
     }
-    if (off == 0)
+    if (off == 0) { 
+      // okay, his queue is empty, now we wait for him to finish reading our stuff
+      cout << "Queue empty, sending mark"<<endl;
+      send_mark(sock);
+      cout << "waiting for final flag"<<endl;
+      try {
+	off = fill_dbt(&sock,&key,NULL,dbuf,dbuf+prevoff+4,&end);
+      } catch (ReadDBTException &e) {
+	cerr << "Could not read final finsih in do_merkle_sync: "<<e.what()<<endl;
+	if (key.flags)
+	  free(key.data);
+	return 1;
+      }
+      if (off != 0) {
+	cerr << "Opps, expecting final finish, but got something else in do_merkle_sync"<<endl;
+	return 1;
+      }
+      cout << "Got it"<<endl;
       break;
+    }
+
     switch(key.doff) { // doff is where we store the type
     case NODE_DATA: {
 #ifdef DEBUG
-      cout << "Got data node in do_merkle_sync"<<endl;
+      //cout << "Got data node in do_merkle_sync"<<endl;
 #endif
       try {
 	off = fill_dbt(&sock,&data,&key,dbuf,dbuf+off,&end);
@@ -871,8 +886,8 @@ int do_merkle_sync(int sock, const NameSpace& ns,
 	res = REM_REPLS;
       } else if (ret == 0) {
 #ifdef DEBUG
-	cout << "[local]  key: "<<dbt_string(&key)<<" data: "<<dbt_string(&ldata)<<endl;
-	cout << "[remote] key: "<<dbt_string(&key)<<" data: "<<dbt_string(&data)<<endl;
+	//cout << "[local]  key: "<<dbt_string(&key)<<" data: "<<dbt_string(&ldata)<<endl;
+	//cout << "[remote] key: "<<dbt_string(&key)<<" data: "<<dbt_string(&data)<<endl;
 #endif
 	res = resolve_data(&ldata,&data,pol);
       } else {
@@ -892,7 +907,7 @@ int do_merkle_sync(int sock, const NameSpace& ns,
       }
       case LOC_REPLS: { // local replaces, send back over
 #ifdef DEBUG
-	cout << "Local is greater, sending back"<<endl;
+	//cout << "Local is greater, sending back"<<endl;
 #endif
 	send_vals(sock,&key,&ldata,node_data);
 	break;
@@ -936,8 +951,8 @@ int do_merkle_sync(int sock, const NameSpace& ns,
       }
       MerkleNode * ln =  (MerkleNode *)((&ldata)->data);
 #ifdef DEBUG
-      cout<<"local node: "<<ln->digest<<endl;
-      cout<<"remote node: "<<hash<<endl;
+      //cout<<"local node: "<<ln->digest<<endl;
+      //cout<<"remote node: "<<hash<<endl;
 #endif
       if (ln->digest != hash)
 	send_vals(sock,&key,NULL,merkle_no);
@@ -1080,7 +1095,8 @@ int do_sync(int sock, StorageDB* storageDB, char* dbuf, char sync_type) {
   cerr << "sync_sync set done, sending end message"<<endl;
 #endif
 
-  send_string(sock,"");
+  if(sync_type == SYNC_SIMPLE)
+    send_string(sock,"");
 
   return storageDB->flush_log(db);
 }
@@ -1226,9 +1242,9 @@ void* run_listen(void* arg) {
       close(as);
       continue;
     }
-#ifdef DEBUG      
+    //#ifdef DEBUG      
     cout << "done.  stat: "<<stat<<endl;
-#endif
+    //#endif
     if (send(as,&stat,1,0) == -1) 
       perror("send STAT");
     close(as);
@@ -1647,6 +1663,8 @@ bool send_merkle_queue(int sock, DB* mdb, DB* qdb) {
   return false;
 }
 
+  char a = 1;
+
 int handle_merkle_reply(int sock, char* dbuf, int off, char** end, DB* db, StorageDB *storageDB, MerkleDB* mdb) {
   int ret,kf,df;
   DBT key, data;
@@ -1656,6 +1674,8 @@ int handle_merkle_reply(int sock, char* dbuf, int off, char** end, DB* db, Stora
   cout << "Handing merkle reply"<<endl;
 #endif
   for (;;) {
+    kf = 0;
+    df = 0;
     try {
       off = fill_dbt(&sock,&key,NULL,dbuf,dbuf+off,end);
     } catch (ReadDBTException &e) {
@@ -1666,9 +1686,6 @@ int handle_merkle_reply(int sock, char* dbuf, int off, char** end, DB* db, Stora
     }
     if (off == 0)
       break;
-    kf = key.flags;
-    df = 0;
-    key.flags = 0;
     switch (key.doff) {
     case MERKLE_MARK:
 #ifdef DEBUG
@@ -1683,13 +1700,15 @@ int handle_merkle_reply(int sock, char* dbuf, int off, char** end, DB* db, Stora
 	off = fill_dbt(&sock,&data,&key,dbuf,dbuf+off,end);
       } catch (ReadDBTException &e) {
 	cerr << "Could not read next item in handle_merkle_reply: "<<e.what()<<endl;
-	if (kf)
+	if (key.flags)
 	  free(key.data);
 	if (data.flags)
 	  free(data.data);
 	return 0;
       }
+      kf = key.flags;
       df = data.flags;
+      key.flags = 0;
       data.flags = 0;
 #ifdef DEBUG
       cout << "key: "<<dbt_string(&key)<<" data: "<<dbt_string(&data)<<endl;
@@ -1701,12 +1720,15 @@ int handle_merkle_reply(int sock, char* dbuf, int off, char** end, DB* db, Stora
 #ifdef DEBUG
       cout << "Merkle yes in handle"<<endl;
 #endif
+      kf = key.flags;
       break;
     }
     case MERKLE_NO: {
 #ifdef DEBUG
-      cout << "Merkle no in handle for: "<<string((char*)key.data,key.size)<<". Need to add this nodes children to queue"<<endl;
+      //cout << "Merkle no in handle for: "<<string((char*)key.data,key.size)<<". Need to add this nodes children to queue"<<endl;
 #endif
+      kf = key.flags;
+      key.flags = 0;
       data.flags = DB_DBT_MALLOC;
       //mdb->dbp->get(mdb->dbp,NULL,&key,&data,0);
       //MerkleNode * m =  (MerkleNode *)((&data)->data);
@@ -1862,11 +1884,25 @@ merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
       break;
   }
   // read any final data vals that might have been sent back
+  cout << "Reading final data"<<endl;
   handle_merkle_reply(sock,dbuf,off,&end,dbp,this,mdb);
+  cout << "Done, sending final done"<<endl;
+  send_string(sock,"");
+  cout << "Sent final done, gonna wait for final status"<<endl;
+
+  if ((numbytes = recv(sock, &stat, 1, 0)) == -1) 
+    do_throw(errno,"Could not read final status: ");
 
   flush_lock(true);
+  close(sock);
 
-  return false;
+  if(stat) // non-zero means a fail
+    return false;
+
+  if (flush_log(dbp))
+    return false;
+  
+  return true;
 }
 
 bool StorageDB::

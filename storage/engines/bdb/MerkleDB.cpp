@@ -556,7 +556,7 @@ void MerkleDB::queue_children(DBT *key, std::vector<DBT>* mq) {
   if (ret == 0) {
     do {
 #ifdef DEBUG
-      std::cout << "Queuing child: "<<dbt_string(&pkey)<<endl;
+      //std::cout << "Queuing child: "<<dbt_string(&pkey)<<endl;
 #endif
       DBT pb;
       pb.size = pkey.size;
