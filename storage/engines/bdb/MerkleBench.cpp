@@ -207,12 +207,12 @@ int run() {
 	mdb->flushp();
 	end_timer();
 	std::cout << endl << "Printing tree"<<endl;
-	mdb->print_tree();
+	//mdb->print_tree();
 }
 
 int main(int argc, char **argv) {
   char buf[] = "abcdef";
-  getc(stdin);
+  //getc(stdin);
   parseArgs(argc,argv);
   if(chkdirs(env_dir)) {
     exit(-1);
