@@ -74,4 +74,4 @@ merklebench: $(SRCS_TO_GEN) MerkleDB.cpp MerkleBench.cpp
 	$(CXX) $(CFLAGS) -g -o MerkleBench MerkleDB.cpp MerkleBench.cpp $(LIBS)
 
 clean:
-	rm -rf gen-cpp storage.bdb
+	rm -rf gen-cpp storage.bdb MerkleDB MerkleBench

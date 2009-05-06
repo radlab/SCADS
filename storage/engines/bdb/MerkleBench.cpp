@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include <sys/time.h>
+#include "mhash.h"
 
 #include "MerkleDB.h"
 
@@ -92,7 +93,7 @@ void parseArgs(int argc, char* argv[]) {
 	rows = 10;
 	max_keylength = 20;
 	data_size = 1000;
-	flush_period = 30;
+	flush_period = -1;
 	unflushed = 0;
   env_dir = 0;
 
@@ -141,6 +142,36 @@ void parseArgs(int argc, char* argv[]) {
 	}
 }
 
+int bench_hash() {
+	int keylen;
+	MHASH td;
+	srand(13424);
+		start_timer();
+		
+  td = mhash_init(MERKLEDB_HASH_FUNC);
+  if (td == MHASH_FAILED) {
+    std::cerr << "HASH Failed";
+    return -1;
+  }
+	for (int i = 0; i < rows; i++) {
+		keylen = (rand() % max_keylength) + 1;
+		for (int j = 0; j < keylen; j++) {
+//			keybuf[j] = ((char) (rand() % ('z' - '0' + 1) + '0'));
+			keybuf[j] = (rand() % 94) + 33; //printable
+//			keybuf[j] = (rand() % 255) + 1; //unprintable (but not null)
+		} 
+		keybuf[keylen] = '\0';
+		
+//		printf("going to enqueue key:(\"%s\"\t\t\t", keybuf);
+//		print_hex(keybuf, key.size);
+//		std::cout << "\t:\t" << key.size << ")" << endl;
+		mhash(td, keybuf, keylen);
+	}
+
+	mhash_end(td);
+	end_timer();  
+}
+
 int run() {
 	int keylen;
 	DBT key, data;
@@ -167,9 +198,9 @@ int run() {
 //		print_hex(keybuf, key.size);
 //		std::cout << "\t:\t" << key.size << ")" << endl;
 		mdb->enqueue(&key, &data);
-		//if ((i % flush_period) == 0) {
-		//	mdb->flushp();
-		//}
+		if ((flush_period > 0) and ((i % flush_period) == 0)) {
+			mdb->flushp();
+		}
 	}
 	end_timer();
 	start_timer();
@@ -180,6 +211,8 @@ int run() {
 }
 
 int main(int argc, char **argv) {
+  char buf[] = "abcdef";
+  getc(stdin);
   parseArgs(argc,argv);
   if(chkdirs(env_dir)) {
     exit(-1);
@@ -222,7 +255,13 @@ int main(int argc, char **argv) {
   signal(SIGINT, ex_program);
   signal(SIGTERM, ex_program);
   
+	std::cout << "Hashing alone" <<endl;
+	bench_hash();
+	
+	std::cout << "Building Tree" <<endl;
 	run();
+
+	
 
   printf("done.\n");
   return 0;
