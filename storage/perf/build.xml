@@ -3,6 +3,7 @@
 	<!-- 2. Define Scala CLASSPATH. -->
 
 	<property name="build.dir" value="bin/"/>
+	<property name="jar.dir" value="dist/"/>
 
 	<path id="scala.classpath">
 		<pathelement location="/usr/share/java/libthrift.jar"/>
@@ -61,5 +62,11 @@
 			<arg value="java"/>
 			<arg value="../storage.thrift"/>
 		</exec>
+	</target>
+	
+	<!-- 7. Build a jar -->
+	<target name="jar" depends="compile">
+		<mkdir dir="${jar.dir}"/>
+		<jar basedir="${build.dir}" destfile="${jar.dir}/perf.jar" includes="**"/>
 	</target>
 </project>
