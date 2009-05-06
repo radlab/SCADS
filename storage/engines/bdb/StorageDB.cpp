@@ -1140,10 +1140,15 @@ set_responsibility_policy(const NameSpace& ns, const RecordSet& policy) {
   ostringstream os;
   os << policy.type;
   switch (policy.type) {
-  case RST_RANGE:
-    os << " "<<
-      policy.range.start_key<<" "<<
-      policy.range.end_key;
+  case RST_RANGE: {
+    bool sk = policy.range.__isset.start_key;
+    bool ek = policy.range.__isset.end_key;
+    os << " " << sk << " " << ek;
+    if (sk)
+      os << " " << policy.range.start_key;
+    if (ek)
+      os << " " << policy.range.end_key;
+  }
     break;
   case RST_KEY_FUNC:
     os << " "<<policy.func.lang<< " "<<policy.func.func;
@@ -1226,10 +1231,12 @@ get_responsibility_policy(RecordSet& _return, const NameSpace& ns) {
     _return.type = (SCADS::RecordSetType)type;
     switch (_return.type) {
     case RST_RANGE:
-      is >> _return.range.start_key>>_return.range.end_key;
+      is >> _return.range.__isset.start_key >> _return.range.__isset.end_key; 
+      if (_return.range.__isset.start_key)
+	is >> _return.range.start_key;
+      if (_return.range.__isset.end_key)
+	is >>_return.range.end_key;
       _return.__isset.range = true;
-      _return.range.__isset.start_key = true;
-      _return.range.__isset.end_key = true;
       break;
     case RST_KEY_FUNC: {
       int lang;
