@@ -52,7 +52,13 @@ class RecordComparator extends java.util.Comparator[SCADS.Record] {
 
 class LocalROWAClientLibrary extends ROWAClientLibrary with LocalKeySpaceProvider
 
+class SCADSClient(h: String, p: Int) extends ROWAClientLibrary with RemoteKeySpaceProvider {
+	val port = p
+	val host = h
+}
+
 abstract class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider with ThriftConversions {
+	import java.util.Random
 
 	/**
 	* Read value from one node. Uses local map. 
@@ -61,9 +67,9 @@ abstract class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpace
 	override def get(namespace: String, key: String): Record = {
 		val ns_keyspace = getKeySpace(namespace)
 		try {
-			val potentials = ns_keyspace.lookup(key)
-			if ( potentials.hasNext ) {
-				val node = potentials.next // just get the first node
+			val potentials = ns_keyspace.lookup(key).toList
+			if ( potentials.length >0  ) {
+				val node = potentials(new Random().nextInt(potentials.length)) // use random one
 				val record = node.getClient().get(namespace,key)
 				record
 			}
@@ -73,6 +79,11 @@ abstract class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpace
 				this.refreshKeySpace()
 				val record = this.get(namespace,key) // recursion, TODO: needs to be bounded
 				record
+			}
+			case e => {
+				println("Client library exception in get(): ")
+				e.printStackTrace
+				null
 			}
 		}
 	}
@@ -108,6 +119,11 @@ abstract class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpace
 					val records_subset = node.getClient().get_set(namespace,rset)
 					val iter = records_subset.iterator()
 					while (iter.hasNext()) { records += iter.next() }
+				}
+				case e => {
+					println("Client library exception in get_set(): ")
+					e.printStackTrace
+					null
 				}
 			}
 		}
@@ -151,7 +167,12 @@ abstract class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpace
 		else { potential_nodes = nodes.filter((entry) => entry._2.start==null || entry._2.start <= start) } 
 	
 		if ( !potential_nodes.elements.hasNext ) throw new NonCoveredRangeException
-		var chosen_node = potential_nodes.elements.next // init to first one?
+		var chosen_node = potential_nodes.elements.next
+		val chosen_index = new Random().nextInt(potential_nodes.size)
+		for(i<- 0 until chosen_index+1) {
+			assert(potential_nodes.elements.hasNext)
+			chosen_node = potential_nodes.elements.next
+		}
 		var end = chosen_node._2.end
 		
 		potential_nodes.foreach((entry) => {
@@ -184,6 +205,11 @@ abstract class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpace
 					this.refreshKeySpace()
 					val success = this.put(namespace,rec) // recursion may redo some work
 					total_success && success
+				}
+				case e => {
+					println("Client library exception in put(): ")
+					e.printStackTrace
+					null
 				}
 			}
 		}})
