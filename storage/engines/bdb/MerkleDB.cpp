@@ -32,6 +32,16 @@ int cmp_longest_first(DB *dbp, const DBT *a, const DBT *b) {
   }
 }
 
+int cmp_shortest_first(DB *dbp, const DBT *a, const DBT *b) {
+	if (a->size < b->size) {
+		return -1;
+	} else if (a->size == b->size) {
+		return memcmp(a->data, b->data, a->size);
+	} else {
+		return 1;
+	}
+}
+
 //Used by children index.  Each node add a pointer from its parent to itself
 //TODO: Need to make sure tombstoned nodes aren't included in hashing! 
 int child_extractor(DB *dbp, const DBT *pkey, const DBT *pdata, DBT *ikey) {
@@ -77,6 +87,7 @@ MerkleDB::MerkleDB(const string& ns, DB_ENV* db_env) :
   //Set sorting functions for queues
   pup->set_bt_compare(pup, cmp_longest_first);
   aly->set_bt_compare(aly, cmp_longest_first);
+	//cld->set_bt_compare(cld, cmp_shortest_first);
 
   /* Now open the databases */
   sprintf(filebuf,"%s_merkledb.bdb",ns.c_str());

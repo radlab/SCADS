@@ -212,7 +212,7 @@ int run() {
 
 int main(int argc, char **argv) {
   char buf[] = "abcdef";
-  //getc(stdin);
+  getc(stdin);
   parseArgs(argc,argv);
   if(chkdirs(env_dir)) {
     exit(-1);
