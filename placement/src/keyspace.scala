@@ -99,7 +99,7 @@ abstract class KeySpace {
 	def remove(node: StorageNode)
 
 	def lookup(node: StorageNode): KeyRange
-	def lookup(key: String):Iterator[StorageNode]
+	def lookup(key: String):List[StorageNode]
 	def lookup(range: KeyRange): Map[StorageNode, KeyRange]
 	def coverage: Iterator[KeyRange]
 	def isCovered(desired_range: KeyRange, ranges: Set[KeyRange]): Boolean
@@ -118,8 +118,8 @@ class SimpleKeySpace extends KeySpace {
 	def lookup(node: StorageNode): KeyRange =
 		space.get(node).getOrElse(KeyRange("", ""))
 
-	def lookup(key: String):Iterator[StorageNode] =
-		space.filter((pair) => pair._2.includes(key)).keys
+	def lookup(key: String):List[StorageNode] =
+		space.toList.filter((pair) => pair._2.includes(key)).map((pair) => pair._1)
 
 	def lookup(range: KeyRange): Map[StorageNode, KeyRange] =
 		space.filter((pair) => (pair._2 & range) != KeyRange.EmptyRange)
