@@ -33,6 +33,7 @@ end
   puts clients.deploy(clientconf)
 
   puts("copying jars")
+  puts servers.copy_to("../../placement/dist/placement.jar", "/usr/share/java")
   puts clients.copy_to("../../placement/dist/placement.jar", "/usr/share/java")
 
   dpservice = <<-EOF
