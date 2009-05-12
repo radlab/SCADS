@@ -6,3 +6,6 @@ storage/engines/bdb/storage.bdb*
 *.log
 **/db/*
 **/testdb/*
+*.class
+*.csv
+*.jar
