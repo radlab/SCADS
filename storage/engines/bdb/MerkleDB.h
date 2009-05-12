@@ -29,7 +29,6 @@ namespace SCADS {
 
   public:
     int flush_flag;
-    int type;
     DB * dbp; //Merkle trie database
     static DB * qdb; // queue database for running syncs
 	
