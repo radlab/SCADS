@@ -72,16 +72,19 @@ println(\"done\")
   sleep 10
   
   puts clients.stop("scads_loadtester")
-  puts clients.once("scads_loadtester")
   
-  sleep 30
-  
-  running = clients.instances
-  
-  while(running.size > 0)
-    running = running.select {|n| n.services.select{|s| s[:name] == "scads_loadtester"}[0][:status] == "run"}
-    puts "#{running.size} still running"
-    sleep 10
+  5.times do
+    puts clients.once("scads_loadtester")
+
+    sleep 30
+
+    running = clients.instances
+
+    while(running.size > 0)
+      running = running.select {|n| n.services.select{|s| s[:name] == "scads_loadtester"}[0][:status] == "run"}
+      puts "#{running.size} still running"
+      sleep 10
+    end
   end
   
   servers.copy_from("/mnt/*.csv", ".")
