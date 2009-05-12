@@ -193,7 +193,7 @@ abstract class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpace
 		val key = rec.getKey()
 		val ns_keyspace = getKeySpace(namespace)
 		val put_nodes = ns_keyspace.lookup(key)
-		if ( !put_nodes.hasNext ) throw new NoNodeResponsibleException
+		if ( !(put_nodes.length > 0) ) throw new NoNodeResponsibleException
 		var total_success = true
 		
 		put_nodes.foreach({ case(node)=>{
