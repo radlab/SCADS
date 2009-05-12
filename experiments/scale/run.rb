@@ -14,7 +14,7 @@ class Array
   end
 end
 
-[1,8,16,32].each do |scale|
+[1,2,4,8,16,32].each do |scale|
   test_id = Time.now
   
   servers = InstanceGroup.new(request_nodes(scale))
