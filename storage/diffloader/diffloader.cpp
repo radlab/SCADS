@@ -8,6 +8,7 @@
 // -Q [port for host 2] (default: 9091)
 // -q quiet,don't print anything (except timing if you asked for it)
 // -t print load time
+// -o only load diff values
 // -k [start key] first key to load (default: 0)
 
 #include <string.h>
@@ -165,6 +166,7 @@ int main(int argc,char* argv[]) {
   char quiet = 0;
   long startkey = 0;
   char stat;
+  char donly = 0;
 
   unsigned int s;
   FILE* f = fopen("/dev/urandom","r");
@@ -176,8 +178,11 @@ int main(int argc,char* argv[]) {
   sprintf(pattern,"%s","foo");
   int port1 = 9091;
   int port2 = 8081;
-  while ((opt = getopt(argc,argv, "s:p:P:Q:qtk:")) != -1) {
+  while ((opt = getopt(argc,argv, "os:p:P:Q:qtk:")) != -1) {
     switch (opt) {
+    case 'o':
+      donly = 1;
+      break;
     case 's':
       size = atoi(optarg);
       break;
@@ -339,6 +344,8 @@ int main(int argc,char* argv[]) {
       pcount++;
       sendval(sock2,&dlen,diffval);
     }
+    else if (donly)
+      break;
     else
       sendval(sock2,&dlen,val);
   }
