@@ -237,8 +237,10 @@ int main(int argc,char* argv[]) {
   string ns("difftest");
 
   fillval(val,pattern,0);
-  fillval(diffval,pattern,1);
-  
+  val[0]='b';
+  memcpy(diffval,val,91);
+  diffval[0]='a';
+
   if (!quiet)
     cout << "doing a binary load on copy/sync port"<<endl;
 
