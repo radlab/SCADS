@@ -4,6 +4,7 @@
 #include <db.h>
 #include <pthread.h>
 #include "gen-cpp/Storage.h"
+#include "TQueue.h"
 
 #define MERKLEDB_HASH_FUNC MHASH_TIGER128
 #define MERKLEDB_HASH_WIDTH 128
@@ -47,10 +48,13 @@ namespace SCADS {
     u_int32_t prefix_length(DBT * key1, DBT * key2);
     void print_tree();
     void print_children(DBT *key);
-    void queue_children(DBT *key,std::vector<DBT>*);
-	  int dbt_equal(DBT * db1, DBT * db2);
-		int dbt_cmp(DBT * db1, DBT * db2);
-		
+    int dbt_equal(DBT * db1, DBT * db2);
+    int dbt_cmp(DBT * db1, DBT * db2);
+    void queue_children(DBT *key,TQueue<DBT>*);
+    void apply_children(DBT *key,
+			void(*to_apply)(void*,void*,void*),
+			void* apply_arg);
+	
   private:
     MerkleNode parent(MerkleNode * node);
     MerkleNode get(DBT * key);

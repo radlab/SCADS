@@ -752,7 +752,7 @@ static void* flush_thread(void* arg) {
 
   while(!stopping) {
 #ifdef DEBUG
-    cout << "Running flush thread"<<endl;
+    cout << "Running flush thread (cur_flag: "<< ((int)cur_flag) << ")" << endl;
 #endif
     int found_one = 0;
     rc = pthread_rwlock_rdlock(dbmap_lock); // get the read lock

@@ -4,6 +4,7 @@
 #include <db.h>
 #include "gen-cpp/Storage.h"
 #include "MerkleDB.h"
+#include "TQueue.h"
 #include "ruby.h"
 
 #ifndef MSG_MORE

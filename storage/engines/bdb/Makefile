@@ -35,6 +35,7 @@ THRIFT_FILE = ../../storage.thrift
 # Source Listings
 SRCS_TO_GEN = gen-cpp/storage_constants.cpp gen-cpp/Storage.h gen-cpp/storage_types.h gen-cpp/storage_constants.h gen-cpp/Storage_server.skeleton.cpp gen-cpp/Storage.cpp gen-cpp/storage_types.cpp
 GEN_SRC = gen-cpp/storage_types.cpp gen-cpp/Storage.cpp
+STORAGE_SRCS = StorageDB.cpp MerkleDB.cpp Network.cpp TQueue.h
 
 # C/C++ MACROS
 CXX=g++
@@ -58,17 +59,20 @@ $(SRCS_TO_GEN): $(THRIFT_FILE)
 	$(THRIFT) $(THRIFT_FLAGS) $(THRIFT_FILE)
 
 # C/C++ RULES
-storage.bdb: $(SRCS_TO_GEN) StorageDB.cpp Network.cpp MerkleDB.cpp
-	$(CXX) $(CFLAGS) $(RUBY_INCLUDES) -o $@ StorageDB.cpp Network.cpp MerkleDB.cpp ${GEN_SRC} $(LIBS)
+storage.bdb: $(SRCS_TO_GEN) $(STORAGE_SRCS)
+	$(CXX) $(CFLAGS) $(RUBY_INCLUDES) -o $@ $(STORAGE_SRCS) ${GEN_SRC} $(LIBS)
 
-storage.bdb.debug: $(SRCS_TO_GEN) StorageDB.cpp Network.cpp MerkleDB.cpp
-	$(CXX) -g $(CFLAGS) $(RUBY_INCLUDES) -DDEBUG -o storage.bdb StorageDB.cpp Network.cpp MerkleDB.cpp ${GEN_SRC} $(LIBS)
+storage.bdb.debug: $(SRCS_TO_GEN) $(STORAGE_SRCS)
+	$(CXX) -g $(CFLAGS) $(RUBY_INCLUDES) -DDEBUG -o storage.bdb $(STORAGE_SRCS) ${GEN_SRC} $(LIBS)
 
-storage.bdb.debugquiet: $(SRCS_TO_GEN) StorageDB.cpp Network.cpp MerkleDB.cpp
-	$(CXX) -g $(CFLAGS) $(RUBY_INCLUDES) -o storage.bdb StorageDB.cpp Network.cpp MerkleDB.cpp ${GEN_SRC} $(LIBS)
+storage.bdb.debugquiet: $(SRCS_TO_GEN) $(STORAGE_SRCS)
+	$(CXX) -g $(CFLAGS) $(RUBY_INCLUDES) -o storage.bdb $(STORAGE_SRCS) ${GEN_SRC} $(LIBS)
 
 merkle: $(SRCS_TO_GEN) MerkleDB.cpp
 	$(CXX) $(CFLAGS) -g -DMERKLETEST -o MerkleDB MerkleDB.cpp $(LIBS)
+
+tq: TQueue.cpp
+	$(CXX) $(CFLAGS) -g -DDEBUG -o TQueue TQueue.cpp $(LIBS)
 
 merklebench: $(SRCS_TO_GEN) MerkleDB.cpp MerkleBench.cpp
 	$(CXX) $(CFLAGS) -g -o MerkleBench MerkleDB.cpp MerkleBench.cpp $(LIBS)

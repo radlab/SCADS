@@ -1,6 +1,5 @@
 // MerkleDB File
 
-//#include "StorageDB.h"
 #include "MerkleDB.h"
 
 #include <iostream>
@@ -568,7 +567,32 @@ void MerkleDB::print_children(DBT *key) {
   cursorp->close(cursorp);
 }
 
-void MerkleDB::queue_children(DBT *key, std::vector<DBT>* mq) {
+void MerkleDB::
+apply_children(DBT *key,
+	       void(*to_apply)(void*,void*,void*),
+	       void* apply_arg) {
+  DBT pkey, pdata; /* Used to return the primary key and data */
+  int ret;
+	
+  memset(&pkey, 0, sizeof(DBT));
+  pkey.flags = DB_DBT_MALLOC;
+  memset(&pdata, 0, sizeof(DBT));
+  pdata.flags = DB_DBT_MALLOC;
+  DBC *cursorp;
+  cld->cursor(cld, NULL, &cursorp, 0);
+	
+  ret = cursorp->pget(cursorp, key, &pkey, &pdata, DB_SET);
+  if (ret == 0) {
+    do {
+      (*to_apply)(apply_arg,&pkey,&pdata);
+      free(pkey.data);
+      free(pdata.data);
+    } while ((ret = cursorp->pget(cursorp, key, &pkey, &pdata, DB_NEXT_DUP)) == 0);
+  }
+  cursorp->close(cursorp);
+}
+
+void MerkleDB::queue_children(DBT *key, TQueue<DBT>* q) {
   DBT pkey, pdata; /* Used to return the primary key and data */
   int ret;
 	
@@ -585,20 +609,8 @@ void MerkleDB::queue_children(DBT *key, std::vector<DBT>* mq) {
 #ifdef DEBUG
       //std::cout << "Queuing child: "<<dbt_string(&pkey)<<endl;
 #endif
-      DBT pb;
-      pb.size = pkey.size;
-      pb.data = malloc(sizeof(char)*pb.size);
-      memcpy(pb.data,pkey.data,pb.size);
-      mq->push_back(pb);
-      //mq->push_back(string((char*)pkey.data,pkey.size));
-      //printf("[%p] [%p] [%p]\n",key->data,pkey.data,pdata.data);
-      //free(pdata.data);
-      //pkey.flags = 0;
-      //qdb->put(qdb,NULL,&pdata,&pkey,DB_APPEND);
-      //printf("data after: %p\n",pdata.data);
-      free(pdata.data);
-      free(pkey.data);
-      //pkey.flags = DB_DBT_MALLOC;
+      q->enqueue(pkey);
+      //free(pdata.data);  TODO: this?
     } while ((ret = cursorp->pget(cursorp, key, &pkey, &pdata, DB_NEXT_DUP)) == 0);
   }
   cursorp->close(cursorp);
