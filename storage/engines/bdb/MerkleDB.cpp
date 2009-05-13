@@ -7,6 +7,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include "mhash.h"
+#include <sys/time.h>
+#include <assert.h>
 
 #define min(i1, i2) ((i1) < (i2) ? (i1) : (i2))
 #define max(i1, i2) ((i1) > (i2) ? (i1) : (i2))
@@ -15,6 +17,14 @@
 #define close_if_not_null(db) if ((db) != NULL) { (db)->close((db), 0); }
 #define cleanup_after_bdb() cursorp->close(cursorp); while (data_ptrs.size() > 0) { free(data_ptrs.back()); data_ptrs.pop_back(); }
 #define print_hex(buf, len) for (int i = (len) - 1; i >= 0 ; i--) { printf("%X%X", (0x0F & (((char *)buf)[i]) >> 4), (0x0F & (((char *)buf)[i])));}
+
+#define prepare_timer() struct timeval start_time, end_time, diff_time;
+#define start_timer() gettimeofday(&start_time,NULL)
+#define end_timer() { \
+    gettimeofday(&end_time,NULL); \
+    timersub(&end_time,&start_time,&diff_time); \
+    printf("%ld.%.6ld\n", diff_time.tv_sec, diff_time.tv_usec); \
+  }
 
 //#define is_leaf(keyd) false
 #define dbt_string(dbt) std::string((char*)(dbt)->data,(dbt)->size)
@@ -628,10 +638,33 @@ void MerkleDB::examine(DBT * key) {
   }
 }
 
+//TODO: Make this return a boolean
 int MerkleDB::dbt_equal(DBT * db1, DBT * db2) {
-  bool c1 = ((db1)->size) == ((db2)->size);
-  int c2 = memcmp(((db1)->data), ((db2)->data), db1->size);
-  return (c1 and (c2 == 0));
+	//We need to avoid doing memcmp if size is 0
+	if (db1->size == 0) { return (db2->size == 0); }
+	if (db2->size == 0) { return (db1->size == 0); }
+//  int c2 = memcmp(((db1)->data), ((db2)->data), db1->size);
+// Need short circuit evaluation in case size is zero and data undefined
+  return (((db1)->size) == ((db2)->size) and (memcmp(((db1)->data), ((db2)->data), db1->size) == 0));
+}
+
+//Return the lexical comparison of these dbts
+int MerkleDB::dbt_cmp(DBT * db1, DBT * db2) {
+	if (db1->size == 0) { return (db2->size == 0 ? 0 : -1); }
+	if (db2->size == 0) { return (db1->size == 0 ? 0 : 1); }
+	int prefixlen = (db1->size < db2->size ? db1->size : db2->size);
+	int c = memcmp(db1->data, db2->data, prefixlen);
+	if (c != 0) {
+		return c;
+	} else {
+		if (db1->size == db2->size) {
+			return 0;
+		} else if (db1->size > db2->size) {
+			return 1;
+		} else {
+			return -1;
+		}
+	}
 }
 
 #ifdef MERKLETEST
@@ -884,6 +917,57 @@ int test_pending2(DB_ENV* db_env) {
 }
 
 
+void build_random_tree(MerkleDB * mdb, int rows, int key_seed, int data_seed, int out_std = 0) {
+	char keybuf[128];
+	DBT key;
+	memset(&key, 0, sizeof(DBT));
+	key.flags = DB_DBT_MALLOC;
+	key.data = keybuf;
+		
+	char databuf[2048];
+	DBT data;
+	memset(&data, 0, sizeof(DBT));
+	data.flags = DB_DBT_MALLOC;
+	data.data = databuf;
+ 
+	//Make data
+	srand(data_seed);
+	int datalen = 1024;
+	//std::cout << "data:" << datalen << endl;
+	//change 10 keys to make data different
+	int pos;
+	for (int k = 0; k < datalen; k++) {
+		databuf[k] = ((char) ((rand() % 24) + 65));
+	}
+	databuf[datalen] = '\0';
+	data.size = datalen;
+
+
+	int keylen;
+	for (int i = 0; i < rows; i++) {
+		//Make key
+		srand(key_seed+i);
+		keylen = (rand() % 64) + 1;
+		//std::cout << "key:" << keylen << ",";
+		for (int j = 0; j < keylen; j++) {
+			keybuf[j] = ((char) ((rand() % 24) + 65));
+		} 
+		keybuf[keylen] = '\0';
+		key.size = keylen;
+		if (out_std != 0) { (out_std > 0 ? std::cout : std::cerr) << i << "\t" << keybuf << "\t"; }
+
+		//Mix up the data just a little bit
+		srand(data_seed + i);
+		for (int k = 0; k < 5; k++) {
+			databuf[(rand() % datalen)] = ((char) ((rand() % 24) + 65));
+		}
+		if (out_std != 0) { (out_std > 0 ? std::cout : std::cerr) << "\t" << databuf << endl; }
+		
+		mdb->enqueue(&key, &data);
+	}
+	mdb->flushp();
+}
+
 void random_order_insertion_test(MerkleDB * merkle, int seed, bool c_style) {
   std::cout << "build_tree(" << merkle << ", " << seed << ")\n";
   srand(seed);
@@ -934,7 +1018,7 @@ void random_order_insertion_test(MerkleDB * merkle, int seed, bool c_style) {
     data.erase(data.begin()+i);
   }
   merkle->flushp();
-  merkle->print_tree();
+  //merkle->print_tree();
 }
 
 void test_print_hex() {
@@ -963,6 +1047,145 @@ void pascal_and_c_test(MerkleDB * mdb) {
 	testkey[3] = ((char) (rand() % ('z' - '0' + 1) + '0')); 
 	mdb->enqueue(&key, &data);
 	mdb->flushp();
+}
+
+void linear_scan_test(MerkleDB * mdb1, MerkleDB * mdb2) {
+	DBC * c1;
+	DBC * c2;
+	DB * db1 = (mdb1->dbp);
+	DB * db2 = (mdb2->dbp);
+	db1->cursor(db1, NULL, &c1, 0);
+	db2->cursor(db2, NULL, &c2, 0);
+	
+	DBT k1, k2;
+	DBT d1, d2;
+	int ret1, ret2;
+	memset(&k1 , 0, sizeof(DBT));
+	memset(&k2 , 0, sizeof(DBT));
+	memset(&d1 , 0, sizeof(DBT));
+	memset(&d2 , 0, sizeof(DBT));
+	
+	k1.flags = DB_DBT_MALLOC;
+	k2.flags = DB_DBT_MALLOC;
+	d1.flags = DB_DBT_MALLOC;
+	d2.flags = DB_DBT_MALLOC;
+	
+	k1.size = 0;
+	k2.size = 0;
+	
+	void * t1;
+	void * t2;
+	void * t3;
+	void * t4;
+	
+	ret1 = c1->get(c1, &k1, &d1, DB_FIRST);
+	ret2 = c2->get(c2, &k2, &d2, DB_FIRST);
+}
+
+void dfs_with_pruning_test(MerkleDB * mdb1, MerkleDB * mdb2) {
+	DBC * c1;
+	DBC * c2;
+	DB * db1 = (mdb1->dbp);
+	DB * db2 = (mdb2->dbp);
+	db1->cursor(db1, NULL, &c1, 0);
+	db2->cursor(db2, NULL, &c2, 0);
+	
+	DBT k1, k2;
+	DBT d1, d2;
+	int ret1, ret2;
+	memset(&k1 , 0, sizeof(DBT));
+	memset(&k2 , 0, sizeof(DBT));
+	memset(&d1 , 0, sizeof(DBT));
+	memset(&d2 , 0, sizeof(DBT));
+	
+	k1.flags = DB_DBT_MALLOC;
+	k2.flags = DB_DBT_MALLOC;
+	d1.flags = DB_DBT_MALLOC;
+	d2.flags = DB_DBT_MALLOC;
+	
+	k1.size = 0;
+	k2.size = 0;
+	
+	void * t1;
+	void * t2;
+	void * t3;
+	void * t4;
+	
+	ret1 = c1->get(c1, &k1, &d1, DB_SET);
+	ret2 = c2->get(c2, &k2, &d2, DB_SET);
+
+	t1 = k1.data;t2 = d1.data;t3 = k2.data;t4 = d2.data;
+	if (ret1 != 0 or ret2 != 0) {
+		printf("Inconceviable!  Root node doesn't exist");
+		exit(1);
+	}
+	if (mdb1->dbt_equal(&d1, &d2)) { 
+		std::cout << "Trees identical" << endl;
+		c1->close(c1);
+		c2->close(c2);
+		return;
+	}
+	while (ret1 == 0 or ret2 == 0) {	//There might be more cases
+		//std::cout << "Consider: l:(" << dbt_string(&k1) << ")\tr:(" << dbt_string(&k2) << ")" << endl;
+		if (mdb1->dbt_equal(&k1, &k2) and mdb1->dbt_equal(&d1, &d2)) {
+			int i = 1;
+			//TODO: if last character is 255, need to carry over to higher chars
+			((char *) k1.data)[k1.size - i] += 1;
+			((char *) k2.data)[k2.size - i] += 1;
+			//TODO: Memory leak, need to free
+			ret1 = c1->get(c1, &k1, &d1, DB_SET_RANGE);
+			ret2 = c2->get(c2, &k2, &d2, DB_SET_RANGE);
+			if (ret1 == 0) {
+				free(t1);
+				free(t2);
+				t1 = k1.data;
+				t2 = d1.data;
+			}
+			if (ret2 == 0) {
+				free(t3);
+				free(t4);
+				t3 = k2.data;
+				t4 = d2.data;
+			}
+		} else {
+			//Move the left cursor to catch up to the right cursor
+			while (ret1 == 0 and (mdb1->dbt_cmp(&k1, &k2) < 0 or ret2 != 0)) {
+				//TODO: test
+				std::cout << "only-left-side: \"" << dbt_string(&k1) << "\"" <<  endl;
+				ret1 = c1->get(c1, &k1, &d1, DB_NEXT);
+				if (ret1 == 0) { free(t1);free(t2);t1 = k1.data;t2 = d1.data; }
+			}
+			//Move the right cursor to catch up to the left cursor
+			while (ret2 == 0 && (mdb1->dbt_cmp(&k1, &k2) > 0 or ret1 != 0)) {
+				std::cout << "only-right-side: \"" << dbt_string(&k2) << "\"" <<  endl;
+				ret2 = c2->get(c2, &k2, &d2, DB_NEXT);
+				if (ret2 == 0) { free(t3);free(t4);t3 = k2.data;t4 = d2.data; }
+			}
+			//keys are guaranteed to be the same (or one is empty), but data different
+			if (ret1 == 0 and ret2 != 0) { std::cout << "Inconceviable(1)!" << endl; exit(1); }
+			if (ret2 == 0 and ret1 != 0) { std::cout << "Inconceviable(2)!" << endl; exit(1); }
+			if (ret1 == 0 and ret2 == 0) {
+				std::cout << "different: \"" << dbt_string(&k1) << "\"" << endl;
+				ret1 = c1->get(c1, &k1, &d1, DB_NEXT);
+				ret2 = c2->get(c2, &k2, &d2, DB_NEXT);
+				if (ret1 == 0) {
+					free(t1);
+					free(t2);
+					t1 = k1.data;
+					t2 = d1.data;
+				}
+				if (ret2 == 0) {
+					free(t3);
+					free(t4);
+					t3 = k2.data;
+					t4 = d2.data;
+				}
+			}
+		}
+	}
+  
+	c1->close(c1);
+	c2->close(c2);
 }
 
 int main( int argc, char** argv )
@@ -996,26 +1219,69 @@ int main( int argc, char** argv )
     exit(-1);
   }
   MerkleDB * mdb1 = new MerkleDB("tree1",db_env);
-  MerkleDB * mdb2 = new MerkleDB("tree2",db_env);
-	MerkleDB * mdb3 = new MerkleDB("tree3",db_env);
-  random_order_insertion_test(mdb1, 11230, true);
-  random_order_insertion_test(mdb2, 301433, true);
-	random_order_insertion_test(mdb3, 301433, false);
-	MerkleDB * mdb4 = new MerkleDB("tree4",db_env);
 	//pascal_and_c_test(mdb4);
-  std::cout << "alter with: dedaccedff := dsfkj\n";
-  DBT key, data;
-  memset(&key, 0, sizeof(DBT));
-  memset(&data, 0, sizeof(DBT));
-  char key_s[] = "dedaccedfff";
-  char data_s[] = "dsfkj";
-  key.data = key_s;
-  key.size = strlen(key_s);
-  data.data = data_s;
-  data.size = strlen(data_s);
-  mdb1->enqueue(&key, &data);
-  mdb1->flushp();
-  mdb1->print_tree();
+  //std::cout << "alter with: dedaccedff := dsfkj\n";
+  //DBT key, data;
+  //memset(&key, 0, sizeof(DBT));
+  //memset(&data, 0, sizeof(DBT));
+  //char key_s[] = "dedaccedfff";
+  //char data_s[] = "dsfkj";
+  //key.data = key_s;
+  //key.size = strlen(key_s);
+  //data.data = data_s;
+  //data.size = strlen(data_s);
+  //mdb2->enqueue(&key, &data);
+  //
+	//key_s[0] = 'z';
+	//mdb2->enqueue(&key, &data);
+	//
+	//key_s[0] = 'y';
+	//mdb3->enqueue(&key, &data);
+  //
+  //mdb2->flushp();
+	//mdb3->flushp();
+
+  //mdb2->print_tree();
+	prepare_timer();
+
+	MerkleDB * mdb2 = new MerkleDB("tree2",db_env);
+	MerkleDB * mdb3 = new MerkleDB("tree3",db_env);
+  //random_order_insertion_test(mdb1, 11230, true);
+  //random_order_insertion_test(mdb2, 301433, true);
+	//random_order_insertion_test(mdb3, 301433, false);
+	MerkleDB * mdb4 = new MerkleDB("tree4",db_env);
+	//start_timer();
+	//build_random_tree(mdb3, 1000000, 123213, 12312);
+	//end_timer();
+
+	//mdb2->print_tree();
+	//mdb3->print_tree();
+	
+	start_timer();
+	build_random_tree(mdb2, 10000, 123213, 12312);
+	end_timer();
+//	mdb2->print_tree();
+	std::cout << "*1-first database done, copy, then type character to continue" << endl;
+	//getc(stdin);
+	start_timer();
+	build_random_tree(mdb3, 10000, 123213, 12312);
+	end_timer();
+//	mdb3->print_tree();
+	std::cout << "*2" << endl;
+
+	
+
+	start_timer();
+	dfs_with_pruning_test(mdb2, mdb3);
+	end_timer();
+
+	std::cout << "*3" << endl;
+	build_random_tree(mdb2, 1, 123213, 234981);
+	std::cout << "*4" << endl;
+	start_timer();
+	dfs_with_pruning_test(mdb2, mdb3);
+	end_timer();
+	//dfs_with_pruning_test(mdb2, mdb3);
 	//mdb1->flushp();
 	//mdb1->print_tree();
 	//mdb3->flushp();
@@ -1025,6 +1291,10 @@ int main( int argc, char** argv )
   //test_pending(db_env);
   //test_pending2(db_env);
   //test_prefix();
-  return 0;
+  mdb1->close();
+	mdb2->close();
+	mdb3->close();
+	mdb4->close();
+	return 0;
 }
 #endif

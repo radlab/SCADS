@@ -48,14 +48,15 @@ namespace SCADS {
     void print_tree();
     void print_children(DBT *key);
     void queue_children(DBT *key,std::vector<DBT>*);
-	
+	  int dbt_equal(DBT * db1, DBT * db2);
+		int dbt_cmp(DBT * db1, DBT * db2);
+		
   private:
     MerkleNode parent(MerkleNode * node);
     MerkleNode get(DBT * key);
     int insert(DBT * key, MerkleHash hash);
     int recalculate(DBT * key, DBT * data, DBC * cursorp);
     DBT parent(DBT * key, MerkleNode * node);
-    int dbt_equal(DBT * db1, DBT * db2);
   };
 
 }
