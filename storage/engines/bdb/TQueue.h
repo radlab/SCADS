@@ -36,15 +36,13 @@ public:
       perror("Could not create eq_cond");
 
     qptr = new T[size];
-    //cout << "qptr at const: "<<qptr<<endl;
-    qend = qptr+size;
+    qend = qptr+size-1;
     write_ptr = qptr;
     read_ptr = qptr;
   }
 
   ~TQueue() { 
-    //cout << "qptr at del: "<<qptr<<endl;    
-    //delete [] qptr; 
+    delete [] qptr; 
   }
   
   bool enqueue(const T& te) {
@@ -70,9 +68,6 @@ public:
     //(void)pthread_mutex_lock(&dq_tex);
     int ret = pthread_cond_signal(&dq_cond);
     //(void)pthread_mutex_unlock(&dq_tex);
-#ifdef DEBUG
-    cout << "queued"<<endl;
-#endif
   }
 
   T& dequeue() {
@@ -96,11 +91,6 @@ public:
     //(void)pthread_mutex_lock(&eq_tex);
     int r = pthread_cond_signal(&eq_cond);
     //(void)pthread_mutex_unlock(&eq_tex);
-
-#ifdef DEBUG
-    cout << "DEqueued"<<endl;
-#endif
-
     return *ret;
   }
 
