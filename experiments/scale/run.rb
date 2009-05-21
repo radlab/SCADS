@@ -2,7 +2,9 @@
 
 require 'sshctl'
 REQUESTS = 500000/30
-KEYRANGE = 50
+DIST = :partitioned
+scale = 1
+keyrange = 1024
 
 class Array
   def map_with_index
@@ -14,18 +16,19 @@ class Array
   end
 end
 
-[1,2,4,8,16,32].each do |scale|
+run_id = Time.now
+[1,2,4,8,16,32,64,128].each do |scale|
   test_id = Time.now
   
   servers = InstanceGroup.new(request_nodes(scale))
   clients = InstanceGroup.new(request_nodes(scale))
 
-  serverconf = default_config
+  serverconf = {"recipes" => []}
   serverconf["recipes"] << "scads::dbs"
   serverconf["recipes"] << "scads::perf"
   serverconf["recipes"] << "scads::storage_engine"
 
-  clientconf = default_config
+  clientconf = {"recipes" => []}
   clientconf["recipes"] << "scads::perf"
 
   puts("deploying chef config")
@@ -42,8 +45,12 @@ val dp = new SimpleDataPlacement("perfTest")
 EOF
 
   dpservice += servers.instances.map_with_index {|s,i| "val n#{i} = new StorageNode(\"#{s.internal}\",9000,9091)"}.join("\n") + "\n"
-  dpservice += servers.instances.map_with_index {|s,i| "dp.assign(n#{i}, KeyRange(keyFormat.format(#{(1024*KEYRANGE + 1)/scale*i}),keyFormat.format(#{(1024*KEYRANGE+1)/scale*(i+1)})))"}.join("\n") +"\n"
-
+  case DIST
+  when :partitioned
+    dpservice += servers.instances.map_with_index {|s,i| "dp.assign(n#{i}, KeyRange(keyFormat.format(#{(1024*keyrange + 1)/scale*i}),keyFormat.format(#{(1024*keyrange+1)/scale*(i+1)})))"}.join("\n") +"\n"
+  when :replicated
+    dpservice += servers.instances.map_with_index {|s,i| "dp.assign(n#{i}, KeyRange(keyFormat.format(0),keyFormat.format(#{(1024*keyrange+1)})))"}.join("\n") +"\n"
+  end
   dpservice += <<-EOF
 val server = new KeySpaceServer(8000)
 server.add("perfTest", dp)
@@ -58,7 +65,8 @@ EOF
   puts servers[0].start("scads_data_placement")
   
   loadtest = "
-val threads = (1 to 30).toList.map((id) => { new Thread(new RandomReader(\"#{scale} #{test_id}\", \"#{servers[0].internal}\", #{KEYRANGE}, #{REQUESTS}))})
+val testData = Map(\"scale\" -> \"#{scale}\", \"layout\" -> \"#{DIST}\", \"test_id\" -> \"#{test_id}\", \"cached\" -> \"warmed\", \"run_id\" -> \"#{run_id}\")
+val threads = (1 to 30).toList.map((id) => { new Thread(new RandomReader(testData, \"#{servers[0].internal}\", #{keyrange*1024}, #{REQUESTS}))})
 
 for(thread <- threads) thread.start
 for(thread <- threads) thread.join
@@ -73,6 +81,10 @@ println(\"done\")
   
   puts clients.stop("scads_loadtester")
   
+  puts "warming the cache"
+  clients[0].exec("scala -cp /usr/share/java/placement.jar:/usr/share/java/libthrift.jar Dumper #{servers[0].internal} perfTest > /mnt/dumped")
+  
+  puts "starting the test"
   5.times do
     puts clients.once("scads_loadtester")
 
@@ -96,3 +108,5 @@ println(\"done\")
   servers.free
   clients.free
 end
+
+`ssh r12 "echo 'test done' | mail 6302042046@txt.att.net"`

@@ -1,29 +1,53 @@
-case class RandomReader(test_id: String, server: String, maxKey: Int, requests: Int) extends Runnable {
+object CSVWriter {
+	val files = new scala.collection.immutable.HashMap[java.io.File, java.io.FileWriter]
+}
+
+trait CSVWriter {
+	val resultPrefix:String
+	val hostname = java.net.InetAddress.getLocalHost().getHostName()
+	def output(data: Map[String, String]) {
+		val keys = data.keys.toList.sort(_ < _)
+		val keyHash = join(keys, "").hashCode
+		val resultFile = new java.io.File(resultPrefix, "results." + hostname + "." + keyHash + ".csv")
+		val writer: java.io.FileWriter =
+			if(CSVWriter.files contains resultFile)
+				CSVWriter.files(resultFile)
+			else {
+				val newfile = !resultFile.exists()
+				val ret = new java.io.FileWriter(resultFile, true)
+
+				if(newfile)
+					ret.write(join(keys, ",") + "\n")
+				ret
+			}
+
+		val result = join(keys.map((key) => data(key)), ",") + "\n"
+		writer.write(result)
+		writer.flush()
+	}
+
+	private def join(list: List[String], seperator: String) = list.reduceLeft((k1: String, k2: String) => k1 + seperator + k2)
+}
+
+case class RandomReader(testData: Map[String, String], server: String, maxKey: Int, requests: Int) extends Runnable with CSVWriter {
 	case class SCADSClient(host: String, port: Int) extends ROWAClientLibrary with RemoteKeySpaceProvider
 	val client = new SCADSClient(server, 8000)
+	val resultPrefix = "/mnt"
 	
 	def run() {
+		var result = Map("data_placement_server" -> server, "max_key" -> maxKey.toString, "requests" -> requests.toString, "client_machine" -> java.net.InetAddress.getLocalHost().getHostName(), "client_threat" -> Thread.currentThread().getName()) ++ testData
 		val keyFormat = new java.text.DecimalFormat("000000000000000")
 		val rand = new java.util.Random
 		def getKey(key: Int) = keyFormat.format(key)
 
-		val start = System.currentTimeMillis()
+		result +=  ("start_time" -> System.currentTimeMillis().toString)
 		for(i <- 1 to requests) {
-			val key = getKey(rand.nextInt(50*1024))
+			val key = getKey(rand.nextInt(maxKey))
 			client.get("perfTest", key)
 		}
-		val end = System.currentTimeMillis()
-		println("test complete: " + (end - start))
-
-		val resultfile = new java.io.File("/mnt/results." + java.net.InetAddress.getLocalHost().getHostName() +".csv")
-		val newfile = !resultfile.exists()
-		val writer = new java.io.FileWriter(resultfile, true)
-
-		if(newfile){
-			writer.write("test, client, server, num_requests, start_time, end_time\n")
-		}
+		result +=  ("end_time" -> System.currentTimeMillis().toString)
 		
-		writer.write(test_id + "," + java.net.InetAddress.getLocalHost().getHostName() + "," + server + "," + requests + "," + start + "," + end + "\n")
-		writer.flush
+		println("test complete")
+		output(result)
 	}
 }
