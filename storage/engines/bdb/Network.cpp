@@ -54,11 +54,11 @@ int fill_buf(int* sock, char* buf, int off) {
   }
 #ifdef DEBUG
   /*  if (recvd > 0) {
-    printf("filled buffer:\n[");
+    printf("filled buffer (off: %i, recvd: %i)\n[",off,recvd);
     for(int i = 0;i<recvd;i++) 
       printf("%i ",buf[i]);
-    printf("\b]\n");
-    }*/
+      printf("\b]\n");
+      }*/
 #endif
   return recvd;
 }
@@ -826,6 +826,8 @@ int do_merkle_sync(int sock, const NameSpace& ns,
 		   ConflictPolicy& pol) {
   DBT key,data,lkey,ldata;
   int ret;
+  int yesed_size; // shorted thing i've yesed, so i can ignore until i get something this short again DFS ONLY
+  bool ignoring = false;
 #ifdef DEBUG
     cout << "Doing a merkle sync"<<endl;
 #endif
@@ -854,6 +856,211 @@ int do_merkle_sync(int sock, const NameSpace& ns,
 	off = fill_dbt(&sock,&data,&key,dbuf,dbuf+off,&end);
       } catch (ReadDBTException &e) {
 	cerr << "Could not read data in do_merkle_sync: "<<e.what()<<endl;
+	if (key.flags)
+	  free(key.data);
+	if (data.flags)
+	  free(data.data);
+	return 1;
+      }
+      int res;
+      kf = key.flags;
+      key.flags = 0;
+      df = data.flags;
+      data.flags = 0;
+      //if (ignoring) break;
+      memset(&ldata, 0, sizeof(DBT));
+      ldata.flags = DB_DBT_MALLOC;
+      ret = db->get(db,NULL,&key,&ldata,0);
+      if (ret == DB_NOTFOUND) {
+#ifdef DEBUG
+	cout << "Local data missing, inserting"<<endl;
+	cout << "[remote] key: "<<dbt_string(&key)<<" data: "<<dbt_string(&data)<<endl;
+#endif
+	res = REM_REPLS;
+      } else if (ret == 0) {
+#ifdef DEBUG
+	cout << "[local]  key: "<<dbt_string(&key)<<" data: "<<dbt_string(&ldata)<<endl;
+	cout << "[remote] key: "<<dbt_string(&key)<<" data: "<<dbt_string(&data)<<endl;
+#endif
+	res = resolve_data(&ldata,&data,pol);
+      } else {
+	db->err(db,ret,"Getting local data");
+	cerr << "[remote] key: "<<dbt_string(&key)<<" data: "<<dbt_string(&data)<<endl;
+	res = DATA_EQUAL;
+      }
+      switch (res) {
+      case DATA_EQUAL: // nothing to do
+	break;
+      case REM_REPLS: { // need to insert locally
+#ifdef DEBUG
+	cout << "Local is less, inserting"<<endl;
+#endif
+	storageDB->putDBTs(db,mdb,&key,&data);
+	break;
+      }
+      case LOC_REPLS: { // local replaces, send back over
+#ifdef DEBUG
+	cout << "Local is greater, sending back"<<endl;
+#endif
+	send_vals(sock,&key,&ldata,node_data);
+	break;
+      }
+      case BOTH_REPL: { // do both
+	cout << "BOTH_REPL not handled at the moment"<<endl;
+	break;
+      }
+      default:
+	cerr << "Wrong value for data resolution, something is bad"<<endl;
+      }
+    }
+      // this breaks the NODE_DATA case
+      break;
+    case NODE_MERKLE: {
+      MerkleHash hash;
+      try {
+	off = readHash(&sock,&hash,&key,dbuf,dbuf+off,&end);
+      } catch (ReadDBTException &e) {
+	cerr << "Could not read hash in do_merkle_sync: "<<e.what()<<endl;
+	if (key.flags)
+	  free(key.data);
+	return 1;
+      }
+      kf = key.flags;
+      key.flags = 0;
+      df = data.flags;
+      data.flags = 0;
+      if (ignoring) {
+	if (key.size <= yesed_size)
+	  ignoring = false;
+	else
+	  break;
+      }
+#ifdef DEBUG
+      cout << "Got merkle node in do_merkle_sync.  Key is: "<<string((char*)key.data,key.size)<<" hash: "<<hash<<endl;
+#endif
+      memset(&ldata, 0, sizeof(DBT));
+      ldata.flags = DB_DBT_MALLOC;
+      ret = mdb->dbp->get(mdb->dbp,NULL,&key,&ldata,0);
+      if (ret == DB_NOTFOUND) { // I don't have it, that's a no
+#ifdef DEBUG
+	cout << "I don't have this node, I'm going to reply no"<<endl;
+#endif
+	send_vals(sock,&key,NULL,merkle_no);
+	break;
+      }
+      MerkleNode * ln =  (MerkleNode *)(ldata.data);
+#ifdef DEBUG
+      cout<<"local node: "<<ln->digest<<endl;
+      cout<<"remote node: "<<hash<<endl;
+#endif
+      /*** BSF CODE ***/
+      /*
+      if (ln->digest != hash) {
+#ifdef DEBUG
+	cout << "digests don't match, sending a no"<<endl;
+#endif
+	send_vals(sock,&key,NULL,merkle_no);
+#ifdef DEBUG
+	cout << "sent"<<endl;
+#endif
+      }
+      */
+      /*** END BFS CODE ***/
+      
+      /*** DFS CODE ***/
+      if (ln->digest != hash &&
+	  is_leaf(&key)) {
+#ifdef DEBUG
+	cout << "digests don't match and it's a leaf, sending a no"<<endl;
+#endif
+	send_vals(sock,&key,NULL,merkle_no);
+      }
+      
+      if (!is_leaf(&key) &&
+	  ln->digest == hash) {
+#ifdef DEBUG
+	cout << "digests match and it's not a leaf, sending a yes"<<endl;
+#endif
+	send_vals(sock,&key,NULL,merkle_yes);
+	ignoring = true;
+	yesed_size = key.size;
+      }
+      /*** END DFS CODE ***/
+      break;
+    }
+    case MERKLE_STOP:  // should only get in the DFS case
+#ifdef DEBUG
+      cout << "End of merkle tree, sending over final marker"<<endl;
+#endif
+      send_string(sock,"");
+      break;
+    case MERKLE_MARK: {
+#ifdef DEBUG
+      cout << "Got merkle mark in do_merkle_sync.  Sending mark back"<<endl;
+#endif
+      kf = key.flags;
+      send_mark(sock);
+      break;
+    }
+    }
+    if (kf)
+      free(key.data);
+    if (df)
+      free(data.data);
+  }
+}
+
+int do_merkle_dfs_sync(int sock, const NameSpace& ns,
+		       StorageDB* storageDB,
+		       DB* db, MerkleDB* mdb,
+		       char* dbuf, char* end, int off, 
+		       ConflictPolicy& pol) {
+  DBT key,data,lkey,ldata,mkey,mdata;
+  int ret;
+  bool eot = false;
+  bool rok = false;
+  memset(&key, 0, sizeof(DBT));
+  memset(&data, 0, sizeof(DBT));
+  int kf,df;
+
+  // init the merkle tree
+  DBC* cursorp;
+  DB* dbp = mdb->dbp;
+  memset(&mkey, 0, sizeof(DBT));
+  mkey.flags = DB_DBT_MALLOC;
+  memset(&mdata, 0, sizeof(DBT));
+  mdata.flags = DB_DBT_MALLOC;
+  dbp->cursor(dbp, NULL, &cursorp, 0); 
+  ret = cursorp->get(cursorp, &mkey, &mdata, DB_NEXT);
+  if (ret != 0) {
+    cerr << "couldn't get merkle cursor in dfs_sync"<<endl;
+    return 1;
+  }
+
+  for(;;) {
+    kf = 0;
+    df = 0;
+    try {
+      off = fill_dbt(&sock,&key,NULL,dbuf,dbuf+off,&end);
+    } catch (ReadDBTException &e) {
+      cerr << "Could not read key in do_merkle_sync: "<<e.what()<<endl;
+      if (key.flags)
+	free(key.data);
+      return 1;
+    }
+    
+    if (off == 0)       
+      return 0;
+  
+    switch(key.doff) { // doff is where we store the type
+    case NODE_DATA: {
+#ifdef DEBUG
+      cout << "Got data node in do_merkle_dfs_sync.  key:"<<dbt_string(&key)<<endl;
+#endif
+      try {
+	off = fill_dbt(&sock,&data,&key,dbuf,dbuf+off,&end);
+      } catch (ReadDBTException &e) {
+	cerr << "Could not read data in do_merkle_dfs_sync: "<<e.what()<<endl;
 	if (key.flags)
 	  free(key.data);
 	if (data.flags)
@@ -913,9 +1120,6 @@ int do_merkle_sync(int sock, const NameSpace& ns,
       // this breaks the NODE_DATA case
       break;
     case NODE_MERKLE: {
-#ifdef DEBUG
-      cout << "Got merkle node in do_merkle_sync.  Key is: "<<string((char*)key.data,key.size)<<endl;
-#endif
       MerkleHash hash;
       try {
 	off = readHash(&sock,&hash,&key,dbuf,dbuf+off,&end);
@@ -925,53 +1129,116 @@ int do_merkle_sync(int sock, const NameSpace& ns,
 	  free(key.data);
 	return 1;
       }
-#ifdef DEBUG
-      cout << "Hash is: "<<hash<<endl;
-#endif
       kf = key.flags;
       key.flags = 0;
       df = data.flags;
       data.flags = 0;
-      memset(&ldata, 0, sizeof(DBT));
-      ldata.flags = DB_DBT_MALLOC;
-      ret = mdb->dbp->get(mdb->dbp,NULL,&key,&ldata,0);
-      if (ret == DB_NOTFOUND) { // I don't have it, that's a no
+
+      if (eot) { // i've hit the end of my tree
+	if (!rok && is_leaf(&key) && (mdb->dbt_cmp(&key,&mkey) > 0)) {
 #ifdef DEBUG
-	cout << "I don't have this node, I'm going to reply no"<<endl;
+	  cout << "data node after the end of my tree, sending no"<<endl;
 #endif
-	send_vals(sock,&key,NULL,merkle_no);
+	  send_vals(sock,&key,NULL,merkle_no);
+	}
 	break;
       }
-      MerkleNode * ln =  (MerkleNode *)(ldata.data);
+
+      if (key.size != 0) { // always process root node
+	int c = mdb->dbt_cmp(&mkey,&key);
+	if (c > 0) break;
+	while (c < 0) { // need to catch up
+	  free(mkey.data);
+	  free(mdata.data);
+	  ret = cursorp->get(cursorp, &mkey, &mdata, DB_NEXT);
+	  if (ret == DB_NOTFOUND) { // end of my tree
+	    eot = true;
+	    ret = cursorp->get(cursorp, &mkey, &mdata, DB_LAST);
+	    c = 1; // force the send of no if it's a leaf
+	    break;
+	  }
+	  c = mdb->dbt_cmp(&mkey,&key);
+	  if (c >= 0) break;
+	}
+	if (c > 0) { // means i'm missing this node, send a no
+	  if (is_leaf(&key)) {
+#ifdef DEBUG
+	    cout << "I don't have this node, I'm going to reply no"<<endl;
+#endif
+	    send_vals(sock,&key,NULL,merkle_no);
+	  }
+	  break;
+	}
+      }
+
+#ifdef DEBUG
+      cout << "Got merkle node in do_merkle_sync.  Key is: "<<string((char*)key.data,key.size)<<" hash: "<<hash<<endl;
+#endif
+      MerkleNode * ln = (MerkleNode *)(mdata.data);
 #ifdef DEBUG
       cout<<"local node: "<<ln->digest<<endl;
       cout<<"remote node: "<<hash<<endl;
 #endif
-      if (ln->digest != hash) {
+      if (ln->digest != hash &&
+	  is_leaf(&key)) {
 #ifdef DEBUG
-	cout << "digests don't match, sending a no"<<endl;
+	cout << "digests don't match and it's a leaf, sending a no"<<endl;
 #endif
 	send_vals(sock,&key,NULL,merkle_no);
-#ifdef DEBUG
-	cout << "sent"<<endl;
-#endif
+	// advance by one
+	free(mkey.data);
+	free(mdata.data);
+	ret = cursorp->get(cursorp, &mkey, &mdata, DB_NEXT);
+	if (ret == DB_NOTFOUND) {
+	  eot = true;
+	  ret = cursorp->get(cursorp, &mkey, &mdata, DB_LAST);
+	}
       }
-      break;
-    }
-    case MERKLE_MARK: {
+      
+      if (!is_leaf(&key) &&
+	  ln->digest == hash) {
 #ifdef DEBUG
-      cout << "Got merkle mark in do_merkle_sync.  Sending mark back"<<endl;
+	cout << "digests match and it's not a leaf, sending a yes"<<endl;
 #endif
-      kf = key.flags;
-      send_mark(sock);
+	send_vals(sock,&key,NULL,merkle_yes);
+	if (key.size == 0) { // root node, we're done, just wait for the other side to notice
+	  eot = true;
+	  rok = true;
+	  break;
+	} else {
+	  // advance to next branch
+	  free(mkey.data);
+	  free(mdata.data);
+	  mkey.data = key.data;
+	  mkey.size = key.size;
+	  char* cd = (char*)mkey.data;
+	  cd[mkey.size-1]++;
+	  ret = cursorp->get(cursorp,&mkey,&mdata,DB_SET_RANGE);
+	  if (ret == DB_NOTFOUND) {
+	    eot = true;
+	    ret = cursorp->get(cursorp, &mkey, &mdata, DB_LAST);
+	  }
+	}
+      }
+      /*** END DFS CODE ***/
       break;
     }
-    }
+    case MERKLE_STOP:
+#ifdef DEBUG
+      cout << "End of merkle tree, sending over final marker"<<endl;
+#endif
+      send_string(sock,"");
+      break;
+    } // end of switch
     if (kf)
       free(key.data);
     if (df)
       free(data.data);
   }
+  free(mkey.data);
+  free(mdata.data);
+  if (cursorp != NULL)
+    cursorp->close(cursorp);
 }
 
 int do_sync(int sock, StorageDB* storageDB, char* dbuf, char sync_type) {
@@ -1087,7 +1354,10 @@ int do_sync(int sock, StorageDB* storageDB, char* dbuf, char sync_type) {
     MerkleDB *mdb = storageDB->getMerkleDB(ns);
     storageDB->flush_lock(false);
     mdb->flushp();
-    do_merkle_sync(sock,ns,storageDB,db,mdb,dbuf,end,off,policy);
+    // BFS
+    //do_merkle_sync(sock,ns,storageDB,db,mdb,dbuf,end,off,policy);
+    // DFS
+    do_merkle_dfs_sync(sock,ns,storageDB,db,mdb,dbuf,end,off,policy);
     storageDB->flush_lock(true);
   }
 
@@ -1771,12 +2041,206 @@ void* merkle_recv(void* arg) {
 }
 
 
+static DBT last_yes;
+static pthread_mutex_t last_yes_tex,sending_tex;
+
+void* merkle_dfs_recv(void* arg) {
+  char *end;
+  int off = 0;
+  int ic;
+  DBT key,data, ldata;
+  char dbuf[BUFSZ];
+  struct merkle_recv_args* args = (struct merkle_recv_args*)arg;
+  
+  int sock = args->sock;
+  DB* db = args->db;
+  StorageDB* storageDB = args->storageDB;
+  MerkleDB* merkleDB = args->merkleDB;
+  args->stat = 0;
+  end = dbuf;
+
+  memset(&key, 0, sizeof(DBT));
+  memset(&data, 0, sizeof(DBT));
+  memset(&ldata, 0, sizeof(DBT));
+  ldata.flags = DB_DBT_MALLOC;
+
+  for (;;) {
+    int kf = 0;
+    int df = 0;
+    try {
+      off = fill_dbt(&sock,&key,NULL,dbuf,dbuf+off,&end);
+    } catch (ReadDBTException &e) {
+      cerr << "Could not read next item in handle_merkle_reply: "<<e.what()<<endl;
+      if (key.flags)
+	free(key.data);
+      return NULL;
+    }
+
+    if (off == 0)
+      return 0;
+
+    int code = key.doff;
+    key.doff = 0;
+
+    switch (code) {
+    case NODE_DATA: {
+#ifdef DEBUG
+      cout << "Got data in merkle reply for: "<<dbt_string(&key)<<endl;
+#endif
+      try {
+	if (data.flags)
+	  cout << "BAD!"<<endl;
+	off = fill_dbt(&sock,&data,&key,dbuf,dbuf+off,&end);
+      } catch (ReadDBTException &e) {
+	cerr << "Could not read next item in handle_merkle_reply: "<<e.what()<<endl;
+	if (key.flags)
+	  free(key.data);
+	if (data.flags)
+	  free(data.data);
+	return 0;
+      }
+      kf = key.flags;
+      df = data.flags;
+      key.flags = 0;
+      data.flags = 0;
+#ifdef DEBUG
+      cout << "key: "<<dbt_string(&key)<<" data: "<<dbt_string(&data)<<endl;
+#endif
+      storageDB->putDBTs(db,merkleDB,&key,&data);
+      break;
+    }
+    case MERKLE_YES: {
+#ifdef DEBUG
+      cout << "Merkle yes in handle"<<endl;
+#endif
+      (void)pthread_mutex_lock(&last_yes_tex);
+      if (last_yes.size < key.size)
+	last_yes.data = realloc(last_yes.data,key.size);
+      last_yes.size = key.size;
+      memcpy(last_yes.data,key.data,key.size);
+      last_yes.flags = 1;
+      (void)pthread_mutex_unlock(&last_yes_tex);      
+      kf = key.flags;
+      key.flags = 0;
+      break;
+    }
+    case MERKLE_NO: {
+#ifdef DEBUG
+      cout << "Merkle no in handle for: "<<string((char*)key.data,key.size)<<endl;
+#endif
+      if (is_leaf(&key)) {
+	key.size--; // remove null term
+	int ret = db->get(db,NULL,&key,&ldata,0);
+	if (ret == 0) {  // i had data there, send it over
+#ifdef DEBUG
+	  cout << "Sending over my local data: "<<dbt_string(&key)<<endl;
+#endif
+	  (void)pthread_mutex_lock(&sending_tex);
+	  send_vals(sock,&key,&ldata,node_data);
+	  (void)pthread_mutex_unlock(&sending_tex);
+	  free(ldata.data);
+	}
+	key.size++;      
+      } else
+	cerr << "SHOULD NOT GET NO'S FOR NON LEAF NODES IN DFS TRAVERAL"<<endl;
+      kf = key.flags;
+      key.flags = 0;
+    }
+      break;
+    }
+    if (kf)
+      free(key.data);
+    if (df)
+      free(data.data);
+  }
+}
+
+bool cursor_advance(DBC* cursorp, DBT* key, DBT* data) {
+  (void)pthread_mutex_lock(&last_yes_tex);
+  if (!last_yes.flags) { // we've already handled this one
+    (void)pthread_mutex_unlock(&last_yes_tex); 
+    return true;
+  }
+  if (last_yes.size == 0) { // was a yes to our root node
+#ifdef DEBUG
+    cout << "Yes to root, kicking out"<<endl;
+#endif
+    (void)pthread_mutex_unlock(&last_yes_tex);     
+    return false;
+  }
+  last_yes.flags = 0;
+  int s = key->size<last_yes.size?
+    key->size:
+    last_yes.size;
+  int mc = memcmp(key->data,last_yes.data,s);
+  if ( (mc > 0) ||
+       ( (mc == 0) &&
+	 (key->size > last_yes.size)) )  { // i'm already ahead of this
+    (void)pthread_mutex_unlock(&last_yes_tex);
+    return true;
+  }
+
+  // okay, last_yes is ahead of us, let's advance
+  free(key->data);
+  free(data->data);
+  key->data = last_yes.data;
+  key->size = last_yes.size;
+  char* cd = (char*)key->data;
+  cd[key->size-1]++;
+  int ret = cursorp->get(cursorp,key,data,DB_SET_RANGE);
+  (void)pthread_mutex_unlock(&last_yes_tex);
+  return ret==0;
+}
+
+// DFS traversal.  just send keys, skipping if needed
+void send_merkle_dfs(int sock, MerkleDB* mdb) {
+  DBC *cursorp;
+  DBT key, data;
+  int ret;
+  DB* dbp = mdb->dbp;
+
+  /* Get a cursor */
+  dbp->cursor(dbp, NULL, &cursorp, 0); 
+
+  /* Initialize our DBTs. */
+  memset(&key, 0, sizeof(DBT));
+  key.flags = DB_DBT_MALLOC;
+  memset(&data, 0, sizeof(DBT));
+  data.flags = DB_DBT_MALLOC;
+
+  /* Iterate over the database, retrieving each record in turn. */
+  MerkleNode * mn;
+  while ((ret = cursorp->get(cursorp, &key, &data, DB_NEXT)) == 0) {
+    if(!cursor_advance(cursorp,&key,&data))
+      break;
+    mn = (MerkleNode *)data.data;
+    (void)pthread_mutex_lock(&sending_tex);
+    send_vals(sock,&key,NULL,node_merkle);
+    send_hash(sock,mn->digest);    
+    (void)pthread_mutex_unlock(&sending_tex);
+    free(key.data);
+    free(data.data);
+    sleep(1);
+  }
+
+#ifdef DEBUG
+  cout << "finished sending merkle tree, sending STOP"<<endl;
+#endif
+
+  (void)pthread_mutex_lock(&sending_tex);
+  send_merkle_stop(sock);
+  (void)pthread_mutex_unlock(&sending_tex);
+
+  if (cursorp != NULL) 
+    cursorp->close(cursorp);
+}
+
 bool StorageDB::
 merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const ConflictPolicy& policy) {
   int numbytes,ret;
   char stat;
   DBT key,data;
-  TQueue<DBT> tq(1024);
+
 
   // TODO:MAKE SURE POLICY IS VALID
   DB* dbp = getDB(ns);
@@ -1860,6 +2324,10 @@ merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
   cout << "Found root node, going ahead with sync"<<endl;
 #endif
 
+
+  /*** BFS CODE ***
+  TQueue<DBT> tq(100000000);
+
   // first send the root
   MerkleNode * root =  (MerkleNode *)(data.data);
   send_vals(sock,&key,NULL,node_merkle);
@@ -1879,6 +2347,57 @@ merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
 			merkle_recv,&args);
 
   stat = merkle_send(sock,dbp,mdb,&tq);
+  pthread_join(recv_thread,NULL);
+  *** END BFS CODE */
+
+  /*** DFS CODE ***/
+  last_yes.flags = 0;
+  last_yes.size = 0;
+  last_yes.data = NULL;
+  if (pthread_mutex_init(&last_yes_tex,NULL)) 
+    do_throw(errno,"Couldn't create last_yes mutex:");
+  if (pthread_mutex_init(&sending_tex,NULL)) {
+    TException te("Couldn't create sending mutex");
+    throw te;
+  }
+
+  struct merkle_recv_args args;
+  args.sock = sock;
+  args.db = dbp;
+  args.storageDB = this;
+  args.merkleDB = mdb;
+  args.tq = NULL;
+
+  pthread_t recv_thread;
+  (void) pthread_create(&recv_thread,NULL,
+			merkle_dfs_recv,&args);
+
+  send_merkle_dfs(sock,mdb);
+  
+  pthread_join(recv_thread,NULL);
+
+  if ( (ret = (pthread_mutex_destroy(&last_yes_tex))) != 0) {
+    switch(ret) {
+    case EBUSY: {
+      TException te("Couldn't destroy last_yes mutex, it is locked or referenced");
+      throw te;
+    }
+    case EINVAL: {
+      TException te("Couldn't destroy last_yes mutex, it is invalid");
+      throw te;
+    }
+    default: {
+      TException te("Couldn't destroy last_yes mutex, unknown error");
+      throw te;
+    }
+    }
+  }
+  if (pthread_mutex_destroy(&sending_tex)) 
+    do_throw(errno,"Couldn't destroy sending mutex:");
+
+  if (last_yes.data != NULL)
+    free(last_yes.data);
+  /*** END DFS CODE ***/
 
 #ifdef DEBUG
   cout << "Done, sending final done"<<endl;
