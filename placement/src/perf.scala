@@ -1,5 +1,6 @@
 object CSVWriter {
 	val files = new scala.collection.immutable.HashMap[java.io.File, java.io.FileWriter]
+	val timestamp = System.currentTimeMillis().toString
 }
 
 trait CSVWriter {
@@ -8,7 +9,7 @@ trait CSVWriter {
 	def output(data: Map[String, String]) {
 		val keys = data.keys.toList.sort(_ < _)
 		val keyHash = join(keys, "").hashCode
-		val resultFile = new java.io.File(resultPrefix, "results." + hostname + "." + keyHash + ".csv")
+		val resultFile = new java.io.File(resultPrefix, "results." + hostname + "." + keyHash + "." + CSVWriter.timestamp + ".csv")
 		val writer: java.io.FileWriter =
 			if(CSVWriter.files contains resultFile)
 				CSVWriter.files(resultFile)
