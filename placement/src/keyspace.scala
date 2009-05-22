@@ -6,10 +6,10 @@ class NoNodeResponsibleException extends Exception
 class NullKeyLookupException extends Exception
 
 object KeyRange {
-	val EmptyRange = new KeyRange("", "")
+	val EmptyRange = new KeyRange(MinKey, MinKey)
 }
 
-case class KeyRange(start: String, end: String) {
+case class KeyRange(start: Key, end: Key) {
 	if(start != null && end != null)
 		assert(start <= end,"keyspace.scala: "+start +" !<= "+end)
 
@@ -72,7 +72,7 @@ case class KeyRange(start: String, end: String) {
 			KeyRange.EmptyRange
 	}
 
-	def includes(key: String):Boolean = {
+	def includes(key: Key):Boolean = {
 		if (key==null) throw new NullKeyLookupException
 		else {
 		if ( this.start==null) {
@@ -89,9 +89,9 @@ case class KeyRange(start: String, end: String) {
 		}
 	}
 
-	private def min(a: String, b: String) = if(a < b) a else b
-	private def max(a: String, b: String) = if(a > b) a else b
-	private def coalesce(a: String, b:String) = if(a != null) a else b
+	private def min(a: Key, b: Key) = if(a < b) a else b
+	private def max(a: Key, b: Key) = if(a > b) a else b
+	private def coalesce(a: Key, b:Key) = if(a != null) a else b
 }
 
 abstract class KeySpace {
@@ -99,7 +99,7 @@ abstract class KeySpace {
 	def remove(node: StorageNode)
 
 	def lookup(node: StorageNode): KeyRange
-	def lookup(key: String):List[StorageNode]
+	def lookup(key: Key):List[StorageNode]
 	def lookup(range: KeyRange): Map[StorageNode, KeyRange]
 	def coverage: Iterator[KeyRange]
 	def isCovered(desired_range: KeyRange, ranges: Set[KeyRange]): Boolean
@@ -116,9 +116,9 @@ class SimpleKeySpace extends KeySpace {
 		space = (space - node)
 
 	def lookup(node: StorageNode): KeyRange =
-		space.get(node).getOrElse(KeyRange("", ""))
+		space.get(node).getOrElse(KeyRange(MinKey, MinKey))
 
-	def lookup(key: String):List[StorageNode] =
+	def lookup(key: Key):List[StorageNode] =
 		space.toList.filter((pair) => pair._2.includes(key)).map((pair) => pair._1)
 
 	def lookup(range: KeyRange): Map[StorageNode, KeyRange] =

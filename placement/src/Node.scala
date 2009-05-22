@@ -122,8 +122,8 @@ trait ThriftConversions {
 		val range = new SCADS.RangeSet
 		recSet.setType(SCADS.RecordSetType.RST_RANGE)
 		recSet.setRange(range)
-		range.setStart_key(x.start)
-		range.setEnd_key(x.end)
+		range.setStart_key(x.start.serialize)
+		range.setEnd_key(x.end.serialize)
 
 		return recSet
 	}

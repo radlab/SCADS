@@ -1,3 +1,5 @@
+import AutoKey._
+
 object Dumper {
 	def main(args: Array[String]) = {
 		val keyFormat = new java.text.DecimalFormat("000000000000000")

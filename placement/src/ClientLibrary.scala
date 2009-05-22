@@ -9,11 +9,8 @@ import java.util.Comparator
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.HashSet
 
+import AutoKey._
 
-trait KeySpaceProvider {
-	def getKeySpace(ns: String):KeySpace
-	def refreshKeySpace()
-}
 
 trait LocalKeySpaceProvider extends KeySpaceProvider {
 	var ns_map = new HashMap[String,KeySpace]
@@ -44,9 +41,7 @@ abstract class ClientLibrary extends SCADS.ClientLibrary.Iface {
 
 class RecordComparator extends java.util.Comparator[SCADS.Record] {
 	def compare(o1: SCADS.Record, o2: SCADS.Record): Int = {
-		if (o1.key < o2.key) -1
-		else if (o1.key > o2.key) 1
-		else 0 // equal
+		o1.key compareTo o2.key
 	}
 }
 
@@ -158,7 +153,7 @@ abstract class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpace
 		resultmap
 	}
 
-	private def find_node_at_start(nodes: Map[StorageNode,KeyRange], start: String): (StorageNode,KeyRange) = {
+	private def find_node_at_start(nodes: Map[StorageNode,KeyRange], start: Key): (StorageNode,KeyRange) = {
 		// nodes that start at or before target start, null target start needs a null start
 		var potential_nodes = Map[StorageNode,KeyRange]()
 		if (start == null) { potential_nodes = nodes.filter((entry) => entry._2.start==null) }

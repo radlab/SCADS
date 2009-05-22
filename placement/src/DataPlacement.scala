@@ -1,3 +1,7 @@
+trait KeySpaceProvider {
+	def getKeySpace(ns: String):KeySpace
+	def refreshKeySpace()
+}
 
 trait DataPlacement {
 	def assign(node: StorageNode, range: KeyRange)

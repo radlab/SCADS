@@ -1,4 +1,5 @@
 import org.scalatest.Suite
+import AutoKey._
 
 case class ClientApp(h: String, p: Int) extends ThriftConnection {
 	val host = h
@@ -307,10 +308,10 @@ class KeyRangeSuite extends Suite {
 	def testAddition() {
 		assert(KeyRange("a","c") + KeyRange("b", "d") == KeyRange("a", "d"))
 		assert(KeyRange("b", "d") + KeyRange("a","c") == KeyRange("a", "d"))
-		assert(KeyRange(null,"c") + KeyRange("b", "d") == KeyRange(null, "d"))
-		assert(KeyRange("a",null) + KeyRange("b", "d") == KeyRange("a", null))
-		assert(KeyRange("a","c") + KeyRange(null, "d") == KeyRange(null, "d"))
-		assert(KeyRange("a","c") + KeyRange("b", null) == KeyRange("a", null))
+		assert(KeyRange(MinKey,"c") + KeyRange("b", "d") == KeyRange(MinKey, "d"))
+		assert(KeyRange("a",MaxKey) + KeyRange("b", "d") == KeyRange("a", MaxKey))
+		assert(KeyRange("a","c") + KeyRange(MinKey, "d") == KeyRange(MinKey, "d"))
+		assert(KeyRange("a","c") + KeyRange("b", MaxKey) == KeyRange("a", MaxKey))
 
 		assert(KeyRange("a","b") + KeyRange("b", "c") == KeyRange("a", "c"))
 		assert(KeyRange("b", "c") + KeyRange("a","b") == KeyRange("a", "c"))
@@ -346,14 +347,14 @@ class KeyRangeSuite extends Suite {
 	def testAnd() {
 		assert((KeyRange("a","c") & KeyRange("b", "d")) == KeyRange("b", "c"))
 		assert((KeyRange("b", "d") & KeyRange("a","c")) == KeyRange("b", "c"))
-		assert((KeyRange(null,"c") & KeyRange("b", "d")) == KeyRange("b", "c"))
-		assert((KeyRange("a",null) & KeyRange("b", "d")) == KeyRange("b", "d"))
-		assert((KeyRange("a","c") & KeyRange(null, "d")) == KeyRange("a", "c"))
-		assert((KeyRange("a","c") & KeyRange("b", null)) == KeyRange("b", "c"))
+		assert((KeyRange(MinKey,"c") & KeyRange("b", "d")) == KeyRange("b", "c"))
+		assert((KeyRange("a",MaxKey) & KeyRange("b", "d")) == KeyRange("b", "d"))
+		assert((KeyRange("a","c") & KeyRange(MinKey, "d")) == KeyRange("a", "c"))
+		assert((KeyRange("a","c") & KeyRange("b", MaxKey)) == KeyRange("b", "c"))
 		assert((KeyRange("a","c") & KeyRange.EmptyRange) == KeyRange.EmptyRange)
 		assert((KeyRange.EmptyRange & KeyRange("a","c")) == KeyRange.EmptyRange)
 
-		assert((KeyRange("m",null) & KeyRange("friend-8a43af10-180a-012c-331d-001b6391e19a-of-", "friend-8a43af10-180a-012c-331d-001b6391e19a-of/")) == KeyRange.EmptyRange)
+		assert((KeyRange("m",MaxKey) & KeyRange("friend-8a43af10-180a-012c-331d-001b6391e19a-of-", "friend-8a43af10-180a-012c-331d-001b6391e19a-of/")) == KeyRange.EmptyRange)
 	}
 }
 
