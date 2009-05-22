@@ -63,7 +63,7 @@ storage.bdb: $(SRCS_TO_GEN) $(STORAGE_SRCS)
 	$(CXX) $(CFLAGS) $(RUBY_INCLUDES) -o $@ $(STORAGE_SRCS) ${GEN_SRC} $(LIBS)
 
 storage.bdb.debug: $(SRCS_TO_GEN) $(STORAGE_SRCS)
-	$(CXX) -g $(CFLAGS) $(RUBY_INCLUDES) -DDEBUG -o storage.bdb $(STORAGE_SRCS) ${GEN_SRC} $(LIBS)
+	$(CXX) -g $(CFLAGS) $(RUBY_INCLUDES) -DDEBUG=DEBUG -o storage.bdb $(STORAGE_SRCS) ${GEN_SRC} $(LIBS)
 
 storage.bdb.debugquiet: $(SRCS_TO_GEN) $(STORAGE_SRCS)
 	$(CXX) -g $(CFLAGS) $(RUBY_INCLUDES) -o storage.bdb $(STORAGE_SRCS) ${GEN_SRC} $(LIBS)
