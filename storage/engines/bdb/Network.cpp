@@ -1072,8 +1072,27 @@ int do_merkle_dfs_sync(int sock, const NameSpace& ns,
       key.flags = 0;
       df = data.flags;
       data.flags = 0;
+
+      if (key.size != 0) { // always process root node
+	int c = mdb->dbt_cmp(&mkey,&key);
+	if (c > 0) break;
+	if (c < 0) { // need to catch up, TODO: should this EVER happen?
+	  free(mkey.data);
+	  free(mdata.data);
+	  mkey.size = key.size;
+	  mkey.data = key.data;
+	  ret = cursorp->get(cursorp, &mkey, &mdata, DB_SET_RANGE);
+	  if (ret == DB_NOTFOUND) { // end of my tree
+	    eot = true;
+	    ret = cursorp->get(cursorp, &mkey, &mdata, DB_LAST);
+	  }
+	}
+      }
+
+
       memset(&ldata, 0, sizeof(DBT));
       ldata.flags = DB_DBT_MALLOC;
+      key.size--; // remove null term
       ret = db->get(db,NULL,&key,&ldata,0);
       if (ret == DB_NOTFOUND) {
 #ifdef DEBUG
@@ -1116,6 +1135,15 @@ int do_merkle_dfs_sync(int sock, const NameSpace& ns,
       default:
 	cerr << "Wrong value for data resolution, something is bad"<<endl;
       }
+      key.size++;
+      // advance by one
+      free(mkey.data);
+      free(mdata.data);
+      ret = cursorp->get(cursorp, &mkey, &mdata, DB_NEXT);
+      if (ret == DB_NOTFOUND) {
+	eot = true;
+	ret = cursorp->get(cursorp, &mkey, &mdata, DB_LAST);
+      }
     }
       // this breaks the NODE_DATA case
       break;
@@ -1147,26 +1175,19 @@ int do_merkle_dfs_sync(int sock, const NameSpace& ns,
       if (key.size != 0) { // always process root node
 	int c = mdb->dbt_cmp(&mkey,&key);
 	if (c > 0) break;
-	while (c < 0) { // need to catch up
+	if (c < 0) { // need to catch up
 	  free(mkey.data);
 	  free(mdata.data);
-	  ret = cursorp->get(cursorp, &mkey, &mdata, DB_NEXT);
+	  mkey.size = key.size;
+	  mkey.data = key.data;
+	  ret = cursorp->get(cursorp, &mkey, &mdata, DB_SET_RANGE);
 	  if (ret == DB_NOTFOUND) { // end of my tree
 	    eot = true;
 	    ret = cursorp->get(cursorp, &mkey, &mdata, DB_LAST);
-	    c = 1; // force the send of no if it's a leaf
-	    break;
 	  }
 	  c = mdb->dbt_cmp(&mkey,&key);
-	  if (c >= 0) break;
 	}
-	if (c > 0) { // means i'm missing this node, send a no
-	  if (is_leaf(&key)) {
-#ifdef DEBUG
-	    cout << "I don't have this node, I'm going to reply no"<<endl;
-#endif
-	    send_vals(sock,&key,NULL,merkle_no);
-	  }
+	if (c > 0) { // means i'm missing this node
 	  break;
 	}
       }
@@ -1179,21 +1200,14 @@ int do_merkle_dfs_sync(int sock, const NameSpace& ns,
       cout<<"local node: "<<ln->digest<<endl;
       cout<<"remote node: "<<hash<<endl;
 #endif
-      if (ln->digest != hash &&
+      /*      if (ln->digest != hash &&
 	  is_leaf(&key)) {
 #ifdef DEBUG
 	cout << "digests don't match and it's a leaf, sending a no"<<endl;
 #endif
 	send_vals(sock,&key,NULL,merkle_no);
-	// advance by one
-	free(mkey.data);
-	free(mdata.data);
-	ret = cursorp->get(cursorp, &mkey, &mdata, DB_NEXT);
-	if (ret == DB_NOTFOUND) {
-	  eot = true;
-	  ret = cursorp->get(cursorp, &mkey, &mdata, DB_LAST);
-	}
-      }
+
+	}*/
       
       if (!is_leaf(&key) &&
 	  ln->digest == hash) {
@@ -1218,6 +1232,15 @@ int do_merkle_dfs_sync(int sock, const NameSpace& ns,
 	    eot = true;
 	    ret = cursorp->get(cursorp, &mkey, &mdata, DB_LAST);
 	  }
+	}
+      } else {
+	// advance by one
+	free(mkey.data);
+	free(mdata.data);
+	ret = cursorp->get(cursorp, &mkey, &mdata, DB_NEXT);
+	if (ret == DB_NOTFOUND) {
+	  eot = true;
+	  ret = cursorp->get(cursorp, &mkey, &mdata, DB_LAST);
 	}
       }
       /*** END DFS CODE ***/
@@ -2128,6 +2151,8 @@ void* merkle_dfs_recv(void* arg) {
 #ifdef DEBUG
       cout << "Merkle no in handle for: "<<string((char*)key.data,key.size)<<endl;
 #endif
+      cout << "THIS SHOULDN'T HAPPEN"<<endl;
+      exit(2);
       if (is_leaf(&key)) {
 	key.size--; // remove null term
 	int ret = db->get(db,NULL,&key,&ldata,0);
@@ -2135,9 +2160,9 @@ void* merkle_dfs_recv(void* arg) {
 #ifdef DEBUG
 	  cout << "Sending over my local data: "<<dbt_string(&key)<<endl;
 #endif
-	  (void)pthread_mutex_lock(&sending_tex);
-	  send_vals(sock,&key,&ldata,node_data);
-	  (void)pthread_mutex_unlock(&sending_tex);
+	  //(void)pthread_mutex_lock(&sending_tex);
+	  //send_vals(sock,&key,&ldata,node_data);
+	  //(void)pthread_mutex_unlock(&sending_tex);
 	  free(ldata.data);
 	}
 	key.size++;      
@@ -2193,9 +2218,9 @@ bool cursor_advance(DBC* cursorp, DBT* key, DBT* data) {
 }
 
 // DFS traversal.  just send keys, skipping if needed
-void send_merkle_dfs(int sock, MerkleDB* mdb) {
+void send_merkle_dfs(int sock, DB* db, MerkleDB* mdb) {
   DBC *cursorp;
-  DBT key, data;
+  DBT key, data, ldata;
   int ret;
   DB* dbp = mdb->dbp;
 
@@ -2207,6 +2232,8 @@ void send_merkle_dfs(int sock, MerkleDB* mdb) {
   key.flags = DB_DBT_MALLOC;
   memset(&data, 0, sizeof(DBT));
   data.flags = DB_DBT_MALLOC;
+  memset(&ldata, 0, sizeof(DBT));
+  ldata.flags = DB_DBT_MALLOC;
 
   /* Iterate over the database, retrieving each record in turn. */
   MerkleNode * mn;
@@ -2214,22 +2241,28 @@ void send_merkle_dfs(int sock, MerkleDB* mdb) {
     if(!cursor_advance(cursorp,&key,&data))
       break;
     mn = (MerkleNode *)data.data;
-    (void)pthread_mutex_lock(&sending_tex);
-    send_vals(sock,&key,NULL,node_merkle);
-    send_hash(sock,mn->digest);    
-    (void)pthread_mutex_unlock(&sending_tex);
+
+    if (is_leaf(&key)) {
+      key.size--; // remove null term
+      int ret = db->get(db,NULL,&key,&ldata,0);
+      key.size++;
+      if (ret == 0) {  // i had data there, send it over
+	send_vals(sock,&key,&ldata,node_data);
+	free(ldata.data);
+      }
+    } else {
+      send_vals(sock,&key,NULL,node_merkle);
+      send_hash(sock,mn->digest);    
+    }
     free(key.data);
     free(data.data);
-    sleep(1);
   }
 
 #ifdef DEBUG
   cout << "finished sending merkle tree, sending STOP"<<endl;
 #endif
 
-  (void)pthread_mutex_lock(&sending_tex);
   send_merkle_stop(sock);
-  (void)pthread_mutex_unlock(&sending_tex);
 
   if (cursorp != NULL) 
     cursorp->close(cursorp);
@@ -2372,7 +2405,7 @@ merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
   (void) pthread_create(&recv_thread,NULL,
 			merkle_dfs_recv,&args);
 
-  send_merkle_dfs(sock,mdb);
+  send_merkle_dfs(sock,dbp,mdb);
   
   pthread_join(recv_thread,NULL);
 

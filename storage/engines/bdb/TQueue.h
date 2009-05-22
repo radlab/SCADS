@@ -7,6 +7,8 @@
 
 #include "pthread.h"
 
+#define QWAITT 500000
+
 using namespace std;
 
 
@@ -24,7 +26,8 @@ private:
 
 public:
   TQueue(int s = 256) {
-    int size = (s > 10 && s < 2048)?s:256;
+    //int size = (s > 10 && s < 2048)?s:256;
+    int size = s;
 
     if (pthread_mutex_init(&dq_tex,NULL))
       perror("Could not create dq_tex");
@@ -56,7 +59,7 @@ public:
       cout << "queue is full, waiting"<<endl;
 #endif
       gettimeofday(&t,NULL);
-      t.tv_usec+=50000;
+      t.tv_usec+=QWAITT;
       (void)pthread_mutex_lock(&eq_tex);
       int ret = pthread_cond_timedwait(&eq_cond, &eq_tex,(const timespec*)(&t));
       (void)pthread_mutex_unlock(&eq_tex);
@@ -77,7 +80,7 @@ public:
       cerr << "Empty queue, gonna wait"<<endl;
 #endif
       gettimeofday(&t,NULL);
-      t.tv_usec+=50000;
+      t.tv_usec+=QWAITT;
       (void)pthread_mutex_lock(&dq_tex);
       int ret = pthread_cond_timedwait(&dq_cond, &dq_tex,(const timespec*)(&t));
       (void)pthread_mutex_unlock(&dq_tex);
