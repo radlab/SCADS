@@ -2,6 +2,7 @@
 #include <concurrency/ThreadManager.h>
 #include <concurrency/PosixThreadFactory.h>
 #include <protocol/TBinaryProtocol.h>
+#include <protocol/XtBinaryProtocol.h>
 #include <server/TSimpleServer.h>
 #include <server/TThreadPoolServer.h>
 #include <server/TThreadedServer.h>
@@ -770,7 +771,7 @@ static void* flush_thread(void* arg) {
 	db->flushp();
 #ifdef DEBUG
 	cout << "Flushed: "<<endl;
-	db->print_tree();
+	//db->print_tree();
 #endif
 	break;
       }
@@ -1320,7 +1321,7 @@ TNonblockingServer *nonblockingServer;
 static shared_ptr<StorageDB> storageDB;
 
 int workerCount,lp,cache;
-bool doMerkle;
+bool doMerkle, xTrace;
 
 static
 void usage(const char* prgm) {
@@ -1337,11 +1338,12 @@ Starts the BerkeleyDB storage layer.\n\n\
         \tDefault: 10\n\
   -l PORT\tStart sync/move listen thread on port PORT\n\
 	\tDefault: 9091\n\
-  -x\t\tUse transactions.\n\
+  -x\t\tTurn on XTrace\n\
+  -X\t\tUse transactions.\n\
 	\t(Once an env has txn support enabled it cannot be disabled, and vice versa)\n\
   -L\t\tDon't do write ahead logging.\n\
 	\t(Logging is always on if you use transactions)\n\
-  -m\t\tUse merkle trees.  (WARNING, not working for syncs right now, will segfault)\n\
+  -m\t\tUse merkle trees.\n\
   -h\t\tShow this help\n\n",
 	  prgm);
 }
@@ -1358,6 +1360,7 @@ void parseArgs(int argc, char* argv[]) {
   lp = 9091;
   cache = 500;
   doMerkle = false;
+  xTrace = false;
 
   while ((opt = getopt(argc, argv, "mhxLp:d:t:n:l:c:")) != -1) {
     switch (opt) {
@@ -1395,6 +1398,9 @@ void parseArgs(int argc, char* argv[]) {
       lp = atoi(optarg);
       break;
     case 'x':
+      xTrace = true;
+      break;
+    case 'X':
       dtxn = 1;
       break;
     case 'L':
@@ -1487,7 +1493,11 @@ int main(int argc, char **argv) {
   if(chkdirs(env_dir)) {
     exit(-1);
   }
-  shared_ptr<TProtocolFactory> protocolFactory(new TBinaryProtocolFactory());
+  
+  shared_ptr<TProtocolFactory> protocolFactory
+    ( xTrace?
+      (static_cast<TProtocolFactory*>(new XtBinaryProtocolFactory())):
+      (static_cast<TProtocolFactory*>(new TBinaryProtocolFactory())) );
   shared_ptr<StorageDB> handler(new StorageDB(lp,uf,cache,doMerkle));
   shared_ptr<TProcessor> processor(new StorageProcessor(handler));
   shared_ptr<TServerTransport> serverTransport(new TServerSocket(port));
