@@ -81,9 +81,8 @@ abstract class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpace
 				record
 			}
 			case e => {
-				println("Client library exception in get(): ")
-				e.printStackTrace
-				null
+				println("Client library exception in get(): "+e)
+				throw e
 			}
 		}
 	}
@@ -121,9 +120,8 @@ abstract class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpace
 					while (iter.hasNext()) { records += iter.next() }
 				}
 				case e => {
-					println("Client library exception in get_set(): ")
-					e.printStackTrace
-					null
+					println("Client library exception in get_set(): "+e)
+					throw e
 				}
 			}
 		}
@@ -207,9 +205,8 @@ abstract class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpace
 					total_success && success
 				}
 				case e => {
-					println("Client library exception in put(): ")
-					e.printStackTrace
-					null
+					println("Client library exception in put(): "+e)
+					throw e
 				}
 			}
 		}})
