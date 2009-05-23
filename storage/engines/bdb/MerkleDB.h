@@ -48,6 +48,7 @@ namespace SCADS {
     u_int32_t prefix_length(DBT * key1, DBT * key2);
     void print_tree();
     void print_children(DBT *key);
+    int dbt_cmp(DBT * db1, DBT * db2);
     void queue_children(DBT *key,TQueue<DBT>*);
     void apply_children(DBT *key,
 			void(*to_apply)(void*,void*,void*),

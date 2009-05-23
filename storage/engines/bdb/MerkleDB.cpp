@@ -98,6 +98,10 @@ int dbt_cmp(DBT * db1, DBT * db2) {
 	}
 }
 
+int MerkleDB::dbt_cmp(DBT * db1, DBT * db2) {
+	return dbt_cmp(db1, db2);
+}
+
 //TODO: Write destructor that closes db
 
 MerkleDB::MerkleDB(const string& ns, DB_ENV* db_env) :
