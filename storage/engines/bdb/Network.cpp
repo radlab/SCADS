@@ -1435,7 +1435,7 @@ void* run_listen(void* arg) {
   }
 
   if (rp == NULL) {
-    fprintf(stderr, "Bind failed\n");
+    fprintf(stderr, "Bind failed for copy/sync port\n");
     exit(1);
   }
 
