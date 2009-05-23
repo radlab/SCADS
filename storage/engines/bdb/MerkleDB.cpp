@@ -68,6 +68,35 @@ int child_extractor(DB *dbp, const DBT *pkey, const DBT *pdata, DBT *ikey) {
   }
 }
 
+//TODO: Make this return a boolean
+int dbt_equal(DBT * db1, DBT * db2) {
+	//We need to avoid doing memcmp if size is 0
+	if (db1->size == 0) { return (db2->size == 0); }
+	if (db2->size == 0) { return (db1->size == 0); }
+//  int c2 = memcmp(((db1)->data), ((db2)->data), db1->size);
+// Need short circuit evaluation in case size is zero and data undefined
+  return (((db1)->size) == ((db2)->size) and (memcmp(((db1)->data), ((db2)->data), db1->size) == 0));
+}
+
+//Return the lexical comparison of these dbts
+int dbt_cmp(DBT * db1, DBT * db2) {
+	if (db1->size == 0) { return (db2->size == 0 ? 0 : -1); }
+	if (db2->size == 0) { return (db1->size == 0 ? 0 : 1); }
+	int prefixlen = (db1->size < db2->size ? db1->size : db2->size);
+	int c = memcmp(db1->data, db2->data, prefixlen);
+	if (c != 0) {
+		return c;
+	} else {
+		if (db1->size == db2->size) {
+			return 0;
+		} else if (db1->size > db2->size) {
+			return 1;
+		} else {
+			return -1;
+		}
+	}
+}
+
 //TODO: Write destructor that closes db
 
 MerkleDB::MerkleDB(const string& ns, DB_ENV* db_env) :
@@ -650,34 +679,7 @@ void MerkleDB::examine(DBT * key) {
   }
 }
 
-//TODO: Make this return a boolean
-int MerkleDB::dbt_equal(DBT * db1, DBT * db2) {
-	//We need to avoid doing memcmp if size is 0
-	if (db1->size == 0) { return (db2->size == 0); }
-	if (db2->size == 0) { return (db1->size == 0); }
-//  int c2 = memcmp(((db1)->data), ((db2)->data), db1->size);
-// Need short circuit evaluation in case size is zero and data undefined
-  return (((db1)->size) == ((db2)->size) and (memcmp(((db1)->data), ((db2)->data), db1->size) == 0));
-}
 
-//Return the lexical comparison of these dbts
-int MerkleDB::dbt_cmp(DBT * db1, DBT * db2) {
-	if (db1->size == 0) { return (db2->size == 0 ? 0 : -1); }
-	if (db2->size == 0) { return (db1->size == 0 ? 0 : 1); }
-	int prefixlen = (db1->size < db2->size ? db1->size : db2->size);
-	int c = memcmp(db1->data, db2->data, prefixlen);
-	if (c != 0) {
-		return c;
-	} else {
-		if (db1->size == db2->size) {
-			return 0;
-		} else if (db1->size > db2->size) {
-			return 1;
-		} else {
-			return -1;
-		}
-	}
-}
 
 #ifdef MERKLETEST
 int test_macro(DB_ENV* db_env) {
@@ -1131,7 +1133,7 @@ void dfs_with_pruning_test(MerkleDB * mdb1, MerkleDB * mdb2) {
 		printf("Inconceviable!  Root node doesn't exist");
 		exit(1);
 	}
-	if (mdb1->dbt_equal(&d1, &d2)) { 
+	if (dbt_equal(&d1, &d2)) { 
 		std::cout << "Trees identical" << endl;
 		c1->close(c1);
 		c2->close(c2);
@@ -1139,7 +1141,7 @@ void dfs_with_pruning_test(MerkleDB * mdb1, MerkleDB * mdb2) {
 	}
 	while (ret1 == 0 or ret2 == 0) {	//There might be more cases
 		//std::cout << "Consider: l:(" << dbt_string(&k1) << ")\tr:(" << dbt_string(&k2) << ")" << endl;
-		if (mdb1->dbt_equal(&k1, &k2) and mdb1->dbt_equal(&d1, &d2)) {
+		if (dbt_equal(&k1, &k2) and dbt_equal(&d1, &d2)) {
 			int i = 1;
 			//TODO: if last character is 255, need to carry over to higher chars
 			((char *) k1.data)[k1.size - i] += 1;
@@ -1161,14 +1163,14 @@ void dfs_with_pruning_test(MerkleDB * mdb1, MerkleDB * mdb2) {
 			}
 		} else {
 			//Move the left cursor to catch up to the right cursor
-			while (ret1 == 0 and (mdb1->dbt_cmp(&k1, &k2) < 0 or ret2 != 0)) {
+			while (ret1 == 0 and (ret2 != 0 or dbt_cmp(&k1, &k2) < 0)) {
 				//TODO: test
 				std::cout << "only-left-side: \"" << dbt_string(&k1) << "\"" <<  endl;
 				ret1 = c1->get(c1, &k1, &d1, DB_NEXT);
 				if (ret1 == 0) { free(t1);free(t2);t1 = k1.data;t2 = d1.data; }
 			}
 			//Move the right cursor to catch up to the left cursor
-			while (ret2 == 0 && (mdb1->dbt_cmp(&k1, &k2) > 0 or ret1 != 0)) {
+			while (ret2 == 0 && (ret1 != 0 or dbt_cmp(&k1, &k2) > 0)) {
 				std::cout << "only-right-side: \"" << dbt_string(&k2) << "\"" <<  endl;
 				ret2 = c2->get(c2, &k2, &d2, DB_NEXT);
 				if (ret2 == 0) { free(t3);free(t4);t3 = k2.data;t4 = d2.data; }
