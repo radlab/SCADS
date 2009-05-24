@@ -126,7 +126,7 @@ class TS_Sets < Test::Unit::TestCase
        :range => RangeSet.new(:start_key=>"01",:end_key=>"08",:offset => 0,:limit => 3, :reverse => true)
        )
      record_list = @server.get_set("rangelimit",desired)
-     assert_equal((6..8).map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}, record_list)
+     assert_equal((6..8).to_a.reverse.map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}, record_list)
 
     # should return first two values from values matching the range
      desired = RecordSet.new(
@@ -134,14 +134,14 @@ class TS_Sets < Test::Unit::TestCase
        :range => RangeSet.new(:start_key=>"01",:end_key=>"08",:offset => 6,:limit => 10, :reverse => true)
        )
      record_list = @server.get_set("rangelimit",desired)
-     assert_equal((1..2).map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}, record_list)
+     assert_equal((1..2).to_a.reverse.map{|i| Record.new(:key => "0#{i}", :value => "val0#{i}")}, record_list)
      
      desired = RecordSet.new(
       :type => RecordSetType::RST_RANGE,
       :range => RangeSet.new(:limit => 2, :reverse => true)
       )
     record_list = @server.get_set("rangelimit", desired)
-    assert_equal((8..9).map{|i| Record.new(:key=>"0#{i}", :value=>"val0#{i}")}, record_list);
+    assert_equal((8..9).to_a.reverse.map{|i| Record.new(:key=>"0#{i}", :value=>"val0#{i}")}, record_list);
   end
 
   def test_user_function
