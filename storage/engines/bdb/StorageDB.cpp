@@ -1500,7 +1500,7 @@ int main(int argc, char **argv) {
 
 #ifdef NOXTRACE
 	if (xTrace) {
-		std::cerr << "Error: Compiled with -DNOXTRACE" << endl;
+		std::cerr << "Error: Compiled with -DNOXTRACE. -x flag unsupported" << endl;
 		exit(1);
 	}
 	shared_ptr<TProtocolFactory> protocolFactory (static_cast<TProtocolFactory*>(new TBinaryProtocolFactory()));
