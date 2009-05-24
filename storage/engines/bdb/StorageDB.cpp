@@ -439,6 +439,12 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     }
   }
   
+	//TODO: Apparently bulk retrieval doesn't work with DB_PREV *grumble*
+	//HACK: turn off bulk getting
+	if (rs.type == RST_RANGE and rs.range.__isset.reverse and rs.range.reverse) {
+		bulk = false;
+	}
+
   if (bulk)
     cursor_get_flags = DB_MULTIPLE_KEY;
   else
