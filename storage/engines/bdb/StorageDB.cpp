@@ -2,7 +2,10 @@
 #include <concurrency/ThreadManager.h>
 #include <concurrency/PosixThreadFactory.h>
 #include <protocol/TBinaryProtocol.h>
+#ifdef NOXTRACE
+#else
 #include <protocol/XtBinaryProtocol.h>
+#endif
 #include <server/TSimpleServer.h>
 #include <server/TThreadPoolServer.h>
 #include <server/TThreadedServer.h>
@@ -1494,10 +1497,19 @@ int main(int argc, char **argv) {
     exit(-1);
   }
   
+
+#ifdef NOXTRACE
+	if (xTrace) {
+		std::cerr << "Error: Compiled with -DNOXTRACE" << endl;
+		exit(1);
+	}
+	shared_ptr<TProtocolFactory> protocolFactory (static_cast<TProtocolFactory*>(new TBinaryProtocolFactory()));
+#else
   shared_ptr<TProtocolFactory> protocolFactory
     ( xTrace?
       (static_cast<TProtocolFactory*>(new XtBinaryProtocolFactory())):
       (static_cast<TProtocolFactory*>(new TBinaryProtocolFactory())) );
+#endif
   shared_ptr<StorageDB> handler(new StorageDB(lp,uf,cache,doMerkle));
   shared_ptr<TProcessor> processor(new StorageProcessor(handler));
   shared_ptr<TServerTransport> serverTransport(new TServerSocket(port));

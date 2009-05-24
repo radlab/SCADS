@@ -46,6 +46,8 @@ default: arch_warning storage.bdb
 
 debug: arch_warning storage.bdb.debug
 
+noxtrace: arch_warning storage.bdb.noxtrace
+
 debugquiet: arch_warning storage.bdb.debugquiet
 
 #print warning if couldn't determine the arch
@@ -61,6 +63,9 @@ $(SRCS_TO_GEN): $(THRIFT_FILE)
 # C/C++ RULES
 storage.bdb: $(SRCS_TO_GEN) $(STORAGE_SRCS)
 	$(CXX) $(CFLAGS) $(RUBY_INCLUDES) -o $@ $(STORAGE_SRCS) ${GEN_SRC} $(LIBS)
+
+storage.bdb.noxtrace: $(SRCS_TO_GEN) $(STORAGE_SRCS)
+	$(CXX) $(CFLAGS) $(RUBY_INCLUDES) -o $@ $(STORAGE_SRCS) ${GEN_SRC} $(LIBS) -DNOXTRACE
 
 storage.bdb.debug: $(SRCS_TO_GEN) $(STORAGE_SRCS)
 	$(CXX) -g $(CFLAGS) $(RUBY_INCLUDES) -DDEBUG=DEBUG -o storage.bdb $(STORAGE_SRCS) ${GEN_SRC} $(LIBS)
