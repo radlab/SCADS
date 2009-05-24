@@ -28,7 +28,8 @@ struct RangeSet {
 	1: optional RecordKey start_key,
 	2: optional RecordKey end_key,
 	3: optional i32 offset,
-	4: optional i32 limit
+	4: optional i32 limit,
+	5: optional bool reverse
 }
 
 enum Language {

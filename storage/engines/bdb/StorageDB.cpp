@@ -485,8 +485,9 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
   /* get the initial cursor
    *
    * start at the beginning for all, key/value funcs, and filters since
-   * they have to scan everything.  start at start_key for ranges
+   * they have to scan everything.  start at start_key (or end_key if reverse is set) for ranges
    */
+	u_int32_t iter_dir = DB_NEXT;
 
   switch (rs.type) {
   case RST_ALL:
@@ -496,7 +497,26 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     ret = cursorp->get(cursorp, &cursor_key, &cursor_data, DB_FIRST | cursor_get_flags);
     break;
   case RST_RANGE:
-    if (rs.range.__isset.start_key) {
+		//reverse flag means we start at end and return records towards beginning
+		if (rs.range.__isset.reverse and rs.range.reverse) {
+			iter_dir = DB_PREV;
+			if (!rs.range.__isset.end_key) { 
+				ret = cursorp->get(cursorp, &cursor_key, &cursor_data, DB_LAST | cursor_get_flags);
+			} else {
+				cursor_key.data = const_cast<char*>(rs.range.end_key.c_str());
+				cursor_key.size = rs.range.end_key.length();
+				ret = cursorp->get(cursorp, &cursor_key, &cursor_data, DB_SET_RANGE | cursor_get_flags);
+				if (ret == DB_NOTFOUND) {
+					//No key comes after end_key (nor is end_key in database), so default to last key of database
+					ret = cursorp->get(cursorp, &cursor_key, &cursor_data, DB_LAST | cursor_get_flags);
+				} else if (ret == 0 && strncmp(rs.range.end_key.c_str(), (char*)cursor_key.data,cursor_key.size) < 0) {
+					//end_key isn't in database (but successor is), so we need to move one to left to stay within range
+					if (!bulk) { free(cursor_data.data); }
+					//TODO: cursor_key.flags not being set to DB_DBT_MALLOC, do we need to free it?
+					ret = cursorp->get(cursorp, &cursor_key, &cursor_data, DB_PREV | cursor_get_flags);
+				}
+			}
+		} else if (rs.range.__isset.start_key) {
       cursor_key.data = const_cast<char*>(rs.range.start_key.c_str());
       cursor_key.size = rs.range.start_key.length();
       ret = cursorp->get(cursorp, &cursor_key, &cursor_data, DB_SET_RANGE | cursor_get_flags);
@@ -604,14 +624,13 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 
     // RST_RANGE set
     else if (rs.type == RST_RANGE) {
-      if ( rs.range.__isset.end_key &&
-	   (strncmp(rs.range.end_key.c_str(),(char*)key.data,key.size) < 0) ) {
-	ret = DB_NOTFOUND;
-	free(cursor_data.data);
-	break;
-      }
-      if (rs.range.__isset.offset &&
-	  skipped < rs.range.offset) 
+			if ((rs.range.__isset.start_key && (strncmp(rs.range.start_key.c_str(), (char*)key.data,key.size) > 0)) or
+					(rs.range.__isset.end_key && (strncmp(rs.range.end_key.c_str(), (char *)key.data,key.size) < 0))) {
+				ret = DB_NOTFOUND;
+				free(cursor_data.data);
+				break;
+			}
+      if (rs.range.__isset.offset && skipped < rs.range.offset)
 	skipped++;
       else {
 	(*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);
@@ -675,12 +694,12 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 	throw isd;
       }
     }
-
+		
     // okay, now get next key
     if (bulk) {
       DB_MULTIPLE_KEY_NEXT(p,&cursor_data, retkey, retklen, retdata, retdlen);
       if (p == NULL) { // need to advance the cursor
-	if ((ret = cursorp->get(cursorp, &cursor_key, &cursor_data, DB_NEXT | cursor_get_flags)) != 0) {
+	if ((ret = cursorp->get(cursorp, &cursor_key, &cursor_data, iter_dir | cursor_get_flags)) != 0) {
 	  if (ret != DB_NOTFOUND) 
 	    db_ptr->err(db_ptr,ret,"Cursor advance failed");
 	  free(cursor_data.data);
@@ -696,7 +715,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     }
     else {
       free(cursor_data.data);
-      if ((ret = cursorp->get(cursorp, &cursor_key, &cursor_data, DB_NEXT | cursor_get_flags)) != 0) {
+      if ((ret = cursorp->get(cursorp, &cursor_key, &cursor_data, iter_dir | cursor_get_flags)) != 0) {
 	if (ret != DB_NOTFOUND)
 	  db_ptr->err(db_ptr,ret,"Cursor advance failed");
 	break;
