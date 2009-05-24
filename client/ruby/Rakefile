@@ -1,0 +1,5 @@
+task :gem do
+  #TODO: Shouldn't this be building off the client library thrift file?
+  %x[thrift --gen rb ../../storage/storage.thrift]
+  %x[gem build scads.gemspec]
+end

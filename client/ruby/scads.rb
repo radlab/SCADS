@@ -4,9 +4,6 @@ require 'thrift/server/tserver'
 
 require 'timeout'
 require 'Storage'
-["simple", "record_set", "conflict_policy"].each do |file|
-   require file
-end
 
 module SCADS
   class Client
