@@ -9,7 +9,7 @@ opts = GetoptLong.new(
 )
 
 host = "localhost"
-port = 9000
+port = 9090
 table = "default"
 opts.each do |opt, arg|
   case opt
@@ -37,6 +37,21 @@ $stdin.each_line do |line|
   when "get":
     before = Time.now
     result = client.get(table, line[1]).value
+    after = Time.now
+  when "get_range"
+    s = SCADS::Storage::RecordSet.new
+    s.type = SCADS::Storage::RecordSetType::RST_RANGE
+    
+    r = SCADS::Storage::RangeSet.new
+    r.start_key = line[1]
+    r.end_key = line[2]
+    r.offset = (line[3] || 0).to_i
+    r.limit = line[4].to_i if line[3]
+    r.reverse = (line[5] == "true") if line[4]
+    
+    s.range = r
+    before = Time.now
+    result = client.get_set(table, s)
     after = Time.now
   when "put":
     r = SCADS::Storage::Record.new
@@ -66,7 +81,7 @@ $stdin.each_line do |line|
   else
     raise "Invalid command: #{line[0]}"
   end
-  puts (after - before).to_s + "\t" + line.join("\t") + "\t=>\t" + result.to_s
+  puts (after - before).to_s + "\t" + line.join("\t") + "\t=>\t" + result.inspect
 end
 
 transport.close#As of 2009-03-28, this client is purely for speed comparisons - minimal error handling is performed
