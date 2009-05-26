@@ -6,6 +6,10 @@
 #include <sys/time.h>
 #include "mhash.h"
 
+#include "db.h"
+
+using namespace std;
+
 unsigned int rows;
 unsigned int rows2;
 char * directory;
@@ -16,6 +20,7 @@ unsigned int data_size;
 char * keybuf;
 char * databuf;
 char* env_dir;
+
 
 void usage(const char* prgm) {
   fprintf(stderr, "Usage: %s [-r ROWS] [-q ROWS_SEED2] [-d DIRECTORY] [-f OUTPUT_FILE] [-k MAX_KEYLENGTH] [-d DATA_SIZE]\n\
@@ -175,11 +180,11 @@ int main(int argc, char **argv) {
 	int dataseed1 = 1231233;
 	int dataseed2 = 682283;
 
-	std::cout << "Build random tree with " << (rows - rows2) << " rows with dataseed " << dataseed1 << endl;
-	build_random_db(db, (rows - rows2), 0, keyseed, dataseed1);
+	std::cout << "Build random tree with " << rows << " rows with dataseed " << dataseed1 << endl;
+	build_random_db(db, rows, 0, keyseed, dataseed1);
 	
 	std::cout << "Build random tree with " << rows2 << " rows with dataseed " << dataseed2 << endl;
-	build_random_db(db, rows2, (rows - rows2), keyseed, dataseed2);
+	build_random_db(db, rows2, rows, keyseed, dataseed2);
 
 	db->close(db, 0);
   printf("done.\n");
