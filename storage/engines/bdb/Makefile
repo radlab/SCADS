@@ -88,10 +88,10 @@ merklebench: $(SRCS_TO_GEN) MerkleDB.cpp MerkleBench.cpp
 	$(CXX) $(CFLAGS) -g -o MerkleBench MerkleDB.cpp MerkleBench.cpp $(LIBS)
 
 builddb: BuildDB.cpp
-	$(CXX) $(CFLAGS) -g -o BuildDB BuildDB.cpp $(LIBS)
+	$(CXX) $(CFLAGS) -g -o buildDB BuildDB.cpp $(LIBS)
 
 catdb: CatDB.cpp
-	$(CXX) $(CFLAGS) -g -o CatDB CatDB.cpp $(LIBS)
+	$(CXX) $(CFLAGS) -g -o catDB CatDB.cpp $(LIBS)
 
 clean:
 	rm -rf gen-cpp storage.bdb MerkleDB MerkleBench

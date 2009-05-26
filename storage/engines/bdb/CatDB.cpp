@@ -14,9 +14,10 @@ using namespace std;
 
 char * file;
 char* env_dir;
+int data_limit;
 
 void usage(const char* prgm) {
-  fprintf(stderr, "Usage: %s [-d DIRECTORY] [-f FILE]\n\
+  fprintf(stderr, "Usage: %s [-d DIRECTORY] [-f FILE] [-l DATA_LIMIT]\n\
 Starts the BerkeleyDB storage layer.\n\n",
 	  prgm);
 }
@@ -25,6 +26,7 @@ void parseArgs(int argc, char* argv[]) {
   int opt;
   env_dir = 0;
 	file = 0;
+	data_limit = 10;
 
   while ((opt = getopt(argc, argv, "d:f:h")) != -1) {
     switch (opt) {
@@ -35,6 +37,9 @@ void parseArgs(int argc, char* argv[]) {
 		case 'f':
 			file = (char *)malloc(sizeof(char)*(strlen(optarg)+1));
 			strcpy(file, optarg);
+			break;
+		case 'l':
+			data_limit = atoi(optarg);
 			break;
     case 'h':
     default: /* '?' */
@@ -106,6 +111,9 @@ int main(int argc, char **argv) {
 
 	ret = cursorp->get(cursorp, &key, &data, DB_FIRST);
 	while (ret == 0) {
+		if (data.size > data_limit) {
+			data.size = data_limit;
+		}
 		std::cout << dbt_string(&key) << "\t=>\t" << dbt_string(&data) << endl;
 		free(key.data);
 		free(data.data);
