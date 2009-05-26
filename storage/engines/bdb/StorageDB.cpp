@@ -441,9 +441,9 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
   
 	//TODO: Apparently bulk retrieval doesn't work with DB_PREV *grumble*
 	//HACK: turn off bulk getting
-	if (rs.type == RST_RANGE and rs.range.__isset.reverse and rs.range.reverse) {
-		bulk = false;
-	}
+	//if (rs.type == RST_RANGE and rs.range.__isset.reverse and rs.range.reverse) {
+	//	bulk = false;
+	//}
 
   if (bulk)
     cursor_get_flags = DB_MULTIPLE_KEY;
@@ -504,7 +504,8 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     break;
   case RST_RANGE:
 		//reverse flag means we start at end and return records towards beginning
-		if (rs.range.__isset.reverse and rs.range.reverse) {
+		//if (rs.range.__isset.reverse and rs.range.reverse) {
+		if (false) {
 			iter_dir = DB_PREV;
 			if (!rs.range.__isset.end_key) { 
 				ret = cursorp->get(cursorp, &cursor_key, &cursor_data, DB_LAST | cursor_get_flags);
