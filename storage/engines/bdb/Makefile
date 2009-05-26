@@ -87,8 +87,8 @@ tq: TQueue.cpp
 merklebench: $(SRCS_TO_GEN) MerkleDB.cpp MerkleBench.cpp
 	$(CXX) $(CFLAGS) -g -o MerkleBench MerkleDB.cpp MerkleBench.cpp $(LIBS)
 
-builddb: BuildDB.cpp
-	$(CXX) $(CFLAGS) -g -o buildDB BuildDB.cpp $(LIBS)
+builddb: BuildDB.cpp MerkleDB.cpp
+	$(CXX) $(CFLAGS) -g -o buildDB BuildDB.cpp MerkleDB.cpp $(LIBS)
 
 catdb: CatDB.cpp
 	$(CXX) $(CFLAGS) -g -o catDB CatDB.cpp $(LIBS)

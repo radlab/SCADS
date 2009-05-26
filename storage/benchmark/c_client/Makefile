@@ -59,5 +59,8 @@ $(SRCS_TO_GEN): $(THRIFT_FILE)
 client: $(SRCS_TO_GEN) Client.cpp
 	$(CXX) $(CFLAGS) -o $@ Client.cpp ${GEN_SRC} $(LIBS)
 
+loader: $(SRCS_TO_GEN) Loader.cpp
+	$(CXX) $(CFLAGS) -o loader Loader.cpp ${GEN_SRC} $(LIBS)
+
 clean:
 	rm -rf gen-cpp client

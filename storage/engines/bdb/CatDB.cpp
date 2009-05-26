@@ -9,6 +9,7 @@
 #include "db.h"
 
 #define dbt_string(dbt) std::string((char*)(dbt)->data,(dbt)->size)
+#define print_hex(buf, len) for (int i = 0; i < len ; i++) { printf("%X%X", (0x0F & (((char *)buf)[i]) >> 4), (0x0F & (((char *)buf)[i])));}
 
 using namespace std;
 
@@ -114,7 +115,9 @@ int main(int argc, char **argv) {
 		if (data.size > data_limit) {
 			data.size = data_limit;
 		}
-		std::cout << dbt_string(&key) << "\t=>\t" << dbt_string(&data) << endl;
+		std::cout << "'" << dbt_string(&key) << "'" << "\t=>\t"; 
+		print_hex(&data.data, data.size);
+		std::cout << endl;
 		free(key.data);
 		free(data.data);
 		ret = cursorp->get(cursorp, &key, &data, DB_NEXT);

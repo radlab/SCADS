@@ -6,9 +6,10 @@
 #include <sys/time.h>
 #include "mhash.h"
 
-#include "db.h"
+#include "MerkleDB.h"
 
 using namespace std;
+using namespace SCADS;
 
 unsigned int rows;
 unsigned int rows2;
@@ -19,8 +20,8 @@ unsigned int data_size;
 
 char * keybuf;
 char * databuf;
-char* env_dir;
-
+char * env_dir;
+char nspace[] = "default";
 
 void usage(const char* prgm) {
   fprintf(stderr, "Usage: %s [-r ROWS] [-q ROWS_SEED2] [-d DIRECTORY] [-f OUTPUT_FILE] [-k MAX_KEYLENGTH] [-d DATA_SIZE]\n\
@@ -87,7 +88,7 @@ void parseArgs(int argc, char* argv[]) {
   }
 }
 
-void build_random_db(DB * mdb, int rows, int key_offset, int key_seed, int data_seed) {
+void build_random_db(DB * db, MerkleDB * mdb, int rows, int key_offset, int key_seed, int data_seed) {
 	char keybuf[128];
 	DBT key;
 	memset(&key, 0, sizeof(DBT));
@@ -102,7 +103,7 @@ void build_random_db(DB * mdb, int rows, int key_offset, int key_seed, int data_
  
 	//Make data
 	srand(data_seed);
-	int datalen = 1024;
+	int datalen = data_size;
 	//std::std::cout << "data:" << datalen << std::endl;
 	//change 10 chars to make data different
 	int pos;
@@ -113,6 +114,7 @@ void build_random_db(DB * mdb, int rows, int key_offset, int key_seed, int data_
 	data.size = datalen;
 
 	int keylen;
+	int flushp = 10000;
 	for (int i = 0; i < rows; i++) {
 		//Make key
 		srand(key_seed+i+key_offset);
@@ -129,8 +131,12 @@ void build_random_db(DB * mdb, int rows, int key_offset, int key_seed, int data_
 		for (int k = 0; k < 5; k++) {
 			databuf[(rand() % datalen)] = ((char) ((rand() % 24) + 65));
 		}
-		
-		mdb->put(mdb, NULL, &key, &data, 0);
+		db->put(db, NULL, &key, &data, 0);
+		mdb->enqueue(&key, &data);
+		if (flushp <= 0) {
+			flushp--;
+			mdb->flushp();
+		}
 	}
 }
 
@@ -176,17 +182,23 @@ int main(int argc, char **argv) {
 	db_create(&db, db_env, 0);
 	db->open(db, NULL, output_file, NULL, DB_BTREE, DB_CREATE, 0);
 
+	MerkleDB * mdb;
+	mdb = new MerkleDB(nspace, db_env);
+
 	int keyseed = 123321;
 	int dataseed1 = 1231233;
 	int dataseed2 = 682283;
 
 	std::cout << "Build random tree with " << rows << " rows with dataseed " << dataseed1 << endl;
-	build_random_db(db, rows, 0, keyseed, dataseed1);
+	build_random_db(db, mdb, rows, 0, keyseed, dataseed1);
+	mdb->flushp();
 	
 	std::cout << "Build random tree with " << rows2 << " rows with dataseed " << dataseed2 << endl;
-	build_random_db(db, rows2, rows, keyseed, dataseed2);
+	build_random_db(db, mdb, rows2, rows, keyseed, dataseed2);
+	mdb->flushp();
 
 	db->close(db, 0);
+	mdb->close();
   printf("done.\n");
   return 0;
 }
