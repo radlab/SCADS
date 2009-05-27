@@ -25,7 +25,7 @@ module SCADS
           ret = @data[ns].map {|rec| Record.new(:key => rec[0], :value => rec[1])}.select {|rec| rs.includes?(rec.key, rec.value)}
 
           if rs.type == RecordSetType::RST_RANGE
-            ret[((rs.range.offset || 0)..(rs.range.limit || ret.size))]
+            ret[((rs.range.offset || 0)..((rs.range.limit || ret.size)-1))]
           else
             ret
           end.sort{|x,y| x.key <=> y.key}
