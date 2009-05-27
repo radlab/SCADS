@@ -50,7 +50,7 @@ module SCADS
 
           sleep 1
 
-          transport = Thrift::BufferedTransport.new(Thrift::Socket.new('localhost', @port))
+          transport = Thrift::FramedTransport.new(Thrift::Socket.new('localhost', @port))
           protocol = Thrift::BinaryProtocol.new(transport)
           transport.open
           @client = Storage::Client.new(protocol)
