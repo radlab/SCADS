@@ -372,7 +372,8 @@ int main(int argc,char* argv[]) {
   if (timing)
     cout << "Will print timing info"<<endl;
   shared_ptr<TTransport> socket(new TSocket(host, port));
-  shared_ptr<TTransport> transport(new TBufferedTransport(socket));
+  shared_ptr<TTransport> transport(new TFramedTransport(socket));
+  //shared_ptr<TTransport> transport(new TBufferedTransport(socket));
   shared_ptr<TProtocol> protocol(new TBinaryProtocol(transport));
   StorageClient client(protocol);
 
