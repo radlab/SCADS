@@ -1539,7 +1539,7 @@ int main(int argc, char **argv) {
   shared_ptr<StorageDB> handler(new StorageDB(lp,uf,cache,doMerkle));
   shared_ptr<TProcessor> processor(new StorageProcessor(handler));
   shared_ptr<TServerTransport> serverTransport(new TServerSocket(port));
-  shared_ptr<TTransportFactory> transportFactory(new TBufferedTransportFactory());
+  shared_ptr<TTransportFactory> transportFactory(new TFramedTransportFactory());
 
 #ifdef DEBUG
   cout << "Running in debug mode"<<endl;
