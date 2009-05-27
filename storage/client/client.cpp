@@ -409,18 +409,21 @@ int main(int argc,char* argv[]) {
       vector<string> v = strsplit(*line);
       string cmd = v[0];
 
-      if (cmd == "quit")
+      if (cmd == "quit" || cmd == "exit")
 	break;
 
       else if (cmd == "help") {
 	cout << "Avaliable commands (type any command with no args for usage of that command):"<<endl<<
 	  " put\t\tput a record"<<endl<<
 	  " get\t\tget a record"<<endl<<
+	  " getall\t\tget all records in a particular namespace"<<endl<<
 	  " range\t\tget a sequential range of records between two keys"<<endl<<
 	  " ruby\t\tget a set of records that match a ruby function"<<endl<<
-	  " remote\t\t remove a key"<<endl<<
-	  " removeRange\t\tremove a sequential range of records between two keys"<<endl<<
-	  " quit\t\tquit the program"<<endl<<
+	  " remote\t\tremove a key"<<endl<<
+	  " removeRange\tremove a sequential range of records between two keys"<<endl<<
+	  " copy\t\tcopy a set of data from one node to another"<<endl<<
+	  " sync\t\tsync a set of data between two nodes"<<endl<<
+	  " quit/exit\tquit the program"<<endl<<
 	  " help\t\tthis help"<<endl;
 	continue;
       }
