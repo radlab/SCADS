@@ -91,7 +91,7 @@ class TestableStorageNode(thriftPort: Int, syncPort: Int) extends StorageNode("1
 		}
 		else {
 			logFile = new java.io.FileOutputStream("ruby.log", true)
-			proc = Runtime.getRuntime().exec("ruby -I ../lib -I ../storage/engines/simple/ -I ../storage/gen-rb/ ../storage/engines/simple/bin/start_scads.rb -d -p "+ thriftPort + " 2>&1")
+			proc = Runtime.getRuntime().exec("ruby -rubygems -I ../lib -I ../storage/engines/simple/ -I ../storage/gen-rb/ ../storage/engines/simple/bin/start_scads.rb -d -p "+ thriftPort + " 2>&1")
 		}
 		Runtime.getRuntime().addShutdownHook(new Thread(new ProcKiller(proc)))
 
