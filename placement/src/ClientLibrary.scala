@@ -52,14 +52,14 @@ class SCADSClient(h: String, p: Int) extends ROWAClientLibrary with RemoteKeySpa
 	val host = h
 }
 
-abstract class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpaceProvider with ThriftConversions {
+abstract class ROWAClientLibrary extends KeySpaceProvider with ThriftConversions {
 	import java.util.Random
 
 	/**
 	* Read value from one node. Uses local map. 
 	* Does update from KeySpaceProvider if local copy is out of date.
 	*/
-	override def get(namespace: String, key: String): Record = {
+	def get(namespace: String, key: String): Record = {
 		val ns_keyspace = getKeySpace(namespace)
 		try {
 			val potentials = ns_keyspace.lookup(key).toList
@@ -86,7 +86,7 @@ abstract class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpace
 	* Read values from one node. Uses local map.
 	* Does update from KeySpaceProvider if local copy is out of date.
 	*/
-	override def get_set(namespace: String, keys: RecordSet): java.util.List[Record] = {
+	def get_set(namespace: String, keys: RecordSet): java.util.List[Record] = {
 		var records = new HashSet[Record]
 		val ns_keyspace = getKeySpace(namespace)
 		val target_range = new KeyRange(keys.range.start_key, keys.range.end_key)
@@ -182,7 +182,7 @@ abstract class ROWAClientLibrary extends SCADS.ClientLibrary.Iface with KeySpace
 	* Write records to all responsible nodes.
 	* Does update from KeySpaceProvider if local copy is out of date.
 	*/
-	override def put(namespace: String, rec:Record): Boolean = {
+	def put(namespace: String, rec:Record): Boolean = {
 		val key = rec.getKey()
 		val ns_keyspace = getKeySpace(namespace)
 		val put_nodes = ns_keyspace.lookup(key)

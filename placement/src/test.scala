@@ -1,25 +1,6 @@
 import org.scalatest.Suite
 import AutoKey._
 
-case class ClientApp(h: String, p: Int) extends ThriftConnection {
-	val host = h
-	val port = p 
-
-	val client = new SCADS.ClientLibrary.Client(protocol)
-	
-}
-
-class ClientLibraryServer(p: Int) extends ThriftServer {
-	val port = p
-	val clientlib = new LocalROWAClientLibrary
-	val processor = new SCADS.ClientLibrary.Processor(clientlib)
-
-	val n1 = new TestableStorageNode()
-	val ks = new SimpleKeySpace()
-	ks.assign(n1, KeyRange("a", "c"))
-	clientlib.add_namespace("db",ks)
-}
-
 class ClientLibrarySuite extends Suite with ThriftConversions {
 
 	val rec1 = new SCADS.Record("a","a-val".getBytes())

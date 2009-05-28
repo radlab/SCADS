@@ -69,11 +69,6 @@
 			<arg value="java"/>
 			<arg value="../storage/storage.thrift"/>
 		</exec>
-		 <exec executable="thrift">
-			<arg value="-gen"/>
-			<arg value="java"/>
-			<arg value="clientlibrary.thrift"/>
-		</exec>
 	</target>
 	
 	<!-- 7. Build a jar -->
