@@ -1,4 +1,6 @@
 require 'Storage'
+require 'record_set'
+require 'conflict_policy'
 
 module SCADS
   module Storage
