@@ -2,6 +2,7 @@ import org.apache.thrift.transport.TSocket
 import org.apache.thrift.transport.TTransportException
 import org.apache.thrift.transport.TFramedTransport
 import org.apache.thrift.protocol.TBinaryProtocol
+import org.apache.thrift.protocol.XtBinaryProtocol
 import org.apache.thrift.TProcessor
 import org.apache.thrift.protocol.TProtocol
 import org.apache.thrift.protocol.TProtocolFactory
@@ -28,6 +29,19 @@ case class StorageNode(host: String, thriftPort: Int, syncPort: Int) {
 	override def clone() = {
 		new StorageNode(host, thriftPort, syncPort)
 	}
+}
+
+class XtStorageNode(host: String, thriftPort: Int, syncPort: Int) extends StorageNode(host,thriftPort,syncPort) {
+	override def getClient(): SCADS.Storage.Client = {
+		if(client == null) {
+			val transport = new TFramedTransport(new TSocket(host, thriftPort))
+			val protocol = new XtBinaryProtocol(transport)
+			client = new SCADS.Storage.Client(protocol)
+			transport.open()
+		}
+		return client
+	}
+
 }
 
 object TestableStorageNode {
