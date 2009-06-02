@@ -252,6 +252,47 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 }
 
 class KeySpaceSuite extends Suite {
+	def testKeySerialization() = {
+		val sk1 = new StringKey("Hello World")
+		val sk2 = new StringKey("1231234123412341234")
+		val sk3 = new StringKey("")
+
+		Array(sk1, sk2, sk3).foreach(k => {
+			assert(k == StringKey.deserialize(k.serialize, new java.text.ParsePosition(0)))
+		})
+
+		val nk1 = new NumericKey[Int](0)
+		val nk2 = new NumericKey[Int](1)
+		val nk3 = new NumericKey[Int](-1)
+		val nk4 = new NumericKey[Int](100)
+		val nk5 = new NumericKey[Long](System.currentTimeMillis())
+
+		Array(nk1, nk2, nk3, nk4, nk5).foreach(k => {
+			val k2 = NumericKey.deserialize(k.serialize, new java.text.ParsePosition(0))
+			assert(k == k2, "Error" + k + "!=" + k2 )
+		})
+
+		val nks = Array(System.currentTimeMillis() * -1L, -10L, -5L, -1L, -0L, 0L, 1L, 5L, 10L, System.currentTimeMillis()).map((n) => {(new NumericKey[Long](n)).serialize}).toList
+
+		println(nks)
+
+		for(i <- (0 to nks.length - 2)) {
+			val n1 = nks(i)
+			val n2 = nks(i+1)
+			assert((n1 compareTo n2) <= 0, "Error: " + n1 + " compare " + n2 + "=" + (n1 compareTo n2) + "DS: " + NumericKey.deserialize(n1, new java.text.ParsePosition(0)) + NumericKey.deserialize(n2, new java.text.ParsePosition(0)))
+		}
+
+		val t = new NumericKey[Long](System.currentTimeMillis() * -1L)
+		val u = new StringKey("UserName")
+		val serkey = u.serialize+t.serialize
+		val pos = new java.text.ParsePosition(0)
+		val u2 = StringKey.deserialize(serkey, pos)
+		val t2 = NumericKey.deserialize(serkey, pos)
+
+		assert(t == t2)
+		assert(u == u2)
+	}
+
 	def testKeySpace() = {
 		val n1 = new TestableStorageNode()
 		val n2 = new TestableStorageNode()

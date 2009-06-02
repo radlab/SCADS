@@ -1,3 +1,6 @@
+import java.text.ParsePosition
+
+
 abstract class Key extends Ordered[Key] {
 	override def compare(other: Key) = {
 		other match {
@@ -11,20 +14,50 @@ abstract class Key extends Ordered[Key] {
 	def serialize: String
 }
 
+object StringKey {
+	def deserialize(input: String, pos: ParsePosition): StringKey = {
+		assert(input.charAt(pos.getIndex) == '\'')
+		pos.setIndex(pos.getIndex + 1)
+
+		val sb = new StringBuilder()
+		while(input.charAt(pos.getIndex) != '\'' && pos.getIndex < input.length){
+			sb.append(input.charAt(pos.getIndex))
+			pos.setIndex(pos.getIndex + 1)
+		}
+		pos.setIndex(pos.getIndex + 1)
+		new StringKey(sb.toString())
+	}
+}
+
 @serializable
 case class StringKey(stringVal: String) extends Key {
-	override def toString:String = stringVal
-	override def serialize:String = stringVal
+	override def toString:String = "StringKey(" + stringVal + ")"
+	//TODO: handle "s correctly
+	def serialize:String = "'" + stringVal + "'"
 }
 
-object IntKey {
+object NumericKey {
+	val maxKey = 9999999999999999L
 	val keyFormat = new java.text.DecimalFormat("0000000000000000")
+
+	def deserialize(input: String, pos: ParsePosition): NumericKey[Long] = {
+		println("Deserializing: " + input + " " + pos)
+		val num = keyFormat.parse(input, pos).longValue()
+		if(num < 0)
+			new NumericKey[Long]((maxKey - Math.abs(num)) * -1)
+		else
+			new NumericKey[Long](num)
+	}
 }
 
 @serializable
-case class IntKey(intVal: Int) extends Key {
-	override def toString:String = IntKey.keyFormat.format(intVal)
-	def serialize:String = IntKey.keyFormat.format(intVal)
+case class NumericKey[numType](numericVal: Long) extends Key {
+	override def toString:String = "NumericKey(" + numericVal + ")"
+	def serialize:String =
+		if(numericVal >= 0)
+			NumericKey.keyFormat.format(numericVal)
+		else
+			"-" + NumericKey.keyFormat.format(NumericKey.maxKey - Math.abs(numericVal))
 }
 
 class InvalidKey extends Exception
@@ -45,5 +78,6 @@ object MaxKey extends Key {
 
 object AutoKey {
 	implicit def stringToKey(s:String) = new StringKey(s)
-	implicit def intToKey(i:Int) = new IntKey(i)
+	implicit def intToKey(i:Int) = new NumericKey[Int](i)
+	implicit def longToKey(i:Long) = new NumericKey[Long](i)
 }
