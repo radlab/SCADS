@@ -218,4 +218,21 @@ class TS_Sets < Test::Unit::TestCase
     assert_equal(1, @server.count_set("count", range.call(' ', 'a')))
     assert_equal(0, @server.count_set("count", range.call('A', 'Z')))
   end
+
+  def test_sorted
+    thoughts = (10..99).map{|i| Record.new(:key => "user#{i}", :value => "thinking #{i}")}
+
+    thoughts.each{|t| @server.put("thoughts", t)}
+    range = Proc.new{|s, e| RecordSet.new(
+      :type =>RecordSetType::RST_RANGE,
+      :range => RangeSet.new(:start_key=>s,:end_key=>e))
+    }
+
+    (10..99).each {|i|
+      ret = @server.get_set("thoughts", range.call("user#{10}", "user#{i}"))
+
+      assert_equal(thoughts[0..(i-10)], ret)
+    }
+
+  end
 end
