@@ -1,6 +1,6 @@
 require 'Storage'
-require 'record_set'
-require 'conflict_policy'
+require File.dirname(__FILE__) + "/" +'record_set'
+require File.dirname(__FILE__) + "/" +'conflict_policy'
 
 module SCADS
   module Storage
