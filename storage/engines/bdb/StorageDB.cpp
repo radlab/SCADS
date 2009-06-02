@@ -83,6 +83,38 @@ char * strnstr(const char *s, const char *find, size_t slen)
   }
   return (char*)s;
 }
+/*
+rs_assign(RecordSet * lsh, const RecordSet &rhs) const {
+  lsh->type = rhs.type; 
+  
+  if (rhs.type == RST_RANGE) { // copy range params
+    __isset.range = true;
+    __isset.func = false;
+    if (rhs.range.__isset.start_key) {
+      range.start_key.assign(rhs.range.start_key);
+      range.__isset.start_key = true;
+    }
+    else 
+      range.__isset.start_key = false;
+    
+    if (rhs.range.__isset.end_key) {
+      range.end_key.assign(rhs.range.end_key);
+      range.__isset.end_key = true;
+    }
+    else
+      range.__isset.end_key = false;
+  }
+  
+  if (rhs.type == RST_KEY_FUNC) { // copy func info
+    __isset.range = false;
+    __isset.func = true;
+    func.lang = rhs.func.lang;
+    func.func.assign(rhs.func.func);
+  }
+
+  return *this;  // Return a reference to myself.
+}
+*/
 
 int uf;
 
@@ -174,19 +206,18 @@ open_database(DB **dbpp,                  /* The DB handle that we are opening *
 
 bool StorageDB::
 responsible_for_key(const NameSpace& ns, const RecordKey& key) {
-  RecordSet rs;
-  get_responsibility_policy(rs,ns);
+  RecordSet *rs = return_responsibility_policy(ns);
 
-  if (rs.type == RST_ALL) 
+  if (rs->type == RST_ALL) 
     return true;
-  if (rs.type == RST_NONE)
+  if (rs->type == RST_NONE)
     return false;
 
-  if (rs.type == RST_RANGE) {
-    if ( (!rs.range.__isset.start_key ||
-	  key >= rs.range.start_key) &&
-	 (!rs.range.__isset.end_key ||
-	  key <= rs.range.end_key)  )
+  if (rs->type == RST_RANGE) {
+    if ( (!rs->range.__isset.start_key ||
+	  key >= rs->range.start_key) &&
+	 (!rs->range.__isset.end_key ||
+	  key <= rs->range.end_key)  )
       return true;
     else
       return false;
@@ -194,11 +225,11 @@ responsible_for_key(const NameSpace& ns, const RecordKey& key) {
 
   int rb_err;
   VALUE funcall_args[3];
-  if (rs.type == RST_KEY_FUNC) {
-    VALUE ruby_proc = rb_eval_string_protect(rs.func.func.c_str(),&rb_err);
+  if (rs->type == RST_KEY_FUNC) {
+    VALUE ruby_proc = rb_eval_string_protect(rs->func.func.c_str(),&rb_err);
     if (!rb_respond_to(ruby_proc,call_id)) {
       InvalidSetDescription isd;
-      isd.s = rs;
+      isd.s = *rs;
       isd.info = "Your ruby string for your responsiblity policy does not return something that responds to 'call'";
       isd.__isset.s = true;
       isd.__isset.info = true;
@@ -211,7 +242,7 @@ responsible_for_key(const NameSpace& ns, const RecordKey& key) {
     v = rb_protect(rb_funcall_wrap,((VALUE)funcall_args),&rb_err);
     if (rb_err) {
       InvalidSetDescription isd;
-      isd.s = rs;
+      isd.s = *rs;
       VALUE lasterr = rb_gv_get("$!");
       VALUE message = rb_obj_as_string(lasterr);
       isd.info = rb_string_value_cstr(&message);
@@ -227,10 +258,9 @@ responsible_for_key(const NameSpace& ns, const RecordKey& key) {
 
 bool StorageDB::
 responsible_for_set(const NameSpace& ns, const RecordSet& rs) {
-  RecordSet policy;
-  get_responsibility_policy(policy,ns);
+  RecordSet *policy = return_responsibility_policy(ns);
     
-  if (policy.type == RST_ALL || policy.type == RST_KEY_FUNC)
+  if (policy->type == RST_ALL || policy->type == RST_KEY_FUNC)
     return true;
   if (rs.type == RST_NONE)
     return false;
@@ -246,11 +276,11 @@ responsible_for_set(const NameSpace& ns, const RecordSet& rs) {
     }
     if (
 	( !rs.range.__isset.start_key ||
-	  (policy.range.__isset.start_key &&
-	   rs.range.start_key >= policy.range.start_key) ) &&
+	  (policy->range.__isset.start_key &&
+	   rs.range.start_key >= policy->range.start_key) ) &&
 	( !rs.range.__isset.end_key ||
-	  (policy.range.__isset.end_key &&
-	   rs.range.end_key <= policy.range.end_key) ) 
+	  (policy->range.__isset.end_key &&
+	   rs.range.end_key <= policy->range.end_key) ) 
 	)
       return true;
     else
@@ -884,6 +914,11 @@ StorageDB(int lp,
     perror("Could not create dbmap_lock");
     exit(EXIT_FAILURE);
   }
+  // create the responsibility policy lock
+  if (pthread_rwlock_init(&resp_lock, NULL)) {
+    perror("Could not create resp_lock");
+    exit(EXIT_FAILURE);
+  }
   if (doMerkle) {
     if (pthread_mutex_init(&flush_tex,NULL)) {
       perror("Could not create flush_tex");
@@ -1096,8 +1131,6 @@ put(const NameSpace& ns, const Record& rec) {
 
 bool StorageDB::
 set_responsibility_policy(const NameSpace& ns, const RecordSet& policy) {
-  // TODO:  should probably lock to make this atomic
-
 #ifdef DEBUG
   cerr << "Setting resp policy"<<endl;
 #endif
@@ -1221,116 +1254,124 @@ set_responsibility_policy(const NameSpace& ns, const RecordSet& policy) {
   printf("About to put: %s\n",buf);
 #endif
 
+  int rc = pthread_rwlock_wrlock(&resp_lock); // need a write lock here
+  chkLock(rc,"resp_lock","modify responsibility map");
   retval = mdDB->put(mdDB, NULL, &db_key, &db_data, 0);
   retval |= flush_log(mdDB);
-
-  if (!retval)
+  map<const NameSpace,RecordSet*>::iterator it;
+  RecordSet *rs;
+  it = policies.find(ns);
+  if (it == policies.end()) 
+    rs = new RecordSet();
+  else 
+    rs = it->second;  
+  *rs = policy;
+  if (it == policies.end())
+    policies[ns] = rs;
+  rc = pthread_rwlock_unlock(&resp_lock); // unlock
+  chkLock(rc,"resp_lock","unlock write lock");
+  
+if (!retval)
     return true;
   TException te("Something went wrong storing your responsibility policy");
   throw te;
 }
 
+
+RecordSet*
+StorageDB::return_responsibility_policy(const NameSpace& ns) {
+  map<const NameSpace,RecordSet*>::iterator it;
+  RecordSet *rs;
+  int rc = pthread_rwlock_rdlock(&resp_lock); // get the read lock
+  chkLock(rc,"resp_lock","Responsibility read lock");
+  it = policies.find(ns);
+  if (it == policies.end()) { // haven't used this policy yet
+    rc = pthread_rwlock_unlock(&resp_lock); // unlock read lock
+    chkLock(rc,"resp_lock","unlock responsibility lock for upgrade");
+    rc = pthread_rwlock_wrlock(&resp_lock); // need a write lock here
+    chkLock(rc,"resp_lock","modify responsibility map");
+    it = policies.find(ns);
+    if (it != policies.end()) { // someone else filled this under me
+      rs = it->second;
+      rc = pthread_rwlock_unlock(&resp_lock); // unlock write lock
+      chkLock(rc,"resp_lock","unlock write lock");
+      return rs;
+    }
+
+#ifdef DEBUG
+    cout << "Going to disk for resp pol"<<endl;
+#endif
+
+    DB* mdDB = getDB("storage_metadata");
+    DBT db_key, db_data;
+    int retval;
+
+
+    memset(&db_key, 0, sizeof(DBT));
+    memset(&db_data, 0, sizeof(DBT));
+    
+    db_key.data = const_cast<char*>(ns.c_str());
+    db_key.size = ns.length();
+    db_data.flags = DB_DBT_MALLOC;
+    
+
+    retval = mdDB->get(mdDB, NULL, &db_key, &db_data, 0);
+    if (!retval) { // okay, something was there
+      rs = new RecordSet();
+      string pol((char*)db_data.data,db_data.size);
+      int type;
+      istringstream is(pol,istringstream::in);
+      is >> type;
+      rs->type = (SCADS::RecordSetType)type;
+      switch (rs->type) {
+      case RST_RANGE:
+	is >> rs->range.__isset.start_key >> rs->range.__isset.end_key; 
+	if (rs->range.__isset.start_key)
+	  is >> rs->range.start_key;
+	if (rs->range.__isset.end_key)
+	  is >>rs->range.end_key;
+	rs->__isset.range = true;
+	break;
+      case RST_KEY_FUNC: {
+	int lang;
+	stringbuf sb;
+	is >> lang >> (&sb);
+	rs->func.lang = (SCADS::Language)lang;
+	rs->func.func.assign(sb.str());
+	rs->__isset.func = true;
+	rs->func.__isset.lang = true;
+	rs->func.__isset.func = true;
+      }
+	break;
+      }
+      free(db_data.data);
+    } else if (retval == DB_NOTFOUND) {
+      // not found means RST_ALL
+      rs = new RecordSet();
+      rs->type = RST_ALL;
+    } else {
+      rc = pthread_rwlock_unlock(&resp_lock); // unlock write lock
+      chkLock(rc,"resp_lock","unlock write lock");
+      TException te("Error getting responsibility policy");
+      throw te;
+    }
+    policies[ns] = rs;
+    rc = pthread_rwlock_unlock(&resp_lock); // unlock write lock
+    chkLock(rc,"resp_lock","unlock write lock");
+    return rs;
+  }
+  // okay, it's already there
+  rs = it->second;
+  rc = pthread_rwlock_unlock(&resp_lock); // unlock read lock
+  chkLock(rc,"resp_lock","unlock read lock");
+  return rs;
+}
+
 void StorageDB::
 get_responsibility_policy(RecordSet& _return, const NameSpace& ns) {
-  DB* mdDB = getDB("storage_metadata");
-  DBT db_key, db_data;
-  int retval;
-
-
-  /* Zero out the DBTs before using them. */
-
-    
-  memset(&db_key, 0, sizeof(DBT));
-  memset(&db_data, 0, sizeof(DBT));
-
-  db_key.data = const_cast<char*>(ns.c_str());
-  db_key.size = ns.length();
-  db_data.flags = DB_DBT_MALLOC;
-
-
-  retval = mdDB->get(mdDB, NULL, &db_key, &db_data, 0);
-  if (!retval) { // okay, something was there
-    string pol((char*)db_data.data,db_data.size);
-#ifdef DEBUG
-    //cout << "deserialized str:"<<endl<<
-    //pol<<endl;
-#endif
-    int type;
-    istringstream is(pol,istringstream::in);
-    is >> type;
-    _return.type = (SCADS::RecordSetType)type;
-    switch (_return.type) {
-    case RST_RANGE:
-      is >> _return.range.__isset.start_key >> _return.range.__isset.end_key; 
-      if (_return.range.__isset.start_key)
-	is >> _return.range.start_key;
-      if (_return.range.__isset.end_key)
-	is >>_return.range.end_key;
-      _return.__isset.range = true;
-      break;
-    case RST_KEY_FUNC: {
-      int lang;
-      stringbuf sb;
-      is >> lang >> (&sb);
-      _return.func.lang = (SCADS::Language)lang;
-      _return.func.func.assign(sb.str());
-      _return.__isset.func = true;
-      _return.func.__isset.lang = true;
-      _return.func.__isset.func = true;
-    }
-      break;
-    }
-
-#ifdef DEBUG
-    /*cout << "Deserizalized resp_pol:"<<endl<<
-      "\tType: "<<_return.type<<endl<<
-      "\tLang: "<<_return.func.lang<<endl<<
-      "\tSK: "<<_return.range.start_key<<endl<<
-      "\tEK: "<<_return.range.end_key<<endl<<
-      "\tFUNC: "<<_return.func.func<<endl;*/
-#endif
-    free(db_data.data);
-  } else if (retval == DB_NOTFOUND) {
-    // not found means RST_ALL
-    _return.type = RST_ALL;
-  } else {
-    TException te("Error getting responsibility policy");
-    throw te;
-  }
+  _return = *(return_responsibility_policy(ns));
 }
 
-/*
-RecordSet& RecordSet::operator=(const RecordSet &rhs) const {
-  type = rhs.type; 
-  
-  if (rhs.type == RST_RANGE) { // copy range params
-    __isset.range = true;
-    __isset.func = false;
-    if (rhs.range.__isset.start_key) {
-      range.start_key.assign(rhs.range.start_key);
-      range.__isset.start_key = true;
-    }
-    else 
-      range.__isset.start_key = false;
-    
-    if (rhs.range.__isset.end_key) {
-      range.end_key.assign(rhs.range.end_key);
-      range.__isset.end_key = true;
-    }
-    else
-      range.__isset.end_key = false;
-  }
-  
-  if (rhs.type == RST_KEY_FUNC) { // copy func info
-    __isset.range = false;
-    __isset.func = true;
-    func.lang = rhs.func.lang;
-    func.func.assign(rhs.func.func);
-  }
-
-  return *this;  // Return a reference to myself.
-}
-*/
 
 enum ServerType {
   ST_SIMPLE,

@@ -32,12 +32,15 @@ class StorageDB : public StorageIf {
 
 private:
   DB_ENV *db_env;
-  pthread_rwlock_t dbmap_lock;
-  map<const NameSpace,DB*> dbs;
-  map<const NameSpace,MerkleDB*> merkle_dbs;
+  pthread_rwlock_t dbmap_lock, resp_lock;
   pthread_t listen_thread,flush_threadp;
   pthread_cond_t flush_cond;
   pthread_mutex_t flush_tex, flushing_tex;
+
+  map<const NameSpace,DB*> dbs;
+  map<const NameSpace,MerkleDB*> merkle_dbs;
+  map<const NameSpace,RecordSet*> policies;
+
   int listen_port;
   u_int32_t user_flags;
   bool doMerkle;
@@ -57,6 +60,8 @@ private:
 
   bool simple_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const ConflictPolicy& policy);
   bool merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const ConflictPolicy& policy);
+
+  RecordSet* return_responsibility_policy(const NameSpace& ns);
 
 public:
   void apply_to_set(const NameSpace& ns, const RecordSet& rs,
