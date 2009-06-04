@@ -92,33 +92,55 @@ abstract class ROWAClientLibrary extends KeySpaceProvider with ThriftConversions
 		val target_range = new KeyRange(keys.range.start_key, keys.range.end_key)
 		var ranges = Set[KeyRange]()
 
+		var offset = 0
+		if (keys.range.isSetOffset()) { offset = keys.range.getOffset() }
+		var limit = 0
+		val haveLimit = if (keys.range.isSetLimit()) { limit = keys.range.getLimit(); true } else { false }
+
 		// determine which ranges to ask from which nodes
 		// assumes no gaps in range, but someone should tell user if entire range isn't covered
 		val potentials = ns_keyspace.lookup(target_range)
 		val query_nodes = this.get_set_queries(potentials,target_range)		
 
 		// now do the getting
+		var node_record_count = 0
 		query_nodes.foreach( {case (node,keyrange)=> {			
 			ranges += keyrange
 			val rset = this.keyRangeToScadsRangeSet(keyrange)
 
-			try {			
-				val records_subset = node.getClient().get_set(namespace,rset)
-				val iter = records_subset.iterator()
-				while (iter.hasNext()) { records += iter.next() }
+			if (offset > 0) { // have to compensate for offset
 				
-			} catch {
-				case e:NotResponsible => {
-					this.refreshKeySpace()
-					val records_subset = node.getClient().get_set(namespace,rset)
-					val iter = records_subset.iterator()
-					while (iter.hasNext()) { records += iter.next() }
-				}
-				case e => {
-					println("Client library exception in get_set(): "+e)
-					throw e
+				try {
+					node_record_count = node.getClient().count_set(namespace,rset)
+				} catch {
+					case e:NotResponsible => {
+						this.refreshKeySpace()
+						node_record_count = node.getClient().count_set(namespace,rset)
+					}
 				}
 			}
+
+			if (node_record_count >= offset && ( (haveLimit && limit > 0) || !haveLimit) ) {
+				if (offset > 0) { rset.range.setOffset(offset) }
+				if (haveLimit) { rset.range.setLimit(limit) }
+				try {
+					val records_subset = node.getClient().get_set(namespace,rset)
+					val iter = records_subset.iterator()
+					while (iter.hasNext()) { records += iter.next(); limit -= 1 }
+				} catch {
+					case e:NotResponsible => {
+						this.refreshKeySpace()
+						val records_subset = node.getClient().get_set(namespace,rset)
+						val iter = records_subset.iterator()
+						while (iter.hasNext()) { records += iter.next(); limit -= 1 }
+					}
+					case e => {
+						println("Client library exception in get_set(): "+e)
+						throw e
+					}
+				}
+			} // end if
+			offset -= node_record_count // when both are zero, does nothing
 		}
 		})
 		
