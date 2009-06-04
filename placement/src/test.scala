@@ -47,6 +47,59 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		}
 	}
 	
+	def testOffsetLimit() = {
+		val clientlib = new LocalROWAClientLibrary
+		val n1 = new TestableStorageNode()
+
+		val ks = new SimpleKeySpace()
+		ks.assign(n1, KeyRange("a", "f"))
+		clientlib.add_namespace("db_offsetlimit",ks)
+
+		// put two records
+		assert( clientlib.put("db_offsetlimit",rec1) )
+		assert( clientlib.put("db_offsetlimit",rec2) )
+		assert( clientlib.put("db_offsetlimit",rec3) )
+		assert( clientlib.put("db_offsetlimit",rec4) )
+		assert( clientlib.put("db_offsetlimit",rec5) )
+
+		// get range of records with an offset
+		var desired = this.keyRangeToScadsRangeSet(KeyRange("a","ba"))
+		desired.range.setOffset(1)
+		var results = clientlib.get_set("db_offsetlimit", desired)
+		assert(results.size()==1)
+		assert(rec2==results.get(0))
+		desired.range.setOffset(2)
+		results = clientlib.get_set("db_offsetlimit", desired)
+		assert(results.size()==0)
+
+		// get range of records with a limit
+		desired = this.keyRangeToScadsRangeSet(KeyRange("a","ca"))
+		desired.range.setLimit(1)
+		results = clientlib.get_set("db_offsetlimit", desired)
+		assert(results.size()==1)
+		assert(rec1==results.get(0))
+		desired.range.setLimit(2)
+		results = clientlib.get_set("db_offsetlimit", desired)
+		assert(results.size()==2)
+		assert(rec1==results.get(0))
+		assert(rec2==results.get(1))
+		desired.range.setLimit(3)
+		results = clientlib.get_set("db_offsetlimit", desired)
+		assert(results.size()==3)
+		assert(rec1==results.get(0))
+		assert(rec2==results.get(1))
+		assert(rec3==results.get(2))
+
+		// get range with offset and limit
+		desired = this.keyRangeToScadsRangeSet(KeyRange("a","ca"))
+		desired.range.setLimit(1)
+		desired.range.setOffset(1)
+		results = clientlib.get_set("db_offsetlimit", desired)
+
+		assert(results.size()==1)
+		assert(rec2==results.get(0))
+	}
+
 	def testDoubleNodePartition() = {
 		val clientlib = new LocalROWAClientLibrary
 		val n1 = new TestableStorageNode()
@@ -248,6 +301,38 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		intercept[NonCoveredRangeException] {
 			clientlib.get_set("db_double_gp", this.keyRangeToScadsRangeSet(KeyRange("b","d")) )
 		}
+	}
+}
+
+class XTraceSuite extends Suite {
+	def testCLtoStorageNode() = {
+		val rec1 = new SCADS.Record("a","a-val".getBytes())
+		val rec2 = new SCADS.Record("b","b-val".getBytes())
+
+		val clientlib = new LocalROWAClientLibrary
+		val n1 = new XtStorageNode("127.0.0.1",9000,9091)
+		n1.protocol.xtrace_set_severity(1)
+
+		val ks = new SimpleKeySpace()
+		ks.assign(n1, KeyRange("a", "ca"))
+		clientlib.add_namespace("db_xtrace",ks)
+
+		// put record with xtrace
+		println("start: "+System.currentTimeMillis().toString)
+		assert( clientlib.put("db_xtrace",rec1) )
+		println("end: "+System.currentTimeMillis().toString)
+		println("start: "+System.currentTimeMillis().toString)
+		assert( clientlib.put("db_xtrace",rec1) )
+		println("end: "+System.currentTimeMillis().toString)
+		println("start: "+System.currentTimeMillis().toString)
+		assert( clientlib.put("db_xtrace",rec2) )
+		println("end: "+System.currentTimeMillis().toString)
+
+		// put without xtrace
+		n1.protocol.xtrace_set_severity(6)
+		println("start: "+System.currentTimeMillis().toString)
+		assert( clientlib.put("db_xtrace",rec2) )
+		println("end: "+System.currentTimeMillis().toString)
 	}
 }
 
