@@ -29,7 +29,13 @@ module SCADS
           ret.sort{|x,y| x.key <=> y.key}
 
           if rs.type == RecordSetType::RST_RANGE
-            ret[((rs.range.offset || 0)..((rs.range.limit || ret.size) - 1))]
+            result_offset = rs.range.offset || 0
+            unless (rs.range.limit.nil?)
+              result_limit = rs.range.limit+result_offset
+            else
+              result_limit =ret.size
+            end
+            ret[((result_offset)..(result_limit-1))]
           else
             ret
           end.sort{|x,y| x.key <=> y.key}
