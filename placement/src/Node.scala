@@ -32,10 +32,11 @@ case class StorageNode(host: String, thriftPort: Int, syncPort: Int) {
 }
 
 class XtStorageNode(host: String, thriftPort: Int, syncPort: Int) extends StorageNode(host,thriftPort,syncPort) {
+	val transport = new TFramedTransport(new TSocket(host, thriftPort))
+	val protocol = new XtBinaryProtocol(transport)
+
 	override def getClient(): SCADS.Storage.Client = {
 		if(client == null) {
-			val transport = new TFramedTransport(new TSocket(host, thriftPort))
-			val protocol = new XtBinaryProtocol(transport)
 			client = new SCADS.Storage.Client(protocol)
 			transport.open()
 		}
