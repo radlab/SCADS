@@ -1,3 +1,5 @@
+package edu.berkeley.cs.scads
+
 trait KeySpaceProvider {
 	def getKeySpace(ns: String):KeySpace
 	def refreshKeySpace()

@@ -1,3 +1,5 @@
+package edu.berkeley.cs.scads
+
 import org.apache.thrift.transport.TSocket
 import org.apache.thrift.transport.TTransportException
 import org.apache.thrift.transport.TFramedTransport

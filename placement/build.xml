@@ -52,7 +52,7 @@
 				<path refid="project.classpath"/>
 			</classpath>
 
-			<arg line="RunTests"/>
+			<arg line="edu.berkeley.cs.scads.RunTests"/>
 		</java>
 	</target>
 

@@ -1,3 +1,5 @@
+package edu.berkeley.cs.scads
+
 import AutoKey._
 
 object Dumper {

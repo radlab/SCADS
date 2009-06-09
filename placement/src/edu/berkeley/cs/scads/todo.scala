@@ -1,3 +1,5 @@
+package edu.berkeley.cs.scads
+
 /*
 abstract class MulticastCluster(dp: DataPlacement) extends ClusterMembership(dp) {
 	// TODO

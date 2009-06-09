@@ -1,3 +1,5 @@
+package edu.berkeley.cs.scads
+
 object CSVWriter {
 	val files = new scala.collection.immutable.HashMap[java.io.File, java.io.FileWriter]
 	val timestamp = System.currentTimeMillis().toString

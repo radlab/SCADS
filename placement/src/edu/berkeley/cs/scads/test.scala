@@ -1,3 +1,5 @@
+package edu.berkeley.cs.scads
+
 import org.scalatest.Suite
 import AutoKey._
 

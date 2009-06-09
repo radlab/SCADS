@@ -1,3 +1,5 @@
+package edu.berkeley.cs.scads
+
 import SCADS.RecordSet
 import SCADS.RecordSetType
 import SCADS.RangeSet
