@@ -54,12 +54,16 @@ class SCADSClient(h: String, p: Int) extends ROWAClientLibrary with RemoteKeySpa
 
 abstract class ROWAClientLibrary extends KeySpaceProvider with ThriftConversions {
 	import java.util.Random
+	val retries = 5
 
 	/**
 	* Read value from one node. Uses local map. 
 	* Does update from KeySpaceProvider if local copy is out of date.
 	*/
 	def get(namespace: String, key: String): Record = {
+		this.get_retry(namespace,key,retries);
+	}
+	private def get_retry(namespace: String, key: String, count: Int):Record = {
 		val ns_keyspace = getKeySpace(namespace)
 		try {
 			val potentials = ns_keyspace.lookup(key).toList
@@ -72,8 +76,12 @@ abstract class ROWAClientLibrary extends KeySpaceProvider with ThriftConversions
 		} catch {
 			case e:NotResponsible => {
 				this.refreshKeySpace()
-				val record = this.get(namespace,key) // recursion, TODO: needs to be bounded
-				record
+				if (count >0)
+					this.get_retry(namespace,key,count-1)
+				else {
+					println("Client library failed refresh attempts on [" +namespace+"]"+key+": "+retries)
+					throw e // TODO: throw more meaningful exception
+				}
 			}
 			case e => {
 				println("Client library exception in get(): "+e)
@@ -83,10 +91,11 @@ abstract class ROWAClientLibrary extends KeySpaceProvider with ThriftConversions
 	}
 	
 	/**
-	* Read values from one node. Uses local map.
+	* Read values from as many nodes as needed. Uses local map.
 	* Does update from KeySpaceProvider if local copy is out of date.
 	*/
 	def get_set(namespace: String, keys: RecordSet): java.util.List[Record] = {
+		var count = retries
 		var records = new HashSet[Record]
 		val ns_keyspace = getKeySpace(namespace)
 		val target_range = new KeyRange(keys.range.start_key, keys.range.end_key)
@@ -115,7 +124,14 @@ abstract class ROWAClientLibrary extends KeySpaceProvider with ThriftConversions
 				} catch {
 					case e:NotResponsible => {
 						this.refreshKeySpace()
-						node_record_count = node.getClient().count_set(namespace,rset)
+						if (count>0) {
+							node_record_count = node.getClient().count_set(namespace,rset)
+							count -=1
+						}
+						else {
+							println("Client library failed refresh attempts on [" +namespace+"]: "+retries)
+							throw e // TODO: throw more meaningful exception
+						}
 					}
 				}
 			}
@@ -130,9 +146,16 @@ abstract class ROWAClientLibrary extends KeySpaceProvider with ThriftConversions
 				} catch {
 					case e:NotResponsible => {
 						this.refreshKeySpace()
-						val records_subset = node.getClient().get_set(namespace,rset)
-						val iter = records_subset.iterator()
-						while (iter.hasNext()) { records += iter.next(); limit -= 1 }
+						if (count>0) {
+							val records_subset = node.getClient().get_set(namespace,rset)
+							val iter = records_subset.iterator()
+							while (iter.hasNext()) { records += iter.next(); limit -= 1 }
+							count-=1
+						}
+						else {
+							println("Client library failed refresh attempts on [" +namespace+"]: "+retries)
+							throw e // TODO: throw more meaningful exception
+						}
 					}
 					case e => {
 						println("Client library exception in get_set(): "+e)
@@ -205,6 +228,10 @@ abstract class ROWAClientLibrary extends KeySpaceProvider with ThriftConversions
 	* Does update from KeySpaceProvider if local copy is out of date.
 	*/
 	def put(namespace: String, rec:Record): Boolean = {
+		this.put_retry(namespace,rec,retries)
+	}
+
+	private def put_retry(namespace: String, rec:Record,count:Int): Boolean = {
 		val key = rec.getKey()
 		val ns_keyspace = getKeySpace(namespace)
 		val put_nodes = ns_keyspace.lookup(key)
@@ -218,8 +245,14 @@ abstract class ROWAClientLibrary extends KeySpaceProvider with ThriftConversions
 			} catch {
 				case e:NotResponsible => {
 					this.refreshKeySpace()
-					val success = this.put(namespace,rec) // recursion may redo some work
-					total_success && success
+					if (count>0) {
+						val success = this.put_retry(namespace,rec,count-1) // recursion may redo some work
+						total_success && success
+					}
+					else {
+						println("Client library failed refresh attempts on [" +namespace+"]: "+retries)
+						throw e // TODO: throw more meaningful exception
+					}
 				}
 				case e => {
 					println("Client library exception in put(): "+e)
@@ -229,5 +262,6 @@ abstract class ROWAClientLibrary extends KeySpaceProvider with ThriftConversions
 		}})
 		total_success
 	}
+
 }
 
