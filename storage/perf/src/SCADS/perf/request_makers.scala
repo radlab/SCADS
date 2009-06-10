@@ -10,7 +10,7 @@ import org.apache.thrift.protocol.TProtocol;
 abstract class RequestMaker(valSize: Int) {
 	val keyFormat = new java.text.DecimalFormat("000000000000000")
 	val value = ("*" * valSize).getBytes
-	
+
 	def getKey(key: Int) = keyFormat.format(key)
 	def getRecord(key: Int) = new Record(getKey(key), value)
 	def makeRequest(client: SCADS.Storage.Client): Map[String, String]
@@ -18,7 +18,7 @@ abstract class RequestMaker(valSize: Int) {
 
 abstract class SequentialWriter(valSize: Int) extends RequestMaker(valSize) {
 	var key: Int = 0
-	
+
 	def makeRequest(client: SCADS.Storage.Client): Map[String, String] = {
 		key += 1
 		val record = getRecord(key)
@@ -30,7 +30,7 @@ abstract class SequentialWriter(valSize: Int) extends RequestMaker(valSize) {
 abstract class RandomReader(mKey: Int) extends RequestMaker(0) {
 	val rand = new java.util.Random
 	val maxKey = mKey
-	
+
 	def makeRequest(client: SCADS.Storage.Client): Map[String, String] = {
 		val key = getKey(rand.nextInt(maxKey))
 		client.get("perfTest", key)

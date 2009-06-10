@@ -27,7 +27,7 @@ case class StorageNode(host: String, thriftPort: Int, syncPort: Int) {
 		}
 		return client
 	}
-	
+
 	override def clone() = {
 		new StorageNode(host, thriftPort, syncPort)
 	}
@@ -71,7 +71,7 @@ class TestableStorageNode(thriftPort: Int, syncPort: Int) extends StorageNode("1
 
 	thread.start
 
-	var startTime = System.currentTimeMillis() 
+	var startTime = System.currentTimeMillis()
 	while(!lines.contains("Opening socket on 0.0.0.0:" + thriftPort) && !lines.contains("Starting nonblocking server...")) {
 		if(System.currentTimeMillis() - startTime > 20000)
 			throw new Exception("failed to connect to " + this + " after " + (System.currentTimeMillis() - startTime))
@@ -154,23 +154,23 @@ trait Cluster {
 trait SynchronousHeartbeatCluster extends Cluster {
 	import java.util.Timer;
 	import java.util.TimerTask;
-	
+
 	val timer = new Timer()
 	def interval: Int
 	def nameSpace: String
-	
+
 	def start() = {
 		timer.schedule(new PingTask(),0,interval*1000)
 	}
-	
+
 	def stop() = {
 		timer.cancel
 	}
-	
+
 	def log_failure(node: StorageNode) = {
 		println("node unresponsive: "+node.host+":"+node.thriftPort)
 	}
-	
+
 	private class PingTask extends TimerTask {
 		override def run() = {
 			nodes.foreach({ case(node) => {
@@ -192,7 +192,7 @@ trait SynchronousHeartbeatCluster extends Cluster {
 trait ThriftConnection {
 	def host: String
 	def port: Int
-	
+
 	val transport = new TSocket(host, port)
 	val protocol = new TBinaryProtocol(transport)
 }
@@ -207,11 +207,11 @@ trait ThriftServer extends java.lang.Thread {
 	private val serverTransport = new TServerSocket(port)
 	private val protFactory = new TBinaryProtocol.Factory(true, true)
 	private val server = new TThreadPoolServer(processor, serverTransport,protFactory)
-	
+
 	override def run = {
 		try {
 			println("starting server on "+port)
 			server.serve
-		} catch { case x: Exception => x.printStackTrace }		
+		} catch { case x: Exception => x.printStackTrace }
 	}
 }

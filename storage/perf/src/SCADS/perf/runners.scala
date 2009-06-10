@@ -13,17 +13,17 @@ trait Runner {
 		var ret = useConnection()
 		val end_nano = System.nanoTime()
 		val end = System.currentTimeMillis()
-		
+
 		ret + ("start_time" -> ("" + start), "end_time" -> ("" + end), "duration" -> (end_nano-start_nano).toString) ++ otherData
 	}
-	
+
 	def report(stats: Map[String, String])
 }
 
 trait ReportToCSVFile {
 	var file: FileWriter = null
 	var keys: Seq[String] = null
-	
+
 	def report(stats: Map[String, String]){
 		if(file == null){
 			file = new FileWriter("perf.csv")

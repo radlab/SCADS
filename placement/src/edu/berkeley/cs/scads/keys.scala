@@ -11,8 +11,8 @@ abstract class Key extends Ordered[Key] {
 			case k:Key => serialize.compare(k.serialize)
 		}
 	}
-	
-	def toString : String 
+
+	def toString : String
 	def serialize: String
 }
 

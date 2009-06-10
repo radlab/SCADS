@@ -16,7 +16,7 @@ class NodeMap {
 	def remove(node: StorageThriftNode) = {
 		nodes - node
 	}
-	def lookup(ns: String, key: String): List[StorageThriftNode] = {// find nodes responsible for this key in this String 
+	def lookup(ns: String, key: String): List[StorageThriftNode] = {// find nodes responsible for this key in this String
 		null
 	}
 	def lookup_set(ns: String, rset: RecordSet): Map[StorageThriftNode,RecordSet] = { // find nodes and what to get from each one

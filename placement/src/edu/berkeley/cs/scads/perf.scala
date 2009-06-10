@@ -36,7 +36,7 @@ case class RandomReader(testData: Map[String, String], server: String, maxKey: I
 	case class SCADSClient(host: String, port: Int) extends ROWAClientLibrary with RemoteKeySpaceProvider
 	val client = new SCADSClient(server, 8000)
 	val resultPrefix = "/mnt"
-	
+
 	def run() {
 		var result = Map("data_placement_server" -> server, "max_key" -> maxKey.toString, "requests" -> requests.toString, "client_machine" -> java.net.InetAddress.getLocalHost().getHostName(), "client_threat" -> Thread.currentThread().getName()) ++ testData
 		val keyFormat = new java.text.DecimalFormat("000000000000000")
@@ -49,7 +49,7 @@ case class RandomReader(testData: Map[String, String], server: String, maxKey: I
 			client.get("perfTest", key)
 		}
 		result +=  ("end_time" -> System.currentTimeMillis().toString)
-		
+
 		println("test complete")
 		output(result)
 	}

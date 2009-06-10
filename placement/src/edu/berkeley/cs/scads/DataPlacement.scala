@@ -20,17 +20,17 @@ class SimpleDataPlacementCluster(ns:String, freq:Int) extends SimpleDataPlacemen
 		nodes += n
 		nodes.contains(n)
 	}
-	
+
 	def leave(n: StorageNode): Boolean = {
 		nodes -= n
 		!nodes.contains(n)
 	}
-	
+
 	override def assign(node: StorageNode, range: KeyRange) = {
 		super.assign(node,range)
 		join(node)
 	}
-	
+
 	override def remove(node: StorageNode) = {
 		super.remove(node)
 		leave(node)

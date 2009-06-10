@@ -13,12 +13,12 @@ case class ScadsRecordReader(split: ScadsInputSplit) extends org.apache.hadoop.m
 		val k = split.readNext()
 		if(k.length == 0)
 			return false
-		
+
 		key.set(k)
 		value.set(split.readNext())
 		true
 	}
-	
+
 	def close() {}
 	def createKey():Text = new Text()
 	def createValue(): Text = new Text()

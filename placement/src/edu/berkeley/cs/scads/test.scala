@@ -14,23 +14,23 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 	def testSingleNode() = {
 		val clientlib = new LocalROWAClientLibrary
 		val n1 = new TestableStorageNode()
-		
+
 		val ks = new SimpleKeySpace()
 		ks.assign(n1, KeyRange("a", "ca"))
 		clientlib.add_namespace("db_single",ks)
-		
+
 		// put two records
 		assert( clientlib.put("db_single",rec1) )
 		assert( clientlib.put("db_single",rec2) )
-		
+
 		// do a single get in range, on boundaries, outside responsibility
 		assert( clientlib.get("db_single","a") == (new SCADS.Record("a","a-val".getBytes())) )
 		assert( clientlib.get("db_single","b") == (new SCADS.Record("b","b-val".getBytes())) )
 		assert( clientlib.get("db_single","c") == (new SCADS.Record("c",null)) )
 		intercept[NoNodeResponsibleException] {
 			clientlib.get("db_single","d")
-		}	
-		
+		}
+
 		// get a range of records, within range and outside range
 		var results = clientlib.get_set("db_single", this.keyRangeToScadsRangeSet(KeyRange("a","bb")) )
 		assert(results.size()==2)
@@ -40,7 +40,7 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		assert(results.size()==2)
 		assert(rec1==results.get(0))
 		assert(rec2==results.get(1))
-		
+
 		intercept[NonCoveredRangeException] {
 			clientlib.get_set("db_single", this.keyRangeToScadsRangeSet(KeyRange("1","b")) )
 		}
@@ -48,7 +48,7 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 			clientlib.get_set("db_single", this.keyRangeToScadsRangeSet(KeyRange("a","d")) )
 		}
 	}
-	
+
 	def testOffsetLimit() = {
 		val clientlib = new LocalROWAClientLibrary
 		val n1 = new TestableStorageNode()
@@ -111,7 +111,7 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		ks.assign(n1, KeyRange("a", "c"))
 		ks.assign(n2, KeyRange("c", "e"))
 		clientlib.add_namespace("db_double_p",ks)
-		
+
 		// put some records
 		assert( clientlib.put("db_double_p",rec1) )
 		assert( clientlib.put("db_double_p",rec2) )
@@ -120,7 +120,7 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		intercept[NoNodeResponsibleException] {
 			clientlib.put("db_double_p",rec5)
 		}
-		
+
 		// do a single get
 		assert( clientlib.get("db_double_p","a") == (new SCADS.Record("a","a-val".getBytes())) )
 		assert( clientlib.get("db_double_p","b") == (new SCADS.Record("b","b-val".getBytes())) )
@@ -129,7 +129,7 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		intercept[NoNodeResponsibleException] {
 			clientlib.get("db_double_p","e")
 		}
-		
+
 		// get a range of records, within range and outside range
 		var results = clientlib.get_set("db_double_p", this.keyRangeToScadsRangeSet(KeyRange("a","bb")) )
 		assert(results.size()==2)
@@ -155,49 +155,49 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		assert(rec2==results.get(1))
 		assert(rec3==results.get(2))
 		assert(rec4==results.get(3))
-		
+
 		intercept[NonCoveredRangeException] {
 			clientlib.get_set("db_double_p", this.keyRangeToScadsRangeSet(KeyRange("1","c")) )
-		}		
+		}
 		intercept[NonCoveredRangeException] {
 			clientlib.get_set("db_double_p", this.keyRangeToScadsRangeSet(KeyRange("a","f")) )
 		}
-		
+
 	}
-	
+
 	def testDoubleNodeReplica() = {
 		val clientlib = new LocalROWAClientLibrary
 		val n1 = new TestableStorageNode()
 		val n2 = new TestableStorageNode()
-		
+
 		val ks = new SimpleKeySpace()
 		ks.assign(n1, KeyRange("a", "ca"))
 		ks.assign(n2, KeyRange("a", "ca"))
 		clientlib.add_namespace("db_double_r",ks)
-		
+
 		// put two records
 		assert( clientlib.put("db_double_r",rec1) )
 		assert( clientlib.put("db_double_r",rec2) )
-		
+
 		// do a single get in range, on boundaries, outside responsibility
 		assert( clientlib.get("db_double_r","a") == (new SCADS.Record("a","a-val".getBytes())) )
 		assert( clientlib.get("db_double_r","b") == (new SCADS.Record("b","b-val".getBytes())) )
 		assert( clientlib.get("db_double_r","c") == (new SCADS.Record("c",null)) )
 		intercept[NoNodeResponsibleException] {
 			clientlib.get("db_double_r","d")
-		}	
-		
+		}
+
 		// get a range of records, within range and outside range
 		var results = clientlib.get_set("db_double_r", this.keyRangeToScadsRangeSet(KeyRange("a","bb")) )
 		assert(results.size()==2)
 		assert(rec1==results.get(0))
 		assert(rec2==results.get(1))
-		
+
 		results = clientlib.get_set("db_double_r", this.keyRangeToScadsRangeSet(KeyRange("a","c")) )
 		assert(results.size()==2)
 		assert(rec1==results.get(0))
 		assert(rec2==results.get(1))
-		
+
 		intercept[NonCoveredRangeException] {
 			clientlib.get_set("db_double_r", this.keyRangeToScadsRangeSet(KeyRange("1","b")) )
 		}
@@ -215,7 +215,7 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		ks.assign(n1, KeyRange("a", "c"))
 		ks.assign(n2, KeyRange("b", "e"))
 		clientlib.add_namespace("db_double_op",ks)
-		
+
 		// put some records
 		assert( clientlib.put("db_double_op",rec1) )
 		assert( clientlib.put("db_double_op",rec2) )
@@ -224,7 +224,7 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		intercept[NoNodeResponsibleException] {
 			clientlib.put("db_double_op",rec5)
 		}
-		
+
 		// do a single get
 		assert( clientlib.get("db_double_op","a") == (new SCADS.Record("a","a-val".getBytes())) )
 		assert( clientlib.get("db_double_op","b") == (new SCADS.Record("b","b-val".getBytes())) )
@@ -233,7 +233,7 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		intercept[NoNodeResponsibleException] {
 			clientlib.get("db_double_op","e")
 		}
-		
+
 		// get a range of records, within range and outside range
 		var results = clientlib.get_set("db_double_op", this.keyRangeToScadsRangeSet(KeyRange("a","bb")) )
 		assert(results.size()==2)
@@ -253,7 +253,7 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		assert(rec2==results.get(0))
 		assert(rec3==results.get(1))
 		assert(rec4==results.get(2))
-		
+
 		intercept[NonCoveredRangeException] {
 			clientlib.get_set("db_double_op", this.keyRangeToScadsRangeSet(KeyRange("1","c")) )
 		}
@@ -261,7 +261,7 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 			clientlib.get_set("db_double_op", this.keyRangeToScadsRangeSet(KeyRange("a","f")) )
 		}
 	}
-	
+
 	def testDoubleNodePartitionGap() {
 		val clientlib = new LocalROWAClientLibrary
 		val n1 = new TestableStorageNode()
@@ -271,7 +271,7 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		ks.assign(n1, KeyRange("a", "c"))
 		ks.assign(n2, KeyRange("d", "f"))
 		clientlib.add_namespace("db_double_gp",ks)
-		
+
 		// put some records
 		assert( clientlib.put("db_double_gp",rec1) )
 		assert( clientlib.put("db_double_gp",rec2) )
@@ -280,7 +280,7 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		intercept[NoNodeResponsibleException] {
 			clientlib.put("db_double_gp",rec3) // key "c" should be left out this time
 		}
-		
+
 		// do a single get
 		assert( clientlib.get("db_double_gp","a") == (new SCADS.Record("a","a-val".getBytes())) )
 		assert( clientlib.get("db_double_gp","b") == (new SCADS.Record("b","b-val".getBytes())) )
@@ -289,7 +289,7 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		intercept[NoNodeResponsibleException] {
 			clientlib.get("db_double_gp","c")
 		}
-		
+
 		// get a range of records, within range and outside range
 		var results = clientlib.get_set("db_double_gp", this.keyRangeToScadsRangeSet(KeyRange("a","c")) )
 		assert(results.size()==2)
@@ -299,7 +299,7 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		assert(results.size()==2)
 		assert(rec4==results.get(0))
 		assert(rec5==results.get(1))
-		
+
 		intercept[NonCoveredRangeException] {
 			clientlib.get_set("db_double_gp", this.keyRangeToScadsRangeSet(KeyRange("b","d")) )
 		}
@@ -399,11 +399,11 @@ class KeySpaceSuite extends Suite {
 	}
 	def testNonCovered() = {
 		val ks = new SimpleKeySpace()
-		
+
 		assert( !ks.isCovered(KeyRange("a","da"), Set(KeyRange("a","c"))) )
 		assert( !ks.isCovered(KeyRange("a","da"), Set(KeyRange("b","d"),KeyRange("a","b"))) )
 		assert( !ks.isCovered(KeyRange("aa","e"), Set(KeyRange("ab","b"),KeyRange("d","e"))) )
-		
+
 		assert( ks.isCovered(KeyRange("a","c"), Set(KeyRange("a","b"),KeyRange("a","c"))) )
 		assert( ks.isCovered(KeyRange("a","c"), Set(KeyRange("b","c"),KeyRange("a","b"))) )
 		assert( ks.isCovered(KeyRange("a","d"), Set(KeyRange("a","b"),KeyRange("b","c"),KeyRange("c","d"))) )
@@ -497,7 +497,7 @@ class MovementMechanismTest extends Suite {
 
 		checkKeys(dp, "value")
 	}
-	
+
 	def testSimpleCopy() {
 		val n1 = new TestableStorageNode()
 		val n2 = new TestableStorageNode()
@@ -520,7 +520,7 @@ class MovementMechanismTest extends Suite {
 
 		checkKeys(dp, "value")
 	}
-	
+
 	def testRemove() {
 		val n1 = new TestableStorageNode()
 		val n2 = new TestableStorageNode()
@@ -578,7 +578,7 @@ class MovementMechanismTest extends Suite {
 		checkKeys(dp, "01value")
 	}
 
-	private def putKeys(ks: KeySpace, prefix: String) {		
+	private def putKeys(ks: KeySpace, prefix: String) {
 		keys.foreach((k) => {
 			assert(ks.lookup(k).toList.length >= 1, "no one has key: " + k)
 			ks.lookup(k).foreach((n) => {
@@ -591,7 +591,7 @@ class MovementMechanismTest extends Suite {
 			})
 		})
 	}
-	
+
 	private def checkKeys(ks: KeySpace, prefix: String) {
 		keys.foreach((k) => {
 			assert(ks.lookup(k).toList.length >= 1, "no one has key: " + k)
