@@ -1,23 +1,23 @@
 class Service(id: String) {
   
-  def start(): Unit {
-    
+  def start(): Unit = {
+    Nil
   }
   
-  def once(): Unit {
-    
+  def once(): Unit = {
+    Nil
   }
   
-  def stop(): Unit {
-    
+  def stop(): Unit = {
+    Nil
   }
   
-  def forceStop(): Unit {
-    
+  def forceStop(): Unit = {
+    Nil
   }
   
-  def status(): String {
-    
+  def status(): String = {
+    ""
   }
   
 }
