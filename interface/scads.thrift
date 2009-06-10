@@ -77,11 +77,11 @@ service KeyStore {
 	i32 count_set(1:NameSpace ns, 2: RecordSet rs) throws (1: InvalidSetDescription bs, 2: NotImplemented ni, 3: NotResponsible nr)
 }
 
-service StorageEngine extends KeyStore
+service StorageEngine extends KeyStore {
 	bool set_responsibility_policy(1:NameSpace ns, 2:RecordSet policy) throws (1: NotImplemented ni, 2: InvalidSetDescription bs),
 	RecordSet get_responsibility_policy(1:NameSpace ns),
 	
 	bool sync_set(1:NameSpace ns, 2:RecordSet rs, 3:Host h, 4:ConflictPolicy policy) throws (1: NotImplemented ni),
 	bool copy_set(1:NameSpace ns, 2:RecordSet rs, 3:Host h) throws (1: NotImplemented ni),
-	bool remove_set(1:NameSpace ns, 2:RecordSet rs) throws (1: NotImplemented ni),
+	bool remove_set(1:NameSpace ns, 2:RecordSet rs) throws (1: NotImplemented ni)
 }
