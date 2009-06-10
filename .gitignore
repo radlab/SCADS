@@ -1,4 +1,5 @@
 gen-*
+.DS_Store
 makefile.inc
 **/bin/*
 **/dist/*
