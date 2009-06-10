@@ -1,0 +1,111 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>edu.berkeley.cs.scads</groupId>
+	<artifactId>placement</artifactId>
+	<packaging>jar</packaging>
+	<version>1.0</version>
+	<name>placement</name>
+	<dependencies>
+		<dependency>
+			<groupId>org.scala-lang</groupId>
+			<artifactId>scala-library</artifactId>
+			<version>2.7.2</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.thrift</groupId>
+			<artifactId>libthrift</artifactId>
+			<version>0.1-20090610-xtrace</version>
+		</dependency>
+	</dependencies>
+	<repositories>
+		<repository>
+			<id>scala-tools.org</id>
+			<name>Scala-tools Maven2 Repository</name>
+			<url>http://scala-tools.org/repo-releases</url>
+		</repository>
+	</repositories>
+	<pluginRepositories>
+		<pluginRepository>
+			<id>scala-tools.org</id>
+			<name>Scala-tools Maven2 Repository</name>
+			<url>http://scala-tools.org/repo-releases</url>
+		</pluginRepository>
+	</pluginRepositories>
+
+	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.scala-tools</groupId>
+					<artifactId>maven-scala-plugin</artifactId>
+					<version>2.9.1</version>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-compiler-plugin</artifactId>
+					<version>2.0.2</version>
+				</plugin>
+				<plugin>
+					<artifactId>maven-antrun-plugin</artifactId>
+					<executions>
+						<execution>
+							<id>generate-sources</id>
+							<phase>generate-sources</phase>
+							<configuration>
+								<tasks>
+									<mkdir dir="target/" />
+									<exec executable="thrift">
+										<arg value="--gen" />
+										<arg value="java"/>
+										<arg value="-o"/>
+										<arg value="target/"/>
+										<arg value="../interface/scads.thrift"/>
+									</exec>
+								</tasks>
+							</configuration>
+							<goals>
+								<goal>run</goal>
+							</goals>
+						</execution>
+					</executions>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+		<plugins>
+			<plugin>
+				<groupId>org.scala-tools</groupId>
+				<artifactId>maven-scala-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>scala-compile-first</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>add-source</goal>
+							<goal>compile</goal>
+						</goals>
+					</execution>									
+					<execution>
+						<id>scala-test-compile</id>
+						<phase>process-test-resources</phase>
+						<goals>
+							<goal>testCompile</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<executions>
+					<execution>
+						<phase>compile</phase>
+						<goals>
+							<goal>compile</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>
