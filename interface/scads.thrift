@@ -1,8 +1,8 @@
-#!/usr/local/bin/thrift --gen rb
+#!/usr/local/bin/thrift --gen rb --gen java --gen cpp
 
 namespace rb SCADS.Storage
 namespace cpp SCADS
-namespace java SCADS
+namespace java edu.cs.berkeley.scads
 
 typedef string RecordKey 
 typedef binary RecordValue
@@ -70,12 +70,14 @@ exception InvalidSetDescription {
 	2: string info
 }
 
-service Storage {
+service KeyStore {
 	Record get(1:NameSpace ns, 2:RecordKey key) throws (1: NotResponsible nr),
 	list<Record> get_set(1: NameSpace ns, 2:RecordSet rs) throws (1: InvalidSetDescription bs, 2: NotImplemented ni, 3: NotResponsible nr),
 	bool put(1:NameSpace ns, 2: Record rec) throws (1: NotResponsible nr, 2:InvalidSetDescription bs),
-	i32 count_set(1:NameSpace ns, 2: RecordSet rs) throws (1: InvalidSetDescription bs, 2: NotImplemented ni, 3: NotResponsible nr),
-	
+	i32 count_set(1:NameSpace ns, 2: RecordSet rs) throws (1: InvalidSetDescription bs, 2: NotImplemented ni, 3: NotResponsible nr)
+}
+
+service StorageEngine extends KeyStore
 	bool set_responsibility_policy(1:NameSpace ns, 2:RecordSet policy) throws (1: NotImplemented ni, 2: InvalidSetDescription bs),
 	RecordSet get_responsibility_policy(1:NameSpace ns),
 	
