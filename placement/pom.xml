@@ -39,7 +39,6 @@
 	</pluginRepositories>
 
 	<build>
-		<sourceDirectory>${basedir}/target/gen-java/</sourceDirectory>
 		<pluginManagement>
 			<plugins>
 				<plugin>
@@ -63,6 +62,24 @@
 					<source>1.5</source>
 					<target>1.5</target>
 				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>build-helper-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>add-source</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>add-source</goal>
+						</goals>
+						<configuration>
+							<sources>
+								<source>${basedir}/target/gen-java/</source>
+							</sources>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 			<plugin>
 				<artifactId>maven-antrun-plugin</artifactId>
@@ -93,8 +110,8 @@
 				<artifactId>maven-scala-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>scala-compile-first</id>
-						<phase>process-resources</phase>
+						<id>scala-compile</id>
+						<phase>compile</phase>
 						<goals>
 							<goal>add-source</goal>
 							<goal>compile</goal>

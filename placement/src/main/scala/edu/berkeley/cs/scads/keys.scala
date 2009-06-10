@@ -1,6 +1,5 @@
 package edu.berkeley.cs.scads
 
-
 import java.text.ParsePosition
 
 abstract class Key extends Ordered[Key] {

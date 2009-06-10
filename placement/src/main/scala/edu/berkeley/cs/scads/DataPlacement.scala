@@ -1,5 +1,8 @@
 package edu.berkeley.cs.scads
 
+import edu.berkeley.cs.scads.thrift.ConflictPolicy
+import edu.berkeley.cs.scads.thrift.ConflictPolicyType
+
 trait KeySpaceProvider {
 	def getKeySpace(ns: String):KeySpace
 	def refreshKeySpace()
@@ -94,8 +97,8 @@ case class KeySpaceServer(port: Int) extends Runnable {
 @serializable
 class SimpleDataPlacement(ns: String) extends SimpleKeySpace with ThriftConversions with DataPlacement {
 	val nameSpace = ns
-	val conflictPolicy = new SCADS.ConflictPolicy()
-	conflictPolicy.setType(SCADS.ConflictPolicyType.CPT_GREATER)
+	val conflictPolicy = new ConflictPolicy()
+	conflictPolicy.setType(ConflictPolicyType.CPT_GREATER)
 
 	override def assign(node: StorageNode, range: KeyRange) {
 		super.assign(node, range)

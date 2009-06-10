@@ -13,16 +13,18 @@ import org.apache.thrift.transport.TServerSocket
 import org.apache.thrift.server.TServer
 import org.apache.thrift.server.TThreadPoolServer
 
+import edu.berkeley.cs.scads.thrift._
+
 case class StorageNode(host: String, thriftPort: Int, syncPort: Int) {
 	@transient
-	var client: SCADS.Storage.Client = null
+	var client: StorageEngine.Client = null
 	def this(host: String, port: Int) = this(host, port, port)
 	def syncHost = host + ":" + syncPort
 
-	def getClient(): SCADS.Storage.Client = {
+	def getClient(): StorageEngine.Client = {
 		if(client == null) {
 			val transport = new TFramedTransport(new TSocket(host, thriftPort))
-			client = new SCADS.Storage.Client(new TBinaryProtocol(transport))
+			client = new StorageEngine.Client(new TBinaryProtocol(transport))
 			transport.open()
 		}
 		return client
@@ -34,11 +36,11 @@ case class StorageNode(host: String, thriftPort: Int, syncPort: Int) {
 }
 
 class XtStorageNode(host: String, thriftPort: Int, syncPort: Int) extends StorageNode(host,thriftPort,syncPort) {
-	override def getClient(): SCADS.Storage.Client = {
+	override def getClient(): StorageEngine.Client = {
 		if(client == null) {
 			val transport = new TFramedTransport(new TSocket(host, thriftPort))
 			val protocol = new XtBinaryProtocol(transport)
-			client = new SCADS.Storage.Client(protocol)
+			client = new StorageEngine.Client(protocol)
 			transport.open()
 		}
 		return client
@@ -133,10 +135,10 @@ class TestableStorageNode(thriftPort: Int, syncPort: Int) extends StorageNode("1
 }
 
 trait ThriftConversions {
-	implicit def keyRangeToScadsRangeSet(x: KeyRange):SCADS.RecordSet = {
-		val recSet = new SCADS.RecordSet
-		val range = new SCADS.RangeSet
-		recSet.setType(SCADS.RecordSetType.RST_RANGE)
+	implicit def keyRangeToScadsRangeSet(x: KeyRange):RecordSet = {
+		val recSet = new RecordSet
+		val range = new RangeSet
+		recSet.setType(RecordSetType.RST_RANGE)
 		recSet.setRange(range)
 		range.setStart_key(x.start.serialize)
 		range.setEnd_key(x.end.serialize)
@@ -177,7 +179,7 @@ trait SynchronousHeartbeatCluster extends Cluster {
 				try {
 					node.getClient().get(nameSpace,"akey")
 				} catch {
-					case e:SCADS.NotResponsible => // do nothing, node is still kicking
+					case e:NotResponsible => // do nothing, node is still kicking
 					case e:TTransportException => log_failure(node)
 				}
 			}})

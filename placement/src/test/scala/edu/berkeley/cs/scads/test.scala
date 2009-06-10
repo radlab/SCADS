@@ -1,15 +1,16 @@
 package edu.berkeley.cs.scads
 
 import org.scalatest.Suite
-import AutoKey._
+import edu.berkeley.cs.scads.AutoKey._
+import edu.berkeley.cs.scads.thrift._
 
 class ClientLibrarySuite extends Suite with ThriftConversions {
 
-	val rec1 = new SCADS.Record("a","a-val".getBytes())
-	val rec2 = new SCADS.Record("b","b-val".getBytes())
-	val rec3 = new SCADS.Record("c","c-val".getBytes())
-	val rec4 = new SCADS.Record("d","d-val".getBytes())
-	val rec5 = new SCADS.Record("e","e-val".getBytes())
+	val rec1 = new Record("a","a-val".getBytes())
+	val rec2 = new Record("b","b-val".getBytes())
+	val rec3 = new Record("c","c-val".getBytes())
+	val rec4 = new Record("d","d-val".getBytes())
+	val rec5 = new Record("e","e-val".getBytes())
 
 	def testSingleNode() = {
 		val clientlib = new LocalROWAClientLibrary
@@ -24,9 +25,9 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		assert( clientlib.put("db_single",rec2) )
 
 		// do a single get in range, on boundaries, outside responsibility
-		assert( clientlib.get("db_single","a") == (new SCADS.Record("a","a-val".getBytes())) )
-		assert( clientlib.get("db_single","b") == (new SCADS.Record("b","b-val".getBytes())) )
-		assert( clientlib.get("db_single","c") == (new SCADS.Record("c",null)) )
+		assert( clientlib.get("db_single","a") == (new Record("a","a-val".getBytes())) )
+		assert( clientlib.get("db_single","b") == (new Record("b","b-val".getBytes())) )
+		assert( clientlib.get("db_single","c") == (new Record("c",null)) )
 		intercept[NoNodeResponsibleException] {
 			clientlib.get("db_single","d")
 		}
@@ -122,10 +123,10 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		}
 
 		// do a single get
-		assert( clientlib.get("db_double_p","a") == (new SCADS.Record("a","a-val".getBytes())) )
-		assert( clientlib.get("db_double_p","b") == (new SCADS.Record("b","b-val".getBytes())) )
-		assert( clientlib.get("db_double_p","c") == (new SCADS.Record("c","c-val".getBytes())) )
-		assert( clientlib.get("db_double_p","d") == (new SCADS.Record("d","d-val".getBytes())) )
+		assert( clientlib.get("db_double_p","a") == (new Record("a","a-val".getBytes())) )
+		assert( clientlib.get("db_double_p","b") == (new Record("b","b-val".getBytes())) )
+		assert( clientlib.get("db_double_p","c") == (new Record("c","c-val".getBytes())) )
+		assert( clientlib.get("db_double_p","d") == (new Record("d","d-val".getBytes())) )
 		intercept[NoNodeResponsibleException] {
 			clientlib.get("db_double_p","e")
 		}
@@ -180,9 +181,9 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		assert( clientlib.put("db_double_r",rec2) )
 
 		// do a single get in range, on boundaries, outside responsibility
-		assert( clientlib.get("db_double_r","a") == (new SCADS.Record("a","a-val".getBytes())) )
-		assert( clientlib.get("db_double_r","b") == (new SCADS.Record("b","b-val".getBytes())) )
-		assert( clientlib.get("db_double_r","c") == (new SCADS.Record("c",null)) )
+		assert( clientlib.get("db_double_r","a") == (new Record("a","a-val".getBytes())) )
+		assert( clientlib.get("db_double_r","b") == (new Record("b","b-val".getBytes())) )
+		assert( clientlib.get("db_double_r","c") == (new Record("c",null)) )
 		intercept[NoNodeResponsibleException] {
 			clientlib.get("db_double_r","d")
 		}
@@ -226,10 +227,10 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		}
 
 		// do a single get
-		assert( clientlib.get("db_double_op","a") == (new SCADS.Record("a","a-val".getBytes())) )
-		assert( clientlib.get("db_double_op","b") == (new SCADS.Record("b","b-val".getBytes())) )
-		assert( clientlib.get("db_double_op","c") == (new SCADS.Record("c","c-val".getBytes())) )
-		assert( clientlib.get("db_double_op","d") == (new SCADS.Record("d","d-val".getBytes())) )
+		assert( clientlib.get("db_double_op","a") == (new Record("a","a-val".getBytes())) )
+		assert( clientlib.get("db_double_op","b") == (new Record("b","b-val".getBytes())) )
+		assert( clientlib.get("db_double_op","c") == (new Record("c","c-val".getBytes())) )
+		assert( clientlib.get("db_double_op","d") == (new Record("d","d-val".getBytes())) )
 		intercept[NoNodeResponsibleException] {
 			clientlib.get("db_double_op","e")
 		}
@@ -282,10 +283,10 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 		}
 
 		// do a single get
-		assert( clientlib.get("db_double_gp","a") == (new SCADS.Record("a","a-val".getBytes())) )
-		assert( clientlib.get("db_double_gp","b") == (new SCADS.Record("b","b-val".getBytes())) )
-		assert( clientlib.get("db_double_gp","e") == (new SCADS.Record("e","e-val".getBytes())) )
-		assert( clientlib.get("db_double_gp","d") == (new SCADS.Record("d","d-val".getBytes())) )
+		assert( clientlib.get("db_double_gp","a") == (new Record("a","a-val".getBytes())) )
+		assert( clientlib.get("db_double_gp","b") == (new Record("b","b-val".getBytes())) )
+		assert( clientlib.get("db_double_gp","e") == (new Record("e","e-val".getBytes())) )
+		assert( clientlib.get("db_double_gp","d") == (new Record("d","d-val".getBytes())) )
 		intercept[NoNodeResponsibleException] {
 			clientlib.get("db_double_gp","c")
 		}
@@ -308,12 +309,11 @@ class ClientLibrarySuite extends Suite with ThriftConversions {
 
 class XTraceSuite extends Suite {
 	def testCLtoStorageNode() = {
-		val rec1 = new SCADS.Record("a","a-val".getBytes())
-		val rec2 = new SCADS.Record("b","b-val".getBytes())
+		val rec1 = new Record("a","a-val".getBytes())
+		val rec2 = new Record("b","b-val".getBytes())
 
 		val clientlib = new LocalROWAClientLibrary
 		val n1 = new XtStorageNode("127.0.0.1",9000,9091)
-		n1.protocol.xtrace_set_severity(1)
 
 		val ks = new SimpleKeySpace()
 		ks.assign(n1, KeyRange("a", "ca"))
@@ -331,7 +331,6 @@ class XTraceSuite extends Suite {
 		println("end: "+System.currentTimeMillis().toString)
 
 		// put without xtrace
-		n1.protocol.xtrace_set_severity(6)
 		println("start: "+System.currentTimeMillis().toString)
 		assert( clientlib.put("db_xtrace",rec2) )
 		println("end: "+System.currentTimeMillis().toString)
@@ -583,10 +582,10 @@ class MovementMechanismTest extends Suite {
 			assert(ks.lookup(k).toList.length >= 1, "no one has key: " + k)
 			ks.lookup(k).foreach((n) => {
 				try {
-					n.getClient().put("test", new SCADS.Record(k, (prefix + k).getBytes))
+					n.getClient().put("test", new Record(k, (prefix + k).getBytes))
 				}
 				catch {
-					case ex: SCADS.NotResponsible =>
+					case ex: NotResponsible =>
 				}
 			})
 		})

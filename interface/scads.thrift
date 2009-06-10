@@ -2,7 +2,7 @@
 
 namespace rb SCADS.Storage
 namespace cpp SCADS
-namespace java edu.cs.berkeley.scads
+namespace java edu.berkeley.cs.scads.thrift
 
 typedef string RecordKey 
 typedef binary RecordValue
