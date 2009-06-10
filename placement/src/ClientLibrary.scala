@@ -29,15 +29,13 @@ trait LocalKeySpaceProvider extends KeySpaceProvider {
 	def getMap: HashMap[String,KeySpace] = ns_map
 }
 
-
-/*
 abstract class ClientLibrary extends SCADS.ClientLibrary.Iface {
 	
 	def get(namespace: String, key: String): Record
 	def get_set(namespace: String, keys: RecordSet): java.util.List[Record]
 	def put(namespace: String, rec:Record): Boolean 
 }
-*/
+
 
 class RecordComparator extends java.util.Comparator[SCADS.Record] {
 	def compare(o1: SCADS.Record, o2: SCADS.Record): Int = {
@@ -52,7 +50,7 @@ class SCADSClient(h: String, p: Int) extends ROWAClientLibrary with RemoteKeySpa
 	val host = h
 }
 
-abstract class ROWAClientLibrary extends KeySpaceProvider with ThriftConversions {
+abstract class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider with ThriftConversions {
 	import java.util.Random
 	val retries = 5
 
