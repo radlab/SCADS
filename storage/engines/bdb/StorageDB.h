@@ -2,7 +2,7 @@
 #define STORAGEDB_H
 
 #include <db.h>
-#include "gen-cpp/Storage.h"
+#include "gen-cpp/StorageEngine.h"
 #include "MerkleDB.h"
 #include "TQueue.h"
 #include "ruby.h"
@@ -28,7 +28,7 @@ namespace SCADS {
 
 void* run_listen(void *args);
 
-class StorageDB : public StorageIf {
+class StorageDB : public StorageEngineIf {
 
 private:
   DB_ENV *db_env;

@@ -1578,7 +1578,7 @@ int main(int argc, char **argv) {
       (static_cast<TProtocolFactory*>(new TBinaryProtocolFactory())) );
 #endif
   shared_ptr<StorageDB> handler(new StorageDB(lp,uf,cache,doMerkle));
-  shared_ptr<TProcessor> processor(new StorageProcessor(handler));
+  shared_ptr<TProcessor> processor(new StorageEngineProcessor(handler));
   shared_ptr<TServerTransport> serverTransport(new TServerSocket(port));
   shared_ptr<TTransportFactory> transportFactory(new TFramedTransportFactory());
 

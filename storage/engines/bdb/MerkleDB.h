@@ -3,7 +3,7 @@
 
 #include <db.h>
 #include <pthread.h>
-#include "gen-cpp/Storage.h"
+#include "gen-cpp/StorageEngine.h"
 #include "TQueue.h"
 
 #define MERKLEDB_HASH_FUNC MHASH_TIGER128
