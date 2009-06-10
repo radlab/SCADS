@@ -21,16 +21,16 @@ ARGV.options do |o|
   o.separator   ""
   o.on("-s", "--host=name", String,
        "Server host name (optional)",
-       "Default: #{opts[:host]}") do |t| 
+       "Default: #{opts[:host]}") do |t|
           opts[:host] = t
-        end 
+        end
   o.separator ""
   o.on("-p", "--port=num", Integer,
-       "Port number (required)")  do |p| 
+       "Port number (required)")  do |p|
           opts[:port] = p
         end
   o.on("-d", "--debug",
-       "Turn on debugging (optional)")  do |d| 
+       "Turn on debugging (optional)")  do |d|
           opts[:debug] = d
           $DEBUG = true
         end
@@ -39,7 +39,7 @@ ARGV.options do |o|
   o.parse!
 end
 
-# check have all args 
+# check have all args
 host = opts[:host]
 port = opts[:port]
 if host.nil? or port.nil?

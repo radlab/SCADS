@@ -41,14 +41,14 @@ $stdin.each_line do |line|
   when "get_range"
     s = SCADS::Storage::RecordSet.new
     s.type = SCADS::Storage::RecordSetType::RST_RANGE
-    
+
     r = SCADS::Storage::RangeSet.new
     r.start_key = line[1]
     r.end_key = line[2]
     r.offset = (line[3] || 0).to_i
     r.limit = line[4].to_i if line[3]
     r.reverse = (line[5] == "true") if line[4]
-    
+
     s.range = r
     before = Time.now
     result = client.get_set(table, s)
@@ -62,14 +62,14 @@ $stdin.each_line do |line|
     after = Time.now
   when "set_responsibility_policy":
     p = SCADS::Storage::RecordSet.new
-    
+
     p.type = SCADS::Storage::RecordSetType::RST_KEY_FUNC
     uf = SCADS::Storage::UserFunction.new
     uf.lang = SCADS::Storage::Language::LANG_RUBY
     uf.func = line[1..-1].join(" ")
     puts uf.func
     p.func = uf
-    
+
     before = Time.now
     result = client.set_responsibility_policy(table, p)
     after = Time.now

@@ -90,7 +90,7 @@ static vector<string> strsplit(string str,char delim=' ',char esc='"') {
   return ret;
 }
 
-static 
+static
 void put(StorageClient &client,
 	 const NameSpace &ns,
 	 const Record &rec) {
@@ -111,7 +111,7 @@ static void putRange(StorageClient &client,
     oss << s++;
     r.key.assign(oss.str());
     r.value.assign(oss.str());
-    put(client,ns,r);    
+    put(client,ns,r);
   }
 }
 
@@ -131,11 +131,11 @@ static void putRandom(StorageClient &client,
     oss << v;
     r.key.assign(oss.str());
     r.value.assign(oss.str());
-    put(client,ns,r);    
+    put(client,ns,r);
   }
 }
-	
-static 
+
+static
 void get(StorageClient &client,
 	 Record &r,
 	 const NameSpace &ns,
@@ -154,7 +154,7 @@ void getall(StorageClient &client,
  client.get_set(results,ns,rs);
 }
 
-static 
+static
 void remove(StorageClient &client,
 	    const NameSpace &ns,
 	    const RecordKey &key) {
@@ -293,7 +293,7 @@ static void syncRangeGreater(StorageClient &client,
   pol.type = CPT_GREATER;
   client.sync_set(ns,rs,h,pol);
 }
-	
+
 static void printPutUsage() {
   printf("invalid put, put is used as:\n");
   printf("put namespace key value\n");
@@ -384,10 +384,10 @@ int main(int argc,char* argv[]) {
   if (!hd || (strlen(hd) > 111)) {
     printf("No home dir or path too long.  Not saving/restoring history.\n");
     histFile[0] = '\0';
-  } 
+  }
   else {
     snprintf(histFile,127,"%s/%s",hd,".storageclient-history");
-    if (read_history(histFile)) 
+    if (read_history(histFile))
       perror("Couldn't read history: ");
   }
 
@@ -397,7 +397,7 @@ int main(int argc,char* argv[]) {
 
   try {
     transport->open();
-    
+
     for (;;) {
       char* l = readline(pbuf);
       if (l && *l)
@@ -565,7 +565,7 @@ int main(int argc,char* argv[]) {
 	  end_timing();
 	} catch (TException e) {
 	  cout << "[Exception]: "<<e.what()<<endl;
-        }	  
+        }
       }
 
       else if (cmd == "count") {
@@ -686,7 +686,7 @@ int main(int argc,char* argv[]) {
       }
 
       /*
-      else if (cmd == "strsplit") { // debug command 
+      else if (cmd == "strsplit") { // debug command
 	cout << "tokens:"<<endl;
 	vector<string>::iterator it;
 	it = v.begin();
@@ -709,4 +709,4 @@ int main(int argc,char* argv[]) {
     printf("ERROR: %s\n", tx.what());
   }
   ex_program(2);
-} 
+}

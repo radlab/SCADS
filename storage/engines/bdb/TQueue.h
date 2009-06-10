@@ -31,11 +31,11 @@ public:
 
     if (pthread_mutex_init(&dq_tex,NULL))
       perror("Could not create dq_tex");
-    if (pthread_cond_init(&dq_cond,NULL)) 
+    if (pthread_cond_init(&dq_cond,NULL))
       perror("Could not create dq_cond");
     if (pthread_mutex_init(&eq_tex,NULL))
       perror("Could not create eq_tex");
-    if (pthread_cond_init(&eq_cond,NULL)) 
+    if (pthread_cond_init(&eq_cond,NULL))
       perror("Could not create eq_cond");
 
     qptr = new T[size];
@@ -44,13 +44,13 @@ public:
     read_ptr = qptr;
   }
 
-  ~TQueue() { 
-    delete [] qptr; 
+  ~TQueue() {
+    delete [] qptr;
   }
-  
+
   bool enqueue(const T& te) {
     struct timeval t;
-    T* next = 
+    T* next =
       (write_ptr == qend)?
       qptr:
       write_ptr+1;
@@ -66,7 +66,7 @@ public:
     }
 
     *write_ptr = te;
-    
+
     write_ptr = next;
     //(void)pthread_mutex_lock(&dq_tex);
     int ret = pthread_cond_signal(&dq_cond);

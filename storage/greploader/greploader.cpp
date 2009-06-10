@@ -169,9 +169,9 @@ int main(int argc,char* argv[]) {
   if (!quiet)
     cout << "loading "<<records<<" records. ("<<size<<" megs). "<<pos<<" positives with pattern: "<<pattern<<endl;
 
-  
+
   if (loadType) { // do binary copy
-    int sockfd, numbytes;  
+    int sockfd, numbytes;
     int keylen = 10;
     int dlen = 90;
     struct addrinfo hints, *servinfo, *p;
@@ -206,7 +206,7 @@ int main(int argc,char* argv[]) {
 	perror("client: connect");
 	continue;
       }
-      
+
       break;
     }
 
@@ -221,9 +221,9 @@ int main(int argc,char* argv[]) {
       perror("Error receiving version string: ");
       return 2;
     }
-  
+
     buf[numbytes] = '\0';
-    
+
     if (strncmp(VERSTR,buf,11)) {
       fprintf(stderr,"Version strings didn't match");
       return 2;
@@ -259,7 +259,7 @@ int main(int argc,char* argv[]) {
     for (unsigned long cr = 0,i = startkey;i < rlim;i++,cr++) {
       if (!quiet && (cr % 1000 == 0))
 	printProgress(((100*cr)/records),i);
-      
+
       sprintf(key,"%010li",i);
       if (waspos) {
 	fillval(val,pattern,0);
@@ -310,7 +310,7 @@ int main(int argc,char* argv[]) {
       cout<<endl<<"Waiting for success code."<<endl;
     }
 
-    if ((numbytes = recv(sockfd, &stat, 1, 0)) == -1)  
+    if ((numbytes = recv(sockfd, &stat, 1, 0)) == -1)
       cerr << "Could not read final status, your load might not have worked"<<endl;
     else if(!quiet)
       cout << "Done"<<endl;
@@ -325,7 +325,7 @@ int main(int argc,char* argv[]) {
     Record r;
     r.__isset.key = true;
     r.__isset.value = true;
-    
+
     if (!quiet)
       cout << "Loading through the thrift interface"<<endl;
 
@@ -335,7 +335,7 @@ int main(int argc,char* argv[]) {
 
       if (!quiet)
 	printProgress(0,0);
-    
+
       start_timing();
       for (unsigned long cr = 0,i = startkey;i < rlim;i++,cr++) {
 	if (!quiet & (cr % 1000 == 0))

@@ -74,13 +74,13 @@ int main(int argc, char **argv) {
     exit(-1);
   }
 
-  env_flags = 
+  env_flags =
     DB_CREATE |     /* If the environment does not exist, create it. */
     DB_INIT_LOCK |  /* Multiple threads might write */
     DB_INIT_MPOOL|  /* Initialize the in-memory cache. */
     DB_THREAD |
     DB_PRIVATE;
-  
+
   ret = db_env->set_lk_detect(db_env,DB_LOCK_DEFAULT);
 
 	ret = db_env->set_cachesize(db_env, 1, 0, 0);
@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
 		if (data.size > data_limit) {
 			data.size = data_limit;
 		}
-		std::cout << "'" << dbt_string(&key) << "'" << "\t=>\t"; 
+		std::cout << "'" << dbt_string(&key) << "'" << "\t=>\t";
 		print_hex(&data.data, data.size);
 		std::cout << endl;
 		free(key.data);

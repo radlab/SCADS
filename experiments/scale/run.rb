@@ -19,7 +19,7 @@ end
 run_id = Time.now
 [1,2,4,8,16,32,64,128].each do |scale|
   test_id = Time.now
-  
+
   servers = InstanceGroup.new(request_nodes(scale))
   clients = InstanceGroup.new(request_nodes(scale))
 
@@ -63,7 +63,7 @@ EOF
   dpconf = default_config.merge({"recipes" => ["runit::default"], "services" => {"scads_data_placement" => dpservice}})
   puts servers[0].deploy(dpconf)
   puts servers[0].start("scads_data_placement")
-  
+
   loadtest = "
 val testData = Map(\"scale\" -> \"#{scale}\", \"layout\" -> \"#{DIST}\", \"test_id\" -> \"#{test_id}\", \"cached\" -> \"warmed\", \"run_id\" -> \"#{run_id}\")
 val threads = (1 to 30).toList.map((id) => { new Thread(new RandomReader(testData, \"#{servers[0].internal}\", #{keyrange*1024}, #{REQUESTS}))})
@@ -72,18 +72,18 @@ for(thread <- threads) thread.start
 for(thread <- threads) thread.join
 println(\"done\")
 "
-  
+
   testerconf = default_config.merge({"recipes" => ["runit::default"], "services" => {"scads_loadtester" => loadtest}})
-  
+
   clients.deploy(testerconf)
-  
+
   sleep 10
-  
+
   puts clients.stop("scads_loadtester")
-  
+
   puts "warming the cache"
   clients[0].exec("scala -cp /usr/share/java/placement.jar:/usr/share/java/libthrift.jar Dumper #{servers[0].internal} perfTest > /mnt/dumped")
-  
+
   puts "starting the test"
   5.times do
     puts clients.once("scads_loadtester")
@@ -98,13 +98,13 @@ println(\"done\")
       sleep 10
     end
   end
-  
+
   servers.copy_from("/mnt/*.csv", ".")
   clients.copy_from("/mnt/*.csv", ".")
-  
+
   servers.clean_services
   clients.clean_services
-  
+
   servers.free
   clients.free
 end

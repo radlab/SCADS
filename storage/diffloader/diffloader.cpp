@@ -124,7 +124,7 @@ int open_sock(const char* host, char* port) {
       perror("client: connect");
       continue;
     }
-      
+
     break;
   }
 
@@ -232,8 +232,8 @@ int main(int argc,char* argv[]) {
   if (!quiet)
     cout << "loading "<<records<<" records. ("<<size<<" megs). "<<diff<<" with differnt pattern: "<<pattern<<endl;
 
-  
-  int sock1, sock2, numbytes;  
+
+  int sock1, sock2, numbytes;
   int keylen = 10;
   int dlen = 90;
   int rv;
@@ -268,7 +268,7 @@ int main(int argc,char* argv[]) {
   }
 
   buf[numbytes] = '\0';
-    
+
   if (strncmp(VERSTR,buf,11)) {
     fprintf(stderr,"Version strings 1 didn't match");
     return 2;
@@ -278,9 +278,9 @@ int main(int argc,char* argv[]) {
     perror("Error receiving version string 2: ");
     return 2;
   }
-  
+
   buf[numbytes] = '\0';
-    
+
   if (strncmp(VERSTR,buf,11)) {
     fprintf(stderr,"Version strings 2 didn't match");
     return 2;
@@ -334,7 +334,7 @@ int main(int argc,char* argv[]) {
   for (unsigned long cr = 0,i = startkey;i < rlim;i++,cr++) {
     if (!quiet && (cr % 1000 == 0))
       printProgress(((100*cr)/records),i);
-      
+
     sprintf(key,"%010li",i);
     sendval(sock1,&keylen,key);
     sendval(sock1,&dlen,val);
@@ -371,11 +371,11 @@ int main(int argc,char* argv[]) {
     cout<<endl<<"Waiting for success code."<<endl;
   }
 
-  if ((numbytes = recv(sock1, &stat, 1, 0)) == -1)  
+  if ((numbytes = recv(sock1, &stat, 1, 0)) == -1)
     cerr << "Could not read final status on host 1, your load might not have worked"<<endl;
   else if(!quiet)
     cout << "Done on host 1"<<endl;
-  if ((numbytes = recv(sock2, &stat, 1, 0)) == -1)  
+  if ((numbytes = recv(sock2, &stat, 1, 0)) == -1)
     cerr << "Could not read final status on host 2, your load might not have worked"<<endl;
   else if(!quiet)
     cout << "Done on host 2"<<endl;

@@ -29,18 +29,16 @@ srand(seed)
 $stdin.each_line do |key|
   exit unless line_limit.nil? or line_limit > 0
   exit unless data_limit.nil? or data_limit > 0
-  
+
   value = (0...(1+rand(500))).map{(33+rand(93)).chr}.join
-  
+
   if !data_limit.nil?
     data_limit -= value.length
     #If we've overflow, we truncate the value to exactly meet the data limit
     value = value[0...data_limit] if (data_limit < 0)
   end
-  
+
   puts "put #{table} #{key.chomp} #{value}"
-  
+
   line_limit -= 1 unless line_limit.nil?
 end
-
-

@@ -46,7 +46,7 @@ module SCADS
         def start
           @port = rand(65000 - 1024) + 1024
 
-          @thread = Thread.new do 
+          @thread = Thread.new do
             while true
               handler = SCADS::Storage::Simple::Handler.new()
               puts "Setting up SCADS storage handler" if $DEBUG
@@ -63,8 +63,8 @@ module SCADS
                 puts e
                 puts e.backtrace
                 raise "server died"
-              end  
-            end    
+              end
+            end
           end
         end
 

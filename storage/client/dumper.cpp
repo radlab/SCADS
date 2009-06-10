@@ -10,7 +10,7 @@
 
 #include <arpa/inet.h>
 
-#define MAXDATASIZE 256 // max number of bytes we can get at once 
+#define MAXDATASIZE 256 // max number of bytes we can get at once
 #define VERSTR "SCADSBDB0.1"
 
 #ifndef MSG_MORE
@@ -29,7 +29,7 @@ void *get_in_addr(struct sockaddr *sa)
 
 int main(int argc, char *argv[])
 {
-  int sockfd, numbytes;  
+  int sockfd, numbytes;
   char buf[MAXDATASIZE];
   struct addrinfo hints, *servinfo, *p;
   int rv;
@@ -78,15 +78,15 @@ int main(int argc, char *argv[])
 
   freeaddrinfo(servinfo); // all done with this structure
 
-  
-  
+
+
   if ((numbytes = recv(sockfd, buf, 11, 0)) == -1) {
     perror("Error receiving version string: ");
     return 2;
   }
-  
+
   buf[numbytes] = '\0';
-  
+
   if (strncmp(VERSTR,buf,11)) {
     fprintf(stderr,"Version strings didn't match");
     return 2;
@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
       perror("recv");
       exit(1);
     }
-   
+
     if (numbytes != 4) {
       fprintf(stderr,"Couldn't get four bytes for length\n");
       return 2;
@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
       }
       numbytes+=r;
     }
-   
+
     if (numbytes != len) {
       fprintf(stderr,"Couldn't get all bytes for data value\n");
       return 2;

@@ -57,7 +57,7 @@ ID call_id;
 VALUE rb_funcall_wrap(VALUE vargs) {
   VALUE* args = (VALUE*)vargs;
   return
-    (args[2] == 0)? 
+    (args[2] == 0)?
     rb_funcall(args[0], call_id, 1, args[1]):
     rb_funcall(args[0], call_id, 2, args[1], args[2]);
 }
@@ -66,7 +66,7 @@ char * strnstr(const char *s, const char *find, size_t slen)
 {
   char c, sc;
   size_t len;
-  
+
   if ((c = *find++) != '\0') {
     len = strlen(find);
     do {
@@ -85,8 +85,8 @@ char * strnstr(const char *s, const char *find, size_t slen)
 }
 /*
 rs_assign(RecordSet * lsh, const RecordSet &rhs) const {
-  lsh->type = rhs.type; 
-  
+  lsh->type = rhs.type;
+
   if (rhs.type == RST_RANGE) { // copy range params
     __isset.range = true;
     __isset.func = false;
@@ -94,9 +94,9 @@ rs_assign(RecordSet * lsh, const RecordSet &rhs) const {
       range.start_key.assign(rhs.range.start_key);
       range.__isset.start_key = true;
     }
-    else 
+    else
       range.__isset.start_key = false;
-    
+
     if (rhs.range.__isset.end_key) {
       range.end_key.assign(rhs.range.end_key);
       range.__isset.end_key = true;
@@ -104,7 +104,7 @@ rs_assign(RecordSet * lsh, const RecordSet &rhs) const {
     else
       range.__isset.end_key = false;
   }
-  
+
   if (rhs.type == RST_KEY_FUNC) { // copy func info
     __isset.range = false;
     __isset.func = true;
@@ -162,7 +162,7 @@ open_database(DB **dbpp,                  /* The DB handle that we are opening *
   DB *dbp;    /* For convenience */
   u_int32_t open_flags;
   int ret;
-  
+
 
   /* Initialize the DB handle */
   ret = db_create(&dbp, db_env, 0);
@@ -174,7 +174,7 @@ open_database(DB **dbpp,                  /* The DB handle that we are opening *
 
   /* Point to the memory malloc'd by db_create() */
   *dbpp = dbp;
-                                                                                                                               
+
   /* Set up error handling for this database */
   dbp->set_errfile(dbp, error_file_pointer);
   dbp->set_errpfx(dbp, program_name);
@@ -199,7 +199,7 @@ open_database(DB **dbpp,                  /* The DB handle that we are opening *
     TException te("Could not open database");
     throw te;
   }
-                                                                                                                               
+
   return (0);
 }
 
@@ -208,7 +208,7 @@ bool StorageDB::
 responsible_for_key(const NameSpace& ns, const RecordKey& key) {
   RecordSet *rs = return_responsibility_policy(ns);
 
-  if (rs->type == RST_ALL) 
+  if (rs->type == RST_ALL)
     return true;
   if (rs->type == RST_NONE)
     return false;
@@ -259,12 +259,12 @@ responsible_for_key(const NameSpace& ns, const RecordKey& key) {
 bool StorageDB::
 responsible_for_set(const NameSpace& ns, const RecordSet& rs) {
   RecordSet *policy = return_responsibility_policy(ns);
-    
+
   if (policy->type == RST_ALL || policy->type == RST_KEY_FUNC)
     return true;
   if (rs.type == RST_NONE)
     return false;
-    
+
   if (rs.type == RST_RANGE) {
     if (!rs.__isset.range) {
       InvalidSetDescription isd;
@@ -280,13 +280,13 @@ responsible_for_set(const NameSpace& ns, const RecordSet& rs) {
 	   rs.range.start_key >= policy->range.start_key) ) &&
 	( !rs.range.__isset.end_key ||
 	  (policy->range.__isset.end_key &&
-	   rs.range.end_key <= policy->range.end_key) ) 
+	   rs.range.end_key <= policy->range.end_key) )
 	)
       return true;
     else
       return false;
   }
-    
+
   return false; // if we don't understand, we'll say no
 }
 
@@ -303,7 +303,7 @@ void chkLock(int rc, const string lock, const string action) {
       "The  read  lock could not be acquired because the maximum number of read locks for rwlock has been exceeded."<<endl;
     exit(EXIT_FAILURE);
   case EDEADLK:
-    cerr << "Couldn't get "<<lock<< " for "<<action<<":\n\t"<<      
+    cerr << "Couldn't get "<<lock<< " for "<<action<<":\n\t"<<
       "The current thread already owns the read-write lock for writing or reading."<<endl;
   case EPERM:
     cerr << "WARNING: tried to unlock "<<lock<< " for "<<action<<" but the lock is not held."<<endl;
@@ -468,7 +468,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       throw isd;
     }
   }
-  
+
 	//TODO: Apparently bulk retrieval doesn't work with DB_PREV *grumble*
 	//HACK: turn off bulk getting
 	//if (rs.type == RST_RANGE and rs.range.__isset.reverse and rs.range.reverse) {
@@ -515,9 +515,9 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
   else
     db_ptr->cursor(db_ptr, txn, &cursorp, 0);
 
-  if (rs.type == RST_FILTER) 
+  if (rs.type == RST_FILTER)
     count = rs.filter.length();
-   
+
   /* get the initial cursor
    *
    * start at the beginning for all, key/value funcs, and filters since
@@ -537,7 +537,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 		//if (rs.range.__isset.reverse and rs.range.reverse) {
 		if (false) {
 			iter_dir = DB_PREV;
-			if (!rs.range.__isset.end_key) { 
+			if (!rs.range.__isset.end_key) {
 				ret = cursorp->get(cursorp, &cursor_key, &cursor_data, DB_LAST | cursor_get_flags);
 			} else {
 				cursor_key.data = const_cast<char*>(rs.range.end_key.c_str());
@@ -564,9 +564,9 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
   default:
     NotImplemented ni;
     ni.function_name = "get_set with specified set type";
-    if (cursorp != NULL) 
-      cursorp->close(cursorp); 
-    if (txn!=NULL && txn->abort(txn)) 
+    if (cursorp != NULL)
+      cursorp->close(cursorp);
+    if (txn!=NULL && txn->abort(txn))
       cerr << "Transaction abort failed"<<endl;
     if (bulk)
       free(cursor_data.data);
@@ -574,9 +574,9 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
   }
 
   if (ret == DB_NOTFOUND) { // nothing to return
-    if (cursorp != NULL) 
-      cursorp->close(cursorp); 
-    if (txn!=NULL && txn->commit(txn,0)) 
+    if (cursorp != NULL)
+      cursorp->close(cursorp);
+    if (txn!=NULL && txn->commit(txn,0))
       cerr << "Transaction commit failed"<<endl;
     if (invokeNone)
       // no vals, but apply function wants to know that so invoke with nulls
@@ -587,9 +587,9 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
   }
   if (ret != 0) { // another error
     db_ptr->err(db_ptr,ret,"Could not get cursor");
-    if (cursorp != NULL) 
-      cursorp->close(cursorp); 
-    if (txn!=NULL && txn->abort(txn)) 
+    if (cursorp != NULL)
+      cursorp->close(cursorp);
+    if (txn!=NULL && txn->abort(txn))
       cerr << "Transaction abort failed"<<endl;
     if (bulk)
       free(cursor_data.data);
@@ -608,7 +608,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 	free(cursor_data.data); // free because we're returning
 	if (cursorp != NULL)
 	  cursorp->close(cursorp);
-	if (txn!=NULL && txn->abort(txn)) 
+	if (txn!=NULL && txn->abort(txn))
 	  cerr << "Transaction abort failed"<<endl;
 	isd.__isset.s = true;
 	isd.__isset.info = true;
@@ -618,9 +618,9 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       NotImplemented ni;
       ni.function_name = "get_set only supports ruby functions at the moment";
       free(cursor_data.data);  // ditto
-      if (cursorp != NULL) 
-	cursorp->close(cursorp); 
-      if (txn!=NULL && txn->abort(txn)) 
+      if (cursorp != NULL)
+	cursorp->close(cursorp);
+      if (txn!=NULL && txn->abort(txn))
 	cerr << "Transaction abort failed"<<endl;
       throw ni;
     }
@@ -630,9 +630,9 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     DB_MULTIPLE_INIT(p, &cursor_data);
     DB_MULTIPLE_KEY_NEXT(p,&cursor_data, retkey, retklen, retdata, retdlen);
     if (p == NULL) {
-      if (cursorp != NULL) 
-	cursorp->close(cursorp); 
-      if (txn!=NULL && txn->commit(txn,0)) 
+      if (cursorp != NULL)
+	cursorp->close(cursorp);
+      if (txn!=NULL && txn->commit(txn,0))
 	cerr << "Transaction commit failed"<<endl;
       if (invokeNone)
 	// no vals, but apply function wants to know that so invoke with nulls
@@ -683,8 +683,8 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 
     else if (rs.type == RST_FILTER) {
       if (data.size > count &&
-	  strnstr((const char*)data.data,rs.filter.c_str(),data.size)) 
-	(*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);      
+	  strnstr((const char*)data.data,rs.filter.c_str(),data.size))
+	(*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);
     }
 
     // RST_KEY_FUNC/RST_KEY_VALUE_FUNC set
@@ -731,13 +731,13 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 	throw isd;
       }
     }
-		
+
     // okay, now get next key
     if (bulk) {
       DB_MULTIPLE_KEY_NEXT(p,&cursor_data, retkey, retklen, retdata, retdlen);
       if (p == NULL) { // need to advance the cursor
 	if ((ret = cursorp->get(cursorp, &cursor_key, &cursor_data, iter_dir | cursor_get_flags)) != 0) {
-	  if (ret != DB_NOTFOUND) 
+	  if (ret != DB_NOTFOUND)
 	    db_ptr->err(db_ptr,ret,"Cursor advance failed");
 	  free(cursor_data.data);
 	  break;
@@ -766,7 +766,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
   if (ret != DB_NOTFOUND) {
     db_ptr->err(db_ptr,ret,"Error in apply_to_set");
   }
-  
+
   if (cursorp != NULL)
     cursorp->close(cursorp);
   if (txn!=NULL &&
@@ -789,9 +789,9 @@ flush_wait(struct timespec* time) {
 void StorageDB::
 flush_lock(bool unlock) {
   if (unlock)
-    (void)pthread_mutex_unlock(&flushing_tex); 
+    (void)pthread_mutex_unlock(&flushing_tex);
   else
-    (void)pthread_mutex_lock(&flushing_tex); 
+    (void)pthread_mutex_lock(&flushing_tex);
 }
 
 static void* flush_thread(void* arg) {
@@ -822,7 +822,7 @@ static void* flush_thread(void* arg) {
       if (it->second->flush_flag != cur_flag) { // need to flush
 	db->flush_flag = cur_flag;
 	found_one = 1;
-	rc = pthread_rwlock_unlock(dbmap_lock); // unlock read lock	
+	rc = pthread_rwlock_unlock(dbmap_lock); // unlock read lock
 	chkLock(rc,"dbmap_lock","unlock read lock for flush thread");
 #ifdef DEBUG
 	cout << "Flushing "<<it->first<<endl;
@@ -864,14 +864,14 @@ StorageDB(int lp,
   u_int32_t env_flags = 0;
   int ret;
   u_int32_t gb;
-  
+
   ret = db_env_create(&db_env, 0);
   if (ret != 0) {
     fprintf(stderr, "Error creating env handle: %s\n", db_strerror(ret));
     exit(-1);
   }
 
-  env_flags = 
+  env_flags =
     DB_CREATE |     /* If the environment does not exist, create it. */
     DB_THREAD |     /* This gets used by multiple threads */
     DB_INIT_LOCK |  /* Multiple threads might write */
@@ -879,7 +879,7 @@ StorageDB(int lp,
     //DB_SYSTEM_MEM |
     DB_PRIVATE |
     user_flags;     /* Add in user specified flags */
-  
+
   ret = db_env->set_lk_detect(db_env,DB_LOCK_DEFAULT);
 
   if (cache != 0) {
@@ -908,7 +908,7 @@ StorageDB(int lp,
     fprintf(stderr, "Environment open failed: %s\n", db_strerror(ret));
     exit(-1);
   }
-    
+
   // create the dbs rwlock
   if (pthread_rwlock_init(&dbmap_lock, NULL)) {
     perror("Could not create dbmap_lock");
@@ -1067,7 +1067,7 @@ putDBTs(DB* db_ptr, MerkleDB* mdb_ptr,DBT* key, DBT* data, bool hasNull) {
     if (doMerkle)
       ret |= mdb_ptr->enqueue(key,data);
   }
-  
+
   if (ret) {
     db_ptr->err(db_ptr,ret,"Put failed");
     return false;
@@ -1078,7 +1078,7 @@ putDBTs(DB* db_ptr, MerkleDB* mdb_ptr,DBT* key, DBT* data, bool hasNull) {
     db_ptr->err(db_ptr,ret,"Flush failed");
     return false;
   }
-    
+
   return true;
 }
 
@@ -1113,7 +1113,7 @@ put(const NameSpace& ns, const Record& rec) {
 
   db_ptr = getDB(ns);
   mdb_ptr = getMerkleDB(ns);
-  if (doMerkle && mdb_ptr == NULL) 
+  if (doMerkle && mdb_ptr == NULL)
     cerr << "Warning, couldn't get MerkleDB, not going to maintain"<<endl;
   memset(&key, 0, sizeof(DBT));
   memset(&data, 0, sizeof(DBT));
@@ -1134,7 +1134,7 @@ set_responsibility_policy(const NameSpace& ns, const RecordSet& policy) {
 #ifdef DEBUG
   cerr << "Setting resp policy"<<endl;
 #endif
-    
+
   if (policy.type == RST_KEY_VALUE_FUNC) { // illegal
     InvalidSetDescription isd;
     isd.s = policy;
@@ -1261,16 +1261,16 @@ set_responsibility_policy(const NameSpace& ns, const RecordSet& policy) {
   map<const NameSpace,RecordSet*>::iterator it;
   RecordSet *rs;
   it = policies.find(ns);
-  if (it == policies.end()) 
+  if (it == policies.end())
     rs = new RecordSet();
-  else 
-    rs = it->second;  
+  else
+    rs = it->second;
   *rs = policy;
   if (it == policies.end())
     policies[ns] = rs;
   rc = pthread_rwlock_unlock(&resp_lock); // unlock
   chkLock(rc,"resp_lock","unlock write lock");
-  
+
 if (!retval)
     return true;
   TException te("Something went wrong storing your responsibility policy");
@@ -1309,11 +1309,11 @@ StorageDB::return_responsibility_policy(const NameSpace& ns) {
 
     memset(&db_key, 0, sizeof(DBT));
     memset(&db_data, 0, sizeof(DBT));
-    
+
     db_key.data = const_cast<char*>(ns.c_str());
     db_key.size = ns.length();
     db_data.flags = DB_DBT_MALLOC;
-    
+
 
     retval = mdDB->get(mdDB, NULL, &db_key, &db_data, 0);
     if (!retval) { // okay, something was there
@@ -1325,7 +1325,7 @@ StorageDB::return_responsibility_policy(const NameSpace& ns) {
       rs->type = (SCADS::RecordSetType)type;
       switch (rs->type) {
       case RST_RANGE:
-	is >> rs->range.__isset.start_key >> rs->range.__isset.end_key; 
+	is >> rs->range.__isset.start_key >> rs->range.__isset.end_key;
 	if (rs->range.__isset.start_key)
 	  is >> rs->range.start_key;
 	if (rs->range.__isset.end_key)
@@ -1418,7 +1418,7 @@ Starts the BerkeleyDB storage layer.\n\n\
 	  prgm);
 }
 
-static 
+static
 void parseArgs(int argc, char* argv[]) {
   int opt;
   char dtxn = 0;
@@ -1443,7 +1443,7 @@ void parseArgs(int argc, char* argv[]) {
       break;
     case 'c':
       cache = atoi(optarg);
-      break;	
+      break;
     case 't':
       if (!strcmp(optarg,"simple"))
 	serverType = ST_SIMPLE;
@@ -1482,7 +1482,7 @@ void parseArgs(int argc, char* argv[]) {
       exit(EXIT_FAILURE);
     }
   }
-  
+
   if (dtxn)
     uf = DB_INIT_TXN | DB_INIT_LOG | DB_MULTIVERSION;
   else if(dlog)
@@ -1563,7 +1563,7 @@ int main(int argc, char **argv) {
   if(chkdirs(env_dir)) {
     exit(-1);
   }
-  
+
 
 #ifdef NOXTRACE
 	if (xTrace) {
@@ -1650,7 +1650,7 @@ int main(int argc, char **argv) {
     cerr << "Invalid server type, nothing to start"<<endl;
     exit(EXIT_FAILURE);
   }
-  
+
   printf("done.\n");
   return 0;
 }

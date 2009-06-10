@@ -15,7 +15,7 @@
     timersub(&end_time,&start_time,&diff_time); \
     printf("%ld.%.6ld\n", diff_time.tv_sec, diff_time.tv_usec); \
   }
-//printf("%ld.%.6ld\t%ld.%.6ld\n", start_time.tv_sec, start_time.tv_usec, diff_time.tv_sec, diff_time.tv_usec); 
+//printf("%ld.%.6ld\t%ld.%.6ld\n", start_time.tv_sec, start_time.tv_usec, diff_time.tv_sec, diff_time.tv_usec);
 using namespace std;
 using namespace SCADS;
 
@@ -108,10 +108,10 @@ void parseArgs(int argc, char* argv[]) {
       break;
     case 'k':
 			max_keylength = atoi(optarg);
-      break;	
+      break;
     case 's':
 			data_size = atoi(optarg);
-			
+
       break;
     case 'f':
       flush_period = atoi(optarg);
@@ -147,7 +147,7 @@ int bench_hash() {
 	MHASH td;
 	srand(13424);
 		start_timer();
-		
+
   td = mhash_init(MERKLEDB_HASH_FUNC);
   if (td == MHASH_FAILED) {
     std::cerr << "HASH Failed";
@@ -159,9 +159,9 @@ int bench_hash() {
 //			keybuf[j] = ((char) (rand() % ('z' - '0' + 1) + '0'));
 			keybuf[j] = (rand() % 94) + 33; //printable
 //			keybuf[j] = (rand() % 255) + 1; //unprintable (but not null)
-		} 
+		}
 		keybuf[keylen] = '\0';
-		
+
 //		printf("going to enqueue key:(\"%s\"\t\t\t", keybuf);
 //		print_hex(keybuf, key.size);
 //		std::cout << "\t:\t" << key.size << ")" << endl;
@@ -169,7 +169,7 @@ int bench_hash() {
 	}
 
 	mhash_end(td);
-	end_timer();  
+	end_timer();
 }
 
 int run() {
@@ -190,10 +190,10 @@ int run() {
 //			keybuf[j] = ((char) (rand() % ('z' - '0' + 1) + '0'));
 			keybuf[j] = (rand() % 94) + 33; //printable
 //			keybuf[j] = (rand() % 255) + 1; //unprintable (but not null)
-		} 
+		}
 		keybuf[keylen] = '\0';
 		key.size = keylen;
-		
+
 //		printf("going to enqueue key:(\"%s\"\t\t\t", keybuf);
 //		print_hex(keybuf, key.size);
 //		std::cout << "\t:\t" << key.size << ")" << endl;
@@ -233,13 +233,13 @@ int main(int argc, char **argv) {
     exit(-1);
   }
 
-  env_flags = 
+  env_flags =
     DB_CREATE |     /* If the environment does not exist, create it. */
     DB_INIT_LOCK |  /* Multiple threads might write */
     DB_INIT_MPOOL|  /* Initialize the in-memory cache. */
     DB_THREAD |
     DB_PRIVATE;
-  
+
   ret = db_env->set_lk_detect(db_env,DB_LOCK_DEFAULT);
 
   ret = db_env->open(db_env,      /* DB_ENV ptr */
@@ -254,14 +254,14 @@ int main(int argc, char **argv) {
 	mdb = new MerkleDB(ns, db_env);
   signal(SIGINT, ex_program);
   signal(SIGTERM, ex_program);
-  
+
 	std::cout << "Hashing alone" <<endl;
 	bench_hash();
-	
+
 	std::cout << "Building Tree" <<endl;
 	run();
 
-	
+
 
   printf("done.\n");
   return 0;
