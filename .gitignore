@@ -1,12 +1,7 @@
 gen-*
 .DS_Store
-makefile.inc
-**/bin/*
-**/dist/*
 storage/engines/bdb/storage.bdb*
 *.log
 **/db/*
 **/testdb/*
-*.class
-*.csv
-*.jar
+**/target/*
