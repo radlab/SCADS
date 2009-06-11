@@ -6,6 +6,10 @@ class Service(id: String) {
     Nil
   }
   
+  def blockingStart(): Unit = {
+    Nil
+  }
+  
   def once(): Unit = {
     Nil
   }
@@ -19,6 +23,14 @@ class Service(id: String) {
   }
   
   def status(): String = {
+    ""
+  }
+  
+  def uptime(): Int = {
+    0
+  }
+  
+  def tailLog(): String = {
     ""
   }
   

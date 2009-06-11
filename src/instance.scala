@@ -21,8 +21,16 @@ class Instance(instanceId:        String,
     Nil
   }
   
+  def getCfg(): JSONObject = {
+    new JSONObject()
+  }
+  
   def stop(): Unit = {
     Nil
+  }
+  
+  def getAllServices(): ArrayBuffer[Service] = {
+    services
   }
   
 }
