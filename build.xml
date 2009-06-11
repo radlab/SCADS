@@ -9,12 +9,14 @@
     <property name="dist"  location="dist"/>
     <property name="scala.home" value="/opt/local/share/scala"/>
     <property name="scala-library.jar" value="${scala.home}/lib/scala-library.jar"/>
+    <property environment="env"/>
     <path id="build.classpath">
         <pathelement location="${scala-library.jar}"/>
         <pathelement location="${build}"/>
         <fileset dir="${lib}">
           <include name ="**/*.jar"/>
         </fileset>
+        <pathelemnt location="${env.JAVA_HOME}/lib/jce.jar"/>
     </path>
     
     <target name="init">
