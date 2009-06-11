@@ -15,25 +15,6 @@ import org.apache.thrift.server.TThreadPoolServer
 
 import edu.berkeley.cs.scads.thrift._
 
-case class StorageNode(host: String, thriftPort: Int, syncPort: Int) {
-	@transient
-	var client: StorageEngine.Client = null
-	def this(host: String, port: Int) = this(host, port, port)
-	def syncHost = host + ":" + syncPort
-
-	def getClient(): StorageEngine.Client = {
-		if(client == null) {
-			val transport = new TFramedTransport(new TSocket(host, thriftPort))
-			client = new StorageEngine.Client(new TBinaryProtocol(transport))
-			transport.open()
-		}
-		return client
-	}
-
-	override def clone() = {
-		new StorageNode(host, thriftPort, syncPort)
-	}
-}
 
 class XtStorageNode(host: String, thriftPort: Int, syncPort: Int) extends StorageNode(host,thriftPort,syncPort) {
 	override def getClient(): StorageEngine.Client = {

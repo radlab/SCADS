@@ -9,25 +9,6 @@ import scala.collection.mutable.HashSet
 
 import AutoKey._
 
-
-trait LocalKeySpaceProvider extends KeySpaceProvider {
-	var ns_map = new HashMap[String,KeySpace]
-
-	override def getKeySpace(ns: String): KeySpace = { ns_map(ns) }
-	override def refreshKeySpace() = {}
-
-	def add_namespace(ns: String): Boolean = {
-		this.add_namespace(ns,null)
-	}
-	def add_namespace(ns: String, ks: SimpleKeySpace): Boolean = {
-		ns_map.update(ns,ks)
-		ns_map.contains(ns)
-	}
-
-	def getMap: HashMap[String,KeySpace] = ns_map
-}
-
-
 class RecordComparator extends java.util.Comparator[Record] {
 	def compare(o1: Record, o2: Record): Int = {
 		o1.key compareTo o2.key
@@ -38,7 +19,7 @@ class LocalROWAClientLibrary extends ROWAClientLibrary with LocalKeySpaceProvide
 
 class SCADSClient(h: String, p: Int) extends ROWAClientLibrary with RemoteKeySpaceProvider {
 	val port = p
-	val host = h
+	val host = h 
 }
 
 abstract class ROWAClientLibrary extends KeySpaceProvider with ThriftConversions {
