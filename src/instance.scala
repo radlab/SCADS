@@ -9,7 +9,7 @@ class Instance(instanceId:        String,
                privateDnsName:    String,
                publicDnsName:     String,
                keyName:           String,
-               instanceType:      String,
+               instanceType:      Instance.Type.Value,
                launchTime:        String,
                availabilityZone:  String) {  
   
@@ -33,4 +33,14 @@ class Instance(instanceId:        String,
     services
   }
   
+}
+
+object Instance {
+  object Type extends Enumeration {
+    val m1_small  = Value("m1.small")
+    val m1_large  = Value("m1.large")
+    val m1_xlarge = Value("m1.xlarge")
+    val c1_medium = Value("c1.medium")
+    val c1_xlarge = Value("c1.xlarge")
+  }
 }

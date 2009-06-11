@@ -15,12 +15,16 @@ object DataCenter {
     /* Poll until all instances are ready. */
     
     val instances = ids.map(id => new Instance(id, "imageId", "instanceState",
-        "privateDns", "publicDns", "keyName", "instanceTyep", "launchTime",
+        "privateDns", "publicDns", "keyName", Instance.Type.m1_small, "launchTime",
         "availabilityZone"))
     
     this.instances ++= instances
 
     return instances
+  }
+  
+  def getInstanceGroupByTag(tag: String): InstanceGroup = {
+    new InstanceGroup
   }
   
 }
