@@ -1,6 +1,6 @@
 #!/usr/local/bin/thrift --gen rb --gen java --gen cpp
 
-namespace rb SCADS.Storage
+namespace rb SCADS
 namespace cpp SCADS
 namespace java edu.berkeley.cs.scads.thrift
 

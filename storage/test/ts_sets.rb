@@ -1,7 +1,7 @@
 require 'test/unit'
 
 class TS_Sets < Test::Unit::TestCase
-  include SCADS::Storage
+  include SCADS
 
   def setup
     @server = $ENGINE.new

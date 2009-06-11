@@ -6,7 +6,6 @@ require 'thrift/server/nonblockingserver'
 require 'timeout'
 require 'optparse'
 
-require 'Storage'
 require 'simple'
 
 $stdout.sync = true

@@ -1,9 +1,9 @@
-require 'Storage'
+require 'StorageEngine'
 require File.dirname(__FILE__) + "/" +'record_set'
 require File.dirname(__FILE__) + "/" +'conflict_policy'
 
 module SCADS
-  module Storage
+  module StorageEngine
     module Simple
       class Handler
         def initialize
@@ -88,7 +88,7 @@ module SCADS
           transport = Thrift::FramedTransport.new(Thrift::Socket.new(host, port))
           protocol = Thrift::BinaryProtocol.new(transport)
           transport.open
-          client = Storage::Client.new(protocol)
+          client = StorageEngine::Client.new(protocol)
 
           remote_data = {}
           client.get_set(ns, rs).each {|r| remote_data[r.key] = r.value}
@@ -124,7 +124,7 @@ module SCADS
           transport = Thrift::FramedTransport.new(Thrift::Socket.new(host, port))
           protocol = Thrift::BinaryProtocol.new(transport)
           transport.open
-          client = Storage::Client.new(protocol)
+          client = StorageEngine::Client.new(protocol)
 
           @data[ns].select {|key, value| rs.includes?(key)}.each do |key,value|
             client.put(ns, Record.new(:key => key, :value => value))

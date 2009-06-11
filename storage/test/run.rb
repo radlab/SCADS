@@ -2,7 +2,8 @@ $:.push('gen-rb')
 
 require 'rubygems'
 require 'activesupport'
-require 'Storage'
+
+require 'StorageEngine'
 
 require 'test/unit'
 require 'test/unit/ui/console/testrunner'
@@ -19,7 +20,7 @@ end
 Dir.glob("engines/*/harness.rb").each do |engine|
   require engine
   engine_name = engine[/engines\/(.*)\/harness.rb/,1]
-  $ENGINE = SCADS::Storage.const_get(engine_name.capitalize)::TestHarness
+  $ENGINE = SCADS::StorageEngine.const_get(engine_name.capitalize)::TestHarness
 
   puts "==RUNNING TESTS FOR #{engine_name} ENGINE=="
   Test::Unit::UI::Console::TestRunner.run(suite)

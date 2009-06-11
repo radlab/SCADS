@@ -8,8 +8,10 @@ require 'timeout'
   require File.dirname(__FILE__) + "/" + file
 end
 
+Thread.abort_on_exception = true
+
 module SCADS
-  module Storage
+  module StorageEngine
     module Simple
       class TestHarness
         def initialize
@@ -21,7 +23,7 @@ module SCADS
           transport = Thrift::FramedTransport.new(Thrift::Socket.new('localhost', @port))
           protocol = Thrift::BinaryProtocol.new(transport)
           transport.open
-          client = Storage::Client.new(protocol)
+          client = StorageEngine::Client.new(protocol)
 
           puts "Calling #{symbol} with #{args.inspect}" if $DEBUG
           ret = nil
@@ -48,9 +50,9 @@ module SCADS
 
           @thread = Thread.new do
             while true
-              handler = SCADS::Storage::Simple::Handler.new()
+              handler = SCADS::StorageEngine::Simple::Handler.new()
               puts "Setting up SCADS storage handler" if $DEBUG
-              processor = SCADS::Storage::Storage::Processor.new(handler)
+              processor = SCADS::StorageEngine::Processor.new(handler)
               puts "Opening socket on #{host}:#{port}" if $DEBUG
               @transport = Thrift::ServerSocket.new("0.0.0.0",@port)
               transportFactory = Thrift::FramedTransportFactory.new()

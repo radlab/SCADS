@@ -1,7 +1,7 @@
 require 'test/unit'
 
 class TS_Syncing < Test::Unit::TestCase
-  include SCADS::Storage
+  include SCADS
 
   def setup
     @server1 = $ENGINE.new
