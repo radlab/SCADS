@@ -7,14 +7,15 @@
     <property name="lib"   location="lib"/>
     <property name="build" location="build"/>
     <property name="dist"  location="dist"/>
+    <property name="scala.home" value="/opt/local/share/scala"/>
+    <property name="scala-library.jar" value="${scala.home}/lib/scala-library.jar"/>
     
     <target name="init">
         <tstamp/>
         <mkdir dir="${build}"/>
         <javac srcdir="${lib}" destdir="${build}"/>
         <!-- Create Task: 'scalac' -->
-        <property name="scala.home" value="/opt/local/share/scala"/>
-        <property name="scala-library.jar" value="${scala.home}/lib/scala-library.jar"/>
+
         <path id="build.classpath">
             <pathelement location="${scala-library.jar}"/>
             <pathelement location="${build}"/>
@@ -28,7 +29,7 @@
     </target>
 
     <target name="compile" depends="init" description="compile the source">
-        <scalac srcdir="${src}" destdir="${build}" classpath="build.classpath">
+        <scalac srcdir="${src}" destdir="${build}" classpathref="build.classpath">
             <include name="*.scala"/>
         </scalac>
     </target>
