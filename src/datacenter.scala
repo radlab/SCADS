@@ -15,8 +15,8 @@ object DataCenter {
     /* Poll until all instances are ready. */
     
     val instances = ids.map(id => new Instance(id, "imageId", "instanceState",
-        "privateDns", "publicDns", "keyName", Instance.Type.m1_small, "launchTime",
-        "availabilityZone"))
+        "privateDns", "publicDns", "keyName", Instance.Type.m1_small,
+        "launchTime", "availabilityZone"))
     
     this.instances ++= instances
 
