@@ -25,6 +25,10 @@
 	</dependencies>
 	<repositories>
 		<repository>
+	      <id>RADLabRepo</id>
+	      <url>http://radlabmaven.s3.amazonaws.com/</url>
+	    </repository>
+		<repository>
 			<id>scala-tools.org</id>
 			<name>Scala-tools Maven2 Repository</name>
 			<url>http://scala-tools.org/repo-releases</url>
