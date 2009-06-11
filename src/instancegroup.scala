@@ -1,5 +1,7 @@
 package deploylib
 
-class InstanceGroup() {
-  
+class InstanceGroup(instances: Array[Instance]) {
+  def parallelExecute(cmd): Unit = {
+    
+  }
 }
