@@ -5,7 +5,7 @@ namespace cpp SCADS
 namespace java edu.berkeley.cs.scads.thrift
 
 typedef string RecordKey 
-typedef binary RecordValue
+typedef string RecordValue
 typedef string NameSpace
 typedef string Host
 
