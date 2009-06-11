@@ -1,0 +1,45 @@
+<project name="DeployLibrary" default="dist" basedir=".">
+    <description>
+        Compiles the deploy library.
+    </description>
+    
+    <property name="src"   location="src"/>
+    <property name="lib"   location="lib"/>
+    <property name="build" location="build"/>
+    <property name="dist"  location="dist"/>
+    
+    <target name="init">
+        <tstamp/>
+        <mkdir dir="${build}"/>
+        <javac srcdir="${lib}" destdir="${build}"/>
+        <!-- Create Task: 'scalac' -->
+        <property name="scala.home" value="/opt/local/share/scala"/>
+        <property name="scala-library.jar" value="${scala.home}/lib/scala-library.jar"/>
+        <path id="build.classpath">
+            <pathelement location="${scala-library.jar}"/>
+            <pathelement location="${build}"/>
+        </path>
+        <taskdef resource="scala/tools/ant/antlib.xml">
+            <classpath>
+                <pathelement location="${scala.home}/lib/scala-compiler.jar"/>
+                <pathelement location="${scala-library.jar}"/>
+            </classpath>
+        </taskdef>
+    </target>
+
+    <target name="compile" depends="init" description="compile the source">
+        <scalac srcdir="${src}" destdir="${build}" classpath="build.classpath">
+            <include name="*.scala"/>
+        </scalac>
+    </target>
+    
+    <target name="dist" depends="compile" description="generate the distribution" >
+        <mkdir dir="${dist}"/>
+        <jar jarfile="${dist}/lib/MyProject-${DSTAMP}.jar" basedir="${build}"/>
+    </target>
+
+    <target name="clean" description="clean up" >
+        <delete dir="${build}"/>
+        <delete dir="${dist}"/>
+    </target>
+</project>
