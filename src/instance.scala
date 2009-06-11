@@ -1,21 +1,28 @@
-import scala.collection.mutable.ArrayBuffer
+package deploylib
 
-class Instance(id: String, internal_ip: String, external_ip: String) {
+import scala.collection.mutable.ArrayBuffer
+import org.json.JSONObject
+
+class Instance(instanceId:        String,
+               imageId:           String,
+           var instanceState:     String,
+               privateDnsName:    String,
+               publicDnsName:     String,
+               keyName:           String,
+               instanceType:      String,
+               launchTime:        String,
+               availabilityZone:  String) {  
   
   val services = new ArrayBuffer[Service]()
-  val tags = new ArrayBuffer[String]()
+  val tags     = new ArrayBuffer[String]()
   
-  def deploy(config: Unit): Unit = {
+  def deploy(config: JSONObject): Unit = {
     /* 'config' will need to be some sort of dictionary. */
     Nil
   }
   
   def stop(): Unit = {
     Nil
-  }
-  
-  object Type extends Enumeration {
-    val M1Small, M1Large, M1XLarge, C1Medium, C1XLarge = Value
   }
   
 }

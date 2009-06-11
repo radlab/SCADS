@@ -1,10 +1,13 @@
+package deploylib
+
 import scala.collection.mutable.ArrayBuffer
+import org.json.JSONObject
 
 object DataCenter {
   
   val instances = new ArrayBuffer[Instance]()
   
-  def startInstances(count: Int, instanceType: Instance.Type): Array[Instance] = {
+  def startInstances(count: Int, instanceType: String): Array[Instance] = {
     val ids = new Array[String](count)
     
     /* Request instances from EC2. */

@@ -1,3 +1,5 @@
+package deploylib
+
 class Service(id: String) {
   
   def start(): Unit = {
