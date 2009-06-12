@@ -3,19 +3,11 @@ package deploylib
 import scala.collection.mutable.ArrayBuffer
 import org.json.JSONObject
 
-class Instance(instanceId:        String,
-               imageId:           String,
-           var instanceState:     String,
-               privateDnsName:    String,
-               publicDnsName:     String,
-               keyName:           String,
-               instanceType:      Instance.Type.Value,
-               launchTime:        String,
-               availabilityZone:  String) {  
-  
-  val services = new ArrayBuffer[Service]()
-  val tags     = new ArrayBuffer[String]()
-  
+import com.amazonaws.ec2._
+import com.amazonaws.ec2.model._
+
+class Instance(instance: RunningInstance) { 
+                 
   def deploy(config: JSONObject): Unit = {
     /* 'config' will need to be some sort of dictionary. */
     Nil
@@ -29,8 +21,12 @@ class Instance(instanceId:        String,
     Nil
   }
   
-  def getAllServices(): ArrayBuffer[Service] = {
-    services
+  def getAllServices(): List[Service] = {
+    List(new Service("Skeleton"))
+  }
+  
+  def getService(id: String): Service = {
+    new Service("Skeleton")
   }
   
 }

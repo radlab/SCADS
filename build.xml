@@ -16,7 +16,7 @@
         <fileset dir="${lib}">
           <include name ="**/*.jar"/>
         </fileset>
-        <pathelemnt location="${env.JAVA_HOME}/lib/jce.jar"/>
+        <pathelement location="${env.JAVA_HOME}/lib/jce.jar"/>
     </path>
     
     <target name="init">

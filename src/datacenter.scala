@@ -8,27 +8,28 @@ import com.amazonaws.ec2.model._
 
 object DataCenter {
   
-  val instances = new ArrayBuffer[Instance]()
+  protected var instances: List[Instance] = List()
   
+  val accessKeyId = "<Access Key ID>" // Read from config file
+  val secretAccessKey = "<Secret Access Key>" // Read from config file
+
+  /* This method starts instances using the given arguments and returns
+   * an InstanceGroup.
+   * The EC2 access key ID and EC2 secret access key will be read from 
+   * a configuration file. */
   def startInstances(count: Int, instanceType: String): Array[Instance] = {
     val ids = new Array[String](count)
     
-    /* Request instances from EC2. */
-    val accessKeyId = "<Access Key ID>"
-    val secretAccessKey = "<Secret Access Key>"
-    
     val service: AmazonEC2 = new AmazonEC2Client(accessKeyId, secretAccessKey)
+    
+    val request = new RunInstancesRequest()
     
     
     /* Poll until all instances are ready. */
-    
-    val instances = ids.map(id => new Instance(id, "imageId", "instanceState",
-        "privateDns", "publicDns", "keyName", Instance.Type.m1_small,
-        "launchTime", "availabilityZone"))
-    
-    this.instances ++= instances
 
-    return instances
+    /* Turn instances into InstanceGroup */
+
+    return null
   }
   
   def getInstanceGroupByTag(tag: String): InstanceGroup = {
