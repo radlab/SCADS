@@ -1,4 +1,4 @@
-package edu.berkeley.cs.scads
+package edu.berkeley.cs.scads.keys
 
 import scala.util.Sorting
 
@@ -34,7 +34,7 @@ case class KeyRange(start: Key, end: Key) {
 
 	def - (that: KeyRange): KeyRange = {
 		if(this.end > that.start && this.end <= that.end && this.start < that.start)
-			new KeyRang e(this.start, that.start)
+			new KeyRange(this.start, that.start)
 		else if(this.start >= that.start && this.start < that.end && this.end > that.end)
 			new KeyRange(that.end, this.end)
 		else if(this.end < that.start || this.start > that.end)
