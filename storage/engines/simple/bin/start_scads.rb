@@ -46,9 +46,9 @@ if host.nil? or port.nil?
   Process.exit
 end
 
-handler = SCADS::Storage::Simple::Handler.new()
+handler = SCADS::StorageEngine::Simple::Handler.new()
 puts "Setting up SCADS storage handler"
-processor = SCADS::Storage::Storage::Processor.new(handler)
+processor = SCADS::StorageEngine::Processor.new(handler)
 puts "Opening socket on #{host}:#{port}"
 @transport = Thrift::ServerSocket.new(host,port)
 transportFactory = Thrift::FramedTransportFactory.new()

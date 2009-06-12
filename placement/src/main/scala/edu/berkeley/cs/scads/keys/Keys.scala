@@ -1,4 +1,4 @@
-package edu.berkeley.cs.scads
+package edu.berkeley.cs.scads.keys
 
 import java.text.ParsePosition
 
@@ -77,7 +77,7 @@ object MaxKey extends Key {
 	def serialize: String = throw new InvalidKey
 }
 
-object AutoKey {
+trait AutoKey {
 	implicit def stringToKey(s:String) = new StringKey(s)
 	implicit def intToKey(i:Int) = new NumericKey[Int](i)
 	implicit def longToKey(i:Long) = new NumericKey[Long](i)
