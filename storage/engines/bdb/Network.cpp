@@ -2065,7 +2065,7 @@ void* merkle_recv(void* arg) {
 
 
 static DBT last_yes;
-static pthread_mutex_t last_yes_tex,sending_tex;
+static pthread_mutex_t last_yes_tex;
 
 void* merkle_dfs_recv(void* arg) {
   char *end;
@@ -2202,6 +2202,7 @@ bool cursor_advance(DBC* cursorp, DBT* key, DBT* data) {
        ( (mc == 0) &&
 	 (key->size > last_yes.size)) )  { // i'm already ahead of this
     (void)pthread_mutex_unlock(&last_yes_tex);
+    cout << "Already ahead of: "<<dbt_string(&last_yes)<<endl;
     return true;
   }
 
@@ -2214,6 +2215,7 @@ bool cursor_advance(DBC* cursorp, DBT* key, DBT* data) {
   cd[key->size-1]++;
   int ret = cursorp->get(cursorp,key,data,DB_SET_RANGE);
   (void)pthread_mutex_unlock(&last_yes_tex);
+  cout << "Advanced cursor"<<endl;
   return ret==0;
 }
 
@@ -2292,8 +2294,14 @@ merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
 
   memset(&key, 0, sizeof(DBT));
   memset(&data, 0, sizeof(DBT));
+  int sock;
 
-  int sock = open_socket(h);
+  try {
+    sock = open_socket(h);
+  } catch(...) {
+    flush_lock(true);
+    throw;
+  }
   int nslen = ns.length();
 
   stat = 1; // sync command
@@ -2351,6 +2359,7 @@ merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
   ret = mdb->dbp->get(mdb->dbp,NULL,&key,&data,0);
   if (ret == DB_NOTFOUND) { // no root node?
     cerr << "Umm, no root node found in merkle tree, something's wrong"<<endl;
+    flush_lock(true);
     return false;
   }
 #ifdef DEBUG
@@ -2387,11 +2396,9 @@ merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
   last_yes.flags = 0;
   last_yes.size = 0;
   last_yes.data = NULL;
-  if (pthread_mutex_init(&last_yes_tex,NULL)) 
-    do_throw(errno,"Couldn't create last_yes mutex:");
-  if (pthread_mutex_init(&sending_tex,NULL)) {
-    TException te("Couldn't create sending mutex");
-    throw te;
+  if ((ret = pthread_mutex_init(&last_yes_tex,NULL)) != 0) {
+    flush_lock(true);
+    do_throw(ret,"Couldn't create last_yes mutex:");
   }
 
   struct merkle_recv_args args;
@@ -2410,23 +2417,9 @@ merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
   pthread_join(recv_thread,NULL);
 
   if ( (ret = (pthread_mutex_destroy(&last_yes_tex))) != 0) {
-    switch(ret) {
-    case EBUSY: {
-      TException te("Couldn't destroy last_yes mutex, it is locked or referenced");
-      throw te;
-    }
-    case EINVAL: {
-      TException te("Couldn't destroy last_yes mutex, it is invalid");
-      throw te;
-    }
-    default: {
-      TException te("Couldn't destroy last_yes mutex, unknown error");
-      throw te;
-    }
-    }
+    flush_lock(true);
+    do_throw(ret,"Couldn't destroy last_yes mutex");
   }
-  if (pthread_mutex_destroy(&sending_tex)) 
-    do_throw(errno,"Couldn't destroy sending mutex:");
 
   if (last_yes.data != NULL)
     free(last_yes.data);
@@ -2441,8 +2434,10 @@ merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
   cout << "Sent final done, gonna wait for final status"<<endl;
 #endif
 
-  if ((numbytes = recv(sock, &stat, 1, 0)) == -1) 
+  if ((numbytes = recv(sock, &stat, 1, 0)) == -1) {
+    flush_lock(true);
     do_throw(errno,"Could not read final status: ");
+  }
 
   cout << "okay, all done"<<endl;
 

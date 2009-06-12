@@ -44,7 +44,7 @@ CXX=g++
 CFLAGS = -g -I${THRIFT_DIR} -I${BOOST_DIR} -Igen-cpp ${BDB}
 LIBS = ${LIB_DIRS} -lthrift -lreadline -lm
 
-default: arch_warning diffloader
+default: arch_warning loader
 
 #print warning if couldn't determine the arch
 arch_warning:
@@ -59,6 +59,9 @@ $(SRCS_TO_GEN): $(THRIFT_FILE)
 # C/C++ RULES
 diffloader: $(SRCS_TO_GEN) diffloader.cpp
 	$(CXX) $(CFLAGS) -o $@ diffloader.cpp ${GEN_SRC} $(LIBS)
+
+loader: $(SRCS_TO_GEN) loader.cpp
+	$(CXX) $(CFLAGS) -o $@ loader.cpp ${GEN_SRC} $(LIBS)
 
 clean:
 	rm -rf gen-cpp diffloader

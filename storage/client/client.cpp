@@ -461,7 +461,7 @@ int main(int argc,char* argv[]) {
 
       else if (cmd == "putrand") {
 	if (v.size() != 5) {
-	  cout << "Invalid putrand, use as: putrange namespace startkey endkey count"<<endl;
+	  cout << "Invalid putrand, use as: putrand namespace startkey endkey count"<<endl;
 	  continue;
 	}
 	int s = atoi(v[2].c_str());
