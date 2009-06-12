@@ -2,8 +2,7 @@
 #include <concurrency/ThreadManager.h>
 #include <concurrency/PosixThreadFactory.h>
 #include <protocol/TBinaryProtocol.h>
-#ifdef NOXTRACE
-#else
+#ifndef NOXTRACE
 #include <protocol/XtBinaryProtocol.h>
 #endif
 #include <server/TSimpleServer.h>
