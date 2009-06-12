@@ -15,20 +15,6 @@ import org.apache.thrift.server.TThreadPoolServer
 
 import edu.berkeley.cs.scads.thrift._
 
-
-class XtStorageNode(host: String, thriftPort: Int, syncPort: Int) extends StorageNode(host,thriftPort,syncPort) {
-	override def getClient(): StorageEngine.Client = {
-		if(client == null) {
-			val transport = new TFramedTransport(new TSocket(host, thriftPort))
-			val protocol = new XtBinaryProtocol(transport)
-			client = new StorageEngine.Client(protocol)
-			transport.open()
-		}
-		return client
-	}
-
-}
-
 object TestableStorageNode {
 	var port = 9000
 

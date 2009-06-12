@@ -20,15 +20,15 @@ abstract class TestableStorageNode(thriftPort: Int, syncPort: Int) extends Stora
 	@transient
 	val thread = new Thread(this, "StorageNode"+thriftPort)
 	
-	val dbDir = new java.io.File("db")
+	val dbDir = new java.io.File("target/db")
 	if(!dbDir.exists() || !dbDir.isDirectory())
 		dbDir.mkdir()
-	val testDir = new java.io.File("db/test" + thriftPort)
-	if(testDir.exists()) 
+	val testDir = new java.io.File("target/db/test" + thriftPort)
+	if(testDir.exists())
 		testDir.delete()
 	testDir.mkdir()
-	val logFile: java.io.FileOutputStream = new java.io.FileOutputStream("db/test" + thriftPort + "/db.log", false)
-	
+  logger.debug("created " + testDir + " for testable node")
+
 	var started = false
 	def execCmd: String
 	def startedMsg: String
@@ -55,9 +55,7 @@ abstract class TestableStorageNode(thriftPort: Int, syncPort: Int) extends Stora
 			while(line != null) {
 				if(!started && line.contains(startedMsg))
 					started = true
-				logFile.write((line + "\n").getBytes())
-				logFile.flush()
-      
+        logger.debug(line)
 				line = reader.readLine()
 			}
 		}
