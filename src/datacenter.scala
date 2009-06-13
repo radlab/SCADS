@@ -10,8 +10,10 @@ object DataCenter {
   
   protected var instances: List[Instance] = List()
   
-  val accessKeyId = "<Access Key ID>" // Read from config file
-  val secretAccessKey = "<Secret Access Key>" // Read from config file
+  val configXML = xml.XML.loadFile("config.xml")
+  
+  val accessKeyId     = (configXML \ "accessKeyId").text
+  val secretAccessKey = (configXML \ "secretAccessKey").text
 
   /* This method starts instances using the given arguments and returns
    * an InstanceGroup.

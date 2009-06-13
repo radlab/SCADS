@@ -1,0 +1,4 @@
+<ec2>
+  <accessKeyId>Access Key</accessKeyId>
+  <secretAccessKey>Secret Access Key</secretAccessKey>
+</ec2>  
