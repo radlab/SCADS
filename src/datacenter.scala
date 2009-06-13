@@ -10,18 +10,18 @@ object DataCenter {
   
   protected var instances: List[Instance] = List()
   
-  val configXML = xml.XML.loadFile("config.xml")
+  private val configXML = xml.XML.loadFile("config.xml")
   
-  val accessKeyId     = (configXML \ "accessKeyId").text
-  val secretAccessKey = (configXML \ "secretAccessKey").text
+  private val accessKeyId     = (configXML \ "accessKeyId").text
+  private val secretAccessKey = (configXML \ "secretAccessKey").text
 
   /* This method starts instances using the given arguments and returns
    * an InstanceGroup.
    * The EC2 access key ID and EC2 secret access key will be read from 
    * a configuration file. */
-  def startInstances(count: Int, instanceType: String): Array[Instance] = {
-    val ids = new Array[String](count)
-    
+  def startInstances(imageId: String, count: Int, keyName: String,
+                     instanceType: String, location: String):
+                     Array[Instance] = {
     val service: AmazonEC2 = new AmazonEC2Client(accessKeyId, secretAccessKey)
     
     val request = new RunInstancesRequest()
