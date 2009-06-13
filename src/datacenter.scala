@@ -19,9 +19,9 @@ object DataCenter {
    * an InstanceGroup.
    * The EC2 access key ID and EC2 secret access key will be read from 
    * a configuration file. */
-  def startInstances(imageId: String, count: Int, keyName: String,
-                     instanceType: String, location: String):
-                     Array[Instance] = {
+  def runInstances(imageId: String, count: Int, keyName: String,
+                   instanceType: Instance.Type.Value, location: String):
+                   InstanceGroup = {
     val service: AmazonEC2 = new AmazonEC2Client(accessKeyId, secretAccessKey)
     
     val request = new RunInstancesRequest()
