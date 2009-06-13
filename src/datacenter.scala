@@ -24,7 +24,19 @@ object DataCenter {
                    InstanceGroup = {
     val service: AmazonEC2 = new AmazonEC2Client(accessKeyId, secretAccessKey)
     
-    val request = new RunInstancesRequest()
+    val request = new RunInstancesRequest(imageId,                 // imageID
+                                          count,                   // minCount
+                                          count,                   // maxCount
+                                          keyName,                 // keyName
+                                          null,                    // securityGroup
+                                          null,                    // userData
+                                          instanceType.toString,   // instanceType
+                                          new Placement(location), // placement
+                                          null,                    // kernelId
+                                          null,                    // ramdiskId
+                                          null,                    // blockDeviceMapping
+                                          null                     // monitoring
+                                          )
     
     
     /* Poll until all instances are ready. */
