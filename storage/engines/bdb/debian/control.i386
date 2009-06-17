@@ -1,0 +1,11 @@
+Package: scads-storage-bdb
+Version: 0.1.0
+Section: database
+Architecture: i386
+Depends: libdb4.6
+Maintainer: Nick Lanham [nick@afternight.org]
+Provides: scads-storage-bdb
+Description: BDB backed storage engine 
+ BDB backed stroage engine for the SCADS project.  Runs a thrift
+ server that implements the storage.thrift interface.
+

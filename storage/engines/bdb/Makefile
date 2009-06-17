@@ -42,6 +42,12 @@ CXX=g++
 CFLAGS = -I${THRIFT_DIR} -I${BOOST_DIR} -Igen-cpp ${BDB_DIR}
 LIBS = ${LIB_DIRS} -lthrift -lthriftnb -levent -l${BDB_LIB} -l${RUBY_LIB} -lmhash
 
+# deb files
+DEB = scads-storage-bdb_0.1.deb
+DEBCTRL64 = debian/control.amd64
+DEBCTRL386 = debian/control.i386
+DEBDIR = gendeb
+
 default: arch_warning storage.bdb
 
 debug: arch_warning storage.bdb.debug
@@ -93,5 +99,26 @@ builddb: BuildDB.cpp MerkleDB.cpp
 catdb: CatDB.cpp
 	$(CXX) $(CFLAGS) -g -o catDB CatDB.cpp $(LIBS)
 
+
+# other rules
+
+debamd64: storage.bdb $(DEBCTRL64)
+	rm -rf $(DEBDIR)
+	mkdir -p $(DEBDIR)/opt/scads/storage/engines/bdb
+	mkdir -p $(DEBDIR)/DEBIAN
+	cp storage.bdb $(DEBDIR)/opt/scads/storage/engines/bdb
+	cp $(DEBCTRL64) $(DEBDIR)/DEBIAN/control
+	dpkg -b $(DEBDIR) $(DEB)
+	rm -rf $(DEBDIR)
+
+debi386: storage.bdb $(DEBCTRL386)
+	rm -rf $(DEBDIR)
+	mkdir -p $(DEBDIR)/opt/scads/storage/engines/bdb
+	mkdir -p $(DEBDIR)/DEBIAN
+	cp storage.bdb $(DEBDIR)/opt/scads/storage/engines/bdb
+	cp $(DEBCTRL386) $(DEBDIR)/DEBIAN/control
+	dpkg -b $(DEBDIR) $(DEB)
+	rm -rf $(DEBDIR)
+
 clean:
-	rm -rf gen-cpp storage.bdb MerkleDB MerkleBench
+	rm -rf gen-cpp storage.bdb MerkleDB MerkleBench $(DEB)
