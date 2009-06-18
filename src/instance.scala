@@ -33,7 +33,7 @@ class Instance(instance: RunningInstance) {
   /**
    * Wait for instance to be ready.
    */
-  def wait(): Unit {
+  def waitUntilReady(): Unit = {
 
   }
   
@@ -47,4 +47,13 @@ object Instance {
     val c1_medium = Value("c1.medium")
     val c1_xlarge = Value("c1.xlarge")
   }
+  
+  def cores(instanceType: Type.Value): Int = instanceType  match {
+    case Type.m1_small  => 1
+    case Type.m1_large  => 2
+    case Type.m1_xlarge => 4
+    case Type.c1_medium => 2
+    case Type.c1_xlarge => 8
+  }
+  
 }
