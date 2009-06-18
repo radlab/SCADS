@@ -29,6 +29,14 @@ class Instance(instance: RunningInstance) {
     new Service("Skeleton")
   }
   
+  
+  /**
+   * Wait for instance to be ready.
+   */
+  def wait(): Unit {
+
+  }
+  
 }
 
 object Instance {

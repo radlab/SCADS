@@ -40,8 +40,6 @@ object DataCenter {
                         )
     
     
-    /* Poll until all instances are ready. */
-
     /* Turn instances into InstanceGroup */
 
     return null
