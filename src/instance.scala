@@ -56,4 +56,10 @@ object Instance {
     case Type.c1_xlarge => 8
   }
   
+  def bits(instanceType: Type.Value): String = instanceType match {
+    case Type.m1_small  => "32-bit"
+    case Type.c1_medium => "32-bit"
+    case _              => "64-bit"
+  }
+  
 }
