@@ -6,7 +6,7 @@ import deploylib._ /* Imports all files in the deployment library */
 import org.json.JSONObject
 
 
-object Cloudstone_s {
+object Cloudstone {
   def main(args: Array[String]) = {
     /**
      * This is a simple example where you pass on the command line
