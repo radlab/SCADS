@@ -3,3 +3,4 @@
 *.tmproj
 *~
 config.xml
+dist

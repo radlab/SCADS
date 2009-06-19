@@ -3,6 +3,8 @@
  */
  
 import deploylib._ /* Imports all files in the deployment library */
+import org.json.JSONObject
+
 
 object Cloudstone {
   def main(args: Array[String]) = {
@@ -32,7 +34,7 @@ object Cloudstone {
     /* A shortcut method for DataCenter.runInstances provided in API */
     def runInstances(count: Int, type_string: String): InstanceGroup = {
       val instance_type = Instance.Type.valueOf(type_string).get
-      val imageId = Instance.bits(instance_type) match = {
+      val imageId = Instance.bits(instance_type) match {
         case "32-bit" => "ami-e7a2448e"
         case "64-bit" => "ami-e4a2448d"
       }
@@ -56,17 +58,17 @@ object Cloudstone {
     
     allInstances.parallelExecute(waitForAll)
     
-    val railsConfig: JSONObject
-    val mysqlConfig: JSONObject
-    val haproxyConfig: JSONObjec
-    val nginxConfig: JSONObject
-    val fabanConfig: JSONObject
+    val railsConfig: JSONObject = null
+    val mysqlConfig: JSONObject = null
+    val haproxyConfig: JSONObject = null
+    val nginxConfig: JSONObject = null
+    val fabanConfig: JSONObject = null
     
     /* Fill in values in configs */
 
     def deployMaker(jsonConfig: JSONObject): (Instance) => Unit = {
       def deployAll(instance: Instance): Unit = {
-        instance.config(jsonConfig)
+        instance.deploy(jsonConfig)
       }
       return deployAll
     }
