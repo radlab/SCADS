@@ -7,6 +7,10 @@ class InstanceGroup(instances: List[Instance]) {
     
   }
   
+  def parallelExecute(executer: InstanceExecute): Unit = {
+    
+  }
+  
   def getInstance(id: String): Instance = {
     null
   }
