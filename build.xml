@@ -42,7 +42,7 @@
     
     <target name="dist" depends="compile" description="generate the distribution" >
         <mkdir dir="${dist}"/>
-        <jar jarfile="${dist}/lib/MyProject-${DSTAMP}.jar" basedir="${build}"/>
+        <jar jarfile="${dist}/DeployAPI-${DSTAMP}.jar" basedir="${build}"/>
     </target>
 
     <target name="clean" description="clean up" >
