@@ -46,7 +46,7 @@ object DataCenter {
   }
   
   def getInstanceGroupByTag(tag: String): InstanceGroup = {
-    new InstanceGroup(instances.toArray)
+    null
   }
   
 }

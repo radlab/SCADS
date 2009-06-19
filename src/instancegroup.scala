@@ -2,12 +2,18 @@ package deploylib
 
 import scala.actors._
 
-class InstanceGroup(instances: Array[Instance]) {
+class InstanceGroup(instances: List[Instance]) {
   def parallelExecute(fun: (Instance) => Unit): Unit = {
     
   }
   
   def getInstance(id: String): Instance = {
-    instances(0)
+    null
   }
+  
+  def ++(that: InstanceGroup): InstanceGroup = {
+    new InstanceGroup(this.getInstances ++ that.getInstances)
+  }
+  
+  private def getInstances = instances
 }
