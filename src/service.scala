@@ -2,23 +2,23 @@ package deploylib
 
 class Service(id: String) {
   
-  def start(): Unit = {
+  def start {
     Nil
   }
   
-  def blockingStart(): Unit = {
+  def blockingStart {
     Nil
   }
   
-  def once(): Unit = {
+  def once {
     Nil
   }
   
-  def stop(): Unit = {
+  def stop {
     Nil
   }
   
-  def forceStop(): Unit = {
+  def forceStop {
     Nil
   }
   
