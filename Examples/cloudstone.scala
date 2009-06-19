@@ -56,6 +56,34 @@ object Cloudstone {
     
     allInstances.parallelExecute(waitForAll)
     
+    val railsConfig: JSONObject
+    val mysqlConfig: JSONObject
+    val haproxyConfig: JSONObjec
+    val nginxConfig: JSONObject
+    val fabanConfig: JSONObject
+    
+    /* Fill in values in configs */
+
+    def deployMaker(jsonConfig: JSONObject): (Instance) => Unit = {
+      def deployAll(instance: Instance): Unit = {
+        instance.config(jsonConfig)
+      }
+      return deployAll
+    }
+    
+    mysql.parallelExecute(deployMaker(mysqlConfig))
+    rails.parallelExecute(deployMaker(railsConfig))
+    haproxy.parallelExecute(deployMaker(haproxyConfig))
+    nginx.parallelExecute(deployMaker(nginxConfig))
+    faban.parallelExecute(deployMaker(fabanConfig))
+    
+    def startAllServices(instance: Instance): Unit = {
+      def startService(service: Service): Unit = {service.start}
+      instance.getAllServices.foreach(startService)
+    }
+    
+    allInstances.parallelExecute(startAllServices)
+    
   }
 }
 
