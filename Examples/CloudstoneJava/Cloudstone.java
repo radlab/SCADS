@@ -3,9 +3,10 @@ package cloudstone;
 
 import deploylib.*;
 import org.json.JSONObject;
+import scala.*;
 
 public class Cloudstone {
-    public static void main(String[] args) {
+    public void run(int count, String type) {
         /**
          * This is a simple example where you pass on the command line
          * the number and size of rails servers you would like in the 
@@ -20,10 +21,17 @@ public class Cloudstone {
          * 1 Faban master/driver server on a c1.xlarge
          */
         
-        Object[] railsSettings = {args[2], args[4]};
+        Object[] railsSettings   = {count, type};
         
+        Object[] mysqlSettings   = {1, "c1.xlarge"};
+        Object[] haproxySettings = {1, "m1.small"};
+        Object[] nginxSettings   = {1, "m1.small"};
+        Object[] fabanSettings   = {1, "c1.xlarge"};
         
-        
+    }
+    
+    private static InstanceGroup runInstances(int count, String typeString) {
+        Instance.Type.Value type = Instance.Type.valueOf(typeString).get();
     }
 }
 
