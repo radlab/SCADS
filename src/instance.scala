@@ -48,6 +48,10 @@ object Instance {
     val c1_xlarge = Value("c1.xlarge")
   }
   
+  def getValue(typeString: String): Type.Value = {
+    Type.valueOf(typeString).get
+  }
+  
   def cores(instanceType: Type.Value): Int = instanceType  match {
     case Type.m1_small  => 1
     case Type.m1_large  => 2

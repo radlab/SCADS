@@ -31,7 +31,7 @@ public class Cloudstone {
     }
     
     private static InstanceGroup runInstances(int count, String typeString) {
-        Instance.Type.Value type = Instance.Type.valueOf(typeString).get();
+        Enumeration.Value type = Instance$.getValue(typeString);
     }
 }
 
