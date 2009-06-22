@@ -19,5 +19,9 @@ class InstanceGroup(instances: List[Instance]) {
     new InstanceGroup(this.getInstances ++ that.getInstances)
   }
   
+  def filter(p: (Instance) => Boolean): InstanceGroup = {
+    new InstanceGroup(this.getInstances.filter(p))
+  }
+  
   private def getInstances = instances
 }
