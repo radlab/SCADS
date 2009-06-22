@@ -57,7 +57,7 @@ object DataCenter {
   }
   
   def getInstanceGroupByTag(tag: String): InstanceGroup = {
-    null
+    instances.filter(instance => instance.getService(tag).isDefined)
   }
   
 }
