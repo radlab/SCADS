@@ -60,4 +60,8 @@ object DataCenter {
     instances.filter(instance => instance.getService(tag).isDefined)
   }
   
+  def terminateInstances(imageId: String): Unit = {
+    
+  }
+  
 }
