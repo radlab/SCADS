@@ -38,11 +38,16 @@ object DataCenter {
                         null,                    // blockDeviceMapping
                         null                     // monitoring
                         )
+                        
+    val response: RunInstancesResponse = service.runInstances(request)
+    val result: RunInstancesResult = response.getRunInstancesResult()
+    val reservation: Reservation = result.getReservation()
     
+    val runningInstanceList = reservation.getRunningInstance()
     
-    /* Turn instances into InstanceGroup */
-
-    return null
+    val instanceList = runningInstanceList.map(instance => new Instance(instance))
+    
+    return new InstanceGroup(instanceList)
   }
   
   def getInstanceGroupByTag(tag: String): InstanceGroup = {
