@@ -14,21 +14,20 @@ class Instance(instance: RunningInstance) {
   }
   
   def getCfg(): JSONObject = {
-    new JSONObject()
+    null
   }
   
   def stop(): Unit = {
-    Nil
+    null
   }
   
   def getAllServices(): List[Service] = {
-    List(new Service("Skeleton"))
+    null
   }
   
-  def getService(id: String): Service = {
-    new Service("Skeleton")
+  def getService(id: String): Option[Service] = {
+    null
   }
-  
   
   /**
    * Wait for instance to be ready.
