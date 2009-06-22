@@ -9,7 +9,7 @@ import com.amazonaws.ec2.model._
 
 object DataCenter {
   
-  protected val instances: List[Instance] = List()
+  protected var instances: InstanceGroup = new InstanceGroup(Nil)
   
   private val configXML = xml.XML.loadFile("config.xml")
   
@@ -46,9 +46,14 @@ object DataCenter {
     
     val runningInstanceList = reservation.getRunningInstance()
     
-    val instanceList = runningInstanceList.map(instance => new Instance(instance))
+    val instanceList = runningInstanceList.map(instance =>
+                                               new Instance(instance))
+                                               
+    val instanceGroup = new InstanceGroup(instanceList.toList)
     
-    return new InstanceGroup(instanceList.toList)
+    instances ++= instanceGroup
+    
+    return instanceGroup
   }
   
   def getInstanceGroupByTag(tag: String): InstanceGroup = {
