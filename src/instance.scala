@@ -36,6 +36,43 @@ class Instance(instance: RunningInstance) {
 
   }
   
+  /* Accessors */
+  def instanceId: String = {
+    instance.getInstanceId()
+  }
+  
+  def imageId: String = {
+    instance.getImageId()
+  }
+  
+  def instanceState: String = {
+    instance.getInstanceState().getName()
+  }
+  
+  def privateDnsName: String = {
+    instance.getPrivateDnsName()
+  }
+  
+  def publicDnsName: String = {
+    instance.getPublicDnsName()
+  }
+  
+  def keyName: String = {
+    instance.getKeyName()
+  }
+  
+  def instanceType: String = {
+    instance.getInstanceType()
+  }
+  
+  def launchTime: String = {
+    instance.getLaunchTime()
+  }
+  
+  def availabilityZone: String = {
+    instance.getPlacement().getAvailabilityZone()
+  }
+  
 }
 
 object Instance {
