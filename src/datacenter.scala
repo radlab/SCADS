@@ -1,6 +1,7 @@
 package deploylib
 
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.jcl.Conversions._
 import org.json.JSONObject
 
 import com.amazonaws.ec2._
@@ -8,7 +9,7 @@ import com.amazonaws.ec2.model._
 
 object DataCenter {
   
-  protected var instances: List[Instance] = List()
+  protected val instances: List[Instance] = List()
   
   private val configXML = xml.XML.loadFile("config.xml")
   
@@ -47,7 +48,7 @@ object DataCenter {
     
     val instanceList = runningInstanceList.map(instance => new Instance(instance))
     
-    return new InstanceGroup(instanceList)
+    return new InstanceGroup(instanceList.toList)
   }
   
   def getInstanceGroupByTag(tag: String): InstanceGroup = {
