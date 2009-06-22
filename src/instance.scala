@@ -26,7 +26,7 @@ class Instance(instance: RunningInstance) {
   }
   
   def getService(id: String): Option[Service] = {
-    null
+    None
   }
   
   /**
