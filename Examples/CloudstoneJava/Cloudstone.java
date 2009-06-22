@@ -30,7 +30,7 @@ public class Cloudstone {
         
     }
     
-    private static InstanceGroup runInstances(int count, String typeString) {
+    private InstanceGroup runInstances(int count, String typeString) {
         Enumeration.Value type = Instance$.getValue(typeString);
     }
 }
