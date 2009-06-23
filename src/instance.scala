@@ -3,7 +3,10 @@ package deploylib
 import scala.collection.mutable.ArrayBuffer
 import org.json.JSONObject
 
-import com.sshtools.j2ssh._
+import com.sshtools.j2ssh.SshClient
+import com.sshtools.j2ssh.transport.IgnoreHostKeyVerification
+import com.sshtools.j2ssh.transport.publickey.SshPrivateKeyFile
+import com.sshtools.j2ssh.authentication.PublicKeyAuthenticationClient
 
 import com.amazonaws.ec2._
 import com.amazonaws.ec2.model._
@@ -15,6 +18,8 @@ class Instance(instance: RunningInstance) {
   def deploy(config: JSONObject): Unit = {
     /* 'config' will need to be some sort of dictionary. */
     chefConfig = config
+    startSsh
+    ssh.connect(publicDnsName, new IgnoreHostKeyVerification())
     
   }
   
@@ -76,6 +81,12 @@ class Instance(instance: RunningInstance) {
   
   def availabilityZone: String = {
     instance.getPlacement().getAvailabilityZone()
+  }
+  
+  private def startSsh = {
+    if (ssh == null) {
+      ssh = new SshClient()
+    }
   }
   
 }
