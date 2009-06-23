@@ -39,6 +39,10 @@ class Instance(instance: RunningInstance) {
     None
   }
   
+  def exec(cmd: String): Unit = {
+    
+  }
+  
   /**
    * Wait for instance to be ready.
    */
