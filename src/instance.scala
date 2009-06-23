@@ -11,7 +11,7 @@ import com.sshtools.j2ssh.authentication.PublicKeyAuthenticationClient
 import com.amazonaws.ec2._
 import com.amazonaws.ec2.model._
 
-class Instance(instance: RunningInstance) {
+class Instance(instance: RunningInstance, keyPath: String) {
   var chefConfig: JSONObject = null
   var ssh: SshClient = null
                  

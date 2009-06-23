@@ -21,7 +21,8 @@ object DataCenter {
    * The EC2 access key ID and EC2 secret access key will be read from 
    * a configuration file. */
   def runInstances(imageId: String, count: Int, keyName: String,
-                   instanceType: Instance.Type.Value, location: String):
+                   keyPath: String, instanceType: Instance.Type.Value,
+                   location: String):
                    InstanceGroup = {
     val service: AmazonEC2 = new AmazonEC2Client(accessKeyId, secretAccessKey)
     
@@ -47,7 +48,7 @@ object DataCenter {
     val runningInstanceList = reservation.getRunningInstance()
     
     val instanceList = runningInstanceList.map(instance =>
-                                               new Instance(instance))
+                                               new Instance(instance, keyPath))
                                                
     val instanceGroup = new InstanceGroup(instanceList.toList)
     
