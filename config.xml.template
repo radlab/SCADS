@@ -1,4 +1,6 @@
 <ec2>
   <accessKeyId>Access Key</accessKeyId>
   <secretAccessKey>Secret Access Key</secretAccessKey>
+  <keypair>keypair</keypair>
+  <key_path>Path to your key</key_path>
 </ec2>  
