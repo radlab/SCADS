@@ -3,18 +3,23 @@ package deploylib
 import scala.collection.mutable.ArrayBuffer
 import org.json.JSONObject
 
+import com.sshtools.j2ssh._
+
 import com.amazonaws.ec2._
 import com.amazonaws.ec2.model._
 
-class Instance(instance: RunningInstance) { 
+class Instance(instance: RunningInstance) {
+  var chefConfig: JSONObject = null
+  var ssh: SshClient = null
                  
   def deploy(config: JSONObject): Unit = {
     /* 'config' will need to be some sort of dictionary. */
-    Nil
+    chefConfig = config
+    
   }
   
   def getCfg(): JSONObject = {
-    null
+    chefConfig
   }
   
   def stop(): Unit = {
