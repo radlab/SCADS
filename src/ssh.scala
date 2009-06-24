@@ -4,17 +4,46 @@ import ch.ethz.ssh2.StreamGobbler
 
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
+import java.io.InputStreamReader
+import java.io.BufferedReader
 
 class SSH(hostname: String, keyPath: String){
   val connection = new Connection(hostname)
   
   def executeCommand(cmd: String): Array[String] = {
     connect
-    val output = Array("","")
+
+    val stdout = new StringBuilder
+    val stderr = new StringBuilder
+
+    val session = connection.openSession()
+    
+    session.execCommand(cmd)
+    
+    val stdoutGobbler = new StreamGobbler(session.getStdout())
+    val stderrGobbler = new StreamGobbler(session.getStderr())
+    
+    val stdoutReader = new BufferedReader(new InputStreamReader(stdoutGobbler))
+    val stderrReader = new BufferedReader(new InputStreamReader(stderrGobbler))
+    
+    var stdoutLine = stdoutReader.readLine()
+    while (stdoutLine != null) {
+      stdout.append(stdoutLine + "\n")
+      stdoutLine = stdoutReader.readLine()
+    }
+    
+    var stderrLine = stderrReader.readLine()
+    while (stderrLine != null) {
+      stderr.append(stderrLine + "\n")
+      stderrLine = stderrReader.readLine()
+    }
+    
+    session.close()
     
     logout
     
-    output
+    Array(stdout.toString, stderr.toString)
   }
   
   private def connect = {
