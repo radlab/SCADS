@@ -1,6 +1,7 @@
 package deploylib
 
 import java.io.File
+import java.io.InputStream
 import org.json.JSONObject
 
 import com.sshtools.j2ssh.SshClient
@@ -8,6 +9,7 @@ import com.sshtools.j2ssh.transport.IgnoreHostKeyVerification
 import com.sshtools.j2ssh.transport.publickey.SshPrivateKeyFile
 import com.sshtools.j2ssh.authentication.PublicKeyAuthenticationClient
 import com.sshtools.j2ssh.authentication.AuthenticationProtocolState
+import com.sshtools.j2ssh.session.SessionChannelClient
 
 
 import com.amazonaws.ec2._
