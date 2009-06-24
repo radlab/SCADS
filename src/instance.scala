@@ -4,14 +4,6 @@ import java.io.File
 import java.io.InputStream
 import org.json.JSONObject
 
-import com.sshtools.j2ssh.SshClient
-import com.sshtools.j2ssh.transport.IgnoreHostKeyVerification
-import com.sshtools.j2ssh.transport.publickey.SshPrivateKeyFile
-import com.sshtools.j2ssh.authentication.PublicKeyAuthenticationClient
-import com.sshtools.j2ssh.authentication.AuthenticationProtocolState
-import com.sshtools.j2ssh.session.SessionChannelClient
-
-
 import com.amazonaws.ec2._
 import com.amazonaws.ec2.model._
 
@@ -21,8 +13,6 @@ class Instance(instance: RunningInstance, keyPath: String) {
   def deploy(config: JSONObject): Unit = {
     /* 'config' will need to be some sort of dictionary. */
     chefConfig = config
-    ssh = new SshClient()
-    ssh.connect(publicDnsName, new IgnoreHostKeyVerification())
     
   }
   
@@ -88,19 +78,6 @@ class Instance(instance: RunningInstance, keyPath: String) {
   
   def availabilityZone: String = {
     instance.getPlacement().getAvailabilityZone()
-  }
-  
-  def setupSsh = {
-    val ssh = new SshClient()
-    ssh.connect(publicDnsName, new IgnoreHostKeyVerification())
-    val file = SshPrivateKeyFile.parse(new File("keyPath"))
-    val pk = new PublicKeyAuthenticationClient()
-    pk.setUsername("root")
-    pk.setKey(file.toPrivateKey(null))
-    if (ssh.authenticate(pk) != AuthenticationProtocolState.COMPLETE) {
-      // Throw exception
-    }
-    
   }
   
 }
