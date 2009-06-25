@@ -72,7 +72,7 @@ object DataCenter {
     val response = service.describeInstances(request)
     val result = response.getDescribeInstancesResult()
     val reservationList = result.getReservation()
-    reservationList.flatMap(reservation => reservation.getRunningInstance)
+    reservationList.toList.flatMap(reservation => reservation.getRunningInstance)
   }
   
   private def convertScalaListToJavaList(aList:List[String]) =
