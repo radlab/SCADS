@@ -7,33 +7,40 @@ import org.json.JSONObject
 import com.amazonaws.ec2._
 import com.amazonaws.ec2.model._
 
-class Instance(instance: RunningInstance, keyPath: String) {
-  var chefConfig: JSONObject = null
+class Instance(initialInstance: RunningInstance, keyPath: String) {
+  var instance = initialInstance
+  var ssh = null
 
+  @throws(classOf[IllegalStateException])
   def deploy(config: JSONObject): Unit = {
-    /* 'config' will need to be some sort of dictionary. */
-    chefConfig = config
-    
+    checkSsh
   }
   
+  @throws(classOf[IllegalStateException])
   def getCfg(): JSONObject = {
-    chefConfig
+    checkSsh
+    null
   }
   
   def stop(): Unit = {
-    null
+    
   }
   
+  @throws(classOf[IllegalStateException])
   def getAllServices(): List[Service] = {
+    checkSsh
     null
   }
   
+  @throws(classOf[IllegalStateException])
   def getService(id: String): Option[Service] = {
+    checkSsh
     None
   }
   
+  @throws(classOf[IllegalStateException])
   def exec(cmd: String): Unit = {
-    
+    checkSsh
   }
   
   /**
@@ -41,6 +48,17 @@ class Instance(instance: RunningInstance, keyPath: String) {
    */
   def waitUntilReady(): Unit = {
 
+  }
+  
+  private def refresh = {
+    
+  }
+  
+  private def checkSsh = {
+    if (ssh == null){
+      throw new IllegalStateException("Instance may not be ready yet. " +
+                                      "Call waitUntilReady method first.")
+    }
   }
   
   /* Accessors */
