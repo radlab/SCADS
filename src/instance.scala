@@ -14,6 +14,8 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   @throws(classOf[IllegalStateException])
   def deploy(config: JSONObject) = {
     checkSsh
+    exec("cd && echo \"" + config.toString() + "\" > config.js")
+    exec("cd && chef-solo -j config.js")
   }
   
   @throws(classOf[IllegalStateException])
