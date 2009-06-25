@@ -12,7 +12,7 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   var ssh = null
 
   @throws(classOf[IllegalStateException])
-  def deploy(config: JSONObject): Unit = {
+  def deploy(config: JSONObject) = {
     checkSsh
   }
   
@@ -22,7 +22,7 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
     null
   }
   
-  def stop(): Unit = {
+  def stop = {
     
   }
   
@@ -39,14 +39,14 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   }
   
   @throws(classOf[IllegalStateException])
-  def exec(cmd: String): Unit = {
+  def exec(cmd: String) = {
     checkSsh
   }
   
   /**
    * Wait for instance to be ready.
    */
-  def waitUntilReady(): Unit = {
+  def waitUntilReady = {
 
   }
   
