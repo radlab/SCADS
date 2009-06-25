@@ -9,7 +9,7 @@ import com.amazonaws.ec2.model._
 
 class Instance(initialInstance: RunningInstance, keyPath: String) {
   var instance = initialInstance
-  var ssh = null
+  var ssh: SSH = null
 
   @throws(classOf[IllegalStateException])
   def deploy(config: JSONObject) = {
@@ -53,6 +53,7 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
                               new InstanceGroup(List(this))).head
       Thread.sleep(5000)
     }
+    ssh = new SSH(publicDnsName, keyPath)
   }
   
   private def refresh = {
