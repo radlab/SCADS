@@ -41,6 +41,7 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   @throws(classOf[IllegalStateException])
   def exec(cmd: String) = {
     checkSsh
+    ssh.executeCommand(cmd)
   }
   
   def waitUntilReady: Unit = {
