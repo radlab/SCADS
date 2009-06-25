@@ -1,6 +1,9 @@
+package deploylib
+
 import ch.ethz.ssh2.Connection
 import ch.ethz.ssh2.Session
 import ch.ethz.ssh2.StreamGobbler
+import ch.ethz.ssh2.SCPClient
 
 import java.io.File
 import java.io.IOException
@@ -44,6 +47,13 @@ class SSH(hostname: String, keyPath: String){
     logout
     
     Array(stdout.toString, stderr.toString)
+  }
+  
+  def upload(localPath: String, remotePath: String) = {
+    connect
+    val scp = new SCPClient(connection)
+    scp.put(localPath, remotePath)
+    logout
   }
   
   private def connect = {
