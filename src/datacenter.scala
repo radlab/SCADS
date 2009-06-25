@@ -15,6 +15,8 @@ object DataCenter {
   
   private val accessKeyId     = (configXML \ "accessKeyId").text
   private val secretAccessKey = (configXML \ "secretAccessKey").text
+  
+  private val service = new AmazonEC2Client(accessKeyId, secretAccessKey)
 
   /* This method starts instances using the given arguments and returns
    * an InstanceGroup.
@@ -24,7 +26,6 @@ object DataCenter {
                    keyPath: String, instanceType: Instance.Type.Value,
                    location: String):
                    InstanceGroup = {
-    val service: AmazonEC2 = new AmazonEC2Client(accessKeyId, secretAccessKey)
     
     val request = new RunInstancesRequest(
                         imageId,                 // imageID
@@ -49,20 +50,28 @@ object DataCenter {
     
     val instanceList = runningInstanceList.map(instance =>
                                                new Instance(instance, keyPath))
-                                               
-    val instanceGroup = new InstanceGroup(instanceList.toList)
     
-    instances ++= instanceGroup
+    instances = new InstanceGroup(instances.getList ++ instanceList)
     
-    return instanceGroup
+    return new InstanceGroup(instanceList.toList)
   }
   
   def getInstanceGroupByTag(tag: String): InstanceGroup = {
-    instances.filter(instance => instance.getService(tag).isDefined)
+    new InstanceGroup(instances.getList.
+      filter(instance => instance.getService(tag).isDefined))
   }
   
-  def terminateInstances(instances: InstanceGroup): Unit = {
+  def terminateInstances(instances: InstanceGroup) = {
     
+  }
+  
+  def describeInstances(instances: InstanceGroup): List[RunningInstance] = {
+    val idList = instances.getList.map(instance => instance.instanceId)
+    val request = new DescribeInstancesRequest(unconvertList(idList))
+    val response = service.describeInstances(request)
+    val result = response.getDescribeInstancesResult()
+    val reservationList = result.getReservation()
+    reservationList.flatMap(reservation => reservation.getRunningInstance)
   }
   
 }

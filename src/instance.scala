@@ -43,11 +43,8 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
     checkSsh
   }
   
-  /**
-   * Wait for instance to be ready.
-   */
   def waitUntilReady = {
-
+    
   }
   
   private def refresh = {
