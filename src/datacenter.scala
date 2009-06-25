@@ -67,11 +67,15 @@ object DataCenter {
   
   def describeInstances(instances: InstanceGroup): List[RunningInstance] = {
     val idList = instances.getList.map(instance => instance.instanceId)
-    val request = new DescribeInstancesRequest(unconvertList(idList))
+    val request = new DescribeInstancesRequest(
+                                          convertScalaListToJavaList(idList))
     val response = service.describeInstances(request)
     val result = response.getDescribeInstancesResult()
     val reservationList = result.getReservation()
     reservationList.flatMap(reservation => reservation.getRunningInstance)
   }
+  
+  private def convertScalaListToJavaList(aList:List[String]) =
+    java.util.Arrays.asList(aList.toArray: _*)
   
 }
