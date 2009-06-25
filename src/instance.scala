@@ -43,8 +43,16 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
     checkSsh
   }
   
-  def waitUntilReady = {
-    
+  def waitUntilReady: Unit = {
+    if (terminated) {
+      DataCenter.removeInstance(this)
+      return
+    }
+    while (!running) {
+      instance = DataCenter.describeInstances(
+                              new InstanceGroup(List(this))).head
+      Thread.sleep(5000)
+    }
   }
   
   private def refresh = {
@@ -56,6 +64,14 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
       throw new IllegalStateException("Instance may not be ready yet. " +
                                       "Call waitUntilReady method first.")
     }
+  }
+  
+  def running: Boolean = {
+    instanceState == "running"
+  }
+  
+  def terminated: Boolean = {
+    instanceState == "shutting-down" || instanceState == "terminated"
   }
   
   /* Accessors */

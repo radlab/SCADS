@@ -65,6 +65,14 @@ object DataCenter {
     
   }
   
+  def removeInstance(instance: Instance): Unit = {
+    removeInstance(instance.instanceId)
+  }
+  
+  def removeInstance(instanceId: String): Unit = {
+    
+  }
+  
   def describeInstances(instances: InstanceGroup): List[RunningInstance] = {
     val idList = instances.getList.map(instance => instance.instanceId)
     val request = new DescribeInstancesRequest(
