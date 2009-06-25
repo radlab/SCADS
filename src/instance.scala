@@ -19,9 +19,13 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   }
   
   @throws(classOf[IllegalStateException])
-  def getCfg(): JSONObject = {
+  def getCfg(): Option[JSONObject] = {
     checkSsh
-    null
+    val response = exec("cd && cat config.js")
+    if (response(1) != null && response(1).length > 0)
+      return None
+    else
+      return Some(new JSONObject(response(0)))
   }
   
   def stop = {
