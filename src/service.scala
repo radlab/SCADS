@@ -5,7 +5,7 @@ class Service(id: String, instance: Instance) {
   def getId = id
   
   def start {
-    Nil
+    instance.exec("sv start /mnt/services/" + id)
   }
   
   def blockingStart {
@@ -13,15 +13,15 @@ class Service(id: String, instance: Instance) {
   }
   
   def once {
-    Nil
+    instance.exec("sv once /mnt/services/" + id)
   }
   
   def stop {
-    Nil
+    instance.exec("sv stop /mnt/services/" + id)
   }
   
   def forceStop {
-    Nil
+    instance.exec("sv force-stop /mnt/services/" + id)
   }
   
   def status(): String = {
