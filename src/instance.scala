@@ -62,15 +62,15 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
       return
     }
     while (!running) {
-      instance = DataCenter.describeInstances(
-                              new InstanceGroup(List(this))).head
+      refresh
       Thread.sleep(5000)
     }
     ssh = new SSH(publicDnsName, keyPath)
   }
   
   private def refresh = {
-    
+    instance = DataCenter.describeInstances(
+                            new InstanceGroup(List(this))).head
   }
   
   private def checkSsh = {
