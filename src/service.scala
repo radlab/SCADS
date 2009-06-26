@@ -1,6 +1,6 @@
 package deploylib
 
-class Service(id: String) {
+class Service(id: String, instance: Instance) {
   
   def getId = id
   

@@ -40,7 +40,7 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
       return Nil
     else {
       return response.getStdout.split("\n").toList.
-                map(service => new Service(service))
+                map(service => new Service(service, this))
     }
   }
   
