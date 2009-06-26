@@ -22,10 +22,10 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   def getCfg(): Option[JSONObject] = {
     checkSsh
     val response = exec("cd && cat config.js")
-    if (response(1) != null && response(1).length > 0)
+    if (response.getExitStatus() != 0)
       return None
     else
-      return Some(new JSONObject(response(0)))
+      return Some(new JSONObject(response.getStdout()))
   }
   
   def stop = {
@@ -45,7 +45,7 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   }
   
   @throws(classOf[IllegalStateException])
-  def exec(cmd: String) = {
+  def exec(cmd: String): ExecuteResponse = {
     checkSsh
     ssh.executeCommand(cmd)
   }
