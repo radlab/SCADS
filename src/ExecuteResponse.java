@@ -5,7 +5,7 @@ class ExecuteResponse {
     private String stdout;
     private String stderr;
     
-    public void ExecuteResponse(int exitStatus, String stdout, String stderr) {
+    public ExecuteResponse(int exitStatus, String stdout, String stderr) {
         this.exitStatus = exitStatus;
         this.stdout = stdout;
         this.stderr = stderr;

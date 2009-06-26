@@ -14,7 +14,7 @@ import java.io.BufferedReader
 class SSH(hostname: String, keyPath: String){
   val connection = new Connection(hostname)
   
-  def executeCommand(cmd: String): Array[String] = {
+  def executeCommand(cmd: String): ExecuteResponse = {
     connect
 
     val stdout = new StringBuilder
@@ -42,11 +42,15 @@ class SSH(hostname: String, keyPath: String){
       stderrLine = stderrReader.readLine()
     }
     
-    session.close()
     
+    val response = new ExecuteResponse(session.getExitStatus().intValue(),
+                                       stdout.toString,
+                                       stderr.toString)
+    
+    session.close()
     logout
     
-    Array(stdout.toString, stderr.toString)
+    response
   }
   
   def upload(localPath: String, remotePath: String) = {
