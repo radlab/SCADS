@@ -12,6 +12,7 @@ class Service(id: String, instance: Instance) {
     instance.exec("sv start /mnt/services/" + id)
     for (i <- 0 to wait) {
       if (status.getStatus() == "run") return true
+      Thread.sleep(1000)
     }
     return false
   }
