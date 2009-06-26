@@ -8,8 +8,12 @@ class Service(id: String, instance: Instance) {
     instance.exec("sv start /mnt/services/" + id)
   }
   
-  def blockingStart {
-    Nil
+  def blockingStart(wait: Int): Unit = {
+
+  }
+  
+  def blockingStart(): Unit = {
+    blockingStart(30)
   }
   
   def once {
@@ -24,12 +28,8 @@ class Service(id: String, instance: Instance) {
     instance.exec("sv force-stop /mnt/services/" + id)
   }
   
-  def status(): String = {
-    ""
-  }
-  
-  def uptime(): Int = {
-    0
+  def status(): ServiceStatus = {
+    new ServiceStatus("", "", 0, 0)
   }
   
   def tailLog(): String = {

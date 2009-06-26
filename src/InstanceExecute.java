@@ -1,5 +1,5 @@
 package deploylib;
 
-interface InstanceExecute {
+public interface InstanceExecute {
     public static void execute(Instance intance);
 }

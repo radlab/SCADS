@@ -1,6 +1,6 @@
 package deploylib;
 
-class ExecuteResponse {
+public class ExecuteResponse {
     private int exitStatus;
     private String stdout;
     private String stderr;
