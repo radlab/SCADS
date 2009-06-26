@@ -8,11 +8,15 @@ class Service(id: String, instance: Instance) {
     instance.exec("sv start /mnt/services/" + id)
   }
   
-  def blockingStart(wait: Int): Unit = {
-
+  def blockingStart(wait: Int): Boolean = {
+    instance.exec("sv start /mnt/services/" + id)
+    for (i <- 0 to wait) {
+      if (status.getStatus() == "run") return true
+    }
+    return false
   }
   
-  def blockingStart(): Unit = {
+  def blockingStart(): Boolean = {
     blockingStart(30)
   }
   
@@ -28,7 +32,7 @@ class Service(id: String, instance: Instance) {
     instance.exec("sv force-stop /mnt/services/" + id)
   }
   
-  def status(): ServiceStatus = {
+  def status: ServiceStatus = {
     new ServiceStatus("", "", 0, 0)
   }
   
