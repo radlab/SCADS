@@ -4,6 +4,7 @@
  
 import deploylib._ /* Imports all files in the deployment library */
 import org.json.JSONObject
+import java.util.HashMap
 
 
 object Cloudstone {
@@ -39,9 +40,10 @@ object Cloudstone {
         case "64-bit" => "ami-e4a2448d"
       }
       val keyName = "abeitch"
+      val keyPath = "/Users/aaron/.ec2/id_rsa-abeitch"
       val location = "us-east-1a"
       
-      DataCenter.runInstances(imageId, count, keyName, instance_type, location)
+      DataCenter.runInstances(imageId, count, keyName, keyPath, instance_type, location)
     }
 
 
@@ -51,26 +53,34 @@ object Cloudstone {
     val nginx   = runInstances(nginxSettings._1, nginxSettings._2)
     val faban   = runInstances(fabanSettings._1, fabanSettings._2)
     
-    val allInstances = rails ++ mysql ++ haproxy ++ nginx ++ faban
+    val allInstances = new InstanceGroup(rails.getList ++ mysql.getList ++ 
+              haproxy.getList ++ nginx.getList ++ faban.getList)
     
-    /* A method to be passed into parallel execute. */
-    def waitForAll(instance: Instance): Unit = { instance.waitUntilReady }
+    allInstances.parallelExecute((instance: Instance) => instance.waitUntilReady)
     
-    allInstances.parallelExecute(waitForAll)
+    val railsHash = new HashMap[String, java.lang.Object]()
     
-    val railsConfig: JSONObject = null
-    val mysqlConfig: JSONObject = null
-    val haproxyConfig: JSONObject = null
-    val nginxConfig: JSONObject = null
-    val fabanConfig: JSONObject = null
+    val railsConfig = new JSONObject(railsHash)
+    // railsConfig.put("recipes", {"cloudstone::rails"})
+    // railsRails = new JSONObject()
+    // rails
+    // railsRailsPorts = new JSONObject()
+    // railsRailsPorts.put("start", 3000)
+    // railsRailsPorts.put("count", Instance.cores(Instance.Type.valueOf(type_string).get) * 2)
+    
+        
+    val mysqlConfig = new JSONObject()
+    val haproxyConfig = new JSONObject()
+    val nginxConfig = new JSONObject()
+    val fabanConfig = new JSONObject()
     
     /* Fill in values in configs */
 
+
     def deployMaker(jsonConfig: JSONObject): (Instance) => Unit = {
-      def deployAll(instance: Instance): Unit = {
+      (instance: Instance) => {
         instance.deploy(jsonConfig)
       }
-      return deployAll
     }
     
     mysql.parallelExecute(deployMaker(mysqlConfig))
@@ -84,8 +94,8 @@ object Cloudstone {
       instance.getAllServices.foreach(startService)
     }
     
-    allInstances.parallelExecute(startAllServices)
-    
+    //allInstances.parallelExecute(startAllServices)
+    print("All done")
   }
 }
 
