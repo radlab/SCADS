@@ -39,6 +39,7 @@
             <include name="*.scala"/>
             <include name="*.java"/>
         </scalac>
+        <javac srcdir="${src}" destdir="${build}" classpathref="build.classpath"/>
     </target>
     
     <target name="dist" depends="compile" description="generate the distribution" >
