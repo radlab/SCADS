@@ -1,5 +1,7 @@
 package deploylib
 
+import scala.util.matching.Regex
+
 class Service(id: String, instance: Instance) {
   
   def getId = id
@@ -21,7 +23,7 @@ class Service(id: String, instance: Instance) {
     checkService
     instance.exec("sv start /mnt/services/" + id)
     for (i <- 0 to wait) {
-      if (status.getStatus() == "run") return true
+      if (running) return true
       Thread.sleep(1000)
     }
     return false
@@ -56,13 +58,28 @@ class Service(id: String, instance: Instance) {
   @throws(classOf[IllegalStateException])
   def status: ServiceStatus = {
     checkService
-    new ServiceStatus("", "", 0, 0)
+    val RunningRegex = new Regex(
+          """(\S+): /mnt/services/(\S+): \(pid (\d+)\) (\d+)s.*""")
+    val StoppedRegex = new Regex(
+          """(down): /mnt/services/(\S+): (\d+)s,.*""")
+          
+    instance.exec("sv status /mnt/services/" + id).getStdout match {
+      case RunningRegex(state, id, pid, uptime) =>
+                        new ServiceStatus(state, id, pid.toInt, uptime.toInt)
+      case StoppedRegex(state, id, uptime)      =>
+                        new ServiceStatus(state, id, -1, uptime.toInt)
+    }
   }
   
   @throws(classOf[IllegalStateException])
   def tailLog(): String = {
     checkService
     instance.exec("tail /mnt/services/" + id + "/log/current").getStdout
+  }
+  
+  @throws(classOf[IllegalStateException])
+  def running: Boolean = {
+    status.getStatus() == "run"
   }
   
   private def checkService = {
