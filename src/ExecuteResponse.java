@@ -22,4 +22,9 @@ public class ExecuteResponse {
     public String getStderr() {
         return stderr;
     }
+    
+    public String toString() {
+        return ("Exit status: " + exitStatus + "\nstdout: " + stdout +
+                "\nstderr: " + stderr);
+    }
 }
