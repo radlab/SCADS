@@ -2,6 +2,8 @@ package deploylib
 
 class Service(id: String) {
   
+  def getId = id
+  
   def start {
     Nil
   }

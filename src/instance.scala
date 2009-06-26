@@ -33,7 +33,7 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   }
   
   @throws(classOf[IllegalStateException])
-  def getAllServices(): List[Service] = {
+  def getAllServices: List[Service] = {
     checkSsh
     val response = exec("ls /mnt/services")
     if (response.getExitStatus() != 0)
@@ -47,7 +47,7 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   @throws(classOf[IllegalStateException])
   def getService(id: String): Option[Service] = {
     checkSsh
-    None
+    getAllServices.find(service => service.getId == id)
   }
   
   @throws(classOf[IllegalStateException])
