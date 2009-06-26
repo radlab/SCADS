@@ -62,12 +62,16 @@ class Service(id: String, instance: Instance) {
           """(\S+): /mnt/services/(\S+): \(pid (\d+)\) (\d+)s.*""")
     val StoppedRegex = new Regex(
           """(down): /mnt/services/(\S+): (\d+)s,.*""")
+      
+    val statusResponse = instance.exec("sv status /mnt/services/" + id)
           
-    instance.exec("sv status /mnt/services/" + id).getStdout match {
+    statusResponse.getStdout match {
       case RunningRegex(state, id, pid, uptime) =>
                         new ServiceStatus(state, id, pid.toInt, uptime.toInt)
       case StoppedRegex(state, id, uptime)      =>
                         new ServiceStatus(state, id, -1, uptime.toInt)
+      case _ => throw new IllegalStateException("Status method messed up:\n" + 
+                                                statusResponse.toString())
     }
   }
   
