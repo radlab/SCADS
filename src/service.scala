@@ -8,6 +8,12 @@ class Service(id: String, instance: Instance) {
     instance.exec("sv start /mnt/services/" + id)
   }
   
+  /**
+   * @param wait  How many times to check for a service's status.
+   *              Checks are seperated by one second.
+   * @return      Returns true if service started after given number of checks,
+   *              false if service is still not in run state.
+   */
   def blockingStart(wait: Int): Boolean = {
     instance.exec("sv start /mnt/services/" + id)
     for (i <- 0 to wait) {
@@ -17,8 +23,11 @@ class Service(id: String, instance: Instance) {
     return false
   }
   
+  /**
+   * blockingStart(120)
+   */
   def blockingStart(): Boolean = {
-    blockingStart(30)
+    blockingStart(120)
   }
   
   def once {
