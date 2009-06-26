@@ -29,7 +29,7 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   }
   
   def stop = {
-    
+    DataCenter.terminateInstances(new InstanceGroup(List(this)))
   }
   
   @throws(classOf[IllegalStateException])
