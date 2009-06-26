@@ -29,4 +29,9 @@ public class ServiceStatus {
     public int getUptime() {
         return uptime;
     }
+    
+    public String toString() {
+        return ("Status: " + status + "\nID: " + id + "\nPID: "+ pid +
+                "\nUptime: " + uptime);
+    }
 }
