@@ -158,7 +158,7 @@ object Cloudstone {
     }
     
     //allInstances.parallelExecute(startAllServices)
-    print("All done")
+    println("All done")
   }
 }
 
