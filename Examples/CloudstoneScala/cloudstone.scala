@@ -25,7 +25,7 @@ object Cloudstone {
      */
  
  
-    val railsSettings   = (args(2).toInt, args(4))
+    val railsSettings   = (args(2).toInt, args(4), Instance.cores(Instance.Type.valueOf(args(4)).get) * 2)
 
     val mysqlSettings   = (1, "c1.xlarge")
     val haproxySettings = (1, "m1.small")
@@ -66,7 +66,7 @@ object Cloudstone {
     
     val railsRailsPorts = new JSONObject()
     railsRailsPorts.put("start", 3000)
-    railsRailsPorts.put("count", Instance.cores(Instance.Type.valueOf(railsSettings._2).get) * 2)
+    railsRailsPorts.put("count", railsSettings._3)
     railsRails.put("ports", railsRailsPorts)
     
     val railsRailsDatabase = new JSONObject()
@@ -96,8 +96,49 @@ object Cloudstone {
     
     /* haproxy configuration */
     val haproxyConfig = new JSONObject()
+    haproxyConfig.put("recipes", new JSONArray().put("cloudstone::haproxy"))
+    val haproxyHaproxy = new JSONObject()
+    haproxyHaproxy.put("port", 4000)
+    
+    val haproxyHaproxyServers = new JSONObject()
+    rails.getList.foreach(instance => {
+      val server = new JSONObject()
+      server.put("start", 3000)
+      server.put("count", railsSettings._3)
+      haproxyHaproxyServers.put(instance.privateDnsName, server)
+    })
+    haproxyHaproxy.put("servers", haproxyHaproxyServers)
+    
+    haproxyConfig.put("haproxy", haproxyHaproxy)
+    
+    /* nginx configuration */
     val nginxConfig = new JSONObject()
+    nginxConfig.put("recipes", new JSONArray().put("cloudstone::nginx"))
+    val nginxNginx = new JSONObject()
+    val nginxNginxServers = new JSONObject()
+    
+    haproxy.getList.foreach(instance => {
+      val server = new JSONObject()
+      server.put("start", 4000)
+      server.put("count", 1)
+      nginxNginxServers.put(instance.privateDnsName, server)
+    })
+    nginxNginx.put("servers", nginxNginxServers)
+    nginxConfig.put("nginx", nginxNginx)
+    
+    /* faban configuration */
     val fabanConfig = new JSONObject()
+    fabanConfig.put("recipes", new JSONArray().put("cloudstone::faban"))
+    val fabanFaban = new JSONObject()
+    val fabanFabanHosts = new JSONObject()
+    fabanFabanHosts.put("driver", faban.getList.head.privateDnsName)
+    fabanFabanHosts.put("webserver", nginx.getList.head.privateDnsName)
+    fabanFabanHosts.put("database", mysql.getList.head.privateDnsName)
+    fabanFabanHosts.put("storage", "")
+    fabanFabanHosts.put("cache", "")
+    
+    fabanFaban.put("hosts", fabanFabanHosts)
+    fabanConfig.put("faban", fabanFaban)
     
     def deployMaker(jsonConfig: JSONObject): (Instance) => Unit = {
       (instance: Instance) => {
