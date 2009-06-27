@@ -25,7 +25,7 @@ object Cloudstone {
      */
  
  
-    val railsSettings   = (args(2).toInt, args(4), Instance.cores(Instance.Type.valueOf(args(4)).get) * 2)
+    val railsSettings   = (args(1).toInt, args(3), Instance.cores(Instance.Type.valueOf(args(3)).get) * 2)
 
     val mysqlSettings   = (1, "c1.xlarge")
     val haproxySettings = (1, "m1.small")
