@@ -4,6 +4,7 @@
  
 import deploylib._ /* Imports all files in the deployment library */
 import org.json.JSONObject
+import org.json.JSONArray
 import java.util.HashMap
 
 
@@ -58,25 +59,46 @@ object Cloudstone {
     
     allInstances.parallelExecute((instance: Instance) => instance.waitUntilReady)
     
-    val railsHash = new HashMap[String, java.lang.Object]()
+    /* Rails Configuration */
+    val railsConfig = new JSONObject()
+    railsConfig.put("recipes", new JSONArray().put("cloudstone::rails"))
+    val railsRails = new JSONObject()
     
-    val railsConfig = new JSONObject(railsHash)
-    // railsConfig.put("recipes", {"cloudstone::rails"})
-    // railsRails = new JSONObject()
-    // rails
-    // railsRailsPorts = new JSONObject()
-    // railsRailsPorts.put("start", 3000)
-    // railsRailsPorts.put("count", Instance.cores(Instance.Type.valueOf(type_string).get) * 2)
+    val railsRailsPorts = new JSONObject()
+    railsRailsPorts.put("start", 3000)
+    railsRailsPorts.put("count", Instance.cores(Instance.Type.valueOf(railsSettings._2).get) * 2)
+    railsRails.put("ports", railsRailsPorts)
     
-        
+    val railsRailsDatabase = new JSONObject()
+    railsRailsDatabase.put("host", mysql.getList.head.privateDnsName)
+    railsRailsDatabase.put("slaves", new JSONArray())
+    railsRails.put("database", railsRailsDatabase)
+    
+    val railsRailsMemcached = new JSONObject()
+    railsRailsMemcached.put("host", "localhost")
+    railsRailsMemcached.put("port", 1211)
+    railsRails.put("memcached", railsRailsMemcached)
+    
+    val railsRailsGeocoder = new JSONObject()
+    railsRailsGeocoder.put("host", faban.getList.head.privateDnsName)
+    railsRailsGeocoder.put("port", 9980)
+    railsRails.put("geocoder", railsRailsGeocoder)
+    
+    railsConfig.put("rails", railsRails)
+    
+    /* mysql configuration */
     val mysqlConfig = new JSONObject()
+    mysqlConfig.put("recipes", new JSONArray().put("cloudstone::mysql"))
+    val mysqlMysql = new JSONObject()
+    
+    mysqlMysql.put("server_id", 1)
+    mysqlConfig.put("mysql", mysqlMysql)
+    
+    /* haproxy configuration */
     val haproxyConfig = new JSONObject()
     val nginxConfig = new JSONObject()
     val fabanConfig = new JSONObject()
     
-    /* Fill in values in configs */
-
-
     def deployMaker(jsonConfig: JSONObject): (Instance) => Unit = {
       (instance: Instance) => {
         instance.deploy(jsonConfig)
