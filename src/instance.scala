@@ -14,7 +14,7 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   @throws(classOf[IllegalStateException])
   def deploy(config: JSONObject): List[Service] = {
     checkSsh
-    exec("cd && echo \"" + config.toString() + "\" > config.js && " +
+    exec("cd && echo \'" + config.toString()+ "\' > config.js && " +
          "chef-solo -j config.js")
     getAllServices
   }
