@@ -71,7 +71,7 @@ object Cloudstone {
     
     val railsRailsDatabase = new JSONObject()
     railsRailsDatabase.put("host", mysql.getList.head.privateDnsName)
-    railsRailsDatabase.put("slaves", new JSONArray())
+    railsRailsDatabase.put("adapter", "mysql")
     railsRails.put("database", railsRailsDatabase)
     
     val railsRailsMemcached = new JSONObject()

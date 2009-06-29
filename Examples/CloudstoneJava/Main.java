@@ -16,8 +16,7 @@ public class Main {
          * 1 nginx server on a m1.small instance
          * 1 Faban master/driver server on a c1.xlarge
          */
-//        int count = args[2].toInt
-        int count = 2;
-        new Cloudstone().run(count, args[4]);
+
+        new Cloudstone().run(new Integer(args[1]).intValue(), args[3]);
     }
 }
