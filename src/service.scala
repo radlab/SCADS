@@ -87,7 +87,7 @@ class Service(id: String, instance: Instance) {
   }
   
   private def checkService = {
-    if (instance.exec("ls /mnt/services/" + id).getExitStatus != 0) {
+    if (Util.responseError(instance.exec("ls /mnt/services/" + id))) {
       throw new IllegalStateException("Service not present.")
     }
   }

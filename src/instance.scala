@@ -23,7 +23,7 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   def getCfg(): Option[JSONObject] = {
     checkSsh
     val response = exec("cd && cat config.js")
-    if (response.getExitStatus() != 0)
+    if (Util.responseError(response))
       return None
     else
       return Some(new JSONObject(response.getStdout()))
@@ -37,7 +37,7 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   def getAllServices: List[Service] = {
     checkSsh
     val response = exec("ls /mnt/services")
-    if (response.getExitStatus() != 0)
+    if (Util.responseError(response))
       return Nil
     else {
       return response.getStdout.split("\n").toList.

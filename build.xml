@@ -35,10 +35,10 @@
     </target>
 
     <target name="compile" depends="init" description="compile the source">
-        <scalac deprecation="on" srcdir="${src}" destdir="${build}" classpathref="build.classpath">
+        <fsc deprecation="on" srcdir="${src}" destdir="${build}" classpathref="build.classpath">
             <include name="*.scala"/>
             <include name="*.java"/>
-        </scalac>
+        </fsc>
         <javac srcdir="${src}" destdir="${build}" classpathref="build.classpath"/>
     </target>
     
