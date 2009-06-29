@@ -1,17 +1,17 @@
 package deploylib;
 
 public class ExecuteResponse {
-    private int exitStatus;
+    private Integer exitStatus;
     private String stdout;
     private String stderr;
     
-    public ExecuteResponse(int exitStatus, String stdout, String stderr) {
+    public ExecuteResponse(Integer exitStatus, String stdout, String stderr) {
         this.exitStatus = exitStatus;
         this.stdout = stdout;
         this.stderr = stderr;
     }
     
-    public int getExitStatus() {
+    public Integer getExitStatus() {
         return exitStatus;
     }
     

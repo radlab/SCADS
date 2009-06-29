@@ -43,7 +43,7 @@ class SSH(hostname: String, keyPath: String){
     }
     
     
-    val response = new ExecuteResponse(session.getExitStatus().intValue(),
+    val response = new ExecuteResponse(session.getExitStatus(),
                                        stdout.toString,
                                        stderr.toString)
     
