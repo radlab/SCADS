@@ -88,11 +88,18 @@ object Cloudstone {
     
     /* mysql configuration */
     val mysqlConfig = new JSONObject()
-    mysqlConfig.put("recipes", new JSONArray().put("cloudstone::mysql"))
+    val mysqlRecipes = new JSONArray()
+    mysqlRecipes.put("cloudstone::mysql")
+    mysqlRecipes.put("cloudstone::faban-agent")
+    mysqlConfig.put("recipes", mysqlRecipes)
     val mysqlMysql = new JSONObject()
     
     mysqlMysql.put("server_id", 1)
     mysqlConfig.put("mysql", mysqlMysql)
+    
+    val mysqlFaban = new JSONObject()
+    mysqlFaban.put("mysql", true)
+    mysqlConfig.put("faban", mysqlFaban)
     
     /* haproxy configuration */
     val haproxyConfig = new JSONObject()
@@ -113,7 +120,10 @@ object Cloudstone {
     
     /* nginx configuration */
     val nginxConfig = new JSONObject()
-    nginxConfig.put("recipes", new JSONArray().put("cloudstone::nginx"))
+    val nginxRecipes = new JSONArray()
+    nginxRecipes.put("cloudstone::nginx")
+    nginxRecipes.put("cloudstone::faban-agent")
+    nginxConfig.put("recipes", nginxRecipes)
     val nginxNginx = new JSONObject()
     val nginxNginxServers = new JSONObject()
     
@@ -125,6 +135,10 @@ object Cloudstone {
     })
     nginxNginx.put("servers", nginxNginxServers)
     nginxConfig.put("nginx", nginxNginx)
+    
+    val nginxFaban = new JSONObject()
+    nginxFaban.put("mysql", false)
+    nginxConfig.put("faban", nginxFaban)
     
     /* faban configuration */
     val fabanConfig = new JSONObject()
@@ -139,6 +153,8 @@ object Cloudstone {
     
     fabanFaban.put("hosts", fabanFabanHosts)
     fabanConfig.put("faban", fabanFaban)
+    
+    /* faban-agent config */
     
     def deployMaker(jsonConfig: JSONObject): (Instance) => Unit = {
       (instance: Instance) => {
