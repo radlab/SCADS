@@ -124,35 +124,5 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   
   def availabilityZone: String = {
     instance.getPlacement().getAvailabilityZone()
-  }
-  
-}
-
-object Instance {
-  object Type extends Enumeration {
-    val m1_small  = Value("m1.small")
-    val m1_large  = Value("m1.large")
-    val m1_xlarge = Value("m1.xlarge")
-    val c1_medium = Value("c1.medium")
-    val c1_xlarge = Value("c1.xlarge")
-  }
-  
-  def getValue(typeString: String): Type.Value = {
-    Type.valueOf(typeString).get
-  }
-  
-  def cores(instanceType: Type.Value): Int = instanceType  match {
-    case Type.m1_small  => 1
-    case Type.m1_large  => 2
-    case Type.m1_xlarge => 4
-    case Type.c1_medium => 2
-    case Type.c1_xlarge => 8
-  }
-  
-  def bits(instanceType: Type.Value): String = instanceType match {
-    case Type.m1_small  => "32-bit"
-    case Type.c1_medium => "32-bit"
-    case _              => "64-bit"
-  }
-  
+  } 
 }

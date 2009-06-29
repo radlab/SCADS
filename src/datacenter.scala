@@ -23,9 +23,11 @@ object DataCenter {
    * The EC2 access key ID and EC2 secret access key will be read from 
    * a configuration file. */
   def runInstances(imageId: String, count: Int, keyName: String,
-                   keyPath: String, instanceType: Instance.Type.Value,
+                   keyPath: String, typeString: String,
                    location: String):
                    InstanceGroup = {
+    
+    InstanceType.checkValidType(typeString)
     
     val request = new RunInstancesRequest(
                         imageId,                 // imageID
@@ -34,7 +36,7 @@ object DataCenter {
                         keyName,                 // keyName
                         null,                    // securityGroup
                         null,                    // userData
-                        instanceType.toString,   // instanceType
+                        typeString,              // instanceType
                         new Placement(location), // placement
                         null,                    // kernelId
                         null,                    // ramdiskId

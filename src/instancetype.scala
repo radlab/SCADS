@@ -18,6 +18,11 @@ object InstanceType {
     }
   }
   
+  def checkValidType(typeString: String):Boolean = {
+    getValue(typeString)
+    true
+  }
+  
   def cores(typeString: String): Int = {
     getValue(typeString)  match {
       case Type.m1_small  => 1
