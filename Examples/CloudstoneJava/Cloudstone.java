@@ -143,6 +143,20 @@ public class Cloudstone {
 
         fabanFaban.put("hosts", fabanFabanHosts);
         fabanConfig.put("faban", fabanFaban);
+        
+        System.out.println("Deploying mysql.");
+        mysql.parallelExecute(new Deploy(mysqlConfig));
+        System.out.println("Deploying rails.");
+        rails.parallelExecute(new Deploy(railsConfig));
+        System.out.println("Deploying haproxy.");
+        haproxy.parallelExecute(new Deploy(haproxyConfig));
+        System.out.println("Deploying nginx.");
+        nginx.parallelExecute(new Deploy(nginxConfig));
+        System.out.println("Deploying faban.");
+        faban.parallelExecute(new Deploy(fabanConfig));
+        
+        System.out.println("All done.");
+        
     }
     
     private InstanceGroup runInstances(int count, String typeString) {
@@ -155,6 +169,17 @@ public class Cloudstone {
         return DataCenter.runInstances(imageId, count, keyName, keyPath,
                                        typeString, location);
     }
-
+    
+    private class Deploy implements InstanceExecute {
+        private JSONObject config;
+        
+        public Deploy(JSONObject config) {
+            this.config = config;
+        }
+        
+        public void execute(Instance instance) {
+            instance.deploy(config);
+        }
+    }
 }
 
