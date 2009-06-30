@@ -9,7 +9,7 @@ import com.amazonaws.ec2.model._
 
 object DataCenter {
   
-  protected var instances: InstanceGroup = new InstanceGroup(Nil)
+  protected var instances: InstanceGroup = new InstanceGroup()
   
   private val configXML = xml.XML.loadFile("config.xml")
   
@@ -51,16 +51,17 @@ object DataCenter {
     val runningInstanceList = reservation.getRunningInstance()
     
     val instanceList = runningInstanceList.map(instance =>
-                                               new Instance(instance, keyPath))
+                                              new Instance(instance, keyPath))
+    val instanceGroup = new InstanceGroup(instanceList.toList)
+    instances.addAll(instanceGroup)
     
-    instances = new InstanceGroup(instances.getList ++ instanceList)
-    
-    return new InstanceGroup(instanceList.toList)
+    return instanceGroup
   }
   
   def getInstanceGroupByTag(tag: String): InstanceGroup = {
-    new InstanceGroup(instances.getList.
-      filter(instance => instance.getService(tag).isDefined))
+    val filtered = instances.filter(instance =>
+           instance.getService(tag).isDefined)
+    new InstanceGroup(filtered.toList)
   }
   
   def terminateInstances(instances: InstanceGroup) = {
@@ -76,9 +77,9 @@ object DataCenter {
   }
   
   def describeInstances(instances: InstanceGroup): List[RunningInstance] = {
-    val idList = instances.getList.map(instance => instance.instanceId)
+    val idList = instances.map(instance => instance.instanceId)
     val request = new DescribeInstancesRequest(
-                                          convertScalaListToJavaList(idList))
+                                    convertScalaListToJavaList(idList.toList))
     val response = service.describeInstances(request)
     val result = response.getDescribeInstancesResult()
     val reservationList = result.getReservation()
