@@ -1,5 +1,5 @@
 
-package cloudstone;
+package CloudstoneJava;
 
 import deploylib.*;
 import org.json.JSONObject;
@@ -49,6 +49,10 @@ public class Cloudstone {
         allInstances.addAll(nginx);
         allInstances.addAll(faban);
         
+        
+        /**************************************************
+         * Don't forget to wait on the instances          *
+         **************************************************/
         allInstances.parallelExecute(new WaitUntilReady());
 
         /* Rails Configuration */
