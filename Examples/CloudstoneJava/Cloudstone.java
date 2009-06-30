@@ -56,7 +56,7 @@ public class Cloudstone {
 
         JSONObject railsRailsPorts = new JSONObject();
         railsRailsPorts.put("start", 3000);
-        railsRailsPorts.put("count", (Integer)railsSettings[3]);
+        railsRailsPorts.put("count", (Integer)railsSettings[2]);
         railsRails.put("ports", railsRailsPorts);
 
         JSONObject railsRailsDatabase = new JSONObject();
@@ -101,7 +101,7 @@ public class Cloudstone {
         for (Instance instance : rails) {
             JSONObject server = new JSONObject();
             server.put("start", 3000);
-            server.put("count", (Integer)railsSettings[3]);
+            server.put("count", (Integer)railsSettings[2]);
             haproxyHaproxyServers.put(instance.privateDnsName(), server);
         }
         haproxyHaproxy.put("servers", haproxyHaproxyServers);
