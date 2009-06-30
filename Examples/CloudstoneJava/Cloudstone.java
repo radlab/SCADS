@@ -48,6 +48,8 @@ public class Cloudstone {
         allInstances.addAll(haproxy);
         allInstances.addAll(nginx);
         allInstances.addAll(faban);
+        
+        allInstances.parallelExecute(new WaitUntilReady());
 
         /* Rails Configuration */
         JSONObject railsConfig = new JSONObject();
@@ -168,6 +170,12 @@ public class Cloudstone {
         
         return DataCenter.runInstances(imageId, count, keyName, keyPath,
                                        typeString, location);
+    }
+    
+    private class WaitUntilReady implements InstanceExecute {
+        public void execute(Instance instance) {
+            instance.waitUntilReady();
+        }
     }
     
     private class Deploy implements InstanceExecute {
