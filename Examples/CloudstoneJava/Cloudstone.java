@@ -7,7 +7,7 @@ import org.json.JSONArray;
 import scala.*;
 
 public class Cloudstone {
-    public void run(int count, String type) {
+    public void run(int count, String type) throws org.json.JSONException {
         /**
          * This is a simple example where you pass on the command line
          * the number and size of rails servers you would like in the 
@@ -56,11 +56,11 @@ public class Cloudstone {
 
         JSONObject railsRailsPorts = new JSONObject();
         railsRailsPorts.put("start", 3000);
-        railsRailsPorts.put("count", railsSettings._3);
+        railsRailsPorts.put("count", (Integer)railsSettings[3]);
         railsRails.put("ports", railsRailsPorts);
 
         JSONObject railsRailsDatabase = new JSONObject();
-        railsRailsDatabase.put("host", mysql.getList.head.privateDnsName);
+        railsRailsDatabase.put("host", mysql.getFirst().privateDnsName());
         railsRailsDatabase.put("adapter", "mysql");
         railsRails.put("database", railsRailsDatabase);
 
@@ -70,7 +70,7 @@ public class Cloudstone {
         railsRails.put("memcached", railsRailsMemcached);
 
         JSONObject railsRailsGeocoder = new JSONObject();
-        railsRailsGeocoder.put("host", faban.getList.head.privateDnsName);
+        railsRailsGeocoder.put("host", faban.getFirst().privateDnsName());
         railsRailsGeocoder.put("port", 9980);
         railsRails.put("geocoder", railsRailsGeocoder);
 
@@ -98,12 +98,12 @@ public class Cloudstone {
         haproxyHaproxy.put("port", 4000);
 
         JSONObject haproxyHaproxyServers = new JSONObject();
-        rails.getList.foreach(instance => {
-          JSONObject server = new JSONObject();
-          server.put("start", 3000);
-          server.put("count", railsSettings._3);
-          haproxyHaproxyServers.put(instance.privateDnsName, server);
-        })
+        for (Instance instance : rails) {
+            JSONObject server = new JSONObject();
+            server.put("start", 3000);
+            server.put("count", (Integer)railsSettings[3]);
+            haproxyHaproxyServers.put(instance.privateDnsName(), server);
+        }
         haproxyHaproxy.put("servers", haproxyHaproxyServers);
 
         haproxyConfig.put("haproxy", haproxyHaproxy);
@@ -117,12 +117,12 @@ public class Cloudstone {
         JSONObject nginxNginx = new JSONObject();
         JSONObject nginxNginxServers = new JSONObject();
 
-        haproxy.getList.foreach(instance => {
-          JSONObject server = new JSONObject();
-          server.put("start", 4000);
-          server.put("count", 1);
-          nginxNginxServers.put(instance.privateDnsName, server);
-        })
+        for (Instance instance : haproxy) {
+            JSONObject server = new JSONObject();
+            server.put("start", 4000);
+            server.put("count", 1);
+            nginxNginxServers.put(instance.privateDnsName(), server);
+        }
         nginxNginx.put("servers", nginxNginxServers);
         nginxConfig.put("nginx", nginxNginx);
 
@@ -135,9 +135,9 @@ public class Cloudstone {
         fabanConfig.put("recipes", new JSONArray().put("cloudstone::faban"));
         JSONObject fabanFaban = new JSONObject();
         JSONObject fabanFabanHosts = new JSONObject();
-        fabanFabanHosts.put("driver", faban.getList.head.privateDnsName);
-        fabanFabanHosts.put("webserver", nginx.getList.head.privateDnsName);
-        fabanFabanHosts.put("database", mysql.getList.head.privateDnsName);
+        fabanFabanHosts.put("driver", faban.getFirst().privateDnsName());
+        fabanFabanHosts.put("webserver", nginx.getFirst().privateDnsName());
+        fabanFabanHosts.put("database", mysql.getFirst().privateDnsName());
         fabanFabanHosts.put("storage", "");
         fabanFabanHosts.put("cache", "");
 

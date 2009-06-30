@@ -16,7 +16,12 @@ public class Main {
          * 1 nginx server on a m1.small instance
          * 1 Faban master/driver server on a c1.xlarge
          */
-
-        new Cloudstone().run(new Integer(args[1]).intValue(), args[3]);
+        
+        try {
+            new Cloudstone().run(new Integer(args[1]).intValue(), args[3]);
+        } catch (org.json.JSONException e) {
+            System.err.println("JSON exception: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }
