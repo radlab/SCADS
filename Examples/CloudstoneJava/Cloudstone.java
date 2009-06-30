@@ -22,7 +22,7 @@ public class Cloudstone {
          * 1 Faban master/driver server on a c1.xlarge
          */
         
-        Object[] railsSettings   = {count, type, InstanceType.cores(type)};
+        Object[] railsSettings   = {count, type, InstanceType.cores(type) * 2};
         
         Object[] mysqlSettings   = {1, "c1.xlarge"};
         Object[] haproxySettings = {1, "m1.small"};
