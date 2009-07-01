@@ -10,6 +10,10 @@ import com.amazonaws.ec2.model._
 class Instance(initialInstance: RunningInstance, keyPath: String) {
   var instance = initialInstance
   var ssh: SSH = null
+  
+  def this(instanceId: String, keyPath: String) {
+    this(DataCenter.describeInstances(List(instanceId)).head, keyPath)
+  }
 
   @throws(classOf[IllegalStateException])
   def deploy(config: JSONObject): List[Service] = {
