@@ -1,1 +1,0 @@
-The license chosen for this distribution is CDDL 1.0. For more information, see the JAXB web site at https://jaxb.dev.java.net/.
