@@ -2,7 +2,6 @@ package deploylib
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.jcl.Conversions._
-import org.json.JSONObject
 
 import com.amazonaws.ec2._
 import com.amazonaws.ec2.model._
@@ -59,8 +58,15 @@ object DataCenter {
   }
   
   def getInstanceGroupByTag(tag: String): InstanceGroup = {
+    val filtered = instances.filter(instance => instance.isTaggedWith(tag))
+    new InstanceGroup(filtered.toList)
+  }
+  
+  // TODO: getInstanceGroupByService(service: Service)?
+  
+  def getInstanceGroupByService(service: String): InstanceGroup = {
     val filtered = instances.filter(instance =>
-           instance.getService(tag).isDefined)
+           instance.getService(service).isDefined)
     new InstanceGroup(filtered.toList)
   }
   

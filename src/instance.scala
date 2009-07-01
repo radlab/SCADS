@@ -16,9 +16,9 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   }
 
   @throws(classOf[IllegalStateException])
-  def deploy(config: JSONObject): List[Service] = {
+  def deploy(config: JSONObject): Array[Service] = {
     checkSsh
-    exec("cd && echo \'" + config.toString()+ "\' > config.js && " +
+    exec("cd && echo \'" + config.toString() + "\' > config.js && " +
          "chef-solo -j config.js")
     getAllServices
   }
@@ -38,21 +38,36 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   }
   
   @throws(classOf[IllegalStateException])
-  def getAllServices: List[Service] = {
+  def getAllServices: Array[Service] = {
     checkSsh
     val response = exec("ls /mnt/services")
     if (Util.responseError(response))
-      return Nil
+      return Array()
     else {
-      return response.getStdout.split("\n").toList.
+      return response.getStdout.split("\n").
                 map(service => new Service(service, this))
     }
   }
   
   @throws(classOf[IllegalStateException])
   def getService(id: String): Option[Service] = {
-    checkSsh
     getAllServices.find(service => service.getId == id)
+  }
+  
+  def tagWith(tag: String) = {
+    checkSsh
+    exec("echo \'" + tag + "\' >> /mnt/tags")
+  }
+  
+  def isTaggedWith(tag: String): Boolean = {
+    getAllTags.find(possible => possible == tag).isDefined
+  }
+  
+  def getAllTags: Array[String] = {
+    checkSsh
+    val response = exec("cat /mnt/tags")
+    if (Util.responseError(response)) return Array()
+    else return response.getStdout.split("\n")
   }
   
   @throws(classOf[IllegalStateException])
