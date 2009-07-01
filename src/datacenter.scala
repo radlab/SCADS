@@ -11,7 +11,7 @@ object DataCenter {
   
   protected var instances: InstanceGroup = new InstanceGroup()
   
-  private val configXML = xml.XML.loadFile("config.xml")
+  private val configXML = xml.XML.loadFile("ec2-config.xml")
   
   private val accessKeyId     = (configXML \ "accessKeyId").text
   private val secretAccessKey = (configXML \ "secretAccessKey").text
