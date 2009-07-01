@@ -128,5 +128,12 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   
   def availabilityZone: String = {
     instance.getPlacement().getAvailabilityZone()
-  } 
+  }
+  
+  override def equals(other: Any): Boolean = other match {
+    case that: Instance => instanceId.equals(that.instanceId)
+    case _ => false
+  }
+  
+  override def hashCode: Int = instanceId.hashCode
 }
