@@ -9,12 +9,10 @@ import com.amazonaws.ec2.model._
 object DataCenter {
   
   protected var instances: InstanceGroup = new InstanceGroup()
-  
-  private val configXML = xml.XML.loadFile("ec2-config.xml")
-  
-  private val accessKeyId     = (configXML \ "accessKeyId").text
-  private val secretAccessKey = (configXML \ "secretAccessKey").text
-  
+
+  private val accessKeyId     = System.getenv.apply("AWS_ACCESS_KEY_ID")
+  private val secretAccessKey = System.getenv.apply("AWS_SECRET_ACCESS_KEY")
+
   private val service = new AmazonEC2Client(accessKeyId, secretAccessKey)
 
   /* This method starts instances using the given arguments and returns
