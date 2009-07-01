@@ -64,8 +64,13 @@ object DataCenter {
     new InstanceGroup(filtered.toList)
   }
   
-  def terminateInstances(instances: InstanceGroup) = {
-    
+  def terminateInstances(instanceGroup: InstanceGroup) = {
+    /* TODO: Do API stuff to actually stop running instances. */
+    removeInstances(instanceGroup)
+  }
+  
+  def removeInstances(instanceGroup: InstanceGroup) = {
+    instances.removeAll(instanceGroup)
   }
   
   def removeInstance(instance: Instance): Unit = {
