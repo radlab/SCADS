@@ -1,6 +1,4 @@
 .DS_Store
-*.class
 *.tmproj
 *~
-config.xml
-dist
+target/
