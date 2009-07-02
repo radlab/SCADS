@@ -11,7 +11,7 @@ opts = GetoptLong.new(
 seed = rand
 table = "default"
 op = "put"
-number = 
+number =
 opts.each do |opt, arg|
   case opt
   when '--seed'
@@ -36,6 +36,5 @@ end
 loop do
   puts "#{op} #{table} #{random_string(1+rand(20))}"
 #  puts "#{op} #{table} #{random_string(1+rand(20))} #{random_string(1+rand(20))}"
-  srand(nextseed) 
+  srand(nextseed)
 end
-

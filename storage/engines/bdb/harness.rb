@@ -5,7 +5,7 @@ require 'thrift/server/tserver'
 require 'timeout'
 
 module SCADS
-  module Storage
+  module StorageEngine
     module Bdb
       class TestHarness
         def initialize
@@ -53,7 +53,7 @@ module SCADS
           transport = Thrift::FramedTransport.new(Thrift::Socket.new('localhost', @port))
           protocol = Thrift::BinaryProtocol.new(transport)
           transport.open
-          @client = Storage::Client.new(protocol)
+          @client = StorageEngine::Client.new(protocol)
         end
       end
     end

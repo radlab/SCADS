@@ -7,17 +7,17 @@ require 'Storage'
 
 module SCADS
   class Client
-  
+
 
     def initialize(host,port)
       @@pool ||= {}
       @@pool[host] ||= {}
       @@pool[host][port] ||= Queue.new
-      
+
       @port = port
       @host = host
     end
-    
+
     def method_missing(symbol, *args)
       client = nil
       ret = nil
@@ -31,7 +31,7 @@ module SCADS
         client = SCADS::Storage::Storage::Client.new(protocol)
       end
       puts "Calling #{symbol} with #{args.inspect}" if $DEBUG
-      
+
       begin
         Timeout::timeout(5) do
           ret = client.send(symbol, *args)
@@ -45,4 +45,3 @@ module SCADS
     end
   end
 end
-

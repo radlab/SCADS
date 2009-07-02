@@ -25,11 +25,11 @@ int main(int argc, char** argv) {
 	char *host;
 	int port;
 	int c;
-	
+
 	//defaults
 	host = "localhost";
 	port = 9090;
-	
+
 	while ((c = getopt(argc, argv, "h:p:")) != -1) {
 		switch (c) {
 			case 'h':
@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
 				abort();
 		}
 	}
-	
+
 	shared_ptr<TTransport> socket(new TSocket(host, port));
 	shared_ptr<TTransport> transport(new TBufferedTransport(socket));
 	shared_ptr<TProtocol> protocol(new TBinaryProtocol(transport));
@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
 	int success;
 	Record r;
 	struct timeval start_time, end_time, diff_time;
-	
+
 	transport->open();
 	while (EOF != scanf("%15s", cmd)) {
 		success = -1;

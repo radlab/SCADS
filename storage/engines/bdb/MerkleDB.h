@@ -3,7 +3,7 @@
 
 #include <db.h>
 #include <pthread.h>
-#include "gen-cpp/Storage.h"
+#include "gen-cpp/StorageEngine.h"
 #include "TQueue.h"
 
 #define MERKLEDB_HASH_FUNC MHASH_TIGER128
@@ -32,13 +32,13 @@ namespace SCADS {
     int flush_flag;
     DB * dbp; //Merkle trie database
     static DB * qdb; // queue database for running syncs
-	
+
   private:
     pthread_mutex_t sync_lock;
     DB * pup; //Pending update database
     DB * aly; //Set of updates to apply
     DB * cld; //Secondary index (key) -> (children);
-	
+
   public:
     int enqueue(DBT * key, DBT * data);
     int flushp();
@@ -53,7 +53,7 @@ namespace SCADS {
     void apply_children(DBT *key,
 			void(*to_apply)(void*,void*,void*),
 			void* apply_arg);
-	
+
   private:
     MerkleNode parent(MerkleNode * node);
     MerkleNode get(DBT * key);
@@ -65,4 +65,3 @@ namespace SCADS {
 }
 
 #endif // MERKLEDB_H
-

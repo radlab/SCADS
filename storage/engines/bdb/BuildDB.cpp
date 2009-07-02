@@ -63,9 +63,9 @@ void parseArgs(int argc, char* argv[]) {
 			break;
     case 'k':
 			max_keylength = atoi(optarg);
-      break;	
+      break;
     case 's':
-			data_size = atoi(optarg);			
+			data_size = atoi(optarg);
       break;
     case 'h':
     default: /* '?' */
@@ -94,13 +94,13 @@ void build_random_db(DB * db, MerkleDB * mdb, int rows, int key_offset, int key_
 	memset(&key, 0, sizeof(DBT));
 	key.flags = DB_DBT_MALLOC;
 	key.data = keybuf;
-		
+
 	char databuf[2048];
 	DBT data;
 	memset(&data, 0, sizeof(DBT));
 	data.flags = DB_DBT_MALLOC;
 	data.data = databuf;
- 
+
 	//Make data
 	srand(data_seed);
 	int datalen = data_size;
@@ -122,7 +122,7 @@ void build_random_db(DB * db, MerkleDB * mdb, int rows, int key_offset, int key_
 		//std::std::cout << "key:" << keylen << ",";
 		for (int j = 0; j < keylen; j++) {
 			keybuf[j] = ((char) ((rand() % 24) + 65));
-		} 
+		}
 		keybuf[keylen] = '\0';
 		key.size = keylen;
 
@@ -154,13 +154,13 @@ int main(int argc, char **argv) {
     exit(-1);
   }
 
-  env_flags = 
+  env_flags =
     DB_CREATE |     /* If the environment does not exist, create it. */
     DB_INIT_LOCK |  /* Multiple threads might write */
     DB_INIT_MPOOL|  /* Initialize the in-memory cache. */
     DB_THREAD |
     DB_PRIVATE;
-  
+
   ret = db_env->set_lk_detect(db_env,DB_LOCK_DEFAULT);
 
 	ret = db_env->set_cachesize(db_env, 1, 0, 0);
@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
 	std::cout << "Build random tree with " << rows << " rows with dataseed " << dataseed1 << endl;
 	build_random_db(db, mdb, rows, 0, keyseed, dataseed1);
 	mdb->flushp();
-	
+
 	std::cout << "Build random tree with " << rows2 << " rows with dataseed " << dataseed2 << endl;
 	build_random_db(db, mdb, rows2, rows, keyseed, dataseed2);
 	mdb->flushp();

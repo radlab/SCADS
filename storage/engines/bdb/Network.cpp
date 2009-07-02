@@ -40,14 +40,14 @@ using namespace apache::thrift;
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa) {
-  if (sa->sa_family == AF_INET) 
+  if (sa->sa_family == AF_INET)
     return &(((struct sockaddr_in*)sa)->sin_addr);
   return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
 int fill_buf(int* sock, char* buf, int off) {
   int recvd;
-  if((recvd = recv(*sock,buf+off,BUFSZ-off,0)) == -1) { 
+  if((recvd = recv(*sock,buf+off,BUFSZ-off,0)) == -1) {
     perror("fill_buf");
     close(*sock);
     return 0;
@@ -55,7 +55,7 @@ int fill_buf(int* sock, char* buf, int off) {
 #ifdef DEBUG
   /*  if (recvd > 0) {
     printf("filled buffer (off: %i, recvd: %i)\n[",off,recvd);
-    for(int i = 0;i<recvd;i++) 
+    for(int i = 0;i<recvd;i++)
       printf("%i ",buf[i]);
       printf("\b]\n");
       }*/
@@ -154,15 +154,15 @@ int fill_dbt(int* sock, DBT* k, DBT* other, char* buf, char* pos, char** endp) {
     len = fill_buf(sock,buf,0);
     if (len == 0) {
       ReadDBTException e("Socket was orderly shutdown by peer");
-      throw e;      
+      throw e;
     }
     *endp = buf+len;
     return fill_dbt(sock,k,other,buf,buf,endp);
   }
   else { // okay, enough data in buf to finish off
-    if (k->flags) 
+    if (k->flags)
       memcpy(((char*)k->data)+k->dlen,pos,len);
-    else 
+    else
       k->data = pos;
   }
 
@@ -218,10 +218,10 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
       throw te;
     }
   }
-  
+
   for(ic=0;;ic++) { // now read all our key/vals
     int kf,df;
-    
+
     if (ic != 0 &&
 	txn != NULL &&
 	ic % COMMIT_LIMIT == 0) {
@@ -245,7 +245,7 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
       cerr << "Could not read key in copy: "<<e.what()<<endl;
       if (k.flags)
 	free(k.data);
-      if (txn!=NULL && txn->abort(txn)) 
+      if (txn!=NULL && txn->abort(txn))
 	cerr << "Transaction abort failed"<<endl;
       return 1;
     }
@@ -259,7 +259,7 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
 	free(k.data);
       if (d.flags)
 	free(d.data);
-      if (txn!=NULL && txn->abort(txn)) 
+      if (txn!=NULL && txn->abort(txn))
 	cerr << "Transaction abort failed"<<endl;
       return 1;
     }
@@ -276,7 +276,7 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
     if (mdb_ptr == NULL) {
       if (db_ptr->put(db_ptr, txn, &k, &d, 0) != 0)
 	fail = 1;
-    } else {	  
+    } else {
       if ( (db_ptr->put(db_ptr, txn, &k, &d, 0) != 0) ||
 	   (mdb_ptr->enqueue(&k,&d) != 0) )
 	fail = 1;
@@ -292,17 +292,17 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
   }
 
   if (fail) {
-    if (txn!=NULL && txn->abort(txn)) 
+    if (txn!=NULL && txn->abort(txn))
       cerr << "Transaction abort failed"<<endl;
   }
   else {
-    if (txn!=NULL && txn->commit(txn,0)) 
+    if (txn!=NULL && txn->commit(txn,0))
       cerr << "Commit of copy transaction failed"<<endl;
   }
 
   if (!fail)
     fail = storageDB->flush_log(db_ptr);
-      
+
   return fail;
 }
 
@@ -346,33 +346,33 @@ struct sync_sync_args {
   int remdone;
 };
 
-static 
+static
 void send_mark(int sock) {
   if (send(sock,&merkle_mark,1,MSG_MORE) == -1)
     do_throw(errno,"Failed to send mark: ");
 }
 
-static 
+static
 void send_merkle_stop(int sock) {
   if (send(sock,&merkle_stop,1,MSG_MORE) == -1)
     do_throw(errno,"Failed to send mark: ");
 }
 
-static 
+static
 void send_vals(int sock,DBT* key, DBT* data, char type) {
   // DBTSEND OK
   if (send(sock,&type,1,MSG_MORE) == -1)
     do_throw(errno,"Failed to send message type: ");
-  if (send(sock,&(key->size),4,MSG_MORE) == -1) 
+  if (send(sock,&(key->size),4,MSG_MORE) == -1)
     do_throw(errno,"Failed to send key length: ");
-  if (send(sock,((const char*)key->data),key->size,MSG_MORE) == -1) 
+  if (send(sock,((const char*)key->data),key->size,MSG_MORE) == -1)
     do_throw(errno,"Failed to send a key: ");
   if (data != NULL) {
     if (send(sock,&type,1,MSG_MORE) == -1)
       do_throw(errno,"Failed to send message type: ");
-    if (send(sock,&(data->size),4,MSG_MORE) == -1) 
+    if (send(sock,&(data->size),4,MSG_MORE) == -1)
       do_throw(errno,"Failed to send data length: ");
-    if (send(sock,data->data,data->size,MSG_MORE) == -1) 
+    if (send(sock,data->data,data->size,MSG_MORE) == -1)
       do_throw(errno,"Failed to send data: ");
   }
 }
@@ -389,11 +389,11 @@ void send_string(int sock, const string& str) {
   int len = str.length();
   if (send(sock,&node_data,1,MSG_MORE) == -1)
     do_throw(errno,"Failed to send string type: ");
-  if (send(sock,&len,4,MSG_MORE) == -1) 
+  if (send(sock,&len,4,MSG_MORE) == -1)
     do_throw(errno,"Failed to send string length: ");
   if (len != 0) {
-    if (send(sock,str.c_str(),len,MSG_MORE) == -1) 
-      do_throw(errno,"Failed to send string: ");  
+    if (send(sock,str.c_str(),len,MSG_MORE) == -1)
+      do_throw(errno,"Failed to send string: ");
   }
 }
 
@@ -404,16 +404,16 @@ void apply_dump(void *s, DB* db, DBC* cursor, DB_TXN *txn, void *k, void *d) {
 
 void sync_sync_put(DB* db, DBC* cursor, DB_TXN* txn, DBT* lkey, DBT* ldata, struct sync_sync_args* args, bool adv=true) {
   if (cursor == NULL || args->isTXN) {
-    if (db->put(db, txn, &(args->k), &(args->d), 0) != 0) 
+    if (db->put(db, txn, &(args->k), &(args->d), 0) != 0)
       cerr << "Failed to put remote key: "<<string((char*)args->k.data,args->k.size)<<endl;
   }
   else {
-    if (cursor->put(cursor, &(args->k), &(args->d), DB_KEYFIRST) != 0) 
+    if (cursor->put(cursor, &(args->k), &(args->d), DB_KEYFIRST) != 0)
       cerr << "Failed to put remote key: "<<string((char*)args->k.data,args->k.size)<<endl;
     if (adv) {
       if (cursor->get(cursor, lkey, ldata, DB_NEXT))
 	cerr << "Failed to advance local cursor"<<endl;
-    } 
+    }
   }
 
   if (txn!=NULL) {
@@ -435,7 +435,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
   DBT *key,*data;
   struct sync_sync_args* args = (struct sync_sync_args*)s;
   key = (DBT*)k;
-  data = (DBT*)d;  
+  data = (DBT*)d;
 
 
   if (args->remdone) { // no more remote keys, just send over whatever else we have
@@ -475,14 +475,14 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
     //cerr << "[Local info is] key: "<<string((char*)key->data,key->size)<<" data: "<<string((char*)data->data,data->size)<<endl;
 #endif
   }
-  
+
   if (key == NULL) {
     // we have no local values, this is basically a copy
 #ifdef DEBUG
     cerr<<"No local data, inserting all remote keys"<<endl;
 #endif
-    
-    for(ic=0;;ic++) { 
+
+    for(ic=0;;ic++) {
       int kf,df;
 
       if (args->k.size == 0) {
@@ -525,7 +525,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
       args->d.flags = 0;
       args->d.dlen = 0;
 
-      
+
       sync_sync_put(db,cursor,txn,NULL,NULL,args,false);
 
       if (kf)
@@ -534,12 +534,12 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
 	free(args->d.data);
 
       memset(&(args->k), 0, sizeof(DBT));
-      memset(&(args->d), 0, sizeof(DBT));  
+      memset(&(args->d), 0, sizeof(DBT));
     }
   }
-  
+
   for (;;) {
-    if (key->size < args->k.size) { 
+    if (key->size < args->k.size) {
       // local key is shorter, and therefore less
       // send over local key since other side is missing it
 #ifdef DEBUG
@@ -549,7 +549,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
       // don't want to clear keys, will deal with on next pass
       return;
     }
-    
+
     while (key->size > args->k.size) {
       // remote key is shorter
       // need to keep inserting remote keys until we catch up
@@ -572,7 +572,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
 	free(args->d.data);
 
       memset(&(args->k), 0, sizeof(DBT));
-      memset(&(args->d), 0, sizeof(DBT));  
+      memset(&(args->d), 0, sizeof(DBT));
       try {
 	args->off = fill_dbt(&(args->sock),&(args->k),NULL,args->dbuf,args->dbuf+args->off,&(args->end));
       } catch (ReadDBTException &e) {
@@ -642,7 +642,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
 	free(args->d.data);
 
       memset(&(args->k), 0, sizeof(DBT));
-      memset(&(args->d), 0, sizeof(DBT));  
+      memset(&(args->d), 0, sizeof(DBT));
       try {
 	args->off = fill_dbt(&(args->sock),&(args->k),NULL,args->dbuf,args->dbuf+args->off,&(args->end));
       } catch (ReadDBTException &e) {
@@ -670,7 +670,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
 #ifdef DEBUG
       cerr << "[read for sync] key: "<<string((char*)args->k.data,args->k.size)<<" data: "<<string((char*)args->d.data,args->d.size)<<endl;
       //cerr << "[Local info is] key: "<<string((char*)key->data,key->size)<<" data: "<<string((char*)data->data,data->size)<<endl;
-#endif      
+#endif
       continue; // back to top since this new key could fall into any of the categories
     }
 
@@ -684,7 +684,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
   args->k.dlen = 0;
   args->d.flags = 0;
   args->d.dlen = 0;
-  
+
   int dcmp = 0;
   if (data->size == args->d.size)
     dcmp = memcmp(data->data,args->d.data,data->size);
@@ -775,7 +775,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
     free(args->k.data);
   if (df)
     free(args->d.data);
-  
+
   memset(&(args->k), 0, sizeof(DBT));
   memset(&(args->d), 0, sizeof(DBT));
 }
@@ -787,7 +787,7 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
 
 
 /* resolve data according to a policy
- * returns: 
+ * returns:
  *   DATA_EQUAL if the data was equal
  *   REM_REPLS if remote data replaces local data
  *   LOC_REPLS if local data should replace remote data
@@ -822,7 +822,7 @@ int resolve_data(DBT* ld, DBT* rd,
 int do_merkle_sync(int sock, const NameSpace& ns,
 		   StorageDB* storageDB,
 		   DB* db, MerkleDB* mdb,
-		   char* dbuf, char* end, int off, 
+		   char* dbuf, char* end, int off,
 		   ConflictPolicy& pol) {
   DBT key,data,lkey,ldata;
   int ret;
@@ -845,7 +845,7 @@ int do_merkle_sync(int sock, const NameSpace& ns,
 	free(key.data);
       return 1;
     }
-    if (off == 0)       
+    if (off == 0)
       return 0;
     switch(key.doff) { // doff is where we store the type
     case NODE_DATA: {
@@ -966,7 +966,7 @@ int do_merkle_sync(int sock, const NameSpace& ns,
       }
       */
       /*** END BFS CODE ***/
-      
+
       /*** DFS CODE ***/
       if (ln->digest != hash &&
 	  is_leaf(&key)) {
@@ -975,7 +975,7 @@ int do_merkle_sync(int sock, const NameSpace& ns,
 #endif
 	send_vals(sock,&key,NULL,merkle_no);
       }
-      
+
       if (!is_leaf(&key) &&
 	  ln->digest == hash) {
 #ifdef DEBUG
@@ -1013,7 +1013,7 @@ int do_merkle_sync(int sock, const NameSpace& ns,
 int do_merkle_dfs_sync(int sock, const NameSpace& ns,
 		       StorageDB* storageDB,
 		       DB* db, MerkleDB* mdb,
-		       char* dbuf, char* end, int off, 
+		       char* dbuf, char* end, int off,
 		       ConflictPolicy& pol) {
   DBT key,data,lkey,ldata,mkey,mdata;
   int ret;
@@ -1030,7 +1030,7 @@ int do_merkle_dfs_sync(int sock, const NameSpace& ns,
   mkey.flags = DB_DBT_MALLOC;
   memset(&mdata, 0, sizeof(DBT));
   mdata.flags = DB_DBT_MALLOC;
-  dbp->cursor(dbp, NULL, &cursorp, 0); 
+  dbp->cursor(dbp, NULL, &cursorp, 0);
   ret = cursorp->get(cursorp, &mkey, &mdata, DB_NEXT);
   if (ret != 0) {
     cerr << "couldn't get merkle cursor in dfs_sync"<<endl;
@@ -1048,10 +1048,10 @@ int do_merkle_dfs_sync(int sock, const NameSpace& ns,
 	free(key.data);
       return 1;
     }
-    
-    if (off == 0)       
+
+    if (off == 0)
       return 0;
-  
+
     switch(key.doff) { // doff is where we store the type
     case NODE_DATA: {
 #ifdef DEBUG
@@ -1208,7 +1208,7 @@ int do_merkle_dfs_sync(int sock, const NameSpace& ns,
 	send_vals(sock,&key,NULL,merkle_no);
 
 	}*/
-      
+
       if (!is_leaf(&key) &&
 	  ln->digest == hash) {
 #ifdef DEBUG
@@ -1367,9 +1367,9 @@ int do_sync(int sock, StorageDB* storageDB, char* dbuf, char sync_type) {
     args.isTXN = storageDB->isTXN();
     memset(&(args.k), 0, sizeof(DBT));
     memset(&(args.d), 0, sizeof(DBT));
-    
+
     storageDB->apply_to_set(ns,rs,sync_sync,&args,true);
-    if (!args.remdone) 
+    if (!args.remdone)
       sync_sync(&args,db,NULL,NULL,NULL,NULL);
   }
 
@@ -1424,11 +1424,11 @@ void* run_listen(void* arg) {
   // loop and find something to bind to
   for (rp = res; rp != NULL; rp = rp->ai_next) {
     sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    
-    if (sock == -1) 
+
+    if (sock == -1)
       continue;
 
-    if (bind(sock,rp->ai_addr,rp->ai_addrlen) == 0) 
+    if (bind(sock,rp->ai_addr,rp->ai_addrlen) == 0)
       break; // success
 
     close(sock);
@@ -1445,7 +1445,7 @@ void* run_listen(void* arg) {
     perror("listen");
     exit(EXIT_FAILURE);
   }
-      
+
   printf("Listening for sync/copy on port %s...\n",dbuf);
 
   peer_addr_len = sizeof(struct sockaddr_storage);
@@ -1461,7 +1461,7 @@ void* run_listen(void* arg) {
     tv.tv_usec = 500000;
     // don't care about writefds and exceptfds:
     select(sock+1, &readfds, NULL, NULL, &tv);
- 
+
     if (!FD_ISSET(sock, &readfds)) // timeout
       continue;
 
@@ -1479,13 +1479,13 @@ void* run_listen(void* arg) {
       close(as);
       continue;
     }
-    
+
     if ((recvd = recv(as, dbuf, 1, 0)) == -1) {
       perror("Could not read operation");
       close(as);
       continue;
     }
-    
+
     // should maybe fire off new thread for the actual copy/sync?
     // would need to make dbuf private to each thread
     int stat = 0;
@@ -1535,10 +1535,10 @@ void* run_listen(void* arg) {
       close(as);
       continue;
     }
-    //#ifdef DEBUG      
+    //#ifdef DEBUG
     cout << "done.  stat: "<<stat<<endl;
     //#endif
-    if (send(as,&stat,1,0) == -1) 
+    if (send(as,&stat,1,0) == -1)
       perror("send STAT");
     close(as);
   }
@@ -1588,13 +1588,13 @@ int open_socket(const Host& h) {
       perror("open_socket: socket");
       continue;
     }
-    
+
     if (connect(sock, rp->ai_addr, rp->ai_addrlen) == -1) {
       close(sock);
       perror("open_socket: connect");
       continue;
     }
-    
+
     break;
   }
 
@@ -1602,21 +1602,21 @@ int open_socket(const Host& h) {
     TException te("Could not connect\n");
     throw te;
   }
-  
+
 #ifdef DEBUG
   char s[INET6_ADDRSTRLEN];
   inet_ntop(rp->ai_family, get_in_addr((struct sockaddr *)rp->ai_addr),
             s, sizeof s);
   printf("connecting to %s\n", s);
 #endif
-  
+
   freeaddrinfo(res);
-  
+
   if ((numbytes = recv(sock, buf, 11, 0)) == -1)
     do_throw(errno,"Error receiving version string: ");
-  
+
   buf[numbytes] = '\0';
-  
+
   if (strncmp(VERSTR,buf,11)) {
     TException te("Version strings didn't match");
     throw te;
@@ -1645,13 +1645,13 @@ copy_set(const NameSpace& ns, const RecordSet& rs, const Host& h) {
   int sock = open_socket(h);
 
   stat = 0; // copy command
-  if (send(sock,&stat,1,MSG_MORE) == -1) 
+  if (send(sock,&stat,1,MSG_MORE) == -1)
     do_throw(errno,"Error sending copy operation: ");
 
   send_string(sock,ns);
 
   apply_to_set(ns,rs,apply_copy,&sock);
-  
+
   // send done message
   send_string(sock,"");
 
@@ -1659,7 +1659,7 @@ copy_set(const NameSpace& ns, const RecordSet& rs, const Host& h) {
   cerr << "Sent done. "<<numbytes<<" bytes"<<endl;
 #endif
 
-  if ((numbytes = recv(sock, &stat, 1, 0)) == -1) 
+  if ((numbytes = recv(sock, &stat, 1, 0)) == -1)
     do_throw(errno,"Could not read final status: ");
 
 #ifdef DEBUG
@@ -1704,7 +1704,7 @@ void* sync_recv(void* arg) {
   DBT k,d;
   char dbuf[BUFSZ];
   struct sync_recv_args* args = (struct sync_recv_args*)arg;
-  
+
   int sock = args->sock;
   DB* db_ptr = args->db_ptr;
   DB_ENV* db_env = args->db_env;
@@ -1780,7 +1780,7 @@ void* sync_recv(void* arg) {
       cerr<<"Couldn't insert synced key: "<<string((char*)k.data,k.size)<<endl;
       continue;
     }
-    
+
     if (kf)
       free(k.data);
     if (df)
@@ -1802,11 +1802,11 @@ simple_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
   int nslen = ns.length();
 
   stat = 1; // sync command
-  if (send(sock,&stat,1,MSG_MORE) == -1) 
+  if (send(sock,&stat,1,MSG_MORE) == -1)
     do_throw(errno,"Error sending sync operation: ");
 
   send_string(sock,ns);
-  
+
   // DBTSEND OK
 
   nslen =
@@ -1816,22 +1816,22 @@ simple_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
 
   if (send(sock,&node_data,1,MSG_MORE) == -1)
     do_throw(errno,"Failed to send message type: ");
-  
-  if (send(sock,&(nslen),4,MSG_MORE) == -1) 
+
+  if (send(sock,&(nslen),4,MSG_MORE) == -1)
     do_throw(errno,"Error sending policy length: ");
 
-  if (send(sock,&(policy.type),4,MSG_MORE) == -1) 
+  if (send(sock,&(policy.type),4,MSG_MORE) == -1)
     do_throw(errno,"Error sending policy type: ");
 
   if (policy.type == CPT_FUNC) {
-    if (send(sock,&(policy.func.lang),4,MSG_MORE) == -1) 
+    if (send(sock,&(policy.func.lang),4,MSG_MORE) == -1)
       do_throw(errno,"Error sending policy language: ");
 
     nslen = policy.func.func.length();
-    if (send(sock,&nslen,4,MSG_MORE) == -1) 
+    if (send(sock,&nslen,4,MSG_MORE) == -1)
       do_throw(errno,"Error sending policy function length: ");
 
-    if (send(sock,policy.func.func.c_str(),nslen,MSG_MORE) == -1) 
+    if (send(sock,policy.func.func.c_str(),nslen,MSG_MORE) == -1)
       do_throw(errno,"Error sending policy language: ");
   }
 
@@ -1862,14 +1862,14 @@ simple_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
 			sync_recv,&args);
 
   apply_to_set(ns,rs,sync_send,&sock);
-  
+
   // send done message
   send_string(sock,"");
 
   // wait for recv thread to read back all the keys
   pthread_join(recv_thread,NULL);
 
-  if ((numbytes = recv(sock, &stat, 1, 0)) == -1) 
+  if ((numbytes = recv(sock, &stat, 1, 0)) == -1)
     do_throw(errno,"Could not read final status: ");
 
 
@@ -1930,7 +1930,7 @@ int merkle_send(int sock, DB* db, MerkleDB* mdb, TQueue<DBT>* q) {
     } else {  // an internal node, send its children
       mdb->apply_children(&key,apply_send,&sock);
     }
-    
+
 
     if (key.size > 0)
       free(olddata); // was malloced by bdb in the queue call
@@ -1957,7 +1957,7 @@ void* merkle_recv(void* arg) {
   DBT key,data;
   char dbuf[BUFSZ];
   struct merkle_recv_args* args = (struct merkle_recv_args*)arg;
-  
+
   int sock = args->sock;
   DB* db = args->db;
   StorageDB* storageDB = args->storageDB;
@@ -2050,7 +2050,7 @@ void* merkle_recv(void* arg) {
 	void* d = malloc(sizeof(char)*key.size);
 	memcpy(d,key.data,key.size);
 	key.data = d;
-      } 
+      }
       tq->enqueue(key);
       kf = 0; // will free in dequeue
     }
@@ -2065,7 +2065,7 @@ void* merkle_recv(void* arg) {
 
 
 static DBT last_yes;
-static pthread_mutex_t last_yes_tex;
+static pthread_mutex_t last_yes_tex,sending_tex;
 
 void* merkle_dfs_recv(void* arg) {
   char *end;
@@ -2074,7 +2074,7 @@ void* merkle_dfs_recv(void* arg) {
   DBT key,data, ldata;
   char dbuf[BUFSZ];
   struct merkle_recv_args* args = (struct merkle_recv_args*)arg;
-  
+
   int sock = args->sock;
   DB* db = args->db;
   StorageDB* storageDB = args->storageDB;
@@ -2142,7 +2142,7 @@ void* merkle_dfs_recv(void* arg) {
       last_yes.size = key.size;
       memcpy(last_yes.data,key.data,key.size);
       last_yes.flags = 1;
-      (void)pthread_mutex_unlock(&last_yes_tex);      
+      (void)pthread_mutex_unlock(&last_yes_tex);
       kf = key.flags;
       key.flags = 0;
       break;
@@ -2165,7 +2165,7 @@ void* merkle_dfs_recv(void* arg) {
 	  //(void)pthread_mutex_unlock(&sending_tex);
 	  free(ldata.data);
 	}
-	key.size++;      
+	key.size++;
       } else
 	cerr << "SHOULD NOT GET NO'S FOR NON LEAF NODES IN DFS TRAVERAL"<<endl;
       kf = key.flags;
@@ -2183,14 +2183,14 @@ void* merkle_dfs_recv(void* arg) {
 bool cursor_advance(DBC* cursorp, DBT* key, DBT* data) {
   (void)pthread_mutex_lock(&last_yes_tex);
   if (!last_yes.flags) { // we've already handled this one
-    (void)pthread_mutex_unlock(&last_yes_tex); 
+    (void)pthread_mutex_unlock(&last_yes_tex);
     return true;
   }
   if (last_yes.size == 0) { // was a yes to our root node
 #ifdef DEBUG
     cout << "Yes to root, kicking out"<<endl;
 #endif
-    (void)pthread_mutex_unlock(&last_yes_tex);     
+    (void)pthread_mutex_unlock(&last_yes_tex);
     return false;
   }
   last_yes.flags = 0;
@@ -2202,7 +2202,6 @@ bool cursor_advance(DBC* cursorp, DBT* key, DBT* data) {
        ( (mc == 0) &&
 	 (key->size > last_yes.size)) )  { // i'm already ahead of this
     (void)pthread_mutex_unlock(&last_yes_tex);
-    cout << "Already ahead of: "<<dbt_string(&last_yes)<<endl;
     return true;
   }
 
@@ -2215,7 +2214,6 @@ bool cursor_advance(DBC* cursorp, DBT* key, DBT* data) {
   cd[key->size-1]++;
   int ret = cursorp->get(cursorp,key,data,DB_SET_RANGE);
   (void)pthread_mutex_unlock(&last_yes_tex);
-  cout << "Advanced cursor"<<endl;
   return ret==0;
 }
 
@@ -2227,7 +2225,7 @@ void send_merkle_dfs(int sock, DB* db, MerkleDB* mdb) {
   DB* dbp = mdb->dbp;
 
   /* Get a cursor */
-  dbp->cursor(dbp, NULL, &cursorp, 0); 
+  dbp->cursor(dbp, NULL, &cursorp, 0);
 
   /* Initialize our DBTs. */
   memset(&key, 0, sizeof(DBT));
@@ -2254,7 +2252,7 @@ void send_merkle_dfs(int sock, DB* db, MerkleDB* mdb) {
       }
     } else {
       send_vals(sock,&key,NULL,node_merkle);
-      send_hash(sock,mn->digest);    
+      send_hash(sock,mn->digest);
     }
     free(key.data);
     free(data.data);
@@ -2266,7 +2264,7 @@ void send_merkle_dfs(int sock, DB* db, MerkleDB* mdb) {
 
   send_merkle_stop(sock);
 
-  if (cursorp != NULL) 
+  if (cursorp != NULL)
     cursorp->close(cursorp);
 }
 
@@ -2287,29 +2285,23 @@ merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
 
   // block the flushing thread, if a flush is currently in progress
   // this will block until it is finished
-  flush_lock(false);  
+  flush_lock(false);
 
   // run a flush now to catch up
   mdb->flushp();
 
   memset(&key, 0, sizeof(DBT));
   memset(&data, 0, sizeof(DBT));
-  int sock;
 
-  try {
-    sock = open_socket(h);
-  } catch(...) {
-    flush_lock(true);
-    throw;
-  }
+  int sock = open_socket(h);
   int nslen = ns.length();
 
   stat = 1; // sync command
-  if (send(sock,&stat,1,MSG_MORE) == -1) 
+  if (send(sock,&stat,1,MSG_MORE) == -1)
     do_throw(errno,"Error sending sync operation: ");
 
   send_string(sock,ns);
-  
+
   // DBTSEND OK
 
   nslen =
@@ -2319,22 +2311,22 @@ merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
 
   if (send(sock,&node_data,1,MSG_MORE) == -1)
     do_throw(errno,"Failed to send message type: ");
-  
-  if (send(sock,&(nslen),4,MSG_MORE) == -1) 
+
+  if (send(sock,&(nslen),4,MSG_MORE) == -1)
     do_throw(errno,"Error sending policy length: ");
 
-  if (send(sock,&(policy.type),4,MSG_MORE) == -1) 
+  if (send(sock,&(policy.type),4,MSG_MORE) == -1)
     do_throw(errno,"Error sending policy type: ");
 
   if (policy.type == CPT_FUNC) {
-    if (send(sock,&(policy.func.lang),4,MSG_MORE) == -1) 
+    if (send(sock,&(policy.func.lang),4,MSG_MORE) == -1)
       do_throw(errno,"Error sending policy language: ");
 
     nslen = policy.func.func.length();
-    if (send(sock,&nslen,4,MSG_MORE) == -1) 
+    if (send(sock,&nslen,4,MSG_MORE) == -1)
       do_throw(errno,"Error sending policy function length: ");
 
-    if (send(sock,policy.func.func.c_str(),nslen,MSG_MORE) == -1) 
+    if (send(sock,policy.func.func.c_str(),nslen,MSG_MORE) == -1)
       do_throw(errno,"Error sending policy language: ");
   }
 
@@ -2355,11 +2347,10 @@ merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
   send_string(sock,os.str());
 
   data.flags = DB_DBT_MALLOC;
-  
+
   ret = mdb->dbp->get(mdb->dbp,NULL,&key,&data,0);
   if (ret == DB_NOTFOUND) { // no root node?
     cerr << "Umm, no root node found in merkle tree, something's wrong"<<endl;
-    flush_lock(true);
     return false;
   }
 #ifdef DEBUG
@@ -2396,9 +2387,11 @@ merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
   last_yes.flags = 0;
   last_yes.size = 0;
   last_yes.data = NULL;
-  if ((ret = pthread_mutex_init(&last_yes_tex,NULL)) != 0) {
-    flush_lock(true);
-    do_throw(ret,"Couldn't create last_yes mutex:");
+  if (pthread_mutex_init(&last_yes_tex,NULL))
+    do_throw(errno,"Couldn't create last_yes mutex:");
+  if (pthread_mutex_init(&sending_tex,NULL)) {
+    TException te("Couldn't create sending mutex");
+    throw te;
   }
 
   struct merkle_recv_args args;
@@ -2413,13 +2406,27 @@ merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
 			merkle_dfs_recv,&args);
 
   send_merkle_dfs(sock,dbp,mdb);
-  
+
   pthread_join(recv_thread,NULL);
 
   if ( (ret = (pthread_mutex_destroy(&last_yes_tex))) != 0) {
-    flush_lock(true);
-    do_throw(ret,"Couldn't destroy last_yes mutex");
+    switch(ret) {
+    case EBUSY: {
+      TException te("Couldn't destroy last_yes mutex, it is locked or referenced");
+      throw te;
+    }
+    case EINVAL: {
+      TException te("Couldn't destroy last_yes mutex, it is invalid");
+      throw te;
+    }
+    default: {
+      TException te("Couldn't destroy last_yes mutex, unknown error");
+      throw te;
+    }
+    }
   }
+  if (pthread_mutex_destroy(&sending_tex))
+    do_throw(errno,"Couldn't destroy sending mutex:");
 
   if (last_yes.data != NULL)
     free(last_yes.data);
@@ -2434,10 +2441,8 @@ merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
   cout << "Sent final done, gonna wait for final status"<<endl;
 #endif
 
-  if ((numbytes = recv(sock, &stat, 1, 0)) == -1) {
-    flush_lock(true);
+  if ((numbytes = recv(sock, &stat, 1, 0)) == -1)
     do_throw(errno,"Could not read final status: ");
-  }
 
   cout << "okay, all done"<<endl;
 
@@ -2449,7 +2454,7 @@ merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
 
   if (flush_log(dbp))
     return false;
-  
+
   return true;
 }
 
