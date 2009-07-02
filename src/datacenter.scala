@@ -13,7 +13,12 @@ object DataCenter {
   private val accessKeyId     = System.getenv.apply("AWS_ACCESS_KEY_ID")
   private val secretAccessKey = System.getenv.apply("AWS_SECRET_ACCESS_KEY")
 
-  private val service = new AmazonEC2Client(accessKeyId, secretAccessKey)
+  private val config = new AmazonEC2Config()
+
+  if(System.getenv.containsKey("EC2_URL"))
+  	config.setServiceURL(System.getenv.apply("EC2_URL"))
+
+  private val service = new AmazonEC2Client(accessKeyId, secretAccessKey, config)
 
   /* This method starts instances using the given arguments and returns
    * an InstanceGroup.
