@@ -18,7 +18,7 @@ public class Main {
          */
         
         try {
-            new Cloudstone().run(new Integer(args[1]).intValue(), args[3]);
+            new Colocation().run();
         } catch (org.json.JSONException e) {
             System.err.println("JSON exception: " + e.getMessage());
             e.printStackTrace();
