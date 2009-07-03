@@ -17,9 +17,9 @@ class InstanceGroup(c: java.util.Collection[Instance])
     /* Adapted from:
      * http://debasishg.blogspot.com/2008/06/playing-around-with-parallel-maps-in.html*/
     val resultArray = new Array[T](this.length)
-    var i = 0
+//    var i = 0
     val mappers = this.map(instance => {
-      i += 1
+//      i += 1
       scala.actors.Futures.future {
         resultArray(i) = fun(instance)
       }
