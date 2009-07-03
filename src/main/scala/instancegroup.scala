@@ -16,7 +16,7 @@ class InstanceGroup(c: java.util.Collection[Instance])
   def parallelExecute[T](fun: (Instance) => T): Array[T] = {
     /* Adapted from:
      * http://debasishg.blogspot.com/2008/06/playing-around-with-parallel-maps-in.html*/
-    val thisArray = new Array[Instance](this.length)
+    val thisArray = new Array[Instance](this.size())
     this.toArray(thisArray)
     val resultArray = new Array[T](thisArray.length)
     val mappers = 
