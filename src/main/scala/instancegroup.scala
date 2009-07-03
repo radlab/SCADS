@@ -29,9 +29,21 @@ class InstanceGroup(c: java.util.Collection[Instance])
     resultArray
   }
   
-  def parallelExecute(executer: InstanceExecute): Unit = {
+  def parallelExecute[T](executer: InstanceExecute[T]): Unit = {
     /* Place holder: serial execution */
     this.foreach(instance => executer.execute(instance))
+    
+    val thisArray = new Array[Instance](this.size())
+    this.toArray(thisArray)
+    val resultArray = new Array[T](thisArray.length)
+    val mappers =
+      for (i <- (0 until thisArray.length).toList) yield {
+        scala.actors.Futures.future {
+          resultArray(i) = executer.execute(thisArray(i))
+        }
+      }
+    for (mapper <- mappers) mapper()
+    resultArray
   }
   
   def getInstance(id: String): Instance = {
