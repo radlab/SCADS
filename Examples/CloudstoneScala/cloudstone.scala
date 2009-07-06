@@ -5,8 +5,7 @@
 import deploylib._ /* Imports all files in the deployment library */
 import org.json.JSONObject
 import org.json.JSONArray
-import java.util.HashMap
-
+import scala.collection.jcl.Conversions._
 
 object Cloudstone {
   def main(args: Array[String]) = {
@@ -25,7 +24,7 @@ object Cloudstone {
      */
  
  
-    val railsSettings   = (args(1).toInt, args(3), Instance.cores(Instance.Type.valueOf(args(3)).get) * 2)
+    val railsSettings   = (2, "c1.xlarge", InstanceType.cores("c1.xlarge") * 2)
 
     val mysqlSettings   = (1, "c1.xlarge")
     val haproxySettings = (1, "m1.small")
@@ -34,9 +33,8 @@ object Cloudstone {
 
 
     /* A shortcut method for DataCenter.runInstances provided in API */
-    def runInstances(count: Int, type_string: String): InstanceGroup = {
-      val instance_type = Instance.Type.valueOf(type_string).get
-      val imageId = Instance.bits(instance_type) match {
+    def runInstances(count: Int, typeString: String): InstanceGroup = {
+      val imageId = InstanceType.bits(typeString) match {
         case "32-bit" => "ami-e7a2448e"
         case "64-bit" => "ami-e4a2448d"
       }
@@ -44,7 +42,7 @@ object Cloudstone {
       val keyPath = "/Users/aaron/.ec2/id_rsa-abeitch"
       val location = "us-east-1a"
       
-      DataCenter.runInstances(imageId, count, keyName, keyPath, instance_type, location)
+      DataCenter.runInstances(imageId, count, keyName, keyPath, typeString, location)
     }
 
 
@@ -54,11 +52,13 @@ object Cloudstone {
     val nginx   = runInstances(nginxSettings._1, nginxSettings._2)
     val faban   = runInstances(fabanSettings._1, fabanSettings._2)
     
-    val allInstances = new InstanceGroup(rails.getList ++ mysql.getList ++ 
-              haproxy.getList ++ nginx.getList ++ faban.getList)
+    val allInstances = new InstanceGroup()
+    allInstances ++ rails ++ mysql ++ haproxy ++ nginx ++ faban
     
+    println("Waiting until all instances are ready.")
     allInstances.parallelExecute((instance: Instance) => instance.waitUntilReady)
     
+    println("Building configurations")
     /* Rails Configuration */
     val railsConfig = new JSONObject()
     railsConfig.put("recipes", new JSONArray().put("cloudstone::rails"))
@@ -70,7 +70,7 @@ object Cloudstone {
     railsRails.put("ports", railsRailsPorts)
     
     val railsRailsDatabase = new JSONObject()
-    railsRailsDatabase.put("host", mysql.getList.head.privateDnsName)
+    railsRailsDatabase.put("host", mysql.getFirst().privateDnsName)
     railsRailsDatabase.put("adapter", "mysql")
     railsRails.put("database", railsRailsDatabase)
     
@@ -80,7 +80,7 @@ object Cloudstone {
     railsRails.put("memcached", railsRailsMemcached)
     
     val railsRailsGeocoder = new JSONObject()
-    railsRailsGeocoder.put("host", faban.getList.head.privateDnsName)
+    railsRailsGeocoder.put("host", faban.getFirst().privateDnsName)
     railsRailsGeocoder.put("port", 9980)
     railsRails.put("geocoder", railsRailsGeocoder)
     
@@ -99,6 +99,7 @@ object Cloudstone {
     
     val mysqlFaban = new JSONObject()
     mysqlFaban.put("mysql", true)
+    mysqlFaban.put("postgresql", false)
     mysqlConfig.put("faban", mysqlFaban)
     
     /* haproxy configuration */
@@ -108,7 +109,7 @@ object Cloudstone {
     haproxyHaproxy.put("port", 4000)
     
     val haproxyHaproxyServers = new JSONObject()
-    rails.getList.foreach(instance => {
+    rails.foreach(instance => {
       val server = new JSONObject()
       server.put("start", 3000)
       server.put("count", railsSettings._3)
@@ -127,7 +128,7 @@ object Cloudstone {
     val nginxNginx = new JSONObject()
     val nginxNginxServers = new JSONObject()
     
-    haproxy.getList.foreach(instance => {
+    haproxy.foreach(instance => {
       val server = new JSONObject()
       server.put("start", 4000)
       server.put("count", 1)
@@ -138,6 +139,7 @@ object Cloudstone {
     
     val nginxFaban = new JSONObject()
     nginxFaban.put("mysql", false)
+    nginxFaban.put("postgresql", false)
     nginxConfig.put("faban", nginxFaban)
     
     /* faban configuration */
@@ -145,16 +147,18 @@ object Cloudstone {
     fabanConfig.put("recipes", new JSONArray().put("cloudstone::faban"))
     val fabanFaban = new JSONObject()
     val fabanFabanHosts = new JSONObject()
-    fabanFabanHosts.put("driver", faban.getList.head.privateDnsName)
-    fabanFabanHosts.put("webserver", nginx.getList.head.privateDnsName)
-    fabanFabanHosts.put("database", mysql.getList.head.privateDnsName)
+    fabanFabanHosts.put("driver", faban.getFirst().privateDnsName)
+    fabanFabanHosts.put("webserver", nginx.getFirst().privateDnsName)
+    fabanFabanHosts.put("database", mysql.getFirst().privateDnsName)
     fabanFabanHosts.put("storage", "")
     fabanFabanHosts.put("cache", "")
     
-    fabanFaban.put("hosts", fabanFabanHosts)
-    fabanConfig.put("faban", fabanFaban)
+    val fabanFabanDatabase = new JSONObject()
+    fabanFabanDatabase.put("adapter", "mysql")
     
-    /* faban-agent config */
+    fabanFaban.put("hosts", fabanFabanHosts)
+    fabanFaban.put("database", fabanFabanDatabase)
+    fabanConfig.put("faban", fabanFaban)
     
     def deployMaker(jsonConfig: JSONObject): (Instance) => Unit = {
       (instance: Instance) => {
@@ -162,10 +166,15 @@ object Cloudstone {
       }
     }
     
+    println("Deploying mysql.")
     mysql.parallelExecute(deployMaker(mysqlConfig))
+    println("Deploying rails.")
     rails.parallelExecute(deployMaker(railsConfig))
+    println("Deploying haproxy.")
     haproxy.parallelExecute(deployMaker(haproxyConfig))
+    println("Deploying nginx.")
     nginx.parallelExecute(deployMaker(nginxConfig))
+    println("Deploying faban.")
     faban.parallelExecute(deployMaker(fabanConfig))
     
     def startAllServices(instance: Instance): Unit = {
@@ -177,5 +186,3 @@ object Cloudstone {
     println("All done")
   }
 }
-
-
