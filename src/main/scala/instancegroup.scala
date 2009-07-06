@@ -56,8 +56,8 @@ class InstanceGroup(c: java.util.Collection[Instance])
     null
   }
   
-  def getInstance(id: String): Instance = {
-    null
+  def getInstance(id: String): Option[Instance] = {
+    this.find(instance => instance.instanceId == id)
   }
   
 }
