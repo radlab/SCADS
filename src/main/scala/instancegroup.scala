@@ -47,8 +47,10 @@ class InstanceGroup(c: java.util.Collection[Instance])
   }
   
   def parallelFilter(fun: (Instance) => Boolean): InstanceGroup = {
-    // TODO
-    null
+    val zippedWithBools = this zip parallelExecute(fun)
+    val filtered = 
+      for (pair <- zippedWithBools if pair._2) yield pair._1
+    new InstanceGroup(filtered)
   }
   
   def parallelFilter(executer: InstanceExecute[Boolean]): InstanceGroup = {
