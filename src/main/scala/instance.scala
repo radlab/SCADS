@@ -56,20 +56,29 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
     getAllServices.find(service => service.getId == id)
   }
   
+  @throws(classOf[IllegalStateException])
   def tagWith(tag: String) = {
     checkSsh
     exec("echo \'" + tag + "\' >> /mnt/tags")
   }
-  
+
+  @throws(classOf[IllegalStateException])  
   def isTaggedWith(tag: String): Boolean = {
     getAllTags.find(possible => possible == tag).isDefined
   }
   
+  @throws(classOf[IllegalStateException])
   def getAllTags: Array[String] = {
     checkSsh
     val response = exec("cat /mnt/tags")
     if (Util.responseError(response)) return Array()
     else return response.getStdout.split("\n")
+  }
+  
+  @throws(classOf[IllegalStateException])
+  def removeTag(tag: String) ={
+    checkSsh
+    exec("sed \'/" + tag + "/d\' /mnt/tags > /mnt/tmp && mv /mnt/tmp /mnt/tags")
   }
   
   @throws(classOf[IllegalStateException])
