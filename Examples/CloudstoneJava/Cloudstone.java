@@ -53,7 +53,7 @@ public class Cloudstone {
         /**************************************************
          * Don't forget to wait on the instances          *
          **************************************************/
-        allInstances.parallelExecute(new WaitUntilReady());
+        allInstances.parallelMap(new WaitUntilReady());
 
         /* Rails Configuration */
         JSONObject railsConfig = new JSONObject();
@@ -151,15 +151,15 @@ public class Cloudstone {
         fabanConfig.put("faban", fabanFaban);
         
         System.out.println("Deploying mysql.");
-        mysql.parallelExecute(new Deploy(mysqlConfig));
+        mysql.parallelMap(new Deploy(mysqlConfig));
         System.out.println("Deploying rails.");
-        rails.parallelExecute(new Deploy(railsConfig));
+        rails.parallelMap(new Deploy(railsConfig));
         System.out.println("Deploying haproxy.");
-        haproxy.parallelExecute(new Deploy(haproxyConfig));
+        haproxy.parallelMap(new Deploy(haproxyConfig));
         System.out.println("Deploying nginx.");
-        nginx.parallelExecute(new Deploy(nginxConfig));
+        nginx.parallelMap(new Deploy(nginxConfig));
         System.out.println("Deploying faban.");
-        faban.parallelExecute(new Deploy(fabanConfig));
+        faban.parallelMap(new Deploy(fabanConfig));
         
         System.out.println("All done.");
         

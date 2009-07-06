@@ -56,7 +56,7 @@ object Cloudstone {
     allInstances ++ rails ++ mysql ++ haproxy ++ nginx ++ faban
     
     println("Waiting until all instances are ready.")
-    allInstances.parallelExecute((instance: Instance) => instance.waitUntilReady)
+    allInstances.parallelMap((instance: Instance) => instance.waitUntilReady)
     
     println("Building configurations")
     /* Rails Configuration */
@@ -167,22 +167,22 @@ object Cloudstone {
     }
     
     println("Deploying mysql.")
-    mysql.parallelExecute(deployMaker(mysqlConfig))
+    mysql.parallelMap(deployMaker(mysqlConfig))
     println("Deploying rails.")
-    rails.parallelExecute(deployMaker(railsConfig))
+    rails.parallelMap(deployMaker(railsConfig))
     println("Deploying haproxy.")
-    haproxy.parallelExecute(deployMaker(haproxyConfig))
+    haproxy.parallelMap(deployMaker(haproxyConfig))
     println("Deploying nginx.")
-    nginx.parallelExecute(deployMaker(nginxConfig))
+    nginx.parallelMap(deployMaker(nginxConfig))
     println("Deploying faban.")
-    faban.parallelExecute(deployMaker(fabanConfig))
+    faban.parallelMap(deployMaker(fabanConfig))
     
     def startAllServices(instance: Instance): Unit = {
       def startService(service: Service): Unit = {service.start}
       instance.getAllServices.foreach(startService)
     }
     
-    //allInstances.parallelExecute(startAllServices)
+    //allInstances.parallelMap(startAllServices)
     println("All done")
   }
 }

@@ -59,7 +59,7 @@ public class Colocation {
         /**************************************************
          * Don't forget to wait on the instances          *
          **************************************************/
-        allInstances.parallelExecute(new WaitUntilReady());
+        allInstances.parallelMap(new WaitUntilReady());
         
         /* Rails Configuration */
         JSONObject[] railsObject = new JSONObject[railsIndices.length];
@@ -193,7 +193,7 @@ public class Colocation {
                 }
             }
             config.put("recipes", recipes);
-            instances[i].parallelExecute(new Deploy(config));
+            instances[i].parallelMap(new Deploy(config));
         }
         
         System.out.println("All done.");
