@@ -29,7 +29,7 @@ class InstanceGroup(c: java.util.Collection[Instance])
     resultArray
   }
   
-  def parallelMap[T](executer: InstanceExecute[T]): Unit = {
+  def parallelMap[T](executer: InstanceExecute[T]): Array[T] = {
     /* Place holder: serial execution */
     this.foreach(instance => executer.execute(instance))
     
@@ -44,6 +44,16 @@ class InstanceGroup(c: java.util.Collection[Instance])
       }
     for (mapper <- mappers) mapper()
     resultArray
+  }
+  
+  def parallelFilter(fun: (Instance) => Boolean): InstanceGroup = {
+    // TODO
+    null
+  }
+  
+  def parallelFilter(executer: InstanceExecute[Boolean]): InstanceGroup = {
+    // TODO
+    null
   }
   
   def getInstance(id: String): Instance = {
