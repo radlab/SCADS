@@ -60,6 +60,14 @@ object DataCenter {
     return instanceGroup
   }
   
+  def addInstances(instanceGroup: InstanceGroup) {
+    instances.addAll(instanceGroup)
+  }
+  
+  def addInstances(i: Instance) {
+    instances.add(i)
+  }
+  
   def getInstanceGroupByTag(tag: String): InstanceGroup = {
     val filtered = instances.filter(instance => instance.isTaggedWith(tag))
     new InstanceGroup(filtered.toList)
@@ -88,7 +96,7 @@ object DataCenter {
     removeInstances(instanceGroup)
   }
   
-  def describeInstances(idList: List[String]) = {
+  def describeInstances(idList: List[String]): List[RunningInstance] = {
     val request = new DescribeInstancesRequest(
                                     convertScalaListToJavaList(idList.toList))
     val response = service.describeInstances(request)
@@ -99,6 +107,14 @@ object DataCenter {
   
   def describeInstances(instances: InstanceGroup): List[RunningInstance] = {
     describeInstances(instances.map(instance => instance.instanceId).toList)
+  }
+  
+  def describeInstances(instance: Instance): RunningInstance = {
+    describeInstances(List(instance.instanceId)).head
+  }
+  
+  def describeInstances(instanceId: String): RunningInstance = {
+    describeInstances(List(instanceId)).head
   }
   
   private def convertScalaListToJavaList(aList:List[String]) =

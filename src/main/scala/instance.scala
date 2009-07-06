@@ -12,7 +12,9 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   var ssh: SSH = null
   
   def this(instanceId: String, keyPath: String) {
-    this(DataCenter.describeInstances(List(instanceId)).head, keyPath)
+    this(DataCenter.describeInstances(instanceId), keyPath)
+    if (running) ssh = new SSH(publicDnsName, keyPath)
+    DataCenter.addInstances(this)
   }
 
   @throws(classOf[IllegalStateException])
@@ -89,8 +91,7 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   }
   
   private def refresh = {
-    instance = DataCenter.describeInstances(
-                            new InstanceGroup(List(this))).head
+    instance = DataCenter.describeInstances(this)
   }
   
   private def checkSsh = {
