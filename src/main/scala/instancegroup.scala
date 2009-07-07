@@ -30,9 +30,6 @@ class InstanceGroup(c: java.util.Collection[Instance])
   }
   
   def parallelMap[T](executer: InstanceExecute[T]): Array[T] = {
-    /* Place holder: serial execution */
-    this.foreach(instance => executer.execute(instance))
-    
     val thisArray = new Array[Instance](this.size())
     this.toArray(thisArray)
     val resultArray = new Array[T](thisArray.length)
