@@ -19,7 +19,6 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
 
   @throws(classOf[IllegalStateException])
   def deploy(config: JSONObject): Array[Service] = {
-    checkSsh
     exec("cd && echo \'" + config.toString() + "\' > config.js && " +
          "chef-solo -j config.js")
     getAllServices
@@ -27,7 +26,6 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   
   @throws(classOf[IllegalStateException])
   def getCfg(): Option[JSONObject] = {
-    checkSsh
     val response = exec("cd && cat config.js")
     if (Util.responseError(response))
       return None
@@ -41,7 +39,6 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   
   @throws(classOf[IllegalStateException])
   def getAllServices: Array[Service] = {
-    checkSsh
     val response = exec("ls /mnt/services")
     if (Util.responseError(response))
       return Array()
@@ -51,6 +48,10 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
     }
   }
   
+  def cleanServices = {
+    exec("rm -rf /mnt/services")
+  }
+  
   @throws(classOf[IllegalStateException])
   def getService(id: String): Option[Service] = {
     getAllServices.find(service => service.getId == id)
@@ -58,7 +59,6 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   
   @throws(classOf[IllegalStateException])
   def tagWith(tag: String) = {
-    checkSsh
     exec("echo \'" + tag + "\' >> /mnt/tags")
   }
 
@@ -69,7 +69,6 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   
   @throws(classOf[IllegalStateException])
   def getAllTags: Array[String] = {
-    checkSsh
     val response = exec("cat /mnt/tags")
     if (Util.responseError(response)) return Array()
     else return response.getStdout.split("\n")
@@ -77,7 +76,6 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   
   @throws(classOf[IllegalStateException])
   def removeTag(tag: String) ={
-    checkSsh
     exec("sed \'/" + tag + "/d\' /mnt/tags > /mnt/tmp && mv /mnt/tmp /mnt/tags")
   }
   
