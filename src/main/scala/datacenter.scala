@@ -79,8 +79,17 @@ object DataCenter {
   }
   
   def terminateInstances(instanceGroup: InstanceGroup) = {
-    /* TODO: Do API stuff to actually stop running instances. */
+    val request = new TerminateInstancesRequest(
+      convertScalaListToJavaList(instanceGroup.map(instance =>
+        instance.instanceId).toList))
+    service.terminateInstances(request)
     removeInstances(instanceGroup)
+  }
+  
+  def terminateInstance(instance: Instance) = {
+    val ig = new InstanceGroup()
+    ig.add(instance)
+    terminateInstances(ig)
   }
   
   def removeInstances(instanceGroup: InstanceGroup) = {
@@ -95,7 +104,7 @@ object DataCenter {
   
   def describeInstances(idList: List[String]): List[RunningInstance] = {
     val request = new DescribeInstancesRequest(
-                                    convertScalaListToJavaList(idList.toList))
+      convertScalaListToJavaList(idList))
     val response = service.describeInstances(request)
     val result = response.getDescribeInstancesResult()
     val reservationList = result.getReservation()
