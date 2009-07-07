@@ -146,6 +146,22 @@ abstract class KeyStoreSuite extends Suite {
     }
   }
 
+  def testGetSetOffset() {
+    KeyStoreUtils.putNumericKeys(0,100,"tgso",connection)
+    
+    val off = (new Random).nextInt(50)+1
+    val rangeSet = new RangeSet(null,null,off,0)
+    rangeSet.unsetLimit()
+    val targetSet = new RecordSet(RecordSetType.RST_RANGE,
+                                  rangeSet,null,null)
+    val res: java.util.List[Record] = connection.get_set("tgso",targetSet)
+    assert(res.size() === (101-off))
+    for (i <- off to 100) {
+      val nk = new NumericKey(i)
+      assert(res.get(i-off).value === nk.serialize)
+    }
+  }
+
 }
 
 class BdbKeyStoreTest extends KeyStoreSuite {
