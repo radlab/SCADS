@@ -5,6 +5,7 @@ import org.apache.log4j.Logger
 import org.apache.thrift.transport.{TFramedTransport, TSocket}
 
 import org.apache.thrift.protocol.TBinaryProtocol
+import org.apache.thrift.protocol.XtBinaryProtocol
 
 abstract class ObjectPool[PoolType] {
   def borrowObject(): PoolType
@@ -40,7 +41,7 @@ object ConnectionPool {
 
   def createConnection(node: StorageNode):StorageEngine.Client  = {
     val transport = new TFramedTransport(new TSocket(node.host, node.thriftPort))
-    val protocol = new TBinaryProtocol(transport)
+    val protocol = if (System.getProperty("xtrace")!=null) {new XtBinaryProtocol(transport)} else {new TBinaryProtocol(transport)}
     val client = new StorageEngine.Client(protocol)
     transport.open()
     logger.info("New connection opened to " + node)
