@@ -186,3 +186,5 @@ object Cloudstone {
     println("All done")
   }
 }
+
+Cloudstone.main(Array(""))
