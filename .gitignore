@@ -5,3 +5,6 @@ storage/engines/bdb/storage.bdb*
 **/db/*
 **/testdb/*
 **/target/*
+*.iml
+*.ipr
+*.iws
