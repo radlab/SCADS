@@ -1,7 +1,5 @@
 package edu.berkeley.cs.scads.keys
 
-import scala.util.Sorting
-
 class NotContiguousException extends Exception
 class NonCoveredRangeException extends Exception
 class NoNodeResponsibleException extends Exception
