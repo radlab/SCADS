@@ -15,7 +15,7 @@ trait Conversions extends AutoKey {
 }
 
 trait RangeConversion {
-	def keyRangeToScadsRangeSet(kr:KeyRange):RecordSet = {
+	implicit def keyRangeToScadsRangeSet(kr:KeyRange):RecordSet = {
 		val recSet = new RecordSet
 		val range = new RangeSet
 		recSet.setType(RecordSetType.RST_RANGE)
