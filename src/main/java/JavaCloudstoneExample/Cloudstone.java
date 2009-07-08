@@ -1,5 +1,5 @@
 
-package CloudstoneJava;
+package JavaCloudstoneExample;
 
 import deploylib.*;
 import org.json.JSONObject;
