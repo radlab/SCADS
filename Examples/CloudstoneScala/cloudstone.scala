@@ -2,13 +2,15 @@
  * An example use of the deployment library to deploy Cloudstone
  */
  
+package ScalaCloudstoneDeployment
+ 
 import deploylib._ /* Imports all files in the deployment library */
 import org.json.JSONObject
 import org.json.JSONArray
 import scala.collection.jcl.Conversions._
 
 object Cloudstone {
-  def main(args: Array[String]) = {
+  def start = {
     /**
      * This is a simple example where you pass on the command line
      * the number and size of rails servers you would like in the 
@@ -59,6 +61,7 @@ object Cloudstone {
     allInstances.parallelMap((instance: Instance) => instance.waitUntilReady)
     
     println("Building configurations")
+    val mysqlPort = 3306
     /* Rails Configuration */
     val railsConfig = new JSONObject()
     railsConfig.put("recipes", new JSONArray().put("cloudstone::rails"))
@@ -72,6 +75,7 @@ object Cloudstone {
     val railsRailsDatabase = new JSONObject()
     railsRailsDatabase.put("host", mysql.getFirst().privateDnsName)
     railsRailsDatabase.put("adapter", "mysql")
+    railsRailsDatabase.put("port", mysqlPort)
     railsRails.put("database", railsRailsDatabase)
     
     val railsRailsMemcached = new JSONObject()
@@ -95,12 +99,12 @@ object Cloudstone {
     val mysqlMysql = new JSONObject()
     
     mysqlMysql.put("server_id", 1)
+    mysqlMysql.put("port", mysqlPort)
     mysqlConfig.put("mysql", mysqlMysql)
     
-    val mysqlFaban = new JSONObject()
-    mysqlFaban.put("mysql", true)
-    mysqlFaban.put("postgresql", false)
-    mysqlConfig.put("faban", mysqlFaban)
+    val mysqlFabanAgent = new JSONObject()
+    mysqlFabanAgent.put("jdbc", "mysql")
+    mysqlConfig.put("faban", mysqlFabanAgent)
     
     /* haproxy configuration */
     val haproxyConfig = new JSONObject()
@@ -155,9 +159,11 @@ object Cloudstone {
     
     val fabanFabanDatabase = new JSONObject()
     fabanFabanDatabase.put("adapter", "mysql")
+    fabanFabanDatabase.put("port", mysqlPort)
     
     fabanFaban.put("hosts", fabanFabanHosts)
     fabanFaban.put("database", fabanFabanDatabase)
+    fabanFaban.put("debug", false)
     fabanConfig.put("faban", fabanFaban)
     
     def deployMaker(jsonConfig: JSONObject): (Instance) => Unit = {
@@ -186,5 +192,3 @@ object Cloudstone {
     println("All done")
   }
 }
-
-Cloudstone.main(Array(""))
