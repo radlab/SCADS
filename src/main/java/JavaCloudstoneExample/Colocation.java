@@ -213,108 +213,24 @@ public class Colocation {
                                        typeString, location);
     }
     
-    private JSONObject configureRails(InstanceSettings railsSettings, String dbHost,
-        String dbAdapter, String memcachedHost, int memcachedPort,
-        String geocoderHost, int geocoderPort) {
-        JSONObject rails = new JSONObject();
-
-        JSONObject railsPorts = new JSONObject();
-        railsPorts.put("start", (Integer)railsSettings.getAdditional().get("portStart"));
-        railsPorts.put("count", (Integer)railsSettings.getAdditional().get("portCount"));
-        rails.put("ports", railsPorts);
-
-        JSONObject railsDatabase = new JSONObject();
-        railsDatabase.put("host", dbHost);
-        railsDatabase.put("adapter", dbAdapter);
-        rails.put("database", railsDatabase);
-
-        JSONObject railsMemcached = new JSONObject();
-        railsMemcached.put("host", memcachedHost);
-        railsMemcached.put("port", memcachedPort);
-        rails.put("memcached", railsMemcached);
-
-        JSONObject railsGeocoder = new JSONObject();
-        railsGeocoder.put("host", geocoderHost);
-        railsGeocoder.put("port", geocoderPort);
-        rails.put("geocoder", railsGeocoder);
-
-        return rails;
-    }
-    
-    private JSONObject configureMysql(int serverId) {
-        JSONObject mysql = new JSONObject();
-        mysql.put("server_id", serverId);
-        
-        return mysql;
-    }
-    
-    private JSONObject configureHaproxy(int port, InstanceSettings[] appServers,
-        String[] appsHost) {
-        JSONObject haproxy = new JSONObject();
-        haproxy.put("port", port);
-
-        JSONObject haproxyServers = new JSONObject();
-        for (int i = 0; i < appServers.size(), i++) {
-            JSONObject server = new JSONObject();
-            server.put("start", (Integer)appServers[i].getAdditional().get("portStart"));
-            server.put("count", (Integer)appServers[i].getAdditional().get("portCount"));
-            haproxyServers.put(appsHost[i], server);
-        }
-        haproxy.put("servers", haproxyServers);
-        
-        return haproxy;
-    }
-    
-    private JSONObject configureNginx(InstanceSettings[] servers,
-        String[] hosts) {
-        JSONObject nginx = new JSONObject();
-        JSONObject nginxServers = new JSONObject();
-
-         for (int i = 0; i < servers.size(), i++) {
-             JSONObject server = new JSONObject();
-             server.put("start", (Integer)servers[i].getAdditional().get("port"));
-             server.put("count", 1);
-             nginxServers.put(hosts[i], server);
-         }
-         
-         nginx.put("servers", nginxServers);
-         
-         return nginx;
-    }
-    
-    private JSONObject configureFabanMaster(String driverHost,
-        String webserverHost, String dbHost) {
-        JSONObject faban = new JSONObject();
-        JSONObject fabanHosts = new JSONObject();
-        fabanHosts.put("driver", driverHost);
-        fabanHosts.put("webserver", webserverHost);
-        fabanHosts.put("database", dbHost);
-        fabanHosts.put("storage", "");
-        fabanHosts.put("cache", "");
-
-        faban.put("hosts", fabanHosts);
-        
-        return fabanl
-    }
-    
-    private class InstanceSettings {
+    private class InstanceConfig {
         private int count;
         private String instanceType;
         private String[] services;
-        private Map<String, Object> additional;
+        private Map<String, Object> settings;
         
-        public InstanceSettings(int count, String instanceType,
-            String[] services, Map<String, Object> additional) {
+        public InstanceConfig(int count, String instanceType,
+            String[] services, Map<String, Object> settings) {
             this.count = count;
             this.instanceType = instanceType;
             this.services = services;
-            this.additional = additional;
+            this.settings = settings;
         }
         
         public int getCount() { return count; }
         public String getInstanceType() { return instanceType; }
         public String[] getServices() { return services; }
-        public Map<String, Object> getAdditional() { return additional; }
+        public Map<String, Object> getSettings() { return settings; }
         
         public boolean hasService(String service) {
             return contains(service, services);
