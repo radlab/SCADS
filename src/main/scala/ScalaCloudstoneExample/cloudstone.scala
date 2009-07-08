@@ -2,7 +2,7 @@
  * An example use of the deployment library to deploy Cloudstone
  */
  
-package ScalaCloudstoneDeployment
+package ScalaCloudstoneExample
  
 import deploylib._ /* Imports all files in the deployment library */
 import org.json.JSONObject
@@ -12,12 +12,6 @@ import scala.collection.jcl.Conversions._
 object Cloudstone {
   def start = {
     /**
-     * This is a simple example where you pass on the command line
-     * the number and size of rails servers you would like in the 
-     * following form:
-     *
-     * scala cloudstone --count 2 --type c1.xlarge
-     *
      * The stack will have the following defaults for the other roles:
      * 1 MySQL server on an c1.xlarge instance
      * 1 HAProxy server on a m1.small instance
