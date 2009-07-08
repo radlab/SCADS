@@ -20,10 +20,22 @@ object DataCenter {
 
   private val service = new AmazonEC2Client(accessKeyId, secretAccessKey, config)
 
-  /* This method starts instances using the given arguments and returns
+  /**
+   * This method starts instances using the given arguments and returns
    * an InstanceGroup.
    * The EC2 access key ID and EC2 secret access key will be read from 
-   * a configuration file. */
+   * a configuration file.
+   *
+   * @param imageId    the image id to use when deploying the instances
+   * @param count      number of instances to startup
+   * @param keyName    the name of the keypair to use
+   * @param keyPath    the path to the local key file
+   * @param typeString the type of instance wanted ie. "m1.small", "c1.xlarge", etc.
+   * @param location   the availability zone ie. "us-east-1a"
+   * @return           An InstanceGroup object holding all instances allocated.
+   *                   Note that the instances will not be in the ready state
+   *                   when this method exits.
+   */
   def runInstances(imageId: String, count: Int, keyName: String,
                    keyPath: String, typeString: String,
                    location: String):
@@ -72,7 +84,7 @@ object DataCenter {
     instances.parallelFilter(instance => instance.isTaggedWith(tag))
   }
   
-  // TODO: getInstanceGroupByService(service: Service)?
+  // @TODO getInstanceGroupByService(service: Service)?
   
   def getInstanceGroupByService(service: String): InstanceGroup = {
     instances.parallelFilter(instance => instance.getService(service).isDefined)
