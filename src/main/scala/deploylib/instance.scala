@@ -18,10 +18,9 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   }
 
   @throws(classOf[IllegalStateException])
-  def deploy(config: JSONObject): Array[Service] = {
+  def deploy(config: JSONObject): ExecuteResponse = {
     exec("cd && echo \'" + config.toString() + "\' > config.js && " +
          "chef-solo -j config.js")
-    getAllServices
   }
   
   @throws(classOf[IllegalStateException])
