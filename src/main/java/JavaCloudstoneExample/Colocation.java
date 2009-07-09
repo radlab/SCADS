@@ -244,29 +244,32 @@ public class Colocation {
         }
     }
     
-    private class WaitUntilReady implements InstanceExecute {
-        public void execute(Instance instance) {
+    private class WaitUntilReady<Object> implements InstanceExecute {
+        public Object execute(Instance instance) {
             instance.waitUntilReady();
+            return null;
         }
     }
     
-    private class Tag implements InstanceExecute {
+    private class Tag<Object> implements InstanceExecute {
         private String tag;
         public Tag(String tag) { this.tag = tag; }
-        public void execute(Instance instance) {
+        public Object execute(Instance instance) {
             instance.tagWith(tag);
+            return null;
         }
     }
     
-    private class Deploy implements InstanceExecute {
+    private class Deploy<Object> implements InstanceExecute {
         private JSONObject config;
         
         public Deploy(JSONObject config) {
             this.config = config;
         }
         
-        public void execute(Instance instance) {
+        public Object execute(Instance instance) {
             instance.deploy(config);
+            return null;
         }
     }
 }
