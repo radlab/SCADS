@@ -86,19 +86,27 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   }
   
   def waitUntilReady: Unit = {
-    if (terminated) {
-      DataCenter.removeInstance(this)
-      return
-    }
-    while (!running) {
-      refresh
+    while (refresh && !running) {
       Thread.sleep(5000)
     }
     ssh = new SSH(publicDnsName, keyPath)
   }
   
-  private def refresh = {
+  /**
+   * Updates the instance status by checking with EC2.
+   * If the instance is shutting down or is terminated then it will be removed
+   * from the DataCenter's list of instances.
+   *
+   * @return The method returns false if the instance is terminated or in the
+   *         process of being terminated, true otherwise.
+   */
+  def refresh: Boolean = {
     instance = DataCenter.describeInstances(this)
+    if (terminated) {
+      DataCenter.removeInstance(this)
+      return false
+    }
+    return true
   }
   
   private def checkSsh = {
