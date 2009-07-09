@@ -39,11 +39,12 @@ STORAGE_SRCS = StorageDB.cpp MerkleDB.cpp Network.cpp TQueue.h
 
 # C/C++ MACROS
 CXX=g++
-CFLAGS = -I${THRIFT_DIR} -I${BOOST_DIR} -Igen-cpp ${BDB_DIR}
+CFLAGS = -I${THRIFT_DIR} -I${BOOST_DIR} -Igen-cpp ${BDB_DIR} -I${XTRACE_DIR}
 LIBS = ${LIB_DIRS} -lthrift -lthriftnb -levent -l${BDB_LIB} -l${RUBY_LIB} -lmhash
 
 # deb files
-DEB = scads-storage-bdb_0.1.deb
+DEBI386 = scads-storage-bdb_0.1_i386.deb
+DEBAMD64 = scads-storage-bdb_0.1_amd64.deb
 DEBCTRL64 = debian/control.amd64
 DEBCTRL386 = debian/control.i386
 DEBDIR = gendeb
@@ -108,7 +109,7 @@ debamd64: storage.bdb $(DEBCTRL64)
 	mkdir -p $(DEBDIR)/DEBIAN
 	cp storage.bdb $(DEBDIR)/opt/scads/storage/engines/bdb
 	cp $(DEBCTRL64) $(DEBDIR)/DEBIAN/control
-	dpkg -b $(DEBDIR) $(DEB)
+	dpkg -b $(DEBDIR) $(DEBAMD64)
 	rm -rf $(DEBDIR)
 
 debi386: storage.bdb $(DEBCTRL386)
@@ -117,7 +118,7 @@ debi386: storage.bdb $(DEBCTRL386)
 	mkdir -p $(DEBDIR)/DEBIAN
 	cp storage.bdb $(DEBDIR)/opt/scads/storage/engines/bdb
 	cp $(DEBCTRL386) $(DEBDIR)/DEBIAN/control
-	dpkg -b $(DEBDIR) $(DEB)
+	dpkg -b $(DEBDIR) $(DEBI386)
 	rm -rf $(DEBDIR)
 
 clean:
