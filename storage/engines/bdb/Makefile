@@ -122,4 +122,4 @@ debi386: storage.bdb $(DEBCTRL386)
 	rm -rf $(DEBDIR)
 
 clean:
-	rm -rf gen-cpp storage.bdb MerkleDB MerkleBench $(DEB)
+	rm -rf gen-cpp storage.bdb MerkleDB MerkleBench $(DEBI386) $(DEBAMD64)

@@ -2,7 +2,7 @@ Package: scads-storage-bdb
 Version: 0.1.0
 Section: database
 Architecture: amd64
-Depends: libdb4.6, thift (>= 0.2009.01.30.1)
+Depends: libdb4.6, thrift (>= 0.2009.01.30.1), libmhash2 (>= 0.9.9), libevent1 (>= 1.3e), libruby1.8
 Maintainer: Nick Lanham [nick@afternight.org]
 Provides: scads-storage-bdb
 Description: BDB backed storage engine 
