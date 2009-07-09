@@ -176,21 +176,23 @@ public class Cloudstone {
                                        typeString, location);
     }
     
-    private class WaitUntilReady implements InstanceExecute {
-        public void execute(Instance instance) {
+    private class WaitUntilReady<Object> implements InstanceExecute {
+        public Object execute(Instance instance) {
             instance.waitUntilReady();
+            return null;
         }
     }
     
-    private class Deploy implements InstanceExecute {
+    private class Deploy<Object> implements InstanceExecute {
         private JSONObject config;
         
         public Deploy(JSONObject config) {
             this.config = config;
         }
         
-        public void execute(Instance instance) {
+        public Object execute(Instance instance) {
             instance.deploy(config);
+            return null;
         }
     }
 }
