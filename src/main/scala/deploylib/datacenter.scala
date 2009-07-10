@@ -175,7 +175,8 @@ object DataCenter {
       case _    => path
     }
     
-    val instanceIds = Source.fromFile(filePath).getLines.toList
+    val instanceIds = 
+      for (id <- Source.fromFile(filePath).getLines.toList) yield id.trim
     
     val instanceList = 
       for (runningInstance <- describeInstances(instanceIds)) yield

@@ -10,6 +10,7 @@ import com.amazonaws.ec2.model._
 class Instance(initialInstance: RunningInstance, keyPath: String) {
   var instance = initialInstance
   var ssh: SSH = null
+  if (running) ssh = new SSH(publicDnsName, keyPath)
   
   def this(instanceId: String, keyPath: String) {
     this(DataCenter.describeInstances(instanceId), keyPath)
