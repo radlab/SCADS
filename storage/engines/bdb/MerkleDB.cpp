@@ -11,6 +11,7 @@
 #include <math.h>
 #include "scads_se_util.h"
 
+#define cleanup_after_insert() cursorp->close(cursorp); while (data_ptrs.size() > 0) { free(data_ptrs.back()); data_ptrs.pop_back(); }
 
 using namespace std;
 using namespace SCADS;
@@ -298,7 +299,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
       recalculate(&ckey, &cdata, cursorp);
       //TODO: update(&ckey, &m.digest...?)
       //TODO: add parent to pending (with data with length zero)
-      cleanup_after_bdb();
+      cleanup_after_insert();
       return_with_success();
     } else {
       //Key doesn't exist, cursor is now at key on right-hand side of insertion point.
@@ -309,7 +310,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
     rightk.size = 0;
     //TODO: We need to do something besides DB_PREV in next call to find left neighbor
   } else {
-    cleanup_after_bdb();
+    cleanup_after_insert();
     return_with_error(ret);
   }
 
@@ -338,7 +339,7 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
     data_ptrs.push_back(cdata.data);
     leftk = ckey;
   } else {
-    cleanup_after_bdb();
+    cleanup_after_insert();
     return_with_error(ret);
   }
 
@@ -412,10 +413,10 @@ int MerkleDB::insert(DBT * key, MerkleHash hash) {
       //must be some key containing it as a sole prefix (which would lexically sort after it).
       std::cerr << "Inconceivable!\n";
     }
-    cleanup_after_bdb();
+    cleanup_after_insert();
     return_with_error(ret);
   }
-  cleanup_after_bdb();
+  cleanup_after_insert();
   return_with_success();
 }
 
