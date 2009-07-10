@@ -1,7 +1,8 @@
 package deploylib
 
-import scala.collection.mutable.ArrayBuffer
 import scala.collection.jcl.Conversions._
+
+import java.io._
 
 import com.amazonaws.ec2._
 import com.amazonaws.ec2.model._
@@ -14,6 +15,8 @@ object DataCenter {
   private val secretAccessKey = System.getenv.apply("AWS_SECRET_ACCESS_KEY")
 
   private val config = new AmazonEC2Config()
+  
+  private val defaultDumpPath = System.getProperty("user.home") + "/.deploylib_state"
 
   if(System.getenv.containsKey("EC2_URL"))
   	config.setServiceURL(System.getenv.apply("EC2_URL"))
@@ -135,8 +138,32 @@ object DataCenter {
     describeInstances(List(instanceId)).head
   }
   
+  def dumpStateToFile(path: String) {
+    path match {
+      case null => dumpStateToFile(None)
+      case ""   => dumpStateToFile(None)
+      case _    => dumpStateToFile(Some(path))
+    }
+  }
+  
   def dumpStateToFile(path: Option[String]) = {
+    val instanceIds = instances.map(instance => instance.instanceId)
     
+    val filePath = path match {
+      case Some(string) => string
+      case None         => defaultDumpPath
+    }
+    
+    val out = new BufferedWriter(new FileWriter(filePath))
+    
+    try {
+      for (id <- instanceIds) {
+        out.write(id)
+        out.newLine()
+      }
+    } finally {
+      out.close()
+    }
   }
   
   def readStateToFile(path: Option[String]) = {
