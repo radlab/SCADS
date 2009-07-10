@@ -135,6 +135,14 @@ object DataCenter {
     describeInstances(List(instanceId)).head
   }
   
+  def dumpStateToFile(path: Option[String]) = {
+    
+  }
+  
+  def readStateToFile(path: Option[String]) = {
+    
+  }
+  
   private def convertScalaListToJavaList(aList:List[String]) =
     java.util.Arrays.asList(aList.toArray: _*)
   
