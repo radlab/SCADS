@@ -163,7 +163,7 @@ object DataCenter {
     }
   }
   
-  def readStateToFile(path: Option[String]) = {
+  def readStateFromFile(path: Option[String]) = {
     
   }
   
