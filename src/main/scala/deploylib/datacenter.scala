@@ -138,20 +138,13 @@ object DataCenter {
     describeInstances(List(instanceId)).head
   }
   
-  def dumpStateToFile(path: String) {
-    path match {
-      case null => dumpStateToFile(None)
-      case ""   => dumpStateToFile(None)
-      case _    => dumpStateToFile(Some(path))
-    }
-  }
-  
-  def dumpStateToFile(path: Option[String]) = {
+  def dumpStateToFile(path: String) = {
     val instanceIds = instances.map(instance => instance.instanceId)
     
     val filePath = path match {
-      case Some(string) => string
-      case None         => defaultDumpPath
+      case null => defaultDumpPath
+      case ""   => defaultDumpPath
+      case _    => path
     }
     
     val out = new BufferedWriter(new FileWriter(filePath))
