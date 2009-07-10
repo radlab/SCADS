@@ -108,6 +108,12 @@ object DataCenter {
     terminateInstances(ig)
   }
   
+  def terminateAllInstances = {
+    terminateInstances(instances)
+    instances.parallelMap((instance) => instance.refresh)
+    instances.clear()
+  }
+  
   def removeInstances(instanceGroup: InstanceGroup) = {
     instances.removeAll(instanceGroup)
   }
