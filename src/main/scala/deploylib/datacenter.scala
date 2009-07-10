@@ -138,7 +138,11 @@ object DataCenter {
     describeInstances(List(instanceId)).head
   }
   
-  def dumpStateToFile(path: String) = {
+  def dumpStateToFile: Unit = {
+    dumpStateToFile(null)
+  }
+  
+  def dumpStateToFile(path: String): Unit = {
     val instanceIds = instances.map(instance => instance.instanceId)
     
     val filePath = path match {
