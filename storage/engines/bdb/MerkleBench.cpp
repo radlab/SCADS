@@ -7,15 +7,8 @@
 #include "mhash.h"
 
 #include "MerkleDB.h"
+#include "scads_se_util.h"
 
-#define print_hex(buf, len) for (int i = 0; i < len ; i++) { printf("%X%X", (0x0F & (((char *)buf)[i]) >> 4), (0x0F & (((char *)buf)[i])));}
-#define start_timer() gettimeofday(&start_time,NULL)
-#define end_timer() { \
-    gettimeofday(&end_time,NULL); \
-    timersub(&end_time,&start_time,&diff_time); \
-    printf("%ld.%.6ld\n", diff_time.tv_sec, diff_time.tv_usec); \
-  }
-//printf("%ld.%.6ld\t%ld.%.6ld\n", start_time.tv_sec, start_time.tv_usec, diff_time.tv_sec, diff_time.tv_usec);
 using namespace std;
 using namespace SCADS;
 

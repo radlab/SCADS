@@ -9,25 +9,8 @@
 #include <sys/time.h>
 #include <assert.h>
 #include <math.h>
+#include "scads_se_util.h"
 
-#define min(i1, i2) ((i1) < (i2) ? (i1) : (i2))
-#define max(i1, i2) ((i1) > (i2) ? (i1) : (i2))
-#define return_with_error(error) std::cout << db_strerror(error) << "\n"; return error;
-#define return_with_success() return 0;
-#define close_if_not_null(db) if ((db) != NULL) { (db)->close((db), 0); }
-#define cleanup_after_bdb() cursorp->close(cursorp); while (data_ptrs.size() > 0) { free(data_ptrs.back()); data_ptrs.pop_back(); }
-#define print_hex(buf, len) for (int i = (len) - 1; i >= 0 ; i--) { printf("%X%X", (0x0F & (((char *)buf)[i]) >> 4), (0x0F & (((char *)buf)[i])));}
-
-#define prepare_timer() struct timeval start_time, end_time, diff_time;
-#define start_timer() gettimeofday(&start_time,NULL)
-#define end_timer() { \
-    gettimeofday(&end_time,NULL); \
-    timersub(&end_time,&start_time,&diff_time); \
-    printf("%ld.%.6ld\n", diff_time.tv_sec, diff_time.tv_usec); \
-  }
-
-//#define is_leaf(keyd) false
-#define dbt_string(dbt) std::string((char*)(dbt)->data,(dbt)->size)
 
 using namespace std;
 using namespace SCADS;

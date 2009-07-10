@@ -7,9 +7,7 @@
 #include "mhash.h"
 
 #include "db.h"
-
-#define dbt_string(dbt) std::string((char*)(dbt)->data,(dbt)->size)
-#define print_hex(buf, len) for (int i = 0; i < len ; i++) { printf("%X%X", (0x0F & (((char *)buf)[i]) >> 4), (0x0F & (((char *)buf)[i])));}
+#include "scads_se_util.h"
 
 using namespace std;
 

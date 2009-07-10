@@ -21,8 +21,6 @@
 #define SYNC_SIMPLE 0
 #define SYNC_MERKLE 1
 
-#define print_hex(buf, len) for (int i = (len) - 1; i >= 0 ; i--) { printf("%X%X", (0x0F & (((char *)buf)[i]) >> 4), (0x0F & (((char *)buf)[i])));}
-
 extern char stopping;
 extern ID call_id;
 
