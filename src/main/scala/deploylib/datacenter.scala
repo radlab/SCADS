@@ -8,7 +8,14 @@ import scala.io.Source
 import com.amazonaws.ec2._
 import com.amazonaws.ec2.model._
 
-object DataCenter {
+/**
+ * The DataCenter object has two main roles:
+ * <ol>
+ * <li> The abstraction to EC2.
+ * <li> Keeping track of instances, so that they can queried over.
+ * </ol>
+ */
+object DataCenter { 
   
   protected var instances: InstanceGroup = new InstanceGroup()
 
@@ -76,14 +83,24 @@ object DataCenter {
     return instanceGroup
   }
   
+  /**
+   * Tell's the DataCenter object about the instances in instanceGroup.
+   */
   def addInstances(instanceGroup: InstanceGroup) {
     instances.addAll(instanceGroup)
   }
-  
+  /**
+   * Tell's the DataCenter object about the instance i.
+   */
   def addInstances(i: Instance) {
     instances.add(i)
   }
   
+  /**
+   * Queries all instances known to DataCenter looking for the tag.
+   * @param tag The tag to look for.
+   * @return    An InstanceGroup containing instances that are all tagged with tag.
+   */
   def getInstanceGroupByTag(tag: String): InstanceGroup = {
     instances.parallelFilter(instance => instance.isTaggedWith(tag))
   }
