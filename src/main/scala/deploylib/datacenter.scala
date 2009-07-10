@@ -84,13 +84,13 @@ object DataCenter {
   }
   
   /**
-   * Tell's the DataCenter object about the instances in instanceGroup.
+   * Tells the DataCenter object about the instances in instanceGroup.
    */
   def addInstances(instanceGroup: InstanceGroup) {
     instances.addAll(instanceGroup)
   }
   /**
-   * Tell's the DataCenter object about the instance i.
+   * Tells the DataCenter object about the instance i.
    */
   def addInstances(i: Instance) {
     instances.add(i)
