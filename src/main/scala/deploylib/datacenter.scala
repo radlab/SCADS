@@ -3,6 +3,7 @@ package deploylib
 import scala.collection.jcl.Conversions._
 
 import java.io._
+import scala.io.Source
 
 import com.amazonaws.ec2._
 import com.amazonaws.ec2.model._
@@ -163,8 +164,26 @@ object DataCenter {
     }
   }
   
-  def readStateFromFile(path: Option[String]) = {
+  def readStateFromFile(keyPath: String): InstanceGroup = {
+    readStateFromFile(null, keyPath)
+  }
+  
+  def readStateFromFile(path: String, keyPath: String): InstanceGroup = {
+    val filePath = path match {
+      case null => defaultDumpPath
+      case ""   => defaultDumpPath
+      case _    => path
+    }
     
+    val instanceIds = Source.fromFile(filePath).getLines.toList
+    
+    val instanceList = 
+      for (runningInstance <- describeInstances(instanceIds)) yield
+        new Instance(runningInstance, keyPath)
+    val instanceGroup = new InstanceGroup(instanceList)
+    instances.addAll(instanceGroup)
+    
+    return instanceGroup
   }
   
   private def convertScalaListToJavaList(aList:List[String]) =
