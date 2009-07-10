@@ -39,7 +39,7 @@ STORAGE_SRCS = StorageDB.cpp MerkleDB.cpp Network.cpp TQueue.h
 
 # C/C++ MACROS
 CXX=g++
-CFLAGS = -I${THRIFT_DIR} -I${BOOST_DIR} -Igen-cpp ${BDB_DIR} -I${XTRACE_DIR}
+CFLAGS = -I${THRIFT_DIR} -I${BOOST_DIR} -Igen-cpp ${BDB_DIR}
 LIBS = ${LIB_DIRS} -lthrift -lthriftnb -levent -l${BDB_LIB} -l${RUBY_LIB} -lmhash
 
 # deb files
