@@ -40,7 +40,7 @@ object DataCenter {
    * @param imageId    the image id to use when deploying the instances
    * @param count      number of instances to startup
    * @param keyName    the name of the keypair to use
-   * @param keyPath    the path to the local key file
+   * @param keyPath    the path to the local key file. Note: ~ does not mean your home directory!
    * @param typeString the type of instance wanted ie. "m1.small", "c1.xlarge", etc.
    * @param location   the availability zone ie. "us-east-1a"
    * @return           An InstanceGroup object holding all instances allocated.
@@ -97,7 +97,8 @@ object DataCenter {
   }
   
   /**
-   * Queries all instances known to DataCenter looking for the tag.
+   * Finds all instances known to DataCenter tagged with the specified tag.
+   *
    * @param tag The tag to look for.
    * @return    An InstanceGroup containing instances that are all tagged with tag.
    */
@@ -107,10 +108,21 @@ object DataCenter {
   
   // @TODO getInstanceGroupByService(service: Service)?
   
+  /**
+   * Finds all instances known to DataCenter that are running the specified service.
+   *
+   * @param service The service to look for.
+   * @return        An InstanceGroup containing all instances that are running the specified service.
+   */
   def getInstanceGroupByService(service: String): InstanceGroup = {
     instances.parallelFilter(instance => instance.getService(service).isDefined)
   }
   
+  /**
+   * Shuts down the given instances and returns them to Amazon.
+   * Note: You should probably be using the instances' stop method, because it 
+   * is easier to use and updates the state of the instance.
+   */
   def terminateInstances(instanceGroup: InstanceGroup) = {
     val request = new TerminateInstancesRequest(
       convertScalaListToJavaList(instanceGroup.map(instance =>
@@ -119,28 +131,51 @@ object DataCenter {
     removeInstances(instanceGroup)
   }
   
+  /**
+   * Shuts down the given instance and returns it to Amazon.
+   * Note: You should probably be using the instance's stop method, because it 
+   * is easier to use and updates the state of the instance.
+   */
   def terminateInstance(instance: Instance) = {
     val ig = new InstanceGroup()
     ig.add(instance)
     terminateInstances(ig)
   }
   
+  /**
+   * Shuts down all instances that are known to DataCenter.
+   */
   def terminateAllInstances = {
     terminateInstances(instances)
     instances.parallelMap((instance) => instance.refresh)
     instances.clear()
   }
   
+  /**
+   * Removes the given instances from the DataCenter's knowledge of instances.
+   * Note: This method is meant for internal use. Calling stop on an instance,
+   * or calling terminateInstances calls this method automatically.
+   */
   def removeInstances(instanceGroup: InstanceGroup) = {
     instances.removeAll(instanceGroup)
   }
   
+  /**
+   * Removes the given instance from the DataCenter's knowledge of instances.
+   * Note: This method is meant for internal use. Calling stop on an instance,
+   * or calling terminateInstances calls this method automatically.
+   */
   def removeInstance(instance: Instance): Unit = {
     val instanceGroup = new InstanceGroup()
     instanceGroup.add(instance)
     removeInstances(instanceGroup)
   }
   
+  /**
+   * Runs describe instances through the EC2 library.
+   * Note: This method is meant for internal use. The Instance class uses it to
+   * refresh its state.
+   */
   def describeInstances(idList: List[String]): List[RunningInstance] = {
     val request = new DescribeInstancesRequest(
       convertScalaListToJavaList(idList))
@@ -150,22 +185,47 @@ object DataCenter {
     reservationList.toList.flatMap(reservation => reservation.getRunningInstance)
   }
   
+  /**
+   * Runs describe instances through the EC2 library.
+   * Note: This method is meant for internal use. The Instance class uses it to
+   * refresh its state.
+   */
   def describeInstances(instances: InstanceGroup): List[RunningInstance] = {
     describeInstances(instances.map(instance => instance.instanceId).toList)
   }
   
+  /**
+   * Runs describe instances through the EC2 library.
+   * Note: This method is meant for internal use. The Instance class uses it to
+   * refresh its state.
+   */
   def describeInstances(instance: Instance): RunningInstance = {
     describeInstances(List(instance.instanceId)).head
   }
   
+  /**
+   * Runs describe instances through the EC2 library.
+   * Note: This method is meant for internal use. The Instance class uses it to
+   * refresh its state.
+   */
   def describeInstances(instanceId: String): RunningInstance = {
     describeInstances(List(instanceId)).head
   }
   
+  /**
+   * Writes the list of instance IDs belonging to the instances known to the
+   * DataCenter object. The files are written to $HOME/.deploy_lib
+   */
   def dumpStateToFile: Unit = {
     dumpStateToFile(null)
   }
   
+  /**
+   * Writes the list of instance IDs belonging to the instances known to the
+   * DataCenter object.
+   * @param path The path to the file to write to. If path is null or empty,
+   *             then $HOME/.deploy_lib is used.
+   */
   def dumpStateToFile(path: String): Unit = {
     val instanceIds = instances.map(instance => instance.instanceId)
     
@@ -187,10 +247,25 @@ object DataCenter {
     }
   }
   
+  /**
+   * Reconstructs the state by building instances from instance IDs specified
+   * in a file. The file used is $HOME/.deploy_lib
+   * 
+   * @param keyPath the path to the local key file. Note: ~ does not mean your home directory!
+   * @return        An InstanceGroup containing all instances constructed from the instance ids in the file.
+   */
   def readStateFromFile(keyPath: String): InstanceGroup = {
     readStateFromFile(null, keyPath)
   }
   
+  /**
+   * Reconstructs the state by building instances from instance IDs specified
+   * in a file. The file used is $HOME/.deploy_lib
+   *
+   * @param path    the path to the file to be read from. If path is null or empty $HOME/.deploy_lib is used.
+   * @param keyPath the path to the local key file. Note: ~ does not mean your home directory!
+   * @return        An InstanceGroup containing all instances constructed from the instance ids in the file.
+   */
   def readStateFromFile(path: String, keyPath: String): InstanceGroup = {
     val filePath = path match {
       case null => defaultDumpPath
