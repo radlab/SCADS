@@ -1082,6 +1082,82 @@ putDBTs(DB* db_ptr, MerkleDB* mdb_ptr,DBT* key, DBT* data, bool hasNull) {
 }
 
 bool StorageDB::
+test_and_set(const NameSpace& ns, const Record& rec, const ExistingValue& eVal) {
+  DB* db_ptr;
+  MerkleDB* mdb_ptr;
+  DBT key, data, existing_data;
+  int ret;
+
+  /* gross that we're going in and out of c++ strings,
+     consider storing the whole string object */
+
+#ifdef DEBUG
+  cout << "Test and set called:"<<endl<<
+    "Namespace:\t"<<ns<<endl<<
+    "Key:\t"<<rec.key<<endl<<
+    "Value:\t"<<rec.value<<endl<<
+		"Val to test:\t"<<eVal.value<<endl<<
+		"eVal prefix:\t"<<eVal.prefix<<endl;
+	
+  if (rec.value == "")
+    cout << "is empty string"<<endl;
+  if (rec.__isset.value)
+    cout << "val is set"<<endl;
+  else
+    cout << "val is NOT set"<<endl;
+	if (eVal.__isset.value)
+		cout << "ExistingVal is set"<<endl;
+	else
+		cout << "ExistingVal is NOT set"<<endl;
+#endif
+
+  if (!responsible_for_key(ns,rec.key)) {
+    NotResponsible nse;
+    get_responsibility_policy(nse.policy,ns);
+    throw nse;
+  }
+	
+  db_ptr = getDB(ns);
+  mdb_ptr = getMerkleDB(ns);
+  if (doMerkle && mdb_ptr == NULL)
+    cerr << "Warning, couldn't get MerkleDB, not going to maintain"<<endl;
+  memset(&key, 0, sizeof(DBT));
+  memset(&data, 0, sizeof(DBT));
+  memset(&existing_data, 0, sizeof(DBT));
+  existing_data.flags = DB_DBT_MALLOC;
+  key.data = const_cast<char*>(rec.key.c_str());
+  key.size = rec.key.length();
+
+  ret = db_ptr->get(db_ptr, NULL, &key, &existing_data, 0);
+  if (!ret) {  // return 0 means success
+		int lim = (eVal.__isset.prefix && (eVal.prefix < existing_data.size))?
+			eVal.prefix:existing_data.size;
+		if ( (!eVal.__isset.value) ||
+				 ( !eVal.__isset.prefix &&
+					 (eVal.value.length() != existing_data.size) ) ||
+				 (memcmp(eVal.value.c_str(),existing_data.data,lim)) ) {
+			// not the same	
+			free(existing_data.data);
+			return false;
+		}
+    free(existing_data.data);
+  }
+	else if (ret != DB_NOTFOUND ||
+					 eVal.__isset.value)
+		return false;
+
+	key.size++;
+
+  if (!rec.__isset.value)  // really a delete
+    return putDBTs(db_ptr,mdb_ptr,&key,NULL,true);
+
+
+  data.data = const_cast<char*>(rec.value.c_str());
+  data.size = rec.value.length();
+  return putDBTs(db_ptr,mdb_ptr,&key,&data,true);
+}
+
+bool StorageDB::
 put(const NameSpace& ns, const Record& rec) {
   DB* db_ptr;
   MerkleDB* mdb_ptr;

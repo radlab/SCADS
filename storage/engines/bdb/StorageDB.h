@@ -84,6 +84,7 @@ public:
   bool copy_set(const NameSpace& ns, const RecordSet& rs, const Host& h);
   bool remove_set(const NameSpace& ns, const RecordSet& rs);
   bool put(const NameSpace& ns, const Record& rec);
+  bool test_and_set(const NameSpace& ns, const Record& rec, const ExistingValue& eVal);
   bool putDBTs(DB* db_ptr, MerkleDB* mdb_ptr,DBT* key, DBT* data,bool hasNull=false);
   int32_t count_set(const NameSpace& ns, const RecordSet& rs);
 

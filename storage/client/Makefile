@@ -33,11 +33,11 @@ endif
 # Generic thrift macros
 THRIFT = thrift
 THRIFT_FLAGS = --gen cpp
-THRIFT_FILE = ../storage.thrift
+THRIFT_FILE = ../../interface/scads.thrift
 
 # Source Listings
-SRCS_TO_GEN = gen-cpp/storage_constants.cpp gen-cpp/Storage.h gen-cpp/storage_types.h gen-cpp/storage_constants.h gen-cpp/Storage_server.skeleton.cpp gen-cpp/Storage.cpp gen-cpp/storage_types.cpp
-GEN_SRC = gen-cpp/storage_types.cpp gen-cpp/Storage.cpp
+SRCS_TO_GEN = gen-cpp/KeyStore.cpp gen-cpp/KeyStore.h gen-cpp/KeyStore_server.skeleton.cpp gen-cpp/scads_constants.cpp gen-cpp/scads_constants.h gen-cpp/scads_types.cpp gen-cpp/scads_types.h gen-cpp/StorageEngine.cpp gen-cpp/StorageEngine.h gen-cpp/StorageEngine_server.skeleton.cpp
+GEN_SRC = gen-cpp/KeyStore.cpp gen-cpp/scads_constants.cpp gen-cpp/scads_types.cpp gen-cpp/StorageEngine.cpp
 
 # C/C++ MACROS
 CXX=g++

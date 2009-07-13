@@ -14,6 +14,11 @@ struct Record {
 	2: optional RecordValue value
 }
 
+struct ExistingValue {
+  1: optional RecordValue value,
+	2: optional i32 prefix
+}
+
 enum RecordSetType {
 	RST_ALL = 1,
 	RST_NONE = 2
@@ -74,6 +79,7 @@ service KeyStore {
 	Record get(1:NameSpace ns, 2:RecordKey key) throws (1: NotResponsible nr),
 	list<Record> get_set(1: NameSpace ns, 2:RecordSet rs) throws (1: InvalidSetDescription bs, 2: NotImplemented ni, 3: NotResponsible nr),
 	bool put(1:NameSpace ns, 2: Record rec) throws (1: NotResponsible nr, 2:InvalidSetDescription bs),
+	bool test_and_set(1:NameSpace ns, 2:Record rec, 3:ExistingValue existingValue),
 	i32 count_set(1:NameSpace ns, 2: RecordSet rs) throws (1: InvalidSetDescription bs, 2: NotImplemented ni, 3: NotResponsible nr)
 }
 

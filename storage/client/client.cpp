@@ -1,3 +1,4 @@
+
 // simple client
 
 #include <string.h>
@@ -18,7 +19,7 @@
 #include <transport/TSocket.h>
 #include <transport/TTransportUtils.h>
 
-#include "gen-cpp/Storage.h"
+#include "gen-cpp/StorageEngine.h"
 
 #include <iostream>
 
@@ -41,12 +42,12 @@ static int timestamp = 0;
 static struct timeval start_time, cur_time, diff_time;
 
 #define start_timing() if(timing) gettimeofday(&start_time,NULL)
-#define end_timing() {				\
-    if (timing) {				\
-      gettimeofday(&cur_time,NULL);					\
-      timersub(&cur_time,&start_time,&diff_time);			\
+#define end_timing() {																									\
+    if (timing) {																												\
+      gettimeofday(&cur_time,NULL);																			\
+      timersub(&cur_time,&start_time,&diff_time);												\
       cout << "Took "<<diff_time.tv_sec <<" seconds, and " << diff_time.tv_usec<<" microseconds."<<endl; \
-    }									\
+    }																																		\
   }
 
 
@@ -59,27 +60,27 @@ static vector<string> strsplit(string str,char delim=' ',char esc='"') {
   while (*c) {
     if (inesc) {
       while (*c &&
-	     *c != esc) {
-	oss << *c;
-	c++;
+						 *c != esc) {
+				oss << *c;
+				c++;
       }
       // means we hit end/delim
       if (*c)
-	c++;
+				c++;
       inesc = 0;
     }
     else {
       while (*c &&
-	     *c != delim &&
-	     *c != esc) {
-	oss << *c;
-	c++;
+						 *c != delim &&
+						 *c != esc) {
+				oss << *c;
+				c++;
       }
       // now we're either at a delim/esc/endofstring
       if (*c) {
-	if (*c == esc)
-	  inesc = 1;
-	c++;
+				if (*c == esc)
+					inesc = 1;
+				c++;
       }
     }
     if (oss.str() != "") {
@@ -91,15 +92,26 @@ static vector<string> strsplit(string str,char delim=' ',char esc='"') {
 }
 
 static
-void put(StorageClient &client,
-	 const NameSpace &ns,
-	 const Record &rec) {
+void put(StorageEngineClient &client,
+				 const NameSpace &ns,
+				 const Record &rec) {
   client.put(ns,rec);
 }
 
-static void putRange(StorageClient &client,
-		     const NameSpace &ns,
-		     int s, int e) {
+static
+void test_and_set(StorageEngineClient &client,
+									const NameSpace &ns,
+									const Record &rec,
+									const ExistingValue& eVal) {
+	if (client.test_and_set(ns,rec,eVal))
+		cout<<"Test and set successful"<<endl;
+	else
+		cout<<"Test and set failed"<<endl;
+}
+
+static void putRange(StorageEngineClient &client,
+										 const NameSpace &ns,
+										 int s, int e) {
   Record r;
   r.__isset.key = true;
   r.__isset.value = true;
@@ -115,9 +127,9 @@ static void putRange(StorageClient &client,
   }
 }
 
-static void putRandom(StorageClient &client,
-		      const NameSpace &ns,
-		      int s, int e, int c) {
+static void putRandom(StorageEngineClient &client,
+											const NameSpace &ns,
+											int s, int e, int c) {
   Record r;
   r.__isset.key = true;
   r.__isset.value = true;
@@ -136,28 +148,28 @@ static void putRandom(StorageClient &client,
 }
 
 static
-void get(StorageClient &client,
-	 Record &r,
-	 const NameSpace &ns,
-	 const RecordKey &key) {
+void get(StorageEngineClient &client,
+				 Record &r,
+				 const NameSpace &ns,
+				 const RecordKey &key) {
   client.get(r,ns,key);
 }
 
 static
-void getall(StorageClient &client,
-	    vector<Record> &results,
-	    const NameSpace &ns) {
- RecordSet rs;
- rs.type = RST_ALL;
- rs.__isset.range = false;
- rs.__isset.func = false;
- client.get_set(results,ns,rs);
+void getall(StorageEngineClient &client,
+						vector<Record> &results,
+						const NameSpace &ns) {
+	RecordSet rs;
+	rs.type = RST_ALL;
+	rs.__isset.range = false;
+	rs.__isset.func = false;
+	client.get_set(results,ns,rs);
 }
 
 static
-void remove(StorageClient &client,
-	    const NameSpace &ns,
-	    const RecordKey &key) {
+void remove(StorageEngineClient &client,
+						const NameSpace &ns,
+						const RecordKey &key) {
   Record r;
   r.key = key;
   r.__isset.key = true;
@@ -165,13 +177,13 @@ void remove(StorageClient &client,
   put(client,ns,r);
 }
 
-static void range(StorageClient &client,
-		  vector<Record> &results,
-		  const NameSpace &ns,
-		  const RecordKey &start_key,
-		  const RecordKey &end_key,
-		  int32_t offset= 0,
-		  int32_t limit = 0) {
+static void range(StorageEngineClient &client,
+									vector<Record> &results,
+									const NameSpace &ns,
+									const RecordKey &start_key,
+									const RecordKey &end_key,
+									int32_t offset= 0,
+									int32_t limit = 0) {
   RecordSet rs;
   rs.type = RST_RANGE;
   RangeSet range;
@@ -188,10 +200,10 @@ static void range(StorageClient &client,
   client.get_set(results,ns,rs);
 }
 
-static void filter(StorageClient &client,
-		   vector<Record> &results,
-		   const NameSpace &ns,
-		   const string filter) {
+static void filter(StorageEngineClient &client,
+									 vector<Record> &results,
+									 const NameSpace &ns,
+									 const string filter) {
   RecordSet rs;
   rs.type = RST_FILTER;
   rs.__isset.filter = true;
@@ -199,12 +211,12 @@ static void filter(StorageClient &client,
   client.get_set(results,ns,rs);
 }
 
-static int32_t count(StorageClient &client,
-		     const NameSpace &ns,
-		     const RecordKey *start_key,
-		     const RecordKey *end_key,
-		     int32_t offset= 0,
-		     int32_t limit = 0) {
+static int32_t count(StorageEngineClient &client,
+										 const NameSpace &ns,
+										 const RecordKey *start_key,
+										 const RecordKey *end_key,
+										 int32_t offset= 0,
+										 int32_t limit = 0) {
   RecordSet rs;
   if (start_key != NULL) {
     rs.type = RST_RANGE;
@@ -223,11 +235,11 @@ static int32_t count(StorageClient &client,
   return client.count_set(ns,rs);
 }
 
-static void ruby(StorageClient &client,
-		 vector<Record> &results,
-		 RecordSetType &rst,
-		 const NameSpace &ns,
-		 const string &func) {
+static void ruby(StorageEngineClient &client,
+								 vector<Record> &results,
+								 RecordSetType &rst,
+								 const NameSpace &ns,
+								 const string &func) {
   UserFunction uf;
   uf.lang = LANG_RUBY;
   uf.func = func;
@@ -239,10 +251,10 @@ static void ruby(StorageClient &client,
   client.get_set(results,ns,rs);
 }
 
-static void removeRange(StorageClient &client,
-			const NameSpace &ns,
-			const RecordKey &start_key,
-			const RecordKey &end_key) {
+static void removeRange(StorageEngineClient &client,
+												const NameSpace &ns,
+												const RecordKey &start_key,
+												const RecordKey &end_key) {
   RangeSet range;
   range.start_key = start_key;
   range.end_key = end_key;
@@ -254,11 +266,11 @@ static void removeRange(StorageClient &client,
   client.remove_set(ns,rs);
 }
 
-static void copyRange(StorageClient &client,
-		      const Host &h,
-		      const NameSpace &ns,
-		      const RecordKey &start_key,
-		      const RecordKey &end_key) {
+static void copyRange(StorageEngineClient &client,
+											const Host &h,
+											const NameSpace &ns,
+											const RecordKey &start_key,
+											const RecordKey &end_key) {
   RecordSet rs;
   rs.type = RST_RANGE;
   rs.__isset.range = true;
@@ -273,11 +285,11 @@ static void copyRange(StorageClient &client,
   client.copy_set(ns,rs,h);
 }
 
-static void syncRangeGreater(StorageClient &client,
-			     const Host &h,
-			     const NameSpace &ns,
-			     const RecordKey &start_key,
-			     const RecordKey &end_key) {
+static void syncRangeGreater(StorageEngineClient &client,
+														 const Host &h,
+														 const NameSpace &ns,
+														 const RecordKey &start_key,
+														 const RecordKey &end_key) {
   RecordSet rs;
   rs.type = RST_RANGE;
   rs.__isset.range = true;
@@ -297,6 +309,12 @@ static void syncRangeGreater(StorageClient &client,
 static void printPutUsage() {
   printf("invalid put, put is used as:\n");
   printf("put namespace key value\n");
+}
+
+static void printTaSUsage() {
+  printf("invalid testandset, testandset is used as:\n");
+  printf("testandset namespace key new_value [old_value] [prefix_size]\n");
+  printf("(if no old_value is specified the test is that no value currently exists at key)\n");
 }
 
 static void printGetUsage() {
@@ -375,7 +393,7 @@ int main(int argc,char* argv[]) {
   shared_ptr<TTransport> transport(new TFramedTransport(socket));
   //shared_ptr<TTransport> transport(new TBufferedTransport(socket));
   shared_ptr<TProtocol> protocol(new TBinaryProtocol(transport));
-  StorageClient client(protocol);
+  StorageEngineClient client(protocol);
 
   signal(SIGINT, ex_program);
   using_history();
@@ -401,305 +419,335 @@ int main(int argc,char* argv[]) {
     for (;;) {
       char* l = readline(pbuf);
       if (l && *l)
-	add_history(l);
+				add_history(l);
       else
-	continue;
+				continue;
       line = new string(l);
       free(l);
       vector<string> v = strsplit(*line);
       string cmd = v[0];
 
       if (cmd == "quit" || cmd == "exit")
-	break;
+				break;
 
       else if (cmd == "help") {
-	cout << "Avaliable commands (type any command with no args for usage of that command):"<<endl<<
-	  " put\t\tput a record"<<endl<<
-	  " get\t\tget a record"<<endl<<
-	  " getall\t\tget all records in a particular namespace"<<endl<<
-	  " range\t\tget a sequential range of records between two keys"<<endl<<
-	  " ruby\t\tget a set of records that match a ruby function"<<endl<<
-	  " remote\t\tremove a key"<<endl<<
-	  " removeRange\tremove a sequential range of records between two keys"<<endl<<
-	  " copy\t\tcopy a set of data from one node to another"<<endl<<
-	  " sync\t\tsync a set of data between two nodes"<<endl<<
-	  " quit/exit\tquit the program"<<endl<<
-	  " help\t\tthis help"<<endl;
-	continue;
+				cout << "Avaliable commands (type any command with no args for usage of that command):"<<endl<<
+					" put\t\tput a record"<<endl<<
+					" testandset\t\tput a record conditionally"<<endl<<
+					" get\t\tget a record"<<endl<<
+					" getall\t\tget all records in a particular namespace"<<endl<<
+					" range\t\tget a sequential range of records between two keys"<<endl<<
+					" ruby\t\tget a set of records that match a ruby function"<<endl<<
+					" remote\t\tremove a key"<<endl<<
+					" removeRange\tremove a sequential range of records between two keys"<<endl<<
+					" copy\t\tcopy a set of data from one node to another"<<endl<<
+					" sync\t\tsync a set of data between two nodes"<<endl<<
+					" quit/exit\tquit the program"<<endl<<
+					" help\t\tthis help"<<endl;
+				continue;
       }
 
       else if (cmd == "put") {
-	if (v.size() != 4) {
-	  printPutUsage();
-	  continue;
-	}
-	//cout << "doing: put |"<<v[1]<<"| |"<<v[2]<<"| |"<<v[3]<<"|"<<endl;
-	Record r;
-	r.key = v[2];
-	r.__isset.key = true;
-	r.value = v[3];
-	r.__isset.value = true;
-	start_timing();
-	put(client,v[1],r);
-	cout << "Done"<<endl;
-	end_timing();
-	continue;
+				if (v.size() != 4) {
+					printPutUsage();
+					continue;
+				}
+				//cout << "doing: put |"<<v[1]<<"| |"<<v[2]<<"| |"<<v[3]<<"|"<<endl;
+				Record r;
+				r.key = v[2];
+				r.__isset.key = true;
+				r.value = v[3];
+				r.__isset.value = true;
+				start_timing();
+				put(client,v[1],r);
+				cout << "Done"<<endl;
+				end_timing();
+				continue;
+      }
+
+      else if (cmd == "testandset") {
+				if (v.size() < 4 &&
+						v.size() > 6) {
+					printTaSUsage();
+					continue;
+				}
+				//cout << "doing: put |"<<v[1]<<"| |"<<v[2]<<"| |"<<v[3]<<"|"<<endl;
+				Record r;
+				r.key = v[2];
+				r.__isset.key = true;
+				r.value = v[3];
+				r.__isset.value = true;
+				ExistingValue ev;
+				if (v.size() >= 5) {
+					ev.value = v[4];
+					ev.__isset.value = true;
+				} else
+					ev.__isset.value = false;
+				if (v.size() == 6) {
+					ev.prefix = atoi(v[5].c_str());
+					ev.__isset.prefix = true;
+				} else
+					ev.__isset.prefix = false;
+				start_timing();
+				test_and_set(client,v[1],r,ev);
+				end_timing();
+				continue;
       }
 
       else if (cmd == "putrange") {
-	if (v.size() != 4) {
-	  cout << "Invalid putrange, use as: putrange namespace startkey endkey"<<endl;
-	  continue;
-	}
-	int s = atoi(v[2].c_str());
-	int e = atoi(v[3].c_str());
-	start_timing();
-	putRange(client,v[1],s,e);
-	end_timing();
-	continue;
+				if (v.size() != 4) {
+					cout << "Invalid putrange, use as: putrange namespace startkey endkey"<<endl;
+					continue;
+				}
+				int s = atoi(v[2].c_str());
+				int e = atoi(v[3].c_str());
+				start_timing();
+				putRange(client,v[1],s,e);
+				end_timing();
+				continue;
       }
 
       else if (cmd == "putrand") {
-	if (v.size() != 5) {
-	  cout << "Invalid putrand, use as: putrand namespace startkey endkey count"<<endl;
-	  continue;
-	}
-	int s = atoi(v[2].c_str());
-	int e = atoi(v[3].c_str());
-	int c = atoi(v[4].c_str());
-	start_timing();
-	putRandom(client,v[1],s,e,c);
-	end_timing();
-	continue;
+				if (v.size() != 5) {
+					cout << "Invalid putrand, use as: putrand namespace startkey endkey count"<<endl;
+					continue;
+				}
+				int s = atoi(v[2].c_str());
+				int e = atoi(v[3].c_str());
+				int c = atoi(v[4].c_str());
+				start_timing();
+				putRandom(client,v[1],s,e,c);
+				end_timing();
+				continue;
       }
 
       else if (cmd == "get") {
-	if (v.size() != 3) {
-	  printGetUsage();
-	  continue;
-	}
-	try {
-	  Record r;
-	  start_timing();
-	  get(client,r,v[1],v[2]);
-	  end_timing();
-	  if (r.__isset.value)
-	    cout << r.value << endl;
-	  else
-	    cout << "No value for "<<v[2]<<endl;
- 	} catch (TException e) {
-	  cout << "[Exception]: "<<e.what()<<endl;
+				if (v.size() != 3) {
+					printGetUsage();
+					continue;
+				}
+				try {
+					Record r;
+					start_timing();
+					get(client,r,v[1],v[2]);
+					end_timing();
+					if (r.__isset.value)
+						cout << r.value << endl;
+					else
+						cout << "No value for "<<v[2]<<endl;
+				} catch (TException e) {
+					cout << "[Exception]: "<<e.what()<<endl;
         }
       }
 
       else if (cmd == "getall") {
-	if (v.size() != 2) {
-	  cout << "Invalid getall, getall is used as: getall namespace"<<endl;
-	  continue;
-	}
-	try {
-	  vector<Record> recs;
-	  start_timing();
-	  getall(client,recs,v[1]);
-	  end_timing();
-	  if (recs.size() != 0) {
-	    vector<Record>::iterator it;
-	    it = recs.begin();
-	    while(it != recs.end()) {
-	      cout << "Key:\t"<<(*it).key<<endl;
-	      cout << "Value:\t"<<(*it).value<<endl<<endl;
-	      it++;
-	    }
-	  }
-	} catch (TException e) {
-	  cout << "[Exception]: "<<e.what()<<endl;
+				if (v.size() != 2) {
+					cout << "Invalid getall, getall is used as: getall namespace"<<endl;
+					continue;
+				}
+				try {
+					vector<Record> recs;
+					start_timing();
+					getall(client,recs,v[1]);
+					end_timing();
+					if (recs.size() != 0) {
+						vector<Record>::iterator it;
+						it = recs.begin();
+						while(it != recs.end()) {
+							cout << "Key:\t"<<(*it).key<<endl;
+							cout << "Value:\t"<<(*it).value<<endl<<endl;
+							it++;
+						}
+					}
+				} catch (TException e) {
+					cout << "[Exception]: "<<e.what()<<endl;
         }
       }
 
       else if (cmd == "range") {
-	if (v.size() < 4) {
-	  printRangeUsage();
-	  continue;
-	}
-	try {
-	  vector<Record> recs;
-	  start_timing();
-	  range(client,recs,v[1],v[2],v[3],
-		v.size()>4?atoi(v[4].c_str()):0,
-		v.size()>5?atoi(v[5].c_str()):0);
-	  end_timing();
-	  printf("returned: %i values\n\n",(int)(recs.size()));
-	  if (recs.size() != 0) {
-	    vector<Record>::iterator it;
-	    it = recs.begin();
-	    while(it != recs.end()) {
-	      cout << "Key:\t"<<(*it).key<<endl;
-	      cout << "Value:\t"<<(*it).value<<endl<<endl;
-	      it++;
-	    }
-	  }
-	} catch (TException e) {
-	  cout << "[Exception]: "<<e.what()<<endl;
+				if (v.size() < 4) {
+					printRangeUsage();
+					continue;
+				}
+				try {
+					vector<Record> recs;
+					start_timing();
+					range(client,recs,v[1],v[2],v[3],
+								v.size()>4?atoi(v[4].c_str()):0,
+								v.size()>5?atoi(v[5].c_str()):0);
+					end_timing();
+					printf("returned: %i values\n\n",(int)(recs.size()));
+					if (recs.size() != 0) {
+						vector<Record>::iterator it;
+						it = recs.begin();
+						while(it != recs.end()) {
+							cout << "Key:\t"<<(*it).key<<endl;
+							cout << "Value:\t"<<(*it).value<<endl<<endl;
+							it++;
+						}
+					}
+				} catch (TException e) {
+					cout << "[Exception]: "<<e.what()<<endl;
         }
       }
 
       else if (cmd == "filter") {
-	if (v.size() != 3) {
-	  printFilterUsage();
-	  continue;
-	}
-	try {
-	  vector<Record> recs;
-	  start_timing();
-	  filter(client,recs,v[1],v[2]);
-	  printf("returned: %i values\n\n",(int)(recs.size()));
-	  if (recs.size() != 0) {
-	    vector<Record>::iterator it;
-	    it = recs.begin();
-	    while(it != recs.end()) {
-	      cout << "Key:\t"<<(*it).key<<endl;
-	      cout << "Value:\t"<<(*it).value<<endl<<endl;
-	      it++;
-	    }
-	  }
-	  end_timing();
-	} catch (TException e) {
-	  cout << "[Exception]: "<<e.what()<<endl;
+				if (v.size() != 3) {
+					printFilterUsage();
+					continue;
+				}
+				try {
+					vector<Record> recs;
+					start_timing();
+					filter(client,recs,v[1],v[2]);
+					printf("returned: %i values\n\n",(int)(recs.size()));
+					if (recs.size() != 0) {
+						vector<Record>::iterator it;
+						it = recs.begin();
+						while(it != recs.end()) {
+							cout << "Key:\t"<<(*it).key<<endl;
+							cout << "Value:\t"<<(*it).value<<endl<<endl;
+							it++;
+						}
+					}
+					end_timing();
+				} catch (TException e) {
+					cout << "[Exception]: "<<e.what()<<endl;
         }
       }
 
       else if (cmd == "count") {
-	if (v.size() < 2) {
-	  printCountUsage();
-	  continue;
-	}
-	try {
-	  int32_t c;
-	  start_timing();
-	  c = count(client,v[1],
-		    v.size()<3?NULL:&v[2],
-		    v.size()<4?NULL:&v[3],
-		    v.size()>4?atoi(v[4].c_str()):0,
-		    v.size()>6?atoi(v[5].c_str()):0);
-	  end_timing();
-	  cout << c << endl;
-	} catch (TException e) {
-	  cout << "[Exception]: "<<e.what()<<endl;
+				if (v.size() < 2) {
+					printCountUsage();
+					continue;
+				}
+				try {
+					int32_t c;
+					start_timing();
+					c = count(client,v[1],
+										v.size()<3?NULL:&v[2],
+										v.size()<4?NULL:&v[3],
+										v.size()>4?atoi(v[4].c_str()):0,
+										v.size()>6?atoi(v[5].c_str()):0);
+					end_timing();
+					cout << c << endl;
+				} catch (TException e) {
+					cout << "[Exception]: "<<e.what()<<endl;
         }
       }
 
       else if (cmd == "remove") {
-	if (v.size() != 3) {
-	  cout << "Invalid remove"<<endl;
-	  continue;
-	}
-	try {
-	  start_timing();
-	  remove(client,v[1],v[2]);
-	  end_timing();
-	} catch (TException e) {
-	  cout << "[Exception]: "<<e.what()<<endl;
-	}
+				if (v.size() != 3) {
+					cout << "Invalid remove"<<endl;
+					continue;
+				}
+				try {
+					start_timing();
+					remove(client,v[1],v[2]);
+					end_timing();
+				} catch (TException e) {
+					cout << "[Exception]: "<<e.what()<<endl;
+				}
       }
 
       else if (cmd == "ruby") {
-	if (v.size() != 4) {
-	  printRubyUsage();
-	  continue;
-	}
-	try {
-	  vector<Record> recs;
-	  RecordSetType rst;
-	  if (v[1] == "key")
-	    rst = RST_KEY_FUNC;
-	  else if (v[1] == "keyvalue")
-	    rst = RST_KEY_VALUE_FUNC;
-	  else {
-	    printRubyUsage();
-	    continue;
-	  }
-	  start_timing();
-	  ruby(client,recs,rst,v[2],v[3]);
-	  end_timing();
-	  printf("returned: %i values\n\n",(int)(recs.size()));
-	  if (recs.size() != 0) {
-	    vector<Record>::iterator it;
-	    it = recs.begin();
-	    while(it != recs.end()) {
-	      cout << "Key:\t"<<(*it).key<<endl;
-	      cout << "Value:\t"<<(*it).value<<endl<<endl;
-	      it++;
-	    }
-	  }
-	} catch (TException e) {
-	  cout << "[Exception]: "<<e.what()<<endl;
+				if (v.size() != 4) {
+					printRubyUsage();
+					continue;
+				}
+				try {
+					vector<Record> recs;
+					RecordSetType rst;
+					if (v[1] == "key")
+						rst = RST_KEY_FUNC;
+					else if (v[1] == "keyvalue")
+						rst = RST_KEY_VALUE_FUNC;
+					else {
+						printRubyUsage();
+						continue;
+					}
+					start_timing();
+					ruby(client,recs,rst,v[2],v[3]);
+					end_timing();
+					printf("returned: %i values\n\n",(int)(recs.size()));
+					if (recs.size() != 0) {
+						vector<Record>::iterator it;
+						it = recs.begin();
+						while(it != recs.end()) {
+							cout << "Key:\t"<<(*it).key<<endl;
+							cout << "Value:\t"<<(*it).value<<endl<<endl;
+							it++;
+						}
+					}
+				} catch (TException e) {
+					cout << "[Exception]: "<<e.what()<<endl;
         }
       }
 
       else if (cmd == "removeRange") {
-	if (v.size() != 4) {
-	  printRemoveRangeUsage();
-	  continue;
-	}
-	try {
-	  start_timing();
-	  removeRange(client,v[1],v[2],v[3]);
-	  end_timing();
-	  cout << "Done"<<endl;
-	} catch (TException e) {
-	  cout << "[Exception]: "<<e.what()<<endl;
+				if (v.size() != 4) {
+					printRemoveRangeUsage();
+					continue;
+				}
+				try {
+					start_timing();
+					removeRange(client,v[1],v[2],v[3]);
+					end_timing();
+					cout << "Done"<<endl;
+				} catch (TException e) {
+					cout << "[Exception]: "<<e.what()<<endl;
         }
       }
 
       else if (cmd == "copy") {
-	if (v.size() != 5) {
-	  printf("invalid copy.  do: copy host:port namespace start_key end_key\n");
-	  continue;
-	}
-	try {
-	  start_timing();
-	  copyRange(client,v[1],v[2],v[3],v[4]);
-	  end_timing();
-	  cout << "Done"<<endl;
-	} catch(TException e) {
-	  cout << "[Exception]: "<<e.what()<<endl;
-	}
+				if (v.size() != 5) {
+					printf("invalid copy.  do: copy host:port namespace start_key end_key\n");
+					continue;
+				}
+				try {
+					start_timing();
+					copyRange(client,v[1],v[2],v[3],v[4]);
+					end_timing();
+					cout << "Done"<<endl;
+				} catch(TException e) {
+					cout << "[Exception]: "<<e.what()<<endl;
+				}
       }
 
       else if (cmd == "sync") {
-	if (v.size() != 6) {
-	  printf("invalid sync.  do: sync host:port namespace start_key end_key greater/func [func]\n");
-	  continue;
-	}
-	try {
-	  if (v[5] == "greater") {
-	    start_timing();
-	    syncRangeGreater(client,v[1],v[2],v[3],v[4]);
-	    end_timing();
-	    cout << "Done"<<endl;
-	  } else {
-	    cout << "Only support greater for the moment"<<endl;
-	  }
-	} catch(TException e) {
-	  cout << "[Exception]: "<<e.what()<<endl;
-	}
+				if (v.size() != 6) {
+					printf("invalid sync.  do: sync host:port namespace start_key end_key greater/func [func]\n");
+					continue;
+				}
+				try {
+					if (v[5] == "greater") {
+						start_timing();
+						syncRangeGreater(client,v[1],v[2],v[3],v[4]);
+						end_timing();
+						cout << "Done"<<endl;
+					} else {
+						cout << "Only support greater for the moment"<<endl;
+					}
+				} catch(TException e) {
+					cout << "[Exception]: "<<e.what()<<endl;
+				}
       }
 
       /*
-      else if (cmd == "strsplit") { // debug command
-	cout << "tokens:"<<endl;
-	vector<string>::iterator it;
-	it = v.begin();
-	while(it != v.end()) {
-	  cout <<(*it)<<endl;
-	  it++;
-	}
-      }
+				else if (cmd == "strsplit") { // debug command
+				cout << "tokens:"<<endl;
+				vector<string>::iterator it;
+				it = v.begin();
+				while(it != v.end()) {
+				cout <<(*it)<<endl;
+				it++;
+				}
+				}
       */
 
       else {
-	cout << "Invalid command: "<<(*line)<<endl;
-	continue;
+				cout << "Invalid command: "<<(*line)<<endl;
+				continue;
       }
     }
 
