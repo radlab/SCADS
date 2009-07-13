@@ -7,9 +7,21 @@ import org.json.JSONObject
 import com.amazonaws.ec2._
 import com.amazonaws.ec2.model._
 
+/**
+ * This class is the abstraction to a running EC2 Instance, as such it has
+ * methods to interact with the EC2 Instance.
+ *
+ * One thing to note is that any method requiring an SSH connection will are
+ * not able to execute unless the instance is in a running state and contains
+ * an SSH object.
+ *
+ * There are two ways that an instance can get an SSH object. Either the
+ * instance is instantiated with an EC2 instance is running, or waitUntilReady
+ * method is called.
+ */
 class Instance(initialInstance: RunningInstance, keyPath: String) {
-  var instance = initialInstance
-  var ssh: SSH = null
+  private var instance = initialInstance
+  private var ssh: SSH = null
   if (running) ssh = new SSH(publicDnsName, keyPath)
   
   def this(instanceId: String, keyPath: String) {
