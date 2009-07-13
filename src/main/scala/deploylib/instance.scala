@@ -10,11 +10,13 @@ import com.amazonaws.ec2.model._
 /**
  * This class is the abstraction to a running EC2 Instance, as such it has
  * methods to interact with the EC2 Instance.
- *
+ * <br>
+ * <br>
  * One thing to note is that any method requiring an SSH connection will are
  * not able to execute unless the instance is in a running state and contains
  * an SSH object.
- *
+ * <br>
+ * <br>
  * There are two ways that an instance can get an SSH object. Either the
  * instance is instantiated with an EC2 instance is running, or waitUntilReady
  * method is called.
@@ -24,22 +26,39 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   private var ssh: SSH = null
   if (running) ssh = new SSH(publicDnsName, keyPath)
   
+  /**
+   * This alternate constructor is for the ease of creating instance objects
+   * from already running instances.
+   * Maybe this should be moved to DataCenter...
+   */
   def this(instanceId: String, keyPath: String) {
     this(DataCenter.describeInstances(instanceId), keyPath)
     if (running) ssh = new SSH(publicDnsName, keyPath)
     if (!terminated) DataCenter.addInstances(this)
   }
 
+  /**
+   * Runs chef-solo on the instance.
+   *
+   * @param config This is the configuration passed to chef-solo.
+   * @return       What appeared on the shell in the form of an ExecuteResponse.
+   */
   @throws(classOf[IllegalStateException])
   def deploy(config: JSONObject): ExecuteResponse = {
     exec("cd && echo \'" + config.toString() + "\' > config.js && " +
          "chef-solo -j config.js")
   }
   
+  /**
+   * Creates a JSONObject out of the text in ~/config.js residing on the instance.
+   *
+   * @return None if there was an error reading config.js, Some(JSONObject)
+   *         otherwise.
+   */
   @throws(classOf[IllegalStateException])
   def getCfg(): Option[JSONObject] = {
     val response = exec("cd && cat config.js")
-    if (Util.responseError(response))
+    if (response error)
       return None
     else
       return Some(new JSONObject(response.getStdout()))
@@ -53,7 +72,7 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   @throws(classOf[IllegalStateException])
   def getAllServices: Array[Service] = {
     val response = exec("ls /mnt/services")
-    if (Util.responseError(response))
+    if (response error)
       return Array()
     else {
       return response.getStdout.split("\n").
@@ -83,7 +102,7 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   @throws(classOf[IllegalStateException])
   def getAllTags: Array[String] = {
     val response = exec("cat /mnt/tags")
-    if (Util.responseError(response)) return Array()
+    if (response error) return Array()
     else return response.getStdout.split("\n")
   }
   
