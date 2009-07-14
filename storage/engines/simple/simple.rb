@@ -26,7 +26,7 @@ module SCADS
 
           ret = @data[ns].map {|rec| Record.new(:key => rec[0], :value => rec[1])}.select {|rec| rs.includes?(rec.key, rec.value)}
 
-          ret.sort{|x,y| x.key <=> y.key}
+          ret.sort!{|x,y| x.key <=> y.key}
 
           if rs.type == RecordSetType::RST_RANGE
             result_offset = rs.range.offset || 0
