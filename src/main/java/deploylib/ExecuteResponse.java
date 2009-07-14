@@ -27,4 +27,10 @@ public class ExecuteResponse {
         return ("Exit status: " + exitStatus + "\nstdout: " + stdout +
                 "\nstderr: " + stderr);
     }
+    
+    public boolean error() {
+      if (exitStatus != null && exitStatus != 0) return true;
+      if (exitStatus == null && stderr.length() > 0) return true;
+      return false;
+    }
 }
