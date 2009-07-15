@@ -1,6 +1,5 @@
 package edu.berkeley.cs.scads.nodes
 
-
 import org.apache.log4j.Level
 
 object TestableStorageNode {
@@ -15,6 +14,19 @@ abstract class TestableStorageNode(thriftPort: Int, syncPort: Int) extends Stora
 		}
 	}
 
+  def rmDir(dir: java.io.File): Boolean = {
+    if (dir.isDirectory()) {
+      val children = dir.list();
+      children.foreach(
+        child => {
+          if (!rmDir(new java.io.File(dir,child)))
+            return false
+        }
+      )
+    }
+    dir.delete();
+  }
+
 	@transient
 	var proc: Process = null
 	@transient
@@ -24,8 +36,11 @@ abstract class TestableStorageNode(thriftPort: Int, syncPort: Int) extends Stora
 	if(!dbDir.exists() || !dbDir.isDirectory())
 		dbDir.mkdir()
 	val testDir = new java.io.File("target/db/test" + thriftPort)
-	if(testDir.exists())
-		testDir.delete()
+	if(testDir.exists()) {
+    logger.debug("Removing existing test dir: "+testDir)
+		if (!rmDir(testDir))
+      logger.debug("Failed to remove existing test dir: "+testDir)
+  }
 	testDir.mkdir()
   logger.debug("created " + testDir + " for testable node")
 
