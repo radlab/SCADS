@@ -13,6 +13,7 @@ import edu.berkeley.cs.scads.thrift.RangeSet
 import edu.berkeley.cs.scads.thrift.Record
 import edu.berkeley.cs.scads.thrift.RecordSetType
 import edu.berkeley.cs.scads.thrift.RecordSet
+import edu.berkeley.cs.scads.thrift.TestAndSetFailure
 import edu.berkeley.cs.scads.thrift.UserFunction
 
 import scala.util.Random
@@ -112,7 +113,27 @@ abstract class KeyStoreSuite extends Suite {
     ev.unsetValue()
     ev.unsetPrefix()
     val rec = new Record("tasnull","tasnull")
-    val res = connection.test_and_set("tans",rec,ev)
+    val res = connection.test_and_set("tasn",rec,ev)
+    assert(res)
+  }
+
+  def testAndSetNullFail() = {
+    val ev = new ExistingValue("n",0)
+    ev.unsetValue()
+    ev.unsetPrefix()
+    val rec = new Record("tasnullf","tasnullf")
+    connection.put("tasnf",rec)
+    val res = 
+      try {
+        connection.test_and_set("tasnf",rec,ev)
+      } catch {
+        case tsf: TestAndSetFailure => 
+          {
+            assert(tsf.currentValue === "tasnullf")
+            true
+          }
+        case e: Exception => false
+      }
     assert(res)
   }
 
@@ -134,8 +155,18 @@ abstract class KeyStoreSuite extends Suite {
     val ev = new ExistingValue("failval",0)
     ev.unsetPrefix()
     rec.value = "tasfail2"
-    val res = connection.test_and_set("tasf",rec,ev)
-    assert(!res)
+    val res = 
+      try {
+        connection.test_and_set("tasf",rec,ev)
+      } catch {
+        case tsf: TestAndSetFailure => 
+          {
+            assert(tsf.currentValue === "tasfail1")
+            true
+          }
+        case e: Exception => false
+      }
+    assert(res)
     val resp = connection.get("tasf","tasfail")
     assert(resp.value === "tasfail1")
   }
@@ -156,8 +187,18 @@ abstract class KeyStoreSuite extends Suite {
     connection.put("tasfp",rec)
     val ev = new ExistingValue("failval",12)
     rec.value = "tasfailp2"
-    val res = connection.test_and_set("tasfp",rec,ev)
-    assert(!res)
+    val res = 
+      try {
+        connection.test_and_set("tasfp",rec,ev)
+      } catch {
+        case tsf: TestAndSetFailure => 
+          {
+            assert(tsf.currentValue === "tasfailp1ignore")
+            true
+          }
+        case e: Exception => false
+      }
+    assert(res)
     val resp = connection.get("tasfp","tasfailp")
     assert(resp.value === "tasfailp1ignore")
   }
