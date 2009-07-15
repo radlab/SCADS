@@ -6,11 +6,14 @@ import edu.berkeley.cs.scads.nodes.StorageNode
 import edu.berkeley.cs.scads.nodes.TestableBdbStorageNode
 import edu.berkeley.cs.scads.nodes.TestableSimpleStorageNode
 
+import edu.berkeley.cs.scads.thrift.ExistingValue
 import edu.berkeley.cs.scads.thrift.KeyStore
+import edu.berkeley.cs.scads.thrift.Language
 import edu.berkeley.cs.scads.thrift.RangeSet
 import edu.berkeley.cs.scads.thrift.Record
 import edu.berkeley.cs.scads.thrift.RecordSetType
 import edu.berkeley.cs.scads.thrift.RecordSet
+import edu.berkeley.cs.scads.thrift.UserFunction
 
 import scala.util.Random
 
@@ -47,12 +50,6 @@ abstract class KeyStoreSuite extends Suite {
   }
 
   def testUpdate() = {
-    /*
-    for (i <- (1 to 100)) {
-      val rec = new Record("test"+i,"data"+i)
-      connection.put("tu",rec)
-    }
-    * */
     KeyStoreUtils.putNumericKeys(0,100,"tu",connection)
     for (i <- (0 to 100)) {
       val nk = new NumericKey(i)
@@ -109,6 +106,19 @@ abstract class KeyStoreSuite extends Suite {
   }
 
 
+  // == test_and_set testing (and setting) ==
+  def testAndSetNull() {
+    val ev = new ExistingValue("n",0)
+    ev.unsetValue()
+    ev.unsetPrefix()
+    val rec = new Record("tasnull","tasnull")
+    val resp = connection.get("tans","tasnull")
+    val res = connection.test_and_set("tans",rec,ev)
+    assert(res)
+  }
+
+
+
   // == test various get_set functionality ==
   def testSimpleGetSet() = {
     for (i <- (1 to 100)) {
@@ -161,6 +171,44 @@ abstract class KeyStoreSuite extends Suite {
       assert(res.get(i-off).value === nk.serialize)
     }
   }
+
+  def testGetSetAll() {
+    KeyStoreUtils.putNumericKeys(0,100,"tgsa",connection)
+    
+    val targetSet = new RecordSet(RecordSetType.RST_ALL,
+                                  null,null,null)
+    val res: java.util.List[Record] = connection.get_set("tgsa",targetSet)
+    assert(res.size() === 101)
+    for (i <- 0 to 100) {
+      val nk = new NumericKey(i)
+      assert(res.get(i).value === nk.serialize)
+    }
+  }
+
+  def testGetSetNone() {
+    KeyStoreUtils.putNumericKeys(0,100,"tgsn",connection)
+    
+    val targetSet = new RecordSet(RecordSetType.RST_NONE,
+                                  null,null,null)
+    val res: java.util.List[Record] = connection.get_set("tgsn",targetSet)
+    assert(res.size() === 0)
+  }
+
+  def testGetSetKeyFunc() {
+    KeyStoreUtils.putNumericKeys(0,100,"tgskf",connection)
+    val keyFunc = new UserFunction(Language.LANG_RUBY,
+                               "Proc.new {|key| key.to_i%2==0}")
+    val targetSet = new RecordSet(RecordSetType.RST_KEY_FUNC,
+                                  null,keyFunc,null)
+    val res: java.util.List[Record] = connection.get_set("tgskf",targetSet)
+    assert(res.size() === 51)
+    for (i <- 0 to 100 by 2) {
+      val nk = new NumericKey(i)
+      assert(res.get((i/2)).value == nk.serialize)
+    }
+  }
+
+
 
 }
 
