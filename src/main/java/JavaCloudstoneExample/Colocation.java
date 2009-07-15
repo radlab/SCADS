@@ -8,6 +8,11 @@ import scala.*;
 import java.util.Map;
 import java.util.HashMap;
 
+/**
+* Currently errors because the the mysql connector is not being installed.
+* just need to add a field to the mysql faban agent.
+*/
+
 public class Colocation {
     public void run() throws org.json.JSONException {
         /**
@@ -244,14 +249,14 @@ public class Colocation {
         }
     }
     
-    private class WaitUntilReady<Object> implements InstanceExecute {
+    private class WaitUntilReady implements InstanceExecute {
         public Object execute(Instance instance) {
             instance.waitUntilReady();
             return null;
         }
     }
     
-    private class Tag<Object> implements InstanceExecute {
+    private class Tag implements InstanceExecute {
         private String tag;
         public Tag(String tag) { this.tag = tag; }
         public Object execute(Instance instance) {
@@ -260,7 +265,7 @@ public class Colocation {
         }
     }
     
-    private class Deploy<Object> implements InstanceExecute {
+    private class Deploy implements InstanceExecute {
         private JSONObject config;
         
         public Deploy(JSONObject config) {

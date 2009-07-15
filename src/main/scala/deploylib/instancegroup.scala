@@ -29,10 +29,10 @@ class InstanceGroup(c: java.util.Collection[Instance])
     resultArray
   }
   
-  def parallelMap[T](executer: InstanceExecute[T]): Array[T] = {
+  def parallelMap(executer: InstanceExecute): Array[java.lang.Object] = {
     val thisArray = new Array[Instance](this.size())
     this.toArray(thisArray)
-    val resultArray = new Array[T](thisArray.length)
+    val resultArray = new Array[java.lang.Object](thisArray.length)
     val mappers =
       for (i <- (0 until thisArray.length).toList) yield {
         scala.actors.Futures.future {
@@ -50,10 +50,10 @@ class InstanceGroup(c: java.util.Collection[Instance])
     new InstanceGroup(filtered)
   }
   
-  def parallelFilter(executer: InstanceExecute[Boolean]): InstanceGroup = {
+  def parallelFilter(executer: InstanceExecute): InstanceGroup = {
     val zippedWithBools = this.toList zip parallelMap(executer).toList
     val filtered =
-      for (pair <- zippedWithBools if pair._2) yield pair._1
+      for (pair <- zippedWithBools if pair._2.asInstanceOf[java.lang.Boolean].booleanValue) yield pair._1
     new InstanceGroup(filtered)
   }
   
