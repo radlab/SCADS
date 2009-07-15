@@ -103,10 +103,7 @@ void test_and_set(StorageEngineClient &client,
 									const NameSpace &ns,
 									const Record &rec,
 									const ExistingValue& eVal) {
-	if (client.test_and_set(ns,rec,eVal))
-		cout<<"Test and set successful"<<endl;
-	else
-		cout<<"Test and set failed"<<endl;
+	client.test_and_set(ns,rec,eVal);
 }
 
 static void putRange(StorageEngineClient &client,
@@ -433,7 +430,7 @@ int main(int argc,char* argv[]) {
       else if (cmd == "help") {
 				cout << "Avaliable commands (type any command with no args for usage of that command):"<<endl<<
 					" put\t\tput a record"<<endl<<
-					" testandset\t\tput a record conditionally"<<endl<<
+					" testandset\tput a record conditionally"<<endl<<
 					" get\t\tget a record"<<endl<<
 					" getall\t\tget all records in a particular namespace"<<endl<<
 					" range\t\tget a sequential range of records between two keys"<<endl<<
@@ -466,7 +463,7 @@ int main(int argc,char* argv[]) {
       }
 
       else if (cmd == "testandset") {
-				if (v.size() < 4 &&
+				if (v.size() < 4 ||
 						v.size() > 6) {
 					printTaSUsage();
 					continue;
@@ -489,7 +486,14 @@ int main(int argc,char* argv[]) {
 				} else
 					ev.__isset.prefix = false;
 				start_timing();
-				test_and_set(client,v[1],r,ev);
+				try {
+					test_and_set(client,v[1],r,ev);
+				} catch(TestAndSetFailure tsf) {
+					if (tsf.__isset.currentValue)
+						cout << "Test and set failed. Current value: "<<tsf.currentValue<<endl;
+					else
+						cout << "Test and set failed. Key does not currently exist"<<endl;
+				}
 				end_timing();
 				continue;
       }
