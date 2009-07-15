@@ -1137,17 +1137,23 @@ test_and_set(const NameSpace& ns, const Record& rec, const ExistingValue& eVal) 
 					 (eVal.value.length() != existing_data.size) ) ||
 				 (memcmp(eVal.value.c_str(),existing_data.data,lim)) ) {
 			// not the same	
+			TestAndSetFailure tsf;
+			tsf.currentValue.assign((const char*)existing_data.data,existing_data.size);
+			tsf.__isset.currentValue = true;
 			free(existing_data.data);
-			return false;
+			throw tsf;
 		}
     free(existing_data.data);
   }
 	else if (ret != DB_NOTFOUND ||
-					 eVal.__isset.value)
-		return false;
+					 eVal.__isset.value) {
+		TestAndSetFailure tsf;
+		tsf.__isset.currentValue = false;
+		throw tsf;
+	}
 
 	key.size++;
-
+	
   if (!rec.__isset.value)  // really a delete
     return putDBTs(db_ptr,mdb_ptr,&key,NULL,true);
 
