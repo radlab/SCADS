@@ -75,11 +75,15 @@ exception InvalidSetDescription {
 	2: string info
 }
 
+exception TestAndSetFailure {
+  1: RecordValue currentValue
+}
+
 service KeyStore {
 	Record get(1:NameSpace ns, 2:RecordKey key) throws (1: NotResponsible nr),
 	list<Record> get_set(1: NameSpace ns, 2:RecordSet rs) throws (1: InvalidSetDescription bs, 2: NotImplemented ni, 3: NotResponsible nr),
 	bool put(1:NameSpace ns, 2: Record rec) throws (1: NotResponsible nr, 2:InvalidSetDescription bs),
-	bool test_and_set(1:NameSpace ns, 2:Record rec, 3:ExistingValue existingValue),
+	bool test_and_set(1:NameSpace ns, 2:Record rec, 3:ExistingValue existingValue) throws (1: TestAndSetFailure tsf),
 	i32 count_set(1:NameSpace ns, 2: RecordSet rs) throws (1: InvalidSetDescription bs, 2: NotImplemented ni, 3: NotResponsible nr)
 }
 
