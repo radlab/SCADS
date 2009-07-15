@@ -1,5 +1,9 @@
 package deploylib
 
+/**
+ * This is a utility object to give you information about different instance
+ * types.
+ */
 object InstanceType {
   private object Type extends Enumeration {
     val m1_small  = Value("m1.small")
@@ -18,11 +22,19 @@ object InstanceType {
     }
   }
   
+  /**
+   * This method throws an exception if the given string is not one of the
+   * EC2 instance types. This method is used internally when
+   * DataCenter.runInstances is called. You will likely not need to use it.
+   */
   def checkValidType(typeString: String):Boolean = {
     getValue(typeString)
     true
   }
   
+  /**
+   * This method returns the number of cores a given instance type has.
+   */
   def cores(typeString: String): Int = {
     getValue(typeString)  match {
       case Type.m1_small  => 1
@@ -33,11 +45,14 @@ object InstanceType {
     }
   }
   
-  def bits(typeString: String): String = {
+  /**
+   * Returns 32 or 64 depending on the given instance.
+   */
+  def bits(typeString: String): Int = {
     getValue(typeString) match {
-      case Type.m1_small  => "32-bit"
-      case Type.c1_medium => "32-bit"
-      case _              => "64-bit"
+      case Type.m1_small  => 32
+      case Type.c1_medium => 32
+      case _              => 64
     }
   }
 }

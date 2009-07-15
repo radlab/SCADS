@@ -10,8 +10,8 @@ object Scadr {
     
     def runInstances(count: Int, typeString: String): InstanceGroup = {
       val imageId = InstanceType.bits(typeString) match {
-        case "32-bit" => "ami-e7a2448e"
-        case "64-bit" => "ami-e4a2448d"
+        case 32 => "ami-e7a2448e"
+        case 64 => "ami-e4a2448d"
       }
       val keyName = "abeitch"
       val keyPath = "/Users/aaron/.ec2/id_rsa-abeitch"
