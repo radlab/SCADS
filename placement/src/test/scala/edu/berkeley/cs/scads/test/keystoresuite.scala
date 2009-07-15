@@ -107,16 +107,61 @@ abstract class KeyStoreSuite extends Suite {
 
 
   // == test_and_set testing (and setting) ==
-  def testAndSetNull() {
+  def testAndSetNull() = {
     val ev = new ExistingValue("n",0)
     ev.unsetValue()
     ev.unsetPrefix()
     val rec = new Record("tasnull","tasnull")
-    val resp = connection.get("tans","tasnull")
     val res = connection.test_and_set("tans",rec,ev)
     assert(res)
   }
 
+  def testAndSetSucceed() = {
+    val rec = new Record("tassuc","tassuc1")
+    connection.put("tass",rec)
+    val ev = new ExistingValue("tassuc1",0)
+    ev.unsetPrefix()
+    rec.value = "tassuc2"
+    val res = connection.test_and_set("tass",rec,ev)
+    assert(res)
+    val resp = connection.get("tass","tassuc")
+    assert(resp.value === "tassuc2")
+  }
+
+  def testAndSetFail() = {
+    val rec = new Record("tasfail","tasfail1")
+    connection.put("tasf",rec)
+    val ev = new ExistingValue("failval",0)
+    ev.unsetPrefix()
+    rec.value = "tasfail2"
+    val res = connection.test_and_set("tasf",rec,ev)
+    assert(!res)
+    val resp = connection.get("tasf","tasfail")
+    assert(resp.value === "tasfail1")
+  }
+
+  def testAndSetSucceedPrefix() = {
+    val rec = new Record("tassucp","tassucp1ignore")
+    connection.put("tassp",rec)
+    val ev = new ExistingValue("tassucp1xxx",7)
+    rec.value = "tassucp2"
+    val res = connection.test_and_set("tassp",rec,ev)
+    assert(res)
+    val resp = connection.get("tassp","tassucp")
+    assert(resp.value === "tassucp2")
+  }
+
+  def testAndSetFailPrefix() = {
+    val rec = new Record("tasfailp","tasfailp1ignore")
+    connection.put("tasfp",rec)
+    val ev = new ExistingValue("failval",12)
+    rec.value = "tasfailp2"
+    val res = connection.test_and_set("tasfp",rec,ev)
+    assert(!res)
+    val resp = connection.get("tasfp","tasfailp")
+    assert(resp.value === "tasfailp1ignore")
+  }
+  
 
 
   // == test various get_set functionality ==
