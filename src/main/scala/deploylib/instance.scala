@@ -79,10 +79,18 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
         "chef-solo -j config.js -r " + repoPath)
   }
   
+  /*
+   * Same as deploy, but wraps deploy call in a Future. ie. forks a new
+   * thread to do deploy.
+   */
   def deployNonBlocking(config: JSONObject): Future[ExecuteResponse] = {
     deployNonBlocking(config, null)
   }
   
+  /*
+   * Same as deploy, but wraps deploy call in a Future. ie. forks a new
+   * thread to do deploy.
+   */
   def deployNonBlocking(config: JSONObject, repoPath: String): Future[ExecuteResponse] = {
     scala.actors.Futures.future { deploy(config, repoPath) }
   }
