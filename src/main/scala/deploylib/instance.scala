@@ -215,7 +215,7 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   /**
    * Blocks the current thread until this instance is in running state.
    */
-  def waitUntilReady: Unit = {
+  def waitUntilReady = {
     while (refresh && !running) {
       Thread.sleep(5000)
     }

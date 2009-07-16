@@ -157,4 +157,20 @@ class InstanceGroup(c: java.util.Collection[Instance])
     this.toArray(thisArray)
     for (instance <- thisArray) yield instance.deployNonBlocking(config, repoPath)
   }
+  
+  def stopAll = {}
+  
+  def cleanServices = {}
+  
+  def tagWith(tag: String) = {}
+  
+  def exec(cmd: String): Array[ExecuteResponse] = { null }
+  
+  def waitUntilReady = {}
+  
+  def refresh = {}
+  
+  def allRunning: Boolean = { false }
+  
+  def allTerminated: Boolean = { false }
 }
