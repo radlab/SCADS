@@ -48,8 +48,7 @@ object Cloudstone {
     val nginx   = runInstances(nginxSettings._1, nginxSettings._2)
     val faban   = runInstances(fabanSettings._1, fabanSettings._2)
     
-    val allInstances = new InstanceGroup()
-    allInstances ++ rails ++ mysql ++ haproxy ++ nginx ++ faban
+    val allInstances = new InstanceGroup(Array(rails, mysql, haproxy, nginx, faban))
     
     println("Waiting until all instances are ready.")
     allInstances.parallelMap((instance: Instance) => instance.waitUntilReady)

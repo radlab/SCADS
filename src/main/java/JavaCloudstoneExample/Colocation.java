@@ -55,11 +55,8 @@ public class Colocation {
             instances[i] = runInstances(instanceConfigs[i]);
         }
         
-        InstanceGroup allInstances = new InstanceGroup();
+        InstanceGroup allInstances = new InstanceGroup(instances);
         
-        for (InstanceGroup ig : instances) {
-            allInstances.addAll(ig);
-        }
         
         /**************************************************
          * Don't forget to wait on the instances          *

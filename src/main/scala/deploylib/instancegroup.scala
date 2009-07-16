@@ -17,10 +17,33 @@ import scala.collection.jcl.Conversions._
 class InstanceGroup(c: java.util.Collection[Instance])
   extends java.util.LinkedList[Instance](c) {
 
+  /**
+   * Creates an empty InstanceGroup.
+   */
   def this() = this(new java.util.LinkedList[Instance]())
   
+  /**
+   * Populates this IntanceGroup with all instances in the List.
+   */
   def this(list: List[Instance]) = {
     this(java.util.Arrays.asList(list.toArray: _*))
+  }
+  
+  /**
+   * Populates this InstanceGroup with all instances in the Array of InstanceGroups.
+   * For Java compatibility.
+   */
+  def this(iterable: Array[InstanceGroup]) = {
+    this()
+    for (ig <- iterable) this.addAll(ig)
+  }
+  
+  /**
+   * Populates this InstanceGroup with all instances in the Iterable of InstanceGroups.
+   */
+  def this(iterable: Iterable[InstanceGroup]) = {
+    this()
+    for (ig <- iterable) this.addAll(ig)
   }
 
   /**
