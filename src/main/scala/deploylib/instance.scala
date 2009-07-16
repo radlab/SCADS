@@ -81,11 +81,12 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
    * Same as deploy, but wraps deploy call in a Future. ie. forks a new
    * thread to do deploy.
    *
-   * @return A future that operates in the background. To wait on the deploy,
+   * @return A future that operates in the background. To wait on the Future,
    *         call the return value ie.
+   *         <br>
    *         <code>
-   *         val futureResponse = deployNonBlocking(config)
-   *         val response = futureResponse()
+   *         val futureResponse = deployNonBlocking(config) <br>
+   *         val response = futureResponse() <br>
    *         println(response.getStdout)
    *         </code>
    */
@@ -97,11 +98,12 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
    * Same as deploy, but wraps deploy call in a Future. ie. forks a new
    * thread to do deploy.
    *
-   * @return A future that operates in the background. To wait on the deploy,
+   * @return A future that operates in the background. To wait on the Future,
    *         call the return value ie.
+   *         <br>
    *         <code>
-   *         val futureResponse = deployNonBlocking(config)
-   *         val response = futureResponse()
+   *         val futureResponse = deployNonBlocking(config) <br>
+   *         val response = futureResponse() <br>
    *         println(response.getStdout)
    *         </code>
    */
