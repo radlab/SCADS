@@ -3,6 +3,7 @@ package deploylib
 import scala.actors._
 import java.util.LinkedList
 import scala.collection.jcl.Conversions._
+import org.json.JSONObject
 
 /**
  * This class is the abstraction for a collection of instances.
@@ -127,4 +128,33 @@ class InstanceGroup(c: java.util.Collection[Instance])
     this.find(instance => instance.instanceId == id)
   }
   
+  /**
+   * Runs deploy on each instance in parallel.
+   */
+  def deploy(config: JSONObject): Array[ExecuteResponse] = {
+    deploy(config, null)
+  }
+  
+  /**
+   * Runs deploy on each instance in parallel.
+   */
+  def deploy(config: JSONObject, repoPath: String): Array[ExecuteResponse] = {
+    parallelMap((instance) => instance.deploy(config, repoPath))
+  }
+  
+  /**
+   * Runs deployNonBlocking on each instance.
+   */
+  def deployNonBlocking(config: JSONObject): Array[Future[ExecuteResponse]] = {
+    deployNonBlocking(config, null)
+  }
+  
+  /**
+   * Runs deployNonBlocking on each instance.
+   */
+  def deployNonBlocking(config: JSONObject, repoPath: String): Array[Future[ExecuteResponse]] = {
+    val thisArray = new Array[Instance](this.size())
+    this.toArray(thisArray)
+    for (instance <- thisArray) yield instance.deployNonBlocking(config, repoPath)
+  }
 }

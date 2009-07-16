@@ -1,7 +1,5 @@
 package deploylib
 
-import java.io.File
-import java.io.InputStream
 import org.json.JSONObject
 
 import com.amazonaws.ec2._
@@ -79,17 +77,33 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
         "chef-solo -j config.js -r " + repoPath)
   }
   
-  /*
+  /**
    * Same as deploy, but wraps deploy call in a Future. ie. forks a new
    * thread to do deploy.
+   *
+   * @return A future that operates in the background. To wait on the deploy,
+   *         call the return value ie.
+   *         <code>
+   *         val futureResponse = deployNonBlocking(config)
+   *         val response = futureResponse()
+   *         println(response.getStdout)
+   *         </code>
    */
   def deployNonBlocking(config: JSONObject): Future[ExecuteResponse] = {
     deployNonBlocking(config, null)
   }
   
-  /*
+  /**
    * Same as deploy, but wraps deploy call in a Future. ie. forks a new
    * thread to do deploy.
+   *
+   * @return A future that operates in the background. To wait on the deploy,
+   *         call the return value ie.
+   *         <code>
+   *         val futureResponse = deployNonBlocking(config)
+   *         val response = futureResponse()
+   *         println(response.getStdout)
+   *         </code>
    */
   def deployNonBlocking(config: JSONObject, repoPath: String): Future[ExecuteResponse] = {
     scala.actors.Futures.future { deploy(config, repoPath) }
