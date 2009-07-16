@@ -31,7 +31,7 @@ import scala.actors.Futures.future
  * object.
  */
 class Instance(initialInstance: RunningInstance, keyPath: String) {
-  private var instance = initialInstance
+  private var instanceSnapshot = initialInstance
   private var ssh: SSH = null
   if (running) ssh = new SSH(publicDnsName, keyPath)
   
@@ -44,6 +44,16 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
     this(DataCenter.describeInstances(instanceId), keyPath)
     if (running) ssh = new SSH(publicDnsName, keyPath)
     if (!terminated) DataCenter.addInstances(this)
+  }
+  
+  /**
+   * Sets the running instance to the new value if this Instance and the given
+   * one have the same instance ID, otherwise IllegalStateException thrown.
+   */
+  def instance_=(otherInstance: RunningInstance) {
+    if (instanceId != otherInstance.getInstanceId())
+      throw new IllegalStateException("Tried to assign a RunningInstance with a different instance ID.")
+    instanceSnapshot = otherInstance
   }
 
   /**
@@ -231,7 +241,7 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
    *         process of being terminated, true otherwise.
    */
   def refresh: Boolean = {
-    instance = DataCenter.describeInstances(this)
+    instance_=(DataCenter.describeInstances(this))
     if (terminated) {
       DataCenter.removeInstance(this)
       return false
@@ -261,47 +271,47 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   
   /** Returns the instance ID. */
   def instanceId: String = {
-    instance.getInstanceId()
+    instanceSnapshot.getInstanceId()
   }
   
   /** Returns the image ID. */
   def imageId: String = {
-    instance.getImageId()
+    instanceSnapshot.getImageId()
   }
   
   /** Returns the isntance state. */
   def instanceState: String = {
-    instance.getInstanceState().getName()
+    instanceSnapshot.getInstanceState().getName()
   }
   
   /** Returns the private DNS name. */
   def privateDnsName: String = {
-    instance.getPrivateDnsName()
+    instanceSnapshot.getPrivateDnsName()
   }
   
   /** Returns the public DNS name. */
   def publicDnsName: String = {
-    instance.getPublicDnsName()
+    instanceSnapshot.getPublicDnsName()
   }
   
   /** Returns the public key name. */  
   def keyName: String = {
-    instance.getKeyName()
+    instanceSnapshot.getKeyName()
   }
   
   /** Returns the instance type. */
   def instanceType: String = {
-    instance.getInstanceType()
+    instanceSnapshot.getInstanceType()
   }
   
   /** Returns the time the instance was launched. */
   def launchTime: String = {
-    instance.getLaunchTime()
+    instanceSnapshot.getLaunchTime()
   }
   
   /** Returns the availability zone the instance resides in. */
   def availabilityZone: String = {
-    instance.getPlacement().getAvailabilityZone()
+    instanceSnapshot.getPlacement().getAvailabilityZone()
   }
   
   override def equals(other: Any): Boolean = other match {
