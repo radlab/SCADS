@@ -12,6 +12,35 @@ module SCADS
           @conflict_policies = Hash.new(ConflictPolicy.new(:type => ConflictPolicyType::CPT_GREATER))
         end
 
+        def test_and_set(ns, rec, ev)
+          raise NotResponsible.new unless @responsibility_policies[ns].includes?(rec.key)
+
+          if(ev.value.nil?)
+            unless(@data[ns][rec.key].nil?)
+#              if(ev.prefix.nil?)
+                raise TestAndSetFailure.new(:currentValue => @data[ns][rec.key])
+#              else
+#                raise TestAndSetFailure.new(:currentValue => @data[ns][rec.key][0..(ev.prefix-1)])
+#              end
+            end
+          else
+            unless(ev.value[0..((ev.prefix || ev.value.length) - 1)] == @data[ns][rec.key][0..((ev.prefix || ev.value.length) - 1)])
+#              if(ev.prefix.nil?)
+                raise TestAndSetFailure.new(:currentValue => @data[ns][rec.key])
+#              else
+#                raise TestAndSetFailure.new:currentValue => (@data[ns][rec.key][0..(ev.prefix-1)])
+#              end
+            end
+          end
+
+          if rec.value.nil?
+            @data[ns].delete(rec.key)
+          else
+            @data[ns][rec.key] = rec.value
+          end
+          return true
+        end
+
         def get(ns, key)
           raise NotResponsible.new unless @responsibility_policies[ns].includes?(key)
           Record.new(:key=>key,:value => @data[ns][key])
