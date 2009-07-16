@@ -158,19 +158,26 @@ class InstanceGroup(c: java.util.Collection[Instance])
     for (instance <- thisArray) yield instance.deployNonBlocking(config, repoPath)
   }
   
-  def stopAll = {}
+  def stopAll = { 
+    DataCenter.terminateInstances(this)
+    refreshAll
+  }
   
-  def cleanServices = {}
+  def cleanServices = { parallelMap((instance) => instance.cleanServices) }
   
-  def tagWith(tag: String) = {}
+  def tagWith(tag: String) = { parallelMap((instance) => instance.tagWith(tag)) }
   
-  def exec(cmd: String): Array[ExecuteResponse] = { null }
+  def removeTag(tag: String) = { parallelMap((instance) => instance.removeTag(tag)) }
   
-  def waitUntilReady = {}
+  def exec(cmd: String): Array[ExecuteResponse] = { 
+    parallelMap((instance) => instance.exec(cmd))
+  }
   
-  def refresh = {}
+  def waitUntilReady = { parallelMap((instance) => instance.waitUntilReady) }
   
-  def allRunning: Boolean = { false }
+  def refreshAll = {}
   
-  def allTerminated: Boolean = { false }
+  def allRunning: Boolean = { this.forall((instance) => instance.running) }
+  
+  def allTerminated: Boolean = { this.forall((instance) => instance.terminated) }
 }
