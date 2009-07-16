@@ -53,8 +53,22 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
    */
   @throws(classOf[IllegalStateException])
   def deploy(config: JSONObject): ExecuteResponse = {
-    exec("cd && echo \'" + config.toString() + "\' > config.js && " +
+    exec("echo \'" + config.toString() + "\' > config.js && " +
          "chef-solo -j config.js")
+  }
+  
+  /**
+   * Runs chef-solo on the instance.
+   *
+   * @param config   This is the configuration passed to chef-solo.
+   * @param repoPath This is the path to a chef-repo gzipped tarball. The path
+   *                 may be a URL or a path to a chef-repo local to the instance.
+   * @return         What appeared on the shell in the form of an ExecuteResponse.
+   */
+  @throws(classOf[IllegalStateException])
+  def deploy(config: JSONObject, repoPath: String): ExecuteResponse = {
+    exec("echo \'" + config.toString() + "\' > config.js && " +
+         "chef-solo -j config.js -r " + repoPath)
   }
   
   /**
