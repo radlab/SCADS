@@ -17,7 +17,10 @@ abstract class Key extends Ordered[Key] {
 
 object StringKey {
 	def deserialize(input: String, pos: ParsePosition): StringKey = {
-		assert(input.charAt(pos.getIndex) == '\'')
+		new StringKey(deserialize_toString(input,pos))
+	}
+	def deserialize_toString(input: String, pos: ParsePosition): String = {
+		assert(input.charAt(pos.getIndex) == '\'',"Not serialized key: "+input)
 		pos.setIndex(pos.getIndex + 1)
 
 		val sb = new StringBuilder()
@@ -26,7 +29,7 @@ object StringKey {
 			pos.setIndex(pos.getIndex + 1)
 		}
 		pos.setIndex(pos.getIndex + 1)
-		new StringKey(sb.toString())
+		sb.toString()
 	}
 }
 
