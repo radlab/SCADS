@@ -179,7 +179,10 @@ class InstanceGroup(c: java.util.Collection[Instance])
     parallelMap((instance) => instance.exec(cmd))
   }
   
-  def waitUntilReady = { parallelMap((instance) => instance.waitUntilReady) }
+  def waitUntilReady = {
+    while (!allRunning) refreshAll
+    parallelMap((instance) => instance.waitUntilReady)
+    }
   
   def refreshAll = {
     val instancePairs = this.toList zip DataCenter.describeInstances(this)
