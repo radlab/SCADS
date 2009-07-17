@@ -175,7 +175,10 @@ class InstanceGroup(c: java.util.Collection[Instance])
   
   def waitUntilReady = { parallelMap((instance) => instance.waitUntilReady) }
   
-  def refreshAll = {}
+  def refreshAll = {
+    val instancePairs = this.toList zip DataCenter.describeInstances(this)
+    for (pair <- instancePairs) pair._1.runningInstance = pair._2
+  }
   
   def allRunning: Boolean = { this.forall((instance) => instance.running) }
   

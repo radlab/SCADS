@@ -31,7 +31,7 @@ import scala.actors.Futures.future
  * object.
  */
 class Instance(initialInstance: RunningInstance, keyPath: String) {
-  private var instanceSnapshot = initialInstance
+  private var instance = initialInstance
   private var ssh: SSH = null
   if (running) ssh = new SSH(publicDnsName, keyPath)
   
@@ -50,11 +50,13 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
    * Sets the running instance to the new value if this Instance and the given
    * one have the same instance ID, otherwise IllegalStateException thrown.
    */
-  def instance_=(otherInstance: RunningInstance) {
-    if (instanceId != otherInstance.getInstanceId())
-      throw new IllegalStateException("Tried to assign a RunningInstance with a different instance ID.")
-    instanceSnapshot = otherInstance
+  def runningInstance_=(otherInstance: RunningInstance) {
+    require(instanceId == otherInstance.getInstanceId(),
+      "Tried to assign a RunningInstance with a different instance ID.")
+    instance = otherInstance
   }
+  
+  private def runningInstance: RunningInstance = instance
 
   /**
    * Calls chef-solo with the default chef-repo.
@@ -271,47 +273,47 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
   
   /** Returns the instance ID. */
   def instanceId: String = {
-    instanceSnapshot.getInstanceId()
+    instance.getInstanceId()
   }
   
   /** Returns the image ID. */
   def imageId: String = {
-    instanceSnapshot.getImageId()
+    instance.getImageId()
   }
   
   /** Returns the isntance state. */
   def instanceState: String = {
-    instanceSnapshot.getInstanceState().getName()
+    instance.getInstanceState().getName()
   }
   
   /** Returns the private DNS name. */
   def privateDnsName: String = {
-    instanceSnapshot.getPrivateDnsName()
+    instance.getPrivateDnsName()
   }
   
   /** Returns the public DNS name. */
   def publicDnsName: String = {
-    instanceSnapshot.getPublicDnsName()
+    instance.getPublicDnsName()
   }
   
   /** Returns the public key name. */  
   def keyName: String = {
-    instanceSnapshot.getKeyName()
+    instance.getKeyName()
   }
   
   /** Returns the instance type. */
   def instanceType: String = {
-    instanceSnapshot.getInstanceType()
+    instance.getInstanceType()
   }
   
   /** Returns the time the instance was launched. */
   def launchTime: String = {
-    instanceSnapshot.getLaunchTime()
+    instance.getLaunchTime()
   }
   
   /** Returns the availability zone the instance resides in. */
   def availabilityZone: String = {
-    instanceSnapshot.getPlacement().getAvailabilityZone()
+    instance.getPlacement().getAvailabilityZone()
   }
   
   override def equals(other: Any): Boolean = other match {
