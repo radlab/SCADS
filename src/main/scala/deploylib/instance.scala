@@ -31,19 +31,19 @@ import java.io.IOException
  * same unless you update the state. To update the state call refresh on the instance
  * object.
  */
-class Instance(initialInstance: RunningInstance, keyPath: String) {
+class Instance(initialInstance: RunningInstance) {
   private var instance = initialInstance
   private var ssh: SSH = null
-  if (running) ssh = new SSH(publicDnsName, keyPath)
+  if (running) ssh = new SSH(publicDnsName)
   
   /**
    * This alternate constructor is for the ease of creating instance objects
    * from already running instances.
    * Maybe this should be moved to DataCenter...
    */
-  def this(instanceId: String, keyPath: String) {
-    this(DataCenter.describeInstances(instanceId), keyPath)
-    if (running) ssh = new SSH(publicDnsName, keyPath)
+  def this(instanceId: String) {
+    this(DataCenter.describeInstances(instanceId))
+    if (running) ssh = new SSH(publicDnsName)
     if (!terminated) DataCenter.addInstances(this)
   }
   
@@ -232,7 +232,7 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
     while (refresh && !running) {
       Thread.sleep(5000)
     }
-    ssh = new SSH(publicDnsName, keyPath)
+    ssh = new SSH(publicDnsName)
     
     val connectionAttempts = 10
     def connectAttempt(numAttempts: Int): Unit = {

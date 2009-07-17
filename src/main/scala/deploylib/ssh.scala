@@ -11,7 +11,7 @@ import java.io.InputStream
 import java.io.InputStreamReader
 import java.io.BufferedReader
 
-class SSH(hostname: String, keyPath: String){
+class SSH(hostname: String){
   val connection = new Connection(hostname)
   
   def executeCommand(cmd: String): ExecuteResponse = {
@@ -61,7 +61,11 @@ class SSH(hostname: String, keyPath: String){
   }
   
   private def connect = {
-    val keyfile = new File(keyPath)
+    require(DataCenter.keyPath != null,
+      "DataCenter.keyPath must be set either directly " + 
+      "or by setting AWS_KEY_PATH environment variables before " +
+      "calling this method.")
+    val keyfile = new File(DataCenter.keyPath)
     val numConnectionAttempts = 5
     
     def connectAgain(numAttempts: Int): Unit = {

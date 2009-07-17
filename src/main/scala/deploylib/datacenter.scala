@@ -22,6 +22,9 @@ object DataCenter {
   private val accessKeyId     = System.getenv.apply("AWS_ACCESS_KEY_ID")
   private val secretAccessKey = System.getenv.apply("AWS_SECRET_ACCESS_KEY")
   
+  var keyName = System.getenv("AWS_KEY_NAME")
+  var keyPath = System.getenv("AWS_KEY_PATH")
+  
   private val config = new AmazonEC2Config()
 
   if(System.getenv.containsKey("EC2_URL"))
@@ -40,18 +43,18 @@ object DataCenter {
    *
    * @param imageId    the image id to use when deploying the instances
    * @param count      number of instances to startup
-   * @param keyName    the name of the keypair to use
-   * @param keyPath    the path to the local key file. Note: ~ does not mean your home directory!
    * @param typeString the type of instance wanted ie. "m1.small", "c1.xlarge", etc.
    * @param location   the availability zone ie. "us-east-1a"
    * @return           An InstanceGroup object holding all instances allocated.
    *                   Note that the instances will not be in the ready state
    *                   when this method exits.
    */
-  def runInstances(imageId: String, count: Int, keyName: String,
-                   keyPath: String, typeString: String,
-                   location: String):
-                   InstanceGroup = {
+  def runInstances(imageId: String, count: Int, typeString: String,
+    location: String): InstanceGroup = {
+    require(keyName != null,
+      "DataCenter.keyName must be set either directly " + 
+      "or by setting AWS_KEY_NAME environment variables before " +
+      "calling this method.")
     
     InstanceType.checkValidType(typeString)
     
@@ -77,7 +80,7 @@ object DataCenter {
     val runningInstanceList = reservation.getRunningInstance()
     
     val instanceList = runningInstanceList.map(instance =>
-                                              new Instance(instance, keyPath))
+                                              new Instance(instance))
     val instanceGroup = new InstanceGroup(instanceList.toList)
     instances.addAll(instanceGroup)
     
@@ -252,11 +255,10 @@ object DataCenter {
    * Reconstructs the state by building instances from instance IDs specified
    * in a file. The file used is $HOME/.deploy_lib
    * 
-   * @param keyPath the path to the local key file. Note: ~ does not mean your home directory!
    * @return        An InstanceGroup containing all instances constructed from the instance ids in the file.
    */
-  def readStateFromFile(keyPath: String): InstanceGroup = {
-    readStateFromFile(null, keyPath)
+  def readStateFromFile: InstanceGroup = {
+    readStateFromFile(null)
   }
   
   /**
@@ -264,10 +266,9 @@ object DataCenter {
    * in a file. The file used is $HOME/.deploy_lib
    *
    * @param path    the path to the file to be read from. If path is null or empty $HOME/.deploy_lib is used.
-   * @param keyPath the path to the local key file. Note: ~ does not mean your home directory!
    * @return        An InstanceGroup containing all instances constructed from the instance ids in the file.
    */
-  def readStateFromFile(path: String, keyPath: String): InstanceGroup = {
+  def readStateFromFile(path: String): InstanceGroup = {
     val filePath = path match {
       case null => defaultDumpPath
       case ""   => defaultDumpPath
@@ -279,7 +280,7 @@ object DataCenter {
     
     val instanceList = 
       for (runningInstance <- describeInstances(instanceIds)) yield
-        new Instance(runningInstance, keyPath)
+        new Instance(runningInstance)
     val instanceGroup = new InstanceGroup(instanceList)
     instances.addAll(instanceGroup)
     
