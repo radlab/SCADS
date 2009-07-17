@@ -86,6 +86,13 @@ struct DataPlacement {
 	4:RecordSet rset
 }
 
+service DataPlacementServer {
+	list<DataPlacement> lookup_namespace(1:NameSpace ns),
+	DataPlacement lookup_node(1:Host node),
+	list<DataPlacement> lookup_key(1: RecordKey key),
+	list<DataPlacement> lookup_range(1:RangeSet rset)
+}
+
 service KnobbedDataPlacementServer extends DataPlacementServer {
 	void move(1: NameSpace ns, 2: RecordSet rset, 3: Host src_host, 4: i32 	src_thrift, 5: i32 src_sync,6: Host dest_host, 7: i32 dest_thrift, 8: i32 dest_sync),
 
@@ -93,13 +100,6 @@ service KnobbedDataPlacementServer extends DataPlacementServer {
 
 	bool add(1:NameSpace ns, 2:list<DataPlacement> entries),
 	bool remove(1:NameSpace ns, 2:list<DataPlacement> entries)
-}
-
-service DataPlacementServer {
-	list<DataPlacement> lookup_namespace(1:NameSpace ns),
-	DataPlacement lookup_node(1:Host node),
-	list<DataPlacement> lookup_key(1: RecordKey key),
-	list<DataPlacement> lookup_range(1:RangeSet rset)
 }
 
 service KeyStore {
