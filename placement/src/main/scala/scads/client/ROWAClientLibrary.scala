@@ -1,24 +1,12 @@
 package edu.berkeley.cs.scads.client
 
-import edu.berkeley.cs.scads.keys.AutoKey
-import edu.berkeley.cs.scads.thrift.Record
-import edu.berkeley.cs.scads.thrift.RecordSet
-import edu.berkeley.cs.scads.thrift.KeyStore
-import edu.berkeley.cs.scads.thrift.NotResponsible
-import edu.berkeley.cs.scads.thrift.RangeConversion
-import edu.berkeley.cs.scads.placement.KeySpace
-import edu.berkeley.cs.scads.placement.KeySpaceProvider
-import edu.berkeley.cs.scads.placement.LocalKeySpaceProvider
+import edu.berkeley.cs.scads.thrift.{Record,RecordSet,ExistingValue,KeyStore,NotResponsible,NotImplemented,RangeConversion}
+import edu.berkeley.cs.scads.placement.{SimpleDataPlacementService,LocalDataPlacementProvider,RemoteDataPlacementProvider}
 import edu.berkeley.cs.scads.nodes.StorageNode
-import edu.berkeley.cs.scads.keys.Key
 import edu.berkeley.cs.scads.keys._
-import edu.berkeley.cs.scads.keys.KeyRange
-import edu.berkeley.cs.scads.keys.NonCoveredRangeException
-import edu.berkeley.cs.scads.keys.NoNodeResponsibleException
 
 import java.util.Comparator
-import scala.collection.mutable.HashMap
-import scala.collection.mutable.HashSet
+import scala.collection.mutable.{HashMap, HashSet}
 
 class RecordComparator extends java.util.Comparator[Record] {
 	def compare(o1: Record, o2: Record): Int = {
@@ -26,15 +14,17 @@ class RecordComparator extends java.util.Comparator[Record] {
 	}
 }
 
-class LocalROWAClientLibrary extends ROWAClientLibrary with LocalKeySpaceProvider
-/*
-class SCADSClient(h: String, p: Int) extends ROWAClientLibrary with RemoteKeySpaceProvider {
+class LocalROWAClientLibrary extends ROWAClientLibrary with LocalDataPlacementProvider
+
+class SCADSClient(h: String, p: Int) extends ROWAClientLibrary with RemoteDataPlacementProvider {
 	val port = p
 	val host = h
 }
-*/
-abstract class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider with RangeConversion with AutoKey {
+
+abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementService with RangeConversion with AutoKey {
 	import java.util.Random
+	import java.text.ParsePosition
+
 	val retries = 5
 
 	/**
@@ -45,20 +35,22 @@ abstract class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider wit
 		this.get_retry(namespace,key,retries);
 	}
 	private def get_retry(namespace: String, key: String, count: Int):Record = {
-		val ns_keyspace = getKeySpace(namespace)
+		//val ns_keyspace = getKeySpace(namespace)
+		val potentials = lookup(namespace,key).toList
+		val serialized_key ="'" + key + "'" // serialize before sending over thrift
 		try {
-			val potentials = ns_keyspace.lookup(key).toList
 			if ( potentials.length >0  ) {
 				val node = potentials(new Random().nextInt(potentials.length)) // use random one
-				val record = node.useConnection((c) => c.get(namespace,key))
-				record
+				val record = node.useConnection((c) => c.get(namespace,serialized_key))
+				//record
+				new Record(StringKey.deserialize_toString(record.getKey,new ParsePosition(0)),record.getValue)
 			}
 			else throw new NoNodeResponsibleException
 		} catch {
 			case e:NotResponsible => {
-				this.refreshKeySpace()
+				this.refreshPlacement
 				if (count >0)
-					this.get_retry(namespace,key,count-1)
+					this.get_retry(namespace,serialized_key,count-1)
 				else {
 					println("Client library failed refresh attempts on [" +namespace+"]"+key+": "+retries)
 					throw e // TODO: throw more meaningful exception
@@ -78,8 +70,8 @@ abstract class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider wit
 	def get_set(namespace: String, keys: RecordSet): java.util.List[Record] = {
 		var count = retries
 		var records = new HashSet[Record]
-		val ns_keyspace = getKeySpace(namespace)
-		val target_range = new KeyRange(keys.range.start_key, keys.range.end_key)
+		//val ns_keyspace = getKeySpace(namespace)
+		val target_range = this.rangeSetToKeyRange(keys.range) //new KeyRange(keys.range.start_key, keys.range.end_key)
 		var ranges = Set[KeyRange]()
 
 		var offset = 0
@@ -89,7 +81,7 @@ abstract class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider wit
 
 		// determine which ranges to ask from which nodes
 		// assumes no gaps in range, but someone should tell user if entire range isn't covered
-		val potentials = ns_keyspace.lookup(target_range)
+		val potentials = lookup(namespace,target_range) //ns_keyspace.lookup(target_range)
 		val query_nodes = this.get_set_queries(potentials,target_range)		
 
 		// now do the getting
@@ -104,7 +96,7 @@ abstract class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider wit
 					node_record_count = node.useConnection((c) => c.count_set(namespace,rset))
 				} catch {
 					case e:NotResponsible => {
-						this.refreshKeySpace()
+						this.refreshPlacement
 						if (count>0) {
 							node_record_count = node.useConnection((c) => c.count_set(namespace,rset))
 							count -=1
@@ -120,13 +112,18 @@ abstract class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider wit
 			if (node_record_count >= offset && ( (haveLimit && limit > 0) || !haveLimit) ) {
 				if (offset > 0) { rset.range.setOffset(offset) }
 				if (haveLimit) { rset.range.setLimit(limit) }
+				var r:Record = null
 				try {
 					val records_subset = node.useConnection((c) => c.get_set(namespace,rset))
-					val iter = records_subset.iterator()
-					while (iter.hasNext()) { records += iter.next(); limit -= 1 }
+					val iter:java.util.Iterator[Record] = records_subset.iterator()
+					while (iter.hasNext()) {
+						//records += iter.next(); limit -=1}
+						r = iter.next().asInstanceOf[Record];
+						records += new Record(StringKey.deserialize_toString(r.getKey,new ParsePosition(0)),r.getValue);
+						limit -= 1 }
 				} catch {
 					case e:NotResponsible => {
-						this.refreshKeySpace()
+						this.refreshPlacement
 						if (count>0) {
 							val records_subset = node.useConnection((c) => c.get_set(namespace,rset))
 							val iter = records_subset.iterator()
@@ -149,7 +146,7 @@ abstract class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider wit
 		})
 		
 		// make sure desired range was actually covered by what we gots
-		if ( !ns_keyspace.isCovered(target_range,ranges) ) { 
+		if ( !KeyRange.isCovered(target_range,ranges) ) {
 			throw new NonCoveredRangeException // do we ever reach here?
 		}	 
 		// sort an array
@@ -214,20 +211,20 @@ abstract class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider wit
 
 	private def put_retry(namespace: String, rec:Record,count:Int): Boolean = {
 		val key = rec.getKey()
-		val ns_keyspace = getKeySpace(namespace)
-		val put_nodes = ns_keyspace.lookup(key)
+		//val ns_keyspace = getKeySpace(namespace)
+		val put_nodes = lookup(namespace,key)//ns_keyspace.lookup(key)
 		if ( !(put_nodes.length > 0) ) throw new NoNodeResponsibleException
 		var total_success = true
 		
 		put_nodes.foreach({ case(node)=>{
 			try {
-				val success = node.useConnection((c) => c.put(namespace,rec))
+				val success = node.useConnection((c) => c.put(namespace,new Record("'" + rec.getKey() + "'",rec.getValue())))
 				total_success && success 
 			} catch {
 				case e:NotResponsible => {
-					this.refreshKeySpace()
+					this.refreshPlacement
 					if (count>0) {
-						val success = this.put_retry(namespace,rec,count-1) // recursion may redo some work
+						val success = this.put_retry(namespace,new Record("'" + rec.getKey() + "'",rec.getValue()),count-1) // recursion may redo some work
 						total_success && success
 					}
 					else {
@@ -244,4 +241,16 @@ abstract class ROWAClientLibrary extends ClientLibrary with KeySpaceProvider wit
 		total_success
 	}
 
+	def count_set(namespace: String ,keys: RecordSet): Int = {
+		this.count_set_retry(namespace,keys,retries)
+	}
+	private def count_set_retry(namespace: String ,keys: RecordSet, count: Int): Int = {
+		throw new NotImplemented("ROWAClientLibrary.count_set()") // TODO
+	}
+	def test_and_set(namespace: String, rec: Record, existing: ExistingValue): Boolean = {
+		this.test_and_set(namespace,rec,existing,retries)
+	}
+	private def test_and_set(namespace: String, rec: Record, existing: ExistingValue, count: Int): Boolean = {
+		throw new NotImplemented("ROWAClientLibrary.count_set()") // TODO
+	}
 }
