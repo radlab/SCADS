@@ -21,7 +21,7 @@ object Scadr {
     }
     
     println("Requesting instances.")
-    val instances = runInstances(3, "m1.small")
+    val instances = runInstances(2, "m1.small")
     println("Instances received.")
     
     println("Waiting on instances to be ready.")
@@ -30,11 +30,11 @@ object Scadr {
     
     instances.get(0).tagWith("scads")
     instances.get(1).tagWith("loadbalancer")
-    instances.get(2).tagWith("webserver")
+    instances.get(1).tagWith("webserver")
+    instances.get(1).tagWith("frontend")
     
     val scads = DataCenter.getInstanceGroupByTag("scads")
-    val loadbalancer = DataCenter.getInstanceGroupByTag("loadbalancer").get(0)
-    val webserver = DataCenter.getInstanceGroupByTag("webserver").get(0)
+    val frontend = DataCenter.getInstanceGroupByTag("frontend").get(0)
     
     val scadsConfig = new JSONObject()
     val scadsRecipes = new JSONArray()
@@ -43,15 +43,15 @@ object Scadr {
     scadsConfig.put("recipes", scadsRecipes)
     
     println("Deploying scads.")
-    scads.get(0).deploy(scadsConfig)
-    println("Done deploying scads.")
+    val scadsDeployment = scads.deployNonBlocking(scadsConfig)
     
-    val haproxyConfig = new JSONObject()
-    val haproxyRecipes = new JSONArray()
-    haproxyRecipes.put("cloudstone::haproxy")
-    haproxyConfig.put("recipes", haproxyRecipes)
-    
-    val haproxyHaproxy = new JSONObject
+    val frontendConfig = new JSONObject()
+    val frontendRecipes = new JSONArray()
+    frontendRecipes.put("cloudstone::haproxy")
+    frontendRecipes.put("cloudstone::nginx")
+    frontendConfig.put("recipes", frontendRecipes)
+
+    val haproxyConfig = new JSONObject
     val haproxyServers = new JSONObject()
     scads.foreach(instance => {
       val server = new JSONObject()
@@ -60,34 +60,29 @@ object Scadr {
       haproxyServers.put(instance.privateDnsName, server)
     })
     
-    haproxyHaproxy.put("servers", haproxyServers)
-    
-    haproxyConfig.put("haproxy", haproxyHaproxy)
-    
-    println("Deploying haproxy.")
-    loadbalancer.deploy(haproxyConfig)
-    println("Done deploying haproxy.")
+    haproxyConfig.put("servers", haproxyServers)
+    frontendConfig.put("haproxy", haproxyConfig)
     
     val nginxConfig = new JSONObject()
-    val nginxRecipes = new JSONArray()
-    nginxRecipes.put("cloudstone::nginx")
-    nginxConfig.put("recipes", nginxRecipes)
     
-    val nginxNginx = new JSONObject()
     val nginxServers = new JSONObject()
     val haproxyServer = new JSONObject()
     haproxyServer.put("start", 4000)
     haproxyServer.put("count", 1)
-    nginxServers.put(loadbalancer.privateDnsName, haproxyServer)
+    nginxServers.put("localhost", haproxyServer)
     
-    nginxNginx.put("servers", nginxServers)
-    nginxConfig.put("nginx", nginxNginx)
+    nginxConfig.put("servers", nginxServers)
+    frontendConfig.put("nginx", nginxConfig)
     
-    println("Deploying nginx.")
-    webserver.deploy(nginxConfig)
-    println("Done deploying nginx.")
+    println("Deploying frontend.")
+    val frontendDeployment = frontend.deployNonBlocking(scadsConfig)
     
-    println("Point your browser to " + webserver.publicDnsName)
+    scadsDeployment()
+    println("Done deploying scads.")
+    frontendDeployment()
+    println("Done deploying frontend.")
+    
+    println("Point your browser to " + frontend.publicDnsName)
     
   }
 }

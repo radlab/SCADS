@@ -62,8 +62,21 @@ class SSH(hostname: String, keyPath: String){
   
   private def connect = {
     val keyfile = new File(keyPath)
+    val numConnectionAttempts = 5
     
-    connection.connect()
+    def connectAgain(numAttempts: Int): Unit = {
+      try {
+        connection.connect()
+      } catch {
+        case ex: IOException => numAttempts match {
+          case 0 => throw new IOException("Tried " + numConnectionAttempts + 
+            " times, but got this error:\n" + ex.getMessage())
+          case _ => Thread.sleep(1000); connectAgain(numAttempts - 1)
+        }
+      }
+    }
+
+    connectAgain(numConnectionAttempts)
     
     if (connection.authenticateWithPublicKey("root", keyfile, "") == false) {
       throw new IOException("Authentication failed.")
