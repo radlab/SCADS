@@ -34,12 +34,9 @@ object DataCenter {
   
   private val defaultDumpPath = System.getProperty("user.home") + "/.deploylib_state"
   
-
   /**
    * This method starts instances using the given arguments and returns
-   * an InstanceGroup.
-   * The EC2 access key ID and EC2 secret access key will be read from 
-   * a configuration file.
+   * an InstanceGroup. Does not wait for instances to be running.
    *
    * @param imageId    the image id to use when deploying the instances
    * @param count      number of instances to startup
@@ -51,6 +48,25 @@ object DataCenter {
    */
   def runInstances(imageId: String, count: Int, typeString: String,
     location: String): InstanceGroup = {
+    runInstances(imageId, count, typeString, location, false)
+  }
+  
+
+  /**
+   * This method starts instances using the given arguments and returns
+   * an InstanceGroup.
+   *
+   * @param imageId        the image id to use when deploying the instances
+   * @param count          number of instances to startup
+   * @param typeString     the type of instance wanted ie. "m1.small", "c1.xlarge", etc.
+   * @param location       the availability zone ie. "us-east-1a"
+   * @param waitUntilReady if true will wait until instances are running before returning
+   * @return           An InstanceGroup object holding all instances allocated.
+   *                   Note that the instances will not be in the ready state
+   *                   when this method exits.
+   */
+  def runInstances(imageId: String, count: Int, typeString: String,
+    location: String, waitUntilReady: Boolean): InstanceGroup = {
     require(keyName != null,
       "DataCenter.keyName must be set either directly " + 
       "or by setting AWS_KEY_NAME environment variables before " +
@@ -83,6 +99,8 @@ object DataCenter {
                                               new Instance(instance))
     val instanceGroup = new InstanceGroup(instanceList.toList)
     instances.addAll(instanceGroup)
+    
+    if (waitUntilReady) instanceGroup.waitUntilReady
     
     return instanceGroup
   }
