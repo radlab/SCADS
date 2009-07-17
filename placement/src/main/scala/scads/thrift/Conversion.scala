@@ -17,11 +17,21 @@ trait Conversions extends AutoKey {
 trait RangeConversion {
 	implicit def keyRangeToScadsRangeSet(kr:KeyRange):RecordSet = {
 		val recSet = new RecordSet
-		val range = new RangeSet
 		recSet.setType(RecordSetType.RST_RANGE)
-		recSet.setRange(range)
-		range.setStart_key(kr.start.serialize)
-		range.setEnd_key(kr.end.serialize)
+		recSet.setRange(keyRangeToRangeSet(kr))
 		return recSet
+	}
+	implicit def rangeSetToKeyRange(rs:RangeSet):KeyRange = {
+		val start = if (rs.start_key==null) { MinKey } else { StringKey.deserialize(rs.start_key,new ParsePosition(0)) }
+		val end = if (rs.end_key==null) { MaxKey } else { StringKey.deserialize(rs.end_key,new ParsePosition(0)) }
+		new KeyRange( start,end )
+	}
+	def keyRangeToRangeSet(kr: KeyRange): RangeSet = {
+		val range = new RangeSet
+		val start = if (kr.start==MinKey) {null} else {kr.start.serialize}
+		val end = if (kr.end==MaxKey) {null} else {kr.end.serialize}
+		range.setStart_key(start)
+		range.setEnd_key(end)
+		range
 	}
 }
