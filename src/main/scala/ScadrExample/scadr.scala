@@ -75,7 +75,7 @@ object Scadr {
     frontendConfig.put("nginx", nginxConfig)
     
     println("Deploying frontend.")
-    val frontendDeployment = frontend.deployNonBlocking(scadsConfig)
+    val frontendDeployment = frontend.deployNonBlocking(frontendConfig)
     
     scadsDeployment()
     println("Done deploying scads.")

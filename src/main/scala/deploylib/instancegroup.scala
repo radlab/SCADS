@@ -148,22 +148,20 @@ class InstanceGroup(c: java.util.Collection[Instance])
   /**
    * Runs deployNonBlocking on each instance.
    */
-  def deployNonBlocking(config: JSONObject): Future[Array[ExecuteResponse]] = {
+  def deployNonBlocking(config: JSONObject): () => Array[ExecuteResponse] = {
     deployNonBlocking(config, null)
   }
   
   /**
    * Runs deployNonBlocking on each instance.
    */
-  def deployNonBlocking(config: JSONObject, repoPath: String): Future[Array[ExecuteResponse]] = {
+  def deployNonBlocking(config: JSONObject, repoPath: String): () => Array[ExecuteResponse] = {
     val thisArray = new Array[Instance](this.size())
     this.toArray(thisArray)
     val deployments: Array[Future[ExecuteResponse]] =
       for (instance <- thisArray)
         yield instance.deployNonBlocking(config, repoPath)
-    future {
-      for (deployment <- deployments) yield deployment()
-    }
+    () => { for (deployment <- deployments) yield deployment() }
   }
   
   def stopAll = { 
