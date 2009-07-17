@@ -5,6 +5,9 @@ import java.util.LinkedList
 import scala.collection.jcl.Conversions._
 import org.json.JSONObject
 
+import scala.actors.Future
+import scala.actors.Futures.future
+
 /**
  * This class is the abstraction for a collection of instances.
  * It acts like java's LinkedList, since it inherits from it. This was done to
@@ -61,7 +64,7 @@ class InstanceGroup(c: java.util.Collection[Instance])
     val resultArray = new Array[T](thisArray.length)
     val mappers = 
       for (i <- (0 until thisArray.length).toList) yield {
-        scala.actors.Futures.future {
+        future {
           resultArray(i) = fun(thisArray(i))
         }
       }
@@ -145,17 +148,22 @@ class InstanceGroup(c: java.util.Collection[Instance])
   /**
    * Runs deployNonBlocking on each instance.
    */
-  def deployNonBlocking(config: JSONObject): Array[Future[ExecuteResponse]] = {
+  def deployNonBlocking(config: JSONObject): Future[Array[ExecuteResponse]] = {
     deployNonBlocking(config, null)
   }
   
   /**
    * Runs deployNonBlocking on each instance.
    */
-  def deployNonBlocking(config: JSONObject, repoPath: String): Array[Future[ExecuteResponse]] = {
+  def deployNonBlocking(config: JSONObject, repoPath: String): Future[Array[ExecuteResponse]] = {
     val thisArray = new Array[Instance](this.size())
     this.toArray(thisArray)
-    for (instance <- thisArray) yield instance.deployNonBlocking(config, repoPath)
+    val deployments: Array[Future[ExecuteResponse]] =
+      for (instance <- thisArray)
+        yield instance.deployNonBlocking(config, repoPath)
+    future {
+      for (deployment <- deployments) yield deployment()
+    }
   }
   
   def stopAll = { 

@@ -25,7 +25,7 @@ object Scadr {
     println("Instances received.")
     
     println("Waiting on instances to be ready.")
-    instances.parallelMap((instance) => instance.waitUntilReady)
+    instances.waitUntilReady
     println("Instances ready.")
     
     instances.get(0).tagWith("scads")
