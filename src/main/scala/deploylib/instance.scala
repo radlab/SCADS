@@ -56,7 +56,7 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
     instance = otherInstance
   }
   
-  private def runningInstance: RunningInstance = instance
+  def runningInstance: RunningInstance = instance
 
   /**
    * Calls chef-solo with the default chef-repo.
