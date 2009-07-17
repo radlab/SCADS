@@ -17,19 +17,20 @@ import com.amazonaws.ec2.model._
  */
 object DataCenter { 
   
-  protected var instances: InstanceGroup = new InstanceGroup()
+  private val instances: InstanceGroup = new InstanceGroup()
 
   private val accessKeyId     = System.getenv.apply("AWS_ACCESS_KEY_ID")
   private val secretAccessKey = System.getenv.apply("AWS_SECRET_ACCESS_KEY")
-
-  private val config = new AmazonEC2Config()
   
-  private val defaultDumpPath = System.getProperty("user.home") + "/.deploylib_state"
+  private val config = new AmazonEC2Config()
 
   if(System.getenv.containsKey("EC2_URL"))
   	config.setServiceURL(System.getenv.apply("EC2_URL"))
 
   private val service = new AmazonEC2Client(accessKeyId, secretAccessKey, config)
+  
+  private val defaultDumpPath = System.getProperty("user.home") + "/.deploylib_state"
+  
 
   /**
    * This method starts instances using the given arguments and returns
