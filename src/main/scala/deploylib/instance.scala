@@ -7,6 +7,7 @@ import com.amazonaws.ec2.model._
 
 import scala.actors.Future
 import scala.actors.Futures.future
+import java.io.IOException
 
 /**
  * This class is the abstraction to a running EC2 Instance, as such it has
@@ -232,6 +233,20 @@ class Instance(initialInstance: RunningInstance, keyPath: String) {
       Thread.sleep(5000)
     }
     ssh = new SSH(publicDnsName, keyPath)
+    
+    val connectionAttempts = 10
+    def connectAttempt(numAttempts: Int): Unit = {
+      try {
+        exec("pwd")
+      } catch {
+        case ex: IOException => numAttempts match {
+          case 0 => throw new IOException("Can't SSH into server. Error message:\n"
+            + ex.getMessage())
+          case _ => Thread.sleep(1000); connectAttempt(numAttempts - 1)
+        }
+      }
+    }
+    connectAttempt(connectionAttempts)
   }
   
   /**
