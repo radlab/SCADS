@@ -13,11 +13,9 @@ object Scadr {
         case 32 => "ami-e7a2448e"
         case 64 => "ami-e4a2448d"
       }
-      val keyName = "abeitch"
-      val keyPath = "/Users/aaron/.ec2/id_rsa-abeitch"
       val location = "us-east-1a"
       
-      DataCenter.runInstances(imageId, count, keyName, keyPath, typeString, location)
+      DataCenter.runInstances(imageId, count, typeString, location)
     }
     
     println("Requesting instances.")
@@ -42,7 +40,7 @@ object Scadr {
     scadsRecipes.put("scads::scadr")
     scadsConfig.put("recipes", scadsRecipes)
     
-    println("Deploying scads.")
+    println("Deploying scads and scadr.")
     val scadsDeployment = scads.deployNonBlocking(scadsConfig)
     
     val frontendConfig = new JSONObject()
@@ -78,7 +76,7 @@ object Scadr {
     val frontendDeployment = frontend.deployNonBlocking(frontendConfig)
     
     scadsDeployment()
-    println("Done deploying scads.")
+    println("Done deploying scads and scadr.")
     frontendDeployment()
     println("Done deploying frontend.")
     

@@ -34,11 +34,9 @@ object Cloudstone {
         case 32 => "ami-e7a2448e"
         case 64 => "ami-e4a2448d"
       }
-      val keyName = "abeitch"
-      val keyPath = "/Users/aaron/.ec2/id_rsa-abeitch"
       val location = "us-east-1a"
       
-      DataCenter.runInstances(imageId, count, keyName, keyPath, typeString, location)
+      DataCenter.runInstances(imageId, count, typeString, location)
     }
 
 

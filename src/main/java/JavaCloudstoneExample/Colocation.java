@@ -207,12 +207,9 @@ public class Colocation {
         int count = config.getCount();
         String imageId = InstanceType.bits(typeString) == 32 ?
                                     "ami-e7a2448e" : "ami-e4a2448d";
-        String keyName = "abeitch";
-        String keyPath = "/Users/aaron/.ec2/id_rsa-abeitch";
         String location = "us-east-1a";
         
-        return DataCenter.runInstances(imageId, count, keyName, keyPath,
-                                       typeString, location);
+        return DataCenter.runInstances(imageId, count, typeString, location);
     }
     
     private class InstanceConfig {

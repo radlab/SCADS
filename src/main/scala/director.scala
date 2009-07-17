@@ -16,11 +16,9 @@ object Director {
        case 32 => "ami-e7a2448e"
        case 64 => "ami-e4a2448d"
      }
-     val keyName = "bodikp-keypair"
-     val keyPath = "/Users/bodikp/.ec2/bodikp-keypair"
      val location = "us-east-1a"
      
-     DataCenter.runInstances(imageId, count, keyName, keyPath, typeString, location)
+     DataCenter.runInstances(imageId, count, typeString, location)
   }
   
   def startDirectorVM: Instance = {
