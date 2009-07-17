@@ -79,6 +79,29 @@ exception TestAndSetFailure {
   1: RecordValue currentValue
 }
 
+struct DataPlacement {
+	1:Host node,
+	2:i32 thriftPort,
+	3:i32 syncPort,
+	4:RecordSet rset
+}
+
+service KnobbedDataPlacementServer extends DataPlacementServer {
+	void move(1: NameSpace ns, 2: RecordSet rset, 3: Host src_host, 4: i32 	src_thrift, 5: i32 src_sync,6: Host dest_host, 7: i32 dest_thrift, 8: i32 dest_sync),
+
+	void copy(1: NameSpace ns, 2: RecordSet rset, 3: Host src_host, 4: i32 	src_thrift, 5: i32 src_sync,6: Host dest_host, 7: i32 dest_thrift, 8: i32 dest_sync),
+
+	bool add(1:NameSpace ns, 2:list<DataPlacement> entries),
+	bool remove(1:NameSpace ns, 2:list<DataPlacement> entries)
+}
+
+service DataPlacementServer {
+	list<DataPlacement> lookup_namespace(1:NameSpace ns),
+	DataPlacement lookup_node(1:Host node),
+	list<DataPlacement> lookup_key(1: RecordKey key),
+	list<DataPlacement> lookup_range(1:RangeSet rset)
+}
+
 service KeyStore {
 	Record get(1:NameSpace ns, 2:RecordKey key) throws (1: NotResponsible nr),
 	list<Record> get_set(1: NameSpace ns, 2:RecordSet rs) throws (1: InvalidSetDescription bs, 2: NotImplemented ni, 3: NotResponsible nr),
