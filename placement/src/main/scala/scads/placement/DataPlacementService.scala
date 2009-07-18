@@ -18,12 +18,15 @@ trait SimpleDataPlacementService extends DataPlacementService {
 	def lookup(ns: String): Map[StorageNode, KeyRange] = space.get(ns).getOrElse(Map[StorageNode,KeyRange]())
 	def lookup(ns: String, node: StorageNode): KeyRange = space(ns).get(node).getOrElse(KeyRange.EmptyRange)
 
-	def lookup(ns: String, key: Key):List[StorageNode] ={ // no null checking yet
-		space(ns).toList.filter((pair) => pair._2.includes(key)).map((pair) => pair._1)
+	def lookup(ns: String, key: Key):List[StorageNode] ={
+		if (space.contains(ns)) space(ns).toList.filter((pair) => pair._2.includes(key)).map((pair) => pair._1)
+		else List[StorageNode]()
 	}
 
-	def lookup(ns: String, range: KeyRange): Map[StorageNode, KeyRange] = // no null checking yet
-		space(ns).filter((pair) => (pair._2 & range) != KeyRange.EmptyRange)
+	def lookup(ns: String, range: KeyRange): Map[StorageNode, KeyRange] = {
+		if (space.contains(ns)) space(ns).filter((pair) => (pair._2 & range) != KeyRange.EmptyRange)
+		else Map[StorageNode,KeyRange]()
+	}
 	
 	def refreshPlacement = {}
 }
