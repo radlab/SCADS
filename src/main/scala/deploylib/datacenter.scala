@@ -11,9 +11,20 @@ import com.amazonaws.ec2.model._
 /**
  * The DataCenter object has two main roles:
  * <ol>
- * <li> The abstraction to EC2.
- * <li> Keeping track of instances, so that they can queried over.
+ * <li>The abstraction to EC2.
+ * <li>Keeping track of instances, so that they can queried over.
  * </ol>
+ * <br>
+ * This object reads from the following environment variables:
+ * <ul>
+ * <li>AWS_ACCESS_KEY_ID
+ * <li>AWS_SECRET_ACCESS_KEY
+ * <li>AWS_KEY_NAME
+ * <li>AWS_KEY_PATH
+ * </ul>
+ * They are all required to be set, but AWS_KEY_NAME can be set manually by
+ * modifying DataCenter.keyName and AWS_KEY_PATH can be set manually by
+ * modifying DataCenter.keyPath.
  */
 object DataCenter { 
   
