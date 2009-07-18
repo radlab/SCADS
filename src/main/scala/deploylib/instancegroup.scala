@@ -180,7 +180,10 @@ class InstanceGroup(c: java.util.Collection[Instance])
   }
   
   def waitUntilReady = {
-    while (!allRunning) refreshAll
+    while (!allRunning) {
+      Thread.sleep(5 * 1000)
+      refreshAll
+    }
     parallelMap((instance) => instance.waitUntilReady)
     }
   
