@@ -16,6 +16,7 @@ object ScadsClients {
 	val num_clients = 1
 	val xtrace_on:Boolean = Scads.xtrace_on
 	val namespaces = Scads.namespaces
+	var deps:String = null
 	
 	val xtrace_backend = new JSONObject()
 	xtrace_backend.put("backend_host", Scads.reporter_host)
@@ -44,6 +45,18 @@ object ScadsClients {
 			}
 		}
 	    println("Done deploying clients.")
+
+		// get list of mvn dependencies
+		deps = clients.get(0).exec("cd /opt/scads/experiments; cat cplist").getStdout.replace("\n","") + ":../target/classes"
+	}
+	def run_workload(minUser: Int, maxUser: Int, read_prob: Double, ns: String, totalUsers: Int, delay: Int, think: Int) {
+		// TODO: check dependencies string is valid?
+		val args = Scads.placement.get(0).privateDnsName +" "+ Scads.xtrace_on + " " + minUser + " " + maxUser + " " +
+					read_prob + " " + ns + " " + totalUsers + " " + delay + " " + think
+		val cmd = "cd /opt/scads/experiments/scripts; scala -cp "+ deps + " run_workload.scala " + args
+
+		println("Running with arguments: "+ args)
+		clients.parallelMap((c: Instance)=>c.exec(cmd))
 	}
 }
 
@@ -126,8 +139,8 @@ object Scads extends RangeConversion {
 		
 		val serverConfig = new JSONObject()
 	    val serverRecipes = new JSONArray()
+		serverRecipes.put("scads::dbs")
 	    serverRecipes.put("scads::storage_engine")
-	    serverRecipes.put("scads::dbs")
 /*		serverRecipes.put("ec2::disk_prep")*/
 		if (reporter_host != null) { serverConfig.put("scads",scads_xtrace); serverConfig.put("xtrace",xtrace_backend);; serverRecipes.put("xtrace::reporting"); }
 	    serverConfig.put("recipes", serverRecipes)
