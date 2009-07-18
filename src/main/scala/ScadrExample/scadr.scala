@@ -15,16 +15,12 @@ object Scadr {
       }
       val location = "us-east-1a"
       
-      DataCenter.runInstances(imageId, count, typeString, location)
+      DataCenter.runInstances(imageId, count, typeString, location, true)
     }
     
-    println("Requesting instances.")
+    println("Requesting instances and waiting until they are ready.")
     val instances = runInstances(2, "m1.small")
-    println("Instances received.")
-    
-    println("Waiting on instances to be ready.")
-    instances.waitUntilReady
-    println("Instances ready.")
+    println("Instances received and ready.")
     
     instances.get(0).tagWith("scads")
     instances.get(1).tagWith("loadbalancer")
