@@ -1,6 +1,7 @@
 package deploylib
 
 import org.json.JSONObject
+import com.twitter.commons._
 
 import com.amazonaws.ec2._
 import com.amazonaws.ec2.model._
@@ -67,7 +68,18 @@ class Instance(initialInstance: RunningInstance) {
    */
   @throws(classOf[IllegalStateException])
   def deploy(config: JSONObject): ExecuteResponse = {
-    deploy(config, null)
+    deploy(config.toString, null)
+  }
+  
+  /**
+   * Calls chef-solo with the default chef-repo.
+   *
+   * @param config This is the configuration passed to chef-solo.
+   * @return       What appeared on the shell in the form of an ExecuteResponse.
+   */
+  @throws(classOf[IllegalStateException])
+  def deploy(config: JsonQuoted): ExecuteResponse = {
+    deploy(config.toString, null)
   }
   
   /**
@@ -82,11 +94,30 @@ class Instance(initialInstance: RunningInstance) {
    */
   @throws(classOf[IllegalStateException])
   def deploy(config: JSONObject, repoPath: String): ExecuteResponse = {
+    deploy(config.toString, repoPath)
+  }
+  
+  /**
+   * Runs chef-solo on the instance.
+   *
+   * @param config   This is the configuration passed to chef-solo.
+   * @param repoPath This is the path to a chef-repo gzipped tarball. The path
+   *                 may be a URL or a path to a chef-repo local to the instance.
+   *                 If repoPath is empty or null, the current head of the git
+   *                 repository is used.
+   * @return         What appeared on the shell in the form of an ExecuteResponse.
+   */
+  @throws(classOf[IllegalStateException])
+  def deploy(config: JsonQuoted, repoPath: String): ExecuteResponse = {
+    deploy(config.toString, repoPath)
+  }
+  
+  private def deploy(config: String, repoPath: String): ExecuteResponse = {
     if (repoPath == null || repoPath.length() == 0)
-      exec("echo \'" + config.toString() + "\' > config.js && " +
+      exec("echo \'" + config + "\' > config.js && " +
         "chef-solo -j config.js")
     else
-      exec("echo \'" + config.toString() + "\' > config.js && " +
+      exec("echo \'" + config + "\' > config.js && " +
         "chef-solo -j config.js -r " + repoPath)
   }
   
