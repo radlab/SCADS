@@ -148,18 +148,44 @@ class Instance(initialInstance: RunningInstance) {
     refresh
   }
   
+  /**
+   * Uploads the given files to the instance.
+   *
+   * @param localFiles      An array of paths to local files to upload.
+   * @param remoteDirectory The path to the directory on the instance to
+   *                        put the uploaded files in.
+   */
   def upload(localFiles: Array[String], remoteDirectory: String): Unit = {
     ssh.upload(localFiles, remoteDirectory)
   }
   
+  /**
+   * Uploads the given file to the instance.
+   *
+   * @param localFile       A path to a local file to upload.
+   * @param remoteDirectory The path to the directory on the instance to 
+   *                        put the uploaded file in.
+   */
   def upload(localFile: String, remoteDirectory: String): Unit = {
     upload(Array(localFile), remoteDirectory)
   }
   
+  /**
+   * Downloads files from the instance.
+   *
+   * @param remoteFiles    The paths to files on the instance to download.
+   * @param localDirectory The local directory to put the downloaded files in.
+   */
   def download(remoteFiles: Array[String], localDirectory: String): Unit = {
     ssh.download(remoteFiles, localDirectory)
   }
   
+  /**
+   * Downloads a file from the instance.
+   *
+   * @param remoteFile     The path to a file on the instance to download.
+   * @param localDirectory The local directory to put the downloaded file in.
+   */
   def download(remoteFile: String, localDirectory: String): Unit = {
     download(Array(remoteFile), localDirectory)
   }
