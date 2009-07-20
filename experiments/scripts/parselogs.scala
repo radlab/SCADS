@@ -1,12 +1,15 @@
 import java.io._
 import scala.io.Source
 
+// USAGE: scala parselogs.scala [input_file] [output_file] [aggregation interval in milliseconds] [fraction of requests reported]
+
 
 val filename = args(0)
+val outputfilename = args(1)
 val columns = Map("req_type"->1, "starttime"->3, "endtime"->4, "latency"->5)
 val datadir = "/tmp/data"
-val interval = 10 * 1000
-val fractionReported = 0.2
+val interval = args(2).toInt  // 10 * 1000
+val fractionReported = args(3).toDouble //0.2
 
 
 val result = MapReduce.mapreduce( List(filename), datadir, (s:String)=>mapByEndtime(s,interval), 
@@ -16,7 +19,7 @@ val result2 = MapReduce.mapreduce( List(filename), datadir, (s:String)=>mapBySta
 									List( (s:List[String]) => workloadReducer(s,"workload",interval,fractionReported)) )
 
 val finalResult = result.combine(result2)
-finalResult.saveToFile( "/tmp/result.csv" )
+finalResult.saveToFile( outputFilename )
 	
 
 def mapByStarttime( line:String, interval:Long ): (String,String) = ( (line.split(",")(columns("starttime")).toLong/interval*interval).toString, line.stripLineEnd)
