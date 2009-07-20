@@ -166,11 +166,7 @@ public class Cloudstone {
     }
     
     private InstanceGroup runInstances(int count, String typeString) {
-        String imageId = InstanceType.bits(typeString) == 32 ?
-                                    "ami-e7a2448e" : "ami-e4a2448d";
-        String location = "us-east-1a";
-        
-        return DataCenter.runInstances(imageId, count, typeString, location);
+        return DataCenter.runInstances(count, typeString);
     }
     
     private class WaitUntilReady<Object> implements InstanceExecute {

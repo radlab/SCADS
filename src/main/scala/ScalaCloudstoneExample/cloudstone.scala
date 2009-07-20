@@ -30,13 +30,7 @@ object Cloudstone {
 
     /* A shortcut method for DataCenter.runInstances provided in API */
     def runInstances(count: Int, typeString: String): InstanceGroup = {
-      val imageId = InstanceType.bits(typeString) match {
-        case 32 => "ami-e7a2448e"
-        case 64 => "ami-e4a2448d"
-      }
-      val location = "us-east-1a"
-      
-      DataCenter.runInstances(imageId, count, typeString, location)
+      DataCenter.runInstances(count, typeString)
     }
 
 

@@ -17,10 +17,18 @@ import com.amazonaws.ec2.model._
  * <br>
  * This object reads from the following environment variables:
  * <ul>
- * <li>AWS_ACCESS_KEY_ID
- * <li>AWS_SECRET_ACCESS_KEY
- * <li>AWS_KEY_NAME
- * <li>AWS_KEY_PATH
+ * <li>AWS_ACCESS_KEY_ID - required
+ * <li>AWS_SECRET_ACCESS_KEY - required
+ * <li>AWS_KEY_NAME - required<br>
+ * Can also be set with DataCenter.keyName
+ * <li>AWS_KEY_PATH - required<br>
+ * Can also be set with DataCenter.keyPath
+ * <li>EC2_AMI_32 - required if you ever request a 32-bit instance<br>
+ * Can also be set with DataCenter.ami32
+ * <li>EC2_AMI_64 - required if you ever request a 64-bit instance<br>
+ * Can also be set with DataCenter.ami64
+ * <li>EC2_LOCATION - if not set you are not guaranteed a specific location<br>
+ * Can also be set with DataCenter.location
  * </ul>
  * They are all required to be set, but AWS_KEY_NAME can be set manually by
  * modifying DataCenter.keyName and AWS_KEY_PATH can be set manually by
@@ -36,6 +44,11 @@ object DataCenter {
   var keyName = System.getenv("AWS_KEY_NAME")
   var keyPath = System.getenv("AWS_KEY_PATH")
   
+  var ami32 = System.getenv("EC2_AMI_32")
+  var ami64 = System.getenv("EC2_AMI_64")
+  
+  var location = System.getenv("EC2_LOCATION")
+  
   private val config = new AmazonEC2Config()
 
   if(System.getenv.containsKey("EC2_URL"))
@@ -49,42 +62,48 @@ object DataCenter {
    * This method starts instances using the given arguments and returns
    * an InstanceGroup. Does not wait for instances to be running.
    *
-   * @param imageId    the image id to use when deploying the instances
    * @param count      number of instances to startup
    * @param typeString the type of instance wanted ie. "m1.small", "c1.xlarge", etc.
-   * @param location   the availability zone ie. "us-east-1a"
    * @return           An InstanceGroup object holding all instances allocated.
    *                   Note that the instances will not be in the ready state
    *                   when this method exits.
    */
-  def runInstances(imageId: String, count: Int, typeString: String,
-    location: String): InstanceGroup = {
-    runInstances(imageId, count, typeString, location, false)
+  def runInstances(count: Int, typeString: String): InstanceGroup = {
+    runInstances(count, typeString, false)
   }
-  
 
   /**
    * This method starts instances using the given arguments and returns
    * an InstanceGroup.
    *
-   * @param imageId        the image id to use when deploying the instances
    * @param count          number of instances to startup
    * @param typeString     the type of instance wanted ie. "m1.small", "c1.xlarge", etc.
-   * @param location       the availability zone ie. "us-east-1a"
    * @param waitUntilReady if true will wait until instances are running before returning
    * @return           An InstanceGroup object holding all instances allocated.
    *                   Note that the instances will not be in the ready state
    *                   when this method exits.
    */
-  def runInstances(imageId: String, count: Int, typeString: String,
-    location: String, waitUntilReady: Boolean): InstanceGroup = {
+  def runInstances(count: Int, typeString: String, waitUntilReady: Boolean):
+    InstanceGroup = {
     require(keyName != null,
       "DataCenter.keyName must be set either directly " + 
       "or by setting AWS_KEY_NAME environment variables before " +
       "calling this method.")
+      
+    val imageId = typeString match {
+      case null => ami32
+      case ""   => ami32
+      case _    => InstanceType.bits(typeString) match {
+        case 32 => ami32
+        case 64 => ami64
+      }
+    }
     
-    InstanceType.checkValidType(typeString)
-    
+    require(imageId != null,
+      "DataCenter.ami32 or DataCenter.ami64 needs to be set to complete this " +
+      "runInstances call. These can be set directly or by setting EC2_AMI_32 " +
+      "and EC2_AMI_64 environment variables.")
+        
     val request = new RunInstancesRequest(
                         imageId,                 // imageID
                         count,                   // minCount
