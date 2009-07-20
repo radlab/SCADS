@@ -69,22 +69,23 @@ class SimpleSCADSRequestGenerator(
 ) extends SCADSRequestGenerator {
 	val keyFormat = new java.text.DecimalFormat("000000000000000")
 	
+	// populate these from 'parameters' to speed up the request generation
+	val getMinKey = parameters("get")("minKey").toInt
+	val getMaxKey = parameters("get")("maxKey").toInt
+	val getNamespace = parameters("get")("namespace")
+	val putMinKey = parameters("put")("minKey").toInt
+	val putMaxKey = parameters("put")("maxKey").toInt
+	val putNamespace = parameters("put")("namespace")
+	
 	def generateRequest(client: ClientLibrary, time: Long): SCADSRequest = {
 		getRequestType match {
 			case "get" => {
-				val minKey = parameters("get")("minKey").toInt
-				val maxKey = parameters("get")("maxKey").toInt
-				val namespace = parameters("get")("namespace")
-				val key = SCADSRequestGenerator.rand.nextInt( maxKey-minKey+1 ) + minKey
-				new SCADSGetRequest(client,namespace,keyFormat.format(key))
-			
+				val key = SCADSRequestGenerator.rand.nextInt( getMaxKey-getMinKey+1 ) + getMinKey
+				new SCADSGetRequest(client,getNamespace,keyFormat.format(key))
 			}
 			case "put" => {
-				val minKey = parameters("put")("minKey").toInt
-				val maxKey = parameters("put")("maxKey").toInt
-				val namespace = parameters("put")("namespace")
-				val key = SCADSRequestGenerator.rand.nextInt( maxKey-minKey+1 ) + minKey
-				new SCADSPutRequest(client,namespace,keyFormat.format(key),"value")
+				val key = SCADSRequestGenerator.rand.nextInt( putMaxKey-putMinKey+1 ) + putMinKey
+				new SCADSPutRequest(client,putNamespace,keyFormat.format(key),"value")
 			}	
 		}
 	}

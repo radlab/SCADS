@@ -125,7 +125,7 @@ class WorkloadAgent(client:ClientLibrary, workload:WorkloadDescription, userID:I
 				
 			} else {
 				// I'm inactive, sleep for a while
-				println("inactive, sleeping 1 second")
+				//println("inactive, sleeping 1 second")
 				Thread.sleep(1000)
 			}
 			
