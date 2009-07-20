@@ -5,7 +5,7 @@ import scala.io.Source
 
 
 val filename = args(0)
-val outputfilename = args(1)
+val outputFilename = args(1)
 val columns = Map("req_type"->1, "starttime"->3, "endtime"->4, "latency"->5)
 val datadir = "/tmp/data"
 val interval = args(2).toInt  // 10 * 1000
