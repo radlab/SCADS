@@ -21,9 +21,10 @@ class SCADSGetRequest(
 ) extends SCADSRequest(client) {
 	def reqType: String = "get"
 	def execute = {
-		print("executing "+toString)
+//		print("executing "+toString)
 		val value = client.get(namespace,key).value
-		println("   returned="+value)
+//		println("   returned="+value)
+		value
 	}
 	override def toString: String = "get("+namespace+","+key+")"
 }
@@ -36,9 +37,10 @@ class SCADSPutRequest(
 ) extends SCADSRequest(client) {
 	def reqType: String = "put"
 	def execute = {
-		print("executing "+toString)
+//		print("executing "+toString)
 		val success = client.put(namespace,new Record(key,value))
-		println("   returned="+success)
+//		println("   returned="+success)
+		success
 	}
 	override def toString: String = "put("+namespace+","+key+"="+value+")"
 }
@@ -65,25 +67,24 @@ class SimpleSCADSRequestGenerator(
 	val mix: Map[String, Double],
 	val parameters: Map[String, Map[String, String]]
 ) extends SCADSRequestGenerator {
+	val keyFormat = new java.text.DecimalFormat("000000000000000")
 	
 	def generateRequest(client: ClientLibrary, time: Long): SCADSRequest = {
 		getRequestType match {
 			case "get" => {
-				val keyPrefix = parameters("get")("keyPrefix")
 				val minKey = parameters("get")("minKey").toInt
 				val maxKey = parameters("get")("maxKey").toInt
 				val namespace = parameters("get")("namespace")
 				val key = SCADSRequestGenerator.rand.nextInt( maxKey-minKey+1 ) + minKey
-				new SCADSGetRequest(client,namespace,keyPrefix+key.toString)
+				new SCADSGetRequest(client,namespace,keyFormat.format(key))
 			
 			}
 			case "put" => {
-				val keyPrefix = parameters("put")("keyPrefix")
 				val minKey = parameters("put")("minKey").toInt
 				val maxKey = parameters("put")("maxKey").toInt
 				val namespace = parameters("put")("namespace")
 				val key = SCADSRequestGenerator.rand.nextInt( maxKey-minKey+1 ) + minKey
-				new SCADSPutRequest(client,namespace,keyPrefix+key.toString,"value")
+				new SCADSPutRequest(client,namespace,keyFormat.format(key),"value")
 			}	
 		}
 	}

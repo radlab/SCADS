@@ -17,8 +17,8 @@ object WorkloadAgentTest {
 		
 		// create sample workload description
 		val mix = Map("get"->readProb,"put"->(1-readProb))
-		val parameters = Map("get"->Map("keyPrefix"->"3","minKey"->"0","maxKey"->"10000","namespace"->namespace),
-							 "put"->Map("keyPrefix"->"3","minKey"->"0","maxKey"->"10000","namespace"->namespace))
+		val parameters = Map("get"->Map("minKey"->"0","maxKey"->"10000","namespace"->namespace),
+							 "put"->Map("minKey"->"0","maxKey"->"10000","namespace"->namespace))
 		val reqGenerator = new SimpleSCADSRequestGenerator(mix,parameters)		
 		var intervals = new scala.collection.mutable.ListBuffer[WorkloadIntervalDescription]
 		
