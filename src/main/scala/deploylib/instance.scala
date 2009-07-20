@@ -148,6 +148,22 @@ class Instance(initialInstance: RunningInstance) {
     refresh
   }
   
+  def upload(localFiles: Array[String], remoteDirectory: String): Unit = {
+    ssh.upload(localFiles, remoteDirectory)
+  }
+  
+  def upload(localFile: String, remoteDirectory: String): Unit = {
+    upload(Array(localFile), remoteDirectory)
+  }
+  
+  def download(remoteFiles: Array[String], localDirectory: String): Unit = {
+    ssh.download(remoteFiles, localDirectory)
+  }
+  
+  def download(remoteFile: String, localDirectory: String): Unit = {
+    download(Array(remoteFile), localDirectory)
+  }
+  
   /**
    * Makes a service object out of all runit services installed on the instance.
    */

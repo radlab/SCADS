@@ -53,10 +53,17 @@ class SSH(hostname: String){
     response
   }
   
-  def upload(localPath: String, remotePath: String) = {
+  def upload(localFiles: Array[String], remoteDirectory: String) = {
     connect
     val scp = new SCPClient(connection)
-    scp.put(localPath, remotePath)
+    scp.put(localFiles, remoteDirectory)
+    logout
+  }
+  
+  def download(remoteFiles: Array[String], localDirectory: String) = {
+    connect
+    val scp = new SCPClient(connection)
+    scp.get(remoteFiles, localDirectory)
     logout
   }
   
