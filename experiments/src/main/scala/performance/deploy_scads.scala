@@ -13,7 +13,7 @@ import org.apache.thrift.protocol.{TBinaryProtocol, XtBinaryProtocol}
 object ScadsClients {
 	val host:String = Scads.placement.get(0).privateDnsName
 	val port:Int = 8000
-	val num_clients = 1
+	var num_clients = 1
 	val xtrace_on:Boolean = Scads.xtrace_on
 	val namespaces = Scads.namespaces
 	var deps:String = null
@@ -28,7 +28,8 @@ object ScadsClients {
     clientConfig.put("recipes", clientRecipes)
 	
 	var clients:InstanceGroup = null
-	def init = {
+	def init(num_c: Int) = {
+		num_clients = num_c
 		clients = Scads.startNodes(num_clients,"client")		// start up clients
 		
 		// TODO: wait for machines to come online (FIX)
@@ -49,14 +50,31 @@ object ScadsClients {
 		// get list of mvn dependencies
 		deps = clients.get(0).exec("cd /opt/scads/experiments; cat cplist").getStdout.replace("\n","") + ":../target/classes"
 	}
-	def run_workload(minUser: Int, maxUser: Int, read_prob: Double, ns: String, totalUsers: Int, delay: Int, think: Int) {
-		// TODO: check dependencies string is valid?
-		val args = Scads.placement.get(0).privateDnsName +" "+ Scads.xtrace_on + " " + minUser + " " + maxUser + " " +
-					read_prob + " " + ns + " " + totalUsers + " " + delay + " " + think
-		val cmd = "cd /opt/scads/experiments/scripts; scala -cp "+ deps + " run_workload.scala " + args
+	def run_workload(read_prob: Double, ns: String, totalUsers: Int, delay: Int, think: Int) {
+		// determine ranges to give each client
+		assert( totalUsers % clients.size == 0, "deploy_scads: can't evenly divide number of users amongst client instances")
 
-		println("Running with arguments: "+ args)
-		clients.parallelMap((c: Instance)=>c.exec(cmd))
+		// set up threads to run clients in parallel with appropriate min and max settings
+		val threads = (0 to clients.size-1).toList.map((id)=>{
+			val minUser = id * (totalUsers/clients.size)
+			val maxUser = minUser + (totalUsers/clients.size) - 1
+
+			val args = Scads.placement.get(0).privateDnsName +" "+ Scads.xtrace_on + " " + minUser + " " + maxUser + " " +
+						read_prob + " " + ns + " " + totalUsers + " " + delay + " " + think
+			val cmd = "cd /opt/scads/experiments/scripts; scala -cp "+ deps + " run_workload.scala " + args
+			println("Running with arguments: "+ args)
+			new Thread( new ClientRequest(clients.get(id), cmd) )
+		})
+		for(thread <- threads) thread.start
+		for(thread <- threads) thread.join
+
+		// TODO: check dependencies string is valid?
+		//clients.parallelMap((c: Instance)=>c.exec(cmd))
+	}
+	case class ClientRequest(client: Instance, cmd: String) extends Runnable {
+		override def run() = {
+			client.exec(cmd)
+		}
 	}
 }
 
@@ -83,7 +101,7 @@ object Scads extends RangeConversion {
      	}
 /*     	val keyName = "trush"
      	val keyPath = "/Users/trush/.ec2/trush.key"
-*/     	val keyName = "bodikp-keypair"
+*/		val keyName = "bodikp-keypair"
      	val keyPath = "/Users/bodikp/.ec2/bodikp-keypair"
      	val location = "us-east-1a"
 
