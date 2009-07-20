@@ -10,6 +10,7 @@ import org.apache.thrift.transport.{TFramedTransport, TSocket}
 import org.apache.thrift.protocol.{TBinaryProtocol,XtBinaryProtocol}
 
 import java.io._
+import java.net._
 
 object WorkloadAgentTest {
 	
@@ -70,6 +71,8 @@ class WorkloadAgent(client:ClientLibrary, workload:WorkloadDescription, userID:I
 	val wait_sec = 0
 	val report_probability = 2.0
 	
+	val localIP = InetAddress.getLocalHost().getHostName 
+	
 	def run() = {
 		val thread_name = Thread.currentThread().getName()
 		val log = new java.io.File("/mnt/xtrace/logs/"+thread_name)
@@ -110,7 +113,7 @@ class WorkloadAgent(client:ClientLibrary, workload:WorkloadDescription, userID:I
 				XTraceContext.clearThreadContext()
 
 				// log 20% of reports
-				if (requestI%5==0) { latency = endt-startt; result += (thread_name+"-"+requestI+","+request.reqType+","+"N/A"+","+startt_ms+","+endt_ms+","+(latency/1000000.0)+"\n") }
+				if (requestI%5==0) { latency = endt-startt; result += (localIP+","+thread_name+","+requestI+","+request.reqType+","+startt_ms+","+endt_ms+","+(latency/1000000.0)+"\n") }
 
 				// periodically flush log to disk and clear result list
 				if (requestI%5000==0) { 

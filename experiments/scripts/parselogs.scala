@@ -4,9 +4,10 @@ import scala.io.Source
 // USAGE: scala parselogs.scala [input_file] [output_file] [aggregation interval in milliseconds] [fraction of requests reported]
 
 
+
 val filename = args(0)
 val outputFilename = args(1)
-val columns = Map("req_type"->1, "starttime"->3, "endtime"->4, "latency"->5)
+val columns = Map("client_ip"->0, "client_thread"->1, "client_req_n"->2, "req_type"->3, "starttime"->4, "endtime"->5, "latency"->6)
 val datadir = "/tmp/data"
 val interval = args(2).toInt  // 10 * 1000
 val fractionReported = args(3).toDouble //0.2
@@ -16,10 +17,10 @@ val result = MapReduce.mapreduce( List(filename), datadir, (s:String)=>mapByEndt
 									List(latencyReducer, (s:List[String]) => workloadReducer(s,"throughput",interval,fractionReported)) )
 									
 val result2 = MapReduce.mapreduce( List(filename), datadir, (s:String)=>mapByStarttime(s,interval), 
-									List( (s:List[String]) => workloadReducer(s,"workload",interval,fractionReported)) )
+									List(uniqueUsersReducer, (s:List[String]) => workloadReducer(s,"workload",interval,fractionReported)) )
 
 val finalResult = result.combine(result2)
-finalResult.saveToFile( outputFilename )
+finalResult.saveToFile( outputFilename, "time" )
 	
 
 def mapByStarttime( line:String, interval:Long ): (String,String) = ( (line.split(",")(columns("starttime")).toLong/interval*interval).toString, line.stripLineEnd)
@@ -33,11 +34,15 @@ def latencyReducer( lines: List[String] ): Map[String,String] = {
 
 def computeLatencyStats( prefix:String, latencies:List[Double] ): Map[String,String] = {
 	var m = Map[String,String]()
-	m += prefix+"latencyMean" -> computeMean( latencies ).toString
-	m += prefix+"latency90Q" -> computeQuantile( latencies, 0.90 ).toString
-	m += prefix+"latency99Q" -> computeQuantile( latencies, 0.99 ).toString
-	m += prefix+"latency999Q" -> computeQuantile( latencies, 0.999 ).toString
+	m += prefix+"latency_mean" -> computeMean( latencies ).toString
+	m += prefix+"latency_90p" -> computeQuantile( latencies, 0.90 ).toString
+	m += prefix+"latency_99p" -> computeQuantile( latencies, 0.99 ).toString
+	m += prefix+"latency_999p" -> computeQuantile( latencies, 0.999 ).toString
 	m
+}
+
+def uniqueUsersReducer( lines:List[String] ): Map[String,String] = {
+	Map( "all_nusers" -> lines.map( line => line.split(",")(columns("client_ip")) + line.split(",")(columns("client_thread")) ).removeDuplicates.length.toString )
 }
 
 def workloadReducer( lines:List[String], outColumnName:String, interval:Long, fractionReported:Double ): Map[String,String] = {
@@ -98,12 +103,12 @@ class MapReduceResult(
 		new MapReduceResult( Map.empty ++ m	)
 	}
 	
-	def saveToFile( filename: String ) {
+	def saveToFile( filename: String, keyName: String ) {
 		val allkeys = data.keySet.toList.sort(_<_)
 		val allcolumns = data.values.map(_.keySet).reduceLeft( Set.empty ++ _ ++ _ ).toList.sort(_<_)
 
 		val f = new BufferedWriter(new FileWriter(filename))
-		f.write( "key," + allcolumns.mkString(",") + "\n" )
+		f.write( keyName + "," + allcolumns.mkString(",") + "\n" )
 		for (key <- allkeys) f.write( key + "," + allcolumns.map( data(key)(_) ).mkString(",") + "\n" )
 		f.close
 	}
