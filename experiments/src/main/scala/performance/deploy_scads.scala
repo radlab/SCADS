@@ -76,6 +76,29 @@ object ScadsClients {
 			client.exec(cmd)
 		}
 	}
+	
+	def processLogFiles(experimentName:String) {
+		val client0 = clients.get(0)
+		val targetIP = client0.privateDnsName
+		client0.exec( "mkdir -p /mnt/logs/"+experimentName+"/clients/" )
+		
+		for (c <- clients) { 
+			val f=experimentName+"_"+c.privateDnsName+".log"
+			val df="/tmp/"+f
+			val cmd="cat /mnt/xtrace/logs/* > "+f+" && scp -o StrictHostKeyChecking=no "+f+" "+targetIP+":/mnt/logs/"+experimentName+"/clients/"+f
+			println(cmd)
+			c.exec(cmd) 
+			c.exec( "rm -f /mnt/xtrace/logs/*" )
+		}
+		
+		val expDir = "/mnt/logs/"+experimentName
+		val sourceF = expDir+"/"+experimentName+".log"
+		client0.exec( "cat /mnt/logs/"+experimentName+"/clients/* > "+sourceF)
+		client0.exec( "ulimit -n 20000" )
+		client0.exec( "scala /opt/scads/experiments/scripts/parselogs.scala "+sourceF+" "+expDir+"/"+experimentName+"_agg1.csv 1000 0.2")
+		client0.exec( "scala /opt/scads/experiments/scripts/parselogs.scala "+sourceF+" "+expDir+"/"+experimentName+"_agg5.csv 5000 0.2")
+		client0.exec( "scala /opt/scads/experiments/scripts/parselogs.scala "+sourceF+" "+expDir+"/"+experimentName+"_agg10.csv 10000 0.2")
+	}
 }
 
 object Scads extends RangeConversion {

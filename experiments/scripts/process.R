@@ -26,16 +26,16 @@ process = function(data, interval=1000000,report_fraction=1) {
 	
 	cat("start latency")
 	latency.mean = aggregate( data[,"latency",drop=F], by=list(time=floor(data$end/interval)), FUN=mean)
-	latency.mean = rename.col(latency.mean,"latency","latency.mean")
+	latency.mean = rename.col(latency.mean,"latency","latency_mean")
 	cat(".")
 	latency.90p = aggregate( data[,"latency",drop=F], by=list(time=floor(data$end/interval)), FUN=function(x){return(quantile(x,0.9))})
-	latency.90p = rename.col(latency.90p,"latency","latency.90p")
+	latency.90p = rename.col(latency.90p,"latency","latency_90p")
 	cat(".")
 	latency.99p = aggregate( data[,"latency",drop=F], by=list(time=floor(data$end/interval)), FUN=function(x){return(quantile(x,0.99))})
-	latency.99p = rename.col(latency.99p,"latency","latency.99p")
+	latency.99p = rename.col(latency.99p,"latency","latency_99p")
 	cat(".")
 	latency.99.9p = aggregate( data[,"latency",drop=F], by=list(time=floor(data$end/interval)), FUN=function(x){return(quantile(x,0.999))})
-	latency.99.9p = rename.col(latency.99.9p,"latency","latency.99.9p")
+	latency.99.9p = rename.col(latency.99.9p,"latency","latency_999p")
 	cat(".")	
 	stats = merge(workload,throughput,all=T)
 	stats = merge(stats,latency.mean,all=T)
@@ -112,34 +112,64 @@ process = function(data, interval=1000000,report_fraction=1) {
 		dataT = data[data$type==type,]
 		latency.mean = aggregate( dataT[,"latency",drop=F], by=list(time=floor(dataT$end/interval)), FUN=mean)
 		latency.mean$latency = latency.mean$latency #/ 1000
-		latency.mean = rename.col(latency.mean,"latency",paste(type,".latency.mean",sep=""))
+		latency.mean = rename.col(latency.mean,"latency",paste(type,"_latency_mean",sep=""))
 		stats = merge(stats,latency.mean,all=T)
 
 		latency.90p = aggregate( dataT[,"latency",drop=F], by=list(time=floor(dataT$end/interval)), function(x){return(quantile(x,0.9))})
 		latency.90p$latency = latency.90p$latency #/ 1000
-		latency.90p = rename.col(latency.90p,"latency",paste(type,".latency.90p",sep=""))
+		latency.90p = rename.col(latency.90p,"latency",paste(type,"_latency_90p",sep=""))
 		stats = merge(stats,latency.90p,all=T)
 
 		latency.99p = aggregate( dataT[,"latency",drop=F], by=list(time=floor(dataT$end/interval)), function(x){return(quantile(x,0.99))})
 		latency.99p$latency = latency.99p$latency #/ 1000
-		latency.99p = rename.col(latency.99p,"latency",paste(type,".latency.99p",sep=""))
+		latency.99p = rename.col(latency.99p,"latency",paste(type,"_latency_99p",sep=""))
 		stats = merge(stats,latency.99p,all=T)
 
 		latency.99.9p = aggregate( dataT[,"latency",drop=F], by=list(time=floor(dataT$end/interval)), function(x){return(quantile(x,0.999))})
 		latency.99.9p$latency = latency.99.9p$latency #/ 1000
-		latency.99.9p = rename.col(latency.99.9p,"latency",paste(type,".latency.99.9p",sep=""))
+		latency.99.9p = rename.col(latency.99.9p,"latency",paste(type,"_latency_999p",sep=""))
 		stats = merge(stats,latency.99.9p,all=T)
 	}
 	
 	return( list(stats=stats,interval=interval,types=types,report_fraction=report_fraction) )
 }
 
-plot.stats = function(stats, title) {
-	layout( matrix(1:(length(stats$types)+1),byrow=T) )
-	plot.workload.vs.throughput(stats, title)
+# plot workload over time (vs. #active users in each period or over time)
+# workload mix over time
+# get + put latency at two different scales
+
+plot.stats.for.file = function(file) {
+	title = tail(strsplit(file,"/")[[1]], 1)
+	cat(title)
+	stats = read.csv(file)
+	plot.stats(stats,title=title)
+}
+
+plot.stats = function(stats, req.types=c("get","put"), title="") {
+	layout( matrix(1:(2*(length(req.types)+1)),ncol=2,byrow=T) )
+	plot.users.vs.workload(stats,title)
+	plot.users(stats)
+	#plot.workload.vs.throughput(stats, title)
 	
-	for (type in stats$types)
-		plot.type.stats(stats,type,,0.1)	
+	for (type in req.types) {
+		plot.type.stats(stats,type,ymax=50)	
+		plot.type.stats(stats,type,ymax=300)
+	}
+}
+
+plot.workload.mix = function(stats, all, req.types) {
+	xrange = 1:nrow(stats)
+	mix = list()
+	for (req in req.types) {
+		m = stats[req]/stats[all]
+		mix = c(mix,100*m)
+	}
+	print(mix)
+	max = max(unlist(mix))
+	plot( c(), xlab="time", ylab="mix", ylim=c(0,max), xlim=c(min(xrange),max(xrange)), bty="n")
+	for( req in req.types) {
+		lines( xrange, mix[[req]] )	
+	}
 }
 
 plot.workload.vs.throughput = function(stats, title) {
@@ -147,7 +177,15 @@ plot.workload.vs.throughput = function(stats, title) {
 	plot( stats$stats$workload, stats$stats$throughput, xlim=xlim,xlab="workload", ylab="throughput", bty="n", main=title )
 }
 
-plot.users.vs.workload = function(data,interval,report_fraction=1) {
+plot.users = function(stats) {
+	plot( stats$all_nusers, bty="n" )	
+}
+
+plot.users.vs.workload = function(stats, title="") {
+	plot( stats$all_nusers, stats$all_workload, bty="n", main=title )
+}
+
+plot.users.vs.workload.old = function(data,interval,report_fraction=1) {
 	nt.seq = sort(unique(data$threads))
 	first = nt.seq[1]
 	
@@ -172,21 +210,21 @@ plot.users.vs.workload = function(data,interval,report_fraction=1) {
 
 }
 
-plot.type.stats = function(stats,type,metric="latency",ylim=10) {
+plot.type.stats = function(stats,type,metric="latency",ymax=10) {
 	prefix = ""
-	if (nchar(type)>0) {prefix=paste(type,".",sep="")}
-	col.mean = paste(prefix,metric,".mean",sep="")
-	col.90p = paste(prefix,metric,".90p",sep="")
-	col.99p = paste(prefix,metric,".99p",sep="")
-	col.99.9p = paste(prefix,metric,".99.9p",sep="")
+	if (nchar(type)>0) {prefix=paste(type,"_",sep="")}
+	col.mean = paste(prefix,metric,"_mean",sep="")
+	col.90p = paste(prefix,metric,"_90p",sep="")
+	col.99p = paste(prefix,metric,"_99p",sep="")
+	col.99.9p = paste(prefix,metric,"_999p",sep="")
 	
-	#xlim = c(0,max(stats$stats$throughput)*1.05)
-	xlim = c(0,sort(stats$stats$workload,decreasing=T)[1]*1.10)
+	xlim = c(0,max(stats$all_throughput)*1.05)
+	#xlim = c(0,sort(stats$stats$workload,decreasing=T)[1]*1.10)
 	
-	plot( stats$stats$workload, stats$stats[,col.99p], col="red", ylim=c(0,ylim), xlim=xlim, xlab=paste("workload [#req / ",stats$interval," ms]",sep=""), ylab=paste(metric," [ms]"), bty="n", main=paste("req type: ",type," ",metric,sep=""), ylog="")
-	points( stats$stats$workload, stats$stats[,col.99.9p], col="black")
-	points( stats$stats$workload, stats$stats[,col.90p], col="blue")
-	points( stats$stats$workload, stats$stats[,col.mean], col="green")
+	plot( stats$all_workload, stats[,col.99p], col="red", ylim=c(0,ymax), xlim=xlim, xlab=paste("workload [#req / ",stats$interval," ms]",sep=""), ylab=paste(metric," [ms]"), bty="n", main=paste("req type: ",type," ",metric,sep=""), ylog="")
+	points( stats$all_workload, stats[,col.99.9p], col="black")
+	points( stats$all_workload, stats[,col.90p], col="blue")
+	points( stats$all_workload, stats[,col.mean], col="green")
 	
 	legend(x="topleft",legend=c("99.9th perc", "99th perc", "90th perc", "mean"), col=c("black","red","blue","green"), pch=21, inset=0.01)
 }
