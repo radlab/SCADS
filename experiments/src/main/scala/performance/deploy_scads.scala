@@ -98,7 +98,7 @@ object ScadsClients {
 				
 		for (i <- List(1,5,10)) {
 			client0.exec( "scala /opt/scads/experiments/scripts/parselogs.scala "+sourceF+" "+expDir+"/"+experimentName+"_agg"+i+".csv "+i*1000+" 0.2")
-			client0.exec( "echo \"source('/opt/scads/experiments/scripts/process.R'); pdf('"+experimentName+"_agg"+i+".pdf',width=10,height=15); plot.stats.for.file('"+experimentName+"_agg"+i+".csv') \" | R --vanilla")
+			client0.exec( "echo \"source('/opt/scads/experiments/scripts/process.R'); pdf('"+expDir+"/"+experimentName+"_agg"+i+".pdf',width=10,height=15); plot.stats.for.file('"+expDir+"/"+experimentName+"_agg"+i+".csv') \" | R --vanilla")
 		}
 		
 	}
