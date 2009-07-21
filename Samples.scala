@@ -23,6 +23,11 @@
  */
  
 /**
+ * If you run 'mvn scala:doc' then you will get HTML formatted comments.
+ * Just open target/site/scaladocs/scaladocs/index.html
+ */
+ 
+/**
  * The parallelMap method provides an easy abstraction to running the same command
  * on several instances in parallel, but what if you want to run different
  * commands on each instance in parallel.
