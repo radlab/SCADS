@@ -188,7 +188,10 @@ class InstanceGroup(c: java.util.Collection[Instance])
     }
   
   def refreshAll = {
-    val instancePairs = this.toList zip DataCenter.describeInstances(this)
+    var newInstances = DataCenter.describeInstances(this)
+    while (this.size != newInstances.size)
+      newInstances = DataCenter.describeInstances(this)
+    val instancePairs = this.toList zip newInstances
     for (pair <- instancePairs) pair._1.runningInstance = pair._2
   }
   
