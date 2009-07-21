@@ -30,7 +30,7 @@ object ScadsClients {
 	var clients:InstanceGroup = null
 	def init(num_c: Int) = {
 		num_clients = num_c
-		clients = Scads.startNodes(num_clients,"client")		// start up clients
+		clients = Scads.startNodes(num_clients,"c1.medium","client")		// start up clients
 		
 		// TODO: wait for machines to come online (FIX)
 		Thread.sleep(30 * 1000)
@@ -50,11 +50,20 @@ object ScadsClients {
 		// get list of mvn dependencies
 		deps = clients.get(0).exec("cd /opt/scads/experiments; cat cplist").getStdout.replace("\n","") + ":../target/classes"
 	}
+	def warm_cache(ns: String, minK:Int, maxK:Int) = {
+		println("Warming server caches.")
+		val cmd = "cd /opt/scads/experiments/scripts; scala -cp "+ deps + " warm_cache.scala " + 
+					Scads.placement.get(0).privateDnsName + " "+ ns +" " + minK + " " + maxK
+		clients.get(0).exec(cmd)
+		println("Done warming.")
+	}
+
 	def run_workload(read_prob: Double, ns: String, totalUsers: Int, delay: Int, think: Int) {
 		// determine ranges to give each client
 		assert( totalUsers % clients.size == 0, "deploy_scads: can't evenly divide number of users amongst client instances")
 
 		// set up threads to run clients in parallel with appropriate min and max settings
+		var commands = Map[Instance, String]()
 		val threads = (0 to clients.size-1).toList.map((id)=>{
 			val minUser = id * (totalUsers/clients.size)
 			val maxUser = minUser + (totalUsers/clients.size) - 1
@@ -62,14 +71,15 @@ object ScadsClients {
 			val args = Scads.placement.get(0).privateDnsName +" "+ Scads.xtrace_on + " " + minUser + " " + maxUser + " " +
 						read_prob + " " + ns + " " + totalUsers + " " + delay + " " + think
 			val cmd = "cd /opt/scads/experiments/scripts; scala -cp "+ deps + " run_workload.scala " + args
-			println("Running with arguments: "+ args)
+			commands += (clients.get(id) -> cmd)
+			println("Will run with arguments: "+ args)
 			new Thread( new ClientRequest(clients.get(id), cmd) )
 		})
 		for(thread <- threads) thread.start
 		for(thread <- threads) thread.join
 
-		// TODO: check dependencies string is valid?
-		//clients.parallelMap((c: Instance)=>c.exec(cmd))
+		// is this broken? :(
+		//clients.parallelMap((c: Instance) => c.exec( commands(c) ))
 	}
 	case class ClientRequest(client: Instance, cmd: String) extends Runnable {
 		override def run() = {
@@ -111,7 +121,7 @@ object Scads extends RangeConversion {
 	var reporter:InstanceGroup = null
 	
 	// these should be commnand-line args or system properties or something
-	val num_servers = 1
+	var num_servers = 1
 	val num_reporters = 1
 	val num_placement = 1
 	val xtrace_on:Boolean = false
@@ -120,23 +130,9 @@ object Scads extends RangeConversion {
 	val server_port = 9000
 	val server_sync = 9091
 	
-	def runInstances(count: Int, typeString: String): InstanceGroup = {
-		val imageId = InstanceType.bits(typeString) match {
-			case 32 => "ami-e7a2448e"
-       		case 64 => "ami-e4a2448d"
-     	}
-/*     	val keyName = "trush"
-     	val keyPath = "/Users/trush/.ec2/trush.key"
-*/		val keyName = "bodikp-keypair"
-     	val keyPath = "/Users/bodikp/.ec2/bodikp-keypair"
-     	val location = "us-east-1a"
-
-     	DataCenter.runInstances(imageId, count, keyName, keyPath, typeString, location)
- 	}
-	
-	def startNodes(count: Int, name: String): InstanceGroup = {
+	def startNodes(count: Int, instancetype:String, name: String): InstanceGroup = {
 		println("Requesting "+name+" instances.")
-	    val nodes = runInstances(count, "m1.small")
+	    val nodes = DataCenter.runInstances(count, instancetype)
 	    println("Instances "+name+" received.")
 
 	    println("Waiting on "+name+" instances to be ready.")
@@ -161,11 +157,14 @@ object Scads extends RangeConversion {
 		dpclient
 	}
 	
-	def run() {
-		reporter = if (xtrace_on) { startNodes(num_reporters,"reporter") } else { null } // start up xtrace reporter
+	def run(num_s: Int, minK: Int, maxK: Int) {
+		num_servers = num_s
+		assert( (maxK-minK)%num_servers==0,"deploy_scads: key space isn't evenly divisible by number of servers" )
+
+		reporter = if (xtrace_on) { startNodes(num_reporters,"m1.small","reporter") } else { null } // start up xtrace reporter
 		reporter_host = if (reporter != null) { reporter.get(0).privateDnsName } else { null }
-		servers = startNodes(num_servers,"server")					// start up servers
-		placement = startNodes(num_placement,"placement")			// start up data placement	
+		servers = startNodes(num_servers,"m1.small","server")					// start up servers
+		placement = startNodes(num_placement,"m1.small","placement")			// start up data placement	
 	
 		// TODO: wait for machines to come online (FIX)
 		Thread.sleep(30 * 1000)
@@ -211,9 +210,16 @@ object Scads extends RangeConversion {
 		serverDeployResult.map( (x:ExecuteResponse) => {println(x.getStdout); println(x.getStderr)} )
 	    println("Done deploying servers.")
 
+		// set up partitioned storage node servers
+		val slice = (maxK-minK)/servers.size
 		val list = new java.util.ArrayList[DataPlacement]()
-		list.add(new DataPlacement(servers.get(0).privateDnsName,server_port,server_sync,KeyRange(MinKey,MaxKey)))
-
+		(0 to servers.size-1).toList.map((id)=>{
+			val startnum = id * slice
+			val start = if (startnum == minK) { MinKey } else { new StringKey(startnum.toString) }
+			val end = if ( (startnum + slice) >= maxK) { MaxKey } else { new StringKey((startnum + slice - 1).toString) }
+			println("Adding server to data placement list: "+ servers.get(id).privateDnsName + ": "+ start +" - "+ end)
+			list.add(new DataPlacement(servers.get(id).privateDnsName,server_port,server_sync,KeyRange(start,end)))
+		})
 		dpclient = Scads.getDataPlacementHandle(placement.get(0).publicDnsName, 8000)
 		
 		var callSuccessful = false		
