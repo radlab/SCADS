@@ -95,9 +95,12 @@ object ScadsClients {
 		val sourceF = expDir+"/"+experimentName+".log"
 		client0.exec( "cat /mnt/logs/"+experimentName+"/clients/* > "+sourceF)
 		client0.exec( "ulimit -n 20000" )
-		client0.exec( "scala /opt/scads/experiments/scripts/parselogs.scala "+sourceF+" "+expDir+"/"+experimentName+"_agg1.csv 1000 0.2")
-		client0.exec( "scala /opt/scads/experiments/scripts/parselogs.scala "+sourceF+" "+expDir+"/"+experimentName+"_agg5.csv 5000 0.2")
-		client0.exec( "scala /opt/scads/experiments/scripts/parselogs.scala "+sourceF+" "+expDir+"/"+experimentName+"_agg10.csv 10000 0.2")
+				
+		for (i <- List(1,5,10)) {
+			client0.exec( "scala /opt/scads/experiments/scripts/parselogs.scala "+sourceF+" "+expDir+"/"+experimentName+"_agg"+i+".csv "+i*1000+" 0.2")
+			client0.exec( "echo \"source('/opt/scads/experiments/scripts/process.R'); pdf('"+experimentName+"_agg"+i+".pdf',width=10,height=15); plot.stats.for.file('"+experimentName+"_agg"+i+".csv') \" | R --vanilla")
+		}
+		
 	}
 }
 
