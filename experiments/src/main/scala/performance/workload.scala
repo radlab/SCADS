@@ -31,6 +31,21 @@ object WorkloadAgentTest {
 		w
 	}
 	
+	def disjointWorkload(readProb:Double, namespace:String, totalUsers:Int, userStartDelay:Int, thinkTime:Int) = {
+		// workload in which gets and puts are from disjoint subsets of the keyspace
+		val mix = Map("get"->readProb,"put"->(1-readProb))
+		val parameters = Map("get"->Map("minKey"->"0","maxKey"->"10000","namespace"->namespace),
+							 "put"->Map("minKey"->"20000","maxKey"->"30000","namespace"->namespace))
+		val reqGenerator = new SimpleSCADSRequestGenerator(mix,parameters)
+		var intervals = new scala.collection.mutable.ListBuffer[WorkloadIntervalDescription]
+
+		for (nusers <- 1 to totalUsers) {
+			val interval = new WorkloadIntervalDescription(nusers, userStartDelay, reqGenerator)
+			intervals += interval
+		}
+		val w = new WorkloadDescription(thinkTime, intervals.toList)
+		w
+	}
 }
 
 
