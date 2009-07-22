@@ -6,8 +6,6 @@ import com.twitter.commons._
 import com.amazonaws.ec2._
 import com.amazonaws.ec2.model._
 
-import scala.actors.Future
-import scala.actors.Futures.future
 import java.io.IOException
 
 /**
@@ -134,7 +132,7 @@ class Instance(initialInstance: RunningInstance) {
    *         println(response.getStdout)
    *         </code>
    */
-  def deployNonBlocking(config: JSONObject): Future[ExecuteResponse] = {
+  def deployNonBlocking(config: JSONObject): DeployThread = {
     deployNonBlocking(config, null)
   }
   
@@ -151,8 +149,17 @@ class Instance(initialInstance: RunningInstance) {
    *         println(response.getStdout)
    *         </code>
    */
-  def deployNonBlocking(config: JSONObject, repoPath: String): Future[ExecuteResponse] = {
-    scala.actors.Futures.future { deploy(config, repoPath) }
+  def deployNonBlocking(config: JSONObject, repoPath: String): DeployThread = {
+    val thread = new DeployThread(this, config.toString, repoPath)
+    thread.start()
+    return thread
+  }
+  
+  class DeployThread(instance: Instance, config: String, repoPath: String) extends Thread {
+    var returnValue: ExecuteResponse = _
+    override def run(): Unit = {
+      returnValue = instance.deploy(config, repoPath)
+    }
   }
   
   /**
