@@ -17,7 +17,8 @@ trait SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 	var spaces = new scala.collection.mutable.HashMap[String, java.util.List[DataPlacement]]
 
 	def lookup_namespace(ns: String): java.util.List[DataPlacement] = {
-		if (spaces.contains(ns)) { spaces(ns) } else { null }
+		logger.info("Do I have namespace "+ns+ "? "+spaces.contains(ns))
+		if (spaces.contains(ns)) { logger.info("Namespace "+ns+" has "+spaces(ns).size +"entries"); spaces(ns) } else { null }
 	}
 	def lookup_node(ns: String, host: String, thriftPort: Int, syncPort: Int): DataPlacement = {
 		var ret:DataPlacement = null
@@ -30,6 +31,7 @@ trait SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 				if (entry.node==host && entry.thriftPort==thriftPort && entry.syncPort==syncPort) ret = entry
 			}
 		}
+		logger.info("Node "+host+" has entry? "+(ret==null))
 		ret
 	}
 	def lookup_key(ns: String, key: String): java.util.List[DataPlacement] = {
@@ -43,6 +45,7 @@ trait SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 				if (entry.rset.range.includes(key)) ret.add(entry)
 			}
 		}
+		logger.info("Key "+key+" available from "+ ret.size+" nodes.")
 		ret
 	}
 	def lookup_range(ns: String, range: RangeSet): java.util.List[DataPlacement] = {
@@ -50,12 +53,13 @@ trait SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 		if (spaces.contains(ns)) {
 			val entries = lookup_namespace(ns)
 			val iter = entries.iterator
-			var entry:DataPlacement = null
+			//var entry:DataPlacement = null // make this val?
 			while (iter.hasNext) {
-				entry = iter.next
+				val entry:DataPlacement = iter.next
 				if ( (rangeSetToKeyRange(entry.rset.range) & range) != KeyRange.EmptyRange ) { ret.add(entry) }
 			}
 		}
+		logger.info("Range "+range.start_key+" - "+range.end_key+" available from "+ ret.size+" nodes.")
 		ret
 	}
 
@@ -102,13 +106,16 @@ trait SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 		val src = new StorageNode(src_host,src_thrift,src_sync) // where copying from
 
 		// Verify the src has our keyRange
-		assert( (rangeSetToKeyRange(lookup_node(ns, src_host,src_thrift,src_sync).rset.range) & target_range) == target_range )
+		val compare_range = rangeSetToKeyRange(lookup_node(ns, src_host,src_thrift,src_sync).rset.range)
+		logger.info("Verifying node "+src_host+" with range "+compare_range.start +" - "+compare_range.end+" contains "+ target_range.start +" - "+ target_range.end)
+		assert( (compare_range & target_range) == target_range )
 
 		// Tell the servers to copy the data
 		logger.info("Copying "+ target_range.start + " - "+ target_range.end +" from "+src_host + " to "+ dest_host)
 		src.useConnection((c) => c.copy_set(ns, rset, dest_host+":"+dest_sync))
 
 		// Change the assignment
+		logger.info("Changed assignments: "+dest_host +" gets: "+ newDestRange.start +" - "+newDestRange.end)
 		val list = new java.util.ArrayList[DataPlacement]()
 		list.add(new DataPlacement(dest_host,dest_thrift,dest_sync,newDestRange))
 		add(ns, list)
@@ -124,14 +131,17 @@ trait SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 		val src = new StorageNode(src_host,src_thrift,src_sync)
 
 		// Verify the src has our keyRange and set up new range
-		assert( (rangeSetToKeyRange(lookup_node(ns, src_host,src_thrift,src_sync).rset.range) & target_range) == target_range )
-		val newSrcRange = rangeSetToKeyRange(lookup_node(ns,src_host,src_thrift,src_sync).rset.range) - target_range
+		val compare_range = rangeSetToKeyRange(lookup_node(ns, src_host,src_thrift,src_sync).rset.range)
+		logger.info("Verifying node "+src_host+" with range "+compare_range.start +" - "+compare_range.end+" contains "+ target_range.start +" - "+ target_range.end)
+		assert( (compare_range & target_range) == target_range )
+		val newSrcRange = compare_range - target_range
 
 		// Tell the servers to move the data
 		logger.info("Moving "+ target_range.start + " - "+ target_range.end +" from "+src_host + " to "+ dest_host)
 		src.useConnection((c) => c.copy_set(ns, rset, dest_host+":"+dest_sync))
 
 		// Change the assignment
+		logger.info("Changed assignments: "+dest_host +" gets: "+ newDestRange.start +" - "+newDestRange.end+"\n"+src_host+ " gets: "+ newSrcRange.start +" - "+newSrcRange.end)
 		val list = new java.util.ArrayList[DataPlacement]()
 		list.add(new DataPlacement(dest_host,dest_thrift,dest_sync,newDestRange))
 		list.add(new DataPlacement(src_host,src_thrift,src_sync,newSrcRange))
@@ -192,7 +202,7 @@ case class RunnableDataPlacementServer extends Runnable {
 	    	val server = new TNonblockingServer(processor, serverTransport,protFactory)
     
 			if (System.getProperty("xtrace")!=null) { logger.info("Starting data placement with xtrace enabled") }
-	    	println("Starting data placement server on "+port)
+			logger.info("Starting data placement server on "+port)
 	    	server.serve()
 	  	} catch { 
 	    	case x: Exception => x.printStackTrace()
