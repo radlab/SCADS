@@ -102,7 +102,7 @@ class Service(id: String, instance: Instance) {
    * @param count The number of lines you want.
    */
   def tailLog(count: Int): String = {
-    instance.exec("tail -n " + count + "/mnt/services/" + id + "/log/current").getStdout
+    instance.exec("tail -n " + count + " /mnt/services/" + id + "/log/current").getStdout
   }
   
   /**
