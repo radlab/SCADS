@@ -4,6 +4,16 @@ import org.scalatest.Suite
 import edu.berkeley.cs.scads.keys._
 
 class KeyTest extends Suite {
+	def testMinMaxSelfCompare() = {
+		// equality should work
+		assert( (MaxKey <= MaxKey) && (MaxKey >= MaxKey) )
+		assert( (MinKey <= MinKey) && (MinKey >= MinKey) )
+		assert( (MaxKey == MaxKey) && (MinKey == MinKey) )
+		
+		// inequality should work
+		assert( !(MinKey < MinKey) && !(MinKey > MinKey) )
+		assert( !(MaxKey < MaxKey) && !(MaxKey > MaxKey) )
+	}
 	def testKeySerialization() = {
 		val sk1 = new StringKey("Hello World")
 		val sk2 = new StringKey("1231234123412341234")
