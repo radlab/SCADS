@@ -140,6 +140,11 @@ class InstanceGroup(c: java.util.Collection[Instance])
   
   /**
    * Runs deployNonBlocking on each instance.
+   * To wait for all to finish just 'apply' the return value. <br>
+   * For example:<br>
+   * <code>
+   * val response = instanceGroup.deployNonBlocking(...)
+   * response()
    */
   def deployNonBlocking(config: JSONObject): () => Array[ExecuteResponse] = {
     deployNonBlocking(config, null)
@@ -147,6 +152,11 @@ class InstanceGroup(c: java.util.Collection[Instance])
   
   /**
    * Runs deployNonBlocking on each instance.
+   * To wait for all to finish just 'apply' the return value. <br>
+   * For example:<br>
+   * <code>
+   * val response = instanceGroup.deployNonBlocking(...)
+   * response()
    */
   def deployNonBlocking(config: JSONObject, repoPath: String): () => Array[ExecuteResponse] = {
     val thisArray = new Array[Instance](this.size())
@@ -157,21 +167,39 @@ class InstanceGroup(c: java.util.Collection[Instance])
     () => { for (deployment <- deployments) yield deployment.value }
   }
   
+  /**
+   * Stops all instances in this InstanceGroup.
+   */
   def stopAll = { 
     DataCenter.terminateInstances(this)
     refreshAll
   }
   
+  /**
+   * Removes services on all machines in this InstanceGroup.
+   */
   def cleanServices = { parallelMap((instance) => instance.cleanServices) }
   
+  /**
+   * Tags all instances
+   */
   def tagWith(tag: String) = { parallelMap((instance) => instance.tagWith(tag)) }
   
+  /**
+   * Removes the given tag from all instances in this InstanceGroup
+   */
   def removeTag(tag: String) = { parallelMap((instance) => instance.removeTag(tag)) }
   
+  /**
+   * Executes the given shell command on all instances in this InstanceGroup.
+   */
   def exec(cmd: String): Array[ExecuteResponse] = { 
     parallelMap((instance) => instance.exec(cmd))
   }
   
+  /**
+   * Waits until all instances are in the ready state.
+   */
   def waitUntilReady = {
     while (!allRunning) {
       Thread.sleep(5 * 1000)
@@ -180,6 +208,9 @@ class InstanceGroup(c: java.util.Collection[Instance])
     parallelMap((instance) => instance.waitUntilReady)
     }
   
+  /**
+   * Refreshes each instance with the latest info gotten from EC2.
+   */
   def refreshAll = {
     var newInstances = DataCenter.describeInstances(this)
     while (this.size != newInstances.size)
@@ -188,7 +219,15 @@ class InstanceGroup(c: java.util.Collection[Instance])
     for (pair <- instancePairs) pair._1.runningInstance = pair._2
   }
   
+  /**
+   * Returns true if all the instances in this InstanceGroup are in the
+   * running state.
+   */
   def allRunning: Boolean = { this.forall((instance) => instance.running) }
   
+  /**
+   * Returns true if all the instances in this InstanceGroup are in the
+   * terminated or shutting-down state.
+   */
   def allTerminated: Boolean = { this.forall((instance) => instance.terminated) }
 }
