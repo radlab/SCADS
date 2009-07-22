@@ -7,7 +7,6 @@ class Service(id: String, instance: Instance) {
   
   def getId = id
   
-  @throws(classOf[IllegalStateException])
   def start {
     instance.exec("sv start /mnt/services/" + id)
   }
@@ -18,7 +17,6 @@ class Service(id: String, instance: Instance) {
    * @return      Returns true if service started after given number of checks,
    *              false if service is still not in run state.
    */
-  @throws(classOf[IllegalStateException])
   def blockingStart(wait: Int): Boolean = {
     instance.exec("sv start /mnt/services/" + id)
     for (i <- 0 to wait) {
@@ -31,27 +29,22 @@ class Service(id: String, instance: Instance) {
   /**
    * blockingStart(120)
    */
-  @throws(classOf[IllegalStateException])
   def blockingStart(): Boolean = {
     blockingStart(120)
   }
   
-  @throws(classOf[IllegalStateException])
   def once {
     instance.exec("sv once /mnt/services/" + id)
   }
   
-  @throws(classOf[IllegalStateException])
   def stop {
     instance.exec("sv stop /mnt/services/" + id)
   }
   
-  @throws(classOf[IllegalStateException])
   def forceStop {
     instance.exec("sv force-stop /mnt/services/" + id)
   }
   
-  @throws(classOf[IllegalStateException])
   def status: ServiceStatus = {
     val RunningRegex = new Regex(
           """(\S+): /mnt/services/(\S+): \(pid (\d+)\) (\d+)s.*""")
@@ -70,12 +63,10 @@ class Service(id: String, instance: Instance) {
     }
   }
   
-  @throws(classOf[IllegalStateException])
   def tailLog(): String = {
     instance.exec("tail /mnt/services/" + id + "/log/current").getStdout
   }
   
-  @throws(classOf[IllegalStateException])
   def running: Boolean = {
     status.getStatus() == "run"
   }
