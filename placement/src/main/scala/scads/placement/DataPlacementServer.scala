@@ -8,7 +8,10 @@ import edu.berkeley.cs.scads.keys._
 import edu.berkeley.cs.scads.nodes.StorageNode
 import org.apache.log4j.Logger
 
-trait SimpleDataPlacementServer extends DataPlacementServer.Iface {
+trait SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface with AutoKey with RangeConversion{
+	val conflictPolicy = new ConflictPolicy()
+	conflictPolicy.setType(ConflictPolicyType.CPT_GREATER)
+
 	import java.text.ParsePosition
 	val logger = Logger.getLogger("placement.dataplacementserver")
 	var spaces = new scala.collection.mutable.HashMap[String, java.util.List[DataPlacement]]
@@ -30,32 +33,146 @@ trait SimpleDataPlacementServer extends DataPlacementServer.Iface {
 		ret
 	}
 	def lookup_key(ns: String, key: String): java.util.List[DataPlacement] = {
-		throw new NotImplemented
+		var ret = new java.util.ArrayList[DataPlacement]()
+		if (spaces.contains(ns)) {
+			val entries = lookup_namespace(ns)
+			val iter = entries.iterator
+			var entry:DataPlacement = null
+			while (iter.hasNext) {
+				entry = iter.next
+				if (entry.rset.range.includes(key)) ret.add(entry)
+			}
+		}
+		ret
 	}
 	def lookup_range(ns: String, range: RangeSet): java.util.List[DataPlacement] = {
-		throw new NotImplemented
+		var ret = new java.util.ArrayList[DataPlacement]()
+		if (spaces.contains(ns)) {
+			val entries = lookup_namespace(ns)
+			val iter = entries.iterator
+			var entry:DataPlacement = null
+			while (iter.hasNext) {
+				entry = iter.next
+				if ( (rangeSetToKeyRange(entry.rset.range) & range) != KeyRange.EmptyRange ) { ret.add(entry) }
+			}
+		}
+		ret
 	}
-}
 
-trait SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface with SimpleDataPlacementServer with RangeConversion {
-	val conflictPolicy = new ConflictPolicy()
-	conflictPolicy.setType(ConflictPolicyType.CPT_GREATER)
-	
-	def add(ns: String, entries:java.util.List[DataPlacement]):Boolean = {
+	private def add(ns: String, entry: DataPlacement) {
+		logger.info("Adding "+ entry.node + ":"+entry.syncPort)
+		val prev_entry:DataPlacement = lookup_node(ns, entry.node, entry.thriftPort, entry.syncPort)
+		if (prev_entry != null) prev_entry.setRset(entry.rset)
+		else spaces(ns).add(entry)
+		assign(ns, entry.node, entry.thriftPort, entry.syncPort, entry.rset)
+		logger.debug("Namespace entry size for "+ ns+ " : "+spaces(ns).size)
+	}
+
+	private def addAll(ns: String, entries: java.util.List[DataPlacement]): Boolean = {
 		spaces += (ns -> entries)
 		val iter = entries.iterator
 		var entry:DataPlacement = null
-		while (iter.hasNext) { // this could be parallelized
+		while (iter.hasNext) {
 			entry = iter.next
-			val node = new StorageNode(entry.node, entry.thriftPort, entry.syncPort)
-			node.useConnection((c) => c.set_responsibility_policy(ns, entry.rset))
+			logger.info("Adding "+ entry.node + ":"+entry.syncPort)
+			assign(ns, entry.node, entry.thriftPort, entry.syncPort, entry.rset)
+		}
+		logger.debug("Namespace entry size for "+ ns+ " : "+spaces(ns).size)
+		spaces.contains(ns)
+	}
+
+	private def assign(ns:String, host: String, thrift: Int, sync: Int, rset: RecordSet) {
+		val node = new StorageNode(host,thrift, sync)
+		node.useConnection((c) => c.set_responsibility_policy(ns, rset))
+	}
+
+	def add(ns: String, entries:java.util.List[DataPlacement]):Boolean = {
+		if (!spaces.contains(ns)) addAll(ns,entries)
+		else {
+			val iter = entries.iterator
+			while (iter.hasNext)  add(ns, iter.next)
 		}
 		spaces.contains(ns)
 	}
 
-	def copy(ns: String, rset: RecordSet, src_host: String, src_thrift: Int, src_sync: Int, dest_host: String, dest_thrift: Int, dest_sync: Int) = throw new NotImplemented
-	def move(ns: String, rset: RecordSet, src_host: String, src_thrift: Int, src_sync: Int, dest_host: String, dest_thrift: Int, dest_sync: Int) = throw new NotImplemented
-	def remove(ns: String, entries:java.util.List[DataPlacement]):Boolean = throw new NotImplemented
+	def copy(ns: String, rset: RecordSet, src_host: String, src_thrift: Int, src_sync: Int, dest_host: String, dest_thrift: Int, dest_sync: Int) = {
+		val target_range = rangeSetToKeyRange(rset.range)
+		val oldDestRange = if ( lookup_node(ns,dest_host,dest_thrift,dest_sync) != null) {rangeSetToKeyRange(lookup_node(ns,dest_host,dest_thrift,dest_sync).rset.range)} else {KeyRange.EmptyRange}
+		val newDestRange = oldDestRange + target_range
+		val src = new StorageNode(src_host,src_thrift,src_sync) // where copying from
+
+		// Verify the src has our keyRange
+		assert( (rangeSetToKeyRange(lookup_node(ns, src_host,src_thrift,src_sync).rset.range) & target_range) == target_range )
+
+		// Tell the servers to copy the data
+		logger.info("Copying "+ target_range.start + " - "+ target_range.end +" from "+src_host + " to "+ dest_host)
+		src.useConnection((c) => c.copy_set(ns, rset, dest_host+":"+dest_sync))
+
+		// Change the assignment
+		val list = new java.util.ArrayList[DataPlacement]()
+		list.add(new DataPlacement(dest_host,dest_thrift,dest_sync,newDestRange))
+		add(ns, list)
+		logger.debug("Namespace entry size for "+ ns+ " : "+spaces(ns).size)
+
+		// Sync keys that might have changed
+		src.useConnection((c) => c.sync_set(ns, rset, dest_host+":"+dest_sync, conflictPolicy))		
+	}
+	def move(ns: String, rset: RecordSet, src_host: String, src_thrift: Int, src_sync: Int, dest_host: String, dest_thrift: Int, dest_sync: Int) {
+		val target_range = rangeSetToKeyRange(rset.range)
+		val oldDestRange = if ( lookup_node(ns,dest_host,dest_thrift,dest_sync) != null) {rangeSetToKeyRange(lookup_node(ns,dest_host,dest_thrift,dest_sync).rset.range)} else {KeyRange.EmptyRange}
+		val newDestRange = oldDestRange + target_range
+		val src = new StorageNode(src_host,src_thrift,src_sync)
+
+		// Verify the src has our keyRange and set up new range
+		assert( (rangeSetToKeyRange(lookup_node(ns, src_host,src_thrift,src_sync).rset.range) & target_range) == target_range )
+		val newSrcRange = rangeSetToKeyRange(lookup_node(ns,src_host,src_thrift,src_sync).rset.range) - target_range
+
+		// Tell the servers to move the data
+		logger.info("Moving "+ target_range.start + " - "+ target_range.end +" from "+src_host + " to "+ dest_host)
+		src.useConnection((c) => c.copy_set(ns, rset, dest_host+":"+dest_sync))
+
+		// Change the assignment
+		val list = new java.util.ArrayList[DataPlacement]()
+		list.add(new DataPlacement(dest_host,dest_thrift,dest_sync,newDestRange))
+		list.add(new DataPlacement(src_host,src_thrift,src_sync,newSrcRange))
+		add(ns, list)
+		logger.debug("Namespace entry size for "+ ns+ " : "+spaces(ns).size)
+
+		// Sync and remove moved range from source
+		src.useConnection((c) => c.sync_set(ns, rset, dest_host+":"+dest_sync, conflictPolicy) )
+		src.useConnection((c) => c.remove_set(ns, rset) )
+	}
+
+	def remove(ns: String, entries:java.util.List[DataPlacement]):Boolean = {
+		if (!spaces.contains(ns)) return true
+		val iter = entries.iterator
+		var entry:DataPlacement = null
+		var other_entry:DataPlacement = null
+		var candidate:DataPlacement = null
+		val toRemove = new java.util.LinkedList[DataPlacement]
+
+		while (iter.hasNext) {
+			entry = iter.next
+			candidate = lookup_node(ns, entry.node, entry.thriftPort, entry.syncPort)
+			if (candidate != null) {
+				val node = new StorageNode(entry.node,entry.thriftPort,entry.syncPort)
+
+				// before removing, sync range with other nodes that have overlapping range
+				val others = lookup_range(ns, entry.rset.range)
+				val others_iter = others.iterator
+				while (others_iter.hasNext) {
+					other_entry = others_iter.next
+					node.useConnection((c) => c.sync_set(ns, entry.rset, other_entry.node+":"+other_entry.syncPort, conflictPolicy) )
+				}
+
+				// now remove range from the storage node
+				node.useConnection((c) => c.remove_set(ns, rangeSetToKeyRange(entry.rset.range)))
+			}
+			toRemove.add(candidate)
+			logger.info("Removing "+ toRemove.size +" entries from namespace "+ns)
+		}
+		spaces(ns).removeAll(toRemove)
+	}
 }
 
 class KnobServer extends SimpleKnobbedDataPlacementServer
@@ -74,6 +191,7 @@ case class RunnableDataPlacementServer extends Runnable {
 				if (System.getProperty("xtrace")!=null) {new XtBinaryProtocol.Factory(true, true)} else {new TBinaryProtocol.Factory(true, true)}
 	    	val server = new TNonblockingServer(processor, serverTransport,protFactory)
     
+			if (System.getProperty("xtrace")!=null) { logger.info("Starting data placement with xtrace enabled") }
 	    	println("Starting data placement server on "+port)
 	    	server.serve()
 	  	} catch { 
