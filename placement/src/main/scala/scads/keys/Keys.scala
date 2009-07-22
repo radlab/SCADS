@@ -68,14 +68,14 @@ class InvalidKey extends Exception
 
 @serializable
 object MinKey extends Key {
-	override def compare(other: Key) = -1
+	override def compare(other: Key) = if (other==MinKey) {0} else {-1}
 	override def toString : String  = "MinKey"
 	def serialize: String = throw new InvalidKey
 }
 
 @serializable
 object MaxKey extends Key {
-	override def compare(other: Key) = 1
+	override def compare(other: Key) = if (other==MaxKey) {0} else {1}
 	override def toString : String  = "MaxKey"
 	def serialize: String = throw new InvalidKey
 }
