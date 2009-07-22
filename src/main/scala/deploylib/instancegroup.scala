@@ -54,9 +54,6 @@ class InstanceGroup(c: java.util.Collection[Instance])
    * This function maps this collection in parallel using the given function.
    * <br>
    * It only works with Scala, since there are no function values in Java.
-   * <br>
-   * Adapted from:
-   * http://debasishg.blogspot.com/2008/06/playing-around-with-parallel-maps-in.html
    */
   def parallelMap[T](fun: (Instance) => T): Array[T] = {
     val threads =
@@ -72,22 +69,9 @@ class InstanceGroup(c: java.util.Collection[Instance])
    * This method was provided to give Java programmers a way to use parallelMap.
    * The problem is that the resulting array is not typed ie. it is an array of
    * Object. Let Aaron know if this is a huge nuisance.
-   * <br>
-   * Adapted from:
-   * http://debasishg.blogspot.com/2008/06/playing-around-with-parallel-maps-in.html
    */
   def parallelMap(executer: InstanceExecute): Array[java.lang.Object] = {
-    val thisArray = new Array[Instance](this.size())
-    this.toArray(thisArray)
-    val resultArray = new Array[java.lang.Object](thisArray.length)
-    val mappers =
-      for (i <- (0 until thisArray.length).toList) yield {
-        scala.actors.Futures.future {
-          resultArray(i) = executer.execute(thisArray(i))
-        }
-      }
-    for (mapper <- mappers) mapper()
-    resultArray
+    parallelMap((instance) => executer.execute(instance))
   }
   
   /**
