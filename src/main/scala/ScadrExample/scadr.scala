@@ -67,7 +67,7 @@ object Scadr {
     
     scadsDeployment()
     println("Done deploying scads and scadr.")
-    frontendDeployment()
+    frontendDeployment.value
     println("Done deploying frontend.")
     
     println("Point your browser to " + frontend.publicDnsName)
