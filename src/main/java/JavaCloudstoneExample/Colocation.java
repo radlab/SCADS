@@ -51,9 +51,12 @@ public class Colocation {
         
         InstanceGroup[] instances = new InstanceGroup[instanceConfigs.length];
         
+        
+        System.out.println("Requesting instances.");
         for (int i = 0; i < instanceConfigs.length; i ++) {
             instances[i] = runInstances(instanceConfigs[i]);
         }
+        System.out.println("Instances gotten.");
         
         InstanceGroup allInstances = new InstanceGroup(instances);
         
@@ -61,7 +64,9 @@ public class Colocation {
         /**************************************************
          * Don't forget to wait on the instances          *
          **************************************************/
+        System.out.println("Waiting on instances.");
         allInstances.parallelMap(new WaitUntilReady());
+        System.out.println("Instances ready.");
         
         /* Rails Configuration */
         JSONObject[] railsObject = new JSONObject[railsIndices.length];
