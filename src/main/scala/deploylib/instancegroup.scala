@@ -59,17 +59,18 @@ class InstanceGroup(c: java.util.Collection[Instance])
    * http://debasishg.blogspot.com/2008/06/playing-around-with-parallel-maps-in.html
    */
   def parallelMap[T](fun: (Instance) => T): Array[T] = {
-    val thisArray = new Array[Instance](this.size())
-    this.toArray(thisArray)
-    val resultArray = new Array[T](thisArray.length)
-    val mappers = 
-      for (i <- (0 until thisArray.length).toList) yield {
-        future {
-          resultArray(i) = fun(thisArray(i))
-        }
-      }
-    for (mapper <- mappers) mapper()
-    resultArray
+    val threads =
+      for (instance <- this.toList) yield new ScalaThread(instance, fun)
+    for (thread <- threads) thread.start()
+    for (thread <- threads) thread.join()
+    (for (thread <- threads) yield thread.returnValue).toArray
+  }
+  
+  private class ScalaThread[T](instance: Instance, fun: (Instance => T)) extends Thread {
+    var returnValue: T = _
+    override def run(): Unit = {
+      returnValue = fun(instance)
+    }
   }
   
   /**
