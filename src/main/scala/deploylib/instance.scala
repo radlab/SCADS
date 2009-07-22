@@ -132,7 +132,7 @@ class Instance(initialInstance: RunningInstance) {
    *         println(response.getStdout)
    *         </code>
    */
-  def deployNonBlocking(config: JSONObject): DeployThread = {
+  def deployNonBlocking(config: JSONObject): InstanceThread[ExecuteResponse] = {
     deployNonBlocking(config, null)
   }
   
@@ -149,17 +149,10 @@ class Instance(initialInstance: RunningInstance) {
    *         println(response.getStdout)
    *         </code>
    */
-  def deployNonBlocking(config: JSONObject, repoPath: String): DeployThread = {
-    val thread = new DeployThread(this, config.toString, repoPath)
+  def deployNonBlocking(config: JSONObject, repoPath: String): InstanceThread[ExecuteResponse] = {
+    val thread = new InstanceThread(this, (instance) => { instance.deploy(config, repoPath) } )
     thread.start()
     return thread
-  }
-  
-  class DeployThread(instance: Instance, config: String, repoPath: String) extends Thread {
-    var returnValue: ExecuteResponse = _
-    override def run(): Unit = {
-      returnValue = instance.deploy(config, repoPath)
-    }
   }
   
   /**

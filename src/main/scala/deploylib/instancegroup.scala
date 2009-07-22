@@ -60,17 +60,9 @@ class InstanceGroup(c: java.util.Collection[Instance])
    */
   def parallelMap[T](fun: (Instance) => T): Array[T] = {
     val threads =
-      for (instance <- this.toList) yield new ScalaThread(instance, fun)
+      for (instance <- this.toList) yield new InstanceThread(instance, fun)
     for (thread <- threads) thread.start()
-    for (thread <- threads) thread.join()
-    (for (thread <- threads) yield thread.returnValue).toArray
-  }
-  
-  private class ScalaThread[T](instance: Instance, fun: (Instance => T)) extends Thread {
-    var returnValue: T = _
-    override def run(): Unit = {
-      returnValue = fun(instance)
-    }
+    (for (thread <- threads) yield thread.value).toArray
   }
   
   /**
