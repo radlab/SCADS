@@ -45,10 +45,20 @@ class SCADSPutRequest(
 	override def toString: String = "put("+namespace+","+key+"="+value+")"
 }
 
-/*class SCADSGetSetRequest extends SCADSRequest {
+class SCADSGetSetRequest(
+	override val client: ClientLibrary,
+	val namespace: String,
+	val startKey: String,
+	val endKey: String,
+	val skip: int,
+	val limit: int
+) extends SCADSRequest(client) {
 	def reqType: String = "getset"
+	def execute = {
+		client.get_set(namespace,new RecordSet(3,new RangeSet("'"+startKey+"'","'"+endKey+"'",skip,limit),null,null))
+	}
 }
-*/
+
 
 
 object SCADSRequestGenerator {
@@ -73,20 +83,31 @@ class SimpleSCADSRequestGenerator(
 	val getMinKey = parameters("get")("minKey").toInt
 	val getMaxKey = parameters("get")("maxKey").toInt
 	val getNamespace = parameters("get")("namespace")
+	
 	val putMinKey = parameters("put")("minKey").toInt
 	val putMaxKey = parameters("put")("maxKey").toInt
 	val putNamespace = parameters("put")("namespace")
 	
+	val getsetMinKey = parameters("getset")("minKey").toInt
+	val getsetMaxKey = parameters("getset")("maxKey").toInt
+	val getsetNamespace = parameters("getset")("namespace")
+	val getsetSetLength = parameters("getset")("setLength").toInt
+	
 	def generateRequest(client: ClientLibrary, time: Long): SCADSRequest = {
 		getRequestType match {
 			case "get" => {
-				val key = SCADSRequestGenerator.rand.nextInt( getMaxKey-getMinKey+1 ) + getMinKey
+				val key = SCADSRequestGenerator.rand.nextInt( getMaxKey-getMinKey ) + getMinKey
 				new SCADSGetRequest(client,getNamespace,keyFormat.format(key))
 			}
 			case "put" => {
-				val key = SCADSRequestGenerator.rand.nextInt( putMaxKey-putMinKey+1 ) + putMinKey
+				val key = SCADSRequestGenerator.rand.nextInt( putMaxKey-putMinKey ) + putMinKey
 				new SCADSPutRequest(client,putNamespace,keyFormat.format(key),"value")
-			}	
+			}
+			case "getset" => {
+				val startKey = SCADSRequestGenerator.rand.nextInt( getsetMaxKey-getsetMinKey ) + getsetMinKey
+				val endKey = startKey+getsetSetLength
+				new SCADSGetSetRequest(client,getsetNamespace,keyFormat.format(startKey),keyFormat.format(endKey),0,getsetSetLength)
+			}
 		}
 	}
 	
