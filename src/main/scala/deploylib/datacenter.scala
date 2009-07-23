@@ -152,10 +152,23 @@ object DataCenter {
    * Finds all instances known to DataCenter tagged with the specified tag.
    *
    * @param tag The tag to look for.
+   * @param all If true then all instances with key name matching
+   *            DataCenter.keyName will be searched,
+   *            otherwise just the instances know to DataCenter are searched.
    * @return    An InstanceGroup containing instances that are all tagged with tag.
    */
-  def getInstanceGroupByTag(tag: String): InstanceGroup = {
-    instances.parallelFilter(instance => instance.isTaggedWith(tag))
+  def getInstanceGroupByTag(tag: String, all: Boolean): InstanceGroup = {
+    if (all) {
+      val instances =
+        for {
+          instance <- describeInstances
+          if instance.running
+          if instance.keyName == DataCenter.keyName
+          } yield instance
+        new InstanceGroup(instances.toList).parallelFilter(instance => instance.isTaggedWith(tag))
+    } else {
+      instances.parallelFilter(instance => instance.isTaggedWith(tag))
+    }
   }
   
   // @TODO getInstanceGroupByService(service: Service)?
@@ -223,6 +236,9 @@ object DataCenter {
     removeInstances(instanceGroup)
   }
   
+  /**
+   * Gets all instances running with given EC2 account.
+   */
   def describeInstances: InstanceGroup = {
     val request = new DescribeInstancesRequest()
     val response = service.describeInstances(request)
