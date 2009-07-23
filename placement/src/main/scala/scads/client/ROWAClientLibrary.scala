@@ -4,6 +4,8 @@ import edu.berkeley.cs.scads.thrift.{Record,RecordSet,ExistingValue,KeyStore,Not
 import edu.berkeley.cs.scads.placement.{SimpleDataPlacementService,LocalDataPlacementProvider,RemoteDataPlacementProvider}
 import edu.berkeley.cs.scads.nodes.StorageNode
 import edu.berkeley.cs.scads.keys._
+import org.apache.log4j.Logger
+import org.apache.log4j.BasicConfigurator
 
 import java.util.Comparator
 import scala.collection.mutable.{HashMap, HashSet}
@@ -24,6 +26,7 @@ class SCADSClient(h: String, p: Int) extends ROWAClientLibrary with RemoteDataPl
 abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementService with RangeConversion with AutoKey {
 	import java.util.Random
 	import java.text.ParsePosition
+	val logger = Logger.getLogger("client.rowa")
 
 	val retries = 5
 
@@ -37,6 +40,7 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 	private def get_retry(namespace: String, key: String, count: Int):Record = {
 		//val ns_keyspace = getKeySpace(namespace)
 		val potentials = lookup(namespace,key).toList
+		logger.debug("Lookup for key "+key+ " yielded "+potentials.length+" nodes.")
 		val serialized_key ="'" + key + "'" // serialize before sending over thrift
 		try {
 			if ( potentials.length >0  ) {
@@ -49,8 +53,9 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 		} catch {
 			case e:NotResponsible => {
 				this.refreshPlacement
+				logger.debug("Refreshed placement for namespace "+namespace)
 				if (count >0)
-					this.get_retry(namespace,serialized_key,count-1)
+					this.get_retry(namespace,key,count-1)
 				else {
 					println("Client library failed refresh attempts on [" +namespace+"]"+key+": "+retries)
 					throw e // TODO: throw more meaningful exception
@@ -97,6 +102,7 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 				} catch {
 					case e:NotResponsible => {
 						this.refreshPlacement
+						logger.debug("Refreshed placement for namespace "+namespace)
 						if (count>0) {
 							node_record_count = node.useConnection((c) => c.count_set(namespace,rset))
 							count -=1
@@ -124,6 +130,7 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 				} catch {
 					case e:NotResponsible => {
 						this.refreshPlacement
+						logger.debug("Refreshed placement for namespace "+namespace)
 						if (count>0) {
 							val records_subset = node.useConnection((c) => c.get_set(namespace,rset))
 							val iter = records_subset.iterator()
@@ -223,8 +230,9 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 			} catch {
 				case e:NotResponsible => {
 					this.refreshPlacement
+					logger.debug("Refreshed placement for namespace "+namespace)
 					if (count>0) {
-						val success = this.put_retry(namespace,new Record("'" + rec.getKey() + "'",rec.getValue()),count-1) // recursion may redo some work
+						val success = this.put_retry(namespace,rec,count-1) // recursion may redo some work
 						total_success && success
 					}
 					else {
