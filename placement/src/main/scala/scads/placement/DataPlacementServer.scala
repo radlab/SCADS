@@ -7,6 +7,7 @@ import edu.berkeley.cs.scads.thrift.{DataPlacementServer, KnobbedDataPlacementSe
 import edu.berkeley.cs.scads.keys._
 import edu.berkeley.cs.scads.nodes.StorageNode
 import org.apache.log4j.Logger
+import org.apache.log4j.BasicConfigurator
 
 trait SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface with AutoKey with RangeConversion{
 	val conflictPolicy = new ConflictPolicy()
@@ -210,6 +211,9 @@ case class RunnableDataPlacementServer extends Runnable {
 	}
 }
 
-object SimpleDataPlacementApp extends Application {
-	val dps = new RunnableDataPlacementServer
+object SimpleDataPlacementApp {
+	def main(args:Array[String]) = {
+		BasicConfigurator.configure()
+		new RunnableDataPlacementServer
+	}
 }
