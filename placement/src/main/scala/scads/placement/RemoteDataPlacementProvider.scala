@@ -14,6 +14,7 @@ trait RemoteDataPlacementProvider extends SimpleDataPlacementService with AutoKe
 	def host: String 
 	def port: Int
 	var client: DataPlacementServer.Client = null
+	val logger:Logger
 
 	private def getClient():DataPlacementServer.Client  = {
 		if(client == null) {
@@ -29,12 +30,13 @@ trait RemoteDataPlacementProvider extends SimpleDataPlacementService with AutoKe
 		var mapping = Map[StorageNode, KeyRange]()
 		val entries = getClient().lookup_namespace(ns)
 		val iter = entries.iterator
-		var entry:DataPlacement = null
 		while (iter.hasNext) {
-			entry = iter.next
+			val entry:DataPlacement = iter.next
 			mapping += ( new StorageNode(entry.node,entry.thriftPort, entry.syncPort) -> entry.rset.range ) // implicit conversion
+			logger.debug("Adding to namespace: "+entry.node +" gets "+ entry.rset.range.start_key +" - "+ entry.rset.range.end_key)
 		}
 		space += ( ns -> mapping )
+		logger.info("Placement entries for "+ns+": \n"+super.printSpace(ns))
 	}
 	
 	override def refreshPlacement = { space = Map[String, Map[StorageNode, KeyRange]]() }
