@@ -2,7 +2,7 @@ package edu.berkeley.cs.scads.test
 
 import org.scalatest.Suite
 
-import edu.berkeley.cs.scads.thrift.Record
+import edu.berkeley.cs.scads.thrift._
 import edu.berkeley.cs.scads.nodes.ConnectionPool
 import edu.berkeley.cs.scads.nodes.StorageNode
 import edu.berkeley.cs.scads.nodes.TestableBdbStorageNode
@@ -42,5 +42,25 @@ class NodeTest extends Suite {
 
     assert(ConnectionPool.connections(bn).pool.size > 0)
     assert(ConnectionPool.connections(bn).pool.size <= 100)
+  }
+
+  def testResponsibility() {
+	val sn = new TestableBdbStorageNode()
+	sn.useConnection((c) => {
+		val range = new RangeSet()
+		val rs = new RecordSet(RecordSetType.RST_RANGE, range, null, null)
+		val rec = new Record("beth", "sexy")
+		c.set_responsibility_policy("tr", rs)
+		c.put("tr", new Record("beth", "sexy"))
+		assert(rec === c.get("tr", "beth"))
+		assert(rec === c.get_set("tr", rs).get(0))
+
+		val range2 = new RangeSet
+		range2.setStart_key("a")
+		range2.setEnd_key("m")
+		rs.setRange(range2)
+		assert(rec === c.get_set("tr", rs).get(0))
+
+	})
   }
 }
