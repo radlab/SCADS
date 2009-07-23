@@ -19,7 +19,7 @@ trait SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 
 	def lookup_namespace(ns: String): java.util.List[DataPlacement] = {
 		logger.info("Do I have namespace "+ns+ "? "+spaces.contains(ns))
-		if (spaces.contains(ns)) { logger.info("Namespace "+ns+" has "+spaces(ns).size +"entries"); spaces(ns) } else { null }
+		if (spaces.contains(ns)) { logger.info("Namespace "+ns+" has "+spaces(ns).size +"entries"); spaces(ns) } else { new java.util.LinkedList[DataPlacement] }
 	}
 	def lookup_node(ns: String, host: String, thriftPort: Int, syncPort: Int): DataPlacement = {
 		var ret:DataPlacement = null
@@ -211,9 +211,9 @@ case class RunnableDataPlacementServer extends Runnable {
 	}
 }
 
-object SimpleDataPlacementApp {
-	def main(args:Array[String]) = {
+object SimpleDataPlacementApp extends Application {
+	//def main(args:Array[String]) = {
 		BasicConfigurator.configure()
-		new RunnableDataPlacementServer
-	}
+		val dps = new RunnableDataPlacementServer
+	//}
 }
