@@ -76,15 +76,23 @@ new InstanceGroup(Array(xlarges, smalls)).waitUntilReady
 /**
  * With deployNonBlocking you don't have to wait for a deployment to finish.
  * It even works on InstanceGroups in the way that you would expect!
+ * Although, the interface to the return value is slightly different
  */
 
 // Starting deployment in parallel
-appServer.deployNonBlocking(appConfig) 
-webServer.deployNonBlocking(webConfig)
+val appServersDeployment = appServersInstanceGroup.deployNonBlocking(appConfig)
+val webServerDeployment = webServerSingleInstance.deployNonBlocking(webConfig)
 
 // Waiting for deployment to finish
-appServer()
-webServer()
+// Notice the difference between whether you called deployNonBlocking on an
+// InstanceGroup versus an Instance.
+// InstanceGroup's deployNonBlocking returns a method that when called will
+// wait on all the instances in the InstanceGroup and return an array of
+// responses.
+// Instance's deployNonBlocking returns an InstanceThread whose value method
+// will wait for the thread to finish and return the response.
+appServersDeployment()
+webServer.value
  
 /**
  * Did you know about InstanceType object?
