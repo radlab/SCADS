@@ -21,8 +21,8 @@ object Scadr {
     instances.get(1).tagWith("webserver")
     instances.get(1).tagWith("frontend")
     
-    val scads = DataCenter.getInstanceGroupByTag("scads")
-    val frontend = DataCenter.getInstanceGroupByTag("frontend").get(0)
+    val scads = DataCenter.getInstanceGroupByTag("scads", false)
+    val frontend = DataCenter.getInstanceGroupByTag("frontend", false).get(0)
     
     val scadsConfig = new JSONObject()
     val scadsRecipes = new JSONArray()
