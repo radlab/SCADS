@@ -10,6 +10,20 @@ import edu.berkeley.cs.scads.thrift.{KnobbedDataPlacementServer,DataPlacement, R
 import org.apache.thrift.transport.{TFramedTransport, TSocket}
 import org.apache.thrift.protocol.{TBinaryProtocol, XtBinaryProtocol}
 
+object ScadsDP extends RangeConversion {
+	assert (Scads.dpclient != null) // need to Scads.run first
+
+	def shift = {
+		// grab an assignments to storage nodes
+		val dp1 = Scads.dpclient.lookup_node(Scads.namespaces(0),Scads.servers.get(0).privateDnsName,Scads.server_port,Scads.server_sync)
+
+		// copy storage node's data to another node (adjacent in key responsibility)
+		println(System.currentTimeMillis())
+		Scads.dpclient.move(Scads.namespaces(0),dp1.rset, dp1.node, Scads.server_port,Scads.server_sync,Scads.servers.get(1).privateDnsName, Scads.server_port,Scads.server_sync)
+		println(System.currentTimeMillis())
+	}
+}
+
 object ScadsClients {
 	val host:String = Scads.placement.get(0).privateDnsName
 	val port:Int = 8000
@@ -59,27 +73,34 @@ object ScadsClients {
 	}
 
 	def run_workload(read_prob: Double, ns: String, totalUsers: Int, delay: Int, think: Int) {
-		// determine ranges to give each client
-		assert( totalUsers % clients.size == 0, "deploy_scads: can't evenly divide number of users amongst client instances")
+		val testthread = new Thread(new WorkloadRunner(read_prob,ns, totalUsers, delay, think))
+		testthread.start
+	}
+	case class WorkloadRunner(read_prob: Double, ns: String, totalUsers: Int, delay: Int, think: Int) extends Runnable {
+		def run() = {
+			// determine ranges to give each client
+			assert( totalUsers % clients.size == 0, "deploy_scads: can't evenly divide number of users amongst client instances")
 
-		// set up threads to run clients in parallel with appropriate min and max settings
-		var commands = Map[Instance, String]()
-		val threads = (0 to clients.size-1).toList.map((id)=>{
-			val minUser = id * (totalUsers/clients.size)
-			val maxUser = minUser + (totalUsers/clients.size) - 1
+			// set up threads to run clients in parallel with appropriate min and max settings
+			var commands = Map[Instance, String]()
+			val threads = (0 to clients.size-1).toList.map((id)=>{
+				val minUser = id * (totalUsers/clients.size)
+				val maxUser = minUser + (totalUsers/clients.size) - 1
 
-			val args = Scads.placement.get(0).privateDnsName +" "+ Scads.xtrace_on + " " + minUser + " " + maxUser + " " +
-						read_prob + " " + ns + " " + totalUsers + " " + delay + " " + think
-			val cmd = "cd /opt/scads/experiments/scripts; scala -cp "+ deps + " run_workload.scala " + args
-			commands += (clients.get(id) -> cmd)
-			println("Will run with arguments: "+ args)
-			new Thread( new ClientRequest(clients.get(id), cmd) )
-		})
-		for(thread <- threads) thread.start
-		for(thread <- threads) thread.join
+				val args = Scads.placement.get(0).privateDnsName +" "+ Scads.xtrace_on + " " + minUser + " " + maxUser + " " +
+							read_prob + " " + ns + " " + totalUsers + " " + delay + " " + think
+				val cmd = "cd /opt/scads/experiments/scripts; scala -cp "+ deps + " run_workload.scala " + args
+				commands += (clients.get(id) -> cmd)
+				println("Will run with arguments: "+ args)
+				new Thread( new ClientRequest(clients.get(id), cmd) )
+			})
+			for(thread <- threads) thread.start
+			for(thread <- threads) thread.join
+			println("Workload test complete.")
 
-		// is this broken? :(
-		//clients.parallelMap((c: Instance) => c.exec( commands(c) ))
+			// is this broken? :(
+			//clients.parallelMap((c: Instance) => c.exec( commands(c) ))
+		}
 	}
 	case class ClientRequest(client: Instance, cmd: String) extends Runnable {
 		override def run() = {
@@ -115,6 +136,7 @@ object ScadsClients {
 }
 
 object Scads extends RangeConversion {
+	val keyFormat = new java.text.DecimalFormat("000000000000000")
 	var dpclient:KnobbedDataPlacementServer.Client = null
 	var servers:InstanceGroup = null
 	var placement:InstanceGroup = null
@@ -136,6 +158,7 @@ object Scads extends RangeConversion {
 	    println("Instances "+name+" received.")
 
 	    println("Waiting on "+name+" instances to be ready.")
+		Thread.sleep(5000)
 	    nodes.parallelMap((instance) => instance.waitUntilReady)
 	    println("Instances "+name+" ready.")
 		nodes
@@ -215,8 +238,10 @@ object Scads extends RangeConversion {
 		val list = new java.util.ArrayList[DataPlacement]()
 		(0 to servers.size-1).toList.map((id)=>{
 			val startnum = id * slice
-			val start = if (startnum == minK) { MinKey } else { new StringKey(startnum.toString) }
-			val end = if ( (startnum + slice) >= maxK) { MaxKey } else { new StringKey((startnum + slice - 1).toString) }
+			val start = new StringKey( Scads.keyFormat.format(startnum) )
+			val end =  new StringKey( Scads.keyFormat.format(startnum + slice))
+			//val start = if (startnum == minK) { MinKey } else { new StringKey( Scads.keyFormat.format(startnum) ) }
+			//val end = if ( (startnum + slice) >= maxK) { MaxKey } else { new StringKey( Scads.keyFormat.format(startnum + slice)) }
 			println("Adding server to data placement list: "+ servers.get(id).privateDnsName + ": "+ start +" - "+ end)
 			list.add(new DataPlacement(servers.get(id).privateDnsName,server_port,server_sync,KeyRange(start,end)))
 		})
