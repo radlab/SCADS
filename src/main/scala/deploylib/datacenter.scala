@@ -223,6 +223,20 @@ object DataCenter {
     removeInstances(instanceGroup)
   }
   
+  def describeInstances: InstanceGroup = {
+    val request = new DescribeInstancesRequest()
+    val response = service.describeInstances(request)
+    val result = response.getDescribeInstancesResult()
+    val reservationList = result.getReservation()
+    reservationList.toList.flatMap(reservation => reservation.getRunningInstance)
+    val instances =
+      for {
+        reservation <- reservationList
+        runningInstance <- reservation.getRunningInstance
+      } yield new Instance(runningInstance)
+    new InstanceGroup(instances.toList)
+  }
+  
   /**
    * Runs describe instances through the EC2 library.
    * Note: This method is meant for internal use. The Instance class uses it to
