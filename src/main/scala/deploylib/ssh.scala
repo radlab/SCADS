@@ -15,56 +15,68 @@ class SSH(hostname: String){
   val connection = new Connection(hostname)
   
   def executeCommand(cmd: String): ExecuteResponse = {
-    connect
+    var response: ExecuteResponse = null
+    try {
+      connect
 
-    val stdout = new StringBuilder
-    val stderr = new StringBuilder
+      val stdout = new StringBuilder
+      val stderr = new StringBuilder
 
-    val session = connection.openSession()
+      val session = connection.openSession()
+
+      try {
+        session.execCommand(cmd)
     
-    session.execCommand(cmd)
+        val stdoutGobbler = new StreamGobbler(session.getStdout())
+        val stderrGobbler = new StreamGobbler(session.getStderr())
     
-    val stdoutGobbler = new StreamGobbler(session.getStdout())
-    val stderrGobbler = new StreamGobbler(session.getStderr())
+        val stdoutReader = new BufferedReader(new InputStreamReader(stdoutGobbler))
+        val stderrReader = new BufferedReader(new InputStreamReader(stderrGobbler))
     
-    val stdoutReader = new BufferedReader(new InputStreamReader(stdoutGobbler))
-    val stderrReader = new BufferedReader(new InputStreamReader(stderrGobbler))
+        var stdoutLine = stdoutReader.readLine()
+        while (stdoutLine != null) {
+          stdout.append(stdoutLine + "\n")
+          stdoutLine = stdoutReader.readLine()
+        }
     
-    var stdoutLine = stdoutReader.readLine()
-    while (stdoutLine != null) {
-      stdout.append(stdoutLine + "\n")
-      stdoutLine = stdoutReader.readLine()
+        var stderrLine = stderrReader.readLine()
+        while (stderrLine != null) {
+          stderr.append(stderrLine + "\n")
+          stderrLine = stderrReader.readLine()
+        }
+    
+    
+        response = new ExecuteResponse(session.getExitStatus(),
+                                           stdout.toString,
+                                           stderr.toString)
+      } finally {
+        session.close()
+      }
+    } finally {
+      logout
     }
-    
-    var stderrLine = stderrReader.readLine()
-    while (stderrLine != null) {
-      stderr.append(stderrLine + "\n")
-      stderrLine = stderrReader.readLine()
-    }
-    
-    
-    val response = new ExecuteResponse(session.getExitStatus(),
-                                       stdout.toString,
-                                       stderr.toString)
-    
-    session.close()
-    logout
     
     response
   }
   
   def upload(localFiles: Array[String], remoteDirectory: String) = {
-    connect
-    val scp = new SCPClient(connection)
-    scp.put(localFiles, remoteDirectory)
-    logout
+    try {
+      connect
+      val scp = new SCPClient(connection)
+      scp.put(localFiles, remoteDirectory)
+    } finally {
+      logout
+    }
   }
   
   def download(remoteFiles: Array[String], localDirectory: String) = {
-    connect
-    val scp = new SCPClient(connection)
-    scp.get(remoteFiles, localDirectory)
-    logout
+    try {
+      connect
+      val scp = new SCPClient(connection)
+      scp.get(remoteFiles, localDirectory)
+    } finally {
+      logout
+    }
   }
   
   private def connect = {

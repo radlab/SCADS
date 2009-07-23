@@ -79,11 +79,11 @@ new InstanceGroup(Array(xlarges, smalls)).waitUntilReady
  * Although, the interface to the return value is slightly different
  */
 
-// Starting deployment in parallel
+// Starting deployment in parallel:
 val appServersDeployment = appServersInstanceGroup.deployNonBlocking(appConfig)
 val webServerDeployment = webServerSingleInstance.deployNonBlocking(webConfig)
 
-// Waiting for deployment to finish
+// Waiting for deployment to finish:
 // Notice the difference between whether you called deployNonBlocking on an
 // InstanceGroup versus an Instance.
 // InstanceGroup's deployNonBlocking returns a method that when called will
