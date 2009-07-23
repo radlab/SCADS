@@ -42,23 +42,20 @@ object ScadsClients {
     clientConfig.put("recipes", clientRecipes)
 	
 	var clients:InstanceGroup = null
+	
+	def loadState() = {
+		clients = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+Scads.getName+"--client" )
+		deps = clients.get(0).exec("cd /opt/scads/experiments; cat cplist").getStdout.replace("\n","") + ":../target/classes"
+	}
+	
 	def init(num_c: Int) = {
 		num_clients = num_c
-		clients = Scads.startNodes(num_clients,"c1.medium","client")		// start up clients
+		clients = DataCenter.runInstances(num_clients,"c1.medium")		// start up clients
+		clients.waitUntilReady
 		
-		// TODO: wait for machines to come online (FIX)
-		Thread.sleep(30 * 1000)
-		
+		clients.tagWith( DataCenter.keyName+"--SCADS--"+Scads.getName+"--client" )
 		println("Deploying clients.")
-		var deployedClients = false		
-		while (!deployedClients) {
-			try {
-				clients.parallelMap(_.deploy(clientConfig))
-				deployedClients = true
-			} catch {
-				case e: Exception => { println("can't deploy to clients, waiting 1 second"); Thread.sleep(1000) }
-			}
-		}
+		clients.deploy(clientConfig)
 	    println("Done deploying clients.")
 
 		// get list of mvn dependencies
@@ -108,6 +105,36 @@ object ScadsClients {
 		}
 	}
 	
+	def startWorkload(workload:WorkloadDescription, totalUsers:Int) {
+		val workloadFile = "/tmp/workload.ser"
+		workload.serialize(workloadFile)
+		
+		// determine ranges to give each client
+		assert( totalUsers % clients.size == 0, "deploy_scads: can't evenly divide number of users amongst client instances")
+
+		var commands = Map[Instance, String]()
+		val threads = (0 to clients.size-1).toList.map((id)=>{
+			val minUser = id * (totalUsers/clients.size)
+			val maxUser = minUser + (totalUsers/clients.size) - 1
+
+			val args = Scads.placement.get(0).privateDnsName +" "+ Scads.xtrace_on + " " + minUser + " " + maxUser + " " + workloadFile
+			val cmd = "cd /opt/scads/experiments/scripts; scala -cp "+ deps + " startWorkload.scala " + args + " &> /tmp/workload.log"
+			commands += (clients.get(id) -> cmd)
+			println("Will run with arguments: "+ args)
+			println("full cmd: " + cmd )
+			new Thread( new StartWorkloadRequest(clients.get(id), workloadFile, cmd) )
+		})
+		for(thread <- threads) thread.start
+		for(thread <- threads) thread.join		
+	}
+	case class StartWorkloadRequest(client: Instance, workloadFile: String, cmd: String) extends Runnable {
+		override def run() = {
+			client.upload(Array(workloadFile),"/tmp/")
+			val result = client.exec(cmd)
+			result
+		}
+	}
+	
 	def processLogFiles(experimentName:String) {
 		val client0 = clients.get(0)
 		val targetIP = client0.privateDnsName
@@ -117,7 +144,7 @@ object ScadsClients {
 			val f=experimentName+"_"+c.privateDnsName+".log"
 			val df="/tmp/"+f
 			val cmd="cat /mnt/xtrace/logs/* > "+f+" && scp -o StrictHostKeyChecking=no "+f+" "+targetIP+":/mnt/logs/"+experimentName+"/clients/"+f
-			println(cmd)
+			//println(cmd)
 			c.exec(cmd) 
 			c.exec( "rm -f /mnt/xtrace/logs/*" )
 		}
@@ -142,6 +169,9 @@ object Scads extends RangeConversion {
 	var placement:InstanceGroup = null
 	var reporter:InstanceGroup = null
 	
+	// name of the SCADS instance
+	var scadsName = ""
+	
 	// these should be commnand-line args or system properties or something
 	var num_servers = 1
 	val num_reporters = 1
@@ -152,17 +182,7 @@ object Scads extends RangeConversion {
 	val server_port = 9000
 	val server_sync = 9091
 	
-	def startNodes(count: Int, instancetype:String, name: String): InstanceGroup = {
-		println("Requesting "+name+" instances.")
-	    val nodes = DataCenter.runInstances(count, instancetype)
-	    println("Instances "+name+" received.")
-
-	    println("Waiting on "+name+" instances to be ready.")
-		Thread.sleep(5000)
-	    nodes.parallelMap((instance) => instance.waitUntilReady)
-	    println("Instances "+name+" ready.")
-		nodes
-	}
+	def getName(): String = scadsName
 	
 	def getDataPlacementHandle(h:String, p: Int):KnobbedDataPlacementServer.Client = {
 		var haveDPHandle = false		
@@ -180,17 +200,34 @@ object Scads extends RangeConversion {
 		dpclient
 	}
 	
-	def run(num_s: Int, minK: Int, maxK: Int) {
+	def loadState(name:String) {
+		scadsName = name
+
+		reporter = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scadsName+"--reporter" )
+		servers = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scadsName+"--storagenode" )
+		placement = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scadsName+"--placement" )
+		
+		reporter_host = if (reporter != null) { reporter.get(0).privateDnsName } else { null }
+		
+		dpclient = Scads.getDataPlacementHandle(placement.get(0).publicDnsName, 8000)
+	}
+	
+	def run(name:String, num_s: Int, minK: Int, maxK: Int) {
+		scadsName = name
 		num_servers = num_s
 		assert( (maxK-minK)%num_servers==0,"deploy_scads: key space isn't evenly divisible by number of servers" )
 
-		reporter = if (xtrace_on) { startNodes(num_reporters,"m1.small","reporter") } else { null } // start up xtrace reporter
+		reporter = if (xtrace_on) { DataCenter.runInstances(num_reporters, "m1.small") } else { null } // start up xtrace reporter
 		reporter_host = if (reporter != null) { reporter.get(0).privateDnsName } else { null }
-		servers = startNodes(num_servers,"m1.small","server")					// start up servers
-		placement = startNodes(num_placement,"m1.small","placement")			// start up data placement	
+		servers = DataCenter.runInstances(num_servers,"m1.small")					// start up servers
+		placement = DataCenter.runInstances(num_placement,"m1.small")			// start up data placement
+		
+		val groups = if (reporter!=null) Array(servers,placement,reporter) else Array(servers,placement)
+		new InstanceGroup(groups).waitUntilReady
 	
-		// TODO: wait for machines to come online (FIX)
-		Thread.sleep(30 * 1000)
+		if (reporter!=null) reporter.tagWith( DataCenter.keyName+"--SCADS--"+scadsName+"--reporter" )
+		servers.tagWith( DataCenter.keyName+"--SCADS--"+scadsName+"--storagenode" )
+		placement.tagWith( DataCenter.keyName+"--SCADS--"+scadsName+"--placement" )
 	
 		val xtrace_backend = new JSONObject()
 		xtrace_backend.put("backend_host", reporter_host)
@@ -217,21 +254,21 @@ object Scads extends RangeConversion {
 		if (reporter_host != null) { placementConfig.put("scads",scads_xtrace); placementConfig.put("xtrace",xtrace_backend); placementRecipes.put("xtrace::reporting"); }
 	    placementConfig.put("recipes", placementRecipes)
 
-		if (reporter_host != null) {
-			println("Deploying xtrace reporter.")
-			reporter.parallelMap(_.deploy(reporterConfig))
-		    println("Done deploying reporter.")
-		}
+
+		println("deploying services")
+		val reporterDeployWait = if (reporter_host!=null) reporter.deployNonBlocking(reporterConfig) else null
+		val placementDeployWait = placement.deployNonBlocking(placementConfig)
+		val serversDeployWait = servers.deployNonBlocking(serverConfig)
 		
-		println("Deploying placement.")
-		val placementDeployResult = placement.parallelMap(_.deploy(placementConfig))
-		placementDeployResult.map( (x:ExecuteResponse) => {println(x.getStdout); println(x.getStderr)} )
-	    println("Done deploying placement.")
-	
-	    println("Deploying servers.")
-		val serverDeployResult = servers.parallelMap(_.deploy(serverConfig))
-		serverDeployResult.map( (x:ExecuteResponse) => {println(x.getStdout); println(x.getStderr)} )
-	    println("Done deploying servers.")
+		println("waiting for deployment to finish")
+		if (reporterDeployWait!=null) reporterDeployWait()
+		val placementDeployResult = placementDeployWait()
+		val serverDeployResult = serversDeployWait()
+
+		println("deployed!")
+		println("placement deploy log: "); placementDeployResult.foreach( (x:ExecuteResponse) => {println(x.getStdout); println(x.getStderr)} )
+	    println("server deploy log: "); serverDeployResult.foreach( (x:ExecuteResponse) => {println(x.getStdout); println(x.getStderr)} )
+
 
 		// set up partitioned storage node servers
 		val slice = (maxK-minK)/servers.size
