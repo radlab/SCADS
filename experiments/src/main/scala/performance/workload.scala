@@ -59,6 +59,7 @@ object WorkloadAgentTest {
 		val w = new WorkloadDescription(thinkTime, intervals.toList)
 		w
 	}
+	
 }
 
 
@@ -100,9 +101,20 @@ class WorkloadAgent(client:ClientLibrary, workload:WorkloadDescription, userID:I
 	val report_probability = 2.0
 	
 	val localIP = InetAddress.getLocalHost().getHostName 
-	
+
+	var threadlogf: FileWriter = null
+	def threadlog(line: String) {
+		threadlogf.write(new java.util.Date() + ": " + line+"\n")
+		threadlogf.flush
+	}
+
 	def run() = {
 		val thread_name = Thread.currentThread().getName()
+
+		(new File("/mnt/workload/logs")).mkdirs()
+		threadlogf = new FileWriter( new java.io.File("/mnt/workload/logs/"+thread_name+".log"), true )
+		threadlog("starting workload generation. thread:"+thread_name+"\n")
+		
 		val log = new java.io.File("/mnt/xtrace/logs/"+thread_name)
 		val logwriter = if (log.getParentFile().exists()) {new java.io.FileWriter(log, true) } else {null}
 		var severity = 1
@@ -135,7 +147,13 @@ class WorkloadAgent(client:ClientLibrary, workload:WorkloadDescription, userID:I
 				startt = System.nanoTime()
 				startt_ms = System.currentTimeMillis()
 /*				this.makeRequest*/
-				request.execute
+				
+				try {
+					request.execute
+				} catch {
+					case e: Exception => threadlog("got an exception. "+stack2string(e))
+				}
+				
 				endt = System.nanoTime()
 				endt_ms = System.currentTimeMillis()
 				XTraceContext.clearThreadContext()
@@ -167,14 +185,25 @@ class WorkloadAgent(client:ClientLibrary, workload:WorkloadDescription, userID:I
 				if (currentIntervalDescriptionI < workload.workload.length) {
 					currentIntervalDescription = workload.workload(currentIntervalDescriptionI)
 					nextIntervalTime += currentIntervalDescription.duration
-					println("switching to next workload interval @ "+new java.util.Date() )
+					threadlog("switching to next workload interval @ "+new java.util.Date() )
 				} else
 					running = false
 			}
 			
 		}
 
+		threadlog("done")
+
 		if (logwriter != null) { logwriter.write(result.mkString); logwriter.flush(); logwriter.close() }
+		threadlogf.close()
+		
 	}
+	
+	def stack2string(e:Exception):String = {
+	    val sw = new StringWriter()
+	    val pw = new PrintWriter(sw)
+	    e.printStackTrace(pw)
+	    sw.toString()
+  	}
 	
 }
