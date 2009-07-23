@@ -18,8 +18,8 @@ trait SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 	var spaces = new scala.collection.mutable.HashMap[String, java.util.List[DataPlacement]]
 
 	def lookup_namespace(ns: String): java.util.List[DataPlacement] = {
-		logger.info("Do I have namespace "+ns+ "? "+spaces.contains(ns))
-		if (spaces.contains(ns)) { logger.info("Namespace "+ns+" has "+spaces(ns).size +"entries"); spaces(ns) } else { new java.util.LinkedList[DataPlacement] }
+		logger.debug("Do I have namespace "+ns+ "? "+spaces.contains(ns))
+		if (spaces.contains(ns)) { logger.debug("Namespace "+ns+" has "+spaces(ns).size +"entries"); spaces(ns) } else { new java.util.LinkedList[DataPlacement] }
 	}
 	def lookup_node(ns: String, host: String, thriftPort: Int, syncPort: Int): DataPlacement = {
 		var ret:DataPlacement = null
@@ -32,7 +32,7 @@ trait SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 				if (entry.node==host && entry.thriftPort==thriftPort && entry.syncPort==syncPort) ret = entry
 			}
 		}
-		logger.info("Node "+host+" has entry? "+(ret==null))
+		logger.debug("Node "+host+" has entry? "+(ret!=null))
 		ret
 	}
 	def lookup_key(ns: String, key: String): java.util.List[DataPlacement] = {
@@ -46,7 +46,7 @@ trait SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 				if (entry.rset.range.includes(key)) ret.add(entry)
 			}
 		}
-		logger.info("Key "+key+" available from "+ ret.size+" nodes.")
+		logger.debug("Key "+key+" available from "+ ret.size+" nodes.")
 		ret
 	}
 	def lookup_range(ns: String, range: RangeSet): java.util.List[DataPlacement] = {
@@ -60,7 +60,7 @@ trait SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 				if ( (rangeSetToKeyRange(entry.rset.range) & range) != KeyRange.EmptyRange ) { ret.add(entry) }
 			}
 		}
-		logger.info("Range "+range.start_key+" - "+range.end_key+" available from "+ ret.size+" nodes.")
+		logger.debug("Range "+range.start_key+" - "+range.end_key+" available from "+ ret.size+" nodes.")
 		ret
 	}
 
@@ -108,7 +108,7 @@ trait SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 
 		// Verify the src has our keyRange
 		val compare_range = rangeSetToKeyRange(lookup_node(ns, src_host,src_thrift,src_sync).rset.range)
-		logger.info("Verifying node "+src_host+" with range "+compare_range.start +" - "+compare_range.end+" contains "+ target_range.start +" - "+ target_range.end)
+		logger.debug("Verifying node "+src_host+" with range "+compare_range.start +" - "+compare_range.end+" contains "+ target_range.start +" - "+ target_range.end)
 		assert( (compare_range & target_range) == target_range )
 
 		// Tell the servers to copy the data
@@ -133,7 +133,7 @@ trait SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 
 		// Verify the src has our keyRange and set up new range
 		val compare_range = rangeSetToKeyRange(lookup_node(ns, src_host,src_thrift,src_sync).rset.range)
-		logger.info("Verifying node "+src_host+" with range "+compare_range.start +" - "+compare_range.end+" contains "+ target_range.start +" - "+ target_range.end)
+		logger.debug("Verifying node "+src_host+" with range "+compare_range.start +" - "+compare_range.end+" contains "+ target_range.start +" - "+ target_range.end)
 		assert( (compare_range & target_range) == target_range )
 		val newSrcRange = compare_range - target_range
 
@@ -180,7 +180,7 @@ trait SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 				node.useConnection((c) => c.remove_set(ns, rangeSetToKeyRange(entry.rset.range)))
 			}
 			toRemove.add(candidate)
-			logger.info("Removing "+ toRemove.size +" entries from namespace "+ns)
+			logger.debug("Removing "+ toRemove.size +" entries from namespace "+ns)
 		}
 		spaces(ns).removeAll(toRemove)
 	}
