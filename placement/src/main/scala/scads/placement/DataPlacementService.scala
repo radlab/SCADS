@@ -28,5 +28,16 @@ trait SimpleDataPlacementService extends DataPlacementService {
 		else Map[StorageNode,KeyRange]()
 	}
 	
+	def printSpace(ns: String):String = {
+		if (!space.contains(ns)) "No mappings for "+ns
+		else {
+			val ns_space = space(ns)
+			if(!ns_space.isEmpty)
+				ns+"\n==============\n"+ ns_space.map((pair) => pair._1 + " => " + pair._2).reduceLeft((a,b) => a + "\n" + b)
+			else
+				"Empty"
+		}
+	}
+
 	def refreshPlacement = {}
 }
