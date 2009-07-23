@@ -44,7 +44,7 @@ object ScadsClients {
 	var clients:InstanceGroup = null
 	
 	def loadState() = {
-		clients = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+Scads.getName+"--client" )
+		clients = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+Scads.getName+"--client", true )
 		deps = clients.get(0).exec("cd /opt/scads/experiments; cat cplist").getStdout.replace("\n","") + ":../target/classes"
 	}
 	
@@ -203,9 +203,9 @@ object Scads extends RangeConversion {
 	def loadState(name:String) {
 		scadsName = name
 
-		reporter = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scadsName+"--reporter" )
-		servers = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scadsName+"--storagenode" )
-		placement = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scadsName+"--placement" )
+		reporter = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scadsName+"--reporter", true )
+		servers = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scadsName+"--storagenode", true )
+		placement = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scadsName+"--placement", true )
 		
 		reporter_host = if (reporter != null) { reporter.get(0).privateDnsName } else { null }
 		
