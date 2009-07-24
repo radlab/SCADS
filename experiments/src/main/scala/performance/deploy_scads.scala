@@ -6,21 +6,39 @@ import org.json.JSONArray
 import scala.collection.jcl.Conversions._
 
 import edu.berkeley.cs.scads.keys._
-import edu.berkeley.cs.scads.thrift.{KnobbedDataPlacementServer,DataPlacement, RangeConversion}
+import edu.berkeley.cs.scads.thrift.{RangeSet,RecordSet,KnobbedDataPlacementServer,DataPlacement, RangeConversion}
 import org.apache.thrift.transport.{TFramedTransport, TSocket}
 import org.apache.thrift.protocol.{TBinaryProtocol, XtBinaryProtocol}
 
 object ScadsDP extends RangeConversion {
 	assert (Scads.dpclient != null) // need to Scads.run first
 
-	def shift = {
-		// grab an assignments to storage nodes
-		val dp1 = Scads.dpclient.lookup_node(Scads.namespaces(0),Scads.servers.get(0).privateDnsName,Scads.server_port,Scads.server_sync)
+	val range = new RangeSet()
+	range.setStart_key("'000000000000005'")
+	range.setEnd_key("'000000000005000'")
+	val rset = new RecordSet(3,range,null,null)
 
+	def refreshHandle = {
+		try {
+			Scads.dpclient.lookup_namespace(Scads.namespaces(0))
+		} catch {
+			case e: Exception => {
+				println("dp client handle is shmetted, getting new one")
+				Scads.dpclient = Scads.getDataPlacementHandle(Scads.placement.get(0).publicDnsName, 8000)
+			}
+		}
+	}
+
+	def shift = {
 		// copy storage node's data to another node (adjacent in key responsibility)
 		println(System.currentTimeMillis())
-		Scads.dpclient.move(Scads.namespaces(0),dp1.rset, dp1.node, Scads.server_port,Scads.server_sync,Scads.servers.get(1).privateDnsName, Scads.server_port,Scads.server_sync)
+		Scads.dpclient.move(Scads.namespaces(0),rset, Scads.servers.get(0).privateDnsName, Scads.server_port,Scads.server_sync,
+							Scads.servers.get(1).privateDnsName, Scads.server_port,Scads.server_sync)
 		println(System.currentTimeMillis())
+	}
+	def shift_back = {
+		Scads.dpclient.move(Scads.namespaces(0),rset, Scads.servers.get(1).privateDnsName, Scads.server_port,Scads.server_sync,
+							Scads.servers.get(0).privateDnsName, Scads.server_port,Scads.server_sync)
 	}
 }
 
@@ -32,13 +50,10 @@ object ScadsClients {
 	val namespaces = Scads.namespaces
 	var deps:String = null
 	
-	val xtrace_backend = new JSONObject()
-	xtrace_backend.put("backend_host", Scads.reporter_host)
-	
 	val clientConfig = new JSONObject()
     val clientRecipes = new JSONArray()
     clientRecipes.put("scads::client_library")
-	if (Scads.reporter_host != null) { clientConfig.put("xtrace",xtrace_backend); clientRecipes.put("xtrace::reporting"); }
+	if (Scads.xtrace_on) { clientConfig.put("chukwa",Scads.xtraceConfig); clientRecipes.put("chukwa::default"); }
     clientConfig.put("recipes", clientRecipes)
 	
 	var clients:InstanceGroup = null
@@ -68,7 +83,7 @@ object ScadsClients {
 		clients.get(0).exec(cmd)
 		println("Done warming.")
 	}
-
+/*
 	def run_workload(read_prob: Double, ns: String, totalUsers: Int, delay: Int, think: Int) {
 		val testthread = new Thread(new WorkloadRunner(read_prob,ns, totalUsers, delay, think))
 		testthread.start
@@ -104,7 +119,19 @@ object ScadsClients {
 			client.exec(cmd)
 		}
 	}
+*/
+	def startWorkload_NB(workload:WorkloadDescription, totalUsers:Int) = {
+		val testthread = new Thread(new WorkloadDescRunner(workload,totalUsers))
+		testthread.start
+	}
 	
+	case class WorkloadDescRunner(workload:WorkloadDescription, totalUsers:Int) extends Runnable {
+		def run() = {
+			ScadsClients.startWorkload(workload,totalUsers)
+			println("Workload test complete.")
+		}
+	}
+
 	def startWorkload(workload:WorkloadDescription, totalUsers:Int) {
 		val workloadFile = "/tmp/workload.ser"
 		workload.serialize(workloadFile)
@@ -167,17 +194,15 @@ object Scads extends RangeConversion {
 	var dpclient:KnobbedDataPlacementServer.Client = null
 	var servers:InstanceGroup = null
 	var placement:InstanceGroup = null
-	var reporter:InstanceGroup = null
 	
 	// name of the SCADS instance
 	var scadsName = ""
 	
 	// these should be commnand-line args or system properties or something
 	var num_servers = 1
-	val num_reporters = 1
 	val num_placement = 1
 	val xtrace_on:Boolean = false
-	var reporter_host:String = null
+	var xtraceConfig:JSONObject = null
 	val namespaces = List[String]("perfTest200")
 	val server_port = 9000
 	val server_sync = 9091
@@ -203,12 +228,9 @@ object Scads extends RangeConversion {
 	def loadState(name:String) {
 		scadsName = name
 
-		reporter = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scadsName+"--reporter", true )
 		servers = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scadsName+"--storagenode", true )
 		placement = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scadsName+"--placement", true )
-		
-		reporter_host = if (reporter != null) { reporter.get(0).privateDnsName } else { null }
-		
+
 		dpclient = Scads.getDataPlacementHandle(placement.get(0).publicDnsName, 8000)
 	}
 	
@@ -217,58 +239,54 @@ object Scads extends RangeConversion {
 		num_servers = num_s
 		assert( (maxK-minK)%num_servers==0,"deploy_scads: key space isn't evenly divisible by number of servers" )
 
-		reporter = if (xtrace_on) { DataCenter.runInstances(num_reporters, "m1.small") } else { null } // start up xtrace reporter
-		reporter_host = if (reporter != null) { reporter.get(0).privateDnsName } else { null }
 		servers = DataCenter.runInstances(num_servers,"m1.small")					// start up servers
 		placement = DataCenter.runInstances(num_placement,"m1.small")			// start up data placement
 		
-		val groups = if (reporter!=null) Array(servers,placement,reporter) else Array(servers,placement)
+		val groups =  Array(servers,placement)
 		new InstanceGroup(groups).waitUntilReady
 	
-		if (reporter!=null) reporter.tagWith( DataCenter.keyName+"--SCADS--"+scadsName+"--reporter" )
 		servers.tagWith( DataCenter.keyName+"--SCADS--"+scadsName+"--storagenode" )
 		placement.tagWith( DataCenter.keyName+"--SCADS--"+scadsName+"--placement" )
 	
-		val xtrace_backend = new JSONObject()
-		xtrace_backend.put("backend_host", reporter_host)
 		val scads_xtrace = new JSONObject()
 		scads_xtrace.put("xtrace","-x")
-			
-		// set up chef scripts and config objects
-		val reporterConfig = new JSONObject()
-		val reporterRecipes = new JSONArray()
-		reporterRecipes.put("xtrace::reporting")
-		reporterConfig.put("recipes",reporterRecipes)
-		
+		val adaptors = Array[String](
+			"add org.apache.hadoop.chukwa.datacollection.adaptor.ExecAdaptor Top 15000 /usr/bin/top -b -n 1 -c 0",
+            "add org.apache.hadoop.chukwa.datacollection.adaptor.ExecAdaptor Df 60000 /bin/df -x nfs -x none 0",
+            "add org.apache.hadoop.chukwa.datacollection.adaptor.ExecAdaptor Sar 1000 /usr/bin/sar -q -r -n ALL 55 0",
+            "add org.apache.hadoop.chukwa.datacollection.adaptor.ExecAdaptor Iostat 1000 /usr/bin/iostat -x -k 55 2 0",
+            "add edu.berkeley.chukwa_xtrace.XtrAdaptor XTrace TcpReportSource 0",
+            "add edu.berkeley.chukwa_xtrace.XtrAdaptor XTrace UdpReportSource 0"
+			)
+		val xtrace_adaptors = new JSONArray(adaptors)
+		xtraceConfig = new JSONObject()
+		xtraceConfig.put("adaptors",xtrace_adaptors)
+
 		val serverConfig = new JSONObject()
 	    val serverRecipes = new JSONArray()
 		serverRecipes.put("scads::dbs")
 	    serverRecipes.put("scads::storage_engine")
 /*		serverRecipes.put("ec2::disk_prep")*/
-		if (reporter_host != null) { serverConfig.put("scads",scads_xtrace); serverConfig.put("xtrace",xtrace_backend);; serverRecipes.put("xtrace::reporting"); }
+		if (Scads.xtrace_on) { serverConfig.put("scads",scads_xtrace); serverConfig.put("chukwa",xtraceConfig); serverRecipes.put("chukwa::default"); }
 	    serverConfig.put("recipes", serverRecipes)
 	
 		val placementConfig = new JSONObject()
 	    val placementRecipes = new JSONArray()
 	    placementRecipes.put("scads::data_placement")
-		if (reporter_host != null) { placementConfig.put("scads",scads_xtrace); placementConfig.put("xtrace",xtrace_backend); placementRecipes.put("xtrace::reporting"); }
+		if (Scads.xtrace_on) { placementConfig.put("scads",scads_xtrace); placementConfig.put("chukwa",xtraceConfig); placementRecipes.put("chukwa::default"); }
 	    placementConfig.put("recipes", placementRecipes)
 
-
 		println("deploying services")
-		val reporterDeployWait = if (reporter_host!=null) reporter.deployNonBlocking(reporterConfig) else null
 		val placementDeployWait = placement.deployNonBlocking(placementConfig)
 		val serversDeployWait = servers.deployNonBlocking(serverConfig)
 		
 		println("waiting for deployment to finish")
-		if (reporterDeployWait!=null) reporterDeployWait()
 		val placementDeployResult = placementDeployWait()
 		val serverDeployResult = serversDeployWait()
 
 		println("deployed!")
 		println("placement deploy log: "); placementDeployResult.foreach( (x:ExecuteResponse) => {println(x.getStdout); println(x.getStderr)} )
 	    println("server deploy log: "); serverDeployResult.foreach( (x:ExecuteResponse) => {println(x.getStdout); println(x.getStderr)} )
-
 
 		// set up partitioned storage node servers
 		val slice = (maxK-minK)/servers.size
