@@ -108,6 +108,10 @@ class WorkloadAgent(client:ClientLibrary, workload:WorkloadDescription, userID:I
 		threadlogf.flush
 	}
 
+	// if choose to use xtrace reporting, report locally using TCP
+	System.setProperty("xtrace.reporter","edu.berkeley.xtrace.reporting.TcpReporter")
+	System.setProperty("xtrace.tcpdest","127.0.0.1:7831")
+
 	def run() = {
 		val thread_name = Thread.currentThread().getName()
 
