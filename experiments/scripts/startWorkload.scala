@@ -11,6 +11,8 @@ val workloadFile = args(4)
 val workload = WorkloadDescription.deserialize(workloadFile)
 
 if (xtrace_on) { System.setProperty("xtrace","") }
+System.setProperty("xtrace.reporter","edu.berkeley.xtrace.reporting.TcpReporter")
+System.setProperty("xtrace.tcpdest","127.0.0.1:7831")
 
 // set up threads with ids	
 val threads = (minUserId to maxUserId).toList.map((id) => { 
