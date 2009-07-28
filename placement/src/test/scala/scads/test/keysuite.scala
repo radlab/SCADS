@@ -36,8 +36,6 @@ class KeyTest extends Suite {
 
 		val nks = Array(System.currentTimeMillis() * -1L, -10L, -5L, -1L, -0L, 0L, 1L, 5L, 10L, System.currentTimeMillis()).map((n) => {(new NumericKey[Long](n)).serialize}).toList
 
-		println(nks)
-
 		for(i <- (0 to nks.length - 2)) {
 			val n1 = nks(i)
 			val n2 = nks(i+1)
