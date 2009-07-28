@@ -45,7 +45,6 @@ object NumericKey {
 	val keyFormat = new java.text.DecimalFormat("0000000000000000")
 
 	def deserialize(input: String, pos: ParsePosition): NumericKey[Long] = {
-		println("Deserializing: " + input + " " + pos)
 		val num = keyFormat.parse(input, pos).longValue()
 		if(num < 0)
 			new NumericKey[Long]((maxKey - Math.abs(num)) * -1)
