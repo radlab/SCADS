@@ -1718,9 +1718,16 @@ int main(int argc, char **argv) {
   }
     break;
   case ST_NONBLOCK: {
+	shared_ptr<ThreadManager> threadManager =
+      ThreadManager::newSimpleThreadManager(workerCount);
+    shared_ptr<PosixThreadFactory> threadFactory =
+      shared_ptr<PosixThreadFactory>(new PosixThreadFactory());
+    threadManager->threadFactory(threadFactory);
+    threadManager->start();
     TNonblockingServer server(processor,
 			      protocolFactory,
-			      port);
+			      port,
+				  threadManager);
     nonblockingServer = &server;
     printf("Starting nonblocking server...\n");
 	fflush(stdout);
