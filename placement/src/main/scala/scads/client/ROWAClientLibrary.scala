@@ -73,12 +73,12 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 				if (count >0)
 					this.get_retry(namespace,key,count-1)
 				else {
-					println("Client library failed refresh attempts on [" +namespace+"]"+key+": "+retries)
+					logger.warn("Client library failed refresh attempts on [" +namespace+"]"+key+": "+retries)
 					throw e // TODO: throw more meaningful exception
 				}
 			}
 			case e => {
-				println("Client library exception in get(): "+e)
+				logger.debug("Client library exception in get(): "+e)
 				throw e
 			}
 		}
@@ -127,7 +127,7 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 							count -=1
 						}
 						else {
-							println("Client library failed refresh attempts on [" +namespace+"]: "+retries)
+							logger.warn("Client library failed refresh attempts on [" +namespace+"]: "+retries)
 							throw e // TODO: throw more meaningful exception
 						}
 					}
@@ -165,12 +165,12 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 							count-=1
 						}
 						else {
-							println("Client library failed refresh attempts on [" +namespace+"]: "+retries)
+							logger.warn("Client library failed refresh attempts on [" +namespace+"]: "+retries)
 							throw e // TODO: throw more meaningful exception
 						}
 					}
 					case e => {
-						println("Client library exception in get_set(): "+e)
+						logger.debug("Client library exception in get_set(): "+e)
 						throw e
 					}
 				}
@@ -272,12 +272,12 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 						total_success && success
 					}
 					else {
-						println("Client library failed refresh attempts on [" +namespace+"]: "+retries)
+						logger.warn("Client library failed refresh attempts on [" +namespace+"]: "+retries)
 						throw e // TODO: throw more meaningful exception
 					}
 				}
 				case e => {
-					println("Client library exception in put(): "+e)
+					logger.debug("Client library exception in put(): "+e)
 					throw e
 				}
 			}

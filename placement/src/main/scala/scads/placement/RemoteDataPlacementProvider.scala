@@ -22,7 +22,7 @@ trait RemoteDataPlacementProvider extends SimpleDataPlacementService with AutoKe
     		val protocol = if (System.getProperty("xtrace")!=null) {new XtBinaryProtocol(transport)} else {new TBinaryProtocol(transport)}
     		client = new DataPlacementServer.Client(protocol)
     		transport.open()
-			println("New connection opened to DataPlacementServer at " + host+":"+port)
+			logger.info("New connection opened to DataPlacementServer at " + host+":"+port)
 		}
     	return client
   	}
