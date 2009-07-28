@@ -1,5 +1,6 @@
 package edu.berkeley.cs.scads.client
 
+import edu.berkeley.xtrace._
 import edu.berkeley.cs.scads.thrift.{Record,RecordSet,ExistingValue,KeyStore,NotResponsible,NotImplemented,RangeConversion}
 import edu.berkeley.cs.scads.placement.{SimpleDataPlacementService,LocalDataPlacementProvider,RemoteDataPlacementProvider}
 import edu.berkeley.cs.scads.nodes.StorageNode
@@ -29,13 +30,27 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 	val logger = Logger.getLogger("client.rowa")
 
 	val retries = 5
+	val ttl = 30000 + (new Random().nextInt(11000)) // cached mapping ttl somewhere 30-40 seconds
+	var lastRefresh:Long = System.currentTimeMillis()
+	var destinationIP:String=null
+	val thread_name = Thread.currentThread().getName()
+
+	private def doRefresh = {
+		this.refreshPlacement
+		lastRefresh = System.currentTimeMillis()
+	}
 
 	/**
 	* Read value from one node. Uses local map. 
 	* Does update from KeySpaceProvider if local copy is out of date.
 	*/
 	def get(namespace: String, key: String): Record = {
-		this.get_retry(namespace,key,retries);
+		val startt = System.nanoTime()
+		if ( (lastRefresh+ttl) < System.currentTimeMillis() ) doRefresh
+		val ret = this.get_retry(namespace,key,retries) // destinationIP is set here
+		var latency = System.nanoTime()-startt
+		XTraceContext.logEvent(thread_name,"ROWAClientLibrary","RequestDetails","get,"+destinationIP+","+(latency/1000000.0))
+		ret
 	}
 	private def get_retry(namespace: String, key: String, count: Int):Record = {
 		//val ns_keyspace = getKeySpace(namespace)
@@ -45,6 +60,7 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 		try {
 			if ( potentials.length >0  ) {
 				val node = potentials(new Random().nextInt(potentials.length)) // use random one
+				destinationIP = node.host
 				val record = node.useConnection((c) => c.get(namespace,serialized_key))
 				//record
 				new Record(StringKey.deserialize_toString(record.getKey,new ParsePosition(0)),record.getValue)
@@ -52,7 +68,7 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 			else throw new NoNodeResponsibleException
 		} catch {
 			case e:NotResponsible => {
-				this.refreshPlacement
+				doRefresh
 				logger.debug("Refreshed placement for namespace "+namespace)
 				if (count >0)
 					this.get_retry(namespace,key,count-1)
@@ -73,6 +89,9 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 	* Does update from KeySpaceProvider if local copy is out of date.
 	*/
 	def get_set(namespace: String, keys: RecordSet): java.util.List[Record] = {
+		val startt = System.nanoTime()
+		if ( (lastRefresh+ttl) < System.currentTimeMillis() ) doRefresh
+
 		var count = retries
 		var records = new HashSet[Record]
 		//val ns_keyspace = getKeySpace(namespace)
@@ -101,7 +120,7 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 					node_record_count = node.useConnection((c) => c.count_set(namespace,rset))
 				} catch {
 					case e:NotResponsible => {
-						this.refreshPlacement
+						doRefresh
 						logger.debug("Refreshed placement for namespace "+namespace)
 						if (count>0) {
 							node_record_count = node.useConnection((c) => c.count_set(namespace,rset))
@@ -120,7 +139,11 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 				if (haveLimit) { rset.range.setLimit(limit) }
 				var r:Record = null
 				try {
+					destinationIP = node.host
+					val startt = System.nanoTime()
 					val records_subset = node.useConnection((c) => c.get_set(namespace,rset))
+					var latency = System.nanoTime()-startt
+					XTraceContext.logEvent(thread_name,"ROWAClientLibrary","RequestDetails","get_set,"+destinationIP+","+(latency/1000000.0))
 					val iter:java.util.Iterator[Record] = records_subset.iterator()
 					while (iter.hasNext()) {
 						//records += iter.next(); limit -=1}
@@ -129,10 +152,14 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 						limit -= 1 }
 				} catch {
 					case e:NotResponsible => {
-						this.refreshPlacement
+						doRefresh
 						logger.debug("Refreshed placement for namespace "+namespace)
 						if (count>0) {
+							destinationIP = node.host
+							val startt = System.nanoTime()
 							val records_subset = node.useConnection((c) => c.get_set(namespace,rset))
+							var latency = System.nanoTime()-startt
+							XTraceContext.logEvent(thread_name,"ROWAClientLibrary","RequestDetails","get_set,"+destinationIP+","+(latency/1000000.0))
 							val iter = records_subset.iterator()
 							while (iter.hasNext()) { records += iter.next(); limit -= 1 }
 							count-=1
@@ -159,7 +186,10 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 		// sort an array
 		val records_array = records.toArray
 		java.util.Arrays.sort(records_array,new RecordComparator()) 
-		java.util.Arrays.asList(records_array: _*) // shitty, but convert to java array
+		val ret = java.util.Arrays.asList(records_array: _*) // shitty, but convert to java array
+		var latency = System.nanoTime()-startt
+		XTraceContext.logEvent(thread_name,"ROWAClientLibrary","RequestDetails","get_set,"+(latency/1000000.0))
+		ret
 	}
 	
 	private def get_set_queries(nodes: Map[StorageNode, KeyRange], target_range: KeyRange): HashMap[StorageNode, KeyRange] = {
@@ -213,7 +243,12 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 	* Does update from KeySpaceProvider if local copy is out of date.
 	*/
 	def put(namespace: String, rec:Record): Boolean = {
-		this.put_retry(namespace,rec,retries)
+		val startt = System.nanoTime()
+		if ( (lastRefresh+ttl) < System.currentTimeMillis() ) doRefresh
+		var ret = this.put_retry(namespace,rec,retries)  // destinationIP is set here
+		var latency = System.nanoTime()-startt
+		XTraceContext.logEvent(thread_name,"ROWAClientLibrary","RequestDetails","put,"+destinationIP+","+(latency/1000000.0))
+		ret
 	}
 
 	private def put_retry(namespace: String, rec:Record,count:Int): Boolean = {
@@ -225,11 +260,12 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 		
 		put_nodes.foreach({ case(node)=>{
 			try {
+				destinationIP = node.host
 				val success = node.useConnection((c) => c.put(namespace,new Record("'" + rec.getKey() + "'",rec.getValue())))
 				total_success && success 
 			} catch {
 				case e:NotResponsible => {
-					this.refreshPlacement
+					doRefresh
 					logger.debug("Refreshed placement for namespace "+namespace)
 					if (count>0) {
 						val success = this.put_retry(namespace,rec,count-1) // recursion may redo some work
