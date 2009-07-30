@@ -163,7 +163,7 @@ class WorkloadAgent(client:ClientLibrary, workload:WorkloadDescription, userID:I
 				XTraceContext.clearThreadContext()
 
 				// log 20% of reports
-				if (requestI%5==0) { latency = endt-startt; result += (localIP+","+thread_name+","+requestI+","+request.reqType+","+startt_ms+","+endt_ms+","+(latency/1000000.0)+"\n") }
+				latency = endt-startt; result += (localIP+","+thread_name+","+requestI+","+request.reqType+","+startt_ms+","+endt_ms+","+(latency/1000000.0)+"\n")
 
 				// periodically flush log to disk and clear result list
 				if (requestI%5000==0) { 
