@@ -109,7 +109,9 @@ class MapReduceResult(
 
 		val f = new BufferedWriter(new FileWriter(filename))
 		f.write( keyName + "," + allcolumns.mkString(",") + "\n" )
-		for (key <- allkeys) f.write( key + "," + allcolumns.map( data(key)(_) ).mkString(",") + "\n" )
+		for (key <- allkeys) {
+			f.write( key + "," + allcolumns.map( (k) => if (data(key).keySet.contains(k)) data(key)(k) else "NaN" ).mkString(",") + "\n" )
+		}
 		f.close
 	}
 }
