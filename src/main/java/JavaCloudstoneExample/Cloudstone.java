@@ -94,7 +94,7 @@ public class Cloudstone {
         mysqlConfig.put("mysql", mysqlMysql);
 
         JSONObject mysqlFaban = new JSONObject();
-        mysqlFaban.put("mysql", true);
+        mysqlFaban.put("jdbc", "mysql");
         mysqlConfig.put("faban", mysqlFaban);
 
         /* haproxy configuration */
@@ -132,9 +132,9 @@ public class Cloudstone {
         nginxNginx.put("servers", nginxNginxServers);
         nginxConfig.put("nginx", nginxNginx);
 
-        JSONObject nginxFaban = new JSONObject();
-        nginxFaban.put("mysql", false);
-        nginxConfig.put("faban", nginxFaban);
+        // JSONObject nginxFaban = new JSONObject();
+        // nginxFaban.put("mysql", false);
+        // nginxConfig.put("faban", nginxFaban);
 
         /* faban configuration */
         JSONObject fabanConfig = new JSONObject();
@@ -148,8 +148,14 @@ public class Cloudstone {
         fabanFabanHosts.put("cache", "");
 
         fabanFaban.put("hosts", fabanFabanHosts);
-        fabanConfig.put("faban", fabanFaban);
+ 
+        JSONObject fabanFabanDatabase = new JSONObject();
+        fabanFabanDatabase.put("adapter", "mysql");
+        fabanFabanDatabase.put("port", 3306);
+        fabanFaban.put("database", fabanFabanDatabase);
         
+        fabanConfig.put("faban", fabanFaban);
+
         System.out.println("Deploying mysql.");
         mysql.parallelMap(new Deploy(mysqlConfig));
         System.out.println("Deploying rails.");
@@ -169,14 +175,14 @@ public class Cloudstone {
         return DataCenter.runInstances(count, typeString);
     }
     
-    private class WaitUntilReady<Object> implements InstanceExecute {
+    private class WaitUntilReady implements InstanceExecute {
         public Object execute(Instance instance) {
             instance.waitUntilReady();
             return null;
         }
     }
     
-    private class Deploy<Object> implements InstanceExecute {
+    private class Deploy implements InstanceExecute {
         private JSONObject config;
         
         public Deploy(JSONObject config) {
