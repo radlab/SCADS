@@ -70,6 +70,7 @@ public class Cloudstone {
         JSONObject railsRailsDatabase = new JSONObject();
         railsRailsDatabase.put("host", mysql.getFirst().privateDnsName());
         railsRailsDatabase.put("adapter", "mysql");
+        railsRailsDatabase.put("port", 3306);
         railsRails.put("database", railsRailsDatabase);
 
         JSONObject railsRailsMemcached = new JSONObject();
