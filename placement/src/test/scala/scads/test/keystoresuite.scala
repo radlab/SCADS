@@ -2,6 +2,7 @@ package edu.berkeley.cs.scads.test
 
 import org.scalatest.Suite
 import edu.berkeley.cs.scads.keys._
+import edu.berkeley.cs.scads.model.IntegerField
 import edu.berkeley.cs.scads.nodes.StorageNode
 import edu.berkeley.cs.scads.nodes.TestableBdbStorageNode
 import edu.berkeley.cs.scads.nodes.TestableSimpleStorageNode
@@ -17,6 +18,9 @@ import edu.berkeley.cs.scads.thrift.TestAndSetFailure
 import edu.berkeley.cs.scads.thrift.UserFunction
 
 import scala.util.Random
+
+import scala.actors.Future
+import scala.actors.Futures.future
 
 object KeyStoreUtils {
 
@@ -40,7 +44,8 @@ object KeyStoreUtils {
   */
 }
 
-abstract class KeyStoreSuite extends Suite { 
+abstract class KeyStoreSuite extends Suite {
+  val node: StorageNode
   val connection: KeyStore.Client
 
   // == Simple get/put tests ==
@@ -294,16 +299,45 @@ abstract class KeyStoreSuite extends Suite {
     }
   }
 
+  def testConcurrentTestSet() {
+	val firstRec = new Record("val", IntegerField(0).serialize)
+	node.useConnection(_.put("concts", firstRec))
 
+	val futures = (1 to 100).toList.map((i) => {
+		future {
+			node.useConnection((c) => {
+				try {
+					val oldRec = c.get("concts", "val")
+					val oldVal = new IntegerField
+					oldVal.deserialize(oldRec.value)
+					val newValue = IntegerField(oldVal.value + 1)
+					val ev = new ExistingValue()
+					ev.setValue(oldRec.value)
+					val newRec = new Record("val", newValue.serialize)
+					c.test_and_set("concts", newRec, ev)
+					1
+				}
+				catch {
+					case e: TestAndSetFailure => 0
+				}
+			})
+		}
+	})
+	val sum = futures.foldRight(0)((f: Future[Int], sum: Int) => {sum + f()})
+	val finalRec = node.useConnection(_.get("concts", "val"))
+	val finalVal = new IntegerField
+	finalVal.deserialize(finalRec.value)
 
+	assert(sum === finalVal.value)
+  }
 }
 
 class BdbKeyStoreTest extends KeyStoreSuite {
-  val n = new TestableBdbStorageNode()
-  val connection = n.createConnection()
+  val node = new TestableBdbStorageNode()
+  val connection = node.createConnection()
 }
 
 class SimpleKeyStoreTest extends KeyStoreSuite {
-  val n = new TestableSimpleStorageNode()
-  val connection = n.createConnection()
+  val node = new TestableSimpleStorageNode()
+  val connection = node.createConnection()
 }
