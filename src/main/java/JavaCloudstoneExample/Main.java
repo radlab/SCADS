@@ -12,7 +12,7 @@ public class Main {
          */
         
         try {
-            new Colocation().run();
+            new Cloudstone().run();
         } catch (org.json.JSONException e) {
             System.err.println("JSON exception: " + e.getMessage());
             e.printStackTrace();
