@@ -7,7 +7,7 @@ import org.json.JSONArray;
 import scala.*;
 
 public class Cloudstone {
-    public void run(int count, String type) throws org.json.JSONException {
+    public void run() throws org.json.JSONException {
         /**
          * This is a simple example where you pass on the command line
          * the number and size of rails servers you would like in the 
@@ -22,7 +22,7 @@ public class Cloudstone {
          * 1 Faban master/driver server on a c1.xlarge
          */
         
-        Object[] railsSettings   = {count, type, InstanceType.cores(type) * 2};
+        Object[] railsSettings   = {1, "m1.small", InstanceType.cores("m1.small") * 2};
         
         Object[] mysqlSettings   = {1, "c1.xlarge"};
         Object[] haproxySettings = {1, "m1.small"};
@@ -53,7 +53,9 @@ public class Cloudstone {
         /**************************************************
          * Don't forget to wait on the instances          *
          **************************************************/
-        allInstances.parallelMap(new WaitUntilReady());
+        System.out.println("Waiting on instances.");
+        allInstances.waitUntilReady();
+        System.out.println("Instances ready.");
 
         /* Rails Configuration */
         JSONObject railsConfig = new JSONObject();
@@ -173,13 +175,6 @@ public class Cloudstone {
     
     private InstanceGroup runInstances(int count, String typeString) {
         return DataCenter.runInstances(count, typeString);
-    }
-    
-    private class WaitUntilReady implements InstanceExecute {
-        public Object execute(Instance instance) {
-            instance.waitUntilReady();
-            return null;
-        }
     }
     
     private class Deploy implements InstanceExecute {
