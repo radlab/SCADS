@@ -88,3 +88,9 @@ trait AutoKey {
 	implicit def intToKey(i:Int) = new NumericKey[Int](i)
 	implicit def longToKey(i:Long) = new NumericKey[Long](i)
 }
+
+class TransparentKey(value: String) extends Key {
+	def serialize: String = value
+	override def toString = value
+}
+
