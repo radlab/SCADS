@@ -5,6 +5,8 @@ import edu.berkeley.cs.scads.thrift.RecordSet
 import edu.berkeley.cs.scads.thrift.KeyStore
 import edu.berkeley.cs.scads.keys.Key
 import edu.berkeley.cs.scads.keys.KeyRange
+import edu.berkeley.cs.scads.keys.MinKey
+import edu.berkeley.cs.scads.keys.MaxKey
 import edu.berkeley.cs.scads.keys.NotContiguousException
 import edu.berkeley.cs.scads.nodes.StorageNode
 
@@ -17,6 +19,17 @@ abstract class KeySpace {
 	def lookup(range: KeyRange): Map[StorageNode, KeyRange]
 	def coverage: Iterator[KeyRange]
 	def isCovered(desired_range: KeyRange, ranges: Set[KeyRange]): Boolean
+}
+
+case class TrivialKeySpace(node: StorageNode) extends KeySpace {
+	def assign(node: StorageNode, range: KeyRange) = null
+	def remove(node: StorageNode) = null
+
+	def lookup(node: StorageNode): KeyRange = new KeyRange(MinKey, MaxKey)
+	def lookup(key: Key):List[StorageNode] = List(node)
+	def lookup(range: KeyRange): Map[StorageNode, KeyRange] = Map(node -> range)
+	def coverage: Iterator[KeyRange] = null
+	def isCovered(desired_range: KeyRange, ranges: Set[KeyRange]): Boolean = true
 }
 
 @serializable
