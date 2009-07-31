@@ -15,6 +15,7 @@ abstract class Key extends Ordered[Key] {
 	def serialize: String
 }
 
+@deprecated
 object StringKey {
 	def deserialize(input: String, pos: ParsePosition): StringKey = {
 		new StringKey(deserialize_toString(input,pos))
@@ -33,6 +34,7 @@ object StringKey {
 	}
 }
 
+@deprecated
 @serializable
 case class StringKey(stringVal: String) extends Key {
 	override def toString:String = "StringKey(" + stringVal + ")"
@@ -40,6 +42,7 @@ case class StringKey(stringVal: String) extends Key {
 	def serialize:String = "'" + stringVal + "'"
 }
 
+@deprecated
 object NumericKey {
 	val maxKey = 9999999999999999L
 	val keyFormat = new java.text.DecimalFormat("0000000000000000")
@@ -53,6 +56,7 @@ object NumericKey {
 	}
 }
 
+@deprecated
 @serializable
 case class NumericKey[numType](numericVal: Long) extends Key {
 	override def toString:String = "NumericKey(" + numericVal + ")"
