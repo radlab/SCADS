@@ -137,7 +137,7 @@ case class ScadsClients(scadsName: String,host:String, xtrace_on: Boolean, names
 	}
 	
 	def init(num_clients:Int) = {
-		clients = DataCenter.runInstances(num_clients,"m1.small")		// start up clients
+		clients = DataCenter.runInstances(num_clients,"c1.medium")		// start up clients
 		clients.waitUntilReady
 		
 		clients.tagWith( DataCenter.keyName+"--SCADS--"+getName+"--client" )
@@ -226,7 +226,7 @@ case class ScadsClients(scadsName: String,host:String, xtrace_on: Boolean, names
 }
 
 case class Scads(scadsName: String, xtrace_on: Boolean, namespace: String) extends RangeConversion {
-	var servers:InstanceGroup = null
+	var servers:InstanceGroup = new InstanceGroup
 	var placement:InstanceGroup = null
 	var dpclient:KnobbedDataPlacementServer.Client = null
 	
@@ -271,6 +271,18 @@ case class Scads(scadsName: String, xtrace_on: Boolean, namespace: String) exten
 		println("deployed!")
 		println("placement deploy log: "); placementDeployResult.foreach( (x:ExecuteResponse) => {println(x.getStdout); println(x.getStderr)} )
 	    println("server deploy log: "); serverDeployResult.foreach( (x:ExecuteResponse) => {println(x.getStdout); println(x.getStderr)} )
+	}
+
+	def shutdownServer(host:String) = { // note: this does not remove from data placement!
+		(0 to servers.size-1).toList.map((id)=>{
+			if (servers.get(id).privateDnsName == host || servers.get(id).publicDnsName == host) {
+				val machine:Instance = servers.get(id)
+				println("Shutting down "+host)
+				machine.stop
+				println("Terminated "+host)
+			}
+			else println("No machine with hostname "+host+" found.")
+		})
 	}
 
 	def addServers(num:Int) = {
