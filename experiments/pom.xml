@@ -22,6 +22,11 @@
 			<artifactId>deploy</artifactId>
 			<version>1.0-SNAPSHOT</version>
 		</dependency>
+		<dependency>
+		    <groupId>mysql</groupId>
+		    <artifactId>mysql-connector-java</artifactId>
+		    <version>5.1.6</version>
+		</dependency>
 	</dependencies>
 	<repositories>
 		<repository>
@@ -113,6 +118,7 @@
 			          <!-- jvmArgs are optional -->
 			          <jvmArgs>
 						<jvmArg>-Dxtrace</jvmArg>
+						<jvmArg>-XX:+HeapDumpOnOutOfMemoryError</jvmArg>
 			          </jvmArgs>
 			        </launcher>
 			        <!-- you could define other launcher -->
