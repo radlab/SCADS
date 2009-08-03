@@ -150,8 +150,8 @@ plot.stats = function(stats, req.types=c("get","put"), title="") {
 	plot.users.vs.workload(stats,title)
 	plot.users.and.workload(stats)
 	
-	plot.performance.over.time(stats,"get")
-	plot.performance.over.time(stats,"put")
+	try( plot.performance.over.time(stats,"get") )
+	try( plot.performance.over.time(stats,"put") )
 	
 	for (type in req.types) {
 		plot.type.stats(stats,type,ymax=50)	
@@ -200,7 +200,7 @@ plot.performance.over.time = function(stats,type) {
 	col.90p = paste(prefix,"latency_90p",sep="")
 	col.99p = paste(prefix,"latency_99p",sep="")
 
-	ymax = max(stats[,col.99p],na.rm=T)
+	ymax = quantile(stats[,col.99p],0.95,na.rm=T)
 
 	plot( stats$time, stats[,col.99p], col="red", type="l", ylim=c(0,ymax), xlab="time", ylab="latency [ms]", bty="n", main=paste("req type: ",type," over time",sep=""))
 	lines( stats$time, stats[,col.90p], col="blue")
@@ -240,7 +240,7 @@ plot.type.stats = function(stats,type,metric="latency",ymax=10) {
 	col.99p = paste(prefix,metric,"_99p",sep="")
 	col.99.9p = paste(prefix,metric,"_999p",sep="")
 	
-	xlim = c(0,max(stats$all_throughput)*1.05)
+	xlim = c(0,max(stats$all_throughput,na.rm=T)*1.05)
 	#xlim = c(0,sort(stats$stats$workload,decreasing=T)[1]*1.10)
 	
 	plot( stats$all_workload, stats[,col.99p], col="red", ylim=c(0,ymax), xlim=xlim, xlab=paste("workload [#req / ",stats$interval," ms]",sep=""), ylab=paste(metric," [ms]"), bty="n", main=paste("req type: ",type," ",metric,sep=""), ylog="")
