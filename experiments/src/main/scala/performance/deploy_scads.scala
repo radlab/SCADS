@@ -307,11 +307,14 @@ case class Scads(scadsName: String, xtrace_on: Boolean, namespace: String) exten
 		servers.addAll(new_servers)
 	}
 
-	def loadState() {
+	def loadState():Boolean = {
 		servers = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scadsName+"--storagenode", true )
 		placement = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scadsName+"--placement", true )
-
-		dpclient = Scads.getDataPlacementHandle(placement.get(0).publicDnsName, xtrace_on)
+		if (placement.size > 0) {
+			dpclient = Scads.getDataPlacementHandle(placement.get(0).publicDnsName, xtrace_on)
+			true
+		}
+		else false
 	}
 
 	def deployData(server:Instance) = {
