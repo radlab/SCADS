@@ -2,6 +2,10 @@ package edu.berkeley.cs.scads.model.parser
 
 import scala.util.parsing.combinator._
 
+class CompileException extends Exception
+case class DuplicateEntityException(entityName: String) extends CompileException
+case class DuplicateAttributeException(attr: String) extends CompileException
+
 case class Attribute(name: String, fieldType: String) {
 	def objDeclaration(s: StringBuilder) = {
 		s.append("object "); s.append(name); s.append(" extends "); s.append(fieldType); s.append(";\n")
@@ -12,6 +16,14 @@ case class Attribute(name: String, fieldType: String) {
 	}
 }
 case class Entity(name: String, attributes: List[Attribute], keys: List[String]) {
+	val attrMap = new scala.collection.mutable.HashMap[String, Attribute]
+
+	attributes.foreach((a) => {
+		if(attrMap.isDefinedAt(a.name))
+			throw new DuplicateAttributeException(a.name)
+		attrMap += (a.name -> a)
+	})
+
 	def classDeclaration(s: StringBuilder) = {
 		s.append("class "); s.append(name); s.append(" extends Entity()(ScadsEnv) {\n")
 		s.append("val namespace = \"tbl_"); s.append(name); s.append("\";\n")
@@ -32,6 +44,15 @@ case class Entity(name: String, attributes: List[Attribute], keys: List[String])
 
 
 case class Spec(entities: List[Entity]) {
+	val entityMap = new scala.collection.mutable.HashMap[String, Entity]
+
+	entities.foreach((e) => {
+		if(entityMap.isDefinedAt(e.name))
+			throw new DuplicateEntityException(e.name)
+
+		entityMap += (e.name -> e)
+	})
+
 	def generateSpec: String = {
 		val s = new StringBuilder
 		imports(s)
