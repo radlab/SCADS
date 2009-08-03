@@ -146,10 +146,12 @@ plot.stats.for.file = function(file) {
 }
 
 plot.stats = function(stats, req.types=c("get","put"), title="") {
-	layout( matrix(1:(2*(length(req.types)+1)),ncol=2,byrow=T) )
+	layout( matrix(1:(2*(length(req.types)+2)),ncol=2,byrow=T) )
 	plot.users.vs.workload(stats,title)
-	plot.users(stats)
-	#plot.workload.vs.throughput(stats, title)
+	plot.users.and.workload(stats)
+	
+	plot.performance.over.time(stats,"get")
+	plot.performance.over.time(stats,"put")
 	
 	for (type in req.types) {
 		plot.type.stats(stats,type,ymax=50)	
@@ -177,12 +179,32 @@ plot.workload.vs.throughput = function(stats, title) {
 	plot( stats$stats$workload, stats$stats$throughput, xlim=xlim,xlab="workload", ylab="throughput", bty="n", main=title )
 }
 
-plot.users = function(stats) {
-	plot( stats$all_nusers, bty="n" )	
+plot.users.and.workload = function(stats) {
+	plot( stats$time, stats$all_nusers, type="l", ylim=c(0,max(stats$all_nusers,na.rm=T)), bty="n", xlab="time", ylab="# active users", main="# active users and workload" )
+	axis(1)
+	axis(2)
+	par(new=T)
+	plot( stats$time, stats$all_workload, type="l", ylim=c(0,max(stats$all_workload,na.rm=T)), bty="n", axes=F, xlab="", ylab="", col="red" )
+	axis(4)
+	legend(x="bottomleft",legend=c("# active users","workload"),col=c("black","red"),lty=1,inset=0.02)
 }
 
 plot.users.vs.workload = function(stats, title="") {
 	plot( stats$all_nusers, stats$all_workload, bty="n", main=title )
+}
+
+plot.performance.over.time = function(stats,type) {
+	prefix = ""
+	if (nchar(type)>0) {prefix=paste(type,"_",sep="")}
+	col.mean = paste(prefix,"latency_mean",sep="")
+	col.90p = paste(prefix,"latency_90p",sep="")
+	col.99p = paste(prefix,"latency_99p",sep="")
+
+	ymax = max(stats[,col.99p],na.rm=T)
+
+	plot( stats$time, stats[,col.99p], col="red", type="l", ylim=c(0,ymax), xlab="time", ylab="latency [ms]", bty="n", main=paste("req type: ",type," over time",sep=""))
+	lines( stats$time, stats[,col.90p], col="blue")
+	lines( stats$time, stats[,col.mean], col="green")
 }
 
 plot.users.vs.workload.old = function(data,interval,report_fraction=1) {
