@@ -43,10 +43,10 @@ object WorkloadGenerators {
 	}
 
 	def increaseDataSizeWorkload(namespace:String, totalUsers:Int, dataStartDelay_minutes:Int, thinkTime:Int):WorkloadDescription = {
-		val sizes = List[Int](40000,60000,80000,100000,120000,140000,160000,180000,200000,220000,240000,260000,280000,300000)
+		val sizes = List[Int](50000,100000,200000,300000,400000,500000,600000,700000,800000,900000,1000000,1100000,1200000,1300000,1400000,1500000,1600000,1700000,1800000,1900000,2000000,2100000,2200000,2300000,2400000,2500000)
 		val mix = Map("get"->1.0,"getset"->0.0,"put"->0.0)
 		var intervals = new scala.collection.mutable.ListBuffer[WorkloadIntervalDescription]
-		
+
 		sizes.foreach((size)=> {
 			val parameters = Map("get"->Map("minKey"->"0","maxKey"->size.toString,"namespace"->namespace),
 								 "put"->Map("minKey"->"0","maxKey"->size.toString,"namespace"->namespace),
