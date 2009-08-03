@@ -12,7 +12,7 @@ import org.apache.thrift.protocol.{TBinaryProtocol,XtBinaryProtocol}
 import java.io._
 import java.net._
 
-object WorkloadAgentTest {
+/*object WorkloadAgentTest {
 	
 	def linearWorkload(readProb:Double, namespace:String, totalUsers:Int, userStartDelay:Int, thinkTime:Int) = {
 		
@@ -61,39 +61,10 @@ object WorkloadAgentTest {
 	}
 	
 }
+*/
 
-
-@serializable
-class WorkloadIntervalDescription(
-	val numberOfActiveUsers: Int,
-	val duration: Int,
-	val requestGenerator: SCADSRequestGenerator)
-
-
-@serializable
-class WorkloadDescription(
-	val thinkTimeMean: Long, 
-	val workload: List[WorkloadIntervalDescription]
-	) 
-{
-	def serialize(file: String) = {
-        val out = new ObjectOutputStream( new FileOutputStream(file) )
-        out.writeObject(this);
-        out.close();
-	}
-}
-
-object WorkloadDescription {
-	def deserialize(file: String): WorkloadDescription = {
-        val fin = new ObjectInputStream( new FileInputStream(file) )
-        val wd = fin.readObject().asInstanceOf[WorkloadDescription]
-        fin.close
-        wd
-	}
-}
 
 class WorkloadAgent(client:ClientLibrary, workload:WorkloadDescription, userID:Int) extends Runnable {
-/*case class WorkloadAgent(client: ClientLibrary,namespace:String, max_key:Int, workload:WorkloadDescription, userID:Int, testid: Long) extends XtRequest {*/
 	import java.util.Random
 	val rand = new Random()
 	val max_prob = 100
