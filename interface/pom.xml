@@ -5,6 +5,7 @@
 	<artifactId>thrift-interface</artifactId>
 	<packaging>jar</packaging>
 	<version>1.0.2</version>
+	<name>SCADS Thrift Interface</name>
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.thrift</groupId>
