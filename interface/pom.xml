@@ -69,7 +69,7 @@
 						<configuration>
 							<tasks>
 								<mkdir dir="target/" />
-								<exec executable="/usr/local/bin/thrift">
+								<exec executable="thrift">
 									<arg value="--gen" />
 									<arg value="java"/>
 									<arg value="-o"/>
