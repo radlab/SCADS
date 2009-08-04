@@ -91,5 +91,17 @@ object WorkloadGenerators {
 		new WorkloadDescription(thinkTime, intervals.toList)
 	}
 
+	def simpleUserSpikeWorkload(getProb:Double, getsetProb:Double, getsetLength:Int, maxKey:String, namespace:String, totalUsers:Int, flatUsers:Int, interval_min:Int, thinkTime: Int):WorkloadDescription = {
+		val num_intervals = 3
+		val wProf = WorkloadProfile.getSpiked(interval_min,flatUsers,totalUsers)
+		val mix = new MixVector(Map("get"->getProb,"getset"->getsetProb,"put"->(1-getProb-getsetProb)))
+		val parameters = Map("get"->Map("minKey"->"0","maxKey"->maxKey,"namespace"->namespace),
+							 "put"->Map("minKey"->"0","maxKey"->maxKey,"namespace"->namespace),
+							 "getset"->Map("minKey"->"0","maxKey"->maxKey,"namespace"->namespace,"setLength"->getsetLength.toString) )
+		val reqGenerators = List.make(num_intervals,new SimpleSCADSRequestGenerator(mix,parameters))
+		val durations = List(interval_min*60*1000,interval_min*2*60*1000,interval_min*60*1000)
+		WorkloadDescription.create(wProf,durations,reqGenerators,thinkTime)
+	}
+
 }
 

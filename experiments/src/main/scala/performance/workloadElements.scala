@@ -67,7 +67,11 @@ object WorkloadProfile {
 		val step = (nusersEnd.toDouble-nusersStart)/(nintervals-1)
 		new WorkloadProfile( (1 to nintervals).map( (i:Int) => Math.round(nusersStart + (i-1)*step).toInt ).toList )
 	}
-	
+
+	def getSpiked(nintervals:Int, nusersFlat:Int, nusersSpike:Int): WorkloadProfile = {
+		new WorkloadProfile( List(nusersFlat,nusersSpike,nusersFlat) )
+	}
+
 	/**
 	* The Ebates workload file is aggregated into 1-minute intervals. This method will skip the first 
 	* 'skipMinutes' minutes, and will create 1 workload interval from 'intervalMinutes' of the data
