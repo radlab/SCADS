@@ -22,7 +22,7 @@ object Profile {
 	def find(username: String)(implicit env: Environment): Profile = {
 		val query = new Materialize[Profile](
 			new SingleGet("Profile", (new edu.berkeley.cs.scads.model.StringField)(username), new IntegerVersion) with ReadOneGetter)
-		query.get.apply(0)
+		query.exec.apply(0)
 	}
 
 	def findByName(name: String)(implicit env: Environment): Profile = {
@@ -30,7 +30,7 @@ object Profile {
 			new SequentialDereferenceIndex("Profile", new edu.berkeley.cs.scads.model.StringField, new IntegerVersion,
 				new SingleGet("Profile$nameIndex$", (new edu.berkeley.cs.scads.model.StringField)(name), Unversioned) with ReadOneGetter with ReadOwnWrites)
 			with ReadOneGetter)
-		query.get.apply(0)
+		query.exec.apply(0)
 	}
 }
 

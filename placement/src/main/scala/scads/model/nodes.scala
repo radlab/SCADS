@@ -91,14 +91,14 @@ abstract class ExecutionNode {
  * Base class for all execution nodes that provide (Key, Version, Value) Tuples to their parent.
  */
 abstract class TupleProvider extends ExecutionNode {
-	def get(implicit env: Environment): Seq[(Field, Version, String)]
+	def exec(implicit env: Environment): Seq[(Field, Version, String)]
 }
 
 /**
  * Base class for all execution nodes that provide materialized entities to their parent.
  */
 abstract class EntityProvider extends ExecutionNode {
-	def get(implicit env: Environment): Seq[Entity]
+	def exec(implicit env: Environment): Seq[Entity]
 }
 
 /**
@@ -106,7 +106,7 @@ abstract class EntityProvider extends ExecutionNode {
  * TODO: Exception when key doesn't exist?
  */
 abstract class SingleGet(namespace: String, key: Field, ver: Version) extends TupleProvider with Getter {
-	def get(implicit env: Environment): Seq[(Field, Version, String)] = {
+	def exec(implicit env: Environment): Seq[(Field, Version, String)] = {
 		Array(get(namespace, key, ver))
 	}
 }
@@ -119,8 +119,8 @@ abstract class SingleGet(namespace: String, key: Field, ver: Version) extends Tu
  * @param child the stream of index tuples
  */
 abstract class SequentialDereferenceIndex(targetNamespace: String, targetKeyType: Field, targetVersion: Version, child: TupleProvider) extends TupleProvider with Getter {
-	def get(implicit env: Environment): Seq[(Field, Version, String)] = {
-		child.get.map((r) => {
+	def exec(implicit env: Environment): Seq[(Field, Version, String)] = {
+		child.exec.map((r) => {
 			val key = targetKeyType.duplicate
 			key.deserialize(r._3)
 			get(targetNamespace, key, targetVersion)
@@ -134,7 +134,7 @@ abstract class SequentialDereferenceIndex(targetNamespace: String, targetKeyType
  * TODO: concrete implementations of ReadOne, ReadRepair, Quorum, Etc.
  */
 case class GetSet(start: Field, end: Field) extends TupleProvider {
-	def get(implicit env: Environment): Seq[(Field, Version, String)] = null
+	def exec(implicit env: Environment): Seq[(Field, Version, String)] = null
 }
 
 /**
@@ -144,8 +144,8 @@ case class GetSet(start: Field, end: Field) extends TupleProvider {
 case class Materialize[Type <: Entity](child: TupleProvider)(implicit manifest : scala.reflect.Manifest[Type]) extends EntityProvider {
 	val con = manifest.erasure.getConstructors()(0)
 
-	def get(implicit env: Environment): Seq[Type] = {
-		child.get.map(t => {
+	def exec(implicit env: Environment): Seq[Type] = {
+		child.exec.map(t => {
 			val ent:Type = con.newInstance(env).asInstanceOf[Type]
 			ent.deserializeAttributes(t._3)
 			ent
