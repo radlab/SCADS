@@ -88,7 +88,7 @@ class WorkloadAgent(client:ClientLibrary, workload:WorkloadDescription, userID:I
 
 		(new File("/mnt/workload/logs")).mkdirs()
 		threadlogf = new FileWriter( new java.io.File("/mnt/workload/logs/"+thread_name+".log"), true )
-		threadlog("starting workload generation. thread:"+thread_name+"\n")
+		threadlog("starting workload generation. thread:"+thread_name+"  useID="+userID)
 		
 		val log = new java.io.File("/mnt/xtrace/logs/"+thread_name)
 		val logwriter = if (log.getParentFile().exists()) {new java.io.FileWriter(log, true) } else {null}
@@ -104,37 +104,36 @@ class WorkloadAgent(client:ClientLibrary, workload:WorkloadDescription, userID:I
 		val workloadStart = System.currentTimeMillis()
 		var nextIntervalTime = workloadStart + currentIntervalDescription.duration
 
-		var result = List[String]() // "request,threads,types,start,end,latency\n"
+		var result = new scala.collection.mutable.ListBuffer[String]() // "request,threads,types,start,end,latency\n"
 		var requestI = 0;
 		var running = true;
 				
 		while (running) {
 			
 			if (currentIntervalDescription.numberOfActiveUsers >= userID) {
+				threadlog("ACTIVE")
 				// I'm active, send a request
 				requestI += 1
 				
 				// create the request
 				val request = currentIntervalDescription.requestGenerator.generateRequest(client, System.currentTimeMillis-workloadStart)
-
 				severity = if (rand.nextInt(max_prob) < report_probability) {1} else {6}
 				XTraceContext.startTraceSeverity(thread_name,"Initiated: LocalRequest",severity,"RequestID: "+requestI)
-				startt = System.nanoTime()
-				startt_ms = System.currentTimeMillis()
-/*				this.makeRequest*/
 				
 				try {
+					startt = System.nanoTime()
+					startt_ms = System.currentTimeMillis()
 					request.execute
+					endt = System.nanoTime()
+					endt_ms = System.currentTimeMillis()
+					latency = endt-startt
+					result += (localIP+","+thread_name+","+requestI+","+request.reqType+","+startt_ms+","+endt_ms+","+(latency/1000000.0)+"\n")
+					threadlog("executed: "+request.toString+"    latency="+(latency/1000000.0))
 				} catch {
-					case e: Exception => threadlog("got an exception. "+stack2string(e))
+					case e: Exception => threadlog("got an exception. \n"+stack2string(e))
 				}
 				
-				endt = System.nanoTime()
-				endt_ms = System.currentTimeMillis()
 				XTraceContext.clearThreadContext()
-
-				// log 20% of reports
-				latency = endt-startt; result += (localIP+","+thread_name+","+requestI+","+request.reqType+","+startt_ms+","+endt_ms+","+(latency/1000000.0)+"\n")
 
 				// periodically flush log to disk and clear result list
 				if (requestI%5000==0) { 
@@ -142,14 +141,17 @@ class WorkloadAgent(client:ClientLibrary, workload:WorkloadDescription, userID:I
 						logwriter.write(result.mkString)
 						logwriter.flush()
 					}
-					result = result.remove(p=>true)
+					//result = result.remove(p=>true)
+					result = new scala.collection.mutable.ListBuffer[String]()
 				}
 				
+				threadlog("thinking: "+workload.thinkTimeMean)
 				Thread.sleep(workload.thinkTimeMean)
 				
 			} else {
 				// I'm inactive, sleep for a while
 				//println("inactive, sleeping 1 second")
+				threadlog("PASSIVE, SLEEPING 1000ms")
 				Thread.sleep(1000)
 			}
 			
