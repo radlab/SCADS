@@ -84,8 +84,9 @@ trait Application{
 
     for(i <- 0 until methodArguments.length){
       val tpe = parameterTypes(i);
-      def valueOf(x : Option[String]) = x.map(coerceTo(_, tpe)).getOrElse(defaultFor(tpe));
-      methodArguments(i) = argumentNames(i) match {
+      def valueOf(x : Option[String]) = 
+        x.map(coerceTo(_, tpe)).getOrElse(defaultFor(tpe));
+      methodArguments(i) = argumentNames(i).replaceAll("\\$.+", "") match {
         case "args" | "arguments" => {
           val x = arguments.toArray[String];
           x // work around for retarded array boxing
