@@ -180,11 +180,14 @@ plot.workload.vs.throughput = function(stats, title) {
 }
 
 plot.users.and.workload = function(stats) {
-	plot( stats$time, stats$all_nusers, type="l", ylim=c(0,max(stats$all_nusers,na.rm=T)), bty="n", xlab="time", ylab="# active users", main="# active users and workload" )
-	axis(1)
+	time = ISOdate(1970,1,1) + stats$time/1000
+
+	plot( time, stats$all_nusers, type="l", ylim=c(0,max(stats$all_nusers,na.rm=T)), axes=F, bty="n", xlab="time", ylab="# active users", main="# active users and workload" )
+	axis.POSIXct( 1, x=time, format="%H:%M")
+	#axis(1)
 	axis(2)
 	par(new=T)
-	plot( stats$time, stats$all_workload, type="l", ylim=c(0,max(stats$all_workload,na.rm=T)), bty="n", axes=F, xlab="", ylab="", col="red" )
+	plot( time, stats$all_workload, type="l", ylim=c(0,max(stats$all_workload,na.rm=T)), bty="n", axes=F, xlab="", ylab="", col="red" )
 	axis(4)
 	legend(x="bottomleft",legend=c("# active users","workload"),col=c("black","red"),lty=1,inset=0.02)
 }
@@ -201,10 +204,15 @@ plot.performance.over.time = function(stats,type) {
 	col.99p = paste(prefix,"latency_99p",sep="")
 
 	ymax = quantile(stats[,col.99p],0.95,na.rm=T)
+	
+	time = ISOdate(1970,1,1) + stats$time/1000
 
-	plot( stats$time, stats[,col.99p], col="red", type="l", ylim=c(0,ymax), xlab="time", ylab="latency [ms]", bty="n", main=paste("req type: ",type," over time",sep=""))
-	lines( stats$time, stats[,col.90p], col="blue")
-	lines( stats$time, stats[,col.mean], col="green")
+	plot( time, stats[,col.99p], col="red", type="l", axes=F, ylim=c(0,ymax), xlab="time", ylab="latency [ms]", bty="n", main=paste("req type: ",type," over time",sep=""))
+	axis.POSIXct( 1, x=time, format="%H:%M")
+	axis(2)
+	
+	lines( time, stats[,col.90p], col="blue")
+	lines( time, stats[,col.mean], col="green")
 }
 
 plot.users.vs.workload.old = function(data,interval,report_fraction=1) {
