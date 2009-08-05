@@ -24,6 +24,11 @@ object ScadsDirector {
 													 "metricService"->Map("port"->6001,"dbhost"->"localhost","dbuser"->"root","dbpassword"->"","dbname"->"metrics"))))
 	    println( config.toString() )
 	    directorVM.deploy(config)
+
+		// add aws environment vars to bash_profile
+		val local = Array[String]("aws.cfg")
+		directorVM.upload(local,"/opt/scads/experiments")
+		directorVM.exec("cat /opt/scads/experiments/aws.cfg >> /root/.bash_profile")
   	}
    
 }
