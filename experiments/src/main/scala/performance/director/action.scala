@@ -1,5 +1,9 @@
 package scads.director
 
+import performance.Scads
+import edu.berkeley.cs.scads.thrift.{RangeConversion, DataPlacement}
+import edu.berkeley.cs.scads.keys._
+
 import org.apache.log4j._
 import org.apache.log4j.Level._
 import java.util.Date
@@ -104,7 +108,7 @@ object Action {
             statement.executeUpdate("USE " + dbname)
 			statement.executeUpdate("CREATE TABLE IF NOT EXISTS "+dbtable+" (`id` INT NOT NULL AUTO_INCREMENT, `update_time` BIGINT, `action_name` VARCHAR(30),"+
 																			"`init_time` BIGINT, `start_time` BIGINT, `end_time` BIGINT, `status` VARCHAR(50),"+
-																			"`short_name` VARCHAR(50), `args` VARCHAR(200), PRIMARY KEY(`id`) ) ")
+																			"`short_name` VARCHAR(100), `args` VARCHAR(200), PRIMARY KEY(`id`) ) ")
 			statement.close
        	} catch { case ex: SQLException => ex.printStackTrace() }
 
@@ -145,22 +149,85 @@ class TestAction(
 	override def toString():String = actionShortName
 }
 
-class SplitInTwo(
-	val server: String,
-	val placement: String
-) extends Action("splitintwo("+server+")") {
+case class SplitInTwo(
+	val server: String
+) extends Action("splitintwo("+server+")") with PlacementManipulation {
+
 	override def execute() {
+		logger.debug("Getting new storage server")
+		val new_guys = Director.serverManager.getServers(1)
+		if (new_guys.isEmpty) { logger.warn("Split failed: no available servers"); return }
+		val new_guy = new_guys(0)
+
+		// determine current range and split-point to give new server
+		val bounds = getNodeRange(server)
+		val start = bounds._1
+		val end = bounds._2
+		val middle = ((end-start)/2) + start
+		Thread.sleep(5*1000)
 		
+		// do the move and update local list of servers
+		logger.info("Moving "+middle+" - "+end+" from "+server+" to "+ new_guy)
+		move(server,new_guy,middle,end)
+		logger.debug("Sleeping")
+		Thread.sleep(60*1000) // wait minute
 	}
 	override def toString:String = actionShortName
 }
 
-class MergeTwo(
+case class MergeTwo(
 	val server1: String,
 	val server2: String
-) extends Action("mergetwo("+server1+","+server2+")") {
+) extends Action("mergetwo("+server1+","+server2+")") with PlacementManipulation {
+
 	override def execute() {
-		
+		val bounds = getNodeRange(server1)
+		val start = bounds._1
+		val end = bounds._2
+		logger.info("Copying "+start+" - "+end+" from "+server1+" to "+ server2)
+		copy(server1,server2,start,end) // do copy instead of move to avoid sync problems?
+		logger.debug("Removing from placement: "+ server1)
+		val removing = server1
+		remove(removing)
+		logger.debug("Releasing server "+ server1)
+		Director.serverManager.releaseServer(removing)
+		logger.debug("Sleeping")
+		Thread.sleep(60*1000) // wait minute
 	}
 	override def toString:String = actionShortName
+}
+
+trait PlacementManipulation extends RangeConversion with AutoKey {
+	val placement_host = Director.myscads.placement.get(0).privateDnsName
+	val xtrace_on = Director.xtrace_on
+	val namespace = Director.namespace
+
+	protected def getNodeRange(host:String):(Int, Int) = {
+		val dp = Scads.getDataPlacementHandle(placement_host,xtrace_on)
+		val s_info = dp.lookup_node(namespace,host,Scads.server_port,Scads.server_sync)
+		val range = s_info.rset.range
+		(Scads.getNumericKey( StringKey.deserialize_toString(range.start_key,new java.text.ParsePosition(0)) ),
+		Scads.getNumericKey( StringKey.deserialize_toString(range.end_key,new java.text.ParsePosition(0)) ))
+	}
+
+	protected def move(source_host:String, target_host:String,startkey:Int, endkey:Int) = {
+		val dpclient = Scads.getDataPlacementHandle(placement_host,xtrace_on)
+		val range = new KeyRange(new StringKey(Scads.keyFormat.format(startkey)), new StringKey(Scads.keyFormat.format(endkey)) )
+		dpclient.move(namespace,range, source_host, Scads.server_port,Scads.server_sync, target_host, Scads.server_port,Scads.server_sync)
+	}
+
+	protected def copy(source_host:String, target_host:String,startkey:Int, endkey:Int) = {
+		val dpclient = Scads.getDataPlacementHandle(placement_host,xtrace_on)
+		val range = new KeyRange(new StringKey(Scads.keyFormat.format(startkey)), new StringKey(Scads.keyFormat.format(endkey)) )
+		dpclient.copy(namespace,range, source_host, Scads.server_port,Scads.server_sync, target_host, Scads.server_port,Scads.server_sync)
+
+	}
+	protected def remove(host:String) = {
+		val dpclient = Scads.getDataPlacementHandle(placement_host,xtrace_on)
+		val bounds = getNodeRange(host)
+		val range = new KeyRange(new StringKey(Scads.keyFormat.format(bounds._1)), new StringKey(Scads.keyFormat.format(bounds._2)) )
+		val list = new java.util.LinkedList[DataPlacement]()
+		list.add(new DataPlacement(host,Scads.server_port,Scads.server_sync,range))
+		dpclient.remove(namespace,list)
+	}
 }

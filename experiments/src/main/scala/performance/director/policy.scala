@@ -1,5 +1,6 @@
 package scads.director
 
+import performance.Scads
 import org.apache.log4j._
 import org.apache.log4j.Level._
 
@@ -45,6 +46,7 @@ class SplitAndMergeOnPerformance(
 	}
 	import PolicyState._
 	
+	val scads_deployment = Director.myscads
 	var policyState = PolicyState.Waiting
 	var scadsState: SCADSState = null
 	var pastActions: List[Action] = null
@@ -55,11 +57,26 @@ class SplitAndMergeOnPerformance(
 		
 		policyState = selectNextState
 		
-		var actions = List[Action]()
+		var actions = new scala.collection.mutable.ListBuffer[Action]()
 		policyState match {
 			case PolicyState.Waiting => {null}
-			case PolicyState.Executing => {null}
+			case PolicyState.Executing => {
+				val nodes = scadsState.storageNodes
+				// decide what actions to take: splitting and/or merging
+				nodes.foreach((node_state)=>{ // use workload for now
+					if (node_state.metrics.workload >= latencyToSplit) actions += new SplitInTwo(node_state.ip)
+				})
+				var id = 0
+				while (id <= nodes.size-1 && id <= nodes.size-2) {
+					if ( (nodes(id).metrics.workload + nodes(id+1).metrics.workload) <= latencyToMerge) {
+						actions += new MergeTwo(nodes(id).ip,nodes(id+1).ip)
+						id+=2 // only merge disjoint two at a time
+					}
+					else id+=1
+				}
+			} // end executing
 		}
+		actions.toList
 	}
 	
 	private def selectNextState():PolicyState = {
@@ -69,11 +86,13 @@ class SplitAndMergeOnPerformance(
 				else Waiting
 			}
 			case PolicyState.Executing => {
-				// check if actions running
-				PolicyState.Executing
+				if (!pastActions.forall(_.completed)) Waiting // check if actions running
+				else Executing
 			}
 		}
 	}
+
+	override def toString = "SplitAndMergeOnPerformance ( Merge: "+latencyToMerge+", Split: "+latencyToSplit+ " )"
 }
 
 

@@ -9,7 +9,7 @@ import java.sql.SQLException
 import java.sql.Statement
 
 // ??
-class KeyRange(
+class DirectorKeyRange(
 	val minKey: String,
 	val maxKey: String
 ) {
@@ -43,7 +43,7 @@ class StorageNodeState(
 	val ip: String,
 	val metrics: PerformanceMetrics,
 	val metricsByType: Map[String,PerformanceMetrics],
-	val range: KeyRange
+	val range: DirectorKeyRange
 ) {
 	override def toString():String = "server@"+ip+" range="+range.toString+" \n   all=["+metrics.toString+"]\n"+metricsByType.map(e => "   "+e._1+"=["+e._2.toString+"]").mkString("","\n","")
 	def toShortString():String = "server@"+"%-45s".format(ip)+" range="+"%-20s".format(range.toString)+
@@ -52,22 +52,37 @@ class StorageNodeState(
 }
 
 object SCADSState {
+	import performance.Scads
+	import java.util.Comparator
+	import edu.berkeley.cs.scads.thrift.DataPlacement
+
+	class DataPlacementComparator extends java.util.Comparator[DataPlacement] {
+		def compare(o1: DataPlacement, o2: DataPlacement): Int = {
+			o1.rset.range.start_key compareTo o2.rset.range.start_key
+		}
+	}
+
 	def refresh(metricReader:MetricReader, placementServerIP:String): SCADSState = {
-		
 		val reqTypes = List("get","put")
-		val servers = metricReader.getAllServers-"ALL"
+		val dp = Scads.getDataPlacementHandle(placementServerIP,Director.xtrace_on)
+		val placements = dp.lookup_namespace(Director.namespace)
+		java.util.Collections.sort(placements,new DataPlacementComparator)
 		
-		val nodes = for (server <- servers) yield {
-			val ip = server
-			val range = new KeyRange("","")
-			val sMetrics = PerformanceMetrics.load(metricReader,server,"ALL")
-			val sMetricsByType = reqTypes.map( (t) => t -> PerformanceMetrics.load(metricReader,server,t)).foldLeft(Map[String, PerformanceMetrics]())((x,y) => x + y)	
-			new StorageNodeState(ip,sMetrics,sMetricsByType,range)
+		// iterate through storage server info and get performance metrics
+		var nodes = new scala.collection.mutable.ListBuffer[StorageNodeState]
+		val iter = placements.iterator
+		while (iter.hasNext) {
+			val info = iter.next
+			val ip = info.node
+			val range = new DirectorKeyRange(info.rset.range.start_key,info.rset.range.end_key) // TODO: make this not same name as scads key range		
+			val sMetrics = PerformanceMetrics.load(metricReader,ip,"ALL")
+			val sMetricsByType = reqTypes.map( (t) => t -> PerformanceMetrics.load(metricReader,ip,t)).foldLeft(Map[String, PerformanceMetrics]())((x,y) => x + y)	
+			nodes += new StorageNodeState(ip,sMetrics,sMetricsByType,range)
 		}
 		
 		val metrics = PerformanceMetrics.load(metricReader,"ALL","ALL")
 		val metricsByType = reqTypes.map( (t) => t -> PerformanceMetrics.load(metricReader,"ALL",t)).foldLeft(Map[String,PerformanceMetrics]())((x,y)=>x+y)
-		new SCADSState(new Date(), nodes, metrics, metricsByType)
+		new SCADSState(new Date(), nodes.toList, metrics, metricsByType)
 	}
 }
 
