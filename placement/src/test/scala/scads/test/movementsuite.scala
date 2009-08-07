@@ -18,7 +18,7 @@ class MovementMechanismTest extends Suite with AutoKey with RangeConversion {
 	class ConcurrentWriter(ns: String, dp: SimpleKnobbedDataPlacementServer, prefix: String) extends Runnable{
 		def run() = putKeys(ns,dp, prefix)
 	}
-	case class TestPlacement extends SimpleKnobbedDataPlacementServer {
+	class TestPlacement extends SimpleKnobbedDataPlacementServer {
 		def lookup(key: String):List[StorageNode] = {
 			val dps = lookup_key("test",key)
 			var ret = List[StorageNode]()
