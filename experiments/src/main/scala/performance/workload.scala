@@ -12,58 +12,6 @@ import org.apache.thrift.protocol.{TBinaryProtocol,XtBinaryProtocol}
 import java.io._
 import java.net._
 
-/*object WorkloadAgentTest {
-	
-	def linearWorkload(readProb:Double, namespace:String, totalUsers:Int, userStartDelay:Int, thinkTime:Int) = {
-		
-		// create sample workload description
-		val mix = Map("get"->readProb,"put"->(1-readProb))
-		val parameters = Map("get"->Map("minKey"->"0","maxKey"->"10000","namespace"->namespace),
-							 "put"->Map("minKey"->"0","maxKey"->"10000","namespace"->namespace))
-		val reqGenerator = new SimpleSCADSRequestGenerator(mix,parameters)		
-		var intervals = new scala.collection.mutable.ListBuffer[WorkloadIntervalDescription]
-		
-		for (nusers <- 1 to totalUsers) {
-			val interval = new WorkloadIntervalDescription(nusers, userStartDelay, reqGenerator)
-			intervals += interval
-		}
-		val w = new WorkloadDescription(thinkTime, intervals.toList)
-		w
-	}
-	
-	def disjointWorkload(readProb:Double, namespace:String, totalUsers:Int, userStartDelay:Int, thinkTime:Int) = {
-		// workload in which gets and puts are from disjoint subsets of the keyspace
-		val mix = Map("get"->readProb,"put"->(1-readProb))
-		val parameters = Map("get"->Map("minKey"->"0","maxKey"->"10000","namespace"->namespace),
-							 "put"->Map("minKey"->"20000","maxKey"->"30000","namespace"->namespace))
-		val reqGenerator = new SimpleSCADSRequestGenerator(mix,parameters)
-		var intervals = new scala.collection.mutable.ListBuffer[WorkloadIntervalDescription]
-
-		for (nusers <- 1 to totalUsers) {
-			val interval = new WorkloadIntervalDescription(nusers, userStartDelay, reqGenerator)
-			intervals += interval
-		}
-		val w = new WorkloadDescription(thinkTime, intervals.toList)
-		w
-	}
-	def flatWorkload(readProb:Double, namespace:String, totalUsers:Int, num_minutes:Int, thinkTime: Int) = {
-		// how many minutes to run test flat workload: all users start making requests at the same time
-		val mix = Map("get"->readProb,"put"->(1-readProb))
-		val parameters = Map("get"->Map("minKey"->"0","maxKey"->"10000","namespace"->namespace),
-							 "put"->Map("minKey"->"0","maxKey"->"10000","namespace"->namespace))
-		val reqGenerator = new SimpleSCADSRequestGenerator(mix,parameters)
-		var intervals = new scala.collection.mutable.ListBuffer[WorkloadIntervalDescription]
-		val interval = new WorkloadIntervalDescription(totalUsers, num_minutes*60000, reqGenerator)
-		intervals += interval
-
-		val w = new WorkloadDescription(thinkTime, intervals.toList)
-		w
-	}
-	
-}
-*/
-
-
 class WorkloadAgent(client:ClientLibrary, workload:WorkloadDescription, userID:Int) extends Runnable {
 	import java.util.Random
 	val rand = new Random()
