@@ -20,11 +20,12 @@ class ScadsServerManager(deploy_name:String, xtrace_on:Boolean, namespace:String
 	}
 	def killServer(host:String) = myscads.shutdownServer(host) 
 	def getServers(num:Int): List[String] = {
-		assert( standbys.size >= num, "Only have "+standbys.size + " servers left." ) 
 		var ret = new scala.collection.mutable.ListBuffer[String]() 
-		(1 to num).foreach((id)=>{
-			ret += standbys.remove(0)
-		})
+		if (standbys.size >= num) {
+			(1 to num).foreach((id)=>{
+				ret += standbys.remove(0)
+			})
+		}
 		ret.toList
 	}
 	def releaseServer(host:String):Int = {
