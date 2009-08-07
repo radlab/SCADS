@@ -23,7 +23,7 @@ import java.sql.Statement
 abstract class Action(
 	val actionShortName:String
 ) extends Runnable {
-	object ActionState extends Enumeration {
+	object ActionState extends Enumeration("Ready","Running","Completed") {
 	  type ActionState = Value
 	  val Ready, Running, Completed = Value
 	}	
@@ -33,7 +33,7 @@ abstract class Action(
 	private val logPath = Director.basedir+"/actions/"+Director.dateFormat.format(new Date)+"_"+actionShortName+".txt"
 	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 	logger.setLevel(DEBUG)
-		
+	
 	var initTime: Date = new Date
 	var startTime: Date = null
 	var endTime: Date = null
@@ -44,12 +44,15 @@ abstract class Action(
 	
 	var executionThread: Thread = null
 	
-	Action.store(this)
+	var dbID: Int = -1
+	dbID = Action.store(this)
 		
 	def startExecuting() {
 		executionThread = new Thread(this)
 		executionThread.start
 	}
+	
+	def csvArgs():String = ""
 	
 	override def run() {
 		_state = ActionState.Running
@@ -69,43 +72,20 @@ abstract class Action(
 
 
 object Action {
-	var dbhost: String = ""
-	val dbname = "actions"
+	val dbname = "director"
 	val dbtable = "actions"
-	val user = "root"
-	val pass = ""
 	
-	var connection: Connection = null
-	def init(host:String) {
-		dbhost = host
-	}
-	
-	def connectToDatabase() {
-        // open connection to the database
-        try {
-            Class.forName("com.mysql.jdbc.Driver").newInstance()
-        } catch {
-			case ex: Exception => ex.printStackTrace() }
-
-        try {
-            val connectionString = "jdbc:mysql://" + dbhost + "/?user=" + user + "&password=" + pass
-            connection = DriverManager.getConnection(connectionString)
-		} catch {
-			case ex: SQLException => {
-            	// handle any errors
-	            println("can't connect to the database")
-	            println("SQLException: " + ex.getMessage)
-	            println("SQLState: " + ex.getSQLState)
-	           	println("VendorError: " + ex.getErrorCode)
-	        }
-		}
-
+	var connection = Director.connectToDatabase
+	initDatabase
+		
+	def initDatabase() {
         // create database if it doesn't exist and select it
         try {
             val statement = connection.createStatement
-			statement.executeUpdate("DROP DATABASE IF EXISTS "+dbname)
+/*			statement.executeUpdate("DROP DATABASE IF EXISTS "+dbname)*/
             statement.executeUpdate("CREATE DATABASE IF NOT EXISTS " + dbname)
             statement.executeUpdate("USE " + dbname)
+			statement.executeUpdate("DROP TABLE IF EXISTS "+dbtable)
 			statement.executeUpdate("CREATE TABLE IF NOT EXISTS "+dbtable+" (`id` INT NOT NULL AUTO_INCREMENT, `update_time` BIGINT, `action_name` VARCHAR(30),"+
 																			"`init_time` BIGINT, `start_time` BIGINT, `end_time` BIGINT, `status` VARCHAR(50),"+
 																			"`short_name` VARCHAR(100), `args` VARCHAR(200), PRIMARY KEY(`id`) ) ")
@@ -115,25 +95,46 @@ object Action {
         println("have connection to database")
     }
 
-	def store(action:Action) {
-		if (connection==null) connectToDatabase
+	def store(action:Action): Int = {
+		if (connection==null) connection = Director.connectToDatabase
 		val statement = connection.createStatement
-		try {
-			val cols = Map("update_time"-> (new Date).getTime.toString,
-						   "action_name"-> action.getClass.toString.split('.').last,
-						   "init_time"-> (if (action.initTime==null) "null" else action.initTime.getTime.toString),
-						   "start_time"-> (if (action.startTime==null) "null" else action.startTime.getTime.toString),
-						   "end_time"-> (if (action.endTime==null) "null" else action.endTime.getTime.toString),
-						   "status"-> action.state.toString,
-						   "short_name"-> action.actionShortName,
-						   "args"->"").transform( (x,y) => if (y=="null") "null" else ("'"+y+"'") )
-			val colnames = cols.keySet.toList
-			val sql = "INSERT INTO "+dbtable+" ("+colnames.mkString("`","`,`","`")+") values ("+colnames.map(cols(_)).mkString(",")+")"
-			action.logger.debug("storing action: "+sql)
-			statement.executeUpdate(sql)
-			statement.close
-		} catch { case ex:Exception => action.logger.warn("exception when storing action",ex) }
-		finally { statement.close }
+		
+		val cols = Map("update_time"-> (new Date).getTime.toString,
+					   "action_name"-> action.getClass.toString.split('.').last,
+					   "init_time"-> (if (action.initTime==null) "null" else action.initTime.getTime.toString),
+					   "start_time"-> (if (action.startTime==null) "null" else action.startTime.getTime.toString),
+					   "end_time"-> (if (action.endTime==null) "null" else action.endTime.getTime.toString),
+					   "status"-> action.state.toString,
+					   "short_name"-> action.actionShortName,
+					   "args"-> action.csvArgs).transform( (x,y) => if (y=="null") "null" else ("'"+y+"'") )
+
+		var primaryKey = action.dbID
+		if (primaryKey== -1) {
+			// insert new action
+			try {
+				val colnames = cols.keySet.toList
+				val sql = "INSERT INTO "+dbtable+" ("+colnames.mkString("`","`,`","`")+") values ("+colnames.map(cols(_)).mkString(",")+")"
+				action.logger.debug("storing action: "+sql)
+				statement.executeUpdate(sql, Statement.RETURN_GENERATED_KEYS)
+			
+				// extract primary key of the action
+				val rs = statement.getGeneratedKeys();
+	            rs.first();
+	            primaryKey = rs.getInt(1);
+				statement.close
+			} catch { case ex:Exception => action.logger.warn("exception when storing action",ex) }
+			finally { statement.close }
+			
+		} else {
+			// update existing action
+			try {
+				val sql = "UPDATE "+dbtable+" SET "+cols.map( v => "`"+v._1+"`="+v._2 ).mkString(",")+" WHERE id='"+action.dbID+"'"
+				action.logger.debug("updating action: "+sql)
+				statement.executeUpdate(sql)
+			} catch { case ex:Exception => action.logger.warn("exception when updating action",ex) }
+			finally { statement.close }
+		}
+		primaryKey
 	}
 }
 
@@ -147,6 +148,7 @@ class TestAction(
 		logger.debug("waking up")
 	}
 	override def toString():String = actionShortName
+	override def csvArgs():String = "delay="+delay
 }
 
 case class SplitInTwo(

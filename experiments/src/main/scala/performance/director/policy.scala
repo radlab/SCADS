@@ -4,13 +4,62 @@ import performance.Scads
 import org.apache.log4j._
 import org.apache.log4j.Level._
 
+import java.sql.Connection
+import java.sql.DriverManager
+import java.sql.ResultSet
+import java.sql.SQLException
+import java.sql.Statement
+
+
 abstract class Policy {
 	val logger = Logger.getLogger("scads.director.policy")
 	private val logPath = Director.basedir+"/policy.txt"
 	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 	logger.setLevel(DEBUG)
 	
-	def act(state:SCADSState, pastActions:List[Action]): List[Action]
+	protected def act(state:SCADSState, pastActions:List[Action]): List[Action]
+	
+	def stateColumns(): List[String] = List[String]()
+	def stateValues(): List[String] = List[String]()
+	
+	val dbname = "director"
+	val dbtable = "policystate"
+	
+	var connection = Director.connectToDatabase
+	createTable
+	
+	def perform(state:SCADSState, pastActions:List[Action]): List[Action] = {
+		val actions = act(state,pastActions)
+		storeState
+		actions
+	}
+	
+	def storeState() {
+		val statement = connection.createStatement
+		
+		try {
+			val sql = "INSERT INTO "+dbtable+" ("+(List("time","policyname")++stateColumns).mkString("`","`,`","`")+") values ("+
+						(List(new java.util.Date().getTime,"'"+getClass.getName.split('.').last+"'")++stateValues.map("'"+_+"'")).mkString(",")+")"
+			logger.debug("storing policy state: "+sql)
+			statement.executeUpdate(sql)
+		} catch { case e:Exception => logger.warn("exception when storing policy state: ",e) }
+		finally { statement.close }
+	}
+	
+    def createTable() {
+    // create database if it doesn't exist and select it
+        try {
+            val statement = connection.createStatement
+            statement.executeUpdate("CREATE DATABASE IF NOT EXISTS " + dbname)
+            statement.executeUpdate("USE " + dbname)
+			statement.executeUpdate("DROP TABLE IF EXISTS "+dbtable)
+			statement.executeUpdate("CREATE TABLE IF NOT EXISTS "+dbtable+" (`time` BIGINT, `policyname` VARCHAR(50) "+stateColumns.map("`"+_+"` VARCHAR(50)").mkString(",",",","")+")" )
+			statement.close
+       	} catch { case ex: SQLException => ex.printStackTrace() }
+
+    }
+
+	
 }
 
 
@@ -19,19 +68,31 @@ class TestPolicy(
 ) extends Policy {
 	val rnd = new java.util.Random
 	
+	object PolicyState extends Enumeration("waiting","noNewActions","newActions") {
+	  type PolicyState = Value
+	  val Waiting, NoNewActions, NewActions = Value
+	}
+	import PolicyState._
+	
+	private var _stateValues = List[String]()
+	override def stateColumns():List[String] = List("state","nActionsStarted")
+	override def stateValues():List[String] = _stateValues
+	
 	override def act(state:SCADSState, pastActions:List[Action]): List[Action] = {
 		logger.debug("acting")
-		if (!pastActions.forall(_.completed)) {
-			logger.info("some actions still runnning")
-			return List[Action]()
-		}
-	
-		val r = rnd.nextDouble
-		val i = rnd.nextInt(maxactions)
-		val range = 0 to i
-		logger.debug("rnd="+r+"  >0.5="+(r>0.5)+"  i="+i+"  range="+range)
-		if (r>0.5) range.map( (d:Int) => new TestAction(rnd.nextInt((d+1)*30)*1000) ).toList
-		else List[Action]()
+
+		var policyState =
+		if (!pastActions.forall(_.completed)) Waiting
+		else if (rnd.nextDouble>0.5) NewActions
+		else NoNewActions
+		
+		val actions = policyState match {
+			case Waiting => List[Action]()
+			case NoNewActions => List[Action]()
+			case NewActions => (1 to (rnd.nextInt(maxactions)+1)).map( (d:Int) => new TestAction(rnd.nextInt((d+1)*30)*1000) ).toList
+		}		
+		_stateValues = List(policyState.toString,actions.length.toString)
+		actions
 	}
 }
 

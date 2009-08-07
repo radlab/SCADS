@@ -115,40 +115,19 @@ case class MetricReader(
 	val user = "root"
 	val pass = ""
 	
-	var connection: Connection = null
+	var connection = Director.connectToDatabase
 	
-	def connectToDatabase() {
-        // open connection to the database
-        try {
-            Class.forName("com.mysql.jdbc.Driver").newInstance()
-        } catch {
-			case ex: Exception => ex.printStackTrace() }
-
-        try {
-            val connectionString = "jdbc:mysql://" + host + "/?user=" + user + "&password=" + pass
-            connection = DriverManager.getConnection(connectionString)
-		} catch {
-			case ex: SQLException => {
-            	// handle any errors
-	            println("can't connect to the database")
-	            println("SQLException: " + ex.getMessage)
-	            println("SQLState: " + ex.getSQLState)
-	           	println("VendorError: " + ex.getErrorCode)
-	        }
-		}
-
+	def initDatabase() {
         // create database if it doesn't exist and select it
         try {
             val statement = connection.createStatement
             statement.executeUpdate("CREATE DATABASE IF NOT EXISTS " + db)
             statement.executeUpdate("USE " + db)
        	} catch { case ex: SQLException => ex.printStackTrace() }
-
-        println("have connection to database")
     }
 
 	def getWorkload(host:String):Double = {
-		if (connection == null) connectToDatabase
+		if (connection == null) connection = Director.connectToDatabase
 		val workloadSQL = "select time,value from scads,scads_metrics where scads_metrics.server=\""+host+"\" and request_type=\"ALL\" and stat=\"workload\" and scads.metric_id=scads_metrics.id order by time desc limit 10"
 		var value = Double.NaN
         val statement = connection.createStatement
@@ -162,7 +141,7 @@ case class MetricReader(
 	}
 	
 	def getSingleMetric(host:String, metric:String, reqType:String):(java.util.Date,Double) = {
-		if (connection == null) connectToDatabase
+		if (connection == null) connection = Director.connectToDatabase
 		val workloadSQL = "select time,value from scads,scads_metrics where scads_metrics.server=\""+host+"\" and request_type=\""+reqType+"\" and stat=\""+metric+"\" and scads.metric_id=scads_metrics.id order by time desc limit 1"
 		var time:java.util.Date = null
 		var value = Double.NaN
@@ -180,7 +159,7 @@ case class MetricReader(
 	}
 	
 	def getAllServers():List[String] = {
-		if (connection == null) connectToDatabase
+		if (connection == null) connection = Director.connectToDatabase
 		val workloadSQL = "select distinct server from scads_metrics"
 		var servers = new scala.collection.mutable.ListBuffer[String]()
         val statement = connection.createStatement
