@@ -60,7 +60,7 @@ object Director {
 		if (myscads == null) { println("Need scads deployment before directing"); return }
 		val placementIP = myscads.placement.get(0).privateDnsName
 		val dpclient = Scads.getDataPlacementHandle(placementIP,xtrace_on)
-		assert( dpclient.lookup_namespace(namespace).size == 1, "Placement server has no storage nodes registered" )
+		assert( dpclient.lookup_namespace(namespace).size > 0, "Placement server has no storage nodes registered" )
 		logger.info("Will be directing with placement host: "+placementIP)
 		
 		directorRunner = new Runner(policy,placementIP)
