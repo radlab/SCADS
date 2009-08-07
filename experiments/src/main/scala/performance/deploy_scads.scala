@@ -156,19 +156,20 @@ case class ScadsClients(scadsName: String,host:String, xtrace_on: Boolean, names
 		println("Done warming.")
 	}
 
-	def startWorkload_NB(workload:WorkloadDescription, totalUsers:Int) = {
-		val testthread = new Thread(new WorkloadDescRunner(workload,totalUsers))
+	def startWorkload_NB(workload:WorkloadDescription) = {
+		val testthread = new Thread(new WorkloadDescRunner(workload))
 		testthread.start
 	}
 	
-	case class WorkloadDescRunner(workload:WorkloadDescription, totalUsers:Int) extends Runnable {
+	case class WorkloadDescRunner(workload:WorkloadDescription) extends Runnable {
 		def run() = {
-			startWorkload(workload,totalUsers)
+			startWorkload(workload)
 			println("Workload test complete.")
 		}
 	}
 
-	def startWorkload(workload:WorkloadDescription, totalUsers:Int) {
+	def startWorkload(workload:WorkloadDescription) {
+		val totalUsers = workload.getMaxNUsers
 		val workloadFile = "/tmp/workload.ser"
 		workload.serialize(workloadFile)
 		
