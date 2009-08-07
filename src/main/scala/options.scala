@@ -2,7 +2,11 @@ package optional;
 
 import scala.collection._;
 
-case class Options(options: Map[String, String], args: List[String], rawArgs: List[String])
+case class Options(
+  options: Map[String, String],
+  args: List[String],
+  rawArgs: List[String]
+)
 
 object Options {
   import scala.util.matching.Regex;
@@ -82,7 +86,7 @@ alias %s='scala %s $*'
     (m invoke singleton).asInstanceOf[Array[String]] map ("--" + _)
   }    
   
-  def main(args: Array[String]): Unit = {
+  def _main(args: Array[String]): Unit = {
     if (args == null || args.size != 2)
       return println("Usage: mkCommand <name> <class>")
       
