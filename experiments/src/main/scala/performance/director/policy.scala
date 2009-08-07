@@ -64,11 +64,16 @@ class SplitAndMergeOnPerformance(
 				val nodes = scadsState.storageNodes
 				// decide what actions to take: splitting and/or merging
 				nodes.foreach((node_state)=>{ // use workload for now
-					if (node_state.metrics.workload >= latencyToSplit) actions += new SplitInTwo(node_state.ip)
+					if (node_state.metrics.workload >= latencyToSplit) {
+						logger.debug("Adding split action: "+node_state.ip)
+						actions += new SplitInTwo(node_state.ip)
+					}
 				})
 				var id = 0
 				while (id <= nodes.size-1 && id <= nodes.size-2) {
-					if ( (nodes(id).metrics.workload + nodes(id+1).metrics.workload) <= latencyToMerge) {
+					if ( ((nodes(id).metrics.workload + nodes(id+1).metrics.workload) <= latencyToMerge) ||
+					 nodes(id).metrics.workload.isNaN || nodes(id+1).metrics.workload.isNaN ) { // also check for NaNs
+						logger.debug("Adding merge action: "+nodes(id).ip+" and "+nodes(id+1).ip)
 						actions += new MergeTwo(nodes(id).ip,nodes(id+1).ip)
 						id+=2 // only merge disjoint two at a time
 					}
