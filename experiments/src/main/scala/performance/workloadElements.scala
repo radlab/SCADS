@@ -1,5 +1,7 @@
 package performance
 
+import scala.collection.jcl.Conversions._
+
 import edu.berkeley.cs.scads.client._
 import edu.berkeley.cs.scads.thrift._
 import edu.berkeley.cs.scads.nodes._
@@ -53,6 +55,34 @@ object WorkloadDescription {
 	}
 }
 
+//////
+// Wikipedia dataset
+//
+object WikipediaDataset {
+	val datasets = Map("wikipedia_20090623_20090630"->"http://scads.s3.amazonaws.com/workload/wikipedia_20090623_20090630.txt")
+	
+	def getTotalHits(hourURL:String):Int = {
+		var sum = 0
+		for(line<-Source.fromURL(hourURL).getLines) sum+=line.trim.split(',')(1).toInt
+		sum
+	}
+	
+	def loadPagesAndHits(hourURL:String, count:Int, filter:Set[String]):Map[String,Int] = {
+		val br = new BufferedReader(new InputStreamReader(new URL(hourURL).openStream()))
+		var done = false
+		val pages = scala.collection.mutable.Map[String,Int]()
+		while (!done) {
+			val line = br.readLine
+			if (line==null) done=true
+			else {
+				val s = line.trim.split(",")
+				if (s.length>=2 && s(0)!="Total" && (filter==null || filter.contains(s(0))) ) pages(s(0)) = pages.getOrElse(s(0),0) + s(1).toInt
+			}
+		}
+		val top = pages.keySet.toList.sort(pages(_)>pages(_)).take(count).foldLeft( scala.collection.mutable.Map[String,Int]())( (n,k)=>n+(k->pages(k)) )
+		Map[String,Int]() ++ top
+	}
+}
 
 
 //////
@@ -95,15 +125,20 @@ object WorkloadProfile {
 			else workload += line.trim.split(",")(columnI).toDouble
 		workload.toList
 	}
+	
+	def getWikipedia(nintervals:Int, dataset:String, nHoursSkip:Int, nHoursDuration:Int, nMaxUsers:Int): WorkloadProfile = {
+		val hours = Source.fromURL(WikipediaDataset.datasets(dataset)).getLines.toList.map(_.trim).drop(nHoursSkip).take(nHoursDuration)
+		val raw = WorkloadProfile( hours.map(WikipediaDataset.getTotalHits(_)) )
+		WorkloadProfile( raw.interpolate( Math.ceil(nintervals.toDouble/(nHoursDuration-1)).toInt ).profile.take(nintervals) ).scale(nMaxUsers)
+	}
 }
 
 @serializable
-class WorkloadProfile(
+case class WorkloadProfile(
 	val profile: List[Int]
 ) {
-	private def fraction(a:Double, b:Double, i:Double, min:Double, max:Double):Double = {
-		min + (max-min)*(i-a)/(b-a)
-	}
+	private def fraction(a:Double, b:Double, i:Double, min:Double, max:Double):Double = min + (max-min)*(i-a)/(b-a)
+	private def interpolateTwo(a:Double, b:Double, n:Int):List[Int] = (0 to n).toList.map( (i:Int)=>Math.round(a + (b-a)*i/n).toInt )
 	
 	def addSpike(tRampup:Int, tSpike:Int, tRampdown:Int, tEnd:Int, magnitude:Double): WorkloadProfile = {
 		val maxUsers = profile.reduceLeft( Math.max(_,_) ).toDouble
@@ -113,8 +148,18 @@ class WorkloadProfile(
 											else if (e._2>=tRampdown&&e._2<tEnd) 	e._1 * fraction(tRampdown,tEnd,e._2,magnitude,1).toDouble
 											else 				 					e._1.toDouble ).toList
 		val maxw = w.reduceLeft( Math.max(_,_) ).toDouble
-		new WorkloadProfile( w.map( (x:Double) => (x/maxw*maxUsers).toInt ) )
+		WorkloadProfile( w.map( (x:Double) => (x/maxw*maxUsers).toInt ) )
 	}
+	
+	def interpolate(nSegments:Int): WorkloadProfile = {
+		WorkloadProfile( List.flatten( profile.dropRight(1).zip(profile.tail).map( (p:Tuple2[Int,Int]) => interpolateTwo(p._1,p._2,nSegments).dropRight(1) ) )+profile.last )
+	}
+	
+	def scale(nMaxUsers:Int): WorkloadProfile = {
+		val maxw = profile.reduceLeft( Math.max(_,_) ).toDouble
+		WorkloadProfile( profile.map( (w:Int) => (w/maxw*nMaxUsers).toInt ) )
+	}
+	
 	override def toString(): String = profile.toString()
 }
 
@@ -127,7 +172,7 @@ object WorkloadMixProfile {
 }
 
 @serializable
-class WorkloadMixProfile(
+case class WorkloadMixProfile(
 	val profile: List[MixVector]
 ) {
 	def getProfile: List[MixVector] = profile
@@ -165,15 +210,35 @@ class MixVector(
 	}
 }
 
-object SCADSKeyGenerator {
-	import java.util.Random
-	val rnd = new Random()
-}
-
 
 //////
 // key generators
 //
+
+object SCADSKeyGenerator {
+	import java.util.Random
+	val rnd = new Random()
+	
+	def getMinKey(gens:List[SCADSKeyGenerator]):Int = gens.map(_.minKey).reduceLeft(Math.min(_,_))
+	def getMaxKey(gens:List[SCADSKeyGenerator]):Int = gens.map(_.maxKey).reduceLeft(Math.max(_,_))
+	
+	def wikipediaKeyProfile(nintervals:Int, dataset:String, nHoursSkip:Int, nHoursDuration:Int, nKeys:Int, keyHour:Int): List[SCADSKeyGenerator] = {
+		val keyhourURL = Source.fromURL(WikipediaDataset.datasets(dataset)).getLines.toList.map(_.trim)(keyHour)
+		val keys = Set[String]() ++ WikipediaDataset.loadPagesAndHits(keyhourURL, nKeys, null).keySet
+		val hours = Source.fromURL(WikipediaDataset.datasets(dataset)).getLines.toList.map(_.trim).drop(nHoursSkip).take(nHoursDuration)
+		val hourGenerators = hours.map( WikipediaKeyGenerator(_,keys) )	
+		val nPerHour = Math.ceil(nintervals.toDouble/(nHoursDuration-1)).toInt
+		val keyProfile = List.flatten( hourGenerators.dropRight(1).zip(hourGenerators.tail).map( (g)=> (0 to (nPerHour-1)).toList.map( (i:Int)=> MixtureKeyGenerator(Map(g._1->(1.0-i/nPerHour.toDouble),g._2->(i/nPerHour.toDouble)) )) ) )+hourGenerators.last
+		keyProfile.take(nintervals)
+	}
+	
+	def sampleKeys(generators:List[SCADSKeyGenerator], nsamples:Int, file:String) {
+		val f = new BufferedWriter(new FileWriter(file))		
+		for (gen <- generators)	f.write( (1 to nsamples).toList.map( i=>gen.generateKey ).mkString("",",","\n") )
+		f.close
+	}
+	
+}
 
 @serializable
 abstract class SCADSKeyGenerator(
@@ -184,7 +249,7 @@ abstract class SCADSKeyGenerator(
 }
 
 @serializable
-class UniformKeyGenerator(
+case class UniformKeyGenerator(
 	override val minKey: Int,
 	override val maxKey: Int
 ) extends SCADSKeyGenerator(minKey,maxKey) {
@@ -192,7 +257,17 @@ class UniformKeyGenerator(
 }
 
 @serializable
-class ZipfKeyGenerator(
+case class MixtureKeyGenerator(
+	components: Map[SCADSKeyGenerator,Double]
+) extends SCADSKeyGenerator(SCADSKeyGenerator.getMinKey(components.keySet.toList),SCADSKeyGenerator.getMaxKey(components.keySet.toList)) {
+	override def generateKey(): Int = {
+		var (s,r) = (0.0,SCADSKeyGenerator.rnd.nextDouble)
+		(for (c<-components) yield {s+=c._2;(c._1,s)}).find(r<_._2).get._1.generateKey
+	}
+}
+
+@serializable
+case class ZipfKeyGenerator(
 	val a: Double,
 	override val minKey: Int,
 	override val maxKey: Int
@@ -203,7 +278,7 @@ class ZipfKeyGenerator(
 	override def generateKey(): Int = {
 		var k = -1
 		do { k=sampleZipf } while (k>maxKey)
-		Math.abs( (k*r).hashCode ) % (maxKey-minKey) + minKey
+		Math.abs( ((k+1)*r).hashCode ) % (maxKey-minKey) + minKey
 	}
 	
 	private def sampleZipf(): Int = {
@@ -220,7 +295,39 @@ class ZipfKeyGenerator(
 }
 
 @serializable
-class EmpiricalKeyGenerator(
+case class WikipediaKeyGenerator(
+	url: String,
+	keys: Set[String]
+) extends SCADSKeyGenerator(0,keys.size-1) {
+	val (pages,cdf,pagehits) = initialize
+	
+	private def initialize():(Array[String],Array[Double],Map[String,Int]) = {
+		val pagehits = WikipediaDataset.loadPagesAndHits(url, keys.size, keys)
+		val pages = pagehits.keySet.toList.sort(_<_).toArray
+		var sum = 0.0 
+		val cdf = (for(page<-pages)yield{sum+=pagehits(page);sum}).toList.map(_/sum).toArray
+		(pages,cdf,pagehits)
+	}
+	
+	override def generateKey(): Int = {
+		var (i0,i1,i) = (0,cdf.length-1,0)
+		val r = SCADSKeyGenerator.rnd.nextDouble
+		
+		var found = false
+		while (!found) {
+			i = (i0+i1)/2
+			if ( (i==0&&r<=cdf(i)) || (cdf(i-1)<r&&r<=cdf(i)) ) found=true
+			else if (r<=cdf(i-1)) i1=i-1
+			else i0=i+1
+		}
+		i
+	}
+	def generatePage():String = pages(generateKey)
+}
+
+
+@serializable
+case class EmpiricalKeyGenerator(
 	val url: String,
 	override val minKey: Int,
 	override val maxKey: Int
@@ -377,7 +484,7 @@ class SimpleSCADSRequestGenerator(
 }
 
 @serializable
-class FixedSCADSRequestGenerator(
+case class FixedSCADSRequestGenerator(
 	override val mix: MixVector,
 	val keyGenerator: SCADSKeyGenerator,
 	val namespace: String,
