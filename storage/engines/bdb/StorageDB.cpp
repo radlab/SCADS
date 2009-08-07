@@ -273,17 +273,18 @@ responsible_for_set(const NameSpace& ns, const RecordSet& rs) {
       isd.__isset.info = true;
       throw isd;
     }
-    if (
-	( !rs.range.__isset.start_key ||
-	  (policy->range.__isset.start_key &&
-	   rs.range.start_key >= policy->range.start_key) ) &&
-	( !rs.range.__isset.end_key ||
-	  (policy->range.__isset.end_key &&
-	   rs.range.end_key <= policy->range.end_key) )
-	)
-      return true;
+
+		if (
+				( policy->range.__isset.start_key &&
+					(!rs.range.__isset.start_key ||
+					 rs.range.start_key < policy->range.start_key) ) ||
+				( policy->range.__isset.end_key &&
+					(!rs.range.__isset.end_key ||
+					 rs.range.end_key > policy->range.end_key) )
+				)
+			return false;
     else
-      return false;
+      return true;
   }
 
   return false; // if we don't understand, we'll say no
