@@ -145,15 +145,14 @@ plot.stats.for.file = function(file) {
 	plot.stats(stats,title=title)
 }
 
-plot.stats = function(stats, req.types=c("get","put"), title="") {
+plot.stats = function(stats, req.types=c("get","put","getset"), title="") {
 	layout( matrix(1:(2*(length(req.types)+2)),ncol=2,byrow=T) )
 	plot.users.vs.workload(stats,title)
 	plot.users.and.workload(stats)
-	
-	try( plot.performance.over.time(stats,"get") )
-	try( plot.performance.over.time(stats,"put") )
+	plot.empty()
 	
 	for (type in req.types) {
+		try( plot.performance.over.time(stats,type) )
 		plot.type.stats(stats,type,ymax=50)	
 		plot.type.stats(stats,type,ymax=300)
 	}
@@ -174,9 +173,13 @@ plot.workload.mix = function(stats, all, req.types) {
 	}
 }
 
+plot.empty = function() {
+	plot( c(), xlab="", ylab="", axes=F, xlim=c(0,1), ylim=c(0,1) )
+}
+
 plot.workload.vs.throughput = function(stats, title) {
 	xlim = c(0,sort(stats$stats$workload,decreasing=T)[1]*1.10)
-	plot( stats$stats$workload, stats$stats$throughput, xlim=xlim,xlab="workload", ylab="throughput", bty="n", main=title )
+	plot( stats$stats$workload, stats$stats$throughput, xlim=xlim, xlab="workload", ylab="throughput", bty="n", main=title )
 }
 
 plot.users.and.workload = function(stats) {
@@ -193,7 +196,7 @@ plot.users.and.workload = function(stats) {
 }
 
 plot.users.vs.workload = function(stats, title="") {
-	plot( stats$all_nusers, stats$all_workload, bty="n", main=title )
+	plot( stats$all_nusers, stats$all_workload, bty="n", main=title, xlab="# users", ylab="throughput", xlim=c(0,max(stats$all_workload,na.rm=T)) )
 }
 
 plot.performance.over.time = function(stats,type) {

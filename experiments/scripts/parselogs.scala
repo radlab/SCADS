@@ -29,6 +29,7 @@ def mapByEndtime( line:String, interval:Long ): (String,String) = ( (line.split(
 def latencyReducer( lines: List[String] ): Map[String,String] = {
 	computeLatencyStats( "all_", lines.map( _.split(",")(columns("latency")).toDouble ) ) ++
 	computeLatencyStats( "get_", lines.filter( _.split(",")(columns("req_type"))=="get" ).map( _.split(",")(columns("latency")).toDouble ) ) ++
+	computeLatencyStats( "getset_", lines.filter( _.split(",")(columns("req_type"))=="getset" ).map( _.split(",")(columns("latency")).toDouble ) ) ++
 	computeLatencyStats( "put_", lines.filter( _.split(",")(columns("req_type"))=="put" ).map( _.split(",")(columns("latency")).toDouble ) )
 }
 
@@ -48,6 +49,7 @@ def uniqueUsersReducer( lines:List[String] ): Map[String,String] = {
 def workloadReducer( lines:List[String], outColumnName:String, interval:Long, fractionReported:Double ): Map[String,String] = {
 	Map( "all_"+outColumnName -> (lines.length/(interval/1000.0)/fractionReported).toString,
 	 	 "get_"+outColumnName -> (lines.filter( _.split(",")(columns("req_type"))=="get" ).length/(interval/1000.0)/fractionReported).toString,
+ 	 	 "getset_"+outColumnName -> (lines.filter( _.split(",")(columns("req_type"))=="getset" ).length/(interval/1000.0)/fractionReported).toString,
 	 	 "put_"+outColumnName -> (lines.filter( _.split(",")(columns("req_type"))=="put" ).length/(interval/1000.0)/fractionReported).toString )
 }
 
