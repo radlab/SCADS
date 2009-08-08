@@ -105,12 +105,12 @@ class WorkloadAgent(client:ClientLibrary, workload:WorkloadDescription, userID:I
 			
 			// check if time for next workoad interval
 			val currentTime = System.currentTimeMillis()
-			if (currentTime > nextIntervalTime) {
+			while (currentTime > nextIntervalTime) {
 				currentIntervalDescriptionI += 1
 				if (currentIntervalDescriptionI < workload.workload.length) {
 					currentIntervalDescription = workload.workload(currentIntervalDescriptionI)
 					nextIntervalTime += currentIntervalDescription.duration
-					threadlog("switching to next workload interval @ "+new java.util.Date() )
+					threadlog("switching to workload interval #"+currentIntervalDescriptionI+"/"+workload.workload.length+" @ "+new java.util.Date() )
 				} else
 					running = false
 			}
