@@ -169,9 +169,11 @@ case class ScadsClients(scadsName: String,host:String, xtrace_on: Boolean, names
 	}
 
 	def startWorkload(workload:WorkloadDescription) {
-		val totalUsers = workload.getMaxNUsers
+		val totalUsers = (workload.getMaxNUsers/clients.size+1)*clients.size
 		val workloadFile = "/tmp/workload.ser"
 		workload.serialize(workloadFile)
+		
+		println("This workload should run for "+"%.2f".format(workload.workload.map(_.duration).reduceLeft(_+_).toDouble/1000/60) +" minutes")
 		
 		// determine ranges to give each client
 		assert( totalUsers % clients.size == 0, "deploy_scads: can't evenly divide number of users amongst client instances")
@@ -185,7 +187,6 @@ case class ScadsClients(scadsName: String,host:String, xtrace_on: Boolean, names
 			val cmd = "cd /opt/scads/experiments/scripts; scala -cp "+ deps + " startWorkload.scala " + args + " &> /tmp/workload.log"
 			commands += (clients.get(id) -> cmd)
 			println("Will run with arguments: "+ args)
-			println("full cmd: " + cmd )
 			new Thread( new StartWorkloadRequest(clients.get(id), workloadFile, cmd) )
 		})
 		for(thread <- threads) thread.start
