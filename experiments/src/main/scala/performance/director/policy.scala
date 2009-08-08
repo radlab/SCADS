@@ -53,7 +53,7 @@ abstract class Policy {
             statement.executeUpdate("CREATE DATABASE IF NOT EXISTS " + dbname)
             statement.executeUpdate("USE " + dbname)
 			statement.executeUpdate("DROP TABLE IF EXISTS "+dbtable)
-			statement.executeUpdate("CREATE TABLE IF NOT EXISTS "+dbtable+" (`time` BIGINT, `policyname` VARCHAR(50) "+stateColumns.map("`"+_+"` VARCHAR(50)").mkString(",",",","")+")" )
+			statement.executeUpdate("CREATE TABLE IF NOT EXISTS "+dbtable+" (`time` BIGINT, `policyname` VARCHAR(50)"+stateColumns.map(",`"+_+"` VARCHAR(50)").mkString(",")+")" )
 			statement.close
        	} catch { case ex: SQLException => ex.printStackTrace() }
 
