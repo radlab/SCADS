@@ -1,9 +1,10 @@
-package optional;
+package optional
 
 import com.thoughtworks.paranamer.BytecodeReadingParanamer
 import java.io.File.separator
 import java.{ lang => jl }
 import java.lang.{ Class => JClass }
+import jl.reflect.{ Array => _, _ }
 
 class DesignError(msg : String) extends Error(msg);
 class InvalidCall(msg : String) extends Exception(msg);
@@ -19,9 +20,9 @@ object Util
     (f isDefinedAt x) && f(x)
   def condOpt[T,U](x: T)(f: PartialFunction[T, U]): Option[U] =
     if (f isDefinedAt x) Some(f(x)) else None
+  
 }
 import Util._
-import jl.reflect.{Array => _, _};
 
 private object OptionType {
   def unapply(x: Any) = condOpt(x) {
@@ -36,18 +37,6 @@ object MainArg {
   }
 }
 
-trait aType[T] {
-  def tpe: Type
-  def str: String
-  def fromString(value: String): AnyRef
-  override def toString: String = str
-}
-trait StringType extends aType[String] {
-  def tpe = classOf[String]
-  def str = "String"
-  def fromString(value: String) = value
-}
-  
 sealed abstract class MainArg {
   def tpe: Type
   def isOptional: Boolean
@@ -79,13 +68,14 @@ case class ReqArg(name: String, tpe: Type) extends MainArg {
  *  out the options it should be called with and takes care of parameter parsing
  */ 
 trait Application
-{
+{ 
+  private def methods(f: Method => Boolean) = getClass.getMethods filter f
   
   private def designError(name : String) = throw new DesignError(name);
   private def invalidCall(name : String) = throw new InvalidCall(name);
 
-  private lazy val mainMethod =
-    (getClass.getMethods filter (x => x.getName == "main" && !isRealMain(x))) match {
+  private lazy val mainMethod = {    
+    (methods(x => x.getName == "main" && !isRealMain(x))) match {
       case Seq()  => designError("No main method found")
       case Seq(x) => x
       case xs     =>
@@ -93,6 +83,10 @@ trait Application
           (xs map (_.getParameterTypes.mkString("  (", ", ", ")")) mkString "\n")
         ))
     }
+  }
+
+  /** Override this if you want to restrict the search space of conversion methods. */
+  protected def isConversionMethod(m: Method) = true
   
   lazy val mainArgs = {
     val argumentNames   = (new BytecodeReadingParanamer lookupParameterNames mainMethod) map (_.replaceAll("\\$.+", ""))
@@ -138,6 +132,12 @@ trait Application
     def m(clazz: JClass[_]) = getAnyValBoxedClass(clazz).getMethod("valueOf", CString)
     Map[JClass[_], Method](primitives zip (primitives map m) : _*)
   }
+  
+  def getConv(tpe: Type): Option[Method] = {
+    def isConv(m: Method) = isConversionMethod(m) && !(m.getName contains "$")
+    
+    methods(isConv) find (_.getGenericReturnType == tpe)
+  }
 
   /**
    * Magic method to take a string and turn it into something of a given type.
@@ -146,10 +146,20 @@ trait Application
     case CString          => value
     // we don't currently support other array types. This is sheer laziness.
     case CArrayString     => value split separator
-    case OptionType(t)    => Some(coerceTo(t)(value))
+    case OptionType(t)    =>  Some(coerceTo(t)(value))    
     case clazz: Class[_]  => 
       if (valueOfMap contains clazz) valueOfMap(clazz).invoke(null, value)
-      else clazz.getConstructor(CString).newInstance(value).asInstanceOf[AnyRef]
+      else try  { clazz.getConstructor(CString).newInstance(value).asInstanceOf[AnyRef] }
+      catch     { case x: NoSuchMethodException => error("Could not find type coercion for %s".format(tpe)) }
+
+    case x: ParameterizedType =>    
+      getConv(x) match {
+        case Some(m)  => m.invoke(this, value)
+        case _        => error("Could not find type coercion for %s".format(x))
+      }
+      
+    case x                    =>
+      error("Unexpected type: %s (%s)".format(x, x.getClass))
   }
 
   private def defaultFor(tpe: Type): AnyRef = tpe match {
