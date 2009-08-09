@@ -2,6 +2,7 @@ package optional;
 
 import com.thoughtworks.paranamer.BytecodeReadingParanamer
 import java.io.File.separator
+import java.{ lang => jl }
 
 class DesignError(msg : String) extends Error(msg);
 class InvalidCall(msg : String) extends Exception(msg);
@@ -9,7 +10,7 @@ class InvalidCall(msg : String) extends Exception(msg);
 object Util
 {
   val CString       = classOf[String]
-  val CInteger      = classOf[java.lang.Integer]
+  val CInteger      = classOf[jl.Integer]
   val CBoolean      = classOf[Boolean]
   val CArrayString  = classOf[Array[String]]
   
@@ -19,7 +20,7 @@ object Util
     if (f isDefinedAt x) Some(f(x)) else None
 }
 import Util._
-import java.lang.reflect.{Array => _, _};
+import jl.reflect.{Array => _, _};
 
 private object OptionType {
   def unapply(x: Any) = condOpt(x) {
@@ -101,14 +102,14 @@ trait Application
   private def isRealMain(m: Method) = cond(m.getParameterTypes) { case Array(CArrayString) => true }
 
   private val boxing = Map[Class[_], Class[_]](
-    classOf[Int] -> classOf[java.lang.Integer],
-    classOf[Byte] -> classOf[java.lang.Byte],
-    classOf[Float] -> classOf[java.lang.Float],
-    classOf[Double] -> classOf[java.lang.Double],
-    classOf[Long] -> classOf[java.lang.Long],
-    classOf[Char] -> classOf[java.lang.Character],
-    classOf[Short] -> classOf[java.lang.Short],
-    classOf[Boolean] -> classOf[java.lang.Boolean]
+    classOf[Int] -> classOf[jl.Integer],
+    classOf[Byte] -> classOf[jl.Byte],
+    classOf[Float] -> classOf[jl.Float],
+    classOf[Double] -> classOf[jl.Double],
+    classOf[Long] -> classOf[jl.Long],
+    classOf[Char] -> classOf[jl.Character],
+    classOf[Short] -> classOf[jl.Short],
+    classOf[Boolean] -> classOf[jl.Boolean]
   )
 
   /**
@@ -125,7 +126,7 @@ trait Application
   private def defaultFor(tpe: Type): AnyRef = tpe match {
     case CString                                    => ""
     case OptionType(_)                              => None
-    case CBoolean                                   => java.lang.Boolean.FALSE
+    case CBoolean                                   => jl.Boolean.FALSE
     case (clazz : Class[_]) if clazz.isPrimitive    => boxing(clazz).getMethod("valueOf", CString).invoke(null, "0")
   }
 
