@@ -3,6 +3,7 @@ package optional;
 import com.thoughtworks.paranamer.BytecodeReadingParanamer
 import java.io.File.separator
 import java.{ lang => jl }
+import java.lang.{ Class => JClass }
 
 class DesignError(msg : String) extends Error(msg);
 class InvalidCall(msg : String) extends Exception(msg);
@@ -34,11 +35,26 @@ object MainArg {
     case _              => ReqArg(name, tpe)
   }
 }
+
+trait aType[T] {
+  def tpe: Type
+  def str: String
+  def fromString(value: String): AnyRef
+  override def toString: String = str
+}
+trait StringType extends aType[String] {
+  def tpe = classOf[String]
+  def str = "String"
+  def fromString(value: String) = value
+}
   
 sealed abstract class MainArg {
   def tpe: Type
   def isOptional: Boolean
   def usage: String
+  
+  // def fromString(s: String): AnyRef
+  // def tpeToString: String
   
   def tpeToString = tpe match {
     case CString      => "String"
@@ -101,16 +117,27 @@ trait Application
   }
   private def isRealMain(m: Method) = cond(m.getParameterTypes) { case Array(CArrayString) => true }
 
-  private val boxing = Map[Class[_], Class[_]](
-    classOf[Int] -> classOf[jl.Integer],
-    classOf[Byte] -> classOf[jl.Byte],
-    classOf[Float] -> classOf[jl.Float],
-    classOf[Double] -> classOf[jl.Double],
-    classOf[Long] -> classOf[jl.Long],
-    classOf[Char] -> classOf[jl.Character],
-    classOf[Short] -> classOf[jl.Short],
-    classOf[Boolean] -> classOf[jl.Boolean]
+  def getAnyValBoxedClass(x: JClass[_]): JClass[_] =
+    if (x == classOf[Byte]) classOf[jl.Byte]
+    else if (x == classOf[Short]) classOf[jl.Short]
+    else if (x == classOf[Int]) classOf[jl.Integer]
+    else if (x == classOf[Long]) classOf[jl.Long]
+    else if (x == classOf[Float]) classOf[jl.Float]
+    else if (x == classOf[Double]) classOf[jl.Double]
+    else if (x == classOf[Char]) classOf[jl.Character]
+    else if (x == classOf[Boolean]) classOf[jl.Boolean]
+    else if (x == classOf[Unit]) classOf[Unit]
+    else throw new Exception("Not an AnyVal: " + x)
+
+  private val primitives = List(
+    classOf[Byte], classOf[Short], classOf[Int], classOf[Long],
+    classOf[Float], classOf[Double] // , classOf[Char], classOf[Boolean]
   )
+
+  private val valueOfMap = {
+    def m(clazz: JClass[_]) = getAnyValBoxedClass(clazz).getMethod("valueOf", CString)
+    Map[JClass[_], Method](primitives zip (primitives map m) : _*)
+  }
 
   /**
    * Magic method to take a string and turn it into something of a given type.
@@ -120,14 +147,17 @@ trait Application
     // we don't currently support other array types. This is sheer laziness.
     case CArrayString     => value split separator
     case OptionType(t)    => Some(coerceTo(t)(value))
-    case clazz: Class[_]  => boxing.getOrElse(clazz, clazz).getMethod("valueOf", CString).invoke(null, value);
+    case clazz: Class[_]  => 
+      if (valueOfMap contains clazz) valueOfMap(clazz).invoke(null, value)
+      else clazz.getConstructor(CString).newInstance(value).asInstanceOf[AnyRef]
   }
 
   private def defaultFor(tpe: Type): AnyRef = tpe match {
     case CString                                    => ""
     case OptionType(_)                              => None
     case CBoolean                                   => jl.Boolean.FALSE
-    case (clazz : Class[_]) if clazz.isPrimitive    => boxing(clazz).getMethod("valueOf", CString).invoke(null, "0")
+    case (clazz : Class[_]) if clazz.isPrimitive    => valueOfMap(clazz).invoke(null, "0")
+    case _                                          => null
   }
 
   private var _opts: Options = null

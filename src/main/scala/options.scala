@@ -28,7 +28,7 @@ object Options
     val arguments = new ArrayBuffer[String];
 
     def addOption(name : String) = {
-      if(optionsStack.isEmpty) options(name) = True;
+      if (optionsStack.isEmpty) options(name) = True;
       else {
         val next = optionsStack.pop;
         next match {
