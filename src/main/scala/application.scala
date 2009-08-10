@@ -6,8 +6,8 @@ import java.{ lang => jl }
 import java.lang.{ Class => JClass }
 import jl.reflect.{ Array => _, _ }
 
-case class DesignError(msg : String) extends Error(msg)
-case class InvalidCall(msg : String) extends Exception(msg)
+case class DesignError(msg: String) extends Error(msg)
+case class UsageError(msg: String) extends RuntimeException(msg)
 
 object Util
 {
@@ -21,6 +21,19 @@ object Util
   def condOpt[T,U](x: T)(f: PartialFunction[T, U]): Option[U] =
     if (f isDefinedAt x) Some(f(x)) else None
   
+  def stringForType(tpe: Type): String =
+    if (tpe == classOf[Int] || tpe == classOf[jl.Integer]) "Int"
+    else if (tpe == classOf[Long] || tpe == classOf[jl.Long]) "Long"
+    else if (tpe == classOf[Short] || tpe == classOf[jl.Short]) "Short"
+    else if (tpe == classOf[Byte] || tpe == classOf[jl.Byte]) "Byte"
+    else if (tpe == classOf[Float] || tpe == classOf[jl.Float]) "Float"
+    else if (tpe == classOf[Double] || tpe == classOf[jl.Double]) "Double"
+    else if (tpe == classOf[Char] || tpe == classOf[jl.Character]) "Char"
+    else if (tpe == CString) "String"
+    else tpe match {
+      case x: Class[_]  => x.getName()
+      case x            => x.toString()
+    }  
 }
 import Util._
 
@@ -32,14 +45,19 @@ private object OptionType {
 
 object MainArg {
   def apply(name: String, tpe: Type): MainArg = tpe match {
-    case OptionType(t)  => OptArg(name, t)
+    case OptionType(t)  => OptArg(name, t, tpe)
     case _              => ReqArg(name, tpe)
+  }
+  def unapply(x: Any): Option[(String, Type, Type)] = x match {
+    case OptArg(name, tpe, originalType)  => Some(name, tpe, originalType)
+    case ReqArg(name, tpe)                => Some(name, tpe, tpe)
   }
 }
 
 sealed abstract class MainArg {
   def name: String
   def tpe: Type
+  def originalType: Type
   def isOptional: Boolean
   def usage: String
   
@@ -54,12 +72,12 @@ sealed abstract class MainArg {
     case x            => x.toString()
   }
 }
-case class OptArg(name: String, tpe: Type) extends MainArg {
+case class OptArg(name: String, tpe: Type, originalType: Type) extends MainArg {
   val isOptional = true
   def usage = "[--%s %s]".format(name, tpeToString)
 }
 case class ReqArg(name: String, tpe: Type) extends MainArg {
-  // def this(name: String, tpe: Type) = this(name, tpe, None)
+  val originalType = tpe
   val isOptional = false
   def usage = "<%s: %s>".format(name, tpeToString)
 }
@@ -91,10 +109,11 @@ trait Application
   
   private def methods(f: Method => Boolean): List[Method] = getClass.getMethods.toList filter f
   private def signature(m: Method) = m.toGenericString.replaceAll("""\S+\.main\(""", "main(") // ))
-  
-  private def designError(name : String) = throw DesignError(name)
-  private def invalidCall(name : String) = throw InvalidCall(name)
+  private def designError(msg: String) = throw DesignError(msg)
+  private def usageError(msg: String) = throw UsageError(msg)
 
+  private def isRealMain(m: Method)     = cond(m.getParameterTypes) { case Array(CArrayString) => true }
+  private def isEligibleMain(m: Method) = m.getName == "main" && !isRealMain(m)
   private lazy val mainMethod = methods(isEligibleMain) match {
     case Nil      => designError("No eligible main method found")
     case List(x)  => x
@@ -115,8 +134,6 @@ trait Application
       try   { Some(x.toInt) }
       catch { case _: NumberFormatException => None }
   }
-  private def isEligibleMain(m: Method) = m.getName == "main" && !isRealMain(m)
-  private def isRealMain(m: Method)     = cond(m.getParameterTypes) { case Array(CArrayString) => true }
 
   def getAnyValBoxedClass(x: JClass[_]): JClass[_] =
     if (x == classOf[Byte]) classOf[jl.Byte]
@@ -137,7 +154,11 @@ trait Application
 
   private val valueOfMap = {
     def m(clazz: JClass[_]) = getAnyValBoxedClass(clazz).getMethod("valueOf", CString)
-    Map[JClass[_], Method](primitives zip (primitives map m) : _*)
+    val xs1: List[(JClass[_], Method)] = primitives zip (primitives map m)
+    val xs2: List[(JClass[_], Method)] = for (clazz <- (primitives map getAnyValBoxedClass)) yield (clazz, clazz.getMethod("valueOf", CString))
+
+    Map[JClass[_], Method](xs1 ::: xs2 : _*)    
+    // Map[JClass[_], Method](primitives zip (primitives map m) : _*)
   }
   
   def getConv(tpe: Type): Option[Method] = {
@@ -145,28 +166,38 @@ trait Application
     
     methods(isConv) find (_.getGenericReturnType == tpe)
   }
+  def getNumber(clazz: Class[_], value: String): Option[AnyRef] = {
+    val v = valueOfMap.get(clazz) getOrElse (return None)
+
+    try   { Some(v.invoke(null, value)) }
+    catch { case _: InvocationTargetException => None }
+  }
 
   /**
    * Magic method to take a string and turn it into something of a given type.
    */
-  private def coerceTo(tpe: Type)(value: String): AnyRef = tpe match {
+  private def coerceTo(name: String, tpe: Type)(value: String): AnyRef = tpe match {
     case CString          => value
     // we don't currently support other array types. This is sheer laziness.
     case CArrayString     => value split separator
-    case OptionType(t)    =>  Some(coerceTo(t)(value))    
+    case OptionType(t)    => Some(coerceTo(name, t)(value))
     case clazz: Class[_]  => 
-      if (valueOfMap contains clazz) valueOfMap(clazz).invoke(null, value)
+      // println("clazz = " + clazz)
+      if (valueOfMap contains clazz) getNumber(clazz, value) getOrElse (
+        usageError("option --%s expects arg of type '%s' but was given '%s'".format(name, stringForType(tpe), value))
+      )
+      // valueOfMap(clazz).invoke(null, value)
       else try  { clazz.getConstructor(CString).newInstance(value).asInstanceOf[AnyRef] }
-      catch     { case x: NoSuchMethodException => error("Could not find type coercion for %s".format(tpe)) }
+      catch     { case x: NoSuchMethodException => designError("Could not find type coercion for %s".format(tpe)) }
 
     case x: ParameterizedType =>    
       getConv(x) match {
         case Some(m)  => m.invoke(this, value)
-        case _        => error("Could not find type coercion for %s".format(x))
+        case _        => designError("Could not find type coercion for %s".format(x))
       }
       
     case x                    =>
-      error("Unexpected type: %s (%s)".format(x, x.getClass))
+      usageError("Unexpected type: %s (%s)".format(x, x.getClass))
   }
 
   private def defaultFor(tpe: Type): AnyRef = tpe match {
@@ -195,17 +226,12 @@ trait Application
     }
 
     for (i <- 0 until methodArguments.length) {
-      val tpe = parameterTypes(i);
-      def valueOf(x: Option[String]) = {
-        val coerced = x map coerceTo(tpe)
-        // println("%s coerces to %s".format(x, coerced))
-        val res = coerced getOrElse defaultFor(tpe)
-        res
-      }
+      val MainArg(name, _, tpe)       = mainArgs(i)
+      def valueOf(x: Option[String])  = x map coerceTo(name, tpe) getOrElse defaultFor(tpe)
 
-      methodArguments(i) = argumentNames(i) match {
+      methodArguments(i) = name match {
         case Argument(Numeric(num)) => 
-          if (num <= args.length) coerceTo(tpe)(args(num - 1))
+          if (num <= args.length) coerceTo(name, tpe)(args(num - 1))
           else mainArgs(i) match {
             case _: OptArg    => defaultFor(tpe)
             case ReqArg(x, _) => return println(usageMessage)
@@ -222,7 +248,12 @@ trait Application
   
   
   def main(cmdline: Array[String]) {
-    _opts = Options.parse(cmdline: _*)
-    callWithOptions()
+    try {
+      _opts = Options.parse(cmdline: _*)
+      callWithOptions()
+    }
+    catch {
+      case UsageError(msg) => return println("Error: " + msg)
+    } 
   }
 }
