@@ -70,8 +70,6 @@ object Director {
 	case class Runner(policy:Policy,placementIP: String) extends Runnable {
 		val metricReader = new MetricReader(databaseHost,"metrics",20,0.02)		
 		var actions = List[Action]()
-		
-		initDatabases
 
 		var running = true
 		def run = {
