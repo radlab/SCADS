@@ -98,10 +98,12 @@ class SSH(hostname: String){
       }
     }
 
-    if (connectAgain(numConnectionAttempts))
-      if (connection.authenticateWithPublicKey("root", keyfile, "") == false) {
-        throw new IOException("Authentication failed.")
-      }
+    synchronized {
+      if (connectAgain(numConnectionAttempts))
+        if (connection.authenticateWithPublicKey("root", keyfile, "") == false) {
+          throw new IOException("Authentication failed.")
+        }
+    }
   }
   
   def closeConnection = {
