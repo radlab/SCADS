@@ -34,10 +34,15 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 	var lastRefresh:Long = System.currentTimeMillis()
 	var destinationIP:String=null
 	val thread_name = Thread.currentThread().getName()
+	var deploy_name = "unnamed" // which test deployment is client a part of
 
 	private def doRefresh = {
 		this.refreshPlacement
 		lastRefresh = System.currentTimeMillis()
+	}
+
+	def setDeployName(name:String) = {
+		deploy_name = name
 	}
 
 	/**
@@ -49,7 +54,7 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 		if ( (lastRefresh+ttl) < System.currentTimeMillis() ) doRefresh
 		val ret = this.get_retry(namespace,key,retries) // destinationIP is set here
 		var latency = System.nanoTime()-startt
-		XTraceContext.logEvent(thread_name,"ROWAClientLibrary","RequestDetails","get,"+destinationIP+","+(latency/1000000.0))
+		XTraceContext.logEvent(thread_name,"ROWAClientLibrary","RequestDetails",",get,"+destinationIP+","+(latency/1000000.0)+","+deploy_name)
 		ret
 	}
 	private def get_retry(namespace: String, key: String, count: Int):Record = {
@@ -143,7 +148,7 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 					val startt = System.nanoTime()
 					val records_subset = node.useConnection((c) => c.get_set(namespace,rset))
 					var latency = System.nanoTime()-startt
-					XTraceContext.logEvent(thread_name,"ROWAClientLibrary","RequestDetails","get_set,"+destinationIP+","+(latency/1000000.0))
+					XTraceContext.logEvent(thread_name,"ROWAClientLibrary","RequestDetails","get_set,"+destinationIP+","+(latency/1000000.0)+","+deploy_name)
 					val iter:java.util.Iterator[Record] = records_subset.iterator()
 					while (iter.hasNext()) {
 						//records += iter.next(); limit -=1}
@@ -159,7 +164,7 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 							val startt = System.nanoTime()
 							val records_subset = node.useConnection((c) => c.get_set(namespace,rset))
 							var latency = System.nanoTime()-startt
-							XTraceContext.logEvent(thread_name,"ROWAClientLibrary","RequestDetails","get_set,"+destinationIP+","+(latency/1000000.0))
+							XTraceContext.logEvent(thread_name,"ROWAClientLibrary","RequestDetails","get_set,"+destinationIP+","+(latency/1000000.0)+","+deploy_name)
 							val iter = records_subset.iterator()
 							while (iter.hasNext()) { records += iter.next(); limit -= 1 }
 							count-=1
@@ -188,7 +193,7 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 		java.util.Arrays.sort(records_array,new RecordComparator()) 
 		val ret = java.util.Arrays.asList(records_array: _*) // shitty, but convert to java array
 		var latency = System.nanoTime()-startt
-		XTraceContext.logEvent(thread_name,"ROWAClientLibrary","RequestDetails","get_set,"+(latency/1000000.0))
+		XTraceContext.logEvent(thread_name,"ROWAClientLibrary","RequestDetails","get_set_total,ALL,"+(latency/1000000.0)+","+deploy_name)
 		ret
 	}
 	
@@ -247,7 +252,7 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 		if ( (lastRefresh+ttl) < System.currentTimeMillis() ) doRefresh
 		var ret = this.put_retry(namespace,rec,retries)  // destinationIP is set here
 		var latency = System.nanoTime()-startt
-		XTraceContext.logEvent(thread_name,"ROWAClientLibrary","RequestDetails","put,"+destinationIP+","+(latency/1000000.0))
+		XTraceContext.logEvent(thread_name,"ROWAClientLibrary","RequestDetails","put,"+destinationIP+","+(latency/1000000.0)+","+deploy_name)
 		ret
 	}
 
