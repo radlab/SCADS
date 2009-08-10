@@ -323,6 +323,11 @@ class Instance(initialInstance: RunningInstance) {
     return true
   }
   
+  def closeConnection = {
+    checkSsh
+    ssh.closeConnection
+  }
+  
   private def checkSsh = {
     if (ssh == null){
       throw new IllegalStateException("Instance may not be ready yet. " +
