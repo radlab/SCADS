@@ -6,8 +6,8 @@ import java.{ lang => jl }
 import java.lang.{ Class => JClass }
 import jl.reflect.{ Array => _, _ }
 
-class DesignError(msg : String) extends Error(msg);
-class InvalidCall(msg : String) extends Exception(msg);
+case class DesignError(msg : String) extends Error(msg)
+case class InvalidCall(msg : String) extends Exception(msg)
 
 object Util
 {
@@ -89,20 +89,19 @@ trait Application
   /** If you mess with anything from here on down, you're on your own.
    */
   
-  private def methods(f: Method => Boolean) = getClass.getMethods filter f
+  private def methods(f: Method => Boolean): List[Method] = getClass.getMethods.toList filter f
+  private def signature(m: Method) = m.toGenericString.replaceAll("""\S+\.main\(""", "main(") // ))
   
-  private def designError(name : String) = throw new DesignError(name);
-  private def invalidCall(name : String) = throw new InvalidCall(name);
+  private def designError(name : String) = throw DesignError(name)
+  private def invalidCall(name : String) = throw InvalidCall(name)
 
-  private lazy val mainMethod = {    
-    (methods(x => x.getName == "main" && !isRealMain(x))) match {
-      case Seq()  => designError("No main method found")
-      case Seq(x) => x
-      case xs     =>
-        designError("You seem to have multiple main methods, signatures:\n%s".format(
-          (xs map (_.getParameterTypes.mkString("  (", ", ", ")")) mkString "\n")
-        ))
-    }
+  private lazy val mainMethod = methods(isEligibleMain) match {
+    case Nil      => designError("No eligible main method found")
+    case List(x)  => x
+    case xs       =>
+      designError("You seem to have multiple main methods, signatures:\n%s" .
+        format(xs map signature mkString "\n")
+      )
   }
   
   private lazy val parameterTypes   = mainMethod.getGenericParameterTypes.toList
@@ -116,7 +115,8 @@ trait Application
       try   { Some(x.toInt) }
       catch { case _: NumberFormatException => None }
   }
-  private def isRealMain(m: Method) = cond(m.getParameterTypes) { case Array(CArrayString) => true }
+  private def isEligibleMain(m: Method) = m.getName == "main" && !isRealMain(m)
+  private def isRealMain(m: Method)     = cond(m.getParameterTypes) { case Array(CArrayString) => true }
 
   def getAnyValBoxedClass(x: JClass[_]): JClass[_] =
     if (x == classOf[Byte]) classOf[jl.Byte]
@@ -182,7 +182,10 @@ trait Application
 
   def callWithOptions(): Unit = {
     import opts._
-    val methodArguments = new Array[AnyRef](parameterTypes.length)
+    
+    val methodArguments =
+      try   { new Array[AnyRef](parameterTypes.length) }
+      catch { case DesignError(msg) => return println(msg) }
     
     val missingArgs = reqArgs filter (x => !(options contains x.name))
     if (!missingArgs.isEmpty) {
