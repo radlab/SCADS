@@ -16,6 +16,8 @@ object Util
   val CBoolean      = classOf[Boolean]
   val CArrayString  = classOf[Array[String]]
   
+  val Argument = """^arg(\d+)$""".r
+  
   def cond[T](x: T)(f: PartialFunction[T, Boolean]) =
     (f isDefinedAt x) && f(x)
   def condOpt[T,U](x: T)(f: PartialFunction[T, U]): Option[U] =
@@ -43,14 +45,21 @@ private object OptionType {
   }
 }
 
-object MainArg {
+object MainArg
+{
   def apply(name: String, tpe: Type): MainArg = tpe match {
     case OptionType(t)  => OptArg(name, t, tpe)
-    case _              => ReqArg(name, tpe)
+    case _              =>
+      name match {      
+        case Argument(num)  => PosArg(name, tpe, num.toInt)
+        case _              => ReqArg(name, tpe)
+      }
   }
+
   def unapply(x: Any): Option[(String, Type, Type)] = x match {
     case OptArg(name, tpe, originalType)  => Some(name, tpe, originalType)
     case ReqArg(name, tpe)                => Some(name, tpe, tpe)
+    case PosArg(name, tpe, num)           => Some(name, tpe, tpe)
   }
 }
 
@@ -61,25 +70,22 @@ sealed abstract class MainArg {
   def isOptional: Boolean
   def usage: String
   
-  // def fromString(s: String): AnyRef
-  // def tpeToString: String
-  
-  def tpeToString = tpe match {
-    case CString      => "String"
-    case CInteger     => "Int"
-    case CBoolean     => "Boolean"
-    case x: Class[_]  => x.getName()
-    case x            => x.toString()
-  }
+  def pos: Int = -1
+  def isPositional = pos > -1
 }
 case class OptArg(name: String, tpe: Type, originalType: Type) extends MainArg {
   val isOptional = true
-  def usage = "[--%s %s]".format(name, tpeToString)
+  def usage = "[--%s %s]".format(name, stringForType(tpe))
 }
 case class ReqArg(name: String, tpe: Type) extends MainArg {
   val originalType = tpe
   val isOptional = false
-  def usage = "<%s: %s>".format(name, tpeToString)
+  def usage = "<%s: %s>".format(name, stringForType(tpe))
+}
+case class PosArg(name: String, tpe: Type, override val pos: Int) extends MainArg {
+  val originalType = tpe
+  val isOptional = false
+  def usage = "<%s>".format(stringForType(tpe))
 }
 
 /**
@@ -127,13 +133,7 @@ trait Application
   private lazy val argumentNames    = (new BytecodeReadingParanamer lookupParameterNames mainMethod map (_.replaceAll("\\$.+", ""))).toList
   private lazy val mainArgs         = List.map2(argumentNames, parameterTypes)(MainArg(_, _))
   private lazy val reqArgs          = mainArgs filter (x => !x.isOptional)
-  
-  private val Argument = """^arg(\d+)$""".r
-  private object Numeric {
-    def unapply(x : String) = 
-      try   { Some(x.toInt) }
-      catch { case _: NumberFormatException => None }
-  }
+  private def posArgCount           = mainArgs filter (_.isPositional) size
 
   def getAnyValBoxedClass(x: JClass[_]): JClass[_] =
     if (x == classOf[Byte]) classOf[jl.Byte]
@@ -161,51 +161,40 @@ trait Application
     // Map[JClass[_], Method](primitives zip (primitives map m) : _*)
   }
   
-  def getConv(tpe: Type): Option[Method] = {
+  def getConv(tpe: Type, value: String): Option[AnyRef] = {
     def isConv(m: Method) = isConversionMethod(m) && !(m.getName contains "$")
-    
-    methods(isConv) find (_.getGenericReturnType == tpe)
-  }
-  def getNumber(clazz: Class[_], value: String): Option[AnyRef] = {
-    val v = valueOfMap.get(clazz) getOrElse (return None)
 
-    try   { Some(v.invoke(null, value)) }
-    catch { case _: InvocationTargetException => None }
+    methods(isConv) find (_.getGenericReturnType == tpe) map (_.invoke(this, value))
   }
+
+  def getNumber(clazz: Class[_], value: String): Option[AnyRef] =
+    try   { (valueOfMap get clazz) map (_.invoke(null, value)) }
+    catch { case _: InvocationTargetException => None }
 
   /**
    * Magic method to take a string and turn it into something of a given type.
    */
-  private def coerceTo(name: String, tpe: Type)(value: String): AnyRef = tpe match {
-    case CString          => value
-    // we don't currently support other array types. This is sheer laziness.
-    case CArrayString     => value split separator
-    case OptionType(t)    => Some(coerceTo(name, t)(value))
-    case clazz: Class[_]  => 
-      // println("clazz = " + clazz)
-      if (valueOfMap contains clazz) getNumber(clazz, value) getOrElse (
-        usageError("option --%s expects arg of type '%s' but was given '%s'".format(name, stringForType(tpe), value))
-      )
-      // valueOfMap(clazz).invoke(null, value)
-      else try  { clazz.getConstructor(CString).newInstance(value).asInstanceOf[AnyRef] }
-      catch     { case x: NoSuchMethodException => designError("Could not find type coercion for %s".format(tpe)) }
+  private def coerceTo(name: String, tpe: Type)(value: String): AnyRef = {
+    def fail      = designError("Could not create type '%s' from String".format(tpe))
+    def mismatch  = usageError("option --%s expects arg of type '%s' but was given '%s'".format(name, stringForType(tpe), value))
+    def surprise  = usageError("Unexpected type: %s (%s)".format(tpe, tpe.getClass))
+    
+    tpe match {
+      case CString          => value
+      case CArrayString     => value split separator
+      case OptionType(t)    => Some(coerceTo(name, t)(value))
+      case clazz: Class[_]  => 
+        if (valueOfMap contains clazz)
+          getNumber(clazz, value) getOrElse mismatch
+        else
+          getConv(clazz, value) getOrElse {
+            try   { clazz.getConstructor(CString).newInstance(value).asInstanceOf[AnyRef] }
+            catch { case x: NoSuchMethodException => fail }
+          }
 
-    case x: ParameterizedType =>    
-      getConv(x) match {
-        case Some(m)  => m.invoke(this, value)
-        case _        => designError("Could not find type coercion for %s".format(x))
-      }
-      
-    case x                    =>
-      usageError("Unexpected type: %s (%s)".format(x, x.getClass))
-  }
-
-  private def defaultFor(tpe: Type): AnyRef = tpe match {
-    case CString                                    => ""
-    case OptionType(_)                              => None
-    case CBoolean                                   => jl.Boolean.FALSE
-    case (clazz : Class[_]) if clazz.isPrimitive    => valueOfMap(clazz).invoke(null, "0")
-    case _                                          => null
+      case x: ParameterizedType => getConv(x, value) getOrElse fail
+      case x                    => surprise
+    }
   }
 
   private var _opts: Options = null
@@ -213,37 +202,32 @@ trait Application
 
   def callWithOptions(): Unit = {
     import opts._
+    def missing(s: String)  = usageError("Missing required option '%s'".format(s))
+
+    // verify minimum quantity of positional arguments
+    if (args.size < posArgCount)
+      usageError("too few arguments: expected %d, got %d".format(posArgCount, args.size))
     
-    val methodArguments =
-      try   { new Array[AnyRef](parameterTypes.length) }
-      catch { case DesignError(msg) => return println(msg) }
-    
-    val missingArgs = reqArgs filter (x => !(options contains x.name))
+    // verify all required options are present
+    val missingArgs = reqArgs filter (x => !(options contains x.name) && !(x.name matches """^arg\d+$"""))
     if (!missingArgs.isEmpty) {
-      val missingStr = missingArgs map (x => "--" + x.name) mkString " "
+      val missingStr = missingArgs map ("--" + _.name) mkString " "        
       val s = if (missingArgs.size == 1) "" else "s"
-      return println("Missing required argument%s: %s".format(s, missingStr))
+      
+      usageError("missing required option%s: %s".format(s, missingStr))
     }
-
-    for (i <- 0 until methodArguments.length) {
-      val MainArg(name, _, tpe)       = mainArgs(i)
-      def valueOf(x: Option[String])  = x map coerceTo(name, tpe) getOrElse defaultFor(tpe)
-
-      methodArguments(i) = name match {
-        case Argument(Numeric(num)) => 
-          if (num <= args.length) coerceTo(name, tpe)(args(num - 1))
-          else mainArgs(i) match {
-            case _: OptArg    => defaultFor(tpe)
-            case ReqArg(x, _) => return println(usageMessage)
-          }
-          
-        case x => 
-          // println("x = %s %s".format(x, x.getClass))
-          valueOf(options get x)
-      }
+    
+    def determineValue(ma: MainArg): AnyRef = {
+      val MainArg(name, _, tpe) = ma
+      def isPresent = options contains name
+      
+      if (ma.isPositional)      coerceTo(name, tpe)(args(ma.pos - 1))
+      else if (isPresent)       coerceTo(name, tpe)(options(name))
+      else if (ma.isOptional)   None
+      else                      missing(name)
     }
-
-    mainMethod.invoke(this, methodArguments: _*)
+    
+    mainMethod.invoke(this, (mainArgs map determineValue).toArray : _*)
   }
   
   
@@ -253,7 +237,9 @@ trait Application
       callWithOptions()
     }
     catch {
-      case UsageError(msg) => return println("Error: " + msg)
-    } 
+      case UsageError(msg) =>
+        println("Error: " + msg)
+        println(usageMessage)
+    }
   }
 }
