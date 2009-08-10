@@ -31,13 +31,14 @@ private object OptionType {
 }
 
 object MainArg {
-  def apply(name: String, tpe: Type) = tpe match {
+  def apply(name: String, tpe: Type): MainArg = tpe match {
     case OptionType(t)  => OptArg(name, t)
     case _              => ReqArg(name, tpe)
   }
 }
 
 sealed abstract class MainArg {
+  def name: String
   def tpe: Type
   def isOptional: Boolean
   def usage: String
@@ -58,6 +59,7 @@ case class OptArg(name: String, tpe: Type) extends MainArg {
   def usage = "[--%s %s]".format(name, tpeToString)
 }
 case class ReqArg(name: String, tpe: Type) extends MainArg {
+  // def this(name: String, tpe: Type) = this(name, tpe, None)
   val isOptional = false
   def usage = "<%s: %s>".format(name, tpeToString)
 }
@@ -88,12 +90,14 @@ trait Application
   /** Override this if you want to restrict the search space of conversion methods. */
   protected def isConversionMethod(m: Method) = true
   
-  lazy val mainArgs = {
+  lazy val mainArgs: List[MainArg] = {
     val argumentNames   = (new BytecodeReadingParanamer lookupParameterNames mainMethod) map (_.replaceAll("\\$.+", ""))
     val parameterTypes  = mainMethod.getGenericParameterTypes
     
     List.map2(argumentNames.toList, parameterTypes.toList)(MainArg(_, _))
   }
+  def reqArgs = mainArgs filter (x => !x.isOptional)
+  
   protected def programName = "program"
   protected def usageMessage = "Usage: %s %s".format(programName, mainArgs map (_.usage) mkString " ")
         
@@ -176,6 +180,13 @@ trait Application
   def callWithOptions(): Unit = {
     import opts._
     val methodArguments = new Array[AnyRef](parameterTypes.length)
+    
+    val missingArgs = reqArgs filter (x => !(options contains x.name))
+    if (!missingArgs.isEmpty) {
+      val missingStr = missingArgs map (x => "--" + x.name) mkString " "
+      val s = if (missingArgs.size == 1) "" else "s"
+      return println("Missing required argument%s: %s".format(s, missingStr))
+    }
 
     for (i <- 0 until methodArguments.length) {
       val tpe = parameterTypes(i);
