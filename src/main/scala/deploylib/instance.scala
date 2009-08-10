@@ -323,6 +323,10 @@ class Instance(initialInstance: RunningInstance) {
     return true
   }
   
+  /**
+   * Closes ssh connection that opened when you did an exec, upload, or 
+   * download.
+   */
   def closeConnection = {
     checkSsh
     ssh.closeConnection
