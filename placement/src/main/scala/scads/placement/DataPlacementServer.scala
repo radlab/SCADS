@@ -56,10 +56,12 @@ class SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 		if (spaces.contains(ns)) {
 			val entries = lookup_namespace(ns)
 			val iter = entries.iterator
-			//var entry:DataPlacement = null // make this val?
 			while (iter.hasNext) {
 				val entry:DataPlacement = iter.next
-				if ( (rangeSetToKeyRange(entry.rset.range) & range) != KeyRange.EmptyRange ) { ret.add(entry) }
+				val potential = rangeSetToKeyRange(entry.rset.range)
+				val adding:Boolean = (potential & range) != KeyRange.EmptyRange
+				logger.debug("Target range "+range.start_key+" - "+range.end_key+ " overlaps '"+potential.start+"' - '"+potential.end+"' ? "+adding)
+				if ( adding ) { ret.add(entry) }
 			}
 		}
 		logger.debug("Range "+range.start_key+" - "+range.end_key+" available from "+ ret.size+" nodes.")
@@ -175,13 +177,11 @@ class SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 			if (!spaces.contains(ns)) return true
 			val iter = entries.iterator
 			var entry:DataPlacement = null
-			var other_entry:DataPlacement = null
-			var candidate:DataPlacement = null
 			val toRemove = new java.util.LinkedList[DataPlacement]
 
 			while (iter.hasNext) {
 				entry = iter.next
-				candidate = lookup_node(ns, entry.node, entry.thriftPort, entry.syncPort)
+				val candidate = lookup_node(ns, entry.node, entry.thriftPort, entry.syncPort)
 				if (candidate != null) {
 					val node = new StorageNode(entry.node,entry.thriftPort,entry.syncPort)
 
@@ -189,12 +189,15 @@ class SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 					val others = lookup_range(ns, entry.rset.range)
 					val others_iter = others.iterator
 					while (others_iter.hasNext) {
-						other_entry = others_iter.next
-						node.useConnection((c) => c.sync_set(ns, entry.rset, other_entry.node+":"+other_entry.syncPort, conflictPolicy) )
+						val other_entry = others_iter.next
+						if ( (entry.node+":"+entry.syncPort) != (other_entry.node+":"+other_entry.syncPort)) {
+							logger.debug("Syncing "+entry.node+" and "+ other_entry.node)
+							node.useConnection((c) => c.sync_set(ns, entry.rset, other_entry.node+":"+other_entry.syncPort, conflictPolicy) )
+						}
 					}
 
 					// now remove range from the storage node
-					node.useConnection((c) => c.remove_set(ns, rangeSetToKeyRange(entry.rset.range)))
+					node.useConnection((c) => c.remove_set(ns, entry.rset))
 				}
 				toRemove.add(candidate)
 				logger.debug("Removing "+ toRemove.size +" entries from namespace "+ns)
@@ -220,6 +223,7 @@ case class RunnableDataPlacementServer(port:Int) extends Runnable {
 				if (System.getProperty("xtrace")!=null) {new XtBinaryProtocol.Factory(true, true)} else {new TBinaryProtocol.Factory(true, true)}
 	    	val options = new THsHaServer.Options
 			options.maxWorkerThreads=4
+			options.minWorkerThreads=2
 			val server = new THsHaServer(processor, serverTransport,protFactory,options)
     
 			if (System.getProperty("xtrace")!=null) { logger.info("Starting data placement with xtrace enabled") }
