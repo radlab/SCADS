@@ -116,6 +116,7 @@ case class MetricReader(
 	val pass = ""
 	
 	var connection = Director.connectToDatabase
+	initDatabase
 	
 	def initDatabase() {
         // create database if it doesn't exist and select it
@@ -153,7 +154,7 @@ case class MetricReader(
 				time = new java.util.Date(result.getLong("time"))
 				value = if (metric=="workload") (result.getString("value").toDouble/interval/report_prob) else result.getString("value").toDouble
 			}
-       	} catch { case ex: SQLException => }
+       	} catch { case ex: SQLException => Director.logger.warn("SQL exception in metric reader",ex)}
 		finally {statement.close}
 		(time,value)
 	}
@@ -166,7 +167,7 @@ case class MetricReader(
 		try {
 			val result = statement.executeQuery(workloadSQL)
 			while (result.next) servers += result.getString("server")
-       	} catch { case ex: SQLException => }
+       	} catch { case ex: SQLException => Director.logger.warn("SQL exception in metric reader",ex)}
 		finally {statement.close}
 		servers.toList
 	}
