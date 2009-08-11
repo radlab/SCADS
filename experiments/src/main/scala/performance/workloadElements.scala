@@ -47,6 +47,8 @@ object WorkloadDescription {
 		new WorkloadDescription(thinkTimeMean,intervals)
 	}
 	
+	def cat(workloads:List[WorkloadDescription]):WorkloadDescription = new WorkloadDescription(workloads(0).thinkTimeMean,List.flatten( workloads.map(_.workload) ))
+	
 	def deserialize(file: String): WorkloadDescription = {
         val fin = new ObjectInputStream( new FileInputStream(file) )
         val wd = fin.readObject().asInstanceOf[WorkloadDescription]

@@ -16,34 +16,6 @@ import scala.collection.mutable.ListBuffer
 
 object WorkloadGenerators {
 	
-/*	def oldCreateSimpleLinearGetPutGetsetWorkload(getProb:Double, getsetProb:Double, getsetLength:Int, namespace:String, totalUsers:Int, userStartDelay:Int, thinkTime:Int):WorkloadDescription = {
-		// create sample workload description
-		val mix = Map("get"->getProb,"getset"->getsetProb,"put"->(1-getProb-getsetProb))
-		val parameters = Map("get"->Map("minKey"->"0","maxKey"->"10000","namespace"->namespace),
-							 "put"->Map("minKey"->"0","maxKey"->"10000","namespace"->namespace),
-							 "getset"->Map("minKey"->"0","maxKey"->"10000","namespace"->namespace,"setLength"->getsetLength.toString)
-							)
-		val reqGenerator = new SimpleSCADSRequestGenerator(mix,parameters)		
-		var intervals = new scala.collection.mutable.ListBuffer[WorkloadIntervalDescription]
-		
-		for (nusers <- 1 to totalUsers) intervals += new WorkloadIntervalDescription(nusers, userStartDelay, reqGenerator)
-		new WorkloadDescription(thinkTime, intervals.toList)
-	}
-	def oldFlatWorkload(getProb:Double, getsetProb:Double, getsetLength:Int, maxKey:String,namespace:String, totalUsers:Int, num_minutes:Int, thinkTime: Int) = {
-		// how many minutes to run test flat workload: all users start making requests at the same time
-		val mix = Map("get"->getProb,"getset"->getsetProb,"put"->(1-getProb-getsetProb))
-		val parameters = Map("get"->Map("minKey"->"0","maxKey"->maxKey,"namespace"->namespace),
-							 "put"->Map("minKey"->"0","maxKey"->maxKey,"namespace"->namespace),
-							 "getset"->Map("minKey"->"0","maxKey"->maxKey,"namespace"->namespace,"setLength"->getsetLength.toString)
-							)
-		val reqGenerator = new SimpleSCADSRequestGenerator(mix,parameters)
-		var intervals = new scala.collection.mutable.ListBuffer[WorkloadIntervalDescription]
-		val interval = new WorkloadIntervalDescription(totalUsers, num_minutes*60000, reqGenerator)
-		intervals += interval
-
-		new WorkloadDescription(thinkTime, intervals.toList)
-	}
-*/	
 	def flatWorkload(getProb:Double, getsetProb:Double, getsetLength:Int, maxKey:String, namespace:String, totalUsers:Int, num_minutes:Int, thinkTime: Int):WorkloadDescription = {
 		val wProf = WorkloadProfile.getFlat(1,totalUsers)
 		val mix = new MixVector(Map("get"->getProb,"getset"->getsetProb,"put"->(1-getProb-getsetProb)))
@@ -112,5 +84,11 @@ object WorkloadGenerators {
 		WorkloadDescription.create(profile,durations,reqGenerators,10)
 	}
 
+	def benchmarkGetsAndPuts(nMinDuration:Int, dataset:String, maxKey:String, minGetP:Double, maxGetP:Double, nGetPSteps:Int, maxUsers:Int, thinkTime:Int):WorkloadDescription = {
+		val getProbs = for (i <- 0 to (nGetPSteps-1)) yield { minGetP + (maxGetP-minGetP)/(nGetPSteps-1)*i }
+		val intLength = (nMinDuration.toDouble*60*1000 / getProbs.length / maxUsers).toInt
+		val workloads = getProbs.map( linearWorkload(_, 0.0, 10, maxKey, dataset, maxUsers, intLength, thinkTime) ).toList
+		WorkloadDescription.cat( workloads )
+	}
 }
 
