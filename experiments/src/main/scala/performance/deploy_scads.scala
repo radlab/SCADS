@@ -200,7 +200,7 @@ case class ScadsClients(scadsName: String,host:String, xtrace_on: Boolean, names
 		}
 	}
 	
-	def processLogFiles(experimentName:String) {
+	def processLogFiles(experimentName:String, parseAndPlot:Boolean) {
 		val client0 = clients.get(0)
 		val targetIP = client0.privateDnsName
 		client0.exec( "mkdir -p /mnt/logs/"+experimentName+"/clients/" )
@@ -219,10 +219,11 @@ case class ScadsClients(scadsName: String,host:String, xtrace_on: Boolean, names
 		client0.exec( "cat /mnt/logs/"+experimentName+"/clients/* > "+sourceF)
 		client0.exec( "ulimit -n 20000" )
 				
-		for (i <- List(1,5,10)) {
-			client0.exec( "scala /opt/scads/experiments/scripts/parselogs.scala "+sourceF+" "+expDir+"/"+experimentName+"_agg"+i+".csv "+i*1000+" 1")
-			client0.exec( "echo \"source('/opt/scads/experiments/scripts/process.R'); pdf('"+expDir+"/"+experimentName+"_agg"+i+".pdf',width=10,height=15); plot.stats.for.file('"+expDir+"/"+experimentName+"_agg"+i+".csv') \" | R --vanilla")
-		}
+		if (parseAndPlot)
+			for (i <- List(1,5,10)) {
+				client0.exec( "scala /opt/scads/experiments/scripts/parselogs.scala "+sourceF+" "+expDir+"/"+experimentName+"_agg"+i+".csv "+i*1000+" 1")
+				client0.exec( "echo \"source('/opt/scads/experiments/scripts/process.R'); pdf('"+expDir+"/"+experimentName+"_agg"+i+".pdf',width=10,height=15); plot.stats.for.file('"+expDir+"/"+experimentName+"_agg"+i+".csv') \" | R --vanilla")
+			}
 		
 	}
 }
