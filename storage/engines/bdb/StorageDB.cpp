@@ -693,42 +693,42 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       funcall_args[0] = ruby_proc;
       funcall_args[1] = rb_str_new((const char*)(key.data),key.size);
       if (rs.type == RST_KEY_FUNC)
-	funcall_args[2] = 0;
+				funcall_args[2] = 0;
       else
-	funcall_args[2] = rb_str_new((const char*)(data.data),data.size);
+				funcall_args[2] = rb_str_new((const char*)(data.data),data.size);
       v = rb_protect(rb_funcall_wrap,((VALUE)funcall_args),&rb_err);
       if (rb_err) {
-	InvalidSetDescription isd;
-	isd.s = rs;
-	VALUE lasterr = rb_gv_get("$!");
-	VALUE message = rb_obj_as_string(lasterr);
-	isd.info = rb_string_value_cstr(&message);
-	free(cursor_data.data);
-	if (cursorp != NULL)
-	  cursorp->close(cursorp);
-	if (txn!=NULL && txn->abort(txn))
-	  cerr << "Transaction abort failed"<<endl;
-	isd.__isset.s = true;
-	isd.__isset.info = true;
+				InvalidSetDescription isd;
+				isd.s = rs;
+				VALUE lasterr = rb_gv_get("$!");
+				VALUE message = rb_obj_as_string(lasterr);
+				isd.info = rb_string_value_cstr(&message);
 #ifdef DEBUG
-	cerr << "Error in calling ruby function for key: "<<string((char*)key.data,key.size)<<" message: "<<isd.info<<endl;
+				cerr << "Error in calling ruby function for key: "<<string((char*)key.data,key.size)<<" message: "<<isd.info<<endl;
 #endif
-	throw isd;
+				free(cursor_data.data);
+				if (cursorp != NULL)
+					cursorp->close(cursorp);
+				if (txn!=NULL && txn->abort(txn))
+					cerr << "Transaction abort failed"<<endl;
+				isd.__isset.s = true;
+				isd.__isset.info = true;
+				throw isd;
       }
       if (v == Qtrue)
-	(*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);
+				(*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);
       else if (v != Qfalse) {
-	InvalidSetDescription isd;
-	isd.s = rs;
-	isd.info = "Your ruby string does not return true or false";
-	free(cursor_data.data);
-	if (cursorp != NULL)
-	  cursorp->close(cursorp);
-	if (txn!=NULL && txn->abort(txn))
-	  cerr << "Transaction abort failed"<<endl;
-	isd.__isset.s = true;
-	isd.__isset.info = true;
-	throw isd;
+				InvalidSetDescription isd;
+				isd.s = rs;
+				isd.info = "Your ruby string does not return true or false";
+				free(cursor_data.data);
+				if (cursorp != NULL)
+					cursorp->close(cursorp);
+				if (txn!=NULL && txn->abort(txn))
+					cerr << "Transaction abort failed"<<endl;
+				isd.__isset.s = true;
+				isd.__isset.info = true;
+				throw isd;
       }
     }
 
