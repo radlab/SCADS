@@ -35,7 +35,7 @@ THRIFT_FILE = ../../../interface/scads.thrift
 # Source Listings
 SRCS_TO_GEN = gen-cpp/KeyStore.cpp gen-cpp/KeyStore.h gen-cpp/KeyStore_server.skeleton.cpp gen-cpp/scads_constants.cpp gen-cpp/scads_constants.h gen-cpp/scads_types.cpp gen-cpp/scads_types.h gen-cpp/StorageEngine.cpp gen-cpp/StorageEngine.h gen-cpp/StorageEngine_server.skeleton.cpp
 GEN_SRC = gen-cpp/KeyStore.cpp gen-cpp/scads_constants.cpp gen-cpp/scads_types.cpp gen-cpp/StorageEngine.cpp
-STORAGE_SRCS = StorageDB.cpp MerkleDB.cpp Network.cpp TQueue.h
+STORAGE_SRCS = StorageDB.cpp MerkleDB.cpp Network.cpp TQueue.h KeyLocker.cpp
 
 # C/C++ MACROS
 CXX=g++

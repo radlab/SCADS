@@ -3,6 +3,7 @@
 
 #include <db.h>
 #include "gen-cpp/StorageEngine.h"
+#include "KeyLocker.h"
 #include "MerkleDB.h"
 #include "TQueue.h"
 #include "ruby.h"
@@ -44,6 +45,8 @@ private:
   int listen_port;
   u_int32_t user_flags;
   bool doMerkle;
+
+	KeyLocker *keyLocker;
 
 public:
   StorageDB(int,u_int32_t,u_int32_t,bool);

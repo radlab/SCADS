@@ -880,8 +880,6 @@ StorageDB(int lp,
     DB_PRIVATE |
     user_flags;     /* Add in user specified flags */
 
-  ret = db_env->set_lk_detect(db_env,DB_LOCK_DEFAULT);
-
   if (cache != 0) {
     gb = cache/1000;
     u_int32_t bytes = cache-(gb*1000);
@@ -894,6 +892,10 @@ StorageDB(int lp,
     }
   }
 
+	keyLocker = new KeyLocker(1000);	
+
+	if (!(user_flags&DB_INIT_TXN))
+		ret = db_env->set_lk_detect(db_env,DB_LOCK_DEFAULT);
 
   if (ret != 0) {
     cerr << "Could not set auto deadlock detection."<<endl;
@@ -1088,6 +1090,8 @@ test_and_set(const NameSpace& ns, const Record& rec, const ExistingValue& eVal) 
   MerkleDB* mdb_ptr;
   DBT key, data, existing_data;
   int ret;
+	DB_TXN *txn = NULL;
+	bool ok;
 
   /* gross that we're going in and out of c++ strings,
      consider storing the whole string object */
@@ -1129,6 +1133,19 @@ test_and_set(const NameSpace& ns, const Record& rec, const ExistingValue& eVal) 
   key.data = const_cast<char*>(rec.key.c_str());
   key.size = rec.key.length();
 
+	keyLocker->writeLockKey((char*)key.data,key.size);
+
+	if (isTXN()) {
+		DB_ENV* db_env = getENV();
+		ret = db_env->txn_begin(db_env,NULL,&txn, 0); // no snapshot for writes
+		if (ret != 0) {
+			db_ptr->err(db_ptr,ret,"Could not start transaction");
+			keyLocker->unlockKey((char*)key.data,key.size);
+			TException te("Could not start transaction");
+      throw te;
+    }
+	}
+
   ret = db_ptr->get(db_ptr, NULL, &key, &existing_data, 0);
   if (!ret) {  // return 0 means success
 		int lim = (eVal.__isset.prefix && (eVal.prefix < existing_data.size))?
@@ -1138,6 +1155,11 @@ test_and_set(const NameSpace& ns, const Record& rec, const ExistingValue& eVal) 
 					 (eVal.value.length() != existing_data.size) ) ||
 				 (memcmp(eVal.value.c_str(),existing_data.data,lim)) ) {
 			// not the same	
+			if (isTXN())
+				ret = txn->abort(txn);
+			if (ret)
+				db_ptr->err(db_ptr,ret,"Could not abort transaction");
+			keyLocker->unlockKey((char*)key.data,key.size);
 			TestAndSetFailure tsf;
 			tsf.currentValue.assign((const char*)existing_data.data,existing_data.size);
 			tsf.__isset.currentValue = true;
@@ -1148,6 +1170,11 @@ test_and_set(const NameSpace& ns, const Record& rec, const ExistingValue& eVal) 
   }
 	else if (ret != DB_NOTFOUND ||
 					 eVal.__isset.value) {
+		if (isTXN())
+			ret = txn->abort(txn);
+		if (ret)
+			db_ptr->err(db_ptr,ret,"Could not abort transaction");
+		keyLocker->unlockKey((char*)key.data,key.size);
 		TestAndSetFailure tsf;
 		tsf.__isset.currentValue = false;
 		throw tsf;
@@ -1156,12 +1183,27 @@ test_and_set(const NameSpace& ns, const Record& rec, const ExistingValue& eVal) 
 	key.size++;
 	
   if (!rec.__isset.value)  // really a delete
-    return putDBTs(db_ptr,mdb_ptr,&key,NULL,true);
+    ok = putDBTs(db_ptr,mdb_ptr,&key,NULL,true);
+	else {
+		data.data = const_cast<char*>(rec.value.c_str());
+		data.size = rec.value.length();
+		ok = putDBTs(db_ptr,mdb_ptr,&key,&data,true);
+	}
 
+	key.size--;
 
-  data.data = const_cast<char*>(rec.value.c_str());
-  data.size = rec.value.length();
-  return putDBTs(db_ptr,mdb_ptr,&key,&data,true);
+	if (isTXN()) {
+		ret = txn->commit(txn, 0);
+		if (ret != 0) {
+			db_ptr->err(db_ptr, ret, "Transaction commit failed.");
+			keyLocker->unlockKey((char*)key.data,key.size);
+			TException te("Could not commit transaction");
+			throw te;
+		}
+	}
+
+	keyLocker->unlockKey((char*)key.data,key.size);
+	return ok;
 }
 
 bool StorageDB::
