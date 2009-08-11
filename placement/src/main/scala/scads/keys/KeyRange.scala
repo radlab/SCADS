@@ -78,9 +78,9 @@ case class KeyRange(start: Key, end: Key) {
 	}
 
 	def & (that: KeyRange): KeyRange = {
-		if( (this.end >= that.start) && (this.end < that.end) && (this.start < that.start) )
+		if( (this.end > that.start) && (this.end < that.end) && (this.start < that.start) )
 			new KeyRange(that.start, this.end)
-		else if( (that.end >= this.start) && (that.end < this.end) && (that.start < this.start) )
+		else if( (that.end > this.start) && (that.end < this.end) && (that.start < this.start) )
 			new KeyRange(this.start, that.end)
 		else if(this.start >= that.start && this.end <= that.end)
 			this
