@@ -8,10 +8,11 @@ import scala.io.Source
 val filename = args(0)
 val outputFilename = args(1)
 val columns = Map("client_ip"->0, "client_thread"->1, "client_req_n"->2, "req_type"->3, "starttime"->4, "endtime"->5, "latency"->6)
-val datadir = "/tmp/data"
 val interval = args(2).toInt  // 10 * 1000
 val fractionReported = args(3).toDouble //0.2
 
+val datadir = "/tmp/parselogs/"+outputFilename+"/"
+(new File(datadir)).mkdirs()
 
 val result = MapReduce.mapreduce( List(filename), datadir, (s:String)=>mapByEndtime(s,interval), 
 									List(latencyReducer, (s:List[String]) => workloadReducer(s,"throughput",interval,fractionReported)) )
@@ -36,6 +37,17 @@ def latencyReducer( lines: List[String] ): Map[String,String] = {
 def computeLatencyStats( prefix:String, latencies:List[Double] ): Map[String,String] = {
 	var m = Map[String,String]()
 	m += prefix+"latency_mean" -> computeMean( latencies ).toString
+	m += prefix+"latency_variance" -> computeVariance( latencies ).toString
+	m += prefix+"latency_skewness" -> computeSkewness( latencies ).toString
+	m += prefix+"latency_01p" -> computeQuantile( latencies, 0.01 ).toString
+	m += prefix+"latency_10p" -> computeQuantile( latencies, 0.10 ).toString
+	m += prefix+"latency_20p" -> computeQuantile( latencies, 0.20 ).toString
+	m += prefix+"latency_30p" -> computeQuantile( latencies, 0.30 ).toString
+	m += prefix+"latency_40p" -> computeQuantile( latencies, 0.40 ).toString
+	m += prefix+"latency_50p" -> computeQuantile( latencies, 0.50 ).toString
+	m += prefix+"latency_60p" -> computeQuantile( latencies, 0.60 ).toString
+	m += prefix+"latency_70p" -> computeQuantile( latencies, 0.70 ).toString
+	m += prefix+"latency_80p" -> computeQuantile( latencies, 0.80 ).toString
 	m += prefix+"latency_90p" -> computeQuantile( latencies, 0.90 ).toString
 	m += prefix+"latency_99p" -> computeQuantile( latencies, 0.99 ).toString
 	m += prefix+"latency_999p" -> computeQuantile( latencies, 0.999 ).toString
@@ -133,5 +145,18 @@ def combineMaps( map1: Map[String,String], map2: Map[String,String] ): Map[Strin
 	Map.empty ++ m
 }
 
-def computeMean( data: List[Double] ): Double = if (data==Nil) Double.NaN else data.reduceLeft(_+_)/data.length
-def computeQuantile( data: List[Double], q: Double): Double = if (data==Nil) Double.NaN else data.sort(_<_)( Math.floor(data.length*q).toInt )
+def computeMean( data:List[Double] ): Double = if (data==Nil) Double.NaN else data.reduceLeft(_+_)/data.length
+def computeVariance( data:List[Double] ):Double = { if (data==Nil) Double.NaN else {val n=data.length; val s=data.reduceLeft(_+_); val m=s/n; data.map(_-m).map(a=>a*a).reduceLeft(_+_)/(n-1)} }
+def computeQuantile( data:List[Double], q: Double): Double = if (data==Nil) Double.NaN else data.sort(_<_)( Math.floor(data.length*q).toInt )
+
+def computeSkewness( data:List[Double] ):Double = {
+	if (data==Nil) Double.NaN
+	else {
+		val n=data.length.toDouble
+		val s=data.reduceLeft(_+_)
+		val m=s/n
+		val m3=data.map(_-m).map(a=>a*a*a).reduceLeft(_+_)/n
+		val m2=data.map(_-m).map(a=>a*a).reduceLeft(_+_)/n
+		m3/Math.pow(m2,1.5)*Math.pow((n-1)/n,1.5) 
+	}
+}
