@@ -33,7 +33,7 @@ object Director {
 	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 	logger.setLevel(DEBUG)
 	
-	def initDatabases() {
+	def dumpAndDropDatabases() {
 		// dump old databases
 		Runtime.getRuntime.exec("mysqldump --databases metrics director > /mnt/director/dbdump_"+dateFormat.format(new Date)+".sql")
 		

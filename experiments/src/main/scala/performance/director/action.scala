@@ -85,7 +85,7 @@ object Action {
 /*			statement.executeUpdate("DROP DATABASE IF EXISTS "+dbname)*/
             statement.executeUpdate("CREATE DATABASE IF NOT EXISTS " + dbname)
             statement.executeUpdate("USE " + dbname)
-			statement.executeUpdate("DROP TABLE IF EXISTS "+dbtable)
+/*			statement.executeUpdate("DROP TABLE IF EXISTS "+dbtable)*/
 			statement.executeUpdate("CREATE TABLE IF NOT EXISTS "+dbtable+" (`id` INT NOT NULL AUTO_INCREMENT, `update_time` BIGINT, `action_name` VARCHAR(30),"+
 																			"`init_time` BIGINT, `start_time` BIGINT, `end_time` BIGINT, `status` VARCHAR(50),"+
 																			"`short_name` VARCHAR(100), `args` VARCHAR(200), PRIMARY KEY(`id`) ) ")
