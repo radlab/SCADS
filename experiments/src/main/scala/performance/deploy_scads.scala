@@ -119,9 +119,10 @@ case class ScadsDP(h:String, xtrace_on: Boolean, namespace: String) extends Rang
 */
 }
 
-case class ScadsClients(scadsName: String,host:String, xtrace_on: Boolean, namespace: String) {
+case class ScadsClients(scadsName: String, xtrace_on: Boolean, namespace: String) {
 	var deps:String = null
 	var clients:InstanceGroup = null
+	var host:String = null
 	
 	val clientConfig = new JSONObject()
     val clientRecipes = new JSONArray()
@@ -129,24 +130,47 @@ case class ScadsClients(scadsName: String,host:String, xtrace_on: Boolean, names
 	if (xtrace_on) { clientConfig.put("chukwa",Scads.getXtraceConfig); clientRecipes.put("chukwa::default"); }
     clientConfig.put("recipes", clientRecipes)
 	
+	class InitClients(num_clients:Int) extends Runnable {
+		def run = {
+			clients = DataCenter.runInstances(num_clients,"c1.medium")		// start up clients
+			clients.waitUntilReady
+
+			clients.tagWith( DataCenter.keyName+"--SCADS--"+getName+"--client" )
+			println("Deploying clients.")
+			clients.deploy(clientConfig)
+		    println("Done deploying clients.")
+
+			// get list of mvn dependencies
+			deps = clients.get(0).exec("cd /opt/scads/experiments; cat cplist").getStdout.replace("\n","") + ":../target/classes"
+			clients.get(0).exec("/etc/init.d/apache2 start") // start apache for viewing graphs
+			getPlacement
+		}
+	}
+
 	def getName(): String = scadsName
 	
 	def loadState() = {
 		clients = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+getName+"--client", true )
 		deps = clients.get(0).exec("cd /opt/scads/experiments; cat cplist").getStdout.replace("\n","") + ":../target/classes"
+		getPlacement
 	}
 	
-	def init(num_clients:Int) = {
-		clients = DataCenter.runInstances(num_clients,"c1.medium")		// start up clients
-		clients.waitUntilReady
-		
-		clients.tagWith( DataCenter.keyName+"--SCADS--"+getName+"--client" )
-		println("Deploying clients.")
-		clients.deploy(clientConfig)
-	    println("Done deploying clients.")
+	def getPlacement = {
+		while (host== null) {
+			println("Attempting to acquire placement server address")
+			val placement = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scadsName+"--placement", true )
+			if (placement.size > 0) {
+				host = placement.get(0).privateDnsName
+				println("Acquired placement address")
+			}
+			else Thread.sleep(15*1000)
+		}
+	}
 
-		// get list of mvn dependencies
-		deps = clients.get(0).exec("cd /opt/scads/experiments; cat cplist").getStdout.replace("\n","") + ":../target/classes"
+	def init(num_clients:Int):ScadsClients = {
+		val initthread = new Thread(new InitClients(num_clients))
+		initthread.start
+		this
 	}
 	def warm_cache(ns: String, minK:Int, maxK:Int) = {
 		println("Warming server caches.")
@@ -204,6 +228,7 @@ case class ScadsClients(scadsName: String,host:String, xtrace_on: Boolean, names
 		val client0 = clients.get(0)
 		val targetIP = client0.privateDnsName
 		client0.exec( "mkdir -p /mnt/logs/"+experimentName+"/clients/" )
+		client0.exec("ln -s /mnt/logs/ /var/www/")
 		
 		for (c <- clients) { 
 			val f=experimentName+"_"+c.privateDnsName+".log"
