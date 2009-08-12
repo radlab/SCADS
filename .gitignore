@@ -1,3 +1,4 @@
 /doc
 *.class
 /target
+project/boot/
