@@ -27,6 +27,20 @@ abstract trait Getter {
 	def get(namespace: String, key: Field, version: Version)(implicit env: Environment): (Field, Version, String)
 }
 
+/*
+ * Abstract definition of a trait that allows you to get ranges of values from the storage layer in the environment.
+ * Concrete versions of this trait will be mixed in with execution operators that need to do single gets based on their designed perf/consistency.
+ * TODO: concrete implementations of ReadOne, ReadRepair, Quorum, Etc.
+ */
+abstract trait SetGetter {
+	val logger: Logger
+
+	/**
+	 * Get a range of tuples from the storage engine.
+	 */
+	def get_set(namespace: String, start_key: Field, end_key: Field, offset: Int, limit: Int, version: Version)(implicit env: Environment): Seq[(Field, Version, String)]
+}
+
 /**
  * A concrete getter that reads randomly from one of the storage engines that is responsible for the specified key
  */
@@ -129,11 +143,10 @@ abstract class SequentialDereferenceIndex(targetNamespace: String, targetKeyType
 }
 
 /**
- * Abstract definition of a trait that allows you to get ranges of values from the storage layer in the environment.
- * Concrete versions of this trait will be mixed in with execution operators that need to do single gets based on their designed perf/consistency.
- * TODO: concrete implementations of ReadOne, ReadRepair, Quorum, Etc.
+ * Operater to grab ranges of values from the storage layer in the environment.
+ * TODO: implement it!
  */
-case class GetSet(start: Field, end: Field) extends TupleProvider {
+abstract class GetSet(start: Field, end: Field) extends TupleProvider with SetGetter {
 	def exec(implicit env: Environment): Seq[(Field, Version, String)] = null
 }
 
