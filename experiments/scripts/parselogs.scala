@@ -49,6 +49,10 @@ def computeLatencyStats( prefix:String, latencies:List[Double] ): Map[String,Str
 	m += prefix+"latency_70p" -> computeQuantile( latencies, 0.70 ).toString
 	m += prefix+"latency_80p" -> computeQuantile( latencies, 0.80 ).toString
 	m += prefix+"latency_90p" -> computeQuantile( latencies, 0.90 ).toString
+	m += prefix+"latency_92p" -> computeQuantile( latencies, 0.92 ).toString
+	m += prefix+"latency_94p" -> computeQuantile( latencies, 0.94 ).toString
+	m += prefix+"latency_96p" -> computeQuantile( latencies, 0.96 ).toString
+	m += prefix+"latency_98p" -> computeQuantile( latencies, 0.98 ).toString
 	m += prefix+"latency_99p" -> computeQuantile( latencies, 0.99 ).toString
 	m += prefix+"latency_999p" -> computeQuantile( latencies, 0.999 ).toString
 	m
