@@ -1037,8 +1037,8 @@ get_set(std::vector<Record> & _return, const NameSpace& ns, const RecordSet& rs)
     nse.__isset.policy = true;
     throw nse;
   }
-  // don't invoke if no vals, but use bulk retrieval
-  apply_to_set(ns,rs,apply_get,&_return,false,true);
+  // don't invoke if no vals, no bulk retrieval
+  apply_to_set(ns,rs,apply_get,&_return,false,false);
 }
 
 bool StorageDB::
@@ -1050,8 +1050,8 @@ remove_set(const NameSpace& ns, const RecordSet& rs) {
 int32_t StorageDB::
 count_set(const NameSpace& ns, const RecordSet& rs) {
   int r = 0;
-  // don't invoke if no vals, but use bulk retrieval
-  apply_to_set(ns,rs,apply_inc,&r,false,true);
+  // don't invoke if no vals, no bulk retrieval
+  apply_to_set(ns,rs,apply_inc,&r,false, false);
   return r;
 }
 
