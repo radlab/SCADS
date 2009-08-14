@@ -119,33 +119,54 @@ int uf;
 
 
 // set application functions
-void apply_get(void* vec, DB* db, DBC* cursor, DB_TXN* txn, void* k, void* d) {
+void apply_get(void* vec, DB* db, DBC* cursor, KeyLocker* kl, DB_TXN* txn, void* k, void* d) {
   vector<Record>* _return = (std::vector<Record>*)vec;
   Record r;
   DBT *key,*data;
   key = (DBT*)k;
   data = (DBT*)d;
-  r.key.assign((const char*)key->data,key->size);
-  r.value.assign((const char*)data->data,data->size);
-  r.__isset.value = true;
-  _return->push_back(r);
+
+	r.key.assign((const char*)key->data,key->size);
+
+	if (kl!=NULL) {
+		DBT cdata;
+		int ret;
+		memset(&cdata, 0, sizeof(DBT));
+		cdata.flags = DB_DBT_MALLOC;
+		kl->readLockKey((char*)key->data,key->size);
+		if ((ret = db->get(db,txn,key,&cdata,0))) {
+			db->err(db,ret,"Couldn't check value in apply_get");
+			kl->unlockKey((char*)key->data,key->size);
+			return;
+		}
+		kl->unlockKey((char*)key->data,key->size);
+		r.value.assign((const char*)cdata.data,cdata.size);
+		free(cdata.data);
+	}
+	else 
+		r.value.assign((const char*)data->data,data->size);
+	r.__isset.value = true;
+	_return->push_back(r);
 }
 
-void apply_del(void* v, DB* db, DBC* cursor, DB_TXN* txn, void* k, void* d) {
+void apply_del(void* v, DB* db, DBC* cursor, KeyLocker* kl, DB_TXN* txn, void* k, void* d) {
   int ret;
   DBT *key = (DBT*)k;
 #ifdef DEBUG
   cerr << "Deleting: "<<string((char*)key->data,key->size)<<endl;
 #endif
-  if (uf & DB_INIT_TXN)
-    ret = db->del(db,NULL,key,0);
+  if (kl != NULL) {
+		kl->writeLockKey((char*)key->data,key->size);
+    ret = db->del(db,txn,key,0);
+		kl->unlockKey((char*)key->data,key->size);		
+	}
   else
     ret = cursor->del(cursor,0);
   if (ret)
     db->err(db,ret,"Delete failed");
 }
 
-void apply_inc(void* c, DB* db, DBC* cursor, DB_TXN* txn, void*k, void *d) {
+void apply_inc(void* c, DB* db, DBC* cursor, KeyLocker* kl, DB_TXN* txn, void*k, void *d) {
   int *i = (int*)c;
   (*i)++;
 }
@@ -181,7 +202,7 @@ open_database(DB **dbpp,                  /* The DB handle that we are opening *
   /* Set the open flags */
   if (user_flags &
       DB_INIT_TXN)
-    open_flags = DB_CREATE | DB_THREAD | DB_AUTO_COMMIT | DB_MULTIVERSION;
+    open_flags = DB_CREATE | DB_THREAD | DB_AUTO_COMMIT;
   else
     open_flags = DB_CREATE | DB_THREAD;
 
@@ -322,20 +343,25 @@ getDB(const NameSpace& ns) {
   chkLock(rc,"dbmap_lock","top read lock");
   it = dbs.find(ns);
   if (it == dbs.end()) { // haven't opened this db yet
-    open_database(&db,ns.c_str(),"storage.bdb",env_dir,stderr);
-    MerkleDB* mdb;
-    if (doMerkle)
-      mdb = new MerkleDB(ns,db_env);
     rc = pthread_rwlock_unlock(&dbmap_lock); // unlock read lock
     chkLock(rc,"dbmap_lock","unlock read lock for upgrade");
     rc = pthread_rwlock_wrlock(&dbmap_lock); // need a write lock here
     chkLock(rc,"dbmap_lock","modify dbs map");
-    dbs[ns] = db;
-    if (doMerkle)
-      merkle_dbs[ns] = mdb;
-    rc = pthread_rwlock_unlock(&dbmap_lock); // unlock write lock
-    chkLock(rc,"dbmap_lock","unlock write lock");
-    return db;
+		it = dbs.find(ns);
+		if (it == dbs.end()) { // only open new if someone hasn't filled in under me
+			open_database(&db,ns.c_str(),"storage.bdb",env_dir,stderr);
+			KeyLocker* kl = new KeyLocker(1000);
+			MerkleDB* mdb;
+			if (doMerkle)
+				mdb = new MerkleDB(ns,db_env);
+			dbs[ns] = db;
+			key_lockers[ns] = kl;
+			if (doMerkle)
+				merkle_dbs[ns] = mdb;
+			rc = pthread_rwlock_unlock(&dbmap_lock); // unlock write lock
+			chkLock(rc,"dbmap_lock","unlock write lock");
+			return db;
+		}
   }
   db = it->second;
   rc = pthread_rwlock_unlock(&dbmap_lock); // unlock read lock
@@ -366,9 +392,10 @@ getMerkleDB(const NameSpace& ns, bool nullOk) {
 
 void StorageDB::
 apply_to_set(const NameSpace& ns, const RecordSet& rs,
-	     void(*to_apply)(void*,DB*,DBC*,DB_TXN*,void*,void*),void* apply_arg,
+			 void(*to_apply)(void*,DB*,DBC*,KeyLocker*,DB_TXN*,void*,void*),void* apply_arg,
 	     bool invokeNone, bool bulk) {
   DB* db_ptr;
+	KeyLocker* kl = NULL;
   DBC *cursorp;
   DBT cursor_key, cursor_data, key, data;
   DB_TXN *txn;
@@ -400,7 +427,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
   }
 
   if ( (rs.type == RST_KEY_FUNC  ||
-	rs.type == RST_KEY_VALUE_FUNC) &&
+				rs.type == RST_KEY_VALUE_FUNC) &&
        !rs.__isset.func ) {
     InvalidSetDescription isd;
     isd.s = rs;
@@ -439,7 +466,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       "\tlimit: "<<(rs.range.__isset.limit?ol.str():"unset")<<endl;
   }
   else if (rs.type == RST_KEY_FUNC ||
-	   rs.type == RST_KEY_VALUE_FUNC) {
+					 rs.type == RST_KEY_VALUE_FUNC) {
     cout << (rs.type == RST_KEY_FUNC?"\tRST_KEY_FUNC":"\tRST_KEY_VALUE_FUNC")<<endl<<
       "Lang: "<<(rs.func.lang==LANG_RUBY?"\tLANG_RUBY":"UNKNOWN LANG")<<endl<<
       "Func: \t"<<rs.func.func<<endl;
@@ -458,8 +485,8 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 
   if (rs.type == RST_RANGE) { // validate set/start end
     if ( rs.range.__isset.start_key &&
-	 rs.range.__isset.end_key &&
-	 (rs.range.start_key > rs.range.end_key) ) {
+				 rs.range.__isset.end_key &&
+				 (rs.range.start_key > rs.range.end_key) ) {
       InvalidSetDescription isd;
       isd.s = rs;
       isd.info = "Your start key is greater than your end key";
@@ -468,12 +495,6 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       throw isd;
     }
   }
-
-	//TODO: Apparently bulk retrieval doesn't work with DB_PREV *grumble*
-	//HACK: turn off bulk getting
-	//if (rs.type == RST_RANGE and rs.range.__isset.reverse and rs.range.reverse) {
-	//	bulk = false;
-	//}
 
   if (bulk)
     cursor_get_flags = DB_MULTIPLE_KEY;
@@ -504,14 +525,16 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
   db_ptr = getDB(ns);
   txn = NULL;
   /*
-  ret = db_env->txn_begin(db_env, NULL, &txn, DB_TXN_SNAPSHOT);
-  if (ret != 0) {
+		ret = db_env->txn_begin(db_env, NULL, &txn, DB_TXN_SNAPSHOT);
+		if (ret != 0) {
     TException te("Could not start transaction");
     throw te;
-  }
+		}
   */
-  if (user_flags & DB_INIT_TXN)
-    db_ptr->cursor(db_ptr, txn, &cursorp, DB_TXN_SNAPSHOT);
+  if (isTXN()) {
+    db_ptr->cursor(db_ptr, txn, &cursorp, 0);
+		kl = key_lockers[ns];
+	}
   else
     db_ptr->cursor(db_ptr, txn, &cursorp, 0);
 
@@ -580,7 +603,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       cerr << "Transaction commit failed"<<endl;
     if (invokeNone)
       // no vals, but apply function wants to know that so invoke with nulls
-      (*to_apply)(apply_arg,db_ptr,cursorp,txn,NULL,NULL);
+      (*to_apply)(apply_arg,db_ptr,cursorp,kl,txn,NULL,NULL);
     if (bulk)
       free(cursor_data.data);
     return;
@@ -602,26 +625,26 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
       int stat;
       ruby_proc = rb_eval_string_protect(rs.func.func.c_str(),&stat);
       if (!rb_respond_to(ruby_proc,call_id)) {
-	InvalidSetDescription isd;
-	isd.s = rs;
-	isd.info = "Your ruby string does not return something that responds to 'call'";
-	free(cursor_data.data); // free because we're returning
-	if (cursorp != NULL)
-	  cursorp->close(cursorp);
-	if (txn!=NULL && txn->abort(txn))
-	  cerr << "Transaction abort failed"<<endl;
-	isd.__isset.s = true;
-	isd.__isset.info = true;
-	throw isd;
+				InvalidSetDescription isd;
+				isd.s = rs;
+				isd.info = "Your ruby string does not return something that responds to 'call'";
+				free(cursor_data.data); // free because we're returning
+				if (cursorp != NULL)
+					cursorp->close(cursorp);
+				if (txn!=NULL && txn->abort(txn))
+					cerr << "Transaction abort failed"<<endl;
+				isd.__isset.s = true;
+				isd.__isset.info = true;
+				throw isd;
       }
     } else {
       NotImplemented ni;
       ni.function_name = "get_set only supports ruby functions at the moment";
       free(cursor_data.data);  // ditto
       if (cursorp != NULL)
-	cursorp->close(cursorp);
+				cursorp->close(cursorp);
       if (txn!=NULL && txn->abort(txn))
-	cerr << "Transaction abort failed"<<endl;
+				cerr << "Transaction abort failed"<<endl;
       throw ni;
     }
   }
@@ -631,14 +654,14 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     DB_MULTIPLE_KEY_NEXT(p,&cursor_data, retkey, retklen, retdata, retdlen);
     if (p == NULL) {
       if (cursorp != NULL)
-	cursorp->close(cursorp);
+				cursorp->close(cursorp);
       if (txn!=NULL && txn->commit(txn,0))
-	cerr << "Transaction commit failed"<<endl;
+				cerr << "Transaction commit failed"<<endl;
       if (invokeNone)
-	// no vals, but apply function wants to know that so invoke with nulls
-	(*to_apply)(apply_arg,db_ptr,cursorp,txn,NULL,NULL);
+				// no vals, but apply function wants to know that so invoke with nulls
+				(*to_apply)(apply_arg,db_ptr,cursorp,kl,txn,NULL,NULL);
       if (bulk)
-	free(cursor_data.data);
+				free(cursor_data.data);
       return;
     }
   }
@@ -657,7 +680,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
   for(;;) {
     // RST_ALL set
     if (rs.type == RST_ALL)
-      (*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);
+      (*to_apply)(apply_arg,db_ptr,cursorp,kl,txn,&key,&data);
 
     // RST_RANGE set
     else if (rs.type == RST_RANGE) {
@@ -668,23 +691,23 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 				break;
 			}
       if (rs.range.__isset.offset && skipped < rs.range.offset)
-	skipped++;
+				skipped++;
       else {
-	(*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);
-	count++;
+				(*to_apply)(apply_arg,db_ptr,cursorp,kl,txn,&key,&data);
+				count++;
       }
       if (rs.range.__isset.limit &&
-	  count >= rs.range.limit) {
-	ret = DB_NOTFOUND;
-	free(cursor_data.data);
-	break;
+					count >= rs.range.limit) {
+				ret = DB_NOTFOUND;
+				free(cursor_data.data);
+				break;
       }
     }
 
     else if (rs.type == RST_FILTER) {
       if (data.size > count &&
-	  strnstr((const char*)data.data,rs.filter.c_str(),data.size))
-	(*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);
+					strnstr((const char*)data.data,rs.filter.c_str(),data.size))
+				(*to_apply)(apply_arg,db_ptr,cursorp,kl,txn,&key,&data);
     }
 
     // RST_KEY_FUNC/RST_KEY_VALUE_FUNC set
@@ -716,7 +739,7 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
 				throw isd;
       }
       if (v == Qtrue)
-				(*to_apply)(apply_arg,db_ptr,cursorp,txn,&key,&data);
+				(*to_apply)(apply_arg,db_ptr,cursorp,kl,txn,&key,&data);
       else if (v != Qfalse) {
 				InvalidSetDescription isd;
 				isd.s = rs;
@@ -736,14 +759,14 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     if (bulk) {
       DB_MULTIPLE_KEY_NEXT(p,&cursor_data, retkey, retklen, retdata, retdlen);
       if (p == NULL) { // need to advance the cursor
-	if ((ret = cursorp->get(cursorp, &cursor_key, &cursor_data, iter_dir | cursor_get_flags)) != 0) {
-	  if (ret != DB_NOTFOUND)
-	    db_ptr->err(db_ptr,ret,"Cursor advance failed");
-	  free(cursor_data.data);
-	  break;
-	}
-	DB_MULTIPLE_INIT(p, &cursor_data);
-	DB_MULTIPLE_KEY_NEXT(p,&cursor_data, retkey, retklen, retdata, retdlen);
+				if ((ret = cursorp->get(cursorp, &cursor_key, &cursor_data, iter_dir | cursor_get_flags)) != 0) {
+					if (ret != DB_NOTFOUND)
+						db_ptr->err(db_ptr,ret,"Cursor advance failed");
+					free(cursor_data.data);
+					break;
+				}
+				DB_MULTIPLE_INIT(p, &cursor_data);
+				DB_MULTIPLE_KEY_NEXT(p,&cursor_data, retkey, retklen, retdata, retdlen);
       }
       key.data = retkey;
       key.size = retklen;
@@ -753,9 +776,9 @@ apply_to_set(const NameSpace& ns, const RecordSet& rs,
     else {
       free(cursor_data.data);
       if ((ret = cursorp->get(cursorp, &cursor_key, &cursor_data, iter_dir | cursor_get_flags)) != 0) {
-	if (ret != DB_NOTFOUND)
-	  db_ptr->err(db_ptr,ret,"Cursor advance failed");
-	break;
+				if (ret != DB_NOTFOUND)
+					db_ptr->err(db_ptr,ret,"Cursor advance failed");
+				break;
       }
       key.data = cursor_key.data;
       key.size = cursor_key.size;
@@ -820,19 +843,19 @@ static void* flush_thread(void* arg) {
     for (it = merkle_dbs->begin(); it != merkle_dbs->end(); ++it) {
       db = it->second;
       if (it->second->flush_flag != cur_flag) { // need to flush
-	db->flush_flag = cur_flag;
-	found_one = 1;
-	rc = pthread_rwlock_unlock(dbmap_lock); // unlock read lock
-	chkLock(rc,"dbmap_lock","unlock read lock for flush thread");
+				db->flush_flag = cur_flag;
+				found_one = 1;
+				rc = pthread_rwlock_unlock(dbmap_lock); // unlock read lock
+				chkLock(rc,"dbmap_lock","unlock read lock for flush thread");
 #ifdef DEBUG
-	cout << "Flushing "<<it->first<<endl;
+				cout << "Flushing "<<it->first<<endl;
 #endif
-	db->flushp();
+				db->flushp();
 #ifdef DEBUG
-	cout << "Flushed: "<<endl;
-	//db->print_tree();
+				cout << "Flushed: "<<endl;
+				//db->print_tree();
 #endif
-	break;
+				break;
       }
     }
     if (found_one) continue;
@@ -874,8 +897,8 @@ StorageDB(int lp,
   env_flags =
     DB_CREATE |     /* If the environment does not exist, create it. */
     DB_THREAD |     /* This gets used by multiple threads */
-    DB_INIT_LOCK |  /* Multiple threads might write */
     DB_INIT_MPOOL|  /* Initialize the in-memory cache. */
+		((user_flags&DB_INIT_TXN)?0:DB_INIT_LOCK) |  /* Multiple threads might write (but will use our own locker if doing transactions */
     //DB_SYSTEM_MEM |
     DB_PRIVATE |
     user_flags;     /* Add in user specified flags */
@@ -891,8 +914,6 @@ StorageDB(int lp,
       exit(-1);
     }
   }
-
-	keyLocker = new KeyLocker(1000);	
 
 	if (!(user_flags&DB_INIT_TXN))
 		ret = db_env->set_lk_detect(db_env,DB_LOCK_DEFAULT);
@@ -953,7 +974,9 @@ StorageDB(int lp,
 int StorageDB::
 flush_log(DB* db) {
   if (!(user_flags & DB_INIT_TXN))
-    db->sync(db,0);
+    return db->sync(db,0);
+	else
+		return 0;
 }
 
 void StorageDB::
@@ -994,13 +1017,14 @@ closeDBs() {
   }
 
   rc = pthread_rwlock_unlock(&dbmap_lock);
-  chkLock(rc,"dbmap_lock","unlock after cloing down");
+  chkLock(rc,"dbmap_lock","unlock after closing down");
 }
 
 
 void StorageDB::
 get(Record& _return, const NameSpace& ns, const RecordKey& key) {
   DB* db_ptr;
+	KeyLocker *kl;
   DBT db_key, db_data;
   int retval;
 
@@ -1020,7 +1044,13 @@ get(Record& _return, const NameSpace& ns, const RecordKey& key) {
   db_key.data = const_cast<char*>(key.c_str());
   db_key.size = key.length();
 
+	if (isTXN()) {
+		kl = key_lockers[ns];
+		kl->readLockKey((char*)db_key.data,db_key.size);
+	}
   retval = db_ptr->get(db_ptr, NULL, &db_key, &db_data, 0);
+	if (isTXN())
+		kl->unlockKey((char*)db_key.data,db_key.size);
   _return.key = key;
   if (!retval) {  // return 0 means success
     _return.__isset.value = true;
@@ -1056,14 +1086,17 @@ count_set(const NameSpace& ns, const RecordSet& rs) {
 }
 
 bool StorageDB::
-putDBTs(DB* db_ptr, MerkleDB* mdb_ptr,DBT* key, DBT* data, bool hasNull) {
+putDBTs(DB* db_ptr, MerkleDB* mdb_ptr,DBT* key, DBT* data, DB_TXN* txn, bool hasNull) {
   int ret;
   if (hasNull)
     key->size--;
-  if (data==NULL)  // really a delete
-    ret = db_ptr->del(db_ptr,NULL,key,0);
+  if (data==NULL) {  // really a delete
+    ret = db_ptr->del(db_ptr, txn, key, 0);
+		if (hasNull)
+			key->size++;
+	}
   else {
-    ret = db_ptr->put(db_ptr, NULL, key, data, 0);
+    ret = db_ptr->put(db_ptr, txn, key, data, 0);
     if (hasNull)
       key->size++;
     if (doMerkle)
@@ -1087,6 +1120,7 @@ putDBTs(DB* db_ptr, MerkleDB* mdb_ptr,DBT* key, DBT* data, bool hasNull) {
 bool StorageDB::
 test_and_set(const NameSpace& ns, const Record& rec, const ExistingValue& eVal) {
   DB* db_ptr;
+	KeyLocker* keyLocker;
   MerkleDB* mdb_ptr;
   DBT key, data, existing_data;
   int ret;
@@ -1123,6 +1157,7 @@ test_and_set(const NameSpace& ns, const Record& rec, const ExistingValue& eVal) 
   }
 	
   db_ptr = getDB(ns);
+	keyLocker = key_lockers[ns];
   mdb_ptr = getMerkleDB(ns);
   if (doMerkle && mdb_ptr == NULL)
     cerr << "Warning, couldn't get MerkleDB, not going to maintain"<<endl;
@@ -1183,11 +1218,11 @@ test_and_set(const NameSpace& ns, const Record& rec, const ExistingValue& eVal) 
 	key.size++;
 	
   if (!rec.__isset.value)  // really a delete
-    ok = putDBTs(db_ptr,mdb_ptr,&key,NULL,true);
+    ok = putDBTs(db_ptr,mdb_ptr,&key,NULL,txn,true);
 	else {
 		data.data = const_cast<char*>(rec.value.c_str());
 		data.size = rec.value.length();
-		ok = putDBTs(db_ptr,mdb_ptr,&key,&data,true);
+		ok = putDBTs(db_ptr,mdb_ptr,&key,&data,txn,true);
 	}
 
 	key.size--;
@@ -1209,9 +1244,12 @@ test_and_set(const NameSpace& ns, const Record& rec, const ExistingValue& eVal) 
 bool StorageDB::
 put(const NameSpace& ns, const Record& rec) {
   DB* db_ptr;
+	KeyLocker *kl;
   MerkleDB* mdb_ptr;
   DBT key, data;
   int ret;
+	DB_TXN *txn = NULL;
+	bool ok;
 
   /* gross that we're going in and out of c++ strings,
      consider storing the whole string object */
@@ -1244,13 +1282,36 @@ put(const NameSpace& ns, const Record& rec) {
   key.data = const_cast<char*>(rec.key.c_str());
   key.size = rec.key.length()+1;
 
-  if (!rec.__isset.value)  // really a delete
-    return putDBTs(db_ptr,mdb_ptr,&key,NULL,true);
+	if (isTXN()) {
+		DB_ENV* db_env = getENV();
+		kl = key_lockers[ns];
+		ret = db_env->txn_begin(db_env,NULL,&txn, 0); // no snapshot for writes
+		if (ret != 0) {
+			db_ptr->err(db_ptr,ret,"Could not start transaction");
+			TException te("Could not start transaction");
+      throw te;
+    }
+		kl->writeLockKey((char*)key.data,key.size);
+	}
 
+  if (!rec.__isset.value)   // really a delete
+		ok = putDBTs(db_ptr,mdb_ptr,&key,NULL,txn,true);
+	else {
+		data.data = const_cast<char*>(rec.value.c_str());
+		data.size = rec.value.length();
+		ok = putDBTs(db_ptr,mdb_ptr,&key,&data,txn,true);
+	}
 
-  data.data = const_cast<char*>(rec.value.c_str());
-  data.size = rec.value.length();
-  return putDBTs(db_ptr,mdb_ptr,&key,&data,true);
+	if (isTXN()) {
+		ret = txn->commit(txn, 0);
+		kl->unlockKey((char*)key.data,key.size);
+		if (ret != 0) {
+			db_ptr->err(db_ptr, ret, "Transaction commit failed.");
+			TException te("Could not commit transaction");
+			throw te;
+		}
+	}
+	return ok;
 }
 
 bool StorageDB::
@@ -1556,7 +1617,7 @@ void parseArgs(int argc, char* argv[]) {
   doMerkle = false;
   xTrace = false;
 
-  while ((opt = getopt(argc, argv, "mhxLp:d:t:n:l:c:")) != -1) {
+  while ((opt = getopt(argc, argv, "mhxXLp:d:t:n:l:c:")) != -1) {
     switch (opt) {
     case 'p':
       port = atoi(optarg);
@@ -1570,16 +1631,16 @@ void parseArgs(int argc, char* argv[]) {
       break;
     case 't':
       if (!strcmp(optarg,"simple"))
-	serverType = ST_SIMPLE;
+				serverType = ST_SIMPLE;
       else if (!strcmp(optarg,"threaded"))
-	serverType = ST_THREAD;
+				serverType = ST_THREAD;
       else if (!strcmp(optarg,"pooled"))
-	serverType = ST_POOL;
+				serverType = ST_POOL;
       else if (!strcmp(optarg,"nonblocking"))
-	serverType = ST_NONBLOCK;
+				serverType = ST_NONBLOCK;
       else {
-	cerr << "argument to -t must be one of: simple, threaded, nonblocking or pooled"<<endl;
-	exit(EXIT_FAILURE);
+				cerr << "argument to -t must be one of: simple, threaded, nonblocking or pooled"<<endl;
+				exit(EXIT_FAILURE);
       }
       break;
     case 'm':

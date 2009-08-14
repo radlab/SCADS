@@ -39,6 +39,7 @@ private:
   pthread_mutex_t flush_tex, flushing_tex;
 
   map<const NameSpace,DB*> dbs;
+	map<const NameSpace,KeyLocker*> key_lockers;
   map<const NameSpace,MerkleDB*> merkle_dbs;
   map<const NameSpace,RecordSet*> policies;
 
@@ -46,7 +47,6 @@ private:
   u_int32_t user_flags;
   bool doMerkle;
 
-	KeyLocker *keyLocker;
 
 public:
   StorageDB(int,u_int32_t,u_int32_t,bool);
@@ -68,7 +68,7 @@ private:
 
 public:
   void apply_to_set(const NameSpace& ns, const RecordSet& rs,
-		    void(*to_apply)(void*,DB*,DBC*,DB_TXN*,void*,void*),void* apply_arg,
+				void(*to_apply)(void*,DB*,DBC*,KeyLocker*,DB_TXN*,void*,void*),void* apply_arg,
 		    bool invokeNone = false, bool bulk = false);
 
   int flush_log(DB*);
@@ -88,7 +88,7 @@ public:
   bool remove_set(const NameSpace& ns, const RecordSet& rs);
   bool put(const NameSpace& ns, const Record& rec);
   bool test_and_set(const NameSpace& ns, const Record& rec, const ExistingValue& eVal);
-  bool putDBTs(DB* db_ptr, MerkleDB* mdb_ptr,DBT* key, DBT* data,bool hasNull=false);
+  bool putDBTs(DB* db_ptr, MerkleDB* mdb_ptr,DBT* key, DBT* data,DB_TXN* txn, bool hasNull=false);
   int32_t count_set(const NameSpace& ns, const RecordSet& rs);
 
   bool set_responsibility_policy(const NameSpace& ns, const RecordSet& policy);

@@ -1,4 +1,5 @@
 #include "StorageDB.h"
+#include "KeyLocker.h"
 #include "TQueue.h"
 
 #include <errno.h>
@@ -181,7 +182,7 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
   MerkleDB* mdb_ptr;
   DB_ENV* db_env;
   DBT k,d;
-  int fail = 0;
+	bool fail = false;
   int ic;
 
   // do all the work
@@ -220,20 +221,22 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
   for(ic=0;;ic++) { // now read all our key/vals
     int kf,df;
 
+		/*
     if (ic != 0 &&
-	txn != NULL &&
-	ic % COMMIT_LIMIT == 0) {
+				txn != NULL &&
+				ic % COMMIT_LIMIT == 0) {
       // gross, commit every 10000 so we don't run out of locks
       if (txn!=NULL && txn->commit(txn,0)) {
-	cerr << "Commit of copy transaction failed in loop"<<endl;
-	return 1;
+				cerr << "Commit of copy transaction failed in loop"<<endl;
+				return 1;
       }
       fail = db_env->txn_begin(db_env, NULL, &txn, DB_TXN_SNAPSHOT);
       if (fail != 0) {
-	TException te("Could not start transaction");
-	throw te;
+				TException te("Could not start transaction");
+				throw te;
       }
     }
+		*/
 
     memset(&k, 0, sizeof(DBT));
     memset(&d, 0, sizeof(DBT));
@@ -242,9 +245,9 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
     } catch (ReadDBTException &e) {
       cerr << "Could not read key in copy: "<<e.what()<<endl;
       if (k.flags)
-	free(k.data);
+				free(k.data);
       if (txn!=NULL && txn->abort(txn))
-	cerr << "Transaction abort failed"<<endl;
+				cerr << "Transaction abort failed"<<endl;
       return 1;
     }
     if (off == 0)
@@ -254,11 +257,11 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
     } catch (ReadDBTException &e) {
       cerr << "Could not read data in copy: "<<e.what()<<endl;
       if (k.flags)
-	free(k.data);
+				free(k.data);
       if (d.flags)
-	free(d.data);
+				free(d.data);
       if (txn!=NULL && txn->abort(txn))
-	cerr << "Transaction abort failed"<<endl;
+				cerr << "Transaction abort failed"<<endl;
       return 1;
     }
 #ifdef DEBUG
@@ -271,14 +274,8 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
     d.flags = 0;
     d.dlen = 0;
 
-    if (mdb_ptr == NULL) {
-      if (db_ptr->put(db_ptr, txn, &k, &d, 0) != 0)
-	fail = 1;
-    } else {
-      if ( (db_ptr->put(db_ptr, txn, &k, &d, 0) != 0) ||
-	   (mdb_ptr->enqueue(&k,&d) != 0) )
-	fail = 1;
-    }
+
+		fail = !(storageDB->putDBTs(db_ptr,mdb_ptr,&k,&d,txn,false));
 
     if (kf)
       free(k.data);
@@ -290,18 +287,20 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
   }
 
   if (fail) {
-    if (txn!=NULL && txn->abort(txn))
-      cerr << "Transaction abort failed"<<endl;
+    if (txn!=NULL && (ic = txn->abort(txn)))
+      db_ptr->err(db_ptr,ic,"Transaction abort failed");
   }
   else {
-    if (txn!=NULL && txn->commit(txn,0))
-      cerr << "Commit of copy transaction failed"<<endl;
+    if (txn!=NULL && (ic = txn->commit(txn,0))) {
+			db_ptr->err(db_ptr,ic,"Commit of copy transaction failed");
+			fail = true;
+		}
   }
-
+	
   if (!fail)
     fail = storageDB->flush_log(db_ptr);
-
-  return fail;
+	
+  return fail?1:0;
 }
 
 // read a policy out of buf.  returns 0 on success, 1 otherwise
@@ -395,40 +394,48 @@ void send_string(int sock, const string& str) {
   }
 }
 
-void apply_dump(void *s, DB* db, DBC* cursor, DB_TXN *txn, void *k, void *d) {
-  int* sock = (int*)s;
-  send_vals(*sock,(DBT*)k,(DBT*)d,node_data);
-}
-
-void sync_sync_put(DB* db, DBC* cursor, DB_TXN* txn, DBT* lkey, DBT* ldata, struct sync_sync_args* args, bool adv=true) {
+void sync_sync_put(DB* db, DBC* cursor, DB_TXN* txn, DBT* lkey, DBT* ldata, struct sync_sync_args* args, KeyLocker* kl, bool adv=true) {
+	int r;
   if (cursor == NULL || args->isTXN) {
-    if (db->put(db, txn, &(args->k), &(args->d), 0) != 0)
-      cerr << "Failed to put remote key: "<<string((char*)args->k.data,args->k.size)<<endl;
-  }
-  else {
-    if (cursor->put(cursor, &(args->k), &(args->d), DB_KEYFIRST) != 0)
-      cerr << "Failed to put remote key: "<<string((char*)args->k.data,args->k.size)<<endl;
+		if (kl != NULL) 
+			kl->writeLockKey((const char*)(args->k).data,(args->k).size);
+    if ((r = db->put(db, txn, &(args->k), &(args->d), 0)) != 0) {
+			ostringstream oss;
+			oss << "Failed to put remote key for sync: "<<string((char*)args->k.data,args->k.size)<<endl;
+      db->err(db,r,oss.str().c_str());
+		}
+		if (kl != NULL)
+			kl->unlockKey((const char*)(args->k).data,(args->k).size);
+	}
+	else {
+    if ((r = cursor->put(cursor, &(args->k), &(args->d), DB_KEYFIRST)) != 0) {
+			ostringstream oss;
+			oss << "Failed to put remote key for sync: "<<string((char*)args->k.data,args->k.size)<<endl;
+      db->err(db,r,oss.str().c_str());
+		}
     if (adv) {
-      if (cursor->get(cursor, lkey, ldata, DB_NEXT))
-	cerr << "Failed to advance local cursor"<<endl;
+      if ((r = cursor->get(cursor, lkey, ldata, DB_NEXT)) != 0)
+				db->err(db,r,"Failed to advance local cursor");
     }
   }
-
+	
+	/*
   if (txn!=NULL) {
     if ((++(args->ic) % COMMIT_LIMIT) == 0) {
       if (txn->commit(txn,0)) {
-	cerr << "Commit of sync_sync transaction failed in loop"<<endl;
-	return;
+				cerr << "Commit of sync_sync transaction failed in loop"<<endl;
+				return;
       }
       if ((args->db_env)->txn_begin(args->db_env, NULL, &txn, DB_TXN_SNAPSHOT)) {
-	TException te("Could not start transaction");
-	throw te;
+				TException te("Could not start transaction");
+				throw te;
       }
     }
   }
+	*/
 }
 
-void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
+void sync_sync(void* s, DB* db, DBC* cursor, KeyLocker* kl, DB_TXN *txn, void* k, void* d) {
   int kf,df,minl,ic;
   DBT *key,*data;
   struct sync_sync_args* args = (struct sync_sync_args*)s;
@@ -448,13 +455,13 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
       cerr << "Could not read key for sync: "<<e.what()<<endl;
       // TODO: rethrow or return fail code
       if (args->k.flags)
-	free(args->k.data);
+				free(args->k.data);
       return;
     }
     if (args->off == 0) {
       args->remdone = 1;
       if (key != NULL)
-	send_vals(args->sock,key,data,node_data);
+				send_vals(args->sock,key,data,node_data);
       return;
     }
     try {
@@ -462,9 +469,9 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
     } catch (ReadDBTException &e) {
       cerr << "Could not read data for sync: "<<e.what()<<endl;
       if (args->k.flags)
-	free(args->k.data);
+				free(args->k.data);
       if (args->d.flags)
-	free(args->d.data);
+				free(args->d.data);
       // TODO: rethrow or return fail code
       return;
     }
@@ -484,32 +491,32 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
       int kf,df;
 
       if (args->k.size == 0) {
-	try {
-	  args->off = fill_dbt(&(args->sock),&(args->k),NULL,args->dbuf,args->dbuf+(args->off),&(args->end));
-	} catch (ReadDBTException &e) {
-	  cerr << "Could not read key for sync: "<<e.what()<<endl;
-	  if (args->k.flags)
-	    free(args->k.data);
-	  // TODO: rethrow or return fail code
-	  return;
-	}
-	if (args->off == 0) {
+				try {
+					args->off = fill_dbt(&(args->sock),&(args->k),NULL,args->dbuf,args->dbuf+(args->off),&(args->end));
+				} catch (ReadDBTException &e) {
+					cerr << "Could not read key for sync: "<<e.what()<<endl;
+					if (args->k.flags)
+						free(args->k.data);
+					// TODO: rethrow or return fail code
+					return;
+				}
+				if (args->off == 0) {
 #ifdef DEBUG
-	  cerr<<"Okay, read all remote keys, returning"<<endl;
+					cerr<<"Okay, read all remote keys, returning"<<endl;
 #endif
-	  return;
-	}
-	try {
-	  args->off = fill_dbt(&(args->sock),&(args->d),&(args->k),args->dbuf,args->dbuf+(args->off),&(args->end));
-	} catch (ReadDBTException &e) {
-	  cerr << "Could not read data for sync: "<<e.what()<<endl;
-	  if (args->k.flags)
-	    free(args->k.data);
-	  if (args->d.flags)
-	    free(args->d.data);
-	  // TODO: rethrow or return fail code
-	  return;
-	}
+					return;
+				}
+				try {
+					args->off = fill_dbt(&(args->sock),&(args->d),&(args->k),args->dbuf,args->dbuf+(args->off),&(args->end));
+				} catch (ReadDBTException &e) {
+					cerr << "Could not read data for sync: "<<e.what()<<endl;
+					if (args->k.flags)
+						free(args->k.data);
+					if (args->d.flags)
+						free(args->d.data);
+					// TODO: rethrow or return fail code
+					return;
+				}
       }
 
 #ifdef DEBUG
@@ -524,12 +531,12 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
       args->d.dlen = 0;
 
 
-      sync_sync_put(db,cursor,txn,NULL,NULL,args,false);
+      sync_sync_put(db,cursor,txn,NULL,NULL,args,kl,false);
 
       if (kf)
-	free(args->k.data);
+				free(args->k.data);
       if (df)
-	free(args->d.data);
+				free(args->d.data);
 
       memset(&(args->k), 0, sizeof(DBT));
       memset(&(args->d), 0, sizeof(DBT));
@@ -562,38 +569,38 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
       cerr << "Local key "<<string((char*)key->data,key->size)<<" is longer, Inserting to catch up."<<endl;
 #endif
 
-      sync_sync_put(db,cursor,txn,key,data,args);
+      sync_sync_put(db,cursor,txn,key,data,args,kl);
 
       if (kf)
-	free(args->k.data);
+				free(args->k.data);
       if (df)
-	free(args->d.data);
+				free(args->d.data);
 
       memset(&(args->k), 0, sizeof(DBT));
       memset(&(args->d), 0, sizeof(DBT));
       try {
-	args->off = fill_dbt(&(args->sock),&(args->k),NULL,args->dbuf,args->dbuf+args->off,&(args->end));
+				args->off = fill_dbt(&(args->sock),&(args->k),NULL,args->dbuf,args->dbuf+args->off,&(args->end));
       } catch (ReadDBTException &e) {
-	cerr << "Could not read key for sync: "<<e.what()<<endl;
-	// TODO: rethrow or return fail code
-	if (args->k.flags)
-	  free(args->k.data);
-	return;
+				cerr << "Could not read key for sync: "<<e.what()<<endl;
+				// TODO: rethrow or return fail code
+				if (args->k.flags)
+					free(args->k.data);
+				return;
       }
       if (args->off == 0) {
-	args->remdone = 1;
-	return; // kick out, we'll see that there's no more remote keys and send over anything else we have
+				args->remdone = 1;
+				return; // kick out, we'll see that there's no more remote keys and send over anything else we have
       }
       try {
-	args->off = fill_dbt(&(args->sock),&(args->d),&(args->k),args->dbuf,args->dbuf+args->off,&(args->end));
+				args->off = fill_dbt(&(args->sock),&(args->d),&(args->k),args->dbuf,args->dbuf+args->off,&(args->end));
       } catch (ReadDBTException &e) {
-	cerr << "Could not read data for sync: "<<e.what()<<endl;
-	if (args->k.flags)
-	  free(args->k.data);
-	if (args->d.flags)
-	  free(args->d.data);
-	// TODO: rethrow or return fail code
-	return;
+				cerr << "Could not read data for sync: "<<e.what()<<endl;
+				if (args->k.flags)
+					free(args->k.data);
+				if (args->d.flags)
+					free(args->d.data);
+				// TODO: rethrow or return fail code
+				return;
       }
 #ifdef DEBUG
       cerr << "[read for sync] key: "<<string((char*)args->k.data,args->k.size)<<" data: "<<string((char*)args->d.data,args->d.size)<<endl;
@@ -614,7 +621,23 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
 #ifdef DEBUG
       cerr << "Local key "<<string((char*)key->data,key->size)<<" is less, sending over."<<endl;
 #endif
-      send_vals(args->sock,key,data,node_data);
+			// Lock if we have a keylocker since we're going to do something with our local value
+			if (kl!=NULL) {
+				DBT cdata;
+				int ret;
+				memset(&cdata, 0, sizeof(DBT));
+				cdata.flags = DB_DBT_MALLOC;
+				kl->readLockKey((char*)key->data,key->size);
+				if ((ret = db->get(db,txn,key,&cdata,0))) {
+					db->err(db,ret,"Couldn't check value in sync_sync");
+					kl->unlockKey((char*)key->data,key->size);
+					return;
+				}
+				kl->unlockKey((char*)key->data,key->size);
+				send_vals(args->sock,key,&cdata,node_data);
+				free(cdata.data);
+			} else
+				send_vals(args->sock,key,data,node_data);
       // don't want to clear keys, will deal with on next pass
       return;
     }
@@ -632,38 +655,38 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
       args->d.flags = 0;
       args->d.dlen = 0;
 
-      sync_sync_put(db,cursor,txn,key,data,args);
+      sync_sync_put(db,cursor,txn,key,data,args,kl);
 
       if (kf)
-	free(args->k.data);
+				free(args->k.data);
       if (df)
-	free(args->d.data);
+				free(args->d.data);
 
       memset(&(args->k), 0, sizeof(DBT));
       memset(&(args->d), 0, sizeof(DBT));
       try {
-	args->off = fill_dbt(&(args->sock),&(args->k),NULL,args->dbuf,args->dbuf+args->off,&(args->end));
+				args->off = fill_dbt(&(args->sock),&(args->k),NULL,args->dbuf,args->dbuf+args->off,&(args->end));
       } catch (ReadDBTException &e) {
-	cerr << "Could not read key for sync: "<<e.what()<<endl;
-	// TODO: rethrow or return fail code
-	if (args->k.flags)
-	  free(args->k.data);
-	return;
+				cerr << "Could not read key for sync: "<<e.what()<<endl;
+				// TODO: rethrow or return fail code
+				if (args->k.flags)
+					free(args->k.data);
+				return;
       }
       if (args->off == 0) {
-	args->remdone = 1;
-	return; // ditto to above remdone comment
+				args->remdone = 1;
+				return; // ditto to above remdone comment
       }
       try {
-	args->off = fill_dbt(&(args->sock),&(args->d),&(args->k),args->dbuf,args->dbuf+args->off,&(args->end));
+				args->off = fill_dbt(&(args->sock),&(args->d),&(args->k),args->dbuf,args->dbuf+args->off,&(args->end));
       } catch (ReadDBTException &e) {
-	cerr << "Could not read data for sync: "<<e.what()<<endl;
-	// TODO: rethrow or return fail code
-	if (args->k.flags)
-	  free(args->k.data);
-	if (args->d.flags)
-	  free(args->d.data);
-	return;
+				cerr << "Could not read data for sync: "<<e.what()<<endl;
+				// TODO: rethrow or return fail code
+				if (args->k.flags)
+					free(args->k.data);
+				if (args->d.flags)
+					free(args->d.data);
+				return;
       }
 #ifdef DEBUG
       cerr << "[read for sync] key: "<<string((char*)args->k.data,args->k.size)<<" data: "<<string((char*)args->d.data,args->d.size)<<endl;
@@ -683,6 +706,28 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
   args->d.flags = 0;
   args->d.dlen = 0;
 
+	// Lock to validate
+	void* saved_data;
+	int saved_size;
+	if (kl != NULL) {
+		DBT cdata;
+		int ret;
+		memset(&cdata, 0, sizeof(DBT));
+		cdata.flags = DB_DBT_MALLOC;
+		kl->readLockKey((char*)key->data,key->size);
+		if ((ret = db->get(db,txn,key,&cdata,0))) {
+			db->err(db,ret,"Couldn't check value in sync_sync");
+			kl->unlockKey((char*)key->data,key->size);
+			return;
+		}
+		kl->unlockKey((char*)key->data,key->size);
+		saved_data = data->data;
+		data->data = cdata.data;
+		saved_size = data->size;
+		data->size = cdata.size;
+	}
+
+
   int dcmp = 0;
   if (data->size == args->d.size)
     dcmp = memcmp(data->data,args->d.data,data->size);
@@ -695,19 +740,19 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
     if (args->pol->type == CPT_GREATER) {
 
       if (data->size > args->d.size ||
-	  dcmp > 0) { // local is greater, keep that, send over our value
+					dcmp > 0) { // local is greater, keep that, send over our value
 #ifdef DEBUG
-	cerr << "Local data is greater, sending over."<<endl;
+				cerr << "Local data is greater, sending over."<<endl;
 #endif
-	send_vals(args->sock,key,data,node_data);
+				send_vals(args->sock,key,data,node_data);
       }
 
       else if (data->size < args->d.size ||
-	       dcmp < 0) { // remote is greater, insert, no need to send back
+							 dcmp < 0) { // remote is greater, insert, no need to send back
 #ifdef DEBUG
-	cerr << "Local data is less, inserting greater value locally."<<endl;
+				cerr << "Local data is less, inserting greater value locally."<<endl;
 #endif
-	sync_sync_put(db,cursor,txn,key,data,args,false);
+				sync_sync_put(db,cursor,txn,key,data,args,kl,false);
       }
 
     }
@@ -720,8 +765,8 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
       DBT rd;
       VALUE ruby_proc = rb_eval_string_protect(args->pol->func.func.c_str(),&stat);
       if (!rb_respond_to(ruby_proc,call_id)) {
-	// TODO: Validate earlier so this can't happen
-	cerr << "Invalid ruby policy specified"<<endl;
+				// TODO: Validate earlier so this can't happen
+				cerr << "Invalid ruby policy specified"<<endl;
       }
       VALUE v;
       funcall_args[0] = ruby_proc;
@@ -729,9 +774,9 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
       funcall_args[2] = rb_str_new((const char*)(args->d.data),args->d.size);
       v = rb_protect(rb_funcall_wrap,((VALUE)funcall_args),&rb_err);
       if (rb_err) {
-	VALUE lasterr = rb_gv_get("$!");
-	VALUE message = rb_obj_as_string(lasterr);
-	cerr <<  "Error evaling ruby conflict pol"<< rb_string_value_cstr(&message)<<endl;
+				VALUE lasterr = rb_gv_get("$!");
+				VALUE message = rb_obj_as_string(lasterr);
+				cerr <<  "Error evaling ruby conflict pol"<< rb_string_value_cstr(&message)<<endl;
       }
       char* newval = rb_string_value_cstr(&v);
 #ifdef DEBUG
@@ -740,27 +785,27 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
 
       if (strncmp(newval,(char*)data->data,data->size)) {
 #ifdef DEBUG
-	cerr<<"Ruby func returned something different from my local value, inserting locally"<<endl;
+				cerr<<"Ruby func returned something different from my local value, inserting locally"<<endl;
 #endif
-	void *td = args->d.data;
-	u_int32_t ts = args->d.size;
-	args->d.data = newval;
-	args->d.size = strlen(newval);
-	sync_sync_put(db,cursor,txn,key,data,args,false);
-	args->d.data = td;
-	args->d.size = ts;
+				void *td = args->d.data;
+				u_int32_t ts = args->d.size;
+				args->d.data = newval;
+				args->d.size = strlen(newval);
+				sync_sync_put(db,cursor,txn,key,data,args,kl,false);
+				args->d.data = td;
+				args->d.size = ts;
       }
       if (strncmp(newval,(char*)args->d.data,args->d.size)) {
 #ifdef DEBUG
-	cerr<<"Ruby func returned something different from remote key, sending over"<<endl;
+				cerr<<"Ruby func returned something different from remote key, sending over"<<endl;
 #endif
-	void *td = args->d.data;
-	u_int32_t ts = args->d.size;
-	args->d.data = newval;
-	args->d.size = strlen(newval);
-	send_vals(args->sock,key,&(args->d),node_data);
-	args->d.data = td;
-	args->d.size = ts;
+				void *td = args->d.data;
+				u_int32_t ts = args->d.size;
+				args->d.data = newval;
+				args->d.size = strlen(newval);
+				send_vals(args->sock,key,&(args->d),node_data);
+				args->d.data = td;
+				args->d.size = ts;
       }
     }
     else {
@@ -773,6 +818,13 @@ void sync_sync(void* s, DB* db, DBC* cursor, DB_TXN *txn, void* k, void* d) {
     free(args->k.data);
   if (df)
     free(args->d.data);
+
+	if (kl != NULL) {
+		free(data->data); // actually the cdata.data that we need to free
+		// put things back so apply_to_set will do the right thing
+		data->data = saved_data;
+		data->size = saved_size;
+	}
 
   memset(&(args->k), 0, sizeof(DBT));
   memset(&(args->d), 0, sizeof(DBT));
@@ -893,7 +945,7 @@ int do_merkle_sync(int sock, const NameSpace& ns,
 #ifdef DEBUG
 	cout << "Local is less, inserting"<<endl;
 #endif
-	storageDB->putDBTs(db,mdb,&key,&data);
+	storageDB->putDBTs(db,mdb,&key,&data,NULL);
 	break;
       }
       case LOC_REPLS: { // local replaces, send back over
@@ -1116,7 +1168,7 @@ int do_merkle_dfs_sync(int sock, const NameSpace& ns,
 #ifdef DEBUG
 	cout << "Local is less, inserting"<<endl;
 #endif
-	storageDB->putDBTs(db,mdb,&key,&data);
+	storageDB->putDBTs(db,mdb,&key,&data,NULL);
 	break;
       }
       case LOC_REPLS: { // local replaces, send back over
@@ -1368,7 +1420,7 @@ int do_sync(int sock, StorageDB* storageDB, char* dbuf, char sync_type) {
 
     storageDB->apply_to_set(ns,rs,sync_sync,&args,true);
     if (!args.remdone)
-      sync_sync(&args,db,NULL,NULL,NULL,NULL);
+      sync_sync(&args,db,NULL,NULL,NULL,NULL,NULL); // TODO: KeyLocker here?
   }
 
   else if (sync_type == SYNC_MERKLE) {
@@ -1390,6 +1442,27 @@ int do_sync(int sock, StorageDB* storageDB, char* dbuf, char sync_type) {
     send_string(sock,"");
 
   return storageDB->flush_log(db);
+}
+
+void apply_copy(void* s, DB* db, DBC* cursor, KeyLocker* kl,DB_TXN* txn, void* k, void* d) {
+	if (kl!=NULL) {
+		DBT* key = (DBT*)k;
+		DBT cdata;
+		int ret;
+		memset(&cdata, 0, sizeof(DBT));
+		cdata.flags = DB_DBT_MALLOC;
+		kl->readLockKey((char*)key->data,key->size);
+		if ((ret = db->get(db,txn,key,&cdata,0))) {
+			db->err(db,ret,"Couldn't check value in apply_get");
+			kl->unlockKey((char*)key->data,key->size);
+			return;
+		}
+		kl->unlockKey((char*)key->data,key->size);
+		send_vals(*((int*)s),key,&cdata,node_data);
+		free(cdata.data);
+	}
+	else
+		send_vals(*((int*)s),(DBT*)k,(DBT*)d,node_data);
 }
 
 void* run_listen(void* arg) {
@@ -1519,7 +1592,7 @@ void* run_listen(void* arg) {
 	rs.__isset.range = false;
 	rs.__isset.func = false;
 	try {
-	  storageDB->apply_to_set(ns,rs,apply_dump,&as);
+	  storageDB->apply_to_set(ns,rs,apply_copy,&as);
 	} catch (TException &e) {
 	  stat = 1;
 	  stat = 1;
@@ -1623,14 +1696,6 @@ int open_socket(const Host& h) {
   return sock;
 }
 
-void apply_copy(void* s, DB* db, DBC* cursor, DB_TXN* txn, void* k, void* d) {
-  int *sock = (int*)s;
-  DBT *key,*data;
-  key = (DBT*)k;
-  data = (DBT*)d;
-  send_vals(*sock,key,data,node_data);
-}
-
 bool StorageDB::
 copy_set(const NameSpace& ns, const RecordSet& rs, const Host& h) {
   int numbytes;
@@ -1672,23 +1737,11 @@ copy_set(const NameSpace& ns, const RecordSet& rs, const Host& h) {
   return true;
 }
 
-
-// same as copy, just send all our keys
-void sync_send(void* s, DB* db, DBC* cursor, DB_TXN* txn, void* k, void* d) {
-  int *sock = (int*)s;
-  DBT *key,*data;
-  key = (DBT*)k;
-  data = (DBT*)d;
-#ifdef DEBUG
-  cerr << "[Sending for sync] key: "<<string((char*)key->data,key->size)<<" data: "<<string((char*)data->data,data->size)<<endl;
-#endif
-  send_vals(*sock,key,data,node_data);
-}
-
 struct sync_recv_args {
   int sock;
   int stat;
   int isTXN;
+	StorageDB* storageDB;
   DB* db_ptr;
   DB_ENV* db_env;
 };
@@ -1705,11 +1758,12 @@ void* sync_recv(void* arg) {
 
   int sock = args->sock;
   DB* db_ptr = args->db_ptr;
+	StorageDB* storageDB = args->storageDB;
   DB_ENV* db_env = args->db_env;
   DB_TXN* txn;
   args->stat = 0;
   end = dbuf;
-
+	
   txn = NULL;
 
   if (args->isTXN) {
@@ -1722,19 +1776,21 @@ void* sync_recv(void* arg) {
   for(ic=0;;ic++) { // now read all our key/vals
     int kf,df;
 
+		/*
     if (txn != NULL) {
       if ( ic != 0 &&
-	   (ic % COMMIT_LIMIT) == 0 ) {
-	if (txn->commit(txn,0)) {
-	  cerr << "Commit of sync_recv transaction failed in loop"<<endl;
-	  return NULL;
-	}
-	if (db_env->txn_begin(db_env, NULL, &txn, DB_TXN_SNAPSHOT)) {
-	  cerr << "Could not start transaction in sync_recv"<<endl;
-	  return NULL;
-	}
+					 (ic % COMMIT_LIMIT) == 0 ) {
+				if (txn->commit(txn,0)) {
+					cerr << "Commit of sync_recv transaction failed in loop"<<endl;
+					return NULL;
+				}
+				if (db_env->txn_begin(db_env, NULL, &txn, DB_TXN_SNAPSHOT)) {
+					cerr << "Could not start transaction in sync_recv"<<endl;
+					return NULL;
+				}
       }
     }
+		*/
 
     memset(&k, 0, sizeof(DBT));
     memset(&d, 0, sizeof(DBT));
@@ -1744,9 +1800,9 @@ void* sync_recv(void* arg) {
       cerr << "Could not recieve sync key back: "<<e.what()<<endl;
       args->stat = 1; // fail
       if (k.flags)
-	free(k.data);
+				free(k.data);
       if (d.flags)
-	free(d.data);
+				free(d.data);
       break;
     }
     if (off == 0) {
@@ -1759,9 +1815,9 @@ void* sync_recv(void* arg) {
       cerr << "Could not read sync data back: "<<e.what()<<endl;
       args->stat = 1; // fail
       if (k.flags)
-	free(k.data);
+				free(k.data);
       if (d.flags)
-	free(d.data);
+				free(d.data);
       break;
     }
 #ifdef DEBUG
@@ -1774,11 +1830,11 @@ void* sync_recv(void* arg) {
     d.flags = 0;
     d.dlen = 0;
 
-    if (db_ptr->put(db_ptr, txn, &k, &d, 0) != 0) {
+		if (!storageDB->putDBTs(db_ptr,NULL,&k,&d,txn,false)) {
       cerr<<"Couldn't insert synced key: "<<string((char*)k.data,k.size)<<endl;
-      continue;
+			continue;
     }
-
+		
     if (kf)
       free(k.data);
     if (df)
@@ -1852,6 +1908,7 @@ simple_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
   struct sync_recv_args args;
   args.sock = sock;
   args.db_ptr = getDB(ns);
+	args.storageDB = this;
   args.db_env = db_env;
   args.isTXN = (user_flags & DB_INIT_TXN);
 
@@ -1859,7 +1916,8 @@ simple_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const Confl
   (void) pthread_create(&recv_thread,NULL,
 			sync_recv,&args);
 
-  apply_to_set(ns,rs,sync_send,&sock);
+	// sync send is same as a copy
+  apply_to_set(ns,rs,apply_copy,&sock);
 
   // send done message
   send_string(sock,"");
@@ -2026,7 +2084,7 @@ void* merkle_recv(void* arg) {
 #ifdef DEBUG
       cout << "key: "<<dbt_string(&key)<<" data: "<<dbt_string(&data)<<endl;
 #endif
-      storageDB->putDBTs(db,merkleDB,&key,&data);
+      storageDB->putDBTs(db,merkleDB,&key,&data,NULL);
       break;
     }
     case MERKLE_YES: {
@@ -2127,7 +2185,7 @@ void* merkle_dfs_recv(void* arg) {
 #ifdef DEBUG
       cout << "key: "<<dbt_string(&key)<<" data: "<<dbt_string(&data)<<endl;
 #endif
-      storageDB->putDBTs(db,merkleDB,&key,&data);
+      storageDB->putDBTs(db,merkleDB,&key,&data,NULL);
       break;
     }
     case MERKLE_YES: {
