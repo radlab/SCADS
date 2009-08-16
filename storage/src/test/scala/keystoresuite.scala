@@ -44,17 +44,20 @@ object KeyStoreUtils {
 }
 
 abstract class KeyStoreSuite extends Suite {
-  val node: StorageNode
-  val connection: KeyStore.Client
+  def getNode: StorageNode
 
   // == Simple get/put tests ==
   def testSimpleGetPut() = {
+	val node = getNode
+	val connection = node.createConnection
     def rec = new Record("test", "test")
     connection.put("simple", rec)
     assert(connection.get("simple", "test") === rec)
   }
 
   def testUpdate() = {
+	val node = getNode
+	val connection = node.createConnection
     KeyStoreUtils.putNumericKeys(0,100,"tu",connection)
     for (i <- (0 to 100)) {
       val nk = new NumericKey(i)
@@ -73,6 +76,8 @@ abstract class KeyStoreSuite extends Suite {
   }
 
   def testSetToNull() = {
+	val node = getNode
+	val connection = node.createConnection
     for (i <- (1 to 100)) {
       val rec = new Record("test"+i,"data"+i)
       connection.put("tstn",rec)
@@ -92,6 +97,8 @@ abstract class KeyStoreSuite extends Suite {
   }
 
   def testEmptyString() = {
+	val node = getNode
+	val connection = node.createConnection
     for (i <- (1 to 100)) {
       val rec = new Record("test"+i,"data"+i)
       connection.put("tes",rec)
@@ -113,6 +120,8 @@ abstract class KeyStoreSuite extends Suite {
 
   // == test_and_set testing (and setting) ==
   def testAndSetNull() = {
+	val node = getNode
+	val connection = node.createConnection
     val ev = new ExistingValue("n",0)
     ev.unsetValue()
     ev.unsetPrefix()
@@ -122,6 +131,8 @@ abstract class KeyStoreSuite extends Suite {
   }
 
   def testAndSetNullFail() = {
+	val node = getNode
+	val connection = node.createConnection
     val ev = new ExistingValue("n",0)
     ev.unsetValue()
     ev.unsetPrefix()
@@ -142,6 +153,8 @@ abstract class KeyStoreSuite extends Suite {
   }
 
   def testAndSetSucceed() = {
+	val node = getNode
+	val connection = node.createConnection
     val rec = new Record("tassuc","tassuc1")
     connection.put("tass",rec)
     val ev = new ExistingValue("tassuc1",0)
@@ -154,6 +167,8 @@ abstract class KeyStoreSuite extends Suite {
   }
 
   def testAndSetFail() = {
+	val node = getNode
+	val connection = node.createConnection
     val rec = new Record("tasfail","tasfail1")
     connection.put("tasf",rec)
     val ev = new ExistingValue("failval",0)
@@ -176,6 +191,8 @@ abstract class KeyStoreSuite extends Suite {
   }
 
   def testAndSetSucceedPrefix() = {
+	val node = getNode
+	val connection = node.createConnection
     val rec = new Record("tassucp","tassucp1ignore")
     connection.put("tassp",rec)
     val ev = new ExistingValue("tassucp1xxx",7)
@@ -187,6 +204,8 @@ abstract class KeyStoreSuite extends Suite {
   }
 
   def testAndSetFailPrefix() = {
+	val node = getNode
+	val connection = node.createConnection
     val rec = new Record("tasfailp","tasfailp1ignore")
     connection.put("tasfp",rec)
     val ev = new ExistingValue("failval",12)
@@ -211,6 +230,8 @@ abstract class KeyStoreSuite extends Suite {
 
   // == test various get_set functionality ==
   def testSimpleGetSet() = {
+	val node = getNode
+	val connection = node.createConnection
     for (i <- (1 to 100)) {
       val nk = new NumericKey(i)
       val rec = new Record(nk.serialize,nk.serialize)
@@ -232,6 +253,8 @@ abstract class KeyStoreSuite extends Suite {
   }
 
   def testGetSetLimit() {
+	val node = getNode
+	val connection = node.createConnection
     KeyStoreUtils.putNumericKeys(0,100,"tgsl",connection)
 
     val lim = (new Random).nextInt(90)+1
@@ -247,6 +270,8 @@ abstract class KeyStoreSuite extends Suite {
   }
 
   def testGetSetOffset() {
+	val node = getNode
+	val connection = node.createConnection
     KeyStoreUtils.putNumericKeys(0,100,"tgso",connection)
 
     val off = (new Random).nextInt(50)+1
@@ -263,6 +288,8 @@ abstract class KeyStoreSuite extends Suite {
   }
 
   def testGetSetAll() {
+	val node = getNode
+	val connection = node.createConnection
     KeyStoreUtils.putNumericKeys(0,100,"tgsa",connection)
 
     val targetSet = new RecordSet(RecordSetType.RST_ALL,
@@ -276,6 +303,8 @@ abstract class KeyStoreSuite extends Suite {
   }
 
   def testGetSetNone() {
+	val node = getNode
+	val connection = node.createConnection
     KeyStoreUtils.putNumericKeys(0,100,"tgsn",connection)
 
     val targetSet = new RecordSet(RecordSetType.RST_NONE,
@@ -285,6 +314,8 @@ abstract class KeyStoreSuite extends Suite {
   }
 
   def testGetSetKeyFunc() {
+	val node = getNode
+	val connection = node.createConnection
     KeyStoreUtils.putNumericKeys(0,100,"tgskf",connection)
     val keyFunc = new UserFunction(Language.LANG_RUBY,
                                "Proc.new {|key| key.to_i%2==0}")
@@ -299,6 +330,7 @@ abstract class KeyStoreSuite extends Suite {
   }
 
   def testConcurrentTestSet() {
+	val node = getNode
 	val firstRec = new Record("val", NumericKey(0).serialize)
 	node.useConnection(_.put("concts", firstRec))
 
@@ -331,11 +363,9 @@ abstract class KeyStoreSuite extends Suite {
 }
 
 class BdbKeyStoreTest extends KeyStoreSuite {
-  val node = new TestableBdbStorageNode()
-  val connection = node.createConnection()
+  def getNode = new TestableBdbStorageNode()
 }
 
 class SimpleKeyStoreTest extends KeyStoreSuite {
-  val node = new TestableSimpleStorageNode()
-  val connection = node.createConnection()
+  def getNode = new TestableSimpleStorageNode()
 }

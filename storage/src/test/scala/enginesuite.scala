@@ -15,16 +15,17 @@ class NodeTest extends Suite {
         assert(n.useConnection((c) => c.get("test", "test")) == new Record("test", null))
     }
   }
-
-  val sn = new TestableSimpleStorageNode()
-  val bn = new TestableBdbStorageNode()
   
   def testHarness() {
+	val sn = new TestableSimpleStorageNode()
+	val bn = new TestableBdbStorageNode()
     assert(sn.useConnection((c) => c.get("test", "test")) == new Record("test", null))
     assert(bn.useConnection((c) => c.get("test", "test")) == new Record("test", null))
   }
 
   def testEquality() {
+	val sn = new TestableSimpleStorageNode()
+	val bn = new TestableBdbStorageNode()
     val sn2 = new StorageNode(sn.host, sn.thriftPort, sn.syncPort)
 
     assert(sn != bn)
@@ -32,6 +33,8 @@ class NodeTest extends Suite {
   }
 
   def testThreadSafety() {
+	val sn = new TestableSimpleStorageNode()
+	val bn = new TestableBdbStorageNode()
     val threads = (1 to 100).toList.map((i) => new Thread(new ParallelGet(bn)))
     threads.foreach((t: Thread) => t.start)
     threads.foreach((t: Thread) => t.join)
