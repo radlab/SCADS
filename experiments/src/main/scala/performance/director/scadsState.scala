@@ -10,33 +10,12 @@ import java.sql.Statement
 
 // ??
 class DirectorKeyRange(
-	val minKey: String,
-	val maxKey: String
+	val minKey: Int,
+	val maxKey: Int
 ) {
 	override def toString():String = "["+minKey+","+maxKey+")"
 }
 
-object PerformanceMetrics {
-	def load(metricReader:MetricReader, server:String, reqType:String):PerformanceMetrics = {
-		// FIX: handling of the dates
-		val (date0, workload) = metricReader.getSingleMetric(server, "workload", reqType)
-		val (date1, latencyMean) = metricReader.getSingleMetric(server, "latency_mean", reqType)
-		val (date2, latency90p) = metricReader.getSingleMetric(server, "latency_90p", reqType)
-		val (date3, latency99p) = metricReader.getSingleMetric(server, "latency_99p", reqType)
-		new PerformanceMetrics(date0,metricReader.interval.toInt,workload,latencyMean,latency90p,latency99p)
-	}
-}
-class PerformanceMetrics(
-	val time: Date,
-	val aggregationInterval: Int,  // in seconds
-	val workload: Double,
-	val latencyMean: Double,
-	val latency90p: Double,
-	val latency99p: Double
-) {
-	override def toString():String = time+" w="+"%.2f".format(workload)+" lMean="+"%.2f".format(latencyMean)+" l90p="+"%.2f".format(latency90p)+" l99p="+"%.2f".format(latency99p)
-	def toShortLatencyString():String = "%.0f".format(latencyMean)+"/"+"%.0f".format(latency90p)+"/"+"%.0f".format(latency99p)
-}
 
 // add multiple namespaces per node?
 class StorageNodeState(
@@ -51,10 +30,20 @@ class StorageNodeState(
 									" getL="+"%-15s".format(metricsByType("get").toShortLatencyString())+" putL="+"%-15s".format(metricsByType("put").toShortLatencyString())
 }
 
+class RangeState // TODO, holds metrics from histogram
+
+case class SCADSconfig(
+	val storageNodes: Map[String,DirectorKeyRange],
+	val ranges: List[RangeState]
+) {
+	def getNodes:List[String] = storageNodes.keySet.toList
+}
+
 object SCADSState {
 	import performance.Scads
 	import java.util.Comparator
 	import edu.berkeley.cs.scads.thrift.DataPlacement
+	import edu.berkeley.cs.scads.keys._
 
 	class DataPlacementComparator extends java.util.Comparator[DataPlacement] {
 		def compare(o1: DataPlacement, o2: DataPlacement): Int = {
@@ -70,24 +59,33 @@ object SCADSState {
 		
 		// iterate through storage server info and get performance metrics
 		var nodes = new scala.collection.mutable.ListBuffer[StorageNodeState]
+		var ranges = new scala.collection.mutable.ListBuffer[RangeState]
+		var nodeConfig = Map[String,DirectorKeyRange]()
 		val iter = placements.iterator
 		while (iter.hasNext) {
 			val info = iter.next
 			val ip = info.node
-			val range = new DirectorKeyRange(info.rset.range.start_key,info.rset.range.end_key) // TODO: make this not same name as scads key range		
+
+			val range = new DirectorKeyRange(
+				Scads.getNumericKey( StringKey.deserialize_toString(info.rset.range.start_key,new java.text.ParsePosition(0)) ),
+				Scads.getNumericKey( StringKey.deserialize_toString(info.rset.range.end_key,new java.text.ParsePosition(0)) )
+			)
 			val sMetrics = PerformanceMetrics.load(metricReader,ip,"ALL")
 			val sMetricsByType = reqTypes.map( (t) => t -> PerformanceMetrics.load(metricReader,ip,t)).foldLeft(Map[String, PerformanceMetrics]())((x,y) => x + y)	
 			nodes += new StorageNodeState(ip,sMetrics,sMetricsByType,range)
+			ranges += new RangeState // TODO: fill in
+			nodeConfig = nodeConfig.update(ip, range)
 		}
 		
 		val metrics = PerformanceMetrics.load(metricReader,"ALL","ALL")
 		val metricsByType = reqTypes.map( (t) => t -> PerformanceMetrics.load(metricReader,"ALL",t)).foldLeft(Map[String,PerformanceMetrics]())((x,y)=>x+y)
-		new SCADSState(new Date(), nodes.toList, metrics, metricsByType)
+		new SCADSState(new Date(), SCADSconfig(nodeConfig,ranges.toList), nodes.toList, metrics, metricsByType)
 	}
 }
 
 class SCADSState(
 	val time: Date,
+	val config: SCADSconfig,
 	val storageNodes: List[StorageNodeState],
 	val metrics: PerformanceMetrics,
 	val metricsByType: Map[String,PerformanceMetrics]
@@ -105,71 +103,3 @@ class SCADSState(
 }
 
 
-case class MetricReader(
-	val host: String,
-	val db: String,
-	val interval: Double,
-	val report_prob: Double
-) {
-	val port = 6000
-	val user = "root"
-	val pass = ""
-	
-	var connection = Director.connectToDatabase
-	initDatabase
-	
-	def initDatabase() {
-        // create database if it doesn't exist and select it
-        try {
-            val statement = connection.createStatement
-            statement.executeUpdate("CREATE DATABASE IF NOT EXISTS " + db)
-            statement.executeUpdate("USE " + db)
-       	} catch { case ex: SQLException => ex.printStackTrace() }
-    }
-
-	def getWorkload(host:String):Double = {
-		if (connection == null) connection = Director.connectToDatabase
-		val workloadSQL = "select time,value from scads,scads_metrics where scads_metrics.server=\""+host+"\" and request_type=\"ALL\" and stat=\"workload\" and scads.metric_id=scads_metrics.id order by time desc limit 10"
-		var value = Double.NaN
-        val statement = connection.createStatement
-		try {
-			val result = statement.executeQuery(workloadSQL)
-			val set = result.first // set cursor to first row
-			if (set) value = (result.getLong("value")/interval/report_prob).toDouble
-       	} catch { case ex: SQLException => println("Couldn't get workload"); ex.printStackTrace() }
-		finally {statement.close}
-		value
-	}
-	
-	def getSingleMetric(host:String, metric:String, reqType:String):(java.util.Date,Double) = {
-		if (connection == null) connection = Director.connectToDatabase
-		val workloadSQL = "select time,value from scads,scads_metrics where scads_metrics.server=\""+host+"\" and request_type=\""+reqType+"\" and stat=\""+metric+"\" and scads.metric_id=scads_metrics.id order by time desc limit 1"
-		var time:java.util.Date = null
-		var value = Double.NaN
-        val statement = connection.createStatement
-		try {
-			val result = statement.executeQuery(workloadSQL)
-			val set = result.first // set cursor to first row
-			if (set) {
-				time = new java.util.Date(result.getLong("time"))
-				value = if (metric=="workload") (result.getString("value").toDouble/interval/report_prob) else result.getString("value").toDouble
-			}
-       	} catch { case ex: SQLException => Director.logger.warn("SQL exception in metric reader",ex)}
-		finally {statement.close}
-		(time,value)
-	}
-	
-	def getAllServers():List[String] = {
-		if (connection == null) connection = Director.connectToDatabase
-		val workloadSQL = "select distinct server from scads_metrics"
-		var servers = new scala.collection.mutable.ListBuffer[String]()
-        val statement = connection.createStatement
-		try {
-			val result = statement.executeQuery(workloadSQL)
-			while (result.next) servers += result.getString("server")
-       	} catch { case ex: SQLException => Director.logger.warn("SQL exception in metric reader",ex)}
-		finally {statement.close}
-		servers.toList
-	}
-
-}
