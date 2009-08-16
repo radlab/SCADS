@@ -2,10 +2,10 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>edu.berkeley.cs.scads</groupId>
-	<artifactId>placement</artifactId>
+	<artifactId>client</artifactId>
 	<packaging>jar</packaging>
 	<version>1.0-SNAPSHOT</version>
-	<name>SCADS Data Placement Layer</name>
+	<name>SCADS Client Language</name>
 	<dependencies>
 		<dependency>
 			<groupId>log4j</groupId>
@@ -23,6 +23,11 @@
 			<version>1.0-SNAPSHOT</version>
 		</dependency>
 		<dependency>
+			<groupId>edu.berkeley.cs.scads</groupId>
+			<artifactId>placement</artifactId>
+			<version>1.0-SNAPSHOT</version>
+		</dependency>
+		<dependency>
 			<groupId>org.scala-tools.testing</groupId>
 			<artifactId>scalatest</artifactId>
 			<version>0.9.5</version>
@@ -31,11 +36,6 @@
 			<groupId>org.scala-lang</groupId>
 			<artifactId>scala-library</artifactId>
 			<version>2.7.5</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.thrift</groupId>
-			<artifactId>libthrift</artifactId>
-			<version>0.1-20090610-xtrace</version>
 		</dependency>
 		<dependency>
 			<groupId>org.scala-lang</groupId>
@@ -109,7 +109,7 @@
 							<goal>add-source</goal>
 							<goal>compile</goal>
 						</goals>
-					</execution>									
+					</execution>
 					<execution>
 						<id>scala-test-compile</id>
 						<phase>process-test-resources</phase>

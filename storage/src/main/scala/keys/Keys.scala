@@ -47,6 +47,9 @@ object NumericKey {
 	val maxKey = 9999999999999999L
 	val keyFormat = new java.text.DecimalFormat("0000000000000000")
 
+	def apply(i: Int) = new NumericKey(i)
+
+	def deserialize(input: String): NumericKey[Long] = deserialize(input, new ParsePosition(0))
 	def deserialize(input: String, pos: ParsePosition): NumericKey[Long] = {
 		val num = keyFormat.parse(input, pos).longValue()
 		if(num < 0)
@@ -93,4 +96,3 @@ class TransparentKey(value: String) extends Key {
 	def serialize: String = value
 	override def toString = value
 }
-

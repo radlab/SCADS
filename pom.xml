@@ -10,5 +10,7 @@
 		<module>interface</module>
 		<module>placement</module>
 		<module>experiments</module>
+		<module>client</module>
+		<module>storage</module>
 	</modules>
 </project>
