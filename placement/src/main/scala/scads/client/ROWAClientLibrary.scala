@@ -54,7 +54,7 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 		if ( (lastRefresh+ttl) < System.currentTimeMillis() ) doRefresh
 		val ret = this.get_retry(namespace,key,retries) // destinationIP is set here
 		var latency = System.nanoTime()-startt
-		XTraceContext.logEvent(thread_name,"ROWAClientLibrary","RequestDetails","get,"+destinationIP+","+(latency/1000000.0)+","+deploy_name)
+		XTraceContext.logEvent(thread_name,"ROWAClientLibrary","RequestDetails","get,"+key+","+destinationIP+","+(latency/1000000.0)+","+deploy_name)
 		ret
 	}
 	private def get_retry(namespace: String, key: String, count: Int):Record = {
@@ -252,7 +252,7 @@ abstract class ROWAClientLibrary extends ClientLibrary with SimpleDataPlacementS
 		if ( (lastRefresh+ttl) < System.currentTimeMillis() ) doRefresh
 		var ret = this.put_retry(namespace,rec,retries)  // destinationIP is set here
 		var latency = System.nanoTime()-startt
-		XTraceContext.logEvent(thread_name,"ROWAClientLibrary","RequestDetails","put,"+destinationIP+","+(latency/1000000.0)+","+deploy_name)
+		XTraceContext.logEvent(thread_name,"ROWAClientLibrary","RequestDetails","put,"+rec.getKey()+","+destinationIP+","+(latency/1000000.0)+","+deploy_name)
 		ret
 	}
 
