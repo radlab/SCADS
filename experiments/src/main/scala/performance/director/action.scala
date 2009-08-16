@@ -67,9 +67,32 @@ abstract class Action(
 	}
 	
 	def execute()
+	def preview(config:SCADSconfig): SCADSconfig = config
 	def toString(): String
 }
 
+abstract class ActionSelector {
+	import java.util.Random
+	val rand = new Random
+	def getRandomAction(state: SCADSState):Action
+}
+
+class UniformSelector(choices:List[String]) extends ActionSelector {
+	var mychoices = choices
+	def getRandomAction(state:SCADSState):Action = {
+		var nodes = state.config.getNodes 		// inspect config to see what servers are available to take action on
+		val node1:String = nodes.apply(rand.nextInt(nodes.size))
+		nodes = nodes.remove((elem:String) => elem == node1 )
+		val node2:String = if (nodes.size > 0) { nodes.apply(rand.nextInt(nodes.size)) }
+							else { mychoices = mychoices.remove((elem:String) => elem == "MergeTwo" ); null} // need >1 node for merge
+
+		val choice = mychoices.apply(rand.nextInt(mychoices.size)) // choose uniformly at rondom amongst possible choices
+		choice match {
+			case "SplitInTwo" => SplitInTwo(node1)
+			case "MergeTwo" => MergeTwo(node1,node2)
+		}
+	}
+}
 
 object Action {
 	val dbname = "director"
@@ -173,6 +196,17 @@ case class SplitInTwo(
 		move(server,new_guy,middle,end)
 		logger.debug("Sleeping")
 		Thread.sleep(60*1000) // wait minute
+	}
+	override def preview(config:SCADSconfig): SCADSconfig = {
+		val bounds = config.storageNodes(server)
+		var nodeConfig = config.storageNodes - server // make copy of previous node arrangment, removing the obsolete entry
+
+		val start = bounds.minKey
+		val end = bounds.maxKey
+		val middle = ((end-start)/2) + start
+		nodeConfig = nodeConfig.update(server, new DirectorKeyRange(start,middle))
+		nodeConfig = nodeConfig.update("SPLIT_"+server, new DirectorKeyRange(middle,end))
+		SCADSconfig(nodeConfig,config.ranges)
 	}
 	override def toString:String = actionShortName
 }
