@@ -20,14 +20,14 @@ case class StorageNode(host: String, thriftPort: Int, syncPort: Int) {
    * When the function is complete the connection is returned to the pool.
    * If an error occurs the connection is thrown away as we can not be sure if it is still in a good state.
    */
-  def useConnection[ReturnType](f: StorageEngine.Client => ReturnType): ReturnType = {
+  def useConnection[ReturnType](f: StorageEngine.Iface => ReturnType): ReturnType = {
     ConnectionPool.useConnection(this, f)
   }
 
   /**
    * Checkout (or create) a connection from the pool.  For use when you don't intend to return the connection to the pool.
    */
-  def createConnection() = {
+  def createConnection():StorageEngine.Iface = {
     ConnectionPool.checkoutConnection(this)
   }
 }

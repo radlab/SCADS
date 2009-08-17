@@ -6,6 +6,7 @@ import org.apache.commons.cli.Options
 import org.apache.commons.cli.GnuParser
 import org.apache.commons.cli.CommandLine
 import org.apache.commons.cli.HelpFormatter
+import org.apache.log4j.Logger
 
 import com.sleepycat.je.Environment
 import com.sleepycat.je.EnvironmentConfig
@@ -18,6 +19,8 @@ import org.apache.thrift.protocol.{TBinaryProtocol, XtBinaryProtocol}
 
 object JavaEngine {
 	def main(args: Array[String]) = {
+		val logger = Logger.getLogger("scads.engine")
+
 		val options = new Options();
 		options.addOption("p", "port",  true, "the port to run the thrift server on");
 		options.addOption("d", "dbdir",  true, "directory to to store the database environment in");
@@ -36,6 +39,7 @@ object JavaEngine {
 			case true => new File(cmd.getOptionValue("dbdir"))
 			case false => new File("db")
 		}
+		logger.info("DbDir: " + dbDir)
 
 		if(!dbDir.exists()) {
 			dbDir.mkdir
@@ -45,10 +49,13 @@ object JavaEngine {
 			case true => cmd.getOptionValue("port").toInt
 			case false => 9000
 		}
+		logger.info("Port: " + port)
 
+		logger.info("Opening the bdb environment")
 		val config = new EnvironmentConfig();
 		config.setAllowCreate(true);
 		val env = new Environment(dbDir, config)
+		logger.info("Environment opened")
 
 		val processor = new StorageEngine.Processor(new StorageProcessor(env))
 		val transport = new TNonblockingServerSocket(port)
@@ -58,6 +65,7 @@ object JavaEngine {
 		serverOpt.minWorkerThreads=2
 		val server = new THsHaServer(processor, transport, protFactory, serverOpt)
 
+		logger.info("Starting server")
     	server.serve()
 	}
 }
