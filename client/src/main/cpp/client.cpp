@@ -254,12 +254,13 @@ static void removeRange(StorageEngineClient &client,
 												const RecordKey &end_key) {
   RangeSet range;
   range.start_key = start_key;
+	range.__isset.start_key = true;
   range.end_key = end_key;
+	range.__isset.end_key = true;
   RecordSet rs;
   rs.type = RST_RANGE;
   rs.range = range;
-  rs.range.offset = 0;
-  rs.range.limit = 100;
+	rs.__isset.range = true;
   client.remove_set(ns,rs);
 }
 
@@ -301,6 +302,20 @@ static void syncRangeGreater(StorageEngineClient &client,
   ConflictPolicy pol;
   pol.type = CPT_GREATER;
   client.sync_set(ns,rs,h,pol);
+}
+
+static void instResp(StorageEngineClient &client) {
+  RecordSet rs;
+  rs.type = RST_RANGE;
+  rs.__isset.range = true;
+  RangeSet range;
+  range.__isset.start_key = true;
+  range.__isset.end_key = false;
+  range.__isset.offset = false;
+  range.__isset.limit = false;
+  range.start_key = "0";
+  rs.range = range;
+  client.set_responsibility_policy("foo",rs);
 }
 
 static void printPutUsage() {
@@ -349,10 +364,12 @@ static void printRubyUsage() {
 
 
 char histFile[128];
+shared_ptr<TTransport> gtsp;
 
 void ex_program(int sig) {
   if (histFile[0] != '\0');
   write_history(histFile);
+	gtsp->close();
   exit(0);
 }
 
@@ -392,6 +409,7 @@ int main(int argc,char* argv[]) {
   shared_ptr<TProtocol> protocol(new TBinaryProtocol(transport));
   StorageEngineClient client(protocol);
 
+	gtsp = transport;
   signal(SIGINT, ex_program);
   using_history();
 
@@ -430,6 +448,7 @@ int main(int argc,char* argv[]) {
       else if (cmd == "help") {
 				cout << "Avaliable commands (type any command with no args for usage of that command):"<<endl<<
 					" put\t\tput a record"<<endl<<
+					" putrange\t\tput a range of keys"<<endl<<
 					" testandset\tput a record conditionally"<<endl<<
 					" get\t\tget a record"<<endl<<
 					" getall\t\tget all records in a particular namespace"<<endl<<
@@ -736,6 +755,11 @@ int main(int argc,char* argv[]) {
 					cout << "[Exception]: "<<e.what()<<endl;
 				}
       }
+
+			else if (cmd == "resp") {
+				instResp(client);
+				continue;
+			}
 
       /*
 				else if (cmd == "strsplit") { // debug command
