@@ -210,7 +210,7 @@ case class SplitInTwo(
 		val end = bounds.maxKey
 		val middle = ((end-start)/2) + start
 		nodeConfig = nodeConfig.update(server, new DirectorKeyRange(start,middle))
-		nodeConfig = nodeConfig.update("SPLIT_"+server, new DirectorKeyRange(middle,end))
+		nodeConfig = nodeConfig.update(SCADSconfig.getRandomServerNames(config,1).first, new DirectorKeyRange(middle,end))
 		SCADSconfig(nodeConfig)
 	}
 	def participants = Set[String](server)
@@ -281,8 +281,9 @@ case class Replicate(
 
 		val start = bounds.minKey
 		val end = bounds.maxKey
-		(1 to num).foreach((n)=> {
-			nodeConfig = nodeConfig.update("REPLICA_"+n+"_"+server, new DirectorKeyRange(start,end))
+		val newNames = SCADSconfig.getRandomServerNames(config,num)
+		newNames.foreach((name)=> {
+			nodeConfig = nodeConfig.update(name, new DirectorKeyRange(start,end))
 		})
 		SCADSconfig(nodeConfig)
 	}
