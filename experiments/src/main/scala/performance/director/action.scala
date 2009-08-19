@@ -211,7 +211,7 @@ case class SplitInTwo(
 		val middle = ((end-start)/2) + start
 		nodeConfig = nodeConfig.update(server, new DirectorKeyRange(start,middle))
 		nodeConfig = nodeConfig.update("SPLIT_"+server, new DirectorKeyRange(middle,end))
-		SCADSconfig(nodeConfig,config.ranges)
+		SCADSconfig(nodeConfig)
 	}
 	def participants = Set[String](server)
 	override def toString:String = actionShortName
@@ -245,7 +245,7 @@ case class MergeTwo(
 		val start = Math.min(bounds1.minKey,bounds2.minKey)
 		val end = Math.max(bounds1.maxKey, bounds2.maxKey)
 		nodeConfig = nodeConfig.update(server2, new DirectorKeyRange(start,end))
-		SCADSconfig(nodeConfig,config.ranges)
+		SCADSconfig(nodeConfig)
 	}
 	def participants = Set[String](server1,server2)
 	override def toString:String = actionShortName
@@ -284,7 +284,7 @@ case class Replicate(
 		(1 to num).foreach((n)=> {
 			nodeConfig = nodeConfig.update("REPLICA_"+n+"_"+server, new DirectorKeyRange(start,end))
 		})
-		SCADSconfig(nodeConfig,config.ranges)
+		SCADSconfig(nodeConfig)
 	}
 	def participants = Set[String](server)
 	override def toString:String = actionShortName
