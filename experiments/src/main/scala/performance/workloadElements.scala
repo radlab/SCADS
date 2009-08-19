@@ -397,7 +397,7 @@ abstract class SCADSRequest(
 	def execute
 }
 
-class SCADSGetRequest(
+case class SCADSGetRequest(
 	override val client: ClientLibrary,
 	val namespace: String,
 	val key: String
@@ -410,7 +410,7 @@ class SCADSGetRequest(
 	override def toString: String = "get("+namespace+","+key+")"
 }
 
-class SCADSPutRequest(
+case class SCADSPutRequest(
 	override val client: ClientLibrary,
 	val namespace: String,
 	val key: String,
@@ -424,7 +424,7 @@ class SCADSPutRequest(
 	override def toString: String = "put("+namespace+","+key+"="+value+")"
 }
 
-class SCADSGetSetRequest(
+case class SCADSGetSetRequest(
 	override val client: ClientLibrary,
 	val namespace: String,
 	val startKey: String,
