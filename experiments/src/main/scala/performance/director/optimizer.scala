@@ -12,13 +12,32 @@ class TestCostFunction extends CostFunction {
 }
 
 class SLACostFunction(
-	sla:Int, 				// time in ms
-	percentile:Double,		// what percentile to consider when evaluating possible violation
+	getSLA:Int, 			// time in ms
+	putSLA:Int, 			// time in ms
+	slaPercentile:Double,	// what percentile to consider when evaluating possible violation
 	violationCost:Double, 	// cost for violating SLA
-	nodeCost:Double			// cost for adding new storage server
+	nodeCost:Double,		// cost for adding new storage server
+	performanceEstimator:PerformanceEstimator  
 ) extends CostFunction
 {
-	def cost(state:SCADSState):Double = 0.0 // TODO
+	assert(getSLA==50||getSLA==100||putSLA==50||putSLA==100,"only supporting SLA of 50ms or 100ms (see PerformanceStats)")
+	
+	def cost(state:SCADSState):Double = {
+		val perfStats = performanceEstimator.estimatePerformance(state.config,state.workloadHistogram,1,null)
+		val nMachines = state.config.storageNodes.size
+		
+		var getSLAViolation = false
+		var putSLAViolation = false
+		if (getSLA==50) {
+			if( 1-perfStats.nGetsAbove50.toDouble/perfStats.nGets<slaPercentile ) getSLAViolation=true
+			if( 1-perfStats.nPutsAbove50.toDouble/perfStats.nPuts<slaPercentile ) putSLAViolation=true
+		} else {
+			if( 1-perfStats.nGetsAbove100.toDouble/perfStats.nGets<slaPercentile ) getSLAViolation=true
+			if( 1-perfStats.nPutsAbove100.toDouble/perfStats.nPuts<slaPercentile ) putSLAViolation=true			
+		}
+		
+		nMachines*nodeCost + (if(getSLAViolation||putSLAViolation)violationCost else 0.0)
+	}
 }
 
 abstract class Optimizer {
