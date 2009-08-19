@@ -32,6 +32,16 @@
 			<artifactId>scala-json</artifactId>
 			<version>1.0</version>
 		</dependency>
+		<dependency>
+			<groupId>org.rosuda</groupId>
+			<artifactId>REngine</artifactId>
+			<version>1.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.rosuda</groupId>
+			<artifactId>RserveEngine</artifactId>
+			<version>1.0</version>
+		</dependency>
 	</dependencies>
 	<repositories>
 		<repository>
