@@ -45,9 +45,9 @@ abstract class Action(
 	var executionThread: Thread = null
 	
 	var dbID: Int = -1
-	dbID = Action.store(this)
 		
 	def startExecuting() {
+		dbID = Action.store(this)
 		executionThread = new Thread(this)
 		executionThread.start
 	}
@@ -68,6 +68,7 @@ abstract class Action(
 	
 	def execute()
 	def preview(config:SCADSconfig): SCADSconfig = config
+	def participants: Set[String]
 	def toString(): String
 }
 
@@ -79,6 +80,7 @@ abstract class ActionSelector {
 
 class UniformSelector(choices:List[String]) extends ActionSelector {
 	var mychoices = choices
+	val replica_limit = 4
 	def getRandomAction(state:SCADSState):Action = {
 		var nodes = state.config.getNodes 		// inspect config to see what servers are available to take action on
 		val node1:String = nodes.apply(rand.nextInt(nodes.size))
@@ -90,6 +92,8 @@ class UniformSelector(choices:List[String]) extends ActionSelector {
 		choice match {
 			case "SplitInTwo" => SplitInTwo(node1)
 			case "MergeTwo" => MergeTwo(node1,node2)
+			case "Replicate" => Replicate(node1,rand.nextInt(replica_limit))
+			case _ => null
 		}
 	}
 }
@@ -170,6 +174,7 @@ class TestAction(
 		Thread.sleep( delay )
 		logger.debug("waking up")
 	}
+	def participants = Set[String]()
 	override def toString():String = actionShortName
 	override def csvArgs():String = "delay="+delay
 }
@@ -208,6 +213,7 @@ case class SplitInTwo(
 		nodeConfig = nodeConfig.update("SPLIT_"+server, new DirectorKeyRange(middle,end))
 		SCADSconfig(nodeConfig,config.ranges)
 	}
+	def participants = Set[String](server)
 	override def toString:String = actionShortName
 }
 
@@ -230,15 +236,71 @@ case class MergeTwo(
 		logger.debug("Sleeping")
 		Thread.sleep(60*1000) // wait minute
 	}
+
+	override def preview(config:SCADSconfig): SCADSconfig = {
+		val bounds1 = config.storageNodes(server1)
+		val bounds2 = config.storageNodes(server2)
+		var nodeConfig = (config.storageNodes - server1) - server2 // copy of config, without two obsolete entries
+
+		val start = Math.min(bounds1.minKey,bounds2.minKey)
+		val end = Math.max(bounds1.maxKey, bounds2.maxKey)
+		nodeConfig = nodeConfig.update(server2, new DirectorKeyRange(start,end))
+		SCADSconfig(nodeConfig,config.ranges)
+	}
+	def participants = Set[String](server1,server2)
+	override def toString:String = actionShortName
+}
+
+case class Replicate(
+	val server: String,
+	val num: Int // how many additional replicas to make
+) extends Action("replicate("+server+","+num+")") with PlacementManipulation {
+
+	override def execute() {
+		logger.debug("Getting "+num+" new storage server(s)")
+		val new_guys = Director.serverManager.getServers(num)
+		if (new_guys.isEmpty) { logger.warn("Replication failed: no available servers"); return }
+
+		// determine current range to give new servers
+		val bounds = getNodeRange(server)
+		val start = bounds._1
+		val end = bounds._2
+		Thread.sleep(5*1000)
+
+		// do the copy and update local list of servers (serially)
+		new_guys.foreach((new_guy)=> {
+			logger.info("Copying "+start+" - "+end+" from "+server+" to "+ new_guy)
+			copy(server,new_guy,start,end)
+			logger.debug("Sleeping")
+		})
+		Thread.sleep(60*1000) // wait minute
+	}
+	override def preview(config:SCADSconfig): SCADSconfig = {
+		val bounds = config.storageNodes(server)
+		var nodeConfig = config.storageNodes
+
+		val start = bounds.minKey
+		val end = bounds.maxKey
+		(1 to num).foreach((n)=> {
+			nodeConfig = nodeConfig.update("REPLICA_"+n+"_"+server, new DirectorKeyRange(start,end))
+		})
+		SCADSconfig(nodeConfig,config.ranges)
+	}
+	def participants = Set[String](server)
 	override def toString:String = actionShortName
 }
 
 trait PlacementManipulation extends RangeConversion with AutoKey {
-	val placement_host = Director.myscads.placement.get(0).privateDnsName
 	val xtrace_on = Director.xtrace_on
 	val namespace = Director.namespace
+	var placement_host:String = null
+
+	private def init = {
+		placement_host = Director.myscads.placement.get(0).privateDnsName
+	}
 
 	protected def getNodeRange(host:String):(Int, Int) = {
+		if (placement_host == null) init
 		val dp = Scads.getDataPlacementHandle(placement_host,xtrace_on)
 		val s_info = dp.lookup_node(namespace,host,Scads.server_port,Scads.server_sync)
 		val range = s_info.rset.range
@@ -247,18 +309,21 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 	}
 
 	protected def move(source_host:String, target_host:String,startkey:Int, endkey:Int) = {
+		if (placement_host == null) init
 		val dpclient = Scads.getDataPlacementHandle(placement_host,xtrace_on)
 		val range = new KeyRange(new StringKey(Scads.keyFormat.format(startkey)), new StringKey(Scads.keyFormat.format(endkey)) )
 		dpclient.move(namespace,range, source_host, Scads.server_port,Scads.server_sync, target_host, Scads.server_port,Scads.server_sync)
 	}
 
 	protected def copy(source_host:String, target_host:String,startkey:Int, endkey:Int) = {
+		if (placement_host == null) init
 		val dpclient = Scads.getDataPlacementHandle(placement_host,xtrace_on)
 		val range = new KeyRange(new StringKey(Scads.keyFormat.format(startkey)), new StringKey(Scads.keyFormat.format(endkey)) )
 		dpclient.copy(namespace,range, source_host, Scads.server_port,Scads.server_sync, target_host, Scads.server_port,Scads.server_sync)
 
 	}
 	protected def remove(host:String) = {
+		if (placement_host == null) init
 		val dpclient = Scads.getDataPlacementHandle(placement_host,xtrace_on)
 		val bounds = getNodeRange(host)
 		val range = new KeyRange(new StringKey(Scads.keyFormat.format(bounds._1)), new StringKey(Scads.keyFormat.format(bounds._2)) )
