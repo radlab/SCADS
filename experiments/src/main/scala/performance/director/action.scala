@@ -31,7 +31,6 @@ abstract class Action(
 
 	val logger = Logger.getLogger("scads.director.action."+actionShortName)
 	private val logPath = Director.basedir+"/actions/"+Director.dateFormat.format(new Date)+"_"+actionShortName+".txt"
-	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 	logger.setLevel(DEBUG)
 	
 	var initTime: Date = new Date
@@ -47,6 +46,7 @@ abstract class Action(
 	var dbID: Int = -1
 		
 	def startExecuting() {
+		logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 		dbID = Action.store(this)
 		executionThread = new Thread(this)
 		executionThread.start
