@@ -33,26 +33,25 @@ abstract class PerformanceEstimator {
 	*/	
 	def estimatePerformance(config:SCADSconfig, workload:WorkloadHistogram, durationInSec:Int, actions:List[Action]): PerformanceStats
 	
+	// TODO: make sure this works even if the server ranges don't align nicely
 	def estimateServerWorkload(config:SCADSconfig, workload:WorkloadHistogram):Map[String,WorkloadFeatures] = {
 		val servers = config.storageNodes
-		val rangeStats = workload.rangeStats
-		val histRanges = rangeStats.keySet.toList.sort(_.minKey<_.minKey)
-		
 		val serversOrdered = servers.keySet.toList.sort( servers(_).minKey<servers(_).minKey ).toArray
 		var serverStartI = 0
+
+		val rangeStats = workload.rangeStats
+		val histRanges = rangeStats.keySet.toList.sort(_.minKey<_.minKey)
 		
 		// compute mapping from histogram ranges to servers that overlap with those ranges
 		val histToServers = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
 		for (hr <- histRanges) {
 			var go = true
-			var found = false
 			var i = serverStartI
 			while (go && i<servers.size) {
-/*				println(hr+"  "+serversOrdered(i)+"   overlap="+hr.overlaps(servers(serversOrdered(i)))+"   found="+found+"   serverStartI="+serverStartI)*/
+/*				println(hr+"  "+serversOrdered(i)+"   overlap="+hr.overlaps(servers(serversOrdered(i)))+"   serverStartI="+serverStartI)*/
 				if (hr.overlaps(servers(serversOrdered(i)))) {
 					histToServers(hr) = histToServers.getOrElse(hr,new scala.collection.mutable.ListBuffer[String]())+serversOrdered(i)
-					found = true
-				} else if (found) {
+				} else if ( hr.maxKey<=servers(serversOrdered(i)).minKey ) {
 					go = false
 				} else {
 					serverStartI = serverStartI+1
