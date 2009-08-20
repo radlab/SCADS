@@ -148,7 +148,9 @@ case class WorkloadFeatures(
 */
 class WorkloadHistogram(
 	val rangeStats: Map[DirectorKeyRange,WorkloadFeatures]
-)
+) {
+	override def toString():String = rangeStats.keySet.toList.sort(_.minKey<_.minKey).map( r=>r+"   "+rangeStats(r) ).mkString("\n")
+}
 
 object WorkloadHistogram {
 	def create(interval:WorkloadIntervalDescription, rate:Double, nBins:Int): WorkloadHistogram = {
