@@ -118,6 +118,21 @@
 						</goals>
 					</execution>
 				</executions>
+				<configuration>
+			      <launchers>
+			        <launcher>
+			          <id>xtrace_dp_server</id>
+			          <mainClass>edu.berkeley.cs.scads.placement.SimpleDataPlacementApp</mainClass>
+			          <args>
+			          </args>
+			          <jvmArgs>
+						<jvmArg>-Dxtrace</jvmArg>
+						<jvmArg>-XX:+HeapDumpOnOutOfMemoryError</jvmArg>
+			          </jvmArgs>
+			        </launcher>
+			        <!-- you could define other launcher -->
+			      </launchers>
+			    </configuration>
 			</plugin>
 		</plugins>
 	</build>

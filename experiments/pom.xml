@@ -125,27 +125,6 @@
 		          </jvmArgs>
 		        </configuration>
 			</plugin>
-			<plugin>
-				<groupId>org.scala-tools</groupId>
-			    <artifactId>maven-scala-plugin</artifactId>
-			    <configuration>
-			      <launchers>
-			        <launcher>
-			          <id>xtrace_dp_server</id>
-			          <mainClass>edu.berkeley.cs.scads.placement.SimpleDataPlacementApp</mainClass>
-			          <!-- args are optional -->
-			          <args>
-			          </args>
-			          <!-- jvmArgs are optional -->
-			          <jvmArgs>
-						<jvmArg>-Dxtrace</jvmArg>
-						<jvmArg>-XX:+HeapDumpOnOutOfMemoryError</jvmArg>
-			          </jvmArgs>
-			        </launcher>
-			        <!-- you could define other launcher -->
-			      </launchers>
-			    </configuration>
-			  </plugin>
 		</plugins>
 	</build>
 </project>
