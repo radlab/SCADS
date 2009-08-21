@@ -92,7 +92,7 @@ class UniformSelector(choices:List[String]) extends ActionSelector {
 		choice match {
 			case "SplitInTwo" => SplitInTwo(node1)
 			case "MergeTwo" => MergeTwo(node1,node2)
-			case "Replicate" => Replicate(node1,rand.nextInt(replica_limit))
+			case "Replicate" => Replicate(node1,rand.nextInt(replica_limit)+1)
 			case _ => null
 		}
 	}
@@ -217,6 +217,30 @@ case class SplitInTwo(
 	override def toString:String = actionShortName
 }
 
+case class SplitFrom(
+	val server:String,
+	val range:DirectorKeyRange
+) extends Action("splitfrom("+server+")") with PlacementManipulation {
+
+	override def execute() {}
+	override def preview(config:SCADSconfig):SCADSconfig = {
+		val bounds = config.storageNodes(server)
+		var nodeConfig = config.storageNodes - server // make copy of previous node arrangment, removing the obsolete entry
+
+		val start = range.minKey
+		val end = range.maxKey
+		assert(start==bounds.minKey || end==bounds.maxKey,"Can only move data from either end of server's range")
+		val old_start = if (start==bounds.minKey) { end } else { bounds.minKey }
+		val old_end = if (start==bounds.minKey) { bounds.maxKey } else { start }
+
+		nodeConfig = nodeConfig.update(server, new DirectorKeyRange(old_start,old_end))
+		nodeConfig = nodeConfig.update(SCADSconfig.getRandomServerNames(config,1).first, new DirectorKeyRange(start,end))
+		SCADSconfig(nodeConfig)
+	}
+	def participants = Set[String](server)
+	override def toString:String = actionShortName
+}
+
 case class MergeTwo(
 	val server1: String,
 	val server2: String
@@ -288,6 +312,49 @@ case class Replicate(
 		SCADSconfig(nodeConfig)
 	}
 	def participants = Set[String](server)
+	override def toString:String = actionShortName
+}
+
+/**
+* First move specified range from the server to a new server,
+* then replicate that new server the specified number of times
+*/
+case class ReplicateFrom(
+	val server:String,
+	val range:DirectorKeyRange,
+	val num:Int
+) extends Action("replicatefrom("+server+","+num+")") with PlacementManipulation {
+	override def execute() {}
+	override def preview(config:SCADSconfig):SCADSconfig = {
+		val bounds = config.storageNodes(server)
+		var nodeConfig = config.storageNodes// - server
+
+		val start = range.minKey
+		val end = range.maxKey
+		//assert(start==bounds.minKey || end==bounds.maxKey,"Can only copy data from either end of server's range")
+		//val old_start = if (start==bounds.minKey) { end } else { bounds.minKey }
+		//val old_end = if (start==bounds.minKey) { bounds.maxKey } else { start }
+
+		// replicate range specified number of times on new servers
+		//nodeConfig = nodeConfig.update(server, new DirectorKeyRange(old_start,old_end))
+		val newNames = SCADSconfig.getRandomServerNames(config,num)
+		newNames.foreach((name)=> {
+			nodeConfig = nodeConfig.update(name, new DirectorKeyRange(start,end))
+		})
+		SCADSconfig(nodeConfig)
+	}
+	def participants = Set[String](server)
+	override def toString:String = actionShortName
+}
+
+case class Remove(
+	val servers:List[String]
+) extends Action("remove("+servers.size+")") with PlacementManipulation {
+	override def execute() {}
+	override def preview(config:SCADSconfig):SCADSconfig = {
+		SCADSconfig(config.storageNodes -- servers)
+	}
+	def participants = Set[String](servers:_*)
 	override def toString:String = actionShortName
 }
 
