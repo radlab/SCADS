@@ -220,7 +220,7 @@ case class SplitInTwo(
 case class SplitFrom(
 	val server:String,
 	val range:DirectorKeyRange
-) extends Action("splitfrom("+server+")") with PlacementManipulation {
+) extends Action("splitfrom("+server+","+range+")") with PlacementManipulation {
 
 	override def execute() {}
 	override def preview(config:SCADSconfig):SCADSconfig = {
@@ -323,7 +323,7 @@ case class ReplicateFrom(
 	val server:String,
 	val range:DirectorKeyRange,
 	val num:Int
-) extends Action("replicatefrom("+server+","+num+")") with PlacementManipulation {
+) extends Action("replicatefrom("+server+","+range+","+num+")") with PlacementManipulation {
 	override def execute() {}
 	override def preview(config:SCADSconfig):SCADSconfig = {
 		val bounds = config.storageNodes(server)
@@ -349,7 +349,7 @@ case class ReplicateFrom(
 
 case class Remove(
 	val servers:List[String]
-) extends Action("remove("+servers.size+")") with PlacementManipulation {
+) extends Action("remove("+servers.mkString(",")+")") with PlacementManipulation {
 	override def execute() {}
 	override def preview(config:SCADSconfig):SCADSconfig = {
 		SCADSconfig(config.storageNodes -- servers)
