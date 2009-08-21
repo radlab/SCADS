@@ -297,9 +297,12 @@ rq.gp.diag.all.q = function(models,raw.data,n.split=1) {
 }
 
 rq.gp.sample = function(models, type, get.w, put.w, n.samples, latency.threshold=150) {
+	cat( paste("rq.gp.sample: type=",type,", get.w=",get.w,", put.w=",put.w,", n.samples=",n.samples,", lat.thr=",latency.threshold,"\n",sep="") )
 	if ( rq.gp.overloaded(models, get.w, put.w, latency.threshold) )
 		return( rep(Inf,n.samples))
-	else 
+	else if (n.samples==0)
+		return( c() )
+	else
 		return( rq.gp.sample.raw(models[[type]], get.w, put.w, n.samples ))
 }
 

@@ -33,7 +33,7 @@ case class L1PerformanceModel(
 	def connectToR() {
 		try { rconn = new RConnection("127.0.0.1") } catch { 
 			case e:Exception => {
-				logger.warn("can't connect to Rserve on localhost (run R CMD Rserve --RS-workdir <absolute path to ???>)")
+				logger.warn("can't connect to Rserve on localhost (run R CMD Rserve --RS-workdir <absolute path to scads/experiments/>)")
 				e.printStackTrace
 			}
 		}
@@ -49,7 +49,7 @@ case class L1PerformanceModel(
 	}
 	
 	def sample(features:Map[String,String], nSamples:Int): List[Double] = {
-		rconn.parseAndEval(" rq.gp.sample(models,\""+ features("type") +"\","+features("getw")+","+features("putw")+","+nSamples+","+latencyThreshold+") ").asDoubles.toList
-/*		null*/
+		val result = rconn.parseAndEval(" rq.gp.sample(models,\""+ features("type") +"\","+features("getw")+","+features("putw")+","+nSamples+","+latencyThreshold+") ")
+		try { result.asDoubles.toList } catch { case _ => List[Double]() }
 	}
 }
