@@ -32,6 +32,38 @@ abstract class PerformanceEstimator {
 	* for the specified time (in seconds) while executing the actions
 	*/	
 	def estimatePerformance(config:SCADSconfig, workload:WorkloadHistogram, durationInSec:Int, actions:List[Action]): PerformanceStats
+
+	/**
+	* Determine the histogram ranges that each server contains. Overlaps possible.
+	*/
+	def getServerHistogramRanges(config:SCADSconfig, workload:WorkloadHistogram):Map[String,List[DirectorKeyRange]] = {
+		val servers = config.storageNodes
+		val rangeStats = workload.rangeStats
+		val histRanges = rangeStats.keySet.toList.sort(_.minKey<_.minKey)
+
+		val serversOrdered = servers.keySet.toList.sort( servers(_).minKey<servers(_).minKey ).toArray
+		var serverStartI = 0
+
+		// compute mapping from servers' ranges to histogram ranges that overlap with those ranges
+		val serversToHist = scala.collection.mutable.Map[String,scala.collection.mutable.Buffer[DirectorKeyRange]]()
+
+		for (hr <- histRanges) {
+			var go = true
+			var found = false
+			var i = serverStartI
+			while (go && i<servers.size) {
+				if (hr.overlaps(servers(serversOrdered(i)))) {
+					serversToHist(serversOrdered(i)) = serversToHist.getOrElse(serversOrdered(i),new scala.collection.mutable.ListBuffer[DirectorKeyRange]())+hr
+				} else if ( hr.maxKey<=servers(serversOrdered(i)).minKey ) {
+					go = false
+				} else {
+					serverStartI = serverStartI+1
+				}
+				i = i+1
+			}
+		}
+		Map[String,List[DirectorKeyRange]](serversToHist.toList map {entry => (entry._1, entry._2.toList)} : _*)
+	}
 	
 	// TODO: make sure this works even if the server ranges don't align nicely
 	def estimateServerWorkload(config:SCADSconfig, workload:WorkloadHistogram):Map[String,WorkloadFeatures] = {
@@ -92,12 +124,6 @@ abstract class PerformanceEstimator {
 /*		val pm = L1PerformanceModel("http://scads.s3.amazonaws.com/perfmodels/l1model_getput_1.0.RData")*/
 		val pm = L1PerformanceModel("/Users/bodikp/Downloads/l1model_getput_1.0.RData")
 		val estimator = SimplePerformanceEstimator(pm)
-		val s1  = Map("s1"->DirectorKeyRange(0,10000)) 
-		val s2  = Map("s1"->DirectorKeyRange(0,5000),"s2"->DirectorKeyRange(5000,10000))
-		val s3  = Map("s1"->DirectorKeyRange(0,2000),"s2"->DirectorKeyRange(2000,4000),"s3"->DirectorKeyRange(4000,10000))
-		val s3r = Map("s1a"->DirectorKeyRange(0,2000),"s1b"->DirectorKeyRange(0,2000),"s2"->DirectorKeyRange(2000,4000),"s3"->DirectorKeyRange(4000,10000))
-		val s3r2 = Map("s1a"->DirectorKeyRange(0,2000),"s1b"->DirectorKeyRange(0,2000),"s1c"->DirectorKeyRange(0,2000),"s2"->DirectorKeyRange(2000,4000),"s3"->DirectorKeyRange(4000,10000))
-
 		estimator.estimatePerformance(c4,hist,1,null)
 
 		hist.rangeStats.keySet.toList.sort(_.minKey<_.minKey).foreach( r=>println(r+"   "+hist.rangeStats(r)) )
