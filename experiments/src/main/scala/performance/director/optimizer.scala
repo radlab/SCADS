@@ -27,18 +27,16 @@ class SLACostFunction(
 	def cost(state:SCADSState):Double = detailedCost(state).map(_._2).reduceLeft(_+_)
 	
 	def detailedCost(state:SCADSState):Map[String,Double] = {
-		val perfStats = performanceEstimator.estimatePerformance(state.config,state.workloadHistogram,1,null)
+		val stats = performanceEstimator.estimatePerformance(state.config,state.workloadHistogram,1,null)
 		val nMachines = state.config.storageNodes.size
 		
-		var getSLAViolation = false
-		var putSLAViolation = false
-
-		if (getSLA==50) if( 1-perfStats.nGetsAbove50.toDouble/perfStats.nGets<slaPercentile ) 	getSLAViolation=true
-		else if( 1-perfStats.nGetsAbove100.toDouble/perfStats.nGets<slaPercentile ) 			getSLAViolation=true
-		if (putSLA==50) if( 1-perfStats.nPutsAbove50.toDouble/perfStats.nPuts<slaPercentile ) 	putSLAViolation=true
-		else if( 1-perfStats.nPutsAbove100.toDouble/perfStats.nPuts<slaPercentile ) 			putSLAViolation=true
-		
-		Map("machines"->nMachines*nodeCost, "slaviolations"->(if(getSLAViolation||putSLAViolation)violationCost else 0.0))
+		val violation = ( 	if (getSLA==50) ( 1-stats.nGetsAbove50.toDouble/stats.nGets<slaPercentile )
+							else ( 1-stats.nGetsAbove100.toDouble/stats.nGets<slaPercentile )
+						) || (
+							if (putSLA==50) ( 1-stats.nPutsAbove50.toDouble/stats.nPuts<slaPercentile )
+							else ( 1-stats.nPutsAbove100.toDouble/stats.nPuts<slaPercentile )
+						)
+		Map("machines"->nMachines*nodeCost, "slaviolations"->(if(violation)violationCost else 0.0))
 	}
 }
 
