@@ -2,6 +2,7 @@ package scads.director
 
 abstract class CostFunction {
 	def cost(state:SCADSState):Double
+	def detailedCost(state:SCADSState):Map[String,Double]
 }
 
 class TestCostFunction extends CostFunction {
@@ -9,6 +10,7 @@ class TestCostFunction extends CostFunction {
 	val rand = new Random
 
 	def cost(state:SCADSState):Double = rand.nextDouble
+	def detailedCost(state:SCADSState):Map[String,Double] = Map("rnd"->rand.nextDouble)
 }
 
 class SLACostFunction(
@@ -22,18 +24,21 @@ class SLACostFunction(
 {
 	assert(getSLA==50||getSLA==100||putSLA==50||putSLA==100,"only supporting SLA of 50ms or 100ms (see PerformanceStats)")
 	
-	def cost(state:SCADSState):Double = {
+	def cost(state:SCADSState):Double = detailedCost(state).map(_._2).reduceLeft(_+_)
+	
+	def detailedCost(state:SCADSState):Map[String,Double] = {
 		val perfStats = performanceEstimator.estimatePerformance(state.config,state.workloadHistogram,1,null)
 		val nMachines = state.config.storageNodes.size
 		
 		var getSLAViolation = false
 		var putSLAViolation = false
+
 		if (getSLA==50) if( 1-perfStats.nGetsAbove50.toDouble/perfStats.nGets<slaPercentile ) 	getSLAViolation=true
 		else if( 1-perfStats.nGetsAbove100.toDouble/perfStats.nGets<slaPercentile ) 			getSLAViolation=true
 		if (putSLA==50) if( 1-perfStats.nPutsAbove50.toDouble/perfStats.nPuts<slaPercentile ) 	putSLAViolation=true
 		else if( 1-perfStats.nPutsAbove100.toDouble/perfStats.nPuts<slaPercentile ) 			putSLAViolation=true
 		
-		nMachines*nodeCost + (if(getSLAViolation||putSLAViolation)violationCost else 0.0)
+		Map("machines"->nMachines*nodeCost, "slaviolations"->(if(getSLAViolation||putSLAViolation)violationCost else 0.0))
 	}
 }
 
