@@ -28,22 +28,16 @@ class SLACostFunction(
 		
 		var getSLAViolation = false
 		var putSLAViolation = false
-		if (getSLA==50) {
-			if( 1-perfStats.nGetsAbove50.toDouble/perfStats.nGets<slaPercentile ) getSLAViolation=true
-			if( 1-perfStats.nPutsAbove50.toDouble/perfStats.nPuts<slaPercentile ) putSLAViolation=true
-		} else {
-			if( 1-perfStats.nGetsAbove100.toDouble/perfStats.nGets<slaPercentile ) getSLAViolation=true
-			if( 1-perfStats.nPutsAbove100.toDouble/perfStats.nPuts<slaPercentile ) putSLAViolation=true			
-		}
+		if (getSLA==50) if( 1-perfStats.nGetsAbove50.toDouble/perfStats.nGets<slaPercentile ) 	getSLAViolation=true
+		else if( 1-perfStats.nGetsAbove100.toDouble/perfStats.nGets<slaPercentile ) 			getSLAViolation=true
+		if (putSLA==50) if( 1-perfStats.nPutsAbove50.toDouble/perfStats.nPuts<slaPercentile ) 	putSLAViolation=true
+		else if( 1-perfStats.nPutsAbove100.toDouble/perfStats.nPuts<slaPercentile ) 			putSLAViolation=true
 		
 		nMachines*nodeCost + (if(getSLAViolation||putSLAViolation)violationCost else 0.0)
 	}
 }
 
 abstract class Optimizer {
-	def coster: CostFunction
-	def selector:ActionSelector
-
 	/**
 	* Given the current systen configuration and performance,
 	* determine an optimal set of actions to perform on this state
