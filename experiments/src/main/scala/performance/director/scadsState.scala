@@ -39,7 +39,16 @@ class StorageNodeState(
 case class SCADSconfig(
 	val storageNodes: Map[String,DirectorKeyRange]
 ) {
+	val rangeNodes = arrangeReplicas
+	// TODO: create mapping of ranges to put-ratio sampling
+
 	def getNodes:List[String] = storageNodes.keySet.toList
+	def getReplicas(server:String):List[String] = rangeNodes(storageNodes(server))
+	private def arrangeReplicas:Map[DirectorKeyRange, List[String]] = {
+		val mapping = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
+		storageNodes.foreach((entry)=> mapping(entry._2) = mapping.getOrElse(entry._2,new scala.collection.mutable.ListBuffer[String]())+entry._1)
+		Map[DirectorKeyRange,List[String]](mapping.keys.toList map {s => (s, mapping(s).toList)} : _*)
+	}
 	override def toString():String = storageNodes.toList.sort(_._2.minKey<_._2.minKey).map( x=>"%-15s".format(x._2)+"  "+x._1 ).mkString("\n")
 }
 
@@ -123,7 +132,7 @@ class SCADSState(
 	
 	def preview(action:Action,performanceModel:PerformanceModel,updatePerformance:Boolean):SCADSState = {
 		val newConfig = action.preview(config)
-		new SCADSState(time,newConfig,null,null,null,null)
+		new SCADSState(time,newConfig,null,null,null,workloadHistogram) // TODO update histogram capability
 	}
 }
 
@@ -149,6 +158,11 @@ case class WorkloadFeatures(
 class WorkloadHistogram(
 	val rangeStats: Map[DirectorKeyRange,WorkloadFeatures]
 ) {
+	def divide(replicas:Int):WorkloadHistogram = {
+		new WorkloadHistogram(
+			Map[DirectorKeyRange,WorkloadFeatures](rangeStats.toList map {entry => (entry._1, entry._2.splitGets(replicas)) } : _*)
+		)
+	}
 	override def toString():String = rangeStats.keySet.toList.sort(_.minKey<_.minKey).map( r=>r+"   "+rangeStats(r) ).mkString("\n")
 }
 
