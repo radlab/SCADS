@@ -164,6 +164,12 @@ class WorkloadHistogram(
 		)
 	}
 	override def toString():String = rangeStats.keySet.toList.sort(_.minKey<_.minKey).map( r=>r+"   "+rangeStats(r) ).mkString("\n")
+
+	def toShortString():String = {
+		val getRate = rangeStats.map(_._2.getRate).reduceLeft(_+_)
+		val putRate = rangeStats.map(_._2.putRate).reduceLeft(_+_)
+		"WorkloadHistogram: (total rates) get="+getRate+"r/s, put="+putRate+"r/s"
+	}
 }
 
 object WorkloadHistogram {

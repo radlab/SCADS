@@ -14,7 +14,8 @@ import java.sql.DriverManager
 object Director {
 	val dateFormat = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss");
 	val logPattern = "%d %5p %c - %m%n"
-	val basedir = "/mnt/director/logs_"+dateFormat.format(new Date)+"/"
+/*	val basedir = "/mnt/director/logs_"+dateFormat.format(new Date)+"/"*/
+	val basedir = "/tmp/director/logs_"+dateFormat.format(new Date)+"/"
 	
 	val xtrace_on = true
 	val namespace = "perfTest256"
@@ -115,5 +116,78 @@ object Director {
 		deployment.init(1)
 		deployment.replicate(0,10000) // max 4194304, in memory 2000000
 		deployment.placement.get(0).privateDnsName // return placement host name
+	}
+	
+	/**
+	* run a simulation of 'policy' against the 'workload', using 'costFunction' for cost
+	*/
+	def directorSimulation(workload:WorkloadDescription, policy:Policy, costFunction:CostFunction, performanceModel:PerformanceModel):Double = {
+		
+		val workloadMultiplier = 10  		// workload rate of a single user
+		val nHistogramBinsPerServer = 20
+		val maxKey = 10000
+		val simulationGranularity = 60 		//seconds
+		var nextStep = 0
+		var currentTime = 0
+		
+		val startTime = new Date().getTime
+		
+		// create initial state (state = config + workload histogram + performance metrics)
+		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
+		
+		var totalCost = 0.0
+
+		// todo:
+		// 2. print total gets/puts
+
+		for (w <- workload.workload) { 
+			logger.info("TIME: "+currentTime)
+			if (currentTime>=nextStep) {
+				// enough time passed, time for a simulation step
+				logger.info("simulating ...")
+
+				// create workload histogram from 'w'
+				val histogram = WorkloadHistogram.create(w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer)
+
+				// TODO: predict performance metrics using performance model ...
+				
+				logger.info("CONFIG: \n"+config)
+				//logger.info("HISTOGRAM: \n"+histogram)
+				logger.info("WORKLOAD: "+histogram.toShortString)
+
+				// create the new state
+				val state = new SCADSState(new Date(startTime+currentTime), config, null, null, null, histogram)
+
+				// compute cost of the new state
+				val cost = costFunction.cost(state)
+				totalCost += cost
+				logger.info("COST: "+cost)
+				
+				// ask policy for actions
+				val actions = policy.perform(state,null)
+				
+				// update config by executing actions on it
+				config = state.config
+				if (actions!=null)
+					for (action <- actions) { config = action.preview(config); logger.info("ACTION: "+action) }
+
+				nextStep += simulationGranularity
+			}
+			currentTime += w.duration/1000
+		}
+		totalCost
+	}
+	
+	def testSimulation() {
+		val mix = new MixVector( Map("get"->0.97,"getset"->0.0,"put"->0.03) )
+		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,2,30,280)
+
+		val policy = new RandomSplitAndMergePolicy(0.5)
+
+		val performanceModel = L1PerformanceModel("/Users/bodikp/Downloads/l1model_getput_1.0.RData")
+		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
+		val costFunction = new SLACostFunction(100,100,0.99,100,1,performanceEstimator)
+
+		directorSimulation(workload,policy,costFunction,performanceModel)
 	}
 }

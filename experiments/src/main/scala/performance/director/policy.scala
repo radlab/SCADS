@@ -97,6 +97,23 @@ class TestPolicy(
 	}
 }
 
+class RandomSplitAndMergePolicy(
+	val fractionOfSplits:Double
+) extends Policy {
+	val rnd = new java.util.Random
+	
+	override def act(state:SCADSState, pastActions:List[Action]):List[Action] = {
+		if (rnd.nextDouble<fractionOfSplits)
+			List(new SplitInTwo( state.config.storageNodes.keySet.toList(rnd.nextInt(state.config.storageNodes.size)) ))
+		else 
+			if (state.config.storageNodes.size>=2) {
+				val i = rnd.nextInt(state.config.storageNodes.size-1)
+				val ordered = state.config.storageNodes.map(x=>(x._1,x._2)).toList.sort(_._2.minKey<_._2.minKey).toList
+				List(new MergeTwo(ordered(i)._1,ordered(i+1)._1))
+			} else List[Action]()
+	}
+}
+
 class SplitAndMergeOnPerformance(
 	val latencyToMerge: Double,
 	val latencyToSplit: Double
