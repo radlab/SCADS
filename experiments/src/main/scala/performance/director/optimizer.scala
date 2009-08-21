@@ -75,8 +75,7 @@ case class DepthOptimizer(depth:Int, coster:CostFunction, selector:ActionSelecto
 	}
 }
 
-case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator) extends Optimizer {
-	val SLA = 50				// TODO: make these params?
+case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:Int, putSLA:Int) extends Optimizer {
 	val slaPercentile = 0.99
 	val max_replicas = 5
 
@@ -114,9 +113,17 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator) extends
 		val server_stats = estimateServerStats(state)
 		server_stats.filter((entry)=> violatesSLA(entry._2))
 	}
+	/**
+	* Check if predicted stats violate the get() or put() SLA,
+	* based on the SLA percentile.
+	*/
 	def violatesSLA(stats:PerformanceStats):Boolean = {
-		1 - stats.nGetsAbove50.toDouble/stats.nGets<slaPercentile ||
-		1 - stats.nPutsAbove50.toDouble/stats.nPuts<slaPercentile
+		( 	if (getSLA==50) ( 1-stats.nGetsAbove50.toDouble/stats.nGets<slaPercentile )
+			else ( 1-stats.nGetsAbove100.toDouble/stats.nGets<slaPercentile )
+		) || (
+			if (putSLA==50) ( 1-stats.nPutsAbove50.toDouble/stats.nPuts<slaPercentile )
+			else ( 1-stats.nPutsAbove100.toDouble/stats.nPuts<slaPercentile )
+		)
 	}
 	def estimateServerStats(state:SCADSState):Map[String,PerformanceStats] = { // TODO: sometimes empty serverworkloadranges?
 		Map[String,PerformanceStats](state.config.storageNodes.toList map {
@@ -175,13 +182,18 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator) extends
 	}
 	/**
 	* Translate changes to a single server (and its replicas) into actions on that server(s).
-	* Ranges in map should already be in sorted order
+	* Inputted ranges in map are not necessarily in sorted order :(
 	*/
 	 def translateToActions(servers: List[String], changes:Map[DirectorKeyRange,(Int,Double)],state:SCADSState):List[Action] = {
 		var actions = new scala.collection.mutable.ListBuffer[Action]()
 		val actual_range = state.config.storageNodes(servers.first)
-		changes.foreach((change)=>{ // TODO: fix endpoints
-			actions += ReplicateFrom(servers.first,DirectorKeyRange(Math.max(actual_range.minKey,change._1.minKey),Math.min(actual_range.maxKey,change._1.maxKey)),change._2._1-servers.size+1)
+		val changesArray = changes.toList.sort(_._1.minKey < _._1.minKey).toArray
+
+		(0 until changesArray.size).foreach((index)=>{
+			val change = changesArray(index)
+			val start = if (index==0) {actual_range.minKey} else {Math.max(actual_range.minKey,change._1.minKey)}
+			val end = if (index==(changesArray.size-1)) {actual_range.maxKey} else {Math.min(actual_range.maxKey,change._1.maxKey)}
+			actions += ReplicateFrom(servers.first,DirectorKeyRange(start,end),change._2._1)
 		})
 		actions.toList
 	}
