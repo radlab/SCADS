@@ -179,4 +179,12 @@ class SplitAndMergeOnPerformance(
 	override def toString = "SplitAndMergeOnPerformance ( Merge: "+latencyToMerge+", Split: "+latencyToSplit+ " )"
 }
 
-
+class HeuristicOptimizerPolicy(
+	val modelfile_location:String,
+	val getSLA:Int,
+	val putSLA:Int
+	) extends Policy {
+		val performanceEstimator = SimplePerformanceEstimator( L1PerformanceModel(modelfile_location) )
+		val optimizer = new HeuristicOptimizer(performanceEstimator,getSLA,putSLA)
+		override def act(state:SCADSState, pastActions:List[Action]):List[Action] = optimizer.optimize(state)
+}
