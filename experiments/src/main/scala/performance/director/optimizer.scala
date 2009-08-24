@@ -76,6 +76,8 @@ case class DepthOptimizer(depth:Int, coster:CostFunction, selector:ActionSelecto
 }
 
 case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:Int, putSLA:Int) extends Optimizer {
+	import java.util.Random
+	val rand = new Random
 	val slaPercentile = 0.99
 	val max_replicas = 5
 
@@ -102,7 +104,11 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 		})
 
 		// pick a replica to remove or merge to do, if possible
-		// TODO
+		// TODO: how conservative should this choice be?
+		val overloadedservers = overloaded_config.getNodes
+		val range_values = List[List[String]](state.config.rangeNodes.toList.sort(_._1.minKey < _._1.minKey) map {l=> l._2}:_*)
+		val candidates = range_values.filter(overloadedservers.intersect(_).size==0).toArray // array of list of replicas for each range
+		actions.insertAll(actions.size,scaleDown(candidates,1)) // how many scale down actions to produce
 
 		actions.toList
 	}
@@ -205,6 +211,27 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 			val end = if (index==(changesArray.size-1)) {actual_range.maxKey} else {Math.min(actual_range.maxKey,change._1.maxKey)}
 			actions += ReplicateFrom(servers.first,DirectorKeyRange(start,end),change._2._1)
 		})
+		actions.toList
+	}
+	/**
+	* Given array of list of replicas representing unoverloaded servers
+	* and upper bound on number of scale down actions to produce,
+	* return list of actions to perform
+	*/
+	def scaleDown(candidates:Array[List[String]],num:Int):List[Action] = {
+		var actions = new scala.collection.mutable.ListBuffer[Action]()
+		var choices = candidates.indices // which indices of the candidates array still available to try
+
+		while (actions.size < num && choices.size > 0) {
+			val chosen_index = rand.nextInt(choices.size)
+			val chosen = candidates(choices(chosen_index))
+			val chosen_neighbor = if (choices.size < 2) {null} else if (chosen_index < candidates.size-1){ candidates(chosen_index+1) } else { candidates(chosen_index-1) }
+			if (chosen.size > 1) // remove a replica
+				actions += Remove(List[String](chosen.first))
+			else if (chosen.size==1 && chosen_neighbor !=null && chosen_neighbor.size==1) // attempt merge two
+				actions += MergeTwo(chosen.first,chosen_neighbor.first)
+			choices = choices.filter(_ != chosen_index)
+		}
 		actions.toList
 	}
 }
