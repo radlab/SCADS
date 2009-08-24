@@ -64,7 +64,9 @@ abstract class PerformanceEstimator {
 		}
 		Map[String,List[DirectorKeyRange]](serversToHist.toList map {entry => (entry._1, entry._2.toList)} : _*)
 	}
-	
+}
+
+object PerformanceEstimator {
 	// TODO: make sure this works even if the server ranges don't align nicely
 	def estimateServerWorkload(config:SCADSconfig, workload:WorkloadHistogram):Map[String,WorkloadFeatures] = {
 		val servers = config.storageNodes
@@ -73,7 +75,7 @@ abstract class PerformanceEstimator {
 
 		val rangeStats = workload.rangeStats
 		val histRanges = rangeStats.keySet.toList.sort(_.minKey<_.minKey)
-		
+
 		// compute mapping from histogram ranges to servers that overlap with those ranges
 		val histToServers = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
 		for (hr <- histRanges) {
@@ -92,7 +94,7 @@ abstract class PerformanceEstimator {
 			}
 		}
 /*		histToServers.keySet.toList.sort(_.minKey<_.minKey).foreach( r=>println(r+"   "+histToServers(r)) )*/
-		
+
 		// estimate workload at each server (assume get from one, put to all replicas)
 		val serverWorkload = scala.collection.mutable.Map[String,WorkloadFeatures]()
 		for (hr <- histRanges) {
@@ -102,7 +104,7 @@ abstract class PerformanceEstimator {
 		}
 		Map[String,WorkloadFeatures]()++serverWorkload		
 	}
-	
+
 	def test() {
 /*		import performance._
 		import scads.director._
@@ -118,7 +120,7 @@ abstract class PerformanceEstimator {
 		val c3 = a2.preview(c2)
 		val a3 = MergeTwo( c3.storageNodes.find( _._2==DirectorKeyRange(2500,5000) ).get._1, c3.storageNodes.find( _._2==DirectorKeyRange(5000,7500) ).get._1)
 		val c4 = a3.preview(c3)
-		
+
 		val w = WorkloadGenerators.flatWorkload(0.95,0.0,0,"10000","perfTest256",100,2,10)
 		val hist = WorkloadHistogram.create(w.workload(0),10000,100)
 /*		val pm = L1PerformanceModel("http://scads.s3.amazonaws.com/perfmodels/l1model_getput_1.0.RData")*/
@@ -139,7 +141,7 @@ case class SimplePerformanceEstimator(
 	*/
 	def estimatePerformance(config:SCADSconfig, workload:WorkloadHistogram, durationInSec:Int, actions:List[Action]): PerformanceStats = {
 		val servers = config.storageNodes
-		val serverWorkload = estimateServerWorkload(config,workload)
+		val serverWorkload = PerformanceEstimator.estimateServerWorkload(config,workload)
 /*		serverWorkload.map( x=>(x._1,x._2) ).toList.sort(_._1<_._1).foreach( x=> println(x._1+"   "+x._2) )*/
 		
 		var stats = PerformanceStats(durationInSec,0,0,0,0,0,0,0,0,0)
