@@ -80,6 +80,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 	val rand = new Random
 	val slaPercentile = 0.99
 	val max_replicas = 5
+	val min_puts_allowed:Int = 100 // percentage of allowed puts
 
 	def optimize(state:SCADSState): List[Action] = {
 		var actions = new scala.collection.mutable.ListBuffer[Action]()
@@ -185,7 +186,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 		var found = false
 		var allowed:Int = 100 // use ints to avoid subtraction weirdness with doubles
 
-		while (!found && allowed >= 0) {
+		while (!found && allowed >= min_puts_allowed) {
 			(servers.size to max_replicas).foreach((num_replicas)=>{
 				if ( !found && !violatesSLA(estimateSingleServerStats(server,num_replicas,allowed.toDouble/100.0,range,state)) )
 					{ changes += range -> (num_replicas,allowed.toDouble/100.0); found = true; println("Need "+num_replicas+ " of "+range.minKey+" - "+ range.maxKey+ " with "+(allowed.toDouble/100.0)+" allowed puts") }
