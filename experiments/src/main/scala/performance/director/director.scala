@@ -121,11 +121,11 @@ object Director {
 	/**
 	* run a simulation of 'policy' against the 'workload', using 'costFunction' for cost
 	*/
-	def directorSimulation(workload:WorkloadDescription, policy:Policy, costFunction:CostFunction, performanceModel:PerformanceModel):Double = {
+	def directorSimulation(initialConfig:SCADSconfig, workload:WorkloadDescription, policy:Policy, costFunction:CostFunction, performanceModel:PerformanceModel, 
+							evaluateAllSteps:Boolean):Double = {
 		
 		val workloadMultiplier = 10  		// workload rate of a single user
 		val nHistogramBinsPerServer = 20
-		val maxKey = 10000
 		val simulationGranularity = 60 		//seconds
 		var nextStep = 0
 		var currentTime = 0
@@ -133,13 +133,13 @@ object Director {
 		val startTime = new Date().getTime
 		
 		// create initial state (state = config + workload histogram + performance metrics)
-		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
+		//var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
+		var config = initialConfig
 		
 		var totalCost = 0.0
 
-		// todo:
-		// 2. print total gets/puts
-
+		var pastActions = List[Action]()
+		
 		for (w <- workload.workload) { 
 			logger.info("TIME: "+currentTime)
 			if (currentTime>=nextStep) {
@@ -149,14 +149,14 @@ object Director {
 				// create workload histogram from 'w'
 				val histogram = WorkloadHistogram.create(w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer)
 
-				// TODO: predict performance metrics using performance model ...
-				
-				logger.info("CONFIG: \n"+config)
+				//logger.info("CONFIG: \n"+config)
 				//logger.info("HISTOGRAM: \n"+histogram)
 				logger.info("WORKLOAD: "+histogram.toShortString)
 
 				// create the new state
-				val state = new SCADSState(new Date(startTime+currentTime), config, null, null, null, histogram)
+				//val state = new SCADSState(new Date(startTime+currentTime), config, null, null, null, histogram)
+				val state = SCADSState.createFromPerfModel(new Date(startTime+currentTime),config,histogram,performanceModel,w.duration/1000)
+				logger.info("STATE: \n"+state.toShortString)
 
 				// compute cost of the new state
 				val cost = costFunction.cost(state)
@@ -164,14 +164,30 @@ object Director {
 				logger.info("COST: "+cost)
 				
 				// ask policy for actions
-				val actions = policy.perform(state,null)
+				val actions = policy.perform(state,pastActions)
 				
 				// update config by executing actions on it
 				config = state.config
 				if (actions!=null)
-					for (action <- actions) { config = action.preview(config); logger.info("ACTION: "+action) }
+					for (action <- actions) { config = action.preview(config); action.complete; pastActions+=action }
+				val actionMsg = if (actions==null||actions.size==0) "\nACTIONS:\n<none>" else
+									actions.map(_.toString).mkString("\nACTIONS: \n  ","\n  ","")
+				logger.info(actionMsg)
 
 				nextStep += simulationGranularity
+				
+			} else {
+				if (evaluateAllSteps) {
+					// don't simulate policy, just evaluate the config under the current workload
+				 
+					// create workload histogram from 'w'
+					val histogram = WorkloadHistogram.create(w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer)
+					logger.info("WORKLOAD: "+histogram.toShortString)
+				
+					// create new state
+					val state = SCADSState.createFromPerfModel(new Date(startTime+currentTime),config,histogram,performanceModel,w.duration/1000)
+					logger.info("STATE: \n"+state.toShortString)
+				}
 			}
 			currentTime += w.duration/1000
 		}
@@ -179,15 +195,37 @@ object Director {
 	}
 	
 	def testSimulation() {
-		val mix = new MixVector( Map("get"->0.97,"getset"->0.0,"put"->0.03) )
-		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,2,30,280)
+		val mix = new MixVector( Map("get"->0.98,"getset"->0.0,"put"->0.02) )
+		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,2,30,1000)
 
-		val policy = new RandomSplitAndMergePolicy(0.5)
+		val maxKey = 10000
+		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
+		config = config.splitAllInHalf.splitAllInHalf.splitAllInHalf
+
+		val policy = new SplitAndMergeOnPerformance(1200,1500)
+		//val policy = new RandomSplitAndMergePolicy(0.5)
 
 		val performanceModel = L1PerformanceModel("/Users/bodikp/Downloads/l1model_getput_1.0.RData")
 		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
 		val costFunction = new SLACostFunction(100,100,0.99,100,1,performanceEstimator)
 
-		directorSimulation(workload,policy,costFunction,performanceModel)
+		directorSimulation(config,workload,policy,costFunction,performanceModel,true)
+	}
+	
+	def testSimulation2() {
+		val mix = new MixVector( Map("get"->0.97,"getset"->0.0,"put"->0.03) )
+		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,2,30,1000)
+
+		val maxKey = 10000
+		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
+		config = config.splitAllInHalf.splitAllInHalf.splitAllInHalf
+
+		val policy = new EmptyPolicy()
+
+		val performanceModel = L1PerformanceModel("/Users/bodikp/Downloads/l1model_getput_1.0.RData")
+		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
+		val costFunction = new SLACostFunction(100,100,0.99,100,1,performanceEstimator)
+
+		directorSimulation(config,workload,policy,costFunction,performanceModel,false)
 	}
 }
