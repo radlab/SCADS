@@ -40,6 +40,7 @@ abstract class Action(
 	var _state = ActionState.Ready
 	def state():ActionState = _state
 	def completed():Boolean = state()==ActionState.Completed
+	def complete { _state=ActionState.Completed }
 	
 	var executionThread: Thread = null
 	
