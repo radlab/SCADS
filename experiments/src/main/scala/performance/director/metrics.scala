@@ -17,8 +17,20 @@ object PerformanceMetrics {
 		val (date3, latency99p) = metricReader.getSingleMetric(server, "latency_99p", reqType)
 		new PerformanceMetrics(date0,metricReader.interval.toInt,workload,latencyMean,latency90p,latency99p)
 	}
+	
+	def estimateFromSamples(samples:List[Double], time:Date, aggregationInterval:Int):PerformanceMetrics = {
+		val workload = computeWorkload(samples)/aggregationInterval
+		val latencyMean = computeMean(samples)
+		val latency90p = computeQuantile(samples,0.9)
+		val latency99p = computeQuantile(samples,0.99)
+		PerformanceMetrics(time, aggregationInterval, workload, latencyMean, latency90p, latency99p)
+	}
+	
+	private def computeWorkload( data:List[Double] ): Double = if (data==Nil||data.size==0) Double.NaN else data.length
+	private def computeMean( data:List[Double] ): Double = if (data==Nil) Double.NaN else data.reduceLeft(_+_)/data.length
+    private def computeQuantile( data:List[Double], q:Double): Double = if (data==Nil) Double.NaN else data.sort(_<_)( Math.floor(data.length*q).toInt )
 }
-class PerformanceMetrics(
+case class PerformanceMetrics(
 	val time: Date,
 	val aggregationInterval: Int,  // in seconds
 	val workload: Double,
