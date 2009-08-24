@@ -24,15 +24,13 @@ case class DirectorKeyRange(
 
 
 // add multiple namespaces per node?
-class StorageNodeState(
+case class StorageNodeState(
 	val ip: String,
 	val metrics: PerformanceMetrics,
-	val metricsByType: Map[String,PerformanceMetrics],
-	val range: DirectorKeyRange
+	val metricsByType: Map[String,PerformanceMetrics]
 ) {
-	override def toString():String = "server@"+ip+" range="+range.toString+" \n   all=["+metrics.toString+"]\n"+metricsByType.map(e => "   "+e._1+"=["+e._2.toString+"]").mkString("","\n","")
-	def toShortString():String = "server@"+"%-45s".format(ip)+" range="+"%-20s".format(range.toString)+
-									" W="+"%-20s".format(metrics.workload.toInt+"/"+metricsByType("get").workload.toInt+"/"+metricsByType("put").workload.toInt)+ 
+	override def toString():String = "server@"+ip+"\n   all=["+metrics.toString+"]\n"+metricsByType.map(e => "   "+e._1+"=["+e._2.toString+"]").mkString("","\n","")
+	def toShortString():String = " W="+"%-20s".format(metrics.workload.toInt+"/"+metricsByType("get").workload.toInt+"/"+metricsByType("put").workload.toInt)+ 
 									" getL="+"%-15s".format(metricsByType("get").toShortLatencyString())+" putL="+"%-15s".format(metricsByType("put").toShortLatencyString())
 }
 
@@ -50,6 +48,15 @@ case class SCADSconfig(
 		Map[DirectorKeyRange,List[String]](mapping.keys.toList map {s => (s, mapping(s).toList)} : _*)
 	}
 	override def toString():String = storageNodes.toList.sort(_._2.minKey<_._2.minKey).map( x=>"%-15s".format(x._2)+"  "+x._1 ).mkString("\n")
+	
+	def splitAllInHalf():SCADSconfig = {
+		var config = this
+		for (server <- config.storageNodes) {
+			val action = SplitInTwo(server._1)
+			config = action.preview(config)
+		}
+		config
+	}
 }
 
 object SCADSconfig {
@@ -96,17 +103,53 @@ object SCADSState {
 			)
 			val sMetrics = PerformanceMetrics.load(metricReader,ip,"ALL")
 			val sMetricsByType = reqTypes.map( (t) => t -> PerformanceMetrics.load(metricReader,ip,t)).foldLeft(Map[String, PerformanceMetrics]())((x,y) => x + y)	
-			nodes += new StorageNodeState(ip,sMetrics,sMetricsByType,range)
+			nodes += new StorageNodeState(ip,sMetrics,sMetricsByType)
 			nodeConfig = nodeConfig.update(ip, range)
 		}
 		
 		val metrics = PerformanceMetrics.load(metricReader,"ALL","ALL")
 		val metricsByType = reqTypes.map( (t) => t -> PerformanceMetrics.load(metricReader,"ALL",t)).foldLeft(Map[String,PerformanceMetrics]())((x,y)=>x+y)
-		new SCADSState(new Date(), SCADSconfig(nodeConfig), nodes.toList, metrics, metricsByType, null)
+		// TODO: will need to load the workload histogram here
+		new SCADSState(new Date(), SCADSconfig(nodeConfig), nodes.toList, metrics, metricsByType,null)
 	}
+	
+	/**
+	* create SCADSState by predicting the performance metrics (workload and latency) using the performance model (assuming it last for 'duration' seconds).
+	* Also, save the performance metrics to the metric database
+	*/
+	def createFromPerfModel(time:Date, config:SCADSconfig, histogram:WorkloadHistogram, perfModel:PerformanceModel, duration:Int):SCADSState = {
+
+		val allGets = new scala.collection.mutable.ListBuffer[Double]()
+		val allPuts = new scala.collection.mutable.ListBuffer[Double]()
+		
+		val serverWorkload = PerformanceEstimator.estimateServerWorkload(config,histogram)
+		val storageNodes = new scala.collection.mutable.ListBuffer[StorageNodeState]()
+
+		var stats = PerformanceStats(duration,0,0,0,0,0,0,0,0,0)
+		for (s <- config.storageNodes.keySet) {
+			val w = serverWorkload(s)
+			val getLatencies = perfModel.sample(Map("type"->"get","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.getRate*duration).toInt)
+			val putLatencies = perfModel.sample(Map("type"->"put","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.putRate*duration).toInt)
+			allGets++=getLatencies
+			allPuts++=putLatencies
+			
+			val statsAll = PerformanceMetrics.estimateFromSamples(getLatencies++putLatencies,time,duration)
+			val statsGet = PerformanceMetrics.estimateFromSamples(getLatencies,time,duration)
+			val statsPut = PerformanceMetrics.estimateFromSamples(putLatencies,time,duration)
+			
+			storageNodes += StorageNodeState(s,statsAll,Map("get"->statsGet,"put"->statsPut))
+		}
+		
+		val statsAll = PerformanceMetrics.estimateFromSamples(allGets.toList++allPuts,time,duration)
+		val statsGet = PerformanceMetrics.estimateFromSamples(allGets.toList,time,duration)
+		val statsPut = PerformanceMetrics.estimateFromSamples(allPuts.toList,time,duration)
+		
+		SCADSState(time,config,storageNodes.toList,statsAll,Map("get"->statsGet,"put"->statsPut),histogram)
+	}
+	
 }
 
-class SCADSState(
+case class SCADSState(
 	val time: Date,
 	val config: SCADSconfig,
 	val storageNodes: List[StorageNodeState],
@@ -116,17 +159,18 @@ class SCADSState(
 ) {	
 	override def toString():String = {
 		"STATE@"+time+"  metrics["+
-		(if(metrics!=null)metrics.toString)+"]\n"+
-		(if(metricsByType!=null)metricsByType.map("   ["+_.toString+"]").mkString("","\n",""))+
+		(if(metrics!=null)metrics.toString else "")+"]\n"+
+		(if(metricsByType!=null)metricsByType.map("   ["+_.toString+"]").mkString("","\n","") else "")+
 		"\nindividual servers:\n"+
-		(if(storageNodes!=null)storageNodes.map(_.toString).mkString("","\n",""))
+		(if(storageNodes!=null)storageNodes.map(_.toString).mkString("","\n","") else "")
 	}
 	def toShortString():String = {
 		"STATE@"+time+"  W="+
-		(if(metrics!=null)metrics.workload.toInt)+"/"+
+		(if(metrics!=null)metrics.workload.toInt else "")+"/"+
 		(if(metricsByType!=null)(metricsByType("get").workload.toInt+"/"+metricsByType("put").workload.toInt 	+ 
-		"  getL="+metricsByType("get").toShortLatencyString()+"  putL="+metricsByType("put").toShortLatencyString())) +
-		(if(storageNodes!=null)storageNodes.map(_.toShortString()).mkString("\n  ","\n  ",""))
+		"  getL="+metricsByType("get").toShortLatencyString()+"  putL="+metricsByType("put").toShortLatencyString()) else "") +
+		(if(storageNodes!=null)storageNodes.sort( (s1,s2) => config.storageNodes(s1.ip).minKey<config.storageNodes(s2.ip).minKey )
+											.map(s=>"  server@"+s.ip+"   "+"%-15s".format(config.storageNodes(s.ip))+ "      " + s.toShortString()).mkString("\n","\n","") else "")
 	}
 	def changeConfig(new_config:SCADSconfig):SCADSState = new SCADSState(time,new_config,storageNodes,metrics,metricsByType,null)
 	
