@@ -97,6 +97,10 @@ class TestPolicy(
 	}
 }
 
+class EmptyPolicy() extends Policy {
+	override def act(state:SCADSState, pastActions:List[Action]):List[Action] = List[Action]()
+}
+
 class RandomSplitAndMergePolicy(
 	val fractionOfSplits:Double
 ) extends Policy {
@@ -140,9 +144,10 @@ class SplitAndMergeOnPerformance(
 		policyState match {
 			case PolicyState.Waiting => {null}
 			case PolicyState.Executing => {
-				val nodes = scadsState.storageNodes
+				val nodes = scadsState.storageNodes.sort( (s,t) => scadsState.config.storageNodes(s.ip).minKey<scadsState.config.storageNodes(t.ip).minKey )
 				// decide what actions to take: splitting and/or merging
 				nodes.foreach((node_state)=>{ // use workload for now
+					//logger.debug("split "+node_state.ip+"? w="+node_state.metrics.workload+" >? "+latencyToSplit)
 					if (node_state.metrics.workload >= latencyToSplit) {
 						logger.debug("Adding split action: "+node_state.ip)
 						actions += new SplitInTwo(node_state.ip)
