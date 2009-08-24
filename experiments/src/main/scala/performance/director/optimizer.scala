@@ -127,11 +127,11 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 	}
 	def estimateServerStats(state:SCADSState):Map[String,PerformanceStats] = { // TODO: sometimes empty serverworkloadranges?
 		Map[String,PerformanceStats](state.config.storageNodes.toList map {
-			entry => (entry._1, estimateSingleServerStats(entry._1, state.config.getReplicas(entry._1).size, DirectorKeyRange(entry._2.minKey,entry._2.maxKey), state)) 
+			entry => (entry._1, estimateSingleServerStats(entry._1, state.config.getReplicas(entry._1).size, 1.0,DirectorKeyRange(entry._2.minKey,entry._2.maxKey), state)) 
 			} : _*)
 	}
-	def estimateSingleServerStats(server:String, num_replicas:Int, range:DirectorKeyRange, state:SCADSState):PerformanceStats = {
-		performanceEstimator.estimatePerformance(new SCADSconfig( Map[String,DirectorKeyRange](server -> range)),state.workloadHistogram.divide(num_replicas),10,null) 
+	def estimateSingleServerStats(server:String, num_replicas:Int, allowed_puts:Double, range:DirectorKeyRange, state:SCADSState):PerformanceStats = {
+		performanceEstimator.estimatePerformance(new SCADSconfig( Map[String,DirectorKeyRange](server -> range)),state.workloadHistogram.divide(num_replicas,allowed_puts),10,null) 
 	}
 	/**
 	* Attempt splitting actions of a set of replicas, where at least one of the replicas is overloaded
@@ -147,7 +147,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 		println("Working on range "+rangeArray(0).minKey+" - "+rangeArray(ranges.size-1).maxKey+" ----------------- ")
 		while (id < rangeArray.size) {
 			// include this mini range on new server(s) if it wouldn't violate SLA
-			if ( !violatesSLA(estimateSingleServerStats(server,servers.size,DirectorKeyRange(rangeArray(startId).minKey,rangeArray(id).maxKey), state)) ) {
+			if ( !violatesSLA(estimateSingleServerStats(server,servers.size,1.0,DirectorKeyRange(rangeArray(startId).minKey,rangeArray(id).maxKey), state)) ) {
 				endId = id
 				println(rangeArray(startId).minKey+" - "+rangeArray(endId).maxKey +", size("+(endId-startId)+") ok")
 				id+=1
@@ -156,7 +156,9 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 			}
 			else {
 				println(rangeArray(startId).minKey+" - "+rangeArray(id).maxKey +", size("+(id-startId)+") violated SLA")
-				if ( (id-startId) == 0 ) { changes ++= tryReplicating(servers, rangeArray(id),state); id += 1} // even one mini range violates, try replication
+				if ( (id-startId) == 0 ) { // even one mini range violates, try replication
+					changes ++= tryReplicatingAndRestricting(servers, rangeArray(id),state); id += 1
+					}
 				else {
 					println("Creating split from "+rangeArray(startId).minKey+" - "+rangeArray(endId).maxKey)
 					changes += (DirectorKeyRange(rangeArray(startId).minKey,rangeArray(endId).maxKey) -> (servers.size,0) )
@@ -167,19 +169,27 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 		}
 		changes
 	}
-
-	 def tryReplicating(servers:List[String], range: DirectorKeyRange,state:SCADSState): Map[DirectorKeyRange,(Int,Double)] = {
+	/**
+	* Try to add more replicas for this range to make it acceptable,
+	* while also decrementing the amount of allowed puts
+	*/
+	def tryReplicatingAndRestricting(servers:List[String], range: DirectorKeyRange,state:SCADSState): Map[DirectorKeyRange,(Int,Double)] = {
 		var changes = Map[DirectorKeyRange,(Int,Double)]()
 		val server = servers.first
 		var found = false
-		(servers.size to max_replicas).foreach((num_replicas)=>{
-			if ( !found && !violatesSLA(estimateSingleServerStats(server,num_replicas,range,state)) )
-				{ changes += range -> (num_replicas,0); found = true; println("Need "+num_replicas+ " of "+range.minKey+" - "+ range.maxKey) }
-		})
-		if (!found) {println("Need to restrict put requests!")}// TODO: try restricting puts
+		var allowed:Int = 100 // use ints to avoid subtraction weirdness with doubles
 
+		while (!found && allowed >= 0) {
+			(servers.size to max_replicas).foreach((num_replicas)=>{
+				if ( !found && !violatesSLA(estimateSingleServerStats(server,num_replicas,allowed.toDouble/100.0,range,state)) )
+					{ changes += range -> (num_replicas,allowed.toDouble/100.0); found = true; println("Need "+num_replicas+ " of "+range.minKey+" - "+ range.maxKey+ " with "+(allowed.toDouble/100.0)+" allowed puts") }
+			})
+			allowed -= 10
+		}
+		if (!found) println("Unable to fix range "+range.minKey+" - "+ range.maxKey)
 		changes
 	}
+
 	/**
 	* Translate changes to a single server (and its replicas) into actions on that server(s).
 	* Inputted ranges in map are not necessarily in sorted order :(
