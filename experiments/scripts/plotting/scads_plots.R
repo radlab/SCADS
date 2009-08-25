@@ -23,7 +23,7 @@ plot.scads.performance = function(out.file) {
   dbDisconnect(conn)
 }
 
-plot.init = function(out.file=NULL, dbhost="localhost", ts0=NULL, ts1=NULL) {
+plot.init = function(out.file=NULL, plot.width=NULL, plot.height=NULL, dbhost="localhost", ts0=NULL, ts1=NULL) {
 	load.libraries()  
  	conn.metrics = dbConnect(MySQL(),user="root",password="",dbname="metrics",host=dbhost)
 	conn.director = dbConnect(MySQL(),user="root",password="",dbname="director",host=dbhost)
@@ -51,10 +51,8 @@ plot.init = function(out.file=NULL, dbhost="localhost", ts0=NULL, ts1=NULL) {
 		xtlim = c(t0,t1)
 	}
 		
-	print(xtlim)
-		
 	if (!is.null(out.file))
-		png(filename=out.file)
+		png(filename=out.file, width=plot.width, height=plot.height)
 	else if (names( dev.cur() )[1]=="null device")
 		quartz()
 		
@@ -297,6 +295,69 @@ plot.single.reqtype = function(data,title,plot.legend=F) {
           lty=c(NA,1,1,1), lwd=c(NA,2,2,2), pch=c(21,NA,NA,NA) )
 }
 
+
+
+#####
+# plot of the SCADS state 
+#
+plot.scads.state = function(time0,time1,latency90p.thr,out.file=NULL,debug=F,dbhost="localhost") {
+	m = plot.init(out.file,800,800,dbhost,NULL,NULL)
+
+	max.w = get.max.server.workload(m,time0,time1)
+	print(max.w)
+
+	layout( matrix(1:4, 4, 1, byrow = TRUE), heights=c(3,2,3,3) )
+	graph.workload.histogram(m,time1,"getRate","darkgreen",title="SCADS workload")
+	graph.workload.histogram(m,time1,"putRate","darkred",title="SCADS workload")
+	graph.config(m,time0,max.w,lat.thr=latency90p.thr)
+	graph.config(m,time1,max.w,lat.thr=latency90p.thr)
+ 	plot.done(m)
+}
+
+graph.workload.histogram = function(m,time,colname,color,tight=T,title=T) {
+	data = get.workload.histogram(m$conn.director,time)
+	graph.init(tight=F)
+	barplot( height=data[,colname], width=data$maxKey-data$minKey, space=0, col=color, xlim=c(min(data$minKey),max(data$maxKey)), main="workload histogram" )
+#	barplot( height=data[,"putRate"], width=data$maxKey-data$minKey, space=0, col="#ff000022", xlim=c(min(data$minKey),max(data$maxKey)), add=T, axes=F )
+	graph.done()
+}
+
+get.max.server.workload = function(m,time0,time1) {
+	servers0 = get.config(m$conn.director,time0)$server
+	servers1 = get.config(m$conn.director,time1)$server
+	
+	w0 = as.numeric( get.stat.for.servers( m$conn.metrics, servers0, time0, "ALL", "workload" )$value )
+	w1 = as.numeric( get.stat.for.servers( m$conn.metrics, servers1, time1, "ALL", "workload" )$value )
+	
+	return( max(c(w0,w1)) )
+}
+
+graph.config = function(m,time,max.w,lat.thr=100,tight=F,title=T) {
+	data = get.config(m$conn.director,time)
+	
+	d.w = get.stat.for.servers( m$conn.metrics, data$server, time, "ALL", "workload" )
+	workload = as.numeric( d.w$value )
+	d.get.l = get.stat.for.servers( m$conn.metrics, data$server, time, "get", "latency_90p" )$value
+	d.put.l = get.stat.for.servers( m$conn.metrics, data$server, time, "put", "latency_90p" )$value
+	
+	print( d.get.l )
+	print( d.put.l )
+	
+	colors = rep("cornflowerblue",nrow(data))
+	colors[ as.numeric(d.get.l)>lat.thr ] = "orangered"
+	colors[ as.numeric(d.put.l)>lat.thr ] = "orangered"
+	print(colors)
+	colors[ grep("Infinity",d.get.l) ] = "red3"
+	colors[ grep("Infinity",d.put.l) ] = "red3"
+	print(colors)
+	
+	graph.init(tight=F)
+	barplot( height=workload, width=data$maxKey-data$minKey, space=0, col=colors, xlim=c(min(data$minKey),max(data$maxKey)), axes=T, main=paste("config at time ",time,sep=""), ylim=c(0,max.w) )
+	graph.done()
+}
+
+
+
 get.all.servers = function(m) {
   return( dbGetQuery(m$conn.metrics, "select distinct server from scads_metrics")$server )
 }
@@ -306,5 +367,23 @@ get.data = function(c,server,req.type,stat,col.name) {
   d = dbGetQuery(c, sql )
   d[,col.name] = as.numeric(d[,col.name])
   return(d)
+}
+
+get.stat.for.servers = function(c,servers,time,req.type,stat) {
+	server.s = paste( "\"", paste(servers,collapse="\",\"", sep=""), "\"", sep="" )
+	sql = paste( "select * from metrics.scads s, metrics.scads_metrics m where s.time=",time," and s.metric_id=m.id and m.server IN (",server.s,") and m.request_type=\"",req.type,"\" and m.stat=\"",stat,"\" ", sep="")
+	d = dbGetQuery( c, sql )
+}
+
+get.workload.histogram = function(c,time) {
+	sql = paste( "SELECT histogram FROM director.scadsstate_histogram where time='",time,"' ", sep="")
+	d = dbGetQuery( c, sql )
+	return( read.csv( textConnection(d$histogram[1]) ) )
+}
+
+get.config = function(c,time) {
+	sql = paste( "SELECT config FROM director.scadsstate_config where time='",time,"' ", sep="")
+	d = dbGetQuery( c, sql )
+	return( read.csv( textConnection(d$config[1]) ) )
 }
 
