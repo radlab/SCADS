@@ -37,7 +37,10 @@ object Director {
 	def dumpAndDropDatabases() {
 		// dump old databases
 		Runtime.getRuntime.exec("mysqldump --databases metrics director > /mnt/director/dbdump_"+dateFormat.format(new Date)+".sql")
-		
+		dropDatabases()
+	}
+	
+	def dropDatabases() {
 		// drop old databases
 		try {
 			val connection = connectToDatabase()
@@ -45,7 +48,7 @@ object Director {
             statement.executeUpdate("DROP DATABASE IF EXISTS metrics")
             statement.executeUpdate("DROP DATABASE IF EXISTS director")
 			statement.close
-       	} catch { case ex: SQLException => ex.printStackTrace() }
+       	} catch { case ex: SQLException => ex.printStackTrace() }		
 	}
 	
 	def connectToDatabase():Connection = {
@@ -66,6 +69,11 @@ object Director {
 	        }
 		}
 		connection
+	}
+
+	def createInsertStatement(table:String, data:Map[String,String]):String = {
+		val colnames = data.keySet.toList
+		"INSERT INTO "+table+" ("+colnames.mkString("`","`,`","`")+") values ("+colnames.map(data(_)).mkString(",")+")"
 	}
 
 	case class Runner(policy:Policy,placementIP: String) extends Runnable {
@@ -127,16 +135,18 @@ object Director {
 		val workloadMultiplier = 10  		// workload rate of a single user
 		val nHistogramBinsPerServer = 20
 		val simulationGranularity = 60 		//seconds
+		val latency90pThr = 100
 		var nextStep = 0
 		var currentTime = 0
 		
-		val startTime = new Date().getTime
+		val startTime = new Date().getTime/(simulationGranularity*1000)*(simulationGranularity*1000)
 		
 		// create initial state (state = config + workload histogram + performance metrics)
 		//var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
 		var config = initialConfig
 		
 		var totalCost = 0.0
+		var prevTimestep:Long = -1
 
 		var pastActions = List[Action]()
 		
@@ -155,8 +165,9 @@ object Director {
 
 				// create the new state
 				//val state = new SCADSState(new Date(startTime+currentTime), config, null, null, null, histogram)
-				val state = SCADSState.createFromPerfModel(new Date(startTime+currentTime),config,histogram,performanceModel,w.duration/1000)
+				val state = SCADSState.createFromPerfModel(new Date(startTime+currentTime*1000),config,histogram,performanceModel,w.duration/1000)
 				logger.info("STATE: \n"+state.toShortString)
+				SCADSState.dumpState(state)
 
 				// compute cost of the new state
 				val cost = costFunction.cost(state)
@@ -174,7 +185,10 @@ object Director {
 									actions.map(_.toString).mkString("\nACTIONS: \n  ","\n  ","")
 				logger.info(actionMsg)
 
-				nextStep += simulationGranularity
+				if (prevTimestep!= -1) Plotting.plotSCADSState(state,prevTimestep,startTime+currentTime*1000,latency90pThr,"state_"+(startTime+currentTime*1000)+".png")
+
+				nextStep += simulationGranularity				
+				prevTimestep = startTime + currentTime*1000
 				
 			} else {
 				if (evaluateAllSteps) {
@@ -187,6 +201,10 @@ object Director {
 					// create new state
 					val state = SCADSState.createFromPerfModel(new Date(startTime+currentTime),config,histogram,performanceModel,w.duration/1000)
 					logger.info("STATE: \n"+state.toShortString)
+					SCADSState.dumpState(state)
+
+					if (prevTimestep!= -1) Plotting.plotSCADSState(state,prevTimestep,startTime+currentTime*1000,latency90pThr,"state_"+(startTime+currentTime*1000)+".png")
+					prevTimestep = startTime + currentTime*1000
 				}
 			}
 			currentTime += w.duration/1000
@@ -195,6 +213,10 @@ object Director {
 	}
 	
 	def testSimulation() {
+		Director.dropDatabases
+		SCADSState.initLogging("localhost",6001)
+		Plotting.initialize(Director.basedir+"/plotting/")
+		
 		val mix = new MixVector( Map("get"->0.98,"getset"->0.0,"put"->0.02) )
 		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,2,30,1000)
 
@@ -209,7 +231,7 @@ object Director {
 		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
 		val costFunction = new SLACostFunction(100,100,0.99,100,1,performanceEstimator)
 
-		directorSimulation(config,workload,policy,costFunction,performanceModel,true)
+		directorSimulation(config,workload,policy,costFunction,performanceModel,false)
 	}
 	
 	def testSimulation2() {
