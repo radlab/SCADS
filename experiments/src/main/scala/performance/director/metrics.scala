@@ -8,6 +8,12 @@ import java.sql.ResultSet
 import java.sql.SQLException
 import java.sql.Statement
 
+import radlab.metricservice._
+
+import org.apache.thrift._
+import org.apache.thrift.protocol.TBinaryProtocol;
+import org.apache.thrift.transport.TSocket;
+
 object PerformanceMetrics {
 	def load(metricReader:MetricReader, server:String, reqType:String):PerformanceMetrics = {
 		// FIX: handling of the dates
@@ -40,6 +46,21 @@ case class PerformanceMetrics(
 ) {
 	override def toString():String = time+" w="+"%.2f".format(workload)+" lMean="+"%.2f".format(latencyMean)+" l90p="+"%.2f".format(latency90p)+" l99p="+"%.2f".format(latency99p)
 	def toShortLatencyString():String = "%.0f".format(latencyMean)+"/"+"%.0f".format(latency90p)+"/"+"%.0f".format(latency99p)
+	
+	def createMetricUpdates(server:String, requestType:String):List[MetricUpdate] = {
+		var metrics = new scala.collection.mutable.ListBuffer[MetricUpdate]()
+		metrics += new MetricUpdate(time.getTime,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"workload"))),workload.toString)
+		metrics += new MetricUpdate(time.getTime,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"latency_mean"))),latencyMean.toString)
+		metrics += new MetricUpdate(time.getTime,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"latency_90p"))),latency90p.toString)
+		metrics += new MetricUpdate(time.getTime,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"latency_99p"))),latency99p.toString)
+		metrics.toList
+	}
+	
+	private def s2jMap[K,V](map:Map[K,V]): java.util.HashMap[K,V] = {	
+		var jm = new java.util.HashMap[K,V]()
+		map.foreach( t => jm.put(t._1,t._2) )
+		jm
+	}	
 }
 
 case class MetricReader(
@@ -109,4 +130,42 @@ case class MetricReader(
 		servers.toList
 	}
 
+}
+
+
+case class ThriftMetricDBConnection (
+	val host: String,
+	val port: Int
+) {
+	val metricService = connectToMetricService(host,port)
+	
+	def connectToMetricService(host:String, port:Int): MetricServiceAPI.Client = {
+		System.err.println("using MetricService at "+host+":"+port)
+	
+		var metricService: MetricServiceAPI.Client = null
+		
+        while (metricService==null) {
+            try {
+                val metricServiceTransport = new TSocket(host,port);
+                val metricServiceProtocol = new TBinaryProtocol(metricServiceTransport);
+
+                metricService = new MetricServiceAPI.Client(metricServiceProtocol);
+                metricServiceTransport.open();
+                System.err.println("connected to MetricService")
+
+            } catch {
+            	case e:Exception => {
+	                e.printStackTrace
+	                println("can't connect to the MetricService, waiting 60 seconds");
+	                try {
+	                    Thread.sleep(60 * 1000);
+	                } catch {
+	                    case e1:Exception => e1.printStackTrace()
+	                }
+                }
+            }
+        }
+        metricService
+	}	
+	
 }

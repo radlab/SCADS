@@ -9,6 +9,9 @@ import java.sql.ResultSet
 import java.sql.SQLException
 import java.sql.Statement
 
+import org.apache.log4j._
+import org.apache.log4j.Level._
+
 // ??
 case class DirectorKeyRange(
 	val minKey: Int,
@@ -57,6 +60,8 @@ case class SCADSconfig(
 		}
 		config
 	}
+	
+	def toCSVString():String = "server,minKey,maxKey\n"+storageNodes.toList.sort(_._2.minKey<_._2.minKey).map( s=> s._1+","+s._2.minKey+","+s._2.maxKey ).mkString("\n")
 }
 
 object SCADSconfig {
@@ -76,6 +81,63 @@ object SCADSState {
 	import java.util.Comparator
 	import edu.berkeley.cs.scads.thrift.DataPlacement
 	import edu.berkeley.cs.scads.keys._
+
+	val logger = Logger.getLogger("scads.state")
+	private val logPath = Director.basedir+"/state.txt"
+	logger.setLevel(DEBUG)
+
+	var metricDBConnection: ThriftMetricDBConnection = null
+	var dbConnection: Connection = null
+
+	def initLogging(metricDBHost:String, metricDBPort:Int) {
+		metricDBConnection = ThriftMetricDBConnection(metricDBHost,metricDBPort)
+		dbConnection = Director.connectToDatabase
+		initTables
+	}
+
+	def initTables() {
+        // create database if it doesn't exist and select it
+		val dbname = "director"
+        try {
+            val statement = dbConnection.createStatement
+            statement.executeUpdate("CREATE DATABASE IF NOT EXISTS " + dbname)
+            statement.executeUpdate("USE " + dbname)
+			statement.executeUpdate("CREATE TABLE IF NOT EXISTS scadsstate_config (`id` INT NOT NULL AUTO_INCREMENT, `time` BIGINT, `config` TEXT, PRIMARY KEY(`id`) ) ")
+			statement.executeUpdate("CREATE TABLE IF NOT EXISTS scadsstate_histogram (`id` INT NOT NULL AUTO_INCREMENT, `time` BIGINT, `histogram` TEXT, PRIMARY KEY(`id`) ) ")
+			statement.close
+       	} catch { case ex: SQLException => ex.printStackTrace() }
+
+        println("initialized scadsstate_config and scadsstate_histogram tables")
+	}
+	
+	def dumpState(state:SCADSState) {
+		// dump config
+        val statement = dbConnection.createStatement
+		val configSQL = Director.createInsertStatement("scadsstate_config", Map("time"->state.time.getTime.toString,"config"->("'"+state.config.toCSVString+"'")))
+		//logger.debug("storing config: "+configSQL)
+		statement.executeUpdate(configSQL)
+		statement.close
+		
+		// dump performance metrics
+		val metricUpdates = 
+			state.metrics.createMetricUpdates("ALL","ALL")++
+			List.flatten(state.metricsByType.map(m=>m._2.createMetricUpdates("ALL",m._1)).toList)++
+			List.flatten(state.storageNodes.map(n=> n.metrics.createMetricUpdates(n.ip,"ALL").toList++List.flatten(n.metricsByType.map(t=>t._2.createMetricUpdates(n.ip,t._1)).toList) ))
+		metricDBConnection.metricService.update( s2jList(metricUpdates) )
+		
+		// dump histogram
+        val statement2 = dbConnection.createStatement
+		val histogramSQL = Director.createInsertStatement("scadsstate_histogram", Map("time"->state.time.getTime.toString,"histogram"->("'"+state.workloadHistogram.toCSVString+"'")))
+		//logger.debug("storing histogram: "+histogramSQL)
+		statement2.executeUpdate(histogramSQL)
+		statement2.close
+	}
+
+	private def s2jList[T](list:List[T]): java.util.ArrayList[T] = {
+		var jl = new java.util.ArrayList[T]()
+		list.foreach(jl.add(_))
+		jl
+	}
 
 	class DataPlacementComparator extends java.util.Comparator[DataPlacement] {
 		def compare(o1: DataPlacement, o2: DataPlacement): Int = {
@@ -220,6 +282,13 @@ class WorkloadHistogram(
 		val getRate = rangeStats.map(_._2.getRate).reduceLeft(_+_)
 		val putRate = rangeStats.map(_._2.putRate).reduceLeft(_+_)
 		"WorkloadHistogram: (total rates) get="+getRate+"r/s, put="+putRate+"r/s"
+	}
+	
+	def toCSVString():String = {
+		"minKey,maxKey,getRate,putRate,getsetRate\n"+
+		rangeStats.keySet.toList.sort(_.minKey<_.minKey)
+			.map( r=>r.minKey+","+r.maxKey+","+rangeStats(r).getRate+","+rangeStats(r).putRate+","+rangeStats(r).getsetRate )
+			.mkString("\n")
 	}
 }
 
