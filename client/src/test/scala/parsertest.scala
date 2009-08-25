@@ -8,7 +8,7 @@ import scala.tools.nsc.Settings
 
 import edu.berkeley.cs.scads.model.parser.ScadsLanguage
 
-class ParserSuite extends Suite {
+class ParserTest extends Suite {
 	val logger = Logger.getLogger("scads.parserTest")
 
 	val code = Map(
@@ -52,22 +52,14 @@ class ParserSuite extends Suite {
 
 	def testParseGoodCode() = {
 		code.foreach((c) => {
-			val p = new ScadsLanguage
-			try {
-				val result = p.parseAll(p.spec, c._2)
-				result.get
-			} catch {
-				case e:Exception => fail("couldn't parse " + c._1, e)
-			}
+			ScadsLanguage.parse(c._2).get
 		})
 	}
 
 	def testFailOnBadCode() = {
 		badCode.foreach((c) => {
-			val p = new ScadsLanguage
 			intercept[RuntimeException] {
-				val result = p.parseAll(p.spec, c._2)
-				result.get
+				ScadsLanguage.parse(c._2).get
 			}
 		})
 	}
@@ -78,14 +70,10 @@ class ParserSuite extends Suite {
 		val settings = new Settings
 		val interp = new Interpreter(settings)
 		logger.debug("Classpath: " + settings.classpath)
-		interp.interpret("println(1)")
 
 		code.foreach((c) => {
-			val p = new ScadsLanguage
-			val result = p.parseAll(p.spec, c._2).get
-			val code = result.generateSpec
-			val ret = interp.interpret(code)
-
+			val ast = ScadsLanguage.parse(c._2).get
+			fail("Code generation isn't implemented!")
 			assert(true)
 		})
 	}

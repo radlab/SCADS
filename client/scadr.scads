@@ -1,0 +1,57 @@
+ENTITY user
+{
+	string name,
+	string password,
+	string email,
+	string profileData
+	PRIMARY(name)
+}
+
+ENTITY thought
+{
+	int time,
+	string thought
+	PRIMARY(time)
+}
+
+ENTITY subscription
+{
+	bool approved
+	PRIMARY(approved)
+}
+
+ENTITY topic
+{
+	string name
+	PRIMARY(name)
+}
+
+RELATIONSHIP owner FROM user TO MANY thought
+RELATIONSHIP following FROM user TO 5000 subscription
+RELATIONSHIP follows FROM subscription TO MANY user
+RELATIONSHIP hashtag FROM thought TO 10 topic
+RELATIONSHIP references FROM thought TO 10 user
+
+QUERY myThoughts FETCH thought OF user BY owner
+WHERE user=[this]
+
+QUERY thoughtsByHashTag FETCH thought OF topic BY hashtag
+WHERE name=[1:name]
+ORDER BY timestamp LIMIT [2:count] MAX 100
+
+QUERY MyFollowing FETCH user OF subscription BY follows
+PAGINATE [2:numperpage] MAX 30
+
+QUERY thoughtstream
+FETCH thought OF user BY owner OF subscription BY following
+OF user BY follows
+WHERE user=[this] AND subscription.approved = true
+ORDER BY timestamp
+LIMIT [1:count] MAX 100
+UNION FETCH thought OF user BY references WHERE user=[this]
+
+QUERY needsApproval FETCH user OF subscription BY follows
+WHERE subscription.user = [this] AND subscription.approved = false
+
+QUERY userByName FETCH user
+WHERE user.name = [1:name]

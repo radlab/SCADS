@@ -1,75 +1,41 @@
 package edu.berkeley.cs.scads.model.parser
 
 import scala.util.parsing.combinator._
+import scala.util.parsing.combinator.syntactical._
+import scala.util.parsing.combinator.lexical._
 
 class CompileException extends Exception
 case class DuplicateEntityException(entityName: String) extends CompileException
 case class DuplicateAttributeException(attr: String) extends CompileException
 
-case class Attribute(name: String, fieldType: String) {
-	def objDeclaration(s: StringBuilder) = {
-		s.append("object "); s.append(name); s.append(" extends "); s.append(fieldType); s.append(";\n")
-	}
+class Lexer extends StdLexical with ImplicitConversions
+object ScadsLanguage extends StdTokenParsers with ImplicitConversions {
+	type Tokens = Lexer
+  	val lexical = new Lexer
 
-	def nameMapping(s: StringBuilder) = {
-		s.append("\""); s.append(name); s.append("\" -> "); s.append(name); s.append(",")
-	}
-}
-case class Entity(name: String, attributes: List[Attribute], keys: List[String]) {
-	val attrMap = new scala.collection.mutable.HashMap[String, Attribute]
+	lexical.reserved ++= List("ENTITY", "PRIMARY", "RELATIONSHIP", "FROM", "TO", "MANY", "QUERY", "FETCH", "OF", "BY", "WHERE", "AND", "OR", "ORDER", "BY", "LIMIT", "MAX", "PAGINATE", "UNION", "this", "string", "int", "bool", "true", "false")
+ 	lexical.delimiters ++= List("{", "}", "[", "]", "<", ">", "(", ")", ",", ":", ";", "=", ".")
 
-	attributes.foreach((a) => {
-		if(attrMap.isDefinedAt(a.name))
-			throw new DuplicateAttributeException(a.name)
-		attrMap += (a.name -> a)
-	})
+	def intLiteral: Parser[Int] =
+    	accept("int constant", {
+      		case lexical.NumericLit(n) if !n.contains(".") && !n.contains("e") && !n.contains("E") && n.exists(_.isDigit) => n.toInt
+    	})
 
-	def classDeclaration(s: StringBuilder) = {
-		s.append("class "); s.append(name); s.append(" extends Entity()(ScadsEnv) {\n")
-		s.append("val namespace = \"tbl_"); s.append(name); s.append("\";\n")
-		s.append("val version = new IntegerVersion();\n")
-		attributes.foreach(_.objDeclaration(s))
-		s.append("val attributes = Map("); attributes.foreach(_.nameMapping(s)); s.append(");\n")
-		s.append("val indexes = new scala.collection.mutable.LinkedList[Index](null, null);\n")
-		s.append("val primaryKey = ")
-		if(keys.size > 1) {
-			s.append("new CompositeKey("); s.append(keys.mkString("", ", ", "")); s.append(")\n;")
-		}
-		else {
-			s.append(keys(0)); s.append(";\n")
-		}
-		s.append("}\n")
-	}
-}
+	def stringLiteral: Parser[String] =
+    	accept("string literal", {
+      		case lexical.StringLit(s) => s
+    	})
 
+  	def identifier: Parser[String] =
+    	accept("identifier", {
+      		case lexical.Identifier(s) if !s.contains("-") => s
+    	})
 
-case class Spec(entities: List[Entity]) {
-	val entityMap = new scala.collection.mutable.HashMap[String, Entity]
-
-	entities.foreach((e) => {
-		if(entityMap.isDefinedAt(e.name))
-			throw new DuplicateEntityException(e.name)
-
-		entityMap += (e.name -> e)
-	})
-
-	def generateSpec: String = {
-		val s = new StringBuilder
-		imports(s)
-		env(s)
-		entities.foreach(_.classDeclaration(s))
-
-		s.toString
-	}
-
-	private def imports(s: StringBuilder) = s.append("import edu.berkeley.cs.scads.model._\n\n")
-	private def env(s: StringBuilder) = s.append("object ScadsEnv extends Environment;\n")
-}
-
-class ScadsLanguage extends JavaTokenParsers {
+	/* Entity Parsing */
 	def attrType: Parser[String] = (
 			"string" ^^ ((_) => "StringField")
 		|	"int" ^^ ((_) => "IntegerField")
+		|	"bool" ^^ ((_) => "BooleanField")
 		)
 
 	def attribute: Parser[Attribute] = attrType ~ ident ^^
@@ -80,6 +46,80 @@ class ScadsLanguage extends JavaTokenParsers {
 	def entity: Parser[Entity] = "ENTITY" ~ ident ~ "{" ~ repsep(attribute, ",") ~ primaryKey ~ "}" ^^
 		{case "ENTITY" ~ eName ~ "{" ~ attrs ~ pk ~ "}" => new Entity(eName, attrs, pk)}
 
-	def spec: Parser[Spec] = rep(entity) ^^
-		{case entities: List[Entity] => new Spec(entities)}
+	/* Relationship Parsing */
+
+	def cardinality: Parser[Cardinality] = (
+			"ONE" ^^ (x => OneCardinality)
+		|	intLiteral ^^ ((x:Int) => new FixedCardinality(x))
+		|	"MANY" ^^ (x => InfiniteCardinality))
+
+	def relationship: Parser[Relationship] = "RELATIONSHIP" ~ ident ~ "FROM" ~ ident ~ "TO" ~ cardinality ~ ident ^^
+		{case "RELATIONSHIP" ~ name ~ "FROM" ~ fromEntity ~ "TO" ~ card ~ toEntity => new Relationship(name, fromEntity, toEntity, card)}
+
+	/* Query Parsing */
+	def parameter: Parser[Value] = (
+			"[" ~ intLiteral ~ ":" ~ ident ~ "]" ^^ {case "[" ~ ordinal ~ ":" ~ name ~ "]" => new Parameter(name, ordinal)}
+		|	"[" ~ "this" ~ "]" ^^ (x => ThisParameter) )
+
+	def field: Parser[Field] = (
+			ident ~ "." ~ ident ^^ {case entity ~ "." ~ name => new Field(entity, name)}
+		|	ident ^^ ((name:String) => new Field(null, name))
+	)
+
+	def value: Parser[Value] = (
+			parameter
+		|	stringLiteral ^^ ((x) => new StringValue(x))
+		|	intLiteral ^^ ((x) => new NumberValue(x.toInt))
+		|	"true" ^^ ((x) => TrueValue)
+		|	"false" ^^ ((x) => FalseValue)
+		|	field)
+
+	def predicate: Parser[Predicate] =
+			field ~ "=" ~ value ^^ {case v1 ~ "=" ~ v2 => new EqualityPredicate(v1, v2)}
+
+	def conjunction: Parser[List[Predicate]] = repsep(predicate, "AND")
+	def disjunction: Parser[List[List[Predicate]]] = repsep(conjunction, "OR")
+
+	def ordering: Parser[Order] = opt("ORDER" ~> "BY" ~> repsep(field, ",")) ^^
+		{
+			case Some(fields) => new OrderedByField(fields)
+			case None => Unordered
+		}
+
+
+	def limit: Parser[Range] = "LIMIT" ~ value ~ "MAX" ~ intLiteral ~ opt("OFFSET" ~> value) ^^
+		{
+			case "LIMIT" ~ lim ~ "MAX" ~ max ~ Some(off) => new OffsetLimit(lim, max, off)
+			case "LIMIT" ~ lim ~ "MAX" ~ max ~ None => new Limit(lim, max)
+		}
+
+	def pagination: Parser[Range] = "PAGINATE" ~ value ~ "MAX" ~ intLiteral ^^
+		{case "PAGINATE" ~ perPage ~ "MAX" ~ max => new Paginate(perPage, max)}
+
+	def range: Parser[Range] = opt(limit | pagination) ^^
+		{
+			case Some(range) => range
+			case None => Unlimited
+		}
+
+	def where: Parser[List[Predicate]] = opt("WHERE" ~> conjunction) ^^
+		{
+			case Some(preds) => preds
+			case None => List[Predicate]()
+		}
+
+	def joinedEntity: Parser[Join] = "OF" ~ ident ~ "BY" ~ ident ^^
+		{case "OF" ~ entityType ~ "BY" ~ relationshipName => new Join(entityType, relationshipName)}
+
+	def fetch: Parser[Fetch] = "FETCH" ~ ident ~ rep(joinedEntity) ~ where ~ ordering ~ range ^^
+		{case "FETCH" ~ entityType ~ joins ~ predicates ~ order ~ limit => new Fetch(entityType, joins, predicates, order, limit)}
+
+	def query: Parser[Query] = "QUERY" ~ ident ~ repsep(fetch, "UNION") ^^
+		{case "QUERY" ~ name ~ fetches => new Query(name, fetches)}
+
+	def spec: Parser[Spec] = rep(entity) ~ rep(relationship) ~ rep(query) ^^
+		{case entities ~ relationships ~ queries => new Spec(entities, relationships, queries)}
+
+	def parse(input: String) =
+		phrase(spec)(new lexical.Scanner(input))
 }
