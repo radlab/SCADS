@@ -307,7 +307,7 @@ object WorkloadHistogram {
 										case p:SCADSPutRequest => {p.key.toInt}
 										case _ => {-1} } }
 		val keys = allkeys.filter(_!= -1).toList.sort(_<_).toList
-		val boundaries = (List(minKey)++(for (i <- 1 to nBins-1) yield { keys(rnd.nextInt(keys.size)) })++List(maxKey)).sort(_<_)
+		val boundaries = (List(minKey)++((for (i <- 1 to nBins-1) yield { keys(rnd.nextInt(keys.size)) }).toList.removeDuplicates)++List(maxKey)).sort(_<_)
 		val ranges = boundaries.take(nBins).zip(boundaries.tail).map(b=>new DirectorKeyRange(b._1,b._2))
 		println("Histogram has ranges: \n"+ranges.sort(_.minKey<_.minKey).mkString("",",",""))
 		ranges

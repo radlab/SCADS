@@ -150,11 +150,12 @@ case class SimplePerformanceEstimator(
 				println("Couldn't find "+s+" in serverWorkload, which has: "+serverWorkload.keys.toList.mkString("(",",",")"))
 				println("Histogram has ranges: \n"+workload.rangeStats.keySet.toList.sort(_.minKey<_.minKey).mkString("",",",""))
 				println("Config has: \n"+config.rangeNodes.toList.sort(_._1.minKey<_._1.minKey).mkString("","\n","\n-------\n"))
+			} else {
+				val w = serverWorkload(s)
+				val getLatencies = perfmodel.sample(Map("type"->"get","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.getRate*durationInSec).toInt)
+				val putLatencies = perfmodel.sample(Map("type"->"put","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.putRate*durationInSec).toInt)
+				stats = stats.add(PerformanceStats(durationInSec,getLatencies.size,putLatencies.size,0,getLatencies.filter(_>50).size,putLatencies.filter(_>50).size,0,getLatencies.filter(_>100).size,putLatencies.filter(_>100).size,0))
 			}
-			val w = serverWorkload(s)
-			val getLatencies = perfmodel.sample(Map("type"->"get","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.getRate*durationInSec).toInt)
-			val putLatencies = perfmodel.sample(Map("type"->"put","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.putRate*durationInSec).toInt)
-			stats = stats.add(PerformanceStats(durationInSec,getLatencies.size,putLatencies.size,0,getLatencies.filter(_>50).size,putLatencies.filter(_>50).size,0,getLatencies.filter(_>100).size,putLatencies.filter(_>100).size,0))
 		}
 		stats
 	}
