@@ -222,7 +222,7 @@ object Director {
 					logger.info("WORKLOAD: "+histogram.toShortString)
 
 					// create new state
-					val state = SCADSState.createFromPerfModel(new Date(startTime+currentTime),config,histogram,performanceModel,w.duration/1000)
+					val state = SCADSState.createFromPerfModel(new Date(startTime+currentTime*1000),config,histogram,performanceModel,w.duration/1000)
 					logger.info("STATE: \n"+state.toShortString)
 					SCADSState.dumpState(state)
 
