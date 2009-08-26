@@ -33,13 +33,13 @@ object Director {
 	private val logPath = Director.basedir+"/director.txt"
 	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 	logger.setLevel(DEBUG)
-	
+
 	def dumpAndDropDatabases() {
 		// dump old databases
 		Runtime.getRuntime.exec("mysqldump --databases metrics director > /mnt/director/dbdump_"+dateFormat.format(new Date)+".sql")
 		dropDatabases()
 	}
-	
+
 	def dropDatabases() {
 		// drop old databases
 		try {
@@ -48,9 +48,9 @@ object Director {
             statement.executeUpdate("DROP DATABASE IF EXISTS metrics")
             statement.executeUpdate("DROP DATABASE IF EXISTS director")
 			statement.close
-       	} catch { case ex: SQLException => ex.printStackTrace() }		
+		} catch { case ex: SQLException => ex.printStackTrace() }
 	}
-	
+
 	def connectToDatabase():Connection = {
         try {
             Class.forName("com.mysql.jdbc.Driver").newInstance()
@@ -126,11 +126,20 @@ object Director {
 		deployment.placement.get(0).privateDnsName // return placement host name
 	}
 	
+	private def writeMaps(maps: Array[Map[DirectorKeyRange,List[String]]], prefix:String) {
+		/*(0 until maps.size).foreach((i)=>{
+			val file = new FileWriter( new java.io.File("/Users/trush/Downloads/"+prefix+i+".csv"), true )
+			val mapstats = maps(i)
+			mapstats.toList.sort(_._1.minKey < _._1.minKey).foreach((entry)=> file.write(entry._1.minKey+"_"+entry._1.maxKey+","+entry._2.mkString("",",","") +"\n"))
+			file.flush
+			file.close
+		})*/
+	}
+
 	/**
 	* run a simulation of 'policy' against the 'workload', using 'costFunction' for cost
 	*/
-	def directorSimulation(initialConfig:SCADSconfig, workload:WorkloadDescription, policy:Policy, costFunction:CostFunction, performanceModel:PerformanceModel, 
-							evaluateAllSteps:Boolean):Double = {
+	def directorSimulation(initialConfig:SCADSconfig, workload:WorkloadDescription, maxKey:Int,policy:Policy, costFunction:CostFunction, performanceModel:PerformanceModel, evaluateAllSteps:Boolean):Double = {
 		
 		val workloadMultiplier = 10  		// workload rate of a single user
 		val nHistogramBinsPerServer = 20
@@ -140,7 +149,9 @@ object Director {
 		var currentTime = 0
 		
 		val startTime = new Date().getTime/(simulationGranularity*1000)*(simulationGranularity*1000)
-		
+		var ranges:List[DirectorKeyRange] = null // use same ranges for whole simulation
+		val getStats = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
+		val putStats = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
 		// create initial state (state = config + workload histogram + performance metrics)
 		//var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
 		var config = initialConfig
@@ -152,12 +163,19 @@ object Director {
 		
 		for (w <- workload.workload) { 
 			logger.info("TIME: "+currentTime)
+			if (ranges == null) ranges = WorkloadHistogram.createRanges(w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer,maxKey)
+
 			if (currentTime>=nextStep) {
 				// enough time passed, time for a simulation step
 				logger.info("simulating ...")
 
 				// create workload histogram from 'w'
-				val histogram = WorkloadHistogram.create(w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer)
+				//val histogram = WorkloadHistogram.create(w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer,maxKey)
+				val histogram = WorkloadHistogram.createFromRanges(ranges,w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer)
+				histogram.rangeStats.foreach((entry)=>{
+					getStats(entry._1) = getStats.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + entry._2.getRate.toString
+					putStats(entry._1) = putStats.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + entry._2.putRate.toString
+				})
 
 				//logger.info("CONFIG: \n"+config)
 				//logger.info("HISTOGRAM: \n"+histogram)
@@ -195,9 +213,14 @@ object Director {
 					// don't simulate policy, just evaluate the config under the current workload
 				 
 					// create workload histogram from 'w'
-					val histogram = WorkloadHistogram.create(w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer)
+					val histogram = WorkloadHistogram.createFromRanges(ranges,w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer)
+					histogram.rangeStats.foreach((entry)=>{
+							getStats(entry._1) = getStats.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + entry._2.getRate.toString
+							putStats(entry._1) = putStats.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + entry._2.putRate.toString
+					})
+
 					logger.info("WORKLOAD: "+histogram.toShortString)
-				
+
 					// create new state
 					val state = SCADSState.createFromPerfModel(new Date(startTime+currentTime),config,histogram,performanceModel,w.duration/1000)
 					logger.info("STATE: \n"+state.toShortString)
@@ -209,6 +232,13 @@ object Director {
 			}
 			currentTime += w.duration/1000
 		}
+
+		// write out map stats
+		writeMaps(Array(
+			Map[DirectorKeyRange,List[String]](getStats.toList map {entry => (entry._1, entry._2.toList)} : _*),
+			Map[DirectorKeyRange,List[String]](putStats.toList map {entry => (entry._1, entry._2.toList)} : _*)
+		),startTime.toString)
+
 		totalCost
 	}
 	
@@ -231,10 +261,14 @@ object Director {
 		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
 		val costFunction = new SLACostFunction(100,100,0.99,100,1,performanceEstimator)
 
-		directorSimulation(config,workload,policy,costFunction,performanceModel,false)
+		directorSimulation(config,workload,maxKey,policy,costFunction,performanceModel,false)
 	}
 	
 	def testSimulation2() {
+		Director.dropDatabases
+		SCADSState.initLogging("localhost",6001)
+		Plotting.initialize(Director.basedir+"/plotting/")
+
 		val mix = new MixVector( Map("get"->0.97,"getset"->0.0,"put"->0.03) )
 		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,2,30,1000)
 
@@ -248,6 +282,26 @@ object Director {
 		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
 		val costFunction = new SLACostFunction(100,100,0.99,100,1,performanceEstimator)
 
-		directorSimulation(config,workload,policy,costFunction,performanceModel,false)
+		directorSimulation(config,workload,maxKey,policy,costFunction,performanceModel,false)
+	}
+	def testHeuristicSimulation(modelfile:String) {
+		Director.dropDatabases
+		SCADSState.initLogging("localhost",6001)
+		Plotting.initialize(Director.basedir+"/plotting/")
+
+		val mix = new MixVector( Map("get"->1.0,"getset"->0.0,"put"->0.00) )
+		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,2,30,280)
+		//val workload = WorkloadGenerators.linearWorkload(1.0,0.0,0,"10000","perfTest256",1000,10000,10)
+		val maxKey = 10000
+		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
+		config = config.splitAllInHalf.splitAllInHalf
+
+		val policy = new HeuristicOptimizerPolicy(modelfile,100,100)
+
+		val performanceModel = L1PerformanceModel(modelfile)
+		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
+		val costFunction = new SLACostFunction(100,100,0.99,100,1,performanceEstimator)
+
+		directorSimulation(config,workload,maxKey,policy,costFunction,performanceModel,false)
 	}
 }
