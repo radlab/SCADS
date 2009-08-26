@@ -293,33 +293,42 @@ class WorkloadHistogram(
 }
 
 object WorkloadHistogram {
-	def create(interval:WorkloadIntervalDescription, rate:Double, nBins:Int): WorkloadHistogram = {
+	def generateRequests(interval:WorkloadIntervalDescription, rate:Double, nBins:Int):List[SCADSRequest] = {
 		val nRequests = nBins*100
-		val rnd = new java.util.Random()
 		val requests = (for (r <- 1 to nRequests) yield { interval.requestGenerator.generateRequest(null,0) }).toList
-		val allkeys = for (r <- requests) yield { r match{ 
-										case g:SCADSGetRequest => {g.key.toInt} 
+		requests
+	}
+	def createRanges(interval:WorkloadIntervalDescription, rate:Double, nBins:Int, maxKey:Int):List[DirectorKeyRange] = {
+		val minKey = 0
+		val requests = generateRequests(interval,rate,nBins)
+		val rnd = new java.util.Random()
+		val allkeys = for (r <- requests) yield { r match{
+										case g:SCADSGetRequest => {g.key.toInt}
 										case p:SCADSPutRequest => {p.key.toInt}
 										case _ => {-1} } }
 		val keys = allkeys.filter(_!= -1).toList.sort(_<_).toList
-		val boundaries = (List(keys.first)++(for (i <- 1 to nBins-1) yield { keys(rnd.nextInt(keys.size)) })++List(keys.last)).sort(_<_)
+		val boundaries = (List(minKey)++(for (i <- 1 to nBins-1) yield { keys(rnd.nextInt(keys.size)) })++List(maxKey)).sort(_<_)
 		val ranges = boundaries.take(nBins).zip(boundaries.tail).map(b=>new DirectorKeyRange(b._1,b._2))
-		
-		// have the ranges, now count the keys in each range
+		println("Histogram has ranges: \n"+ranges.sort(_.minKey<_.minKey).mkString("",",",""))
+		ranges
+	}
+	def createFromRanges(ranges:List[DirectorKeyRange],interval:WorkloadIntervalDescription, rate:Double, nBins:Int):WorkloadHistogram = {
+		val requests = generateRequests(interval,rate,nBins)
+		val nRequests = requests.size
 		val getCounts = scala.collection.mutable.Map[DirectorKeyRange,Int]()
 		val putCounts = scala.collection.mutable.Map[DirectorKeyRange,Int]()
 		var ri = 0
 		var range = ranges(ri)
 
-		val typesAndKeys = (for (r <- requests) yield { 
+		val typesAndKeys = (for (r <- requests) yield {
 			r match {
 				case g:SCADSGetRequest => { ("get",g.key.toInt) }
 				case p:SCADSPutRequest => { ("put",p.key.toInt) }
-				case _ => { ("na",-1) } 
-			}			
+				case _ => { ("na",-1) }
+			}
 		}).filter(_._2!= -1).toList.sort(_._2<_._2).toList
-		
-		for (tk <- typesAndKeys) { 
+
+		for (tk <- typesAndKeys) {
 			val rtype = tk._1
 			val key = tk._2
 			while (key>range.maxKey) { ri = ri+1; /*println("next range: "+ri+" key="+key+"  max="+range.maxKey);*/ range = ranges(ri) }
@@ -329,14 +338,19 @@ object WorkloadHistogram {
 				case _ =>
 			}
 		}
-		
+
 		val rangeStats = scala.collection.mutable.Map[DirectorKeyRange,WorkloadFeatures]()
 		for (range <- ranges) {
 			val getRate = getCounts.getOrElse(range,0).toDouble / nRequests * rate //(interval.duration/1000)
 			val putRate = putCounts.getOrElse(range,0).toDouble / nRequests * rate //(interval.duration/1000)
 			rangeStats += range -> WorkloadFeatures(getRate,putRate,Double.NaN)
-		}		
+		}
 		new WorkloadHistogram(Map[DirectorKeyRange,WorkloadFeatures]()++rangeStats)
+	}
+	def create(interval:WorkloadIntervalDescription, rate:Double, nBins:Int,maxKey:Int): WorkloadHistogram = {
+		val ranges = createRanges(interval,rate,nBins,maxKey)
+		// have the ranges, now count the keys in each range
+		createFromRanges(ranges,interval,rate,nBins)
 	}
 }
 
