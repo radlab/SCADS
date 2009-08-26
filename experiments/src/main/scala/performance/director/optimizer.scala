@@ -107,9 +107,9 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 		// pick a replica to remove or merge to do, if possible
 		// TODO: how conservative should this choice be?
 		val overloadedservers = overloaded_config.getNodes
-		val range_values = List[List[String]](state.config.rangeNodes.toList.sort(_._1.minKey < _._1.minKey) map {l=> l._2}:_*)
-		val candidates = range_values.filter(overloadedservers.intersect(_).size==0).toArray // array of list of replicas for each range
-		actions.insertAll(actions.size,scaleDown(candidates,1)) // how many scale down actions to produce
+		val candidatesMap = state.config.rangeNodes.toList.sort(_._1.minKey < _._1.minKey).filter(_._2.intersect(overloadedservers).size==0)
+		println("Have "+candidatesMap.size+" underloaded servers")
+		actions.insertAll(actions.size,scaleDown(candidatesMap.toArray,1,state)) // how many scale down actions to produce
 
 		actions.toList
 	}
@@ -219,19 +219,27 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 	* and upper bound on number of scale down actions to produce,
 	* return list of actions to perform
 	*/
-	def scaleDown(candidates:Array[List[String]],num:Int):List[Action] = {
+	def scaleDown(candidates:Array[(DirectorKeyRange,List[String])],num:Int,state:SCADSState):List[Action] = {
 		var actions = new scala.collection.mutable.ListBuffer[Action]()
 		var choices = candidates.indices // which indices of the candidates array still available to try
 
 		while (actions.size < num && choices.size > 0) {
 			val chosen_index = rand.nextInt(choices.size)
 			val chosen = candidates(choices(chosen_index))
+
 			val chosen_neighbor = if (choices.size < 2) {null} else if (chosen_index < candidates.size-1){ candidates(chosen_index+1) } else { candidates(chosen_index-1) }
-			if (chosen.size > 1) // remove a replica
-				actions += Remove(List[String](chosen.first))
-			else if (chosen.size==1 && chosen_neighbor !=null && chosen_neighbor.size==1) // attempt merge two
-				actions += MergeTwo(chosen.first,chosen_neighbor.first)
-			choices = choices.filter(_ != chosen_index)
+			if (chosen._2.size > 1) { // try to remove a replica
+				if (!violatesSLA(estimateSingleServerStats(chosen._2.first,chosen._2.size-1,1.0,chosen._1, state)))
+					actions += Remove(List[String](chosen._2.first))
+				else println("Thought about removing replica "+chosen._2.first+", but didn't!")
+			}
+			else if (chosen._2.size==1 && chosen_neighbor !=null && chosen_neighbor._2.size==1) { // attempt merge two
+				val range = if (chosen._1.minKey < chosen_neighbor._1.minKey) { DirectorKeyRange(chosen._1.minKey,chosen_neighbor._1.maxKey) } else { DirectorKeyRange(chosen_neighbor._1.minKey,chosen._1.maxKey) }
+				if (!violatesSLA(estimateSingleServerStats(chosen._2.first,1,1.0,range, state)))
+					actions += MergeTwo(chosen._2.first,chosen_neighbor._2.first)
+				else println("Thought about merging "+chosen._2.first+" and "+chosen_neighbor._2.first+", but didn't!")
+			}
+			choices = choices.filter(_ != choices(chosen_index))
 		}
 		actions.toList
 	}
