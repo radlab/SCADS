@@ -122,7 +122,7 @@ object PerformanceEstimator {
 		val c4 = a3.preview(c3)
 
 		val w = WorkloadGenerators.flatWorkload(0.95,0.0,0,"10000","perfTest256",100,2,10)
-		val hist = WorkloadHistogram.create(w.workload(0),10000,100)
+		val hist = WorkloadHistogram.create(w.workload(0),10000,100,10000)
 /*		val pm = L1PerformanceModel("http://scads.s3.amazonaws.com/perfmodels/l1model_getput_1.0.RData")*/
 		val pm = L1PerformanceModel("/Users/bodikp/Downloads/l1model_getput_1.0.RData")
 		val estimator = SimplePerformanceEstimator(pm)
@@ -146,6 +146,11 @@ case class SimplePerformanceEstimator(
 		
 		var stats = PerformanceStats(durationInSec,0,0,0,0,0,0,0,0,0)
 		for (s <- servers.keySet) {
+			if (!serverWorkload.contains(s)) {
+				println("Couldn't find "+s+" in serverWorkload, which has: "+serverWorkload.keys.toList.mkString("(",",",")"))
+				println("Histogram has ranges: \n"+workload.rangeStats.keySet.toList.sort(_.minKey<_.minKey).mkString("",",",""))
+				println("Config has: \n"+config.rangeNodes.toList.sort(_._1.minKey<_._1.minKey).mkString("","\n","\n-------\n"))
+			}
 			val w = serverWorkload(s)
 			val getLatencies = perfmodel.sample(Map("type"->"get","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.getRate*durationInSec).toInt)
 			val putLatencies = perfmodel.sample(Map("type"->"put","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.putRate*durationInSec).toInt)
