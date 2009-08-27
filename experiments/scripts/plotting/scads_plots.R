@@ -300,7 +300,7 @@ plot.single.reqtype = function(data,title,plot.legend=F) {
 #####
 # plot of the SCADS state 
 #
-plot.scads.state = function(time0,time1,latency90p.thr,out.file=NULL,debug=F,dbhost="localhost") {
+plot.scads.state = function(time0,time1,latency90p.thr=100,out.file=NULL,debug=F,dbhost="localhost") {
 	m = plot.init(out.file,800,800,dbhost,NULL,NULL)
 
 	max.w = get.max.server.workload(m,time0,time1)
@@ -336,20 +336,27 @@ graph.config = function(m,time,max.w,lat.thr=100,tight=F,title=T) {
 	data = get.config(m$conn.director,time)
 	
 	d.w = get.stat.for.servers( m$conn.metrics, data$server, time, "ALL", "workload" )
-	workload = as.numeric( d.w$value )
 	d.get.l = get.stat.for.servers( m$conn.metrics, data$server, time, "get", "latency_90p" )$value
 	d.put.l = get.stat.for.servers( m$conn.metrics, data$server, time, "put", "latency_90p" )$value
 	
-	print( d.get.l )
-	print( d.put.l )
+	s1 = data.frame( server=data$server, order=1:length(data$server))
+	s2 = data.frame( server=d.w$server, workload=as.numeric(d.w$value) )
+	s = merge(s1,s2)
+	workload = s[order(s$order),"workload"]
+	
+	print( s )
+	print( data )
+	print( workload )
+	#print( d.get.l )
+	#print( d.put.l )
 	
 	colors = rep("cornflowerblue",nrow(data))
 	colors[ as.numeric(d.get.l)>lat.thr ] = "orangered"
 	colors[ as.numeric(d.put.l)>lat.thr ] = "orangered"
-	print(colors)
+	#print(colors)
 	colors[ grep("Infinity",d.get.l) ] = "red3"
 	colors[ grep("Infinity",d.put.l) ] = "red3"
-	print(colors)
+	#print(colors)
 	
 	graph.init(tight=F)
 	barplot( height=workload, width=data$maxKey-data$minKey, space=0, col=colors, xlim=c(min(data$minKey),max(data$maxKey)), axes=T, main=paste("config at time ",time,sep=""), ylim=c(0,max.w) )
