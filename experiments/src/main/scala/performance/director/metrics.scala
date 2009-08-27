@@ -21,7 +21,7 @@ object PerformanceMetrics {
 		val (date1, latencyMean) = metricReader.getSingleMetric(server, "latency_mean", reqType)
 		val (date2, latency90p) = metricReader.getSingleMetric(server, "latency_90p", reqType)
 		val (date3, latency99p) = metricReader.getSingleMetric(server, "latency_99p", reqType)
-		new PerformanceMetrics(date0,metricReader.interval.toInt,workload,latencyMean,latency90p,latency99p)
+		PerformanceMetrics(date0,metricReader.interval.toInt,workload,latencyMean,latency90p,latency99p, -1, -1, -1)
 	}
 	
 	def estimateFromSamples(samples:List[Double], time:Date, aggregationInterval:Int):PerformanceMetrics = {
@@ -29,7 +29,10 @@ object PerformanceMetrics {
 		val latencyMean = computeMean(samples)
 		val latency90p = computeQuantile(samples,0.9)
 		val latency99p = computeQuantile(samples,0.99)
-		PerformanceMetrics(time, aggregationInterval, workload, latencyMean, latency90p, latency99p)
+		val nRequests = samples.size
+		val nSlowerThan50ms = samples.filter(_>50).size
+		val nSlowerThan100ms = samples.filter(_>100).size
+		PerformanceMetrics(time, aggregationInterval, workload, latencyMean, latency90p, latency99p, nRequests, nSlowerThan50ms, nSlowerThan100ms)
 	}
 	
 	private def computeWorkload( data:List[Double] ): Double = if (data==Nil||data.size==0) Double.NaN else data.length
@@ -42,7 +45,10 @@ case class PerformanceMetrics(
 	val workload: Double,
 	val latencyMean: Double,
 	val latency90p: Double,
-	val latency99p: Double
+	val latency99p: Double,
+	val nRequests: Int,
+	val nSlowerThan50ms: Int,
+	val nSlowerThan100ms: Int
 ) {
 	override def toString():String = time+" w="+"%.2f".format(workload)+" lMean="+"%.2f".format(latencyMean)+" l90p="+"%.2f".format(latency90p)+" l99p="+"%.2f".format(latency99p)
 	def toShortLatencyString():String = "%.0f".format(latencyMean)+"/"+"%.0f".format(latency90p)+"/"+"%.0f".format(latency99p)
