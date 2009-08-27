@@ -120,7 +120,7 @@ object Action {
 			statement.close
        	} catch { case ex: SQLException => ex.printStackTrace() }
 
-        println("have connection to database")
+        println("initialized Action table")
     }
 
 	def store(action:Action): Int = {
