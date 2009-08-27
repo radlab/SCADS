@@ -1,5 +1,134 @@
 package scads.director
 
+import java.util.Date
+
+abstract class FullCostFunction {
+	def addState(state:SCADSState)
+	def cost():Double = cost(detailedCost)
+	def cost(costs:List[Cost]):Double = costs.map(_.cost).reduceLeft(_+_)
+	def detailedCost():List[Cost]
+	def intervalSummary():String
+}
+
+case class MachineRunningStats(
+	val server: String,
+	val startTime: Long
+) {
+	var endTime = startTime
+	var running = true
+	
+	def updateEndTime(time:Long) = { endTime=time }
+	def stop = { running=false }
+	override def toString() = { server+"  "+(new Date(startTime))+"  ->  "+(new Date(endTime)+(if (running) "  RUNNING" else "")) }
+	def cost(nodeCost:Double, nodeInterval:Long) = { Math.ceil((endTime-startTime).toDouble/nodeInterval)*nodeCost }
+}
+
+case class MachineCost(
+	val nodeCost: Double, 
+	val nodeInterval: Long
+) {
+	var machines = Map[String, scala.collection.mutable.ListBuffer[MachineRunningStats]]()
+	var wereRunning = Set[String]()
+
+	def addNewInterval(time:Long, running:Set[String]) {
+		var machinesToCheck = wereRunning
+		machinesToCheck ++= running
+		
+		for (machine <- machinesToCheck) {
+			if (wereRunning.contains(machine) && running.contains(machine))
+				machines(machine)(machines(machine).size-1).updateEndTime(time)
+			if (wereRunning.contains(machine) && !running.contains(machine)) {
+				machines(machine)(machines(machine).size-1).updateEndTime(time)
+				machines(machine)(machines(machine).size-1).stop
+			}
+			if (!wereRunning.contains(machine) && running.contains(machine)) {
+				if (!machines.contains(machine)) machines += (machine -> new scala.collection.mutable.ListBuffer[MachineRunningStats]())
+				machines(machine) += MachineRunningStats(machine,time)
+			}
+		}
+		
+		wereRunning = running
+	}
+	
+	override def toString():String = {
+		machines.map( ms=> ms._1+":\n" + ms._2.toList.map(m=>"%-30s".format(m.toString)+"  $"+m.cost(nodeCost,nodeInterval)).mkString("  ","\n  ","") ).mkString("\n")
+	}
+	
+	def getCosts():List[Cost] = {
+		List.flatten( machines.map( ms=> ms._2.toList.map(m=>Cost(new Date(m.endTime),"server "+m.server+" running from "+(new Date(m.startTime)+" to "+(new Date(m.endTime)) ),m.cost(nodeCost,nodeInterval))) ).toList )
+	}
+}
+
+case class Cost(
+	val time: Date,
+	val description: String,
+	val cost: Double
+)
+
+case class RequestCounts( val nSlow: Int, val nAll: Int ) { 
+	def add(that:RequestCounts):RequestCounts = RequestCounts(nSlow+that.nSlow,nAll+that.nAll) 
+	def fractionSlow():Double = { nSlow.toDouble / nAll }
+	def fractionNormal():Double = { 1 - fractionSlow }
+	override def toString() = { nSlow+"/"+nAll+"="+"%.3f".format(100*fractionSlow)+"%) req slow ("+"%.3f".format(100*fractionNormal)+"% normal)" }
+}
+
+case class FullSLACostFunction(
+	getSLA:Int, 			// time in ms
+	putSLA:Int, 			// time in ms
+	slaPercentile:Double,	// what percentile to consider when evaluating possible violation
+	slaInterval:Long,		// duration of SLA interval in milliseconds
+	violationCost:Double, 	// cost for violating SLA
+	nodeCost:Double,		// cost for adding new storage server
+	nodeInterval:Long		// node cost interval in milliseconds
+) extends FullCostFunction {
+	var allStates = new scala.collection.mutable.ListBuffer[SCADSState]()
+	
+	assert(getSLA==50||getSLA==100||putSLA==50||putSLA==100,"only supporting SLA of 50ms or 100ms (see PerformanceStats)")
+
+	def addState(state:SCADSState) { allStates+=state }
+	
+	def detailedCost():List[Cost] = {
+		// compute SLA violation cost
+		val getCosts = 
+		allStates.map(s=>(s,s.time.getTime/slaInterval*slaInterval))
+				 .foldLeft( scala.collection.mutable.Map[Long,RequestCounts]() )( (t,s)=>accumulateRequestStats(t,s,"get",getSLA) )
+				 .map( x=>(x._1,x._2) )
+				 .filter( x=>(1.0-x._2.nSlow.toDouble/x._2.nAll)<slaPercentile )
+				 .map( x=>Cost(new Date(x._1), "get SLA violation ("+x._2.toString+")", violationCost) )
+
+		val putCosts = 
+		allStates.map(s=>(s,s.time.getTime/slaInterval*slaInterval))
+				 .foldLeft( scala.collection.mutable.Map[Long,RequestCounts]() )( (t,s)=>accumulateRequestStats(t,s,"put",putSLA) )
+				 .map( x=>(x._1,x._2) )
+				 .filter( x=>(1.0-x._2.nSlow.toDouble/x._2.nAll)<slaPercentile )
+				 .map( x=>Cost(new Date(x._1), "put SLA violation ("+x._2.toString+")", violationCost) )
+				
+		val machineCost = MachineCost(nodeCost,nodeInterval)
+		for (state <- allStates) machineCost.addNewInterval(state.time.getTime, Set[String](state.config.storageNodes.keySet.toList:_*))
+		Director.logger.debug(machineCost.toString)
+		val machineCosts = machineCost.getCosts
+
+		(getCosts++putCosts++machineCosts).toList.sort(_.time.getTime<_.time.getTime)
+	}
+	
+	def intervalSummary():String = {
+		"states groupped by SLA interval:\n"+
+		allStates.map(s=>(s,s.time.getTime/slaInterval*slaInterval))
+				.foldLeft( scala.collection.mutable.Map[Long,List[String]]() )( (t,s)=> {t(s._2)=t.getOrElse(s._2,List[String]())+s._1.time.toString; t} )
+				.map( x=>(x._1,x._2) ).toList
+				.sort( _._1<_._1 )
+				.map( x=>x._1+"\n"+x._2.mkString("  ","\n  ","") )
+				.mkString( "\n" )
+	}
+	
+	private def accumulateRequestStats(stats:scala.collection.mutable.Map[Long,RequestCounts], state:Tuple2[SCADSState,Long], rtype:String, threshold:Double): scala.collection.mutable.Map[Long,RequestCounts] = {
+		if (threshold==50) 			stats(state._2) = stats.getOrElse(state._2,RequestCounts(0,0)).add( RequestCounts(state._1.metricsByType(rtype).nSlowerThan50ms,state._1.metricsByType(rtype).nRequests) )
+		else if (threshold==100) 	stats(state._2) = stats.getOrElse(state._2,RequestCounts(0,0)).add( RequestCounts(state._1.metricsByType(rtype).nSlowerThan100ms,state._1.metricsByType(rtype).nRequests) )
+		else RequestCounts(0,0)
+		stats
+	}
+}
+
 abstract class CostFunction {
 	def cost(state:SCADSState):Double
 	def detailedCost(state:SCADSState):Map[String,Double]
