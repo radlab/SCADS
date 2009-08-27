@@ -139,7 +139,7 @@ object Director {
 	/**
 	* run a simulation of 'policy' against the 'workload', using 'costFunction' for cost
 	*/
-	def directorSimulation(initialConfig:SCADSconfig, workload:WorkloadDescription, maxKey:Int,policy:Policy, costFunction:CostFunction, performanceModel:PerformanceModel, evaluateAllSteps:Boolean):Double = {
+	def directorSimulation(initialConfig:SCADSconfig, workload:WorkloadDescription, maxKey:Int,policy:Policy, costFunction:FullCostFunction, performanceModel:PerformanceModel, evaluateAllSteps:Boolean):FullCostFunction = {
 		
 		val workloadMultiplier = 10  		// workload rate of a single user
 		val nHistogramBinsPerServer = 20
@@ -156,7 +156,6 @@ object Director {
 		//var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
 		var config = initialConfig
 		
-		var totalCost = 0.0
 		var prevTimestep:Long = -1
 
 		var pastActions = List[Action]()
@@ -186,12 +185,8 @@ object Director {
 				val state = SCADSState.createFromPerfModel(new Date(startTime+currentTime*1000),config,histogram,performanceModel,w.duration/1000)
 				logger.info("STATE: \n"+state.toShortString)
 				SCADSState.dumpState(state)
+				costFunction.addState(state)
 
-				// compute cost of the new state
-				val cost = costFunction.cost(state)
-				totalCost += cost
-				logger.info("COST: "+cost)
-				
 				// ask policy for actions
 				val actions = policy.perform(state,pastActions)
 				
@@ -225,6 +220,7 @@ object Director {
 					val state = SCADSState.createFromPerfModel(new Date(startTime+currentTime*1000),config,histogram,performanceModel,w.duration/1000)
 					logger.info("STATE: \n"+state.toShortString)
 					SCADSState.dumpState(state)
+					costFunction.addState(state)
 
 					if (prevTimestep!= -1) Plotting.plotSCADSState(state,prevTimestep,startTime+currentTime*1000,latency90pThr,"state_"+(startTime+currentTime*1000)+".png")
 					prevTimestep = startTime + currentTime*1000
@@ -239,16 +235,16 @@ object Director {
 			Map[DirectorKeyRange,List[String]](putStats.toList map {entry => (entry._1, entry._2.toList)} : _*)
 		),startTime.toString)
 
-		totalCost
+		costFunction
 	}
 	
-	def testSimulation() {
+	def testSimulation():FullCostFunction = {
 		Director.dropDatabases
 		SCADSState.initLogging("localhost",6001)
 		Plotting.initialize(Director.basedir+"/plotting/")
 		
 		val mix = new MixVector( Map("get"->0.98,"getset"->0.0,"put"->0.02) )
-		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,2,30,1000)
+		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,1,10,1000)
 
 		val maxKey = 10000
 		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
@@ -259,9 +255,11 @@ object Director {
 
 		val performanceModel = L1PerformanceModel("/Users/bodikp/Downloads/l1model_getput_1.0.RData")
 		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
-		val costFunction = new SLACostFunction(100,100,0.99,100,1,performanceEstimator)
+		//val costFunction = new SLACostFunction(100,100,0.99,100,1,performanceEstimator)
+		val costFunction = FullSLACostFunction(100,100,0.99,1*60*1000,100,1,2*60*1000)
 
-		directorSimulation(config,workload,maxKey,policy,costFunction,performanceModel,false)
+		val finalCost = directorSimulation(config,workload,maxKey,policy,costFunction,performanceModel,false)
+		finalCost
 	}
 	
 	def testSimulation2() {
@@ -280,7 +278,8 @@ object Director {
 
 		val performanceModel = L1PerformanceModel("/Users/bodikp/Downloads/l1model_getput_1.0.RData")
 		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
-		val costFunction = new SLACostFunction(100,100,0.99,100,1,performanceEstimator)
+		//val costFunction = new SLACostFunction(100,100,0.99,100,1,performanceEstimator)
+		val costFunction = FullSLACostFunction(100,100,0.99,1*60*1000,100,1,1*60*1000)
 
 		directorSimulation(config,workload,maxKey,policy,costFunction,performanceModel,false)
 	}
@@ -300,7 +299,8 @@ object Director {
 
 		val performanceModel = L1PerformanceModel(modelfile)
 		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
-		val costFunction = new SLACostFunction(100,100,0.99,100,1,performanceEstimator)
+		//val costFunction = new SLACostFunction(100,100,0.99,100,1,performanceEstimator)
+		val costFunction = FullSLACostFunction(100,100,0.99,1*60*1000,100,1,1*60*1000)
 
 		directorSimulation(config,workload,maxKey,policy,costFunction,performanceModel,false)
 	}
