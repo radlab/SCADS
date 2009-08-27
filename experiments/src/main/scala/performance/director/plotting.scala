@@ -24,8 +24,8 @@ object Plotting {
 		this.dir = dir
 		(new File(dir)).mkdirs()
 
-		logger = Logger.getLogger("scads.perfmodel")
-		val logPath = Director.basedir+"/perfmodel.txt"
+		logger = Logger.getLogger("scads.plotting")
+		val logPath = Director.basedir+"/plotting.txt"
 		logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 		logger.setLevel(DEBUG)
 	}
