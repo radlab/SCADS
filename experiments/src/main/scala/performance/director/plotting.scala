@@ -42,7 +42,11 @@ object Plotting {
 	}
 	
 	def plotSCADSState(state:SCADSState, time0:Long, time1:Long, latency90pThr:Double, file:String) {
-		rconn.parseAndEval("  plot.scads.state(\""+time0+"\",\""+time1+"\",latency90p.thr="+latency90pThr+",out.file=\""+dir+"/"+file+"\")  ")
+		try {
+			rconn.parseAndEval("  plot.scads.state(\""+time0+"\",\""+time1+"\",latency90p.thr="+latency90pThr+",out.file=\""+dir+"/"+file+"\")  ")
+		} catch {
+			case e:Exception => { logger.warn("couldn't render SCADS state plot"); e.printStackTrace }
+		}
 	}
 		
 }
