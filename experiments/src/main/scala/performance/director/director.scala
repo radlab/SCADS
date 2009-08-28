@@ -298,13 +298,13 @@ object Director {
 
 		directorSimulation(config,workload,maxKey,policy,costFunction,performanceModel,false)
 	}
-	def testHeuristicSimulation(modelfile:String) {
+	def testHeuristicSimulation(modelfile:String):FullCostFunction = {
 		Director.dropDatabases
 		SCADSState.initLogging("localhost",6001)
 		Plotting.initialize(Director.basedir+"/plotting/")
 
 		val mix = new MixVector( Map("get"->1.0,"getset"->0.0,"put"->0.00) )
-		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,2,30,280)
+		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,1,24,280)
 		//val workload = WorkloadGenerators.linearWorkload(1.0,0.0,0,"10000","perfTest256",1000,10000,10)
 		val maxKey = 10000
 		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
@@ -315,8 +315,9 @@ object Director {
 		val performanceModel = L1PerformanceModel(modelfile)
 		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
 		//val costFunction = new SLACostFunction(100,100,0.99,100,1,performanceEstimator)
-		val costFunction = FullSLACostFunction(100,100,0.99,1*60*1000,100,1,1*60*1000)
+		val costFunction = FullSLACostFunction(100,100,0.99,60*60*1000,100,1,60*60*1000)
 
-		directorSimulation(config,workload,maxKey,policy,costFunction,performanceModel,false)
+		val finalcost = directorSimulation(config,workload,maxKey,policy,costFunction,performanceModel,true)
+		finalcost
 	}
 }
