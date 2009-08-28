@@ -352,5 +352,26 @@ object WorkloadHistogram {
 		// have the ranges, now count the keys in each range
 		createFromRanges(ranges,interval,rate,nBins)
 	}
+	def summarize(ranges: List[DirectorKeyRange], histograms:List[WorkloadHistogram]):WorkloadHistogram = {
+		val index_choice = Math.floor(0.9*(histograms.size-1)).toInt
+		// create map by summarizing the workload features from all the histograms for each range
+		val rangeStats = Map[DirectorKeyRange,WorkloadFeatures](
+			ranges.map {range => {
+				var getRate = new scala.collection.mutable.ListBuffer[Double]()
+				var putRate = new scala.collection.mutable.ListBuffer[Double]()
+				var getsetRate = new scala.collection.mutable.ListBuffer[Double]()
+				histograms.foreach((hist)=> {
+					val features = hist.rangeStats(range)
+					getRate += features.getRate
+					putRate += features.putRate
+					getsetRate += features.getsetRate
+				})
+				val getRateChoice = getRate.toList.sort(_<_).apply(index_choice)
+				val putRateChoice = putRate.toList.sort(_<_).apply(index_choice)
+				val getsetRateChoice = getsetRate.toList.sort(_<_).apply(index_choice)
+				(range,WorkloadFeatures(getRateChoice, putRateChoice, getsetRateChoice)) }
+			}:_*)
+		new WorkloadHistogram(rangeStats)
+	}
 }
 
