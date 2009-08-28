@@ -140,17 +140,20 @@ object Director {
 	* run a simulation of 'policy' against the 'workload', using 'costFunction' for cost
 	*/
 	def directorSimulation(initialConfig:SCADSconfig, workload:WorkloadDescription, maxKey:Int,policy:Policy, costFunction:FullCostFunction, performanceModel:PerformanceModel, evaluateAllSteps:Boolean):FullCostFunction = {
-		
+
 		val workloadMultiplier = 10  		// workload rate of a single user
 		val nHistogramBinsPerServer = 20
 		val simulationGranularity = 60 		//seconds
+		val histogramWindowSize = 6
 		val latency90pThr = 100
 		var nextStep = 0
 		var currentTime = 0
 		
 		val startTime = new Date().getTime/(simulationGranularity*1000)*(simulationGranularity*1000)
 		var ranges:List[DirectorKeyRange] = null // use same ranges for whole simulation
+		var histogramWindow = new scala.collection.mutable.ListBuffer[WorkloadHistogram]()
 		val getStats = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
+		val getStatsSmooth = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
 		val putStats = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
 		// create initial state (state = config + workload histogram + performance metrics)
 		//var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
@@ -170,9 +173,15 @@ object Director {
 
 				// create workload histogram from 'w'
 				//val histogram = WorkloadHistogram.create(w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer,maxKey)
-				val histogram = WorkloadHistogram.createFromRanges(ranges,w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer)
-				histogram.rangeStats.foreach((entry)=>{
+				val histogram_now = WorkloadHistogram.createFromRanges(ranges,w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer)
+				if (histogramWindow.size >= histogramWindowSize) { histogramWindow.remove(0) }
+				histogramWindow += histogram_now
+				val histogram = WorkloadHistogram.summarize(ranges,histogramWindow.toList)
+				println("Histogram window size: "+histogramWindow.size)
+
+				histogram_now.rangeStats.foreach((entry)=>{
 					getStats(entry._1) = getStats.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + entry._2.getRate.toString
+					getStatsSmooth(entry._1) = getStatsSmooth.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + histogram.rangeStats(entry._1).getRate.toString
 					putStats(entry._1) = putStats.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + entry._2.putRate.toString
 				})
 
@@ -208,10 +217,15 @@ object Director {
 					// don't simulate policy, just evaluate the config under the current workload
 				 
 					// create workload histogram from 'w'
-					val histogram = WorkloadHistogram.createFromRanges(ranges,w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer)
-					histogram.rangeStats.foreach((entry)=>{
-							getStats(entry._1) = getStats.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + entry._2.getRate.toString
-							putStats(entry._1) = putStats.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + entry._2.putRate.toString
+					val histogram_now = WorkloadHistogram.createFromRanges(ranges,w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer)
+					if (histogramWindow.size >= histogramWindowSize) { histogramWindow.remove(0) }
+					histogramWindow += histogram_now
+					val histogram = WorkloadHistogram.summarize(ranges,histogramWindow.toList)
+
+					histogram_now.rangeStats.foreach((entry)=>{
+						getStats(entry._1) = getStats.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + entry._2.getRate.toString
+						getStatsSmooth(entry._1) = getStatsSmooth.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + histogram.rangeStats(entry._1).getRate.toString
+						putStats(entry._1) = putStats.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + entry._2.putRate.toString
 					})
 
 					logger.info("WORKLOAD: "+histogram.toShortString)
@@ -232,6 +246,7 @@ object Director {
 		// write out map stats
 		writeMaps(Array(
 			Map[DirectorKeyRange,List[String]](getStats.toList map {entry => (entry._1, entry._2.toList)} : _*),
+			Map[DirectorKeyRange,List[String]](getStatsSmooth.toList map {entry => (entry._1, entry._2.toList)} : _*),
 			Map[DirectorKeyRange,List[String]](putStats.toList map {entry => (entry._1, entry._2.toList)} : _*)
 		),startTime.toString)
 
