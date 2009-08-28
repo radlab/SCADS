@@ -285,7 +285,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 			// include this mini range on new server(s) if it wouldn't violate SLA
 			if ( !violatesSLA(estimateSingleServerStats(server,servers.size,1.0,DirectorKeyRange(rangeArray(startId).minKey,rangeArray(id).maxKey), state)) ) {
 				endId = id
-				println(rangeArray(startId).minKey+" - "+rangeArray(endId).maxKey +", size("+(endId-startId)+") ok")
+				//println(rangeArray(startId).minKey+" - "+rangeArray(endId).maxKey +", size("+(endId-startId)+") ok")
 				id+=1
 				// finish up the server when get to last range
 				if (id==rangeArray.size) changes += (DirectorKeyRange(rangeArray(startId).minKey,rangeArray(id-1).maxKey) -> (servers.size,0) )
