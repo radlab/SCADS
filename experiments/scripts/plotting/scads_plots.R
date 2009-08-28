@@ -307,8 +307,8 @@ plot.scads.state = function(time0,time1,latency90p.thr=100,out.file=NULL,debug=F
 	print(max.w)
 
 	layout( matrix(1:4, 4, 1, byrow = TRUE), heights=c(3,2,3,3) )
-	graph.workload.histogram(m,time1,"getRate","darkgreen",title="SCADS workload")
-	graph.workload.histogram(m,time1,"putRate","darkred",title="SCADS workload")
+	graph.workload.histogram(m,time1,"getRate","darkgreen",title="get workload histogram")
+	graph.workload.histogram(m,time1,"putRate","darkred",title="put workload histogram")
 	graph.config(m,time0,max.w,lat.thr=latency90p.thr)
 	graph.config(m,time1,max.w,lat.thr=latency90p.thr)
  	plot.done(m)
@@ -317,7 +317,7 @@ plot.scads.state = function(time0,time1,latency90p.thr=100,out.file=NULL,debug=F
 graph.workload.histogram = function(m,time,colname,color,tight=T,title=T) {
 	data = get.workload.histogram(m$conn.director,time)
 	graph.init(tight=F)
-	barplot( height=data[,colname], width=data$maxKey-data$minKey, space=0, col=color, xlim=c(min(data$minKey),max(data$maxKey)), main="workload histogram" )
+	barplot( height=data[,colname], width=data$maxKey-data$minKey, space=0, col=color, xlim=c(min(data$minKey),max(data$maxKey)), main=title )
 #	barplot( height=data[,"putRate"], width=data$maxKey-data$minKey, space=0, col="#ff000022", xlim=c(min(data$minKey),max(data$maxKey)), add=T, axes=F )
 	graph.done()
 }
@@ -335,27 +335,23 @@ get.max.server.workload = function(m,time0,time1) {
 graph.config = function(m,time,max.w,lat.thr=100,tight=F,title=T) {
 	data = get.config(m$conn.director,time)
 	
-	d.w = get.stat.for.servers( m$conn.metrics, data$server, time, "ALL", "workload" )
+	workload = get.stat.for.servers( m$conn.metrics, data$server, time, "ALL", "workload" )$value
 	d.get.l = get.stat.for.servers( m$conn.metrics, data$server, time, "get", "latency_90p" )$value
 	d.put.l = get.stat.for.servers( m$conn.metrics, data$server, time, "put", "latency_90p" )$value
 	
-	s1 = data.frame( server=data$server, order=1:length(data$server))
-	s2 = data.frame( server=d.w$server, workload=as.numeric(d.w$value) )
-	s = merge(s1,s2)
-	workload = s[order(s$order),"workload"]
-	
-	print( s )
 	print( data )
-	print( workload )
-	#print( d.get.l )
-	#print( d.put.l )
+	cat("w=",workload,"\n")
+	cat("get.l=",d.get.l,"\n")
+	cat("put.l=",d.put.l,"\n")
 	
 	colors = rep("cornflowerblue",nrow(data))
 	colors[ as.numeric(d.get.l)>lat.thr ] = "orangered"
 	colors[ as.numeric(d.put.l)>lat.thr ] = "orangered"
 	#print(colors)
-	colors[ grep("Infinity",d.get.l) ] = "red3"
-	colors[ grep("Infinity",d.put.l) ] = "red3"
+	colors[ is.infinite(d.get.l) ] = "red3"
+	colors[ is.infinite(d.put.l) ] = "red3"
+	#colors[ grep("Infinity",d.get.l) ] = "red3"
+	#colors[ grep("Infinity",d.put.l) ] = "red3"
 	#print(colors)
 	
 	graph.init(tight=F)
@@ -380,6 +376,21 @@ get.stat.for.servers = function(c,servers,time,req.type,stat) {
 	server.s = paste( "\"", paste(servers,collapse="\",\"", sep=""), "\"", sep="" )
 	sql = paste( "select * from metrics.scads s, metrics.scads_metrics m where s.time=",time," and s.metric_id=m.id and m.server IN (",server.s,") and m.request_type=\"",req.type,"\" and m.stat=\"",stat,"\" ", sep="")
 	d = dbGetQuery( c, sql )
+
+	# replace Infinity -> Inf
+	v = d$value
+	v[grep("Infinity",v)] = "Inf"
+	v[grep("-Infinity",v)] = "-Inf"
+	d$value = v
+
+	cat("\n** getting data for ",paste(servers,sep=",",collapse=",")," @ ",time," type=",req.type," stat=",stat,"\n",sep="")
+	print(d)
+	
+	s1 = data.frame( server=servers, order=1:length(servers))
+	s2 = data.frame( server=d$server, value=as.numeric(d$value) )
+	s = merge(s1,s2)
+	ds = s[order(s$order),]
+	ds
 }
 
 get.workload.histogram = function(c,time) {
