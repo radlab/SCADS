@@ -258,10 +258,11 @@ case class WorkloadFeatures(
 	}
 	/**
 	* Divde the gets amongst replicas, and indicate the amount of allowed puts (in range 0.0-1.0)
+	* Workload increases are applied before dividing amongst replicas or restricting puts
 	*/
-	def restrictAndSplit(replicas:Int, allowed_puts:Double):WorkloadFeatures = {
+	def restrictAndSplit(replicas:Int, allowed_puts:Double, percentIncrease:Double):WorkloadFeatures = {
 		assert(allowed_puts <= 1.0 && allowed_puts >= 0.0, "Amount of allowed puts must be in range [0.0 - 1.0]")
-		WorkloadFeatures(this.getRate/replicas,this.putRate*allowed_puts,this.getsetRate)
+		WorkloadFeatures((this.getRate*(1.0+percentIncrease))/replicas,(this.putRate*(1.0+percentIncrease))*allowed_puts,this.getsetRate*(1.0+percentIncrease))
 	}
 }
 
@@ -273,7 +274,12 @@ class WorkloadHistogram(
 ) {
 	def divide(replicas:Int, allowed_puts:Double):WorkloadHistogram = {
 		new WorkloadHistogram(
-			Map[DirectorKeyRange,WorkloadFeatures](rangeStats.toList map {entry => (entry._1, entry._2.restrictAndSplit(replicas,allowed_puts)) } : _*)
+			Map[DirectorKeyRange,WorkloadFeatures](rangeStats.toList map {entry => (entry._1, entry._2.restrictAndSplit(replicas,allowed_puts,0.0)) } : _*)
+		)
+	}
+	def modify(replicas:Int, allowed_puts:Double, percentIncrease:Double):WorkloadHistogram = {
+		new WorkloadHistogram(
+			Map[DirectorKeyRange,WorkloadFeatures](rangeStats.toList map {entry => (entry._1, entry._2.restrictAndSplit(replicas,allowed_puts,percentIncrease)) } : _*)
 		)
 	}
 	override def toString():String = rangeStats.keySet.toList.sort(_.minKey<_.minKey).map( r=>r+"   "+rangeStats(r) ).mkString("\n")
