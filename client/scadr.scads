@@ -28,30 +28,50 @@ ENTITY topic
 
 RELATIONSHIP owner FROM user TO MANY thought
 RELATIONSHIP following FROM user TO 5000 subscription
-RELATIONSHIP follows FROM subscription TO MANY user
+RELATIONSHIP target FROM subscription TO ONE user
 RELATIONSHIP hashtag FROM thought TO 10 topic
 RELATIONSHIP references FROM thought TO 10 user
 
-QUERY myThoughts FETCH thought OF user BY owner
+QUERY myThoughts
+FETCH thought OF user BY owner
 WHERE user=[this]
+PAGINATE [1: numperpage] MAX 10
 
-QUERY thoughtsByHashTag FETCH thought OF topic BY hashtag
+QUERY thoughtsByHashTag
+FETCH thought OF topic BY hashtag
 WHERE name=[1:name]
 ORDER BY timestamp LIMIT [2:count] MAX 100
 
-QUERY MyFollowing FETCH user OF subscription BY follows
+QUERY myFollowing
+FETCH user
+	OF subscription BY target
+	OF user me BY following
+WHERE me=[this]
 PAGINATE [2:numperpage] MAX 30
 
 QUERY thoughtstream
-FETCH thought OF user BY owner OF subscription BY following
-OF user BY follows
-WHERE user=[this] AND subscription.approved = true
+FETCH thought
+	OF user friend BY owner
+	OF subscription BY target
+	OF user me BY following
+WHERE me=[this] AND subscription.approved = true
 ORDER BY timestamp
 LIMIT [1:count] MAX 100
-UNION FETCH thought OF user BY references WHERE user=[this]
 
-QUERY needsApproval FETCH user OF subscription BY follows
+QUERY references
+FETCH thought OF user BY references
+WHERE user=[this]
+
+QUERY needsApproval
+FETCH user OF subscription BY follows
 WHERE subscription.user = [this] AND subscription.approved = false
 
-QUERY userByName FETCH user
+QUERY userByName
+FETCH user
 WHERE user.name = [1:name]
+
+/* Missing Queries */
+//Who's following me?
+//How many people are following me?
+//How many people am I following?
+//How many tweets do I have?
