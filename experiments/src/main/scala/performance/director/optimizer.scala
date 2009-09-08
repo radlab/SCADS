@@ -209,7 +209,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 	val rand = new Random
 	val slaPercentile = 0.99
 	val max_replicas = 5
-	val percent_increase = 0.05 	// how much workload should be increased before checking for SLA violation on new server
+	val percent_increase = 0.10 	// how much workload should be increased before checking for SLA violation on new server
 	val min_puts_allowed:Int = 100 	// percentage of allowed puts
 
 	def optimize(state:SCADSState): List[Action] = {
@@ -231,7 +231,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 			println("Attempting to optimze overloaded server "+entry._1.first + " with "+entry._1.size + " replicas")
 			val changes = trySplitting(entry._1, entry._2,state)
 			actions.insertAll(actions.size,translateToActions(entry._1,changes,state))
-			actions += Remove(entry._1) // remove original server(s)
+			//actions += Remove(entry._1) // remove original server(s)
 		})
 
 		// pick a replica to remove or merge to do, if possible
@@ -335,13 +335,18 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 		var actions = new scala.collection.mutable.ListBuffer[Action]()
 		val actual_range = state.config.storageNodes(servers.first)
 		val changesArray = changes.toList.sort(_._1.minKey < _._1.minKey).toArray
+		var removalStart:Int = -1
 
 		(0 until changesArray.size).foreach((index)=>{
 			val change = changesArray(index)
 			val start = if (index==0) {actual_range.minKey} else {Math.max(actual_range.minKey,change._1.minKey)}
 			val end = if (index==(changesArray.size-1)) {actual_range.maxKey} else {Math.min(actual_range.maxKey,change._1.maxKey)}
-			actions += ReplicateFrom(servers.first,DirectorKeyRange(start,end),change._2._1)
+			// if this is the first range of this server, don't replicate from, just removefrom later
+			if (index==0) removalStart = end
+			else actions += ReplicateFrom(servers.first,DirectorKeyRange(start,end),change._2._1)
 		})
+		assert(removalStart != -1, "beginning of removal range should have been set")
+		actions += RemoveFrom(servers,DirectorKeyRange(removalStart,actual_range.maxKey))
 		actions.toList
 	}
 	/**
