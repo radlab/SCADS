@@ -143,7 +143,7 @@ object Director {
 
 		val workloadMultiplier = 10  		// workload rate of a single user
 		val nHistogramBinsPerServer = 20
-		val simulationGranularity = 60 		//seconds
+		val simulationGranularity = 10 		//seconds
 		val histogramWindowSize = 6
 		val latency90pThr = 100
 		var nextStep = 0
@@ -152,6 +152,9 @@ object Director {
 		val startTime = new Date().getTime/(simulationGranularity*1000)*(simulationGranularity*1000)
 		var ranges:List[DirectorKeyRange] = null // use same ranges for whole simulation
 		var histogramWindow = new scala.collection.mutable.ListBuffer[WorkloadHistogram]()
+		var smoothed_histogram:WorkloadHistogram = null
+		val alpha = 0.8
+		val beta = 0.2
 		val getStats = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
 		val getStatsSmooth = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
 		val putStats = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
@@ -165,7 +168,7 @@ object Director {
 		
 		for (w <- workload.workload) { 
 			logger.info("TIME: "+currentTime)
-			if (ranges == null) ranges = WorkloadHistogram.createRanges(w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer,maxKey)
+			if (ranges == null) ranges = WorkloadHistogram.createEquiWidthRanges(w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer,maxKey)
 
 			if (currentTime>=nextStep) {
 				// enough time passed, time for a simulation step
@@ -176,6 +179,12 @@ object Director {
 				val histogram_now = WorkloadHistogram.createFromRanges(ranges,w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer)
 				if (histogramWindow.size >= histogramWindowSize) { histogramWindow.remove(0) }
 				histogramWindow += histogram_now
+
+				//s_t = s_{t-1} + alpha * (w_t - s_{t-1})
+				if (smoothed_histogram == null) {println("no smooth history");smoothed_histogram = histogram_now}
+				else if (histogram_now > smoothed_histogram) { println("workload increasing");smoothed_histogram = smoothed_histogram + histogram_now*alpha - smoothed_histogram*alpha }
+				else { println("workload decreasing");smoothed_histogram = smoothed_histogram + histogram_now*beta - smoothed_histogram*beta }
+
 				val histogram = WorkloadHistogram.summarize(ranges,histogramWindow.toList)
 				println("Histogram window size: "+histogramWindow.size)
 
@@ -187,7 +196,8 @@ object Director {
 
 				//logger.info("CONFIG: \n"+config)
 				//logger.info("HISTOGRAM: \n"+histogram)
-				logger.info("WORKLOAD: "+histogram.toShortString)
+				logger.info("WORKLOAD: "+histogram_now.toShortString)
+				logger.info("SMOOTHED WORKLOAD: "+histogram.toShortString)
 
 				// create the new state
 				//val state = new SCADSState(new Date(startTime+currentTime), config, null, null, null, histogram)
@@ -304,7 +314,7 @@ object Director {
 		Plotting.initialize(Director.basedir+"/plotting/")
 
 		val mix = new MixVector( Map("get"->1.0,"getset"->0.0,"put"->0.00) )
-		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,1,24,280)
+		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,1,48,280)
 		//val workload = WorkloadGenerators.linearWorkload(1.0,0.0,0,"10000","perfTest256",1000,10000,10)
 		val maxKey = 10000
 		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
@@ -315,9 +325,9 @@ object Director {
 		val performanceModel = L1PerformanceModel(modelfile)
 		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
 		//val costFunction = new SLACostFunction(100,100,0.99,100,1,performanceEstimator)
-		val costFunction = FullSLACostFunction(100,100,0.99,60*60*1000,100,1,60*60*1000)
+		val costFunction = FullSLACostFunction(100,100,0.99,1*60*1000,100,1,2*60*1000)
 
-		val finalcost = directorSimulation(config,workload,maxKey,policy,costFunction,performanceModel,true)
+		val finalcost = directorSimulation(config,workload,maxKey,policy,costFunction,performanceModel,false)
 		finalcost
 	}
 }
