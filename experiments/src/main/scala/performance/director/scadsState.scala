@@ -247,7 +247,7 @@ case class WorkloadFeatures(
 	getRate: Double,
 	putRate: Double,
 	getsetRate: Double
-) {
+) extends Ordered[WorkloadFeatures]{
 	def add(that:WorkloadFeatures):WorkloadFeatures = {
 		WorkloadFeatures(this.getRate+that.getRate,this.putRate+that.putRate,this.getsetRate+that.getsetRate)
 	}
@@ -264,14 +264,31 @@ case class WorkloadFeatures(
 		assert(allowed_puts <= 1.0 && allowed_puts >= 0.0, "Amount of allowed puts must be in range [0.0 - 1.0]")
 		WorkloadFeatures((this.getRate*(1.0+percentIncrease))/replicas,(this.putRate*(1.0+percentIncrease))*allowed_puts,this.getsetRate*(1.0+percentIncrease))
 	}
+	def compare(that: WorkloadFeatures):Int = {
+		val thistotal = this.sum
+		val thattotal = that.sum
+		if (thistotal < thattotal) -1
+		else if (thistotal == thattotal) 0
+		else 1
+	}
+	def sum:Double = this.getRate + this.putRate + (if (!this.getsetRate.isNaN) {this.getsetRate} else {0.0})
+	def + (that:WorkloadFeatures):WorkloadFeatures = {
+		WorkloadFeatures(this.getRate+that.getRate,this.putRate+that.putRate,this.getsetRate+that.getsetRate)
+	}
+	def - (that:WorkloadFeatures):WorkloadFeatures = {
+		WorkloadFeatures(Math.abs(this.getRate-that.getRate),Math.abs(this.putRate-that.putRate),Math.abs(this.getsetRate+that.getsetRate))
+	}
+	def * (multiplier:Double):WorkloadFeatures = {
+		WorkloadFeatures(this.getRate*multiplier,this.putRate*multiplier,this.getsetRate*multiplier)
+	}
 }
 
 /**
 * Represents the histogram of keys in workload
 */
-class WorkloadHistogram(
+class WorkloadHistogram (
 	val rangeStats: Map[DirectorKeyRange,WorkloadFeatures]
-) {
+) extends Ordered[WorkloadHistogram] {
 	def divide(replicas:Int, allowed_puts:Double):WorkloadHistogram = {
 		new WorkloadHistogram(
 			Map[DirectorKeyRange,WorkloadFeatures](rangeStats.toList map {entry => (entry._1, entry._2.restrictAndSplit(replicas,allowed_puts,0.0)) } : _*)
@@ -283,6 +300,40 @@ class WorkloadHistogram(
 		)
 	}
 	override def toString():String = rangeStats.keySet.toList.sort(_.minKey<_.minKey).map( r=>r+"   "+rangeStats(r) ).mkString("\n")
+
+	def compare(that:WorkloadHistogram):Int = { // do bin-wise comparison of workloadfeatures, return summation
+		this.rangeStats.toList.map(entry=>entry._2.compare( that.rangeStats(entry._1) )).reduceLeft(_+_)
+	}
+	/**
+	* Split this workload into ranges such that the workload is more or less balanced between them
+	*/
+	def split(pieces:Int):List[List[DirectorKeyRange]] = {
+		val splits = new scala.collection.mutable.ListBuffer[List[DirectorKeyRange]]()
+		val targetworkload = this.rangeStats.values.reduceLeft(_+_).sum.toInt/pieces // the workload each split should aim for
+		var split = new scala.collection.mutable.ListBuffer[DirectorKeyRange]()
+		var splitworkload = 0
+		this.rangeStats.keys.toList.sort(_.minKey < _.minKey).foreach((range)=>{
+			if (splitworkload < targetworkload) { split += range; splitworkload += this.rangeStats(range).sum.toInt }
+			else { splits += split.toList; split = new scala.collection.mutable.ListBuffer[DirectorKeyRange](); splitworkload = 0 }
+		})
+		if (!split.isEmpty) { splits += split.toList } // add the last one split, if necessary
+		splits.toList
+	}
+	def + (that:WorkloadHistogram):WorkloadHistogram = {
+		new WorkloadHistogram(
+			Map[DirectorKeyRange,WorkloadFeatures]( this.rangeStats.toList map {entry=>(entry._1, entry._2+that.rangeStats(entry._1))} : _*)
+		)
+	}
+	def - (that:WorkloadHistogram):WorkloadHistogram = {
+		new WorkloadHistogram(
+			Map[DirectorKeyRange,WorkloadFeatures]( this.rangeStats.toList map {entry=>(entry._1, entry._2-that.rangeStats(entry._1))} : _*)
+		)
+	}
+	def * (multiplier:Double):WorkloadHistogram = {
+		new WorkloadHistogram(
+			Map[DirectorKeyRange,WorkloadFeatures]( this.rangeStats.toList map {entry=>(entry._1, entry._2*multiplier)} : _*)
+		)
+	}
 
 	def toShortString():String = {
 		val getRate = rangeStats.map(_._2.getRate).reduceLeft(_+_)
@@ -315,6 +366,12 @@ object WorkloadHistogram {
 		val keys = allkeys.filter(_!= -1).toList.sort(_<_).toList
 		val boundaries = (List(minKey)++((for (i <- 1 to nBins-1) yield { keys(rnd.nextInt(keys.size)) }).toList.removeDuplicates)++List(maxKey)).sort(_<_)
 		val ranges = boundaries.take(nBins).zip(boundaries.tail).map(b=>new DirectorKeyRange(b._1,b._2))
+		println("Histogram has ranges: \n"+ranges.sort(_.minKey<_.minKey).mkString("",",",""))
+		ranges
+	}
+	def createEquiWidthRanges(interval:WorkloadIntervalDescription, rate:Double, nBins:Int, maxKey:Int):List[DirectorKeyRange] = {
+		val binWidth = (maxKey-0)/nBins
+		val ranges = List[DirectorKeyRange]((0 until nBins).map((id)=> DirectorKeyRange(id*binWidth,(id+1)*binWidth)):_*)
 		println("Histogram has ranges: \n"+ranges.sort(_.minKey<_.minKey).mkString("",",",""))
 		ranges
 	}
