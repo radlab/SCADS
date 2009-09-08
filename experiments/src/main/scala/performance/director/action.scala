@@ -359,6 +359,30 @@ case class Remove(
 	override def toString:String = actionShortName
 }
 
+case class RemoveFrom(
+	val servers:List[String],
+	val range:DirectorKeyRange
+) extends Action("removefrom("+servers.mkString(",")+","+range+")") with PlacementManipulation {
+	override def execute() {}
+	override def preview(config:SCADSconfig):SCADSconfig = {
+		val bounds = config.storageNodes(servers.first) // they should all be replicas
+		var nodeConfig = config.storageNodes -- servers
+		val start = range.minKey
+		val end = range.maxKey
+
+		assert(start==bounds.minKey || end==bounds.maxKey,"Can only remove data from either end of servers' range")
+		val old_start = if (start==bounds.minKey) { end } else { bounds.minKey }
+		val old_end = if (start==bounds.minKey) { bounds.maxKey } else { start }
+
+		servers.foreach((name)=> {
+			nodeConfig = nodeConfig.update(name, new DirectorKeyRange(old_start,old_end))
+		})
+		SCADSconfig(nodeConfig)
+	}
+	def participants = Set[String](servers:_*)
+	override def toString:String = actionShortName
+}
+
 trait PlacementManipulation extends RangeConversion with AutoKey {
 	val xtrace_on = Director.xtrace_on
 	val namespace = Director.namespace
