@@ -359,8 +359,8 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 		var choices = candidates.indices // which indices of the candidates array still available to try
 
 		while (actions.size < num && choices.size > 0) {
-			val chosen_index = rand.nextInt(choices.size)
-			val chosen = candidates(choices(chosen_index))
+			val chosen_index = choices(rand.nextInt(choices.size)) // select radom index of candidate array
+			val chosen = candidates(chosen_index)
 
 			val chosen_neighbor = if (choices.size < 2) {null} else if (chosen_index < candidates.size-1){ candidates(chosen_index+1) } else { candidates(chosen_index-1) }
 			if (chosen._2.size > 1) { // try to remove a replica
@@ -374,7 +374,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 					actions += MergeTwo(chosen._2.first,chosen_neighbor._2.first)
 				else println("Thought about merging "+chosen._2.first+" and "+chosen_neighbor._2.first+", but didn't!")
 			}
-			choices = choices.filter(_ != choices(chosen_index))
+			choices = choices.filter(_ != chosen_index)
 		}
 		actions.toList
 	}
