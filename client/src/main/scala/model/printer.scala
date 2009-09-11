@@ -62,7 +62,7 @@ object Printer extends Generator {
 				}
 			}
 			case a: Attribute => {
-				output("Attr name: ", a.name, ", ", "type: ", a.fieldType)
+				output("Attr name: ", a.name, ", ", "type: ", a.attrType.toString)
 			}
 			case q: Query => {
 				output("Query ", q.name)

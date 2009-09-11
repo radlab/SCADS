@@ -32,10 +32,10 @@ class ScadsLanguage extends StdTokenParsers with ImplicitConversions {
     	})
 
 	/* Entity Parsing */
-	def attrType: Parser[String] = (
-			"string" ^^ ((_) => "StringField")
-		|	"int" ^^ ((_) => "IntegerField")
-		|	"bool" ^^ ((_) => "BooleanField")
+	def attrType: Parser[AttributeType] = (
+			"string" ^^ ((_) => StringType)
+		|	"int" ^^ ((_) => IntegerType)
+		|	"bool" ^^ ((_) => BooleanType)
 		)
 
 	def attribute: Parser[Attribute] = attrType ~ ident ^^
