@@ -345,10 +345,13 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 			val end = if (index==(changesArray.size-1)) {actual_range.maxKey} else {Math.min(actual_range.maxKey,change._1.maxKey)}
 			// if this is the first range of this server, don't replicate from, just removefrom later
 			if (index==0) removalStart = end
-			else actions += ReplicateFrom(servers.first,DirectorKeyRange(start,end),change._2._1)
+			if (changes.size < 2) actions += ReplicateFrom(servers.first,DirectorKeyRange(start,end),change._2._1-1) // no splitting, TODO make more efficient
+			else if (index > 0) actions += ReplicateFrom(servers.first,DirectorKeyRange(start,end),change._2._1)
 		})
-		assert(removalStart != -1, "beginning of removal range should have been set")
-		actions += RemoveFrom(servers,DirectorKeyRange(removalStart,actual_range.maxKey))
+		if (changes.size > 1) {
+			assert(removalStart != -1, "beginning of removal range should have been set")
+			actions += RemoveFrom(servers,DirectorKeyRange(removalStart,actual_range.maxKey))
+		}
 		actions.toList
 	}
 	/**
