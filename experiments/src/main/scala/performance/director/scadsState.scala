@@ -55,7 +55,7 @@ case class SCADSconfig(
 	def splitAllInHalf():SCADSconfig = {
 		var config = this
 		for (server <- config.storageNodes) {
-			val action = SplitInTwo(server._1)
+			val action = SplitInTwo(server._1,-1)
 			config = action.preview(config)
 		}
 		config
@@ -306,11 +306,6 @@ class WorkloadHistogram (
 	def divide(replicas:Int, allowed_puts:Double):WorkloadHistogram = {
 		new WorkloadHistogram(
 			Map[DirectorKeyRange,WorkloadFeatures](rangeStats.toList map {entry => (entry._1, entry._2.restrictAndSplit(replicas,allowed_puts,0.0)) } : _*)
-		)
-	}
-	def modify(replicas:Int, allowed_puts:Double, percentIncrease:Double):WorkloadHistogram = {
-		new WorkloadHistogram(
-			Map[DirectorKeyRange,WorkloadFeatures](rangeStats.toList map {entry => (entry._1, entry._2.restrictAndSplit(replicas,allowed_puts,percentIncrease)) } : _*)
 		)
 	}
 	override def toString():String = rangeStats.keySet.toList.sort(_.minKey<_.minKey).map( r=>r+"   "+rangeStats(r) ).mkString("\n")
