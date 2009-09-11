@@ -1,10 +1,12 @@
 gen-*
+tags
 .DS_Store
 storage/engines/bdb/storage.bdb*
 *.log
-**/db/*
-**/testdb/*
-**/target/*
+db/
+testdb/
+target/
 *.iml
 *.ipr
 *.iws
+*.swp
