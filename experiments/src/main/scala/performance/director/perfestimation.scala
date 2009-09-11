@@ -110,10 +110,10 @@ object PerformanceEstimator {
 		import scads.director._
 */		
 		val c0 = SCADSconfig.getInitialConfig( DirectorKeyRange(0,10000) )
-		val a0 = SplitInTwo( c0.storageNodes.keySet.toList.first )
+		val a0 = SplitInTwo( c0.storageNodes.keySet.toList.first,5000 )
 		val c1 = a0.preview(c0)
-		val a1_0 = SplitInTwo( c1.storageNodes.keySet.toList(0) )
-		val a1_1 = SplitInTwo( c1.storageNodes.keySet.toList(1) )
+		val a1_0 = SplitInTwo( c1.storageNodes.keySet.toList(0),2500 )
+		val a1_1 = SplitInTwo( c1.storageNodes.keySet.toList(1),7500 )
 		val c2_0 = a1_0.preview(c1)
 		val c2 = a1_1.preview(c2_0)
 		val a2 = Replicate( c2.storageNodes.find( _._2==DirectorKeyRange(0,2500) ).get._1, 2 )
