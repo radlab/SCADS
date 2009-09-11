@@ -13,7 +13,7 @@ object ScadsLanguage extends StdTokenParsers with ImplicitConversions {
 	type Tokens = Lexer
   	val lexical = new Lexer
 
-	lexical.reserved ++= List("ENTITY", "PRIMARY", "RELATIONSHIP", "FROM", "TO", "MANY", "QUERY", "FETCH", "OF", "BY", "WHERE", "AND", "OR", "ORDER", "BY", "LIMIT", "MAX", "PAGINATE", "UNION", "this", "string", "int", "bool", "true", "false")
+	lexical.reserved ++= List("ENTITY", "PRIMARY", "RELATIONSHIP", "FROM", "TO", "ONE", "MANY", "QUERY", "FETCH", "OF", "BY", "WHERE", "AND", "OR", "ORDER", "BY", "LIMIT", "MAX", "PAGINATE", "UNION", "this", "string", "int", "bool", "true", "false")
  	lexical.delimiters ++= List("{", "}", "[", "]", "<", ">", "(", ")", ",", ":", ";", "=", ".")
 
 	def intLiteral: Parser[Int] =
