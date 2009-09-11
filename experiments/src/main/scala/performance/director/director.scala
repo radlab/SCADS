@@ -151,6 +151,7 @@ object Director {
 		
 		val startTime = new Date().getTime/(simulationGranularity*1000)*(simulationGranularity*1000)
 		var ranges:List[DirectorKeyRange] = null // use same ranges for whole simulation
+
 		var histogramWindow = new scala.collection.mutable.ListBuffer[WorkloadHistogram]()
 		var smoothed_histogram:WorkloadHistogram = null
 		val alpha = 0.8
@@ -158,23 +159,32 @@ object Director {
 		val getStats = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
 		val getStatsSmooth = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
 		val putStats = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
+
+		val workloadPredictor = SimpleHysteresis(0.9,0.2)
+
 		// create initial state (state = config + workload histogram + performance metrics)
 		//var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
-		var config = initialConfig
-		
+		var config = initialConfig		
 		var prevTimestep:Long = -1
-
 		var pastActions = List[Action]()
 		
 		for (w <- workload.workload) { 
 			logger.info("TIME: "+currentTime)
 			if (ranges == null) ranges = WorkloadHistogram.createEquiWidthRanges(w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer,maxKey)
 
+			// "observe" and smooth/predict the workload histogram
+			val histogramRaw = WorkloadHistogram.createFromRanges(ranges,w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer)
+			workloadPredictor.addHistogram(histogramRaw)
+			val histogramPrediction = workloadPredictor.getPrediction()
+
+			logger.info("WORKLOAD: "+histogramRaw.toShortString)
+			logger.info("WORKLOAD PREDICTION: "+histogramPrediction.toShortString)
+
 			if (currentTime>=nextStep) {
 				// enough time passed, time for a simulation step
 				logger.info("simulating ...")
 
-				// create workload histogram from 'w'
+/*				// create workload histogram from 'w'
 				//val histogram = WorkloadHistogram.create(w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer,maxKey)
 				val histogram_now = WorkloadHistogram.createFromRanges(ranges,w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer)
 				if (histogramWindow.size >= histogramWindowSize) { histogramWindow.remove(0) }
@@ -193,15 +203,11 @@ object Director {
 					getStatsSmooth(entry._1) = getStatsSmooth.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + histogram.rangeStats(entry._1).getRate.toString
 					putStats(entry._1) = putStats.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + entry._2.putRate.toString
 				})
-
-				//logger.info("CONFIG: \n"+config)
-				//logger.info("HISTOGRAM: \n"+histogram)
-				logger.info("WORKLOAD: "+histogram_now.toShortString)
-				logger.info("SMOOTHED WORKLOAD: "+histogram.toShortString)
+*/
 
 				// create the new state
 				//val state = new SCADSState(new Date(startTime+currentTime), config, null, null, null, histogram)
-				val state = SCADSState.createFromPerfModel(new Date(startTime+currentTime*1000),config,histogram,performanceModel,w.duration/1000)
+				val state = SCADSState.createFromPerfModel(new Date(startTime+currentTime*1000),config,histogramRaw,histogramPrediction,performanceModel,w.duration/1000)
 				logger.info("STATE: \n"+state.toShortString)
 				SCADSState.dumpState(state)
 				costFunction.addState(state)
@@ -212,7 +218,12 @@ object Director {
 				// update config by executing actions on it
 				config = state.config
 				if (actions!=null)
-					for (action <- actions) { config = action.preview(config); action.complete; pastActions+=action }
+					for (action <- actions) { 
+						config = action.preview(config); 
+						action.complete; 
+						action.startTime=new Date(startTime+currentTime*1000); action.endTime=new Date(startTime+currentTime*1000+simulationGranularity*1000);
+						Action.store(action); pastActions+=action 
+					}
 				val actionMsg = if (actions==null||actions.size==0) "\nACTIONS:\n<none>" else
 									actions.map(_.toString).mkString("\nACTIONS: \n  ","\n  ","")
 				logger.info(actionMsg)
@@ -226,7 +237,7 @@ object Director {
 				if (evaluateAllSteps) {
 					// don't simulate policy, just evaluate the config under the current workload
 				 
-					// create workload histogram from 'w'
+/*					// create workload histogram from 'w'
 					val histogram_now = WorkloadHistogram.createFromRanges(ranges,w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer)
 					if (histogramWindow.size >= histogramWindowSize) { histogramWindow.remove(0) }
 					histogramWindow += histogram_now
@@ -237,11 +248,9 @@ object Director {
 						getStatsSmooth(entry._1) = getStatsSmooth.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + histogram.rangeStats(entry._1).getRate.toString
 						putStats(entry._1) = putStats.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + entry._2.putRate.toString
 					})
-
-					logger.info("WORKLOAD: "+histogram.toShortString)
-
+*/
 					// create new state
-					val state = SCADSState.createFromPerfModel(new Date(startTime+currentTime*1000),config,histogram,performanceModel,w.duration/1000)
+					val state = SCADSState.createFromPerfModel(new Date(startTime+currentTime*1000),config,histogramRaw,histogramPrediction,performanceModel,w.duration/1000)
 					logger.info("STATE: \n"+state.toShortString)
 					SCADSState.dumpState(state)
 					costFunction.addState(state)
@@ -314,7 +323,7 @@ object Director {
 		Plotting.initialize(Director.basedir+"/plotting/")
 
 		val mix = new MixVector( Map("get"->1.0,"getset"->0.0,"put"->0.00) )
-		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,1,48,280)
+		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,1,48,2000)
 		//val workload = WorkloadGenerators.linearWorkload(1.0,0.0,0,"10000","perfTest256",1000,10000,10)
 		val maxKey = 10000
 		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))

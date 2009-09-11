@@ -67,11 +67,24 @@ case class SCADSconfig(
 object SCADSconfig {
 	def getInitialConfig(range:DirectorKeyRange):SCADSconfig = SCADSconfig( Map(getRandomServerNames(null,1).first->range) )
 
+	var pastServers = scala.collection.mutable.HashSet[String]()
 	def getRandomServerNames(cfg:SCADSconfig,n:Int):List[String] = {
 		val rnd = new java.util.Random()
 		val newNames = scala.collection.mutable.HashSet[String]()
 		var name = ""
-		for (i <- 1 to n) { do { name = "s"+"%05d".format(rnd.nextInt(10000)) } while ( (cfg!=null&&cfg.storageNodes.contains(name))||newNames.contains(name) ); newNames+=name }
+		for (i <- 1 to n) {
+			var ps = pastServers.clone
+			ps--=newNames
+			if (cfg!=null) ps--=cfg.storageNodes.keySet
+			if (ps.size>0) 
+				name = ps.toList(0)
+			else
+				do { 
+					name = "s"+"%03d".format(rnd.nextInt(999)) 
+				} while ( (cfg!=null&&cfg.storageNodes.contains(name))||newNames.contains(name) )
+			newNames+=name
+			pastServers+=name
+		}
 		newNames.toList
 	}
 }
@@ -172,19 +185,19 @@ object SCADSState {
 		val metrics = PerformanceMetrics.load(metricReader,"ALL","ALL")
 		val metricsByType = reqTypes.map( (t) => t -> PerformanceMetrics.load(metricReader,"ALL",t)).foldLeft(Map[String,PerformanceMetrics]())((x,y)=>x+y)
 		// TODO: will need to load the workload histogram here
-		new SCADSState(new Date(), SCADSconfig(nodeConfig), nodes.toList, metrics, metricsByType,null)
+		new SCADSState(new Date(), SCADSconfig(nodeConfig), nodes.toList, metrics, metricsByType, null, null)
 	}
 	
 	/**
 	* create SCADSState by predicting the performance metrics (workload and latency) using the performance model (assuming it last for 'duration' seconds).
 	* Also, save the performance metrics to the metric database
 	*/
-	def createFromPerfModel(time:Date, config:SCADSconfig, histogram:WorkloadHistogram, perfModel:PerformanceModel, duration:Int):SCADSState = {
+	def createFromPerfModel(time:Date, config:SCADSconfig, histogramRaw:WorkloadHistogram, histogramPrediction:WorkloadHistogram, perfModel:PerformanceModel, duration:Int):SCADSState = {
 
 		val allGets = new scala.collection.mutable.ListBuffer[Double]()
 		val allPuts = new scala.collection.mutable.ListBuffer[Double]()
 		
-		val serverWorkload = PerformanceEstimator.estimateServerWorkload(config,histogram)
+		val serverWorkload = PerformanceEstimator.estimateServerWorkload(config,histogramRaw)
 		val storageNodes = new scala.collection.mutable.ListBuffer[StorageNodeState]()
 
 		var stats = PerformanceStats(duration,0,0,0,0,0,0,0,0,0)
@@ -206,7 +219,7 @@ object SCADSState {
 		val statsGet = PerformanceMetrics.estimateFromSamples(allGets.toList,time,duration)
 		val statsPut = PerformanceMetrics.estimateFromSamples(allPuts.toList,time,duration)
 		
-		SCADSState(time,config,storageNodes.toList,statsAll,Map("get"->statsGet,"put"->statsPut),histogram)
+		SCADSState(time,config,storageNodes.toList,statsAll,Map("get"->statsGet,"put"->statsPut),histogramRaw,histogramPrediction)
 	}
 	
 }
@@ -217,7 +230,8 @@ case class SCADSState(
 	val storageNodes: List[StorageNodeState],
 	val metrics: PerformanceMetrics,
 	val metricsByType: Map[String,PerformanceMetrics],
-	val workloadHistogram: WorkloadHistogram
+	val workloadHistogram: WorkloadHistogram,
+	val workloadHistogramPrediction: WorkloadHistogram
 ) {	
 	override def toString():String = {
 		"STATE@"+time+"  metrics["+
@@ -234,11 +248,11 @@ case class SCADSState(
 		(if(storageNodes!=null)storageNodes.sort( (s1,s2) => config.storageNodes(s1.ip).minKey<config.storageNodes(s2.ip).minKey )
 											.map(s=>"  server@"+s.ip+"   "+"%-15s".format(config.storageNodes(s.ip))+ "      " + s.toShortString()).mkString("\n","\n","") else "")
 	}
-	def changeConfig(new_config:SCADSconfig):SCADSState = new SCADSState(time,new_config,storageNodes,metrics,metricsByType,null)
+	def changeConfig(new_config:SCADSconfig):SCADSState = new SCADSState(time,new_config,storageNodes,metrics,metricsByType,null,null)
 	
 	def preview(action:Action,performanceModel:PerformanceModel,updatePerformance:Boolean):SCADSState = {
 		val newConfig = action.preview(config)
-		new SCADSState(time,newConfig,null,null,null,workloadHistogram) // TODO update histogram capability
+		new SCADSState(time,newConfig,null,null,null,workloadHistogram,null) // TODO update histogram capability
 	}
 }
 
