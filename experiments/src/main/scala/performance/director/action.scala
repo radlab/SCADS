@@ -91,7 +91,7 @@ class UniformSelector(choices:List[String]) extends ActionSelector {
 
 		val choice = mychoices.apply(rand.nextInt(mychoices.size)) // choose uniformly at rondom amongst possible choices
 		choice match {
-			case "SplitInTwo" => SplitInTwo(node1)
+			case "SplitInTwo" => SplitInTwo(node1,-1)
 			case "MergeTwo" => MergeTwo(node1,node2)
 			case "Replicate" => Replicate(node1,rand.nextInt(replica_limit)+1)
 			case _ => null
@@ -181,7 +181,8 @@ class TestAction(
 }
 
 case class SplitInTwo(
-	val server: String
+	val server: String,
+	val pivot:Int // split pivot
 ) extends Action("splitintwo("+server+")") with PlacementManipulation {
 
 	override def execute() {
@@ -194,7 +195,7 @@ case class SplitInTwo(
 		val bounds = getNodeRange(server)
 		val start = bounds._1
 		val end = bounds._2
-		val middle = ((end-start)/2) + start
+		val middle = if (pivot >0) {pivot} else {((end-start)/2) + start}
 		Thread.sleep(5*1000)
 		
 		// do the move and update local list of servers
@@ -209,7 +210,7 @@ case class SplitInTwo(
 
 		val start = bounds.minKey
 		val end = bounds.maxKey
-		val middle = ((end-start)/2) + start
+		val middle = if (pivot >0) {pivot} else {((end-start)/2) + start}
 		nodeConfig = nodeConfig.update(server, new DirectorKeyRange(start,middle))
 		nodeConfig = nodeConfig.update(SCADSconfig.getRandomServerNames(config,1).first, new DirectorKeyRange(middle,end))
 		SCADSconfig(nodeConfig)
