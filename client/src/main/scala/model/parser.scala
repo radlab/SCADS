@@ -9,7 +9,7 @@ case class DuplicateEntityException(entityName: String) extends CompileException
 case class DuplicateAttributeException(attr: String) extends CompileException
 
 class Lexer extends StdLexical with ImplicitConversions
-object ScadsLanguage extends StdTokenParsers with ImplicitConversions {
+class ScadsLanguage extends StdTokenParsers with ImplicitConversions {
 	type Tokens = Lexer
   	val lexical = new Lexer
 
