@@ -209,7 +209,6 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 	val rand = new Random
 	val slaPercentile = 0.99
 	val max_replicas = 5
-	val percent_increase = 0.10 	// how much workload should be increased before checking for SLA violation on new server
 	val min_puts_allowed:Int = 100 	// percentage of allowed puts
 
 	def optimize(state:SCADSState): List[Action] = {
@@ -219,7 +218,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 
 		// for overloaded servers, determine their mini ranges and replicas
 		val overloaded_config = new SCADSconfig(Map(overloaded.keys.toList map {s => (s, state.config.storageNodes(s))} : _*))
-		val overloaded_ranges = performanceEstimator.getServerHistogramRanges(overloaded_config,state.workloadHistogram)
+		val overloaded_ranges = PerformanceEstimator.getServerHistogramRanges(overloaded_config,state.workloadHistogram)
 
 		// create mapping of List[replicas] -> List[histogram ranges]
 		val overloaded_ranges_replicas = Map[List[String],List[DirectorKeyRange]](overloaded_ranges.toList map {entry =>
@@ -264,11 +263,14 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 	}
 	def estimateServerStats(state:SCADSState):Map[String,PerformanceStats] = {
 		Map[String,PerformanceStats](state.config.storageNodes.toList map {
-			entry => (entry._1, estimateSingleServerStats(entry._1, state.config.getReplicas(entry._1).size, 1.0,0.0,DirectorKeyRange(entry._2.minKey,entry._2.maxKey), state)) 
+			entry => (entry._1, estimateSingleServerStats(entry._1, state.config.getReplicas(entry._1).size, 1.0,DirectorKeyRange(entry._2.minKey,entry._2.maxKey), state)) 
 			} : _*)
 	}
-	def estimateSingleServerStats(server:String, num_replicas:Int, allowed_puts:Double, increase:Double, range:DirectorKeyRange, state:SCADSState):PerformanceStats = {
-		performanceEstimator.estimatePerformance(new SCADSconfig( Map[String,DirectorKeyRange](server -> range)),state.workloadHistogram.modify(num_replicas,allowed_puts,increase),10,null) 
+	/**
+	* Estimate a single server's workload stats using the predicted workload histogram
+	*/
+	def estimateSingleServerStats(server:String, num_replicas:Int, allowed_puts:Double, range:DirectorKeyRange, state:SCADSState):PerformanceStats = {
+		performanceEstimator.estimatePerformance(new SCADSconfig( Map[String,DirectorKeyRange](server -> range)),state.workloadHistogramPrediction.divide(num_replicas,allowed_puts),10,null) 
 	}
 	/**
 	* Attempt splitting actions of a set of replicas, where at least one of the replicas is overloaded
@@ -284,7 +286,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 		println("Working on range "+rangeArray(0).minKey+" - "+rangeArray(ranges.size-1).maxKey+" ----------------- ")
 		while (id < rangeArray.size) {
 			// include this mini range on new server(s) if it wouldn't violate SLA
-			if ( !violatesSLA(estimateSingleServerStats(server,servers.size,1.0,percent_increase,DirectorKeyRange(rangeArray(startId).minKey,rangeArray(id).maxKey), state)) ) {
+			if ( !violatesSLA(estimateSingleServerStats(server,servers.size,1.0,DirectorKeyRange(rangeArray(startId).minKey,rangeArray(id).maxKey), state)) ) {
 				endId = id
 				//println(rangeArray(startId).minKey+" - "+rangeArray(endId).maxKey +", size("+(endId-startId)+") ok")
 				id+=1
@@ -318,7 +320,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 
 		while (!found && allowed >= min_puts_allowed) {
 			(servers.size to max_replicas).foreach((num_replicas)=>{
-				if ( !found && !violatesSLA(estimateSingleServerStats(server,num_replicas,allowed.toDouble/100.0,percent_increase,range,state)) )
+				if ( !found && !violatesSLA(estimateSingleServerStats(server,num_replicas,allowed.toDouble/100.0,range,state)) )
 					{ changes += range -> (num_replicas,allowed.toDouble/100.0); found = true; println("Need "+num_replicas+ " of "+range.minKey+" - "+ range.maxKey+ " with "+(allowed.toDouble/100.0)+" allowed puts") }
 			})
 			allowed -= 10
@@ -364,13 +366,13 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 
 			val chosen_neighbor = if (choices.size < 2) {null} else if (chosen_index < candidates.size-1){ candidates(chosen_index+1) } else { candidates(chosen_index-1) }
 			if (chosen._2.size > 1) { // try to remove a replica
-				if (!violatesSLA(estimateSingleServerStats(chosen._2.first,chosen._2.size-1,1.0,percent_increase,chosen._1, state)))
+				if (!violatesSLA(estimateSingleServerStats(chosen._2.first,chosen._2.size-1,1.0,chosen._1, state)))
 					actions += Remove(List[String](chosen._2.first))
 				else println("Thought about removing replica "+chosen._2.first+", but didn't!")
 			}
 			else if (chosen._2.size==1 && chosen_neighbor !=null && chosen_neighbor._2.size==1) { // attempt merge two
 				val range = if (chosen._1.minKey < chosen_neighbor._1.minKey) { DirectorKeyRange(chosen._1.minKey,chosen_neighbor._1.maxKey) } else { DirectorKeyRange(chosen_neighbor._1.minKey,chosen._1.maxKey) }
-				if (!violatesSLA(estimateSingleServerStats(chosen._2.first,1,1.0,percent_increase,range, state)))
+				if (!violatesSLA(estimateSingleServerStats(chosen._2.first,1,1.0,range, state)))
 					actions += MergeTwo(chosen._2.first,chosen_neighbor._2.first)
 				else println("Thought about merging "+chosen._2.first+" and "+chosen_neighbor._2.first+", but didn't!")
 			}
