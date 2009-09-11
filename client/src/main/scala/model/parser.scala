@@ -108,8 +108,11 @@ class ScadsLanguage extends StdTokenParsers with ImplicitConversions {
 			case None => List[Predicate]()
 		}
 
-	def joinedEntity: Parser[Join] = "OF" ~ ident ~ "BY" ~ ident ^^
-		{case "OF" ~ entityType ~ "BY" ~ relationshipName => new Join(entityType, relationshipName)}
+	def joinedEntity: Parser[Join] = "OF" ~ ident ~ opt(ident) ~ "BY" ~ ident ^^
+		{
+			case "OF" ~ entityType ~ None ~ "BY" ~ relationshipName => new Join(entityType, relationshipName, null)
+			case "OF" ~ entityType ~ Some(alias) ~ "BY" ~ relationshipName => new Join(entityType, relationshipName, alias)
+		}
 
 	def fetch: Parser[Fetch] = "FETCH" ~ ident ~ rep(joinedEntity) ~ where ~ ordering ~ range ^^
 		{case "FETCH" ~ entityType ~ joins ~ predicates ~ order ~ limit => new Fetch(entityType, joins, predicates, order, limit)}
