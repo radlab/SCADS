@@ -50,7 +50,8 @@ case class PerformanceMetrics(
 	val nSlowerThan50ms: Int,
 	val nSlowerThan100ms: Int
 ) {
-	override def toString():String = time+" w="+"%.2f".format(workload)+" lMean="+"%.2f".format(latencyMean)+" l90p="+"%.2f".format(latency90p)+" l99p="+"%.2f".format(latency99p)
+	override def toString():String = time+" w="+"%.2f".format(workload)+" lMean="+"%.2f".format(latencyMean)+" l90p="+"%.2f".format(latency90p)+" l99p="+"%.2f".format(latency99p)+
+									 " all="+nRequests+" >50="+nSlowerThan50ms+" >100ms"+nSlowerThan100ms
 	def toShortLatencyString():String = "%.0f".format(latencyMean)+"/"+"%.0f".format(latency90p)+"/"+"%.0f".format(latency99p)
 	
 	def createMetricUpdates(server:String, requestType:String):List[MetricUpdate] = {
@@ -59,6 +60,9 @@ case class PerformanceMetrics(
 		metrics += new MetricUpdate(time.getTime,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"latency_mean"))),latencyMean.toString)
 		metrics += new MetricUpdate(time.getTime,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"latency_90p"))),latency90p.toString)
 		metrics += new MetricUpdate(time.getTime,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"latency_99p"))),latency99p.toString)
+		metrics += new MetricUpdate(time.getTime,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"nRequests"))),nRequests.toString)
+		metrics += new MetricUpdate(time.getTime,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"nSlowerThan50ms"))),nSlowerThan50ms.toString)
+		metrics += new MetricUpdate(time.getTime,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"nSlowerThan100ms"))),nSlowerThan100ms.toString)
 		metrics.toList
 	}
 	
