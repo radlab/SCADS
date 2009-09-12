@@ -4,10 +4,6 @@ import scala.util.parsing.combinator._
 import scala.util.parsing.combinator.syntactical._
 import scala.util.parsing.combinator.lexical._
 
-class CompileException extends Exception
-case class DuplicateEntityException(entityName: String) extends CompileException
-case class DuplicateAttributeException(attr: String) extends CompileException
-
 class Lexer extends StdLexical with ImplicitConversions
 class ScadsLanguage extends StdTokenParsers with ImplicitConversions {
 	type Tokens = Lexer
