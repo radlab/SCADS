@@ -6,6 +6,11 @@
 	<packaging>jar</packaging>
 	<version>1.0</version>
 	<name>SCADS Experiments</name>
+	<parent>
+		<groupId>edu.berkeley.cs.scads</groupId>
+		<artifactId>scads</artifactId>
+		<version>1.0-SNAPSHOT</version>
+	</parent>
 	<dependencies>
 		<dependency>
 			<groupId>log4j</groupId>
@@ -48,25 +53,6 @@
 			<version>1.0</version>
 		</dependency>
 	</dependencies>
-	<repositories>
-		<repository>
-			<id>RADLabRepo</id>
-			<url>http://radlabmaven.s3.amazonaws.com</url>
-		</repository>
-		<repository>
-			<id>scala-tools.org</id>
-			<name>Scala-tools Maven2 Repository</name>
-			<url>http://scala-tools.org/repo-releases</url>
-		</repository>
-	</repositories>
-	<pluginRepositories>
-		<pluginRepository>
-			<id>scala-tools.org</id>
-			<name>Scala-tools Maven2 Repository</name>
-			<url>http://scala-tools.org/repo-releases</url>
-		</pluginRepository>
-	</pluginRepositories>
-
 	<build>
 		<testResources>
 			<testResource>
