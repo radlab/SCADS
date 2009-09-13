@@ -7,9 +7,16 @@ INTERVAL = 20.0
 #PAR.DEF = par(no.readonly = TRUE)
 PAR.DEF = list( mar=c(5, 4, 4, 4) )
 
+DBUSER = "root"
+DBPASS = ""
+
 mycols = c("cornflowerblue","navy","royalblue")
 
-action.colors = list("SplitInTwo"="cornflowerblue","MergeTwo"="orangered")
+action.colors = list("SplitInTwo"="cornflowerblue",
+					"MergeTwo"="orangered",
+					"ReplicateFrom"="blue",
+					"RemoveFrom"="green",
+					"Remove"="cornflowerblue")
 
 CONNS <<- c()
 
@@ -18,15 +25,15 @@ print.long.number = function(x) { formatC(round(x),format="f",digits=0) }
 
 plot.scads.performance = function(out.file) {
   load.libraries()
-  conn = dbConnect(MySQL(),user="root",password="",dbname="metrics")
+  conn = dbConnect(MySQL(),user=DBUSER,password=DBPASS,dbname="metrics")
   try( plot.scads.performance.raw(conn) )
   dbDisconnect(conn)
 }
 
 plot.init = function(out.file=NULL, plot.width=NULL, plot.height=NULL, dbhost="localhost", ts0=NULL, ts1=NULL) {
 	load.libraries()  
- 	conn.metrics = dbConnect(MySQL(),user="root",password="",dbname="metrics",host=dbhost)
-	conn.director = dbConnect(MySQL(),user="root",password="",dbname="director",host=dbhost)
+ 	conn.metrics = dbConnect(MySQL(),user=DBUSER,password=DBPASS,dbname="metrics",host=dbhost)
+	conn.director = dbConnect(MySQL(),user=DBUSER,password=DBPASS,dbname="director",host=dbhost)
 
 	CONNS <<- c(CONNS,conn.metrics,conn.director)
 	print(CONNS)
@@ -36,40 +43,48 @@ plot.init = function(out.file=NULL, plot.width=NULL, plot.height=NULL, dbhost="l
 	  	data = get.data(conn.metrics,"ALL","ALL","workload","workload")
 	  	ts1 = max(data$time,na.rm=T)
 	  	ts0 = max(ts1 + ts0, min(data$time,na.rm=T))
-		xtlim = c(ISOdate(1970,1,1)+ts0/1000, ISOdate(1970,1,1)+ts1/1000)
+		xtlim = c( to.date(ts0), to.date(ts1) )
 		
 	} else if (!is.null(ts0) && !is.null(ts1) && ts0>0 && ts1>ts0) {
 		## show data between ts0 and ts1
-		xtlim = c(ISOdate(1970,1,1)+ts0/1000, ISOdate(1970,1,1)+ts1/1000)
+		xtlim = c( to.date(ts0), to.date(ts1) )
 		
 	} else {
 		## show all data
 	  	data = get.data(conn.metrics,"ALL","ALL","workload","workload")
-		data$time = ISOdate(1970,1,1) + data$time/1000
+		data$time = to.date(data$time)
 		t0 = min(data$time,na.rm=T)
 		t1 = max(data$time,na.rm=T)
 		xtlim = c(t0,t1)
 	}
+	
+	start.device(out.file,plot.width,plot.height)
+#	if (!is.null(out.file))
+#		png(filename=out.file, width=plot.width, height=plot.height)
+#	else if (names( dev.cur() )[1]=="null device")
+#		quartz()
 		
-	if (!is.null(out.file))
-		png(filename=out.file, width=plot.width, height=plot.height)
-	else if (names( dev.cur() )[1]=="null device")
-		quartz()
+	N_SCREEN <<- 1
 		
 	return( list(conn.metrics=conn.metrics,conn.director=conn.director,xtlim=xtlim) )
 }
 
 start.device = function(out.file=NULL,width=500,height=500) {
-	if (names( dev.cur() )[1]=="null device") 
-		dev.off()
+	if (names( dev.cur() )[1]=="null device" || names( dev.cur() )[1]=="quartz") 
+		try( dev.off() )
 	
-	if (!is.null(out.file))
-		png(filename=out.file,width=width,height=height)
-	else if (names( dev.cur() )[1]=="null device")
-		quartz(width=width,height=height)
+	if (!is.null(width) && !is.null(height)) {
+		if (!is.null(out.file)) {
+			if ( length(grep("pdf$",out.file))>0 ) pdf(file=out.file,width=width/70,height=height/70)
+			else png(filename=out.file,width=width,height=height)
+		} else {
+			quartz(width=width/70,height=height/70)
+		}
+	}
 }
 
 plot.done = function(meta) {
+	close.screen(all = TRUE)
 	disconnect.all()
 	if (names( dev.cur() )[1]!="quartz")
 		dev.off()
@@ -82,47 +97,67 @@ disconnect.all = function() {
 }
 
 graph.init = function(tight) {
+	screen(N_SCREEN)
+	N_SCREEN <<- N_SCREEN+1
+
 	if (tight) {
 		# bottom, left, top, right
-		par(mar=c(1, 4, 0, 4))
+		par(mar=c(0.2, 4, 0.6, 4))
 	} else {
 		par(mar=c(3, 4, 2, 4))
 	}
+	par(cex=0.7)
 }
 
 graph.done = function() {
 	par(PAR.DEF)
 }
 
-plot.director.simple = function(out.file=NULL,debug=F,dbhost="localhost",ts0=NULL,ts1=NULL) {
-	m = plot.init(out.file,dbhost,ts0,ts1)
+screen.coord = function(ysizes) {
+	n = length(ysizes)
+	s = sum(ysizes)
+	matrix(c( rep(0,n), rep(1,n), 1-(cumsum(ysizes)/s), 1-(cumsum(c(0,ysizes[-n]))/s) ), nrow=n )
+}
 
-	layout( matrix(1:3, 3, 1, byrow = TRUE), heights=c(3,3,1) )
-	plot.all.workload(m,title="SCADS workload")
-	plot.all.latency(m,title="SCADS latency")
+plot.director.simple = function(out.file=NULL,debug=F,dbhost="localhost",ts0=NULL,ts1=NULL) {
+	m = plot.init(out.file,NULL,NULL,dbhost,ts0,ts1)
+
+	#layout( matrix(1:4, 4, 1, byrow = TRUE), heights=c(3,2,3,1) )
+	split.screen( screen.coord(c(3,2,3,1)) )
+	plot.workload(m,title="workload")
+	plot.workload.mix(m,title="workload mix")
+	plot.all.latency(m,title="latency")
 	plot.actions(m,tight=T)
 	
  	plot.done(m)
 }
 
 plot.director = function(debug=F,out.file=NULL,dbhost="localhost",ts0=NULL,ts1=NULL) {
-	m = plot.init(out.file,dbhost,ts0,ts1)
+	m = plot.init(out.file,NULL,NULL,dbhost,ts0,ts1)
 
 	all.servers = get.all.servers(m)
 	n = length(all.servers)
-#	start.device(out.file,500,500+100*n)
+	start.device(out.file,600,650+60*n)
 
-	layout( matrix(1:(2*n+3), 2*n+3, 1, byrow = TRUE), heights=c(c(3,3,1),rep(1,2*n)) )
-#	layout( matrix(1:4, 4, 1, byrow = TRUE), heights=c(3,3,1,1) )
-	plot.all.workload(m,title="SCADS workload")
-	plot.all.latency(m,title="SCADS latency")
+#	layout( matrix(1:(2*n+4), 2*n+4, 1, byrow = TRUE), heights=c(c(3,2,3,1),1.5,rep(0.5,n-1),1.5,rep(0.5,n-1)) )
+	sc = screen.coord(c(c(3,2,3,1),1.5,rep(0.5,n-1),1.5,rep(0.5,n-1)))
+	split.screen( sc )
+
+	plot.workload(m,title="workload")
+	plot.workload.mix(m,title="workload mix")
+	plot.all.latency(m,title="latency")
 	plot.actions(m,tight=T)
 	
+	max.sw = get.max.server.workload(m$conn.metrics)
+	
 #	plot.server.workload(m,all.servers[1],tight=T,title=all.servers[1])
-	for (server in all.servers) {
-		plot.server.workload(m,server,tight=T,title=server)
-		plot.server.latency(m,server,tight=T,title=F)
-	}
+	for (server in all.servers) 
+		if (server=="ALL") plot.server.workload(m,server,tight=F,title="workload")
+		else plot.server.workload(m,server,tight=T,title="",max.sw=max.sw)
+		
+	for (server in all.servers) 
+		if (server=="ALL") plot.server.latency(m,server,tight=F,title="latency")
+		else plot.server.latency(m,server,tight=T,title="")
 
 	plot.done(m)
 }
@@ -135,7 +170,7 @@ plot.test = function(debug=T,out.file=NULL,dbhost="localhost",ts0=NULL,ts1=NULL)
 	plot.done(m)
 }
 
-plot.all.workload = function(m,debug=T,tight=F,title="") {
+plot.all.workload = function(m,debug=F,tight=F,title="") {
 	graph.init(tight)
 	gets = get.data(m$conn.metrics,"ALL","get","workload","getw")
 	puts = get.data(m$conn.metrics,"ALL","put","workload","putw")
@@ -155,57 +190,120 @@ plot.all.workload = function(m,debug=T,tight=F,title="") {
 	graph.done()
 }
 
-plot.server.workload = function(m,server,tight=T,title=T) {
+plot.workload = function(m,debug=F,tight=F,title="") {
+	graph.init(tight)
+	gets = get.data(m$conn.metrics,"ALL","get","workload","getw")
+	puts = get.data(m$conn.metrics,"ALL","put","workload","putw")
+	all = get.data(m$conn.metrics,"ALL","ALL","workload","allw")
+	data = merge( all, merge(gets,puts) )
+	if (debug) { print( c(print.long.number(min(data$time,na.rm=T)), print.long.number(max(data$time,na.rm=T))) ) }
+	data$time = to.date(data$time)
+	
+	ylim = c(0, max(data[,c("getw","putw","allw")],na.rm=T))
+	
+	plot( data$time, data$allw, xlim=m$xtlim, ylim=ylim, bty="n", axes=F, xlab="", ylab="workload", type="l", main=title )
+	axis.POSIXct(1,x=m$xtlim,format="%H:%M")
+	axis(2)
+	#lines( data$time, data$getw, col="blue" )
+	#lines( data$time, data$putw, col="red" )
+	#legend( "topleft", legend=c("all","get","put"), col=c("black","blue","red"), inset=0.02, lty=c(1,1,1), lwd=2 )
+	graph.done()
+}
+
+plot.workload.mix = function(m,debug=T,tight=F,title="") {
+	graph.init(tight)
+	gets = get.data(m$conn.metrics,"ALL","get","workload","getw")
+	puts = get.data(m$conn.metrics,"ALL","put","workload","putw")
+	all = get.data(m$conn.metrics,"ALL","ALL","workload","allw")
+	data = merge( all, merge(gets,puts) )
+	if (debug) { print( c(print.long.number(min(data$time,na.rm=T)), print.long.number(max(data$time,na.rm=T))) ) }
+	data$time = to.date(data$time)
+	
+	plot( data$time, data$getw/data$allw, c(), xlim=m$xtlim, ylim=c(0.001,1), bty="n", axes=F, xlab="", ylab="mix", type="l", main=title, log="y" )
+#	plot( c(), c(), xlim=m$xtlim, ylim=c(0,1), bty="n", axes=F, xlab="", ylab="workload", type="l", main=title )
+	axis.POSIXct(1,x=m$xtlim,format="%H:%M")
+	axis(2, c(0.01,1.0))
+	lines( data$time, data$getw/data$allw, col="blue" )
+	lines( data$time, data$putw/data$allw, col="red" )
+	legend( "topleft", legend=c("get","put"), col=c("blue","red"), inset=0.02, lty=c(1,1), lwd=2 )
+	graph.done()
+}
+
+plot.server.workload = function(m,server,tight=T,title=T,max.sw) {
 	data = get.data(m$conn.metrics,server,"ALL","workload","all_workload")
 	data$time = to.date(data$time)
 	
-	graph.init(tight=T)
-	plot( data$time, data$all_workload, xlim=m$xtlim, ylim=c(0,max(data$all_workload)), bty="n", axes=F, xlab="", ylab="workload", type="l", main=title )
+	graph.init(tight=tight)
+	if (missing(max.sw))
+		ylim = c(0,round(max(data$all_workload)))
+	else
+		ylim = c(0,max.sw)
+	plot( data$time, data$all_workload, xlim=m$xtlim, ylim=ylim, bty="n", axes=F, xlab="", ylab=server, type="l", main=title )
+	abline( h=ylim[2]/2, col="gray", lty=3 )
+	if (!missing(max.sw))axis(2,ylim) else axis(2)
+	
+	tmin = data$time[ which.min( data$all_workload ) ]
+	wmin = min(data$all_workload,na.rm=T)
+	tmax = data$time[ which.max( data$all_workload ) ]
+	wmax = max(data$all_workload,na.rm=T)
+	xmax = max( data$time, na.rm=T )
+	wlast = data$all_workload[ length(data$all_workload) ]
+	points(x=c(tmin,tmax),y=c(wmin,wmax),pch=19,col=c("blue","red"),cex=0.5)
+	text(x=xmax,y=ylim[2]*0.15,labels=signif(wmin,3),pos=4,col="blue", xpd=T) 
+	text(x=xmax,y=ylim[2]*0.85,labels=signif(wmax,3),pos=4,col="red", xpd=T)
+	text(x=xmax,y=ylim[2]*0.5,labels=signif(wlast,3),pos=4, xpd=T)
+	
 	graph.done()
 }
 
 plot.server.latency = function(m,server,tight=T,title=T) {
-	data = 				get.data(m$conn.metrics,server,"get","latency_90p","get_latency_90p")
-	data = merge( data, get.data(m$conn.metrics,server,"put","latency_90p","put_latency_90p") )
+	data = 				get.data(m$conn.metrics,server,"get","latency_90p","get_latency_90p",replace.inf=1000)
+	data = merge( data, get.data(m$conn.metrics,server,"put","latency_90p","put_latency_90p",replace.inf=1000) )
+	data = merge( data, get.data(m$conn.metrics,server,"get","latency_99p","get_latency_99p",replace.inf=1000) )
+	data = merge( data, get.data(m$conn.metrics,server,"put","latency_99p","put_latency_99p",replace.inf=1000) )
 	data$time = to.date(data$time)
 	
-	graph.init(tight=T)
-	plot( c(), xlim=m$xtlim, ylim=c(0,100), bty="n", axes=F, xlab="", ylab="latency [ms]")
-	lines( data$time, data$get_latency_90p, col="red" )
-	lines( data$time, data$put_latency_90p, col="blue" )
+	graph.init(tight=tight)
+	plot( c(), xlim=m$xtlim, ylim=c(0,150), bty="n", axes=F, xlab="", ylab=server, main=title)
+	axis(2,c(0,150))
+#	lines( data$time, data$get_latency_90p, col="blue" )
+#	lines( data$time, data$put_latency_90p, col="red" )
+	lines( data$time, data$get_latency_99p, col="blue" )
+	lines( data$time, data$put_latency_99p, col="red" )
 	graph.done()
 }
 
 plot.all.latency = function(m,server,tight=F,title=F) {
 	graph.init(tight)
-	data = 				get.data(m$conn.metrics,"ALL","get","latency_mean","get_latency_mean")
-	data = merge( data, get.data(m$conn.metrics,"ALL","get","latency_90p","get_latency_90p") )
-#	data = merge( data, get.data(m$conn.metrics,"ALL","get","latency_99p","get_latency_99p") )
-	data = merge( data, get.data(m$conn.metrics,"ALL","put","latency_mean","put_latency_mean") )
-	data = merge( data, get.data(m$conn.metrics,"ALL","put","latency_90p","put_latency_90p") )
-#	data = merge( data, get.data(m$conn.metrics,"ALL","put","latency_99p","put_latency_99p") )
+	data = 				get.data(m$conn.metrics,"ALL","get","latency_mean","get_latency_mean",replace.inf=1000)
+	data = merge( data, get.data(m$conn.metrics,"ALL","get","latency_90p","get_latency_90p",replace.inf=1000) )
+	data = merge( data, get.data(m$conn.metrics,"ALL","get","latency_99p","get_latency_99p",replace.inf=1000) )
+	data = merge( data, get.data(m$conn.metrics,"ALL","put","latency_mean","put_latency_mean",replace.inf=1000) )
+	data = merge( data, get.data(m$conn.metrics,"ALL","put","latency_90p","put_latency_90p",replace.inf=1000) )
+	data = merge( data, get.data(m$conn.metrics,"ALL","put","latency_99p","put_latency_99p",replace.inf=1000) )
 	data$time = to.date(data$time)
 
 	d = unlist( data[,setdiff(names(data),c("time","timestamp"))] )
-	ylim = c(0, quantile(d,0.9,na.rm=T))
+#	ylim = c(0, quantile(d,0.9,na.rm=T))
+	ylim = c(0, 150)
 
 	plot( c(), xlim=m$xtlim, ylim=ylim, bty="n", axes=F, xlab="", ylab="latency [ms]", main=title)
 	axis.POSIXct(1,x=m$xtlim,format="%H:%M")
 	axis(2)
 	lines( data$time, data$get_latency_mean, col="blue", lty=3 )
-	lines( data$time, data$get_latency_90p, col="blue", lty=1 )
-#	lines( data$time, data$get_latency_99p, col="blue", lty=3 )
+#	lines( data$time, data$get_latency_90p, col="blue", lty=1 )
+	lines( data$time, data$get_latency_99p, col="blue", lty=1 )
 	lines( data$time, data$put_latency_mean, col="red", lty=3 )
-	lines( data$time, data$put_latency_90p, col="red", lty=1 )
-#	lines( data$time, data$put_latency_99p, col="red", lty=3 )
-	legend( "bottomleft", legend=c("get mean","get 90p","put mean","put 90p"), col=c("blue","blue","red","red"), inset=0.02, lty=c(3,1,3,1), lwd=2 )
+#	lines( data$time, data$put_latency_90p, col="red", lty=1 )
+	lines( data$time, data$put_latency_99p, col="red", lty=1 )
+	legend( "topleft", legend=c("get mean","get 99p","put mean","put 99p"), col=c("blue","blue","red","red"), inset=0.02, lty=c(3,1,3,1), lwd=2 )
 	graph.done()
 }
 
 
 plot.policy.state = function(conn.director, xtlim) {
 	state = dbGetQuery(conn.director, "select * from policystate")
-	state$time = ISOdate(1970,1,1) + state$time/1000
+	state$time = to.date(state$time)
 	
 	states = unique(state$state)
 	n = length(states)
@@ -221,10 +319,10 @@ plot.policy.state = function(conn.director, xtlim) {
 plot.actions = function(m,tight=F,debug=F) {
 	graph.init(tight)
 	actions = dbGetQuery(m$conn.director, "select * from actions" )
-	actions$update_timeD = ISOdate(1970,1,1) + actions$update_time/1000
-	actions$init_timeD = ISOdate(1970,1,1) + actions$init_time/1000
-	actions$start_timeD = ISOdate(1970,1,1) + actions$start_time/1000
-	actions$end_timeD = ISOdate(1970,1,1) + actions$end_time/1000
+	actions$update_timeD = to.date(actions$update_time)
+	actions$init_timeD = to.date(actions$init_time)
+	actions$start_timeD = to.date(actions$start_time)
+	actions$end_timeD = to.date(actions$end_time)
 
 	plot( c(), xlim=m$xtlim, ylim=c(-1,1), axes=F, ylab="", xlab="" )
 	if (!tight) axis.POSIXct( 1, x=m$xtlim, format="%H:%M")
@@ -314,6 +412,20 @@ plot.scads.state = function(time0,time1,latency90p.thr=100,out.file=NULL,debug=F
  	plot.done(m)
 }
 
+plot.configs = function(debug=F,out.file=NULL,dbhost="localhost",ts0=NULL,ts1=NULL) {
+	m = plot.init(out.file,NULL,NULL,dbhost,ts0,ts1)
+
+	configs = get.changed.configs(m$conn.director)
+	max.w = get.max.server.workload(m$conn.metrics)
+
+	start.device(out.file,1000,60*length(configs))
+	split.screen(c(length(configs),1))
+	for (time in names(configs)) graph.config(m,as.numeric(time),max.w,100,tight=T)
+
+	plot.done(m)
+}
+
+
 graph.workload.histogram = function(m,time,colname,color,tight=T,title=T) {
 	data = get.workload.histogram(m$conn.director,time)
 	graph.init(tight=F)
@@ -339,10 +451,10 @@ graph.config = function(m,time,max.w,lat.thr=100,tight=F,title=T) {
 	d.get.l = get.stat.for.servers( m$conn.metrics, data$server, time, "get", "latency_90p" )$value
 	d.put.l = get.stat.for.servers( m$conn.metrics, data$server, time, "put", "latency_90p" )$value
 	
-	print( data )
-	cat("w=",workload,"\n")
-	cat("get.l=",d.get.l,"\n")
-	cat("put.l=",d.put.l,"\n")
+	#print( data )
+	#cat("w=",workload,"\n")
+	#cat("get.l=",d.get.l,"\n")
+	#cat("put.l=",d.put.l,"\n")
 	
 	colors = rep("cornflowerblue",nrow(data))
 	colors[ as.numeric(d.get.l)>lat.thr ] = "orangered"
@@ -354,8 +466,8 @@ graph.config = function(m,time,max.w,lat.thr=100,tight=F,title=T) {
 	#colors[ grep("Infinity",d.put.l) ] = "red3"
 	#print(colors)
 	
-	graph.init(tight=F)
-	barplot( height=workload, width=data$maxKey-data$minKey, space=0, col=colors, xlim=c(min(data$minKey),max(data$maxKey)), axes=T, main=paste("config at time ",time,sep=""), ylim=c(0,max.w) )
+	graph.init(tight=tight)
+	barplot( height=workload, width=data$maxKey-data$minKey, space=0, col=colors, xlim=c(min(data$minKey),max(data$maxKey)), axes=T, main=paste("config at time ",to.date(time),sep=""), ylim=c(0,max.w) )
 	graph.done()
 }
 
@@ -365,10 +477,27 @@ get.all.servers = function(m) {
   return( dbGetQuery(m$conn.metrics, "select distinct server from scads_metrics")$server )
 }
 
-get.data = function(c,server,req.type,stat,col.name) {
+get.data = function(c,server,req.type,stat,col.name,replace.inf=F) {
 	sql = paste("select time as timestamp, value as ",col.name," from scads where metric_id in (select id from scads_metrics where server='",server,"' and request_type='",req.type,"' and stat='",stat,"') ",sep="")
-  d = dbGetQuery(c, sql )
-  d[,col.name] = as.numeric(d[,col.name])
+	d = dbGetQuery(c, sql )
+
+	# fix infinities
+	v = d[,col.name]
+	v[grep("Infinity",v)] = "Inf"
+	v[grep("-Infinity",v)] = "-Inf"
+	v = as.numeric(v)
+	if (replace.inf) { v[ is.infinite(v) ] = replace.inf }
+	d[,col.name] = v
+	
+	# fix missing timestamps
+	m = setdiff( seq(min(d$timestamp),max(d$timestamp),by=min(diff(d$timestamp))), d$timestamp )
+	if (length(m)>0) {
+		dn = data.frame( t=m, v=NaN )
+		colnames(dn) = c("timestamp",col.name)
+		d = rbind(d, dn )
+		d = d[order(d$timestamp),]
+	}
+	
   return(d)
 }
 
@@ -383,14 +512,20 @@ get.stat.for.servers = function(c,servers,time,req.type,stat) {
 	v[grep("-Infinity",v)] = "-Inf"
 	d$value = v
 
-	cat("\n** getting data for ",paste(servers,sep=",",collapse=",")," @ ",time," type=",req.type," stat=",stat,"\n",sep="")
-	print(d)
+	#cat("\n** getting data for ",paste(servers,sep=",",collapse=",")," @ ",time," type=",req.type," stat=",stat,"\n",sep="")
+	#print(d)
 	
 	s1 = data.frame( server=servers, order=1:length(servers))
 	s2 = data.frame( server=d$server, value=as.numeric(d$value) )
 	s = merge(s1,s2)
 	ds = s[order(s$order),]
 	ds
+}
+
+get.max.server.workload = function(c) {
+	sql = "SELECT MAX(CAST(value as SIGNED)) as max FROM scads_metrics sm, scads s where server!=\"ALL\" and request_type=\"ALL\" and stat=\"workload\" and sm.id=s.metric_id"
+	d = dbGetQuery( c, sql )
+	return( d[1,1] )
 }
 
 get.workload.histogram = function(c,time) {
@@ -405,3 +540,13 @@ get.config = function(c,time) {
 	return( read.csv( textConnection(d$config[1]) ) )
 }
 
+get.changed.configs = function(c) {
+	sql = paste( "SELECT time, config FROM director.scadsstate_config")
+	d = dbGetQuery( c, sql )
+	
+	i = grep(FALSE,c("",d$config[-nrow(d)]) == d$config)
+	cs = list()
+	for (ii in i) cs[[as.character(d[ii,"time"])]] = read.csv( textConnection(d$config[ii]) )
+	
+	return( cs )
+}
