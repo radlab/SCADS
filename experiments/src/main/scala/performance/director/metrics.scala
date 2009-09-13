@@ -25,19 +25,21 @@ object PerformanceMetrics {
 	}
 	
 	def estimateFromSamples(samples:List[Double], time:Date, aggregationInterval:Int):PerformanceMetrics = {
-		val workload = computeWorkload(samples)/aggregationInterval
-		val latencyMean = computeMean(samples)
-		val latency90p = computeQuantile(samples,0.9)
-		val latency99p = computeQuantile(samples,0.99)
+		val samplesA = samples.sort(_<_).toArray
+		val workload = computeWorkload(samplesA)/aggregationInterval
+		val latencyMean = computeMean(samplesA)
+		val latency90p = computeQuantileAssumeSorted(samplesA,0.9)
+		val latency99p = computeQuantileAssumeSorted(samplesA,0.99)
 		val nRequests = samples.size
 		val nSlowerThan50ms = samples.filter(_>50).size
 		val nSlowerThan100ms = samples.filter(_>100).size
 		PerformanceMetrics(time, aggregationInterval, workload, latencyMean, latency90p, latency99p, nRequests, nSlowerThan50ms, nSlowerThan100ms)
 	}
 	
-	private def computeWorkload( data:List[Double] ): Double = if (data==Nil||data.size==0) Double.NaN else data.length
-	private def computeMean( data:List[Double] ): Double = if (data==Nil) Double.NaN else data.reduceLeft(_+_)/data.length
-    private def computeQuantile( data:List[Double], q:Double): Double = if (data==Nil) Double.NaN else data.sort(_<_)( Math.floor(data.length*q).toInt )
+	private def computeWorkload( data:Array[Double] ): Double = if (data==null||data.size==0) Double.NaN else data.length
+	private def computeMean( data:Array[Double] ): Double = if (data==null||data.size==0) Double.NaN else data.reduceLeft(_+_)/data.length
+    private def computeQuantile( data:List[Double], q:Double): Double = if (data==null||data.size==0) Double.NaN else data.sort(_<_).toArray( Math.floor(data.length*q).toInt )
+    private def computeQuantileAssumeSorted( data:Array[Double], q:Double): Double = if (data==null||data.size==0) Double.NaN else data( Math.floor(data.length*q).toInt )
 }
 case class PerformanceMetrics(
 	val time: Date,
