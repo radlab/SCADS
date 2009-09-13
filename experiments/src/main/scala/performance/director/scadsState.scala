@@ -69,7 +69,6 @@ object SCADSconfig {
 
 	var pastServers = scala.collection.mutable.HashSet[String]()
 	def getRandomServerNames(cfg:SCADSconfig,n:Int):List[String] = {
-		val rnd = new java.util.Random()
 		val newNames = scala.collection.mutable.HashSet[String]()
 		var name = ""
 		for (i <- 1 to n) {
@@ -80,7 +79,7 @@ object SCADSconfig {
 				name = ps.toList(0)
 			else
 				do { 
-					name = "s"+"%03d".format(rnd.nextInt(999)) 
+					name = "s"+"%03d".format(Director.rnd.nextInt(999)) 
 				} while ( (cfg!=null&&cfg.storageNodes.contains(name))||newNames.contains(name) )
 			newNames+=name
 			pastServers+=name
@@ -194,30 +193,51 @@ object SCADSState {
 	*/
 	def createFromPerfModel(time:Date, config:SCADSconfig, histogramRaw:WorkloadHistogram, histogramPrediction:WorkloadHistogram, perfModel:PerformanceModel, duration:Int):SCADSState = {
 
+		var t0,t1:Long = 0
+		var T = scala.collection.mutable.Map[String,Long]("init"->0,"L1"->0,"L2"->0,"L3"->0,"L4"->0,"L5"->0,"XE"->0)
+		
+		t0 = new Date().getTime
 		val allGets = new scala.collection.mutable.ListBuffer[Double]()
 		val allPuts = new scala.collection.mutable.ListBuffer[Double]()
 		
 		val serverWorkload = PerformanceEstimator.estimateServerWorkload(config,histogramRaw)
 		val storageNodes = new scala.collection.mutable.ListBuffer[StorageNodeState]()
+		t1 = new Date().getTime; T("init")+=(t1-t0)
 
 		var stats = PerformanceStats(duration,0,0,0,0,0,0,0,0,0)
 		for (s <- config.storageNodes.keySet) {
+			t0 = new Date().getTime
 			val w = serverWorkload(s)
+			t1 = new Date().getTime; T("L1")+=(t1-t0)
+			
+			t0 = new Date().getTime			
 			val getLatencies = perfModel.sample(Map("type"->"get","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.getRate*duration).toInt)
 			val putLatencies = perfModel.sample(Map("type"->"put","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.putRate*duration).toInt)
+			t1 = new Date().getTime; T("L2")+=(t1-t0)
+			
+			t0 = new Date().getTime
 			allGets++=getLatencies
 			allPuts++=putLatencies
+			t1 = new Date().getTime; T("L3")+=(t1-t0)
 			
+			t0 = new Date().getTime
 			val statsAll = PerformanceMetrics.estimateFromSamples(getLatencies++putLatencies,time,duration)
 			val statsGet = PerformanceMetrics.estimateFromSamples(getLatencies,time,duration)
 			val statsPut = PerformanceMetrics.estimateFromSamples(putLatencies,time,duration)
+			t1 = new Date().getTime; T("L4")+=(t1-t0)
 			
+			t0 = new Date().getTime
 			storageNodes += StorageNodeState(s,statsAll,Map("get"->statsGet,"put"->statsPut))
+			t1 = new Date().getTime; T("L5")+=(t1-t0)
 		}
 		
+		t0 = new Date().getTime
 		val statsAll = PerformanceMetrics.estimateFromSamples(allGets.toList++allPuts,time,duration)
 		val statsGet = PerformanceMetrics.estimateFromSamples(allGets.toList,time,duration)
 		val statsPut = PerformanceMetrics.estimateFromSamples(allPuts.toList,time,duration)
+		t1 = new Date().getTime; T("XE")+=(t1-t0)
+		
+		T.keySet.toList.sort(_<_).foreach( t => Director.logger.debug("state-"+t+": "+ (T(t)/1000.0) + " sec" ))
 		
 		SCADSState(time,config,storageNodes.toList,statsAll,Map("get"->statsGet,"put"->statsPut),histogramRaw,histogramPrediction)
 	}
@@ -290,7 +310,8 @@ case class WorkloadFeatures(
 		WorkloadFeatures(this.getRate+that.getRate,this.putRate+that.putRate,this.getsetRate+that.getsetRate)
 	}
 	def - (that:WorkloadFeatures):WorkloadFeatures = {
-		WorkloadFeatures(Math.abs(this.getRate-that.getRate),Math.abs(this.putRate-that.putRate),Math.abs(this.getsetRate+that.getsetRate))
+/*		WorkloadFeatures(Math.abs(this.getRate-that.getRate),Math.abs(this.putRate-that.putRate),Math.abs(this.getsetRate-that.getsetRate))*/
+		WorkloadFeatures(this.getRate-that.getRate,this.putRate-that.putRate,this.getsetRate-that.getsetRate)
 	}
 	def * (multiplier:Double):WorkloadFeatures = {
 		WorkloadFeatures(this.getRate*multiplier,this.putRate*multiplier,this.getsetRate*multiplier)
@@ -367,13 +388,12 @@ object WorkloadHistogram {
 	def createRanges(interval:WorkloadIntervalDescription, rate:Double, nBins:Int, maxKey:Int):List[DirectorKeyRange] = {
 		val minKey = 0
 		val requests = generateRequests(interval,rate,nBins)
-		val rnd = new java.util.Random()
 		val allkeys = for (r <- requests) yield { r match{
 										case g:SCADSGetRequest => {g.key.toInt}
 										case p:SCADSPutRequest => {p.key.toInt}
 										case _ => {-1} } }
 		val keys = allkeys.filter(_!= -1).toList.sort(_<_).toList
-		val boundaries = (List(minKey)++((for (i <- 1 to nBins-1) yield { keys(rnd.nextInt(keys.size)) }).toList.removeDuplicates)++List(maxKey)).sort(_<_)
+		val boundaries = (List(minKey)++((for (i <- 1 to nBins-1) yield { keys(Director.rnd.nextInt(keys.size)) }).toList.removeDuplicates)++List(maxKey)).sort(_<_)
 		val ranges = boundaries.take(nBins).zip(boundaries.tail).map(b=>new DirectorKeyRange(b._1,b._2))
 		println("Histogram has ranges: \n"+ranges.sort(_.minKey<_.minKey).mkString("",",",""))
 		ranges
@@ -384,14 +404,20 @@ object WorkloadHistogram {
 		println("Histogram has ranges: \n"+ranges.sort(_.minKey<_.minKey).mkString("",",",""))
 		ranges
 	}
-	def createFromRanges(ranges:List[DirectorKeyRange],interval:WorkloadIntervalDescription, rate:Double, nBins:Int):WorkloadHistogram = {
+	def createFromRanges(ranges:Array[DirectorKeyRange],interval:WorkloadIntervalDescription, rate:Double, nBins:Int):WorkloadHistogram = {
+		var t0,t1:Long = 0
+		var T = scala.collection.mutable.Map[String,Long]("init"->0,"L1"->0,"L2"->0,"L3"->0,"L4"->0,"L5"->0,"XE"->0)
+		
+		t0 = new Date().getTime
 		val requests = generateRequests(interval,rate,nBins)
 		val nRequests = requests.size
 		val getCounts = scala.collection.mutable.Map[DirectorKeyRange,Int]()
 		val putCounts = scala.collection.mutable.Map[DirectorKeyRange,Int]()
 		var ri = 0
 		var range = ranges(ri)
+		t1 = new Date().getTime; T("init")+=(t1-t0)
 
+		t0 = new Date().getTime
 		val typesAndKeys = (for (r <- requests) yield {
 			r match {
 				case g:SCADSGetRequest => { ("get",g.key.toInt) }
@@ -399,7 +425,9 @@ object WorkloadHistogram {
 				case _ => { ("na",-1) }
 			}
 		}).filter(_._2!= -1).toList.sort(_._2<_._2).toList
+		t1 = new Date().getTime; T("L1")+=(t1-t0)
 
+		t0 = new Date().getTime
 		for (tk <- typesAndKeys) {
 			val rtype = tk._1
 			val key = tk._2
@@ -410,19 +438,24 @@ object WorkloadHistogram {
 				case _ =>
 			}
 		}
+		t1 = new Date().getTime; T("L2")+=(t1-t0)
 
+		t0 = new Date().getTime
 		val rangeStats = scala.collection.mutable.Map[DirectorKeyRange,WorkloadFeatures]()
 		for (range <- ranges) {
 			val getRate = getCounts.getOrElse(range,0).toDouble / nRequests * rate //(interval.duration/1000)
 			val putRate = putCounts.getOrElse(range,0).toDouble / nRequests * rate //(interval.duration/1000)
 			rangeStats += range -> WorkloadFeatures(getRate,putRate,Double.NaN)
 		}
+		t1 = new Date().getTime; T("L3")+=(t1-t0)
+		T.keySet.toList.sort(_<_).foreach( t => Director.logger.debug("histogram-"+t+": "+ (T(t)/1000.0) + " sec" ))
+
 		new WorkloadHistogram(Map[DirectorKeyRange,WorkloadFeatures]()++rangeStats)
 	}
 	def create(interval:WorkloadIntervalDescription, rate:Double, nBins:Int,maxKey:Int): WorkloadHistogram = {
 		val ranges = createRanges(interval,rate,nBins,maxKey)
 		// have the ranges, now count the keys in each range
-		createFromRanges(ranges,interval,rate,nBins)
+		createFromRanges(ranges.toArray,interval,rate,nBins)
 	}
 	def summarize(ranges: List[DirectorKeyRange], histograms:List[WorkloadHistogram]):WorkloadHistogram = {
 		val index_choice = Math.floor(0.9*(histograms.size-1)).toInt
