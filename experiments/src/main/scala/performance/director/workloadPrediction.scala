@@ -12,7 +12,8 @@ abstract class WorkloadPrediction {
 
 case class SimpleHysteresis(
 	alpha_up:Double,
-	alpha_down:Double
+	alpha_down:Double,
+	overprovision:Double
 ) extends WorkloadPrediction {
 	var prediction: WorkloadHistogram = null
 	
@@ -22,7 +23,7 @@ case class SimpleHysteresis(
 		else prediction = prediction + (histogram - prediction)*alpha_down
 	}
 	
-	def getPrediction():WorkloadHistogram = prediction	
+	def getPrediction():WorkloadHistogram = prediction*(1+overprovision)
 }
 
 case class IdentityPrediction extends WorkloadPrediction {
