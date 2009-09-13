@@ -135,11 +135,8 @@ abstract class CostFunction {
 }
 
 class TestCostFunction extends CostFunction {
-	import java.util.Random
-	val rand = new Random
-
-	def cost(state:SCADSState):Double = rand.nextDouble
-	def detailedCost(state:SCADSState):Map[String,Double] = Map("rnd"->rand.nextDouble)
+	def cost(state:SCADSState):Double = Director.rnd.nextDouble
+	def detailedCost(state:SCADSState):Map[String,Double] = Map("rnd"->Director.rnd.nextDouble)
 }
 
 class SLACostFunction(
@@ -205,8 +202,6 @@ case class DepthOptimizer(depth:Int, coster:CostFunction, selector:ActionSelecto
 }
 
 case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:Int, putSLA:Int) extends Optimizer {
-	import java.util.Random
-	val rand = new Random
 	val slaPercentile = 0.99
 	val max_replicas = 5
 	val min_puts_allowed:Int = 100 	// percentage of allowed puts
@@ -364,7 +359,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 		var choices = candidates.indices // which indices of the candidates array still available to try
 
 		while (actions.size < num && choices.size > 0) {
-			val chosen_index = choices(rand.nextInt(choices.size)) // select radom index of candidate array
+			val chosen_index = choices(Director.rnd.nextInt(choices.size)) // select radom index of candidate array
 			val chosen = candidates(chosen_index)
 
 			val chosen_neighbor = if (choices.size < 2) {null} else if (chosen_index < candidates.size-1){ candidates(chosen_index+1) } else { candidates(chosen_index-1) }
