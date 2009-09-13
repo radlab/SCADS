@@ -40,6 +40,10 @@ class WorkloadDescription(
 }
 
 object WorkloadDescription {
+	var rnd = new java.util.Random
+	
+	def setRndGenerator(r:java.util.Random) { rnd = r }
+	
 	def create(workloadProfile:WorkloadProfile, durations:List[Int], requestGenerators:List[SCADSRequestGenerator], thinkTimeMean:Long): WorkloadDescription = {
 		assert(workloadProfile.profile.length==durations.length && workloadProfile.profile.length==requestGenerators.length, 
 			"workloadProfile, durations, and requestGenerators need to have the same length")
@@ -200,7 +204,7 @@ class MixVector(
 	override def toString() = mix.keySet.toList.sort(_<_).map(k=>k+"->"+mix(k)).mkString("m[",",","]")
 	
 	def sampleRequestType(): String = {
-		val r = SCADSRequestGenerator.rand.nextDouble()
+		val r = WorkloadDescription.rnd.nextDouble()
 		var agg:Double = 0
 
 		var reqType = ""
@@ -218,9 +222,6 @@ class MixVector(
 //
 
 object SCADSKeyGenerator {
-	import java.util.Random
-	val rnd = new Random()
-	
 	def getMinKey(gens:List[SCADSKeyGenerator]):Int = gens.map(_.minKey).reduceLeft(Math.min(_,_))
 	def getMaxKey(gens:List[SCADSKeyGenerator]):Int = gens.map(_.maxKey).reduceLeft(Math.max(_,_))
 	
@@ -255,7 +256,7 @@ case class UniformKeyGenerator(
 	override val minKey: Int,
 	override val maxKey: Int
 ) extends SCADSKeyGenerator(minKey,maxKey) {
-	override def generateKey(): Int = SCADSKeyGenerator.rnd.nextInt(maxKey-minKey) + minKey
+	override def generateKey(): Int = WorkloadDescription.rnd.nextInt(maxKey-minKey) + minKey
 }
 
 @serializable
@@ -263,7 +264,7 @@ case class MixtureKeyGenerator(
 	components: Map[SCADSKeyGenerator,Double]
 ) extends SCADSKeyGenerator(SCADSKeyGenerator.getMinKey(components.keySet.toList),SCADSKeyGenerator.getMaxKey(components.keySet.toList)) {
 	override def generateKey(): Int = {
-		var (s,r) = (0.0,SCADSKeyGenerator.rnd.nextDouble)
+		var (s,r) = (0.0,WorkloadDescription.rnd.nextDouble)
 		(for (c<-components) yield {s+=c._2;(c._1,s)}).find(r<_._2).get._1.generateKey
 	}
 }
@@ -275,7 +276,7 @@ case class ZipfKeyGenerator(
 	override val maxKey: Int
 ) extends SCADSKeyGenerator(minKey,maxKey) {
 	assert(a>1, "need a>1")
-	val r = SCADSKeyGenerator.rnd.nextDouble
+	val r = WorkloadDescription.rnd.nextDouble
 	
 	override def generateKey(): Int = {
 		var k = -1
@@ -287,8 +288,8 @@ case class ZipfKeyGenerator(
 		val b = Math.pow(2,a-1)
 		var u, v, x, t = 0.0
 		do {
-			u = SCADSKeyGenerator.rnd.nextDouble()
-			v = SCADSKeyGenerator.rnd.nextDouble()
+			u = WorkloadDescription.rnd.nextDouble()
+			v = WorkloadDescription.rnd.nextDouble()
 			x = Math.floor( Math.pow(u,-1/(a-1)) )
 			t = Math.pow(1+1/x,a-1)
 		} while ( v*x*(t-1)/(b-1)>t/b )
@@ -313,7 +314,7 @@ case class WikipediaKeyGenerator(
 	
 	override def generateKey(): Int = {
 		var (i0,i1,i) = (0,cdf.length-1,0)
-		val r = SCADSKeyGenerator.rnd.nextDouble
+		val r = WorkloadDescription.rnd.nextDouble
 		
 		var found = false
 		while (!found) {
@@ -373,7 +374,7 @@ case class EmpiricalKeyGenerator(
 	override def generateKey(): Int = {
 		var (i0,i1) = (0,cdf.length-1)
 		var i,c = 0
-		val r = SCADSKeyGenerator.rnd.nextDouble
+		val r = WorkloadDescription.rnd.nextDouble
 		
 		var found = false
 		while (!found) {
@@ -442,11 +443,6 @@ case class SCADSGetSetRequest(
 //////
 // request generators
 //
-object SCADSRequestGenerator {
-	import java.util.Random
-	val rand = new Random()
-}
-
 @serializable
 abstract class SCADSRequestGenerator(
 	val mix: MixVector
