@@ -335,3 +335,17 @@ rq.gp.overloaded = function(models, get.w, put.w, threshold) {
 	else
 		return(F)
 }
+
+dump.models = function(models,file) {
+	strings = c()
+	for (type in names(models))
+		for (q in names(models[[type]]))
+			strings = c(strings,model.to.string(models[[type]][[q]],type,q))
+	string = paste(strings,collapse="\n")
+	cat(string,file=file)
+}
+
+model.to.string = function(model,type,q) {
+	mc = model$model$coefficients
+	paste( type,"-",q,":", paste( c("scale-g","scale-p",names(mc)), c(1/4000,1/200,as.numeric(mc)), sep="=", collapse="," ), sep="" )
+}
