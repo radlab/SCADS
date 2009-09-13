@@ -32,7 +32,9 @@ abstract class PerformanceEstimator {
 	* for the specified time (in seconds) while executing the actions
 	*/	
 	def estimatePerformance(config:SCADSconfig, workload:WorkloadHistogram, durationInSec:Int, actions:List[Action]): PerformanceStats
+}
 
+object PerformanceEstimator {
 	/**
 	* Determine the histogram ranges that each server contains. Overlaps possible.
 	*/
@@ -64,9 +66,7 @@ abstract class PerformanceEstimator {
 		}
 		Map[String,List[DirectorKeyRange]](serversToHist.toList map {entry => (entry._1, entry._2.toList)} : _*)
 	}
-}
 
-object PerformanceEstimator {
 	// TODO: make sure this works even if the server ranges don't align nicely
 	def estimateServerWorkload(config:SCADSconfig, workload:WorkloadHistogram):Map[String,WorkloadFeatures] = {
 		val servers = config.storageNodes
