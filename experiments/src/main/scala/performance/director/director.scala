@@ -25,7 +25,10 @@ object Director {
 
 	val databaseHost = "localhost"
 	val databaseUser = "root"
+//	val databaseUser = "director"
 	val databasePassword = ""
+	
+	val rnd = new java.util.Random(7)
 	
 	val delay = 20
 	
@@ -59,6 +62,7 @@ object Director {
 		var connection:Connection = null
         try {
             val connectionString = "jdbc:mysql://" + databaseHost + "/?user=" + databaseUser + "&password=" + databasePassword
+			logger.info("connecting to database: "+connectionString)
             connection = DriverManager.getConnection(connectionString)
 		} catch {
 			case ex: SQLException => {
@@ -127,13 +131,23 @@ object Director {
 	}
 	
 	private def writeMaps(maps: Array[Map[DirectorKeyRange,List[String]]], prefix:String) {
-		/*(0 until maps.size).foreach((i)=>{
-			val file = new FileWriter( new java.io.File("/Users/trush/Downloads/"+prefix+i+".csv"), true )
+		(0 until maps.size).foreach((i)=>{
+			val file = new FileWriter( new java.io.File(Director.basedir+"/"+prefix+i+".csv"), true )
 			val mapstats = maps(i)
 			mapstats.toList.sort(_._1.minKey < _._1.minKey).foreach((entry)=> file.write(entry._1.minKey+"_"+entry._1.maxKey+","+entry._2.mkString("",",","") +"\n"))
 			file.flush
 			file.close
-		})*/
+		})
+	}
+
+	private def writeMaps(maps: Map[String, Map[DirectorKeyRange,List[String]]], prefix:String) {
+		maps.foreach( e => {
+			val file = new FileWriter( new java.io.File(Director.basedir+"/"+e._1+".csv") )
+			val mapstats = e._2
+			mapstats.toList.sort(_._1.minKey < _._1.minKey).foreach((entry)=> file.write(entry._1.minKey+"_"+entry._1.maxKey+","+entry._2.mkString("",",","") +"\n"))
+			file.flush
+			file.close
+		})
 	}
 
 	/**
@@ -141,41 +155,50 @@ object Director {
 	*/
 	def directorSimulation(initialConfig:SCADSconfig, workload:WorkloadDescription, maxKey:Int,policy:Policy, costFunction:FullCostFunction, performanceModel:PerformanceModel, evaluateAllSteps:Boolean):FullCostFunction = {
 
+		WorkloadDescription.setRndGenerator(Director.rnd)
+
 		val workloadMultiplier = 10  		// workload rate of a single user
-		val nHistogramBinsPerServer = 20
+		val nHistogramBins = 200
 		val simulationGranularity = 10 		//seconds
 		val histogramWindowSize = 6
 		val latency90pThr = 100
 		var nextStep = 0
 		var currentTime = 0
 		
+		val stateCreationDurationMultiplier = 0.1
+		
 		val startTime = new Date().getTime/(simulationGranularity*1000)*(simulationGranularity*1000)
 		var ranges:List[DirectorKeyRange] = null // use same ranges for whole simulation
 
-		var histogramWindow = new scala.collection.mutable.ListBuffer[WorkloadHistogram]()
-		var smoothed_histogram:WorkloadHistogram = null
-		val alpha = 0.8
-		val beta = 0.2
 		val getStats = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
-		val getStatsSmooth = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
+		val getStatsPrediction = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
 		val putStats = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
 
-		val workloadPredictor = SimpleHysteresis(0.9,0.2)
+		val workloadPredictor = SimpleHysteresis(0.9,0.05,0.3)
 
 		// create initial state (state = config + workload histogram + performance metrics)
-		//var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
 		var config = initialConfig		
 		var prevTimestep:Long = -1
 		var pastActions = List[Action]()
 		
 		for (w <- workload.workload) { 
+			var timing = new Date
+			var timingString = ""
+			
 			logger.info("TIME: "+currentTime)
-			if (ranges == null) ranges = WorkloadHistogram.createEquiWidthRanges(w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer,maxKey)
+			if (ranges == null) ranges = WorkloadHistogram.createEquiWidthRanges(w,w.numberOfActiveUsers*workloadMultiplier,nHistogramBins,maxKey)
 
 			// "observe" and smooth/predict the workload histogram
-			val histogramRaw = WorkloadHistogram.createFromRanges(ranges,w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer)
+			val histogramRaw = WorkloadHistogram.createFromRanges(ranges.toArray,w,w.numberOfActiveUsers*workloadMultiplier,nHistogramBins)
+			timingString += "histograms: "+(new Date().getTime-timing.getTime)/1000.0+" sec\n"; timing=new Date
 			workloadPredictor.addHistogram(histogramRaw)
 			val histogramPrediction = workloadPredictor.getPrediction()
+
+			histogramRaw.rangeStats.foreach((entry)=>{
+				getStats(entry._1) = getStats.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + entry._2.getRate.toString
+				getStatsPrediction(entry._1) = getStatsPrediction.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + histogramPrediction.rangeStats(entry._1).getRate.toString
+				putStats(entry._1) = putStats.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + entry._2.putRate.toString
+			})
 
 			logger.info("WORKLOAD: "+histogramRaw.toShortString)
 			logger.info("WORKLOAD PREDICTION: "+histogramPrediction.toShortString)
@@ -184,36 +207,17 @@ object Director {
 				// enough time passed, time for a simulation step
 				logger.info("simulating ...")
 
-/*				// create workload histogram from 'w'
-				//val histogram = WorkloadHistogram.create(w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer,maxKey)
-				val histogram_now = WorkloadHistogram.createFromRanges(ranges,w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer)
-				if (histogramWindow.size >= histogramWindowSize) { histogramWindow.remove(0) }
-				histogramWindow += histogram_now
-
-				//s_t = s_{t-1} + alpha * (w_t - s_{t-1})
-				if (smoothed_histogram == null) {println("no smooth history");smoothed_histogram = histogram_now}
-				else if (histogram_now > smoothed_histogram) { println("workload increasing");smoothed_histogram = smoothed_histogram + histogram_now*alpha - smoothed_histogram*alpha }
-				else { println("workload decreasing");smoothed_histogram = smoothed_histogram + histogram_now*beta - smoothed_histogram*beta }
-
-				val histogram = WorkloadHistogram.summarize(ranges,histogramWindow.toList)
-				println("Histogram window size: "+histogramWindow.size)
-
-				histogram_now.rangeStats.foreach((entry)=>{
-					getStats(entry._1) = getStats.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + entry._2.getRate.toString
-					getStatsSmooth(entry._1) = getStatsSmooth.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + histogram.rangeStats(entry._1).getRate.toString
-					putStats(entry._1) = putStats.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + entry._2.putRate.toString
-				})
-*/
-
 				// create the new state
-				//val state = new SCADSState(new Date(startTime+currentTime), config, null, null, null, histogram)
-				val state = SCADSState.createFromPerfModel(new Date(startTime+currentTime*1000),config,histogramRaw,histogramPrediction,performanceModel,w.duration/1000)
+				val state = SCADSState.createFromPerfModel(new Date(startTime+currentTime*1000),config,histogramRaw,histogramPrediction,performanceModel,(w.duration/1000.0*stateCreationDurationMultiplier).toInt)
 				logger.info("STATE: \n"+state.toShortString)
+				timingString += "state: "+(new Date().getTime-timing.getTime)/1000.0+" sec (in model: "+performanceModel.timeInModel/1000.0+" sec)\n"; timing=new Date; performanceModel.resetTimer
 				SCADSState.dumpState(state)
+				timingString += "dump state: "+(new Date().getTime-timing.getTime)/1000.0+" sec\n"; timing=new Date
 				costFunction.addState(state)
 
 				// ask policy for actions
 				val actions = policy.perform(state,pastActions)
+				timingString += "policy: "+(new Date().getTime-timing.getTime)/1000.0+" sec (in model: "+performanceModel.timeInModel/1000.0+" sec)\n"; timing=new Date; performanceModel.resetTimer
 				
 				// update config by executing actions on it
 				config = state.config
@@ -227,47 +231,38 @@ object Director {
 				val actionMsg = if (actions==null||actions.size==0) "\nACTIONS:\n<none>" else
 									actions.map(_.toString).mkString("\nACTIONS: \n  ","\n  ","")
 				logger.info(actionMsg)
-
-				if (prevTimestep!= -1) Plotting.plotSCADSState(state,prevTimestep,startTime+currentTime*1000,latency90pThr,"state_"+(startTime+currentTime*1000)+".png")
+				timingString += "actions: "+(new Date().getTime-timing.getTime)/1000.0+" sec\n"; timing=new Date
+				
+				//if (prevTimestep!= -1) Plotting.plotSCADSState(state,prevTimestep,startTime+currentTime*1000,latency90pThr,"state_"+(startTime+currentTime*1000)+".png")
 
 				nextStep += simulationGranularity				
 				prevTimestep = startTime + currentTime*1000
 				
 			} else {
 				if (evaluateAllSteps) {
-					// don't simulate policy, just evaluate the config under the current workload
-				 
-/*					// create workload histogram from 'w'
-					val histogram_now = WorkloadHistogram.createFromRanges(ranges,w,w.numberOfActiveUsers*workloadMultiplier,config.storageNodes.size*nHistogramBinsPerServer)
-					if (histogramWindow.size >= histogramWindowSize) { histogramWindow.remove(0) }
-					histogramWindow += histogram_now
-					val histogram = WorkloadHistogram.summarize(ranges,histogramWindow.toList)
-
-					histogram_now.rangeStats.foreach((entry)=>{
-						getStats(entry._1) = getStats.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + entry._2.getRate.toString
-						getStatsSmooth(entry._1) = getStatsSmooth.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + histogram.rangeStats(entry._1).getRate.toString
-						putStats(entry._1) = putStats.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + entry._2.putRate.toString
-					})
-*/
+					// don't simulate policy, just evaluate the config under the current workload				 
 					// create new state
 					val state = SCADSState.createFromPerfModel(new Date(startTime+currentTime*1000),config,histogramRaw,histogramPrediction,performanceModel,w.duration/1000)
 					logger.info("STATE: \n"+state.toShortString)
 					SCADSState.dumpState(state)
 					costFunction.addState(state)
-
+					timingString += "state: "+(new Date().getTime-timing.getTime)/1000.0+" sec\n"; timing=new Date
+					
 					if (prevTimestep!= -1) Plotting.plotSCADSState(state,prevTimestep,startTime+currentTime*1000,latency90pThr,"state_"+(startTime+currentTime*1000)+".png")
 					prevTimestep = startTime + currentTime*1000
 				}
 			}
 			currentTime += w.duration/1000
-		}
 
-		// write out map stats
-		writeMaps(Array(
-			Map[DirectorKeyRange,List[String]](getStats.toList map {entry => (entry._1, entry._2.toList)} : _*),
-			Map[DirectorKeyRange,List[String]](getStatsSmooth.toList map {entry => (entry._1, entry._2.toList)} : _*),
-			Map[DirectorKeyRange,List[String]](putStats.toList map {entry => (entry._1, entry._2.toList)} : _*)
-		),startTime.toString)
+			// write out map stats
+			writeMaps(Map(
+				"getHistogramsRaw" -> Map[DirectorKeyRange,List[String]](getStats.toList map {entry => (entry._1, entry._2.toList)} : _*),
+				"getHistogramsPrediction" -> Map[DirectorKeyRange,List[String]](getStatsPrediction.toList map {entry => (entry._1, entry._2.toList)} : _*),
+				"putHistogramsRaw" -> Map[DirectorKeyRange,List[String]](putStats.toList map {entry => (entry._1, entry._2.toList)} : _*)
+			),startTime.toString)
+			
+			logger.debug("TIMING:\n"+timingString)
+		}
 
 		costFunction
 	}
@@ -317,21 +312,23 @@ object Director {
 
 		directorSimulation(config,workload,maxKey,policy,costFunction,performanceModel,false)
 	}
+	
 	def testHeuristicSimulation(modelfile:String):FullCostFunction = {
 		Director.dropDatabases
 		SCADSState.initLogging("localhost",6001)
 		Plotting.initialize(Director.basedir+"/plotting/")
 
 		val mix = new MixVector( Map("get"->1.0,"getset"->0.0,"put"->0.00) )
-		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,1,48,2000)
+		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,1.5,48,4000)
 		//val workload = WorkloadGenerators.linearWorkload(1.0,0.0,0,"10000","perfTest256",1000,10000,10)
 		val maxKey = 10000
 		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
-		config = config.splitAllInHalf.splitAllInHalf
+		config = config.splitAllInHalf.splitAllInHalf.splitAllInHalf
 
-		val policy = new HeuristicOptimizerPolicy(modelfile,100,100)
-
-		val performanceModel = L1PerformanceModel(modelfile)
+		//val performanceModel = L1PerformanceModel(modelfile)
+		val performanceModel = LocalL1PerformanceModel(modelfile)
+		
+		val policy = new HeuristicOptimizerPolicy(performanceModel,100,100)
 		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
 		//val costFunction = new SLACostFunction(100,100,0.99,100,1,performanceEstimator)
 		val costFunction = FullSLACostFunction(100,100,0.99,1*60*1000,100,1,2*60*1000)
