@@ -67,8 +67,6 @@ abstract class Policy {
 class TestPolicy(
 	val maxactions:Int
 ) extends Policy {
-	val rnd = new java.util.Random
-	
 	object PolicyState extends Enumeration("waiting","noNewActions","newActions") {
 	  type PolicyState = Value
 	  val Waiting, NoNewActions, NewActions = Value
@@ -84,13 +82,13 @@ class TestPolicy(
 
 		var policyState =
 		if (!pastActions.forall(_.completed)) Waiting
-		else if (rnd.nextDouble>0.5) NewActions
+		else if (Director.rnd.nextDouble>0.5) NewActions
 		else NoNewActions
 		
 		val actions = policyState match {
 			case Waiting => List[Action]()
 			case NoNewActions => List[Action]()
-			case NewActions => (1 to (rnd.nextInt(maxactions)+1)).map( (d:Int) => new TestAction(rnd.nextInt((d+1)*30)*1000) ).toList
+			case NewActions => (1 to (Director.rnd.nextInt(maxactions)+1)).map( (d:Int) => new TestAction(Director.rnd.nextInt((d+1)*30)*1000) ).toList
 		}		
 		_stateValues = List(policyState.toString,actions.length.toString)
 		actions
@@ -104,14 +102,12 @@ class EmptyPolicy() extends Policy {
 class RandomSplitAndMergePolicy(
 	val fractionOfSplits:Double
 ) extends Policy {
-	val rnd = new java.util.Random
-	
 	override def act(state:SCADSState, pastActions:List[Action]):List[Action] = {
-		if (rnd.nextDouble<fractionOfSplits)
-			List(new SplitInTwo( state.config.storageNodes.keySet.toList(rnd.nextInt(state.config.storageNodes.size)),-1 ))
+		if (Director.rnd.nextDouble<fractionOfSplits)
+			List(new SplitInTwo( state.config.storageNodes.keySet.toList(Director.rnd.nextInt(state.config.storageNodes.size)),-1 ))
 		else 
 			if (state.config.storageNodes.size>=2) {
-				val i = rnd.nextInt(state.config.storageNodes.size-1)
+				val i = Director.rnd.nextInt(state.config.storageNodes.size-1)
 				val ordered = state.config.storageNodes.map(x=>(x._1,x._2)).toList.sort(_._2.minKey<_._2.minKey).toList
 				List(new MergeTwo(ordered(i)._1,ordered(i+1)._1))
 			} else List[Action]()
@@ -231,11 +227,11 @@ class SplitAndMergeOnWorkload(
 }
 
 class HeuristicOptimizerPolicy(
-	val modelfile_location:String,
+	val performanceModel:PerformanceModel,
 	val getSLA:Int,
 	val putSLA:Int
 	) extends Policy {
-		val performanceEstimator = SimplePerformanceEstimator( L1PerformanceModel(modelfile_location) )
+		val performanceEstimator = SimplePerformanceEstimator( performanceModel )
 		val optimizer = new HeuristicOptimizer(performanceEstimator,getSLA,putSLA)
 		override def act(state:SCADSState, pastActions:List[Action]):List[Action] = optimizer.optimize(state)
 }
