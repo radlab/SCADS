@@ -50,4 +50,17 @@ object Plotting {
 		}
 	}
 		
+	def plotSimpleDirectorAndConfigs() {
+		try {
+			logger.info("plotting director.simple")
+			rconn.parseAndEval("  plot.director.simple( out.file=\""+dir+"/director.simple.png\")  ")
+			logger.info("plotting configs")
+			rconn.parseAndEval("  plot.configs( out.file=\""+dir+"/configs.png\")  ")
+			rconn.parseAndEval("  disconnect.all()  ")
+			logger.info("done plotting")
+		} catch {
+			case e:Exception => { logger.warn("couldn't render director.simple or configs plot"); e.printStackTrace }
+		}
+	}
+		
 }

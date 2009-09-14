@@ -28,7 +28,7 @@ object Director {
 //	val databaseUser = "director"
 	val databasePassword = ""
 	
-	val rnd = new java.util.Random(7)
+	var rnd = new java.util.Random(7)
 	
 	val delay = 20
 	
@@ -154,9 +154,6 @@ object Director {
 	* run a simulation of 'policy' against the 'workload', using 'costFunction' for cost
 	*/
 	def directorSimulation(initialConfig:SCADSconfig, workload:WorkloadDescription, maxKey:Int,policy:Policy, costFunction:FullCostFunction, performanceModel:PerformanceModel, evaluateAllSteps:Boolean):FullCostFunction = {
-
-		WorkloadDescription.setRndGenerator(Director.rnd)
-
 		val workloadMultiplier = 10  		// workload rate of a single user
 		val nHistogramBins = 200
 		val simulationGranularity = 10 		//seconds
@@ -164,6 +161,9 @@ object Director {
 		val latency90pThr = 100
 		var nextStep = 0
 		var currentTime = 0
+		
+		var plotUpdatePeriod = 10
+		var plotCounter = 0
 		
 		val stateCreationDurationMultiplier = 0.1
 		
@@ -233,7 +233,7 @@ object Director {
 				logger.info(actionMsg)
 				timingString += "actions: "+(new Date().getTime-timing.getTime)/1000.0+" sec\n"; timing=new Date
 				
-				//if (prevTimestep!= -1) Plotting.plotSCADSState(state,prevTimestep,startTime+currentTime*1000,latency90pThr,"state_"+(startTime+currentTime*1000)+".png")
+				plotCounter+=1; if (plotCounter%plotUpdatePeriod==0) Plotting.plotSimpleDirectorAndConfigs()
 
 				nextStep += simulationGranularity				
 				prevTimestep = startTime + currentTime*1000
@@ -264,6 +264,7 @@ object Director {
 			logger.debug("TIMING:\n"+timingString)
 		}
 
+		Plotting.plotSimpleDirectorAndConfigs()
 		costFunction
 	}
 	
@@ -320,17 +321,34 @@ object Director {
 
 		val mix = new MixVector( Map("get"->1.0,"getset"->0.0,"put"->0.00) )
 		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,1.5,48,4000)
-		//val workload = WorkloadGenerators.linearWorkload(1.0,0.0,0,"10000","perfTest256",1000,10000,10)
 		val maxKey = 10000
 		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
 		config = config.splitAllInHalf.splitAllInHalf.splitAllInHalf
 
-		//val performanceModel = L1PerformanceModel(modelfile)
-		val performanceModel = LocalL1PerformanceModel(modelfile)
-		
+		val performanceModel = LocalL1PerformanceModel(modelfile)		
 		val policy = new HeuristicOptimizerPolicy(performanceModel,100,100)
 		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
-		//val costFunction = new SLACostFunction(100,100,0.99,100,1,performanceEstimator)
+		val costFunction = FullSLACostFunction(100,100,0.99,1*60*1000,100,1,2*60*1000)
+
+		val finalcost = directorSimulation(config,workload,maxKey,policy,costFunction,performanceModel,false)
+		finalcost
+	}
+
+	def heuristicSimulation(workload:WorkloadDescription, modelfile:String):FullCostFunction = {
+		Director.dropDatabases
+		Director.rnd = new java.util.Random(7)
+		WorkloadDescription.setRndGenerator(Director.rnd)
+		SCADSState.initLogging("localhost",6001)
+		Plotting.initialize(Director.basedir+"/plotting/")
+
+		val mix = new MixVector( Map("get"->1.0,"getset"->0.0,"put"->0.00) )
+		val maxKey = 10000
+		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
+		config = config.splitAllInHalf.splitAllInHalf.splitAllInHalf
+
+		val performanceModel = LocalL1PerformanceModel(modelfile)		
+		val policy = new HeuristicOptimizerPolicy(performanceModel,100,100)
+		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
 		val costFunction = FullSLACostFunction(100,100,0.99,1*60*1000,100,1,2*60*1000)
 
 		val finalcost = directorSimulation(config,workload,maxKey,policy,costFunction,performanceModel,false)
