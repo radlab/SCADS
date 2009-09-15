@@ -47,7 +47,7 @@ struct UserFunction {
 
 struct RecordSet {
 	1: RecordSetType type,
-	2: optional RangeSet range,
+	2: optional list<RangeSet> range,
 	3: optional UserFunction func,
 	4: optional string filter
 }

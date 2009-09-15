@@ -4,7 +4,7 @@
 	<groupId>edu.berkeley.cs.scads</groupId>
 	<artifactId>thrift-interface</artifactId>
 	<packaging>jar</packaging>
-	<version>1.0.2</version>
+	<version>1.0.3</version>
 	<name>SCADS Thrift Interface</name>
 	<parent>
 		<groupId>edu.berkeley.cs.scads</groupId>
