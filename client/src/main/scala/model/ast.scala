@@ -37,7 +37,6 @@ case class Join(entity: String, relationship: String, alias: String) extends Tre
 case class Query(name: String, fetch: Fetch) extends Tree
 
 case class Fetch(
-	returnEntity: String,
 	joins: List[Join],
 	predicates: List[Predicate],
 	order: Order,

@@ -111,7 +111,7 @@ class ScadsLanguage extends StdTokenParsers with ImplicitConversions {
 		}
 
 	def fetch: Parser[Fetch] = "FETCH" ~ ident ~ rep(joinedEntity) ~ where ~ ordering ~ range ^^
-		{case "FETCH" ~ entityType ~ joins ~ predicates ~ order ~ limit => new Fetch(entityType, joins, predicates, order, limit)}
+		{case "FETCH" ~ entityType ~ joins ~ predicates ~ order ~ limit => new Fetch(List(new Join(entityType, null, null)) ++ joins, predicates, order, limit)}
 
 	def query: Parser[Query] = "QUERY" ~ ident ~ fetch ^^
 		{case "QUERY" ~ name ~ fetch => new Query(name, fetch)}

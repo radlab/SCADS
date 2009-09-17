@@ -72,7 +72,6 @@ object Printer extends Generator {
 				}
 			}
 			case f: Fetch => {
-				output("return entity: ", f.returnEntity)
 				indent{
 					output("joins:")
 					indent{f.joins.foreach(generate(_))}
