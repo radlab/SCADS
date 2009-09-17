@@ -35,7 +35,7 @@ case class BoundEntity(attributes: scala.collection.mutable.HashMap[String, Attr
 
 case class BoundQuery
 
-case class BoundFetch(joinedTo: Option[BoundEntity], relation: Option[BoundRelationship])
+case class BoundFetch(entity: BoundEntity, child: Option[BoundFetch], relation: Option[BoundRelationship])
 
 object Binder {
 	val logger = Logger.getLogger("scads.binding")
@@ -101,7 +101,7 @@ object Binder {
 			val fetchAliases = new scala.collection.mutable.HashMap[String, BoundFetch]()
 			val duplicateAliases = new scala.collection.mutable.HashSet[String]()
 
-			val fetchTree = q.fetch.joins.foldRight[(Option[BoundFetch], Option[String])]((None,None))((j: Join, child: (Option[BoundFetch], Option[String])) => {
+			val fetchTree: BoundFetch = q.fetch.joins.foldRight[(Option[BoundFetch], Option[String])]((None,None))((j: Join, child: (Option[BoundFetch], Option[String])) => {
 				logger.debug("Looking for relationship " + child._2 + " in " + j + " with child " + child._1)
 				val entity = entityMap.get(j.entity) match {
 					case Some(e) => e
@@ -115,7 +115,7 @@ object Binder {
 					}
 				}
 
-				val fetch = new BoundFetch(Some(entity), relationship)
+				val fetch = new BoundFetch(entity, child._1, relationship)
 				val relToParent = if(j.relationship == null)
 					None
 				else
@@ -138,7 +138,7 @@ object Binder {
 					}
 
 				(Some(fetch), relToParent)
-			})
+			})._1.get
 			logger.debug("Generated fetch tree for " + q.name + ": " + fetchTree)
 
 			/* Check this parameter typing */
