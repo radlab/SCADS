@@ -22,6 +22,8 @@ object Compiler extends ScadsLanguage {
 					Binder.bind(result)
 				}
 				catch {
+					case UnknownRelationshipException(rn) => logger.fatal("Unknown relationship referenced: " + rn)
+					case UnknownEntityException(en) => logger.fatal("Unknown entity referenced: " + en)
 					case BadParameterOrdinals(qn) => logger.fatal("Bad parameter ordinals detected in query " + qn)
 				}
 			}
