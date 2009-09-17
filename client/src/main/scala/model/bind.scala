@@ -14,6 +14,11 @@ case class BadParameterOrdinals(queryName:String) extends BindingException
 case class AmbigiousThisParameter(queryName: String) extends BindingException
 case class UnknownRelationshipException(queryName :String) extends BindingException
 case class AmbiguiousJoinAlias(queryName: String, alias: String) extends BindingException
+case class UnsupportedPredicateException(queryName: String, predicate: Predicate) extends BindingException
+case class AmbiguiousAttribute(queryName: String, attribute: String) extends BindingException
+case class UnknownAttributeException(queryName: String, attribute: String) extends BindingException
+case class UnknownFetchAlias(queryName: String, alias: String) extends BindingException
+case class InconsistentParameterTyping(queryName: String, paramName: String) extends BindingException
 
 /* Bound counterparts for some of the AST */
 case class BoundRelationship(target: String, cardinality: Cardinality)
@@ -35,7 +40,13 @@ case class BoundEntity(attributes: scala.collection.mutable.HashMap[String, Attr
 
 case class BoundQuery
 
-case class BoundFetch(entity: BoundEntity, child: Option[BoundFetch], relation: Option[BoundRelationship])
+abstract class BoundPredicate
+object BoundThisEqualityPredicate extends BoundPredicate
+case class BoundEqualityPredicate(attributeName: String, value: FixedValue) extends BoundPredicate
+
+case class BoundFetch(entity: BoundEntity, child: Option[BoundFetch], relation: Option[BoundRelationship]) {
+	val predicates = new scala.collection.mutable.ArrayBuffer[BoundPredicate]
+}
 
 object Binder {
 	val logger = Logger.getLogger("scads.binding")
@@ -101,6 +112,9 @@ object Binder {
 			val fetchAliases = new scala.collection.mutable.HashMap[String, BoundFetch]()
 			val duplicateAliases = new scala.collection.mutable.HashSet[String]()
 
+			val attributeMap = new scala.collection.mutable.HashMap[String, BoundFetch]()
+			val duplicateAttributes = new scala.collection.mutable.HashSet[String]()
+
 			val fetchTree: BoundFetch = q.fetch.joins.foldRight[(Option[BoundFetch], Option[String])]((None,None))((j: Join, child: (Option[BoundFetch], Option[String])) => {
 				logger.debug("Looking for relationship " + child._2 + " in " + j + " with child " + child._1)
 				val entity = entityMap.get(j.entity) match {
@@ -137,6 +151,18 @@ object Binder {
 						case Some(_) => throw new AmbiguiousJoinAlias(q.name, j.alias)
 					}
 
+				entity.attributes.keys.foreach((a) => {
+					if(!duplicateAttributes.contains(a))
+						attributeMap.get(a) match {
+							case None => attributeMap.put(a, fetch)
+							case Some(_) => {
+								logger.debug("Attribute " + a + " is ambiguious in query " + q.name + " and therefore can't be used in predicates without a fetch specifier")
+								attributeMap -= a
+								duplicateAttributes += a
+							}
+						}
+				})
+
 				(Some(fetch), relToParent)
 			})._1.get
 			logger.debug("Generated fetch tree for " + q.name + ": " + fetchTree)
@@ -156,6 +182,55 @@ object Binder {
 					case _ => throw new AmbigiousThisParameter(q.name)
 				}
 			logger.debug("Detected thisType of " + thisType + " for query " + q.name)
+
+			/* Helper functions for identifying the BoundFetch that is being referenced in a given predicate */
+			def resolveFetch(alias: String):BoundFetch = {
+				if(duplicateAliases.contains(alias))
+					throw new AmbiguiousJoinAlias(q.name, alias)
+				fetchAliases.get(alias) match {
+					case None => throw UnknownFetchAlias(q.name, alias)
+					case Some(bf) => bf
+				}
+			}
+
+			def resolveField(f:Field):BoundFetch = {
+				if(f.entity == null) {
+					if(duplicateAttributes.contains(f.name))
+						throw new AmbiguiousAttribute(q.name, f.name)
+					return attributeMap.get(f.name) match {
+						case None => throw new UnknownAttributeException(q.name, f.name)
+						case Some(bf) => bf
+					}
+				}
+				else {
+					val bf = resolveFetch(f.entity)
+					if(!bf.entity.attributes.contains(f.name))
+						throw UnknownAttributeException(q.name, f.name)
+					return bf
+				}
+			}
+
+			/* Helper function for assigning and validating parameter types */
+			val paramTypes = new scala.collection.mutable.HashMap[String, AttributeType]
+			def addAndType(f: Field, v:FixedValue) {
+				val fetch = resolveField(f)
+
+				(fetch.entity.attributes.get(f.name), paramTypes.get(f.name)) match {
+					case (Some(t1), Some(t2)) => if(t1 != t2) throw InconsistentParameterTyping(q.name, f.name)
+					case (Some(t), None) => paramTypes.put(f.name, t)
+					case _ => throw UnknownAttributeException(q.name, f.name)
+				}
+				fetch.predicates.append(BoundEqualityPredicate(f.name, v))
+			}
+
+			/* Bind predicates to the proper node of the Fetch Tree */
+			q.fetch.predicates.foreach( _ match {
+				case EqualityPredicate(Field(null, alias), ThisParameter) => resolveFetch(alias).predicates.append(BoundThisEqualityPredicate)
+			  	case EqualityPredicate(ThisParameter, Field(null, alias)) => resolveFetch(alias)
+				case EqualityPredicate(f: Field, v: FixedValue) => addAndType(f,v)
+				case EqualityPredicate(v :FixedValue, f: Field) => addAndType(f,v)
+				case usp: Predicate => throw UnsupportedPredicateException(q.name, usp)
+			})
 		})
 	}
 

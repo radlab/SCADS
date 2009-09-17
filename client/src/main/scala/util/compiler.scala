@@ -23,8 +23,10 @@ object Compiler extends ScadsLanguage {
 				}
 				catch {
 					case UnknownRelationshipException(rn) => logger.fatal("Unknown relationship referenced: " + rn)
+					case UnknownAttributeException(qn, an) => logger.fatal("Unknown attribute '" + an + "' in query " + qn)
 					case UnknownEntityException(en) => logger.fatal("Unknown entity referenced: " + en)
 					case BadParameterOrdinals(qn) => logger.fatal("Bad parameter ordinals detected in query " + qn)
+					case UnsupportedPredicateException(qn, p) => logger.fatal("Query " + qn + " contains the following unsupported predicate " + p)
 				}
 			}
 			case f: NoSuccess => {
