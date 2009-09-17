@@ -34,7 +34,7 @@ case class EqualityPredicate(op1: Value, op2: Value) extends Predicate
 
 case class Join(entity: String, relationship: String, alias: String) extends Tree
 
-case class Query(name: String, fetches: List[Fetch]) extends Tree
+case class Query(name: String, fetch: Fetch) extends Tree
 
 case class Fetch(
 	returnEntity: String,

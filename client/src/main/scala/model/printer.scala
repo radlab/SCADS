@@ -68,7 +68,7 @@ object Printer extends Generator {
 				output("Query ", q.name)
 				indent {
 					output("Fetches:")
-					indent{q.fetches.foreach(generate(_))}
+					indent{generate(q.fetch)}
 				}
 			}
 			case f: Fetch => {
