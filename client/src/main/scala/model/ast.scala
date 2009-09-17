@@ -21,13 +21,17 @@ case class Relationship(name: String, from: String, to: String, cardinality: Car
 
 /* Queries */
 abstract class Value extends Tree
-case class Parameter(name: String, ordinal: Int) extends Value
-object ThisParameter extends Value
-case class StringValue(value: String) extends Value
-case class NumberValue(num: Integer) extends Value
 case class Field(entity: String, name: String) extends Value
-object TrueValue extends Value
-object FalseValue extends Value
+
+abstract class FixedValue extends Value
+object ThisParameter extends FixedValue
+case class Parameter(name: String, ordinal: Int) extends FixedValue
+
+abstract class Literal extends FixedValue
+case class StringValue(value: String) extends Literal
+case class NumberValue(num: Integer) extends Literal
+object TrueValue extends Literal
+object FalseValue extends Literal
 
 abstract class Predicate extends Tree
 case class EqualityPredicate(op1: Value, op2: Value) extends Predicate
