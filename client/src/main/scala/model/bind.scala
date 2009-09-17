@@ -12,6 +12,8 @@ case class DuplicateQueryException(queryName: String) extends BindingException
 case class DuplicateParameterException(queryName: String) extends BindingException
 case class BadParameterOrdinals(queryName:String) extends BindingException
 case class AmbigiousThisParameter(queryName: String) extends BindingException
+case class UnknownRelationshipException(queryName :String) extends BindingException
+case class AmbiguiousJoinAlias(queryName: String, alias: String) extends BindingException
 
 /* Bound counterparts for some of the AST */
 case class BoundRelationship(target: String, cardinality: Cardinality)
@@ -32,6 +34,8 @@ case class BoundEntity(attributes: scala.collection.mutable.HashMap[String, Attr
 }
 
 case class BoundQuery
+
+case class BoundFetch(joinedTo: Option[BoundEntity], relation: Option[BoundRelationship])
 
 object Binder {
 	val logger = Logger.getLogger("scads.binding")
@@ -92,6 +96,50 @@ object Binder {
 					throw new BadParameterOrdinals(q.name)
 				o + 1
 			})
+
+			/* Build the fetch tree and alias map */
+			val fetchAliases = new scala.collection.mutable.HashMap[String, BoundFetch]()
+			val duplicateAliases = new scala.collection.mutable.HashSet[String]()
+
+			val fetchTree = q.fetch.joins.foldRight[(Option[BoundFetch], Option[String])]((None,None))((j: Join, child: (Option[BoundFetch], Option[String])) => {
+				logger.debug("Looking for relationship " + child._2 + " in " + j + " with child " + child._1)
+				val entity = entityMap.get(j.entity) match {
+					case Some(e) => e
+					case None => throw new UnknownEntityException(j.entity)
+				}
+				val relationship: Option[BoundRelationship] = child._2 match {
+					case None => None
+					case Some(relName) => entity.relationships.get(relName) match {
+						case Some(rel) => Some(rel)
+						case None => throw new UnknownRelationshipException(relName)
+					}
+				}
+
+				val fetch = new BoundFetch(Some(entity), relationship)
+				val relToParent = if(j.relationship == null)
+					None
+				else
+					Some(j.relationship)
+
+				if(!duplicateAliases.contains(j.entity)) {
+					fetchAliases.get(j.entity) match {
+						case None => fetchAliases.put(j.entity, fetch)
+						case Some(_) => {
+							logger.debug("Fetch alias " + j.entity + " is ambiguious in query " + q.name + " and therefore can't be used in predicates")
+							fetchAliases -= j.entity
+							duplicateAliases += j.entity
+						}
+					}
+				}
+				if(j.alias != null)
+					fetchAliases.get(j.alias) match {
+						case None => fetchAliases.put(j.alias, fetch)
+						case Some(_) => throw new AmbiguiousJoinAlias(q.name, j.alias)
+					}
+
+				(Some(fetch), relToParent)
+			})
+			logger.debug("Generated fetch tree for " + q.name + ": " + fetchTree)
 
 			/* Check this parameter typing */
 			val thisTypes: List[String] = q.fetch.predicates.map(
