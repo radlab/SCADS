@@ -47,7 +47,7 @@ FETCH user
 	OF subscription BY target
 	OF user me BY following
 WHERE me=[this]
-PAGINATE [2:numperpage] MAX 30
+PAGINATE [1:numperpage] MAX 30
 
 QUERY thoughtstream
 FETCH thought
