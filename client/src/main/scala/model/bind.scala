@@ -81,7 +81,7 @@ object Binder {
 			val parameters = predParameters ++ limitParameters
 
 			/* Ensure any duplicate parameter names are actually the same parameter */
-			if(Set(parameters).size != Set(parameters.map(_.name)).size)
+			if(Set(parameters: _*).size != Set(parameters.map(_.name): _*).size)
 				throw new DuplicateParameterException(q.name)
 
 			/* Ensure that parameter ordinals are contiguious starting at 1 */
