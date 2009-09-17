@@ -11,6 +11,7 @@ case class UnknownEntityException(entityName: String) extends BindingException
 case class DuplicateQueryException(queryName: String) extends BindingException
 case class DuplicateParameterException(queryName: String) extends BindingException
 case class BadParameterOrdinals(queryName:String) extends BindingException
+case class AmbigiousThisParameter(queryName: String) extends BindingException
 
 /* Bound counterparts for some of the AST */
 case class BoundRelationship(target: String, cardinality: Cardinality)
@@ -91,6 +92,22 @@ object Binder {
 					throw new BadParameterOrdinals(q.name)
 				o + 1
 			})
+
+			/* Check this parameter typing */
+			val thisTypes: List[String] = q.fetch.predicates.map(
+				_ match {
+					case EqualityPredicate(Field(null, thisType), ThisParameter) => Array(thisType)
+					case EqualityPredicate(ThisParameter, Field(null, thisType)) => Array(thisType)
+					case _ => Array[String]()
+				}).flatten
+			logger.debug("this types detected for " + q.name + ": " + Set(thisTypes))
+
+			val thisType: Option[String] = Set(thisTypes: _*).size match {
+					case 0 => None
+					case 1 => Some(thisTypes.head)
+					case _ => throw new AmbigiousThisParameter(q.name)
+				}
+			logger.debug("Detected thisType of " + thisType + " for query " + q.name)
 		})
 	}
 
