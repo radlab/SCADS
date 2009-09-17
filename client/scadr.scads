@@ -59,11 +59,13 @@ ORDER BY timestamp
 LIMIT [1:count] MAX 100
 
 QUERY references
-FETCH thought OF user BY references
+FETCH thought
+	OF user BY references
 WHERE user=[this]
 
 QUERY needsApproval
-FETCH user OF subscription BY follows
+FETCH user
+	OF subscription BY target
 WHERE subscription.user = [this] AND subscription.approved = false
 
 QUERY userByName
