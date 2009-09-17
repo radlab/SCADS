@@ -1,10 +1,13 @@
 package edu.berkeley.cs.scads.storage
 
 import edu.berkeley.cs.scads.thrift._
+import org.apache.log4j.Logger
 import com.sleepycat.je.Environment
 import com.sleepycat.je.Database
 
 class StorageProcessor(env: Environment) extends StorageEngine.Iface {
+	val logger = Logger.getLogger("scads.storageprocessor")
+
 	def count_set(ns: String, rs: RecordSet): Int = 0
 
 	def get_set(ns: String, rs: RecordSet): java.util.List[Record] = {
