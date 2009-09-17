@@ -33,7 +33,8 @@ RELATIONSHIP hashtag FROM thought TO 10 topic
 RELATIONSHIP references FROM thought TO 10 user
 
 QUERY myThoughts
-FETCH thought OF user BY owner
+FETCH thought
+	OF user BY owner
 WHERE user=[this]
 PAGINATE [1: numperpage] MAX 10
 
@@ -64,9 +65,9 @@ FETCH thought
 WHERE user=[this]
 
 QUERY needsApproval
-FETCH user
-	OF subscription BY target
-WHERE subscription.user = [this] AND subscription.approved = false
+FETCH subscription
+	OF user BY target
+WHERE user = [this] AND subscription.approved = false
 
 QUERY userByName
 FETCH user
