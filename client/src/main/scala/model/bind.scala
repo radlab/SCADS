@@ -3,7 +3,7 @@ package edu.berkeley.cs.scads.model.parser
 import org.apache.log4j.Logger
 
 /* Exceptions that can occur during binding */
-class BindingException extends Exception
+sealed class BindingException extends Exception
 case class DuplicateEntityException(entityName: String) extends BindingException
 case class DuplicateAttributeException(entityName: String, attributeName: String) extends BindingException
 case class DuplicateRelationException(relationName: String) extends BindingException
