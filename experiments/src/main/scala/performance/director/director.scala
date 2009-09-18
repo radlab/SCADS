@@ -27,7 +27,7 @@ object Director {
 	val databaseUser = "root"
 //	val databaseUser = "director"
 	val databasePassword = ""
-	
+
 	var rnd = new java.util.Random(7)
 	
 	val delay = 20
@@ -164,9 +164,9 @@ object Director {
 		
 		var plotUpdatePeriod = 10
 		var plotCounter = 0
-		
+
 		val stateCreationDurationMultiplier = 0.1
-		
+
 		val startTime = new Date().getTime/(simulationGranularity*1000)*(simulationGranularity*1000)
 		var ranges:List[DirectorKeyRange] = null // use same ranges for whole simulation
 
@@ -184,7 +184,7 @@ object Director {
 		for (w <- workload.workload) { 
 			var timing = new Date
 			var timingString = ""
-			
+
 			logger.info("TIME: "+currentTime)
 			if (ranges == null) ranges = WorkloadHistogram.createEquiWidthRanges(w,w.numberOfActiveUsers*workloadMultiplier,nHistogramBins,maxKey)
 
@@ -218,7 +218,7 @@ object Director {
 				// ask policy for actions
 				val actions = policy.perform(state,pastActions)
 				timingString += "policy: "+(new Date().getTime-timing.getTime)/1000.0+" sec (in model: "+performanceModel.timeInModel/1000.0+" sec)\n"; timing=new Date; performanceModel.resetTimer
-				
+
 				// update config by executing actions on it
 				config = state.config
 				if (actions!=null)
@@ -240,14 +240,14 @@ object Director {
 				
 			} else {
 				if (evaluateAllSteps) {
-					// don't simulate policy, just evaluate the config under the current workload				 
+					// don't simulate policy, just evaluate the config under the current workload
 					// create new state
 					val state = SCADSState.createFromPerfModel(new Date(startTime+currentTime*1000),config,histogramRaw,histogramPrediction,performanceModel,w.duration/1000)
 					logger.info("STATE: \n"+state.toShortString)
 					SCADSState.dumpState(state)
 					costFunction.addState(state)
 					timingString += "state: "+(new Date().getTime-timing.getTime)/1000.0+" sec\n"; timing=new Date
-					
+
 					if (prevTimestep!= -1) Plotting.plotSCADSState(state,prevTimestep,startTime+currentTime*1000,latency90pThr,"state_"+(startTime+currentTime*1000)+".png")
 					prevTimestep = startTime + currentTime*1000
 				}
@@ -260,7 +260,7 @@ object Director {
 				"getHistogramsPrediction" -> Map[DirectorKeyRange,List[String]](getStatsPrediction.toList map {entry => (entry._1, entry._2.toList)} : _*),
 				"putHistogramsRaw" -> Map[DirectorKeyRange,List[String]](putStats.toList map {entry => (entry._1, entry._2.toList)} : _*)
 			),startTime.toString)
-			
+
 			logger.debug("TIMING:\n"+timingString)
 		}
 
@@ -325,7 +325,7 @@ object Director {
 		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
 		config = config.splitAllInHalf.splitAllInHalf.splitAllInHalf
 
-		val performanceModel = LocalL1PerformanceModel(modelfile)		
+		val performanceModel = LocalL1PerformanceModel(modelfile)
 		val policy = new HeuristicOptimizerPolicy(performanceModel,100,100)
 		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
 		val costFunction = FullSLACostFunction(100,100,0.99,1*60*1000,100,1,2*60*1000)
@@ -346,7 +346,7 @@ object Director {
 		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
 		config = config.splitAllInHalf.splitAllInHalf.splitAllInHalf
 
-		val performanceModel = LocalL1PerformanceModel(modelfile)		
+		val performanceModel = LocalL1PerformanceModel(modelfile)
 		val policy = new HeuristicOptimizerPolicy(performanceModel,100,100)
 		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
 		val costFunction = FullSLACostFunction(100,100,0.99,1*60*1000,100,1,2*60*1000)
