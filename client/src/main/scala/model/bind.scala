@@ -1,6 +1,7 @@
 package edu.berkeley.cs.scads.model.parser
 
 import org.apache.log4j.Logger
+import scala.collection.mutable.HashMap
 
 /* Exceptions that can occur during binding */
 sealed class BindingException extends Exception
@@ -22,12 +23,12 @@ case class InconsistentParameterTyping(queryName: String, paramName: String) ext
 
 /* Bound counterparts for some of the AST */
 case class BoundRelationship(target: String, cardinality: Cardinality)
-case class BoundEntity(attributes: scala.collection.mutable.HashMap[String, AttributeType], keys: List[String]) {
-	val relationships = new scala.collection.mutable.HashMap[String, BoundRelationship]()
-	val queries = new scala.collection.mutable.HashMap[String, BoundQuery]()
+case class BoundEntity(attributes: HashMap[String, AttributeType], keys: List[String]) {
+	val relationships = new HashMap[String, BoundRelationship]()
+	val queries = new HashMap[String, BoundQuery]()
 
 	def this(e: Entity) {
-		this(new scala.collection.mutable.HashMap[String, AttributeType](), e.keys)
+		this(new HashMap[String, AttributeType](), e.keys)
 
 		e.attributes.foreach((a) => {
 			attributes.get(a.name) match {
@@ -53,7 +54,7 @@ object Binder {
 
 	def bind(spec: Spec) {
 		/* Bind entities into a map and check for duplicate names */
-		val entityMap = new scala.collection.mutable.HashMap[String, BoundEntity]()
+		val entityMap = new HashMap[String, BoundEntity]()
 		spec.entities.foreach((e) => {
 			entityMap.get(e.name) match
 			{
@@ -75,7 +76,7 @@ object Binder {
 			}
 		})
 
-		val orphanQueryMap = new scala.collection.mutable.HashMap[String, BoundQuery]()
+		val orphanQueryMap = new HashMap[String, BoundQuery]()
 		spec.queries.foreach((q) => {
 			/* Extract all Parameters from Predicates */
 			val predParameters: List[Parameter] =
@@ -109,10 +110,10 @@ object Binder {
 			})
 
 			/* Build the fetch tree and alias map */
-			val fetchAliases = new scala.collection.mutable.HashMap[String, BoundFetch]()
+			val fetchAliases = new HashMap[String, BoundFetch]()
 			val duplicateAliases = new scala.collection.mutable.HashSet[String]()
 
-			val attributeMap = new scala.collection.mutable.HashMap[String, BoundFetch]()
+			val attributeMap = new HashMap[String, BoundFetch]()
 			val duplicateAttributes = new scala.collection.mutable.HashSet[String]()
 
 			val fetchTree: BoundFetch = q.fetch.joins.foldRight[(Option[BoundFetch], Option[String])]((None,None))((j: Join, child: (Option[BoundFetch], Option[String])) => {
@@ -211,7 +212,7 @@ object Binder {
 			}
 
 			/* Helper function for assigning and validating parameter types */
-			val paramTypes = new scala.collection.mutable.HashMap[String, AttributeType]
+			val paramTypes = new HashMap[String, AttributeType]
 			def addAndType(f: Field, v:FixedValue) {
 				val fetch = resolveField(f)
 
