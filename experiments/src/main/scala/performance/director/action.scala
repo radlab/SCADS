@@ -222,7 +222,23 @@ case class SplitFrom(
 	val range:DirectorKeyRange
 ) extends Action("splitfrom("+server+","+range+")") with PlacementManipulation {
 
-	override def execute() {}
+	override def execute() {
+		logger.debug("Getting new storage server")
+		val new_guys = Director.serverManager.getServers(1)
+		if (new_guys.isEmpty) { logger.warn("Split failed: no available servers"); return }
+		val new_guy = new_guys(0)
+
+		// determine current range and split-point to give new server
+		//val bounds = getNodeRange(server)
+		val start = range.minKey
+		val end = range.maxKey
+
+		// do the move and update local list of servers
+		logger.info("Moving "+start+" - "+end+" from "+server+" to "+ new_guy)
+		move(server,new_guy,start,end)
+		logger.debug("Sleeping")
+		Thread.sleep(60*1000) // wait minute
+	}
 	override def preview(config:SCADSconfig):SCADSconfig = {
 		val bounds = config.storageNodes(server)
 		var nodeConfig = config.storageNodes - server // make copy of previous node arrangment, removing the obsolete entry
@@ -238,6 +254,41 @@ case class SplitFrom(
 		SCADSconfig(nodeConfig)
 	}
 	def participants = Set[String](server)
+	override def toString:String = actionShortName
+}
+
+case class ShiftBoundary(
+	val server_left:String,
+	val server_right:String,
+	val boundary_new:Int
+) extends Action("shiftboundary("+server_left+","+server_right+","+boundary_new+")") with PlacementManipulation {
+	override def execute() {
+		val right_bounds = getNodeRange(server_right)
+
+		// figure out if left <- right or left -> right
+		if (right_bounds._1 < boundary_new) {
+			logger.info("Moving "+right_bounds._1+" - "+boundary_new+" from "+server_right+" to "+ server_left)
+			move(server_right,server_left,right_bounds._1,boundary_new)
+		}
+		else if (boundary_new < right_bounds._1) {
+			logger.info("Moving "+boundary_new+" - "+right_bounds._1+" from "+server_left+" to "+ server_right)
+			move(server_left,server_right,boundary_new,right_bounds._1)
+		}
+		else logger.warn("new boundary isn't different than current one! taking no action")
+		logger.debug("Sleeping")
+		Thread.sleep(60*1000) // wait minute
+	}
+	override def preview(config:SCADSconfig): SCADSconfig = {
+		val right_bounds = config.storageNodes(server_right)
+		val left_bounds = config.storageNodes(server_left)
+		var nodeConfig = (config.storageNodes - server_left) - server_right
+
+		nodeConfig = nodeConfig.update(server_right, new DirectorKeyRange(boundary_new,right_bounds.maxKey))
+		nodeConfig = nodeConfig.update(server_left, new DirectorKeyRange(left_bounds.minKey,boundary_new))
+
+		SCADSconfig(nodeConfig)
+	}
+	def participants = Set[String](server_left,server_right)
 	override def toString:String = actionShortName
 }
 
@@ -316,15 +367,29 @@ case class Replicate(
 }
 
 /**
-* First move specified range from the server to a new server,
-* then replicate that new server the specified number of times
+* Get num new servers, then copy to them the specified range from the given server
 */
 case class ReplicateFrom(
 	val server:String,
 	val range:DirectorKeyRange,
 	val num:Int
 ) extends Action("replicatefrom("+server+","+range+","+num+")") with PlacementManipulation {
-	override def execute() {}
+	override def execute() {
+		val start = range.minKey
+		val end = range.maxKey
+
+		logger.debug("Getting "+num+" new storage server(s)")
+		val new_guys = Director.serverManager.getServers(num)
+		if (new_guys.isEmpty) { logger.warn("Replication failed: no available servers"); return }
+
+		// do the copy and update local list of servers (serially)
+		new_guys.foreach((new_guy)=> {
+			logger.info("Copying "+start+" - "+end+" from "+server+" to "+ new_guy)
+			copy(server,new_guy,start, end)
+		})
+		logger.debug("Sleeping")
+		Thread.sleep(60*1000) // wait minute
+	}
 	override def preview(config:SCADSconfig):SCADSconfig = {
 		val bounds = config.storageNodes(server)
 		var nodeConfig = config.storageNodes// - server
@@ -350,7 +415,17 @@ case class ReplicateFrom(
 case class Remove(
 	val servers:List[String]
 ) extends Action("remove("+servers.mkString(",")+")") with PlacementManipulation {
-	override def execute() {}
+	override def execute() {
+		// remove servers serially
+		servers.foreach((server)=>{
+			logger.debug("Removing from placement: "+ server)
+			remove(server)
+			logger.debug("Releasing server "+ server)
+			Director.serverManager.releaseServer(server)
+		})
+		logger.debug("Sleeping")
+		Thread.sleep(60*1000) // wait minute
+	}
 	override def preview(config:SCADSconfig):SCADSconfig = {
 		SCADSconfig(config.storageNodes -- servers)
 	}
@@ -362,7 +437,16 @@ case class RemoveFrom(
 	val servers:List[String],
 	val range:DirectorKeyRange
 ) extends Action("removefrom("+servers.mkString(",")+","+range+")") with PlacementManipulation {
-	override def execute() {}
+	override def execute() {
+		val start = range.minKey
+		val end = range.maxKey
+
+		// do the removal (serially) and update local list of servers
+		logger.info("Removing "+start+" - "+end+" from "+servers.mkString(","))
+		servers.foreach((server)=> removeData(server,start,end) )
+		logger.debug("Sleeping")
+		Thread.sleep(60*1000) // wait minute
+	}
 	override def preview(config:SCADSconfig):SCADSconfig = {
 		val bounds = config.storageNodes(servers.first) // they should all be replicas
 		var nodeConfig = config.storageNodes -- servers
@@ -419,6 +503,14 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		val dpclient = Scads.getDataPlacementHandle(placement_host,xtrace_on)
 		val bounds = getNodeRange(host)
 		val range = new KeyRange(new StringKey(Scads.keyFormat.format(bounds._1)), new StringKey(Scads.keyFormat.format(bounds._2)) )
+		val list = new java.util.LinkedList[DataPlacement]()
+		list.add(new DataPlacement(host,Scads.server_port,Scads.server_sync,range))
+		dpclient.remove(namespace,list)
+	}
+	protected def removeData(host:String,startKey:Int,endKey:Int) = {
+		if (placement_host == null) init
+		val dpclient = Scads.getDataPlacementHandle(placement_host,xtrace_on)
+		val range = new KeyRange(new StringKey(Scads.keyFormat.format(startKey)), new StringKey(Scads.keyFormat.format(endKey)) )
 		val list = new java.util.LinkedList[DataPlacement]()
 		list.add(new DataPlacement(host,Scads.server_port,Scads.server_sync,range))
 		dpclient.remove(namespace,list)
