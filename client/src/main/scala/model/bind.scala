@@ -76,6 +76,7 @@ object Binder {
 			}
 		})
 
+		/* Process all the queries and place them either in the orphan map, or the BoundEntity they belong to*/
 		val orphanQueryMap = new HashMap[String, BoundQuery]()
 		spec.queries.foreach((q) => {
 			/* Extract all Parameters from Predicates */
@@ -118,10 +119,14 @@ object Binder {
 
 			val fetchTree: BoundFetch = q.fetch.joins.foldRight[(Option[BoundFetch], Option[String])]((None,None))((j: Join, child: (Option[BoundFetch], Option[String])) => {
 				logger.debug("Looking for relationship " + child._2 + " in " + j + " with child " + child._1)
+
+				/* Resolve the entity for this fetch */
 				val entity = entityMap.get(j.entity) match {
 					case Some(e) => e
 					case None => throw new UnknownEntityException(j.entity)
 				}
+
+				/* Optionally resolve the relationship to the child */
 				val relationship: Option[BoundRelationship] = child._2 match {
 					case None => None
 					case Some(relName) => entity.relationships.get(relName) match {
@@ -130,12 +135,16 @@ object Binder {
 					}
 				}
 
+				/* Create the BoundFetch */
 				val fetch = new BoundFetch(entity, child._1, relationship)
+
+				/* Convert the relationship to an option for passing the parent */
 				val relToParent = if(j.relationship == null)
 					None
 				else
 					Some(j.relationship)
 
+				/* Build lookup tables for fetch aliases and unambiguious attributes */
 				if(!duplicateAliases.contains(j.entity)) {
 					fetchAliases.get(j.entity) match {
 						case None => fetchAliases.put(j.entity, fetch)
@@ -164,6 +173,7 @@ object Binder {
 						}
 				})
 
+				/* Pass result to our parent */
 				(Some(fetch), relToParent)
 			})._1.get
 			logger.debug("Generated fetch tree for " + q.name + ": " + fetchTree)
