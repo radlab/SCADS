@@ -39,7 +39,7 @@ case class BoundEntity(attributes: HashMap[String, AttributeType], keys: List[St
 	}
 }
 
-case class BoundQuery
+case class BoundQuery(fetchTree: BoundFetch)
 
 abstract class BoundPredicate
 object BoundThisEqualityPredicate extends BoundPredicate
@@ -48,11 +48,12 @@ case class BoundEqualityPredicate(attributeName: String, value: FixedValue) exte
 case class BoundFetch(entity: BoundEntity, child: Option[BoundFetch], relation: Option[BoundRelationship]) {
 	val predicates = new scala.collection.mutable.ArrayBuffer[BoundPredicate]
 }
+case class BoundSpec(entities: HashMap[String, BoundEntity], orphanQueries: HashMap[String, BoundQuery])
 
 object Binder {
 	val logger = Logger.getLogger("scads.binding")
 
-	def bind(spec: Spec) {
+	def bind(spec: Spec):BoundSpec = {
 		/* Bind entities into a map and check for duplicate names */
 		val entityMap = new HashMap[String, BoundEntity]()
 		spec.entities.foreach((e) => {
@@ -242,7 +243,21 @@ object Binder {
 				case EqualityPredicate(v :FixedValue, f: Field) => addAndType(f,v)
 				case usp: Predicate => throw UnsupportedPredicateException(q.name, usp)
 			})
+			/* Build the final bound query */
+			val boundQuery = BoundQuery(fetchTree)
+
+			/* Place bound query either in its entity or as an orphan */
+			val placement: HashMap[String, BoundQuery] = thisType match {
+				case None => orphanQueryMap
+				case Some(parentFetchName) => resolveFetch(parentFetchName).entity.queries
+			}
+			placement.get(q.name) match {
+				case None => placement.put(q.name, boundQuery)
+				case Some(_) => throw DuplicateQueryException(q.name)
+			}
 		})
+
+		return BoundSpec(entityMap, orphanQueryMap)
 	}
 
 }
