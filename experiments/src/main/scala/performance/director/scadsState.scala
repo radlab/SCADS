@@ -404,6 +404,33 @@ object WorkloadHistogram {
 		println("Histogram has ranges: \n"+ranges.sort(_.minKey<_.minKey).mkString("",",",""))
 		ranges
 	}
+	def createEquiDepthRanges(interval:WorkloadIntervalDescription, rate:Double, nBins:Int, maxKey:Int):List[DirectorKeyRange] = {
+		val minKey = 0
+		val requests = generateRequests(interval,rate,maxKey)
+		val load_per_bin = requests.size/nBins
+		// count how many requests for each key
+		val keycounts = scala.collection.mutable.Map[Int,Int]()
+		for (r <- requests) {
+			val key = r match{
+							case g:SCADSGetRequest => g.key.toInt
+							case p:SCADSPutRequest => p.key.toInt
+							case _ => -1 }
+			if (keycounts.contains(key)) keycounts(key) +=1
+			else keycounts(key) = 1
+		}
+		val boundaries = new scala.collection.mutable.ListBuffer[Int]()
+		boundaries += minKey; boundaries += maxKey
+		var count = 0
+		keycounts.toList.filter(_._1 >= 0).sort(_._1 < _._1).foreach((entry)=>{
+			count += entry._2
+			if (count >= load_per_bin) { boundaries += entry._1; count = 0 }
+		})
+		val boundList = boundaries.toList.sort(_<_)
+		val ranges = boundList.take(nBins).zip(boundList.tail).map(b=>new DirectorKeyRange(b._1,b._2))
+		println("Histogram has ranges: \n"+ranges.sort(_.minKey<_.minKey).mkString("",",",""))
+		ranges.toList
+	}
+
 	def createFromRanges(ranges:Array[DirectorKeyRange],interval:WorkloadIntervalDescription, rate:Double, nBins:Int):WorkloadHistogram = {
 		var t0,t1:Long = 0
 		var T = scala.collection.mutable.Map[String,Long]("init"->0,"L1"->0,"L2"->0,"L3"->0,"L4"->0,"L5"->0,"XE"->0)
