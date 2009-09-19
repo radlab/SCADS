@@ -12,7 +12,7 @@
  */
 
 /*
- * User Entity: 
+ * User Entity:
  * This represents a user in the system
  */
 ENTITY user
@@ -27,10 +27,10 @@ ENTITY user
 }
 
 /*
- * Profile Entity: 
+ * Profile Entity:
  * This represents a limited user profile in the system
  * Note that this is limited in that, every time a new profile
- * attribute needs to be added, a column needs to be created, 
+ * attribute needs to be added, a column needs to be created,
  * in addition to not allowing any lists of data (all key-value
  * pairs must have scalar values).
  */
@@ -48,7 +48,7 @@ ENTITY profile
 
 
 /*
- * Network Entity: 
+ * Network Entity:
  * This represents a network that users can belong to
  * For now, the type is represented as an integer (mapping
  * to be stored elsewhere).
@@ -84,9 +84,9 @@ ENTITY group
 }
 
 /* Poke Entity:
- * Pokes don't really need any additional metadata 
+ * Pokes don't really need any additional metadata
  * i.e., I don't realy care when you poked me, but
- * with the current SCADS model, I believe this is 
+ * with the current SCADS model, I believe this is
  * necessary
  */
 ENTITY poke
@@ -109,7 +109,7 @@ RELATIONSHIP wallpostsToUser FROM wallpost TO MANY user
 
 /* A user can have up to 5000 friends */
 /* NOTE: We make the assumption that friendships will be maintained
- * bi-directionally in the application logic 
+ * bi-directionally in the application logic
  */
 RELATIONSHIP friendships FROM user TO 5000 friendship
 RELATIONSHIP target FROM friendship TO ONE user
@@ -130,7 +130,7 @@ RELATIONSHIP poketarget FROM poke TO ONE user
  * NOTE:
  * The wallposts/friendships/and pokes concepts all have the same
  * basic model.
- * QUESTION: Is it possible to do these many-to-many models without 
+ * QUESTION: Is it possible to do these many-to-many models without
  *  creating an intermediate entity (represented by X above)? I don't
  *  expect so, because in a traditional RDBMS, you would have to do the
  *  same thing anyways, even if you wanted to store no metadata, you
@@ -144,7 +144,7 @@ WHERE user=[this]
 ORDER BY type
 
 QUERY postsOnMyWall
-FETCH wallpost 
+FETCH wallpost
     OF user me BY wallpostsToUser
 WHERE me=[this]
 ORDER BY dateposted
@@ -162,11 +162,11 @@ QUERY myPostsOnUserWall
 FETCH wallpost
     OF user me BY wallPostsFromUser
     OF user other BY wallPostsToUser
-WHERE 
+WHERE
     me.id = [1:myid] AND other.id = [2:otherid]
 
-/* NOTE: We use the assumption that all approved friendships are 
- * bi-directional, ie if you are my friend then I am your friend 
+/* NOTE: We use the assumption that all approved friendships are
+ * bi-directional, ie if you are my friend then I am your friend
  */
 QUERY myFriends
 FETCH user
@@ -175,13 +175,13 @@ FETCH user
 WHERE me=[this] AND friendship.approved = true
 
 QUERY myFriendsInNetwork
-FETCH user 
+FETCH user
     OF friendship BY target
     OF user me BY friendships
     OF network nw BY networks
-WHERE 
-    me=[this] AND 
-    nw=[1:network] AND 
+WHERE
+    me=[this] AND
+    nw=[1:network] AND
     friendship.approved = true
 
 QUERY pendingFriendRequests
@@ -210,11 +210,11 @@ FETCH user
     OF user me BY poketarget
 WHERE me=[this] AND poke.hidden = false
 
-/* 
- * Missing Queries 
+/*
+ * Missing Queries
  */
 // 1) Friend's birthdays for today
-// Need range predicates (ie date <= [time]) to do this, since we 
+// Need range predicates (ie date <= [time]) to do this, since we
 // are using ints to store dates
 
 // 2) Friend count
