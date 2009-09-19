@@ -1,37 +1,10 @@
 package edu.berkeley.cs.scads.model.parser
 
-abstract class Generator {
-	val indentChar = " "
-
-	class Indentation {
-		var count = 0
-	}
-
-	def apply(elm: Tree): String = {
-		implicit val indnt = new Indentation
-		implicit val sb = new StringBuilder
-		generate(elm)
-
-		sb.toString
-	}
-
-	def indent(func: => Unit)(implicit sb: StringBuilder, indnt: Indentation): Unit = {
-		indnt.count += 1
-		func
-		indnt.count -= 1
-	}
-
-	def output(parts: String*)(implicit sb: StringBuilder, indnt: Indentation):Unit = {
-		(0 to indnt.count).foreach((i) => sb.append(indentChar))
-		parts.foreach(sb.append(_))
-		sb.append("\n")
-	}
-
-	def generate(elm: Tree)(implicit sb: StringBuilder, indnt: Indentation): Unit
-}
-
-object Printer extends Generator {
-	def generate(elm: Tree)(implicit sb: StringBuilder, indnt: Indentation) = {
+/**
+ * Simple printer that takes in the AST and prints it in a human readable format.
+ */
+object Printer extends Generator[Tree] {
+	protected def generate(elm: Tree)(implicit sb: StringBuilder, indnt: Indentation):Unit = {
 		elm match {
 			case s: Spec => {
 				output("SCADS SPEC:")
