@@ -174,6 +174,7 @@ FETCH user
     OF user me BY friendships
 WHERE me=[this] AND friendship.approved = true
 
+/* I don't think the query is doing what we want
 QUERY myFriendsInNetwork
 FETCH user
     OF friendship BY target
@@ -183,6 +184,7 @@ WHERE
     me=[this] AND
     nw=[1:network] AND
     friendship.approved = true
+*/
 
 QUERY pendingFriendRequests
 FETCH user
