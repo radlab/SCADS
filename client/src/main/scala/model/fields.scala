@@ -153,6 +153,33 @@ class IntegerField extends ValueHoldingField[Int] with SerializeAsKey {
 }
 
 /**
+ * Field type for storing boolean values
+ * They are serialized as "1" (true) and "0" (false)
+ **/
+class BooleanField extends ValueHoldingField[Boolean] with SerializeAsKey {
+	var value = false
+
+	def serializeKey(): String =
+		if(value)
+			"1"
+		else
+			"0"
+	def deserializeKey(data: String, pos: ParsePosition): Unit = {
+		if(data(pos.getIndex) equals "1")
+			value = true
+		else if(data(pos.getIndex) equals "0")
+			value = false
+		else
+			throw new DeserializationException(data, pos)
+
+		pos.setIndex(pos.getIndex + 1)
+	}
+
+	def duplicate() = (new BooleanField)(value)
+}
+
+
+/**
  * A class for creating a key that is a composite of two other field types.
  * TODO: Handle 3,4,5 etc length keys, either with more classes or something more elegant.
  */
