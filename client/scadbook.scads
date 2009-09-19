@@ -56,7 +56,7 @@ ENTITY profile
 ENTITY network
 {
     int    id,
-    int    type, /* regional, high school, college */
+    int    networkType, /* regional, high school, college */
     string name
     PRIMARY(id)
 }
@@ -78,7 +78,7 @@ ENTITY friendship
 ENTITY group
 {
     int    id,
-    int    type, /* enum for now */
+    int    groupType, /* enum for now */
     string name
     PRIMARY(id)
 }
