@@ -4,6 +4,8 @@ import java.text.ParsePosition
 import java.util.regex.Pattern
 import org.apache.log4j.Logger
 
+case class DeserializationException(data: String, pos: ParsePosition) extends Exception
+
 /**
  * The base abstract class for defining types of datat that can be stored in SCADS as either attributes or keys.
  */
