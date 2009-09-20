@@ -34,8 +34,13 @@
 		</dependency>
 		<dependency>
 			<groupId>org.scala-tools.testing</groupId>
-			<artifactId>scalatest</artifactId>
-			<version>0.9.5</version>
+			<artifactId>specs</artifactId>
+			<version>1.6.0</version> <!-- specify the version here -->
+		</dependency>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.7</version>
 		</dependency>
 		<dependency>
 			<groupId>org.scala-lang</groupId>
