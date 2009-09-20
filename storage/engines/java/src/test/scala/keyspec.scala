@@ -15,8 +15,26 @@ abstract class KeyStoreSpec extends Specification("KeyStore Specification") {
 	"a keystore" should {
 		"persist values" in {
 			val rec = new Record("key", "value")
-			ks.put("persistTest", rec)
+			ks.put("persistTest", rec) must_== true
 			ks.get("persistTest", "key") must_== rec
+		}
+
+		"handle updates" in {
+			val rec1 = new Record("key", "value1")
+			val rec2 = new Record("key", "value2")
+
+			ks.put("updateTest", rec1) must_== true
+			ks.put("updateTest", rec2) must_== true
+			ks.get("updateTest", "key") must_== rec2
+		}
+
+		"delete keys for null values" in {
+			val rec = new Record("key", "value")
+			val delRec = new Record("key", null)
+
+			ks.put("nullVal", rec) must_== true
+			ks.put("nullVal", delRec) must_== true
+			ks.get("nullVal", "key") must_== delRec
 		}
 	}
 }
