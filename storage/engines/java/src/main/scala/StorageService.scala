@@ -2,8 +2,8 @@ package edu.berkeley.cs.scads.storage
 
 import edu.berkeley.cs.scads.thrift._
 import org.apache.log4j.Logger
-import com.sleepycat.je.Environment
-import com.sleepycat.je.Database
+import com.sleepycat.je.{Database, DatabaseConfig, DatabaseEntry, Environment, LockMode}
+
 
 class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 	val logger = Logger.getLogger("scads.storageprocessor")
@@ -15,10 +15,20 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 	}
 
 	def get(ns: String, key: String): Record = {
-		null
+		val db = getDatabase(ns)
+		val dbeKey = new DatabaseEntry(key.getBytes)
+		val dbeValue = new DatabaseEntry()
+		db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
+
+		new Record(key, new String(dbeValue.getData))
 	}
 
 	def put(ns: String, rec: Record): Boolean = {
+		val db = getDatabase(ns)
+		val key = new DatabaseEntry(rec.key.getBytes)
+		val value = new DatabaseEntry(rec.value.getBytes)
+
+		db.put(null, key, value)
 		true
 	}
 
@@ -47,6 +57,8 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 	}
 
 	private def getDatabase(name: String): Database = {
-		env.openDatabase(null, name, null)
+		val dbConfig = new DatabaseConfig()
+		dbConfig.setAllowCreate(true)
+		env.openDatabase(null, name, dbConfig)
 	}
 }
