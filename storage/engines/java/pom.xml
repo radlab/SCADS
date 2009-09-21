@@ -35,12 +35,14 @@
 		<dependency>
 			<groupId>org.scala-tools.testing</groupId>
 			<artifactId>specs</artifactId>
-			<version>1.6.0</version> <!-- specify the version here -->
+			<version>1.6.0</version>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
 			<version>4.7</version>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.scala-lang</groupId>
@@ -59,6 +61,14 @@
 		</testResources>
 		<pluginManagement>
 			<plugins>
+				<plugin>
+					<artifactId>maven-assembly-plugin</artifactId>
+					<configuration>
+					  <descriptorRefs>
+					    <descriptorRef>jar-with-dependencies</descriptorRef>
+					  </descriptorRefs>
+					</configuration>
+				</plugin>
 				<plugin>
 					<groupId>org.scala-tools</groupId>
 					<artifactId>maven-scala-plugin</artifactId>

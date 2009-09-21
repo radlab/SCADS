@@ -7,6 +7,7 @@ import com.sleepycat.je.{Database, DatabaseConfig, DatabaseEntry, Environment, L
 
 class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 	val logger = Logger.getLogger("scads.storageprocessor")
+	val dbCache = new scala.collection.mutable.HashMap[String, Database]
 
 	def count_set(ns: String, rs: RecordSet): Int = 0
 
@@ -57,8 +58,15 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 	}
 
 	private def getDatabase(name: String): Database = {
-		val dbConfig = new DatabaseConfig()
-		dbConfig.setAllowCreate(true)
-		env.openDatabase(null, name, dbConfig)
+		dbCache.get(name) match {
+			case Some(db) => db
+			case None => {
+				val dbConfig = new DatabaseConfig()
+				dbConfig.setAllowCreate(true)
+				val db = env.openDatabase(null, name, dbConfig)
+				dbCache.put(name,db)
+				db
+			}
+		}
 	}
 }
