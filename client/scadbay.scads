@@ -1,0 +1,249 @@
+/**
+ * Scadbay SCADS definition file
+ * Author : Stephen Tu
+ * Date   : 9-17-09
+ */
+
+/* NOTE: long comments are broken up un-naturally because the scala
+ * parser cannot handle very long comments for now without overflowing
+ * the stack (perhaps we need to increase stack size) */
+
+/* -------- BEGIN ENTITY TYPES --------- */
+
+ENTITY user
+{
+    int    id,
+    string email,
+    string password,
+    string nickname,
+    int    datejoined,
+    bool   active
+    PRIMARY(id)
+}
+
+ENTITY item
+{
+    int    id,
+    int    dateposted, /* unix timestamp */
+    int    duration,   /* seconds */
+    bool   isFinished, /* NOTE: normally this field isn't even needed,
+                        * but the problem is, since we don't have any
+                        * addition operator nor any comparsions,
+                        * let's just have the application logic magically
+                        * "handle" this for now so we can write some 
+                        * queries! */ 
+    string title, 
+    int    startingprice,
+    int    minimumbetraise,
+    int    instantbuyprice, 
+    string pictureurl,
+    string description,
+    string shortdesc
+    PRIMARY(id)
+}
+
+ENTITY autobid
+{
+    int id,
+    int maxamount
+    PRIMARY(id)
+}
+
+ENTITY brand
+{
+    int    id,
+    string name
+    PRIMARY(id)
+}
+
+
+ENTITY category
+{
+    int    id,
+    string title, 
+             /* NOTE: this field breaks data normalization (since 
+              * types are really determined by where they are
+              * referenced in the various category relation tables!
+              * But it's the only way to do this for now, since
+              * we cannot say things like: */
+             /* "get me all the categories that do not appear in this set" 
+              */
+    int    cattype 
+    PRIMARY(id)
+}
+
+ENTITY bid
+{
+    int id,
+    int bidamount,
+    int bidtime /* the timestamp of when the bid was placed */
+    PRIMARY(id)
+}
+
+ENTITY comment 
+{
+    int    id,
+    int    rating, /* 1,2,3,4, or 5 stars */
+    int    dateposted,
+    bool   wouldrecommend,
+    string comment,
+    int    commenttype /* 1:from buyer to seller, 2:from seller to buyer */
+    PRIMARY(id)
+}
+
+/* -------- BEGIN RELATIONSHIPS --------- */
+
+RELATIONSHIP myItemsSelling FROM user TO 1000 item
+RELATIONSHIP myItemsWatching FROM user TO 1000 item
+
+RELATIONSHIP myBids FROM user TO 10000 bid
+
+/* As a Buyer/Seller, I can leave up to 10000 total comments 
+ * to Sellers/Buyers */
+RELATIONSHIP commentsFromUser FROM user TO 10000 comment
+RELATIONSHIP commentsToUser FROM comment TO 10000 user /* TO ONE or TO N? */
+
+RELATIONSHIP commentToItem FROM comment TO ONE item
+
+RELATIONSHIP itemBrand FROM item TO ONE brand
+RELATIONSHIP itemCategories FROM item TO 10 category
+RELATIONSHIP itemBids FROM item TO 1000 bid
+
+/* I can have up to 100 autobidders doing my bidding, but
+ * each autobidder must only map to one item */
+RELATIONSHIP myAutoBids FROM user TO 100 autobid
+RELATIONSHIP autobidToItem FROM autobid TO ONE item
+
+/* 
+ * We impose a simple category hierarchy to be able to write queries.
+ * There are going to be three different kinds of categories:
+  A) regular category: these map to actual items via itemCategories
+ * B) subparent category: each subparent can have many regular categories
+ * C) parent category: each parent category can have many subparent
+ *    categories
+ */
+/* Why do we enforce this constraint? Well, we want to be able to have
+ * subcategories, because parent categories is too broad. However,
+ * we cannot simply support arbitrary hierarchy levels, since that
+ * would involve creating an arbitrary height tree across tables,
+ * which I hear is bad practice (not very fast, requires lots of queries).
+ */
+/* At least in this setup, the heigh of each tree is 3 (constant) */
+/* Furthermore, using some sort of DFS pre/post order numbering scheme
+ * (which is the correct solution to this problem) requires 
+ * comparing numbers and is messy to implement.
+ * So use this solution for now!
+ */
+RELATIONSHIP parentToSubCategories FROM category TO 500 category
+RELATIONSHIP subToRegCategories FROM category TO 500 category
+
+/* -------- BEGIN QUERIES --------- */
+
+/* items I am currently selling */
+QUERY myActiveSellingItems
+FETCH item
+    OF user me BY myItemsSelling
+WHERE me=[this] AND item.isFinished = false
+ORDER BY dateposted
+PAGINATE [1:numperpage] MAX 50
+
+/* items I am currently bidding on */
+QUERY myActiveBiddingItems
+FETCH item
+    OF bid BY itemBids
+    OF user BY myBids
+WHERE user=[this] AND item.isFinished = false
+ORDER BY dateposted
+LIMIT [1:count] MAX 100
+
+/* As a seller, the comments that my buyers have left for me */
+QUERY myCommentsAsSeller
+FETCH comment
+    OF user BY commentsToUser
+WHERE user=[this]
+AND comment.commenttype = 1 /* 1: from buyer to seller */
+ORDER BY dateposted
+
+/* As a buyer, the comments that my sellers have left for me */
+QUERY myCommentsAsBuyer
+FETCH comment
+    OF user BY commentsToUser
+WHERE user=[this]
+AND comment.commenttype = 2 /* 1: from buyer to seller */
+ORDER BY dateposted
+
+/* All the comments I have left for my buyers/sellers */
+QUERY myPostedComments
+FETCH comment
+    OF user BY commentsFromUser
+WHERE user=[this]
+ORDER BY dateposted
+
+/* Autobidders of an item 
+ * This might be useful for a daemon process that does auto-bidding */
+QUERY itemAutoBidders
+FETCH autobid
+    OF item BY autobidToItem
+WHERE item=[this]
+
+/* all active items under a certain parent category (by title) */
+QUERY activeItemsByParentCategory
+FETCH item
+    OF category regular BY itemCategories
+    OF category sub BY subToRegCategories 
+    OF category parent BY parentToSubCategories
+WHERE parent.title=[1:category] AND
+item.isFinished = false
+ORDER BY dateposted 
+
+/* all active items under a certain sub-parent category (by title) */
+QUERY activeItemsBySubParentCategory
+FETCH item
+    OF category regular BY itemCategories
+    OF category sub BY subToRegCategories 
+WHERE sub.title=[1:category] AND
+item.isFinished = false
+ORDER BY dateposted 
+
+/* all active items under a certain regular category (by title) */
+QUERY activeItemsByRegularCategory
+FETCH item
+    OF category regular BY itemCategories
+WHERE regular.title=[1:category] AND
+item.isFinished = false
+ORDER BY dateposted 
+
+/* all top-level parent categories */
+QUERY allParentCategories
+FETCH category
+WHERE category.cattype = 1
+ORDER BY category.title
+
+/* items in a particular brand (by brand name) */
+QUERY allBrandItems
+FETCH item
+    OF brand BY itemBrand
+WHERE brand.name=[1:brandname]
+ORDER BY dateposted
+
+/* top bid on item (current price of an item)
+ * Techically, this is the lowestItemBid, but pretend we had a DESC
+ * ORDER BY predicate option (that is, assuming ORDER BY was ascending
+ * by default) */
+QUERY topItemBid
+FETCH bid
+    OF item BY itemBids
+WHERE item=[this]
+ORDER BY dateposted // pretend we had a DESC here!
+LIMIT 1 MAX 100 // what does the MAX in a LIMIT do? I always want 1 result!
+
+
+/* Queries that need other features to do:
+ 1) the average rating of a seller
+ 2) the number of ratings of a seller
+ 3) the highest rated seller
+ 4) my bids in the last 5 days
+ 5) items that are closing in the next N minutes
+ 6) the category of items I have the most bids in
+ 7) average number of times I bid on items
+ */
