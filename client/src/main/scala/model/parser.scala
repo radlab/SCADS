@@ -9,7 +9,7 @@ class ScadsLanguage extends StdTokenParsers with ImplicitConversions {
 	type Tokens = Lexer
   	val lexical = new Lexer
 
-	lexical.reserved ++= List("ENTITY", "PRIMARY", "RELATIONSHIP", "FROM", "TO", "ONE", "MANY", "QUERY", "FETCH", "OF", "BY", "WHERE", "AND", "OR", "ORDER", "BY", "LIMIT", "MAX", "PAGINATE", "UNION", "this", "string", "int", "bool", "true", "false")
+	lexical.reserved ++= List("ENTITY", "PRIMARY", "RELATIONSHIP", "FROM", "TO", "ONE", "MANY", "QUERY", "FETCH", "OF", "BY", "WHERE", "AND", "OR", "ORDER", "BY", "ASC", "DESC", "LIMIT", "MAX", "PAGINATE", "UNION", "this", "string", "int", "bool", "true", "false")
  	lexical.delimiters ++= List("{", "}", "[", "]", "<", ">", "(", ")", ",", ":", ";", "=", ".")
 
 	def intLiteral: Parser[Int] =
@@ -76,9 +76,14 @@ class ScadsLanguage extends StdTokenParsers with ImplicitConversions {
 	def conjunction: Parser[List[Predicate]] = repsep(predicate, "AND")
 	def disjunction: Parser[List[List[Predicate]]] = repsep(conjunction, "OR")
 
-	def ordering: Parser[Order] = opt("ORDER" ~> "BY" ~> repsep(field, ",")) ^^
+	def direction: Parser[Direction] = (
+			"ASC" ^^ ((_) => Ascending)
+		|	"DESC" ^^ ((_) => Descending))
+
+	def ordering: Parser[Order] = opt("ORDER" ~> "BY" ~> repsep(field, ",") ~ opt(direction)) ^^
 		{
-			case Some(fields) => new OrderedByField(fields)
+			case Some(fields ~ None) => new OrderedByField(fields, Ascending)
+			case Some(fields ~ Some(dir)) => new OrderedByField(fields, dir)
 			case None => Unordered
 		}
 

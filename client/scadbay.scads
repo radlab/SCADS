@@ -234,7 +234,7 @@ QUERY topItemBid
 FETCH bid
     OF item BY itemBids
 WHERE item=[this]
-ORDER BY dateposted // pretend we had a DESC here!
+ORDER BY dateposted DESC
 LIMIT 1 MAX 100 // what does the MAX in a LIMIT do? I always want 1 result!
 
 

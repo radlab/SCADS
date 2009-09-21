@@ -54,7 +54,11 @@ object Unlimited extends Range
 
 abstract class Order extends Tree
 object Unordered extends Order
-case class OrderedByField(fields: List[Field]) extends Order
+case class OrderedByField(fields: List[Field], direction: Direction) extends Order
+
+abstract class Direction extends Tree
+object Ascending extends Direction
+object Descending extends Direction
 
 /* SCADS Spec */
 case class Spec(entities: List[Entity], relationships: List[Relationship], queries: List[Query]) extends Tree
