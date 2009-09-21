@@ -36,6 +36,37 @@ abstract class KeyStoreSpec extends Specification("KeyStore Specification") {
 			ks.put("nullVal", delRec) must_== true
 			ks.get("nullVal", "key") must_== delRec
 		}
+
+		"store empty strings" in {
+			val rec = new Record("key", "")
+			ks.put("emptyString", rec) must_== true
+			ks.get("emptyString", "key") must_== rec
+		}
+
+		"test and set sucessfully with null values" in {
+			val ev = new ExistingValue("n",0)
+			ev.unsetValue()
+			ev.unsetPrefix()
+			val rec = new Record("tasnull","tasnull")
+			ks.test_and_set("tasn",rec,ev) must_== true
+		}
+
+		"test and set failure with null values in" {
+			val ev = new ExistingValue("n",0)
+			ev.unsetValue()
+			ev.unsetPrefix()
+			val rec = new Record("tasnullf","tasnullf")
+			ks.put("tasnf",rec)
+
+			try {
+				ks.test_and_set("tasnf",rec,ev)
+				fail("Exception not throw when test/set")
+			}
+			catch {
+				case tsf: TestAndSetFailure => tsf.currentValue must_== "tasnullf"
+			}
+			0
+		}
 	}
 }
 
