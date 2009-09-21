@@ -30,12 +30,12 @@ ENTITY item
                         * but the problem is, since we don't have any
                         * addition operator nor any comparsions,
                         * let's just have the application logic magically
-                        * "handle" this for now so we can write some 
-                        * queries! */ 
-    string title, 
+                        * "handle" this for now so we can write some
+                        * queries! */
+    string title,
     int    startingprice,
     int    minimumbetraise,
-    int    instantbuyprice, 
+    int    instantbuyprice,
     string pictureurl,
     string description,
     string shortdesc
@@ -60,15 +60,15 @@ ENTITY brand
 ENTITY category
 {
     int    id,
-    string title, 
-             /* NOTE: this field breaks data normalization (since 
+    string title,
+             /* NOTE: this field breaks data normalization (since
               * types are really determined by where they are
               * referenced in the various category relation tables!
               * But it's the only way to do this for now, since
               * we cannot say things like: */
-             /* "get me all the categories that do not appear in this set" 
+             /* "get me all the categories that do not appear in this set"
               */
-    int    cattype 
+    int    cattype
     PRIMARY(id)
 }
 
@@ -80,7 +80,7 @@ ENTITY bid
     PRIMARY(id)
 }
 
-ENTITY comment 
+ENTITY comment
 {
     int    id,
     int    rating, /* 1,2,3,4, or 5 stars */
@@ -98,7 +98,7 @@ RELATIONSHIP myItemsWatching FROM user TO 1000 item
 
 RELATIONSHIP myBids FROM user TO 10000 bid
 
-/* As a Buyer/Seller, I can leave up to 10000 total comments 
+/* As a Buyer/Seller, I can leave up to 10000 total comments
  * to Sellers/Buyers */
 RELATIONSHIP commentsFromUser FROM user TO 10000 comment
 RELATIONSHIP commentsToUser FROM comment TO 10000 user /* TO ONE or TO N? */
@@ -114,7 +114,7 @@ RELATIONSHIP itemBids FROM item TO 1000 bid
 RELATIONSHIP myAutoBids FROM user TO 100 autobid
 RELATIONSHIP autobidToItem FROM autobid TO ONE item
 
-/* 
+/*
  * We impose a simple category hierarchy to be able to write queries.
  * There are going to be three different kinds of categories:
   A) regular category: these map to actual items via itemCategories
@@ -130,7 +130,7 @@ RELATIONSHIP autobidToItem FROM autobid TO ONE item
  */
 /* At least in this setup, the heigh of each tree is 3 (constant) */
 /* Furthermore, using some sort of DFS pre/post order numbering scheme
- * (which is the correct solution to this problem) requires 
+ * (which is the correct solution to this problem) requires
  * comparing numbers and is messy to implement.
  * So use this solution for now!
  */
@@ -179,7 +179,7 @@ FETCH comment
 WHERE user=[this]
 ORDER BY dateposted
 
-/* Autobidders of an item 
+/* Autobidders of an item
  * This might be useful for a daemon process that does auto-bidding */
 QUERY itemAutoBidders
 FETCH autobid
@@ -190,20 +190,20 @@ WHERE item=[this]
 QUERY activeItemsByParentCategory
 FETCH item
     OF category regular BY itemCategories
-    OF category sub BY subToRegCategories 
+    OF category sub BY subToRegCategories
     OF category parent BY parentToSubCategories
 WHERE parent.title=[1:category] AND
 item.isFinished = false
-ORDER BY dateposted 
+ORDER BY dateposted
 
 /* all active items under a certain sub-parent category (by title) */
 QUERY activeItemsBySubParentCategory
 FETCH item
     OF category regular BY itemCategories
-    OF category sub BY subToRegCategories 
+    OF category sub BY subToRegCategories
 WHERE sub.title=[1:category] AND
 item.isFinished = false
-ORDER BY dateposted 
+ORDER BY dateposted
 
 /* all active items under a certain regular category (by title) */
 QUERY activeItemsByRegularCategory
@@ -211,7 +211,7 @@ FETCH item
     OF category regular BY itemCategories
 WHERE regular.title=[1:category] AND
 item.isFinished = false
-ORDER BY dateposted 
+ORDER BY dateposted
 
 /* all top-level parent categories */
 QUERY allParentCategories
