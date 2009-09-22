@@ -1,12 +1,14 @@
 package edu.berkeley.cs.scads.test
 
+import edu.berkeley.cs.scads.storage.TestableScalaStorageEngine
 import edu.berkeley.cs.scads.placement.DataPlacementService
-import edu.berkeley.cs.scads.nodes.{StorageNode, TestableSimpleStorageNode}
+import edu.berkeley.cs.scads.nodes.{StorageNode, TestableStorageNode}
 import edu.berkeley.cs.scads.keys.KeyRange
 import edu.berkeley.cs.scads.keys.{Key, MinKey, MaxKey}
 
+
 class TestCluster extends DataPlacementService {
-	val n = new TestableSimpleStorageNode()
+	val n = new TestableScalaStorageEngine()
 	val range = new KeyRange(MinKey, MaxKey)
 
 	def lookup(ns: String): Map[StorageNode, KeyRange] = Map(n -> range)
