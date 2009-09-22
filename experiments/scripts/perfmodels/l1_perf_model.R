@@ -349,3 +349,22 @@ model.to.string = function(model,type,q) {
 	mc = model$model$coefficients
 	paste( type,"-",q,":", paste( c("scale-g","scale-p",names(mc)), c(1/4000,1/200,as.numeric(mc)), sep="=", collapse="," ), sep="" )
 }
+
+plot.models.for.talk = function(models) {
+	ms = c( models[["get"]][["50"]]$model, models[["get"]][["99"]]$model )
+	w = seq(0,3500,by=10)
+	
+	lat99_99gets = rq.gp.predict( models[["get"]][["99.9"]]$model, w*0.99, w*0.01 )
+#	lat99_99gets = rq.gp.predict( models[["get"]][["99.9"]]$model, w, 0 )
+	lat99_95gets = rq.gp.predict( models[["get"]][["99.9"]]$model, w*0.95, w*0.05 )
+	lat50_99gets = rq.gp.predict( models[["get"]][["50"]]$model, w*0.99, w*0.01 )
+#	lat50_99gets = rq.gp.predict( models[["get"]][["50"]]$model, w, 0 )
+	lat50_95gets = rq.gp.predict( models[["get"]][["50"]]$model, w*0.95, w*0.05 )
+	
+	par(cex=1.2)
+	plot( c(), xlim=c(0,3500), ylim=c(0,150), bty="n", xlab="workload [requests per second]", ylab="latency [ms]" )
+	lines( w[1:275], lat99_99gets[1:275], col="blue", lty=1, lwd=3 )
+	lines( w, lat99_95gets, col="olivedrab", lty=1, lwd=3 )
+	lines( w, lat50_99gets, col="blue", lty=3, lwd=3 )
+	lines( w, lat50_95gets, col="olivedrab", lty=3, lwd=3 )
+}
