@@ -11,13 +11,14 @@ import java.sql.SQLException
 import java.sql.Statement
 
 
-abstract class Policy {
+abstract class Policy{
 	val logger = Logger.getLogger("scads.director.policy")
 	private val logPath = Director.basedir+"/policy.txt"
 	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 	logger.setLevel(DEBUG)
 	
-	protected def act(state:SCADSState, pastActions:List[Action]): List[Action]
+/*	protected def act(state:SCADSState, pastActions:List[Action]): List[Action]*/
+	protected def act(state:SCADSState, actionExecutor:ActionExecutor)
 	
 	def stateColumns(): List[String] = List[String]()
 	def stateValues(): List[String] = List[String]()
@@ -29,10 +30,9 @@ abstract class Policy {
 	createTable
 	Action.initDatabase
 	
-	def perform(state:SCADSState, pastActions:List[Action]): List[Action] = {
-		val actions = act(state,pastActions)
+	def perform(state:SCADSState, actionExecutor:ActionExecutor) {
+		act(state,actionExecutor)
 		storeState
-		actions
 	}
 	
 	def storeState() {
@@ -77,11 +77,11 @@ class TestPolicy(
 	override def stateColumns():List[String] = List("state","nActionsStarted")
 	override def stateValues():List[String] = _stateValues
 	
-	override def act(state:SCADSState, pastActions:List[Action]): List[Action] = {
+	override def act(state:SCADSState, actionExecutor:ActionExecutor) {
 		logger.debug("acting")
 
 		var policyState =
-		if (!pastActions.forall(_.completed)) Waiting
+		if (!actionExecutor.allActionsCompleted) Waiting
 		else if (Director.rnd.nextDouble>0.5) NewActions
 		else NoNewActions
 		
@@ -91,19 +91,19 @@ class TestPolicy(
 			case NewActions => (1 to (Director.rnd.nextInt(maxactions)+1)).map( (d:Int) => new TestAction(Director.rnd.nextInt((d+1)*30)*1000) ).toList
 		}		
 		_stateValues = List(policyState.toString,actions.length.toString)
-		actions
+		actions.foreach(actionExecutor.addAction(_))
 	}
 }
 
 class EmptyPolicy() extends Policy {
-	override def act(state:SCADSState, pastActions:List[Action]):List[Action] = List[Action]()
+	override def act(state:SCADSState, actionExecutor:ActionExecutor) {}
 }
 
 class RandomSplitAndMergePolicy(
 	val fractionOfSplits:Double
 ) extends Policy {
-	override def act(state:SCADSState, pastActions:List[Action]):List[Action] = {
-		if (Director.rnd.nextDouble<fractionOfSplits)
+	override def act(state:SCADSState, actionExecutor:ActionExecutor) {
+		val actions = if (Director.rnd.nextDouble<fractionOfSplits)
 			List(new SplitInTwo( state.config.storageNodes.keySet.toList(Director.rnd.nextInt(state.config.storageNodes.size)),-1 ))
 		else 
 			if (state.config.storageNodes.size>=2) {
@@ -111,6 +111,7 @@ class RandomSplitAndMergePolicy(
 				val ordered = state.config.storageNodes.map(x=>(x._1,x._2)).toList.sort(_._2.minKey<_._2.minKey).toList
 				List(new MergeTwo(ordered(i)._1,ordered(i+1)._1))
 			} else List[Action]()
+		actions.foreach(actionExecutor.addAction(_))
 	}
 }
 
@@ -128,13 +129,11 @@ class SplitAndMergeOnPerformance(
 	val scads_deployment = Director.myscads
 	var policyState = PolicyState.Waiting
 	var scadsState: SCADSState = null
-	var pastActions: List[Action] = null
 	
-	override def act(state:SCADSState, pastActions:List[Action]): List[Action] = {
+	override def act(state:SCADSState, actionExecutor:ActionExecutor) {
 		this.scadsState = state
-		this.pastActions = pastActions
 		
-		policyState = selectNextState
+		policyState = selectNextState(actionExecutor)
 		
 		var actions = new scala.collection.mutable.ListBuffer[Action]()
 		policyState match {
@@ -161,17 +160,17 @@ class SplitAndMergeOnPerformance(
 				}
 			} // end executing
 		}
-		actions.toList
+		actions.foreach(actionExecutor.addAction(_))
 	}
 	
-	protected def selectNextState():PolicyState = {
+	protected def selectNextState(actionExecutor:ActionExecutor):PolicyState = {
 		policyState match {
 			case PolicyState.Waiting => {
-				if (pastActions.forall(_.completed)) Executing
+				if (actionExecutor.allActionsCompleted) Executing
 				else Waiting
 			}
 			case PolicyState.Executing => {
-				if (!pastActions.forall(_.completed)) Waiting // check if actions running
+				if (!actionExecutor.allActionsCompleted) Waiting // check if actions running
 				else Executing
 			}
 		}
@@ -185,11 +184,10 @@ class SplitAndMergeOnWorkload(
 	val splitThreshold: Double
 ) extends SplitAndMergeOnPerformance(mergeThreshold,splitThreshold) {
 
-	override def act(state:SCADSState, pastActions:List[Action]): List[Action] = {
+	override def act(state:SCADSState, actionExecutor:ActionExecutor) {
 		this.scadsState = state
-		this.pastActions = pastActions
 
-		policyState = selectNextState
+		policyState = selectNextState(actionExecutor)
 
 		var actions = new scala.collection.mutable.ListBuffer[Action]()
 		policyState match {
@@ -221,7 +219,7 @@ class SplitAndMergeOnWorkload(
 				}
 			} // end executing
 		}
-		actions.toList
+		actions.foreach(actionExecutor.addAction(_))
 	}
 	override def toString = "SplitAndMergeOnWorkload ( Merge: "+mergeThreshold+", Split: "+splitThreshold+ " )"
 }
@@ -230,8 +228,8 @@ class HeuristicOptimizerPolicy(
 	val performanceModel:PerformanceModel,
 	val getSLA:Int,
 	val putSLA:Int
-	) extends Policy {
-		val performanceEstimator = SimplePerformanceEstimator( performanceModel )
-		val optimizer = new HeuristicOptimizer(performanceEstimator,getSLA,putSLA)
-		override def act(state:SCADSState, pastActions:List[Action]):List[Action] = optimizer.optimize(state)
+) extends Policy {
+	val performanceEstimator = SimplePerformanceEstimator( performanceModel )
+	val optimizer = new HeuristicOptimizer(performanceEstimator,getSLA,putSLA)
+	override def act(state:SCADSState, actionExecutor:ActionExecutor) { optimizer.optimize(state, actionExecutor) }
 }

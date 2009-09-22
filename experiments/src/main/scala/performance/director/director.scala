@@ -36,6 +36,9 @@ object Director {
 	private val logPath = Director.basedir+"/director.txt"
 	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 	logger.setLevel(DEBUG)
+	Logger.getRootLogger().addAppender( new FileAppender(new PatternLayout(Director.logPattern),Director.basedir+"/all.txt",false) )
+	Runtime.getRuntime().exec("rm -f "+Director.basedir+"../current")
+	Runtime.getRuntime().exec("ln -s "+Director.basedir+" "+Director.basedir+"../current")
 
 	def dumpAndDropDatabases() {
 		// dump old databases
@@ -83,6 +86,7 @@ object Director {
 	case class Runner(policy:Policy,placementIP: String) extends Runnable {
 		val metricReader = new MetricReader(databaseHost,"metrics",20,0.02)		
 		var actions = List[Action]()
+		val actionExecutor = ActionExecutor()
 
 		var running = true
 		def run = {
@@ -90,14 +94,17 @@ object Director {
 				val state = SCADSState.refresh(metricReader, placementIP)
 				logger.info("FRESH STATE: \n"+state.toShortString)
 
-				val newActions = policy.perform(state,actions)
+				policy.perform(state,actionExecutor)
+				actionExecutor.execute
+				
+/*				val newActions = policy.perform(state,actionExecutor)
 				if (newActions!=null && newActions.length>0) {
 					// start executing new actions
 					newActions.foreach((a:Action) => logger.info("EXECUTING: "+a.toString))
 					newActions.foreach(_.startExecuting)
 					actions ++= newActions
 				} else logger.info("no new actions")
-
+*/
 				Thread.sleep(delay*1000)
 			}
 		}
@@ -150,6 +157,50 @@ object Director {
 		})
 	}
 
+
+	def directorSimulation2(initialConfig:SCADSconfig, histograms:Map[Long,WorkloadHistogram], policy:Policy, costFunction:FullCostFunction, performanceModel:PerformanceModel):FullCostFunction = {
+
+		val workloadPredictor = SimpleHysteresis(0.9,0.05,0.2)
+		val actionExecutor = ActionExecutor()
+		val simulationGranularity = 10*1000
+		val W_MULT = 0.1
+
+		var timeSim0:Long = 0
+		var timeSim1:Long = 0
+		val histogramEndTimes = histograms.keySet.toList.sort(_<_)
+		
+		// create initial state
+		var state = SCADSState.simulate(0,initialConfig,histograms(histogramEndTimes(0)),histograms(histogramEndTimes(0)),performanceModel,((histogramEndTimes(1)-histogramEndTimes(0))*W_MULT).toLong,SCADSActivity())
+
+		for (timeHistogramOver <- histogramEndTimes) {
+			val histogramRaw = histograms(timeHistogramOver)
+			
+			// predict workload
+			workloadPredictor.addHistogram(histogramRaw)
+			val histogramPrediction = workloadPredictor.getPrediction()
+			
+			while (timeSim1<=timeHistogramOver) { // simulate from timeSim0 to timeSim1				
+				timeSim0 = timeSim1
+				timeSim1 += simulationGranularity
+
+				// ask policy for actions
+				logger.info("STATE: \n"+state.toShortString)
+				policy.perform(state,actionExecutor)
+				
+				// simulate execution of actions
+/*				var (config,activity):Tuple2[SCADSconfig,SCADSActivity] = actionExecutor.simulateExecution(timeSim0,timeSim1,config)*/
+				val (config,activity) = actionExecutor.simulateExecution(timeSim0,timeSim1,state.config)
+				
+				// update state
+				state = SCADSState.simulate(timeSim1,config,histogramRaw,histogramPrediction,performanceModel,((timeSim1-timeSim0)*W_MULT).toLong,activity)
+				SCADSState.dumpState(state)
+				costFunction.addState(state)
+			}
+		}
+		Plotting.plotSimpleDirectorAndConfigs()
+		costFunction
+	}
+
 	/**
 	* run a simulation of 'policy' against the 'workload', using 'costFunction' for cost
 	*/
@@ -174,12 +225,14 @@ object Director {
 		val getStatsPrediction = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
 		val putStats = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
 
-		val workloadPredictor = SimpleHysteresis(0.9,0.05,0.3)
+		val workloadPredictor = SimpleHysteresis(0.9,0.05,0.2)
 
 		// create initial state (state = config + workload histogram + performance metrics)
 		var config = initialConfig		
 		var prevTimestep:Long = -1
 		var pastActions = List[Action]()
+		
+		val actionExecutor = ActionExecutor()
 		
 		for (w <- workload.workload) { 
 			var timing = new Date
@@ -208,14 +261,22 @@ object Director {
 				logger.info("simulating ...")
 
 				// create the new state
-				val state = SCADSState.createFromPerfModel(new Date(startTime+currentTime*1000),config,histogramRaw,histogramPrediction,performanceModel,(w.duration/1000.0*stateCreationDurationMultiplier).toInt)
+				val state = SCADSState.createFromPerfModel(startTime+currentTime*1000,config,histogramRaw,histogramPrediction,performanceModel,(w.duration*stateCreationDurationMultiplier).toInt)
 				logger.info("STATE: \n"+state.toShortString)
 				timingString += "state: "+(new Date().getTime-timing.getTime)/1000.0+" sec (in model: "+performanceModel.timeInModel/1000.0+" sec)\n"; timing=new Date; performanceModel.resetTimer
 				SCADSState.dumpState(state)
 				timingString += "dump state: "+(new Date().getTime-timing.getTime)/1000.0+" sec\n"; timing=new Date
 				costFunction.addState(state)
 
-				// ask policy for actions
+				// execute policy
+				policy.perform(state,actionExecutor)
+
+				// simulate execution of actions
+/*				val (config,activity) = actionExecutor.simulateExecution(prevTimestep,startTime+currentTime*1000,state.config)*/
+				val r = actionExecutor.simulateExecutionWithoutEffects(prevTimestep,startTime+currentTime*1000,state.config)
+				config = r._1
+				
+/*				// ask policy for actions
 				val actions = policy.perform(state,pastActions)
 				timingString += "policy: "+(new Date().getTime-timing.getTime)/1000.0+" sec (in model: "+performanceModel.timeInModel/1000.0+" sec)\n"; timing=new Date; performanceModel.resetTimer
 
@@ -225,14 +286,14 @@ object Director {
 					for (action <- actions) { 
 						config = action.preview(config); 
 						action.complete; 
-						action.startTime=new Date(startTime+currentTime*1000); action.endTime=new Date(startTime+currentTime*1000+simulationGranularity*1000);
+						action.startTime=startTime+currentTime*1000; action.endTime=startTime+currentTime*1000+simulationGranularity*1000;
 						Action.store(action); pastActions+=action 
 					}
 				val actionMsg = if (actions==null||actions.size==0) "\nACTIONS:\n<none>" else
 									actions.map(_.toString).mkString("\nACTIONS: \n  ","\n  ","")
 				logger.info(actionMsg)
 				timingString += "actions: "+(new Date().getTime-timing.getTime)/1000.0+" sec\n"; timing=new Date
-				
+*/				
 				plotCounter+=1; if (plotCounter%plotUpdatePeriod==0) Plotting.plotSimpleDirectorAndConfigs()
 
 				nextStep += simulationGranularity				
@@ -242,7 +303,7 @@ object Director {
 				if (evaluateAllSteps) {
 					// don't simulate policy, just evaluate the config under the current workload
 					// create new state
-					val state = SCADSState.createFromPerfModel(new Date(startTime+currentTime*1000),config,histogramRaw,histogramPrediction,performanceModel,w.duration/1000)
+					val state = SCADSState.createFromPerfModel(startTime+currentTime*1000,config,histogramRaw,histogramPrediction,performanceModel,w.duration/1000)
 					logger.info("STATE: \n"+state.toShortString)
 					SCADSState.dumpState(state)
 					costFunction.addState(state)
@@ -353,5 +414,45 @@ object Director {
 
 		val finalcost = directorSimulation(config,workload,maxKey,policy,costFunction,performanceModel,false)
 		finalcost
+	}
+	
+	def heuristicSimulation2(histograms:Map[Long,WorkloadHistogram], modelfile:String):FullCostFunction = {
+		Director.dropDatabases
+		Director.rnd = new java.util.Random(7)
+		WorkloadDescription.setRndGenerator(Director.rnd)
+		SCADSState.initLogging("localhost",6001)
+		Plotting.initialize(Director.basedir+"/plotting/")
+
+		val mix = new MixVector( Map("get"->1.0,"getset"->0.0,"put"->0.00) )
+		val maxKey = 10000
+		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
+		config = config.splitAllInHalf.splitAllInHalf.splitAllInHalf
+
+		val performanceModel = LocalL1PerformanceModel(modelfile)		
+		//val policy = new HeuristicOptimizerPolicy(performanceModel,100,100)
+		val policy = new SplitAndMergeOnWorkload(2000,1500)
+		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
+		val costFunction = FullSLACostFunction(100,100,0.99,1*60*1000,100,1,2*60*1000)
+
+		val finalcost = directorSimulation2(config,histograms,policy,costFunction,performanceModel)
+		finalcost
+	}
+	
+	def testSim(dir:String) {		
+		import performance.WorkloadGenerators._
+		val w = stdWorkloadEbatesWMixChange(mix99,mix99,1000)
+		val h = WorkloadHistogram.createHistograms( w, 120*1000, 10, 200, 10000 )
+		Director.heuristicSimulation2(h,dir+"/experiments/scripts/perfmodels/gp_model.csv")
+	}
+	
+	def testSim2(histFile:String, repoDir:String) {
+		val h = WorkloadHistogram.loadHistograms(histFile)
+		Director.heuristicSimulation2(h,repoDir+"/experiments/scripts/perfmodels/gp_model.csv")
+	}
+	
+	def createWorkloadHistograms(basedir:String) {
+		import performance.WorkloadGenerators._
+		val w = stdWorkloadEbatesWMixChange(mix99,mix99,1500)
+		WorkloadHistogram.createAndSerializeHistograms(w, 20*1000, basedir+"/ebates_mix99_mix99_1500users_200bins_20sec.hist", 10, 200, 10000)
 	}
 }

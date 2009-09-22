@@ -7,7 +7,7 @@ import performance._
 * simpler, we report "fraction of requests slower than N ms" for various values of N
 */
 case class PerformanceStats(
-	duration: Int, // duration of the interval in seconds
+	duration: Long, // duration of the interval in seconds
 	nGets: Int,
 	nPuts: Int,
 	nGetsets: Int,

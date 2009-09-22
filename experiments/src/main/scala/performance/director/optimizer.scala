@@ -90,21 +90,21 @@ case class FullSLACostFunction(
 	def detailedCost():List[Cost] = {
 		// compute SLA violation cost
 		val getCosts = 
-		allStates.map(s=>(s,s.time.getTime/slaInterval*slaInterval))
+		allStates.map(s=>(s,s.time/slaInterval*slaInterval))
 				 .foldLeft( scala.collection.mutable.Map[Long,RequestCounts]() )( (t,s)=>accumulateRequestStats(t,s,"get",getSLA) )
 				 .map( x=>(x._1,x._2) )
 				 .filter( x=>(1.0-x._2.nSlow.toDouble/x._2.nAll)<slaPercentile )
 				 .map( x=>Cost(new Date(x._1), "get SLA violation ("+x._2.toString+")", violationCost) )
 
 		val putCosts = 
-		allStates.map(s=>(s,s.time.getTime/slaInterval*slaInterval))
+		allStates.map(s=>(s,s.time/slaInterval*slaInterval))
 				 .foldLeft( scala.collection.mutable.Map[Long,RequestCounts]() )( (t,s)=>accumulateRequestStats(t,s,"put",putSLA) )
 				 .map( x=>(x._1,x._2) )
 				 .filter( x=>(1.0-x._2.nSlow.toDouble/x._2.nAll)<slaPercentile )
 				 .map( x=>Cost(new Date(x._1), "put SLA violation ("+x._2.toString+")", violationCost) )
 				
 		val machineCost = MachineCost(nodeCost,nodeInterval)
-		for (state <- allStates) machineCost.addNewInterval(state.time.getTime, Set[String](state.config.storageNodes.keySet.toList:_*))
+		for (state <- allStates) machineCost.addNewInterval(state.time, Set[String](state.config.storageNodes.keySet.toList:_*))
 		Director.logger.debug(machineCost.toString)
 		val machineCosts = machineCost.getCosts
 
@@ -113,7 +113,7 @@ case class FullSLACostFunction(
 	
 	def intervalSummary():String = {
 		"states groupped by SLA interval:\n"+
-		allStates.map(s=>(s,s.time.getTime/slaInterval*slaInterval))
+		allStates.map(s=>(s,s.time/slaInterval*slaInterval))
 				.foldLeft( scala.collection.mutable.Map[Long,List[String]]() )( (t,s)=> {t(s._2)=t.getOrElse(s._2,List[String]())+s._1.time.toString; t} )
 				.map( x=>(x._1,x._2) ).toList
 				.sort( _._1<_._1 )
@@ -171,7 +171,7 @@ abstract class Optimizer {
 	* Given the current systen configuration and performance,
 	* determine an optimal set of actions to perform on this state
 	*/
-	def optimize(state:SCADSState): List[Action]
+	def optimize(state:SCADSState, actionExecutor:ActionExecutor)
 	def overlaps(servers1:Set[String], servers2:Set[String]):Boolean = servers1.intersect(servers2).size !=0
 }
 /* TODO: (1) make loop finite even if cost doesn't decrease, (2) explore multiple branches at depth,
@@ -179,7 +179,7 @@ abstract class Optimizer {
 */
 case class DepthOptimizer(depth:Int, coster:CostFunction, selector:ActionSelector) extends Optimizer {
 
-	def optimize(state:SCADSState): List[Action] = {
+	def optimize(state:SCADSState, actionExecutor:ActionExecutor) {
 		var best_cost = coster.cost(state)
 		var actions = new scala.collection.mutable.ListBuffer[Action]
 		var participating_servers = Set[String]()
@@ -197,7 +197,7 @@ case class DepthOptimizer(depth:Int, coster:CostFunction, selector:ActionSelecto
 				new_state = tentative_state
 			}
 		}
-		actions.toList
+		actions.foreach(actionExecutor.addAction(_))
 	}
 }
 
@@ -206,7 +206,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 	val max_replicas = 5
 	val min_puts_allowed:Int = 100 	// percentage of allowed puts
 
-	def optimize(state:SCADSState): List[Action] = {
+	def optimize(state:SCADSState, actionExecutor:ActionExecutor) {
 		var actions = new scala.collection.mutable.ListBuffer[Action]()
 		val overloaded:Map[String,PerformanceStats] = getOverloadedServers(state)
 		println("Have "+overloaded.size+" overloaded servers")
@@ -235,7 +235,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 		println("Have "+candidatesMap.size+" underloaded servers")
 		actions.insertAll(actions.size,scaleDown(candidatesMap.toArray,1,state)) // how many scale down actions to produce
 
-		actions.toList
+		actions.foreach(actionExecutor.addAction(_))
 	}
 	/**
 	* determine overloaded servers by seeing which ones have SLA violations

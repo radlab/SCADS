@@ -20,6 +20,62 @@ import java.sql.Statement
 // - timeouts?
 
 
+case class ActionExecutor {
+	var actions = List[Action]()
+	def addAction(action:Action) { 
+		actions+=action 
+		Director.logger.debug("adding action: "+action)
+	}
+	
+	def execute() {
+		// start executing actions with all parents completed
+		actions.filter(a=>a.parentsCompleted&&a.ready).foreach(_.startExecuting)
+		
+		// keep only actions that didn't complete yet (or didn't start)
+		actions = actions.filter(!_.completed)
+	}
+	
+	def simulateExecution(time0:Long, time1:Long, config:SCADSconfig): Tuple2[SCADSconfig,SCADSActivity] = {
+		Director.logger.info("ActionExecutor.simulateExecution: config at the beginning ("+time0+" -> "+time1+")\n"+config.toString)
+		Director.logger.info("all actions: \n"+actions.map(_.toString).mkString("\n"))
+		
+		// start simulating actions with all parents completed
+		actions.filter(a=>a.parentsCompleted&&a.ready).foreach(_.startSimulation(time0,config))
+		
+		// simulate running actions
+		var (newConfig,newActivity) = actions.filter(_.running).
+										foldRight((config,SCADSActivity()))( (a,ca) => {Director.logger.debug("updatingConfigAndActivity for "+a)
+																						val n=a.updateConfigAndActivity(time0,time1,ca._1,ca._2); 
+																						Director.logger.debug(n._1); 
+																						n} )
+			
+		// stop simulation of completed actions
+		actions.filter(_.completed).foreach(_.stopSimulation(time0))
+
+		// keep only actions that didn't complete yet (or didn't start)
+		actions = actions.filter(!_.completed)
+		
+		(newConfig,newActivity)
+	}
+	
+	def simulateExecutionWithoutEffects(time0:Long, time1:Long, config:SCADSconfig): Tuple2[SCADSconfig,SCADSActivity] = {
+		var newConfig = config
+		if (actions!=null)
+			for (action <- actions) { 
+				newConfig = action.preview(newConfig)
+				action.complete
+				action.startTime=time0
+				action.endTime=time1
+				Action.store(action)
+			}
+		actions = List[Action]()		
+		(newConfig,SCADSActivity())
+	}
+	
+	def allActionsCompleted():Boolean = if (actions.size==0) true else actions.forall(_.completed)
+}
+
+
 abstract class Action(
 	val actionShortName:String
 ) extends Runnable {
@@ -31,20 +87,28 @@ abstract class Action(
 
 	val logger = Logger.getLogger("scads.director.action."+actionShortName)
 	private val logPath = Director.basedir+"/actions/"+Director.dateFormat.format(new Date)+"_"+actionShortName+".txt"
+	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 	logger.setLevel(DEBUG)
 	
-	var initTime: Date = new Date
-	var startTime: Date = null
-	var endTime: Date = null
+	var initTime: Long = new Date().getTime
+	var startTime: Long = -1
+	var endTime: Long = -1
 		
 	var _state = ActionState.Ready
 	def state():ActionState = _state
 	def completed():Boolean = state()==ActionState.Completed
+	def running():Boolean = state()==ActionState.Running
+	def ready():Boolean = state()==ActionState.Ready
 	def complete { _state=ActionState.Completed }
 	
 	var executionThread: Thread = null
 	
 	var dbID: Int = -1
+	
+	val parents = new scala.collection.mutable.ListBuffer[Action]()
+		
+	def addParent(action:Action) { parents += action }
+	def parentsCompleted():Boolean = if (parents.size==0) true else parents.forall(_.completed)
 		
 	def startExecuting() {
 		logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
@@ -53,17 +117,32 @@ abstract class Action(
 		executionThread.start
 	}
 	
+	def startSimulation(time:Long, config:SCADSconfig) {
+		initSimulation(config)
+		_state = ActionState.Running	
+		startTime = time
+	}
+	
+	def stopSimulation(time:Long) {
+		endTime = time;
+		Action.store(this);
+		complete; 
+	}
+	
+	def initSimulation(config:SCADSconfig)
+	def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity]
+	
 	def csvArgs():String = ""
 	
 	override def run() {
 		_state = ActionState.Running
 		logger.info("starting action execution")
-		startTime = new Date
+		startTime = new Date().getTime
 		Action.store(this)
 		execute()
 		_state = ActionState.Completed
 		logger.info("action execution completed")
-		endTime = new Date
+		endTime = new Date().getTime
 		Action.store(this)
 	}
 	
@@ -103,7 +182,7 @@ object Action {
 	
 	var connection = Director.connectToDatabase
 	initDatabase
-		
+	
 	def initDatabase() {
         // create database if it doesn't exist and select it
         try {
@@ -127,9 +206,9 @@ object Action {
 		
 		val cols = Map("update_time"-> (new Date).getTime.toString,
 					   "action_name"-> action.getClass.toString.split('.').last,
-					   "init_time"-> (if (action.initTime==null) "null" else action.initTime.getTime.toString),
-					   "start_time"-> (if (action.startTime==null) "null" else action.startTime.getTime.toString),
-					   "end_time"-> (if (action.endTime==null) "null" else action.endTime.getTime.toString),
+					   "init_time"-> (if (action.initTime== -1) "null" else action.initTime.toString),
+					   "start_time"-> (if (action.startTime== -1) "null" else action.startTime.toString),
+					   "end_time"-> (if (action.endTime== -1) "null" else action.endTime.toString),
 					   "status"-> action.state.toString,
 					   "short_name"-> action.actionShortName,
 					   "args"-> action.csvArgs).transform( (x,y) => if (y=="null") "null" else ("'"+y+"'") )
@@ -162,6 +241,8 @@ object Action {
 		}
 		primaryKey
 	}
+	
+	def timeOverlap(ta0:Long, ta1:Long, tb0:Long, tb1:Long):Boolean = if (ta1<=tb0||ta0>=tb1) false else true
 }
 
 
@@ -173,6 +254,8 @@ class TestAction(
 		Thread.sleep( delay )
 		logger.debug("waking up")
 	}
+	override def initSimulation(config:SCADSconfig) {}
+	override def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = (null,null)
 	def participants = Set[String]()
 	override def toString():String = actionShortName
 	override def csvArgs():String = "delay="+delay
@@ -181,7 +264,7 @@ class TestAction(
 case class SplitInTwo(
 	val server: String,
 	val pivot:Int // split pivot
-) extends Action("splitintwo("+server+")") with PlacementManipulation {
+) extends Action("splitintwo("+server+","+pivot+")") with PlacementManipulation {
 
 	override def execute() {
 		logger.debug("Getting new storage server")
@@ -202,6 +285,45 @@ case class SplitInTwo(
 		logger.debug("Sleeping")
 		Thread.sleep(60*1000) // wait minute
 	}
+	
+	var timeToBootup:Long = -1
+	var timeToMoveData:Long = -1
+
+	def initSimulation(config:SCADSconfig) {
+		logger.info("initializing simulation of SplitInTwo")
+		val bounds = config.storageNodes(server)
+		val start = bounds.minKey
+		val end = bounds.maxKey
+		val middle = if (pivot >0) {pivot} else {((end-start)/2) + start}
+		
+		timeToBootup = ActionModels.machineBootupTimeModel.sample
+		timeToMoveData = ActionModels.dataCopyDurationModel.sample( end - middle )
+		logger.debug("timeToBootup = "+timeToBootup)
+		logger.debug("timeToMoveData = "+timeToMoveData)
+	}
+	
+	def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = {
+		val (dt0,dt1) = (time0 - startTime, time1 - startTime)
+		val (movet0,movet1) = (timeToBootup,timeToBootup+timeToMoveData)
+		var (newConfig,newActivity) = (config,activity)
+		
+		logger.info("simulating "+dt0+" -> "+dt1+"  ("+time0+" -> "+time1+")")
+
+		if (dt1 <= timeToBootup) logger.debug("waiting for maching to boot up, doing nothing")	// machine booting up, do nothing
+		else if ( Action.timeOverlap(dt0,dt1,movet0,movet1) ) {
+			// move interval overlaps with simulation interval, simulate activity
+			logger.debug("moving data, setting activity on server "+server)
+			newActivity.copyRate += server -> 1.0
+		}
+		
+		if (dt1 > timeToBootup + timeToMoveData) {
+			logger.debug("action completed, updating configuration")
+			newConfig = preview(config)
+			this.complete
+		}
+		(newConfig,newActivity)
+	}
+	
 	override def preview(config:SCADSconfig): SCADSconfig = {
 		val bounds = config.storageNodes(server)
 		var nodeConfig = config.storageNodes - server // make copy of previous node arrangment, removing the obsolete entry
@@ -255,6 +377,9 @@ case class SplitFrom(
 	}
 	def participants = Set[String](server)
 	override def toString:String = actionShortName
+
+	override def initSimulation(config:SCADSconfig) {}
+	override def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = (null,null)
 }
 
 case class ShiftBoundary(
@@ -290,6 +415,9 @@ case class ShiftBoundary(
 	}
 	def participants = Set[String](server_left,server_right)
 	override def toString:String = actionShortName
+	
+	override def initSimulation(config:SCADSconfig) {}
+	override def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = (null,null)
 }
 
 case class MergeTwo(
@@ -311,7 +439,38 @@ case class MergeTwo(
 		logger.debug("Sleeping")
 		Thread.sleep(60*1000) // wait minute
 	}
+	
+	var timeToMoveData:Long = -1
+	
+	def initSimulation(config:SCADSconfig) {
+		logger.info("initializing simulation of MergeTwo")		
+		val bounds1 = config.storageNodes(server1)
+		timeToMoveData = ActionModels.dataCopyDurationModel.sample( bounds1.maxKey - bounds1.minKey )
+		logger.debug("timeToMoveData = "+timeToMoveData)
+	}
+	
+	def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = {
+		val (dt0,dt1) = (time0 - startTime, time1 - startTime)
+		val (movet0,movet1) = (0,timeToMoveData)
+		var (newConfig,newActivity) = (config,activity)
 
+		logger.info("simulating "+dt0+" -> "+dt1+"  ("+time0+" -> "+time1+")")
+
+		if ( Action.timeOverlap(dt0,dt1,movet0,movet1) ) {
+			// move interval overlaps with simulation interval, simulate activity
+			logger.debug("moving data, setting activity on servers "+server1+", "+server2)
+			newActivity.copyRate += server1 -> 1.0
+			newActivity.copyRate += server2 -> 1.0
+		}
+		
+		if (dt1 > timeToMoveData) {
+			logger.debug("simulation completed, updating configuration")
+			newConfig = preview(config)
+			this.complete
+		}
+		(newConfig,newActivity)
+	}
+	
 	override def preview(config:SCADSconfig): SCADSconfig = {
 		val bounds1 = config.storageNodes(server1)
 		val bounds2 = config.storageNodes(server2)
@@ -364,6 +523,9 @@ case class Replicate(
 	}
 	def participants = Set[String](server)
 	override def toString:String = actionShortName
+
+	override def initSimulation(config:SCADSconfig) {}
+	override def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = (null,null)
 }
 
 /**
@@ -410,6 +572,9 @@ case class ReplicateFrom(
 	}
 	def participants = Set[String](server)
 	override def toString:String = actionShortName
+
+	override def initSimulation(config:SCADSconfig) {}
+	override def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = (null,null)
 }
 
 case class Remove(
@@ -431,6 +596,9 @@ case class Remove(
 	}
 	def participants = Set[String](servers:_*)
 	override def toString:String = actionShortName
+
+	override def initSimulation(config:SCADSconfig) {}
+	override def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = (null,null)
 }
 
 case class RemoveFrom(
@@ -464,6 +632,9 @@ case class RemoveFrom(
 	}
 	def participants = Set[String](servers:_*)
 	override def toString:String = actionShortName
+
+	override def initSimulation(config:SCADSconfig) {}
+	override def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = (null,null)
 }
 
 trait PlacementManipulation extends RangeConversion with AutoKey {
@@ -507,6 +678,7 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		list.add(new DataPlacement(host,Scads.server_port,Scads.server_sync,range))
 		dpclient.remove(namespace,list)
 	}
+
 	protected def removeData(host:String,startKey:Int,endKey:Int) = {
 		if (placement_host == null) init
 		val dpclient = Scads.getDataPlacementHandle(placement_host,xtrace_on)
@@ -515,4 +687,31 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		list.add(new DataPlacement(host,Scads.server_port,Scads.server_sync,range))
 		dpclient.remove(namespace,list)
 	}
+}
+
+
+object ActionModels {
+	var machineBootupTimeModel = ConstantMachineBootupTimeModel(4*60*1000)
+	var dataCopyDurationModel = ConstantDataCopyDurationModel(10.0)
+}
+
+abstract class MachineBootupTimeModel {
+	def sample(): Long
+}
+
+case class ConstantMachineBootupTimeModel(
+	duration: Long
+) extends MachineBootupTimeModel {
+	def sample():Long = duration
+}
+
+
+abstract class DataCopyDurationModel {
+	def sample(nKeys:Int): Long
+}
+
+case class ConstantDataCopyDurationModel(
+	durationPerKey: Double
+) extends DataCopyDurationModel {
+	def sample(nKeys:Int):Long = (durationPerKey*nKeys).toLong
 }

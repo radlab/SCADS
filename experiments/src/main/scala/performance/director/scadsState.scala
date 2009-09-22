@@ -2,6 +2,7 @@ package scads.director
 
 import performance._
 import java.util.Date
+import java.io._
 
 import java.sql.Connection
 import java.sql.DriverManager
@@ -13,6 +14,7 @@ import org.apache.log4j._
 import org.apache.log4j.Level._
 
 // ??
+@serializable
 case class DirectorKeyRange(
 	val minKey: Int,
 	val maxKey: Int
@@ -96,6 +98,7 @@ object SCADSState {
 
 	val logger = Logger.getLogger("scads.state")
 	private val logPath = Director.basedir+"/state.txt"
+	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 	logger.setLevel(DEBUG)
 
 	var metricDBConnection: ThriftMetricDBConnection = null
@@ -125,7 +128,7 @@ object SCADSState {
 	def dumpState(state:SCADSState) {
 		// dump config
         val statement = dbConnection.createStatement
-		val configSQL = Director.createInsertStatement("scadsstate_config", Map("time"->state.time.getTime.toString,"config"->("'"+state.config.toCSVString+"'")))
+		val configSQL = Director.createInsertStatement("scadsstate_config", Map("time"->state.time.toString,"config"->("'"+state.config.toCSVString+"'")))
 		//logger.debug("storing config: "+configSQL)
 		statement.executeUpdate(configSQL)
 		statement.close
@@ -139,7 +142,7 @@ object SCADSState {
 		
 		// dump histogram
         val statement2 = dbConnection.createStatement
-		val histogramSQL = Director.createInsertStatement("scadsstate_histogram", Map("time"->state.time.getTime.toString,"histogram"->("'"+state.workloadHistogram.toCSVString+"'")))
+		val histogramSQL = Director.createInsertStatement("scadsstate_histogram", Map("time"->state.time.toString,"histogram"->("'"+state.workloadHistogram.toCSVString+"'")))
 		//logger.debug("storing histogram: "+histogramSQL)
 		statement2.executeUpdate(histogramSQL)
 		statement2.close
@@ -184,14 +187,14 @@ object SCADSState {
 		val metrics = PerformanceMetrics.load(metricReader,"ALL","ALL")
 		val metricsByType = reqTypes.map( (t) => t -> PerformanceMetrics.load(metricReader,"ALL",t)).foldLeft(Map[String,PerformanceMetrics]())((x,y)=>x+y)
 		// TODO: will need to load the workload histogram here
-		new SCADSState(new Date(), SCADSconfig(nodeConfig), nodes.toList, metrics, metricsByType, null, null)
+		new SCADSState(new Date().getTime, SCADSconfig(nodeConfig), nodes.toList, metrics, metricsByType, null, null)
 	}
 	
 	/**
-	* create SCADSState by predicting the performance metrics (workload and latency) using the performance model (assuming it last for 'duration' seconds).
+	* create SCADSState by predicting the performance metrics (workload and latency) using the performance model (assuming it last for 'duration' milliseconds).
 	* Also, save the performance metrics to the metric database
 	*/
-	def createFromPerfModel(time:Date, config:SCADSconfig, histogramRaw:WorkloadHistogram, histogramPrediction:WorkloadHistogram, perfModel:PerformanceModel, duration:Int):SCADSState = {
+	def createFromPerfModel(time:Long, config:SCADSconfig, histogramRaw:WorkloadHistogram, histogramPrediction:WorkloadHistogram, perfModel:PerformanceModel, duration:Long):SCADSState = {
 
 		var t0,t1:Long = 0
 		var T = scala.collection.mutable.Map[String,Long]("init"->0,"L1"->0,"L2"->0,"L3"->0,"L4"->0,"L5"->0,"XE"->0)
@@ -211,8 +214,68 @@ object SCADSState {
 			t1 = new Date().getTime; T("L1")+=(t1-t0)
 			
 			t0 = new Date().getTime			
-			val getLatencies = perfModel.sample(Map("type"->"get","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.getRate*duration).toInt)
-			val putLatencies = perfModel.sample(Map("type"->"put","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.putRate*duration).toInt)
+			val getLatencies = perfModel.sample(Map("type"->"get","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.getRate*duration/1000.0).toInt)
+			val putLatencies = perfModel.sample(Map("type"->"put","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.putRate*duration/1000.0).toInt)
+			t1 = new Date().getTime; T("L2")+=(t1-t0)
+			
+			t0 = new Date().getTime
+			allGets++=getLatencies
+			allPuts++=putLatencies
+			t1 = new Date().getTime; T("L3")+=(t1-t0)
+			
+			t0 = new Date().getTime
+			val statsAll = PerformanceMetrics.estimateFromSamples(getLatencies++putLatencies,time,duration)
+			val statsGet = PerformanceMetrics.estimateFromSamples(getLatencies,time,duration)
+			val statsPut = PerformanceMetrics.estimateFromSamples(putLatencies,time,duration)
+			t1 = new Date().getTime; T("L4")+=(t1-t0)
+			
+			t0 = new Date().getTime
+			storageNodes += StorageNodeState(s,statsAll,Map("get"->statsGet,"put"->statsPut))
+			t1 = new Date().getTime; T("L5")+=(t1-t0)
+		}
+		
+		t0 = new Date().getTime
+		val statsAll = PerformanceMetrics.estimateFromSamples(allGets.toList++allPuts,time,duration)
+		val statsGet = PerformanceMetrics.estimateFromSamples(allGets.toList,time,duration)
+		val statsPut = PerformanceMetrics.estimateFromSamples(allPuts.toList,time,duration)
+		t1 = new Date().getTime; T("XE")+=(t1-t0)
+		
+		T.keySet.toList.sort(_<_).foreach( t => Director.logger.debug("state-"+t+": "+ (T(t)/1000.0) + " sec" ))
+		
+		SCADSState(time,config,storageNodes.toList,statsAll,Map("get"->statsGet,"put"->statsPut),histogramRaw,histogramPrediction)
+	}
+	
+	/**
+	* create SCADSState by predicting the performance metrics (workload and latency) using the performance model (assuming it last for 'duration' milliseconds).
+	* Also, save the performance metrics to the metric database
+	*/
+	def simulate(time:Long, config:SCADSconfig, histogramRaw:WorkloadHistogram, histogramPrediction:WorkloadHistogram, perfModel:PerformanceModel, duration:Long, activity:SCADSActivity):SCADSState = {
+
+		var t0,t1:Long = 0
+		var T = scala.collection.mutable.Map[String,Long]("init"->0,"L1"->0,"L2"->0,"L3"->0,"L4"->0,"L5"->0,"XE"->0)
+		
+		t0 = new Date().getTime
+		val allGets = new scala.collection.mutable.ListBuffer[Double]()
+		val allPuts = new scala.collection.mutable.ListBuffer[Double]()
+		
+		val serverWorkload = PerformanceEstimator.estimateServerWorkload(config,histogramRaw)
+		val storageNodes = new scala.collection.mutable.ListBuffer[StorageNodeState]()
+		t1 = new Date().getTime; T("init")+=(t1-t0)
+
+		var stats = PerformanceStats(duration,0,0,0,0,0,0,0,0,0)
+		for (s <- config.storageNodes.keySet) {
+			t0 = new Date().getTime
+			val w = serverWorkload(s)
+			t1 = new Date().getTime; T("L1")+=(t1-t0)
+			
+			t0 = new Date().getTime
+			val (getLatencies,putLatencies) = 
+			if (activity.copyRate.contains(s)&&activity.copyRate(s)>0)
+				(perfModel.sample(Map("type"->"get","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.getRate*duration/1000.0).toInt).map(_*10),
+				 perfModel.sample(Map("type"->"put","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.putRate*duration/1000.0).toInt).map(_*10))
+			else 
+				(perfModel.sample(Map("type"->"get","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.getRate*duration/1000.0).toInt),
+				 perfModel.sample(Map("type"->"put","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.putRate*duration/1000.0).toInt))
 			t1 = new Date().getTime; T("L2")+=(t1-t0)
 			
 			t0 = new Date().getTime
@@ -245,7 +308,7 @@ object SCADSState {
 }
 
 case class SCADSState(
-	val time: Date,
+	val time: Long,
 	val config: SCADSconfig,
 	val storageNodes: List[StorageNodeState],
 	val metrics: PerformanceMetrics,
@@ -254,14 +317,14 @@ case class SCADSState(
 	val workloadHistogramPrediction: WorkloadHistogram
 ) {	
 	override def toString():String = {
-		"STATE@"+time+"  metrics["+
+		"STATE@"+(new Date(time))+"  metrics["+
 		(if(metrics!=null)metrics.toString else "")+"]\n"+
 		(if(metricsByType!=null)metricsByType.map("   ["+_.toString+"]").mkString("","\n","") else "")+
 		"\nindividual servers:\n"+
 		(if(storageNodes!=null)storageNodes.map(_.toString).mkString("","\n","") else "")
 	}
 	def toShortString():String = {
-		"STATE@"+time+"  W="+
+		"STATE@"+(new Date(time))+"  W="+
 		(if(metrics!=null)metrics.workload.toInt else "")+"/"+
 		(if(metricsByType!=null)(metricsByType("get").workload.toInt+"/"+metricsByType("put").workload.toInt 	+ 
 		"  getL="+metricsByType("get").toShortLatencyString()+"  putL="+metricsByType("put").toShortLatencyString()) else "") +
@@ -277,6 +340,12 @@ case class SCADSState(
 }
 
 
+case class SCADSActivity {
+	var copyRate = scala.collection.mutable.Map[String,Double]()
+}
+
+
+@serializable
 case class WorkloadFeatures(
 	getRate: Double,
 	putRate: Double,
@@ -321,6 +390,7 @@ case class WorkloadFeatures(
 /**
 * Represents the histogram of keys in workload
 */
+@serializable
 class WorkloadHistogram (
 	val rangeStats: Map[DirectorKeyRange,WorkloadFeatures]
 ) extends Ordered[WorkloadHistogram] {
@@ -329,7 +399,7 @@ class WorkloadHistogram (
 			Map[DirectorKeyRange,WorkloadFeatures](rangeStats.toList map {entry => (entry._1, entry._2.restrictAndSplit(replicas,allowed_puts,0.0)) } : _*)
 		)
 	}
-	override def toString():String = rangeStats.keySet.toList.sort(_.minKey<_.minKey).map( r=>r+"   "+rangeStats(r) ).mkString("\n")
+	override def toString():String = rangeStats.toList.sort(_._1.minKey<_._1.minKey).map( r => "%-15s".format(r._1)+"   "+r._2 ).mkString("\n")
 
 	def compare(that:WorkloadHistogram):Int = { // do bin-wise comparison of workloadfeatures, return summation
 		this.rangeStats.toList.map(entry=>entry._2.compare( that.rangeStats(entry._1) )).reduceLeft(_+_)
@@ -475,7 +545,7 @@ object WorkloadHistogram {
 			rangeStats += range -> WorkloadFeatures(getRate,putRate,Double.NaN)
 		}
 		t1 = new Date().getTime; T("L3")+=(t1-t0)
-		T.keySet.toList.sort(_<_).foreach( t => Director.logger.debug("histogram-"+t+": "+ (T(t)/1000.0) + " sec" ))
+		//T.keySet.toList.sort(_<_).foreach( t => Director.logger.debug("histogram-"+t+": "+ (T(t)/1000.0) + " sec" ))
 
 		new WorkloadHistogram(Map[DirectorKeyRange,WorkloadFeatures]()++rangeStats)
 	}
@@ -505,5 +575,69 @@ object WorkloadHistogram {
 			}:_*)
 		new WorkloadHistogram(rangeStats)
 	}
+	
+	def createHistograms(workload:WorkloadDescription, interval:Long, workloadMultiplier:Double, nBins:Int, maxKey:Int):Map[Long,WorkloadHistogram] = {
+		Director.rnd = new java.util.Random(7)
+		
+		val ranges = WorkloadHistogram.createEquiWidthRanges(workload.workload(0),workload.workload(0).numberOfActiveUsers*workloadMultiplier,nBins,maxKey)
+		
+		val histograms = scala.collection.mutable.Map[Long,WorkloadHistogram]()
+		var time:Long = 0
+		var endOfWorkloadInterval = 0
+		
+		for (w <- workload.workload) {
+			endOfWorkloadInterval += w.duration
+			
+			while (time <= endOfWorkloadInterval) {
+				val histogramRaw = WorkloadHistogram.createFromRanges(ranges.toArray,w,w.numberOfActiveUsers*workloadMultiplier,nBins)
+				histograms += (time+interval) -> histogramRaw
+				time += interval
+				Director.logger.debug("creating histogram for time "+time+" ms ("+"%.2f".format(time/1000.0/60.0)+" min)")
+			}
+		}
+		Map[Long,WorkloadHistogram]() ++ histograms
+	}
+	
+	def createAndSerializeHistograms(workload:WorkloadDescription, interval:Long, file:String, workloadMultiplier:Double, nBins:Int, maxKey:Int) {
+		val histograms = createHistograms(workload,interval,workloadMultiplier,nBins,maxKey)
+		BinarySerialization.serialize(file,histograms)
+	}
+	
+	def loadHistograms(file:String):Map[Long,WorkloadHistogram] = {
+		val brokenHistograms = BinarySerialization.deserialize(file).asInstanceOf[Map[Long,WorkloadHistogram]]
+		// hack to fix broken scala serialization
+		Map( brokenHistograms.toList.map( p => ( p._1, new WorkloadHistogram( Map(p._2.rangeStats.toList:_*) ) ) ) :_* )
+	}
+	
 }
 
+object BinarySerialization {
+	def serialize(file:String, o:Any) {
+        val out = new ObjectOutputStream( new FileOutputStream(file) )
+        out.writeObject(o)
+        out.close()		
+	}
+
+	def deserialize(file:String):Any = {
+		val fin = new ObjectInputStream( new FileInputStream(file) )
+        val o = fin.readObject()
+        fin.close
+        o
+	}	
+}
+
+import java.beans._
+object XMLSerialization {
+	def serialize(file:String, o:Any) {
+		val e = new XMLEncoder( new BufferedOutputStream( new FileOutputStream(file) ) )
+	    e.writeObject(o)
+	    e.close()
+	}
+	
+	def deserialize(file:String):Any = {
+		val decoder = new XMLDecoder( new FileInputStream(file) )
+		val o = decoder.readObject()
+		decoder.close()
+		o
+	}
+}
