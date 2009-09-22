@@ -80,10 +80,10 @@ class ScadsLanguage extends StdTokenParsers with ImplicitConversions {
 			"ASC" ^^ ((_) => Ascending)
 		|	"DESC" ^^ ((_) => Descending))
 
-	def ordering: Parser[Order] = opt("ORDER" ~> "BY" ~> repsep(field, ",") ~ opt(direction)) ^^
+	def ordering: Parser[Order] = opt("ORDER" ~> "BY" ~> field ~ opt(direction)) ^^
 		{
-			case Some(fields ~ None) => new OrderedByField(fields, Ascending)
-			case Some(fields ~ Some(dir)) => new OrderedByField(fields, dir)
+			case Some(field ~ None) => new OrderedByField(field, Ascending)
+			case Some(field ~ Some(dir)) => new OrderedByField(field, dir)
 			case None => Unordered
 		}
 

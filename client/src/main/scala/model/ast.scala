@@ -54,7 +54,7 @@ object Unlimited extends Range
 
 abstract class Order extends Tree
 object Unordered extends Order
-case class OrderedByField(fields: List[Field], direction: Direction) extends Order
+case class OrderedByField(fields: Field, direction: Direction) extends Order
 
 abstract class Direction extends Tree
 object Ascending extends Direction

@@ -74,10 +74,10 @@ object Printer extends Generator[Tree] {
 			case TrueValue => "TrueValue"
 			case FalseValue => "FalseValue"
 			case Unordered => output("Unordered")
-			case OrderedByField(fields, direction) => {
+			case OrderedByField(field, direction) => {
 				output("OrderedByFields")
 				generate(direction)
-				indent{fields.foreach(generate(_))}
+				indent{(generate(field))}
 			}
 			case Ascending => output("Ascending")
 			case Descending => output("Descending")

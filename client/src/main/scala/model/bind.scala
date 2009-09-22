@@ -47,6 +47,8 @@ case class BoundEqualityPredicate(attributeName: String, value: FixedValue) exte
 
 case class BoundFetch(entity: BoundEntity, child: Option[BoundFetch], relation: Option[BoundRelationship]) {
 	val predicates = new scala.collection.mutable.ArrayBuffer[BoundPredicate]
+	var orderField:Option[String] = None
+	var orderDirection: Option[Direction] = None
 }
 case class BoundSpec(entities: HashMap[String, BoundEntity], orphanQueries: HashMap[String, BoundQuery])
 
@@ -243,6 +245,17 @@ object Binder {
 				case EqualityPredicate(v :FixedValue, f: Field) => addAndType(f,v)
 				case usp: Predicate => throw UnsupportedPredicateException(q.name, usp)
 			})
+
+			/* Bind the ORDER BY clause */
+			q.fetch.order match {
+				case Unordered => null
+				case OrderedByField(field, direction) => {
+					val fetch = resolveField(field)
+					fetch.orderField = Some(field.name)
+					fetch.orderDirection = Some(direction)
+				}
+			}
+
 			/* Build the final bound query */
 			val boundQuery = BoundQuery(fetchTree)
 
