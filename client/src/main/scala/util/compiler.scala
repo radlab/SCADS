@@ -6,7 +6,7 @@ import org.apache.log4j.BasicConfigurator
 import java.io.{File, FileInputStream, FileOutputStream, FileWriter}
 import java.util.jar.{JarEntry, JarOutputStream}
 import scala.tools.nsc.{Global, Settings}
-import scala.tools.nsc.reporters.ConsoleReporter 
+import scala.tools.nsc.reporters.ConsoleReporter
 import scala.tools.nsc.util.BatchSourceFile
 
 import edu.berkeley.cs.scads.model.parser._
@@ -34,7 +34,7 @@ object Compiler extends ScadsLanguage {
 					logger.debug(source)
 
 
-                    val genDir = new File("src/main/scala/generated/classfiles") 
+                    val genDir = new File("src/main/scala/generated/classfiles")
                     val jarFile = new File("src/main/scala/generated/spec.jar")
 					outFile.write(source)
                     compileSpecCode(genDir, jarFile, source)
@@ -63,9 +63,9 @@ object Compiler extends ScadsLanguage {
 
         settings.deprecation.value = true
         settings.unchecked.value = true
-        
+
         genDir.mkdirs
-        settings.outdir.value = genDir.toString 
+        settings.outdir.value = genDir.toString
 
         val reporter = new ConsoleReporter(settings)
 
@@ -96,37 +96,37 @@ object Compiler extends ScadsLanguage {
      * Taken from Scala's ScriptRunner
      * http://scala-tools.org/scaladocs/scala-compiler/2.7.1/tools/nsc/ScriptRunner.scala.html
      */
-    private def tryMakeJar(jarFile: File, sourcePath: File) = {  
-        try {  
-            val jarFileStream = new FileOutputStream(jarFile)  
-            val jar = new JarOutputStream(jarFileStream)  
-            val buf = new Array[Byte](10240)  
-        
-            def addFromDir(dir: File, prefix: String) {  
-                for (entry <- dir.listFiles) {  
-                    if (entry.isFile) {  
-                        jar.putNextEntry(new JarEntry(prefix + entry.getName))  
-            
-                        val input = new FileInputStream(entry)  
-                        var n = input.read(buf, 0, buf.length)  
-                        while (n >= 0) {  
-                            jar.write (buf, 0, n)  
-                            n = input.read(buf, 0, buf.length)  
-                        }  
-                        jar.closeEntry  
-                        input.close  
-                    } else {  
-                        addFromDir(entry, prefix + entry.getName + "/")  
-                    }  
-                }  
-            }  
-        
-            addFromDir(sourcePath, "")  
-            jar.close  
-        } catch {  
-            case _:Error => jarFile.delete // XXX what errors to catch?  
-        }  
-    }  
+    private def tryMakeJar(jarFile: File, sourcePath: File) = {
+        try {
+            val jarFileStream = new FileOutputStream(jarFile)
+            val jar = new JarOutputStream(jarFileStream)
+            val buf = new Array[Byte](10240)
+
+            def addFromDir(dir: File, prefix: String) {
+                for (entry <- dir.listFiles) {
+                    if (entry.isFile) {
+                        jar.putNextEntry(new JarEntry(prefix + entry.getName))
+
+                        val input = new FileInputStream(entry)
+                        var n = input.read(buf, 0, buf.length)
+                        while (n >= 0) {
+                            jar.write (buf, 0, n)
+                            n = input.read(buf, 0, buf.length)
+                        }
+                        jar.closeEntry
+                        input.close
+                    } else {
+                        addFromDir(entry, prefix + entry.getName + "/")
+                    }
+                }
+            }
+
+            addFromDir(sourcePath, "")
+            jar.close
+        } catch {
+            case _:Error => jarFile.delete // XXX what errors to catch?
+        }
+    }
 
 
 }
