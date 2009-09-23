@@ -9,9 +9,9 @@ ENTITY user
 
 ENTITY thought
 {
-	int time,
+	int timestamp,
 	string thought
-	PRIMARY(time)
+	PRIMARY(timestamp)
 }
 
 ENTITY subscription

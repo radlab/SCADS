@@ -20,7 +20,11 @@ object Compiler extends ScadsLanguage {
 	def main(args: Array[String]) = {
 		logger.info("Loading spec.")
 		val src = scala.io.Source.fromFile(args(0)).getLines.foldLeft(new StringBuilder)((x: StringBuilder, y: String) => x.append(y)).toString
-        val outFile = new FileWriter("src/main/scala/generated/spec.scala")
+        val outputBaseFile = new File("src/main/scala/generated")
+        outputBaseFile.mkdirs
+        //val outFile = new File(outputBaseFile, "spec.scala")
+        //outFile.createNewFile
+        //val outFileWriter = new FileWriter(outFile)
 
 		logger.info("Parsing spec.")
 		parse(src) match {
@@ -34,9 +38,10 @@ object Compiler extends ScadsLanguage {
 					logger.debug(source)
 
 
-                    val genDir = new File("src/main/scala/generated/classfiles")
-                    val jarFile = new File("src/main/scala/generated/spec.jar")
-					outFile.write(source)
+                    val genDir = new File(outputBaseFile, "classfiles")
+                    genDir.mkdirs
+                    val jarFile = new File(outputBaseFile, "spec.jar")
+					//outFileWriter.write(source)
                     compileSpecCode(genDir, jarFile, source)
 				}
 				catch {
@@ -47,7 +52,11 @@ object Compiler extends ScadsLanguage {
 					case UnsupportedPredicateException(qn, p) => logger.fatal("Query " + qn + " contains the following unsupported predicate " + p)
                     case CompileException(err) => logger.fatal("Scala compiler errored: " + err)
 				}
-				outFile.close()
+				//outFileWriter.close()
+                println("Done") /* not sure why, but there needs 
+                                 * to be an instruction here, otherwise 
+                                 * it'll complain about no main class...
+                                 * weird */
 			}
 			case f: NoSuccess => {
 				println("Parsing Failed")
@@ -57,14 +66,12 @@ object Compiler extends ScadsLanguage {
 	}
 
 
-    def compileSpecCode(genDir: File, jarFile: File, contents: String) = {
+    def compileSpecCode(genDir: File, jarFile: File, contents: String):Boolean = {
         println("Compiling spec code")
         val settings = new Settings(error)
 
         settings.deprecation.value = true
         settings.unchecked.value = true
-
-        genDir.mkdirs
         settings.outdir.value = genDir.toString
 
         val reporter = new ConsoleReporter(settings)
@@ -80,6 +87,7 @@ object Compiler extends ScadsLanguage {
         } else {
             println("Compliation succeeded, packaging into jar file")
             tryMakeJar(jarFile, genDir)
+            return true
         }
 
     }
