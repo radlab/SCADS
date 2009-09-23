@@ -12,7 +12,7 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 	def count_set(ns: String, rs: RecordSet): Int = 0
 
 	def get_set(ns: String, rs: RecordSet): java.util.List[Record] = {
-		null
+		new java.util.ArrayList[Record]()
 	}
 
 	def get(ns: String, key: String): Record = {
@@ -21,15 +21,21 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 		val dbeValue = new DatabaseEntry()
 		db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
 
-		new Record(key, new String(dbeValue.getData))
+		if(dbeValue.getData == null)
+			new Record(key, null)
+		else
+			new Record(key, new String(dbeValue.getData))
 	}
 
 	def put(ns: String, rec: Record): Boolean = {
 		val db = getDatabase(ns)
 		val key = new DatabaseEntry(rec.key.getBytes)
-		val value = new DatabaseEntry(rec.value.getBytes)
 
-		db.put(null, key, value)
+		if(rec.value == null)
+			db.delete(null, key)
+		else
+			db.put(null, key, new DatabaseEntry(rec.value.getBytes))
+
 		true
 	}
 
