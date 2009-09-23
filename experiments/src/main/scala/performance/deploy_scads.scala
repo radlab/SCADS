@@ -75,6 +75,35 @@ object Scads {
 case class ScadsDP(h:String, xtrace_on: Boolean, namespace: String) extends RangeConversion {
 	var dpclient:KnobbedDataPlacementServer.Client = null
 
+	// doesn't check that keys don't fall out of range of server responsibility
+	def copy_data(from:String,to:String,startkey:Int,endkey:Int):(Long,Long) = {
+		val start = new StringKey( Scads.keyFormat.format( startkey ) )
+		val end = new StringKey( Scads.keyFormat.format( endkey ) )
+		val range = new RangeSet()
+		range.setStart_key(start.serialize)
+		range.setEnd_key(end.serialize)
+		val rset = new RecordSet(3,range,null,null)
+		refreshHandle // get placement handle
+
+		val startms = System.currentTimeMillis()
+		dpclient.copy(namespace,rset, from, Scads.server_port,Scads.server_sync, to, Scads.server_port,Scads.server_sync)
+		(startms,System.currentTimeMillis())
+	}
+
+	def move_data(from:String,to:String,startkey:Int,endkey:Int):(Long,Long) = {
+		val start = new StringKey( Scads.keyFormat.format( startkey ) )
+		val end = new StringKey( Scads.keyFormat.format( endkey ) )
+		val range = new RangeSet()
+		range.setStart_key(start.serialize)
+		range.setEnd_key(end.serialize)
+		val rset = new RecordSet(3,range,null,null)
+		refreshHandle // get placement handle
+
+		val startms = System.currentTimeMillis()
+		dpclient.move(namespace,rset, from, Scads.server_port,Scads.server_sync, to, Scads.server_port,Scads.server_sync)
+		(startms,System.currentTimeMillis())
+	}
+
 	val range = new RangeSet()
 	range.setStart_key("'000000000000005'")
 	range.setEnd_key("'000000000005000'")
