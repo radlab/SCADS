@@ -31,7 +31,6 @@
 			<groupId>org.scala-lang</groupId>
 			<artifactId>scala-compiler</artifactId>
 			<version>2.7.5</version>
-			<scope>test</scope>
 		</dependency>
 	</dependencies>
 	<build>
