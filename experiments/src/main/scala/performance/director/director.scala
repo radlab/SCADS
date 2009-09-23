@@ -30,7 +30,7 @@ object Director {
 
 	var rnd = new java.util.Random(7)
 	
-	val delay = 20
+	val delay = 20*1000
 	
 	val logger = Logger.getLogger("scads.director.director")
 	private val logPath = Director.basedir+"/director.txt"
@@ -83,8 +83,8 @@ object Director {
 		"INSERT INTO "+table+" ("+colnames.mkString("`","`,`","`")+") values ("+colnames.map(data(_)).mkString(",")+")"
 	}
 
-	case class Runner(policy:Policy,placementIP: String) extends Runnable {
-		val metricReader = new MetricReader(databaseHost,"metrics",20,0.02)		
+	case class Runner(policy:Policy, costFunction:FullCostFunction, placementIP: String) extends Runnable {
+		val metricReader = new MetricReader(databaseHost,"metrics",20*1000,0.02)
 		var actions = List[Action]()
 		val actionExecutor = ActionExecutor()
 
@@ -94,18 +94,12 @@ object Director {
 				val state = SCADSState.refresh(metricReader, placementIP)
 				logger.info("FRESH STATE: \n"+state.toShortString)
 
+				costFunction.addState(state)
+				policy.update(state)
 				policy.perform(state,actionExecutor)
 				actionExecutor.execute
 				
-/*				val newActions = policy.perform(state,actionExecutor)
-				if (newActions!=null && newActions.length>0) {
-					// start executing new actions
-					newActions.foreach((a:Action) => logger.info("EXECUTING: "+a.toString))
-					newActions.foreach(_.startExecuting)
-					actions ++= newActions
-				} else logger.info("no new actions")
-*/
-				Thread.sleep(delay*1000)
+				Thread.sleep(delay)
 			}
 		}
 		def stop = { running = false }
@@ -117,7 +111,7 @@ object Director {
 		serverManager = new ScadsServerManager(deploy_name, xtrace_on,namespace)
 	}
 
-	def direct(policy:Policy) {
+	def direct(policy:Policy, costFunction:FullCostFunction) {
 		// check for  scads deployment instance
 		if (myscads == null) { println("Need scads deployment before directing"); return }
 		val placementIP = myscads.placement.get(0).privateDnsName
@@ -125,7 +119,7 @@ object Director {
 		assert( dpclient.lookup_namespace(namespace).size > 0, "Placement server has no storage nodes registered" )
 		logger.info("Will be directing with placement host: "+placementIP)
 		
-		directorRunner = new Runner(policy,placementIP)
+		directorRunner = new Runner(policy,costFunction,placementIP)
 		val runthread = new Thread(directorRunner)
 		runthread.start
 	}
@@ -179,16 +173,16 @@ object Director {
 			workloadPredictor.addHistogram(histogramRaw)
 			val histogramPrediction = workloadPredictor.getPrediction()
 			
-			while (timeSim1<=timeHistogramOver) { // simulate from timeSim0 to timeSim1				
+			while (timeSim1<=timeHistogramOver) { // simulate from timeSim0 to timeSim1
 				timeSim0 = timeSim1
 				timeSim1 += simulationGranularity
 
 				// ask policy for actions
 				logger.info("STATE: \n"+state.toShortString)
+				policy.update(state)
 				policy.perform(state,actionExecutor)
 				
 				// simulate execution of actions
-/*				var (config,activity):Tuple2[SCADSconfig,SCADSActivity] = actionExecutor.simulateExecution(timeSim0,timeSim1,config)*/
 				val (config,activity) = actionExecutor.simulateExecution(timeSim0,timeSim1,state.config)
 				
 				// update state
@@ -222,10 +216,8 @@ object Director {
 		var ranges:List[DirectorKeyRange] = null // use same ranges for whole simulation
 
 		val getStats = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
-		val getStatsPrediction = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
+		//val getStatsPrediction = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
 		val putStats = scala.collection.mutable.Map[DirectorKeyRange,scala.collection.mutable.Buffer[String]]()
-
-		val workloadPredictor = SimpleHysteresis(0.9,0.05,0.2)
 
 		// create initial state (state = config + workload histogram + performance metrics)
 		var config = initialConfig		
@@ -244,24 +236,22 @@ object Director {
 			// "observe" and smooth/predict the workload histogram
 			val histogramRaw = WorkloadHistogram.createFromRanges(ranges.toArray,w,w.numberOfActiveUsers*workloadMultiplier,nHistogramBins)
 			timingString += "histograms: "+(new Date().getTime-timing.getTime)/1000.0+" sec\n"; timing=new Date
-			workloadPredictor.addHistogram(histogramRaw)
-			val histogramPrediction = workloadPredictor.getPrediction()
 
 			histogramRaw.rangeStats.foreach((entry)=>{
 				getStats(entry._1) = getStats.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + entry._2.getRate.toString
-				getStatsPrediction(entry._1) = getStatsPrediction.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + histogramPrediction.rangeStats(entry._1).getRate.toString
+				//getStatsPrediction(entry._1) = getStatsPrediction.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + histogramPrediction.rangeStats(entry._1).getRate.toString
 				putStats(entry._1) = putStats.getOrElse(entry._1, new scala.collection.mutable.ListBuffer[String]()) + entry._2.putRate.toString
 			})
 
 			logger.info("WORKLOAD: "+histogramRaw.toShortString)
-			logger.info("WORKLOAD PREDICTION: "+histogramPrediction.toShortString)
+			//logger.info("WORKLOAD PREDICTION: "+histogramPrediction.toShortString)
 
 			if (currentTime>=nextStep) {
 				// enough time passed, time for a simulation step
 				logger.info("simulating ...")
 
 				// create the new state
-				val state = SCADSState.createFromPerfModel(startTime+currentTime*1000,config,histogramRaw,histogramPrediction,performanceModel,(w.duration*stateCreationDurationMultiplier).toInt)
+				val state = SCADSState.createFromPerfModel(startTime+currentTime*1000,config,histogramRaw,performanceModel,(w.duration*stateCreationDurationMultiplier).toInt)
 				logger.info("STATE: \n"+state.toShortString)
 				timingString += "state: "+(new Date().getTime-timing.getTime)/1000.0+" sec (in model: "+performanceModel.timeInModel/1000.0+" sec)\n"; timing=new Date; performanceModel.resetTimer
 				SCADSState.dumpState(state)
@@ -269,6 +259,7 @@ object Director {
 				costFunction.addState(state)
 
 				// execute policy
+				policy.update(state)
 				policy.perform(state,actionExecutor)
 
 				// simulate execution of actions
@@ -303,7 +294,7 @@ object Director {
 				if (evaluateAllSteps) {
 					// don't simulate policy, just evaluate the config under the current workload
 					// create new state
-					val state = SCADSState.createFromPerfModel(startTime+currentTime*1000,config,histogramRaw,histogramPrediction,performanceModel,w.duration/1000)
+					val state = SCADSState.createFromPerfModel(startTime+currentTime*1000,config,histogramRaw,performanceModel,w.duration/1000)
 					logger.info("STATE: \n"+state.toShortString)
 					SCADSState.dumpState(state)
 					costFunction.addState(state)
@@ -318,7 +309,7 @@ object Director {
 			// write out map stats
 			writeMaps(Map(
 				"getHistogramsRaw" -> Map[DirectorKeyRange,List[String]](getStats.toList map {entry => (entry._1, entry._2.toList)} : _*),
-				"getHistogramsPrediction" -> Map[DirectorKeyRange,List[String]](getStatsPrediction.toList map {entry => (entry._1, entry._2.toList)} : _*),
+				//"getHistogramsPrediction" -> Map[DirectorKeyRange,List[String]](getStatsPrediction.toList map {entry => (entry._1, entry._2.toList)} : _*),
 				"putHistogramsRaw" -> Map[DirectorKeyRange,List[String]](putStats.toList map {entry => (entry._1, entry._2.toList)} : _*)
 			),startTime.toString)
 
@@ -341,7 +332,8 @@ object Director {
 		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
 		config = config.splitAllInHalf.splitAllInHalf.splitAllInHalf
 
-		val policy = new SplitAndMergeOnPerformance(1200,1500)
+		val workloadPredictor = SimpleHysteresis(0.9,0.05,0.2)
+		val policy = new SplitAndMergeOnPerformance(1200,1500,workloadPredictor)
 		//val policy = new RandomSplitAndMergePolicy(0.5)
 
 		val performanceModel = L1PerformanceModel("/Users/bodikp/Downloads/l1model_getput_1.0.RData")
@@ -365,7 +357,8 @@ object Director {
 		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
 		config = config.splitAllInHalf.splitAllInHalf.splitAllInHalf
 
-		val policy = new EmptyPolicy()
+		val workloadPredictor = SimpleHysteresis(0.9,0.05,0.2)
+		val policy = new EmptyPolicy(workloadPredictor)
 
 		val performanceModel = L1PerformanceModel("/Users/bodikp/Downloads/l1model_getput_1.0.RData")
 		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
@@ -387,7 +380,8 @@ object Director {
 		config = config.splitAllInHalf.splitAllInHalf.splitAllInHalf
 
 		val performanceModel = LocalL1PerformanceModel(modelfile)
-		val policy = new HeuristicOptimizerPolicy(performanceModel,100,100)
+		val workloadPredictor = SimpleHysteresis(0.9,0.05,0.2)
+		val policy = new HeuristicOptimizerPolicy(performanceModel,100,100,workloadPredictor)
 		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
 		val costFunction = FullSLACostFunction(100,100,0.99,1*60*1000,100,1,2*60*1000)
 
@@ -408,7 +402,8 @@ object Director {
 		config = config.splitAllInHalf.splitAllInHalf.splitAllInHalf
 
 		val performanceModel = LocalL1PerformanceModel(modelfile)
-		val policy = new HeuristicOptimizerPolicy(performanceModel,100,100)
+		val workloadPredictor = SimpleHysteresis(0.9,0.05,0.2)
+		val policy = new HeuristicOptimizerPolicy(performanceModel,100,100,workloadPredictor)
 		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
 		val costFunction = FullSLACostFunction(100,100,0.99,1*60*1000,100,1,2*60*1000)
 
@@ -429,8 +424,9 @@ object Director {
 		config = config.splitAllInHalf.splitAllInHalf.splitAllInHalf
 
 		val performanceModel = LocalL1PerformanceModel(modelfile)		
-		//val policy = new HeuristicOptimizerPolicy(performanceModel,100,100)
-		val policy = new SplitAndMergeOnWorkload(2000,1500)
+		val workloadPredictor = SimpleHysteresis(0.9,0.05,0.2)
+		//val policy = new HeuristicOptimizerPolicy(performanceModel,100,100,workloadPredictor)
+		val policy = new SplitAndMergeOnWorkload(2000,1500,workloadPredictor)
 		val performanceEstimator = SimplePerformanceEstimator(performanceModel)
 		val costFunction = FullSLACostFunction(100,100,0.99,1*60*1000,100,1,2*60*1000)
 

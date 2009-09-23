@@ -17,11 +17,16 @@ import org.apache.thrift.transport.TSocket;
 object PerformanceMetrics {
 	def load(metricReader:MetricReader, server:String, reqType:String):PerformanceMetrics = {
 		// FIX: handling of the dates
-		val (date0, workload) = metricReader.getSingleMetric(server, "workload", reqType)
-		val (date1, latencyMean) = metricReader.getSingleMetric(server, "latency_mean", reqType)
-		val (date2, latency90p) = metricReader.getSingleMetric(server, "latency_90p", reqType)
-		val (date3, latency99p) = metricReader.getSingleMetric(server, "latency_99p", reqType)
-		PerformanceMetrics(date0.getTime,metricReader.interval.toInt,workload,latencyMean,latency90p,latency99p, -1, -1, -1)
+		val (date0, workload) = 		metricReader.getSingleMetric(server, "workload", reqType)
+		val (date1, latencyMean) = 		metricReader.getSingleMetric(server, "latency_mean", reqType)
+		val (date2, latency90p) = 		metricReader.getSingleMetric(server, "latency_90p", reqType)
+		val (date3, latency99p) = 		metricReader.getSingleMetric(server, "latency_99p", reqType)
+		val (date4, nRequests) = 		metricReader.getSingleMetric(server, "n_requests", reqType)
+		val (date5, nSlowerThan50ms) = 	metricReader.getSingleMetric(server, "n_slower_50ms", reqType)
+		val (date6, nSlowerThan100ms) = metricReader.getSingleMetric(server, "n_slower_100ms", reqType)
+		
+		PerformanceMetrics(date0.getTime,metricReader.interval.toInt,workload,latencyMean,latency90p,latency99p, 
+			(nRequests/metricReader.report_prob).toInt, (nSlowerThan50ms/metricReader.report_prob).toInt, (nSlowerThan100ms/metricReader.report_prob).toInt)
 	}
 	
 	def estimateFromSamples(samples:List[Double], time:Long, aggregationInterval:Long):PerformanceMetrics = {
@@ -62,9 +67,9 @@ case class PerformanceMetrics(
 		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"latency_mean"))),latencyMean.toString)
 		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"latency_90p"))),latency90p.toString)
 		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"latency_99p"))),latency99p.toString)
-		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"nRequests"))),nRequests.toString)
-		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"nSlowerThan50ms"))),nSlowerThan50ms.toString)
-		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"nSlowerThan100ms"))),nSlowerThan100ms.toString)
+		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"n_requests"))),nRequests.toString)
+		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"n_slower_50ms"))),nSlowerThan50ms.toString)
+		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"n_slower_100ms"))),nSlowerThan100ms.toString)
 		metrics.toList
 	}
 	
@@ -78,7 +83,7 @@ case class PerformanceMetrics(
 case class MetricReader(
 	val host: String,
 	val db: String,
-	val interval: Double,
+	val interval: Long,
 	val report_prob: Double
 ) {
 	val port = 6000
@@ -99,7 +104,7 @@ case class MetricReader(
 
 	def getWorkload(host:String):Double = {
 		if (connection == null) connection = Director.connectToDatabase
-		val workloadSQL = "select time,value from scads,scads_metrics where scads_metrics.server=\""+host+"\" and request_type=\"ALL\" and stat=\"workload\" and scads.metric_id=scads_metrics.id order by time desc limit 10"
+		val workloadSQL = "select time,value from scads,scads_metrics where scads_metrics.server=\""+host+"\" and request_type=\"ALL\" and stat=\"workload\" and aggregation=\""+interval+"\" and scads.metric_id=scads_metrics.id order by time desc limit 10"
 		var value = Double.NaN
         val statement = connection.createStatement
 		try {
@@ -113,7 +118,8 @@ case class MetricReader(
 	
 	def getSingleMetric(host:String, metric:String, reqType:String):(java.util.Date,Double) = {
 		if (connection == null) connection = Director.connectToDatabase
-		val workloadSQL = "select time,value from scads,scads_metrics where scads_metrics.server=\""+host+"\" and request_type=\""+reqType+"\" and stat=\""+metric+"\" and scads.metric_id=scads_metrics.id order by time desc limit 1"
+		//val workloadSQL = "select time,value from scads,scads_metrics where scads_metrics.server=\""+host+"\" and request_type=\""+reqType+"\" and stat=\""+metric+"\" and scads.metric_id=scads_metrics.id order by time desc limit 1"
+		val workloadSQL = "select time,value from scads,scads_metrics where scads_metrics.server=\""+host+"\" and request_type=\""+reqType+"\" and stat=\""+metric+"\" and aggregation=\""+interval+"\" and scads.metric_id=scads_metrics.id order by time desc limit 1"
 		var time:java.util.Date = null
 		var value = Double.NaN
         val statement = connection.createStatement

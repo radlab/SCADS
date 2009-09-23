@@ -186,15 +186,18 @@ object SCADSState {
 		
 		val metrics = PerformanceMetrics.load(metricReader,"ALL","ALL")
 		val metricsByType = reqTypes.map( (t) => t -> PerformanceMetrics.load(metricReader,"ALL",t)).foldLeft(Map[String,PerformanceMetrics]())((x,y)=>x+y)
-		// TODO: will need to load the workload histogram here
-		new SCADSState(new Date().getTime, SCADSconfig(nodeConfig), nodes.toList, metrics, metricsByType, null, null)
+		
+		// load and process workload histograms
+		val histogramRaw = WorkloadHistogram.loadMostRecentFromDB
+		
+		new SCADSState(new Date().getTime, SCADSconfig(nodeConfig), nodes.toList, metrics, metricsByType, histogramRaw)
 	}
 	
 	/**
 	* create SCADSState by predicting the performance metrics (workload and latency) using the performance model (assuming it last for 'duration' milliseconds).
 	* Also, save the performance metrics to the metric database
 	*/
-	def createFromPerfModel(time:Long, config:SCADSconfig, histogramRaw:WorkloadHistogram, histogramPrediction:WorkloadHistogram, perfModel:PerformanceModel, duration:Long):SCADSState = {
+	def createFromPerfModel(time:Long, config:SCADSconfig, histogramRaw:WorkloadHistogram, perfModel:PerformanceModel, duration:Long):SCADSState = {
 
 		var t0,t1:Long = 0
 		var T = scala.collection.mutable.Map[String,Long]("init"->0,"L1"->0,"L2"->0,"L3"->0,"L4"->0,"L5"->0,"XE"->0)
@@ -242,7 +245,7 @@ object SCADSState {
 		
 		T.keySet.toList.sort(_<_).foreach( t => Director.logger.debug("state-"+t+": "+ (T(t)/1000.0) + " sec" ))
 		
-		SCADSState(time,config,storageNodes.toList,statsAll,Map("get"->statsGet,"put"->statsPut),histogramRaw,histogramPrediction)
+		SCADSState(time,config,storageNodes.toList,statsAll,Map("get"->statsGet,"put"->statsPut),histogramRaw)
 	}
 	
 	/**
@@ -302,7 +305,7 @@ object SCADSState {
 		
 		T.keySet.toList.sort(_<_).foreach( t => Director.logger.debug("state-"+t+": "+ (T(t)/1000.0) + " sec" ))
 		
-		SCADSState(time,config,storageNodes.toList,statsAll,Map("get"->statsGet,"put"->statsPut),histogramRaw,histogramPrediction)
+		SCADSState(time,config,storageNodes.toList,statsAll,Map("get"->statsGet,"put"->statsPut),histogramRaw)
 	}
 	
 }
@@ -313,8 +316,7 @@ case class SCADSState(
 	val storageNodes: List[StorageNodeState],
 	val metrics: PerformanceMetrics,
 	val metricsByType: Map[String,PerformanceMetrics],
-	val workloadHistogram: WorkloadHistogram,
-	val workloadHistogramPrediction: WorkloadHistogram
+	val workloadHistogram: WorkloadHistogram
 ) {	
 	override def toString():String = {
 		"STATE@"+(new Date(time))+"  metrics["+
@@ -331,11 +333,11 @@ case class SCADSState(
 		(if(storageNodes!=null)storageNodes.sort( (s1,s2) => config.storageNodes(s1.ip).minKey<config.storageNodes(s2.ip).minKey )
 											.map(s=>"  server@"+s.ip+"   "+"%-15s".format(config.storageNodes(s.ip))+ "      " + s.toShortString()).mkString("\n","\n","") else "")
 	}
-	def changeConfig(new_config:SCADSconfig):SCADSState = new SCADSState(time,new_config,storageNodes,metrics,metricsByType,null,null)
+	def changeConfig(new_config:SCADSconfig):SCADSState = new SCADSState(time,new_config,storageNodes,metrics,metricsByType,null)
 	
 	def preview(action:Action,performanceModel:PerformanceModel,updatePerformance:Boolean):SCADSState = {
 		val newConfig = action.preview(config)
-		new SCADSState(time,newConfig,null,null,null,workloadHistogram,null) // TODO update histogram capability
+		new SCADSState(time,newConfig,null,null,null,workloadHistogram) // TODO update histogram capability
 	}
 }
 
@@ -391,7 +393,7 @@ case class WorkloadFeatures(
 * Represents the histogram of keys in workload
 */
 @serializable
-class WorkloadHistogram (
+case class WorkloadHistogram (
 	val rangeStats: Map[DirectorKeyRange,WorkloadFeatures]
 ) extends Ordered[WorkloadHistogram] {
 	def divide(replicas:Int, allowed_puts:Double):WorkloadHistogram = {
@@ -450,6 +452,29 @@ class WorkloadHistogram (
 }
 
 object WorkloadHistogram {
+	def loadFromFile(file:String):WorkloadHistogram =
+		WorkloadHistogram( 
+			Map(scala.io.Source.fromFile(file).getLines.toList.drop(1).
+			 		map( line => {val v=line.split(","); (DirectorKeyRange(v(0).toInt,v(1).toInt),WorkloadFeatures(v(2).toDouble,v(3).toDouble,v(4).toDouble) )} ) :_* ) )
+	
+	def loadMostRecentFromDB():WorkloadHistogram = {
+		val histogramSQL = "SELECT histogram FROM director.scadsstate_histogram s order by time desc limit 1"
+        val statement = SCADSState.dbConnection.createStatement
+		var histogram:WorkloadHistogram = null
+		try {
+			val result = statement.executeQuery(histogramSQL)
+			val set = result.first // set cursor to first row
+			if (set) {
+				val histogramCSV = result.getString("histogram")
+				histogram = WorkloadHistogram( 
+					Map(histogramCSV.split("\n").toList.drop(1).
+					 		map( line => {val v=line.split(","); (DirectorKeyRange(v(0).toInt,v(1).toInt),WorkloadFeatures(v(2).toDouble,v(3).toDouble,v(4).toDouble) )}) :_* ) )
+			}
+       	} catch { case ex: SQLException => Director.logger.warn("SQL exception when loading histogram",ex)}
+		finally {statement.close}
+		histogram
+	}
+	
 	def generateRequests(interval:WorkloadIntervalDescription, rate:Double, nBins:Int):List[SCADSRequest] = {
 		val nRequests = nBins*100
 		val requests = (for (r <- 1 to nRequests) yield { interval.requestGenerator.generateRequest(null,0) }).toList

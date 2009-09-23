@@ -201,7 +201,7 @@ case class DepthOptimizer(depth:Int, coster:CostFunction, selector:ActionSelecto
 	}
 }
 
-case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:Int, putSLA:Int) extends Optimizer {
+case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:Int, putSLA:Int, workloadPredictor:WorkloadPrediction) extends Optimizer {
 	val slaPercentile = 0.99
 	val max_replicas = 5
 	val min_puts_allowed:Int = 100 	// percentage of allowed puts
@@ -265,7 +265,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 	* Estimate a single server's workload stats using the predicted workload histogram
 	*/
 	def estimateSingleServerStats(server:String, num_replicas:Int, allowed_puts:Double, range:DirectorKeyRange, state:SCADSState):PerformanceStats = {
-		performanceEstimator.estimatePerformance(new SCADSconfig( Map[String,DirectorKeyRange](server -> range)),state.workloadHistogramPrediction.divide(num_replicas,allowed_puts),10,null) 
+		performanceEstimator.estimatePerformance(new SCADSconfig( Map[String,DirectorKeyRange](server -> range)),workloadPredictor.getPrediction.divide(num_replicas,allowed_puts),10,null) 
 	}
 	/**
 	* Attempt splitting actions of a set of replicas, where at least one of the replicas is overloaded

@@ -11,7 +11,9 @@ import java.sql.SQLException
 import java.sql.Statement
 
 
-abstract class Policy{
+abstract class Policy(
+	val workloadPredictor:WorkloadPrediction
+){
 	val logger = Logger.getLogger("scads.director.policy")
 	private val logPath = Director.basedir+"/policy.txt"
 	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
@@ -29,6 +31,10 @@ abstract class Policy{
 	var connection = Director.connectToDatabase
 	createTable
 	Action.initDatabase
+	
+	def update(state:SCADSState) {
+		workloadPredictor.addHistogram( state.workloadHistogram )
+	}
 	
 	def perform(state:SCADSState, actionExecutor:ActionExecutor) {
 		act(state,actionExecutor)
@@ -65,8 +71,9 @@ abstract class Policy{
 
 
 class TestPolicy(
-	val maxactions:Int
-) extends Policy {
+	val maxactions:Int,
+	override val workloadPredictor:WorkloadPrediction
+) extends Policy(workloadPredictor) {
 	object PolicyState extends Enumeration("waiting","noNewActions","newActions") {
 	  type PolicyState = Value
 	  val Waiting, NoNewActions, NewActions = Value
@@ -95,13 +102,16 @@ class TestPolicy(
 	}
 }
 
-class EmptyPolicy() extends Policy {
+class EmptyPolicy(
+	override val workloadPredictor:WorkloadPrediction
+) extends Policy(workloadPredictor) {
 	override def act(state:SCADSState, actionExecutor:ActionExecutor) {}
 }
 
 class RandomSplitAndMergePolicy(
-	val fractionOfSplits:Double
-) extends Policy {
+	val fractionOfSplits:Double,
+	override val workloadPredictor:WorkloadPrediction
+) extends Policy(workloadPredictor) {
 	override def act(state:SCADSState, actionExecutor:ActionExecutor) {
 		val actions = if (Director.rnd.nextDouble<fractionOfSplits)
 			List(new SplitInTwo( state.config.storageNodes.keySet.toList(Director.rnd.nextInt(state.config.storageNodes.size)),-1 ))
@@ -117,8 +127,9 @@ class RandomSplitAndMergePolicy(
 
 class SplitAndMergeOnPerformance(
 	val latencyToMerge: Double,
-	val latencyToSplit: Double
-) extends Policy {
+	val latencyToSplit: Double,
+	override val workloadPredictor:WorkloadPrediction	
+) extends Policy(workloadPredictor) {
 	
 	object PolicyState extends Enumeration {
 	  type PolicyState = Value
@@ -181,8 +192,9 @@ class SplitAndMergeOnPerformance(
 
 class SplitAndMergeOnWorkload(
 	val mergeThreshold: Double,
-	val splitThreshold: Double
-) extends SplitAndMergeOnPerformance(mergeThreshold,splitThreshold) {
+	val splitThreshold: Double,
+	override val workloadPredictor:WorkloadPrediction
+) extends SplitAndMergeOnPerformance(mergeThreshold,splitThreshold,workloadPredictor) {
 
 	override def act(state:SCADSState, actionExecutor:ActionExecutor) {
 		this.scadsState = state
@@ -227,9 +239,10 @@ class SplitAndMergeOnWorkload(
 class HeuristicOptimizerPolicy(
 	val performanceModel:PerformanceModel,
 	val getSLA:Int,
-	val putSLA:Int
-) extends Policy {
+	val putSLA:Int,
+	override val workloadPredictor:WorkloadPrediction
+) extends Policy(workloadPredictor) {
 	val performanceEstimator = SimplePerformanceEstimator( performanceModel )
-	val optimizer = new HeuristicOptimizer(performanceEstimator,getSLA,putSLA)
+	val optimizer = new HeuristicOptimizer(performanceEstimator,getSLA,putSLA,workloadPredictor)
 	override def act(state:SCADSState, actionExecutor:ActionExecutor) { optimizer.optimize(state, actionExecutor) }
 }
