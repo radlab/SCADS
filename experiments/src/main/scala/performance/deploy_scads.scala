@@ -30,6 +30,25 @@ object Scads {
 
 	def getXtraceConfig = xtraceConfig
 
+	def getCollectorConfig:JSONObject = {
+		val collectorConfig = new JSONObject()
+		val collectorRecipes = new JSONArray()
+	    collectorRecipes.put("chukwa::collector")
+	    collectorConfig.put("recipes", collectorRecipes)
+	}
+
+	def getXtraceIntoConfig(collector_dns:String):JSONObject = {
+		val scads_xtrace = new JSONObject()
+		scads_xtrace.put("xtrace","-x")
+		val serverConfig = new JSONObject()
+		serverConfig.put("scads",scads_xtrace);
+		val collector = Array[String](collector_dns)
+		val xtrace_collector= new JSONArray(collector)
+		val addedConfig = getXtraceConfig
+		addedConfig.put("collectors",xtrace_collector)
+		serverConfig.put("chukwa",addedConfig);
+	}
+
 	def getDataPlacementHandle(h:String,xtrace_on:Boolean):KnobbedDataPlacementServer.Client = {
 		val p = Scads.dp_port
 		var haveDPHandle = false
@@ -121,15 +140,11 @@ case class ScadsDP(h:String, xtrace_on: Boolean, namespace: String) extends Rang
 
 case class ScadsClients(scadsName: String, xtrace_on: Boolean, namespace: String) {
 	var deps:String = null
+	var collector:String = null
 	var clients:InstanceGroup = null
 	var host:String = null
-	
-	val clientConfig = new JSONObject()
-    val clientRecipes = new JSONArray()
-    clientRecipes.put("scads::client_library")
-	if (xtrace_on) { clientConfig.put("chukwa",Scads.getXtraceConfig); clientRecipes.put("chukwa::default"); }
-    clientConfig.put("recipes", clientRecipes)
-	
+	var clientConfig:JSONObject = null
+
 	class InitClients(num_clients:Int) extends Runnable {
 		def run = {
 			clients = DataCenter.runInstances(num_clients,"c1.medium")		// start up clients
@@ -147,10 +162,13 @@ case class ScadsClients(scadsName: String, xtrace_on: Boolean, namespace: String
 		}
 	}
 
+	def setCollector(dns:String) =  { collector = dns }
+
 	def getName(): String = scadsName
 	
 	def loadState() = {
 		clients = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+getName+"--client", true )
+		if (xtrace_on) collector = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+getName+"--chukwa_collector",true ).get(0).privateDnsName
 		deps = clients.get(0).exec("cd /opt/scads/experiments; cat cplist").getStdout.replace("\n","") + ":../target/classes"
 		getPlacement
 	}
@@ -158,7 +176,7 @@ case class ScadsClients(scadsName: String, xtrace_on: Boolean, namespace: String
 	def getPlacement = {
 		while (host== null) {
 			println("Attempting to acquire placement server address")
-			val placement = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scadsName+"--placement", true )
+			val placement = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+getName+"--placement", true )
 			if (placement.size > 0) {
 				host = placement.get(0).privateDnsName
 				println("Acquired placement address")
@@ -168,6 +186,12 @@ case class ScadsClients(scadsName: String, xtrace_on: Boolean, namespace: String
 	}
 
 	def init(num_clients:Int):ScadsClients = {
+		val clientRecipes = new JSONArray()
+		if (xtrace_on) { collector = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+getName+"--chukwa_collector",true ).get(0).privateDnsName; println("Getting xtrace collector") }
+		clientConfig = if (xtrace_on) { assert(collector != null,"Need address of chukwa collector"); clientRecipes.put("chukwa::default"); Scads.getXtraceIntoConfig(collector) } else { new JSONObject() }
+	    clientRecipes.put("scads::client_library")
+	    clientConfig.put("recipes", clientRecipes)
+
 		val initthread = new Thread(new InitClients(num_clients))
 		initthread.start
 		this
@@ -256,39 +280,43 @@ case class ScadsClients(scadsName: String, xtrace_on: Boolean, namespace: String
 case class Scads(scadsName: String, xtrace_on: Boolean, namespace: String) extends RangeConversion {
 	var servers:InstanceGroup = new InstanceGroup
 	var placement:InstanceGroup = null
+	var collector:InstanceGroup = null
 	var dpclient:KnobbedDataPlacementServer.Client = null
 	
-	val scads_xtrace = new JSONObject()
-	scads_xtrace.put("xtrace","-x")
+	//val scads_xtrace = new JSONObject()
+	//scads_xtrace.put("xtrace","-x")
 	val dataRecipe = new JSONArray()
 	dataRecipe.put("scads::dbs")
 	val dataConfig = new JSONObject()
 	dataConfig.put("recipes", dataRecipe)
 	
 	def init(num_servers: Int) = {
+		if (xtrace_on) collector = DataCenter.runInstances(1,"m1.small")
 		servers = DataCenter.runInstances(num_servers,"m1.small")					// start up servers
 		placement = DataCenter.runInstances(1,"m1.small")			// start up data placement
-		
-		val groups =  Array(servers,placement)
+
+		val groups =  if (xtrace_on) {Array(collector,servers,placement)} else { Array(servers,placement) }
 		new InstanceGroup(groups).waitUntilReady
-	
+
 		servers.tagWith( DataCenter.keyName+"--SCADS--"+scadsName+"--storagenode" )
 		placement.tagWith( DataCenter.keyName+"--SCADS--"+scadsName+"--placement" )
+		if (xtrace_on) {collector.tagWith( DataCenter.keyName+"--SCADS--"+scadsName+"--chukwa_collector" ) }
 
-		val serverConfig = new JSONObject()
-	    val serverRecipes = new JSONArray()
+		val serverRecipes = new JSONArray()
+		val serverConfig = if (xtrace_on) { serverRecipes.put("chukwa::default"); Scads.getXtraceIntoConfig(collector.get(0).privateDnsName) } else { new JSONObject() }
 	    serverRecipes.put("scads::storage_engine")
 /*		serverRecipes.put("ec2::disk_prep")*/
-		if (xtrace_on) { serverConfig.put("scads",scads_xtrace); serverConfig.put("chukwa",Scads.getXtraceConfig); serverRecipes.put("chukwa::default"); }
 	    serverConfig.put("recipes", serverRecipes)
 
-		val placementConfig = new JSONObject()
-	    val placementRecipes = new JSONArray()
-	    placementRecipes.put("scads::data_placement")
-		if (xtrace_on) { placementConfig.put("scads",scads_xtrace); placementConfig.put("chukwa",Scads.getXtraceConfig); placementRecipes.put("chukwa::default"); }
+		//val placementConfig = new JSONObject()
+		val placementRecipes = new JSONArray()
+		val placementConfig = if (xtrace_on) { placementRecipes.put("chukwa::default"); Scads.getXtraceIntoConfig(collector.get(0).privateDnsName) } else { new JSONObject() }
+ 		placementRecipes.put("scads::data_placement")
+		//if (xtrace_on) { placementConfig.put("scads",scads_xtrace); placementConfig.put("chukwa",Scads.getXtraceConfig); placementRecipes.put("chukwa::default"); }
 	    placementConfig.put("recipes", placementRecipes)
 
 		println("deploying services")
+		if (xtrace_on) { val collectorWait = collector.deployNonBlocking(Scads.getCollectorConfig); collectorWait() }
 		val placementDeployWait = placement.deployNonBlocking(placementConfig)
 		val serversDeployWait = servers.deployNonBlocking(serverConfig)
 		
@@ -318,10 +346,10 @@ case class Scads(scadsName: String, xtrace_on: Boolean, namespace: String) exten
 		new_servers.waitUntilReady
 		new_servers.tagWith( DataCenter.keyName+"--SCADS--"+scadsName+"--storagenode" )
 
-		val serverConfig = new JSONObject()
-	    val serverRecipes = new JSONArray()
+		val serverRecipes = new JSONArray()
+		val serverConfig = if (xtrace_on) { serverRecipes.put("chukwa::default"); Scads.getXtraceIntoConfig(collector.get(0).privateDnsName) } else { new JSONObject() }
 	    serverRecipes.put("scads::storage_engine")
-		if (xtrace_on) { serverConfig.put("scads",scads_xtrace); serverConfig.put("chukwa",Scads.getXtraceConfig); serverRecipes.put("chukwa::default"); }
+/*		serverRecipes.put("ec2::disk_prep")*/
 	    serverConfig.put("recipes", serverRecipes)
 
 		println("deploying services")
@@ -338,6 +366,7 @@ case class Scads(scadsName: String, xtrace_on: Boolean, namespace: String) exten
 	def loadState():Boolean = {
 		servers = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scadsName+"--storagenode", true )
 		placement = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scadsName+"--placement", true )
+		if (xtrace_on) collector = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scadsName+"--chukwa_collector",true )
 		if (placement.size > 0) {
 			dpclient = Scads.getDataPlacementHandle(placement.get(0).publicDnsName, xtrace_on)
 			true
