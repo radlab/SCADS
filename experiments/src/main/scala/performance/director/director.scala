@@ -40,6 +40,8 @@ object Director {
 	Runtime.getRuntime().exec("rm -f "+Director.basedir+"../current")
 	Runtime.getRuntime().exec("ln -s "+Director.basedir+" "+Director.basedir+"../current")
 
+	val lowLevelActionMonitor = LowLevelActionMonitor("director","lowlevel_actions")
+
 	def dumpAndDropDatabases() {
 		// dump old databases
 		Runtime.getRuntime.exec("mysqldump --databases metrics director > /mnt/director/dbdump_"+dateFormat.format(new Date)+".sql")

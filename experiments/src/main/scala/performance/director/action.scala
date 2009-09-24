@@ -647,29 +647,48 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 	}
 
 	protected def getNodeRange(host:String):(Int, Int) = {
+		val t0 = new Date().getTime
+		
 		if (placement_host == null) init
 		val dp = Scads.getDataPlacementHandle(placement_host,xtrace_on)
 		val s_info = dp.lookup_node(namespace,host,Scads.server_port,Scads.server_sync)
 		val range = s_info.rset.range
-		(Scads.getNumericKey( StringKey.deserialize_toString(range.start_key,new java.text.ParsePosition(0)) ),
+		val value = (Scads.getNumericKey( StringKey.deserialize_toString(range.start_key,new java.text.ParsePosition(0)) ),
 		Scads.getNumericKey( StringKey.deserialize_toString(range.end_key,new java.text.ParsePosition(0)) ))
+		
+		val t1 = new Date().getTime
+		Director.lowLevelActionMonitor.log("getNodeRange",t0,t1,Map("host"->host))
+		
+		value
 	}
 
 	protected def move(source_host:String, target_host:String,startkey:Int, endkey:Int) = {
+		val t0 = new Date().getTime
+		
 		if (placement_host == null) init
 		val dpclient = Scads.getDataPlacementHandle(placement_host,xtrace_on)
 		val range = new KeyRange(new StringKey(Scads.keyFormat.format(startkey)), new StringKey(Scads.keyFormat.format(endkey)) )
 		dpclient.move(namespace,range, source_host, Scads.server_port,Scads.server_sync, target_host, Scads.server_port,Scads.server_sync)
+		
+		val t1 = new Date().getTime
+		Director.lowLevelActionMonitor.log("move",t0,t1,Map("source_host"->source_host,"target_host"->target_host,"startkey"->startkey.toString,"endkey"->endkey.toString))
 	}
 
 	protected def copy(source_host:String, target_host:String,startkey:Int, endkey:Int) = {
+		val t0 = new Date().getTime
+		
 		if (placement_host == null) init
 		val dpclient = Scads.getDataPlacementHandle(placement_host,xtrace_on)
 		val range = new KeyRange(new StringKey(Scads.keyFormat.format(startkey)), new StringKey(Scads.keyFormat.format(endkey)) )
 		dpclient.copy(namespace,range, source_host, Scads.server_port,Scads.server_sync, target_host, Scads.server_port,Scads.server_sync)
-
+		
+		val t1 = new Date().getTime
+		Director.lowLevelActionMonitor.log("copy",t0,t1,Map("source_host"->source_host,"target_host"->target_host,"startkey"->startkey.toString,"endkey"->endkey.toString))
 	}
+	
 	protected def remove(host:String) = {
+		val t0 = new Date().getTime
+		
 		if (placement_host == null) init
 		val dpclient = Scads.getDataPlacementHandle(placement_host,xtrace_on)
 		val bounds = getNodeRange(host)
@@ -677,16 +696,56 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		val list = new java.util.LinkedList[DataPlacement]()
 		list.add(new DataPlacement(host,Scads.server_port,Scads.server_sync,range))
 		dpclient.remove(namespace,list)
+		
+		val t1 = new Date().getTime
+		Director.lowLevelActionMonitor.log("remove",t0,t1,Map("host"->host))
 	}
 
 	protected def removeData(host:String,startKey:Int,endKey:Int) = {
+		val t0 = new Date().getTime
+		
 		if (placement_host == null) init
 		val dpclient = Scads.getDataPlacementHandle(placement_host,xtrace_on)
 		val range = new KeyRange(new StringKey(Scads.keyFormat.format(startKey)), new StringKey(Scads.keyFormat.format(endKey)) )
 		val list = new java.util.LinkedList[DataPlacement]()
 		list.add(new DataPlacement(host,Scads.server_port,Scads.server_sync,range))
 		dpclient.remove(namespace,list)
+		
+		val t1 = new Date().getTime
+		Director.lowLevelActionMonitor.log("removeData",t0,t1,Map("host"->host,"startkey"->startKey.toString,"endkey"->endKey.toString))
 	}
+}
+
+
+case class LowLevelActionMonitor(
+	dbname:String,
+	dbtable:String
+) {
+
+	var connection = Director.connectToDatabase
+	initDatabase
+
+	def initDatabase() {
+        try {
+            val statement = connection.createStatement
+            statement.executeUpdate("CREATE DATABASE IF NOT EXISTS " + dbname)
+            statement.executeUpdate("USE " + dbname)
+			statement.executeUpdate("CREATE TABLE IF NOT EXISTS "+dbtable+" (`id` INT NOT NULL AUTO_INCREMENT, `type` VARCHAR(30),"+
+																			"`start_time` BIGINT, `end_time` BIGINT, "+
+																			"`features` TEXT, PRIMARY KEY(`id`) ) ")
+			statement.close
+       	} catch { case ex: SQLException => ex.printStackTrace() }
+
+        println("initialized Action table")
+    }
+
+	def log(action:String, time0:Long, time1:Long, features:Map[String,String]) {
+		val actionSQL = Director.createInsertStatement(dbtable, Map("type"->action,"start_time"->time0.toString,"end_time"->time1.toString,"features"-> features.map((p)=>p._1+"="+p._2).mkString(",")))
+        val statement = connection.createStatement
+		statement.executeUpdate(actionSQL)
+		statement.close
+	}
+
 }
 
 
