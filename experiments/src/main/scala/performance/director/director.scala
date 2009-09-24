@@ -86,23 +86,24 @@ object Director {
 	}
 
 	case class Runner(policy:Policy, costFunction:FullCostFunction, placementIP: String) extends Runnable {
-		val metricReader = new MetricReader(databaseHost,"metrics",20*1000,0.02)
+		val period:Long = 20*1000
+		val metricReader = new MetricReader(databaseHost,"metrics",period,0.02)
+		val stateHistory = SCADSStateHistory(period,metricReader,placementIP,policy)
+		stateHistory.startUpdating
+
 		var actions = List[Action]()
 		val actionExecutor = ActionExecutor()
 
 		var running = true
 		def run = {
 			while (running) {
-				val state = SCADSState.refresh(metricReader, placementIP)
-				logger.info("FRESH STATE: \n"+state.toShortString)
-
-				costFunction.addState(state)
-				policy.update(state)
-				policy.perform(state,actionExecutor)
+				policy.perform(stateHistory.getMostRecentState,actionExecutor)
 				actionExecutor.execute
-				
 				Thread.sleep(delay)
 			}
+			
+			// add all states to cost function
+			stateHistory.history.toList.sort(_._1<_._1).map(_._2).foreach( costFunction.addState(_) )
 		}
 		def stop = { running = false }
 	}
@@ -181,7 +182,7 @@ object Director {
 
 				// ask policy for actions
 				logger.info("STATE: \n"+state.toShortString)
-				policy.update(state)
+				policy.periodicUpdate(state)
 				policy.perform(state,actionExecutor)
 				
 				// simulate execution of actions
@@ -261,7 +262,7 @@ object Director {
 				costFunction.addState(state)
 
 				// execute policy
-				policy.update(state)
+				policy.periodicUpdate(state)
 				policy.perform(state,actionExecutor)
 
 				// simulate execution of actions

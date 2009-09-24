@@ -29,6 +29,20 @@ object PerformanceMetrics {
 			(nRequests/metricReader.report_prob).toInt, (nSlowerThan50ms/metricReader.report_prob).toInt, (nSlowerThan100ms/metricReader.report_prob).toInt)
 	}
 	
+	def load(metricReader:MetricReader, server:String, reqType:String, time:Long):PerformanceMetrics = {
+		// FIX: handling of the dates
+		val (date0, workload) = 		metricReader.getSingleMetric(server, "workload", reqType, time)
+		val (date1, latencyMean) = 		metricReader.getSingleMetric(server, "latency_mean", reqType, time)
+		val (date2, latency90p) = 		metricReader.getSingleMetric(server, "latency_90p", reqType, time)
+		val (date3, latency99p) = 		metricReader.getSingleMetric(server, "latency_99p", reqType, time)
+		val (date4, nRequests) = 		metricReader.getSingleMetric(server, "n_requests", reqType, time)
+		val (date5, nSlowerThan50ms) = 	metricReader.getSingleMetric(server, "n_slower_50ms", reqType, time)
+		val (date6, nSlowerThan100ms) = metricReader.getSingleMetric(server, "n_slower_100ms", reqType, time)
+		
+		PerformanceMetrics(time,metricReader.interval.toInt,workload,latencyMean,latency90p,latency99p, 
+			(nRequests/metricReader.report_prob).toInt, (nSlowerThan50ms/metricReader.report_prob).toInt, (nSlowerThan100ms/metricReader.report_prob).toInt)
+	}
+	
 	def estimateFromSamples(samples:List[Double], time:Long, aggregationInterval:Long):PerformanceMetrics = {
 		val samplesA = samples.sort(_<_).toArray
 		val workload = computeWorkload(samplesA)*1000/aggregationInterval
@@ -116,6 +130,21 @@ case class MetricReader(
 		value
 	}
 	
+	def haveDataForTime(time:Long):Boolean = {
+		if (connection == null) connection = Director.connectToDatabase
+		val sql = "SELECT * FROM director.scadsstate_histogram s WHERE time="+time
+        val statement = connection.createStatement
+
+		var haveData = false
+		try {
+			val result = statement.executeQuery(sql)
+			val set = result.first // set cursor to first row
+			if (set) haveData = true
+       	} catch { case ex: SQLException => Director.logger.warn("SQL exception in metric reader",ex)}
+		finally {statement.close}
+		haveData
+	}
+	
 	def getSingleMetric(host:String, metric:String, reqType:String):(java.util.Date,Double) = {
 		if (connection == null) connection = Director.connectToDatabase
 		//val workloadSQL = "select time,value from scads,scads_metrics where scads_metrics.server=\""+host+"\" and request_type=\""+reqType+"\" and stat=\""+metric+"\" and scads.metric_id=scads_metrics.id order by time desc limit 1"
@@ -128,6 +157,27 @@ case class MetricReader(
 			val set = result.first // set cursor to first row
 			if (set) {
 				time = new java.util.Date(result.getLong("time"))
+				value = if (metric=="workload") (result.getString("value").toDouble/interval/report_prob) else result.getString("value").toDouble
+			}
+       	} catch { case ex: SQLException => Director.logger.warn("SQL exception in metric reader",ex)}
+		finally {statement.close}
+		(time,value)
+	}
+	
+	def getSingleMetric(host:String, metric:String, reqType:String, time:Long):(Long,Double) = {
+		if (connection == null) connection = Director.connectToDatabase
+		val workloadSQL = "select time,value from scads,scads_metrics where scads_metrics.server=\""+host+
+									"\" and request_type=\""+reqType+
+									"\" and stat=\""+metric+
+									"\" and aggregation=\""+interval+
+									"\" and time=\""+time+
+									"\" and scads.metric_id=scads_metrics.id order by time desc limit 1"
+		var value = Double.NaN
+        val statement = connection.createStatement
+		try {
+			val result = statement.executeQuery(workloadSQL)
+			val set = result.first // set cursor to first row
+			if (set) {
 				value = if (metric=="workload") (result.getString("value").toDouble/interval/report_prob) else result.getString("value").toDouble
 			}
        	} catch { case ex: SQLException => Director.logger.warn("SQL exception in metric reader",ex)}

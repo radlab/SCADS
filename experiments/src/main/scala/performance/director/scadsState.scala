@@ -193,6 +193,44 @@ object SCADSState {
 		new SCADSState(new Date().getTime, SCADSconfig(nodeConfig), nodes.toList, metrics, metricsByType, histogramRaw)
 	}
 	
+	def refreshAtTime(metricReader:MetricReader, placementServerIP:String, time:Long): SCADSState = {
+		val haveData = metricReader.haveDataForTime(time)
+
+		if (!haveData) null
+		else {
+			val reqTypes = List("get","put")
+			val dp = Scads.getDataPlacementHandle(placementServerIP,Director.xtrace_on)
+			val placements = dp.lookup_namespace(Director.namespace)
+			java.util.Collections.sort(placements,new DataPlacementComparator)
+		
+			// iterate through storage server info and get performance metrics
+			var nodes = new scala.collection.mutable.ListBuffer[StorageNodeState]
+			var nodeConfig = Map[String,DirectorKeyRange]()
+			val iter = placements.iterator
+			while (iter.hasNext) {
+				val info = iter.next
+				val ip = info.node
+
+				val range = new DirectorKeyRange(
+					Scads.getNumericKey( StringKey.deserialize_toString(info.rset.range.start_key,new java.text.ParsePosition(0)) ),
+					Scads.getNumericKey( StringKey.deserialize_toString(info.rset.range.end_key,new java.text.ParsePosition(0)) )
+				)
+				val sMetrics = PerformanceMetrics.load(metricReader,ip,"ALL")
+				val sMetricsByType = reqTypes.map( (t) => t -> PerformanceMetrics.load(metricReader,ip,t)).foldLeft(Map[String, PerformanceMetrics]())((x,y) => x + y)	
+				nodes += new StorageNodeState(ip,sMetrics,sMetricsByType)
+				nodeConfig = nodeConfig.update(ip, range)
+			}
+		
+			val metrics = PerformanceMetrics.load(metricReader,"ALL","ALL")
+			val metricsByType = reqTypes.map( (t) => t -> PerformanceMetrics.load(metricReader,"ALL",t)).foldLeft(Map[String,PerformanceMetrics]())((x,y)=>x+y)
+		
+			// load and process workload histograms
+			val histogramRaw = WorkloadHistogram.loadMostRecentFromDB
+		
+			new SCADSState(new Date().getTime, SCADSconfig(nodeConfig), nodes.toList, metrics, metricsByType, histogramRaw)
+		}
+	}
+	
 	/**
 	* create SCADSState by predicting the performance metrics (workload and latency) using the performance model (assuming it last for 'duration' milliseconds).
 	* Also, save the performance metrics to the metric database
@@ -664,5 +702,44 @@ object XMLSerialization {
 		val o = decoder.readObject()
 		decoder.close()
 		o
+	}
+}
+
+
+case class SCADSStateHistory(
+	period:Long,
+	metricReader:MetricReader,
+	placementIP:String,
+	policy:Policy
+) {	
+	val history = new scala.collection.mutable.HashMap[Long,SCADSState] with scala.collection.mutable.SynchronizedMap[Long,SCADSState]
+	var lastInterval:Long = -1
+	
+	def getMostRecentState:SCADSState = if (lastInterval== -1) null else history(lastInterval)
+	
+	def startUpdating {
+		val updater = StateUpdater()
+		val updaterThread = new Thread(updater)
+		updaterThread.start
+	}
+	
+	case class StateUpdater() extends Runnable {
+		def run() {
+			var nextUpdateTime = new Date().getTime/period*period + period			
+			
+			while(true) {
+				val state = SCADSState.refreshAtTime(metricReader,placementIP,nextUpdateTime)
+				if (state!=null) {
+					history += nextUpdateTime -> state
+					policy.periodicUpdate(state)
+					lastInterval = nextUpdateTime
+					nextUpdateTime += period
+				} else {
+					Thread.sleep(period/3)
+					Director.logger.debug("trying to update state of "+new Date(nextUpdateTime)+" at "+new Date()+" but don't have data yet")
+				}
+			}
+			
+		}
 	}
 }

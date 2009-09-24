@@ -32,7 +32,7 @@ abstract class Policy(
 	createTable
 	Action.initDatabase
 	
-	def update(state:SCADSState) {
+	def periodicUpdate(state:SCADSState) {
 		workloadPredictor.addHistogram( state.workloadHistogram )
 	}
 	
