@@ -1,5 +1,12 @@
 package scads.deployment
 
+import deploylib._ /* Imports all files in the deployment library */
+import org.json.JSONObject
+import org.json.JSONArray
+import scala.collection.jcl.Conversions._
+import scads.director._
+import performance._
+
 case class SCADSDeployment(
 	deploymentName:String
 ) {
@@ -15,23 +22,23 @@ case class SCADSDeployment(
 	/**
 	* This will load an existing deployment of scads based on the deployment name
 	*/
-	def loadExistingDeployment {
+	/*def loadExistingDeployment {
 		scads = Scads.loadState(deploymentName)
 		clients = Clients.loadState(deploymentName,scads)
 		monitoring = SCADSMonitoringDeployment.loadState(deploymentName,scads)
 		director = DirectorDeployment.loadState(deploymentName,scads,monitoring)
-	}
+	}*/
 	
 	// parameters to add:
 	// how many scads hot-standby's?
 	// initial configuration and dataset
 	// xtrace sampling probability
 	def deploy(nClients:Int, deployMonitoring:Boolean, deployDirector:Boolean) {
-		if (deployDirector) deployMonitoring = true
+		val doMonitoring = if (deployDirector) { true } else { false }
 		
 		// create the components
-		if (deployMonitoring) monitoring = SCADSMonitoringDeployment()
-		scads = Scads(null,deploymentName,deployMonitoring,monitoring)
+		if (doMonitoring) monitoring = SCADSMonitoringDeployment(deploymentName)
+		scads = Scads(null,deploymentName,doMonitoring,monitoring)
 		if (nClients>0) clients = ScadsClients(scads,nClients)
 		if (deployDirector) director = DirectorDeployment(scads,monitoring,deployDirectorToMonitoring)
 		
@@ -54,7 +61,7 @@ case class SCADSDeployment(
 	*/
 	def summaryPage
 	
-	def clientVMs:List[Instance] = if (clients==null) List[Instance]() else clients.clients
+	def clientVMs:InstanceGroup = if (clients==null) { new InstanceGroup() } else clients.clients
 	def monitoringVM:Instance = if (monitoring==null) null else monitoring.monitoringVM
 	def directorVM:Instance = if (director==null) null else director.directorVM
 }

@@ -1,6 +1,6 @@
 package scads.deployment
 
-abstract class Components {
+abstract class Component {
 	def boot
 	def waitUntilBooted
 	def deploy
