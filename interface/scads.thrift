@@ -47,7 +47,7 @@ struct UserFunction {
 
 struct RecordSet {
 	1: RecordSetType type,
-	2: optional list<RangeSet> range,
+	2: optional RangeSet range,
 	3: optional UserFunction func,
 	4: optional string filter
 }
@@ -109,8 +109,8 @@ service KeyStore {
 }
 
 service StorageEngine extends KeyStore {
-	bool set_responsibility_policy(1:NameSpace ns, 2:RecordSet policy) throws (1: NotImplemented ni, 2: InvalidSetDescription bs),
-	RecordSet get_responsibility_policy(1:NameSpace ns),
+	bool set_responsibility_policy(1:NameSpace ns, 2:list<RecordSet> policy) throws (1: NotImplemented ni, 2: InvalidSetDescription bs),
+	list<RecordSet> get_responsibility_policy(1:NameSpace ns),
 	
 	bool sync_set(1:NameSpace ns, 2:RecordSet rs, 3:Host h, 4:ConflictPolicy policy) throws (1: NotImplemented ni),
 	bool copy_set(1:NameSpace ns, 2:RecordSet rs, 3:Host h) throws (1: NotImplemented ni),
