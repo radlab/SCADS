@@ -18,7 +18,7 @@ import java.sql.ResultSet
 import java.sql.SQLException
 import java.sql.Statement
 
-case class KeyRange(
+case class StringKeyRange(
 	minKey:String,
 	maxKey:String
 )
@@ -57,7 +57,7 @@ object ParseXtraceReports {
 							(1 to nBins).
 								map(_.toDouble).
 								map( (i:Double) => ( Math.floor((i-1)/nBins*(maxKey.toInt-minKey.toInt)+minKey.toInt).toInt, Math.floor(i/nBins*(maxKey.toInt-minKey.toInt)+minKey.toInt).toInt) ).
-								map( (p) => KeyRange( keyFormat.format(p._1), keyFormat.format(p._2)) ).
+								map( (p) => StringKeyRange( keyFormat.format(p._1), keyFormat.format(p._2)) ).
 								toList
 						else null
 						
@@ -71,7 +71,7 @@ object ParseXtraceReports {
 	val metricServicePort = System.getProperty("MSPort").toInt
 	val metricService = connectToMetricService(metricServiceHost,metricServicePort)
 
-	var histogramRanges = scala.collection.mutable.Map(0->List[KeyRange](), 1->List[KeyRange](), 2->List[KeyRange]())
+	var histogramRanges = scala.collection.mutable.Map(0->List[StringKeyRange](), 1->List[StringKeyRange](), 2->List[StringKeyRange]())
 	var currentHistogram = 0
 	var nServers = 1	
 	(new File(histogramDir)).mkdirs()
@@ -162,13 +162,13 @@ object ParseXtraceReports {
 		}
 	}
 	
-	def computeAndStoreHistogram(time:Long, reqs:List[SCADSRequestStats], histogramRange:List[KeyRange]) = {
+	def computeAndStoreHistogram(time:Long, reqs:List[SCADSRequestStats], histogramRange:List[StringKeyRange]) = {
 		println("computing histogram")
 		val hist = computeHistogram(reqs,histogramRange.toArray)
 		storeHistogram(hist,time)
 	}
 	
-	def storeHistogram(histogram:Map[KeyRange,WorkloadStats], time:Long) {
+	def storeHistogram(histogram:Map[StringKeyRange,WorkloadStats], time:Long) {
 		val histCSV = histogramToCSV(histogram)
 		val statement = histogramDBConnection.createStatement
 		val histogramSQL = createInsertStatement("scadsstate_histogram", Map("time"->time.toString,"histogram"->("'"+histCSV+"'")))
@@ -176,7 +176,7 @@ object ParseXtraceReports {
 		statement.close	
 	}
 	
-	def histogramToCSV(histogram:Map[KeyRange,WorkloadStats]):String = {
+	def histogramToCSV(histogram:Map[StringKeyRange,WorkloadStats]):String = {
 		histogram.map( (p)=> p._1.toString+"->"+p._2.toString+"  " ).foreach( print(_) )
 		
 	    "minKey,maxKey,getRate,putRate,getsetRate\n"+
@@ -186,17 +186,17 @@ object ParseXtraceReports {
 			mkString("")
 	}
 	
-	def storeHistogramToFile(histogram:Map[KeyRange,WorkloadStats], time:Long) {
+	def storeHistogramToFile(histogram:Map[StringKeyRange,WorkloadStats], time:Long) {
 	    val out = new BufferedWriter(new FileWriter(histogramDir+"/histogram_"+time+".csv"));
 	    out.write( histogramToCSV(histogram) );
 		out.close
 	}
 	
-	def computeHistogram(reqs:List[SCADSRequestStats], ranges:Array[KeyRange]):Map[KeyRange,WorkloadStats] = {
+	def computeHistogram(reqs:List[SCADSRequestStats], ranges:Array[StringKeyRange]):Map[StringKeyRange,WorkloadStats] = {
 		var ri = 0
 		var range = ranges(ri)
 		
-		val hist = scala.collection.mutable.Map[KeyRange,WorkloadStats]()
+		val hist = scala.collection.mutable.Map[StringKeyRange,WorkloadStats]()
 		hist(range) = new WorkloadStats
 		
 		val firstKey = ranges(0).minKey
@@ -212,7 +212,7 @@ object ParseXtraceReports {
 				}
 			}
 		}
-		Map[KeyRange,WorkloadStats]()++hist	
+		Map[StringKeyRange,WorkloadStats]()++hist	
 	}
 	
 	def updateHistogramBreaks(reqs:Array[SCADSRequestStats]) {
@@ -220,12 +220,12 @@ object ParseXtraceReports {
 			val rnd = new java.util.Random()
 			val nBreaks = nHistogramBreaksPerServer * nServers
 			val breaks = (List(minKey)++(for (i <- 1 to nBreaks-1) yield { reqs(rnd.nextInt(reqs.size)).key })++List(maxKey)).sort(_<_)
-			val ranges = breaks.take(nBreaks).zip(breaks.tail).map(x=>KeyRange(x._1,x._2))
+			val ranges = breaks.take(nBreaks).zip(breaks.tail).map(x=>StringKeyRange(x._1,x._2))
 		
 			currentHistogram = (currentHistogram+1)%histogramRanges.size
 			histogramRanges(currentHistogram) = ranges
 			val histToDelete = (currentHistogram+1)%histogramRanges.size
-			histogramRanges(histToDelete) = List[KeyRange]()
+			histogramRanges(histToDelete) = List[StringKeyRange]()
 			println("currentI: "+currentHistogram)
 			println("ranges: "+ranges)
 			println(histogramRanges.keySet)
