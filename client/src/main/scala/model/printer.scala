@@ -41,19 +41,16 @@ object Printer extends Generator[Tree] {
 				output("Query ", q.name)
 				indent {
 					output("Fetches:")
-					indent{generate(q.fetch)}
-				}
-			}
-			case f: Fetch => {
-				indent{
-					output("joins:")
-					indent{f.joins.foreach(generate(_))}
-					output("predicates:")
-					indent{f.predicates.foreach(generate(_))}
-					output("order:")
-					indent{generate(f.order)}
-					output("range:")
-					indent{generate(f.range)}
+					indent{
+						output("joins:")
+						indent{q.joins.foreach(generate(_))}
+						output("predicates:")
+						indent{q.predicates.foreach(generate(_))}
+						output("order:")
+						indent{generate(q.order)}
+						output("range:")
+						indent{generate(q.range)}
+					}
 				}
 			}
 			case e: Join => {

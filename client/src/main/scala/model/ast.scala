@@ -38,13 +38,7 @@ case class EqualityPredicate(op1: Value, op2: Value) extends Predicate
 
 case class Join(entity: String, relationship: String, alias: String) extends Tree
 
-case class Query(name: String, fetch: Fetch) extends Tree
-
-case class Fetch(
-	joins: List[Join],
-	predicates: List[Predicate],
-	order: Order,
-	range: Range) extends Tree
+case class Query(name: String, joins: List[Join], predicates: List[Predicate], order: Order, range: Range) extends Tree
 
 abstract class Range extends Tree
 case class Limit(lim: Value, max: Int) extends Range

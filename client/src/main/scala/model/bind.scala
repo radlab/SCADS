@@ -84,7 +84,7 @@ object Binder {
 		spec.queries.foreach((q) => {
 			/* Extract all Parameters from Predicates */
 			val predParameters: List[Parameter] =
-				q.fetch.predicates.map(
+				q.predicates.map(
 					_ match {
 						case EqualityPredicate(op1, op2) => {
 							val p1 = op1 match {case p: Parameter => Array(p); case _ => Array[Parameter]()}
@@ -94,7 +94,7 @@ object Binder {
 					}).flatten
 			/* Extract possible parameter from the limit clause */
 			val limitParameters: Array[Parameter] =
-				q.fetch.range match {
+				q.range match {
 					case Limit(p, _) => p match {case p: Parameter => Array(p); case _ => Array[Parameter]()}
 					case Paginate(p, _) => p match {case p: Parameter => Array(p); case _ => Array[Parameter]()}
 					case Unlimited => Array[Parameter]()
@@ -120,7 +120,7 @@ object Binder {
 			val attributeMap = new HashMap[String, BoundFetch]()
 			val duplicateAttributes = new scala.collection.mutable.HashSet[String]()
 
-			val fetchTree: BoundFetch = q.fetch.joins.foldRight[(Option[BoundFetch], Option[String])]((None,None))((j: Join, child: (Option[BoundFetch], Option[String])) => {
+			val fetchTree: BoundFetch = q.joins.foldRight[(Option[BoundFetch], Option[String])]((None,None))((j: Join, child: (Option[BoundFetch], Option[String])) => {
 				logger.debug("Looking for relationship " + child._2 + " in " + j + " with child " + child._1)
 
 				/* Resolve the entity for this fetch */
@@ -182,7 +182,7 @@ object Binder {
 			logger.debug("Generated fetch tree for " + q.name + ": " + fetchTree)
 
 			/* Check this parameter typing */
-			val thisTypes: List[String] = q.fetch.predicates.map(
+			val thisTypes: List[String] = q.predicates.map(
 				_ match {
 					case EqualityPredicate(Field(null, thisType), ThisParameter) => Array(thisType)
 					case EqualityPredicate(ThisParameter, Field(null, thisType)) => Array(thisType)
@@ -238,7 +238,7 @@ object Binder {
 			}
 
 			/* Bind predicates to the proper node of the Fetch Tree */
-			q.fetch.predicates.foreach( _ match {
+			q.predicates.foreach( _ match {
 				case EqualityPredicate(Field(null, alias), ThisParameter) => resolveFetch(alias).predicates.append(BoundThisEqualityPredicate)
 			  	case EqualityPredicate(ThisParameter, Field(null, alias)) => resolveFetch(alias)
 				case EqualityPredicate(f: Field, v: FixedValue) => addAndType(f,v)
@@ -247,7 +247,7 @@ object Binder {
 			})
 
 			/* Bind the ORDER BY clause */
-			q.fetch.order match {
+			q.order match {
 				case Unordered => null
 				case OrderedByField(field, direction) => {
 					val fetch = resolveField(field)
