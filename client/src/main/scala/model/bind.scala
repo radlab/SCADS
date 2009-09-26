@@ -26,6 +26,7 @@ case class BoundRelationship(target: String, cardinality: Cardinality)
 case class BoundEntity(attributes: HashMap[String, AttributeType], keys: List[String]) {
 	val relationships = new HashMap[String, BoundRelationship]()
 	val queries = new HashMap[String, BoundQuery]()
+	val indexes = new HashMap[String, Index]()
 
 	def this(e: Entity) {
 		this(new HashMap[String, AttributeType](), e.keys)
@@ -66,6 +67,11 @@ object Binder {
 				case Some(_) => throw new DuplicateEntityException(e.name)
 				case None => entityMap.put(e.name, new BoundEntity(e))
 			}
+		})
+
+		/* Add primary key as an index index */
+		entityMap.foreach((e) => {
+			e._2.indexes.put(Namespaces.entity(e._1), new AttributeIndex(e._2.keys))
 		})
 
 		/* Bind relationships to the entities they link, check for bad entity names and duplicate relationship names */
