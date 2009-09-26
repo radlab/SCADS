@@ -40,8 +40,6 @@ extends Component with RangeConversion {
 	}
 	
 	def deploy = {
-		collectorIP = monitoring.monitoringVM.privateDnsName
-		
 		deploythread = new Thread(new ScadsDeployer)
 		deploythread.start
 	}
@@ -131,13 +129,13 @@ extends Component with RangeConversion {
 		def run = {
 			// storage server config
 			val serverRecipes = new JSONArray()
-			val serverConfig = if (deployMonitoring) { serverRecipes.put("chukwa::default"); ScadsDeploy.getXtraceIntoConfig(collectorIP) } else { new JSONObject() }
+			val serverConfig = if (deployMonitoring) { serverRecipes.put("chukwa::default"); ScadsDeploy.getXtraceIntoConfig(monitoring.monitoringVM.privateDnsName) } else { new JSONObject() }
 		    serverRecipes.put("scads::storage_engine")
 		    serverConfig.put("recipes", serverRecipes)
 
 			// placement config
 			val placementRecipes = new JSONArray()
-			val placementConfig = if (deployMonitoring) { placementRecipes.put("chukwa::default"); ScadsDeploy.getXtraceIntoConfig(collectorIP) } else { new JSONObject() }
+			val placementConfig = if (deployMonitoring) { placementRecipes.put("chukwa::default"); ScadsDeploy.getXtraceIntoConfig(monitoring.monitoringVM.privateDnsName) } else { new JSONObject() }
 	 		placementRecipes.put("scads::data_placement")
 		    placementConfig.put("recipes", placementRecipes)
 			

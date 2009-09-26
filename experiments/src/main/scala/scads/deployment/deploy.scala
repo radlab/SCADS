@@ -10,7 +10,7 @@ import performance._
 case class SCADSDeployment(
 	deploymentName:String
 ) {
-	var scads:Scads = null
+	var myscads:Scads = null
 	var clients:ScadsClients = null
 	var monitoring:SCADSMonitoringDeployment = null
 	var director:DirectorDeployment = null
@@ -34,32 +34,32 @@ case class SCADSDeployment(
 	// initial configuration and dataset
 	// xtrace sampling probability
 	def deploy(nClients:Int, deployMonitoring:Boolean, deployDirector:Boolean) {
-		val doMonitoring = if (deployDirector) { true } else { false }
+		val doMonitoring = if (deployDirector) { true } else { deployMonitoring }
 		
 		// create the components
-		if (doMonitoring) monitoring = SCADSMonitoringDeployment(deploymentName)
-		scads = Scads(null,deploymentName,doMonitoring,monitoring)
-		if (nClients>0) clients = ScadsClients(scads,nClients)
-		if (deployDirector) director = DirectorDeployment(scads,monitoring,deployDirectorToMonitoring)
+		if (doMonitoring) monitoring = SCADSMonitoringDeployment(deploymentName,experimentsJarURL)
+		myscads = Scads(List[(DirectorKeyRange,String)](null,null),deploymentName,doMonitoring,monitoring)
+		if (nClients>0) clients = ScadsClients(myscads,nClients)
+		if (deployDirector) director = DirectorDeployment(myscads,monitoring,deployDirectorToMonitoring)
 		
-		val components = List[Component](scads,clients,monitoring,director)		
+		val components = List[Component](myscads,clients,monitoring,director)		
 		components.filter(_!=null).foreach(_.boot) 				// boot up all machines
 		components.filter(_!=null).foreach(_.waitUntilBooted) 	// wait until all machines booted
 		components.filter(_!=null).foreach(_.deploy)			// deploy on all
 		components.filter(_!=null).foreach(_.waitUntilDeployed)	// wait until all deployed
 	}
 	
-	def startDirector(policy:Policy)
+//	def startDirector(policy:Policy)
 	
-	def startWorkload(workload:WorkloadDescription)
+//	def startWorkload(workload:WorkloadDescription)
 	
-	def pullExperimentData
+//	def pullExperimentData
 	
 	/**
 	* Create a page on http://scm/scads/keypair_deploymentName.html that contains important links for this deployment:
 	* chukwa ping, performance graphs, director logs, ...
 	*/
-	def summaryPage
+//	def summaryPage
 	
 	def clientVMs:InstanceGroup = if (clients==null) { new InstanceGroup() } else clients.clients
 	def monitoringVM:Instance = if (monitoring==null) null else monitoring.monitoringVM
