@@ -44,13 +44,15 @@ case class BoundQuery(fetchTree: BoundFetch)
 abstract class BoundPredicate
 object BoundThisEqualityPredicate extends BoundPredicate
 case class BoundEqualityPredicate(attributeName: String, value: FixedValue) extends BoundPredicate
+case class BoundFetch(entity: BoundEntity, child: Option[BoundFetch], relation: Option[BoundRelationship], predicates: List[BoundPredicate], orderField: Option[String], orderDirection: Option[Direction])
+case class BoundSpec(entities: HashMap[String, BoundEntity], orphanQueries: HashMap[String, BoundQuery])
 
-case class BoundFetch(entity: BoundEntity, child: Option[BoundFetch], relation: Option[BoundRelationship]) {
+/* Temporary object used while building the fetchTree */
+case class Fetch(entity: BoundEntity, child: Option[Fetch], relation: Option[BoundRelationship]) {
 	val predicates = new scala.collection.mutable.ArrayBuffer[BoundPredicate]
 	var orderField:Option[String] = None
 	var orderDirection: Option[Direction] = None
 }
-case class BoundSpec(entities: HashMap[String, BoundEntity], orphanQueries: HashMap[String, BoundQuery])
 
 object Binder {
 	val logger = Logger.getLogger("scads.binding")
@@ -114,13 +116,13 @@ object Binder {
 			})
 
 			/* Build the fetch tree and alias map */
-			val fetchAliases = new HashMap[String, BoundFetch]()
+			val fetchAliases = new HashMap[String, Fetch]()
 			val duplicateAliases = new scala.collection.mutable.HashSet[String]()
 
-			val attributeMap = new HashMap[String, BoundFetch]()
+			val attributeMap = new HashMap[String, Fetch]()
 			val duplicateAttributes = new scala.collection.mutable.HashSet[String]()
 
-			val fetchTree: BoundFetch = q.joins.foldRight[(Option[BoundFetch], Option[String])]((None,None))((j: Join, child: (Option[BoundFetch], Option[String])) => {
+			val fetchTree: Fetch = q.joins.foldRight[(Option[Fetch], Option[String])]((None,None))((j: Join, child: (Option[Fetch], Option[String])) => {
 				logger.debug("Looking for relationship " + child._2 + " in " + j + " with child " + child._1)
 
 				/* Resolve the entity for this fetch */
@@ -138,8 +140,8 @@ object Binder {
 					}
 				}
 
-				/* Create the BoundFetch */
-				val fetch = new BoundFetch(entity, child._1, relationship)
+				/* Create the Fetch */
+				val fetch = new Fetch(entity, child._1, relationship)
 
 				/* Convert the relationship to an option for passing the parent */
 				val relToParent = if(j.relationship == null)
@@ -197,8 +199,8 @@ object Binder {
 				}
 			logger.debug("Detected thisType of " + thisType + " for query " + q.name)
 
-			/* Helper functions for identifying the BoundFetch that is being referenced in a given predicate */
-			def resolveFetch(alias: String):BoundFetch = {
+			/* Helper functions for identifying the Fetch that is being referenced in a given predicate */
+			def resolveFetch(alias: String):Fetch = {
 				if(duplicateAliases.contains(alias))
 					throw new AmbiguiousJoinAlias(q.name, alias)
 				fetchAliases.get(alias) match {
@@ -207,7 +209,7 @@ object Binder {
 				}
 			}
 
-			def resolveField(f:Field):BoundFetch = {
+			def resolveField(f:Field):Fetch = {
 				if(f.entity == null) {
 					if(duplicateAttributes.contains(f.name))
 						throw new AmbiguiousAttribute(q.name, f.name)
@@ -256,8 +258,14 @@ object Binder {
 				}
 			}
 
+			def toBoundFetch(f: Fetch): BoundFetch =
+				f.child match {
+					case Some(child) => BoundFetch(f.entity, Some(toBoundFetch(child)), f.relation, f.predicates.toList, f.orderField, f.orderDirection)
+					case None => BoundFetch(f.entity, None, None, f.predicates.toList, f.orderField, f.orderDirection)
+			}
+
 			/* Build the final bound query */
-			val boundQuery = BoundQuery(fetchTree)
+			val boundQuery = BoundQuery(toBoundFetch(fetchTree))
 
 			/* Place bound query either in its entity or as an orphan */
 			val placement: HashMap[String, BoundQuery] = thisType match {
