@@ -121,7 +121,7 @@ abstract class KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specificati
 		"have a get_set function that" >> {
 			val keyFormat = new java.text.DecimalFormat("0000000000000000")
 			val records = (10 to 90).toList.map((i) => new Record(keyFormat.format(i), i.toString))
-			records.foreach(ks.put("set", _))	
+			records.foreach(ks.put("set", _))
 
 			def recSet(start: Int, end:Int) = {
 				val recSet = new RecordSet
@@ -134,15 +134,27 @@ abstract class KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specificati
 			}
 
 
-			"correctly returns ranges" in {
+			"correctly returns exact ranges" in {
 				Conversions.convertList(ks.get_set("set", recSet(10, 90))) must
 					containInOrder(records)
+			}
+
+			"correctly returns ranges that extend past both sides of existing keys" in {
 				Conversions.convertList(ks.get_set("set", recSet(0, 100))) must
 					containInOrder(records)
+			}
+
+			"correctly returns ranges that extend past the begining of exisiting keys" in {
 				Conversions.convertList(ks.get_set("set", recSet(0, 50))) must
 					containInOrder(records.slice(0, 40))
+			}
+
+			"correctly returns ranges that extend past the end of existing keys" in {
 				Conversions.convertList(ks.get_set("set", recSet(50, 100))) must
 					containInOrder(records.slice(40,80))
+			}
+
+			"correctly returns empty ranges" in {
 				Conversions.convertList(ks.get_set("set", recSet(0, 5))) must
 					containInOrder(Array[Record]())
 			}
@@ -158,3 +170,5 @@ object JavaEngineSpec extends KeyStoreSpec {
 	val env = new Environment(new File("testDb"), config)
 	val ks = new StorageProcessor(env)
 }
+
+class JavaEngineTest extends JUnit4(JavaEngineSpec)
