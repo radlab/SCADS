@@ -19,6 +19,8 @@ case class SCADSDeployment(
 	
 	var experimentsJarURL = "http://scads.s3.amazonaws.com/experiments-1.0-jar-with-dependencies.jar"
 	
+	ScadsDeploy.initLogger
+	
 	/**
 	* This will load an existing deployment of scads based on the deployment name
 	*/
@@ -51,7 +53,18 @@ case class SCADSDeployment(
 	
 //	def startDirector(policy:Policy)
 	
-//	def startWorkload(workload:WorkloadDescription)
+	def startWorkload(workload:WorkloadDescription) {
+		if (clients!=null) clients.startWorkload(workload)
+		else ScadsDeploy.logger.debug("can't start workload; no clients running")
+	}
+	
+	def processLogFiles(nameOfExperiment:String) {
+		if (clients!=null) {
+			ScadsDeploy.logger.debug("processing log files from experiment")
+			clients.processLogFiles(nameOfExperiment,true)
+		} else 
+			ScadsDeploy.logger.debug("can't process log files; no clients running")
+	}
 	
 //	def pullExperimentData
 	

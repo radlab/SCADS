@@ -20,9 +20,16 @@ object ScadsDeploy {
 	val server_sync = 9091
 	val dp_port = 8000
 
-	val logger = Logger.getLogger("scads.deploy")
-	logger.addAppender( new FileAppender(new PatternLayout("%d %5p %c - %m%n"),"/tmp/director.txt",false) )
-	logger.setLevel(DEBUG)
+	var logger:Logger = null
+
+	def initLogger {
+		if (logger==null) {
+			logger = Logger.getLogger("scads.deploy")
+			logger.addAppender( new FileAppender(new PatternLayout("%d %5p %c - %m%n"),"/tmp/deploy.txt",false) )
+			logger.setLevel(DEBUG)
+			logger.debug("starting logging of deployment")
+		}
+	}
 
 	val adaptors = Array[String](
 		"add org.apache.hadoop.chukwa.datacollection.adaptor.ExecAdaptor Top 15000 /usr/bin/top -b -n 1 -c 0",

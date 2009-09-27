@@ -16,7 +16,6 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 	val scadsName = myscads.deploymentName
 	val xtrace_on = myscads.deployMonitoring
 	var deps:String = null
-	var collectorIP:String = null
 	var clients:InstanceGroup = null
 	var host:String = null
 	var clientConfig:JSONObject = null
@@ -31,12 +30,10 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 	}
 
 	def deploy = {
-		collectorIP = myscads.monitoring.monitoringVM.privateDnsName
 		host = myscads.placement.get(0).privateDnsName
 	
 		deploythread = new Thread(new ScadsDeployer)
 		deploythread.start
-
 	}
 	
 	def waitUntilDeployed = {
@@ -47,14 +44,14 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 		var deployed = false
 		def run = {
 			val clientRecipes = new JSONArray()
-			clientConfig = if (xtrace_on) { clientRecipes.put("chukwa::default"); ScadsDeploy.getXtraceIntoConfig(collectorIP) } else { new JSONObject() }
+			clientConfig = if (xtrace_on) { clientRecipes.put("chukwa::default"); ScadsDeploy.getXtraceIntoConfig(myscads.monitoring.monitoringVM.privateDnsName) } else { new JSONObject() }
 		    clientRecipes.put("scads::client_library")
 		    clientConfig.put("recipes", clientRecipes)
 			
-			ScadsDeploy.logger.debug("waiting for deployment to finish")
+			ScadsDeploy.logger.debug("deploying all clients")
 			clients.deploy(clientConfig)
 
-			ScadsDeploy.logger.debug("deployed!")
+			ScadsDeploy.logger.debug("clients deployed!")
 			//ScadsDeploy.logger.debug("clients deploy log: "); clientDeployResult.foreach( (x:ExecuteResponse) => {ScadsDeploy.logger.debug(x.getStdout); ScadsDeploy.logger.debug(x.getStderr)} )
 		
 			// get list of mvn dependencies
@@ -134,12 +131,17 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 		val sourceF = expDir+"/"+experimentName+".log"
 		client0.exec( "cat /mnt/logs/"+experimentName+"/clients/* > "+sourceF)
 		client0.exec( "ulimit -n 20000" )
+
+		ScadsDeploy.logger.debug("logs are in "+client0.publicDnsName+":"+sourceF)
 				
-		if (parseAndPlot)
+		if (parseAndPlot) {
+			ScadsDeploy.logger.debug("graphs will be in http://"+client0.publicDnsName+"/logs/")
 			for (i <- List(1,5,10)) {
+				ScadsDeploy.logger.debug("generating logs with "+i+" min aggregation")
 				client0.exec( "scala /opt/scads/experiments/scripts/parselogs.scala "+sourceF+" "+expDir+"/"+experimentName+"_agg"+i+".csv "+i*1000+" 1")
 				client0.exec( "echo \"source('/opt/scads/experiments/scripts/process.R'); pdf('"+expDir+"/"+experimentName+"_agg"+i+".pdf',width=10,height=15); plot.stats.for.file('"+expDir+"/"+experimentName+"_agg"+i+".csv') \" | R --vanilla")
 			}
+		}
 		
 	}
 }

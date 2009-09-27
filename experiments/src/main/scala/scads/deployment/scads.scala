@@ -141,11 +141,12 @@ extends Component with RangeConversion {
 	 		placementRecipes.put("scads::data_placement")
 		    placementConfig.put("recipes", placementRecipes)
 			
-			ScadsDeploy.logger.debug("waiting for deployment to finish")
+			ScadsDeploy.logger.debug("deploying placement")
 			placement.deploy(placementConfig)
+			ScadsDeploy.logger.debug("deploying storage nodes")
 			servers.deploy(serverConfig)
 
-			ScadsDeploy.logger.debug("deployed!")
+			ScadsDeploy.logger.debug("deployed placement and storage nodes")
 			// put all the data on one machine
 			replicate(minKey,maxKey)
 		}
