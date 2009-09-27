@@ -10,69 +10,84 @@ import scala.tools.nsc.reporters.ConsoleReporter
 import scala.tools.nsc.util.BatchSourceFile
 
 import edu.berkeley.cs.scads.model.parser._
+import edu.berkeley.cs.scads.model.Entity
 
 case class CompileException(error: String) extends Exception
+case class SpecParseException(error: String) extends Exception
 
 object Compiler extends ScadsLanguage {
 	val logger = Logger.getLogger("scads.compiler")
 	BasicConfigurator.configure()
 
+    def codeGenFromSource(src: String): String = parse(src) match {
+        case Success(result, _) => {
+            logger.debug("AST: " + Printer(result))
+            val boundSpec = Binder.bind(result)
+            logger.debug("Bound Spec: " + boundSpec)
+
+            val source = ScalaGen(boundSpec)
+            logger.debug(source)
+                
+            source
+        }
+        case f: NoSuccess => {
+            throw new SpecParseException("could not parse spec")
+        }
+    }
+
 	def main(args: Array[String]) = {
 		logger.info("Loading spec.")
 		val src = scala.io.Source.fromFile(args(0)).getLines.foldLeft(new StringBuilder)((x: StringBuilder, y: String) => x.append(y)).toString
-        val outputBaseFile = new File("src/main/scala/generated")
-        outputBaseFile.mkdirs
+
         //val outFile = new File(outputBaseFile, "spec.scala")
         //outFile.createNewFile
         //val outFileWriter = new FileWriter(outFile)
 
 		logger.info("Parsing spec.")
-		parse(src) match {
-			case Success(result, _) => {
-				logger.debug("AST: " + Printer(result))
-				try {
-					val boundSpec = Binder.bind(result)
-					logger.debug("Bound Spec: " + boundSpec)
+        try {
 
-					val source = ScalaGen(boundSpec)
-					logger.debug(source)
+            val code = codeGenFromSource(src)
 
+            val outputBaseFile = new File("src/main/scala/generated")
+            outputBaseFile.mkdirs
+            val genDir = new File(outputBaseFile, "classfiles")
+            genDir.mkdirs
+            val jarFile = new File(outputBaseFile, "spec.jar")
+            //outFileWriter.write(source)
+            compileSpecCode(genDir, jarFile, code)
 
-                    val genDir = new File(outputBaseFile, "classfiles")
-                    genDir.mkdirs
-                    val jarFile = new File(outputBaseFile, "spec.jar")
-					//outFileWriter.write(source)
-                    compileSpecCode(genDir, jarFile, source)
-				}
-				catch {
-					case UnknownRelationshipException(rn) => logger.fatal("Unknown relationship referenced: " + rn)
-					case UnknownAttributeException(qn, an) => logger.fatal("Unknown attribute '" + an + "' in query " + qn)
-					case UnknownEntityException(en) => logger.fatal("Unknown entity referenced: " + en)
-					case BadParameterOrdinals(qn) => logger.fatal("Bad parameter ordinals detected in query " + qn)
-					case UnsupportedPredicateException(qn, p) => logger.fatal("Query " + qn + " contains the following unsupported predicate " + p)
-                    case CompileException(err) => logger.fatal("Scala compiler errored: " + err)
-				}
+            //val entity : Entity = loadCompiledClass(jarFile, "user") 
+            //entity.attributes.keys.foreach(println(_))
+
+        }
+        catch {
+            case UnknownRelationshipException(rn) => logger.fatal("Unknown relationship referenced: " + rn)
+            case UnknownAttributeException(qn, an) => logger.fatal("Unknown attribute '" + an + "' in query " + qn)
+            case UnknownEntityException(en) => logger.fatal("Unknown entity referenced: " + en)
+            case BadParameterOrdinals(qn) => logger.fatal("Bad parameter ordinals detected in query " + qn)
+            case UnsupportedPredicateException(qn, p) => logger.fatal("Query " + qn + " contains the following unsupported predicate " + p)
+            case SpecParseException(err) => logger.fatal("Scala parser errored: " + err)
+            case CompileException(err) => logger.fatal("Scala compiler errored: " + err)
+        }
 				//outFileWriter.close()
                 println("Done") /* not sure why, but there needs 
                                  * to be an instruction here, otherwise 
                                  * it'll complain about no main class...
                                  * weird */
-			}
-			case f: NoSuccess => {
-				println("Parsing Failed")
-				println(f)
-			}
-		}
+
+
 	}
 
 
-    def compileSpecCode(genDir: File, jarFile: File, contents: String):Boolean = {
+    def compileSpecCode(genDir: File, jarFile: File, classpath: String, contents: String):Boolean = {
         println("Compiling spec code")
         val settings = new Settings(error)
 
         settings.deprecation.value = true
         settings.unchecked.value = true
         settings.outdir.value = genDir.toString
+        settings.classpath.value = classpath
+
 
         val reporter = new ConsoleReporter(settings)
 
@@ -89,7 +104,12 @@ object Compiler extends ScadsLanguage {
             tryMakeJar(jarFile, genDir)
             return true
         }
+    }
 
+
+    def compileSpecCode(genDir: File, jarFile: File, contents: String):Boolean = {
+        val settings = new Settings(error)
+        compileSpecCode(genDir, jarFile, settings.classpath.value, contents)
     }
 
     /*
