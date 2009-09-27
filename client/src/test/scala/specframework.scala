@@ -12,17 +12,17 @@ import java.util.ResourceBundle
 
 abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specification") {
     
-    val specFile: File
+    val specFile: String
     val classNameMap: Map[String,Array[String]]
 
 
     val specSource = getSourceFromFile(specFile)
     val baseDir = new File("src/main/scala/generated")
     val classfilesDir = new File(baseDir, "classfiles") 
-    val jarFile = new File(baseDir, jarFile)
+    val jarFile = new File(baseDir, "spec.jar")
 
-    def getSourceFromFile(file: File): String = {
-		scala.io.Source.fromFile(args(0)).getLines.foldLeft(new StringBuilder)((x: StringBuilder, y: String) => x.append(y)).toString
+    def getSourceFromFile(file: String): String = {
+		scala.io.Source.fromFile(file).getLines.foldLeft(new StringBuilder)((x: StringBuilder, y: String) => x.append(y)).toString
     }
 
     def makeNecessaryDirs() = {
@@ -37,7 +37,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
 
     def loadEntityClass(name: String): Entity = {
         val classLoader = new URLClassLoader(Array(jarFile.toURI.toURL))
-        classLoader.findClass(name).asInstanceOf[Class[Entity]].newInstance
+        classLoader.loadClass(name).asInstanceOf[Class[Entity]].newInstance
     }
 
     "a scads spec file" should {
@@ -60,7 +60,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
             val classpath = rb.getString("maven.test.classpath")
 
             try {
-                compileSpecCode(classfilesDir, jarFile, classpath, _source)
+                Compiler.compileSpecCode(classfilesDir, jarFile, classpath, _source)
             } catch {
                 case ex: Exception => fail("unable to compile")
             }
@@ -83,8 +83,11 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
 }
 
 object ScadrLangSpec extends ScadsLangSpec {
-    val specFile = new File("scadr.scads") 
+    val specFile = "scadr.scads" 
     val classNameMap = Map(
-        "user" -> Array("username")
-            )
+        "user" -> Array("name","password","email","profileData"),
+        "thought" -> Array("timestamp","thought"),
+        "subscription" -> Array("approved"),
+        "topic" -> Array("name")
+    )
 }
