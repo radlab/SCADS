@@ -5,6 +5,10 @@ import org.json.JSONObject
 import org.json.JSONArray
 import scala.collection.jcl.Conversions._
 
+import java.io._
+import org.apache.log4j._
+import org.apache.log4j.Level._
+
 import edu.berkeley.cs.scads.keys._
 import edu.berkeley.cs.scads.thrift.{RangeSet,RecordSet,KnobbedDataPlacementServer,DataPlacement, RangeConversion}
 import org.apache.thrift.transport.{TFramedTransport, TSocket}
@@ -15,6 +19,10 @@ object ScadsDeploy {
 	val server_port = 9000
 	val server_sync = 9091
 	val dp_port = 8000
+
+	val logger = Logger.getLogger("scads.deploy")
+	logger.addAppender( new FileAppender(new PatternLayout("%d %5p %c - %m%n"),"/tmp/director.txt",false) )
+	logger.setLevel(DEBUG)
 
 	val adaptors = Array[String](
 		"add org.apache.hadoop.chukwa.datacollection.adaptor.ExecAdaptor Top 15000 /usr/bin/top -b -n 1 -c 0",
@@ -61,7 +69,7 @@ object ScadsDeploy {
 				transport.open()
 				haveDPHandle = true
 			} catch {
-				case e: Exception => { println("don't have connection to placement server, waiting 1 second"); Thread.sleep(1000) }
+				case e: Exception => { ScadsDeploy.logger.debug("don't have connection to placement server, waiting 1 second"); Thread.sleep(1000) }
 			}
 		}
 		dpclient

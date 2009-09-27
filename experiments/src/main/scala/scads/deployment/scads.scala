@@ -57,12 +57,14 @@ extends Component with RangeConversion {
 	
 		server.exec("sv stop /mnt/services/scads_bdb_storage_engine")
 		server.exec("rm -rf /mnt/scads/data")
-		println("deploying default data") // server.exec("wget ...")
+		ScadsDeploy.logger.debug("deploying default data") // server.exec("wget ...")
 		val serversDeployWait = server.deployNonBlocking(dataConfig)
 		val serverDeployResult = serversDeployWait.value
 		server.exec("sv start /mnt/services/scads_bdb_storage_engine")
-		println("deployed!")
-		println("server data deploy log: "); println(serverDeployResult.getStdout); println(serverDeployResult.getStderr)
+		ScadsDeploy.logger.debug("deployed!")
+		ScadsDeploy.logger.debug("server data deploy log: ")
+		ScadsDeploy.logger.debug(serverDeployResult.getStdout)
+		ScadsDeploy.logger.debug(serverDeployResult.getStderr)
 	}
 	
 	private def replicate(minK: Int, maxK: Int) = {
@@ -78,13 +80,13 @@ extends Component with RangeConversion {
 		// copy the data from the first server to all others
 		(1 to servers.size-1).toList.map((id)=>{
 			val dp = ScadsDeploy.getDataPlacementHandle(placement.get(0).publicDnsName,deployMonitoring)
-			println("Copying to: "+ servers.get(id).privateDnsName + ": "+ start +" - "+ end)
+			ScadsDeploy.logger.debug("Copying to: "+ servers.get(id).privateDnsName + ": "+ start +" - "+ end)
 			dp.copy(namespace,range,servers.get(0).privateDnsName,ScadsDeploy.server_port,ScadsDeploy.server_sync,
 									servers.get(id).privateDnsName,ScadsDeploy.server_port,ScadsDeploy.server_sync)
 		})
 		dpclient = ScadsDeploy.getDataPlacementHandle(placement.get(0).publicDnsName,deployMonitoring)
-		if (dpclient.lookup_namespace(namespace).size != servers.size) println("Error registering servers with data placement")
-		else println("SCADS servers registered with data placement.")
+		if (dpclient.lookup_namespace(namespace).size != servers.size) ScadsDeploy.logger.debug("Error registering servers with data placement")
+		else ScadsDeploy.logger.debug("SCADS servers registered with data placement.")
 	}
 	
 	private def retry( call: => Any, recovery: => Unit, maxNRetries: Int, delay: Long ) {
@@ -97,7 +99,7 @@ extends Component with RangeConversion {
 				done = true
 			} catch {
 				case e: Exception => { 
-					println("exception; will wait and retry")
+					ScadsDeploy.logger.debug("exception; will wait and retry")
 					Thread.sleep(delay)
 					recovery
 					nRetries += 1
@@ -116,7 +118,7 @@ extends Component with RangeConversion {
 				callSuccessful = true
 			} catch {
 				case e: Exception => {
-					println("thrift \"add\" call failed, waiting 1 second");
+					ScadsDeploy.logger.debug("thrift \"add\" call failed, waiting 1 second");
 					Thread.sleep(1000)
 					dpclient = ScadsDeploy.getDataPlacementHandle(placement.get(0).publicDnsName,deployMonitoring)
 				}
@@ -139,11 +141,11 @@ extends Component with RangeConversion {
 	 		placementRecipes.put("scads::data_placement")
 		    placementConfig.put("recipes", placementRecipes)
 			
-			println("waiting for deployment to finish")
+			ScadsDeploy.logger.debug("waiting for deployment to finish")
 			placement.deploy(placementConfig)
 			servers.deploy(serverConfig)
 
-			println("deployed!")
+			ScadsDeploy.logger.debug("deployed!")
 			// put all the data on one machine
 			replicate(minKey,maxKey)
 		}
