@@ -717,6 +717,8 @@ case class SCADSStateHistory(
 	var lastInterval:Long = -1
 	var updaterThread:Thread = null
 	
+	var maxLag:Long = 5*60*1000
+	
 	def getMostRecentState:SCADSState = if (lastInterval== -1) null else history(lastInterval)
 	
 	def startUpdating {
@@ -740,7 +742,12 @@ case class SCADSStateHistory(
 					nextUpdateTime += period
 				} else {
 					Thread.sleep(period/3)
-					Director.logger.debug("trying to update state of "+new Date(nextUpdateTime)+" at "+new Date()+" but don't have data yet")
+					Director.logger.debug("trying to update state of "+new Date(nextUpdateTime)+" ("+nextUpdateTime+") at "+new Date()+" but don't have data yet")
+				}
+				
+				if ( (new Date().getTime - nextUpdateTime)>maxLag ) {
+					nextUpdateTime += period
+					Director.logger.info("couldn't update state of "+new Date(nextUpdateTime)+" ("+nextUpdateTime+") for too long; moving on")
 				}
 			}
 			
