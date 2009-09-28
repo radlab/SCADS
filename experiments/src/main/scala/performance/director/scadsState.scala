@@ -1,6 +1,7 @@
 package scads.director
 
 import performance._
+import scads.deployment.ScadsDeploy
 import java.util.Date
 import java.io._
 
@@ -91,7 +92,7 @@ object SCADSconfig {
 }
 
 object SCADSState {
-	import performance.Scads
+	import scads.deployment.ScadsDeploy
 	import java.util.Comparator
 	import edu.berkeley.cs.scads.thrift.DataPlacement
 	import edu.berkeley.cs.scads.keys._
@@ -159,10 +160,10 @@ object SCADSState {
 			o1.rset.range.start_key compareTo o2.rset.range.start_key
 		}
 	}
-
+	
 	def refresh(metricReader:MetricReader, placementServerIP:String): SCADSState = {
 		val reqTypes = List("get","put")
-		val dp = Scads.getDataPlacementHandle(placementServerIP,Director.xtrace_on)
+		val dp = ScadsDeploy.getDataPlacementHandle(placementServerIP,Director.xtrace_on)
 		val placements = dp.lookup_namespace(Director.namespace)
 		java.util.Collections.sort(placements,new DataPlacementComparator)
 		
@@ -175,8 +176,8 @@ object SCADSState {
 			val ip = info.node
 
 			val range = new DirectorKeyRange(
-				Scads.getNumericKey( StringKey.deserialize_toString(info.rset.range.start_key,new java.text.ParsePosition(0)) ),
-				Scads.getNumericKey( StringKey.deserialize_toString(info.rset.range.end_key,new java.text.ParsePosition(0)) )
+				ScadsDeploy.getNumericKey( StringKey.deserialize_toString(info.rset.range.start_key,new java.text.ParsePosition(0)) ),
+				ScadsDeploy.getNumericKey( StringKey.deserialize_toString(info.rset.range.end_key,new java.text.ParsePosition(0)) )
 			)
 			val sMetrics = PerformanceMetrics.load(metricReader,ip,"ALL")
 			val sMetricsByType = reqTypes.map( (t) => t -> PerformanceMetrics.load(metricReader,ip,t)).foldLeft(Map[String, PerformanceMetrics]())((x,y) => x + y)	
@@ -199,7 +200,7 @@ object SCADSState {
 		if (!haveData) null
 		else {
 			val reqTypes = List("get","put")
-			val dp = Scads.getDataPlacementHandle(placementServerIP,Director.xtrace_on)
+			val dp = ScadsDeploy.getDataPlacementHandle(placementServerIP,Director.xtrace_on)
 			val placements = dp.lookup_namespace(Director.namespace)
 			java.util.Collections.sort(placements,new DataPlacementComparator)
 		
@@ -212,8 +213,8 @@ object SCADSState {
 				val ip = info.node
 
 				val range = new DirectorKeyRange(
-					Scads.getNumericKey( StringKey.deserialize_toString(info.rset.range.start_key,new java.text.ParsePosition(0)) ),
-					Scads.getNumericKey( StringKey.deserialize_toString(info.rset.range.end_key,new java.text.ParsePosition(0)) )
+					ScadsDeploy.getNumericKey( StringKey.deserialize_toString(info.rset.range.start_key,new java.text.ParsePosition(0)) ),
+					ScadsDeploy.getNumericKey( StringKey.deserialize_toString(info.rset.range.end_key,new java.text.ParsePosition(0)) )
 				)
 				val sMetrics = PerformanceMetrics.load(metricReader,ip,"ALL")
 				val sMetricsByType = reqTypes.map( (t) => t -> PerformanceMetrics.load(metricReader,ip,t)).foldLeft(Map[String, PerformanceMetrics]())((x,y) => x + y)	
