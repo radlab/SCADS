@@ -115,9 +115,10 @@ object ParseXtraceReports {
 				val updates = processInterval(requests.toList,lastInterval)
 				updates.foreach( println(_) )
 				metricService.update( s2jList(updates) )
-				requests = new scala.collection.mutable.ListBuffer[SCADSRequestStats]()
 
 				if (nBins>0) computeAndStoreHistogram(lastInterval,requests.toList,histogramRange)
+
+				requests = new scala.collection.mutable.ListBuffer[SCADSRequestStats]()
 			}
 		}
 	}
@@ -169,6 +170,8 @@ object ParseXtraceReports {
 	}
 	
 	def storeHistogram(histogram:Map[StringKeyRange,WorkloadStats], time:Long) {
+		histogram.map( (p)=> p._1.toString+"->"+p._2.toString+"  " ).foreach( print(_) ); println
+		
 		val histCSV = histogramToCSV(histogram)
 		val statement = histogramDBConnection.createStatement
 		val histogramSQL = createInsertStatement("scadsstate_histogram", Map("time"->time.toString,"histogram"->("'"+histCSV+"'")))
@@ -177,8 +180,6 @@ object ParseXtraceReports {
 	}
 	
 	def histogramToCSV(histogram:Map[StringKeyRange,WorkloadStats]):String = {
-		histogram.map( (p)=> p._1.toString+"->"+p._2.toString+"  " ).foreach( print(_) )
-		
 	    "minKey,maxKey,getRate,putRate,getsetRate\n"+
 		histogram.map(r=>(r._1,r._2)).toList.
 			sort(_._1.minKey<_._1.minKey).
@@ -248,7 +249,7 @@ object ParseXtraceReports {
 			val m2 = timePattern.matcher(report)
 			val timestamp = if (m2.find) m2.group(2).toDouble else 0.0
 			
-/*			println("request: type="+requestType+"   key="+key+"  serverIP="+serverIP+"  latency="+latency)			*/
+			//println("request: type="+requestType+"   key="+key+"  serverIP="+serverIP+"  latency="+latency)			
 			requests += new SCADSRequestStats(requestType,timestamp,serverIP,latency,key)
 		}
 	}
@@ -291,17 +292,22 @@ object ParseXtraceReports {
 	    } catch { case ex: Exception => ex.printStackTrace() }
 
 		var connection:Connection = null
-	    try {
-	        val connectionString = "jdbc:mysql://" + databaseHost + "/?user=" + databaseUser + "&password=" + databasePassword
-			println("connecting to database: "+connectionString)
-	        connection = DriverManager.getConnection(connectionString)
-		} catch {
-			case ex: SQLException => {
-	            println("can't connect to the database")
-	            println("SQLException: " + ex.getMessage)
-	            println("SQLState: " + ex.getSQLState)
-	           	println("VendorError: " + ex.getErrorCode)
-	        }
+		while (connection==null) {
+		    try {
+		        val connectionString = "jdbc:mysql://" + databaseHost + "/?user=" + databaseUser + "&password=" + databasePassword
+				println("connecting to database: "+connectionString)
+		        connection = DriverManager.getConnection(connectionString)
+			} catch {
+				case ex: SQLException => {
+		            println("can't connect to the database")
+		            println("SQLException: " + ex.getMessage)
+		            println("SQLState: " + ex.getSQLState)
+		           	println("VendorError: " + ex.getErrorCode)
+					
+					println("will wait 10 seconds and try again")
+					Thread.sleep(10*1000)
+		        }
+			}
 		}
 
 		try {
