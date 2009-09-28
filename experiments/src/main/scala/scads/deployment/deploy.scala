@@ -41,13 +41,14 @@ case class SCADSDeployment(
 		
 			// create the components
 			if (doMonitoring) monitoring = SCADSMonitoringDeployment(deploymentName,experimentsJarURL)
-			myscads = Scads(List[(DirectorKeyRange,String)](null,null),deploymentName,doMonitoring,monitoring)
+			myscads = Scads(List[(DirectorKeyRange,String)]((null,null)),deploymentName,doMonitoring)
 			if (nClients>0) clients = ScadsClients(myscads,nClients)
 			if (deployDirector) director = DirectorDeployment(myscads,monitoring,deployDirectorToMonitoring)
 		
 			val components = List[Component](myscads,clients,monitoring,director)		
 			components.filter(_!=null).foreach(_.boot) 				// boot up all machines
 			components.filter(_!=null).foreach(_.waitUntilBooted) 	// wait until all machines booted
+			if (doMonitoring) myscads.setMonitor(monitoring.monitoringVM.privateDnsName)	// inform scads component of monitor
 			components.filter(_!=null).foreach(_.deploy)			// deploy on all
 			components.filter(_!=null).foreach(_.waitUntilDeployed)	// wait until all deployed
 
