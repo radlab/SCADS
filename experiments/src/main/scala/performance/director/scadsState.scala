@@ -714,14 +714,17 @@ case class SCADSStateHistory(
 ) {	
 	val history = new scala.collection.mutable.HashMap[Long,SCADSState] with scala.collection.mutable.SynchronizedMap[Long,SCADSState]
 	var lastInterval:Long = -1
+	var updaterThread:Thread = null
 	
 	def getMostRecentState:SCADSState = if (lastInterval== -1) null else history(lastInterval)
 	
 	def startUpdating {
 		val updater = StateUpdater()
-		val updaterThread = new Thread(updater)
+		updaterThread = new Thread(updater)
 		updaterThread.start
 	}
+	
+	def stopUpdating { if (updaterThread!=null) updaterThread.stop }
 	
 	case class StateUpdater() extends Runnable {
 		def run() {

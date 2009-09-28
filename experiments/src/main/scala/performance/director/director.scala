@@ -108,7 +108,10 @@ object Director {
 			// add all states to cost function
 			stateHistory.history.toList.sort(_._1<_._1).map(_._2).foreach( costFunction.addState(_) )
 		}
-		def stop = { running = false }
+		def stop = { 
+			running = false 
+			stateHistory.stopUpdating
+		}
 	}
 
 	def setDeployment(deploy_name:String) {
