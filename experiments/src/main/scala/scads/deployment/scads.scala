@@ -73,7 +73,34 @@ extends Component with RangeConversion {
 	def waitUntilDeployed = {
 		if (deploythread != null) deploythread.join
 	}
-	
+	def setMonitor(ip:String) = { monitorIP = ip }
+	def addServers(num:Int) = {
+		ScadsDeploy.logger.debug("scads: booting up "+num+" storage node(s) VM ("+serverVMType+")")
+		val new_servers = DataCenter.runInstances(num,serverVMType)
+		new_servers.waitUntilReady
+		new_servers.tagWith( DataCenter.keyName+"--SCADS--"+deploymentName+"--"+ScadsDeploy.serversName )
+
+		ScadsDeploy.logger.debug("scads: deploying storage nodes")
+		val serversDeployWait = new_servers.deployNonBlocking(serverConfig)
+		val serverDeployResult = serversDeployWait()
+		ScadsDeploy.logger.debug("scads: deployed storage nodes")
+
+		servers.addAll(new_servers)
+	}
+
+	def shutdownServer(host:String) = { // note: this does not remove from data placement!
+		var found = false
+		(0 to servers.size-1).toList.map((id)=>{
+			if (servers.get(id).privateDnsName == host || servers.get(id).publicDnsName == host) {
+				val machine:Instance = servers.get(id)
+				ScadsDeploy.logger.debug("Shutting down "+host)
+				machine.stop
+				ScadsDeploy.logger.debug("Terminated "+host)
+				found = true
+			}
+		})
+		if (!found) ScadsDeploy.logger.warn("No machine with hostname "+host+" found.")
+	}
 	private def deployData(server:Instance, url:String) = {
 		// data for server config --- replace with s3 bucket url when we have them
 		val dataRecipe = new JSONArray()
