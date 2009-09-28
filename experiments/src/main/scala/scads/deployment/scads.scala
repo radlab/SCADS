@@ -76,15 +76,21 @@ extends Component with RangeConversion {
 	}
 	def setMonitor(ip:String) = { monitorIP = ip }
 	def addServers(num:Int) = {
-		ScadsDeploy.logger.debug("scads: booting up "+num+" storage node(s) VM ("+serverVMType+")")
+		if (serverConfig==null) {
+			val serverRecipes = new JSONArray()
+			serverConfig = if (deployMonitoring) { serverRecipes.put("chukwa::default"); ScadsDeploy.getXtraceIntoConfig(monitorIP) } else { new JSONObject() }
+		    serverRecipes.put("scads::storage_engine")
+		    serverConfig.put("recipes", serverRecipes)
+		}
+		//ScadsDeploy.logger.debug("scads: booting up "+num+" storage node(s) VM ("+serverVMType+")")
 		val new_servers = DataCenter.runInstances(num,serverVMType)
 		new_servers.waitUntilReady
 		new_servers.tagWith( DataCenter.keyName+"--SCADS--"+deploymentName+"--"+ScadsDeploy.serversName )
 
-		ScadsDeploy.logger.debug("scads: deploying storage nodes")
+		//ScadsDeploy.logger.debug("scads: deploying storage nodes")
 		val serversDeployWait = new_servers.deployNonBlocking(serverConfig)
 		val serverDeployResult = serversDeployWait()
-		ScadsDeploy.logger.debug("scads: deployed storage nodes")
+		//ScadsDeploy.logger.debug("scads: deployed storage nodes")
 
 		servers.addAll(new_servers)
 	}
@@ -94,9 +100,9 @@ extends Component with RangeConversion {
 		(0 to servers.size-1).toList.map((id)=>{
 			if (servers.get(id).privateDnsName == host || servers.get(id).publicDnsName == host) {
 				val machine:Instance = servers.get(id)
-				ScadsDeploy.logger.debug("Shutting down "+host)
+				//ScadsDeploy.logger.debug("Shutting down "+host)
 				machine.stop
-				ScadsDeploy.logger.debug("Terminated "+host)
+				//ScadsDeploy.logger.debug("Terminated "+host)
 				found = true
 			}
 		})
