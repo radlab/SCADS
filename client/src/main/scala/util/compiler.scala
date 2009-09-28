@@ -35,7 +35,7 @@ object Compiler extends ScadsLanguage {
         }
     }
 
-	def main(args: Array[String]) = {
+	def main(args: Array[String]): Unit = {
 		logger.info("Loading spec.")
 		val src = scala.io.Source.fromFile(args(0)).getLines.foldLeft(new StringBuilder)((x: StringBuilder, y: String) => x.append(y)).toString
 
@@ -69,12 +69,6 @@ object Compiler extends ScadsLanguage {
             case SpecParseException(err) => logger.fatal("Scala parser errored: " + err)
             case CompileException(err) => logger.fatal("Scala compiler errored: " + err)
         }
-				//outFileWriter.close()
-                println("Done") /* not sure why, but there needs 
-                                 * to be an instruction here, otherwise 
-                                 * it'll complain about no main class...
-                                 * weird */
-
 
 	}
 
