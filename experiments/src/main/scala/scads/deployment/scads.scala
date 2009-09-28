@@ -34,42 +34,43 @@ object ScadsLoader {
 case class Scads(
 	cluster_config:List[(DirectorKeyRange,String)],
 	deploymentName:String,
-	deployMonitoring:Boolean,
-	monitoring:SCADSMonitoringDeployment) 
+	deployMonitoring:Boolean)
 extends Component with RangeConversion {
 	var servers:InstanceGroup = null
 	var placement:InstanceGroup = null
-	val serversName = "servers"; val placeName = "placement"
 	var dpclient:KnobbedDataPlacementServer.Client = null
-	
 	var deploythread:Thread = null
-	var collectorIP:String = null
+	var monitorIP:String = "NA"
+
 	val minKey = 0
 	val maxKey = 10000
 	val namespace = "perfTest256"
-	
 	val serverVMType = "m1.small"
 	val placementVMType = "m1.small"
-	
+
+	// server node config used by initial server and when want to addservers
+	var serverConfig:JSONObject = null
+
 	def boot = {
 		ScadsDeploy.logger.debug("scads: booting up "+cluster_config.size+" storage node(s) VM ("+serverVMType+")")
 		ScadsDeploy.logger.debug("scads: booting up 1 placement VM ("+placementVMType+")")
 		servers = DataCenter.runInstances(cluster_config.size,serverVMType)
 		placement = DataCenter.runInstances(1,placementVMType)
 	}
+
 	def waitUntilBooted = {
 		val machines = Array(servers,placement)
 		new InstanceGroup(machines).waitUntilReady
 		ScadsDeploy.logger.debug("scads: have storage and placement VMs")
-		servers.tagWith( DataCenter.keyName+"--SCADS--"+deploymentName+"--"+serversName)
-		placement.tagWith( DataCenter.keyName+"--SCADS--"+deploymentName+"--"+placeName)
+		servers.tagWith( DataCenter.keyName+"--SCADS--"+deploymentName+"--"+ScadsDeploy.serversName)
+		placement.tagWith( DataCenter.keyName+"--SCADS--"+deploymentName+"--"+ScadsDeploy.placeName)
 	}
-	
+
 	def deploy = {
 		deploythread = new Thread(new ScadsDeployer)
 		deploythread.start
 	}
-	
+
 	def waitUntilDeployed = {
 		if (deploythread != null) deploythread.join
 	}
@@ -119,7 +120,7 @@ extends Component with RangeConversion {
 		ScadsDeploy.logger.debug(serverDeployResult.getStdout)
 		ScadsDeploy.logger.debug(serverDeployResult.getStderr)
 	}
-	
+
 	private def replicate(minK: Int, maxK: Int) = {
 		// have first server download the data, and assign the range with the placement server
 		deployData(servers.get(0),null)
@@ -141,7 +142,7 @@ extends Component with RangeConversion {
 		if (dpclient.lookup_namespace(namespace).size != servers.size) ScadsDeploy.logger.debug("Error registering servers with data placement")
 		else ScadsDeploy.logger.debug("SCADS servers registered with data placement.")
 	}
-	
+
 	private def retry( call: => Any, recovery: => Unit, maxNRetries: Int, delay: Long ) {
 		var returnValue: Any = null
 		var done = false
@@ -182,15 +183,15 @@ extends Component with RangeConversion {
 	case class ScadsDeployer extends Runnable {
 		var deployed = false
 		def run = {
-			// storage server config
+			// set up server config
 			val serverRecipes = new JSONArray()
-			val serverConfig = if (deployMonitoring) { serverRecipes.put("chukwa::default"); ScadsDeploy.getXtraceIntoConfig(monitoring.monitoringVM.privateDnsName) } else { new JSONObject() }
+			serverConfig = if (deployMonitoring) { serverRecipes.put("chukwa::default"); ScadsDeploy.getXtraceIntoConfig(monitorIP) } else { new JSONObject() }
 		    serverRecipes.put("scads::storage_engine")
 		    serverConfig.put("recipes", serverRecipes)
 
 			// placement config
 			val placementRecipes = new JSONArray()
-			val placementConfig = if (deployMonitoring) { placementRecipes.put("chukwa::default"); ScadsDeploy.getXtraceIntoConfig(monitoring.monitoringVM.privateDnsName) } else { new JSONObject() }
+			val placementConfig = if (deployMonitoring) { placementRecipes.put("chukwa::default"); ScadsDeploy.getXtraceIntoConfig(monitorIP) } else { new JSONObject() }
 	 		placementRecipes.put("scads::data_placement")
 		    placementConfig.put("recipes", placementRecipes)
 			
@@ -200,6 +201,10 @@ extends Component with RangeConversion {
 			ScadsDeploy.logger.debug("scads: deploying storage nodes")
 			servers.deploy(serverConfig)
 			ScadsDeploy.logger.debug("scads: deployed storage nodes")
+
+			placement.get(0).exec("/etc/init.d/apache2 start") // start apache for hosting put restriction file
+			val info_str = if (deployMonitoring) { deployMonitoring+","+monitorIP } else { deployMonitoring+","+"NA" }
+			placement.get(0).exec("echo '"+info_str+"' >> "+ScadsDeploy.placementInfoFile)
 
 			// put all the data on one machine
 			ScadsDeploy.logger.debug("scads: replicating data")
