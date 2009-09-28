@@ -73,7 +73,7 @@ case class DirectorDeployment(
 			// install Java 6
 			directorVM.exec("cd /tmp/  &&  wget http://radlab_java.s3.amazonaws.com/jdk-6u18-ea-bin-b02-linux-i586-09_sep_2009.bin -O java6.bin")
 			directorVM.exec("cd /tmp/  &&  chmod 755 java6.bin  &&  echo yes | ./java6.bin > /dev/null")
-			directorVM.exec("echo 'export JAVA_HOME=/usr/lib/jvm/java-6-sun/' >> /root/.bash_profile")
+			directorVM.exec("echo 'export JAVA_HOME=/usr/lib/jvm/java-6-openjdk/' >> /root/.bash_profile")
 
 			ScadsDeploy.logger.info("director: deployed")
 		}
