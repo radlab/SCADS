@@ -262,6 +262,9 @@ object Binder {
 				case usp: Predicate => throw UnsupportedPredicateException(q.name, usp)
 			})
 
+			/* Create list of bound parameters */
+			val boundParameters = parameters.map((p) => BoundParameter(p.name, paramTypes(p.name)))
+
 			/* Bind the ORDER BY clause */
 			q.order match {
 				case Unordered => null
@@ -279,7 +282,7 @@ object Binder {
 			}
 
 			/* Build the final bound query */
-			val boundQuery = BoundQuery(toBoundFetch(fetchTree))
+			val boundQuery = BoundQuery(toBoundFetch(fetchTree), boundParameters)
 
 			/* Place bound query either in its entity or as an orphan */
 			val placement: HashMap[String, BoundQuery] = thisType match {
