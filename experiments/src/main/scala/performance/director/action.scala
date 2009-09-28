@@ -1,6 +1,6 @@
 package scads.director
 
-import performance.Scads
+import scads.deployment.ScadsDeploy
 import edu.berkeley.cs.scads.thrift.{RangeConversion, DataPlacement}
 import edu.berkeley.cs.scads.keys._
 
@@ -650,11 +650,11 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		val t0 = new Date().getTime
 		
 		if (placement_host == null) init
-		val dp = Scads.getDataPlacementHandle(placement_host,xtrace_on)
-		val s_info = dp.lookup_node(namespace,host,Scads.server_port,Scads.server_sync)
+		val dp = ScadsDeploy.getDataPlacementHandle(placement_host,xtrace_on)
+		val s_info = dp.lookup_node(namespace,host,ScadsDeploy.server_port,ScadsDeploy.server_sync)
 		val range = s_info.rset.range
-		val value = (Scads.getNumericKey( StringKey.deserialize_toString(range.start_key,new java.text.ParsePosition(0)) ),
-		Scads.getNumericKey( StringKey.deserialize_toString(range.end_key,new java.text.ParsePosition(0)) ))
+		val value = (ScadsDeploy.getNumericKey( StringKey.deserialize_toString(range.start_key,new java.text.ParsePosition(0)) ),
+		ScadsDeploy.getNumericKey( StringKey.deserialize_toString(range.end_key,new java.text.ParsePosition(0)) ))
 		
 		val t1 = new Date().getTime
 		Director.lowLevelActionMonitor.log("getNodeRange",t0,t1,Map("host"->host))
@@ -666,9 +666,9 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		val t0 = new Date().getTime
 		
 		if (placement_host == null) init
-		val dpclient = Scads.getDataPlacementHandle(placement_host,xtrace_on)
-		val range = new KeyRange(new StringKey(Scads.keyFormat.format(startkey)), new StringKey(Scads.keyFormat.format(endkey)) )
-		dpclient.move(namespace,range, source_host, Scads.server_port,Scads.server_sync, target_host, Scads.server_port,Scads.server_sync)
+		val dpclient = ScadsDeploy.getDataPlacementHandle(placement_host,xtrace_on)
+		val range = new KeyRange(new StringKey(ScadsDeploy.keyFormat.format(startkey)), new StringKey(ScadsDeploy.keyFormat.format(endkey)) )
+		dpclient.move(namespace,range, source_host, ScadsDeploy.server_port,ScadsDeploy.server_sync, target_host, ScadsDeploy.server_port,ScadsDeploy.server_sync)
 		
 		val t1 = new Date().getTime
 		Director.lowLevelActionMonitor.log("move",t0,t1,Map("source_host"->source_host,"target_host"->target_host,"startkey"->startkey.toString,"endkey"->endkey.toString))
@@ -678,9 +678,9 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		val t0 = new Date().getTime
 		
 		if (placement_host == null) init
-		val dpclient = Scads.getDataPlacementHandle(placement_host,xtrace_on)
-		val range = new KeyRange(new StringKey(Scads.keyFormat.format(startkey)), new StringKey(Scads.keyFormat.format(endkey)) )
-		dpclient.copy(namespace,range, source_host, Scads.server_port,Scads.server_sync, target_host, Scads.server_port,Scads.server_sync)
+		val dpclient = ScadsDeploy.getDataPlacementHandle(placement_host,xtrace_on)
+		val range = new KeyRange(new StringKey(ScadsDeploy.keyFormat.format(startkey)), new StringKey(ScadsDeploy.keyFormat.format(endkey)) )
+		dpclient.copy(namespace,range, source_host, ScadsDeploy.server_port,ScadsDeploy.server_sync, target_host, ScadsDeploy.server_port,ScadsDeploy.server_sync)
 		
 		val t1 = new Date().getTime
 		Director.lowLevelActionMonitor.log("copy",t0,t1,Map("source_host"->source_host,"target_host"->target_host,"startkey"->startkey.toString,"endkey"->endkey.toString))
@@ -690,11 +690,11 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		val t0 = new Date().getTime
 		
 		if (placement_host == null) init
-		val dpclient = Scads.getDataPlacementHandle(placement_host,xtrace_on)
+		val dpclient = ScadsDeploy.getDataPlacementHandle(placement_host,xtrace_on)
 		val bounds = getNodeRange(host)
-		val range = new KeyRange(new StringKey(Scads.keyFormat.format(bounds._1)), new StringKey(Scads.keyFormat.format(bounds._2)) )
+		val range = new KeyRange(new StringKey(ScadsDeploy.keyFormat.format(bounds._1)), new StringKey(ScadsDeploy.keyFormat.format(bounds._2)) )
 		val list = new java.util.LinkedList[DataPlacement]()
-		list.add(new DataPlacement(host,Scads.server_port,Scads.server_sync,range))
+		list.add(new DataPlacement(host,ScadsDeploy.server_port,ScadsDeploy.server_sync,range))
 		dpclient.remove(namespace,list)
 		
 		val t1 = new Date().getTime
@@ -705,10 +705,10 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		val t0 = new Date().getTime
 		
 		if (placement_host == null) init
-		val dpclient = Scads.getDataPlacementHandle(placement_host,xtrace_on)
-		val range = new KeyRange(new StringKey(Scads.keyFormat.format(startKey)), new StringKey(Scads.keyFormat.format(endKey)) )
+		val dpclient = ScadsDeploy.getDataPlacementHandle(placement_host,xtrace_on)
+		val range = new KeyRange(new StringKey(ScadsDeploy.keyFormat.format(startKey)), new StringKey(ScadsDeploy.keyFormat.format(endKey)) )
 		val list = new java.util.LinkedList[DataPlacement]()
-		list.add(new DataPlacement(host,Scads.server_port,Scads.server_sync,range))
+		list.add(new DataPlacement(host,ScadsDeploy.server_port,ScadsDeploy.server_sync,range))
 		dpclient.remove(namespace,list)
 		
 		val t1 = new Date().getTime

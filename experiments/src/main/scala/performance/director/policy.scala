@@ -1,6 +1,5 @@
 package scads.director
 
-import performance.Scads
 import org.apache.log4j._
 import org.apache.log4j.Level._
 
@@ -137,7 +136,6 @@ class SplitAndMergeOnPerformance(
 	}
 	import PolicyState._
 	
-	val scads_deployment = Director.myscads
 	var policyState = PolicyState.Waiting
 	var scadsState: SCADSState = null
 	

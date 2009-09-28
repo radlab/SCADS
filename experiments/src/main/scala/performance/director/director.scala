@@ -1,6 +1,6 @@
 package scads.director
 
-import scads.deployment._
+import scads.deployment.{Scads,ScadsLoader,ScadsDeploy}
 import performance._
 import java.io._
 import org.apache.log4j._
