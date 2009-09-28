@@ -11,6 +11,26 @@ import edu.berkeley.cs.scads.thrift.{RangeSet,RecordSet,KnobbedDataPlacementServ
 import org.apache.thrift.transport.{TFramedTransport, TSocket}
 import org.apache.thrift.protocol.{TBinaryProtocol, XtBinaryProtocol}
 
+object ScadsLoader {
+	def loadState(deploymentName:String):Scads = {
+		var myscads:Scads = null
+		val servers = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+deploymentName+"--"+ScadsDeploy.serversName, true )
+		val placement = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+deploymentName+"--"+ScadsDeploy.placeName, true )
+		if (placement.size > 0) {
+			val info = readPlacementInfo(placement.get(0))
+
+			myscads = Scads(List[(DirectorKeyRange,String)]((null,null)),deploymentName,info._1)
+			myscads.servers = servers; myscads.placement = placement; myscads; myscads.setMonitor(info._2)
+			myscads.dpclient = ScadsDeploy.getDataPlacementHandle(placement.get(0).publicDnsName, myscads.deployMonitoring)
+		}
+		myscads
+	}
+	private def readPlacementInfo(machine:Instance): (Boolean,String) = {
+		val info = machine.exec("cat "+ScadsDeploy.placementInfoFile).getStdout.replace("\n","").split(",")
+		(info(0).toBoolean,info(1))
+	}
+}
+
 case class Scads(
 	cluster_config:List[(DirectorKeyRange,String)],
 	deploymentName:String,
