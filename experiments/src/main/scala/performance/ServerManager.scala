@@ -1,10 +1,10 @@
 package performance
 
+import scads.deployment._
 import deploylib._
 
 class ScadsServerManager(deploy_name:String, xtrace_on:Boolean, namespace:String) {
-	val myscads = new Scads(deploy_name,xtrace_on,namespace)
-	myscads.loadState
+	val myscads = ScadsLoader.loadState(deploy_name)
 	var standbys = new scala.collection.mutable.ListBuffer[String]() 
 
 	def bootServers(num:Int): List[String] = {

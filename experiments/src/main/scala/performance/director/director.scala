@@ -1,5 +1,6 @@
 package scads.director
 
+import scads.deployment._
 import performance._
 import java.io._
 import org.apache.log4j._
@@ -19,9 +20,11 @@ object Director {
 	
 	val xtrace_on = true
 	val namespace = "perfTest256"
-	var myscads:Scads = null
+	var myscads:scads.deployment.Scads = null
 	var directorRunner:Runner = null
 	var serverManager:ScadsServerManager = null
+	var putRestrictionURL:String = null
+	val restrictFileName = "restrict.csv"
 
 	val databaseHost = "localhost"
 	val databaseUser = "root"
@@ -109,16 +112,16 @@ object Director {
 	}
 
 	def setDeployment(deploy_name:String) {
-		myscads = new Scads(deploy_name,xtrace_on,namespace)
-		if (!myscads.loadState) setupScads(myscads)
-		serverManager = new ScadsServerManager(deploy_name, xtrace_on,namespace)
+		myscads = ScadsLoader.loadState(deploy_name)
+		serverManager = new ScadsServerManager(deploy_name, myscads.deployMonitoring,namespace)
 	}
 
 	def direct(policy:Policy, costFunction:FullCostFunction) {
 		// check for  scads deployment instance
 		if (myscads == null) { println("Need scads deployment before directing"); return }
 		val placementIP = myscads.placement.get(0).privateDnsName
-		val dpclient = Scads.getDataPlacementHandle(placementIP,xtrace_on)
+		putRestrictionURL = placementIP +"/"+restrictFileName
+		val dpclient = ScadsDeploy.getDataPlacementHandle(placementIP,xtrace_on)
 		assert( dpclient.lookup_namespace(namespace).size > 0, "Placement server has no storage nodes registered" )
 		logger.info("Will be directing with placement host: "+placementIP)
 		
@@ -127,12 +130,6 @@ object Director {
 		runthread.start
 	}
 	def stop = directorRunner.stop
-
-	private def setupScads(deployment:Scads):String = {
-		deployment.init(1)
-		deployment.replicate(0,10000) // max 4194304, in memory 2000000
-		deployment.placement.get(0).privateDnsName // return placement host name
-	}
 	
 	private def writeMaps(maps: Array[Map[DirectorKeyRange,List[String]]], prefix:String) {
 		(0 until maps.size).foreach((i)=>{
