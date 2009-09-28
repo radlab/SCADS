@@ -39,8 +39,10 @@ case class BoundEntity(attributes: HashMap[String, AttributeType], keys: List[St
 		})
 	}
 }
-
-case class BoundQuery(fetchTree: BoundFetch)
+case class BoundParameter(name: String, pType: AttributeType)
+case class BoundQuery(fetchTree: BoundFetch, parameters: List[BoundParameter]) {
+	var plan: Plan = null
+}
 
 abstract class BoundPredicate
 object BoundThisEqualityPredicate extends BoundPredicate
@@ -107,19 +109,21 @@ object Binder {
 					case Paginate(p, _) => p match {case p: Parameter => Array(p); case _ => Array[Parameter]()}
 					case Unlimited => Array[Parameter]()
 				}
-			val parameters = predParameters ++ limitParameters
+			val allParameters = predParameters ++ limitParameters
+			val parameters = Set(allParameters: _*).toList.sort(_.ordinal > _.ordinal)
 
 			/* Ensure any duplicate parameter names are actually the same parameter */
-			if(Set(parameters: _*).size != Set(parameters.map(_.name): _*).size)
+			if(parameters.size != Set(allParameters.map(_.name): _*).size)
 				throw new DuplicateParameterException(q.name)
 
 			/* Ensure that parameter ordinals are contiguious starting at 1 */
-			parameters.sort(_.ordinal > _.ordinal).foldRight(1)((p: Parameter, o: Int) => {
+			parameters.foldRight(1)((p: Parameter, o: Int) => {
 				logger.debug("Ordinal checking, found " + p + " expected " + o)
 				if(p.ordinal != o)
 					throw new BadParameterOrdinals(q.name)
 				o + 1
 			})
+
 
 			/* Build the fetch tree and alias map */
 			val fetchAliases = new HashMap[String, Fetch]()
@@ -244,6 +248,10 @@ object Binder {
 				}
 				fetch.predicates.append(BoundEqualityPredicate(f.name, v))
 			}
+
+			/* Type the Limit Parameter (if it exists) */
+			limitParameters.foreach((p) => paramTypes.put(p.name, IntegerType))
+			logger.debug("Parameter types: " + paramTypes)
 
 			/* Bind predicates to the proper node of the Fetch Tree */
 			q.predicates.foreach( _ match {
