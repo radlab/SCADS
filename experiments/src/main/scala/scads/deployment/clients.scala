@@ -48,7 +48,7 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 		var deployed = false
 		def run = {
 			val clientRecipes = new JSONArray()
-			clientConfig = if (xtrace_on) { clientRecipes.put("chukwa::default"); ScadsDeploy.getXtraceIntoConfig(myscads.monitoring.monitoringVM.privateDnsName) } else { new JSONObject() }
+			clientConfig = if (xtrace_on) { clientRecipes.put("chukwa::default"); ScadsDeploy.getXtraceIntoConfig(myscads.monitorIP) } else { new JSONObject() }
 		    clientRecipes.put("scads::client_library")
 		    clientConfig.put("recipes", clientRecipes)
 			
