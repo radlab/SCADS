@@ -19,6 +19,9 @@ object ScadsDeploy {
 	val server_port = 9000
 	val server_sync = 9091
 	val dp_port = 8000
+	val serversName = "servers"
+	val placeName = "placement"
+	val placementInfoFile = "/tmp/scads_info.csv"
 
 	var logger:Logger = null
 
