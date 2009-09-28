@@ -15,10 +15,10 @@ case class SCADSMonitoringDeployment(
 	deploymentName:String,
 	experimentsJarURL:String
 ) extends Component {
-	var monitoringVMInstanceType = "c1.small"
+	var monitoringVMInstanceType = "m1.small"
 	var monitoringVM:Instance = null
 	
-	var deployed = false
+	var startedDeploying = false
 	var deployer:Deployer = null
 	var deployerThread:Thread = null
 	
@@ -29,19 +29,21 @@ case class SCADSMonitoringDeployment(
 	
 	override def boot {
 		// boot up a machine
+		ScadsDeploy.logger.debug("monitoring: booting up 1 monitoring VM ("+monitoringVMInstanceType+")")
 		monitoringVM = DataCenter.runInstances(1, monitoringVMInstanceType).getFirst()
 	}
 	
 	override def waitUntilBooted = {
 		monitoringVM.waitUntilReady
+		ScadsDeploy.logger.debug("monitoring: have monitoring VM")
 		monitoringVM.tagWith( DataCenter.keyName+"--SCADS--"+deploymentName+"--monitoring" )
 	}
 	
 	override def deploy {
-		deployed = false
 		deployer = Deployer()
 		deployerThread = new Thread(deployer)
 		deployerThread.start
+		startedDeploying = true
 	}
 	
 	case class Deployer extends Runnable {
@@ -50,6 +52,11 @@ case class SCADSMonitoringDeployment(
 			val collectorRecipes = new JSONArray()
 		    collectorRecipes.put("chukwa::collector")
 		    collectorConfig.put("recipes", collectorRecipes)
+			ScadsDeploy.logger.debug("monitoring: deploying chukwa collector")
+			val collectorDeployResult = monitoringVM.deploy(collectorConfig)
+			ScadsDeploy.logger.debug("monitoring: collector deployed")
+			ScadsDeploy.logger.debug("monitoring: collector deploy STDOUT:\n"+collectorDeployResult.getStdout)
+			ScadsDeploy.logger.debug("monitoring: collector deploy STDERR:\n"+collectorDeployResult.getStderr)
 
 			// deploy monitoring
 			val monitoringCfg = Json.build( Map("recipes"->Array("scads::monitoring"),
@@ -58,12 +65,21 @@ case class SCADSMonitoringDeployment(
 														 		"metricService"->Map("port"->6001,"dbhost"->"localhost","dbuser"->"root","dbpassword"->"","dbname"->"metrics"),
 																"xtraceParser"->Map("nBins"->nBins,"minKey"->minKey,"maxKey"->maxKey,"aggregationInterval"->aggregationInterval)
 														)))
-		    //monitoringVM.deploy(monitoringCfg)
-			monitoringVM.deploy(collectorConfig)
+			ScadsDeploy.logger.debug("monitoring: deploying monitoring")
+			val monitoringDeployResult = monitoringVM.deploy(monitoringCfg)
+			ScadsDeploy.logger.debug("monitoring: monitoring deploy STDOUT:\n"+monitoringDeployResult.getStdout)
+			ScadsDeploy.logger.debug("monitoring: monitoring deploy STDERR:\n"+monitoringDeployResult.getStderr)
+			ScadsDeploy.logger.debug("monitoring: monitoring deployed")
 		}
 	}
 
-	override def waitUntilDeployed = while (!deployed) Thread.sleep(100)
+	override def waitUntilDeployed { 
+		while (!startedDeploying) {
+			Thread.sleep(1000)
+			ScadsDeploy.logger.debug("monitoring: waiting to start deployment")
+		}
+		if (deployerThread != null) deployerThread.join
+	}
 }
 
 /*object SCADSMonitoringDeployment {

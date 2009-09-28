@@ -36,19 +36,23 @@ case class SCADSDeployment(
 	// initial configuration and dataset
 	// xtrace sampling probability
 	def deploy(nClients:Int, deployMonitoring:Boolean, deployDirector:Boolean) {
-		val doMonitoring = if (deployDirector) { true } else { deployMonitoring }
+		try {
+			val doMonitoring = if (deployDirector) { true } else { deployMonitoring }
 		
-		// create the components
-		if (doMonitoring) monitoring = SCADSMonitoringDeployment(deploymentName,experimentsJarURL)
-		myscads = Scads(List[(DirectorKeyRange,String)](null,null),deploymentName,doMonitoring,monitoring)
-		if (nClients>0) clients = ScadsClients(myscads,nClients)
-		if (deployDirector) director = DirectorDeployment(myscads,monitoring,deployDirectorToMonitoring)
+			// create the components
+			if (doMonitoring) monitoring = SCADSMonitoringDeployment(deploymentName,experimentsJarURL)
+			myscads = Scads(List[(DirectorKeyRange,String)](null,null),deploymentName,doMonitoring,monitoring)
+			if (nClients>0) clients = ScadsClients(myscads,nClients)
+			if (deployDirector) director = DirectorDeployment(myscads,monitoring,deployDirectorToMonitoring)
 		
-		val components = List[Component](myscads,clients,monitoring,director)		
-		components.filter(_!=null).foreach(_.boot) 				// boot up all machines
-		components.filter(_!=null).foreach(_.waitUntilBooted) 	// wait until all machines booted
-		components.filter(_!=null).foreach(_.deploy)			// deploy on all
-		components.filter(_!=null).foreach(_.waitUntilDeployed)	// wait until all deployed
+			val components = List[Component](myscads,clients,monitoring,director)		
+			components.filter(_!=null).foreach(_.boot) 				// boot up all machines
+			components.filter(_!=null).foreach(_.waitUntilBooted) 	// wait until all machines booted
+			components.filter(_!=null).foreach(_.deploy)			// deploy on all
+			components.filter(_!=null).foreach(_.waitUntilDeployed)	// wait until all deployed
+
+			ScadsDeploy.logger.info("DEPLOYED SCADS")			
+		} catch { case e:Exception => ScadsDeploy.logger.error("SCADS deployment error:\n",e) }
 	}
 	
 //	def startDirector(policy:Policy)

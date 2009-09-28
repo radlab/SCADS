@@ -21,11 +21,15 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 	var clientConfig:JSONObject = null
 	var deploythread:Thread = null
 	
+	val clientVMType = "c1.medium"
+	
 	def boot = {
-		clients = DataCenter.runInstances(num_clients,"c1.medium")
+		ScadsDeploy.logger.debug("clients: booting up "+num_clients+" client VM(s) ("+clientVMType+")")
+		clients = DataCenter.runInstances(num_clients,clientVMType)
 	}
 	def waitUntilBooted = {
 		clients.waitUntilReady
+		ScadsDeploy.logger.debug("clients: have client VM(s)")
 		clients.tagWith( DataCenter.keyName+"--SCADS--"+scadsName+"--"+"clients")
 	}
 
@@ -48,10 +52,10 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 		    clientRecipes.put("scads::client_library")
 		    clientConfig.put("recipes", clientRecipes)
 			
-			ScadsDeploy.logger.debug("deploying all clients")
+			ScadsDeploy.logger.debug("clients: deploying")
 			clients.deploy(clientConfig)
 
-			ScadsDeploy.logger.debug("clients deployed!")
+			ScadsDeploy.logger.debug("clients: deployed!")
 			//ScadsDeploy.logger.debug("clients deploy log: "); clientDeployResult.foreach( (x:ExecuteResponse) => {ScadsDeploy.logger.debug(x.getStdout); ScadsDeploy.logger.debug(x.getStderr)} )
 		
 			// get list of mvn dependencies

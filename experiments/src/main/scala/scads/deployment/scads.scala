@@ -28,13 +28,19 @@ extends Component with RangeConversion {
 	val maxKey = 10000
 	val namespace = "perfTest256"
 	
+	val serverVMType = "m1.small"
+	val placementVMType = "m1.small"
+	
 	def boot = {
-		servers = DataCenter.runInstances(cluster_config.size,"m1.small")
-		placement = DataCenter.runInstances(1,"m1.small")
+		ScadsDeploy.logger.debug("scads: booting up "+cluster_config.size+" storage node(s) VM ("+serverVMType+")")
+		ScadsDeploy.logger.debug("scads: booting up 1 placement VM ("+placementVMType+")")
+		servers = DataCenter.runInstances(cluster_config.size,serverVMType)
+		placement = DataCenter.runInstances(1,placementVMType)
 	}
 	def waitUntilBooted = {
 		val machines = Array(servers,placement)
 		new InstanceGroup(machines).waitUntilReady
+		ScadsDeploy.logger.debug("scads: have storage and placement VMs")
 		servers.tagWith( DataCenter.keyName+"--SCADS--"+deploymentName+"--"+serversName)
 		placement.tagWith( DataCenter.keyName+"--SCADS--"+deploymentName+"--"+placeName)
 	}
@@ -57,12 +63,12 @@ extends Component with RangeConversion {
 	
 		server.exec("sv stop /mnt/services/scads_bdb_storage_engine")
 		server.exec("rm -rf /mnt/scads/data")
-		ScadsDeploy.logger.debug("deploying default data") // server.exec("wget ...")
+		ScadsDeploy.logger.debug("scads deploying default data") // server.exec("wget ...")
 		val serversDeployWait = server.deployNonBlocking(dataConfig)
 		val serverDeployResult = serversDeployWait.value
 		server.exec("sv start /mnt/services/scads_bdb_storage_engine")
-		ScadsDeploy.logger.debug("deployed!")
-		ScadsDeploy.logger.debug("server data deploy log: ")
+		ScadsDeploy.logger.debug("scads: deployed data!")
+		ScadsDeploy.logger.debug("scads: server data deploy log: ")
 		ScadsDeploy.logger.debug(serverDeployResult.getStdout)
 		ScadsDeploy.logger.debug(serverDeployResult.getStderr)
 	}
@@ -141,14 +147,17 @@ extends Component with RangeConversion {
 	 		placementRecipes.put("scads::data_placement")
 		    placementConfig.put("recipes", placementRecipes)
 			
-			ScadsDeploy.logger.debug("deploying placement")
+			ScadsDeploy.logger.debug("scads: deploying placement")
 			placement.deploy(placementConfig)
-			ScadsDeploy.logger.debug("deploying storage nodes")
+			ScadsDeploy.logger.debug("scads: deployed placement")
+			ScadsDeploy.logger.debug("scads: deploying storage nodes")
 			servers.deploy(serverConfig)
+			ScadsDeploy.logger.debug("scads: deployed storage nodes")
 
-			ScadsDeploy.logger.debug("deployed placement and storage nodes")
 			// put all the data on one machine
+			ScadsDeploy.logger.debug("scads: replicating data")
 			replicate(minKey,maxKey)
+			ScadsDeploy.logger.debug("scads: data ready")
 		}
 	}
 }
