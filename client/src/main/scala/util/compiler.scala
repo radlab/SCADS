@@ -25,6 +25,9 @@ object Compiler extends ScadsLanguage {
             val boundSpec = Binder.bind(result)
             logger.debug("Bound Spec: " + boundSpec)
 
+	    boundSpec.orphanQueries.foreach((q) => Optimizer.optimize(q._2))
+	    boundSpec.entities.foreach((e) => e._2.queries.foreach((q) => Optimizer.optimize(q._2)))
+
             val source = ScalaGen(boundSpec)
             logger.debug(source)
                 

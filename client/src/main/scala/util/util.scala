@@ -1,4 +1,4 @@
-package edu.berkeley.cs.scads.test
+package edu.berkeley.cs.scads
 
 import edu.berkeley.cs.scads.storage.TestableScalaStorageEngine
 import edu.berkeley.cs.scads.placement.DataPlacementService

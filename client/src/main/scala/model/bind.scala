@@ -23,13 +23,13 @@ case class InconsistentParameterTyping(queryName: String, paramName: String) ext
 
 /* Bound counterparts for some of the AST */
 case class BoundRelationship(target: String, cardinality: Cardinality)
-case class BoundEntity(attributes: HashMap[String, AttributeType], keys: List[String]) {
+case class BoundEntity(name: String, attributes: HashMap[String, AttributeType], keys: List[String]) {
 	val relationships = new HashMap[String, BoundRelationship]()
 	val queries = new HashMap[String, BoundQuery]()
-	val indexes = new HashMap[String, Index]()
+	val indexes = new scala.collection.mutable.ArrayBuffer[Index]()
 
 	def this(e: Entity) {
-		this(new HashMap[String, AttributeType](), e.keys)
+		this(e.name, new HashMap[String, AttributeType](), e.keys)
 
 		e.attributes.foreach((a) => {
 			attributes.get(a.name) match {
@@ -73,7 +73,7 @@ object Binder {
 
 		/* Add primary key as an index index */
 		entityMap.foreach((e) => {
-			e._2.indexes.put(Namespaces.entity(e._1), new AttributeIndex(e._2.keys))
+			e._2.indexes += new PrimaryIndex(Namespaces.entity(e._1),(e._2.keys))
 		})
 
 		/* Bind relationships to the entities they link, check for bad entity names and duplicate relationship names */

@@ -12,7 +12,7 @@ object ScalaGen extends Generator[BoundSpec] {
 
 		/* Entities */
 		spec.entities.foreach((e) => {
-			output("class ", e._1, " extends Entity()(ScadsEnv) {")
+			output("class ", e._1, "(implicit env: Environment) extends Entity()(env) {")
 			indent {
 				/* Setup namespace and versioning system */
 				output("val namespace = \"", Namespaces.entity(e._1), "\"")
@@ -51,16 +51,48 @@ object ScalaGen extends Generator[BoundSpec] {
 			output("}")
 
 		})
+		/* Output object for Orphan Queries */
+		output("object Queries {")
+		indent {
+			spec.orphanQueries.foreach((q) => generateQuery(q._1, q._2))
+		}
+		output("}")
 	}
 
 	protected def generateQuery(name: String, query: BoundQuery)(implicit sb: StringBuilder, indnt: Indentation) {
 		val args = query.parameters.map((p) => {p.name + ": " + toScalaType(p.pType)}).mkString("", ",", "")
 
-		output("def ", name, "(", args, ") = {")
+		output("def ", name, "(", args, ")(implicit env: Environment) = {")
 		indent {
-			output("null")
+			generatePlan(query.plan)
 		}
 		output("}")
+	}
+
+
+	protected def generatePlan(plan: Plan)(implicit sb: StringBuilder, indnt: Indentation) {
+		/* TODO: Just output null if we don't have a plan */
+		if(plan == null){
+			output("null")
+			return
+		}
+
+		plan match {
+			case PrimaryKeyGet(entityType, values) => {
+				output("new Materialize[", entityType, "](")
+				indent {
+					output("new SingleGet(\"", Namespaces.entity(entityType), "\",", generateFixedValue(values(0)), ", new IntegerVersion) with ReadOneGetter")
+				}
+				output(").exec")
+			}
+		}
+	}
+
+	protected def generateFixedValue(value: FixedValue): String = {
+		value match {
+			case Parameter(name, _) => "(new StringField)(name)"
+			case _ => throw new UnimplementedException
+		}
 	}
 
 	protected def toScalaType(aType: AttributeType): String = {
