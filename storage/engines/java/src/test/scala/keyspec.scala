@@ -158,6 +158,28 @@ abstract class KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specificati
 				Conversions.convertList(ks.get_set("set", recSet(0, 5))) must
 					containInOrder(Array[Record]())
 			}
+
+			"respects limit" in {
+				val rs = recSet(0,100)
+				rs.getRange.setLimit(10)
+				Conversions.convertList(ks.get_set("set", rs)) must
+					containInOrder(records.slice(0,9))
+			}
+
+			"respects offset" in {
+				val rs = recSet(0,100)
+				rs.getRange.setOffset(10)
+				Conversions.convertList(ks.get_set("set", rs)) must
+					containInOrder(records.slice(10,100))
+			}
+
+			"respects offset with limit" in {
+				val rs = recSet(0,100)
+				rs.getRange.setOffset(10)
+				rs.getRange.setLimit(10)
+				Conversions.convertList(ks.get_set("set", rs)) must
+					containInOrder(records.slice(10,20))
+			}
 		}
 	}
 }
