@@ -726,6 +726,7 @@ case class LowLevelActionMonitor(
 	initDatabase
 
 	def initDatabase() {
+		Director.logger.debug("initializing LowLevelAction database")
         try {
             val statement = connection.createStatement
             statement.executeUpdate("CREATE DATABASE IF NOT EXISTS " + dbname)
@@ -734,16 +735,23 @@ case class LowLevelActionMonitor(
 																			"`start_time` BIGINT, `end_time` BIGINT, "+
 																			"`features` TEXT, PRIMARY KEY(`id`) ) ")
 			statement.close
-       	} catch { case ex: SQLException => ex.printStackTrace() }
-
-        println("initialized Action table")
+	        Director.logger.debug("initialized LowLevelAction table")
+       	} catch { case ex: SQLException => Director.logger.warn("exception when initializing LowLevelAction table",ex) }
     }
 
 	def log(action:String, time0:Long, time1:Long, features:Map[String,String]) {
-		val actionSQL = Director.createInsertStatement(dbtable, Map("type"->action,"start_time"->time0.toString,"end_time"->time1.toString,"features"-> features.map((p)=>p._1+"="+p._2).mkString(",")))
-        val statement = connection.createStatement
-		statement.executeUpdate(actionSQL)
-		statement.close
+		try {
+			val actionSQL = Director.createInsertStatement(dbtable, Map("type"->("'"+action+"'"),
+																		"start_time"->time0.toString,
+																		"end_time"->time1.toString,
+																		"features"->("'"+features.map((p)=>p._1+"="+p._2).mkString(",")+"'") ))
+			Director.logger.debug("sql = "+actionSQL)
+	        val statement = connection.createStatement
+			statement.executeUpdate(actionSQL)
+			statement.close
+		} catch {
+			case e:Exception => Director.logger.warn("exception when logging low-level action",e)
+		}
 	}
 
 }
