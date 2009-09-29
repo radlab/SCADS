@@ -40,7 +40,7 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 	}
 
 	def test_and_set(ns: String, rec: Record, existingValue: ExistingValue): Boolean = {
-		true
+		put(ns, rec)
 	}
 
 	def copy_set(ns: String, rs: RecordSet, h: String): Boolean = {
