@@ -20,9 +20,10 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 	var host:String = null
 	var clientConfig:JSONObject = null
 	var deploythread:Thread = null
-	
+	var restrictionURL:String = null
+
 	val clientVMType = "c1.medium"
-	
+
 	def boot = {
 		ScadsDeploy.logger.debug("clients: booting up "+num_clients+" client VM(s) ("+clientVMType+")")
 		clients = DataCenter.runInstances(num_clients,clientVMType)
@@ -61,6 +62,9 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 			// get list of mvn dependencies
 			deps = clients.get(0).exec("cd /opt/scads/experiments; cat cplist").getStdout.replace("\n","") + ":../target/classes"
 			clients.get(0).exec("/etc/init.d/apache2 start") // start apache for viewing graphs
+
+			// set up URL where to get put() restriction info from
+			restrictionURL = "http://"+myscads.placement.get(0).privateDnsName +"/"+ScadsDeploy.restrictFileName
 		}
 	}
 
