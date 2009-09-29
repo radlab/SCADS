@@ -1,6 +1,6 @@
 package scads.director
 
-import scads.deployment.ScadsDeploy
+import scads.deployment.{ScadsDeploy,ScadsLoader}
 import edu.berkeley.cs.scads.thrift.{RangeConversion, DataPlacement}
 import edu.berkeley.cs.scads.keys._
 
@@ -108,6 +108,7 @@ abstract class Action(
 	val parents = new scala.collection.mutable.ListBuffer[Action]()
 		
 	def addParent(action:Action) { parents += action }
+	def addParents(actions:List[Action]) { parents.insertAll(parents.size,actions) }
 	def parentsCompleted():Boolean = if (parents.size==0) true else parents.forall(_.completed)
 		
 	def startExecuting() {
@@ -129,8 +130,8 @@ abstract class Action(
 		complete; 
 	}
 	
-	def initSimulation(config:SCADSconfig)
-	def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity]
+	def initSimulation(config:SCADSconfig) = {}
+	def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = { this.complete; (this.preview(config),activity) }
 	
 	def csvArgs():String = ""
 	
@@ -254,8 +255,6 @@ class TestAction(
 		Thread.sleep( delay )
 		logger.debug("waking up")
 	}
-	override def initSimulation(config:SCADSconfig) {}
-	override def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = (null,null)
 	def participants = Set[String]()
 	override def toString():String = actionShortName
 	override def csvArgs():String = "delay="+delay
@@ -289,7 +288,7 @@ case class SplitInTwo(
 	var timeToBootup:Long = -1
 	var timeToMoveData:Long = -1
 
-	def initSimulation(config:SCADSconfig) {
+	override def initSimulation(config:SCADSconfig) {
 		logger.info("initializing simulation of SplitInTwo")
 		val bounds = config.storageNodes(server)
 		val start = bounds.minKey
@@ -302,7 +301,7 @@ case class SplitInTwo(
 		logger.debug("timeToMoveData = "+timeToMoveData)
 	}
 	
-	def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = {
+	override def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = {
 		val (dt0,dt1) = (time0 - startTime, time1 - startTime)
 		val (movet0,movet1) = (timeToBootup,timeToBootup+timeToMoveData)
 		var (newConfig,newActivity) = (config,activity)
@@ -377,9 +376,6 @@ case class SplitFrom(
 	}
 	def participants = Set[String](server)
 	override def toString:String = actionShortName
-
-	override def initSimulation(config:SCADSconfig) {}
-	override def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = (null,null)
 }
 
 case class ShiftBoundary(
@@ -415,9 +411,6 @@ case class ShiftBoundary(
 	}
 	def participants = Set[String](server_left,server_right)
 	override def toString:String = actionShortName
-	
-	override def initSimulation(config:SCADSconfig) {}
-	override def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = (null,null)
 }
 
 case class MergeTwo(
@@ -442,14 +435,14 @@ case class MergeTwo(
 	
 	var timeToMoveData:Long = -1
 	
-	def initSimulation(config:SCADSconfig) {
+	override def initSimulation(config:SCADSconfig) {
 		logger.info("initializing simulation of MergeTwo")		
 		val bounds1 = config.storageNodes(server1)
 		timeToMoveData = ActionModels.dataCopyDurationModel.sample( bounds1.maxKey - bounds1.minKey )
 		logger.debug("timeToMoveData = "+timeToMoveData)
 	}
 	
-	def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = {
+	override def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = {
 		val (dt0,dt1) = (time0 - startTime, time1 - startTime)
 		val (movet0,movet1) = (0,timeToMoveData)
 		var (newConfig,newActivity) = (config,activity)
@@ -523,9 +516,6 @@ case class Replicate(
 	}
 	def participants = Set[String](server)
 	override def toString:String = actionShortName
-
-	override def initSimulation(config:SCADSconfig) {}
-	override def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = (null,null)
 }
 
 /**
@@ -572,9 +562,6 @@ case class ReplicateFrom(
 	}
 	def participants = Set[String](server)
 	override def toString:String = actionShortName
-
-	override def initSimulation(config:SCADSconfig) {}
-	override def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = (null,null)
 }
 
 case class Remove(
@@ -596,9 +583,6 @@ case class Remove(
 	}
 	def participants = Set[String](servers:_*)
 	override def toString:String = actionShortName
-
-	override def initSimulation(config:SCADSconfig) {}
-	override def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = (null,null)
 }
 
 case class RemoveFrom(
