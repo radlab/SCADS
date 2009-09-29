@@ -97,7 +97,6 @@ object ParseXtraceReports {
 			val data = new Array[Byte](len)
 			dis.readFully(data)
 			val report = new String(data)
-			processReport(report)
 			
 			val now = new Date().getTime()
 			if (now > lastInterval + aggregationInterval) {
@@ -120,6 +119,12 @@ object ParseXtraceReports {
 
 				requests = new scala.collection.mutable.ListBuffer[SCADSRequestStats]()
 			}
+			
+			// advance lastInterval up to now (in case we had a few intervals with no data)
+			while (lastInterval + aggregationInterval < now)
+				lastInterval += aggregationInterval
+
+			processReport(report)
 		}
 	}
 	
@@ -196,16 +201,17 @@ object ParseXtraceReports {
 	def computeHistogram(reqs:List[SCADSRequestStats], ranges:Array[StringKeyRange]):Map[StringKeyRange,WorkloadStats] = {
 		var ri = 0
 		var range = ranges(ri)
-		
+
+		// create an empty histogram
 		val hist = scala.collection.mutable.Map[StringKeyRange,WorkloadStats]()
-		hist(range) = new WorkloadStats
+		ranges.foreach( hist(_)=new WorkloadStats )
 		
 		val firstKey = ranges(0).minKey
 		val lastKey = ranges(ranges.size-1).maxKey
 
 		for (r <- reqs.sort(_.key<_.key).toList) { 
 			if (r.key>=firstKey&&r.key<=lastKey) {
-				while (r.key>range.maxKey) { ri = ri+1; /*println("next range: "+ri+" key="+key+"  max="+range.maxKey);*/ range = ranges(ri); hist(range)=new WorkloadStats }
+				while (r.key>range.maxKey) { ri = ri+1; /*println("next range: "+ri+" key="+key+"  max="+range.maxKey);*/ range = ranges(ri); /*hist(range)=new WorkloadStats*/ }
 				r.reqType match {
 					case "get" => hist(range).addGet
 					case "put" => hist(range).addPut
@@ -273,8 +279,9 @@ object ParseXtraceReports {
 	
 	def computeRequestMetrics(requests:List[SCADSRequestStats], server:String, requestType:String, interval:Long): List[MetricUpdate] = {
 		var metrics = new scala.collection.mutable.ListBuffer[MetricUpdate]()
-		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"workload"))),requests.length.toString)
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"workload"))),(requests.length.toDouble/aggregationInterval*1000).toString)
 		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_mean"))),computeMean(requests.map(_.latency)).toString)
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_50p"))),computeQuantile(requests.map(_.latency),0.50).toString)
 		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_90p"))),computeQuantile(requests.map(_.latency),0.90).toString)
 		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_99p"))),computeQuantile(requests.map(_.latency),0.99).toString)
 		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"n_requests"))),requests.length.toString)
