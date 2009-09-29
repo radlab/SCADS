@@ -134,11 +134,11 @@ plot.director.simple = function(out.file=NULL,debug=F,dbhost="localhost",ts0=NUL
 
 plot.director.simple.raw = function(m,out.file=NULL,debug=F,dbhost="localhost",ts0=NULL,ts1=NULL) {
 	split.screen( screen.coord(c(3,2,2,2,2)) )
-	plot.workload(m,title="workload")
-	plot.workload.mix(m,title="workload mix",tight=T)
-	plot.all.latency(m,title="latency",tight=T)
-	graph.nservers.from.configs(m,tight=T)
-	plot.actions(m,tight=T)
+	try( plot.workload(m,title="workload") )
+	try( plot.workload.mix(m,title="workload mix",tight=T) )
+	try( plot.all.latency(m,title="latency",tight=T) )
+	try( graph.nservers.from.configs(m,tight=T) )
+	try( plot.actions(m,tight=T) )
 }
 
 plot.director = function(debug=F,out.file=NULL,dbhost="localhost",ts0=NULL,ts1=NULL) {
@@ -333,10 +333,10 @@ plot.all.latency = function(m,server,tight=F,title=F,plot.mean=T,data=NA,vline=N
 #	lines( data$time, data$put_latency_90p, col="red", lty=1 )
 	if (!is.na(vline))
 		abline(v=to.date(as.numeric(vline)),col="olivedrab",lwd=2)
-	if (plot.mean)
+	if (!plot.mean)
 		legend( "topleft", legend=c("get 99p","put 99p"), col=c("cornflowerblue","orange"), inset=0.02, lty=c(3,1,3,1), lwd=2 )
 	else 
-		legend( "topleft", legend=c("get mean","get 99p","put mean","put 99p"), col=c("cornflowerblue","cornflowerblue","red","red"), inset=0.02, lty=c(3,1,3,1), lwd=2 )
+		legend( "topleft", legend=c("get mean","get 99p","put mean","put 99p"), col=c("cornflowerblue","cornflowerblue","orange","orange"), inset=0.02, lty=c(3,1,3,1), lwd=2 )
 	graph.done()
 }
 
