@@ -35,3 +35,14 @@ trait RangeConversion {
 		range
 	}
 }
+
+object PutRestriction {
+	val restrict_sep = ";"
+	def tuplesToString(tuples:List[(String,String,Double)]):String = {
+		tuples.foldLeft("") {(out,entry)=>out + entry._1+","+entry._2+","+entry._3+";"}
+	}
+	def stringToTuples(info:String):List[(String,String,Double)] = {
+		List[(String,String,Double)]( info.split(restrict_sep).toList map {
+			entry=>{val range_info = entry.split(","); ( ( range_info(0),range_info(1),range_info(2).toDouble))}}:_*)
+	}
+}
