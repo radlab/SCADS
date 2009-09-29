@@ -301,5 +301,5 @@ class HeuristicOptimizerPolicy(
 ) extends Policy(workloadPredictor) {
 	val performanceEstimator = SimplePerformanceEstimator( performanceModel )
 	val optimizer = new HeuristicOptimizer(performanceEstimator,getSLA,putSLA,workloadPredictor)
-	override def act(state:SCADSState, actionExecutor:ActionExecutor) { optimizer.optimize(state, actionExecutor) }
+	override def act(state:SCADSState, actionExecutor:ActionExecutor) = if(actionExecutor.allActionsCompleted) { optimizer.optimize(state, actionExecutor) }
 }
