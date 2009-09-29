@@ -23,7 +23,7 @@ case class SimpleHysteresis(
 		else prediction = prediction + (histogram - prediction)*alpha_down
 	}
 	
-	def getPrediction():WorkloadHistogram = prediction*(1+overprovision)
+	def getPrediction():WorkloadHistogram = { try{prediction*(1+overprovision)} catch {case _ => null} }
 }
 
 case class IdentityPrediction extends WorkloadPrediction {
