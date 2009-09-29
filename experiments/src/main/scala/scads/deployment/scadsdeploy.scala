@@ -22,6 +22,7 @@ object ScadsDeploy {
 	val serversName = "servers"
 	val placeName = "placement"
 	val placementInfoFile = "/tmp/scads_info.csv"
+	val restrictFileName = "restrict.csv"
 
 	var logger:Logger = null
 
@@ -89,3 +90,49 @@ object ScadsDeploy {
 		key.toInt
 	}
 }
+
+case class ScadsDP(h:String, xtrace_on: Boolean, namespace: String) extends RangeConversion {
+	var dpclient:KnobbedDataPlacementServer.Client = null
+
+	// doesn't check that keys don't fall out of range of server responsibility
+	def copy_data(from:String,to:String,startkey:Int,endkey:Int):(Long,Long) = {
+		val start = new StringKey( ScadsDeploy.keyFormat.format( startkey ) )
+		val end = new StringKey( ScadsDeploy.keyFormat.format( endkey ) )
+		val range = new RangeSet()
+		range.setStart_key(start.serialize)
+		range.setEnd_key(end.serialize)
+		val rset = new RecordSet(3,range,null,null)
+		refreshHandle // get placement handle
+
+		val startms = System.currentTimeMillis()
+		dpclient.copy(namespace,rset, from, ScadsDeploy.server_port,ScadsDeploy.server_sync, to, ScadsDeploy.server_port,ScadsDeploy.server_sync)
+		(startms,System.currentTimeMillis())
+	}
+
+	def move_data(from:String,to:String,startkey:Int,endkey:Int):(Long,Long) = {
+		val start = new StringKey( ScadsDeploy.keyFormat.format( startkey ) )
+		val end = new StringKey( ScadsDeploy.keyFormat.format( endkey ) )
+		val range = new RangeSet()
+		range.setStart_key(start.serialize)
+		range.setEnd_key(end.serialize)
+		val rset = new RecordSet(3,range,null,null)
+		refreshHandle // get placement handle
+
+		val startms = System.currentTimeMillis()
+		dpclient.move(namespace,rset, from, ScadsDeploy.server_port,ScadsDeploy.server_sync, to, ScadsDeploy.server_port,ScadsDeploy.server_sync)
+		(startms,System.currentTimeMillis())
+	}
+
+	def refreshHandle = {
+		try {
+			dpclient.lookup_namespace(namespace)
+		} catch {
+			case e: Exception => {
+				println("dp client handle is shmetted, getting new one")
+				dpclient = ScadsDeploy.getDataPlacementHandle(h,xtrace_on)
+			}
+		}
+	}
+}
+
+
