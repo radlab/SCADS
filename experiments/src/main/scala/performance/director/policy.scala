@@ -213,7 +213,7 @@ class SplitAndMergeOnPerformance(
 					//logger.debug("split "+node_state.ip+"? w="+node_state.metrics.workload+" >? "+latencyToSplit)
 					if (node_state.metrics.workload >= latencyToSplit) {
 						logger.debug("Adding split action: "+node_state.ip)
-						//actions += new SplitInTwo(node_state.ip)
+						actions += new SplitInTwo(node_state.ip,-1)
 					}
 				})
 				var id = 0
