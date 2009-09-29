@@ -28,15 +28,24 @@ abstract class Policy(
 	val dbtable = "policystate"
 	
 	var connection = Director.connectToDatabase
-	createTable
-	Action.initDatabase
+	initialize
+	
+	def initialize {
+		connection = Director.connectToDatabase
+		createTable
+		Action.initDatabase
+	}
 	
 	def periodicUpdate(state:SCADSState) {
 		workloadPredictor.addHistogram( state.workloadHistogram )
 	}
 	
 	def perform(state:SCADSState, actionExecutor:ActionExecutor) {
-		act(state,actionExecutor)
+		try { 
+			act(state,actionExecutor)
+		} catch {
+			case e:Exception => logger.warn("exception in policy.act",e)
+		}
 		storeState
 	}
 	
@@ -64,8 +73,6 @@ abstract class Policy(
        	} catch { case ex: SQLException => ex.printStackTrace() }
 
     }
-
-	
 }
 
 
@@ -101,10 +108,62 @@ class TestPolicy(
 	}
 }
 
+
+class TestSimpleSplitMerge(
+	val delay:Long,
+	override val workloadPredictor:WorkloadPrediction
+) extends Policy(workloadPredictor) {
+	var lastActionTime = new java.util.Date().getTime
+	var splitLast = false
+		
+	override def act(state:SCADSState, actionExecutor:ActionExecutor) {
+		if (state!=null) {
+			logger.debug("ACTING: received the following state ("+(new java.util.Date().getTime-state.time)/1000+" seconds behind)\n"+state.toShortString)
+			logger.debug("just config: \n"+state.toConfigString)
+		} else
+			logger.debug("ACTING: state == NULL")
+			
+		val prediction = workloadPredictor.getPrediction
+		if (prediction!=null)
+			logger.debug("workload prediction: "+workloadPredictor.getPrediction.toShortString)
+		else
+			logger.debug("workload prediction == NULL")
+		
+		if (new java.util.Date().getTime-lastActionTime > delay  &&  state!=null) {
+			logger.debug("should act. splitLast="+splitLast)
+			val nodes = state.config.storageNodes.keySet.toList
+			logger.debug("have the following nodes: "+nodes.mkString(","))
+			
+			if (splitLast && nodes.size>=2) {
+				logger.debug("will merge")
+				actionExecutor.addAction( new MergeTwo(nodes(0),nodes(1)) )
+				splitLast = false
+			} else {
+				logger.debug("will split")
+				actionExecutor.addAction( new SplitInTwo(nodes(0),-1) )
+				splitLast = true
+			}
+			lastActionTime = new java.util.Date().getTime
+		} else 
+			logger.debug("policy waiting")
+	}
+}
+
 class EmptyPolicy(
 	override val workloadPredictor:WorkloadPrediction
 ) extends Policy(workloadPredictor) {
-	override def act(state:SCADSState, actionExecutor:ActionExecutor) {}
+	override def act(state:SCADSState, actionExecutor:ActionExecutor) {
+		if (state!=null) 
+			logger.debug("ACTING: received the following state ("+(new java.util.Date().getTime-state.time)/1000+" seconds behind)\n"+state.toShortString)
+		else
+			logger.debug("ACTING: state == NULL")
+			
+		val prediction = workloadPredictor.getPrediction
+		if (prediction!=null)
+			logger.debug("workload prediction: "+workloadPredictor.getPrediction.toShortString)
+		else
+			logger.debug("workload prediction == NULL")
+	}
 }
 
 class RandomSplitAndMergePolicy(

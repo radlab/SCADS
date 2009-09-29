@@ -43,7 +43,7 @@ object Director {
 	Runtime.getRuntime().exec("rm -f "+Director.basedir+"../current")
 	Runtime.getRuntime().exec("ln -s "+Director.basedir+" "+Director.basedir+"../current")
 
-	val lowLevelActionMonitor = LowLevelActionMonitor("director","lowlevel_actions")
+	var lowLevelActionMonitor = LowLevelActionMonitor("director","lowlevel_actions")
 
 	def dumpAndDropDatabases() {
 		// dump old databases
@@ -88,7 +88,21 @@ object Director {
 		"INSERT INTO "+table+" ("+colnames.mkString("`","`,`","`")+") values ("+colnames.map(data(_)).mkString(",")+")"
 	}
 
+	// TODO: create a director class and move these there
+	var policy:Policy = null
+	var costFunction:FullCostFunction = null
+	var actionExecutor:ActionExecutor = null
+
 	case class Runner(policy:Policy, costFunction:FullCostFunction, placementIP: String) extends Runnable {
+		Director.dropDatabases
+		SCADSState.initLogging("localhost",6001)
+		Plotting.initialize(Director.basedir+"/plotting/")
+		policy.initialize
+		lowLevelActionMonitor = LowLevelActionMonitor("director","lowlevel_actions")
+
+		var lastPlotTime = new Date().getTime
+		var plottingPeriod:Long = 2*60*1000
+
 		val period:Long = 20*1000
 		val metricReader = new MetricReader(databaseHost,"metrics",period,0.02)
 		val stateHistory = SCADSStateHistory(period,metricReader,placementIP,policy)
@@ -97,11 +111,21 @@ object Director {
 		var actions = List[Action]()
 		val actionExecutor = ActionExecutor()
 
+		Director.policy = policy
+		Director.costFunction = costFunction
+		Director.actionExecutor = actionExecutor
+
 		var running = true
 		def run = {
 			while (running) {
 				policy.perform(stateHistory.getMostRecentState,actionExecutor)
 				actionExecutor.execute
+				
+				if (new Date().getTime>lastPlotTime+plottingPeriod) {
+					Plotting.plotSimpleDirectorAndConfigs()
+					lastPlotTime = new Date().getTime
+				}
+				
 				Thread.sleep(delay)
 			}
 			

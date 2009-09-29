@@ -125,7 +125,15 @@ object SCADSState {
 
         println("initialized scadsstate_config and scadsstate_histogram tables")
 	}
-	
+
+	def dumpConfig(time:Long,config:SCADSconfig) {
+        val statement = dbConnection.createStatement
+		val configSQL = Director.createInsertStatement("scadsstate_config", Map("time"->time.toString,"config"->("'"+config.toCSVString+"'")))
+		//logger.debug("storing config: "+configSQL)
+		statement.executeUpdate(configSQL)
+		statement.close		
+	}
+
 	def dumpState(state:SCADSState) {
 		// dump config
         val statement = dbConnection.createStatement
@@ -189,7 +197,7 @@ object SCADSState {
 		val metricsByType = reqTypes.map( (t) => t -> PerformanceMetrics.load(metricReader,"ALL",t)).foldLeft(Map[String,PerformanceMetrics]())((x,y)=>x+y)
 		
 		// load and process workload histograms
-		val histogramRaw = WorkloadHistogram.loadMostRecentFromDB
+		val histogramRaw = WorkloadHistogram.loadMostRecentFromDB(metricReader.report_prob)
 		
 		new SCADSState(new Date().getTime, SCADSconfig(nodeConfig), nodes.toList, metrics, metricsByType, histogramRaw)
 	}
@@ -199,6 +207,7 @@ object SCADSState {
 
 		if (!haveData) null
 		else {
+			//Director.logger.debug("refreshing state at time: "+new Date(time)+" ("+time+")")
 			val reqTypes = List("get","put")
 			val dp = ScadsDeploy.getDataPlacementHandle(placementServerIP,Director.xtrace_on)
 			val placements = dp.lookup_namespace(Director.namespace)
@@ -216,19 +225,19 @@ object SCADSState {
 					ScadsDeploy.getNumericKey( StringKey.deserialize_toString(info.rset.range.start_key,new java.text.ParsePosition(0)) ),
 					ScadsDeploy.getNumericKey( StringKey.deserialize_toString(info.rset.range.end_key,new java.text.ParsePosition(0)) )
 				)
-				val sMetrics = PerformanceMetrics.load(metricReader,ip,"ALL")
-				val sMetricsByType = reqTypes.map( (t) => t -> PerformanceMetrics.load(metricReader,ip,t)).foldLeft(Map[String, PerformanceMetrics]())((x,y) => x + y)	
+				val sMetrics = PerformanceMetrics.load(metricReader,ip,"ALL",time)
+				val sMetricsByType = reqTypes.map( (t) => t -> PerformanceMetrics.load(metricReader,ip,t,time)).foldLeft(Map[String, PerformanceMetrics]())((x,y) => x + y)	
 				nodes += new StorageNodeState(ip,sMetrics,sMetricsByType)
 				nodeConfig = nodeConfig.update(ip, range)
 			}
 		
-			val metrics = PerformanceMetrics.load(metricReader,"ALL","ALL")
-			val metricsByType = reqTypes.map( (t) => t -> PerformanceMetrics.load(metricReader,"ALL",t)).foldLeft(Map[String,PerformanceMetrics]())((x,y)=>x+y)
+			val metrics = PerformanceMetrics.load(metricReader,"ALL","ALL",time)
+			val metricsByType = reqTypes.map( (t) => t -> PerformanceMetrics.load(metricReader,"ALL",t,time)).foldLeft(Map[String,PerformanceMetrics]())((x,y)=>x+y)
 		
 			// load and process workload histograms
-			val histogramRaw = WorkloadHistogram.loadMostRecentFromDB
+			val histogramRaw = WorkloadHistogram.loadMostRecentFromDB(metricReader.report_prob)
 		
-			new SCADSState(new Date().getTime, SCADSconfig(nodeConfig), nodes.toList, metrics, metricsByType, histogramRaw)
+			new SCADSState(time, SCADSconfig(nodeConfig), nodes.toList, metrics, metricsByType, histogramRaw)
 		}
 	}
 	
@@ -362,7 +371,8 @@ case class SCADSState(
 		(if(metrics!=null)metrics.toString else "")+"]\n"+
 		(if(metricsByType!=null)metricsByType.map("   ["+_.toString+"]").mkString("","\n","") else "")+
 		"\nindividual servers:\n"+
-		(if(storageNodes!=null)storageNodes.map(_.toString).mkString("","\n","") else "")
+		(if(storageNodes!=null)storageNodes.map(_.toString).mkString("","\n","") else "")+
+		"\nworkload: "+workloadHistogram.toShortString
 	}
 	def toShortString():String = {
 		"STATE@"+(new Date(time))+"  W="+
@@ -370,8 +380,10 @@ case class SCADSState(
 		(if(metricsByType!=null)(metricsByType("get").workload.toInt+"/"+metricsByType("put").workload.toInt 	+ 
 		"  getL="+metricsByType("get").toShortLatencyString()+"  putL="+metricsByType("put").toShortLatencyString()) else "") +
 		(if(storageNodes!=null)storageNodes.sort( (s1,s2) => config.storageNodes(s1.ip).minKey<config.storageNodes(s2.ip).minKey )
-											.map(s=>"  server@"+s.ip+"   "+"%-15s".format(config.storageNodes(s.ip))+ "      " + s.toShortString()).mkString("\n","\n","") else "")
+											.map(s=>"  server@"+s.ip+"   "+"%-15s".format(config.storageNodes(s.ip))+ "      " + s.toShortString()).mkString("\n","\n","") else "")+
+		"\nworkload: "+workloadHistogram.toShortString									
 	}
+	def toConfigString():String = config.toString
 	def changeConfig(new_config:SCADSconfig):SCADSState = new SCADSState(time,new_config,storageNodes,metrics,metricsByType,null)
 	
 	def preview(action:Action,performanceModel:PerformanceModel,updatePerformance:Boolean):SCADSState = {
@@ -479,7 +491,7 @@ case class WorkloadHistogram (
 	def toShortString():String = {
 		val getRate = rangeStats.map(_._2.getRate).reduceLeft(_+_)
 		val putRate = rangeStats.map(_._2.putRate).reduceLeft(_+_)
-		"WorkloadHistogram: (total rates) get="+getRate+"r/s, put="+putRate+"r/s"
+		"WorkloadHistogram: (total rates) get="+"%.2f".format(getRate)+"r/s, put="+"%.2f".format(putRate)+"r/s"
 	}
 	
 	def toCSVString():String = {
@@ -496,7 +508,7 @@ object WorkloadHistogram {
 			Map(scala.io.Source.fromFile(file).getLines.toList.drop(1).
 			 		map( line => {val v=line.split(","); (DirectorKeyRange(v(0).toInt,v(1).toInt),WorkloadFeatures(v(2).toDouble,v(3).toDouble,v(4).toDouble) )} ) :_* ) )
 	
-	def loadMostRecentFromDB():WorkloadHistogram = {
+	def loadMostRecentFromDB(samplingRate:Double):WorkloadHistogram = {
 		val histogramSQL = "SELECT histogram FROM director.scadsstate_histogram s order by time desc limit 1"
         val statement = SCADSState.dbConnection.createStatement
 		var histogram:WorkloadHistogram = null
@@ -507,7 +519,7 @@ object WorkloadHistogram {
 				val histogramCSV = result.getString("histogram")
 				histogram = WorkloadHistogram( 
 					Map(histogramCSV.split("\n").toList.drop(1).
-					 		map( line => {val v=line.split(","); (DirectorKeyRange(v(0).toInt,v(1).toInt),WorkloadFeatures(v(2).toDouble,v(3).toDouble,v(4).toDouble) )}) :_* ) )
+					 		map( line => {val v=line.split(","); (DirectorKeyRange(v(0).toInt,v(1).toInt),WorkloadFeatures(v(2).toDouble/samplingRate,v(3).toDouble/samplingRate,v(4).toDouble/samplingRate) )}) :_* ) )
 			}
        	} catch { case ex: SQLException => Director.logger.warn("SQL exception when loading histogram",ex)}
 		finally {statement.close}
@@ -717,7 +729,7 @@ case class SCADSStateHistory(
 	var lastInterval:Long = -1
 	var updaterThread:Thread = null
 	
-	var maxLag:Long = 5*60*1000
+	var maxLag:Long = 1*60*1000
 	
 	def getMostRecentState:SCADSState = if (lastInterval== -1) null else history(lastInterval)
 	
@@ -736,18 +748,20 @@ case class SCADSStateHistory(
 			while(true) {
 				val state = SCADSState.refreshAtTime(metricReader,placementIP,nextUpdateTime)
 				if (state!=null) {
+					Director.logger.debug("updated state for time "+new Date(nextUpdateTime)+" ("+nextUpdateTime+")")
+					SCADSState.dumpConfig(state.time,state.config)
 					history += nextUpdateTime -> state
 					policy.periodicUpdate(state)
 					lastInterval = nextUpdateTime
 					nextUpdateTime += period
 				} else {
 					Thread.sleep(period/3)
-					Director.logger.debug("trying to update state of "+new Date(nextUpdateTime)+" ("+nextUpdateTime+") at "+new Date()+" but don't have data yet")
+					//Director.logger.debug("trying to update state of "+new Date(nextUpdateTime)+" ("+nextUpdateTime+") at "+new Date()+" but don't have data yet")
 				}
 				
 				if ( (new Date().getTime - nextUpdateTime)>maxLag ) {
+					//Director.logger.info("couldn't update state of "+new Date(nextUpdateTime)+" ("+nextUpdateTime+") for too long; moving on")
 					nextUpdateTime += period
-					Director.logger.info("couldn't update state of "+new Date(nextUpdateTime)+" ("+nextUpdateTime+") for too long; moving on")
 				}
 			}
 			

@@ -24,9 +24,10 @@ object PerformanceMetrics {
 		val (date4, nRequests) = 		metricReader.getSingleMetric(server, "n_requests", reqType)
 		val (date5, nSlowerThan50ms) = 	metricReader.getSingleMetric(server, "n_slower_50ms", reqType)
 		val (date6, nSlowerThan100ms) = metricReader.getSingleMetric(server, "n_slower_100ms", reqType)
-		
-		PerformanceMetrics(date0.getTime,metricReader.interval.toInt,workload,latencyMean,latency90p,latency99p, 
-			(nRequests/metricReader.report_prob).toInt, (nSlowerThan50ms/metricReader.report_prob).toInt, (nSlowerThan100ms/metricReader.report_prob).toInt)
+
+		//PerformanceMetrics(date0.getTime,metricReader.interval.toInt,workload,latencyMean,latency90p,latency99p, 
+		//	(nRequests/metricReader.report_prob).toInt, (nSlowerThan50ms/metricReader.report_prob).toInt, (nSlowerThan100ms/metricReader.report_prob).toInt)
+		PerformanceMetrics(date0.getTime,metricReader.interval.toInt,workload,latencyMean,latency90p,latency99p,nRequests.toInt, nSlowerThan50ms.toInt, nSlowerThan100ms.toInt)
 	}
 	
 	def load(metricReader:MetricReader, server:String, reqType:String, time:Long):PerformanceMetrics = {
@@ -39,8 +40,9 @@ object PerformanceMetrics {
 		val (date5, nSlowerThan50ms) = 	metricReader.getSingleMetric(server, "n_slower_50ms", reqType, time)
 		val (date6, nSlowerThan100ms) = metricReader.getSingleMetric(server, "n_slower_100ms", reqType, time)
 		
-		PerformanceMetrics(time,metricReader.interval.toInt,workload,latencyMean,latency90p,latency99p, 
-			(nRequests/metricReader.report_prob).toInt, (nSlowerThan50ms/metricReader.report_prob).toInt, (nSlowerThan100ms/metricReader.report_prob).toInt)
+		//PerformanceMetrics(time,metricReader.interval.toInt,workload,latencyMean,latency90p,latency99p, 
+		//	(nRequests/metricReader.report_prob).toInt, (nSlowerThan50ms/metricReader.report_prob).toInt, (nSlowerThan100ms/metricReader.report_prob).toInt)
+		PerformanceMetrics(time,metricReader.interval.toInt,workload,latencyMean,latency90p,latency99p,nRequests.toInt, nSlowerThan50ms.toInt, nSlowerThan100ms.toInt)
 	}
 	
 	def estimateFromSamples(samples:List[Double], time:Long, aggregationInterval:Long):PerformanceMetrics = {
@@ -72,7 +74,7 @@ case class PerformanceMetrics(
 	val nSlowerThan100ms: Int
 ) {
 	override def toString():String = (new Date(time))+" w="+"%.2f".format(workload)+" lMean="+"%.2f".format(latencyMean)+" l90p="+"%.2f".format(latency90p)+" l99p="+"%.2f".format(latency99p)+
-									 " all="+nRequests+" >50="+nSlowerThan50ms+" >100ms"+nSlowerThan100ms
+									 " all="+nRequests+" >50="+nSlowerThan50ms+" >100ms="+nSlowerThan100ms
 	def toShortLatencyString():String = "%.0f".format(latencyMean)+"/"+"%.0f".format(latency90p)+"/"+"%.0f".format(latency99p)
 	
 	def createMetricUpdates(server:String, requestType:String):List[MetricUpdate] = {
@@ -157,7 +159,9 @@ case class MetricReader(
 			val set = result.first // set cursor to first row
 			if (set) {
 				time = new java.util.Date(result.getLong("time"))
-				value = if (metric=="workload") (result.getString("value").toDouble/interval/report_prob) else result.getString("value").toDouble
+				value = if (metric=="workload") (result.getString("value").toDouble/report_prob) 
+						else if (metric=="n_requests"||metric=="n_slower_50ms"||metric=="n_slower_100ms") (result.getString("value").toDouble/report_prob).toInt
+						else result.getString("value").toDouble
 			}
        	} catch { case ex: SQLException => Director.logger.warn("SQL exception in metric reader",ex)}
 		finally {statement.close}
@@ -178,7 +182,9 @@ case class MetricReader(
 			val result = statement.executeQuery(workloadSQL)
 			val set = result.first // set cursor to first row
 			if (set) {
-				value = if (metric=="workload") (result.getString("value").toDouble/interval/report_prob) else result.getString("value").toDouble
+				value = if (metric=="workload") (result.getString("value").toDouble/report_prob) 
+						else if (metric=="n_requests"||metric=="n_slower_50ms"||metric=="n_slower_100ms") result.getString("value").toDouble/report_prob
+						else result.getString("value").toDouble
 			}
        	} catch { case ex: SQLException => Director.logger.warn("SQL exception in metric reader",ex)}
 		finally {statement.close}
