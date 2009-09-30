@@ -52,7 +52,8 @@ case class SCADSDeployment(
 			components.filter(_!=null).foreach(_.deploy)			// deploy on all
 			components.filter(_!=null).foreach(_.waitUntilDeployed)	// wait until all deployed
 
-			ScadsDeploy.logger.info("DEPLOYED SCADS")			
+			ScadsDeploy.logger.info("DEPLOYED SCADS")
+			ScadsDeploy.logger.info("summary:\n"+summary)
 		} catch { case e:Exception => ScadsDeploy.logger.error("SCADS deployment error:\n",e) }
 	}
 	
@@ -79,9 +80,17 @@ case class SCADSDeployment(
 	* Create a page on http://scm/scads/keypair_deploymentName.html that contains important links for this deployment:
 	* chukwa ping, performance graphs, director logs, ...
 	*/
-//	def summaryPage
+	def summary:String = {
+		"Director: "+ (if (directorVM==null) "NULL" else directorVM.publicDnsName) + "\n" +
+		"monitoring: "+ (if (monitoringVM==null) "NULL" else monitoringVM.publicDnsName) + "\n" +
+		"clients: "+ (if (clientVMs!=null) "NULL" else clientVMs.map(_.publicDnsName).mkString(" ")) + "\n" +
+		"placement: "+ (try { placementVM.publicDnsName } catch { case _ => "NULL" }) + "\n" +
+		"storage: "+ (try { storageVMs.map(_.publicDnsName).mkString(" ") } catch { case _ => "NULL" })
+	}
 	
 	def clientVMs:InstanceGroup = if (clients==null) { new InstanceGroup() } else clients.clients
 	def monitoringVM:Instance = if (monitoring==null) null else monitoring.monitoringVM
 	def directorVM:Instance = if (director==null) null else director.directorVM
+	def storageVMs:InstanceGroup = if (myscads==null) null else myscads.servers
+	def placementVM:Instance = if (myscads==null) null else myscads.placement.get(0)
 }
