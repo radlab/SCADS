@@ -3,6 +3,7 @@ package edu.berkeley.cs.scads.storage
 import org.specs._
 import org.specs.runner.JUnit4
 import scala.collection.jcl.Conversions
+import org.apache.log4j.BasicConfigurator
 
 import edu.berkeley.cs.scads.thrift._
 import java.io.File
@@ -65,27 +66,29 @@ abstract class KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specificati
 				rec.value = "tasfail2"
 				try {
 					ks.test_and_set("tasf",rec,ev)
-						fail("Exception not throw for changed test/set")
+					fail("Exception not throw for changed test/set")
 				} catch {
 					case tsf: TestAndSetFailure => tsf.currentValue must_== "tasfail1"
 				}
 			}
 
 			"succeds when null is expected" in {
-				val ev = new ExistingValue("n",0)
+				val ev = new ExistingValue()
 				ev.unsetValue()
 				ev.unsetPrefix()
 				val rec = new Record("tasnull","tasnull")
 				ks.test_and_set("tasn",rec,ev) must_== true
 			}
 
-			"fails when null isn't there" {
-				val ev = new ExistingValue("n",0)
+			"fails when null isn't there" in {
+				val ev = new ExistingValue()
 				ev.unsetValue()
 				ev.unsetPrefix()
 				val rec = new Record("tasnullf","tasnullf")
 
+				ks.put("nullfailure", rec)
 				try {
+					ks.test_and_set("nullfailure", rec, ev)
 					fail("Exception not throw when test/set")
 				}
 				catch {
@@ -96,23 +99,24 @@ abstract class KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specificati
 
 			"succeeds when a prefix is unchanged" in {
 				val rec = new Record("tassucp","tassucp1ignore")
-				ks.put("tassp",rec)
-				val ev = new ExistingValue("tassucp1xxx",7)
+				ks.put("tassp",rec) must_== true
+				val ev = new ExistingValue("tassucp",7)
 				rec.value = "tassucp2"
+				ks.put("tassp", rec) must_== true
 				ks.test_and_set("tassp",rec,ev) must_== true
 				ks.get("tassp","tassucp").value must_== "tassucp2"
 			}
 
-			"fail when a prefix has changes" in {
+			"fails when a prefix has changes" in {
 				val rec = new Record("tasfailp","tasfailp1ignore")
 				ks.put("tasfp",rec) must_== true
-				val ev = new ExistingValue("failval",12)
-				rec.value = "tasfailp2"
+				val ev = new ExistingValue("failval",7)
+
 				try {
 					ks.test_and_set("tasfp",rec,ev)
 					fail("Didn't throw exception on changed prefix")
 				} catch {
-					case tsf: TestAndSetFailure => tsf.currentValue must_== "tasfailp1ignore"
+					case tsf: TestAndSetFailure => tsf.currentValue must_== "tasfail"
 				}
 				ks.get("tasfp","tasfailp").value must_== "tasfailp1ignore"
 			}
@@ -185,11 +189,13 @@ abstract class KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specificati
 }
 
 object JavaEngineSpec extends KeyStoreSpec {
-	val dbDir = new File("testDb")
+	BasicConfigurator.configure()
+	val dbDir = new File("target/testDb")
 	dbDir.mkdir
-	val config = new EnvironmentConfig();
-	config.setAllowCreate(true);
-	val env = new Environment(new File("testDb"), config)
+	val config = new EnvironmentConfig()
+	config.setAllowCreate(true)
+	config.setTransactional(true)
+	val env = new Environment(dbDir, config)
 	val ks = new StorageProcessor(env)
 }
 

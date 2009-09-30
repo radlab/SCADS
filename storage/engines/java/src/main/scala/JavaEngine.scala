@@ -52,8 +52,10 @@ object JavaEngine {
 		logger.info("Port: " + port)
 
 		logger.info("Opening the bdb environment")
-		val config = new EnvironmentConfig();
-		config.setAllowCreate(true);
+		val config = new EnvironmentConfig()
+		config.setAllowCreate(true)
+		config.setTransactional(true)
+		logger.info("Environment config: " + config)
 		val env = new Environment(dbDir, config)
 		logger.info("Environment opened")
 

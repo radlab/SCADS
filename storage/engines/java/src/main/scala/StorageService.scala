@@ -40,7 +40,37 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 	}
 
 	def test_and_set(ns: String, rec: Record, existingValue: ExistingValue): Boolean = {
-		put(ns, rec)
+		val db = getDatabase(ns)
+		val txn = env.beginTransaction(null, null)
+		val dbeKey = new DatabaseEntry(rec.key.getBytes)
+		val dbeEv = new DatabaseEntry()
+
+		/* Set up partial get if the existing value specifies a prefix length */
+		if(existingValue.isSetPrefix()) {
+			dbeEv.setPartial(true)
+			dbeEv.setPartialLength(existingValue.getPrefix)
+		}
+
+		/* Get the current value */
+		db.get(txn, dbeKey, dbeEv, LockMode.READ_COMMITTED)
+
+		/* Throw exception if expected value doesnt match present value */
+		if((dbeEv.getData == null && existingValue.getValue != null) ||
+		   (dbeEv.getData != null && existingValue.getValue == null) ||
+		   (dbeEv.getData != null && existingValue.getValue != null && dbeEv.getData.compare(existingValue.getValue.getBytes) != 0)) {
+			txn.abort
+
+			throw new TestAndSetFailure(createString(dbeEv.getData))
+		}
+
+		/* Otherwise perform the put and commit */
+		val dbeValue = new DatabaseEntry(rec.value.getBytes)
+		if(rec.value == null)
+			db.delete(txn, dbeKey)
+		else
+			db.put(txn, dbeKey, dbeValue)
+		txn.commit
+		true
 	}
 
 	def copy_set(ns: String, rs: RecordSet, h: String): Boolean = {
@@ -69,6 +99,7 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 			case None => {
 				val dbConfig = new DatabaseConfig()
 				dbConfig.setAllowCreate(true)
+				dbConfig.setTransactional(true)
 				val db = env.openDatabase(null, name, dbConfig)
 				dbCache.put(name,db)
 				db
