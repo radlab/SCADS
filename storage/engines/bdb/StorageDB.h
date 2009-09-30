@@ -41,7 +41,7 @@ private:
   map<const NameSpace,DB*> dbs;
 	map<const NameSpace,KeyLocker*> key_lockers;
   map<const NameSpace,MerkleDB*> merkle_dbs;
-  map<const NameSpace,RecordSet*> policies;
+  map<const NameSpace,vector<RecordSet>*> policies;
 
   int listen_port;
   u_int32_t user_flags;
@@ -64,7 +64,7 @@ private:
   bool simple_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const ConflictPolicy& policy);
   bool merkle_sync(const NameSpace& ns, const RecordSet& rs, const Host& h, const ConflictPolicy& policy);
 
-  RecordSet* return_responsibility_policy(const NameSpace& ns);
+  vector<RecordSet>* return_responsibility_policy(const NameSpace& ns);
 
 public:
   void apply_to_set(const NameSpace& ns, const RecordSet& rs,
@@ -91,8 +91,8 @@ public:
   bool putDBTs(DB* db_ptr, MerkleDB* mdb_ptr,DBT* key, DBT* data,DB_TXN* txn, bool hasNull=false);
   int32_t count_set(const NameSpace& ns, const RecordSet& rs);
 
-  bool set_responsibility_policy(const NameSpace& ns, const RecordSet& policy);
-  void get_responsibility_policy(RecordSet& _return, const NameSpace& ns);
+  bool set_responsibility_policy(const NameSpace& ns, const vector<RecordSet>& policy);
+  void get_responsibility_policy(vector<RecordSet>& _return, const NameSpace& ns);
 
   pthread_rwlock_t* get_dbmap_lock() { return &dbmap_lock; }
   map<const NameSpace,MerkleDB*>* get_merkle_dbs() { return &merkle_dbs; }

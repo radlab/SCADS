@@ -31,6 +31,8 @@
 
 #define FLUSH_WAIT 20
 
+#define RESP_MAX 10 // max # of ranges for responsiblity policy
+
 using namespace std;
 using namespace apache::thrift;
 using namespace apache::thrift::concurrency;
@@ -226,89 +228,100 @@ open_database(DB **dbpp,                  /* The DB handle that we are opening *
 
 bool StorageDB::
 responsible_for_key(const NameSpace& ns, const RecordKey& key) {
-  RecordSet *rs = return_responsibility_policy(ns);
+  vector<RecordSet>* v = return_responsibility_policy(ns);
+	vector<RecordSet>::iterator it;
 
-  if (rs->type == RST_ALL)
-    return true;
-  if (rs->type == RST_NONE)
-    return false;
+	for (it = v->begin();it != v->end();++it) {
+		RecordSet rs = *it;
+		if (rs.type == RST_ALL)
+			return true;
+		if (rs.type == RST_NONE)
+			continue;
 
-  if (rs->type == RST_RANGE) {
-    if ( (!rs->range.__isset.start_key ||
-	  key >= rs->range.start_key) &&
-	 (!rs->range.__isset.end_key ||
-	  key <= rs->range.end_key)  )
-      return true;
-    else
-      return false;
-  }
-
-  int rb_err;
-  VALUE funcall_args[3];
-  if (rs->type == RST_KEY_FUNC) {
-    VALUE ruby_proc = rb_eval_string_protect(rs->func.func.c_str(),&rb_err);
-    if (!rb_respond_to(ruby_proc,call_id)) {
-      InvalidSetDescription isd;
-      isd.s = *rs;
-      isd.info = "Your ruby string for your responsiblity policy does not return something that responds to 'call'";
-      isd.__isset.s = true;
-      isd.__isset.info = true;
-      throw isd;
-    }
-    VALUE v;
-    funcall_args[0] = ruby_proc;
-    funcall_args[1] = rb_str_new((const char*)(key.c_str()),key.length());
-    funcall_args[2] = 0;
-    v = rb_protect(rb_funcall_wrap,((VALUE)funcall_args),&rb_err);
-    if (rb_err) {
-      InvalidSetDescription isd;
-      isd.s = *rs;
-      VALUE lasterr = rb_gv_get("$!");
-      VALUE message = rb_obj_as_string(lasterr);
-      isd.info = rb_string_value_cstr(&message);
-      isd.__isset.s = true;
-      isd.__isset.info = true;
-      throw isd;
-    }
-    return (v == Qtrue);
-  }
-
-  return false; // if we don't understand, we'll say no
+		if (rs.type == RST_RANGE) {
+			if ( (!rs.range.__isset.start_key ||
+						key >= rs.range.start_key) &&
+					 (!rs.range.__isset.end_key ||
+						key <= rs.range.end_key)  )
+				return true;
+			else
+				continue;
+		}
+		
+		if (rs.type == RST_KEY_FUNC) {
+			int rb_err;
+			VALUE funcall_args[3];
+			VALUE ruby_proc = rb_eval_string_protect(rs.func.func.c_str(),&rb_err);
+			if (!rb_respond_to(ruby_proc,call_id)) {
+				InvalidSetDescription isd;
+				isd.s = rs;
+				isd.info = "Your ruby string for your responsiblity policy does not return something that responds to 'call'";
+				isd.__isset.s = true;
+				isd.__isset.info = true;
+				throw isd;
+			}
+			VALUE v;
+			funcall_args[0] = ruby_proc;
+			funcall_args[1] = rb_str_new((const char*)(key.c_str()),key.length());
+			funcall_args[2] = 0;
+			v = rb_protect(rb_funcall_wrap,((VALUE)funcall_args),&rb_err);
+			if (rb_err) {
+				InvalidSetDescription isd;
+				isd.s = rs;
+				VALUE lasterr = rb_gv_get("$!");
+				VALUE message = rb_obj_as_string(lasterr);
+				isd.info = rb_string_value_cstr(&message);
+				isd.__isset.s = true;
+				isd.__isset.info = true;
+				throw isd;
+			}
+			if (v == Qtrue)
+				return true;
+			else
+				continue;
+		}
+	}
+  return false; // if we don't understand, or we've not found something to say true to, we'll say no
 }
 
 bool StorageDB::
 responsible_for_set(const NameSpace& ns, const RecordSet& rs) {
-  RecordSet *policy = return_responsibility_policy(ns);
+  vector<RecordSet>* v = return_responsibility_policy(ns);
+	vector<RecordSet>::iterator it;
 
-  if (policy->type == RST_ALL || policy->type == RST_KEY_FUNC)
-    return true;
-  if (rs.type == RST_NONE)
-    return false;
+	for (it = v->begin();it != v->end();++it) {
+		RecordSet policy = *it;
+		if (policy.type == RST_ALL || policy.type == RST_KEY_FUNC)
+			return true;
+	
+		if (rs.type == RST_NONE)
+			continue;
 
-  if (rs.type == RST_RANGE) {
-    if (!rs.__isset.range) {
-      InvalidSetDescription isd;
-      isd.s = rs;
-      isd.info = "You specified a range set but did not provide a range description";
-      isd.__isset.s = true;
-      isd.__isset.info = true;
-      throw isd;
-    }
+		if (rs.type == RST_RANGE) {
+			if (!rs.__isset.range) {
+				InvalidSetDescription isd;
+				isd.s = rs;
+				isd.info = "You specified a range set but did not provide a range description";
+				isd.__isset.s = true;
+				isd.__isset.info = true;
+				throw isd;
+			}
 
-		if (
-				( policy->range.__isset.start_key &&
-					(!rs.range.__isset.start_key ||
-					 rs.range.start_key < policy->range.start_key) ) ||
-				( policy->range.__isset.end_key &&
-					(!rs.range.__isset.end_key ||
-					 rs.range.end_key > policy->range.end_key) )
-				)
-			return false;
-    else
-      return true;
-  }
-
-  return false; // if we don't understand, we'll say no
+			if (
+					( policy.range.__isset.start_key &&
+						(!rs.range.__isset.start_key ||
+						 rs.range.start_key < policy.range.start_key) ) ||
+					( policy.range.__isset.end_key &&
+						(!rs.range.__isset.end_key ||
+						 rs.range.end_key > policy.range.end_key) )
+					)
+				continue;
+			else
+				return true;
+		}
+	}
+	
+  return false; // if we don't understand, or didn't find something to say true to, we'll say no
 }
 
 void chkLock(int rc, const string lock, const string action) {
@@ -1315,75 +1328,93 @@ put(const NameSpace& ns, const Record& rec) {
 }
 
 bool StorageDB::
-set_responsibility_policy(const NameSpace& ns, const RecordSet& policy) {
+set_responsibility_policy(const NameSpace& ns, const vector<RecordSet>& policy_vec) {
+	if (policy_vec.size() > RESP_MAX)  // too many policies
+		throw new TException("Too many responsibility policies");
+
 #ifdef DEBUG
   cerr << "Setting resp policy"<<endl;
 #endif
 
-  if (policy.type == RST_KEY_VALUE_FUNC) { // illegal
-    InvalidSetDescription isd;
-    isd.s = policy;
-    isd.info = "Cannot specify a key value function as a responsibility function";
-    isd.__isset.s = true;
-    isd.__isset.info = true;
-    throw isd;
-  }
+	shared_ptr<TMemoryBuffer> mbuf(new TMemoryBuffer());
+	TBinaryProtocol tbp(mbuf);
 
-  if (policy.__isset.range &&
-      policy.__isset.func) {
-    InvalidSetDescription isd;
-    isd.s = policy;
-    isd.info = "You specified both a range and function in your policy";
-    isd.__isset.s = true;
-    isd.__isset.info = true;
-    throw isd;
-  }
+	tbp.writeI32(policy_vec.size());
 
-  if (policy.type == RST_RANGE &&
-      !policy.__isset.range) {
-    InvalidSetDescription isd;
-    isd.s = policy;
-    isd.info = "You specified a range set but did not provide a range description";
-    isd.__isset.s = true;
-    isd.__isset.info = true;
-    throw isd;
-  }
+	vector<RecordSet>::const_iterator it;
+	for (it = policy_vec.begin(); it != policy_vec.end(); ++it) {	
+		RecordSet policy = *it;
+		if (policy.type == RST_KEY_VALUE_FUNC) { // illegal
+			InvalidSetDescription isd;
+			isd.s = policy;
+			isd.info = "Cannot specify a key value function as a responsibility function";
+			isd.__isset.s = true;
+			isd.__isset.info = true;
+			throw isd;
+		}
 
-  if ( policy.type == RST_RANGE &&
-       (policy.range.__isset.offset ||
-	policy.range.__isset.limit) ) {
-    InvalidSetDescription isd;
-    isd.s = policy;
-    isd.info = "offset/limit don't make sense for responsibility policies";
-    isd.__isset.s = true;
-    isd.__isset.info = true;
-    throw isd;
-  }
+		if (policy.__isset.range &&
+				policy.__isset.func) {
+			InvalidSetDescription isd;
+			isd.s = policy;
+			isd.info = "You specified both a range and function in your policy";
+			isd.__isset.s = true;
+			isd.__isset.info = true;
+			throw isd;
+		}
 
-  if ( policy.type == RST_KEY_FUNC  &&
-       !policy.__isset.func ) {
-    InvalidSetDescription isd;
-    isd.s = policy;
-    isd.info = "You specified a function set but did not provide a function";
-    isd.__isset.s = true;
-    isd.__isset.info = true;
-    throw isd;
-  }
+		if (policy.type == RST_RANGE &&
+				!policy.__isset.range) {
+			InvalidSetDescription isd;
+			isd.s = policy;
+			isd.info = "You specified a range set but did not provide a range description";
+			isd.__isset.s = true;
+			isd.__isset.info = true;
+			throw isd;
+		}
+		
+		if ( policy.type == RST_RANGE &&
+				 (policy.range.__isset.offset ||
+					policy.range.__isset.limit) ) {
+			InvalidSetDescription isd;
+			isd.s = policy;
+			isd.info = "offset/limit don't make sense for responsibility policies";
+			isd.__isset.s = true;
+			isd.__isset.info = true;
+			throw isd;
+		}
 
-  if (policy.type == RST_KEY_FUNC) {
-    int rb_err;
-    VALUE funcall_args[3];
-    VALUE ruby_proc = rb_eval_string_protect(policy.func.func.c_str(),&rb_err);
-    if (!rb_respond_to(ruby_proc,call_id)) {
-      InvalidSetDescription isd;
-      isd.s = policy;
-      isd.info = "Your ruby string for your responsiblity policy does not return something that responds to 'call'";
-      isd.__isset.s = true;
-      isd.__isset.info = true;
-      throw isd;
-    }
-  }
+		if ( policy.type == RST_KEY_FUNC  &&
+				 !policy.__isset.func ) {
+			InvalidSetDescription isd;
+			isd.s = policy;
+			isd.info = "You specified a function set but did not provide a function";
+			isd.__isset.s = true;
+			isd.__isset.info = true;
+			throw isd;
+		}
+		
+		if (policy.type == RST_KEY_FUNC) {
+			int rb_err;
+			VALUE funcall_args[3];
+			VALUE ruby_proc = rb_eval_string_protect(policy.func.func.c_str(),&rb_err);
+			if (!rb_respond_to(ruby_proc,call_id)) {
+				InvalidSetDescription isd;
+				isd.s = policy;
+				isd.info = "Your ruby string for your responsiblity policy does not return something that responds to 'call'";
+				isd.__isset.s = true;
+				isd.__isset.info = true;
+				throw isd;
+			}
+		}
+		
+		// okay, write the policy to a memory buffer
+		policy.write(&tbp);
+	}
+	
+	
 
+	/*
   // okay, let's serialize
   ostringstream os;
   os << policy.type;
@@ -1415,14 +1446,15 @@ set_responsibility_policy(const NameSpace& ns, const RecordSet& policy) {
     os.str()<<endl;
 #endif
 
-
+	*/
+	uint8_t* buf;
+	uint32_t sz;
   DB* mdDB = getDB("storage_metadata");
   DBT db_key, db_data;
   int retval;
 
 
-  /* Zero out the DBTs before using them. */
-
+	// Zero out the DBTs before using them. 
 
   memset(&db_key, 0, sizeof(DBT));
   memset(&db_data, 0, sizeof(DBT));
@@ -1430,43 +1462,42 @@ set_responsibility_policy(const NameSpace& ns, const RecordSet& policy) {
   db_key.data = const_cast<char*>(ns.c_str());
   db_key.size = ns.length();
 
-  char buf[os.str().length()+1];
-  sprintf(buf,"%s",os.str().c_str());
-  db_data.data = buf;
-  db_data.size = os.str().length();
-
-#ifdef DEBUG
-  printf("About to put: %s\n",buf);
-#endif
+	mbuf->getBuffer(&buf,&sz);
+	db_data.data = (char*)buf;
+  db_data.size = sz;
 
   int rc = pthread_rwlock_wrlock(&resp_lock); // need a write lock here
   chkLock(rc,"resp_lock","modify responsibility map");
   retval = mdDB->put(mdDB, NULL, &db_key, &db_data, 0);
   retval |= flush_log(mdDB);
-  map<const NameSpace,RecordSet*>::iterator it;
-  RecordSet *rs;
-  it = policies.find(ns);
-  if (it == policies.end())
-    rs = new RecordSet();
-  else
-    rs = it->second;
-  *rs = policy;
-  if (it == policies.end())
-    policies[ns] = rs;
+  
+
+	map<const NameSpace,vector<RecordSet>*>::iterator nsit;
+  vector<RecordSet> *rsvec;
+  nsit = policies.find(ns);
+  if (nsit == policies.end())
+    rsvec = new vector<RecordSet>(policy_vec.begin(),policy_vec.end());
+  else {
+    rsvec = nsit->second;
+		rsvec->assign(policy_vec.begin(),policy_vec.end());
+	}
+  if (nsit == policies.end()) {
+    policies[ns] = rsvec;
+	}
   rc = pthread_rwlock_unlock(&resp_lock); // unlock
   chkLock(rc,"resp_lock","unlock write lock");
 
-if (!retval)
+	if (!retval)
     return true;
   TException te("Something went wrong storing your responsibility policy");
   throw te;
 }
 
 
-RecordSet*
+vector<RecordSet>*
 StorageDB::return_responsibility_policy(const NameSpace& ns) {
-  map<const NameSpace,RecordSet*>::iterator it;
-  RecordSet *rs;
+  map<const NameSpace,vector<RecordSet>*>::iterator it;
+  vector<RecordSet> *rsvec;
   int rc = pthread_rwlock_rdlock(&resp_lock); // get the read lock
   chkLock(rc,"resp_lock","Responsibility read lock");
   it = policies.find(ns);
@@ -1477,10 +1508,10 @@ StorageDB::return_responsibility_policy(const NameSpace& ns) {
     chkLock(rc,"resp_lock","modify responsibility map");
     it = policies.find(ns);
     if (it != policies.end()) { // someone else filled this under me
-      rs = it->second;
+      rsvec = it->second;
       rc = pthread_rwlock_unlock(&resp_lock); // unlock write lock
       chkLock(rc,"resp_lock","unlock write lock");
-      return rs;
+      return rsvec;
     }
 
 #ifdef DEBUG
@@ -1490,7 +1521,6 @@ StorageDB::return_responsibility_policy(const NameSpace& ns) {
     DB* mdDB = getDB("storage_metadata");
     DBT db_key, db_data;
     int retval;
-
 
     memset(&db_key, 0, sizeof(DBT));
     memset(&db_data, 0, sizeof(DBT));
@@ -1502,58 +1532,43 @@ StorageDB::return_responsibility_policy(const NameSpace& ns) {
 
     retval = mdDB->get(mdDB, NULL, &db_key, &db_data, 0);
     if (!retval) { // okay, something was there
-      rs = new RecordSet();
-      string pol((char*)db_data.data,db_data.size);
-      int type;
-      istringstream is(pol,istringstream::in);
-      is >> type;
-      rs->type = (SCADS::RecordSetType)type;
-      switch (rs->type) {
-      case RST_RANGE:
-	is >> rs->range.__isset.start_key >> rs->range.__isset.end_key;
-	if (rs->range.__isset.start_key)
-	  is >> rs->range.start_key;
-	if (rs->range.__isset.end_key)
-	  is >>rs->range.end_key;
-	rs->__isset.range = true;
-	break;
-      case RST_KEY_FUNC: {
-	int lang;
-	stringbuf sb;
-	is >> lang >> (&sb);
-	rs->func.lang = (SCADS::Language)lang;
-	rs->func.func.assign(sb.str());
-	rs->__isset.func = true;
-	rs->func.__isset.lang = true;
-	rs->func.__isset.func = true;
-      }
-	break;
-      }
+			shared_ptr<TMemoryBuffer> mbuf(new TMemoryBuffer((uint8_t*)db_data.data,(uint32_t)db_data.size));
+			TBinaryProtocol tbp(mbuf);
+			int32_t count;
+			tbp.readI32(count);
+			rsvec = new vector<RecordSet>(count);
+			for(int i = 0;i < count;i++) {
+				RecordSet rs;
+				rs.read(&tbp);
+				rsvec->push_back(rs);
+			}
       free(db_data.data);
     } else if (retval == DB_NOTFOUND) {
       // not found means RST_ALL
-      rs = new RecordSet();
-      rs->type = RST_ALL;
+			rsvec = new vector<RecordSet>();
+      RecordSet rs;
+      rs.type = RST_ALL;
+			rsvec->push_back(rs);
     } else {
       rc = pthread_rwlock_unlock(&resp_lock); // unlock write lock
       chkLock(rc,"resp_lock","unlock write lock");
       TException te("Error getting responsibility policy");
       throw te;
     }
-    policies[ns] = rs;
+    policies[ns] = rsvec;
     rc = pthread_rwlock_unlock(&resp_lock); // unlock write lock
     chkLock(rc,"resp_lock","unlock write lock");
-    return rs;
+    return rsvec;
   }
   // okay, it's already there
-  rs = it->second;
+  rsvec = it->second;
   rc = pthread_rwlock_unlock(&resp_lock); // unlock read lock
   chkLock(rc,"resp_lock","unlock read lock");
-  return rs;
+	return rsvec;
 }
 
 void StorageDB::
-get_responsibility_policy(RecordSet& _return, const NameSpace& ns) {
+get_responsibility_policy(vector<RecordSet>& _return, const NameSpace& ns) {
   _return = *(return_responsibility_policy(ns));
 }
 
