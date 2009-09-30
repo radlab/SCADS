@@ -2,8 +2,7 @@ package edu.berkeley.cs.scads.storage
 
 import edu.berkeley.cs.scads.thrift._
 import org.apache.log4j.Logger
-import com.sleepycat.je.{Database, DatabaseConfig, DatabaseEntry, Environment, LockMode}
-
+import com.sleepycat.je.{Database, DatabaseConfig, DatabaseEntry, Environment, LockMode, OperationStatus}
 
 class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 	val logger = Logger.getLogger("scads.storageprocessor")
@@ -12,7 +11,11 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 	def count_set(ns: String, rs: RecordSet): Int = 0
 
 	def get_set(ns: String, rs: RecordSet): java.util.List[Record] = {
-		new java.util.ArrayList[Record]()
+		val buffer = new java.util.ArrayList[Record]
+		iterateOverSet(ns, rs, (rec) => {
+			buffer.add(rec)
+		})
+		buffer
 	}
 
 	def get(ns: String, key: String): Record = {
@@ -106,4 +109,32 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 			}
 		}
 	}
+
+	/* Pass all records in namespace ns that fall in RangeSet rs to the provided function */
+	private def iterateOverSet(ns: String, rs: RecordSet, func: (Record) => Unit): Unit = {
+		val dbeKey = new DatabaseEntry(rs.getRange.getStart_key.getBytes)
+		val endValue = rs.getRange.getEnd_key.getBytes
+		val dbeValue = new DatabaseEntry()
+		val cur = getDatabase(ns).openCursor(null, null)
+		var status = cur.getSearchKeyRange(dbeKey, dbeValue, null)
+		var count = 0
+		val total = rs.getRange.isSetOffset match {
+				case true => rs.getRange.getOffset + rs.getRange.getLimit
+				case false => rs.getRange.getLimit
+			}
+
+		while(status != OperationStatus.NOTFOUND && dbeKey.getData.compare(endValue) <= 0 && (!rs.getRange.isSetLimit || count < total)) {
+			if(!rs.getRange.isSetOffset || count >= rs.getRange.getOffset)
+				func(new Record(createString(dbeKey.getData), createString(dbeValue.getData)))
+			count += 1
+			status = cur.getNext(dbeKey, dbeValue, null)
+		}
+		cur.close
+	}
+
+	private def createString(bytes: Array[Byte]): String =
+		if(bytes == null)
+			null
+		else
+			new String(bytes)
 }
