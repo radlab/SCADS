@@ -79,12 +79,12 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 	
 	case class WorkloadDescRunner(workload:WorkloadDescription) extends Runnable {
 		def run() = {
-			startWorkload(workload)
+			startWorkload(workload,true)
 			ScadsDeploy.logger.debug("Workload test complete.")
 		}
 	}
 
-	def startWorkload(workload:WorkloadDescription) {
+	def startWorkload(workload:WorkloadDescription, block:Boolean) {
 		val totalUsers = (workload.getMaxNUsers/clients.size+1)*clients.size
 		val workloadFile = "/tmp/workload.ser"
 		workload.serialize(workloadFile)
@@ -100,20 +100,31 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 			val maxUser = minUser + (totalUsers/clients.size) - 1
 
 			val args = host +" "+ xtrace_on + " " + minUser + " " + maxUser + " " + workloadFile
-			val cmd = "cd /opt/scads/experiments/scripts; scala -cp "+ deps + " startWorkload.scala " + args + " &> /tmp/workload.log"
+			//var cmd = "cd /opt/scads/experiments/scripts; scala -cp "+ deps + " startWorkload.scala " + args + " &> /tmp/workload.log"
+			var cmd = "cd /opt/scads/experiments/scripts; scala -cp "+ deps + " startWorkload.scala " + args
 			commands += (clients.get(id) -> cmd)
 			ScadsDeploy.logger.debug("Will run with arguments: "+ args)
-			new Thread( new StartWorkloadRequest(clients.get(id), workloadFile, cmd) )
+			ScadsDeploy.logger.debug("cmd: "+cmd)
+			new Thread( new StartWorkloadRequest(clients.get(id), workloadFile, cmd, block) )
 		})
 		for(thread <- threads) thread.start
 		for(thread <- threads) thread.join		
 	}
-	case class StartWorkloadRequest(client: Instance, workloadFile: String, cmd: String) extends Runnable {
+	case class StartWorkloadRequest(client: Instance, workloadFile: String, cmd: String, block:Boolean) extends Runnable {
 		override def run() = {
-			client.upload(Array(workloadFile),"/tmp/")
-			val result = client.exec(cmd)
-			result
+			client.upload(Array(workloadFile),"/tmp/")			
+			if (block)
+				client.exec(cmd+" &> /tmp/workload.log")
+			else {
+				client.exec("echo '"+cmd+"' > /tmp/w.sh")
+				client.exec("chmod 777 /tmp/w.sh")
+				client.exec("nohup /tmp/w.sh &> /tmp/workload.log < /dev/null &")
+			}
 		}
+	}
+	
+	def stopWorkload() {
+		clients.exec("pkill -f startWorkload")
 	}
 	
 	def processLogFiles(experimentName:String, parseAndPlot:Boolean) {

@@ -59,9 +59,11 @@ case class SCADSDeployment(
 //	def startDirector(policy:Policy)
 	
 	def startWorkload(workload:WorkloadDescription) {
-		if (clients!=null) clients.startWorkload(workload)
+		if (clients!=null) clients.startWorkload(workload,false)
 		else ScadsDeploy.logger.debug("can't start workload; no clients running")
 	}
+	
+	def stopWorkload() = clients.stopWorkload
 	
 	def processLogFiles(nameOfExperiment:String) {
 		if (clients!=null) {
