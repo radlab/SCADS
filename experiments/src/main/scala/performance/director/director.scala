@@ -24,7 +24,6 @@ object Director {
 	var directorRunner:Runner = null
 	var serverManager:ScadsServerManager = null
 	var putRestrictionURL:String = null
-	val restrictFileName = "restrict.csv"
 
 	val databaseHost = "localhost"
 	val databaseUser = "root"
@@ -141,13 +140,29 @@ object Director {
 	def setDeployment(deploy_name:String) {
 		myscads = ScadsLoader.loadState(deploy_name)
 		serverManager = new ScadsServerManager(deploy_name, myscads.deployMonitoring,namespace)
+
+		// figure out which scads servers are registered with data placement, and which ones are standbys
+		val dpentries = ScadsDeploy.getDataPlacementHandle(myscads.placement.get(0).privateDnsName,xtrace_on).lookup_namespace(namespace)
+
+		// determine all servers
+		val allservers = new scala.collection.mutable.ListBuffer[String]()
+		val iter = myscads.servers.iterator
+		while (iter.hasNext) { allservers += iter.next.privateDnsName }
+
+		// determine inplay servers
+		val inplay = new scala.collection.mutable.ListBuffer[String]()
+		val iter2 = dpentries.iterator
+		while (iter2.hasNext) { inplay += iter2.next.node }
+
+		// set up standbys: scads servers alive but not currently responsible for any data
+		serverManager.standbys.insertAll(0, (allservers.toList -- inplay.toList) )
 	}
 
 	def direct(policy:Policy, costFunction:FullCostFunction) {
 		// check for  scads deployment instance
 		if (myscads == null) { println("Need scads deployment before directing"); return }
 		val placementIP = myscads.placement.get(0).privateDnsName
-		putRestrictionURL = placementIP +"/"+restrictFileName
+		putRestrictionURL = placementIP +"/"+ScadsDeploy.restrictFileName
 		val dpclient = ScadsDeploy.getDataPlacementHandle(placementIP,xtrace_on)
 		assert( dpclient.lookup_namespace(namespace).size > 0, "Placement server has no storage nodes registered" )
 		logger.info("Will be directing with placement host: "+placementIP)
