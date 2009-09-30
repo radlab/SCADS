@@ -63,7 +63,7 @@ struct ConflictPolicy {
 }
 
 exception NotResponsible {
-	2:RecordSet policy
+	2:list<RecordSet> policy
 }
 
 exception NotImplemented {
