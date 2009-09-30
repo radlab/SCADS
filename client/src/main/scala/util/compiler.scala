@@ -51,7 +51,7 @@ object Compiler extends ScadsLanguage {
 
             val code = codeGenFromSource(src)
 
-            val outputBaseFile = new File("src/main/scala/generated")
+            val outputBaseFile = new File("target/generated")
             outputBaseFile.mkdirs
             val genDir = new File(outputBaseFile, "classfiles")
             genDir.mkdirs
