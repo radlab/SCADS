@@ -23,6 +23,7 @@ object ScadsDeploy {
 	val placeName = "placement"
 	val placementInfoFile = "/tmp/scads_info.csv"
 	val restrictFileName = "restrict.csv"
+	var maxKey = 10000 // up to ~1920000 in cache
 
 	var logger:Logger = null
 
