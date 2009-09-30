@@ -42,8 +42,9 @@ extends Component with RangeConversion {
 	var deploythread:Thread = null
 	var monitorIP:String = "NA"
 
+	val config_reverse_sorted = cluster_config.sort(_._1.maxKey > _._1.maxKey)
 	val minKey = 0
-	val maxKey = 10000
+	val maxKey = config_reverse_sorted.first._1.maxKey // get the highest key in the cluster
 	val namespace = "perfTest256"
 	val serverVMType = "m1.small"
 	val placementVMType = "m1.small"
@@ -127,26 +128,29 @@ extends Component with RangeConversion {
 		ScadsDeploy.logger.debug(serverDeployResult.getStderr)
 	}
 
-	private def replicate(minK: Int, maxK: Int) = {
-		// have first server download the data, and assign the range with the placement server
-		deployData(servers.get(0),null)
+	private def partitionData = {
+		ScadsDeploy.logger.debug("Deploying all data on first server ["+minKey+", "+maxKey+")")
+		deployData(servers.get(0),null) // give first server all the data
+
+		// tell data placement that first server has all data
 		val list = new java.util.ArrayList[DataPlacement]()
-		val start = new StringKey( ScadsDeploy.keyFormat.format(minK) )
-		val end = new StringKey( ScadsDeploy.keyFormat.format(maxK) )
-		val range = KeyRange(start,end)
+		val range = KeyRange( new StringKey( ScadsDeploy.keyFormat.format(minKey)) , new StringKey( ScadsDeploy.keyFormat.format(maxKey)) )
 		list.add(new DataPlacement(servers.get(0).privateDnsName,ScadsDeploy.server_port,ScadsDeploy.server_sync,range))
 		setServers(list)
 
-		// copy the data from the first server to all others
-		(1 to servers.size-1).toList.map((id)=>{
+		(1 until servers.size).foreach((index)=>{
+			// move data from first server to other servers (the last config range will be left on first server)
 			val dp = ScadsDeploy.getDataPlacementHandle(placement.get(0).publicDnsName,deployMonitoring)
-			ScadsDeploy.logger.debug("Copying to: "+ servers.get(id).privateDnsName + ": "+ start +" - "+ end)
-			dp.copy(namespace,range,servers.get(0).privateDnsName,ScadsDeploy.server_port,ScadsDeploy.server_sync,
-									servers.get(id).privateDnsName,ScadsDeploy.server_port,ScadsDeploy.server_sync)
+			val start = new StringKey( ScadsDeploy.keyFormat.format(config_reverse_sorted(index)._1.minKey) )
+			val end =  new StringKey( ScadsDeploy.keyFormat.format(config_reverse_sorted(index)._1.maxKey) )
+			val range = KeyRange(start,end)
+			ScadsDeploy.logger.debug("Moving to: "+ servers.get(index).privateDnsName + ": "+ start +" - "+ end)
+			dp.move(namespace,range,servers.get(0).privateDnsName,ScadsDeploy.server_port,ScadsDeploy.server_sync,
+									servers.get(index).privateDnsName,ScadsDeploy.server_port,ScadsDeploy.server_sync)
 		})
 		dpclient = ScadsDeploy.getDataPlacementHandle(placement.get(0).publicDnsName,deployMonitoring)
-		if (dpclient.lookup_namespace(namespace).size != servers.size) ScadsDeploy.logger.debug("Error registering servers with data placement")
-		else ScadsDeploy.logger.debug("SCADS servers registered with data placement.")
+		if (dpclient.lookup_namespace(namespace).size != servers.size) ScadsDeploy.logger.warn("Error registering servers with data placement")
+		else ScadsDeploy.logger.info("SCADS servers registered with data placement.")
 	}
 
 	private def retry( call: => Any, recovery: => Unit, maxNRetries: Int, delay: Long ) {
@@ -213,8 +217,8 @@ extends Component with RangeConversion {
 			placement.get(0).exec("echo '"+info_str+"' >> "+ScadsDeploy.placementInfoFile)
 
 			// put all the data on one machine
-			ScadsDeploy.logger.debug("scads: replicating data")
-			replicate(minKey,maxKey)
+			ScadsDeploy.logger.debug("scads: paritioning data")
+			partitionData
 			ScadsDeploy.logger.debug("scads: data ready")
 		}
 	}

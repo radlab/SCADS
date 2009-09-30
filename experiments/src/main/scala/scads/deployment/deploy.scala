@@ -18,6 +18,7 @@ case class SCADSDeployment(
 	var deployDirectorToMonitoring = true
 	
 	var experimentsJarURL = "http://scads.s3.amazonaws.com/experiments-1.0-jar-with-dependencies.jar"
+	var maxKey = 10000 // up to ~1920000 in cache
 	
 	ScadsDeploy.initLogger
 	
@@ -41,7 +42,7 @@ case class SCADSDeployment(
 		
 			// create the components
 			if (doMonitoring) monitoring = SCADSMonitoringDeployment(deploymentName,experimentsJarURL)
-			myscads = Scads(List[(DirectorKeyRange,String)]((null,null)),deploymentName,doMonitoring)
+			myscads = Scads(List[(DirectorKeyRange,String)]((DirectorKeyRange(0,maxKey),null)),deploymentName,doMonitoring)
 			if (nClients>0) clients = ScadsClients(myscads,nClients)
 			if (deployDirector) director = DirectorDeployment(myscads,monitoring,deployDirectorToMonitoring)
 		
