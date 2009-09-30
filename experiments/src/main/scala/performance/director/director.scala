@@ -352,10 +352,10 @@ object Director {
 		SCADSState.initLogging("localhost",6001)
 		Plotting.initialize(Director.basedir+"/plotting/")
 		
-		val mix = new MixVector( Map("get"->0.98,"getset"->0.0,"put"->0.02) )
-		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,1,10,1000)
-
 		val maxKey = 10000
+		val mix = new MixVector( Map("get"->0.98,"getset"->0.0,"put"->0.02) )
+		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,1,10,1000,maxKey)
+
 		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
 		config = config.splitAllInHalf.splitAllInHalf.splitAllInHalf
 
@@ -377,10 +377,10 @@ object Director {
 		SCADSState.initLogging("localhost",6001)
 		Plotting.initialize(Director.basedir+"/plotting/")
 
-		val mix = new MixVector( Map("get"->0.97,"getset"->0.0,"put"->0.03) )
-		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,2,30,1000)
-
 		val maxKey = 10000
+		val mix = new MixVector( Map("get"->0.97,"getset"->0.0,"put"->0.03) )
+		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,2,30,1000,maxKey)
+
 		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
 		config = config.splitAllInHalf.splitAllInHalf.splitAllInHalf
 
@@ -400,9 +400,9 @@ object Director {
 		SCADSState.initLogging("localhost",6001)
 		Plotting.initialize(Director.basedir+"/plotting/")
 
-		val mix = new MixVector( Map("get"->1.0,"getset"->0.0,"put"->0.00) )
-		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,1.5,48,4000)
 		val maxKey = 10000
+		val mix = new MixVector( Map("get"->1.0,"getset"->0.0,"put"->0.00) )
+		val workload = WorkloadGenerators.diurnalWorkload(mix,0,"perfTest256",10,1.5,48,4000,maxKey)
 		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
 		config = config.splitAllInHalf.splitAllInHalf.splitAllInHalf
 

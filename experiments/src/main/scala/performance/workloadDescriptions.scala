@@ -97,9 +97,9 @@ object WorkloadGenerators {
 		WorkloadDescription.create(wProf,durations,reqGenerators,thinkTime)
 	}
 	
-	def diurnalWorkload(mix:MixVector, getsetLength:Int, namespace:String, thinkTime:Int, nVirtualDays:Double, nMinutes:Int, maxNUsers:Int):WorkloadDescription = {
+	def diurnalWorkload(mix:MixVector, getsetLength:Int, namespace:String, thinkTime:Int, nVirtualDays:Double, nMinutes:Int, maxNUsers:Int,maxKey:Int):WorkloadDescription = {
 		val wProf = WorkloadProfile.getEbatesProfile(6*nMinutes,4*24*60,Math.floor(nVirtualDays*24*60/(6*nMinutes)).toInt, maxNUsers)
-		val keyGenerator = new ZipfKeyGenerator(1.001,1,10000)
+		val keyGenerator = new ZipfKeyGenerator(1.001,1,maxKey)
 		val reqGenerators = List.make( 6*nMinutes, new FixedSCADSRequestGenerator(mix,keyGenerator,namespace,getsetLength) )
 		val durations = List.make(6*nMinutes,10*1000)
 		WorkloadDescription.create(wProf,durations,reqGenerators,thinkTime)
