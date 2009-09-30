@@ -304,6 +304,7 @@ static void syncRangeGreater(StorageEngineClient &client,
   client.sync_set(ns,rs,h,pol);
 }
 
+/*
 static void instResp(StorageEngineClient &client) {
   RecordSet rs;
   rs.type = RST_RANGE;
@@ -316,6 +317,30 @@ static void instResp(StorageEngineClient &client) {
   range.start_key = "0";
   rs.range = range;
   client.set_responsibility_policy("foo",rs);
+}
+*/
+
+static void setRespPol(StorageEngineClient &client,
+											 const NameSpace &ns,
+											 const vector<string>& vec) {
+	vector<RecordSet> rsvec;
+	vector<string>::const_iterator it;
+	for (it = vec.begin();it != vec.end();++it) {
+		RecordSet rs;
+		rs.type = RST_RANGE;
+		rs.__isset.range = true;
+		RangeSet range;
+		range.__isset.start_key = true;
+		range.__isset.end_key = true;
+		range.__isset.offset = false;
+		range.__isset.limit = false;
+		range.start_key = *it;
+		++it;
+		range.end_key = *it;
+		rs.range = range;
+		rsvec.push_back(rs);
+	}
+	client.set_responsibility_policy(ns,rsvec);
 }
 
 static void printPutUsage() {
@@ -755,10 +780,29 @@ int main(int argc,char* argv[]) {
 					cout << "[Exception]: "<<e.what()<<endl;
 				}
       }
-
+			
+			/*
 			else if (cmd == "resp") {
 				instResp(client);
 				continue;
+			}
+			*/
+			else if (cmd == "setRespPol") {
+				if (v.size() <= 2) {
+					printf("usage: setRespPol namespace start_key1 end_key1 start_key2 end_key2...\n");
+					continue;
+				}
+				if (v.size()%2 != 0) {
+					printf("Start keys must all match up with end keys\n");
+					continue;
+				}
+				vector<string> vec;
+				vector<string>::iterator it;
+				it = v.begin();
+				++it; ++it; // skip command and ns
+				for (;it != v.end();++it) 
+					vec.push_back(*it);
+				setRespPol(client,v[1],vec);
 			}
 
       /*
