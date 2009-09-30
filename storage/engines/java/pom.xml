@@ -24,8 +24,13 @@
 		</dependency>
 		<dependency>
 			<groupId>com.sleepycat</groupId>
+			<artifactId>jejmx</artifactId>
+			<version>3.3.87</version>
+		</dependency>
+		<dependency>
+			<groupId>com.sleepycat</groupId>
 			<artifactId>je</artifactId>
-			<version>3.3.75</version>
+			<version>3.3.87</version>
 		</dependency>
 		<dependency>
 			<groupId>edu.berkeley.cs.scads</groupId>

@@ -8,8 +8,12 @@ import org.apache.commons.cli.CommandLine
 import org.apache.commons.cli.HelpFormatter
 import org.apache.log4j.Logger
 
+import java.lang.management.ManagementFactory
+import javax.management.ObjectName
+
 import com.sleepycat.je.Environment
 import com.sleepycat.je.EnvironmentConfig
+import com.sleepycat.je.jmx.JEMonitor
 
 import edu.berkeley.cs.scads.thrift.StorageEngine
 
@@ -58,6 +62,10 @@ object JavaEngine {
 		logger.info("Environment config: " + config)
 		val env = new Environment(dbDir, config)
 		logger.info("Environment opened")
+
+		val mbs = ManagementFactory.getPlatformMBeanServer();
+		val mBean = new JEMonitor(dbDir.toString)
+		mbs.registerMBean(mBean, new ObjectName("com.sleepycat:type=JE"))
 
 		val processor = new StorageEngine.Processor(new StorageProcessor(env))
 		val transport = new TNonblockingServerSocket(port)
