@@ -12,14 +12,20 @@ import org.apache.thrift.transport.{TFramedTransport, TSocket}
 import org.apache.thrift.protocol.{TBinaryProtocol, XtBinaryProtocol}
 
 object ScadsLoader {
+	import java.text.ParsePosition
+
 	def loadState(deploymentName:String):Scads = {
 		var myscads:Scads = null
 		val servers = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+deploymentName+"--"+ScadsDeploy.serversName, true )
 		val placement = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+deploymentName+"--"+ScadsDeploy.placeName, true )
 		if (placement.size > 0) {
 			val info = readPlacementInfo(placement.get(0))
+			var max = 0
+			val dpentries = ScadsDeploy.getDataPlacementHandle(placement.get(0).publicDnsName,info._1).lookup_namespace("perfTest256")
+			val iter = dpentries.iterator
+			while (iter.hasNext) { val key = StringKey.deserialize_toString(iter.next.rset.range.end_key,new ParsePosition(0)).toInt; if (key>max) {max=key}  }
 
-			myscads = Scads(List[(DirectorKeyRange,String)]((null,null)),deploymentName,info._1)
+			myscads = Scads(List[(DirectorKeyRange,String)]((DirectorKeyRange(0,max),null)),deploymentName,info._1)
 			myscads.servers = servers; myscads.placement = placement; myscads; myscads.setMonitor(info._2)
 			myscads.dpclient = ScadsDeploy.getDataPlacementHandle(placement.get(0).publicDnsName, myscads.deployMonitoring)
 		}
