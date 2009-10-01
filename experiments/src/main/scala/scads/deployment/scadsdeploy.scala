@@ -29,8 +29,11 @@ object ScadsDeploy {
 
 	def initLogger {
 		if (logger==null) {
+			Logger.getRootLogger.removeAllAppenders
+			Logger.getRootLogger.addAppender( new varia.NullAppender() )
 			logger = Logger.getLogger("scads.deploy")
 			logger.addAppender( new FileAppender(new PatternLayout("%d %5p %c - %m%n"),"/tmp/deploy.txt",false) )
+			logger.addAppender( new ConsoleAppender(new PatternLayout("%d %5p %c - %m%n")) )
 			logger.setLevel(DEBUG)
 			logger.debug("starting logging of deployment")
 		}
