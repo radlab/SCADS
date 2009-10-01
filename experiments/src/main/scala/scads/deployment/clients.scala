@@ -15,7 +15,7 @@ import org.apache.thrift.protocol.{TBinaryProtocol, XtBinaryProtocol}
 case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 	val scadsName = myscads.deploymentName
 	val xtrace_on = myscads.deployMonitoring
-	var deps:String = null
+	var deps:String = "/usr/share/java/experiments_stable.jar"
 	var clients:InstanceGroup = null
 	var host:String = null
 	var clientConfig:JSONObject = null
@@ -37,15 +37,29 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 	def deploy = {
 		host = myscads.placement.get(0).privateDnsName
 	
-		deploythread = new Thread(new ScadsDeployer)
+		deploythread = new Thread(new ScadsDeployer(clients))
 		deploythread.start
 	}
 	
 	def waitUntilDeployed = {
 		if (deploythread != null) deploythread.join
 	}
+	def loadState = {
+		clients = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scadsName+"--"+"clients", true )
+		if (deps==null) deps = clients.get(0).exec("cd /opt/scads/experiments; cat cplist").getStdout.replace("\n","") + ":../target/classes"
+		host = myscads.placement.get(0).privateDnsName
+		restrictionURL = "http://"+host +"/"+ScadsDeploy.restrictFileName
+	}
+	def addClients(num:Int) = {
+		val new_clients = DataCenter.runInstances(num,clientVMType)
+		new_clients.waitUntilReady
+		new_clients.tagWith( DataCenter.keyName+"--SCADS--"+scadsName+"--"+"clients")
+		deploythread = new Thread(new ScadsDeployer(new_clients))
+		deploythread.start
+		if (deploythread != null) deploythread.join
+	}
 
-	case class ScadsDeployer extends Runnable {
+	case class ScadsDeployer(machines:InstanceGroup) extends Runnable {
 		var deployed = false
 		def run = {
 			val clientRecipes = new JSONArray()
@@ -54,17 +68,19 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 		    clientConfig.put("recipes", clientRecipes)
 			
 			ScadsDeploy.logger.debug("clients: deploying")
-			clients.deploy(clientConfig)
+			machines.deploy(clientConfig)
 
 			ScadsDeploy.logger.debug("clients: deployed!")
 			//ScadsDeploy.logger.debug("clients deploy log: "); clientDeployResult.foreach( (x:ExecuteResponse) => {ScadsDeploy.logger.debug(x.getStdout); ScadsDeploy.logger.debug(x.getStderr)} )
 		
 			// get list of mvn dependencies
-			deps = clients.get(0).exec("cd /opt/scads/experiments; cat cplist").getStdout.replace("\n","") + ":../target/classes"
-			clients.get(0).exec("/etc/init.d/apache2 start") // start apache for viewing graphs
+			if (deps==null)
+				deps = machines.get(0).exec("cd /opt/scads/experiments; cat cplist").getStdout.replace("\n","") + ":../target/classes"
+			machines.get(0).exec("/etc/init.d/apache2 start") // start apache for viewing graphs
 
 			// set up URL where to get put() restriction info from
-			restrictionURL = "http://"+myscads.placement.get(0).privateDnsName +"/"+ScadsDeploy.restrictFileName
+			if (restrictionURL==null)
+				restrictionURL = "http://"+myscads.placement.get(0).privateDnsName +"/"+ScadsDeploy.restrictFileName
 		}
 	}
 
