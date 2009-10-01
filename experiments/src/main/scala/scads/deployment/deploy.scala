@@ -21,6 +21,10 @@ case class SCADSDeployment(
 	
 	ScadsDeploy.initLogger
 	
+	private var _deployed = false
+	var deployer:Deployer = null
+	var deployerThread:Thread = null
+	
 	/**
 	* This will load an existing deployment of scads based on the deployment name
 	*/
@@ -35,29 +39,41 @@ case class SCADSDeployment(
 	// how many scads hot-standby's?
 	// initial configuration and dataset
 	// xtrace sampling probability
-	def deploy(nClients:Int, deployMonitoring:Boolean, deployDirector:Boolean) {
-		try {
-			val doMonitoring = if (deployDirector) { true } else { deployMonitoring }
-		
-			// create the components
-			if (doMonitoring) monitoring = SCADSMonitoringDeployment(deploymentName,experimentsJarURL)
-			myscads = Scads(List[(DirectorKeyRange,String)]((DirectorKeyRange(0,ScadsDeploy.maxKey),null)),deploymentName,doMonitoring)
-			if (nClients>0) clients = ScadsClients(myscads,nClients)
-			if (deployDirector) director = DirectorDeployment(myscads,monitoring,deployDirectorToMonitoring)
-		
-			val components = List[Component](myscads,clients,monitoring,director)		
-			components.filter(_!=null).foreach(_.boot) 				// boot up all machines
-			components.filter(_!=null).foreach(_.waitUntilBooted) 	// wait until all machines booted
-			if (doMonitoring) myscads.setMonitor(monitoring.monitoringVM.privateDnsName)	// inform scads component of monitor
-			components.filter(_!=null).foreach(_.deploy)			// deploy on all
-			components.filter(_!=null).foreach(_.waitUntilDeployed)	// wait until all deployed
+	case class Deployer(nClients:Int, deployMonitoring:Boolean, deployDirector:Boolean) extends Runnable {
+		def run = {
+			try {
+				val doMonitoring = if (deployDirector) { true } else { deployMonitoring }
 
-			ScadsDeploy.logger.info("DEPLOYED SCADS")
-			ScadsDeploy.logger.info("summary:\n"+summary)
-		} catch { case e:Exception => ScadsDeploy.logger.error("SCADS deployment error:\n",e) }
+				// create the components
+				if (doMonitoring) monitoring = SCADSMonitoringDeployment(deploymentName,experimentsJarURL)
+				myscads = Scads(List[(DirectorKeyRange,String)]((DirectorKeyRange(0,ScadsDeploy.maxKey),null)),deploymentName,doMonitoring)
+				if (nClients>0) clients = ScadsClients(myscads,nClients)
+				if (deployDirector) director = DirectorDeployment(myscads,monitoring,deployDirectorToMonitoring)
+
+				val components = List[Component](myscads,clients,monitoring,director)		
+				components.filter(_!=null).foreach(_.boot) 				// boot up all machines
+				components.filter(_!=null).foreach(_.waitUntilBooted) 	// wait until all machines booted
+				if (doMonitoring) myscads.setMonitor(monitoring.monitoringVM.privateDnsName)	// inform scads component of monitor
+				components.filter(_!=null).foreach(_.deploy)			// deploy on all
+				components.filter(_!=null).foreach(_.waitUntilDeployed)	// wait until all deployed
+
+				ScadsDeploy.logger.info("DEPLOYED SCADS")
+				ScadsDeploy.logger.info("summary:\n"+summary)
+
+				_deployed = true
+			} catch { case e:Exception => ScadsDeploy.logger.error("SCADS deployment error:\n",e) }	
+		}
 	}
 	
-//	def startDirector(policy:Policy)
+	def deploy(nClients:Int, deployMonitoring:Boolean, deployDirector:Boolean) {
+		deployer = Deployer(nClients, deployMonitoring, deployDirector)
+		deployerThread = new Thread(deployer)
+		deployerThread.start
+
+		ScadsDeploy.logger.info("deploying SCADS in the background; call .deployed to check if deployed")
+	}
+	
+	def deployed = _deployed
 	
 	def startWorkload(workload:WorkloadDescription) {
 		if (clients!=null) clients.startWorkload(workload,false)
@@ -93,4 +109,6 @@ case class SCADSDeployment(
 	def directorVM:Instance = if (director==null) null else director.directorVM
 	def storageVMs:InstanceGroup = if (myscads==null) null else myscads.servers
 	def placementVM:Instance = if (myscads==null) null else myscads.placement.get(0)
+	
+	def tailStorageLog(serverI:Int, nLines:Int):String = { storageVMs.get(serverI).exec("tail -n 10 /mnt/services/scads_bdb_storage_engine/log/current").getStdout }
 }
