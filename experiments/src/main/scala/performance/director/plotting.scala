@@ -31,36 +31,43 @@ object Plotting {
 	}
 	
 	def connectToR() {
-		try { rconn = new RConnection("127.0.0.1") } catch { 
+		try { 
+			rconn = new RConnection("127.0.0.1") 
+			rconn.parseAndEval(" source(\"../scripts/plotting/scads_plots.R\") ")
+		} catch { 
 			case e:Exception => {
 				logger.warn("can't connect to Rserve on localhost (run R CMD Rserve --RS-workdir <absolute path to scads/experiments/>)")
 				e.printStackTrace
 			}
-		}
-		
-		rconn.parseAndEval(" source(\"../scripts/plotting/scads_plots.R\") ")
+		}		
 	}
 	
 	def plotSCADSState(state:SCADSState, time0:Long, time1:Long, latency90pThr:Double, file:String) {
-		try {
-			rconn.parseAndEval("  plot.scads.state(\""+time0+"\",\""+time1+"\",latency90p.thr="+latency90pThr+",out.file=\""+dir+"/"+file+"\")  ")
-			rconn.parseAndEval(" disconnect.all() ")
-		} catch {
-			case e:Exception => { logger.warn("couldn't render SCADS state plot"); e.printStackTrace }
+		if (rconn==null) logger.warn("don't have connection to R, can't plot")
+		else {
+			try {
+				rconn.parseAndEval("  plot.scads.state(\""+time0+"\",\""+time1+"\",latency90p.thr="+latency90pThr+",out.file=\""+dir+"/"+file+"\")  ")
+				rconn.parseAndEval(" disconnect.all() ")
+			} catch {
+				case e:Exception => { logger.warn("couldn't render SCADS state plot"); e.printStackTrace }
+			}
 		}
 	}
 		
 	def plotSimpleDirectorAndConfigs() {
-		try {
-			logger.info("plotting director.simple and configs")
-			//logger.info("plotting director.simple")
-			rconn.parseAndEval("  plot.director.simple( out.file=\""+dir+"/director.simple.png\")  ")
-			//logger.info("plotting configs")
-			rconn.parseAndEval("  plot.configs( out.file=\""+dir+"/configs.png\")  ")
-			rconn.parseAndEval("  disconnect.all()  ")
-			//logger.info("done plotting")
-		} catch {
-			case e:Exception => { logger.warn("couldn't render director.simple or configs plot"); e.printStackTrace }
+		if (rconn==null) logger.warn("don't have connection to R, can't plot")
+		else {
+			try {
+				logger.info("plotting director.simple and configs")
+				//logger.info("plotting director.simple")
+				rconn.parseAndEval("  plot.director.simple( out.file=\""+dir+"/director.simple.png\")  ")
+				//logger.info("plotting configs")
+				rconn.parseAndEval("  plot.configs( out.file=\""+dir+"/configs.png\")  ")
+				rconn.parseAndEval("  disconnect.all()  ")
+				//logger.info("done plotting")
+			} catch {
+				case e:Exception => { logger.warn("couldn't render director.simple or configs plot"); e.printStackTrace }
+			}
 		}
 	}
 		
