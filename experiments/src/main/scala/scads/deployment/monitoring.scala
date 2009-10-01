@@ -24,7 +24,7 @@ case class SCADSMonitoringDeployment(
 	
 	var nBins = 200
 	var minKey = 0
-	var maxKey = 10000
+	var maxKey = ScadsDeploy.maxKey
 	var aggregationInterval = 20000
 	
 	override def boot {
