@@ -12,17 +12,119 @@ import java.sql.Connection
 import java.sql.SQLException
 import java.sql.DriverManager
 
+
+case class Director(
+	deploymentName:String,
+	policy:Policy,
+	costFunction:FullCostFunction,
+	experimentName:String
+) {	
+	val actionExecutor = ActionExecutor()
+	
+	var plottingPeriod:Long = 2*60*1000
+	val period:Long = 20*1000
+
+	val metricReader = new MetricReader(Director.databaseHost,"metrics",period,0.02)
+
+	var myscads:scads.deployment.Scads = null
+	var placementIP:String = null
+	var putRestrictionURL:String = null
+	
+	var directorRunner:Runner = null
+	var serverManager:ScadsServerManager = null
+
+	setDeployment(deploymentName)	
+	Director.dropDatabases
+	SCADSState.initLogging("localhost",6001)
+	Plotting.initialize(Director.basedir+"/plotting/")
+	policy.initialize
+	
+	val lowLevelActionMonitor = LowLevelActionMonitor("director","lowlevel_actions")
+	val stateHistory = SCADSStateHistory(period,metricReader,placementIP,policy)
+
+	Director.director = this
+
+	case class Runner(policy:Policy, costFunction:FullCostFunction, placementIP: String) extends Runnable {
+		var lastPlotTime = new Date().getTime
+		stateHistory.startUpdating
+
+		var running = true
+		def run = {
+			while (running) {
+				policy.perform(stateHistory.getMostRecentState,actionExecutor)
+				actionExecutor.execute
+				
+				if (new Date().getTime>lastPlotTime+plottingPeriod) {
+					Plotting.plotSimpleDirectorAndConfigs()
+					lastPlotTime = new Date().getTime
+				}
+				
+				Thread.sleep(period)
+			}
+			
+			// add all states to cost function
+			stateHistory.history.toList.sort(_._1<_._1).map(_._2).foreach( costFunction.addState(_) )
+		}
+		def stop = { 
+			running = false 
+			stateHistory.stopUpdating
+		}
+	}
+
+	private def setDeployment(deploy_name:String) {
+		myscads = ScadsLoader.loadState(deploy_name)
+		serverManager = new ScadsServerManager(deploy_name, myscads.deployMonitoring, Director.namespace)
+		placementIP = myscads.placement.get(0).privateDnsName
+		
+		// figure out which scads servers are registered with data placement, and which ones are standbys
+		val dpentries = ScadsDeploy.getDataPlacementHandle(myscads.placement.get(0).privateDnsName,Director.xtrace_on).lookup_namespace(Director.namespace)
+
+		// determine all servers
+		val allservers = new scala.collection.mutable.ListBuffer[String]()
+		val iter = myscads.servers.iterator
+		while (iter.hasNext) { allservers += iter.next.privateDnsName }
+
+		// determine inplay servers
+		val inplay = new scala.collection.mutable.ListBuffer[String]()
+		val iter2 = dpentries.iterator
+		while (iter2.hasNext) { inplay += iter2.next.node }
+
+		// set up standbys: scads servers alive but not currently responsible for any data
+		serverManager.standbys.insertAll(0, (allservers.toList -- inplay.toList) )
+	}
+
+	def direct() {
+		// check for  scads deployment instance
+		if (myscads == null) { println("Need scads deployment before directing"); return }
+		putRestrictionURL = placementIP +"/"+ScadsDeploy.restrictFileName
+		val dpclient = ScadsDeploy.getDataPlacementHandle(placementIP,Director.xtrace_on)
+		assert( dpclient.lookup_namespace(Director.namespace).size > 0, "Placement server has no storage nodes registered" )
+		Director.logger.info("Will be directing with placement host: "+placementIP)
+		
+		directorRunner = new Runner(policy,costFunction,placementIP)
+		val runthread = new Thread(directorRunner)
+		runthread.start
+	}
+
+	def stop = directorRunner.stop
+
+	def uploadLogsToS3 {
+		Director.dumpAndDropDatabases
+		Runtime.getRuntime().exec("s3cmd -P sync s3cmd sync "+Director.basedir+" s3://scads-experiments/"+Director.startDate+"_"+experimentName+"/")
+	}
+}
+
 object Director {
+	var director:Director = null
+	
 	val dateFormat = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss");
 	val logPattern = "%d %5p %c - %m%n"
 /*	val basedir = "/mnt/director/logs_"+dateFormat.format(new Date)+"/"*/
-	val basedir = "/tmp/director/logs_"+dateFormat.format(new Date)+"/"
+	val startDate = dateFormat.format(new Date)
+	val basedir = "/tmp/director/logs_"+startDate+"/"
 	
 	val xtrace_on = true
 	val namespace = "perfTest256"
-	var myscads:scads.deployment.Scads = null
-	var directorRunner:Runner = null
-	var serverManager:ScadsServerManager = null
 	var putRestrictionURL:String = null
 
 	val databaseHost = "localhost"
@@ -39,6 +141,7 @@ object Director {
 	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 	logger.setLevel(DEBUG)
 	Logger.getRootLogger().addAppender( new FileAppender(new PatternLayout(Director.logPattern),Director.basedir+"/all.txt",false) )
+	
 	Runtime.getRuntime().exec("rm -f "+Director.basedir+"../current")
 	Runtime.getRuntime().exec("ln -s "+Director.basedir+" "+Director.basedir+"../current")
 
@@ -46,7 +149,7 @@ object Director {
 
 	def dumpAndDropDatabases() {
 		// dump old databases
-		Runtime.getRuntime.exec("mysqldump --databases metrics director > /mnt/director/dbdump_"+dateFormat.format(new Date)+".sql")
+		Runtime.getRuntime.exec("mysqldump --databases metrics director > "+Director.basedir+"/dbdump_"+dateFormat.format(new Date)+".sql")
 		dropDatabases()
 	}
 
@@ -87,92 +190,7 @@ object Director {
 		"INSERT INTO "+table+" ("+colnames.mkString("`","`,`","`")+") values ("+colnames.map(data(_)).mkString(",")+")"
 	}
 
-	// TODO: create a director class and move these there
-	var policy:Policy = null
-	var costFunction:FullCostFunction = null
-	var actionExecutor:ActionExecutor = null
 
-	case class Runner(policy:Policy, costFunction:FullCostFunction, placementIP: String) extends Runnable {
-		Director.dropDatabases
-		SCADSState.initLogging("localhost",6001)
-		Plotting.initialize(Director.basedir+"/plotting/")
-		policy.initialize
-		lowLevelActionMonitor = LowLevelActionMonitor("director","lowlevel_actions")
-
-		var lastPlotTime = new Date().getTime
-		var plottingPeriod:Long = 2*60*1000
-
-		val period:Long = 20*1000
-		val metricReader = new MetricReader(databaseHost,"metrics",period,0.02)
-		val stateHistory = SCADSStateHistory(period,metricReader,placementIP,policy)
-		stateHistory.startUpdating
-
-		var actions = List[Action]()
-		val actionExecutor = ActionExecutor()
-
-		Director.policy = policy
-		Director.costFunction = costFunction
-		Director.actionExecutor = actionExecutor
-
-		var running = true
-		def run = {
-			while (running) {
-				policy.perform(stateHistory.getMostRecentState,actionExecutor)
-				actionExecutor.execute
-				
-				if (new Date().getTime>lastPlotTime+plottingPeriod) {
-					Plotting.plotSimpleDirectorAndConfigs()
-					lastPlotTime = new Date().getTime
-				}
-				
-				Thread.sleep(delay)
-			}
-			
-			// add all states to cost function
-			stateHistory.history.toList.sort(_._1<_._1).map(_._2).foreach( costFunction.addState(_) )
-		}
-		def stop = { 
-			running = false 
-			stateHistory.stopUpdating
-		}
-	}
-
-	def setDeployment(deploy_name:String) {
-		myscads = ScadsLoader.loadState(deploy_name)
-		serverManager = new ScadsServerManager(deploy_name, myscads.deployMonitoring,namespace)
-
-		// figure out which scads servers are registered with data placement, and which ones are standbys
-		val dpentries = ScadsDeploy.getDataPlacementHandle(myscads.placement.get(0).privateDnsName,xtrace_on).lookup_namespace(namespace)
-
-		// determine all servers
-		val allservers = new scala.collection.mutable.ListBuffer[String]()
-		val iter = myscads.servers.iterator
-		while (iter.hasNext) { allservers += iter.next.privateDnsName }
-
-		// determine inplay servers
-		val inplay = new scala.collection.mutable.ListBuffer[String]()
-		val iter2 = dpentries.iterator
-		while (iter2.hasNext) { inplay += iter2.next.node }
-
-		// set up standbys: scads servers alive but not currently responsible for any data
-		serverManager.standbys.insertAll(0, (allservers.toList -- inplay.toList) )
-	}
-
-	def direct(policy:Policy, costFunction:FullCostFunction) {
-		// check for  scads deployment instance
-		if (myscads == null) { println("Need scads deployment before directing"); return }
-		val placementIP = myscads.placement.get(0).privateDnsName
-		putRestrictionURL = placementIP +"/"+ScadsDeploy.restrictFileName
-		val dpclient = ScadsDeploy.getDataPlacementHandle(placementIP,xtrace_on)
-		assert( dpclient.lookup_namespace(namespace).size > 0, "Placement server has no storage nodes registered" )
-		logger.info("Will be directing with placement host: "+placementIP)
-		
-		directorRunner = new Runner(policy,costFunction,placementIP)
-		val runthread = new Thread(directorRunner)
-		runthread.start
-	}
-	def stop = directorRunner.stop
-	
 	private def writeMaps(maps: Array[Map[DirectorKeyRange,List[String]]], prefix:String) {
 		(0 until maps.size).foreach((i)=>{
 			val file = new FileWriter( new java.io.File(Director.basedir+"/"+prefix+i+".csv"), true )
@@ -192,7 +210,6 @@ object Director {
 			file.close
 		})
 	}
-
 
 	def directorSimulation2(initialConfig:SCADSconfig, histograms:Map[Long,WorkloadHistogram], policy:Policy, costFunction:FullCostFunction, performanceModel:PerformanceModel):FullCostFunction = {
 

@@ -267,7 +267,7 @@ case class SplitInTwo(
 
 	override def execute() {
 		logger.debug("Getting new storage server")
-		val new_guys = Director.serverManager.getServers(1)
+		val new_guys = Director.director.serverManager.getServers(1)
 		if (new_guys.isEmpty) { logger.warn("Split failed: no available servers"); return }
 		val new_guy = new_guys(0)
 
@@ -345,7 +345,7 @@ case class SplitFrom(
 
 	override def execute() {
 		logger.debug("Getting new storage server")
-		val new_guys = Director.serverManager.getServers(1)
+		val new_guys = Director.director.serverManager.getServers(1)
 		if (new_guys.isEmpty) { logger.warn("Split failed: no available servers"); return }
 		val new_guy = new_guys(0)
 
@@ -428,7 +428,7 @@ case class MergeTwo(
 		val removing = server1
 		remove(removing)
 		logger.debug("Releasing server "+ server1)
-		Director.serverManager.releaseServer(removing)
+		Director.director.serverManager.releaseServer(removing)
 		logger.debug("Sleeping")
 		Thread.sleep(60*1000) // wait minute
 	}
@@ -485,7 +485,7 @@ case class Replicate(
 
 	override def execute() {
 		logger.debug("Getting "+num+" new storage server(s)")
-		val new_guys = Director.serverManager.getServers(num)
+		val new_guys = Director.director.serverManager.getServers(num)
 		if (new_guys.isEmpty) { logger.warn("Replication failed: no available servers"); return }
 
 		// determine current range to give new servers
@@ -531,7 +531,7 @@ case class ReplicateFrom(
 		val end = range.maxKey
 
 		logger.debug("Getting "+num+" new storage server(s)")
-		val new_guys = Director.serverManager.getServers(num)
+		val new_guys = Director.director.serverManager.getServers(num)
 		if (new_guys.isEmpty) { logger.warn("Replication failed: no available servers"); return }
 
 		// do the copy and update local list of servers (serially)
@@ -573,7 +573,7 @@ case class Remove(
 			logger.debug("Removing from placement: "+ server)
 			remove(server)
 			logger.debug("Releasing server "+ server)
-			Director.serverManager.releaseServer(server)
+			Director.director.serverManager.releaseServer(server)
 		})
 		logger.debug("Sleeping")
 		Thread.sleep(60*1000) // wait minute
@@ -627,7 +627,7 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 	var placement_host:String = null
 
 	private def init = {
-		placement_host = Director.myscads.placement.get(0).privateDnsName
+		placement_host = Director.director.myscads.placement.get(0).privateDnsName
 	}
 
 	protected def getNodeRange(host:String):(Int, Int) = {

@@ -34,6 +34,7 @@ abstract class Policy(
 		connection = Director.connectToDatabase
 		createTable
 		Action.initDatabase
+		workloadPredictor.initialize
 	}
 	
 	def periodicUpdate(state:SCADSState) {
