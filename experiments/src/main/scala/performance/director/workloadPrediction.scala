@@ -8,6 +8,7 @@ import java.util.Date
 abstract class WorkloadPrediction {
 	def addHistogram(histogram:WorkloadHistogram)
 	def getPrediction():WorkloadHistogram
+	def initialize
 }
 
 case class SimpleHysteresis(
@@ -16,6 +17,8 @@ case class SimpleHysteresis(
 	overprovision:Double
 ) extends WorkloadPrediction {
 	var prediction: WorkloadHistogram = null
+	
+	def initialize { prediction = null }
 	
 	def addHistogram(histogram:WorkloadHistogram) {
 		if (prediction==null) prediction = histogram
@@ -28,6 +31,7 @@ case class SimpleHysteresis(
 
 case class IdentityPrediction extends WorkloadPrediction {
 	var prediction:WorkloadHistogram = null
+	def initialize { prediction = null }
 	def addHistogram(histogram:WorkloadHistogram) { prediction = histogram }
 	def getPrediction():WorkloadHistogram = prediction
 }
@@ -37,6 +41,8 @@ case class MeanPlusVariancePrediction(
 	nStdevs:Int
 ) extends WorkloadPrediction {
 	var histogramWindow = new scala.collection.mutable.ListBuffer[WorkloadHistogram]()
+	
+	def initialize { histogramWindow = new scala.collection.mutable.ListBuffer[WorkloadHistogram]() }
 	
 	def addHistogram(histogram:WorkloadHistogram) {
 		if (histogramWindow.size >= windowLength) { histogramWindow.remove(0) }
