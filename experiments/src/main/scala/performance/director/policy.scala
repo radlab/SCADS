@@ -30,6 +30,8 @@ abstract class Policy(
 	var connection = Director.connectToDatabase
 	initialize
 	
+	var currentInterval:Long = -1
+	
 	def initialize {
 		connection = Director.connectToDatabase
 		createTable
@@ -43,6 +45,7 @@ abstract class Policy(
 	
 	def perform(state:SCADSState, actionExecutor:ActionExecutor) {
 		try { 
+			currentInterval = new java.util.Date().getTime
 			act(state,actionExecutor)
 		} catch {
 			case e:Exception => logger.warn("exception in policy.act",e)

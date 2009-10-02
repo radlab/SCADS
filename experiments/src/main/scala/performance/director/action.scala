@@ -90,7 +90,7 @@ abstract class Action(
 	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 	logger.setLevel(DEBUG)
 	
-	var initTime: Long = new Date().getTime
+	var initTime: Long = Director.director.policy.currentInterval
 	var startTime: Long = -1
 	var endTime: Long = -1
 		
