@@ -22,7 +22,8 @@ case class Director(
 	val actionExecutor = ActionExecutor()
 	
 	var plottingPeriod:Long = 2*60*1000
-	val period:Long = 20*1000
+	val period:Long = 20*1000	
+	var costUpdatePeriod:Long = 10*60*1000
 
 	val metricReader = new MetricReader(Director.databaseHost,"metrics",period,0.02)
 
@@ -46,6 +47,8 @@ case class Director(
 
 	case class Runner(policy:Policy, costFunction:FullCostFunction, placementIP: String) extends Runnable {
 		var lastPlotTime = new Date().getTime
+		var lastCostUpdateTime = new Date().getTime
+		stateHistory.setCostFunction(costFunction)
 		stateHistory.startUpdating
 
 		var running = true
@@ -59,15 +62,19 @@ case class Director(
 					lastPlotTime = new Date().getTime
 				}
 				
+				if (new Date().getTime>lastCostUpdateTime+costUpdatePeriod) {
+					costFunction.dumpToDB
+					lastCostUpdateTime = new Date().getTime
+				}
+				
 				Thread.sleep(period)
 			}
 			
-			// add all states to cost function
-			stateHistory.history.toList.sort(_._1<_._1).map(_._2).foreach( costFunction.addState(_) )
 		}
 		def stop = { 
 			running = false 
 			stateHistory.stopUpdating
+			costFunction.dumpToDB
 		}
 	}
 
@@ -110,7 +117,8 @@ case class Director(
 
 	def uploadLogsToS3 {
 		Director.dumpAndDropDatabases
-		Runtime.getRuntime().exec("s3cmd -P sync s3cmd sync "+Director.basedir+" s3://scads-experiments/"+Director.startDate+"_"+experimentName+"/")
+		val io = Director.exec( "s3cmd -P sync "+Director.basedir+" s3://scads-experiments/"+Director.startDate+"_"+experimentName+"/" )
+		Director.logger.debug("executed s3cmd sync. stdout:"+io._1+"\n"+"stderr:"+io._2)
 	}
 }
 
@@ -140,16 +148,26 @@ object Director {
 	private val logPath = Director.basedir+"/director.txt"
 	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 	logger.setLevel(DEBUG)
-	Logger.getRootLogger().addAppender( new FileAppender(new PatternLayout(Director.logPattern),Director.basedir+"/all.txt",false) )
+	//Logger.getRootLogger.removeAllAppenders
+	Logger.getRootLogger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),Director.basedir+"/all.txt",false) )
 	
-	Runtime.getRuntime().exec("rm -f "+Director.basedir+"../current")
-	Runtime.getRuntime().exec("ln -s "+Director.basedir+" "+Director.basedir+"../current")
+	Director.exec("rm -f "+Director.basedir+"../current")
+	Director.exec("ln -s "+Director.basedir+" "+Director.basedir+"../current")
 
 	var lowLevelActionMonitor = LowLevelActionMonitor("director","lowlevel_actions")
+	startRserve
+
+	def exec(cmd:String):(String,String) = {
+		val proc = Runtime.getRuntime.exec( Array("sh","-c",cmd) )
+		Director.logger.debug("executing "+cmd)
+		(scala.io.Source.fromInputStream( proc.getInputStream ).getLines.mkString(""),
+		 scala.io.Source.fromInputStream( proc.getErrorStream ).getLines.mkString(""))
+	}
 
 	def dumpAndDropDatabases() {
 		// dump old databases
-		Runtime.getRuntime.exec("mysqldump --databases metrics director > "+Director.basedir+"/dbdump_"+dateFormat.format(new Date)+".sql")
+		val io = Director.exec("mysqldump --databases director metrics > "+Director.basedir+"/dbdump_"+dateFormat.format(new Date)+".sql")
+		Director.logger.debug("dumped mysql databases. stdout:"+io._1+"\n"+"stderr:"+io._2)
 		dropDatabases()
 	}
 
@@ -190,6 +208,11 @@ object Director {
 		"INSERT INTO "+table+" ("+colnames.mkString("`","`,`","`")+") values ("+colnames.map(data(_)).mkString(",")+")"
 	}
 
+	def startRserve {
+		Director.exec("killall -9 Rserve")
+		val io = Director.exec("R CMD Rserve --no-save --RS-workdir /opt/scads/experiments/ > /mnt/monitoring/rserve.log 2>&1")
+		Director.logger.debug("started Rserve. stdout:"+io._1+"\n"+"stderr:"+io._2)
+	}
 
 	private def writeMaps(maps: Array[Map[DirectorKeyRange,List[String]]], prefix:String) {
 		(0 until maps.size).foreach((i)=>{

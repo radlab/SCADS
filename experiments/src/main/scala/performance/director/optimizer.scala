@@ -8,6 +8,38 @@ abstract class FullCostFunction {
 	def cost(costs:List[Cost]):Double = costs.map(_.cost).reduceLeft(_+_)
 	def detailedCost():List[Cost]
 	def intervalSummary():String
+	
+	def dumpToDB {
+		val dbname = "director"
+		val dbtable = "cost"
+		
+        try {
+			val dbConnection = Director.connectToDatabase
+            val statement = dbConnection.createStatement
+            statement.executeUpdate("CREATE DATABASE IF NOT EXISTS " + dbname)
+            statement.executeUpdate("USE " + dbname)
+            statement.executeUpdate("DROP TABLE IF EXISTS "+dbtable)
+			statement.executeUpdate("CREATE TABLE IF NOT EXISTS "+dbtable+" (`id` INT NOT NULL AUTO_INCREMENT, "+
+																			"`time` BIGINT, "+
+																			"`costtype` VARCHAR(20), "+
+																			"`units` FLOAT, "+
+																			"`description` VARCHAR(200), "+
+																			"`cost` FLOAT, PRIMARY KEY(`id`) ) ")
+			val costs = detailedCost.toList
+			for (c <- costs) {	
+				val sql = Director.createInsertStatement(dbtable, Map("time"->("'"+c.time.getTime.toString+"'"),
+																		"costtype"->("'"+c.costtype+"'"),
+																		"units"->("'"+c.units.toString+"'"),
+																		"description"->("'"+c.description+"'"),
+																		"cost"->("'"+c.cost.toString+"'") ))
+				statement.executeUpdate(sql)
+			}								
+			statement.close
+			dbConnection.close
+       	} catch { case ex:Exception => ex.printStackTrace() }
+
+		Director.logger.debug("updated costs")
+	}
 }
 
 case class MachineRunningStats(
@@ -20,7 +52,8 @@ case class MachineRunningStats(
 	def updateEndTime(time:Long) = { endTime=time }
 	def stop = { running=false }
 	override def toString() = { server+"  "+(new Date(startTime))+"  ->  "+(new Date(endTime)+(if (running) "  RUNNING" else "")) }
-	def cost(nodeCost:Double, nodeInterval:Long) = { Math.ceil((endTime-startTime).toDouble/nodeInterval)*nodeCost }
+	def cost(nodeCost:Double, nodeInterval:Long):Double = { units(nodeInterval)*nodeCost }
+	def units(nodeInterval:Long):Long = { Math.ceil((endTime-startTime).toDouble/nodeInterval).toLong }
 }
 
 case class MachineCost(
@@ -55,12 +88,14 @@ case class MachineCost(
 	}
 	
 	def getCosts():List[Cost] = {
-		List.flatten( machines.map( ms=> ms._2.toList.map(m=>Cost(new Date(m.endTime),"server "+m.server+" running from "+(new Date(m.startTime)+" to "+(new Date(m.endTime)) ),m.cost(nodeCost,nodeInterval))) ).toList )
+		List.flatten( machines.map( ms=> ms._2.toList.map(m=>Cost(new Date(m.endTime),"server",m.units(nodeInterval),"server "+m.server+" running from "+(new Date(m.startTime)+" to "+(new Date(m.endTime)) ),m.cost(nodeCost,nodeInterval))) ).toList )
 	}
 }
 
 case class Cost(
 	val time: Date,
+	val costtype: String,
+	val units: Double,
 	val description: String,
 	val cost: Double
 )
@@ -94,14 +129,14 @@ case class FullSLACostFunction(
 				 .foldLeft( scala.collection.mutable.Map[Long,RequestCounts]() )( (t,s)=>accumulateRequestStats(t,s,"get",getSLA) )
 				 .map( x=>(x._1,x._2) )
 				 .filter( x=>(1.0-x._2.nSlow.toDouble/x._2.nAll)<slaPercentile )
-				 .map( x=>Cost(new Date(x._1), "get SLA violation ("+x._2.toString+")", violationCost) )
+				 .map( x=>Cost(new Date(x._1), "SLA", 1, "get SLA violation ("+x._2.toString+")", violationCost) )
 
 		val putCosts = 
 		allStates.map(s=>(s,s.time/slaInterval*slaInterval))
 				 .foldLeft( scala.collection.mutable.Map[Long,RequestCounts]() )( (t,s)=>accumulateRequestStats(t,s,"put",putSLA) )
 				 .map( x=>(x._1,x._2) )
 				 .filter( x=>(1.0-x._2.nSlow.toDouble/x._2.nAll)<slaPercentile )
-				 .map( x=>Cost(new Date(x._1), "put SLA violation ("+x._2.toString+")", violationCost) )
+				 .map( x=>Cost(new Date(x._1), "SLA", 1, "put SLA violation ("+x._2.toString+")", violationCost) )
 				
 		val machineCost = MachineCost(nodeCost,nodeInterval)
 		for (state <- allStates) machineCost.addNewInterval(state.time, Set[String](state.config.storageNodes.keySet.toList:_*))

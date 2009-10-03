@@ -733,6 +733,10 @@ case class SCADSStateHistory(
 	
 	def getMostRecentState:SCADSState = if (lastInterval== -1) null else history(lastInterval)
 	
+	var costFunction:FullCostFunction = null
+	
+	def setCostFunction(costFunction:FullCostFunction) { this.costFunction = costFunction }
+	
 	def startUpdating {
 		val updater = StateUpdater()
 		updaterThread = new Thread(updater)
@@ -751,6 +755,7 @@ case class SCADSStateHistory(
 					Director.logger.debug("updated state for time "+new Date(nextUpdateTime)+" ("+nextUpdateTime+")")
 					SCADSState.dumpConfig(state.time,state.config)
 					history += nextUpdateTime -> state
+					if (costFunction!=null) costFunction.addState(state)
 					policy.periodicUpdate(state)
 					lastInterval = nextUpdateTime
 					nextUpdateTime += period
