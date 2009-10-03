@@ -76,8 +76,10 @@ case class SCADSDeployment(
 	def deployed = _deployed
 	
 	def startWorkload(workload:WorkloadDescription) {
-		if (clients!=null) clients.startWorkload(workload,false)
-		else ScadsDeploy.logger.debug("can't start workload; no clients running")
+		if (clients!=null) {
+			stopWorkload
+			clients.startWorkload(workload,false)
+		} else ScadsDeploy.logger.debug("can't start workload; no clients running")
 	}
 	
 	def stopWorkload() = clients.stopWorkload
@@ -99,7 +101,7 @@ case class SCADSDeployment(
 	def summary:String = {
 		"Director: "+ (if (directorVM==null) "NULL" else directorVM.publicDnsName) + "\n" +
 		"monitoring: "+ (if (monitoringVM==null) "NULL" else monitoringVM.publicDnsName) + "\n" +
-		"clients: "+ (if (clientVMs!=null) "NULL" else clientVMs.map(_.publicDnsName).mkString(" ")) + "\n" +
+		"clients: "+ (if (clientVMs==null) "NULL" else clientVMs.map(_.publicDnsName).mkString(" ")) + "\n" +
 		"placement: "+ (try { placementVM.publicDnsName } catch { case _ => "NULL" }) + "\n" +
 		"storage: "+ (try { storageVMs.map(_.publicDnsName).mkString(" ") } catch { case _ => "NULL" })
 	}
