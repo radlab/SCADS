@@ -4,7 +4,10 @@ import org.specs._
 import org.specs.runner.JUnit4
 
 import edu.berkeley.cs.scads.Compiler
-import edu.berkeley.cs.scads.model.{Entity,StringField}
+import edu.berkeley.cs.scads.model.{Entity,StringField,Environment}
+
+import edu.berkeley.cs.scads.model.{TrivialExecutor,TrivialSession}
+//import edu.berkeley.cs.scads.TestCluster
 
 import java.io.File
 import java.net.URLClassLoader
@@ -18,6 +21,10 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
     val classNameMap: Map[String,Array[String]]
     val dataXMLFile: String
 
+    implicit val env = new Environment
+    env.placement = new TestCluster
+    env.session = new TrivialSession
+    env.executor = new TrivialExecutor
 
     val specSource = getSourceFromFile(specFile)
     val baseDir = new File("src/main/scala/generated")
@@ -38,9 +45,10 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
         jarFile.delete
     }
 
-    def loadEntityClass(name: String): Entity = {
+    def loadClass(name: String): Class[Any] = {
         val classLoader = new URLClassLoader(Array(jarFile.toURI.toURL))
-        classLoader.loadClass(name).asInstanceOf[Class[Entity]].newInstance
+       // classLoader.loadClass(name).asInstanceOf[Class[Entity]].newInstance
+        classLoader.loadClass(name).asInstanceOf[Class[Any]]
     }
 
     "a scads spec file" should {
@@ -75,9 +83,16 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
             "loading entity classes correctly" in {
                 
                 classNameMap.keys.foreach( (c) => {
-                    val ent = loadEntityClass(c)
+                    val entClazz = loadClass(c).asInstanceOf[Class[Entity]]
+                    entClazz must notBeNull
+                    val entConstructor = entClazz.getConstructor(env.getClass)
+                    entConstructor must not(throwA[NoSuchMethodException])
+                    val ent = entConstructor.newInstance(env)
+                    ent must not(throwA[Exception])
+                    ent must notBeNull
                     classNameMap(c) must haveTheSameElementsAs(ent.attributes.keySet)
                 })
+
             }
 
             "input data appropriately" in {
@@ -87,7 +102,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                 (dataNode \\ "entity").foreach( (entity) => {
                     val clazz = (entity \ "@class").text
                     println("found class : " + clazz)
-                    val ent = loadEntityClass(clazz)
+                    val ent = loadClass(clazz).asInstanceOf[Class[Entity]].getConstructor(env.getClass).newInstance(env)
                     (entity \\ "attribute").foreach( (attribute) => {
                         val attributeName = (attribute \ "@name").text
                         val attributeType = (attribute \ "@type").text
@@ -98,7 +113,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                             case _ => throw new Exception("invalid type " + attributeType)
                         }
                     })
-                    //ent.save
+                    ent.save
                 })
 
             }
