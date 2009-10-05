@@ -41,10 +41,11 @@ case class StorageNodeState(
 }
 
 case class SCADSconfig(
-	val storageNodes: Map[String,DirectorKeyRange]
+	val storageNodes: Map[String,DirectorKeyRange],
+	val putRestrictions:Map[DirectorKeyRange,Double], // mapping of ranges to put-ratio sampling
+	val standbys:List[String]
 ) {
 	val rangeNodes = arrangeReplicas
-	// TODO: create mapping of ranges to put-ratio sampling
 
 	def getNodes:List[String] = storageNodes.keySet.toList
 	def getReplicas(server:String):List[String] = rangeNodes(storageNodes(server))
@@ -53,7 +54,13 @@ case class SCADSconfig(
 		storageNodes.foreach((entry)=> mapping(entry._2) = mapping.getOrElse(entry._2,new scala.collection.mutable.ListBuffer[String]())+entry._1)
 		Map[DirectorKeyRange,List[String]](mapping.keys.toList map {s => (s, mapping(s).toList)} : _*)
 	}
-	override def toString():String = storageNodes.toList.sort(_._2.minKey<_._2.minKey).map( x=>"%-15s".format(x._2)+"  "+x._1 ).mkString("\n")
+	override def toString():String = { storageNodes.toList.sort(_._2.minKey<_._2.minKey).map( x=>"%-15s".format(x._2)+"  "+x._1 ).mkString("\n") +
+		"\n"+ putRestrictions.toList.sort(_._1.minKey<_._1.minKey).map( x=>"%-15s".format(x._1)+"  "+x._2 ).mkString("\n")
+	}
+
+	def updateNodes(nodes: Map[String,DirectorKeyRange]):SCADSconfig = SCADSconfig(nodes,putRestrictions,standbys)
+	def updateRestrictions(restricts:Map[DirectorKeyRange,Double]):SCADSconfig = SCADSconfig(storageNodes,restricts,standbys)
+	def updateStandbys(new_standbys:List[String]):SCADSconfig = SCADSconfig(storageNodes,putRestrictions,new_standbys)
 	
 	def splitAllInHalf():SCADSconfig = {
 		var config = this
@@ -68,9 +75,42 @@ case class SCADSconfig(
 }
 
 object SCADSconfig {
-	def getInitialConfig(range:DirectorKeyRange):SCADSconfig = SCADSconfig( Map(getRandomServerNames(null,1).first->range) )
+	import edu.berkeley.cs.scads.WriteLock
+	val lock = new WriteLock
+
+	def getInitialConfig(range:DirectorKeyRange):SCADSconfig = SCADSconfig( Map(getRandomServerNames(null,1).first->range),Map[DirectorKeyRange,Double](),List[String]() )
 
 	var pastServers = scala.collection.mutable.HashSet[String]()
+	private var standbys = List[String]() // assume accessed concurrently
+	var standbyMaxPoolSize = 0
+	def viewStandbys = {
+		lock.lock
+		try { val ret = standbys.take(standbyMaxPoolSize); lock.unlock; ret } // make a "copy" to return
+		finally lock.unlock
+	}
+	def getStandbys(num:Int):List[String] = {
+		lock.lock
+		try {
+			val from_standbys = standbys.take(num)
+			standbys =  standbys -- from_standbys
+			lock.unlock
+			from_standbys
+		} finally lock.unlock
+	}
+	/**
+	* attempt to put servers back in standby pool
+	* any servers that exceed the max pool size are returned
+	*/
+	def returnStandbys(returned:List[String]):List[String] = {
+		lock.lock
+		try {
+			val taking = returned.take(standbyMaxPoolSize-standbys.size)
+			standbys = standbys ++ taking
+			val ret = returned -- taking
+			lock.unlock
+			ret
+		} finally lock.unlock
+	}
 	def getRandomServerNames(cfg:SCADSconfig,n:Int):List[String] = {
 		val newNames = scala.collection.mutable.HashSet[String]()
 		var name = ""
@@ -94,8 +134,9 @@ object SCADSconfig {
 object SCADSState {
 	import scads.deployment.ScadsDeploy
 	import java.util.Comparator
-	import edu.berkeley.cs.scads.thrift.DataPlacement
+	import edu.berkeley.cs.scads.thrift.{DataPlacement,PutRestriction}
 	import edu.berkeley.cs.scads.keys._
+	import scala.io.Source
 
 	val logger = Logger.getLogger("scads.state")
 	private val logPath = Director.basedir+"/state.txt"
@@ -169,6 +210,16 @@ object SCADSState {
 		}
 	}
 	
+	private def updateRestrictions(putRestrictFile:String):Map[DirectorKeyRange,Double] = {
+		try {
+			val urlsrc = Source.fromURL(putRestrictFile) // absolute URL
+			val restrict_str = PutRestriction.stringToTuples(urlsrc.getLine(1))
+
+			// set up map of restrictions
+			Map[DirectorKeyRange,Double](restrict_str.map {entry => (new DirectorKeyRange( entry._1.toInt,entry._2.toInt) -> entry._3) }:_*)
+		} catch { case e => logger.warn("Couldn't update put() restrictions"); Map[DirectorKeyRange,Double]()}
+	}
+
 	def refresh(metricReader:MetricReader, placementServerIP:String): SCADSState = {
 		val reqTypes = List("get","put")
 		val dp = ScadsDeploy.getDataPlacementHandle(placementServerIP,Director.xtrace_on)
@@ -199,7 +250,7 @@ object SCADSState {
 		// load and process workload histograms
 		val histogramRaw = WorkloadHistogram.loadMostRecentFromDB(metricReader.report_prob)
 		
-		new SCADSState(new Date().getTime, SCADSconfig(nodeConfig), nodes.toList, metrics, metricsByType, histogramRaw)
+		new SCADSState(new Date().getTime, SCADSconfig(nodeConfig,updateRestrictions(Director.putRestrictionURL),SCADSconfig.viewStandbys), nodes.toList, metrics, metricsByType, histogramRaw)
 	}
 	
 	def refreshAtTime(metricReader:MetricReader, placementServerIP:String, time:Long): SCADSState = {
@@ -237,7 +288,7 @@ object SCADSState {
 			// load and process workload histograms
 			val histogramRaw = WorkloadHistogram.loadMostRecentFromDB(metricReader.report_prob)
 		
-			new SCADSState(time, SCADSconfig(nodeConfig), nodes.toList, metrics, metricsByType, histogramRaw)
+			new SCADSState(time, SCADSconfig(nodeConfig,updateRestrictions(Director.putRestrictionURL),SCADSconfig.viewStandbys), nodes.toList, metrics, metricsByType, histogramRaw)
 		}
 	}
 	

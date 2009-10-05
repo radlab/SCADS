@@ -242,33 +242,35 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 	val min_puts_allowed:Int = 100 	// percentage of allowed puts
 
 	def optimize(state:SCADSState, actionExecutor:ActionExecutor) {
+		// use state with projected config that assumes effects of all completed actions have taken place
+		val projectedState = SCADSState(state.time,actionExecutor.getProjectedConfig,
+			state.storageNodes,state.metrics,state.metricsByType,state.workloadHistogram)
+
 		var actions = new scala.collection.mutable.ListBuffer[Action]()
-		val overloaded:Map[String,PerformanceStats] = getOverloadedServers(state)
+		val overloaded:Map[String,PerformanceStats] = getOverloadedServers(projectedState)
 		println("Have "+overloaded.size+" overloaded servers")
 
 		// for overloaded servers, determine their mini ranges and replicas
-		val overloaded_config = new SCADSconfig(Map(overloaded.keys.toList map {s => (s, state.config.storageNodes(s))} : _*))
-		val overloaded_ranges = PerformanceEstimator.getServerHistogramRanges(overloaded_config,state.workloadHistogram)
+		val overloaded_config = new SCADSconfig(Map(overloaded.keys.toList map {s => (s, projectedState.config.storageNodes(s))} : _*),projectedState.config.putRestrictions,projectedState.config.standbys)
+		val overloaded_ranges = PerformanceEstimator.getServerHistogramRanges(overloaded_config,projectedState.workloadHistogram)
 
 		// create mapping of List[replicas] -> List[histogram ranges]
 		val overloaded_ranges_replicas = Map[List[String],List[DirectorKeyRange]](overloaded_ranges.toList map {entry =>
-			(state.config.getReplicas(entry._1), entry._2)
+			(projectedState.config.getReplicas(entry._1), entry._2)
 			} : _*)
 
 		// try splitting/replicating the overloaded servers
 		overloaded_ranges_replicas.foreach((entry)=>{
 			println("Attempting to optimze overloaded server "+entry._1.first + " with "+entry._1.size + " replicas")
-			val changes = trySplitting(entry._1, entry._2,state)
-			actions.insertAll(actions.size,translateToActions(entry._1,changes,state))
-			//actions += Remove(entry._1) // remove original server(s)
+			val changes = trySplitting(entry._1, entry._2,projectedState)
+			actions.insertAll(actions.size,translateToActions(entry._1,changes,projectedState))
 		})
 
 		// pick a replica to remove or merge to do, if possible
-		// TODO: how conservative should this choice be?
 		val overloadedservers = overloaded_config.getNodes
-		val candidatesMap = state.config.rangeNodes.toList.sort(_._1.minKey < _._1.minKey).filter(_._2.intersect(overloadedservers).size==0)
+		val candidatesMap = projectedState.config.rangeNodes.toList.sort(_._1.minKey < _._1.minKey).filter(_._2.intersect(overloadedservers).size==0)
 		println("Have "+candidatesMap.size+" underloaded servers")
-		actions.insertAll(actions.size,scaleDown(candidatesMap.toArray,1,state)) // how many scale down actions to produce
+		actions.insertAll(actions.size,scaleDown(candidatesMap.toArray,1,projectedState)) // how many scale down actions to produce (not used right now)
 
 		actions.foreach(actionExecutor.addAction(_))
 	}
@@ -293,14 +295,18 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 	}
 	def estimateServerStats(state:SCADSState):Map[String,PerformanceStats] = {
 		Map[String,PerformanceStats](state.config.storageNodes.toList map {
-			entry => (entry._1, estimateSingleServerStats(entry._1, state.config.getReplicas(entry._1).size, 1.0,DirectorKeyRange(entry._2.minKey,entry._2.maxKey), state)) 
+			entry => (entry._1, estimateSingleServerStats(entry._1, state.config.getReplicas(entry._1).size, -1,DirectorKeyRange(entry._2.minKey,entry._2.maxKey), state))
 			} : _*)
 	}
 	/**
 	* Estimate a single server's workload stats using the predicted workload histogram
+	* If not changing allowed_puts, its value is -1
 	*/
 	def estimateSingleServerStats(server:String, num_replicas:Int, allowed_puts:Double, range:DirectorKeyRange, state:SCADSState):PerformanceStats = {
-		performanceEstimator.estimatePerformance(new SCADSconfig( Map[String,DirectorKeyRange](server -> range)),workloadPredictor.getPrediction.divide(num_replicas,allowed_puts),10,null) 
+		if (allowed_puts < 0.0) // not adding add'tl put restrictions, just honor existing ones
+			performanceEstimator.estimatePerformance(new SCADSconfig( Map[String,DirectorKeyRange](server -> range),state.config.putRestrictions,state.config.standbys),workloadPredictor.getPrediction.divide(num_replicas,1.0),10,null)
+		else // operating on a single range that will actually correspond to a histogram bin
+			performanceEstimator.estimatePerformance(new SCADSconfig( Map[String,DirectorKeyRange](server -> range),Map[DirectorKeyRange,Double](range->allowed_puts),state.config.standbys),workloadPredictor.getPrediction.divide(num_replicas,1.0),10,null)
 	}
 	/**
 	* Attempt splitting actions of a set of replicas, where at least one of the replicas is overloaded
@@ -316,12 +322,23 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 		println("Working on range "+rangeArray(0).minKey+" - "+rangeArray(ranges.size-1).maxKey+" ----------------- ")
 		while (id < rangeArray.size) {
 			// include this mini range on new server(s) if it wouldn't violate SLA
-			if ( !violatesSLA(estimateSingleServerStats(server,servers.size,1.0,DirectorKeyRange(rangeArray(startId).minKey,rangeArray(id).maxKey), state)) ) {
+			if ( !violatesSLA(estimateSingleServerStats(server,servers.size,-1,DirectorKeyRange(rangeArray(startId).minKey,rangeArray(id).maxKey), state)) ) {
 				endId = id
 				//println(rangeArray(startId).minKey+" - "+rangeArray(endId).maxKey +", size("+(endId-startId)+") ok")
 				id+=1
 				// finish up the server when get to last range
-				if (id==rangeArray.size) changes += (DirectorKeyRange(rangeArray(startId).minKey,rangeArray(id-1).maxKey) -> (servers.size,0) )
+				if (id==rangeArray.size) {
+					println("Incorporating last range "+rangeArray(startId).minKey+" - "+rangeArray(id-1).maxKey)
+					// check it for SLA violation first
+					if ( !violatesSLA(estimateSingleServerStats(server,servers.size,-1,DirectorKeyRange(rangeArray(startId).minKey,rangeArray(id-1).maxKey), state)) ){
+						println(rangeArray(startId).minKey+" - "+rangeArray(id-1).maxKey +", size("+(id-1-startId)+") ok")
+						changes += (DirectorKeyRange(rangeArray(startId).minKey,rangeArray(id-1).maxKey) -> (servers.size,-1) )
+					}
+					else {
+						println(rangeArray(startId).minKey+" - "+rangeArray(id-1).maxKey +", size("+(id-1-startId)+") violated SLA")
+						changes ++= tryReplicatingAndRestricting(servers, rangeArray(id-1),state)
+					}
+				}
 			}
 			else {
 				println(rangeArray(startId).minKey+" - "+rangeArray(id).maxKey +", size("+(id-startId)+") violated SLA")
@@ -330,7 +347,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 					}
 				else {
 					println("Creating split from "+rangeArray(startId).minKey+" - "+rangeArray(endId).maxKey)
-					changes += (DirectorKeyRange(rangeArray(startId).minKey,rangeArray(endId).maxKey) -> (servers.size,0) )
+					changes += (DirectorKeyRange(rangeArray(startId).minKey,rangeArray(endId).maxKey) -> (servers.size,-1) )
 				}
 				startId = id // continue split attempts from where left off
 				endId = startId
@@ -346,14 +363,19 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 		var changes = Map[DirectorKeyRange,(Int,Double)]()
 		val server = servers.first
 		var found = false
-		var allowed:Int = 100 // use ints to avoid subtraction weirdness with doubles
+		val current_restriction = state.config.putRestrictions.getOrElse(range,1.0)
+		var new_restriction:Int = (current_restriction*100).toInt // use ints to avoid subtraction weirdness with doubles
+		val mult = (1.0/current_restriction) // multiplier to bring workload back to 100% before restricting
 
-		while (!found && allowed >= min_puts_allowed) {
+		while (!found && new_restriction >= min_puts_allowed) {
 			(servers.size to max_replicas).foreach((num_replicas)=>{
-				if ( !found && !violatesSLA(estimateSingleServerStats(server,num_replicas,allowed.toDouble/100.0,range,state)) )
-					{ changes += range -> (num_replicas,allowed.toDouble/100.0); found = true; println("Need "+num_replicas+ " of "+range.minKey+" - "+ range.maxKey+ " with "+(allowed.toDouble/100.0)+" allowed puts") }
+				if ( !found && !violatesSLA(estimateSingleServerStats(server,num_replicas,new_restriction.toDouble/100.0*mult,range,state)) ) {
+					if ( (current_restriction <= new_restriction.toDouble/100.0) || (num_replicas != servers.size) )
+						{ changes += range -> (num_replicas,new_restriction.toDouble/100.0); found = true; println("Need "+num_replicas+ " of "+range.minKey+" - "+ range.maxKey+ " with "+(new_restriction.toDouble/100.0)+" allowed puts. Used to be "+current_restriction) }
+					else println("Tried to modify puts, but just ended up with same restriction")
+				}
 			})
-			allowed -= 10
+			new_restriction -= 10
 		}
 		if (!found) println("Unable to fix range "+range.minKey+" - "+ range.maxKey)
 		changes
@@ -364,24 +386,38 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 	* Inputted ranges in map are not necessarily in sorted order :(
 	*/
 	 def translateToActions(servers: List[String], changes:Map[DirectorKeyRange,(Int,Double)],state:SCADSState):List[Action] = {
+		//println("translating changes: \n"+changes.toList.mkString(","))
 		var actions = new scala.collection.mutable.ListBuffer[Action]()
 		val actual_range = state.config.storageNodes(servers.first)
 		val changesArray = changes.toList.sort(_._1.minKey < _._1.minKey).toArray
 		var removalStart:Int = -1
 
+		// translate applicable changes into replicatefrom()
 		(0 until changesArray.size).foreach((index)=>{
 			val change = changesArray(index)
 			val start = if (index==0) {actual_range.minKey} else {Math.max(actual_range.minKey,change._1.minKey)}
 			val end = if (index==(changesArray.size-1)) {actual_range.maxKey} else {Math.min(actual_range.maxKey,change._1.maxKey)}
-			// if this is the first range of this server, don't replicate from, just removefrom later
-			if (index==0) removalStart = end
-			if (changes.size < 2) actions += ReplicateFrom(servers.first,DirectorKeyRange(start,end),change._2._1-1) // no splitting, TODO make more efficient
-			else if (index > 0) actions += ReplicateFrom(servers.first,DirectorKeyRange(start,end),change._2._1)
+
+			if (index==0) removalStart = end // where to do removefrom() later, if necessary
+			// how many other servers have this range? consider: if only replicating, or replicating the range that's being kept on this server
+			val num_others = if ( (changes.size < 2) || (start==actual_range.minKey) ) { servers.size } else { 0 }
+			if (change._2._1 - num_others > 0) {
+				val new_action = ReplicateFrom(servers.first,DirectorKeyRange(start,end),change._2._1-num_others)
+				new_action.createsConsistentConfig = if (num_others > 0) { true } else { false }
+				actions += new_action
+			}
 		})
+
+		// create the removefrom if needed
 		if (changes.size > 1) {
 			assert(removalStart != -1, "beginning of removal range should have been set")
-			actions += RemoveFrom(servers,DirectorKeyRange(removalStart,actual_range.maxKey))
+			val removeaction = RemoveFrom(servers,DirectorKeyRange(removalStart,actual_range.maxKey))
+			removeaction.addParents(actions.toList) // do all replications before removing
+			actions += removeaction
 		}
+		// gather the put restriction changes -- remove invalid and 1.0 entries since scale down actions are specified elsewhere
+		val putrestricts = Map[DirectorKeyRange,Double](changes.toList.filter((e)=> (e._2._2 > 0) && (e._2._2 < 1.0) ) map {entry=>(entry._1,entry._2._2)}:_*)
+		if (!putrestricts.isEmpty) actions += ModifyPutRestrictions(putrestricts,state.config.putRestrictions)
 		actions.toList
 	}
 	/**
@@ -392,25 +428,41 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 	def scaleDown(candidates:Array[(DirectorKeyRange,List[String])],num:Int,state:SCADSState):List[Action] = {
 		var actions = new scala.collection.mutable.ListBuffer[Action]()
 		var choices = candidates.indices // which indices of the candidates array still available to try
+		var changed_restrictions = Map[DirectorKeyRange,Double]()
 
-		while (actions.size < num && choices.size > 0) {
-			val chosen_index = choices(Director.rnd.nextInt(choices.size)) // select radom index of candidate array
+		while (choices.size > 0) { // ignore max num actions for now
+			val chosen_index = choices(Director.rnd.nextInt(choices.size)) // select random index of candidate array
 			val chosen = candidates(chosen_index)
 
-			val chosen_neighbor = if (choices.size < 2) {null} else if (chosen_index < candidates.size-1){ candidates(chosen_index+1) } else { candidates(chosen_index-1) }
-			if (chosen._2.size > 1) { // try to remove a replica
-				if (!violatesSLA(estimateSingleServerStats(chosen._2.first,chosen._2.size-1,1.0,chosen._1, state)))
+			val neighbor_index = if (choices.size < 2) {-1} else if (chosen_index < candidates.size-1) { chosen_index+1 } else { chosen_index-1 }
+			val chosen_neighbor = if (!choices.contains(neighbor_index)) {null} else { candidates(neighbor_index) }
+			val restriction = state.config.putRestrictions.getOrElse(chosen._1,1.0) // look up range's current restriction
+
+			if (restriction < 1.0) { // try to re-allow some level of puts
+				var new_restriction = 100
+				while (violatesSLA(estimateSingleServerStats(chosen._2.first,chosen._2.size,new_restriction.toDouble/100.0,chosen._1, state)))
+					new_restriction -= 10
+				if (new_restriction.toDouble/100.0 > restriction) changed_restrictions = changed_restrictions + (chosen._1 -> new_restriction.toDouble/100.0)
+				else println("Looked at re-allowing restrictions on "+chosen._2.first +", but couldn't!")
+			}
+
+			else if (chosen._2.size > 1) { // try to remove a replica
+				if (!violatesSLA(estimateSingleServerStats(chosen._2.first,chosen._2.size-1,-1,chosen._1, state)))
 					actions += Remove(List[String](chosen._2.first))
 				else println("Thought about removing replica "+chosen._2.first+", but didn't!")
 			}
+
 			else if (chosen._2.size==1 && chosen_neighbor !=null && chosen_neighbor._2.size==1) { // attempt merge two
 				val range = if (chosen._1.minKey < chosen_neighbor._1.minKey) { DirectorKeyRange(chosen._1.minKey,chosen_neighbor._1.maxKey) } else { DirectorKeyRange(chosen_neighbor._1.minKey,chosen._1.maxKey) }
-				if (!violatesSLA(estimateSingleServerStats(chosen._2.first,1,1.0,range, state)))
+				if (!violatesSLA(estimateSingleServerStats(chosen._2.first,1,-1,range, state))) {
 					actions += MergeTwo(chosen._2.first,chosen_neighbor._2.first)
+					choices = choices.filter( (_ != neighbor_index) ) // don't consider the neighbor in subsequent actions
+				}
 				else println("Thought about merging "+chosen._2.first+" and "+chosen_neighbor._2.first+", but didn't!")
 			}
-			choices = choices.filter(_ != chosen_index)
+			choices = choices.filter( (_ != chosen_index) )
 		}
+		if (!changed_restrictions.isEmpty) actions += ModifyPutRestrictions(changed_restrictions,state.config.putRestrictions)
 		actions.toList
 	}
 }

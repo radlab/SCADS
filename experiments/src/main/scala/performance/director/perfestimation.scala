@@ -99,8 +99,11 @@ object PerformanceEstimator {
 		val serverWorkload = scala.collection.mutable.Map[String,WorkloadFeatures]()
 		for (hr <- histRanges) {
 			val ss = histToServers.getOrElse(hr,List())
-			for (s <- ss)
-				serverWorkload(s) = serverWorkload.getOrElse(s,WorkloadFeatures(0,0,0)).add(rangeStats(hr).splitGets(ss.size))
+			for (s <- ss) {
+				// add this range's workload to servers responsible, splitting get() amongst replicas and applying any put() restrictions
+				val restrict = config.putRestrictions.getOrElse(hr,1.0)
+				serverWorkload(s) = serverWorkload.getOrElse(s,WorkloadFeatures(0,0,0)).add(rangeStats(hr).restrictAndSplit(ss.size,restrict,0.0))
+			}
 		}
 		Map[String,WorkloadFeatures]()++serverWorkload		
 	}

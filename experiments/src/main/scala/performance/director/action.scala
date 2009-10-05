@@ -103,7 +103,7 @@ abstract class Action(
 	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 	logger.setLevel(DEBUG)
 	
-	val sleepTime = 60*1000 // how long to sleep after performing an action, simulating clients' ttl on mapping
+	val sleepTime = 0 // how long to sleep after performing an action, simulating clients' ttl on mapping
 	var createsConsistentConfig = true // does this action depend on any others in order to be consistent
 	var initTime: Long = Director.director.policy.currentInterval
 	var startTime: Long = -1
@@ -144,7 +144,6 @@ abstract class Action(
 		Action.store(this);
 		complete; 
 	}
-	
 	def initSimulation(config:SCADSconfig) = {}
 	def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = { this.complete; (this.preview(config),activity) }
 	
@@ -347,7 +346,7 @@ case class SplitInTwo(
 		val middle = if (pivot >0) {pivot} else {((end-start)/2) + start}
 		nodeConfig = nodeConfig.update(server, new DirectorKeyRange(start,middle))
 		nodeConfig = nodeConfig.update(SCADSconfig.getRandomServerNames(config,1).first, new DirectorKeyRange(middle,end))
-		SCADSconfig(nodeConfig)
+		config.updateNodes(nodeConfig)
 	}
 	def participants = Set[String](server)
 	override def toString:String = actionShortName
@@ -387,7 +386,7 @@ case class SplitFrom(
 
 		nodeConfig = nodeConfig.update(server, new DirectorKeyRange(old_start,old_end))
 		nodeConfig = nodeConfig.update(SCADSconfig.getRandomServerNames(config,1).first, new DirectorKeyRange(start,end))
-		SCADSconfig(nodeConfig)
+		config.updateNodes(nodeConfig)
 	}
 	def participants = Set[String](server)
 	override def toString:String = actionShortName
@@ -422,7 +421,7 @@ case class ShiftBoundary(
 		nodeConfig = nodeConfig.update(server_right, new DirectorKeyRange(boundary_new,right_bounds.maxKey))
 		nodeConfig = nodeConfig.update(server_left, new DirectorKeyRange(left_bounds.minKey,boundary_new))
 
-		SCADSconfig(nodeConfig)
+		config.updateNodes(nodeConfig)
 	}
 	def participants = Set[String](server_left,server_right)
 	override def toString:String = actionShortName
@@ -432,18 +431,21 @@ case class MergeTwo(
 	val server1: String,
 	val server2: String
 ) extends Action("mergetwo("+server1+","+server2+")") with PlacementManipulation {
-
+	var num_keys:Int = 0
 	override def execute() {
 		val bounds = getNodeRange(server1)
 		val start = bounds._1
 		val end = bounds._2
-		logger.info("Copying "+start+" - "+end+" from "+server1+" to "+ server2)
+		num_keys = end-start
+		logger.info("Moving "+start+" - "+end+" from "+server1+" to "+ server2)
 		copy(server1,server2,start,end) // do copy instead of move to avoid sync problems?
 		logger.debug("Removing from placement: "+ server1)
 		val removing = server1
 		remove(removing)
-		logger.debug("Releasing server "+ server1)
-		Director.director.serverManager.releaseServer(removing)
+
+		val overflow = SCADSconfig.returnStandbys(List[String](server1))
+		if (overflow.isEmpty) { logger.debug("Returned "+ server1+" to standby pool"); }
+		else { logger.debug("Releasing server "+ server1); Director.director.serverManager.releaseServer(removing) }
 		logger.debug("Sleeping")
 		Thread.sleep(sleepTime) // wait
 	}
@@ -456,7 +458,7 @@ case class MergeTwo(
 		timeToMoveData = ActionModels.dataCopyDurationModel.sample( bounds1.maxKey - bounds1.minKey )
 		logger.debug("timeToMoveData = "+timeToMoveData)
 	}
-	
+	override def csvArgs():String = "num_keys="+num_keys
 	override def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = {
 		val (dt0,dt1) = (time0 - startTime, time1 - startTime)
 		val (movet0,movet1) = (0,timeToMoveData)
@@ -473,7 +475,10 @@ case class MergeTwo(
 		
 		if (dt1 > timeToMoveData) {
 			logger.debug("simulation completed, updating configuration")
-			newConfig = preview(config)
+			val new_standbys = if (config.standbys.size < SCADSconfig.standbyMaxPoolSize)
+					{ logger.debug("Returned "+ server1+" to standby pool"); config.standbys ::: List(server1) }
+				else {config.standbys}
+			newConfig = preview(config).updateStandbys(new_standbys)
 			this.complete
 		}
 		(newConfig,newActivity)
@@ -487,7 +492,7 @@ case class MergeTwo(
 		val start = Math.min(bounds1.minKey,bounds2.minKey)
 		val end = Math.max(bounds1.maxKey, bounds2.maxKey)
 		nodeConfig = nodeConfig.update(server2, new DirectorKeyRange(start,end))
-		SCADSconfig(nodeConfig)
+		config.updateNodes(nodeConfig)
 	}
 	def participants = Set[String](server1,server2)
 	override def toString:String = actionShortName
@@ -527,7 +532,7 @@ case class Replicate(
 		newNames.foreach((name)=> {
 			nodeConfig = nodeConfig.update(name, new DirectorKeyRange(start,end))
 		})
-		SCADSconfig(nodeConfig)
+		config.updateNodes(nodeConfig)
 	}
 	def participants = Set[String](server)
 	override def toString:String = actionShortName
@@ -541,16 +546,30 @@ case class ReplicateFrom(
 	val range:DirectorKeyRange,
 	val num:Int
 ) extends Action("replicatefrom("+server+","+range+","+num+")") with PlacementManipulation {
+	var timeToBootup:Long = -1
+	var timeToMoveData:Long = -1
+	var started = false // has action started simulation
+
 	override def execute() {
 		val start = range.minKey
 		val end = range.maxKey
 
-		logger.debug("Getting "+num+" new storage server(s)")
-		val new_guys = Director.director.serverManager.getServers(num)
-		if (new_guys.isEmpty) { logger.warn("Replication failed: no available servers"); return }
+		// grab from standby pool
+		val standbys = SCADSconfig.getStandbys(num)
+		val remaining = num-standbys.size
+		logger.debug("Got "+(num-remaining)+" servers from the standby pool")
+		// boot remaining needed servers
+		var new_guys = List[String]()
+		if (remaining > 0) {
+			logger.debug("Getting "+remaining+" new storage server(s)")
+			new_guys = Director.director.serverManager.getServers(remaining)
+			if (new_guys.isEmpty) { logger.warn("Replication failed: no available servers"); return }
+			logger.debug("Waiting to boot up")
+			Thread.sleep(ActionModels.machineBootupTimeModel.sample) // sleep while "booting up"
+		}
 
 		// do the copy and update local list of servers (serially)
-		new_guys.foreach((new_guy)=> {
+		(standbys++new_guys).foreach((new_guy)=> {
 			logger.info("Copying "+start+" - "+end+" from "+server+" to "+ new_guy)
 			copy(server,new_guy,start, end)
 		})
@@ -573,8 +592,41 @@ case class ReplicateFrom(
 		newNames.foreach((name)=> {
 			nodeConfig = nodeConfig.update(name, new DirectorKeyRange(start,end))
 		})
-		SCADSconfig(nodeConfig)
+		config.updateNodes(nodeConfig)
 	}
+	override def initSimulation(config:SCADSconfig) {
+		logger.info("initializing simulation of ReplicateFrom")
+		timeToBootup = ActionModels.machineBootupTimeModel.sample
+		timeToMoveData = ActionModels.dataCopyDurationModel.sample( range.maxKey-range.minKey )*num // copying one by one
+		logger.debug("timeToBootup = "+timeToBootup)
+		logger.debug("timeToMoveData = "+timeToMoveData)
+	}
+	override def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = {
+		val (dt0,dt1) = (time0 - startTime, time1 - startTime)
+		var (newConfig,newActivity) = (config,activity)
+		if (!started) { // try to grab standbys, updating timeToBootup if got everything from the standby pool
+			val standbys = config.standbys.take(num); newConfig = newConfig.updateStandbys(config.standbys -- standbys)
+			if (standbys.size >= num) { logger.debug("Got all needed servers from standby pool, removing bootup time"); timeToBootup = -1 }
+			started = true
+		}
+		val (movet0,movet1) = (timeToBootup,timeToBootup+timeToMoveData)
+		logger.info("simulating "+dt0+" -> "+dt1+"  ("+time0+" -> "+time1+")")
+
+		if (dt1 <= timeToBootup) logger.debug("waiting for maching to boot up, doing nothing")	// machine booting up, do nothing
+		else if ( Action.timeOverlap(dt0,dt1,movet0,movet1) ) {
+			// move interval overlaps with simulation interval, simulate activity
+			logger.debug("moving data, setting activity on server "+server)
+			newActivity.copyRate += server -> 1.0
+		}
+
+		if (dt1 > timeToBootup + timeToMoveData) {
+			logger.debug("action completed, updating configuration")
+			newConfig = preview(config)
+			this.complete
+		}
+		(newConfig,newActivity)
+	}
+	override def csvArgs():String = "num_keys="+(range.maxKey-range.minKey)
 	def participants = Set[String](server)
 	override def toString:String = actionShortName
 }
@@ -594,7 +646,7 @@ case class Remove(
 		Thread.sleep(sleepTime) // wait
 	}
 	override def preview(config:SCADSconfig):SCADSconfig = {
-		SCADSconfig(config.storageNodes -- servers)
+		config.updateNodes(config.storageNodes -- servers)
 	}
 	def participants = Set[String](servers:_*)
 	override def toString:String = actionShortName
@@ -627,13 +679,41 @@ case class RemoveFrom(
 		servers.foreach((name)=> {
 			nodeConfig = nodeConfig.update(name, new DirectorKeyRange(old_start,old_end))
 		})
-		SCADSconfig(nodeConfig)
+		config.updateNodes(nodeConfig)
 	}
+	override def csvArgs():String = "num_keys="+(range.maxKey-range.minKey)
 	def participants = Set[String](servers:_*)
 	override def toString:String = actionShortName
+}
 
-	override def initSimulation(config:SCADSconfig) {}
-	override def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = (null,null)
+case class ModifyPutRestrictions(
+	val changes:Map[DirectorKeyRange,Double],
+	val oldmap:Map[DirectorKeyRange,Double] // old mapping from the existing configuration
+) extends Action("modifyputs("+changes.toList.mkString(",")+")") with PlacementManipulation {
+		val loc = "/var/www/"+ScadsDeploy.restrictFileName // location of put restriction file
+
+		override def execute() {
+			val csv_string = getNewMapping.foldLeft("") {(out,entry)=>out + ScadsDeploy.keyFormat.format(entry._1.minKey)+","+ScadsDeploy.keyFormat.format(entry._1.maxKey)+","+entry._2+";"}
+			 // write restriction file on placement machine
+			try {
+				Director.director.myscads.placement.get(0).exec("rm -f " +loc+";echo '"+csv_string+"' >> "+loc)
+			} catch {case e: java.net.SocketException => {
+				Director.director.myscads = ScadsLoader.loadState(Director.director.myscads.deploymentName) // refresh state, then try again
+				Director.director.myscads.placement.get(0).exec("rm -f " +loc+";echo '"+csv_string+"' >> "+loc)
+			}}
+		}
+		override def preview(config:SCADSconfig):SCADSconfig = {
+			config.updateRestrictions(getNewMapping)
+		}
+		private def getNewMapping:Map[DirectorKeyRange,Double] = {
+			// update existing values, remove 1.0 entries, keep unmodified entries
+			val keys = Set[DirectorKeyRange]((changes.keys.collect++oldmap.keys.collect):_*)
+			val new_restrictions = Map[DirectorKeyRange,Double]( keys.toList map {
+					key=>(key -> changes.getOrElse(key,oldmap(key)))} : _*)
+			new_restrictions.filter(_._2<1.0)
+		}
+		def participants = Set[String]()
+		override def toString:String = actionShortName
 }
 
 trait PlacementManipulation extends RangeConversion with AutoKey {
@@ -704,11 +784,24 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		val t0 = new Date().getTime
 		
 		if (placement_host == null) init
+		val bounds = getNodeRange(host)
+		assert(startKey==bounds._1 || endKey==bounds._2,"Can only remove data from either end of servers' range")
+		val new_start = if (startKey==bounds._1) { endKey } else { bounds._1 }
+		val new_end = if (startKey==bounds._1) { bounds._2 } else { startKey }
+
 		val dpclient = ScadsDeploy.getDataPlacementHandle(placement_host,xtrace_on)
-		val range = new KeyRange(new StringKey(ScadsDeploy.keyFormat.format(startKey)), new StringKey(ScadsDeploy.keyFormat.format(endKey)) )
 		val list = new java.util.LinkedList[DataPlacement]()
+
+		// first remove the incorrect entry and data
+		val range = new KeyRange(new StringKey(ScadsDeploy.keyFormat.format(startKey)), new StringKey(ScadsDeploy.keyFormat.format(endKey)) )
 		list.add(new DataPlacement(host,ScadsDeploy.server_port,ScadsDeploy.server_sync,range))
 		dpclient.remove(namespace,list)
+
+		// now add the correct range info
+		val range_new = new KeyRange(new StringKey(ScadsDeploy.keyFormat.format(new_start)), new StringKey(ScadsDeploy.keyFormat.format(new_end)) )
+		list.clear
+		list.add(new DataPlacement(host,ScadsDeploy.server_port,ScadsDeploy.server_sync,range_new))
+		dpclient.add(namespace,list)
 		
 		val t1 = new Date().getTime
 		Director.lowLevelActionMonitor.log("removeData",t0,t1,Map("host"->host,"startkey"->startKey.toString,"endkey"->endKey.toString))
