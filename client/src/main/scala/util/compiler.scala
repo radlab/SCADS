@@ -17,7 +17,6 @@ case class SpecParseException(error: String) extends Exception
 
 object Compiler extends ScadsLanguage {
 	val logger = Logger.getLogger("scads.compiler")
-	BasicConfigurator.configure()
 
     def codeGenFromSource(src: String): String = parse(src) match {
         case Success(result, _) => {
@@ -39,6 +38,7 @@ object Compiler extends ScadsLanguage {
     }
 
 	def main(args: Array[String]): Unit = {
+		BasicConfigurator.configure()
 		logger.info("Loading spec.")
 		val src = scala.io.Source.fromFile(args(0)).getLines.foldLeft(new StringBuilder)((x: StringBuilder, y: String) => x.append(y)).toString
 
