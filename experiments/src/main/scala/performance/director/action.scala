@@ -26,7 +26,7 @@ case class ActionExecutor {
 		actions+=action 
 		Director.logger.debug("adding action: "+action)
 	}
-	
+	def getProjectedConfig:SCADSconfig = null
 	def execute() {
 		// start executing actions with all parents completed
 		actions.filter(a=>a.parentsCompleted&&a.ready).foreach(_.startExecuting)
@@ -91,6 +91,7 @@ abstract class Action(
 	logger.setLevel(DEBUG)
 	
 	val sleepTime = 60*1000 // how long to sleep after performing an action, simulating clients' ttl on mapping
+	var createsConsistentConfig = true // does this action depend on any others in order to be consistent
 	var initTime: Long = Director.director.policy.currentInterval
 	var startTime: Long = -1
 	var endTime: Long = -1
