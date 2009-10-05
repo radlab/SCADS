@@ -850,7 +850,7 @@ case class LowLevelActionMonitor(
 
 
 object ActionModels {
-	var machineBootupTimeModel = ConstantMachineBootupTimeModel(4*60*1000)
+	var machineBootupTimeModel = ConstantMachineBootupTimeModel(3*60*1000)
 	var dataCopyDurationModel = ConstantDataCopyDurationModel(10.0)
 }
 
