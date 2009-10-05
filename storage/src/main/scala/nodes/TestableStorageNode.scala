@@ -5,6 +5,18 @@ import java.io.BufferedReader
 
 object TestableStorageNode {
 	var port = 9000
+
+	def rmDir(dir: java.io.File): Boolean = {
+		if (dir.isDirectory()) {
+			val children = dir.list();
+			children.foreach((child) => {
+				if (!rmDir(new java.io.File(dir,child)))
+					return false
+					})
+		}
+		dir.delete();
+	}
+
 }
 
 abstract class TestableStorageNode(thriftPort: Int, syncPort: Int) extends StorageNode("127.0.0.1", thriftPort, syncPort) {

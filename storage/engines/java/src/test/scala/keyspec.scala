@@ -5,6 +5,7 @@ import org.specs.runner.JUnit4
 import scala.collection.jcl.Conversions
 import org.apache.log4j.BasicConfigurator
 
+import edu.berkeley.cs.scads.nodes.TestableStorageNode
 import edu.berkeley.cs.scads.thrift._
 import java.io.File
 import com.sleepycat.je.Environment
@@ -191,6 +192,7 @@ abstract class KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specificati
 object JavaEngineSpec extends KeyStoreSpec {
 	BasicConfigurator.configure()
 	val dbDir = new File("target/testDb")
+	TestableStorageNode.rmDir(dbDir)
 	dbDir.mkdir
 	val config = new EnvironmentConfig()
 	config.setAllowCreate(true)
