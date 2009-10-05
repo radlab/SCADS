@@ -90,6 +90,7 @@ abstract class Action(
 	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 	logger.setLevel(DEBUG)
 	
+	val sleepTime = 60*1000 // how long to sleep after performing an action, simulating clients' ttl on mapping
 	var initTime: Long = Director.director.policy.currentInterval
 	var startTime: Long = -1
 	var endTime: Long = -1
@@ -282,7 +283,7 @@ case class SplitInTwo(
 		logger.info("Moving "+middle+" - "+end+" from "+server+" to "+ new_guy)
 		move(server,new_guy,middle,end)
 		logger.debug("Sleeping")
-		Thread.sleep(60*1000) // wait minute
+		Thread.sleep(sleepTime) // wait
 	}
 	
 	var timeToBootup:Long = -1
@@ -358,7 +359,7 @@ case class SplitFrom(
 		logger.info("Moving "+start+" - "+end+" from "+server+" to "+ new_guy)
 		move(server,new_guy,start,end)
 		logger.debug("Sleeping")
-		Thread.sleep(60*1000) // wait minute
+		Thread.sleep(sleepTime) // wait
 	}
 	override def preview(config:SCADSconfig):SCADSconfig = {
 		val bounds = config.storageNodes(server)
@@ -397,7 +398,7 @@ case class ShiftBoundary(
 		}
 		else logger.warn("new boundary isn't different than current one! taking no action")
 		logger.debug("Sleeping")
-		Thread.sleep(60*1000) // wait minute
+		Thread.sleep(sleepTime) // wait
 	}
 	override def preview(config:SCADSconfig): SCADSconfig = {
 		val right_bounds = config.storageNodes(server_right)
@@ -430,7 +431,7 @@ case class MergeTwo(
 		logger.debug("Releasing server "+ server1)
 		Director.director.serverManager.releaseServer(removing)
 		logger.debug("Sleeping")
-		Thread.sleep(60*1000) // wait minute
+		Thread.sleep(sleepTime) // wait
 	}
 	
 	var timeToMoveData:Long = -1
@@ -498,9 +499,9 @@ case class Replicate(
 		new_guys.foreach((new_guy)=> {
 			logger.info("Copying "+start+" - "+end+" from "+server+" to "+ new_guy)
 			copy(server,new_guy,start,end)
-			logger.debug("Sleeping")
 		})
-		Thread.sleep(60*1000) // wait minute
+		logger.debug("Sleeping")
+		Thread.sleep(sleepTime) // wait
 	}
 	override def preview(config:SCADSconfig): SCADSconfig = {
 		val bounds = config.storageNodes(server)
@@ -540,7 +541,7 @@ case class ReplicateFrom(
 			copy(server,new_guy,start, end)
 		})
 		logger.debug("Sleeping")
-		Thread.sleep(60*1000) // wait minute
+		Thread.sleep(sleepTime) // wait
 	}
 	override def preview(config:SCADSconfig):SCADSconfig = {
 		val bounds = config.storageNodes(server)
@@ -576,7 +577,7 @@ case class Remove(
 			Director.director.serverManager.releaseServer(server)
 		})
 		logger.debug("Sleeping")
-		Thread.sleep(60*1000) // wait minute
+		Thread.sleep(sleepTime) // wait
 	}
 	override def preview(config:SCADSconfig):SCADSconfig = {
 		SCADSconfig(config.storageNodes -- servers)
@@ -597,7 +598,7 @@ case class RemoveFrom(
 		logger.info("Removing "+start+" - "+end+" from "+servers.mkString(","))
 		servers.foreach((server)=> removeData(server,start,end) )
 		logger.debug("Sleeping")
-		Thread.sleep(60*1000) // wait minute
+		Thread.sleep(sleepTime) // wait
 	}
 	override def preview(config:SCADSconfig):SCADSconfig = {
 		val bounds = config.storageNodes(servers.first) // they should all be replicas
