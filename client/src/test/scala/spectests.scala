@@ -12,6 +12,10 @@ object ScadrLangSpec extends ScadsLangSpec {
         "subscription" -> Array("approved"),
         "topic" -> Array("name")
     )
+    val queries = Array(
+        "userByName"
+    )
+    val queriesXMLFile = "scadr_queries.xml"
 }
 class ScadrLangTest extends JUnit4(ScadrLangSpec)
 
@@ -27,6 +31,20 @@ object ScadbookLangSpec extends ScadsLangSpec {
         "group" -> Array("id","groupType","name"),
         "poke" -> Array("id","hidden")
             )
+    val queries = Array(
+        "myNetworks",
+        "postsOnMyWall",
+        "myPostsOnOtherWalls",
+        "myPostsOnUserWall",
+        "myFriends",
+        "myFriendsInNetwork",
+        "pendingFriendRequests",
+        "myGroups",
+        "usersInGroup",
+        "groupWall",
+        "myPokedBy"
+    )
+    val queriesXMLFile = "scadbook_queries.xml"
 }
 class ScadbookLangTest extends JUnit4(ScadbookLangSpec)
 
@@ -42,5 +60,20 @@ object ScadbayLangSpec extends ScadsLangSpec {
         "bid" -> Array("id","bidamount","bidtime"),
         "comment" -> Array("id","rating","dateposted","wouldrecommend","comment","commenttype")
             )
+    val queries = Array(
+        "myActiveSellingItems",
+        "myActiveBiddingItems",
+        "myCommentsAsSeller",
+        "myCommentsAsBuyer",
+        "myPostedComments",
+        "itemAutoBidders",
+        "activeItemsByParentCategory",
+        "activeItemsBySubParentCategory",
+        "activeItemsByRegularCategory",
+        "allParentCategories",
+        "allBrandItems",
+        "topItemBid"
+    )
+    val queriesXMLFile = "scadbay_queries.xml"
 }
 class ScadbayLangTest extends JUnit4(ScadbayLangSpec)

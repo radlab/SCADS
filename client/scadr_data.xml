@@ -1,0 +1,18 @@
+<entities>
+    <entity class="user">
+        <attributes>
+            <attribute name="name" type="string">Stephen Tu</attribute>
+            <attribute name="password" type="string">s3cr3t</attribute>
+            <attribute name="email" type="string">stephen_tu@berkeley.edu</attribute>
+            <attribute name="profileData" type="string">About me</attribute>
+        </attributes>
+    </entity>
+    <entity class="user">
+        <attributes>
+            <attribute name="name" type="string">Bob Barker</attribute>
+            <attribute name="password" type="string">s3cr3t</attribute>
+            <attribute name="email" type="string">bbarker@berkeley.edu</attribute>
+            <attribute name="profileData" type="string">About me</attribute>
+        </attributes>
+    </entity>
+</entities>

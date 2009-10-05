@@ -192,7 +192,7 @@ FETCH item
     OF category regular BY itemCategories
     OF category sub BY subToRegCategories
     OF category parent BY parentToSubCategories
-WHERE parent.title=[1:category] AND
+WHERE parent.title=[1:title] AND
 item.isFinished = false
 ORDER BY dateposted
 
@@ -201,7 +201,7 @@ QUERY activeItemsBySubParentCategory
 FETCH item
     OF category regular BY itemCategories
     OF category sub BY subToRegCategories
-WHERE sub.title=[1:category] AND
+WHERE sub.title=[1:title] AND
 item.isFinished = false
 ORDER BY dateposted
 
@@ -209,7 +209,7 @@ ORDER BY dateposted
 QUERY activeItemsByRegularCategory
 FETCH item
     OF category regular BY itemCategories
-WHERE regular.title=[1:category] AND
+WHERE regular.title=[1:title] AND
 item.isFinished = false
 ORDER BY dateposted
 
@@ -223,7 +223,7 @@ ORDER BY category.title
 QUERY allBrandItems
 FETCH item
     OF brand BY itemBrand
-WHERE brand.name=[1:brandname]
+WHERE brand.name=[1:name]
 ORDER BY dateposted
 
 /* top bid on item (current price of an item)

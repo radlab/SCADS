@@ -1,0 +1,25 @@
+<queryruns>
+    <query name="userByName">
+        <inputs>
+            <input type="string">Stephen Tu</input>
+        </inputs>
+        <outputs class="user">
+            <output primarykey="Stephen Tu" />  
+        </outputs>
+    </query>
+    <query name="userByName">
+        <inputs>
+            <input type="string">Bob Barker</input>
+        </inputs>
+        <outputs class="user">
+            <output primarykey="Bob Barker" />  
+        </outputs>
+    </query>
+    <!--
+    <query name="userByName">
+        <inputs>
+            <input type="string">Mr. T</input>
+        </inputs>
+        <outputs class="user"/>
+    </query>-->
+</queryruns>

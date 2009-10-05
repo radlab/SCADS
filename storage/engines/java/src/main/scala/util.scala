@@ -19,6 +19,7 @@ class TestableScalaStorageEngine(id: Int) extends StorageNode("localhost", id) w
 
 	val config = new EnvironmentConfig();
 	config.setAllowCreate(true);
+	config.setTransactional(true)
 	val env = new Environment(dbDir, config)
 
 	val processor = new StorageEngine.Processor(new StorageProcessor(env))
