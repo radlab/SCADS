@@ -54,6 +54,10 @@ case class Director(
 		var running = true
 		def run = {
 			while (running) {
+				// if haven't set initial config in ActionExecutor but finally have a state, set it
+				if (!actionExecutor.haveInitialConfig && stateHistory.getMostRecentState!=null)
+					actionExecutor.setInitialConfig(stateHistory.getMostRecentState.config)
+				
 				policy.perform(stateHistory.getMostRecentState,actionExecutor)
 				actionExecutor.execute
 				

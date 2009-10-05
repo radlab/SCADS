@@ -22,14 +22,27 @@ import java.sql.Statement
 
 case class ActionExecutor {
 	var actions = List[Action]()
-	def addAction(action:Action) { 
-		actions+=action 
-		Director.logger.debug("adding action: "+action)
+	var projectedConfig:SCADSconfig = null
+
+	def setInitialConfig(initialConfig:SCADSconfig) { projectedConfig=initialConfig }
+	def haveInitialConfig:Boolean = { projectedConfig!=null }
+
+	def addAction(action:Action) {
+		if (projectedConfig==null) throw new Exception("don't have projectedConfig in ActionExecutor; can't execute new action")
+		else {
+			actions+=action 
+			Director.logger.debug("adding action: "+action)
+		}
 	}
+
 	def getProjectedConfig:SCADSconfig = null
+
 	def execute() {
 		// start executing actions with all parents completed
 		actions.filter(a=>a.parentsCompleted&&a.ready).foreach(_.startExecuting)
+		
+		// update the projected configuration based on all the completed actions
+		for (a <- actions.filter(_.completed)) projectedConfig = a.preview(projectedConfig)
 		
 		// keep only actions that didn't complete yet (or didn't start)
 		actions = actions.filter(!_.completed)
