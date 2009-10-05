@@ -12,6 +12,7 @@
 		<module>experiments</module>
 		<module>client</module>
 		<module>storage</module>
+		<module>scalaengine</module>
 	</modules>
 	<dependencies>
 		<dependency>
