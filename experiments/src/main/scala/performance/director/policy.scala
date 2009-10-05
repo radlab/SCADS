@@ -305,5 +305,25 @@ class HeuristicOptimizerPolicy(
 ) extends Policy(workloadPredictor) {
 	val performanceEstimator = SimplePerformanceEstimator( performanceModel )
 	val optimizer = new HeuristicOptimizer(performanceEstimator,getSLA,putSLA,workloadPredictor)
-	override def act(state:SCADSState, actionExecutor:ActionExecutor) = if(actionExecutor.allActionsCompleted) { optimizer.optimize(state, actionExecutor) }
+	val maxPoolSize = 3
+	val maxReplicas = 5
+
+	override def act(state:SCADSState, actionExecutor:ActionExecutor) = {
+		logger.debug("epoch: "+(new java.util.Date().getTime)+" ---------------------------\n")
+		if (state!=null) logger.debug("ACTING: received the following state ("+(new java.util.Date().getTime-state.time)/1000+" seconds behind)\n"+state.toShortString)
+		else logger.debug("ACTING: state == NULL")
+		val prediction = workloadPredictor.getPrediction
+		if (prediction!=null) logger.debug("workload prediction: "+workloadPredictor.getPrediction.toShortString)
+		else logger.debug("workload prediction == NULL")
+
+		// which actions are currently ongoing?
+		val currentActions = actionExecutor.actions
+		logger.debug("Current actions before optimizer acts:\n"+currentActions.mkString("\n"))
+
+		// now actually act!
+		if (actionExecutor.allActionsCompleted) { optimizer.optimize(state, actionExecutor) }
+
+		// which actions scheduled?
+		logger.debug("Actions optimizer added:\n"+(actionExecutor.actions -- currentActions).mkString("\n"))
+	}
 }
