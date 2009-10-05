@@ -77,7 +77,7 @@ object Compiler extends ScadsLanguage {
 
 
     def compileSpecCode(genDir: File, jarFile: File, classpath: String, contents: String):Boolean = {
-        println("Compiling spec code")
+        logger.info("Compiling spec code")
         val settings = new Settings(error)
 
         settings.deprecation.value = true
@@ -97,7 +97,7 @@ object Compiler extends ScadsLanguage {
         if ( reporter.hasErrors ) {
             throw new CompileException("error occurred with severity" + reporter.severity)
         } else {
-            println("Compliation succeeded, packaging into jar file")
+            logger.info("Compliation succeeded, packaging into jar file")
             tryMakeJar(jarFile, genDir)
             return true
         }
@@ -113,7 +113,7 @@ object Compiler extends ScadsLanguage {
      * This doesn't really do anything for now, but we need it
      */
     def error(message: String) = {
-        println("Error received " + message)
+        logger.info("Error received " + message)
     }
 
 

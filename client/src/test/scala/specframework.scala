@@ -16,10 +16,10 @@ import java.util.ResourceBundle
 import java.lang.reflect.Method
 import java.lang.reflect.InvocationTargetException
 
-
+import org.apache.log4j.Logger
 
 abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specification") {
-    
+    val llogger = Logger.getLogger("scads.test")
     val specFile: String
     val classNameMap: Map[String,Array[String]]
     val dataXMLFile: String
@@ -136,7 +136,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
 
                 (dataNode \\ "entity").foreach( (entity) => {
                     val clazz = (entity \ "@class").text
-                    println("found class : " + clazz)
+                    llogger.debug("found class : " + clazz)
                     val ent = loadClass(clazz)
                         .asInstanceOf[Class[Entity]]
                         .getConstructor(env.getClass)
@@ -144,7 +144,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                     (entity \\ "attribute").foreach( (attribute) => {
                         val attributeName = (attribute \ "@name").text
                         val attributeType = (attribute \ "@type").text
-                        println("found attr name: " + attributeName)
+                        llogger.debug("found attr name: " + attributeName)
                         val field = ent.attributes(attributeName)
                         val varTuple = getVariableTuple(attributeType, attribute.text)
                         attributeType match {
@@ -175,11 +175,11 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                     val queryMethodParams = queryMethod.getParameterTypes
                     queryMethodParams.startsWith(queryInputs.map(_._1)) mustEqual true
 
-                    queryMethodParams.foreach(println(_))
-                    println("-------------")
+                    queryMethodParams.foreach(llogger.debug(_))
+                    llogger.debug("-------------")
 
                     val args = queryInputs.map(_._2).concat( Array(env) ).toArray
-                    args.foreach(println(_))
+                    args.foreach(llogger.debug(_))
                     //try {
                         val retVal = queryMethod.invoke(null, args : _*) 
                         retVal must notBeNull
@@ -203,13 +203,13 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                             throw new Exception("cannot handle this kind of field")
                         }
                     })
-                    pKeySeq.foreach(println(_))
-                    println("---------")
+                    pKeySeq.foreach(llogger.debug(_))
+                    llogger.debug("---------")
 
                     val inputpKeySeq = (query \\ "@primarykey").map( (pk) => { 
                         getVariableTuple(pkTypeVar,pk.text)._2
                     })
-                    inputpKeySeq.foreach(println(_))
+                    inputpKeySeq.foreach(llogger.debug(_))
 
                     pKeySeq must haveTheSameElementsAs(inputpKeySeq)
 
