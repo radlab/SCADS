@@ -1,6 +1,8 @@
 package scads.director
 
 import java.util.Date
+import org.apache.log4j._
+import org.apache.log4j.Level._
 
 abstract class FullCostFunction {
 	def addState(state:SCADSState)
@@ -202,6 +204,11 @@ class SLACostFunction(
 }
 
 abstract class Optimizer {
+	val logger = Logger.getLogger("scads.director.optimizer")
+	private val logPath = Director.basedir+"/optimizer.txt"
+	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
+	logger.setLevel(DEBUG)
+
 	/**
 	* Given the current systen configuration and performance,
 	* determine an optimal set of actions to perform on this state
