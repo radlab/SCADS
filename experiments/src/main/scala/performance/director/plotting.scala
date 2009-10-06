@@ -60,9 +60,9 @@ object Plotting {
 			try {
 				logger.info("plotting director.simple and configs")
 				//logger.info("plotting director.simple")
-				rconn.parseAndEval("  plot.director.simple( out.file=\""+dir+"/director.simple.png\")  ")
+				rconn.parseAndEval("  plot.director.simple( out.file=\""+dir+"/../director.simple.png\")  ")
 				//logger.info("plotting configs")
-				rconn.parseAndEval("  plot.configs( out.file=\""+dir+"/configs.png\")  ")
+				rconn.parseAndEval("  plot.configs( out.file=\""+dir+"/../configs.png\")  ")
 				rconn.parseAndEval("  disconnect.all()  ")
 				//logger.info("done plotting")
 			} catch {
