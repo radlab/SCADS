@@ -9,6 +9,7 @@ abstract class WorkloadPrediction {
 	def addHistogram(histogram:WorkloadHistogram)
 	def getPrediction():WorkloadHistogram
 	def initialize
+	def getParams:Map[String,String]
 }
 
 case class SimpleHysteresis(
@@ -27,6 +28,7 @@ case class SimpleHysteresis(
 	}
 	
 	def getPrediction():WorkloadHistogram = { try{prediction*(1+overprovision)} catch {case _ => null} }
+	def getParams:Map[String,String] = Map("alpha_up"->alpha_up.toString,"alpha_down"->alpha_down.toString,"overprovision"->overprovision.toString)
 }
 
 case class IdentityPrediction extends WorkloadPrediction {
@@ -34,6 +36,7 @@ case class IdentityPrediction extends WorkloadPrediction {
 	def initialize { prediction = null }
 	def addHistogram(histogram:WorkloadHistogram) { prediction = histogram }
 	def getPrediction():WorkloadHistogram = prediction
+	def getParams:Map[String,String] = Map[String,String]()
 }
 
 case class MeanPlusVariancePrediction(
@@ -52,5 +55,6 @@ case class MeanPlusVariancePrediction(
 	def getPrediction():WorkloadHistogram = {
 		null
 	}
-	
+
+	def getParams:Map[String,String] = Map("windowLength"->windowLength.toString,"nStdevs"->nStdevs.toString)
 }
