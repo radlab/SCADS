@@ -848,6 +848,45 @@ case class LowLevelActionMonitor(
 
 }
 
+object LowLevelActionMonitor {
+	
+	def extractActionDurations(dir:String, experiment:String):List[LowLevelActionStats] = {
+		var connection = Director.connectToDatabase
+		val statement = connection.createStatement
+		statement.executeUpdate("use director")
+
+		val actions = new scala.collection.mutable.ListBuffer[LowLevelActionStats]()
+		try {
+			val result = statement.executeQuery("select * from lowlevel_actions")
+			while (result.next) {
+				val action = result.getString("type")
+				val t0 = result.getLong("start_time")
+				val t1 = result.getLong("end_time")
+				val featureString = result.getString("features")
+				val features = Map( featureString.split(",").map( p => {val s=p.split("="); s(0)->s(1)}).toList :_* )
+				val stats = LowLevelActionStats(action,t0,t1,features)				
+				actions += stats
+			}
+       	} catch { case ex: SQLException => Director.logger.warn("SQL exception in metric reader",ex)}
+		
+		(new java.io.File(dir)).mkdirs()
+		
+		var out = new java.io.FileWriter(dir+"/lowlevelactions.csv",true)
+		out.write("experiment,action,time,duration,nkeys\n") 
+		for(a <- actions) out.write(experiment+","+a.action+","+a.time0+","+(a.time1-a.time0)+","+(try{a.features("endkey").toInt-a.features("startkey").toInt}catch{case _=>"NaN"})+"\n")
+		out.close
+		
+		actions.toList
+	}
+}
+
+case class LowLevelActionStats(
+	action:String,
+	time0:Long,
+	time1:Long,
+	features:Map[String,String]
+)
+
 
 object ActionModels {
 	var machineBootupTimeModel = ConstantMachineBootupTimeModel(3*60*1000)
