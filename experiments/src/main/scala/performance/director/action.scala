@@ -313,7 +313,7 @@ case class SplitInTwo(
 		val middle = if (pivot >0) {pivot} else {((end-start)/2) + start}
 		
 		timeToBootup = ActionModels.machineBootupTimeModel.sample
-		timeToMoveData = ActionModels.dataCopyDurationModel.sample( end - middle )
+		timeToMoveData = ActionModels.copyDurationModel.sample( end - middle )
 		logger.debug("timeToBootup = "+timeToBootup)
 		logger.debug("timeToMoveData = "+timeToMoveData)
 	}
@@ -458,7 +458,7 @@ case class MergeTwo(
 	override def initSimulation(config:SCADSconfig) {
 		logger.info("initializing simulation of MergeTwo")		
 		val bounds1 = config.storageNodes(server1)
-		timeToMoveData = ActionModels.dataCopyDurationModel.sample( bounds1.maxKey - bounds1.minKey )
+		timeToMoveData = ActionModels.copyDurationModel.sample( bounds1.maxKey - bounds1.minKey )
 		logger.debug("timeToMoveData = "+timeToMoveData)
 	}
 	override def csvArgs():String = "num_keys="+num_keys
@@ -600,7 +600,7 @@ case class ReplicateFrom(
 	override def initSimulation(config:SCADSconfig) {
 		logger.info("initializing simulation of ReplicateFrom")
 		timeToBootup = ActionModels.machineBootupTimeModel.sample
-		timeToMoveData = ActionModels.dataCopyDurationModel.sample( range.maxKey-range.minKey )*num // copying one by one
+		timeToMoveData = ActionModels.copyDurationModel.sample( range.maxKey-range.minKey )*num // copying one by one
 		logger.debug("timeToBootup = "+timeToBootup)
 		logger.debug("timeToMoveData = "+timeToMoveData)
 	}
@@ -893,26 +893,59 @@ case class LowLevelActionStats(
 
 object ActionModels {
 	var machineBootupTimeModel = ConstantMachineBootupTimeModel(3*60*1000)
-	var dataCopyDurationModel = ConstantDataCopyDurationModel(1.0)
+	var copyDurationModel = LinearCopyDurationModel(0.087)
+	var removeDataDurationModel = LinearRemoveDataDurationModel(0.166)		// this one goes through the "middle of the fork" so that average is accurate
+	var removeDurationModel = ConstantRemoveDurationModel(3780)
+	var getNodeRangeDurationModel = ConstantGetNodeRangeDurationModel(12)
 }
 
+// duration of machine boot up
 abstract class MachineBootupTimeModel {
 	def sample(): Long
 }
-
 case class ConstantMachineBootupTimeModel(
 	duration: Long
 ) extends MachineBootupTimeModel {
 	def sample():Long = duration
 }
 
-
-abstract class DataCopyDurationModel {
+// duration of placement "copy"
+abstract class CopyDurationModel {
 	def sample(nKeys:Int): Long
 }
-
-case class ConstantDataCopyDurationModel(
+case class LinearCopyDurationModel(
 	durationPerKey: Double
-) extends DataCopyDurationModel {
+) extends CopyDurationModel {
 	def sample(nKeys:Int):Long = (durationPerKey*nKeys).toLong
 }
+
+// duration of placement "removeData"
+abstract class RemoveDataDurationModel {
+	def sample(nKeys:Int): Long
+}
+case class LinearRemoveDataDurationModel(
+	durationPerKey: Double
+) extends RemoveDataDurationModel {
+	def sample(nKeys:Int):Long = (durationPerKey*nKeys).toLong
+}
+
+// duration of placement "remove"
+abstract class RemoveDurationModel {
+	def sample(): Long
+}
+case class ConstantRemoveDurationModel(
+	duration: Long
+) extends RemoveDurationModel {
+	def sample():Long = duration
+}
+
+// duration of placement "getNodeRange"
+abstract class GetNodeRangeDurationModel {
+	def sample(): Long
+}
+case class ConstantGetNodeRangeDurationModel(
+	duration: Long
+) extends GetNodeRangeDurationModel {
+	def sample():Long = duration
+}
+
