@@ -30,8 +30,6 @@ abstract class Policy(
 	var connection = Director.connectToDatabase
 	initialize
 	
-	var currentInterval:Long = -1
-	
 	def initialize {
 		connection = Director.connectToDatabase
 		createTable
@@ -39,13 +37,15 @@ abstract class Policy(
 		workloadPredictor.initialize
 	}
 	
+	def getParams:Map[String,String] = workloadPredictor.getParams
+	
 	def periodicUpdate(state:SCADSState) {
 		workloadPredictor.addHistogram( state.workloadHistogram )
 	}
 	
 	def perform(state:SCADSState, actionExecutor:ActionExecutor) {
 		try { 
-			currentInterval = new java.util.Date().getTime
+			Action.currentInitTime = new java.util.Date().getTime
 			act(state,actionExecutor)
 		} catch {
 			case e:Exception => logger.warn("exception in policy.act",e)
@@ -77,6 +77,7 @@ abstract class Policy(
        	} catch { case ex: SQLException => ex.printStackTrace() }
 
     }
+	override def toString:String = getParams.toList.sort(_._1<_._1).map( p => p._1+"="+p._2 ).mkString("(",",",")")
 }
 
 
@@ -248,14 +249,16 @@ class SplitAndMergeOnPerformance(
 		}
 	}
 
-	override def toString = "SplitAndMergeOnPerformance ( Merge: "+latencyToMerge+", Split: "+latencyToSplit+ " )"
+	//override def toString = "SplitAndMergeOnPerformance ( Merge: "+latencyToMerge+", Split: "+latencyToSplit+ " )"
 }
 
-class SplitAndMergeOnWorkload(
+case class SplitAndMergeOnWorkload(
 	val mergeThreshold: Double,
 	val splitThreshold: Double,
 	override val workloadPredictor:WorkloadPrediction
 ) extends SplitAndMergeOnPerformance(mergeThreshold,splitThreshold,workloadPredictor) {
+
+	override def getParams:Map[String,String] = Map("mergeThreshold"->mergeThreshold.toString,"splitThreshold"->splitThreshold.toString)++workloadPredictor.getParams
 
 	override def act(state:SCADSState, actionExecutor:ActionExecutor) {
 		this.scadsState = state
@@ -266,24 +269,39 @@ class SplitAndMergeOnWorkload(
 		policyState match {
 			case PolicyState.Waiting => {null}
 			case PolicyState.Executing => {
-				val servers_ranges = PerformanceEstimator.getServerHistogramRanges(scadsState.config,state.workloadHistogram)
+				val workloadPrediction = workloadPredictor.getPrediction
+				val serverWorkload = PerformanceEstimator.estimateServerWorkload(scadsState.config,workloadPrediction)
+				
+				//val servers_ranges = PerformanceEstimator.getServerHistogramRanges(scadsState.config,state.workloadHistogram)
+				val servers_ranges = PerformanceEstimator.getServerHistogramRanges(scadsState.config,workloadPrediction)
 				val config_nodes = scadsState.config.storageNodes
 				val nodes = scadsState.storageNodes.sort( (s,t) => config_nodes(s.ip).minKey < config_nodes(t.ip).minKey )
 
 				nodes.foreach((node_state)=>{
-					if (node_state.metrics.workload >= splitThreshold) {
+					//if (node_state.metrics.workload*(1+overprovision) >= splitThreshold) {
+					if (serverWorkload(node_state.ip).sum >= splitThreshold) {
 						logger.debug("Adding split action: "+node_state.ip)
 						val ranges = servers_ranges(node_state.ip)
 						val histogram_slice = new WorkloadHistogram( // include info for ranges for this server
-								scadsState.workloadHistogram.rangeStats.filter((entry)=>ranges.contains(entry._1)))
+								workloadPrediction.rangeStats.filter((entry)=>ranges.contains(entry._1)))
 						val first_split = histogram_slice.split(2)(0).toArray
-						actions += new SplitInTwo(node_state.ip, first_split(first_split.size-1).maxKey) // split on end of first half's last key
+						val splitKey = first_split(first_split.size-1).maxKey
+						if (splitKey<config_nodes(node_state.ip).maxKey)
+							actions += new SplitInTwo(node_state.ip, splitKey) // split on end of first half's last key
+						else
+							logger.debug("not splitting "+node_state.ip+" because there would be no keys on the new server")
 					}
 				})
 				var id = 0
 				while (id <= nodes.size-1 && id <= nodes.size-2) {
-					if ( ((nodes(id).metrics.workload + nodes(id+1).metrics.workload) <= mergeThreshold) ||
+					val w0 = serverWorkload(nodes(id).ip).sum
+					val w1 = serverWorkload(nodes(id+1).ip).sum
+					
+					if ( w0+w1 < mergeThreshold || w0.isNaN || w1.isNaN ) {
+					
+/*					if ( ((nodes(id).metrics.workload + nodes(id+1).metrics.workload)*(1+overprovision) <= mergeThreshold) ||
 					 nodes(id).metrics.workload.isNaN || nodes(id+1).metrics.workload.isNaN ) { // also check for NaNs
+*/												
 						logger.debug("Adding merge action: "+nodes(id).ip+" and "+nodes(id+1).ip)
 						actions += new MergeTwo(nodes(id).ip,nodes(id+1).ip)
 						id+=2 // only merge disjoint two at a time
@@ -294,7 +312,7 @@ class SplitAndMergeOnWorkload(
 		}
 		actions.foreach(actionExecutor.addAction(_))
 	}
-	override def toString = "SplitAndMergeOnWorkload ( Merge: "+mergeThreshold+", Split: "+splitThreshold+ " )"
+	//override def toString = "SplitAndMergeOnWorkload ( Merge: "+mergeThreshold+", Split: "+splitThreshold+ " )"	
 }
 
 class HeuristicOptimizerPolicy(
