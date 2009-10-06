@@ -23,6 +23,7 @@ import java.sql.Statement
 case class ActionExecutor {
 	var actions = List[Action]()
 	var projectedConfig:SCADSconfig = null
+	var placementIP:String = null
 
 	def setInitialConfig(initialConfig:SCADSconfig) { projectedConfig=initialConfig }
 	def haveInitialConfig:Boolean = { projectedConfig!=null }
@@ -34,16 +35,27 @@ case class ActionExecutor {
 			Director.logger.debug("adding action: "+action)
 		}
 	}
+	def setPlacement(ip:String) = { placementIP=ip }
+	def getConfigFromPlacement:Map[String,DirectorKeyRange] = {
+		assert(placementIP !=null, "action executor need to have placement ip set")
+		var nodeConfig = Map[String,DirectorKeyRange]()
 
-	def getProjectedConfig:SCADSconfig = null
-
+		val dp = ScadsDeploy.getDataPlacementHandle(placementIP,Director.xtrace_on)
+		val placements = dp.lookup_namespace(Director.namespace)
+		val iter = placements.iterator
+		while (iter.hasNext) {
+			val info = iter.next
+			val range = new DirectorKeyRange(
+				ScadsDeploy.getNumericKey( StringKey.deserialize_toString(info.rset.range.start_key,new java.text.ParsePosition(0)) ),
+				ScadsDeploy.getNumericKey( StringKey.deserialize_toString(info.rset.range.end_key,new java.text.ParsePosition(0)) )
+			)
+			nodeConfig = nodeConfig.update(info.node, range)
+		}
+		nodeConfig
+	}
 	def execute() {
 		// start executing actions with all parents completed
 		actions.filter(a=>a.parentsCompleted&&a.ready).foreach(_.startExecuting)
-		
-		// update the projected configuration based on all the completed actions
-		for (a <- actions.filter(_.completed)) projectedConfig = a.preview(projectedConfig)
-		
 		// keep only actions that didn't complete yet (or didn't start)
 		actions = actions.filter(!_.completed)
 	}

@@ -252,9 +252,11 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 	val min_puts_allowed:Int = 100 	// percentage of allowed puts
 
 	def optimize(state:SCADSState, actionExecutor:ActionExecutor) {
+		if (state == null) return
 		// use state with projected config that assumes effects of all completed actions have taken place
-		val projectedState = SCADSState(state.time,actionExecutor.getProjectedConfig,
+		val projectedState = SCADSState(state.time,state.config.updateNodes(actionExecutor.getConfigFromPlacement),
 			state.storageNodes,state.metrics,state.metricsByType,state.workloadHistogram)
+		logger.debug("Optimizing projected state (new node mapping, possibly dated histogram):\n"+projectedState.toShortString)
 
 		var actions = new scala.collection.mutable.ListBuffer[Action]()
 		val overloaded:Map[String,PerformanceStats] = getOverloadedServers(projectedState)

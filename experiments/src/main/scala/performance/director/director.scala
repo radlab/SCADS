@@ -84,9 +84,11 @@ case class Director(
 	}
 
 	private def setDeployment(deploy_name:String) {
+		Director.logger.info("Loading SCADS state")
 		myscads = ScadsLoader.loadState(deploy_name)
 		serverManager = new ScadsServerManager(deploy_name, myscads.deployMonitoring, Director.namespace)
 		placementIP = myscads.placement.get(0).privateDnsName
+		actionExecutor.setPlacement(placementIP) // tell action executor about placement
 		
 		// figure out which scads servers are registered with data placement, and which ones are standbys
 		val dpentries = ScadsDeploy.getDataPlacementHandle(myscads.placement.get(0).privateDnsName,Director.xtrace_on).lookup_namespace(Director.namespace)
