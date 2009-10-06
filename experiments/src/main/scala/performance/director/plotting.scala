@@ -66,7 +66,7 @@ object Plotting {
 				rconn.parseAndEval("  disconnect.all()  ")
 				//logger.info("done plotting")
 			} catch {
-				case e:Exception => { logger.warn("couldn't render director.simple or configs plot"); e.printStackTrace }
+				case e:Exception => { logger.warn("couldn't render director.simple or configs plot"); logger.warn("can't plot",e) }
 			}
 		}
 	}
