@@ -18,24 +18,25 @@ case class SpecParseException(error: String) extends Exception
 object Compiler extends ScadsLanguage {
 	val logger = Logger.getLogger("scads.compiler")
 
-    def codeGenFromSource(src: String): String = parse(src) match {
-        case Success(result, _) => {
-            logger.debug("AST: " + Printer(result))
-            val boundSpec = Binder.bind(result)
-            logger.debug("Bound Spec: " + boundSpec)
+	def codeGenFromSource(src: String): String = parse(src) match {
+		case Success(result, _) => {
+			logger.debug("AST: " + Printer(result))
+			val boundSpec = Binder.bind(result)
+			logger.debug("Bound Spec: " + boundSpec)
 
-	    boundSpec.orphanQueries.foreach((q) => Optimizer.optimize(q._2))
-	    boundSpec.entities.foreach((e) => e._2.queries.foreach((q) => Optimizer.optimize(q._2)))
+			boundSpec.orphanQueries.foreach((q) => Optimizer.optimize(q._2))
+			boundSpec.entities.foreach((e) => e._2.queries.foreach((q) => Optimizer.optimize(q._2)))
 
-            val source = ScalaGen(boundSpec)
-            logger.debug(source)
-                
-            source
-        }
-        case f: NoSuccess => {
-            throw new SpecParseException("could not parse spec")
-        }
-    }
+			val source = ScalaGen(boundSpec)
+			logger.debug(source)
+
+			source
+		}
+		case f: NoSuccess => {
+			logger.warn(f)
+			throw new SpecParseException(f.toString)
+		}
+	}
 
 	def main(args: Array[String]): Unit = {
 		BasicConfigurator.configure()
