@@ -105,7 +105,8 @@ abstract class Action(
 	
 	val sleepTime = 0 // how long to sleep after performing an action, simulating clients' ttl on mapping
 	var createsConsistentConfig = true // does this action depend on any others in order to be consistent
-	var initTime: Long = Director.director.policy.currentInterval
+	//var initTime: Long = Director.director.policy.currentInterval
+	var initTime: Long = Action.currentInitTime
 	var startTime: Long = -1
 	var endTime: Long = -1
 		
@@ -194,6 +195,8 @@ class UniformSelector(choices:List[String]) extends ActionSelector {
 object Action {
 	val dbname = "director"
 	val dbtable = "actions"
+	
+	var currentInitTime = -1L
 	
 	var connection = Director.connectToDatabase
 	initDatabase
@@ -890,7 +893,7 @@ case class LowLevelActionStats(
 
 object ActionModels {
 	var machineBootupTimeModel = ConstantMachineBootupTimeModel(3*60*1000)
-	var dataCopyDurationModel = ConstantDataCopyDurationModel(10.0)
+	var dataCopyDurationModel = ConstantDataCopyDurationModel(1.0)
 }
 
 abstract class MachineBootupTimeModel {

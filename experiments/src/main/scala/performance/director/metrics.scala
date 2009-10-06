@@ -45,15 +45,15 @@ object PerformanceMetrics {
 		PerformanceMetrics(time,metricReader.interval.toInt,workload,latencyMean,latency90p,latency99p,nRequests.toInt, nSlowerThan50ms.toInt, nSlowerThan100ms.toInt)
 	}
 	
-	def estimateFromSamples(samples:List[Double], time:Long, aggregationInterval:Long):PerformanceMetrics = {
+	def estimateFromSamples(samples:List[Double], time:Long, aggregationInterval:Long, fractionOfRequests:Double):PerformanceMetrics = {
 		val samplesA = samples.sort(_<_).toArray
-		val workload = computeWorkload(samplesA)*1000/aggregationInterval
+		val workload = computeWorkload(samplesA)*1000/aggregationInterval/fractionOfRequests
 		val latencyMean = computeMean(samplesA)
 		val latency90p = computeQuantileAssumeSorted(samplesA,0.9)
 		val latency99p = computeQuantileAssumeSorted(samplesA,0.99)
-		val nRequests = samples.size
-		val nSlowerThan50ms = samples.filter(_>50).size
-		val nSlowerThan100ms = samples.filter(_>100).size
+		val nRequests = (samples.size/fractionOfRequests).toInt
+		val nSlowerThan50ms = (samples.filter(_>50).size/fractionOfRequests).toInt
+		val nSlowerThan100ms = (samples.filter(_>100).size/fractionOfRequests).toInt
 		PerformanceMetrics(time, aggregationInterval, workload, latencyMean, latency90p, latency99p, nRequests, nSlowerThan50ms, nSlowerThan100ms)
 	}
 	

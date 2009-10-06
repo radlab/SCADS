@@ -46,6 +46,7 @@ case class Director(
 	Director.director = this
 
 	case class Runner(policy:Policy, costFunction:FullCostFunction, placementIP: String) extends Runnable {
+		Director.startRserve
 		var lastPlotTime = new Date().getTime
 		var lastCostUpdateTime = new Date().getTime
 		stateHistory.setCostFunction(costFunction)
@@ -131,9 +132,8 @@ object Director {
 	
 	val dateFormat = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss");
 	val logPattern = "%d %5p %c - %m%n"
-/*	val basedir = "/mnt/director/logs_"+dateFormat.format(new Date)+"/"*/
-	val startDate = dateFormat.format(new Date)
-	val basedir = "/tmp/director/logs_"+startDate+"/"
+	var startDate = dateFormat.format(new Date)
+	var basedir = "/tmp/director/logs_"+startDate+"/"
 	
 	val xtrace_on = true
 	val namespace = "perfTest256"
@@ -148,18 +148,26 @@ object Director {
 	
 	val delay = 20*1000
 	
-	val logger = Logger.getLogger("scads.director.director")
-	private val logPath = Director.basedir+"/director.txt"
-	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
-	logger.setLevel(DEBUG)
-	//Logger.getRootLogger.removeAllAppenders
-	Logger.getRootLogger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),Director.basedir+"/all.txt",false) )
+	var logger:Logger = null
+	
+	initialize("")
 	
 	Director.exec("rm -f "+Director.basedir+"../current")
 	Director.exec("ln -s "+Director.basedir+" "+Director.basedir+"../current")
 
 	var lowLevelActionMonitor = LowLevelActionMonitor("director","lowlevel_actions")
-	startRserve
+
+	def initialize(experimentName:String) {
+		startDate = dateFormat.format(new Date)
+		basedir = "/tmp/director/logs_"+startDate+"_"+experimentName+"/"
+
+		logger = Logger.getLogger("scads.director.director")
+		val logPath = Director.basedir+"/director.txt"
+		logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
+		logger.setLevel(DEBUG)
+		Logger.getRootLogger.removeAllAppenders
+		Logger.getRootLogger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),Director.basedir+"/all.txt",false) )		
+	}
 
 	def exec(cmd:String):(String,String) = {
 		val proc = Runtime.getRuntime.exec( Array("sh","-c",cmd) )

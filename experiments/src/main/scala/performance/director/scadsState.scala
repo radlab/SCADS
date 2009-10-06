@@ -326,9 +326,9 @@ object SCADSState {
 			t1 = new Date().getTime; T("L3")+=(t1-t0)
 			
 			t0 = new Date().getTime
-			val statsAll = PerformanceMetrics.estimateFromSamples(getLatencies++putLatencies,time,duration)
-			val statsGet = PerformanceMetrics.estimateFromSamples(getLatencies,time,duration)
-			val statsPut = PerformanceMetrics.estimateFromSamples(putLatencies,time,duration)
+			val statsAll = PerformanceMetrics.estimateFromSamples(getLatencies++putLatencies,time,duration,1.0)
+			val statsGet = PerformanceMetrics.estimateFromSamples(getLatencies,time,duration,1.0)
+			val statsPut = PerformanceMetrics.estimateFromSamples(putLatencies,time,duration,1.0)
 			t1 = new Date().getTime; T("L4")+=(t1-t0)
 			
 			t0 = new Date().getTime
@@ -337,9 +337,9 @@ object SCADSState {
 		}
 		
 		t0 = new Date().getTime
-		val statsAll = PerformanceMetrics.estimateFromSamples(allGets.toList++allPuts,time,duration)
-		val statsGet = PerformanceMetrics.estimateFromSamples(allGets.toList,time,duration)
-		val statsPut = PerformanceMetrics.estimateFromSamples(allPuts.toList,time,duration)
+		val statsAll = PerformanceMetrics.estimateFromSamples(allGets.toList++allPuts,time,duration,1.0)
+		val statsGet = PerformanceMetrics.estimateFromSamples(allGets.toList,time,duration,1.0)
+		val statsPut = PerformanceMetrics.estimateFromSamples(allPuts.toList,time,duration,1.0)
 		t1 = new Date().getTime; T("XE")+=(t1-t0)
 		
 		T.keySet.toList.sort(_<_).foreach( t => Director.logger.debug("state-"+t+": "+ (T(t)/1000.0) + " sec" ))
@@ -349,9 +349,9 @@ object SCADSState {
 	
 	/**
 	* create SCADSState by predicting the performance metrics (workload and latency) using the performance model (assuming it last for 'duration' milliseconds).
-	* Also, save the performance metrics to the metric database
+	* Also, save the performance metrics to the metric database. Only simulate 'fraction' of requests in the performance model
 	*/
-	def simulate(time:Long, config:SCADSconfig, histogramRaw:WorkloadHistogram, histogramPrediction:WorkloadHistogram, perfModel:PerformanceModel, duration:Long, activity:SCADSActivity):SCADSState = {
+	def simulate(time:Long, config:SCADSconfig, histogramRaw:WorkloadHistogram, perfModel:PerformanceModel, duration:Long, activity:SCADSActivity, fraction:Double):SCADSState = {
 
 		var t0,t1:Long = 0
 		var T = scala.collection.mutable.Map[String,Long]("init"->0,"L1"->0,"L2"->0,"L3"->0,"L4"->0,"L5"->0,"XE"->0)
@@ -373,11 +373,11 @@ object SCADSState {
 			t0 = new Date().getTime
 			val (getLatencies,putLatencies) = 
 			if (activity.copyRate.contains(s)&&activity.copyRate(s)>0)
-				(perfModel.sample(Map("type"->"get","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.getRate*duration/1000.0).toInt).map(_*10),
-				 perfModel.sample(Map("type"->"put","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.putRate*duration/1000.0).toInt).map(_*10))
+				(perfModel.sample(Map("type"->"get","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.getRate*duration/1000.0*fraction).toInt).map(_*10),
+				 perfModel.sample(Map("type"->"put","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.putRate*duration/1000.0*fraction).toInt).map(_*10))
 			else 
-				(perfModel.sample(Map("type"->"get","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.getRate*duration/1000.0).toInt),
-				 perfModel.sample(Map("type"->"put","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.putRate*duration/1000.0).toInt))
+				(perfModel.sample(Map("type"->"get","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.getRate*duration/1000.0*fraction).toInt),
+				 perfModel.sample(Map("type"->"put","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.putRate*duration/1000.0*fraction).toInt))
 			t1 = new Date().getTime; T("L2")+=(t1-t0)
 			
 			t0 = new Date().getTime
@@ -386,9 +386,9 @@ object SCADSState {
 			t1 = new Date().getTime; T("L3")+=(t1-t0)
 			
 			t0 = new Date().getTime
-			val statsAll = PerformanceMetrics.estimateFromSamples(getLatencies++putLatencies,time,duration)
-			val statsGet = PerformanceMetrics.estimateFromSamples(getLatencies,time,duration)
-			val statsPut = PerformanceMetrics.estimateFromSamples(putLatencies,time,duration)
+			val statsAll = PerformanceMetrics.estimateFromSamples(getLatencies++putLatencies,time,duration,fraction)
+			val statsGet = PerformanceMetrics.estimateFromSamples(getLatencies,time,duration,fraction)
+			val statsPut = PerformanceMetrics.estimateFromSamples(putLatencies,time,duration,fraction)
 			t1 = new Date().getTime; T("L4")+=(t1-t0)
 			
 			t0 = new Date().getTime
@@ -397,9 +397,9 @@ object SCADSState {
 		}
 		
 		t0 = new Date().getTime
-		val statsAll = PerformanceMetrics.estimateFromSamples(allGets.toList++allPuts,time,duration)
-		val statsGet = PerformanceMetrics.estimateFromSamples(allGets.toList,time,duration)
-		val statsPut = PerformanceMetrics.estimateFromSamples(allPuts.toList,time,duration)
+		val statsAll = PerformanceMetrics.estimateFromSamples(allGets.toList++allPuts,time,duration,fraction)
+		val statsGet = PerformanceMetrics.estimateFromSamples(allGets.toList,time,duration,fraction)
+		val statsPut = PerformanceMetrics.estimateFromSamples(allPuts.toList,time,duration,fraction)
 		t1 = new Date().getTime; T("XE")+=(t1-t0)
 		
 		T.keySet.toList.sort(_<_).foreach( t => Director.logger.debug("state-"+t+": "+ (T(t)/1000.0) + " sec" ))
@@ -478,7 +478,10 @@ case class WorkloadFeatures(
 		else if (thistotal == thattotal) 0
 		else 1
 	}
-	def sum:Double = this.getRate + this.putRate + (if (!this.getsetRate.isNaN) {this.getsetRate} else {0.0})
+	def sum:Double = (if (!this.getRate.isNaN) {this.getRate} else 0.0) + 
+					 (if (!this.putRate.isNaN) {this.putRate} else 0.0) + 
+					 (if (!this.getsetRate.isNaN) {this.getsetRate} else {0.0})
+	
 	def + (that:WorkloadFeatures):WorkloadFeatures = {
 		WorkloadFeatures(this.getRate+that.getRate,this.putRate+that.putRate,this.getsetRate+that.getsetRate)
 	}
