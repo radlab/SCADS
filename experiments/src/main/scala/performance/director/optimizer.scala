@@ -10,6 +10,7 @@ abstract class FullCostFunction {
 	def cost(costs:List[Cost]):Double = costs.map(_.cost).reduceLeft(_+_)
 	def detailedCost():List[Cost]
 	def intervalSummary():String
+	def initialize
 	
 	def dumpToDB {
 		val dbname = "director"
@@ -121,6 +122,8 @@ case class FullSLACostFunction(
 	var allStates = new scala.collection.mutable.ListBuffer[SCADSState]()
 	
 	assert(getSLA==50||getSLA==100||putSLA==50||putSLA==100,"only supporting SLA of 50ms or 100ms (see PerformanceStats)")
+
+	def initialize { allStates = new scala.collection.mutable.ListBuffer[SCADSState]() }
 
 	def addState(state:SCADSState) { allStates+=state }
 	
