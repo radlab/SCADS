@@ -7,6 +7,7 @@ abstract class AttributeType extends Tree
 object BooleanType extends AttributeType
 object StringType extends AttributeType
 object IntegerType extends AttributeType
+case class CompositeType(parts: List[AttributeType]) extends AttributeType
 
 case class Attribute(name: String, attrType: AttributeType) extends Tree
 case class Entity(name: String, attributes: List[Attribute], keys: List[String]) extends Tree
