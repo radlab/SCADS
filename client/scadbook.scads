@@ -42,7 +42,7 @@ ENTITY profile
     string sex,
     string politicalaffiliation,
     string interests,
-    string activites
+    string activities
     PRIMARY(id)
 }
 
@@ -141,7 +141,7 @@ RELATIONSHIP poketarget FROM poke TO ONE user
 QUERY myNetworks
 FETCH network OF user BY networks
 WHERE user=[this]
-ORDER BY type
+ORDER BY networkType
 
 QUERY postsOnMyWall
 FETCH wallpost

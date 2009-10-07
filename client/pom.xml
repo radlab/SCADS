@@ -61,7 +61,7 @@
                 <version>1.1</version>
                 <executions>
                 <execution>
-                    <id>echodir</id>
+                    <id>write-test-classpath</id>
                     <goals>
                         <goal>run</goal>
                     </goals>
@@ -76,6 +76,32 @@
                     </configuration>
                 </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.scala-tools</groupId>
+                <artifactId>maven-scala-plugin</artifactId>
+                <configuration>
+                    <displayCmd>true</displayCmd>
+                    <launchers>
+                        <launcher>
+                            <id>scadbook</id>
+                            <mainClass>edu.berkeley.cs.scads.Compiler</mainClass>
+                            <args>
+                                <arg>scadbook.scads</arg>
+                            </args>
+                            <jvmArgs>
+                                <jvmArg>-Xss1024k</jvmArg>
+                            </jvmArgs>
+                        </launcher>
+                    </launchers>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>-Xss1024k</argLine>
+                </configuration>
             </plugin>
         </plugins>
 	</build>
