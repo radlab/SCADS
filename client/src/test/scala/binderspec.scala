@@ -35,10 +35,17 @@ object BinderSpec extends SpecificationWithJUnit("Scads Compiler Error Specifica
 			"unknown attributes" in {skip("not written")}
 			"unknown fetch alias" in {skip("not written")}
 			"inconsistent parameter typing" in {skip("not written")}
+			"invalid primary keys" in {
+				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(r)}") must throwA[InvalidPrimaryKeyException]
+				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s,r)}") must throwA[InvalidPrimaryKeyException]
+			}
 		}
 		"allow" >> {
 			"entities with only one attribute" in {
 				Compiler.codeGenFromSource("ENTITY User {string name PRIMARY(name)}") mustMatch("User")
+			}
+			"entities with primary keys that are part foreign key" in {
+				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nENTITY e2{string s PRIMARY(s,r)}\nRELATIONSHIP r FROM e1 TO MANY e2") mustMatch("e1")
 			}
 		}
 	}
