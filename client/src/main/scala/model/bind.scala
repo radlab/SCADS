@@ -98,7 +98,11 @@ object Binder {
 
 			entityMap.get(r.to) match {
 				case None => throw new UnknownEntityException(r.to)
-				case Some(entity) => entity.relationships.put(r.name, new BoundRelationship(r.from, r.cardinality))
+				case Some(entity) => {
+					entity.relationships.put(r.name, new BoundRelationship(r.from, r.cardinality))
+					/* Add the foreign key to the target of the relationship */
+					entity.attributes.put(r.name, entityMap(r.from).pkType)
+				}
 			}
 		})
 
