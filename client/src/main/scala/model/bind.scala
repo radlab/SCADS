@@ -106,6 +106,9 @@ object Binder {
 			}
 		})
 
+		/* Check the primary keys of all entities */
+		entityMap.foreach(_._2.pkType)
+
 		/* Process all the queries and place them either in the orphan map, or the BoundEntity they belong to*/
 		val orphanQueryMap = new HashMap[String, BoundQuery]()
 		spec.queries.foreach((q) => {
