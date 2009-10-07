@@ -23,18 +23,50 @@ object BinderSpec extends SpecificationWithJUnit("Scads Compiler Error Specifica
 			}
 			"unknown entities" in {
 				Compiler.codeGenFromSource("RELATIONSHIP x FROM unknown TO ONE unknown") must
-					throwA[DuplicateEntityException]
+					throwA[UnknownEntityException]
 			}
-			"duplicate queries" in {skip("not written")}
-			"duplicate parameters" in {skip("not written")}
-			"bad ordinals" in {skip("not written")}
-			"ambiguious this params" in {skip("not written")}
-			"unknown relationships" in {skip("not written")}
-			"ambiguious joins" in {skip("not written")}
-			"ambiguious attributes" in {skip("not written")}
-			"unknown attributes" in {skip("not written")}
-			"unknown fetch alias" in {skip("not written")}
-			"inconsistent parameter typing" in {skip("not written")}
+			"duplicate queries" in {
+				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nQUERY x FETCH e1 WHERE s=[1:s]\nQUERY x FETCH e1 WHERE s=[1:s]") must
+					throwA[DuplicateQueryException]
+			}
+			"duplicate parameters" in {
+				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nQUERY x FETCH e1 WHERE s=[1:s] AND s=[1:s]") must
+					throwA[DuplicateParameterException]
+			}
+			"bad ordinals" in {
+				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nQUERY x FETCH e1 WHERE s=[2:s]") must
+					throwA[BadParameterOrdinals]
+			}
+			"ambiguious this params" in {
+				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nENTITY e2 {string s PRIMARY(s)}\nRELATIONSHIP r FROM e1 TO ONE e2\nQUERY x FETCH e1 OF e2 BY r WHERE e1=[this] AND e2=[this]") must
+					throwA[AmbigiousThisParameter]
+			}
+			"unknown relationships" in {
+				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nENTITY e2 {string s PRIMARY(s)}\nQUERY x FETCH e1 OF e2 BY r WHERE e1=[this]") must
+					throwA[UnknownRelationshipException]
+			}
+			"ambiguious joins" in {
+				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nENTITY e2 {string s PRIMARY(s)}\nRELATIONSHIP r FROM e1 TO ONE e2\nQUERY x FETCH e1 alias OF e2 alias BY r WHERE e1=[this]") must
+					throwA[AmbiguiousJoinAlias]
+			}
+			"ambiguious attributes" in {
+				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nENTITY e2 {string s PRIMARY(s)}\nRELATIONSHIP r FROM e1 TO ONE e2\nQUERY x FETCH e1 OF e2 BY r WHERE s=[1:s]") must
+					throwA[AmbiguiousAttribute]
+			}
+			"unknown attributes" in {
+				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nQUERY x FETCH e1 WHERE e1.x = [1:x]") must
+					throwA[UnknownAttributeException]
+				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nQUERY x FETCH e1 WHERE x = [1:x]") must
+					throwA[UnknownAttributeException]
+			}
+			"unknown fetch alias" in {
+				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nENTITY e2 {string s PRIMARY(s)}\nRELATIONSHIP r FROM e1 TO ONE e2\nQUERY x FETCH e1 OF e2 alias BY r WHERE a.x = [1:p]") must
+					throwA[UnknownFetchAlias]
+			}
+			"inconsistent parameter typing" in {
+				Compiler.codeGenFromSource("ENTITY e1 {string s, int n PRIMARY(s)}\nQUERY x FETCH e1 WHERE s = [1:x] AND n = [1:x]") must
+					throwA[InconsistentParameterTyping]
+			}
 			"invalid primary keys" in {
 				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(r)}") must throwA[InvalidPrimaryKeyException]
 				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s,r)}") must throwA[InvalidPrimaryKeyException]
