@@ -32,7 +32,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
     env.executor = new TrivialExecutor
 
     val specSource = getSourceFromFile(specFile)
-    val baseDir = new File("src/main/scala/generated")
+    val baseDir = new File("target/generated")
     val classfilesDir = new File(baseDir, "classfiles") 
     val jarFile = new File(baseDir, "spec.jar")
 
