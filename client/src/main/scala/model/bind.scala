@@ -20,6 +20,7 @@ case class AmbiguiousAttribute(queryName: String, attribute: String) extends Bin
 case class UnknownAttributeException(queryName: String, attribute: String) extends BindingException
 case class UnknownFetchAlias(queryName: String, alias: String) extends BindingException
 case class InconsistentParameterTyping(queryName: String, paramName: String) extends BindingException
+case class InvalidPrimaryKeyException(entityName: String, keyPart:String) extends BindingException
 
 /* Bound counterparts for some of the AST */
 case class BoundRelationship(target: String, cardinality: Cardinality)
@@ -27,6 +28,18 @@ case class BoundEntity(name: String, attributes: HashMap[String, AttributeType],
 	val relationships = new HashMap[String, BoundRelationship]()
 	val queries = new HashMap[String, BoundQuery]()
 	val indexes = new scala.collection.mutable.ArrayBuffer[Index]()
+
+	def pkType:AttributeType ={
+		val parts = keys.map((k) => attributes.get(k) match {
+				case Some(at) => at
+				case None => throw InvalidPrimaryKeyException(name, k)
+		})
+
+		if(parts.size == 1)
+			parts(0)
+		else
+			new CompositeType(parts)
+	}
 
 	def this(e: Entity) {
 		this(e.name, new HashMap[String, AttributeType](), e.keys)
