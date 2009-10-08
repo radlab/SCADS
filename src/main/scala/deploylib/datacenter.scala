@@ -8,6 +8,8 @@ import scala.io.Source
 import com.amazonaws.ec2._
 import com.amazonaws.ec2.model._
 
+import org.apache.log4j._
+
 /**
  * The DataCenter object has two main roles:
  * <ol>
@@ -35,6 +37,9 @@ import com.amazonaws.ec2.model._
  * modifying DataCenter.keyPath.
  */
 object DataCenter { 
+	/* Stuff to turn off log4j in the ec2 library. */
+  Logger.getRootLogger.removeAllAppenders
+  Logger.getRootLogger.addAppender( new varia.NullAppender() )
   
   private val instances: InstanceGroup = new InstanceGroup()
 
