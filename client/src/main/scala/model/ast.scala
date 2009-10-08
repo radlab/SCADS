@@ -30,7 +30,7 @@ case class Parameter(name: String, ordinal: Int) extends FixedValue
 
 abstract class Literal extends FixedValue
 case class StringValue(value: String) extends Literal
-case class NumberValue(num: Integer) extends Literal
+case class NumberValue(num: Int) extends Literal
 object TrueValue extends Literal
 object FalseValue extends Literal
 
