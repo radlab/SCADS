@@ -43,7 +43,6 @@ case class Query(name: String, joins: List[Join], predicates: List[Predicate], o
 
 abstract class Range extends Tree
 case class Limit(lim: Value, max: Int) extends Range
-case class OffsetLimit(lim: Value, max: Int, offset: Value) extends Range
 case class Paginate(perPage: Value, max: Int) extends Range
 object Unlimited extends Range
 

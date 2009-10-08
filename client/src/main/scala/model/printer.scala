@@ -79,7 +79,6 @@ object Printer extends Generator[Tree] {
 			case Ascending => output("Ascending")
 			case Descending => output("Descending")
 			case Limit(lim, max) => output("Limit: ", lim.toString, ", ", max.toString, " max")
-			case OffsetLimit(lim, max, offset) => output("OffsetLimit: limit ", lim.toString, ", max ", max.toString, ", offset ", offset.toString)
 			case Paginate(perPage, max) => output("Paginated: ", perPage.toString, " per page, ", max.toString, " max")
 			case Unlimited => output("Unlimited")
 		}

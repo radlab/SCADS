@@ -88,10 +88,9 @@ class ScadsLanguage extends StdTokenParsers with ImplicitConversions {
 		}
 
 
-	def limit: Parser[Range] = "LIMIT" ~ value ~ "MAX" ~ intLiteral ~ opt("OFFSET" ~> value) ^^
+	def limit: Parser[Range] = "LIMIT" ~ value ~ "MAX" ~ intLiteral ^^
 		{
-			case "LIMIT" ~ lim ~ "MAX" ~ max ~ Some(off) => new OffsetLimit(lim, max, off)
-			case "LIMIT" ~ lim ~ "MAX" ~ max ~ None => new Limit(lim, max)
+			case "LIMIT" ~ lim ~ "MAX" ~ max => new Limit(lim, max)
 		}
 
 	def pagination: Parser[Range] = "PAGINATE" ~ value ~ "MAX" ~ intLiteral ^^
