@@ -73,6 +73,10 @@ QUERY userByName
 FETCH user
 WHERE user.name = [1:name]
 
+QUERY userByEmail
+FETCH user
+WHERE email = [1:email]
+
 /* Missing Queries */
 //Who's following me?
 //How many people are following me?
