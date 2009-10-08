@@ -10,7 +10,7 @@ object Unsatisfiable extends OptimizerException
 
 abstract sealed class IndexValueType
 object PrimaryIndex extends IndexValueType
-case class PointerIndex(dest: String) extends IndexValueType
+case class PointerIndex(dest: BoundEntity) extends IndexValueType
 
 sealed abstract class Index
 case class AttributeKeyedIndex(namespace: String, attributes: List[String], idxType: IndexValueType) extends Index
@@ -61,7 +61,13 @@ object Optimizer {
 				if(candidateIndexes.size > 0)
 					Materialize(entity.name, AttributeKeyedIndexGet(candidateIndexes(0), candidateIndexes(0).attributes.map(attrValueEqualityMap(_))))
 				else
-					null
+				{
+					/* No index exists, so we must create one. */
+					val idxName = "idx" + fetch.entity.name + equalityAttributes.mkString("", "_", "")
+					val newIndex = new AttributeKeyedIndex(idxName, equalityAttributes, new PointerIndex(fetch.entity))
+					entity.indexes.append(newIndex)
+					Materialize(entity.name, AttributeKeyedIndexGet(newIndex, equalityAttributes.map(attrValueEqualityMap(_))))
+				}
 			}
 			case _ => throw UnimplementedException("I don't know what to do w/ this fetch: " + fetch)
 		}

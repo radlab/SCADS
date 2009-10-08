@@ -61,7 +61,7 @@ object ScalaGen extends Generator[BoundSpec] {
 	protected def generateQuery(name: String, query: BoundQuery)(implicit sb: StringBuilder, indnt: Indentation) {
 		val args = query.parameters.map((p) => {p.name + ": " + toScalaType(p.aType)}).mkString("", ",", "")
 
-		output("def ", name, "(", args, ")(implicit env: Environment) = {")
+		output("def ", name, "(", args, ")(implicit env: Environment):Seq[", query.fetchTree.entity.name, "] = {")
 		indent {
 			generatePlan(query.plan)
 		}
@@ -81,11 +81,11 @@ object ScalaGen extends Generator[BoundSpec] {
 				output("new SingleGet(\"", ns, "\",", generateBoundValue(values(0)), ", new IntegerVersion) with ReadOneGetter")
 			}
 			case AttributeKeyedIndexGet(AttributeKeyedIndex(ns, attrs, PointerIndex(dest)), values) => {
-				output("deref")
+				output("new SequentialDereferenceIndex(", quote(ns), ", ", "new ", fieldType(dest.pkType), ",", "new IntegerVersion", ",")
 				indent {
 					generatePlan(AttributeKeyedIndexGet(AttributeKeyedIndex(ns, attrs, PrimaryIndex), values))
 				}
-				output("end deref")
+				output(") with ReadOneGetter")
 			}
 			case Materialize(entityType, child) => {
 				output("new Materialize[", entityType, "](")
@@ -99,7 +99,7 @@ object ScalaGen extends Generator[BoundSpec] {
 
 	protected def generateBoundValue(value: BoundValue): String = {
 		value match {
-			case BoundParameter(name, _) => "(new StringField)(name)"
+			case BoundParameter(name, _) => "(new " + fieldType(value.aType) + ")(" + name +")"
 			case _ => throw new UnimplementedException("Can't handle this value type: " + value)
 		}
 	}
@@ -119,4 +119,6 @@ object ScalaGen extends Generator[BoundSpec] {
 			case IntegerType => "IntegerField"
 		}
 	}
+
+	private def quote(string: String) = "\"" + string + "\""
 }
