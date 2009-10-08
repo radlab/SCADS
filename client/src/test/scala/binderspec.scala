@@ -18,7 +18,7 @@ object BinderSpec extends SpecificationWithJUnit("Scads Compiler Error Specifica
 					throwA[DuplicateAttributeException]
 			}
 			"duplicate relationships" in {
-				Compiler.codeGenFromSource("ENTITY User {string name, int nam PRIMARY(name)}\nRELATIONSHIP x FROM User TO ONE User\n RELATIONSHIP x FROM User TO ONE User") must
+				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nENTITY e2 {string s PRIMARY(s)}\nRELATIONSHIP dup FROM e1 TO ONE e2\n RELATIONSHIP dup FROM e1 TO ONE e2") must
 					throwA[DuplicateRelationException]
 			}
 			"unknown entities" in {

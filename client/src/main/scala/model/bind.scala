@@ -52,13 +52,13 @@ object Binder {
 		spec.relationships.foreach((r) => {
 			entityMap.get(r.from) match {
 				case None => throw new UnknownEntityException(r.from)
-				case Some(entity) => entity.relationships.put(r.name, new BoundRelationship(r.to, r.cardinality))
+				case Some(entity) => if(entity.relationships.put(r.name, new BoundRelationship(r.to, r.cardinality)).isDefined) throw DuplicateRelationException(r.name)
 			}
 
 			entityMap.get(r.to) match {
 				case None => throw new UnknownEntityException(r.to)
 				case Some(entity) => {
-					entity.relationships.put(r.name, new BoundRelationship(r.from, r.cardinality))
+					if(entity.relationships.put(r.name, new BoundRelationship(r.from, r.cardinality)).isDefined) throw DuplicateRelationException(r.name)
 					/* Add the foreign key to the target of the relationship */
 					entity.attributes.put(r.name, entityMap(r.from).pkType)
 				}
