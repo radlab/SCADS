@@ -3,13 +3,16 @@ package edu.berkeley.cs.scads.model.parser
 import org.apache.log4j.Logger
 import scala.collection.mutable.HashMap
 
-class UnimplementedException(desc: String) extends Exception
+case class UnimplementedException(desc: String) extends Exception
 
-abstract class IndexValueType
-object Primary extends IndexValueType
-object Pointer extends IndexValueType
+sealed abstract class OptimizerException extends Exception
+object Unsatisfiable extends OptimizerException
 
-abstract class Index
+abstract sealed class IndexValueType
+object PrimaryIndex extends IndexValueType
+case class PointerIndex(dest: String) extends IndexValueType
+
+sealed abstract class Index
 case class AttributeKeyedIndex(namespace: String, attributes: List[String], idxType: IndexValueType) extends Index
 
 /**
@@ -31,8 +34,36 @@ object Optimizer {
 
 	def optimize(fetch: BoundFetch):Plan = {
 		fetch match {
-			case BoundFetch(entity, None, None, predicates, None, None) => null 
-			case _ => null
+			case BoundFetch(entity, None, None, predicates, None, None) => {
+
+				/* Map attributes to the values they should equal. Error contradicting predicates are found */
+				val attrValueEqualityMap = new HashMap[String, BoundValue]
+				predicates.map(_.asInstanceOf[AttributeEqualityPredicate]).foreach((p) => { //Note: We only handle equality
+					attrValueEqualityMap.get(p.attributeName) match {
+						case Some(value) => {
+							if(value == p.value)
+								logger.warn("Redundant equality found")
+							else
+								throw Unsatisfiable
+						}
+						case None => attrValueEqualityMap.put(p.attributeName, p.value)
+					}
+				})
+
+				val equalityAttributes = attrValueEqualityMap.keys.toList
+
+				/* Find candidate indexes by looking for prefix matches of attributes */
+				val candidateIndexes = entity.indexes.map(_.asInstanceOf[AttributeKeyedIndex]).filter((i) => {
+					i.attributes.startsWith(equalityAttributes)
+				})
+				logger.debug("Identified candidate indexes: " + candidateIndexes)
+
+				if(candidateIndexes.size > 0)
+					Materialize(entity.name, AttributeKeyedIndexGet(candidateIndexes(0), candidateIndexes(0).attributes.map(attrValueEqualityMap(_))))
+				else
+					null
+			}
+			case _ => throw UnimplementedException("I don't know what to do w/ this fetch: " + fetch)
 		}
 	}
 }

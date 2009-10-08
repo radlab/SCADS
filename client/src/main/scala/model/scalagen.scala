@@ -76,11 +76,30 @@ object ScalaGen extends Generator[BoundSpec] {
 			return
 		}
 
+		plan match {
+			case AttributeKeyedIndexGet(AttributeKeyedIndex(ns, _, PrimaryIndex), values) => {
+				output("new SingleGet(\"", ns, "\",", generateBoundValue(values(0)), ", new IntegerVersion) with ReadOneGetter")
+			}
+			case AttributeKeyedIndexGet(AttributeKeyedIndex(ns, attrs, PointerIndex(dest)), values) => {
+				output("deref")
+				indent {
+					generatePlan(AttributeKeyedIndexGet(AttributeKeyedIndex(ns, attrs, PrimaryIndex), values))
+				}
+				output("end deref")
+			}
+			case Materialize(entityType, child) => {
+				output("new Materialize[", entityType, "](")
+				indent {
+					generatePlan(child)
+				}
+				output(").exec")
+			}
+		}
 	}
 
-	protected def generateFixedValue(value: FixedValue): String = {
+	protected def generateBoundValue(value: BoundValue): String = {
 		value match {
-			case Parameter(name, _) => "(new StringField)(name)"
+			case BoundParameter(name, _) => "(new StringField)(name)"
 			case _ => throw new UnimplementedException("Can't handle this value type: " + value)
 		}
 	}

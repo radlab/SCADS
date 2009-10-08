@@ -57,9 +57,8 @@ abstract class BoundLiteral extends BoundValue
 case class BoundStringLiteral(value: String) extends BoundLiteral {val aType = StringType}
 case class BoundIntegerLiteral(value: Int) extends BoundLiteral {val aType = IntegerType}
 object BoundTrue extends BoundLiteral {val aType = BooleanType}
-object BoundFalse extends BoundLiteral {val aType = BooleanType} 
+object BoundFalse extends BoundLiteral {val aType = BooleanType}
 
 /* Bound Predicates */
 abstract class BoundPredicate
 case class AttributeEqualityPredicate(attributeName: String, value: BoundValue) extends BoundPredicate
-

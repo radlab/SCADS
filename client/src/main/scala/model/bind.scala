@@ -45,7 +45,7 @@ object Binder {
 
 		/* Add primary key as an index */
 		entityMap.foreach((e) => {
-			e._2.indexes += new AttributeKeyedIndex(Namespaces.entity(e._1), (e._2.keys), Primary)
+			e._2.indexes += new AttributeKeyedIndex(Namespaces.entity(e._1), (e._2.keys), PrimaryIndex)
 		})
 
 		/* Bind relationships to the entities they link, check for bad entity names and duplicate relationship names */
@@ -246,12 +246,12 @@ object Binder {
 
 			def addThisEquality(alias: String) {
 				val fetch = resolveFetch(alias)
-				fetch.entity.keys.foreach((k) => fetch.predicates.append(AttributeEqualityPredicate(k, BoundThisAttribute(k, fetch.entity.attributes(k))))) 
-			} 
+				fetch.entity.keys.foreach((k) => fetch.predicates.append(AttributeEqualityPredicate(k, BoundThisAttribute(k, fetch.entity.attributes(k)))))
+			}
 
 			/* Bind predicates to the proper node of the Fetch Tree */
 			q.predicates.foreach( _ match {
-				case EqualityPredicate(Field(null, alias), ThisParameter) => addThisEquality(alias) 
+				case EqualityPredicate(Field(null, alias), ThisParameter) => addThisEquality(alias)
 			  case EqualityPredicate(ThisParameter, Field(null, alias)) => addThisEquality(alias)
 				case EqualityPredicate(f: Field, v: FixedValue) => addAttrEquality(f,v)
 				case EqualityPredicate(v :FixedValue, f: Field) => addAttrEquality(f,v)
