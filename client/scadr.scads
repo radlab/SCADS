@@ -36,7 +36,7 @@ QUERY myThoughts
 FETCH thought
 	OF user BY owner
 WHERE user=[this]
-PAGINATE [1: numperpage] MAX 10
+LIMIT [1: numperpage] MAX 10
 
 QUERY thoughtsByHashTag
 FETCH thought OF topic BY hashtag
@@ -48,7 +48,7 @@ FETCH user
 	OF subscription BY target
 	OF user me BY following
 WHERE me=[this]
-PAGINATE [1:numperpage] MAX 30
+LIMIT [1:numperpage] MAX 30
 
 QUERY thoughtstream
 FETCH thought
