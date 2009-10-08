@@ -22,47 +22,6 @@ case class UnknownFetchAlias(queryName: String, alias: String) extends BindingEx
 case class InconsistentParameterTyping(queryName: String, paramName: String) extends BindingException
 case class InvalidPrimaryKeyException(entityName: String, keyPart:String) extends BindingException
 
-/* Bound counterparts for some of the AST */
-case class BoundRelationship(target: String, cardinality: Cardinality)
-case class BoundEntity(name: String, attributes: HashMap[String, AttributeType], keys: List[String]) {
-	val relationships = new HashMap[String, BoundRelationship]()
-	val queries = new HashMap[String, BoundQuery]()
-	val indexes = new scala.collection.mutable.ArrayBuffer[Index]()
-
-	def pkType:AttributeType ={
-		val parts = keys.map((k) => attributes.get(k) match {
-				case Some(at) => at
-				case None => throw InvalidPrimaryKeyException(name, k)
-		})
-
-		if(parts.size == 1)
-			parts(0)
-		else
-			new CompositeType(parts)
-	}
-
-	def this(e: Entity) {
-		this(e.name, new HashMap[String, AttributeType](), e.keys)
-
-		e.attributes.foreach((a) => {
-			attributes.get(a.name) match {
-				case Some(_) => throw new DuplicateAttributeException(e.name, a.name)
-				case None => this.attributes.put(a.name, a.attrType)
-			}
-		})
-	}
-}
-case class BoundParameter(name: String, pType: AttributeType)
-case class BoundQuery(fetchTree: BoundFetch, parameters: List[BoundParameter]) {
-	var plan: Plan = null
-}
-
-abstract class BoundPredicate
-object BoundThisEqualityPredicate extends BoundPredicate
-case class BoundEqualityPredicate(attributeName: String, value: FixedValue) extends BoundPredicate
-case class BoundFetch(entity: BoundEntity, child: Option[BoundFetch], relation: Option[BoundRelationship], predicates: List[BoundPredicate], orderField: Option[String], orderDirection: Option[Direction])
-case class BoundSpec(entities: HashMap[String, BoundEntity], orphanQueries: HashMap[String, BoundQuery])
-
 /* Temporary object used while building the fetchTree */
 case class Fetch(entity: BoundEntity, child: Option[Fetch], relation: Option[BoundRelationship]) {
 	val predicates = new scala.collection.mutable.ArrayBuffer[BoundPredicate]
@@ -84,9 +43,9 @@ object Binder {
 			}
 		})
 
-		/* Add primary key as an index index */
+		/* Add primary key as an index */
 		entityMap.foreach((e) => {
-			e._2.indexes += new PrimaryIndex(Namespaces.entity(e._1),(e._2.keys))
+			e._2.indexes += new AttributeKeyedIndex(Namespaces.entity(e._1), (e._2.keys), Primary)
 		})
 
 		/* Bind relationships to the entities they link, check for bad entity names and duplicate relationship names */
@@ -257,33 +216,47 @@ object Binder {
 			}
 
 			/* Helper function for assigning and validating parameter types */
-			val paramTypes = new HashMap[String, AttributeType]
-			def addAndType(f: Field, v:FixedValue) {
-				val fetch = resolveField(f)
-
-				(fetch.entity.attributes.get(f.name), paramTypes.get(f.name)) match {
-					case (Some(t1), Some(t2)) => if(t1 != t2) throw InconsistentParameterTyping(q.name, f.name)
-					case (Some(t), None) => paramTypes.put(f.name, t)
-					case _ => throw UnknownAttributeException(q.name, f.name)
+			val boundParams = new HashMap[String, BoundParameter]
+			def getBoundParam(name: String, aType: AttributeType):BoundParameter = {
+				boundParams.get(name) match {
+					case None => {
+						val bp = BoundParameter(name, aType)
+						boundParams.put(name,bp)
+						bp
+					}
+					case Some(bp) => {
+						if(bp.aType != aType) throw InconsistentParameterTyping(q.name, name)
+						bp
+					}
 				}
-				fetch.predicates.append(BoundEqualityPredicate(f.name, v))
 			}
 
-			/* Type the Limit Parameter (if it exists) */
-			limitParameters.foreach((p) => paramTypes.put(p.name, IntegerType))
-			logger.debug("Parameter types: " + paramTypes)
+			def addAttrEquality(f: Field, value: FixedValue) {
+				val fetch = resolveField(f)
+				fetch.predicates.append(
+					AttributeEqualityPredicate(f.name, value match {
+						case Parameter(name, _) =>  getBoundParam(name, fetch.entity.attributes(f.name))
+						case StringValue(value) => BoundStringLiteral(value)
+						case NumberValue(value) => BoundIntegerLiteral(value)
+						case TrueValue => BoundTrue
+						case FalseValue => BoundFalse
+					})
+				)
+			}
+
+			def addThisEquality(alias: String) {
+				val fetch = resolveFetch(alias)
+				fetch.entity.keys.foreach((k) => fetch.predicates.append(AttributeEqualityPredicate(k, BoundThisAttribute(k, fetch.entity.attributes(k))))) 
+			} 
 
 			/* Bind predicates to the proper node of the Fetch Tree */
 			q.predicates.foreach( _ match {
-				case EqualityPredicate(Field(null, alias), ThisParameter) => resolveFetch(alias).predicates.append(BoundThisEqualityPredicate)
-			  	case EqualityPredicate(ThisParameter, Field(null, alias)) => resolveFetch(alias)
-				case EqualityPredicate(f: Field, v: FixedValue) => addAndType(f,v)
-				case EqualityPredicate(v :FixedValue, f: Field) => addAndType(f,v)
+				case EqualityPredicate(Field(null, alias), ThisParameter) => addThisEquality(alias) 
+			  case EqualityPredicate(ThisParameter, Field(null, alias)) => addThisEquality(alias)
+				case EqualityPredicate(f: Field, v: FixedValue) => addAttrEquality(f,v)
+				case EqualityPredicate(v :FixedValue, f: Field) => addAttrEquality(f,v)
 				case usp: Predicate => throw UnsupportedPredicateException(q.name, usp)
 			})
-
-			/* Create list of bound parameters */
-			val boundParameters = parameters.map((p) => BoundParameter(p.name, paramTypes(p.name)))
 
 			/* Bind the ORDER BY clause */
 			q.order match {
@@ -301,8 +274,15 @@ object Binder {
 					case None => BoundFetch(f.entity, None, None, f.predicates.toList, f.orderField, f.orderDirection)
 			}
 
+			/* Bind the range expression */
+			val boundRange = q.range match {
+				case Unlimited => BoundUnlimited
+				case Limit(Parameter(name,_), max) => BoundLimit(getBoundParam(name, IntegerType), max)
+				case _ => throw new UnimplementedException("Unhandled range type: " + q.range)
+			}
+
 			/* Build the final bound query */
-			val boundQuery = BoundQuery(toBoundFetch(fetchTree), boundParameters)
+			val boundQuery = BoundQuery(toBoundFetch(fetchTree), parameters.map((p) => boundParams(p.name)), boundRange)
 
 			/* Place bound query either in its entity or as an orphan */
 			val placement: HashMap[String, BoundQuery] = thisType match {

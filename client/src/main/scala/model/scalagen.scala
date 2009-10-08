@@ -59,7 +59,7 @@ object ScalaGen extends Generator[BoundSpec] {
 	}
 
 	protected def generateQuery(name: String, query: BoundQuery)(implicit sb: StringBuilder, indnt: Indentation) {
-		val args = query.parameters.map((p) => {p.name + ": " + toScalaType(p.pType)}).mkString("", ",", "")
+		val args = query.parameters.map((p) => {p.name + ": " + toScalaType(p.aType)}).mkString("", ",", "")
 
 		output("def ", name, "(", args, ")(implicit env: Environment) = {")
 		indent {
@@ -76,21 +76,12 @@ object ScalaGen extends Generator[BoundSpec] {
 			return
 		}
 
-		plan match {
-			case PrimaryKeyGet(entityType, values) => {
-				output("new Materialize[", entityType, "](")
-				indent {
-					output("new SingleGet(\"", Namespaces.entity(entityType), "\",", generateFixedValue(values(0)), ", new IntegerVersion) with ReadOneGetter")
-				}
-				output(").exec")
-			}
-		}
 	}
 
 	protected def generateFixedValue(value: FixedValue): String = {
 		value match {
 			case Parameter(name, _) => "(new StringField)(name)"
-			case _ => throw new UnimplementedException
+			case _ => throw new UnimplementedException("Can't handle this value type: " + value)
 		}
 	}
 
