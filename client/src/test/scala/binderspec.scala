@@ -30,7 +30,7 @@ object BinderSpec extends SpecificationWithJUnit("Scads Compiler Error Specifica
 					throwA[DuplicateQueryException]
 			}
 			"duplicate parameters" in {
-				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nQUERY x FETCH e1 WHERE s=[1:s] AND s=[1:s]") must
+				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nQUERY x FETCH e1 WHERE s=[1:s] AND s=[2:s]") must
 					throwA[DuplicateParameterException]
 			}
 			"bad ordinals" in {
