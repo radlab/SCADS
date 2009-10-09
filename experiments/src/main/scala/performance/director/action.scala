@@ -301,7 +301,7 @@ case class SplitInTwo(
 		val new_guy = new_guys(0)
 
 		// determine current range and split-point to give new server
-		val bounds = getNodeRange(server)
+		val bounds = getNodeRange(server,this)
 		val start = bounds._1
 		val end = bounds._2
 		val middle = if (pivot >0) {pivot} else {((end-start)/2) + start}
@@ -309,7 +309,7 @@ case class SplitInTwo(
 		
 		// do the move and update local list of servers
 		logger.info("Moving "+middle+" - "+end+" from "+server+" to "+ new_guy)
-		move(server,new_guy,middle,end)
+		move(server,new_guy,middle,end,this)
 		logger.debug("Sleeping")
 		Thread.sleep(sleepTime) // wait
 	}
@@ -385,7 +385,7 @@ case class SplitFrom(
 
 		// do the move and update local list of servers
 		logger.info("Moving "+start+" - "+end+" from "+server+" to "+ new_guy)
-		move(server,new_guy,start,end)
+		move(server,new_guy,start,end,this)
 		logger.debug("Sleeping")
 		Thread.sleep(sleepTime) // wait
 	}
@@ -413,16 +413,16 @@ case class ShiftBoundary(
 	val boundary_new:Int
 ) extends Action("shiftboundary("+server_left+","+server_right+","+boundary_new+")") with PlacementManipulation {
 	override def execute() {
-		val right_bounds = getNodeRange(server_right)
+		val right_bounds = getNodeRange(server_right,this)
 
 		// figure out if left <- right or left -> right
 		if (right_bounds._1 < boundary_new) {
 			logger.info("Moving "+right_bounds._1+" - "+boundary_new+" from "+server_right+" to "+ server_left)
-			move(server_right,server_left,right_bounds._1,boundary_new)
+			move(server_right,server_left,right_bounds._1,boundary_new,this)
 		}
 		else if (boundary_new < right_bounds._1) {
 			logger.info("Moving "+boundary_new+" - "+right_bounds._1+" from "+server_left+" to "+ server_right)
-			move(server_left,server_right,boundary_new,right_bounds._1)
+			move(server_left,server_right,boundary_new,right_bounds._1,this)
 		}
 		else logger.warn("new boundary isn't different than current one! taking no action")
 		logger.debug("Sleeping")
@@ -448,15 +448,15 @@ case class MergeTwo(
 ) extends Action("mergetwo("+server1+","+server2+")") with PlacementManipulation {
 	var num_keys:Int = 0
 	override def execute() {
-		val bounds = getNodeRange(server1)
+		val bounds = getNodeRange(server1,this)
 		val start = bounds._1
 		val end = bounds._2
 		num_keys = end-start
 		logger.info("Moving "+start+" - "+end+" from "+server1+" to "+ server2)
-		copy(server1,server2,start,end) // do copy instead of move to avoid sync problems?
+		copy(server1,server2,start,end,this) // do copy instead of move to avoid sync problems?
 		logger.debug("Removing from placement: "+ server1)
 		val removing = server1
-		remove(removing)
+		remove(removing,this)
 
 		val overflow = SCADSconfig.returnStandbys(List[String](server1))
 		if (overflow.isEmpty) { logger.debug("Returned "+ server1+" to standby pool"); }
@@ -524,7 +524,7 @@ case class Replicate(
 		if (new_guys.isEmpty) { logger.warn("Replication failed: no available servers"); return }
 
 		// determine current range to give new servers
-		val bounds = getNodeRange(server)
+		val bounds = getNodeRange(server,this)
 		val start = bounds._1
 		val end = bounds._2
 		Thread.sleep(5*1000)
@@ -532,7 +532,7 @@ case class Replicate(
 		// do the copy and update local list of servers (serially)
 		new_guys.foreach((new_guy)=> {
 			logger.info("Copying "+start+" - "+end+" from "+server+" to "+ new_guy)
-			copy(server,new_guy,start,end)
+			copy(server,new_guy,start,end,this)
 		})
 		logger.debug("Sleeping")
 		Thread.sleep(sleepTime) // wait
@@ -586,7 +586,7 @@ case class ReplicateFrom(
 		// do the copy and update local list of servers (serially)
 		(standbys++new_guys).foreach((new_guy)=> {
 			logger.info("Copying "+start+" - "+end+" from "+server+" to "+ new_guy)
-			copy(server,new_guy,start, end)
+			copy(server,new_guy,start,end,this)
 		})
 		logger.debug("Sleeping")
 		Thread.sleep(sleepTime) // wait
@@ -653,7 +653,7 @@ case class Remove(
 		// remove servers serially
 		servers.foreach((server)=>{
 			logger.debug("Removing from placement: "+ server)
-			remove(server)
+			remove(server,this)
 			logger.debug("Releasing server "+ server)
 			Director.director.serverManager.releaseServer(server)
 		})
@@ -677,7 +677,7 @@ case class RemoveFrom(
 
 		// do the removal (serially) and update local list of servers
 		logger.info("Removing "+start+" - "+end+" from "+servers.mkString(","))
-		servers.foreach((server)=> removeData(server,start,end) )
+		servers.foreach((server)=> removeData(server,start,end,this) )
 		logger.debug("Sleeping")
 		Thread.sleep(sleepTime) // wait
 	}
@@ -740,7 +740,7 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		placement_host = Director.director.myscads.placement.get(0).privateDnsName
 	}
 
-	protected def getNodeRange(host:String):(Int, Int) = {
+	protected def getNodeRange(host:String, action:Action):(Int, Int) = {
 		val t0 = new Date().getTime
 		Policy.logger.info("low-level action start: getNodeRange(host="+host+")")
 		
@@ -753,12 +753,12 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		
 		val t1 = new Date().getTime
 		Policy.logger.info("low-level action end: getNodeRange(host="+host+")")
-		Director.lowLevelActionMonitor.log("getNodeRange",t0,t1,Map("host"->host))
+		Director.lowLevelActionMonitor.log("getNodeRange",action,t0,t1,Map("host"->host))
 		
 		value
 	}
 
-	protected def move(source_host:String, target_host:String,startkey:Int, endkey:Int) = {
+	protected def move(source_host:String, target_host:String,startkey:Int, endkey:Int, action:Action) = {
 		val t0 = new Date().getTime
 		Policy.logger.info("low-level action start: move(source="+source_host+", target="+target_host+", startKey="+startkey+", endKey="+endkey+")")
 		
@@ -769,10 +769,10 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		
 		val t1 = new Date().getTime
 		Policy.logger.info("low-level action done: move(source="+source_host+", target="+target_host+", startKey="+startkey+", endKey="+endkey+")")
-		Director.lowLevelActionMonitor.log("move",t0,t1,Map("source_host"->source_host,"target_host"->target_host,"startkey"->startkey.toString,"endkey"->endkey.toString))
+		Director.lowLevelActionMonitor.log("move",action,t0,t1,Map("source_host"->source_host,"target_host"->target_host,"startkey"->startkey.toString,"endkey"->endkey.toString))
 	}
 
-	protected def copy(source_host:String, target_host:String,startkey:Int, endkey:Int) = {
+	protected def copy(source_host:String, target_host:String,startkey:Int, endkey:Int, action:Action) = {
 		val t0 = new Date().getTime
 		Policy.logger.info("low-level action start: copy(source="+source_host+", target="+target_host+", startKey="+startkey+", endKey="+endkey+")")
 		
@@ -783,16 +783,16 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		
 		val t1 = new Date().getTime
 		Policy.logger.info("low-level action done: copy(source="+source_host+", target="+target_host+", startKey="+startkey+", endKey="+endkey+")")
-		Director.lowLevelActionMonitor.log("copy",t0,t1,Map("source_host"->source_host,"target_host"->target_host,"startkey"->startkey.toString,"endkey"->endkey.toString))
+		Director.lowLevelActionMonitor.log("copy",action,t0,t1,Map("source_host"->source_host,"target_host"->target_host,"startkey"->startkey.toString,"endkey"->endkey.toString))
 	}
 	
-	protected def remove(host:String) = {
+	protected def remove(host:String, action:Action) = {
 		val t0 = new Date().getTime
 		Policy.logger.info("low-level action start: remove(host="+host+")")
 		
 		if (placement_host == null) init
 		val dpclient = ScadsDeploy.getDataPlacementHandle(placement_host,xtrace_on)
-		val bounds = getNodeRange(host)
+		val bounds = getNodeRange(host,action)
 		val range = new KeyRange(new StringKey(ScadsDeploy.keyFormat.format(bounds._1)), new StringKey(ScadsDeploy.keyFormat.format(bounds._2)) )
 		val list = new java.util.LinkedList[DataPlacement]()
 		list.add(new DataPlacement(host,ScadsDeploy.server_port,ScadsDeploy.server_sync,range))
@@ -800,15 +800,15 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		
 		val t1 = new Date().getTime
 		Policy.logger.info("low-level action done: remove(host="+host+")")
-		Director.lowLevelActionMonitor.log("remove",t0,t1,Map("host"->host))
+		Director.lowLevelActionMonitor.log("remove",action,t0,t1,Map("host"->host))
 	}
 
-	protected def removeData(host:String,startKey:Int,endKey:Int) = {
+	protected def removeData(host:String,startKey:Int,endKey:Int, action:Action) = {
 		val t0 = new Date().getTime
 		Policy.logger.info("low-level action start: removeData(host="+host+", startKey="+startKey+", endKey="+endKey+")")
 		
 		if (placement_host == null) init
-		val bounds = getNodeRange(host)
+		val bounds = getNodeRange(host,action)
 		assert(startKey==bounds._1 || endKey==bounds._2,"Can only remove data from either end of servers' range")
 		val new_start = if (startKey==bounds._1) { endKey } else { bounds._1 }
 		val new_end = if (startKey==bounds._1) { bounds._2 } else { startKey }
@@ -829,7 +829,7 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		
 		val t1 = new Date().getTime
 		Policy.logger.info("low-level action done: removeData(host="+host+", startKey="+startKey+", endKey="+endKey+")")
-		Director.lowLevelActionMonitor.log("removeData",t0,t1,Map("host"->host,"startkey"->startKey.toString,"endkey"->endKey.toString))
+		Director.lowLevelActionMonitor.log("removeData",action,t0,t1,Map("host"->host,"startkey"->startKey.toString,"endkey"->endKey.toString))
 	}
 }
 
@@ -849,6 +849,7 @@ case class LowLevelActionMonitor(
             statement.executeUpdate("CREATE DATABASE IF NOT EXISTS " + dbname)
             statement.executeUpdate("USE " + dbname)
 			statement.executeUpdate("CREATE TABLE IF NOT EXISTS "+dbtable+" (`id` INT NOT NULL AUTO_INCREMENT, `type` VARCHAR(30),"+
+																			"`action` VARCHAR(30),"+
 																			"`start_time` BIGINT, `end_time` BIGINT, "+
 																			"`features` TEXT, PRIMARY KEY(`id`) ) ")
 			statement.close
@@ -856,9 +857,10 @@ case class LowLevelActionMonitor(
        	} catch { case ex: SQLException => Director.logger.warn("exception when initializing LowLevelAction table",ex) }
     }
 
-	def log(action:String, time0:Long, time1:Long, features:Map[String,String]) {
+	def log(lowlevelaction:String, action:Action, time0:Long, time1:Long, features:Map[String,String]) {
 		try {
-			val actionSQL = Director.createInsertStatement(dbtable, Map("type"->("'"+action+"'"),
+			val actionSQL = Director.createInsertStatement(dbtable, Map("type"->("'"+lowlevelaction+"'"),
+																		"action"->("'"+action.getClass.toString.split('.').last+"'"),
 																		"start_time"->time0.toString,
 																		"end_time"->time1.toString,
 																		"features"->("'"+features.map((p)=>p._1+"="+p._2).mkString(",")+"'") ))
