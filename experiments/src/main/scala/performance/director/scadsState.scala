@@ -566,6 +566,11 @@ object WorkloadHistogram {
 			Map(scala.io.Source.fromFile(file).getLines.toList.drop(1).
 			 		map( line => {val v=line.split(","); (DirectorKeyRange(v(0).toInt,v(1).toInt),WorkloadFeatures(v(2).toDouble,v(3).toDouble,v(4).toDouble) )} ) :_* ) )
 	
+	def loadFromCSVString(string:String):WorkloadHistogram =
+		WorkloadHistogram( 
+			Map( string.split("\n").toList.drop(1).
+			 		map( line => {val v=line.split(","); (DirectorKeyRange(v(0).toInt,v(1).toInt),WorkloadFeatures(v(2).toDouble,v(3).toDouble,v(4).toDouble) )} ) :_* ) )
+
 	def loadMostRecentFromDB(samplingRate:Double):WorkloadHistogram = {
 		val histogramSQL = "SELECT histogram FROM director.scadsstate_histogram s order by time desc limit 1"
         val statement = SCADSState.dbConnection.createStatement
@@ -741,6 +746,28 @@ object WorkloadHistogram {
 		val brokenHistograms = BinarySerialization.deserialize(file).asInstanceOf[Map[Long,WorkloadHistogram]]
 		// hack to fix broken scala serialization
 		Map( brokenHistograms.toList.map( p => ( p._1, new WorkloadHistogram( Map(p._2.rangeStats.toList:_*) ) ) ) :_* )
+	}
+	
+	def loadHistogramsFromDBAndSerialize(dbhost:String, file:String) {
+		val dbconnection = Director.connectToDatabase(dbhost)
+		val statement = dbconnection.createStatement
+
+		var startTime = -1L
+		val histograms = scala.collection.mutable.Map[Long,WorkloadHistogram]()
+		try {
+			val result = statement.executeQuery("SELECT * FROM director.scadsstate_histogram s")
+			while (result.next) {
+				val time = result.getLong("time")
+				val histogramString = result.getString("histogram")
+				if (startTime== -1) startTime = time
+				
+				val h = WorkloadHistogram.loadFromCSVString(histogramString)
+				histograms += (time-startTime) -> h
+			}
+       	} catch { case ex: SQLException => Director.logger.warn("SQL exception in metric reader",ex)}
+		statement.close
+		
+		BinarySerialization.serialize(file, Map[Long,WorkloadHistogram]()++histograms)
 	}
 	
 }
