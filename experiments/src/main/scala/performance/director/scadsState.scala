@@ -426,12 +426,16 @@ case class SCADSState(
 		"\nworkload: "+workloadHistogram.toShortString
 	}
 	def toShortString():String = {
+		val nodesByIP = Map( storageNodes.map(n=>(n.ip,n)) :_* )
+		
 		"STATE@"+(new Date(time))+"  W="+
 		(if(metrics!=null)metrics.workload.toInt else "")+"/"+
 		(if(metricsByType!=null)(metricsByType("get").workload.toInt+"/"+metricsByType("put").workload.toInt 	+ 
 		"  getL="+metricsByType("get").toShortLatencyString()+"  putL="+metricsByType("put").toShortLatencyString()) else "") +
-		(if(storageNodes!=null)storageNodes.sort( (s1,s2) => config.storageNodes(s1.ip).minKey<config.storageNodes(s2.ip).minKey )
-											.map(s=>"  server@"+s.ip+"   "+"%-15s".format(config.storageNodes(s.ip))+ "      " + s.toShortString()).mkString("\n","\n","") else "")+
+		config.storageNodes.toList.
+					sort(_._2.minKey<_._2.minKey).
+					map( p => {val ip=p._1; val range=p._2; "  server@"+ip+"   "+"%-15s".format(range)+"      "+ (if (nodesByIP.contains(ip)) nodesByIP(ip).toShortString else "")} ).
+					mkString("\n","\n","") +
 		"\nworkload: "+workloadHistogram.toShortString									
 	}
 	def toConfigString():String = config.toString
