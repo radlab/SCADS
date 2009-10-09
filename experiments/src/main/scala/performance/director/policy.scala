@@ -65,7 +65,7 @@ abstract class Policy(
 							else SCADSState(state.time,state.config.updateNodes(actionExecutor.getConfigFromPlacement),
 									state.storageNodes,state.metrics,state.metricsByType,state.workloadHistogram)
 		
-			Policy.logger.info("running policy with the following state:\n"+newState.toShortString)
+			Policy.logger.info("running policy with the following state:"+ (if (newState==null) " <null>" else "\n"+newState.toShortString) )
 			Policy.logger.info("action executor status:\n"+actionExecutor.status)
 			act(newState,actionExecutor)
 		} catch {

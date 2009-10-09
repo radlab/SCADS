@@ -71,13 +71,20 @@ case class Director(
 				
 				Thread.sleep(period)
 			}
-			
 		}
 		def stop = { 
-			running = false 
+			running = false
+			Director.logger.info("done directing")
+			Policy.logger.info("done directing")
 			stateHistory.stopUpdating
+			writeCostsToSummaryLog
 			costFunction.dumpToDB
 		}
+	}
+
+	private def writeCostsToSummaryLog {
+		var costString = costFunction.toString
+		Director.summaryLogger.info("COST:\n"+costString)
 	}
 
 	private def setDeployment(deploy_name:String) {
@@ -148,6 +155,7 @@ object Director {
 	val delay = 20*1000
 	
 	var logger:Logger = null
+	var summaryLogger:Logger = null
 	
 	initialize("")
 	
@@ -165,6 +173,12 @@ object Director {
 		logger.removeAllAppenders
 		logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 		logger.setLevel(DEBUG)
+
+		summaryLogger = Logger.getLogger("scads.director.summary")
+		summaryLogger.removeAllAppenders
+		summaryLogger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),Director.basedir+"/summary.txt",false) )
+		summaryLogger.setLevel(DEBUG)
+
 		Logger.getRootLogger.removeAllAppenders
 		Logger.getRootLogger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),Director.basedir+"/all.txt",false) )		
 	}

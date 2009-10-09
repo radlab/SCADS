@@ -12,6 +12,12 @@ abstract class FullCostFunction {
 	def intervalSummary():String
 	def initialize
 	
+	override def toString:String = {
+		var dc = detailedCost
+		"total cost: "+cost(dc)+"\n\n"+
+		dc.map(_.toString).mkString("\n")
+	}
+	
 	def dumpToDB {
 		val dbname = "director"
 		val dbtable = "cost"
@@ -101,7 +107,11 @@ case class Cost(
 	val units: Double,
 	val description: String,
 	val cost: Double
-)
+) {
+	override def toString:String = { 
+		time+"  "+"%-10s".format(costtype)+" "+"%-7s".format(units.toString)+" $"+"%-6s".format(cost.toString)+"  "+description
+	}
+}
 
 case class RequestCounts( val nSlow: Int, val nAll: Int ) { 
 	def add(that:RequestCounts):RequestCounts = RequestCounts(nSlow+that.nSlow,nAll+that.nAll) 
