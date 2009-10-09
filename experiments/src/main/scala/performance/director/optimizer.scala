@@ -134,14 +134,14 @@ case class FullSLACostFunction(
 				 .foldLeft( scala.collection.mutable.Map[Long,RequestCounts]() )( (t,s)=>accumulateRequestStats(t,s,"get",getSLA) )
 				 .map( x=>(x._1,x._2) )
 				 .filter( x=>(1.0-x._2.nSlow.toDouble/x._2.nAll)<slaPercentile )
-				 .map( x=>Cost(new Date(x._1), "SLA", 1, "get SLA violation ("+x._2.toString+") at "+new Date(x._1), violationCost) )
+				 .map( x=>Cost(new Date(x._1), "SLA", 1, "get SLA violation ("+x._2.toString+") between "+new Date(x._1)+" and "+new Date(x._1+slaInterval), violationCost) )
 
 		val putCosts = 
 		allStates.map(s=>(s,s.time/slaInterval*slaInterval))
 				 .foldLeft( scala.collection.mutable.Map[Long,RequestCounts]() )( (t,s)=>accumulateRequestStats(t,s,"put",putSLA) )
 				 .map( x=>(x._1,x._2) )
 				 .filter( x=>(1.0-x._2.nSlow.toDouble/x._2.nAll)<slaPercentile )
-				 .map( x=>Cost(new Date(x._1), "SLA", 1, "put SLA violation ("+x._2.toString+") at "+new Date(x._1), violationCost) )
+				 .map( x=>Cost(new Date(x._1), "SLA", 1, "put SLA violation ("+x._2.toString+") between "+new Date(x._1)+" and "+new Date(x._1+slaInterval), violationCost) )
 				
 		val machineCost = MachineCost(nodeCost,nodeInterval)
 		for (state <- allStates) machineCost.addNewInterval(state.time, Set[String](state.config.storageNodes.keySet.toList:_*))
