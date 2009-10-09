@@ -904,7 +904,7 @@ case class LowLevelActionStats(
 
 
 object ActionModels {
-	var machineBootupTimeModel = ConstantMachineBootupTimeModel(3*60*1000)
+	var machineBootupTimeModel = ConstantMachineBootupTimeModel(1*60*1000)
 	var copyDurationModel = LinearCopyDurationModel(0.087)
 	var removeDataDurationModel = LinearRemoveDataDurationModel(0.166)		// this one goes through the "middle of the fork" so that average is accurate
 	var removeDurationModel = ConstantRemoveDurationModel(3780)
