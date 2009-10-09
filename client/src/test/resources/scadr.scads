@@ -14,23 +14,34 @@ ENTITY thought
 	PRIMARY(timestamp)
 }
 
+ENTITY thoughtref
+{
+    int id
+    PRIMARY(id)
+}
+
 ENTITY subscription
 {
+    int id,
 	bool approved
-	PRIMARY(approved)
+	PRIMARY(id)
 }
 
 ENTITY topic
 {
+    int    id,
 	string name
-	PRIMARY(name)
+	PRIMARY(id)
 }
 
 RELATIONSHIP owner FROM user TO MANY thought
 RELATIONSHIP following FROM user TO 5000 subscription
 RELATIONSHIP target FROM subscription TO ONE user
+//RELATIONSHIP target FROM user TO ONE subscription
 RELATIONSHIP hashtag FROM thought TO 10 topic
-RELATIONSHIP references FROM thought TO 10 user
+RELATIONSHIP thoughtToRef FROM thought TO 10 thoughtref
+RELATIONSHIP refToUser FROM user TO ONE thoughtref
+//RELATIONSHIP references FROM thought TO 10 user
 
 QUERY myThoughts
 FETCH thought
@@ -43,6 +54,8 @@ FETCH thought OF topic BY hashtag
 WHERE name=[1:name]
 ORDER BY timestamp LIMIT [2:count] MAX 100
 
+// These are people that I am following
+// NOT people that are following me
 QUERY myFollowing
 FETCH user
 	OF subscription BY target
@@ -59,9 +72,17 @@ WHERE me=[this] AND subscription.approved = true
 ORDER BY timestamp
 LIMIT [1:count] MAX 100
 
+/*
 QUERY references
 FETCH thought
 	OF user BY references
+WHERE user=[this]
+*/
+// these are people that reference me in their thoughts
+QUERY myReferences
+FETCH thought
+    OF thoughtref BY thoughtToRef
+    OF user BY refToUser
 WHERE user=[this]
 
 QUERY needsApproval

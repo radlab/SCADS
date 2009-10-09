@@ -20,6 +20,7 @@ import org.apache.log4j.Logger
 
 abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specification") {
     val llogger = Logger.getLogger("scads.test")
+    val specName: String
     val specFile: String
     val classNameMap: Map[String,Array[String]]
     val dataXMLFile: String
@@ -77,7 +78,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
         }
     }
 
-    "a scads spec file" should {
+    "a " + specName + " spec file" should {
 
         "produce a usable tookit by" in  {
 
@@ -100,7 +101,11 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                 val classpath = rb.getString("maven.test.classpath")
 
                 try {
-                    Compiler.compileSpecCode(classfilesDir, jarFile, classpath, _source)
+                    if ( classpath == null || classpath.isEmpty ) {
+                        Compiler.compileSpecCode(classfilesDir, jarFile, _source)
+                    } else { 
+                        Compiler.compileSpecCode(classfilesDir, jarFile, classpath, _source)
+                    }
                 } catch {
                     case ex: Exception => fail("unable to compile")
                 }

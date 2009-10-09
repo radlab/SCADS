@@ -70,40 +70,36 @@
             <attribute name="timestamp" type="int">1</attribute>
             <attribute name="thought" type="string">Thought 1</attribute>
         </attributes>
-        <!--
         <foreign-keys>
-            <foreign-key relationship="owner" class="user" primarykey="Stephen Tu" />
-        </foreign-keys> -->
+            <foreign-key relationship="owner" primarykey="Stephen Tu" />
+        </foreign-keys>
     </entity>
     <entity class="thought">
         <attributes>
             <attribute name="timestamp" type="int">2</attribute>
             <attribute name="thought" type="string">Thought 2</attribute>
         </attributes>
-        <!--
         <foreign-keys>
-            <foreign-key relationship="owner" class="user" primarykey="Stephen Tu" />
-        </foreign-keys> -->
+            <foreign-key relationship="owner" primarykey="Stephen Tu" />
+        </foreign-keys> 
     </entity>
     <entity class="thought">
         <attributes>
             <attribute name="timestamp" type="int">3</attribute>
             <attribute name="thought" type="string">Thought 3</attribute>
         </attributes>
-        <!--
         <foreign-keys>
-            <foreign-key relationship="owner" class="user" primarykey="Kobe Bryant" />
-        </foreign-keys> -->
+            <foreign-key relationship="owner" primarykey="Kobe Bryant" />
+        </foreign-keys> 
     </entity>
     <entity class="thought">
         <attributes>
             <attribute name="timestamp" type="int">4</attribute>
             <attribute name="thought" type="string">Thought 4</attribute>
         </attributes>
-        <!--
         <foreign-keys>
-            <foreign-key relationship="owner" class="user" primarykey="Kobe Bryant" />
-        </foreign-keys> -->
+            <foreign-key relationship="owner" primarykey="Kobe Bryant" />
+        </foreign-keys> 
     </entity>
     <entity class="thought">
         <attributes>

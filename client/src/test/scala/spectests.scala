@@ -4,24 +4,26 @@ import org.specs.runner.JUnit4
 
 
 object ScadrLangSpec extends ScadsLangSpec {
-    val specFile = "scadr.scads" 
-    val dataXMLFile = "scadr_data.xml"
+    val specName = "Scadr"
+    val specFile = "src/test/resources/scadr.scads" 
+    val dataXMLFile = "src/test/resources/scadr_data.xml"
     val classNameMap = Map(
         "user" -> Array("name","password","email","profileData"),
         "thought" -> Array("timestamp","thought"),
-        "subscription" -> Array("approved"),
-        "topic" -> Array("name")
+        "subscription" -> Array("id","approved"),
+        "topic" -> Array("id","name")
     )
     val queries = Array(
         "userByName"
     )
-    val queriesXMLFile = "scadr_queries.xml"
+    val queriesXMLFile = "src/test/resources/scadr_queries.xml"
 }
 class ScadrLangTest extends JUnit4(ScadrLangSpec)
 
 object ScadbookLangSpec extends ScadsLangSpec {
-    val specFile = "scadbook.scads"
-    val dataXMLFile = "scadbook_data.xml"
+    val specName = "Scadbook"
+    val specFile = "src/test/resources/scadbook.scads"
+    val dataXMLFile = "src/test/resources/scadbook_data.xml"
     val classNameMap = Map(
         "user" -> Array("id","email","password","nickname","datejoined","active"),
         "profile" -> Array("id","birthday","hometown","sex","politicalaffiliation","interests","activities"),
@@ -44,13 +46,14 @@ object ScadbookLangSpec extends ScadsLangSpec {
         "groupWall",
         "myPokedBy"
     )
-    val queriesXMLFile = "scadbook_queries.xml"
+    val queriesXMLFile = "src/test/resources/scadbook_queries.xml"
 }
 class ScadbookLangTest extends JUnit4(ScadbookLangSpec)
 
 object ScadbayLangSpec extends ScadsLangSpec {
-    val specFile = "scadbay.scads"
-    val dataXMLFile = "scadbay_data.xml"
+    val specName = "Scadbay"
+    val specFile = "src/test/resources/scadbay.scads"
+    val dataXMLFile = "src/test/resources/scadbay_data.xml"
     val classNameMap = Map(
         "user" -> Array("id","email","password","nickname","datejoined","active"),
         "item" -> Array("id","dateposted","duration","isFinished","title","startingprice","minimumbetraise","instantbuyprice","pictureurl","description","shortdesc"),
@@ -74,6 +77,6 @@ object ScadbayLangSpec extends ScadsLangSpec {
         "allBrandItems",
         "topItemBid"
     )
-    val queriesXMLFile = "scadbay_queries.xml"
+    val queriesXMLFile = "src/test/resources/scadbay_queries.xml"
 }
 class ScadbayLangTest extends JUnit4(ScadbayLangSpec)
