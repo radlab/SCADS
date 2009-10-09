@@ -780,7 +780,7 @@ int main(int argc,char* argv[]) {
 					cout << "[Exception]: "<<e.what()<<endl;
 				}
       }
-			
+
 			/*
 			else if (cmd == "resp") {
 				instResp(client);
@@ -800,7 +800,7 @@ int main(int argc,char* argv[]) {
 				vector<string>::iterator it;
 				it = v.begin();
 				++it; ++it; // skip command and ns
-				for (;it != v.end();++it) 
+				for (;it != v.end();++it)
 					vec.push_back(*it);
 				setRespPol(client,v[1],vec);
 			}
