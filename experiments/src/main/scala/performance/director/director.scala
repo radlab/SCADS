@@ -25,7 +25,8 @@ case class Director(
 	val period:Long = 20*1000	
 	var costUpdatePeriod:Long = 10*60*1000
 
-	val metricReader = new MetricReader(Director.databaseHost,"metrics",period,0.02)
+//	val metricReader = new MetricReader(Director.databaseHost,"metrics",period,0.02)
+	val metricReader = new MetricReader(Director.databaseHost,"metrics",period,1.0)
 
 	var myscads:scads.deployment.Scads = null
 	var placementIP:String = null

@@ -63,7 +63,9 @@ case class SCADSMonitoringDeployment(
 										 	"monitoring"->Map(	"basedir"->"/mnt/monitoring",
 																"experimentsJarURL"->experimentsJarURL,
 														 		"metricService"->Map("port"->6001,"dbhost"->"localhost","dbuser"->"root","dbpassword"->"","dbname"->"metrics"),
-																"xtraceParser"->Map("nBins"->nBins,"minKey"->minKey,"maxKey"->maxKey,"aggregationInterval"->aggregationInterval)
+																"xtraceParser"->Map("nBins"->nBins,"minKey"->minKey,"maxKey"->maxKey,
+																					"aggregationInterval"->aggregationInterval,
+																					"samplingProbability"->ScadsDeploy.requestSamplingProbability)
 														)))
 			ScadsDeploy.logger.debug("monitoring: deploying monitoring")
 			val monitoringDeployResult = monitoringVM.deploy(monitoringCfg)

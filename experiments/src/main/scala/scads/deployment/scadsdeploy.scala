@@ -25,6 +25,8 @@ object ScadsDeploy {
 	val restrictFileName = "restrict.csv"
 	var maxKey = 10000 // up to ~1920000 in cache
 
+	var requestSamplingProbability = 0.02
+	
 	var logger:Logger = null
 
 	def initLogger {

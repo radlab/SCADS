@@ -29,6 +29,10 @@ class WorkloadStats() {
 
 	def addGet { nGets += 1 }
 	def addPut { nPuts += 1 }
+	def adjust(fraction:Double) { 
+		nGets = (nGets/fraction).toInt 
+		nPuts = (nPuts/fraction).toInt
+	}
 	
 	override def toString():String = "("+nGets+","+nPuts+")"
 }
@@ -38,6 +42,8 @@ object ParseXtraceReports {
 	val port = try { System.getProperty("chukwaPort").toInt } catch { case _ => 9094 }
 	
 	val keyFormat = new java.text.DecimalFormat("000000000000000")
+	
+	val samplingProbability = try { System.getProperty("samplingProbability").toDouble } catch { case _ => 1.0 }
 	
 	val histogramDir = "/tmp/histograms/"
 	val histogramBreaksUpdateInterval = 24*60*60*1000
@@ -219,7 +225,8 @@ object ParseXtraceReports {
 				}
 			}
 		}
-		Map[StringKeyRange,WorkloadStats]()++hist	
+		hist.values.foreach(_.adjust(samplingProbability))
+		Map[StringKeyRange,WorkloadStats]()++hist
 	}
 	
 	def updateHistogramBreaks(reqs:Array[SCADSRequestStats]) {
@@ -279,14 +286,14 @@ object ParseXtraceReports {
 	
 	def computeRequestMetrics(requests:List[SCADSRequestStats], server:String, requestType:String, interval:Long): List[MetricUpdate] = {
 		var metrics = new scala.collection.mutable.ListBuffer[MetricUpdate]()
-		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"workload"))),(requests.length.toDouble/aggregationInterval*1000).toString)
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"workload"))),(requests.length.toDouble/aggregationInterval*1000/samplingProbability).toString)
 		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_mean"))),computeMean(requests.map(_.latency)).toString)
 		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_50p"))),computeQuantile(requests.map(_.latency),0.50).toString)
 		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_90p"))),computeQuantile(requests.map(_.latency),0.90).toString)
 		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_99p"))),computeQuantile(requests.map(_.latency),0.99).toString)
-		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"n_requests"))),requests.length.toString)
-		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"n_slower_50ms"))),requests.filter(_.latency>50).length.toString)
-		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"n_slower_100ms"))),requests.filter(_.latency>100).length.toString)		
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"n_requests"))),(requests.length/samplingProbability).toInt.toString)
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"n_slower_50ms"))),(requests.filter(_.latency>50).length/samplingProbability).toInt.toString)
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"n_slower_100ms"))),(requests.filter(_.latency>100).length/samplingProbability).toInt.toString)		
 		metrics.toList
 	}
 	
