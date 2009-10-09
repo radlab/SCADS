@@ -60,7 +60,7 @@ object Compiler extends ScadsLanguage {
             //outFileWriter.write(source)
             compileSpecCode(genDir, jarFile, code)
 
-            //val entity : Entity = loadCompiledClass(jarFile, "user") 
+            //val entity : Entity = loadCompiledClass(jarFile, "user")
             //entity.attributes.keys.foreach(println(_))
 
         }

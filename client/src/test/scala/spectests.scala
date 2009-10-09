@@ -5,7 +5,7 @@ import org.specs.runner.JUnit4
 
 object ScadrLangSpec extends ScadsLangSpec {
     val specName = "Scadr"
-    val specFile = "src/test/resources/scadr.scads" 
+    val specFile = "src/test/resources/scadr.scads"
     val dataXMLFile = "src/test/resources/scadr_data.xml"
     val classNameMap = Map(
         "user" -> Array("name","password","email","profileData"),

@@ -34,7 +34,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
 
     val specSource = getSourceFromFile(specFile)
     val baseDir = new File("target/generated")
-    val classfilesDir = new File(baseDir, "classfiles") 
+    val classfilesDir = new File(baseDir, "classfiles")
     val jarFile = new File(baseDir, "spec.jar")
 
     def getSourceFromFile(file: String): String = {
@@ -59,11 +59,11 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
     def getQueryMethod(name: String): Method = {
         val queryClazz = loadClass("Queries")
         val queryMethods = queryClazz.getDeclaredMethods
-    
+
         var rtn: Method = null;
         queryMethods.foreach( (method) => {
             if ( method.getName.equals(name) ) {
-                rtn = method 
+                rtn = method
             }
         })
         rtn
@@ -87,7 +87,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
 
             "parsing correctly" in {
                 try {
-                    _source = Compiler.codeGenFromSource(specSource)  
+                    _source = Compiler.codeGenFromSource(specSource)
                 } catch {
                     case ex: Exception => fail("unable to parse")
                 }
@@ -103,7 +103,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                 try {
                     if ( classpath == null || classpath.isEmpty ) {
                         Compiler.compileSpecCode(classfilesDir, jarFile, _source)
-                    } else { 
+                    } else {
                         Compiler.compileSpecCode(classfilesDir, jarFile, classpath, _source)
                     }
                 } catch {
@@ -112,7 +112,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
             }
 
             "loading entity classes correctly" in {
-                
+
                 classNameMap.keys.foreach( (c) => {
                     val entClazz = loadClass(c).asInstanceOf[Class[Entity]]
                     entClazz must notBeNull
@@ -127,7 +127,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
             }
 
             "create the appropriate query methods" in {
-                
+
                 queries.foreach( (name) => {
                     val queryMethod = getQueryMethod(name)
                     queryMethod must notBeNull
@@ -167,7 +167,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
 
                 (queryNode \\ "query").foreach( (query) => {
                     val queryName = (query \ "@name").text
-                    val queryInputs: Seq[Tuple2[Class[Object],Object]] = 
+                    val queryInputs: Seq[Tuple2[Class[Object],Object]] =
                         (query \\ "input").map[Tuple2[Class[Object],Object]]( (input) => {
                             val typeName = (input \ "@type").text
                             val typeValue = input.text
@@ -186,7 +186,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                     val args = queryInputs.map(_._2).concat( Array(env) ).toArray
                     args.foreach(llogger.debug(_))
                     //try {
-                        val retVal = queryMethod.invoke(null, args : _*) 
+                        val retVal = queryMethod.invoke(null, args : _*)
                         retVal must notBeNull
                     //} catch {
                      //   case ex: InvocationTargetException => println(ex.getCause.printStackTrace)
@@ -194,7 +194,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                     //}
 
                     var pkTypeVar = ""
-                    val pKeySeq = retVal.asInstanceOf[Seq[Entity]].map( (ent) => { 
+                    val pKeySeq = retVal.asInstanceOf[Seq[Entity]].map( (ent) => {
                         if ( ent.primaryKey.isInstanceOf[StringField] ) {
                             pkTypeVar = "string"
                             ent.primaryKey.asInstanceOf[StringField].value
@@ -211,7 +211,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                     pKeySeq.foreach(llogger.debug(_))
                     llogger.debug("---------")
 
-                    val inputpKeySeq = (query \\ "@primarykey").map( (pk) => { 
+                    val inputpKeySeq = (query \\ "@primarykey").map( (pk) => {
                         getVariableTuple(pkTypeVar,pk.text)._2
                     })
                     inputpKeySeq.foreach(llogger.debug(_))
@@ -228,5 +228,3 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
     }
 
 }
-
-

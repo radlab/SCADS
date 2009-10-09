@@ -4,7 +4,7 @@
             <input type="string">Stephen Tu</input>
         </inputs>
         <outputs class="user">
-            <output primarykey="Stephen Tu" />  
+            <output primarykey="Stephen Tu" />
         </outputs>
     </query>
     <query name="userByName">
@@ -12,7 +12,7 @@
             <input type="string">Bob Barker</input>
         </inputs>
         <outputs class="user">
-            <output primarykey="Bob Barker" />  
+            <output primarykey="Bob Barker" />
         </outputs>
     </query>
     <!--

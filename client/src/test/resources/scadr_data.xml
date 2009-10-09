@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <entities>
 
-    <!-- 
-        Sample data set for Scadr 
+    <!--
+        Sample data set for Scadr
         See the associated scadr_queries.xml for some test cases
     -->
 
@@ -81,7 +81,7 @@
         </attributes>
         <foreign-keys>
             <foreign-key relationship="owner" primarykey="Stephen Tu" />
-        </foreign-keys> 
+        </foreign-keys>
     </entity>
     <entity class="thought">
         <attributes>
@@ -90,7 +90,7 @@
         </attributes>
         <foreign-keys>
             <foreign-key relationship="owner" primarykey="Kobe Bryant" />
-        </foreign-keys> 
+        </foreign-keys>
     </entity>
     <entity class="thought">
         <attributes>
@@ -99,7 +99,7 @@
         </attributes>
         <foreign-keys>
             <foreign-key relationship="owner" primarykey="Kobe Bryant" />
-        </foreign-keys> 
+        </foreign-keys>
     </entity>
     <entity class="thought">
         <attributes>
@@ -134,9 +134,9 @@
         </attributes>
     </entity>
 
-    <!-- 
+    <!--
         Topic Class:
-        Note: These are real topics taken from the popular list on Twitter, 
+        Note: These are real topics taken from the popular list on Twitter,
         and not because I have strange ideas
     -->
     <entity class="topic">
