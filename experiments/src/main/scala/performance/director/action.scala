@@ -22,37 +22,33 @@ import java.sql.Statement
 
 case class ActionExecutor {
 	var actions = List[Action]()
-	var projectedConfig:SCADSconfig = null
 	var placementIP:String = null
 
-	def setInitialConfig(initialConfig:SCADSconfig) { projectedConfig=initialConfig }
-	def haveInitialConfig:Boolean = { projectedConfig!=null }
-
 	def addAction(action:Action) {
-		if (projectedConfig==null) throw new Exception("don't have projectedConfig in ActionExecutor; can't execute new action")
-		else {
-			actions+=action 
-			Director.logger.debug("adding action: "+action)
-		}
+		actions+=action 
 		Policy.logger.info("adding action: "+action)
 	}
 	def setPlacement(ip:String) = { placementIP=ip }
 	def getConfigFromPlacement:Map[String,DirectorKeyRange] = {
-		assert(placementIP !=null, "action executor need to have placement ip set")
-		var nodeConfig = Map[String,DirectorKeyRange]()
+		if (placementIP==null)
+			null
+		else {
+			assert(placementIP !=null, "action executor need to have placement ip set")
+			var nodeConfig = Map[String,DirectorKeyRange]()
 
-		val dp = ScadsDeploy.getDataPlacementHandle(placementIP,Director.xtrace_on)
-		val placements = dp.lookup_namespace(Director.namespace)
-		val iter = placements.iterator
-		while (iter.hasNext) {
-			val info = iter.next
-			val range = new DirectorKeyRange(
-				ScadsDeploy.getNumericKey( StringKey.deserialize_toString(info.rset.range.start_key,new java.text.ParsePosition(0)) ),
-				ScadsDeploy.getNumericKey( StringKey.deserialize_toString(info.rset.range.end_key,new java.text.ParsePosition(0)) )
-			)
-			nodeConfig = nodeConfig.update(info.node, range)
+			val dp = ScadsDeploy.getDataPlacementHandle(placementIP,Director.xtrace_on)
+			val placements = dp.lookup_namespace(Director.namespace)
+			val iter = placements.iterator
+			while (iter.hasNext) {
+				val info = iter.next
+				val range = new DirectorKeyRange(
+					ScadsDeploy.getNumericKey( StringKey.deserialize_toString(info.rset.range.start_key,new java.text.ParsePosition(0)) ),
+					ScadsDeploy.getNumericKey( StringKey.deserialize_toString(info.rset.range.end_key,new java.text.ParsePosition(0)) )
+				)
+				nodeConfig = nodeConfig.update(info.node, range)
+			}
+			nodeConfig
 		}
-		nodeConfig
 	}
 	def execute() {
 		// start executing actions with all parents completed

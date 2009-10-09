@@ -58,9 +58,16 @@ abstract class Policy(
 	def perform(state:SCADSState, actionExecutor:ActionExecutor) {
 		try { 
 			Action.currentInitTime = new java.util.Date().getTime
-			act(state,actionExecutor)
+		
+			// update the configuration of SCADS 
+			val newConfig = actionExecutor.getConfigFromPlacement
+			var newState = if (newConfig==null || state==null) state
+							else SCADSState(state.time,state.config.updateNodes(actionExecutor.getConfigFromPlacement),
+									state.storageNodes,state.metrics,state.metricsByType,state.workloadHistogram)
+		
 			Policy.logger.info("running policy with the following state:\n"+newState.toShortString)
 			Policy.logger.info("action executor status:\n"+actionExecutor.status)
+			act(newState,actionExecutor)
 		} catch {
 			case e:Exception => logger.warn("exception in policy.act",e)
 		}

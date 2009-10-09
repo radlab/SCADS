@@ -56,10 +56,6 @@ case class Director(
 		var running = true
 		def run = {
 			while (running) {
-				// if haven't set initial config in ActionExecutor but finally have a state, set it
-				if (!actionExecutor.haveInitialConfig && stateHistory.getMostRecentState!=null)
-					actionExecutor.setInitialConfig(stateHistory.getMostRecentState.config)
-				
 				policy.perform(stateHistory.getMostRecentState,actionExecutor)
 				actionExecutor.execute
 				
@@ -166,6 +162,7 @@ object Director {
 
 		logger = Logger.getLogger("scads.director.director")
 		val logPath = Director.basedir+"/director.txt"
+		logger.removeAllAppenders
 		logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 		logger.setLevel(DEBUG)
 		Logger.getRootLogger.removeAllAppenders
@@ -197,14 +194,16 @@ object Director {
 		} catch { case ex: SQLException => ex.printStackTrace() }
 	}
 
-	def connectToDatabase():Connection = {
+	def connectToDatabase():Connection = connectToDatabase(databaseHost)
+	
+	def connectToDatabase(_dbhost:String):Connection = {
         try {
             Class.forName("com.mysql.jdbc.Driver").newInstance()
         } catch { case ex: Exception => ex.printStackTrace() }
 
 		var connection:Connection = null
         try {
-            val connectionString = "jdbc:mysql://" + databaseHost + "/?user=" + databaseUser + "&password=" + databasePassword
+            val connectionString = "jdbc:mysql://" + _dbhost + "/?user=" + databaseUser + "&password=" + databasePassword
 			logger.info("connecting to database: "+connectionString)
             connection = DriverManager.getConnection(connectionString)
 		} catch {
