@@ -56,7 +56,6 @@ case class PolicySimulator {
 		costFunction.initialize
 
 		val actionExecutor = ActionExecutor()
-		actionExecutor.setInitialConfig(initialConfig)
 /*		val simulationGranularity = 10*1000*/
 		val simulationGranularity = 1*1000
 		val requestFraction = 0.1
@@ -132,7 +131,7 @@ case class PolicySimulator {
 
 object RunPolicySimulator {
   	def main(args: Array[String]) {
-//		val r = PolicySimulator.test1("/Users/bodikp/Downloads/scads/","/Users/bodikp/workspace/scads/")
+//		PolicySimulator.test1("/Users/bodikp/Downloads/scads/","/Users/bodikp/workspace/scads/")
 //		r
 //		r.saveToCSV("/tmp/data.csv")		
 		PolicySimulator.optimizeCost("/Users/bodikp/Downloads/scads/","/Users/bodikp/workspace/scads/")
@@ -153,7 +152,8 @@ object PolicySimulator {
 		val performanceModel = LocalL1PerformanceModel(modelfile)		
 
 /*		val workloadName = "/ebates_mix99_mix99_1500users_200bins_20sec.hist"*/
-		val workloadName = "/ebates_mix99_mix99_1500users_1000bins_20sec.hist"
+		//val workloadName = "/ebates_mix99_mix99_1500users_1000bins_20sec.hist"
+		val workloadName = "/dbworkload.hist"
 		val workloadFile = basedir + workloadName
 		val w = WorkloadHistogram.loadHistograms( workloadFile )
 		
@@ -183,10 +183,17 @@ object PolicySimulator {
 	}
 
 	def optimizeCost(basedir:String, repodir:String) {
-		val space = Map(
+		val space1 = Map(
 		"up" 	-> List(1.0, 0.5, 0.1, 0.05, 0.01),
 		"down" 	-> List(1.0, 0.5, 0.1, 0.05, 0.01),
-		"over"	-> List(0.0, 0.1, 0.2, 0.3, 0.4, 0.5)	)
+		"over"	-> List(0.0, 0.1, 0.2, 0.3, 0.4, 0.5) )
+		
+		val space2 = Map(
+		"up" 	-> List(1.0, 0.7, 0.5, 0.2, 0.1, 0.07, 0.05, 0.02, 0.01),
+		"down" 	-> List(1.0, 0.7, 0.5, 0.2, 0.1, 0.07, 0.05, 0.02, 0.01),
+		"over"	-> List(0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5) )
+		
+		val space = space2
 		
 		var values = scala.collection.mutable.Map( "up"->1.0, "down"->1.0, "over"->0.0 )
 		val paramOrder = List("up","down","over")
