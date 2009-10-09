@@ -34,6 +34,7 @@ case class ActionExecutor {
 			actions+=action 
 			Director.logger.debug("adding action: "+action)
 		}
+		Policy.logger.info("adding action: "+action)
 	}
 	def setPlacement(ip:String) = { placementIP=ip }
 	def getConfigFromPlacement:Map[String,DirectorKeyRange] = {
@@ -98,6 +99,7 @@ case class ActionExecutor {
 	}
 	
 	def allActionsCompleted():Boolean = if (actions.size==0) true else actions.forall(_.completed)
+	def status:String = actions.map(a=> "%-10s".format("("+a.state+")") + "  " + a.toString).mkString("\n")
 }
 
 
@@ -165,11 +167,13 @@ abstract class Action(
 	override def run() {
 		_state = ActionState.Running
 		logger.info("starting action execution")
+		Policy.logger.info("starting execution of "+toString)
 		startTime = new Date().getTime
 		Action.store(this)
 		execute()
 		_state = ActionState.Completed
 		logger.info("action execution completed")
+		Policy.logger.info("done executing "+toString)
 		endTime = new Date().getTime
 		Action.store(this)
 	}
@@ -742,6 +746,7 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 
 	protected def getNodeRange(host:String):(Int, Int) = {
 		val t0 = new Date().getTime
+		Policy.logger.info("low-level action start: getNodeRange(host="+host+")")
 		
 		if (placement_host == null) init
 		val dp = ScadsDeploy.getDataPlacementHandle(placement_host,xtrace_on)
@@ -751,6 +756,7 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		ScadsDeploy.getNumericKey( StringKey.deserialize_toString(range.end_key,new java.text.ParsePosition(0)) ))
 		
 		val t1 = new Date().getTime
+		Policy.logger.info("low-level action end: getNodeRange(host="+host+")")
 		Director.lowLevelActionMonitor.log("getNodeRange",t0,t1,Map("host"->host))
 		
 		value
@@ -758,6 +764,7 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 
 	protected def move(source_host:String, target_host:String,startkey:Int, endkey:Int) = {
 		val t0 = new Date().getTime
+		Policy.logger.info("low-level action start: move(source="+source_host+", target="+target_host+", startKey="+startkey+", endKey="+endkey+")")
 		
 		if (placement_host == null) init
 		val dpclient = ScadsDeploy.getDataPlacementHandle(placement_host,xtrace_on)
@@ -765,11 +772,13 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		dpclient.move(namespace,range, source_host, ScadsDeploy.server_port,ScadsDeploy.server_sync, target_host, ScadsDeploy.server_port,ScadsDeploy.server_sync)
 		
 		val t1 = new Date().getTime
+		Policy.logger.info("low-level action done: move(source="+source_host+", target="+target_host+", startKey="+startkey+", endKey="+endkey+")")
 		Director.lowLevelActionMonitor.log("move",t0,t1,Map("source_host"->source_host,"target_host"->target_host,"startkey"->startkey.toString,"endkey"->endkey.toString))
 	}
 
 	protected def copy(source_host:String, target_host:String,startkey:Int, endkey:Int) = {
 		val t0 = new Date().getTime
+		Policy.logger.info("low-level action start: copy(source="+source_host+", target="+target_host+", startKey="+startkey+", endKey="+endkey+")")
 		
 		if (placement_host == null) init
 		val dpclient = ScadsDeploy.getDataPlacementHandle(placement_host,xtrace_on)
@@ -777,11 +786,13 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		dpclient.copy(namespace,range, source_host, ScadsDeploy.server_port,ScadsDeploy.server_sync, target_host, ScadsDeploy.server_port,ScadsDeploy.server_sync)
 		
 		val t1 = new Date().getTime
+		Policy.logger.info("low-level action done: copy(source="+source_host+", target="+target_host+", startKey="+startkey+", endKey="+endkey+")")
 		Director.lowLevelActionMonitor.log("copy",t0,t1,Map("source_host"->source_host,"target_host"->target_host,"startkey"->startkey.toString,"endkey"->endkey.toString))
 	}
 	
 	protected def remove(host:String) = {
 		val t0 = new Date().getTime
+		Policy.logger.info("low-level action start: remove(host="+host+")")
 		
 		if (placement_host == null) init
 		val dpclient = ScadsDeploy.getDataPlacementHandle(placement_host,xtrace_on)
@@ -792,11 +803,13 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		dpclient.remove(namespace,list)
 		
 		val t1 = new Date().getTime
+		Policy.logger.info("low-level action done: remove(host="+host+")")
 		Director.lowLevelActionMonitor.log("remove",t0,t1,Map("host"->host))
 	}
 
 	protected def removeData(host:String,startKey:Int,endKey:Int) = {
 		val t0 = new Date().getTime
+		Policy.logger.info("low-level action start: removeData(host="+host+", startKey="+startKey+", endKey="+endKey+")")
 		
 		if (placement_host == null) init
 		val bounds = getNodeRange(host)
@@ -819,6 +832,7 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		dpclient.add(namespace,list)
 		
 		val t1 = new Date().getTime
+		Policy.logger.info("low-level action done: removeData(host="+host+", startKey="+startKey+", endKey="+endKey+")")
 		Director.lowLevelActionMonitor.log("removeData",t0,t1,Map("host"->host,"startkey"->startKey.toString,"endkey"->endKey.toString))
 	}
 }

@@ -10,11 +10,23 @@ import java.sql.SQLException
 import java.sql.Statement
 
 
+object Policy {
+	var logger:Logger = null
+	
+	def initializeLogger {
+		logger = Logger.getLogger("scads.director.events")
+		val logPath = Director.basedir+"/events.txt"
+		logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
+		logger.setLevel(DEBUG)
+	}
+}
+
 abstract class Policy(
 	val workloadPredictor:WorkloadPrediction
 ){
+	Policy.initializeLogger
 	val logger = Logger.getLogger("scads.director.policy")
-	private val logPath = Director.basedir+"/policy.txt"
+	val logPath = Director.basedir+"/policy.txt"
 	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 	logger.setLevel(DEBUG)
 	
@@ -47,6 +59,8 @@ abstract class Policy(
 		try { 
 			Action.currentInitTime = new java.util.Date().getTime
 			act(state,actionExecutor)
+			Policy.logger.info("running policy with the following state:\n"+newState.toShortString)
+			Policy.logger.info("action executor status:\n"+actionExecutor.status)
 		} catch {
 			case e:Exception => logger.warn("exception in policy.act",e)
 		}
