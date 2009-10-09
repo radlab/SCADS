@@ -269,14 +269,18 @@ case class MixtureKeyGenerator(
 	}
 }
 
+/**
+* a: shape of the Zipf dist'n, larger a implies dist'n with taller peak
+* r: random number used to shuffle keys around
+*/
 @serializable
 case class ZipfKeyGenerator(
 	val a: Double,
+	val r: Double,
 	override val minKey: Int,
 	override val maxKey: Int
 ) extends SCADSKeyGenerator(minKey,maxKey) {
 	assert(a>1, "need a>1")
-	val r = WorkloadDescription.rnd.nextDouble
 	
 	override def generateKey(): Int = {
 		var k = -1

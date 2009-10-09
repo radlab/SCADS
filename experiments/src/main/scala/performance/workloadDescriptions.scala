@@ -27,7 +27,7 @@ object WorkloadGenerators {
 	def stdWorkload3Flat(mix:MixVector, maxUsers:Int, maxKey:Int):WorkloadDescription = {
 		val n = 600
 		val wProf = WorkloadProfile.getFlat(n,maxUsers).addSpike(n/3,n/3,n*2/3,n*2/3,3.0).addSpike(n*2/3,n*2/3,n,n,1.5)
-		val keyGenerator = new ZipfKeyGenerator(1.001,1,maxKey)
+		val keyGenerator = new ZipfKeyGenerator(1.001,3.456,1,maxKey)
 		val reqGenerators = List.make( n, new FixedSCADSRequestGenerator(mix,keyGenerator,namespace,1) )
 		val durations = List.make( n, 60*1000 )
 		WorkloadDescription.create(wProf,durations,reqGenerators,thinkTime)
@@ -38,7 +38,7 @@ object WorkloadGenerators {
 		val nMinutes = 60
 		
 		val wProf = WorkloadProfile.getEbatesProfile(6*nMinutes,4*24*60,Math.floor(nVirtualDays*24*60/(6*nMinutes)).toInt, maxUsers).addSpike(180,186,246,300,3.0)
-		val keyGenerator = new ZipfKeyGenerator(1.001,1,maxKey)
+		val keyGenerator = new ZipfKeyGenerator(1.001,3.456,1,maxKey)
 		val reqGenerators = List.make( 6*nMinutes, new FixedSCADSRequestGenerator(mix,keyGenerator,namespace,1) )
 		val durations = List.make(6*nMinutes,10*1000)
 		WorkloadDescription.create(wProf,durations,reqGenerators,thinkTime)
@@ -54,7 +54,7 @@ object WorkloadGenerators {
 				.transition( WorkloadMixProfile.getStaticMix(nInt,mix0), (0.65*nInt).toInt, (0.75*nInt).toInt )
 		
 		val wProf = WorkloadProfile.getEbatesProfile(nInt,4*24*60,Math.floor(nVirtualDays*24*60/(nInt)).toInt, maxUsers)
-		val keyGenerator = new ZipfKeyGenerator(1.001,1,maxKey)
+		val keyGenerator = new ZipfKeyGenerator(1.001,3.456,1,maxKey)
 		val reqGenerators = mixProfile.profile.map( new FixedSCADSRequestGenerator(_,keyGenerator,namespace,1) ).toList
 		val durations = List.make(nInt,10*1000)
 		WorkloadDescription.create(wProf,durations,reqGenerators,thinkTime)		
@@ -68,7 +68,7 @@ object WorkloadGenerators {
 				.transition( WorkloadMixProfile.getStaticMix(n,mixes(1)), (1/5.0*n).toInt, (2/5.0*n).toInt )
 				.transition( WorkloadMixProfile.getStaticMix(n,mixes(2)), (3/5.0*n).toInt, (4/5.0*n).toInt )
 		
-		val keyGenerator = new ZipfKeyGenerator(1.001,1,maxKey)
+		val keyGenerator = new ZipfKeyGenerator(1.001,3.456,1,maxKey)
 		val reqGenerators = mixProfile.profile.map( new FixedSCADSRequestGenerator(_,keyGenerator,namespace,1) ).toList
 		
 		val durations = List.make( n, 60*1000 )
@@ -99,7 +99,7 @@ object WorkloadGenerators {
 	
 	def diurnalWorkload(mix:MixVector, getsetLength:Int, namespace:String, thinkTime:Int, nVirtualDays:Double, nMinutes:Int, maxNUsers:Int,maxKey:Int):WorkloadDescription = {
 		val wProf = WorkloadProfile.getEbatesProfile(6*nMinutes,4*24*60,Math.floor(nVirtualDays*24*60/(6*nMinutes)).toInt, maxNUsers)
-		val keyGenerator = new ZipfKeyGenerator(1.001,1,maxKey)
+		val keyGenerator = new ZipfKeyGenerator(1.001,3.456,1,maxKey)
 		val reqGenerators = List.make( 6*nMinutes, new FixedSCADSRequestGenerator(mix,keyGenerator,namespace,getsetLength) )
 		val durations = List.make(6*nMinutes,10*1000)
 		WorkloadDescription.create(wProf,durations,reqGenerators,thinkTime)
