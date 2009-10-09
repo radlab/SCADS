@@ -73,6 +73,8 @@ case class SCADSDeployment(
 		ScadsDeploy.logger.info("deploying SCADS in the background; call .deployed to check if deployed")
 	}
 	
+	def waitUntilDeployed = while (!deployed) Thread.sleep(1000)
+	
 	def deployed = _deployed
 	
 	def startWorkload(workload:WorkloadDescription) {
