@@ -87,7 +87,7 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 	def warm_cache(ns: String, minK:Int, maxK:Int) = {
 		ScadsDeploy.logger.debug("Warming server caches.")
 		val cmd = "cd /opt/scads/experiments/scripts; scala -cp "+ deps + " warm_cache.scala " + 
-					host + " "+ ns +" " + minK + " " + maxK +" "+xtrace_on
+					host + " "+ ns +" " + minK + " " + maxK +" "+xtrace_on + " > /tmp/warm.log 2>&1"
 		clients.get(0).exec(cmd)
 		ScadsDeploy.logger.debug("Done warming.")
 	}
