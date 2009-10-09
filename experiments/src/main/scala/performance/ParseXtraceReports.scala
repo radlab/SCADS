@@ -48,10 +48,10 @@ object ParseXtraceReports {
 	val histogramDir = "/tmp/histograms/"
 	val histogramBreaksUpdateInterval = 24*60*60*1000
 	val nHistogramBreaksPerServer = 20
-	val nBins = try { System.getProperty("nBins").toInt } catch { case _ => 0 }
-	var minKey = try { System.getProperty("minKey") } catch { case _ => "000000" }
-	var maxKey = try { System.getProperty("maxKey") } catch { case _ => "000000" }
-	val histogramDBHost = try { System.getProperty("histogramDBHost") } catch { case _ => "localhost" }
+	val nBins = if (System.getProperty("nBins")!=null) System.getProperty("nBins").toInt else 0
+	var minKey = if (System.getProperty("minKey")!=null) System.getProperty("minKey") else "000000"
+	var maxKey = if (System.getProperty("maxKey")!=null) System.getProperty("maxKey") else "000000"
+	val histogramDBHost = if (System.getProperty("histogramDBHost")!=null) System.getProperty("histogramDBHost") else "localhost"
 	val histogramDBUser = "root"
 	val histogramDBPassword = ""
 	val histogramDBName = "director"
@@ -67,7 +67,7 @@ object ParseXtraceReports {
 								toList
 						else null
 						
-	println( histogramRange )
+	println( "histogramRange:"+histogramRange )
 	
 	// aggregation interval in milliseconds
 	val aggregationInterval = try { System.getProperty("aggregationInterval").toLong } catch { case _ => println("missing aggregationInterval"); exit(-1) }
@@ -248,22 +248,26 @@ object ParseXtraceReports {
 	}
 	
 	def processReport(report:String) {
-		val m = detailsPattern.matcher(report)
-		if (m.find) {
-			val values = m.group(2).split(",")
-			val requestType = values(0)
-			val key = values(1)
-			val serverIP = values(2)
-			val latency = values(3).toDouble
+		try {
+			val m = detailsPattern.matcher(report)
+			if (m.find) {
+				val values = m.group(2).split(",")
+				val requestType = values(0)
+				val key = values(1)
+				val serverIP = values(2)
+				val latency = values(3).toDouble
+
+				if (key<minKey||minKey=="") minKey=key
+				if (key>maxKey||maxKey=="") maxKey=key
 			
-			if (key<minKey||minKey=="") minKey=key
-			if (key>maxKey||maxKey=="") maxKey=key
+				val m2 = timePattern.matcher(report)
+				val timestamp = if (m2.find) m2.group(2).toDouble else 0.0
 			
-			val m2 = timePattern.matcher(report)
-			val timestamp = if (m2.find) m2.group(2).toDouble else 0.0
-			
-			//println("request: type="+requestType+"   key="+key+"  serverIP="+serverIP+"  latency="+latency)			
-			requests += new SCADSRequestStats(requestType,timestamp,serverIP,latency,key)
+				//println("request: type="+requestType+"   key="+key+"  serverIP="+serverIP+"  latency="+latency)			
+				requests += new SCADSRequestStats(requestType,timestamp,serverIP,latency,key)
+			}
+		} catch {
+			case e:Exception => { println("have problems parsing this report: \n"+report); e.printStackTrace }
 		}
 	}
 
