@@ -10,6 +10,8 @@ PAR.DEF = list( mar=c(5, 4, 4, 4) )
 DBUSER = "root"
 DBPASS = ""
 
+AGG = 20000
+
 mycols = c("cornflowerblue","navy","royalblue")
 
 action.colors = list("SplitInTwo"="cornflowerblue",
@@ -301,9 +303,11 @@ plot.server.latency = function(m,server,tight=T,title=T) {
 
 get.all.latency.data = function(m) {
 	data = 				get.data(m$conn.metrics,"ALL","get","latency_mean","get_latency_mean",replace.inf=1000)
+	data = merge( data, get.data(m$conn.metrics,"ALL","get","latency_50p","get_latency_50p",replace.inf=1000) )
 	data = merge( data, get.data(m$conn.metrics,"ALL","get","latency_90p","get_latency_90p",replace.inf=1000) )
 	data = merge( data, get.data(m$conn.metrics,"ALL","get","latency_99p","get_latency_99p",replace.inf=1000) )
 	data = merge( data, get.data(m$conn.metrics,"ALL","put","latency_mean","put_latency_mean",replace.inf=1000) )
+	data = merge( data, get.data(m$conn.metrics,"ALL","put","latency_50p","put_latency_50p",replace.inf=1000) )
 	data = merge( data, get.data(m$conn.metrics,"ALL","put","latency_90p","put_latency_90p",replace.inf=1000) )
 	data = merge( data, get.data(m$conn.metrics,"ALL","put","latency_99p","put_latency_99p",replace.inf=1000) )
 	data$time = to.date(data$time)
@@ -327,8 +331,8 @@ plot.all.latency = function(m,server,tight=F,title=F,plot.mean=T,data=NA,vline=N
 	lines( data$time, data$get_latency_99p, col="cornflowerblue", lty=1 )
 	lines( data$time, data$put_latency_99p, col="orange", lty=1 )
 	if (plot.mean) {
-		lines( data$time, data$get_latency_mean, col="cornflowerblue", lty=3 )
-		lines( data$time, data$put_latency_mean, col="orange", lty=3 )
+		lines( data$time, data$get_latency_50p, col="cornflowerblue", lty=3 )
+		lines( data$time, data$put_latency_50p, col="orange", lty=3 )
 	}
 #	lines( data$time, data$put_latency_90p, col="red", lty=1 )
 	if (!is.na(vline))
@@ -336,7 +340,7 @@ plot.all.latency = function(m,server,tight=F,title=F,plot.mean=T,data=NA,vline=N
 	if (!plot.mean)
 		legend( "topleft", legend=c("get 99p","put 99p"), col=c("cornflowerblue","orange"), inset=0.02, lty=c(3,1,3,1), lwd=2 )
 	else 
-		legend( "topleft", legend=c("get mean","get 99p","put mean","put 99p"), col=c("cornflowerblue","cornflowerblue","orange","orange"), inset=0.02, lty=c(3,1,3,1), lwd=2 )
+		legend( "topleft", legend=c("get median","get 99p","put median","put 99p"), col=c("cornflowerblue","cornflowerblue","orange","orange"), inset=0.02, lty=c(3,1,3,1), lwd=2 )
 	graph.done()
 }
 
@@ -623,7 +627,7 @@ get.all.servers = function(m) {
 }
 
 get.data = function(c,server,req.type,stat,col.name,replace.inf=F) {
-	sql = paste("select time as timestamp, value as ",col.name," from scads where metric_id in (select id from scads_metrics where server='",server,"' and request_type='",req.type,"' and stat='",stat,"') ",sep="")
+	sql = paste("select time as timestamp, value as ",col.name," from scads where metric_id in (select id from scads_metrics where server='",server,"' and request_type='",req.type,"' and aggregation='",AGG,"' and stat='",stat,"') ",sep="")
 	d = dbGetQuery(c, sql )
 
 	# fix infinities
@@ -648,7 +652,7 @@ get.data = function(c,server,req.type,stat,col.name,replace.inf=F) {
 
 get.stat.for.servers = function(c,servers,time,req.type,stat,add.missing=F) {
 	server.s = paste( "\"", paste(servers,collapse="\",\"", sep=""), "\"", sep="" )
-	sql = paste( "select * from metrics.scads s, metrics.scads_metrics m where s.time=",time," and s.metric_id=m.id and m.server IN (",server.s,") and m.request_type=\"",req.type,"\" and m.stat=\"",stat,"\" ", sep="")
+	sql = paste( "select * from metrics.scads s, metrics.scads_metrics m where s.time=",time," and s.metric_id=m.id and m.server IN (",server.s,") and m.request_type=\"",req.type,"\" and m.aggregation=\"",AGG,"\" and m.stat=\"",stat,"\" ", sep="")
 	d = dbGetQuery( c, sql )
 
 	# replace Infinity -> Inf
@@ -678,7 +682,7 @@ get.stat.for.servers = function(c,servers,time,req.type,stat,add.missing=F) {
 }
 
 get.max.server.workload = function(c) {
-	sql = "SELECT MAX(CAST(value as SIGNED)) as max FROM scads_metrics sm, scads s where server!=\"ALL\" and request_type=\"ALL\" and stat=\"workload\" and sm.id=s.metric_id"
+	sql = paste( "SELECT MAX(CAST(value as SIGNED)) as max FROM scads_metrics sm, scads s where server!=\"ALL\" and request_type=\"ALL\" and aggregation='",AGG,"' and stat=\"workload\" and sm.id=s.metric_id", sep="" )
 	d = dbGetQuery( c, sql )
 	return( d[1,1] )
 }
