@@ -883,6 +883,7 @@ object LowLevelActionMonitor {
 				actions += stats
 			}
        	} catch { case ex: SQLException => Director.logger.warn("SQL exception in metric reader",ex)}
+		statement.close
 		
 		(new java.io.File(dir)).mkdirs()
 		
