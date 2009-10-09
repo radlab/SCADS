@@ -35,6 +35,7 @@ case class Director(
 	var directorRunner:Runner = null
 	var serverManager:ScadsServerManager = null
 
+	Director.startRserve
 	setDeployment(deploymentName)	
 	Director.dropDatabases
 	SCADSState.initLogging("localhost",6001)
@@ -47,7 +48,6 @@ case class Director(
 	Director.director = this
 
 	case class Runner(policy:Policy, costFunction:FullCostFunction, placementIP: String) extends Runnable {
-		Director.startRserve
 		var lastPlotTime = new Date().getTime
 		var lastCostUpdateTime = new Date().getTime
 		stateHistory.setCostFunction(costFunction)
