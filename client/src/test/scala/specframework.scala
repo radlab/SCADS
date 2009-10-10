@@ -4,7 +4,7 @@ import org.specs._
 import org.specs.runner.JUnit4
 
 import edu.berkeley.cs.scads.Compiler
-import edu.berkeley.cs.scads.model.{Entity,BooleanField,IntegerField,StringField,Environment}
+import edu.berkeley.cs.scads.model.{Entity,BooleanField,IntegerField,Field,StringField,ValueHoldingField,Environment}
 
 import edu.berkeley.cs.scads.model.{TrivialExecutor,TrivialSession}
 //import edu.berkeley.cs.scads.TestCluster
@@ -24,7 +24,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
     val specFile: String
     val classNameMap: Map[String,Array[String]]
     val dataXMLFile: String
-    val queries: Array[String]
+    val queries: Map[String,Array[String]]
     val queriesXMLFile: String
 
     implicit val env = new Environment
@@ -56,25 +56,43 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
         classLoader.loadClass(name).asInstanceOf[Class[Any]]
     }
 
-    def getQueryMethod(name: String): Method = {
-        val queryClazz = loadClass("Queries")
+    def getQueryMethod(className: String, queryName: String): Method = {
+        val queryClazz = loadClass(className)
         val queryMethods = queryClazz.getDeclaredMethods
 
         var rtn: Method = null;
         queryMethods.foreach( (method) => {
-            if ( method.getName.equals(name) ) {
+            if ( method.getName.equals(queryName) ) {
                 rtn = method
             }
         })
         rtn
     }
 
-    def getVariableTuple(varType: String, varValue: String ): (Class[Object],Object) = {
-        varType match {
-            case "string" => (Class.forName("java.lang.String").asInstanceOf[Class[Object]],varValue)
-            case "int" => (Class.forName("java.lang.Integer").asInstanceOf[Class[Object]],new Integer(varValue))
-            case "bool" => (Class.forName("java.lang.Boolean").asInstanceOf[Class[Object]],new java.lang.Boolean(varValue))
-            case _ => throw new IllegalArgumentException
+    def setFieldValue(field: Field, fieldValue: String) = {
+        if ( field.isInstanceOf[StringField] ) {
+            field.asInstanceOf[StringField].apply(fieldValue)
+        } else if ( field.isInstanceOf[IntegerField] ) {
+            field.asInstanceOf[IntegerField].apply(fieldValue.toInt)
+        } else if ( field.isInstanceOf[BooleanField] ) {
+            field.asInstanceOf[BooleanField].apply(fieldValue.toBoolean)
+        } else {
+            throw new IllegalArgumentException("Unsupported field type found: " + field.getClass)
+        }
+    }
+
+    def convertToClass(clazz: Class[_], value: String): Object = {
+        val stringClass = Class.forName("java.lang.String")
+        val intClass = Class.forName("java.lang.Integer")
+        val boolClass = Class.forName("java.lang.Boolean")
+        if ( clazz.equals(stringClass) ) {
+            return value
+        } else if ( clazz.equals(intClass) ) {
+            return new Integer(value)
+        } else if ( clazz.equals(boolClass) ) {
+            return new java.lang.Boolean(value)
+        } else {
+            throw new IllegalArgumentException("Cannot convert to class: " + clazz)
         }
     }
 
@@ -120,12 +138,17 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
 
             "create the appropriate query methods" in {
 
-                queries.foreach( (name) => {
-                    val queryMethod = getQueryMethod(name)
-                    if ( queryMethod == null ) {
-                        fail("Could not find query: " + name)
-                    }
-                })
+                for ( (queryClass, queryArray) <- queries ) {
+                    queryArray.foreach( (queryName) => {
+                        val queryMethod = getQueryMethod(queryClass,queryName)
+                        if ( queryMethod == null ) {
+                            fail("Could not find query: " + queryName + " in class: " + queryClass)
+                        } else {
+                            // trick to get custom error messages
+                            queryMethod must notBeNull
+                        }
+                    })
+                }
 
             }
 
@@ -149,17 +172,16 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                         .newInstance(env)
                     (entity \\ "attribute").foreach( (attribute) => {
                         val attributeName = (attribute \ "@name").text
-                        val attributeType = (attribute \ "@type").text
                         llogger.debug("found attr name: " + attributeName)
-                        val field = ent.attributes(attributeName)
-                        val varTuple = getVariableTuple(attributeType, attribute.text)
-                        attributeType match {
-                            case "string" => field.asInstanceOf[StringField](varTuple._2.asInstanceOf[String])
-                            case "int"    => field.asInstanceOf[IntegerField](varTuple._2.asInstanceOf[Int])
-                            case "bool"   => field.asInstanceOf[BooleanField](varTuple._2.asInstanceOf[Boolean])
-                            case _ => throw new IllegalArgumentException("cannot handle ")
-                        }
-
+                        val field: Field = ent.attributes(attributeName)
+                        setFieldValue(field, attribute.text)
+                    })
+                    (entity \\ "foreign-key").foreach( (foreignKey) => {
+                        val relationshipName = (foreignKey \ "@relationship").text
+                        val relationshipPK = (foreignKey \ "@primarykey").text
+                        llogger.debug("found foreign key relationship: " + relationshipName)
+                        val field: Field = ent.attributes(relationshipName)
+                        setFieldValue(field, relationshipPK)
                     })
                     (ent.save) must not(throwA[Exception])
                 })
@@ -178,60 +200,60 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
 
                 (queryNode \\ "query").foreach( (query) => {
                     val queryName = (query \ "@name").text
-                    val queryInputs: Seq[Tuple2[Class[Object],Object]] =
-                        (query \\ "input").map[Tuple2[Class[Object],Object]]( (input) => {
-                            val typeName = (input \ "@type").text
-                            val typeValue = input.text
-                            getVariableTuple(typeName,typeValue)
-                        })
+                    val queryClass = (query \ "@class").text
+                    val queryPK = (query \ "@primarykey").text
 
-                    val queryMethod = getQueryMethod(queryName)
+                    var ent: Entity = null
+                    if ( queryPK == null || queryPK.isEmpty ) {
+                        // assume static query class
+                        llogger.debug("Assuming query " + queryName + " is static method")
+                    } else {
+                        // need to create an instance of the entity class
+                        llogger.debug("Need to create instance of " 
+                            + queryClass + " for query " + queryName)
+                        fail("Instance method query testing is un-implemented for now") 
+                    }
+                    var queryInputs = query \\ "input"
+                    val queryMethod = getQueryMethod(queryClass,queryName)
                     queryMethod must notBeNull
 
-                    val queryMethodParams = queryMethod.getParameterTypes
-                    queryMethodParams.startsWith(queryInputs.map(_._1)) mustEqual true
+                    val queryMethodParams: Array[Class[_]] = queryMethod.getParameterTypes
+                    queryMethodParams.length must be(queryInputs.size + 1)
+                    val queryMethodInputs = new Array[Object](queryMethodParams.length)
+                    for ( i <- 0 to (queryInputs.size-1) ) {
+                        val obj = convertToClass(queryMethodParams(i), queryInputs(i).text)
+                        queryMethodInputs(i) = obj
+                    }
+                    queryMethodInputs(queryMethodParams.length-1) = env
 
+                    llogger.debug("query method params: ")
                     queryMethodParams.foreach(llogger.debug(_))
-                    llogger.debug("-------------")
 
-                    val args = queryInputs.map(_._2).concat( Array(env) ).toArray
-                    args.foreach(llogger.debug(_))
-                    //try {
-                        val retVal = queryMethod.invoke(null, args : _*)
-                        retVal must notBeNull
-                    //} catch {
-                     //   case ex: InvocationTargetException => println(ex.getCause.printStackTrace)
+                    llogger.debug("query method inputs: " )
+                    queryMethodInputs.foreach(llogger.debug(_))
 
-                    //}
+                    val retVal = queryMethod.invoke(ent, queryMethodInputs : _*)
+                    retVal must notBeNull
 
-                    var pkTypeVar = ""
-                    val pKeySeq = retVal.asInstanceOf[Seq[Entity]].map( (ent) => {
-                        if ( ent.primaryKey.isInstanceOf[StringField] ) {
-                            pkTypeVar = "string"
-                            ent.primaryKey.asInstanceOf[StringField].value
-                        } else if ( ent.primaryKey.isInstanceOf[IntegerField] ) {
-                            pkTypeVar = "int"
-                            ent.primaryKey.asInstanceOf[IntegerField].value
-                        } else if ( ent.primaryKey.isInstanceOf[BooleanField] ) {
-                            pkTypeVar = "bool"
-                            ent.primaryKey.asInstanceOf[BooleanField].value
-                        } else {
-                            throw new Exception("cannot handle this kind of field")
-                        }
+                    val inOrder = (query \ "outputs" \ "@inorder").text.equals("true")
+                    val outputClass = (query \ "outputs" \ "@class").text
+                    val queryOutputs = query \\ "output"
+                    
+                    val queryOutputPKs: Seq[String] = queryOutputs.map( (node) => {
+                        (node \ "@primarykey").text
                     })
-                    pKeySeq.foreach(llogger.debug(_))
-                    llogger.debug("---------")
 
-                    val inputpKeySeq = (query \\ "@primarykey").map( (pk) => {
-                        getVariableTuple(pkTypeVar,pk.text)._2
+                    val actualOutputPKs: Seq[String] = retVal.asInstanceOf[Seq[Entity]].map( (ent) => {
+                        ent.primaryKey.asInstanceOf[ValueHoldingField[_]].value.toString
                     })
-                    inputpKeySeq.foreach(llogger.debug(_))
 
-                    pKeySeq must haveTheSameElementsAs(inputpKeySeq)
+                    if ( inOrder ) {
+                        queryOutputPKs must containInOrder(actualOutputPKs)
+                    } else {
+                        queryOutputPKs must haveTheSameElementsAs(actualOutputPKs)
+                    }
 
                 })
-
-
             }
 
         }

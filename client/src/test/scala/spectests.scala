@@ -14,15 +14,9 @@ object ScadrLangSpec extends ScadsLangSpec {
         "subscription" -> Array("id","approved","following","target"),
         "topic" -> Array("id","name","hashtag")
     )
-    val queries = Array(
-        "myThoughts",
-        "thoughtsByHashTag",
-        "myFollowing",
-        "thoughtstream",
-        "myReferences",
-        "needsApproval",
-        "userByName",
-        "userByEmail"
+    val queries = Map(
+        "user" -> Array("myThoughts","myFollowing","thoughtstream","myReferences","needsApproval"),
+        "Queries" -> Array("thoughtsByHashTag","userByName","userByEmail")
     )
     val queriesXMLFile = "src/test/resources/scadr_queries.xml"
 }
@@ -43,18 +37,22 @@ object ScadbookLangSpec extends ScadsLangSpec {
         "groupsubscription" -> Array("id","datejoined","groups","grouptarget"),
         "poke" -> Array("id","hidden","pokes","poketarget")
             )
-    val queries = Array(
-        "myNetworks",
-        "postsOnMyWall",
-        "myPostsOnOtherWalls",
-        "myPostsOnUserWall",
-        "myFriends",
-        //"myFriendsInNetwork",
-        "pendingFriendRequests",
-        "myGroups",
-        "usersInGroup",
-        "groupWall",
-        "myPokedBy"
+    val queries = Map(
+        "user" -> Array(
+            "myNetworks",
+            "postsOnMyWall",
+            "myPostsOnOtherWalls",
+            "myPostsOnUserWall",
+            "myFriends",
+            "pendingFriendRequests",
+            "myGroups",
+            "myPokedBy"
+        ),
+
+        "group" -> Array(
+            "groupWall",
+            "usersInGroup"
+        )
     )
     val queriesXMLFile = "src/test/resources/scadbook_queries.xml"
 }
@@ -75,19 +73,26 @@ object ScadbayLangSpec extends ScadsLangSpec {
         "bid" -> Array("id","bidamount","bidtime","myBids","myBidsTarget"),
         "comment" -> Array("id","rating","dateposted","wouldrecommend","comment","commenttype","commentsFromUser","commentsToUser","commentToItem")
             )
-    val queries = Array(
-        "myActiveSellingItems",
-        "myActiveBiddingItems",
-        "myCommentsAsSeller",
-        "myCommentsAsBuyer",
-        "myPostedComments",
-        "itemAutoBidders",
-        "activeItemsByParentCategory",
-        "activeItemsBySubParentCategory",
-        "activeItemsByRegularCategory",
-        "allParentCategories",
-        "allBrandItems",
-        "topItemBid"
+    val queries = Map(
+        "user" -> Array(
+            "myActiveSellingItems",
+            "myActiveBiddingItems",
+            "myCommentsAsSeller",
+            "myCommentsAsBuyer",
+            "myPostedComments",
+
+        ),
+
+        "item" -> Array(
+            "itemAutoBidders",
+            "topItemBid"
+        ),
+
+        "Queries" -> Array(
+            "activeItemsByRegularCategory",
+            "allParentCategories",
+            "allBrandItems"
+        )
     )
     val queriesXMLFile = "src/test/resources/scadbay_queries.xml"
 }

@@ -11,7 +11,7 @@
         <attributes>
             <attribute name="name" type="string">Stephen Tu</attribute>
             <attribute name="password" type="string">s3cr3t</attribute>
-            <attribute name="email" type="string">myemail@berkeley.edu</attribute>
+            <attribute name="email" type="string">myemail1@berkeley.edu</attribute>
             <attribute name="profileData" type="string">About me</attribute>
         </attributes>
     </entity>
@@ -19,7 +19,7 @@
         <attributes>
             <attribute name="name" type="string">Bob Barker</attribute>
             <attribute name="password" type="string">s3cr3t</attribute>
-            <attribute name="email" type="string">myemail@berkeley.edu</attribute>
+            <attribute name="email" type="string">myemail2@berkeley.edu</attribute>
             <attribute name="profileData" type="string">About me</attribute>
         </attributes>
     </entity>
@@ -27,7 +27,7 @@
         <attributes>
             <attribute name="name" type="string">Paul Pierce</attribute>
             <attribute name="password" type="string">s3cr3t</attribute>
-            <attribute name="email" type="string">myemail@berkeley.edu</attribute>
+            <attribute name="email" type="string">myemail3@berkeley.edu</attribute>
             <attribute name="profileData" type="string">About me</attribute>
         </attributes>
     </entity>
@@ -35,7 +35,7 @@
         <attributes>
             <attribute name="name" type="string">Kobe Bryant</attribute>
             <attribute name="password" type="string">s3cr3t</attribute>
-            <attribute name="email" type="string">myemail@berkeley.edu</attribute>
+            <attribute name="email" type="string">myemail4@berkeley.edu</attribute>
             <attribute name="profileData" type="string">About me</attribute>
         </attributes>
     </entity>
@@ -43,7 +43,7 @@
         <attributes>
             <attribute name="name" type="string">Lady Gaga</attribute>
             <attribute name="password" type="string">s3cr3t</attribute>
-            <attribute name="email" type="string">myemail@berkeley.edu</attribute>
+            <attribute name="email" type="string">myemail5@berkeley.edu</attribute>
             <attribute name="profileData" type="string">About me</attribute>
         </attributes>
     </entity>
@@ -51,7 +51,7 @@
         <attributes>
             <attribute name="name" type="string">Steve Nash</attribute>
             <attribute name="password" type="string">s3cr3t</attribute>
-            <attribute name="email" type="string">myemail@berkeley.edu</attribute>
+            <attribute name="email" type="string">myemail6@berkeley.edu</attribute>
             <attribute name="profileData" type="string">About me</attribute>
         </attributes>
     </entity>
@@ -59,7 +59,7 @@
         <attributes>
             <attribute name="name" type="string">Randy Johnson</attribute>
             <attribute name="password" type="string">s3cr3t</attribute>
-            <attribute name="email" type="string">myemail@berkeley.edu</attribute>
+            <attribute name="email" type="string">myemail7@berkeley.edu</attribute>
             <attribute name="profileData" type="string">About me</attribute>
         </attributes>
     </entity>
@@ -106,34 +106,70 @@
             <attribute name="timestamp" type="int">5</attribute>
             <attribute name="thought" type="string">Thought 5</attribute>
         </attributes>
-        <!--
         <foreign-keys>
-            <foreign-key relationship="owner" class="user" primarykey="Lady Gaga" />
-        </foreign-keys> -->
+            <foreign-key relationship="owner" primarykey="Lady Gaga" />
+        </foreign-keys> 
     </entity>
     <entity class="thought">
         <attributes>
             <attribute name="timestamp" type="int">6</attribute>
             <attribute name="thought" type="string">Thought 6</attribute>
         </attributes>
-        <!--
         <foreign-keys>
-            <foreign-key relationship="owner" class="user" primarykey="Lady Gaga" />
-        </foreign-keys> -->
+            <foreign-key relationship="owner" primarykey="Lady Gaga" />
+        </foreign-keys>
     </entity>
 
     <!-- Subscription Class -->
     <entity class="subscription">
         <attributes>
             <attribute name="id" type="int">1</attribute>
-            <attribute name="approved" type="bool">false</attribute>
+            <attribute name="approved" type="bool">true</attribute>
         </attributes>
+        <foreign-keys>
+            <foreign-key relationship="following" primarykey="Steve Nash" />
+            <foreign-key relationship="target" primarykey="Stephen Tu" />
+        </foreign-keys>
     </entity>
     <entity class="subscription">
         <attributes>
             <attribute name="id" type="int">2</attribute>
             <attribute name="approved" type="bool">true</attribute>
         </attributes>
+        <foreign-keys>
+            <foreign-key relationship="following" primarykey="Steve Nash" />
+            <foreign-key relationship="target" primarykey="Bob Barker" />
+        </foreign-keys>
+    </entity>
+    <entity class="subscription">
+        <attributes>
+            <attribute name="id" type="int">3</attribute>
+            <attribute name="approved" type="bool">true</attribute>
+        </attributes>
+        <foreign-keys>
+            <foreign-key relationship="following" primarykey="Steve Nash" />
+            <foreign-key relationship="target" primarykey="Paul Pierce" />
+        </foreign-keys>
+    </entity>
+    <entity class="subscription">
+        <attributes>
+            <attribute name="id" type="int">4</attribute>
+            <attribute name="approved" type="bool">true</attribute>
+        </attributes>
+        <foreign-keys>
+            <foreign-key relationship="following" primarykey="Steve Nash" />
+            <foreign-key relationship="target" primarykey="Kobe Bryant" />
+        </foreign-keys>
+    </entity>
+    <entity class="subscription">
+        <attributes>
+            <attribute name="id" type="int">5</attribute>
+            <attribute name="approved" type="bool">true</attribute>
+        </attributes>
+        <foreign-keys>
+            <foreign-key relationship="following" primarykey="Steve Nash" />
+            <foreign-key relationship="target" primarykey="Lady Gaga" />
+        </foreign-keys>
     </entity>
 
     <!--
@@ -146,35 +182,71 @@
             <attribute name="id" type="int">1</attribute>
             <attribute name="name" type="string">Paranormal Activity</attribute>
         </attributes>
+        <foreign-keys>
+            <foreign-key relationship="hashtag" primarykey="1"/>
+        </foreign-keys>
     </entity>
     <entity class="topic">
         <attributes>
             <attribute name="id" type="int">2</attribute>
             <attribute name="name" type="string">Goodnight</attribute>
         </attributes>
+        <foreign-keys>
+            <foreign-key relationship="hashtag" primarykey="1"/>
+        </foreign-keys>
     </entity>
     <entity class="topic">
         <attributes>
             <attribute name="id" type="int">3</attribute>
             <attribute name="name" type="string">Kindle</attribute>
         </attributes>
+        <foreign-keys>
+            <foreign-key relationship="hashtag" primarykey="1"/>
+        </foreign-keys>
     </entity>
     <entity class="topic">
         <attributes>
             <attribute name="id" type="int">4</attribute>
-            <attribute name="name" type="string">B2K</attribute>
+            <attribute name="name" type="string">Kindle</attribute>
         </attributes>
+        <foreign-keys>
+            <foreign-key relationship="hashtag" primarykey="2"/>
+        </foreign-keys>
     </entity>
     <entity class="topic">
         <attributes>
             <attribute name="id" type="int">5</attribute>
-            <attribute name="name" type="string">Halloween</attribute>
+            <attribute name="name" type="string">B2K</attribute>
         </attributes>
+        <foreign-keys>
+            <foreign-key relationship="hashtag" primarykey="2"/>
+        </foreign-keys>
     </entity>
     <entity class="topic">
         <attributes>
             <attribute name="id" type="int">6</attribute>
+            <attribute name="name" type="string">Kindle</attribute>
+        </attributes>
+        <foreign-keys>
+            <foreign-key relationship="hashtag" primarykey="3"/>
+        </foreign-keys>
+    </entity>
+    <entity class="topic">
+        <attributes>
+            <attribute name="id" type="int">7</attribute>
             <attribute name="name" type="string">Zombieland</attribute>
         </attributes>
+        <foreign-keys>
+            <foreign-key relationship="hashtag" primarykey="4"/>
+        </foreign-keys>
+    </entity>
+    <entity class="topic">
+        <attributes>
+            <attribute name="id" type="int">8</attribute>
+            <attribute name="name" type="string">Kindle</attribute>
+        </attributes>
+        <foreign-keys>
+            <foreign-key relationship="hashtag" primarykey="4"/>
+        </foreign-keys>
     </entity>
 </entities>

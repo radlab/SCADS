@@ -1,5 +1,5 @@
 <queryruns>
-    <query name="userByName">
+    <query name="userByName" class="Queries">
         <inputs>
             <input type="string">Stephen Tu</input>
         </inputs>
@@ -7,7 +7,7 @@
             <output primarykey="Stephen Tu" />
         </outputs>
     </query>
-    <query name="userByName">
+    <query name="userByName" class="Queries">
         <inputs>
             <input type="string">Bob Barker</input>
         </inputs>
@@ -15,11 +15,42 @@
             <output primarykey="Bob Barker" />
         </outputs>
     </query>
-    <!--
-    <query name="userByName">
+    <query name="userByEmail" class="Queries">
         <inputs>
-            <input type="string">Mr. T</input>
+            <input type="string">myemail5@berkeley.edu</input>
         </inputs>
-        <outputs class="user"/>
-    </query>-->
+        <outputs class="user">
+            <output primarykey="Lady Gaga" />
+        </outputs>
+    </query>
+    <query name="myThoughts" class="user" primarykey="Stephen Tu">
+        <inputs/>
+        <outputs class="thought">
+            <output primarykey="1"/>
+            <output primarykey="2"/>
+        </outputs>
+    </query>
+    <query name="thoughtsByHashTag" class="Queries">
+        <inputs>
+            <input type="string">Kindle</input>
+            <input type="int">3</input>
+        </inputs>
+        <outputs class="thought">
+            <output primarykey="1"/>
+            <output primarykey="2"/>
+            <output primarykey="3"/>
+        </outputs>
+    </query>
+    <query name="myFollowing" class="user" primarykey="Steve Nash">
+        <inputs>
+            <input type="int">30</input>
+        </inputs>
+        <outputs class="user">
+            <output primarykey="Stephen Tu" />
+            <output primarykey="Bob Barker" />
+            <output primarykey="Paul Pierce" />
+            <output primarykey="Kobe Bryant" />
+            <output primarykey="Lady Gaga" />
+        </outputs>
+    </query>
 </queryruns>
