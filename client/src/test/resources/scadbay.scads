@@ -117,9 +117,9 @@ RELATIONSHIP myBidsTarget FROM item TO ONE bid
 /* As a Buyer/Seller, I can leave up to 10000 total comments
  * to Sellers/Buyers */
 RELATIONSHIP commentsFromUser FROM user TO 10000 comment
-RELATIONSHIP commentsToUser FROM user TO ONE comment 
+RELATIONSHIP commentsToUser FROM user TO ONE comment
 /* Item context for comment */
-RELATIONSHIP commentToItem FROM item TO ONE comment 
+RELATIONSHIP commentToItem FROM item TO ONE comment
 /* Brand of item */
 RELATIONSHIP itemBrand FROM item TO MANY brand
 
@@ -131,7 +131,7 @@ RELATIONSHIP itemCategoriesTarget FROM category TO ONE categorymap
 RELATIONSHIP myAutoBids FROM user TO 100 autobid
 RELATIONSHIP autobidToItem FROM item TO ONE autobid
 
-/* There are 2 kinds of categories, parents and regular 
+/* There are 2 kinds of categories, parents and regular
 RELATIONSHIP parentCategoryMapping FROM category TO ONE category
 
 /* -------- BEGIN QUERIES --------- */

@@ -91,7 +91,7 @@ ENTITY group
     PRIMARY(id)
 }
 
-ENTITY groupsubscription 
+ENTITY groupsubscription
 {
     int id,
     int datejoined
@@ -154,7 +154,7 @@ RELATIONSHIP poketarget FROM user TO ONE poke
 
 /* -------- BEGIN QUERY DEFINITIONS --------- */
 QUERY myNetworks
-FETCH network 
+FETCH network
     OF networksubscription BY networktarget
     OF user BY networks
 WHERE user=[this]
@@ -210,7 +210,7 @@ FETCH user
 WHERE me=[this] AND friendship.approved = false
 
 QUERY myGroups
-FETCH group 
+FETCH group
     OF groupsubscription BY grouptarget
     OF user BY groups
 WHERE user=[this]

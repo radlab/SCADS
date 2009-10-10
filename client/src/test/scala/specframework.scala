@@ -137,7 +137,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
 
                 val dataNode = scala.xml.XML.loadFile(dataXMLFile)
                 if ( (dataNode \\ "entity").length == 0 ) {
-                    fail("No entity data given to test input") 
+                    fail("No entity data given to test input")
                 }
 
                 (dataNode \\ "entity").foreach( (entity) => {
@@ -173,7 +173,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
 
                 val queryNode = scala.xml.XML.loadFile(queriesXMLFile)
                 if ( (queryNode \\ "query").length == 0 ) {
-                    fail("No query tests given to test input") 
+                    fail("No query tests given to test input")
                 }
 
                 (queryNode \\ "query").foreach( (query) => {
