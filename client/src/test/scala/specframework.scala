@@ -86,11 +86,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
             var _source = ""
 
             "parsing correctly" in {
-                try {
-                    _source = Compiler.codeGenFromSource(specSource)
-                } catch {
-                    case ex: Exception => fail("unable to parse")
-                }
+                (_source = Compiler.codeGenFromSource(specSource)) must not(throwA[Exception])
             }
 
             "compiling and packaging into jar correctly" in {
@@ -100,14 +96,10 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                 val rb = ResourceBundle.getBundle("test-classpath")
                 val classpath = rb.getString("maven.test.classpath")
 
-                try {
-                    if ( classpath == null || classpath.isEmpty ) {
-                        Compiler.compileSpecCode(classfilesDir, jarFile, _source)
-                    } else {
-                        Compiler.compileSpecCode(classfilesDir, jarFile, classpath, _source)
-                    }
-                } catch {
-                    case ex: Exception => fail("unable to compile")
+                if ( classpath == null || classpath.isEmpty ) {
+                    Compiler.compileSpecCode(classfilesDir, jarFile, _source) must not(throwA[Exception])
+                } else {
+                    Compiler.compileSpecCode(classfilesDir, jarFile, classpath, _source) must not(throwA[Exception])
                 }
             }
 
@@ -120,7 +112,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                     entConstructor must not(throwA[NoSuchMethodException])
                     val ent = entConstructor.newInstance(env)
                     ent must not(throwA[Exception])
-                    ent must notBeNull
+                    ent must haveSuperClass[Entity]
                     classNameMap(c) must haveTheSameElementsAs(ent.attributes.keySet)
                 })
 
@@ -130,14 +122,23 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
 
                 queries.foreach( (name) => {
                     val queryMethod = getQueryMethod(name)
-                    queryMethod must notBeNull
+                    if ( queryMethod == null ) {
+                        fail("Could not find query: " + name)
+                    }
                 })
 
             }
 
             "input data appropriately" in {
+                val dataXMLFileObj = new File(dataXMLFile)
+                if ( !dataXMLFileObj.isFile ) {
+                    fail("No such input data XML file: " + dataXMLFile)
+                }
 
                 val dataNode = scala.xml.XML.loadFile(dataXMLFile)
+                if ( (dataNode \\ "entity").length == 0 ) {
+                    fail("No entity data given to test input") 
+                }
 
                 (dataNode \\ "entity").foreach( (entity) => {
                     val clazz = (entity \ "@class").text
@@ -160,10 +161,20 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                         }
 
                     })
-                    ent.save
+                    (ent.save) must not(throwA[Exception])
                 })
+            }
+
+            "pass the query tests" in {
+                val queriesXMLFileObj = new File(queriesXMLFile)
+                if ( !queriesXMLFileObj.isFile ) {
+                    fail("No such input queries XML file: " + queriesXMLFile)
+                }
 
                 val queryNode = scala.xml.XML.loadFile(queriesXMLFile)
+                if ( (queryNode \\ "query").length == 0 ) {
+                    fail("No query tests given to test input") 
+                }
 
                 (queryNode \\ "query").foreach( (query) => {
                     val queryName = (query \ "@name").text

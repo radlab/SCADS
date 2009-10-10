@@ -250,11 +250,13 @@
     <!-- Friendship Class -->
     <entity class="friendship">
         <attributes>
+            <attribute name="id" type="int">1</attribute>
             <attribute name="approved" type="bool">false</attribute>
         </attributes>
     </entity>
     <entity class="friendship">
         <attributes>
+            <attribute name="id" type="int">2</attribute>
             <attribute name="approved" type="bool">true</attribute>
         </attributes>
     </entity>

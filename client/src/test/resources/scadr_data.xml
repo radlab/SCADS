@@ -125,11 +125,13 @@
     <!-- Subscription Class -->
     <entity class="subscription">
         <attributes>
+            <attribute name="id" type="int">1</attribute>
             <attribute name="approved" type="bool">false</attribute>
         </attributes>
     </entity>
     <entity class="subscription">
         <attributes>
+            <attribute name="id" type="int">2</attribute>
             <attribute name="approved" type="bool">true</attribute>
         </attributes>
     </entity>
@@ -141,31 +143,37 @@
     -->
     <entity class="topic">
         <attributes>
+            <attribute name="id" type="int">1</attribute>
             <attribute name="name" type="string">Paranormal Activity</attribute>
         </attributes>
     </entity>
     <entity class="topic">
         <attributes>
+            <attribute name="id" type="int">2</attribute>
             <attribute name="name" type="string">Goodnight</attribute>
         </attributes>
     </entity>
     <entity class="topic">
         <attributes>
+            <attribute name="id" type="int">3</attribute>
             <attribute name="name" type="string">Kindle</attribute>
         </attributes>
     </entity>
     <entity class="topic">
         <attributes>
+            <attribute name="id" type="int">4</attribute>
             <attribute name="name" type="string">B2K</attribute>
         </attributes>
     </entity>
     <entity class="topic">
         <attributes>
+            <attribute name="id" type="int">5</attribute>
             <attribute name="name" type="string">Halloween</attribute>
         </attributes>
     </entity>
     <entity class="topic">
         <attributes>
+            <attribute name="id" type="int">6</attribute>
             <attribute name="name" type="string">Zombieland</attribute>
         </attributes>
     </entity>

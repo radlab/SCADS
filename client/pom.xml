@@ -87,8 +87,15 @@
                             <id>scadbook</id>
                             <mainClass>edu.berkeley.cs.scads.Compiler</mainClass>
                             <args>
-                                <arg>scadbook.scads</arg>
+                                <arg>src/test/resources/scadbook.scads</arg>
                             </args>
+                            <jvmArgs>
+                                <jvmArg>-Xss1024k</jvmArg>
+                            </jvmArgs>
+                        </launcher>
+                        <launcher>
+                            <id>scadbookTest</id>
+                            <mainClass>edu.berkeley.cs.scads.test.ScadbookLangSpec</mainClass>
                             <jvmArgs>
                                 <jvmArg>-Xss1024k</jvmArg>
                             </jvmArgs>

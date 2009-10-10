@@ -9,12 +9,20 @@ object ScadrLangSpec extends ScadsLangSpec {
     val dataXMLFile = "src/test/resources/scadr_data.xml"
     val classNameMap = Map(
         "user" -> Array("name","password","email","profileData"),
-        "thought" -> Array("timestamp","thought"),
-        "subscription" -> Array("id","approved"),
-        "topic" -> Array("id","name")
+        "thought" -> Array("timestamp","thought","owner"),
+        "thoughtref" -> Array("id","thoughtToRef","refToUser"),
+        "subscription" -> Array("id","approved","following","target"),
+        "topic" -> Array("id","name","hashtag")
     )
     val queries = Array(
-        "userByName"
+        "myThoughts",
+        "thoughtsByHashTag",
+        "myFollowing",
+        "thoughtstream",
+        "myReferences",
+        "needsApproval",
+        "userByName",
+        "userByEmail"
     )
     val queriesXMLFile = "src/test/resources/scadr_queries.xml"
 }
@@ -25,13 +33,15 @@ object ScadbookLangSpec extends ScadsLangSpec {
     val specFile = "src/test/resources/scadbook.scads"
     val dataXMLFile = "src/test/resources/scadbook_data.xml"
     val classNameMap = Map(
-        "user" -> Array("id","email","password","nickname","datejoined","active"),
+        "user" -> Array("id","email","password","nickname","datejoined","active","userProfile"),
         "profile" -> Array("id","birthday","hometown","sex","politicalaffiliation","interests","activities"),
         "network" -> Array("id","networkType","name"),
-        "wallpost" -> Array("id","dateposted","contents"),
-        "friendship" -> Array("approved"),
+        "networksubscription" -> Array("id","datejoined","networks","networktarget"),
+        "wallpost" -> Array("id","dateposted","contents","wallpostsFromUser","wallpostsToUser","wallpostsToGroup"),
+        "friendship" -> Array("id","approved","friendships","friendshiptarget"),
         "group" -> Array("id","groupType","name"),
-        "poke" -> Array("id","hidden")
+        "groupsubscription" -> Array("id","datejoined","groups","grouptarget"),
+        "poke" -> Array("id","hidden","pokes","poketarget")
             )
     val queries = Array(
         "myNetworks",
@@ -39,7 +49,7 @@ object ScadbookLangSpec extends ScadsLangSpec {
         "myPostsOnOtherWalls",
         "myPostsOnUserWall",
         "myFriends",
-        "myFriendsInNetwork",
+        //"myFriendsInNetwork",
         "pendingFriendRequests",
         "myGroups",
         "usersInGroup",
@@ -56,12 +66,14 @@ object ScadbayLangSpec extends ScadsLangSpec {
     val dataXMLFile = "src/test/resources/scadbay_data.xml"
     val classNameMap = Map(
         "user" -> Array("id","email","password","nickname","datejoined","active"),
-        "item" -> Array("id","dateposted","duration","isFinished","title","startingprice","minimumbetraise","instantbuyprice","pictureurl","description","shortdesc"),
-        "autobid" -> Array("id","maxamount"),
-        "brand" -> Array("id","name"),
-        "category" -> Array("id","title","cattype"),
-        "bid" -> Array("id","bidamount","bidtime"),
-        "comment" -> Array("id","rating","dateposted","wouldrecommend","comment","commenttype")
+        "item" -> Array("id","dateposted","duration","isFinished","title","startingprice","minimumbetraise","instantbuyprice","pictureurl","description","shortdesc","myItemsSelling"),
+        "itemwatch" -> Array("id","startdate","myItemsWatching","myItemsWatchingTarget"),
+        "autobid" -> Array("id","maxamount","myAutoBids","autobidToItem"),
+        "brand" -> Array("id","name","itemBrand"),
+        "category" -> Array("id","title","cattype","parentCategoryMapping"),
+        "categorymap" -> Array("id","itemCategories","itemCategoriesTarget"),
+        "bid" -> Array("id","bidamount","bidtime","myBids","myBidsTarget"),
+        "comment" -> Array("id","rating","dateposted","wouldrecommend","comment","commenttype","commentsFromUser","commentsToUser","commentToItem")
             )
     val queries = Array(
         "myActiveSellingItems",

@@ -36,12 +36,10 @@ ENTITY topic
 
 RELATIONSHIP owner FROM user TO MANY thought
 RELATIONSHIP following FROM user TO 5000 subscription
-RELATIONSHIP target FROM subscription TO ONE user
-//RELATIONSHIP target FROM user TO ONE subscription
+RELATIONSHIP target FROM user TO ONE subscription
 RELATIONSHIP hashtag FROM thought TO 10 topic
 RELATIONSHIP thoughtToRef FROM thought TO 10 thoughtref
 RELATIONSHIP refToUser FROM user TO ONE thoughtref
-//RELATIONSHIP references FROM thought TO 10 user
 
 QUERY myThoughts
 FETCH thought

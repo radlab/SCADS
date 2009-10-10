@@ -61,6 +61,13 @@ ENTITY network
     PRIMARY(id)
 }
 
+ENTITY networksubscription
+{
+    int id,
+    int datejoined
+    PRIMARY(id)
+}
+
 ENTITY wallpost
 {
     int    id,
@@ -71,8 +78,9 @@ ENTITY wallpost
 
 ENTITY friendship
 {
+    int id,
     bool approved
-    PRIMARY(approved)
+    PRIMARY(id)
 }
 
 ENTITY group
@@ -80,6 +88,13 @@ ENTITY group
     int    id,
     int    groupType, /* enum for now */
     string name
+    PRIMARY(id)
+}
+
+ENTITY groupsubscription 
+{
+    int id,
+    int datejoined
     PRIMARY(id)
 }
 
@@ -98,48 +113,50 @@ ENTITY poke
 
 /* -------- BEGIN RELATIONSHIP DEFINITIONS --------- */
 
+/* A user has one profile, and the user is the owner of the 1 TO 1 */
+RELATIONSHIP userProfile FROM profile TO ONE user
+
 /* A user can be a part of up to 20 networks (some reasonable cap) */
-RELATIONSHIP networks FROM user TO 20 network
+RELATIONSHIP networks FROM user TO 20 networksubscription
+RELATIONSHIP networktarget FROM network TO ONE networksubscription
 
 /* A wallpost can be from a user */
 RELATIONSHIP wallpostsFromUser FROM user TO MANY wallpost
 
 /* A wallpost can also be directed towards a user */
-RELATIONSHIP wallpostsToUser FROM wallpost TO MANY user
+RELATIONSHIP wallpostsToUser FROM user TO ONE wallpost
 
 /* A user can have up to 5000 friends */
 /* NOTE: We make the assumption that friendships will be maintained
  * bi-directionally in the application logic
  */
 RELATIONSHIP friendships FROM user TO 5000 friendship
-RELATIONSHIP target FROM friendship TO ONE user
+RELATIONSHIP friendshiptarget FROM user TO ONE friendship
 
 /* A user can belong to 1000 groups */
-RELATIONSHIP groups FROM user TO 1000 group
+RELATIONSHIP groups FROM user TO 1000 groupsubscription
+RELATIONSHIP grouptarget FROM group TO ONE groupsubscription
 
 /* A user can post on a group wall */
-RELATIONSHIP wallpostsToGroup FROM wallpost TO MANY group
+RELATIONSHIP wallpostsToGroup FROM group TO ONE wallpost
 
 /* A user can initiate many pokes */
 RELATIONSHIP pokes FROM user TO MANY poke
 
 /* But each poke can only be targeted to one user */
-RELATIONSHIP poketarget FROM poke TO ONE user
+RELATIONSHIP poketarget FROM user TO ONE poke
 
 /*
  * NOTE:
  * The wallposts/friendships/and pokes concepts all have the same
  * basic model.
- * QUESTION: Is it possible to do these many-to-many models without
- *  creating an intermediate entity (represented by X above)? I don't
- *  expect so, because in a traditional RDBMS, you would have to do the
- *  same thing anyways, even if you wanted to store no metadata, you
- *  would at least need a join table
  */
 
 /* -------- BEGIN QUERY DEFINITIONS --------- */
 QUERY myNetworks
-FETCH network OF user BY networks
+FETCH network 
+    OF networksubscription BY networktarget
+    OF user BY networks
 WHERE user=[this]
 ORDER BY networkType
 
@@ -170,7 +187,7 @@ WHERE
  */
 QUERY myFriends
 FETCH user
-    OF friendship BY target
+    OF friendship BY friendshiptarget
     OF user me BY friendships
 WHERE me=[this] AND friendship.approved = true
 
@@ -189,16 +206,19 @@ WHERE
 QUERY pendingFriendRequests
 FETCH user
     OF friendship BY friendships
-    OF user me BY target
+    OF user me BY friendshiptarget
 WHERE me=[this] AND friendship.approved = false
 
 QUERY myGroups
-FETCH group OF user BY groups
+FETCH group 
+    OF groupsubscription BY grouptarget
+    OF user BY groups
 WHERE user=[this]
 
 QUERY usersInGroup
 FETCH user
-    OF group BY groups
+    OF groupsubscription BY groups
+    OF group BY grouptarget
 WHERE group=[this]
 
 QUERY groupWall
