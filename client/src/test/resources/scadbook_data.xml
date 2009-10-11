@@ -167,6 +167,35 @@
             <attribute name="name" type="string">UCSD</attribute>
         </attributes>
     </entity>
+    <entity class="network">
+        <attributes>
+            <attribute name="id" type="int">5</attribute>
+            <attribute name="networkType" type="int">3</attribute>
+            <attribute name="name" type="string">Phoenix, AZ</attribute>
+        </attributes>
+    </entity>
+
+    <!-- Network Subscription Class -->
+    <entity class="networksubscription">
+        <attributes>
+            <attribute name="id" type="int">1</attribute>
+            <attribute name="datejoined" type="int">1</attribute>
+        </attributes>
+        <foreign-keys>
+            <foreign-key relationship="networks" primarykey="1"/>
+            <foreign-key relationship="networktarget" primarykey="1"/>
+        </foreign-keys>
+    </entity>
+    <entity class="networksubscription">
+        <attributes>
+            <attribute name="id" type="int">2</attribute>
+            <attribute name="datejoined" type="int">2</attribute>
+        </attributes>
+        <foreign-keys>
+            <foreign-key relationship="networks" primarykey="1"/>
+            <foreign-key relationship="networktarget" primarykey="5"/>
+        </foreign-keys>
+    </entity>
 
     <!-- Wallpost Class -->
     <entity class="wallpost">
@@ -175,6 +204,10 @@
             <attribute name="dateposted" type="int">100</attribute>
             <attribute name="contents" type="string">Hey what's up dude</attribute>
         </attributes>
+        <foreign-keys>
+            <foreign-key relationship="wallpostsFromUser" primarykey="1"/>
+            <foreign-key relationship="wallpostsToUser" primarykey="5"/>
+        </foreign-keys>
     </entity>
     <entity class="wallpost">
         <attributes>
@@ -182,6 +215,10 @@
             <attribute name="dateposted" type="int">101</attribute>
             <attribute name="contents" type="string">Not much</attribute>
         </attributes>
+        <foreign-keys>
+            <foreign-key relationship="wallpostsFromUser" primarykey="5"/>
+            <foreign-key relationship="wallpostsToUser" primarykey="1"/>
+        </foreign-keys>
     </entity>
     <entity class="wallpost">
         <attributes>
@@ -189,6 +226,10 @@
             <attribute name="dateposted" type="int">102</attribute>
             <attribute name="contents" type="string">How is your school going?</attribute>
         </attributes>
+        <foreign-keys>
+            <foreign-key relationship="wallpostsFromUser" primarykey="1"/>
+            <foreign-key relationship="wallpostsToUser" primarykey="5"/>
+        </foreign-keys>
     </entity>
     <entity class="wallpost">
         <attributes>
@@ -196,6 +237,10 @@
             <attribute name="dateposted" type="int">103</attribute>
             <attribute name="contents" type="string">Not bad, you?</attribute>
         </attributes>
+        <foreign-keys>
+            <foreign-key relationship="wallpostsFromUser" primarykey="5"/>
+            <foreign-key relationship="wallpostsToUser" primarykey="1"/>
+        </foreign-keys>
     </entity>
     <entity class="wallpost">
         <attributes>
@@ -203,6 +248,10 @@
             <attribute name="dateposted" type="int">104</attribute>
             <attribute name="contents" type="string">Dude guess what I got in</attribute>
         </attributes>
+        <foreign-keys>
+            <foreign-key relationship="wallpostsFromUser" primarykey="2"/>
+            <foreign-key relationship="wallpostsToUser" primarykey="3"/>
+        </foreign-keys>
     </entity>
     <entity class="wallpost">
         <attributes>
@@ -210,6 +259,10 @@
             <attribute name="dateposted" type="int">105</attribute>
             <attribute name="contents" type="string">Congrats!</attribute>
         </attributes>
+        <foreign-keys>
+            <foreign-key relationship="wallpostsFromUser" primarykey="3"/>
+            <foreign-key relationship="wallpostsToUser" primarykey="2"/>
+        </foreign-keys>
     </entity>
     <entity class="wallpost">
         <attributes>
@@ -217,6 +270,10 @@
             <attribute name="dateposted" type="int">106</attribute>
             <attribute name="contents" type="string">What are you doing this weekend?</attribute>
         </attributes>
+        <foreign-keys>
+            <foreign-key relationship="wallpostsFromUser" primarykey="4"/>
+            <foreign-key relationship="wallpostsToUser" primarykey="5"/>
+        </foreign-keys>
     </entity>
     <entity class="wallpost">
         <attributes>
@@ -224,6 +281,10 @@
             <attribute name="dateposted" type="int">107</attribute>
             <attribute name="contents" type="string">Just chillin</attribute>
         </attributes>
+        <foreign-keys>
+            <foreign-key relationship="wallpostsFromUser" primarykey="5"/>
+            <foreign-key relationship="wallpostsToUser" primarykey="4"/>
+        </foreign-keys>
     </entity>
     <entity class="wallpost">
         <attributes>
@@ -231,6 +292,10 @@
             <attribute name="dateposted" type="int">108</attribute>
             <attribute name="contents" type="string">Hey how do you do problem 5?</attribute>
         </attributes>
+        <foreign-keys>
+            <foreign-key relationship="wallpostsFromUser" primarykey="1"/>
+            <foreign-key relationship="wallpostsToUser" primarykey="2"/>
+        </foreign-keys>
     </entity>
     <entity class="wallpost">
         <attributes>
@@ -238,6 +303,10 @@
             <attribute name="dateposted" type="int">109</attribute>
             <attribute name="contents" type="string">Look on page 37 of the reader</attribute>
         </attributes>
+        <foreign-keys>
+            <foreign-key relationship="wallpostsFromUser" primarykey="2"/>
+            <foreign-key relationship="wallpostsToUser" primarykey="1"/>
+        </foreign-keys>
     </entity>
     <entity class="wallpost">
         <attributes>
@@ -245,20 +314,126 @@
             <attribute name="dateposted" type="int">110</attribute>
             <attribute name="contents" type="string">Ok thx man</attribute>
         </attributes>
+        <foreign-keys>
+            <foreign-key relationship="wallpostsFromUser" primarykey="1"/>
+            <foreign-key relationship="wallpostsToUser" primarykey="2"/>
+        </foreign-keys>
+    </entity>
+    <entity class="wallpost">
+        <attributes>
+            <attribute name="id" type="int">12</attribute>
+            <attribute name="dateposted" type="int">111</attribute>
+            <attribute name="contents" type="string">HI!</attribute>
+        </attributes>
+        <foreign-keys>
+            <foreign-key relationship="wallpostsFromUser" primarykey="4"/>
+            <foreign-key relationship="wallpostsToUser" primarykey="2"/>
+        </foreign-keys>
+    </entity>
+    <entity class="wallpost">
+        <attributes>
+            <attribute name="id" type="int">13</attribute>
+            <attribute name="dateposted" type="int">112</attribute>
+            <attribute name="contents" type="string">Why don't you ever respond?!</attribute>
+        </attributes>
+        <foreign-keys>
+            <foreign-key relationship="wallpostsFromUser" primarykey="4"/>
+            <foreign-key relationship="wallpostsToUser" primarykey="2"/>
+        </foreign-keys>
+    </entity>
+    <entity class="wallpost">
+        <attributes>
+            <attribute name="id" type="int">14</attribute>
+            <attribute name="dateposted" type="int">113</attribute>
+            <attribute name="contents" type="string">Welcome to the group!</attribute>
+        </attributes>
+        <foreign-keys>
+            <foreign-key relationship="wallpostsFromUser" primarykey="3"/>
+            <foreign-key relationship="wallpostsToGroup" primarykey="1"/>
+        </foreign-keys>
+    </entity>
+    <entity class="wallpost">
+        <attributes>
+            <attribute name="id" type="int">15</attribute>
+            <attribute name="dateposted" type="int">114</attribute>
+            <attribute name="contents" type="string">This is cool!</attribute>
+        </attributes>
+        <foreign-keys>
+            <foreign-key relationship="wallpostsFromUser" primarykey="5"/>
+            <foreign-key relationship="wallpostsToGroup" primarykey="1"/>
+        </foreign-keys>
     </entity>
 
     <!-- Friendship Class -->
     <entity class="friendship">
         <attributes>
             <attribute name="id" type="int">1</attribute>
-            <attribute name="approved" type="bool">false</attribute>
+            <attribute name="approved" type="bool">true</attribute>
         </attributes>
+        <foreign-keys>
+            <foreign-key relationship="friendships" primarykey="1" />
+            <foreign-key relationship="friendshiptarget" primarykey="2" />
+        </foreign-keys>
     </entity>
     <entity class="friendship">
         <attributes>
             <attribute name="id" type="int">2</attribute>
             <attribute name="approved" type="bool">true</attribute>
         </attributes>
+        <foreign-keys>
+            <foreign-key relationship="friendships" primarykey="1" />
+            <foreign-key relationship="friendshiptarget" primarykey="3" />
+        </foreign-keys>
+    </entity>
+    <entity class="friendship">
+        <attributes>
+            <attribute name="id" type="int">3</attribute>
+            <attribute name="approved" type="bool">true</attribute>
+        </attributes>
+        <foreign-keys>
+            <foreign-key relationship="friendships" primarykey="2" />
+            <foreign-key relationship="friendshiptarget" primarykey="1" />
+        </foreign-keys>
+    </entity>
+    <entity class="friendship">
+        <attributes>
+            <attribute name="id" type="int">4</attribute>
+            <attribute name="approved" type="bool">true</attribute>
+        </attributes>
+        <foreign-keys>
+            <foreign-key relationship="friendships" primarykey="3" />
+            <foreign-key relationship="friendshiptarget" primarykey="1" />
+        </foreign-keys>
+    </entity>
+    <entity class="friendship">
+        <attributes>
+            <attribute name="id" type="int">5</attribute>
+            <attribute name="approved" type="bool">true</attribute>
+        </attributes>
+        <foreign-keys>
+            <foreign-key relationship="friendships" primarykey="1" />
+            <foreign-key relationship="friendshiptarget" primarykey="5" />
+        </foreign-keys>
+    </entity>
+    <entity class="friendship">
+        <attributes>
+            <attribute name="id" type="int">6</attribute>
+            <attribute name="approved" type="bool">true</attribute>
+        </attributes>
+        <foreign-keys>
+            <foreign-key relationship="friendships" primarykey="5" />
+            <foreign-key relationship="friendshiptarget" primarykey="1" />
+        </foreign-keys>
+    </entity>
+    <entity class="friendship">
+        <attributes>
+            <attribute name="id" type="int">7</attribute>
+            <attribute name="approved" type="bool">false</attribute>
+        </attributes>
+        <foreign-keys>
+            <foreign-key relationship="friendships" primarykey="1" />
+            <foreign-key relationship="friendshiptarget" primarykey="4" />
+        </foreign-keys>
     </entity>
 
     <!-- Group Class -->
@@ -276,4 +451,59 @@
             <attribute name="name" type="string">GNU/Linux Fans</attribute>
         </attributes>
     </entity>
+
+    <!-- Group Subscription Class -->
+    <entity class="groupsubscription">
+        <attributes>
+            <attribute name="id" type="int">1</attribute>
+            <attribute name="datejoined" type="int">1</attribute>
+        </attributes>
+        <foreign-keys>
+            <foreign-key relationship="groups" primarykey="3" />
+            <foreign-key relationship="grouptarget" primarykey="1" />
+        </foreign-keys>
+    </entity>
+    <entity class="groupsubscription">
+        <attributes>
+            <attribute name="id" type="int">2</attribute>
+            <attribute name="datejoined" type="int">2</attribute>
+        </attributes>
+        <foreign-keys>
+            <foreign-key relationship="groups" primarykey="3" />
+            <foreign-key relationship="grouptarget" primarykey="2" />
+        </foreign-keys>
+    </entity>
+
+    <!-- Poke Class -->
+    <entity class="poke">
+        <attributes>
+            <attribute name="id" type="int">1</attribute>
+            <attribute name="hidden" type="boolean">false</attribute>
+        </attributes>
+        <foreign-keys>
+            <foreign-key relationship="pokes" primarykey="1" />
+            <foreign-key relationship="poketarget" primarykey="2" />
+        </foreign-keys>
+    </entity>
+    <entity class="poke">
+        <attributes>
+            <attribute name="id" type="int">2</attribute>
+            <attribute name="hidden" type="boolean">true</attribute>
+        </attributes>
+        <foreign-keys>
+            <foreign-key relationship="pokes" primarykey="3" />
+            <foreign-key relationship="poketarget" primarykey="2" />
+        </foreign-keys>
+    </entity>
+    <entity class="poke">
+        <attributes>
+            <attribute name="id" type="int">3</attribute>
+            <attribute name="hidden" type="boolean">true</attribute>
+        </attributes>
+        <foreign-keys>
+            <foreign-key relationship="pokes" primarykey="4" />
+            <foreign-key relationship="poketarget" primarykey="5" />
+        </foreign-keys>
+    </entity>
+
 </entities>

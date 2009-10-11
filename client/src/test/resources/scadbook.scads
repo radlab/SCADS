@@ -180,7 +180,8 @@ FETCH wallpost
     OF user me BY wallPostsFromUser
     OF user other BY wallPostsToUser
 WHERE
-    me = [this] AND other.id = [2:otherid]
+    me = [this] AND other.id = [1:otherid]
+ORDER BY dateposted
 
 /* NOTE: We use the assumption that all approved friendships are
  * bi-directional, ie if you are my friend then I am your friend

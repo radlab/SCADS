@@ -108,7 +108,7 @@
         </attributes>
         <foreign-keys>
             <foreign-key relationship="owner" primarykey="Lady Gaga" />
-        </foreign-keys> 
+        </foreign-keys>
     </entity>
     <entity class="thought">
         <attributes>
