@@ -88,7 +88,7 @@ plot.done = function(meta,close.db=T) {
 	close.screen(all = TRUE)
 	if (close.db) disconnect.all()
 	if (names( dev.cur() )[1]!="quartz")
-		dev.off()
+		try( dev.off() )
 }
 
 disconnect.all = function() {
@@ -129,7 +129,7 @@ screen.coord = function(ysizes) {
 }
 
 plot.director.simple = function(out.file=NULL,debug=F,dbhost="localhost",ts0=NULL,ts1=NULL) {
-	m = plot.init(out.file,600,650,dbhost,ts0,ts1)
+	m = plot.init(out.file,800,650,dbhost,ts0,ts1)
 	try( plot.director.simple.raw(m,out.file,debug,dbhost,ts0,ts1) )
  	plot.done(m)
 }
@@ -404,7 +404,7 @@ plot.scads.performance.raw = function(conn) {
       plot.legend = F
     }
   }
-  dev.off()
+  try( dev.off() )
 }
 
 plot.empty = function() {
