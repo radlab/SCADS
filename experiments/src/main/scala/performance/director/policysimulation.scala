@@ -51,7 +51,7 @@ case class PolicySimulator {
 		Director.dropDatabases
 		if (deterministic) Director.rnd = new java.util.Random(7)
 		SCADSState.initLogging("localhost",6001)
-		Plotting.initialize(Director.basedir+"/plotting/")
+		Plotting.initialize(Director.basedir)
 		policy.initialize
 		costFunction.initialize
 
@@ -119,6 +119,9 @@ case class PolicySimulator {
 		SCADSState.dumpState(state)
 		Plotting.plotSimpleDirectorAndConfigs()
 		
+		var costString = costFunction.toString
+		Director.summaryLogger.info("COST:\n"+costString)
+		
 		val detailedCost = costFunction.detailedCost
 		val nserverunits = detailedCost.filter(_.costtype=="server").map(_.units).reduceLeft(_+_)
 		val nslaviolations = if (detailedCost.filter(_.costtype=="SLA").size>0) detailedCost.filter(_.costtype=="SLA").map(_.units).reduceLeft(_+_) else 0.0
@@ -131,14 +134,15 @@ case class PolicySimulator {
 
 object RunPolicySimulator {
   	def main(args: Array[String]) {
-//		PolicySimulator.test1("/Users/bodikp/Downloads/scads/","/Users/bodikp/workspace/scads/")
-//		r
+		PolicySimulator.test1("/Users/bodikp/Downloads/scads/","/Users/bodikp/workspace/scads/")
 //		r.saveToCSV("/tmp/data.csv")		
-		PolicySimulator.optimizeCost("/Users/bodikp/Downloads/scads/","/Users/bodikp/workspace/scads/")
+//		PolicySimulator.optimizeCost("/Users/bodikp/Downloads/scads/","/Users/bodikp/workspace/scads/")
   	}
 }
 
 object PolicySimulator {
+
+	val costFunction = FullSLACostFunction(100,100,0.99,5*60*1000,100,1,10*60*1000,10*60*1000)
 
 	val logger = Logger.getLogger("scads.director.simulation")
 	private val logPath = Director.basedir+"/../simulation.txt"
@@ -151,14 +155,11 @@ object PolicySimulator {
 		val modelfile = repodir+"/experiments/scripts/perfmodels/gp_model.csv"
 		val performanceModel = LocalL1PerformanceModel(modelfile)		
 
-/*		val workloadName = "/ebates_mix99_mix99_1500users_200bins_20sec.hist"*/
-		//val workloadName = "/ebates_mix99_mix99_1500users_1000bins_20sec.hist"
-		val workloadName = "/dbworkload.hist"
+		//val workloadName = "/ebates_mix99_mix99_1500users_200bins_20sec.hist"*/
+		val workloadName = "/ebates_mix99_mix99_1500users_1000bins_20sec.hist"
+		//val workloadName = "/dbworkload.hist"
 		val workloadFile = basedir + workloadName
 		val w = WorkloadHistogram.loadHistograms( workloadFile )
-		
-		//val costFunction = FullSLACostFunction(100,100,0.99,1*60*1000,100,1,2*60*1000)
-		val costFunction = FullSLACostFunction(100,100,0.99,1*60*1000,100,1,10*60*1000)
 		
 		var results = SimulationResults()
 		
@@ -169,10 +170,11 @@ object PolicySimulator {
 //		for (overprovision <- List(0.0, 0.1, 0.2, 0.3, 0.4)) {
 //			for (alpha_up <- List(1.0, 0.5, 0.1, 0.05, 0.01)) {
 //				for (alpha_down <- List(1.0, 0.5, 0.1, 0.05, 0.01)) {
-				val overprovision = 0.1
+				val overprovision = 0.3
 				val alpha_up = 0.5
-				val alpha_down = 0.05
-					val policy = new SplitAndMergeOnWorkload( 1500, 1500, SimpleHysteresis(alpha_up,alpha_down,overprovision) )
+				val alpha_down = 0.04
+					//val policy = new SplitAndMergeOnWorkload( 1500, 1500, SimpleHysteresis(alpha_up,alpha_down,overprovision) )
+					val policy = new HeuristicOptimizerPolicy( performanceModel, 100, 100, SimpleHysteresis(alpha_up,alpha_down,overprovision) )
 					results.addResult( policySimulator.simulateSingleWorkload(config, workloadName, w, policy, costFunction, performanceModel, true, false) )
 					results.saveToCSV("/tmp/simulation.csv")
 //				}
@@ -209,7 +211,6 @@ object PolicySimulator {
 		val workloadFile = basedir + workloadName
 		val w = WorkloadHistogram.loadHistograms( workloadFile )
 
-		val costFunction = FullSLACostFunction(100,100,0.99,1*60*1000,100,1,10*60*1000)
 		val policySimulator = PolicySimulator()		
 		
 		PolicySimulator.logger.info("starting with values: "+values.toList.sort(_._1<_._1).map(p=>p._1+"="+p._2).mkString(", "))
