@@ -211,6 +211,82 @@ class RandomSplitAndMergePolicy(
 	}
 }
 
+class ReactivePolicy(
+	val latencyToMerge: Double,
+	val latencyToSplit: Double,
+	val smoothingFactor: Double,
+	override val workloadPredictor:WorkloadPrediction	
+) extends Policy(workloadPredictor) {
+		
+	var smoothedGetLatency = scala.collection.mutable.Map[String,Double]()
+	var smoothedPutLatency = scala.collection.mutable.Map[String,Double]()
+	var actionDelay = 2*60*1000L
+	var lastActionTime = new java.util.Date().getTime - actionDelay
+		
+	override def act(state:SCADSState, actionExecutor:ActionExecutor) {
+		if (state!=null) {
+			// extract the latency metrics and compute servers that were removed, are new, ...
+			val getLatency = Map( state.storageNodes.map( n=>(n.ip,n.metricsByType("get").latency99p) ) :_* )
+			val putLatency = Map( state.storageNodes.map( n=>(n.ip,n.metricsByType("put").latency99p) ) :_* )
+			
+			val removedServers = Set(smoothedGetLatency.keys.toList:_*) -- Set(getLatency.keys.toList:_*)
+			val newServers = Set(getLatency.keys.toList:_*) -- Set(smoothedGetLatency.keys.toList:_*)
+			val servers = getLatency.keySet ** smoothedGetLatency.keySet
+		
+			// remove smoothed latency for servers that are gone
+			smoothedGetLatency --= removedServers
+			smoothedPutLatency --= removedServers
+		
+			// initialize smoothed latency for new servers
+			newServers.foreach( s => smoothedGetLatency += s -> getLatency(s) )
+			newServers.foreach( s => smoothedPutLatency += s -> putLatency(s) )
+		
+			// smooth latency for the remaining servers
+			servers.foreach( s => smoothedGetLatency += s -> (smoothedGetLatency(s) + smoothingFactor*(getLatency(s)-smoothedGetLatency(s))) )
+			servers.foreach( s => smoothedPutLatency += s -> (smoothedPutLatency(s) + smoothingFactor*(putLatency(s)-smoothedPutLatency(s))) )
+		
+			// log
+			Policy.logger.debug("raw get latency: "+ getLatency.toList.sort(_._1<_._1).map(s=>s._1+"->"+"%.2f".format(s._2)).mkString(", "))
+			Policy.logger.debug("smooth get latency: "+ smoothedGetLatency.toList.sort(_._1<_._1).map(s=>s._1+"->"+"%.2f".format(s._2)).mkString(", "))	
+			Policy.logger.debug("raw put latency: "+ putLatency.toList.sort(_._1<_._1).map(s=>s._1+"->"+"%.2f".format(s._2)).mkString(", "))
+			Policy.logger.debug("smooth put latency: "+ smoothedPutLatency.toList.sort(_._1<_._1).map(s=>s._1+"->"+"%.2f".format(s._2)).mkString(", "))	
+		}
+
+		if (actionExecutor.allActionsCompleted && state!=null && (new java.util.Date().getTime>lastActionTime+actionDelay)) {
+			var actions = new scala.collection.mutable.ListBuffer[Action]()
+
+			val nodes = state.storageNodes.sort( (s,t) => state.config.storageNodes(s.ip).minKey<state.config.storageNodes(t.ip).minKey )
+			// decide what actions to take: splitting and/or merging
+			nodes.foreach((node_state)=>{ // use workload for now
+				//logger.debug("split "+node_state.ip+"? w="+node_state.metrics.workload+" >? "+latencyToSplit)
+				if (smoothedGetLatency(node_state.ip) >= latencyToSplit || smoothedPutLatency(node_state.ip) >= latencyToSplit) {
+					logger.debug("Adding split action: "+node_state.ip)
+					actions += new SplitInTwo(node_state.ip,-1)
+				}
+			})
+			var id = 0
+			while (id <= nodes.size-1 && id <= nodes.size-2) {
+				val gl0 = smoothedGetLatency(nodes(id).ip)
+				val gl1 = smoothedGetLatency(nodes(id+1).ip)
+				val pl0 = smoothedPutLatency(nodes(id).ip)
+				val pl1 = smoothedPutLatency(nodes(id+1).ip)
+				if ( gl0<=latencyToMerge && gl1<=latencyToMerge && pl0<=latencyToMerge && pl1<=latencyToMerge ) {
+					logger.debug("Adding merge action: "+nodes(id).ip+" and "+nodes(id+1).ip)
+					actions += new MergeTwo(nodes(id).ip,nodes(id+1).ip)
+					id+=2 // only merge disjoint two at a time
+				}
+				else id+=1
+			}
+			actions.foreach(actionExecutor.addAction(_))
+			if (actions.size>0)
+				lastActionTime = new java.util.Date().getTime
+		}
+	}
+	
+}
+
+
+
 class SplitAndMergeOnPerformance(
 	val latencyToMerge: Double,
 	val latencyToSplit: Double,
