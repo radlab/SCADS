@@ -86,11 +86,13 @@ object Plotting {
 				rconn.parseAndEval("  plot.director.simple( out.file=\""+dir+"/past_plots/director_"+time+".png\")  ")
 				Director.exec("cp '"+dir+"/past_plots/director_"+time+".png' '"+dir+"/director.png'")
 				logger.info("done")
-				logger.info("plotting configs")
-				rconn.parseAndEval("  plot.configs( out.file=\""+dir+"/past_plots/configs_"+time+".png\")  ")
-				Director.exec("cp '"+dir+"/past_plots/configs_"+time+".png' '"+dir+"/configs.png'")
-				logger.info("done")
-				rconn.parseAndEval("  disconnect.all()  ")
+				
+				logger.info("not plotting configs")
+				//logger.info("plotting configs")
+				//rconn.parseAndEval("  plot.configs( out.file=\""+dir+"/past_plots/configs_"+time+".png\")  ")
+				//Director.exec("cp '"+dir+"/past_plots/configs_"+time+".png' '"+dir+"/configs.png'")
+				//logger.info("done")
+				//rconn.parseAndEval("  disconnect.all()  ")
 			} catch {
 				case e:Exception => { logger.warn("couldn't render director.simple or configs plot"); logger.warn("can't plot",e) }
 			}
