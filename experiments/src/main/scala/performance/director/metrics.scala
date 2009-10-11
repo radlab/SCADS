@@ -19,6 +19,7 @@ object PerformanceMetrics {
 		// FIX: handling of the dates
 		val (date0, workload) = 		metricReader.getSingleMetric(server, "workload", reqType)
 		val (date1, latencyMean) = 		metricReader.getSingleMetric(server, "latency_mean", reqType)
+		val (date7, latency50p) = 		metricReader.getSingleMetric(server, "latency_50p", reqType)
 		val (date2, latency90p) = 		metricReader.getSingleMetric(server, "latency_90p", reqType)
 		val (date3, latency99p) = 		metricReader.getSingleMetric(server, "latency_99p", reqType)
 		val (date4, nRequests) = 		metricReader.getSingleMetric(server, "n_requests", reqType)
@@ -27,13 +28,14 @@ object PerformanceMetrics {
 
 		//PerformanceMetrics(date0.getTime,metricReader.interval.toInt,workload,latencyMean,latency90p,latency99p, 
 		//	(nRequests/metricReader.report_prob).toInt, (nSlowerThan50ms/metricReader.report_prob).toInt, (nSlowerThan100ms/metricReader.report_prob).toInt)
-		PerformanceMetrics(date0.getTime,metricReader.interval.toInt,workload,latencyMean,latency90p,latency99p,nRequests.toInt, nSlowerThan50ms.toInt, nSlowerThan100ms.toInt)
+		PerformanceMetrics(date0.getTime,metricReader.interval.toInt,workload,latencyMean,latency50p,latency90p,latency99p,nRequests.toInt, nSlowerThan50ms.toInt, nSlowerThan100ms.toInt)
 	}
 	
 	def load(metricReader:MetricReader, server:String, reqType:String, time:Long):PerformanceMetrics = {
 		// FIX: handling of the dates
 		val (date0, workload) = 		metricReader.getSingleMetric(server, "workload", reqType, time)
 		val (date1, latencyMean) = 		metricReader.getSingleMetric(server, "latency_mean", reqType, time)
+		val (date7, latency50p) = 		metricReader.getSingleMetric(server, "latency_50p", reqType, time)
 		val (date2, latency90p) = 		metricReader.getSingleMetric(server, "latency_90p", reqType, time)
 		val (date3, latency99p) = 		metricReader.getSingleMetric(server, "latency_99p", reqType, time)
 		val (date4, nRequests) = 		metricReader.getSingleMetric(server, "n_requests", reqType, time)
@@ -42,19 +44,20 @@ object PerformanceMetrics {
 		
 		//PerformanceMetrics(time,metricReader.interval.toInt,workload,latencyMean,latency90p,latency99p, 
 		//	(nRequests/metricReader.report_prob).toInt, (nSlowerThan50ms/metricReader.report_prob).toInt, (nSlowerThan100ms/metricReader.report_prob).toInt)
-		PerformanceMetrics(time,metricReader.interval.toInt,workload,latencyMean,latency90p,latency99p,nRequests.toInt, nSlowerThan50ms.toInt, nSlowerThan100ms.toInt)
+		PerformanceMetrics(time,metricReader.interval.toInt,workload,latencyMean,latency50p,latency90p,latency99p,nRequests.toInt, nSlowerThan50ms.toInt, nSlowerThan100ms.toInt)
 	}
 	
 	def estimateFromSamples(samples:List[Double], time:Long, aggregationInterval:Long, fractionOfRequests:Double):PerformanceMetrics = {
 		val samplesA = samples.sort(_<_).toArray
 		val workload = computeWorkload(samplesA)*1000/aggregationInterval/fractionOfRequests
 		val latencyMean = computeMean(samplesA)
+		val latency50p = computeQuantileAssumeSorted(samplesA,0.5)
 		val latency90p = computeQuantileAssumeSorted(samplesA,0.9)
 		val latency99p = computeQuantileAssumeSorted(samplesA,0.99)
 		val nRequests = (samples.size/fractionOfRequests).toInt
 		val nSlowerThan50ms = (samples.filter(_>50).size/fractionOfRequests).toInt
 		val nSlowerThan100ms = (samples.filter(_>100).size/fractionOfRequests).toInt
-		PerformanceMetrics(time, aggregationInterval, workload, latencyMean, latency90p, latency99p, nRequests, nSlowerThan50ms, nSlowerThan100ms)
+		PerformanceMetrics(time, aggregationInterval, workload, latencyMean, latency50p, latency90p, latency99p, nRequests, nSlowerThan50ms, nSlowerThan100ms)
 	}
 	
 	private def computeWorkload( data:Array[Double] ): Double = if (data==null||data.size==0) Double.NaN else data.length
@@ -67,6 +70,7 @@ case class PerformanceMetrics(
 	val aggregationInterval: Long,  // in milliseconds
 	val workload: Double,
 	val latencyMean: Double,
+	val latency50p: Double,
 	val latency90p: Double,
 	val latency99p: Double,
 	val nRequests: Int,
@@ -78,14 +82,17 @@ case class PerformanceMetrics(
 	def toShortLatencyString():String = "%.0f".format(latencyMean)+"/"+"%.0f".format(latency90p)+"/"+"%.0f".format(latency99p)
 	
 	def createMetricUpdates(server:String, requestType:String):List[MetricUpdate] = {
+		// FIX: aggregation constant
+		val agg = "20000"
 		var metrics = new scala.collection.mutable.ListBuffer[MetricUpdate]()
-		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"workload"))),workload.toString)
-		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"latency_mean"))),latencyMean.toString)
-		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"latency_90p"))),latency90p.toString)
-		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"latency_99p"))),latency99p.toString)
-		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"n_requests"))),nRequests.toString)
-		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"n_slower_50ms"))),nSlowerThan50ms.toString)
-		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("server"->server,"request_type"->requestType,"stat"->"n_slower_100ms"))),nSlowerThan100ms.toString)
+		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("aggregation"->agg,"server"->server,"request_type"->requestType,"stat"->"workload"))),workload.toString)
+		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("aggregation"->agg,"server"->server,"request_type"->requestType,"stat"->"latency_mean"))),latencyMean.toString)
+		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("aggregation"->agg,"server"->server,"request_type"->requestType,"stat"->"latency_50p"))),latency50p.toString)
+		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("aggregation"->agg,"server"->server,"request_type"->requestType,"stat"->"latency_90p"))),latency90p.toString)
+		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("aggregation"->agg,"server"->server,"request_type"->requestType,"stat"->"latency_99p"))),latency99p.toString)
+		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("aggregation"->agg,"server"->server,"request_type"->requestType,"stat"->"n_requests"))),nRequests.toString)
+		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("aggregation"->agg,"server"->server,"request_type"->requestType,"stat"->"n_slower_50ms"))),nSlowerThan50ms.toString)
+		metrics += new MetricUpdate(time,new MetricDescription("scads",s2jMap(Map("aggregation"->agg,"server"->server,"request_type"->requestType,"stat"->"n_slower_100ms"))),nSlowerThan100ms.toString)
 		metrics.toList
 	}
 	
