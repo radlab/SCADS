@@ -329,9 +329,11 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 	*/
 	def estimateSingleServerStats(server:String, num_replicas:Int, allowed_puts:Double, range:DirectorKeyRange, state:SCADSState):PerformanceStats = {
 		if (allowed_puts < 0.0) // not adding add'tl put restrictions, just honor existing ones
-			performanceEstimator.estimatePerformance(new SCADSconfig( Map[String,DirectorKeyRange](server -> range),state.config.putRestrictions,state.config.standbys),workloadPredictor.getPrediction.divide(num_replicas,1.0),10,null)
+			//performanceEstimator.estimatePerformance(new SCADSconfig( Map[String,DirectorKeyRange](server -> range),state.config.putRestrictions,state.config.standbys),workloadPredictor.getPrediction.divide(num_replicas,1.0),10,null)
+			performanceEstimator.estimateApproximatePerformance(new SCADSconfig( Map[String,DirectorKeyRange](server -> range),state.config.putRestrictions,state.config.standbys),workloadPredictor.getPrediction.divide(num_replicas,1.0),10,null,0.99)
 		else // operating on a single range that will actually correspond to a histogram bin
-			performanceEstimator.estimatePerformance(new SCADSconfig( Map[String,DirectorKeyRange](server -> range),Map[DirectorKeyRange,Double](range->allowed_puts),state.config.standbys),workloadPredictor.getPrediction.divide(num_replicas,1.0),10,null)
+			//performanceEstimator.estimatePerformance(new SCADSconfig( Map[String,DirectorKeyRange](server -> range),Map[DirectorKeyRange,Double](range->allowed_puts),state.config.standbys),workloadPredictor.getPrediction.divide(num_replicas,1.0),10,null)
+			performanceEstimator.estimateApproximatePerformance(new SCADSconfig( Map[String,DirectorKeyRange](server -> range),Map[DirectorKeyRange,Double](range->allowed_puts),state.config.standbys),workloadPredictor.getPrediction.divide(num_replicas,1.0),10,null,0.99)
 	}
 	/**
 	* Attempt splitting actions of a set of replicas, where at least one of the replicas is overloaded
