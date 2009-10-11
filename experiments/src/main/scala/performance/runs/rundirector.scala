@@ -26,7 +26,8 @@ object RunDirector {
 		val slaQuantile = System.getProperty("slaQuantile").toDouble
 		val machineInterval = System.getProperty("machineInterval").toInt
 		val machineCost = System.getProperty("machineCost").toDouble
-		val costFunction = FullSLACostFunction(getSLAThreshold,putSLAThreshold,slaQuantile,slaInterval,slaCost,machineCost,machineInterval)
+		val costSkip = 10*60*1000
+		val costFunction = FullSLACostFunction(getSLAThreshold,putSLAThreshold,slaQuantile,slaInterval,slaCost,machineCost,machineInterval,costSkip)
 
 		// initialize policy
 		val policy = 
