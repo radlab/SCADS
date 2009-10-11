@@ -16,6 +16,7 @@ import org.rosuda.REngine.Rserve.RserveException;
 
 abstract class PerformanceModel {
 	def sample(features:Map[String,String], nSamples:Int): List[Double]
+	def estimateLatency(features:Map[String,String], quantile:Double):Double
 	
 	def timeInModel():Long
 	def resetTimer()
@@ -64,6 +65,10 @@ case class L1PerformanceModel(
 		result
 	}
 	
+	def estimateLatency(features:Map[String,String], quantile:Double):Double = {
+		throw new Exception("not implemented")
+	}
+	
 	def timeInModel():Long = timer
 	def resetTimer() {timer=0}
 }
@@ -87,7 +92,13 @@ case class LocalL1PerformanceModel(
 			models(model.reqType) += model.quantile -> model
 		}
 	}
-		
+	
+	def estimateLatency(input:Map[String,String], quantile:Double):Double = {
+		val model = models(input("type"))(quantile)
+		val features = model.createFeatures(Map("g"->input("getw").toDouble, "p"->input("putw").toDouble))
+		model.predict(features)
+	}
+	
 	def sample(input:Map[String,String], nSamples:Int): List[Double] = {
 		val time0 = new Date
 		var samples:List[Double] = null
