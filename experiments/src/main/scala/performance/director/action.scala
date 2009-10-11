@@ -820,6 +820,7 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		val range = new KeyRange(new StringKey(ScadsDeploy.keyFormat.format(startKey)), new StringKey(ScadsDeploy.keyFormat.format(endKey)) )
 		list.add(new DataPlacement(host,ScadsDeploy.server_port,ScadsDeploy.server_sync,range))
 		dpclient.remove(namespace,list)
+		val tm = new Date().getTime
 
 		// now add the correct range info
 		val range_new = new KeyRange(new StringKey(ScadsDeploy.keyFormat.format(new_start)), new StringKey(ScadsDeploy.keyFormat.format(new_end)) )
@@ -830,6 +831,8 @@ trait PlacementManipulation extends RangeConversion with AutoKey {
 		val t1 = new Date().getTime
 		Policy.logger.info("low-level action done: removeData(host="+host+", startKey="+startKey+", endKey="+endKey+")")
 		Director.lowLevelActionMonitor.log("removeData",action,t0,t1,Map("host"->host,"startkey"->startKey.toString,"endkey"->endKey.toString))
+		Director.lowLevelActionMonitor.log("removeData_remove",action,t0,tm,Map("host"->host,"startkey"->startKey.toString,"endkey"->endKey.toString))
+		Director.lowLevelActionMonitor.log("removeData_add",action,tm,t1,Map("host"->host,"startkey"->startKey.toString,"endkey"->endKey.toString))
 	}
 }
 
@@ -850,6 +853,7 @@ case class LowLevelActionMonitor(
             statement.executeUpdate("USE " + dbname)
 			statement.executeUpdate("CREATE TABLE IF NOT EXISTS "+dbtable+" (`id` INT NOT NULL AUTO_INCREMENT, `type` VARCHAR(30),"+
 																			"`action` VARCHAR(30),"+
+																			"`action_wargs` VARCHAR(130),"+
 																			"`start_time` BIGINT, `end_time` BIGINT, "+
 																			"`features` TEXT, PRIMARY KEY(`id`) ) ")
 			statement.close
@@ -861,6 +865,7 @@ case class LowLevelActionMonitor(
 		try {
 			val actionSQL = Director.createInsertStatement(dbtable, Map("type"->("'"+lowlevelaction+"'"),
 																		"action"->("'"+action.getClass.toString.split('.').last+"'"),
+																		"action_wargs"->("'"+action.toString+"'"),
 																		"start_time"->time0.toString,
 																		"end_time"->time1.toString,
 																		"features"->("'"+features.map((p)=>p._1+"="+p._2).mkString(",")+"'") ))
