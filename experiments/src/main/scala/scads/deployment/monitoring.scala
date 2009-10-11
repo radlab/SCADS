@@ -15,7 +15,8 @@ case class SCADSMonitoringDeployment(
 	deploymentName:String,
 	experimentsJarURL:String
 ) extends Component {
-	var monitoringVMInstanceType = "m1.small"
+	//var monitoringVMInstanceType = "m1.small"
+	var monitoringVMInstanceType = "c1.medium"
 	var monitoringVM:Instance = null
 	
 	var startedDeploying = false
