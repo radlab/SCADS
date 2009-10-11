@@ -127,7 +127,8 @@ case class FullSLACostFunction(
 	slaInterval:Long,		// duration of SLA interval in milliseconds
 	violationCost:Double, 	// cost for violating SLA
 	nodeCost:Double,		// cost for adding new storage server
-	nodeInterval:Long		// node cost interval in milliseconds
+	nodeInterval:Long,		// node cost interval in milliseconds
+	skip:Long				// skip first 'skip' milliseconds of the sequence of states
 ) extends FullCostFunction {
 	var allStates = new scala.collection.mutable.ListBuffer[SCADSState]()
 	
@@ -138,23 +139,27 @@ case class FullSLACostFunction(
 	def addState(state:SCADSState) { allStates+=state }
 	
 	def detailedCost():List[Cost] = {
+		// filter out early states
+		val startTime = allStates(0).time
+		val states = allStates.filter(_.time>startTime+skip)
+		
 		// compute SLA violation cost
 		val getCosts = 
-		allStates.map(s=>(s,s.time/slaInterval*slaInterval))
+		states.map(s=>(s,s.time/slaInterval*slaInterval))
 				 .foldLeft( scala.collection.mutable.Map[Long,RequestCounts]() )( (t,s)=>accumulateRequestStats(t,s,"get",getSLA) )
 				 .map( x=>(x._1,x._2) )
 				 .filter( x=>(1.0-x._2.nSlow.toDouble/x._2.nAll)<slaPercentile )
 				 .map( x=>Cost(new Date(x._1), "SLA", 1, "get SLA violation ("+x._2.toString+") between "+new Date(x._1)+" and "+new Date(x._1+slaInterval), violationCost) )
 
 		val putCosts = 
-		allStates.map(s=>(s,s.time/slaInterval*slaInterval))
+		states.map(s=>(s,s.time/slaInterval*slaInterval))
 				 .foldLeft( scala.collection.mutable.Map[Long,RequestCounts]() )( (t,s)=>accumulateRequestStats(t,s,"put",putSLA) )
 				 .map( x=>(x._1,x._2) )
 				 .filter( x=>(1.0-x._2.nSlow.toDouble/x._2.nAll)<slaPercentile )
 				 .map( x=>Cost(new Date(x._1), "SLA", 1, "put SLA violation ("+x._2.toString+") between "+new Date(x._1)+" and "+new Date(x._1+slaInterval), violationCost) )
 				
 		val machineCost = MachineCost(nodeCost,nodeInterval)
-		for (state <- allStates) machineCost.addNewInterval(state.time, Set[String](state.config.storageNodes.keySet.toList:_*))
+		for (state <- states) machineCost.addNewInterval(state.time, Set[String](state.config.storageNodes.keySet.toList:_*))
 		Director.logger.debug(machineCost.toString)
 		val machineCosts = machineCost.getCosts
 
