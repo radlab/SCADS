@@ -546,6 +546,8 @@ case class WorkloadHistogram (
 		)
 	}
 
+	def totalRate:Double = rangeStats.map(_._2.sum).reduceLeft(_+_)
+
 	def toShortString():String = {
 		val getRate = rangeStats.map(_._2.getRate).reduceLeft(_+_)
 		val putRate = rangeStats.map(_._2.putRate).reduceLeft(_+_)
