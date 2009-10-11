@@ -6,7 +6,7 @@ import performance._
 import org.apache.log4j._
 import org.apache.log4j.Level._
 
-object SplitMergeEbatesWSpike {
+object SplitMergeEbates {
 	
 	def workloadDuration(workload:WorkloadDescription):Long = workload.workload.map(_.duration).reduceLeft(_+_)
 
@@ -51,8 +51,7 @@ object SplitMergeEbatesWSpike {
 
 		// prepare workload
 		logger.info("preparing workload")
-		val mix = new MixVector( Map("get"->0.97,"getset"->0.0,"put"->0.03) )
-		val workload = stdWorkloadEbatesWSpike(mix97,200,maxKey)
+		val workload = stdWorkloadEbatesWMixChange(mix97,mix97,200,maxKey)
 
 		// start Director
 		logger.info("starting director")

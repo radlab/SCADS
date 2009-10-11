@@ -6,7 +6,7 @@ import performance._
 import org.apache.log4j._
 import org.apache.log4j.Level._
 
-object SplitMergeEbatesWSpike {
+object PolicyEbates {
 	
 	def workloadDuration(workload:WorkloadDescription):Long = workload.workload.map(_.duration).reduceLeft(_+_)
 
@@ -21,7 +21,7 @@ object SplitMergeEbatesWSpike {
 		logger.setLevel(DEBUG)
 		logger.debug("starting experiment "+experimentName)
 
-		val maxKey = 200000
+		val maxKey = 500000
 		//val maxKey = 10000
 		val nClientMachines = 5
 		val nHotStandbys = 9
@@ -51,19 +51,18 @@ object SplitMergeEbatesWSpike {
 
 		// prepare workload
 		logger.info("preparing workload")
-		val mix = new MixVector( Map("get"->0.97,"getset"->0.0,"put"->0.03) )
-		val workload = stdWorkloadEbatesWSpike(mix97,200,maxKey)
+		val workload = stdWorkloadEbatesWMixChange(mix97,mix97,200,maxKey)
 
 		// start Director
 		logger.info("starting director")
 		val directorCmd = "bash -l -c 'java"+
-							" -DpolicyName=SplitAndMergeOnWorkload" +
+							" -DpolicyName=HeuristicOptimizerPolicy" +
 							" -DdeploymentName="+experimentName +
 							" -DexperimentName="+experimentName +
 							" -Dduration="+workloadDuration(workload).toString +
 							" -DhysteresisUp=1.0" +
 							" -DhysteresisDown=0.05" +
-							" -Doverprovisioning=0.1" +
+							" -Doverprovisioning=0.2" +
 							" -DgetSLA=100" +
 							" -DputSLA=100" +
 							" -DslaInterval=" + (5*60*1000) +
@@ -71,8 +70,7 @@ object SplitMergeEbatesWSpike {
 							" -DslaQuantile=0.99" +
 							" -DmachineInterval=" + (10*60*1000) +
 							" -DmachineCost=1" +
-							" -DmergeThreshold=1500" +
-							" -DsplitThreshold=1500" +
+							" -DmodelPath=\"/opt/scads/experiments/scripts/perfmodels/gp_model.csv\"" +
 							" -cp /mnt/monitoring/experiments.jar" +
 							" scads.director.RunDirector'" // "> /var/www/director.txt 2>&1"
 		logger.info("director command: "+directorCmd)
