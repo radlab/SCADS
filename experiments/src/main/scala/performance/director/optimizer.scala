@@ -457,6 +457,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 		var actions = new scala.collection.mutable.ListBuffer[Action]()
 		var choices = candidates.indices // which indices of the candidates array still available to try
 		var changed_restrictions = Map[DirectorKeyRange,Double]()
+		val participants = new scala.collection.mutable.HashSet[String]()
 
 		while (choices.size > 0) { // ignore max num actions for now
 			val chosen_index = choices(Director.rnd.nextInt(choices.size)) // select random index of candidate array
@@ -475,16 +476,22 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 			}
 
 			else if (chosen._2.size > 1) { // try to remove a replica
-				if (!violatesSLA(estimateSingleServerStats(chosen._2.first,chosen._2.size-1,-1,chosen._1, state)))
-					actions += Remove(List[String](chosen._2.first))
-				else println("Thought about removing replica "+chosen._2.first+", but didn't!")
+				if (!violatesSLA(estimateSingleServerStats(chosen._2.first,chosen._2.size-1,-1,chosen._1, state))) {
+					if (participants.contains(chosen._2.first)) logger.warn("Trying remove replica action on "+chosen._2.first+" that already is doing something")
+					else { actions += Remove(List[String](chosen._2.first)); participants += chosen._2.first}
+				}
+				else logger.debug("Thought about removing replica "+chosen._2.first+", but didn't!")
 			}
 
 			else if (chosen._2.size==1 && chosen_neighbor !=null && chosen_neighbor._2.size==1) { // attempt merge two
 				val range = if (chosen._1.minKey < chosen_neighbor._1.minKey) { DirectorKeyRange(chosen._1.minKey,chosen_neighbor._1.maxKey) } else { DirectorKeyRange(chosen_neighbor._1.minKey,chosen._1.maxKey) }
 				if (!violatesSLA(estimateSingleServerStats(chosen._2.first,1,-1,range, state))) {
-					actions += MergeTwo(chosen._2.first,chosen_neighbor._2.first)
-					choices = choices.filter( (_ != neighbor_index) ) // don't consider the neighbor in subsequent actions
+					if (participants.contains(chosen._2.first) || participants.contains(chosen_neighbor._2.first)) logger.warn("Trying merge action on "+chosen._2.first+"and "+chosen_neighbor._2.first+" that already is doing something")
+					else {
+						actions += MergeTwo(chosen._2.first,chosen_neighbor._2.first)
+						participants += chosen._2.first; participants += chosen_neighbor._2.first
+						choices = choices.filter( (_ != neighbor_index) ) // don't consider the neighbor in subsequent actions
+					}
 				}
 				else logger.debug("Thought about merging "+chosen._2.first+" and "+chosen_neighbor._2.first+", but didn't!")
 			}
