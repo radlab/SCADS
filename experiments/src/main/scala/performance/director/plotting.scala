@@ -19,10 +19,13 @@ object Plotting {
 	
 	var logger:Logger = null
 	
+	var keepPlotting = false
+	
 	def initialize(dir:String) { 
 		connectToR
 		this.dir = dir
 		(new File(dir)).mkdirs()
+		(new File(dir+"/past_plots/")).mkdirs()
 
 		logger = Logger.getLogger("scads.plotting")
 		val logPath = Director.basedir+"/plotting.txt"
@@ -53,18 +56,41 @@ object Plotting {
 			}
 		}
 	}
-		
+	
+	def startPlotting {
+		keepPlotting = true	
+		val plotter = new Plotter()
+		val plotterThread = new Thread(plotter)
+		plotterThread.start		
+	}
+	
+	def stopPlotting {
+		keepPlotting = false
+	}
+	
+	case class Plotter() extends Runnable {
+		def run = {
+			while (keepPlotting) {
+				plotSimpleDirectorAndConfigs
+				Thread.sleep(1*60*1000)
+			}
+		}
+	}
+	
 	def plotSimpleDirectorAndConfigs() {
 		if (rconn==null) logger.warn("don't have connection to R, can't plot")
 		else {
 			try {
-				logger.info("plotting director.simple and configs")
-				//logger.info("plotting director.simple")
-				rconn.parseAndEval("  plot.director.simple( out.file=\""+dir+"/director.simple.png\")  ")
-				//logger.info("plotting configs")
-				rconn.parseAndEval("  plot.configs( out.file=\""+dir+"/configs.png\")  ")
+				val time = new java.util.Date().getTime				
+				logger.info("plotting director.simple")
+				rconn.parseAndEval("  plot.director.simple( out.file=\""+dir+"/past_plots/director_"+time+".png\")  ")
+				Director.exec("cp '"+dir+"/past_plots/director_"+time+".png' '"+dir+"/director.png'")
+				logger.info("done")
+				logger.info("plotting configs")
+				rconn.parseAndEval("  plot.configs( out.file=\""+dir+"/past_plots/configs_"+time+".png\")  ")
+				Director.exec("cp '"+dir+"/past_plots/configs_"+time+".png' '"+dir+"/configs.png'")
+				logger.info("done")
 				rconn.parseAndEval("  disconnect.all()  ")
-				//logger.info("done plotting")
 			} catch {
 				case e:Exception => { logger.warn("couldn't render director.simple or configs plot"); logger.warn("can't plot",e) }
 			}

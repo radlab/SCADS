@@ -21,7 +21,7 @@ case class Director(
 ) {	
 	val actionExecutor = ActionExecutor()
 	
-	var plottingPeriod:Long = 2*60*1000
+	var plottingPeriod:Long = 1*60*1000
 	val period:Long = 20*1000	
 	var costUpdatePeriod:Long = 10*60*1000
 
@@ -39,7 +39,8 @@ case class Director(
 	setDeployment(deploymentName)	
 	Director.dropDatabases
 	SCADSState.initLogging("localhost",6001)
-	Plotting.initialize(Director.basedir+"/plotting/")
+	Plotting.initialize(Director.basedir)
+	Plotting.startPlotting
 	policy.initialize
 	
 	val lowLevelActionMonitor = LowLevelActionMonitor("director","lowlevel_actions")
@@ -59,10 +60,10 @@ case class Director(
 				policy.perform(stateHistory.getMostRecentState,actionExecutor)
 				actionExecutor.execute
 				
-				if (new Date().getTime>lastPlotTime+plottingPeriod) {
-					Plotting.plotSimpleDirectorAndConfigs()
-					lastPlotTime = new Date().getTime
-				}
+				//if (new Date().getTime>lastPlotTime+plottingPeriod) {
+				//	Plotting.plotSimpleDirectorAndConfigs()
+				//	lastPlotTime = new Date().getTime
+				//}
 				
 				if (new Date().getTime>lastCostUpdateTime+costUpdatePeriod) {
 					costFunction.dumpToDB
