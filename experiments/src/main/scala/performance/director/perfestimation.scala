@@ -32,6 +32,7 @@ abstract class PerformanceEstimator {
 	* for the specified time (in seconds) while executing the actions
 	*/	
 	def estimatePerformance(config:SCADSconfig, workload:WorkloadHistogram, durationInSec:Int, actions:List[Action]): PerformanceStats
+	def estimateApproximatePerformance(config:SCADSconfig, workload:WorkloadHistogram, durationInSec:Int, actions:List[Action], quantile:Double): PerformanceStats
 }
 
 object PerformanceEstimator {
@@ -162,4 +163,31 @@ case class SimplePerformanceEstimator(
 		}
 		stats
 	}
+
+	/**
+	* predict performance when running 'workload' on 'servers' for 'duration' seconds and also executing 'actions'
+	*/
+	def estimateApproximatePerformance(config:SCADSconfig, workload:WorkloadHistogram, durationInSec:Int, actions:List[Action], quantile:Double): PerformanceStats = {
+		val servers = config.storageNodes
+		val serverWorkload = PerformanceEstimator.estimateServerWorkload(config,workload)
+
+		var stats = PerformanceStats(durationInSec,0,0,0,0,0,0,0,0,0)
+		for (s <- servers.keySet) {
+			if (!serverWorkload.contains(s)) {
+				println("Couldn't find "+s+" in serverWorkload, which has: "+serverWorkload.keys.toList.mkString("(",",",")"))
+				println("Histogram has ranges: \n"+workload.rangeStats.keySet.toList.sort(_.minKey<_.minKey).mkString("",",",""))
+				println("Config has: \n"+config.rangeNodes.toList.sort(_._1.minKey<_._1.minKey).mkString("","\n","\n-------\n"))
+			} else {
+				val w = serverWorkload(s)
+				val getLatency = perfmodel.estimateLatency(Map("type"->"get","getw"->w.getRate.toString,"putw"->w.putRate.toString), quantile)
+				val putLatency = perfmodel.estimateLatency(Map("type"->"put","getw"->w.getRate.toString,"putw"->w.putRate.toString), quantile)
+
+				val (ngets, ngets_50, ngets_100) = if (getLatency>100) (1000,1000,1000) else if (getLatency>50) (1000,1000,0) else (1000,0,0)
+				val (nputs, nputs_50, nputs_100) = if (putLatency>100) (1000,1000,1000) else if (putLatency>50) (1000,1000,0) else (1000,0,0)
+				stats = stats.add(PerformanceStats(durationInSec,ngets,nputs,0,ngets_50,nputs_50,0,ngets_100,nputs_100,0))
+			}
+		}
+		stats
+	}
+
 }
