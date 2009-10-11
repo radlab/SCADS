@@ -286,7 +286,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 
 		// try splitting/replicating the overloaded servers
 		overloaded_ranges_replicas.foreach((entry)=>{
-			println("Attempting to optimze overloaded server "+entry._1.first + " with "+entry._1.size + " replicas")
+			logger.debug("Attempting to optimze overloaded server "+entry._1.first + " with "+entry._1.size + " replicas")
 			val changes = trySplitting(entry._1, entry._2,projectedState)
 			actions.insertAll(actions.size,translateToActions(entry._1,changes,projectedState))
 		})
@@ -294,7 +294,8 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 		// pick a replica to remove or merge to do, if possible
 		val overloadedservers = overloaded_config.getNodes
 		val candidatesMap = projectedState.config.rangeNodes.toList.sort(_._1.minKey < _._1.minKey).filter(_._2.intersect(overloadedservers).size==0)
-		println("Have "+candidatesMap.size+" underloaded servers")
+		logger.debug("Have "+candidatesMap.size+" underloaded servers")
+		logger.debug("Underloaded: "+candidatesMap.mkString(","))
 		actions.insertAll(actions.size,scaleDown(candidatesMap.toArray,1,projectedState)) // how many scale down actions to produce (not used right now)
 
 		actions.foreach(actionExecutor.addAction(_))
@@ -373,7 +374,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 					changes ++= tryReplicatingAndRestricting(servers, rangeArray(id),state); id += 1
 					}
 				else {
-					println("Creating split from "+rangeArray(startId).minKey+" - "+rangeArray(endId).maxKey)
+					logger.info("Creating split from "+rangeArray(startId).minKey+" - "+rangeArray(endId).maxKey)
 					changes += (DirectorKeyRange(rangeArray(startId).minKey,rangeArray(endId).maxKey) -> (servers.size,-1) )
 				}
 				startId = id // continue split attempts from where left off
@@ -398,13 +399,13 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 			(servers.size to max_replicas).foreach((num_replicas)=>{
 				if ( !found && !violatesSLA(estimateSingleServerStats(server,num_replicas,new_restriction.toDouble/100.0*mult,range,state)) ) {
 					if ( (current_restriction <= new_restriction.toDouble/100.0) || (num_replicas != servers.size) )
-						{ changes += range -> (num_replicas,new_restriction.toDouble/100.0); found = true; println("Need "+num_replicas+ " of "+range.minKey+" - "+ range.maxKey+ " with "+(new_restriction.toDouble/100.0)+" allowed puts. Used to be "+current_restriction) }
-					else println("Tried to modify puts, but just ended up with same restriction")
+						{ changes += range -> (num_replicas,new_restriction.toDouble/100.0); found = true; logger.info("Need "+num_replicas+ " of "+range.minKey+" - "+ range.maxKey+ " with "+(new_restriction.toDouble/100.0)+" allowed puts. Used to be "+current_restriction) }
+					else logger.debug("Tried to modify puts, but just ended up with same restriction")
 				}
 			})
 			new_restriction -= 10
 		}
-		if (!found) println("Unable to fix range "+range.minKey+" - "+ range.maxKey)
+		if (!found) logger.warn("Unable to fix range "+range.minKey+" - "+ range.maxKey)
 		changes
 	}
 
@@ -413,7 +414,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 	* Inputted ranges in map are not necessarily in sorted order :(
 	*/
 	 def translateToActions(servers: List[String], changes:Map[DirectorKeyRange,(Int,Double)],state:SCADSState):List[Action] = {
-		//println("translating changes: \n"+changes.toList.mkString(","))
+		logger.debug("translating changes: \n"+changes.toList.mkString(","))
 		var actions = new scala.collection.mutable.ListBuffer[Action]()
 		val actual_range = state.config.storageNodes(servers.first)
 		val changesArray = changes.toList.sort(_._1.minKey < _._1.minKey).toArray
@@ -470,7 +471,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 				while (violatesSLA(estimateSingleServerStats(chosen._2.first,chosen._2.size,new_restriction.toDouble/100.0,chosen._1, state)))
 					new_restriction -= 10
 				if (new_restriction.toDouble/100.0 > restriction) changed_restrictions = changed_restrictions + (chosen._1 -> new_restriction.toDouble/100.0)
-				else println("Looked at re-allowing restrictions on "+chosen._2.first +", but couldn't!")
+				else logger.debug("Looked at re-allowing restrictions on "+chosen._2.first +", but couldn't!")
 			}
 
 			else if (chosen._2.size > 1) { // try to remove a replica
@@ -485,7 +486,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 					actions += MergeTwo(chosen._2.first,chosen_neighbor._2.first)
 					choices = choices.filter( (_ != neighbor_index) ) // don't consider the neighbor in subsequent actions
 				}
-				else println("Thought about merging "+chosen._2.first+" and "+chosen_neighbor._2.first+", but didn't!")
+				else logger.debug("Thought about merging "+chosen._2.first+" and "+chosen_neighbor._2.first+", but didn't!")
 			}
 			choices = choices.filter( (_ != chosen_index) )
 		}
