@@ -24,13 +24,8 @@ object Policy {
 abstract class Policy(
 	val workloadPredictor:WorkloadPrediction
 ){
-	Policy.initializeLogger
-	val logger = Logger.getLogger("scads.director.policy")
-	val logPath = Director.basedir+"/policy.txt"
-	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
-	logger.setLevel(DEBUG)
-	
-/*	protected def act(state:SCADSState, pastActions:List[Action]): List[Action]*/
+	var logger:Logger = null
+
 	protected def act(state:SCADSState, actionExecutor:ActionExecutor)
 	
 	def stateColumns(): List[String] = List[String]()
@@ -43,6 +38,13 @@ abstract class Policy(
 	initialize
 	
 	def initialize {
+		Policy.initializeLogger
+
+		logger = Logger.getLogger("scads.director.policy")
+		val logPath = Director.basedir+"/policy.txt"
+		logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
+		logger.setLevel(DEBUG)
+
 		connection = Director.connectToDatabase
 		createTable
 		Action.initDatabase
