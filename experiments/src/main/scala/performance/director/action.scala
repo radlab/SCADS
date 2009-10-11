@@ -466,11 +466,13 @@ case class MergeTwo(
 	}
 	
 	var timeToMoveData:Long = -1
+	var removeTime:Long = -1
 	
 	override def initSimulation(config:SCADSconfig) {
 		logger.info("initializing simulation of MergeTwo")		
 		val bounds1 = config.storageNodes(server1)
-		timeToMoveData = ActionModels.copyDurationModel.sample( bounds1.maxKey - bounds1.minKey )
+		removeTime = ActionModels.removeDurationModel.sample
+		timeToMoveData = ActionModels.copyDurationModel.sample( bounds1.maxKey - bounds1.minKey ) + removeTime
 		logger.debug("timeToMoveData = "+timeToMoveData)
 	}
 	override def csvArgs():String = "num_keys="+num_keys
@@ -483,17 +485,23 @@ case class MergeTwo(
 
 		if ( Action.timeOverlap(dt0,dt1,movet0,movet1) ) {
 			// move interval overlaps with simulation interval, simulate activity
-			logger.debug("moving data, setting activity on servers "+server1+", "+server2)
-			newActivity.copyRate += server1 -> 1.0
-			newActivity.copyRate += server2 -> 1.0
+			if (dt1 > (timeToMoveData-removeTime)) { // finished copying, doing removing
+				logger.debug("removing data, setting activity on server "+server1)
+				newActivity.copyRate += server1 -> 1.0
+			}
+			else {
+				logger.debug("moving data, setting activity on servers "+server1+", "+server2)
+				newActivity.copyRate += server1 -> 1.0
+				newActivity.copyRate += server2 -> 1.0
+			}
 		}
 		
 		if (dt1 > timeToMoveData) {
 			logger.debug("simulation completed, updating configuration")
-			val new_standbys = if (config.standbys.size < SCADSconfig.standbyMaxPoolSize)
+			/*val new_standbys = if (config.standbys.size < SCADSconfig.standbyMaxPoolSize)
 					{ logger.debug("Returned "+ server1+" to standby pool"); config.standbys ::: List(server1) }
-				else {config.standbys}
-			newConfig = preview(config).updateStandbys(new_standbys)
+				else {config.standbys}*/
+			newConfig = preview(config)//.updateStandbys(new_standbys)
 			this.complete
 		}
 		(newConfig,newActivity)
@@ -630,7 +638,7 @@ case class ReplicateFrom(
 		if (dt1 <= timeToBootup) logger.debug("waiting for maching to boot up, doing nothing")	// machine booting up, do nothing
 		else if ( Action.timeOverlap(dt0,dt1,movet0,movet1) ) {
 			// move interval overlaps with simulation interval, simulate activity
-			logger.debug("moving data, setting activity on server "+server)
+			logger.debug("copying data, setting activity on server "+server)
 			newActivity.copyRate += server -> 1.0
 		}
 
@@ -649,6 +657,8 @@ case class ReplicateFrom(
 case class Remove(
 	val servers:List[String]
 ) extends Action("remove("+servers.mkString(",")+")") with PlacementManipulation {
+	var timeToMoveData:Long = -1
+	val num = servers.size
 	override def execute() {
 		// remove servers serially
 		servers.foreach((server)=>{
@@ -663,6 +673,38 @@ case class Remove(
 	override def preview(config:SCADSconfig):SCADSconfig = {
 		config.updateNodes(config.storageNodes -- servers)
 	}
+	override def initSimulation(config:SCADSconfig) {
+		logger.info("initializing simulation of Remove")
+		timeToMoveData = ActionModels.removeDurationModel.sample *num // remove serially
+		logger.debug("timeToMoveData = "+timeToMoveData)
+	}
+	override def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = {
+		val (dt0,dt1) = (time0 - startTime, time1 - startTime)
+		val (movet0,movet1) = (0,timeToMoveData)
+		var (newConfig,newActivity) = (config,activity)
+
+		logger.info("simulating "+dt0+" -> "+dt1+"  ("+time0+" -> "+time1+")")
+
+		if ( Action.timeOverlap(dt0,dt1,movet0,movet1) ) {
+			// move interval overlaps with simulation interval, simulate activity
+			var server:String = null
+			(0 until num).foreach((i)=> if (dt0 <= i*(timeToMoveData/num)) {server = servers(i)})
+			if (server!=null) {
+				logger.debug("removing serially, setting activity on server "+server)
+				newActivity.copyRate += server -> 1.0
+			} else logger.warn("couldn't update copyRate in Remove")
+		}
+
+		if (dt1 > timeToMoveData) {
+			logger.debug("simulation completed, updating configuration")
+			/*val new_standbys = if (config.standbys.size < SCADSconfig.standbyMaxPoolSize)
+					{ logger.debug("Returned "+ server1+" to standby pool"); config.standbys ::: List(server1) }
+				else {config.standbys}*/
+			newConfig = preview(config)
+			this.complete
+		}
+		(newConfig,newActivity)
+	}
 	def participants = Set[String](servers:_*)
 	override def toString:String = actionShortName
 }
@@ -671,6 +713,8 @@ case class RemoveFrom(
 	val servers:List[String],
 	val range:DirectorKeyRange
 ) extends Action("removefrom("+servers.mkString(",")+","+range+")") with PlacementManipulation {
+	var timeToMoveData:Long = -1
+	val num = servers.size
 	override def execute() {
 		val start = range.minKey
 		val end = range.maxKey
@@ -695,6 +739,35 @@ case class RemoveFrom(
 			nodeConfig = nodeConfig.update(name, new DirectorKeyRange(old_start,old_end))
 		})
 		config.updateNodes(nodeConfig)
+	}
+	override def initSimulation(config:SCADSconfig) {
+		logger.info("initializing simulation of RemoveData")
+		timeToMoveData = ActionModels.removeDataDurationModel.sample( range.maxKey - range.minKey ) *num // remove serially
+		logger.debug("timeToMoveData = "+timeToMoveData)
+	}
+	override def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = {
+		val (dt0,dt1) = (time0 - startTime, time1 - startTime)
+		val (movet0,movet1) = (0,timeToMoveData)
+		var (newConfig,newActivity) = (config,activity)
+
+		logger.info("simulating "+dt0+" -> "+dt1+"  ("+time0+" -> "+time1+")")
+
+		if ( Action.timeOverlap(dt0,dt1,movet0,movet1) ) {
+			// move interval overlaps with simulation interval, simulate activity
+			var server:String = null
+			(0 until num).foreach((i)=> if (dt0 <= i*(timeToMoveData/num)) {server = servers(i)})
+			if (server!=null) {
+				logger.debug("removing data serially, setting activity on server "+server)
+				newActivity.copyRate += server -> 1.0
+			} else logger.warn("couldn't update copyRate in RemoveFrom")
+		}
+
+		if (dt1 > timeToMoveData) {
+			logger.debug("simulation completed, updating configuration")
+			newConfig = preview(config)
+			this.complete
+		}
+		(newConfig,newActivity)
 	}
 	override def csvArgs():String = "num_keys="+(range.maxKey-range.minKey)
 	def participants = Set[String](servers:_*)
