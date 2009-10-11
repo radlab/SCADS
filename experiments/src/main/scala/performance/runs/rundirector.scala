@@ -36,6 +36,13 @@ object RunDirector {
 			val splitThreshold = System.getProperty("splitThreshold").toDouble
 			new SplitAndMergeOnWorkload(mergeThreshold,splitThreshold,workloadPredictor)
 			
+		} else
+		if (policyName=="ReactivePolicy") {
+			val latencyToMerge = System.getProperty("latencyToMerge").toDouble
+			val latencyToSplit = System.getProperty("latencyToSplit").toDouble
+			val smoothingFactor = System.getProperty("smoothingFactor").toDouble
+			new ReactivePolicy(latencyToMerge,latencyToSplit,smoothingFactor,workloadPredictor)
+			
 		} else 
 		if (policyName=="HeuristicOptimizerPolicy") {
 			val modelpath = System.getProperty("modelPath")
