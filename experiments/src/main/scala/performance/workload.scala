@@ -13,9 +13,10 @@ import java.io._
 import java.net._
 
 class WorkloadAgent(client:ClientLibrary, workload:WorkloadDescription, userID:Int) extends Runnable {
-	val max_prob = 100
 	val wait_sec = 0
-	val report_probability = 2.0
+	
+	val getReportProbability = 0.02
+	val putReportProbability = 0.40
 	
 	val localIP = InetAddress.getLocalHost().getHostName 
 
@@ -63,7 +64,12 @@ class WorkloadAgent(client:ClientLibrary, workload:WorkloadDescription, userID:I
 				
 				// create the request
 				val request = currentIntervalDescription.requestGenerator.generateRequest(client, System.currentTimeMillis-workloadStart)
-				severity = if (WorkloadDescription.rnd.nextInt(max_prob) < report_probability) {1} else {6}
+
+				val reportProb = if (request.reqType=="get") getReportProbability
+								else if (request.reqType=="put") putReportProbability
+								else 0.0
+				severity = if (WorkloadDescription.rnd.nextDouble < reportProb) {1} else {6}
+
 				XTraceContext.startTraceSeverity(thread_name,"Initiated: LocalRequest",severity,"RequestID: "+requestI)
 				
 				try {
