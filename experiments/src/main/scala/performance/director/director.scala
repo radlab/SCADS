@@ -60,11 +60,6 @@ case class Director(
 				policy.perform(stateHistory.getMostRecentState,actionExecutor)
 				actionExecutor.execute
 				
-				//if (new Date().getTime>lastPlotTime+plottingPeriod) {
-				//	Plotting.plotSimpleDirectorAndConfigs()
-				//	lastPlotTime = new Date().getTime
-				//}
-				
 				if (new Date().getTime>lastCostUpdateTime+costUpdatePeriod) {
 					costFunction.dumpToDB
 					lastCostUpdateTime = new Date().getTime
@@ -75,6 +70,7 @@ case class Director(
 		}
 		def stop = { 
 			running = false
+			Plotting.stopPlotting
 			Director.logger.info("done directing")
 			Policy.logger.info("done directing")
 			stateHistory.stopUpdating
@@ -85,7 +81,9 @@ case class Director(
 
 	private def writeCostsToSummaryLog {
 		var costString = costFunction.toString
-		Director.summaryLogger.info("COST:\n"+costString)
+		Director.summaryLogger.info("COST SUMMARY: "+costFunction.toShortString)
+		Director.summaryLogger.info("PERFORMANCE STATS:\n"+costFunction.performanceStats)
+		Director.summaryLogger.info("COST DETAILS:\n"+costString)
 	}
 
 	private def setDeployment(deploy_name:String) {
