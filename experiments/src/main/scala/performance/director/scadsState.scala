@@ -434,7 +434,7 @@ case class SCADSState(
 		"  getL="+metricsByType("get").toShortLatencyString()+"  putL="+metricsByType("put").toShortLatencyString()) else "") +
 		config.storageNodes.toList.
 					sort(_._2.minKey<_._2.minKey).
-					map( p => {val ip=p._1; val range=p._2; "  server@"+ip+"   "+"%-15s".format(range)+"      "+ (if (nodesByIP.contains(ip)) nodesByIP(ip).toShortString else "")} ).
+					map( p => {val ip=p._1; val range=p._2; "  server@"+"%-50s".format(ip)+"   "+"%-15s".format(range)+"      "+ (if (nodesByIP.contains(ip)) nodesByIP(ip).toShortString else "")} ).
 					mkString("\n","\n","") +
 		"\nworkload: "+workloadHistogram.toShortString									
 	}
