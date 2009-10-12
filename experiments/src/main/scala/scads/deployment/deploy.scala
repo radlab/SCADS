@@ -39,14 +39,16 @@ case class SCADSDeployment(
 	// how many scads hot-standby's?
 	// initial configuration and dataset
 	// xtrace sampling probability
-	case class Deployer(nClients:Int, deployMonitoring:Boolean, deployDirector:Boolean) extends Runnable {
+	case class Deployer(nClients:Int, extra_servers:Int, deployMonitoring:Boolean, deployDirector:Boolean) extends Runnable {
 		def run = {
 			try {
 				val doMonitoring = if (deployDirector) { true } else { deployMonitoring }
 
+				val config = List[(DirectorKeyRange,String)]((DirectorKeyRange(0,ScadsDeploy.maxKey),null))
+
 				// create the components
 				if (doMonitoring) monitoring = SCADSMonitoringDeployment(deploymentName,experimentsJarURL)
-				myscads = Scads(List[(DirectorKeyRange,String)]((DirectorKeyRange(0,ScadsDeploy.maxKey),null)),deploymentName,doMonitoring)
+				myscads = Scads(config,extra_servers,deploymentName,doMonitoring)
 				if (nClients>0) clients = ScadsClients(myscads,nClients)
 				if (deployDirector) director = DirectorDeployment(myscads,monitoring,deployDirectorToMonitoring)
 
@@ -65,8 +67,8 @@ case class SCADSDeployment(
 		}
 	}
 	
-	def deploy(nClients:Int, deployMonitoring:Boolean, deployDirector:Boolean) {
-		deployer = Deployer(nClients, deployMonitoring, deployDirector)
+	def deploy(nClients:Int, extra_servers:Int, deployMonitoring:Boolean, deployDirector:Boolean) {
+		deployer = Deployer(nClients, extra_servers,deployMonitoring, deployDirector)
 		deployerThread = new Thread(deployer)
 		deployerThread.start
 

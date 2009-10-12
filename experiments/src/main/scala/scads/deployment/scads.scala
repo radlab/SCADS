@@ -25,7 +25,7 @@ object ScadsLoader {
 			val iter = dpentries.iterator
 			while (iter.hasNext) { val key = StringKey.deserialize_toString(iter.next.rset.range.end_key,new ParsePosition(0)).toInt; if (key>max) {max=key}  }
 
-			myscads = Scads(List[(DirectorKeyRange,String)]((DirectorKeyRange(0,max),null)),deploymentName,info._1)
+			myscads = Scads(List[(DirectorKeyRange,String)]((DirectorKeyRange(0,max),null)),servers.size-dpentries.size,deploymentName,info._1)
 			myscads.servers = servers; myscads.placement = placement; myscads; myscads.setMonitor(info._2)
 			myscads.dpclient = ScadsDeploy.getDataPlacementHandle(placement.get(0).publicDnsName, myscads.deployMonitoring)
 		}
@@ -39,6 +39,7 @@ object ScadsLoader {
 
 case class Scads(
 	cluster_config:List[(DirectorKeyRange,String)],
+	extra_servers:Int,
 	deploymentName:String,
 	deployMonitoring:Boolean)
 extends Component with RangeConversion {
@@ -50,7 +51,7 @@ extends Component with RangeConversion {
 
 	val config_reverse_sorted = cluster_config.sort(_._1.maxKey > _._1.maxKey)
 	val minKey = 0
-	val maxKey = config_reverse_sorted.first._1.maxKey // get the highest key in the cluster
+	var maxKey = config_reverse_sorted.first._1.maxKey // get the highest key in the cluster
 	val namespace = "perfTest256"
 	val serverVMType = "m1.small"
 	val placementVMType = "m1.small"
@@ -59,15 +60,21 @@ extends Component with RangeConversion {
 	var serverConfig:JSONObject = null
 
 	def boot = {
-		ScadsDeploy.logger.debug("scads: booting up "+cluster_config.size+" storage node(s) VM ("+serverVMType+")")
+		val bootnum = cluster_config.size+extra_servers
+		ScadsDeploy.logger.debug("scads: booting up "+bootnum+" storage node(s) VM ("+serverVMType+")")
 		ScadsDeploy.logger.debug("scads: booting up 1 placement VM ("+placementVMType+")")
-		servers = DataCenter.runInstances(cluster_config.size,serverVMType)
+		servers = DataCenter.runInstances(bootnum,serverVMType)
 		placement = DataCenter.runInstances(1,placementVMType)
 	}
 
 	def waitUntilBooted = {
+		val start = System.currentTimeMillis
 		val machines = Array(servers,placement)
-		new InstanceGroup(machines).waitUntilReady
+		//new InstanceGroup(machines).waitUntilReady
+		servers.waitUntilReady
+		placement.waitUntilReady
+		val end = System.currentTimeMillis
+		logBoots(List[Long](end-start),ScadsDeploy.serversName)
 		ScadsDeploy.logger.debug("scads: have storage and placement VMs")
 		servers.tagWith( DataCenter.keyName+"--SCADS--"+deploymentName+"--"+ScadsDeploy.serversName)
 		placement.tagWith( DataCenter.keyName+"--SCADS--"+deploymentName+"--"+ScadsDeploy.placeName)
@@ -143,19 +150,20 @@ extends Component with RangeConversion {
 		val range = KeyRange( new StringKey( ScadsDeploy.keyFormat.format(minKey)) , new StringKey( ScadsDeploy.keyFormat.format(maxKey)) )
 		list.add(new DataPlacement(servers.get(0).privateDnsName,ScadsDeploy.server_port,ScadsDeploy.server_sync,range))
 		setServers(list)
+		val serversToInclude = servers.size-extra_servers // don't include extra servers when registering with data placement
 
-		(1 until servers.size).foreach((index)=>{
+		(1 until serversToInclude).foreach((index)=>{
 			// move data from first server to other servers (the last config range will be left on first server)
 			val dp = ScadsDeploy.getDataPlacementHandle(placement.get(0).publicDnsName,deployMonitoring)
-			val start = new StringKey( ScadsDeploy.keyFormat.format(config_reverse_sorted(index)._1.minKey) )
-			val end =  new StringKey( ScadsDeploy.keyFormat.format(config_reverse_sorted(index)._1.maxKey) )
+			val start = new StringKey( ScadsDeploy.keyFormat.format(config_reverse_sorted(index-1)._1.minKey) )
+			val end =  new StringKey( ScadsDeploy.keyFormat.format(config_reverse_sorted(index-1)._1.maxKey) )
 			val range = KeyRange(start,end)
 			ScadsDeploy.logger.debug("Moving to: "+ servers.get(index).privateDnsName + ": "+ start +" - "+ end)
 			dp.move(namespace,range,servers.get(0).privateDnsName,ScadsDeploy.server_port,ScadsDeploy.server_sync,
-									servers.get(index).privateDnsName,ScadsDeploy.server_port,ScadsDeploy.server_sync)
+					servers.get(index).privateDnsName,ScadsDeploy.server_port,ScadsDeploy.server_sync)
 		})
 		dpclient = ScadsDeploy.getDataPlacementHandle(placement.get(0).publicDnsName,deployMonitoring)
-		if (dpclient.lookup_namespace(namespace).size != servers.size) ScadsDeploy.logger.warn("Error registering servers with data placement")
+		if (dpclient.lookup_namespace(namespace).size != serversToInclude) ScadsDeploy.logger.warn("Error registering servers with data placement")
 		else ScadsDeploy.logger.info("SCADS servers registered with data placement.")
 	}
 

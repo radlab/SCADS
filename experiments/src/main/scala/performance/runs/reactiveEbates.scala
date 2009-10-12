@@ -33,12 +33,8 @@ object ReactiveEbates {
 		ScadsDeploy.maxKey = maxKey
 		val dep = SCADSDeployment(experimentName)
 		dep.experimentsJarURL = jar
-		dep.deploy(nClientMachines,true,true)
+		dep.deploy(nClientMachines,nHotStandbys,true,true)
 		dep.waitUntilDeployed
-	
-		// add hot-standbys
-		logger.info("adding hot-standby servers")
-		dep.myscads.addServers(nHotStandbys)
 
 		// warm cache
 		logger.info("warming up the cache")
