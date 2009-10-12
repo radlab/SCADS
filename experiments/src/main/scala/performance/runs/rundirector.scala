@@ -1,6 +1,8 @@
 package scads.director
 
 import scads.director._
+import scads.deployment._
+import deploylib.InstanceGroup
 
 object RunDirector {
 	
@@ -48,7 +50,6 @@ object RunDirector {
 			val modelpath = System.getProperty("modelPath")
 			val performanceModel = LocalL1PerformanceModel(modelpath)
 			new HeuristicOptimizerPolicy(performanceModel, getSLAThreshold, putSLAThreshold, workloadPredictor)
-			
 		} else 
 			exit(-1)
 
@@ -61,7 +62,12 @@ object RunDirector {
 		director.stop
 		director.uploadLogsToS3
 		
-		// kill all the VMs in this experiment except the Director VM?
+		// shut down instances: clients, servers, and placement
+		val myscads = ScadsLoader.loadState(deploymentName)
+		val clients = ScadsClients(myscads,0)
+		clients.loadState
+		val machines = Array(myscads.servers,myscads.placement,clients.clients)
+		new InstanceGroup(machines).stopAll
 	}
 	
 }
