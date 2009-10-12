@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <entities>
-    <!-- 
+    <!--
         User Class
         User data is same as scadbook_data.xml
     -->
@@ -65,7 +65,7 @@
         </attributes>
     </entity>
 
-    <!-- 
+    <!--
         Item Class
     -->
     <entity class="item">
@@ -141,7 +141,7 @@
         </foreign-keys>
     </entity>
 
-    <!-- 
+    <!--
         Item Watch Class
     -->
     <entity class="itemwatch">
@@ -165,7 +165,7 @@
         </foreign-keys>
     </entity>
 
-    <!-- 
+    <!--
         Bid Class
     -->
     <entity class="bid">
