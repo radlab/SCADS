@@ -9,6 +9,7 @@ abstract class FullCostFunction {
 	def cost():Double = cost(detailedCost)
 	def cost(costs:List[Cost]):Double = costs.map(_.cost).reduceLeft(_+_)
 	def detailedCost():List[Cost]
+	def performanceStats():String
 	def intervalSummary():String
 	def initialize
 	
@@ -16,6 +17,13 @@ abstract class FullCostFunction {
 		var dc = detailedCost
 		"total cost: "+cost(dc)+"\n\n"+
 		dc.map(_.toString).mkString("\n")
+	}
+
+	def toShortString:String = {
+		val dc = detailedCost
+		val nserverunits = dc.filter(_.costtype=="server").map(_.units).reduceLeft(_+_)
+		val nslaviolations = if (detailedCost.filter(_.costtype=="SLA").size>0) dc.filter(_.costtype=="SLA").map(_.units).reduceLeft(_+_) else 0.0
+		"total cost: "+cost(dc)+"   #server units:"+nserverunits+", #SLA violations:"+nslaviolations
 	}
 	
 	def dumpToDB {
@@ -165,6 +173,30 @@ case class FullSLACostFunction(
 		val machineCosts = machineCost.getCosts
 
 		(getCosts++putCosts++machineCosts).toList.sort(_.time.getTime<_.time.getTime)
+	}
+	
+	def performanceStats():String = {
+		val startTime = allStates(0).time
+		val states = allStates.filter(_.time>startTime+skip)
+				
+		// compute fraction of fast requests 
+		val getStats = 
+		Map( states.map(s=>(s,s.time/slaInterval*slaInterval))
+				 .foldLeft( scala.collection.mutable.Map[Long,RequestCounts]() )( (t,s)=>accumulateRequestStats(t,s,"get",getSLA) )
+				 .map( x=> (x._1,x._2) )
+				 .map( x=> x._1 -> (1.0-x._2.nSlow.toDouble/x._2.nAll) ).toList :_* )
+				 
+		val putStats = 
+		Map( states.map(s=>(s,s.time/slaInterval*slaInterval))
+				 .foldLeft( scala.collection.mutable.Map[Long,RequestCounts]() )( (t,s)=>accumulateRequestStats(t,s,"put",putSLA) )
+				 .map( x=>(x._1,x._2) )
+				 .map( x=> x._1 -> (1.0-x._2.nSlow.toDouble/x._2.nAll) ).toList :_* )
+
+		"fraction of fast and slow gets and puts\n" + 
+		getStats.keys.toList.sort(_<_).
+			map( d => "%-30s".format(new Date(d))+"  "+"%8.3f".format(getStats(d)*100)+"%   "+"%8.3f".format(putStats(d)*100)+"%"+
+			 							"         "+"%8.3f".format(100-getStats(d)*100)+"%   "+"%8.3f".format(100-putStats(d)*100)+"%").
+			mkString("\n")
 	}
 	
 	def intervalSummary():String = {
