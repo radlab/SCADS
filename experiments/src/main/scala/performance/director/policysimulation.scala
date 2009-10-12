@@ -121,6 +121,7 @@ case class PolicySimulator {
 		
 		var costString = costFunction.toString
 		Director.summaryLogger.info("COST:\n"+costString)
+		Director.summaryLogger.info("PERFORMANCE STATS:\n"+costFunction.performanceStats)
 		
 		val detailedCost = costFunction.detailedCost
 		val nserverunits = detailedCost.filter(_.costtype=="server").map(_.units).reduceLeft(_+_)
@@ -150,19 +151,18 @@ object PolicySimulator {
 	logger.setLevel(DEBUG)
 	
 	def test1(basedir:String, repodir:String):SimulationResults = {
-		val maxKey = 10000
-
 		val modelfile = repodir+"/experiments/scripts/perfmodels/gp_model.csv"
 		val performanceModel = LocalL1PerformanceModel(modelfile)		
 
-		//val workloadName = "/ebates_mix99_mix99_1500users_200bins_20sec.hist"*/
-		val workloadName = "/ebates_mix99_mix99_1500users_1000bins_20sec.hist"
+		val workloadName = "/ebates.hist"
 		//val workloadName = "/dbworkload.hist"
 		val workloadFile = basedir + workloadName
 		val w = WorkloadHistogram.loadHistograms( workloadFile )
 		
 		var results = SimulationResults()
-		
+
+		val maxKey = w.values.toList.first.rangeStats.keys.map(_.maxKey).reduceLeft( Math.max(_,_) )
+		println("maxkey="+maxKey)
 		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
 		config = config.splitAllInHalf.splitAllInHalf.splitAllInHalf
 		val policySimulator = PolicySimulator()		
@@ -204,12 +204,12 @@ object PolicySimulator {
 		
 		val results = SimulationResults()
 
-		val maxKey = 10000
 		val modelfile = repodir+"/experiments/scripts/perfmodels/gp_model.csv"
 		val performanceModel = LocalL1PerformanceModel(modelfile)		
 		val workloadName = "/ebates_mix99_mix99_1500users_1000bins_20sec.hist"
 		val workloadFile = basedir + workloadName
 		val w = WorkloadHistogram.loadHistograms( workloadFile )
+		val maxKey = w.values.toList.first.rangeStats.keys.map(_.maxKey).reduceLeft( Math.max(_,_) )
 
 		val policySimulator = PolicySimulator()		
 		
