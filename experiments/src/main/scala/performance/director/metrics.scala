@@ -25,10 +25,14 @@ object PerformanceMetrics {
 		val (date4, nRequests) = 		metricReader.getSingleMetric(server, "n_requests", reqType)
 		val (date5, nSlowerThan50ms) = 	metricReader.getSingleMetric(server, "n_slower_50ms", reqType)
 		val (date6, nSlowerThan100ms) = metricReader.getSingleMetric(server, "n_slower_100ms", reqType)
+		val (date8, nSlowerThan120ms) = metricReader.getSingleMetric(server, "n_slower_120ms", reqType)
+		val (date9, nSlowerThan150ms) = metricReader.getSingleMetric(server, "n_slower_150ms", reqType)
+		val (date10,nSlowerThan200ms) = metricReader.getSingleMetric(server, "n_slower_200ms", reqType)
 
 		//PerformanceMetrics(date0.getTime,metricReader.interval.toInt,workload,latencyMean,latency90p,latency99p, 
 		//	(nRequests/metricReader.report_prob).toInt, (nSlowerThan50ms/metricReader.report_prob).toInt, (nSlowerThan100ms/metricReader.report_prob).toInt)
-		PerformanceMetrics(date0.getTime,metricReader.interval.toInt,workload,latencyMean,latency50p,latency90p,latency99p,nRequests.toInt, nSlowerThan50ms.toInt, nSlowerThan100ms.toInt)
+		PerformanceMetrics(date0.getTime,metricReader.interval.toInt,workload,latencyMean,latency50p,latency90p,latency99p,nRequests.toInt, 
+			nSlowerThan50ms.toInt, nSlowerThan100ms.toInt, nSlowerThan120ms.toInt, nSlowerThan150ms.toInt, nSlowerThan200ms.toInt)
 	}
 	
 	def load(metricReader:MetricReader, server:String, reqType:String, time:Long):PerformanceMetrics = {
@@ -41,10 +45,14 @@ object PerformanceMetrics {
 		val (date4, nRequests) = 		metricReader.getSingleMetric(server, "n_requests", reqType, time)
 		val (date5, nSlowerThan50ms) = 	metricReader.getSingleMetric(server, "n_slower_50ms", reqType, time)
 		val (date6, nSlowerThan100ms) = metricReader.getSingleMetric(server, "n_slower_100ms", reqType, time)
+		val (date8, nSlowerThan120ms) = metricReader.getSingleMetric(server, "n_slower_120ms", reqType, time)
+		val (date9, nSlowerThan150ms) = metricReader.getSingleMetric(server, "n_slower_150ms", reqType, time)
+		val (date10,nSlowerThan200ms) = metricReader.getSingleMetric(server, "n_slower_200ms", reqType, time)
 		
 		//PerformanceMetrics(time,metricReader.interval.toInt,workload,latencyMean,latency90p,latency99p, 
 		//	(nRequests/metricReader.report_prob).toInt, (nSlowerThan50ms/metricReader.report_prob).toInt, (nSlowerThan100ms/metricReader.report_prob).toInt)
-		PerformanceMetrics(time,metricReader.interval.toInt,workload,latencyMean,latency50p,latency90p,latency99p,nRequests.toInt, nSlowerThan50ms.toInt, nSlowerThan100ms.toInt)
+		PerformanceMetrics(time,metricReader.interval.toInt,workload,latencyMean,latency50p,latency90p,latency99p,nRequests.toInt, 
+			nSlowerThan50ms.toInt, nSlowerThan100ms.toInt, nSlowerThan120ms.toInt, nSlowerThan150ms.toInt, nSlowerThan200ms.toInt)
 	}
 	
 	def estimateFromSamples(samples:List[Double], time:Long, aggregationInterval:Long, fractionOfRequests:Double):PerformanceMetrics = {
@@ -57,7 +65,11 @@ object PerformanceMetrics {
 		val nRequests = (samples.size/fractionOfRequests).toInt
 		val nSlowerThan50ms = (samples.filter(_>50).size/fractionOfRequests).toInt
 		val nSlowerThan100ms = (samples.filter(_>100).size/fractionOfRequests).toInt
-		PerformanceMetrics(time, aggregationInterval, workload, latencyMean, latency50p, latency90p, latency99p, nRequests, nSlowerThan50ms, nSlowerThan100ms)
+		val nSlowerThan120ms = (samples.filter(_>120).size/fractionOfRequests).toInt
+		val nSlowerThan150ms = (samples.filter(_>150).size/fractionOfRequests).toInt
+		val nSlowerThan200ms = (samples.filter(_>200).size/fractionOfRequests).toInt
+		PerformanceMetrics(time, aggregationInterval, workload, latencyMean, latency50p, latency90p, latency99p, nRequests, 
+			nSlowerThan50ms, nSlowerThan100ms, nSlowerThan120ms, nSlowerThan150ms, nSlowerThan200ms)
 	}
 	
 	private def computeWorkload( data:Array[Double] ): Double = if (data==null||data.size==0) Double.NaN else data.length
@@ -75,7 +87,10 @@ case class PerformanceMetrics(
 	val latency99p: Double,
 	val nRequests: Int,
 	val nSlowerThan50ms: Int,
-	val nSlowerThan100ms: Int
+	val nSlowerThan100ms: Int,
+	val nSlowerThan120ms: Int,
+	val nSlowerThan150ms: Int,
+	val nSlowerThan200ms: Int
 ) {
 	override def toString():String = (new Date(time))+" w="+"%.2f".format(workload)+" lMean="+"%.2f".format(latencyMean)+" l90p="+"%.2f".format(latency90p)+" l99p="+"%.2f".format(latency99p)+
 									 " all="+nRequests+" >50="+nSlowerThan50ms+" >100ms="+nSlowerThan100ms

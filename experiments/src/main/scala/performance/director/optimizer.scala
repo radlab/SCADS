@@ -132,7 +132,8 @@ case class FullSLACostFunction(
 ) extends FullCostFunction {
 	var allStates = new scala.collection.mutable.ListBuffer[SCADSState]()
 	
-	assert(getSLA==50||getSLA==100||putSLA==50||putSLA==100,"only supporting SLA of 50ms or 100ms (see PerformanceStats)")
+	assert(getSLA==50||getSLA==100||getSLA==120||getSLA==150||getSLA==200||putSLA==50||putSLA==100||putSLA==120||putSLA==150||putSLA==200,
+		"only supporting SLA of 50ms, 100ms, 120ms, 150ms, and 200ms (see PerformanceStats)")
 
 	def initialize { allStates = new scala.collection.mutable.ListBuffer[SCADSState]() }
 
@@ -179,6 +180,9 @@ case class FullSLACostFunction(
 	private def accumulateRequestStats(stats:scala.collection.mutable.Map[Long,RequestCounts], state:Tuple2[SCADSState,Long], rtype:String, threshold:Double): scala.collection.mutable.Map[Long,RequestCounts] = {
 		if (threshold==50) 			stats(state._2) = stats.getOrElse(state._2,RequestCounts(0,0)).add( RequestCounts(state._1.metricsByType(rtype).nSlowerThan50ms,state._1.metricsByType(rtype).nRequests) )
 		else if (threshold==100) 	stats(state._2) = stats.getOrElse(state._2,RequestCounts(0,0)).add( RequestCounts(state._1.metricsByType(rtype).nSlowerThan100ms,state._1.metricsByType(rtype).nRequests) )
+		else if (threshold==120) 	stats(state._2) = stats.getOrElse(state._2,RequestCounts(0,0)).add( RequestCounts(state._1.metricsByType(rtype).nSlowerThan120ms,state._1.metricsByType(rtype).nRequests) )
+		else if (threshold==150) 	stats(state._2) = stats.getOrElse(state._2,RequestCounts(0,0)).add( RequestCounts(state._1.metricsByType(rtype).nSlowerThan150ms,state._1.metricsByType(rtype).nRequests) )
+		else if (threshold==200) 	stats(state._2) = stats.getOrElse(state._2,RequestCounts(0,0)).add( RequestCounts(state._1.metricsByType(rtype).nSlowerThan200ms,state._1.metricsByType(rtype).nRequests) )
 		else RequestCounts(0,0)
 		stats
 	}

@@ -24,14 +24,12 @@ object TestExperiment {
 		val maxKey = 10000
 		val nClientMachines = 2
 		val nHotStandbys = 2
-		val requestSamplingProbability = 0.02
 		val namespace = "perfTest256"
 		val jar = "http://scads.s3.amazonaws.com/experiments-1.0-jar-with-dependencies-bodikp.jar"
 	
 		// deploy all VMs
 		logger.info("deploying SCADS")
 		ScadsDeploy.maxKey = maxKey
-		ScadsDeploy.requestSamplingProbability = requestSamplingProbability
 		val dep = SCADSDeployment(experimentName)
 		dep.experimentsJarURL = jar
 		dep.deploy(nClientMachines,true,true)

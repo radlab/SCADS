@@ -21,18 +21,16 @@ object PolicyEbates {
 		logger.setLevel(DEBUG)
 		logger.debug("starting experiment "+experimentName)
 
-		val maxKey = 500000
+		val maxKey = 100000
 		//val maxKey = 10000
 		val nClientMachines = 5
-		val nHotStandbys = 9
-		val requestSamplingProbability = 0.02
+		val nHotStandbys = 20
 		val namespace = "perfTest256"
 		val jar = "http://scads.s3.amazonaws.com/experiments-1.0-jar-with-dependencies-bodikp.jar"
 	
 		// deploy all VMs
 		logger.info("deploying SCADS")
 		ScadsDeploy.maxKey = maxKey
-		ScadsDeploy.requestSamplingProbability = requestSamplingProbability
 		val dep = SCADSDeployment(experimentName)
 		dep.experimentsJarURL = jar
 		dep.deploy(nClientMachines,true,true)
@@ -60,11 +58,11 @@ object PolicyEbates {
 							" -DdeploymentName="+experimentName +
 							" -DexperimentName="+experimentName +
 							" -Dduration="+workloadDuration(workload).toString +
-							" -DhysteresisUp=1.0" +
+							" -DhysteresisUp=0.9" +
 							" -DhysteresisDown=0.05" +
-							" -Doverprovisioning=0.2" +
+							" -Doverprovisioning=0.9" +
 							" -DgetSLA=100" +
-							" -DputSLA=100" +
+							" -DputSLA=150" +
 							" -DslaInterval=" + (5*60*1000) +
 							" -DslaCost=100" + 
 							" -DslaQuantile=0.99" +

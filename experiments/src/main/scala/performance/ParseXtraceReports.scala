@@ -38,12 +38,14 @@ class WorkloadStats() {
 }
 
 object ParseXtraceReports {
-	val host = try { System.getProperty("chukwaHost") } catch { case _ => "r16.millennium.berkeley.edu" }
+	val host = try { System.getProperty("chukwaHost") } catch { case _ => "" }
 	val port = try { System.getProperty("chukwaPort").toInt } catch { case _ => 9094 }
 	
 	val keyFormat = new java.text.DecimalFormat("000000000000000")
 	
-	val samplingProbability = try { System.getProperty("samplingProbability").toDouble } catch { case _ => 1.0 }
+	//val samplingProbability = try { System.getProperty("samplingProbability").toDouble } catch { case _ => 1.0 }
+	val getSamplingProbability = try { System.getProperty("getSamplingProbability").toDouble } catch { case _ => 1.0 }
+	val putSamplingProbability = try { System.getProperty("putSamplingProbability").toDouble } catch { case _ => 1.0 }
 	
 	val histogramDir = "/tmp/histograms/"
 	val histogramBreaksUpdateInterval = 24*60*60*1000
@@ -90,6 +92,8 @@ object ParseXtraceReports {
 	var lastInterval: Long = new Date().getTime / aggregationInterval * aggregationInterval
 	var lastHistogramBreaksUpdate = new Date().getTime / histogramBreaksUpdateInterval * histogramBreaksUpdateInterval - histogramBreaksUpdateInterval
 	
+	val rnd = new java.util.Random()
+	
 	def main(args: Array[String]) {
 			
 		val s = new Socket(host, port)
@@ -132,6 +136,12 @@ object ParseXtraceReports {
 
 			processReport(report)
 		}
+	}
+	
+	def nRequestsToAdd(samplingRate:Double):Int = {
+		val x = 1/samplingRate
+		val p = 1 - (x - Math.floor(x))
+		Math.floor(x).toInt + (if (rnd.nextDouble() < p) 0 else 1)
 	}
 	
 	def connectToMetricService(host:String, port:Int): MetricServiceAPI.Client = {
@@ -225,7 +235,7 @@ object ParseXtraceReports {
 				}
 			}
 		}
-		hist.values.foreach(_.adjust(samplingProbability))
+		//hist.values.foreach(_.adjust(samplingProbability))
 		Map[StringKeyRange,WorkloadStats]()++hist
 	}
 	
@@ -263,8 +273,12 @@ object ParseXtraceReports {
 				val m2 = timePattern.matcher(report)
 				val timestamp = if (m2.find) m2.group(2).toDouble else 0.0
 			
-				//println("request: type="+requestType+"   key="+key+"  serverIP="+serverIP+"  latency="+latency)			
-				requests += new SCADSRequestStats(requestType,timestamp,serverIP,latency,key)
+				//println("request: type="+requestType+"   key="+key+"  serverIP="+serverIP+"  latency="+latency)
+				// add multiple requests based on the sampling rate
+				val nreq = 	if (requestType=="get") nRequestsToAdd(getSamplingProbability) 
+							else if (requestType=="put") nRequestsToAdd(putSamplingProbability)
+							else 0
+				(1 to nreq).foreach( x => requests += new SCADSRequestStats(requestType,timestamp,serverIP,latency,key) )
 			}
 		} catch {
 			case e:Exception => { println("have problems parsing this report: \n"+report); e.printStackTrace }
@@ -290,14 +304,17 @@ object ParseXtraceReports {
 	
 	def computeRequestMetrics(requests:List[SCADSRequestStats], server:String, requestType:String, interval:Long): List[MetricUpdate] = {
 		var metrics = new scala.collection.mutable.ListBuffer[MetricUpdate]()
-		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"workload"))),(requests.length.toDouble/aggregationInterval*1000/samplingProbability).toString)
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"workload"))),(requests.length.toDouble/aggregationInterval*1000).toString)
 		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_mean"))),computeMean(requests.map(_.latency)).toString)
 		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_50p"))),computeQuantile(requests.map(_.latency),0.50).toString)
 		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_90p"))),computeQuantile(requests.map(_.latency),0.90).toString)
 		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_99p"))),computeQuantile(requests.map(_.latency),0.99).toString)
-		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"n_requests"))),(requests.length/samplingProbability).toInt.toString)
-		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"n_slower_50ms"))),(requests.filter(_.latency>50).length/samplingProbability).toInt.toString)
-		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"n_slower_100ms"))),(requests.filter(_.latency>100).length/samplingProbability).toInt.toString)		
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"n_requests"))),(requests.length).toInt.toString)
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"n_slower_50ms"))),(requests.filter(_.latency>50).length).toInt.toString)
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"n_slower_100ms"))),(requests.filter(_.latency>100).length).toInt.toString)		
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"n_slower_120ms"))),(requests.filter(_.latency>120).length).toInt.toString)
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"n_slower_150ms"))),(requests.filter(_.latency>150).length).toInt.toString)		
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"n_slower_200ms"))),(requests.filter(_.latency>200).length).toInt.toString)		
 		metrics.toList
 	}
 	
@@ -356,7 +373,7 @@ object ParseXtraceReports {
 	}
 }
 
-class SCADSRequestStats(
+case class SCADSRequestStats(
 	val reqType: String,
 	val timestamp: Double,	// in seconds
 	val serverIP: String,

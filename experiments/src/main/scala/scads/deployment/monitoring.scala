@@ -66,7 +66,9 @@ case class SCADSMonitoringDeployment(
 														 		"metricService"->Map("port"->6001,"dbhost"->"localhost","dbuser"->"root","dbpassword"->"","dbname"->"metrics"),
 																"xtraceParser"->Map("nBins"->nBins,"minKey"->minKey,"maxKey"->maxKey,
 																					"aggregationInterval"->aggregationInterval,
-																					"samplingProbability"->ScadsDeploy.requestSamplingProbability)
+																					"getSamplingProbability"->ScadsDeploy.getSamplingProbability,
+																					"putSamplingProbability"->ScadsDeploy.putSamplingProbability
+																					)
 														)))
 			ScadsDeploy.logger.debug("monitoring: deploying monitoring")
 			val monitoringDeployResult = monitoringVM.deploy(monitoringCfg)
