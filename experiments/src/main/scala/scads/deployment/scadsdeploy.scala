@@ -24,6 +24,7 @@ object ScadsDeploy {
 	val placementInfoFile = "/tmp/scads_info.csv"
 	val restrictFileName = "restrict.csv"
 	var maxKey = 10000 // up to ~1920000 in cache
+	var useXact = true // use nick's bdb with transactions
 
 	//var requestSamplingProbability = 0.02
 	var getSamplingProbability = 0.02
@@ -67,6 +68,7 @@ object ScadsDeploy {
 	def getXtraceIntoConfig(collector_dns:String):JSONObject = {
 		val scads_xtrace = new JSONObject()
 		scads_xtrace.put("xtrace","-x")
+		if (useXact) scads_xtrace.put("xact","-X")
 		val serverConfig = new JSONObject()
 		serverConfig.put("scads",scads_xtrace);
 		val collector = Array[String](collector_dns)
