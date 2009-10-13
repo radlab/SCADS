@@ -13,8 +13,10 @@ object SplitMergeEbates {
   	def main(args: Array[String]) {
 
 		val dateFormat = new java.text.SimpleDateFormat("yyyy-MM-dd-HH-mm-ss");
-		val experimentName = System.getProperty("experimentName")
-	
+		val split = System.getProperty("split","1000")
+		val merge = System.getProperty("merge","1000")
+
+		val experimentName = System.getenv("AWS_KEY_NAME")+ "_ebates_splitmerge_"+split+"_"+merge+"_"+System.currentTimeMillis
 		val logger = Logger.getLogger("scads.experiment")
 		logger.addAppender( new FileAppender(new PatternLayout("%d %5p %c - %m%n"),"/tmp/experiments/"+dateFormat.format(new java.util.Date)+"_"+experimentName+".txt",false) )
 		logger.addAppender( new ConsoleAppender(new PatternLayout("%d %5p %c - %m%n")) )
@@ -64,8 +66,8 @@ object SplitMergeEbates {
 							" -DslaQuantile=0.99" +
 							" -DmachineInterval=" + (10*60*1000) +
 							" -DmachineCost=1" +
-							" -DmergeThreshold=1500" +
-							" -DsplitThreshold=1500" +
+							" -DmergeThreshold="+merge +
+							" -DsplitThreshold="+split +
 							" -cp /mnt/monitoring/experiments.jar" +
 							" scads.director.RunDirector'" // "> /var/www/director.txt 2>&1"
 		logger.info("director command: "+directorCmd)
