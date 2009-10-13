@@ -46,6 +46,10 @@ case class SCADSMonitoringDeployment(
 		deployerThread.start
 		startedDeploying = true
 	}
+	def loadState = {
+		monitoringVM = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+deploymentName+"--monitoring", true ).getFirst
+		startedDeploying = true
+	}
 	
 	case class Deployer extends Runnable {
 		def run = {
