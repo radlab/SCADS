@@ -2,7 +2,7 @@ package deploylib
 
 import java.io.{File, BufferedReader, InputStreamReader}
 import org.apache.log4j.Logger
-import ch.ethz.ssh2.{Connection, Session, ChannelCondition}
+import ch.ethz.ssh2.{Connection, Session, ChannelCondition, SCPClient}
 
 case class ExecuteResponse(status: Integer, stdout: String, stderr: String)
 
@@ -81,6 +81,18 @@ abstract class RemoteMachine {
 
 			ExecuteResponse(exitStatus, stdout.toString, stderr.toString)
 		})
+	}
+
+	def upload(localFile: String, remoteDirectory: String): Unit = {
+		useConnection((c) => {
+			val scp = new SCPClient(connection)
+			scp.put(localFile, remoteDirectory)
+		})
+	}
+
+	def download(remoteFile: String, localDirectory: String): Unit = {
+		val scp = new SCPClient(connection)
+		scp.get(remoteFile, localDirectory)
 	}
 
 	override def toString(): String = "<RemoteMachine " + username + "@" + hostname + ">"
