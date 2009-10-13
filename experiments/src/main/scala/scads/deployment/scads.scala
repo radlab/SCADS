@@ -210,6 +210,11 @@ extends Component with RangeConversion {
 			// set up server config
 			val serverRecipes = new JSONArray()
 			serverConfig = if (deployMonitoring) { serverRecipes.put("chukwa::default"); ScadsDeploy.getXtraceIntoConfig(monitorIP) } else { new JSONObject() }
+			if (ScadsDeploy.useXact && !deployMonitoring) {
+				val doXact = new JSONObject()
+				doXact.put("xact","-X")
+				serverConfig.put("scads",doXact);
+			}
 		    serverRecipes.put("scads::storage_engine")
 		    serverConfig.put("recipes", serverRecipes)
 
