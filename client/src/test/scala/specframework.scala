@@ -37,6 +37,8 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
     val classfilesDir = new File(baseDir, "classfiles")
     val jarFile = new File(baseDir, "spec.jar")
 
+    val classLoader = new URLClassLoader(Array(jarFile.toURI.toURL))
+
     def getSourceFromFile(file: String): String = {
 		scala.io.Source.fromFile(file).getLines.foldLeft(new StringBuilder)((x: StringBuilder, y: String) => x.append(y)).toString
     }
@@ -52,7 +54,6 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
     }
 
     def loadClass(name: String): Class[Any] = {
-        val classLoader = new URLClassLoader(Array(jarFile.toURI.toURL))
         classLoader.loadClass(name).asInstanceOf[Class[Any]]
     }
 
@@ -135,8 +136,12 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
         llogger.debug("query method inputs: " )
         queryMethodInputs.foreach(llogger.debug(_))
 
-        val retVal = queryMethod.invoke(ent, queryMethodInputs : _*).asInstanceOf[Seq[Entity]]
-        retVal
+        val retVal: AnyRef = queryMethod.invoke(ent, queryMethodInputs : _*)
+        if ( retVal == null ) {
+            null
+        } else {
+            retVal.asInstanceOf[Seq[Entity]]
+        }
     }
 
     "a " + specName + " spec file" should {
@@ -172,7 +177,9 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
 
                     "entity class " + c  in {
                         val entClazz = loadClass(c).asInstanceOf[Class[Entity]]
+                        val entClazz2 = loadClass(c).asInstanceOf[Class[Entity]]
                         entClazz must notBeNull
+                        entClazz mustEqual entClazz2
                         val entConstructor = entClazz.getConstructor(env.getClass)
                         entConstructor must not(throwA[NoSuchMethodException])
                         val ent = entConstructor.newInstance(env)
