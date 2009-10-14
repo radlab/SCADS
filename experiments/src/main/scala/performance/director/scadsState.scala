@@ -538,6 +538,15 @@ case class WorkloadHistogram (
 		if (!split.isEmpty) { splits += split.toList } // add the last one split, if necessary
 		splits.toList
 	}
+	
+	def doHysteresis(that:WorkloadHistogram, alphaUp:Double, alphaDown:Double):WorkloadHistogram = {
+		new WorkloadHistogram(
+			Map( this.rangeStats.keys.toList.map( range => { 
+					val alpha = if (this.rangeStats(range).sum>that.rangeStats(range).sum) alphaDown else alphaUp;
+					range -> (this.rangeStats(range) + (that.rangeStats(range)-this.rangeStats(range))*alpha) } ) :_* )
+		)
+	}
+	
 	def + (that:WorkloadHistogram):WorkloadHistogram = {
 		new WorkloadHistogram(
 			Map[DirectorKeyRange,WorkloadFeatures]( this.rangeStats.toList map {entry=>(entry._1, entry._2+that.rangeStats(entry._1))} : _*)

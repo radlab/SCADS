@@ -23,8 +23,9 @@ case class SimpleHysteresis(
 	
 	def addHistogram(histogram:WorkloadHistogram) {
 		if (prediction==null) prediction = histogram
-		else if (histogram > prediction) prediction = prediction + (histogram - prediction)*alpha_up
-		else prediction = prediction + (histogram - prediction)*alpha_down
+		else prediction = prediction.doHysteresis(histogram,alpha_up,alpha_down)
+		//else if (histogram > prediction) prediction = prediction + (histogram - prediction)*alpha_up
+		//else prediction = prediction + (histogram - prediction)*alpha_down
 	}
 	
 	def getPrediction():WorkloadHistogram = { try{prediction*(1+overprovision)} catch {case _ => null} }
