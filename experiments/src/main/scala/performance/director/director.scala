@@ -135,6 +135,8 @@ case class Director(
 object Director {
 	var director:Director = null
 	
+	var LOG_ACTIONS = true
+	
 	val dateFormat = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss");
 	val logPattern = "%d %5p %c - %m%n"
 	var startDate = dateFormat.format(new Date)

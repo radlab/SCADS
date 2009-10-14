@@ -110,8 +110,10 @@ abstract class Action(
 
 	val logger = Logger.getLogger("scads.director.action."+actionShortName)
 	private val logPath = Director.basedir+"/actions/"+Director.dateFormat.format(new Date)+"_"+actionShortName+".txt"
-	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
-	logger.setLevel(DEBUG)
+	if (Director.LOG_ACTIONS) {
+		logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
+		logger.setLevel(DEBUG)
+	} else logger.setLevel(OFF)
 	
 	val sleepTime = 0 // how long to sleep after performing an action, simulating clients' ttl on mapping
 	var createsConsistentConfig = true // does this action depend on any others in order to be consistent
