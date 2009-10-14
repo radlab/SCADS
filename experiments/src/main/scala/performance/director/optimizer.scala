@@ -553,16 +553,19 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 			}
 
 			else if (chosen._2.size==1 && chosen_neighbor !=null && chosen_neighbor._2.size==1) { // attempt merge two
-				val range = if (chosen._1.minKey < chosen_neighbor._1.minKey) { DirectorKeyRange(chosen._1.minKey,chosen_neighbor._1.maxKey) } else { DirectorKeyRange(chosen_neighbor._1.minKey,chosen._1.maxKey) }
-				if (!violatesSLA(estimateSingleServerStats(chosen._2.first,1,-1,range, state))) {
-					if (participants.contains(chosen._2.first) || participants.contains(chosen_neighbor._2.first)) logger.warn("Trying merge action on "+chosen._2.first+"and "+chosen_neighbor._2.first+" that already is doing something")
-					else {
-						actions += MergeTwo(chosen._2.first,chosen_neighbor._2.first)
-						participants += chosen._2.first; participants += chosen_neighbor._2.first
-						choices = choices.filter( (_ != neighbor_index) ) // don't consider the neighbor in subsequent actions
+				if ( (chosen._1.minKey == chosen_neighbor._1.maxKey) || (chosen._1.maxKey == chosen_neighbor._1.minKey) ) {
+					val range = if (chosen._1.minKey < chosen_neighbor._1.minKey) { DirectorKeyRange(chosen._1.minKey,chosen_neighbor._1.maxKey) } else { DirectorKeyRange(chosen_neighbor._1.minKey,chosen._1.maxKey) }
+					if (!violatesSLA(estimateSingleServerStats(chosen._2.first,1,-1,range, state))) {
+						if (participants.contains(chosen._2.first) || participants.contains(chosen_neighbor._2.first)) logger.warn("Trying merge action on "+chosen._2.first+"and "+chosen_neighbor._2.first+" that already is doing something")
+						else {
+							actions += MergeTwo(chosen._2.first,chosen_neighbor._2.first)
+							participants += chosen._2.first; participants += chosen_neighbor._2.first
+							choices = choices.filter( (_ != neighbor_index) ) // don't consider the neighbor in subsequent actions
+						}
 					}
+					else logger.debug("Thought about merging "+chosen._2.first+" and "+chosen_neighbor._2.first+", but didn't!")
 				}
-				else logger.debug("Thought about merging "+chosen._2.first+" and "+chosen_neighbor._2.first+", but didn't!")
+				else { logger.warn("Thought about merging non-contiguous servers") }
 			}
 			choices = choices.filter( (_ != chosen_index) )
 		}
