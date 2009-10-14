@@ -1,20 +1,21 @@
-package deploylib
+package deploylib.runit
 
 import java.io.File
 
+/**
+ * Template for deploying Runit Services that are written in Java
+ */
 abstract class JavaService(localJar: File, className: String, args: String) extends RunitTemplate {
 	val name = className
 	val command = "no command"
 
-	override def setup(target: RunitController):Unit = {
+	override def setup(target: RunitManager):Unit = {
 		target.upload(localJar, target.rootDirectory)
 	}
 
-	override def buildCommand(target: RunitController): String = {
+	override def buildCommand(target: RunitManager): String = {
 		shell + "\n" +
 		redirect + "\n" + 
 		"/usr/lib/jvm/java-6-sun/bin/java -cp " + new File(target.rootDirectory, localJar.getName) + " " + className + " " + args
 	}
 }
-
-object ScadsEngine extends JavaService(new File("/Users/marmbrus/Workspace/scads/scalaengine/target/scalaengine-1.0-SNAPSHOT-jar-with-dependencies.jar"), "edu.berkeley.cs.scads.storage.JavaEngine", "")

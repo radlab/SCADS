@@ -1,3 +1,5 @@
+package deploylib
+
 import scala.tools.nsc.MainGenericRunner
 import deploylib._
 

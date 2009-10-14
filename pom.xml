@@ -83,7 +83,7 @@
 				<groupId>org.scala-tools</groupId>
 				<artifactId>maven-scala-plugin</artifactId>
 				<configuration>
-          <mainConsole>DeployConsole</mainConsole>
+          <mainConsole>deploylib.DeployConsole</mainConsole>
         </configuration>
 				<executions>
 					<execution>

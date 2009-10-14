@@ -4,19 +4,35 @@ import java.io.{File, BufferedReader, InputStreamReader}
 import org.apache.log4j.Logger
 import ch.ethz.ssh2.{Connection, Session, ChannelCondition, SCPClient}
 
+/**
+ * Holds the results of the execution of a command on the remote machine.
+ * @param status - the integer status code returned by the command if one was returned, otherwise None
+ * @param stdout - a string with all of the data that was output on STDOUT by the command
+ * @param stderr - a string with all of the data that was output on STDERR by the command
+ */
 case class ExecuteResponse(status: Option[Int], stdout: String, stderr: String)
 
+/**
+ * Provides a framework for interacting (running commands, uploading/downloading files, etc) with a generic remote machine.
+ */
 abstract class RemoteMachine {
+	/* The hostname that the ssh connection is established with */
 	val hostname: String
+
+	/* The username used to authenticate with the remote ssh server */
 	val username: String
+
+	/* The private key used to authenticate with the remote ssh server */
 	val privateKey: File
+
+	/* The default root directory for operations (The user should have read write permissions to this directory) */
 	val rootDirectory: File
 
 	val logger = Logger.getLogger("deploylib.remoteMachine")
-	lazy val serviceRoot = new File(rootDirectory, "services")
-	var connection: Connection = null
+	private var connection: Connection = null
 
-	def useConnection[ReturnType](func: (Connection) => ReturnType): ReturnType = {
+	/* Provide an ssh connection to the server.  If one is not already available or has been disconnected, create one. */
+	protected def useConnection[ReturnType](func: (Connection) => ReturnType): ReturnType = {
 		if(connection == null) {
 			connection = new Connection(hostname)
 			connection.connect()
@@ -25,6 +41,7 @@ abstract class RemoteMachine {
 		func(connection)
 	}
 
+	/* Execute a command sync and return the result as an ExecuteResponse */
 	def executeCommand(cmd: String): ExecuteResponse = {
 		useConnection((c) => {
 			val stdout = new StringBuilder
@@ -85,6 +102,11 @@ abstract class RemoteMachine {
 		})
 	}
 
+	/**
+	 * Create a file on the remote machine with the given contents
+	 * @param file - The desired path of the file. If the given path is relative, the file will be created in the rootDirectory
+	 * @param contents - A string with the desired contents of the file
+	 */
 	def createFile(file: File, contents: String): Unit = {
 			useConnection((c) => {
 				val session = connection.openSession
@@ -95,17 +117,22 @@ abstract class RemoteMachine {
 			})
 	}
 
-	def upload(localFile: File, remoteDirectory: File):Unit = upload(localFile.toString, remoteDirectory.toString)
-	def upload(localFile: String, remoteDirectory: String): Unit = {
+	/**
+	 * Upload a file to the remote machine.  Before peforming the transfer check the md5hash of the local file and any existing file to ensure we don't waste bandwidth.
+	 */
+	def upload(localFile: File, remoteDirectory: File): Unit = {
 		useConnection((c) => {
 			val scp = new SCPClient(connection)
-			scp.put(localFile, remoteDirectory)
+			scp.put(localFile.toString, remoteDirectory.toString)
 		})
 	}
 
-	def download(remoteFile: String, localDirectory: String): Unit = {
+	/**
+	 * Downloads a file from the remote machine.
+	 */
+	def download(remoteFile: File, localDirectory: File): Unit = {
 		val scp = new SCPClient(connection)
-		scp.get(remoteFile, localDirectory)
+		scp.get(remoteFile.toString, localDirectory.toString)
 	}
 
 	override def toString(): String = "<RemoteMachine " + username + "@" + hostname + ">"
