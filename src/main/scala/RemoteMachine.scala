@@ -69,6 +69,7 @@ abstract class RemoteMachine {
 						if(line != null) {
 							logger.debug("Received STDOUT_DATA: " + line)
 							stdout.append(line)
+							stdout.append("\n")
 						}
 					}
 				}
@@ -78,6 +79,7 @@ abstract class RemoteMachine {
 						if(line != null) {
 							logger.debug("Received STDERR_DATA: " + line)
 							stderr.append(line)
+							stderr.append("\n")
 						}
 					}
 				}
@@ -97,7 +99,7 @@ abstract class RemoteMachine {
 					logger.debug("Received CLOSED")
 				}
 			}
-
+			session.close()
 			ExecuteResponse(Some(exitStatus.intValue), stdout.toString, stderr.toString)
 		})
 	}
@@ -121,10 +123,13 @@ abstract class RemoteMachine {
 	 * Upload a file to the remote machine.  Before peforming the transfer check the md5hash of the local file and any existing file to ensure we don't waste bandwidth.
 	 */
 	def upload(localFile: File, remoteDirectory: File): Unit = {
-		useConnection((c) => {
-			val scp = new SCPClient(connection)
-			scp.put(localFile.toString, remoteDirectory.toString)
-		})
+		if(Util.md5(localFile) == md5(new File(remoteDirectory, localFile.getName)))
+			logger.debug("Not uploading " + localFile + " as the hashes match")
+		else
+			useConnection((c) => {
+				val scp = new SCPClient(connection)
+				scp.put(localFile.toString, remoteDirectory.toString)
+			})
 	}
 
 	/**
@@ -133,6 +138,60 @@ abstract class RemoteMachine {
 	def download(remoteFile: File, localDirectory: File): Unit = {
 		val scp = new SCPClient(connection)
 		scp.get(remoteFile.toString, localDirectory.toString)
+	}
+
+	def md5(remoteFile: File): String = {
+		val failureResponse = "md5sum: " + remoteFile + ": No such file or directory"
+		executeCommand("md5sum " + remoteFile) match {
+			case ExecuteResponse(Some(0), hash, "") => hash.split(" ")(0)
+			case ExecuteResponse(Some(1),"", failureResponse) => ""
+			case e: ExecuteResponse => {
+				logger.fatal("Unexpected response while calculating md5: " + e)
+				""
+			}
+		}
+	}
+
+	def catFile(remoteFile: File): String = {
+		executeCommand("cat " + remoteFile) match {
+			case ExecuteResponse(Some(0), data, "") => data
+			case e: ExecuteResponse => {
+				logger.fatal("Unexpected response during cat: " + e)
+				""
+			}
+		}
+	}
+
+	def tail(remoteFile: File):String = {
+		executeCommand("tail -n 20 " + remoteFile) match {
+			case ExecuteResponse(Some(0), logTail, "") => logTail
+			case e: ExecuteResponse => {
+				logger.fatal("Unexpected response while tailing log: " + e)
+				""
+			}
+		}
+	}
+
+	def watch(remoteFile: File): Unit = {
+		useConnection((c) => {
+			val session = connection.openSession
+			val outReader = new BufferedReader(new InputStreamReader(session.getStdout()))
+
+			session.execCommand("tail -f " + remoteFile)
+
+			val thread = new Thread {
+				override def run() = {
+					var line = outReader.readLine()
+					while(line != null) {
+						println(line)
+						line = outReader.readLine()
+					}
+					session.close()
+				}
+			}
+			thread.start
+
+		})
 	}
 
 	override def toString(): String = "<RemoteMachine " + username + "@" + hostname + ">"

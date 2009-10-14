@@ -15,14 +15,14 @@ abstract trait RunitManager extends ServiceManager {
 	lazy val serviceRoot = new File(rootDirectory, "services")
 
 	def services: Array[Service] = {
-		executeCommand("find " + serviceRoot) match {
+		executeCommand("cd " + serviceRoot + ";ls") match {
 			case ExecuteResponse(Some(0), services, "") => services.split("\n").map(new RunitService(this, _))
 			case e: ExecuteResponse => {
 				logger.fatal("Unexpected ExecuteResponse while listing services: " + e)
 				Array[Service]()
 			}
-		}	
+		}
 	}
-	
+
 	def clearAll: Unit = null
 }

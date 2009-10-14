@@ -50,7 +50,7 @@ class RClusterNode(num: Int) extends RemoteMachine with RunitManager {
 					}
 				}
 			}
-			case e: ExecuteResponse => logger.fatal("Unexpected execution result while checking for runsvdir: " + e) 
+			case e: ExecuteResponse => logger.fatal("Unexpected execution result while checking for runsvdir: " + e)
 		}
 	}
 }

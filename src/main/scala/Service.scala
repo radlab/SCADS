@@ -8,17 +8,22 @@ abstract class Service {
 	val name: String
 
 	/**
-	 * Start a service
+	 * Retuns the status of the service
+	 */
+	def status: String
+
+	/**
+	 * Start the service
 	 */
 	def start: Unit
 
 	/**
-	 * Stop a running service
+	 * Stop the running service
 	 */
 	def stop: Unit
 
 	/**
-	 * Start a service, but don't restart it if it fails
+	 * Start the service, but don't restart it if it fails
 	 */
 	def once: Unit
 
