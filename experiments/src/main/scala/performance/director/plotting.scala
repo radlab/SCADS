@@ -29,6 +29,7 @@ object Plotting {
 
 		logger = Logger.getLogger("scads.plotting")
 		val logPath = Director.basedir+"/plotting.txt"
+		logger.removeAllAppenders
 		logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 		logger.setLevel(DEBUG)
 	}

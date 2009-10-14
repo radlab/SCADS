@@ -16,6 +16,7 @@ object Policy {
 	def initializeLogger {
 		logger = Logger.getLogger("scads.director.events")
 		val logPath = Director.basedir+"/events.txt"
+		logger.removeAllAppenders
 		logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 		logger.setLevel(DEBUG)
 	}
@@ -42,6 +43,7 @@ abstract class Policy(
 
 		logger = Logger.getLogger("scads.director.policy")
 		val logPath = Director.basedir+"/policy.txt"
+		logger.removeAllAppenders
 		logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 		logger.setLevel(DEBUG)
 
