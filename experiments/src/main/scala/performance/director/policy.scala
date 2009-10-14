@@ -102,7 +102,7 @@ abstract class Policy(
        	} catch { case ex: SQLException => ex.printStackTrace() }
 
     }
-	override def toString:String = getParams.toList.sort(_._1<_._1).map( p => p._1+"="+p._2 ).mkString("(",",",")")
+	override def toString:String = getParams.toList.sort(_._1<_._1).map( p => p._1+"="+p._2 ).mkString("",",","")
 }
 
 
