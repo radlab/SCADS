@@ -175,7 +175,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
 
                 classNameMap.keys.foreach( (c) => {
 
-                    "entity class " + c  in {
+                    "for entity class " + c  in {
                         val entClazz = loadClass(c).asInstanceOf[Class[Entity]]
                         val entClazz2 = loadClass(c).asInstanceOf[Class[Entity]]
                         entClazz must notBeNull
@@ -192,7 +192,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
 
             }
 
-            "create the appropriate query methods" in {
+            "creating the appropriate query methods" in {
 
                 for ( (queryClass, queryArray) <- queries ) {
                     queryArray.foreach( (queryName) => {
@@ -210,7 +210,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
 
             }
 
-            "input data appropriately" in {
+            "persisting data appropriately" in {
                 val dataXMLFileObj = new File(dataXMLFile)
                 if ( !dataXMLFileObj.isFile ) {
                     fail("No such input data XML file: " + dataXMLFile)
@@ -233,7 +233,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
 
                     val entityDesc = (entity \\ "attribute").map( x => (x\"@name").text + "->" + x.text ).toArray.deepMkString("[",",","]")
 
-                    "data for entity " + clazz + " (" + entityDesc + ")" in {
+                    "for entity " + clazz + " (" + entityDesc + ")" in {
                         (entity \\ "attribute").foreach( (attribute) => {
                             val attributeName = (attribute \ "@name").text
                             llogger.debug("found attr name: " + attributeName)
@@ -252,7 +252,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                 })
             }
 
-            "pass the query tests" in {
+            "passing the query tests" in {
                 val queriesXMLFileObj = new File(queriesXMLFile)
                 if ( !queriesXMLFileObj.isFile ) {
                     fail("No such input queries XML file: " + queriesXMLFile)
@@ -269,7 +269,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                     val queryClass = (query \ "@class").text
                     val queryPK = (query \ "@primarykey").text
 
-                    "query with name " + queryName + " of class " + queryClass in {
+                    "for query with name " + queryName + " of class " + queryClass in {
 
                         var ent: Entity = null
                         if ( queryPK == null || queryPK.isEmpty ) {
@@ -287,7 +287,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                             if ( !hasQueryMethod("Queries", pkQueryName) ) {
                                 fail("No such query " + pkQueryName + " found in class Queries, but needed for testing query method " + queryName)
                             }
-                            (entSeq = executeQuery(null, "Queries", pkQueryName, Array[String](queryPK))) must not(throwA[Exception])
+                            entSeq = executeQuery(null, "Queries", pkQueryName, Array[String](queryPK))
                             if ( entSeq.size != 1 ) {
                                 fail("primary key lookup on class " + queryClass + " did not return one element, but instead returned " + entSeq.size)
                             }

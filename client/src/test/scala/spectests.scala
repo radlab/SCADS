@@ -68,7 +68,8 @@ object ScadbayLangSpec extends ScadsLangSpec {
         "itemwatch" -> Array("id","startdate","myItemsWatching","myItemsWatchingTarget"),
         "autobid" -> Array("id","maxamount","myAutoBids","autobidToItem"),
         "brand" -> Array("id","name","itemBrand"),
-        "category" -> Array("id","title","cattype","parentCategoryMapping"),
+        "parentcategory" -> Array("title"),
+        "regularcategory" -> Array("title","parentCategoryMapping"),
         "categorymap" -> Array("id","itemCategories","itemCategoriesTarget"),
         "bid" -> Array("id","bidamount","bidtime","myBids","myBidsTarget"),
         "comment" -> Array("id","rating","dateposted","wouldrecommend","comment","commenttype","commentsFromUser","commentsToUser","commentToItem")

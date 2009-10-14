@@ -233,6 +233,10 @@ FETCH user
     OF user me BY poketarget
 WHERE me=[this] AND poke.hidden = false
 
+QUERY finduserByPK
+FETCH user
+WHERE id = [1:id]
+
 /*
  * Missing Queries
  */

@@ -64,19 +64,16 @@ ENTITY brand
 }
 
 
-ENTITY category
+ENTITY parentcategory
 {
-    int    id,
-    string title,
-             /* NOTE: this field breaks data normalization (since
-              * types are really determined by where they are
-              * referenced in the various category relation tables!
-              * But it's the only way to do this for now, since
-              * we cannot say things like: */
-             /* "get me all the categories that do not appear in this set"
-              */
-    int    cattype
-    PRIMARY(id)
+    string title
+    PRIMARY(title)
+}
+
+ENTITY regularcategory
+{
+    string title
+    PRIMARY(title)
 }
 
 ENTITY categorymap
@@ -124,7 +121,7 @@ RELATIONSHIP commentToItem FROM item TO ONE comment
 RELATIONSHIP itemBrand FROM item TO MANY brand
 
 RELATIONSHIP itemCategories FROM item TO 10 categorymap
-RELATIONSHIP itemCategoriesTarget FROM category TO ONE categorymap
+RELATIONSHIP itemCategoriesTarget FROM regularcategory TO ONE categorymap
 
 /* I can have up to 100 autobidders doing my bidding, but
  * each autobidder must only map to one item */
@@ -132,7 +129,7 @@ RELATIONSHIP myAutoBids FROM user TO 100 autobid
 RELATIONSHIP autobidToItem FROM item TO ONE autobid
 
 /* There are 2 kinds of categories, parents and regular
-RELATIONSHIP parentCategoryMapping FROM category TO ONE category
+RELATIONSHIP parentCategoryMapping FROM parentcategory TO ONE regularcategory
 
 /* -------- BEGIN QUERIES --------- */
 
@@ -187,8 +184,8 @@ WHERE item=[this]
 /*
 QUERY activeItemsByParentCategory
 FETCH item
-    OF category regular BY itemCategories
-    OF category parent BY parentCategoryMapping
+    OF regularcategory regular BY itemCategories
+    OF parentcategory parent BY parentCategoryMapping
 WHERE parent.title=[1:title] AND
 item.isFinished = false
 ORDER BY dateposted
@@ -197,16 +194,15 @@ ORDER BY dateposted
 /* all active items under a certain regular category (by title) */
 QUERY activeItemsByRegularCategory
 FETCH item
-    OF category regular BY itemCategories
+    OF regularcategory regular BY itemCategories
 WHERE regular.title=[1:title] AND
 item.isFinished = false
 ORDER BY dateposted
 
 /* all top-level parent categories */
 QUERY allParentCategories
-FETCH category
-WHERE category.cattype = 1
-ORDER BY category.title
+FETCH parentcategory
+ORDER BY parentcategory.title
 
 /* items in a particular brand (by brand name) */
 QUERY allBrandItems
@@ -225,6 +221,10 @@ FETCH bid
 WHERE item=[this]
 ORDER BY dateposted DESC
 //LIMIT 1 MAX 100 // what does the MAX in a LIMIT do? I always want 1 result!
+
+QUERY finduserByPK
+FETCH user
+WHERE id = [1:id]
 
 
 /* Queries that need other features to do:
