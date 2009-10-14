@@ -121,18 +121,28 @@ object ParseXtraceReports {
 				}				
 				computeAndStoreRollingHistograms(lastInterval,requests.toList)
 */				
+				val t0 = new Date().getTime
 				val updates = processInterval(requests.toList,lastInterval)
+				val t1 = new Date().getTime
 				updates.foreach( println(_) )
 				metricService.update( s2jList(updates) )
+				val t2 = new Date().getTime
 
 				if (nBins>0) computeAndStoreHistogram(lastInterval,requests.toList,histogramRange)
+				val t3 = new Date().getTime
+
+				println("TIMING: processing interval: "+(t1-t0)/1000.0+" sec,  updating metrics: "+(t2-t1)/1000.0+" sec,  histograms: "+(t3-t2)/1000.0+" sec")
+				println("TOTAL: "+(t3-t0)/1000.0+" sec")
+				if ( (t3-t0)>aggregationInterval*0.9 ) println("THIS TOOK WAY TOO LONG!!")
 
 				requests = new scala.collection.mutable.ListBuffer[SCADSRequestStats]()
 			}
 			
 			// advance lastInterval up to now (in case we had a few intervals with no data)
-			while (lastInterval + aggregationInterval < now)
+			while (lastInterval + aggregationInterval < now) {
 				lastInterval += aggregationInterval
+				println("SKIPPING INTERVAL!!")
+			}
 
 			processReport(report)
 		}
