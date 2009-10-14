@@ -129,8 +129,10 @@ case class L1PerformanceModelWThroughput(
 	
 	def estimateLatency(input:Map[String,String], quantile:Double):Double = {
 		val model = models(input("type"))(quantile)
-		val features = model.createFeatures(Map("g"->input("getw").toDouble, "p"->input("putw").toDouble))
-		model.predict(features)
+		if (!throughputModel.overloaded(input("getw").toDouble,input("putw").toDouble)) {
+			val features = model.createFeatures(Map("g"->input("getw").toDouble, "p"->input("putw").toDouble))
+			model.predict(features)
+		} else scala.Math.POS_INF_DOUBLE
 	}
 	
 	def sample(input:Map[String,String], nSamples:Int): List[Double] = {
@@ -192,8 +194,10 @@ case class LocalL1PerformanceModel(
 	
 	def estimateLatency(input:Map[String,String], quantile:Double):Double = {
 		val model = models(input("type"))(quantile)
-		val features = model.createFeatures(Map("g"->input("getw").toDouble, "p"->input("putw").toDouble))
-		model.predict(features)
+		if (!overloaded(input("getw").toDouble,input("putw").toDouble,latencyOverloadedQuantile,latencyOverloadedThreshold)) {
+			val features = model.createFeatures(Map("g"->input("getw").toDouble, "p"->input("putw").toDouble))
+			model.predict(features)
+		} else scala.Math.POS_INF_DOUBLE
 	}
 	
 	def sample(input:Map[String,String], nSamples:Int): List[Double] = {
