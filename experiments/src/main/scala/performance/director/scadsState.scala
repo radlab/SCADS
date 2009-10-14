@@ -516,6 +516,10 @@ case class WorkloadHistogram (
 	}
 	override def toString():String = rangeStats.toList.sort(_._1.minKey<_._1.minKey).map( r => "%-15s".format(r._1)+"   "+r._2 ).mkString("\n")
 
+	def multiplyKeys(factor:Double):WorkloadHistogram = {
+		WorkloadHistogram( Map( rangeStats.toList.map( rs => DirectorKeyRange((rs._1.minKey*factor).toInt,(rs._1.maxKey*factor).toInt) -> rs._2 ) :_* ) )
+	}
+	
 	def compare(that:WorkloadHistogram):Int = { // do bin-wise comparison of workloadfeatures, return summation
 		this.rangeStats.toList.map(entry=>entry._2.compare( that.rangeStats(entry._1) )).reduceLeft(_+_)
 	}
