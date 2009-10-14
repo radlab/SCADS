@@ -12,6 +12,7 @@ abstract class FullCostFunction {
 	def performanceStats():String
 	def intervalSummary():String
 	def initialize
+	def getStats:Map[String,Double]
 	
 	override def toString:String = {
 		var dc = detailedCost
@@ -175,6 +176,30 @@ case class FullSLACostFunction(
 		(getCosts++putCosts++machineCosts).toList.sort(_.time.getTime<_.time.getTime)
 	}
 	
+	def getStats():Map[String,Double] = {
+		val dc = detailedCost
+		val c = cost(dc)		
+		val nserverunits = dc.filter(_.costtype=="server").map(_.units).reduceLeft(_+_)
+		val nslaviolations = if (detailedCost.filter(_.costtype=="SLA").size>0) dc.filter(_.costtype=="SLA").map(_.units).reduceLeft(_+_) else 0.0
+
+		val startTime = allStates(0).time
+		val states = allStates.filter(_.time>startTime+skip)
+
+		val getstats = states.map(s=>(s,1L))
+				 .foldLeft( scala.collection.mutable.Map[Long,RequestCounts]() )( (t,s)=>accumulateRequestStats(t,s,"get",getSLA) )
+				 .map( x=> (x._2.nSlow,x._2.nAll) ).toList.first
+		val putstats = states.map(s=>(s,1L))
+				 .foldLeft( scala.collection.mutable.Map[Long,RequestCounts]() )( (t,s)=>accumulateRequestStats(t,s,"put",putSLA) )
+				 .map( x=> (x._2.nSlow,x._2.nAll) ).toList.first
+		
+		val fractionslow = (getstats._1+putstats._1).toDouble/(getstats._2+putstats._2)
+		val fractiongetslow = getstats._1.toDouble/getstats._2
+		val fractionputslow = putstats._1.toDouble/putstats._2
+				
+		Map("cost"->c,"nserverunits"->nserverunits,"nslaviolations"->nslaviolations,
+				"fractiongetslow"->fractiongetslow,"fractionputslow"->fractionputslow,"fractionslow"->fractionslow)
+	}
+	
 	def performanceStats():String = {
 		val startTime = allStates(0).time
 		val states = allStates.filter(_.time>startTime+skip)
@@ -226,8 +251,8 @@ abstract class CostFunction {
 }
 
 class TestCostFunction extends CostFunction {
-	def cost(state:SCADSState):Double = Director.rnd.nextDouble
-	def detailedCost(state:SCADSState):Map[String,Double] = Map("rnd"->Director.rnd.nextDouble)
+	def cost(state:SCADSState):Double = Director.nextRndDouble
+	def detailedCost(state:SCADSState):Map[String,Double] = Map("rnd"->Director.nextRndDouble)
 }
 
 class SLACostFunction(
