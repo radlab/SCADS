@@ -24,7 +24,9 @@
         </outputs>
     </query>
     <query name="myThoughts" class="user" primarykey="Stephen Tu">
-        <inputs/>
+        <inputs>
+            <input type="int">10</input>
+        </inputs>
         <outputs class="thought">
             <output primarykey="1"/>
             <output primarykey="2"/>

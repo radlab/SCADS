@@ -96,6 +96,10 @@ QUERY userByEmail
 FETCH user
 WHERE email = [1:email]
 
+QUERY finduserByPK
+FETCH user
+WHERE name = [1:name]
+
 /* Missing Queries */
 //Who's following me?
 //How many people are following me?
