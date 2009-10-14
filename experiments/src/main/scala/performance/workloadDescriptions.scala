@@ -137,7 +137,7 @@ object WorkloadGenerators {
 	def wikipedia(mix:MixVector, namespace:String, nHoursSkip:Int, nHoursDuration:Int, nMinutesDuration:Int, maxNUsers:Int, nKeys:Int):WorkloadDescription = {
 		val dataset = "wikipedia_20090623_20090630"
 		val nIntervals = 6 * nMinutesDuration
-		val durations = List.make(nIntervals,10)
+		val durations = List.make(nIntervals,10*1000)
 		val profile = WorkloadProfile.getWikipedia( nIntervals, dataset, nHoursSkip, nHoursDuration, maxNUsers )
 		val reqGenerators = SCADSKeyGenerator.wikipediaKeyProfile(nIntervals, dataset, nHoursSkip, nHoursDuration, nKeys, nHoursSkip + nHoursDuration/2).map( FixedSCADSRequestGenerator(mix,_,namespace,10) ).toList
 		WorkloadDescription.create(profile,durations,reqGenerators,10)
