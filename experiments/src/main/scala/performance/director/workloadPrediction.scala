@@ -28,7 +28,7 @@ case class SimpleHysteresis(
 	}
 	
 	def getPrediction():WorkloadHistogram = { try{prediction*(1+overprovision)} catch {case _ => null} }
-	def getParams:Map[String,String] = Map("alpha_up"->alpha_up.toString,"alpha_down"->alpha_down.toString,"overprovision"->overprovision.toString)
+	def getParams:Map[String,String] = Map("alpha_up"->alpha_up.toString,"alpha_down"->alpha_down.toString,"safety"->overprovision.toString)
 }
 
 
@@ -78,7 +78,7 @@ case class ForecastWithHysteresis(
 	}
 	
 	def getPrediction():WorkloadHistogram = { try{prediction*(1+overprovision)} catch {case _ => null} }
-	def getParams:Map[String,String] = Map("alpha_up"->alpha_up.toString,"alpha_down"->alpha_down.toString,"overprovision"->overprovision.toString,
+	def getParams:Map[String,String] = Map("alpha_up"->alpha_up.toString,"alpha_down"->alpha_down.toString,"safety"->overprovision.toString,
 											"forecastDataInterval"->forecastDataInterval.toString,"forecastInterval"->forecastInterval.toString)
 }
 
