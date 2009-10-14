@@ -2,3 +2,5 @@
 *.tmproj
 *~
 target/
+*.swp
+src.old/

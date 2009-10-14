@@ -4,14 +4,16 @@ import java.io.{File, BufferedReader, InputStreamReader}
 import org.apache.log4j.Logger
 import ch.ethz.ssh2.{Connection, Session, ChannelCondition, SCPClient}
 
-case class ExecuteResponse(status: Integer, stdout: String, stderr: String)
+case class ExecuteResponse(status: Option[Int], stdout: String, stderr: String)
 
 abstract class RemoteMachine {
 	val hostname: String
 	val username: String
 	val privateKey: File
+	val rootDirectory: File
 
 	val logger = Logger.getLogger("deploylib.remoteMachine")
+	lazy val serviceRoot = new File(rootDirectory, "services")
 	var connection: Connection = null
 
 	def useConnection[ReturnType](func: (Connection) => ReturnType): ReturnType = {
@@ -79,10 +81,21 @@ abstract class RemoteMachine {
 				}
 			}
 
-			ExecuteResponse(exitStatus, stdout.toString, stderr.toString)
+			ExecuteResponse(Some(exitStatus.intValue), stdout.toString, stderr.toString)
 		})
 	}
 
+	def createFile(file: File, contents: String): Unit = {
+			useConnection((c) => {
+				val session = connection.openSession
+				session.execCommand("cat > " + file)
+				session.getStdin().write(contents.getBytes)
+				session.getStdin().close()
+				session.close()
+			})
+	}
+
+	def upload(localFile: File, remoteDirectory: File):Unit = upload(localFile.toString, remoteDirectory.toString)
 	def upload(localFile: String, remoteDirectory: String): Unit = {
 		useConnection((c) => {
 			val scp = new SCPClient(connection)
