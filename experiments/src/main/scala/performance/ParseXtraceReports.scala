@@ -304,17 +304,22 @@ object ParseXtraceReports {
 	
 	def computeRequestMetrics(requests:List[SCADSRequestStats], server:String, requestType:String, interval:Long): List[MetricUpdate] = {
 		var metrics = new scala.collection.mutable.ListBuffer[MetricUpdate]()
+		
+		val sortedLatencies = requests.map(_.latency).sort(_<_)
+		
 		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"workload"))),(requests.length.toDouble/aggregationInterval*1000).toString)
 		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_mean"))),computeMean(requests.map(_.latency)).toString)
-		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_10p"))),computeQuantile(requests.map(_.latency),0.10).toString)
-		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_25p"))),computeQuantile(requests.map(_.latency),0.25).toString)
-		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_50p"))),computeQuantile(requests.map(_.latency),0.50).toString)
-		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_60p"))),computeQuantile(requests.map(_.latency),0.60).toString)
-		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_70p"))),computeQuantile(requests.map(_.latency),0.70).toString)
-		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_80p"))),computeQuantile(requests.map(_.latency),0.80).toString)
-		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_90p"))),computeQuantile(requests.map(_.latency),0.90).toString)
-		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_95p"))),computeQuantile(requests.map(_.latency),0.95).toString)
-		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_99p"))),computeQuantile(requests.map(_.latency),0.99).toString)
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_01p"))),computeQuantileFromSorted(sortedLatencies,0.01).toString)
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_10p"))),computeQuantileFromSorted(sortedLatencies,0.10).toString)
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_25p"))),computeQuantileFromSorted(sortedLatencies,0.25).toString)
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_50p"))),computeQuantileFromSorted(sortedLatencies,0.50).toString)
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_60p"))),computeQuantileFromSorted(sortedLatencies,0.60).toString)
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_70p"))),computeQuantileFromSorted(sortedLatencies,0.70).toString)
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_80p"))),computeQuantileFromSorted(sortedLatencies,0.80).toString)
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_90p"))),computeQuantileFromSorted(sortedLatencies,0.90).toString)
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_95p"))),computeQuantileFromSorted(sortedLatencies,0.95).toString)
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_99p"))),computeQuantileFromSorted(sortedLatencies,0.99).toString)
+		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"latency_999p"))),computeQuantileFromSorted(sortedLatencies,0.999).toString)
 		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"n_requests"))),(requests.length).toInt.toString)
 		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"n_slower_50ms"))),(requests.filter(_.latency>50).length).toInt.toString)
 		metrics += new MetricUpdate(interval,new MetricDescription("scads",s2jMap(Map("aggregation"->aggregationInterval.toString,"server"->server,"request_type"->requestType,"stat"->"n_slower_100ms"))),(requests.filter(_.latency>100).length).toInt.toString)		
@@ -326,6 +331,7 @@ object ParseXtraceReports {
 	
 	def computeMean( data: List[Double] ): Double = if (data==Nil) Double.NaN else data.reduceLeft(_+_)/data.length
 	def computeQuantile( data: List[Double], q: Double): Double = if (data==Nil) Double.NaN else data.sort(_<_)( Math.floor(data.length*q).toInt )
+	def computeQuantileFromSorted( data: List[Double], q: Double): Double = if (data==Nil) Double.NaN else data( Math.floor(data.length*q).toInt )
 	
 	def connectToHistogramDatabase(databaseHost:String, databaseUser:String, databasePassword:String, databaseName:String, databaseTable:String):Connection = {
 	    try {
