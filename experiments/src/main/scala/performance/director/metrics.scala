@@ -76,6 +76,82 @@ object PerformanceMetrics {
 	private def computeMean( data:Array[Double] ): Double = if (data==null||data.size==0) Double.NaN else data.reduceLeft(_+_)/data.length
     private def computeQuantile( data:List[Double], q:Double): Double = if (data==null||data.size==0) Double.NaN else data.sort(_<_).toArray( Math.floor(data.length*q).toInt )
     private def computeQuantileAssumeSorted( data:Array[Double], q:Double): Double = if (data==null||data.size==0) Double.NaN else data( Math.floor(data.length*q).toInt )
+
+
+	case class RawPerfData(
+		server:String,
+		reqType:String,
+		stat:String,
+		time:Long,
+		value:Double
+	) {
+		def metricName:String = reqType+"_"+stat
+	}
+
+	def loadDataForPerfModels(dbhost:String, aggregation:Int, file:String) {
+		var connection = Director.connectToDatabase(dbhost)
+        try {
+            val statement = connection.createStatement
+            statement.executeUpdate("USE metrics")
+			statement.close
+       	} catch { case ex: SQLException => ex.printStackTrace() }
+
+		// get all servers
+		val sql0 = "select distinct server from scads_metrics"
+		val statement0 = connection.createStatement
+		val servers = new scala.collection.mutable.ListBuffer[String]
+		try {
+			val result = statement0.executeQuery(sql0)
+			while (result.next) servers += result.getString("server")			
+		} catch { case ex: SQLException => println("Couldn't get workload"); ex.printStackTrace() }
+		statement0.close
+		servers -= "ALL"
+
+		val rawData = new scala.collection.mutable.ListBuffer[RawPerfData]()
+		for (server <- servers) {
+			val sql1 = "SELECT * FROM metrics.scads_metrics sm, metrics.scads s "+
+						"where sm.id=s.metric_id and sm.server=\""+server+"\" "+
+						"and sm.aggregation=\""+aggregation+"\" "+
+						"and (request_type=\"get\" or request_type=\"put\") "+
+						"and stat in (\"workload\",\"latency_10p\",\"latency_25p\",\"latency_50p\",\"latency_60p\",\"latency_70p\",\"latency_80p\",\"latency_90p\",\"latency_95p\",\"latency_99p\")"
+			val statement1 = connection.createStatement
+			try {
+				val result = statement1.executeQuery(sql1)
+				while (result.next) {
+					rawData += RawPerfData( 
+								result.getString("server"),
+								result.getString("request_type"),
+								result.getString("stat"),
+								result.getLong("time"),
+								result.getDouble("value") )
+				}
+			} catch { case ex: SQLException => println("Can't get perf data"); ex.printStackTrace() }
+			statement1.close
+		}
+		
+		//rawData.toList.sort(_.time<_.time).foreach( println(_) )
+		
+		val out = new java.io.FileWriter( new java.io.File(file), false )
+		
+		val reqTypes = rawData.map(_.reqType).toList.removeDuplicates
+		val times = rawData.map(_.time).toList.removeDuplicates.sort(_<_)
+		val metricNames = rawData.map(_.metricName).toList.removeDuplicates
+		out.write( "time,server,"+metricNames.sort(_<_).mkString(",") + "\n" )
+		// aggregate data per-server
+		for (server <- servers) {
+			val perServer = rawData.filter(_.server==server)
+			// aggregate data per-timeinterval
+			for (time <- times)	{
+				val metrics = scala.collection.mutable.Map[String,String]()
+				metricNames.foreach( n => metrics += n -> "NaN")
+				reqTypes.foreach( t => metrics += (t+"_workload") -> "0" )
+				perServer.filter(_.time==time).foreach( r => metrics += r.metricName -> r.value.toString )
+				out.write( time.toString+","+server+","+metrics.toList.sort(_._1<_._1).map(_._2).mkString(",") + "\n" )
+			}
+		}
+		out.close
+	}
+
 }
 case class PerformanceMetrics(
 	val time: Long,
