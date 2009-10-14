@@ -16,22 +16,32 @@ case class ExecuteResponse(status: Option[Int], stdout: String, stderr: String)
  * Provides a framework for interacting (running commands, uploading/downloading files, etc) with a generic remote machine.
  */
 abstract class RemoteMachine {
-	/* The hostname that the ssh connection is established with */
+	/**
+	 * The hostname that the ssh connection is established with
+	 */
 	val hostname: String
 
-	/* The username used to authenticate with the remote ssh server */
+	/**
+	 * The username used to authenticate with the remote ssh server
+	 */
 	val username: String
 
-	/* The private key used to authenticate with the remote ssh server */
+	/**
+	 * The private key used to authenticate with the remote ssh server
+	 */
 	val privateKey: File
 
-	/* The default root directory for operations (The user should have read write permissions to this directory) */
+	/**
+	 * The default root directory for operations (The user should have read write permissions to this directory)
+	 */
 	val rootDirectory: File
 
 	val logger = Logger.getLogger("deploylib.remoteMachine")
 	private var connection: Connection = null
 
-	/* Provide an ssh connection to the server.  If one is not already available or has been disconnected, create one. */
+	/**
+	 * Provide an ssh connection to the server.  If one is not already available or has been disconnected, create one.
+	 */
 	protected def useConnection[ReturnType](func: (Connection) => ReturnType): ReturnType = {
 		if(connection == null) {
 			connection = new Connection(hostname)
@@ -41,7 +51,9 @@ abstract class RemoteMachine {
 		func(connection)
 	}
 
-	/* Execute a command sync and return the result as an ExecuteResponse */
+	/**
+	 * Execute a command sync and return the result as an ExecuteResponse
+	 */
 	def executeCommand(cmd: String): ExecuteResponse = {
 		useConnection((c) => {
 			val stdout = new StringBuilder
