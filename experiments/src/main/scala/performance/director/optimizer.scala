@@ -496,7 +496,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 		val participants = new scala.collection.mutable.HashSet[String]()
 
 		while (choices.size > 0) { // ignore max num actions for now
-			val chosen_index = choices(Director.rnd.nextInt(choices.size)) // select random index of candidate array
+			val chosen_index = choices(Director.nextRndInt(choices.size)) // select random index of candidate array
 			val chosen = candidates(chosen_index)
 
 			val neighbor_index = if (choices.size < 2) {-1} else if (chosen_index < candidates.size-1) { chosen_index+1 } else { chosen_index-1 }

@@ -123,13 +123,13 @@ class TestPolicy(
 
 		var policyState =
 		if (!actionExecutor.allActionsCompleted) Waiting
-		else if (Director.rnd.nextDouble>0.5) NewActions
+		else if (Director.nextRndDouble>0.5) NewActions
 		else NoNewActions
 		
 		val actions = policyState match {
 			case Waiting => List[Action]()
 			case NoNewActions => List[Action]()
-			case NewActions => (1 to (Director.rnd.nextInt(maxactions)+1)).map( (d:Int) => new TestAction(Director.rnd.nextInt((d+1)*30)*1000) ).toList
+			case NewActions => (1 to (Director.nextRndInt(maxactions)+1)).map( (d:Int) => new TestAction(Director.nextRndInt((d+1)*30)*1000) ).toList
 		}		
 		_stateValues = List(policyState.toString,actions.length.toString)
 		actions.foreach(actionExecutor.addAction(_))
@@ -199,11 +199,11 @@ class RandomSplitAndMergePolicy(
 	override val workloadPredictor:WorkloadPrediction
 ) extends Policy(workloadPredictor) {
 	override def act(state:SCADSState, actionExecutor:ActionExecutor) {
-		val actions = if (Director.rnd.nextDouble<fractionOfSplits)
-			List(new SplitInTwo( state.config.storageNodes.keySet.toList(Director.rnd.nextInt(state.config.storageNodes.size)),-1 ))
+		val actions = if (Director.nextRndDouble<fractionOfSplits)
+			List(new SplitInTwo( state.config.storageNodes.keySet.toList(Director.nextRndInt(state.config.storageNodes.size)),-1 ))
 		else 
 			if (state.config.storageNodes.size>=2) {
-				val i = Director.rnd.nextInt(state.config.storageNodes.size-1)
+				val i = Director.nextRndInt(state.config.storageNodes.size-1)
 				val ordered = state.config.storageNodes.map(x=>(x._1,x._2)).toList.sort(_._2.minKey<_._2.minKey).toList
 				List(new MergeTwo(ordered(i)._1,ordered(i+1)._1))
 			} else List[Action]()

@@ -64,8 +64,8 @@ case class SCADSconfig(
 	
 	def splitAllInHalf():SCADSconfig = {
 		var config = this
-		for (server <- config.storageNodes) {
-			val action = SplitInTwo(server._1,-1)
+		for (server <- config.storageNodes.keys.toList.sort(_<_)) {
+			val action = SplitInTwo(server,-1)
 			config = action.preview(config)
 		}
 		config
@@ -78,7 +78,10 @@ object SCADSconfig {
 	import edu.berkeley.cs.scads.WriteLock
 	val lock = new WriteLock
 
-	def getInitialConfig(range:DirectorKeyRange):SCADSconfig = SCADSconfig( Map(getRandomServerNames(null,1).first->range),Map[DirectorKeyRange,Double](),List[String]() )
+	def getInitialConfig(range:DirectorKeyRange):SCADSconfig = {
+		Director.resetRnd(7)
+		SCADSconfig( Map(getRandomServerNames(null,1).first->range),Map[DirectorKeyRange,Double](),List[String]() )
+	}
 
 	var pastServers = scala.collection.mutable.HashSet[String]()
 	private var standbys = List[String]() // assume accessed concurrently
@@ -122,7 +125,7 @@ object SCADSconfig {
 				name = ps.toList(0)
 			else
 				do { 
-					name = "s"+"%03d".format(Director.rnd.nextInt(999)) 
+					name = "s"+"%03d".format(Director.nextRndInt(999)) 
 				} while ( (cfg!=null&&cfg.storageNodes.contains(name))||newNames.contains(name) )
 			newNames+=name
 			pastServers+=name
@@ -365,7 +368,8 @@ object SCADSState {
 		t1 = new Date().getTime; T("init")+=(t1-t0)
 
 		var stats = PerformanceStats(duration,0,0,0,0,0,0,0,0,0)
-		for (s <- config.storageNodes.keySet) {
+		//for (s <- config.storageNodes.toList.sort(_._2.minKey<_._2.minKey).map(_._1)) {
+		for (s <- config.storageNodes.keys.toList.sort(_<_)) {
 			t0 = new Date().getTime
 			val w = serverWorkload(s)
 			t1 = new Date().getTime; T("L1")+=(t1-t0)
@@ -604,7 +608,7 @@ object WorkloadHistogram {
 										case p:SCADSPutRequest => {p.key.toInt}
 										case _ => {-1} } }
 		val keys = allkeys.filter(_!= -1).toList.sort(_<_).toList
-		val boundaries = (List(minKey)++((for (i <- 1 to nBins-1) yield { keys(Director.rnd.nextInt(keys.size)) }).toList.removeDuplicates)++List(maxKey)).sort(_<_)
+		val boundaries = (List(minKey)++((for (i <- 1 to nBins-1) yield { keys(Director.nextRndInt(keys.size)) }).toList.removeDuplicates)++List(maxKey)).sort(_<_)
 		val ranges = boundaries.take(nBins).zip(boundaries.tail).map(b=>new DirectorKeyRange(b._1,b._2))
 		println("Histogram has ranges: \n"+ranges.sort(_.minKey<_.minKey).mkString("",",",""))
 		ranges
@@ -718,7 +722,7 @@ object WorkloadHistogram {
 	}
 	
 	def createHistograms(workload:WorkloadDescription, interval:Long, workloadMultiplier:Double, nBins:Int, maxKey:Int):Map[Long,WorkloadHistogram] = {
-		Director.rnd = new java.util.Random(7)
+		Director.resetRnd(7)
 		
 		val ranges = WorkloadHistogram.createEquiWidthRanges(workload.workload(0),workload.workload(0).numberOfActiveUsers*workloadMultiplier,nBins,maxKey)
 		

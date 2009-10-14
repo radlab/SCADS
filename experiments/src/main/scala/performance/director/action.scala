@@ -189,16 +189,16 @@ class UniformSelector(choices:List[String]) extends ActionSelector {
 	val replica_limit = 4
 	def getRandomAction(state:SCADSState):Action = {
 		var nodes = state.config.getNodes 		// inspect config to see what servers are available to take action on
-		val node1:String = nodes.apply(Director.rnd.nextInt(nodes.size))
+		val node1:String = nodes.apply(Director.nextRndInt(nodes.size))
 		nodes = nodes.remove((elem:String) => elem == node1 )
-		val node2:String = if (nodes.size > 0) { nodes.apply(Director.rnd.nextInt(nodes.size)) }
+		val node2:String = if (nodes.size > 0) { nodes.apply(Director.nextRndInt(nodes.size)) }
 							else { mychoices = mychoices.remove((elem:String) => elem == "MergeTwo" ); null} // need >1 node for merge
 
-		val choice = mychoices.apply(Director.rnd.nextInt(mychoices.size)) // choose uniformly at rondom amongst possible choices
+		val choice = mychoices.apply(Director.nextRndInt(mychoices.size)) // choose uniformly at rondom amongst possible choices
 		choice match {
 			case "SplitInTwo" => SplitInTwo(node1,-1)
 			case "MergeTwo" => MergeTwo(node1,node2)
-			case "Replicate" => Replicate(node1,Director.rnd.nextInt(replica_limit)+1)
+			case "Replicate" => Replicate(node1,Director.nextRndInt(replica_limit)+1)
 			case _ => null
 		}
 	}

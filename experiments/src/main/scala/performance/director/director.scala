@@ -149,7 +149,7 @@ object Director {
 //	val databaseUser = "director"
 	val databasePassword = ""
 
-	var rnd = new java.util.Random(7)
+	private var rnd = new java.util.Random(7)
 	
 	val delay = 20*1000
 	
@@ -180,6 +180,23 @@ object Director {
 
 		Logger.getRootLogger.removeAllAppenders
 		Logger.getRootLogger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),Director.basedir+"/all.txt",false) )		
+	}
+
+	def resetRnd(seed:Int) { 
+		//Director.logger.debug("RND: resetting using seed="+seed)
+		rnd = new java.util.Random(seed) 
+	}
+	
+	def nextRndInt(n:Int):Int = {
+		val i = rnd.nextInt(n)
+		//Director.logger.debug("RND: nextInt = "+i)
+		i
+	}
+	
+	def nextRndDouble():Double = {
+		val x = rnd.nextDouble()
+		//Director.logger.debug("RND: nextDouble = "+x)
+		x
 	}
 
 	def exec(cmd:String):(String,String) = {
