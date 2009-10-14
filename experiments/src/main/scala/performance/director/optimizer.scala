@@ -283,10 +283,18 @@ class SLACostFunction(
 }
 
 abstract class Optimizer {
-	val logger = Logger.getLogger("scads.director.optimizer")
-	private val logPath = Director.basedir+"/optimizer.txt"
-	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
-	logger.setLevel(DEBUG)
+
+	var logger:Logger = null
+
+	initializeLogging
+
+	def initializeLogging {
+		logger = Logger.getLogger("scads.director.optimizer")
+		val logPath = Director.basedir+"/optimizer.txt"
+		logger.removeAllAppenders
+		logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
+		logger.setLevel(DEBUG)		
+	}
 
 	/**
 	* Given the current systen configuration and performance,
@@ -334,7 +342,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 
 		var actions = new scala.collection.mutable.ListBuffer[Action]()
 		val overloaded:Map[String,PerformanceStats] = getOverloadedServers(projectedState)
-		println("Have "+overloaded.size+" overloaded servers")
+		logger.debug("Have "+overloaded.size+" overloaded servers")
 
 		// for overloaded servers, determine their mini ranges and replicas
 		val overloaded_config = new SCADSconfig(Map(overloaded.keys.toList map {s => (s, projectedState.config.storageNodes(s))} : _*),projectedState.config.putRestrictions,projectedState.config.standbys)
@@ -408,7 +416,7 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 		var id = 0
 		var startId = 0
 		var endId = startId
-		println("Working on range "+rangeArray(0).minKey+" - "+rangeArray(ranges.size-1).maxKey+" ----------------- ")
+		logger.debug("Working on range "+rangeArray(0).minKey+" - "+rangeArray(ranges.size-1).maxKey+" ----------------- ")
 		while (id < rangeArray.size) {
 			// include this mini range on new server(s) if it wouldn't violate SLA
 			if ( !violatesSLA(estimateSingleServerStats(server,servers.size,-1,DirectorKeyRange(rangeArray(startId).minKey,rangeArray(id).maxKey), state)) ) {
@@ -417,20 +425,20 @@ case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:
 				id+=1
 				// finish up the server when get to last range
 				if (id==rangeArray.size) {
-					println("Incorporating last range "+rangeArray(startId).minKey+" - "+rangeArray(id-1).maxKey)
+					logger.debug("Incorporating last range "+rangeArray(startId).minKey+" - "+rangeArray(id-1).maxKey)
 					// check it for SLA violation first
 					if ( !violatesSLA(estimateSingleServerStats(server,servers.size,-1,DirectorKeyRange(rangeArray(startId).minKey,rangeArray(id-1).maxKey), state)) ){
-						println(rangeArray(startId).minKey+" - "+rangeArray(id-1).maxKey +", size("+(id-1-startId)+") ok")
+						logger.debug(rangeArray(startId).minKey+" - "+rangeArray(id-1).maxKey +", size("+(id-1-startId)+") ok")
 						changes += (DirectorKeyRange(rangeArray(startId).minKey,rangeArray(id-1).maxKey) -> (servers.size,-1) )
 					}
 					else {
-						println(rangeArray(startId).minKey+" - "+rangeArray(id-1).maxKey +", size("+(id-1-startId)+") violated SLA")
+						logger.debug(rangeArray(startId).minKey+" - "+rangeArray(id-1).maxKey +", size("+(id-1-startId)+") violated SLA")
 						changes ++= tryReplicatingAndRestricting(servers, rangeArray(id-1),state)
 					}
 				}
 			}
 			else {
-				println(rangeArray(startId).minKey+" - "+rangeArray(id).maxKey +", size("+(id-startId)+") violated SLA")
+				logger.debug(rangeArray(startId).minKey+" - "+rangeArray(id).maxKey +", size("+(id-startId)+") violated SLA")
 				if ( (id-startId) == 0 ) { // even one mini range violates, try replication
 					changes ++= tryReplicatingAndRestricting(servers, rangeArray(id),state); id += 1
 					}
