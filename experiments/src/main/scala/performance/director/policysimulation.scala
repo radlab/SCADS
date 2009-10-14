@@ -9,18 +9,23 @@ case class SimulationResult(
 	policyParameters:Map[String,String],
 	nServerUnits:Double,
 	nSLAViolations:Double,
+	fractionSlow:Double,
+	fractionGetSlow:Double,
+	fractionPutSlow:Double,
+	cost:Double,
 	costFunction:FullCostFunction
 ) {
 	def csvHeader:String = {
 		"policy,workload"+
 		policyParameters.keySet.toList.sort(_<_).map("p:"+_).mkString(",",",",",")+
-		"nServerUnits,nSLAViolations"
+		"nServerUnits,nSLAViolations,percentageSlow,percentageGetSlow,percentagePutSlow,cost"
 	}
 	
 	def csvData:String = {
 		policyName+","+workloadName+
 		policyParameters.toList.sort(_._1<_._1).map(_._2).mkString(",",",",",")+
-		nServerUnits.toString+","+nSLAViolations
+		nServerUnits.toString+","+nSLAViolations+","+
+		"%.4f".format(100*fractionSlow)+","+"%.4f".format(100*fractionGetSlow)+","+"%.4f".format(100*fractionPutSlow)+","+cost
 	}
 }
 
@@ -44,12 +49,14 @@ case class PolicySimulator {
 								deterministic:Boolean,
 								dumpStatePeriodically:Boolean):SimulationResult = {
 						
+		Director.LOG_ACTIONS = false
+		Director.dropDatabases
+		Director.initialize(policy.toString+"_w="+workloadName)
+		if (deterministic) Director.resetRnd(7)
+
 		val simT0 = new java.util.Date().getTime
 		PolicySimulator.logger.info("starting simulation with workload "+workloadName+" and parameters: "+policy.getParams.toString)
 			
-		Director.initialize(policy.toString)
-		Director.dropDatabases
-		if (deterministic) Director.rnd = new java.util.Random(7)
 		SCADSState.initLogging("localhost",6001)
 		Plotting.initialize(Director.basedir)
 		policy.initialize
@@ -85,10 +92,8 @@ case class PolicySimulator {
 				histogramI += 1
 				histogramEnd = histogramEndTimes(histogramI)
 				histogramRaw = histograms(histogramEnd)				
-
-				if (dumpStatePeriodically) SCADSState.dumpState(state)
 			}
-			
+
 			// update the policy (mainly the workload prediction)
 			if (tnow >= lastPolicyUpdate+policyUpdatePeriod) {
 				policy.periodicUpdate(state)
@@ -109,14 +114,14 @@ case class PolicySimulator {
 			
 			// update state
 			state = SCADSState.simulate(tnow,config,histogramRaw,performanceModel,simulationGranularity,activity,requestFraction)
-			//SCADSState.dumpState(state)
+			if (dumpStatePeriodically  &&  tnow%policyUpdatePeriod==0) SCADSState.dumpState(state)						
 			costFunction.addState(state)
 			Director.logger.info("STATE: \n"+state.toShortString)
 
 			tnow += simulationGranularity
 		}
 
-		SCADSState.dumpState(state)
+		//SCADSState.dumpState(state)
 		Plotting.plotSimpleDirectorAndConfigs()
 		
 		var costString = costFunction.toString
@@ -128,14 +133,21 @@ case class PolicySimulator {
 		val nslaviolations = if (detailedCost.filter(_.costtype=="SLA").size>0) detailedCost.filter(_.costtype=="SLA").map(_.units).reduceLeft(_+_) else 0.0
 		PolicySimulator.logger.info("simulation done (#server units:"+nserverunits+", #SLA violations:"+nslaviolations+") ["+
 				"%.1f".format((new java.util.Date().getTime()-simT0)/1000.0)+" sec]")
-		SimulationResult(policy.getClass.toString.split('.').last,workloadName,policy.getParams,nserverunits,nslaviolations,costFunction)
+				
+		val costStats = costFunction.getStats
+		SimulationResult(policy.getClass.toString.split('.').last,workloadName,policy.getParams,
+			costStats("nserverunits"),costStats("nslaviolations"),
+			costStats("fractionslow"),costStats("fractiongetslow"),costStats("fractionputslow"),costStats("cost"),costFunction)
 	}
 		
 }
 
 object RunPolicySimulator {
   	def main(args: Array[String]) {
-		PolicySimulator.test1("/Users/bodikp/Downloads/scads/","/Users/bodikp/workspace/scads/")
+		PolicySimulator.test1("/Users/bodikp/Downloads/scads/workloads_for_sim/","/Users/bodikp/workspace/scads/")
+//		PolicySimulator.comparison1("/Users/bodikp/Downloads/scads/workloads_for_sim/","/Users/bodikp/workspace/scads/")
+//		PolicySimulator.tryOneDimension("/Users/bodikp/Downloads/scads/workloads_for_sim/","/Users/bodikp/workspace/scads/")
+//		PolicySimulator.tryMoreKeys("/Users/bodikp/Downloads/scads/workloads_for_sim/","/Users/bodikp/workspace/scads/")
 //		r.saveToCSV("/tmp/data.csv")		
 //		PolicySimulator.optimizeCost("/Users/bodikp/Downloads/scads/","/Users/bodikp/workspace/scads/")
   	}
