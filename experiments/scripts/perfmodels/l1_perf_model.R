@@ -1,6 +1,99 @@
 load.libraries = function() {
 	library(quantreg)
 	library(sm)
+	library(glmpath)
+}
+
+history = function() {
+	d20 = read.csv("/tmp/storage2_run5_20sec.csv")
+	d1 = read.csv("/tmp/storage2_run1_1sec.csv")
+
+	d20 = read.csv("~/Downloads/scads/performance benchmarks/storage2_run2_20sec.csv")
+	d1 = read.csv("~/Downloads/scads/performance benchmarks/storage2_run2_1sec.csv")
+	plot( d20$get_workload, type="l" )
+	plot( d20$get_latency_10p )
+	plot( d20$get_latency_25p )
+	plot( d20$get_latency_50p )
+	plot( d20$get_latency_70p )
+	plot( d20$get_latency_90p )
+	plot( d20$get_latency_99p )
+	plot( d20$get_workload, d20$put_workload )
+	plot( d20$get_workload, d20$get_latency_50p)
+	plot( d20$get_workload, d20$get_latency_90p)
+	plot( d20$get_workload, d20$get_latency_99p)
+	plot( d20$get_workload, d20$put_latency_50p)
+	plot( d20$get_workload, d20$put_latency_90p)
+	plot( d20$get_workload, d20$put_latency_99p)
+	plot( d1$get_workload, d1$put_workload )
+	plot( d1$get_latency_99p )
+
+	models = rq.gp.fit.all.types( d20 )
+
+	m = models[["get"]][["99"]]
+	formatC( m$model$coefficients , format="f", digits=5, drop0trailing=TRUE)
+
+	rq.gp.diag( models[["put"]][["99"]], d20, n.split=6)
+	rq.gp.diag( models[["get"]][["99"]], d20, n.split=6)
+
+	rq.gp.diag.all.q(models[["get"]], thr.model, d20, n.split=6)
+	
+	
+	thr.model = fit.throughput.model(d20, n.split=6)
+	
+	dump.models( models, "~/Downloads/scads/gp_model2_thr.csv", thr.model )
+}
+
+overloaded = function(throughput.model, getw, putw) {
+	y = predict( throughput.model, newdata=data.frame(getw=getw,putw=putw))
+	print(y)
+	y>0
+}
+
+fit.throughput.model = function(data, n.split=1) {
+	
+	klass.data = data.frame()
+	
+	n = nrow(data) + n.split
+	k = 7
+	maxth = data.frame()
+	for (i in 1:n.split) {
+		range = ((i-1)*n/n.split+1):(i*n/n.split)
+		getws = filter( data[range,"get_workload"], rep(1,k)/k )
+		putws = filter( data[range,"put_workload"], rep(1,k)/k )
+		maxget = max(getws,na.rm=T)
+		maxput = max(putws,na.rm=T)
+		maxth = rbind(maxth, data.frame(getw=maxget,putw=maxput))
+
+		get.over = seq(maxget,2*maxget,maxget/length(range))
+		put.over = predict( lm(p~-1+g, data=data.frame(g=getws,p=putws)), newdata=data.frame(g=get.over))
+		
+		klass.data = rbind(klass.data, data.frame(getw=data[range,"get_workload"],putw=data[range,"put_workload"],klass=0))
+		klass.data = rbind(klass.data, data.frame(getw=get.over,putw=put.over,klass=1))
+
+		#plot( data[range,"get_workload"], type="l" )
+		#lines( getws, col="red" )
+		#plot( data[range,"put_workload"], type="l" )
+		#lines( putws, col="red" )
+		#pause()
+	}
+	
+	#print(maxth)
+	#plot( maxth$getw, maxth$putw, xlim=c(0,max(maxth$getw)), ylim=c(0,max(maxth$putw)) )
+	plot( maxth$getw, maxth$putw )
+	
+	klass.data
+	i0 = klass.data$klass==0
+	i1 = klass.data$klass==1
+	plot( klass.data[i1,"getw"], klass.data[i1,"putw"], col="red", xlim=c(0,max(klass.data$getw,na.rm=T)), ylim=c(0,max(klass.data$putw,na.rm=T)) )
+
+	non.na.i = apply( klass.data, 1, function(x)all(!is.na(x)))
+	klass.data = klass.data[non.na.i,]
+	model = glm( klass~getw+putw, family=binomial, data=klass.data)
+	
+	co = model$coefficients
+	points( klass.data[i0,"getw"], klass.data[i0,"putw"], col="black" )
+	abline( -co[1]/co[3], -co[2]/co[3], col="blue", lwd=2 )
+	model
 }
 
 create.w.dataset = function(data,latency.col,workload.col) {
@@ -98,35 +191,36 @@ create.gp.features = function(x) {
 	
 	x[,"g2"] = g^2;							dg$g2 = 2*g;                   dp$g2 = 0;
 	x[,"g3"] = g^3;							dg$g3 = 3*g^2;                 dp$g3 = 0;
-	x[,"g4"] = g^4;							dg$g4 = 4*g^3;                 dp$g4 = 0;
+#	x[,"g4"] = g^4;							dg$g4 = 4*g^3;                 dp$g4 = 0;
 	x[,"expg8"] = exp(g)^8;					dg$expg8 = 8*exp(g)^8;         dp$expg8 = 0;
-	x[,"expg15"] = exp(g)^15;				dg$expg15 = 15*exp(g)^15;      dp$expg15 = 0;
+#	x[,"expg15"] = exp(g)^15;				dg$expg15 = 15*exp(g)^15;      dp$expg15 = 0;
 	x[,"p2"] = p^2;							dg$p2 = 0;                     dp$p2 = 2*p;
 	x[,"p3"] = p^3;							dg$p3 = 0;                     dp$p3 = 3*p^2;
-	x[,"p4"] = p^4;							dg$p4 = 0;                     dp$p4 = 4*p^3;
+#	x[,"p4"] = p^4;							dg$p4 = 0;                     dp$p4 = 4*p^3;
 	x[,"expp8"] = exp(p)^8;					dg$expp8 = 0;                  dp$expp8 = 8*exp(p)^8;
-	x[,"expp15"] = exp(p)^15;				dg$expp15 = 0;                 dp$expp15 = 15*exp(p)^15;
+#	x[,"expp15"] = exp(p)^15;				dg$expp15 = 0;                 dp$expp15 = 15*exp(p)^15;
 
 	x[,"g2_p"] = g^2 * p;					dg$g2_p = 2*g*p;               dp$g2_p = g^2;
 	x[,"g3_p"] = g^3 * p;					dg$g3_p = 3*g^2*p;             dp$g3_p = g^3;
-	x[,"g4_p"] = g^4 * p;					dg$g4_p = 4*g^3*p;             dp$g4_p = g^4;
+#	x[,"g4_p"] = g^4 * p;					dg$g4_p = 4*g^3*p;             dp$g4_p = g^4;
 	x[,"expg8_p"] = exp(g)^8 * p;			dg$expg8_p = 8*exp(g)^8*p;     dp$expg8_p = exp(g)^8;
-	x[,"expg15_p"] = exp(g)^15 * p;			dg$expg15_p = 15*exp(g)^15*p;  dp$expg15_p = exp(g)^15;
+#	x[,"expg15_p"] = exp(g)^15 * p;			dg$expg15_p = 15*exp(g)^15*p;  dp$expg15_p = exp(g)^15;
 	x[,"p2_g"] = p^2 * g;					dg$p2_g = p^2;                 dp$p2_g = 2*p*g;
 	x[,"p3_g"] = p^3 * g;					dg$p3_g = p^3;                 dp$p3_g = 3*p^2*g;
-	x[,"p4_g"] = p^4 * g;					dg$p4_g = p^4;                 dp$p4_g = 4*p^3*g;
+#	x[,"p4_g"] = p^4 * g;					dg$p4_g = p^4;                 dp$p4_g = 4*p^3*g;
 	x[,"expp8_g"] = exp(p)^8 * g;			dg$expp8_g = exp(p)^8;         dp$expp8_g = 8*exp(p)^8*g;
-	x[,"expp15_g"] = exp(p)^15 * g;			dg$expp15_g = exp(p)^15;       dp$expp15_g = 15*exp(p)^15*g;
+#	x[,"expp15_g"] = exp(p)^15 * g;			dg$expp15_g = exp(p)^15;       dp$expp15_g = 15*exp(p)^15*g;
 
 	x[,"g2_p2"] = g^2 * p^2;				dg$g2_p2 = 2*g*p^2;            dp$g2_p2 = g^2*2*p;
 	x[,"g3_p2"] = g^3 * p^2;				dg$g3_p2 = 3*g^2*p^2;          dp$g3_p2 = g^3*2*p;
-	x[,"g4_p2"] = g^4 * p^2;				dg$g4_p2 = 4*g^3*p^2;          dp$g4_p2 = g^4*2*p;
+#	x[,"g4_p2"] = g^4 * p^2;				dg$g4_p2 = 4*g^3*p^2;          dp$g4_p2 = g^4*2*p;
 	x[,"expg8_p2"] = exp(g)^8 * p^2;		dg$expg8_p2 = 8*exp(g)^8*p^2;  dp$expg8_p2 = exp(g)^8*2*p;
-	x[,"expg15_p2"] = exp(g)^15 * p^2;		dg$expg15_p2 = 15*exp(g)^15*p^2;dp$expg15_p2 = exp(g)^15*2*p;
+#	x[,"expg15_p2"] = exp(g)^15 * p^2;		dg$expg15_p2 = 15*exp(g)^15*p^2;dp$expg15_p2 = exp(g)^15*2*p;
 	x[,"p3_g2"] = p^3 * g^2;				dg$p3_g2 = p^3*2*g;            dp$p3_g2 = 3*p^2*g^2;
-	x[,"p4_g2"] = p^4 * g^2;				dg$p4_g2 = p^4*2*g;            dp$p4_g2 = 4*p^3*g^2;
+#	x[,"p4_g2"] = p^4 * g^2;				dg$p4_g2 = p^4*2*g;            dp$p4_g2 = 4*p^3*g^2;
 	x[,"expp8_g2"] = exp(p)^8 * g^2;		dg$expp8_g2 = exp(p)^8*2*g;    dp$expp8_g2 = 8*exp(p)^8*g^2;
-	x[,"expp15_g2"] = exp(p)^15 * g^2;		dg$expp15_g2 = exp(p)^15*2*g;  dp$expp15_g2 = 15*exp(p)^15*g^2;
+#	x[,"expp15_g2"] = exp(p)^15 * g^2;		dg$expp15_g2 = exp(p)^15*2*g;  dp$expp15_g2 = 15*exp(p)^15*g^2;
+
 	return( list(data=x, dg=dg, dp=dp) )
 }
 
@@ -149,15 +243,18 @@ rq.gp.fit = function(data) {
 	# constraint: all exponential features have positive coefficients
 	features = colnames(df)[ colnames(df)!="latency" ]
 #	for (i in grep("exp",features)) {
+#	for (i in 1:length(features)) {
 #		v = rep(0,length(features)+1)
 #		v[i+1] = 1
 #		R = rbind(R,v)
+#		r = c(r,5)
 #		r = c(r,0)
 #		r = c(r,1e-3)
 #		r = c(r,1000)
 #	}
 
 	abs.bound = 20
+#	abs.bound = 10
 	for (i in 1:length(features)) {
 		v = rep(0,length(features)+1)
 		v[i+1] = 1
@@ -202,17 +299,19 @@ rq.gp.plot = function(model,data) {
 }
 
 rq.gp.diag = function(model,data,n.split=1) {
-	pred = rq.gp.predict(model, data$raw.data[,data$meta$get.w.col], data$raw.data[,data$meta$put.w.col])
-	n = nrow(data$data)
+	#pred = rq.gp.predict(model, data$raw.data[,data$meta$get.w.col], data$raw.data[,data$meta$put.w.col])
+	pred = rq.gp.predict(model$model, data[,model$meta$get.w.col], data[,model$meta$put.w.col])
+	n = nrow(data)
 	
 	for (i in 1:n.split) {
 		range = ((i-1)*n/n.split+1):(i*n/n.split)
-		plot( pred[range], data$data$latency[range] - pred[range], ylim=c(-200,200), main="pred vs resid" )
+		plot( pred[range], data[range,model$meta$y.col] - pred[range], ylim=c(-200,200), main="pred vs resid" )
 		abline(h=0,col="red")
 		pause()
 	}
-	
-	raw = data.frame(g=data$raw.data[,data$meta$get.w.col], p=data$raw.data[,data$meta$put.w.col], latency=data$raw.data[,data$meta$y.col])
+		
+	raw = data.frame(g=data[,model$meta$get.w.col], p=data[,model$meta$put.w.col], latency=data[,model$meta$y.col])
+	xlim = c(0, max(raw$g+raw$p)*1.3 )
 	for (i in 1:n.split) {
 		range = ((i-1)*n/n.split+1):(i*n/n.split)
 		slice.data = raw[range,]
@@ -221,9 +320,9 @@ rq.gp.diag = function(model,data,n.split=1) {
 		put_workload = predict( lm(p~-1+g, data=slice.data), newdata=data.frame(g=get_workload))
 		#plot(slice.data$get.w,slice.data$put.w, main="getw vs putw")
 		#pause()
-		pred = rq.gp.predict(model, get_workload, put_workload)
+		pred = rq.gp.predict(model$model, get_workload, put_workload)
 
-		plot( slice.data$g+slice.data$p, slice.data$latency, main="latency along slice", type="p", ylim=c(0,300), xlim=c(0,max(slice.data$g+slice.data$p)*1.3) )
+		plot( slice.data$g+slice.data$p, slice.data$latency, main="latency along slice", type="p", ylim=c(0,300), xlim=xlim )
 		lines( put_workload+get_workload, pred, col="red" )
 		pause()
 	}
@@ -256,41 +355,56 @@ rq.gp.fit.all.types = function(raw.data) {
 	return(models)
 }
 
-rq.gp.fit.all.q = function(raw.data,type) {
+rq.gp.fit.all.q = function(d,type) {
 	models = list()
-	models[["1"]]    = rq.gp.fit( create.gp.dataset(d,paste(type,"_latency_01p",sep=""),"get_workload","put_workload") )
+#	models[["1"]]    = rq.gp.fit( create.gp.dataset(d,paste(type,"_latency_01p",sep=""),"get_workload","put_workload") )
+#	models[["10"]]   = rq.gp.fit( create.gp.dataset(d,paste(type,"_latency_10p",sep=""),"get_workload","put_workload") )
+#	models[["20"]]   = rq.gp.fit( create.gp.dataset(d,paste(type,"_latency_20p",sep=""),"get_workload","put_workload") )
+#	models[["50"]]   = rq.gp.fit( create.gp.dataset(d,paste(type,"_latency_50p",sep=""),"get_workload","put_workload") )
+#	models[["70"]]   = rq.gp.fit( create.gp.dataset(d,paste(type,"_latency_70p",sep=""),"get_workload","put_workload") )
+#	models[["90"]]   = rq.gp.fit( create.gp.dataset(d,paste(type,"_latency_90p",sep=""),"get_workload","put_workload") )
+#	models[["99"]]   = rq.gp.fit( create.gp.dataset(d,paste(type,"_latency_99p",sep=""),"get_workload","put_workload") )
+#	models[["99.9"]] = rq.gp.fit( create.gp.dataset(d,paste(type,"_latency_999p",sep=""),"get_workload","put_workload") )
 	models[["10"]]   = rq.gp.fit( create.gp.dataset(d,paste(type,"_latency_10p",sep=""),"get_workload","put_workload") )
-	models[["20"]]   = rq.gp.fit( create.gp.dataset(d,paste(type,"_latency_20p",sep=""),"get_workload","put_workload") )
+	models[["25"]]   = rq.gp.fit( create.gp.dataset(d,paste(type,"_latency_25p",sep=""),"get_workload","put_workload") )
 	models[["50"]]   = rq.gp.fit( create.gp.dataset(d,paste(type,"_latency_50p",sep=""),"get_workload","put_workload") )
 	models[["70"]]   = rq.gp.fit( create.gp.dataset(d,paste(type,"_latency_70p",sep=""),"get_workload","put_workload") )
 	models[["90"]]   = rq.gp.fit( create.gp.dataset(d,paste(type,"_latency_90p",sep=""),"get_workload","put_workload") )
+	models[["95"]]   = rq.gp.fit( create.gp.dataset(d,paste(type,"_latency_95p",sep=""),"get_workload","put_workload") )
 	models[["99"]]   = rq.gp.fit( create.gp.dataset(d,paste(type,"_latency_99p",sep=""),"get_workload","put_workload") )
-	models[["99.9"]] = rq.gp.fit( create.gp.dataset(d,paste(type,"_latency_999p",sep=""),"get_workload","put_workload") )
 	return(models)
 }
 
-rq.gp.diag.all.q = function(models,raw.data,n.split=1) {
-	n = nrow(data$data)
+rq.gp.diag.all.q = function(models,thr.model,raw.data,n.split=1) {
+	n = nrow(raw.data)
 	gc = models[["90"]]$meta$get.w.col
 	pc = models[["90"]]$meta$put.w.col
 	yc = models[["99"]]$meta$y.col
 	raw = data.frame(g=raw.data[,gc], p=raw.data[,pc], latency=raw.data[,yc])
-	
+	xlim = c(0, max(raw$g+raw$p)*1.3 )
+
 	cols = rainbow(length(models))
+	print.coeffs = T
 
 	for (i in 1:n.split) {
 		range = ((i-1)*n/n.split+1):(i*n/n.split)
 		slice.data = raw[range,]
-		max.get.w = max(slice.data$g)*1.3
-		get_workload = seq(0,max.get.w,max.get.w/100)
+		max.get.w = max(slice.data$g)*2
+		get_workload = seq(0,max.get.w,max.get.w/200)
 		put_workload = predict( lm(p~-1+g, data=slice.data), newdata=data.frame(g=get_workload))
 
-		plot( slice.data$g+slice.data$p, slice.data$latency, main="latency along slice", type="p", ylim=c(0,300), xlim=c(0,max(slice.data$g+slice.data$p)*1.3) )
+		# only plot for not overloaded workloads
+		no.i = !overloaded(thr.model,get_workload,put_workload)
+
+		plot( slice.data$g+slice.data$p, slice.data$latency, main="latency along slice", type="p", ylim=c(0,300), xlim=xlim )
 		for (i in 1:length(names(models))) {
 			q = names(models)[i]
 			pred = rq.gp.predict(models[[q]]$model, get_workload, put_workload)
-			lines( put_workload+get_workload, pred, col=cols[i] )
+			lines( (put_workload+get_workload)[no.i], pred[no.i], col=cols[i] )
+			if (print.coeffs) { print(q); print( models[[q]]$model$coefficients ) }
+			print( format(pred) )
 		}
+		print.coeffs = F
 		pause()
 	}
 
@@ -336,8 +450,10 @@ rq.gp.overloaded = function(models, get.w, put.w, threshold) {
 		return(F)
 }
 
-dump.models = function(models,file) {
+dump.models = function(models,file,thr.model=NULL) {
 	strings = c()
+	if (!is.null(thr.model))
+		strings = c(strings,model.to.string( list(model=thr.model),"throughput","") )
 	for (type in names(models))
 		for (q in names(models[[type]]))
 			strings = c(strings,model.to.string(models[[type]][[q]],type,q))

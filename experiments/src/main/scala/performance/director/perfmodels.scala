@@ -73,11 +73,108 @@ case class L1PerformanceModel(
 	def resetTimer() {timer=0}
 }
 
+
+case class BinaryThroughputModel(
+	description:String
+) {
+	var coefficients = scala.collection.mutable.Map[String,Double]()
+
+	initialize
+
+	def initialize {
+		val s = description.split(":")
+		
+		coefficients = scala.collection.mutable.Map[String,Double]()
+		var scale = scala.collection.mutable.Map[String,Double]()
+		
+		s(1).split(",").foreach( k =>
+			if (k.startsWith("scale-"))
+				scale += k.split("=")(0).split("-")(1) -> k.split("=")(1).toDouble
+			else
+				coefficients += k.split("=")(0) -> k.split("=")(1).toDouble
+		)
+	}
+	
+	def overloaded(getw:Double, putw:Double):Boolean = {
+		coefficients("(Intercept)") + getw*coefficients("getw") + putw*coefficients("putw") > 0
+	}
+}
+
+case class L1PerformanceModelWThroughput(
+	modelURL:String
+) extends PerformanceModel {
+	var models = scala.collection.mutable.Map[String,scala.collection.mutable.Map[Double,GetPutLinearModel]]()
+	
+	var timer:Long = 0
+	val latencyOverloadedThreshold = 150
+	val latencyOverloadedQuantile = 0.99
+	
+	var throughputModel:BinaryThroughputModel = null
+	
+	initialize
+	
+	def initialize() {
+		val source = if (modelURL.startsWith("http://")) Source.fromURL(modelURL) else Source.fromFile(modelURL)
+		for (modelDescription <- source.getLines) {
+			if (modelDescription.startsWith("throughput")) {
+				println("creating thr model")
+				throughputModel = BinaryThroughputModel(modelDescription)
+			} else {
+				val model = GetPutLinearModel(modelDescription)
+				if (!models.contains(model.reqType)) models += model.reqType -> scala.collection.mutable.Map[Double,GetPutLinearModel]()
+				models(model.reqType) += model.quantile -> model
+			}
+		}
+	}
+	
+	def estimateLatency(input:Map[String,String], quantile:Double):Double = {
+		val model = models(input("type"))(quantile)
+		val features = model.createFeatures(Map("g"->input("getw").toDouble, "p"->input("putw").toDouble))
+		model.predict(features)
+	}
+	
+	def sample(input:Map[String,String], nSamples:Int): List[Double] = {
+		val time0 = new Date
+		var samples:List[Double] = null
+		if (throughputModel.overloaded(input("getw").toDouble,input("putw").toDouble))
+			samples = List.make(nSamples,scala.Math.POS_INF_DOUBLE)
+		else if (nSamples==0)
+			samples = List[Double]()
+		else
+			samples = sampleModels(models(input("type")), input("getw").toDouble, input("putw").toDouble, nSamples)
+		
+		timer += (new Date().getTime-time0.getTime)
+		samples
+	}
+
+	def sampleModels(models:scala.collection.mutable.Map[Double,GetPutLinearModel], getw:Double, putw:Double, nSamples:Int):List[Double] = {
+		// qv -- quantiles of the models
+		val qv = models.keySet.toList.sort(_<_).toArray
+		val maxq = qv.reduceLeft(Math.max(_,_))
+		val minq = qv.reduceLeft(Math.min(_,_))
+
+		// pv -- predictions of all the models
+		val features = models.values.toList(0).createFeatures(Map("g"->getw,"p"->putw))
+		val pv = models.values.toList.sort(_.quantile<_.quantile).map(_.predict(features)).toArray
+		
+		val rqs = (1 to nSamples).map(i=>Director.nextRndDouble*(maxq-minq)+minq).toList.sort(_<_)
+
+		var qi = 0
+		for (rs <- rqs) yield {
+			if (rs>qv(qi+1)) qi+=1
+			pv(qi) + (pv(qi+1)-pv(qi))*(rs-qv(qi))/(qv(qi+1)-qv(qi))
+		}
+	}
+	
+	def timeInModel():Long = timer
+	def resetTimer() {timer=0}	
+}
+
 case class LocalL1PerformanceModel(
 	modelURL:String
 ) extends PerformanceModel {
 	
-	var models = scala.collection.mutable.Map[String,scala.collection.mutable.Map[Double,LinearModel]]()
+	var models = scala.collection.mutable.Map[String,scala.collection.mutable.Map[Double,GetPutLinearModel]]()
 	initialize
 	
 	var timer:Long = 0
@@ -87,8 +184,8 @@ case class LocalL1PerformanceModel(
 	def initialize() {
 		val source = if (modelURL.startsWith("http://")) Source.fromURL(modelURL) else Source.fromFile(modelURL)
 		for (modelDescription <- source.getLines) {
-			val model = LinearModel(modelDescription)
-			if (!models.contains(model.reqType)) models += model.reqType -> scala.collection.mutable.Map[Double,LinearModel]()
+			val model = GetPutLinearModel(modelDescription)
+			if (!models.contains(model.reqType)) models += model.reqType -> scala.collection.mutable.Map[Double,GetPutLinearModel]()
 			models(model.reqType) += model.quantile -> model
 		}
 	}
@@ -113,7 +210,7 @@ case class LocalL1PerformanceModel(
 		samples
 	}
 
-	def sampleModels(models:scala.collection.mutable.Map[Double,LinearModel], getw:Double, putw:Double, nSamples:Int):List[Double] = {
+	def sampleModels(models:scala.collection.mutable.Map[Double,GetPutLinearModel], getw:Double, putw:Double, nSamples:Int):List[Double] = {
 		// qv -- quantiles of the models
 		val qv = models.keySet.toList.sort(_<_).toArray
 		val maxq = qv.reduceLeft(Math.max(_,_))
@@ -123,7 +220,7 @@ case class LocalL1PerformanceModel(
 		val features = models.values.toList(0).createFeatures(Map("g"->getw,"p"->putw))
 		val pv = models.values.toList.sort(_.quantile<_.quantile).map(_.predict(features)).toArray
 		
-		val rqs = (1 to nSamples).map(i=>Director.rnd.nextDouble*(maxq-minq)+minq).toList.sort(_<_)
+		val rqs = (1 to nSamples).map(i=>Director.nextRndDouble*(maxq-minq)+minq).toList.sort(_<_)
 
 		var qi = 0
 		for (rs <- rqs) yield {
@@ -142,7 +239,7 @@ case class LocalL1PerformanceModel(
 }
 
 
-case class LinearModel(
+case class GetPutLinearModel(
 	modelDescription:String
 ) {
 	var coefficients:scala.collection.mutable.Map[String,Double] = null

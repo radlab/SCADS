@@ -66,6 +66,7 @@ object SplitMergeEbates {
 							" -DslaQuantile=0.99" +
 							" -DmachineInterval=" + (10*60*1000) +
 							" -DmachineCost=1" +
+							" -DcostSkip=" + (10*60*1000) +
 							" -DmergeThreshold="+merge +
 							" -DsplitThreshold="+split +
 							" -cp /mnt/monitoring/experiments.jar" +

@@ -64,7 +64,9 @@ object PolicyEbates {
 							" -DslaQuantile=0.99" +
 							" -DmachineInterval=" + (10*60*1000) +
 							" -DmachineCost=1" +
-							" -DmodelPath=\"/opt/scads/experiments/scripts/perfmodels/gp_model.csv\"" +
+							" -DcostSkip=" + (10*60*1000) +
+							//" -DmodelPath=\"/opt/scads/experiments/scripts/perfmodels/gp_model.csv\"" +
+							" -DmodelPath=\"/opt/scads/experiments/scripts/perfmodels/gp_model2_thr.csv\"" +
 							" -cp /mnt/monitoring/experiments.jar" +
 							" scads.director.RunDirector'" // "> /var/www/director.txt 2>&1"
 		logger.info("director command: "+directorCmd)

@@ -64,6 +64,7 @@ object TestExperiment {
 							" -DslaQuantile=0.99" +
 							" -DmachineInterval=" + (10*60*1000) +
 							" -DmachineCost=1" +
+							" -DcostSkip=" + (10*60*1000) +
 							" -DmergeThreshold=1500" +
 							" -DsplitThreshold=1500" +
 							" -cp /mnt/monitoring/experiments.jar" +

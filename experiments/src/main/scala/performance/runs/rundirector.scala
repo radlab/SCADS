@@ -28,7 +28,7 @@ object RunDirector {
 		val slaQuantile = System.getProperty("slaQuantile").toDouble
 		val machineInterval = System.getProperty("machineInterval").toInt
 		val machineCost = System.getProperty("machineCost").toDouble
-		val costSkip = 10*60*1000
+		val costSkip = System.getProperty("costSkip").toLong
 		val costFunction = FullSLACostFunction(getSLAThreshold,putSLAThreshold,slaQuantile,slaInterval,slaCost,machineCost,machineInterval,costSkip)
 
 		// initialize policy
@@ -48,7 +48,8 @@ object RunDirector {
 		} else 
 		if (policyName=="HeuristicOptimizerPolicy") {
 			val modelpath = System.getProperty("modelPath")
-			val performanceModel = LocalL1PerformanceModel(modelpath)
+			//val performanceModel = LocalL1PerformanceModel(modelpath)
+			val performanceModel = L1PerformanceModelWThroughput(modelfile)
 			new HeuristicOptimizerPolicy(performanceModel, getSLAThreshold, putSLAThreshold, workloadPredictor)
 		} else 
 			exit(-1)

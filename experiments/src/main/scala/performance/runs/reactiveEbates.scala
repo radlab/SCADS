@@ -67,6 +67,7 @@ object ReactiveEbates {
 							" -DlatencyToSplit=80" +
 							" -DlatencyToMerge=70" +
 							" -DsmoothingFactor=0.1" +
+							" -DcostSkip=" + (10*60*1000) +
 							" -cp /mnt/monitoring/experiments.jar" +
 							" scads.director.RunDirector'" // "> /var/www/director.txt 2>&1"
 		logger.info("director command: "+directorCmd)

@@ -53,7 +53,8 @@ object HeuristicEbatesNormal {
 		logger.info("starting director")
 		val directorCmd = "bash -l -c 'java"+
 							" -DpolicyName=HeuristicOptimizerPolicy" +
-							" -DmodelPath=\"/opt/scads/experiments/scripts/perfmodels/gp_model.csv\"" +
+							//" -DmodelPath=\"/opt/scads/experiments/scripts/perfmodels/gp_model.csv\"" +
+							" -DmodelPath=\"/opt/scads/experiments/scripts/perfmodels/gp_model2_thr.csv\"" +
 							" -DdeploymentName="+experimentName +
 							" -DexperimentName="+experimentName +
 							" -Dduration="+workloadDuration(workload).toString +
@@ -67,6 +68,7 @@ object HeuristicEbatesNormal {
 							" -DslaQuantile=0.99" +
 							" -DmachineInterval=" + (10*60*1000) +
 							" -DmachineCost=1" +
+							" -DcostSkip=" + (10*60*1000) +
 							" -cp /mnt/monitoring/experiments.jar" +
 							" scads.director.RunDirector'" // "> /var/www/director.txt 2>&1"
 		logger.info("director command: "+directorCmd)
