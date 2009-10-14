@@ -49,7 +49,7 @@ object RunDirector {
 		if (policyName=="HeuristicOptimizerPolicy") {
 			val modelpath = System.getProperty("modelPath")
 			//val performanceModel = LocalL1PerformanceModel(modelpath)
-			val performanceModel = L1PerformanceModelWThroughput(modelfile)
+			val performanceModel = L1PerformanceModelWThroughput(modelpath)
 			new HeuristicOptimizerPolicy(performanceModel, getSLAThreshold, putSLAThreshold, workloadPredictor)
 		} else 
 			exit(-1)
