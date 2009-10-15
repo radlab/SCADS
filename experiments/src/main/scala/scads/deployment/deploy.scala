@@ -85,6 +85,12 @@ case class SCADSDeployment(
 			clients.startWorkload(workload,false)
 		} else ScadsDeploy.logger.debug("can't start workload; no clients running")
 	}
+	def startWorkload(maxUsers:Int, s3_filename:String) {
+		if (clients!=null) {
+			stopWorkload
+			clients.startWorkload(maxUsers,"http://scads.s3.amazonaws.com/workload/",s3_filename,false)
+		} else ScadsDeploy.logger.debug("can't start workload; no clients running")
+	}
 	
 	def stopWorkload() = clients.stopWorkload
 	

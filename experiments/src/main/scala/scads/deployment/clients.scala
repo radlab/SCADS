@@ -103,6 +103,28 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 			ScadsDeploy.logger.debug("Workload test complete.")
 		}
 	}
+	
+	def startWorkload(maxUsers:Int, urldir:String, filename:String,block:Boolean) {
+		val totalUsers = (maxUsers/clients.size+1)*clients.size
+		// determine ranges to give each client
+		assert( totalUsers % clients.size == 0, "deploy_scads: can't evenly divide number of users amongst client instances")
+		
+		var commands = Map[Instance, String]()
+		val threads = (0 to clients.size-1).toList.map((id)=>{
+			val minUser = id * (totalUsers/clients.size)
+			val maxUser = minUser + (totalUsers/clients.size) - 1
+
+			//val args = host +" "+ xtrace_on + " " + minUser + " " + maxUser + " /tmp/" + filename
+			//var cmd = "cd /opt/scads/experiments/scripts; scala -cp "+ deps + " startWorkload.scala " + args
+			var cmd = "java -Xmx1024m -Dhost="+host+" -Dxtrace_on="+xtrace_on+" -DminUserId="+minUser+" -DmaxUserId="+maxUser+" -Dworkload=/tmp/"+filename+" -cp /usr/share/java/experiments_stable.jar performance.WorkloadRunner"
+			commands += (clients.get(id) -> cmd)
+			//ScadsDeploy.logger.debug("Will run with arguments: "+ args)
+			ScadsDeploy.logger.debug("cmd: "+cmd)
+			new Thread( new StartWorkloadRequest(clients.get(id), urldir+filename, cmd, block,true) )
+		})
+		for(thread <- threads) thread.start
+		for(thread <- threads) thread.join
+	}
 
 	def startWorkload(workload:WorkloadDescription, block:Boolean) {
 		val totalUsers = (workload.getMaxNUsers/clients.size+1)*clients.size
@@ -125,14 +147,15 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 			commands += (clients.get(id) -> cmd)
 			ScadsDeploy.logger.debug("Will run with arguments: "+ args)
 			ScadsDeploy.logger.debug("cmd: "+cmd)
-			new Thread( new StartWorkloadRequest(clients.get(id), workloadFile, cmd, block) )
+			new Thread( new StartWorkloadRequest(clients.get(id), workloadFile, cmd, block,false) )
 		})
 		for(thread <- threads) thread.start
 		for(thread <- threads) thread.join		
 	}
-	case class StartWorkloadRequest(client: Instance, workloadFile: String, cmd: String, block:Boolean) extends Runnable {
+	case class StartWorkloadRequest(client: Instance, workloadFile: String, cmd: String, block:Boolean, s3:boolean) extends Runnable {
 		override def run() = {
-			client.upload(Array(workloadFile),"/tmp/")			
+			if (s3) { client.exec("cd /tmp; wget "+workloadFile) }
+			else { client.upload(Array(workloadFile),"/tmp/") }
 			if (block)
 				client.exec(cmd+" &> /tmp/workload.log")
 			else {
