@@ -12,21 +12,22 @@ object ReactiveEbates {
 
   	def main(args: Array[String]) {
 
-		val dateFormat = new java.text.SimpleDateFormat("yyyy-MM-dd-HH-mm-ss");
-		val experimentName = System.getProperty("experimentName")
-	
+		val dateFormat = new java.text.SimpleDateFormat("yyyy-MM-dd-HH-mm-ss")
+		val latencyToSplit = System.getProperty("latencyToSplit","80")
+		val latencyToMerge = System.getProperty("latencyToMerge","70")
+		val smoothingFactor = System.getProperty("smoothingFactor","0.1")
+		val maxKey = 100000
+		val experimentName = System.getenv("AWS_KEY_NAME")+ "_ebates_reactive_"+latencyToSplit+"_"+latencyToMerge+"_"+smoothingFactor+"_"+(maxKey/1000)+"k_"+System.currentTimeMillis
+
 		val logger = Logger.getLogger("scads.experiment")
 		logger.addAppender( new FileAppender(new PatternLayout("%d %5p %c - %m%n"),"/tmp/experiments/"+dateFormat.format(new java.util.Date)+"_"+experimentName+".txt",false) )
 		logger.addAppender( new ConsoleAppender(new PatternLayout("%d %5p %c - %m%n")) )
 		logger.setLevel(DEBUG)
 		logger.debug("starting experiment "+experimentName)
 
-		val maxKey = 200000
-		//val maxKey = 10000
-		val nClientMachines = 5
-		val nHotStandbys = 14
+		val nClientMachines = 20
+		val nHotStandbys = 10
 		val namespace = "perfTest256"
-		val jar = "http://scads.s3.amazonaws.com/experiments-1.0-jar-with-dependencies-bodikp.jar"
 	
 		// deploy all VMs
 		logger.info("deploying SCADS")
@@ -45,7 +46,7 @@ object ReactiveEbates {
 
 		// prepare workload
 		logger.info("preparing workload")
-		val workload = stdWorkloadEbatesWMixChange(mix97,mix97,200,maxKey)
+		val workload = stdWorkloadEbatesWMixChange(mix97,mix97,400,maxKey)
 
 		// start Director
 		logger.info("starting director")
@@ -55,8 +56,8 @@ object ReactiveEbates {
 							" -DexperimentName="+experimentName +
 							" -Dduration="+workloadDuration(workload).toString +
 							" -DhysteresisUp=1.0" +
-							" -DhysteresisDown=0.05" +
-							" -Doverprovisioning=0.1" +
+							" -DhysteresisDown=1.0" +
+							" -Doverprovisioning=0.3" +
 							" -DgetSLA=100" +
 							" -DputSLA=100" +
 							" -DslaInterval=" + (5*60*1000) +
@@ -64,9 +65,9 @@ object ReactiveEbates {
 							" -DslaQuantile=0.99" +
 							" -DmachineInterval=" + (10*60*1000) +
 							" -DmachineCost=1" +
-							" -DlatencyToSplit=80" +
-							" -DlatencyToMerge=70" +
-							" -DsmoothingFactor=0.1" +
+							" -DlatencyToSplit="+latencyToSplit +
+							" -DlatencyToMerge="+latencyToMerge +
+							" -DsmoothingFactor="+smoothingFactor +
 							" -DcostSkip=" + (10*60*1000) +
 							" -cp /mnt/monitoring/experiments.jar" +
 							" scads.director.RunDirector'" // "> /var/www/director.txt 2>&1"
