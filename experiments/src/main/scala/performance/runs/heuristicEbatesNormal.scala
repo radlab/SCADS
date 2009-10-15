@@ -15,7 +15,8 @@ object HeuristicEbatesNormal {
 		val hystup = System.getProperty("hysteresisUp","0.9")
 		val hystdown = System.getProperty("hysteresisDown","0.05")
 		val overprov = System.getProperty("overProvision","0.2")
-		val experimentName = System.getenv("AWS_KEY_NAME")+ "_ebates_pinchoff_"+hystup+"_"+hystdown+"_"+overprov+"_"+System.currentTimeMillis
+		val maxKey = System.getProperty("maxKey","100000").toInt
+		val experimentName = System.getenv("AWS_KEY_NAME")+ "_ebates_pinchoff_"+hystup+"_"+hystdown+"_"+overprov+"_"+(maxKey/1000)+"k_"+System.currentTimeMillis
 			
 		val logger = Logger.getLogger("scads.experiment")
 		logger.addAppender( new FileAppender(new PatternLayout("%d %5p %c - %m%n"),"/tmp/experiments/"+dateFormat.format(new java.util.Date)+"_"+experimentName+".txt",false) )
