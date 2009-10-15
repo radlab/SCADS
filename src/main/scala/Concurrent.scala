@@ -37,4 +37,20 @@ class Future[A](f: => A) {
 			case t => Right(t)
 		}
 	}
+
+	override def toString(): String = {
+		val result = new StringBuilder
+		result.append("<Future ")
+		if(isDone){
+			result.append("completed ")
+			if(success)
+				result.append("sucessfully")
+			else
+				result.append("with exception")
+		}
+		else
+			result.append("running")
+		result.append(">")
+		result.toString()
+	}
 }
