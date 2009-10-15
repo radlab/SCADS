@@ -36,6 +36,12 @@ abstract class RemoteMachine {
 	 */
 	val rootDirectory: File
 
+	val runitBinaryPath: File
+	lazy val runsvdirCmd: File = new File(runitBinaryPath, "runsvdir")
+	lazy val svCmd: File = new File(runitBinaryPath, "sv")
+	lazy val svlogdCmd: File = new File(runitBinaryPath, "svlogd")
+	lazy val serviceRoot = new File(rootDirectory, "services")
+
 	val logger = Logger.getLogger("deploylib.remoteMachine")
 	private var connection: Connection = null
 
