@@ -12,6 +12,36 @@ import org.apache.thrift.protocol.{TBinaryProtocol,XtBinaryProtocol}
 import java.io._
 import java.net._
 
+
+object WorkloadRunner {
+  	def main(args: Array[String]) {
+		val port = 8000
+		val host = System.getProperty("host")
+		val xtrace_on:Boolean = if (System.getProperty("xtrace_on")!="true") false else true
+		println("minUserId=>"+System.getProperty("minUserId")+"<")
+		val minUserId = System.getProperty("minUserId").toInt
+		val maxUserId = System.getProperty("maxUserId").toInt
+
+		val workloadFile = System.getProperty("workload")
+		val workload = WorkloadDescription.deserialize(workloadFile)
+
+		if (xtrace_on) { System.setProperty("xtrace","") }
+		System.setProperty("xtrace.reporter","edu.berkeley.xtrace.reporting.TcpReporter")
+		System.setProperty("xtrace.tcpdest","127.0.0.1:7831")
+
+		// set up threads with ids	
+		val threads = (minUserId to maxUserId).toList.map((id) => { 
+			val agent = new WorkloadAgent(new SCADSClient(host,port), workload, id)
+			new Thread(agent)
+		})
+
+		// run the test
+		for(thread <- threads) thread.start
+		for(thread <- threads) thread.join
+  	}
+}
+
+
 class WorkloadAgent(client:ClientLibrary, workload:WorkloadDescription, userID:Int) extends Runnable {
 	val wait_sec = 0
 	
