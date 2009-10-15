@@ -58,15 +58,19 @@ object RunDirector {
 		val director = Director(deploymentName,policy,costFunction,experimentName)
 		director.direct
 		
-		// wait until end of experiment and upload logs
+		// wait until end of experiment
 		Thread.sleep(duration)
 		director.stop
-		director.uploadLogsToS3
 		
-		// shut down instances: clients, servers, and placement
+		// refresh state
 		val myscads = ScadsLoader.loadState(deploymentName)
 		val clients = ScadsClients(myscads,0)
 		clients.loadState
+		// upload logs
+		Director.exec("cd "+Director.basedir+"; wget http://"+myscads.placement.get(0).publicDnsName+"/placement.txt")
+		director.uploadLogsToS3
+
+		// shut down instances: clients, servers, and placement
 		val machines = Array(myscads.servers,myscads.placement,clients.clients)
 		new InstanceGroup(machines).stopAll
 	}
