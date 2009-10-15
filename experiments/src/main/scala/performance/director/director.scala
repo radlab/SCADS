@@ -85,6 +85,30 @@ case class Director(
 		Director.summaryLogger.info("PERFORMANCE STATS:\n"+costFunction.performanceStats)
 		Director.summaryLogger.info("COST DETAILS:\n"+costString)
 	}
+	def writeMovementSummary { // assumes director already got placement log
+		import scala.io.Source
+		val action_stats = scala.collection.mutable.Map[String,scala.collection.mutable.ListBuffer[Int]]()
+		List("copy","move","remove").foreach((action)=> action_stats(action)=new scala.collection.mutable.ListBuffer[Int]())
+		try {
+			val f = Source.fromFile(Director.basedir+"/placement.txt")
+			val lines = f.getLines
+			lines.foreach((line)=>{
+				val regex = "2.*server - "
+				val features = line.replace("\n","").replaceAll(regex,"").split(",")
+				val m = scala.collection.mutable.Map[String,String]()
+				features.foreach((pair)=>{val split = pair.split("=");m += (split(0)->split(1))})
+				action_stats(m("method")) += (m("end").replace("'","").toInt-m("start").replace("'","").toInt)
+			})
+			val action_statsList = Map[String,List[Int]](action_stats.toList map {entry=>(entry._1,entry._2.toList.sort(_<_))}:_*)
+
+			Director.summaryLogger.info("\nMOVEMENT DETAILS:\n(num actions, total keys, min move, avg move, median move, max move)")
+			action_statsList.toList.foreach((entry)=>{
+				val total = entry._2.length
+				val sum = entry._2.foldLeft(0) {(out,num)=>out+num}
+				Director.summaryLogger.info(entry._1+": "+total+","+sum+","+entry._2(0)+","+ (sum/total)+","+entry._2(total/2) +","+entry._2(total-1))
+			})
+		} catch {case e => Director.summaryLogger.warn("Exception getting movement data from placement.") }
+	}
 
 	private def setDeployment(deploy_name:String) {
 		Director.logger.info("Loading SCADS state")

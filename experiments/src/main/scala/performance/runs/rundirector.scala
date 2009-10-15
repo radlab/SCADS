@@ -68,11 +68,11 @@ object RunDirector {
 		clients.loadState
 		// upload logs
 		Director.exec("cd "+Director.basedir+"; wget http://"+myscads.placement.get(0).publicDnsName+"/placement.txt")
+		director.writeMovementSummary
 		director.uploadLogsToS3
 
 		// shut down instances: clients, servers, and placement
 		val machines = Array(myscads.servers,myscads.placement,clients.clients)
 		new InstanceGroup(machines).stopAll
 	}
-	
 }
