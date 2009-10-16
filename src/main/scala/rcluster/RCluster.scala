@@ -18,6 +18,7 @@ object RCluster {
 	def activeNodes() = {
 		val check = nodes.map((n) => (n, Future(n.executeCommand("hostname"))))
 		Thread.sleep(5000)
+		check.foreach((c) => if(!c._2.isDone) c._2.cancel)
 		check.filter((c) => c._2.isDone && c._2.success).map((c) => c._1)
 	}
 }
