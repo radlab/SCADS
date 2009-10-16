@@ -209,11 +209,11 @@ abstract class RemoteMachine {
 
 			session.execCommand("tail -f " + remoteFile)
 
-			val thread = new Thread {
+			val thread = new Thread("FileWatcher-" + hostname) {
 				override def run() = {
 					var line = outReader.readLine()
 					while(line != null) {
-						println(line)
+						println(hostname + " " + line)
 						line = outReader.readLine()
 					}
 					session.close()
