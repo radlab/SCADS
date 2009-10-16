@@ -6,11 +6,19 @@ object Future {
 	def apply[A](f: => A): Future[A] = new Future(f)
 }
 
+class CanceledException extends Exception
 
 class Future[A](f: => A) {
 	val result = new SyncVar[Either[A, Throwable]]
 	val thread = new Thread {override def run() = {result.set(tryCatch(f))}}
 	thread.start()
+
+	def cancel():Unit = {
+		if(!isDone) {
+			thread.interrupt()
+			result.set(Right(new CanceledException))
+		}
+	}
 
 	def isDone: Boolean = {
 		result.isSet
