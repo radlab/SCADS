@@ -227,7 +227,7 @@ abstract class RemoteMachine {
   def cleanServices: Unit = {
     executeCommand("rm -r " + serviceRoot + "/*") match {
       case ExecuteResponse(Some(0), "", "") => null
-      case ExecuteResponse(Some(1), "", "rm: No match") => null
+      case ExecuteResponse(Some(1), "", "rm: No match.\n") => null
       case e: ExecuteResponse => logger.fatal("Unexpected response while cleaningServices: " + e)
     }
   }
