@@ -332,7 +332,7 @@ case class DepthOptimizer(depth:Int, coster:CostFunction, selector:ActionSelecto
 
 case class HeuristicOptimizer(performanceEstimator:PerformanceEstimator, getSLA:Int, putSLA:Int, workloadPredictor:WorkloadPrediction) extends Optimizer {
 	val slaPercentile = 0.99
-	val max_replicas = 5
+	val max_replicas = 100
 	val min_puts_allowed:Int = 100 	// percentage of allowed puts
 
 	def optimize(state:SCADSState, actionExecutor:ActionExecutor) {
