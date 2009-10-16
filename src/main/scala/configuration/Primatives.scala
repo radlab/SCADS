@@ -45,4 +45,3 @@ class FileUpload(localFile: String, dest: RemoteDirectory) extends Configuration
 
 	def getValue(target: RemoteMachine) = dest.getValue(target) + "/" + localFile.getName()
 }
-

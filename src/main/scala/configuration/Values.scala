@@ -27,4 +27,3 @@ object ValueConverstion {
 	implicit def toConstantValue[Type](value: Type): ConstantValue[Type] = new ConstantValue[Type](value)
   implicit def toFile(filename: String): File = new File(filename)
 }
-

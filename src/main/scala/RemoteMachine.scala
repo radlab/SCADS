@@ -81,6 +81,7 @@ abstract class RemoteMachine {
 																						 	ChannelCondition.EXIT_SIGNAL |
 																							ChannelCondition.EOF |
 																							ChannelCondition.CLOSED, 0)
+
 				if((status & ChannelCondition.STDOUT_DATA) != 0) {
 					while(outReader.ready) {
 						val line = outReader.readLine()
@@ -146,7 +147,9 @@ abstract class RemoteMachine {
 		else
 			useConnection((c) => {
 				val scp = new SCPClient(connection)
+        logger.debug("Hashes don't match, uploading " + localFile + " to " + remoteDirectory)
 				scp.put(localFile.toString, remoteDirectory.toString)
+        logger.debug("Upload of " + localFile + " complete")
 			})
 	}
 
@@ -155,14 +158,23 @@ abstract class RemoteMachine {
 	 */
 	def download(remoteFile: File, localDirectory: File): Unit = {
 		val scp = new SCPClient(connection)
+    logger.debug("Downloading " + remoteFile + " to " + localDirectory)
 		scp.get(remoteFile.toString, localDirectory.toString)
+    logger.debug("Transfer of " + remoteFile + " complete")
 	}
 
 	def md5(remoteFile: File): String = {
 		val failureResponse = "md5sum: " + remoteFile + ": No such file or directory"
 		executeCommand("md5sum " + remoteFile) match {
-			case ExecuteResponse(Some(0), hash, "") => hash.split(" ")(0)
-			case ExecuteResponse(Some(1),"", failureResponse) => ""
+			case ExecuteResponse(Some(0), result, "") => {
+        val hash = result.split(" ")(0)
+        logger.debug("Got hash: " + hash)
+        hash
+      }
+			case ExecuteResponse(Some(1),"", failureResponse) => {
+        logger.warn("Hash command returned with an error")
+        ""
+      }
 			case e: ExecuteResponse => {
 				logger.fatal("Unexpected response while calculating md5: " + e)
 				""
@@ -208,9 +220,16 @@ abstract class RemoteMachine {
 				}
 			}
 			thread.start
-
+      logger.debug("Watching " + remoteFile + " on thread " + thread)
 		})
 	}
 
+  def cleanServices: Unit = {
+    executeCommand("rm -r " + serviceRoot + "/*") match {
+      case ExecuteResponse(Some(0), "", "") => null
+      case ExecuteResponse(Some(1), "", "rm: No match") => null
+      case e: ExecuteResponse => logger.fatal("Unexpected response while cleaningServices: " + e)
+    }
+  }
 	override def toString(): String = "<RemoteMachine " + username + "@" + hostname + ">"
 }

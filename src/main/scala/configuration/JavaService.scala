@@ -1,7 +1,7 @@
 package deploylib.configuration
 
 import deploylib.configuration.ValueConverstion._
-	
+
 class JavaService(localJar: String, className: String, args: String) extends CompositeConfiguration {
 	val remoteJar = new FileUpload(localJar, MachineRoot)
 	val runCmd = new LateStringBuilder(RunitService.header, "/usr/lib/jvm/java-6-sun/bin/java -cp .:", new LateBoundValue("JarLocation" ,remoteJar.getValue(_)), " ", className, " ", args)
@@ -18,4 +18,3 @@ class JavaService(localJar: String, className: String, args: String) extends Com
 
 	def description: String = "Create java service running " + className + " from " + localJar
 }
-
