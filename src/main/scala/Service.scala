@@ -43,7 +43,7 @@ abstract class Service {
  * Allows the control of a set of services
  */
 abstract trait ServiceManager extends RemoteMachine {
-	def services: Array[Service]
+	def services: List[Service]
 	def stopAll: Unit = services.foreach(_.stop)
 	def clearAll: Unit
 }
