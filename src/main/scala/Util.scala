@@ -6,6 +6,16 @@ import java.math.BigInteger
 import java.io.FileInputStream
 
 object Util {
+
+	def username: String = {
+		if(System.getenv("DEPLOY_USER") != null)
+			return System.getenv("DEPLOY_USER")
+		else if(System.getProperty("deploy.user") != null)
+			return System.getProperty("deploy.user")
+		else
+			return System.getProperty("user.name")
+	}
+
 	def md5(file: File): String = {
 		val digest = MessageDigest.getInstance("MD5");
 		val buffer = new Array[Byte](1024*1024)

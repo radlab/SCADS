@@ -28,10 +28,10 @@ object RCluster {
  */
 class RClusterNode(num: Int) extends RemoteMachine with RunitManager {
 	val hostname = "r" + num + ".millennium.berkeley.edu"
-	val username = "marmbrus"
-	val rootDirectory = new File("/scratch/marmbrus/")
-	val privateKey = new File("/Users/marmbrus/.ssh/id_rsa")
-	val runitBinaryPath = new File("/work/marmbrus/runit")
+	val username = Util.username 
+	val rootDirectory = new File("/scratch/" + Util.username + "/")
+	val privateKey = new File(System.getProperty("user.home"), ".ssh/id_rsa")
+	val runitBinaryPath = new File("/work/" + Util.username + "/runit")
 
 	def setupRunit() {
 		executeCommand("mkdir -p " + serviceRoot) match {
