@@ -177,8 +177,8 @@ ORDER BY dateposted
  * and interleaving them together by date
 QUERY myPostsOnUserWall
 FETCH wallpost
-    OF user me BY wallPostsFromUser
-    OF user other BY wallPostsToUser
+    OF user me BY wallpostsFromUser
+    OF user other BY wallpostsToUser
 WHERE
     me = [this] AND other.id = [1:otherid]
 ORDER BY dateposted
