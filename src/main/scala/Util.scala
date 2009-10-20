@@ -28,6 +28,11 @@ object Util {
 		}
 		val md5sum = digest.digest()
 		val bigInt = new BigInteger(1, md5sum)
-		bigInt.toString(16)
+		var bigIntStr = bigInt.toString(16)
+        // pad to 32 length string
+        while ( bigIntStr.length < 32 ) {
+            bigIntStr = "0" + bigIntStr
+        }
+        bigIntStr
 	}
 }
