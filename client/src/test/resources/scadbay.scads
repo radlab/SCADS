@@ -128,7 +128,7 @@ RELATIONSHIP itemCategoriesTarget FROM regularcategory TO ONE categorymap
 RELATIONSHIP myAutoBids FROM user TO 100 autobid
 RELATIONSHIP autobidToItem FROM item TO ONE autobid
 
-/* There are 2 kinds of categories, parents and regular
+/* There are 2 kinds of categories, parents and regular */
 RELATIONSHIP parentCategoryMapping FROM parentcategory TO MANY regularcategory
 
 /* -------- BEGIN QUERIES --------- */
