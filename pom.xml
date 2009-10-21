@@ -14,7 +14,7 @@
 	<modules>
 		<module>interface</module>
 		<module>placement</module>
-		<module>experiments</module>
+		<module>experiments/director</module>
 		<module>client</module>
 		<module>storage</module>
 		<module>scalaengine</module>
