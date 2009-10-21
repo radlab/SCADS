@@ -289,6 +289,26 @@ case class MetricReader(
 		(time,value)
 	}
 	
+	def getSingleMetric(host:String, metric:String, reqType:String, time0:Long, time1:Long):Map[Long,Double] = {
+		if (connection == null) connection = Director.connectToDatabase
+		val workloadSQL = "select time,value from scads,scads_metrics where scads_metrics.server=\""+host+
+									"\" and request_type=\""+reqType+
+									"\" and stat=\""+metric+
+									"\" and aggregation=\""+interval+
+									"\" and time>=\""+time0+
+									"\" and time<=\""+time1+
+									"\" and scads.metric_id=scads_metrics.id order by time"
+		var value = Double.NaN
+        val statement = connection.createStatement
+		val values = scala.collection.mutable.Map[Long,Double]()
+		try {
+			val result = statement.executeQuery(workloadSQL)
+			while (result.next) values += result.getLong("time") -> result.getString("value").toDouble
+       	} catch { case ex: SQLException => Director.logger.warn("SQL exception in metric reader",ex)}
+		finally {statement.close}
+		Map[Long,Double]() ++ values
+	}
+	
 	def getAllServers():List[String] = {
 		if (connection == null) connection = Director.connectToDatabase
 		val workloadSQL = "select distinct server from scads_metrics"
