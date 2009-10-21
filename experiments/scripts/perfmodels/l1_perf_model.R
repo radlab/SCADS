@@ -10,6 +10,8 @@ history = function() {
 
 	d20 = read.csv("~/Downloads/scads/performance benchmarks/storage2_run2_20sec.csv")
 	d1 = read.csv("~/Downloads/scads/performance benchmarks/storage2_run2_1sec.csv")
+	d20 = read.csv("~/Downloads/scads/performance benchmarks/storage2_run5_20sec.csv")
+	d1 = read.csv("~/Downloads/scads/performance benchmarks/storage2_run5_1sec.csv")
 	plot( d20$get_workload, type="l" )
 	plot( d20$get_latency_10p )
 	plot( d20$get_latency_25p )
@@ -24,6 +26,7 @@ history = function() {
 	plot( d20$get_workload, d20$put_latency_50p)
 	plot( d20$get_workload, d20$put_latency_90p)
 	plot( d20$get_workload, d20$put_latency_99p)
+	plot( d1$get_workload )
 	plot( d1$get_workload, d1$put_workload )
 	plot( d1$get_latency_99p )
 
@@ -41,6 +44,20 @@ history = function() {
 	thr.model = fit.throughput.model(d20, n.split=6)
 	
 	dump.models( models, "~/Downloads/scads/gp_model2_thr.csv", thr.model )
+	
+	
+	graph.for.armando(d20)
+}
+
+
+graph.for.armando = function(data) {
+
+	#d = data[1:70,]
+	#d = data[120:200,]
+	d = data[241:320,]
+	plot( d$get_workload, d$get_latency_50p, ylim=c(0,60), bty="n", ylab="latency [milliseconds]", xlab="# requests / sec" )
+	points( d$get_workload, d$get_latency_99p, col="blue") 
+	legend( "topleft", legend=c("median","99th percentile"), col=c("black","blue"), pch=21, inset=0.02)
 }
 
 overloaded = function(throughput.model, getw, putw) {
@@ -381,7 +398,7 @@ rq.gp.diag.all.q = function(models,thr.model,raw.data,n.split=1) {
 	pc = models[["90"]]$meta$put.w.col
 	yc = models[["99"]]$meta$y.col
 	raw = data.frame(g=raw.data[,gc], p=raw.data[,pc], latency=raw.data[,yc])
-	xlim = c(0, max(raw$g+raw$p)*1.3 )
+	xlim = c(0, max(raw$g+raw$p)*1.0 )
 
 	cols = rainbow(length(models))
 	print.coeffs = T
@@ -389,18 +406,19 @@ rq.gp.diag.all.q = function(models,thr.model,raw.data,n.split=1) {
 	for (i in 1:n.split) {
 		range = ((i-1)*n/n.split+1):(i*n/n.split)
 		slice.data = raw[range,]
-		max.get.w = max(slice.data$g)*2
+		max.get.w = max(slice.data$g)*1.3
 		get_workload = seq(0,max.get.w,max.get.w/200)
 		put_workload = predict( lm(p~-1+g, data=slice.data), newdata=data.frame(g=get_workload))
 
 		# only plot for not overloaded workloads
 		no.i = !overloaded(thr.model,get_workload,put_workload)
-
-		plot( slice.data$g+slice.data$p, slice.data$latency, main="latency along slice", type="p", ylim=c(0,300), xlim=xlim )
+	
+		par( cex=1.4 )
+		plot( slice.data$g+slice.data$p, slice.data$latency, main="latency along slice", type="p", ylim=c(0,150), xlim=xlim, xlab="workload [req / sec]", ylab="latency [ms]", bty="n", lwd=2 )
 		for (i in 1:length(names(models))) {
 			q = names(models)[i]
 			pred = rq.gp.predict(models[[q]]$model, get_workload, put_workload)
-			lines( (put_workload+get_workload)[no.i], pred[no.i], col=cols[i] )
+			lines( (put_workload+get_workload)[no.i], pred[no.i], col=cols[i], lwd=2 )
 			if (print.coeffs) { print(q); print( models[[q]]$model$coefficients ) }
 			print( format(pred) )
 		}
