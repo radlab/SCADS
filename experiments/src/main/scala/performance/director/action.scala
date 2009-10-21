@@ -14,6 +14,8 @@ import java.sql.ResultSet
 import java.sql.SQLException
 import java.sql.Statement
 
+import java.io._
+
 // TODO:
 // - check for failures
 // - check state
@@ -957,7 +959,7 @@ case class LowLevelActionMonitor(
 
 object LowLevelActionMonitor {
 	
-	def extractActionDurations(dir:String, experiment:String):List[LowLevelActionStats] = {
+	def loadLowLevelActions(dbhost:String, experiment:String):List[LowLevelActionStats] = {
 		var connection = Director.connectToDatabase
 		val statement = connection.createStatement
 		statement.executeUpdate("use director")
@@ -971,20 +973,89 @@ object LowLevelActionMonitor {
 				val t1 = result.getLong("end_time")
 				val featureString = result.getString("features")
 				val features = Map( featureString.split(",").map( p => {val s=p.split("="); s(0)->s(1)}).toList :_* )
-				val stats = LowLevelActionStats(action,t0,t1,features)				
+				val stats = LowLevelActionStats(action,t0,t1,features,experiment)				
 				actions += stats
 			}
        	} catch { case ex: SQLException => Director.logger.warn("SQL exception in metric reader",ex)}
 		statement.close
-		
-		(new java.io.File(dir)).mkdirs()
-		
-		var out = new java.io.FileWriter(dir+"/lowlevelactions.csv",true)
-		out.write("experiment,action,time,duration,nkeys\n") 
-		for(a <- actions) out.write(experiment+","+a.action+","+a.time0+","+(a.time1-a.time0)+","+(try{a.features("endkey").toInt-a.features("startkey").toInt}catch{case _=>"NaN"})+"\n")
-		out.close
+		connection.close
 		
 		actions.toList
+	}
+	
+	def extractTransientData() {
+		val outputdir = "/Users/bodikp/Downloads/scads/"
+
+		val cacheloc = "/tmp/experimentcache/"
+		val baseloc = "http://scads-experiments.s3.amazonaws.com"
+		val runs = List("2009-10-15-02-11-17_bodikp-keypair_ebates_pinchoff_1.0_1.0_0.2_1255571856690/dbdump_2009-10-15-03-12-28.sql",
+						"2009-10-15-01-03-09_trush_ebates-spike_pinchoff_0.9_0.05_0.3_100k_1255567920501/dbdump_2009-10-15-02-04-25.sql",
+						"2009-10-15-00-18-37_trush_ebates_pinchoff_0.9_0.05_0.3_100k_1255565005958/dbdump_2009-10-15-01-20-10.sql")
+		
+		val timeAdd = 5 * 60 * 1000
+		var actionID = 0
+		
+		var effects = new java.io.FileWriter(outputdir+"/actioneffects.csv",false)
+		effects.write("actionid,server,time,workload,latency_50p,latency_99p\n")
+
+		// download and cache data
+		for (run <- runs) {
+			val path = run
+			val dir = path.split("/")(0)
+			println("checking "+run)
+			if (!(new File(cacheloc+"/"+path)).exists) {
+				println("  don't have file ... downloading")
+				(new File(cacheloc+"/"+dir)).mkdirs
+				Director.exec("wget "+baseloc+"/"+path+" -O "+cacheloc+"/"+path)
+				//println(io._1)
+				//println(io._2)
+			}
+		}
+
+		// load low-level actions
+		val allLowLevelActions = new scala.collection.mutable.ListBuffer[LowLevelActionStats]()
+		for (run <- runs) {
+			val path = run
+			val experiment = path.split("/")(0)
+			val io = Director.exec("/usr/local/mysql/bin/mysql -uroot < "+cacheloc+"/"+path)
+			val actions = loadLowLevelActions("localhost",experiment)
+			allLowLevelActions ++= actions
+			
+			val metricReader = MetricReader("localhost","metrics",1000,1.0)
+			
+			for (a <- actions) {
+				a.setID(actionID)
+				actionID += 1
+				val t0 = a.time0 - timeAdd
+				val t1 = a.time1 + timeAdd
+				
+				if (a.host1!="") {
+					val workload = metricReader.getSingleMetric(a.host1,"workload","ALL",t0,t1)
+					val latency50 = metricReader.getSingleMetric(a.host1,"latency_50p","ALL",t0,t1)
+					val latency99 = metricReader.getSingleMetric(a.host1,"latency_99p","ALL",t0,t1)
+					for (t <- workload.keys.toList.sort(_<_))
+						effects.write(a.id+","+a.host1+","+t+","+workload(t)+","+latency50(t)+","+latency99(t)+"\n")
+				}
+
+				if (a.host2!="") {
+					val workload = metricReader.getSingleMetric(a.host2,"workload","ALL",t0,t1)
+					val latency50 = metricReader.getSingleMetric(a.host2,"latency_50p","ALL",t0,t1)
+					val latency99 = metricReader.getSingleMetric(a.host2,"latency_99p","ALL",t0,t1)
+					for (t <- workload.keys.toList.sort(_<_))
+						effects.write(a.id+","+a.host2+","+t+","+workload(t)+","+latency50(t)+","+latency99(t)+"\n")
+				}
+			}
+		}
+		effects.close
+		
+		(new java.io.File(outputdir)).mkdirs()
+
+		var out = new java.io.FileWriter(outputdir+"/lowlevelactions.csv",false)
+		out.write("experiment,action,actionid,time,duration,nkeys,host1,host2\n") 
+		for(a <- allLowLevelActions) out.write(a.experiment+","+a.action+","+a.id+","+a.time0+","+(a.time1-a.time0)+","+(try{a.features("endkey").toInt-a.features("startkey").toInt}catch{case _=>"NaN"})+
+													","+a.host1+","+a.host2+"\n")
+		out.close
+		
 	}
 }
 
@@ -992,8 +1063,24 @@ case class LowLevelActionStats(
 	action:String,
 	time0:Long,
 	time1:Long,
-	features:Map[String,String]
-)
+	features:Map[String,String],
+	experiment:String
+) {
+	var id = -1
+	
+	def setID(i:Int) { id = i }
+	
+	def host1:String = { 
+		if (features.contains("source_host")) features("source_host")
+		else if (features.contains("host")) features("host")
+		else ""
+	}
+
+	def host2:String = { 
+		if (features.contains("target_host")) features("target_host")
+		else ""
+	}
+}
 
 
 object ActionModels {
