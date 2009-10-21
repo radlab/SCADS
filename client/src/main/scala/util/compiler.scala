@@ -52,9 +52,13 @@ object Compiler extends ScadsLanguage {
 
             val code = codeGenFromSource(src)
 
-            val outputBaseFile = new File("target/generated")
+            val outputBaseFile = args.length match {
+							case 1 => new File("target/generated")
+							case _ => new File(args(1))
+						}
+
             outputBaseFile.mkdirs
-            val genDir = new File(outputBaseFile, "classfiles")
+            val genDir = new File(outputBaseFile, "classes")
             genDir.mkdirs
             val jarFile = new File(outputBaseFile, "spec.jar")
             //outFileWriter.write(source)
