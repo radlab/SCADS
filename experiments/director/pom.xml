@@ -5,7 +5,7 @@
 	<artifactId>experiments</artifactId>
 	<packaging>jar</packaging>
 	<version>1.0</version>
-	<name>SCADS Experiments</name>
+	<name>SCADS Director Experiments</name>
 	<parent>
 		<groupId>edu.berkeley.cs.scads</groupId>
 		<artifactId>scads</artifactId>
