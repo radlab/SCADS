@@ -31,7 +31,7 @@ case class RemoteDataPlacement(host: String, port: Int, logger: Logger) extends 
         storageNodes.foreach((n)=> {
             n.setupRunit
             val storageNodeService = new JavaService(
-                    "../scalaengine/scalaengine-1.0-SNAPSHOT-jar-with-dependencies.jar","edu.berkeley.cs.scads.storage.JavaEngine","")
+                    "../scalaengine/target/scalaengine-1.0-SNAPSHOT-jar-with-dependencies.jar","edu.berkeley.cs.scads.storage.JavaEngine","-p 9001")
             storageNodeService.action(n)
             n.services.foreach((s) => {
                     println(s)
@@ -42,7 +42,7 @@ case class RemoteDataPlacement(host: String, port: Int, logger: Logger) extends 
         })
 
         val dataPlacementNodeService = new JavaService(
-                "../placement/placement-1.0-SNAPSHOT-jar-with-dependencies.jar","edu.berkeley.cs.scads.placement.SimpleDataPlacementApp","")
+                "../placement/target/placement-1.0-SNAPSHOT-jar-with-dependencies.jar","edu.berkeley.cs.scads.placement.SimpleDataPlacementApp","")
         dataPlacementNode.setupRunit
         dataPlacementNodeService.action(dataPlacementNode)
         //dataPlacementNode.services.foreach((s) => {
@@ -73,7 +73,7 @@ case class RemoteDataPlacement(host: String, port: Int, logger: Logger) extends 
         range1.setEnd_key(k2.serializeKey)
         val rs1 = new RecordSet(3,range1,null,null)
 
-        val dp1 = new DataPlacement("r15.millennium.berkeley.edu",9000,9000,rs1)
+        val dp1 = new DataPlacement("r15.millennium.berkeley.edu",9001,9001,rs1)
         val l1 = new java.util.LinkedList[DataPlacement]
         l1.add(dp1)
         dpclient.add("ent_user", l1)
