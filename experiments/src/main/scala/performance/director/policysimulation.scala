@@ -144,9 +144,9 @@ case class PolicySimulator {
 
 object RunPolicySimulator {
   	def main(args: Array[String]) {
-		PolicySimulator.test1("/Users/bodikp/Downloads/scads/workloads_for_sim/","/Users/bodikp/workspace/scads/")
+//		PolicySimulator.test1("/Users/bodikp/Downloads/scads/workloads_for_sim/","/Users/bodikp/workspace/scads/")
 //		PolicySimulator.comparison1("/Users/bodikp/Downloads/scads/workloads_for_sim/","/Users/bodikp/workspace/scads/")
-//		PolicySimulator.tryOneDimension("/Users/bodikp/Downloads/scads/workloads_for_sim/","/Users/bodikp/workspace/scads/")
+		PolicySimulator.tryOneDimension("/Users/bodikp/Downloads/scads/workloads_for_sim/","/Users/bodikp/workspace/scads/")
 //		PolicySimulator.tryMoreKeys("/Users/bodikp/Downloads/scads/workloads_for_sim/","/Users/bodikp/workspace/scads/")
 //		r.saveToCSV("/tmp/data.csv")		
 //		PolicySimulator.optimizeCost("/Users/bodikp/Downloads/scads/","/Users/bodikp/workspace/scads/")
@@ -163,35 +163,47 @@ object PolicySimulator {
 	logger.setLevel(DEBUG)
 	
 	def test1(basedir:String, repodir:String):SimulationResults = {
-		val modelfile = repodir+"/experiments/scripts/perfmodels/gp_model.csv"
-		val performanceModel = LocalL1PerformanceModel(modelfile)		
+		val modelfile = repodir+"/experiments/scripts/perfmodels/gp_model2_thr.csv"
+		val performanceModel = L1PerformanceModelWThroughput(modelfile)
 
-		val workloadName = "/ebates.hist"
+		//val workloadName = "/ebates1.hist"
+		//val workloadName = "/wikipedia0.hist"
+		//val workloadName = "/wikipedia_5000users.hist"
+		val workloadName = "/wikipedia_5000users_8hours.hist"
+		//val workloadName = "/wikipedia_5000users_3days.hist"
 		//val workloadName = "/dbworkload.hist"
 		val workloadFile = basedir + workloadName
-		val w = WorkloadHistogram.loadHistograms( workloadFile )
+		val w = multiplyWorkload( WorkloadHistogram.loadHistograms( workloadFile ), 0.7 )
 		
 		var results = SimulationResults()
 
 		val maxKey = w.values.toList.first.rangeStats.keys.map(_.maxKey).reduceLeft( Math.max(_,_) )
 		println("maxkey="+maxKey)
-		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey))
-		config = config.splitAllInHalf.splitAllInHalf.splitAllInHalf
 		val policySimulator = PolicySimulator()		
 
-//		for (overprovision <- List(0.0, 0.1, 0.2, 0.3, 0.4)) {
-//			for (alpha_up <- List(1.0, 0.5, 0.1, 0.05, 0.01)) {
-//				for (alpha_down <- List(1.0, 0.5, 0.1, 0.05, 0.01)) {
-				val overprovision = 0.3
-				val alpha_up = 0.5
-				val alpha_down = 0.04
-					//val policy = new SplitAndMergeOnWorkload( 1500, 1500, SimpleHysteresis(alpha_up,alpha_down,overprovision) )
-					val policy = new HeuristicOptimizerPolicy( performanceModel, 100, 100, SimpleHysteresis(alpha_up,alpha_down,overprovision) )
-					results.addResult( policySimulator.simulateSingleWorkload(config, workloadName, w, policy, costFunction, performanceModel, true, false) )
-					results.saveToCSV("/tmp/simulation.csv")
-//				}
-//			}
-//		}
+		val overprovision = 0.3
+		val alpha_up = 1.0
+		val alpha_down = 0.04
+
+		var nodesConfig = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey)).splitAllInHalf.splitAllInHalf.splitAllInHalf.storageNodes
+		println("XXX: "+nodesConfig.toString)
+
+		//val policy = new SplitAndMergeOnWorkload( 1500, 1500, SimpleHysteresis(alpha_up,alpha_down,overprovision) )
+		var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey)).splitAllInHalf.splitAllInHalf.splitAllInHalf
+		config = config.updateNodes(nodesConfig)
+		println("XXX: "+nodesConfig.toString)
+		println("YYY: "+config.storageNodes.toString)
+		var policy = new HeuristicOptimizerPolicy( performanceModel, 100, 100, SimpleHysteresis(alpha_up,alpha_down,overprovision) )
+		results.addResult( policySimulator.simulateSingleWorkload(config, "wikipedia", w, policy, costFunction, performanceModel, true, true) )
+		
+//		config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey)).splitAllInHalf.splitAllInHalf.splitAllInHalf					
+//		config = config.updateNodes(nodesConfig)
+//		println("XXX: "+nodesConfig.toString)
+//		println("YYY: "+config.storageNodes.toString)
+//		policy = new HeuristicOptimizerPolicy( performanceModel, 100, 100, SimpleHysteresis(alpha_up,alpha_down,overprovision) )
+//		results.addResult( policySimulator.simulateSingleWorkload(config, "wikipedia", w, policy, costFunction, performanceModel, true, false) )
+		
+		results.saveToCSV("/tmp/simulation.csv")
 
 		results
 	}
@@ -216,8 +228,8 @@ object PolicySimulator {
 		
 		val results = SimulationResults()
 
-		val modelfile = repodir+"/experiments/scripts/perfmodels/gp_model.csv"
-		val performanceModel = LocalL1PerformanceModel(modelfile)		
+		val modelfile = repodir+"/experiments/scripts/perfmodels/gp_model2_thr.csv"
+		val performanceModel = L1PerformanceModelWThroughput(modelfile)
 		val workloadName = "/ebates_mix99_mix99_1500users_1000bins_20sec.hist"
 		val workloadFile = basedir + workloadName
 		val w = WorkloadHistogram.loadHistograms( workloadFile )
@@ -262,5 +274,164 @@ object PolicySimulator {
 		
 		PolicySimulator.logger.info("done with optimization")
 	}
+
+	def tryMoreKeys(basedir:String, repodir:String) {
+
+		val policySimulator = PolicySimulator()
+		val results = SimulationResults()
+		
+		val modelfile = repodir+"/experiments/scripts/perfmodels/gp_model2_thr.csv"
+		val performanceModel = L1PerformanceModelWThroughput(modelfile)
+		
+		val workloads = Map( 	"ebates1" -> WorkloadHistogram.loadHistograms( basedir+"/eb1.hist" ),
+								"ebates2" -> WorkloadHistogram.loadHistograms( basedir+"/eb2.hist" ),
+								"ebates3" -> WorkloadHistogram.loadHistograms( basedir+"/eb3.hist" ),
+								"ebates4" -> WorkloadHistogram.loadHistograms( basedir+"/eb4.hist" ),
+								"ebates5" -> WorkloadHistogram.loadHistograms( basedir+"/eb5.hist" )  )
+		
+		val maxKey = workloads.values.toList.first.values.toList.first.rangeStats.keys.map(_.maxKey).reduceLeft( Math.max(_,_) )
+
+		val values = scala.collection.mutable.Map( "up"->0.5, "down"->0.05, "safety"->0.3 )
+		val c = values
+
+		// "add more keys" to the histograms by multiplying the keys by a factor
+		for (factor <- List(100.0, 5.0, 1.0)) {
+
+			// remember one node config so that all simulations start from the same one
+			var adjustedMaxKey = (factor*maxKey).toInt
+			var nodesConfig = SCADSconfig.getInitialConfig(DirectorKeyRange(0,adjustedMaxKey)).splitAllInHalf.splitAllInHalf.splitAllInHalf.storageNodes
+
+			for (w <- workloads.keys.toList.sort(_<_)) {
+				val workload = multiplyKeys( workloads(w), factor )
+				val maxKey = workloads.values.toList.first.values.toList.first.rangeStats.keys.map(_.maxKey).reduceLeft( Math.max(_,_) )
+				
+				var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,adjustedMaxKey)).updateNodes(nodesConfig)
+				//val policy = new SplitAndMergeOnWorkload( 1500, 1500, SimpleHysteresis( c("up"), c("down"), c("safety") ) )
+				val policy = new HeuristicOptimizerPolicy( performanceModel, 100, 100, SimpleHysteresis( c("up"), c("down"), c("safety") ) )
+				val result = policySimulator.simulateSingleWorkload(config, w, workload, policy, costFunction, performanceModel, true, true)
+				results.addResult( result )
+				results.saveToCSV("/Users/bodikp/Downloads/scads/simulation_morekeys_0.csv")
+			}
+			
+		}
+		
+	}
+
+	def tryOneDimension(basedir:String, repodir:String) {
+		val space2 = Map(
+		"up" 	-> List(1.0, 0.9, 0.8, 0.6, 0.5, 0.3, 0.2, 0.1, 0.05),
+		"down" 	-> List(1.0, 0.7, 0.5, 0.2, 0.1, 0.07, 0.05, 0.02, 0.01, 0.007, 0.005),
+		"safety"-> List(0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5) )
+		
+		val modelfile = repodir+"/experiments/scripts/perfmodels/gp_model2_thr.csv"
+		val performanceModel = L1PerformanceModelWThroughput(modelfile)
+		
+		val workloadFactor = 3.0
+		
+		val plots = false
+		
+/*		val workloads = Map( 	"ebates1" -> multiplyWorkload( WorkloadHistogram.loadHistograms( basedir+"/eb1.hist" ), workloadFactor ),
+								"ebates2" -> multiplyWorkload( WorkloadHistogram.loadHistograms( basedir+"/eb2.hist" ), workloadFactor ),
+								"ebates3" -> multiplyWorkload( WorkloadHistogram.loadHistograms( basedir+"/eb3.hist" ), workloadFactor ),
+								"ebates4" -> multiplyWorkload( WorkloadHistogram.loadHistograms( basedir+"/eb4.hist" ), workloadFactor ),
+								"ebates5" -> multiplyWorkload( WorkloadHistogram.loadHistograms( basedir+"/eb5.hist" ), workloadFactor )  )
+*/
+		val workloads = Map( 	"ebates_wspike_1" -> multiplyWorkload( WorkloadHistogram.loadHistograms( basedir+"/eb_spike_1.hist" ), workloadFactor ),
+								"ebates_wspike_2" -> multiplyWorkload( WorkloadHistogram.loadHistograms( basedir+"/eb_spike_2.hist" ), workloadFactor ),
+								"ebates_wspike_3" -> multiplyWorkload( WorkloadHistogram.loadHistograms( basedir+"/eb_spike_3.hist" ), workloadFactor ),
+								"ebates_wspike_4" -> multiplyWorkload( WorkloadHistogram.loadHistograms( basedir+"/eb_spike_4.hist" ), workloadFactor ),
+								"ebates_wspike_4" -> multiplyWorkload( WorkloadHistogram.loadHistograms( basedir+"/eb_spike_5.hist" ), workloadFactor ),
+								"ebates_wspike_5" -> multiplyWorkload( WorkloadHistogram.loadHistograms( basedir+"/eb_spike_6.hist" ), workloadFactor )  )
+
+
+		val maxKey = workloads.values.toList.first.values.toList.first.rangeStats.keys.map(_.maxKey).reduceLeft( Math.max(_,_) )
+		val policySimulator = PolicySimulator()
+		val results = SimulationResults()
+		
+		val space = space2
+		
+		//val values = scala.collection.mutable.Map( "up"->1.0, "down"->1.0, "safety"->0.5 )
+		//val param = "down"
+		//val values = scala.collection.mutable.Map( "up"->1.0, "down"->0.5, "safety"->0.5 )
+		//val param = "safety"
+		//val values = scala.collection.mutable.Map( "up"->1.0, "down"->0.05, "safety"->0.4 )
+		//val param = "up"
+		
+		//val values = scala.collection.mutable.Map( "up"->1.0, "down"->1.0, "safety"->0.5 )
+		//val param = "down"
+		//val outputFile = "/Users/bodikp/Downloads/scads/simulation_searchSpike_down0.csv"
+		//val values = scala.collection.mutable.Map( "up"->1.0, "down"->0.1, "safety"->0.5 )
+		//val param = "safety"
+		//val outputFile = "/Users/bodikp/Downloads/scads/simulation_searchSpike_safety0.csv"
+		val values = scala.collection.mutable.Map( "up"->1.0, "down"->0.05, "safety"->0.5 )
+		val param = "up"
+		val outputFile = "/Users/bodikp/Downloads/scads/simulation_searchSpike_up0.csv"
+		
+		for (value <- space(param)) {
+			var c = values.clone
+			c += param -> value
+
+			for (w <- workloads.keys.toList.sort(_<_)) {
+				var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey)).splitAllInHalf.splitAllInHalf.splitAllInHalf
+				//val policy = new SplitAndMergeOnWorkload( 1500, 1500, SimpleHysteresis( c("up"), c("down"), c("safety") ) )
+				val policy = new HeuristicOptimizerPolicy( performanceModel, 100, 100, SimpleHysteresis( c("up"), c("down"), c("safety") ) )
+				val result = policySimulator.simulateSingleWorkload(config, w, workloads(w), policy, costFunction, performanceModel, true, plots)
+				results.addResult( result )
+				results.saveToCSV(outputFile)
+			}
+		}
+		
+	}
+
+	def comparison1(basedir:String, repodir:String) {
+		var values = List( 
+			Map( "up"->0.9, "down"->0.05, "safety"->0.9 ),
+			Map( "up"->0.9, "down"->0.05, "safety"->0.7 ),
+			Map( "up"->0.9, "down"->0.05, "safety"->0.5 ),
+			Map( "up"->0.9, "down"->0.05, "safety"->0.3 ),
+			Map( "up"->0.9, "down"->0.05, "safety"->0.1 ),
+			Map( "up"->1.0, "down"->0.01, "safety"->1.0 ),
+			Map( "up"->0.9, "down"->0.02, "safety"->0.9 ),
+			Map( "up"->0.9, "down"->0.02, "safety"->0.7 ),
+			Map( "up"->0.9, "down"->0.02, "safety"->0.5 ),
+			Map( "up"->0.9, "down"->0.02, "safety"->0.3 ),
+			Map( "up"->0.9, "down"->0.02, "safety"->0.1 ),
+			Map( "up"->0.9, "down"->0.1, "safety"->0.9 ),
+			Map( "up"->0.9, "down"->0.1, "safety"->0.7 ),
+			Map( "up"->0.9, "down"->0.1, "safety"->0.5 ),
+			Map( "up"->0.9, "down"->0.1, "safety"->0.3 ),
+			Map( "up"->0.9, "down"->0.1, "safety"->0.1 )
+		)
+		
+		val modelfile = repodir+"/experiments/scripts/perfmodels/gp_model2_thr.csv"
+		val performanceModel = L1PerformanceModelWThroughput(modelfile)
+		
+		val workloads = Map( 	"ebates1" -> WorkloadHistogram.loadHistograms( basedir+"/ebates1.hist" ),
+								"ebates2" -> WorkloadHistogram.loadHistograms( basedir+"/ebates2.hist" ),
+								"ebates3" -> WorkloadHistogram.loadHistograms( basedir+"/ebates3.hist" ),
+								//"ebates4" -> WorkloadHistogram.loadHistograms( basedir+"/ebates4.hist" ),
+								"ebates5" -> WorkloadHistogram.loadHistograms( basedir+"/ebates5.hist" ),
+								"ebates6" -> WorkloadHistogram.loadHistograms( basedir+"/ebates6.hist" )  )
+		val maxKey = workloads.values.toList.first.values.toList.first.rangeStats.keys.map(_.maxKey).reduceLeft( Math.max(_,_) )
+		val policySimulator = PolicySimulator()
+		val results = SimulationResults()
+
+		for (v <- values) {
+			for (w <- workloads.keys.toList.sort(_<_)) {
+				var config = SCADSconfig.getInitialConfig(DirectorKeyRange(0,maxKey)).splitAllInHalf.splitAllInHalf
+				val policy = new HeuristicOptimizerPolicy( performanceModel, 100, 100, SimpleHysteresis( v("up"), v("down"), v("safety") ) )
+				val result = policySimulator.simulateSingleWorkload(config, w, workloads(w), policy, costFunction, performanceModel, true, false)
+				results.addResult( result )
+				results.saveToCSV("/Users/bodikp/Downloads/scads/simulation_comparison1.csv")
+			}
+		}
+	}
 	
+	def multiplyKeys(histograms:Map[Long,WorkloadHistogram], factor:Double):Map[Long,WorkloadHistogram] = {
+		Map( histograms.toList.map( p => p._1 -> p._2.multiplyKeys(factor) ) :_* )
+	}
+
+	def multiplyWorkload(histograms:Map[Long,WorkloadHistogram], factor:Double):Map[Long,WorkloadHistogram] = {
+		Map( histograms.toList.map( p => p._1 -> p._2.multiplyWorkload(factor) ) :_* )
+	}
 }
