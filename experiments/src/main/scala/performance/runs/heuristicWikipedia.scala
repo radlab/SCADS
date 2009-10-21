@@ -15,9 +15,10 @@ object HeuristicWikipedia {
 		val hystdown = System.getProperty("hysteresisDown","0.05")
 		val overprov = System.getProperty("overProvision","0.2")
 		
-		val filename = "wikipedia_60-84hr_60min_200users_200keys.ser"
+		//val filename = "wikipedia_60-84hr_60min_200users_200keys.ser"
+		val filename = "wikipedia_60-84hr_60min_500users_200keys.ser"
 		val maxKey = 200000
-		val maxUsers = 200
+		val maxUsers = 500
 		val experimentName = System.getenv("AWS_KEY_NAME")+ "_wiki_pinchoff_"+hystup+"_"+hystdown+"_"+overprov+"_"+filename+"_"+System.currentTimeMillis
 			
 		val logger = Logger.getLogger("scads.experiment")
@@ -26,8 +27,8 @@ object HeuristicWikipedia {
 		logger.setLevel(DEBUG)
 		logger.debug("starting experiment "+experimentName)
 
-		val nClientMachines = 10
-		val nHotStandbys = 10
+		val nClientMachines = 20
+		val nHotStandbys = 15
 		val namespace = "perfTest256"
 		val jar = "http://scads.s3.amazonaws.com/experiments-1.0-jar-with-dependencies_beth.jar"
 	

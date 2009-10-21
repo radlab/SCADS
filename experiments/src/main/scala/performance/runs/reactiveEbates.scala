@@ -26,8 +26,10 @@ object ReactiveEbates {
 		logger.debug("starting experiment "+experimentName)
 
 		val nClientMachines = 20
-		val nHotStandbys = 10
+		val nHotStandbys = 20
 		val namespace = "perfTest256"
+	
+		val jar = "http://scads.s3.amazonaws.com/experiments-1.0-jar-with-dependencies-bodikp.jar"
 	
 		// deploy all VMs
 		logger.info("deploying SCADS")
@@ -46,7 +48,7 @@ object ReactiveEbates {
 
 		// prepare workload
 		logger.info("preparing workload")
-		val workload = stdWorkloadEbatesWMixChange(mix97,mix97,400,maxKey)
+		val workload = stdWorkloadEbatesWMixChange(mix97,mix97,600,maxKey)
 
 		// start Director
 		logger.info("starting director")
@@ -54,10 +56,10 @@ object ReactiveEbates {
 							" -DpolicyName=ReactivePolicy" +
 							" -DdeploymentName="+experimentName +
 							" -DexperimentName="+experimentName +
-							" -Dduration="+workloadDuration(workload).toString +
 							" -DhysteresisUp=1.0" +
-							" -DhysteresisDown=1.0" +
+							" -DhysteresisDown=0.05" +
 							" -Doverprovisioning=0.3" +
+							" -Dduration="+workloadDuration(workload).toString +
 							" -DgetSLA=100" +
 							" -DputSLA=100" +
 							" -DslaInterval=" + (5*60*1000) +

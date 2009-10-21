@@ -45,7 +45,8 @@ object BenchmarkStorage {
 
 			// prepare workload
 			logger.debug("preparing workload")
-			val workload = linearWorkload(gets,0.0,0, maxKey.toString, namespace, 200, 3000, 10)
+			//val workload = linearWorkload(gets,0.0,0, maxKey.toString, namespace, 200, 3000, 10)
+			val workload = linearWorkload(gets,0.0,0, maxKey.toString, namespace, 250, 5000, 10)
 			// start workload
 			logger.debug("starting workload")
 			dep.clients.loadState
@@ -55,9 +56,13 @@ object BenchmarkStorage {
 			val duration = workloadDuration(workload)
 			logger.debug("sleeping for "+duration+" during workload")
 			Thread.sleep(duration)
+			dep.stopWorkload
 			logger.debug("uploading results")
 			uploadLogsToS3(dep,experimentName,gets)
 			logger.info("finished "+gets)
+			
+			// sleep between runs so there's a gap in data
+			Thread.sleep(60*1000)
 		})
 	}
 	def uploadLogsToS3(dep:SCADSDeployment,experimentName:String,num_gets:Double) {

@@ -24,14 +24,15 @@ object HeuristicEbatesNormal {
 		logger.setLevel(DEBUG)
 		logger.debug("starting experiment "+experimentName)
 
-		val maxKey = 200000
 		val nClientMachines = 16
 		val nHotStandbys = 15
 		val namespace = "perfTest256"
-		val jar = "http://scads.s3.amazonaws.com/experiments-1.0-jar-with-dependencies_beth.jar"
+		//val jar = "http://scads.s3.amazonaws.com/experiments-1.0-jar-with-dependencies_beth.jar"
+		val jar = "http://scads.s3.amazonaws.com/experiments-1.0-jar-with-dependencies-bodikp.jar"
 	
 		// deploy all VMs
 		logger.info("deploying SCADS")
+		logger.info("using "+maxKey+" keys")
 		ScadsDeploy.maxKey = maxKey
 		val dep = SCADSDeployment(experimentName)
 		dep.experimentsJarURL = jar
@@ -48,7 +49,7 @@ object HeuristicEbatesNormal {
 
 		// prepare workload
 		logger.info("preparing workload")
-		val workload = stdWorkloadEbatesWMixChange(mix97,mix97,288,maxKey)
+		val workload = stdWorkloadEbatesWMixChange(mix97,mix97,300,maxKey)
 
 		// start Director
 		logger.info("starting director")

@@ -46,7 +46,11 @@ object PolicyEbates {
 		// prepare workload
 		logger.info("preparing workload")
 		val workload = stdWorkloadEbatesWMixChange(mix97,mix97,200,maxKey)
-
+/*		val workloadOriginal = stdWorkloadEbatesWMixChange(mix97,mix97,200,maxKey)
+		val firstInterval = workloadOriginal.workload.first
+		val newFirst = List(new WorkloadIntervalDescription( firstInterval.numberOfActiveUsers, 15*60*1000, firstInterval.requestGenerator ))
+		val workload = WorkloadDescription.cat( List(new WorkloadDescription(workloadOriginal.thinkTimeMean,newFirst), workloadOriginal) )
+*/
 		// start Director
 		logger.info("starting director")
 		val directorCmd = "bash -l -c 'java"+
@@ -55,8 +59,8 @@ object PolicyEbates {
 							" -DexperimentName="+experimentName +
 							" -Dduration="+workloadDuration(workload).toString +
 							" -DhysteresisUp=0.9" +
-							" -DhysteresisDown=0.05" +
-							" -Doverprovisioning=0.9" +
+							" -DhysteresisDown=0.1" +
+							" -Doverprovisioning=0.3" +
 							" -DgetSLA=100" +
 							" -DputSLA=150" +
 							" -DslaInterval=" + (5*60*1000) +
