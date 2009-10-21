@@ -377,8 +377,8 @@ object SCADSState {
 			t0 = new Date().getTime
 			val (getLatencies,putLatencies) = 
 			if (activity.copyRate.contains(s)&&activity.copyRate(s)>0)
-				(perfModel.sample(Map("type"->"get","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.getRate*duration/1000.0*fraction).toInt).map(_*10),
-				 perfModel.sample(Map("type"->"put","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.putRate*duration/1000.0*fraction).toInt).map(_*10))
+				(perfModel.sample(Map("type"->"get","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.getRate*duration/1000.0*fraction).toInt).map(_*2),
+				 perfModel.sample(Map("type"->"put","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.putRate*duration/1000.0*fraction).toInt).map(_*2))
 			else 
 				(perfModel.sample(Map("type"->"get","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.getRate*duration/1000.0*fraction).toInt),
 				 perfModel.sample(Map("type"->"put","getw"->w.getRate.toString,"putw"->w.putRate.toString),(w.putRate*duration/1000.0*fraction).toInt))
