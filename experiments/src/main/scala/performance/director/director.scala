@@ -228,8 +228,8 @@ object Director {
 	def exec(cmd:String):(String,String) = {
 		val proc = Runtime.getRuntime.exec( Array("sh","-c",cmd) )
 		Director.logger.debug("executing "+cmd)
-		(scala.io.Source.fromInputStream( proc.getInputStream ).getLines.mkString(""),
-		 scala.io.Source.fromInputStream( proc.getErrorStream ).getLines.mkString(""))
+		val err = scala.io.Source.fromInputStream( proc.getErrorStream ).getLines.mkString("")
+		(scala.io.Source.fromInputStream( proc.getInputStream ).getLines.mkString(""),err)
 	}
 
 	def dumpAndDropDatabases() {
