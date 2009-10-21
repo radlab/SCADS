@@ -9,7 +9,7 @@ class KeyTest extends Suite {
 		assert( (MaxKey <= MaxKey) && (MaxKey >= MaxKey) )
 		assert( (MinKey <= MinKey) && (MinKey >= MinKey) )
 		assert( (MaxKey == MaxKey) && (MinKey == MinKey) )
-		
+
 		// inequality should work
 		assert( !(MinKey < MinKey) && !(MinKey > MinKey) )
 		assert( !(MaxKey < MaxKey) && !(MaxKey > MaxKey) )
@@ -113,7 +113,7 @@ class KeyRangeTest extends Suite with AutoKey {
 		assert( !KeyRange.isCovered(KeyRange("a","da"), Set(KeyRange("a","c"))) )
 		assert( !KeyRange.isCovered(KeyRange("a","da"), Set(KeyRange("b","d"),KeyRange("a","b"))) )
 		assert( !KeyRange.isCovered(KeyRange("aa","e"), Set(KeyRange("ab","b"),KeyRange("d","e"))) )
-		
+
 		assert( KeyRange.isCovered(KeyRange("a","c"), Set(KeyRange("a","b"),KeyRange("a","c"))) )
 		assert( KeyRange.isCovered(KeyRange("a","c"), Set(KeyRange("b","c"),KeyRange("a","b"))) )
 		assert( KeyRange.isCovered(KeyRange("a","d"), Set(KeyRange("a","b"),KeyRange("b","c"),KeyRange("c","d"))) )

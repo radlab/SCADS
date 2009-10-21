@@ -18,8 +18,8 @@ val workload =  WorkloadAgentTest.linearWorkload(read_prob,namespace,total_users
 
 //case class TestClient(host: String, port: Int, name: String) extends SCADSClient(host,port)
 
-// set up threads with ids	
-val threads = (minUserId to maxUserId).toList.map((id) => { 
+// set up threads with ids
+val threads = (minUserId to maxUserId).toList.map((id) => {
 	val agent = new WorkloadAgent(new SCADSClient(host,port), workload,id)
 	new Thread(agent)
 })
@@ -30,4 +30,4 @@ for(thread <- threads) thread.join
 
 
 
-	
+

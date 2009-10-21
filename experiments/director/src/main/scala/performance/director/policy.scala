@@ -12,7 +12,7 @@ import java.sql.Statement
 
 object Policy {
 	var logger:Logger = null
-	
+
 	def initializeLogger {
 		logger = Logger.getLogger("scads.director.events")
 		val logPath = Director.basedir+"/events.txt"
@@ -28,16 +28,16 @@ abstract class Policy(
 	var logger:Logger = null
 
 	protected def act(state:SCADSState, actionExecutor:ActionExecutor)
-	
+
 	def stateColumns(): List[String] = List[String]()
 	def stateValues(): List[String] = List[String]()
-	
+
 	val dbname = "director"
 	val dbtable = "policystate"
-	
+
 	var connection = Director.connectToDatabase
 	initialize
-	
+
 	def initialize {
 		Policy.initializeLogger
 
@@ -52,23 +52,23 @@ abstract class Policy(
 		Action.initDatabase
 		workloadPredictor.initialize
 	}
-	
+
 	def getParams:Map[String,String] = workloadPredictor.getParams
-	
+
 	def periodicUpdate(state:SCADSState) {
 		workloadPredictor.addHistogram( state.workloadHistogram )
 	}
-	
+
 	def perform(state:SCADSState, actionExecutor:ActionExecutor) {
-		try { 
+		try {
 			Action.currentInitTime = new java.util.Date().getTime
-		
-			// update the configuration of SCADS 
+
+			// update the configuration of SCADS
 			val newConfig = actionExecutor.getConfigFromPlacement
 			var newState = if (newConfig==null || state==null) state
 							else SCADSState(state.time,state.config.updateNodes(actionExecutor.getConfigFromPlacement),
 									state.storageNodes,state.metrics,state.metricsByType,state.workloadHistogram)
-		
+
 			Policy.logger.info("running policy with the following state:"+ (if (newState==null) " <null>" else "\n"+newState.toShortString) )
 			Policy.logger.info("action executor status:\n"+actionExecutor.status)
 			act(newState,actionExecutor)
@@ -77,10 +77,10 @@ abstract class Policy(
 		}
 		storeState
 	}
-	
+
 	def storeState() {
 		val statement = connection.createStatement
-		
+
 		try {
 			val sql = "INSERT INTO "+dbtable+" ("+(List("time","policyname")++stateColumns).mkString("`","`,`","`")+") values ("+
 						(List(new java.util.Date().getTime,"'"+getClass.getName.split('.').last+"'")++stateValues.map("'"+_+"'")).mkString(",")+")"
@@ -89,7 +89,7 @@ abstract class Policy(
 		} catch { case e:Exception => logger.warn("exception when storing policy state: ",e) }
 		finally { statement.close }
 	}
-	
+
     def createTable() {
     // create database if it doesn't exist and select it
         try {
@@ -115,11 +115,11 @@ class TestPolicy(
 	  val Waiting, NoNewActions, NewActions = Value
 	}
 	import PolicyState._
-	
+
 	private var _stateValues = List[String]()
 	override def stateColumns():List[String] = List("state","nActionsStarted")
 	override def stateValues():List[String] = _stateValues
-	
+
 	override def act(state:SCADSState, actionExecutor:ActionExecutor) {
 		logger.debug("acting")
 
@@ -127,12 +127,12 @@ class TestPolicy(
 		if (!actionExecutor.allActionsCompleted) Waiting
 		else if (Director.nextRndDouble>0.5) NewActions
 		else NoNewActions
-		
+
 		val actions = policyState match {
 			case Waiting => List[Action]()
 			case NoNewActions => List[Action]()
 			case NewActions => (1 to (Director.nextRndInt(maxactions)+1)).map( (d:Int) => new TestAction(Director.nextRndInt((d+1)*30)*1000) ).toList
-		}		
+		}
 		_stateValues = List(policyState.toString,actions.length.toString)
 		actions.foreach(actionExecutor.addAction(_))
 	}
@@ -145,25 +145,25 @@ class TestSimpleSplitMerge(
 ) extends Policy(workloadPredictor) {
 	var lastActionTime = new java.util.Date().getTime
 	var splitLast = false
-		
+
 	override def act(state:SCADSState, actionExecutor:ActionExecutor) {
 		if (state!=null) {
 			logger.debug("ACTING: received the following state ("+(new java.util.Date().getTime-state.time)/1000+" seconds behind)\n"+state.toShortString)
 			logger.debug("just config: \n"+state.toConfigString)
 		} else
 			logger.debug("ACTING: state == NULL")
-			
+
 		val prediction = workloadPredictor.getPrediction
 		if (prediction!=null)
 			logger.debug("workload prediction: "+workloadPredictor.getPrediction.toShortString)
 		else
 			logger.debug("workload prediction == NULL")
-		
+
 		if (new java.util.Date().getTime-lastActionTime > delay  &&  state!=null) {
 			logger.debug("should act. splitLast="+splitLast)
 			val nodes = state.config.storageNodes.keySet.toList
 			logger.debug("have the following nodes: "+nodes.mkString(","))
-			
+
 			if (splitLast && nodes.size>=2) {
 				logger.debug("will merge")
 				actionExecutor.addAction( new MergeTwo(nodes(0),nodes(1)) )
@@ -174,7 +174,7 @@ class TestSimpleSplitMerge(
 				splitLast = true
 			}
 			lastActionTime = new java.util.Date().getTime
-		} else 
+		} else
 			logger.debug("policy waiting")
 	}
 }
@@ -183,11 +183,11 @@ class EmptyPolicy(
 	override val workloadPredictor:WorkloadPrediction
 ) extends Policy(workloadPredictor) {
 	override def act(state:SCADSState, actionExecutor:ActionExecutor) {
-		if (state!=null) 
+		if (state!=null)
 			logger.debug("ACTING: received the following state ("+(new java.util.Date().getTime-state.time)/1000+" seconds behind)\n"+state.toShortString)
 		else
 			logger.debug("ACTING: state == NULL")
-			
+
 		val prediction = workloadPredictor.getPrediction
 		if (prediction!=null)
 			logger.debug("workload prediction: "+workloadPredictor.getPrediction.toShortString)
@@ -203,7 +203,7 @@ class RandomSplitAndMergePolicy(
 	override def act(state:SCADSState, actionExecutor:ActionExecutor) {
 		val actions = if (Director.nextRndDouble<fractionOfSplits)
 			List(new SplitInTwo( state.config.storageNodes.keySet.toList(Director.nextRndInt(state.config.storageNodes.size)),-1 ))
-		else 
+		else
 			if (state.config.storageNodes.size>=2) {
 				val i = Director.nextRndInt(state.config.storageNodes.size-1)
 				val ordered = state.config.storageNodes.map(x=>(x._1,x._2)).toList.sort(_._2.minKey<_._2.minKey).toList
@@ -217,45 +217,45 @@ class ReactivePolicy(
 	val latencyToMerge: Double,
 	val latencyToSplit: Double,
 	val smoothingFactor: Double,
-	override val workloadPredictor:WorkloadPrediction	
+	override val workloadPredictor:WorkloadPrediction
 ) extends Policy(workloadPredictor) {
-		
+
 	var smoothedGetLatency = scala.collection.mutable.Map[String,Double]()
 	var smoothedPutLatency = scala.collection.mutable.Map[String,Double]()
 	var actionDelay = 2*60*1000L
 	var lastActionTime = new java.util.Date().getTime - actionDelay
-		
+
 	override def act(state:SCADSState, actionExecutor:ActionExecutor) {
 		if (state!=null) {
 			// extract the latency metrics and compute servers that were removed, are new, ...
 			val getLatency = Map( state.storageNodes.map( n=>(n.ip,n.metricsByType("get").latency99p) ) :_* )
 			val putLatency = Map( state.storageNodes.map( n=>(n.ip,n.metricsByType("put").latency99p) ) :_* )
-			
+
 			val removedServers = Set(smoothedGetLatency.keys.toList:_*) -- Set(getLatency.keys.toList:_*)
 			val newServers = Set(getLatency.keys.toList:_*) -- Set(smoothedGetLatency.keys.toList:_*)
 			val servers = getLatency.keySet ** smoothedGetLatency.keySet
-		
+
 			// remove smoothed latency for servers that are gone
 			smoothedGetLatency --= removedServers
 			smoothedPutLatency --= removedServers
-		
+
 			// initialize smoothed latency for new servers
 			newServers.foreach( s => smoothedGetLatency += s -> getLatency(s) )
 			newServers.foreach( s => smoothedPutLatency += s -> putLatency(s) )
-		
+
 			// smooth latency for the remaining servers
 			servers.foreach( s => smoothedGetLatency += s -> (smoothedGetLatency(s) + smoothingFactor*(getLatency(s)-smoothedGetLatency(s))) )
 			servers.foreach( s => smoothedPutLatency += s -> (smoothedPutLatency(s) + smoothingFactor*(putLatency(s)-smoothedPutLatency(s))) )
-		
+
 			// fix NaNs
 			smoothedGetLatency.keys.toList.foreach( s => if (smoothedGetLatency(s).isNaN) smoothedGetLatency += s -> getLatency(s) )
 			smoothedPutLatency.keys.toList.foreach( s => if (smoothedPutLatency(s).isNaN) smoothedPutLatency += s -> putLatency(s) )
-		
+
 			// log
 			Policy.logger.debug("raw get latency: "+ getLatency.toList.sort(_._1<_._1).map(s=>s._1+"->"+"%.2f".format(s._2)).mkString(", "))
-			Policy.logger.debug("smooth get latency: "+ smoothedGetLatency.toList.sort(_._1<_._1).map(s=>s._1+"->"+"%.2f".format(s._2)).mkString(", "))	
+			Policy.logger.debug("smooth get latency: "+ smoothedGetLatency.toList.sort(_._1<_._1).map(s=>s._1+"->"+"%.2f".format(s._2)).mkString(", "))
 			Policy.logger.debug("raw put latency: "+ putLatency.toList.sort(_._1<_._1).map(s=>s._1+"->"+"%.2f".format(s._2)).mkString(", "))
-			Policy.logger.debug("smooth put latency: "+ smoothedPutLatency.toList.sort(_._1<_._1).map(s=>s._1+"->"+"%.2f".format(s._2)).mkString(", "))	
+			Policy.logger.debug("smooth put latency: "+ smoothedPutLatency.toList.sort(_._1<_._1).map(s=>s._1+"->"+"%.2f".format(s._2)).mkString(", "))
 		}
 
 		if (actionExecutor.allActionsCompleted && state!=null && (new java.util.Date().getTime>lastActionTime+actionDelay)) {
@@ -288,7 +288,7 @@ class ReactivePolicy(
 				lastActionTime = new java.util.Date().getTime
 		}
 	}
-	
+
 }
 
 
@@ -296,23 +296,23 @@ class ReactivePolicy(
 class SplitAndMergeOnPerformance(
 	val latencyToMerge: Double,
 	val latencyToSplit: Double,
-	override val workloadPredictor:WorkloadPrediction	
+	override val workloadPredictor:WorkloadPrediction
 ) extends Policy(workloadPredictor) {
-	
+
 	object PolicyState extends Enumeration {
 	  type PolicyState = Value
 	  val Waiting, Executing = Value
 	}
 	import PolicyState._
-	
+
 	var policyState = PolicyState.Waiting
 	var scadsState: SCADSState = null
-	
+
 	override def act(state:SCADSState, actionExecutor:ActionExecutor) {
 		this.scadsState = state
-		
+
 		policyState = selectNextState(actionExecutor)
-		
+
 		var actions = new scala.collection.mutable.ListBuffer[Action]()
 		policyState match {
 			case PolicyState.Waiting => {null}
@@ -340,7 +340,7 @@ class SplitAndMergeOnPerformance(
 		}
 		actions.foreach(actionExecutor.addAction(_))
 	}
-	
+
 	protected def selectNextState(actionExecutor:ActionExecutor):PolicyState = {
 		policyState match {
 			case PolicyState.Waiting => {
@@ -376,7 +376,7 @@ case class SplitAndMergeOnWorkload(
 			case PolicyState.Executing => {
 				val workloadPrediction = workloadPredictor.getPrediction
 				val serverWorkload = PerformanceEstimator.estimateServerWorkload(scadsState.config,workloadPrediction)
-				
+
 				//val servers_ranges = PerformanceEstimator.getServerHistogramRanges(scadsState.config,state.workloadHistogram)
 				val servers_ranges = PerformanceEstimator.getServerHistogramRanges(scadsState.config,workloadPrediction)
 				val config_nodes = scadsState.config.storageNodes
@@ -401,12 +401,12 @@ case class SplitAndMergeOnWorkload(
 				while (id <= nodes.size-1 && id <= nodes.size-2) {
 					val w0 = serverWorkload(nodes(id).ip).sum
 					val w1 = serverWorkload(nodes(id+1).ip).sum
-					
+
 					if ( w0+w1 < mergeThreshold || w0.isNaN || w1.isNaN ) {
-					
+
 /*					if ( ((nodes(id).metrics.workload + nodes(id+1).metrics.workload)*(1+overprovision) <= mergeThreshold) ||
 					 nodes(id).metrics.workload.isNaN || nodes(id+1).metrics.workload.isNaN ) { // also check for NaNs
-*/												
+*/
 						logger.debug("Adding merge action: "+nodes(id).ip+" and "+nodes(id+1).ip)
 						actions += new MergeTwo(nodes(id).ip,nodes(id+1).ip)
 						id+=2 // only merge disjoint two at a time
@@ -417,7 +417,7 @@ case class SplitAndMergeOnWorkload(
 		}
 		actions.foreach(actionExecutor.addAction(_))
 	}
-	//override def toString = "SplitAndMergeOnWorkload ( Merge: "+mergeThreshold+", Split: "+splitThreshold+ " )"	
+	//override def toString = "SplitAndMergeOnWorkload ( Merge: "+mergeThreshold+", Split: "+splitThreshold+ " )"
 }
 
 class HeuristicOptimizerPolicy(

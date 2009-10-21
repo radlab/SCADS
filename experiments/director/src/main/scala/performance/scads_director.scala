@@ -1,9 +1,9 @@
 /**
  * scripts for deploying the director
  */
- 
+
 package performance
- 
+
 import deploylib._ /* Imports all files in the deployment library */
 import org.json.JSONObject
 import org.json.JSONArray
@@ -11,7 +11,7 @@ import com.twitter.commons._
 import scala.collection.jcl.Conversions._
 
 object ScadsDirector {
-  
+
   	var directorVM: Instance = null
 	var config: JsonQuoted = null
 
@@ -30,5 +30,5 @@ object ScadsDirector {
 		directorVM.upload(local,"/opt/scads/experiments")
 		directorVM.exec("cat /opt/scads/experiments/aws.cfg >> /root/.bash_profile")
   	}
-   
+
 }

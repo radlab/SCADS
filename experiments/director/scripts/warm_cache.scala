@@ -7,7 +7,7 @@ val port = 8000
 val host = args(0)
 val namespace = args(1)
 val minKey = args(2).toDouble // doubles so can divide later
-val maxKey = args(3).toDouble 
+val maxKey = args(3).toDouble
 val xtrace_on:Boolean = args(4).toBoolean
 
 if (xtrace_on) System.setProperty("xtrace","")
@@ -40,5 +40,3 @@ val start = System.currentTimeMillis()
 for(thread <- threads) thread.start
 for(thread <- threads) thread.join
 println("done warming: "+ ( (System.currentTimeMillis()-start)/1000 ).toString +" seconds elapsed")
-
-

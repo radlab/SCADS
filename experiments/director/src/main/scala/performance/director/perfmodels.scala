@@ -17,10 +17,10 @@ import org.rosuda.REngine.Rserve.RserveException;
 abstract class PerformanceModel {
 	def sample(features:Map[String,String], nSamples:Int): List[Double]
 	def estimateLatency(features:Map[String,String], quantile:Double):Double
-	
+
 	def timeInModel():Long
 	def resetTimer()
-	
+
 	val logger = Logger.getLogger("scads.perfmodel")
 	private val logPath = Director.basedir+"/perfmodel.txt"
 	logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
@@ -30,24 +30,24 @@ abstract class PerformanceModel {
 case class L1PerformanceModel(
 	modelURL:String
 ) extends PerformanceModel {
-	
+
 	var rconn: RConnection = null
 	val latencyOverloadedThreshold = 150
-	
+
 	var timer:Long = 0
-	
+
 	connectToR
 	loadModel
-	
+
 	def connectToR() {
-		try { rconn = new RConnection("127.0.0.1") } catch { 
+		try { rconn = new RConnection("127.0.0.1") } catch {
 			case e:Exception => {
 				logger.warn("can't connect to Rserve on localhost (run R CMD Rserve --RS-workdir <absolute path to scads/experiments/>)")
 				e.printStackTrace
 			}
 		}
 	}
-	
+
 	def loadModel() {
 		rconn.parseAndEval(" source(\"../scripts/perfmodels/l1_perf_model.R\") ")
 		rconn.parseAndEval(" load.libraries() ")
@@ -56,7 +56,7 @@ case class L1PerformanceModel(
 		else
 			rconn.parseAndEval(" load(\""+modelURL+"\") ")
 	}
-	
+
 	def sample(features:Map[String,String], nSamples:Int): List[Double] = {
 		val time0 = new Date
 		val rResult = rconn.parseAndEval(" rq.gp.sample(models,\""+ features("type") +"\","+features("getw")+","+features("putw")+","+nSamples+","+latencyOverloadedThreshold+") ")
@@ -64,11 +64,11 @@ case class L1PerformanceModel(
 		timer += (new Date().getTime-time0.getTime)
 		result
 	}
-	
+
 	def estimateLatency(features:Map[String,String], quantile:Double):Double = {
 		throw new Exception("not implemented")
 	}
-	
+
 	def timeInModel():Long = timer
 	def resetTimer() {timer=0}
 }
@@ -83,10 +83,10 @@ case class BinaryThroughputModel(
 
 	def initialize {
 		val s = description.split(":")
-		
+
 		coefficients = scala.collection.mutable.Map[String,Double]()
 		var scale = scala.collection.mutable.Map[String,Double]()
-		
+
 		s(1).split(",").foreach( k =>
 			if (k.startsWith("scale-"))
 				scale += k.split("=")(0).split("-")(1) -> k.split("=")(1).toDouble
@@ -94,7 +94,7 @@ case class BinaryThroughputModel(
 				coefficients += k.split("=")(0) -> k.split("=")(1).toDouble
 		)
 	}
-	
+
 	def overloaded(getw:Double, putw:Double):Boolean = {
 		coefficients("(Intercept)") + getw*coefficients("getw") + putw*coefficients("putw") > 0
 	}
@@ -104,15 +104,15 @@ case class L1PerformanceModelWThroughput(
 	modelURL:String
 ) extends PerformanceModel {
 	var models = scala.collection.mutable.Map[String,scala.collection.mutable.Map[Double,GetPutLinearModel]]()
-	
+
 	var timer:Long = 0
 	val latencyOverloadedThreshold = 150
 	val latencyOverloadedQuantile = 0.99
-	
+
 	var throughputModel:BinaryThroughputModel = null
-	
+
 	initialize
-	
+
 	def initialize() {
 		val source = if (modelURL.startsWith("http://")) Source.fromURL(modelURL) else Source.fromFile(modelURL)
 		for (modelDescription <- source.getLines) {
@@ -126,7 +126,7 @@ case class L1PerformanceModelWThroughput(
 			}
 		}
 	}
-	
+
 	def estimateLatency(input:Map[String,String], quantile:Double):Double = {
 		val model = models(input("type"))(quantile)
 		if (!throughputModel.overloaded(input("getw").toDouble,input("putw").toDouble)) {
@@ -134,7 +134,7 @@ case class L1PerformanceModelWThroughput(
 			model.predict(features)
 		} else scala.Math.POS_INF_DOUBLE
 	}
-	
+
 	def sample(input:Map[String,String], nSamples:Int): List[Double] = {
 		val time0 = new Date
 		var samples:List[Double] = null
@@ -144,7 +144,7 @@ case class L1PerformanceModelWThroughput(
 			samples = List[Double]()
 		else
 			samples = sampleModels(models(input("type")), input("getw").toDouble, input("putw").toDouble, nSamples)
-		
+
 		timer += (new Date().getTime-time0.getTime)
 		samples
 	}
@@ -158,7 +158,7 @@ case class L1PerformanceModelWThroughput(
 		// pv -- predictions of all the models
 		val features = models.values.toList(0).createFeatures(Map("g"->getw,"p"->putw))
 		val pv = models.values.toList.sort(_.quantile<_.quantile).map(_.predict(features)).toArray
-		
+
 		val rqs = (1 to nSamples).map(i=>Director.nextRndDouble*(maxq-minq)+minq).toList.sort(_<_)
 
 		var qi = 0
@@ -167,22 +167,22 @@ case class L1PerformanceModelWThroughput(
 			pv(qi) + (pv(qi+1)-pv(qi))*(rs-qv(qi))/(qv(qi+1)-qv(qi))
 		}
 	}
-	
+
 	def timeInModel():Long = timer
-	def resetTimer() {timer=0}	
+	def resetTimer() {timer=0}
 }
 
 case class LocalL1PerformanceModel(
 	modelURL:String
 ) extends PerformanceModel {
-	
+
 	var models = scala.collection.mutable.Map[String,scala.collection.mutable.Map[Double,GetPutLinearModel]]()
 	initialize
-	
+
 	var timer:Long = 0
 	val latencyOverloadedThreshold = 150
 	val latencyOverloadedQuantile = 0.99
-	
+
 	def initialize() {
 		val source = if (modelURL.startsWith("http://")) Source.fromURL(modelURL) else Source.fromFile(modelURL)
 		for (modelDescription <- source.getLines) {
@@ -191,7 +191,7 @@ case class LocalL1PerformanceModel(
 			models(model.reqType) += model.quantile -> model
 		}
 	}
-	
+
 	def estimateLatency(input:Map[String,String], quantile:Double):Double = {
 		val model = models(input("type"))(quantile)
 		if (!overloaded(input("getw").toDouble,input("putw").toDouble,latencyOverloadedQuantile,latencyOverloadedThreshold)) {
@@ -199,7 +199,7 @@ case class LocalL1PerformanceModel(
 			model.predict(features)
 		} else scala.Math.POS_INF_DOUBLE
 	}
-	
+
 	def sample(input:Map[String,String], nSamples:Int): List[Double] = {
 		val time0 = new Date
 		var samples:List[Double] = null
@@ -209,7 +209,7 @@ case class LocalL1PerformanceModel(
 			samples = List[Double]()
 		else
 			samples = sampleModels(models(input("type")), input("getw").toDouble, input("putw").toDouble, nSamples)
-		
+
 		timer += (new Date().getTime-time0.getTime)
 		samples
 	}
@@ -223,7 +223,7 @@ case class LocalL1PerformanceModel(
 		// pv -- predictions of all the models
 		val features = models.values.toList(0).createFeatures(Map("g"->getw,"p"->putw))
 		val pv = models.values.toList.sort(_.quantile<_.quantile).map(_.predict(features)).toArray
-		
+
 		val rqs = (1 to nSamples).map(i=>Director.nextRndDouble*(maxq-minq)+minq).toList.sort(_<_)
 
 		var qi = 0
@@ -232,7 +232,7 @@ case class LocalL1PerformanceModel(
 			pv(qi) + (pv(qi+1)-pv(qi))*(rs-qv(qi))/(qv(qi+1)-qv(qi))
 		}
 	}
-	
+
 	def overloaded(getw:Double, putw:Double, quantile:Double, overloadThreshold:Double):Boolean = {
 		val features = models("get")(0.9).createFeatures(Map("g"->getw,"p"->putw))
 		models("get")(quantile).predict(features)>overloadThreshold || models("put")(quantile).predict(features)>overloadThreshold
@@ -252,19 +252,19 @@ case class GetPutLinearModel(
 	var name:String = ""
 	var reqType:String = ""
 	var quantile:Double = -1
-	
+
 	initModel
-	
+
 	def initModel() {
 		val s = modelDescription.split(":")
 		val s0 = s(0).split("-")
 		name = s(0)
 		reqType = s0(0)
 		quantile = s0(1).toDouble/100.0
-		
+
 		coefficients = scala.collection.mutable.Map[String,Double]()
 		scale = scala.collection.mutable.Map[String,Double]()
-		
+
 		s(1).split(",").foreach( k =>
 			if (k.startsWith("scale-"))
 				scale += k.split("=")(0).split("-")(1) -> k.split("=")(1).toDouble
@@ -272,14 +272,14 @@ case class GetPutLinearModel(
 				coefficients += k.split("=")(0) -> k.split("=")(1).toDouble
 		)
 	}
-	
+
 	def predict(features:Map[String,Double]):Double = features.map( f => f._2 * coefficients(f._1) ).reduceLeft(_+_)
-	
+
 	def createFeatures(input:Map[String,Double]):Map[String,Double] = {
 		val features = scala.collection.mutable.Map[String,Double]()
 		val g = input("g") * scale("g")
 		val p = input("p") * scale("p")
-		
+
 		val fs = coefficients.keySet.toList.map( f =>
 			f -> (f match {
 				case "(Intercept)" => 1.0
@@ -313,7 +313,7 @@ case class GetPutLinearModel(
 				case "p3_g2" => Math.pow(p,3)*Math.pow(g,2)
 				case "p4_g2" => Math.pow(p,4)*Math.pow(g,2)
 				case "expp8_g2" => Math.pow( Math.exp(p), 8 )*Math.pow(g,2)
-				case "expp15_g2" => Math.pow( Math.exp(p), 15 )*Math.pow(g,2)				
+				case "expp15_g2" => Math.pow( Math.exp(p), 15 )*Math.pow(g,2)
 			})
 		)
 		Map( fs:_* )

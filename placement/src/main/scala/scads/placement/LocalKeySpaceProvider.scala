@@ -1,10 +1,10 @@
 package edu.berkeley.cs.scads.placement
 
 import scala.collection.mutable.HashMap
-	
+
 
 trait LocalKeySpaceProvider extends KeySpaceProvider {
-	
+
 	var ns_map = new HashMap[String,KeySpace]
 
 	override def getKeySpace(ns: String): KeySpace = { ns_map(ns) }

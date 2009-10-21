@@ -4,4 +4,3 @@ trait KeySpaceProvider {
 	def getKeySpace(ns: String): KeySpace
 	def refreshKeySpace()
 }
-

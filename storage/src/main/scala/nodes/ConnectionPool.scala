@@ -65,7 +65,7 @@ object ConnectionPool {
   def useConnection[ReturnType](node: StorageNode, f: StorageEngine.Client => ReturnType): ReturnType = {
     val conn = checkoutConnection(node)
     assert(conn != null)
-    
+
     val ret = f(conn)
     connections(node).returnObject(conn)
     return ret

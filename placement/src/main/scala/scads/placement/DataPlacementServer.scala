@@ -140,7 +140,7 @@ class SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 		logger.debug("Namespace entry size for "+ ns+ " : "+spaces(ns).size)
 
 		// Sync keys that might have changed
-		src.useConnection((c) => c.sync_set(ns, rset, dest_host+":"+dest_sync, conflictPolicy))		
+		src.useConnection((c) => c.sync_set(ns, rset, dest_host+":"+dest_sync, conflictPolicy))
 	}
 	def move(ns: String, rset: RecordSet, src_host: String, src_thrift: Int, src_sync: Int, dest_host: String, dest_thrift: Int, dest_sync: Int) {
 		val target_range = rangeSetToKeyRange(rset.range)
@@ -213,23 +213,23 @@ class SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 case class RunnableDataPlacementServer(port:Int) extends Runnable {
 	val serverthread = new Thread(this, "DataPlacementServer-" + port)
 	serverthread.start
-	
+
 	def run() {
 		val logger = Logger.getLogger("placement.dataplacementserver")
 		try {
 			val serverTransport = new TNonblockingServerSocket(port)
 	    	val processor = new KnobbedDataPlacementServer.Processor(new SimpleKnobbedDataPlacementServer)
-			val protFactory = 
+			val protFactory =
 				if (System.getProperty("xtrace")!=null) {new XtBinaryProtocol.Factory(true, true)} else {new TBinaryProtocol.Factory(true, true)}
 	    	val options = new THsHaServer.Options
 			options.maxWorkerThreads=4
 			options.minWorkerThreads=2
 			val server = new THsHaServer(processor, serverTransport,protFactory,options)
-    
+
 			if (System.getProperty("xtrace")!=null) { logger.info("Starting data placement with xtrace enabled") }
 			logger.info("Starting data placement server on "+port)
 	    	server.serve()
-	  	} catch { 
+	  	} catch {
 	    	case x: Exception => x.printStackTrace()
 	  	}
 	}

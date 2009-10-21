@@ -18,7 +18,7 @@ case class MetricReader {
 	val interval = 20.0
 	val report_prob = 0.02
 	var connection:Connection = null
-	
+
 	def connectToDatabase() {
         // open connection to the database
         try {
@@ -90,11 +90,11 @@ case class BaselineDirector(placement_host:String, xtrace_on:Boolean, namespace:
 	val myscads = new Scads("director",xtrace_on,namespace)
 	val sla = 5
 	val max_workload = 100
-	
+
 	def run = {
 		updateServerList
 		while (running) {
-			
+
 			// obverve workload, ratio of gets and get_sets on each storage node over last interval
 			server_hosts.foreach((s)=> {
 				// look at each server's latency, if above threshold, start another server for split
@@ -103,7 +103,7 @@ case class BaselineDirector(placement_host:String, xtrace_on:Boolean, namespace:
 				if (load > max_workload) {  // SLA violation!
 					myscads.addServers(1)
 					val new_guy = myscads.servers.peekLast
-				
+
 					// determine current range and split-point to give new server
 					val bounds = getNodeRange(s)
 					val start = bounds._1
@@ -115,12 +115,12 @@ case class BaselineDirector(placement_host:String, xtrace_on:Boolean, namespace:
 					move(s,new_guy.privateDnsName,middle,end)
 					updateServerList
 				}
-	
+
 			})
 			Thread.sleep(10000)
-			
+
 			// now look at each pair of adjacent nodes, is their combined workload low enough to merge?
-			var id = 0  
+			var id = 0
 			while (id <= server_hosts.size-1 && id <= server_hosts.size-2) {
 				// get workload for two adjacent hosts
 				val load1 = reader.getWorkload(server_hosts(id))
@@ -142,7 +142,7 @@ case class BaselineDirector(placement_host:String, xtrace_on:Boolean, namespace:
 				}
 				id+=1
 			}
-			
+
 			Thread.sleep(5000)
 		}
 	}
@@ -156,7 +156,7 @@ abstract class Director extends Runnable with RangeConversion with AutoKey {
 	def sla:Int // latency ms
 	def max_workload:Int // workload one storage server can sustain to be within sla
 	var server_hosts = new scala.collection.mutable.ListBuffer[String]
-	
+
 	protected def updateServerList = {
 		server_hosts.clear
 		val dp = Scads.getDataPlacementHandle(placement_host,xtrace_on)
@@ -169,26 +169,26 @@ abstract class Director extends Runnable with RangeConversion with AutoKey {
 	}
 
 	def run
-	
-	protected def getNodeRange(host:String):(Int, Int) = {	
+
+	protected def getNodeRange(host:String):(Int, Int) = {
 		val dp = Scads.getDataPlacementHandle(placement_host,xtrace_on)
 		val s_info = dp.lookup_node(namespace,host,Scads.server_port,Scads.server_sync)
 		val range = s_info.rset.range
 		(Scads.getNumericKey( StringKey.deserialize_toString(range.start_key,new java.text.ParsePosition(0)) ),
 		Scads.getNumericKey( StringKey.deserialize_toString(range.end_key,new java.text.ParsePosition(0)) ))
 	}
-	
+
 	protected def move(source_host:String, target_host:String,startkey:Int, endkey:Int) = {
 		val dpclient = Scads.getDataPlacementHandle(placement_host,xtrace_on)
 		val range = new KeyRange(new StringKey(Scads.keyFormat.format(startkey)), new StringKey(Scads.keyFormat.format(endkey)) )
 		dpclient.move(namespace,range, source_host, Scads.server_port,Scads.server_sync, target_host, Scads.server_port,Scads.server_sync)
 	}
-	
+
 	protected def copy(source_host:String, target_host:String,startkey:Int, endkey:Int) = {
 		val dpclient = Scads.getDataPlacementHandle(placement_host,xtrace_on)
 		val range = new KeyRange(new StringKey(Scads.keyFormat.format(startkey)), new StringKey(Scads.keyFormat.format(endkey)) )
 		dpclient.copy(namespace,range, source_host, Scads.server_port,Scads.server_sync, target_host, Scads.server_port,Scads.server_sync)
-		
+
 	}
 	protected def remove(host:String) = {
 		val dpclient = Scads.getDataPlacementHandle(placement_host,xtrace_on)

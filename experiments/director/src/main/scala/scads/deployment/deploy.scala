@@ -14,17 +14,17 @@ case class SCADSDeployment(
 	var clients:ScadsClients = null
 	var monitoring:SCADSMonitoringDeployment = null
 	var director:DirectorDeployment = null
-	
+
 	var deployDirectorToMonitoring = true
-	
+
 	var experimentsJarURL = "http://scads.s3.amazonaws.com/experiments-1.0-jar-with-dependencies.jar"
-	
+
 	ScadsDeploy.initLogger
-	
+
 	private var _deployed = false
 	var deployer:Deployer = null
 	var deployerThread:Thread = null
-	
+
 	/**
 	* This will load an existing deployment of scads based on the deployment name
 	*/
@@ -34,7 +34,7 @@ case class SCADSDeployment(
 		monitoring = SCADSMonitoringDeployment.loadState(deploymentName,scads)
 		director = DirectorDeployment.loadState(deploymentName,scads,monitoring)
 	}*/
-	
+
 	// parameters to add:
 	// how many scads hot-standby's?
 	// initial configuration and dataset
@@ -52,7 +52,7 @@ case class SCADSDeployment(
 				if (nClients>0) clients = ScadsClients(myscads,nClients)
 				if (deployDirector) director = DirectorDeployment(myscads,monitoring,deployDirectorToMonitoring)
 
-				val components = List[Component](myscads,clients,monitoring,director)		
+				val components = List[Component](myscads,clients,monitoring,director)
 				components.filter(_!=null).foreach(_.boot) 				// boot up all machines
 				components.filter(_!=null).foreach(_.waitUntilBooted) 	// wait until all machines booted
 				if (doMonitoring) myscads.setMonitor(monitoring.monitoringVM.privateDnsName)	// inform scads component of monitor
@@ -63,10 +63,10 @@ case class SCADSDeployment(
 				ScadsDeploy.logger.info("summary:\n"+summary)
 
 				_deployed = true
-			} catch { case e:Exception => ScadsDeploy.logger.error("SCADS deployment error:\n",e) }	
+			} catch { case e:Exception => ScadsDeploy.logger.error("SCADS deployment error:\n",e) }
 		}
 	}
-	
+
 	def deploy(nClients:Int, extra_servers:Int, deployMonitoring:Boolean, deployDirector:Boolean) {
 		deployer = Deployer(nClients, extra_servers,deployMonitoring, deployDirector)
 		deployerThread = new Thread(deployer)
@@ -74,11 +74,11 @@ case class SCADSDeployment(
 
 		ScadsDeploy.logger.info("deploying SCADS in the background; call .deployed to check if deployed")
 	}
-	
+
 	def waitUntilDeployed = while (!deployed) Thread.sleep(1000)
-	
+
 	def deployed = _deployed
-	
+
 	def startWorkload(workload:WorkloadDescription) {
 		if (clients!=null) {
 			stopWorkload
@@ -91,19 +91,19 @@ case class SCADSDeployment(
 			clients.startWorkload(maxUsers,"http://scads.s3.amazonaws.com/workload/",s3_filename,false)
 		} else ScadsDeploy.logger.debug("can't start workload; no clients running")
 	}
-	
+
 	def stopWorkload() = clients.stopWorkload
-	
+
 	def processLogFiles(nameOfExperiment:String) {
 		if (clients!=null) {
 			ScadsDeploy.logger.debug("processing log files from experiment")
 			clients.processLogFiles(nameOfExperiment,true)
-		} else 
+		} else
 			ScadsDeploy.logger.debug("can't process log files; no clients running")
 	}
-	
+
 //	def pullExperimentData
-	
+
 	/**
 	* Create a page on http://scm/scads/keypair_deploymentName.html that contains important links for this deployment:
 	* chukwa ping, performance graphs, director logs, ...
@@ -115,12 +115,12 @@ case class SCADSDeployment(
 		"placement: "+ (try { placementVM.publicDnsName } catch { case _ => "NULL" }) + "\n" +
 		"storage: "+ (try { storageVMs.map(_.publicDnsName).mkString(" ") } catch { case _ => "NULL" })
 	}
-	
+
 	def clientVMs:InstanceGroup = if (clients==null) { new InstanceGroup() } else clients.clients
 	def monitoringVM:Instance = if (monitoring==null) null else monitoring.monitoringVM
 	def directorVM:Instance = if (director==null) null else director.directorVM
 	def storageVMs:InstanceGroup = if (myscads==null) null else myscads.servers
 	def placementVM:Instance = if (myscads==null) null else myscads.placement.get(0)
-	
+
 	def tailStorageLog(serverI:Int, nLines:Int):String = { storageVMs.get(serverI).exec("tail -n 10 /mnt/services/scads_bdb_storage_engine/log/current").getStdout }
 }

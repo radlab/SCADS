@@ -1,5 +1,5 @@
 package scads.deployment
- 
+
 import deploylib._ /* Imports all files in the deployment library */
 import org.json.JSONObject
 import org.json.JSONArray
@@ -128,7 +128,7 @@ extends Component with RangeConversion {
 		dataRecipe.put("scads::dbs")
 		val dataConfig = new JSONObject()
 		dataConfig.put("recipes", dataRecipe)
-	
+
 		server.exec("sv stop /mnt/services/scads_bdb_storage_engine")
 		server.exec("rm -rf /mnt/scads/data")
 		ScadsDeploy.logger.debug("scads deploying default data") // server.exec("wget ...")
@@ -176,7 +176,7 @@ extends Component with RangeConversion {
 				returnValue = call
 				done = true
 			} catch {
-				case e: Exception => { 
+				case e: Exception => {
 					ScadsDeploy.logger.debug("exception; will wait and retry")
 					Thread.sleep(delay)
 					recovery
@@ -223,7 +223,7 @@ extends Component with RangeConversion {
 			val placementConfig = if (deployMonitoring) { placementRecipes.put("chukwa::default"); ScadsDeploy.getXtraceIntoConfig(monitorIP) } else { new JSONObject() }
 	 		placementRecipes.put("scads::data_placement")
 		    placementConfig.put("recipes", placementRecipes)
-			
+
 			ScadsDeploy.logger.debug("scads: deploying placement")
 			placement.deploy(placementConfig)
 			ScadsDeploy.logger.debug("scads: deployed placement")

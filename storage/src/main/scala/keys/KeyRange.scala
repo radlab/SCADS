@@ -98,4 +98,3 @@ case class KeyRange(start: Key, end: Key) {
 	private def max(a: Key, b: Key) = if(a > b) a else b
 	private def coalesce(a: Key, b:Key) = if(a != null) a else b
 }
-

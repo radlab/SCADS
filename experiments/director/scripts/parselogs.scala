@@ -14,15 +14,15 @@ val fractionReported = args(3).toDouble //0.2
 val datadir = "/tmp/parselogs/"+outputFilename+"/"
 (new File(datadir)).mkdirs()
 
-val result = MapReduce.mapreduce( List(filename), datadir, (s:String)=>mapByEndtime(s,interval), 
+val result = MapReduce.mapreduce( List(filename), datadir, (s:String)=>mapByEndtime(s,interval),
 									List(latencyReducer, (s:List[String]) => workloadReducer(s,"throughput",interval,fractionReported)) )
-									
-val result2 = MapReduce.mapreduce( List(filename), datadir, (s:String)=>mapByStarttime(s,interval), 
+
+val result2 = MapReduce.mapreduce( List(filename), datadir, (s:String)=>mapByStarttime(s,interval),
 									List(uniqueUsersReducer, (s:List[String]) => workloadReducer(s,"workload",interval,fractionReported)) )
 
 val finalResult = result.combine(result2)
 finalResult.saveToFile( outputFilename, "time" )
-	
+
 
 def mapByStarttime( line:String, interval:Long ): (String,String) = ( (line.split(",")(columns("starttime")).toLong/interval*interval).toString, line.stripLineEnd)
 def mapByEndtime( line:String, interval:Long ): (String,String) = ( (line.split(",")(columns("endtime")).toLong/interval*interval).toString, line.stripLineEnd)
@@ -70,22 +70,22 @@ def workloadReducer( lines:List[String], outColumnName:String, interval:Long, fr
 }
 
 
-object MapReduce {	
+object MapReduce {
 	var outfiles = Map[String,BufferedWriter]()
 
 	def mapreduce( files: List[String], datadir: String, mapF: String => (String,String), reduceFs: List[ List[String]=>Map[String,String] ] ): MapReduceResult = {
 		(new File(datadir)).mkdirs()
 		deleteDirectory(new File(datadir))
 		outfiles = Map[String,BufferedWriter]()
-		
+
 		mapper( files, datadir, mapF )
 		for (file <- outfiles.values) file.close
 		val result = reduceFs.map( reducer( datadir, _ ) ).reduceLeft(_.combine(_))
-		
+
 		deleteDirectory(new File(datadir))
 		result
 	}
-	
+
 	def mapper( files: List[String], outdir: String, mapF: String => (String,String) ) = {
 		for (file <- files) {
 			for (line <- Source.fromFile(filename).getLines) {
@@ -120,7 +120,7 @@ class MapReduceResult(
 		}
 		new MapReduceResult( Map.empty ++ m	)
 	}
-	
+
 	def saveToFile( filename: String, keyName: String ) {
 		val allkeys = data.keySet.toList.sort(_<_)
 		val allcolumns = data.values.map(_.keySet).reduceLeft( Set.empty ++ _ ++ _ ).toList.sort(_<_)
@@ -161,6 +161,6 @@ def computeSkewness( data:List[Double] ):Double = {
 		val m=s/n
 		val m3=data.map(_-m).map(a=>a*a*a).reduceLeft(_+_)/n
 		val m2=data.map(_-m).map(a=>a*a).reduceLeft(_+_)/n
-		m3/Math.pow(m2,1.5)*Math.pow((n-1)/n,1.5) 
+		m3/Math.pow(m2,1.5)*Math.pow((n-1)/n,1.5)
 	}
 }

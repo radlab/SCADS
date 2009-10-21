@@ -33,19 +33,19 @@
 
 	<target name="compile" depends="thrift">
 		<mkdir dir="${build.dir}"/>
-		
+
 		<javac srcdir="gen-java/" destdir="${build.dir}" classpathref="project.classpath">
 			<include name="**/*.java"/>
 		</javac>
-		
+
 		<scalac srcdir="../placement/src/" destdir="${build.dir}" classpathref="project.classpath" force="changed" deprecation="yes">
 			<include name="**/*.scala"/>
 		</scalac>
-		
+
 		<scalac srcdir="src/" destdir="${build.dir}" classpathref="project.classpath" force="changed" deprecation="yes">
 			<include name="**/*.scala"/>
 		</scalac>
-		
+
 		<javac srcdir="src/" destdir="${build.dir}" classpathref="project.classpath">
 			<include name="**/*.java"/>
 		</javac>
@@ -81,7 +81,7 @@
 			<arg value="../placement/clientlibrary.thrift"/>
 		</exec>
 	</target>
-	
+
 	<!-- 7. Build a jar -->
 	<target name="jar" depends="compile">
 		<mkdir dir="${jar.dir}"/>

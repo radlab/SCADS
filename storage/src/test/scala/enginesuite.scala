@@ -15,7 +15,7 @@ class NodeTest extends Suite {
         assert(n.useConnection((c) => c.get("test", "test")) == new Record("test", null))
     }
   }
-  
+
   def testHarness() {
 	val sn = new TestableSimpleStorageNode()
 	val bn = new TestableBdbStorageNode()

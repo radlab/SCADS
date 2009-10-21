@@ -18,16 +18,16 @@ case class SimpleHysteresis(
 	overprovision:Double
 ) extends WorkloadPrediction {
 	var prediction: WorkloadHistogram = null
-	
+
 	def initialize { prediction = null }
-	
+
 	def addHistogram(histogram:WorkloadHistogram) {
 		if (prediction==null) prediction = histogram
 		else prediction = prediction.doHysteresis(histogram,alpha_up,alpha_down)
 		//else if (histogram > prediction) prediction = prediction + (histogram - prediction)*alpha_up
 		//else prediction = prediction + (histogram - prediction)*alpha_down
 	}
-	
+
 	def getPrediction():WorkloadHistogram = { try{prediction*(1+overprovision)} catch {case _ => null} }
 	def getParams:Map[String,String] = Map("alpha_up"->alpha_up.toString,"alpha_down"->alpha_down.toString,"safety"->overprovision.toString)
 }
@@ -44,40 +44,40 @@ case class ForecastWithHysteresis(
 	forecastInterval:Long
 ) extends WorkloadPrediction {
 	var prediction: WorkloadHistogram = null
-	
+
 	var workloadData = scala.collection.mutable.Map[Long,Double]()
 	var workloadModel:LinearRegression1D = null
-	
-	def initialize { 
-		prediction = null 
+
+	def initialize {
+		prediction = null
 		workloadData = scala.collection.mutable.Map[Long,Double]()
 	}
-	
+
 	def addHistogram(histogram:WorkloadHistogram) {
 		//TODO: fix the time, use policy time instead real time (will not work in simulation)
 		val now = new java.util.Date().getTime
 		workloadData += now -> histogram.totalRate
 		workloadData = scala.collection.mutable.Map( workloadData.toList.filter(_._1>now-forecastDataInterval):_* )
-		
+
 		if (workloadData.size>=5)
 			workloadModel = LinearRegression1D( workloadData.toList.sort(_._1<_._1).map(_._1-now), workloadData.toList.sort(_._1<_._1).map(_._2) )
 		else {
 			workloadModel = null
 			Director.logger.info("don't have workload forecast model")
 		}
-			
+
 		val forecastedHistogram = if (workloadModel!=null) {
 								val w0 = histogram.totalRate
 								val wp = workloadModel.getPrediction(forecastInterval)
 								Director.logger.info("have workload forecast model. ratio = "+wp+"/"+w0+" = "+(wp/w0))
 								histogram * (wp / w0)
 							} else histogram
-		
+
 		if (prediction==null) prediction = forecastedHistogram
 		else if (forecastedHistogram > prediction) prediction = prediction + (forecastedHistogram - prediction)*alpha_up
 		else prediction = prediction + (forecastedHistogram - prediction)*alpha_down
 	}
-	
+
 	def getPrediction():WorkloadHistogram = { try{prediction*(1+overprovision)} catch {case _ => null} }
 	def getParams:Map[String,String] = Map("alpha_up"->alpha_up.toString,"alpha_down"->alpha_down.toString,"safety"->overprovision.toString,
 											"forecastDataInterval"->forecastDataInterval.toString,"forecastInterval"->forecastInterval.toString)
@@ -97,14 +97,14 @@ case class MeanPlusVariancePrediction(
 	nStdevs:Int
 ) extends WorkloadPrediction {
 	var histogramWindow = new scala.collection.mutable.ListBuffer[WorkloadHistogram]()
-	
+
 	def initialize { histogramWindow = new scala.collection.mutable.ListBuffer[WorkloadHistogram]() }
-	
+
 	def addHistogram(histogram:WorkloadHistogram) {
 		if (histogramWindow.size >= windowLength) { histogramWindow.remove(0) }
 		histogramWindow += histogram
 	}
-	
+
 	def getPrediction():WorkloadHistogram = {
 		null
 	}
@@ -119,20 +119,20 @@ case class LinearRegression1D(
 ) {
 	assert(x.size==y.size,"length of x and y must be the same")
 	assert(x.size>1,"need at least 2 datapoints")
-	
+
 	val (alpha0,alphax) = fit
-	
+
 	def getPrediction(xnew:Double):Double = alpha0 + alphax*xnew
-	
+
 	def fit:(Double,Double) = {
 		Director.logger.debug("got data for workload forecast:\nx="+x+"\ny="+y)
-		
+
 		val sumx = x.reduceLeft(_+_)
 		val sumx2 = x.map(xi=>xi*xi).reduceLeft(_+_)
 		val sumy = y.reduceLeft(_+_)
 		val sumxy = x.zip(y).map(xyi=>xyi._1*xyi._2).reduceLeft(_+_)
 		val n = x.size
-		
+
 		val cx = (n*sumxy - sumy*sumx)/(n*sumx2-sumx*sumx)
 		val c0 = sumy/n - cx*sumx/n
 		(c0,cx)

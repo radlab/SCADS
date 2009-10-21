@@ -16,12 +16,12 @@ import org.apache.log4j.Level._
 object Plotting {
 	var rconn: RConnection = null
 	var dir = ""
-	
+
 	var logger:Logger = null
-	
+
 	var keepPlotting = false
-	
-	def initialize(dir:String) { 
+
+	def initialize(dir:String) {
 		connectToR
 		this.dir = dir
 		(new File(dir)).mkdirs()
@@ -33,19 +33,19 @@ object Plotting {
 		logger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),logPath,false) )
 		logger.setLevel(DEBUG)
 	}
-	
+
 	def connectToR() {
-		try { 
-			rconn = new RConnection("127.0.0.1") 
+		try {
+			rconn = new RConnection("127.0.0.1")
 			rconn.parseAndEval(" source(\"../scripts/plotting/scads_plots.R\") ")
-		} catch { 
+		} catch {
 			case e:Exception => {
 				logger.warn("can't connect to Rserve on localhost (run R CMD Rserve --RS-workdir <absolute path to scads/experiments/>)")
 				e.printStackTrace
 			}
-		}		
+		}
 	}
-	
+
 	def plotSCADSState(state:SCADSState, time0:Long, time1:Long, latency90pThr:Double, file:String) {
 		if (rconn==null) logger.warn("don't have connection to R, can't plot")
 		else {
@@ -57,18 +57,18 @@ object Plotting {
 			}
 		}
 	}
-	
+
 	def startPlotting {
-		keepPlotting = true	
+		keepPlotting = true
 		val plotter = new Plotter()
 		val plotterThread = new Thread(plotter)
-		plotterThread.start		
+		plotterThread.start
 	}
-	
+
 	def stopPlotting {
 		keepPlotting = false
 	}
-	
+
 	case class Plotter() extends Runnable {
 		def run = {
 			while (keepPlotting) {
@@ -77,17 +77,17 @@ object Plotting {
 			}
 		}
 	}
-	
+
 	def plotSimpleDirectorAndConfigs() {
 		if (rconn==null) logger.warn("don't have connection to R, can't plot")
 		else {
 			try {
-				val time = new java.util.Date().getTime				
+				val time = new java.util.Date().getTime
 				logger.info("plotting director.simple")
 				rconn.parseAndEval("  plot.director.simple( out.file=\""+dir+"/past_plots/director_"+time+".png\")  ")
 				Director.exec("cp '"+dir+"/past_plots/director_"+time+".png' '"+dir+"/director.png'")
 				logger.info("done")
-				
+
 				logger.info("not plotting configs")
 				//logger.info("plotting configs")
 				//rconn.parseAndEval("  plot.configs( out.file=\""+dir+"/past_plots/configs_"+time+".png\")  ")
@@ -99,5 +99,5 @@ object Plotting {
 			}
 		}
 	}
-		
+
 }

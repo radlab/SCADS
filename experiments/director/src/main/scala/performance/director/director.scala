@@ -18,11 +18,11 @@ case class Director(
 	policy:Policy,
 	costFunction:FullCostFunction,
 	experimentName:String
-) {	
+) {
 	val actionExecutor = ActionExecutor()
-	
+
 	var plottingPeriod:Long = 1*60*1000
-	val period:Long = 20*1000	
+	val period:Long = 20*1000
 	var costUpdatePeriod:Long = 10*60*1000
 
 //	val metricReader = new MetricReader(Director.databaseHost,"metrics",period,0.02)
@@ -31,18 +31,18 @@ case class Director(
 	var myscads:scads.deployment.Scads = null
 	var placementIP:String = null
 	var putRestrictionURL:String = null
-	
+
 	var directorRunner:Runner = null
 	var serverManager:ScadsServerManager = null
 
 	Director.startRserve
-	setDeployment(deploymentName)	
+	setDeployment(deploymentName)
 	Director.dropDatabases
 	SCADSState.initLogging("localhost",6001)
 	Plotting.initialize(Director.basedir)
 	Plotting.startPlotting
 	policy.initialize
-	
+
 	val lowLevelActionMonitor = LowLevelActionMonitor("director","lowlevel_actions")
 	val stateHistory = SCADSStateHistory(period,metricReader,placementIP,policy)
 
@@ -59,16 +59,16 @@ case class Director(
 			while (running) {
 				policy.perform(stateHistory.getMostRecentState,actionExecutor)
 				actionExecutor.execute
-				
+
 				if (new Date().getTime>lastCostUpdateTime+costUpdatePeriod) {
 					costFunction.dumpToDB
 					lastCostUpdateTime = new Date().getTime
 				}
-				
+
 				Thread.sleep(period)
 			}
 		}
-		def stop = { 
+		def stop = {
 			running = false
 			Plotting.stopPlotting
 			Director.logger.info("done directing")
@@ -116,7 +116,7 @@ case class Director(
 		serverManager = new ScadsServerManager(deploy_name, myscads.deployMonitoring, Director.namespace)
 		placementIP = myscads.placement.get(0).privateDnsName
 		actionExecutor.setPlacement(placementIP) // tell action executor about placement
-		
+
 		// figure out which scads servers are registered with data placement, and which ones are standbys
 		val dpentries = ScadsDeploy.getDataPlacementHandle(myscads.placement.get(0).privateDnsName,Director.xtrace_on).lookup_namespace(Director.namespace)
 
@@ -141,7 +141,7 @@ case class Director(
 		val dpclient = ScadsDeploy.getDataPlacementHandle(placementIP,Director.xtrace_on)
 		assert( dpclient.lookup_namespace(Director.namespace).size > 0, "Placement server has no storage nodes registered" )
 		Director.logger.info("Will be directing with placement host: "+placementIP)
-		
+
 		directorRunner = new Runner(policy,costFunction,placementIP)
 		val runthread = new Thread(directorRunner)
 		runthread.start
@@ -158,14 +158,14 @@ case class Director(
 
 object Director {
 	var director:Director = null
-	
+
 	var LOG_ACTIONS = true
-	
+
 	val dateFormat = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss");
 	val logPattern = "%d %5p %c - %m%n"
 	var startDate = dateFormat.format(new Date)
 	var basedir = "/tmp/director/logs_"+startDate+"/"
-	
+
 	val xtrace_on = true
 	val namespace = "perfTest256"
 	var putRestrictionURL:String = null
@@ -176,14 +176,14 @@ object Director {
 	val databasePassword = ""
 
 	private var rnd = new java.util.Random(7)
-	
+
 	val delay = 20*1000
-	
+
 	var logger:Logger = null
 	var summaryLogger:Logger = null
-	
+
 	initialize("")
-	
+
 	Director.exec("rm -f "+Director.basedir+"../current")
 	Director.exec("ln -s "+Director.basedir+" "+Director.basedir+"../current")
 
@@ -205,20 +205,20 @@ object Director {
 		summaryLogger.setLevel(DEBUG)
 
 		Logger.getRootLogger.removeAllAppenders
-		Logger.getRootLogger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),Director.basedir+"/all.txt",false) )		
+		Logger.getRootLogger.addAppender( new FileAppender(new PatternLayout(Director.logPattern),Director.basedir+"/all.txt",false) )
 	}
 
-	def resetRnd(seed:Int) { 
+	def resetRnd(seed:Int) {
 		//Director.logger.debug("RND: resetting using seed="+seed)
-		rnd = new java.util.Random(seed) 
+		rnd = new java.util.Random(seed)
 	}
-	
+
 	def nextRndInt(n:Int):Int = {
 		val i = rnd.nextInt(n)
 		//Director.logger.debug("RND: nextInt = "+i)
 		i
 	}
-	
+
 	def nextRndDouble():Double = {
 		val x = rnd.nextDouble()
 		//Director.logger.debug("RND: nextDouble = "+x)
@@ -251,7 +251,7 @@ object Director {
 	}
 
 	def connectToDatabase():Connection = connectToDatabase(databaseHost)
-	
+
 	def connectToDatabase(_dbhost:String):Connection = {
         try {
             Class.forName("com.mysql.jdbc.Driver").newInstance()

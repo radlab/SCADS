@@ -35,7 +35,7 @@ case class TrivialKeySpace(node: StorageNode) extends KeySpace {
 @serializable
 class SimpleKeySpace extends KeySpace {
 	import scala.util.Sorting
-	
+
 	var space = Map[StorageNode, KeyRange]()
 
 	def assign(node: StorageNode, range: KeyRange) =

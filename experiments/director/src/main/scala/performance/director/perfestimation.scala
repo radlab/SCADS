@@ -28,9 +28,9 @@ case class PerformanceStats(
 
 abstract class PerformanceEstimator {
 	/**
-	* Estimate the performance of this configuration under the specified workload 
+	* Estimate the performance of this configuration under the specified workload
 	* for the specified time (in seconds) while executing the actions
-	*/	
+	*/
 	def estimatePerformance(config:SCADSconfig, workload:WorkloadHistogram, durationInSec:Int, actions:List[Action]): PerformanceStats
 	def estimateApproximatePerformance(config:SCADSconfig, workload:WorkloadHistogram, durationInSec:Int, actions:List[Action], quantile:Double): PerformanceStats
 }
@@ -106,13 +106,13 @@ object PerformanceEstimator {
 				serverWorkload(s) = serverWorkload.getOrElse(s,WorkloadFeatures(0,0,0)).add(rangeStats(hr).restrictAndSplit(ss.size,restrict,0.0))
 			}
 		}
-		Map[String,WorkloadFeatures]()++serverWorkload		
+		Map[String,WorkloadFeatures]()++serverWorkload
 	}
 
 	def test() {
 /*		import performance._
 		import scads.director._
-*/		
+*/
 		val c0 = SCADSconfig.getInitialConfig( DirectorKeyRange(0,10000) )
 		val a0 = SplitInTwo( c0.storageNodes.keySet.toList.first,5000 )
 		val c1 = a0.preview(c0)
@@ -139,7 +139,7 @@ object PerformanceEstimator {
 case class SimplePerformanceEstimator(
 	val perfmodel:PerformanceModel
 ) extends PerformanceEstimator {
-	
+
 	/**
 	* predict performance when running 'workload' on 'servers' for 'duration' seconds and also executing 'actions'
 	*/
@@ -147,7 +147,7 @@ case class SimplePerformanceEstimator(
 		val servers = config.storageNodes
 		val serverWorkload = PerformanceEstimator.estimateServerWorkload(config,workload)
 /*		serverWorkload.map( x=>(x._1,x._2) ).toList.sort(_._1<_._1).foreach( x=> println(x._1+"   "+x._2) )*/
-		
+
 		var stats = PerformanceStats(durationInSec,0,0,0,0,0,0,0,0,0)
 		for (s <- servers.keySet) {
 			if (!serverWorkload.contains(s)) {

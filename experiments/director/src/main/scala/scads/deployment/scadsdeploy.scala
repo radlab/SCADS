@@ -29,7 +29,7 @@ object ScadsDeploy {
 	//var requestSamplingProbability = 0.02
 	var getSamplingProbability = 0.02
 	var putSamplingProbability = 0.40
-	
+
 	var logger:Logger = null
 
 	def initLogger {
@@ -144,5 +144,3 @@ case class ScadsDP(h:String, xtrace_on: Boolean, namespace: String) extends Rang
 		}
 	}
 }
-
-

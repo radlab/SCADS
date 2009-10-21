@@ -1,5 +1,5 @@
 package performance
- 
+
 import deploylib._ /* Imports all files in the deployment library */
 import org.json.JSONObject
 import org.json.JSONArray
@@ -194,14 +194,14 @@ case class ScadsClients(scadsName: String, xtrace_on: Boolean, namespace: String
 	def setCollector(dns:String) =  { collector = dns }
 
 	def getName(): String = scadsName
-	
+
 	def loadState() = {
 		clients = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+getName+"--client", true )
 		if (xtrace_on) collector = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+getName+"--chukwa_collector",true ).get(0).privateDnsName
 		deps = clients.get(0).exec("cd /opt/scads/experiments; cat cplist").getStdout.replace("\n","") + ":../target/classes"
 		getPlacement
 	}
-	
+
 	def getPlacement = {
 		while (host== null) {
 			println("Attempting to acquire placement server address")
@@ -227,7 +227,7 @@ case class ScadsClients(scadsName: String, xtrace_on: Boolean, namespace: String
 	}
 	def warm_cache(ns: String, minK:Int, maxK:Int) = {
 		println("Warming server caches.")
-		val cmd = "cd /opt/scads/experiments/scripts; scala -cp "+ deps + " warm_cache.scala " + 
+		val cmd = "cd /opt/scads/experiments/scripts; scala -cp "+ deps + " warm_cache.scala " +
 					host + " "+ ns +" " + minK + " " + maxK +" "+xtrace_on
 		clients.get(0).exec(cmd)
 		println("Done warming.")
@@ -237,7 +237,7 @@ case class ScadsClients(scadsName: String, xtrace_on: Boolean, namespace: String
 		val testthread = new Thread(new WorkloadDescRunner(workload))
 		testthread.start
 	}
-	
+
 	case class WorkloadDescRunner(workload:WorkloadDescription) extends Runnable {
 		def run() = {
 			startWorkload(workload)
@@ -249,9 +249,9 @@ case class ScadsClients(scadsName: String, xtrace_on: Boolean, namespace: String
 		val totalUsers = (workload.getMaxNUsers/clients.size+1)*clients.size
 		val workloadFile = "/tmp/workload.ser"
 		workload.serialize(workloadFile)
-		
+
 		println("This workload should run for "+"%.2f".format(workload.workload.map(_.duration).reduceLeft(_+_).toDouble/1000/60) +" minutes")
-		
+
 		// determine ranges to give each client
 		assert( totalUsers % clients.size == 0, "deploy_scads: can't evenly divide number of users amongst client instances")
 
@@ -267,7 +267,7 @@ case class ScadsClients(scadsName: String, xtrace_on: Boolean, namespace: String
 			new Thread( new StartWorkloadRequest(clients.get(id), workloadFile, cmd) )
 		})
 		for(thread <- threads) thread.start
-		for(thread <- threads) thread.join		
+		for(thread <- threads) thread.join
 	}
 	case class StartWorkloadRequest(client: Instance, workloadFile: String, cmd: String) extends Runnable {
 		override def run() = {
@@ -276,33 +276,33 @@ case class ScadsClients(scadsName: String, xtrace_on: Boolean, namespace: String
 			result
 		}
 	}
-	
+
 	def processLogFiles(experimentName:String, parseAndPlot:Boolean) {
 		val client0 = clients.get(0)
 		val targetIP = client0.privateDnsName
 		client0.exec( "mkdir -p /mnt/logs/"+experimentName+"/clients/" )
 		client0.exec("ln -s /mnt/logs/ /var/www/")
-		
-		for (c <- clients) { 
+
+		for (c <- clients) {
 			val f=experimentName+"_"+c.privateDnsName+".log"
 			val df="/tmp/"+f
 			val cmd="cat /mnt/xtrace/logs/* > "+f+" && scp -o StrictHostKeyChecking=no "+f+" "+targetIP+":/mnt/logs/"+experimentName+"/clients/"+f
 			//println(cmd)
-			c.exec(cmd) 
+			c.exec(cmd)
 			c.exec( "rm -f /mnt/xtrace/logs/*" )
 		}
-		
+
 		val expDir = "/mnt/logs/"+experimentName
 		val sourceF = expDir+"/"+experimentName+".log"
 		client0.exec( "cat /mnt/logs/"+experimentName+"/clients/* > "+sourceF)
 		client0.exec( "ulimit -n 20000" )
-				
+
 		if (parseAndPlot)
 			for (i <- List(1,5,10)) {
 				client0.exec( "scala /opt/scads/experiments/scripts/parselogs.scala "+sourceF+" "+expDir+"/"+experimentName+"_agg"+i+".csv "+i*1000+" 1")
 				client0.exec( "echo \"source('/opt/scads/experiments/scripts/process.R'); pdf('"+expDir+"/"+experimentName+"_agg"+i+".pdf',width=10,height=15); plot.stats.for.file('"+expDir+"/"+experimentName+"_agg"+i+".csv') \" | R --vanilla")
 			}
-		
+
 	}
 }
 
@@ -311,14 +311,14 @@ case class Scads(scadsName: String, xtrace_on: Boolean, namespace: String) exten
 	var placement:InstanceGroup = null
 	var collector:InstanceGroup = null
 	var dpclient:KnobbedDataPlacementServer.Client = null
-	
+
 	//val scads_xtrace = new JSONObject()
 	//scads_xtrace.put("xtrace","-x")
 	val dataRecipe = new JSONArray()
 	dataRecipe.put("scads::dbs")
 	val dataConfig = new JSONObject()
 	dataConfig.put("recipes", dataRecipe)
-	
+
 	def init(num_servers: Int) = {
 		if (xtrace_on) collector = DataCenter.runInstances(1,"m1.small")
 		servers = DataCenter.runInstances(num_servers,"m1.small")					// start up servers
@@ -348,7 +348,7 @@ case class Scads(scadsName: String, xtrace_on: Boolean, namespace: String) exten
 		if (xtrace_on) { val collectorWait = collector.deployNonBlocking(Scads.getCollectorConfig); collectorWait() }
 		val placementDeployWait = placement.deployNonBlocking(placementConfig)
 		val serversDeployWait = servers.deployNonBlocking(serverConfig)
-		
+
 		println("waiting for deployment to finish")
 		val placementDeployResult = placementDeployWait()
 		val serverDeployResult = serversDeployWait()
@@ -474,7 +474,7 @@ case class Scads(scadsName: String, xtrace_on: Boolean, namespace: String) exten
 				returnValue = call
 				done = true
 			} catch {
-				case e: Exception => { 
+				case e: Exception => {
 					println("exception; will wait and retry")
 					Thread.sleep(delay)
 					recovery

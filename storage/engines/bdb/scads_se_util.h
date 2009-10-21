@@ -11,7 +11,7 @@
 
 //Print contents of buffer in hexadecimal.
 /* Note: Prints from high address on left to low address on right.
- * this makes integers print "correctly" 2 => 0002, but is the 
+ * this makes integers print "correctly" 2 => 0002, but is the
  * opposite of what is usually done.
  */
 void print_hex(void * buf, int len) {

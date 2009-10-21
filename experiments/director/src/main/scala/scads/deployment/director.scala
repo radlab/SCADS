@@ -18,10 +18,10 @@ case class DirectorDeployment(
 ) extends Component {
 	var directorVMInstanceType = "c1.small"
 	var directorVM:Instance = null
-	
+
 	var deployer:Deployer = null
 	var deployerThread:Thread = null
-		
+
 	override def boot {
 		// boot up a machine only it not deploying to the monitoring VM
 		if (deployToMonitoringVM) {
@@ -32,29 +32,29 @@ case class DirectorDeployment(
 			directorVM = DataCenter.runInstances(1, directorVMInstanceType).getFirst()
 		}
 	}
-	
+
 	def loadState {
 		directorVM = try { DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scads.deploymentName+"--director", true ).getFirst } catch { case _ => null }
 	}
-	
-	override def waitUntilBooted { 
-		if (directorVM!=null) directorVM.waitUntilReady 
+
+	override def waitUntilBooted {
+		if (directorVM!=null) directorVM.waitUntilReady
 		directorVM.tagWith( DataCenter.keyName+"--SCADS--"+scads.deploymentName+"--director" )
 		ScadsDeploy.logger.info("director: have VM")
 	}
-	
+
 	override def deploy {
 		if (deployToMonitoringVM) {
 			ScadsDeploy.logger.info("director: deploying to monitoring VM so need to wait until that is deployed")
 			monitoring.waitUntilDeployed
 			ScadsDeploy.logger.info("director: monitoring should be deployed now")
 		}
-		
+
 		deployer = Deployer()
 		deployerThread = new Thread(deployer)
 		deployerThread.start
 	}
-	
+
 	case class Deployer extends Runnable {
 		def run = {
 			ScadsDeploy.logger.info("director: deploying")
@@ -69,7 +69,7 @@ case class DirectorDeployment(
 			val local = Array[String]("aws.cfg")
 			directorVM.upload(local,"/tmp")
 			directorVM.exec("cat /tmp/aws.cfg >> /root/.bash_profile")
-			
+
 			// install Java 6
 			directorVM.exec("cd /tmp/  &&  wget http://radlab_java.s3.amazonaws.com/jdk-6u18-ea-bin-b02-linux-i586-09_sep_2009.bin -O java6.bin")
 			directorVM.exec("cd /tmp/  &&  chmod 755 java6.bin  &&  echo yes | ./java6.bin > /dev/null")
@@ -87,7 +87,7 @@ case class DirectorDeployment(
 		val directorVM = try { DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+scads.scadsName+"--director", true ).getFirst } catch { case _: null }
 		if (directorVM!=null) {
 			val director = DirectorDeployment(scads,monitoring)
-		} else 
+		} else
 			null
 	}
 }*/

@@ -11,7 +11,7 @@ import edu.berkeley.cs.scads.keys._
 import java.text.ParsePosition
 
 trait RemoteDataPlacementProvider extends SimpleDataPlacementService with AutoKey with RangeConversion {
-	def host: String 
+	def host: String
 	def port: Int
 	var client: DataPlacementServer.Client = null
 	val logger:Logger
@@ -38,15 +38,15 @@ trait RemoteDataPlacementProvider extends SimpleDataPlacementService with AutoKe
 		space += ( ns -> mapping )
 		logger.info("Placement entries for "+ns+": \n"+super.printSpace(ns))
 	}
-	
+
 	override def refreshPlacement = { space = Map[String, Map[StorageNode, KeyRange]]() }
-	
+
 	override def lookup(ns: String): Map[StorageNode, KeyRange] = {
 		var ret = super.lookup(ns)
 		if(ret.isEmpty) { getFromRemote(ns); ret = super.lookup(ns) }
 		ret
 	}
-	
+
 	override def lookup(ns: String, node: StorageNode): KeyRange = {
 		var ret = super.lookup(ns, node)
 		if(ret == KeyRange.EmptyRange) { getFromRemote(ns); ret = super.lookup(ns, node) }

@@ -16,7 +16,7 @@ private:
 	pthread_rwlock_t* locks;
 	unsigned int keyBucket(const char* ,int);
 
-public:	
+public:
 	KeyLocker(unsigned int);
 
 public:

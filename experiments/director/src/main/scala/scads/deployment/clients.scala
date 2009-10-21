@@ -36,11 +36,11 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 
 	def deploy = {
 		host = myscads.placement.get(0).privateDnsName
-	
+
 		deploythread = new Thread(new ScadsDeployer(clients))
 		deploythread.start
 	}
-	
+
 	def waitUntilDeployed = {
 		if (deploythread != null) deploythread.join
 	}
@@ -66,13 +66,13 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 			clientConfig = if (xtrace_on) { clientRecipes.put("chukwa::default"); ScadsDeploy.getXtraceIntoConfig(myscads.monitorIP) } else { new JSONObject() }
 		    clientRecipes.put("scads::client_library")
 		    clientConfig.put("recipes", clientRecipes)
-			
+
 			ScadsDeploy.logger.debug("clients: deploying")
 			machines.deploy(clientConfig)
 
 			ScadsDeploy.logger.debug("clients: deployed!")
 			//ScadsDeploy.logger.debug("clients deploy log: "); clientDeployResult.foreach( (x:ExecuteResponse) => {ScadsDeploy.logger.debug(x.getStdout); ScadsDeploy.logger.debug(x.getStderr)} )
-		
+
 			// get list of mvn dependencies
 			if (deps==null)
 				deps = machines.get(0).exec("cd /opt/scads/experiments; cat cplist").getStdout.replace("\n","") + ":../target/classes"
@@ -86,7 +86,7 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 
 	def warm_cache(ns: String, minK:Int, maxK:Int) = {
 		ScadsDeploy.logger.debug("Warming server caches.")
-		val cmd = "cd /opt/scads/experiments/scripts; scala -cp "+ deps + " warm_cache.scala " + 
+		val cmd = "cd /opt/scads/experiments/scripts; scala -cp "+ deps + " warm_cache.scala " +
 					host + " "+ ns +" " + minK + " " + maxK +" "+xtrace_on + " > /tmp/warm.log 2>&1"
 		clients.get(0).exec(cmd)
 		ScadsDeploy.logger.debug("Done warming.")
@@ -96,19 +96,19 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 		val testthread = new Thread(new WorkloadDescRunner(workload))
 		testthread.start
 	}
-	
+
 	case class WorkloadDescRunner(workload:WorkloadDescription) extends Runnable {
 		def run() = {
 			startWorkload(workload,true)
 			ScadsDeploy.logger.debug("Workload test complete.")
 		}
 	}
-	
+
 	def startWorkload(maxUsers:Int, urldir:String, filename:String,block:Boolean) {
 		val totalUsers = (maxUsers/clients.size+1)*clients.size
 		// determine ranges to give each client
 		assert( totalUsers % clients.size == 0, "deploy_scads: can't evenly divide number of users amongst client instances")
-		
+
 		var commands = Map[Instance, String]()
 		val threads = (0 to clients.size-1).toList.map((id)=>{
 			val minUser = id * (totalUsers/clients.size)
@@ -130,9 +130,9 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 		val totalUsers = (workload.getMaxNUsers/clients.size+1)*clients.size
 		val workloadFile = "/tmp/workload.ser"
 		workload.serialize(workloadFile)
-		
+
 		ScadsDeploy.logger.debug("This workload should run for "+"%.2f".format(workload.workload.map(_.duration).reduceLeft(_+_).toDouble/1000/60) +" minutes")
-		
+
 		// determine ranges to give each client
 		assert( totalUsers % clients.size == 0, "deploy_scads: can't evenly divide number of users amongst client instances")
 
@@ -150,7 +150,7 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 			new Thread( new StartWorkloadRequest(clients.get(id), workloadFile, cmd, block,false) )
 		})
 		for(thread <- threads) thread.start
-		for(thread <- threads) thread.join		
+		for(thread <- threads) thread.join
 	}
 	case class StartWorkloadRequest(client: Instance, workloadFile: String, cmd: String, block:Boolean, s3:boolean) extends Runnable {
 		override def run() = {
@@ -165,33 +165,33 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 			}
 		}
 	}
-	
+
 	def stopWorkload() {
 		clients.exec("pkill -f startWorkload")
 	}
-	
+
 	def processLogFiles(experimentName:String, parseAndPlot:Boolean) {
 		val client0 = clients.get(0)
 		val targetIP = client0.privateDnsName
 		client0.exec( "mkdir -p /mnt/logs/"+experimentName+"/clients/" )
 		client0.exec("ln -s /mnt/logs/ /var/www/")
-		
-		for (c <- clients) { 
+
+		for (c <- clients) {
 			val f=experimentName+"_"+c.privateDnsName+".log"
 			val df="/tmp/"+f
 			val cmd="cat /mnt/xtrace/logs/* > "+f+" && scp -o StrictHostKeyChecking=no "+f+" "+targetIP+":/mnt/logs/"+experimentName+"/clients/"+f
 			//ScadsDeploy.logger.debug(cmd)
-			c.exec(cmd) 
+			c.exec(cmd)
 			c.exec( "rm -f /mnt/xtrace/logs/*" )
 		}
-		
+
 		val expDir = "/mnt/logs/"+experimentName
 		val sourceF = expDir+"/"+experimentName+".log"
 		client0.exec( "cat /mnt/logs/"+experimentName+"/clients/* > "+sourceF)
 		client0.exec( "ulimit -n 20000" )
 
 		ScadsDeploy.logger.debug("logs are in "+client0.publicDnsName+":"+sourceF)
-				
+
 		if (parseAndPlot) {
 			ScadsDeploy.logger.debug("graphs will be in http://"+client0.publicDnsName+"/logs/")
 			for (i <- List(1,5,10)) {
@@ -200,6 +200,6 @@ case class ScadsClients(myscads:Scads,num_clients:Int) extends Component {
 				client0.exec( "echo \"source('/opt/scads/experiments/scripts/process.R'); pdf('"+expDir+"/"+experimentName+"_agg"+i+".pdf',width=10,height=15); plot.stats.for.file('"+expDir+"/"+experimentName+"_agg"+i+".csv') \" | R --vanilla")
 			}
 		}
-		
+
 	}
 }

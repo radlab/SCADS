@@ -18,28 +18,28 @@ case class SCADSMonitoringDeployment(
 	//var monitoringVMInstanceType = "m1.small"
 	var monitoringVMInstanceType = "c1.medium"
 	var monitoringVM:Instance = null
-	
+
 	var startedDeploying = false
 	var deployer:Deployer = null
 	var deployerThread:Thread = null
-	
+
 	var nBins = 200
 	var minKey = 0
 	var maxKey = ScadsDeploy.maxKey
 	var aggregationInterval = 20000
-	
+
 	override def boot {
 		// boot up a machine
 		ScadsDeploy.logger.debug("monitoring: booting up 1 monitoring VM ("+monitoringVMInstanceType+")")
 		monitoringVM = DataCenter.runInstances(1, monitoringVMInstanceType).getFirst()
 	}
-	
+
 	override def waitUntilBooted = {
 		monitoringVM.waitUntilReady
 		ScadsDeploy.logger.debug("monitoring: have monitoring VM")
 		monitoringVM.tagWith( DataCenter.keyName+"--SCADS--"+deploymentName+"--monitoring" )
 	}
-	
+
 	override def deploy {
 		deployer = Deployer()
 		deployerThread = new Thread(deployer)
@@ -50,7 +50,7 @@ case class SCADSMonitoringDeployment(
 		monitoringVM = DataCenter.getInstanceGroupByTag( DataCenter.keyName+"--SCADS--"+deploymentName+"--monitoring", true ).getFirst
 		startedDeploying = true
 	}
-	
+
 	case class Deployer extends Runnable {
 		def run = {
 			val collectorConfig = new JSONObject()
@@ -82,7 +82,7 @@ case class SCADSMonitoringDeployment(
 		}
 	}
 
-	override def waitUntilDeployed { 
+	override def waitUntilDeployed {
 		while (!startedDeploying) {
 			Thread.sleep(1000)
 			ScadsDeploy.logger.debug("monitoring: waiting to start deployment")
@@ -99,7 +99,7 @@ case class SCADSMonitoringDeployment(
 			monitoring.monitoringVM = monitoringVM
 			monitoring.deployed = true
 			monitoring
-		} else 
+		} else
 			null
 	}
 }*/

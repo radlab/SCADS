@@ -296,10 +296,10 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
 			fail = true;
 		}
   }
-	
+
   if (!fail)
     fail = storageDB->flush_log(db_ptr);
-	
+
   return fail?1:0;
 }
 
@@ -397,7 +397,7 @@ void send_string(int sock, const string& str) {
 void sync_sync_put(DB* db, DBC* cursor, DB_TXN* txn, DBT* lkey, DBT* ldata, struct sync_sync_args* args, KeyLocker* kl, bool adv=true) {
 	int r;
   if (cursor == NULL || args->isTXN) {
-		if (kl != NULL) 
+		if (kl != NULL)
 			kl->writeLockKey((const char*)(args->k).data,(args->k).size);
     if ((r = db->put(db, txn, &(args->k), &(args->d), 0)) != 0) {
 			ostringstream oss;
@@ -418,7 +418,7 @@ void sync_sync_put(DB* db, DBC* cursor, DB_TXN* txn, DBT* lkey, DBT* ldata, stru
 				db->err(db,r,"Failed to advance local cursor");
     }
   }
-	
+
 	/*
   if (txn!=NULL) {
     if ((++(args->ic) % COMMIT_LIMIT) == 0) {
@@ -1763,7 +1763,7 @@ void* sync_recv(void* arg) {
   DB_TXN* txn;
   args->stat = 0;
   end = dbuf;
-	
+
   txn = NULL;
 
   if (args->isTXN) {
@@ -1834,7 +1834,7 @@ void* sync_recv(void* arg) {
       cerr<<"Couldn't insert synced key: "<<string((char*)k.data,k.size)<<endl;
 			continue;
     }
-		
+
     if (kf)
       free(k.data);
     if (df)

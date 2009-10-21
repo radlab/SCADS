@@ -6,13 +6,13 @@ import edu.berkeley.cs.scads.nodes.StorageNode
 
 trait DataPlacementService {
 	def lookup(ns: String): Map[StorageNode, KeyRange]
-	def lookup(ns: String, node: StorageNode): KeyRange 
+	def lookup(ns: String, node: StorageNode): KeyRange
 	def lookup(ns: String, key: Key):List[StorageNode]
 	def lookup(ns: String, range: KeyRange): Map[StorageNode, KeyRange]
 	def refreshPlacement
 }
 
-trait SimpleDataPlacementService extends DataPlacementService {	
+trait SimpleDataPlacementService extends DataPlacementService {
 	var space = Map[String, Map[StorageNode, KeyRange]]()
 
 	def lookup(ns: String): Map[StorageNode, KeyRange] = space.get(ns).getOrElse(Map[StorageNode,KeyRange]())
@@ -27,7 +27,7 @@ trait SimpleDataPlacementService extends DataPlacementService {
 		if (space.contains(ns)) space(ns).filter((pair) => (pair._2 & range) != KeyRange.EmptyRange)
 		else Map[StorageNode,KeyRange]()
 	}
-	
+
 	def printSpace(ns: String):String = {
 		if (!space.contains(ns)) "No mappings for "+ns
 		else {

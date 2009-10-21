@@ -145,7 +145,7 @@ void apply_get(void* vec, DB* db, DBC* cursor, KeyLocker* kl, DB_TXN* txn, void*
 		r.value.assign((const char*)cdata.data,cdata.size);
 		free(cdata.data);
 	}
-	else 
+	else
 		r.value.assign((const char*)data->data,data->size);
 	r.__isset.value = true;
 	_return->push_back(r);
@@ -160,7 +160,7 @@ void apply_del(void* v, DB* db, DBC* cursor, KeyLocker* kl, DB_TXN* txn, void* k
   if (kl != NULL) {
 		kl->writeLockKey((char*)key->data,key->size);
     ret = db->del(db,txn,key,0);
-		kl->unlockKey((char*)key->data,key->size);		
+		kl->unlockKey((char*)key->data,key->size);
 	}
   else
     ret = cursor->del(cursor,0);
@@ -247,7 +247,7 @@ responsible_for_key(const NameSpace& ns, const RecordKey& key) {
 			else
 				continue;
 		}
-		
+
 		if (rs.type == RST_KEY_FUNC) {
 			int rb_err;
 			VALUE funcall_args[3];
@@ -293,7 +293,7 @@ responsible_for_set(const NameSpace& ns, const RecordSet& rs) {
 		RecordSet policy = *it;
 		if (policy.type == RST_ALL || policy.type == RST_KEY_FUNC)
 			return true;
-	
+
 		if (rs.type == RST_NONE)
 			continue;
 
@@ -320,7 +320,7 @@ responsible_for_set(const NameSpace& ns, const RecordSet& rs) {
 				return true;
 		}
 	}
-	
+
   return false; // if we don't understand, or didn't find something to say true to, we'll say no
 }
 
@@ -1150,7 +1150,7 @@ test_and_set(const NameSpace& ns, const Record& rec, const ExistingValue& eVal) 
     "Value:\t"<<rec.value<<endl<<
 		"Val to test:\t"<<eVal.value<<endl<<
 		"eVal prefix:\t"<<eVal.prefix<<endl;
-	
+
   if (rec.value == "")
     cout << "is empty string"<<endl;
   if (rec.__isset.value)
@@ -1168,7 +1168,7 @@ test_and_set(const NameSpace& ns, const Record& rec, const ExistingValue& eVal) 
     get_responsibility_policy(nse.policy,ns);
     throw nse;
   }
-	
+
   db_ptr = getDB(ns);
 	keyLocker = key_lockers[ns];
   mdb_ptr = getMerkleDB(ns);
@@ -1202,7 +1202,7 @@ test_and_set(const NameSpace& ns, const Record& rec, const ExistingValue& eVal) 
 				 ( !eVal.__isset.prefix &&
 					 (eVal.value.length() != existing_data.size) ) ||
 				 (memcmp(eVal.value.c_str(),existing_data.data,lim)) ) {
-			// not the same	
+			// not the same
 			if (isTXN())
 				ret = txn->abort(txn);
 			if (ret)
@@ -1229,7 +1229,7 @@ test_and_set(const NameSpace& ns, const Record& rec, const ExistingValue& eVal) 
 	}
 
 	key.size++;
-	
+
   if (!rec.__isset.value)  // really a delete
     ok = putDBTs(db_ptr,mdb_ptr,&key,NULL,txn,true);
 	else {
@@ -1342,7 +1342,7 @@ set_responsibility_policy(const NameSpace& ns, const vector<RecordSet>& policy_v
 	tbp.writeI32(policy_vec.size());
 
 	vector<RecordSet>::const_iterator it;
-	for (it = policy_vec.begin(); it != policy_vec.end(); ++it) {	
+	for (it = policy_vec.begin(); it != policy_vec.end(); ++it) {
 		RecordSet policy = *it;
 		if (policy.type == RST_KEY_VALUE_FUNC) { // illegal
 			InvalidSetDescription isd;
@@ -1372,7 +1372,7 @@ set_responsibility_policy(const NameSpace& ns, const vector<RecordSet>& policy_v
 			isd.__isset.info = true;
 			throw isd;
 		}
-		
+
 		if ( policy.type == RST_RANGE &&
 				 (policy.range.__isset.offset ||
 					policy.range.__isset.limit) ) {
@@ -1393,7 +1393,7 @@ set_responsibility_policy(const NameSpace& ns, const vector<RecordSet>& policy_v
 			isd.__isset.info = true;
 			throw isd;
 		}
-		
+
 		if (policy.type == RST_KEY_FUNC) {
 			int rb_err;
 			VALUE funcall_args[3];
@@ -1407,12 +1407,12 @@ set_responsibility_policy(const NameSpace& ns, const vector<RecordSet>& policy_v
 				throw isd;
 			}
 		}
-		
+
 		// okay, write the policy to a memory buffer
 		policy.write(&tbp);
 	}
-	
-	
+
+
 
 	/*
   // okay, let's serialize
@@ -1454,7 +1454,7 @@ set_responsibility_policy(const NameSpace& ns, const vector<RecordSet>& policy_v
   int retval;
 
 
-	// Zero out the DBTs before using them. 
+	// Zero out the DBTs before using them.
 
   memset(&db_key, 0, sizeof(DBT));
   memset(&db_data, 0, sizeof(DBT));
@@ -1470,7 +1470,7 @@ set_responsibility_policy(const NameSpace& ns, const vector<RecordSet>& policy_v
   chkLock(rc,"resp_lock","modify responsibility map");
   retval = mdDB->put(mdDB, NULL, &db_key, &db_data, 0);
   retval |= flush_log(mdDB);
-  
+
 
 	map<const NameSpace,vector<RecordSet>*>::iterator nsit;
   vector<RecordSet> *rsvec;

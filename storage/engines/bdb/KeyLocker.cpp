@@ -55,7 +55,7 @@ keyBucket(const char* key, int len) {
 	int c,i=0;
 	while(i<len) {
 		c = key[i++];
-		hash = ((hash << 5) + hash) + c; // hash*33 + c	
+		hash = ((hash << 5) + hash) + c; // hash*33 + c
 	}
 	return (hash%numLocks);
 }
