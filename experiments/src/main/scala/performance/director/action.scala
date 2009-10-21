@@ -473,7 +473,7 @@ case class MergeTwo(
 	override def initSimulation(config:SCADSconfig) {
 		logger.info("initializing simulation of MergeTwo")		
 		val bounds1 = config.storageNodes(server1)
-		removeTime = ActionModels.removeDurationModel.sample
+		removeTime = ActionModels.removeDurationModel.sample( bounds1.maxKey - bounds1.minKey )
 		timeToMoveData = ActionModels.copyDurationModel.sample( bounds1.maxKey - bounds1.minKey ) + removeTime
 		logger.debug("timeToMoveData = "+timeToMoveData)
 	}
@@ -677,7 +677,7 @@ case class Remove(
 	}
 	override def initSimulation(config:SCADSconfig) {
 		logger.info("initializing simulation of Remove")
-		timeToMoveData = ActionModels.removeDurationModel.sample *num // remove serially
+		timeToMoveData = ActionModels.removeDurationModel.sample(-1) *num // remove serially
 		logger.debug("timeToMoveData = "+timeToMoveData)
 	}
 	override def updateConfigAndActivity(time0:Long, time1:Long, config:SCADSconfig, activity:SCADSActivity):Tuple2[SCADSconfig,SCADSActivity] = {
@@ -998,10 +998,11 @@ case class LowLevelActionStats(
 
 object ActionModels {
 	var machineBootupTimeModel = ConstantMachineBootupTimeModel(1*60*1000)
-	var copyDurationModel = LinearCopyDurationModel(0.087)
-	var removeDataDurationModel = LinearRemoveDataDurationModel(0.166)		// this one goes through the "middle of the fork" so that average is accurate
+	var copyDurationModel = LinearCopyDurationModel(0.1485)
+	var removeDataDurationModel = LinearRemoveDataDurationModel(0.07145)
+	//var removeDurationModel = LinearRemoveDurationModel(0.04844)
 	var removeDurationModel = ConstantRemoveDurationModel(3780)
-	var getNodeRangeDurationModel = ConstantGetNodeRangeDurationModel(12)
+	var getNodeRangeDurationModel = ConstantGetNodeRangeDurationModel(6)
 }
 
 // duration of machine boot up
@@ -1036,12 +1037,17 @@ case class LinearRemoveDataDurationModel(
 
 // duration of placement "remove"
 abstract class RemoveDurationModel {
-	def sample(): Long
+	def sample(nKeys:Int): Long
 }
 case class ConstantRemoveDurationModel(
 	duration: Long
 ) extends RemoveDurationModel {
-	def sample():Long = duration
+	def sample(nKeys:Int):Long = duration
+}
+case class LinearRemoveDurationModel(
+	durationPerKey: Double
+) extends RemoveDurationModel {
+	def sample(nKeys:Int):Long = (nKeys*durationPerKey).toLong
 }
 
 // duration of placement "getNodeRange"
