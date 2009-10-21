@@ -4,11 +4,13 @@ SERVER.COST = 1
 VIOLATION.COST = 100
 
 history = function() {
-	d = read.csv("~/Downloads/scads/simulation/simulation_search_down0.csv")
+	d = read.csv("~/Downloads/scads/simulation/simulation_search2_down0.csv")
+	d = read.csv("~/Downloads/scads/simulation/simulation_searchSpike_down0.csv")
 	plot.tradeoff(d,"p.alpha_down",logx=T)
-	d = read.csv("~/Downloads/scads/simulation/simulation_search_safety0.csv")
+	d = read.csv("~/Downloads/scads/simulation/simulation_search2_safety0.csv")
+	d = read.csv("~/Downloads/scads/simulation/simulation_searchSpike_safety0.csv")
 	plot.tradeoff(d,"p.safety",logx=F)
-	d = read.csv("~/Downloads/scads/simulation/simulation_search_up0.csv")
+	d = read.csv("~/Downloads/scads/simulation/simulation_search2_up0.csv")
 	plot.tradeoff(d,"p.alpha_up",logx=F)
 	head(d)
 	dim(d)
@@ -42,15 +44,15 @@ plot.tradeoff = function(data, x, y1="nServerUnits", y2="percentageSlow", logx=F
 	
 	par(mar=c(4, 4, 2, 4) + 0.1)
 	par(mgp=c(2,0.8,0))
-	plot( xd, d.mean[,y1], type="b", col="blue", ylim=y1lim, xlab=x, ylab="", bty="n", yaxt="n", main=paste(y1," and ",y2,sep=""), log=logxs )
-	superpose.eb( xd, d.mean[,y1], d.sd[,y1], length=0.05, col="blue" )
+	plot( xd, d.mean[,y1], type="b", col="blue", ylim=y1lim, xlab=x, ylab="", bty="n", yaxt="n", main=paste(y1," and ",y2,sep=""), log=logxs, lwd=2 )
+	superpose.eb( xd, d.mean[,y1], d.sd[,y1], length=0.05, col="blue", lwd=2 )
 	axis(2, col.axis="blue", las=2)
 	mtext(y1, side=2, line=2.3, cex.lab=1, las=3, col="blue")
 
 	par(new=T)
-	plot( xd, d.mean[,y2], axes=F, type="b", col="red", ylim=y2lim, xlab="", ylab="", bty="n", log=logxs)
+	plot( xd, d.mean[,y2], axes=F, type="b", col="red", ylim=y2lim, xlab="", ylab="", bty="n", log=logxs, lwd=2)
 	axis(4, col.axis="red", las=2)
-	superpose.eb( xd, d.mean[,y2], d.sd[,y2], length=0.05, col="red" )
+	superpose.eb( xd, d.mean[,y2], d.sd[,y2], length=0.05, col="red", lwd=2 )
 	mtext(y2, side=4, line=2, cex.lab=1, las=3, col="red")
 
 }

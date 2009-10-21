@@ -22,6 +22,11 @@ action.colors = list("SplitInTwo"="cornflowerblue",
 
 CONNS <<- c()
 
+history = function() {
+	
+	
+}
+
 to.date = function(timestamp) { return( c(ISOdate(1970,1,1) + as.numeric(timestamp)/1000 )) }
 print.long.number = function(x) { formatC(round(x),format="f",digits=0) }
 
@@ -322,6 +327,8 @@ plot.all.latency = function(m,server,tight=F,title=F,plot.mean=T,data=NA,vline=N
 	d = unlist( data[,setdiff(names(data),c("time","timestamp"))] )
 #	ylim = c(0, quantile(d,0.9,na.rm=T))
 	ylim = c(0, 150)
+	
+	print( data$get_latency_99p )
 
 	plot( c(), xlim=m$xtlim, ylim=ylim, bty="n", axes=F, xlab="", ylab="latency [ms]", main=title)
 	#axis.POSIXct(1,x=m$xtlim,format="%H:%M")
@@ -719,4 +726,12 @@ get.changed.configs = function(c) {
 get.all.configs = function(c) {
 	sql = paste( "SELECT time, config FROM director.scadsstate_config")
 	d = dbGetQuery( c, sql )
+}
+
+
+history = function() {
+	dbhost = "localhost"
+ 	conn.metrics = dbConnect(MySQL(),user=DBUSER,password=DBPASS,dbname="metrics",host=dbhost)
+	servers = get.all.servers( list(conn.metrics=conn.metrics) )
+	sql = "select time, metric_id, "
 }
