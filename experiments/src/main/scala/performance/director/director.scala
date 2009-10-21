@@ -306,7 +306,11 @@ object Director {
 
 	def createWorkloadHistograms(basedir:String) {
 		import performance.WorkloadGenerators._
-		val w = stdWorkloadEbatesWMixChange(mix99,mix99,1500,10000)
-		WorkloadHistogram.createAndSerializeHistograms(w, 20*1000, basedir+"/ebates_mix99_mix99_1500users_200bins_20sec.hist", 10, 200, 10000)
+		//val w = stdWorkloadEbatesWMixChange(mix99,mix99,1500,10000)
+		val namespace = "perfTest256"
+		val maxkey = 10000
+		//val w = wikipedia(mix97, namespace, 60, 24, 60, 5000, maxkey)
+		val w = wikipedia(mix97, namespace, 68, 8, 60, 5000, maxkey)
+		WorkloadHistogram.createAndSerializeHistograms(w, 20*1000, basedir+"/wikipedia_5000users.hist", 10, 200, 10000)
 	}
 }
