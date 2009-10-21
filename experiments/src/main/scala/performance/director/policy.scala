@@ -247,6 +247,10 @@ class ReactivePolicy(
 			servers.foreach( s => smoothedGetLatency += s -> (smoothedGetLatency(s) + smoothingFactor*(getLatency(s)-smoothedGetLatency(s))) )
 			servers.foreach( s => smoothedPutLatency += s -> (smoothedPutLatency(s) + smoothingFactor*(putLatency(s)-smoothedPutLatency(s))) )
 		
+			// fix NaNs
+			smoothedGetLatency.keys.toList.foreach( s => if (smoothedGetLatency(s).isNaN) smoothedGetLatency += s -> getLatency(s) )
+			smoothedPutLatency.keys.toList.foreach( s => if (smoothedPutLatency(s).isNaN) smoothedPutLatency += s -> putLatency(s) )
+		
 			// log
 			Policy.logger.debug("raw get latency: "+ getLatency.toList.sort(_._1<_._1).map(s=>s._1+"->"+"%.2f".format(s._2)).mkString(", "))
 			Policy.logger.debug("smooth get latency: "+ smoothedGetLatency.toList.sort(_._1<_._1).map(s=>s._1+"->"+"%.2f".format(s._2)).mkString(", "))	
