@@ -122,7 +122,7 @@ abstract class EntityProvider extends ExecutionNode {
  * Execution node that performs a lookup of a single key and returns a value
  * TODO: Exception when key doesn't exist?
  */
-abstract class SingleGet(namespace: String, key: Field, ver: Version) extends TupleProvider with Getter {
+abstract case class SingleGet(namespace: String, key: Field, ver: Version) extends TupleProvider with Getter {
 	def exec(implicit env: Environment): Seq[(Field, Version, String)] = {
     logger.debug(this)
 		Array(get(namespace, key, ver))
