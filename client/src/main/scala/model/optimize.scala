@@ -83,7 +83,9 @@ object Optimizer {
 
 	//FIXME: Use the actual compiled entities instead of these placeholders
   def getClass(entityName:String) = {
-    ScalaCompiler.compile("class " + entityName + """
+		val compiler = new ScalaCompiler
+
+    compiler.compile("class " + entityName + """
     extends edu.berkeley.cs.scads.model.Entity()(null) {
     val namespace = "Placeholder"
     val primaryKey: edu.berkeley.cs.scads.model.Field = null
@@ -92,6 +94,6 @@ object Optimizer {
     val version = edu.berkeley.cs.scads.model.Unversioned
     }""")
 
-    ScalaCompiler.classLoader.loadClass(entityName).asInstanceOf[Class[edu.berkeley.cs.scads.model.Entity]]
+    compiler.classLoader.loadClass(entityName).asInstanceOf[Class[edu.berkeley.cs.scads.model.Entity]]
   }
 }
