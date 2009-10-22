@@ -23,7 +23,3 @@ val threads = (minUserId to maxUserId).toList.map((id) => {
 // run the test
 for(thread <- threads) thread.start
 for(thread <- threads) thread.join
-
-
-
-

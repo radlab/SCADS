@@ -57,9 +57,9 @@ class ScadsLanguage extends StdTokenParsers with ImplicitConversions {
 			"[" ~ intLiteral ~ ":" ~ ident ~ "]" ^^ {case "[" ~ ordinal ~ ":" ~ name ~ "]" => new Parameter(name, ordinal)}
 		|	"[" ~ "this" ~ "]" ^^ (x => ThisParameter) )
 
-	def field: Parser[Field] = (
-			ident ~ "." ~ ident ^^ {case entity ~ "." ~ name => new Field(entity, name)}
-		|	ident ^^ ((name:String) => new Field(null, name))
+	def field: Parser[AttributeValue] = (
+			ident ~ "." ~ ident ^^ {case entity ~ "." ~ name => new AttributeValue(entity, name)}
+		|	ident ^^ ((name:String) => new AttributeValue(null, name))
 	)
 
 	def value: Parser[Value] = (

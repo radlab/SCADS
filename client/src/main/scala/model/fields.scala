@@ -91,6 +91,13 @@ abstract trait SerializeAsKey {
 }
 
 /**
+ * Helper methods for StringField
+ */
+object StringField {
+  def apply(str: String) = (new StringField)(str)
+}
+
+/**
  * A Field Type that can be used to store strings.
  * They are serialized as 'quoted' and \escaped.
  * TODO: The current implementation doesn't collate correctly when <code>''</code> and <code>'\0'</code> are stored.
@@ -177,6 +184,9 @@ class BooleanField extends ValueHoldingField[Boolean] with SerializeAsKey {
 
 	def duplicate() = (new BooleanField)(value)
 }
+
+object TrueField extends BooleanField {value = true}
+object FalseField extends BooleanField {value = false}
 
 
 /**

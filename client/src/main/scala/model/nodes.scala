@@ -25,6 +25,7 @@ abstract trait Getter {
 	 * @returns either a (key, version, value) tuple or (key, null, null) if the key doesn't exist
 	 */
 	def get(namespace: String, key: Field, version: Version)(implicit env: Environment): (Field, Version, String)
+  def getterType: String
 }
 
 /*
@@ -66,6 +67,8 @@ trait ReadOneGetter extends Getter {
 
 		})
 	}
+
+  def getterType(): String = "ReadOneGetter"
 }
 
 /**
@@ -97,7 +100,7 @@ trait ReadOwnWrites extends Getter {
 /**
  * Base class of all nodes that perform interactive query execution
  */
-abstract class ExecutionNode {
+sealed abstract class ExecutionNode {
 	val logger = Logger.getLogger("scads.executionNode")
 }
 
@@ -161,6 +164,7 @@ abstract class GetSet(start: Field, end: Field) extends TupleProvider with SetGe
  * This is done by first instanciating a new instance of the entity and then deserializing all the fields in it.
  */
 case class Materialize[Type <: Entity](child: TupleProvider)(implicit manifest : scala.reflect.Manifest[Type]) extends EntityProvider {
+  lazy val entityType = manifest.erasure.getName
 	val con = manifest.erasure.getConstructors()(0)
 
 	def exec(implicit env: Environment): Seq[Type] = {

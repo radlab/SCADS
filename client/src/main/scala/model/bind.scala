@@ -2,6 +2,7 @@ package edu.berkeley.cs.scads.model.parser
 
 import org.apache.log4j.Logger
 import scala.collection.mutable.HashMap
+import edu.berkeley.cs.scads.model.{StringField, IntegerField, BooleanField}
 
 /* Exceptions that can occur during binding */
 sealed class BindingException extends Exception
@@ -44,8 +45,8 @@ object Binder {
 		})
 
 		/* Add primary key as an index */
-		entityMap.foreach((e) => {
-			e._2.indexes += new AttributeKeyedIndex(Namespaces.entity(e._1), (e._2.keys), PrimaryIndex)
+		entityMap.values.foreach(e => {
+			e.indexes += new PrimaryIndex(e.keys)
 		})
 
 		/* Bind relationships to the entities they link, check for bad entity names and duplicate relationship names */
@@ -175,8 +176,8 @@ object Binder {
 			/* Check this parameter typing */
 			val thisTypes: List[String] = q.predicates.map(
 				_ match {
-					case EqualityPredicate(Field(null, thisType), ThisParameter) => Array(thisType)
-					case EqualityPredicate(ThisParameter, Field(null, thisType)) => Array(thisType)
+					case EqualityPredicate(AttributeValue(null, thisType), ThisParameter) => Array(thisType)
+					case EqualityPredicate(ThisParameter, AttributeValue(null, thisType)) => Array(thisType)
 					case _ => Array[String]()
 				}).flatten
 			logger.debug("this types detected for " + q.name + ": " + Set(thisTypes))
@@ -198,7 +199,7 @@ object Binder {
 				}
 			}
 
-			def resolveField(f:Field):Fetch = {
+			def resolveField(f:AttributeValue):Fetch = {
 				if(f.entity == null) {
 					if(duplicateAttributes.contains(f.name))
 						throw new AmbiguiousAttribute(q.name, f.name)
@@ -231,15 +232,15 @@ object Binder {
 				}
 			}
 
-			def addAttrEquality(f: Field, value: FixedValue) {
+			def addAttrEquality(f: AttributeValue, value: FixedValue) {
 				val fetch = resolveField(f)
 				fetch.predicates.append(
 					AttributeEqualityPredicate(f.name, value match {
 						case Parameter(name, _) =>  getBoundParam(name, fetch.entity.attributes(f.name))
-						case StringValue(value) => BoundStringLiteral(value)
-						case NumberValue(value) => BoundIntegerLiteral(value)
-						case TrueValue => BoundTrue
-						case FalseValue => BoundFalse
+						case StringValue(value) => StringField(value)
+						case NumberValue(value) => IntegerField(value)
+						case TrueValue => TrueField
+						case FalseValue => FalseField
 					})
 				)
 			}
@@ -251,10 +252,11 @@ object Binder {
 
 			/* Bind predicates to the proper node of the Fetch Tree */
 			q.predicates.foreach( _ match {
-				case EqualityPredicate(Field(null, alias), ThisParameter) => addThisEquality(alias)
-			  case EqualityPredicate(ThisParameter, Field(null, alias)) => addThisEquality(alias)
-				case EqualityPredicate(f: Field, v: FixedValue) => addAttrEquality(f,v)
-				case EqualityPredicate(v :FixedValue, f: Field) => addAttrEquality(f,v)
+				case EqualityPredicate(AttributeValue(null, alias), ThisParameter) => addThisEquality(alias)
+			  case EqualityPredicate(ThisParameter, AttributeValue(null, alias)) => addThisEquality(alias)
+				case EqualityPredicate(f: AttributeValue, v: FixedValue) => addAttrEquality(f,v)
+				case EqualityPredicate(v :FixedValue, f: AttributeValue
+        ) => addAttrEquality(f,v)
 				case usp: Predicate => throw UnsupportedPredicateException(q.name, usp)
 			})
 

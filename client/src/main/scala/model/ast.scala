@@ -22,7 +22,7 @@ case class Relationship(name: String, from: String, to: String, cardinality: Car
 
 /* Queries */
 abstract class Value extends Tree
-case class Field(entity: String, name: String) extends Value
+case class AttributeValue(entity: String, name: String) extends Value
 
 abstract class FixedValue extends Value
 object ThisParameter extends FixedValue
@@ -48,7 +48,7 @@ object Unlimited extends Range
 
 abstract class Order extends Tree
 object Unordered extends Order
-case class OrderedByField(fields: Field, direction: Direction) extends Order
+case class OrderedByField(fields: AttributeValue, direction: Direction) extends Order
 
 abstract class Direction extends Tree
 object Ascending extends Direction

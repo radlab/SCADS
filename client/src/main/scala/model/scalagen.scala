@@ -36,10 +36,10 @@ object ScalaGen extends Generator[BoundSpec] {
 				output("val indexes = Array[Index](")
         indent {
           e._2.indexes.foreach(_ match {
-            case AttributeKeyedIndex(_, _, PrimaryIndex) => null
-            case AttributeKeyedIndex(ns, attrs, PointerIndex(_)) => {
+            case SecondaryIndex(ns, attrs) => {
               output("new AttributeIndex(", quote(ns), ", this, ", attrs(0), ")")
             }
+            case _ => null
           })
         }
         output(")")
@@ -78,32 +78,18 @@ object ScalaGen extends Generator[BoundSpec] {
 	}
 
 
-	protected def generatePlan(plan: Plan)(implicit sb: StringBuilder, indnt: Indentation) {
+	protected def generatePlan(plan: ExecutionNode)(implicit sb: StringBuilder, indnt: Indentation) {
 		/* TODO: Just output null if we don't have a plan */
 		if(plan == null){
 			output("null")
 			return
 		}
-
-		plan match {
-			case AttributeKeyedIndexGet(AttributeKeyedIndex(ns, _, PrimaryIndex), values) => {
-				output("new SingleGet(\"", ns, "\",", generateBoundValue(values(0)), ", new IntegerVersion) with ReadOneGetter")
-			}
-			case AttributeKeyedIndexGet(AttributeKeyedIndex(ns, attrs, PointerIndex(dest)), values) => {
-				output("new SequentialDereferenceIndex(", quote(ns), ", ", "new ", fieldType(dest.pkType), ",", "new IntegerVersion", ",")
-				indent {
-					generatePlan(AttributeKeyedIndexGet(AttributeKeyedIndex(ns, attrs, PrimaryIndex), values))
-				}
-				output(") with ReadOneGetter")
-			}
-			case Materialize(entityType, child) => {
-				output("new Materialize[", entityType, "](")
-				indent {
-					generatePlan(child)
-				}
-				output(").exec")
-			}
-		}
+    plan match {
+      case m: Materialize[Entity] => {
+        output("Materialize[", m.entityType, "](")
+        output(")")
+      }
+    }
 	}
 
 	protected def generateBoundValue(value: BoundValue): String = {

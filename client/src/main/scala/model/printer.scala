@@ -67,7 +67,7 @@ object Printer extends Generator[Tree] {
 			case ThisParameter => output("ThisParameter")
 			case StringValue(value) =>  output("String Value \"", value, "\"")
 			case NumberValue(num) => output("Number Value ", num.toString)
-			case Field(entity, name) => output("Field ", entity, ".", name)
+			case AttributeValue(entity, name) => output("AttributeValue ", entity, ".", name)
 			case TrueValue => "TrueValue"
 			case FalseValue => "FalseValue"
 			case Unordered => output("Unordered")

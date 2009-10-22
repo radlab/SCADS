@@ -1,6 +1,9 @@
 package edu.berkeley.cs.scads.model.parser
 
+import java.text.ParsePosition
 import scala.collection.mutable.HashMap
+
+
 
 /* Bound counterparts for some of the AST */
 abstract sealed class BoundTree
@@ -36,13 +39,15 @@ case class BoundEntity(name: String, attributes: HashMap[String, AttributeType],
 			}
 		})
 	}
+
+  def namespace: String = Namespaces.entity(name)
 }
 
 /* Bound Relationship */
 case class BoundRelationship(target: String, cardinality: Cardinality)
 
 /* BoundQuery and FetchTree */
-case class BoundQuery(fetchTree: BoundFetch, parameters: List[BoundParameter], range:BoundRange) {var plan: Plan = null}
+case class BoundQuery(fetchTree: BoundFetch, parameters: List[BoundParameter], range:BoundRange) {var plan: ExecutionNode = null}
 case class BoundFetch(entity: BoundEntity, child: Option[BoundFetch], relation: Option[BoundRelationship], predicates: List[BoundPredicate], orderField: Option[String], orderDirection: Option[Direction])
 
 abstract class BoundRange
@@ -50,15 +55,20 @@ case class BoundLimit(lim: BoundValue, max: Int) extends BoundRange
 object BoundUnlimited extends BoundRange
 
 /* Bound Values */
-abstract class BoundValue {val aType:AttributeType}
+object Unexecutable extends Exception
+abstract class BoundValue extends Field {
+  val aType:AttributeType
+ 	def serializeKey(): String = throw Unexecutable
+	def deserializeKey(data: String, pos: ParsePosition): Unit = throw Unexecutable
+
+	def serialize(): String = throw Unexecutable
+	def deserialize(data: String, pos: ParsePosition): Unit = throw Unexecutable
+
+  def duplicate: Field = throw Unexecutable
+}
 case class BoundParameter(name: String, aType: AttributeType) extends BoundValue
 case class BoundThisAttribute(name: String, aType: AttributeType) extends BoundValue
-abstract class BoundLiteral extends BoundValue
-case class BoundStringLiteral(value: String) extends BoundLiteral {val aType = StringType}
-case class BoundIntegerLiteral(value: Int) extends BoundLiteral {val aType = IntegerType}
-object BoundTrue extends BoundLiteral {val aType = BooleanType}
-object BoundFalse extends BoundLiteral {val aType = BooleanType}
 
 /* Bound Predicates */
 abstract class BoundPredicate
-case class AttributeEqualityPredicate(attributeName: String, value: BoundValue) extends BoundPredicate
+case class AttributeEqualityPredicate(attributeName: String, value: Field) extends BoundPredicate
