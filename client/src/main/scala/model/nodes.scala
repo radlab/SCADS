@@ -121,8 +121,11 @@ abstract class EntityProvider extends ExecutionNode {
  */
 abstract class SingleGet(namespace: String, key: Field, ver: Version) extends TupleProvider with Getter {
 	def exec(implicit env: Environment): Seq[(Field, Version, String)] = {
+    logger.debug(this)
 		Array(get(namespace, key, ver))
 	}
+
+  override def toString(): String = "SingleGet(" + namespace + ", " + key + ", " + ver + ")"
 }
 
 /**
@@ -134,12 +137,15 @@ abstract class SingleGet(namespace: String, key: Field, ver: Version) extends Tu
  */
 abstract class SequentialDereferenceIndex(targetNamespace: String, targetKeyType: Field, targetVersion: Version, child: TupleProvider) extends TupleProvider with Getter {
 	def exec(implicit env: Environment): Seq[(Field, Version, String)] = {
+    logger.debug(this)
 		child.exec.map((r) => {
 			val key = targetKeyType.duplicate
 			key.deserialize(r._3)
 			get(targetNamespace, key, targetVersion)
 		})
 	}
+
+  override def toString(): String = "SequentialDerefIndex(" + targetNamespace + ", " + targetKeyType + ", " + targetVersion + ")"
 }
 
 /**
