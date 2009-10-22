@@ -19,8 +19,15 @@
 		</dependency>
 	</dependencies>
 	<build>
-	<plugins>
-	<plugin>
+		<plugins>
+			<plugin>
+				<groupId>org.scala-tools</groupId>
+				<artifactId>maven-scala-plugin</artifactId>
+				<configuration>
+					<mainConsole>ScadrConsole</mainConsole>
+				</configuration>
+			</plugin>
+			<plugin>
 				<artifactId>maven-antrun-plugin</artifactId>
 				<executions>
 					<execution>
@@ -40,6 +47,6 @@
 					</execution>
 				</executions>
 			</plugin>
-	</plugins>
+		</plugins>
 	</build>
 </project>
