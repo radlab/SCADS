@@ -15,4 +15,3 @@ u1.name("marmbrus")
 u1.password("pass")
 u1.email("marmbrus@berkeley.edu")
 u1.save
-
