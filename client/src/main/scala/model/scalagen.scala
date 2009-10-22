@@ -32,8 +32,17 @@ object ScalaGen extends Generator[BoundSpec] {
 				}
 				output(")")
 
-				/* Index placeholder */
-				output("val indexes = Array[Index]()")
+				/* Index Creation */
+				output("val indexes = Array[Index](")
+        indent {
+          e._2.indexes.foreach(_ match {
+            case AttributeKeyedIndex(_, _, PrimaryIndex) => null
+            case AttributeKeyedIndex(ns, attrs, PointerIndex(_)) => {
+              output("new AttributeIndex(", quote(ns), ", this, ", attrs(0), ")")
+            }
+          })
+        }
+        output(")")
 
 				/* Primary Key */
 				output("val primaryKey = ")
