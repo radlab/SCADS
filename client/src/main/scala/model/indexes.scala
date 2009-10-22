@@ -35,26 +35,22 @@ abstract class Index {
  * <li>field - the field that the index is being created over</li>
  * </ul>
  */
-abstract class FieldIndex extends Index {
-	val name: String
-	val target: Entity
-	val field: Field
-
+class AttributeIndex(name: String, target: Entity, attr: Field) extends Index {
 	var oldValue: Field = null
 
 	def initalize: Unit = {
-		oldValue = field.duplicate()
+		oldValue = attr.duplicate()
 	}
 
 	def updateActions: Seq[Action] = {
 		val actions = new ArrayBuffer[Action]()
 
-		if(oldValue != field)
-			actions += (new WriteAll(name, field, target.primaryKey.serialize))
-		if(oldValue != null && oldValue != field)
+		if(oldValue != attr)
+			actions += (new WriteAll(name, attr, target.primaryKey.serialize))
+		if(oldValue != null && oldValue != attr)
 			actions += (new WriteAll(name, oldValue, null))
 
-		logger.debug("Index actions for " + oldValue + " to " + field + ":" + actions)
+		logger.debug("Index actions for " + oldValue + " to " + attr + ":" + actions)
 
 		return actions
 	}
