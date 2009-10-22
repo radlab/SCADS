@@ -6,6 +6,11 @@ import scala.tools.nsc.util.BatchSourceFile
 import scala.tools.nsc.io.VirtualDirectory
 import scala.tools.nsc.interpreter.AbstractFileClassLoader
 
+/**
+ * Allows a user to inject compiled scala source code into the running JVM, and provides a classloader for accessing them
+ * TODO: this should probably be a class so that we can load changed versions of a given class without stopping the JVM. Right?
+ * TODO: an interface to accesing the classes that doesn't require going straight to the classloader
+ */
 object ScalaCompiler {
   val settings = new Settings(error)
   settings.deprecation.value = true

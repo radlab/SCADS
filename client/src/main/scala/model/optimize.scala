@@ -81,6 +81,7 @@ object Optimizer {
 		}
 	}
 
+	//FIXME: Use the actual compiled entities instead of these placeholders
   def getClass(entityName:String) = {
     ScalaCompiler.compile("class " + entityName + """
     extends edu.berkeley.cs.scads.model.Entity()(null) {
