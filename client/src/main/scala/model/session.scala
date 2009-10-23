@@ -37,7 +37,7 @@ class TrivialSession extends Session {
 
 	private def getKeyStore(namespace: String): KeyStore = {
 		writeStore.get(namespace) match {
-			case m: Some[KeyStore] => m.get
+			case Some(m) => m
 			case None => {
 				val nMap = new KeyStore()
 				writeStore.put(namespace, nMap)

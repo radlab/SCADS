@@ -88,7 +88,7 @@ object ScalaGen extends Generator[BoundSpec] {
 
 	protected def generatePlan(plan: ExecutionNode)(implicit sb: StringBuilder, indnt: Indentation) {
     plan match {
-      case m: Materialize[Any] => {
+      case m: Materialize[_] => {
         output("Materialize[", m.entityType, "](")
 				indent {
 					generatePlan(m.child)
