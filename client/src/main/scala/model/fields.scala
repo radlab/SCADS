@@ -188,12 +188,22 @@ class BooleanField extends ValueHoldingField[Boolean] with SerializeAsKey {
 object TrueField extends BooleanField {value = true}
 object FalseField extends BooleanField {value = false}
 
+object UnsupportedCompositeFieldSize extends Exception
 
 /**
  * A class for creating a key that is a composite of two other field types.
  * TODO: Handle 3,4,5 etc length keys, either with more classes or something more elegant.
  */
-class CompositeKey[T1 <: Field, T2 <: Field](k1: T1, k2: T2) extends Field {
+object CompositeField {
+	def apply(fields: Seq[Field]): Field =
+		fields.size match {
+			case 1 => fields(0)
+			case 2 => new CompositeField2(fields(0), fields(1))
+			case _ => throw UnsupportedCompositeFieldSize
+		}
+}
+
+class CompositeField2[T1 <: Field, T2 <: Field](k1: T1, k2: T2) extends Field {
 	def serializeKey(): String = null
 	def deserializeKey(data: String, pos: ParsePosition): Unit = null
 
