@@ -68,14 +68,17 @@ object Optimizer {
           candidateIndexes(0)
         }
 
-        selectedIndex match {
+        val tupleStream = selectedIndex match {
           case PrimaryIndex(attrs) => {
-            new Materialize(
-              new SingleGet(entity.namespace, equalityAttributes.map(attrValueEqualityMap)(0), new IntegerVersion) with ReadOneGetter
-            )(scala.reflect.Manifest.classType(getClass(entity.name)))
+              new SingleGet(entity.namespace, CompositeField(equalityAttributes.map(attrValueEqualityMap)), new IntegerVersion) with ReadOneGetter
           }
-          case SecondaryIndex(_,_) => null
+          case SecondaryIndex(ns, attrs) => {
+						new SequentialDereferenceIndex(entity.namespace, entity.pkType.toField, new IntegerVersion,
+							new SingleGet(ns, CompositeField(equalityAttributes.map(attrValueEqualityMap)), Unversioned) with ReadOneGetter
+						) with ReadOneGetter
+					}
         }
+				new Materialize(tupleStream)(scala.reflect.Manifest.classType(getClass(entity.name)))
 			}
 			case _ => throw UnimplementedException("I don't know what to do w/ this fetch: " + fetch)
 		}

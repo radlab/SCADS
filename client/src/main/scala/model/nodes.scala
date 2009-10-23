@@ -138,7 +138,7 @@ abstract case class SingleGet(namespace: String, key: Field, ver: Version) exten
  * @param targetVersion the versioning system that is used by the target value
  * @param child the stream of index tuples
  */
-abstract class SequentialDereferenceIndex(targetNamespace: String, targetKeyType: Field, targetVersion: Version, child: TupleProvider) extends TupleProvider with Getter {
+abstract case class SequentialDereferenceIndex(targetNamespace: String, targetKeyType: Field, targetVersion: Version, child: TupleProvider) extends TupleProvider with Getter {
 	def exec(implicit env: Environment): Seq[(Field, Version, String)] = {
     logger.debug(this)
 		child.exec.map((r) => {

@@ -98,7 +98,12 @@ object ScalaGen extends Generator[BoundSpec] {
 			case SingleGet(ns, key, ver) => {
 				output("new SingleGet(", quote(ns), ", ", fieldToCode(key), ", ", versionToCode(ver), ") with ReadOneGetter")
 			}
-			case di: SequentialDereferenceIndex => {
+			case SequentialDereferenceIndex(tns, tkt, tv, c) => {
+				output("new SequentialDereferenceIndex(", quote(tns), ", ", fieldToCode(tkt), ", ", versionToCode(tv), ",")
+				indent {
+					generatePlan(c)
+				}
+				output(") with ReadOneGetter")
 			}
     }
 	}
@@ -129,6 +134,9 @@ object ScalaGen extends Generator[BoundSpec] {
 	private def fieldToCode(field: Field): String = {
 		field match {
 			case BoundParameter(name, aType) => fieldType(aType) + "(" + name + ")"
+			case s: StringField => "new StringField"
+			case i: IntegerField => "new IntegerField"
+			case b: BooleanField => "new BooleanField"
 		}
 	}
 
