@@ -111,6 +111,16 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
         }
     }
 
+    def unravelException(e: Throwable): Throwable = {
+        var prev = e
+        var cause = e.getCause
+        while ( cause != null ) {
+            prev = cause
+            cause = cause.getCause
+        }
+        return prev
+    }
+
     def executeQuery(ent: Object, queryClass: String, queryName: String, queryInputs: Array[String]): Seq[Entity] = {
 
         val queryMethod = getQueryMethod(queryClass,queryName)
@@ -136,11 +146,17 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
         llogger.debug("query method inputs: " )
         queryMethodInputs.foreach(llogger.debug(_))
 
-        val retVal: AnyRef = queryMethod.invoke(ent, queryMethodInputs : _*)
-        if ( retVal == null ) {
-            null
-        } else {
-            retVal.asInstanceOf[Seq[Entity]]
+        try {
+            val retVal: AnyRef = queryMethod.invoke(ent, queryMethodInputs : _*)
+            if ( retVal == null ) {
+                return null
+            } else {
+                return retVal.asInstanceOf[Seq[Entity]]
+            }
+        } catch {
+            case e => {
+                throw unravelException(e)
+            }
         }
     }
 
@@ -327,5 +343,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
         }
 
     }
+
+
 
 }
