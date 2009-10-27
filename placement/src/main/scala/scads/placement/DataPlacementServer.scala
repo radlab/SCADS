@@ -235,9 +235,4 @@ case class RunnableDataPlacementServer(port:Int) extends Runnable {
 	}
 }
 
-object SimpleDataPlacementApp extends Application {
-	//def main(args:Array[String]) = {
-		BasicConfigurator.configure()
-		val dps = new RunnableDataPlacementServer(8000)
-	//}
-}
+

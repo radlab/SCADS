@@ -17,21 +17,34 @@ import org.apache.log4j.BasicConfigurator
 
 case class RemoteDataPlacement(host: String, port: Int, logger: Logger) extends RemoteDataPlacementProvider
 
+        val storageNodePort = 9002
+        val dataPlacementNodePort = 8001
 
         val logger = Logger.getLogger("deploylib.remoteMachine")
-        logger.setLevel(Level.INFO)
+        logger.setLevel(Level.DEBUG)
 
         BasicConfigurator.configure()
 
-        val storageNodes = Array(r15,r11,r6,r13)
-        val dataPlacementNode = r10
+        val storageNodes = Array(r13,r14,r15)
+        val dataPlacementNode = r8
 
         (storageNodes ++ Array(dataPlacementNode)).foreach(_.services.foreach(_.stop))
+        (storageNodes ++ Array(dataPlacementNode)).foreach(_.cleanServices)
+
+        storageNodes.foreach((n) => {
+            if ( !n.isPortAvailableToListen(storageNodePort) ) {
+                logger.fatal("Node " + n + " is unable to listen on storage node port")
+            }
+        })
+
+        if ( !dataPlacementNode.isPortAvailableToListen(dataPlacementNodePort) ) {
+            logger.fatal("Node " + dataPlacementNode + " is unable to listen on data placement port")
+        }
 
         storageNodes.foreach((n)=> {
             n.setupRunit
             val storageNodeService = new JavaService(
-                    "../../../scalaengine/target/scalaengine-1.0-SNAPSHOT-jar-with-dependencies.jar","edu.berkeley.cs.scads.storage.JavaEngine","-p 9001")
+                    "../../../scalaengine/target/scalaengine-1.0-SNAPSHOT-jar-with-dependencies.jar","edu.berkeley.cs.scads.storage.JavaEngine","-p " +storageNodePort)
             storageNodeService.action(n)
             n.services.foreach((s) => {
                     println(s)
@@ -42,7 +55,7 @@ case class RemoteDataPlacement(host: String, port: Int, logger: Logger) extends 
         })
 
         val dataPlacementNodeService = new JavaService(
-                "../../../placement/target/placement-1.0-SNAPSHOT-jar-with-dependencies.jar","edu.berkeley.cs.scads.placement.SimpleDataPlacementApp","")
+                "../../../placement/target/placement-1.0-SNAPSHOT-jar-with-dependencies.jar","edu.berkeley.cs.scads.placement.SimpleDataPlacementApp",dataPlacementNodePort.toString)
         dataPlacementNode.setupRunit
         dataPlacementNodeService.action(dataPlacementNode)
         //dataPlacementNode.services.foreach((s) => {
@@ -58,10 +71,11 @@ case class RemoteDataPlacement(host: String, port: Int, logger: Logger) extends 
         rservice.start
         while( !rservice.status.trim.equals("run") ) {
             logger.info("got status '" + rservice.status + "', expecting 'run'")
+            rservice.start // keep trying!
             Thread.sleep(1000);// try to mitigate busy-wait
         }
 
-        val dpclient = getDataPlacementHandle("r10.millennium.berkeley.edu",false)
+        val dpclient = getDataPlacementHandle(dataPlacementNodePort,"r8.millennium.berkeley.edu",false)
         println("-----------------GOT DPCLIENT:" + dpclient)
 
         val range1 = new RangeSet();
@@ -73,13 +87,13 @@ case class RemoteDataPlacement(host: String, port: Int, logger: Logger) extends 
         range1.setEnd_key(k2.serializeKey)
         val rs1 = new RecordSet(3,range1,null,null)
 
-        val dp1 = new DataPlacement("r15.millennium.berkeley.edu",9001,9001,rs1)
+        val dp1 = new DataPlacement("r13.millennium.berkeley.edu",storageNodePort,storageNodePort,rs1)
         val l1 = new java.util.LinkedList[DataPlacement]
         l1.add(dp1)
         dpclient.add("ent_user", l1)
 
         implicit val env = new Environment
-        env.placement = new RemoteDataPlacement("r10.millennium.berkeley.edu",8000,logger)
+        env.placement = new RemoteDataPlacement("r8.millennium.berkeley.edu",dataPlacementNodePort,logger)
         env.session = new TrivialSession
         env.executor = new TrivialExecutor
 
@@ -94,10 +108,10 @@ case class RemoteDataPlacement(host: String, port: Int, logger: Logger) extends 
         rtn.foreach(println(_))
 
         (storageNodes ++ Array(dataPlacementNode)).foreach(_.services.foreach(_.stop))
+        (storageNodes ++ Array(dataPlacementNode)).foreach(_.cleanServices)
 
 
-    def getDataPlacementHandle(h:String,xtrace_on:Boolean):KnobbedDataPlacementServer.Client = {
-        val p = 8000 // default port
+    def getDataPlacementHandle(p: Int, h:String,xtrace_on:Boolean):KnobbedDataPlacementServer.Client = {
         var haveDPHandle = false
         var dpclient:KnobbedDataPlacementServer.Client = null
         while (!haveDPHandle) {
