@@ -51,7 +51,9 @@ abstract class RemoteMachine {
 	protected def useConnection[ReturnType](func: (Connection) => ReturnType): ReturnType = {
 		if(connection == null) {
 			connection = new Connection(hostname)
+            logger.info("Connecting to " + hostname)
 			connection.connect()
+            logger.info("Connecting with username " + username + " privateKey " + privateKey)
 			connection.authenticateWithPublicKey(username, privateKey, "")
 		}
 		func(connection)
@@ -103,19 +105,19 @@ abstract class RemoteMachine {
 					}
 				}
 				if((status & ChannelCondition.EXIT_STATUS) != 0) {
-					logger.debug("Received EXIT_STATUS")
+					//logger.debug("Received EXIT_STATUS")
 					exitStatus = session.getExitStatus()
 					continue = false
 				}
 				if((status & ChannelCondition.EXIT_SIGNAL) != 0) {
-					logger.debug("Received EXIT_SIGNAL: " + session.getExitSignal())
+					//logger.debug("Received EXIT_SIGNAL: " + session.getExitSignal())
 					continue = false
 				}
 				if((status & ChannelCondition.EOF) != 0) {
-					logger.debug("Received EOF")
+					//logger.debug("Received EOF")
 				}
 				if((status & ChannelCondition.CLOSED) != 0) {
-					logger.debug("Received CLOSED")
+					//logger.debug("Received CLOSED")
 				}
 			}
 			session.close()
@@ -223,6 +225,18 @@ abstract class RemoteMachine {
       logger.debug("Watching " + remoteFile + " on thread " + thread)
 		})
 	}
+
+    def isPortAvailableToListen(port: Int): Boolean = {
+        executeCommand("netstat -aln | grep -v unix | grep LISTEN | egrep '\\b" + port + "\\b'") match {
+			case ExecuteResponse(Some(_), result, "") => {
+                result.trim.isEmpty
+            }
+			case e: ExecuteResponse => {
+				logger.fatal("Unexpected response while executing netstat: " + e)
+				false
+			}
+        }
+    }
 
   def cleanServices: Unit = {
     executeCommand("rm -r " + serviceRoot + "/*") match {
