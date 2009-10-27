@@ -20,15 +20,20 @@ case class BlockingTriesExceededException(msg: String) extends Exception
 
 case class RemoteDataPlacement(host: String, port: Int, logger: Logger) extends RemoteDataPlacementProvider
 
-class ScadsDeploy(storageNodes: Array[Tuple2[RClusterNode,Int]], dataPlacementNode: Tuple2[RClusterNode,Int])  {
+class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int], dataPlacementNode: Tuple2[RClusterNode,Int])  {
 
     val logger = Logger.getLogger("ScadsDeploy")
     var debugLevel = Level.DEBUG
     var maxBlockingTries = 1000
-    private val allNodes = storageNodes ++ Array(dataPlacementNode)
+    private val allNodes = storageNodes + dataPlacementNode
+
+    private def stopAllServices(): Unit = {
+        allNodes.keySet.foreach(_.services.foreach(_.stop))
+        allNodes.keySet.foreach(_.cleanServices)
+    }
 
     def shutdown():Unit = {
-        allNodes.foreach(_._1.cleanServices)
+        stopAllServices 
     }
 
     def deploy():Unit = {
@@ -39,7 +44,7 @@ class ScadsDeploy(storageNodes: Array[Tuple2[RClusterNode,Int]], dataPlacementNo
 
         // Iterate over all the storage + dataplacement nodes to
         // clean up any pre-existing services, so we start fresh
-        allNodes.foreach(_._1.cleanServices)
+        stopAllServices
 
         // Give the services a chance to clean
         // TODO: we really need to have blocking command execution, this
@@ -48,18 +53,17 @@ class ScadsDeploy(storageNodes: Array[Tuple2[RClusterNode,Int]], dataPlacementNo
 
         // Check to see if the port is open on the remote machine
         // for each node
-        allNodes.foreach((tuple) => {
-            if ( !tuple._1.isPortAvailableToListen(tuple._2) ) {
-                val msg = "Port " + tuple._2 + " is in use on " + tuple._1
+        allNodes.keySet.foreach((node) => {
+            if ( !node.isPortAvailableToListen(allNodes(node)) ) {
+                val msg = "Port " + allNodes(node) + " is in use on " + node 
                 logger.fatal(msg)
                 throw new RemotePortInUseException(msg)
             }
         })
 
         // Start the storage engine service on all the storage nodes
-        storageNodes.foreach( (tuple) => {
-            val rnode = tuple._1
-            val port = tuple._2
+        storageNodes.keySet.foreach( (rnode) => {
+            val port = storageNodes(rnode) 
             // Setup runit on the node
             rnode.setupRunit
             val storageNodeService = new JavaService(
@@ -80,6 +84,55 @@ class ScadsDeploy(storageNodes: Array[Tuple2[RClusterNode,Int]], dataPlacementNo
         rnode.services(0).start
         blockUntilRunning(rnode.services(0))
 
+    }
+
+    def placeUsers(userPlacement: Array[Tuple3[String,String,RClusterNode]]):Unit = {
+        val dpclient = getDataPlacementHandle(dataPlacementNode._2,dataPlacementNode._1.hostname,false)
+        userPlacement.foreach( (tuple) => {
+            val from = tuple._1
+            val to = tuple._2
+            val rnode = tuple._3
+            
+            val range = new RangeSet()
+            val fromField = new StringField
+            fromField.value = from
+            val toField = new StringField
+            toField.value = to
+            range.setStart_key(fromField.serializeKey)
+            range.setEnd_key(toField.serializeKey)
+            val rs = new RecordSet(3,range,null,null)
+
+
+            val dp = new DataPlacement(rnode.hostname,storageNodes(rnode),storageNodes(rnode),rs)
+            val ll = new java.util.LinkedList[DataPlacement]
+            ll.add(dp)
+            dpclient.add("ent_user", ll)
+        })
+    } 
+
+    private def getDataPlacementHandle(p: Int, h:String,xtrace_on:Boolean):KnobbedDataPlacementServer.Client = {
+        var haveDPHandle = false
+        var dpclient:KnobbedDataPlacementServer.Client = null
+        while (!haveDPHandle) {
+            try {
+                val transport = new TFramedTransport(new TSocket(h, p))
+                val protocol = if (xtrace_on) {new XtBinaryProtocol(transport)} else {new TBinaryProtocol(transport)}
+                dpclient = new KnobbedDataPlacementServer.Client(protocol)
+                transport.open()
+                haveDPHandle = true
+            } catch {
+                case e: Exception => { println("don't have connection to placement server, waiting 1 second: " + e.getMessage); e.printStackTrace; Thread.sleep(1000) }
+            }
+        }
+        dpclient
+    }
+
+    def getEnv():Environment = {
+        implicit val env = new Environment
+        env.placement = new RemoteDataPlacement(dataPlacementNode._1.hostname,dataPlacementNode._2,logger)
+        env.session = new TrivialSession
+        env.executor = new TrivialExecutor
+        env
     }
 
     private def blockUntilRunning(runitService: Service):Unit = {
