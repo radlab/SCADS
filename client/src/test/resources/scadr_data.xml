@@ -63,6 +63,14 @@
             <attribute name="profileData" type="string">About me</attribute>
         </attributes>
     </entity>
+    <entity class="user">
+        <attributes>
+            <attribute name="name" type="string">Ron Paul</attribute>
+            <attribute name="password" type="string">s3cr3t</attribute>
+            <attribute name="email" type="string">myemail7@berkeley.edu</attribute>
+            <attribute name="profileData" type="string">About me</attribute>
+        </attributes>
+    </entity>
 
     <!-- Thought Class -->
     <entity class="thought">

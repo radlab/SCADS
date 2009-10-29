@@ -23,6 +23,15 @@
             <output primarykey="Lady Gaga" />
         </outputs>
     </query>
+    <query name="userByEmail" class="Queries">
+        <inputs>
+            <input type="string">myemail7@berkeley.edu</input>
+        </inputs>
+        <outputs class="user">
+            <output primarykey="Randy Johnson" />
+            <output primarykey="Ron Paul" />
+        </outputs>
+    </query>
     <query name="myThoughts" class="user" primarykey="Stephen Tu">
         <inputs>
             <input type="int">10</input>
