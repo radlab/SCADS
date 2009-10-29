@@ -86,28 +86,91 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
 
     }
 
-    def placeUsers(userPlacement: Array[Tuple3[String,String,RClusterNode]]):Unit = {
+    private def placeEntities[T <: Field](entityPlacement: Array[Tuple3[T,T,RClusterNode]], namespace:String):Unit = {
         val dpclient = getDataPlacementHandle(dataPlacementNode._2,dataPlacementNode._1.hostname,false)
-        userPlacement.foreach( (tuple) => {
+        entityPlacement.foreach( (tuple) => {
             val from = tuple._1
             val to = tuple._2
             val rnode = tuple._3
             
             val range = new RangeSet()
-            val fromField = new StringField
-            fromField.value = from
-            val toField = new StringField
-            toField.value = to
-            range.setStart_key(fromField.serializeKey)
-            range.setEnd_key(toField.serializeKey)
+            range.setStart_key(from.serializeKey)
+            range.setEnd_key(to.serializeKey)
             val rs = new RecordSet(3,range,null,null)
-
-
             val dp = new DataPlacement(rnode.hostname,storageNodes(rnode),storageNodes(rnode),rs)
             val ll = new java.util.LinkedList[DataPlacement]
             ll.add(dp)
-            dpclient.add("ent_user", ll)
+            dpclient.add(namespace, ll)
         })
+
+    }
+
+    private def assignEqualKeyPartition[T <: Field](keylist:List[T], cmp:(T,T) => Boolean, dummyCallback:T => T, namespace:String ):Unit = {
+        val n = storageNodes.size 
+        val partitions = makeEqualKeyPartition[T](keylist,n,cmp,dummyCallback)
+        var i = -1 
+        placeEntities[T]( storageNodes.keySet.toList.map((p)=>{ i += 1; (partitions(i)._1,partitions(i)._2,p) }).toArray, namespace)
+    }
+
+    private def makeEqualKeyPartition[T <: Field](keylist:List[T], n:Int, cmp:(T,T) => Boolean, dummyCallback:T => T ): 
+        List[Tuple2[T,T]] = {
+        var keylistPP = 0
+
+        val lower = Math.floor(keylist.length.toDouble/n.toDouble).toInt
+        val upper = Math.ceil(keylist.length.toDouble/n.toDouble).toInt
+
+        println("LOWER " + lower + " UPPER " + upper)
+
+        if ( upper*(n-1) < keylist.size ) {
+            val lowerMMDiff = Math.abs(keylist.size-lower*(n-1) - lower)
+            val upperMMDiff = Math.abs(keylist.size-upper*(n-1) - upper)
+            if ( lowerMMDiff < upperMMDiff ) {
+                keylistPP = lower
+            } else {
+                keylistPP = upper
+            }
+        } else {
+            keylistPP = lower
+        }
+        println("KEYLISTPP: " + keylistPP)
+
+        val nkeylist = keylist.sort(cmp)
+
+        var buckets = List[Tuple2[T,T]]()
+
+        var bucketsSoFar = 0
+        var countSoFar = 0
+        var lastMaxRange = nkeylist(0)
+        for ( i <- 0 until nkeylist.length+1 ) {
+            if ( i == nkeylist.length ) {
+                buckets += (lastMaxRange, dummyCallback(nkeylist(nkeylist.length-1)))
+            } else if ( countSoFar == keylistPP && bucketsSoFar < (n-1) ) {
+                var lmax = nkeylist(i)
+                buckets += (lastMaxRange, lmax)  
+                bucketsSoFar += 1
+                lastMaxRange = lmax 
+                countSoFar = 1
+            } else {
+                countSoFar += 1
+            }
+        }
+
+        buckets
+    }
+
+
+
+
+    def placeUsers(userPlacement: Array[Tuple3[String,String,RClusterNode]]):Unit = {
+        placeEntities[StringField](
+            userPlacement.map[Tuple3[StringField,StringField,RClusterNode]]( (tuple) => {
+                val from = new StringField
+                val to = new StringField
+                from.value = tuple._1
+                to.value = tuple._2
+                val rnode = tuple._3
+                ( from, to, rnode ) } ),
+            "ent_user")
     } 
 
     private def getDataPlacementHandle(p: Int, h:String,xtrace_on:Boolean):KnobbedDataPlacementServer.Client = {
