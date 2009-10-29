@@ -105,6 +105,14 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
 
     }
 
+    def equalKeyPartitionUsers(usernames: List[String]):Unit = {
+        assignEqualKeyPartition[StringField]( 
+                usernames.map((s)=>{ val f = new StringField; f.value = s; f }),
+                (a,b)=>{ (a.value.compareTo(b.value))<0 },
+                (a)=>{ val f = new StringField; f.value = a.value+"a"; f},
+                "ent_user")
+    }
+
     private def assignEqualKeyPartition[T <: Field](keylist:List[T], cmp:(T,T) => Boolean, dummyCallback:T => T, namespace:String ):Unit = {
         val n = storageNodes.size 
         val partitions = makeEqualKeyPartition[T](keylist,n,cmp,dummyCallback)
