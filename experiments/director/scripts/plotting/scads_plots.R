@@ -81,10 +81,10 @@ start.device = function(out.file=NULL,width=500,height=500) {
 		
 	if (!is.null(width) && !is.null(height)) {
 		if (!is.null(out.file)) {
-			if ( length(grep("pdf$",out.file))>0 ) pdf(file=out.file,width=width/70,height=height/70)
+			if ( length(grep("pdf$",out.file))>0 ) pdf(file=out.file,width=width/100,height=height/100)
 			else png(filename=out.file,width=width,height=height)
 		} else {
-			quartz(width=width/70,height=height/70)
+			quartz(width=width/100,height=height/100)
 		}
 	}
 }
@@ -146,6 +146,26 @@ plot.director.simple.raw = function(m,out.file=NULL,debug=F,dbhost="localhost",t
 	try( plot.all.latency(m,title="latency",tight=T) )
 	try( graph.nservers.from.configs(m,tight=T) )
 	try( plot.actions(m,tight=T) )
+}
+
+plot.director.simple.for.paper = function(out.file=NULL,debug=F,dbhost="localhost",ts0=NULL,ts1=NULL) {
+	m = plot.init(out.file,600,450,dbhost,ts0,ts1)
+	try( plot.director.simple.for.paper.raw(m,out.file,debug,dbhost,ts0,ts1) )
+ 	plot.done(m)
+}
+
+plot.director.simple.for.paper.raw = function(m,out.file=NULL,debug=F,dbhost="localhost",ts0=NULL,ts1=NULL) {
+	split.screen( screen.coord(c(3,2,1.5,1.5)) )
+	#split.screen( screen.coord(c(1)) )
+
+	print( m )
+
+	try( plot.workload(m,title="workload") )
+	#try( plot.workload.mix(m,title="workload mix",tight=T) )
+	try( plot.all.latency(m,title="latency",tight=T,plot.mean=F,color=F,hline=100) )
+	try( graph.nservers.from.configs(m,tight=T) )
+	try( graph.action.data.size(m) )
+	#try( plot.actions(m,tight=T) )
 }
 
 plot.director = function(debug=F,out.file=NULL,dbhost="localhost",ts0=NULL,ts1=NULL) {
@@ -319,7 +339,7 @@ get.all.latency.data = function(m) {
 	data	
 }
 
-plot.all.latency = function(m,server,tight=F,title=F,plot.mean=T,data=NA,vline=NA) {
+plot.all.latency = function(m,server,tight=F,title=F,plot.mean=T,data=NA,vline=NA,hline=NA,color=T) {
 	graph.init(tight.top=1,tight.bottom=2)
 	if (is.na(data))
 		data = get.all.latency.data(m)
@@ -330,24 +350,49 @@ plot.all.latency = function(m,server,tight=F,title=F,plot.mean=T,data=NA,vline=N
 	
 	print( data$get_latency_99p )
 
-	plot( c(), xlim=m$xtlim, ylim=ylim, bty="n", axes=F, xlab="", ylab="latency [ms]", main=title)
+	if (color) {
+		get.c = "cornflowerblue"
+		put.c = "orange"
+		vline.c = "olivedrab"
+		vline.lt = 1
+		hline.c = "red"
+		hline.lt = 1
+		get.99.lt = 1
+		get.50.lt = 3
+		put.99.lt = 1
+		put.50.lt = 3
+	} else {
+		get.c = "black"
+		put.c = "black"
+		vline.c = "black"
+		vline.lt = 2
+		hline.c = "black"
+		hline.lt = 2
+		get.99.lt = 1
+		get.50.lt = 1
+		put.99.lt = 3
+		put.50.lt = 3
+	}
+
+	plot( c(), xlim=m$xtlim, ylim=ylim, bty="n", axes=F, xlab="", ylab="latency [ms]", main=title, cex.lab=1.4 )
 	#axis.POSIXct(1,x=m$xtlim,format="%H:%M")
 	#axis.POSIXct(1,x=m$xtlim,format=" ")
 	axis(2)
 #	lines( data$time, data$get_latency_90p, col="blue", lty=1 )
-	lines( data$time, data$get_latency_99p, col="cornflowerblue", lty=1 )
-	lines( data$time, data$put_latency_99p, col="orange", lty=1 )
+	lines( data$time, data$get_latency_99p, col=get.c, lty=get.99.lt )
+	lines( data$time, data$put_latency_99p, col=put.c, lty=put.99.lt )
 	if (plot.mean) {
-		lines( data$time, data$get_latency_50p, col="cornflowerblue", lty=3 )
-		lines( data$time, data$put_latency_50p, col="orange", lty=3 )
+		lines( data$time, data$get_latency_50p, col=get.c, lty=get.50.lt )
+		lines( data$time, data$put_latency_50p, col=put.c, lty=put.50.lt )
 	}
 #	lines( data$time, data$put_latency_90p, col="red", lty=1 )
+	if (!is.na(hline)) abline(h=hline,col=hline.c,lwd=2,lty=hline.lt)
 	if (!is.na(vline))
-		abline(v=to.date(as.numeric(vline)),col="olivedrab",lwd=2)
+		abline(v=to.date(as.numeric(vline)),col=vline.c,lwd=2,lty=vline.lt)
 	if (!plot.mean)
-		legend( "topleft", legend=c("get 99p","put 99p"), col=c("cornflowerblue","orange"), inset=0.02, lty=c(3,1,3,1), lwd=2 )
+		legend( "topleft", legend=c("get 99%","put 99%"), col=c(get.c,put.c), inset=0.02, lty=c(get.99.lt,put.99.lt), lwd=2 )
 	else 
-		legend( "topleft", legend=c("get median","get 99p","put median","put 99p"), col=c("cornflowerblue","cornflowerblue","orange","orange"), inset=0.02, lty=c(3,1,3,1), lwd=2 )
+		legend( "topleft", legend=c("get median","get 99%","put median","put 99%"), col=c(get.c,get.c,put.c,put.c), inset=0.02, lty=c(get.50.lt,get.99.lt,put.50.lt,put.99.lt), lwd=2 )
 	graph.done()
 }
 
@@ -510,6 +555,34 @@ plot.configs.raw = function(m,debug=F,out.file=NULL,dbhost="localhost",ts0=NULL,
 	for (time in names(configs)) graph.config(m,as.numeric(time),max.w,100,tight=T)
 }
 
+graph.action.data.size = function(m,title="",int=2*60*1000) {
+	graph.init(tight.top=0,tight.bottom=2)
+
+	actions = get.all.actions(m$conn.director)
+	actions = actions[ actions$action_name!="RemoveFrom", ]
+	actions$nkeys = as.numeric( unlist( lapply(strsplit(actions$args,"=") , function(x) {x[2]}) ) ) 
+	actions$t = actions$start_time/int
+	
+  	data = get.data(conn.metrics,"ALL","ALL","workload","workload")
+	t0 = round(min(data$time,na.rm=T)/int)*int
+	t1 = round(max(data$time,na.rm=T)/int)*int
+	
+	#print( actions[, c("t","action_name","nkeys")] )
+	agg = aggregate( actions$nkeys, by=list(t=round(actions$start_time/int)*int),FUN=sum)
+	#agg = aggregate( actions$nkeys, by=list(t=round(actions$start_time/int)),FUN=sum)
+	# add zeros
+	#agg = rbind( agg, data.frame( t=setdiff( seq( min(agg$t), max(agg$t), by=int ), agg$t ), x=0 ) )
+	
+	agg = rbind( agg, data.frame( t=setdiff( seq( t0, t1, by=int ), agg$t ), x=0 ) )
+	agg = agg[ order(agg$t), ]
+	
+	print(agg)
+	#plot( agg$t, agg$x, type="l", main="# keys copied" )
+	barplot( agg$x, ylab="", cex.lab=1.4, main="# keys copied" )
+
+	graph.done()
+}
+
 graph.state.servers = function(m,servers,time,title) {
 	graph.init(tight.top=0,tight.bottom=2)
 	max.w = 100.0
@@ -556,7 +629,7 @@ graph.nservers.from.configs = function(m,tight=F) {
 		nservers = nrow(read.csv( textConnection(configs$config[i]) ))
 		data = rbind(data, data.frame(time=date,nservers=nservers) )
 	}
-	plot( data$time, data$nservers, bty="n", axes=F, xlab="time", ylab="nservers", lwd=2, main="number of servers", type="l", ylim=c(0,max(data$nservers)))
+	plot( data$time, data$nservers, bty="n", axes=F, xlab="time", ylab="", lwd=2, main="number of servers", type="l", ylim=c(0,max(data$nservers)), cex.lab=1.4)
 	#axis.POSIXct( 1, x=data$time, format="%H:%M")
 	axis.POSIXct( 1, x=data$time, format=" ")
 	axis(2)
@@ -721,6 +794,12 @@ get.changed.configs = function(c) {
 	for (ii in i) cs[[as.character(d[ii,"time"])]] = read.csv( textConnection(d$config[ii]) )
 
 	return( cs )
+}
+
+get.all.actions = function(c) {
+	sql = "select * from actions"
+	d = dbGetQuery( c, sql )
+	d	
 }
 
 get.all.configs = function(c) {
