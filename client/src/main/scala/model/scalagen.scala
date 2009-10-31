@@ -38,7 +38,7 @@ object ScalaGen extends Generator[BoundSpec] {
 				output("val indexes = Array[Index](")
         indent {
           e._2.indexes.foreach(_ match {
-            case SecondaryIndex(ns, attrs) => {
+            case SecondaryIndex(ns, attrs, _) => {
               output("new AttributeIndex(", quote(ns), ", this, ", attrs(0), ")")
             }
             case _ => null

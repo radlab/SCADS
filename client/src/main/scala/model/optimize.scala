@@ -9,9 +9,13 @@ case class UnimplementedException(desc: String) extends Exception
 sealed abstract class OptimizerException extends Exception
 object Unsatisfiable extends OptimizerException
 
-sealed abstract class Index { val attributes: List[String] }
-case class PrimaryIndex(attributes: List[String]) extends Index
-case class SecondaryIndex(namespace: String, attributes: List[String]) extends Index
+sealed abstract class Index {
+	val namespace: String
+	val attributes: List[String]
+}
+
+case class PrimaryIndex(namespace: String, attributes: List[String]) extends Index
+case class SecondaryIndex(namespace: String, attributes: List[String], targetNamespace: String) extends Index
 
 /**
  * The optimizer takes in a BoundQuery and figures out how to satisfy it.
@@ -79,7 +83,7 @@ class Optimizer(spec: BoundSpec) {
 				if(candidateIndexes.size == 0) {
 					/* No index exists, so we must create one. */
 					val idxName = "idx" + fetch.entity.name + equalityAttributes.mkString("", "_", "")
-					val newIndex = new SecondaryIndex(idxName, equalityAttributes)
+					val newIndex = new SecondaryIndex(idxName, equalityAttributes, entity.namespace)
 					entity.indexes.append(newIndex)
           newIndex
 				}
@@ -88,11 +92,11 @@ class Optimizer(spec: BoundSpec) {
         }
 
         val tupleStream = selectedIndex match {
-          case PrimaryIndex(attrs) => {
-              new SingleGet(entity.namespace, CompositeField(equalityAttributes.map(attrValueEqualityMap)), new IntegerVersion) with ReadOneGetter
+          case PrimaryIndex(ns, attrs) => {
+              new SingleGet(ns, CompositeField(equalityAttributes.map(attrValueEqualityMap)), new IntegerVersion) with ReadOneGetter
           }
-          case SecondaryIndex(ns, attrs) => {
-						new SequentialDereferenceIndex(entity.namespace, entity.pkType.toField, new IntegerVersion,
+          case SecondaryIndex(ns, attrs, tns) => {
+						new SequentialDereferenceIndex(tns, entity.pkType.toField, new IntegerVersion,
 							new SingleGet(ns, CompositeField(equalityAttributes.map(attrValueEqualityMap)), Unversioned) with ReadOneGetter
 						) with ReadOneGetter
 					}

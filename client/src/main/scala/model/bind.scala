@@ -46,7 +46,7 @@ object Binder {
 
 		/* Add primary key as an index */
 		entityMap.values.foreach(e => {
-			e.indexes += new PrimaryIndex(e.keys)
+			e.indexes += new PrimaryIndex(e.namespace, e.keys)
 		})
 
 		/* Bind relationships to the entities they link, check for bad entity names and duplicate relationship names */
