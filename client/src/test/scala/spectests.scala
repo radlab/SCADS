@@ -80,8 +80,7 @@ object ScadbayLangSpec extends ScadsLangSpec {
             "myActiveBiddingItems",
             "myCommentsAsSeller",
             "myCommentsAsBuyer",
-            "myPostedComments",
-
+            "myPostedComments"
         ),
 
         "item" -> Array(
