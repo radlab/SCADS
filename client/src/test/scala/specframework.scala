@@ -89,7 +89,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
     def convertToClass(clazz: Class[_], value: String): Object = {
         if ( clazz.isPrimitive ) {
             if ( clazz.equals(java.lang.Integer.TYPE) ) {
-                return new Integer(value)
+                return new java.lang.Integer(value)
             } else if ( clazz.equals(java.lang.Boolean.TYPE) ) {
                 return new java.lang.Boolean(value)
             } else {
@@ -102,7 +102,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
             if ( clazz.equals(stringClass) ) {
                 return value
             } else if ( clazz.equals(intClass) ) {
-                return new Integer(value)
+                return new java.lang.Integer(value)
             } else if ( clazz.equals(boolClass) ) {
                 return new java.lang.Boolean(value)
             } else {
