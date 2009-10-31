@@ -2,6 +2,9 @@ package edu.berkeley.cs.scads.model
 
 import java.text.ParsePosition
 import edu.berkeley.cs.scads.thrift.Record
+import edu.berkeley.cs.scads.thrift.RecordSet
+import edu.berkeley.cs.scads.thrift.RangeSet
+
 import edu.berkeley.cs.scads.keys.TransparentKey
 import org.apache.log4j.Logger
 
@@ -39,7 +42,35 @@ abstract trait SetGetter {
 	/**
 	 * Get a range of tuples from the storage engine.
 	 */
-	def get_set(namespace: String, start_key: Field, end_key: Field, offset: Int, limit: Int, version: Version)(implicit env: Environment): Seq[(Field, Version, String)]
+	def get_set(namespace: String, start_key: String, end_key: String, limit: Int, keyType: Field, version: Version)(implicit env: Environment): Seq[(Field, Version, String)]
+}
+
+trait ReadOneSetGetter extends SetGetter{
+	/* FIXME: to work with multiple nodes */
+	def get_set(namespace: String, start_key: String, end_key: String, limit: Int, keyType: Field, version: Version)(implicit env: Environment): Seq[(Field, Version, String)] = {
+		val node = env.placement.lookup(namespace, new TransparentKey(start_key))
+
+		val result = scala.collection.jcl.Conversions.convertList(node(0).useConnection((c) => {
+			val range = new RangeSet(start_key, end_key, 0, limit)
+			val rset = new RecordSet()
+
+			rset.setType(edu.berkeley.cs.scads.thrift.RecordSetType.RST_RANGE)
+			rset.setRange(range)
+			logger.debug("Doing get_set on ns: " + namespace + " recset: " + rset)
+			c.get_set(namespace, rset)
+		}))
+
+		logger.debug("Results: " + result)
+
+		result.map((rec) => {
+			val key = keyType.duplicate()
+			key.deserialize(rec.key)
+			val pos = new ParsePosition(0)
+			val ver = version.duplicate()
+			ver.deserialize(rec.value, pos)
+			(key, ver, rec.value.substring(pos.getIndex()))
+		})
+	}
 }
 
 /**
@@ -155,8 +186,10 @@ abstract case class SequentialDereferenceIndex(targetNamespace: String, targetKe
  * Operater to grab ranges of values from the storage layer in the environment.
  * TODO: implement it!
  */
-abstract class GetSet(start: Field, end: Field) extends TupleProvider with SetGetter {
-	def exec(implicit env: Environment): Seq[(Field, Version, String)] = null
+abstract case class PrefixGet(namespace: String, prefix: Field, limit: Int, keyType: Field, versionType: Version) extends TupleProvider with SetGetter {
+	def exec(implicit env: Environment): Seq[(Field, Version, String)] = {
+		get_set(namespace, prefix.serializeKey, prefix.serializeKey + "~", limit, keyType, versionType)
+	}
 }
 
 /**

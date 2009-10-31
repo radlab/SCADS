@@ -39,7 +39,7 @@ object ScalaGen extends Generator[BoundSpec] {
         indent {
           e._2.indexes.foreach(_ match {
             case SecondaryIndex(ns, attrs, _) => {
-              output("new AttributeIndex(", quote(ns), ", this, ", attrs(0), ")")
+              output("new AttributeIndex(", quote(ns), ", this, CompositeField(", attrs.mkString("", ",", ""), "))")
             }
             case _ => null
           })
@@ -104,6 +104,9 @@ object ScalaGen extends Generator[BoundSpec] {
 					generatePlan(c)
 				}
 				output(") with ReadOneGetter")
+			}
+			case PrefixGet(ns, p, lim, key, version) => {
+				output("new PrefixGet(", quote(ns), ", ", fieldToCode(p), ", ", "100", ", ", fieldToCode(key), ", ", versionToCode(version), ") with ReadOneSetGetter")
 			}
     }
 	}

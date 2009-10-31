@@ -8,7 +8,7 @@ object BooleanType extends AttributeType { def toField: Field = new BooleanField
 object StringType extends AttributeType  { def toField: Field = new StringField}
 object IntegerType extends AttributeType { def toField: Field = new IntegerField}
 case class CompositeType(parts: List[AttributeType]) extends AttributeType
-	{def toField:Field = CompositeField(parts.map(_.toField))}
+	{def toField:Field = CompositeField(parts.map(_.toField): _*)}
 
 case class Attribute(name: String, attrType: AttributeType) extends Tree
 case class Entity(name: String, attributes: List[Attribute], keys: List[String]) extends Tree

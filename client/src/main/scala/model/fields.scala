@@ -195,7 +195,7 @@ object UnsupportedCompositeFieldSize extends Exception
  * TODO: Handle 3,4,5 etc length keys, either with more classes or something more elegant.
  */
 object CompositeField {
-	def apply(fields: Seq[Field]): Field =
+	def apply(fields: Field*): Field =
 		fields.size match {
 			case 1 => fields(0)
 			case 2 => new CompositeField2(fields(0), fields(1))
@@ -203,12 +203,13 @@ object CompositeField {
 		}
 }
 
-class CompositeField2[T1 <: Field, T2 <: Field](k1: T1, k2: T2) extends Field {
-	def serializeKey(): String = null
-	def deserializeKey(data: String, pos: ParsePosition): Unit = null
+class CompositeField2[T1 <: Field, T2 <: Field](k1: T1, k2: T2) extends Field with SerializeAsKey {
+	def serializeKey(): String = k1.serializeKey + k2.serializeKey
+	def deserializeKey(data: String, pos: ParsePosition): Unit = {
+		val pos = new ParsePosition(0)
+		k1.deserializeKey(data, pos)
+		k2.deserializeKey(data, pos)
+	}
 
-	def serialize(): String = null
-	def deserialize(data: String, pos: ParsePosition): Unit = null
-
-	def duplicate() = null
+	def duplicate() = new CompositeField2(k1.duplicate(), k2.duplicate())
 }
