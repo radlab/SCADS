@@ -17,16 +17,35 @@ case class SecondaryIndex(namespace: String, attributes: List[String]) extends I
  * The optimizer takes in a BoundQuery and figures out how to satisfy it.
  * It will created indexes as needed.
  */
-object Optimizer {
+class Optimizer(spec: BoundSpec) {
 	val logger = Logger.getLogger("scads.optimizer")
+	val compiler = new ScalaCompiler
 
-	def optimize(query: BoundQuery):Unit = {
+	def optimizedSpec: BoundSpec = {
+		spec.orphanQueries.values.foreach(query => {
+			query.plan = getPlan(query)
+		})
+
+		spec.entities.values.foreach((entity) => {
+			entity.queries.values.foreach((query) => {
+				query.plan = getPlan(query)
+			})
+		})
+
+		spec
+	}
+
+	def getPlan(query: BoundQuery):ExecutionNode = {
 		try {
-			query.plan = optimize(query.fetchTree)
+			val plan = optimize(query.fetchTree)
 			logger.debug("plan: " + query.plan)
+			plan
 		}
 		catch {
-			case e: UnimplementedException => logger.fatal("Couldn't optimize query " + e)
+			case e: UnimplementedException => {
+				logger.fatal("Couldn't optimize query " + e)
+				null
+			}
 		}
 	}
 
