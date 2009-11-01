@@ -24,6 +24,7 @@ case class SecondaryIndex(namespace: String, attributes: List[String], targetNam
 class Optimizer(spec: BoundSpec) {
 	val logger = Logger.getLogger("scads.optimizer")
 	val compiler = new ScalaCompiler
+	buildClasses()
 
 	def optimizedSpec: BoundSpec = {
 		spec.orphanQueries.values.foreach(query => {
@@ -120,19 +121,12 @@ class Optimizer(spec: BoundSpec) {
 		}
 	}
 
-	//FIXME: Use the actual compiled entities instead of these placeholders
-  def getClass(entityName:String) = {
-		val compiler = new ScalaCompiler
+	private def buildClasses(): Unit = {
+		val source = ScalaGen(spec)
+		compiler.compile(source)
+	}
 
-    compiler.compile("class " + entityName + """
-    extends edu.berkeley.cs.scads.model.Entity()(null) {
-    val namespace = "Placeholder"
-    val primaryKey: edu.berkeley.cs.scads.model.Field = null
-    val attributes = Map[String, edu.berkeley.cs.scads.model.Field]()
-    val indexes = Array[edu.berkeley.cs.scads.model.Index]()
-    val version = edu.berkeley.cs.scads.model.Unversioned
-    }""")
-
+	def getClass(entityName:String) = {
     compiler.classLoader.loadClass(entityName).asInstanceOf[Class[edu.berkeley.cs.scads.model.Entity]]
   }
 }
