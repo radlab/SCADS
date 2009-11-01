@@ -6,6 +6,10 @@ import scala.collection.mutable.HashMap
 
 case class UnimplementedException(desc: String) extends Exception
 
+abstract class UnboundedQuery extends Exception
+class UnboundedFinalResult extends UnboundedQuery
+class UnboundedIntermediateResult extends UnboundedQuery
+
 sealed abstract class OptimizerException extends Exception
 object Unsatisfiable extends OptimizerException
 
