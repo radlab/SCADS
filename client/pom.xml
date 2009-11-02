@@ -84,6 +84,13 @@
                     <displayCmd>true</displayCmd>
                     <launchers>
                         <launcher>
+                            <id>scadr</id>
+                            <mainClass>edu.berkeley.cs.scads.Compiler</mainClass>
+                            <args>
+                                <arg>src/test/resources/scadr.scads</arg>
+                            </args>
+                        </launcher>
+                        <launcher>
                             <id>scadbook</id>
                             <mainClass>edu.berkeley.cs.scads.Compiler</mainClass>
                             <args>
