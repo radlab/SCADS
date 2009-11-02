@@ -27,6 +27,18 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
     var maxBlockingTries = 1000
     private val allNodes = storageNodes + dataPlacementNode
 
+    private def getUserNamespace(): String = {
+        //val user = new user()
+        //user.namespace
+        "ent_user"
+    }
+
+    private def getThoughtNamespace(): String = {
+        //val thought = new thought()
+        //thought.namespace
+        "ent_thought"
+    }
+
     private def stopAllServices(): Unit = {
         allNodes.keySet.foreach(_.services.foreach(_.stop))
         allNodes.keySet.foreach(_.cleanServices)
@@ -105,17 +117,38 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
 
     }
 
+    implicit def string2stringfield(s:String):StringField = { 
+        val f = new StringField
+        f.value = s
+        f
+    }
+
+    implicit def int2intfield(i:Int): IntegerField = {
+        val f = new IntegerField
+        f.value = i
+        f
+    }
+
     def equalKeyPartitionUsers(usernames: List[String]):Unit = {
         assignEqualKeyPartition[StringField]( 
-                usernames.map((s)=>{ val f = new StringField; f.value = s; f }),
+                usernames.map[StringField]( (s) => s ),
                 (a,b)=>{ (a.value.compareTo(b.value))<0 },
                 (a)=>{ val f = new StringField; f.value = a.value+"a"; f},
-                "ent_user")
+                getUserNamespace())
+    }
+
+    def equalKeyPartitionThoughts(thoughts: List[Int]):Unit = {
+        assignEqualKeyPartition[IntegerField]( 
+                thoughts.map[IntegerField]( (t) => t),
+                (a,b)=>{ a.value < b.value },
+                (a)=>{ val f = new IntegerField; f.value = a.value+1; f},
+                getThoughtNamespace())
     }
 
     private def assignEqualKeyPartition[T <: Field](keylist:List[T], cmp:(T,T) => Boolean, dummyCallback:T => T, namespace:String ):Unit = {
         val n = storageNodes.size 
         val partitions = makeEqualKeyPartition[T](keylist,n,cmp,dummyCallback)
+        logger.debug("Partitions " + partitions)
         var i = -1 
         placeEntities[T]( storageNodes.keySet.toList.map((p)=>{ i += 1; (partitions(i)._1,partitions(i)._2,p) }).toArray, namespace)
     }
@@ -127,7 +160,7 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
         val lower = Math.floor(keylist.length.toDouble/n.toDouble).toInt
         val upper = Math.ceil(keylist.length.toDouble/n.toDouble).toInt
 
-        println("LOWER " + lower + " UPPER " + upper)
+        logger.debug("LOWER " + lower + " UPPER " + upper)
 
         if ( upper*(n-1) < keylist.size ) {
             val lowerMMDiff = Math.abs(keylist.size-lower*(n-1) - lower)
@@ -140,7 +173,7 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
         } else {
             keylistPP = lower
         }
-        println("KEYLISTPP: " + keylistPP)
+        logger.debug("KEYLISTPP: " + keylistPP)
 
         val nkeylist = keylist.sort(cmp)
 
@@ -167,6 +200,17 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
     }
 
 
+    def placeThoughts(thoughtPlacement: Array[Tuple3[Int,Int,RClusterNode]]):Unit = {
+        placeEntities[IntegerField](
+            thoughtPlacement.map[Tuple3[IntegerField,IntegerField,RClusterNode]]( (tuple) => {
+                val from = new IntegerField
+                val to = new IntegerField
+                from.value = tuple._1
+                to.value = tuple._2
+                val rnode = tuple._3
+                ( from, to, rnode ) } ),
+            getThoughtNamespace())
+    } 
 
 
     def placeUsers(userPlacement: Array[Tuple3[String,String,RClusterNode]]):Unit = {
@@ -178,7 +222,7 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
                 to.value = tuple._2
                 val rnode = tuple._3
                 ( from, to, rnode ) } ),
-            "ent_user")
+            getUserNamespace())
     } 
 
     private def getDataPlacementHandle(p: Int, h:String,xtrace_on:Boolean):KnobbedDataPlacementServer.Client = {
@@ -192,7 +236,7 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
                 transport.open()
                 haveDPHandle = true
             } catch {
-                case e: Exception => { println("don't have connection to placement server, waiting 1 second: " + e.getMessage); e.printStackTrace; Thread.sleep(1000) }
+                case e: Exception => { logger.info("don't have connection to placement server, waiting 1 second: " + e.getMessage); e.printStackTrace; Thread.sleep(1000) }
             }
         }
         dpclient
