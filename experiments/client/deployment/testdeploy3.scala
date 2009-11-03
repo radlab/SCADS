@@ -8,12 +8,12 @@ import deploylib.configuration.ValueConverstion._
 import edu.berkeley.cs.scads.model._
 import edu.berkeley.cs.scads.placement._
 
-val storageNodes = Map( r11 -> 9003, r13 -> 9003, r15 -> 9003 )
+val storageNodes = Map( r11 -> 9003, r12 -> 9003, r13 -> 9003, r15 -> 9003 )
 val dataPlacementNode = (r10,8002)
 
-val numUsers = 100
+val numUsers = 10
 
-val scadsDeploy = new ScadsDeploy(storageNodes, dataPlacementNode)
+val scadsDeploy = new ScadsDeploy(storageNodes, dataPlacementNode, 2)
 
 scadsDeploy.deploy
 println("Deployed!")
@@ -22,9 +22,9 @@ var usernames: List[String] = Nil
 for ( i <- 0 until numUsers ) {
     usernames = usernames ::: List("user"+i)
 }
-
-scadsDeploy.equalKeyPartitionUsers(usernames)
-
+//
+//scadsDeploy.equalKeyPartitionUsers(usernames)
+//
 implicit val env:Environment = scadsDeploy.getEnv
 
 usernames.foreach( (u) => {
@@ -32,6 +32,9 @@ usernames.foreach( (u) => {
     user.name(u)
     user.save
 })
+
+//scadsDeploy.rebalance
+
 
 usernames.foreach( (u) => {
     var rtn = Queries.userByName(u)
@@ -41,20 +44,20 @@ usernames.foreach( (u) => {
     }
     rtn.foreach(println(_))
 })
-
-val numThoughts = 100
-var thoughts: List[Int] = Nil
-for ( i <- 1 until (numThoughts+1) ) {
-    thoughts = thoughts ::: List(i)
-}
-scadsDeploy.equalKeyPartitionThoughts(thoughts)
-
-thoughts.foreach( (timestamp) => {
-    val thought = new thought
-    thought.timestamp(timestamp)
-    thought.save
-})
-
+//
+//val numThoughts = 100
+//var thoughts: List[Int] = Nil
+//for ( i <- 1 until (numThoughts+1) ) {
+//    thoughts = thoughts ::: List(i)
+//}
+//scadsDeploy.equalKeyPartitionThoughts(thoughts)
+//
+//thoughts.foreach( (timestamp) => {
+//    val thought = new thought
+//    thought.timestamp(timestamp)
+//    thought.save
+//})
+//
 
 scadsDeploy.shutdown
 println("Stopped!")
