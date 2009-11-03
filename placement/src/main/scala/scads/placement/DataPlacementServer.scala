@@ -10,10 +10,26 @@ import edu.berkeley.cs.scads.WriteLock
 import org.apache.log4j.Logger
 import org.apache.log4j.BasicConfigurator
 
-class SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface with AutoKey with RangeConversion{
+trait DataPlacementValidator {
+    def isValidDataPlacement(dp: DataPlacement): Boolean = {
+        dp.node != null && dp.rset != null && dp.syncPort != 0 && dp.thriftPort != 0
+    }
+}
+
+class SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface with AutoKey with RangeConversion with DataPlacementValidator {
 	val writelock = new WriteLock
 	val conflictPolicy = new ConflictPolicy()
 	conflictPolicy.setType(ConflictPolicyType.CPT_GREATER)
+
+    // because lookup_node cannot return an null value (thrift limitation)
+    // this is a necessary evil to distinguish a real return value from
+    // just the sentinel value
+    val sentinelDP = new DataPlacement() 
+    
+    override def isValidDataPlacement(dp: DataPlacement): Boolean = {
+        dp != sentinelDP && ( dp.node != null && dp.rset != null && dp.syncPort != 0 && dp.thriftPort != 0 )
+    }
+    
 
 	import java.text.ParsePosition
 	val logger = Logger.getLogger("placement.dataplacementserver")
@@ -35,7 +51,11 @@ class SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 			}
 		}
 		logger.debug("Node "+host+" has entry? "+(ret!=null))
-		ret
+		ret = ret match {
+            case null => sentinelDP 
+            case _    => ret
+        }
+        ret
 	}
 	def lookup_key(ns: String, key: String): java.util.List[DataPlacement] = {
 		var ret = new java.util.ArrayList[DataPlacement]()
@@ -76,7 +96,7 @@ class SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 		// update state
 		writelock.lock
 		try {
-			if (prev_entry != null) prev_entry.setRset(entry.rset)
+			if (isValidDataPlacement(prev_entry)) prev_entry.setRset(entry.rset)
 			else spaces(ns).add(entry)
 			writelock.unlock
 		}
@@ -119,7 +139,7 @@ class SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 
 	def copy(ns: String, rset: RecordSet, src_host: String, src_thrift: Int, src_sync: Int, dest_host: String, dest_thrift: Int, dest_sync: Int) = {
 		val target_range = rangeSetToKeyRange(rset.range)
-		val oldDestRange = if ( lookup_node(ns,dest_host,dest_thrift,dest_sync) != null) {rangeSetToKeyRange(lookup_node(ns,dest_host,dest_thrift,dest_sync).rset.range)} else {KeyRange.EmptyRange}
+		val oldDestRange = if ( isValidDataPlacement(lookup_node(ns,dest_host,dest_thrift,dest_sync)) ) {rangeSetToKeyRange(lookup_node(ns,dest_host,dest_thrift,dest_sync).rset.range)} else {KeyRange.EmptyRange}
 		val newDestRange = oldDestRange + target_range
 		val src = new StorageNode(src_host,src_thrift,src_sync) // where copying from
 
@@ -144,7 +164,7 @@ class SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 	}
 	def move(ns: String, rset: RecordSet, src_host: String, src_thrift: Int, src_sync: Int, dest_host: String, dest_thrift: Int, dest_sync: Int) {
 		val target_range = rangeSetToKeyRange(rset.range)
-		val oldDestRange = if ( lookup_node(ns,dest_host,dest_thrift,dest_sync) != null) {rangeSetToKeyRange(lookup_node(ns,dest_host,dest_thrift,dest_sync).rset.range)} else {KeyRange.EmptyRange}
+		val oldDestRange = if ( isValidDataPlacement(lookup_node(ns,dest_host,dest_thrift,dest_sync)) ) {rangeSetToKeyRange(lookup_node(ns,dest_host,dest_thrift,dest_sync).rset.range)} else {KeyRange.EmptyRange}
 		val newDestRange = oldDestRange + target_range
 		val src = new StorageNode(src_host,src_thrift,src_sync)
 
@@ -182,7 +202,7 @@ class SimpleKnobbedDataPlacementServer extends KnobbedDataPlacementServer.Iface 
 			while (iter.hasNext) {
 				entry = iter.next
 				val candidate = lookup_node(ns, entry.node, entry.thriftPort, entry.syncPort)
-				if (candidate != null) {
+				if (isValidDataPlacement(candidate)) {
 					val node = new StorageNode(entry.node,entry.thriftPort,entry.syncPort)
 
 					// before removing, sync range with other nodes that have overlapping range
