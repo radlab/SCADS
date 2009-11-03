@@ -123,21 +123,39 @@ abstract class KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specificati
 			}
 		}
 
-		"have a get_set function that" >> {
-			val keyFormat = new java.text.DecimalFormat("0000000000000000")
-			val records = (3 to 7).toList.map((i) => new Record(keyFormat.format(i), i.toString))
-			records.foreach(ks.put("set", _))
 
-			def recSet(start: Int, end:Int) = {
-				val recSet = new RecordSet
-				val rangeSet = new RangeSet
-				rangeSet.setStart_key(keyFormat.format(start))
-				rangeSet.setEnd_key(keyFormat.format(end))
-				recSet.setType(RecordSetType.RST_RANGE)
-				recSet.setRange(rangeSet)
-				recSet
+        val keyFormat = new java.text.DecimalFormat("0000000000000000")
+        def recSet(start: Int, end:Int) = {
+            val recSet = new RecordSet
+            val rangeSet = new RangeSet
+            if ( start != Math.MIN_INT ) rangeSet.setStart_key(keyFormat.format(start))
+            if ( end != Math.MAX_INT ) rangeSet.setEnd_key(keyFormat.format(end))
+            recSet.setType(RecordSetType.RST_RANGE)
+            recSet.setRange(rangeSet)
+            recSet
+        }
+
+        "have a count_set function that" >> {
+            val records = (3 to 7).toList.map((i) => new Record(keyFormat.format(i), i.toString))
+            records.foreach(ks.put("set", _))
+
+			"correctly returns exact ranges counts" in {
+                ks.count_set("set", recSet(3,7)) mustEqual records.size
 			}
 
+			"correctly returns in between range counts" in {
+                ks.count_set("set", recSet(4,6)) mustEqual 3 
+			}
+
+            "correctly return zero counts" in {
+                ks.count_set("set", recSet(0,1)) mustEqual 0
+            }
+
+        }
+
+		"have a get_set function that" >> {
+            val records = (3 to 7).toList.map((i) => new Record(keyFormat.format(i), i.toString))
+            records.foreach(ks.put("set", _))
 
 			"correctly returns exact ranges" in {
 				Conversions.convertList(ks.get_set("set", recSet(3, 7))) must
@@ -185,6 +203,19 @@ abstract class KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specificati
 				Conversions.convertList(ks.get_set("set", rs)) must
 					haveTheSameElementsAs(records.slice(1,3))
 			}
+
+            "handles -infty to infty ranges" in {
+                val rs = recSet(Math.MIN_INT,Math.MAX_INT)
+				Conversions.convertList(ks.get_set("set", rs)) must
+					haveTheSameElementsAs(records)
+            }
+
+            "handles -infty to finite range" in {
+                val rs = recSet(Math.MIN_INT,4)
+				Conversions.convertList(ks.get_set("set", rs)) must
+					haveTheSameElementsAs(records.slice(0,2))
+            }
+
 		}
 	}
 }
