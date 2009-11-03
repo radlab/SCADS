@@ -66,7 +66,7 @@ case class RemoteStorageNode(h:String, p: Int) extends RemoteHandleGetter[Storag
 }
     
 
-case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logger: Logger, logicalBuckets: List[List[Tuple2[RClusterNode,Int]]]) extends RemoteDataPlacementProvider with Java2ScalaList {
+case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logger: Logger, logicalBuckets: List[List[Tuple2[RClusterNode,Int]]]) extends RemoteDataPlacementProvider with Java2ScalaList with DataPlacementValidator {
 
     val host = dataPlacementNode._1.hostname
     val port = dataPlacementNode._2
@@ -115,17 +115,48 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
         val knownNs = space.keySet
         val handle = getDataPlacementHandle() 
         knownNs.foreach( (ns) => {
-            val dps = handle.lookup_namespace(ns) 
-            logger.debug("DPS FOR " + ns + " ARE: " + dps)
-            dps.foreach( (dp) => {
-                logger.debug("DP IS" + dp)
-                val lBucket = reverseMapping((dp.node,dp.thriftPort))
-                logger.debug("REVERSE MAPPING IS " + lBucket)
-                val rnode = new RemoteStorageNode(dp.node,dp.thriftPort)
-                val rhandle = rnode.getHandle
-                val count = rhandle.get_set(ns, dp.rset).size
-                logger.debug("LOGICAL BUCKET " + lBucket + " has " + count + " number of " + ns)
+            
+            logicalBuckets.foreach( (partition) => {
+                partition.foreach( (tuple) => {
+                    
+                    logger.debug("Looking at node: " + tuple._1)
+                    val rnode = new RemoteStorageNode(tuple._1.hostname, tuple._2)
+                    val dp = handle.lookup_node(ns, tuple._1.hostname, tuple._2, tuple._2)
+                    logger.debug("Returns DP: " + dp)
+                    if ( isValidDataPlacement(dp) ) {
+                        logger.debug("DP is valid...")
+                        val rhandle = rnode.getHandle
+                        val count = rhandle.count_set(ns, dp.rset)
+                        dp.rset.range.setLimit(1)
+                        val startR = rhandle.get_set(ns, dp.rset)
+                        dp.rset.range.setOffset(count-1)
+                        val endR = rhandle.get_set(ns, dp.rset)
+
+                        logger.debug("Storage node: " + tuple._1)
+                        logger.debug("Count: " + count)
+                        logger.debug("Starting key: " + startR)
+                        logger.debug("Ending Key: " + endR)
+                    } else {
+                        logger.debug("No Data Placement for " + tuple._1)
+                    }
+
+                })
             })
+
+
+
+
+            //val dps = handle.lookup_namespace(ns) 
+            //logger.debug("DPS FOR " + ns + " ARE: " + dps)
+            //dps.foreach( (dp) => {
+            //    logger.debug("DP IS" + dp)
+            //    val lBucket = reverseMapping((dp.node,dp.thriftPort))
+            //    logger.debug("REVERSE MAPPING IS " + lBucket)
+            //    val rnode = new RemoteStorageNode(dp.node,dp.thriftPort)
+            //    val rhandle = rnode.getHandle
+            //    val count = rhandle.count_set(ns, dp.rset)
+            //    logger.debug("LOGICAL BUCKET " + lBucket + " has " + count + " number of " + ns)
+            //})
         })
     }
 
@@ -140,6 +171,7 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
             val ll = new java.util.LinkedList[DataPlacement]
             ll.add(dp)
             dpclient.add(namespace, ll)
+            logger.debug("Added " + node + " to contain " + keyRange)
         })
     }
 
