@@ -115,25 +115,27 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
 
     private def dumpNodeData():Unit = {
         val knownNs = space.keySet
+        knownNs.foreach( (ns) => dumpNodeData(ns) ) 
+    }
+
+    private def dumpNodeData(ns: String):Unit = {
         val handle = getDataPlacementHandle() 
-        knownNs.foreach( (ns) => {
-            logicalBuckets.foreach( (partition) => {
-                partition.foreach( (tuple) => {
+        logicalBuckets.foreach( (partition) => {
+            partition.foreach( (tuple) => {
 
-                    logger.debug("Looking at node: " + tuple._1)
-                    val rnode = new RemoteStorageNode(tuple._1.hostname, tuple._2)
-                    val dp = handle.lookup_node(ns, tuple._1.hostname, tuple._2, tuple._2)
-                    logger.debug("Returns DP: " + dp)
+                logger.debug("Looking at node: " + tuple._1)
+                val rnode = new RemoteStorageNode(tuple._1.hostname, tuple._2)
+                val dp = handle.lookup_node(ns, tuple._1.hostname, tuple._2, tuple._2)
+                logger.debug("Returns DP: " + dp)
 
-                    val rset = new RecordSet()
-                    rset.setType(3)
-                    val range = new RangeSet()
-                    rset.setRange(range)
+                val rset = new RecordSet()
+                rset.setType(3)
+                val range = new RangeSet()
+                rset.setRange(range)
 
-                    logger.debug("Data:" +rnode.getHandle().get_set(ns, rset))
+                logger.debug("Data:" +rnode.getHandle().get_set(ns, rset))
 
-                }) 
-            })
+            }) 
         })
     }
 
@@ -244,8 +246,10 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
             }
             logger.debug("NS: " + ns + " gets KEYLISTPP: " + keylistPP)
 
-            logger.debug("-------------------DATA DUMP ------------------")
-            dumpNodeData()
+            logger.debug("NAMESPACE: " + ns)
+            logger.debug("------------------- BEGIN BEFORE DATA DUMP ------------------")
+            dumpNodeData(ns)
+            logger.debug("------------------- END BEFORE DATA DUMP ------------------")
 
 
             // move all the data first
@@ -285,7 +289,8 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
                         val listDp = new java.util.LinkedList[DataPlacement]()
                         listDp.add(dp)
                         //dpHandle.remove(ns, listDp)
-                        dp.rset.range.setEnd_key( plus1keyval)
+                        //dp.rset.range.setEnd_key((StringField(plus1keyval)).serialize)
+                        dp.rset.range.setEnd_key(plus1keyval)
                         dpHandle.add(ns, listDp)
                         logger.debug("adding " + listDp)
 
@@ -295,6 +300,7 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
                             endrset.setType(3)
                             val endrange = new RangeSet()
                             endrset.setRange(endrange)
+                            //endrange.setStart_key((StringField(plus1keyval)).serialize)
                             endrange.setStart_key(plus1keyval)
                             listDp.clear
                             val newDp = new DataPlacement( tuple2._1.hostname, tuple2._2, tuple2._2, endrset )
@@ -317,11 +323,15 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
             }
 
 
-            logger.debug("-------------------DATA DUMP ------------------")
-            dumpNodeData()
+            logger.debug("NAMESPACE : " + ns)
+            logger.debug("-------------------BEGIN AFTER DATA DUMP ------------------")
+            dumpNodeData(ns)
+            logger.debug("-------------------END AFTER DATA DUMP ------------------")
 
 
         })
+
+        refreshPlacement
 
     }
 
