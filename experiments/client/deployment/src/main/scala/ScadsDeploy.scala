@@ -12,7 +12,7 @@ import deploylib.configuration.ValueConverstion._
 import edu.berkeley.cs.scads.thrift._
 import edu.berkeley.cs.scads.model._
 import edu.berkeley.cs.scads.placement._
-import edu.berkeley.cs.scads.keys.{MinKey,MaxKey,Key,KeyRange}
+import edu.berkeley.cs.scads.keys.{MinKey,MaxKey,Key,KeyRange,StringKey}
 import edu.berkeley.cs.scads.nodes.StorageNode
 
 import org.apache.thrift.transport.{TFramedTransport, TSocket}
@@ -21,6 +21,8 @@ import org.apache.thrift.protocol.{TProtocol,TBinaryProtocol, XtBinaryProtocol}
 case class RemotePortInUseException(msg: String) extends Exception
 case class BlockingTriesExceededException(msg: String) extends Exception
 case class NonDivisibleReplicaNumberException(x: Int, y: Int) extends Exception
+
+case class InconsistentReplicationException(msg: String) extends Exception
 
 trait RemoteHandleGetter[T] {
 
@@ -111,12 +113,53 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
         ret 
     } 
 
-    def rebalance():Unit = {
+    private def dumpNodeData():Unit = {
         val knownNs = space.keySet
         val handle = getDataPlacementHandle() 
         knownNs.foreach( (ns) => {
-            
             logicalBuckets.foreach( (partition) => {
+                partition.foreach( (tuple) => {
+
+                    logger.debug("Looking at node: " + tuple._1)
+                    val rnode = new RemoteStorageNode(tuple._1.hostname, tuple._2)
+                    val dp = handle.lookup_node(ns, tuple._1.hostname, tuple._2, tuple._2)
+                    logger.debug("Returns DP: " + dp)
+
+                    val rset = new RecordSet()
+                    rset.setType(3)
+                    val range = new RangeSet()
+                    rset.setRange(range)
+
+                    logger.debug("Data:" +rnode.getHandle().get_set(ns, rset))
+
+                }) 
+            })
+        })
+    }
+
+    private def getNthElemRS(n:Int):RecordSet = {
+        val rset = new RecordSet()
+        rset.setType(3)
+        val range = new RangeSet()
+        rset.setRange(range)
+        range.setOffset(n)
+        range.setLimit(1)
+        rset
+    }
+
+    def rebalance():Unit = {
+        val knownNs = space.keySet
+        val handle = getDataPlacementHandle() 
+        var bucketMap = Map[String,List[Int]]()
+        knownNs.foreach( (ns) => {
+            
+            var bucketList = List[Int]()
+
+            logicalBuckets.foreach( (partition) => {
+
+                var bucketCount = 0 
+                var seenOne = false
+
                 partition.foreach( (tuple) => {
                     
                     logger.debug("Looking at node: " + tuple._1)
@@ -132,18 +175,32 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
                         dp.rset.range.setOffset(count-1)
                         val endR = rhandle.get_set(ns, dp.rset)
 
+                        if ( !seenOne ) {
+                            bucketCount = count
+                        } else if ( bucketCount != count ) {
+                           throw new InconsistentReplicationException("Found node " + tuple._1 + " that has inconsistent data with the partition: bucketCount: " + bucketCount + " count: " + count) 
+                        }
+
+                        seenOne = true
+
                         logger.debug("Storage node: " + tuple._1)
                         logger.debug("Count: " + count)
                         logger.debug("Starting key: " + startR)
                         logger.debug("Ending Key: " + endR)
                     } else {
                         logger.debug("No Data Placement for " + tuple._1)
+                        if ( bucketCount != 0 ) {
+                           throw new InconsistentReplicationException("Found node " + tuple._1 + " that has no data, but the partition does") 
+                        }
                     }
 
                 })
+
+                bucketList = bucketList ::: List(bucketCount)
+
             })
 
-
+            bucketMap += ( ns -> bucketList ) 
 
 
             //val dps = handle.lookup_namespace(ns) 
@@ -158,8 +215,161 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
             //    logger.debug("LOGICAL BUCKET " + lBucket + " has " + count + " number of " + ns)
             //})
         })
+
+        println("LOGICAL BUCKETS: " + logicalBuckets)
+        println("BUCKET MAP: " + bucketMap)
+        bucketMap.keySet.foreach( (ns) => {
+            val bucketCount = bucketMap(ns)
+
+            val numKeys = bucketCount.foldLeft(0)((b,a)=>b+a)
+            val n = logicalBuckets.size
+
+            var keylistPP = 0
+
+            val lower = Math.floor(numKeys.toDouble/n.toDouble).toInt
+            val upper = Math.ceil(numKeys.toDouble/n.toDouble).toInt
+
+            logger.debug("LOWER " + lower + " UPPER " + upper)
+
+            if ( upper*(n-1) < numKeys ) {
+                val lowerMMDiff = Math.abs(numKeys-lower*(n-1) - lower)
+                val upperMMDiff = Math.abs(numKeys-upper*(n-1) - upper)
+                if ( lowerMMDiff < upperMMDiff ) {
+                    keylistPP = lower
+                } else {
+                    keylistPP = upper
+                }
+            } else {
+                keylistPP = lower
+            }
+            logger.debug("NS: " + ns + " gets KEYLISTPP: " + keylistPP)
+
+            logger.debug("-------------------DATA DUMP ------------------")
+            dumpNodeData()
+
+
+            // move all the data first
+            val dpHandle = getDataPlacementHandle()
+            for ( i <- 0 until logicalBuckets.size-1 ) {
+                for ( j <- 0 until logicalBuckets(i).size ) {
+                    val tuple1 = logicalBuckets(i)(j)
+                    val rnode1 = new RemoteStorageNode(tuple1._1.hostname, tuple1._2)
+                    val handle1 = rnode1.getHandle()
+
+                    val tuple2 = logicalBuckets(i+1)(j)
+                    val rnode2 = new RemoteStorageNode(tuple2._1.hostname, tuple2._2)
+                    val handle2 = rnode2.getHandle()
+
+                    val curSize = bucketCount(i)
+                    val diff = Math.abs(curSize-keylistPP)
+                    val rset = new RecordSet()
+                    rset.setType(3)
+                    val range = new RangeSet()
+                    rset.setRange(range)
+
+                    if ( curSize > keylistPP ) {
+                        // need to move guys out!
+                        range.setOffset(keylistPP)
+
+                        val dp = dpHandle.lookup_node( ns, tuple1._1.hostname, tuple1._2, tuple1._2)
+                        //assert( isValidDataPlacement(dp) )
+                        val plus1 = handle1.get_set( ns, getNthElemRS(keylistPP) )
+                        logger.debug("KEYLISTPP+1-th elem :" + plus1)
+                        val plus1keyval = plus1(0).key
+                        logger.debug("KEYLISTPP+1-th key :" + plus1keyval)
+
+                        dpHandle.move( ns, rset, tuple1._1.hostname, tuple1._2, tuple1._2, tuple2._1.hostname, tuple2._2, tuple2._2 )
+                        //val toRemove = handle1.get_set(ns,rset)
+                        //logger.debug("TO REMOVE FROM " + tuple1._1 + ": " + toRemove)
+
+                        val listDp = new java.util.LinkedList[DataPlacement]()
+                        listDp.add(dp)
+                        //dpHandle.remove(ns, listDp)
+                        dp.rset.range.setEnd_key( plus1keyval)
+                        dpHandle.add(ns, listDp)
+                        logger.debug("adding " + listDp)
+
+                        if ( i == logicalBuckets.size-2 ) {
+
+                            val endrset = new RecordSet()
+                            endrset.setType(3)
+                            val endrange = new RangeSet()
+                            endrset.setRange(endrange)
+                            endrange.setStart_key(plus1keyval)
+                            listDp.clear
+                            val newDp = new DataPlacement( tuple2._1.hostname, tuple2._2, tuple2._2, endrset )
+                            listDp.add(newDp)
+                            dpHandle.add(ns, listDp)
+
+                        }
+
+
+                    } else if ( curSize < keylistPP ) {
+                        // need to move guys in!
+                        range.setLimit(diff)
+                        dpHandle.move( ns, rset, tuple2._1.hostname, tuple2._2, tuple2._2, tuple1._1.hostname, tuple1._2, tuple1._2 )
+                        //val toMovein = handle2.get_set(ns,rset)
+                        //logger.debug("TO MOVE IN FROM " + tuple2._1 + ": " + toMovein)
+
+                    }
+                }
+
+            }
+
+
+            logger.debug("-------------------DATA DUMP ------------------")
+            dumpNodeData()
+
+
+        })
+
     }
 
+    //private def makeEqualKeyPartition[T <: Field](keylist:List[T], n:Int, cmp:(T,T) => Boolean, dummyCallback:T => T ): 
+    //    List[Tuple2[T,T]] = {
+    //    var keylistPP = 0
+
+    //    val lower = Math.floor(keylist.length.toDouble/n.toDouble).toInt
+    //    val upper = Math.ceil(keylist.length.toDouble/n.toDouble).toInt
+
+    //    logger.debug("LOWER " + lower + " UPPER " + upper)
+
+    //    if ( upper*(n-1) < keylist.size ) {
+    //        val lowerMMDiff = Math.abs(keylist.size-lower*(n-1) - lower)
+    //        val upperMMDiff = Math.abs(keylist.size-upper*(n-1) - upper)
+    //        if ( lowerMMDiff < upperMMDiff ) {
+    //            keylistPP = lower
+    //        } else {
+    //            keylistPP = upper
+    //        }
+    //    } else {
+    //        keylistPP = lower
+    //    }
+    //    logger.debug("KEYLISTPP: " + keylistPP)
+
+    //    val nkeylist = keylist.sort(cmp)
+
+    //    var buckets = List[Tuple2[T,T]]()
+
+    //    var bucketsSoFar = 0
+    //    var countSoFar = 0
+    //    var lastMaxRange = nkeylist(0)
+    //    for ( i <- 0 until nkeylist.length+1 ) {
+    //        if ( i == nkeylist.length ) {
+    //            buckets += (lastMaxRange, dummyCallback(nkeylist(nkeylist.length-1)))
+    //        } else if ( countSoFar == keylistPP && bucketsSoFar < (n-1) ) {
+    //            var lmax = nkeylist(i)
+    //            buckets += (lastMaxRange, lmax)  
+    //            bucketsSoFar += 1
+    //            lastMaxRange = lmax 
+    //            countSoFar = 1
+    //        } else {
+    //            countSoFar += 1
+    //        }
+    //    }
+
+    //    buckets
+    //}
     def assignRangeToLogicalPartition(partition: Int, namespace:String, keyRange: KeyRange):Unit = {
         assert( 0 <= partition && partition <= logicalBuckets.size-1 )
         val dpclient = getDataPlacementHandle()

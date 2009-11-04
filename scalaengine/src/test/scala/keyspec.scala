@@ -135,6 +135,17 @@ abstract class KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specificati
             recSet
         }
 
+        "have a remove_set function that" >> {
+            val records = (3 to 7).toList.map((i) => new Record(keyFormat.format(i), i.toString))
+            records.foreach(ks.put("set", _))
+
+            "correctly removes entire sets" in {
+                ks.asInstanceOf[StorageProcessor].remove_set("set", recSet(3,7)) must_== true
+                ks.count_set("set", recSet(3,7)) must_== 0
+            }
+
+        }
+
         "have a count_set function that" >> {
             val records = (3 to 7).toList.map((i) => new Record(keyFormat.format(i), i.toString))
             records.foreach(ks.put("set", _))

@@ -36,14 +36,14 @@ usernames.foreach( (u) => {
 scadsDeploy.rebalance
 
 
-//usernames.foreach( (u) => {
-//    var rtn = Queries.userByName(u)
-//    if ( rtn.isEmpty ) {
-//        println("Crap! Could not find user " + u) 
-//        System.exit(1)
-//    }
-//    rtn.foreach(println(_))
-//})
+usernames.foreach( (u) => {
+    var rtn = Queries.userByName(u)
+    if ( rtn.isEmpty ) {
+        println("Crap! Could not find user " + u) 
+        //System.exit(1)
+    }
+    rtn.foreach(println(_))
+})
 ////
 //val numThoughts = 100
 //var thoughts: List[Int] = Nil

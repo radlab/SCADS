@@ -1,6 +1,8 @@
 package edu.berkeley.cs.scads.storage
 
 import edu.berkeley.cs.scads.thrift._
+import edu.berkeley.cs.scads.nodes.StorageNode
+
 import org.apache.log4j.Logger
 import com.sleepycat.je.{Database, DatabaseConfig, DatabaseEntry, Environment, LockMode, OperationStatus}
 
@@ -81,7 +83,21 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 	}
 
 	def copy_set(ns: String, rs: RecordSet, h: String): Boolean = {
-		true
+        val records = get_set(ns,rs)
+        if ( records.size == 0 ) {
+            true
+        } else {
+            val hostname = h.split(":")(0)
+            val port = h.split(":")(1).toInt
+            val sn = new StorageNode(hostname, port, port)
+            sn.useConnection( (c) => {
+                val iter = records.iterator
+                while (iter.hasNext) {
+                    c.put(ns, iter.next) 
+                } 
+            })
+            true
+        }
 	}
 
 	def get_responsibility_policy(ns: String): RecordSet = {
@@ -89,7 +105,19 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 	}
 
 	def remove_set(ns: String, rs: RecordSet): Boolean = {
-		true
+        val records = get_set(ns,rs)
+        if ( records.size == 0 ) {
+            true
+        } else {
+            val db = getDatabase(ns)
+            val txn = env.beginTransaction(null, null)
+            val iter = records.iterator
+            while (iter.hasNext) {
+                db.delete(txn, new DatabaseEntry(iter.next.key.getBytes))
+            }
+            txn.commit
+            true
+        }
 	}
 
 	def set_responsibility_policy(ns : String, policy: RecordSet): Boolean = {
