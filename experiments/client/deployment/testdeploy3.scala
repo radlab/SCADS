@@ -11,9 +11,9 @@ import edu.berkeley.cs.scads.placement._
 val storageNodes = Map( r11 -> 9003, r12 -> 9003, r13 -> 9003, r15 -> 9003 )
 val dataPlacementNode = (r10,8002)
 
-val numUsers = 10
+val numUsers = 16
 
-val scadsDeploy = new ScadsDeploy(storageNodes, dataPlacementNode, 2)
+val scadsDeploy = new ScadsDeploy(storageNodes, dataPlacementNode, 1)
 
 scadsDeploy.deploy
 println("Deployed!")

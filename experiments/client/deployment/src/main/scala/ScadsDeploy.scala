@@ -88,7 +88,7 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
         // for now, if we've NEVER seen an NS before, 
         // add all of its range to the first logical bucket
         val keyRange = new KeyRange(MinKey,MaxKey) // -infty to +infty
-        assignRangeToLogicalPartition(0, ns, keyRange) // why isn't this implicit def??
+        assignRangeToLogicalPartition(logicalBuckets.size-1, ns, keyRange) // why isn't this implicit def??
     }
 
     override def lookup(ns: String): Map[StorageNode, KeyRange] = { 
@@ -264,24 +264,35 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
                     val rnode2 = new RemoteStorageNode(tuple2._1.hostname, tuple2._2)
                     val handle2 = rnode2.getHandle()
 
-                    val curSize = bucketCount(i)
-                    val diff = Math.abs(curSize-keylistPP)
                     val rset = new RecordSet()
                     rset.setType(3)
                     val range = new RangeSet()
                     rset.setRange(range)
 
+                    //val curSize = bucketCount(i)
+                    val curSize = handle1.count_set( ns, rset )
+                    val diff = Math.abs(curSize-keylistPP)
+
+                    logger.debug("logicalBucket " + i + "," + j + " has count:" + curSize)
+
                     if ( curSize > keylistPP ) {
+                        logger.debug("curSize>keylistPP case")
                         // need to move guys out!
                         range.setOffset(keylistPP)
 
                         val dp = dpHandle.lookup_node( ns, tuple1._1.hostname, tuple1._2, tuple1._2)
+                        logger.debug("current node has dp: " + dp)
+                        if ( isValidDataPlacement(dp) ) {
+                            range.setStart_key(dp.rset.range.getStart_key())
+                            range.setEnd_key(dp.rset.range.getEnd_key())
+                        }
                         //assert( isValidDataPlacement(dp) )
                         val plus1 = handle1.get_set( ns, getNthElemRS(keylistPP) )
                         logger.debug("KEYLISTPP+1-th elem :" + plus1)
                         val plus1keyval = plus1(0).key
                         logger.debug("KEYLISTPP+1-th key :" + plus1keyval)
 
+                        logger.debug("calling move()")
                         dpHandle.move( ns, rset, tuple1._1.hostname, tuple1._2, tuple1._2, tuple2._1.hostname, tuple2._2, tuple2._2 )
                         //val toRemove = handle1.get_set(ns,rset)
                         //logger.debug("TO REMOVE FROM " + tuple1._1 + ": " + toRemove)
@@ -291,10 +302,24 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
                         //dpHandle.remove(ns, listDp)
                         //dp.rset.range.setEnd_key((StringField(plus1keyval)).serialize)
                         dp.rset.range.setEnd_key(plus1keyval)
-                        dpHandle.add(ns, listDp)
-                        logger.debug("adding " + listDp)
 
-                        if ( i == logicalBuckets.size-2 ) {
+                        logger.debug("adding " + listDp)
+                        dpHandle.add(ns, listDp)
+
+                        val nextDp = dpHandle.lookup_node( ns, tuple2._1.hostname, tuple2._2, tuple2._2 )
+                        if ( isValidDataPlacement(nextDp) ) { 
+                            logger.debug("found valid existing dp:" + nextDp)
+
+                            nextDp.rset.range.setStart_key(plus1keyval)
+                            listDp.clear
+                            listDp.add(nextDp)
+
+                            logger.debug("modified existing dp to be: " + nextDp)
+                            dpHandle.add(ns, listDp)
+
+                        } else {
+
+                            logger.debug("found no valid existing dp")
 
                             val endrset = new RecordSet()
                             endrset.setType(3)
@@ -305,17 +330,96 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
                             listDp.clear
                             val newDp = new DataPlacement( tuple2._1.hostname, tuple2._2, tuple2._2, endrset )
                             listDp.add(newDp)
+                            logger.debug("adding new dp: " + newDp)
                             dpHandle.add(ns, listDp)
 
                         }
 
 
                     } else if ( curSize < keylistPP ) {
-                        // need to move guys in!
-                        range.setLimit(diff)
-                        dpHandle.move( ns, rset, tuple2._1.hostname, tuple2._2, tuple2._2, tuple1._1.hostname, tuple1._2, tuple1._2 )
-                        //val toMovein = handle2.get_set(ns,rset)
-                        //logger.debug("TO MOVE IN FROM " + tuple2._1 + ": " + toMovein)
+                        logger.debug("curSize<keylistPP case")
+                        logger.debug("need to move in " + diff + " keys!")
+                        var keysMoved = 0
+                        var sourceTuple = tuple2
+                        var sourceTupleOffset = 1
+                        var sourceNode:RemoteStorageNode = null
+                        var curDp:DataPlacement = null
+                        while ( keysMoved < diff ) {
+                            // need to move guys in!
+
+                            curDp = dpHandle.lookup_node(ns, sourceTuple._1.hostname, sourceTuple._2, sourceTuple._2)
+                            sourceNode = new RemoteStorageNode(sourceTuple._1.hostname, sourceTuple._2)
+                            range.setLimit(Math.MAX_INT)
+                            val nKeysBefore = sourceNode.getHandle().count_set(ns, rset)
+                            if ( nKeysBefore != 0 ) {
+                                logger.debug("Found keys in source node: " + sourceTuple._1)
+                                range.setLimit(diff-keysMoved)
+                                range.setStart_key(curDp.rset.range.getStart_key())
+                                range.setEnd_key(curDp.rset.range.getEnd_key())
+                                dpHandle.move(ns, rset, sourceTuple._1.hostname, sourceTuple._2, sourceTuple._2, tuple1._1.hostname, tuple1._2, tuple1._2 )
+                                range.setLimit(Math.MAX_INT)
+                                val nKeysAfter = sourceNode.getHandle().count_set(ns, rset)
+                                keysMoved += (nKeysBefore - nKeysAfter)
+                                logger.debug("Moved " + (nKeysBefore-nKeysAfter) + " from " + sourceTuple._1 + " to " + tuple1._1)
+
+                                if ( nKeysAfter == 0 ) {
+                                    logger.debug(sourceTuple._1 + " is now empty!")
+                                    // source is empty
+                                    val dpToRemove = curDp
+                                    val dpToRemoveList = new java.util.LinkedList[DataPlacement]()
+                                    dpToRemoveList.add(dpToRemove)
+                                    dpHandle.remove(ns, dpToRemoveList)
+                                } else {
+                                    // source still has keys- need to update the
+                                    // start key of the guy
+                                    logger.debug(sourceTuple._1 + " still has keys")
+                                    range.setLimit(1)
+                                    val firstKeyList = sourceNode.getHandle().get_set(ns, rset)
+                                    val dpToModify = curDp
+                                    dpToModify.rset.range.setStart_key(firstKeyList(0).key)
+                                    val dpToModifyList = new java.util.LinkedList[DataPlacement]()
+                                    dpToModifyList.add(dpToModify)
+                                    dpHandle.add(ns, dpToModifyList)
+                                    assert( keysMoved == diff, "didnt move all possible from node" )
+                                }
+                            }
+
+                            if ( keysMoved < diff ) {
+                                sourceTupleOffset += 1
+                                sourceTuple = logicalBuckets(i+sourceTupleOffset)(j)
+                            }
+
+                            //val toMovein = handle2.get_set(ns,rset)
+                            //logger.debug("TO MOVE IN FROM " + tuple2._1 + ": " + toMovein)
+                        }
+
+
+                        var hasKey = sourceNode.getHandle().count_set(ns, rset) > 0
+                        while ( !hasKey && (i+sourceTupleOffset) < logicalBuckets.size-1 ) {
+                            sourceTupleOffset += 1
+                            sourceTuple = logicalBuckets(i+sourceTupleOffset)(j)
+                            sourceNode = new RemoteStorageNode(sourceTuple._1.hostname, sourceTuple._2)
+                            hasKey = sourceNode.getHandle().count_set(ns, rset) > 0
+                        }
+
+                        var thisDp = dpHandle.lookup_node(ns, tuple1._1.hostname, tuple1._2, tuple1._2)
+                        if ( !isValidDataPlacement(thisDp) ) {
+                            val endrset = new RecordSet()
+                            endrset.setType(3)
+                            val endrange = new RangeSet()
+                            endrset.setRange(endrange)
+                            thisDp = new DataPlacement( tuple1._1.hostname, tuple1._2, tuple1._2, endrset )
+                        }
+
+                        if ( hasKey ) {
+                            range.setLimit(1)
+                            val nPlus1List = sourceNode.getHandle().get_set(ns, rset)
+                            thisDp.rset.range.setEnd_key(nPlus1List(0).key)
+                        } 
+
+                        val list = new java.util.LinkedList[DataPlacement]()
+                        list.add(thisDp)
+                        dpHandle.add(ns,list)
 
                     }
                 }
@@ -444,12 +548,12 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
             throw new NonDivisibleReplicaNumberException(storageNodes.size, numReplicas)
         }
 
-        val numNodesPerBucket = storageNodes.size / numReplicas
+        val numBuckets = storageNodes.size / numReplicas
         val storageNodeList = storageNodes.keySet.toList
         var last = 0
-        while ( logicalBuckets.size < numReplicas ) {
-            logicalBuckets = logicalBuckets ::: List(storageNodeList.slice(last,last+numNodesPerBucket).map( (n) => (n, storageNodes(n) ) ))
-            last = last + numNodesPerBucket
+        while ( logicalBuckets.size < numBuckets ) {
+            logicalBuckets = logicalBuckets ::: List(storageNodeList.slice(last,last+numReplicas).map( (n) => (n, storageNodes(n) ) ))
+            last = last + numReplicas
         }
 
         logger.debug("LOGICAL BUCKETS: " + logicalBuckets)
@@ -503,7 +607,7 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
         val dataPlacementNodeService = new JavaService(
             "../../../placement/target/placement-1.0-SNAPSHOT-jar-with-dependencies.jar","edu.berkeley.cs.scads.placement.SimpleDataPlacementApp",port.toString)
         dataPlacementNodeService.action(rnode)
-        rnode.services(0).watchLog
+        //rnode.services(0).watchLog
         rnode.services(0).start
         blockUntilRunning(rnode.services(0))
 
