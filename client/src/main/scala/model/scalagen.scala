@@ -39,7 +39,7 @@ object ScalaGen extends Generator[BoundSpec] {
         indent {
           e._2.indexes.foreach(_ match {
             case SecondaryIndex(ns, attrs, _) => {
-              output("new AttributeIndex(", quote(ns), ", this, CompositeField(", attrs.mkString("", ",", ""), "))")
+              output("new AttributeIndex(", quote(ns), ", this, CompositeField(", attrs.mkString("", ",", ""), ")),")
             }
             case _ => null
           })
@@ -108,6 +108,13 @@ object ScalaGen extends Generator[BoundSpec] {
 			case PrefixGet(ns, p, lim, key, version) => {
 				output("new PrefixGet(", quote(ns), ", ", fieldToCode(p), ", ", "100", ", ", fieldToCode(key), ", ", versionToCode(version), ") with ReadOneSetGetter")
 			}
+			case PrefixJoin(ns, attr, lim, key, ver, child) => {
+				output("new PrefixJoin(", quote(ns), ",", quote(attr), ",", lim.toString, ",", fieldToCode(key), ",", versionToCode(ver), ",")
+				indent {
+					generatePlan(child)
+				}
+				output(") with ReadOneSetGetter")
+			}
     }
 	}
 
@@ -137,6 +144,7 @@ object ScalaGen extends Generator[BoundSpec] {
 	private def fieldToCode(field: Field): String = {
 		field match {
 			case BoundParameter(name, aType) => fieldType(aType) + "(" + name + ")"
+			case BoundThisAttribute(name, aType) => name
 			case s: StringField => "new StringField"
 			case i: IntegerField => "new IntegerField"
 			case b: BooleanField => "new BooleanField"

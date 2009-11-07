@@ -58,8 +58,27 @@ class Optimizer(spec: BoundSpec) {
 		}
 	}
 
-	def optimize(fetch: BoundFetch):ExecutionNode = {
+	def optimize(fetch: BoundFetch):EntityProvider = {
 		fetch match {
+			case BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder)), Nil, None, None) => {
+				val childPlan = optimize(child)
+				logger.debug("Child Plan: " + childPlan)
+				logger.debug("Relationship: " + rname)
+
+				val selectedIndex = selectOrCreateIndex(entity, List(rname))
+				logger.debug("Selected join index: " + selectedIndex)
+
+				val tupleStream = selectedIndex match {
+					case SecondaryIndex(ns, attrs, tns) => {
+						new SequentialDereferenceIndex(tns, entity.pkType.toField, new IntegerVersion,
+							new PrefixJoin(ns, rtarget.keys(0), 100, new StringField, Unversioned, childPlan) with ReadOneSetGetter
+						) with ReadOneGetter
+					}
+					case _ => throw UnimplementedException("I don't know what to do w/ this fetch: " + fetch)
+				}
+
+				new Materialize(tupleStream)(scala.reflect.Manifest.classType(getClass(entity.name)))
+			}
 			case BoundFetch(entity, None, None, predicates, None, None) => {
 
 				/* Map attributes to the values they should equal. Error contradicting predicates are found */

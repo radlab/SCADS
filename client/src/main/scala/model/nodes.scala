@@ -192,6 +192,15 @@ abstract case class PrefixGet(namespace: String, prefix: Field, limit: Int, keyT
 	}
 }
 
+abstract case class PrefixJoin(namespace: String, attribute: String, limit: Int, keyType: Field, versionType: Version, child: EntityProvider) extends TupleProvider with SetGetter {
+	def exec(implicit env: Environment): Seq[(Field, Version, String)] = {
+		child.exec.flatMap((e) => {
+				val prefix = e.attributes(attribute).serializeKey
+				get_set(namespace, prefix, prefix + "~", limit, keyType, versionType)
+		})
+	}
+}
+
 /**
  * Takes a tuple that represents an entity of type <code>Type</code> and materialized it into an actual class.
  * This is done by first instanciating a new instance of the entity and then deserializing all the fields in it.
