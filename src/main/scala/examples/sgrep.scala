@@ -2,6 +2,7 @@ package optional.examples
 
 import scala.util.matching.Regex
 import java.io.File
+import optional.ArgInfo
 
 object sgrep extends optional.Application
 {
@@ -18,7 +19,8 @@ object sgrep extends optional.Application
     // case insensitive if -i is given
     val regex = if (i) ("""(?i)""" + arg1.toString).r else arg1
 
-    for (line <- io.Source.fromFile(arg2).getLines ; if cond(regex findFirstIn line))
+    for (line <- io.Source.fromFile(arg2).getLines()
+         ; if cond(regex findFirstIn line))
       print(line)
   }
 }

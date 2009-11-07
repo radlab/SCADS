@@ -12,7 +12,7 @@ object Hello extends optional.Application
     val _times = times getOrElse 1
     
     println(
-      List.make(_times, _greeting).mkString(", ") + 
+      List.fill(_times)(_greeting).mkString(", ") + 
       " and %s does %sexist.".format(file.getAbsolutePath, (if (file.exists) "" else "not "))
     )
   }

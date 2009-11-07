@@ -1,4 +1,7 @@
 /doc
 *.class
-/target
+/target-*
 project/boot/
+*.iml
+*.ipr
+*.iws
