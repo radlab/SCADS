@@ -49,21 +49,25 @@ object Binder {
 			e.indexes += new PrimaryIndex(e.namespace, e.keys)
 		})
 
+		/* Helper function for getting Entities */
+		def getEntity(name: String): BoundEntity = {
+			entityMap.get(name) match {
+				case None => throw new UnknownEntityException(name)
+				case Some(entity) => entity
+			}
+		}
+
 		/* Bind relationships to the entities they link, check for bad entity names and duplicate relationship names */
 		spec.relationships.foreach((r) => {
-			entityMap.get(r.from) match {
-				case None => throw new UnknownEntityException(r.from)
-				case Some(entity) => if(entity.relationships.put(r.name, new BoundRelationship(r.to, r.cardinality)).isDefined) throw DuplicateRelationException(r.name)
-			}
+			val from = getEntity(r.from)
+			val to = getEntity(r.to)
 
-			entityMap.get(r.to) match {
-				case None => throw new UnknownEntityException(r.to)
-				case Some(entity) => {
-					if(entity.relationships.put(r.name, new BoundRelationship(r.from, r.cardinality)).isDefined) throw DuplicateRelationException(r.name)
-					/* Add the foreign key to the target of the relationship */
-					entity.attributes.put(r.name, entityMap(r.from).pkType)
-				}
-			}
+			if(from.relationships.put(r.name, new BoundRelationship(r.name, to, r.cardinality, ForeignKeyTarget)).isDefined)
+		 		throw DuplicateRelationException(r.name)
+
+			if(to.relationships.put(r.name, new BoundRelationship(r.name, from, r.cardinality, ForeignKeyHolder)).isDefined)
+				throw DuplicateRelationException(r.name)
+			to.attributes.put(r.name, from.pkType)
 		})
 
 		/* Check the primary keys of all entities */

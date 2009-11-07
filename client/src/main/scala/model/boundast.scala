@@ -44,7 +44,11 @@ case class BoundEntity(name: String, attributes: HashMap[String, AttributeType],
 }
 
 /* Bound Relationship */
-case class BoundRelationship(target: String, cardinality: Cardinality)
+abstract sealed class RelationshipSide
+object ForeignKeyHolder extends RelationshipSide
+object ForeignKeyTarget extends RelationshipSide
+case class BoundRelationship(name: String, target: BoundEntity, cardinality: Cardinality, side: RelationshipSide)
+
 
 /* BoundQuery and FetchTree */
 case class BoundQuery(fetchTree: BoundFetch, parameters: List[BoundParameter], range:BoundRange) {var plan: ExecutionNode = null}
