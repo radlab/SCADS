@@ -77,26 +77,7 @@ class Optimizer(spec: BoundSpec) {
 				})
 
 				val equalityAttributes = equalityAttributeFieldMap.keys.toList
-
-				/* Find candidate indexes by looking for prefix matches of attributes */
-				val candidateIndexes = entity.indexes.filter((i) => {
-					i.attributes.startsWith(equalityAttributes)
-				})
-				logger.debug("Identified candidate indexes: " + candidateIndexes)
-
-        val selectedIndex =
-				if(candidateIndexes.size == 0) {
-					/* No index exists, so we must create one. */
-					val idxName = "idx" + fetch.entity.name + equalityAttributes.mkString("", "_", "")
-					val idxAttributes = equalityAttributes ++ (entity.keys -- equalityAttributes)
-					val newIndex = new SecondaryIndex(idxName, idxAttributes, entity.namespace)
-					logger.debug("Creating index on " + entity.name + " over attributes" + idxAttributes)
-					entity.indexes.append(newIndex)
-          newIndex
-				}
-        else {
-          candidateIndexes(0)
-        }
+				val selectedIndex = selectOrCreateIndex(entity, equalityAttributes)
 
 				def createLookupNode(ns: String, attrs: List[String], equalityFieldAttributeMap: HashMap[String, Field], versionType: Version): TupleProvider = {
 					/* If the index is over more attributes than the equality we need to do a prefix match */
@@ -122,6 +103,27 @@ class Optimizer(spec: BoundSpec) {
 				new Materialize(tupleStream)(scala.reflect.Manifest.classType(getClass(entity.name)))
 			}
 			case _ => throw UnimplementedException("I don't know what to do w/ this fetch: " + fetch)
+		}
+	}
+
+	protected def selectOrCreateIndex(entity: BoundEntity, attributes: List[String]): Index = {
+		/* Find candidate indexes by looking for prefix matches of attributes */
+		val candidateIndexes = entity.indexes.filter((i) => {
+			i.attributes.startsWith(attributes)
+		})
+		logger.debug("Identified candidate indexes: " + candidateIndexes)
+
+		if(candidateIndexes.size == 0) {
+			/* No index exists, so we must create one. */
+			val idxName = "idx" + entity.name + attributes.mkString("", "_", "")
+			val idxAttributes = attributes ++ (entity.keys -- attributes)
+			val newIndex = new SecondaryIndex(idxName, idxAttributes, entity.namespace)
+			logger.debug("Creating index on " + entity.name + " over attributes" + idxAttributes)
+			entity.indexes.append(newIndex)
+			newIndex
+			}
+		else {
+			candidateIndexes(0)
 		}
 	}
 
