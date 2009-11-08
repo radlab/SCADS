@@ -60,7 +60,12 @@ class Optimizer(spec: BoundSpec) {
 
 	def optimize(fetch: BoundFetch):EntityProvider = {
 		fetch match {
-			case BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder)), Nil, None, None) => {
+			case BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyTarget)), Nil, _, _) => {
+				Materialize(getClass(entity.name),
+					PointerJoin(entity.namespace, List(rname), ReadRandomPolicy, optimize(child))
+				)
+			}
+			case BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder)), Nil, _, _) => {
 				val childPlan = optimize(child)
 				logger.debug("Child Plan: " + childPlan)
 				logger.debug("Relationship: " + rname)
@@ -78,7 +83,7 @@ class Optimizer(spec: BoundSpec) {
 				}
 				Materialize(getClass(entity.name), tupleStream)
 			}
-			case BoundFetch(entity, None, None, predicates, None, None) => {
+			case BoundFetch(entity, None, None, predicates, _, _) => {
 
 				/* Map attributes to the values they should equal. Error contradicting predicates are found */
 				val equalityAttributeFieldMap = new HashMap[String, Field]
