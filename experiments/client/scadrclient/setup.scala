@@ -15,3 +15,16 @@ u1.name("marmbrus")
 u1.password("pass")
 u1.email("marmbrus@berkeley.edu")
 u1.save
+
+val u2 = new user
+u2.name("sltu")
+u2.password("pass")
+u2.email("sltu@cs.berkeley.edu")
+u2.save
+
+val s = new subscription
+s.id(1)
+s.approved(true)
+s.following("marmbrus")
+s.target("sltu")
+s.save
