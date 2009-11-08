@@ -95,6 +95,13 @@ abstract trait QueryExecutor {
 		})
 	}
 
+	protected def pointerJoin(namespace: String, attributes: List[String], policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
+		child.map((e) => {
+				val key = attributes.map(e.attributes).map(_.serializeKey).mkString("", ", ", "")
+				policy.get(namespace, key, nsKeys(namespace), nsVersions(namespace))
+		})
+	}
+
 	/* Entity Providers */
 	protected def materialize[EntityType <: Entity](entityClass: Class[EntityType], child: TupleStream)(implicit env: Environment): Seq[EntityType] = {
 		child.map((t) => {
@@ -113,4 +120,5 @@ case class SingleGet(namespace: String, key: Field, policy: ReadPolicy) extends 
 case class PrefixGet(namespace: String, prefix: Field, limit: Int, policy: ReadPolicy) extends TupleProvider
 case class SequentialDereferenceIndex(targetNamespace: String, policy: ReadPolicy, child: TupleProvider) extends TupleProvider
 case class PrefixJoin(namespace: String, attribute: String, limit: Int, policy: ReadPolicy, child: EntityProvider) extends TupleProvider
+case class PointerJoin(namespace: String, attributes: List[String], policy: ReadPolicy, child: EntityProvider) extends TupleProvider
 case class Materialize(entityClass: Class[Entity], child: TupleProvider) extends EntityProvider

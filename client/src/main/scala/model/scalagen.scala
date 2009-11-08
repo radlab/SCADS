@@ -163,6 +163,8 @@ object ScalaGen extends Generator[BoundSpec] {
 			output("sequentialDereferenceIndex", List(tns, pol), c)
 		case PrefixJoin(ns, attr, lim, pol, c) =>
 			output("prefixJoin", List(ns, attr, lim, pol), c)
+		case PointerJoin(ns, attrs, pol, c) =>
+			output("pointerJoin", List(ns, attrs, pol), c)
 		case Materialize(ec, c) =>
 			output("materialize", List(ec), c)
  	}
