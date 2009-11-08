@@ -44,7 +44,7 @@ class Optimizer(spec: BoundSpec) {
 		spec
 	}
 
-	def getPlan(query: BoundQuery):ExecutionNode = {
+	def getPlan(query: BoundQuery):QueryPlan = {
 		try {
 			val plan = optimize(query.fetchTree)
 			logger.debug("plan: " + query.plan)
@@ -70,14 +70,13 @@ class Optimizer(spec: BoundSpec) {
 
 				val tupleStream = selectedIndex match {
 					case SecondaryIndex(ns, attrs, tns) => {
-						new SequentialDereferenceIndex(tns, entity.pkType.toField, new IntegerVersion,
-							new PrefixJoin(ns, rtarget.keys(0), 100, new StringField, Unversioned, childPlan) with ReadOneSetGetter
-						) with ReadOneGetter
+						SequentialDereferenceIndex(tns, ReadRandomPolicy,
+							PrefixJoin(ns, rtarget.keys(0), 100, ReadRandomPolicy, childPlan)
+						)
 					}
 					case _ => throw UnimplementedException("I don't know what to do w/ this fetch: " + fetch)
 				}
-
-				new Materialize(tupleStream)(scala.reflect.Manifest.classType(getClass(entity.name)))
+				Materialize(getClass(entity.name), tupleStream)
 			}
 			case BoundFetch(entity, None, None, predicates, None, None) => {
 
@@ -102,10 +101,10 @@ class Optimizer(spec: BoundSpec) {
 					/* If the index is over more attributes than the equality we need to do a prefix match */
 					if(attrs.size > equalityFieldAttributeMap.size) {
 						val prefix = CompositeField(attrs.slice(0, equalityFieldAttributeMap.size).map(equalityFieldAttributeMap):_*)
-						new PrefixGet(ns, prefix, 100, prefix, versionType) with ReadOneSetGetter
+						PrefixGet(ns, prefix, 100, ReadRandomPolicy)
 					}
 					else {
-						new SingleGet(ns, CompositeField(attrs.map(equalityFieldAttributeMap):_*), versionType) with ReadOneGetter
+						new SingleGet(ns, CompositeField(attrs.map(equalityFieldAttributeMap):_*), ReadRandomPolicy)
 					}
 				}
 
@@ -114,12 +113,12 @@ class Optimizer(spec: BoundSpec) {
 							createLookupNode(ns, attrs, equalityAttributeFieldMap, new IntegerVersion)
           }
           case SecondaryIndex(ns, attrs, tns) => {
-						new SequentialDereferenceIndex(tns, entity.pkType.toField, new IntegerVersion,
+						new SequentialDereferenceIndex(tns, ReadRandomPolicy,
 							createLookupNode(ns, attrs, equalityAttributeFieldMap, Unversioned)
-						) with ReadOneGetter
+						)
 					}
         }
-				new Materialize(tupleStream)(scala.reflect.Manifest.classType(getClass(entity.name)))
+				new Materialize(getClass(entity.name), tupleStream)
 			}
 			case _ => throw UnimplementedException("I don't know what to do w/ this fetch: " + fetch)
 		}
@@ -148,6 +147,8 @@ class Optimizer(spec: BoundSpec) {
 
 	private def buildClasses(): Unit = {
 		val source = ScalaGen(spec)
+		logger.debug("Creating Entity Placeholders")
+		logger.debug(source)
 		compiler.compile(source)
 	}
 

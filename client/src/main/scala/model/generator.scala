@@ -41,5 +41,10 @@ abstract class Generator[InputType] {
 		sb.append("\n")
 	}
 
+	protected def outputPartial(parts: String*)(implicit sb: StringBuilder, indnt: Indentation):Unit = {
+		(0 to indnt.count).foreach((i) => sb.append(indentChar))
+		parts.foreach(sb.append(_))
+	}
+
 	protected def generate(elm: InputType)(implicit sb: StringBuilder, indnt: Indentation): Unit
 }

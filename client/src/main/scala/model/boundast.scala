@@ -51,7 +51,7 @@ case class BoundRelationship(name: String, target: BoundEntity, cardinality: Car
 
 
 /* BoundQuery and FetchTree */
-case class BoundQuery(fetchTree: BoundFetch, parameters: List[BoundParameter], range:BoundRange) {var plan: ExecutionNode = null}
+case class BoundQuery(fetchTree: BoundFetch, parameters: List[BoundParameter], range:BoundRange) {var plan: QueryPlan = null}
 case class BoundFetch(entity: BoundEntity, child: Option[BoundFetch], relation: Option[BoundRelationship], predicates: List[BoundPredicate], orderField: Option[String], orderDirection: Option[Direction])
 
 abstract class BoundRange

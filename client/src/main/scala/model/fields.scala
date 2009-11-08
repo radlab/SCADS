@@ -3,6 +3,7 @@ package edu.berkeley.cs.scads.model
 import java.text.ParsePosition
 import java.util.regex.Pattern
 import org.apache.log4j.Logger
+import scala.reflect.Manifest
 
 case class DeserializationException(data: String, pos: ParsePosition) extends Exception
 
@@ -188,8 +189,6 @@ class BooleanField extends ValueHoldingField[Boolean] with SerializeAsKey {
 object TrueField extends BooleanField {value = true}
 object FalseField extends BooleanField {value = false}
 
-object UnsupportedCompositeFieldSize extends Exception
-
 /**
  * A class for creating a key that is a composite of two other field types.
  * TODO: Handle 3,4,5 etc length keys, either with more classes or something more elegant.
@@ -198,18 +197,29 @@ object CompositeField {
 	def apply(fields: Field*): Field =
 		fields.size match {
 			case 1 => fields(0)
-			case 2 => new CompositeField2(fields(0), fields(1))
-			case _ => throw UnsupportedCompositeFieldSize
+			case _ => {
+				val types = fields.map(_.getClass.asInstanceOf[Class[Field]]).toList
+				new CompositeField(fields.toList, types)
+			}
+		}
+	def apply(types: List[Class[Field]]): Field =
+		types.size match {
+			case 1 => types(0).newInstance()
+			case _ => new CompositeField(types)
 		}
 }
 
-class CompositeField2[T1 <: Field, T2 <: Field](k1: T1, k2: T2) extends Field with SerializeAsKey {
-	def serializeKey(): String = k1.serializeKey + k2.serializeKey
+case class CompositeField(fields: List[Field], types: List[Class[Field]]) extends Field with SerializeAsKey {
+	def this(types: List[Class[Field]]) = this(types.map(_.newInstance()), types)
+
+	def serializeKey(): String = fields.map(_.serializeKey).mkString("", "", "")
 	def deserializeKey(data: String, pos: ParsePosition): Unit = {
-		val pos = new ParsePosition(0)
-		k1.deserializeKey(data, pos)
-		k2.deserializeKey(data, pos)
+		fields.foldLeft(new ParsePosition(0))((p: ParsePosition, f: Field) => {
+			logger.debug("Deserialize composite part: " + f + ", " + p + " " + data)
+			f.deserializeKey(data, p)
+			p
+		})
 	}
 
-	def duplicate() = new CompositeField2(k1.duplicate(), k2.duplicate())
+	def duplicate(): Field = new CompositeField(fields.map(_.duplicate),types)
 }
