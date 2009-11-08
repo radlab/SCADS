@@ -173,9 +173,10 @@ class BooleanField extends ValueHoldingField[Boolean] with SerializeAsKey {
 		else
 			"0"
 	def deserializeKey(data: String, pos: ParsePosition): Unit = {
-		if(data(pos.getIndex) equals "1")
+		logger.debug("Deserializing boolean value: '" + data(pos.getIndex) + "'")
+		if(data(pos.getIndex) equals '1')
 			value = true
-		else if(data(pos.getIndex) equals "0")
+		else if(data(pos.getIndex) equals '0')
 			value = false
 		else
 			throw new DeserializationException(data, pos)
