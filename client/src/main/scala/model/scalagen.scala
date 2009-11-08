@@ -120,22 +120,24 @@ object ScalaGen extends Generator[BoundSpec] {
 		output("}")
 	}
 
+	def argToCode(arg: Any): String = arg match {
+		case c: Class[_] => "classOf[" + c.getName + "]"
+		case s: String => "\"" + s + "\""
+		case i: Int => i.toString
+		case l: List[_] => "List(" + l.map(argToCode).mkString("", ", ", "") + ")"
+		case ReadRandomPolicy => "ReadRandomPolicy"
+		case BoundParameter(name, aType) => fieldType(aType) + "(" + name + ")"
+		case BoundThisAttribute(name, aType) => name
+		case CompositeField(fields, types) => "new CompositeField(List(" + fields.map(argToCode).mkString("", ", ", "") + "), List(" + types.map(argToCode).mkString("", ", ", "") + "))"
+		case u: AnyRef => {
+			logger.fatal("I don't know how to generate scala for argument of type: " + u.getClass)
+			""
+		}
+	}
 
 	def output(func: String, args: List[Any], child: QueryPlan)(implicit sb: StringBuilder, indnt: Indentation):Unit = {
 		outputPartial(func, "(")
-		val argCode = args.map(_ match {
-			case c: Class[_] => "classOf[" + c.getName + "]"
-			case s: String => "\"" + s + "\""
-			case i: Int => i.toString
-			case ReadRandomPolicy => "ReadRandomPolicy"
-			case BoundParameter(name, aType) => fieldType(aType) + "(" + name + ")"
-			case BoundThisAttribute(name, aType) => name
-			case u: AnyRef => {
-				logger.fatal("I don't know how to generate scala for argument of type: " + u.getClass)
-				""
-			}
-		})
-
+		val argCode = args.map(argToCode)
 		sb.append(argCode.mkString("", ", ", ""))
 
 		if(child != null) {
