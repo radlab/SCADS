@@ -68,7 +68,17 @@ case class RemoteStorageNode(h:String, p: Int) extends RemoteHandleGetter[Storag
 }
     
 
-case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logger: Logger, logicalBuckets: List[List[Tuple2[RClusterNode,Int]]]) extends RemoteDataPlacementProvider with Java2ScalaList with DataPlacementValidator {
+case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logger: Logger, logicalBuckets: List[List[Tuple2[RClusterNode,Int]]]) extends TransparentRemoteDataPlacementProvider with Java2ScalaList with DataPlacementValidator {
+
+    var defaultPartition = 0
+    
+    def setDefaultPartition(i:Int):Unit = {
+        if ( i < 0 || i >= logicalBuckets.size ) {
+            throw new IllegalArgumentException("invalid default partition index: " + i)
+        }
+        defaultPartition = i
+    }
+
 
     val host = dataPlacementNode._1.hostname
     val port = dataPlacementNode._2
@@ -88,7 +98,7 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
         // for now, if we've NEVER seen an NS before, 
         // add all of its range to the first logical bucket
         val keyRange = new KeyRange(MinKey,MaxKey) // -infty to +infty
-        assignRangeToLogicalPartition(logicalBuckets.size-1, ns, keyRange) // why isn't this implicit def??
+        assignRangeToLogicalPartition(defaultPartition, ns, keyRange) // why isn't this implicit def??
     }
 
     override def lookup(ns: String): Map[StorageNode, KeyRange] = { 
@@ -339,6 +349,10 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
                     } else if ( curSize < keylistPP ) {
                         logger.debug("curSize<keylistPP case")
                         logger.debug("need to move in " + diff + " keys!")
+                        val myDp = dpHandle.lookup_node( ns, tuple1._1.hostname, tuple1._2, tuple1._2 )
+                        logger.debug("MY DP: " + myDp)
+                        val myDp2 = dpHandle.lookup_node( ns, tuple1._1.hostname, tuple1._2, tuple1._2 )
+                        logger.debug("MY DP2: " + myDp2)
                         var keysMoved = 0
                         var sourceTuple = tuple2
                         var sourceTupleOffset = 1
@@ -375,12 +389,17 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
                                     logger.debug(sourceTuple._1 + " still has keys")
                                     range.setLimit(1)
                                     val firstKeyList = sourceNode.getHandle().get_set(ns, rset)
+                                    logger.debug("firstKeyList: " + firstKeyList)
+                                    assert( firstKeyList.length == 1, "must have a first key" )
                                     val dpToModify = curDp
                                     dpToModify.rset.range.setStart_key(firstKeyList(0).key)
+                                    logger.debug("DP TO MODIFY IS: " + dpToModify)
                                     val dpToModifyList = new java.util.LinkedList[DataPlacement]()
                                     dpToModifyList.add(dpToModify)
                                     dpHandle.add(ns, dpToModifyList)
                                     assert( keysMoved == diff, "didnt move all possible from node" )
+                                    val moddedDP = dpHandle.lookup_node(ns, sourceTuple._1.hostname, sourceTuple._2, sourceTuple._2)
+                                    logger.debug("Modded DP: " + moddedDP) 
                                 }
                             }
 
@@ -402,7 +421,8 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
                             hasKey = sourceNode.getHandle().count_set(ns, rset) > 0
                         }
 
-                        var thisDp = dpHandle.lookup_node(ns, tuple1._1.hostname, tuple1._2, tuple1._2)
+                        var thisDp = myDp 
+                        logger.debug("THIS DP: " + thisDp)
                         if ( !isValidDataPlacement(thisDp) ) {
                             val endrset = new RecordSet()
                             endrset.setType(3)
@@ -415,7 +435,11 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
                             range.setLimit(1)
                             val nPlus1List = sourceNode.getHandle().get_set(ns, rset)
                             thisDp.rset.range.setEnd_key(nPlus1List(0).key)
-                        } 
+                        } else {
+                            thisDp.rset.range.setEnd_key(null)
+                        }
+
+                        logger.debug("MODIFYING thisDp to be: " + thisDp)
 
                         val list = new java.util.LinkedList[DataPlacement]()
                         list.add(thisDp)
@@ -538,6 +562,8 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
     def shutdown():Unit = {
         stopAllServices 
     }
+
+    def setDefaultDataBucket(i: Int):Unit = rdp.setDefaultPartition(i)
 
     private def buildLogicalBuckets():List[List[Tuple2[RClusterNode,Int]]] = {
         var logicalBuckets = List[List[Tuple2[RClusterNode,Int]]]()

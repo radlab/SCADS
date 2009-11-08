@@ -8,11 +8,11 @@ import deploylib.configuration.ValueConverstion._
 import edu.berkeley.cs.scads.model._
 import edu.berkeley.cs.scads.placement._
 
+import java.util.Random
+
 val storageNodes = Map( r11 -> 9003, r12 -> 9003, r13 -> 9003, r15 -> 9003,
                         r16 -> 9003, r17 -> 9003, r18 -> 9003, r19 -> 9003)
 val dataPlacementNode = (r10,8002)
-
-val numUsers = 16
 
 val scadsDeploy = new ScadsDeploy(storageNodes, dataPlacementNode, 2)
 
@@ -21,13 +21,8 @@ scadsDeploy.setDefaultDataBucket(1)
 scadsDeploy.deploy
 println("Deployed!")
 
-var usernames: List[String] = Nil
-for ( i <- 0 until numUsers ) {
-    usernames = usernames ::: List("user"+i)
-}
-//
-//scadsDeploy.equalKeyPartitionUsers(usernames)
-//
+var usernames = getNRandomUsers(16,0)
+
 implicit val env:Environment = scadsDeploy.getEnv
 
 usernames.foreach( (u) => {
@@ -38,11 +33,7 @@ usernames.foreach( (u) => {
 
 scadsDeploy.rebalance
 
-val numUsersRoundTwo = 16
-var usernames2: List[String] = Nil
-for ( i <- numUsers until (numUsers+numUsersRoundTwo) ) {
-    usernames2 = usernames2 ::: List("user"+i)
-}
+var usernames2 = getNRandomUsers(16,usernames.length)
 usernames2.foreach( (u) => {
     val user = new user
     user.name(u)
@@ -59,20 +50,23 @@ scadsDeploy.rebalance
     }
     rtn.foreach(println(_))
 })
-////
-//val numThoughts = 100
-//var thoughts: List[Int] = Nil
-//for ( i <- 1 until (numThoughts+1) ) {
-//    thoughts = thoughts ::: List(i)
-//}
-//scadsDeploy.equalKeyPartitionThoughts(thoughts)
-//
-//thoughts.foreach( (timestamp) => {
-//    val thought = new thought
-//    thought.timestamp(timestamp)
-//    thought.save
-//})
-//
 
-scadsDeploy.shutdown
-println("Stopped!")
+def getNRandomUsers(numUsers: Int, offset: Int): List[String] = {
+    val rGen = new Random()
+    val seenBefore = new Array[Boolean](numUsers)
+    var usernames: List[String] = Nil
+    for ( i <- 0 until numUsers ) {
+        var found = false
+        var nextInt = 0
+        while (!found) {
+            nextInt = rGen.nextInt(numUsers) 
+            if ( !seenBefore(nextInt) ) {
+                seenBefore(nextInt) = true
+                found = true
+            }
+        }
+        usernames = usernames ::: List("user"+(offset+nextInt))
+    }
+    usernames
+}
+

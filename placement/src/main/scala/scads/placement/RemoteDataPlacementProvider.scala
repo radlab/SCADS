@@ -3,14 +3,33 @@ package edu.berkeley.cs.scads.placement
 import org.apache.log4j.Logger
 import org.apache.thrift.transport.{TFramedTransport, TSocket}
 import org.apache.thrift.protocol.{TBinaryProtocol, XtBinaryProtocol}
-import edu.berkeley.cs.scads.thrift.{DataPlacement, RangeConversion, DataPlacementServer}
+import edu.berkeley.cs.scads.thrift.{DataPlacement, RangeConversion, DataPlacementServer, RangeSet}
 import edu.berkeley.cs.scads.nodes.StorageNode
 import edu.berkeley.cs.scads.keys.KeyRange
 import edu.berkeley.cs.scads.keys._
 
 import java.text.ParsePosition
 
-trait RemoteDataPlacementProvider extends SimpleDataPlacementService with AutoKey with RangeConversion {
+trait RemoteDataPlacementProvider extends AbstractRemoteDataPlacementProvider with RangeConversion 
+
+
+trait TransparentRemoteDataPlacementProvider extends AbstractRemoteDataPlacementProvider with RangeConversion { 
+
+    override implicit def rangeSetToKeyRange(r: RangeSet):KeyRange = {
+        val start = r.start_key match {
+            case null => MinKey
+            case s  => new TransparentKey(s)
+        }
+        val end = r.end_key match {
+            case null => MaxKey
+            case s  => new TransparentKey(s)
+        }
+        new KeyRange(start,end)
+    }
+
+}
+
+trait AbstractRemoteDataPlacementProvider extends SimpleDataPlacementService with AutoKey {
 	def host: String
 	def port: Int
 	var client: DataPlacementServer.Client = null
@@ -26,6 +45,9 @@ trait RemoteDataPlacementProvider extends SimpleDataPlacementService with AutoKe
 		}
     	return client
   	}
+
+    implicit def rangeSetToKeyRange(r: RangeSet):KeyRange 
+
 	private def getFromRemote(ns: String) {
 		var mapping = Map[StorageNode, KeyRange]()
 		val entries = getClient().lookup_namespace(ns)
