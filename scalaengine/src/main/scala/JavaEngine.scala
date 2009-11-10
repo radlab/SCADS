@@ -26,6 +26,7 @@ object JavaEngine {
 		val logger = Logger.getLogger("scads.engine")
 
 		val options = new Options();
+		options.addOption("c", "cache", true, "set bdb's cache size (as a percentage of total JVM memory)")
 		options.addOption("p", "port",  true, "the port to run the thrift server on");
 		options.addOption("d", "dbdir",  true, "directory to to store the database environment in");
 		options.addOption("h", "help",  false, "print usage information");
@@ -55,10 +56,16 @@ object JavaEngine {
 		}
 		logger.info("Port: " + port)
 
+		val cachePercent = cmd.hasOption("cache") match {
+			case true => cmd.getOptionValue("cache").toInt
+			case false => 80
+		}
+
 		logger.info("Opening the bdb environment")
 		val config = new EnvironmentConfig()
 		config.setAllowCreate(true)
 		config.setTransactional(true)
+		config.setCachePercent(cachePercent)
 		logger.info("Environment config: " + config)
 		val env = new Environment(dbDir, config)
 		logger.info("Environment opened")
