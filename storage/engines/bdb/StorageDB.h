@@ -74,6 +74,7 @@ public:
   int flush_log(DB*);
 
   DB* getDB(const NameSpace& ns);
+	KeyLocker* getKL(const NameSpace& ns) {return key_lockers[ns];}
   MerkleDB* getMerkleDB(const NameSpace& ns, bool nullOk=false);
   int get_listen_port() { return listen_port; }
   DB_ENV* getENV() { return db_env; }
@@ -88,7 +89,7 @@ public:
   bool remove_set(const NameSpace& ns, const RecordSet& rs);
   bool put(const NameSpace& ns, const Record& rec);
   bool test_and_set(const NameSpace& ns, const Record& rec, const ExistingValue& eVal);
-  bool putDBTs(DB* db_ptr, MerkleDB* mdb_ptr,DBT* key, DBT* data,DB_TXN* txn, bool hasNull=false);
+  bool putDBTs(DB* db_ptr, MerkleDB* mdb_ptr,DBT* key, DBT* data,DB_TXN* txn, bool hasNull=false, bool noFlush=false);
   int32_t count_set(const NameSpace& ns, const RecordSet& rs);
 
   bool set_responsibility_policy(const NameSpace& ns, const vector<RecordSet>& policy);

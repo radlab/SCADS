@@ -117,7 +117,7 @@ rs_assign(RecordSet * lsh, const RecordSet &rhs) const {
 }
 */
 
-int uf;
+u_int32_t uf;
 
 
 // set application functions
@@ -200,7 +200,7 @@ open_database(DB **dbpp,                  /* The DB handle that we are opening *
   /* Set up error handling for this database */
   dbp->set_errfile(dbp, error_file_pointer);
   dbp->set_errpfx(dbp, program_name);
-
+	
   /* Set the open flags */
   if (user_flags &
       DB_INIT_TXN)
@@ -928,13 +928,14 @@ StorageDB(int lp,
     }
   }
 
-	if (!(user_flags&DB_INIT_TXN))
-		ret = db_env->set_lk_detect(db_env,DB_LOCK_DEFAULT);
 
-  if (ret != 0) {
-    cerr << "Could not set auto deadlock detection."<<endl;
+	ret = db_env->set_lg_max(db_env, 100000000);
+	if (ret != 0) {
+    cerr << "Could not log max size"<<endl;
     exit(-1);
   }
+
+
 
   ret = db_env->open(db_env,      /* DB_ENV ptr */
 		     env_dir,    /* env home directory */
@@ -1099,7 +1100,7 @@ count_set(const NameSpace& ns, const RecordSet& rs) {
 }
 
 bool StorageDB::
-putDBTs(DB* db_ptr, MerkleDB* mdb_ptr,DBT* key, DBT* data, DB_TXN* txn, bool hasNull) {
+putDBTs(DB* db_ptr, MerkleDB* mdb_ptr,DBT* key, DBT* data, DB_TXN* txn, bool hasNull, bool noFlush) {
   int ret;
   if (hasNull)
     key->size--;
@@ -1121,7 +1122,8 @@ putDBTs(DB* db_ptr, MerkleDB* mdb_ptr,DBT* key, DBT* data, DB_TXN* txn, bool has
     return false;
   }
 
-  ret = flush_log(db_ptr);
+	if (!noFlush)
+		ret = flush_log(db_ptr);
   if (ret) {
     db_ptr->err(db_ptr,ret,"Flush failed");
     return false;
@@ -1684,7 +1686,7 @@ void parseArgs(int argc, char* argv[]) {
   }
 
   if (dtxn)
-    uf = DB_INIT_TXN | DB_INIT_LOG | DB_MULTIVERSION;
+    uf = DB_INIT_TXN | DB_INIT_LOG;
   else if(dlog)
     uf = DB_INIT_LOG;
   else

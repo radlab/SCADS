@@ -179,6 +179,7 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
   char *end;
   int off = 0;
   DB* db_ptr;
+	KeyLocker* kl;
   MerkleDB* mdb_ptr;
   DB_ENV* db_env;
   DBT k,d;
@@ -206,12 +207,13 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
 #endif
   db_ptr = storageDB->getDB(ns);
   mdb_ptr = storageDB->getMerkleDB(ns);
+	kl = storageDB->getKL(ns);
 
   DB_TXN *txn;
   txn = NULL;
   if (storageDB->isTXN()) {
     db_env = storageDB->getENV();
-    fail = db_env->txn_begin(db_env, NULL, &txn, DB_TXN_SNAPSHOT);
+    fail = db_env->txn_begin(db_env, NULL, &txn, 0);
     if (fail != 0) {
       TException te("Could not start transaction");
       throw te;
@@ -274,8 +276,9 @@ int do_copy(int sock, StorageDB* storageDB, char* dbuf) {
     d.flags = 0;
     d.dlen = 0;
 
-
-		fail = !(storageDB->putDBTs(db_ptr,mdb_ptr,&k,&d,txn,false));
+		kl->writeLockKey((const char*)k.data,k.size);
+		fail = !(storageDB->putDBTs(db_ptr,mdb_ptr,&k,&d,txn,false,true));
+		kl->unlockKey((const char*)k.data,k.size);
 
     if (kf)
       free(k.data);
@@ -1572,33 +1575,33 @@ void* run_listen(void* arg) {
       memset(&k, 0, sizeof(DBT));
       char* end = dbuf;
       try {
-	fill_dbt(&as,&k,NULL,dbuf,dbuf,&end);
+				fill_dbt(&as,&k,NULL,dbuf,dbuf,&end);
       } catch (ReadDBTException &e) {
-	cerr << "Could not read namespace: "<<e.what()<<endl;
-	if (k.flags)
-	  free(k.data);
-	stat = 1;
+				cerr << "Could not read namespace: "<<e.what()<<endl;
+				if (k.flags)
+					free(k.data);
+				stat = 1;
       }
       if (!stat) {
-	string ns = string((char*)k.data,k.size);
+				string ns = string((char*)k.data,k.size);
 #ifdef DEBUG
-	cout << "Namespace is: "<<ns<<endl;
+				cout << "Namespace is: "<<ns<<endl;
 #endif
-	if (k.flags)
-	  free(k.data);
+				if (k.flags)
+					free(k.data);
 
-	RecordSet rs;
-	rs.type = RST_ALL;
-	rs.__isset.range = false;
-	rs.__isset.func = false;
-	try {
-	  storageDB->apply_to_set(ns,rs,apply_copy,&as);
-	} catch (TException &e) {
-	  stat = 1;
-	  stat = 1;
-	  cerr << "An error occured while dumping: "<<e.what()<<endl;
-	}
-	send_string(as,"");
+				RecordSet rs;
+				rs.type = RST_ALL;
+				rs.__isset.range = false;
+				rs.__isset.func = false;
+				try {
+					storageDB->apply_to_set(ns,rs,apply_copy,&as);
+				} catch (TException &e) {
+					stat = 1;
+					stat = 1;
+					cerr << "An error occured while dumping: "<<e.what()<<endl;
+				}
+				send_string(as,"");
       }
     }
     else {
