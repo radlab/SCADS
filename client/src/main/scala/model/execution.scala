@@ -2,13 +2,13 @@ package edu.berkeley.cs.scads.model
 
 import org.apache.log4j.Logger
 
-import edu.berkeley.cs.scads.thrift.Record
-import edu.berkeley.cs.scads.thrift.ExistingValue
+import edu.berkeley.cs.scads.thrift.{ExistingValue, Record, TestAndSetFailure}
 import edu.berkeley.cs.scads.placement.DataPlacementService
 import edu.berkeley.cs.scads.nodes.StorageNode
 import edu.berkeley.cs.scads.keys.TransparentKey
 
 class ExecutionFailure extends Exception
+case class OptimisticConcurrencyAbort(expected: ExistingValue, actual: Record) extends ExecutionFailure
 case class PartialWrite(success: List[StorageNode], failure: List[StorageNode]) extends ExecutionFailure
 
 /**
@@ -54,7 +54,6 @@ class WriteAll(namespace: String, key: Field, value: String) extends Action {
 
 /**
  * Write to all nodes that are currently responsible for the key using
- * TODO: throw the Partial write exception on failure
  */
 class VersionedWriteAll(namespace: String, key: Field, expectedVersion: Version, value: String) extends Action {
 	def run(implicit env: Environment) = {
@@ -65,7 +64,16 @@ class VersionedWriteAll(namespace: String, key: Field, expectedVersion: Version,
 		env.placement.lookup(namespace, new TransparentKey(rec.key)).foreach((n) => {
 			n.useConnection((c) => {
 				logger.debug("Attempting to test/set " + rec + " to " + namespace + " on " + n + " with existing version " + ev)
-				c.test_and_set(namespace, rec, ev)
+				try {
+					c.test_and_set(namespace, rec, ev)
+				}
+				catch {
+					case tsf: TestAndSetFailure => {
+						val currentValue = c.get("namespace", key.serializeKey)
+						logger.warn("Optimistic concurrency abort, expected: " + ev + ", got: " + currentValue)
+						throw OptimisticConcurrencyAbort(ev, currentValue)
+					}
+				}
 			})
 		})
 	}
