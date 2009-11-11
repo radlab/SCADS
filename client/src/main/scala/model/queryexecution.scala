@@ -47,6 +47,20 @@ abstract trait QueryExecutor {
 			entity
 		})
 	}
+
+	protected def selection[EntityType <: Entity](equalityMap: Map[String, Field], child: Seq[EntityType]): Seq[EntityType] = {
+		child.filter((e) => {
+			equalityMap.foldLeft(true)((value: Boolean, equality: (String, Field)) => {
+					value && (e.attributes(equality._1) == equality._2)
+				})
+		})
+	}
+
+	protected def sort[EntityType <: Entity](fields: List[String], child: Seq[EntityType]): Seq[EntityType] = {
+		child.toList.sort((e1, e2) => {
+			(fields.map(e1.attributes).map(_.serializeKey).mkString("", "", "") compare fields.map(e2.attributes).map(_.serializeKey).mkString("", "", "")) < 0 
+		})
+	}
 }
 
 /* Query Plan Nodes */
@@ -59,3 +73,5 @@ case class SequentialDereferenceIndex(targetNamespace: String, policy: ReadPolic
 case class PrefixJoin(namespace: String, attribute: String, limit: Int, policy: ReadPolicy, child: EntityProvider) extends TupleProvider
 case class PointerJoin(namespace: String, attributes: List[String], policy: ReadPolicy, child: EntityProvider) extends TupleProvider
 case class Materialize(entityClass: Class[Entity], child: TupleProvider) extends EntityProvider
+case class Selection(equalityMap: Map[String, Field], child: EntityProvider) extends EntityProvider
+case class Sort(fields: List[String], child: EntityProvider) extends EntityProvider
