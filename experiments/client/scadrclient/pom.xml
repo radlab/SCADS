@@ -21,32 +21,25 @@
 	<build>
 		<plugins>
 			<plugin>
-				<groupId>org.scala-tools</groupId>
-				<artifactId>maven-scala-plugin</artifactId>
-				<configuration>
-					<mainConsole>ScadrConsole</mainConsole>
-				</configuration>
-			</plugin>
-			<plugin>
-				<artifactId>maven-antrun-plugin</artifactId>
+				<groupId>edu.berkeley.cs.scads</groupId>
+				<artifactId>piql-plugin</artifactId>
+				<version>1.0-SNAPSHOT</version>
 				<executions>
 					<execution>
-						<id>build-thrift</id>
-						<phase>generate-sources</phase>
-						<configuration>
-							<tasks>
-								<exec executable="bin/compiler" dir="../../../client">
-									<arg value="src/test/resources/scadr.scads"/>
-									<arg value="../experiments/client/scadrclient/target/"/>
-								</exec>
-							</tasks>
-						</configuration>
+						<phase>compile</phase>
 						<goals>
-							<goal>run</goal>
+							<goal>compile</goal>
 						</goals>
 					</execution>
 				</executions>
-			</plugin>
-		</plugins>
-	</build>
-</project>
+				</plugin>
+				<plugin>
+					<groupId>org.scala-tools</groupId>
+					<artifactId>maven-scala-plugin</artifactId>
+					<configuration>
+						<mainConsole>ScadrConsole</mainConsole>
+					</configuration>
+				</plugin>
+			</plugins>
+		</build>
+	</project>
