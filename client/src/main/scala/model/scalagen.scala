@@ -189,6 +189,7 @@ object ScalaGen extends Generator[BoundSpec] {
 			case BooleanType => "BooleanField"
 			case StringType => "StringField"
 			case IntegerType => "IntegerField"
+			case CompositeType(list) => "CompositeField(" + list.map("new " + fieldType(_)) + ", " + list.map("classOf[" + fieldType(_) + "].asInstanceOf[Class[Field]]") + ")"
 		}
 	}
 
