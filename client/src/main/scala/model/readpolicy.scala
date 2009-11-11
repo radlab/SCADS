@@ -62,4 +62,3 @@ object ReadRandomPolicy extends ReadPolicy {
 		tuples.toList
 	}
 }
-

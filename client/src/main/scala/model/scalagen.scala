@@ -154,19 +154,18 @@ object ScalaGen extends Generator[BoundSpec] {
 	def output(func: String, args: List[Any])(implicit sb: StringBuilder, indnt: Indentation):Unit =
 		output(func, args, null)
 
-	protected def generatePlan(plan: QueryPlan)(implicit sb: StringBuilder, indnt: Indentation) = plan match {
-		case SingleGet(ns, key, pol) =>
-			output("singleGet", List(ns, key, pol))
-		case PrefixGet(ns, pre, lim, pol) =>
-			output("prefixGet", List(ns, pre, lim, pol))
-		case SequentialDereferenceIndex(tns, pol, c) =>
-			output("sequentialDereferenceIndex", List(tns, pol), c)
-		case PrefixJoin(ns, attr, lim, pol, c) =>
-			output("prefixJoin", List(ns, attr, lim, pol), c)
-		case PointerJoin(ns, attrs, pol, c) =>
-			output("pointerJoin", List(ns, attrs, pol), c)
-		case Materialize(ec, c) =>
-			output("materialize", List(ec), c)
+	protected def generatePlan(plan: QueryPlan)(implicit sb: StringBuilder, indnt: Indentation):Unit = {
+		val cl = plan.getClass
+		val name = cl.getName.split("\\.").last
+		val methodName = name.replaceFirst(name.slice(0,1), name.slice(0,1).toLowerCase)
+		val fieldNames = cl.getDeclaredFields.reverse.map(_.getName)
+		val fieldValues = fieldNames.filter(n => !(n equals "child")).map(cl.getMethod(_).invoke(plan)).toList
+		val childValue: QueryPlan =
+			if(fieldNames.contains("child"))
+				cl.getMethod("child").invoke(plan).asInstanceOf[QueryPlan]
+			else
+				null
+		output(methodName, fieldValues, childValue)
  	}
 
 	protected def generateBoundValue(value: BoundValue): String = {

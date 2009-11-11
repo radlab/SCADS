@@ -58,7 +58,7 @@ abstract trait QueryExecutor {
 
 	protected def sort[EntityType <: Entity](fields: List[String], child: Seq[EntityType]): Seq[EntityType] = {
 		child.toList.sort((e1, e2) => {
-			(fields.map(e1.attributes).map(_.serializeKey).mkString("", "", "") compare fields.map(e2.attributes).map(_.serializeKey).mkString("", "", "")) < 0 
+			(fields.map(e1.attributes).map(_.serializeKey).mkString("", "", "") compare fields.map(e2.attributes).map(_.serializeKey).mkString("", "", "")) < 0
 		})
 	}
 }
