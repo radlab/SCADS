@@ -93,8 +93,8 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
             sn.useConnection( (c) => {
                 val iter = records.iterator
                 while (iter.hasNext) {
-                    c.put(ns, iter.next) 
-                } 
+                    c.put(ns, iter.next)
+                }
             })
             true
         }
@@ -145,9 +145,9 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 	/* Pass all records in namespace ns that fall in RangeSet rs to the provided function */
 	private def iterateOverSet(ns: String, rs: RecordSet, func: (Record) => Unit): Unit = {
 		val dbeKey = rs.getRange.getStart_key match {
-            case null => new DatabaseEntry()     
+            case null => new DatabaseEntry()
             case _    => new DatabaseEntry(rs.getRange.getStart_key.getBytes)
-        }		
+        }
         val endValue = rs.getRange.getEnd_key match {
             case null => null
             case _    => rs.getRange.getEnd_key.getBytes

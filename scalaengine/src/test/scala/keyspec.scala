@@ -155,7 +155,7 @@ abstract class KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specificati
 			}
 
 			"correctly returns in between range counts" in {
-                ks.count_set("set", recSet(4,6)) mustEqual 3 
+                ks.count_set("set", recSet(4,6)) mustEqual 3
 			}
 
             "correctly return zero counts" in {
