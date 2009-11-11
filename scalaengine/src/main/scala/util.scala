@@ -50,3 +50,35 @@ class TestableScalaStorageEngine(id: Int) extends StorageNode("localhost", id) w
 			dir.delete();
 		}
 }
+
+
+
+
+class TestableScalaStorageEngineWithDb(id: Int, dir: String) extends StorageNode("localhost", id) with Runnable{
+      // 'dir' can be relative to current directory or absolute.
+        val dbDir = new File(dir)
+        //rmDir(dbDir)
+        //dbDir.mkdir
+
+        val config = new EnvironmentConfig();
+        config.setAllowCreate(true);
+        config.setTransactional(true)
+        val env = new Environment(dbDir, config)
+
+        val processor = new StorageEngine.Processor(new StorageProcessor(env))
+	val transport = new TNonblockingServerSocket(thriftPort)
+	val protFactory = new TBinaryProtocol.Factory(true, true)
+	val serverOpt = new THsHaServer.Options
+	serverOpt.maxWorkerThreads=20
+	serverOpt.minWorkerThreads=2
+	val server = new THsHaServer(processor, transport, protFactory, serverOpt)
+	val thread = new Thread(this, "ScalaEngine" + thriftPort)
+	thread.start()
+
+	def run() = server.serve()
+
+	def this(dir: String) = {
+	    this(TestableStorageNode.port, dir)
+	    TestableStorageNode.port +=1
+	}
+}
