@@ -75,6 +75,7 @@ object Compiler extends ScadsLanguage {
             case UnsupportedPredicateException(qn, p) => logger.fatal("Query " + qn + " contains the following unsupported predicate " + p)
             case SpecParseException(err) => logger.fatal("Scala parser errored: " + err)
             case CompileException(err) => logger.fatal("Scala compiler errored: " + err)
+						case InvalidPrimaryKeyException(e, k) => logger.fatal("Invalid Primary key in entity" + e + ", " + k)
         }
 
 	}
