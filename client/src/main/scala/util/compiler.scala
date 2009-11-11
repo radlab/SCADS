@@ -18,7 +18,12 @@ case class SpecParseException(error: String) extends Exception
 object Compiler extends ScadsLanguage {
 	val logger = Logger.getLogger("scads.compiler")
 
-	def codeGenFromSource(src: String): String = parse(src) match {
+	def codeGenFromFile(path: String): String = {
+    val src = scala.io.Source.fromFile(path).getLines.mkString("", "\n", "")
+    codeGenFromSource(src)
+  }
+
+  def codeGenFromSource(src: String): String = parse(src) match {
 		case Success(result, _) => {
 			logger.debug("AST: " + Printer(result))
 			val boundSpec = Binder.bind(result)
@@ -60,12 +65,10 @@ object Compiler extends ScadsLanguage {
             val genDir = new File(outputBaseFile, "classes")
             genDir.mkdirs
             val jarFile = new File(outputBaseFile, "spec.jar")
-            //outFileWriter.write(source)
-            compileSpecCode(genDir, jarFile, code)
-
-            //val entity : Entity = loadCompiledClass(jarFile, "user")
-            //entity.attributes.keys.foreach(println(_))
-
+            compileSpecCode(genDir, code)
+            logger.info("Compliation succeeded, packaging into jar file")
+            tryMakeJar(jarFile, genDir)
+            return true
         }
         catch {
             case UnknownRelationshipException(rn) => logger.fatal("Unknown relationship referenced: " + rn)
@@ -81,7 +84,7 @@ object Compiler extends ScadsLanguage {
 	}
 
 
-    def compileSpecCode(genDir: File, jarFile: File, classpath: String, contents: String):Boolean = {
+    def compileSpecCode(genDir: File, classpath: String, contents: String):Boolean = {
         logger.info("Compiling spec code")
         val settings = new Settings(error)
 
@@ -101,17 +104,14 @@ object Compiler extends ScadsLanguage {
 
         if ( reporter.hasErrors ) {
             throw new CompileException("error occurred with severity" + reporter.severity)
-        } else {
-            logger.info("Compliation succeeded, packaging into jar file")
-            tryMakeJar(jarFile, genDir)
-            return true
         }
+        true
     }
 
 
-    def compileSpecCode(genDir: File, jarFile: File, contents: String):Boolean = {
+    def compileSpecCode(genDir: File, contents: String):Boolean = {
         val settings = new Settings(error)
-        compileSpecCode(genDir, jarFile, settings.classpath.value, contents)
+        compileSpecCode(genDir, settings.classpath.value, contents)
     }
 
     /*
