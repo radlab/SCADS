@@ -181,11 +181,12 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
 
                 if ( classpath == null || classpath.isEmpty ) {
                     llogger.debug("Not running under mvn test jar bootstrap env")
-                    Compiler.compileSpecCode(classfilesDir, jarFile, _source) must not(throwA[Exception])
+                    Compiler.compileSpecCode(classfilesDir, _source) must not(throwA[Exception])
                 } else {
                     llogger.debug("Running under mvn test jar bootstrap env")
-                    Compiler.compileSpecCode(classfilesDir, jarFile, classpath, _source) must not(throwA[Exception])
+                    Compiler.compileSpecCode(classfilesDir, classpath, _source) must not(throwA[Exception])
                 }
+								Compiler.tryMakeJar(jarFile, classfilesDir)
             }
 
             "loading entity classes correctly" in {

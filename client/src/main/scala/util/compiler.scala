@@ -126,7 +126,7 @@ object Compiler extends ScadsLanguage {
      * Taken from Scala's ScriptRunner
      * http://scala-tools.org/scaladocs/scala-compiler/2.7.1/tools/nsc/ScriptRunner.scala.html
      */
-    private def tryMakeJar(jarFile: File, sourcePath: File) = {
+    def tryMakeJar(jarFile: File, sourcePath: File) = {
         try {
             val jarFileStream = new FileOutputStream(jarFile)
             val jar = new JarOutputStream(jarFileStream)
