@@ -13,7 +13,8 @@ case class BoundSpec(entities: HashMap[String, BoundEntity], orphanQueries: Hash
 
 /* BoundEntity and any queries that depend on its ThisParameter */
 case class BoundEntity(name: String, attributes: HashMap[String, AttributeType], keys: List[String]) {
-	val relationships = new HashMap[String, BoundRelationship]()
+	/* (target, relationshipName) -> BoundRelationship */
+	val relationships = new HashMap[(String, String), BoundRelationship]()
 	val queries = new HashMap[String, BoundQuery]()
 	val indexes = new scala.collection.mutable.ArrayBuffer[Index]()
 

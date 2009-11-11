@@ -62,12 +62,14 @@ object Binder {
 			val from = getEntity(r.from)
 			val to = getEntity(r.to)
 
-			if(from.relationships.put(r.name, new BoundRelationship(r.name, to, r.cardinality, ForeignKeyTarget)).isDefined)
+			if(from.relationships.put((to.name, r.name), new BoundRelationship(r.name, to, r.cardinality, ForeignKeyTarget)).isDefined)
 		 		throw DuplicateRelationException(r.name)
 
-			if(to.relationships.put(r.name, new BoundRelationship(r.name, from, r.cardinality, ForeignKeyHolder)).isDefined)
+			if(to.relationships.put((from.name, r.name), new BoundRelationship(r.name, from, r.cardinality, ForeignKeyHolder)).isDefined)
 				throw DuplicateRelationException(r.name)
-			to.attributes.put(r.name, from.pkType)
+
+			if(to.attributes.put(r.name, from.pkType).isDefined)
+				throw DuplicateAttributeException(to.name, r.name)
 		})
 
 		/* Check the primary keys of all entities */
@@ -118,6 +120,8 @@ object Binder {
 
 			val fetchTree: Fetch = q.joins.foldRight[(Option[Fetch], Option[String])]((None,None))((j: Join, child: (Option[Fetch], Option[String])) => {
 				logger.debug("Looking for relationship " + child._2 + " in " + j + " with child " + child._1)
+				if(child._2.isDefined)
+					logger.debug("Candidates: " + child._1.get.entity.relationships)
 
 				/* Resolve the entity for this fetch */
 				val entity = entityMap.get(j.entity) match {
@@ -128,7 +132,7 @@ object Binder {
 				/* Optionally resolve the relationship to the child */
 				val relationship: Option[BoundRelationship] = child._2 match {
 					case None => None
-					case Some(relName) => entity.relationships.get(relName) match {
+					case Some(relName) => entity.relationships.get((child._1.get.entity.name, relName)) match {
 						case Some(rel) => Some(rel)
 						case None => throw new UnknownRelationshipException(relName)
 					}
