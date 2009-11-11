@@ -24,8 +24,8 @@ public class CompilePiqlMojo extends AbstractMojo
 
 	public void execute() throws MojoExecutionException
 	{
-		File dir = new File("src/main/piql");
-		File outDir = new File("target/classes");
+		File dir = new File(_project.getBasedir(), "src/main/piql");
+		File outDir = new File(_project.getBasedir(), "target/classes");
 		StringBuilder cp = new StringBuilder();
 
 		try {
