@@ -191,13 +191,13 @@ item.isFinished = false
 ORDER BY dateposted
 */
 
-/* all active items under a certain regular category (by title) */
+/* all active items under a certain regular category (by title)
 QUERY activeItemsByRegularCategory
 FETCH item
     OF regularcategory regular BY itemCategories
 WHERE regular.title=[1:title] AND
 item.isFinished = false
-ORDER BY dateposted
+ORDER BY dateposted */
 
 /* all top-level parent categories */
 QUERY allParentCategories
