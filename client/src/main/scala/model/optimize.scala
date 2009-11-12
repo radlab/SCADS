@@ -86,40 +86,28 @@ class Optimizer(spec: BoundSpec) {
 			case BoundFetch(entity, None, None, predicates, _, _) => {
 
 				/* Map attributes to the values they should equal. Error contradicting predicates are found */
-				val equalityAttributeFieldMap = new HashMap[String, Field]
-				predicates.map(_.asInstanceOf[AttributeEqualityPredicate]).foreach((p) => { //Note: We only handle equality
-					equalityAttributeFieldMap.get(p.attributeName) match {
-						case Some(value) => {
-							if(value == p.value)
-								logger.warn("Redundant equality found")
-							else
-								throw Unsatisfiable
-						}
-						case None => equalityAttributeFieldMap.put(p.attributeName, p.value)
-					}
-				})
-
-				val equalityAttributes = equalityAttributeFieldMap.keys.toList
+				val equalityMap = extractEqualityMap(predicates)
+				val equalityAttributes = equalityMap.keys.toList
 				val selectedIndex = selectOrCreateIndex(entity, equalityAttributes)
 
-				def createLookupNode(ns: String, attrs: List[String], equalityFieldAttributeMap: HashMap[String, Field], versionType: Version): TupleProvider = {
+				def createLookupNode(ns: String, attrs: List[String], equalityMap: HashMap[String, Field], versionType: Version): TupleProvider = {
 					/* If the index is over more attributes than the equality we need to do a prefix match */
-					if(attrs.size > equalityFieldAttributeMap.size) {
-						val prefix = CompositeField(attrs.slice(0, equalityFieldAttributeMap.size).map(equalityFieldAttributeMap):_*)
+					if(attrs.size > equalityMap.size) {
+						val prefix = CompositeField(attrs.slice(0, equalityMap.size).map(equalityMap):_*)
 						PrefixGet(ns, prefix, 100, ReadRandomPolicy)
 					}
 					else {
-						new SingleGet(ns, CompositeField(attrs.map(equalityFieldAttributeMap):_*), ReadRandomPolicy)
+						new SingleGet(ns, CompositeField(attrs.map(equalityMap):_*), ReadRandomPolicy)
 					}
 				}
 
         val tupleStream = selectedIndex match {
           case PrimaryIndex(ns, attrs) => {
-							createLookupNode(ns, attrs, equalityAttributeFieldMap, new IntegerVersion)
+							createLookupNode(ns, attrs, equalityMap, new IntegerVersion)
           }
           case SecondaryIndex(ns, attrs, tns) => {
 						new SequentialDereferenceIndex(tns, ReadRandomPolicy,
-							createLookupNode(ns, attrs, equalityAttributeFieldMap, Unversioned)
+							createLookupNode(ns, attrs, equalityMap, Unversioned)
 						)
 					}
         }
@@ -150,7 +138,23 @@ class Optimizer(spec: BoundSpec) {
 		}
 	}
 
-	private def buildClasses(): Unit = {
+	protected def extractEqualityMap(predicates: List[BoundPredicate]): HashMap[String, Field] = {
+		val equalityAttributeFieldMap = new HashMap[String, Field]
+		predicates.map(_.asInstanceOf[AttributeEqualityPredicate]).foreach((p) => { //Note: We only handle equality
+			equalityAttributeFieldMap.get(p.attributeName) match {
+				case Some(value) => {
+					if(value == p.value)
+						logger.warn("Redundant equality found")
+					else
+						throw Unsatisfiable
+				}
+				case None => equalityAttributeFieldMap.put(p.attributeName, p.value)
+			}
+		})
+		equalityAttributeFieldMap
+	}
+
+	protected def buildClasses(): Unit = {
 		val source = ScalaGen(spec)
 		logger.debug("Creating Entity Placeholders")
 		logger.debug(source)
