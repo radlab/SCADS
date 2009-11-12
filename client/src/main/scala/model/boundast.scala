@@ -62,12 +62,19 @@ object BoundUnlimited extends BoundRange
 /* Bound Values */
 object Unexecutable extends Exception
 abstract class BoundValue extends Field {
+	val name: String
   val aType:AttributeType
+
  	def serializeKey(): String = throw Unexecutable
 	def deserializeKey(data: String, pos: ParsePosition): Unit = throw Unexecutable
 
 	def serialize(): String = throw Unexecutable
 	def deserialize(data: String, pos: ParsePosition): Unit = throw Unexecutable
+
+	override def equals(other: Any) = other match {
+		case v: BoundValue => (v.name equals name) && (v.aType == aType)
+		case _ => false
+	}
 
   def duplicate: Field = throw Unexecutable
 }

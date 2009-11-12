@@ -65,6 +65,11 @@ class Optimizer(spec: BoundSpec) {
 					PointerJoin(entity.namespace, List(rname), ReadRandomPolicy, optimize(child))
 				)
 			}
+			case BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyTarget)), predicates, order, orderDir) => {
+				Selection(extractEqualityMap(predicates),
+					optimize(BoundFetch(entity, Some(child), Some(BoundRelationship(rname,rtarget, cardinality, ForeignKeyTarget)), Nil, order, orderDir))
+				)
+			}
 			case BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder)), Nil, _, _) => {
 				val childPlan = optimize(child)
 				logger.debug("Child Plan: " + childPlan)
@@ -82,6 +87,11 @@ class Optimizer(spec: BoundSpec) {
 					case _ => throw UnimplementedException("I don't know what to do w/ this fetch: " + fetch)
 				}
 				Materialize(getClass(entity.name), tupleStream)
+			}
+			case BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder)), predicates, order, orderDir) => {
+				Selection(extractEqualityMap(predicates),
+					optimize(BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder)), Nil, order, orderDir))
+				)
 			}
 			case BoundFetch(entity, None, None, predicates, _, _) => {
 

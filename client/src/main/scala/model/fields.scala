@@ -15,6 +15,7 @@ abstract class Field extends Ordered[Field] {
 	override def compare(other: Field) = serializeKey.compare(other.serializeKey)
 	override def equals(other: Any) = {
 		other match {
+			case bv: edu.berkeley.cs.scads.model.parser.BoundValue => false
 			case f:Field => (serializeKey equals f.serializeKey)
 			case _ => false
 		}
