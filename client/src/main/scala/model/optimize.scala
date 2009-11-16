@@ -8,7 +8,7 @@ case class UnimplementedException(desc: String) extends Exception
 
 abstract class UnboundedQuery extends Exception
 class UnboundedFinalResult extends UnboundedQuery
-class UnboundedIntermediateResult extends UnboundedQuery
+class UnboundedIntermediateResult(desc: String) extends UnboundedQuery
 
 sealed abstract class OptimizerException extends Exception
 object Unsatisfiable extends OptimizerException
@@ -46,7 +46,7 @@ class Optimizer(spec: BoundSpec) {
 
 	def getPlan(query: BoundQuery):QueryPlan = {
 		try {
-			val plan = optimize(query.fetchTree)
+			val plan = optimize(query.fetchTree, query.range)
 			logger.debug("plan: " + query.plan)
 			plan
 		}
@@ -58,20 +58,20 @@ class Optimizer(spec: BoundSpec) {
 		}
 	}
 
-	def optimize(fetch: BoundFetch):EntityProvider = {
+	def optimize(fetch: BoundFetch, range: BoundRange):EntityProvider = {
 		fetch match {
 			case BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyTarget)), Nil, _, _) => {
 				Materialize(getClass(entity.name),
-					PointerJoin(entity.namespace, List(rname), ReadRandomPolicy, optimize(child))
+					PointerJoin(entity.namespace, List(rname), ReadRandomPolicy, optimize(child, range))
 				)
 			}
 			case BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyTarget)), predicates, order, orderDir) => {
 				Selection(extractEqualityMap(predicates),
-					optimize(BoundFetch(entity, Some(child), Some(BoundRelationship(rname,rtarget, cardinality, ForeignKeyTarget)), Nil, order, orderDir))
+					optimize(BoundFetch(entity, Some(child), Some(BoundRelationship(rname,rtarget, cardinality, ForeignKeyTarget)), Nil, order, orderDir), range)
 				)
 			}
 			case BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder)), Nil, _, _) => {
-				val childPlan = optimize(child)
+				val childPlan = optimize(child, range)
 				logger.debug("Child Plan: " + childPlan)
 				logger.debug("Relationship: " + rname)
 
@@ -89,8 +89,14 @@ class Optimizer(spec: BoundSpec) {
 				Materialize(getClass(entity.name), tupleStream)
 			}
 			case BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder)), predicates, order, orderDir) => {
+				/*Check to make sure the cardinality is fixed, otherwise this intermediate result could be unbounded */
+				cardinality match {
+					case InfiniteCardinality => throw new UnboundedIntermediateResult("Predicates on an unbounded ForeignKeyHolder join")
+					case _ => logger.debug("Using selection on bounded range join")
+				}
+
 				Selection(extractEqualityMap(predicates),
-					optimize(BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder)), Nil, order, orderDir))
+					optimize(BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder)), Nil, order, orderDir), range)
 				)
 			}
 			case BoundFetch(entity, None, None, predicates, _, _) => {
