@@ -9,7 +9,7 @@ class ScadsLanguage extends StdTokenParsers with ImplicitConversions {
 	type Tokens = Lexer
   	val lexical = new Lexer
 
-	lexical.reserved ++= List("ENTITY", "PRIMARY", "RELATIONSHIP", "FROM", "TO", "ONE", "MANY", "QUERY", "FETCH", "OF", "BY", "WHERE", "AND", "OR", "ORDER", "BY", "ASC", "DESC", "LIMIT", "MAX", "PAGINATE", "UNION", "this", "string", "int", "bool", "true", "false")
+	lexical.reserved ++= List("ENTITY", "PRIMARY", "RELATIONSHIP", "FROM", "TO", "MANY", "QUERY", "FETCH", "OF", "BY", "WHERE", "AND", "OR", "ORDER", "BY", "ASC", "DESC", "LIMIT", "MAX", "PAGINATE", "UNION", "this", "string", "int", "bool", "true", "false")
  	lexical.delimiters ++= List("{", "}", "[", "]", "<", ">", "(", ")", ",", ":", ";", "=", ".")
 
 	def intLiteral: Parser[Int] =
@@ -45,8 +45,7 @@ class ScadsLanguage extends StdTokenParsers with ImplicitConversions {
 	/* Relationship Parsing */
 
 	def cardinality: Parser[Cardinality] = (
-			"ONE" ^^ (x => OneCardinality)
-		|	intLiteral ^^ ((x:Int) => new FixedCardinality(x))
+			intLiteral ^^ ((x:Int) => new FixedCardinality(x))
 		|	"MANY" ^^ (x => InfiniteCardinality))
 
 	def relationship: Parser[Relationship] = "RELATIONSHIP" ~ ident ~ "FROM" ~ ident ~ "TO" ~ cardinality ~ ident ^^

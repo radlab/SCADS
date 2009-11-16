@@ -288,7 +288,7 @@ object Binder {
 			val boundRange = q.range match {
 				case Unlimited => BoundUnlimited
 				case Limit(Parameter(name,_), max) => BoundLimit(getBoundParam(name, IntegerType), max)
-				case _ => throw new UnimplementedException("Unhandled range type: " + q.range)
+				case Limit(NumberValue(v), max) => BoundLimit(IntegerField(v), max)
 			}
 
 			/* Build the final bound query */

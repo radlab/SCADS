@@ -22,7 +22,6 @@ object Printer extends Generator[Tree] {
 				output("Relationship ", r.name, " from ", r.from, " to ", r.to, " of cardinality:")
 				indent{generate(r.cardinality)}
 			}
-			case OneCardinality => output("OneCardinality")
 			case FixedCardinality(n) => output("FixedCardinality: max = ", n.toString)
 			case InfiniteCardinality => output("InfiniteCardinality")
 			case e: Entity => {

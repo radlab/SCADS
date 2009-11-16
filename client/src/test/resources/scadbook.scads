@@ -114,37 +114,37 @@ ENTITY poke
 /* -------- BEGIN RELATIONSHIP DEFINITIONS --------- */
 
 /* A user has one profile, and the user is the owner of the 1 TO 1 */
-RELATIONSHIP userProfile FROM profile TO ONE user
+RELATIONSHIP userProfile FROM profile TO 1 user
 
 /* A user can be a part of up to 20 networks (some reasonable cap) */
 RELATIONSHIP networks FROM user TO 20 networksubscription
-RELATIONSHIP networktarget FROM network TO ONE networksubscription
+RELATIONSHIP networktarget FROM network TO 1 networksubscription
 
 /* A wallpost can be from a user */
 RELATIONSHIP wallpostsFromUser FROM user TO MANY wallpost
 
 /* A wallpost can also be directed towards a user */
-RELATIONSHIP wallpostsToUser FROM user TO ONE wallpost
+RELATIONSHIP wallpostsToUser FROM user TO 1 wallpost
 
 /* A user can have up to 5000 friends */
 /* NOTE: We make the assumption that friendships will be maintained
  * bi-directionally in the application logic
  */
 RELATIONSHIP friendships FROM user TO 5000 friendship
-RELATIONSHIP friendshiptarget FROM user TO ONE friendship
+RELATIONSHIP friendshiptarget FROM user TO 1 friendship
 
 /* A user can belong to 1000 groups */
 RELATIONSHIP groups FROM user TO 1000 groupsubscription
-RELATIONSHIP grouptarget FROM group TO ONE groupsubscription
+RELATIONSHIP grouptarget FROM group TO 1 groupsubscription
 
 /* A user can post on a group wall */
-RELATIONSHIP wallpostsToGroup FROM group TO ONE wallpost
+RELATIONSHIP wallpostsToGroup FROM group TO 1 wallpost
 
 /* A user can initiate many pokes */
 RELATIONSHIP pokes FROM user TO MANY poke
 
 /* But each poke can only be targeted to one user */
-RELATIONSHIP poketarget FROM user TO ONE poke
+RELATIONSHIP poketarget FROM user TO 1 poke
 
 /*
  * NOTE:

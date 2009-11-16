@@ -15,7 +15,6 @@ case class Entity(name: String, attributes: List[Attribute], keys: List[String])
 
 /* Relationships */
 abstract class Cardinality extends Tree
-object OneCardinality extends Cardinality
 case class FixedCardinality(max: Int) extends Cardinality
 object InfiniteCardinality extends Cardinality
 

@@ -106,27 +106,27 @@ ENTITY comment
 RELATIONSHIP myItemsSelling FROM user TO 1000 item
 
 RELATIONSHIP myItemsWatching FROM user TO 100 itemwatch
-RELATIONSHIP myItemsWatchingTarget FROM item TO ONE itemwatch
+RELATIONSHIP myItemsWatchingTarget FROM item TO 1 itemwatch
 
 RELATIONSHIP myBids FROM user TO 10000 bid
-RELATIONSHIP myBidsTarget FROM item TO ONE bid
+RELATIONSHIP myBidsTarget FROM item TO 1 bid
 
 /* As a Buyer/Seller, I can leave up to 10000 total comments
  * to Sellers/Buyers */
 RELATIONSHIP commentsFromUser FROM user TO 10000 comment
-RELATIONSHIP commentsToUser FROM user TO ONE comment
+RELATIONSHIP commentsToUser FROM user TO 1 comment
 /* Item context for comment */
-RELATIONSHIP commentToItem FROM item TO ONE comment
+RELATIONSHIP commentToItem FROM item TO 1 comment
 /* Brand of item */
 RELATIONSHIP itemBrand FROM item TO MANY brand
 
 RELATIONSHIP itemCategories FROM item TO 10 categorymap
-RELATIONSHIP itemCategoriesTarget FROM regularcategory TO ONE categorymap
+RELATIONSHIP itemCategoriesTarget FROM regularcategory TO 1 categorymap
 
 /* I can have up to 100 autobidders doing my bidding, but
  * each autobidder must only map to one item */
 RELATIONSHIP myAutoBids FROM user TO 100 autobid
-RELATIONSHIP autobidToItem FROM item TO ONE autobid
+RELATIONSHIP autobidToItem FROM item TO 1 autobid
 
 /* There are 2 kinds of categories, parents and regular */
 RELATIONSHIP parentCategoryMapping FROM parentcategory TO MANY regularcategory

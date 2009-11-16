@@ -56,7 +56,7 @@ case class BoundQuery(fetchTree: BoundFetch, parameters: List[BoundParameter], r
 case class BoundFetch(entity: BoundEntity, child: Option[BoundFetch], relation: Option[BoundRelationship], predicates: List[BoundPredicate], orderField: Option[String], orderDirection: Option[Direction])
 
 abstract sealed class BoundRange
-case class BoundLimit(lim: BoundValue, max: Int) extends BoundRange
+case class BoundLimit(lim: Field, max: Int) extends BoundRange
 object BoundUnlimited extends BoundRange
 
 /* Bound Values */

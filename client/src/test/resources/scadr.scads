@@ -36,7 +36,7 @@ ENTITY topic
 
 RELATIONSHIP owner FROM user TO MANY thought
 RELATIONSHIP following FROM user TO 5000 subscription
-RELATIONSHIP target FROM user TO ONE subscription
+RELATIONSHIP target FROM user TO 1 subscription
 RELATIONSHIP hashtag FROM thought TO 10 topic
 RELATIONSHIP thoughtToRef FROM thought TO 10 thoughtref
 RELATIONSHIP refToUser FROM user TO MANY thoughtref

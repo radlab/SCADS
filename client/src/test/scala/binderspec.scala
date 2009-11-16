@@ -18,11 +18,11 @@ object BinderSpec extends SpecificationWithJUnit("Scads Compiler Error Specifica
 					throwA[DuplicateAttributeException]
 			}
 			"duplicate relationships" in {
-				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nENTITY e2 {string s PRIMARY(s)}\nRELATIONSHIP dup FROM e1 TO ONE e2\n RELATIONSHIP dup FROM e1 TO ONE e2") must
+				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nENTITY e2 {string s PRIMARY(s)}\nRELATIONSHIP dup FROM e1 TO 1 e2\n RELATIONSHIP dup FROM e1 TO 1 e2") must
 					throwA[DuplicateRelationException]
 			}
 			"unknown entities" in {
-				Compiler.codeGenFromSource("RELATIONSHIP x FROM unknown TO ONE unknown") must
+				Compiler.codeGenFromSource("RELATIONSHIP x FROM unknown TO 1 unknown") must
 					throwA[UnknownEntityException]
 			}
 			"duplicate queries" in {
@@ -38,7 +38,7 @@ object BinderSpec extends SpecificationWithJUnit("Scads Compiler Error Specifica
 					throwA[BadParameterOrdinals]
 			}
 			"ambiguious this params" in {
-				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nENTITY e2 {string s PRIMARY(s)}\nRELATIONSHIP r FROM e1 TO ONE e2\nQUERY x FETCH e1 OF e2 BY r WHERE e1=[this] AND e2=[this]") must
+				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nENTITY e2 {string s PRIMARY(s)}\nRELATIONSHIP r FROM e1 TO 1 e2\nQUERY x FETCH e1 OF e2 BY r WHERE e1=[this] AND e2=[this]") must
 					throwA[AmbigiousThisParameter]
 			}
 			"unknown relationships" in {
@@ -46,11 +46,11 @@ object BinderSpec extends SpecificationWithJUnit("Scads Compiler Error Specifica
 					throwA[UnknownRelationshipException]
 			}
 			"ambiguious joins" in {
-				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nENTITY e2 {string s PRIMARY(s)}\nRELATIONSHIP r FROM e1 TO ONE e2\nQUERY x FETCH e1 alias OF e2 alias BY r WHERE e1=[this]") must
+				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nENTITY e2 {string s PRIMARY(s)}\nRELATIONSHIP r FROM e1 TO 1 e2\nQUERY x FETCH e1 alias OF e2 alias BY r WHERE e1=[this]") must
 					throwA[AmbiguiousJoinAlias]
 			}
 			"ambiguious attributes" in {
-				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nENTITY e2 {string s PRIMARY(s)}\nRELATIONSHIP r FROM e1 TO ONE e2\nQUERY x FETCH e1 OF e2 BY r WHERE s=[1:s]") must
+				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nENTITY e2 {string s PRIMARY(s)}\nRELATIONSHIP r FROM e1 TO 1 e2\nQUERY x FETCH e1 OF e2 BY r WHERE s=[1:s]") must
 					throwA[AmbiguiousAttribute]
 			}
 			"unknown attributes" in {
@@ -60,7 +60,7 @@ object BinderSpec extends SpecificationWithJUnit("Scads Compiler Error Specifica
 					throwA[UnknownAttributeException]
 			}
 			"unknown fetch alias" in {
-				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nENTITY e2 {string s PRIMARY(s)}\nRELATIONSHIP r FROM e1 TO ONE e2\nQUERY x FETCH e1 OF e2 alias BY r WHERE a.x = [1:p]") must
+				Compiler.codeGenFromSource("ENTITY e1 {string s PRIMARY(s)}\nENTITY e2 {string s PRIMARY(s)}\nRELATIONSHIP r FROM e1 TO 1 e2\nQUERY x FETCH e1 OF e2 alias BY r WHERE a.x = [1:p]") must
 					throwA[UnknownFetchAlias]
 			}
 			"inconsistent parameter typing" in {
