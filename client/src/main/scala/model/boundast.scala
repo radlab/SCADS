@@ -55,7 +55,7 @@ case class BoundRelationship(name: String, target: BoundEntity, cardinality: Car
 case class BoundQuery(fetchTree: BoundFetch, parameters: List[BoundParameter], range:BoundRange) {var plan: QueryPlan = null}
 case class BoundFetch(entity: BoundEntity, child: Option[BoundFetch], relation: Option[BoundRelationship], predicates: List[BoundPredicate], orderField: Option[String], orderDirection: Option[Direction])
 
-abstract class BoundRange
+abstract sealed class BoundRange
 case class BoundLimit(lim: BoundValue, max: Int) extends BoundRange
 object BoundUnlimited extends BoundRange
 
