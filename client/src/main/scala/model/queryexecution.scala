@@ -3,9 +3,10 @@ package edu.berkeley.cs.scads.model
 import scala.collection.mutable.HashMap
 
 abstract trait QueryExecutor {
-	/* Return Types */
+	/* Type Definitions */
 	type TupleStream = Seq[Tuple]
 	type EntityStream = Seq[Entity]
+	type LimitValue = Field
 
 	/* Metadata Catalog */
 	protected val nsKeys: Map[String, List[Class[Field]]]
@@ -16,9 +17,9 @@ abstract trait QueryExecutor {
 		List(policy.get(namespace, key.serializeKey, nsKeys(namespace), nsVersions(namespace)))
 	}
 
-	protected def prefixGet(namespace: String, prefix: Field, limit: Int, policy: ReadPolicy)(implicit env: Environment): TupleStream = {
+	protected def prefixGet(namespace: String, prefix: Field, limit: LimitValue, policy: ReadPolicy)(implicit env: Environment): TupleStream = {
 		val serializedPrefix = prefix.serializeKey
-		policy.get_set(namespace, serializedPrefix, serializedPrefix + "~", limit, nsKeys(namespace), nsVersions(namespace))
+		policy.get_set(namespace, serializedPrefix, serializedPrefix + "~", limitToInt(limit), nsKeys(namespace), nsVersions(namespace))
 	}
 
 	protected def sequentialDereferenceIndex(targetNamespace: String, policy: ReadPolicy, child: TupleStream)(implicit env: Environment): TupleStream = {
@@ -27,10 +28,10 @@ abstract trait QueryExecutor {
 		})
 	}
 
-	protected def prefixJoin(namespace: String, attribute: String, limit: Int, policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
+	protected def prefixJoin(namespace: String, attribute: String, limit: LimitValue, policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
 		child.flatMap((e) => {
 			val prefix = e.attributes(attribute).serializeKey
-			policy.get_set(namespace, prefix, prefix + "~", limit, nsKeys(namespace), nsVersions(namespace))
+			policy.get_set(namespace, prefix, prefix + "~", limitToInt(limit), nsKeys(namespace), nsVersions(namespace))
 		})
 	}
 
@@ -63,6 +64,12 @@ abstract trait QueryExecutor {
 			(fields.map(e1.attributes).map(_.serializeKey).mkString("", "", "") compare fields.map(e2.attributes).map(_.serializeKey).mkString("", "", "")) < 0
 		})
 	}
+
+	/* Helper functions */
+	private def limitToInt(lim: LimitValue): Int = lim match {
+		case i: IntegerField => i.value
+		case _ => throw new IllegalArgumentException("Only integerFields are accepted as limit parameters")
+	}
 }
 
 /* Query Plan Nodes */
@@ -70,9 +77,9 @@ abstract sealed class QueryPlan
 abstract class TupleProvider extends QueryPlan
 abstract class EntityProvider extends QueryPlan
 case class SingleGet(namespace: String, key: Field, policy: ReadPolicy) extends TupleProvider
-case class PrefixGet(namespace: String, prefix: Field, limit: Int, policy: ReadPolicy) extends TupleProvider
+case class PrefixGet(namespace: String, prefix: Field, limit: Field, policy: ReadPolicy) extends TupleProvider
 case class SequentialDereferenceIndex(targetNamespace: String, policy: ReadPolicy, child: TupleProvider) extends TupleProvider
-case class PrefixJoin(namespace: String, attribute: String, limit: Int, policy: ReadPolicy, child: EntityProvider) extends TupleProvider
+case class PrefixJoin(namespace: String, attribute: String, limit: Field, policy: ReadPolicy, child: EntityProvider) extends TupleProvider
 case class PointerJoin(namespace: String, attributes: List[String], policy: ReadPolicy, child: EntityProvider) extends TupleProvider
 case class Materialize(entityClass: Class[Entity], child: TupleProvider) extends EntityProvider
 case class Selection(equalityMap: HashMap[String, Field], child: EntityProvider) extends EntityProvider

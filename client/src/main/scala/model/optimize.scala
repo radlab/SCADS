@@ -81,7 +81,7 @@ class Optimizer(spec: BoundSpec) {
 				val tupleStream = selectedIndex match {
 					case SecondaryIndex(ns, attrs, tns) => {
 						SequentialDereferenceIndex(tns, ReadRandomPolicy,
-							PrefixJoin(ns, rtarget.keys(0), 100, ReadRandomPolicy, childPlan)
+							PrefixJoin(ns, rtarget.keys(0), IntegerField(100), ReadRandomPolicy, childPlan)
 						)
 					}
 					case _ => throw UnimplementedException("I don't know what to do w/ this fetch: " + fetch)
@@ -110,7 +110,7 @@ class Optimizer(spec: BoundSpec) {
 					/* If the index is over more attributes than the equality we need to do a prefix match */
 					if(attrs.size > equalityMap.size) {
 						val prefix = CompositeField(attrs.slice(0, equalityMap.size).map(equalityMap):_*)
-						PrefixGet(ns, prefix, 100, ReadRandomPolicy)
+						PrefixGet(ns, prefix, IntegerField(100), ReadRandomPolicy)
 					}
 					else {
 						new SingleGet(ns, CompositeField(attrs.map(equalityMap):_*), ReadRandomPolicy)
