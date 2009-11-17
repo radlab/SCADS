@@ -6,9 +6,7 @@ import scala.collection.mutable.HashMap
 
 case class UnimplementedException(desc: String) extends Exception
 
-abstract class UnboundedQuery extends Exception
-class UnboundedFinalResult extends UnboundedQuery
-class UnboundedIntermediateResult(desc: String) extends UnboundedQuery
+case class UnboundedQuery(desc: String) extends Exception
 
 sealed abstract class OptimizerException extends Exception
 object Unsatisfiable extends OptimizerException
@@ -31,13 +29,15 @@ class Optimizer(spec: BoundSpec) {
 	buildClasses()
 
 	def optimizedSpec: BoundSpec = {
-		spec.orphanQueries.values.foreach(query => {
-			query.plan = getPlan(query)
+		spec.orphanQueries.foreach(query => {
+			logger.debug("Optimizing: " + query._1)
+			query._2.plan = getPlan(query._2)
 		})
 
 		spec.entities.values.foreach((entity) => {
-			entity.queries.values.foreach((query) => {
-				query.plan = getPlan(query)
+			entity.queries.foreach((query) => {
+				logger.debug("Optimizing: " + query._1)
+				query._2.plan = getPlan(query._2)
 			})
 		})
 
@@ -78,10 +78,17 @@ class Optimizer(spec: BoundSpec) {
 				val selectedIndex = selectOrCreateIndex(entity, List(rname))
 				logger.debug("Selected join index: " + selectedIndex)
 
+				val joinLimit:Field = (range, cardinality) match {
+					case (BoundLimit(b, _), InfiniteCardinality) => b
+					case (BoundUnlimited, FixedCardinality(c)) => IntegerField(c)
+					case (BoundLimit(b, _), FixedCardinality(c)) => b //FIXME: this is suboptimal
+					case _ => throw new UnboundedQuery("Unbounded ForeignKeyHolder join")
+				}
+
 				val tupleStream = selectedIndex match {
 					case SecondaryIndex(ns, attrs, tns) => {
 						SequentialDereferenceIndex(tns, ReadRandomPolicy,
-							PrefixJoin(ns, rtarget.keys(0), IntegerField(100), ReadRandomPolicy, childPlan)
+							PrefixJoin(ns, rtarget.keys(0), joinLimit, ReadRandomPolicy, childPlan)
 						)
 					}
 					case _ => throw UnimplementedException("I don't know what to do w/ this fetch: " + fetch)

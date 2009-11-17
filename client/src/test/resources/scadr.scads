@@ -82,6 +82,7 @@ FETCH thought
     OF thoughtref BY thoughtToRef
     OF user BY refToUser
 WHERE user=[this]
+LIMIT 10 MAX 10
 
 QUERY needsApproval
 FETCH subscription
