@@ -17,7 +17,7 @@ object QueryBoundSpec extends SpecificationWithJUnit("Scads Optimizer Bounds Spe
 		"throw an error for queries that return an unbounded number of results" >> {
 			"from a secondary lookup" in {
 				Compiler.codeGenFromSource("ENTITY e1 {int a1, int a2 PRIMARY(a1)}\n QUERY unbounded FETCH e1 WHERE a2 = [1: p]") must
-					throwA[UnboundedFinalResult]
+					throwA[UnboundedQuery]
 			}
 		}
 	}

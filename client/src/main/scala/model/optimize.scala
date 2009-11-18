@@ -4,13 +4,9 @@ package edu.berkeley.cs.scads.model.parser
 import org.apache.log4j.Logger
 import scala.collection.mutable.HashMap
 
-case class UnimplementedException(desc: String) extends Exception
+case class UnimplementedException(boundFetch: BoundFetch) extends Exception
 
 case class UnboundedQuery(desc: String) extends Exception
-
-case class UnboundedIntermediateResult(desc: String) extends Exception
-
-case class UnboundedFinalResult(desc: String) extends Exception
 
 sealed abstract class OptimizerException extends Exception
 object Unsatisfiable extends OptimizerException
@@ -55,8 +51,8 @@ class Optimizer(spec: BoundSpec) {
 			plan
 		}
 		catch {
-			case e: UnimplementedException => {
-				logger.fatal("Couldn't optimize query " + e)
+			case UnimplementedException(f) => {
+				logger.fatal("Couldn't optimize fetch: " + f)
 				null
 			}
 		}
@@ -102,7 +98,7 @@ class Optimizer(spec: BoundSpec) {
 			case BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder)), predicates, order, orderDir) => {
 				/*Check to make sure the cardinality is fixed, otherwise this intermediate result could be unbounded */
 				cardinality match {
-					case InfiniteCardinality => throw new UnboundedIntermediateResult("Predicates on an unbounded ForeignKeyHolder join")
+					case InfiniteCardinality => throw new UnboundedQuery("Predicates on an unbounded ForeignKeyHolder join")
 					case _ => logger.debug("Using selection on bounded range join")
 				}
 
@@ -140,7 +136,7 @@ class Optimizer(spec: BoundSpec) {
         }
 				new Materialize(getClass(entity.name), tupleStream)
 			}
-			case _ => throw UnimplementedException("I don't know what to do w/ this fetch: " + fetch)
+			case _ => throw UnimplementedException(fetch)
 		}
 	}
 
