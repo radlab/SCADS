@@ -10,13 +10,13 @@ object ScadrLangSpec extends ScadsLangSpec {
     val classNameMap = Map(
         "user" -> Array("name","password","email","profileData"),
         "thought" -> Array("timestamp","thought","owner"),
-        "thoughtref" -> Array("id","thoughtToRef","refToUser"),
-        "subscription" -> Array("id","approved","following","target"),
-        "topic" -> Array("id","name","hashtag")
+        "subscription" -> Array("approved","owner","target"),
+        "atReference" -> Array("referent","referringThought"),
+        "hashTag" -> Array("name","referringThought")
     )
     val queries = Map(
         "user" -> Array("myThoughts","myFollowing","thoughtstream","myReferences","needsApproval"),
-        "Queries" -> Array("thoughtsByHashTag","userByName","userByEmail")
+        "Queries" -> Array("thoughtsByHashTag","userByName","userByEmail","finduserByPK")
     )
     val queriesXMLFile = "src/test/resources/scadr_queries.xml"
 }

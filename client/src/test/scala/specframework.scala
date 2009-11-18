@@ -4,7 +4,7 @@ import org.specs._
 import org.specs.runner.JUnit4
 
 import edu.berkeley.cs.scads.Compiler
-import edu.berkeley.cs.scads.model.{Entity,BooleanField,IntegerField,Field,StringField,ValueHoldingField,Environment}
+import edu.berkeley.cs.scads.model.{Entity,BooleanField,IntegerField,Field,StringField,ValueHoldingField,CompositeField,Environment}
 
 import edu.berkeley.cs.scads.model.{TrivialExecutor,TrivialSession}
 //import edu.berkeley.cs.scads.TestCluster
@@ -18,6 +18,10 @@ import java.lang.reflect.InvocationTargetException
 
 import org.apache.log4j.Logger
 
+import scala.xml.{Node,NodeSeq}
+
+case class BadDataXMLInputException(m:String) extends Exception
+
 abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specification") {
     val llogger = Logger.getLogger("scads.test")
     val specName: String
@@ -26,6 +30,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
     val dataXMLFile: String
     val queries: Map[String,Array[String]]
     val queriesXMLFile: String
+    //val metadataMap: Map[String,List[String]] = createMetadataMap()
 
     implicit val env = new Environment
     env.placement = new TestCluster
@@ -38,6 +43,64 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
     val jarFile = new File(baseDir, "spec.jar")
 
     val classLoader = new URLClassLoader(Array(jarFile.toURI.toURL))
+
+    val dataXMLFileObj = new File(dataXMLFile)
+    val dataNode = scala.xml.XML.loadFile(dataXMLFile)
+
+    val pkMetadata = primaryKeyMetadata()
+    val attrMetadata = attributesMetadata()
+
+    // maps ( className -> list of ( attrName, fieldClass ) )
+    def primaryKeyMetadata(): Map[String,List[Tuple2[String,Field]]] = { 
+        var rtn = Map[String,List[Tuple2[String,Field]]]()
+        (dataNode \\ "metadata").foreach((node) => {
+            val className = (node \ "@class").text
+            val pks = (node\"primary-key"\"attribute").map( (node) => {
+                processAttributeMetadataNode(rtn, node)} )
+            if ( !pks.isEmpty ) rtn += (className -> pks.toList)
+        })
+        rtn
+    }
+
+    def processAttributeMetadataNode(rtn: Map[String,List[Tuple2[String,Field]]], node:Node):Tuple2[String,Field] = {
+        val name = (node\"@name").text
+        val text = (node\"@type").text
+        val ref  = (node\"@ref").text
+        if ( !text.isEmpty ) {
+            (name, getFieldClass(text))
+        } else if ( !ref.isEmpty ) {
+            if ( rtn.keySet.contains(ref) ) {
+                (name, CompositeField( rtn(ref).map(_._2).toArray : _* ))
+            } else {
+                throw new BadDataXMLInputException("No such ref " + ref)
+            }
+        } else {
+            throw new BadDataXMLInputException("need either a type or a ref")
+        }
+    }
+
+    def attributesMetadata(): Map[String,List[Tuple2[String,Field]]] = {
+        var rtn = Map[String,List[Tuple2[String,Field]]]()
+        (dataNode \\ "metadata").foreach((node) => {
+            val className = (node \ "@class").text
+            val pks = ((node\"attributes"\"attribute")++(node\"foreign-keys"\"attribute")).map( (node) => {
+                processAttributeMetadataNode(pkMetadata, node)} )
+            if ( !pks.isEmpty ) rtn += (className -> pks.toList)
+        })
+        rtn
+    }
+
+    //def getPKFieldFor(entity:Entity,attrs:List[String]):Field = {
+    //    val className = entity.getClass.getName
+    //    CompositeField(attrs.map(entity.attributes(_)).toArray : _* )
+    //}
+
+    //def getEmptyPKFieldFor(entity:Entity,attrs:List[String]):Field = {
+    //    val entClazz = entity.getClass
+    //    val entConstructor = entClazz.getConstructor(env.getClass)
+    //    val ent = entConstructor.newInstance(env)
+    //    getPKFieldFor(ent.asInstanceOf[Entity],attrs)
+    //}
 
     def getSourceFromFile(file: String): String = {
 		scala.io.Source.fromFile(file).getLines.foldLeft(new StringBuilder)((x: StringBuilder, y: String) => x.append(y)).toString
@@ -84,6 +147,13 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
         } else {
             throw new IllegalArgumentException("Unsupported field type found: " + field.getClass)
         }
+    }
+
+    def getFieldClass(typeName:String):Field = typeName match {
+        case "string" => new StringField
+        case "int"    => new IntegerField
+        case "bool"   => new BooleanField
+        case _        => throw new IllegalArgumentException("must be string, int, or bool")
     }
 
     def convertToClass(clazz: Class[_], value: String): Object = {
@@ -160,6 +230,22 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
         }
     }
 
+    def fillCompositeField(field:CompositeField, compKey: Node):Unit = {
+        if ( compKey.label.equals("compositekey") ) {
+            compKey.child.toList.zip(field.fields).foreach( (tuple) => {
+                val node = tuple._1
+                val field = tuple._2
+                if ( node.label.equals("attribute") ) {
+                    setFieldValue(field, node.text)
+                } else {
+                    fillCompositeField(field.asInstanceOf[CompositeField], node)
+                }
+            })
+        } else {
+            throw new IllegalArgumentException("Must pass in composite key node")
+        }
+    }
+
     "a " + specName + " spec file" should {
 
         "produce a usable tookit by" in  {
@@ -210,6 +296,65 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
 
             }
 
+            "generate the correct entity structure" in {
+    
+                "correct primary key field types" in {
+                    pkMetadata.keys.foreach( (c) => {
+                        "for entity class " + c  in {
+                            val entClazz = loadClass(c).asInstanceOf[Class[Entity]]
+                            val entConstructor = entClazz.getConstructor(env.getClass)
+                            val ent = entConstructor.newInstance(env)
+                            llogger.debug("PK in map: " + pkMetadata(c))
+                            llogger.debug("Ent PK: " + ent.primaryKey)
+                            val inputPK = CompositeField(pkMetadata(c).map(_._2):_*) 
+                            val entPK = ent.primaryKey
+                            if (!inputPK.getClass.asInstanceOf[Class[Field]].isAssignableFrom(entPK.getClass.asInstanceOf[Class[Field]])) {
+                                fail(inputPK.getClass + " is not assignable from " + entPK.getClass)
+                            } else {
+                                true must_== true
+                            }
+                            if ( inputPK.isInstanceOf[CompositeField] ) {
+                                val inputPKasCF = inputPK.asInstanceOf[CompositeField]
+                                val entPKasCF = entPK.asInstanceOf[CompositeField]
+                                inputPKasCF.types.size must_== entPKasCF.types.size
+                                entPKasCF.types.zip(inputPKasCF.types).foreach(
+                                    (tuple) => { tuple._2.isAssignableFrom(tuple._1) must_== true })
+                            }
+                        }
+                    })
+                }
+
+                "correct attribute field types" in {
+                    attrMetadata.keys.foreach( (c) => {
+                        "for entity class " + c  in {
+                            val entClazz = loadClass(c).asInstanceOf[Class[Entity]]
+                            val entConstructor = entClazz.getConstructor(env.getClass)
+                            val ent = entConstructor.newInstance(env)
+                            attrMetadata(c).foreach( (tuple) => {
+                                "for attribute " + tuple._1 in {
+                                    val inputAttr = tuple._2
+                                    val entAttr = ent.attributes(tuple._1)
+                                    if (!inputAttr.getClass.asInstanceOf[Class[Field]].isAssignableFrom(entAttr.getClass.asInstanceOf[Class[Field]])) {
+                                        fail(inputAttr.getClass + " is not assignable from " + entAttr.getClass)
+                                    } else {
+                                        true must_== true
+                                    }
+                                    if ( inputAttr.isInstanceOf[CompositeField] ) {
+                                        val inputAttrasCF = inputAttr.asInstanceOf[CompositeField]
+                                        val entAttrasCF = entAttr.asInstanceOf[CompositeField]
+                                        inputAttrasCF.types.size must_== entAttrasCF.types.size
+                                        entAttrasCF.types.zip(inputAttrasCF.types).foreach(
+                                            (tuple) => { tuple._2.isAssignableFrom(tuple._1) must_== true })
+                                    }
+                                }
+                            })
+                        }
+                    })
+                }
+
+
+            }
+
             "creating the appropriate query methods" in {
 
                 for ( (queryClass, queryArray) <- queries ) {
@@ -229,15 +374,15 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
             }
 
             "persisting data appropriately" in {
-                val dataXMLFileObj = new File(dataXMLFile)
-                if ( !dataXMLFileObj.isFile ) {
-                    fail("No such input data XML file: " + dataXMLFile)
-                }
+                //val dataXMLFileObj = new File(dataXMLFile)
+                //if ( !dataXMLFileObj.isFile ) {
+                //    fail("No such input data XML file: " + dataXMLFile)
+                //}
 
-                val dataNode = scala.xml.XML.loadFile(dataXMLFile)
-                if ( (dataNode \\ "entity").length == 0 ) {
-                    fail("No entity data given to test input")
-                }
+                //val dataNode = scala.xml.XML.loadFile(dataXMLFile)
+                //if ( (dataNode \\ "entity").length == 0 ) {
+                //    fail("No entity data given to test input")
+                //}
 
                 (dataNode \\ "entity").foreach( (entity) => {
 
@@ -252,7 +397,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                     val entityDesc = (entity \\ "attribute").map( x => (x\"@name").text + "->" + x.text ).toArray.deepMkString("[",",","]")
 
                     "for entity " + clazz + " (" + entityDesc + ")" in {
-                        (entity \\ "attribute").foreach( (attribute) => {
+                        (entity \ "attributes" \ "attribute").foreach( (attribute) => {
                             val attributeName = (attribute \ "@name").text
                             llogger.debug("found attr name: " + attributeName)
                             val field: Field = ent.attributes(attributeName)
@@ -260,12 +405,33 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                         })
                         (entity \\ "foreign-key").foreach( (foreignKey) => {
                             val relationshipName = (foreignKey \ "@relationship").text
-                            val relationshipPK = (foreignKey \ "@primarykey").text
-                            llogger.debug("found foreign key relationship: " + relationshipName)
-                            val field: Field = ent.attributes(relationshipName)
-                            setFieldValue(field, relationshipPK)
+                            if ( (foreignKey\"@primarykey").size > 0 ) {
+                                llogger.debug("found a primary key declaration")
+                                val relationshipPK = (foreignKey \ "@primarykey").text
+                                llogger.debug("found foreign key relationship: " + relationshipName)
+                                val field: Field = ent.attributes(relationshipName)
+                                setFieldValue(field, relationshipPK)
+                            } else if ( (foreignKey\"compositekey").size > 0 ) {
+                                llogger.debug("found a composite key declaration")
+                                ent.attributes(relationshipName) must haveSuperClass[CompositeField]
+                                val compositeField: CompositeField = ent.attributes(relationshipName).asInstanceOf[CompositeField]
+                                val attributes = foreignKey \\ "attribute"
+                                attributes.size must_== compositeField.types.size
+                                attributes.toList.zip(compositeField.fields).foreach((tuple)=>{
+                                    setFieldValue(tuple._2,tuple._1.text)
+                                })
+
+                            } else {
+                                llogger.debug("found no foreign keys")
+                            }
                         })
-                        (ent.save) must not(throwA[Exception])
+                        //(ent.save) must not(throwA[Exception])
+                        try{
+                            ent.save
+                        } catch {
+                            case e: Exception => { llogger.fatal(e); fail("could not serialize") }
+                        }
+                        true must_== true // hack... 
                     }
                 })
             }
@@ -315,19 +481,43 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                         }
                         val queryInputs = query \\ "input"
 
+                        llogger.debug("executing query: " + queryName + " with input(s): " + queryInputs)
                         val retVal = executeQuery(ent, queryClass, queryName, queryInputs.map(_.text).toArray)
+                                                                                                               llogger.debug("query output: " + retVal)
                         retVal must notBeNull
 
                         val inOrder = (query \ "outputs" \ "@inorder").text.equals("true")
                         val outputClass = (query \ "outputs" \ "@class").text
                         val queryOutputs = query \\ "output"
 
-                        val queryOutputPKs: Seq[String] = queryOutputs.map( (node) => {
-                            (node \ "@primarykey").text
-                        })
+                        retVal.size must_== queryOutputs.size
 
-                        val actualOutputPKs: Seq[String] = retVal.map( (ent) => {
-                            ent.primaryKey.asInstanceOf[ValueHoldingField[_]].value.toString
+                        //val queryOutputPKs: Seq[String] = queryOutputs.map( (node) => {
+                        //    (node \ "@primarykey").text
+                        //})
+
+                        //val actualOutputPKs: Seq[String] = retVal.map( (ent) => {
+                        //    ent.primaryKey.asInstanceOf[ValueHoldingField[_]].value.toString
+                        //})
+
+                        val isCompositeKey = !(queryOutputs \ "compositekey").isEmpty
+
+                        var queryOutputPKs: List[Field] = null
+                        var actualOutputPKs: List[Field] = retVal.toList.map(_.primaryKey) 
+
+                        queryOutputPKs = queryOutputs.toList.zip(retVal.toList).map( (tuple) => {
+                            val node = tuple._1
+                            val ent = tuple._2
+                            val field = ent.primaryKey.duplicate
+                            if (isCompositeKey) {
+                                val attrList = (node \\ "attribute" \ "@name").map(_.text) 
+                                field must haveClass[CompositeField]
+                                fillCompositeField(field.asInstanceOf[CompositeField],(node\"compositekey").first)
+                            } else {
+                                val text = (node \ "@primarykey").text
+                                setFieldValue(field, text) 
+                            }
+                            field
                         })
 
                         if ( inOrder ) {

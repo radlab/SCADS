@@ -11,35 +11,39 @@ ENTITY thought
 {
 	int timestamp,
 	string thought
-	PRIMARY(timestamp)
-}
-
-ENTITY thoughtref
-{
-    int id
-    PRIMARY(id)
+	PRIMARY(owner, timestamp)
 }
 
 ENTITY subscription
 {
-    int id,
 	bool approved
-	PRIMARY(id)
+	PRIMARY(owner, target)
 }
 
-ENTITY topic
+ENTITY atReference
 {
-    int    id,
-	string name
-	PRIMARY(id)
+    PRIMARY(referent, referringThought)
 }
 
+ENTITY hashTag
+{
+	string name
+	PRIMARY(name, referringThought)
+}
+
+//Users and thoughts
 RELATIONSHIP owner FROM user TO MANY thought
-RELATIONSHIP following FROM user TO 5000 subscription
-RELATIONSHIP target FROM user TO 1 subscription
-RELATIONSHIP hashtag FROM thought TO 10 topic
-RELATIONSHIP thoughtToRef FROM thought TO 10 thoughtref
-RELATIONSHIP refToUser FROM user TO MANY thoughtref
+
+//Users - subscriptions - users
+RELATIONSHIP owner FROM user TO 5000 subscription
+RELATIONSHIP target FROM user TO MANY subscription
+
+//Thoughts and hashtags
+RELATIONSHIP referringThought FROM thought TO 10 hashTag
+
+//Thoughts - references - users
+RELATIONSHIP referringThought FROM thought TO 10 atReference
+RELATIONSHIP referent FROM user TO MANY atReference
 
 QUERY myThoughts
 FETCH thought
@@ -48,7 +52,7 @@ WHERE user=[this]
 LIMIT [1: numperpage] MAX 10
 
 QUERY thoughtsByHashTag
-FETCH thought OF topic BY hashtag
+FETCH thought OF hashTag BY referringThought
 WHERE name=[1:name]
 ORDER BY timestamp LIMIT [2:count] MAX 100
 
@@ -57,7 +61,7 @@ ORDER BY timestamp LIMIT [2:count] MAX 100
 QUERY myFollowing
 FETCH user
 	OF subscription BY target
-	OF user me BY following
+	OF user me BY owner
 WHERE me=[this]
 LIMIT [1:numperpage] MAX 30
 
@@ -65,22 +69,16 @@ QUERY thoughtstream
 FETCH thought
 	OF user friend BY owner
 	OF subscription BY target
-	OF user me BY following
+	OF user me BY owner
 WHERE me=[this] AND subscription.approved = true
 ORDER BY timestamp
 LIMIT [1:count] MAX 100
 
-/*
-QUERY references
-FETCH thought
-	OF user BY references
-WHERE user=[this]
-*/
 // these are people that reference me in their thoughts
 QUERY myReferences
 FETCH thought
-    OF thoughtref BY thoughtToRef
-    OF user BY refToUser
+    OF atReference BY referringThought
+    OF user BY referent
 WHERE user=[this]
 LIMIT 10 MAX 10
 

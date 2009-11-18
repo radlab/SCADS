@@ -8,6 +8,10 @@ case class UnimplementedException(desc: String) extends Exception
 
 case class UnboundedQuery(desc: String) extends Exception
 
+case class UnboundedIntermediateResult(desc: String) extends Exception
+
+case class UnboundedFinalResult(desc: String) extends Exception
+
 sealed abstract class OptimizerException extends Exception
 object Unsatisfiable extends OptimizerException
 

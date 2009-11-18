@@ -88,8 +88,8 @@ object ScalaGen extends Generator[BoundSpec] {
 				/* Primary Key */
 				output("val primaryKey = ")
 				indent {
-					if(e._2.keys.size > 2)
-						output("new CompositeKey(" + e._2.keys.mkString("", ",", ""), ")")
+					if(e._2.keys.size > 1)
+						output("CompositeField(" + e._2.keys.mkString("", ",", ""), ")")
 					else
 						output(e._2.keys(0))
 				}

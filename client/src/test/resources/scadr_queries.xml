@@ -37,19 +37,32 @@
             <input type="int">10</input>
         </inputs>
         <outputs class="thought">
-            <output primarykey="1"/>
-            <output primarykey="2"/>
+            <output>
+                <compositekey>
+                    <attribute name="owner">Stephen Tu</attribute>
+                    <attribute name="timestamp">1</attribute>
+                </compositekey>
+            </output>
+            <output>
+                <compositekey>
+                    <attribute name="owner">Stephen Tu</attribute>
+                    <attribute name="timestamp">2</attribute>
+                </compositekey>
+            </output>
         </outputs>
     </query>
     <query name="thoughtsByHashTag" class="Queries">
         <inputs>
             <input type="string">Kindle</input>
-            <input type="int">3</input>
+            <input type="int">1</input>
         </inputs>
         <outputs class="thought">
-            <output primarykey="1"/>
-            <output primarykey="2"/>
-            <output primarykey="3"/>
+            <output>
+                <compositekey>
+                    <attribute name="owner">Kobe Bryant</attribute>
+                    <attribute name="timestamp">3</attribute>
+                </compositekey>
+            </output>
         </outputs>
     </query>
     <query name="myFollowing" class="user" primarykey="Steve Nash">
@@ -62,6 +75,25 @@
             <output primarykey="Paul Pierce" />
             <output primarykey="Kobe Bryant" />
             <output primarykey="Lady Gaga" />
+        </outputs>
+    </query>
+    <query name="thoughtstream" class="user" primarykey="Stephen Tu">
+        <inputs>
+            <input type="int">10</input>
+        </inputs>
+        <outputs class="thought">
+            <output>
+                <compositekey>
+                    <attribute name="owner">Lady Gaga</attribute>
+                    <attribute name="timestamp">5</attribute>
+                </compositekey>
+            </output>
+            <output>
+                <compositekey>
+                    <attribute name="owner">Lady Gaga</attribute>
+                    <attribute name="timestamp">6</attribute>
+                </compositekey>
+            </output>
         </outputs>
     </query>
 </queryruns>
