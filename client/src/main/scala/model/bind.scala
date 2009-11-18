@@ -78,6 +78,7 @@ object Binder {
 		/* Process all the queries and place them either in the orphan map, or the BoundEntity they belong to*/
 		val orphanQueryMap = new HashMap[String, BoundQuery]()
 		spec.queries.foreach((q) => {
+			logger.debug("===Begining Bind of Query: " + q.name + "===")
 			/* Extract all Parameters from Predicates */
 			val predParameters: List[Parameter] =
 				q.predicates.map(
@@ -109,7 +110,7 @@ object Binder {
 					throw new BadParameterOrdinals(q.name)
 				o + 1
 			})
-
+			logger.debug("Final parameter list: " + parameters)
 
 			/* Build the fetch tree and alias map */
 			val fetchAliases = new HashMap[String, Fetch]()
