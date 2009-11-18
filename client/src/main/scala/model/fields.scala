@@ -58,6 +58,17 @@ abstract class Field extends Ordered[Field] {
 	 * Return a duplicate of the current field.
 	 */
 	def duplicate(): Field
+
+	/**
+	 * Set the value of this field to equal the value provided field.
+	 * Note: it is the responsibility of the user to ensure the fields are of compatible types.  If not a DeserializationException might be thrown or the data may be corrupt.
+	 */
+	def apply(f: Field): Unit = deserialize(f.serialize)
+
+	/**
+	 * Set the value of this field to equal the primaryKey of the provided entity
+	 */
+	def apply(e: Entity): Unit = apply(e.primaryKey)
 }
 
 /*
