@@ -23,8 +23,19 @@ u2.email("sltu@cs.berkeley.edu")
 u2.save
 
 val s = new subscription
-s.id(1)
 s.approved(true)
-s.following("marmbrus")
+s.owner("marmbrus")
 s.target("sltu")
 s.save
+
+val t1 = new thought
+t1.owner(u1)
+t1.timestamp(1)
+t1.thought("michael: Hey there scadr world!")
+t1.save
+
+val t2 = new thought
+t2.owner(u2)
+t2.timestamp(1)
+t2.thought("stephen: Hey there from me too!")
+t2.save
