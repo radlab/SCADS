@@ -91,7 +91,9 @@ class Optimizer(spec: BoundSpec) {
 							PrefixJoin(ns, rtarget.keys(0), joinLimit, ReadRandomPolicy, childPlan)
 						)
 					}
-					case _ => throw UnimplementedException("I don't know what to do w/ this fetch: " + fetch)
+					case PrimaryIndex(ns, attrs) => {
+						PrefixJoin(ns, rtarget.keys(0), joinLimit, ReadRandomPolicy, childPlan)
+					}
 				}
 				Materialize(getClass(entity.name), tupleStream)
 			}
