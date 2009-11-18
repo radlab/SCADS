@@ -97,14 +97,14 @@ object Binder {
 					case Unlimited => Array[Parameter]()
 				}
 			val allParameters = predParameters ++ limitParameters
-			val parameters = Set(allParameters: _*).toList.sort(_.ordinal > _.ordinal)
+			val parameters = Set(allParameters: _*).toList.sort(_.ordinal < _.ordinal)
 
 			/* Ensure any duplicate parameter names are actually the same parameter */
 			if(parameters.size != Set(allParameters.map(_.name): _*).size)
 				throw new DuplicateParameterException(q.name)
 
 			/* Ensure that parameter ordinals are contiguious starting at 1 */
-			parameters.foldRight(1)((p: Parameter, o: Int) => {
+			parameters.foldLeft(1)((o: Int, p: Parameter) => {
 				logger.debug("Ordinal checking, found " + p + " expected " + o)
 				if(p.ordinal != o)
 					throw new BadParameterOrdinals(q.name)
