@@ -4,7 +4,7 @@ package edu.berkeley.cs.scads.model.parser
 import org.apache.log4j.Logger
 import scala.collection.mutable.HashMap
 
-case class UnimplementedException(boundFetch: BoundFetch) extends Exception
+case class UnimplementedException(desc: String) extends Exception
 
 case class UnboundedQuery(desc: String) extends Exception
 
@@ -51,8 +51,8 @@ class Optimizer(spec: BoundSpec) {
 			plan
 		}
 		catch {
-			case UnimplementedException(f) => {
-				logger.fatal("Couldn't optimize fetch: " + f)
+			case UnimplementedException(desc) => {
+				logger.fatal("UnimplementedException: " + desc)
 				null
 			}
 		}
@@ -138,7 +138,7 @@ class Optimizer(spec: BoundSpec) {
         }
 				new Materialize(getClass(entity.name), tupleStream)
 			}
-			case _ => throw UnimplementedException(fetch)
+			case _ => throw UnimplementedException("Fetch fell through match: " + fetch)
 		}
 	}
 
