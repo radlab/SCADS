@@ -100,7 +100,7 @@ class Optimizer(spec: BoundSpec) {
 			case BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder)), predicates, order, orderDir) => {
 				/*Check to make sure the cardinality is fixed, otherwise this intermediate result could be unbounded */
 				cardinality match {
-					case InfiniteCardinality => throw new UnboundedQuery("Predicates on an unbounded ForeignKeyHolder join")
+					case InfiniteCardinality => throw UnimplementedException("Predicates on an unbounded ForeignKeyHolder join")
 					case _ => logger.debug("Using selection on bounded range join")
 				}
 

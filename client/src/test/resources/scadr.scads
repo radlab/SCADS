@@ -82,11 +82,11 @@ FETCH thought
 WHERE user=[this]
 LIMIT 10 MAX 10
 
-//QUERY needsApproval
-//FETCH subscription
-//	OF user BY target
-//WHERE user = [this] AND subscription.approved = false
-//LIMIT [1: count] MAX 100
+QUERY needsApproval
+FETCH subscription
+	OF user BY target
+WHERE user = [this] AND subscription.approved = false
+LIMIT [1: count] MAX 100
 
 QUERY userByName
 FETCH user
