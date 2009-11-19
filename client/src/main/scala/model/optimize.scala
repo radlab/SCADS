@@ -65,9 +65,9 @@ class Optimizer(spec: BoundSpec) {
 					PointerJoin(entity.namespace, List(rname), ReadRandomPolicy, optimize(child, range))
 				)
 			}
-			case BoundFetch(entity, Some(childJoin), Nil, Some((orderField, orderDir))) => {
+			case BoundFetch(entity, Some((child, BoundRelationship(rname, rtarget, cardinality, ForeignKeyTarget))), Nil, Some((orderField, orderDir))) => {
 				Sort(List(orderField), ascending(orderDir),
-					optimize(BoundFetch(entity, Some(childJoin), Nil, None), range)
+					optimize(BoundFetch(entity, Some((child, BoundRelationship(rname, rtarget, cardinality, ForeignKeyTarget))), Nil, None), range)
 				)
 			}
 			case BoundFetch(entity, Some((child, BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder))), Nil, None) => {
