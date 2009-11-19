@@ -161,7 +161,7 @@ class IntegerField extends ValueHoldingField[Int] with SerializeAsKey {
 		keyFormat.format((maxKey - Math.abs(value)) * -1)
 
 	def deserializeKey(data: String, pos: ParsePosition): Unit = {
-		logger.debug("Deserializeing " + data)
+		logger.debug("Deserializeing " + data + " " + pos)
 		val num = keyFormat.parse(data, pos).intValue()
 		if(num < 0)
 			value = (maxKey - Math.abs(num)) * -1

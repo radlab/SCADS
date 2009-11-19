@@ -49,6 +49,7 @@ abstract class Entity(implicit env: Environment) {
 
 		while(pos.getIndex < data.length) {
 			attributeName.deserialize(data, pos)
+			logger.debug("Extracting attribute: " + attributeName + ", from: " + pos)
 			attributes(attributeName.value).deserialize(data,pos)
 		}
 
