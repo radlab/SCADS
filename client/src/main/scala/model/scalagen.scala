@@ -76,12 +76,12 @@ object ScalaGen extends Generator[BoundSpec] {
 				/* Index Creation */
 				output("val indexes = Array[Index](")
         indent {
-          e._2.indexes.foreach(_ match {
+          output(e._2.indexes.flatMap(_ match {
             case SecondaryIndex(ns, attrs, _) => {
-              output("new AttributeIndex(", quote(ns), ", this, CompositeField(", attrs.mkString("", ",", ""), ")),")
+              List("new AttributeIndex(" + quote(ns) + ", this, CompositeField(" + attrs.mkString("", ",", "") + "))")
             }
-            case _ => null
-          })
+            case _ => Nil
+          }).mkString("", ", ", ""))
         }
         output(")")
 
