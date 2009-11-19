@@ -232,9 +232,13 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
 
     def fillCompositeField(field:CompositeField, compKey: Node):Unit = {
         if ( compKey.label.equals("compositekey") ) {
-            compKey.child.toList.zip(field.fields).foreach( (tuple) => {
+            llogger.debug("compositekey found:" + compKey)
+            llogger.debug("compkey child: " + (compKey\"_"))
+            (compKey\"_").toList.zip(field.fields).foreach( (tuple) => {
                 val node = tuple._1
                 val field = tuple._2
+                llogger.debug("Looking at node: " + node)
+                llogger.debug("Looking at field: " + field)
                 if ( node.label.equals("attribute") ) {
                     setFieldValue(field, node.text)
                 } else {
