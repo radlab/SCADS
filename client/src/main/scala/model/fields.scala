@@ -227,7 +227,7 @@ case class CompositeField(fields: List[Field], types: List[Class[Field]]) extend
 
 	def serializeKey(): String = fields.map(_.serializeKey).mkString("", "", "")
 	def deserializeKey(data: String, pos: ParsePosition): Unit = {
-		fields.foldLeft(new ParsePosition(0))((p: ParsePosition, f: Field) => {
+		fields.foldLeft(pos)((p: ParsePosition, f: Field) => {
 			logger.debug("Deserialize composite part: " + f + ", " + p + " " + data)
 			f.deserializeKey(data, p)
 			p
