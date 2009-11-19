@@ -63,6 +63,12 @@
                     <attribute name="timestamp">3</attribute>
                 </compositekey>
             </output>
+            <output>
+                <compositekey>
+                    <attribute name="owner">Stephen Tu</attribute>
+                    <attribute name="timestamp">1</attribute>
+                </compositekey>
+            </output>
         </outputs>
     </query>
     <query name="myFollowing" class="user" primarykey="Steve Nash">
