@@ -60,7 +60,12 @@ class Optimizer(spec: BoundSpec) {
 
 	def optimize(fetch: BoundFetch, range: BoundRange):EntityProvider = {
 		fetch match {
-			case BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyTarget)), Nil, _, _) => {
+			case BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyTarget)), Nil, Some(order), Some(orderDir)) => {
+				Sort(List(order), ascending(orderDir),
+					optimize(BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyTarget)), Nil, None, None), range)
+				)
+			}
+			case BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyTarget)), Nil, None, None) => {
 				Materialize(getClass(entity.name),
 					PointerJoin(entity.namespace, List(rname), ReadRandomPolicy, optimize(child, range))
 				)
@@ -184,6 +189,11 @@ class Optimizer(spec: BoundSpec) {
 		logger.debug("Creating Entity Placeholders")
 		logger.debug(source)
 		compiler.compile(source)
+	}
+
+	protected def ascending(direction: Direction): Boolean = direction match {
+		case Ascending => true
+		case Descending => false
 	}
 
 	def getClass(entityName:String) = {

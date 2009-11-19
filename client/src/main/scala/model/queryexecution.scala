@@ -59,10 +59,15 @@ abstract trait QueryExecutor {
 		})
 	}
 
-	protected def sort[EntityType <: Entity](fields: List[String], child: Seq[EntityType]): Seq[EntityType] = {
-		child.toList.sort((e1, e2) => {
-			(fields.map(e1.attributes).map(_.serializeKey).mkString("", "", "") compare fields.map(e2.attributes).map(_.serializeKey).mkString("", "", "")) < 0
-		})
+	protected def sort[EntityType <: Entity](fields: List[String], ascending: Boolean, child: Seq[EntityType]): Seq[EntityType] = {
+		if(ascending)
+			child.toList.sort((e1, e2) => {
+				(fields.map(e1.attributes).map(_.serializeKey).mkString("", "", "") compare fields.map(e2.attributes).map(_.serializeKey).mkString("", "", "")) < 0
+			})
+		else
+			child.toList.sort((e1, e2) => {
+				(fields.map(e1.attributes).map(_.serializeKey).mkString("", "", "") compare fields.map(e2.attributes).map(_.serializeKey).mkString("", "", "")) > 0
+			})
 	}
 
 	/* Helper functions */
@@ -83,4 +88,4 @@ case class PrefixJoin(namespace: String, attribute: String, limit: Field, policy
 case class PointerJoin(namespace: String, attributes: List[String], policy: ReadPolicy, child: EntityProvider) extends TupleProvider
 case class Materialize(entityClass: Class[Entity], child: TupleProvider) extends EntityProvider
 case class Selection(equalityMap: HashMap[String, Field], child: EntityProvider) extends EntityProvider
-case class Sort(fields: List[String], child: EntityProvider) extends EntityProvider
+case class Sort(fields: List[String], ascending: Boolean, child: EntityProvider) extends EntityProvider

@@ -129,6 +129,8 @@ object ScalaGen extends Generator[BoundSpec] {
 		case l: List[_] => "List(" + l.map(argToCode).mkString("", ", ", "") + ")"
 		case h: HashMap[_, _] => "HashMap(" + h.map(p => "(" + argToCode(p._1) + ", " + argToCode(p._2) + ")").mkString("", ", ", "") + ").asInstanceOf[HashMap[String, Field]]"
 		case i: IntegerField => "IntegerField(" + i.value + ")"
+		case true => "true"
+		case false => "false"
 		case FalseField => "FalseField"
 		case TrueField => "TrueField"
 		case ReadRandomPolicy => "ReadRandomPolicy"
