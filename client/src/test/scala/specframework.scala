@@ -51,7 +51,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
     val attrMetadata = attributesMetadata()
 
     // maps ( className -> list of ( attrName, fieldClass ) )
-    def primaryKeyMetadata(): Map[String,List[Tuple2[String,Field]]] = { 
+    def primaryKeyMetadata(): Map[String,List[Tuple2[String,Field]]] = {
         var rtn = Map[String,List[Tuple2[String,Field]]]()
         (dataNode \\ "metadata").foreach((node) => {
             val className = (node \ "@class").text
@@ -297,7 +297,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
             }
 
             "generate the correct entity structure" in {
-    
+
                 "correct primary key field types" in {
                     pkMetadata.keys.foreach( (c) => {
                         "for entity class " + c  in {
@@ -306,7 +306,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                             val ent = entConstructor.newInstance(env)
                             llogger.debug("PK in map: " + pkMetadata(c))
                             llogger.debug("Ent PK: " + ent.primaryKey)
-                            val inputPK = CompositeField(pkMetadata(c).map(_._2):_*) 
+                            val inputPK = CompositeField(pkMetadata(c).map(_._2):_*)
                             val entPK = ent.primaryKey
                             if (!inputPK.getClass.asInstanceOf[Class[Field]].isAssignableFrom(entPK.getClass.asInstanceOf[Class[Field]])) {
                                 fail(inputPK.getClass + " is not assignable from " + entPK.getClass)
@@ -431,7 +431,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                         } catch {
                             case e: Exception => { llogger.fatal(e); fail("could not serialize") }
                         }
-                        true must_== true // hack... 
+                        true must_== true // hack...
                     }
                 })
             }
@@ -503,19 +503,19 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                         val isCompositeKey = !(queryOutputs \ "compositekey").isEmpty
 
                         var queryOutputPKs: List[Field] = null
-                        var actualOutputPKs: List[Field] = retVal.toList.map(_.primaryKey) 
+                        var actualOutputPKs: List[Field] = retVal.toList.map(_.primaryKey)
 
                         queryOutputPKs = queryOutputs.toList.zip(retVal.toList).map( (tuple) => {
                             val node = tuple._1
                             val ent = tuple._2
                             val field = ent.primaryKey.duplicate
                             if (isCompositeKey) {
-                                val attrList = (node \\ "attribute" \ "@name").map(_.text) 
+                                val attrList = (node \\ "attribute" \ "@name").map(_.text)
                                 field must haveClass[CompositeField]
                                 fillCompositeField(field.asInstanceOf[CompositeField],(node\"compositekey").first)
                             } else {
                                 val text = (node \ "@primarykey").text
-                                setFieldValue(field, text) 
+                                setFieldValue(field, text)
                             }
                             field
                         })
