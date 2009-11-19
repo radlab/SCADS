@@ -39,3 +39,23 @@ t2.owner(u2)
 t2.timestamp(1)
 t2.thought("stephen: Hey there from me too!")
 t2.save
+
+val h1 = new hashTag
+h1.name("michael")
+h1.referringThought(t1)
+h1.save
+
+val h2 = new hashTag
+h2.name("stephen")
+h2.referringThought(t2)
+h2.save
+
+val h3 = new hashTag
+h3.name("hello")
+h3.referringThought(t1)
+h3.save
+
+val h4 = new hashTag
+h4.name("hello")
+h4.referringThought(t2)
+h4.save
