@@ -60,22 +60,17 @@ class Optimizer(spec: BoundSpec) {
 
 	def optimize(fetch: BoundFetch, range: BoundRange):EntityProvider = {
 		fetch match {
-			case BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyTarget)), Nil, Some(order), Some(orderDir)) => {
-				Sort(List(order), ascending(orderDir),
-					optimize(BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyTarget)), Nil, None, None), range)
-				)
-			}
-			case BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyTarget)), Nil, None, None) => {
+			case BoundFetch(entity, Some((child, BoundRelationship(rname, rtarget, cardinality, ForeignKeyTarget))), Nil, None) => {
 				Materialize(getClass(entity.name),
 					PointerJoin(entity.namespace, List(rname), ReadRandomPolicy, optimize(child, range))
 				)
 			}
-			case BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyTarget)), predicates, order, orderDir) => {
-				Selection(extractEqualityMap(predicates),
-					optimize(BoundFetch(entity, Some(child), Some(BoundRelationship(rname,rtarget, cardinality, ForeignKeyTarget)), Nil, order, orderDir), range)
+			case BoundFetch(entity, Some(childJoin), Nil, Some((orderField, orderDir))) => {
+				Sort(List(orderField), ascending(orderDir),
+					optimize(BoundFetch(entity, Some(childJoin), Nil, None), range)
 				)
 			}
-			case BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder)), Nil, _, _) => {
+			case BoundFetch(entity, Some((child, BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder))), Nil, None) => {
 				val childPlan = optimize(child, range)
 				logger.debug("Child Plan: " + childPlan)
 				logger.debug("Relationship: " + rname)
@@ -102,7 +97,7 @@ class Optimizer(spec: BoundSpec) {
 				}
 				Materialize(getClass(entity.name), tupleStream)
 			}
-			case BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder)), predicates, order, orderDir) => {
+			case BoundFetch(entity, Some((child, BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder))), predicates, ordering) => {
 				/*Check to make sure the cardinality is fixed, otherwise this intermediate result could be unbounded */
 				cardinality match {
 					case InfiniteCardinality => throw UnimplementedException("Predicates on an unbounded ForeignKeyHolder join")
@@ -110,11 +105,15 @@ class Optimizer(spec: BoundSpec) {
 				}
 
 				Selection(extractEqualityMap(predicates),
-					optimize(BoundFetch(entity, Some(child), Some(BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder)), Nil, order, orderDir), range)
+					optimize(BoundFetch(entity, Some((child, BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder))), Nil, ordering), range)
 				)
 			}
-			case BoundFetch(entity, None, None, predicates, _, _) => {
-
+			case BoundFetch(entity, Some(childJoin), predicates, ordering) => {
+				Selection(extractEqualityMap(predicates),
+					optimize(BoundFetch(entity, Some(childJoin), Nil, ordering), range)
+				)
+			}
+			case BoundFetch(entity, None, predicates, ordering) => {
 				/* Map attributes to the values they should equal. Error contradicting predicates are found */
 				val equalityMap = extractEqualityMap(predicates)
 				val equalityAttributes = equalityMap.keys.toList
@@ -143,7 +142,6 @@ class Optimizer(spec: BoundSpec) {
         }
 				new Materialize(getClass(entity.name), tupleStream)
 			}
-			case _ => throw UnimplementedException("Fetch fell through match: " + fetch)
 		}
 	}
 

@@ -22,6 +22,7 @@ case class UnknownAttributeException(queryName: String, attribute: String) exten
 case class UnknownFetchAlias(queryName: String, alias: String) extends BindingException
 case class InconsistentParameterTyping(queryName: String, paramName: String) extends BindingException
 case class InvalidPrimaryKeyException(entityName: String, keyPart:String) extends BindingException
+case class InternalBindingError(desc: String) extends BindingException
 
 /* Temporary object used while building the fetchTree */
 case class Fetch(entity: BoundEntity, child: Option[Fetch], relation: Option[BoundRelationship]) {
@@ -279,10 +280,20 @@ object Binder {
 				}
 			}
 
-			def toBoundFetch(f: Fetch): BoundFetch =
-				f.child match {
-					case Some(child) => BoundFetch(f.entity, Some(toBoundFetch(child)), f.relation, f.predicates.toList, f.orderField, f.orderDirection)
-					case None => BoundFetch(f.entity, None, None, f.predicates.toList, f.orderField, f.orderDirection)
+			def toBoundFetch(f: Fetch): BoundFetch = {
+				val order = (f.orderField, f.orderDirection) match {
+					case (Some(of), Some(od)) => Some((of, od))
+					case (None, None) => None
+					case _ => throw new InternalBindingError("Inconsistent sort parameters")
+				}
+
+				val child = (f.child, f.relation) match {
+					case (Some(c), Some(r)) => Some(toBoundFetch(c),r)
+					case (None, None) => None
+					case _ => throw new InternalBindingError("Inconsistent child fetch")
+				}
+
+				BoundFetch(f.entity, child, f.predicates.toList, order)
 			}
 
 			/* Bind the range expression */
