@@ -8,7 +8,7 @@ import scala.reflect.Manifest
 case class DeserializationException(data: String, pos: ParsePosition) extends Exception
 
 /**
- * The base abstract class for defining types of datat that can be stored in SCADS as either attributes or keys.
+ * The base abstract class for defining types of data that can be stored in SCADS as either attributes or keys.
  */
 abstract class Field extends Ordered[Field] {
 	val logger = Logger.getLogger("scads.field")
