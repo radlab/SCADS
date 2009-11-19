@@ -137,6 +137,8 @@ object ScalaGen extends Generator[BoundSpec] {
 		case BoundParameter(name, aType) => fieldType(aType) + "(" + name + ")"
 		case BoundThisAttribute(name, aType) => name
 		case CompositeField(fields, types) => "new CompositeField(List(" + fields.map(argToCode).mkString("", ", ", "") + "), List(" + types.map(argToCode).mkString("", ", ", "") + "))"
+		case AttributeCondition(attr) => "AttributeCondition(" + quote(attr) + ")"
+		case FieldLiteralCondition(f) => "FieldLiteralCondition(" + argToCode(f) + ")"
 		case u: AnyRef => {
 			logger.fatal("I don't know how to generate scala for argument of type: " + u.getClass)
 			""

@@ -40,7 +40,6 @@ class Optimizer(spec: BoundSpec) {
 				query._2.plan = getPlan(query._2)
 			})
 		})
-
 		spec
 	}
 
@@ -62,7 +61,7 @@ class Optimizer(spec: BoundSpec) {
 		fetch match {
 			case BoundFetch(entity, Some((child, BoundRelationship(rname, rtarget, cardinality, ForeignKeyTarget))), Nil, None) => {
 				Materialize(getClass(entity.name),
-					PointerJoin(entity.namespace, List(rname), ReadRandomPolicy, optimize(child, range))
+					PointerJoin(entity.namespace, List(AttributeCondition(rname)), ReadRandomPolicy, optimize(child, range))
 				)
 			}
 			case BoundFetch(entity, Some((child, BoundRelationship(rname, rtarget, cardinality, ForeignKeyTarget))), Nil, Some((orderField, orderDir))) => {
@@ -88,11 +87,11 @@ class Optimizer(spec: BoundSpec) {
 				val tupleStream = selectedIndex match {
 					case SecondaryIndex(ns, attrs, tns) => {
 						SequentialDereferenceIndex(tns, ReadRandomPolicy,
-							PrefixJoin(ns, rtarget.keys(0), joinLimit, ReadRandomPolicy, childPlan)
+							PrefixJoin(ns, rtarget.keys.map(k => AttributeCondition(k)), joinLimit, ReadRandomPolicy, childPlan)
 						)
 					}
 					case PrimaryIndex(ns, attrs) => {
-						PrefixJoin(ns, rtarget.keys(0), joinLimit, ReadRandomPolicy, childPlan)
+						PrefixJoin(ns, rtarget.keys.map(k => AttributeCondition(k)), joinLimit, ReadRandomPolicy, childPlan)
 					}
 				}
 				Materialize(getClass(entity.name), tupleStream)
@@ -105,7 +104,7 @@ class Optimizer(spec: BoundSpec) {
 				}
 
 				Selection(extractEqualityMap(predicates),
-					optimize(BoundFetch(entity, Some((child, BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder))), Nil, ordering), range)
+					optimize(BoundFetch(entity, Some((child, BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder))), Nil, None), range)
 				)
 			}
 			case BoundFetch(entity, Some(childJoin), predicates, ordering) => {

@@ -2,6 +2,10 @@ package edu.berkeley.cs.scads.model
 
 import scala.collection.mutable.HashMap
 
+abstract sealed class JoinCondition
+case class AttributeCondition(attrName: String) extends JoinCondition
+case class FieldLiteralCondition(fieldValue: Field) extends JoinCondition
+
 abstract trait QueryExecutor {
 	/* Type Definitions */
 	type TupleStream = Seq[Tuple]
@@ -28,16 +32,24 @@ abstract trait QueryExecutor {
 		})
 	}
 
-	protected def prefixJoin(namespace: String, attribute: String, limit: LimitValue, policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
+	protected def prefixJoin(namespace: String, conditions: List[JoinCondition], limit: LimitValue, policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
 		child.flatMap((e) => {
-			val prefix = e.attributes(attribute).serializeKey
+			val prefix = CompositeField(conditions.map(_ match {
+				case AttributeCondition(attr) => e.attributes(attr)
+				case FieldLiteralCondition(f) => f
+			}): _*).serializeKey
+
 			policy.get_set(namespace, prefix, prefix + "~", limitToInt(limit), nsKeys(namespace), nsVersions(namespace))
 		})
 	}
 
-	protected def pointerJoin(namespace: String, attributes: List[String], policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
+	protected def pointerJoin(namespace: String, conditions: List[JoinCondition], policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
 		child.map((e) => {
-				val key = attributes.map(e.attributes).map(_.serializeKey).mkString("", ", ", "")
+				val key = CompositeField(conditions.map(_ match {
+					case AttributeCondition(attr) => e.attributes(attr)
+					case FieldLiteralCondition(f) => f
+				}): _*).serializeKey
+
 				policy.get(namespace, key, nsKeys(namespace), nsVersions(namespace))
 		})
 	}
@@ -84,8 +96,8 @@ abstract class EntityProvider extends QueryPlan
 case class SingleGet(namespace: String, key: Field, policy: ReadPolicy) extends TupleProvider
 case class PrefixGet(namespace: String, prefix: Field, limit: Field, policy: ReadPolicy) extends TupleProvider
 case class SequentialDereferenceIndex(targetNamespace: String, policy: ReadPolicy, child: TupleProvider) extends TupleProvider
-case class PrefixJoin(namespace: String, attribute: String, limit: Field, policy: ReadPolicy, child: EntityProvider) extends TupleProvider
-case class PointerJoin(namespace: String, attributes: List[String], policy: ReadPolicy, child: EntityProvider) extends TupleProvider
+case class PrefixJoin(namespace: String, conditions: List[JoinCondition], limit: Field, policy: ReadPolicy, child: EntityProvider) extends TupleProvider
+case class PointerJoin(namespace: String, conditions: List[JoinCondition], policy: ReadPolicy, child: EntityProvider) extends TupleProvider
 case class Materialize(entityClass: Class[Entity], child: TupleProvider) extends EntityProvider
 case class Selection(equalityMap: HashMap[String, Field], child: EntityProvider) extends EntityProvider
 case class Sort(fields: List[String], ascending: Boolean, child: EntityProvider) extends EntityProvider
