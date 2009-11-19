@@ -31,7 +31,6 @@
 
 #define FLUSH_WAIT 20
 
-#define RESP_MAX 10 // max # of ranges for responsiblity policy
 
 using namespace std;
 using namespace apache::thrift;
@@ -1329,9 +1328,12 @@ put(const NameSpace& ns, const Record& rec) {
 	return ok;
 }
 
+int resp_max = -1;
+
 bool StorageDB::
 set_responsibility_policy(const NameSpace& ns, const vector<RecordSet>& policy_vec) {
-	if (policy_vec.size() > RESP_MAX)  // too many policies
+	if (resp_max > 0 &&
+			policy_vec.size() > resp_max)  // too many policies
 		throw new TException("Too many responsibility policies");
 
 #ifdef DEBUG
@@ -1616,6 +1618,8 @@ Starts the BerkeleyDB storage layer.\n\n\
   -L\t\tDon't do write ahead logging.\n\
 	\t(Logging is always on if you use transactions)\n\
   -m\t\tUse merkle trees.\n\
+  -r RESP_MAX\tMax # of responsibility ranges.\n\
+             \tDefault: -1 (no limit)\n\
   -h\t\tShow this help\n\n",
 	  prgm);
 }
