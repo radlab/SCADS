@@ -24,15 +24,16 @@ case class InconsistentParameterTyping(queryName: String, paramName: String) ext
 case class InvalidPrimaryKeyException(entityName: String, keyPart:String) extends BindingException
 case class InternalBindingError(desc: String) extends BindingException
 
-/* Temporary object used while building the fetchTree */
-case class Fetch(entity: BoundEntity, child: Option[Fetch], relation: Option[BoundRelationship]) {
-	val predicates = new scala.collection.mutable.ArrayBuffer[BoundPredicate]
-	var orderField:Option[String] = None
-	var orderDirection: Option[Direction] = None
-}
 
 object Binder {
 	val logger = Logger.getLogger("scads.binding")
+
+	/* Temporary object used while building the fetchTree */
+	case class Fetch(entity: BoundEntity, child: Option[Fetch], relation: Option[BoundRelationship]) {
+		val predicates = new scala.collection.mutable.ArrayBuffer[BoundPredicate]
+		var orderField:Option[String] = None
+		var orderDirection: Option[Direction] = None
+	}
 
 	def bind(spec: Spec):BoundSpec = {
 		/* Bind entities into a map and check for duplicate names */
