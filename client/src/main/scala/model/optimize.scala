@@ -1,15 +1,13 @@
 package edu.berkeley.cs.scads.model.parser
 
-
 import org.apache.log4j.Logger
 import scala.collection.mutable.HashMap
 
-case class UnimplementedException(desc: String) extends Exception
-
-case class UnboundedQuery(desc: String) extends Exception
-
 sealed abstract class OptimizerException extends Exception
 object Unsatisfiable extends OptimizerException
+case class UnboundedQuery(desc: String) extends OptimizerException
+
+case class UnimplementedException(desc: String) extends Exception
 
 sealed abstract class Index {
 	val namespace: String
