@@ -33,4 +33,40 @@
             <version>1.0-SNAPSHOT</version>
         </dependency>
 	</dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.scala-tools</groupId>
+                <artifactId>maven-scala-plugin</artifactId>
+                <configuration>
+                    <launchers>
+                        <launcher>
+                        <id>clienttest</id>
+                        <mainClass>DataLoadProcess</mainClass>
+                        <args>
+                            <arg>-p</arg>
+                            <arg>9000</arg>
+                            <arg>-h</arg>
+                            <arg>localhost</arg>
+                            <arg>-c</arg>
+                            <arg>1</arg>
+                            <arg>-n</arg>
+                            <arg>10</arg>
+                            <arg>-u</arg>
+                            <arg>100</arg>
+                            <arg>-s</arg>
+                            <arg>15</arg>
+                            <arg>-m</arg>
+                            <arg>after</arg>
+                        </args>
+                        <jvmArgs>
+                            <jvmArg>-Xms512M</jvmArg>
+                            <jvmArg>-Xmx1280M</jvmArg>
+                        </jvmArgs>
+                        </launcher>
+                    </launchers>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

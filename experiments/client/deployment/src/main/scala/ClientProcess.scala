@@ -114,24 +114,40 @@ object DataLoadProcess {
         println("main thread done!")
     }
 
+    def recursiveSizeOfFile(file:File):Long = {
+        var size = 0L
+        if ( file.isDirectory ) {
+            file.listFiles.foreach( size += recursiveSizeOfFile(_) )
+        } else {
+            size = file.length
+        }
+        size
+    }
+
+
     def createSizeLoadFunc:(Int,Int,Environment)=>Unit = {
         val fn = (clientId:Int,threadId:Int,env:Environment) => {
-            val dbFile = new File("target/db9000/00000000.jdb") 
-            if ( !dbFile.isFile ) throw new FileNotFoundException("No db file found")
+            val dbFile = new File("target/db9000") 
+            if ( !dbFile.isDirectory ) throw new FileNotFoundException("No db directory found")
             implicit val implicitEnv = env 
             var counter = 0
-            while ( dbFile.length < 1000000L ) {
+            val chunkSize = 10000
+            var size = recursiveSizeOfFile(dbFile)
+            while ( size < 1073741824L ) {
                 // add chunks of users
-                println("dbfile length is: " + dbFile.length)
+                println("dbfile length is: " + size)
                 println("adding users...")
-                (counter to (counter+10000)).foreach((i)=> {
+                (counter until (counter+chunkSize)).foreach((i)=> {
                     val user = new user
                     val str = "client"+clientId+"_thread"+threadId+"_user"+i
                     user.name(str)
                     user.email(str+"@test.com")
                     user.save
                 })
+                size = recursiveSizeOfFile(dbFile)
+                counter += chunkSize
             }
+            println("thread"+threadId+"finished with " +counter+" users")
         }
         fn
     }
