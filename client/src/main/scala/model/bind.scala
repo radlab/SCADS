@@ -282,19 +282,25 @@ object Binder {
 			}
 
 			def toBoundFetch(f: Fetch): BoundFetch = {
-				val order = (f.orderField, f.orderDirection) match {
-					case (Some(of), Some(od)) => Some((of, od))
-					case (None, None) => None
-					case _ => throw new InternalBindingError("Inconsistent sort parameters")
+				val order:BoundOrder = (f.orderField, f.orderDirection) match {
+					case (Some(of), Some(Ascending)) => Sorted(of, true)
+					case (Some(of), Some(Descending)) => Sorted(of, false)
+					case (None, None) => Unsorted
+					case _ => throw new InternalBindingError("Inconsistent sort parameters: " + f)
 				}
 
-				val child = (f.child, f.relation) match {
-					case (Some(c), Some(r)) => Some(toBoundFetch(c),r)
-					case (None, None) => None
-					case _ => throw new InternalBindingError("Inconsistent child fetch")
+				val join: BoundJoin = (f.child, f.relation) match {
+					case (Some(ch), Some(BoundRelationship(name, target, _, ForeignKeyTarget))) => BoundPointerJoin(name, toBoundFetch(ch))
+					case (Some(ch), Some(BoundRelationship(name, target, FixedCardinality(c), ForeignKeyHolder))) => BoundFixedTargetJoin(name, c, toBoundFetch(ch))
+					case (Some(ch), Some(BoundRelationship(name, target, InfiniteCardinality, ForeignKeyHolder))) => BoundInfiniteTargetJoin(name, toBoundFetch(ch))
+					case (None, None) => NoJoin
+					case _ => {
+						logger.fatal("Internal error: " + (f.child, f.relation))
+						throw new InternalBindingError("Inconsistent child fetch: " + f)
+					}
 				}
 
-				BoundFetch(f.entity, child, f.predicates.toList, order)
+				BoundFetch(f.entity, f.predicates.toList, order, join)
 			}
 
 			/* Bind the range expression */

@@ -57,60 +57,54 @@ class Optimizer(spec: BoundSpec) {
 
 	def optimize(fetch: BoundFetch, range: BoundRange):EntityProvider = {
 		fetch match {
-			case BoundFetch(entity, Some((child, BoundRelationship(rname, rtarget, cardinality, ForeignKeyTarget))), Nil, None) => {
+			case BoundFetch(entity, Nil, Unsorted, BoundPointerJoin(rname, child)) => {
 				Materialize(getClass(entity.name),
 					PointerJoin(entity.namespace, List(AttributeCondition(rname)), ReadRandomPolicy, optimize(child, range))
 				)
 			}
-			case BoundFetch(entity, Some((child, BoundRelationship(rname, rtarget, cardinality, ForeignKeyTarget))), Nil, Some((orderField, orderDir))) => {
-				Sort(List(orderField), ascending(orderDir),
-					optimize(BoundFetch(entity, Some((child, BoundRelationship(rname, rtarget, cardinality, ForeignKeyTarget))), Nil, None), range)
-				)
-			}
-			case BoundFetch(entity, Some((child, BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder))), Nil, None) => {
+			case BoundFetch(entity, Nil, Unsorted, BoundFixedTargetJoin(rname, cardinality, child)) => {
 				val childPlan = optimize(child, range)
-				logger.debug("Child Plan: " + childPlan)
-				logger.debug("Relationship: " + rname)
-
 				val selectedIndex = selectOrCreateIndex(entity, List(rname))
-				logger.debug("Selected join index: " + selectedIndex)
-
-				val joinLimit:Field = (range, cardinality) match {
-					case (BoundLimit(b, _), InfiniteCardinality) => b
-					case (BoundUnlimited, FixedCardinality(c)) => IntegerField(c)
-					case (BoundLimit(b, _), FixedCardinality(c)) => b //FIXME: this is suboptimal
-					case _ => throw new UnboundedQuery("Unbounded ForeignKeyHolder join")
-				}
-
+				val joinLimit = IntegerField(cardinality)
 				val tupleStream = selectedIndex match {
 					case SecondaryIndex(ns, attrs, tns) => {
 						SequentialDereferenceIndex(tns, ReadRandomPolicy,
-							PrefixJoin(ns, rtarget.keys.map(k => AttributeCondition(k)), joinLimit, ReadRandomPolicy, childPlan)
+							PrefixJoin(ns, child.entity.keys.map(k => AttributeCondition(k)), joinLimit, ReadRandomPolicy, childPlan)
 						)
 					}
 					case PrimaryIndex(ns, attrs) => {
-						PrefixJoin(ns, rtarget.keys.map(k => AttributeCondition(k)), joinLimit, ReadRandomPolicy, childPlan)
+						PrefixJoin(ns, child.entity.keys.map(k => AttributeCondition(k)), joinLimit, ReadRandomPolicy, childPlan)
 					}
 				}
 				Materialize(getClass(entity.name), tupleStream)
 			}
-			case BoundFetch(entity, Some((child, BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder))), predicates, ordering) => {
-				/*Check to make sure the cardinality is fixed, otherwise this intermediate result could be unbounded */
-				cardinality match {
-					case InfiniteCardinality => throw UnimplementedException("Predicates on an unbounded ForeignKeyHolder join")
-					case _ => logger.debug("Using selection on bounded range join")
+			case BoundFetch(_, _, Sorted(attr, asc), f:FixedCardinalityJoin) => {
+				Sort(List(attr), asc,
+					optimize(BoundFetch(fetch.entity, fetch.predicates, Unsorted, fetch.join), range)
+				)
+			}
+			case BoundFetch(_, predicates, _, f:FixedCardinalityJoin) => {
+				Selection(extractEqualityMap(predicates),
+					optimize(BoundFetch(fetch.entity, Nil, fetch.order, fetch.join), range)
+				)
+			}
+			case BoundFetch(entity, predicates, ordering, BoundInfiniteTargetJoin(rname, child)) => {
+				val childPlan = optimize(child, range)
+				val selectedIndex = selectOrCreateIndex(entity, List(rname))
+				val joinLimit = IntegerField(100)
+				val tupleStream = selectedIndex match {
+					case SecondaryIndex(ns, attrs, tns) => {
+						SequentialDereferenceIndex(tns, ReadRandomPolicy,
+							PrefixJoin(ns, child.entity.keys.map(k => AttributeCondition(k)), joinLimit, ReadRandomPolicy, childPlan)
+						)
+					}
+					case PrimaryIndex(ns, attrs) => {
+						PrefixJoin(ns, child.entity.keys.map(k => AttributeCondition(k)), joinLimit, ReadRandomPolicy, childPlan)
+					}
 				}
-
-				Selection(extractEqualityMap(predicates),
-					optimize(BoundFetch(entity, Some((child, BoundRelationship(rname, rtarget, cardinality, ForeignKeyHolder))), Nil, None), range)
-				)
+				Materialize(getClass(entity.name), tupleStream)
 			}
-			case BoundFetch(entity, Some(childJoin), predicates, ordering) => {
-				Selection(extractEqualityMap(predicates),
-					optimize(BoundFetch(entity, Some(childJoin), Nil, ordering), range)
-				)
-			}
-			case BoundFetch(entity, None, predicates, ordering) => {
+			case BoundFetch(entity, predicates, ordering, NoJoin) => {
 				/* Map attributes to the values they should equal. Error contradicting predicates are found */
 				val equalityMap = extractEqualityMap(predicates)
 				val equalityAttributes = equalityMap.keys.toList

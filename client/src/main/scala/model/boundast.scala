@@ -50,10 +50,22 @@ object ForeignKeyHolder extends RelationshipSide
 object ForeignKeyTarget extends RelationshipSide
 case class BoundRelationship(name: String, target: BoundEntity, cardinality: Cardinality, side: RelationshipSide)
 
+/* Joins */
+abstract sealed class BoundJoin
+abstract class FixedCardinalityJoin extends BoundJoin
+case class BoundPointerJoin(name: String, child: BoundFetch) extends FixedCardinalityJoin
+case class BoundFixedTargetJoin(name: String, cardinality: Int, child: BoundFetch) extends FixedCardinalityJoin
+case class BoundInfiniteTargetJoin(name: String, child: BoundFetch) extends BoundJoin
+object NoJoin extends BoundJoin
+
+/* Ordering */
+abstract sealed class BoundOrder
+case class Sorted(attribute: String, ascending: Boolean) extends BoundOrder
+object Unsorted extends BoundOrder
 
 /* BoundQuery and FetchTree */
 case class BoundQuery(fetchTree: BoundFetch, parameters: List[BoundParameter], range:BoundRange) {var plan: QueryPlan = null}
-case class BoundFetch(entity: BoundEntity, child: Option[(BoundFetch,BoundRelationship)], predicates: List[BoundPredicate], order: Option[(String, Direction)])
+case class BoundFetch(entity: BoundEntity, predicates: List[BoundPredicate], order: BoundOrder, join: BoundJoin)
 
 abstract sealed class BoundRange
 case class BoundLimit(lim: Field, max: Int) extends BoundRange
