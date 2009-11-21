@@ -18,11 +18,11 @@ object QueryExecSpec extends SpecificationWithJUnit("PIQL Query Execution Specif
 		"correctly execute queries that return" >> {
 			"entities by primary key" in {
 				implicit val loader = createLoader("ENTITY e1 {int a1 PRIMARY(a1)}\n QUERY q1 FETCH e1 WHERE a1 = [1:p]")
-				val entities = (1 to 10).toList.map(i => {
+				val entities = (0 to 10).toList.map(i => {
 					createEntity("e1", Map("a1" -> i))
 				})
 
-				(1 to 10).foreach(i => {
+				(0 to 10).foreach(i => {
 					List(entities(i)) must_== execQuery("q1",	i)
 				})
 			}
