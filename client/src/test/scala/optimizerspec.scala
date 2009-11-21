@@ -9,6 +9,8 @@ import edu.berkeley.cs.scads.model._
 
 
 object QueryExecSpec extends SpecificationWithJUnit("PIQL Query Execution Specification"){
+	val rand = new scala.util.Random
+
 	"The SCADS Optimizer" should {
 		implicit val env = new Environment
 		env.placement = new TestCluster
@@ -28,12 +30,12 @@ object QueryExecSpec extends SpecificationWithJUnit("PIQL Query Execution Specif
 			}
 
 			"ascending sorted integers whith no join" in {
-				implicit val loader = createLoader("ENTITY e1 {string a1, int a2 PRIMARY(a2)}\n QUERY q1 FETCH e1 ORDER BY a2 ASC LIMIT 10 MAX 10")
+				implicit val loader = createLoader("ENTITY e1 {int a1, int a2 PRIMARY(a1)}\n QUERY q1 FETCH e1 ORDER BY a2 ASC LIMIT 10 MAX 10")
 				val entities = (1 to 100).toList.map(i => {
-					createEntity("e1", Map("a1" -> i.toString, "a2" -> i))
+					createEntity("e1", Map("a1" -> rand.nextInt, "a2" -> i))
 				})
 
-				entities.slice(0, 10) must_== execQuery("q1")
+				execQuery("q1") must containInOrder(entities.slice(0,10))
 			}
 		}
 	}
