@@ -203,6 +203,7 @@ ORDER BY dateposted */
 QUERY allParentCategories
 FETCH parentcategory
 ORDER BY parentcategory.title
+LIMIT 100 MAX 100
 
 /* items in a particular brand (by brand name) */
 QUERY allBrandItems
@@ -210,6 +211,7 @@ FETCH item
     OF brand BY itemBrand
 WHERE brand.name=[1:name]
 ORDER BY dateposted
+LIMIT 100 MAX 100
 
 /* top bid on item (current price of an item)
  * Techically, this is the lowestItemBid, but pretend we had a DESC

@@ -95,6 +95,7 @@ WHERE user.name = [1:name]
 QUERY userByEmail
 FETCH user
 WHERE email = [1:email]
+LIMIT 10 MAX 10
 
 QUERY finduserByPK
 FETCH user
