@@ -31,21 +31,32 @@ object QueryExecSpec extends SpecificationWithJUnit("PIQL Query Execution Specif
 				})
 			}
 
-			"ascending sorted integers with no join" in {
-				implicit val loader = createLoader("ENTITY e1 {int a1, int a2 PRIMARY(a1)}\n QUERY q1 FETCH e1 ORDER BY a2 ASC LIMIT 10 MAX 10")
+			"sorted integers with no join" >> {
+				implicit val loader = createLoader("""
+					ENTITY e1 {int a1, int a2 PRIMARY(a1)}
+					QUERY q1 FETCH e1 ORDER BY a2 ASC LIMIT 10 MAX 10
+					QUERY q2 FETCH e1 ORDER BY a2 DESC LIMIT 10 MAX 10""")
+
 				val entities = (1 to 100).toList.map(i => {
 					createEntity("e1", Map("a1" -> rand.nextInt, "a2" -> i))
 				})
 
-				execQuery("q1") must containInOrder(entities.slice(0,10))
+				"ascending" in {
+					execQuery("q1") must containInOrder(entities.slice(0,10))
+				}
+
+				"decending" in {
+					execQuery("q2") must containInOrder(entities.reverse.slice(0,10))
+				}
 			}
 
-			"ascending sorted integers with prefix join" in {
+			"sorted integers with prefix join" >> {
 				implicit val loader = createLoader("""
 					ENTITY e1 {int a1 PRIMARY(a1)}
 					ENTITY e2 {int a1, int a2 PRIMARY(r,a1)}
 					RELATIONSHIP r FROM e1 TO MANY e2
-					QUERY q1 FETCH e2 OF e1 BY r WHERE e1 = [this] ORDER BY a2 ASC LIMIT 10 MAX 10""")
+					QUERY q1 FETCH e2 OF e1 BY r WHERE e1 = [this] ORDER BY a2 ASC LIMIT 10 MAX 10
+					QUERY q2 FETCH e2 OF e1 BY r WHERE e1 = [this] ORDER BY a2 DESC LIMIT 10 MAX 10""")
 
 				val e1 = createEntity("e1", Map("a1" -> 1))
 
@@ -53,7 +64,14 @@ object QueryExecSpec extends SpecificationWithJUnit("PIQL Query Execution Specif
 					createEntity("e2", Map("a1" -> rand.nextInt, "a2" -> i, "r" -> e1))
 				})
 
-				execQuery(e1, "q1") must containInOrder(entities.slice(0,10))
+				"ascending" in {
+					execQuery(e1, "q1") must containInOrder(entities.slice(0,10))
+				}
+
+				"descending" in {
+					execQuery(e1, "q2") must containInOrder(entities.reverse.slice(0,10))
+				}
+
 			}
 		}
 	}
