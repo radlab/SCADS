@@ -82,8 +82,8 @@ abstract trait QueryExecutor {
 			})
 	}
 
-	protected def topK[EntityType <: Entity](k: Int, child: Seq[EntityType]): Seq[EntityType] = {
-		child.slice(0, k)
+	protected def topK[EntityType <: Entity](k: Field, child: Seq[EntityType]): Seq[EntityType] = {
+		child.slice(0, limitToInt(k))
 	}
 
 	/* Helper functions */
@@ -105,4 +105,4 @@ case class PointerJoin(namespace: String, conditions: List[JoinCondition], polic
 case class Materialize(entityClass: Class[Entity], child: TupleProvider) extends EntityProvider
 case class Selection(equalityMap: HashMap[String, Field], child: EntityProvider) extends EntityProvider
 case class Sort(fields: List[String], ascending: Boolean, child: EntityProvider) extends EntityProvider
-case class TopK(k: Int, child: EntityProvider) extends EntityProvider
+case class TopK(k: Field, child: EntityProvider) extends EntityProvider
