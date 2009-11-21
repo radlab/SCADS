@@ -110,31 +110,23 @@ class Optimizer(spec: BoundSpec) {
 				val equalityAttributes = equalityMap.keys.toList
 				val selectedIndex = selectOrCreateIndex(entity, equalityAttributes)
 
-				def createLookupNode(ns: String, attrs: List[String], equalityMap: HashMap[String, Field], versionType: Version): TupleProvider = {
-					/* If the index is over more attributes than the equality we need to do a prefix match */
-					if(attrs.size > equalityMap.size) {
-						val prefix = CompositeField(attrs.slice(0, equalityMap.size).map(equalityMap):_*)
+				val indexLookup =
+					if(selectedIndex.attributes.size > equalityMap.size) {
+						val prefix = CompositeField(selectedIndex.attributes.slice(0, equalityMap.size).map(equalityMap):_*)
 						val limit = range match {
 							case BoundLimit(l, _) => l
 							case BoundUnlimited => throw new UnboundedQuery("Unbounded index prefix lookup")
 						}
 
-						PrefixGet(ns, prefix, limit, ReadRandomPolicy)
+						PrefixGet(selectedIndex.namespace, prefix, limit, ReadRandomPolicy)
 					}
 					else {
-						new SingleGet(ns, CompositeField(attrs.map(equalityMap):_*), ReadRandomPolicy)
+						SingleGet(selectedIndex.namespace, CompositeField(selectedIndex.attributes.map(equalityMap):_*), ReadRandomPolicy)
 					}
-				}
 
         val tupleStream = selectedIndex match {
-          case PrimaryIndex(ns, attrs) => {
-							createLookupNode(ns, attrs, equalityMap, new IntegerVersion)
-          }
-          case SecondaryIndex(ns, attrs, tns) => {
-						new SequentialDereferenceIndex(tns, ReadRandomPolicy,
-							createLookupNode(ns, attrs, equalityMap, Unversioned)
-						)
-					}
+          case PrimaryIndex(_, _) => indexLookup
+          case SecondaryIndex(_, _, tns) => SequentialDereferenceIndex(tns, ReadRandomPolicy, indexLookup)
         }
 				new Materialize(getClass(entity.name), tupleStream)
 			}
