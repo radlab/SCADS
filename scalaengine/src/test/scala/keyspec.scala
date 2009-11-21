@@ -173,6 +173,11 @@ abstract class KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specificati
 					haveTheSameElementsAs(records)
 			}
 
+			"correctly returns exact ranges backwards" in {
+				Conversions.convertList(ks.get_set("set", recSet(7, 3))) must
+					haveTheSameElementsAs(records)
+			}
+
 			"correctly returns ranges that extend past both sides of existing keys" in {
 				Conversions.convertList(ks.get_set("set", recSet(0, 10))) must
 					haveTheSameElementsAs(records)
