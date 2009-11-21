@@ -222,7 +222,7 @@ FETCH bid
     OF item BY myBidsTarget
 WHERE item=[this]
 ORDER BY dateposted DESC
-//LIMIT 1 MAX 100 // what does the MAX in a LIMIT do? I always want 1 result!
+LIMIT 1 MAX 1
 
 QUERY finduserByPK
 FETCH user
