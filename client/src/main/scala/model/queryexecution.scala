@@ -82,6 +82,10 @@ abstract trait QueryExecutor {
 			})
 	}
 
+	protected def topK[EntityType <: Entity](k: Int, child: Seq[EntityType]): Seq[EntityType] = {
+		child.slice(0, k)
+	}
+
 	/* Helper functions */
 	private def limitToInt(lim: LimitValue): Int = lim match {
 		case i: IntegerField => i.value
@@ -101,3 +105,4 @@ case class PointerJoin(namespace: String, conditions: List[JoinCondition], polic
 case class Materialize(entityClass: Class[Entity], child: TupleProvider) extends EntityProvider
 case class Selection(equalityMap: HashMap[String, Field], child: EntityProvider) extends EntityProvider
 case class Sort(fields: List[String], ascending: Boolean, child: EntityProvider) extends EntityProvider
+case class TopK(k: Int, child: EntityProvider) extends EntityProvider
