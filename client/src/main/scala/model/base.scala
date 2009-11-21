@@ -75,4 +75,11 @@ abstract class Entity(implicit env: Environment) {
 	 * TODO
 	 */
 	def delete = null
+
+	override def toString(): String = "<" + getClass.getName + " pk:" + primaryKey + ">"
+
+	override def equals(other: Any): Boolean = other match {
+		case e: Entity => (namespace equals e.namespace) && (primaryKey equals e.primaryKey)
+		case _: Any => false
+	}
 }
