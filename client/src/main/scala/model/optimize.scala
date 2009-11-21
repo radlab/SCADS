@@ -114,7 +114,12 @@ class Optimizer(spec: BoundSpec) {
 					/* If the index is over more attributes than the equality we need to do a prefix match */
 					if(attrs.size > equalityMap.size) {
 						val prefix = CompositeField(attrs.slice(0, equalityMap.size).map(equalityMap):_*)
-						PrefixGet(ns, prefix, IntegerField(100), ReadRandomPolicy)
+						val limit = range match {
+							case BoundLimit(l, _) => l
+							case BoundUnlimited => throw new UnboundedQuery("Unbounded index prefix lookup")
+						}
+
+						PrefixGet(ns, prefix, limit, ReadRandomPolicy)
 					}
 					else {
 						new SingleGet(ns, CompositeField(attrs.map(equalityMap):_*), ReadRandomPolicy)
