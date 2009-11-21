@@ -90,8 +90,16 @@ class Optimizer(spec: BoundSpec) {
 			}
 			case BoundFetch(entity, predicates, ordering, BoundInfiniteTargetJoin(rname, child)) => {
 				val childPlan = optimize(child, range)
-				val selectedIndex = selectOrCreateIndex(entity, List(rname), List())
-				val joinLimit = IntegerField(100)
+				val orderField = ordering match {
+					case Sorted(attr, _) => List(attr)
+					case Unsorted => List()
+				}
+				val selectedIndex = selectOrCreateIndex(entity, List(rname), orderField)
+				val joinLimit = range match {
+					case BoundLimit(l, _) => l
+					case BoundUnlimited => throw new UnboundedQuery("Unbounded Target Join lookup")
+				}
+
 				val tupleStream = selectedIndex match {
 					case SecondaryIndex(ns, attrs, tns) => {
 						SequentialDereferenceIndex(tns, ReadRandomPolicy,
@@ -102,7 +110,14 @@ class Optimizer(spec: BoundSpec) {
 						PrefixJoin(ns, child.entity.keys.map(k => AttributeCondition(k)), joinLimit, ReadRandomPolicy, childPlan)
 					}
 				}
-				Materialize(getClass(entity.name), tupleStream)
+
+				val entityStream = Materialize(getClass(entity.name), tupleStream)
+
+				TopK(joinLimit, ordering match {
+					case Sorted(attr, asc) => Sort(List(attr), asc, entityStream)
+					case Unsorted => entityStream
+				})
+
 			}
 			case BoundFetch(entity, predicates, ordering, NoJoin) => {
 				/* Map attributes to the values they should equal. Error contradicting predicates are found */
