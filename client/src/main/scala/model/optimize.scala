@@ -64,7 +64,7 @@ class Optimizer(spec: BoundSpec) {
 			}
 			case BoundFetch(entity, Nil, Unsorted, BoundFixedTargetJoin(rname, cardinality, child)) => {
 				val childPlan = optimize(child, range)
-				val selectedIndex = selectOrCreateIndex(entity, List(rname))
+				val selectedIndex = selectOrCreateIndex(entity, List(rname), List())
 				val joinLimit = IntegerField(cardinality)
 				val tupleStream = selectedIndex match {
 					case SecondaryIndex(ns, attrs, tns) => {
@@ -90,7 +90,7 @@ class Optimizer(spec: BoundSpec) {
 			}
 			case BoundFetch(entity, predicates, ordering, BoundInfiniteTargetJoin(rname, child)) => {
 				val childPlan = optimize(child, range)
-				val selectedIndex = selectOrCreateIndex(entity, List(rname))
+				val selectedIndex = selectOrCreateIndex(entity, List(rname), List())
 				val joinLimit = IntegerField(100)
 				val tupleStream = selectedIndex match {
 					case SecondaryIndex(ns, attrs, tns) => {
@@ -107,8 +107,11 @@ class Optimizer(spec: BoundSpec) {
 			case BoundFetch(entity, predicates, ordering, NoJoin) => {
 				/* Map attributes to the values they should equal. Error contradicting predicates are found */
 				val equalityMap = extractEqualityMap(predicates)
-				val equalityAttributes = equalityMap.keys.toList
-				val selectedIndex = selectOrCreateIndex(entity, equalityAttributes)
+				val orderingAttributes = ordering match {
+					case Sorted(attr, _) => List(attr)
+					case Unsorted => List()
+				}
+				val selectedIndex = selectOrCreateIndex(entity, equalityMap.keys.toList, orderingAttributes)
 
 				val indexLookup =
 					if(selectedIndex.attributes.size > equalityMap.size) {
@@ -133,17 +136,17 @@ class Optimizer(spec: BoundSpec) {
 		}
 	}
 
-	protected def selectOrCreateIndex(entity: BoundEntity, attributes: List[String]): Index = {
+	protected def selectOrCreateIndex(entity: BoundEntity, equalityAttributes: List[String], orderingAttributes: List[String]): Index = {
 		/* Find candidate indexes by looking for prefix matches of attributes */
 		val candidateIndexes = entity.indexes.filter((i) => {
-			i.attributes.startsWith(attributes)
+			i.attributes.startsWith(equalityAttributes) && i.attributes.slice(equalityAttributes.size, orderingAttributes.size).equals(orderingAttributes)
 		})
 		logger.debug("Identified candidate indexes: " + candidateIndexes)
 
 		if(candidateIndexes.size == 0) {
 			/* No index exists, so we must create one. */
-			val idxName = "idx" + entity.name + attributes.mkString("", "_", "")
-			val idxAttributes = attributes ++ (entity.keys -- attributes)
+			val idxName = "idx" + entity.name + (equalityAttributes ++ orderingAttributes).mkString("", "_", "")
+			val idxAttributes = equalityAttributes ++ orderingAttributes ++ (entity.keys -- equalityAttributes -- orderingAttributes)
 			val newIndex = new SecondaryIndex(idxName, idxAttributes, entity.namespace)
 			logger.debug("Creating index on " + entity.name + " over attributes" + idxAttributes)
 			entity.indexes.append(newIndex)
