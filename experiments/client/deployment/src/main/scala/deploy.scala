@@ -48,7 +48,7 @@ class ScadsDeploy2(storageMachines: List[StorageMachine], dataPlacementMachine: 
 
     val logger = Logger.getLogger("ScadsDeploy")
     var debugLevel = Level.DEBUG
-    var maxBlockingTries = 1000
+
 
     private val logicalBuckets = buildLogicalBuckets()
 
@@ -105,6 +105,10 @@ class ScadsDeploy2(storageMachines: List[StorageMachine], dataPlacementMachine: 
     }
 
     def deploy():Unit = {
+        deploy(true)
+    }
+
+    def deploy(stopServices:Boolean):Unit = {
 
         // Set up the remote logger
         val remoteLogger = Logger.getLogger("deploylib.remoteMachine")
@@ -112,7 +116,7 @@ class ScadsDeploy2(storageMachines: List[StorageMachine], dataPlacementMachine: 
 
         // Iterate over all the storage + dataplacement nodes to
         // clean up any pre-existing services, so we start fresh
-        stopAllServices
+        if (stopServices) stopAllServices
 
         // Give the services a chance to clean
         // TODO: we really need to have blocking command execution, this
@@ -135,11 +139,11 @@ class ScadsDeploy2(storageMachines: List[StorageMachine], dataPlacementMachine: 
             // Setup runit on the node
             rnode.machine.setupRunit
             val storageNodeService = new JavaService(
-                "../../../scalaengine/target/scalaengine-1.0-SNAPSHOT-jar-with-dependencies.jar","edu.berkeley.cs.scads.storage.JavaEngine","-p " +port)
+                "../../../scalaengine/target/scalaengine-1.0-SNAPSHOT-jar-with-dependencies.jar","edu.berkeley.cs.scads.storage.JavaEngine","-p " +port, "-Xms512M -Xmx2048M")
             storageNodeService.action(rnode.machine)
             rnode.machine.services(0).watchLog
             rnode.machine.services(0).start
-            blockUntilRunning(rnode.machine.services(0))
+            ScadsDeployUtil.blockUntilRunning(rnode.machine.services(0))
         })
 
         // Start up the data placement node
@@ -150,24 +154,11 @@ class ScadsDeploy2(storageMachines: List[StorageMachine], dataPlacementMachine: 
         dataPlacementNodeService.action(rnode)
         //rnode.services(0).watchLog
         rnode.services(0).start
-        blockUntilRunning(rnode.services(0))
+        ScadsDeployUtil.blockUntilRunning(rnode.services(0))
 
     }
 
-    private def blockUntilRunning(runitService: Service):Unit = {
-        var i = 0
-        while( !runitService.status.trim.equals("run") ) {
-            if ( i == maxBlockingTries ) {
-                val msg = "Exceeded max blocking tries"
-                logger.fatal(msg)
-                throw new BlockingTriesExceededException(msg)
-            }
-            logger.info("got status '" + runitService.status + "', expecting 'run'")
-            runitService.start // keep trying!
-            Thread.sleep(1000);// try to mitigate busy-wait
-            i += 1
-        }
-    }
+
 
     def rebalance():Unit = {
         val knownNs = dataPlacementMachine.getKnownNS 

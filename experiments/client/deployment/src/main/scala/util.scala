@@ -1,5 +1,9 @@
 package edu.berkeley.cs.scads.deployment
 
+import deploylib._
+
+import org.apache.log4j.Logger
+
 import edu.berkeley.cs.scads.thrift._
 import edu.berkeley.cs.scads.model._
 import edu.berkeley.cs.scads.placement._
@@ -37,6 +41,24 @@ object ScadsDeployUtil {
         range.setStart_key(start)
         range.setEnd_key(end)
         rset
+    }
+
+    val maxBlockingTries = 1000
+    val logger = Logger.getLogger("ScadsUtil")
+
+    def blockUntilRunning(runitService: Service):Unit = {
+        var i = 0
+        while( !runitService.status.trim.equals("run") ) {
+            if ( i == maxBlockingTries ) {
+                val msg = "Exceeded max blocking tries"
+                logger.fatal(msg)
+                throw new BlockingTriesExceededException(msg)
+            }
+            logger.info("got status '" + runitService.status + "', expecting 'run'")
+            runitService.start // keep trying!
+            Thread.sleep(1000);// try to mitigate busy-wait
+            i += 1
+        }
     }
 
 }

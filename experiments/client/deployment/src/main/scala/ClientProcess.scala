@@ -56,8 +56,8 @@ class ClientProcess(val dphost:String, val dpport:Int, val clientId:Int, val num
     private def getEnv():Environment = {
         if ( env == null ) {
             implicit val ienv = new Environment
-            //env.placement = new RemoteDataPlacementProviderImpl(dphost,dpport)
-            ienv.placement = new TestCluster
+            ienv.placement = new RemoteDataPlacementProviderImpl(dphost,dpport)
+            //ienv.placement = new TestCluster
             ienv.session = new TrivialSession
             ienv.executor = new TrivialExecutor
             env = ienv
@@ -108,7 +108,8 @@ object DataLoadProcess {
         logger.debug("Starting up Client Process...")
         val cp = new ClientProcess(host, port, clientId, numThreads)
         println("initializing...")
-        cp.initialize(createSizeLoadFunc)
+        //cp.initialize(createSizeLoadFunc)
+        cp.initialize(createLoadFunc(numUsers,stopPoint,isBefore))
         println("starting!")
         cp.start
         println("main thread done!")
