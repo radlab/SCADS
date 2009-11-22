@@ -145,19 +145,44 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 	/* Pass all records in namespace ns that fall in RangeSet rs to the provided function */
 	private def iterateOverSet(ns: String, rs: RecordSet, func: (Record) => Unit): Unit = {
 		val range = rs.getRange
-		val dbeKey = if(range.getStart_key == null) new DatabaseEntry() else new DatabaseEntry(range.getStart_key.getBytes)
-    val endValue = if(range.getEnd_key == null) null else rs.getRange.getEnd_key.getBytes
+		val dbeKey = new DatabaseEntry()
 		val dbeValue = new DatabaseEntry()
 		val cur = getDatabase(ns).openCursor(null, null)
-		var status = if(range.getStart_key == null) cur.getFirst(dbeKey, dbeValue, null) else cur.getSearchKeyRange(dbeKey, dbeValue, null)
-		var count = 0
 		val total = if(rs.getRange.isSetOffset) rs.getRange.getOffset + rs.getRange.getLimit else rs.getRange.getLimit
+		var status: OperationStatus = null
+		var count = 0
 
-		while(status != OperationStatus.NOTFOUND && (rs.getRange.getEnd_key == null || dbeKey.getData.compare(endValue) <= 0) && (!rs.getRange.isSetLimit || count < total)) {
+		val (forward, endValue) =
+			if(range.getStart_key == null) {
+				status = cur.getFirst(dbeKey, dbeValue, null)
+				(true,if(range.getEnd_key == null) null else range.getEnd_key.getBytes)
+			}
+			else if(range.getEnd_key == null) {
+				dbeKey.setData(range.getStart_key.getBytes)
+				status = cur.getSearchKeyRange(dbeKey, dbeValue, null)
+				(true, null)
+			}
+			else if(range.getStart_key.compare(range.getEnd_key) < 0) {
+				dbeKey.setData(range.getStart_key.getBytes)
+				status = cur.getSearchKeyRange(dbeKey, dbeValue, null)
+				(true, range.getEnd_key.getBytes)
+			}
+			else {
+				dbeKey.setData(range.getStart_key.getBytes)
+				status = cur.getSearchKeyRange(dbeKey, dbeValue, null)
+				(false, range.getEnd_key.getBytes)
+			}
+
+		while(status != OperationStatus.NOTFOUND &&
+					(endValue == null || (forward && dbeKey.getData.compare(endValue) <= 0) || ((!forward) && dbeKey.getData.compare(endValue) >= 0)) &&
+					(!rs.getRange.isSetLimit || count < total)) {
 			if(!rs.getRange.isSetOffset || count >= rs.getRange.getOffset)
 				func(new Record(createString(dbeKey.getData), createString(dbeValue.getData)))
 			count += 1
-			status = cur.getNext(dbeKey, dbeValue, null)
+			if(forward)
+				status = cur.getNext(dbeKey, dbeValue, null)
+			else
+				status = cur.getPrev(dbeKey, dbeValue, null)
 		}
 		cur.close
 	}
