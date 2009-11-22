@@ -164,9 +164,40 @@ abstract class KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specificati
 
 		}
 
+		"do prefix matches correctly for" >> {
+			def mkSet(start: String, end:String, limit: Int) = {
+				val recSet = new RecordSet
+				val rangeSet = new RangeSet
+				if(start != null) rangeSet.setStart_key(start)
+				if(end != null) rangeSet.setEnd_key(end)
+				if(limit > 0) rangeSet.setLimit(limit)
+				recSet.setType(RecordSetType.RST_RANGE)
+				recSet.setRange(rangeSet)
+				recSet
+			}
+
+			val records = (1 to 10).flatMap(i => {
+				(1 to 10).map(j => {
+					new Record("%02d%02d".format(i,j), i + "," + j)
+				})
+			})
+			records.foreach(ks.put("prefix", _))
+
+			"ascending prefixes" in {
+				Conversions.convertList(ks.get_set("prefix", mkSet("02", "02~", 3))).map(_.key) must
+					haveTheSameElementsAs(List("0201", "0202", "0203"))
+			}
+
+			"descending prefixes" in {
+				Conversions.convertList(ks.get_set("prefix", mkSet("02~", "02", 3))).map(_.key) must
+					haveTheSameElementsAs(List("0210", "0209", "0208"))
+			}
+		}
+
+
 		"have a get_set function that" >> {
-            val records = (3 to 7).toList.map((i) => new Record(keyFormat.format(i), i.toString))
-            records.foreach(ks.put("set", _))
+       val records = (3 to 7).toList.map((i) => new Record(keyFormat.format(i), i.toString))
+       records.foreach(ks.put("set", _))
 
 			"correctly returns exact ranges" in {
 				Conversions.convertList(ks.get_set("set", recSet(3, 7))) must

@@ -170,6 +170,8 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 			else {
 				dbeKey.setData(range.getStart_key.getBytes)
 				status = cur.getSearchKeyRange(dbeKey, dbeValue, null)
+				if(status != OperationStatus.NOTFOUND && dbeKey.getData.compare(range.getStart_key.getBytes) != 0)
+					status = cur.getPrev(dbeKey, dbeValue, null)
 				(false, range.getEnd_key.getBytes)
 			}
 
