@@ -21,9 +21,12 @@ abstract trait QueryExecutor {
 		List(policy.get(namespace, key.serializeKey, nsKeys(namespace), nsVersions(namespace)))
 	}
 
-	protected def prefixGet(namespace: String, prefix: Field, limit: LimitValue, policy: ReadPolicy)(implicit env: Environment): TupleStream = {
+	protected def prefixGet(namespace: String, prefix: Field, limit: LimitValue, ascending: Boolean, policy: ReadPolicy)(implicit env: Environment): TupleStream = {
 		val serializedPrefix = prefix.serializeKey
-		policy.get_set(namespace, serializedPrefix, serializedPrefix + "~", limitToInt(limit), nsKeys(namespace), nsVersions(namespace))
+		if(ascending)
+			policy.get_set(namespace, serializedPrefix, serializedPrefix + "~", limitToInt(limit), nsKeys(namespace), nsVersions(namespace))
+		else
+			policy.get_set(namespace, serializedPrefix + "~", serializedPrefix, limitToInt(limit), nsKeys(namespace), nsVersions(namespace))
 	}
 
 	protected def sequentialDereferenceIndex(targetNamespace: String, policy: ReadPolicy, child: TupleStream)(implicit env: Environment): TupleStream = {
@@ -32,14 +35,17 @@ abstract trait QueryExecutor {
 		})
 	}
 
-	protected def prefixJoin(namespace: String, conditions: List[JoinCondition], limit: LimitValue, policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
+	protected def prefixJoin(namespace: String, conditions: List[JoinCondition], limit: LimitValue, ascending: Boolean, policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
 		child.flatMap((e) => {
 			val prefix = CompositeField(conditions.map(_ match {
 				case AttributeCondition(attr) => e.attributes(attr)
 				case FieldLiteralCondition(f) => f
 			}): _*).serializeKey
 
-			policy.get_set(namespace, prefix, prefix + "~", limitToInt(limit), nsKeys(namespace), nsVersions(namespace))
+			if(ascending)
+				policy.get_set(namespace, prefix, prefix + "~", limitToInt(limit), nsKeys(namespace), nsVersions(namespace))
+			else
+				policy.get_set(namespace, prefix + "~", prefix, limitToInt(limit), nsKeys(namespace), nsVersions(namespace))
 		})
 	}
 
@@ -98,9 +104,9 @@ abstract sealed class QueryPlan
 abstract class TupleProvider extends QueryPlan
 abstract class EntityProvider extends QueryPlan
 case class SingleGet(namespace: String, key: Field, policy: ReadPolicy) extends TupleProvider
-case class PrefixGet(namespace: String, prefix: Field, limit: Field, policy: ReadPolicy) extends TupleProvider
+case class PrefixGet(namespace: String, prefix: Field, limit: Field, ascending: Boolean, policy: ReadPolicy) extends TupleProvider
 case class SequentialDereferenceIndex(targetNamespace: String, policy: ReadPolicy, child: TupleProvider) extends TupleProvider
-case class PrefixJoin(namespace: String, conditions: List[JoinCondition], limit: Field, policy: ReadPolicy, child: EntityProvider) extends TupleProvider
+case class PrefixJoin(namespace: String, conditions: List[JoinCondition], limit: Field, ascending: Boolean, policy: ReadPolicy, child: EntityProvider) extends TupleProvider
 case class PointerJoin(namespace: String, conditions: List[JoinCondition], policy: ReadPolicy, child: EntityProvider) extends TupleProvider
 case class Materialize(entityClass: Class[Entity], child: TupleProvider) extends EntityProvider
 case class Selection(equalityMap: HashMap[String, Field], child: EntityProvider) extends EntityProvider

@@ -69,11 +69,11 @@ class Optimizer(spec: BoundSpec) {
 				val tupleStream = selectedIndex match {
 					case SecondaryIndex(ns, attrs, tns) => {
 						SequentialDereferenceIndex(tns, ReadRandomPolicy,
-							PrefixJoin(ns, child.entity.keys.map(k => AttributeCondition(k)), joinLimit, ReadRandomPolicy, childPlan)
+							PrefixJoin(ns, child.entity.keys.map(k => AttributeCondition(k)), joinLimit, true, ReadRandomPolicy, childPlan)
 						)
 					}
 					case PrimaryIndex(ns, attrs) => {
-						PrefixJoin(ns, child.entity.keys.map(k => AttributeCondition(k)), joinLimit, ReadRandomPolicy, childPlan)
+						PrefixJoin(ns, child.entity.keys.map(k => AttributeCondition(k)), joinLimit, true, ReadRandomPolicy, childPlan)
 					}
 				}
 				Materialize(getClass(entity.name), tupleStream)
@@ -90,9 +90,9 @@ class Optimizer(spec: BoundSpec) {
 			}
 			case BoundFetch(entity, predicates, ordering, BoundInfiniteTargetJoin(rname, child)) => {
 				val childPlan = optimize(child, range)
-				val orderField = ordering match {
-					case Sorted(attr, _) => List(attr)
-					case Unsorted => List()
+				val (orderField, asc) = ordering match {
+					case Sorted(attr, asc) => (List(attr), asc)
+					case Unsorted => (List(), true)
 				}
 				val selectedIndex = selectOrCreateIndex(entity, List(rname), orderField)
 				val joinLimit = range match {
@@ -103,11 +103,11 @@ class Optimizer(spec: BoundSpec) {
 				val tupleStream = selectedIndex match {
 					case SecondaryIndex(ns, attrs, tns) => {
 						SequentialDereferenceIndex(tns, ReadRandomPolicy,
-							PrefixJoin(ns, child.entity.keys.map(k => AttributeCondition(k)), joinLimit, ReadRandomPolicy, childPlan)
+							PrefixJoin(ns, child.entity.keys.map(k => AttributeCondition(k)), joinLimit, asc, ReadRandomPolicy, childPlan)
 						)
 					}
 					case PrimaryIndex(ns, attrs) => {
-						PrefixJoin(ns, child.entity.keys.map(k => AttributeCondition(k)), joinLimit, ReadRandomPolicy, childPlan)
+						PrefixJoin(ns, child.entity.keys.map(k => AttributeCondition(k)), joinLimit, asc, ReadRandomPolicy, childPlan)
 					}
 				}
 
@@ -122,9 +122,9 @@ class Optimizer(spec: BoundSpec) {
 			case BoundFetch(entity, predicates, ordering, NoJoin) => {
 				/* Map attributes to the values they should equal. Error contradicting predicates are found */
 				val equalityMap = extractEqualityMap(predicates)
-				val orderingAttributes = ordering match {
-					case Sorted(attr, _) => List(attr)
-					case Unsorted => List()
+				val (orderingAttributes, asc) = ordering match {
+					case Sorted(attr, asc) => (List(attr), asc)
+					case Unsorted => (List(), true)
 				}
 				val selectedIndex = selectOrCreateIndex(entity, equalityMap.keys.toList, orderingAttributes)
 
@@ -136,7 +136,7 @@ class Optimizer(spec: BoundSpec) {
 							case BoundUnlimited => throw new UnboundedQuery("Unbounded index prefix lookup")
 						}
 
-						PrefixGet(selectedIndex.namespace, prefix, limit, ReadRandomPolicy)
+						PrefixGet(selectedIndex.namespace, prefix, limit, asc, ReadRandomPolicy)
 					}
 					else {
 						SingleGet(selectedIndex.namespace, CompositeField(selectedIndex.attributes.map(equalityMap):_*), ReadRandomPolicy)
