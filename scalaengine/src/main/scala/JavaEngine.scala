@@ -21,6 +21,9 @@ import org.apache.thrift.server.THsHaServer
 import org.apache.thrift.transport.TNonblockingServerSocket
 import org.apache.thrift.protocol.{TBinaryProtocol, XtBinaryProtocol}
 
+import sun.misc.Signal
+import sun.misc.SignalHandler
+
 object JavaEngine {
 	def main(args: Array[String]) = {
 		val logger = Logger.getLogger("scads.engine")
@@ -92,6 +95,22 @@ object JavaEngine {
 		serverOpt.maxWorkerThreads=20
 		serverOpt.minWorkerThreads=2
 		val server = new THsHaServer(processor, transport, protFactory, serverOpt)
+
+		val intHandler = new SignalHandler() {
+			def handle(sig: Signal): Unit = {
+				logger.info("Received SIGINT")
+				logger.info("Stopping thrift server")
+				server.stop()
+				logger.info("Checkpointing database")
+				env.checkpoint(null)
+				logger.info("Closing environment")
+				env.close()
+				System.exit(0)
+			}
+		}
+
+		logger.info("SIGINT handler registered")
+		Signal.handle(new Signal("INT"), intHandler)
 
 		logger.info("Starting server")
     	server.serve()
