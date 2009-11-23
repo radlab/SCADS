@@ -113,6 +113,7 @@ object ScalaGen extends Generator[BoundSpec] {
 
 		output("def ", name, "(", args, ")(implicit env: Environment):Seq[", query.fetchTree.entity.name, "] = {")
 		indent {
+			output("qLogger.debug(\"Executing query '", name, "'\")")
 			if(query.plan == null)
 				output("null")
 			else {

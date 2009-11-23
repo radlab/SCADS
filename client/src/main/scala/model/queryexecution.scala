@@ -1,12 +1,14 @@
 package edu.berkeley.cs.scads.model
 
 import scala.collection.mutable.HashMap
+import org.apache.log4j.Logger
 
 abstract sealed class JoinCondition
 case class AttributeCondition(attrName: String) extends JoinCondition
 case class FieldLiteralCondition(fieldValue: Field) extends JoinCondition
 
 abstract trait QueryExecutor {
+	val qLogger = Logger.getLogger("scads.queryexecution")
 	/* Type Definitions */
 	type TupleStream = Seq[Tuple]
 	type EntityStream = Seq[Entity]
