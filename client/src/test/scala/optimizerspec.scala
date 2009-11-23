@@ -92,8 +92,8 @@ object QueryExecSpec extends SpecificationWithJUnit("PIQL Query Execution Specif
 			case r: AnyRef => r
 		})
 		val queryMethod = obj match {
-			case c: Class[_] => c.getMethod("q1", argTypes: _*)
-			case a: AnyRef => a.getClass.getMethod("q1", argTypes: _*)
+			case c: Class[_] => c.getMethod(name, argTypes: _*)
+			case a: AnyRef => a.getClass.getMethod(name, argTypes: _*)
 		}
 
 		queryMethod.invoke(obj, boxedArgs: _*).asInstanceOf[Seq[Entity]]
