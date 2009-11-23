@@ -192,6 +192,11 @@ abstract class KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specificati
 				Conversions.convertList(ks.get_set("prefix", mkSet("02~", "02", 3))).map(_.key) must
 					haveTheSameElementsAs(List("0210", "0209", "0208"))
 			}
+
+			"descending full ranges" in {
+				Conversions.convertList(ks.get_set("prefix", mkSet("~", "", 3))).map(_.key) must
+					haveTheSameElementsAs(List("1010", "1009", "1008"))
+			}
 		}
 
 
