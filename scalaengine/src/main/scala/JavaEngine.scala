@@ -26,6 +26,7 @@ object JavaEngine {
 		val logger = Logger.getLogger("scads.engine")
 
 		val options = new Options();
+		options.addOption("b", "bulk", false, "configure the envirnoment for bulkloading.")
 		options.addOption("c", "cache", true, "set bdb's cache size (as a percentage of total JVM memory)")
 		options.addOption("p", "port",  true, "the port to run the thrift server on");
 		options.addOption("d", "dbdir",  true, "directory to to store the database environment in");
@@ -66,6 +67,16 @@ object JavaEngine {
 		config.setAllowCreate(true)
 		config.setTransactional(true)
 		config.setCachePercent(cachePercent)
+
+		if(cmd.hasOption("bulk")) {
+			logger.info("Disabling cleaning thread")
+			config.setConfigParam(EnvironmentConfig.ENV_RUN_CLEANER, "false")
+			logger.info("Disabling checkpointing thread")
+			config.setConfigParam("je.env.runCheckpointer", "false")
+			logger.info("Setting deferred write mode")
+			System.setProperty("deferred.write", "true")
+		}
+
 		logger.info("Environment config: " + config)
 		val env = new Environment(dbDir, config)
 		logger.info("Environment opened")

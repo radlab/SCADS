@@ -135,6 +135,12 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 				val dbConfig = new DatabaseConfig()
 				dbConfig.setAllowCreate(true)
 				dbConfig.setTransactional(true)
+
+				if(System.getProperty("deferred.write") != null)
+					dbConfig.setDeferredWrite(true)
+
+				logger.info("Opening database " + name + ", config: " + dbConfig)
+
 				val db = env.openDatabase(null, name, dbConfig)
 				dbCache.put(name,db)
 				db
