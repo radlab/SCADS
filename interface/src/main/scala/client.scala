@@ -2,16 +2,13 @@ package edu.berkeley.cs.scads.thrift
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import org.apache.log4j.Logger
+
 import org.apache.thrift.transport.{TFramedTransport, TSocket}
-
-import org.apache.thrift.protocol.TBinaryProtocol
-import org.apache.thrift.protocol.XtBinaryProtocol
-
-
+import org.apache.thrift.protocol.{TProtocol, TBinaryProtocol, XtBinaryProtocol}
 
 class ConnectionPoolManager[ClientType](implicit manifest : scala.reflect.Manifest[ClientType]) {
 	val logger = Logger.getLogger("scads.connectionpool")
-	val clientConstructor = manifest.erasure.getConstructors()(0)
+	val clientConstructor = manifest.erasure.getConstructor(classOf[TProtocol])
 	val pools = new scala.collection.mutable.HashMap[(String, Int), ConcurrentLinkedQueue[ClientType]]
 
 	def getPool(host: String, port:Int): ConcurrentLinkedQueue[ClientType] = {
@@ -30,6 +27,7 @@ class ConnectionPoolManager[ClientType](implicit manifest : scala.reflect.Manife
 	def newClient(host: String, port: Int): ClientType = {
 	  val transport = new TFramedTransport(new TSocket(host, port))
     val protocol = if (System.getProperty("xtrace")!=null) {new XtBinaryProtocol(transport)} else {new TBinaryProtocol(transport)}
+    transport.open()
  		clientConstructor.newInstance(protocol).asInstanceOf[ClientType]
 	}
 }

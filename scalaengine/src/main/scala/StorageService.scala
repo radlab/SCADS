@@ -3,7 +3,6 @@ package edu.berkeley.cs.scads.storage
 import scala.collection.jcl.Conversions
 
 import edu.berkeley.cs.scads.thrift._
-import edu.berkeley.cs.scads.nodes.StorageNode
 
 import org.apache.log4j.Logger
 import com.sleepycat.je.{Database, DatabaseConfig, DatabaseEntry, Environment, LockMode, OperationStatus}
@@ -99,7 +98,7 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
         } else {
             val hostname = h.split(":")(0)
             val port = h.split(":")(1).toInt
-            val sn = new StorageNode(hostname, port, port)
+            val sn = new StorageNode(hostname, port)
             sn.useConnection( (c) => {
                 val iter = records.iterator
                 while (iter.hasNext) {

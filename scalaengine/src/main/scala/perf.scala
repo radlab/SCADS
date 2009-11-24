@@ -1,7 +1,6 @@
 package edu.berkeley.cs.scads
 
 import edu.berkeley.cs.scads.thrift._
-import edu.berkeley.cs.scads.nodes.StorageNode
 import scala.concurrent.ops._
 
 object PerfTest {

@@ -14,36 +14,26 @@
 	<dependencies>
 		<dependency>
 			<groupId>edu.berkeley.cs.scads</groupId>
-			<artifactId>storage</artifactId>
-			<version>1.0-SNAPSHOT</version>
-		</dependency>
-		<dependency>
-			<groupId>edu.berkeley.cs.scads</groupId>
-			<artifactId>placement</artifactId>
-			<version>1.0-SNAPSHOT</version>
-		</dependency>
-		<dependency>
-			<groupId>edu.berkeley.cs.scads</groupId>
 			<artifactId>scalaengine</artifactId>
-			<version>1.0-SNAPSHOT</version>
+			<version>1.1-SNAPSHOT</version>
 		</dependency>
-        		<dependency>
+		<dependency>
 			<groupId>org.scala-lang</groupId>
 			<artifactId>scala-compiler</artifactId>
 			<version>2.7.5</version>
 		</dependency>
-        <dependency>
-            <groupId>org.scala-tools.testing</groupId>
-            <artifactId>specs</artifactId>
-            <version>1.6.0</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.7</version>
-            <scope>test</scope>
-        </dependency>
+		<dependency>
+			<groupId>org.scala-tools.testing</groupId>
+			<artifactId>specs</artifactId>
+			<version>1.6.0</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.7</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 	<build>
 		<testResources>
@@ -55,68 +45,68 @@
 				</includes>
 			</testResource>
 		</testResources>
-        <plugins>
-            <plugin>
-                <artifactId>maven-antrun-plugin</artifactId>
-                <version>1.1</version>
-                <executions>
-                <execution>
-                    <id>write-test-classpath</id>
-                    <goals>
-                        <goal>run</goal>
-                    </goals>
-                    <phase>generate-test-resources</phase>
-                    <inherited>false</inherited>
-                    <configuration>
-                        <tasks>
-                            <property name="test_classpath" refid="maven.test.classpath"/>
-                            <echo message="maven.test.classpath=${test_classpath}"
-                                  file="src/test/resources/test-classpath.properties"/>
-                        </tasks>
-                    </configuration>
-                </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.scala-tools</groupId>
-                <artifactId>maven-scala-plugin</artifactId>
-                <configuration>
-                    <displayCmd>true</displayCmd>
-                    <launchers>
-                        <launcher>
-                            <id>scadr</id>
-                            <mainClass>edu.berkeley.cs.scads.Compiler</mainClass>
-                            <args>
-                                <arg>src/test/resources/scadr.scads</arg>
-                            </args>
-                        </launcher>
-                        <launcher>
-                            <id>scadbook</id>
-                            <mainClass>edu.berkeley.cs.scads.Compiler</mainClass>
-                            <args>
-                                <arg>src/test/resources/scadbook.scads</arg>
-                            </args>
-                            <jvmArgs>
-                                <jvmArg>-Xss1024k</jvmArg>
-                            </jvmArgs>
-                        </launcher>
-                        <launcher>
-                            <id>scadbookTest</id>
-                            <mainClass>edu.berkeley.cs.scads.test.ScadbookLangSpec</mainClass>
-                            <jvmArgs>
-                                <jvmArg>-Xss1024k</jvmArg>
-                            </jvmArgs>
-                        </launcher>
-                    </launchers>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <argLine>-Xss1024k</argLine>
-                </configuration>
-            </plugin>
-        </plugins>
+		<plugins>
+			<plugin>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<version>1.1</version>
+				<executions>
+					<execution>
+						<id>write-test-classpath</id>
+						<goals>
+							<goal>run</goal>
+						</goals>
+						<phase>generate-test-resources</phase>
+						<inherited>false</inherited>
+						<configuration>
+							<tasks>
+								<property name="test_classpath" refid="maven.test.classpath"/>
+								<echo message="maven.test.classpath=${test_classpath}"
+									file="src/test/resources/test-classpath.properties"/>
+							</tasks>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.scala-tools</groupId>
+				<artifactId>maven-scala-plugin</artifactId>
+				<configuration>
+					<displayCmd>true</displayCmd>
+					<launchers>
+						<launcher>
+							<id>scadr</id>
+							<mainClass>edu.berkeley.cs.scads.Compiler</mainClass>
+							<args>
+								<arg>src/test/resources/scadr.scads</arg>
+							</args>
+						</launcher>
+						<launcher>
+							<id>scadbook</id>
+							<mainClass>edu.berkeley.cs.scads.Compiler</mainClass>
+							<args>
+								<arg>src/test/resources/scadbook.scads</arg>
+							</args>
+							<jvmArgs>
+								<jvmArg>-Xss1024k</jvmArg>
+							</jvmArgs>
+						</launcher>
+						<launcher>
+							<id>scadbookTest</id>
+							<mainClass>edu.berkeley.cs.scads.test.ScadbookLangSpec</mainClass>
+							<jvmArgs>
+								<jvmArg>-Xss1024k</jvmArg>
+							</jvmArgs>
+						</launcher>
+					</launchers>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<argLine>-Xss1024k</argLine>
+				</configuration>
+			</plugin>
+		</plugins>
 	</build>
 </project>

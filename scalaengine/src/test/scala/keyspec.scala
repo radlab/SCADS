@@ -5,7 +5,6 @@ import org.specs.runner.JUnit4
 import scala.collection.jcl.Conversions
 import org.apache.log4j.BasicConfigurator
 
-import edu.berkeley.cs.scads.nodes.TestableStorageNode
 import edu.berkeley.cs.scads.thrift._
 import java.io.File
 import com.sleepycat.je.Environment

@@ -2,10 +2,7 @@ package edu.berkeley.cs.scads.model
 
 import org.apache.log4j.Logger
 
-import edu.berkeley.cs.scads.thrift.{ExistingValue, Record, TestAndSetFailure}
-import edu.berkeley.cs.scads.placement.DataPlacementService
-import edu.berkeley.cs.scads.nodes.StorageNode
-import edu.berkeley.cs.scads.keys.TransparentKey
+import edu.berkeley.cs.scads.thrift.{ExistingValue, Record, TestAndSetFailure, StorageNode}
 
 class ExecutionFailure extends Exception
 case class OptimisticConcurrencyAbort(expected: ExistingValue, actual: Record) extends ExecutionFailure
@@ -39,7 +36,7 @@ class WriteAll(namespace: String, key: Field, value: String) extends Action {
 	def run(implicit env: Environment) = {
 		val rec = new Record(key.serializeKey, value)
 
-		env.placement.lookup(namespace, new TransparentKey(rec.key)).foreach((n) => {
+		env.placement.locate(namespace, rec.key).foreach((n) => {
 			n.useConnection((c) => {
 				logger.debug("Putting " + rec + " to " + namespace + " on " + n)
 				c.put(namespace, rec)
@@ -61,7 +58,7 @@ class VersionedWriteAll(namespace: String, key: Field, expectedVersion: Version,
 		val rec = new Record(key.serializeKey, nVersion.serialize + value)
 		val ev = new ExistingValue(expectedVersion.serialize, expectedVersion.prefixLength)
 
-		env.placement.lookup(namespace, new TransparentKey(rec.key)).foreach((n) => {
+		env.placement.locate(namespace,rec.key).foreach((n) => {
 			n.useConnection((c) => {
 				logger.debug("Attempting to test/set " + rec + " to " + namespace + " on " + n + " with existing version " + ev)
 				try {
@@ -126,7 +123,7 @@ class LazyExecutor(implicit env: Environment) extends Executor {
  * Often it is passed between execution nodes and entities implicitly.
  */
 class Environment {
-	var placement: DataPlacementService = null
+	var placement: ClusterPlacement = null
 	var executor: Executor = null
 	var session: Session = null
 }

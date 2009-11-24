@@ -6,7 +6,7 @@ import org.specs.runner.JUnit4
 import edu.berkeley.cs.scads.Compiler
 import edu.berkeley.cs.scads.model.{Entity,BooleanField,IntegerField,Field,StringField,ValueHoldingField,CompositeField,Environment}
 
-import edu.berkeley.cs.scads.model.{TrivialExecutor,TrivialSession}
+import edu.berkeley.cs.scads.model.{TestCluster, TrivialExecutor,TrivialSession}
 //import edu.berkeley.cs.scads.TestCluster
 
 import java.io.File
@@ -430,11 +430,7 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                             }
                         })
                         //(ent.save) must not(throwA[Exception])
-                        try{
-                            ent.save
-                        } catch {
-                            case e: Exception => { llogger.fatal(e); fail("could not serialize") }
-                        }
+                        ent.save
                         true must_== true // hack...
                     }
                 })

@@ -4,7 +4,6 @@ import java.text.ParsePosition
 import edu.berkeley.cs.scads.thrift.Record
 import edu.berkeley.cs.scads.thrift.RecordSet
 import edu.berkeley.cs.scads.thrift.RangeSet
-import edu.berkeley.cs.scads.keys.TransparentKey
 import org.apache.log4j.Logger
 
 
@@ -30,7 +29,7 @@ object ReadRandomPolicy extends ReadPolicy {
 	val rand = new scala.util.Random()
 
 	def get(namespace: String, key: String, keyClass: List[Class[Field]], versioned: Boolean)(implicit env: Environment): Tuple = {
-		val nodes = env.placement.lookup(namespace, new TransparentKey(key))
+		val nodes = env.placement.locate(namespace, key)
 		val node = nodes(rand.nextInt(nodes.length))
 
 		val rec = node.useConnection((c) => {
@@ -40,7 +39,7 @@ object ReadRandomPolicy extends ReadPolicy {
 	}
 
 	def get_set(namespace: String, startKey: String, endKey: String, limit: Int, keyClass: List[Class[Field]], versioned: Boolean)(implicit env: Environment): List[Tuple] = {
-		val node = env.placement.lookup(namespace, new TransparentKey(startKey))
+		val node = env.placement.locate(namespace, startKey)
 
 		val result = node(0).useConnection((c) => {
 			val range = new RangeSet(startKey, endKey, 0, limit)
