@@ -111,7 +111,17 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 	}
 
 	def get_responsibility_policy(ns: String): java.util.List[RecordSet] = {
-		null
+		val ret = new java.util.LinkedList[RecordSet]
+		getDatabase(ns).respPolicy.policy.foreach(p => {
+			val recSet = new RecordSet
+			val rangeSet = new RangeSet
+			if(p._1 != null) rangeSet.setStart_key(p._1)
+			if(p._2 != null) rangeSet.setEnd_key(p._2)
+			recSet.setType(RecordSetType.RST_RANGE)
+			recSet.setRange(rangeSet)
+			ret.add(recSet)
+		})
+		ret
 	}
 
 	def remove_set(ns: String, rs: RecordSet): Boolean = {
@@ -132,11 +142,11 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 
 	def set_responsibility_policy(ns : String, policy: java.util.List[RecordSet]): Boolean = {
 		val rangedPolicy = new RangedPolicy(Conversions.convertList(policy).map(p => {
-			(p.getRange_set.getStart_key, p.getRange_set.getEnd_key)
-		}))
+			(p.getRange.getStart_key, p.getRange.getEnd_key)
+		}).toArray)
 
 		respPolicyDb.put(null, new DatabaseEntry(ns.getBytes), new DatabaseEntry(rangedPolicy.getBytes))
-		dbCache.delete(ns)
+		dbCache.removeKey(ns)
 
  		true
 	}

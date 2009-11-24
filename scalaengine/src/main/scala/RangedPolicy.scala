@@ -14,8 +14,7 @@ object RangedPolicy {
 	}
 }
 
-class RangedPolicy(policy: Array[(String, String)]) {
-
+class RangedPolicy(val policy: Array[(String, String)]) {
 	def contains(key: String): Boolean = {
 		policy.foreach(p => {
 			if((p._1 == null || p._1.compare(key) <= 0) && (p._2 == null || p._2.compare(key) >= 0))
