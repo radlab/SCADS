@@ -141,14 +141,12 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 	}
 
 	def set_responsibility_policy(ns : String, policy: java.util.List[RecordSet]): Boolean = {
-		val rangedPolicy = new RangedPolicy(Conversions.convertList(policy).map(p => {
-			(p.getRange.getStart_key, p.getRange.getEnd_key)
-		}).toArray)
+		val rangedPolicy = new RangedPolicy(RangedPolicy.convert(policy).toArray)
+		val bytes = rangedPolicy.getBytes
 
-		respPolicyDb.put(null, new DatabaseEntry(ns.getBytes), new DatabaseEntry(rangedPolicy.getBytes))
-		dbCache.removeKey(ns)
-
- 		true
+		respPolicyDb.put(null, new DatabaseEntry(ns.getBytes), new DatabaseEntry(bytes))
+		dbCache.put(ns, new CachedDb(getDatabase(ns).handle, rangedPolicy))
+		true
 	}
 
 	def sync_set(ns: String, rs: RecordSet, h: String, policy: ConflictPolicy): Boolean = {

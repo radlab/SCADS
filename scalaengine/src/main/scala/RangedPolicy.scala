@@ -1,5 +1,9 @@
 package edu.berkeley.cs.scads.storage
 
+import scala.collection.jcl.Conversions
+
+import edu.berkeley.cs.scads.thrift._
+
 import java.io.ByteArrayInputStream
 import java.io.ObjectInputStream
 import java.io.ByteArrayOutputStream
@@ -11,6 +15,26 @@ object RangedPolicy {
 		val objectIn = new ObjectInputStream(bytes)
 
 		new RangedPolicy(objectIn.readObject().asInstanceOf[Array[(String, String)]])
+	}
+
+	def convert(policy: java.util.List[RecordSet]): Seq[(String, String)] = {
+		Conversions.convertList(policy).map(p => {
+			(p.getRange.getStart_key, p.getRange.getEnd_key)
+		})
+	}
+
+	def convert(policy: List[(String, String)]): java.util.List[RecordSet] = {
+		val ret = new java.util.LinkedList[RecordSet]
+		policy.foreach(p => {
+			val recSet = new RecordSet
+			val rangeSet = new RangeSet
+			if(p._1 != null) rangeSet.setStart_key(p._1)
+			if(p._2 != null) rangeSet.setEnd_key(p._2)
+			recSet.setType(RecordSetType.RST_RANGE)
+			recSet.setRange(rangeSet)
+			ret.add(recSet)
+		})
+		ret
 	}
 }
 
