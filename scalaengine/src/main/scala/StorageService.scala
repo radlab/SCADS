@@ -36,6 +36,7 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 			new Record(key, new String(dbeValue.getData))
 	}
 
+	def async_put(ns: String, rec: Record): Unit = put(ns, rec)
 	def put(ns: String, rec: Record): Boolean = {
 		val db = getDatabase(ns)
 		val key = new DatabaseEntry(rec.key.getBytes)
@@ -100,7 +101,7 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
         }
 	}
 
-	def get_responsibility_policy(ns: String): RecordSet = {
+	def get_responsibility_policy(ns: String): java.util.List[RecordSet] = {
 		null
 	}
 
@@ -120,7 +121,7 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
         }
 	}
 
-	def set_responsibility_policy(ns : String, policy: RecordSet): Boolean = {
+	def set_responsibility_policy(ns : String, policy: java.util.List[RecordSet]): Boolean = {
 		true
 	}
 
