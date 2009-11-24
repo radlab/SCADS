@@ -1,5 +1,7 @@
 package edu.berkeley.cs.scads.storage
 
+import scala.collection.jcl.Conversions
+
 import edu.berkeley.cs.scads.thrift._
 import edu.berkeley.cs.scads.nodes.StorageNode
 
@@ -7,8 +9,11 @@ import org.apache.log4j.Logger
 import com.sleepycat.je.{Database, DatabaseConfig, DatabaseEntry, Environment, LockMode, OperationStatus}
 
 class StorageProcessor(env: Environment) extends StorageEngine.Iface {
+	class CachedDb(val handle: Database, val respPolicy: RangedPolicy)
+
 	val logger = Logger.getLogger("scads.storageprocessor")
-	val dbCache = new scala.collection.mutable.HashMap[String, Database]
+	val dbCache = new scala.collection.mutable.HashMap[String, CachedDb]
+	val respPolicyDb = openDatabase("resp_policies")
 
 	def count_set(ns: String, rs: RecordSet): Int = {
         var count = 0
@@ -28,7 +33,11 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 		val db = getDatabase(ns)
 		val dbeKey = new DatabaseEntry(key.getBytes)
 		val dbeValue = new DatabaseEntry()
-		db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
+
+		if(!db.respPolicy.contains(key))
+			throw new NotResponsible
+
+		db.handle.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
 
 		if(dbeValue.getData == null)
 			new Record(key, null)
@@ -42,9 +51,9 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 		val key = new DatabaseEntry(rec.key.getBytes)
 
 		if(rec.value == null)
-			db.delete(null, key)
+			db.handle.delete(null, key)
 		else
-			db.put(null, key, new DatabaseEntry(rec.value.getBytes))
+			db.handle.put(null, key, new DatabaseEntry(rec.value.getBytes))
 
 		true
 	}
@@ -62,7 +71,7 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 		}
 
 		/* Get the current value */
-		db.get(txn, dbeKey, dbeEv, LockMode.READ_COMMITTED)
+		db.handle.get(txn, dbeKey, dbeEv, LockMode.READ_COMMITTED)
 
 		/* Throw exception if expected value doesnt match present value */
 		if((dbeEv.getData == null && existingValue.getValue != null) ||
@@ -76,9 +85,9 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 		/* Otherwise perform the put and commit */
 		val dbeValue = new DatabaseEntry(rec.value.getBytes)
 		if(rec.value == null)
-			db.delete(txn, dbeKey)
+			db.handle.delete(txn, dbeKey)
 		else
-			db.put(txn, dbeKey, dbeValue)
+			db.handle.put(txn, dbeKey, dbeValue)
 		txn.commit
 		true
 	}
@@ -114,7 +123,7 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
             val txn = env.beginTransaction(null, null)
             val iter = records.iterator
             while (iter.hasNext) {
-                db.delete(txn, new DatabaseEntry(iter.next.key.getBytes))
+                db.handle.delete(txn, new DatabaseEntry(iter.next.key.getBytes))
             }
             txn.commit
             true
@@ -122,29 +131,52 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 	}
 
 	def set_responsibility_policy(ns : String, policy: java.util.List[RecordSet]): Boolean = {
-		true
+		val rangedPolicy = new RangedPolicy(Conversions.convertList(policy).map(p => {
+			(p.getRange_set.getStart_key, p.getRange_set.getEnd_key)
+		}))
+
+		respPolicyDb.put(null, new DatabaseEntry(ns.getBytes), new DatabaseEntry(rangedPolicy.getBytes))
+		dbCache.delete(ns)
+
+ 		true
 	}
 
 	def sync_set(ns: String, rs: RecordSet, h: String, policy: ConflictPolicy): Boolean = {
 		true
 	}
 
-	private def getDatabase(name: String): Database = {
+	private def openDatabase(name: String): Database = {
+		val dbConfig = new DatabaseConfig()
+		dbConfig.setAllowCreate(true)
+		dbConfig.setTransactional(true)
+
+		if(System.getProperty("deferred.write") != null)
+			dbConfig.setDeferredWrite(true)
+
+		logger.info("Opening database " + name + ", config: " + dbConfig)
+
+		env.openDatabase(null, name, dbConfig)
+	}
+
+	protected def getDatabase(name: String): CachedDb = {
 		dbCache.get(name) match {
 			case Some(db) => db
 			case None => {
-				val dbConfig = new DatabaseConfig()
-				dbConfig.setAllowCreate(true)
-				dbConfig.setTransactional(true)
+				val db = openDatabase(name)
 
-				if(System.getProperty("deferred.write") != null)
-					dbConfig.setDeferredWrite(true)
+				val dbeDbName = new DatabaseEntry(name.getBytes())
+				val dbeRespPolicy = new DatabaseEntry()
 
-				logger.info("Opening database " + name + ", config: " + dbConfig)
+				val policy = if(respPolicyDb.get(null, dbeDbName, dbeRespPolicy, LockMode.READ_COMMITTED) == OperationStatus.SUCCESS) {
+					RangedPolicy(dbeRespPolicy.getData())
+				}
+				else {
+					new RangedPolicy(Array[(String, String)]((null, null)))
+				}
 
-				val db = env.openDatabase(null, name, dbConfig)
-				dbCache.put(name,db)
-				db
+				val cacheEntry = new CachedDb(db, policy)
+				dbCache.put(name,cacheEntry)
+				cacheEntry
 			}
 		}
 	}
@@ -154,7 +186,7 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 		val range = rs.getRange
 		val dbeKey = new DatabaseEntry()
 		val dbeValue = new DatabaseEntry()
-		val cur = getDatabase(ns).openCursor(null, null)
+		val cur = getDatabase(ns).handle.openCursor(null, null)
 		val total = if(rs.getRange.isSetOffset) rs.getRange.getOffset + rs.getRange.getLimit else rs.getRange.getLimit
 		var status: OperationStatus = null
 		var count = 0
