@@ -6,7 +6,7 @@ import org.apache.commons.cli.Options
 import org.apache.commons.cli.GnuParser
 import org.apache.commons.cli.CommandLine
 import org.apache.commons.cli.HelpFormatter
-import org.apache.log4j.Logger
+import org.apache.log4j.{BasicConfigurator, Logger}
 
 import java.lang.management.ManagementFactory
 import javax.management.ObjectName
@@ -21,6 +21,8 @@ import org.apache.thrift.server.THsHaServer
 import org.apache.thrift.transport.TNonblockingServerSocket
 import org.apache.thrift.protocol.{TBinaryProtocol, XtBinaryProtocol}
 
+import java.net.InetAddress
+
 import sun.misc.Signal
 import sun.misc.SignalHandler
 
@@ -33,6 +35,8 @@ object JavaEngine {
 		options.addOption("c", "cache", true, "set bdb's cache size (as a percentage of total JVM memory)")
 		options.addOption("p", "port",  true, "the port to run the thrift server on");
 		options.addOption("d", "dbdir",  true, "directory to to store the database environment in");
+		options.addOption("z", "zookeeper", true, "configure the storage engine to register itself with a zookeeper")
+		options.addOption("v", "verbose", false, "Enables debug logging to console")
 		options.addOption("h", "help",  false, "print usage information");
 
 		val parser = new GnuParser();
@@ -42,6 +46,10 @@ object JavaEngine {
 			val formatter = new HelpFormatter()
 			formatter.printHelp("JavaEngine", options)
 			System.exit(1)
+		}
+
+		if(cmd.hasOption("verbose")) {
+			BasicConfigurator.configure()
 		}
 
 		val dbDir = cmd.hasOption("dbdir") match {
@@ -88,7 +96,16 @@ object JavaEngine {
 		val mBean = new JEMonitor(dbDir.toString)
 		mbs.registerMBean(mBean, new ObjectName("com.sleepycat:type=JE"))
 
-		val processor = new StorageEngine.Processor(new StorageProcessor(env))
+		val processor = if(cmd.hasOption("zookeeper"))
+		{
+			val hostid = InetAddress.getLocalHost().getHostName() + ":" + port
+			new StorageEngine.Processor(new ZooKeptStorageProcessor(env, hostid, cmd.getOptionValue("zookeeper")))
+		}
+		else {
+			new StorageEngine.Processor(new StorageProcessor(env))
+		}
+
+
 		val transport = new TNonblockingServerSocket(port)
 		val protFactory = new TBinaryProtocol.Factory(true, true)
 		val serverOpt = new THsHaServer.Options
