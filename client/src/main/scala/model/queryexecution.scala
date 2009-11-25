@@ -3,6 +3,9 @@ package edu.berkeley.cs.scads.model
 import scala.collection.mutable.HashMap
 import org.apache.log4j.Logger
 
+import edu.berkeley.cs.scads.thrift.StorageNode
+import edu.berkeley.cs.scads.storage.RangedPolicy
+
 abstract sealed class JoinCondition
 case class AttributeCondition(attrName: String) extends JoinCondition
 case class FieldLiteralCondition(fieldValue: Field) extends JoinCondition
@@ -99,6 +102,14 @@ abstract trait QueryExecutor {
 		case i: IntegerField => i.value
 		case _ => throw new IllegalArgumentException("Only integerFields are accepted as limit parameters")
 	}
+
+  def configureStorageEngine(n: StorageNode): Unit = {
+    n.useConnection(c => {
+      nsKeys.keys.foreach(ns => {
+        c.set_responsibility_policy(ns, RangedPolicy.convert(List((null, null))))
+      })
+    })
+  }
 }
 
 /* Query Plan Nodes */
