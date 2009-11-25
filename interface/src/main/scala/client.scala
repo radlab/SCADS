@@ -47,4 +47,4 @@ class ThriftClient[ClientType](host: String, port: Int, cpm: ConnectionPoolManag
 }
 
 object StorageNodePool extends ConnectionPoolManager[StorageEngine.Client]
-class StorageNode(host: String, port: Int) extends ThriftClient(host, port, StorageNodePool)
+case class StorageNode(host: String, port: Int) extends ThriftClient(host, port, StorageNodePool)
