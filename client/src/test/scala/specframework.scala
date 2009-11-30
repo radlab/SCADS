@@ -490,6 +490,9 @@ abstract class ScadsLangSpec extends SpecificationWithJUnit("SCADS Lang Specific
                         val outputClass = (query \ "outputs" \ "@class").text
                         val queryOutputs = query \\ "output"
 
+                        llogger.debug("Expected: " + queryOutputs)
+                        llogger.debug("Actual  : " + retVal)
+
                         retVal.size must_== queryOutputs.size
 
                         //val queryOutputPKs: Seq[String] = queryOutputs.map( (node) => {

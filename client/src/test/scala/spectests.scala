@@ -42,7 +42,7 @@ object ScadbookLangSpec extends ScadsLangSpec {
             "myNetworks",
             "postsOnMyWall",
             "myPostsOnOtherWalls",
-            "myPostsOnUserWall",
+            //"myPostsOnUserWall", /* Don't think this query is possible */
             "myFriends",
             "pendingFriendRequests",
             "myGroups",

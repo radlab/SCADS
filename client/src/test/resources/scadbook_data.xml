@@ -398,7 +398,7 @@
     <entity class="friendship">
         <attributes>
             <attribute name="id" type="int">4</attribute>
-            <attribute name="approved" type="bool">true</attribute>
+            <attribute name="approved" type="bool">false</attribute>
         </attributes>
         <foreign-keys>
             <foreign-key relationship="friendships" primarykey="3" />

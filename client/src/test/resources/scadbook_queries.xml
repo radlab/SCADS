@@ -21,9 +21,12 @@
         <inputs/>
         <outputs class="wallpost" inorder="true">
             <output primarykey="6"/>
+            <output primarykey="14"/>
         </outputs>
     </query>
 
+    <!--
+    This query has been removed for now
     <query name="myPostsOnUserWall" class="user" primarykey="4">
         <inputs>
             <input type="int">2</input>
@@ -33,6 +36,7 @@
             <output primarykey="13"/>
         </outputs>
     </query>
+    -->
 
     <query name="myFriends" class="user" primarykey="1">
         <inputs/>
@@ -46,7 +50,7 @@
     <query name="pendingFriendRequests" class="user" primarykey="1">
         <inputs/>
         <outputs class="user">
-            <output primarykey="4"/>
+            <output primarykey="3"/>
         </outputs>
     </query>
 
@@ -58,7 +62,7 @@
         </outputs>
     </query>
 
-    <query name="groupWall" class="user" primarykey="1">
+    <query name="groupWall" class="group" primarykey="1">
         <inputs/>
         <outputs class="wallpost" inorder="true">
             <output primarykey="14"/>
