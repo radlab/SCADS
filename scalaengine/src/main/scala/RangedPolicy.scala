@@ -23,6 +23,7 @@ object RangedPolicy {
 		})
 	}
 
+	def convert(policy: (String, String)): java.util.List[RecordSet] = convert(List(policy))
 	def convert(policy: List[(String, String)]): java.util.List[RecordSet] = {
 		val ret = new java.util.LinkedList[RecordSet]
 		policy.foreach(p => {
