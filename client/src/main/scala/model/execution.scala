@@ -127,3 +127,9 @@ class Environment {
 	var executor: Executor = null
 	var session: Session = null
 }
+
+object DefaultEnvironment extends Environment {
+  placement = new ZooKeptCluster("r12:2181")
+  session = new TrivialSession
+  executor = new TrivialExecutor()(this)
+}
