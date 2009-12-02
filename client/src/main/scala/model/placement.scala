@@ -1,7 +1,6 @@
 package edu.berkeley.cs.scads.model
 
-import edu.berkeley.cs.scads.thrift.StorageNode
-import edu.berkeley.cs.scads.storage.RangedPolicy
+import edu.berkeley.cs.scads.thrift.{RangedPolicy, StorageNode}
 import edu.berkeley.cs.scads.storage.TestableScalaStorageEngine
 import org.apache.zookeeper.{ZooKeeper, Watcher, WatchedEvent, CreateMode}
 import org.apache.zookeeper.data.Stat

@@ -3,8 +3,7 @@ package edu.berkeley.cs.scads.model
 import scala.collection.mutable.HashMap
 import org.apache.log4j.Logger
 
-import edu.berkeley.cs.scads.thrift.StorageNode
-import edu.berkeley.cs.scads.storage.RangedPolicy
+import edu.berkeley.cs.scads.thrift.{RangedPolicy, StorageNode}
 
 abstract sealed class JoinCondition
 case class AttributeCondition(attrName: String) extends JoinCondition

@@ -1,4 +1,4 @@
-package edu.berkeley.cs.scads.storage
+package edu.berkeley.cs.scads.thrift
 
 import scala.collection.jcl.Conversions
 
