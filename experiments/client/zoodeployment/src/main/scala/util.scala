@@ -5,10 +5,7 @@ import deploylib._
 import org.apache.log4j.Logger
 
 import edu.berkeley.cs.scads.thrift._
-import edu.berkeley.cs.scads.model._
-import edu.berkeley.cs.scads.placement._
 import edu.berkeley.cs.scads.keys.{MinKey,MaxKey,Key,KeyRange,StringKey}
-import edu.berkeley.cs.scads.nodes._
 
 case class BlockingTriesExceededException(e:String) extends Exception(e)
 
@@ -64,3 +61,8 @@ object ScadsDeployUtil {
     }
 
 }
+
+object ListConversions {
+        def scala2JavaList[T](l:List[T]) = java.util.Arrays.asList(l.toArray: _*)
+}
+

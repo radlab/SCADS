@@ -60,5 +60,10 @@ class ZooKeptCluster(servers: String) extends ClusterPlacement with Watcher {
 
   def process(event: WatchedEvent): Unit = {
 		logger.info(event)
+        val path = event.getPath
+        if(path != null && path.startsWith("/scads/namespaces/")) {
+            logger.info("Clearing cache b/c event path is: " + path)
+            namespaceCache.clear
+        }
 	}
 }

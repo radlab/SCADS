@@ -13,6 +13,11 @@
 	</parent>
 	<dependencies>
 		<dependency>
+			<groupId>org.apache.hadoop.zookeeper</groupId>
+			<artifactId>zookeeper</artifactId>
+			<version>3.2.1</version>
+		</dependency>
+		<dependency>
 			<groupId>edu.berkeley.cs.scads</groupId>
 			<artifactId>scadrclient</artifactId>
 			<version>1.0-SNAPSHOT</version>
@@ -32,11 +37,13 @@
             <artifactId>storage</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
+        <!--
         <dependency>
             <groupId>edu.berkeley.cs.scads</groupId>
             <artifactId>placement</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
+        -->
         <dependency>
             <groupId>edu.berkeley.cs.scads</groupId>
             <artifactId>thrift-interface</artifactId>
@@ -49,6 +56,7 @@
                 <groupId>org.scala-tools</groupId>
                 <artifactId>maven-scala-plugin</artifactId>
                 <configuration>
+                    <displayCmd>true</displayCmd>
                     <launchers>
                         <launcher>
                         <id>clienttest</id>
