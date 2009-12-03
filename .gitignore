@@ -10,3 +10,4 @@ target/
 *.ipr
 *.iws
 *.swp
+client/src/test/resources/test-classpath.properties
