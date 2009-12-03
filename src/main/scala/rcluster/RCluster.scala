@@ -5,6 +5,8 @@ import deploylib.runit._
 
 import java.io.File
 import scala.util.matching.Regex
+import ch.ethz.ssh2.{Connection, Session, ChannelCondition, SCPClient}
+
 
 /**
  * Convienence methods for working with the RCluster
@@ -52,6 +54,31 @@ class RClusterNode(num: Int) extends RemoteMachine with RunitManager {
 				}
 			}
 			case e: ExecuteResponse => logger.fatal("Unexpected execution result while checking for runsvdir: " + e)
+		}
+	}
+
+	override def upload(localFile: File, remoteDirectory: File): Unit = {
+		val cacheFile = new File("/work/marmbrus/cache", localFile.getName)
+		val remoteFile = new File(remoteDirectory, localFile.getName)
+		val md5Cache = Util.md5(localFile)
+
+		if(md5Cache == md5(cacheFile))
+			logger.debug("Not uploading " + localFile + " as the hashes match")
+		else
+			useConnection((c) => {
+				val scp = new SCPClient(c)
+        logger.info("Hashes don't match, uploading " + localFile + " to " + remoteDirectory)
+				scp.put(localFile.toString, "/work/marmbrus/cache")
+        logger.debug("Upload of " + localFile + " complete")
+			})
+
+		if(md5Cache == md5(remoteFile))
+			logger.debug("Not copying " + localFile + " from cache as it matches")
+		else {
+			executeCommand("cp " + cacheFile + " " + remoteFile) match {
+				case ExecuteResponse(Some(0), _, _) => logger.debug("Success")
+				case _ => logger.warn("Copy error")
+			}
 		}
 	}
 }
