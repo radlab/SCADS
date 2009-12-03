@@ -2,29 +2,33 @@ import scaletest._
 import deploylib.rcluster._
 import edu.berkeley.cs.scads.thrift._
 
-val nodes = List(r6,r8,r10,r11)
-val testSize = 1000
+object Exp {
+	val nodes = List(r6,r8,r10,r11,r12)
+	val testSize = 1000
+	val partitions = IntTestDeployment.createPartitions(testSize, nodes)
 
-nodes.foreach(_.cleanServices)
+	nodes.foreach(_.clearAll)
+	nodes.foreach(_.executeCommand("killall java"))
+	nodes.foreach(_.setupRunit)
 
-val serverConf = new ScadsEngine(9876, "r12:2181")
-nodes.foreach(n => serverConf.action(n))
+	val zooNode = nodes(0)
+	val zooService = ScadsDeployment.deployZooKeeperServer(zooNode)
+	zooService.watchLog
+	zooService.start
+	zooService.blockTillUpFor(5)
 
-val storageServices = nodes.flatMap(_.services).filter(_.name == "edu.berkeley.cs.scads.storage.JavaEngine")
-storageServices.foreach(_.watchLog)
-storageServices.foreach(_.start)
+	val storageServices = nodes.map(ScadsDeployment.deployStorageEngine(_, zooNode))
+	storageServices.foreach(_.watchLog)
+	storageServices.foreach(_.start)
+	storageServices.foreach(_.blockTillUpFor(5))
 
-Thread.sleep(10000)//FIXME
+	val loadServices = partitions.map(p => {
+		val n = StorageNode(p.node.hostname, ScadsDeployment.storageEnginePort)
+		n.useConnection(_.set_responsibility_policy("intKeys", RangedPolicy.convert((p.start, p.end))))
 
-(0 to testSize by (testSize/nodes.size)).toList.zip(nodes).reduceLeft((s,e) => {
-  val loaderConf = new IntKeyLoader(s._1,e._1)
-  val node = new StorageNode(s._2.hostname, 9876)
-  node.useConnection(_.set_responsibility_policy("intKeys", RangedPolicy.convert(("%010d".format(s._1),"%010d".format(e._1))))) 
+		IntTestDeployment.deployIntKeyLoader(p.node, p.start, p.end, zooNode.hostname + ":" + ScadsDeployment.zookeeperPort)
+	})
 
-  loaderConf.action(s._2)
-  e
-})
+	loadServices.foreach(_.once)
 
-val loadingServices = nodes.flatMap(_.services).filter(_.name == "scaletest.LoadIntKeys")
-loadingServices.foreach(_.watchLog) 
-loadingServices.foreach(_.once)
+}
