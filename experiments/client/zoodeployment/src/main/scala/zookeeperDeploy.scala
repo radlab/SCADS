@@ -199,8 +199,21 @@ class ClusterDeploy(val zookeeperHost:String, val zookeeperPort:Int, val numRepl
                         }
 
                         val thisRsetList = Conversions.convertList(smachine1.useConnection((c) => c.get_responsibility_policy(ns))).toList
+                        logger.debug("smachine1 has current RecordSet: " + thisRsetList)
                         val thisRset = thisRsetList.size match {
-                            case 0 => ScadsDeployUtil.getAllRangeRecordSet()
+                            case 0 => {
+                                if ( i == 0 ) ScadsDeployUtil.getAllRangeRecordSet()
+                                else {
+                                    val prevNodeRsetList = Conversions.convertList(logicalBuckets(i-1)(j).useConnection((c) => c.get_responsibility_policy(ns))).toList
+                                    if ( prevNodeRsetList.size != 1 ) 
+                                        throw new RebalanceInvariantViolationException("Prev bucket node should already be rebalanced")
+                                    val prevNodeRset = prevNodeRsetList(0)
+                                    val rtn = ScadsDeployUtil.getAllRangeRecordSet()
+                                    logger.debug("prevNodeRset end key: " + prevNodeRset.range.getEnd_key())
+                                    rtn.range.setStart_key(prevNodeRset.range.getEnd_key())
+                                    rtn
+                                }
+                            }
                             case 1 => thisRsetList(0)
                             case _ => throw new IllegalStateException("Should not have a node with > 1 policy")
                         }
@@ -212,6 +225,7 @@ class ClusterDeploy(val zookeeperHost:String, val zookeeperPort:Int, val numRepl
                             thisRset.range.setEnd_key(null)
                         }
 
+                        logger.debug("setting smachine1 with RecordSet: " + thisRset)
                         smachine1.useConnection((c) => c.set_responsibility_policy(ns,ListConversions.scala2JavaList(List(thisRset))))
                     }
                 }
