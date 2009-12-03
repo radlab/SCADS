@@ -105,19 +105,19 @@ abstract class RemoteMachine {
 					}
 				}
 				if((status & ChannelCondition.EXIT_STATUS) != 0) {
-					//logger.debug("Received EXIT_STATUS")
+					logger.debug("Received EXIT_STATUS")
 					exitStatus = session.getExitStatus()
 					continue = false
 				}
 				if((status & ChannelCondition.EXIT_SIGNAL) != 0) {
-					//logger.debug("Received EXIT_SIGNAL: " + session.getExitSignal())
+					logger.debug("Received EXIT_SIGNAL: " + session.getExitSignal())
 					continue = false
 				}
 				if((status & ChannelCondition.EOF) != 0) {
-					//logger.debug("Received EOF")
+					logger.debug("Received EOF")
 				}
 				if((status & ChannelCondition.CLOSED) != 0) {
-					//logger.debug("Received CLOSED")
+					logger.debug("Received CLOSED")
 				}
 			}
 			session.close()
