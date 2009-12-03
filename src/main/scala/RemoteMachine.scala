@@ -226,7 +226,7 @@ abstract class RemoteMachine {
 		})
 	}
 
-    def isPortAvailableToListen(port: Int): Boolean = {
+  def isPortAvailableToListen(port: Int): Boolean = {
         executeCommand("netstat -aln | grep -v unix | grep LISTEN | egrep '\\b" + port + "\\b'") match {
 			case ExecuteResponse(Some(_), result, "") => {
                 result.trim.isEmpty
@@ -238,12 +238,5 @@ abstract class RemoteMachine {
         }
     }
 
-  def cleanServices: Unit = {
-    executeCommand("rm -r " + serviceRoot + "/*") match {
-      case ExecuteResponse(Some(0), "", "") => null
-      case ExecuteResponse(Some(1), "", "rm: No match.\n") => null
-      case e: ExecuteResponse => logger.fatal("Unexpected response while cleaningServices: " + e)
-    }
-  }
 	override def toString(): String = "<RemoteMachine " + username + "@" + hostname + ">"
 }
