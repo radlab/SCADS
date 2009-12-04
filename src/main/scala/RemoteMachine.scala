@@ -75,7 +75,7 @@ abstract class RemoteMachine {
 			session.execCommand(cmd)
 
 			var continue = true
-			var exitStatus:Integer = null
+			var exitStatus:java.lang.Integer = null
 			while(continue) {
 				val status = session.waitForCondition(ChannelCondition.STDOUT_DATA |
 																							ChannelCondition.STDERR_DATA |
