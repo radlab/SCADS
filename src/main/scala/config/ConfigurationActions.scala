@@ -4,7 +4,11 @@ import java.io.File
 
 import deploylib.runit._
 
+import org.apache.log4j.Logger
+
 trait ConfigurationActions {
+	val logger = Logger.getLogger("deploylib.config")
+
 	def createDirectory(target: RemoteMachine, directory: File): File = {
 		target.executeCommand("mkdir -p " + directory)
 		return directory
