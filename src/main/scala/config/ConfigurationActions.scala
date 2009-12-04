@@ -32,6 +32,10 @@ trait ConfigurationActions {
 		val downFile = createFile(target, new File(baseDirectory, "down"), " ", "644")
 		val runFile = createFile(target, new File(baseDirectory, "run"), "#!/bin/sh\nexec 2>&1\nexec " + runCommand, "755")
 		val logFile = createFile(target, new File(logDirectory, "run"), logCommand, "755")
+		val finishFile = createFile(target, new File(baseDirectory, "finish"), "#!/bin/sh\necho FAILURE: " + name + " $@ >> failures", "755")
+
+		logger.debug("Waiting for runsvdir to notice " + name)
+		target.blockTillFileCreated(new File(baseDirectory, "supervise/stat"))
 
 		new RunitService(target, name)
 	}
