@@ -4,8 +4,29 @@ import java.io.File
 import java.security.MessageDigest
 import java.math.BigInteger
 import java.io.FileInputStream
+import org.apache.log4j.Logger
 
 object Util {
+	val logger = Logger.getLogger("deploylib.util")
+
+	def retry[ReturnType](tries: Int)(func: () => ReturnType):ReturnType = {
+		var usedTries = 0
+		var lastException: Exception = null
+
+		while(usedTries < tries) {
+			usedTries += 1
+			try {
+				return func()
+			}
+			catch {
+				case t: org.apache.thrift.transport.TTransportException => {
+					lastException = t
+					logger.warn("Retrying due to thrift failure " + t + ": " + usedTries + " of " + tries)
+				}
+			}
+		}
+		throw lastException
+	}
 
 	def username: String = {
 		if(System.getenv("DEPLOY_USER") != null)
