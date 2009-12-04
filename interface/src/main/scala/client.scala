@@ -33,11 +33,15 @@ class ConnectionPoolManager[ClientType](implicit manifest : scala.reflect.Manife
 }
 
 class ThriftClient[ClientType](host: String, port: Int, cpm: ConnectionPoolManager[ClientType]) {
+	val logger = Logger.getLogger("scads.thriftclient")
 	val pool = cpm.getPool(host, port)
 
 	def useConnection[ReturnType](func: ClientType => ReturnType): ReturnType = {
 		val conn = pool.poll() match {
-			case null => cpm.newClient(host, port)
+			case null => {
+				logger.info("Pool empty, opening new connection to " + host + ":" + port)
+				cpm.newClient(host, port)
+			}
 			case c => c
 		}
 		val result = func(conn)
