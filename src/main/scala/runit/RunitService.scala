@@ -60,4 +60,5 @@ case class RunitService(manager: RunitManager, name: String) {
 
 	def tailLog: String = manager.tail(logFile)
 	def watchLog: Unit = manager.watch(logFile)
+	def watchFailures: Unit = manager.watch(failureFile)
 }
