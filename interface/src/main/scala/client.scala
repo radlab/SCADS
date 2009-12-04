@@ -36,6 +36,8 @@ class ThriftClient[ClientType](host: String, port: Int, cpm: ConnectionPoolManag
 	val logger = Logger.getLogger("scads.thriftclient")
 	val pool = cpm.getPool(host, port)
 
+	def getConnection: ClientType = cpm.newClient(host, port)
+
 	def useConnection[ReturnType](func: ClientType => ReturnType): ReturnType = {
 		val conn = pool.poll() match {
 			case null => {
