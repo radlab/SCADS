@@ -226,6 +226,29 @@ abstract class RemoteMachine {
 		})
 	}
 
+	def blockTillFileCreated(file: File): Boolean = {
+		useConnection((c) => {
+			val session = connection.openSession
+			session.execCommand("tail -F " + file)
+
+			logger.debug("Blocking till " + file + "exists")
+
+			val status = session.waitForCondition(ChannelCondition.STDOUT_DATA |
+																						ChannelCondition.EXIT_STATUS |
+																						ChannelCondition.EXIT_SIGNAL |
+																						ChannelCondition.EOF |
+																						ChannelCondition.CLOSED, 0)
+			(status & ChannelCondition.STDOUT_DATA) != 0
+		})
+	}
+
+	def blockTillPortOpen(port: Int): Unit = {
+		while(!isPortAvailableToListen(port)) {
+			logger.info("waiting for port " + port + " on " + hostname)
+			Thread.sleep(5000)
+		}
+	}
+
   def isPortAvailableToListen(port: Int): Boolean = {
         executeCommand("netstat -aln | grep -v unix | grep LISTEN | egrep '\\b" + port + "\\b'") match {
 			case ExecuteResponse(Some(_), result, "") => {
