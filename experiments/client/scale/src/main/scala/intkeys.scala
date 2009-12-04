@@ -11,48 +11,91 @@ import deploylib.runit._
 
 import java.io.File
 
-case class Partition(node: RunitManager, start: String, end: String)
+case class Partition(start: String, end: String)
 
 object IntTestDeployment extends ConfigurationActions {
-	def deployIntKeyLoader(target: RunitManager, start: String, end: String, server: String): RunitService = {
+	def deployIntKeyLoader(target: RunitManager, name: String, start: String, end: String, server: String): RunitService = {
 		createJavaService(target, new File("target/scale-1.0-SNAPSHOT-jar-with-dependencies.jar"),
-  		"scaletest.LoadIntKeys",
+  		"scaletest." + name,
   		"" + start + " " + end + " " + server)
 	}
 
-	def createPartitions(numKeys: Int, nodes: List[RunitManager]):List[Partition] = {
+	def createPartitions(numKeys: Int, numPartitions: Int):List[Partition] = {
 		val partitions = new scala.collection.mutable.ArrayStack[Partition]()
 
-		val last = (1 to numKeys by (numKeys/nodes.size)).toList.zip(nodes).reduceLeft((s,e) => {
-			partitions.push(new Partition(s._2, "%010d".format(s._1), "%010d".format(e._1)))
+		val last = (1 to numKeys by (numKeys/numPartitions)).toList.reduceLeft((s,e) => {
+			partitions.push(new Partition("%010d".format(s), "%010d".format(e)))
 			e
 		})
-		partitions.push(new Partition(last._2, "%010d".format(last._1), "%010d".format(numKeys + 1)))
+		partitions.push(new Partition("%010d".format(last), "%010d".format(numKeys + 1)))
 
 		return partitions.toList.reverse
 	}
 }
 
-object LoadIntKeys {
-  val logger = Logger.getLogger("scads.intKeys.load")
+class NoNodeResponsibleException extends Exception
+
+abstract class IntKeyTest {
+	val logger = Logger.getLogger("scads.intKeyTest")
+
+	def makeKey(key: Int) = "%010d".format(key)
+	def makeRecord(key: Int) = new Record(makeKey(key), "value" + key)
+}
+
+abstract class KeyRangeTest extends IntKeyTest {
+	implicit val env = new Environment
 
   def main(args: Array[String]): Unit = {
-		implicit val env = new Environment
   	env.placement = new ZooKeptCluster(args(2))
   	env.session = new TrivialSession
   	env.executor = new TrivialExecutor
 
-
     val startKey = args(0).toInt
     val endKey = args(1).toInt
 
-    logger.info("Loading keys: " + startKey + " to " + endKey)
+    logger.info("Running test " + this.getClass.getName + " on keys " + startKey + " to " + endKey)
 
-    (startKey to endKey).foreach(k => {
-      val key = "%010d".format(k)
-      val rec = new Record(key, "value" + k)
+		val startTime = System.currentTimeMillis()
+		run(startKey, endKey)
+		val endTime = System.currentTimeMillis()
+		logger.info("Loaded " + (endKey - startKey) + " keys in " + (endTime - startTime))
+	}
 
-      env.placement.locate("intKeys", key).foreach(_.useConnection(_.put("intKeys", rec)))
+	def run(startKey: Int, endKey: Int): Unit
+}
+
+object SingleConnectionPoolLoader extends KeyRangeTest {
+	def run(startKey: Int, endKey: Int): Unit = {
+    (startKey to (endKey - 1)).foreach(k => {
+			if(k % 1000 == 0)
+				logger.info("Adding key " + k)
+
+      val nodes = env.placement.locate("intKeys", makeKey(k))
+			if(nodes.size == 0)
+				throw new NoNodeResponsibleException
+
+			nodes.foreach(_.useConnection(_.async_put("intKeys", makeRecord(k))))
     })
   }
+}
+
+object SingleConnectionLoader extends KeyRangeTest {
+	def run(startKey: Int, endKey: Int): Unit = {
+    val nodes = env.placement.locate("intKeys", makeKey(startKey))
+		if(nodes.size == 0)
+				throw new NoNodeResponsibleException
+
+		if(nodes.size > 1)
+			logger.warn("Not designed for replicated envs")
+		var conn = nodes(0).getConnection
+		logger.info("Using connection: " + conn)
+
+    (startKey to (endKey - 1)).foreach(k => {
+			if(k % 1000 == 0)
+				logger.info("Adding key " + k)
+
+			conn.put("intKeys", makeRecord(k))
+    })
+  }
+
 }
