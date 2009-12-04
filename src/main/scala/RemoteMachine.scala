@@ -243,8 +243,18 @@ abstract class RemoteMachine {
 	}
 
 	def blockTillPortOpen(port: Int): Unit = {
-		while(!isPortAvailableToListen(port)) {
-			logger.info("waiting for port " + port + " on " + hostname)
+  	var connected = false
+
+		while(!connected) {
+			try {
+				val s = new java.net.Socket(hostname, port)
+				connected = true
+			}
+			catch {
+				case ce: java.net.ConnectException => {
+					logger.info("Connection to " + hostname + ":" + port + " failed, waiting 5 seconds")
+				}
+			}
 			Thread.sleep(5000)
 		}
 	}
