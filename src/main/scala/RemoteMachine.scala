@@ -53,7 +53,7 @@ abstract class RemoteMachine {
 			connection = new Connection(hostname)
             logger.info("Connecting to " + hostname)
 			connection.connect()
-            logger.info("Connecting with username " + username + " privateKey " + privateKey)
+            logger.info("Authenticating with username " + username + " privateKey " + privateKey)
 			connection.authenticateWithPublicKey(username, privateKey, "")
 		}
 		func(connection)
