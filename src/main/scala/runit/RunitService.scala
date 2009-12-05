@@ -58,6 +58,13 @@ case class RunitService(manager: RunitManager, name: String) {
 		}
 	}
 
+  def blockTillDown: Unit = {
+    while(!status.status.equals("down")) {
+      logger.info(name + " still running on " + manager.hostname + ", sleeping for 10 seconds")
+      Thread.sleep(10000)
+    }
+  }
+
 	def tailLog: String = manager.tail(logFile)
 	def watchLog: Unit = manager.watch(logFile)
 	def watchFailures: Unit = manager.watch(failureFile)
