@@ -61,6 +61,11 @@
 			<artifactId>libthrift</artifactId>
 			<version>0.2-xtrace-SNAPSHOT</version>
 		</dependency>
+		<dependency>
+			<groupId>org.exist-db</groupId>
+			<artifactId>exist-db</artifactId>
+			<version>1.4.0</version>
+		</dependency>
 	</dependencies>
 	<build>
 	<plugins>
