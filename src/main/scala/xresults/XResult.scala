@@ -16,11 +16,17 @@ object XResult {
 
   def experimentId(): String = System.getProperty("experimentId")
 
-  def startExperiment():Unit = {
+  def startExperiment(description: String):Unit = {
     if(experimentId != null)
       logger.warn("Experiment: " + experimentId + " is already running.  Starting a new one anyway.")
     System.setProperty("experimentId", System.getProperty("user.name") + System.currentTimeMillis())
     logger.info("Begining experiment: " + experimentId)
+    storeXml(
+      <experiment>
+        <user>System.getProperty("user.name")</user>
+        {timestamp}
+        <description>{description}</description>
+      </experiment>)
   }
 
   def storeXml(elem: Elem):Unit = {
