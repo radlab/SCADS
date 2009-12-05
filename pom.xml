@@ -68,14 +68,14 @@
 		</dependency>
 	</dependencies>
 	<build>
-	<plugins>
-		<plugin>
-			<groupId>org.scala-tools</groupId>
-			<artifactId>maven-scala-plugin</artifactId>
-			<configuration>
-				<mainConsole>deploylib.DeployConsole</mainConsole>
-			</configuration>
-		</plugin>
-	</plugins>
-</build>
+		<plugins>
+			<plugin>
+				<groupId>org.scala-tools</groupId>
+				<artifactId>maven-scala-plugin</artifactId>
+				<configuration>
+					<mainConsole>deploylib.DeployConsole</mainConsole>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 </project>
