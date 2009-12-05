@@ -52,25 +52,30 @@
 			<version>3.0.1</version>
 		</dependency>
 		<dependency>
-			<groupId>com.twitter</groupId>
-			<artifactId>scala-json</artifactId>
-			<version>1.0</version>
-		</dependency>
-		<dependency>
 			<groupId>log4j</groupId>
 			<artifactId>log4j</artifactId>
 			<version>1.2.12</version>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.thrift</groupId>
+			<artifactId>libthrift</artifactId>
+			<version>0.2-xtrace-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>org.exist-db</groupId>
+			<artifactId>exist-db</artifactId>
+			<version>1.4.0</version>
+		</dependency>
 	</dependencies>
 	<build>
-	<plugins>
-		<plugin>
-			<groupId>org.scala-tools</groupId>
-			<artifactId>maven-scala-plugin</artifactId>
-			<configuration>
-				<mainConsole>deploylib.DeployConsole</mainConsole>
-			</configuration>
-		</plugin>
-	</plugins>
-</build>
+		<plugins>
+			<plugin>
+				<groupId>org.scala-tools</groupId>
+				<artifactId>maven-scala-plugin</artifactId>
+				<configuration>
+					<mainConsole>deploylib.DeployConsole</mainConsole>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 </project>

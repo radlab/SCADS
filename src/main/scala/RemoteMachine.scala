@@ -53,10 +53,23 @@ abstract class RemoteMachine {
 			connection = new Connection(hostname)
             logger.info("Connecting to " + hostname)
 			connection.connect()
-            logger.info("Connecting with username " + username + " privateKey " + privateKey)
+            logger.info("Authenticating with username " + username + " privateKey " + privateKey)
 			connection.authenticateWithPublicKey(username, privateKey, "")
 		}
+		try {
 		func(connection)
+		}
+		catch {
+			case e: java.net.SocketException => {
+				logger.warn("connection to " + hostname + " failed")
+				connection = new Connection(hostname)
+				logger.info("Connecting to " + hostname)
+				connection.connect()
+				logger.info("Authenticating with username " + username + " privateKey " + privateKey)
+				connection.authenticateWithPublicKey(username, privateKey, "")
+				func(connection)
+			}
+		}
 	}
 
 	/**
@@ -75,7 +88,7 @@ abstract class RemoteMachine {
 			session.execCommand(cmd)
 
 			var continue = true
-			var exitStatus:Integer = null
+			var exitStatus:java.lang.Integer = null
 			while(continue) {
 				val status = session.waitForCondition(ChannelCondition.STDOUT_DATA |
 																							ChannelCondition.STDERR_DATA |
@@ -105,19 +118,19 @@ abstract class RemoteMachine {
 					}
 				}
 				if((status & ChannelCondition.EXIT_STATUS) != 0) {
-					//logger.debug("Received EXIT_STATUS")
+					logger.debug("Received EXIT_STATUS")
 					exitStatus = session.getExitStatus()
 					continue = false
 				}
 				if((status & ChannelCondition.EXIT_SIGNAL) != 0) {
-					//logger.debug("Received EXIT_SIGNAL: " + session.getExitSignal())
+					logger.debug("Received EXIT_SIGNAL: " + session.getExitSignal())
 					continue = false
 				}
 				if((status & ChannelCondition.EOF) != 0) {
-					//logger.debug("Received EOF")
+					logger.debug("Received EOF")
 				}
 				if((status & ChannelCondition.CLOSED) != 0) {
-					//logger.debug("Received CLOSED")
+					logger.debug("Received CLOSED")
 				}
 			}
 			session.close()
@@ -209,7 +222,7 @@ abstract class RemoteMachine {
 			val session = connection.openSession
 			val outReader = new BufferedReader(new InputStreamReader(session.getStdout()))
 
-			session.execCommand("tail -f " + remoteFile)
+			session.execCommand("tail -F " + remoteFile)
 
 			val thread = new Thread("FileWatcher-" + hostname) {
 				override def run() = {
@@ -226,7 +239,40 @@ abstract class RemoteMachine {
 		})
 	}
 
-    def isPortAvailableToListen(port: Int): Boolean = {
+	def blockTillFileCreated(file: File): Boolean = {
+		useConnection((c) => {
+			val session = connection.openSession
+			session.execCommand("tail -F " + file)
+
+			logger.debug("Blocking till " + file + "exists")
+
+			val status = session.waitForCondition(ChannelCondition.STDOUT_DATA |
+																						ChannelCondition.EXIT_STATUS |
+																						ChannelCondition.EXIT_SIGNAL |
+																						ChannelCondition.EOF |
+																						ChannelCondition.CLOSED, 0)
+			(status & ChannelCondition.STDOUT_DATA) != 0
+		})
+	}
+
+	def blockTillPortOpen(port: Int): Unit = {
+  	var connected = false
+
+		while(!connected) {
+			try {
+				val s = new java.net.Socket(hostname, port)
+				connected = true
+			}
+			catch {
+				case ce: java.net.ConnectException => {
+					logger.info("Connection to " + hostname + ":" + port + " failed, waiting 5 seconds")
+				}
+			}
+			Thread.sleep(5000)
+		}
+	}
+
+  def isPortAvailableToListen(port: Int): Boolean = {
         executeCommand("netstat -aln | grep -v unix | grep LISTEN | egrep '\\b" + port + "\\b'") match {
 			case ExecuteResponse(Some(_), result, "") => {
                 result.trim.isEmpty
@@ -238,12 +284,5 @@ abstract class RemoteMachine {
         }
     }
 
-  def cleanServices: Unit = {
-    executeCommand("rm -r " + serviceRoot + "/*") match {
-      case ExecuteResponse(Some(0), "", "") => null
-      case ExecuteResponse(Some(1), "", "rm: No match.\n") => null
-      case e: ExecuteResponse => logger.fatal("Unexpected response while cleaningServices: " + e)
-    }
-  }
 	override def toString(): String = "<RemoteMachine " + username + "@" + hostname + ">"
 }

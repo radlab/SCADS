@@ -3,8 +3,10 @@ package deploylib.configuration
 import deploylib.configuration.ValueConverstion._
 import java.io.File
 
+@deprecated
 object MachineRoot extends RemoteDirectory(null, new LateBoundValue("MachineRoot", (t: RemoteMachine) => t.rootDirectory.toString))
 
+@deprecated
 class RemoteDirectory(parent: RemoteDirectory, name: Value[String]) extends Configuration with Value[String] {
 	def this(name: Value[String]) = this(null, name)
 
@@ -26,6 +28,7 @@ class RemoteDirectory(parent: RemoteDirectory, name: Value[String]) extends Conf
 	}
 }
 
+@deprecated
 class RemoteFile(dest: RemoteDirectory, filename: String, contents: Value[String], mode: String) extends Configuration with Value[String]{
 	def action(target: RemoteMachine) = {
 		val filePath = dest.getValue(target) + "/" + filename
@@ -37,6 +40,7 @@ class RemoteFile(dest: RemoteDirectory, filename: String, contents: Value[String
 	def getValue(target: RemoteMachine) = dest.getValue(target) + "/" + filename
 }
 
+@deprecated
 class FileUpload(localFile: String, dest: RemoteDirectory) extends Configuration with Value[String] {
 	def action(target: RemoteMachine) = {
 		target.upload(localFile, dest.getValue(target))
