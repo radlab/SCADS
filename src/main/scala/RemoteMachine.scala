@@ -56,7 +56,20 @@ abstract class RemoteMachine {
             logger.info("Authenticating with username " + username + " privateKey " + privateKey)
 			connection.authenticateWithPublicKey(username, privateKey, "")
 		}
+		try {
 		func(connection)
+		}
+		catch {
+			case e: java.net.SocketException => {
+				logger.warn("connection to " + hostname + " failed")
+				connection = new Connection(hostname)
+				logger.info("Connecting to " + hostname)
+				connection.connect()
+				logger.info("Authenticating with username " + username + " privateKey " + privateKey)
+				connection.authenticateWithPublicKey(username, privateKey, "")
+				func(connection)
+			}
+		}
 	}
 
 	/**
