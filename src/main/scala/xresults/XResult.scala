@@ -55,6 +55,33 @@ object XResult {
       <benchmark unit="miliseconds"><startTime>{startTime.toString()}</startTime><endTime>{endTime.toString()}</endTime>{result}</benchmark>
   }
 
+	def retryAndRecord[ReturnType](tries: Int)(func: () => ReturnType):ReturnType = {
+		var usedTries = 0
+		var lastException: Exception = null
+
+		while(usedTries < tries) {
+			usedTries += 1
+			try {
+				return func()
+			}
+			catch {
+				case t: org.apache.thrift.transport.TTransportException => {
+					lastException = t
+					logger.warn("Retrying due to thrift failure " + t + ": " + usedTries + " of " + tries)
+					storeXml(
+						<exception>
+							<retryCount>{usedTries.toString}</retryCount>
+							<host>{hostname}</host>
+							<name>{t.toString}</name>
+							{t.getStackTrace.map(l => <line>{l}</line>)}
+						</exception>)
+				}
+			}
+		}
+		throw lastException
+	}
+
+
   protected def localHostname(): String = {
     InetAddress.getLocalHost().getHostName()
   }
