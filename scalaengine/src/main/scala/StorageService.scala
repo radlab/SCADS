@@ -5,7 +5,7 @@ import scala.collection.jcl.Conversions
 import edu.berkeley.cs.scads.thrift._
 
 import org.apache.log4j.Logger
-import com.sleepycat.je.{Database, DatabaseConfig, DatabaseEntry, Environment, LockMode, OperationStatus}
+import com.sleepycat.je.{Database, DatabaseConfig, DatabaseEntry, Environment, LockMode, OperationStatus, Durability}
 
 class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 	class CachedDb(val handle: Database, val respPolicy: RangedPolicy)
@@ -44,7 +44,19 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 			new Record(key, new String(dbeValue.getData))
 	}
 
-	def async_put(ns: String, rec: Record): Unit = put(ns, rec)
+	def async_put(ns: String, rec: Record): Unit = {
+   	val db = getDatabase(ns)
+		val key = new DatabaseEntry(rec.key.getBytes)
+    val txn = env.beginTransaction(null, null)
+
+		if(rec.value == null)
+			db.handle.delete(txn, key)
+		else
+			db.handle.put(txn, key, new DatabaseEntry(rec.value.getBytes))
+
+    txn.commit(Durability.COMMIT_NO_SYNC)
+  }
+
 	def put(ns: String, rec: Record): Boolean = {
 		val db = getDatabase(ns)
 		val key = new DatabaseEntry(rec.key.getBytes)
