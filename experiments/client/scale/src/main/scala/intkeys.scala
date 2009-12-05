@@ -84,8 +84,9 @@ object SingleConnectionPoolLoader extends KeyRangeTest {
       val nodes = env.placement.locate("intKeys", makeKey(k))
 			if(nodes.size == 0)
 				throw new NoNodeResponsibleException
-
-			nodes.foreach(_.useConnection(_.put("intKeys", makeRecord(k))))
+			Util.retry(5)(() => {
+				nodes.foreach(_.useConnection(_.put("intKeys", makeRecord(k))))
+			})
     })
   }
 }
@@ -100,7 +101,9 @@ object SingleAsyncConnectionPoolLoader extends KeyRangeTest {
 			if(nodes.size == 0)
 				throw new NoNodeResponsibleException
 
-			nodes.foreach(_.useConnection(_.async_put("intKeys", makeRecord(k))))
+			Util.retry(5)(() => {
+				nodes.foreach(_.useConnection(_.async_put("intKeys", makeRecord(k))))
+			})
     })
   }
 }
@@ -120,8 +123,9 @@ object SingleConnectionLoader extends KeyRangeTest {
     (startKey to (endKey - 1)).foreach(k => {
 			if(k % 1000 == 0)
 				logger.info("Adding key " + k)
-
-			conn.put("intKeys", makeRecord(k))
+			Util.retry(5)(() => {
+				conn.put("intKeys", makeRecord(k))
+			})
     })
   }
 }
@@ -140,8 +144,9 @@ object SingleAsyncConnectionLoader extends KeyRangeTest {
     (startKey to (endKey - 1)).foreach(k => {
 			if(k % 1000 == 0)
 				logger.info("Adding key " + k)
-
-			conn.async_put("intKeys", makeRecord(k))
+			Util.retry(5)(() => {
+				conn.async_put("intKeys", makeRecord(k))
+			})
     })
   }
 
