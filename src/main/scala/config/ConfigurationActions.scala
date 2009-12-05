@@ -3,6 +3,7 @@ package deploylib.config
 import java.io.File
 
 import deploylib.runit._
+import deploylib.xresults._
 
 import org.apache.log4j.Logger
 
@@ -40,15 +41,27 @@ trait ConfigurationActions {
 		new RunitService(target, name)
 	}
 
-	def createJavaService(target: RunitManager, localJar: File, className: String, args: String): RunitService = {
+	def createJavaService(target: RunitManager, localJar: File, className: String, maxHeapMb: Int, args: String): RunitService = {
 		val remoteJar = uploadFile(target, localJar, target.rootDirectory)
+    val expIdFlag = if(XResult.experimentId != null) "-DexperimentId=" + XResult.experimentId else ""
+    val jvmArgs = "-Xmx" + maxHeapMb + "m " + expIdFlag
 		val runCmd = "/usr/lib/jvm/java-6-sun/bin/java " +
+                  jvmArgs + " " +
 								 "-cp .:" + remoteJar + " " +
 								 className + " " + args
 		val service = createRunitService(target, className, runCmd)
 		val log4jProperties = createFile(target, new File(service.serviceDir, "log4j.properties"),  Array("log4j.rootLogger=INFO, stdout",
 																						 "log4j.appender.stdout=org.apache.log4j.ConsoleAppender",
 																						 "log4j.appender.stdout.layout=org.apache.log4j.SimpleLayout").mkString("", "\n", "\n"), "644")
-		return service
+
+    XResult.storeXml(<configuration type="javaservice">
+                      <target>{target.hostname}</target>
+                      <localJar>{localJar}</localJar>
+                      <className>{className}</className>
+                      <maxHeap>{maxHeapMb.toString}</maxHeap>
+                      <args>{args}</args>
+                     </configuration>)
+
+    return service
 	}
 }
