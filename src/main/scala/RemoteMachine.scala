@@ -209,7 +209,7 @@ abstract class RemoteMachine {
 			val session = connection.openSession
 			val outReader = new BufferedReader(new InputStreamReader(session.getStdout()))
 
-			session.execCommand("tail -f " + remoteFile)
+			session.execCommand("tail -F " + remoteFile)
 
 			val thread = new Thread("FileWatcher-" + hostname) {
 				override def run() = {
