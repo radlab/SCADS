@@ -11,7 +11,7 @@ import scala.collection.mutable.Map
   var keyPath = "/Users/marmbrus/.ec2/amazon/"
 }*/
 object cluster {
-    def saveMACAddress( machine: PhysicalInstance, interface: String ) : Unit = {
+    def saveMACAddress( machine: PhysicalInstance ) : Unit = {
         // /bin/ping -c 5 -q <ipaddress> && /usr/sbin/arp -a | /bin/grep <ipaddress> | awk '{print $4}'
         // Ping the machine 
         // Then run arp -a | grep <ip address> | awk '{print $4}'
@@ -21,6 +21,7 @@ object cluster {
         val response: ExecuteResponse = machine.executeCommand( cmd )
         // Pattern match for the MAC address [2 chars 0-9 a-f]:[]:[]:[]
         println( response.stdout )
+	println( response.stderr )
     }
 
     def machineSleep( machine: PhysicalInstance ) = {
@@ -53,18 +54,17 @@ object cluster {
     }
 }
 
-class PhysicalInstance(val hostname: String) extends RemoteMachine
+class PhysicalInstance(val hostname: String, val username: String, val privateKey: File) extends RemoteMachine
 {
-  val username: String = "root"
-  val privateKey: File = new File("/Users/marmbrus/.ec2/amazon/")
+  //val username: String = "root"
+  //val privateKey: File = new File("/Users/marmbrus/.ec2/amazon/")
   val rootDirectory: File = new File("/mnt/")
   val runitBinaryPath:File = new File("/usr/bin")
   val tags: HashMap[String,Tag] = new HashMap[String,Tag];
   var mac: String = "";
 
-  def this( hostname: String, username: String, privateKey: File ) =
-  {
-      this( hostname )
+  def this( hostname: String ) = {
+      this( hostname, "root", new File("/Users/marmbrus/.ec2/amazon/") )
   }
 
   def tagMachine( tag: String, persistent: Boolean ) : Unit = {
