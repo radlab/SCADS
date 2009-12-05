@@ -293,5 +293,9 @@ abstract class RemoteMachine {
         }
     }
 
+  def stopWatches(): Unit = {
+    executeCommand("killall tail")
+  }
+
 	override def toString(): String = "<RemoteMachine " + username + "@" + hostname + ">"
 }
