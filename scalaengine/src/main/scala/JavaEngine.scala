@@ -84,8 +84,6 @@ object JavaEngine {
 			config.setConfigParam(EnvironmentConfig.ENV_RUN_CLEANER, "false")
 			logger.info("Disabling checkpointing thread")
 			config.setConfigParam("je.env.runCheckpointer", "false")
-			logger.info("Setting deferred write mode")
-			System.setProperty("deferred.write", "true")
 		}
 
 		logger.info("Environment config: " + config)
