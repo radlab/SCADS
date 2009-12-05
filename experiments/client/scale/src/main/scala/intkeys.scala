@@ -8,6 +8,8 @@ import edu.berkeley.cs.scads.model.{Environment, TrivialSession, TrivialExecutor
 import deploylib._
 import deploylib.config._
 import deploylib.runit._
+import deploylib.xresults._
+import scala.xml._
 
 import java.io.File
 
@@ -17,7 +19,8 @@ object IntTestDeployment extends ConfigurationActions {
 	def deployIntKeyLoader(target: RunitManager, name: String, start: String, end: String, server: String): RunitService = {
 		createJavaService(target, new File("target/scale-1.0-SNAPSHOT-jar-with-dependencies.jar"),
   		"scaletest." + name,
-  		"" + start + " " + end + " " + server)
+  		512,
+			"" + start + " " + end + " " + server)
 	}
 
 	def createPartitions(numKeys: Int, numPartitions: Int):List[Partition] = {
@@ -55,16 +58,39 @@ abstract class KeyRangeTest extends IntKeyTest {
 
     logger.info("Running test " + this.getClass.getName + " on keys " + startKey + " to " + endKey)
 
-		val startTime = System.currentTimeMillis()
-		run(startKey, endKey)
-		val endTime = System.currentTimeMillis()
-		logger.info("Loaded " + (endKey - startKey) + " keys in " + (endTime - startTime))
-	}
+    XResult.recordResult {
+      XResult.benchmark {
+        run(startKey, endKey)
+        <sequentialLoad>
+          <startKey>{startKey.toString}</startKey>
+          <endKey>{endKey.toString}</endKey>
+          <method>{this.getClass.getName}</method>
+        </sequentialLoad>
+      }
+    }
+  }
 
 	def run(startKey: Int, endKey: Int): Unit
 }
 
+
+
 object SingleConnectionPoolLoader extends KeyRangeTest {
+	def run(startKey: Int, endKey: Int): Unit = {
+    (startKey to (endKey - 1)).foreach(k => {
+			if(k % 1000 == 0)
+				logger.info("Adding key " + k)
+
+      val nodes = env.placement.locate("intKeys", makeKey(k))
+			if(nodes.size == 0)
+				throw new NoNodeResponsibleException
+
+			nodes.foreach(_.useConnection(_.put("intKeys", makeRecord(k))))
+    })
+  }
+}
+
+object SingleAsyncConnectionPoolLoader extends KeyRangeTest {
 	def run(startKey: Int, endKey: Int): Unit = {
     (startKey to (endKey - 1)).foreach(k => {
 			if(k % 1000 == 0)
@@ -78,6 +104,7 @@ object SingleConnectionPoolLoader extends KeyRangeTest {
     })
   }
 }
+
 
 object SingleConnectionLoader extends KeyRangeTest {
 	def run(startKey: Int, endKey: Int): Unit = {
@@ -95,6 +122,26 @@ object SingleConnectionLoader extends KeyRangeTest {
 				logger.info("Adding key " + k)
 
 			conn.put("intKeys", makeRecord(k))
+    })
+  }
+}
+
+object SingleAsyncConnectionLoader extends KeyRangeTest {
+	def run(startKey: Int, endKey: Int): Unit = {
+    val nodes = env.placement.locate("intKeys", makeKey(startKey))
+		if(nodes.size == 0)
+				throw new NoNodeResponsibleException
+
+		if(nodes.size > 1)
+			logger.warn("Not designed for replicated envs")
+		var conn = nodes(0).getConnection
+		logger.info("Using connection: " + conn)
+
+    (startKey to (endKey - 1)).foreach(k => {
+			if(k % 1000 == 0)
+				logger.info("Adding key " + k)
+
+			conn.async_put("intKeys", makeRecord(k))
     })
   }
 
