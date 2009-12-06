@@ -106,6 +106,7 @@ object XResult {
 				})
 		storeXml(
 				<directory>
+				<host>{target.hostname}</host>
 				<path>{directory.toString}</path>
 				{timestamp}
 				{files}
