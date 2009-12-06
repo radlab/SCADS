@@ -23,7 +23,7 @@ object XResult {
     logger.info("Begining experiment: " + experimentId)
     storeXml(
       <experiment>
-        <user>System.getProperty("user.name")</user>
+        <user>{System.getProperty("user.name")}</user>
         {timestamp}
         <description>{description}</description>
       </experiment>)
