@@ -6,8 +6,10 @@ import org.xmldb.api._
 import org.exist.xmldb.DatabaseInstanceManager
 import org.apache.log4j.Logger
 import java.net.InetAddress
-import scala.xml.{UnprefixedAttribute, Elem, Node, Null, Text, TopScope }
+import scala.xml.{NodeSeq, UnprefixedAttribute, Elem, Node, Null, Text, TopScope }
+import java.io.File
 
+abstract class RetryableException extends Exception
 
 object XResult {
   val logger = Logger.getLogger("deploylib.xresult")
@@ -23,7 +25,7 @@ object XResult {
     logger.info("Begining experiment: " + experimentId)
     storeXml(
       <experiment>
-        <user>System.getProperty("user.name")</user>
+        <user>{System.getProperty("user.name")}</user>
         {timestamp}
         <description>{description}</description>
       </experiment>)
@@ -42,7 +44,7 @@ object XResult {
     }
   }
 
-  def recordResult(result: Elem): Unit = {
+  def recordResult(result: NodeSeq): Unit = {
     storeXml(<result hostname={hostname}>{timestamp}{result}</result>)
   }
 
@@ -52,8 +54,85 @@ object XResult {
     val startTime = System.currentTimeMillis()
     val result = func
     val endTime = System.currentTimeMillis()
-      <benchmark unit="miliseconds"><startTime>{startTime.toString()}</startTime><endTime>{endTime.toString()}</endTime>{result}</benchmark>
+      <benchmark type="open" unit="miliseconds"><startTime>{startTime.toString()}</startTime><endTime>{endTime.toString()}</endTime>{result}</benchmark>
   }
+
+	def timeLimitBenchmark(seconds: Int, iterationsPerCheck: Int, data: Elem)(func: => Unit): Elem = {
+		val startTime = System.currentTimeMillis()
+		var endTime = System.currentTimeMillis()
+		var totalIterations = 1
+		while((endTime - startTime) / 1000 < seconds) {
+			func
+			totalIterations += 1
+
+			if(totalIterations % iterationsPerCheck != 0)
+				endTime = System.currentTimeMillis()
+		}
+
+		<benchmark type="timeLimited">
+			<startTime>{startTime.toString()}</startTime>
+			<endTime>{endTime.toString()}</endTime>
+			<iterations>{totalIterations}</iterations>
+			<checkInterval>{iterationsPerCheck}</checkInterval>
+			{data}
+		</benchmark>
+	}
+
+	def retryAndRecord[ReturnType](tries: Int)(func: () => ReturnType):ReturnType = {
+		var usedTries = 0
+		var lastException: Exception = null
+
+		while(usedTries < tries) {
+			usedTries += 1
+			try {
+				return func()
+			}
+			catch {
+				case rt: RetryableException => {
+					lastException = rt
+					logger.warn("Retrying due to an exception " + rt + ": " + usedTries + " of " + tries)
+					storeXml(
+						<exception>
+							<retryCount>{usedTries.toString}</retryCount>
+							<host>{hostname}</host>
+							<name>{rt.toString}</name>
+							{rt.getStackTrace.map(l => <line>{l}</line>)}
+						</exception>)
+				}
+				case t: org.apache.thrift.transport.TTransportException => {
+					lastException = t
+					logger.warn("Retrying due to thrift failure " + t + ": " + usedTries + " of " + tries)
+					storeXml(
+						<exception>
+							<retryCount>{usedTries.toString}</retryCount>
+							<host>{hostname}</host>
+							<name>{t.toString}</name>
+							{t.getStackTrace.map(l => <line>{l}</line>)}
+						</exception>)
+				}
+			}
+		}
+		throw lastException
+	}
+
+	def captureDirectory(target: RemoteMachine, directory: File): Unit = {
+		val files = target.ls(directory).map(r => {
+				<file>
+					<name>{r.name}</name>
+					<owner>{r.owner}</owner>
+					<permissions>{r.permissions}</permissions>
+					<modDate>{r.modDate}</modDate>
+					<size>{r.size}</size>
+				</file>
+				})
+		storeXml(
+				<directory>
+				<host>{target.hostname}</host>
+				<path>{directory.toString}</path>
+				{timestamp}
+				{files}
+				</directory>)
+	}
 
   protected def localHostname(): String = {
     InetAddress.getLocalHost().getHostName()

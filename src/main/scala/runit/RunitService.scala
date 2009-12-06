@@ -1,9 +1,10 @@
 package deploylib.runit
 
-import deploylib.Service
+import deploylib._
 import java.io.File
 import scala.util.matching.Regex
 import org.apache.log4j.Logger
+import deploylib.xresults._
 
 case class RunitStatus(status: String, pid: Int, upTime: Int)
 
@@ -33,6 +34,7 @@ case class RunitService(manager: RunitManager, name: String) {
 	def once: Unit = svCmd("once")
 	def start: Unit = svCmd("up")
 	def stop: Unit = svCmd("down")
+	def exit: Unit = svCmd("exit")
 
 	val downRegex = new Regex("""ok: down: \S+ (\d+)s.*""" + "\n")
 	val runRegex = new Regex("""ok: run: \S+ \(pid (\d+)\) (\d+)s.*""" + "\n")
@@ -65,7 +67,19 @@ case class RunitService(manager: RunitManager, name: String) {
     }
   }
 
+	def clearFailures: Unit = manager.executeCommand("rm -f " + failureFile)
+	def clearLog: Unit = manager.executeCommand("rm -f " + logFile)
+
 	def tailLog: String = manager.tail(logFile)
 	def watchLog: Unit = manager.watch(logFile)
 	def watchFailures: Unit = manager.watch(failureFile)
+	def captureLog: Unit =
+		XResult.storeXml(
+			<log>
+				<serviceName>{name}</serviceName>
+				<host>{manager.hostname}</host>
+				<text>{manager.catFile(logFile)}</text>
+			</log>
+		)
+
 }

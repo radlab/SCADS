@@ -33,7 +33,7 @@ trait ConfigurationActions {
 		val downFile = createFile(target, new File(baseDirectory, "down"), " ", "644")
 		val runFile = createFile(target, new File(baseDirectory, "run"), "#!/bin/sh\nexec 2>&1\nexec " + runCommand, "755")
 		val logFile = createFile(target, new File(logDirectory, "run"), logCommand, "755")
-		val finishFile = createFile(target, new File(baseDirectory, "finish"), "#!/bin/sh\necho FAILURE: " + name + " $@ >> failures", "755")
+		val finishFile = createFile(target, new File(baseDirectory, "finish"), "#!/bin/sh\necho FAILURE `/bin/date`: " + name + " $@ >> failures", "755")
 
 		logger.debug("Waiting for runsvdir to notice " + name)
 		target.blockTillFileCreated(new File(baseDirectory, "supervise/stat"))
@@ -44,7 +44,7 @@ trait ConfigurationActions {
 	def createJavaService(target: RunitManager, localJar: File, className: String, maxHeapMb: Int, args: String): RunitService = {
 		val remoteJar = uploadFile(target, localJar, target.rootDirectory)
     val expIdFlag = if(XResult.experimentId != null) "-DexperimentId=" + XResult.experimentId else ""
-    val jvmArgs = "-Xmx" + maxHeapMb + "m " + expIdFlag
+    val jvmArgs = "-server -Xmx" + maxHeapMb + "m " + expIdFlag + " -XX:+HeapDumpOnOutOfMemoryError "
 		val runCmd = "/usr/lib/jvm/java-6-sun/bin/java " +
                   jvmArgs + " " +
 								 "-cp .:" + remoteJar + " " +
@@ -60,6 +60,7 @@ trait ConfigurationActions {
                       <className>{className}</className>
                       <maxHeap>{maxHeapMb.toString}</maxHeap>
                       <args>{args}</args>
+											<cmdLine>{runCmd}</cmdLine>
                      </configuration>)
 
     return service
