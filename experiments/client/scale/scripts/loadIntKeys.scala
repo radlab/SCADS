@@ -1,19 +1,21 @@
 import scaletest._
+import deploylib._
 import deploylib.rcluster._
 import deploylib.xresults._
 import edu.berkeley.cs.scads.thrift._
 import org.apache.log4j.Logger
 import deploylib.Util
+import java.io.File
 
 settings.maxPrintString = 1000000
 
-class LoadExp(method: String, bulkLoad: Boolean, testSize: Int) {
+class LoadExp(threads: Int, bulkLoad: Boolean, testSize: Int) {
 	val logger = Logger.getLogger("script")
 
 	val nodes = List(r27, r10, r9, r32)
 	val partitions = IntTestDeployment.createPartitions(testSize, nodes.size)
 
-	XResult.startExperiment("Load Experiment: " + method + " " + bulkLoad + " " + testSize)
+	XResult.startExperiment("Threaded Load Experiment: " + threads + " " + bulkLoad + " " + testSize)
 
 	logger.info("Cleaning up")
 	nodes.foreach(_.clearAll)
@@ -29,8 +31,17 @@ class LoadExp(method: String, bulkLoad: Boolean, testSize: Int) {
 		Util.retry(5)(() => {
 			n.useConnection(_.set_responsibility_policy("intKeys", RangedPolicy.convert((p._1.start, p._1.end))))
 		})
-		IntTestDeployment.deployIntKeyLoader(p._2, method, p._1.start, p._1.end, cluster.zooUri + ":" + ScadsDeployment.zookeeperPort)
+		IntTestDeployment.deployLoadClient(p._2, "ThreadedLoader", cluster.zooUri + " " + p._1.start + " " + p._1.end + " " + threads)
 	})
 	loadServices.foreach(_.watchFailures)
 	loadServices.foreach(_.once)
+
+	val postTestCollection = Future {
+		loadServices.foreach(_.blockTillDown)
+		logger.info("Begining Post-test collection")
+		nodes.foreach(n => ScadsDeployment.captureEngineState(n))
+		(cluster.storageServices ++ loadServices).foreach(_.captureLog)
+		cluster.storageServices.foreach(s => XResult.captureDirectory(s.manager, new File(s.serviceDir, "db")))
+		logger.info("Post test collection complete")
+	}
 }

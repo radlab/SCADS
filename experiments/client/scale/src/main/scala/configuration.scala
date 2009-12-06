@@ -4,6 +4,8 @@ import deploylib._
 import deploylib.config._
 import deploylib.runit._
 import deploylib.xresults._
+import edu.berkeley.cs.scads.thrift._
+import scala.collection.jcl.Conversions._
 
 import java.io.File
 
@@ -12,6 +14,7 @@ case class ScadsDeployment(zooService: RunitService, zooUri: String, storageServ
 object ScadsDeployment extends ConfigurationActions {
 	val storageEnginePort = 9090
 	val zookeeperPort = 2181
+	val allKeys = RangedPolicy.convert((null, null)).get(0)
 
 	def deployScadsCluster(nodes: List[RunitManager], bulkLoad: Boolean): ScadsDeployment = {
 		logger.info("Configuring zookeeper")
@@ -23,7 +26,7 @@ object ScadsDeployment extends ConfigurationActions {
 		zooNode.blockTillPortOpen(ScadsDeployment.zookeeperPort)
 
 		logger.info("Configuring storage engines")
-		val storageServices = nodes.map(ScadsDeployment.deployStorageEngine(_, zooNode, false))
+		val storageServices = nodes.map(ScadsDeployment.deployStorageEngine(_, zooNode, bulkLoad))
 		storageServices.foreach(_.watchFailures)
 		storageServices.foreach(_.start)
 		storageServices.foreach(_.blockTillUpFor(5))
@@ -60,5 +63,32 @@ object ScadsDeployment extends ConfigurationActions {
 		XResult.storeXml(config)
 
 		return zooService
+	}
+
+	def captureEngineState(target: RemoteMachine): Unit = {
+		val node = new StorageNode(target.hostname, storageEnginePort)
+		val namespaces =
+			node.useConnection(c => c.get_set("resp_policies", allKeys).map(r => {
+
+				<namespace name={r.key}>
+					{
+						RangedPolicy.convert(c.get_responsibility_policy(r.key)).map(p => {
+							<responsibilityPolicy>
+								<startKey>{p._1}</startKey>
+								<endKey>{p._2}</endKey>
+							</responsibilityPolicy>
+
+						})
+					}
+					<keyCount>{node.useConnection(_.count_set(r.key, allKeys))}</keyCount>
+				</namespace>
+			}))
+
+		XResult.storeXml(
+			<storageEngine>
+				<host>{target.hostname}</host>
+				{namespaces}
+			</storageEngine>
+		)
 	}
 }
