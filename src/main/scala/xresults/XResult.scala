@@ -6,7 +6,7 @@ import org.xmldb.api._
 import org.exist.xmldb.DatabaseInstanceManager
 import org.apache.log4j.Logger
 import java.net.InetAddress
-import scala.xml.{UnprefixedAttribute, Elem, Node, Null, Text, TopScope }
+import scala.xml.{NodeSeq, UnprefixedAttribute, Elem, Node, Null, Text, TopScope }
 import java.io.File
 
 abstract class RetryableException extends Exception
@@ -44,7 +44,7 @@ object XResult {
     }
   }
 
-  def recordResult(result: Elem): Unit = {
+  def recordResult(result: NodeSeq): Unit = {
     storeXml(<result hostname={hostname}>{timestamp}{result}</result>)
   }
 

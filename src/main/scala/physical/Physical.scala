@@ -13,7 +13,7 @@ import scala.collection.mutable.Map
 object cluster {
     def saveMACAddress( machine: PhysicalInstance, interface: String ) : Unit = {
         // /bin/ping -c 5 -q <ipaddress> && /usr/sbin/arp -a | /bin/grep <ipaddress> | awk '{print $4}'
-        // Ping the machine 
+        // Ping the machine
         // Then run arp -a | grep <ip address> | awk '{print $4}'
         // Get the MAC address
         // save the MAC
@@ -31,7 +31,7 @@ object cluster {
         // tag the machine as sleeping
         machine.tagMachine( "sleeping" )
     }
-    
+
     def machineWake( machine: PhysicalInstance ) = {
         // See if the machine is tagged as sleeping - if it is then
         // send it a wakeOnLan packet
@@ -152,7 +152,7 @@ object clusterDriver
             case None => println( "no match" )
         }
 
-        
+
 
 
         println( railsNodes.length + " rails nodes found" )
