@@ -34,6 +34,7 @@ case class RunitService(manager: RunitManager, name: String) {
 	def once: Unit = svCmd("once")
 	def start: Unit = svCmd("up")
 	def stop: Unit = svCmd("down")
+	def exit: Unit = svCmd("exit")
 
 	val downRegex = new Regex("""ok: down: \S+ (\d+)s.*""" + "\n")
 	val runRegex = new Regex("""ok: run: \S+ \(pid (\d+)\) (\d+)s.*""" + "\n")
@@ -65,6 +66,9 @@ case class RunitService(manager: RunitManager, name: String) {
       Thread.sleep(10000)
     }
   }
+
+	def clearFailures: Unit = manager.executeCommand("rm -f " + failureFile)
+	def clearLog: Unit = manager.executeCommand("rm -f " + logFile)
 
 	def tailLog: String = manager.tail(logFile)
 	def watchLog: Unit = manager.watch(logFile)
