@@ -7,7 +7,9 @@ import org.exist.xmldb.DatabaseInstanceManager
 import org.apache.log4j.Logger
 import java.net.InetAddress
 import scala.xml.{UnprefixedAttribute, Elem, Node, Null, Text, TopScope }
+import java.io.File
 
+abstract class RetryableException extends Exception
 
 object XResult {
   val logger = Logger.getLogger("deploylib.xresult")
@@ -65,6 +67,17 @@ object XResult {
 				return func()
 			}
 			catch {
+				case rt: RetryableException => {
+					lastException = rt
+					logger.warn("Retrying due to an exception " + rt + ": " + usedTries + " of " + tries)
+					storeXml(
+						<exception>
+							<retryCount>{usedTries.toString}</retryCount>
+							<host>{hostname}</host>
+							<name>{rt.toString}</name>
+							{rt.getStackTrace.map(l => <line>{l}</line>)}
+						</exception>)
+				}
 				case t: org.apache.thrift.transport.TTransportException => {
 					lastException = t
 					logger.warn("Retrying due to thrift failure " + t + ": " + usedTries + " of " + tries)
