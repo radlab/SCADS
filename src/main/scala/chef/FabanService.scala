@@ -2,7 +2,7 @@ package deploylib.chef
 
 import deploylib._
 
-class FabanService extends ChefService {
+case class FabanService extends ChefService {
   // TODO: Implement me.
   
 }

@@ -2,7 +2,7 @@ package deploylib.chef
 
 import deploylib._
 
-class NginxService extends ChefService {
+case class NginxService extends ChefService {
   // TODO: Implement me.
   
 }

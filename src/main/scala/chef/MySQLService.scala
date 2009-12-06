@@ -2,7 +2,7 @@ package deploylib.chef
 
 import deploylib._
 
-class MySQLService extends ChefService {
+case class MySQLService extends ChefService {
   // TODO: Implement me.
   
 }

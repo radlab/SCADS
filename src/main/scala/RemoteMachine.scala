@@ -36,6 +36,15 @@ abstract class RemoteMachine {
 	 */
 	val rootDirectory: File
 
+  /**
+   * The services that are assigned to be deployed to this remote machine.
+   */
+  protected var services: Set[Service]
+
+  def addService(Service: service): Unit = {
+    services += service
+  }
+
 	val runitBinaryPath: File
 	lazy val runsvdirCmd: File = new File(runitBinaryPath, "runsvdir")
 	lazy val svCmd: File = new File(runitBinaryPath, "sv")

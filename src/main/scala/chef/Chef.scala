@@ -12,6 +12,16 @@ object Chef {
 /**
  * A framework for managing services that are deployed using Chef. 
  */
-abstract class ChefService extends Service {
-  
+abstract class ChefService(remoteMachine: RemoteMachine) extends Service(remoteMachine) {
+
+  /**
+   * The name of the chef recipe used to deploy this service.
+   */
+  val recipeName: String
+
+  /**
+   * The JSON config used to deploy this service.
+   */
+  var jsonConfig: JSONObject
+
 }
