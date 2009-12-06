@@ -60,6 +60,7 @@ trait ConfigurationActions {
                       <className>{className}</className>
                       <maxHeap>{maxHeapMb.toString}</maxHeap>
                       <args>{args}</args>
+											<cmdLine>{runCmd}</cmdLine>
                      </configuration>)
 
     return service
