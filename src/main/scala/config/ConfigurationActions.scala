@@ -44,7 +44,7 @@ trait ConfigurationActions {
 	def createJavaService(target: RunitManager, localJar: File, className: String, maxHeapMb: Int, args: String): RunitService = {
 		val remoteJar = uploadFile(target, localJar, target.rootDirectory)
     val expIdFlag = if(XResult.experimentId != null) "-DexperimentId=" + XResult.experimentId else ""
-    val jvmArgs = "-Xmx" + maxHeapMb + "m " + expIdFlag + " -XX:+HeapDumpOnOutOfMemoryError "
+    val jvmArgs = "-server -Xmx" + maxHeapMb + "m " + expIdFlag + " -XX:+HeapDumpOnOutOfMemoryError "
 		val runCmd = "/usr/lib/jvm/java-6-sun/bin/java " +
                   jvmArgs + " " +
 								 "-cp .:" + remoteJar + " " +
