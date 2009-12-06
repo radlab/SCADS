@@ -36,7 +36,7 @@ object IntTestDeployment extends ConfigurationActions {
 	}
 }
 
-class NoNodeResponsibleException extends Exception
+class NoNodeResponsibleException extends RetryableException
 
 abstract class IntKeyTest {
 	val logger = Logger.getLogger("scads.intKeyTest")
@@ -81,10 +81,10 @@ object SingleConnectionPoolLoader extends KeyRangeTest {
 			if(k % 1000 == 0)
 				logger.info("Adding key " + k)
 
-      val nodes = env.placement.locate("intKeys", makeKey(k))
-			if(nodes.size == 0)
-				throw new NoNodeResponsibleException
-			Util.retry(5)(() => {
+			XResult.retryAndRecord(10)(() => {
+      	val nodes = env.placement.locate("intKeys", makeKey(k))
+				if(nodes.size == 0)
+					throw new NoNodeResponsibleException
 				nodes.foreach(_.useConnection(_.put("intKeys", makeRecord(k))))
 			})
     })
@@ -97,11 +97,11 @@ object SingleAsyncConnectionPoolLoader extends KeyRangeTest {
 			if(k % 1000 == 0)
 				logger.info("Adding key " + k)
 
-      val nodes = env.placement.locate("intKeys", makeKey(k))
-			if(nodes.size == 0)
-				throw new NoNodeResponsibleException
+			XResult.retryAndRecord(10)(() => {
+      	val nodes = env.placement.locate("intKeys", makeKey(k))
+				if(nodes.size == 0)
+					throw new NoNodeResponsibleException
 
-			Util.retry(5)(() => {
 				nodes.foreach(_.useConnection(_.async_put("intKeys", makeRecord(k))))
 			})
     })
@@ -123,7 +123,7 @@ object SingleConnectionLoader extends KeyRangeTest {
     (startKey to (endKey - 1)).foreach(k => {
 			if(k % 1000 == 0)
 				logger.info("Adding key " + k)
-			Util.retry(5)(() => {
+			XResult.retryAndRecord(10)(() => {
 				conn.put("intKeys", makeRecord(k))
 			})
     })
@@ -144,10 +144,9 @@ object SingleAsyncConnectionLoader extends KeyRangeTest {
     (startKey to (endKey - 1)).foreach(k => {
 			if(k % 1000 == 0)
 				logger.info("Adding key " + k)
-			Util.retry(5)(() => {
+			XResult.retryAndRecord(10)(() => {
 				conn.async_put("intKeys", makeRecord(k))
 			})
     })
   }
-
 }
