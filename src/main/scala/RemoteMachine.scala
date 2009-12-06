@@ -11,6 +11,9 @@ import ch.ethz.ssh2.{Connection, Session, ChannelCondition, SCPClient}
  * @param stderr - a string with all of the data that was output on STDERR by the command
  */
 case class ExecuteResponse(status: Option[Int], stdout: String, stderr: String)
+case class RemoteFile(name: String, owner: String, permissions: String, modDate: String, size: String)
+
+case class UnknownResponse(er: ExecuteResponse) extends Exception
 
 /**
  * Provides a framework for interacting (running commands, uploading/downloading files, etc) with a generic remote machine.
@@ -296,6 +299,19 @@ abstract class RemoteMachine {
   def stopWatches(): Unit = {
     executeCommand("killall tail")
   }
+
+
+	def ls(dir: File):Seq[RemoteFile] = {
+		executeCommand("ls -lh " + dir) match {
+			case ExecuteResponse(Some(0), data, "") => {
+				data.split("\n").slice(1).map(l => {
+					val parts = l.split(" ")
+					RemoteFile(parts(7), parts(2), parts(0), parts(5) + parts(6), parts(4))
+				})
+			}
+			case er => throw new UnknownResponse(er)
+		}
+	}
 
 	override def toString(): String = "<RemoteMachine " + username + "@" + hostname + ">"
 }
