@@ -54,8 +54,29 @@ object XResult {
     val startTime = System.currentTimeMillis()
     val result = func
     val endTime = System.currentTimeMillis()
-      <benchmark unit="miliseconds"><startTime>{startTime.toString()}</startTime><endTime>{endTime.toString()}</endTime>{result}</benchmark>
+      <benchmark type="open" unit="miliseconds"><startTime>{startTime.toString()}</startTime><endTime>{endTime.toString()}</endTime>{result}</benchmark>
   }
+
+	def timeLimitBenchmark(seconds: Int, iterationsPerCheck: Int, data: Elem)(func: => Unit): Elem = {
+		val startTime = System.currentTimeMillis()
+		var endTime = System.currentTimeMillis()
+		var totalIterations = 1
+		while((endTime - startTime) / 1000 < seconds) {
+			func
+			totalIterations += 1
+
+			if(totalIterations % iterationsPerCheck != 0)
+				endTime = System.currentTimeMillis()
+		}
+
+		<benchmark type="timeLimited">
+			<startTime>{startTime.toString()}</startTime>
+			<endTime>{endTime.toString()}</endTime>
+			<iterations>{totalIterations}</iterations>
+			<checkInterval>{iterationsPerCheck}</checkInterval>
+			{data}
+		</benchmark>
+	}
 
 	def retryAndRecord[ReturnType](tries: Int)(func: () => ReturnType):ReturnType = {
 		var usedTries = 0
