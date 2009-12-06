@@ -6,7 +6,7 @@ import org.apache.zookeeper.{ZooKeeper, Watcher, WatchedEvent, CreateMode}
 import org.apache.zookeeper.ZooDefs.Ids
 import com.sleepycat.je.{Database, DatabaseConfig, DatabaseEntry, Environment, LockMode, OperationStatus}
 
-class ZooKeptStorageProcessor(env: Environment, hostid: String, servers: String) extends StorageProcessor(env) with Watcher {
+class ZooKeptStorageProcessor(env: Environment, hostid: String, servers: String, deferedWrite: Boolean) extends StorageProcessor(env, deferedWrite) with Watcher {
 	val zoo = new ZooKeeper(servers, 3000, this)
 	logger.info("Registering with zookeeper")
 

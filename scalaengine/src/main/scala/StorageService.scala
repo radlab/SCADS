@@ -7,12 +7,15 @@ import edu.berkeley.cs.scads.thrift._
 import org.apache.log4j.Logger
 import com.sleepycat.je.{Database, DatabaseConfig, DatabaseEntry, Environment, LockMode, OperationStatus, Durability}
 
-class StorageProcessor(env: Environment) extends StorageEngine.Iface {
+class StorageProcessor(env: Environment, deferedWrites: Boolean) extends StorageEngine.Iface {
 	class CachedDb(val handle: Database, val respPolicy: RangedPolicy)
 
 	val logger = Logger.getLogger("scads.storageprocessor")
 	val dbCache = new scala.collection.mutable.HashMap[String, CachedDb]
 	val respPolicyDb = openDatabase("resp_policies")
+
+	if(deferedWrites)
+		logger.info("StorageProcessor created with deferedWrites")
 
 	def count_set(ns: String, rs: RecordSet): Int = {
         var count = 0
@@ -60,11 +63,17 @@ class StorageProcessor(env: Environment) extends StorageEngine.Iface {
 	def put(ns: String, rec: Record): Boolean = {
 		val db = getDatabase(ns)
 		val key = new DatabaseEntry(rec.key.getBytes)
+		val txn = env.beginTransaction(null, null)
 
 		if(rec.value == null)
-			db.handle.delete(null, key)
+			db.handle.delete(txn, key)
 		else
-			db.handle.put(null, key, new DatabaseEntry(rec.value.getBytes))
+			db.handle.put(txn, key, new DatabaseEntry(rec.value.getBytes))
+
+		if(deferedWrites)
+			txn.commit(Durability.COMMIT_NO_SYNC)
+		else
+			txn.commit(Durability.COMMIT_SYNC)
 
 		true
 	}

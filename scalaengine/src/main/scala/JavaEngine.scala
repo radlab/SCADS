@@ -97,10 +97,10 @@ object JavaEngine {
 		val processor = if(cmd.hasOption("zookeeper"))
 		{
 			val hostid = InetAddress.getLocalHost().getHostName() + ":" + port
-			new StorageEngine.Processor(new ZooKeptStorageProcessor(env, hostid, cmd.getOptionValue("zookeeper")))
+			new StorageEngine.Processor(new ZooKeptStorageProcessor(env, hostid, cmd.getOptionValue("zookeeper"), cmd.hasOption("bulk")))
 		}
 		else {
-			new StorageEngine.Processor(new StorageProcessor(env))
+			new StorageEngine.Processor(new StorageProcessor(env, cmd.hasOption("bulk")))
 		}
 
 

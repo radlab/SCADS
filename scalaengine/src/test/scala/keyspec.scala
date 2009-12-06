@@ -279,7 +279,7 @@ object JavaEngineSpec extends KeyStoreSpec {
 	config.setAllowCreate(true)
 	config.setTransactional(true)
 	val env = new Environment(dbDir, config)
-	val ks = new StorageProcessor(env)
+	val ks = new StorageProcessor(env, true)
 }
 
 class JavaEngineTest extends JUnit4(JavaEngineSpec)
