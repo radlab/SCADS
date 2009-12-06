@@ -10,14 +10,21 @@ class ZooKeptStorageProcessor(env: Environment, hostid: String, servers: String)
 	val zoo = new ZooKeeper(servers, 3000, this)
 	logger.info("Registering with zookeeper")
 
-	if(zoo.exists("/scads", false) == null)
-		zoo.create("/scads", "".getBytes, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
-	if(zoo.exists("/scads/servers", false) == null)
-		zoo.create("/scads/servers", "".getBytes, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
-	if(zoo.exists("/scads/namespaces", false) == null)
-		zoo.create("/scads/namespaces", "".getBytes, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
+	/* Set up basic directory */
+	try {
+		if(zoo.exists("/scads", false) == null)
+			zoo.create("/scads", "".getBytes, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
+		if(zoo.exists("/scads/servers", false) == null)
+			zoo.create("/scads/servers", "".getBytes, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
+		if(zoo.exists("/scads/namespaces", false) == null)
+			zoo.create("/scads/namespaces", "".getBytes, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
+	}
+	catch {
+		case e: org.apache.zookeeper.KeeperException.NodeExistsException => logger.warn("Race condition while create directories, giving up")
+	}
 
-	zoo.create("/scads/servers/" + hostid, "ScalaEngine".getBytes, Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL)
+	/* Register server entry */
+	createOrReplaceEphemeralFile("/scads/servers/" + hostid, "ScalaEngine".getBytes)
 
 	registerNamespaces()
 
@@ -52,10 +59,30 @@ class ZooKeptStorageProcessor(env: Environment, hostid: String, servers: String)
 
 			if(zoo.exists("/scads/namespaces/" + ns, false) == null)
 				zoo.create("/scads/namespaces/" + ns, "".getBytes, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
-			zoo.create("/scads/namespaces/" + ns + "/" + hostid, dbePolicy.getData, Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL)
+
+			createOrReplaceEphemeralFile("/scads/namespaces/" + ns + "/" + hostid, dbePolicy.getData)
 			status = cur.getNext(dbeNamespace, dbePolicy, null)
 		}
 		cur.close()
+	}
+
+	private def createOrReplaceEphemeralFile(file: String, data: Array[Byte]): Unit = {
+		try {
+			logger.debug("Creating entry: " + file)
+			zoo.create(file, data, Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL)
+		}
+		catch {
+			case e: org.apache.zookeeper.KeeperException.NodeExistsException => {
+				logger.warn("Stale entry detected, deleting and retrying")
+				try {
+					zoo.delete(file, -1)
+				}
+				catch {
+					case e: org.apache.zookeeper.KeeperException.NoNodeException => logger.warn("Stale entry disapeared. Oh well")
+				}
+				zoo.create(file, data, Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL)
+			}
+		}
 	}
 
 	def process(event: WatchedEvent): Unit = {
