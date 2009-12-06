@@ -81,6 +81,23 @@ object XResult {
 		throw lastException
 	}
 
+	def captureDirectory(target: RemoteMachine, directory: File): Unit = {
+		val files = target.ls(directory).map(r => {
+				<file>
+					<name>{r.name}</name>
+					<owner>{r.owner}</owner>
+					<permissions>{r.permissions}</permissions>
+					<modDate>{r.modDate}</modDate>
+					<size>{r.size}</size>
+				</file>
+				})
+		storeXml(
+				<directory>
+				<path>{directory.toString}</path>
+				{timestamp}
+				{files}
+				</directory>)
+	}
 
   protected def localHostname(): String = {
     InetAddress.getLocalHost().getHostName()
