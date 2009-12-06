@@ -38,6 +38,13 @@ class ZooKeptCluster(servers: String) extends ClusterPlacement with Watcher {
     })
   }
 
+	def getPolicies(ns: String): Seq[(StorageNode, RangedPolicy)] = {
+		if(namespaceCache.contains(ns))
+      namespaceCache(ns)
+    else
+      loadNamespace(ns)
+	}
+
   protected def loadNamespace(ns: String): Seq[(StorageNode, RangedPolicy)] = {
     synchronized {
       if(namespaceCache.contains(ns))
