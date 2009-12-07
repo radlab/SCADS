@@ -45,6 +45,23 @@ case class RailsService(remoteMachine: RemoteMachine,
   var mysqlService: MySQLService = null
   var fabanService: fabanService = null
 
+  var logLevel = "error"
+  if (config.contains("log_level")) {
+    logLevel = config("log_level").asInstanceOf[String]
+  }
+
+  var portStart = 3000
+  var portCount = 16
+  if (config.contains("ports")) {
+    var portsConfig = config("ports").asInstanceOf[Map[String,Any]]
+    if (portsConfig.contains("start")) {
+      portStart = portsConfig("start")
+    }
+    if (portsConfig.contains("count")) {
+      portCount = portsConfig("count")
+    }
+  }
+
   /**
    * Update the JSON config object and add to dependencies.
    */
