@@ -41,6 +41,7 @@ case class RailsService(remoteMachine: RemoteMachine,
   var haproxyService: HAProxyService = null
   var nginxService: NginxService = null
   var mysqlService: MySQLService = null
+  var fabanService: fabanService = null
 
   /**
    * Update the JSON config object and add to dependencies.
@@ -53,6 +54,8 @@ case class RailsService(remoteMachine: RemoteMachine,
         nginxService = service
       case MySQLService(_, _) =>
         mysqlService = service
+      case FabanService(_, _) =>
+        fabanService = service
         // TODO: Update jsonConfig.
       case _ =>
         // TODO: Throw an exception for unhandled dependency.
@@ -74,7 +77,35 @@ case class RailsService(remoteMachine: RemoteMachine,
   }
   
   override def getJSONConfig: String = {
+    val railsConfig = new JSONObject()
+    railsConfig.put("recipes", new JSONArray().put("cloudstone::rails"))
+    val railsRails = new JSONObject()
     
+    val railsRailsPorts = new JSONObject()
+    railsRailsPorts.put("start", 3000)
+    railsRailsPorts.put("count", railsSettings._3)
+    railsRails.put("ports", railsRailsPorts)
+    
+    val railsRailsDatabase = new JSONObject()
+    railsRailsDatabase.put("host", mysqlService.remoteMachine.hostName)
+    railsRailsDatabase.put("adapter", "mysql")
+    railsRailsDatabase.put("port", mysqlService.port)
+    railsRails.put("database", railsRailsDatabase)
+    
+    val railsRailsMemcached = new JSONObject()
+    railsRailsMemcached.put("host", "localhost")
+    railsRailsMemcached.put("port", 1211)
+    railsRails.put("memcached", railsRailsMemcached)
+    
+    val railsRailsGeocoder = new JSONObject()
+    if (fabanService != null)
+      railsRailsGeocoder.put("host", fabanService.remoteMachine.hostName)
+    else
+      railsRailsGeocoder.put("host", "localhost")
+    railsRailsGeocoder.put("port", 9980)
+    railsRails.put("geocoder", railsRailsGeocoder)
+    
+    railsConfig.put("rails", railsRails)
   }
 
 }
