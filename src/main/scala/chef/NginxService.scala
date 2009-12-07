@@ -19,7 +19,7 @@ import deploylib._
 case class NginxService(remoteMachine: RemoteMachine,
                         config: Map[String,Any]) extends ChefService(remoteMachine, config) {
   val cookbookName = "cloudstone"
-  val recipeName = "rails"
+  val recipeName = "nginx"
 
   remoteMachine.addService(this)
 
@@ -27,7 +27,7 @@ case class NginxService(remoteMachine: RemoteMachine,
    * Service-specific variables.
    */
   var haproxyService: HAProxyService = null
-  var railsServices: Set[RailsService] = null
+  var railsServices: Set[RailsService] = new Set[RailsService]()
 
   /**
    * Update the JSON config object and add to dependencies.
