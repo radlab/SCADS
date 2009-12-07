@@ -55,7 +55,6 @@ case class HAProxyService(remoteMachine: RemoteMachine,
     val haproxyConfig = new JSONObject()
     haproxyConfig.put("recipes", new JSONArray().put("cloudstone::haproxy"))
     val haproxyHaproxy = new JSONObject()
-    haproxyHaproxy.put("port", port)
     
     val haproxyHaproxyServers = new JSONObject()
     if (railsServices.isEmpty)

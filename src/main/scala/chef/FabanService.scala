@@ -36,9 +36,12 @@ case class FabanService(remoteMachine: RemoteMachine,
    * Service-specific variables.
    */
   var mysqlService: MySQLService = null
-  var haproxyService: HAProxyService = null
   var nginxService: NginxService = null
-  var railsService: RailsService = null
+
+  var debug = false
+  if (config.contains("debug")) {
+    debug = config("debug").asInstanceOf[Boolean]
+  }
 
   /**
    * Update the JSON config object and add to dependencies.
@@ -47,12 +50,8 @@ case class FabanService(remoteMachine: RemoteMachine,
     service match {
       case MySQLService(_) =>
         mysqlService = service.asInstanceOf[MySQLService]
-      case HAProxyService(_) =>
-        haproxyService = service.asInstanceOf[HAProxyService]
       case NginxService(_) =>
         nginxService = service.asInstanceOf[NginxService]
-      case RailsService(_) =>
-        railsService = service.asInstanceOf[RailsService]
       case _ =>
         super(service)
     }
@@ -80,7 +79,7 @@ case class FabanService(remoteMachine: RemoteMachine,
     
     fabanFaban.put("hosts", fabanFabanHosts)
     fabanFaban.put("database", fabanFabanDatabase)
-    fabanFaban.put("debug", false)
+    fabanFaban.put("debug", debug)
     fabanConfig.put("faban", fabanFaban)
     
     return fabanConfig.toString
