@@ -73,6 +73,8 @@ case class RailsService(remoteMachine: RemoteMachine,
     }
   }
   
-  
+  override def getJSONConfig: String = {
+    
+  }
 
 }
