@@ -19,8 +19,8 @@ import deploylib._
 
 case class ChukwaService(remoteMachine: RemoteMachine,
                          config: Map[String,Any]) extends ChefService(remoteMachine, config) {
-  val cookbookName = "cloudstone"
-  val recipeName = "rails"
+  val cookbookName = "chukwa"
+  val recipeName = "default"
 
   remoteMachine.addService(this)
 
