@@ -51,6 +51,10 @@ case class HAProxyService(remoteMachine: RemoteMachine,
     // TODO: Execute command to run recipe
   }
 
+  override def getJSONConfig: String = {
+    
+  }
+
   /**
    * Service-specific methods.
    */
