@@ -40,7 +40,7 @@ case class HAProxyService(remoteMachine: RemoteMachine,
   override def addDependency(service: Service): Unit = {
     service match {
       case RailsService(_) =>
-        railsServices += service
+        railsServices += service.asInstanceOf[RailsService]
       case _ =>
         // TODO: Throw an exception for unhandled dependency.
     }
