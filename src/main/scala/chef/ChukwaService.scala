@@ -44,15 +44,15 @@ case class ChukwaService(remoteMachine: RemoteMachine,
   override def getJSONConfig: String = {
     val chukwaConfig = new JSONObject()
     chukwaConfig.put("recipes", new JSONArray().put(cookbookName + "::" + recipeName))
-    chukwaChukwa = new JSONObject()
+    val chukwaChukwa = new JSONObject()
     
-    chukwaChukwaAdaptors = new JSONArray()
+    val chukwaChukwaAdaptors = new JSONArray()
     for (adaptor <- adaptors) {
       chukwaChukwaAdaptors.put(adaptor)
     }
     chukwaChukwa.put("adaptors", chukwaChukwaAdaptors)
     
-    chukwaChukwaCollectors = new JSONArray()
+    val chukwaChukwaCollectors = new JSONArray()
     for (collector <- collectors) {
       chukwaChukwaCollectors.put(collector)
     }
@@ -61,7 +61,6 @@ case class ChukwaService(remoteMachine: RemoteMachine,
     chukwaConfig.put("chukwa", chukwaChukwa)
     
     return chukwaConfig.toString
-    }
   }
 
 }

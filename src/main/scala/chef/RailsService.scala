@@ -67,17 +67,17 @@ case class RailsService(remoteMachine: RemoteMachine,
    */
   override def addDependency(service: Service): Unit = {
     service match {
-      case HAProxyService(_, _) =>
+      case HAProxyService(_,_) =>
         haproxyService = service.asInstanceOf[HAProxyService]
-      case NginxService(_, _) =>
+      case NginxService(_,_) =>
         nginxService = service.asInstanceOf[NginxService]
-      case MySQLService(_, _) =>
+      case MySQLService(_,_) =>
         mysqlService = service.asInstanceOf[MySQLService]
-      case FabanService(_, _) =>
+      case FabanService(_,_) =>
         fabanService = service.asInstanceOf[FabanService]
         // TODO: Update jsonConfig.
       case _ =>
-        super(service)
+        super.addDependency(service)
     }
   }
 

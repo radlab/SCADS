@@ -48,12 +48,12 @@ case class FabanService(remoteMachine: RemoteMachine,
    */
   override def addDependency(service: Service): Unit = {
     service match {
-      case MySQLService(_) =>
+      case MySQLService(_,_) =>
         mysqlService = service.asInstanceOf[MySQLService]
-      case NginxService(_) =>
+      case NginxService(_,_) =>
         nginxService = service.asInstanceOf[NginxService]
       case _ =>
-        super(service)
+        super.addDependency(service)
     }
   }
 
@@ -69,7 +69,7 @@ case class FabanService(remoteMachine: RemoteMachine,
     val fabanFabanHosts = new JSONObject()
     fabanFabanHosts.put("driver", remoteMachine.hostname)
     fabanFabanHosts.put("webserver", nginxService.remoteMachine.hostname)
-    fabanFabanHosts.put("database", railsService.remoteMachine.hostname)
+    fabanFabanHosts.put("database", mysqlService.remoteMachine.hostname)
     fabanFabanHosts.put("storage", "")
     fabanFabanHosts.put("cache", "")
     

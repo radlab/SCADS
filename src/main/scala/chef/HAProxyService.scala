@@ -32,17 +32,17 @@ case class HAProxyService(remoteMachine: RemoteMachine,
   /**
    * Service-specific variables.
    */
-  var railsServices: Set[RailsService] = new Set[RailsService]()
+  var railsServices: Set[RailsService] = Set()
 
   /**
    * Update the JSON config object and add to dependencies.
    */
   override def addDependency(service: Service): Unit = {
     service match {
-      case RailsService(_) =>
+      case RailsService(_,_) =>
         railsServices += service.asInstanceOf[RailsService]
       case _ =>
-        super(service)
+        super.addDependency(service)
     }
   }
 

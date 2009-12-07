@@ -44,7 +44,7 @@ abstract class RemoteMachine {
    */
   protected var services: Set[Service]
 
-  def addService(Service: service): Unit = {
+  def addService(service: Service): Unit = {
     services += service
   }
 

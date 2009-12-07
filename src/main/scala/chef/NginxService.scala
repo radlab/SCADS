@@ -39,12 +39,12 @@ case class NginxService(remoteMachine: RemoteMachine,
    */
   override def addDependency(service: Service): Unit = {
     service match {
-      case HAProxyService(_) =>
+      case HAProxyService(_,_) =>
         haproxyService = service.asInstanceOf[HAProxyService]
-      case RailsService(_) =>
+      case RailsService(_,_) =>
         railsServices += service.asInstanceOf[RailsService]
       case _ =>
-        super(service)
+        super.addDependency(service)
     }
   }
 
