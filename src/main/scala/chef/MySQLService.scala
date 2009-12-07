@@ -21,6 +21,9 @@ case class MySQLService(remoteMachine: RemoteMachine,
                         config: Map[String,Any]) extends ChefService(remoteMachine, config) {
   val cookbookName = "cloudstone"
   val recipeName = "mysql"
+  
+  private var port = 3306
+  // TODO: parse confige and override port if necessary.
 
   remoteMachine.addService(this)
 
@@ -38,7 +41,7 @@ case class MySQLService(remoteMachine: RemoteMachine,
     val mysqlMysql = new JSONObject()
     
     mysqlMysql.put("server_id", 1)
-    mysqlMysql.put("port", mysqlPort)
+    mysqlMysql.put("port", port)
     mysqlConfig.put("mysql", mysqlMysql)
     
     val mysqlFabanAgent = new JSONObject()
