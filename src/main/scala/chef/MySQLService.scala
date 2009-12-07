@@ -22,8 +22,10 @@ case class MySQLService(remoteMachine: RemoteMachine,
   val cookbookName = "cloudstone"
   val recipeName = "mysql"
   
-  private var port = 3306
-  // TODO: parse confige and override port if necessary.
+  var port = 3306
+  if (config.contains("port")) {
+    port = config("port").asInstanceOf[Int]
+  }
 
   remoteMachine.addService(this)
 
