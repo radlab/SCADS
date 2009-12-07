@@ -3,6 +3,7 @@ package deploylib.chef
 import org.json.JSONObject
 import org.json.JSONArray
 import deploylib._
+import java.io.File
 
 /*************************
 {
@@ -39,7 +40,9 @@ case class ChukwaService(remoteMachine: RemoteMachine,
   override def start: Unit = {
     // TODO: Upload JSON Config
     // TODO: Execute command to run recipe
-    print "Chukwa deployed!"
+    remoteMachine.createFile(new File("chukwaConfig"), getJSONConfig)
+    remoteMachine.executeCommand("chef-solo -j chukwaConfig")
+    print ("Chukwa deployed!")
   }
 
   override def stop: Unit = {

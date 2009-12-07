@@ -3,6 +3,7 @@ package deploylib.chef
 import org.json.JSONObject
 import org.json.JSONArray
 import deploylib._
+import java.io.File
 
 /*************************
 {
@@ -56,7 +57,9 @@ case class NginxService(remoteMachine: RemoteMachine,
       // Use haproxy service.
     }
     // TODO: Execute command to run recipe
-    print "Nginx deployed!"
+    remoteMachine.createFile(new File("nginxConfig"), getJSONConfig)
+    remoteMachine.executeCommand("chef-solo -j nginxConfig")
+    print ("Nginx deployed!")
   }
 
   override def stop: Unit = {

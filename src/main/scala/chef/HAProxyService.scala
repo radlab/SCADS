@@ -3,6 +3,7 @@ package deploylib.chef
 import org.json.JSONObject
 import org.json.JSONArray
 import deploylib._
+import java.io.File
 
 /*************************
 {
@@ -51,7 +52,9 @@ case class HAProxyService(remoteMachine: RemoteMachine,
   override def start: Unit = {
     // TODO: Upload JSON Config
     // TODO: Execute command to run recipe
-    print "HAProxy deployed!"
+    remoteMachine.createFile(new File("haproxyConfig"), getJSONConfig)
+    remoteMachine.executeCommand("chef-solo -j haproxyConfig")
+    print ("HAProxy deployed!")
   }
 
   override def stop: Unit = {
@@ -64,9 +67,11 @@ case class HAProxyService(remoteMachine: RemoteMachine,
     val haproxyHaproxy = new JSONObject()
     
     val haproxyHaproxyServers = new JSONObject()
-    if (railsServices.isEmpty)
-    // TODO: Throw exception 
+    if (railsServices.isEmpty) {
+      // TODO: Throw exception 
+    }
     for (service <- railsServices) {
+      print("Rails 1")
       val server = new JSONObject()
       server.put("start", service.portStart)
       server.put("count", service.portCount)

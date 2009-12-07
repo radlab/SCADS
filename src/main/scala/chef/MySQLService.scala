@@ -3,6 +3,7 @@ package deploylib.chef
 import org.json.JSONObject
 import org.json.JSONArray
 import deploylib._
+import java.io.File
 
 /*************************
 {
@@ -35,7 +36,9 @@ case class MySQLService(remoteMachine: RemoteMachine,
   override def start: Unit = {
     // TODO: Upload JSON Config
     // TODO: Execute command to run recipe
-    print "MySQL deployed!"
+    remoteMachine.createFile(new File("mysqlConfig"), getJSONConfig)
+    remoteMachine.executeCommand("chef-solo -j mysqlConfig")
+    print ("MySQL deployed!")
   }
 
   override def stop: Unit = {

@@ -3,6 +3,7 @@ package deploylib.chef
 import org.json.JSONObject
 import org.json.JSONArray
 import deploylib._
+import java.io.File
 
 /*************************
 {
@@ -60,7 +61,8 @@ case class FabanService(remoteMachine: RemoteMachine,
   override def start: Unit = {
     // TODO: Upload JSON Config
     // TODO: Execute command to run recipe
-    print "Faban deployed!"
+    remoteMachine.createFile(new File("fabanConfig"), getJSONConfig)
+    remoteMachine.executeCommand("chef-solo -j fabanConfig")
   }
 
   override def stop: Unit = {

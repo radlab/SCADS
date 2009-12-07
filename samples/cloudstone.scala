@@ -4,7 +4,7 @@
  * You can run this script using:
  * mvn scala:script -DscriptFile=src/main/scala/samples/cloudstone.scala
  */
-
+ 
 import deploylib._
 import deploylib.chef._
 import deploylib.ec2._
@@ -12,7 +12,7 @@ import deploylib.physical._
 
 import java.io.File
 
-Chef.repoPath = "~/Development/manager.git/ruby/repo.tar.gz"
+Chef.repoPath = "/Users/aaron/radlab/repo.tar.gz"
 
 val amiIds = Map(
   "32-bit" -> "ami-e7a2448e",
@@ -33,8 +33,8 @@ for (instance <- instances.values) {
 ******************************/
 
 var instances = Map(
-  "webserver" -> new PhysicalInstance("i-63b8ff0b", "root", new File("/Users/yungsters/.ssh/id-yung")),
-  "workload"  -> new PhysicalInstance("i-65b8ff0d", "root", new File("/Users/yungsters/.ssh/id-yung"))
+  "webserver" -> new PhysicalInstance("ec2-204-236-240-24.compute-1.amazonaws.com", "root", new File("/Users/aaron/.ec2/id_rsa-abeitch")),
+  "workload"  -> new PhysicalInstance("ec2-75-101-181-190.compute-1.amazonaws.com", "root", new File("/Users/aaron/.ec2/id_rsa-abeitch"))
 )
 
 // Create the service configurations.
@@ -78,8 +78,9 @@ services("nginx").addDependency(services("haproxy"))
 services("faban").addDependency(services("mysql"))
 services("faban").addDependency(services("nginx"))
 
-// Start the services.
+Start the services.
 for (service <- services.values) {
   println(service.recipeName)
   service.start
 }
+  
