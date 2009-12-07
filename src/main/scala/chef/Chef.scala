@@ -6,7 +6,10 @@ import deploylib._
  * Contains helper methods for services deployed using Chef.
  */
 object Chef {
-  
+  /**
+   * Path to the Chef repository (should be *.tar.gz).
+   */
+  var repoPath: String = null
 }
 
 /**

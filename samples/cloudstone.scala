@@ -6,6 +6,8 @@ import deploylib._
 import deploylib.chef._
 import deploylib.ec2._
 
+Chef.repoPath = "~/Development/manager.git/ruby/repo.tar.gz"
+
 val amiIds = Map(
   "32-bit" => "ami-e7a2448e",
   "64-bit" => "ami-e4a2448d"
