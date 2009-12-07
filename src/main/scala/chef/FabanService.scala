@@ -52,7 +52,7 @@ case class FabanService(remoteMachine: RemoteMachine,
       case RailsService(_) =>
         railsService = service.asInstanceOf[RailsService]
       case _ =>
-        // TODO: Throw an exception for unhandled dependency.
+        super(service)
     }
   }
 

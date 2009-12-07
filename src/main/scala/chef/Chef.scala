@@ -31,4 +31,11 @@ abstract class ChefService(remoteMachine: RemoteMachine,
    */
   def getJSONConfig: String
 
+  /**
+   * Update the JSON config object and add to dependencies.
+   */
+  override def addDependency(service: Service): Unit = {
+    // TODO: Throw an exception for unhandled dependency.
+  }
+
 }
