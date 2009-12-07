@@ -2,6 +2,32 @@ package deploylib.chef
 
 import deploylib._
 
+/*************************
+{
+    "rails": {
+        "log_level": "debug",
+        "geocoder": {
+            "port": 9980,
+            "host": "localhost"
+        },
+        "memcached": {
+            "port": 1211,
+            "host": "localhost"
+        },
+        "database": {
+            "port": 3306,
+            "adapter": "mysql",
+            "host": "domU-12-31-39-03-14-71.compute-1.internal"
+        },
+        "ports": {
+            "count": 16,
+            "start": 3000
+        }
+    },
+    "recipes": ["cloudstone::rails"]
+}
+*************************/
+
 case class RailsService(remoteMachine: RemoteMachine,
                         config: Map[String,Any]) extends ChefService(remoteMachine, config) {
   val cookbookName = "cloudstone"
@@ -22,7 +48,6 @@ case class RailsService(remoteMachine: RemoteMachine,
     service match {
       case HAProxyService(_) =>
         haproxyService = service
-        // TODO: Update jsonConfig.
       case MySQLService(_) =>
         mysqlService = service
         // TODO: Update jsonConfig.
