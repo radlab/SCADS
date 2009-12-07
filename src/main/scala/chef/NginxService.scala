@@ -56,6 +56,7 @@ case class NginxService(remoteMachine: RemoteMachine,
       // Use haproxy service.
     }
     // TODO: Execute command to run recipe
+    print "Nginx deployed!"
   }
 
   override def stop: Unit = {

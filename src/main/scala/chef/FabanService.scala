@@ -60,6 +60,7 @@ case class FabanService(remoteMachine: RemoteMachine,
   override def start: Unit = {
     // TODO: Upload JSON Config
     // TODO: Execute command to run recipe
+    print "Faban deployed!"
   }
 
   override def stop: Unit = {

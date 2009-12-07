@@ -35,6 +35,7 @@ case class MySQLService(remoteMachine: RemoteMachine,
   override def start: Unit = {
     // TODO: Upload JSON Config
     // TODO: Execute command to run recipe
+    print "MySQL deployed!"
   }
 
   override def stop: Unit = {

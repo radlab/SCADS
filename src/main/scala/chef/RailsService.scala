@@ -89,6 +89,8 @@ case class RailsService(remoteMachine: RemoteMachine,
     // TODO: Upload JSON Config
     // TODO: Execute command to run recipe
     
+    print "Rails deployed!"
+    
     // TODO: Add this to HAProxy's config, then restart it.
     if (haproxyService != null) {
       haproxyService.addRails(this)
