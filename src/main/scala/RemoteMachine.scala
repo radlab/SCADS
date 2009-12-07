@@ -42,7 +42,7 @@ abstract class RemoteMachine {
   /**
    * The services that are assigned to be deployed to this remote machine.
    */
-  protected var assignedServices: Set[Service]
+  protected var assignedServices: Set[Service] = Set()
 
   def addService(service: Service): Unit = {
     assignedServices += service
