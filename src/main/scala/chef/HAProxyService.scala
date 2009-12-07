@@ -52,7 +52,25 @@ case class HAProxyService(remoteMachine: RemoteMachine,
   }
 
   override def getJSONConfig: String = {
+    val haproxyConfig = new JSONObject()
+    haproxyConfig.put("recipes", new JSONArray().put("cloudstone::haproxy"))
+    val haproxyHaproxy = new JSONObject()
+    haproxyHaproxy.put("port", port)
     
+    val haproxyHaproxyServers = new JSONObject()
+    if (railsServices.isEmpty)
+    // TODO: Throw exception 
+    for (service <- railsServices) {
+      val server = new JSONObject()
+      server.put("start", service.startPort)
+      server.put("count", service.count)
+      haproxyHaproxyServers.put(instance.privateDnsName, server)
+    }
+    haproxyHaproxy.put("servers", haproxyHaproxyServers)
+    
+    haproxyConfig.put("haproxy", haproxyHaproxy)
+    
+    return haproxyConfig.toString
   }
 
   /**
