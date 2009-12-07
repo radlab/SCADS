@@ -1,5 +1,7 @@
 package deploylib.chef
 
+import org.json.JSONObject
+import org.json.JSONArray
 import deploylib._
 
 /*************************
@@ -106,6 +108,8 @@ case class RailsService(remoteMachine: RemoteMachine,
     railsRails.put("geocoder", railsRailsGeocoder)
     
     railsConfig.put("rails", railsRails)
+    
+    return railsConfig.toString
   }
 
 }
