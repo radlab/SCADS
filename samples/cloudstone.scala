@@ -15,11 +15,8 @@ val amiIds = Map(
 
 // Request remote machines to deploy Cloudstone on.
 val instances = Map(
-  "rails"   => EC2.runInstances(amiIds("64-bit"), 1, 1, EC2.keyName, "c1.xlarge", "us-east-1a"),
-  "mysql"   => EC2.runInstances(amiIds("64-bit"), 1, 1, EC2.keyName, "c1.xlarge", "us-east-1a"),
-  "haproxy" => EC2.runInstances(amiIds("32-bit"), 1, 1, EC2.keyName, "m1.small",  "us-east-1a"),
-  "nginx"   => EC2.runInstances(amiIds("32-bit"), 1, 1, EC2.keyName, "m1.small",  "us-east-1a"),
-  "faban"   => EC2.runInstances(amiIds("64-bit"), 1, 1, EC2.keyName, "c1.xlarge", "us-east-1a")
+  "webserver" => EC2.runInstances(amiIds("64-bit"), 1, 1, EC2.keyName, "c1.xlarge", "us-east-1a"),
+  "workload"  => EC2.runInstances(amiIds("64-bit"), 1, 1, EC2.keyName, "c1.xlarge", "us-east-1a")
 )
 
 // Wait until all remote machines are running.
@@ -52,11 +49,11 @@ var configs = Map(
 
 // Create the services.
 var services = Map(
-  "rails"   => new RailsService(instances("rails"), configs("rails")),
-  "mysql"   => new MySQLService(instances("mysql"), configs("mysql")),
-  "haproxy" => new HAProxyService(instances("haproxy"), configs("haproxy")),
-  "nginx"   => new NginxService(instances("nginx"), configs("nginx")),
-  "faban"   => new FabanService(instances("faban"), configs("faban"))
+  "rails"   => new RailsService(instances("webserver"), configs("rails")),
+  "mysql"   => new MySQLService(instances("webserver"), configs("mysql")),
+  "haproxy" => new HAProxyService(instances("webserver"), configs("haproxy")),
+  "nginx"   => new NginxService(instances("webserver"), configs("nginx")),
+  "faban"   => new FabanService(instances("workload"), configs("faban"))
 )
 
 // Configure the service dependencies.
