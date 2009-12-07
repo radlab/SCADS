@@ -26,8 +26,9 @@ abstract class ChefService(remoteMachine: RemoteMachine,
   val recipeName: String
 
   /**
-   * The JSON config used to deploy this service.
+   * Returns the JSON config as a String needed to deploy this service
+   * with Chef Solo.
    */
-  var jsonConfig: JSONObject
+  def getJSONConfig: String
 
 }

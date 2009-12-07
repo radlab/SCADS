@@ -39,6 +39,7 @@ case class RailsService(remoteMachine: RemoteMachine,
    * Service-specific variables.
    */
   var haproxyService: HAProxyService = null
+  var nginxService: NginxService = null
   var mysqlService: MySQLService = null
 
   /**
@@ -46,9 +47,11 @@ case class RailsService(remoteMachine: RemoteMachine,
    */
   override def addDependency(service: Service): Unit = {
     service match {
-      case HAProxyService(_) =>
+      case HAProxyService(_, _) =>
         haproxyService = service
-      case MySQLService(_) =>
+      case NginxService(_, _) =>
+        nginxService = service
+      case MySQLService(_, _) =>
         mysqlService = service
         // TODO: Update jsonConfig.
       case _ =>
@@ -69,5 +72,7 @@ case class RailsService(remoteMachine: RemoteMachine,
       haproxyService.addRails(this)
     }
   }
+  
+  
 
 }
