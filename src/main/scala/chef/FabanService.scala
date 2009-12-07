@@ -1,5 +1,7 @@
 package deploylib.chef
 
+import org.json.JSONObject
+import org.json.JSONArray
 import deploylib._
 
 /*************************
