@@ -71,7 +71,7 @@ case class NginxService(remoteMachine: RemoteMachine,
       val server = new JSONObject()
       server.put("start", haproxyService.port)
       server.put("count", 1)
-      nginxNginxServers.put(haproxy.remoteMachine.hostname, server)
+      nginxNginxServers.put(haproxyService.remoteMachine.hostname, server)
     } else if (!railsServices.isEmpty) {
       for (rs <- railsServices) {
         val server = new JSONObject

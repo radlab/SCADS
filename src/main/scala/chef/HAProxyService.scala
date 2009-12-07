@@ -34,6 +34,8 @@ case class HAProxyService(remoteMachine: RemoteMachine,
    */
   var railsServices: Set[RailsService] = Set()
 
+  var port = 4000 // Hardcoded.
+
   /**
    * Update the JSON config object and add to dependencies.
    */
@@ -63,7 +65,7 @@ case class HAProxyService(remoteMachine: RemoteMachine,
       val server = new JSONObject()
       server.put("start", service.portStart)
       server.put("count", service.portCount)
-      haproxyHaproxyServers.put(instance.privateDnsName, server)
+      haproxyHaproxyServers.put(service.remoteMachine.hostname, server)
     }
     haproxyHaproxy.put("servers", haproxyHaproxyServers)
     
