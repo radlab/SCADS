@@ -12,7 +12,13 @@ object Chef {
 /**
  * A framework for managing services that are deployed using Chef. 
  */
-abstract class ChefService(remoteMachine: RemoteMachine) extends Service(remoteMachine) {
+abstract class ChefService(remoteMachine: RemoteMachine,
+                           config: Map[String,Any]) extends Service(remoteMachine) {
+
+  /**
+   * The name of the chef cookbook containing the recipe.
+   */
+  val cookbookName: String
 
   /**
    * The name of the chef recipe used to deploy this service.

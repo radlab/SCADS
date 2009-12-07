@@ -2,7 +2,11 @@ package deploylib.chef
 
 import deploylib._
 
-case class MySQLService extends ChefService {
-  // TODO: Implement me.
-  
+case class MySQLService(remoteMachine: RemoteMachine,
+                        config: Map[String,Any]) extends ChefService(remoteMachine, config) {
+  val cookbookName = "cloudstone"
+  val recipeName = "rails"
+
+  remoteMachine.addService(this)
+
 }
