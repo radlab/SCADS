@@ -44,13 +44,13 @@ case class FabanService(remoteMachine: RemoteMachine,
   override def addDependency(service: Service): Unit = {
     service match {
       case MySQLService(_) =>
-        mysqlService = service
+        mysqlService = service.asInstanceOf[MySQLService]
       case HAProxyService(_) =>
-        haproxyService = service
+        haproxyService = service.asInstanceOf[HAProxyService]
       case NginxService(_) =>
-        nginxService = service
+        nginxService = service.asInstanceOf[NginxService]
       case RailsService(_) =>
-        railsService = service
+        railsService = service.asInstanceOf[RailsService]
       case _ =>
         // TODO: Throw an exception for unhandled dependency.
     }

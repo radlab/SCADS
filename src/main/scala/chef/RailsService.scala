@@ -51,13 +51,13 @@ case class RailsService(remoteMachine: RemoteMachine,
   override def addDependency(service: Service): Unit = {
     service match {
       case HAProxyService(_, _) =>
-        haproxyService = service
+        haproxyService = service.asInstanceOf[HAProxyService]
       case NginxService(_, _) =>
-        nginxService = service
+        nginxService = service.asInstanceOf[NginxService]
       case MySQLService(_, _) =>
-        mysqlService = service
+        mysqlService = service.asInstanceOf[MySQLService]
       case FabanService(_, _) =>
-        fabanService = service
+        fabanService = service.asInstanceOf[FabanService]
         // TODO: Update jsonConfig.
       case _ =>
         // TODO: Throw an exception for unhandled dependency.
