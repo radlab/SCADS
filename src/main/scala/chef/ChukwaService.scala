@@ -24,6 +24,16 @@ case class ChukwaService(remoteMachine: RemoteMachine,
   val cookbookName = "chukwa"
   val recipeName = "default"
 
+  var adaptors = List(
+    "add org.apache.hadoop.chukwa.datacollection.adaptor.ExecAdaptor Top 15000 /usr/bin/top -b -n 1 -c 0",
+    "add org.apache.hadoop.chukwa.datacollection.adaptor.ExecAdaptor Df 60000 /bin/df -x nfs -x none 0",
+    "add org.apache.hadoop.chukwa.datacollection.adaptor.ExecAdaptor Sar 1000 /usr/bin/sar -q -r -n ALL 55 0",
+    "add org.apache.hadoop.chukwa.datacollection.adaptor.ExecAdaptor Iostat 1000 /usr/bin/iostat -x -k 55 2 0")
+  
+  var collectors = List("r16.millennium.berkeley.edu")
+
+  // TODO: Update adaptors and collectors if necessary.
+
   remoteMachine.addService(this)
 
   override def start: Unit = {
@@ -32,7 +42,26 @@ case class ChukwaService(remoteMachine: RemoteMachine,
   }
 
   override def getJSONConfig: String = {
+    val chukwaConfig = new JSONObject()
+    chukwaConfig.put("recipes", new JSONArray().put(cookbookName + "::" + recipeName))
+    chukwaChukwa = new JSONObject()
     
+    chukwaChukwaAdaptors = new JSONArray()
+    for (adaptor <- adaptors) {
+      chukwaChukwaAdaptors.put(adaptor)
+    }
+    chukwaChukwa.put("adaptors", chukwaChukwaAdaptors)
+    
+    chukwaChukwaCollectors = new JSONArray()
+    for (collector <- collectors) {
+      chukwaChukwaCollectors.put(collector)
+    }
+    chukwaChukwa.put("collectors", chukwaChukwaCollectors)
+    
+    chukwaConfig.put("chukwa", chukwaChukwa)
+    
+    return chukwaConfig.toString
+    }
   }
 
 }
