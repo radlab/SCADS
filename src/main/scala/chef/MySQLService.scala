@@ -21,13 +21,16 @@ case class MySQLService(remoteMachine: RemoteMachine,
                         config: Map[String,Any]) extends ChefService(remoteMachine, config) {
   val cookbookName = "cloudstone"
   val recipeName = "mysql"
-  
+
+  remoteMachine.addService(this)
+
+  /**
+   * Service-specific variables.
+   */
   var port = 3306
   if (config.contains("port")) {
     port = config("port").asInstanceOf[Int]
   }
-
-  remoteMachine.addService(this)
 
   override def start: Unit = {
     // TODO: Upload JSON Config
