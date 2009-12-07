@@ -61,8 +61,8 @@ case class HAProxyService(remoteMachine: RemoteMachine,
     // TODO: Throw exception 
     for (service <- railsServices) {
       val server = new JSONObject()
-      server.put("start", service.startPort)
-      server.put("count", service.count)
+      server.put("start", service.portStart)
+      server.put("count", service.portCount)
       haproxyHaproxyServers.put(instance.privateDnsName, server)
     }
     haproxyHaproxy.put("servers", haproxyHaproxyServers)
@@ -79,7 +79,7 @@ case class HAProxyService(remoteMachine: RemoteMachine,
   /**
    * Adds a Rails machine to the configuration of HAProxy and restarts it.
    */
-  def addRails: Unit = {
+  def addRails(railsService: RailsService): Unit = {
     // TODO: Implement me.
   }
 

@@ -43,7 +43,7 @@ case class RailsService(remoteMachine: RemoteMachine,
   var haproxyService: HAProxyService = null
   var nginxService: NginxService = null
   var mysqlService: MySQLService = null
-  var fabanService: fabanService = null
+  var fabanService: FabanService = null
 
   var logLevel = "error"
   if (config.contains("log_level")) {
@@ -55,10 +55,10 @@ case class RailsService(remoteMachine: RemoteMachine,
   if (config.contains("ports")) {
     var portsConfig = config("ports").asInstanceOf[Map[String,Any]]
     if (portsConfig.contains("start")) {
-      portStart = portsConfig("start")
+      portStart = portsConfig("start").asInstanceOf[Int]
     }
     if (portsConfig.contains("count")) {
-      portCount = portsConfig("count")
+      portCount = portsConfig("count").asInstanceOf[Int]
     }
   }
 
@@ -106,7 +106,7 @@ case class RailsService(remoteMachine: RemoteMachine,
     railsRails.put("ports", railsRailsPorts)
     
     val railsRailsDatabase = new JSONObject()
-    railsRailsDatabase.put("host", mysqlService.remoteMachine.hostName)
+    railsRailsDatabase.put("host", mysqlService.remoteMachine.hostname)
     railsRailsDatabase.put("adapter", "mysql")
     railsRailsDatabase.put("port", mysqlService.port)
     railsRails.put("database", railsRailsDatabase)
@@ -118,7 +118,7 @@ case class RailsService(remoteMachine: RemoteMachine,
     
     val railsRailsGeocoder = new JSONObject()
     if (fabanService != null)
-      railsRailsGeocoder.put("host", fabanService.remoteMachine.hostName)
+      railsRailsGeocoder.put("host", fabanService.remoteMachine.hostname)
     else
       railsRailsGeocoder.put("host", "localhost")
     railsRailsGeocoder.put("port", 9980)

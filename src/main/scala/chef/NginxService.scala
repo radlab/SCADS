@@ -32,7 +32,7 @@ case class NginxService(remoteMachine: RemoteMachine,
    * Service-specific variables.
    */
   var haproxyService: HAProxyService = null
-  var railsServices: Set[RailsService] = new Set[RailsService]()
+  var railsServices: Set[RailsService] = Set()
 
   /**
    * Update the JSON config object and add to dependencies.
@@ -75,8 +75,8 @@ case class NginxService(remoteMachine: RemoteMachine,
     } else if (!railsServices.isEmpty) {
       for (rs <- railsServices) {
         val server = new JSONObject
-        server.put("start", rs.port)
-        server.put("count", rs.count)
+        server.put("start", rs.portStart)
+        server.put("count", rs.portCount)
         nginxNginxServers.put(rs.remoteMachine.hostname, server)
       }
     } else {
@@ -87,7 +87,7 @@ case class NginxService(remoteMachine: RemoteMachine,
     nginxConfig.put("nginx", nginxNginx)
     
     val nginxFaban = new JSONObject()
-    nginxFaban.put("jdbc", null)
+    nginxFaban.put("jdbc", null: String)
     nginxConfig.put("faban", nginxFaban)
     
     return nginxConfig.toString
