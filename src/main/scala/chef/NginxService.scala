@@ -67,19 +67,30 @@ case class NginxService(remoteMachine: RemoteMachine,
     val nginxNginx = new JSONObject()
     val nginxNginxServers = new JSONObject()
     
-    haproxy.foreach(instance => {
+    if (haproxyService != null) {
       val server = new JSONObject()
-      server.put("start", 4000)
+      server.put("start", haproxyService.port)
       server.put("count", 1)
-      nginxNginxServers.put(instance.privateDnsName, server)
-    })
+      nginxNginxServers.put(haproxy.remoteMachine.hostname, server)
+    } else if (!railsServices.isEmpty) {
+      for (rs <- railsServices) {
+        val server = new JSONObject
+        server.put("start", rs.port)
+        server.put("count", rs.count)
+        nginxNginxServers.put(rs.remoteMachine.hostname, server)
+      }
+    } else {
+      // TODO: throw exception, no haproxy or rails services
+    }
+
     nginxNginx.put("servers", nginxNginxServers)
     nginxConfig.put("nginx", nginxNginx)
     
     val nginxFaban = new JSONObject()
-    nginxFaban.put("mysql", false)
-    nginxFaban.put("postgresql", false)
+    nginxFaban.put("jdbc", null)
     nginxConfig.put("faban", nginxFaban)
+    
+    return nginxConfig.toString
   }
   
 }
