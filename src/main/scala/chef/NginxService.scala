@@ -4,15 +4,15 @@ import deploylib._
 
 /*************************
 {
+    "recipes": ["cloudstone::nginx"],
     "nginx": {
         "servers": {
-            "domU-12-31-39-03-14-71.compute-1.internal": {
-                "count": 16,
-                "start": 3000
+            "localhost": {
+                "start": 3000,
+                "count": 2
             }
         }
-    },
-    "recipes": ["cloudstone::nginx"]
+    }
 }
 *************************/
 
