@@ -101,8 +101,8 @@ case class RailsService(remoteMachine: RemoteMachine,
     val railsRails = new JSONObject()
     
     val railsRailsPorts = new JSONObject()
-    railsRailsPorts.put("start", 3000)
-    railsRailsPorts.put("count", railsSettings._3)
+    railsRailsPorts.put("start", portStart)
+    railsRailsPorts.put("count", portCount)
     railsRails.put("ports", railsRailsPorts)
     
     val railsRailsDatabase = new JSONObject()
