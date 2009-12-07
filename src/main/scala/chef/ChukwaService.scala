@@ -31,4 +31,8 @@ case class ChukwaService(remoteMachine: RemoteMachine,
     // TODO: Execute command to run recipe
   }
 
+  override def getJSONConfig: String = {
+    
+  }
+
 }

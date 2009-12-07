@@ -62,4 +62,28 @@ case class FabanService(remoteMachine: RemoteMachine,
     // TODO: Upload JSON Config
     // TODO: Execute command to run recipe
   }
+
+  override def getJSONConfig: String = {
+    val fabanConfig = new JSONObject()
+    fabanConfig.put("recipes", new JSONArray().put("cloudstone::faban"))
+    val fabanFaban = new JSONObject()
+    val fabanFabanHosts = new JSONObject()
+    fabanFabanHosts.put("driver", faban.getFirst().privateDnsName)
+    fabanFabanHosts.put("webserver", nginx.getFirst().privateDnsName)
+    fabanFabanHosts.put("database", mysql.getFirst().privateDnsName)
+    fabanFabanHosts.put("storage", "")
+    fabanFabanHosts.put("cache", "")
+    
+    val fabanFabanDatabase = new JSONObject()
+    fabanFabanDatabase.put("adapter", "mysql")
+    fabanFabanDatabase.put("port", mysqlPort)
+    
+    fabanFaban.put("hosts", fabanFabanHosts)
+    fabanFaban.put("database", fabanFabanDatabase)
+    fabanFaban.put("debug", false)
+    fabanConfig.put("faban", fabanFaban)
+    
+    return fabanConfig.toString
+  }
+
 }
