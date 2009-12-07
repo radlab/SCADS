@@ -64,12 +64,17 @@ case class NginxService(remoteMachine: RemoteMachine,
     val nginxNginx = new JSONObject()
     val nginxNginxServers = new JSONObject()
     
-    haproxy.foreach(instance => {
+    if (haproxyService != null) {
       val server = new JSONObject()
-      server.put("start", 4000)
+      server.put("start", haproxyService.port)
       server.put("count", 1)
-      nginxNginxServers.put(instance.privateDnsName, server)
-    })
+      nginxNginxServers.put(haproxy.remoteMachine.hostname, server)
+    } else if (!railsServices.isEmpty) {
+      // TODO: Round robin ips
+    } else {
+      // TODO: throw exception, no haproxy or rails services
+    }
+
     nginxNginx.put("servers", nginxNginxServers)
     nginxConfig.put("nginx", nginxNginx)
     
