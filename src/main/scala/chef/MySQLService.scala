@@ -37,6 +37,10 @@ case class MySQLService(remoteMachine: RemoteMachine,
     // TODO: Execute command to run recipe
   }
 
+  override def stop: Unit = {
+    // TODO: Implement me.
+  }
+
   override def getJSONConfig: String = {
     val mysqlConfig = new JSONObject()
     val mysqlRecipes = new JSONArray()

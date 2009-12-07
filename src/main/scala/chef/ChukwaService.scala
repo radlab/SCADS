@@ -41,6 +41,10 @@ case class ChukwaService(remoteMachine: RemoteMachine,
     // TODO: Execute command to run recipe
   }
 
+  override def stop: Unit = {
+    // TODO: Implement me.
+  }
+
   override def getJSONConfig: String = {
     val chukwaConfig = new JSONObject()
     chukwaConfig.put("recipes", new JSONArray().put(cookbookName + "::" + recipeName))

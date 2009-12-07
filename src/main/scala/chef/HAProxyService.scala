@@ -53,6 +53,10 @@ case class HAProxyService(remoteMachine: RemoteMachine,
     // TODO: Execute command to run recipe
   }
 
+  override def stop: Unit = {
+    // TODO: Implement me.
+  }
+
   override def getJSONConfig: String = {
     val haproxyConfig = new JSONObject()
     haproxyConfig.put("recipes", new JSONArray().put("cloudstone::haproxy"))

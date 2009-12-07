@@ -42,10 +42,10 @@ abstract class RemoteMachine {
   /**
    * The services that are assigned to be deployed to this remote machine.
    */
-  protected var services: Set[Service]
+  protected var assignedServices: Set[Service]
 
   def addService(service: Service): Unit = {
-    services += service
+    assignedServices += service
   }
 
 	val runitBinaryPath: File

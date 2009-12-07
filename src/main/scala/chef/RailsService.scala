@@ -94,7 +94,11 @@ case class RailsService(remoteMachine: RemoteMachine,
       haproxyService.addRails(this)
     }
   }
-  
+
+  override def stop: Unit = {
+    // TODO: Implement me.
+  }
+
   override def getJSONConfig: String = {
     val railsConfig = new JSONObject()
     railsConfig.put("recipes", new JSONArray().put("cloudstone::rails"))
