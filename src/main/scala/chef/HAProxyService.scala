@@ -42,7 +42,7 @@ case class HAProxyService(remoteMachine: RemoteMachine,
       case RailsService(_) =>
         railsServices += service.asInstanceOf[RailsService]
       case _ =>
-        // TODO: Throw an exception for unhandled dependency.
+        super(service)
     }
   }
 

@@ -60,7 +60,7 @@ case class RailsService(remoteMachine: RemoteMachine,
         fabanService = service.asInstanceOf[FabanService]
         // TODO: Update jsonConfig.
       case _ =>
-        // TODO: Throw an exception for unhandled dependency.
+        super(service)
     }
   }
 

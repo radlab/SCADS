@@ -6,7 +6,7 @@ import deploylib._
 
 /*************************
 {
-    "recipes": ["cloudstone::nginx"],
+    "recipes": ["cloudstone::nginx", "cloudstone::faban-agent"],
     "nginx": {
         "servers": {
             "localhost": {
@@ -14,6 +14,9 @@ import deploylib._
                 "count": 2
             }
         }
+    },
+    "faban": {
+        "jdbc": null
     }
 }
 *************************/
@@ -41,7 +44,7 @@ case class NginxService(remoteMachine: RemoteMachine,
       case RailsService(_) =>
         railsServices += service.asInstanceOf[RailsService]
       case _ =>
-        // TODO: Throw an exception for unhandled dependency.
+        super(service)
     }
   }
 

@@ -6,11 +6,14 @@ import deploylib._
 
 /*************************
 {
+    "recipes": ["cloudstone::mysql", "cloudstone::faban-agent"],
     "mysql": {
         "port": 3306,
         "server_id": 1
     },
-    "recipes": ["cloudstone::mysql"]
+        "faban": {
+        "jdbc": "mysql"
+    }
 }
 *************************/
 
@@ -20,16 +23,6 @@ case class MySQLService(remoteMachine: RemoteMachine,
   val recipeName = "mysql"
 
   remoteMachine.addService(this)
-
-  /**
-   * Update the JSON config object and add to dependencies.
-   */
-  override def addDependency(service: Service): Unit = {
-    service match {
-      case _ =>
-        // TODO: Throw an exception for unhandled dependency.
-    }
-  }
 
   override def start: Unit = {
     // TODO: Upload JSON Config
