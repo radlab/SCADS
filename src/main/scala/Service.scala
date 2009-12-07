@@ -8,10 +8,7 @@ abstract class Service(remoteMachine: RemoteMachine) {
   /**
    * Dependency management because services can depend on other services.
    */
-  protected var dependencies: Set[Service]
-  def addDependency(service: Service): Unit = {
-    dependencies += service
-  }
+  def addDependency(service: Service): Unit
 
   /**
    * Deploys and starts the service.
