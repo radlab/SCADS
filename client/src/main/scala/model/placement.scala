@@ -8,6 +8,7 @@ import scala.collection.mutable.HashMap
 import scala.collection.jcl.Conversions
 import org.apache.log4j.Logger
 
+case class NoNodeResponsibleException(key: String) extends Exception
 
 abstract class ClusterPlacement {
   def locate(namespace: String, key: String): Seq[StorageNode]
@@ -30,12 +31,22 @@ class ZooKeptCluster(servers: String) extends ClusterPlacement with Watcher {
     else
       loadNamespace(ns)
 
-    policies.flatMap(n => {
+    val nodes = policies.flatMap(n => {
       if(n._2.contains(key))
         List(n._1)
       else
         Nil
     })
+
+		if(nodes.size == 0) {
+			logger.warn("No node responsible for key: " + key)
+			logger.warn("Current policies: " + policies.map(p => {
+				p._1 + " => " + p._2.policy(0)._1 + " " + p._2.policy(0)._2
+			}).mkString("", "\n", ""))
+			throw new NoNodeResponsibleException(key)
+		}
+
+		return nodes
   }
 
 	def getPolicies(ns: String): Seq[(StorageNode, RangedPolicy)] = {
