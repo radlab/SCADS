@@ -9,17 +9,26 @@ import scala.collection.jcl.Conversions._
 val allKeys = RangedPolicy.convert((null, null)).apply(0)
 settings.maxPrintString = 1000000
 
-class ReadExp {
+	//logger.info("Cleaning up running services")
+	//nodes.foreach(_.stopWatches)
+	//nodes.flatMap(_.services).foreach(s => {s.stop; s.blockTillDown; s.exit; s.clearFailures; s.clearLog})
+
+	//val cluster = ScadsDeployment.deployScadsCluster(nodes, false)
+
+class ReadExp(serverNodes: List[RClusterNode], clientNodes: List[RClusterNode], threads: Int) {
 	val logger = Logger.getLogger("script")
 
-	val nodes = List(r27, r10, r9, r32)
+	XResult.startExperiment("Read Experiment " + serverNodes + clientNodes + threads)
 
-	logger.info("Cleaning up running services")
-	nodes.foreach(_.stopWatches)
-	nodes.flatMap(_.services).foreach(s => {s.stop; s.blockTillDown; s.exit; s.clearFailures; s.clearLog})
+	val cluster = ScadsDeployment.recoverScadsDeployment(serverNodes)
+	ScadsDeployment.captureScadsDeployment(cluster)
 
-	val cluster = ScadsDeployment.deployScadsCluster(nodes, false)
+	clientNodes.foreach(_.clearAll)
+	clientNodes.foreach(_.stopWatches)
 
-	val loadService = IntTestDeployment.deployLoadClient(nodes(0), "SingleRandomReader", cluster.zooUri + " " + 60)
-	loadService.once
+	val loadServices = clientNodes.map(n => {
+		ScadsDeployment.deployLoadClient(n, "RandomReader", Map("zookeeper" -> cluster.zooUri, "length" -> (5*60).toString, "threads" -> threads.toString))
+	})
+	loadServices.foreach(_.watchFailures)
+	loadServices.foreach(_.once)
 }

@@ -18,20 +18,6 @@ import scala.concurrent.SyncVar
 case class Partition(start: String, end: String)
 
 object IntTestDeployment extends ConfigurationActions {
-	def deployLoadClient(target: RunitManager, cl: String, args: String):RunitService = {
-		createJavaService(target, new File("target/scale-1.0-SNAPSHOT-jar-with-dependencies.jar"),
-  		"scaletest." + cl,
-  		512,
-			args)
-	}
-
-	def deployIntKeyLoader(target: RunitManager, name: String, start: String, end: String, server: String): RunitService = {
-		createJavaService(target, new File("target/scale-1.0-SNAPSHOT-jar-with-dependencies.jar"),
-  		"scaletest." + name,
-  		512,
-			"" + start + " " + end + " " + server)
-	}
-
 	def createPartitions(numKeys: Int, numPartitions: Int):List[Partition] = createPartitions(1, numKeys, numPartitions)
 	def createPartitions(startKey: Int, endKey: Int, numPartitions: Int):List[Partition] = {
 		val partitions = new scala.collection.mutable.ArrayStack[Partition]()
@@ -49,200 +35,99 @@ object IntTestDeployment extends ConfigurationActions {
 
 class NoNodeResponsibleException extends RetryableException
 
-abstract class IntKeyTest {
-	val logger = Logger.getLogger("scads.intKeyTest")
-	implicit val env = new Environment
-
-	def configEnv(zooServer: String):Unit = {
-		env.placement = new ZooKeptCluster(zooServer)
-  	env.session = new TrivialSession
-  	env.executor = new TrivialExecutor
-	}
+abstract class IntKeyTest extends ScadsTest {
 	def makeKey(key: Int) = "%010d".format(key)
 	def makeRecord(key: Int) = new Record(makeKey(key), "value" + key)
 	def locateKey(key: Int):StorageNode = locateKey(makeKey(key))
 	def locateKey(key: String): StorageNode = {
 		val nodes = env.placement.locate("intKeys", key)
-		if(nodes.size == 0)
+		if(nodes.size == 0) {
+			logger.fatal("No node responsible for key: " + key)
 			throw new NoNodeResponsibleException
+		}
 		return nodes(0)
 	}
 
-	def getMaxKey: Int = {
+	def getMaxKey(): Int = {
 		env.placement.asInstanceOf[ZooKeptCluster].getPolicies("intKeys").map(p => {
 			p._2.policy.apply(0)._2.toInt
 		}).foldLeft(0)((a: Int, b: Int) => {
-			if(a > b) a else b
+			if(a > b) (a - 1) else (b - 1)
 		})
+	}
+
+	def putKey(key: Int): Unit = {
+		val nodes = env.placement.locate("intKeys", makeKey(key))
+		if(nodes.size == 0) {
+			logger.fatal("No node responsible for key: " + key)
+			throw new NoNodeResponsibleException
+		}
+		nodes.foreach(_.useConnection(_.put("intKeys", makeRecord(key))))
+	}
+
+	def getKey(key: Int): Boolean = {
+		val skey = makeKey(key)
+		val result = locateKey(skey).useConnection(_.get("intKeys", skey))
+
+		if(result.value == null) {
+			logger.warn("Key missing: " + skey)
+			false
+		}
+		else if(!result.value.equals("value" + key)) {
+			logger.warn("For key: " + skey + " got: " + result.value)
+			false
+		}
+		else
+			true
 	}
 }
 
-abstract class KeyRangeTest extends IntKeyTest {
-
-  def main(args: Array[String]): Unit = {
-   	configEnv(args(2))
-		val startKey = args(0).toInt
-    val endKey = args(1).toInt
-
-    logger.info("Running test " + this.getClass.getName + " on keys " + startKey + " to " + endKey)
-
-    XResult.recordResult {
-      XResult.benchmark {
-        run(startKey, endKey)
-        <sequentialLoad>
-          <startKey>{startKey.toString}</startKey>
-          <endKey>{endKey.toString}</endKey>
-          <method>{this.getClass.getName}</method>
-        </sequentialLoad>
-      }
-    }
-  }
-
-	def run(startKey: Int, endKey: Int): Unit
-}
-
-
 object ThreadedLoader extends IntKeyTest {
-	def main(args: Array[String]): Unit = {
-		configEnv(args(0))
-		val startKey = args(1).toInt
-		val endKey = args(2).toInt
-		val numThreads = args(3).toInt
+	options.addOption("s", "startKey", true, "first key to load")
+	options.addOption("e", "endKey", true, "last key (exclusive)")
+	options.addOption("t", "threads", true, "number of threads to split the load into")
+
+	def runExperiment(): NodeSeq = {
+		val startKey = getIntOption("startKey")
+		val endKey = getIntOption("endKey")
 
 		logger.info("Loading running from " + startKey + " to " + endKey)
 
-		val results = IntTestDeployment.createPartitions(startKey, endKey - 1, numThreads).toList.map(p => {
+		val results = IntTestDeployment.createPartitions(startKey, endKey - 1, getIntOption("threads")).toList.map(p => {
 			logger.info("Creating thread for range: " + p)
-			val result = new SyncVar[scala.xml.Elem]
-			val thread = new Thread() {
-				override def run() = {
-					result.set(XResult.benchmark {
-						runTest(p.start.toInt, p.end.toInt)
-						<sequentialLoad>
-							<startKey>{p.start.toInt}</startKey>
-							<endKey>{p.end.toInt}</endKey>
-							<method>{this.getClass.getName}</method>
-						</sequentialLoad>
-      		})
+			Future {
+				XResult.benchmark {
+					runTest(p.start.toInt, p.end.toInt)
+					<sequentialLoad>
+						<startKey>{p.start.toInt}</startKey>
+						<endKey>{p.end.toInt}</endKey>
+						<method>{this.getClass.getName}</method>
+					</sequentialLoad>
 				}
 			}
-			thread.start()
-			result
 		})
 
-		XResult.recordResult(results.map(r => <thread>{r.get}</thread>))
+		results.map(r => <thread>{r()}</thread>)
 	}
 
 	def runTest(startKey: Int, endKey: Int): Unit = {
     (startKey to (endKey - 1)).foreach(k => {
-			if(k % 1000 == 0)
+			if(k % 10000 == 0)
 				logger.info("Adding key " + k)
-
-			XResult.retryAndRecord(10)(() => {
-      	val nodes = env.placement.locate("intKeys", makeKey(k))
-				if(nodes.size == 0)
-					throw new NoNodeResponsibleException
-				nodes.foreach(_.useConnection(_.put("intKeys", makeRecord(k))))
-			})
+			putKey(k)
     })
   }
 }
 
+object RandomReader extends IntKeyTest with ThreadedScadsExperiment {
+	lazy val maxKey = getMaxKey()
+	options.addOption("l", "length", true, "the length in seconds for the test to run")
 
-object SingleConnectionPoolLoader extends KeyRangeTest {
-	def run(startKey: Int, endKey: Int): Unit = {
-    (startKey to (endKey - 1)).foreach(k => {
-			if(k % 1000 == 0)
-				logger.info("Adding key " + k)
-
-			XResult.retryAndRecord(10)(() => {
-      	val nodes = env.placement.locate("intKeys", makeKey(k))
-				if(nodes.size == 0)
-					throw new NoNodeResponsibleException
-				nodes.foreach(_.useConnection(_.put("intKeys", makeRecord(k))))
-			})
-    })
-  }
-}
-
-object SingleAsyncConnectionPoolLoader extends KeyRangeTest {
-	def run(startKey: Int, endKey: Int): Unit = {
-    (startKey to (endKey - 1)).foreach(k => {
-			if(k % 1000 == 0)
-				logger.info("Adding key " + k)
-
-			XResult.retryAndRecord(10)(() => {
-      	val nodes = env.placement.locate("intKeys", makeKey(k))
-				if(nodes.size == 0)
-					throw new NoNodeResponsibleException
-
-				nodes.foreach(_.useConnection(_.async_put("intKeys", makeRecord(k))))
-			})
-    })
-  }
-}
-
-
-object SingleConnectionLoader extends KeyRangeTest {
-	def run(startKey: Int, endKey: Int): Unit = {
-    val nodes = env.placement.locate("intKeys", makeKey(startKey))
-		if(nodes.size == 0)
-				throw new NoNodeResponsibleException
-
-		if(nodes.size > 1)
-			logger.warn("Not designed for replicated envs")
-		var conn = nodes(0).getConnection
-		logger.info("Using connection: " + conn)
-
-    (startKey to (endKey - 1)).foreach(k => {
-			if(k % 1000 == 0)
-				logger.info("Adding key " + k)
-			XResult.retryAndRecord(10)(() => {
-				conn.put("intKeys", makeRecord(k))
-			})
-    })
-  }
-}
-
-object SingleAsyncConnectionLoader extends KeyRangeTest {
-	def run(startKey: Int, endKey: Int): Unit = {
-    val nodes = env.placement.locate("intKeys", makeKey(startKey))
-		if(nodes.size == 0)
-				throw new NoNodeResponsibleException
-
-		if(nodes.size > 1)
-			logger.warn("Not designed for replicated envs")
-		var conn = nodes(0).getConnection
-		logger.info("Using connection: " + conn)
-
-    (startKey to (endKey - 1)).foreach(k => {
-			if(k % 1000 == 0)
-				logger.info("Adding key " + k)
-			XResult.retryAndRecord(10)(() => {
-				conn.async_put("intKeys", makeRecord(k))
-			})
-    })
-  }
-}
-
-object SingleRandomReader extends IntKeyTest {
-	def main(args: Array[String]): Unit = {
-		configEnv(args(0))
-		val maxKey = getMaxKey
-		val timeout = args(1).toInt
+	def runThread: NodeSeq = {
 		val rand = new Random
 
-		XResult.recordResult(
-			XResult.timeLimitBenchmark(timeout, 100, <randomRead/>) {
-				val key = rand.nextInt(maxKey)
-				val skey = makeKey(key)
-				val result = locateKey(skey).useConnection(_.get("intKeys", skey))
-
-				if(result.value == null)
-					logger.warn("Key missing: " + skey)
-				else if(!result.value.equals("value" + key))
-					logger.warn("For key: " + skey + " got: " + result.value)
-			}
-		)
+		XResult.timeLimitBenchmark(getIntOption("length"), 1000, <randomReads><maxKey>{maxKey.toString}</maxKey></randomReads>) {
+			getKey(rand.nextInt(maxKey) + 1)
+		}
 	}
 }

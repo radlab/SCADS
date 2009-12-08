@@ -5,8 +5,17 @@ import deploylib.config._
 import deploylib.runit._
 import deploylib.xresults._
 import edu.berkeley.cs.scads.thrift._
+import edu.berkeley.cs.scads.model.{Environment, TrivialSession, TrivialExecutor, ZooKeptCluster}
 import scala.collection.jcl.Conversions._
 
+import org.apache.commons.cli.Options
+import org.apache.commons.cli.GnuParser
+import org.apache.commons.cli.CommandLine
+import org.apache.commons.cli.HelpFormatter
+
+import scala.xml._
+
+import org.apache.log4j.Logger
 import java.io.File
 
 case class ScadsDeployment(zooService: RunitService, zooUri: String, storageServices: List[RunitService])
@@ -35,7 +44,61 @@ object ScadsDeployment extends ConfigurationActions {
 		ScadsDeployment(zooService, zooNode.hostname + ":" + zookeeperPort, storageServices)
 	}
 
-	def deployStorageEngine(target: RunitManager, zooServer: RemoteMachine, bulkLoad: Boolean): RunitService = {
+	def recoverScadsDeployment(nodes: List[RunitManager]): ScadsDeployment = {
+		val services = nodes.flatMap(_.services)
+		val zooService = services.filter(_.name == "org.apache.zookeeper.server.quorum.QuorumPeerMain")(0)
+		val storageServices = services.filter(_.name == "edu.berkeley.cs.scads.storage.JavaEngine")
+
+		ScadsDeployment(zooService, zooService.manager.hostname + ":" + zookeeperPort, storageServices)
+	}
+
+	def captureScadsDeployment(dep: ScadsDeployment):Unit = {
+		val nodes = dep.storageServices.map(s => new StorageNode(s.manager.hostname, storageEnginePort))
+		val engineData = nodes.map(n => {
+			val namespaces = Util.retry(5) {
+				n.useConnection(_.get_set("resp_policies", allKeys)).map(_.key)
+			}
+
+			<scadsEngine>
+				<host>{n.host}</host>
+				{namespaces.map(ns => {
+					<namespace name={ns}>
+						{val policies = Util.retry(5)(RangedPolicy.convert(n.useConnection(_.get_responsibility_policy(ns))))
+							policies.map(p => {
+							<responsibilityPolicy>
+								<startKey>{p._1}</startKey>
+								<endKey>{p._2}</endKey>
+							</responsibilityPolicy>
+						})}
+						<keyCount>{Util.retry(5)(n.useConnection(_.count_set(ns, allKeys)))}</keyCount>
+					</namespace>
+				})}
+			</scadsEngine>
+		})
+
+		XResult.storeXml(
+			<scadsDeployment>
+				{engineData}
+			</scadsDeployment>
+		)
+	}
+
+	def deployLoadClient(target: RunitManager, cl: String, args: Map[String, String]):RunitService = {
+		val cmdLineArgs = args.map(a => "--" + a._1 + " " + a._2).mkString("", " ", "")
+
+		XResult.storeXml(
+			<configuration type="loadClient">
+				{args.map(a => <arg name={a._1}>{a._2}</arg>)}
+			</configuration>
+		)
+
+		createJavaService(target, new File("target/scale-1.0-SNAPSHOT-jar-with-dependencies.jar"),
+  		"scaletest." + cl,
+  		512,
+			cmdLineArgs)
+	}
+
+	protected def deployStorageEngine(target: RunitManager, zooServer: RemoteMachine, bulkLoad: Boolean): RunitService = {
     val bulkLoadFlag = if(bulkLoad) " -b " else ""
 		createJavaService(target, new File("target/scale-1.0-SNAPSHOT-jar-with-dependencies.jar"),
 			"edu.berkeley.cs.scads.storage.JavaEngine",
@@ -43,7 +106,7 @@ object ScadsDeployment extends ConfigurationActions {
 			"-p " + storageEnginePort + " -z " + zooServer.hostname + ":" + zookeeperPort + bulkLoadFlag)
 	}
 
-	def deployZooKeeperServer(target: RunitManager): RunitService = {
+	protected def deployZooKeeperServer(target: RunitManager): RunitService = {
 		val zooStorageDir = createDirectory(target, new File(target.rootDirectory, "zookeeperdata"))
 		val zooService = createJavaService(target, new File("target/scale-1.0-SNAPSHOT-jar-with-dependencies.jar"),
 			"org.apache.zookeeper.server.quorum.QuorumPeerMain",
@@ -64,31 +127,71 @@ object ScadsDeployment extends ConfigurationActions {
 
 		return zooService
 	}
+}
 
-	def captureEngineState(target: RemoteMachine): Unit = {
-		val node = new StorageNode(target.hostname, storageEnginePort)
-		val namespaces =
-			node.useConnection(c => c.get_set("resp_policies", allKeys).map(r => {
+abstract class ScadsTest {
+	val logger = Logger.getLogger("scads.test")
+	implicit val env = new Environment
 
-				<namespace name={r.key}>
-					{
-						RangedPolicy.convert(c.get_responsibility_policy(r.key)).map(p => {
-							<responsibilityPolicy>
-								<startKey>{p._1}</startKey>
-								<endKey>{p._2}</endKey>
-							</responsibilityPolicy>
+	val options = new Options()
+	options.addOption("z", "zookeeper", true, "The uri of the zookeeper server")
+	options.addOption("h", "help",  false, "print usage information");
+	var cmd: CommandLine = null
 
-						})
-					}
-					<keyCount>{node.useConnection(_.count_set(r.key, allKeys))}</keyCount>
-				</namespace>
-			}))
+	def main(args: Array[String]): Unit = {
+		val parser = new GnuParser();
+		cmd = parser.parse( options, args);
 
-		XResult.storeXml(
-			<storageEngine>
-				<host>{target.hostname}</host>
-				{namespaces}
-			</storageEngine>
+		if(cmd.hasOption("help")) {
+			printUsage()
+			System.exit(1)
+		}
+
+		if(!cmd.hasOption("zookeeper")){
+			logger.fatal("No zookeeper specified")
+		}
+
+		env.placement = new ZooKeptCluster(getStringOption("zookeeper"))
+  	env.session = new TrivialSession
+  	env.executor = new TrivialExecutor
+
+		XResult.recordResult(
+			XResult.retryAndRecord(1) {
+				runExperiment
+			}
 		)
 	}
+
+	def runExperiment(): NodeSeq
+
+	protected def getStringOption(name: String): String = {
+		if(!cmd.hasOption(name)) {
+			logger.fatal("Required option not specified: " + name)
+			printUsage()
+			System.exit(1)
+		}
+		cmd.getOptionValue(name)
+	}
+
+	protected def getIntOption(name: String): Int = getStringOption(name).toInt
+	protected def printUsage(): Unit = {
+		val formatter = new HelpFormatter()
+		formatter.printHelp("ScadsTest", options)
+	}
+}
+
+abstract trait ThreadedScadsExperiment extends ScadsTest {
+	options.addOption("t", "threads", true, "number of concurrent threads to run")
+
+	def runExperiment(): NodeSeq = {
+		val results = (1 to getIntOption("threads")).toList.map(r => {
+			Future {
+				runThread()
+			}
+		})
+
+		results.map(r => <thread>{r()}</thread>)
+	}
+
+	def runThread(): NodeSeq
 }
