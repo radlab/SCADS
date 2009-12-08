@@ -251,19 +251,27 @@ abstract class RemoteMachine {
 		})
 	}
 
-	def blockTillFileCreated(file: File): Boolean = {
+	def blockTillFileCreated(file: File): Unit = {
 		useConnection((c) => {
 			val session = connection.openSession
 			session.execCommand("tail -F " + file)
 
 			logger.debug("Blocking till " + file + "exists")
 
-			val status = session.waitForCondition(ChannelCondition.STDOUT_DATA |
+			var status = session.waitForCondition(ChannelCondition.STDOUT_DATA |
 																						ChannelCondition.EXIT_STATUS |
 																						ChannelCondition.EXIT_SIGNAL |
 																						ChannelCondition.EOF |
-																						ChannelCondition.CLOSED, 0)
-			(status & ChannelCondition.STDOUT_DATA) != 0
+																						ChannelCondition.CLOSED, 10000)
+
+			while((status & ChannelCondition.STDOUT_DATA) == 0) {
+				logger.info("Waiting for the creation of " + file + " on " + hostname)
+				status = session.waitForCondition(ChannelCondition.STDOUT_DATA |
+																						ChannelCondition.EXIT_STATUS |
+																						ChannelCondition.EXIT_SIGNAL |
+																						ChannelCondition.EOF |
+																						ChannelCondition.CLOSED, 10000)
+			}
 		})
 	}
 
