@@ -3,11 +3,12 @@ package edu.berkeley.cs.scads.storage
 import edu.berkeley.cs.scads.thrift._
 
 import org.apache.zookeeper.{ZooKeeper, Watcher, WatchedEvent, CreateMode}
+import org.apache.zookeeper.Watcher.Event
 import org.apache.zookeeper.ZooDefs.Ids
 import com.sleepycat.je.{Database, DatabaseConfig, DatabaseEntry, Environment, LockMode, OperationStatus}
 
 class ZooKeptStorageProcessor(env: Environment, hostid: String, servers: String, deferedWrite: Boolean) extends StorageProcessor(env, deferedWrite) with Watcher {
-	val zoo = new ZooKeeper(servers, 3000, this)
+	var zoo = new ZooKeeper(servers, 3000, this)
 	logger.info("Registering with zookeeper")
 
 	/* Set up basic directory */
@@ -22,9 +23,6 @@ class ZooKeptStorageProcessor(env: Environment, hostid: String, servers: String,
 	catch {
 		case e: org.apache.zookeeper.KeeperException.NodeExistsException => logger.warn("Race condition while create directories, giving up")
 	}
-
-	/* Register server entry */
-	createOrReplaceEphemeralFile("/scads/servers/" + hostid, "ScalaEngine".getBytes)
 
 	registerNamespaces()
 
@@ -48,6 +46,10 @@ class ZooKeptStorageProcessor(env: Environment, hostid: String, servers: String,
 	}
 
 	private def registerNamespaces(): Unit = {
+		/* Register server entry */
+		createOrReplaceEphemeralFile("/scads/servers/" + hostid, "ScalaEngine".getBytes)
+
+		/* Register node for each namespace */
 		val dbeNamespace = new DatabaseEntry()
 		val dbePolicy = new DatabaseEntry()
 		val cur = respPolicyDb.openCursor(null, null)
@@ -87,5 +89,16 @@ class ZooKeptStorageProcessor(env: Environment, hostid: String, servers: String,
 
 	def process(event: WatchedEvent): Unit = {
 		logger.info(event)
+		event.getType match {
+			case Event.EventType.None => {
+				event.getState match {
+					case Event.KeeperState.Expired => {
+						logger.fatal("Lost connection to zookeeper, attempting to reconnect")
+						zoo = new ZooKeeper(servers, 3000, this)
+						registerNamespaces()
+					}
+				}
+			}
+		}
 	}
 }
