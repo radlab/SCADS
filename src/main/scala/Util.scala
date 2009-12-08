@@ -9,14 +9,14 @@ import org.apache.log4j.Logger
 object Util {
 	val logger = Logger.getLogger("deploylib.util")
 
-	def retry[ReturnType](tries: Int)(func: () => ReturnType):ReturnType = {
+	def retry[ReturnType](tries: Int)(func: => ReturnType):ReturnType = {
 		var usedTries = 0
 		var lastException: Exception = null
 
 		while(usedTries < tries) {
 			usedTries += 1
 			try {
-				return func()
+				return func
 			}
 			catch {
 				case t: org.apache.thrift.transport.TTransportException => {
