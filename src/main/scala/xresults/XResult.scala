@@ -54,15 +54,26 @@ object XResult {
     val startTime = System.currentTimeMillis()
     val result = func
     val endTime = System.currentTimeMillis()
-      <benchmark type="open" unit="miliseconds"><startTime>{startTime.toString()}</startTime><endTime>{endTime.toString()}</endTime>{result}</benchmark>
+      <benchmark type="open" unit="miliseconds">
+				<startTime>{startTime.toString()}</startTime>
+				<endTime>{endTime.toString()}</endTime>
+				{result}
+			</benchmark>
   }
 
-	def timeLimitBenchmark(seconds: Int, iterationsPerCheck: Int, data: Elem)(func: => Unit): Elem = {
+	def timeLimitBenchmark(seconds: Int, iterationsPerCheck: Int, data: Elem)(func: => Boolean): Elem = {
 		val startTime = System.currentTimeMillis()
 		var endTime = System.currentTimeMillis()
 		var totalIterations = 1
+		var success = 0
+		var failure = 0
+
 		while((endTime - startTime) / 1000 < seconds) {
-			func
+			if(func)
+				success += 1
+			else
+				failure += 1
+
 			totalIterations += 1
 
 			if(totalIterations % iterationsPerCheck != 0)
@@ -73,6 +84,8 @@ object XResult {
 			<startTime>{startTime.toString()}</startTime>
 			<endTime>{endTime.toString()}</endTime>
 			<iterations>{totalIterations}</iterations>
+			<successfulIteration>{success}</successfulIteration>
+			<failedIterations>{failure}</failedIterations>
 			<checkInterval>{iterationsPerCheck}</checkInterval>
 			{data}
 		</benchmark>
