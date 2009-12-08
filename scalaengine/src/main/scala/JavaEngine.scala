@@ -111,13 +111,15 @@ object JavaEngine {
 		serverOpt.minWorkerThreads=2
 		val server = new THsHaServer(processor, transport, protFactory, serverOpt)
 
-		val intHandler = new SignalHandler() {
+		val sigHandler = new SignalHandler() {
 			def handle(sig: Signal): Unit = {
-				logger.info("Received SIGINT")
+				logger.info("Received SIG")
 				logger.info("Stopping thrift server")
 				server.stop()
 				logger.info("Checkpointing database")
 				env.checkpoint(null)
+				logger.info("Flushing to disk")
+				env.sync()
 				logger.info("Closing environment")
 				env.close()
 				System.exit(0)
@@ -125,7 +127,11 @@ object JavaEngine {
 		}
 
 		logger.info("SIGINT handler registered")
-		Signal.handle(new Signal("INT"), intHandler)
+		Signal.handle(new Signal("INT"), sigHandler)
+		logger.info("SIGTERM handler registered")
+		Signal.handle(new Signal("TERM"), sigHandler)
+
+
 
 		logger.info("Starting server")
     	server.serve()
