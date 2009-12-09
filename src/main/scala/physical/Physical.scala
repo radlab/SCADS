@@ -1,6 +1,9 @@
 package deploylib.physical
 
 import java.io.File
+import java.net.InetAddress
+import java.net.DatagramPacket
+import java.net.DatagramSocket
 import deploylib._
 import scala.collection.jcl._
 import scala.collection.jcl.Conversions._
@@ -11,17 +14,46 @@ import scala.collection.mutable.Map
   var keyPath = "/Users/marmbrus/.ec2/amazon/"
 }*/
 object cluster {
-    def saveMACAddress( machine: PhysicalInstance ) : Unit = {
-        // /bin/ping -c 5 -q <ipaddress> && /usr/sbin/arp -a | /bin/grep <ipaddress> | awk '{print $4}'
-        // Ping the machine
-        // Then run arp -a | grep <ip address> | awk '{print $4}'
-        // Get the MAC address
-        // save the MAC
+    def getMacAddress( machine: PhysicalInstance ) : String = {
         val cmd: String = "/bin/ping -c 5 -q " +  machine.hostname + " && /usr/sbin/arp -a | /bin/grep " + machine.hostname + " | awk '{print $4}'"
         val response: ExecuteResponse = machine.executeCommand( cmd )
-        // Pattern match for the MAC address [2 chars 0-9 a-f]:[]:[]:[]
-        println( response.stdout )
-	println( response.stderr )
+        response.stdout;
+    }
+
+    def sendWolPacket( broadcastAddress: String, macAddress: String, port: Int ) : Boolean = {
+        val macParts:Array[String] = macAddress.split ( ":|-" )
+        
+        val macBytes:Array[Byte] = for{ e <- macParts
+            hex_val:Byte = Integer.parseInt( e, 16 ).asInstanceOf[Byte]
+        } yield hex_val;
+
+        for{ b <- macBytes } println( Integer.toHexString(b) )
+
+        val wolPacket: Array[Byte] = new Array[Byte](6 + 16*macBytes.length)
+
+        // Fill in the wolPacket: 6 bytes of all 1's and 16 copies of the mac address
+        for{ i <- 0 to 5 } wolPacket(i) = 0xff.asInstanceOf[Byte]
+        var i = 6;
+        while( i < wolPacket.length )
+        {
+            System.arraycopy( macBytes, 0, wolPacket, i, macBytes.length )
+            i += macBytes.length
+        }
+        
+        // Send the WOL packet
+        val ipAddress: InetAddress = InetAddress.getByName( broadcastAddress )
+        val pkt:DatagramPacket = new DatagramPacket( wolPacket, wolPacket.length, port )
+        val socket:DatagramSocket = new DatagramSocket()
+        socket.send( pkt )
+        socket.close()
+        
+        return true;
+    }
+
+    def saveMacAddress( machine: PhysicalInstance ) : Unit = {
+        val mac:String = getMacAddress(machine);
+        machine.mac = mac;
+        machine.tagMachine( "mac-discovered" );
     }
 
     def machineSleep( machine: PhysicalInstance ) = {
@@ -33,17 +65,25 @@ object cluster {
         machine.tagMachine( "sleeping" )
     }
 
-    def machineWake( machine: PhysicalInstance ) = {
+    def machineWake( machine: PhysicalInstance, timeout: Long ): Boolean = {
         // See if the machine is tagged as sleeping - if it is then
         // send it a wakeOnLan packet
         // Make sure it is alive
         // Remove the sleeping tag
-        machine.removeTag( "sleeping" )
+        // Send the WOL packet on port 0, 7 or 9
+        sendWolPacket( machine.broadcastAddress, machine.mac, 9 )
+        // Ping machine - with some timeout limit
+        if( machinePing( machine, timeout ) ) {
+            machine.removeTag( "sleeping" )
+            return true
+        }
+        
+        false
     }
 
     // Try to contact a machine, wait on the response, if the ping works
     // return true, else return false
-    def machinePing( machine:PhysicalInstance, timeout: Long) : Boolean = {
+    def machinePing( machine:PhysicalInstance, timeout: Long ) : Boolean = {
         // get the hostname and run the cmd "ping hostname"
         // Look for a 100% loss
         true
@@ -56,12 +96,11 @@ object cluster {
 
 class PhysicalInstance(val hostname: String, val username: String, val privateKey: File) extends RemoteMachine
 {
-  //val username: String = "root"
-  //val privateKey: File = new File("/Users/marmbrus/.ec2/amazon/")
   val rootDirectory: File = new File("/mnt/")
   val runitBinaryPath:File = new File("/usr/bin")
   val tags: HashMap[String,Tag] = new HashMap[String,Tag];
   var mac: String = "";
+  var broadcastAddress = "";
 
   def this( hostname: String ) = {
       this( hostname, "root", new File("/Users/marmbrus/.ec2/amazon/") )
@@ -100,31 +139,23 @@ class PhysicalInstance(val hostname: String, val username: String, val privateKe
 
 object clusterDriver
 {
-    // List all the nodes we have in the loCal cluster
-    val n1 = ("1.1.1.0","user",new File("/tmp/key"));
-    val n2 = ("1.1.1.1","user",new File("/tmp/key"))
-    val n3 = ("1.1.1.2","user",new File("/tmp/key"))
-    val n4 = ("1.1.1.3","user",new File("/tmp/key"))
-    val n5 = ("1.1.1.4","user",new File("/tmp/key"))
-    val n6 = ("1.1.1.5","user",new File("/tmp/key"))
-    val n7 = ("1.1.1.6","user",new File("/tmp/key"))
-    val n8 = ("1.1.1.7","user",new File("/tmp/key"))
-    val n9 = ("1.1.1.8","user",new File("/tmp/key"))
-
-    val a9 = ( "192.168.0.21", "root", new File("/home/user/.ssh/atom_key") )
-
     def main(args:Array[String]) = {
+        // 00:1c:c0:c2:7a:85
+        val mac:String = "00:1c:c0:c2:7a:85"
+        
+        // List all the nodes we have in the loCal cluster
+        val a9 = ( "192.168.0.21", "root", new File("/home/user/.ssh/atom_key") )
+        val a14 = ( "192.168.0.27", "root", new File("/home/user/.ssh/atom_key") )
+        val a15 = ( "192.168.0.28", "root", new File("/home/user/.ssh/atom_key") )
+        val a16 = ( "192.168.0.29", "root", new File("/home/user/.ssh/atom_key") )
+
         // Initialize the cluster
-        val nodes: List[PhysicalInstance] = List(n1,n2,n3,n4,n5,n6,n6,n8,n9).map((n) => new PhysicalInstance(n._1, n._2, n._3) );
-        val atoms = List(a9).map((n) => new PhysicalInstance(n._1, n._2, n._3) );
+        val atoms = List(a9,a14,a15,a16).map((n) => new PhysicalInstance(n._1, n._2, n._3) );
         var atom9:PhysicalInstance = atoms{0};
+        var atom14:PhysicalInstance = atoms{1};
+        var atom15:PhysicalInstance = atoms{2};
+        var atom16:PhysicalInstance = atoms{3};
 
-
-        // Pick a node and tag it
-        var nodeA:PhysicalInstance = nodes{0};
-        var nodeB:PhysicalInstance = nodes{4};
-
-        // Pick a few machines to assign roles
 
         // For each machine, deploy all the services based on the tags
         // if services exist that correspond to a tag name
@@ -136,27 +167,7 @@ object clusterDriver
         // Service.configure, Service.toJSON()
         // Cluster.InstanceSleep(PhysicalInstance)
         // Cluster.InstanceWake(PhysicalInstance)
-
-        // Tag nodes - may be transient or persistent
-        nodeA.tagMachine( "rails", true );
-        nodeB.tagMachine( "rails", true );
-        nodeA.tagMachine( "rails", true );
-
-        // Find rails nodes
-        val railsNodes = for { node <- nodes
-            if( node.isTagged( "rails" ) )
-        } yield node;
-
-        nodeA.getTag( "mysql" ) match {
-            case Some(tag) => println( "matched " + tag.name )
-            case None => println( "no match" )
-        }
-
-
-
-
-        println( railsNodes.length + " rails nodes found" )
-
+        
         println("hello-loCal-xxxx");
     }
 }
