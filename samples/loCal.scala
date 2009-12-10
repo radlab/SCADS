@@ -68,7 +68,7 @@ services("nginx").addDependency(services("haproxy"))
 services("faban").addDependency(services("mysql"))
 services("faban").addDependency(services("nginx"))
 
-//Start the services.
+// Start the services.
 for (service <- services.values) {
   println(service.recipeName)
   service.start
