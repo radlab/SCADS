@@ -61,8 +61,10 @@ case class FabanService(remoteMachine: RemoteMachine,
   override def start: Unit = {
     // TODO: Upload JSON Config
     // TODO: Execute command to run recipe
+    super.start
     remoteMachine.createFile(new File("fabanConfig"), getJSONConfig)
-    remoteMachine.executeCommand("chef-solo -j fabanConfig")
+    remoteMachine.executeCommand("chef-solo -r /tmp/repo.tar.gz -j fabanConfig")
+    println("Faban Deployed!")
   }
 
   override def stop: Unit = {

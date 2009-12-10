@@ -36,9 +36,10 @@ case class MySQLService(remoteMachine: RemoteMachine,
   override def start: Unit = {
     // TODO: Upload JSON Config
     // TODO: Execute command to run recipe
+    super.start
     remoteMachine.createFile(new File("mysqlConfig"), getJSONConfig)
-    remoteMachine.executeCommand("chef-solo -j mysqlConfig")
-    print ("MySQL deployed!")
+    remoteMachine.executeCommand("chef-solo -r /tmp/repo.tar.gz -j mysqlConfig")
+    println("MySQL deployed!")
   }
 
   override def stop: Unit = {

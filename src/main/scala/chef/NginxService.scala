@@ -57,9 +57,10 @@ case class NginxService(remoteMachine: RemoteMachine,
       // Use haproxy service.
     }
     // TODO: Execute command to run recipe
+    super.start
     remoteMachine.createFile(new File("nginxConfig"), getJSONConfig)
-    remoteMachine.executeCommand("chef-solo -j nginxConfig")
-    print ("Nginx deployed!")
+    remoteMachine.executeCommand("chef-solo -r /tmp/repo.tar.gz -j nginxConfig")
+    println("Nginx deployed!")
   }
 
   override def stop: Unit = {

@@ -89,9 +89,10 @@ case class RailsService(remoteMachine: RemoteMachine,
     
     // TODO: Upload JSON Config
     // TODO: Execute command to run recipe
+    super.start
     remoteMachine.createFile(new File("railsConfig"), getJSONConfig)
-    remoteMachine.executeCommand("chef-solo -j railsConfig")
-    print ("Rails deployed!")
+    remoteMachine.executeCommand("chef-solo -r /tmp/repo.tar.gz -j railsConfig")
+    println("Rails deployed!")
     
     // TODO: Add this to HAProxy's config, then restart it.
     if (haproxyService != null) {

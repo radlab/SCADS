@@ -52,9 +52,10 @@ case class HAProxyService(remoteMachine: RemoteMachine,
   override def start: Unit = {
     // TODO: Upload JSON Config
     // TODO: Execute command to run recipe
+    super.start
     remoteMachine.createFile(new File("haproxyConfig"), getJSONConfig)
-    remoteMachine.executeCommand("chef-solo -j haproxyConfig")
-    print ("HAProxy deployed!")
+    remoteMachine.executeCommand("chef-solo -r /tmp/repo.tar.gz -j haproxyConfig")
+    println("HAProxy deployed!")
   }
 
   override def stop: Unit = {

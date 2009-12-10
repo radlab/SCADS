@@ -40,9 +40,10 @@ case class ChukwaService(remoteMachine: RemoteMachine,
   override def start: Unit = {
     // TODO: Upload JSON Config
     // TODO: Execute command to run recipe
+    super.start
     remoteMachine.createFile(new File("chukwaConfig"), getJSONConfig)
-    remoteMachine.executeCommand("chef-solo -j chukwaConfig")
-    print ("Chukwa deployed!")
+    remoteMachine.executeCommand("chef-solo -r /tmp/repo.tar.gz -j chukwaConfig")
+    println("Chukwa deployed!")
   }
 
   override def stop: Unit = {

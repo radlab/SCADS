@@ -2,6 +2,8 @@ package deploylib.chef
 
 import deploylib._
 
+import java.io.File
+
 /**
  * Contains helper methods for services deployed using Chef.
  */
@@ -33,6 +35,14 @@ abstract class ChefService(remoteMachine: RemoteMachine,
    * with Chef Solo.
    */
   def getJSONConfig: String
+  
+  /**
+   * Upload chef repo to /tmp
+   */
+  override def start: Unit = {
+    remoteMachine.upload(new File(Chef.repoPath), new File("/tmp"))
+  }
+  
 
   /**
    * Update the JSON config object and add to dependencies.
