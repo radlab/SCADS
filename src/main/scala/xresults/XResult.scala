@@ -14,6 +14,7 @@ abstract class RetryableException extends Exception
 object XResult {
   val logger = Logger.getLogger("deploylib.xresult")
   lazy val collection = getCollection()
+	lazy val queryService = collection.getService("XPathQueryService", "1.0").asInstanceOf[XPathQueryService]
   val hostname = localHostname()
 
   def experimentId(): String = System.getProperty("experimentId")
@@ -151,6 +152,14 @@ object XResult {
 				{timestamp}
 				{files}
 				</directory>)
+	}
+
+	def execQuery(query: String): Iterator[Elem] = {
+		class ResultIterator(ri: ResourceIterator) extends Iterator[Elem] {
+			def hasNext: Boolean = ri.hasMoreResources()
+			def next: Elem = scala.xml.XML.loadString(ri.nextResource().getContent().asInstanceOf[String])
+		}
+		new ResultIterator(queryService.query(query).getIterator)
 	}
 
   protected def localHostname(): String = {
