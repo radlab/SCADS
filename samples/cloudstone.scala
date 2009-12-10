@@ -2,7 +2,7 @@
  * Sample script for deploying Cloudstone.
  *
  * You can run this script using:
- * mvn scala:script -DscriptFile=src/main/scala/samples/cloudstone.scala
+ * mvn scala:script -DscriptFile=samples/cloudstone.scala
  */
  
 import deploylib._

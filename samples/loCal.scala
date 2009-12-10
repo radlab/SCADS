@@ -2,7 +2,7 @@
  * Sample script for deploying Cloudstone.
  *
  * You can run this script using:
- * mvn scala:script -DscriptFile=src/main/scala/samples/cloudstone.scala
+ * mvn scala:script -DscriptFile=samples/loCal.scala
  */
  
 import deploylib._
@@ -68,7 +68,7 @@ services("nginx").addDependency(services("haproxy"))
 services("faban").addDependency(services("mysql"))
 services("faban").addDependency(services("nginx"))
 
-Start the services.
+//Start the services.
 for (service <- services.values) {
   println(service.recipeName)
   service.start
