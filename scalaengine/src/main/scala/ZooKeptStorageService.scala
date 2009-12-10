@@ -88,7 +88,6 @@ class ZooKeptStorageProcessor(env: Environment, hostid: String, servers: String,
 	}
 
 	def process(event: WatchedEvent): Unit = {
-		logger.info(event)
 		event.getType match {
 			case Event.EventType.None => {
 				event.getState match {
@@ -97,8 +96,10 @@ class ZooKeptStorageProcessor(env: Environment, hostid: String, servers: String,
 						zoo = new ZooKeeper(servers, 3000, this)
 						registerNamespaces()
 					}
+					case unhandledState => logger.info("Zookeeper state change: " + event)
 				}
 			}
+			case unhandleEventType => logger.info("Zookeeper event: " + event)
 		}
 	}
 }
