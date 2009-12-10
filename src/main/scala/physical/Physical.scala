@@ -127,7 +127,11 @@ object cluster {
         // See if the machine is tagged as sleeping - if not then
         // ssh in and put it to sleep
         // If there's a daemon running send it a sleep packet
-        val result: ExecuteResponse = machine.executeCommand( "echo -n \"mem\" > /sys/power/state" )
+
+        // Execute a command on the remote machine with a timeout - since we're
+        // putting the machine to sleep the command won't "complete" in the usual way
+        // so we need to hang up
+        val result: ExecuteResponse = machine.executeCommand( "echo -n \"mem\" > /sys/power/state", 200 )
         if( result.status.get != 0 )
             return false
         // tag the machine as sleeping

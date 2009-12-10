@@ -93,13 +93,24 @@ abstract class RemoteMachine {
 		}
 	}
 
+
+
 	/**
 	 * Execute a command sync and return the result as an ExecuteResponse
 	 */
-	def executeCommand(cmd: String): ExecuteResponse = {
+        def executeCommand( cmd: String ) : ExecuteResponse = {
+            // Pass a timeout of 0, which means "no timeout"
+            executeCommand( cmd, 0 )
+        }
+
+        /**
+	 * Execute a command sync with a maximum timeout to wait for result
+         * and return the result as an ExecuteResponse
+	 */
+        def executeCommand(cmd: String, timeout: Long): ExecuteResponse = {
 		useConnection((c) => {
 			val stdout = new StringBuilder
-    	val stderr = new StringBuilder
+                        val stderr = new StringBuilder
 
 			val session = connection.openSession
 			val outReader = new BufferedReader(new InputStreamReader(session.getStdout()))
@@ -112,11 +123,12 @@ abstract class RemoteMachine {
 			var exitStatus:java.lang.Integer = null
 			while(continue) {
 				val status = session.waitForCondition(ChannelCondition.STDOUT_DATA |
-																							ChannelCondition.STDERR_DATA |
-																						 	ChannelCondition.EXIT_STATUS |
-																						 	ChannelCondition.EXIT_SIGNAL |
-																							ChannelCondition.EOF |
-																							ChannelCondition.CLOSED, 0)
+                                                                        ChannelCondition.STDERR_DATA |
+									ChannelCondition.EXIT_STATUS |
+									ChannelCondition.EXIT_SIGNAL |
+									ChannelCondition.EOF |
+									ChannelCondition.CLOSED |
+                                                                        ChannelCondition.TIMEOUT, timeout)
 
 				if((status & ChannelCondition.STDOUT_DATA) != 0) {
 					while(outReader.ready) {
@@ -153,6 +165,10 @@ abstract class RemoteMachine {
 				if((status & ChannelCondition.CLOSED) != 0) {
 					logger.debug("Received CLOSED")
 				}
+                                if((status & ChannelCondition.TIMEOUT) != 0 ) {
+                                    logger.debug("Received TIMEOUT")
+                                    continue = false
+                                }
 			}
 			session.close()
 			ExecuteResponse(Some(exitStatus.intValue), stdout.toString, stderr.toString)
