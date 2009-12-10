@@ -97,7 +97,7 @@ object cluster {
         {
             // Send the WOL packet
             val ipAddress: InetAddress = InetAddress.getByName( broadcastAddress )
-            val pkt:DatagramPacket = new DatagramPacket( wolPacket, wolPacket.length, port )
+            val pkt:DatagramPacket = new DatagramPacket( wolPacket, 0, wolPacket.length, ipAddress, port )
             socket.send( pkt )
         }
         catch
@@ -116,10 +116,11 @@ object cluster {
         val mac:String = getMacAddress(machine);
         if( mac.length > 0 ) {
             machine.mac = mac;
+            println( "MAC discovered" )
             machine.tagMachine( "mac-discovered" );
-            true
+            return true
         }
-        false
+        return false
     }
 
     def machineSleep( machine: PhysicalInstance ) : Boolean = {
@@ -174,8 +175,8 @@ object cluster {
         else false
     }
 
-    def isSleeping( machine:PhysicalInstance, timeout: Long ) : Boolean = {
-        machine.isTagged( "sleeping" ) && !machinePing( machine.hostname, timeout )
+    def isSleeping( machine:PhysicalInstance ) : Boolean = {
+        machine.isTagged( "sleeping" ) && !machinePing( machine.hostname, cluster.DEFAULT_NUM_PING_PACKETS )
     }
 }
 
@@ -229,22 +230,23 @@ object clusterDriver
         //val mac:String = "00:1c:c0:c2:7a:85"
         
         // List all the nodes we have in the loCal cluster
-        val a9 = ( "192.168.0.21", "root", new File("/home/user/.ssh/atom_key") )
-        val a14 = ( "192.168.0.27", "root", new File("/home/user/.ssh/atom_key") )
+        val a9 = ( "192.168.0.21", "root", new File("/home/user/.ssh/atom_key") ) // 00:1c:c0:c2:7a:85
+        //val a14 = ( "192.168.0.27", "root", new File("/home/user/.ssh/atom_key") )
         val a15 = ( "192.168.0.28", "root", new File("/home/user/.ssh/atom_key") )
         val a16 = ( "192.168.0.29", "root", new File("/home/user/.ssh/atom_key") )
 
         // Initialize the cluster
-        val atoms = List(a9,a14,a15,a16).map((n) => new PhysicalInstance(n._1, n._2, n._3) );
+        //val atoms = List(a9,a14,a15,a16).map((n) => new PhysicalInstance(n._1, n._2, n._3) );
+        //val atoms = List(a9,a15,a16).map((n) => new PhysicalInstance(n._1, n._2, n._3) );
+        val atoms = List(a9).map((n) => new PhysicalInstance(n._1, n._2, n._3) );
         // Set the broadcast address for all these machines
         atoms.map((a) => a.broadcastAddress = "192.168.0.255" )
 
-        for{ a <- atoms }
-            println( a.hostname + " " + a.broadcastAddress )
+        for{ a <- atoms } println( a.hostname + " " + a.broadcastAddress )
         
         //val atoms = List(a9).map((n) => new PhysicalInstance(n._1, n._2, n._3) );
         var atom9:PhysicalInstance = atoms{0};
-        var atom14:PhysicalInstance = atoms{1};
+        //var atom14:PhysicalInstance = atoms{1};
         var atom15:PhysicalInstance = atoms{2};
         var atom16:PhysicalInstance = atoms{3};
 
