@@ -1,6 +1,6 @@
 package deploylib.physical
 
-import java.io.File
+import java.io._
 import java.net.InetAddress
 import java.net.DatagramPacket
 import java.net.DatagramSocket
@@ -14,10 +14,54 @@ import scala.collection.mutable.Map
   var keyPath = "/Users/marmbrus/.ec2/amazon/"
 }*/
 object cluster {
+    // Run command locally instead of on a remote machine
+    def executeLocalCommand( cmd: String ) : ExecuteResponse = {
+        var exitStatus:java.lang.Integer = null
+        val stdout = new StringBuilder
+    	val stderr = new StringBuilder
+        
+        try
+        {
+            val proc: Process = Runtime.getRuntime().exec( cmd )
+            val outReader = new BufferedReader(new InputStreamReader(proc.getInputStream()))
+            val errReader = new BufferedReader(new InputStreamReader(proc.getErrorStream()))
+
+            // Clear stderr
+            while(errReader.ready) {
+                val line = errReader.readLine()
+                if(line != null) {
+                    stderr.append(line)
+                    stderr.append("\n")
+                }
+            }
+
+            // Clear stdout
+            while(outReader.ready) {
+                val line = outReader.readLine()
+                if(line != null) {
+                    stdout.append(line)
+                    stdout.append("\n")
+                }
+            }
+
+            // Wait for the process to finish
+            proc.waitFor();
+            // Save the exit status
+            exitStatus = proc.exitValue()
+            ExecuteResponse(Some(exitStatus.intValue), stdout.toString(), stderr.toString())
+        }
+        catch
+        {
+            case e:Exception => ExecuteResponse(Some(-1), stdout.toString(), e.toString())
+        }
+    }
+
     def getMacAddress( machine: PhysicalInstance ) : String = {
         val cmd: String = "/bin/ping -c 5 -q " +  machine.hostname + " && /usr/sbin/arp -a | /bin/grep " + machine.hostname + " | awk '{print $4}'"
-        val response: ExecuteResponse = machine.executeCommand( cmd )
-        response.stdout;
+        val result:ExecuteResponse = executeLocalCommand( cmd )
+        if( result.status == 0 )
+            result.stdout
+        else ""
     }
 
     def sendWolPacket( broadcastAddress: String, macAddress: String, port: Int ) : Boolean = {
@@ -156,6 +200,10 @@ object clusterDriver
         var atom15:PhysicalInstance = atoms{2};
         var atom16:PhysicalInstance = atoms{3};
 
+        val result: ExecuteResponse = cluster.executeLocalCommand( "ls -alz" )
+        println( "exit code: " + result.status )
+        println( "stdout   : " + result.stdout )
+        println( "stderr   : " + result.stderr )
 
         // For each machine, deploy all the services based on the tags
         // if services exist that correspond to a tag name
