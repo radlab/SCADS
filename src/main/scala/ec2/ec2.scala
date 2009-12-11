@@ -109,6 +109,7 @@ class EC2Instance(val instanceId: String) extends RemoteMachine with RunitManage
 	val privateKey: File = new File("/Users/marmbrus/.ec2/amazon/marmbrus.key")
 	val rootDirectory: File = new File("/mnt/")
 	val runitBinaryPath:File = new File("/usr/bin")
+	val javaCmd:File = new File("/usr/bin/java")
 
 	def halt: Unit =
 		executeCommand("halt")

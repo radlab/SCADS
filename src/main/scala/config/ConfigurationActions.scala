@@ -45,7 +45,7 @@ trait ConfigurationActions {
 		val remoteJar = uploadFile(target, localJar, target.rootDirectory)
     val expIdFlag = if(XResult.experimentId != null) "-DexperimentId=" + XResult.experimentId else ""
     val jvmArgs = "-server -Xmx" + maxHeapMb + "m " + expIdFlag + " -XX:+HeapDumpOnOutOfMemoryError "
-		val runCmd = "/usr/lib/jvm/java-6-sun/bin/java " +
+		val runCmd = target.javaCmd + " " +
                   jvmArgs + " " +
 								 "-cp .:" + remoteJar + " " +
 								 className + " " + args

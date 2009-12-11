@@ -39,6 +39,8 @@ abstract class RemoteMachine {
 	 */
 	val rootDirectory: File
 
+	val javaCmd: File
+
 	val runitBinaryPath: File
 	lazy val runsvdirCmd: File = new File(runitBinaryPath, "runsvdir")
 	lazy val svCmd: File = new File(runitBinaryPath, "sv")
