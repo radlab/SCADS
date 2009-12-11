@@ -32,16 +32,20 @@ object XResult {
       </experiment>)
   }
 
+	def storeUnrelatedXml(elem: Elem): Unit = {
+		val doc = collection.createResource(null, "XMLResource").asInstanceOf[XMLResource]
+		doc.setContent(elem)
+		logger.debug("Storing result: " + doc.getId)
+		collection.storeResource(doc)
+	}
+
   def storeXml(elem: Elem):Unit = {
     if(experimentId == null) {
       logger.warn("No experiment running, logging results to console.")
       logger.warn(elem)
     }
     else {
-      val doc = collection.createResource(null, "XMLResource").asInstanceOf[XMLResource]
-      doc.setContent(elem % new UnprefixedAttribute("experimentId", experimentId, Null))
-      logger.debug("Storing result: " + doc.getId)
-      collection.storeResource(doc)
+			storeUnrelatedXml(elem % new UnprefixedAttribute("experimentId", experimentId, Null))
     }
   }
 
