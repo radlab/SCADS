@@ -15,7 +15,7 @@ settings.maxPrintString = 1000000
 
 	//val cluster = ScadsDeployment.deployScadsCluster(nodes, false)
 
-class ReadExp(serverNodes: List[RClusterNode], clientNodes: List[RClusterNode], threads: Int) {
+class ReadExp(serverNodes: List[RunitManager], clientNodes: List[RunitManager], threads: Int) {
 	val logger = Logger.getLogger("script")
 
 	XResult.startExperiment("Read Experiment " + serverNodes + clientNodes + threads)
@@ -23,7 +23,7 @@ class ReadExp(serverNodes: List[RClusterNode], clientNodes: List[RClusterNode], 
 	val cluster = ScadsDeployment.recoverScadsDeployment(serverNodes)
 	ScadsDeployment.captureScadsDeployment(cluster)
 
-	clientNodes.foreach(_.clearAll)
+//	clientNodes.foreach(_.clearAll)
 	clientNodes.foreach(_.stopWatches)
 
 	val loadServices = clientNodes.map(n => {

@@ -2,6 +2,8 @@ import scaletest._
 import deploylib._
 import deploylib.rcluster._
 import deploylib.xresults._
+import deploylib.ec2._
+import deploylib.runit._
 import edu.berkeley.cs.scads.thrift._
 import org.apache.log4j.Logger
 import deploylib.Util
@@ -9,7 +11,7 @@ import java.io.File
 
 settings.maxPrintString = 1000000
 
-class LoadExp(nodes: List[RClusterNode], threads: Int, bulkLoad: Boolean, testSize: Int) {
+class LoadExp(nodes: List[RunitManager], threads: Int, bulkLoad: Boolean, testSize: Int) {
 	val logger = Logger.getLogger("script")
 
 	val partitions = IntTestDeployment.createPartitions(testSize, nodes.size)
@@ -19,7 +21,6 @@ class LoadExp(nodes: List[RClusterNode], threads: Int, bulkLoad: Boolean, testSi
 	logger.info("Cleaning up")
 	nodes.foreach(_.clearAll)
 	nodes.foreach(_.executeCommand("killall java"))
-	nodes.foreach(_.setupRunit)
 	nodes.foreach(_.stopWatches)
 
 	val cluster = ScadsDeployment.deployScadsCluster(nodes, bulkLoad)
