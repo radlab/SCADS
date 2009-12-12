@@ -27,7 +27,6 @@ object XResult {
     storeXml(
       <experiment>
         <user>{System.getProperty("user.name")}</user>
-        {timestamp}
         <description>{description}</description>
       </experiment>)
   }
@@ -45,15 +44,19 @@ object XResult {
       logger.warn(elem)
     }
     else {
-			storeUnrelatedXml(elem % new UnprefixedAttribute("experimentId", experimentId, Null))
+      val taggedResult = new Elem(
+        elem.prefix,
+        elem.label,
+        elem.attributes.append(new UnprefixedAttribute("experimentId", experimentId, Null)).append(new UnprefixedAttribute("timestamp", System.currentTimeMillis().toString, Null)),
+        elem.scope,
+        elem.child:_*)
+      storeUnrelatedXml(taggedResult)
     }
   }
 
   def recordResult(result: NodeSeq): Unit = {
-    storeXml(<result hostname={hostname}>{timestamp}{result}</result>)
+    storeXml(<result hostname={hostname}>{result}</result>)
   }
-
-  def timestamp = <timestamp unit="milliseconds">{System.currentTimeMillis().toString}</timestamp>
 
   def benchmark(func: => Elem): Elem = {
     val startTime = System.currentTimeMillis()
@@ -153,7 +156,6 @@ object XResult {
 				<directory>
 				<host>{target.hostname}</host>
 				<path>{directory.toString}</path>
-				{timestamp}
 				{files}
 				</directory>)
 	}
