@@ -149,6 +149,20 @@ class EC2Instance(val instanceId: String) extends RemoteMachine with RunitManage
 			Thread.sleep(10000)
 			EC2.update()
 		}
+
+	 	var connected = false
+		while(!connected) {
+			try {
+				val s = new java.net.Socket(publicDnsName, 22)
+				connected = true
+			}
+			catch {
+				case ce: java.net.ConnectException => {
+					logger.info("SSH connection to " + publicDnsName + " failed, waiting 5 seconds")
+				}
+			}
+			Thread.sleep(5000)
+		}
 	}
 
   override def equals(other: Any): Boolean = other match {
