@@ -116,6 +116,7 @@ object ThreadedLoader extends IntKeyTest {
 				logger.info("Adding key " + k)
 			putKey(k)
     })
+		logger.info("Thread Complete")
   }
 }
 
