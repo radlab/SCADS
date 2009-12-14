@@ -230,6 +230,13 @@ abstract class RemoteMachine {
 		}
 	}
 
+	def mkdir(remoteDir: File): Unit = {
+		executeCommand("mkdir -p " + remoteDir) match {
+			case ExecuteResponse(Some(0),_, _) => true
+			case _ => logger.fatal("Unexpected response while making directory " + remoteDir)
+		}
+	}
+
 	def watch(remoteFile: File): Unit = {
 		useConnection((c) => {
 			val session = connection.openSession
