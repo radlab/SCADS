@@ -4,6 +4,7 @@ import deploylib._
 import deploylib.config._
 import deploylib.runit._
 import deploylib.xresults._
+import deploylib.ParallelConversions._
 import edu.berkeley.cs.scads.thrift._
 import edu.berkeley.cs.scads.model.{Environment, TrivialSession, TrivialExecutor, ZooKeptCluster}
 import scala.collection.jcl.Conversions._
@@ -21,7 +22,7 @@ import java.io.File
 case class ScadsDeployment(zooService: RunitService, zooUri: String, storageServices: List[RunitService])
 
 object ScadsDeployment extends ConfigurationActions {
-	val storageEnginePort = 9090
+	val storageEnginePort = 9991
 	val zookeeperPort = 2181
 	val allKeys = RangedPolicy.convert((null, null)).get(0)
 
@@ -35,17 +36,17 @@ object ScadsDeployment extends ConfigurationActions {
 		zooNode.blockTillPortOpen(ScadsDeployment.zookeeperPort)
 
 		logger.info("Configuring storage engines")
-		val storageServices = nodes.map(ScadsDeployment.deployStorageEngine(_, zooNode, bulkLoad))
+		val storageServices = nodes.pmap(ScadsDeployment.deployStorageEngine(_, zooNode, bulkLoad)).toList
 		storageServices.foreach(_.watchFailures)
 		storageServices.foreach(_.start)
 		storageServices.foreach(_.blockTillUpFor(5))
-		nodes.foreach(_.blockTillPortOpen(ScadsDeployment.storageEnginePort))
+		nodes.pforeach(_.blockTillPortOpen(ScadsDeployment.storageEnginePort))
 
 		ScadsDeployment(zooService, zooNode.hostname + ":" + zookeeperPort, storageServices)
 	}
 
 	def recoverScadsDeployment(nodes: List[RunitManager]): ScadsDeployment = {
-		val services = nodes.flatMap(_.services)
+		val services = nodes.pflatMap(_.services)
 		val zooService = services.filter(_.name == "org.apache.zookeeper.server.quorum.QuorumPeerMain")(0)
 		val storageServices = services.filter(_.name == "edu.berkeley.cs.scads.storage.JavaEngine")
 
@@ -54,15 +55,14 @@ object ScadsDeployment extends ConfigurationActions {
 
 	def captureScadsDeployment(dep: ScadsDeployment):Unit = {
 		val nodes = dep.storageServices.map(s => new StorageNode(s.manager.hostname, storageEnginePort))
-		val engineData = nodes.map(n => {
+		val engineData = nodes.pmap(n => {
 			val namespaces = Util.retry(5) {
 				n.useConnection(_.get_set("resp_policies", allKeys)).map(_.key)
 			}
 
-			<scadsEngine>
-				<host>{n.host}</host>
+			<scadsEngine host={n.host}>
 				{namespaces.map(ns => {
-					<namespace name={ns}>
+					<namespace name={ns} keyCount={Util.retry(5)(n.useConnection(_.count_set(ns, allKeys))).toString}>
 						{val policies = Util.retry(5)(RangedPolicy.convert(n.useConnection(_.get_responsibility_policy(ns))))
 							policies.map(p => {
 							<responsibilityPolicy>
@@ -70,7 +70,6 @@ object ScadsDeployment extends ConfigurationActions {
 								<endKey>{p._2}</endKey>
 							</responsibilityPolicy>
 						})}
-						<keyCount>{Util.retry(5)(n.useConnection(_.count_set(ns, allKeys)))}</keyCount>
 					</namespace>
 				})}
 			</scadsEngine>
@@ -113,7 +112,7 @@ object ScadsDeployment extends ConfigurationActions {
       1024,
 			"zoo.cnf")
 		val config = <configuration type="zookeeper">
-									<tickTime>10000</tickTime>
+									<tickTime>20000</tickTime>
 									<initLimit>10</initLimit>
 									<syncLimit>5</syncLimit>
 									<clientPort>{zookeeperPort}</clientPort>
