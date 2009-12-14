@@ -18,6 +18,7 @@ object Util {
 		def logAndStore(e: Exception) = {
 			lastException = e
 			logger.warn("Retrying due to" + e + ": " + usedTries + " of " + tries)
+			Thread.sleep(1000)
 		}
 
 		while(usedTries < tries) {
