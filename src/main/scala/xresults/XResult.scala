@@ -9,7 +9,6 @@ import java.net.InetAddress
 import scala.xml.{NodeSeq, UnprefixedAttribute, Elem, Node, Null, Text, TopScope }
 import java.io.File
 
-abstract class RetryableException extends Exception
 
 object XResult {
   val logger = Logger.getLogger("deploylib.xresult")
@@ -19,15 +18,16 @@ object XResult {
 
   def experimentId(): String = System.getProperty("experimentId")
 
-  def startExperiment(description: String):Unit = {
+
+	def startExperiment(description: String):Unit = startExperiment(<description>{description}</description>)
+  def startExperiment(experimentData: NodeSeq):Unit = {
     if(experimentId != null)
       logger.warn("Experiment: " + experimentId + " is already running.  Starting a new one anyway.")
     System.setProperty("experimentId", System.getProperty("user.name") + System.currentTimeMillis())
     logger.info("Begining experiment: " + experimentId)
     storeXml(
-      <experiment>
-        <user>{System.getProperty("user.name")}</user>
-        <description>{description}</description>
+      <experiment user={System.getProperty("user.name")}>
+				{experimentData}
       </experiment>)
   }
 
@@ -62,9 +62,7 @@ object XResult {
     val startTime = System.currentTimeMillis()
     val result = func
     val endTime = System.currentTimeMillis()
-      <benchmark type="open" unit="miliseconds">
-				<startTime>{startTime.toString()}</startTime>
-				<endTime>{endTime.toString()}</endTime>
+      <benchmark type="open" unit="miliseconds" startTime={startTime.toString()} endTime={endTime.toString()}>
 				{result}
 			</benchmark>
   }
@@ -93,70 +91,35 @@ object XResult {
 			}
 		}
 
-		<benchmark type="timeLimited">
-			<startTime>{startTime.toString()}</startTime>
-			<endTime>{endTime.toString()}</endTime>
-			<iterations>{totalIterations}</iterations>
-			<successfulIteration>{success}</successfulIteration>
-			<failedIterations>{failure}</failedIterations>
-			<checkInterval>{iterationsPerCheck}</checkInterval>
+		<benchmark type="timeLimited" startTime={startTime.toString()} endTime={endTime.toString()} iterations={totalIterations.toString} successfulIteration={success.toString} failedIterations={failure.toString} checkInterval={iterationsPerCheck.toString}>
 			{hist.toXml}
 			{data}
 		</benchmark>
 	}
 
-	def retryAndRecord[ReturnType](tries: Int)(func: () => ReturnType):ReturnType = {
-		var usedTries = 0
-		var lastException: Exception = null
-
-		while(usedTries < tries) {
-			usedTries += 1
-			try {
-				return func()
-			}
-			catch {
-				case rt: RetryableException => {
-					lastException = rt
-					logger.warn("Retrying due to an exception " + rt + ": " + usedTries + " of " + tries)
-					storeXml(
-						<exception>
-							<retryCount>{usedTries.toString}</retryCount>
-							<host>{hostname}</host>
-							<name>{rt.toString}</name>
-							{rt.getStackTrace.map(l => <line>{l}</line>)}
-						</exception>)
-				}
-				case t: org.apache.thrift.transport.TTransportException => {
-					lastException = t
-					logger.warn("Retrying due to thrift failure " + t + ": " + usedTries + " of " + tries)
-					storeXml(
-						<exception>
-							<retryCount>{usedTries.toString}</retryCount>
-							<host>{hostname}</host>
-							<name>{t.toString}</name>
-							{t.getStackTrace.map(l => <line>{l}</line>)}
-						</exception>)
-				}
+	def recordException[ReturnType](func: => ReturnType): ReturnType = {
+		try {
+			func
+		}
+		catch {
+			case e: Exception => {
+				storeXml(
+					<exception hostname={hostname} name={e.toString}>
+						{e.getStackTrace.map(l => <line>{l}</line>)}
+					</exception>)
+				logger.debug("Exception stored to result database")
+				throw e
 			}
 		}
-		throw lastException
 	}
 
 	def captureDirectory(target: RemoteMachine, directory: File): Unit = {
 		val files = target.ls(directory).map(r => {
-				<file>
-					<name>{r.name}</name>
-					<owner>{r.owner}</owner>
-					<permissions>{r.permissions}</permissions>
-					<modDate>{r.modDate}</modDate>
-					<size>{r.size}</size>
-				</file>
+				<file name={r.name} owner={r.owner} permissions={r.permissions} modDate={r.modDate} size={r.size}/>
 				})
 		storeXml(
-				<directory>
-				<host>{target.hostname}</host>
-				<path>{directory.toString}</path>
-				{files}
+				<directory host={target.hostname} path={directory.toString}>
+					{files}
 				</directory>)
 	}
 

@@ -6,6 +6,8 @@ import java.math.BigInteger
 import java.io.FileInputStream
 import org.apache.log4j.Logger
 
+abstract class RetryableException extends Exception
+
 object Util {
 	val logger = Logger.getLogger("deploylib.util")
 
@@ -13,16 +15,19 @@ object Util {
 		var usedTries = 0
 		var lastException: Exception = null
 
+		def logAndStore(e: Exception) = {
+			lastException = e
+			logger.warn("Retrying due to" + e + ": " + usedTries + " of " + tries)
+		}
+
 		while(usedTries < tries) {
 			usedTries += 1
 			try {
 				return func
 			}
 			catch {
-				case t: org.apache.thrift.transport.TTransportException => {
-					lastException = t
-					logger.warn("Retrying due to thrift failure " + t + ": " + usedTries + " of " + tries)
-				}
+				case te: org.apache.thrift.transport.TTransportException => logAndStore(te)
+				case rt: RetryableException => logAndStore(rt)
 			}
 		}
 		throw lastException
