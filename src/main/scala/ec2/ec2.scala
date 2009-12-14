@@ -9,12 +9,10 @@ import org.apache.log4j.Logger
 import java.io.File
 
 import scala.collection.jcl.Conversions._
+import scala.collection.immutable.TreeHashMap
 
-object EC2 {
+object EC2Instance  extends AWSConnection {
 	protected val logger = Logger.getLogger("deploylib.ec2")
-
-	private val accessKeyId = System.getenv("AWS_ACCESS_KEY_ID")
-  private val secretAccessKey = System.getenv("AWS_SECRET_ACCESS_KEY")
 
   var keyName = System.getenv("AWS_KEY_NAME")
   var keyPath = System.getenv("AWS_KEY_PATH")
@@ -24,11 +22,10 @@ object EC2 {
   if(System.getenv("EC2_URL") != null)
   	config.setServiceURL(System.getenv("EC2_URL"))
 
-  val client = new AmazonEC2Client(accessKeyId, secretAccessKey, config)
-	val instances = new scala.collection.mutable.HashMap[String, RunningInstance]
-	var lastUpdate = 0L
-
-	update()
+  protected val client = new AmazonEC2Client(accessKeyId, secretAccessKey, config)
+	var instanceData:Map[String, RunningInstance] = new scala.collection.immutable.EmptyMap[String, RunningInstance]
+	protected val instances = new scala.collection.mutable.HashMap[String, EC2Instance]
+	protected var lastUpdate = 0L
 
 	def update():Unit = {
 		synchronized {
@@ -36,25 +33,42 @@ object EC2 {
 				logger.debug("Skipping ec2 update since it was done less than 10 seconds ago")
 			else {
 				val result = client.describeInstances(new DescribeInstancesRequest()).getDescribeInstancesResult()
-				result.getReservation.foreach((r) => {
-					r.getRunningInstance.foreach((i) => {
-						instances.put(i.getInstanceId, i)
+				instanceData = TreeHashMap(result.getReservation.flatMap((r) => {
+					r.getRunningInstance.map((i) => {
+						(i.getInstanceId, i)
 					})
-				})
+				}):_*)
 				lastUpdate = System.currentTimeMillis()
+				logger.info("Updated EC2 instances state")
+			}
+		}
+	}
+
+	def getInstance(instanceId: String): EC2Instance = {
+		synchronized {
+			instances.get(instanceId) match {
+				case Some(inst) => inst
+				case None => {
+					val newInst = new EC2Instance(instanceId)
+					instances.put(instanceId, newInst)
+					return newInst
+				}
 			}
 		}
 	}
 
 	def activeInstances: List[EC2Instance] = {
 		update()
-		instances.keys.map(new EC2Instance(_)).filter(_.instanceState equals "running").toList
+		instanceData.keys.map(getInstance).filter(_.instanceState equals "running").toList
 	}
 
 	def myInstances: List[EC2Instance] = activeInstances.filter(_.keyName equals keyName)
 
 	def runInstance(): EC2Instance =
-		runInstances("ami-e7a2448e", 1, 1, "marmbrus", "m1.small", "us-east-1a")(0)
+		runInstances(1)(0)
+
+	def runInstances(num: Int): Seq[EC2Instance] =
+		runInstances("ami-e7a2448e", num, num, keyName, "m1.small", "us-east-1a")
 
 	def runInstances(imageId: String, min: Int, max: Int, keyName: String, instanceType: String, location: String): Seq[EC2Instance] = {
 		val request = new RunInstancesRequest(
@@ -73,37 +87,33 @@ object EC2 {
 
 		val result = client.runInstances(request).getRunInstancesResult()
 
-		val retInstances =
-			synchronized {
-				result.getReservation().getRunningInstance().map(ri => {
-					instances.put(ri.getInstanceId, ri)
-					new EC2Instance(ri.getInstanceId())
-				})
-			}
-
-		val statsCollection = Future {
-			logger.debug("Starting thread to collect ec2instance stats")
-			retInstances.foreach(r => {
-				r.blockUntilRunning
-				XResult.storeUnrelatedXml(
-					<instance id={r.instanceId}>
-						<imageId>{r.imageId}</imageId>
-						<publicDnsName>{r.publicDnsName}</publicDnsName>
-						<privateDnsName>{r.privateDnsName}</privateDnsName>
-						<keyName>{r.keyName}</keyName>
-						<instanceType>{r.instanceType}</instanceType>
-						<availabilityZone>{r.availabilityZone}</availabilityZone>
-					</instance>
-				)
-			})
-			logger.debug("Ec2Instance data stored to xmldb")
+		synchronized {
+			instanceData ++= result.getReservation().getRunningInstance().map(ri => (ri.getInstanceId, ri))
 		}
 
+		val retInstances = result.getReservation().getRunningInstance().map(ri => getInstance(ri.getInstanceId))
+
+		retInstances.foreach(r => {
+			r.blockUntilRunning
+
+			r.mkdir(new java.io.File("/mnt/services"))
+
+			XResult.storeUnrelatedXml(
+				<instance id={r.instanceId}>
+					<imageId>{r.imageId}</imageId>
+					<publicDnsName>{r.publicDnsName}</publicDnsName>
+					<privateDnsName>{r.privateDnsName}</privateDnsName>
+					<keyName>{r.keyName}</keyName>
+					<instanceType>{r.instanceType}</instanceType>
+					<availabilityZone>{r.availabilityZone}</availabilityZone>
+				</instance>
+			)
+		})
 		return retInstances
 	}
 }
 
-class EC2Instance(val instanceId: String) extends RemoteMachine with RunitManager {
+class EC2Instance protected (val instanceId: String) extends RemoteMachine with RunitManager {
 	lazy val hostname: String = getHostname()
 	val username: String = "root"
 	val privateKey: File = new File("/Users/marmbrus/.ec2/amazon/marmbrus.key")
@@ -115,7 +125,7 @@ class EC2Instance(val instanceId: String) extends RemoteMachine with RunitManage
 		executeCommand("halt")
 
 	def currentState: RunningInstance =
-		EC2.instances(instanceId)
+		EC2Instance.instanceData(instanceId)
 
 	def imageId: String =
 		currentState.getImageId()
@@ -136,7 +146,7 @@ class EC2Instance(val instanceId: String) extends RemoteMachine with RunitManage
 		currentState.getPlacement().getAvailabilityZone()
 
 	def instanceState: String =
-		EC2.instances(instanceId).getInstanceState.getName()
+		EC2Instance.instanceData(instanceId).getInstanceState.getName()
 
 	def getHostname(): String = {
 		blockUntilRunning()
@@ -147,7 +157,7 @@ class EC2Instance(val instanceId: String) extends RemoteMachine with RunitManage
 		while(instanceState equals "pending"){
 			logger.info("Waiting for instance " + this)
 			Thread.sleep(10000)
-			EC2.update()
+			EC2Instance.update()
 		}
 
 	 	var connected = false
@@ -162,6 +172,17 @@ class EC2Instance(val instanceId: String) extends RemoteMachine with RunitManage
 				}
 			}
 			Thread.sleep(5000)
+		}
+	}
+
+	override def upload(localFile: File, remoteDirectory: File): Unit = {
+		val remoteFile = new File(remoteDirectory, localFile.getName)
+		if(Util.md5(localFile) == md5(remoteFile))
+			logger.debug("Not uploading " + localFile + " as the hashes match")
+		else {
+			val url = S3Cache.getCacheUrl(localFile)
+			logger.debug("Getting file from cache: " + url)
+			executeCommand("wget -O " + remoteFile + " " + url)
 		}
 	}
 
