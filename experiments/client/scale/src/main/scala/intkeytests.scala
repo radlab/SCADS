@@ -1,4 +1,5 @@
-import scaletest._
+package scaletest
+
 import deploylib._
 import deploylib.rcluster._
 import deploylib.xresults._
@@ -6,10 +7,7 @@ import deploylib.ec2._
 import deploylib.runit._
 import edu.berkeley.cs.scads.thrift._
 import org.apache.log4j.Logger
-import deploylib.Util
 import java.io.File
-
-settings.maxPrintString = 1000000
 
 class LoadExp(nodes: List[RunitManager], threads: Int, bulkLoad: Boolean, testSize: Int) {
 	val logger = Logger.getLogger("script")
@@ -45,4 +43,22 @@ class LoadExp(nodes: List[RunitManager], threads: Int, bulkLoad: Boolean, testSi
 		cluster.storageServices.foreach(s => XResult.captureDirectory(s.manager, new File(s.serviceDir, "db")))
 		logger.info("Post test collection complete")
 	}
+}
+
+class ReadExp(serverNodes: List[RunitManager], clientNodes: List[RunitManager], threads: Int) {
+	val logger = Logger.getLogger("script")
+
+	XResult.startExperiment("Read Experiment " + serverNodes + clientNodes + threads)
+
+	val cluster = ScadsDeployment.recoverScadsDeployment(serverNodes)
+	ScadsDeployment.captureScadsDeployment(cluster)
+
+	clientNodes.foreach(_.stopWatches)
+
+	val loadServices = clientNodes.map(n => {
+		ScadsDeployment.deployLoadClient(n, "RandomReader", Map("zookeeper" -> cluster.zooUri, "length" -> (5*60).toString, "threads" -> threads.toString))
+	})
+	loadServices.foreach(_.clearFailures)
+	loadServices.foreach(_.watchFailures)
+	loadServices.foreach(_.once)
 }
