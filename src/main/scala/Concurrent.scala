@@ -62,3 +62,21 @@ class Future[A](f: => A) {
 		result.toString()
 	}
 }
+
+object ParallelConversions {
+	implicit def toParallelSeq[A](seq: Seq[A]): ParallelSeq[A] = new ParallelSeq(seq.toList)
+}
+
+class ParallelSeq[A](seq: List[A]) {
+	def pmap[B](f : (A) => B) : Iterable[B] = {
+		seq.map(v => new Future(f(v))).map(_())
+	}
+
+	def pflatMap[B](f : (A) => Iterable[B]) : Iterable[B] = {
+		seq.map(v => new Future(f(v))).flatMap(_())
+	}
+
+	def pforeach(f : (A) => Unit) : Unit = {
+		seq.map(v => new Future(f(v))).map(_())
+	}
+}
