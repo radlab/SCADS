@@ -156,8 +156,10 @@ abstract class ScadsTest {
   	env.executor = new TrivialExecutor
 
 		XResult.recordResult(
-			XResult.retryAndRecord(1) {
-				runExperiment
+			Util.retry(5) {
+				XResult.recordException {
+					runExperiment
+				}
 			}
 		)
 	}
