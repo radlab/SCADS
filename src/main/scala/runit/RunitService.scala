@@ -25,7 +25,7 @@ case class RunitService(manager: RunitManager, name: String) {
 		manager.executeCommand(manager.svCmd + " " + cmd + " " + serviceDir) match {
 			case ExecuteResponse(Some(0), out, "") => logger.debug("Service " + name + " on " + manager.hostname + " " + cmd)
 			case e => {
-				logger.warn("Unexpected result while running sv: " + e)
+				logger.warn("Unexpected result while running sv on " + manager.hostname + ": " + e)
 				throw new UnsucessfulSvCmdException(e)
 			}
 		}
