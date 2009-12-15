@@ -4,7 +4,7 @@
 	<groupId>edu.berkeley.cs.scads</groupId>
 	<artifactId>thrift-interface</artifactId>
 	<packaging>jar</packaging>
-	<version>1.0.5</version>
+	<version>1.0.6</version>
 	<name>SCADS Thrift Interface</name>
 	<parent>
 		<groupId>edu.berkeley.cs.scads</groupId>
@@ -15,7 +15,7 @@
 		<dependency>
 			<groupId>org.apache.thrift</groupId>
 			<artifactId>libthrift</artifactId>
-			<version>0.1-xtrace-SNAPSHOT</version>
+			<version>0.3-xtrace-SNAPSHOT</version>
 		</dependency>
 	</dependencies>
 	<reporting>
