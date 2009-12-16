@@ -1,23 +1,13 @@
 package deploylib.xresults
 
-import org.xmldb.api.base._
-import org.xmldb.api.modules._
-import org.xmldb.api._
-import org.exist.xmldb.DatabaseInstanceManager
-import org.apache.log4j.Logger
 import java.net.InetAddress
 import scala.xml.{NodeSeq, UnprefixedAttribute, Elem, Node, Null, Text, TopScope }
 import java.io.File
 
-
-object XResult {
-  val logger = Logger.getLogger("deploylib.xresult")
-  lazy val collection = getCollection()
-	lazy val queryService = collection.getService("XPathQueryService", "1.0").asInstanceOf[XPathQueryService]
+object XResult extends XmlCollection("xmldb:exist://scm.millennium.berkeley.edu:8080/exist/xmlrpc/db/results", "experiment", "scads") {
   val hostname = localHostname()
 
   def experimentId(): String = System.getProperty("experimentId")
-
 
 	def startExperiment(description: String):Unit = startExperiment(<description>{description}</description>)
   def startExperiment(experimentData: NodeSeq):Unit = {
@@ -31,12 +21,6 @@ object XResult {
       </experiment>)
   }
 
-	def storeUnrelatedXml(elem: Elem): Unit = {
-		val doc = collection.createResource(null, "XMLResource").asInstanceOf[XMLResource]
-		doc.setContent(elem)
-		logger.debug("Storing result: " + doc.getId)
-		collection.storeResource(doc)
-	}
 
   def storeXml(elem: Elem):Unit = {
     if(experimentId == null) {
@@ -123,23 +107,9 @@ object XResult {
 				</directory>)
 	}
 
-	def execQuery(query: String): Iterator[Elem] = {
-		class ResultIterator(ri: ResourceIterator) extends Iterator[Elem] {
-			def hasNext: Boolean = ri.hasMoreResources()
-			def next: Elem = scala.xml.XML.loadString(ri.nextResource().getContent().asInstanceOf[String])
-		}
-		new ResultIterator(queryService.query(query).getIterator)
-	}
 
   protected def localHostname(): String = {
     InetAddress.getLocalHost().getHostName()
   }
 
-  protected def getCollection():Collection = {
-    val cl = Class.forName("org.exist.xmldb.DatabaseImpl")
-    val database = cl.newInstance().asInstanceOf[Database]
-    database.setProperty("create-database", "true")
-    DatabaseManager.registerDatabase(database)
-    DatabaseManager.getCollection("xmldb:exist://scm.millennium.berkeley.edu:8080/exist/xmlrpc/db/results", "experiment", "scads")
-  }
 }
