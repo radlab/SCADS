@@ -11,12 +11,12 @@ typedef string Host
 
 struct Record {
 	1: RecordKey key,
-	2: optional RecordValue value
+	2: RecordValue value
 }
 
 struct ExistingValue {
-  1: optional RecordValue value,
-	2: optional i32 prefix
+  1: RecordValue value,
+	2: i32 prefix
 }
 
 enum RecordSetType {
@@ -30,10 +30,10 @@ enum RecordSetType {
 }
 
 struct RangeSet {
-	1: optional RecordKey start_key,
-	2: optional RecordKey end_key,
-	3: optional i32 offset,
-	4: optional i32 limit
+	1: RecordKey start_key,
+	2: RecordKey end_key,
+	3: i32 offset,
+	4: i32 limit
 }
 
 enum Language {
