@@ -321,7 +321,7 @@ abstract class RemoteMachine {
 	def ls(dir: File):Seq[RemoteFile] = {
 		executeCommand("ls -lh " + dir) match {
 			case ExecuteResponse(Some(0), data, "") => {
-				data.split("\n").slice(1).map(l => {
+				data.split("\n").drop(1).map(l => {
 					val parts = l.split(" ")
 					RemoteFile(parts(7), parts(2), parts(0), parts(5) + parts(6), parts(4))
 				})
