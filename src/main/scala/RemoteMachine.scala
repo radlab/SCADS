@@ -254,6 +254,7 @@ abstract class RemoteMachine {
 					session.close()
 				}
 			}
+			thread.setDaemon(true)
 			thread.start
       logger.debug("Watching " + remoteFile + " on thread " + thread)
 		})

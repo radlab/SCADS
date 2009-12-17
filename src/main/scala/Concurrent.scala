@@ -11,6 +11,7 @@ class CanceledException extends Exception
 class Future[A](f: => A) {
 	val result = new SyncVar[Either[A, Throwable]]
 	val thread = new Thread {override def run() = {result.set(tryCatch(f))}}
+	thread.setDaemon(true)
 	thread.start()
 
 	def cancel():Unit = {
