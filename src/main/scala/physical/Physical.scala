@@ -59,6 +59,7 @@ class PhysicalInstance(val hostname: String) extends RemoteMachine
   val privateKey: File = new File("/Users/marmbrus/.ec2/amazon/")
   val rootDirectory: File = new File("/mnt/")
   val runitBinaryPath:File = new File("/usr/bin")
+	val javaCmd: File = new File("/usr/bin/java")
   val tags: HashMap[String,Tag] = new HashMap[String,Tag];
   var mac: String = "";
 
