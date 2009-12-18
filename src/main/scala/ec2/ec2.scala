@@ -96,18 +96,6 @@ object EC2Instance  extends AWSConnection {
 		retInstances.foreach(r => {
 			r.blockUntilRunning
 
-			r.mkdir(new java.io.File("/mnt/services"))
-
-			XResult.storeUnrelatedXml(
-				<instance id={r.instanceId}>
-					<imageId>{r.imageId}</imageId>
-					<publicDnsName>{r.publicDnsName}</publicDnsName>
-					<privateDnsName>{r.privateDnsName}</privateDnsName>
-					<keyName>{r.keyName}</keyName>
-					<instanceType>{r.instanceType}</instanceType>
-					<availabilityZone>{r.availabilityZone}</availabilityZone>
-				</instance>
-			)
 		})
 		return retInstances
 	}
@@ -172,6 +160,24 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
 				}
 			}
 			Thread.sleep(5000)
+		}
+	}
+
+	def setup(): Unit = {
+		if(ls(new File("/mnt")).filter(_.name equals "services").size == 0) {
+			logger.debug("EC2Instance " + instanceId + " seen for the first time, configuring and storing xml")
+			mkdir(new java.io.File("/mnt/services"))
+
+			XResult.storeUnrelatedXml(
+				<instance id={instanceId}>
+					<imageId>{imageId}</imageId>
+					<publicDnsName>{publicDnsName}</publicDnsName>
+					<privateDnsName>{privateDnsName}</privateDnsName>
+					<keyName>{keyName}</keyName>
+					<instanceType>{instanceType}</instanceType>
+					<availabilityZone>{availabilityZone}</availabilityZone>
+				</instance>
+			)
 		}
 	}
 
