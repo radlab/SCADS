@@ -8,9 +8,15 @@ import org.apache.log4j.Logger
 
 abstract class RetryableException extends Exception
 
+/**
+ * A set of utility functions for reliably running experiments.
+ */
 object Util {
 	val logger = Logger.getLogger("deploylib.util")
 
+	/**
+	 * Runs the provided function and will retry, pausing for 1 second, in the case of a number of transient failures (for instance TTransportException).
+	 */
 	def retry[ReturnType](tries: Int)(func: => ReturnType):ReturnType = {
 		var usedTries = 0
 		var lastException: Exception = null
@@ -35,6 +41,9 @@ object Util {
 		throw lastException
 	}
 
+	/**
+	 * Returns the active username.  Checks (in order) the environmental variable DEPLOY_USER, the system property deploy.user, and finally the system property user.name.
+	 */
 	def username: String = {
 		if(System.getenv("DEPLOY_USER") != null)
 			return System.getenv("DEPLOY_USER")
@@ -44,6 +53,9 @@ object Util {
 			return System.getProperty("user.name")
 	}
 
+	/**
+	 * Calculates and returns the 32 character hex representation of the md5 hash of a local file.
+	 */
 	def md5(file: File): String = {
 		val digest = MessageDigest.getInstance("MD5");
 		val buffer = new Array[Byte](1024*1024)
