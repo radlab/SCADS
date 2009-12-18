@@ -13,6 +13,7 @@ class XmlCollection(url: String, username: String, password: String) {
 
   lazy val collection = getCollection()
 	lazy val queryService = collection.getService("XPathQueryService", "1.0").asInstanceOf[XPathQueryService]
+	lazy val updateService = collection.getService("XUpdateQueryService", "1.0").asInstanceOf[XUpdateQueryService]
 
 	def storeUnrelatedXml(elem: Elem): Unit = {
 		Util.retry(10) {

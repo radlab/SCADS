@@ -15,8 +15,8 @@ object XResult extends XmlCollection("xmldb:exist://scm.millennium.berkeley.edu:
       logger.warn("Experiment: " + experimentId + " is already running.  Starting a new one anyway.")
     System.setProperty("experimentId", System.getProperty("user.name") + System.currentTimeMillis())
     logger.info("Begining experiment: " + experimentId)
-    storeXml(
-      <experiment user={System.getProperty("user.name")}>
+    storeUnrelatedXml(
+      <experiment experimentId={experimentId} user={System.getProperty("user.name")} timestamp={System.currentTimeMillis.toString}>
 				{experimentData}
       </experiment>)
   }
@@ -28,14 +28,21 @@ object XResult extends XmlCollection("xmldb:exist://scm.millennium.berkeley.edu:
       logger.warn(elem)
     }
     else {
-      val taggedResult = new Elem(
-        elem.prefix,
-        elem.label,
-        elem.attributes.append(new UnprefixedAttribute("experimentId", experimentId, Null)).append(new UnprefixedAttribute("timestamp", System.currentTimeMillis().toString, Null)),
-        elem.scope,
-        elem.child:_*)
-      storeUnrelatedXml(taggedResult)
-    }
+			val updateCmd =
+				<xupdate:modifications version="1.0" xmlns:xupdate="http://www.xmldb.org/xupdate">
+					<xupdate:append select={"/experiment[@experimentId = '" + experimentId + "']"}>
+     				<xupdate:element name={elem.label}>
+							<xupdate:attribute name="timestamp">{System.currentTimeMillis}</xupdate:attribute>
+							{elem.attributes.elements.map(a => <xupdate:attribute name={a.key}>{a.value}</xupdate:attribute>)}
+							{elem.child}
+						</xupdate:element>
+					</xupdate:append>
+				</xupdate:modifications>
+
+			Util.retry(10) {
+    		updateService.update(updateCmd.toString)
+			}
+		}
   }
 
   def recordResult(result: NodeSeq): Unit = {
