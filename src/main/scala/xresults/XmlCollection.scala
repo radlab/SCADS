@@ -15,9 +15,10 @@ class XmlCollection(url: String, username: String, password: String) {
 	lazy val queryService = collection.getService("XPathQueryService", "1.0").asInstanceOf[XPathQueryService]
 	lazy val updateService = collection.getService("XUpdateQueryService", "1.0").asInstanceOf[XUpdateQueryService]
 
-	def storeUnrelatedXml(elem: Elem): Unit = {
+	def storeUnrelatedXml(elem: Elem): Unit = storeUnrelatedXml(null, elem)
+	def storeUnrelatedXml(name: String, elem: Elem): Unit = {
 		Util.retry(10) {
-			val doc = collection.createResource(null, "XMLResource").asInstanceOf[XMLResource]
+			val doc = collection.createResource(name, "XMLResource").asInstanceOf[XMLResource]
 			doc.setContent(elem)
 			logger.debug("Storing result: " + doc.getId)
 			collection.storeResource(doc)

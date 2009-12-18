@@ -15,7 +15,7 @@ object XResult extends XmlCollection("xmldb:exist://scm.millennium.berkeley.edu:
       logger.warn("Experiment: " + experimentId + " is already running.  Starting a new one anyway.")
     System.setProperty("experimentId", System.getProperty("user.name") + System.currentTimeMillis())
     logger.info("Begining experiment: " + experimentId)
-    storeUnrelatedXml(
+    storeUnrelatedXml(experimentId,
       <experiment experimentId={experimentId} user={System.getProperty("user.name")} timestamp={System.currentTimeMillis.toString}>
 				{experimentData}
       </experiment>)
