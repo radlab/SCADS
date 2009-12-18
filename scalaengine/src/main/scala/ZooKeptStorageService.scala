@@ -75,7 +75,7 @@ class ZooKeptStorageProcessor(env: Environment, hostid: String, servers: String,
 		}
 		catch {
 			case e: org.apache.zookeeper.KeeperException.NodeExistsException => {
-				logger.warn("Stale entry detected, deleting and retrying")
+				logger.warn("Stale entry for '" + file + "' detected, deleting and retrying")
 				try {
 					zoo.delete(file, -1)
 				}
