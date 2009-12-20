@@ -154,16 +154,14 @@ abstract class ScadsTest {
   	env.session = new TrivialSession
   	env.executor = new TrivialExecutor
 
-		XResult.recordResult(
-			Util.retry(5) {
-				XResult.recordException {
-					runExperiment
-				}
+		Util.retry(5) {
+			XResult.recordException {
+				runExperiment
 			}
-		)
+		}
 	}
 
-	def runExperiment(): NodeSeq
+	def runExperiment(): Unit
 
 	protected def getStringOption(name: String): String = {
 		if(!cmd.hasOption(name)) {
@@ -184,7 +182,7 @@ abstract class ScadsTest {
 abstract trait ThreadedScadsExperiment extends ScadsTest {
 	options.addOption("t", "threads", true, "number of concurrent threads to run")
 
-	def runExperiment(): NodeSeq = {
+	def runExperiment(): Unit = {
 		val results = (1 to getIntOption("threads")).toList.map(r => {
 			Future {
 				runThread()
@@ -194,5 +192,5 @@ abstract trait ThreadedScadsExperiment extends ScadsTest {
 		results.map(r => <thread>{r()}</thread>)
 	}
 
-	def runThread(): NodeSeq
+	def runThread(): Unit
 }

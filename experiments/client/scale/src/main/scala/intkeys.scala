@@ -88,7 +88,7 @@ object ThreadedLoader extends IntKeyTest {
 	options.addOption("e", "endKey", true, "last key (exclusive)")
 	options.addOption("t", "threads", true, "number of threads to split the load into")
 
-	def runExperiment(): NodeSeq = {
+	def runExperiment(): Unit = {
 		val startKey = getIntOption("startKey")
 		val endKey = getIntOption("endKey")
 
@@ -112,7 +112,9 @@ object ThreadedLoader extends IntKeyTest {
 			}
 		})
 
-		results.map(r => <thread>{r()}</thread>)
+		XResult.recordResult(
+			results.map(r => <thread>{r()}</thread>)
+		)
 	}
 
 	def runTest(startKey: Int, endKey: Int): Unit = {
@@ -129,17 +131,19 @@ object RandomReader extends IntKeyTest with ThreadedScadsExperiment {
 	lazy val maxKey = getMaxKey()
 	options.addOption("l", "length", true, "the length in seconds for the test to run")
 
-	def runThread: NodeSeq = {
+	def runThread: Unit = {
 		val seed = (XResult.hostname + Thread.currentThread().getName + System.currentTimeMillis).hashCode
 		val rand = new Random(seed)
 
-		XResult.timeLimitBenchmark(getIntOption("length"), 1, <randomReads><maxKey>{maxKey.toString}</maxKey></randomReads>) {
-			try {
-				getKey(rand.nextInt(maxKey) + 1)
+		XResult.recordResult(
+			XResult.timeLimitBenchmark(getIntOption("length"), 1, <randomReads><maxKey>{maxKey.toString}</maxKey></randomReads>) {
+				try {
+					getKey(rand.nextInt(maxKey) + 1)
+				}
+				catch {
+					case e: NoNodeResponsibleException => false
+				}
 			}
-			catch {
-				case e: NoNodeResponsibleException => false
-			}
-		}
+		)
 	}
 }
