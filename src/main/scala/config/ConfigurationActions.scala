@@ -31,7 +31,7 @@ trait ConfigurationActions {
 		val baseDirectory = createDirectory(target, new File(target.serviceRoot, name))
 		val logDirectory = createDirectory(target, new File(baseDirectory, "log"))
 		val downFile = createFile(target, new File(baseDirectory, "down"), " ", "644")
-		val runFile = createFile(target, new File(baseDirectory, "run"), "#!/bin/sh\nexec 2>&1\nexec " + runCommand, "755")
+		val runFile = createFile(target, new File(baseDirectory, "run"), "#!/bin/sh\nexec 2>&1\nulimit -n 10240\nexec " + runCommand, "755")
 		val logFile = createFile(target, new File(logDirectory, "run"), logCommand, "755")
 		val finishFile = createFile(target, new File(baseDirectory, "finish"), "#!/bin/sh\necho FAILURE `/bin/date`: " + name + " $@ >> failures", "755")
 
@@ -45,7 +45,7 @@ trait ConfigurationActions {
 		val remoteJar = uploadFile(target, localJar, target.rootDirectory)
     val expIdFlag = if(XResult.experimentId != null) "-DexperimentId=" + XResult.experimentId else ""
     val jvmArgs = "-server -Xmx" + maxHeapMb + "m " + expIdFlag + " -XX:+HeapDumpOnOutOfMemoryError "
-		val runCmd = "/usr/lib/jvm/java-6-sun/bin/java " +
+		val runCmd = target.javaCmd + " " +
                   jvmArgs + " " +
 								 "-cp .:" + remoteJar + " " +
 								 className + " " + args

@@ -11,6 +11,7 @@ class CanceledException extends Exception
 class Future[A](f: => A) {
 	val result = new SyncVar[Either[A, Throwable]]
 	val thread = new Thread {override def run() = {result.set(tryCatch(f))}}
+	thread.setDaemon(true)
 	thread.start()
 
 	def cancel():Unit = {
@@ -60,5 +61,23 @@ class Future[A](f: => A) {
 			result.append("running")
 		result.append(">")
 		result.toString()
+	}
+}
+
+object ParallelConversions {
+	implicit def toParallelSeq[A](itr: Iterable[A]): ParallelSeq[A] = new ParallelSeq(itr.toList)
+}
+
+class ParallelSeq[A](seq: List[A]) {
+	def pmap[B](f : (A) => B) : List[B] = {
+		seq.map(v => new Future(f(v))).map(_())
+	}
+
+	def pflatMap[B](f : (A) => Iterable[B]) : List[B] = {
+		seq.map(v => new Future(f(v))).flatMap(_())
+	}
+
+	def pforeach(f : (A) => Unit) : Unit = {
+		seq.map(v => new Future(f(v))).map(_())
 	}
 }

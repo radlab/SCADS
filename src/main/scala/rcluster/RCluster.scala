@@ -19,7 +19,7 @@ object RCluster {
 	 */
 	def activeNodes() = {
 		val check = nodes.map((n) => (n, Future(n.executeCommand("hostname"))))
-		Thread.sleep(5000)
+		Thread.sleep(20000)
 		check.foreach((c) => if(!c._2.isDone) c._2.cancel)
 		check.filter((c) => c._2.isDone && c._2.success).map((c) => c._1)
 	}
@@ -34,6 +34,7 @@ class RClusterNode(num: Int) extends RemoteMachine with RunitManager {
 	val rootDirectory = new File("/scratch/" + Util.username + "/")
 	val privateKey = new File(System.getProperty("user.home"), ".ssh/id_rsa")
 	val runitBinaryPath = new File("/work/" + Util.username + "/runit")
+	val javaCmd = new File("/usr/lib/jvm/java-6-sun/bin/java")
 
 	def setupRunit() {
 		executeCommand("mkdir -p " + serviceRoot) match {

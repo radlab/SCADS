@@ -4,6 +4,7 @@ import java.io._
 import java.net.InetAddress
 import java.net.DatagramPacket
 import java.net.DatagramSocket
+import java.io.File
 import deploylib._
 import scala.collection.jcl._
 import scala.collection.jcl.Conversions._
@@ -188,6 +189,7 @@ class PhysicalInstance(val hostname: String, val username: String, val privateKe
 {
   val rootDirectory: File = new File("/mnt/")
   val runitBinaryPath:File = new File("/usr/bin")
+  val javaCmd: File = new File("/usr/bin/java")
   val tags: HashMap[String,Tag] = new HashMap[String,Tag];
   var mac: String = "";
   var broadcastAddress = "";

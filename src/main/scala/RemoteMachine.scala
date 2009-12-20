@@ -39,6 +39,12 @@ abstract class RemoteMachine {
 	 */
 	val rootDirectory: File
 
+	/**
+	 * The location of the java command on the remote machine
+	 */
+	val javaCmd: File
+
+
   /**
    * The services that are assigned to be deployed to this remote machine.
    */
@@ -153,17 +159,16 @@ abstract class RemoteMachine {
 				if((status & ChannelCondition.EXIT_STATUS) != 0) {
 					logger.debug("Received EXIT_STATUS")
 					exitStatus = session.getExitStatus()
-					continue = false
 				}
 				if((status & ChannelCondition.EXIT_SIGNAL) != 0) {
 					logger.debug("Received EXIT_SIGNAL: " + session.getExitSignal())
-					continue = false
 				}
 				if((status & ChannelCondition.EOF) != 0) {
 					logger.debug("Received EOF")
 				}
 				if((status & ChannelCondition.CLOSED) != 0) {
 					logger.debug("Received CLOSED")
+					continue = false
 				}
                                 if((status & ChannelCondition.TIMEOUT) != 0 ) {
                                     logger.debug("Received TIMEOUT")
@@ -254,6 +259,13 @@ abstract class RemoteMachine {
 		}
 	}
 
+	def mkdir(remoteDir: File): Unit = {
+		executeCommand("mkdir -p " + remoteDir) match {
+			case ExecuteResponse(Some(0),_, _) => true
+			case _ => logger.fatal("Unexpected response while making directory " + remoteDir)
+		}
+	}
+
 	def watch(remoteFile: File): Unit = {
 		useConnection((c) => {
 			val session = connection.openSession
@@ -271,6 +283,7 @@ abstract class RemoteMachine {
 					session.close()
 				}
 			}
+			thread.setDaemon(true)
 			thread.start
       logger.debug("Watching " + remoteFile + " on thread " + thread)
 		})
@@ -337,7 +350,7 @@ abstract class RemoteMachine {
 	def ls(dir: File):Seq[RemoteFile] = {
 		executeCommand("ls -lh " + dir) match {
 			case ExecuteResponse(Some(0), data, "") => {
-				data.split("\n").slice(1).map(l => {
+				data.split("\n").drop(1).map(l => {
 					val parts = l.split(" ")
 					RemoteFile(parts(7), parts(2), parts(0), parts(5) + parts(6), parts(4))
 				})

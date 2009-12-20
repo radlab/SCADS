@@ -25,7 +25,7 @@ case class RunitService(manager: RunitManager, name: String) {
 		manager.executeCommand(manager.svCmd + " " + cmd + " " + serviceDir) match {
 			case ExecuteResponse(Some(0), out, "") => logger.debug("Service " + name + " on " + manager.hostname + " " + cmd)
 			case e => {
-				logger.warn("Unexpected result while running sv: " + e)
+				logger.warn("Unexpected result while running sv on " + manager.hostname + ": " + e)
 				throw new UnsucessfulSvCmdException(e)
 			}
 		}
@@ -37,12 +37,12 @@ case class RunitService(manager: RunitManager, name: String) {
 	def exit: Unit = svCmd("exit")
 
 	val downRegex = new Regex("""ok: down: \S+ (\d+)s.*""" + "\n")
-	val runRegex = new Regex("""ok: run: \S+ \(pid (\d+)\) (\d+)s.*""" + "\n")
+	val runRegex = new Regex("""ok: (\S+): \S+ \(pid (\d+)\) (\d+)s.*""" + "\n")
 
 	def status: RunitStatus = manager.executeCommand(manager.svCmd + " check " + serviceDir) match {
 		case ExecuteResponse(Some(0), "", "") => RunitStatus("down", -1, 0)
 		case ExecuteResponse(Some(0), downRegex(sec), "") => RunitStatus("down", -1, sec.toInt)
-		case ExecuteResponse(Some(0), runRegex(pid, sec), "") => RunitStatus("run", pid.toInt, sec.toInt)
+		case ExecuteResponse(Some(0), runRegex(status, pid, sec), "") => RunitStatus(status, pid.toInt, sec.toInt)
 		case ExecuteResponse(Some(1), _, _) => RunitStatus("nonexistant", -1, 0)
 		case unknown => {
 			logger.warn("Unable to parse service status: " + unknown)
