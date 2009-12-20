@@ -98,12 +98,16 @@ object ThreadedLoader extends IntKeyTest {
 			logger.info("Creating thread for range: " + p)
 			Future {
 				XResult.benchmark {
-					runTest(p.start.toInt, p.end.toInt)
-					<sequentialLoad>
-						<startKey>{p.start.toInt}</startKey>
-						<endKey>{p.end.toInt}</endKey>
-						<method>{this.getClass.getName}</method>
-					</sequentialLoad>
+					Util.retry(10) {
+						XResult.recordException {
+							runTest(p.start.toInt, p.end.toInt)
+							<sequentialLoad>
+								<startKey>{p.start.toInt}</startKey>
+								<endKey>{p.end.toInt}</endKey>
+								<method>{this.getClass.getName}</method>
+							</sequentialLoad>
+						}
+					}
 				}
 			}
 		})
