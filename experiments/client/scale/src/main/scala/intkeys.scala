@@ -10,6 +10,7 @@ import deploylib.config._
 import deploylib.runit._
 import deploylib.xresults._
 import scala.xml._
+import scala.util.Random
 
 import java.io.File
 import scala.concurrent.SyncVar
@@ -125,10 +126,16 @@ object RandomReader extends IntKeyTest with ThreadedScadsExperiment {
 	options.addOption("l", "length", true, "the length in seconds for the test to run")
 
 	def runThread: NodeSeq = {
-		val rand = new Random
+		val seed = (XResult.hostname + Thread.currentThread().getName + System.currentTimeMillis).hashCode
+		val rand = new Random(seed)
 
-		XResult.timeLimitBenchmark(getIntOption("length"), 1000, <randomReads><maxKey>{maxKey.toString}</maxKey></randomReads>) {
-			getKey(rand.nextInt(maxKey) + 1)
+		XResult.timeLimitBenchmark(getIntOption("length"), 1, <randomReads><maxKey>{maxKey.toString}</maxKey></randomReads>) {
+			try {
+				getKey(rand.nextInt(maxKey) + 1)
+			}
+			catch {
+				case e: NoNodeResponsibleException => false
+			}
 		}
 	}
 }
