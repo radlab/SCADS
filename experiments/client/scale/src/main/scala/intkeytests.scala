@@ -69,6 +69,7 @@ class ReadExp(serverNodes: List[RunitManager], clientNodes: List[RunitManager], 
 	val postTestCollection = Future {
 		loadServices.foreach(_.blockTillDown)
 		logger.info("Begining Post-Test Collection")
+		cluster.storageServices.pforeach(_.captureLog)
 		loadServices.pforeach(_.captureLog)
 		logger.info("Post test collection Complete")
 	}
