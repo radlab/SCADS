@@ -246,7 +246,7 @@ class StorageProcessor(env: Environment, deferedWrites: Boolean) extends Storage
 
 		while(status != OperationStatus.NOTFOUND &&
 					(endValue == null || (forward && dbeKey.getData.compare(endValue) <= 0) || ((!forward) && dbeKey.getData.compare(endValue) >= 0)) &&
-					(!rs.getRange.isSetLimit || count < total)) {
+					((rs.getRange.getLimit == 0) || count < total)) {
 			if(!rs.getRange.isSetOffset || count >= rs.getRange.getOffset)
 				func(new Record(createString(dbeKey.getData), createString(dbeValue.getData)))
 			count += 1
