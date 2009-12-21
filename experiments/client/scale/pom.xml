@@ -30,6 +30,7 @@
 				<artifactId>maven-scala-plugin</artifactId>
 				<configuration>
 					<jvmArgs><arg>-Xmx1G</arg></jvmArgs>
+					<javaRebelPath>//Users/marmbrus/Downloads/jrebel-2.1.1/jrebel.jar</javaRebelPath>
 				</configuration>
 			</plugin>
 		</plugins>
