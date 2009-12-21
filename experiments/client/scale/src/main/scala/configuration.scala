@@ -149,10 +149,11 @@ abstract class ScadsTest {
 		if(!cmd.hasOption("zookeeper")){
 			logger.fatal("No zookeeper specified")
 		}
-
-		env.placement = new ZooKeptCluster(getStringOption("zookeeper"))
-  	env.session = new TrivialSession
-  	env.executor = new TrivialExecutor
+		else {
+			env.placement = new ZooKeptCluster(getStringOption("zookeeper"))
+			env.session = new TrivialSession
+			env.executor = new TrivialExecutor
+		}
 
 		Util.retry(5) {
 			XResult.recordException {
