@@ -52,5 +52,4 @@ class TestableScalaStorageEngine(id: Int) extends StorageNode("localhost", id) w
 		this(TestableStorageNode.port)
 		TestableStorageNode.port +=1
 	}
-
-	}
+}

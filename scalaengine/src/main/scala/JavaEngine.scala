@@ -131,8 +131,6 @@ object JavaEngine {
 		logger.info("SIGTERM handler registered")
 		Signal.handle(new Signal("TERM"), sigHandler)
 
-
-
 		logger.info("Starting server")
     	server.serve()
 	}
