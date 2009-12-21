@@ -75,4 +75,22 @@ object Util {
         }
         bigIntStr
 	}
+
+	/**
+	 * Reads in the given file an returns it as a string
+	 */
+	def readFile(file: File): String = {
+		val fis = new java.io.FileInputStream(file)
+		val in = new java.io.BufferedReader(new java.io.InputStreamReader(fis, "UTF-8"))
+		val ret = new StringBuilder
+		var line: String = in.readLine()
+
+		while(line != null) {
+			ret.append(line)
+			ret.append("\n")
+			line = in.readLine()
+		}
+
+		return ret.toString()
+	}
 }
