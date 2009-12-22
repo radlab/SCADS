@@ -8,7 +8,7 @@ import org.apache.zookeeper.ZooDefs.Ids
 import com.sleepycat.je.{Database, DatabaseConfig, DatabaseEntry, Environment, LockMode, OperationStatus}
 
 class ZooKeptStorageProcessor(env: Environment, hostid: String, servers: String, deferedWrite: Boolean) extends StorageProcessor(env, deferedWrite) with Watcher {
-	var zoo = new ZooKeeper(servers, 3000, this)
+	var zoo = new ZooKeeper(servers, 30000, this)
 	logger.info("Registering with zookeeper")
 
 	/* Set up basic directory */
@@ -93,7 +93,7 @@ class ZooKeptStorageProcessor(env: Environment, hostid: String, servers: String,
 				event.getState match {
 					case Event.KeeperState.Expired => {
 						logger.fatal("Lost connection to zookeeper, attempting to reconnect")
-						zoo = new ZooKeeper(servers, 3000, this)
+						zoo = new ZooKeeper(servers, 30000, this)
 						registerNamespaces()
 					}
 					case unhandledState => logger.info("Zookeeper state change: " + event)
