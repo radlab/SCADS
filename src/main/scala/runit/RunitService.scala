@@ -75,10 +75,8 @@ case class RunitService(manager: RunitManager, name: String) {
 	def watchFailures: Unit = manager.watch(failureFile)
 	def captureLog: Unit =
 		XResult.storeXml(
-			<log>
-				<serviceName>{name}</serviceName>
-				<host>{manager.hostname}</host>
-				<text>{manager.catFile(logFile)}</text>
+			<log serviceName={name} host={manager.hostname}>
+				{manager.catFile(logFile)}
 			</log>
 		)
 
