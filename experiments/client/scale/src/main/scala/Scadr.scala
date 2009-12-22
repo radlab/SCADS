@@ -4,6 +4,7 @@ import java.io.File
 import scala.collection.mutable.HashSet
 
 import deploylib._
+import deploylib.ec2._
 import deploylib.runit._
 import deploylib.xresults._
 import deploylib.ParallelConversions._
@@ -11,6 +12,23 @@ import edu.berkeley.cs.scads.thrift._
 import org.apache.log4j.Logger
 
 import piql._
+
+object UserCountTest {
+	val nodes = EC2Instance.myInstances
+	var le: ScadrLoadExp = null
+	var re: ScadrReadExp = null
+
+	var test: Future[Unit] = null
+
+	def run() = test = Future {
+		List(10, 100, 1000, 10000, 50000, 100000, 500000).foreach(users => {
+			le = new ScadrLoadExp(nodes, users, 20, 10)
+			le.postTestCollection()
+			re = new ScadrReadExp(nodes, users, 5)
+			re.postTestCollection()
+		})
+	}
+}
 
 class ScadrLoadExp(nodes: List[RunitManager], users: Int, thoughts: Int, following: Int) {
 	val logger = Logger.getLogger("script")
@@ -35,11 +53,42 @@ class ScadrLoadExp(nodes: List[RunitManager], users: Int, thoughts: Int, followi
 		loadServices.foreach(_.blockTillDown)
 		logger.info("Begining Post-test collection")
 		ScadsDeployment.captureScadsDeployment(cluster)
+		cluster.zooService.captureLog
 		(cluster.storageServices ++ loadServices).pforeach(_.captureLog)
 		cluster.storageServices.pforeach(s => XResult.captureDirectory(s.manager, new File(s.serviceDir, "db")))
 		logger.info("Post test collection complete")
 	}
 }
+
+class ScadrReadExp(nodes: List[RunitManager], users: Int, threads: Int) {
+	val logger = Logger.getLogger("script")
+
+	logger.info("Capturing Scads Cluster State")
+	val cluster = ScadsDeployment.recoverScadsDeployment(nodes)
+	ScadsDeployment.captureScadsDeployment(cluster)
+	nodes.pforeach(_.stopWatches)
+
+	cluster.storageServices.foreach(s => {s.clearFailures; s.watchFailures})
+	logger.info("Creating load clients")
+	val loadServices = nodes.pmap(n => {
+		ScadsDeployment.deployLoadClient(n, "ScadrThoughtstreamQuery", Map("zookeeper" -> cluster.zooUri, "maxuser" -> users.toString, "threads" -> threads.toString))
+	})
+	loadServices.foreach(_.clearFailures)
+	loadServices.foreach(_.watchFailures)
+	logger.info("Begining read test")
+	loadServices.pforeach(_.once)
+	logger.info("Load services started")
+
+	val postTestCollection = Future {
+		loadServices.foreach(_.blockTillDown)
+		logger.info("Begining Post-Test Collection")
+		cluster.storageServices.pforeach(_.captureLog)
+		cluster.zooService.captureLog
+		loadServices.pforeach(_.captureLog)
+		logger.info("Post test collection Complete")
+	}
+}
+
 
 abstract class ScadrTest extends ScadsTest {
 	val seed = (XResult.hostname + Thread.currentThread().getName + System.currentTimeMillis).hashCode
@@ -71,14 +120,14 @@ object CreateScadrUsers extends ScadrTest {
 					val u = new user
 					u.name(makeUsername(id))
 					u.password("pass" + u)
-					Util.retry(10) {u.save}
+					Util.retry(5) {XResult.recordException{u.save}}
 
 					(1 to thoughts).foreach(tId => {
 						val t = new thought
 						t.owner(u)
 						t.timestamp(tId)
 						t.thought("User " + id + "is thinking:" + tId)
-						Util.retry(10) {t.save}
+						Util.retry(5) {XResult.recordException{t.save}}
 					})
 
 					val followedUsers = new HashSet[String]()
@@ -90,7 +139,7 @@ object CreateScadrUsers extends ScadrTest {
 							s.owner(u)
 							s.target(friend)
 							s.approved(true)
-							Util.retry(10) {s.save}
+							Util.retry(5) {XResult.recordException{s.save}}
 						}
 					}
 
@@ -98,5 +147,20 @@ object CreateScadrUsers extends ScadrTest {
 				<sequentialUserCreate startUser={getIntOption("startuser").toString} endUser={getIntOption("enduser").toString}/>
 			}
 		)
+	}
+}
+
+object ScadrThoughtstreamQuery extends ScadrTest {
+	options.addOption("threads", "t", true, "the number of request threads to make")
+
+	def runExperiment(): Unit = {
+		val results = (1 to getIntOption("threads")).toList.map(i => Future {
+			XResult.timeLimitBenchmark(60*5, 1, <thoughtstreamQuery users={maxUser.toString}/>) {
+				val u = Queries.userByName(randomUsername()).last
+				u.thoughtstream(5).size == 5
+			}
+		})
+
+		XResult.recordResult(results.map(r => <thread>{r()}</thread>))
 	}
 }
