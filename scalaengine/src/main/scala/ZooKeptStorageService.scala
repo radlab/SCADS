@@ -36,11 +36,7 @@ class ZooKeptStorageProcessor(env: Environment, hostid: String, servers: String,
 		if(zoo.exists("/scads/namespaces/" + ns, false) == null)
 				zoo.create("/scads/namespaces/" + ns, "".getBytes, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
 		val entry = "/scads/namespaces/" + ns + "/" + hostid
-		val stat = zoo.exists(entry, false)
-		if(stat == null)
-			zoo.create(entry, bytes, Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL)
-		else
-			zoo.setData(entry, bytes, stat.getVersion())
+		createOrReplaceEphemeralFile(entry, bytes)
 
  		true
 	}
