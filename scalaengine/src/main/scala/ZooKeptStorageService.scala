@@ -66,7 +66,7 @@ class ZooKeptStorageProcessor(env: Environment, hostid: String, servers: String,
 
 	private def createOrReplaceEphemeralFile(file: String, data: Array[Byte]): Unit = {
 		try {
-			logger.debug("Creating entry: " + file)
+			logger.info("Creating entry: " + file)
 			zoo.create(file, data, Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL)
 		}
 		catch {
