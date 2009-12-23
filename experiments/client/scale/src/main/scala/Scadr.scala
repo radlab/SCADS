@@ -13,6 +13,23 @@ import org.apache.log4j.Logger
 
 import piql._
 
+object ClusterThroughputTest {
+	var nodes: List[RunitManager] = null
+	var le: ScadrLoadExp = null
+	var re: ScadrReadExp = null
+	var test: Future[Unit] = null
+
+	def run() ={
+		nodes = EC2Instance.myInstances
+		test = Future {
+			le = new ScadrLoadExp(nodes, 1, 1000*nodes.size, 20, 10)
+			le.postTestCollection()
+			re = new ScadrReadExp(nodes, 1000*nodes.size, 5)
+			re.postTestCollection()
+		}
+	}
+}
+
 object UserCountTest {
 	val nodes = EC2Instance.myInstances
 	var le: ScadrLoadExp = null
@@ -53,9 +70,11 @@ class ScadrLoadExp(nodes: List[RunitManager], threads: Int, users: Int, thoughts
 	val loadServices = partitions.zip(nodes).pmap(p => {
 		logger.info("Setting range policy for: " + p)
 		val n = StorageNode(p._2.hostname, ScadsDeployment.storageEnginePort)
-//		Util.retry(5) {n.useConnection(_.set_responsibility_policy("intKeys", RangedPolicy.convert((p._1.start, p._1.end))))}
-		Util.retry(5) {Queries.configureStorageEngine(n)}
-
+		Util.retry(5) {
+			List("ent_subscription", "ent_thought", "ent_user", "idxthoughtowner_timestamp").foreach(ns =>
+				n.useConnection(_.set_responsibility_policy(ns, RangedPolicy.convert(("'user" + p._1.start, "'user" + p._1.end))))
+			)
+		}
 		ScadsDeployment.deployLoadClient(p._2, "CreateScadrUsers", Map("zookeeper" -> cluster.zooUri, "startuser" -> p._1.start, "enduser" -> p._1.end, "thoughts" -> thoughts.toString, "following" -> following.toString, "maxuser" -> users.toString, "threads" -> threads.toString))
 	})
 
