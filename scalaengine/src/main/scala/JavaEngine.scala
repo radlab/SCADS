@@ -107,8 +107,8 @@ object JavaEngine {
 		val transport = new TNonblockingServerSocket(port)
 		val protFactory = new TBinaryProtocol.Factory(true, true)
 		val serverOpt = new THsHaServer.Options
-		serverOpt.maxWorkerThreads=20
-		serverOpt.minWorkerThreads=2
+		serverOpt.maxWorkerThreads=100
+		serverOpt.minWorkerThreads=20
 		val server = new THsHaServer(processor, transport, protFactory, serverOpt)
 
 		val sigHandler = new SignalHandler() {
