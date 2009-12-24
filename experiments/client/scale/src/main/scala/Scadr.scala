@@ -22,10 +22,15 @@ object ClusterThroughputTest {
 	def run() ={
 		nodes = EC2Instance.myInstances
 		test = Future {
-			le = new ScadrLoadExp(nodes, 1, 1000*nodes.size, 20, 10)
-			le.postTestCollection()
-			re = new ScadrReadExp(nodes, 1000*nodes.size, 5)
-			re.postTestCollection()
+			XResult.subExperiment(<scadrClusterTest scale={nodes.size.toString}/>) {
+				le = new ScadrLoadExp(nodes, 1, 1000*nodes.size, 20, 10)
+				le.postTestCollection()
+
+				(1 to 5).foreach(i => {
+					re = new ScadrReadExp(nodes, 1000*nodes.size, 5)
+					re.postTestCollection()
+				})
+			}
 		}
 	}
 }
@@ -64,6 +69,7 @@ class ScadrLoadExp(nodes: List[RunitManager], threads: Int, users: Int, thoughts
 	val logger = Logger.getLogger("script")
 	val partitions = IntTestDeployment.createPartitions(users, nodes.size)
 
+	XResult.beginSubExperiment(<scadrLoadTest/>)
 	logger.info("Cleaning up")
 	nodes.pforeach(n => {n.clearAll; n.executeCommand("killall java"); n.stopWatches})
 	val cluster = ScadsDeployment.deployScadsCluster(nodes, true)
@@ -89,12 +95,14 @@ class ScadrLoadExp(nodes: List[RunitManager], threads: Int, users: Int, thoughts
 		(cluster.storageServices ++ loadServices).pforeach(_.captureLog)
 		cluster.storageServices.pforeach(s => XResult.captureDirectory(s.manager, new File(s.serviceDir, "db")))
 		logger.info("Post test collection complete")
+		XResult.endSubExperiment()
 	}
 }
 
 class ScadrReadExp(nodes: List[RunitManager], users: Int, threads: Int) {
 	val logger = Logger.getLogger("script")
 
+	XResult.beginSubExperiment(<scadrReadTest/>)
 	logger.info("Capturing Scads Cluster State")
 	val cluster = ScadsDeployment.recoverScadsDeployment(nodes)
 	ScadsDeployment.captureScadsDeployment(cluster)
@@ -118,6 +126,7 @@ class ScadrReadExp(nodes: List[RunitManager], users: Int, threads: Int) {
 		cluster.zooService.captureLog
 		loadServices.pforeach(_.captureLog)
 		logger.info("Post test collection Complete")
+		XResult.endSubExperiment()
 	}
 }
 
