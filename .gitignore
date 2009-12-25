@@ -1,6 +1,7 @@
 /doc
 *.class
 /target-*
+/classes
 project/boot/
 *.iml
 *.ipr
