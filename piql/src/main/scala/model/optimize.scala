@@ -153,7 +153,7 @@ class Optimizer(spec: BoundSpec) {
 	protected def selectOrCreateIndex(entity: BoundEntity, equalityAttributes: List[String], orderingAttributes: List[String]): Index = {
 		/* Find candidate indexes by looking for prefix matches of attributes */
 		val candidateIndexes = entity.indexes.filter((i) => {
-			i.attributes.startsWith(equalityAttributes) && i.attributes.slice(equalityAttributes.size, orderingAttributes.size).equals(orderingAttributes)
+			i.attributes.startsWith(equalityAttributes) && i.attributes.slice(equalityAttributes.size, equalityAttributes.size + orderingAttributes.size).equals(orderingAttributes)
 		})
 		logger.debug("Identified candidate indexes: " + candidateIndexes)
 
