@@ -14,9 +14,8 @@
 	<modules>
 		<module>interface</module>
 		<module>placement</module>
-		<module>experiments/director</module>
 		<module>experiments/client/scadrclient</module>
-		<module>experiments/client/deployment</module>
+		<module>experiments/client/scale</module>
 		<module>client</module>
 		<module>storage</module>
 		<module>scalaengine</module>
