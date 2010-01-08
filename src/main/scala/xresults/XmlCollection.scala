@@ -40,4 +40,23 @@ class XmlCollection(url: String, username: String, password: String) {
 		DatabaseManager.registerDatabase(database)
 		DatabaseManager.getCollection(url, username, password)
 	}
+
+	def moveFragment(srcQuery: String, destQuery: String): Unit = {
+		val elem = execQuery(srcQuery).next
+		updateService.update(
+			<xupdate:modifications version="1.0" xmlns:xupdate="http://www.xmldb.org/xupdate">
+				<xupdate:remove select={srcQuery}/>
+			</xupdate:modifications>.toString
+		)
+		updateService.update(
+			<xupdate:modifications version="1.0" xmlns:xupdate="http://www.xmldb.org/xupdate">
+				<xupdate:append select={destQuery}>
+					<xupdate:element name={elem.label}>
+						{elem.attributes.elements.map(a => <xupdate:attribute name={a.key}>{a.value}</xupdate:attribute>)}
+						{elem.child}
+					</xupdate:element>
+				</xupdate:append>
+			</xupdate:modifications>.toString
+		)
+	}
 }
