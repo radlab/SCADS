@@ -1,0 +1,12 @@
+{
+	"namespace": "edu.berkeley.cs.scads",
+	"protocol": "Storage",
+
+	"types": [
+		{"name": "Record", "type": "record", "fields": [
+			{"name": "key", "type": "string"},
+			{"name": "value", "type": "string"}]
+		}
+	]
+}
+
