@@ -101,15 +101,10 @@ abstract class AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: 
 
 	def sendMessage(dest: RemoteNode, msg: SendMsgType): Unit = {
 		val state = getOrOpenChannel(dest)
-		val out = new ByteBufferOutputStream
-		val enc = new BinaryEncoder(out)
+		val stream = new java.io.ByteArrayOutputStream(8192)
+		val enc = new BinaryEncoder(stream)
 		msgWriter.write(msg, enc)
-		val buffs = Array(out.getBufferList.toList:_*)
-		println(buffs.toList)
-		val msgLength = ByteBuffer.allocate(4).putInt(buffs.map(_.limit).reduceLeft(_+_))
-		msgLength.rewind
-		state.chan.write(msgLength)	
-		state.chan.write(buffs.toArray)
+		state.chan.write(ByteBuffer.wrap(stream.toByteArray))
 	}
 
 	def closeConnections(): Unit = {
