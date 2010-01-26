@@ -70,7 +70,7 @@ abstract class AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: 
   }
 
 	protected def getOrOpenChannel(dest: RemoteNode): ChannelState = {
-		if(!channels.contains(dest)) {
+		if(!channels.containsKey(dest)) {
 			val newChannel = SocketChannel.open(new InetSocketAddress(dest.hostname, dest.port))
 			val state = watchChannel(newChannel)
 
