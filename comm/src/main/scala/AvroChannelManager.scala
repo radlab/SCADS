@@ -57,6 +57,7 @@ abstract class AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: 
 						}
 					}
         })
+				keys.clear()
       }
     }
   }
