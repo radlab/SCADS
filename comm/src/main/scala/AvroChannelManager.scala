@@ -13,20 +13,21 @@ import scala.collection.jcl.Conversions._
 case class RemoteNode(hostname:String, port: Int)
 
 abstract class AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: SpecificRecord](implicit sendManifest: scala.reflect.Manifest[SendMsgType], recvManifest: scala.reflect.Manifest[RecvMsgType]){
-	val selector = Selector.open()
-	var continueSelecting = true
-	val channels = new java.util.concurrent.ConcurrentHashMap[RemoteNode, ChannelState]
-  val msgReader = new SpecificDatumReader(sendManifest.erasure)
-	val msgWriter = new SpecificDatumWriter(recvManifest.erasure)
+	private val selector = Selector.open()
+	private var continueSelecting = true
+	private val channels = new java.util.concurrent.ConcurrentHashMap[RemoteNode, ChannelState]
+  private val msgReader = new SpecificDatumReader(recvManifest.erasure.asInstanceOf[Class[RecvMsgType]])
+	private val msgWriter = new SpecificDatumWriter(sendManifest.erasure.asInstanceOf[Class[SendMsgType]])
+	private val msgRecvClass = recvManifest.erasure.asInstanceOf[Class[RecvMsgType]]
 
-	class ChannelState(val chan: SocketChannel, var recvMessage: Boolean, var buff: ByteBuffer)
+	private class ChannelState(val chan: SocketChannel, var recvMessage: Boolean, var buff: ByteBuffer)
 
-	val selectionThread = new Thread("Channel Manager Selector") {
-    override def run() = { 
+	private val selectionThread = new Thread("Channel Manager Selector") {
+    override def run() = {
       while(continueSelecting) {
         val numKeys = selector.select(1000)
         val keys = selector.selectedKeys()
-        
+
         keys.foreach(k => {
           val chan = k.channel.asInstanceOf[SocketChannel]
           val state = k.attachment.asInstanceOf[ChannelState]
@@ -40,7 +41,8 @@ abstract class AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: 
 							val port = chan.socket.getPort
 							state.buff.rewind
 							val inStream = new BinaryDecoder(new ByteBufferInputStream(java.util.Arrays.asList(state.buff)))
-							val msg = msgReader.read(null, inStream).asInstanceOf[RecvMsgType]
+							val msg = msgRecvClass.newInstance()
+							msgReader.read(msg, inStream).asInstanceOf[RecvMsgType]
 							state.recvMessage = false
 							state.buff = ByteBuffer.allocate(4)
 							receiveMessage(RemoteNode(addr, port), msg)
@@ -52,7 +54,7 @@ abstract class AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: 
 							state.buff.rewind
 							state.recvMessage = true
 							val size = state.buff.getInt
-							println(size) 
+							println(size)
 							state.buff = ByteBuffer.allocate(size)
 						}
 					}
@@ -63,14 +65,14 @@ abstract class AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: 
   }
 	selectionThread.start
 
-  protected def watchChannel(chan: SocketChannel): ChannelState = {
-		val state = new ChannelState(chan, false, ByteBuffer.allocate(4)) 
+  private def watchChannel(chan: SocketChannel): ChannelState = {
+		val state = new ChannelState(chan, false, ByteBuffer.allocate(4))
     chan.configureBlocking(false)
     chan.register(selector, SelectionKey.OP_READ, state)
 		state
   }
 
-	protected def getOrOpenChannel(dest: RemoteNode): ChannelState = {
+	private def getOrOpenChannel(dest: RemoteNode): ChannelState = {
 		if(!channels.containsKey(dest)) {
 			val newChannel = SocketChannel.open(new InetSocketAddress(dest.hostname, dest.port))
 			val state = watchChannel(newChannel)
@@ -104,11 +106,14 @@ abstract class AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: 
 		val stream = new java.io.ByteArrayOutputStream(8192)
 		val enc = new BinaryEncoder(stream)
 		msgWriter.write(msg, enc)
-		state.chan.write(ByteBuffer.wrap(stream.toByteArray))
+
+		val msgLength = ByteBuffer.allocate(4).putInt(stream.size)
+		msgLength.rewind
+		state.chan.write(Array(msgLength, ByteBuffer.wrap(stream.toByteArray)))
 	}
 
 	def closeConnections(): Unit = {
-		channels.clear()	
+		channels.clear()
 	}
 
 	def receiveMessage(src: RemoteNode, msg: RecvMsgType): Unit
