@@ -68,7 +68,7 @@
 						<configuration>
 							<sourceDirectory>${project.build.directory}/generated-sources/avro</sourceDirectory>
 							<outputDirectory>${project.build.directory}/classes</outputDirectory>
-						</configuration>        
+						</configuration>
 						<goals>
 							<goal>generate</goal>
 						</goals>

@@ -15,7 +15,7 @@ object PerfSender {
 		val dest = RemoteNode(args(0), 9000)
 
 		(1 to 10).foreach(t => {
-			val start = System.currentTimeMillis()	
+			val start = System.currentTimeMillis()
 			(1 to testSize).foreach(i => {
 				val r = new Record
 				r.key = new Utf8("testKey")
