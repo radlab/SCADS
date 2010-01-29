@@ -49,26 +49,32 @@ abstract class AbstractNioEndpoint(
 
     case class ChannelState(val buffer: CircularByteBuffer, var inMessage: Boolean, var messageSize: Int)  {
         def this(buffer: CircularByteBuffer) = this(buffer, false, 0)
+        def reset = {
+            inMessage = false
+            messageSize = 0
+        }
     }
 
     class CircularByteBuffer(private var initialSize: Int) {
-        private var bytes = Array[Byte](initialSize)
+        private var bytes = new Array[Byte](initialSize)
         private var head = 0
-        private var size = 0
+        private var _size = 0
+
+        def this() = this(64*1024)
 
         def append(toAppend: Array[Byte]) = {
             if (bytesRemaining < toAppend.length) {
                 // expand
-                val newBytes = Array[ByteSize](bytes.length*2) // double size (exponential growth)
+                val newBytes = new Array[Byte](bytes.length*2) // double size (exponential growth)
                 if (head+size < bytes.length+1)
-                    System.arraycopy(bytes, head, newBytes, 0, size) 
+                    System.arraycopy(bytes, head, newBytes, 0, _size) 
                 else {
                     System.arraycopy(bytes, head, newBytes, 0, bytes.length-head)
-                    System.arraycopy(bytes, 0, newBytes, bytes.length-head, size-(bytes.length-head))
+                    System.arraycopy(bytes, 0, newBytes, bytes.length-head, _size-(bytes.length-head))
                 }
                 head = 0
             }
-            val tailStart = (head + size) % bytes.length
+            val tailStart = (head + _size) % bytes.length
             // copy until end
             val toCopy = Math.min(toAppend.length, bytes.length-tailStart)
             System.arraycopy(toAppend, 0, bytes, tailStart, toCopy)
@@ -76,21 +82,21 @@ abstract class AbstractNioEndpoint(
             // now copy into beginning
             if (toCopy < toAppend.length)
                 System.arraycopy(toAppend, toCopy, bytes, 0, toAppend.length-toCopy)
-            size += toAppend.length
+            _size += toAppend.length
         }
 
         def consumeBytes(length: Int):Array[Byte] = {
-            if (length > size) 
+            if (length > _size) 
                 throw new IllegalArgumentException("Cannot consume more bytes than there are")
             val rtn = new Array[Byte](length)
-            if (head + size < bytes.length + 1)
+            if (head + _size < bytes.length + 1)
                 System.arraycopy(bytes, head, rtn, 0, length)
             else {
                 System.arraycopy(bytes, head, rtn, 0, bytes.length-head)
                 System.arraycopy(bytes, 0, rtn, bytes.length-head, length-(bytes.length-head))
             }
             head = (head + length) % bytes.length
-            size -= length
+            _size -= length
             rtn
         }
 
@@ -100,11 +106,11 @@ abstract class AbstractNioEndpoint(
             (bytea(3).toInt & 0xFF) << 24 | (bytea(2).toInt & 0xFF) << 16 | (bytea(1).toInt & 0xFF) << 8 | (bytea(0).toInt & 0xFF)
         }
 
-        private def bytesRemaining:Int = bytes.length - size
+        private def bytesRemaining:Int = bytes.length - _size
 
-        def size:Int = size
+        def size:Int = _size
         
-
+        def isEmpty:Boolean = _size == 0
     }
 
     protected val channelQueue = new HashMap[SocketChannel, ChannelState]
@@ -219,9 +225,10 @@ abstract class AbstractNioEndpoint(
                 queue = new LinkedList[QueueEntry]
                 dataMapQueue.put(socket, queue)
             }
-            val towrite = encode match {
-                case false => data,
-                case true  => encodeByteBuffer(data)
+            val toWrite = if (encode) {
+                data 
+            } else { 
+                encodeByteBuffer(data)
             }
             queue.add(new QueueEntry(toWrite, callback))
             dataMapQueue.notifyAll
@@ -235,8 +242,8 @@ abstract class AbstractNioEndpoint(
 
     def send(socket: SocketChannel, data: Array[Byte], encode: Boolean):Unit = send(socket,data,null,encode)
 
-    private def sizeOfMessage(data: ByteBuffer; encode: Boolean): Int = encode match {
-        case false => data.remaining,
+    private def sizeOfMessage(data: ByteBuffer, encode: Boolean): Int = encode match {
+        case false => data.remaining
         case true  => data.remaining + 4 
     }
 
@@ -280,8 +287,8 @@ abstract class AbstractNioEndpoint(
         }
     }
 
-    def sendBulk(socket: SocketChannel, data: Array[Byte]):Unit = 
-        sendBulk(socket, ByteBuffer.wrap(data))
+    def sendBulk(socket: SocketChannel, data: Array[Byte], encode: Boolean):Unit = 
+        sendBulk(socket, ByteBuffer.wrap(data),encode)
 
 
     /**
@@ -309,8 +316,8 @@ abstract class AbstractNioEndpoint(
         val socketChannel = key.channel.asInstanceOf[SocketChannel]
         var channelState = channelQueue.get(socketChannel)
         if (channelState == null) {
-            channelState = new ChannelState(ByteBuffer.allocate(1024))
-            channelQueue.put(channelState)
+            channelState = new ChannelState(new CircularByteBuffer)
+            channelQueue.put(socketChannel, channelState)
         }
 
         readBuffer.clear
@@ -335,23 +342,30 @@ abstract class AbstractNioEndpoint(
 			return
 		}
 
-        var bytesProcessed = 0
-        while (bytesProcessed < numRead) {
-            if (!channelState.inMessage) {
+        // read data into queue
+        channelState.buffer.append(readBuffer.array)
 
-                }
+        // process as much of the buffer as possible given the data so far
+        var shouldContinue = !channelState.buffer.isEmpty
+        while (shouldContinue) {
+            if (!channelState.inMessage && channelState.buffer.size >= 4) {
+                channelState.inMessage = true
+                channelState.messageSize = channelState.buffer.consumeInt 
+            } else if (channelState.inMessage && channelState.buffer.size >= channelState.messageSize) {
+                val message = channelState.buffer.consumeBytes(channelState.messageSize)
+                // now complete the read in a separate thread
+                readExecutor.execute(new Runnable {
+                    override def run = {
+                        channelHandler.processData(socketChannel, message, channelState.messageSize)
+                    }
+                })
+                channelState.reset
             } else {
-
-
+                shouldContinue = false
             }
         }
 
-        // now complete the read in a separate thread
-        readExecutor.execute(new Runnable {
-            override def run = {
-                channelHandler.processData(socketChannel, readBuffer.array, numRead)
-            }
-        })
+
     }
 
 }

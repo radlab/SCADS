@@ -42,7 +42,7 @@ object SimpleNioClient {
         println("Connected!")
         val socket = future.clientSocket
         (1 to 100).foreach( i => {
-            client.send(socket, new String("Message: " + i).getBytes)
+            client.send(socket, new String("Message: " + i).getBytes, true)
         })
 
     }
