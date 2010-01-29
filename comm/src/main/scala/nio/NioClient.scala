@@ -34,18 +34,26 @@ class ConnectFuture(val clientSocket: SocketChannel, private var alreadyDone: Bo
 }
 
 class NioClient(
-        hostAddress: InetSocketAddress, 
         readExecutor: Executor,
         channelHandler: ChannelHandler)
     extends AbstractNioEndpoint(
-        hostAddress,
         readExecutor,
         channelHandler) {
 
     val logger = Logger.getLogger("NioClient")
 
-    def connect:ConnectFuture = {
-        fireWriteAndSelectLoop
+    private var initialized = false
+
+    /**
+     * Connect is thread safe
+     */
+    def connect(hostAddress: InetSocketAddress):ConnectFuture = {
+        synchronized {
+            if (!initialized) {
+                fireWriteAndSelectLoop
+                initialized = true
+            }
+        }
         val clientSocket = SocketChannel.open
         clientSocket.configureBlocking(false)
         val connected = clientSocket.connect(hostAddress)
@@ -61,6 +69,7 @@ class NioClient(
         }
         logger.debug("waking up selector")
         selector.wakeup
+        registerInetSocketAddress(hostAddress, clientSocket)
         future
     }
 

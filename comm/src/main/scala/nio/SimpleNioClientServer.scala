@@ -36,12 +36,12 @@ object SimpleNioClient {
     
     def main(args: Array[String]):Unit = {
         val port = args(0).toInt
-        val client = new NioClient(new InetSocketAddress("localhost",port), Executors.newCachedThreadPool, new SimpleChannelHandler) 
-        val future = client.connect
+        val client = new NioClient(Executors.newCachedThreadPool, new SimpleChannelHandler) 
+        val future = client.connect(new InetSocketAddress("localhost",port))
         future.await
         println("Connected!")
         val socket = future.clientSocket
-        (1 to 100).foreach( i => {
+        (1 to 10).foreach( i => {
             client.send(socket, new String("Message: " + i).getBytes, true)
         })
 

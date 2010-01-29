@@ -17,11 +17,10 @@ import java.util.concurrent.Executor
 import org.apache.log4j.Logger
 
 class NioServer(
-        hostAddress: InetSocketAddress, 
+        protected val hostAddress: InetSocketAddress, 
         readExecutor: Executor,
         channelHandler: ChannelHandler)
     extends AbstractNioEndpoint(
-        hostAddress,
         readExecutor,
         channelHandler) {
     
@@ -38,12 +37,13 @@ class NioServer(
         logger.info("Now serving on: " + hostAddress)
     }
 
-    override protected def accept(key: SelectionKey) = {
+    override protected def accept(key: SelectionKey):Unit = {
         logger.debug("accept() called with: " + key)
         val serverSocketChannel = key.channel.asInstanceOf[ServerSocketChannel]
 		val socketChannel = serverSocketChannel.accept
 		socketChannel.configureBlocking(false)
 		socketChannel.register(selector, SelectionKey.OP_READ)
+        registerInetSocketAddress(new InetSocketAddress(socketChannel.socket.getInetAddress, socketChannel.socket.getPort), socketChannel)
     }
 
 }

@@ -10,9 +10,17 @@ import org.apache.avro.specific._
 
 import scala.collection.jcl.Conversions._
 
-case class RemoteNode(hostname:String, port: Int)
+case class RemoteNode(hostname:String, port: Int) {
+    def getInetSocketAddress:InetSocketAddress = new InetSocketAddress(hostname, port)
+}
 
-abstract class AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: SpecificRecord](implicit sendManifest: scala.reflect.Manifest[SendMsgType], recvManifest: scala.reflect.Manifest[RecvMsgType]){
+trait AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: SpecificRecord] {
+	def sendMessage(dest: RemoteNode, msg: SendMsgType):Unit 
+	def receiveMessage(src: RemoteNode, msg: RecvMsgType):Unit
+}
+
+abstract class AvroChannelManagerImpl[SendMsgType <: SpecificRecord,RecvMsgType <: SpecificRecord](implicit sendManifest: scala.reflect.Manifest[SendMsgType], recvManifest: scala.reflect.Manifest[RecvMsgType])
+    extends AvroChannelManager[SendMsgType, RecvMsgType]{
 	private val selector = Selector.open()
 	private var continueSelecting = true
 	private val channels = new java.util.concurrent.ConcurrentHashMap[RemoteNode, ChannelState]
@@ -42,7 +50,7 @@ abstract class AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: 
 							state.buff.rewind
 							val inStream = new BinaryDecoder(new ByteBufferInputStream(java.util.Arrays.asList(state.buff)))
 							val msg = msgRecvClass.newInstance()
-							msgReader.read(msg, inStream).asInstanceOf[RecvMsgType]
+							msgReader.read(msg.asInstanceOf[Object], inStream).asInstanceOf[RecvMsgType]
 							state.recvMessage = false
 							state.buff = ByteBuffer.allocate(4)
 							receiveMessage(RemoteNode(addr, port), msg)
@@ -101,11 +109,11 @@ abstract class AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: 
 		thread.start
 	}
 
-	def sendMessage(dest: RemoteNode, msg: SendMsgType): Unit = {
+	override def sendMessage(dest: RemoteNode, msg: SendMsgType): Unit = {
 		val state = getOrOpenChannel(dest)
 		val stream = new java.io.ByteArrayOutputStream(8192)
 		val enc = new BinaryEncoder(stream)
-		msgWriter.write(msg, enc)
+		msgWriter.write(msg.asInstanceOf[Object], enc)
 
 		val msgLength = ByteBuffer.allocate(4).putInt(stream.size)
 		msgLength.rewind
@@ -116,11 +124,11 @@ abstract class AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: 
 		channels.clear()
 	}
 
-	def receiveMessage(src: RemoteNode, msg: RecvMsgType): Unit
+	//def receiveMessage(src: RemoteNode, msg: RecvMsgType): Unit
 }
 
-class SampleChannelManager extends AvroChannelManager[Record, Record] {
-	def receiveMessage(src: RemoteNode, msg: Record): Unit = {
-		println(src + " " + msg.key + " " + msg.value)
-	}
-}
+//class SampleChannelManager extends AvroChannelManager[Record, Record] {
+//	def receiveMessage(src: RemoteNode, msg: Record): Unit = {
+//		println(src + " " + msg.key + " " + msg.value)
+//	}
+//}

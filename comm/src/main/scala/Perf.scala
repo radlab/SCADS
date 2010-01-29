@@ -2,7 +2,8 @@ import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads._
 import org.apache.avro.util._
 
-class TrivialChannelManager extends AvroChannelManager[Record, Record] {
+
+class TrivialChannelManager extends AvroChannelManagerImpl[Record, Record] {
 	def receiveMessage(src: RemoteNode, msg: Record): Unit = {
 		null
 	}

@@ -12,7 +12,7 @@ import java.nio.channels.SocketChannel
 import java.nio.channels.spi.SelectorProvider
 import java.util.{List => JList, LinkedList, HashMap}
 //import java.util.concurrent.{BlockingQueue,LinkedBlockingQueue}
-//import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentHashMap
 
 import java.util.concurrent.Executor
 
@@ -23,11 +23,10 @@ import scala.collection.mutable.ListBuffer
 import org.apache.log4j.Logger
 
 abstract class AbstractNioEndpoint(
-        protected val hostAddress: InetSocketAddress, 
         protected val readExecutor: Executor,
         protected val channelHandler: ChannelHandler) {
 
-    if (hostAddress == null || readExecutor == null || channelHandler == null)
+    if (readExecutor == null || channelHandler == null)
         throw new IllegalArgumentException("Cannot pass in null values to constructor")
 
     private val logger = Logger.getLogger("AbstractNioEndpoint")
@@ -47,6 +46,12 @@ abstract class AbstractNioEndpoint(
     case class RegisterEntry(val socket: SocketChannel, val future: ConnectFuture)
     protected val registerQueue = new LinkedList[RegisterEntry]
 
+    protected val connectionMap = new ConcurrentHashMap[InetSocketAddress,SocketChannel]
+
+    protected def registerInetSocketAddress(addr: InetSocketAddress, chan: SocketChannel) = connectionMap.put(addr, chan)
+
+    def getChannelForInetSocketAddress(addr: InetSocketAddress):SocketChannel = connectionMap.get(addr)
+
     case class ChannelState(val buffer: CircularByteBuffer, var inMessage: Boolean, var messageSize: Int)  {
         def this(buffer: CircularByteBuffer) = this(buffer, false, 0)
         def reset = {
@@ -55,6 +60,11 @@ abstract class AbstractNioEndpoint(
         }
     }
 
+    case class InvalidMessageSizeException(val size: Int) extends RuntimeException("Invalid size, must be >= 0: " + size)
+
+    /**
+     * Not thread safe
+     */
     class CircularByteBuffer(private var initialSize: Int) {
         private var bytes = new Array[Byte](initialSize)
         private var head = 0
@@ -88,7 +98,11 @@ abstract class AbstractNioEndpoint(
         def consumeBytes(length: Int):Array[Byte] = {
             if (length > _size) 
                 throw new IllegalArgumentException("Cannot consume more bytes than there are")
+            if (length < 0)
+                throw new IllegalArgumentException("Cannot consume negative bytes")
             val rtn = new Array[Byte](length)
+            if (length == 0)
+                return rtn
             if (head + _size < bytes.length + 1)
                 System.arraycopy(bytes, head, rtn, 0, length)
             else {
@@ -103,7 +117,9 @@ abstract class AbstractNioEndpoint(
         def consumeInt:Int = {
             val bytea = consumeBytes(4)
             // little endian
-            (bytea(3).toInt & 0xFF) << 24 | (bytea(2).toInt & 0xFF) << 16 | (bytea(1).toInt & 0xFF) << 8 | (bytea(0).toInt & 0xFF)
+            // (bytea(3).toInt & 0xFF) << 24 | (bytea(2).toInt & 0xFF) << 16 | (bytea(1).toInt & 0xFF) << 8 | (bytea(0).toInt & 0xFF)
+            // big endian
+            (bytea(0).toInt & 0xFF) << 24 | (bytea(1).toInt & 0xFF) << 16 | (bytea(2).toInt & 0xFF) << 8 | (bytea(3).toInt & 0xFF)
         }
 
         private def bytesRemaining:Int = bytes.length - _size
@@ -211,6 +227,7 @@ abstract class AbstractNioEndpoint(
         val newBuffer = ByteBuffer.allocate(4 + data.remaining)
         newBuffer.putInt(data.remaining) 
         newBuffer.put(data)
+        newBuffer.rewind
         newBuffer
     }
 
@@ -225,7 +242,7 @@ abstract class AbstractNioEndpoint(
                 queue = new LinkedList[QueueEntry]
                 dataMapQueue.put(socket, queue)
             }
-            val toWrite = if (encode) {
+            val toWrite = if (!encode) {
                 data 
             } else { 
                 encodeByteBuffer(data)
@@ -307,9 +324,9 @@ abstract class AbstractNioEndpoint(
         }
     }
 
-    protected def accept(key: SelectionKey) = {}
+    protected def accept(key: SelectionKey):Unit = {}
 
-    protected def connect(key: SelectionKey) = {} 
+    protected def connect(key: SelectionKey):Unit = {} 
 
     protected def read(key: SelectionKey):Unit = {
         //logger.debug("read() called on channel: " + key.channel)
@@ -341,22 +358,36 @@ abstract class AbstractNioEndpoint(
 			key.cancel
 			return
 		}
+        
+        val readByteArray = new Array[Byte](numRead) 
+        readBuffer.rewind
+        readBuffer.get(readByteArray)
 
+        logger.debug("read(): ")
+        (0 until readByteArray.length).foreach( i => {
+            logger.debug("    pos("+i+"):" + (0xFF & readByteArray(i).toInt))
+        })
+        logger.debug("--")
         // read data into queue
-        channelState.buffer.append(readBuffer.array)
+        channelState.buffer.append(readByteArray)
 
         // process as much of the buffer as possible given the data so far
         var shouldContinue = !channelState.buffer.isEmpty
         while (shouldContinue) {
             if (!channelState.inMessage && channelState.buffer.size >= 4) {
+                val messageSize = channelState.buffer.consumeInt
+                if (messageSize < 0)
+                    throw new InvalidMessageSizeException(messageSize)
                 channelState.inMessage = true
-                channelState.messageSize = channelState.buffer.consumeInt 
+                channelState.messageSize = messageSize 
+                logger.debug("read(): found messageSize: " + messageSize)
             } else if (channelState.inMessage && channelState.buffer.size >= channelState.messageSize) {
                 val message = channelState.buffer.consumeBytes(channelState.messageSize)
+                val size = channelState.messageSize
                 // now complete the read in a separate thread
                 readExecutor.execute(new Runnable {
                     override def run = {
-                        channelHandler.processData(socketChannel, message, channelState.messageSize)
+                        channelHandler.processData(socketChannel, message, size)
                     }
                 })
                 channelState.reset
