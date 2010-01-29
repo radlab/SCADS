@@ -47,8 +47,8 @@ abstract class AbstractNioEndpoint(
     case class RegisterEntry(val socket: SocketChannel, val future: ConnectFuture)
     protected val registerQueue = new LinkedList[RegisterEntry]
 
-    case class ChannelState(val buffer: ByteBuffer, var inMessage: Boolean, var messageSize: Int)  {
-        def this(buffer: ByteBuffer) = this(buffer, false, 0)
+    case class ChannelState(val buffer: CircularByteBuffer, var inMessage: Boolean, var messageSize: Int)  {
+        def this(buffer: CircularByteBuffer) = this(buffer, false, 0)
     }
 
     class CircularByteBuffer(private var initialSize: Int) {
@@ -69,17 +69,13 @@ abstract class AbstractNioEndpoint(
                 head = 0
             }
             val tailStart = (head + size) % bytes.length
-            if (tailStart > head) {
-                // copy until end
-                val toCopy = Math.min(toAppend.length, bytes.length-tailStart)
-                System.arraycopy(toAppend, 0, bytes, tailStart, toCopy)
-                
-                // now copy into beginning
-                if (toCopy < toAppend.length)
-                    System.arraycopy(toAppend, toCopy, bytes, 0, toAppend.length-toCopy)
-            } else {
-                System.arraycopy(toAppend, 0, bytes, tailStart, bytes.length)
-            }
+            // copy until end
+            val toCopy = Math.min(toAppend.length, bytes.length-tailStart)
+            System.arraycopy(toAppend, 0, bytes, tailStart, toCopy)
+            
+            // now copy into beginning
+            if (toCopy < toAppend.length)
+                System.arraycopy(toAppend, toCopy, bytes, 0, toAppend.length-toCopy)
             size += toAppend.length
         }
 
@@ -342,13 +338,6 @@ abstract class AbstractNioEndpoint(
         var bytesProcessed = 0
         while (bytesProcessed < numRead) {
             if (!channelState.inMessage) {
-                if (channelState.buffer.position >= 4) {
-                    channelState.buffer.mark(4)
-                    channelState.inMessage = true
-                    channelState.messageSize = channelState.buffer.getInt  
-                } else {
-                    val toRead = Math.min(numRead-bytesProcessed, Math.min(4, 4-channelState.buffer.remaining))
-
 
                 }
             } else {
