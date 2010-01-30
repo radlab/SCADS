@@ -1,0 +1,50 @@
+{
+	"namespace": "edu.berkeley.cs.scads.comm",
+	"protocol": "Storage",
+
+	"types": [
+		{"name": "Record", "type": "record", "fields": [
+			{"name": "key", "type": "bytes"},
+			{"name": "value", "type": "bytes"}]
+		},
+		{"name": "RecordSet", "type": "record", "fields": [
+			{"name": "records", "type": {"type": "array", "items": "Record"}}]
+		},
+		{"name": "KeyRange", "type": "record", "fields": [
+			{"name": "startKey", "type": ["null", "bytes"]},
+			{"name": "endKey", "type": ["null", "bytes"]}]
+		},
+		{"name": "RangePolicy", "type": "record", "fields": [
+			{"name": "ranges", "type": {"type": "array", "items": "KeyRange"}}]
+		},
+		{"name": "GetRequest", "type": "record", "fields": [
+			{"name": "namespace", "type": "string"},
+			{"name": "key", "type": "bytes"}]
+		},
+		{"name": "GetRangeRequest", "type": "record", "fields": [
+			{"name": "namespace", "type": "string"},
+			{"name": "startKey", "type": ["null", "bytes"]},
+			{"name": "endKey", "type": ["null", "bytes"]},
+			{"name": "limit", "type": ["null", "int"]},
+			{"name": "offset", "type": ["null", "int"]}]
+		},
+		{"name": "PutRequest", "type": "record", "fields": [
+			{"name": "namespace", "type": "string"},
+			{"name": "key", "type": "bytes"}]
+		},
+		{"name": "ConfigureRequest", "type": "record", "fields": [
+			{"name": "namespace", "type": "string"},
+			{"name": "keySchema", "type": "string"},
+			{"name": "policy", "type": "RangePolicy"}]
+		},
+		{"name": "StorageRequest", "type": "record", "fields": [
+			{"name": "src", "type": "int"},
+			{"name": "body", "type": ["null", "GetRequest", "GetRangeRequest", "PutRequest", "ConfigureRequest"]}]
+		},
+		{"name": "StorageResponse", "type": "record", "fields": [
+			{"name": "dest", "type": "int"},
+			{"name": "body", "type": ["null", "Record"]}]
+		}
+	]
+}
+

@@ -1,6 +1,6 @@
 import edu.berkeley.cs.scads.comm._
-import edu.berkeley.cs.scads._
 import org.apache.avro.util._
+import java.nio.ByteBuffer
 
 class TrivialChannelManager extends AvroChannelManager[Record, Record] {
 	def receiveMessage(src: RemoteNode, msg: Record): Unit = {
@@ -18,8 +18,8 @@ object PerfSender {
 			val start = System.currentTimeMillis()
 			(1 to testSize).foreach(i => {
 				val r = new Record
-				r.key = new Utf8("testKey")
-				r.value = new Utf8("testValue")
+				r.key = ByteBuffer.allocate(4).put("test".getBytes)
+				r.value = ByteBuffer.allocate(4).put("test".getBytes)
 				mgr.sendMessage(dest, r)
 			})
 			val end = System.currentTimeMillis()
