@@ -28,36 +28,39 @@ abstract class NioAvroChannelManagerBase[SendMsgType <: SpecificRecord,RecvMsgTy
     private val buffer = new ByteArrayOutputStream(8192)
     private val encoder = new BinaryEncoder(buffer)
 
-    private var inBulkModeMap = new HashMap[RemoteNode, Boolean] 
+    private var inBulkModeMap = new HashMap[InetSocketAddress, Boolean] 
     
     override def startBulk(dest: RemoteNode) = {
         inBulkModeMap.synchronized {
-            val mode = inBulkModeMap.get(dest)
+            val sockAddr = dest.getInetSocketAddress
+            val mode = inBulkModeMap.get(sockAddr)
             if (mode)
                 throw new IllegalStateException("Already in bulk mode")
-            inBulkModeMap.put(dest, true)
+            inBulkModeMap.put(sockAddr, true)
         }
     }
 
     override def endBulk(dest: RemoteNode) = {
         inBulkModeMap.synchronized {
-            val mode = inBulkModeMap.get(dest)
+            val sockAddr = dest.getInetSocketAddress
+            val mode = inBulkModeMap.get(sockAddr)
             if (!mode)
                 throw new IllegalStateException("not already in bulk mode")
-            inBulkModeMap.remove(dest)
-            val channel = endpoint.getChannelForInetSocketAddress(dest.getInetSocketAddress)
+            inBulkModeMap.remove(sockAddr)
+            val channel = endpoint.getChannelForInetSocketAddress(sockAddr)
             endpoint.flushBulk(channel)
         }
     }
     
 	override def sendMessage(dest: RemoteNode, msg: SendMsgType):Unit = {
-        val channel = endpoint.getChannelForInetSocketAddress(dest.getInetSocketAddress)
+        val sockAddr = dest.getInetSocketAddress
+        val channel = endpoint.getChannelForInetSocketAddress(sockAddr)
         if (channel == null)
             throw new NotYetConnectedException
         buffer.reset
         msgWriter.write(msg.asInstanceOf[Object], encoder)
         inBulkModeMap.synchronized {
-            val mode = inBulkModeMap.get(dest)
+            val mode = inBulkModeMap.get(sockAddr)
             if (!mode) {
                 endpoint.send(channel, ByteBuffer.wrap(buffer.toByteArray), null, true)
             } else {
