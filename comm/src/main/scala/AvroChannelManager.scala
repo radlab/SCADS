@@ -11,7 +11,8 @@ import org.apache.avro.specific._
 import scala.collection.jcl.Conversions._
 
 case class RemoteNode(hostname:String, port: Int) {
-    def getInetSocketAddress:InetSocketAddress = new InetSocketAddress(hostname, port)
+    private val socketAddress = new InetSocketAddress(hostname, port) 
+    def getInetSocketAddress:InetSocketAddress = socketAddress 
 }
 
 trait AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: SpecificRecord] {

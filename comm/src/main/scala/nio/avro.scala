@@ -38,7 +38,8 @@ abstract class NioAvroChannelManagerBase[SendMsgType <: SpecificRecord,RecvMsgTy
         val inStream = new BinaryDecoder(new ByteBufferInputStream(java.util.Arrays.asList(ByteBuffer.wrap(data))))
         val msg = msgRecvClass.newInstance
         msgReader.read(msg.asInstanceOf[Object], inStream)
-        receiveMessage(new RemoteNode(socket.socket.getInetAddress.getHostName, socket.socket.getPort), msg)
+        //receiveMessage(new RemoteNode(socket.socket.getInetAddress.getHostName, socket.socket.getPort), msg)
+        receiveMessage(null, msg)
     }
 
     override def handleException(exception: Exception) = {
