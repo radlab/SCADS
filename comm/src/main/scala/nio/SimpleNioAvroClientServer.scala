@@ -52,14 +52,16 @@ object SimpleNioAvroClient {
         val client = new SimpleNioAvroClientImpl(Executors.newFixedThreadPool(1)) 
         client.connect(new InetSocketAddress("localhost",port)).await
 		val dest = RemoteNode("localhost", port)
-		(1 to 10).foreach(t => {
+		(1 to 15).foreach(t => {
 			val start = System.currentTimeMillis()
+            client.startBulk(dest)
 			(1 to testSize).foreach(i => {
 				val r = new Record
 				r.key = new Utf8("testKey")
 				r.value = new Utf8("testValue")
 				client.sendMessage(dest, r)
 			})
+            client.endBulk(dest)
 			val end = System.currentTimeMillis()
 			println((testSize.toFloat / ((end - start)/1000.0)) + "req/sec")
 		})

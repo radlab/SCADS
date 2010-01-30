@@ -6,6 +6,7 @@ import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.channels.{SocketChannel,NotYetConnectedException}
 
+import java.util.HashMap
 import java.util.concurrent.Executor
 
 import org.apache.avro.io._
@@ -23,15 +24,46 @@ abstract class NioAvroChannelManagerBase[SendMsgType <: SpecificRecord,RecvMsgTy
 	private val msgRecvClass = recvManifest.erasure.asInstanceOf[Class[RecvMsgType]]
 
     protected val endpoint: AbstractNioEndpoint
+
+    private val buffer = new ByteArrayOutputStream(8192)
+    private val encoder = new BinaryEncoder(buffer)
+
+    private var inBulkModeMap = new HashMap[RemoteNode, Boolean] 
+    
+    override def startBulk(dest: RemoteNode) = {
+        inBulkModeMap.synchronized {
+            val mode = inBulkModeMap.get(dest)
+            if (mode)
+                throw new IllegalStateException("Already in bulk mode")
+            inBulkModeMap.put(dest, true)
+        }
+    }
+
+    override def endBulk(dest: RemoteNode) = {
+        inBulkModeMap.synchronized {
+            val mode = inBulkModeMap.get(dest)
+            if (!mode)
+                throw new IllegalStateException("not already in bulk mode")
+            inBulkModeMap.remove(dest)
+            val channel = endpoint.getChannelForInetSocketAddress(dest.getInetSocketAddress)
+            endpoint.flushBulk(channel)
+        }
+    }
     
 	override def sendMessage(dest: RemoteNode, msg: SendMsgType):Unit = {
         val channel = endpoint.getChannelForInetSocketAddress(dest.getInetSocketAddress)
         if (channel == null)
             throw new NotYetConnectedException
-		val stream = new ByteArrayOutputStream(8192)
-		val enc = new BinaryEncoder(stream)
-        msgWriter.write(msg.asInstanceOf[Object], enc)
-        endpoint.send(channel, stream.toByteArray, null, true)
+        buffer.reset
+        msgWriter.write(msg.asInstanceOf[Object], encoder)
+        inBulkModeMap.synchronized {
+            val mode = inBulkModeMap.get(dest)
+            if (!mode) {
+                endpoint.send(channel, ByteBuffer.wrap(buffer.toByteArray), null, true)
+            } else {
+                endpoint.sendBulk(channel, ByteBuffer.wrap(buffer.toByteArray), true)
+            }
+        }
     }
 
     override def processData(socket: SocketChannel, data: Array[Byte], count: Int) = {

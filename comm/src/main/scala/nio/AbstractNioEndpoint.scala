@@ -1,6 +1,6 @@
 package edu.berkeley.cs.scads.comm
 
-import java.io.IOException
+import java.io.{ByteArrayOutputStream,IOException}
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -40,7 +40,7 @@ abstract class AbstractNioEndpoint(
     //protected val dataQueue: BlockingQueue[QueueEntry] = new LinkedBlockingQueue[QueueEntry]
 
     protected val dataMapQueue = new HashMap[SocketChannel,JList[QueueEntry]]
-    protected val bulkBufferQueue = new HashMap[SocketChannel, ByteBuffer]
+    protected val bulkBufferQueue = new HashMap[SocketChannel, ByteArrayOutputStream]
 
     case class RegisterEntry(val socket: SocketChannel, val future: ConnectFuture)
     protected val registerQueue = new LinkedList[RegisterEntry]
@@ -72,6 +72,36 @@ abstract class AbstractNioEndpoint(
         }).start
     }
 
+
+    private def mergeQueue(queue: JList[QueueEntry]) = {
+        var size = 0
+        var iter = queue.iterator
+        while (iter.hasNext) {
+            size += iter.next.contents.remaining
+        }
+        val newBuf = ByteBuffer.allocate(size)
+        val callbacks = new LinkedList[WriteCallback]
+        iter = queue.iterator
+        while (iter.hasNext) {
+            val entry = iter.next
+            newBuf.put(entry.contents)
+            if (entry.callback != null)
+                callbacks.add(entry.callback)
+        }
+        newBuf.rewind
+        queue.clear
+        val newWriteCallback = callbacks.size match {
+            case 0 => null
+            case _ => new WriteCallback {
+                override def writeFinished = {
+                    val callbackIter = callbacks.iterator
+                    while (callbackIter.hasNext) callbackIter.next.writeFinished
+                }
+            }
+        }
+        queue.add(new QueueEntry(newBuf, newWriteCallback))
+    }
+
     protected def writeLoop = {
         val callbacks = new LinkedList[WriteCallback]
         while(true) {
@@ -86,6 +116,8 @@ abstract class AbstractNioEndpoint(
                         if (!channel.isConnected)
                             dataMapQueue.remove(channel)
                         val queue = dataMapQueue.get(channel)
+                        if (queue.size > 1)
+                            mergeQueue(queue)
                         var attempts = 5
                         while (attempts > 0) {
                             var keepTrying = !queue.isEmpty
@@ -167,11 +199,20 @@ abstract class AbstractNioEndpoint(
     }
 
     private def encodeByteBuffer(data: ByteBuffer): ByteBuffer = {
-        val newBuffer = ByteBuffer.allocate(4 + data.remaining)
-        newBuffer.putInt(data.remaining) 
-        newBuffer.put(data)
-        newBuffer.rewind
-        newBuffer
+        //val newBuffer = ByteBuffer.allocate(4 + data.remaining)
+        //newBuffer.putInt(data.remaining) 
+        //newBuffer.put(data)
+        //newBuffer.rewind
+        //newBuffer
+
+        // this seems to run a little faster
+        val buf = new Array[Byte](4 + data.remaining)
+        buf(0) = ((data.remaining >> 24) & 0xFF).toByte 
+        buf(1) = ((data.remaining >> 16) & 0xFF).toByte 
+        buf(2) = ((data.remaining >> 8) & 0xFF).toByte
+        buf(3) = (data.remaining & 0xFF).toByte
+        data.get(buf, 4, data.remaining)
+        ByteBuffer.wrap(buf)
     }
 
     /**
@@ -226,23 +267,37 @@ abstract class AbstractNioEndpoint(
         bulkBufferQueue.synchronized {
             var buffer = bulkBufferQueue.get(socket)
             if (buffer == null) {
-                buffer = ByteBuffer.allocate(bulkBufferSize)
+                //logger.debug("buffer was null, so allocating")
+                buffer = new ByteArrayOutputStream(bulkBufferSize)
                 bulkBufferQueue.put(socket, buffer)
             }
 
-            if (sizeOfMessage(data,encode) < buffer.remaining) {
+            //logger.debug("--")
+            //logger.debug("sizeOfMessage: " + sizeOfMessage(data, encode))
+            //logger.debug("remaining: " + buffer.remaining)
+
+            if (sizeOfMessage(data,encode) > buffer.size) {
                 // buffer is full, flush it and clear
-                buffer.rewind
-                send(socket, buffer, false) // no encoding since we already did
-                buffer = ByteBuffer.allocate(bulkBufferSize)
+                //logger.debug("flushing and realloc buffer")
+                send(socket, ByteBuffer.wrap(buffer.toByteArray), false) // no encoding since we already did
+                buffer.reset
             }
 
-            buffer.put(encodeByteBuffer(data))
+            val toPut = encode match {
+                case false => data
+                case true  => encodeByteBuffer(data)
+            }
 
-            if (buffer.remaining == 0) {
-                buffer.rewind
-                send(socket, buffer, false)
-                bulkBufferQueue.remove(socket)
+            //logger.debug("toPut size: " + toPut.remaining)
+            //logger.debug("buffer remaining size: " + buffer.remaining)
+            buffer.write(toPut.array)
+
+            //logger.debug("after: " + buffer.remaining)
+
+            if (buffer.size == bulkBufferSize) {
+                //logger.debug("flushing and removing buffer")
+                send(socket, ByteBuffer.wrap(buffer.toByteArray), false)
+                buffer.reset
             }
         }
     }
@@ -260,8 +315,7 @@ abstract class AbstractNioEndpoint(
         bulkBufferQueue.synchronized {
             val buffer = bulkBufferQueue.get(socket)
             if (buffer != null) {
-                buffer.rewind
-                send(socket, buffer, false)
+                send(socket, ByteBuffer.wrap(buffer.toByteArray), false)
                 bulkBufferQueue.remove(socket)
             }
         }

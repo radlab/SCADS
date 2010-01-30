@@ -16,6 +16,8 @@ case class RemoteNode(hostname:String, port: Int) {
 }
 
 trait AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: SpecificRecord] {
+    def startBulk(chan: RemoteNode)
+    def endBulk(chan: RemoteNode)
 	def sendMessage(dest: RemoteNode, msg: SendMsgType):Unit 
 	def receiveMessage(src: RemoteNode, msg: RecvMsgType):Unit
 }
@@ -63,7 +65,7 @@ abstract class AvroChannelManagerImpl[SendMsgType <: SpecificRecord,RecvMsgType 
 							state.buff.rewind
 							state.recvMessage = true
 							val size = state.buff.getInt
-							println(size)
+							//println(size)
 							state.buff = ByteBuffer.allocate(size)
 						}
 					}
@@ -124,6 +126,9 @@ abstract class AvroChannelManagerImpl[SendMsgType <: SpecificRecord,RecvMsgType 
 	def closeConnections(): Unit = {
 		channels.clear()
 	}
+
+    override def startBulk(chan: RemoteNode) = {}
+    override def endBulk(chan: RemoteNode)   = {}
 
 	//def receiveMessage(src: RemoteNode, msg: RecvMsgType): Unit
 }
