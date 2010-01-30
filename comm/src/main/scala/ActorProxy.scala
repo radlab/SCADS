@@ -25,6 +25,7 @@ class StorageActorProxy extends AvroChannelManager[StorageRequest, StorageRespon
 		override def run(): Unit = {
 			while(true) {
 				val ref = deadActors.remove()
+				logger.debug("Garbage collecting actor registration.")
 				registry.remove(ref.hashCode)
 			}
 		}
@@ -32,7 +33,10 @@ class StorageActorProxy extends AvroChannelManager[StorageRequest, StorageRespon
 
 	def registerActor(a: Actor): Int = {
 		val ref = new WeakReference(a)
-		registry.put(ref.hashCode, ref)
+		if(registry.put(ref.hashCode, ref) != null) {
+			logger.warn("Registering an actor that was already registered. " + ref.hashCode)
+		}
+
 		ref.hashCode
 	}
 
