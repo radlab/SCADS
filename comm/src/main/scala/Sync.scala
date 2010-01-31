@@ -11,7 +11,7 @@ object Sync {
 		val a = actor {
 			val req = new StorageRequest
 			req.body = reqBody
-			req.src = mgr.registerActor(self)
+			req.src = ActorRegistry.registerActor(self)
 			mgr.sendMessage(dest, req)
 
 			reactWithin(1000) {
