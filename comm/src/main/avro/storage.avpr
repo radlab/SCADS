@@ -10,6 +10,10 @@
 		{"name": "RecordSet", "type": "record", "fields": [
 			{"name": "records", "type": {"type": "array", "items": "Record"}}]
 		},
+		{"name": "ProcessingException", "type": "record", "fields": [
+			{"name": "cause", "type": "string"},
+			{"name": "stacktrace", "type": "string"}]
+		},
 		{"name": "KeyRange", "type": "record", "fields": [
 			{"name": "startKey", "type": ["null", "bytes"]},
 			{"name": "endKey", "type": ["null", "bytes"]}]
@@ -28,9 +32,24 @@
 			{"name": "limit", "type": ["null", "int"]},
 			{"name": "offset", "type": ["null", "int"]}]
 		},
+		{"name": "CountRangeRequest", "type": "record", "fields": [
+			{"name": "namespace", "type": "string"},
+			{"name": "startKey", "type": ["null", "bytes"]},
+			{"name": "endKey", "type": ["null", "bytes"]},
+			{"name": "limit", "type": ["null", "int"]},
+			{"name": "offset", "type": ["null", "int"]}]
+		},
 		{"name": "PutRequest", "type": "record", "fields": [
 			{"name": "namespace", "type": "string"},
-			{"name": "key", "type": "bytes"}]
+			{"name": "key", "type": "bytes"},
+			{"name": "value", "type": "bytes"}]
+		},
+		{"name": "TestSetRequest", "type": "record", "fields": [
+			{"name": "namespace", "type": "string"},
+			{"name": "key", "type": "bytes"},
+			{"name": "value", "type": "bytes"},
+			{"name": "expectedValue", "type": "bytes"},
+			{"name": "prefixMatch", "type": "bytes"}]
 		},
 		{"name": "ConfigureRequest", "type": "record", "fields": [
 			{"name": "namespace", "type": "string"},
@@ -43,7 +62,7 @@
 		},
 		{"name": "StorageResponse", "type": "record", "fields": [
 			{"name": "dest", "type": "int"},
-			{"name": "body", "type": ["null", "Record"]}]
+			{"name": "body", "type": ["null", "Record", "RecordSet", "ProcessingException"]}]
 		}
 	]
 }
