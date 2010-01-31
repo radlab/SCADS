@@ -2,6 +2,7 @@ package edu.berkeley.cs.scads.comm
 
 import org.apache.avro.Schema
 import org.apache.avro.generic._
+import org.apache.avro.util.Utf8
 
 object Conversions {
 	class ScalaContainer[RecType <: GenericContainer](base: List[RecType]) extends GenericArray[RecType]{
@@ -20,4 +21,5 @@ object Conversions {
 	}
 
 	implicit def mkArray[RecType <: GenericContainer](base: List[RecType]): GenericArray[RecType] = new ScalaContainer(base)
+	implicit def toUtf8(str: String): Utf8 = new Utf8(str)
 }
