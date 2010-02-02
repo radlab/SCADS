@@ -5,6 +5,8 @@ import scala.actors.Actor._
 import scala.concurrent.SyncVar
 
 object Sync {
+	val logger = Logger.getLogger("scads.comm.sync")
+
 	def makeRequest(dest: RemoteNode, reqBody: Object)(implicit mgr: StorageActorProxy): StorageResponse = {
 		val resp = new SyncVar[Either[Throwable, StorageResponse]]
 
@@ -15,9 +17,10 @@ object Sync {
 			mgr.sendMessage(dest, req)
 
 			reactWithin(1000) {
-				case msg: StorageResponse => resp.set(Right(msg))
+				case (RemoteNode(hostname, port), msg: StorageResponse) => resp.set(Right(msg))
 				case unexp: ProcessingException => resp.set(Left(new RuntimeException("Remote Exception" + unexp)))
 				case TIMEOUT => resp.set(Left(new RuntimeException("Timeout")))
+				case msg => logger.warn("Unexpected message: " + msg)
 			}
 		}
 
