@@ -28,10 +28,10 @@ object Options
     val optionsStack = new ArrayStack[String];
     val options = new OpenHashMap[String, String];
     val arguments = new ArrayBuffer[String];
-    
+
     def addSwitch(c: Char) =
       options(c.toString) = True
-    
+
     def isSwitch(c: Char) =
       argInfos exists {
         case ArgInfo(`c`, _, true, _) => true
@@ -51,7 +51,7 @@ object Options
       }
     }
 
-    optionsStack ++= args.reverse;    
+    optionsStack ++= args.reverse;
     while(!optionsStack.isEmpty){
       optionsStack.pop match {
         case ShortSquashedOption(xs) =>
@@ -61,11 +61,11 @@ object Options
           val c = name(0)
           if (isSwitch(c)) addSwitch(c)
           else addOption(name)
-        
+
         case LongOption(name) => addOption(name);
         case OptionTerminator => optionsStack.drain(arguments += _);
-        case x => arguments += x; 
-      }  
+        case x => arguments += x;
+      }
     }
 
     Options(options, arguments.toList, args.toList)
