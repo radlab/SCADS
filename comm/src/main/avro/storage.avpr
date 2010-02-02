@@ -53,8 +53,7 @@
 		},
 		{"name": "ConfigureRequest", "type": "record", "fields": [
 			{"name": "namespace", "type": "string"},
-			{"name": "keySchema", "type": "string"},
-			{"name": "policy", "type": ["null", "RangePolicy"]}]
+			{"name": "partition", "type": "string"}]
 		},
 		{"name": "StorageRequest", "type": "record", "fields": [
 			{"name": "src", "type": "int"},

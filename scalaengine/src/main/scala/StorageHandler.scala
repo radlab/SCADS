@@ -1,5 +1,6 @@
 package edu.berkeley.cs.scads.storage
 
+import java.util.Comparator
 import java.util.concurrent.{BlockingQueue, ArrayBlockingQueue, ThreadPoolExecutor, TimeUnit}
 
 import org.apache.log4j.Logger
@@ -8,7 +9,24 @@ import com.sleepycat.je.{Database, DatabaseConfig, DatabaseEntry, Environment, L
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.comm.Conversions._
 
-class StorageHandler(env: Environment) extends AvroChannelManager[StorageResponse, StorageRequest] {
+import org.apache.avro.Schema
+
+@serializable
+class AvroComparator(val json: String) extends Comparator[Array[Byte]] with java.io.Serializable {
+	@transient
+	val schema = Schema.parse(json)
+	
+	def compare(o1: Array[Byte], o2: Array[Byte]): Int = 
+		org.apache.avro.io.BinaryData.compare(o1, 0, o2, 0, schema)
+
+	override def equals(other: Any): Boolean = other match {
+		case ac: AvroComparator => json equals ac.json
+		case _ => false
+	}
+}
+
+
+class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) extends AvroChannelManager[StorageResponse, StorageRequest] {
 	case class Namespace(db: Database, policy: RangePolicy)
 	var namespaces: Map[String, Namespace] = new scala.collection.immutable.HashMap[String, Namespace]
 
@@ -24,10 +42,15 @@ class StorageHandler(env: Environment) extends AvroChannelManager[StorageRespons
 		}
 
 		val process: PartialFunction[Object, Unit] = {
-			case gr: GetRequest =>
-//TODO			case pr: PutRequest =>
-//TODO			case grr: GetRangeRequest =>
-//TODO			case cr: ConfigureRequest =>
+			case cr: ConfigureRequest => {
+				openNamespace(cr.namespace, cr.partition)
+				reply(null)	
+			}
+			case gr: GetRequest => {
+				
+			}
+			case pr: PutRequest => true
+//			case grr: GetRangeRequest => true 
 		}
 
 		def run():Unit = {
@@ -42,6 +65,22 @@ class StorageHandler(env: Environment) extends AvroChannelManager[StorageRespons
 					reply(resp)
 				}
 			}
+		}
+	}
+
+	def openNamespace(ns: String, partition: String): Unit = {
+		namespaces.synchronized {
+			val nsRoot = root.get("namespaces").get(ns)
+			val keySchema = new String(nsRoot("keySchema").data)
+			//val policy = partition("policy").data
+			//val partition = nsRoot("partitions").get(partition)
+
+			val dbConfig = new DatabaseConfig
+			dbConfig.setAllowCreate(true)
+			dbConfig.setBtreeComparator(new AvroComparator(keySchema))
+			dbConfig.setTransactional(true)
+			
+			namespaces += ((ns, Namespace(env.openDatabase(null, ns, dbConfig), null)))
 		}
 	}
 

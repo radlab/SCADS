@@ -1,0 +1,11 @@
+{
+	"namespace": "edu.berkeley.cs.scads.test",
+	"protocol": "Test",
+
+	"types": [
+		{"name": "IntRec", "type": "record", "fields": [
+			{"name": "f1", "type": "int"}
+		]}
+	]
+}
+

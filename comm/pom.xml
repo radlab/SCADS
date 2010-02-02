@@ -17,11 +17,16 @@
 			<artifactId>log4j</artifactId>
 			<version>1.2.15</version>
 		</dependency>
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>avro</artifactId>
-      <version>1.2.0-dev</version>
-      <scope>compile</scope>
+		<dependency>
+			<groupId>org.apache.hadoop.zookeeper</groupId>
+			<artifactId>zookeeper</artifactId>
+			<version>3.2.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>avro</artifactId>
+			<version>1.2.0-dev</version>
+			<scope>compile</scope>
 		</dependency>
 	</dependencies>
 	<build>
@@ -44,6 +49,14 @@
 							<value>test-log4j.properties</value>
 						</property>
 					</systemProperties>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.scala-tools</groupId>
+				<artifactId>maven-scala-plugin</artifactId>
+				<configuration>
+					<jvmArgs><arg>-Xmx512M</arg></jvmArgs>
+					<javaRebelPath>//Users/marmbrus/Downloads/jrebel-2.1.1/jrebel.jar</javaRebelPath>
 				</configuration>
 			</plugin>
 			<plugin>

@@ -4,6 +4,8 @@ import scala.actors._
 import scala.actors.Actor._
 import scala.concurrent.SyncVar
 
+import org.apache.log4j.Logger
+
 object Sync {
 	val logger = Logger.getLogger("scads.comm.sync")
 
@@ -16,7 +18,7 @@ object Sync {
 			req.src = ActorRegistry.registerActor(self)
 			mgr.sendMessage(dest, req)
 
-			reactWithin(1000) {
+			reactWithin(10000) {
 				case (RemoteNode(hostname, port), msg: StorageResponse) => resp.set(Right(msg))
 				case unexp: ProcessingException => resp.set(Left(new RuntimeException("Remote Exception" + unexp)))
 				case TIMEOUT => resp.set(Left(new RuntimeException("Timeout")))
