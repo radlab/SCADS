@@ -17,7 +17,6 @@ object Sync {
 			req.body = reqBody
 			req.src = ActorRegistry.registerActor(self)
 			mgr.sendMessage(dest, req)
-
 			reactWithin(10000) {
 				case (RemoteNode(hostname, port), msg: StorageResponse) => resp.set(Right(msg))
 				case unexp: ProcessingException => resp.set(Left(new RuntimeException("Remote Exception" + unexp)))
