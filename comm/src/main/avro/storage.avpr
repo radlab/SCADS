@@ -14,30 +14,38 @@
 			{"name": "cause", "type": "string"},
 			{"name": "stacktrace", "type": "string"}]
 		},
+		{"name": "TestAndSetFailure", "type": "record", "fields": [
+			{"name": "key", "type": "bytes"},
+			{"name": "currentValue", "type": ["null", "bytes"]}]
+		},
+
+		{"name": "KeyPartition", "type": "record", "fields": [
+			{"name": "minKey", "type": ["null", "bytes"]},
+			{"name": "maxKey", "type": ["null", "bytes"]}]
+		},
+		{"name": "PartitionedPolicy", "type": "record", "fields": [
+			{"name": "partitions", "type": {"type": "array", "items": "KeyPartition"}}]
+		},
+
 		{"name": "KeyRange", "type": "record", "fields": [
-			{"name": "startKey", "type": ["null", "bytes"]},
-			{"name": "endKey", "type": ["null", "bytes"]}]
+			{"name": "minKey", "type": ["null", "bytes"]},
+			{"name": "maxKey", "type": ["null", "bytes"]},
+			{"name": "limit", "type": ["null", "int"]},
+			{"name": "offset", "type": ["null", "int"]},
+			{"name": "backwards", "type":"boolean"}]
 		},
-		{"name": "RangePolicy", "type": "record", "fields": [
-			{"name": "ranges", "type": {"type": "array", "items": "KeyRange"}}]
-		},
+
 		{"name": "GetRequest", "type": "record", "fields": [
 			{"name": "namespace", "type": "string"},
 			{"name": "key", "type": "bytes"}]
 		},
 		{"name": "GetRangeRequest", "type": "record", "fields": [
 			{"name": "namespace", "type": "string"},
-			{"name": "startKey", "type": ["null", "bytes"]},
-			{"name": "endKey", "type": ["null", "bytes"]},
-			{"name": "limit", "type": ["null", "int"]},
-			{"name": "offset", "type": ["null", "int"]}]
+			{"name": "range", "type": "KeyRange"}]
 		},
 		{"name": "CountRangeRequest", "type": "record", "fields": [
 			{"name": "namespace", "type": "string"},
-			{"name": "startKey", "type": ["null", "bytes"]},
-			{"name": "endKey", "type": ["null", "bytes"]},
-			{"name": "limit", "type": ["null", "int"]},
-			{"name": "offset", "type": ["null", "int"]}]
+			{"name": "range", "type": "KeyRange"}]
 		},
 		{"name": "PutRequest", "type": "record", "fields": [
 			{"name": "namespace", "type": "string"},
@@ -48,13 +56,14 @@
 			{"name": "namespace", "type": "string"},
 			{"name": "key", "type": "bytes"},
 			{"name": "value", "type": "bytes"},
-			{"name": "expectedValue", "type": "bytes"},
-			{"name": "prefixMatch", "type": "bytes"}]
+			{"name": "expectedValue", "type": ["null", "bytes"]},
+			{"name": "prefixMatch", "type": "boolean"}]
 		},
 		{"name": "ConfigureRequest", "type": "record", "fields": [
 			{"name": "namespace", "type": "string"},
 			{"name": "partition", "type": "string"}]
 		},
+
 		{"name": "StorageRequest", "type": "record", "fields": [
 			{"name": "src", "type": "int"},
 			{"name": "body", "type": ["null", "GetRequest", "GetRangeRequest", "PutRequest", "ConfigureRequest"]}]
