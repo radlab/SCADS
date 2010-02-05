@@ -15,9 +15,8 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 		nsRoot.createChild("valueSchema", valueSchema.toString(), CreateMode.PERSISTENT)
 
 		val partition = nsRoot.getOrCreate("partitions/1")
-		val policy = new RangePolicy
-		val range = new KeyRange
-		policy.ranges = List(range)
+		val policy = new PartitionedPolicy
+		policy.partitions = List(new KeyPartition)
 
 		partition.createChild("policy", policy.toBytes, CreateMode.PERSISTENT)
 		partition.createChild("servers", "", CreateMode.PERSISTENT)

@@ -29,14 +29,14 @@ class AvroComparator(val json: String) extends Comparator[Array[Byte]] with java
 }
 
 class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) extends AvroChannelManager[StorageResponse, StorageRequest] {
-	case class Namespace(db: Database, keySchema: Schema, comp: AvroComparator, policy: RangePolicy)
+	case class Namespace(db: Database, keySchema: Schema, comp: AvroComparator)
 	var namespaces: Map[String, Namespace] = new scala.collection.immutable.HashMap[String, Namespace]
 
 	val outstandingRequests = new ArrayBlockingQueue[Runnable](1024)
 	val executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, outstandingRequests)
 
 	implicit def mkDbe(buff: ByteBuffer): DatabaseEntry = new DatabaseEntry(buff.array, buff.position, buff.remaining)
-	implicit def mkByteBuffer(dbe: DatabaseEntry) = ByteBuffer.wrap(dbe.getData)
+	implicit def mkByteBuffer(dbe: DatabaseEntry):ByteBuffer = ByteBuffer.wrap(dbe.getData, dbe.getOffset, dbe.getSize).compact
 
 	class Request(src: RemoteNode, req: StorageRequest) extends Runnable {
 		def reply(body: AnyRef) = {
@@ -61,6 +61,11 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
 
 				ns.db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
 				val retRec = new Record
+				println("returning Key: " + dbeKey)
+				println("returning Value: " + dbeValue)
+				println("returning Key: " + mkByteBuffer(dbeKey))
+				println("returning Value: " + mkByteBuffer(dbeValue))
+
 				retRec.key = dbeKey.getData
 				retRec.value = dbeValue.getData
 
@@ -219,7 +224,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
 			dbConfig.setBtreeComparator(comp)
 			dbConfig.setTransactional(true)
 
-			namespaces += ((ns, Namespace(env.openDatabase(null, ns, dbConfig), Schema.parse(keySchema), comp, null)))
+			namespaces += ((ns, Namespace(env.openDatabase(null, ns, dbConfig), Schema.parse(keySchema), comp)))
 		}
 	}
 
