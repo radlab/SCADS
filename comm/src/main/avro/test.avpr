@@ -5,7 +5,10 @@
 	"types": [
 		{"name": "IntRec", "type": "record", "fields": [
 			{"name": "f1", "type": "int"}
-		]}
+		]},
+        {"name": "TestMsg", "type": "record", "fields": [
+			{"name": "payload", "type": "string"}
+        ]}
 	]
 }
 

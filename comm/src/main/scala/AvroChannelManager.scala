@@ -8,6 +8,8 @@ import org.apache.avro.io._
 import org.apache.avro.ipc._
 import org.apache.avro.specific._
 
+import org.apache.log4j.Logger
+
 import scala.collection.jcl.Conversions._
 
 case class RemoteNode(hostname:String, port: Int)
@@ -20,23 +22,32 @@ abstract class AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: 
 	private val msgWriter = new SpecificDatumWriter(sendManifest.erasure.asInstanceOf[Class[SendMsgType]])
 	private val msgRecvClass = recvManifest.erasure.asInstanceOf[Class[RecvMsgType]]
 
+    private val logger = Logger.getLogger("AvroChannelManager")
+
 	private class ChannelState(val chan: SocketChannel, var recvMessage: Boolean, var buff: ByteBuffer)
 
 	private val selectionThread = new Thread("Channel Manager Selector") {
     override def run() = {
       while(continueSelecting) {
         val numKeys = selector.select(1000)
+
+        logger.debug("waiting for selector keys")
         val keys = selector.selectedKeys()
 
         keys.foreach(k => {
+
           val chan = k.channel.asInstanceOf[SocketChannel]
           val state = k.attachment.asInstanceOf[ChannelState]
 					val addr = chan.socket.getInetAddress.getHostName
 					val port = chan.socket.getPort
 
+            logger.debug("got selector keys from: " + addr + ", " + port)
+
 					if(state.recvMessage) {
+                        logger.debug("recvMessage is true, reading from buffer")
 						chan.read(state.buff)
 						if(state.buff.remaining == 0) {
+                            logger.debug("buffer is full, creating message")
 							val addr = chan.socket.getInetAddress.getHostName
 							val port = chan.socket.getPort
 							state.buff.rewind
@@ -49,6 +60,7 @@ abstract class AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: 
 						}
 					}
 					else {
+                        logger.debug("reading the header")
 						chan.read(state.buff)
 						if(state.buff.remaining == 0) {
 							state.buff.rewind
@@ -68,13 +80,18 @@ abstract class AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: 
   private def watchChannel(chan: SocketChannel): ChannelState = {
 		val state = new ChannelState(chan, false, ByteBuffer.allocate(4))
     chan.configureBlocking(false)
+    logger.debug("registering channel")
     chan.register(selector, SelectionKey.OP_READ, state)
+    logger.debug("regisering completed")
 		state
   }
 
 	private def getOrOpenChannel(dest: RemoteNode): ChannelState = {
+        synchronized {
 		if(!channels.containsKey(dest)) {
+            logger.debug("getOrOpenChannel: new channel opened to: " + dest)
 			val newChannel = SocketChannel.open(new InetSocketAddress(dest.hostname, dest.port))
+            assert(newChannel.isConnected)
 			val state = watchChannel(newChannel)
 
 			if(channels.putIfAbsent(dest, state) != null) {
@@ -82,6 +99,7 @@ abstract class AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: 
 			}
 		}
 		channels.get(dest)
+        }
 	}
 
 	def startListener(port: Int): Unit = {
@@ -91,6 +109,7 @@ abstract class AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: 
 			override def run() = {
 				while(true) {
 					val newChan = serverSock.accept()
+                    logger.debug("new connection: " + newChan)
 					newChan.configureBlocking(false)
 					val addr = newChan.socket.getInetAddress.getHostName
 					val port = newChan.socket.getPort
@@ -109,6 +128,7 @@ abstract class AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: 
 
 		val msgLength = ByteBuffer.allocate(4).putInt(stream.size)
 		msgLength.rewind
+        logger.debug("sendMessage: msg being sent to: " + dest)
 		state.chan.write(Array(msgLength, ByteBuffer.wrap(stream.toByteArray)))
 	}
 
