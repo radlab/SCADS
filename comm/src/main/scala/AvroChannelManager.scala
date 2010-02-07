@@ -24,16 +24,29 @@ abstract class AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: 
 
     private val logger = Logger.getLogger("AvroChannelManager")
 
+    private val registerQueue = new java.util.LinkedList[ChannelState]
+
 	private class ChannelState(val chan: SocketChannel, var recvMessage: Boolean, var buff: ByteBuffer)
 
 	private val selectionThread = new Thread("Channel Manager Selector") {
     override def run() = {
       while(continueSelecting) {
-        val numKeys = selector.select(1000)
+        registerQueue.synchronized {
+          val iter = registerQueue.iterator
+          while (iter.hasNext) {
+            val chanstate = iter.next
+            logger.debug("registering channel: " + chanstate.chan)
+            chanstate.chan.register(selector, SelectionKey.OP_READ, chanstate)
+            logger.debug("done registering")
+          }
+          registerQueue.clear
+          registerQueue.notifyAll
+        }
 
         logger.debug("waiting for selector keys")
-        val keys = selector.selectedKeys()
+        val numKeys = selector.select(1000)
 
+        val keys = selector.selectedKeys()
         keys.foreach(k => {
 
           val chan = k.channel.asInstanceOf[SocketChannel]
@@ -80,9 +93,11 @@ abstract class AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: 
   private def watchChannel(chan: SocketChannel): ChannelState = {
 		val state = new ChannelState(chan, false, ByteBuffer.allocate(4))
     chan.configureBlocking(false)
-    logger.debug("registering channel")
-    chan.register(selector, SelectionKey.OP_READ, state)
-    logger.debug("regisering completed")
+    registerQueue.synchronized {
+      registerQueue.add(state)
+      while (!chan.isRegistered)
+        registerQueue.wait
+    }
 		state
   }
 
@@ -121,6 +136,7 @@ abstract class AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: 
 	}
 
 	def sendMessage(dest: RemoteNode, msg: SendMsgType): Unit = {
+        logger.debug("sendMessage called, dest " + dest + " msg " + msg)
 		val state = getOrOpenChannel(dest)
 		val stream = new java.io.ByteArrayOutputStream(8192)
 		val enc = new BinaryEncoder(stream)
