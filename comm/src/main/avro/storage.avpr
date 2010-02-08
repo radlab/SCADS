@@ -50,7 +50,7 @@
 		{"name": "PutRequest", "type": "record", "fields": [
 			{"name": "namespace", "type": "string"},
 			{"name": "key", "type": "bytes"},
-			{"name": "value", "type": "bytes"}]
+			{"name": "value", "type": ["null", "bytes"]}]
 		},
 		{"name": "TestSetRequest", "type": "record", "fields": [
 			{"name": "namespace", "type": "string"},
@@ -66,11 +66,11 @@
 
 		{"name": "StorageRequest", "type": "record", "fields": [
 			{"name": "src", "type": "int"},
-			{"name": "body", "type": ["null", "GetRequest", "GetRangeRequest", "PutRequest", "ConfigureRequest"]}]
+			{"name": "body", "type": ["null", "GetRequest", "GetRangeRequest", "PutRequest", "TestSetRequest", "ConfigureRequest"]}]
 		},
 		{"name": "StorageResponse", "type": "record", "fields": [
 			{"name": "dest", "type": "int"},
-			{"name": "body", "type": ["null", "Record", "RecordSet", "ProcessingException"]}]
+			{"name": "body", "type": ["null", "Record", "RecordSet", "ProcessingException", "TestAndSetFailure"]}]
 		}
 	]
 }

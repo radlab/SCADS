@@ -6,6 +6,9 @@
 		{"name": "IntRec", "type": "record", "fields": [
 			{"name": "f1", "type": "int"}
 		]},
+		{"name": "StringRec", "type": "record", "fields": [
+			{"name": "f1", "type": "string"}
+		]},
         {"name": "TestMsg", "type": "record", "fields": [
 			{"name": "payload", "type": "string"}
         ]}

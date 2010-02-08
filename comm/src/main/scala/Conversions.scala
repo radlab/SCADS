@@ -24,7 +24,16 @@ object Conversions {
 	implicit def mkArray[RecType <: GenericContainer](base: List[RecType]): GenericArray[RecType] = new ScalaContainer(base)
 	implicit def mkUtf8(str: String): Utf8 = new Utf8(str)
 	implicit def mkString(utf8: Utf8): String = utf8.toString
-	implicit def mkByteArray(str: String): Array[Byte] = str.getBytes
-	implicit def mkBytes(str: String): ByteBuffer = ByteBuffer.wrap(str.getBytes)
-	implicit def mkBytes(bts: Array[Byte]): ByteBuffer = ByteBuffer.wrap(bts)
+	implicit def mkByteArray(str: String): Array[Byte] = str match {
+        case null => null
+        case _    => str.getBytes
+    }
+	implicit def mkBytes(str: String): ByteBuffer = str match {
+        case null => null
+        case _    => ByteBuffer.wrap(str.getBytes)
+    }
+	implicit def mkBytes(bts: Array[Byte]): ByteBuffer = bts match {
+        case null => null
+        case _    => ByteBuffer.wrap(bts)
+    }
 }
