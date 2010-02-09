@@ -7,6 +7,7 @@ import java.net.Socket
 import java.nio.ByteBuffer
 import java.nio.channels.SelectionKey
 import java.nio.channels.Selector
+import java.nio.channels.SelectableChannel
 import java.nio.channels.ServerSocketChannel
 import java.nio.channels.SocketChannel
 import java.nio.channels.spi.SelectorProvider
@@ -21,34 +22,36 @@ import scala.collection.mutable.ListBuffer
 
 import org.apache.log4j.Logger
 
-abstract class AbstractNioEndpoint(
-        protected val readExecutor: Executor,
-        protected val channelHandler: ChannelHandler) {
-
-    if (readExecutor == null || channelHandler == null)
+class NioEndpoint(protected val channelHandler: ChannelHandler) {
+    if (channelHandler == null)
         throw new IllegalArgumentException("Cannot pass in null values to constructor")
 
     private val logger = Logger.getLogger("AbstractNioEndpoint")
 
+    var acceptEventHandler: NioAcceptEventHandler = null
+    var connectEventHandler: NioConnectEventHandler = null
+
+	protected var serverChannel: ServerSocketChannel = null
+    protected var initialized = false
+    protected var isListening = false
+
 	protected val selector = SelectorProvider.provider.openSelector
 	protected val readBuffer: ByteBuffer = ByteBuffer.allocate(8192)
 
-    var bulkBufferSize = 64*1024
+    protected var bulkBufferSize = 64*1024
 
     case class QueueEntry(val contents: ByteBuffer, val callback: WriteCallback)
+    case class RegisterEntry(val socket: SelectableChannel, val future: ConnectFuture, val interestOp: Int)
     
     //protected val dataQueue: BlockingQueue[QueueEntry] = new LinkedBlockingQueue[QueueEntry]
 
     protected val dataMapQueue = new HashMap[SocketChannel,JList[QueueEntry]]
     protected val bulkBufferQueue = new HashMap[SocketChannel, ByteArrayOutputStream]
-
-    case class RegisterEntry(val socket: SocketChannel, val future: ConnectFuture)
     protected val registerQueue = new LinkedList[RegisterEntry]
-
     protected val connectionMap = new ConcurrentHashMap[InetSocketAddress,SocketChannel]
+    protected val channelQueue = new HashMap[SocketChannel, ChannelState]
 
     protected def registerInetSocketAddress(addr: InetSocketAddress, chan: SocketChannel) = connectionMap.put(addr, chan)
-
     def getChannelForInetSocketAddress(addr: InetSocketAddress):SocketChannel = connectionMap.get(addr)
 
     case class ChannelState(val buffer: CircularByteBuffer, var inMessage: Boolean, var messageSize: Int)  {
@@ -61,7 +64,22 @@ abstract class AbstractNioEndpoint(
 
     case class InvalidMessageSizeException(val size: Int) extends RuntimeException("Invalid size, must be >= 0: " + size)
 
-    protected val channelQueue = new HashMap[SocketChannel, ChannelState]
+    class ConnectFuture(val clientSocket: SocketChannel, private var alreadyDone: Boolean) {
+        def await = {
+            synchronized {
+                if (!alreadyDone) {
+                    wait
+                }
+            }
+        }
+
+        def finished = {
+            synchronized {
+                alreadyDone = true
+                notifyAll
+            }
+        }
+    }
 
     protected def fireWriteAndSelectLoop = {
         new Thread(new Runnable {
@@ -71,7 +89,6 @@ abstract class AbstractNioEndpoint(
             override def run = selectLoop
         }).start
     }
-
 
     private def mergeQueue(queue: JList[QueueEntry]) = {
         var size = 0
@@ -113,34 +130,35 @@ abstract class AbstractNioEndpoint(
                     val iterator = channelSet.iterator
                     while (iterator.hasNext) {
                         val channel = iterator.next
-                        if (!channel.isConnected)
-                            dataMapQueue.remove(channel)
-                        val queue = dataMapQueue.get(channel)
-                        if (queue.size > 1)
-                            mergeQueue(queue)
-                        var attempts = 5
-                        while (attempts > 0) {
-                            var keepTrying = !queue.isEmpty
-                            while (keepTrying) {
-                                val buffer = queue.get(0).contents
-                                channel.write(buffer)
-                                if (buffer.remaining > 0) {
-                                    //logger.debug("channel: " + channel)
-                                    //logger.debug("buffer could not be written in its entirely")
-                                    keepTrying = false
-                                } else {
-                                    //logger.debug("for channel: " + channel)
-                                    //logger.debug("successfully wrote buffer: " + buffer)
-                                    if (queue.get(0).callback != null)
-                                        callbacks.add(queue.get(0).callback)
-                                    queue.remove(0)
-                                    keepTrying = !queue.isEmpty
+                        if (!channel.isConnected) {
+                            iterator.remove
+                        } else {
+                            val queue = dataMapQueue.get(channel)
+                            if (queue.size > 1)
+                                mergeQueue(queue)
+                            var attempts = 5
+                            while (attempts > 0) {
+                                var keepTrying = !queue.isEmpty
+                                while (keepTrying) {
+                                    val buffer = queue.get(0).contents
+                                    channel.write(buffer)
+                                    if (buffer.remaining > 0) {
+                                        //logger.debug("channel: " + channel)
+                                        //logger.debug("buffer could not be written in its entirely")
+                                        keepTrying = false
+                                    } else {
+                                        //logger.debug("for channel: " + channel)
+                                        //logger.debug("successfully wrote buffer: " + buffer)
+                                        if (queue.get(0).callback != null)
+                                            callbacks.add(queue.get(0).callback)
+                                        queue.remove(0)
+                                        keepTrying = !queue.isEmpty
+                                    }
                                 }
+                                attempts -= 1
                             }
-                            attempts -= 1
+                            if (queue.isEmpty) iterator.remove
                         }
-                        if (queue.isEmpty)
-                            dataMapQueue.remove(channel)
                     }
                 }
                 val iter = callbacks.iterator
@@ -160,8 +178,12 @@ abstract class AbstractNioEndpoint(
                     val iter = registerQueue.iterator
                     while (iter.hasNext) {
                         val entry = iter.next
-                        entry.socket.register(selector, SelectionKey.OP_CONNECT, entry.future)
-                        //logger.debug("registered socket: " + entry.socket)
+                        if (entry.interestOp == SelectionKey.OP_CONNECT)
+                            entry.socket.register(selector, SelectionKey.OP_CONNECT, entry.future)
+                        else if (entry.interestOp == SelectionKey.OP_ACCEPT)
+                            entry.socket.register(selector, SelectionKey.OP_ACCEPT)
+                        else
+                            throw new IllegalStateException("should not have this interest op")
                     }
                     registerQueue.clear
                 }
@@ -219,7 +241,7 @@ abstract class AbstractNioEndpoint(
      * Asynchrounously send by just adding to send queue and returning
      */
     def send(socket: SocketChannel, data: ByteBuffer, callback: WriteCallback, encode: Boolean):Unit = {
-        //logger.debug("send() called with data: " + data)
+        logger.debug("send() called with data: " + data)
         dataMapQueue.synchronized {
             var queue = dataMapQueue.get(socket)
             if (queue == null) {
@@ -276,9 +298,9 @@ abstract class AbstractNioEndpoint(
             //logger.debug("sizeOfMessage: " + sizeOfMessage(data, encode))
             //logger.debug("remaining: " + buffer.remaining)
 
-            if (sizeOfMessage(data,encode) > buffer.size) {
+            if (sizeOfMessage(data,encode) > bulkBufferSize - buffer.size) {
                 // buffer is full, flush it and clear
-                //logger.debug("flushing and realloc buffer")
+                logger.debug("flushing and realloc buffer")
                 send(socket, ByteBuffer.wrap(buffer.toByteArray), false) // no encoding since we already did
                 buffer.reset
             }
@@ -295,7 +317,7 @@ abstract class AbstractNioEndpoint(
             //logger.debug("after: " + buffer.remaining)
 
             if (buffer.size == bulkBufferSize) {
-                //logger.debug("flushing and removing buffer")
+                logger.debug("flushing and removing buffer")
                 send(socket, ByteBuffer.wrap(buffer.toByteArray), false)
                 buffer.reset
             }
@@ -321,9 +343,113 @@ abstract class AbstractNioEndpoint(
         }
     }
 
-    protected def accept(key: SelectionKey):Unit = {}
+    def flushAllBulk = {
+        logger.debug("flushAllBulk() called")
+        bulkBufferQueue.synchronized {
+            val iter = bulkBufferQueue.keySet.iterator
+            while (iter.hasNext) {
+                val socket = iter.next
+                val buffer = bulkBufferQueue.get(socket)
+                if (buffer != null)  {
+                    logger.debug("socket " + socket + " has non-empty buffer")
+                    send(socket, ByteBuffer.wrap(buffer.toByteArray), false)
+                }
+            }
+            bulkBufferQueue.clear
+        }
+    }
 
-    protected def connect(key: SelectionKey):Unit = {} 
+    def serve(hostAddress: InetSocketAddress) = {
+        synchronized {
+            if (isListening) throw new IllegalStateException("Already listening")
+            isListening = true
+        }
+        if (serverChannel != null) 
+            throw new IllegalStateException("Should be no server channel")
+        serverChannel = ServerSocketChannel.open
+		serverChannel.configureBlocking(false)
+        serverChannel.socket.bind(hostAddress)
+        var shouldInitialize = false
+        synchronized {
+            if (!initialized) {
+                shouldInitialize = true
+                initialized = true
+            } 
+        }
+        if (shouldInitialize) {
+            serverChannel.register(selector, SelectionKey.OP_ACCEPT)
+            fireWriteAndSelectLoop
+        } else {
+            registerQueue.synchronized {
+                registerQueue.add(new RegisterEntry(serverChannel, null, SelectionKey.OP_ACCEPT))
+            }
+            selector.wakeup
+        }
+        logger.info("Now serving on: " + hostAddress)
+    }
+
+    protected def accept(key: SelectionKey):Unit = {
+        logger.debug("accept() called with: " + key)
+        val serverSocketChannel = key.channel.asInstanceOf[ServerSocketChannel]
+		val socketChannel = serverSocketChannel.accept
+		socketChannel.configureBlocking(false)
+		socketChannel.register(selector, SelectionKey.OP_READ)
+        registerInetSocketAddress(new InetSocketAddress(socketChannel.socket.getInetAddress, socketChannel.socket.getPort), socketChannel)
+        if (acceptEventHandler != null) acceptEventHandler.acceptEvent(socketChannel)
+    }
+
+    protected def connect(key: SelectionKey):Unit = {  
+        logger.debug("connect() called with: " + key)
+        val socketChannel = key.channel.asInstanceOf[SocketChannel]
+        try {
+            socketChannel.finishConnect
+        } catch {
+            case e: IOException =>
+                // Cancel the channel's registration with our selector
+                logger.error(e)
+                key.cancel
+                return
+        }
+        logger.debug("trying to register OP_READ interest")
+        key.interestOps(SelectionKey.OP_READ)
+        logger.debug("registing INET socket address now")
+        registerInetSocketAddress(
+            new InetSocketAddress(socketChannel.socket.getInetAddress,socketChannel.socket.getPort), 
+            socketChannel)
+        logger.debug("calling event handler")
+        if (connectEventHandler != null) connectEventHandler.connectEvent(socketChannel)
+        logger.debug("calling finished() on future")
+        key.attachment.asInstanceOf[ConnectFuture].finished
+        logger.debug("connect is now finished")
+    }
+
+    /**
+     * Connect is thread safe
+     */
+    def connect(hostAddress: InetSocketAddress):ConnectFuture = {
+        synchronized {
+            if (!initialized) {
+                fireWriteAndSelectLoop
+                initialized = true
+            }
+        }
+        val clientSocket = SocketChannel.open
+        clientSocket.configureBlocking(false)
+        val connected = clientSocket.connect(hostAddress)
+        val future = new ConnectFuture(clientSocket, connected)
+        if (connected) {
+            logger.info("Connected!")
+        } else {
+            logger.info("Not connected, deferring connection")
+            //clientSocket.register(selector, SelectionKey.OP_CONNECT, future)
+            registerQueue.synchronized {
+                registerQueue.add(new RegisterEntry(clientSocket, future, SelectionKey.OP_CONNECT))
+            }
+        }
+        logger.debug("waking up selector")
+        selector.wakeup
+        future
+    }
 
     protected def read(key: SelectionKey):Unit = {
         //logger.debug("read() called on channel: " + key.channel)
@@ -382,20 +508,11 @@ abstract class AbstractNioEndpoint(
             } else if (channelState.inMessage && channelState.buffer.size >= channelState.messageSize) {
                 val message = channelState.buffer.consumeBytes(channelState.messageSize)
                 val size = channelState.messageSize
-                // now complete the read in a separate thread
-                //readExecutor.execute(new Runnable {
-                //    override def run = {
-                //        channelHandler.processData(socketChannel, message, size)
-                //    }
-                //})
                 channelHandler.processData(socketChannel, message, size)
                 channelState.reset
             } else {
                 shouldContinue = false
             }
         }
-
-
     }
-
 }

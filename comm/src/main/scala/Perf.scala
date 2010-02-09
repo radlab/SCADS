@@ -3,6 +3,7 @@ import edu.berkeley.cs.scads._
 import org.apache.avro.util._
 
 
+/*
 class TrivialChannelManager extends AvroChannelManagerImpl[Record, Record] {
 	def receiveMessage(src: RemoteNode, msg: Record): Unit = {
 		null
@@ -35,3 +36,4 @@ object PerfReceiver {
 		mgr.startListener(9000)
 	}
 }
+*/

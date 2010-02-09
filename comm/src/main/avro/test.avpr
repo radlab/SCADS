@@ -6,7 +6,10 @@
 		{"name": "Record", "type": "record", "fields": [
 			{"name": "key", "type": "string"},
 			{"name": "value", "type": "string"}]
-		}
+		},
+        {"name": "TestMsg", "type": "record", "fields": [
+            {"name": "payload", "type": "string"}
+        ]}  
 	]
 }
 

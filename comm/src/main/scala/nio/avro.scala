@@ -7,6 +7,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.{SocketChannel,NotYetConnectedException}
 
 import java.util.HashMap
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
 
 import org.apache.avro.io._
@@ -14,7 +15,6 @@ import org.apache.avro.ipc._
 import org.apache.avro.specific._
 
 abstract class NioAvroChannelManagerBase[SendMsgType <: SpecificRecord,RecvMsgType <: SpecificRecord]
-    (private val readExecutor: Executor)
     (implicit sendManifest: scala.reflect.Manifest[SendMsgType], 
      recvManifest: scala.reflect.Manifest[RecvMsgType])
     extends AvroChannelManager[SendMsgType, RecvMsgType] with ChannelHandler {
@@ -23,86 +23,69 @@ abstract class NioAvroChannelManagerBase[SendMsgType <: SpecificRecord,RecvMsgTy
 	private val msgWriter = new SpecificDatumWriter(sendManifest.erasure.asInstanceOf[Class[SendMsgType]])
 	private val msgRecvClass = recvManifest.erasure.asInstanceOf[Class[RecvMsgType]]
 
-    protected val endpoint: AbstractNioEndpoint
-
-    private val buffer = new ByteArrayOutputStream(8192)
-    private val encoder = new BinaryEncoder(buffer)
-
-    private var inBulkModeMap = new HashMap[InetSocketAddress, Boolean] 
-    
-    override def startBulk(dest: RemoteNode) = {
-        inBulkModeMap.synchronized {
-            val sockAddr = dest.getInetSocketAddress
-            val mode = inBulkModeMap.get(sockAddr)
-            if (mode)
-                throw new IllegalStateException("Already in bulk mode")
-            inBulkModeMap.put(sockAddr, true)
+    protected val endpoint: NioEndpoint = new NioEndpoint(this)
+    endpoint.acceptEventHandler = new NioAcceptEventHandler {
+        override def acceptEvent(channel: SocketChannel) = {
+            registerReverseMap(channel)
+        }
+    }
+    endpoint.connectEventHandler = new NioConnectEventHandler {
+        override def connectEvent(channel: SocketChannel) = {
+            registerReverseMap(channel)
         }
     }
 
-    override def endBulk(dest: RemoteNode) = {
-        inBulkModeMap.synchronized {
-            val sockAddr = dest.getInetSocketAddress
-            val mode = inBulkModeMap.get(sockAddr)
-            if (!mode)
-                throw new IllegalStateException("not already in bulk mode")
-            inBulkModeMap.remove(sockAddr)
-            val channel = endpoint.getChannelForInetSocketAddress(sockAddr)
-            endpoint.flushBulk(channel)
-        }
+    private val socketAddrReverseMap = new ConcurrentHashMap[SocketChannel, RemoteNode]
+
+    private def registerReverseMap(channel: SocketChannel) = {
+        socketAddrReverseMap.put(
+                channel, 
+                RemoteNode(channel.socket.getInetAddress.getHostName, channel.socket.getPort))
+    }
+
+    private def getChannel(dest: RemoteNode):SocketChannel = {
+        val sockAddr = dest.getInetSocketAddress
+        val channel = endpoint.getChannelForInetSocketAddress(sockAddr)
+        if (channel != null) return channel
+        val future = endpoint.connect(sockAddr)
+        future.await
+        future.clientSocket
+    }
+
+    override def sendMessageBulk(dest: RemoteNode, msg: SendMsgType): Unit = {
+        val channel = getChannel(dest)
+        val buffer = new ByteArrayOutputStream(128)
+        val encoder = new BinaryEncoder(buffer)
+        msgWriter.write(msg, encoder)
+        endpoint.sendBulk(channel, ByteBuffer.wrap(buffer.toByteArray), true)
+
     }
     
 	override def sendMessage(dest: RemoteNode, msg: SendMsgType):Unit = {
-        val sockAddr = dest.getInetSocketAddress
-        val channel = endpoint.getChannelForInetSocketAddress(sockAddr)
-        if (channel == null)
-            throw new NotYetConnectedException
-        buffer.reset
-        msgWriter.write(msg.asInstanceOf[Object], encoder)
-        inBulkModeMap.synchronized {
-            val mode = inBulkModeMap.get(sockAddr)
-            if (!mode) {
-                endpoint.send(channel, ByteBuffer.wrap(buffer.toByteArray), null, true)
-            } else {
-                endpoint.sendBulk(channel, ByteBuffer.wrap(buffer.toByteArray), true)
-            }
-        }
+        val channel = getChannel(dest)
+        val buffer = new ByteArrayOutputStream(128)
+        val encoder = new BinaryEncoder(buffer)
+        msgWriter.write(msg, encoder)
+        endpoint.send(channel, ByteBuffer.wrap(buffer.toByteArray), null, true)
+    }
+
+    override def flush: Unit = {
+        endpoint.flushAllBulk
+    }
+
+    override def startListener(port: Int): Unit = {
+        endpoint.serve(new InetSocketAddress("localhost", port))
     }
 
     override def processData(socket: SocketChannel, data: Array[Byte], count: Int) = {
         val inStream = new BinaryDecoder(new ByteBufferInputStream(java.util.Arrays.asList(ByteBuffer.wrap(data))))
         val msg = msgRecvClass.newInstance
-        msgReader.read(msg.asInstanceOf[Object], inStream)
-        //receiveMessage(new RemoteNode(socket.socket.getInetAddress.getHostName, socket.socket.getPort), msg)
-        receiveMessage(null, msg)
+        msgReader.read(msg, inStream)
+        receiveMessage(socketAddrReverseMap.get(socket), msg)
     }
 
     override def handleException(exception: Exception) = {
         //TODO: do something better
         exception.printStackTrace
     }
-}
-
-abstract class NioAvroServer[SendMsgType <: SpecificRecord,RecvMsgType <: SpecificRecord]
-    (private val hostAddr: InetSocketAddress,
-     readExecutor: Executor)
-    (implicit sendManifest: scala.reflect.Manifest[SendMsgType], 
-     recvManifest: scala.reflect.Manifest[RecvMsgType])
-    extends NioAvroChannelManagerBase[SendMsgType,RecvMsgType](readExecutor)(sendManifest,recvManifest) {
-
-    override protected val endpoint = new NioServer(hostAddr, readExecutor, this)
-
-    def serve = endpoint.serve
-}
-
-
-abstract class NioAvroClient[SendMsgType <: SpecificRecord,RecvMsgType <: SpecificRecord]
-    (readExecutor: Executor)
-    (implicit sendManifest: scala.reflect.Manifest[SendMsgType], 
-     recvManifest: scala.reflect.Manifest[RecvMsgType])
-    extends NioAvroChannelManagerBase[SendMsgType,RecvMsgType](readExecutor)(sendManifest,recvManifest) {
-
-    override protected val endpoint = new NioClient(readExecutor, this)
-
-    def connect(hostAddress: InetSocketAddress):ConnectFuture = endpoint.asInstanceOf[NioClient].connect(hostAddress)
 }
