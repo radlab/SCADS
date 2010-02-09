@@ -1,15 +1,24 @@
 {
-	"namespace": "edu.berkeley.cs.scads",
-	"protocol": "Storage",
+	"namespace": "edu.berkeley.cs.scads.test",
+	"protocol": "Test",
 
 	"types": [
 		{"name": "Record", "type": "record", "fields": [
 			{"name": "key", "type": "string"},
 			{"name": "value", "type": "string"}]
 		},
-        {"name": "TestMsg", "type": "record", "fields": [
-            {"name": "payload", "type": "string"}
-        ]}  
+    {"name": "TestMsg", "type": "record", "fields": [
+      {"name": "payload", "type": "string"}
+    ]}  
+		{"name": "IntRec", "type": "record", "fields": [
+			{"name": "f1", "type": "int"}
+		]},
+		{"name": "StringRec", "type": "record", "fields": [
+			{"name": "f1", "type": "string"}
+		]},
+    {"name": "TestMsg", "type": "record", "fields": [
+			{"name": "payload", "type": "string"}
+    ]}
 	]
 }
 
