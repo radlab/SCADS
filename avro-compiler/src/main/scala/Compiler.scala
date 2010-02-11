@@ -1,7 +1,7 @@
 package edu.berkeley.cs.scads.avro.compiler
 
 import java.util.{ArrayList, Collection => JCollection}
-import java.io.File
+import java.io.{File,FileOutputStream,PrintWriter}
 import org.apache.avro.Schema
 import org.apache.avro.Schema.{Type,Field}
 import org.apache.avro.Schema.Field.Order
@@ -17,7 +17,16 @@ object CompilerMain {
         val jsonFileName = args(0)
         val jsonFile = new File(jsonFileName)
         val protocol = Protocol.parse(jsonFile)
-        new Compiler(protocol).compile
+        val output = new Compiler(protocol).compile
+        if (args.length > 1) {
+            val outputFile = new File(args(1))
+            val outputStream = new FileOutputStream(outputFile)
+            val printWriter = new PrintWriter(outputStream)
+            printWriter.println(output)
+            printWriter.flush
+            printWriter.close
+        } else 
+            println(output)
     }
 }
 
@@ -38,23 +47,41 @@ class Compiler(val protocol: Protocol) {
     case class AvroRecordClass(val schema: Schema) extends AvroClass(schema.getName)
     // this class is for all the union interfaces that need to be defined
     case class AvroUnionInterfaceClass(_className: String) extends AvroClass(_className)
-    case class AvroFixedClass(_className: String) extends AvroClass(_className)
+
+    // --- special cases --- //
+    case class AvroFixedClass(val schema: Schema) extends AvroClass(schema.getName)
+    case class AvroEnumClass(val schema: Schema) extends AvroClass(schema.getName)
 
     // -- lists and maps contained within unions -- //
     // this class is for arrays that live within unions,
-    case class AvroUnionListClass(val schema: Schema) extends AvroClass("UnionList")
+    case class AvroUnionListClass(val schema: Schema) extends AvroPrimitiveClass("UnionList_" + schema.getElementType.getName, "List[" + getAvroJavaClassName(schema.getElementType, null, null) + "]", "AvroUnionListClass") {
+        schema.getElementType.getType match {
+            case Type.ARRAY => throw new UnsupportedFeatureException("Cannot support arrays of arrays")
+            case Type.MAP   => throw new UnsupportedFeatureException("Cannot support arrays of maps")
+            case Type.UNION => throw new UnsupportedFeatureException("Cannot support arrays of unions")
+            case _ => /* no op */
+        }
+    }
     // this class is for maps that live within unions,
-    case class AvroUnionMapClass(val schema: Schema) extends AvroClass("UnionMap")
+    case class AvroUnionMapClass(val schema: Schema) extends AvroPrimitiveClass("UnionMap_" + schema.getValueType.getName, "scala.collection.Map[String, " +getAvroJavaClassName(schema.getValueType, null, null) + "]", "AvroUnionMapClass") {
+        schema.getValueType.getType match {
+            case Type.ARRAY => throw new UnsupportedFeatureException("Cannot support maps of arrays")
+            case Type.MAP   => throw new UnsupportedFeatureException("Cannot support maps of maps")
+            case Type.UNION => throw new UnsupportedFeatureException("Cannot support maps of unions")
+            case _ => /* no op */
+        }
+    }
+
 
     // --- primitives contained within unions --- //
-    case object AvroIntClass extends AvroClass("AvroInt")
-    case object AvroLongClass extends AvroClass("AvroLong")
-    case object AvroFloatClass extends AvroClass("AvroFloat")
-    case object AvroDoubleClass extends AvroClass("AvroDouble")
-    case object AvroEnumClass extends AvroClass("AvroEnum")
-    case object AvroBooleanClass extends AvroClass("AvroBoolean")
-    case object AvroStringClass extends AvroClass("AvroString")
-    case object AvroBytesClass extends AvroClass("AvroBytes")
+    abstract class AvroPrimitiveClass(_className: String, val primitiveClassName: String, val wrapperClassName: String) extends AvroClass(_className) 
+    case object AvroIntClass extends AvroPrimitiveClass("AvroInt", "Int", "AvroIntClass")
+    case object AvroLongClass extends AvroPrimitiveClass("AvroLong", "Long", "AvroLongClass")
+    case object AvroFloatClass extends AvroPrimitiveClass("AvroFloat", "Float", "AvroFloatClass")
+    case object AvroDoubleClass extends AvroPrimitiveClass("AvroDouble", "Double", "AvroDoubleClass")
+    case object AvroBooleanClass extends AvroPrimitiveClass("AvroBoolean", "Boolean", "AvroBooleanClass")
+    case object AvroStringClass extends AvroPrimitiveClass("AvroString", "org.apache.avro.util.Utf8", "AvroStringClass")
+    case object AvroBytesClass extends AvroPrimitiveClass("AvroBytes", "java.nio.ByteBuffer", "AvroBytesClass")
     
 
     // Maps Record name (Class name) to a list of Union Interfaces
@@ -63,10 +90,41 @@ class Compiler(val protocol: Protocol) {
     private val classMap = new HashMap[AvroClass, List[AvroUnionInterfaceClass]]
 
     private val generator = new AvroCompilerGenerator
+    private val conversionGenerator = new ConversionGenerator
+
+    class ConversionGenerator extends Generator[AvroPrimitiveClass] {
+        protected def generate(elm: AvroPrimitiveClass)(implicit sb: StringBuilder, indnt: Indentation):Unit = {
+            indent {
+                classMap.get(elm).get.foreach( unionIfaceClass => {
+                    output(
+                        "implicit def " + elm.className + "2" + unionIfaceClass.className + 
+                        "(primitive: " + elm.primitiveClassName + "): " + unionIfaceClass.className + " = {")
+                    indent {
+                        output("new " + elm.className + "(primitive)")    
+                    }
+                    output("}")
+                })
+            }
+        }
+    }
 
     class AvroCompilerGenerator extends Generator[AvroClass] {
         protected def generate(elm: AvroClass)(implicit sb: StringBuilder, indnt: Indentation):Unit = {
             elm match {
+                case union: AvroUnionInterfaceClass => {
+                    output("sealed trait " + union.className + " extends UnionInterface")
+                }
+                case primitive: AvroPrimitiveClass => {
+                    val str1 = "class " + primitive.className + "(_value: " + primitive.primitiveClassName + ") extends PrimitiveWrapper["
+                    val str2 = primitive.primitiveClassName
+                    val str3 = "](_value)"
+                    var str4 = ""
+                    if (!classMap.get(primitive).get.isEmpty) {
+                        str4 += " with "
+                        str4 += classMap.get(primitive).get.map(_.className.trim).mkString(""," with ","")
+                    }
+                    output(str1+str2+str3+str4)
+                }
                 case rec: AvroRecordClass => {
                     outputPartial("case class " + rec.className + " extends org.apache.avro.specific.SpecificRecordBase")
                     outputPartial(" with org.apache.avro.specific.SpecificRecord")
@@ -79,21 +137,24 @@ class Compiler(val protocol: Protocol) {
                         iterateRecordFields(rec.schema, (fieldName, field) => {
                             val fieldSchema = field.schema
                             fieldSchema.getType match { 
-                                case Type.ARRAY => output("array")
+                                case Type.ARRAY => 
+                                    output("var " + fieldName + ":List[" + getAvroJavaClassName(fieldSchema.getElementType, fieldName, fieldSchema) + "] = null")
                                 case Type.BOOLEAN => 
                                     output("var " + fieldName + ":Boolean = false")
                                 case Type.BYTES =>
                                     output("var " + fieldName + ":java.nio.ByteBuffer = null")
                                 case Type.DOUBLE =>
                                     output("var " + fieldName + ":Double = 0.0")
-                                case Type.ENUM => output("enum")
+                                case Type.ENUM => 
+                                    output("var " + fieldName + ":" + fieldSchema.getName + " = null")
                                 case Type.FLOAT =>
                                     output("var " + fieldName + ":Float = 0.0")
                                 case Type.INT => 
                                     output("var " + fieldName + ":Int = 0")
                                 case Type.LONG => 
                                     output("var " + fieldName + ":Long = 0")
-                                case Type.MAP   => output("map")
+                                case Type.MAP   => 
+                                    output("var " + fieldName + ":scala.collection.Map[String, " + getAvroJavaClassName(fieldSchema.getValueType, fieldName, fieldSchema) + "] = null")
                                 case Type.NULL =>
                                     output("var " + fieldName + ":Object = null")
                                 case Type.RECORD => 
@@ -105,14 +166,92 @@ class Compiler(val protocol: Protocol) {
                                     output("var " + fieldName + ":" + unionInterfaceName + " = null")
                             }
                         })
+
+                        output("private def wrapUnion(value: Object, fieldName:String):UnionInterface = value match {")
+                        indent {
+                            output("case null => null")
+
+                            classMap.keys.filter(_.isInstanceOf[AvroPrimitiveClass]).foreach( clazz => {
+                                clazz match {
+                                    case AvroIntClass => 
+                                        output("case int:java.lang.Integer => new AvroInt(int.intValue)")
+                                    case AvroLongClass =>
+                                        output("case long:java.lang.Long => new AvroLong(long.longValue)")
+                                    case AvroDoubleClass => 
+                                        output("case double:java.lang.Double => new AvroDouble(double.doubleValue)")
+                                    case AvroFloatClass => 
+                                        output("case float:java.lang.Float => new AvroFloat(float.floatValue)")
+                                    case AvroBooleanClass => 
+                                        output("case boolean:java.lang.Boolean => new AvroBoolean(boolean.booleanValue)")
+                                    case AvroStringClass => 
+                                        output("case string:org.apache.avro.util.Utf8 => new AvroString(string)")
+                                    case AvroBytesClass => 
+                                        output("case bytes:java.nio.ByteBuffer => new AvroBytes(bytes)")
+                                    case _ => /* no op */ 
+                                }
+                            })
+                            
+                            output("case _ => {")
+                            indent {
+                                output("fieldName match {")
+                                iterateRecordFields(rec.schema, (fieldName, field) => {
+                                    if (field.schema.getType == Type.UNION) {
+                                        indent {
+                                            output("case \"" + fieldName + "\" => value match {")
+                                            indent {
+                                                iterateUnionTypes(field.schema, schema => {
+                                                    schema.getType match { 
+                                                        case Type.ARRAY => 
+                                                            output("case array: org.apache.avro.generic.GenericArray[_]" +  
+                                                                    " => new UnionList_" + schema.getElementType.getName + 
+                                                                    "(ScalaLib.convertGenericArrayToList(array))")
+                                                        case Type.MAP =>
+                                                            output("case map: java.util.Map[String,_]" + 
+                                                                    " => new UnionMap_" + schema.getValueType.getName + 
+                                                                    "(ScalaLib.convertJMapToMap(map.asInstanceOf[java.util.Map[String," +
+                                                                    getAvroJavaClassName(schema.getValueType, fieldName, rec.schema) + "]]))")
+                                                        case _ => /* no op */
+                                                    }
+                                                })
+                                            }
+                                            output("}")
+                                        }
+                                    }
+                                })
+                                indent { output("case _ => throw new org.apache.avro.AvroRuntimeException(\"here\")") }
+                                output("}")
+                            }
+                            output("}")
+                        }
+                        output("}")
+                        
+                        output("private def getSchemaForFieldName(fieldName: String):org.apache.avro.Schema = {")
+                        indent {
+                            output("getSchema.getFields.get(fieldName).schema")
+                        }
+                        output("}")
+
+                        output("override def getSchema():org.apache.avro.Schema = SCHEMA$")
                         
                         output("override def get(field$: Int):Object = {")
                         indent {
                             output("field$ match {")
                             indent {
                                 fieldsInOrder(rec.schema).foreach(field => {
-                                    output("case " + field._2.pos + " => " + field._1) 
+                                    val str1 = "case " + field._2.pos + " => "
+                                    field._2.schema.getType match {
+                                        case Type.ARRAY => output(str1 + "ScalaLib.convertListToGenericArray(" + field._1 + ", getSchemaForFieldName(\"" + field._1 +"\"))")
+                                        case Type.MAP   => output(str1 + "ScalaLib.convertMapToJMap(" + field._1 + ")")
+                                        case Type.UNION => output(str1 + "ScalaLib.unwrapUnion(" + field._1 + ", getSchemaForFieldName(\"" + field._1 +"\"))") 
+                                        case Type.INT => output(str1+field._1+".asInstanceOf[java.lang.Integer]")
+                                        case Type.LONG => output(str1+field._1+".asInstanceOf[java.lang.Long]")
+                                        case Type.DOUBLE => output(str1+field._1+".asInstanceOf[java.lang.Double]")
+                                        case Type.FLOAT => output(str1+field._1+".asInstanceOf[java.lang.Float]")
+                                        case Type.BOOLEAN => output(str1+field._1+".asInstanceOf[java.lang.Boolean]")
+                                        case _ => output(str1 + field._1) 
+                                    }
                                 })
+                                output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad index\")")
                             }
                             output("}")
                         }
@@ -123,24 +262,27 @@ class Compiler(val protocol: Protocol) {
                             output("field$ match {")
                             indent {
                                 fieldsInOrder(rec.schema).foreach(field => {
-                                    val str1 = "case " + field._2.pos + " => " + field._1 + " = value$.asInstanceOf[" 
+                                    val str1 = "case " + field._2.pos + " => " + field._1 + " = "
                                     val str2 = field._2.schema.getType match {
-                                        case Type.ARRAY => "array"
-                                        case Type.BOOLEAN => "Boolean"
-                                        case Type.BYTES => "java.nio.ByteBuffer"
-                                        case Type.DOUBLE => "Double"
-                                        case Type.ENUM => "enum"
-                                        case Type.FLOAT => "Float"
-                                        case Type.INT => "Int"
-                                        case Type.LONG => "Long"
-                                        case Type.MAP   => "map"
-                                        case Type.NULL => "Object"
-                                        case Type.RECORD => field._2.schema.getName 
-                                        case Type.STRING => "org.apache.avro.util.Utf8"
-                                        case Type.UNION => rec.schema.getName + "_" + field._1 + "_Iface"
+                                        case Type.UNION => 
+                                            "wrapUnion(value$,\"" + field._1 + "\").asInstanceOf[" + rec.schema.getName + "_" + field._1 + "_Iface]"
+                                        case Type.ARRAY => 
+                                            "ScalaLib.convertGenericArrayToList(value$.asInstanceOf[org.apache.avro.generic.GenericArray[" +  
+                                            getAvroJavaClassName(field._2.schema.getElementType, field._1, rec.schema) + "])"
+                                        case Type.MAP =>
+                                            "ScalaLib.convertJMapToMap(value$.asInstanceOf[java.util.Map[String, " +  
+                                            getAvroJavaClassName(field._2.schema.getValueType, field._1, rec.schema) + "]])"
+                                        case Type.RECORD =>
+                                            "value$.asInstanceOf[" + field._2.schema.getName + "]"
+                                        case Type.ENUM => 
+                                            "value$.asInstanceOf[" + field._2.schema.getName + "]"
+                                        case _ =>
+                                            "value$.asInstanceOf[" + 
+                                            getAvroJavaClassName(field._2.schema, field._1, rec.schema) + "]"
                                     }
-                                    output(str1+str2+"]") 
+                                    output(str1 + str2)
                                 })
+                                output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad index\")")
                             }
                             output("}")
                         }
@@ -150,6 +292,31 @@ class Compiler(val protocol: Protocol) {
                 }
             } 
         }
+    }
+
+    private def getAvroJavaClassName(schema: Schema, fieldName: String, record: Schema):String = schema.getType match {
+        case Type.ARRAY => "org.apache.avro.generic.GenericArray[" + getAvroJavaClassName(schema.getElementType, null, record) + "]"
+        case Type.BOOLEAN => "Boolean"
+        case Type.BYTES => "java.nio.ByteBuffer"
+        case Type.DOUBLE => "Double"
+        case Type.ENUM => schema.getName 
+        case Type.FLOAT => "Float"
+        case Type.INT => "Int"
+        case Type.LONG => "Long"
+        case Type.MAP   => "java.util.Map[String, " + getAvroJavaClassName(schema.getValueType, null, record) + "]"
+        case Type.NULL => "java.lang.Void"
+        case Type.RECORD => schema.getName 
+        case Type.STRING => "org.apache.avro.util.Utf8"
+        case Type.UNION => 
+            val str1 = record match {
+                case null => "anonRecord"
+                case _    => record.getName
+            }
+            val str2 = fieldName match {
+                case null => "anonField"
+                case _    => fieldName
+            }
+            str1 + "_" + str2 + "_Iface"
     }
 
     private implicit def mkList[T](collection: JCollection[T]):List[T] = {
@@ -167,7 +334,7 @@ class Compiler(val protocol: Protocol) {
             throw new UnsupportedFeatureException("Message constructs not yet supported")
     }
 
-    def compile = {
+    def compile:String = {
         // Step 0: Validate
         validate
 
@@ -190,15 +357,39 @@ class Compiler(val protocol: Protocol) {
         println(classMap)
 
         val sb = new StringBuilder
+        sb.append("// auto generated scala avro file //\n")
         sb.append("package ")
         sb.append(namespace)
         sb.append("\n\n")
+        sb.append("import edu.berkeley.cs.scads.avro.compiler.{UnionInterface, PrimitiveWrapper, ScalaLib}\n\n")
 
-        classMap.keys.filter(_.isInstanceOf[AvroRecordClass]).foreach(record => {
-            sb.append(generator(record))
-        })
+        sb.append("// Union Interfaces //\n")
+        classMap.keys.filter(_.isInstanceOf[AvroUnionInterfaceClass]).foreach(c => sb.append(generator(c))) 
+        sb.append("\n\n")
 
-        println(sb.toString)
+        if (!classMap.keys.filter(_.isInstanceOf[AvroPrimitiveClass]).toList.isEmpty) {
+            sb.append("// Primitive Class Wrappers //\n")
+            classMap.keys.filter(_.isInstanceOf[AvroPrimitiveClass]).foreach(c => sb.append(generator(c)))
+            sb.append("\n\n")
+
+            sb.append("// Implicit Conversion Helpers //\n")
+            sb.append("object PrimitiveConversions {\n")
+            classMap.keys.filter(_.isInstanceOf[AvroPrimitiveClass]).foreach(c => sb.append(conversionGenerator(c.asInstanceOf[AvroPrimitiveClass])))
+            sb.append("}\n\n")
+        }
+
+        if (!classMap.keys.filter(_.isInstanceOf[AvroUnionListClass]).toList.isEmpty) {
+            sb.append("// Union List Class Wrappers //\n")
+            classMap.keys.filter(_.isInstanceOf[AvroUnionListClass]).foreach(c => sb.append(generator(c)))
+            sb.append("\n\n")
+
+        
+        }
+
+        sb.append("// Record Classes //\n")
+        classMap.keys.filter(_.isInstanceOf[AvroRecordClass]).foreach(c => sb.append(generator(c)))
+
+        sb.toString
     }
 
     private def fieldsInOrder(schema: Schema):List[(String,Field)] = {
@@ -237,15 +428,17 @@ class Compiler(val protocol: Protocol) {
                 iterateUnionTypes(fieldSchema, (unionSchema) => {
                     unionSchema.getType match {
                         case Type.ARRAY  => 
-                            addInterface(AvroUnionListClass(unionSchema.getElementType), unionInterfaceClass)
+                            addInterface(AvroUnionListClass(unionSchema), unionInterfaceClass)
                         case Type.BOOLEAN =>
                             addInterface(AvroBooleanClass, unionInterfaceClass)
                         case Type.BYTES  =>
                             addInterface(AvroBytesClass, unionInterfaceClass)
+                        case Type.ENUM =>
+                            addInterface(AvroEnumClass(unionSchema), unionInterfaceClass)
                         case Type.DOUBLE  =>
                             addInterface(AvroDoubleClass, unionInterfaceClass)
                         case Type.FIXED  =>
-                            addInterface(AvroFixedClass(unionSchema.getName), unionInterfaceClass)
+                            addInterface(AvroFixedClass(unionSchema), unionInterfaceClass)
                         case Type.FLOAT  =>
                             addInterface(AvroFloatClass, unionInterfaceClass)
                         case Type.INT  =>
@@ -253,7 +446,7 @@ class Compiler(val protocol: Protocol) {
                         case Type.LONG  =>
                             addInterface(AvroLongClass, unionInterfaceClass)
                         case Type.MAP  =>
-                            addInterface(AvroUnionMapClass(schema.getValueType), unionInterfaceClass)
+                            addInterface(AvroUnionMapClass(unionSchema), unionInterfaceClass)
                         case Type.RECORD => 
                             addInterface(AvroRecordClass(unionSchema), unionInterfaceClass)
                         case Type.STRING =>  
