@@ -2,7 +2,6 @@ package edu.berkeley.cs.scads.comm
 
 import org.specs._
 import org.specs.runner.JUnit4
-import scala.collection.jcl.Conversions
 import org.apache.log4j.BasicConfigurator
 
 object BufferSpec extends SpecificationWithJUnit("Circular buffer spec") {

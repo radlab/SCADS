@@ -10,8 +10,6 @@ import org.apache.avro.specific._
 
 import scala.collection.jcl.Conversions._
 
-import edu.berkeley.cs.scads.Record
-
 case class RemoteNode(hostname:String, port: Int) {
     private val socketAddress = new InetSocketAddress(hostname, port) 
     def getInetSocketAddress:InetSocketAddress = socketAddress 

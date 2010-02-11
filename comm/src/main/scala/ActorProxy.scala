@@ -8,7 +8,7 @@ import scala.actors._
 
 import org.apache.log4j.Logger
 
-class StorageEchoServer extends AvroChannelManager[StorageResponse, StorageRequest] {
+class StorageEchoServer extends NioAvroChannelManagerBase[StorageResponse, StorageRequest] {
 	def receiveMessage(src: RemoteNode, req: StorageRequest): Unit = {
 		val resp = new StorageResponse
 		resp.dest = req.src
@@ -16,6 +16,6 @@ class StorageEchoServer extends AvroChannelManager[StorageResponse, StorageReque
 	}
 }
 
-class StorageActorProxy extends AvroChannelManager[StorageRequest, StorageResponse] {
+class StorageActorProxy extends NioAvroChannelManagerBase[StorageRequest, StorageResponse] {
 	def receiveMessage(src: RemoteNode, msg: StorageResponse): Unit = ActorRegistry.sendMessage(msg.dest, (src, msg))
 }

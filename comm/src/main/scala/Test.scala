@@ -1,9 +1,6 @@
-package edu.berkeley.cs.scads
+package edu.berkeley.cs.scads.comm
 
 import org.apache.avro.util.Utf8
-import edu.berkeley.cs.scads.comm.PrintAvroChannelManager
-import edu.berkeley.cs.scads.comm.EchoAvroChannelManager
-import edu.berkeley.cs.scads.comm.RemoteNode
 
 object Receiver {
     val mgr = new PrintAvroChannelManager
@@ -24,8 +21,8 @@ object Sender {
     def send(port: Int):Unit = {
         (1 to 10).foreach( i => {
             val record = new Record
-            record.key = new Utf8("My Key " + i)
-            record.value = new Utf8("My Value " + i)
+            //record.key = new Utf8("My Key " + i)
+            //record.value = new Utf8("My Value " + i)
             mgr.sendMessage(RemoteNode("localhost", port), record)
         })
     }
