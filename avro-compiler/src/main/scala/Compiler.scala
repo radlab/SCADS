@@ -115,7 +115,7 @@ class Compiler(val protocol: Protocol) {
                     output("sealed trait " + union.className + " extends UnionInterface")
                 }
                 case primitive: AvroPrimitiveClass => {
-                    val str1 = "class " + primitive.className + "(_value: " + primitive.primitiveClassName + ") extends PrimitiveWrapper["
+                    val str1 = "case class " + primitive.className + "(_value: " + primitive.primitiveClassName + ") extends PrimitiveWrapper["
                     val str2 = primitive.primitiveClassName
                     val str3 = "](_value)"
                     var str4 = ""
@@ -126,7 +126,7 @@ class Compiler(val protocol: Protocol) {
                     output(str1+str2+str3+str4)
                 }
                 case rec: AvroRecordClass => {
-                    outputPartial("case class " + rec.className + " extends org.apache.avro.specific.SpecificRecordBase")
+                    outputPartial("case class " + rec.className + "() extends org.apache.avro.specific.SpecificRecordBase")
                     outputPartial(" with org.apache.avro.specific.SpecificRecord")
                     if (!classMap.get(rec).get.isEmpty)
                         outputPartial(" with ")
@@ -213,6 +213,7 @@ class Compiler(val protocol: Protocol) {
                                                         case _ => /* no op */
                                                     }
                                                 })
+                                                output("case _ => throw new org.apache.avro.AvroRuntimeException(\"here\")") 
                                             }
                                             output("}")
                                         }
@@ -268,7 +269,7 @@ class Compiler(val protocol: Protocol) {
                                             "wrapUnion(value$,\"" + field._1 + "\").asInstanceOf[" + rec.schema.getName + "_" + field._1 + "_Iface]"
                                         case Type.ARRAY => 
                                             "ScalaLib.convertGenericArrayToList(value$.asInstanceOf[org.apache.avro.generic.GenericArray[" +  
-                                            getAvroJavaClassName(field._2.schema.getElementType, field._1, rec.schema) + "])"
+                                            getAvroJavaClassName(field._2.schema.getElementType, field._1, rec.schema) + "]])"
                                         case Type.MAP =>
                                             "ScalaLib.convertJMapToMap(value$.asInstanceOf[java.util.Map[String, " +  
                                             getAvroJavaClassName(field._2.schema.getValueType, field._1, rec.schema) + "]])"

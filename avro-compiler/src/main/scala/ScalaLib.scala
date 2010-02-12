@@ -15,12 +15,14 @@ trait UnionInterface
 
 object ScalaLib {
     def convertListToGenericArray[T](list: List[T], schema: Schema): GenericArray[T] = {
+        if (list == null) return null
         val g = new GenericData.Array[T](10, schema)
         list.foreach(g.add(_))
         g
     }
 
     def convertGenericArrayToList[T](genericArray: GenericArray[T]):List[T] = {
+        if (genericArray == null) return null
         val m = new scala.collection.mutable.ListBuffer[T]
         val iter = genericArray.iterator
         while(iter.hasNext)
@@ -29,10 +31,12 @@ object ScalaLib {
     }
 
     def convertJMapToMap[T](jmap: JMap[String, T]): MapIface[String, T] = {
+        if (jmap == null) return null
         Conversions.convertMap(jmap)
     }
 
     def convertMapToJMap[T](map: MapIface[String, T]): JMap[String, T] = {
+        if (map == null) return null
         val m = new java.util.HashMap[String,T]
         map.foreach(entry => m.put(entry._1, entry._2))
         m
