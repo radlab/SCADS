@@ -1,0 +1,10 @@
+{
+	"namespace": "edu.berkeley.cs.scads.comm.test",
+	"protocol": "Test",
+
+	"types": [
+		{"name": "TestUnion", "type": "record", "fields": [
+			{"name": "union", "type": ["bytes","int"]}]
+		}
+    ]
+}
