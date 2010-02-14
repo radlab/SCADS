@@ -1,7 +1,9 @@
 package edu.berkeley.cs.scads.test.helpers
 
-import org.apache.avro.specific.{SpecificRecord, SpecificDatumWriter}
-import org.apache.avro.io.BinaryEncoder
+import org.apache.avro.Schema
+import org.apache.avro.specific.{SpecificRecord, SpecificDatumWriter, SpecificDatumReader}
+import org.apache.avro.io.{BinaryEncoder,BinaryDecoder}
+import org.apache.avro.ipc.ByteBufferInputStream
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 
@@ -14,6 +16,12 @@ object Helpers {
         val encoder = new BinaryEncoder(buffer)
         msgWriter.write(msg, encoder)
         buffer.toByteArray
+    }
+
+    def bytesToMsg[T <: SpecificRecord](bytes: Array[Byte], newInstance: T):T = {
+        val msgReader = new SpecificDatumReader[T](newInstance.getSchema)
+        val inStream = new BinaryDecoder(new ByteBufferInputStream(java.util.Arrays.asList(ByteBuffer.wrap(bytes))))
+        msgReader.read(newInstance, inStream)
     }
 
 }

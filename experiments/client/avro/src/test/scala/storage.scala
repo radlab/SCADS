@@ -15,9 +15,12 @@ object StorageProtocolSpec extends SpecificationWithJUnit("StorageProtocol Speci
 
     "a storage protcol" should {
         "have a record such that" >> {
-            "records can be serialized" in {
+            "records can be serialized/deserialized" in {
                 val rec = Record("key1","value1")
-                Helpers.msgToBytes(rec)
+                val bytes = Helpers.msgToBytes(rec)
+                val rec2 = Helpers.bytesToMsg(bytes, new Record)
+                println(rec)
+                println(rec2)
             }
         }
     } 
