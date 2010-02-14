@@ -108,6 +108,8 @@ class Compiler(val protocol: Protocol) {
         }
     }
 
+    private def escapeQuotes(str: String):String = { str.replaceAll("\"","\\\\\"") }
+
     class AvroCompilerGenerator extends Generator[AvroClass] {
         protected def generate(elm: AvroClass)(implicit sb: StringBuilder, indnt: Indentation):Unit = {
             elm match {
@@ -126,46 +128,85 @@ class Compiler(val protocol: Protocol) {
                     output(str1+str2+str3+str4)
                 }
                 case rec: AvroRecordClass => {
-                    outputPartial("case class " + rec.className + "() extends org.apache.avro.specific.SpecificRecordBase")
+                    output("// minor optimization so that each new instance does not have to reparse the schema //")
+                    output("object " + rec.className + " {") 
+                    indent {
+                        output("val SCHEMA$ = org.apache.avro.Schema.parse(\"" + escapeQuotes(rec.schema.toString) + "\")")
+                    }
+                    output("}")
+
+                    outputPartial("case class " + rec.className)
+                    sb.append("(")
+                    var count = 0
+                    val numFields = rec.schema.getFields.size
+                    iterateRecordFields(rec.schema, (fieldName, field) => {
+                        val fieldSchema = field.schema
+                        fieldSchema.getType match { 
+                            case Type.ARRAY => 
+                                sb.append("var " + fieldName + ":List[" + getAvroJavaClassName(fieldSchema.getElementType, fieldName, fieldSchema) + "]")
+                            case Type.BOOLEAN => 
+                                sb.append("var " + fieldName + ":Boolean")
+                            case Type.BYTES =>
+                                sb.append("var " + fieldName + ":java.nio.ByteBuffer")
+                            case Type.DOUBLE =>
+                                sb.append("var " + fieldName + ":Double")
+                            case Type.ENUM => 
+                                throw new UnsupportedFeatureException("enums not supported at this time")
+                            case Type.FLOAT =>
+                                sb.append("var " + fieldName + ":Float")
+                            case Type.INT => 
+                                sb.append("var " + fieldName + ":Int")
+                            case Type.LONG => 
+                                sb.append("var " + fieldName + ":Long")
+                            case Type.MAP   => 
+                                sb.append("var " + fieldName + ":scala.collection.Map[String, " + getAvroJavaClassName(fieldSchema.getValueType, fieldName, fieldSchema) + "]")
+                            case Type.NULL =>
+                                sb.append("var " + fieldName + ":Void")
+                            case Type.RECORD => 
+                                sb.append("var " + fieldName + ":" + fieldSchema.getName)
+                            case Type.STRING => 
+                                sb.append("var " + fieldName + ":org.apache.avro.util.Utf8")
+                            case Type.UNION => 
+                                var unionInterfaceName = rec.schema.getName + "_" + fieldName + "_Iface"
+                                sb.append("var " + fieldName + ":" + unionInterfaceName)
+                        }
+                        if (count != numFields-1) sb.append(", ")
+                        count += 1
+                    })
+                    sb.append(") ")
+                    sb.append("extends org.apache.avro.specific.SpecificRecordBase")
                     outputPartial(" with org.apache.avro.specific.SpecificRecord")
                     if (!classMap.get(rec).get.isEmpty)
                         outputPartial(" with ")
                     outputPartial(classMap.get(rec).get.map(_.className.trim).mkString(""," with ",""))
                     output(" {")
                     indent {
-                        output("val SCHEMA$ = org.apache.avro.Schema.parse(\"" + rec.schema.toString.replaceAll("\"","\\\\\"") + "\")")
-                        iterateRecordFields(rec.schema, (fieldName, field) => {
-                            val fieldSchema = field.schema
-                            fieldSchema.getType match { 
-                                case Type.ARRAY => 
-                                    output("var " + fieldName + ":List[" + getAvroJavaClassName(fieldSchema.getElementType, fieldName, fieldSchema) + "] = null")
-                                case Type.BOOLEAN => 
-                                    output("var " + fieldName + ":Boolean = false")
-                                case Type.BYTES =>
-                                    output("var " + fieldName + ":java.nio.ByteBuffer = null")
-                                case Type.DOUBLE =>
-                                    output("var " + fieldName + ":Double = 0.0")
-                                case Type.ENUM => 
-                                    output("var " + fieldName + ":" + fieldSchema.getName + " = null")
-                                case Type.FLOAT =>
-                                    output("var " + fieldName + ":Float = 0.0")
-                                case Type.INT => 
-                                    output("var " + fieldName + ":Int = 0")
-                                case Type.LONG => 
-                                    output("var " + fieldName + ":Long = 0")
-                                case Type.MAP   => 
-                                    output("var " + fieldName + ":scala.collection.Map[String, " + getAvroJavaClassName(fieldSchema.getValueType, fieldName, fieldSchema) + "] = null")
-                                case Type.NULL =>
-                                    output("var " + fieldName + ":Object = null")
-                                case Type.RECORD => 
-                                    output("var " + fieldName + ":" + fieldSchema.getName + " = null")
-                                case Type.STRING => 
-                                    output("var " + fieldName + ":org.apache.avro.util.Utf8 = null")
-                                case Type.UNION => 
-                                    var unionInterfaceName = rec.schema.getName + "_" + fieldName + "_Iface"
-                                    output("var " + fieldName + ":" + unionInterfaceName + " = null")
-                            }
-                        })
+                        count = 0 
+                        if (numFields > 0) {
+                            outputPartial("def this() = this(")
+                            iterateRecordFields(rec.schema, (fieldName, field) => {
+                                val fieldSchema = field.schema
+                                fieldSchema.getType match { 
+                                    case Type.ARRAY => sb.append("null")
+                                    case Type.BOOLEAN => sb.append("false")
+                                    case Type.BYTES => sb.append("null")
+                                    case Type.DOUBLE => sb.append("0.0")
+                                    case Type.ENUM => throw new UnsupportedFeatureException("enums not supported at this time")
+                                    case Type.FLOAT => sb.append("0.0")
+                                    case Type.INT => sb.append("0")
+                                    case Type.LONG => sb.append("0")
+                                    case Type.MAP   => sb.append("null")
+                                    case Type.NULL => sb.append("null")
+                                    case Type.RECORD => sb.append("null")
+                                    case Type.STRING => sb.append("null")
+                                    case Type.UNION => sb.append("null")
+                                }
+                                if (count != numFields-1) sb.append(", ")
+                                count += 1
+                            })
+                            sb.append(")\n") 
+                        }
+
 
                         output("private def wrapUnion(value: Object, fieldName:String):UnionInterface = value match {")
                         indent {
@@ -232,7 +273,9 @@ class Compiler(val protocol: Protocol) {
                         }
                         output("}")
 
-                        output("override def getSchema():org.apache.avro.Schema = SCHEMA$")
+                        output("val SCHEMA$ = getSchema")
+
+                        output("override def getSchema():org.apache.avro.Schema = " + rec.className + ".SCHEMA$")
                         
                         output("override def get(field$: Int):Object = {")
                         indent {
@@ -358,11 +401,18 @@ class Compiler(val protocol: Protocol) {
         println(classMap)
 
         val sb = new StringBuilder
-        sb.append("// auto generated scala avro file //\n")
+        sb.append("/*\n")
+        sb.append(" * Auto generated scala avro file\n")
+        sb.append(" * avro scala compiler v1.0\n")
+        sb.append(" */\n\n")
         sb.append("package ")
         sb.append(namespace)
         sb.append("\n\n")
+
+        sb.append("// Runtime dependency imports //\n")
         sb.append("import edu.berkeley.cs.scads.avro.compiler.{UnionInterface, PrimitiveWrapper, ScalaLib}\n\n")
+
+
 
         sb.append("// Union Interfaces //\n")
         classMap.keys.filter(_.isInstanceOf[AvroUnionInterfaceClass]).foreach(c => sb.append(generator(c))) 
@@ -372,20 +422,26 @@ class Compiler(val protocol: Protocol) {
             sb.append("// Primitive Class Wrappers //\n")
             classMap.keys.filter(_.isInstanceOf[AvroPrimitiveClass]).foreach(c => sb.append(generator(c)))
             sb.append("\n\n")
-
-            sb.append("// Implicit Conversion Helpers //\n")
-            sb.append("object PrimitiveConversions {\n")
-            classMap.keys.filter(_.isInstanceOf[AvroPrimitiveClass]).foreach(c => sb.append(conversionGenerator(c.asInstanceOf[AvroPrimitiveClass])))
-            sb.append("}\n\n")
         }
 
+        /*
         if (!classMap.keys.filter(_.isInstanceOf[AvroUnionListClass]).toList.isEmpty) {
             sb.append("// Union List Class Wrappers //\n")
             classMap.keys.filter(_.isInstanceOf[AvroUnionListClass]).foreach(c => sb.append(generator(c)))
             sb.append("\n\n")
-
-        
         }
+        */
+
+        sb.append("// Protocol //\n")
+        sb.append("object " + name + " {\n")
+        sb.append("    val PROTOCOL = org.apache.avro.Protocol.parse(\"")
+        sb.append(escapeQuotes(protocol.toString))
+        sb.append("\")\n")
+        sb.append("// Implicit Conversion Helpers //\n")
+        sb.append("object AvroConversions {\n")
+        classMap.keys.filter(_.isInstanceOf[AvroPrimitiveClass]).foreach(c => sb.append(conversionGenerator(c.asInstanceOf[AvroPrimitiveClass])))
+        sb.append("}\n\n")
+        sb.append("}\n\n")
 
         sb.append("// Record Classes //\n")
         classMap.keys.filter(_.isInstanceOf[AvroRecordClass]).foreach(c => sb.append(generator(c)))
@@ -435,11 +491,11 @@ class Compiler(val protocol: Protocol) {
                         case Type.BYTES  =>
                             addInterface(AvroBytesClass, unionInterfaceClass)
                         case Type.ENUM =>
-                            addInterface(AvroEnumClass(unionSchema), unionInterfaceClass)
+                            throw new UnsupportedFeatureException("Enums not supported")
                         case Type.DOUBLE  =>
                             addInterface(AvroDoubleClass, unionInterfaceClass)
                         case Type.FIXED  =>
-                            addInterface(AvroFixedClass(unionSchema), unionInterfaceClass)
+                            throw new UnsupportedFeatureException("FIXED not supported")
                         case Type.FLOAT  =>
                             addInterface(AvroFloatClass, unionInterfaceClass)
                         case Type.INT  =>
