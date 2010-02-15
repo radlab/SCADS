@@ -1,4 +1,4 @@
-package edu.berkeley.cs.scads.model
+package edu.berkeley.cs.scads.piql
 
 import scala.collection.mutable.ArrayBuffer
 import org.apache.log4j.Logger
@@ -18,12 +18,12 @@ abstract class Index {
 	/**
 	 * Return a list of actions that would need to be executed in order to keep this index updated based on changes to the data it is indexing.
 	 */
-	def updateActions: Seq[Action]
+	def update: Unit
 
 	/**
 	 * Return a list of actions that would need to be executed if the data indexed is deleted.
 	 */
-	def deleteActions: Seq[Action]
+	def delete: Unit
 }
 
 /**
@@ -34,7 +34,6 @@ abstract class Index {
  * <li>target - the entity that is the target of the secondary index</li>
  * <li>field - the field that the index is being created over</li>
  * </ul>
- */
 class AttributeIndex(name: String, target: Entity, attr: Field) extends Index {
 	var oldValue: Field = null
 
@@ -57,3 +56,4 @@ class AttributeIndex(name: String, target: Entity, attr: Field) extends Index {
 
 	def deleteActions: Seq[Action] = null
 }
+*/

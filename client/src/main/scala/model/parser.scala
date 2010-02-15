@@ -1,4 +1,4 @@
-package edu.berkeley.cs.scads.model.parser
+package edu.berkeley.cs.scads.piql.parser
 
 import scala.util.parsing.combinator._
 import scala.util.parsing.combinator.syntactical._

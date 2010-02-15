@@ -1,47 +1,29 @@
-package edu.berkeley.cs.scads.model.parser
+package edu.berkeley.cs.scads.piql.parser
 
-import java.text.ParsePosition
 import scala.collection.mutable.HashMap
+import scala.collection.jcl.Conversions._
 
+import org.apache.avro.Schema
 
-
-/* Bound counterparts for some of the AST */
-abstract sealed class BoundTree
+object NoDuplicateMap {
+	def apply[A,B](pairs: List[(A,B)]) = {
+		Map(pairs:_*)
+	}
+}
 
 /* SCADS Spec that has been bound and is ready to be optimized */
 case class BoundSpec(entities: HashMap[String, BoundEntity], orphanQueries: HashMap[String, BoundQuery])
 
 /* BoundEntity and any queries that depend on its ThisParameter */
-case class BoundEntity(name: String, attributes: HashMap[String, AttributeType], keys: List[String]) {
+case class BoundEntity(name: String, keySchema: Schema, valueSchema: Schema) {
 	/* (target, relationshipName) -> BoundRelationship */
 	val relationships = new HashMap[(String, String), BoundRelationship]()
 	val queries = new HashMap[String, BoundQuery]()
 	val indexes = new scala.collection.mutable.ArrayBuffer[Index]()
 
-	def pkType:AttributeType ={
-		val parts = keys.map((k) => attributes.get(k) match {
-				case Some(at) => at
-				case None => throw InvalidPrimaryKeyException(name, k)
-		})
+  def namespace: String = "ent_" + name
 
-		if(parts.size == 1)
-			parts(0)
-		else
-			new CompositeType(parts)
-	}
-
-	def this(e: Entity) {
-		this(e.name, new HashMap[String, AttributeType](), e.keys)
-
-		e.attributes.foreach((a) => {
-			attributes.get(a.name) match {
-				case Some(_) => throw new DuplicateAttributeException(e.name, a.name)
-				case None => this.attributes.put(a.name, a.attrType)
-			}
-		})
-	}
-
-  def namespace: String = Namespaces.entity(name)
+	def attributes: Map[String, Schema] = Map(keySchema.getFields.map(f => f.name -> f.schema) ++ valueSchema.getFields.map(f => f.name -> f.schema):_*)
 }
 
 /* Bound Relationship */
@@ -68,31 +50,16 @@ case class BoundQuery(fetchTree: BoundFetch, parameters: List[BoundParameter], r
 case class BoundFetch(entity: BoundEntity, predicates: List[BoundPredicate], order: BoundOrder, join: BoundJoin)
 
 abstract sealed class BoundRange
-case class BoundLimit(lim: Field, max: Int) extends BoundRange
+case class BoundLimit(lim: BoundValue, max: Int) extends BoundRange
 object BoundUnlimited extends BoundRange
 
 /* Bound Values */
-object Unexecutable extends Exception
-abstract class BoundValue extends Field {
-	val name: String
-  val aType:AttributeType
-
- 	def serializeKey(): String = throw Unexecutable
-	def deserializeKey(data: String, pos: ParsePosition): Unit = throw Unexecutable
-
-	def serialize(): String = throw Unexecutable
-	def deserialize(data: String, pos: ParsePosition): Unit = throw Unexecutable
-
-	override def equals(other: Any) = other match {
-		case v: BoundValue => (v.name equals name) && (v.aType == aType)
-		case _ => false
-	}
-
-  def duplicate: Field = throw Unexecutable
+abstract class BoundValue {
+  val schema: Schema
 }
-case class BoundParameter(name: String, aType: AttributeType) extends BoundValue
-case class BoundThisAttribute(name: String, aType: AttributeType) extends BoundValue
+case class BoundParameter(name: String, schema: Schema) extends BoundValue
+case class BoundThisAttribute(name: String, schema: Schema) extends BoundValue
 
 /* Bound Predicates */
 abstract class BoundPredicate
-case class AttributeEqualityPredicate(attributeName: String, value: Field) extends BoundPredicate
+case class AttributeEqualityPredicate(attributeName: String, value: BoundValue) extends BoundPredicate

@@ -1,8 +1,10 @@
-package edu.berkeley.cs.scads.model.parser
+package edu.berkeley.cs.scads.piql.parser
 
 import org.apache.log4j.Logger
 import scala.collection.mutable.HashMap
-import edu.berkeley.cs.scads.model.{StringField, IntegerField, BooleanField}
+import org.apache.avro.Schema
+import scala.collection.jcl.Conversions._
+
 
 /* Exceptions that can occur during binding */
 sealed class BindingException extends Exception
@@ -38,28 +40,8 @@ object Binder {
 	def bind(spec: Spec):BoundSpec = {
 		/* Bind entities into a map and check for duplicate names */
 		val entityMap = new HashMap[String, BoundEntity]()
-		spec.entities.foreach((e) => {
-			entityMap.get(e.name) match
-			{
-				case Some(_) => throw new DuplicateEntityException(e.name)
-				case None => entityMap.put(e.name, new BoundEntity(e))
-			}
-		})
 
-		/* Add primary key as an index */
-		entityMap.values.foreach(e => {
-			e.indexes += new PrimaryIndex(e.namespace, e.keys)
-		})
-
-		/* Helper function for getting Entities */
-		def getEntity(name: String): BoundEntity = {
-			entityMap.get(name) match {
-				case None => throw new UnknownEntityException(name)
-				case Some(entity) => entity
-			}
-		}
-
-		/* Bind relationships to the entities they link, check for bad entity names and duplicate relationship names */
+		/* Bind relationships to the entities they link, check for bad entity names and duplicate relationship names
 		spec.relationships.foreach((r) => {
 			val from = getEntity(r.from)
 			val to = getEntity(r.to)
@@ -70,12 +52,56 @@ object Binder {
 			if(to.relationships.put((from.name, r.name), new BoundRelationship(r.name, from, r.cardinality, ForeignKeyHolder)).isDefined)
 				throw DuplicateRelationException(r.name)
 
-			if(to.attributes.put(r.name, from.pkType).isDefined)
-				throw DuplicateAttributeException(to.name, r.name)
-		})
+	//		if(to.attributes.put(r.name, from.pkType).isDefined)
+	//			throw DuplicateAttributeException(to.name, r.name)
+		})*/
 
-		/* Check the primary keys of all entities */
-		entityMap.foreach(_._2.pkType)
+		def bindEntities(untouched: List[Entity], done: List[BoundEntity]): List[BoundEntity] = {
+			if(untouched.size == 0)
+				return done
+
+			val currentEntity = untouched.first
+			val toRelationships = spec.relationships.filter(_.to equals currentEntity.name)
+			val fromRelationships = spec.relationships.filter(_.from equals currentEntity.name)
+
+			val fkDependencies = toRelationships.map(_.from).flatMap(r => untouched.find(_.name equals r))
+			val reqEntities =
+				if(fkDependencies.size == 0)
+					Nil
+				else
+					bindEntities(
+						untouched.drop(1),
+						done)
+
+			val donePrime = done ++ reqEntities
+			val doneNames = donePrime.map(_.name)
+
+			val attributes = currentEntity.attributes.map(a => {
+				new Schema.Field(a.name, a.attrType match {
+					case StringType => Schema.create(Schema.Type.STRING)
+					case IntegerType => Schema.create(Schema.Type.INT)
+					case BooleanType => Schema.create(Schema.Type.BOOLEAN)
+				}, "", null)
+			}) ++ toRelationships.map(r => {
+				new Schema.Field(r.name, donePrime.find(_.name == r.from).get.keySchema, "", null)
+			})
+
+			val keyParts = currentEntity.keys.map(k => attributes.find(k equals _.name).get)
+			val valueParts = attributes.filter(a => !(currentEntity.keys contains a.name))
+
+			val keySchema = Schema.createRecord(java.util.Arrays.asList(keyParts.toArray:_*))
+			val valueSchema = Schema.createRecord(java.util.Arrays.asList(valueParts.toArray:_*))
+
+			bindEntities(
+				untouched.drop(1).filter(e => !(doneNames.contains(e.name))),
+				donePrime + new BoundEntity(currentEntity.name, keySchema, valueSchema)
+			)
+		}
+
+		val boundEntities = bindEntities(spec.entities, Nil).foreach(println)
+
+
+
 
 		/* Process all the queries and place them either in the orphan map, or the BoundEntity they belong to*/
 		val orphanQueryMap = new HashMap[String, BoundQuery]()
@@ -229,7 +255,7 @@ object Binder {
 
 			/* Helper function for assigning and validating parameter types */
 			val boundParams = new HashMap[String, BoundParameter]
-			def getBoundParam(name: String, aType: AttributeType):BoundParameter = {
+			def getBoundParam(name: String, aType: Schema):BoundParameter = {
 				boundParams.get(name) match {
 					case None => {
 						val bp = BoundParameter(name, aType)
@@ -237,7 +263,7 @@ object Binder {
 						bp
 					}
 					case Some(bp) => {
-						if(bp.aType != aType) throw InconsistentParameterTyping(q.name, name)
+						if(!(bp.schema equals aType)) throw InconsistentParameterTyping(q.name, name)
 						bp
 					}
 				}
@@ -248,17 +274,17 @@ object Binder {
 				fetch.predicates.append(
 					AttributeEqualityPredicate(f.name, value match {
 						case Parameter(name, _) =>  getBoundParam(name, fetch.entity.attributes(f.name))
-						case StringValue(value) => StringField(value)
-						case NumberValue(value) => IntegerField(value)
-						case TrueValue => TrueField
-						case FalseValue => FalseField
+						//case StringValue(value) => StringField(value)
+						//case NumberValue(value) => IntegerField(value)
+						//case TrueValue => TrueField
+						//case FalseValue => FalseField
 					})
 				)
 			}
 
 			def addThisEquality(alias: String) {
 				val fetch = resolveFetch(alias)
-				fetch.entity.keys.foreach((k) => fetch.predicates.append(AttributeEqualityPredicate(k, BoundThisAttribute(k, fetch.entity.attributes(k)))))
+				fetch.entity.keySchema.getFields.map(_.name).foreach((k) => fetch.predicates.append(AttributeEqualityPredicate(k, BoundThisAttribute(k, fetch.entity.attributes(k)))))
 			}
 
 			/* Bind predicates to the proper node of the Fetch Tree */
@@ -306,8 +332,8 @@ object Binder {
 			/* Bind the range expression */
 			val boundRange = q.range match {
 				case Unlimited => BoundUnlimited
-				case Limit(Parameter(name,_), max) => BoundLimit(getBoundParam(name, IntegerType), max)
-				case Limit(NumberValue(v), max) => BoundLimit(IntegerField(v), max)
+				case Limit(Parameter(name,_), max) => BoundLimit(getBoundParam(name, Schema.create(Schema.Type.INT)), max)
+				//case Limit(NumberValue(v), max) => BoundLimit(IntegerField(v), max)
 			}
 
 			/* Build the final bound query */
