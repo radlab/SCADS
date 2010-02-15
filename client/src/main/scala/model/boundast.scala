@@ -12,12 +12,10 @@ object NoDuplicateMap {
 }
 
 /* SCADS Spec that has been bound and is ready to be optimized */
-case class BoundSpec(entities: HashMap[String, BoundEntity], orphanQueries: HashMap[String, BoundQuery])
+case class BoundSpec(entities: Map[String, BoundEntity], orphanQueries: HashMap[String, BoundQuery])
 
 /* BoundEntity and any queries that depend on its ThisParameter */
-case class BoundEntity(name: String, keySchema: Schema, valueSchema: Schema) {
-	/* (target, relationshipName) -> BoundRelationship */
-	val relationships = new HashMap[(String, String), BoundRelationship]()
+case class BoundEntity(name: String, keySchema: Schema, valueSchema: Schema, relationships: List[BoundRelationship]) {
 	val queries = new HashMap[String, BoundQuery]()
 	val indexes = new scala.collection.mutable.ArrayBuffer[Index]()
 
@@ -30,7 +28,7 @@ case class BoundEntity(name: String, keySchema: Schema, valueSchema: Schema) {
 abstract sealed class RelationshipSide
 object ForeignKeyHolder extends RelationshipSide
 object ForeignKeyTarget extends RelationshipSide
-case class BoundRelationship(name: String, target: BoundEntity, cardinality: Cardinality, side: RelationshipSide)
+case class BoundRelationship(name: String, target: String, cardinality: Cardinality, side: RelationshipSide)
 
 /* Joins */
 abstract sealed class BoundJoin
@@ -59,6 +57,20 @@ abstract class BoundValue {
 }
 case class BoundParameter(name: String, schema: Schema) extends BoundValue
 case class BoundThisAttribute(name: String, schema: Schema) extends BoundValue
+
+object BoundTrueValue extends BoundValue {
+	val schema = Schema.create(Schema.Type.BOOLEAN)
+}
+object BoundFalseValue extends BoundValue {
+	val schema = Schema.create(Schema.Type.BOOLEAN)
+}
+
+case class BoundIntegerValue(value: Int) extends BoundValue {
+	val schema = Schema.create(Schema.Type.INT)
+}
+case class BoundStringValue(value: String) extends BoundValue {
+	val schema = Schema.create(Schema.Type.STRING)
+}
 
 /* Bound Predicates */
 abstract class BoundPredicate

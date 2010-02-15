@@ -27,7 +27,7 @@ case class InvalidPrimaryKeyException(entityName: String, keyPart:String) extend
 case class InternalBindingError(desc: String) extends BindingException
 
 
-object Binder {
+class Binder(spec: Spec) {
 	val logger = Logger.getLogger("scads.binding")
 
 	/* Temporary object used while building the fetchTree */
@@ -37,71 +37,12 @@ object Binder {
 		var orderDirection: Option[Direction] = None
 	}
 
-	def bind(spec: Spec):BoundSpec = {
+	def bind: BoundSpec = {
 		/* Bind entities into a map and check for duplicate names */
-		val entityMap = new HashMap[String, BoundEntity]()
+		val boundEntities = bindEntities(spec.entities, Nil)
 
-		/* Bind relationships to the entities they link, check for bad entity names and duplicate relationship names
-		spec.relationships.foreach((r) => {
-			val from = getEntity(r.from)
-			val to = getEntity(r.to)
-
-			if(from.relationships.put((to.name, r.name), new BoundRelationship(r.name, to, r.cardinality, ForeignKeyTarget)).isDefined)
-		 		throw DuplicateRelationException(r.name)
-
-			if(to.relationships.put((from.name, r.name), new BoundRelationship(r.name, from, r.cardinality, ForeignKeyHolder)).isDefined)
-				throw DuplicateRelationException(r.name)
-
-	//		if(to.attributes.put(r.name, from.pkType).isDefined)
-	//			throw DuplicateAttributeException(to.name, r.name)
-		})*/
-
-		def bindEntities(untouched: List[Entity], done: List[BoundEntity]): List[BoundEntity] = {
-			if(untouched.size == 0)
-				return done
-
-			val currentEntity = untouched.first
-			val toRelationships = spec.relationships.filter(_.to equals currentEntity.name)
-			val fromRelationships = spec.relationships.filter(_.from equals currentEntity.name)
-
-			val fkDependencies = toRelationships.map(_.from).flatMap(r => untouched.find(_.name equals r))
-			val reqEntities =
-				if(fkDependencies.size == 0)
-					Nil
-				else
-					bindEntities(
-						untouched.drop(1),
-						done)
-
-			val donePrime = done ++ reqEntities
-			val doneNames = donePrime.map(_.name)
-
-			val attributes = currentEntity.attributes.map(a => {
-				new Schema.Field(a.name, a.attrType match {
-					case StringType => Schema.create(Schema.Type.STRING)
-					case IntegerType => Schema.create(Schema.Type.INT)
-					case BooleanType => Schema.create(Schema.Type.BOOLEAN)
-				}, "", null)
-			}) ++ toRelationships.map(r => {
-				new Schema.Field(r.name, donePrime.find(_.name == r.from).get.keySchema, "", null)
-			})
-
-			val keyParts = currentEntity.keys.map(k => attributes.find(k equals _.name).get)
-			val valueParts = attributes.filter(a => !(currentEntity.keys contains a.name))
-
-			val keySchema = Schema.createRecord(java.util.Arrays.asList(keyParts.toArray:_*))
-			val valueSchema = Schema.createRecord(java.util.Arrays.asList(valueParts.toArray:_*))
-
-			bindEntities(
-				untouched.drop(1).filter(e => !(doneNames.contains(e.name))),
-				donePrime + new BoundEntity(currentEntity.name, keySchema, valueSchema)
-			)
-		}
-
-		val boundEntities = bindEntities(spec.entities, Nil).foreach(println)
-
-
-
+		logger.debug("===Entities===")
+		boundEntities.foreach(logger.debug)
 
 		/* Process all the queries and place them either in the orphan map, or the BoundEntity they belong to*/
 		val orphanQueryMap = new HashMap[String, BoundQuery]()
@@ -153,7 +94,7 @@ object Binder {
 					logger.debug("Candidates: " + child._1.get.entity.relationships)
 
 				/* Resolve the entity for this fetch */
-				val entity = entityMap.get(j.entity) match {
+				val entity = boundEntities.find(_.name equals j.entity) match {
 					case Some(e) => e
 					case None => throw new UnknownEntityException(j.entity)
 				}
@@ -161,7 +102,7 @@ object Binder {
 				/* Optionally resolve the relationship to the child */
 				val relationship: Option[BoundRelationship] = child._2 match {
 					case None => None
-					case Some(relName) => entity.relationships.get((child._1.get.entity.name, relName)) match {
+					case Some(relName) => entity.relationships.find(r => (r.target equals child._1.get.entity.name) && (r.name equals relName)) match {
 						case Some(rel) => Some(rel)
 						case None => throw new UnknownRelationshipException(relName)
 					}
@@ -274,10 +215,10 @@ object Binder {
 				fetch.predicates.append(
 					AttributeEqualityPredicate(f.name, value match {
 						case Parameter(name, _) =>  getBoundParam(name, fetch.entity.attributes(f.name))
-						//case StringValue(value) => StringField(value)
-						//case NumberValue(value) => IntegerField(value)
-						//case TrueValue => TrueField
-						//case FalseValue => FalseField
+						case StringValue(value) => BoundStringValue(value)
+						case NumberValue(value) => BoundIntegerValue(value)
+						case TrueValue => BoundTrueValue
+						case FalseValue => BoundFalseValue
 					})
 				)
 			}
@@ -333,7 +274,7 @@ object Binder {
 			val boundRange = q.range match {
 				case Unlimited => BoundUnlimited
 				case Limit(Parameter(name,_), max) => BoundLimit(getBoundParam(name, Schema.create(Schema.Type.INT)), max)
-				//case Limit(NumberValue(v), max) => BoundLimit(IntegerField(v), max)
+				case Limit(NumberValue(v), max) => BoundLimit(BoundIntegerValue(v), max)
 			}
 
 			/* Build the final bound query */
@@ -350,7 +291,59 @@ object Binder {
 			}
 		})
 
-		return BoundSpec(entityMap, orphanQueryMap)
+		return BoundSpec(Map(boundEntities.map(e => e.name -> e):_*), orphanQueryMap)
 	}
 
+
+	/* attempt to bind entities.  if we need to know a pkType for a fk relationship and thats
+			not already done, calculate it then try again */
+	def bindEntities(untouched: List[Entity], done: List[BoundEntity]): List[BoundEntity] = {
+		if(untouched.size == 0)
+			return done
+
+		val currentEntity = untouched.first
+		val toRelationships = spec.relationships.filter(_.to equals currentEntity.name)
+		val fromRelationships = spec.relationships.filter(_.from equals currentEntity.name)
+
+		val fkDependencies = toRelationships.map(_.from).flatMap(r => untouched.find(_.name equals r))
+		val reqEntities =
+			if(fkDependencies.size == 0)
+				Nil
+			else
+				bindEntities(
+					untouched.drop(1),
+					done)
+
+		val donePrime = done ++ reqEntities
+		val doneNames = donePrime.map(_.name)
+
+		val attributes = currentEntity.attributes.map(a => {
+			new Schema.Field(a.name, a.attrType match {
+				case StringType => Schema.create(Schema.Type.STRING)
+				case IntegerType => Schema.create(Schema.Type.INT)
+				case BooleanType => Schema.create(Schema.Type.BOOLEAN)
+			}, "", null)
+		}) ++ toRelationships.map(r => {
+			new Schema.Field(r.name, donePrime.find(_.name == r.from).get.keySchema, "", null)
+		})
+
+		val keyParts = currentEntity.keys.map(k => attributes.find(k equals _.name).get)
+		val valueParts = attributes.filter(a => !(currentEntity.keys contains a.name))
+
+		val relationships = (
+			toRelationships.map(r => new BoundRelationship(r.name, r.from, r.cardinality, ForeignKeyHolder)) ++
+			fromRelationships.map(r => new BoundRelationship(r.name, r.to, r.cardinality, ForeignKeyTarget))
+		)
+
+		val boundEntity = new BoundEntity(
+			currentEntity.name,
+			Schema.createRecord(java.util.Arrays.asList(keyParts.toArray:_*)),
+			Schema.createRecord(java.util.Arrays.asList(valueParts.toArray:_*)),
+			relationships)
+
+		bindEntities(
+			untouched.drop(1).filter(e => !(doneNames.contains(e.name))),
+			donePrime + boundEntity
+		)
+	}
 }
