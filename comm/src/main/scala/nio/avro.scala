@@ -19,9 +19,11 @@ abstract class NioAvroChannelManagerBase[SendMsgType <: SpecificRecord,RecvMsgTy
      recvManifest: scala.reflect.Manifest[RecvMsgType])
     extends AvroChannelManager[SendMsgType, RecvMsgType] with ChannelHandler {
 
-    private val msgReader = new SpecificDatumReader(recvManifest.erasure.asInstanceOf[Class[RecvMsgType]])
-	private val msgWriter = new SpecificDatumWriter(sendManifest.erasure.asInstanceOf[Class[SendMsgType]])
 	private val msgRecvClass = recvManifest.erasure.asInstanceOf[Class[RecvMsgType]]
+	private val msgSendClass = sendManifest.erasure.asInstanceOf[Class[SendMsgType]]
+
+    private val msgReader = new SpecificDatumReader[RecvMsgType](msgRecvClass.newInstance.getSchema)
+	private val msgWriter = new SpecificDatumWriter[SendMsgType](msgSendClass.newInstance.getSchema)
 
     protected val endpoint: NioEndpoint = new NioEndpoint(this)
     endpoint.acceptEventHandler = new NioAcceptEventHandler {

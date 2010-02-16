@@ -1,5 +1,5 @@
 {
-	"namespace": "edu.berkeley.cs.scads.comm",
+	"namespace": "edu.berkeley.cs.scads.comm.test",
 	"protocol": "Storage",
 
 	"types": [

@@ -251,6 +251,8 @@ class Compiler(val protocol: Protocol) {
                                                                     " => new UnionMap_" + schema.getValueType.getName + 
                                                                     "(ScalaLib.convertJMapToMap(map.asInstanceOf[java.util.Map[String," +
                                                                     getAvroJavaClassName(schema.getValueType, fieldName, rec.schema) + "]]))")
+                                                        case Type.RECORD => 
+                                                            output("case record: " + schema.getName + " => record")
                                                         case _ => /* no op */
                                                     }
                                                 })
