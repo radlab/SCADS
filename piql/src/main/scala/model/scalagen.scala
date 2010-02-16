@@ -59,10 +59,22 @@ object ScalaGen extends Generator[BoundSpec] {
 					}
 
 					outputCont("def put(f: Int, v: Any): Unit =") {
-
+						outputCont("f match") {
+							fields.zipWithIndex.foreach {
+								case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.INT) =>
+									output("case ", idx.toString, " => ", prefix.getOrElse(""), field.name, " = v.asInstanceOf[java.lang.Integer].intValue")
+								case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.BOOLEAN) =>
+									output("case ", idx.toString, " => ", prefix.getOrElse(""), field.name, " = v.asInstanceOf[java.lang.Boolean].booleanValue")
+								case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.STRING) =>
+									output("case ", idx.toString, " => ", prefix.getOrElse(""), field.name, " = v.toString")
+								case (field: Schema.Field, idx: Int) =>
+							}
+							output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad index\")")
+						}
 					}
 				}
 			}
+
 			outputObjects(entity.keySchema, "key", None)
 			outputObjects(entity.valueSchema, "value", None)
 		}
