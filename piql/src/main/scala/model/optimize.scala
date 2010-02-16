@@ -101,7 +101,7 @@ class Optimizer(spec: BoundSpec) {
 
 				val tupleStream = selectedIndex match {
 					case SecondaryIndex(ns, attrs, tns) => {
-						SequentialDereferenceIndex(tns, 
+						SequentialDereferenceIndex(tns,
 							PrefixJoin(ns, child.entity.keySchema.getFields.map(k => AttributeCondition(k.name)), joinLimit, asc,  childPlan)
 						)
 					}

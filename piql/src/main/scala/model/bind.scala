@@ -335,10 +335,15 @@ class Binder(spec: Spec) {
 			fromRelationships.map(r => new BoundRelationship(r.name, r.to, r.cardinality, ForeignKeyTarget))
 		)
 
+		val keySchema = Schema.createRecord(currentEntity.name + "Key", "", "", false)
+		keySchema.setFields(java.util.Arrays.asList(keyParts.toArray:_*))
+		val valueSchema = Schema.createRecord(currentEntity.name + "Value", "", "", false)
+		valueSchema.setFields(java.util.Arrays.asList(valueParts.toArray:_*))
+
 		val boundEntity = new BoundEntity(
 			currentEntity.name,
-			Schema.createRecord(java.util.Arrays.asList(keyParts.toArray:_*)),
-			Schema.createRecord(java.util.Arrays.asList(valueParts.toArray:_*)),
+			keySchema,
+			valueSchema,
 			relationships)
 
 		bindEntities(

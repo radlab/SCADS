@@ -22,4 +22,3 @@ case class Materialize(entityType: String, child: TupleProvider) extends EntityP
 case class Selection(equalityMap: HashMap[String, BoundValue], child: EntityProvider) extends EntityProvider
 case class Sort(fields: List[String], ascending: Boolean, child: EntityProvider) extends EntityProvider
 case class TopK(k: BoundValue, child: EntityProvider) extends EntityProvider
-
