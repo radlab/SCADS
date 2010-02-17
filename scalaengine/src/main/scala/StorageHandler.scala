@@ -5,7 +5,7 @@ import java.util.concurrent.{BlockingQueue, ArrayBlockingQueue, ThreadPoolExecut
 import java.nio.ByteBuffer
 
 import org.apache.log4j.Logger
-import com.sleepycat.je.{Database, DatabaseConfig, DatabaseEntry, Environment, LockMode, OperationStatus, Durability}
+import com.sleepycat.je.{Cursor,Database, DatabaseConfig, DatabaseEntry, Environment, LockMode, OperationStatus, Durability, Transaction}
 
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.comm.Conversions._
@@ -154,19 +154,26 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
         recordSet.records = new AvroArray[Record](1024, Schema.createArray((new Record).getSchema))
         logger.warn("ns: " + ns)
         logger.warn("grr.range: " + grr.range)
-        iterateOverRange(ns, grr.range, (keyBytes, valueBytes) => {
+        iterateOverRange(ns, grr.range, false, (key, value, cursor) => {
           val rec = new Record
-          rec.key = keyBytes
-          rec.value = valueBytes
+          rec.key = key.getData
+          rec.value = value.getData
           recordSet.records.add(rec)
           logger.warn("added rec: " + rec)
           logger.warn("rec.key: " + rec.key)
           logger.warn("rec.value: " + rec.value)
-          logger.warn("keyBytes.length: " + keyBytes.length)
-          logger.warn("valueBytes.length: " + valueBytes.length)
+          logger.warn("keyBytes.length: " + key.getData.length)
+          logger.warn("valueBytes.length: " + value.getData.length)
         })
         logger.warn("recordSet: " + recordSet) 
         reply(recordSet)
+			}
+		  case rrr: RemoveRangeRequest => {
+				val ns = namespaces(rrr.namespace)
+        iterateOverRange(ns, rrr.range, true, (key, value, cursor) => {
+          cursor.delete()
+        })
+        reply(null)
 			}
 		}
 
@@ -193,11 +200,20 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
 		}
 	}
 
-	private def iterateOverRange(ns: Namespace, range: KeyRange, func: (Array[Byte], Array[Byte]) => Unit): Unit = {
+	private def iterateOverRange(ns: Namespace, range: KeyRange, needTXN: Boolean, func: (DatabaseEntry, DatabaseEntry, Cursor) => Unit): Unit = {
     logger.warn("entering iterateOverRange")
 		val dbeKey = new DatabaseEntry()
 		val dbeValue = new DatabaseEntry()
-		val cur = ns.db.openCursor(null, null)
+    var txn = 
+      if (needTXN)
+        env.beginTransaction(null,null)
+      else
+        null
+		val cur = 
+      if (needTXN) 
+        ns.db.openCursor(txn,null)
+      else
+        ns.db.openCursor(null, null)
 
 		var status: OperationStatus =
 			if(!range.backwards && range.minKey == null) {
@@ -235,7 +251,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
 			while(status == OperationStatus.SUCCESS &&
 						remaining != 0 &&
 						(range.maxKey == null || ns.comp.compare(range.maxKey, dbeKey.getData) > 0)) {
-				      func(dbeKey.getData, dbeValue.getData)
+				      func(dbeKey, dbeValue,cur)
 				      status = cur.getNext(dbeKey, dbeValue, null)
 				      remaining -= 1
 			      }
@@ -250,13 +266,13 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
 			while(status == OperationStatus.SUCCESS &&
 						remaining != 0 &&
             (range.minKey == null || ns.comp.compare(range.minKey, dbeKey.getData) < 0)) {
-	            func(dbeKey.getData, dbeValue.getData)
+	            func(dbeKey, dbeValue,cur)
 				      status = cur.getPrev(dbeKey, dbeValue, null)
 				      remaining -= 1
 			      }
 		}
-
 		cur.close
+    if (txn != null) txn.commit
 	}
 
 	def openNamespace(ns: String, partition: String): Unit = {

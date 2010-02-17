@@ -47,6 +47,10 @@
 			{"name": "namespace", "type": "string"},
 			{"name": "range", "type": "KeyRange"}]
 		},
+		{"name": "RemoveRangeRequest", "type": "record", "fields": [
+		  {"name": "namespace", "type": "string"},
+			{"name": "range", "type": "KeyRange"}]
+		},
 		{"name": "PutRequest", "type": "record", "fields": [
 			{"name": "namespace", "type": "string"},
 			{"name": "key", "type": "bytes"},
@@ -66,7 +70,7 @@
 
 		{"name": "StorageRequest", "type": "record", "fields": [
 			{"name": "src", "type": "int"},
-			{"name": "body", "type": ["null", "GetRequest", "GetRangeRequest", "PutRequest", "TestSetRequest", "ConfigureRequest"]}]
+			{"name": "body", "type": ["null", "GetRequest", "GetRangeRequest", "RemoveRangeRequest","PutRequest", "TestSetRequest", "ConfigureRequest"]}]
 		},
 		{"name": "StorageResponse", "type": "record", "fields": [
 			{"name": "dest", "type": "int"},
