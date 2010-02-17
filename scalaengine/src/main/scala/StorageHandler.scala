@@ -19,8 +19,19 @@ class AvroComparator(val json: String) extends Comparator[Array[Byte]] with java
 	lazy val schema = Schema.parse(json)
 
 	def compare(o1: Array[Byte], o2: Array[Byte]): Int = {
-		println("schema: " + schema)
 		org.apache.avro.io.BinaryData.compare(o1, 0, o2, 0, schema)
+	}
+
+	def compare(o1: ByteBuffer, o2: Array[Byte]): Int = {
+    if (!o1.hasArray)
+      throw new Exception("Can't compare without backing array")
+		org.apache.avro.io.BinaryData.compare(o1.array(), o1.position, o2, 0, schema)
+	}
+
+	def compare(o1: Array[Byte], o2: ByteBuffer): Int = {
+    if (!o2.hasArray)
+      throw new Exception("Can't compare without backing array")
+		org.apache.avro.io.BinaryData.compare(o1, 0, o2.array, o2.position, schema)
 	}
 
 	override def equals(other: Any): Boolean = other match {
@@ -29,7 +40,7 @@ class AvroComparator(val json: String) extends Comparator[Array[Byte]] with java
 	}
 }
 
-class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) extends AvroChannelManager[StorageResponse, StorageRequest] {
+class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) extends NioAvroChannelManagerBase[StorageResponse, StorageRequest] {
 	case class Namespace(db: Database, keySchema: Schema, comp: AvroComparator)
 	var namespaces: Map[String, Namespace] = new scala.collection.immutable.HashMap[String, Namespace]
 
@@ -137,25 +148,25 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
                     reply(null)
                 }
 			}
-			case grr: GetRangeRequest => {
+		  case grr: GetRangeRequest => {
 				val ns = namespaces(grr.namespace)
-                val recordSet = new RecordSet
-                recordSet.records = new AvroArray[Record](1024, Schema.createArray((new Record).getSchema))
-                logger.warn("ns: " + ns)
-                logger.warn("grr.range: " + grr.range)
-                iterateOverRange(ns, grr.range, (keyBytes, valueBytes) => {
-                    val rec = new Record
-                    rec.key = keyBytes
-                    rec.value = valueBytes
-                    recordSet.records.add(rec)
-                    logger.warn("added rec: " + rec)
-                    logger.warn("rec.key: " + rec.key)
-                    logger.warn("rec.value: " + rec.value)
-                    logger.warn("keyBytes.length: " + keyBytes.length)
-                    logger.warn("valueBytes.length: " + valueBytes.length)
-                })
-                logger.warn("recordSet: " + recordSet) 
-                reply(recordSet)
+        val recordSet = new RecordSet
+        recordSet.records = new AvroArray[Record](1024, Schema.createArray((new Record).getSchema))
+        logger.warn("ns: " + ns)
+        logger.warn("grr.range: " + grr.range)
+        iterateOverRange(ns, grr.range, (keyBytes, valueBytes) => {
+          val rec = new Record
+          rec.key = keyBytes
+          rec.value = valueBytes
+          recordSet.records.add(rec)
+          logger.warn("added rec: " + rec)
+          logger.warn("rec.key: " + rec.key)
+          logger.warn("rec.value: " + rec.value)
+          logger.warn("keyBytes.length: " + keyBytes.length)
+          logger.warn("valueBytes.length: " + valueBytes.length)
+        })
+        logger.warn("recordSet: " + recordSet) 
+        reply(recordSet)
 			}
 		}
 
@@ -183,7 +194,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
 	}
 
 	private def iterateOverRange(ns: Namespace, range: KeyRange, func: (Array[Byte], Array[Byte]) => Unit): Unit = {
-        logger.warn("entering iterateOverRange")
+    logger.warn("entering iterateOverRange")
 		val dbeKey = new DatabaseEntry()
 		val dbeValue = new DatabaseEntry()
 		val cur = ns.db.openCursor(null, null)
@@ -208,36 +219,26 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
 				else
 					OperationStatus.SUCCESS
 			}
-        logger.warn("status: " + status)
+    logger.warn("status: " + status)
 
 		var toSkip: Int = if(range.offset == null) -1 else range.offset.intValue()
 		var remaining: Int = if(range.limit == null) -1 else range.limit.intValue()
 
 		if(!range.backwards) {
-            logger.warn("skipping: " + toSkip)
+      logger.warn("skipping: " + toSkip)
 			while(toSkip > 0 && status == OperationStatus.SUCCESS) {
 				status = cur.getNext(dbeKey, dbeValue, null)
 				toSkip -= 1
 			}
 
-			val stopKey = 
-                if (range.maxKey == null) {
-                    null
-                } else { 
-                    val k = new Array[Byte](range.maxKey.limit)
-                    range.maxKey.duplicate.get(k)
-                    k
-                }
-            logger.warn("stopKey: " + stopKey)
-
 			status = cur.getCurrent(dbeKey, dbeValue, null)
 			while(status == OperationStatus.SUCCESS &&
 						remaining != 0 &&
-						(stopKey == null || ns.comp.compare(dbeKey.getData, stopKey) > 0)) {
-				func(dbeKey.getData, dbeValue.getData)
-				status = cur.getNext(dbeKey, dbeValue, null)
-				remaining -= 1
-			}
+						(range.maxKey == null || ns.comp.compare(range.maxKey, dbeKey.getData) > 0)) {
+				      func(dbeKey.getData, dbeValue.getData)
+				      status = cur.getNext(dbeKey, dbeValue, null)
+				      remaining -= 1
+			      }
 		}
 		else {
 			while(toSkip > 0 && status == OperationStatus.SUCCESS) {
@@ -245,17 +246,14 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
 				toSkip -= 1
 			}
 
-			val stopKey = new Array[Byte](range.minKey.limit)
-			range.minKey.duplicate.get(stopKey)
-
 			status = cur.getCurrent(dbeKey, dbeValue, null)
 			while(status == OperationStatus.SUCCESS &&
 						remaining != 0 &&
-						ns.comp.compare(dbeKey.getData, stopKey) < 0) {
-				func(dbeKey.getData, dbeValue.getData)
-				status = cur.getPrev(dbeKey, dbeValue, null)
-				remaining -= 1
-			}
+            (range.minKey == null || ns.comp.compare(range.minKey, dbeKey.getData) < 0)) {
+	            func(dbeKey.getData, dbeValue.getData)
+				      status = cur.getPrev(dbeKey, dbeValue, null)
+				      remaining -= 1
+			      }
 		}
 
 		cur.close
