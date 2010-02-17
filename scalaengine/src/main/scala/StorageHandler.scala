@@ -175,6 +175,14 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
         })
         reply(null)
 			}
+      case crr: CountRangeRequest => {
+        val ns = namespaces(crr.namespace)
+        var c = 0
+        iterateOverRange(ns, crr.range, false, (key, value, cursor) => {
+          c += 1
+        })
+        reply(int2Integer(c))
+      }
 		}
 
 		def run():Unit = {
