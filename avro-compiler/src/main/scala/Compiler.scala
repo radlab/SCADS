@@ -271,7 +271,7 @@ class Compiler(val protocol: Protocol) {
                         
                         output("private def getSchemaForFieldName(fieldName: String):org.apache.avro.Schema = {")
                         indent {
-                            output("getSchema.getFields.get(fieldName).schema")
+                            output("getSchema.getField(fieldName).schema")
                         }
                         output("}")
 
@@ -303,7 +303,7 @@ class Compiler(val protocol: Protocol) {
                         }
                         output("}")
 
-                        output("override def set(field$: Int, value$: Object):Unit = {")
+                        output("override def put(field$: Int, value$: Object):Unit = {")
                         indent {
                             output("field$ match {")
                             indent {
@@ -453,14 +453,14 @@ class Compiler(val protocol: Protocol) {
 
     private def fieldsInOrder(schema: Schema):List[(String,Field)] = {
         assert( schema.getType == Type.RECORD )
-        Conversions.convertMap(schema.getFields).map(e => (e._1,e._2)).toList.sort(_._2.pos<_._2.pos)
+        Conversions.convertList(schema.getFields).toList.sort(_.pos < _.pos).map(e => (e.name, e)).toList
     }
 
     private def iterateRecordFields(schema: Schema, closure: (String, Field) => Unit) = {
         assert( schema.getType == Type.RECORD )
-        Conversions.convertMap(schema.getFields).foreach(entry => {
-            val fieldName = entry._1 
-            val field = entry._2 
+        Conversions.convertList(schema.getFields).toList.foreach(entry => {
+            val fieldName = entry.name 
+            val field = entry 
             closure(fieldName, field)
         })
     }
