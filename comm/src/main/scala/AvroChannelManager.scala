@@ -45,17 +45,31 @@ trait AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: SpecificR
   def receiveMessage(src: RemoteNode, msg: RecvMsgType):Unit
 }
 
-class PrintAvroChannelManager extends NioAvroChannelManagerBase[Record, Record] {
-    override def receiveMessage(src: RemoteNode, msg: Record):Unit = {
+class PrintAvroChannelManager[SendMsg <: SpecificRecord, RecvMsg <: SpecificRecord] 
+(implicit sendManifest: scala.reflect.Manifest[SendMsg], 
+recvManifest: scala.reflect.Manifest[RecvMsg])
+extends NioAvroChannelManagerBase[SendMsg, RecvMsg] {
+    override def receiveMessage(src: RemoteNode, msg: RecvMsg):Unit = {
         println("src: " + src)
         println("msg: " + msg)
     }
 }
 
-class EchoAvroChannelManager extends NioAvroChannelManagerBase[Record, Record] {
-    override def receiveMessage(src: RemoteNode, msg: Record):Unit = {
+class EchoAvroChannelManager[EchoMsg <: SpecificRecord] 
+(implicit sendManifest: scala.reflect.Manifest[EchoMsg])
+extends NioAvroChannelManagerBase[EchoMsg, EchoMsg] {
+    override def receiveMessage(src: RemoteNode, msg: EchoMsg):Unit = {
         println("src: " + src)
         println("msg: " + msg)
         sendMessage(src, msg)
+    }
+}
+
+class DiscardAvroChannelManager[SendMsg <: SpecificRecord, RecvMsg <: SpecificRecord] 
+(implicit sendManifest: scala.reflect.Manifest[SendMsg], 
+recvManifest: scala.reflect.Manifest[RecvMsg])
+extends NioAvroChannelManagerBase[SendMsg, RecvMsg] {
+    override def receiveMessage(src: RemoteNode, msg: RecvMsg):Unit = {
+        // no op
     }
 }

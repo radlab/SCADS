@@ -241,7 +241,7 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
      * Asynchrounously send by just adding to send queue and returning
      */
     def send(socket: SocketChannel, data: ByteBuffer, callback: WriteCallback, encode: Boolean):Unit = {
-        logger.debug("send() called with data: " + data)
+        //logger.debug("send() called with data: " + data)
         dataMapQueue.synchronized {
             var queue = dataMapQueue.get(socket)
             if (queue == null) {

@@ -68,7 +68,7 @@
 				<artifactId>maven-scala-plugin</artifactId>
 				<configuration>
 					<jvmArgs><arg>-Xmx512M</arg></jvmArgs>
-					<javaRebelPath>//Users/marmbrus/Downloads/jrebel-2.1.1/jrebel.jar</javaRebelPath>
+					<javaRebelPath>${env.JREBELPATH}</javaRebelPath>
 				</configuration>
 			</plugin>
 			<plugin>

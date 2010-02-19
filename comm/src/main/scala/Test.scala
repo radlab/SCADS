@@ -2,6 +2,7 @@ package edu.berkeley.cs.scads.comm
 
 import org.apache.avro.util.Utf8
 
+/*
 object Receiver {
     val mgr = new PrintAvroChannelManager
     def receive(port: Int):Unit = {
@@ -27,6 +28,4 @@ object Sender {
         })
     }
 }
-
-
-
+*/
