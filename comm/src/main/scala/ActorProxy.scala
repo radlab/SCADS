@@ -8,9 +8,9 @@ import scala.actors._
 
 import org.apache.log4j.Logger
 
-class StorageEchoServer extends NioAvroChannelManagerBase[StorageResponse, StorageRequest] {
-	def receiveMessage(src: RemoteNode, req: StorageRequest): Unit = {
-		val resp = new StorageResponse
+class StorageEchoServer extends NioAvroChannelManagerBase[Message, Message] {
+	def receiveMessage(src: RemoteNode, req: Message): Unit = {
+		val resp = new Message
 		resp.dest = req.src
 		sendMessage(src, resp)
 	}
@@ -19,20 +19,28 @@ class StorageEchoServer extends NioAvroChannelManagerBase[StorageResponse, Stora
 class StorageEchoPrintServer extends StorageEchoServer {
     val lock = new Object
     var numMsgs = 0
-    override def receiveMessage(src: RemoteNode, req: StorageRequest): Unit = {
-        lock.synchronized {
-            numMsgs += 1
-            if (numMsgs % 100000 == 0) println("On msg: " + numMsgs)
-        }
-        super.receiveMessage(src, req)
-	}
+    override def receiveMessage(src: RemoteNode, req: Message): Unit = {
+      lock.synchronized {
+        numMsgs += 1
+        if (numMsgs % 100000 == 0) println("On msg: " + numMsgs)
+      }
+      super.receiveMessage(src, req)
+	  }
 }
 
-class StorageDiscardServer extends NioAvroChannelManagerBase[StorageResponse, StorageRequest] {
-	def receiveMessage(src: RemoteNode, req: StorageRequest): Unit = { }
+class StorageDiscardServer extends NioAvroChannelManagerBase[Message, Message] {
+	def receiveMessage(src: RemoteNode, req: Message): Unit = { }
 }
 
 
-class StorageActorProxy extends NioAvroChannelManagerBase[StorageRequest, StorageResponse] {
-	def receiveMessage(src: RemoteNode, msg: StorageResponse): Unit = ActorRegistry.sendMessage(msg.dest, (src, msg))
+class StorageActorProxy extends NioAvroChannelManagerBase[Message, Message] {
+	def receiveMessage(src: RemoteNode, msg: Message): Unit = msg.dest match {
+    case l:java.lang.Long => {
+      ActorRegistry.sendMessage(l.longValue, (src, msg))
+    }
+    case _ => {
+      throw new Exception("Trying to receive a message for an actor that didn't specify an integer id");
+    }
+  }
+
 }

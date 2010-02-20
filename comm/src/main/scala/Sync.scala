@@ -9,16 +9,17 @@ import org.apache.log4j.Logger
 object Sync {
 	val logger = Logger.getLogger("scads.comm.sync")
 
-	def makeRequest(dest: RemoteNode, reqBody: Object)(implicit mgr: StorageActorProxy): Object = {
+	def makeRequest(rn: RemoteNode, dest: Object, reqBody: Object)(implicit mgr: StorageActorProxy): Object = {
 		val resp = new SyncVar[Either[Throwable, Object]]
 
 		val a = actor {
-			val req = new StorageRequest
+			val req = new Message
 			req.body = reqBody
-			req.src = ActorRegistry.registerActor(self)
-			mgr.sendMessage(dest, req)
+      req.dest = dest
+			req.src = new java.lang.Long(ActorRegistry.registerActor(self))
+			mgr.sendMessage(rn, req)
 			reactWithin(10000) {
-				case (RemoteNode(hostname, port), msg: StorageResponse) => msg.body match {
+				case (RemoteNode(hostname, port), msg: Message) => msg.body match {
 					case exp: ProcessingException => resp.set(Left(new RuntimeException("Remote Exception" + exp)))
 					case obj => resp.set(Right(obj))
 				}

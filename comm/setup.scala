@@ -12,7 +12,7 @@ ser.startListener(9000)
 implicit val c = new StorageActorProxy
 val a = actor {
 	val id = ActorRegistry.registerActor(self)
-	val req = new StorageRequest
+	val req = new Message
 	req.src = id
 
 	c.sendMessage(RemoteNode("localhost", 9000), req)

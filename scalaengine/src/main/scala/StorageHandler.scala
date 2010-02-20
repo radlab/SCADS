@@ -4,6 +4,9 @@ import java.util.Comparator
 import java.util.concurrent.{BlockingQueue, ArrayBlockingQueue, ThreadPoolExecutor, TimeUnit}
 import java.nio.ByteBuffer
 
+import scala.actors._
+import scala.actors.Actor._
+
 import org.apache.log4j.Logger
 import com.sleepycat.je.{Cursor,Database, DatabaseConfig, DatabaseEntry, Environment, LockMode, OperationStatus, Durability, Transaction}
 
@@ -40,7 +43,7 @@ class AvroComparator(val json: String) extends Comparator[Array[Byte]] with java
   }
 }
 
-class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) extends NioAvroChannelManagerBase[StorageResponse, StorageRequest] {
+class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) extends ServiceHandler {
   case class Namespace(db: Database, keySchema: Schema, comp: AvroComparator)
   var namespaces: Map[String, Namespace] = new scala.collection.immutable.HashMap[String, Namespace]
 
@@ -52,12 +55,12 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
 
   private val logger = Logger.getLogger("StorageHandler")
 
-  class Request(src: RemoteNode, req: StorageRequest) extends Runnable {
+  class Request(src: RemoteNode, req: Message) extends Runnable {
     def reply(body: AnyRef) = {
-      val resp = new StorageResponse
+      val resp = new Message
       resp.body = body
       resp.dest = req.src
-      sendMessage(src, resp)
+      MessageHandler.sendMessage(src, resp)
     }
 
     val process: PartialFunction[Object, Unit] = {
@@ -191,9 +194,6 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
         reply(int2Integer(c))
       }
 
-      case crr: CopyRangeRequest => {
-        
-      }
     }
 
     def run():Unit = {
@@ -312,7 +312,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
     }
   }
 
-  def receiveMessage(src: RemoteNode, msg:StorageRequest): Unit = {
+  def receiveMessage(src: RemoteNode, msg:Message): Unit = {
     executor.execute(new Request(src, msg))
   }
 }
