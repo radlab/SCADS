@@ -13,11 +13,15 @@ object ScalaEngine extends optional.Application {
 		config.setTransactional(true)
 		config.setCachePercent(cachePercentage.getOrElse(80))
 
-		val env = new Environment(dbDir.getOrElse(new java.io.File("db")), config)
+		val dir = dbDir.getOrElse(new java.io.File("db"))
+		if(!dir.exists()) {
+			dir.mkdir
+		}
+
+		val env = new Environment(dir, config)
 		val zooRoot = new ZooKeeperProxy(zooKeeper).root("scads")
 		val handler = new StorageHandler(env, zooRoot)
 		handler.startListener(port)
-
 		return handler
 	}
 }
