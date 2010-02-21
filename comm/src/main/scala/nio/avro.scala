@@ -76,7 +76,7 @@ abstract class NioAvroChannelManagerBase[SendMsgType <: SpecificRecord,RecvMsgTy
     }
 
     override def startListener(port: Int): Unit = {
-        endpoint.serve(new InetSocketAddress("localhost", port))
+        endpoint.serve(new InetSocketAddress(port))
     }
 
     override def processData(socket: SocketChannel, data: Array[Byte], count: Int) = {
