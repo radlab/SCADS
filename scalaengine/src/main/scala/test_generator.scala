@@ -6,6 +6,14 @@ import scala.actors._
 import scala.actors.Actor._
 import org.apache.log4j.Logger
 
+object ZooKeeperServer extends optional.Application {
+	def main(port: Int, data_path: String):Unit = {
+		val zookeeper = ZooKeep.start(data_path, port).root.getOrCreate("scads")
+		zookeeper.updateData(true)
+		zookeeper.updateChildren(true)
+	}
+}
+
 object CreateDirectorData {
 	val logger = Logger.getLogger("scads.datagen")
 	implicit val proxy = new StorageActorProxy
