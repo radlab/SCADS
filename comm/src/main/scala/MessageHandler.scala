@@ -100,3 +100,27 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
   }
 
 }
+
+class StorageEchoServer extends NioAvroChannelManagerBase[Message, Message] {
+	def receiveMessage(src: RemoteNode, req: Message): Unit = {
+		val resp = new Message
+		resp.dest = req.src
+		sendMessage(src, resp)
+	}
+}
+
+class StorageEchoPrintServer extends StorageEchoServer {
+    val lock = new Object
+    var numMsgs = 0
+    override def receiveMessage(src: RemoteNode, req: Message): Unit = {
+      lock.synchronized {
+        numMsgs += 1
+        if (numMsgs % 100000 == 0) println("On msg: " + numMsgs)
+      }
+      super.receiveMessage(src, req)
+	  }
+}
+
+class StorageDiscardServer extends NioAvroChannelManagerBase[Message, Message] {
+	def receiveMessage(src: RemoteNode, req: Message): Unit = { }
+}
