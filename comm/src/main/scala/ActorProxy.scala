@@ -32,15 +32,14 @@ class StorageDiscardServer extends NioAvroChannelManagerBase[Message, Message] {
 	def receiveMessage(src: RemoteNode, req: Message): Unit = { }
 }
 
-
+@deprecated
 class StorageActorProxy extends NioAvroChannelManagerBase[Message, Message] {
-	def receiveMessage(src: RemoteNode, msg: Message): Unit = msg.dest match {
-    case l:java.lang.Long => {
-      ActorRegistry.sendMessage(l.longValue, (src, msg))
-    }
-    case _ => {
-      throw new Exception("Trying to receive a message for an actor that didn't specify an integer id");
-    }
+	def receiveMessage(src: RemoteNode, msg: Message): Unit = {//msg.dest match {
+    //case l:java.lang.Long => {
+      //ActorRegistry.sendMessage(l.longValue, (src, msg))
+		MessageHandler.receiveMessage(src,msg)
+    //}
+    //case _ => {
+    //  throw new Exception("Trying to receive a message for an actor that didn't specify an integer id");
   }
-
 }
