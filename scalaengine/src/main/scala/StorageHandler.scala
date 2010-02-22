@@ -75,23 +75,23 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
         val dbeKey: DatabaseEntry = gr.key
         val dbeValue = new DatabaseEntry
 
-        println("getting key: " + gr.key)
-        println("getting key: " + dbeKey)
+        //println("getting key: " + gr.key)
+        //println("getting key: " + dbeKey)
 
         ns.db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
         if (dbeValue.getData != null) {
           val retRec = new Record
-          println("returning Key: " + dbeKey)
-          println("returning Value: " + dbeValue)
-          println("returning Key: " + mkByteBuffer(dbeKey))
-          println("returning Value: " + mkByteBuffer(dbeValue))
+          //println("returning Key: " + dbeKey)
+          //println("returning Value: " + dbeValue)
+          //println("returning Key: " + mkByteBuffer(dbeKey))
+          //println("returning Value: " + mkByteBuffer(dbeValue))
 
           retRec.key = dbeKey.getData
           retRec.value = dbeValue.getData
 
           reply(retRec)
         } else {
-          println("returning no value mapping")
+          //logger.debug("returning no value mapping")
           reply(null)
         }
       }
@@ -101,9 +101,9 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
         val key: DatabaseEntry = pr.key
         val txn = env.beginTransaction(null, null)
 
-        println("putting key: " + key)
-        if (pr != null && pr.value != null)
-          println("putting value: " + new String(pr.value.array, pr.value.array.position, pr.value.array.remaining))
+        //println("putting key: " + key)
+        //if (pr != null && pr.value != null)
+        //  println("putting value: " + new String(pr.value.array, pr.value.array.position, pr.value.array.remaining))
 
         if(pr.value == null)
           ns.db.delete(txn, key)
@@ -138,7 +138,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
            (dbeEv.getData != null && tsr.expectedValue != null && !dbeEv.equals(expValue))) {
              /* Throw exception if expected value doesnt match present value */
              txn.abort
-             println("TSET FAILURE")
+             logger.warn("TSET FAILURE")
              val tsf = new TestAndSetFailure
              tsf.key = dbeKey
              tsf.currentValue = dbeEv
@@ -193,12 +193,11 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
         })
         reply(int2Integer(c))
       }
-
     }
 
     def run():Unit = {
       try {
-        println(req)
+        //println(req)
         process(req.body)
       }
       catch {
@@ -308,7 +307,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
       dbConfig.setTransactional(true)
 
       namespaces += ((ns, Namespace(env.openDatabase(null, ns, dbConfig), Schema.parse(keySchema), comp)))
-      println("namespace " + ns + " created")
+      logger.info("namespace " + ns + " created")
     }
   }
 
