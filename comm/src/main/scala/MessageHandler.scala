@@ -80,7 +80,7 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
     case l:java.lang.Long => {
       val act = getActor(l.longValue)
       if (act != null) {
-        act ! msg
+        act ! (src,msg)
         return
       }
     }
