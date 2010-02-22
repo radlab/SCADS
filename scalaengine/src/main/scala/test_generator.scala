@@ -112,6 +112,36 @@ class RequestLogger(queue:java.util.concurrent.BlockingQueue[String]) extends Ru
 	}
 }
 
+object RequestRunner {
+	def main(args: Array[String]): Unit = {
+		val numthreads = args(0).toInt
+		val numSeconds = args(1).toInt
+
+		val mapping = fileToMapping(args(2))
+		val queue = new java.util.concurrent.ArrayBlockingQueue[String](100)
+		val requestlogger = new RequestLogger(queue)
+
+		val gens = (0 until numthreads).map(t=>new RequestGenerator(mapping,queue))
+		val threads = gens.map(g => new Thread(g))
+		val startTime = System.currentTimeMillis
+
+		// start!
+		(new Thread(requestlogger)).start
+		threads.foreach(t=> t.start)
+
+		while (true) {
+			if (System.currentTimeMillis >= startTime+(numSeconds*1000)) {
+				requestlogger.stop
+				gens.foreach(g=> {g.stop; println(g.total_request_gen_time+","+g.request_count+","+g.exception_count)})
+			}
+			Thread.sleep(1*1000)
+		}
+	}
+	def fileToMapping(filename:String):Map[PolicyRange,RemoteNode] = {
+		null //TODO
+	}
+}
+
 class RequestGenerator(mapping: Map[PolicyRange,RemoteNode], request_info:java.util.concurrent.BlockingQueue[String]) extends Runnable {
 	val logger = Logger.getLogger("scads.requestgen")
 	
@@ -125,12 +155,14 @@ class RequestGenerator(mapping: Map[PolicyRange,RemoteNode], request_info:java.u
 	
 	var request_count = 0
 	var exception_count = 0
-	var total_request_gen_time:Long = 0
+	var total_request_gen_time:Long = 0L // nanosec
 	
 	// this stuff should be replaced with real request generator
 	val key = new IntRec
 	val namespace = "perfTest256"
-	var minKey = 0; var maxKey = 10000
+	val ranges = Array[PolicyRange](mapping.toList.map(e=>e._1):_*)
+	var minKey = ranges.foldLeft(0)((out,entry)=>{if(entry.minKey<out) entry.minKey else out})
+	var maxKey = ranges.foldLeft(0)((out,entry)=>{if(entry.maxKey>out) entry.maxKey else out})
 	var wait_time = 5 // ms before sending another request
 	
 	class ScadsRequestActor(dest:List[RemoteNode], scads_req:Object,log:Boolean) extends Actor {
@@ -171,14 +203,12 @@ class RequestGenerator(mapping: Map[PolicyRange,RemoteNode], request_info:java.u
 			startr = System.nanoTime
 			val request = generateRequest
 			request_gen_time = System.nanoTime
-			total_request_gen_time += request_gen_time
+			total_request_gen_time += (request_gen_time-startr)
 			request.start // actually send request
 			Thread.sleep(wait_time)
 		}
 	}
 	def stop = { running = false }
-	def getNumExceptions:Int = exception_count
-	def getNumRequests:Int = request_count
 	private def generateRequest():ScadsRequestActor = {
 		// pick a key
 		key.f1 = rnd.nextInt(maxKey-minKey) + minKey
