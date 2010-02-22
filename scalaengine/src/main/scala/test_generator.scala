@@ -41,18 +41,18 @@ object CreateDirectorData {
 		def act = {
 			starttime = System.currentTimeMillis
 			startNano = System.nanoTime
-			val req = new StorageRequest
+			val req = new Message
 			req.body = scads_req
-			req.src = ActorRegistry.registerActor(this)
+			req.src = new java.lang.Long(MessageHandler.registerActor(this))
 			makeRequest(req)
 		}
-		def makeRequest(req:StorageRequest)(implicit mgr: StorageActorProxy):Object = {
+		def makeRequest(req:Message)(implicit mgr: StorageActorProxy):Object = {
 			// send the request
 			mgr.sendMessage(dest, req) // go to only first node
 
 			// wait for response
 			reactWithin(10000) {
-				case (RemoteNode(hostname, port), msg: StorageResponse) => msg.body match {
+				case (RemoteNode(hostname, port), msg: Message) => msg.body match {
 					case exp: ProcessingException => exception_count +=1
 					case obj => {
 						endtime = System.currentTimeMillis
@@ -139,18 +139,18 @@ class RequestGenerator(mapping: Map[PolicyRange,RemoteNode], request_info:java.u
 		def act = {
 			starttime = System.currentTimeMillis
 			startNano = System.nanoTime
-			val req = new StorageRequest
+			val req = new Message
 			req.body = scads_req // get or put request
-			req.src = ActorRegistry.registerActor(this)
+			req.src = new java.lang.Long(MessageHandler.registerActor(this))
 			makeRequest(req)
 		}
-		def makeRequest(req:StorageRequest)(implicit mgr: StorageActorProxy):Object = {
+		def makeRequest(req:Message)(implicit mgr: StorageActorProxy):Object = {
 			// send the request
 			mgr.sendMessage(dest(0), req) // go to only first node
 
 			// wait for response
 			reactWithin(10000) {
-				case (RemoteNode(hostname, port), msg: StorageResponse) => msg.body match {
+				case (RemoteNode(hostname, port), msg: Message) => msg.body match {
 					case exp: ProcessingException => exception_count +=1
 					case obj => {
 						endtime = System.currentTimeMillis
