@@ -14,7 +14,7 @@ trait ServiceHandler {
 }
 
 object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
-  
+
   class ActorWeakReference(var actor: Actor, val _queue: ReferenceQueue[Actor], val uniqId:Long) extends WeakReference[Actor](actor, _queue) {
     actor = null
   }
@@ -76,7 +76,7 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
     return serviceRegistry.get(id)
   }
 
-	def receiveMessage(src: RemoteNode, msg: Message): Unit = msg.dest match {
+  def receiveMessage(src: RemoteNode, msg: Message): Unit = msg.dest match {
     case l:java.lang.Long => {
       val act = getActor(l.longValue)
       if (act != null) {
@@ -102,25 +102,25 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
 }
 
 class StorageEchoServer extends NioAvroChannelManagerBase[Message, Message] {
-	def receiveMessage(src: RemoteNode, req: Message): Unit = {
-		val resp = new Message
-		resp.dest = req.src
-		sendMessage(src, resp)
-	}
+  def receiveMessage(src: RemoteNode, req: Message): Unit = {
+    val resp = new Message
+    resp.dest = req.src
+    sendMessage(src, resp)
+  }
 }
 
 class StorageEchoPrintServer extends StorageEchoServer {
-    val lock = new Object
-    var numMsgs = 0
-    override def receiveMessage(src: RemoteNode, req: Message): Unit = {
-      lock.synchronized {
-        numMsgs += 1
-        if (numMsgs % 100000 == 0) println("On msg: " + numMsgs)
-      }
-      super.receiveMessage(src, req)
-	  }
+  val lock = new Object
+  var numMsgs = 0
+  override def receiveMessage(src: RemoteNode, req: Message): Unit = {
+    lock.synchronized {
+      numMsgs += 1
+      if (numMsgs % 100000 == 0) println("On msg: " + numMsgs)
+    }
+    super.receiveMessage(src, req)
+  }
 }
 
 class StorageDiscardServer extends NioAvroChannelManagerBase[Message, Message] {
-	def receiveMessage(src: RemoteNode, req: Message): Unit = { }
+  def receiveMessage(src: RemoteNode, req: Message): Unit = { }
 }
