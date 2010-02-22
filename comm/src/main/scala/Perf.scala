@@ -18,8 +18,6 @@ object PerfActorEchoReceiver {
 }
 
 object PerfActorEchoSender {
-
-  implicit val c = new StorageActorProxy
   var dest: RemoteNode = null
   val lock = new Object
   var msgs = 0
@@ -33,7 +31,7 @@ object PerfActorEchoSender {
         val req = new Message
         req.src = new java.lang.Long(id)
         req.body = null
-        c.sendMessage(dest, req)
+        MessageHandler.sendMessage(dest, req)
       })
       loop {
         react {
@@ -95,7 +93,6 @@ object PerfActorSender {
   */
   def main(args: Array[String]): Unit = {
     val testSize = 1000000
-    implicit val c = new StorageActorProxy
     val dest = RemoteNode(args(0), 9000)
 
     val lock = new Object
@@ -110,7 +107,7 @@ object PerfActorSender {
             val req = new Message
             req.src = new java.lang.Long(15)
             req.body = null
-            c.sendMessage(dest, req)
+            MessageHandler.sendMessage(dest, req)
           })
           lock.synchronized {
             numFinished += 1

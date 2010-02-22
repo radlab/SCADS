@@ -9,19 +9,32 @@ import edu.berkeley.cs.scads.comm.Conversions._
 import edu.berkeley.cs.scads.storage._
 
 import org.apache.log4j.Logger
+import org.apache.zookeeper.KeeperException.NodeExistsException
 import org.apache.avro.util.Utf8
 
 object KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specification") {
-  implicit val proxy = new StorageActorProxy
-
   private val lgr = Logger.getLogger("KeyStoreSpec")
 
   val intRec = new IntRec
   val strRec = new StringRec
   println("Creating namespace for int")
-  TestScalaEngine.cluster.createNamespace("KeySpecInt", intRec.getSchema(), intRec.getSchema())
+  try {
+    TestScalaEngine.cluster.createNamespace("KeySpecInt", intRec.getSchema(), intRec.getSchema())
+  } catch {
+    case ne: NodeExistsException =>
+      println("Ignoring node exists exception")
+    case a:Exception =>
+      throw a
+  }
   println("Creating namespace for string")
-  TestScalaEngine.cluster.createNamespace("KeySpecString", strRec.getSchema(), strRec.getSchema())
+  try {
+    TestScalaEngine.cluster.createNamespace("KeySpecString", strRec.getSchema(), strRec.getSchema())
+  } catch {
+    case ne: NodeExistsException =>
+      println("Ignoring node exists exception")
+    case a:Exception =>
+      throw a
+  }
 
   val cr = new ConfigureRequest
   cr.namespace = "KeySpecInt"
