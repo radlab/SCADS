@@ -15,6 +15,7 @@ import edu.berkeley.cs.scads.comm.Conversions._
 
 import org.apache.avro.generic.GenericData.{Array => AvroArray}
 import org.apache.avro.Schema
+import org.apache.avro.util.Utf8
 
 @serializable
 class AvroComparator(val json: String) extends Comparator[Array[Byte]] with java.io.Serializable {
@@ -40,6 +41,89 @@ class AvroComparator(val json: String) extends Comparator[Array[Byte]] with java
   override def equals(other: Any): Boolean = other match {
     case ac: AvroComparator => json equals ac.json
     case _ => false
+  }
+}
+
+class RecvIter(db:Database, env: Environment, id:java.lang.Long, logger:Logger) {
+  implicit def mkDbe(buff: ByteBuffer): DatabaseEntry = new DatabaseEntry(buff.array, buff.position, buff.remaining)
+
+  def doRecv() {
+    var txn = env.beginTransaction(null,null)
+    loop {
+      react {
+				case (rn:RemoteNode, msg: Message) => msg.body match {
+          case bd:BulkData => {
+            logger.debug("Got bulk data, inserting")
+            val it:java.util.Iterator[Record] = bd.records.records.iterator
+            while(it.hasNext) {
+              val rec = it.next
+              val key:DatabaseEntry = rec.key
+              db.put(txn,key,rec.value)
+            }
+            val bda = new BulkDataAck
+            bda.seqNum = bd.seqNum
+            bda.sendActorId = id.longValue
+            val msg = new Message
+            msg.body = bda
+            msg.dest = new java.lang.Long(bd.sendActorId)
+            msg.src = id
+            MessageHandler.sendMessage(rn,msg)
+            logger.debug("Done and acked")
+          }
+          case ric:CopyFinished => {
+            logger.debug("Got copy finished, commiting and closing")
+            txn.commit(Durability.COMMIT_NO_SYNC)
+            exit()
+          }
+          case m => {
+            logger.warn("RecvIter got unexpected type of message: "+msg.body)
+          }
+        }
+        case msg => {
+          logger.warn("RecvIter got unexpected message: "+msg)
+        }
+      }
+    }
+  }
+}
+
+class SendIter(targetNode:RemoteNode, id:java.lang.Long, receiverId:java.lang.Long, buffer:AvroArray[Record], capacity:Int, logger:Logger) {
+  private var windowLeft = 50 // we'll allow 50 un-acked bulk messages for now
+  private var seqNum = 0
+
+  def flush() {
+    val bd = new BulkData
+    bd.seqNum = seqNum
+    seqNum += 1
+    bd.sendActorId = id.longValue
+    val rs = new RecordSet
+    rs.records = buffer
+    bd.records = rs
+    val msg = new Message
+    msg.dest = receiverId
+    msg.src = id
+    msg.body = bd
+    MessageHandler.sendMessage(targetNode,msg)
+    windowLeft -= 1
+    buffer.clear
+  }
+
+  def put(rec:Record): Unit = {
+    while (windowLeft <= 0) { // not enough acks processed
+      reactWithin(60000) { // we'll allow 1 minute for an ack
+        case (rn:RemoteNode, bda:BulkDataAck) => 
+          windowLeft += 1
+        case TIMEOUT => {
+          logger.warn("SendIter timed out waiting for ack")
+          exit()
+        }
+        case _ =>
+          logger.warn("SendIter got unexpected message")
+      }
+    }
+    buffer.add(rec)
+    if (buffer.size >= capacity)  // time to send
+      flush
   }
 }
 
@@ -192,6 +276,76 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
           c += 1
         })
         reply(int2Integer(c))
+      }
+
+      case crr: CopyRangeRequest => {
+        val ns = namespaces(crr.namespace)
+        val act = actor {
+          val msg = new Message
+          val req = new CopyStartRequest
+          req.namespace = crr.namespace
+          req.range = crr.range
+          val myId = new java.lang.Long(MessageHandler.registerActor(self)) 
+			    msg.src = myId
+          msg.dest = new Utf8("Storage")
+          msg.body = req
+          val rn = new RemoteNode(crr.destinationHost, crr.destinationPort)
+			    MessageHandler.sendMessage(rn, msg)
+			    reactWithin(60000) {
+				    case (rn:RemoteNode, msg: Message) => msg.body match {
+              case csr: CopyStartReply => {
+                logger.debug("Got CopyStartReply, sending data")
+                val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema))
+                val sendIt = new SendIter(rn,myId,csr.recvActorId,buffer,100,logger)
+                iterateOverRange(ns, crr.range, false, (key, value, cursor) => {
+                  val rec = new Record
+                  rec.key = key.getData
+                  rec.value = value.getData
+                  sendIt.put(rec)
+                })
+                sendIt.flush
+                val fin = new CopyFinished
+                fin.sendActorId = myId.longValue
+                msg.src = myId
+                msg.dest = new java.lang.Long(csr.recvActorId)
+                msg.body = fin
+                MessageHandler.sendMessage(rn,msg)
+                logger.debug("CopyFinished and sent")
+                reply(null)
+              }
+              case _ => {
+                logger.warn("Unexpected reply to copy start request")
+                exit()
+              }
+				    }
+				    case TIMEOUT => {
+              logger.warn("Timed out waiting to start a range copy")
+              exit
+            }
+				    case msg => { 
+              logger.warn("Unexpected message: " + msg)
+              exit
+            }
+			    }
+        }
+        null
+      }
+
+      case csreq:CopyStartRequest => { 
+        /* We need to spin up an actor to do the inserts and ACKing, then reply */
+        val ns = namespaces(csreq.namespace)
+        actor {
+          val myId = new java.lang.Long(MessageHandler.registerActor(self)) 
+          val recvIt = new RecvIter(ns.db,env,myId,logger)
+          val csr = new CopyStartReply 
+          csr.recvActorId = myId.longValue
+          val msg = new Message
+          msg.src = myId
+          msg.dest = req.src
+          msg.body=csr
+          MessageHandler.sendMessage(src,msg)
+          recvIt.doRecv
+        }
       }
     }
 
