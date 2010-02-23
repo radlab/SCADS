@@ -27,7 +27,7 @@ object PerfActorEchoSender {
   class SendActor extends Actor {
     def act {
       (1 to testSize/numActors).foreach( j => {
-        val id = ActorRegistry.registerActor(self)
+        val id = MessageHandler.registerActor(self)
         val req = new Message
         req.src = new java.lang.Long(id)
         req.body = null
@@ -102,7 +102,7 @@ object PerfActorSender {
       val start = System.currentTimeMillis()
       (1 to 5).foreach(i => {
         actor {
-          val id = ActorRegistry.registerActor(self)
+          val id = MessageHandler.registerActor(self)
           (1 to testSize/5).foreach(j => {
             val req = new Message
             req.src = new java.lang.Long(15)
