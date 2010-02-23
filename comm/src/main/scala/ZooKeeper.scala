@@ -17,7 +17,7 @@ object ZooKeep {
 		var connected = false
 		while(!connected) {
 			try {
-				val s = new java.net.Socket("localhost", 2181)
+				val s = new java.net.Socket("localhost", port)
 				connected = true
 			}
 			catch {
