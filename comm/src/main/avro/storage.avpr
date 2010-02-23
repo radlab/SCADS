@@ -76,21 +76,27 @@
 
 		{"name": "CopyStartRequest", "type": "record", "fields": [
 		  {"name": "namespace", "type": "string"},
-			{"name": "sendActorId", "type": "int"}]
+			{"name": "range", "type": "KeyRange"}]
     },
 		{"name": "CopyStartReply", "type": "record", "fields": [
-		  {"name": "sendActorId", "type": "int"},
-		  {"name": "recvActorId", "type": "int"}]
+		  {"name": "recvActorId", "type": "long"}]
     },
+		{"name": "CopyFinished", "type": "record", "fields": [
+		  {"name": "sendActorId", "type": "long"}]
+    },
+
 
 		{"name": "BulkData", "type": "record", "fields": [
 		  {"name": "seqNum", "type": "int"},
-		  {"name": "recvActorId", "type": "int"},
+		  {"name": "sendActorId", "type": "long"},
 			{"name": "records", "type": "RecordSet"}]
 		},
 		{"name": "BulkDataAck", "type": "record", "fields": [
 			{"name": "seqNum", "type": "int"},
-			{"name": "sendActorId", "type": "int"}]
+			{"name": "sendActorId", "type": "long"}]
+		},
+		{"name": "RecvIterClose", "type": "record", "fields": [
+			{"name": "sendActorId", "type": "long"}]
 		},
 
 		{"name": "Message", "type": "record", "fields": [
@@ -108,6 +114,7 @@
 								 "CopyRangeRequest",
 								 "CopyStartRequest",
 								 "CopyStartReply",
+								 "CopyFinished",
 								 "BulkData",
 								 "BulkDataAck",
 
