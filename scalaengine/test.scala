@@ -7,8 +7,6 @@ import org.apache.avro.util.Utf8
 settings.maxPrintString = 100000
 
 TestScalaEngine
-implicit val proxy = new StorageActorProxy
-
 val k1 = new IntRec
 k1.f1 = 1
 
