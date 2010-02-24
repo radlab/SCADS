@@ -24,15 +24,8 @@ object PerfActorEchoSender {
   val testSize = 1000000
   val numActors = 5
 
-  class SendActor extends Actor {
-    def act {
-      (1 to testSize/numActors).foreach( j => {
-        val id = MessageHandler.registerActor(self)
-        val req = new Message
-        req.src = new java.lang.Long(id)
-        req.body = null
-        MessageHandler.sendMessage(dest, req)
-      })
+  class RecvActor extends Actor {
+    def act() {
       loop {
         react {
           case (RemoteNode(host, port), msg) => {
@@ -41,9 +34,22 @@ object PerfActorEchoSender {
               if (msgs % 100000 == 0) println(msgs)
               if (msgs == testSize) lock.notify
             }
-          } 
-        }
+          }
+        }        
       }
+    }
+  }
+
+  class SendActor(id:Long) extends Actor {
+    val did = new java.lang.Long(id)
+    def act() {
+      (1 to testSize/numActors).foreach( j => {
+        val req = new Message
+        req.src = new java.lang.Long(id)
+        req.dest = did
+        req.body = null
+        MessageHandler.sendMessage(dest, req)
+      })
     }
   }
 
@@ -53,10 +59,15 @@ object PerfActorEchoSender {
   def main(args: Array[String]): Unit = {
     BasicConfigurator.configure
     dest = RemoteNode(args(0), 9000)
+    val refSendArray = new Array[Actor](numActors)
+    val refRecvArray = new Array[RecvActor](numActors)
     (1 to 10).foreach(t => {
       val start = System.currentTimeMillis()
       (1 to numActors).foreach( i => {
-        (new SendActor).start
+        refRecvArray(i-1) = new RecvActor
+        val id = MessageHandler.registerActor(refRecvArray(i-1))
+        refRecvArray(i-1).start
+        refSendArray(i-1) = (new SendActor(id)).start
       })
       lock.synchronized { 
         while (msgs < testSize) lock.wait
