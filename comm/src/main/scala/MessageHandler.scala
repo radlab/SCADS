@@ -19,7 +19,7 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
     actor = null
   }
 
-  val logger = Logger.getLogger("scads.actorProxy")
+  val logger = Logger.getLogger("scads.MessageHandler")
 
   val actorRegistry = new ConcurrentHashMap[Long, ActorWeakReference]
   val deadActors = new ReferenceQueue[Actor]()
