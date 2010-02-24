@@ -80,6 +80,57 @@ object PerfActorEchoSender {
 
 }
 
+object PerfMultiActorEchoSender {
+  var dest: RemoteNode = null
+  val lock = new Object
+  var msgs = 0
+  var testSize = 1000000
+
+  def main(args: Array[String]): Unit = {
+    BasicConfigurator.configure
+    dest = RemoteNode(args(0), 9000)
+    testSize = Integer.parseInt(args(1))
+    (1 to 10).foreach(t => {
+      val refSendArray = new Array[Actor](testSize)
+      var out = 0
+      val start = System.currentTimeMillis()
+      (1 to testSize).foreach( i => {
+        while(out >= 10000) {
+          Thread.sleep(100)
+        }
+        refSendArray(i-1) = actor {
+          val id = new java.lang.Long(MessageHandler.registerActor(self))
+          val req = new Message
+          req.src = id
+          req.dest = id
+          req.body = null
+          MessageHandler.sendMessage(dest, req)
+          out += 1
+          react {
+            case (RemoteNode(host, port), msg) => {
+              out -= 1
+              lock.synchronized {
+                msgs += 1
+                if (msgs % 100000 == 0) println(msgs)
+                if (msgs == testSize) lock.notify
+              }
+            }
+            case _ => {
+              println("Fallthrough")
+            }
+          }
+        }
+      })
+      lock.synchronized { 
+        while (msgs < testSize) lock.wait
+      }
+      val end = System.currentTimeMillis()
+      println((testSize.toFloat / ((end - start)/1000.0)) + "req/sec")
+      msgs = 0
+    })
+  }
+}
+
 
 object PerfActorReceiver {
   def main(args: Array[String]): Unit = {
