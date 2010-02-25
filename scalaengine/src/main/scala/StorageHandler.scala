@@ -286,7 +286,8 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
           val req = new CopyStartRequest
           req.namespace = crr.namespace
           req.range = crr.range
-          val myId = new java.lang.Long(MessageHandler.registerActor(self)) 
+          val scId = MessageHandler.registerActor(self)
+          val myId = new java.lang.Long(scId)
 			    msg.src = myId
           msg.dest = new Utf8("Storage")
           msg.body = req
@@ -312,19 +313,23 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
                 msg.body = fin
                 MessageHandler.sendMessage(rn,msg)
                 logger.debug("CopyFinished and sent")
+                MessageHandler.unregisterActor(scId)
                 reply(null)
               }
               case _ => {
                 logger.warn("Unexpected reply to copy start request")
+                MessageHandler.unregisterActor(scId)
                 exit()
               }
 				    }
 				    case TIMEOUT => {
               logger.warn("Timed out waiting to start a range copy")
+              MessageHandler.unregisterActor(scId)
               exit
             }
 				    case msg => { 
               logger.warn("Unexpected message: " + msg)
+              MessageHandler.unregisterActor(scId)
               exit
             }
 			    }
@@ -336,7 +341,8 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
         /* We need to spin up an actor to do the inserts and ACKing, then reply */
         val ns = namespaces(csreq.namespace)
         actor {
-          val myId = new java.lang.Long(MessageHandler.registerActor(self)) 
+          val scId = MessageHandler.registerActor(self)
+          val myId = new java.lang.Long(scId)
           val recvIt = new RecvIter(ns.db,env,myId,logger)
           val csr = new CopyStartReply 
           csr.recvActorId = myId.longValue
@@ -346,6 +352,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
           msg.body=csr
           MessageHandler.sendMessage(src,msg)
           recvIt.doRecv
+          MessageHandler.unregisterActor(scId)
         }
       }
     }

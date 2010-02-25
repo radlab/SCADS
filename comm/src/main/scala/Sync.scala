@@ -16,7 +16,8 @@ object Sync {
 			val req = new Message
 			req.body = reqBody
       req.dest = dest
-			req.src = new java.lang.Long(MessageHandler.registerActor(self))
+      val id = MessageHandler.registerActor(self)
+			req.src = new java.lang.Long(id)
 			MessageHandler.sendMessage(rn, req)
 			reactWithin(10000) {
 				case (RemoteNode(hostname, port), msg: Message) => msg.body match {
@@ -26,6 +27,7 @@ object Sync {
 				case TIMEOUT => resp.set(Left(new RuntimeException("Timeout")))
 				case msg => logger.warn("Unexpected message: " + msg)
 			}
+      MessageHandler.unregisterActor(id)
 		}
 
 		resp.get match {

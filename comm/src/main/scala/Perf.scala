@@ -61,15 +61,17 @@ object PerfActorEchoSender {
   def main(args: Array[String]): Unit = {
     BasicConfigurator.configure
     dest = RemoteNode(args(0), 9000)
+    // still need this since we're not registering the send actors
     val refSendArray = new Array[Actor](numActors)
-    val refRecvArray = new Array[RecvActor](numActors)
+    val idRecvArray = new Array[Long](numActors)
     (1 to 10).foreach(t => {
       val start = System.currentTimeMillis()
       (1 to numActors).foreach( i => {
-        refRecvArray(i-1) = new RecvActor
-        val id = MessageHandler.registerActor(refRecvArray(i-1))
-        refRecvArray(i-1).start
-        refSendArray(i-1) = (new SendActor(id)).start
+        val ra = new RecvActor
+        val rid = MessageHandler.registerActor(ra)
+        idRecvArray(i-1) = rid
+        ra.start
+        refSendArray(i-1) = (new SendActor(rid)).start
       })
       lock.synchronized { 
         while (msgs < testSize) lock.wait
@@ -77,6 +79,9 @@ object PerfActorEchoSender {
       val end = System.currentTimeMillis()
       println((testSize.toFloat / ((end - start)/1000.0)) + "req/sec")
       msgs = 0
+      idRecvArray.foreach(id => {
+        MessageHandler.unregisterActor(id)
+      })
     })
   }
 
@@ -93,14 +98,15 @@ object PerfMultiActorEchoSender {
     BasicConfigurator.configure
     dest = RemoteNode(args(0), 9000)
     testSize = Integer.parseInt(args(1))
-    val sem = new Semaphore(Integer.parseInt(args(2)))
+    val lim = Integer.parseInt(args(2))
+    val sem = new Semaphore(lim)
     (1 to 10).foreach(t => {
-      val refSendArray = new Array[Actor](testSize)
       val start = System.currentTimeMillis()
       (1 to testSize).foreach( i => {
         sem.acquire
-        refSendArray(i-1) = actor {
-          val id = new java.lang.Long(MessageHandler.registerActor(self))
+        actor {
+          val idl = MessageHandler.registerActor(self)
+          val id = new java.lang.Long(idl)
           val req = new Message
           req.src = id
           req.dest = id
@@ -114,9 +120,12 @@ object PerfMultiActorEchoSender {
                 if (msgs == testSize) lock.notify
               }
               sem.release
+              MessageHandler.unregisterActor(idl)
             }
             case _ => {
               println("Fallthrough")
+              sem.release
+              MessageHandler.unregisterActor(idl)
             }
           }
         }
@@ -175,6 +184,7 @@ object PerfActorSender {
             numFinished += 1
             lock.notify
           }
+          MessageHandler.unregisterActor(id)
         }
       })
       lock.synchronized {
@@ -184,7 +194,6 @@ object PerfActorSender {
       println((testSize.toFloat / ((end - start)/1000.0)) + "req/sec")
       numFinished = 0
     })
-
   }
 }
 

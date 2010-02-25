@@ -1,8 +1,7 @@
 package edu.berkeley.cs.scads.comm
 
-import java.lang.ref.WeakReference
-import java.lang.ref.ReferenceQueue
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 import scala.actors._
 
@@ -15,55 +14,28 @@ trait ServiceHandler {
 
 object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
 
-  class ActorWeakReference(var actor: Actor, val _queue: ReferenceQueue[Actor], val uniqId:Long) extends WeakReference[Actor](actor, _queue) {
-    actor = null
-  }
-
   val logger = Logger.getLogger("scads.MessageHandler")
 
-  val actorRegistry = new ConcurrentHashMap[Long, ActorWeakReference]
-  val deadActors = new ReferenceQueue[Actor]()
-  var curActorId:Long = 0
-
-  val serviceRegistry = new ConcurrentHashMap[String, ServiceHandler]
-
-  val actorCleanupThread = new Thread() {
-    override def run(): Unit = {
-      while(true) {
-        val ref = deadActors.remove()
-        logger.debug("Garbage collecting actor registration.")
-        val success = actorRegistry.remove(ref.asInstanceOf[ActorWeakReference].uniqId)
-        logger.debug("Was able to remove successfully? " + success)
-      }
-    }
-  }
+  private val actorRegistry = new ConcurrentHashMap[Long, Actor]
+  private val curActorId = new AtomicLong
+  private val serviceRegistry = new ConcurrentHashMap[String, ServiceHandler]
 
   /* TODO: When curActorId hits MAX_LONG, collect all existing actors
    * and give them ids 0-n, and reset curActorId to (n+1) */
-
   def registerActor(a: Actor): Long = {
-    var id:Long = 0
-    actorRegistry.synchronized {
-      if (actorRegistry.size >= Math.MAX_LONG)
-        throw new IllegalStateException("Too many actors!")
-      id = curActorId
-      curActorId += 1
-      val ref = new ActorWeakReference(a, deadActors, id)
-      actorRegistry.put(id, ref)
-    }
+    if (actorRegistry.size >= Math.MAX_LONG)
+      throw new IllegalStateException("Too many actors!")
+    val id = curActorId.getAndIncrement
+    actorRegistry.put(id, a)
     id
+  }
+  
+  def unregisterActor(id:Long): Unit = {
+    actorRegistry.remove(id)
   }
 
   def getActor(id: Long): Actor = {
-    val targetRef = actorRegistry.get(id)
-    if(targetRef == null) 
-      return null
-    val targetActor = targetRef.get()
-    if(targetActor == null) {
-      logger.warn("Trying to get an actor that has been gc-ed. "+id)
-      return null
-    }
-    return targetActor
+    actorRegistry.get(id)
   }
 
   def registerService(id: String, service:ServiceHandler): Unit = {

@@ -64,28 +64,30 @@ object CreateDirectorData {
 			val req = new Message
 			req.body = scads_req
 			req.dest = new Utf8("Storage")
-			req.src = new java.lang.Long(MessageHandler.registerActor(self))
+      val id = MessageHandler.registerActor(self)
+			req.src = new java.lang.Long(id)
 			//logger.info("Message sent as "+req.src)
-			makeRequest(req)
+			makeRequest(req,id)
 		}
-		def makeRequest(req:Message):Object = {
+		def makeRequest(req:Message,id:Long):Object = {
 			// send the request
 			MessageHandler.sendMessage(dest, req)
 
 			// wait for response
 			reactWithin(10000) {
 				case (RemoteNode(hostname, port), msg: Message) => msg.body match {
-					case exp: ProcessingException => { logger.warn("Exception making request: "+exp); exception_count +=1 }
+					case exp: ProcessingException => { logger.warn("Exception making request: "+exp); exception_count +=1; MessageHandler.unregisterActor(id) }
 					case obj => {
 						endtime = System.currentTimeMillis
 						latency = (System.nanoTime-startNano)/1000000.0
 						request_count += 1
 						// log start_time, end_time, latency, hostname
 						//request_info.put(starttime+","+endtime+","+latency+","+hostname+"\n")
+            MessageHandler.unregisterActor(id)
 					}
 				}
-				case TIMEOUT => { logger.warn("Request timeout"); exception_count +=1 }
-				case msg => logger.warn("Unexpected message: " + msg)
+				case TIMEOUT => { logger.warn("Request timeout"); exception_count +=1; MessageHandler.unregisterActor(id) }
+				case msg => { logger.warn("Unexpected message: " + msg); MessageHandler.unregisterActor(id) }
 			}
 		}
 	}
@@ -215,28 +217,30 @@ class RequestGenerator(mapping: Map[PolicyRange,RemoteNode], request_info:java.u
 			val req = new Message
 			req.body = scads_req // get or put request
 			req.dest = new Utf8("Storage")
-			req.src = new java.lang.Long(MessageHandler.registerActor(self))
+      val id = MessageHandler.registerActor(self)
+			req.src = new java.lang.Long(id)
 			//logger.info("Sending message as "+req.src)
-			makeRequest(req)
+			makeRequest(req,id)
 		}
-		def makeRequest(req:Message):Object = {
+		def makeRequest(req:Message,id:Long):Object = {
 			// send the request
 			MessageHandler.sendMessage(dest(0), req) // go to only first node
 
 			// wait for response
 			reactWithin(10000) {
 				case (RemoteNode(hostname, port), msg: Message) => msg.body match {
-					case exp: ProcessingException => { logger.warn("Exception making request: "+exp); exception_count +=1}
+					case exp: ProcessingException => { logger.warn("Exception making request: "+exp); exception_count +=1; MessageHandler.unregisterActor(id)}
 					case obj => {
 						endtime = System.currentTimeMillis
 						latency = (System.nanoTime-startNano)/1000000.0
 						request_count += 1
 						// log start_time, end_time, latency, hostname
 						if (log) request_info.put(starttime+","+endtime+","+latency+","+hostname+"\n")
+            MessageHandler.unregisterActor(id)
 					}
 				}
-				case TIMEOUT => exception_count +=1
-				case msg => logger.warn("Unexpected message: " + msg)
+				case TIMEOUT => { exception_count +=1; MessageHandler.unregisterActor(id) }
+				case msg => { logger.warn("Unexpected message: " + msg); MessageHandler.unregisterActor(id) }
 			}
 		}
 	}
