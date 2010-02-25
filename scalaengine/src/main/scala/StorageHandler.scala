@@ -144,6 +144,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
       val resp = new Message
       resp.body = body
       resp.dest = req.src
+	  resp.id = req.id
       MessageHandler.sendMessage(src, resp)
     }
 

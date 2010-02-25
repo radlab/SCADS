@@ -101,7 +101,8 @@
 
 		{"name": "Message", "type": "record", "fields": [
 		  {"name": "src", "type": ["long","string","null"]},
-			{"name": "dest", "type": ["long","string"]},
+		  {"name": "dest", "type": ["long","string"]},
+		  {"name": "id", "type": ["long","null"]},
 		  {"name": "body", "type": [
 							   "null", 
 							 	 "GetRequest",
