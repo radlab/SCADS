@@ -466,6 +466,27 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
   }
 
   def receiveMessage(src: RemoteNode, msg:Message): Unit = {
-    executor.execute(new Request(src, msg))
+    try {
+      executor.execute(new Request(src, msg))
+    } catch {
+      case ree: java.util.concurrent.RejectedExecutionException => {
+        val resp = new ProcessingException
+        resp.cause = "Thread pool exhausted"
+        reply(resp)
+      }
+      case e: Throwable => {
+        logger.error("ProcessingException", e)
+        e.printStackTrace
+        var cause = e.getCause
+        while (cause != null) {
+          e.printStackTrace
+          cause = e.getCause
+        }
+        val resp = new ProcessingException
+        resp.cause = e.toString()
+        resp.stacktrace = e.getStackTrace().mkString("\n")
+        reply(resp)
+      }
+    }
   }
 }
