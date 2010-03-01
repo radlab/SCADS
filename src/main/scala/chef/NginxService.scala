@@ -75,7 +75,7 @@ case class NginxService(remoteMachine: RemoteMachine,
     nginxConfig.put("recipes", nginxRecipes)
     val nginxNginx = new JSONObject()
     val nginxNginxServers = new JSONObject()
-    
+
     if (haproxyService != null) {
       val server = new JSONObject()
       server.put("start", haproxyService.port)
@@ -94,12 +94,12 @@ case class NginxService(remoteMachine: RemoteMachine,
 
     nginxNginx.put("servers", nginxNginxServers)
     nginxConfig.put("nginx", nginxNginx)
-    
+
     val nginxFaban = new JSONObject()
     nginxFaban.put("jdbc", null: String)
     nginxConfig.put("faban", nginxFaban)
-    
+
     return nginxConfig.toString
   }
-  
+
 }

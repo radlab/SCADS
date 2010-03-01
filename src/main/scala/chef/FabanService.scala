@@ -81,16 +81,16 @@ case class FabanService(remoteMachine: RemoteMachine,
     fabanFabanHosts.put("database", mysqlService.remoteMachine.hostname)
     fabanFabanHosts.put("storage", "")
     fabanFabanHosts.put("cache", "")
-    
+
     val fabanFabanDatabase = new JSONObject()
     fabanFabanDatabase.put("adapter", "mysql")
     fabanFabanDatabase.put("port", mysqlService.port)
-    
+
     fabanFaban.put("hosts", fabanFabanHosts)
     fabanFaban.put("database", fabanFabanDatabase)
     fabanFaban.put("debug", debug)
     fabanConfig.put("faban", fabanFaban)
-    
+
     return fabanConfig.toString
   }
 

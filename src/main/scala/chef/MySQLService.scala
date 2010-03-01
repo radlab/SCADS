@@ -53,15 +53,15 @@ case class MySQLService(remoteMachine: RemoteMachine,
     mysqlRecipes.put("cloudstone::faban-agent")
     mysqlConfig.put("recipes", mysqlRecipes)
     val mysqlMysql = new JSONObject()
-    
+
     mysqlMysql.put("server_id", 1)
     mysqlMysql.put("port", port)
     mysqlConfig.put("mysql", mysqlMysql)
-    
+
     val mysqlFabanAgent = new JSONObject()
     mysqlFabanAgent.put("jdbc", "mysql")
     mysqlConfig.put("faban", mysqlFabanAgent)
-    
+
     return mysqlConfig.toString
   }
 

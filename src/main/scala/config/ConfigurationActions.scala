@@ -7,6 +7,8 @@ import deploylib.xresults._
 
 import org.apache.log4j.Logger
 
+object Config extends ConfigurationActions
+
 trait ConfigurationActions {
 	val logger = Logger.getLogger("deploylib.config")
 
@@ -31,7 +33,7 @@ trait ConfigurationActions {
 		val baseDirectory = createDirectory(target, new File(target.serviceRoot, name))
 		val logDirectory = createDirectory(target, new File(baseDirectory, "log"))
 		val downFile = createFile(target, new File(baseDirectory, "down"), " ", "644")
-		val runFile = createFile(target, new File(baseDirectory, "run"), "#!/bin/sh\nexec 2>&1\nulimit -n 10240\nexec " + runCommand, "755")
+		val runFile = createFile(target, new File(baseDirectory, "run"), "#!/bin/sh\nexec 2>&1\nexec " + runCommand, "755")
 		val logFile = createFile(target, new File(logDirectory, "run"), logCommand, "755")
 		val finishFile = createFile(target, new File(baseDirectory, "finish"), "#!/bin/sh\necho FAILURE `/bin/date`: " + name + " $@ >> failures", "755")
 

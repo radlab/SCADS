@@ -66,10 +66,10 @@ case class HAProxyService(remoteMachine: RemoteMachine,
     val haproxyConfig = new JSONObject()
     haproxyConfig.put("recipes", new JSONArray().put("cloudstone::haproxy"))
     val haproxyHaproxy = new JSONObject()
-    
+
     val haproxyHaproxyServers = new JSONObject()
     if (railsServices.isEmpty) {
-      // TODO: Throw exception 
+      // TODO: Throw exception
     }
     for (service <- railsServices) {
       print("Rails 1")
@@ -79,9 +79,9 @@ case class HAProxyService(remoteMachine: RemoteMachine,
       haproxyHaproxyServers.put(service.remoteMachine.hostname, server)
     }
     haproxyHaproxy.put("servers", haproxyHaproxyServers)
-    
+
     haproxyConfig.put("haproxy", haproxyHaproxy)
-    
+
     return haproxyConfig.toString
   }
 

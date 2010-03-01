@@ -53,7 +53,7 @@ object cluster {
         }
     }
 
-    
+
     def getMacAddress( hostname: String ) : String = {
         // Ping the machine and if it works use arp to get mac address
         if( machinePing( hostname, cluster.DEFAULT_NUM_PING_PACKETS ) ) {
@@ -80,11 +80,11 @@ object cluster {
         val macBytes:Array[Byte] = for{ e <- macParts
             hex_val:Byte = Integer.parseInt( e, 16 ).asInstanceOf[Byte]
         } yield hex_val;
-        
+
         for{ b <- macBytes } println( Integer.toHexString(b) )
 
         val wolPacket: Array[Byte] = new Array[Byte](6 + 16*macBytes.length)
-        
+
         // Fill in the wolPacket: 6 bytes of all 1's and 16 copies of the mac address
         for{ i <- 0 to 5 } wolPacket(i) = 0xff.asInstanceOf[Byte]
         var i = 6;
@@ -234,7 +234,7 @@ object clusterDriver
     def main(args:Array[String]) = {
         // 00:1c:c0:c2:7a:85
         //val mac:String = "00:1c:c0:c2:7a:85"
-        
+
         // List all the nodes we have in the loCal cluster
         val a9 = ( "192.168.0.21", "root", new File("/home/user/.ssh/atom_key") ) // 00:1c:c0:c2:7a:85
         //val a14 = ( "192.168.0.27", "root", new File("/home/user/.ssh/atom_key") )
@@ -249,7 +249,7 @@ object clusterDriver
         atoms.map((a) => a.broadcastAddress = "192.168.0.255" )
 
         for{ a <- atoms } println( a.hostname + " " + a.broadcastAddress )
-        
+
         //val atoms = List(a9).map((n) => new PhysicalInstance(n._1, n._2, n._3) );
         var atom9:PhysicalInstance = atoms{0};
         //var atom14:PhysicalInstance = atoms{1};
@@ -272,7 +272,7 @@ object clusterDriver
         res = cluster.machineWake( atom9 )
         println( "Wake command: " + res )
         */
-       
+
         // For each machine, deploy all the services based on the tags
         // if services exist that correspond to a tag name
         // e.g. there will be a rails service for machines tagged with "rails"
@@ -283,7 +283,7 @@ object clusterDriver
         // Service.configure, Service.toJSON()
         // Cluster.InstanceSleep(PhysicalInstance)
         // Cluster.InstanceWake(PhysicalInstance)
-        
+
         println("hello-loCal-xxxx");
     }
 }

@@ -4,7 +4,7 @@
  * You can run this script using:
  * mvn scala:script -DscriptFile=samples/cloudstone.scala
  */
- 
+
 import deploylib._
 import deploylib.chef._
 import deploylib.ec2._
@@ -83,4 +83,4 @@ for (service <- services.values) {
   println(service.recipeName)
   service.start
 }
-  
+

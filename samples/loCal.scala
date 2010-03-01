@@ -4,7 +4,7 @@
  * You can run this script using:
  * mvn scala:script -DscriptFile=samples/loCal.scala
  */
- 
+
 import deploylib._
 import deploylib.chef._
 import deploylib.ec2._
@@ -69,4 +69,4 @@ services("rails").start
 services("haproxy").start
 services("nginx").start
 services("faban").start
-  
+

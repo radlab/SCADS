@@ -86,14 +86,14 @@ case class RailsService(remoteMachine: RemoteMachine,
     if (mysqlService == null) {
       // TODO: Throw an exception for missing dependency.
     }
-    
+
     // TODO: Upload JSON Config
     // TODO: Execute command to run recipe
     super.start
     remoteMachine.createFile(new File("railsConfig"), getJSONConfig)
     remoteMachine.executeCommand("chef-solo -r /tmp/repo.tar.gz -j railsConfig")
     println("Rails deployed!")
-    
+
     // TODO: Add this to HAProxy's config, then restart it.
     if (haproxyService != null) {
       haproxyService.addRails(this)
@@ -108,23 +108,23 @@ case class RailsService(remoteMachine: RemoteMachine,
     val railsConfig = new JSONObject()
     railsConfig.put("recipes", new JSONArray().put("cloudstone::rails"))
     val railsRails = new JSONObject()
-    
+
     val railsRailsPorts = new JSONObject()
     railsRailsPorts.put("start", portStart)
     railsRailsPorts.put("count", portCount)
     railsRails.put("ports", railsRailsPorts)
-    
+
     val railsRailsDatabase = new JSONObject()
     railsRailsDatabase.put("host", mysqlService.remoteMachine.hostname)
     railsRailsDatabase.put("adapter", "mysql")
     railsRailsDatabase.put("port", mysqlService.port)
     railsRails.put("database", railsRailsDatabase)
-    
+
     val railsRailsMemcached = new JSONObject()
     railsRailsMemcached.put("host", "localhost")
     railsRailsMemcached.put("port", 1211)
     railsRails.put("memcached", railsRailsMemcached)
-    
+
     val railsRailsGeocoder = new JSONObject()
     if (fabanService != null)
       railsRailsGeocoder.put("host", fabanService.remoteMachine.hostname)
@@ -132,9 +132,9 @@ case class RailsService(remoteMachine: RemoteMachine,
       railsRailsGeocoder.put("host", "localhost")
     railsRailsGeocoder.put("port", 9980)
     railsRails.put("geocoder", railsRailsGeocoder)
-    
+
     railsConfig.put("rails", railsRails)
-    
+
     return railsConfig.toString
   }
 
