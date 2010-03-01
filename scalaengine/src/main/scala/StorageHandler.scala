@@ -760,7 +760,8 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
       case ree: java.util.concurrent.RejectedExecutionException => {
         val resp = new ProcessingException
         resp.cause = "Thread pool exhausted"
-        reply(resp)
+		resp.stacktrace = ree.toString
+        replyWithError(src,msg,resp)
       }
       case e: Throwable => {
         logger.error("ProcessingException", e)
@@ -773,8 +774,15 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
         val resp = new ProcessingException
         resp.cause = e.toString()
         resp.stacktrace = e.getStackTrace().mkString("\n")
-        reply(resp)
+        replyWithError(src,msg,resp)
       }
     }
+  }
+  def replyWithError(src:RemoteNode, req:Message, except:ProcessingException):Unit = {
+	val resp = new Message
+    resp.body = except
+    resp.dest = req.src
+	resp.id = req.id
+	MessageHandler.sendMessage(src, resp)
   }
 }
