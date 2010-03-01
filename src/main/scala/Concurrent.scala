@@ -69,6 +69,10 @@ object ParallelConversions {
 }
 
 class ParallelSeq[A](seq: List[A]) {
+	def spmap[B](f : (A) => B) : List[Future[B]] = {
+		seq.map(v => new Future(f(v)))
+	}
+
 	def pmap[B](f : (A) => B) : List[B] = {
 		seq.map(v => new Future(f(v))).map(_())
 	}
