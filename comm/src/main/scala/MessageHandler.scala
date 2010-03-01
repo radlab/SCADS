@@ -54,6 +54,8 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
       if (act != null) {
         act ! (src,msg)
         return
+      } else {
+        logger.warn("Got message for null actor")
       }
     }
     case s:String => {

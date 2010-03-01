@@ -78,11 +78,23 @@
 		  {"name": "namespace", "type": "string"},
 			{"name": "range", "type": "KeyRange"}]
     },
-		{"name": "CopyStartReply", "type": "record", "fields": [
+		{"name": "TransferStartReply", "type": "record", "fields": [
 		  {"name": "recvActorId", "type": "long"}]
     },
-		{"name": "CopyFinished", "type": "record", "fields": [
+		{"name": "TransferFinished", "type": "record", "fields": [
 		  {"name": "sendActorId", "type": "long"}]
+    },
+
+		{"name": "SyncRangeRequest", "type": "record", "fields": [
+		  {"name": "namespace", "type": "string"},
+			{"name": "destinationHost", "type": "string"},
+			{"name": "destinationPort", "type": "int"},
+			{"name": "range", "type": "KeyRange"}]
+		},
+		{"name": "SyncStartRequest", "type": "record", "fields": [
+		  {"name": "namespace", "type": "string"},
+			{"name": "recvIterId", "type": "long"},
+			{"name": "range", "type": "KeyRange"}]
     },
 
 
@@ -114,8 +126,10 @@
 								 "ConfigureRequest",
 								 "CopyRangeRequest",
 								 "CopyStartRequest",
-								 "CopyStartReply",
-								 "CopyFinished",
+								 "SyncRangeRequest",
+								 "SyncStartRequest",
+								 "TransferStartReply",
+								 "TransferFinished",
 								 "BulkData",
 								 "BulkDataAck",
 
