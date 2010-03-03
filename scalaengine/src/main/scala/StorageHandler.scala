@@ -55,7 +55,7 @@ class RecvIter(id:java.lang.Long, logger:Logger) {
       react {
 				case (rn:RemoteNode, msg: Message) => msg.body match {
           case bd:BulkData => {
-            logger.warn("Got bulk data, inserting")
+            logger.debug("Got bulk data, inserting")
             val it:java.util.Iterator[Record] = bd.records.records.iterator
             while(it.hasNext) {
               val rec = it.next
@@ -71,9 +71,16 @@ class RecvIter(id:java.lang.Long, logger:Logger) {
             MessageHandler.sendMessage(rn,msg)
             logger.debug("Done and acked")
           }
-          case ric:TransferFinished => {
-            logger.warn("Got copy finished")
+          case tf:TransferFinished => {
+            logger.debug("Got copy finished")
             finFunc()
+            val ric = new RecvIterClose
+            ric.sendActorId = id.longValue
+            val msg = new Message
+            msg.body = ric
+            msg.dest = new java.lang.Long(tf.sendActorId)
+            msg.src = id
+            MessageHandler.sendMessage(rn,msg)
             exit()
           }
           case m => {
@@ -166,15 +173,21 @@ class SendIter(targetNode:RemoteNode, id:java.lang.Long, receiverId:java.lang.Lo
 
   def put(rec:Record): Unit = {
     while (windowLeft <= 0) { // not enough acks processed
-      reactWithin(60000) { // we'll allow 1 minute for an ack
-        case (rn:RemoteNode, bda:BulkDataAck) => 
-          windowLeft += 1
+      receiveWithin(60000) { // we'll allow 1 minute for an ack
+        case (rn:RemoteNode, msg:Message)  => msg.body match {
+          case bda:BulkDataAck => {
+            logger.debug("Got ack, increasing window")
+            windowLeft += 1
+          }
+          case msgb =>
+            logger.warn("SendIter got unexpected message body: "+msgb)
+        }
         case TIMEOUT => {
           logger.warn("SendIter timed out waiting for ack")
           exit()
         }
-        case _ =>
-          logger.warn("SendIter got unexpected message")
+        case msg =>
+          logger.warn("SendIter got unexpected message: "+msg)
       }
     }
     buffer.add(rec)
@@ -307,20 +320,12 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
         val ns = namespaces(grr.namespace)
         val recordSet = new RecordSet
         recordSet.records = new AvroArray[Record](1024, Schema.createArray((new Record).getSchema))
-        logger.warn("ns: " + ns)
-        logger.warn("grr.range: " + grr.range)
         iterateOverRange(ns, grr.range, false, (key, value, cursor) => {
           val rec = new Record
           rec.key = key.getData
           rec.value = value.getData
           recordSet.records.add(rec)
-          logger.warn("added rec: " + rec)
-          logger.warn("rec.key: " + rec.key)
-          logger.warn("rec.value: " + rec.value)
-          logger.warn("keyBytes.length: " + key.getData.length)
-          logger.warn("valueBytes.length: " + value.getData.length)
         })
-        logger.warn("recordSet: " + recordSet) 
         reply(recordSet)
       }
 
@@ -375,8 +380,30 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
                 msg.body = fin
                 MessageHandler.sendMessage(rn,msg)
                 logger.debug("TransferFinished and sent")
-                MessageHandler.unregisterActor(scId)
-                reply(null)
+                // now we loop and wait for acks and final cleanup from other side
+                loop {
+                  reactWithin(60000) { // we'll allow 1 minute for an ack
+                    case (rn:RemoteNode, msg:Message)  => msg.body match {
+                      case bda:BulkDataAck => {
+                        // don't need to do anything, we're ignoring these
+                      }
+                      case ric:RecvIterClose => { // should probably have a status here at some point
+                        logger.debug("Got close, all done")
+                        MessageHandler.unregisterActor(scId)
+                        reply(null)
+                        exit()
+                      }
+                      case msgb =>
+                        logger.warn("Copy end loop got unexpected message body: "+msgb)
+                    }
+                    case TIMEOUT => {
+                      logger.warn("Copy end loop timed out waiting for finish")
+                      exit()
+                    }
+                    case msg =>
+                      logger.warn("Copy end loop got unexpected message: "+msg)
+                  }
+                }
               }
               case _ => {
                 logger.warn("Unexpected reply to copy start request")
@@ -463,14 +490,14 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
                 loop {
                   react {
                     case Exit(act,reas) => {
-                      logger.warn("Got exit from recv, cleaning up") // TODO: Debug
+                      logger.debug("Got exit from recv, cleaning up") 
                       MessageHandler.unregisterActor(scId)
                       reply(null)
                       exit()
                     }
                     case (rn:RemoteNode, msg: Message) => msg.body match {
                       case bda:BulkDataAck =>
-                        logger.warn("BulkAck. dropped since we're done sending") // TODO: Debug
+                        logger.debug("BulkAck. dropped since we're done sending") // TODO: Debug
                       case other => {
                         logger.warn("Unexpected message waiting for exit in sync range: "+other)
                         MessageHandler.unregisterActor(scId)
@@ -659,7 +686,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
     iterateOverRange(ns,range,needTXN,func,null)
 
   private def iterateOverRange(ns: Namespace, range: KeyRange, needTXN: Boolean, func: (DatabaseEntry, DatabaseEntry, Cursor) => Unit, finalFunc: (Cursor) => Unit): Unit = {
-    logger.warn("entering iterateOverRange")
+    logger.debug("entering iterateOverRange")
     val dbeKey = new DatabaseEntry()
     val dbeValue = new DatabaseEntry()
     var txn = 
@@ -693,13 +720,13 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
         else
           OperationStatus.SUCCESS
       }
-    logger.warn("status: " + status)
+    logger.debug("status: " + status)
 
     var toSkip: Int = if(range.offset == null) -1 else range.offset.intValue()
     var remaining: Int = if(range.limit == null) -1 else range.limit.intValue()
 
     if(!range.backwards) {
-      logger.warn("skipping: " + toSkip)
+      logger.debug("skipping: " + toSkip)
       while(toSkip > 0 && status == OperationStatus.SUCCESS) {
         status = cur.getNext(dbeKey, dbeValue, null)
         toSkip -= 1

@@ -132,6 +132,7 @@
 								 "TransferFinished",
 								 "BulkData",
 								 "BulkDataAck",
+								 "RecvIterClose",
 
 								 "Record", 
 								 "RecordSet",
