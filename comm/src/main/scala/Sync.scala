@@ -35,4 +35,31 @@ object Sync {
 			case Left(exp) => throw exp
 		}
 	}
+
+	def makeRequestNoTimeout(rn: RemoteNode, dest: Object, reqBody: Object): Object = {
+		val resp = new SyncVar[Either[Throwable, Object]]
+
+		val a = actor {
+			val req = new Message
+			req.body = reqBody
+      req.dest = dest
+      val id = MessageHandler.registerActor(self)
+			req.src = new java.lang.Long(id)
+			MessageHandler.sendMessage(rn, req)
+			react {
+				case (RemoteNode(hostname, port), msg: Message) => msg.body match {
+					case exp: ProcessingException => resp.set(Left(new RuntimeException("Remote Exception" + exp)))
+					case obj => resp.set(Right(obj))
+				}
+				case TIMEOUT => resp.set(Left(new RuntimeException("Timeout")))
+				case msg => logger.warn("Unexpected message: " + msg)
+			}
+      MessageHandler.unregisterActor(id)
+		}
+
+		resp.get match {
+			case Right(msg) => msg
+			case Left(exp) => throw exp
+		}
+	}
 }
