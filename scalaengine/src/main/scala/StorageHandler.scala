@@ -9,7 +9,7 @@ import scala.actors._
 import scala.actors.Actor._
 
 import org.apache.log4j.Logger
-import com.sleepycat.je.{Cursor,Database, DatabaseConfig, DatabaseEntry, Environment, LockMode, OperationStatus, Durability, Transaction}
+import com.sleepycat.je.{Cursor,Database, DatabaseConfig, DatabaseException, DatabaseEntry, Environment, LockMode, OperationStatus, Durability, Transaction}
 
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.comm.Conversions._
@@ -53,7 +53,7 @@ class RecvIter(id:java.lang.Long, logger:Logger) {
   def doRecv(recFunc:(Record) => Unit, finFunc:() => Unit) {
     loop {
       react {
-				case (rn:RemoteNode, msg: Message) => msg.body match {
+        case (rn:RemoteNode, msg: Message) => msg.body match {
           case bd:BulkData => {
             logger.debug("Got bulk data, inserting")
             val it:java.util.Iterator[Record] = bd.records.records.iterator
@@ -103,7 +103,7 @@ class RecvPullIter(id:java.lang.Long, logger:Logger) extends Iterator[Record] {
   private def nextBuf() = {
     if (!done) {
       receive {
-			  case (rn:RemoteNode, msg: Message) => msg.body match {
+        case (rn:RemoteNode, msg: Message) => msg.body match {
           case bd:BulkData => {
             curRecs = bd.records.records.iterator
             val bda = new BulkDataAck
@@ -134,7 +134,7 @@ class RecvPullIter(id:java.lang.Long, logger:Logger) extends Iterator[Record] {
       }
     }
   }
-  
+
   def hasNext(): Boolean = {
     if (done) return false
     if (curRecs == null || !(curRecs.hasNext)) nextBuf
@@ -208,6 +208,13 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
 
   private val logger = Logger.getLogger("StorageHandler")
 
+  class SDRunner(sh: StorageHandler) extends Thread {
+    override def run(): Unit = {
+      sh.shutdown()
+    }
+  }
+  java.lang.Runtime.getRuntime().addShutdownHook(new SDRunner(this))
+
   private def decodeKey(ns:Namespace, dbe:DatabaseEntry): GenericData.Record = {
     val decoder = new BinaryDecoder(new ByteArrayInputStream(dbe.getData))
     val reader = new GenericDatumReader[GenericData.Record](ns.keySchema)
@@ -219,7 +226,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
       val resp = new Message
       resp.body = body
       resp.dest = req.src
-	    resp.id = req.id
+      resp.id = req.id
       MessageHandler.sendMessage(src, resp)
     }
 
@@ -355,13 +362,13 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
           req.range = crr.range
           val scId = MessageHandler.registerActor(self)
           val myId = new java.lang.Long(scId)
-			    msg.src = myId
+          msg.src = myId
           msg.dest = new Utf8("Storage")
           msg.body = req
           val rn = new RemoteNode(crr.destinationHost, crr.destinationPort)
-			    MessageHandler.sendMessage(rn, msg)
-			    reactWithin(60000) {
-				    case (rn:RemoteNode, msg: Message) => msg.body match {
+          MessageHandler.sendMessage(rn, msg)
+          reactWithin(60000) {
+            case (rn:RemoteNode, msg: Message) => msg.body match {
               case csr: TransferStartReply => {
                 logger.debug("Got TransferStartReply, sending data")
                 val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema))
@@ -410,18 +417,18 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
                 MessageHandler.unregisterActor(scId)
                 exit()
               }
-				    }
-				    case TIMEOUT => {
+            }
+            case TIMEOUT => {
               logger.warn("Timed out waiting to start a range copy")
               MessageHandler.unregisterActor(scId)
               exit
             }
-				    case msg => { 
+            case msg => { 
               logger.warn("Unexpected message: " + msg)
               MessageHandler.unregisterActor(scId)
               exit
             }
-			    }
+          }
         }
         null
       }
@@ -460,13 +467,13 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
           req.recvIterId = recvActId
           val scId = MessageHandler.registerActor(self)
           val myId = new java.lang.Long(scId)
-			    msg.src = myId
+          msg.src = myId
           msg.dest = new Utf8("Storage")
           msg.body = req
           val rn = new RemoteNode(srr.destinationHost, srr.destinationPort)
-			    MessageHandler.sendMessage(rn, msg)
-			    reactWithin(60000) {
-				    case (rn:RemoteNode, msg: Message) => msg.body match {
+          MessageHandler.sendMessage(rn, msg)
+          reactWithin(60000) {
+            case (rn:RemoteNode, msg: Message) => msg.body match {
               case csr: TransferStartReply => {
                 logger.debug("Got TransferStartReply, sending data")
                 recvAct.start
@@ -518,18 +525,18 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
                 MessageHandler.unregisterActor(scId)
                 exit()
               }
-				    }
-				    case TIMEOUT => {
+            }
+            case TIMEOUT => {
               logger.warn("Timed out waiting to start a range sync")
               MessageHandler.unregisterActor(scId)
               exit
             }
-				    case msg => { 
+            case msg => { 
               logger.warn("Unexpected message: " + msg)
               MessageHandler.unregisterActor(scId)
               exit
             }
-			    }
+          }
         }
         null
       }
@@ -596,7 +603,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
               // so there is at least one more remote record to deal with
               if (curRemoteRec == null)
                 curRemoteRec = recvIt.next
-              
+
               var keyComp = ns.comp.compare(key.getData,curRemoteRec.key)
               if (keyComp < 0) { // case 1
                 val rec = new Record
@@ -615,35 +622,35 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
                     keyComp = 0
                 }
               }
-              else if (keyComp ==  0) { // case 3
-                val dataComp = ns.comp.compare(value.getData,curRemoteRec.value)
-                if (dataComp < 0) {
-                  // remote greater, just insert
-                  cursor.put(key,curRemoteRec.value)
-                }
-                else if (dataComp > 0) {
-                  // remote less, send over
-                  val rec = new Record
-                  rec.key = key.getData
-                  rec.value = value.getData
-                  sendIt.put(rec)
-                }
-                curRemoteRec = null // we've handled this one, so we need a new one
-              }
+                  else if (keyComp ==  0) { // case 3
+                    val dataComp = ns.comp.compare(value.getData,curRemoteRec.value)
+                    if (dataComp < 0) {
+                      // remote greater, just insert
+                      cursor.put(key,curRemoteRec.value)
+                    }
+                    else if (dataComp > 0) {
+                      // remote less, send over
+                      val rec = new Record
+                      rec.key = key.getData
+                      rec.value = value.getData
+                      sendIt.put(rec)
+                    }
+                    curRemoteRec = null // we've handled this one, so we need a new one
+                  }
             }
           },
-          (cursor) => {
-            // final func, case 5
-            if (curRemoteRec != null) {
-                val key: DatabaseEntry = curRemoteRec.key
-                cursor.put(key,curRemoteRec.value)
-            }
-            while (recvIt.hasNext) {
-              curRemoteRec = recvIt.next
-              val key: DatabaseEntry = curRemoteRec.key
-              cursor.put(key,curRemoteRec.value)
-            }
-          })
+                           (cursor) => {
+                             // final func, case 5
+                             if (curRemoteRec != null) {
+                               val key: DatabaseEntry = curRemoteRec.key
+                               cursor.put(key,curRemoteRec.value)
+                             }
+                             while (recvIt.hasNext) {
+                               curRemoteRec = recvIt.next
+                               val key: DatabaseEntry = curRemoteRec.key
+                               cursor.put(key,curRemoteRec.value)
+                             }
+                           })
           sendIt.flush
           val fin = new TransferFinished
           fin.sendActorId = myId.longValue
@@ -780,6 +787,43 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
     }
   }
 
+  def shutdown(): Unit = {
+    var ok = true
+    namespaces.synchronized {
+      namespaces.foreach { tuple:(String,Namespace) => {
+        val (nsStr, ns) = tuple
+        logger.info("Closing: "+nsStr)
+        try {
+          ns.db.close()
+        } catch {
+          case dbe:DatabaseException => {
+            ok = false
+            logger.error("Could not close namespace "+nsStr+": "+dbe)
+          }
+          case excp => {
+            ok = false
+            throw excp
+          }
+        }
+        logger.info(if(ok) "[OK]" else "[FAIL]")
+      } }
+    }
+    logger.info("Closing environment")
+    try {
+      env.close()
+    } catch {
+      case dbe:DatabaseException => {
+        ok = false
+        logger.error("Could not close environment: "+dbe)
+      }
+      case excp => {
+        ok = false
+        throw excp
+      }
+    }
+    logger.info(if(ok) "[OK]" else "[FAIL]")
+  }
+
   def receiveMessage(src: RemoteNode, msg:Message): Unit = {
     try {
       executor.execute(new Request(src, msg))
@@ -787,7 +831,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
       case ree: java.util.concurrent.RejectedExecutionException => {
         val resp = new ProcessingException
         resp.cause = "Thread pool exhausted"
-		resp.stacktrace = ree.toString
+        resp.stacktrace = ree.toString
         replyWithError(src,msg,resp)
       }
       case e: Throwable => {
@@ -806,10 +850,10 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
     }
   }
   def replyWithError(src:RemoteNode, req:Message, except:ProcessingException):Unit = {
-	val resp = new Message
+    val resp = new Message
     resp.body = except
     resp.dest = req.src
-	resp.id = req.id
-	MessageHandler.sendMessage(src, resp)
+    resp.id = req.id
+    MessageHandler.sendMessage(src, resp)
   }
 }
