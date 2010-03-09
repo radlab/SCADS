@@ -1,0 +1,4 @@
+<plugin>
+  <name>avro-scala-plugin</name>
+  <classname>com.googlecode.avro.ScalaAvroPlugin</classname>
+</plugin>
