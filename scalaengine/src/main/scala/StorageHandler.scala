@@ -353,14 +353,14 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
         reply(int2Integer(c))
       }
 
-      case crr: CopyRangeRequest => {
+      case crr: CopyRangesRequest => {
         val ns = namespaces(crr.namespace)
         val startTime = System.currentTimeMillis()
         val act = actor {
           val msg = new Message
           val req = new CopyStartRequest
           req.namespace = crr.namespace
-          req.range = crr.range
+          req.ranges = crr.ranges
           val scId = MessageHandler.registerActor(self)
           val myId = new java.lang.Long(scId)
           msg.src = myId
@@ -381,13 +381,16 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
                 val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema))
                 val sendIt = new SendIter(rn,myId,csr.recvActorId,buffer,100,logger)
                 var recsSent:Long = 0
-                iterateOverRange(ns, crr.range, false, (key, value, cursor) => {
-                  val rec = new Record
-                  rec.key = key.getData
-                  rec.value = value.getData
-                  sendIt.put(rec)
-                  recsSent += 1
-                })
+                val rangeIt = crr.ranges.iterator()
+                while(rangeIt.hasNext()) {
+                  iterateOverRange(ns, rangeIt.next(), false, (key, value, cursor) => {
+                    val rec = new Record
+                    rec.key = key.getData
+                    rec.value = value.getData
+                    sendIt.put(rec)
+                    recsSent += 1
+                  })
+                }
                 sendIt.flush
                 val fin = new TransferFinished
                 fin.sendActorId = myId.longValue

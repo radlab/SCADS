@@ -67,16 +67,16 @@
 			{"name": "namespace", "type": "string"},
 			{"name": "partition", "type": "string"}]
 		},
-		{"name": "CopyRangeRequest", "type": "record", "fields": [
+		{"name": "CopyRangesRequest", "type": "record", "fields": [
 		  {"name": "namespace", "type": "string"},
 			{"name": "destinationHost", "type": "string"},
 			{"name": "destinationPort", "type": "int"},
-			{"name": "range", "type": "KeyRange"}]
+			{"name": "ranges", "type": {"type": "array", "items": "KeyRange"}}]
 		},
 
 		{"name": "CopyStartRequest", "type": "record", "fields": [
 		  {"name": "namespace", "type": "string"},
-			{"name": "range", "type": "KeyRange"}]
+			{"name": "ranges", "type": {"type": "array", "items": "KeyRange"}}]
     },
 		{"name": "TransferStartReply", "type": "record", "fields": [
 		  {"name": "recvActorId", "type": "long"}]
@@ -136,7 +136,7 @@
 								 "PutRequest", 
 								 "TestSetRequest", 
 								 "ConfigureRequest",
-								 "CopyRangeRequest",
+								 "CopyRangesRequest",
 								 "CopyStartRequest",
 								 "SyncRangeRequest",
 								 "SyncStartRequest",
