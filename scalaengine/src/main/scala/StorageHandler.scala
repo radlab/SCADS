@@ -355,6 +355,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
 
       case crr: CopyRangeRequest => {
         val ns = namespaces(crr.namespace)
+        val startTime = System.currentTimeMillis()
         val act = actor {
           val msg = new Message
           val req = new CopyStartRequest
@@ -367,17 +368,25 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
           msg.body = req
           val rn = new RemoteNode(crr.destinationHost, crr.destinationPort)
           MessageHandler.sendMessage(rn, msg)
+          
+          // Now reply to requestor with a started message
+          val ts = new TransferStarted
+          ts.sendActorId = scId
+          reply(ts)
+
           reactWithin(60000) {
             case (rn:RemoteNode, msg: Message) => msg.body match {
               case csr: TransferStartReply => {
                 logger.debug("Got TransferStartReply, sending data")
                 val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema))
                 val sendIt = new SendIter(rn,myId,csr.recvActorId,buffer,100,logger)
+                var recsSent:Long = 0
                 iterateOverRange(ns, crr.range, false, (key, value, cursor) => {
                   val rec = new Record
                   rec.key = key.getData
                   rec.value = value.getData
                   sendIt.put(rec)
+                  recsSent += 1
                 })
                 sendIt.flush
                 val fin = new TransferFinished
@@ -396,8 +405,13 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
                       }
                       case ric:RecvIterClose => { // should probably have a status here at some point
                         logger.debug("Got close, all done")
+                        val endTime = System.currentTimeMillis
                         MessageHandler.unregisterActor(scId)
-                        reply(null)
+                        val tsm = new TransferSucceeded
+                        tsm.sendActorId = scId
+                        tsm.recordsSent = recsSent
+                        tsm.milliseconds = (endTime - startTime)
+                        reply(tsm)
                         exit()
                       }
                       case msgb =>
@@ -405,6 +419,10 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
                     }
                     case TIMEOUT => {
                       logger.warn("Copy end loop timed out waiting for finish")
+                      val tf = new TransferFailed
+                      tf.sendActorId = scId
+                      tf.reason = "Copy end loop timed out waiting for finish"
+                      reply(tf)
                       exit()
                     }
                     case msg =>
@@ -415,18 +433,30 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
               case _ => {
                 logger.warn("Unexpected reply to copy start request")
                 MessageHandler.unregisterActor(scId)
+                val tf = new TransferFailed
+                tf.sendActorId = scId
+                tf.reason = "Unexpected reply to copy start request"
+                reply(tf)
                 exit()
               }
             }
             case TIMEOUT => {
               logger.warn("Timed out waiting to start a range copy")
               MessageHandler.unregisterActor(scId)
-              exit
+              val tf = new TransferFailed
+              tf.sendActorId = scId
+              tf.reason = "Timed out waiting to start a range copy"
+              reply(tf)
+              exit()
             }
             case msg => { 
-              logger.warn("Unexpected message: " + msg)
+              logger.warn("Unexpected message waiting to start range copy: " + msg)
               MessageHandler.unregisterActor(scId)
-              exit
+              val tf = new TransferFailed
+              tf.sendActorId = scId
+              tf.reason = "Unexpected message waiting to start range copy: "+msg
+              reply(tf)
+              exit()
             }
           }
         }
@@ -639,18 +669,18 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
                   }
             }
           },
-                           (cursor) => {
-                             // final func, case 5
-                             if (curRemoteRec != null) {
-                               val key: DatabaseEntry = curRemoteRec.key
-                               cursor.put(key,curRemoteRec.value)
-                             }
-                             while (recvIt.hasNext) {
-                               curRemoteRec = recvIt.next
-                               val key: DatabaseEntry = curRemoteRec.key
-                               cursor.put(key,curRemoteRec.value)
-                             }
-                           })
+          (cursor) => {
+            // final func, case 5
+            if (curRemoteRec != null) {
+              val key: DatabaseEntry = curRemoteRec.key
+              cursor.put(key,curRemoteRec.value)
+            }
+            while (recvIt.hasNext) {
+              curRemoteRec = recvIt.next
+              val key: DatabaseEntry = curRemoteRec.key
+              cursor.put(key,curRemoteRec.value)
+            }
+          })
           sendIt.flush
           val fin = new TransferFinished
           fin.sendActorId = myId.longValue
@@ -773,8 +803,8 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
     namespaces.synchronized {
       val nsRoot = root.get("namespaces").get(ns)
       val keySchema = new String(nsRoot("keySchema").data)
-      //val policy = partition("policy").data
-      //val partition = nsRoot("partitions").get(partition)
+      //val policy = new PartitionedPolicy
+      //policy.parse((nsRoot("partitions").get(partition))("policy").data)
 
       val comp = new AvroComparator(keySchema)
       val dbConfig = new DatabaseConfig

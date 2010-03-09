@@ -97,6 +97,18 @@
 			{"name": "range", "type": "KeyRange"}]
     },
 
+		{"name": "TransferStarted", "type": "record", "fields": [
+		  {"name": "sendActorId", "type": "long"}]
+    },
+		{"name": "TransferSucceeded", "type": "record", "fields": [
+		  {"name": "sendActorId", "type": "long"},
+		  {"name": "recordsSent", "type": "long"},
+		  {"name": "milliseconds", "type": "long"}]
+    },
+		{"name": "TransferFailed", "type": "record", "fields": [
+		  {"name": "sendActorId", "type": "long"},
+		  {"name": "reason", "type": "string"}]
+    },
 
 		{"name": "BulkData", "type": "record", "fields": [
 		  {"name": "seqNum", "type": "int"},
@@ -128,6 +140,9 @@
 								 "CopyStartRequest",
 								 "SyncRangeRequest",
 								 "SyncStartRequest",
+								 "TransferStarted",
+								 "TransferSucceeded",
+								 "TransferFailed",
 								 "TransferStartReply",
 								 "TransferFinished",
 								 "BulkData",
