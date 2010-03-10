@@ -71,6 +71,7 @@
 		  {"name": "namespace", "type": "string"},
 			{"name": "destinationHost", "type": "string"},
 			{"name": "destinationPort", "type": "int"},
+			{"name": "rateLimit", "type":"int"},
 			{"name": "ranges", "type": {"type": "array", "items": "KeyRange"}}]
 		},
 

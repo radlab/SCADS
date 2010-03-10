@@ -150,11 +150,20 @@ class RecvPullIter(id:java.lang.Long, logger:Logger) extends Iterator[Record] {
   }
 }
 
-class SendIter(targetNode:RemoteNode, id:java.lang.Long, receiverId:java.lang.Long, buffer:AvroArray[Record], capacity:Int, logger:Logger) {
+class SendIter(targetNode:RemoteNode, id:java.lang.Long, receiverId:java.lang.Long, buffer:AvroArray[Record], capacity:Int, speedLimit:Int, logger:Logger) {
   private var windowLeft = 50 // we'll allow 50 un-acked bulk messages for now
   private var seqNum = 0
+  private var bytesQueued:Long = 0
+  private var bytesSentLast:Long = 0
+  private var lastSentTime:Long = 0
 
   def flush() {
+    if (speedLimit != 0) {
+      val secs = (System.currentTimeMillis - lastSentTime)/1000
+      val target = bytesSentLast / speedLimit
+      if (target > secs)  // if we wanted to take longer than we actually did
+        Thread.sleep((target-secs)*1000)
+    }
     val bd = new BulkData
     bd.seqNum = seqNum
     seqNum += 1
@@ -169,6 +178,11 @@ class SendIter(targetNode:RemoteNode, id:java.lang.Long, receiverId:java.lang.Lo
     MessageHandler.sendMessage(targetNode,msg)
     windowLeft -= 1
     buffer.clear
+    if (speedLimit != 0) {
+      bytesSentLast = bytesQueued
+      bytesQueued = 0
+      lastSentTime = System.currentTimeMillis()
+    }
   }
 
   def put(rec:Record): Unit = {
@@ -191,6 +205,7 @@ class SendIter(targetNode:RemoteNode, id:java.lang.Long, receiverId:java.lang.Lo
       }
     }
     buffer.add(rec)
+    bytesQueued += rec.value.remaining
     if (buffer.size >= capacity)  // time to send
       flush
   }
@@ -379,7 +394,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
               case csr: TransferStartReply => {
                 logger.debug("Got TransferStartReply, sending data")
                 val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema))
-                val sendIt = new SendIter(rn,myId,csr.recvActorId,buffer,100,logger)
+                val sendIt = new SendIter(rn,myId,csr.recvActorId,buffer,100,crr.rateLimit,logger)
                 var recsSent:Long = 0
                 val rangeIt = crr.ranges.iterator()
                 while(rangeIt.hasNext()) {
@@ -511,7 +526,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
                 logger.debug("Got TransferStartReply, sending data")
                 recvAct.start
                 val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema))
-                val sendIt = new SendIter(rn,myId,csr.recvActorId,buffer,100,logger)
+                val sendIt = new SendIter(rn,myId,csr.recvActorId,buffer,100,0,logger)
                 iterateOverRange(ns, srr.range, false, (key, value, cursor) => {
                   val rec = new Record
                   rec.key = key.getData
@@ -607,7 +622,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
           val myId = new java.lang.Long(scId)
           val recvIt = new RecvPullIter(myId,logger)
           val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema)) 
-          val sendIt = new SendIter(src,myId,ssreq.recvIterId,buffer,100,logger)
+          val sendIt = new SendIter(src,myId,ssreq.recvIterId,buffer,100,0,logger)
           val tsr = new TransferStartReply
           tsr.recvActorId = myId.longValue
           val msg = new Message
