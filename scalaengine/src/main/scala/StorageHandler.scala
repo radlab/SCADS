@@ -804,19 +804,21 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
 
   def openNamespace(ns: String, partition: String): Unit = {
     namespaces.synchronized {
-      val nsRoot = root.get("namespaces").get(ns)
-      val keySchema = new String(nsRoot("keySchema").data)
-      //val policy = new PartitionedPolicy
-      //policy.parse((nsRoot("partitions").get(partition))("policy").data)
-
-      val comp = new AvroComparator(keySchema)
-      val dbConfig = new DatabaseConfig
-      dbConfig.setAllowCreate(true)
-      dbConfig.setBtreeComparator(comp)
-      dbConfig.setTransactional(true)
-
-      namespaces += ((ns, Namespace(env.openDatabase(null, ns, dbConfig), Schema.parse(keySchema), comp)))
-      logger.info("namespace " + ns + " created")
+      if (!namespaces.contains(ns)) {
+        val nsRoot = root.get("namespaces").get(ns)
+        val keySchema = new String(nsRoot("keySchema").data)
+        //val policy = new PartitionedPolicy
+        //policy.parse((nsRoot("partitions").get(partition))("policy").data)
+        
+        val comp = new AvroComparator(keySchema)
+        val dbConfig = new DatabaseConfig
+        dbConfig.setAllowCreate(true)
+        dbConfig.setBtreeComparator(comp)
+        dbConfig.setTransactional(true)
+        
+        namespaces += ((ns, Namespace(env.openDatabase(null, ns, dbConfig), Schema.parse(keySchema), comp)))
+        logger.info("namespace " + ns + " created")
+      }
     }
   }
 
