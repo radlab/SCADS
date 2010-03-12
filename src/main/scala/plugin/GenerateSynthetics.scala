@@ -39,6 +39,14 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
     import CODE._
     import Helpers._
 
+    val primitiveClasses = Map(
+        IntClass     -> Schema.create(AvroType.INT),
+        FloatClass   -> Schema.create(AvroType.FLOAT),
+        LongClass    -> Schema.create(AvroType.LONG),
+        DoubleClass  -> Schema.create(AvroType.DOUBLE),
+        BooleanClass -> Schema.create(AvroType.BOOLEAN),
+        StringClass  -> Schema.create(AvroType.STRING)
+    )
 
     def generateSetMethod(templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
         val newSym = clazz.newMethod(clazz.pos.focus, newTermName("put"))
@@ -153,13 +161,25 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
             List(This(clazz) DOT sym))
     }
 
+    def listToGenericArray(clazz: Symbol, sym: Symbol): Tree = {
+        Apply(
+            This(clazz) DOT newTermName("scalaListToGenericArray"),
+            List(This(clazz) DOT sym)) 
+    }
+
     def sym2ident(clazz: Symbol, sym: Symbol): Tree = This(clazz) DOT sym AS ObjectClass.tpe
 
     // TODO: don't use strings as keys, find a more general solution here
     private var symMap = Map(
-            StringClass.tpe.toString -> ((clazz:Symbol, sym:Symbol) => string2utf8(clazz,sym)),
-            "Array[Byte]" -> ((clazz:Symbol, sym:Symbol) => byteArray2byteBuffer(clazz,sym))  
-            )
+            StringClass -> ((clazz:Symbol, sym:Symbol) => string2utf8(clazz,sym)),
+            ArrayClass  -> ((clazz:Symbol, sym:Symbol) => 
+                if (sym.tpe.typeArgs.head.typeSymbol == ByteClass)
+                    byteArray2byteBuffer(clazz,sym)
+                else
+                    throw new UnsupportedOperationException("Cannot handle this right now")
+                ),
+            ListClass   -> ((clazz:Symbol, sym:Symbol) =>  listToGenericArray(clazz,sym))
+        )
 
     def generateGetMethod(templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
         val newSym = clazz.newMethod(clazz.pos.focus, newTermName("get"))
@@ -179,7 +199,7 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
             println("sym.tpe.normalize" + sym.tpe.normalize)
             println("sym.tpe.finalResultType" + sym.tpe.finalResultType)
             CASE(LIT(i)) ==> {
-                val fn = symMap get (sym.tpe.normalize.toString) getOrElse ( (c:Symbol, s:Symbol) => sym2ident(c,s) )
+                val fn = symMap get (sym.tpe.typeSymbol) getOrElse ( (c:Symbol, s:Symbol) => sym2ident(c,s) )
                 fn(clazz, sym)
             }
         }
@@ -206,27 +226,37 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
 
         val newRecord = Schema.createRecord(clazz.name.toString, "Auto-Generated Schema", clazz.owner.fullNameString, false)
 
-        println("StringClass.tpe.toString: " + StringClass.tpe.toString)
-
         val fieldList = instanceVars.map( iVar => {
             val fieldSchema = 
-                if (iVar.tpe == IntClass.tpe)
-                    Schema.create(AvroType.INT)
-                else if (iVar.tpe == LongClass.tpe)
-                    Schema.create(AvroType.LONG)
-                else if (iVar.tpe == FloatClass.tpe)
-                    Schema.create(AvroType.FLOAT)
-                else if (iVar.tpe == DoubleClass.tpe)
-                    Schema.create(AvroType.DOUBLE)
-                else if (iVar.tpe == BooleanClass.tpe)
-                    Schema.create(AvroType.BOOLEAN)
-                else if (iVar.tpe.typeSymbol == StringClass)
-                    Schema.create(AvroType.STRING)
+                if (primitiveClasses.get(iVar.tpe.typeSymbol).isDefined)
+                    primitiveClasses.get(iVar.tpe.typeSymbol).get
                 else if (iVar.tpe.typeSymbol == ArrayClass) {
                     println("iVar.tpe.normalize.typeArgs.head: " + iVar.tpe.normalize.typeArgs.head) 
+                    // TODO: support array just as we support lists, with
+                    // Array[Byte] as a sole exception (we should treat
+                    // Array[Array[Byte]] as an array of byte buffers, 
+                    // Array[Array[Array[Byte]]] as an array of arrays of byte
+                    // buffers, and so on)
                     if (iVar.tpe.normalize.typeArgs.head != ByteClass.tpe)
                         throw new UnsupportedOperationException("Bad Array Found: " + iVar.tpe)
                     Schema.create(AvroType.BYTES)
+                } else if (iVar.tpe.typeSymbol == ListClass) {
+                    // TODO: we should handle this more recursively,
+                    // so we can have List[List[T]] and so on, with
+                    // Array[Byte] as an exception. We should also be able to
+                    // mix arrays and lists, ie List[Array[List[Array[Byte]]]]
+                    // should "do the right thing", which in this case is
+                    // a list of list of list of byte buffers (Avro does not
+                    // distinguish between lists/arrays)
+                    val listParam = iVar.tpe.normalize.typeArgs.head 
+                    if (primitiveClasses.get(listParam.typeSymbol).isDefined)
+                        Schema.createArray(primitiveClasses.get(listParam.typeSymbol).get) 
+                    else if (listParam.typeSymbol == ArrayClass && listParam.typeArgs.head.typeSymbol == ByteClass)
+                        Schema.createArray(Schema.create(AvroType.BYTES))
+                    else if (plugin.state.recordClassSchemas.get(listParam.normalize.toString).isDefined)
+                        Schema.createArray(plugin.state.recordClassSchemas.get(listParam.normalize.toString).get)
+                    else
+                        throw new IllegalArgumentException("Cannot add non avro record list instance")
                 } else if (plugin.state.recordClassSchemas.get(iVar.tpe.normalize.toString).isDefined) {
                     plugin.state.recordClassSchemas.get(iVar.tpe.normalize.toString).getOrElse(throw new IllegalStateException("should not be null"))
                 } else 

@@ -185,6 +185,9 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
           val getSchemaWithPos = atPos(tree.pos)(getSchema)
 
           // def this() = super()
+          // i dont think you can even do this in scala, but you can write an
+          // AST for it :)
+          // TODO: is this safe (it is possible that future versions will disallow this)?
           val ctor = DefDef(
             NoMods,
             nme.CONSTRUCTOR,
@@ -208,7 +211,7 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
                             Select(
                                 Select(
                                     Ident(newTermName("org")), 
-                                newTermName("apache")),
+                                    newTermName("apache")),
                                 newTermName("avro")),
                             newTermName("specific")),
                         newTypeName("SpecificRecordBase"))
@@ -220,12 +223,21 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
                             Select(
                                 Select(
                                     Ident(newTermName("org")), 
-                                newTermName("apache")),
+                                    newTermName("apache")),
                                 newTermName("avro")),
                             newTermName("specific")),
                         newTypeName("SpecificRecord"))
 
-	      val newImpl = treeCopy.Template(impl, List(specificRecordBase, specificRecord) ::: impl.parents, impl.self, List(getSchemaWithPos, mkUtf8WithPos, mkByteBufferWithPos) ::: impl.body ::: List(ctorWithPos))
+          val avroConversions = 
+                Select(
+                    Select(
+                        Select(
+                            Ident(newTermName("com")),
+                            newTermName("googlecode")),
+                        newTermName("avro")),
+                    newTypeName("AvroConversions"))
+
+	      val newImpl = treeCopy.Template(impl, List(specificRecordBase, specificRecord, avroConversions) ::: impl.parents, impl.self, List(getSchemaWithPos, mkUtf8WithPos, mkByteBufferWithPos) ::: impl.body ::: List(ctorWithPos))
 
 
 	      treeCopy.ClassDef(tree, mods, name, tparams, newImpl)
