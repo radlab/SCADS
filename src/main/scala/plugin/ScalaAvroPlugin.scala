@@ -12,7 +12,11 @@ import nsc.typechecker.Analyzer
 import nsc.typechecker.Duplicators
 import nsc.symtab.Flags._
 
-import scala.collection.mutable.MutableList
+import scala.collection.mutable.{HashMap,MutableList}
+
+import org.apache.avro.Schema
+
+class AvroState(val recordClassSchemas: HashMap[String,Schema])
 
 class ScalaAvroPlugin(val global: Global) extends Plugin {
   import global._
@@ -23,6 +27,8 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
   
   val unitsWithSynthetics = new MutableList[CompilationUnit]
   val unitsInError = new MutableList[CompilationUnit]
+
+  val state = new AvroState(new HashMap[String,Schema]())
 
   object earlyNamer extends PluginComponent {
 	val global : ScalaAvroPlugin.this.global.type = ScalaAvroPlugin.this.global

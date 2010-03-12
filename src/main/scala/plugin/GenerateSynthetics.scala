@@ -16,7 +16,7 @@ import scala.annotation.tailrec
 
 import org.apache.avro.Schema
 import org.apache.avro.Schema.Field
-import org.apache.avro.Schema.Type
+import org.apache.avro.Schema.{Type => AvroType}
 
 import scala.collection.JavaConversions._
 
@@ -166,6 +166,7 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
 
         println(unit.depends.map(s => (s.fullNameString,s.tpe.normalize.toString)))
 
+        // TODO: find a better way to get a handle to these types
         val byteBufferTpe = unit.depends.filter(i => i.fullNameString == "java.nio.ByteBuffer" && !i.isModuleClass).head.tpe
         val utf8Tpe = unit.depends.filter(i => i.fullNameString == "org.apache.avro.util.Utf8" && !i.isModuleClass).head.tpe
 
@@ -314,7 +315,7 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
       synthetics
     }
 
-    def modifyGetSchemaMethod(name: Name, templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
+    def createSchemaFieldVal(name: Name, templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
         println("name: " + name)
         println("clazz.name: " + clazz.name)
         println("clazz.owner.name: " + clazz.owner.name)
@@ -329,24 +330,28 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
         val fieldList = instanceVars.map( iVar => {
             val fieldSchema = 
                 if (iVar.tpe == IntClass.tpe)
-                    Schema.create(Type.INT)
+                    Schema.create(AvroType.INT)
                 else if (iVar.tpe == LongClass.tpe)
-                    Schema.create(Type.LONG)
+                    Schema.create(AvroType.LONG)
                 else if (iVar.tpe == FloatClass.tpe)
-                    Schema.create(Type.FLOAT)
+                    Schema.create(AvroType.FLOAT)
                 else if (iVar.tpe == DoubleClass.tpe)
-                    Schema.create(Type.DOUBLE)
+                    Schema.create(AvroType.DOUBLE)
                 else if (iVar.tpe == BooleanClass.tpe)
-                    Schema.create(Type.BOOLEAN)
+                    Schema.create(AvroType.BOOLEAN)
                 else if (iVar.tpe.typeSymbol == StringClass)
-                    Schema.create(Type.STRING)
+                    Schema.create(AvroType.STRING)
                 else if (iVar.tpe.typeSymbol == ArrayClass) {
                     println("iVar.tpe.normalize.typeArgs.head: " + iVar.tpe.normalize.typeArgs.head) 
                     if (iVar.tpe.normalize.typeArgs.head != ByteClass.tpe)
                         throw new UnsupportedOperationException("Bad Array Found: " + iVar.tpe)
-                    Schema.create(Type.BYTES)
+                    Schema.create(AvroType.BYTES)
+                } else if (plugin.state.recordClassSchemas.get(iVar.tpe.normalize.toString).isDefined) {
+                    plugin.state.recordClassSchemas.get(iVar.tpe.normalize.toString).getOrElse(throw new IllegalStateException("should not be null"))
                 } else 
                     throw new UnsupportedOperationException("Cannot support yet: " + iVar.tpe)
+
+            println("fieldSchema: " + fieldSchema)
 
             new Field(
                 iVar.name.toString.trim,
@@ -360,6 +365,8 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
         b.appendAll(fieldList.iterator)
         newRecord.setFields(b)
         println("newRecord: " + newRecord.toString)
+        assert( plugin.state.contains(clazz.fullNameString) )
+        plugin.state.recordClassSchemas += clazz.fullNameString -> newRecord
 
         val newSym = clazz.newValue(clazz.pos.focus, newTermName("_schema"))
         newSym setFlag PRIVATE 
@@ -379,70 +386,92 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
             } else false
         }
 
-    def isAccessor(tree: Tree) = tree match {
-        case m:MemberDef if m.mods.isAccessor => true
-        case _ => false
-    }
+        def isAccessor(tree: Tree) = tree match {
+            case m:MemberDef if m.mods.isAccessor => true
+            case _ => false
+        }
 
-    def isInstanceVar(tree: Tree) = tree match {
-        case v:ValDef => true            
-        case _ => false
-    }
-
-      if (!isAnnotatedSym(tree.symbol))
-          return super.transform(tree)
+        def isInstanceVar(tree: Tree) = tree match {
+            case v:ValDef => true            
+            case _ => false
+        }
 		   
 	  val newTree = tree match {
-        case cd @ ClassDef(mods, name, tparams, impl) =>
+        case md @ PackageDef(pid, stats) =>
+            println("PackageDef: " + md.name)
+        
+            val avroClassDefs = stats.filter { s =>
+                s match {
+                    case ClassDef(_,_,_,_) => isAnnotatedSym(s.symbol) 
+                    case _ => false
+                }
+            }
 
-          val instanceVars = for (member <- impl.body if isInstanceVar(member)) yield { member.symbol }
-          println("instanceVars: " + instanceVars)
-          val newMethods = List(
-                //generateDefaultCtor(impl, cd.symbol, instanceVars),
-                generateGetMethod(impl, cd.symbol, instanceVars),
-                generateSetMethod(impl, cd.symbol, instanceVars))
+            // Create a topological sorting of the class defs based on their 
+            // schema dependencies. If we find that the dependency graph
+            // contains a cycle, we'll throw an exception because avro
+            // does not let you do this (try it, it doesn't work)
 
-          val schemaField = modifyGetSchemaMethod(name, impl, cd.symbol, instanceVars)
+            // TODO: use something better than strings here for class names
+            // (like the class symbol or type)
+            val dependencyGraph = new DirectedGraph[String]
 
-          //val specificRecordBase = typer typed {
-          //          Select(
-          //              Select(
-          //                  Select(
-          //                      Select(
-          //                          Ident(newTermName("org")), 
-          //                      newTermName("apache")),
-          //                      newTermName("avro")),
-          //                  newTermName("specific")),
-          //              newTypeName("SpecificRecordBase")) }
+            avroClassDefs.foreach( classDef => dependencyGraph.add(classDef.symbol.fullNameString) )
+            avroClassDefs.foreach( classDef => plugin.state.recordClassSchemas += (classDef.symbol.fullNameString -> null) )
+            avroClassDefs.foreach( classDef => {
+                println("avroClassDef: " + classDef)
+                val instanceVars = classDef.asInstanceOf[ClassDef].impl.body.filter { isInstanceVar(_) }
+                println("instanceVars: " + instanceVars)
+                val avroInstanceVars = instanceVars.filter { iv => dependencyGraph.contains(iv.symbol.tpe.normalize.toString) }
+                println("avroInstanceVars: " )
+                avroInstanceVars.foreach( iv => dependencyGraph.addEdge(classDef.symbol.fullNameString, iv.symbol.tpe.normalize.toString) )
+            })
 
-          //val specificRecord = typer typed {
-          //          Select(
-          //              Select(
-          //                  Select(
-          //                      Select(
-          //                          Ident(newTermName("org")), 
-          //                      newTermName("apache")),
-          //                      newTermName("avro")),
-          //                  newTermName("specific")),
-          //              newTypeName("SpecificRecord")) }
+            println("DepGraph: " + dependencyGraph)
+            if (dependencyGraph.hasCycle)
+                throw new IllegalStateException("Oops, your records have a cyclic dependency. Please resolve")
+            val tSort = dependencyGraph.topologicalSort
+            println("TSort: " + tSort)
 
+            // TODO: this isn't very efficient
+            val sortedAvroClassDefs = tSort.map( className => avroClassDefs.filter( classDef => classDef.symbol.fullNameString == className ).head )
 
+            val newAvroStats = for (m <- sortedAvroClassDefs) yield {
+                m match {
+                    case cd @ ClassDef(mods, name, tparams, impl) =>
+                        println("ClassDef: " + cd.name)
+                        if (!isAnnotatedSym(m.symbol)) {
+                            throw new IllegalStateException("should never happen")
+                        } else {
+                            val instanceVars = for (member <- impl.body if isInstanceVar(member)) yield { member.symbol }
+                            println("instanceVars: " + instanceVars)
+                            val newMethods = List(
+                                    //generateDefaultCtor(impl, cd.symbol, instanceVars),
+                                    generateGetMethod(impl, cd.symbol, instanceVars),
+                                    generateSetMethod(impl, cd.symbol, instanceVars))
 
-	      val newImpl = treeCopy.Template(impl, /*List(specificRecordBase, specificRecord) ::: */impl.parents, impl.self,  List(schemaField) ::: newMethods ::: impl.body)
+                            val schemaField = createSchemaFieldVal(name, impl, cd.symbol, instanceVars)
+                            val newImpl = treeCopy.Template(impl, /*List(specificRecordBase, specificRecord) ::: */impl.parents, impl.self,  List(schemaField) ::: newMethods ::: impl.body)
+                            treeCopy.ClassDef(m, mods, name, tparams, newImpl)
+                        }
+                }
+            }
 
-
-	      //val delegs = for (member <- impl.body if isInstanceVar(member)) yield {
-	      //  //log("found annotated member: " + member)
-          //  println("Found instance var: " + member) 
-
-	      //  //generateDelegates(impl, member.symbol)
-          //  //List(member)
-          //  List(generateSetterAndGetter(impl, member.symbol))
-	      //}
-	      //val newImpl = treeCopy.Template(impl, impl.parents, impl.self, delegs.flatten ::: impl.body)
-
-	      treeCopy.ClassDef(tree, mods, name, tparams, newImpl)
-	    case _ => tree
+            val newPackageStats = for (m <- stats) yield {
+                m match {
+                    case cd @ ClassDef(mods, name, tparams, impl) =>
+                        println("ClassDef: " + cd.name)
+                        if (!isAnnotatedSym(m.symbol)) {
+                            m
+                        } else {
+                            newAvroStats.filter(cd => m.symbol.fullNameString == cd.symbol.fullNameString).head
+                        }
+                    case _ => m
+                }
+            }
+            println("newPackageStats: " + newPackageStats)
+            treeCopy.PackageDef(md, pid, newPackageStats)
+        case _ => tree
 	  }
 	  super.transform(newTree)
 	}    

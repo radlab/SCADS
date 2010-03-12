@@ -30,7 +30,7 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
    */
   val phaseName = "initialtransform"
 
-  def newTransformer(unit: CompilationUnit) = new InitialTransformer
+  def newTransformer(unit: CompilationUnit) = new InitialTransformer(unit)
 
   /** The tree transformer that implements the behavior of this
    *  component. Change the superclass to <code>TypingTransformer</code>
@@ -38,7 +38,7 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
    *
    *  @todo Implement.
    */
-  class InitialTransformer extends /*Typing*/ Transformer {
+  class InitialTransformer(val unit: CompilationUnit) extends /*Typing*/ Transformer {
     import CODE._
 
         def isAnnotatedSym(sym: Symbol) = {	 	
@@ -64,21 +64,28 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
           println("impl.body: " + impl.body)
         //if (!isAnnotatedSym(tree.symbol))
         //    return super.transform(tree)
-          
+
+          /*
+          val annotationNamer = global.analyzer.newNamer(global.analyzer.rootContext(unit))
+          val annotationTyper = global.analyzer.newTyper(global.analyzer.rootContext(unit))
           if (!mods.annotations.exists( a => {
             a match {
-                case Apply(fun, args) =>
-                    fun match {
-                        case Select(qual, sym) => 
-                            qual match {
-                                case New(sym) => 
-                                    println("sym: " + sym)
-                                    sym.toString == plugin.avroRecordAnnotationClass 
-                                case _ => false
-                            }
-                        case _ => false
-                    }
-                case _ => false
+                case Apply(Select(New(sym),_),_) =>
+                    println("sym found: " + sym)
+                    //sym.toString == plugin.avroRecordAnnotationClass 
+                    annotationNamer.enterSym(a)
+                    val typedAnnotation = annotationTyper.typed(a)
+                    println("tpe.normalize: " + typedAnnotation.tpe.normalize)
+                    typedAnnotation.tpe.normalize.toString == plugin.avroRecordAnnotationClass
+            }
+          })) return tree
+          */
+
+          if (!mods.annotations.exists( a => {
+            a match {
+                case Apply(Select(New(sym),_),_) =>
+                    println("sym found: " + sym)
+                    sym.toString.indexOf("AvroRecord") != -1
             }
           })) return tree
 
