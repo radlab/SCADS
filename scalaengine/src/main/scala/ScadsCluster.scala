@@ -9,6 +9,24 @@ import org.apache.zookeeper.CreateMode
 class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 	val namespaces = root.getOrCreate("namespaces")
 
+  /* If namespace exists, just return false, otherwise, create namespace and return true */
+  def createNamespaceIfNotExists(ns: String, keySchema: Schema, valueSchema: Schema): Boolean = {
+    val nsRoot = 
+      try {
+        namespaces.get(ns)
+      } catch {
+        case nse:java.util.NoSuchElementException =>
+          null
+        case exp =>
+          throw exp
+      }
+    if (nsRoot == null) {
+      createNamespace(ns,keySchema,valueSchema)
+      true
+    } else
+      false
+  }
+
 	def createNamespace(ns: String, keySchema: Schema, valueSchema: Schema): Unit = {
 		val nsRoot = namespaces.createChild(ns, "", CreateMode.PERSISTENT)
 		nsRoot.createChild("keySchema", keySchema.toString(), CreateMode.PERSISTENT)
