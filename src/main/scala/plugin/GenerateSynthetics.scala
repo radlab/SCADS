@@ -10,6 +10,7 @@ import nsc.transform.InfoTransform
 import nsc.transform.TypingTransformers
 import nsc.symtab.Flags._
 import nsc.util.Position
+import nsc.util.NoPosition
 import nsc.ast.TreeDSL
 import nsc.typechecker
 import scala.annotation.tailrec
@@ -34,110 +35,10 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
   val phaseName = "generatesynthetics"
   def newTransformer(unit: CompilationUnit) = new ScalaAvroTransformer(unit)    
 
-  //val utf8Class = definitions.getClass(newTypeName("org.apache.avro.util.Utf8"))
-
-
-  val boxedMap = Map( 
-    IntClass.tpe -> BoxedIntClass.tpe) 
-
   class ScalaAvroTransformer(unit: CompilationUnit) extends TypingTransformer(unit) {
     import CODE._
     import Helpers._
 
-    private def mkDelegate(owner: Symbol, tgtMember: Symbol, tgtMethod: Symbol, pos: Position) = {
-      val delegate = cloneMethod(tgtMethod, owner)
-	        
-      log("owner=" + This(owner))
-	  
-      val selectTarget = This(owner) DOT tgtMember DOT tgtMethod
-      log("SelectTarget=")
-      log(nodeToString(selectTarget))
-	  
-      val rhs : Tree =
-        delegate.info match {
-          case MethodType(params, _) => Apply(selectTarget, params.map(Ident(_)))
-          case _ => selectTarget
-        }
-	    
-      val delegateDef = localTyper.typed { DEF(delegate) === rhs } 
-	    
-      log(nodePrinters nodeToString delegateDef)
-    
-      delegateDef
-    }
-	
-    private def publicMembersOf(sym:Symbol) =
-      sym.tpe.members.filter(_.isPublic).filter(!_.isConstructor)
-	
-    private def publicMethodsOf(sym:Symbol) =
-      publicMembersOf(sym).filter(_.isMethod)
-  
-    private def cloneMethod(prototype: Symbol, owner: Symbol) = {
-      val newSym = prototype.cloneSymbol(owner)
-      newSym setPos owner.pos.focus
-      newSym setFlag SYNTHETICMETH
-      owner.info.decls enter newSym    	
-    }
-      
-    def generateSetterAndGetter(templ: Template, instanceVar: Symbol) = {
-        val owner = instanceVar.owner 
-        //var owner = currentOwner
-        println(owner)
-        val getterTarget = This(owner) DOT instanceVar
-        //val getterTarget = Ident(instanceVar)
-        //val getterTarget = LIT(15)
-
-        //val newSym = instanceVar.cloneSymbol
-        //newSym setFlag SYNTHETICMETH
-
-        //val newSym = new MethodSymbol(owner, instanceVar.pos, newTermName("get"+instanceVar.toString))
-        val newSym = owner.newMethod(owner.pos.focus, newTermName("get"+instanceVar.name.toString.trim))
-        newSym setFlag SYNTHETICMETH 
-        //newSym setInfo instanceVar.cloneSymbol.info
-        newSym setInfo MethodType(newSym.newSyntheticValueParams(List()), instanceVar.tpe)
-        owner.info.decls enter newSym 
-        
-        println(newSym)
-        val defT = DEF(newSym) === getterTarget
-        println(defT)
-        // newMethod(newTermName("get" + instanceVar.toString))
-        val getterDef = localTyper.typed { defT  }
-        
-        println(getterDef)
-        getterDef
-    }
-
-    def generateDefaultCtor(templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
-        val newCtor = clazz.newConstructor(clazz.pos.focus)
-        newCtor setInfo MethodType(newCtor.newSyntheticValueParams(List()), clazz.tpe)
-        clazz.info.decls enter newCtor
-        val values = for ((sym, i) <- instanceVars.zipWithIndex) yield {
-            if (sym.tpe.typeSymbol == IntClass)
-                LIT(0)
-            else if (sym.tpe.typeSymbol == LongClass)
-                LIT(0L)
-            else if (sym.tpe.typeSymbol == FloatClass)
-                LIT(0.0f)
-            else if (sym.tpe.typeSymbol == DoubleClass)
-                LIT(0.0d)
-            else if (sym.tpe.typeSymbol == BooleanClass)
-                LIT(false)
-            else 
-                LIT(null)
-        }
-
-        typer typed {
-            DEF(newCtor) === {
-                Block(
-                    List(Apply(
-                        Select( 
-                            This(clazz),
-                            newTermName("<init>")),
-                        values)),
-                    Literal(Constant()))
-            }
-        }
-    }
 
     def generateSetMethod(templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
         val newSym = clazz.newMethod(clazz.pos.focus, newTermName("put"))
@@ -284,7 +185,6 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
         }
 
         println(boxedClass)
-        println(boxedMap)
         println(cases)
 
         val deffer = localTyper.typed {
@@ -294,25 +194,6 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
         }   
 
         deffer
-    }
-
-    def generateDelegates(templ: Template, symbolToProxy: Symbol) : List[Tree] = {
-      val cls = symbolToProxy.owner  //the class owning the symbol
-    	
-      log("proxying symbol: " + symbolToProxy)
-      log("owning class: " + cls)
-        
-      val definedMethods = publicMembersOf(cls)
-      val requiredMethods =
-        publicMembersOf(symbolToProxy).filter(mem => !definedMethods.contains(mem))
-    	
-      log("defined methods: " + definedMethods.mkString(", "))
-      log("missing methods: " + requiredMethods.mkString(", "))
-
-      val synthetics = for (method <- requiredMethods) yield
-        mkDelegate(cls, symbolToProxy, method, symbolToProxy.pos.focus)
-      
-      synthetics
     }
 
     def createSchemaFieldVal(name: Name, templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
@@ -365,7 +246,7 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
         b.appendAll(fieldList.iterator)
         newRecord.setFields(b)
         println("newRecord: " + newRecord.toString)
-        assert( plugin.state.contains(clazz.fullNameString) )
+        //assert( plugin.state.contains(clazz.fullNameString) )
         plugin.state.recordClassSchemas += clazz.fullNameString -> newRecord
 
         val newSym = clazz.newValue(clazz.pos.focus, newTermName("_schema"))

@@ -8,14 +8,6 @@ import scala.tools.nsc.util.{Position, NoPosition}
 import scala.tools.nsc.ast.TreeDSL
 // import scala.tools.nsc.transform.TypingTransformers
 
-/** This class implements a plugin component using tree transformers. If
- *  a <code>Typer</code> is needed during transformation, the component
- *  should mix in <code>TypingTransformers</code>. This provides a local
- *  variable <code>localTyper: Typer</code> that is always updated to
- *  the current context.
- *
- *  @todo Adapt the name of this class to the plugin, and implement it.
- */
 class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) extends PluginComponent
                                                      // with TypingTransformers
                                                      with Transform 
@@ -25,47 +17,26 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
 
   val runsAfter = List[String]("parser")
   override val runsRightAfter = Some("parser")
-  /** The phase name of the compiler plugin
-   *  @todo Adapt to specific plugin.
-   */
   val phaseName = "initialtransform"
 
   def newTransformer(unit: CompilationUnit) = new InitialTransformer(unit)
 
-  /** The tree transformer that implements the behavior of this
-   *  component. Change the superclass to <code>TypingTransformer</code>
-   *  to make a local typechecker <code>localTyper</code> available.
-   *
-   *  @todo Implement.
-   */
   class InitialTransformer(val unit: CompilationUnit) extends /*Typing*/ Transformer {
     import CODE._
 
-        def isAnnotatedSym(sym: Symbol) = {	 	
-            if (sym != null) {
-                val testSym = if (sym.isModule) sym.moduleClass else sym
-                testSym.annotations exists { _.toString == plugin.avroRecordAnnotationClass }
-            } else false
-        }
-
-
-    /** When using <code>preTransform</code>, each node is
-     *  visited before its children.
-     */
     def preTransform(tree: Tree): Tree = tree match {
-      case dd @ DocDef(comment, definition) => 
-        println("Found docdef: " + comment)
-        tree
       case cd @ ClassDef(mods, name, tparams, impl) =>
           println("mods: " + mods)
           println("tparams: " + tparams)
           println("impl.self: " + impl.self)
           println("impl.parents: " + impl.parents)
           println("impl.body: " + impl.body)
-        //if (!isAnnotatedSym(tree.symbol))
-        //    return super.transform(tree)
 
           /*
+          // TODO: Need to find a way to check the class of the annotation
+          // (the type symbol) instead of just doing a naive string comparsion
+          // Essentially, we'll need to run another earlynamer/earlytyper here
+          // Below is not sufficient (but a good start)
           val annotationNamer = global.analyzer.newNamer(global.analyzer.rootContext(unit))
           val annotationTyper = global.analyzer.newTyper(global.analyzer.rootContext(unit))
           if (!mods.annotations.exists( a => {
@@ -117,7 +88,8 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
           //  //utf8Import.setSymbol(NoSymbol.newImport(NoPosition).setFlag(SYNTHETIC).setInfo( global.analyzer.ImportType(qual))).setType(NoType)
           //val importWithPos = atPos(tree.pos)(utf8Import)
 
-          //val mkUtf8 = cd.newMethod(cd.pos.focus, newTermName("mkUtf8"))
+          // def mkUtf8(p:String) = new org.apache.avro.util.Utf8(p)
+          // TODO: check for p == null
           val mkUtf8 = DefDef(
             NoMods,
             newTermName("mkUtf8"),
@@ -147,6 +119,8 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
                     Ident(newTermName("p")))))
           val mkUtf8WithPos = atPos(tree.pos)(mkUtf8)
 
+          // def mkByteBuffer(bytes: Array[Byte]) = java.nio.ByteBuffer.wrap(bytes)
+          // TODO: check for bytes == null
           val mkByteBuffer = DefDef(
             NoMods,
             newTermName("mkByteBuffer"),
@@ -178,6 +152,11 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
                     Ident(newTermName("bytes")))))
           val mkByteBufferWithPos = atPos(tree.pos)(mkByteBuffer)
 
+          // def getSchema = org.apache.avro.Schema.parse(_schema)
+          // TODO: move the parsed schema into an object (so we don't
+          // have to reparse the same schema for every class instance)
+          // Note: the instance variable _schema gets generated in later
+          // stages
           val getSchema = DefDef(
             NoMods,
             newTermName("getSchema"),
@@ -190,7 +169,6 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
                         newTermName("apache")),
                     newTermName("avro")),
                 newTypeName("Schema")),
-            /*Literal(Constant(null))*/
             Apply(
                 Select(
                     Select(
@@ -206,6 +184,24 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
             )
           val getSchemaWithPos = atPos(tree.pos)(getSchema)
 
+          // def this() = super()
+          val ctor = DefDef(
+            NoMods,
+            nme.CONSTRUCTOR,
+            List(),
+            List(List()),
+            TypeTree(),
+            Block(
+                List(
+                    Apply(
+                        Select(
+                            Super("",""),
+                            newTermName("<init>")),
+                        List())),
+                Literal(Constant(()))))
+          val ctorWithPos = atPos(tree.pos.focus)(ctor)
+
+          // class X extends org.apache.avro.specific.SpecificRecordBase
           val specificRecordBase = 
                     Select(
                         Select(
@@ -217,6 +213,7 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
                             newTermName("specific")),
                         newTypeName("SpecificRecordBase"))
 
+          // class X extends org.apache.avro.specific.SpecificRecordBase with org.apache.avro.specific.SpecificRecord
           val specificRecord = 
                     Select(
                         Select(
@@ -228,13 +225,10 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
                             newTermName("specific")),
                         newTypeName("SpecificRecord"))
 
-	      val newImpl = treeCopy.Template(impl, List(specificRecordBase, specificRecord) ::: impl.parents, impl.self, List(getSchemaWithPos, mkUtf8WithPos, mkByteBufferWithPos) ::: impl.body)
+	      val newImpl = treeCopy.Template(impl, List(specificRecordBase, specificRecord) ::: impl.parents, impl.self, List(getSchemaWithPos, mkUtf8WithPos, mkByteBufferWithPos) ::: impl.body ::: List(ctorWithPos))
 
 
 	      treeCopy.ClassDef(tree, mods, name, tparams, newImpl)
-      //case ModuleDef(mods, name, impl) =>
-      //  println("found module: " + name)
-      //  tree
       case _ => tree
     }
 
