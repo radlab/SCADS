@@ -219,7 +219,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
   val executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, outstandingRequests)
 
   implicit def mkDbe(buff: ByteBuffer): DatabaseEntry = new DatabaseEntry(buff.array, buff.position, buff.remaining)
-  implicit def mkByteBuffer(dbe: DatabaseEntry):ByteBuffer = ByteBuffer.wrap(dbe.getData, dbe.getOffset, dbe.getSize).compact
+  implicit def mkByteBuffer(dbe: DatabaseEntry):ByteBuffer = ByteBuffer.wrap(dbe.getData, dbe.getOffset, dbe.getSize)
 
   private val logger = Logger.getLogger("StorageHandler")
 
@@ -231,7 +231,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
   java.lang.Runtime.getRuntime().addShutdownHook(new SDRunner(this))
 
   private def decodeKey(ns:Namespace, dbe:DatabaseEntry): GenericData.Record = {
-    val decoder = new BinaryDecoder(new ByteArrayInputStream(dbe.getData))
+    val decoder = new BinaryDecoder(new ByteArrayInputStream(dbe.getData(),dbe.getOffset(),dbe.getSize()))
     val reader = new GenericDatumReader[GenericData.Record](ns.keySchema)
     reader.read(null,decoder)
   }
@@ -256,24 +256,16 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
         val ns = namespaces(gr.namespace)
         val dbeKey: DatabaseEntry = gr.key
         val dbeValue = new DatabaseEntry
-
-        //println("getting key: " + gr.key)
-        //println("getting key: " + dbeKey)
-
+        
         ns.db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
         if (dbeValue.getData != null) {
           val retRec = new Record
-          //println("returning Key: " + dbeKey)
-          //println("returning Value: " + dbeValue)
-          //println("returning Key: " + mkByteBuffer(dbeKey))
-          //println("returning Value: " + mkByteBuffer(dbeValue))
 
-          retRec.key = dbeKey.getData
-          retRec.value = dbeValue.getData
+          retRec.key = dbeKey
+          retRec.value = dbeValue
 
           reply(retRec)
         } else {
-          //logger.debug("returning no value mapping")
           reply(null)
         }
       }
@@ -282,10 +274,6 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
         val ns = namespaces(pr.namespace)
         val key: DatabaseEntry = pr.key
         val txn = env.beginTransaction(null, null)
-
-        //println("putting key: " + key)
-        //if (pr != null && pr.value != null)
-        //  println("putting value: " + new String(pr.value.array, pr.value.array.position, pr.value.array.remaining))
 
         if(pr.value == null)
           ns.db.delete(txn, key)

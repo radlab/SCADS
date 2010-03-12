@@ -18,23 +18,11 @@ object KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specification") {
   val intRec = new IntRec
   val strRec = new StringRec
   println("Creating namespace for int")
-  try {
-    TestScalaEngine.cluster.createNamespace("KeySpecInt", intRec.getSchema(), intRec.getSchema())
-  } catch {
-    case ne: NodeExistsException =>
-      println("Ignoring node exists exception")
-    case a:Exception =>
-      throw a
-  }
+  if (!TestScalaEngine.cluster.createNamespaceIfNotExists("KeySpecInt", intRec.getSchema(), intRec.getSchema()))
+    println("Already there")
   println("Creating namespace for string")
-  try {
-    TestScalaEngine.cluster.createNamespace("KeySpecString", strRec.getSchema(), strRec.getSchema())
-  } catch {
-    case ne: NodeExistsException =>
-      println("Ignoring node exists exception")
-    case a:Exception =>
-      throw a
-  }
+  if (!TestScalaEngine.cluster.createNamespaceIfNotExists("KeySpecString", strRec.getSchema(), strRec.getSchema()))
+    println("Already there")
 
   val cr = new ConfigureRequest
   cr.namespace = "KeySpecInt"
@@ -56,6 +44,7 @@ object KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specification") {
 
   private def mustBeTrue(b: Boolean, msg: String):Unit = {
     if(!b) fail(msg)
+    b must_==true
   }
 
   "a keystore" should {
@@ -110,6 +99,8 @@ object KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specification") {
       }
 
       "succeds when null is expected" in {
+        // delete the key in case it's persisted
+        putIntKNullV("KeySpecInt",6)
         mustBeTrue(testSetKVExpectNull("KeySpecInt", 6, 1),
                    "TSET didn't succeed when null expected, and no prev mapping")
       }
@@ -156,7 +147,7 @@ object KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specification") {
 
       "get range sets works" in {
         (33 to 37).foreach(i => putIntKV("KeySpecInt", i, i))
-        val recordSet = getAllIntRangeV("KeySpecInt")
+        val recordSet = getIntRangeV("KeySpecInt",33,38)
         lgr.warn("recordSet received: " + recordSet)
         val expc = (33 to 37).map(i => GetResponse(i, i))
         val actual = makeIntRecords(recordSet) 
@@ -181,8 +172,6 @@ object KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specification") {
   implicit def rec2GetResp(rec: Record):GetResponse = {
     val k2 = new IntRec
     val v2 = new IntRec
-    println(rec.key)
-    println(rec.value)
     k2.parse(rec.key)
     v2.parse(rec.value)
     GetResponse(k2.f1, v2.f1)
@@ -237,7 +226,6 @@ object KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specification") {
     pr.namespace = ns 
     pr.key = key
     pr.value = value
-    println("Writing put request: " + pr)
     Sync.makeRequest(TestScalaEngine.node,  new Utf8("Storage"), pr)
   }
 
@@ -245,7 +233,6 @@ object KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specification") {
     val gr = new GetRequest
     gr.namespace = ns
     gr.key = key
-    println("Writing get request: " + gr)
     Sync.makeRequest(TestScalaEngine.node,  new Utf8("Storage"), gr).asInstanceOf[Record]
   }
 
@@ -282,9 +269,9 @@ object KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specification") {
 
   /** Blocks for result */
   private def getIntV(ns: String, key: Int):GetResponse = {
-    val res = getBytesV(ns, key.toBytes)
-    val k2 = new IntRec
-    val v2 = new IntRec
+    val keyRec = new IntRec
+    keyRec.f1 = key
+    val res = getBytesV(ns, keyRec.toBytes)
     res
   }
 
