@@ -37,24 +37,23 @@ trait AvroConversions {
         genericArray
     }
 
-    def genericArrayToScalaList[T](genericArray: GenericArray[T]): List[T] = {
-        val listBuffer = new ListBuffer[T]
+    def genericArrayToScalaList(genericArray: GenericArray[_]): List[_] = {
+        val listBuffer = new ListBuffer[Any]
         val iter = genericArray.iterator
         while (iter.hasNext) {
             val next = iter.next
-            /*
-            TODO: logic shown below needs to get incorporated somehow
-                  the type safety is going to get kind of messed up here
             if (next.isInstanceOf[GenericArray[_]])
                 listBuffer += genericArrayToScalaList(next.asInstanceOf[GenericArray[_]])
-            if (next.isInstanceOf[ByteBuffer])
+            else if (next.isInstanceOf[ByteBuffer])
                 listBuffer += next.asInstanceOf[ByteBuffer].array
-            */
-            listBuffer += next
+            else if (next.isInstanceOf[Utf8]) 
+                listBuffer += next.asInstanceOf[Utf8].toString
+            else 
+                listBuffer += next
         }
         listBuffer.toList
     }
 
-    def castToGenericArray[T](obj: Any): GenericArray[T] = obj.asInstanceOf[GenericArray[T]]
+    def castToGenericArray(obj: Any): GenericArray[_] = obj.asInstanceOf[GenericArray[_]]
 
 }
