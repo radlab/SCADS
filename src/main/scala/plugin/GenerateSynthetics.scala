@@ -106,6 +106,21 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
                     typer typed ((newSym ARG 1) AS utf8Tpe DOT newTermName("toString"))
                 } else if (sym.tpe.typeSymbol == ArrayClass && sym.tpe.normalize.typeArgs.head == ByteClass.tpe) {
                     typer typed ((newSym ARG 1) AS byteBufferTpe.normalize DOT newTermName("array"))
+                } else if (sym.tpe.typeSymbol == ListClass) {
+                    val typeTree = TypeTree(sym.tpe.typeArgs.head)
+                    val apply = 
+                        Apply(
+                            Select(
+                                This(clazz),
+                                newTermName("genericArrayToScalaList")),
+                            List(Apply(
+                                TypeApply(
+                                    Select(
+                                        This(clazz),
+                                        newTermName("castToGenericArray")),
+                                    List(typeTree)),
+                                List(newSym ARG 1))))
+                    typer typed apply
                 } else {
                     typer typed ((newSym ARG 1) AS sym.tpe)
                 }

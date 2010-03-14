@@ -41,4 +41,6 @@ trait AvroConversions {
         listBuffer.toList
     }
 
+    def castToGenericArray[T](obj: Any): GenericArray[T] = obj.asInstanceOf[GenericArray[T]]
+
 }
