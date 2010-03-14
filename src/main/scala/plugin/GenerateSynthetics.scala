@@ -21,7 +21,7 @@ import org.apache.avro.Schema.{Type => AvroType}
 
 import scala.collection.JavaConversions._
 
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{HashSet,ListBuffer}
 
 class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends PluginComponent
   with Transform
@@ -231,6 +231,40 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
         deffer
     }
 
+    def createSchema(sym: Symbol): Schema = {
+        println("createSchema() called with sym: " + sym)
+        if (primitiveClasses.get(sym.tpe.typeSymbol).isDefined)
+            primitiveClasses.get(sym.tpe.typeSymbol).get
+        else if (sym.tpe.typeSymbol == ArrayClass) {
+            println("sym.tpe.normalize.typeArgs.head: " + sym.tpe.normalize.typeArgs.head) 
+            if (sym.tpe.normalize.typeArgs.head != ByteClass.tpe)
+                throw new UnsupportedOperationException("Bad Array Found: " + sym.tpe)
+            Schema.create(AvroType.BYTES)
+        } else if (sym.tpe.typeSymbol == ListClass) {
+            val listParam = sym.tpe.normalize.typeArgs.head 
+            /*
+            if (primitiveClasses.get(listParam.typeSymbol).isDefined)
+                Schema.createArray(primitiveClasses.get(listParam.typeSymbol).get) 
+            else if (listParam.typeSymbol == ArrayClass && listParam.typeArgs.head.typeSymbol == ByteClass)
+                Schema.createArray(Schema.create(AvroType.BYTES))
+            else if (plugin.state.recordClassSchemas.get(listParam.normalize.toString).isDefined)
+                Schema.createArray(plugin.state.recordClassSchemas.get(listParam.normalize.toString).get)
+            else
+                throw new IllegalArgumentException("Cannot add non avro record list instance")
+            */
+            Schema.createArray(createSchema(listParam.typeSymbol))
+        } else if (plugin.state.recordClassSchemas.get(sym.tpe.normalize.toString).isDefined) {
+            plugin.state.recordClassSchemas.get(sym.tpe.normalize.toString).getOrElse(throw new IllegalStateException("should not be null"))
+        } else if (plugin.state.unions.contains(sym.tpe.normalize.toString)) {
+            val unionSchemas = plugin.state.unions.get(sym.tpe.normalize.toString).get.toList.map( u => {
+                plugin.state.recordClassSchemas.get(u).get 
+            })
+            println("unionSchemas: " + unionSchemas)
+            Schema.createUnion(new ListBuffer[Schema] ++ unionSchemas)
+        } else 
+            throw new UnsupportedOperationException("Cannot support yet: " + sym.tpe)
+    }
+
     def createSchemaFieldVal(name: Name, templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
         println("name: " + name)
         println("clazz.name: " + clazz.name)
@@ -238,47 +272,11 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
         println("clazz.owner.fullNameString: " + clazz.owner.fullNameString)
         println("clazz.fullNameString: " + clazz.fullNameString) 
 
-
         val newRecord = Schema.createRecord(clazz.name.toString, "Auto-Generated Schema", clazz.owner.fullNameString, false)
 
         val fieldList = instanceVars.map( iVar => {
-            val fieldSchema = 
-                if (primitiveClasses.get(iVar.tpe.typeSymbol).isDefined)
-                    primitiveClasses.get(iVar.tpe.typeSymbol).get
-                else if (iVar.tpe.typeSymbol == ArrayClass) {
-                    println("iVar.tpe.normalize.typeArgs.head: " + iVar.tpe.normalize.typeArgs.head) 
-                    // TODO: support array just as we support lists, with
-                    // Array[Byte] as a sole exception (we should treat
-                    // Array[Array[Byte]] as an array of byte buffers, 
-                    // Array[Array[Array[Byte]]] as an array of arrays of byte
-                    // buffers, and so on)
-                    if (iVar.tpe.normalize.typeArgs.head != ByteClass.tpe)
-                        throw new UnsupportedOperationException("Bad Array Found: " + iVar.tpe)
-                    Schema.create(AvroType.BYTES)
-                } else if (iVar.tpe.typeSymbol == ListClass) {
-                    // TODO: we should handle this more recursively,
-                    // so we can have List[List[T]] and so on, with
-                    // Array[Byte] as an exception. We should also be able to
-                    // mix arrays and lists, ie List[Array[List[Array[Byte]]]]
-                    // should "do the right thing", which in this case is
-                    // a list of list of list of byte buffers (Avro does not
-                    // distinguish between lists/arrays)
-                    val listParam = iVar.tpe.normalize.typeArgs.head 
-                    if (primitiveClasses.get(listParam.typeSymbol).isDefined)
-                        Schema.createArray(primitiveClasses.get(listParam.typeSymbol).get) 
-                    else if (listParam.typeSymbol == ArrayClass && listParam.typeArgs.head.typeSymbol == ByteClass)
-                        Schema.createArray(Schema.create(AvroType.BYTES))
-                    else if (plugin.state.recordClassSchemas.get(listParam.normalize.toString).isDefined)
-                        Schema.createArray(plugin.state.recordClassSchemas.get(listParam.normalize.toString).get)
-                    else
-                        throw new IllegalArgumentException("Cannot add non avro record list instance")
-                } else if (plugin.state.recordClassSchemas.get(iVar.tpe.normalize.toString).isDefined) {
-                    plugin.state.recordClassSchemas.get(iVar.tpe.normalize.toString).getOrElse(throw new IllegalStateException("should not be null"))
-                } else 
-                    throw new UnsupportedOperationException("Cannot support yet: " + iVar.tpe)
-
+            val fieldSchema = createSchema(iVar)
             println("fieldSchema: " + fieldSchema)
-
             new Field(
                 iVar.name.toString.trim,
                 fieldSchema,
@@ -287,8 +285,7 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
             )
         })
     
-        val b = new ListBuffer[Field]
-        b.appendAll(fieldList.iterator)
+        val b = new ListBuffer[Field] ++ fieldList
         newRecord.setFields(b)
         println("newRecord: " + newRecord.toString)
         //assert( plugin.state.contains(clazz.fullNameString) )
@@ -305,10 +302,17 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
     } 
    
     override def transform(tree: Tree) : Tree = {
-        def isAnnotatedSym(sym: Symbol) = {	 	
+        def isAnnotatedRecordSym(sym: Symbol) = {	 	
             if (sym != null) {
                 val testSym = if (sym.isModule) sym.moduleClass else sym
                 testSym.annotations exists { _.toString == plugin.avroRecordAnnotationClass }
+            } else false
+        }
+
+        def isAnnotatedUnionSym(sym: Symbol) = {	 	
+            if (sym != null) {
+                val testSym = if (sym.isModule) sym.moduleClass else sym
+                testSym.annotations exists { _.toString == plugin.avroUnionAnnotationClass }
             } else false
         }
 
@@ -325,16 +329,46 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
 	  val newTree = tree match {
         case md @ PackageDef(pid, stats) =>
             println("PackageDef: " + md.name)
-        
+
+            // find all the avro record class defs
             val avroClassDefs = stats.filter { s =>
                 s match {
-                    case ClassDef(_,_,_,_) => isAnnotatedSym(s.symbol) 
+                    case ClassDef(_,_,_,_) => isAnnotatedRecordSym(s.symbol) 
                     case _ => false
                 }
             }
 
+            // find all the union defs
+            val avroUnionDefs = stats.filter { s =>
+                s match {
+                    case ClassDef(_,_,_,_) => isAnnotatedUnionSym(s.symbol) 
+                    case _ => false
+                }
+            }
+
+            // make sure that each union def is sealed, so that we *can* guarantee that 
+            // we can compute closure
+            if (!avroUnionDefs.filter( !_.asInstanceOf[ClassDef].mods.isSealed ).isEmpty) {
+                throw new UnsupportedOperationException("all union traits must be sealed")
+            }
+
+            // add all union defs to union set 
+            avroUnionDefs.foreach( ud => plugin.state.unions += ud.symbol.fullNameString -> new HashSet[String] )
+
+            // compute closure for each union
+            avroClassDefs.foreach( cd => {
+                val cdCast = cd.asInstanceOf[ClassDef]
+                val parents = cdCast.impl.parents
+                println("parents: " + parents.map( _.symbol.fullNameString ))
+                val unionDefParents = parents.filter( p => plugin.state.unions.contains(p.symbol.fullNameString) )
+                unionDefParents.foreach( p => 
+                    plugin.state.unions.get(p.symbol.fullNameString).get.add(cdCast.symbol.fullNameString) )
+            })
+
+            println("plugin.state.unions: " + plugin.state.unions)
+
             // Create a topological sorting of the class defs based on their 
-            // schema dependencies. If we find that the dependency graph
+            // schema dependencies + unions. If we find that the dependency graph
             // contains a cycle, we'll throw an exception because avro
             // does not let you do this (try it, it doesn't work)
 
@@ -344,16 +378,36 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
 
             avroClassDefs.foreach( classDef => dependencyGraph.add(classDef.symbol.fullNameString) )
             avroClassDefs.foreach( classDef => plugin.state.recordClassSchemas += (classDef.symbol.fullNameString -> null) )
+
+            // for each class clz1
+            // 1) find the union defs of that class
+            // 2) for each u of those union defs
+            //   a) for each clz2 in the closure of u
+            //     i) add (clz1 -> clz2) to the dep graph
+            avroClassDefs.foreach( classDef => {
+                val unionInstanceVars = classDef.asInstanceOf[ClassDef].impl.body.filter( iv => 
+                    isInstanceVar(iv) && plugin.state.unions.contains(iv.symbol.tpe.normalize.toString) ).map( iv =>
+                        plugin.state.unions.get(iv.symbol.tpe.normalize.toString).get)
+                unionInstanceVars.foreach(l => l.foreach( clz2 => {
+                    dependencyGraph.addEdge(classDef.symbol.fullNameString, clz2)
+                }))
+            })
+
+            println("DepGraph after unions: " + dependencyGraph)
+
             avroClassDefs.foreach( classDef => {
                 println("avroClassDef: " + classDef)
                 val instanceVars = classDef.asInstanceOf[ClassDef].impl.body.filter { isInstanceVar(_) }
                 println("instanceVars: " + instanceVars)
                 val avroInstanceVars = instanceVars.filter { iv => dependencyGraph.contains(iv.symbol.tpe.normalize.toString) }
                 println("avroInstanceVars: " )
-                avroInstanceVars.foreach( iv => dependencyGraph.addEdge(classDef.symbol.fullNameString, iv.symbol.tpe.normalize.toString) )
+                avroInstanceVars.foreach( iv => {
+                    if (!dependencyGraph.containsEdge(classDef.symbol.fullNameString, iv.symbol.tpe.normalize.toString))
+                        dependencyGraph.addEdge(classDef.symbol.fullNameString, iv.symbol.tpe.normalize.toString) 
+                })
             })
 
-            println("DepGraph: " + dependencyGraph)
+            println("DepGraph after classes: " + dependencyGraph)
             if (dependencyGraph.hasCycle)
                 throw new IllegalStateException("Oops, your records have a cyclic dependency. Please resolve")
             val tSort = dependencyGraph.topologicalSort
@@ -366,7 +420,7 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
                 m match {
                     case cd @ ClassDef(mods, name, tparams, impl) =>
                         println("ClassDef: " + cd.name)
-                        if (!isAnnotatedSym(m.symbol)) {
+                        if (!isAnnotatedRecordSym(m.symbol)) {
                             throw new IllegalStateException("should never happen")
                         } else {
                             val instanceVars = for (member <- impl.body if isInstanceVar(member)) yield { member.symbol }
@@ -387,7 +441,7 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
                 m match {
                     case cd @ ClassDef(mods, name, tparams, impl) =>
                         println("ClassDef: " + cd.name)
-                        if (!isAnnotatedSym(m.symbol)) {
+                        if (!isAnnotatedRecordSym(m.symbol)) {
                             m
                         } else {
                             newAvroStats.filter(cd => m.symbol.fullNameString == cd.symbol.fullNameString).head

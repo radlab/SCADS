@@ -29,6 +29,13 @@ class DirectedGraph[T] {
         nodes.get(s).get.nbrs.add(nodes.get(t).get)
     }
 
+    def containsEdge(s: T, t: T) = {
+        if (!contains(s) || !contains(t))
+            false
+        else
+            nodes.get(s).get.nbrs.contains(nodes.get(t).get)
+    }
+
     def contains(payload: T) = {
         println("contains(): " + payload)
         nodes.contains(payload)

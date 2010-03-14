@@ -12,23 +12,24 @@ import nsc.typechecker.Analyzer
 import nsc.typechecker.Duplicators
 import nsc.symtab.Flags._
 
-import scala.collection.mutable.{HashMap,MutableList}
+import scala.collection.mutable.{HashMap,HashSet,MutableList}
 
 import org.apache.avro.Schema
 
-class AvroState(val recordClassSchemas: HashMap[String,Schema])
+class AvroState(val recordClassSchemas: HashMap[String,Schema], val unions: HashMap[String,HashSet[String]])
 
 class ScalaAvroPlugin(val global: Global) extends Plugin {
   import global._
   
   val avroRecordAnnotationClass = "com.googlecode.avro.annotation.AvroRecord"
+  val avroUnionAnnotationClass = "com.googlecode.avro.annotation.AvroUnion"
   val name = "avro-scala-plugin"
   val description = "Support for auto generation of Avro Records"
   
   val unitsWithSynthetics = new MutableList[CompilationUnit]
   val unitsInError = new MutableList[CompilationUnit]
 
-  val state = new AvroState(new HashMap[String,Schema]())
+  val state = new AvroState(new HashMap[String,Schema], new HashMap[String,HashSet[String]])
 
   object earlyNamer extends PluginComponent {
 	val global : ScalaAvroPlugin.this.global.type = ScalaAvroPlugin.this.global
