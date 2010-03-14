@@ -417,15 +417,29 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
 
             println("DepGraph after unions: " + dependencyGraph)
 
+            def containsRecordType(sym: Symbol):Boolean = {
+                if (sym.tpe.typeSymbol == ListClass)
+                    containsRecordType(sym.tpe.typeArgs.head.typeSymbol)
+                else
+                    plugin.state.recordClassSchemas.contains(sym.tpe.normalize.toString)
+            }
+
+            def getRecordType(sym: Symbol):Symbol = {
+                if (sym.tpe.typeSymbol == ListClass)
+                    getRecordType(sym.tpe.typeArgs.head.typeSymbol)
+                else sym
+            }
+            
+
             avroClassDefs.foreach( classDef => {
                 println("avroClassDef: " + classDef)
                 val instanceVars = classDef.asInstanceOf[ClassDef].impl.body.filter { isInstanceVar(_) }
                 println("instanceVars: " + instanceVars)
-                val avroInstanceVars = instanceVars.filter { iv => dependencyGraph.contains(iv.symbol.tpe.normalize.toString) }
-                println("avroInstanceVars: " )
-                avroInstanceVars.foreach( iv => {
-                    if (!dependencyGraph.containsEdge(classDef.symbol.fullNameString, iv.symbol.tpe.normalize.toString))
-                        dependencyGraph.addEdge(classDef.symbol.fullNameString, iv.symbol.tpe.normalize.toString) 
+                val avroInstanceVars = instanceVars.filter( iv => containsRecordType(iv.symbol) ).map( iv => getRecordType(iv.symbol) )
+                println("avroInstanceVars (Records): " + avroInstanceVars)
+                avroInstanceVars.foreach( ivSym => {
+                    if (!dependencyGraph.containsEdge(classDef.symbol.fullNameString, ivSym.tpe.normalize.toString))
+                        dependencyGraph.addEdge(classDef.symbol.fullNameString, ivSym.tpe.normalize.toString) 
                 })
             })
 

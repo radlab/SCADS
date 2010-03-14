@@ -30,6 +30,7 @@ class DirectedGraph[T] {
     }
 
     def containsEdge(s: T, t: T) = {
+        println("containsEdge(s -> t): " + s + "~>" + t)
         if (!contains(s) || !contains(t))
             false
         else
@@ -98,7 +99,7 @@ class DirectedGraph[T] {
         false
     }
 
-    override def toString = nodes.mkString("[", ",", "]")
+    override def toString = nodes.values.mkString("[", ",", "]")
 
     sealed trait Color 
     object White extends Color
@@ -115,5 +116,7 @@ class DirectedGraph[T] {
 case class Node[T](val payload: T) {
 
     val nbrs = new HashSet[Node[T]]
+
+    override def toString = "[ payload: " + payload + ", nbrs: " + nbrs + " ]"
 
 }
