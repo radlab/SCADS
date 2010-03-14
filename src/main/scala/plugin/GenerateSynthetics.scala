@@ -179,7 +179,15 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
     def listToGenericArray(clazz: Symbol, sym: Symbol): Tree = {
         Apply(
             This(clazz) DOT newTermName("scalaListToGenericArray"),
-            List(This(clazz) DOT sym)) 
+            List(
+                This(clazz) DOT sym,
+                Apply(
+                    Select(
+                        Apply(
+                            This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
+                            List(LIT(sym.name.toString.trim))),
+                        newTermName("schema")),
+                    List())))
     }
 
     def sym2ident(clazz: Symbol, sym: Symbol): Tree = This(clazz) DOT sym AS ObjectClass.tpe
@@ -260,7 +268,9 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
                 plugin.state.recordClassSchemas.get(u).get 
             })
             println("unionSchemas: " + unionSchemas)
-            Schema.createUnion(new ListBuffer[Schema] ++ unionSchemas)
+            val listBuffer = new ListBuffer[Schema]
+            listBuffer ++= unionSchemas
+            Schema.createUnion(listBuffer)
         } else 
             throw new UnsupportedOperationException("Cannot support yet: " + sym.tpe)
     }
@@ -285,7 +295,8 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
             )
         })
     
-        val b = new ListBuffer[Field] ++ fieldList
+        val b = new ListBuffer[Field]
+        b ++= fieldList
         newRecord.setFields(b)
         println("newRecord: " + newRecord.toString)
         //assert( plugin.state.contains(clazz.fullNameString) )
@@ -379,6 +390,20 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
             avroClassDefs.foreach( classDef => dependencyGraph.add(classDef.symbol.fullNameString) )
             avroClassDefs.foreach( classDef => plugin.state.recordClassSchemas += (classDef.symbol.fullNameString -> null) )
 
+            def containsUnionType(sym: Symbol):Boolean = {
+                if (sym.tpe.typeSymbol == ListClass)
+                    containsUnionType(sym.tpe.typeArgs.head.typeSymbol)
+                else
+                    plugin.state.unions.contains(sym.tpe.normalize.toString)
+            }
+
+            def getUnionType(sym: Symbol): HashSet[String] = {
+                if (sym.tpe.typeSymbol == ListClass)
+                    getUnionType(sym.tpe.typeArgs.head.typeSymbol)
+                else
+                    plugin.state.unions.get(sym.tpe.normalize.toString).get
+            }
+
             // for each class clz1
             // 1) find the union defs of that class
             // 2) for each u of those union defs
@@ -386,8 +411,8 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
             //     i) add (clz1 -> clz2) to the dep graph
             avroClassDefs.foreach( classDef => {
                 val unionInstanceVars = classDef.asInstanceOf[ClassDef].impl.body.filter( iv => 
-                    isInstanceVar(iv) && plugin.state.unions.contains(iv.symbol.tpe.normalize.toString) ).map( iv =>
-                        plugin.state.unions.get(iv.symbol.tpe.normalize.toString).get)
+                    isInstanceVar(iv) && containsUnionType(iv.symbol) ).map( iv =>
+                        getUnionType(iv.symbol))
                 unionInstanceVars.foreach(l => l.foreach( clz2 => {
                     dependencyGraph.addEdge(classDef.symbol.fullNameString, clz2)
                 }))
@@ -431,7 +456,7 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
                                     generateSetMethod(impl, cd.symbol, instanceVars))
 
                             val schemaField = createSchemaFieldVal(name, impl, cd.symbol, instanceVars)
-                            val newImpl = treeCopy.Template(impl, /*List(specificRecordBase, specificRecord) ::: */impl.parents, impl.self,  List(schemaField) ::: newMethods ::: impl.body)
+                            val newImpl = treeCopy.Template(impl, impl.parents, impl.self,  List(schemaField) ::: newMethods ::: impl.body)
                             treeCopy.ClassDef(m, mods, name, tparams, newImpl)
                         }
                 }
