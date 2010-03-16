@@ -99,7 +99,7 @@ class DirectedGraph[T] {
         false
     }
 
-    override def toString = nodes.values.mkString("[", ",", "]")
+    override def toString = nodes.valuesIterator.mkString("[", ",", "]")
 
     sealed trait Color 
     object White extends Color
