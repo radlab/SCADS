@@ -88,6 +88,7 @@
 
 		{"name": "SyncRangeRequest", "type": "record", "fields": [
 		  {"name": "namespace", "type": "string"},
+			{"name": "method", "type": {"type":"enum", "name":"synctype", "symbols":["SIMPLE","MERKLE"]}},
 			{"name": "destinationHost", "type": "string"},
 			{"name": "destinationPort", "type": "int"},
 			{"name": "range", "type": "KeyRange"}]
@@ -110,6 +111,33 @@
 		  {"name": "sendActorId", "type": "long"},
 		  {"name": "reason", "type": "string"}]
     },
+
+		{"name": "MerkleSyncPrepare", "type": "record", "fields": [
+			{"name": "range", "type": "KeyRange"},
+		  {"name": "recvActorId", "type": "long"},
+		  {"name": "sinkActorId", "type": "long"}]
+    },
+
+		{"name": "MerkleSyncReady", "type": "record", "fields": [
+		  {"name": "srcActorId", "type": "long"}]
+    },
+		{"name": "MerkleRequest", "type": "record", "fields": [
+		  {"name": "id", "type": "int"},
+		  {"name": "idsrc", "type": "int"},
+			{"name": "children", "type": {"type": "array", "items":
+					  {"name":"child", "type":"record", "fields": [
+						   {"name":"edge", "type":"int"},
+							 {"name":"digest", "type":"long"}]}}}]
+    },
+		{"name": "MerkleResponse", "type": "record", "fields": [
+		  {"name": "id", "type": "int"},
+			{"name": "mismatch", "type": {"type": "array", "items":"int"}}]
+		},
+		{"name": "MerkleSyncFinish", "type": "record", "fields": []},
+
+    {"name": "FloretEstimator", "type": "record", "fields": [
+	    {"name": "buckets", "type": {"type": "array", "items": "int"}}
+    ]},
 
 		{"name": "BulkData", "type": "record", "fields": [
 		  {"name": "seqNum", "type": "int"},
