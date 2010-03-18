@@ -469,114 +469,6 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
         null
       }
 
-      case srr: SyncRangeRequest => {
-        val ns = namespaces(srr.namespace)
-        val act = actor {
-          self.trapExit = true // need this to catch end of recv actor
-          val msg = new Message
-          val req = new SyncStartRequest
-          req.namespace = srr.namespace
-          req.range = srr.range
-          // create the recv iter for replies
-          val recvAct = new Actor {
-            var scId:Long = 0
-            def act() {
-              val myId = new java.lang.Long(scId)
-              val recvIt = new RecvIter(myId,logger)
-              val tsr = new TransferStartReply 
-              tsr.recvActorId = myId.longValue
-              var txn = env.beginTransaction(null,null)
-              recvIt.doRecv(
-                rec => {
-                  val key:DatabaseEntry = rec.key
-                  ns.db.put(txn,key,rec.value)
-                },
-                () => {
-                  txn.commit(Durability.COMMIT_NO_SYNC)
-                })
-              MessageHandler.unregisterActor(scId)
-            }
-          }
-          link(recvAct)
-          val recvActId = MessageHandler.registerActor(recvAct)
-          recvAct.scId = recvActId
-          req.recvIterId = recvActId
-          val scId = MessageHandler.registerActor(self)
-          val myId = new java.lang.Long(scId)
-          msg.src = myId
-          msg.dest = new Utf8("Storage")
-          msg.body = req
-          val rn = new RemoteNode(srr.destinationHost, srr.destinationPort)
-          MessageHandler.sendMessage(rn, msg)
-          reactWithin(60000) {
-            case (rn:RemoteNode, msg: Message) => msg.body match {
-              case csr: TransferStartReply => {
-                logger.debug("Got TransferStartReply, sending data")
-                recvAct.start
-                val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema))
-                val sendIt = new SendIter(rn,myId,csr.recvActorId,buffer,100,0,logger)
-                iterateOverRange(ns, srr.range, false, (key, value, cursor) => {
-                  val rec = new Record
-                  rec.key = key.getData
-                  rec.value = value.getData
-                  sendIt.put(rec)
-                })
-                sendIt.flush
-                val fin = new TransferFinished
-                fin.sendActorId = myId.longValue
-                msg.src = myId
-                msg.dest = new java.lang.Long(csr.recvActorId)
-                msg.body = fin
-                MessageHandler.sendMessage(rn,msg)
-                logger.debug("TransferFinished and sent")
-                // now we just wait for the receive iter to close
-                loop {
-                  react {
-                    case Exit(act,reas) => {
-                      logger.debug("Got exit from recv, cleaning up") 
-                      MessageHandler.unregisterActor(scId)
-                      reply(null)
-                      exit()
-                    }
-                    case (rn:RemoteNode, msg: Message) => msg.body match {
-                      case bda:BulkDataAck =>
-                        logger.debug("BulkAck. dropped since we're done sending") // TODO: Debug
-                      case other => {
-                        logger.warn("Unexpected message waiting for exit in sync range: "+other)
-                        MessageHandler.unregisterActor(scId)
-                        exit()
-                      }
-                    }
-                    case msg => {
-                      logger.warn("Got unexpected message waiting for exit in sync range: "+msg)
-                      MessageHandler.unregisterActor(scId)
-                      reply(null)
-                      exit()
-                    }
-                  }
-                }
-              }
-              case _ => {
-                logger.warn("Unexpected reply to sync start request")
-                MessageHandler.unregisterActor(scId)
-                exit()
-              }
-            }
-            case TIMEOUT => {
-              logger.warn("Timed out waiting to start a range sync")
-              MessageHandler.unregisterActor(scId)
-              exit
-            }
-            case msg => { 
-              logger.warn("Unexpected message: " + msg)
-              MessageHandler.unregisterActor(scId)
-              exit
-            }
-          }
-        }
-        null
-      }
-
       case csreq:CopyStartRequest => { 
         val ns = namespaces(csreq.namespace)
         actor {
@@ -603,100 +495,17 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
         }
       }
 
-      case ssreq:SyncStartRequest => {
-        val ns = namespaces(ssreq.namespace)
-        actor {
-          val scId = MessageHandler.registerActor(self)
-          val myId = new java.lang.Long(scId)
-          val recvIt = new RecvPullIter(myId,logger)
-          val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema)) 
-          val sendIt = new SendIter(src,myId,ssreq.recvIterId,buffer,100,0,logger)
-          val tsr = new TransferStartReply
-          tsr.recvActorId = myId.longValue
-          val msg = new Message
-          msg.src = myId
-          msg.dest = req.src
-          msg.body=tsr
-          MessageHandler.sendMessage(src,msg)
-          val updateIterId = ssreq.recvIterId
-          var curRemoteRec:Record = null
-          iterateOverRange(ns,ssreq.range, true, (key, value, cursor) => {
-            /* Cases are:
-             * 1. My key is less = other side is missing my data, send until in another case
-             * 2. My key is greater = I'm missing data, loop on recvIt, inserting, until in another case
-             * 3. keys are equal = check data, mine greater = send mine, rem greater = insert, equal = do nothing
-             * 4. Other side finished, I'm not = other side is missing data, send what i have left
-             * 5. I'm finished, other side isn't = (this call will be in finalFunc), just insert the rest
-             */
-            // case 4
-            if (!recvIt.hasNext) {
-              val rec = new Record
-              rec.key = key.getData
-              rec.value = value.getData
-              sendIt.put(rec)
-            }
-            else {
-              // so there is at least one more remote record to deal with
-              if (curRemoteRec == null)
-                curRemoteRec = recvIt.next
-
-              var keyComp = ns.comp.compare(key.getData,curRemoteRec.key)
-              if (keyComp < 0) { // case 1
-                val rec = new Record
-                rec.key = key.getData
-                rec.value = value.getData
-                sendIt.put(rec)
-              }
-              else if (keyComp > 0) { // case 
-                while(keyComp > 0) {
-                  val remKey: DatabaseEntry = curRemoteRec.key
-                  cursor.put(remKey,curRemoteRec.value)
-                  curRemoteRec = recvIt.next
-                  if (curRemoteRec != null)
-                    keyComp = ns.comp.compare(key.getData,curRemoteRec.key)
-                  else
-                    keyComp = 0
-                }
-              }
-                  else if (keyComp ==  0) { // case 3
-                    val dataComp = ns.comp.compare(value.getData,curRemoteRec.value)
-                    if (dataComp < 0) {
-                      // remote greater, just insert
-                      cursor.put(key,curRemoteRec.value)
-                    }
-                    else if (dataComp > 0) {
-                      // remote less, send over
-                      val rec = new Record
-                      rec.key = key.getData
-                      rec.value = value.getData
-                      sendIt.put(rec)
-                    }
-                    curRemoteRec = null // we've handled this one, so we need a new one
-                  }
-            }
-          },
-          (cursor) => {
-            // final func, case 5
-            if (curRemoteRec != null) {
-              val key: DatabaseEntry = curRemoteRec.key
-              cursor.put(key,curRemoteRec.value)
-            }
-            while (recvIt.hasNext) {
-              curRemoteRec = recvIt.next
-              val key: DatabaseEntry = curRemoteRec.key
-              cursor.put(key,curRemoteRec.value)
-            }
-          })
-          sendIt.flush
-          val fin = new TransferFinished
-          fin.sendActorId = myId.longValue
-          msg.src = myId
-          msg.dest = new java.lang.Long(ssreq.recvIterId)
-          msg.body = fin
-          MessageHandler.sendMessage(src,msg)
-          logger.debug("TransferFinished and sent for Sync")
-          MessageHandler.unregisterActor(scId)
+      case srr: SyncRangeRequest => {
+        srr.method match {
+          case synctype.SIMPLE =>
+            doSimpleSync(srr)
+          case synctype.MERKLE =>
+            merkleSyncSink(srr)
         }
+      }
+
+      case ssreq:SyncStartRequest => {
+        simpleSyncSink(ssreq,src,req)
       }
 
       // End of message handling
@@ -803,6 +612,214 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
       finalFunc(cur)
     cur.close
     if (txn != null) txn.commit
+  }
+
+  def doSimpleSync(srr: SyncRangeRequest): Unit = {
+    val ns = namespaces(srr.namespace)
+    val act = actor {
+      self.trapExit = true // need this to catch end of recv actor
+      val msg = new Message
+      val req = new SyncStartRequest
+      req.namespace = srr.namespace
+      req.range = srr.range
+      // create the recv iter for replies
+      val recvAct = new Actor {
+        var scId:Long = 0
+        def act() {
+          val myId = new java.lang.Long(scId)
+          val recvIt = new RecvIter(myId,logger)
+          val tsr = new TransferStartReply 
+          tsr.recvActorId = myId.longValue
+          var txn = env.beginTransaction(null,null)
+          recvIt.doRecv(
+            rec => {
+              val key:DatabaseEntry = rec.key
+              ns.db.put(txn,key,rec.value)
+            },
+            () => {
+              txn.commit(Durability.COMMIT_NO_SYNC)
+            })
+          MessageHandler.unregisterActor(scId)
+        }
+      }
+      link(recvAct)
+      val recvActId = MessageHandler.registerActor(recvAct)
+      recvAct.scId = recvActId
+      req.recvIterId = recvActId
+      val scId = MessageHandler.registerActor(self)
+      val myId = new java.lang.Long(scId)
+      msg.src = myId
+      msg.dest = new Utf8("Storage")
+      msg.body = req
+      val rn = new RemoteNode(srr.destinationHost, srr.destinationPort)
+      MessageHandler.sendMessage(rn, msg)
+      reactWithin(60000) {
+        case (rn:RemoteNode, msg: Message) => msg.body match {
+          case csr: TransferStartReply => {
+            logger.debug("Got TransferStartReply, sending data")
+            recvAct.start
+            val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema))
+            val sendIt = new SendIter(rn,myId,csr.recvActorId,buffer,100,0,logger)
+            iterateOverRange(ns, srr.range, false, (key, value, cursor) => {
+              val rec = new Record
+              rec.key = key.getData
+              rec.value = value.getData
+              sendIt.put(rec)
+            })
+            sendIt.flush
+            val fin = new TransferFinished
+            fin.sendActorId = myId.longValue
+            msg.src = myId
+            msg.dest = new java.lang.Long(csr.recvActorId)
+            msg.body = fin
+            MessageHandler.sendMessage(rn,msg)
+            logger.debug("TransferFinished and sent")
+            // now we just wait for the receive iter to close
+            loop {
+              react {
+                case Exit(act,reas) => {
+                  logger.debug("Got exit from recv, cleaning up") 
+                  MessageHandler.unregisterActor(scId)
+                  reply(null)
+                  exit()
+                }
+                case (rn:RemoteNode, msg: Message) => msg.body match {
+                  case bda:BulkDataAck =>
+                    logger.debug("BulkAck. dropped since we're done sending") // TODO: Debug
+                  case other => {
+                    logger.warn("Unexpected message waiting for exit in sync range: "+other)
+                    MessageHandler.unregisterActor(scId)
+                    exit()
+                  }
+                }
+                case msg => {
+                  logger.warn("Got unexpected message waiting for exit in sync range: "+msg)
+                  MessageHandler.unregisterActor(scId)
+                  reply(null)
+                  exit()
+                }
+              }
+            }
+          }
+          case _ => {
+            logger.warn("Unexpected reply to sync start request")
+            MessageHandler.unregisterActor(scId)
+            exit()
+          }
+        }
+        case TIMEOUT => {
+          logger.warn("Timed out waiting to start a range sync")
+          MessageHandler.unregisterActor(scId)
+          exit
+        }
+        case msg => { 
+          logger.warn("Unexpected message: " + msg)
+          MessageHandler.unregisterActor(scId)
+          exit
+        }
+      }
+    }
+    null
+  }
+
+  def simpleSyncSink(ssreq: SyncStartRequest, src: RemoteNode, req: Message): Unit = {
+    val ns = namespaces(ssreq.namespace)
+    actor {
+      val scId = MessageHandler.registerActor(self)
+      val myId = new java.lang.Long(scId)
+      val recvIt = new RecvPullIter(myId,logger)
+      val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema)) 
+      val sendIt = new SendIter(src,myId,ssreq.recvIterId,buffer,100,0,logger)
+      val tsr = new TransferStartReply
+      tsr.recvActorId = myId.longValue
+      val msg = new Message
+      msg.src = myId
+      msg.dest = req.src
+      msg.body=tsr
+      MessageHandler.sendMessage(src,msg)
+      val updateIterId = ssreq.recvIterId
+      var curRemoteRec:Record = null
+      iterateOverRange(ns,ssreq.range, true, (key, value, cursor) => {
+        /* Cases are:
+         * 1. My key is less = other side is missing my data, send until in another case
+         * 2. My key is greater = I'm missing data, loop on recvIt, inserting, until in another case
+         * 3. keys are equal = check data, mine greater = send mine, rem greater = insert, equal = do nothing
+         * 4. Other side finished, I'm not = other side is missing data, send what i have left
+         * 5. I'm finished, other side isn't = (this call will be in finalFunc), just insert the rest
+         */
+        // case 4
+        if (!recvIt.hasNext) {
+          val rec = new Record
+          rec.key = key.getData
+          rec.value = value.getData
+          sendIt.put(rec)
+        }
+        else {
+          // so there is at least one more remote record to deal with
+          if (curRemoteRec == null)
+            curRemoteRec = recvIt.next
+
+          var keyComp = ns.comp.compare(key.getData,curRemoteRec.key)
+          if (keyComp < 0) { // case 1
+            val rec = new Record
+            rec.key = key.getData
+            rec.value = value.getData
+            sendIt.put(rec)
+          }
+          else if (keyComp > 0) { // case 
+            while(keyComp > 0) {
+              val remKey: DatabaseEntry = curRemoteRec.key
+              cursor.put(remKey,curRemoteRec.value)
+              curRemoteRec = recvIt.next
+              if (curRemoteRec != null)
+                keyComp = ns.comp.compare(key.getData,curRemoteRec.key)
+              else
+                keyComp = 0
+            }
+          }
+              else if (keyComp ==  0) { // case 3
+                val dataComp = ns.comp.compare(value.getData,curRemoteRec.value)
+                if (dataComp < 0) {
+                  // remote greater, just insert
+                  cursor.put(key,curRemoteRec.value)
+                }
+                else if (dataComp > 0) {
+                  // remote less, send over
+                  val rec = new Record
+                  rec.key = key.getData
+                  rec.value = value.getData
+                  sendIt.put(rec)
+                }
+                curRemoteRec = null // we've handled this one, so we need a new one
+              }
+        }
+      },
+      (cursor) => {
+        // final func, case 5
+        if (curRemoteRec != null) {
+          val key: DatabaseEntry = curRemoteRec.key
+          cursor.put(key,curRemoteRec.value)
+        }
+        while (recvIt.hasNext) {
+          curRemoteRec = recvIt.next
+          val key: DatabaseEntry = curRemoteRec.key
+          cursor.put(key,curRemoteRec.value)
+        }
+      })
+      sendIt.flush
+      val fin = new TransferFinished
+      fin.sendActorId = myId.longValue
+      msg.src = myId
+      msg.dest = new java.lang.Long(ssreq.recvIterId)
+      msg.body = fin
+      MessageHandler.sendMessage(src,msg)
+      logger.debug("TransferFinished and sent for Sync")
+      MessageHandler.unregisterActor(scId)
+    }
+  }
+
+  def merkleSyncSink(srr:SyncRangeRequest):Unit = {
+    null
   }
 
   def openNamespace(ns: String, partition: String): Unit = {
