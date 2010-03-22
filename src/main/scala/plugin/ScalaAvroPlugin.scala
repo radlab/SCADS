@@ -16,7 +16,9 @@ import scala.collection.mutable.{HashMap,HashSet,MutableList}
 
 import org.apache.avro.Schema
 
-class AvroState(val recordClassSchemas: HashMap[String,Schema], val unions: HashMap[String,HashSet[String]])
+class AvroState(
+    val recordClassSchemas: HashMap[String,Schema], 
+    val unions: HashMap[String,HashSet[String]])
 
 class ScalaAvroPlugin(val global: Global) extends Plugin {
   import global._

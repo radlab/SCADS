@@ -6,10 +6,8 @@ import scala.tools.nsc.plugins.PluginComponent
 import scala.tools.nsc.transform.Transform
 import scala.tools.nsc.util.{Position, NoPosition}
 import scala.tools.nsc.ast.TreeDSL
-// import scala.tools.nsc.transform.TypingTransformers
 
 class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) extends PluginComponent
-                                                     // with TypingTransformers
                                                      with Transform 
                                                      with TreeDSL {
   import global._

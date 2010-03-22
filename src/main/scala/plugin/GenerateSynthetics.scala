@@ -335,8 +335,8 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
         }
 		   
 	  val newTree = tree match {
-        case md @ PackageDef(pid, stats) =>
-            println("PackageDef: " + md.name)
+        case pd @ PackageDef(pid, stats) =>
+            println("PackageDef: " + pd.name)
 
             // find all the avro record class defs
             val avroClassDefs = stats.filter { s =>
@@ -473,10 +473,10 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
                 }
             }
 
-            val newPackageStats = for (m <- stats) yield {
+            var newPackageStats = for (m <- stats) yield {
                 m match {
                     case cd @ ClassDef(mods, name, tparams, impl) =>
-                        println("ClassDef: " + cd.name)
+                        //println("ClassDef: " + cd.name)
                         if (!isAnnotatedRecordSym(m.symbol)) {
                             m
                         } else {
@@ -485,8 +485,72 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
                     case _ => m
                 }
             }
-            println("newPackageStats: " + newPackageStats)
-            treeCopy.PackageDef(md, pid, newPackageStats)
+            //println("newPackageStats: " + newPackageStats)
+
+            // new module defs 
+            val newModuleDefs = newPackageStats.
+                filter( s => 
+                    s.isInstanceOf[ModuleDef] && 
+                    plugin.state.recordClassSchemas.contains(s.symbol.fullNameString) ).
+                map( _.asInstanceOf[ModuleDef] ).
+                map ( md => {
+                    val mods = md.mods
+                    val name = md.name
+                    val impl = md.impl
+                    println("md.symbol.fullNameString: " + md.symbol.fullNameString)
+
+                    //val newSym = md.symbol.moduleClass.newMethod(md.symbol.pos.focus, newTermName("schema"))
+                    val schema = plugin.state.recordClassSchemas.get(md.symbol.fullNameString).get
+                    //newSym.resetFlags
+                    //newSym setFlag METHOD
+                    //newSym setInfo MethodType(newSym.newSyntheticValueParams(List()), StringClass.tpe)
+                    //md.symbol.info.decls enter newSym 
+
+                    val newSym2 = md.symbol.moduleClass.newValue(md.symbol.pos.focus, newTermName("schema"))
+                    //newSym2 setInfo ConstantType(Constant(schema.toString))
+                    val schemaTpe = unit.depends.filter(i => i.fullNameString == "org.apache.avro.Schema" && !i.isModuleClass).head.tpe
+                    newSym2 setInfo schemaTpe 
+                    md.symbol.info.decls enter newSym2
+
+                    val rhs = 
+                        Apply(
+                            Select(
+                                Select(
+                                    Select(
+                                        Select(
+                                            Ident(newTermName("org")), 
+                                            newTermName("apache")),
+                                        newTermName("avro")),
+                                    newTermName("Schema")),
+                                newTermName("parse")),
+                            List(
+                                Literal(Constant(schema.toString))))
+                    //val schemaField = localTyper typed { DEF(newSym) === LIT(schema.toString) }
+                    val schemaVal   = localTyper typed { VAL(newSym2) === rhs }
+                    val newImpl = treeCopy.Template( impl, impl.parents, impl.self, impl.body ::: List(schemaVal))
+
+                    treeCopy.ModuleDef( md, mods, name, newImpl ) 
+                })
+
+            newPackageStats = for (m <- newPackageStats) yield {
+                m match {
+                    case md @ ModuleDef(mods, name, impl) =>
+                        val replacement = newModuleDefs.filter(
+                            _.symbol.fullNameString == md.symbol.fullNameString)
+                        println("Replacement: " + replacement)
+                        if (replacement.isEmpty)
+                            m
+                        else
+                            replacement.head
+                    case _ => m
+                }
+            }
+
+            treeCopy.PackageDef(pd, pid, newPackageStats)
+        case ValDef(mods,name,tpt,rhs) => 
+            println("valdef: " + name)
+            println("tree.symbol.info: " + tree.symbol.info)
+            tree
         case _ => tree
 	  }
 	  super.transform(newTree)
