@@ -54,26 +54,9 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
         newSym setInfo MethodType(newSym.newSyntheticValueParams(List(IntClass.tpe, AnyClass.tpe)), UnitClass.tpe)
         clazz.info.decls enter newSym 
 
-        //val idx = newSym ARG 0
-        //idx.tpe = IntClass.tpe
-        //val obj = newSym ARG 1
-        //obj.tpe = AnyClass.tpe
-        
-        //newSym.info.decls enter idx
-        //newSym.info.decls enter obj
-
         val default = List(DEFAULT ==> THROW(IndexOutOfBoundsExceptionClass, newSym ARG 0))
 
-        println("-------")
         val list = clazz.info.decls.toList filter (_ hasFlag ACCESSOR)
-        println(list)
-        println("name list: " + list.map(_.name.toString))
-
-        println("-----")
-        println(unit.depends)
-        println(unit.defined)
-
-        println(unit.depends.map(s => (s.fullNameString,s.tpe.normalize.toString)))
 
         // TODO: find a better way to get a handle to these types
         val byteBufferTpe = unit.depends.filter(i => i.fullNameString == "java.nio.ByteBuffer" && !i.isModuleClass).head.tpe
@@ -82,25 +65,7 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
         println("utf8Tpe: " + utf8Tpe)
 
         val cases = for ((sym, i) <- instanceVars.zipWithIndex) yield {
-            //val castType = boxedMap get sym.tpe getOrElse sym.tpe
-            //val cast = obj AS sym.tpe
-            //cast match {
-            //    case TypeApply(Select(qual, _), List(targ)) =>
-            //        println("qual: " + qual)
-            //        println("targ: " + targ)
-            //        println("qual.tpe: " + qual.tpe)
-            //        println("targ.tpe: " + targ.tpe)
-            //        println("---")
-            //    case _ => println("no match")
-            //}
-            
-
             val accessors = list.filter(_.name.toString.trim equals (sym.name.toString.trim + "_$eq"))
-            println("accessor: " + accessors)
-            //println("target.class" + target.getClass)
-
-            //val target = Assign(This(clazz) DOT sym, cast)
-
             val rhs = 
                 if (sym.tpe.typeSymbol == StringClass) {
                     typer typed ((newSym ARG 1) AS utf8Tpe DOT newTermName("toString"))
@@ -121,50 +86,21 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
                 } else {
                     typer typed ((newSym ARG 1) AS sym.tpe)
                 }
-            //val target = Apply(This(clazz) DOT accessors(0), List(typedDot))
             val target = Assign(This(clazz) DOT sym, rhs)
-            //target match {
-            //    case Apply(fn, args) =>
-            //        if (fn.symbol == Any_asInstanceOf)
-            //            fn match {
-            //                case TypeApply(Select(qual, _), List(targ)) =>
-            //                    println("qual: " + qual)
-            //                    println("targ: " + targ)
-            //                    println("qual.tpe: " + qual.tpe)
-            //                    println("targ.tpe: " + targ.tpe)
-            //                    println("---")
-            //                case _ => println("no match in type apply")
-            //            }
-            //        else
-            //            println("not an any instance of")
-            //    case _ => println("No match in target")
-            //}
-
             CASE(LIT(i)) ==> target
         }
 
-        println(boxedClass)
-        println(cases)
-
-        val deffer = localTyper.typed {
+        localTyper.typed {
             DEF(newSym) === {
                 (newSym ARG 0) MATCH { cases ::: default : _* }
             }   
         }   
-
-        deffer
     }
 
     def string2utf8(clazz: Symbol, sym: Symbol): Tree = {
-        //val utf8 = unit.depends.toList.filter(_.name.toString.trim.equals("Utf8")).head
-        //val utf8 = clazz.info.decls.iterator.toList.filter(_.name.toString.trim.equals("Utf8")).head
-        //println("Found Utf8?: " + utf8)
-
         Apply(
-            //Select(New(utf8, newTermName("<init>"))),
             This(clazz) DOT newTermName("mkUtf8"),
             List(This(clazz) DOT sym))
-        //NEW(utf8, This(clazz) DOT sym)
     }
 
     def byteArray2byteBuffer(clazz: Symbol, sym: Symbol): Tree = {
@@ -247,16 +183,6 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
             Schema.create(AvroType.BYTES)
         } else if (sym.tpe.typeSymbol == ListClass) {
             val listParam = sym.tpe.normalize.typeArgs.head 
-            /*
-            if (primitiveClasses.get(listParam.typeSymbol).isDefined)
-                Schema.createArray(primitiveClasses.get(listParam.typeSymbol).get) 
-            else if (listParam.typeSymbol == ArrayClass && listParam.typeArgs.head.typeSymbol == ByteClass)
-                Schema.createArray(Schema.create(AvroType.BYTES))
-            else if (plugin.state.recordClassSchemas.get(listParam.normalize.toString).isDefined)
-                Schema.createArray(plugin.state.recordClassSchemas.get(listParam.normalize.toString).get)
-            else
-                throw new IllegalArgumentException("Cannot add non avro record list instance")
-            */
             Schema.createArray(createSchema(listParam.typeSymbol))
         } else if (plugin.state.recordClassSchemas.get(sym.tpe.normalize.toString).isDefined) {
             plugin.state.recordClassSchemas.get(sym.tpe.normalize.toString).getOrElse(throw new IllegalStateException("should not be null"))
@@ -476,7 +402,6 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
             var newPackageStats = for (m <- stats) yield {
                 m match {
                     case cd @ ClassDef(mods, name, tparams, impl) =>
-                        //println("ClassDef: " + cd.name)
                         if (!isAnnotatedRecordSym(m.symbol)) {
                             m
                         } else {
@@ -485,8 +410,8 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
                     case _ => m
                 }
             }
-            //println("newPackageStats: " + newPackageStats)
 
+            // TODO: move this to another method
             // new module defs 
             val newModuleDefs = newPackageStats.
                 filter( s => 
@@ -497,20 +422,12 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
                     val mods = md.mods
                     val name = md.name
                     val impl = md.impl
-                    println("md.symbol.fullNameString: " + md.symbol.fullNameString)
 
-                    //val newSym = md.symbol.moduleClass.newMethod(md.symbol.pos.focus, newTermName("schema"))
                     val schema = plugin.state.recordClassSchemas.get(md.symbol.fullNameString).get
-                    //newSym.resetFlags
-                    //newSym setFlag METHOD
-                    //newSym setInfo MethodType(newSym.newSyntheticValueParams(List()), StringClass.tpe)
-                    //md.symbol.info.decls enter newSym 
-
-                    val newSym2 = md.symbol.moduleClass.newValue(md.symbol.pos.focus, newTermName("schema"))
-                    //newSym2 setInfo ConstantType(Constant(schema.toString))
+                    val newSym = md.symbol.moduleClass.newValue(md.symbol.pos.focus, newTermName("schema"))
                     val schemaTpe = unit.depends.filter(i => i.fullNameString == "org.apache.avro.Schema" && !i.isModuleClass).head.tpe
-                    newSym2 setInfo schemaTpe 
-                    md.symbol.info.decls enter newSym2
+                    newSym setInfo schemaTpe 
+                    md.symbol.info.decls enter newSym
 
                     val rhs = 
                         Apply(
@@ -525,10 +442,8 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
                                 newTermName("parse")),
                             List(
                                 Literal(Constant(schema.toString))))
-                    //val schemaField = localTyper typed { DEF(newSym) === LIT(schema.toString) }
-                    val schemaVal   = localTyper typed { VAL(newSym2) === rhs }
+                    val schemaVal   = localTyper typed { VAL(newSym) === rhs }
                     val newImpl = treeCopy.Template( impl, impl.parents, impl.self, impl.body ::: List(schemaVal))
-
                     treeCopy.ModuleDef( md, mods, name, newImpl ) 
                 })
 
@@ -537,7 +452,6 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
                     case md @ ModuleDef(mods, name, impl) =>
                         val replacement = newModuleDefs.filter(
                             _.symbol.fullNameString == md.symbol.fullNameString)
-                        println("Replacement: " + replacement)
                         if (replacement.isEmpty)
                             m
                         else
@@ -547,10 +461,6 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
             }
 
             treeCopy.PackageDef(pd, pid, newPackageStats)
-        case ValDef(mods,name,tpt,rhs) => 
-            println("valdef: " + name)
-            println("tree.symbol.info: " + tree.symbol.info)
-            tree
         case _ => tree
 	  }
 	  super.transform(newTree)
