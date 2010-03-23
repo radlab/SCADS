@@ -14,7 +14,6 @@
 	<modules>
 		<module>piql</module>
 		<module>scalaengine</module>
-		<module>maven</module>
 		<module>comm</module>
 	</modules>
 	<dependencies>
