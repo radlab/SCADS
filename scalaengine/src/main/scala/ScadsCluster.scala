@@ -112,7 +112,7 @@ class Namespace(namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKeeperNod
     doReq(rn,pr)
   }
 
-  def get(key: SpecificRecordBase): SpecificRecordBase = {
+  def get(key: SpecificRecordBase): Record = {
     val rn = serverForKey(key)
     val gr = new GetRequest
     gr.namespace = namespace

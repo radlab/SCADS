@@ -7,7 +7,7 @@ import org.apache.avro.specific.SpecificRecord
 import org.apache.avro.specific.SpecificDatumReader
 import java.io.ByteArrayInputStream
 
-import edu.berkeley.cs.scads.storage.ScadsCluster
+import edu.berkeley.cs.scads.storage.{ScadsCluster, Namespace}
 
 class PiqlDataReader(schema: Schema) extends SpecificDatumReader[Any](schema) {
 	override def newRecord(old: Object, schema: Schema): Object = {
@@ -25,10 +25,26 @@ abstract class EntityPart extends SpecificRecordBase with SpecificRecord {
 	}
 }
 
-abstract class Entity {
+abstract class Entity(cluster: ScadsCluster) {
+  val namespace: Namespace
   val key: EntityPart
   val value: EntityPart
 
-  def save(implicit cluster: ScadsCluster): Unit = {
+  def load(pk: SpecificRecordBase): Unit = {
+    val storedValue = namespace.get(pk)
+    val keyArr = new Array[Byte](storedValue.key.remaining)
+    val valueArr = new Array[Byte](storedValue.value.remaining)
+    storedValue.key.get(keyArr)
+    storedValue.value.get(valueArr)
+
+    println(keyArr.toList)
+    key.parse(keyArr)
+    println(valueArr.toList)
+    value.parse(valueArr)
+  }
+
+  def save: Unit = {
+    println("Storing value: " + value.toBytes.toList + " to key: " + key.toBytes.toList)
+    namespace.put(key,value)
   }
 }
