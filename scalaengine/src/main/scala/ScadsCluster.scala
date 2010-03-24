@@ -60,6 +60,10 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 		policy.partitions = List(new KeyPartition)
 		addPartition(ns,name,policy)
 	}
+
+  def getNamespace(ns: String): Namespace = {
+    new Namespace(ns, 5000, root)
+  }
 }
 
 class Namespace(namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKeeperNode) {
