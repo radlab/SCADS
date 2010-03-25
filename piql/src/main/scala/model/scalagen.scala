@@ -19,13 +19,14 @@ object ScalaGen extends Generator[BoundSpec] {
 		output("import edu.berkeley.cs.scads.storage.ScadsCluster")
 		output("import org.apache.avro.Schema")
 		output("import org.apache.avro.util.Utf8")
+		output("import org.apache.avro.specific.SpecificRecordBase")
 
 		spec.entities.values.foreach(generate)
 	}
 
 	protected def generate(entity: BoundEntity)(implicit sb: StringBuilder, indnt: Indentation): Unit = {
 		outputCont("class ", entity.name, "(implicit cluster: ScadsCluster) extends Entity(cluster)") {
-      output("val namespace = cluster.getNamespace(", quote("ent_" + entity.name), ")")
+      output("val namespace = cluster.getNamespace[SpecificRecordBase, SpecificRecordBase](", quote("ent_" + entity.name), ")")
 			def outputFields(r: Schema, prefix: String): Unit = {
 				r.getFields.foreach(f => f.schema().getType match {
 					case Type.STRING => output("var ", prefix + f.name, ":String = \"\"")

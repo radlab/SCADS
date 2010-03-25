@@ -43,15 +43,13 @@ abstract class EntityPart extends SpecificRecordBase with SpecificRecord {
 }
 
 abstract class Entity(cluster: ScadsCluster) {
-  val namespace: Namespace
+  val namespace: Namespace[SpecificRecordBase, SpecificRecordBase]
   val key: EntityPart
   val value: EntityPart
 
   def load(pk: SpecificRecordBase): Unit = {
-    val storedValue = namespace.get(pk)
-
-    key.parse(storedValue.key)
-    value.parse(storedValue.value)
+    key.parse(pk.toBytes)
+    namespace.get(pk, value)
   }
 
   def save: Unit = {
