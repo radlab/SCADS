@@ -26,7 +26,7 @@ abstract class EntityPart extends SpecificRecordBase with SpecificRecord {
     val in = new InputStream() {
       override def read(): Int = {
         if(buff.remaining > 0)
-          buff.get
+          buff.get & 0x00FF
         else
           -1
       }
