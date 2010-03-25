@@ -61,16 +61,19 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 		addPartition(ns,name,policy)
 	}
 
-  def getNamespace(ns: String): Namespace = {
-    new Namespace(ns, 5000, root)
+  def getNamespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](ns: String)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): Namespace[KeyType, ValueType] = {
+    new Namespace[KeyType, ValueType](ns, 5000, root)
   }
 }
 
-class Namespace(namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKeeperNode) {
+class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKeeperNode)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]) {
   /* TODOS:
-   * - maybe add a check that schema of record matches namespace schema */
+   * - create the namespace if it doesn't exist
+   * - add a check that schema of record matches namespace schema or is at least resolvable to the local schema */
   private val dest = new Utf8("Storage")
   private val logger = Logger.getLogger("Namespace")
+  protected val keyClass = keyType.erasure
+  protected val valueClass = valueType.erasure
 
   private def serverForKey(key:SpecificRecordBase):RemoteNode = {
     new RemoteNode("localhost",9000)
@@ -103,7 +106,7 @@ class Namespace(namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKeeperNod
     retObj
   }
 
-  def put(key: SpecificRecordBase, value: SpecificRecordBase): Unit = {
+  def put[K <: KeyType, V <: ValueType](key: K, value: V): Unit = {
     val rn = serverForKey(key)
     val pr = new PutRequest
     pr.namespace = namespace
@@ -112,14 +115,14 @@ class Namespace(namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKeeperNod
     doReq(rn,pr)
   }
 
-  def get(key: SpecificRecordBase): Record = {
+  def getBytes[K <: KeyType](key: K): java.nio.ByteBuffer = {
     val rn = serverForKey(key)
     val gr = new GetRequest
     gr.namespace = namespace
     gr.key = key.toBytes
     doReq(rn,gr) match {
       case rec:Record =>
-        rec
+        rec.value
       case other => {
         if (other == null)
           null
@@ -127,6 +130,16 @@ class Namespace(namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKeeperNod
           throw new Throwable("Invalid return type from get: "+other)
       }
     }
+  }
+
+  def get[K <: KeyType, V <: ValueType](key: K, oldValue: V): V = {
+    oldValue.parse(getBytes(key))
+    oldValue
+  }
+
+  def get[K <: KeyType](key: K): ValueType = {
+    val retValue = valueClass.newInstance().asInstanceOf[ValueType]
+    get(key, retValue)
   }
 
   /* works for one node right now, will need to split the requests across multiple nodes
