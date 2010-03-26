@@ -4,6 +4,7 @@ import java.util.Comparator
 import java.util.concurrent.{BlockingQueue, ArrayBlockingQueue, ThreadPoolExecutor, TimeUnit}
 import java.nio.ByteBuffer
 import java.io.ByteArrayInputStream
+import java.net.InetAddress
 
 import scala.actors._
 import scala.actors.Actor._
@@ -19,6 +20,8 @@ import org.apache.avro.Schema
 import org.apache.avro.util.Utf8
 import org.apache.avro.generic.{GenericDatumReader,GenericData}
 import org.apache.avro.io.BinaryDecoder
+
+import org.apache.zookeeper.CreateMode
 
 @serializable
 class AvroComparator(val json: String) extends Comparator[Array[Byte]] with java.io.Serializable {
@@ -211,7 +214,10 @@ class SendIter(targetNode:RemoteNode, id:java.lang.Long, receiverId:java.lang.Lo
   }
 }
 
-class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) extends ServiceHandler {
+class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, localAddr:String, port:Int) extends ServiceHandler {
+  def this(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) =
+    this(env,root,InetAddress.getLocalHost.getHostName,MessageHandler.getLocalPort)
+
   case class Namespace(db: Database, keySchema: Schema, comp: AvroComparator)
   var namespaces: Map[String, Namespace] = new scala.collection.immutable.HashMap[String, Namespace]
 
@@ -829,6 +835,13 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
         val keySchema = new String(nsRoot("keySchema").data)
         //val policy = new PartitionedPolicy
         //policy.parse((nsRoot("partitions").get(partition))("policy").data)
+        val lport =
+          if (port == 0) 
+            MessageHandler.getLocalPort
+          else
+            port
+
+        (nsRoot("partitions").get(partition).getOrCreate("servers")).createChild(localAddr, (lport+"").getBytes, CreateMode.EPHEMERAL)
         
         val comp = new AvroComparator(keySchema)
         val dbConfig = new DatabaseConfig
