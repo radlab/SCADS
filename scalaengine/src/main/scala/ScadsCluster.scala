@@ -15,6 +15,9 @@ import scala.actors.Actor._
 import edu.berkeley.cs.scads.test.IntRec
 import org.apache.log4j.Logger
 import org.apache.avro.generic.GenericData.{Array => AvroArray}
+import java.nio.ByteBuffer
+import scala.collection.jcl.ArrayList
+import java.util.Arrays
 
 class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 	val namespaces = root.getOrCreate("namespaces")
@@ -74,9 +77,110 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
   private val logger = Logger.getLogger("Namespace")
   protected val keyClass = keyType.erasure
   protected val valueClass = valueType.erasure
+  private val nsNode = root.get("namespaces/"+namespace)
+  private val schema = Schema.parse(new String(nsNode.get("keySchema").data))
 
-  private def serverForKey(key:SpecificRecordBase):RemoteNode = {
-    new RemoteNode("localhost",9000)
+  private var nodeCache:Array[polServer] = null
+
+  private case class polServer(min:ByteBuffer,max:ByteBuffer,nodes:List[RemoteNode]) extends Comparable[polServer] {
+    def compareTo(p:polServer):Int = {
+      if (max == null && p.max == null) return 0;
+      if (max == null) return 1;
+      if (p.max == null) return -1;
+      if (!max.hasArray)
+        throw new Exception("Can't compare without backing array")
+      if (!p.max.hasArray)
+        throw new Exception("Can't compare without backing array")
+      org.apache.avro.io.BinaryData.compare(max.array, max.position, p.max.array, p.max.position,
+                                            schema)
+    }
+  }
+
+  def keyComp(part: ByteBuffer, key: Array[Byte]): Int = {
+      if (part == null && key == null) return 0;
+      if (part == null) return -1;
+      if (key == null) return 1;
+    if (!part.hasArray)
+      throw new Exception("Can't compare without backing array")
+    org.apache.avro.io.BinaryData.compare(part.array(), part.position, key, 0, schema)
+  }
+
+  def updateNodeCache():Unit = {
+    val partitions = nsNode.get("partitions").updateChildren(false)
+    var ranges:Int = 0
+    partitions.map(part=>{
+      val policyData = 	nsNode.get("partitions/"+part._1+"/policy").updateData(false)
+      val policy = new PartitionedPolicy
+      policy.parse(policyData)
+      ranges += policy.partitions.size.toInt
+    })
+    nodeCache = new Array[polServer](ranges)
+    var idx = 0
+    partitions.map(part=>{
+      val policyData = 	nsNode.get("partitions/"+part._1+"/policy").updateData(false)
+      val policy = new PartitionedPolicy
+      policy.parse(policyData)
+		  val iter = policy.partitions.iterator
+      val nodes = nsNode.get("partitions/"+part._1+"/servers").updateChildren(false).toList.map(ent=>{
+        new RemoteNode(ent._1,Integer.parseInt(new String(ent._2.data)))
+      }) 
+		  while (iter.hasNext) {
+			  val part = iter.next
+        nodeCache(idx) = new polServer(part.minKey,part.maxKey,nodes)
+        idx += 1
+      }
+		})
+    Arrays.sort(nodeCache,null)
+  }
+
+  def serversForKey(key:SpecificRecordBase):List[RemoteNode] = {
+    if (nodeCache == null)
+      updateNodeCache
+    val polKey = new polServer(null,key.toBytes,Nil)
+    val bpos = Arrays.binarySearch(nodeCache,polKey,null)
+    val idx = 
+      if (bpos < 0) 
+        ((bpos+1) * -1)
+      else if (bpos == nodeCache.length)
+        bpos
+      else
+        bpos + 1
+        
+    // validate that we don't have a gap
+    if (keyComp(nodeCache(idx).min,key.toBytes) > 0) {
+      logger.warn("Gap in partitions, returning empty server list")
+      Nil
+    } else
+      nodeCache(idx).nodes
+  }
+
+	private def keyInPolicy(policy:Array[Byte], key: SpecificRecordBase):Boolean = {
+		val pdata = new PartitionedPolicy
+		pdata.parse(policy)
+		val iter = pdata.partitions.iterator
+    val kdata = key.toBytes
+		while (iter.hasNext) {
+			val part = iter.next
+      if ( (part.minKey == null ||
+            keyComp(part.minKey,kdata) >= 0) &&
+           (part.maxKey == null ||
+            keyComp(part.maxKey,kdata) < 0) )
+        return true
+		}
+    false
+	}
+
+  def serversForKeySlow(key:SpecificRecordBase):List[RemoteNode] = {
+    val partitions = nsNode.get("partitions").updateChildren(false)
+    partitions.map(part=>{
+      val policyData = 	nsNode.get("partitions/"+part._1+"/policy").updateData(false)
+      if (keyInPolicy(policyData,key)) {
+        nsNode.get("partitions/"+part._1+"/servers").updateChildren(false).toList.map(ent=>{
+          new RemoteNode(ent._1,Integer.parseInt(new String(ent._2.data)))
+        }) 
+      } else
+        Nil
+		}).toList.flatten(n=>n).removeDuplicates
   }
 
   private def doReq(rn: RemoteNode, reqBody: Object): Object = {
@@ -107,20 +211,23 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
   }
 
   def put[K <: KeyType, V <: ValueType](key: K, value: V): Unit = {
-    val rn = serverForKey(key)
+    val nodes = serversForKey(key)
     val pr = new PutRequest
     pr.namespace = namespace
     pr.key = key.toBytes
     pr.value = value.toBytes
-    doReq(rn,pr)
+    nodes.foreach(rn => {
+      doReq(rn,pr)
+    })                
   }
 
   def getBytes[K <: KeyType](key: K): java.nio.ByteBuffer = {
-    val rn = serverForKey(key)
+    val nodes = serversForKey(key)
     val gr = new GetRequest
     gr.namespace = namespace
     gr.key = key.toBytes
-    doReq(rn,gr) match {
+    val n = (java.lang.Math.random()*(nodes.size)).toInt
+    doReq(nodes(n),gr) match {
       case rec:Record =>
         rec.value
       case other => {
@@ -148,7 +255,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     val id = MessageHandler.registerActor(self)
     val myId = new java.lang.Long(id)
     val irec = new IntRec
-    val rn = serverForKey(irec)
+    val rn = serversForKey(irec)(0)
     val rng = new KeyRange
     val value = "x"*valBytes
     irec.f1 = start
