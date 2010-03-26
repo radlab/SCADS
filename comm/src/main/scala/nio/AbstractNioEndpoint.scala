@@ -359,6 +359,24 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
     }
   }
 
+  def getListeningAddr(): InetAddress = {
+    synchronized {
+      if (isListening)
+        serverChannel.socket.getInetAddress
+      else
+        null
+    }
+  }
+
+  def getListeningPort(): Int = {
+    synchronized {
+      if (isListening) 
+        serverChannel.socket.getLocalPort
+      else
+        0
+    }
+  }
+
   def serve(hostAddress: InetSocketAddress) = {
     synchronized {
       if (isListening) throw new IllegalStateException("Already listening")

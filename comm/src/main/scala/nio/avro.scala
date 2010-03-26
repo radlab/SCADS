@@ -1,6 +1,6 @@
 package edu.berkeley.cs.scads.comm
 
-import java.net.InetSocketAddress
+import java.net.{InetSocketAddress, InetAddress}
 
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
@@ -90,4 +90,8 @@ extends AvroChannelManager[SendMsgType, RecvMsgType] with ChannelHandler {
     //TODO: do something better
     exception.printStackTrace
   }
+
+  def getLocalAddress: InetAddress = endpoint.getListeningAddr
+  def getLocalPort: Int = endpoint.getListeningPort
+    
 }
