@@ -388,7 +388,6 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
                             val instanceVars = for (member <- impl.body if isInstanceVar(member)) yield { member.symbol }
                             println("instanceVars: " + instanceVars)
                             val newMethods = List(
-                                    //generateDefaultCtor(impl, cd.symbol, instanceVars),
                                     generateGetMethod(impl, cd.symbol, instanceVars),
                                     generateSetMethod(impl, cd.symbol, instanceVars))
 
@@ -424,26 +423,45 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
                     val impl = md.impl
 
                     val schema = plugin.state.recordClassSchemas.get(md.symbol.fullNameString).get
-                    val newSym = md.symbol.moduleClass.newValue(md.symbol.pos.focus, newTermName("schema"))
-                    val schemaTpe = unit.depends.filter(i => i.fullNameString == "org.apache.avro.Schema" && !i.isModuleClass).head.tpe
-                    newSym setInfo schemaTpe 
-                    md.symbol.info.decls enter newSym
 
-                    val rhs = 
-                        Apply(
-                            Select(
-                                Select(
-                                    Select(
-                                        Select(
-                                            Ident(newTermName("org")), 
-                                            newTermName("apache")),
-                                        newTermName("avro")),
-                                    newTermName("Schema")),
-                                newTermName("parse")),
-                            List(
-                                Literal(Constant(schema.toString))))
-                    val schemaVal   = localTyper typed { VAL(newSym) === rhs }
-                    val newImpl = treeCopy.Template( impl, impl.parents, impl.self, impl.body ::: List(schemaVal))
+                    val nonSchemaMbrs = impl.body.filterNot( mbr => mbr.isInstanceOf[ValDef] && mbr.asInstanceOf[ValDef].name.toString == "schema " )
+                    val schemaMbr = impl.body.filter( mbr => mbr.isInstanceOf[ValDef] && mbr.asInstanceOf[ValDef].name.toString == "schema " ).head /* the extra space is important */
+                    val newSchemaMbr = schemaMbr match {
+                        case ValDef(mods, name, tpt, Apply(a0, List(Literal(Constant(_))))) =>
+                            treeCopy.ValDef(schemaMbr, mods, name, tpt, localTyper typed { Apply(a0, List(Literal(Constant(schema.toString)))) } )
+                        case _ =>
+                            throw new IllegalStateException("should have schema value");
+                    }
+                    println("newSchemaMbr: " + newSchemaMbr)
+                    //val newSym = md.symbol.moduleClass.newValue(md.symbol.pos.focus, newTermName("schema "))
+                    //val schemaTpe = unit.depends.filter(i => i.fullNameString == "org.apache.avro.Schema" && !i.isModuleClass).head.tpe
+                    //newSym setFlag PRIVATE | LOCAL
+                    //newSym setInfo schemaTpe 
+                    //md.symbol.info.decls enter newSym
+
+                    //val rhs = 
+                    //    Apply(
+                    //        Select(
+                    //            Select(
+                    //                Select(
+                    //                    Select(
+                    //                        Ident(newTermName("org")), 
+                    //                        newTermName("apache")),
+                    //                    newTermName("avro")),
+                    //                newTermName("Schema")),
+                    //            newTermName("parse")),
+                    //        List(
+                    //            Literal(Constant(schema.toString))))
+                    //val schemaVal   = localTyper typed { VAL(newSym) === rhs }
+
+                    //val newMeth = md.symbol.moduleClass.newMethod(md.symbol.pos.focus, newTermName("schema"))
+                    //newMeth.resetFlags
+                    //newMeth setFlag METHOD | STABLE | ACCESSOR
+                    //newMeth setInfo MethodType(newMeth.newSyntheticValueParams(List()), schemaTpe)
+                    //md.symbol.info.decls enter newMeth 
+
+                    //val schemaMeth = /*localTyper typed {*/ DEF(newMeth) === (This(md.symbol.moduleClass) DOT newTermName("schema ")) /*}*/
+                    val newImpl = treeCopy.Template( impl, impl.parents, impl.self, nonSchemaMbrs ::: List(newSchemaMbr) /*impl.body*/ /*::: List(schemaMeth, schemaVal) */)
                     treeCopy.ModuleDef( md, mods, name, newImpl ) 
                 })
 

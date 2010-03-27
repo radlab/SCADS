@@ -23,6 +23,33 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
     import CODE._
 
     def preTransform(tree: Tree): Tree = tree match {
+      case md @ ModuleDef(mods, name, impl) =>
+        //ValDef( // sym=<none>, sym.tpe=<notype>, tpe=null
+        //  0, // flags=, annots=List()
+        //  "findMe",
+        //  TypeTree(), // sym=null, tpe=null,
+        //  Literal(Constant(abc))
+        //)  
+        val schema = ValDef(
+            NoMods,
+            newTermName("schema"),
+            TypeTree(),
+            Apply(
+                Select(
+                    Select(
+                        Select(
+                            Select(
+                                Ident(newTermName("org")), 
+                                newTermName("apache")),
+                            newTermName("avro")),
+                        newTermName("Schema")),
+                    newTermName("parse")),
+                List(
+                    Literal(Constant("__json__"))))
+        )
+        val schemaWithPos = atPos(tree.pos)(schema)
+        val newImpl = treeCopy.Template( impl, impl.parents, impl.self, impl.body ::: List(schemaWithPos) )
+        treeCopy.ModuleDef( md, mods, name, newImpl ) 
       case cd @ ClassDef(mods, name, tparams, impl) =>
           println("mods: " + mods)
           println("tparams: " + tparams)
@@ -150,11 +177,7 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
                     Ident(newTermName("bytes")))))
           val mkByteBufferWithPos = atPos(tree.pos)(mkByteBuffer)
 
-          // def getSchema = org.apache.avro.Schema.parse(_schema)
-          // TODO: move the parsed schema into an object (so we don't
-          // have to reparse the same schema for every class instance)
-          // Note: the instance variable _schema gets generated in later
-          // stages
+          // def getSchema = <Module>.schema
           val getSchema = DefDef(
             NoMods,
             newTermName("getSchema"),
@@ -167,19 +190,9 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
                         newTermName("apache")),
                     newTermName("avro")),
                 newTypeName("Schema")),
-            Apply(
-                Select(
-                    Select(
-                        Select(
-                            Select(
-                                Ident(newTermName("org")), 
-                                newTermName("apache")),
-                            newTermName("avro")),
-                        newTermName("Schema")),
-                    newTermName("parse")),
-                List(
-                    Ident(newTermName("_schema"))))
-            )
+            Select(
+                Ident(newTermName(name.toString)),
+                newTermName("schema")))
           val getSchemaWithPos = atPos(tree.pos)(getSchema)
 
           // def this() = super()
