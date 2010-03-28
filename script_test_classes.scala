@@ -13,6 +13,8 @@ trait Tester {
     def serialize(i: Int):Array[Byte]
     def deserialize(i: Int, bytes: Array[Byte]):Unit
 
+    def messageSize = serialize(0).length 
+
     def runTest(times: Int):(Long,Long) = {
         var serializeTime = 0L
         var deserializeTime = 0L
@@ -109,6 +111,11 @@ val javaSerializeTester          = new JavaSerializeTester
 avroStockCompSerializeTester.runTest(100000)
 avroScalaCompSerializeTester.runTest(100000)
 javaSerializeTester.runTest(100000)
+
+println("Message sizes: ")
+println("Stock: " + avroStockCompSerializeTester.messageSize)
+println("Scala: " + avroScalaCompSerializeTester.messageSize)
+println("Java:  " + javaSerializeTester.messageSize)
 
 // Serialization testing
 // write 1 million new instances of the records to byte arrays. do this 10
