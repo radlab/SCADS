@@ -210,15 +210,46 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     retObj
   }
 
+  private def applyToSet(nodes:List[RemoteNode], func:(RemoteNode) => AnyRef, repliesRequired:Int):AnyRef = {
+    if (repliesRequired > nodes.size) 
+      logger.warn("Asked for " + repliesRequired + " but only passed a list of "+nodes.size+ " this will timeout")
+    var c = repliesRequired
+    var ret:AnyRef = null
+    nodes.foreach(node => {
+      val a = new Actor {
+        self.trapExit = true
+        def act() {
+          exit(func(node))
+        }
+      }
+      link(a)
+      a.start
+    })
+    while(c > 0) {
+      receiveWithin(timeout) {
+        case Exit(act,reason) => {
+          c -= 1
+          ret = reason
+        }
+        case TIMEOUT => {
+          logger.warn("Timeout waiting for actors to exit")
+          // force exit from here, TODO: shoot actors somehow?
+          c = 0
+        }
+        case msg =>
+          logger.warn("Unexpected message waiting for actor exits: "+msg)
+      }
+    }
+    ret
+  }
+
   def put[K <: KeyType, V <: ValueType](key: K, value: V): Unit = {
     val nodes = serversForKey(key)
     val pr = new PutRequest
     pr.namespace = namespace
     pr.key = key.toBytes
     pr.value = value.toBytes
-    nodes.foreach(rn => {
-      doReq(rn,pr)
-    })                
+    applyToSet(nodes,(rn)=>{doReq(rn,pr)},nodes.size)
   }
 
   def getBytes[K <: KeyType](key: K): java.nio.ByteBuffer = {
@@ -226,25 +257,36 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     val gr = new GetRequest
     gr.namespace = namespace
     gr.key = key.toBytes
-    val n = (java.lang.Math.random()*(nodes.size)).toInt
-    doReq(nodes(n),gr) match {
-      case rec:Record =>
-        rec.value
-      case other => {
-        if (other == null)
-          null
-        else
-          throw new Throwable("Invalid return type from get: "+other)
-      }
+    applyToSet(nodes,
+               (rn)=> {
+                 doReq(rn,gr) match {
+                   case rec:Record =>
+                     rec.value
+                   case other => {
+                     if (other == null)
+                       null
+                     else
+                       throw new Throwable("Invalid return type from get: "+other)
+                   }
+                 }
+               },
+               1) match { // we pass one here to return after the first reply
+      case bb:java.nio.ByteBuffer => bb
+      case other => null
     }
   }
 
-  def get[K <: KeyType, V <: ValueType](key: K, oldValue: V): V = {
-    oldValue.parse(getBytes(key))
-    oldValue
+  def get[K <: KeyType, V <: ValueType](key: K, oldValue: V): Option[V] = {
+    val bb = getBytes(key)
+    if (bb != null) {
+      oldValue.parse(bb)
+      Some(oldValue)
+    }
+    else
+      None
   }
 
-  def get[K <: KeyType](key: K): ValueType = {
+  def get[K <: KeyType](key: K): Option[ValueType] = {
     val retValue = valueClass.newInstance().asInstanceOf[ValueType]
     get(key, retValue)
   }
