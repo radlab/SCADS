@@ -40,11 +40,11 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
       false
   }
 
-  def createNamespace(ns: String, keySchema: Schema, valueSchema: Schema): Unit = {
-    createNamespace(ns, keySchema, valueSchema, List[RemoteNode]())
+  def createNamespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](ns: String, keySchema: Schema, valueSchema: Schema)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): Namespace[KeyType, ValueType] = {
+    createNamespace[KeyType, ValueType](ns, keySchema, valueSchema, List[RemoteNode]())
   }
 
-	def createNamespace(ns: String, keySchema: Schema, valueSchema: Schema, servers: List[RemoteNode]): Unit = {
+	def createNamespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](ns: String, keySchema: Schema, valueSchema: Schema, servers: List[RemoteNode])(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): Namespace[KeyType, ValueType] = {
 		val nsRoot = namespaces.createChild(ns, "", CreateMode.PERSISTENT)
 		nsRoot.createChild("keySchema", keySchema.toString(), CreateMode.PERSISTENT)
 		nsRoot.createChild("valueSchema", valueSchema.toString(), CreateMode.PERSISTENT)
@@ -62,6 +62,8 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
       cr.partition = "1"
       Sync.makeRequest(s, new Utf8("Storage"), cr)
     })
+
+    new Namespace[KeyType, ValueType](ns, 5000, root)
 	}
 
 	def addPartition(ns:String, name:String, policy:PartitionedPolicy):Unit = {
