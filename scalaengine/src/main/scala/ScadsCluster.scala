@@ -40,7 +40,11 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
       false
   }
 
-	def createNamespace(ns: String, keySchema: Schema, valueSchema: Schema): Unit = {
+  def createNamespace(ns: String, keySchema: Schema, valueSchema: Schema): Unit = {
+    createNamespace(ns, keySchema, valueSchema, List[RemoteNode]())
+  }
+
+	def createNamespace(ns: String, keySchema: Schema, valueSchema: Schema, servers: List[RemoteNode]): Unit = {
 		val nsRoot = namespaces.createChild(ns, "", CreateMode.PERSISTENT)
 		nsRoot.createChild("keySchema", keySchema.toString(), CreateMode.PERSISTENT)
 		nsRoot.createChild("valueSchema", valueSchema.toString(), CreateMode.PERSISTENT)
@@ -51,7 +55,15 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 
 		partition.createChild("policy", policy.toBytes, CreateMode.PERSISTENT)
 		partition.createChild("servers", "", CreateMode.PERSISTENT)
+
+    servers.foreach(s => {
+      val cr = new ConfigureRequest
+      cr.namespace = ns
+      cr.partition = "1"
+      Sync.makeRequest(s, new Utf8("Storage"), cr)
+    })
 	}
+
 	def addPartition(ns:String, name:String, policy:PartitionedPolicy):Unit = {
 		val partition = namespaces.getOrCreate(ns+"/partitions/"+name)
 
