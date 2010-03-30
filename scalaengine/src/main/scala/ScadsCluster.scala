@@ -117,6 +117,8 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     }
 
     def next():polServer = {
+      if (cur > end)
+        throw new NoSuchElementException()
       cur += 1
       nodeCache((cur-1))
     }
@@ -183,8 +185,16 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
   }
 
   private def splitRange(startKey:SpecificRecordBase,endKey:SpecificRecordBase):RangeIterator = {
-    val sidx = idxForKey(startKey)
-    val eidx = idxForKey(endKey) 
+    val sidx = 
+      if (startKey == null)
+        0
+      else
+        idxForKey(startKey)
+    val eidx = 
+      if (endKey == null)
+        nodeCache.length
+      else
+        idxForKey(endKey) 
     // Check if this just makes the range and -1 if so
     new RangeIterator(sidx,eidx)
   }
