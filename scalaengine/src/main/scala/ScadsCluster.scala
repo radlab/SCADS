@@ -110,7 +110,19 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     }
   }
 
-  def keyComp(part: ByteBuffer, key: Array[Byte]): Int = {
+  private class RangeIterator(start:Int, end:Int) extends Iterator[polServer] {
+    private var cur = start
+    def hasNext():Boolean = {
+      cur <= end
+    }
+
+    def next():polServer = {
+      cur += 1
+      nodeCache((cur-1))
+    }
+  }
+
+  private def keyComp(part: ByteBuffer, key: Array[Byte]): Int = {
       if (part == null && key == null) return 0;
       if (part == null) return -1;
       if (key == null) return 1;
@@ -119,7 +131,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     org.apache.avro.io.BinaryData.compare(part.array(), part.position, key, 0, schema)
   }
 
-  def updateNodeCache():Unit = {
+  private def updateNodeCache():Unit = {
     val partitions = nsNode.get("partitions").updateChildren(false)
     var ranges:Int = 0
     partitions.map(part=>{
@@ -147,25 +159,34 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     Arrays.sort(nodeCache,null)
   }
 
-  def serversForKey(key:SpecificRecordBase):List[RemoteNode] = {
+  private def idxForKey(key:SpecificRecordBase):Int = {
     if (nodeCache == null)
       updateNodeCache
     val polKey = new polServer(null,key.toBytes,Nil)
     val bpos = Arrays.binarySearch(nodeCache,polKey,null)
-    val idx = 
-      if (bpos < 0) 
-        ((bpos+1) * -1)
-      else if (bpos == nodeCache.length)
-        bpos
-      else
-        bpos + 1
-        
+    if (bpos < 0) 
+      ((bpos+1) * -1)
+    else if (bpos == nodeCache.length)
+      bpos
+    else
+      bpos + 1
+  }
+
+  def serversForKey(key:SpecificRecordBase):List[RemoteNode] = {
+    val idx = idxForKey(key)
     // validate that we don't have a gap
     if (keyComp(nodeCache(idx).min,key.toBytes) > 0) {
       logger.warn("Gap in partitions, returning empty server list")
       Nil
     } else
       nodeCache(idx).nodes
+  }
+
+  private def splitRange(startKey:SpecificRecordBase,endKey:SpecificRecordBase):RangeIterator = {
+    val sidx = idxForKey(startKey)
+    val eidx = idxForKey(endKey) 
+    // Check if this just makes the range and -1 if so
+    new RangeIterator(sidx,eidx)
   }
 
 	private def keyInPolicy(policy:Array[Byte], key: SpecificRecordBase):Boolean = {
@@ -308,80 +329,112 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
   /* works for one node right now, will need to split the requests across multiple nodes
    * in the future */
   def bulkPut(start:Int, end:Int, valBytes:Int): Long = {
-    val id = MessageHandler.registerActor(self)
-    val myId = new java.lang.Long(id)
-    val irec = new IntRec
-    val rn = serversForKey(irec)(0)
-    val rng = new KeyRange
-    val value = "x"*valBytes
-    irec.f1 = start
-    rng.minKey=irec.toBytes
-    irec.f1 = end
-    rng.maxKey=irec.toBytes
-    val csr = new CopyStartRequest
-    csr.ranges = new AvroArray[KeyRange](1024, Schema.createArray((new KeyRange).getSchema))
-    csr.ranges.add(rng)
-    csr.namespace = namespace
+    val srec = new IntRec
+    val erec = new IntRec
+    srec.f1 = start
+    erec.f1 = end
+    val rangeIt = splitRange(srec,erec)
+    var c = 0
     val startTime = System.currentTimeMillis()
-    doReq(rn,csr) match {
-      case tsr: TransferStartReply => {
-        logger.warn("Got TransferStartReply, sending data")
-        val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema))
-        val sendIt = new SendIter(rn,id,tsr.recvActorId,buffer,100,0,logger)
-        var recsSent:Long = 0
-        for (i <- (start to end)) {
-          val rec = new Record
-          irec.f1 = i
-          rec.key = irec.toBytes
-          rec.value = value
-          sendIt.put(rec)
-          recsSent += 1
+    while(rangeIt.hasNext()) {
+      val polServ = rangeIt.next
+      c+=1
+      val a = new Actor {
+        self.trapExit = true
+        def act() {
+          val id = MessageHandler.registerActor(self)
+          val myId = new java.lang.Long(id)
+          val rng = new KeyRange
+          val value = "x"*valBytes
+          rng.minKey=polServ.min
+          rng.maxKey=polServ.max
+          val csr = new CopyStartRequest
+          csr.ranges = new AvroArray[KeyRange](1024, Schema.createArray((new KeyRange).getSchema))
+          csr.ranges.add(rng)
+          csr.namespace = namespace
+          applyToSet(polServ.nodes,
+                     (rn)=> {
+                       doReq(rn,csr) match {
+                         case tsr: TransferStartReply => {
+                           logger.warn("Got TransferStartReply, sending data")
+                           val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema))
+                           val sendIt = new SendIter(rn,id,tsr.recvActorId,buffer,100,0,logger)
+                           var recsSent:Long = 0
+                           val sirec = new IntRec
+                           val eirec = new IntRec
+                           sirec.parse(polServ.min)
+                           eirec.parse(polServ.max)
+                           for (i <- (sirec.f1 to eirec.f1)) {
+                             val rec = new Record
+                             sirec.f1 = i
+                             rec.key = sirec.toBytes
+                             rec.value = value
+                             sendIt.put(rec)
+                             recsSent += 1
+                           }
+                           sendIt.flush
+                           val fin = new TransferFinished
+                           fin.sendActorId = id.longValue
+                           val msg = new Message
+                           msg.src = myId
+                           msg.dest = new java.lang.Long(tsr.recvActorId)
+                           msg.body = fin
+                           MessageHandler.sendMessage(rn,msg)
+                           logger.warn("TransferFinished and sent")
+                           // now we loop and wait for acks and final cleanup from other side
+                           while(true) {
+                             receiveWithin(timeout) {
+                               case (rn:RemoteNode, msg:Message)  => msg.body match {
+                                 case bda:BulkDataAck => {
+                                   // don't need to do anything, we're ignoring these
+                                 }
+                                 case ric:RecvIterClose => { // should probably have a status here at some point
+                                   logger.warn("Got close, all done")
+                                   MessageHandler.unregisterActor(id)
+                                   exit
+                                 }
+                                 case msgb => {
+                                   logger.warn("Copy end loop got unexpected message body: "+msgb)
+                                 }
+                               }
+                               case TIMEOUT => {
+                                 logger.warn("Copy end loop timed out waiting for finish")
+                                 MessageHandler.unregisterActor(id)
+                                 exit("TIMEOUT")
+                               }
+                               case msg =>
+                                 logger.warn("Copy end loop got unexpected message: "+msg)
+                             }
+                           }
+                         }
+                         case _ => {
+                           logger.warn("Unexpected reply to copy start request")
+                           MessageHandler.unregisterActor(id)
+                           exit("Unexpected reply to copy start request")
+                         }
+                       }
+                     },
+                     polServ.nodes.length)
         }
-        sendIt.flush
-        val fin = new TransferFinished
-        fin.sendActorId = id.longValue
-        val msg = new Message
-        msg.src = myId
-        msg.dest = new java.lang.Long(tsr.recvActorId)
-        msg.body = fin
-        MessageHandler.sendMessage(rn,msg)
-        logger.warn("TransferFinished and sent")
-        // now we loop and wait for acks and final cleanup from other side
-        var stop = false
-        var time:Long = 0
-        while(!stop) {
-          receiveWithin(timeout) {
-            case (rn:RemoteNode, msg:Message)  => msg.body match {
-              case bda:BulkDataAck => {
-                // don't need to do anything, we're ignoring these
-              }
-              case ric:RecvIterClose => { // should probably have a status here at some point
-                logger.warn("Got close, all done")
-                val endTime = System.currentTimeMillis
-                MessageHandler.unregisterActor(id)
-                time = endTime - startTime
-                stop = true
-              }
-              case msgb =>
-                logger.warn("Copy end loop got unexpected message body: "+msgb)
-            }
-            case TIMEOUT => {
-              logger.warn("Copy end loop timed out waiting for finish")
-              MessageHandler.unregisterActor(id)
-              throw new Throwable("Copy end loop timed out waiting for finish")
-            }
-            case msg =>
-              logger.warn("Copy end loop got unexpected message: "+msg)
-          }
-        }
-        time
       }
-      case _ => {
-        logger.warn("Unexpected reply to copy start request")
-        MessageHandler.unregisterActor(id)
-        throw new Throwable("Unexpected reply to copy start request")
+      link(a)
+      a.start
+    }
+    while(c > 0) {
+      receiveWithin(timeout) {
+        case Exit(act,reason) => 
+          c -= 1
+        case TIMEOUT => {
+          logger.warn("Timeout waiting for actors to exit from bulkPut")
+          // force exit from here, TODO: shoot actors somehow?
+          c = 0
+        }
+        case msg =>
+          logger.warn("Unexpected message waiting for actor exits from bulkPut: "+msg)
       }
     }
+    val endTime = System.currentTimeMillis
+    endTime-startTime
   }
-   
+
 }
