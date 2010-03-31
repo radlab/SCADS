@@ -3,6 +3,7 @@ package edu.berkeley.cs.scads.comm
 import org.apache.avro.Schema
 import org.apache.avro.generic._
 import org.apache.avro.util.Utf8
+import java.io.InputStream
 import java.nio.ByteBuffer
 
 object Conversions {
@@ -36,4 +37,15 @@ object Conversions {
         case null => null
         case _    => ByteBuffer.wrap(bts)
     }
+
+  implicit def mkByteInputStream(buff: ByteBuffer): InputStream = {
+   new InputStream() {
+      override def read(): Int = {
+        if(buff.remaining > 0)
+          buff.get & 0x00FF
+        else
+          -1
+      }
+    }
+  }
 }
