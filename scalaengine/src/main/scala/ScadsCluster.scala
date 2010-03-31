@@ -336,6 +336,65 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     get(key, retValue)
   }
 
+  def flatMap[RetType <: SpecificRecordBase](func: (KeyType, ValueType) => List[RetType])(implicit retType: scala.reflect.Manifest[RetType]): Seq[RetType] = {
+    class ResultSeq extends Actor with Seq[RetType] {
+      val retClass = retType.erasure
+      val result = new SyncVar[List[RetType]]
+
+      def apply(ordinal: Int): RetType = result.get.apply(ordinal)
+      def length: Int = result.get.length
+      def elements: Iterator[RetType] = result.get.elements
+
+      def act(): Unit = {
+        val id = MessageHandler.registerActor(self)
+        val ranges = splitRange(null, null).counted
+        var partialElements = List[RetType]()
+        val msg = new Message
+        val req = new FlatMapRequest
+        msg.src = new java.lang.Long(id)
+        msg.dest = dest
+        msg.body = req
+        req.namespace = namespace
+        req.keyType = keyClass.getName
+        req.valueType = valueClass.getName
+        req.closure = Closure(func)
+
+        ranges.foreach(r => {
+          MessageHandler.sendMessage(r.nodes.first, msg)
+        })
+
+        var remaining = ranges.count
+        loop {
+          reactWithin(1000) {
+            case (_, msg: Message) => {
+              val resp = msg.body.asInstanceOf[FlatMapResponse]
+
+              //TODO: Use scala idioms for iteration
+              val records = resp.records.iterator()
+              while(records.hasNext) {
+                val rec = retClass.newInstance.asInstanceOf[RetType]
+                rec.parse(records.next)
+                partialElements += rec
+              }
+
+              println(partialElements)
+
+              remaining -= 1
+              if(remaining <= 0) {
+                result.set(partialElements)
+                MessageHandler.unregisterActor(id)
+              }
+            }
+            case TIMEOUT => result.set(null)
+            case m => logger.fatal("Unexpected message: " + m)
+          }
+        }
+      }
+    }
+
+    (new ResultSeq).start.asInstanceOf[Seq[RetType]]
+  }
+
   /* works for one node right now, will need to split the requests across multiple nodes
    * in the future */
   def bulkPut(start:Int, end:Int, valBytes:Int): Long = {

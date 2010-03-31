@@ -152,6 +152,17 @@
 			{"name": "sendActorId", "type": "long"}]
 		},
 
+		{"name": "FlatMapRequest", "type": "record", "fields": [
+		  {"name": "namespace", "type": "string"},
+		  {"name": "keyType", "type": "string"},
+		  {"name": "valueType", "type": "string"},
+		  {"name": "closure", "type": "bytes"}]
+    },
+
+		{"name": "FlatMapResponse", "type": "record", "fields": [
+		  {"name": "records", "type": {"type": "array", "items": "bytes"}}]
+    },
+
 		{"name": "Message", "type": "record", "fields": [
 		  {"name": "src", "type": ["long","string","null"]},
 		  {"name": "dest", "type": ["long","string"]},
@@ -177,6 +188,9 @@
 								 "BulkData",
 								 "BulkDataAck",
 								 "RecvIterClose",
+
+                 "FlatMapRequest",
+                 "FlatMapResponse",
 
 								 "Record", 
 								 "RecordSet",

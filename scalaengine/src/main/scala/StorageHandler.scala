@@ -19,6 +19,7 @@ import org.apache.avro.generic.GenericData.{Array => AvroArray}
 import org.apache.avro.Schema
 import org.apache.avro.util.Utf8
 import org.apache.avro.generic.{GenericDatumReader,GenericData}
+import org.apache.avro.specific.SpecificRecordBase
 import org.apache.avro.io.BinaryDecoder
 
 import org.apache.zookeeper.CreateMode
@@ -248,6 +249,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
       resp.body = body
       resp.dest = req.src
       resp.id = req.id
+      println("Sending " + resp + " to " + src)
       MessageHandler.sendMessage(src, resp)
     }
 
@@ -514,6 +516,25 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
         simpleSyncSink(ssreq,src,req)
       }
 
+      case fmreq: FlatMapRequest => {
+        println("Processing flatmap request")
+        val ns = namespaces(fmreq.namespace)
+        val func = Closure(fmreq.closure).asInstanceOf[(SpecificRecordBase, SpecificRecordBase) => List[SpecificRecordBase]]
+        var result = new GenericData.Array[ByteBuffer](10, Schema.createArray(Schema.create(Schema.Type.BYTES)))
+
+        val key = Class.forName(fmreq.keyType).asInstanceOf[Class[SpecificRecordBase]].newInstance()
+        val value = Class.forName(fmreq.valueType).asInstanceOf[Class[SpecificRecordBase]].newInstance()
+        iterateOverRange(ns, new KeyRange, false, (keyBytes, valueBytes, _) => {
+          key.parse(keyBytes.getData)
+          value.parse(valueBytes.getData)
+          func(key, value).map(v => ByteBuffer.wrap(v.toBytes)).foreach(result.add)
+          println(result)
+        })
+
+        val resp = new FlatMapResponse
+        resp.records = result
+        reply(resp)
+      }
       // End of message handling
     }
 
@@ -831,7 +852,10 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
   def openNamespace(ns: String, partition: String): Unit = {
     namespaces.synchronized {
       if (!namespaces.contains(ns)) {
-        val nsRoot = root.get("namespaces").get(ns)
+        val nsRoot = root.get("namespaces").updateChildren(false).get(ns) match {
+          case Some(nsr) => nsr
+          case None => throw new RuntimeException("Attempted to open namespace that doesn't exist in zookeeper: " + ns)
+        }
         val keySchema = new String(nsRoot("keySchema").data)
         //val policy = new PartitionedPolicy
         //policy.parse((nsRoot("partitions").get(partition))("policy").data)
