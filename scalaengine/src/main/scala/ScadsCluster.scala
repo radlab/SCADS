@@ -192,7 +192,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
         idxForKey(startKey)
     val eidx = 
       if (endKey == null)
-        nodeCache.length
+        nodeCache.length - 1
       else
         idxForKey(endKey) 
     // Check if this just makes the range and -1 if so
