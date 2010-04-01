@@ -369,6 +369,56 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     (new ResultSeq).start.asInstanceOf[Seq[RetType]]
   }
 
+  def size():Int = {
+    val sv = new SyncVar[Int]
+    val s = new java.util.concurrent.atomic.AtomicInteger()
+    val ranges = splitRange(null, null).counted
+    actor {
+      val id = MessageHandler.registerActor(self)
+      val msg = new Message
+      val crr = new CountRangeRequest
+      msg.src = new java.lang.Long(id)
+      msg.dest = dest
+      msg.body = crr
+      crr.namespace = namespace
+      ranges.foreach(r => {
+        val kr = new KeyRange
+        kr.minKey = r.min
+        kr.maxKey = r.max
+        crr.range = kr
+        MessageHandler.sendMessage(r.nodes.first, msg)
+      })
+      var remaining = ranges.count
+      loop {
+        reactWithin(timeout) {
+          case (_, msg: Message) => {
+            val resp = msg.body.asInstanceOf[Int]
+            s.addAndGet(resp)
+            remaining -= 1
+            if(remaining < 0) { // count starts at 0
+              sv.set(s.get)
+              MessageHandler.unregisterActor(id)
+              exit
+            }
+          }
+          case TIMEOUT => {
+            logger.warn("Timeout waiting for count to return")
+            sv.set(-1)
+            MessageHandler.unregisterActor(id)
+            exit
+          }
+          case m => {
+            logger.fatal("Unexpected message: " + m)
+            sv.set(-1)
+            MessageHandler.unregisterActor(id)
+            exit
+          }
+        }
+      }
+    }
+    sv.get
+  }
+
   // call from within an actor only
   private def bulkPutBody(rn:RemoteNode, csr:CopyStartRequest, polServ:polServer, value:String, srec:IntRec, erec:IntRec):Unit = {
     val id = MessageHandler.registerActor(self)
