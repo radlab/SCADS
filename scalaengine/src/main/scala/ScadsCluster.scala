@@ -18,6 +18,7 @@ import org.apache.avro.generic.GenericData.{Array => AvroArray}
 import java.nio.ByteBuffer
 import scala.collection.jcl.ArrayList
 import java.util.Arrays
+import scala.concurrent.SyncVar
 
 class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 	val namespaces = root.getOrCreate("namespaces")
