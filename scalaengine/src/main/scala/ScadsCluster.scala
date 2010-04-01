@@ -229,33 +229,6 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
 		}).toList.flatten(n=>n).removeDuplicates
   }
 
-  private def doReq(rn: RemoteNode, reqBody: Object): Object = {
-    var retObj:Object = null
-    var retExcp:Throwable = null
-		val req = new Message
-		req.body = reqBody
-    req.dest = dest
-    val id = MessageHandler.registerActor(self)
-		req.src = new java.lang.Long(id)
-		MessageHandler.sendMessage(rn, req)
-		receiveWithin(timeout) {
-			case (RemoteNode(hostname, port), msg: Message) => msg.body match {
-				case exp: ProcessingException => 
-          retExcp = new Throwable(exp.cause)
-				case obj => 
-          retObj = obj
-			}
-			case TIMEOUT => 
-        retExcp = new RuntimeException("Timeout")
-			case msg => 
-        retExcp = new Throwable("Unexpected message: " + msg)
-		}
-    MessageHandler.unregisterActor(id)
-    if (retExcp != null)
-      throw retExcp
-    retObj
-  }
-
   private def applyToSet(nodes:List[RemoteNode], func:(RemoteNode) => AnyRef, repliesRequired:Int):AnyRef = {
     if (repliesRequired > nodes.size) 
       logger.warn("Asked for " + repliesRequired + " but only passed a list of "+nodes.size+ " this will timeout")
@@ -295,7 +268,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     pr.namespace = namespace
     pr.key = key.toBytes
     pr.value = value.toBytes
-    applyToSet(nodes,(rn)=>{doReq(rn,pr)},nodes.size)
+    applyToSet(nodes,(rn)=>{Sync.makeRequest(rn,dest,pr,timeout)},nodes.size)
   }
 
   def getBytes[K <: KeyType](key: K): java.nio.ByteBuffer = {
@@ -305,7 +278,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     gr.key = key.toBytes
     applyToSet(nodes,
                (rn)=> {
-                 doReq(rn,gr) match {
+                 Sync.makeRequest(rn,dest,gr,timeout) match {
                    case rec:Record =>
                      rec.value
                    case other => {
@@ -375,7 +348,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
               while(records.hasNext) {
                 val rec = retClass.newInstance.asInstanceOf[RetType]
                 rec.parse(records.next)
-                partialElements += rec
+                partialElements = partialElements:::List(rec)
               }
 
               println(partialElements)
@@ -396,8 +369,83 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     (new ResultSeq).start.asInstanceOf[Seq[RetType]]
   }
 
-  /* works for one node right now, will need to split the requests across multiple nodes
-   * in the future */
+  // call from within an actor only
+  private def bulkPutBody(rn:RemoteNode, csr:CopyStartRequest, polServ:polServer, value:String, srec:IntRec, erec:IntRec):Unit = {
+    val id = MessageHandler.registerActor(self)
+    val myId = new java.lang.Long(id)
+    Sync.makeRequest(rn,dest,csr,timeout) match {
+      case tsr: TransferStartReply => {
+        logger.warn("Got TransferStartReply, sending data")
+        val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema))
+        val sendIt = new SendIter(rn,id,tsr.recvActorId,buffer,100,0,logger)
+        var recsSent:Long = 0
+        val sirec = new IntRec
+        val eirec = new IntRec
+        if (polServ.min != null)
+          sirec.parse(polServ.min)
+        else
+          sirec.f1 = srec.f1
+        if (sirec.f1 < srec.f1)
+          sirec.f1 = srec.f1
+        
+        if (polServ.max != null) {
+          eirec.parse(polServ.max)
+          eirec.f1 = eirec.f1 - 1
+        }
+        else
+          eirec.f1 = erec.f1-1
+        if (eirec.f1 > erec.f1)
+          eirec.f1 = erec.f1-1
+        for (i <- (sirec.f1 to eirec.f1)) {
+          val rec = new Record
+          sirec.f1 = i
+          rec.key = sirec.toBytes
+          rec.value = value
+          sendIt.put(rec)
+          recsSent += 1
+        }
+        sendIt.flush
+        val fin = new TransferFinished
+        fin.sendActorId = id.longValue
+        val msg = new Message
+        msg.src = myId
+        msg.dest = new java.lang.Long(tsr.recvActorId)
+        msg.body = fin
+        MessageHandler.sendMessage(rn,msg)
+        logger.warn("TransferFinished and sent")
+        // now we loop and wait for acks and final cleanup from other side
+        while(true) {
+          receiveWithin(timeout) {
+            case (rn:RemoteNode, msg:Message)  => msg.body match {
+              case bda:BulkDataAck => {
+                // don't need to do anything, we're ignoring these
+              }
+              case ric:RecvIterClose => { // should probably have a status here at some point
+                MessageHandler.unregisterActor(id)
+                exit
+              }
+              case msgb => {
+                logger.warn("Copy end loop got unexpected message body: "+msgb)
+              }
+            }
+            case TIMEOUT => {
+              logger.warn("Copy end loop timed out waiting for finish")
+              MessageHandler.unregisterActor(id)
+              exit("TIMEOUT")
+            }
+            case msg =>
+              logger.warn("Copy end loop got unexpected message: "+msg)
+          }
+        }
+      }
+      case _ => {
+        logger.warn("Unexpected reply to copy start request")
+        MessageHandler.unregisterActor(id)
+        exit("Unexpected reply to copy start request")
+      }
+    }
+  }
+
   def bulkPut(start:Int, end:Int, valBytes:Int): Long = {
     val srec = new IntRec
     val erec = new IntRec
@@ -408,87 +456,25 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     val startTime = System.currentTimeMillis()
     while(rangeIt.hasNext()) {
       val polServ = rangeIt.next
-      c+=1
-      val a = new Actor {
-        self.trapExit = true
-        def act() {
-          val id = MessageHandler.registerActor(self)
-          val myId = new java.lang.Long(id)
-          val rng = new KeyRange
-          val value = "x"*valBytes
-          rng.minKey=polServ.min
-          rng.maxKey=polServ.max
-          val csr = new CopyStartRequest
-          csr.ranges = new AvroArray[KeyRange](1024, Schema.createArray((new KeyRange).getSchema))
-          csr.ranges.add(rng)
-          csr.namespace = namespace
-          applyToSet(polServ.nodes,
-                     (rn)=> {
-                       doReq(rn,csr) match {
-                         case tsr: TransferStartReply => {
-                           logger.warn("Got TransferStartReply, sending data")
-                           val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema))
-                           val sendIt = new SendIter(rn,id,tsr.recvActorId,buffer,100,0,logger)
-                           var recsSent:Long = 0
-                           val sirec = new IntRec
-                           val eirec = new IntRec
-                           sirec.parse(polServ.min)
-                           eirec.parse(polServ.max)
-                           for (i <- (sirec.f1 to eirec.f1)) {
-                             val rec = new Record
-                             sirec.f1 = i
-                             rec.key = sirec.toBytes
-                             rec.value = value
-                             sendIt.put(rec)
-                             recsSent += 1
-                           }
-                           sendIt.flush
-                           val fin = new TransferFinished
-                           fin.sendActorId = id.longValue
-                           val msg = new Message
-                           msg.src = myId
-                           msg.dest = new java.lang.Long(tsr.recvActorId)
-                           msg.body = fin
-                           MessageHandler.sendMessage(rn,msg)
-                           logger.warn("TransferFinished and sent")
-                           // now we loop and wait for acks and final cleanup from other side
-                           while(true) {
-                             receiveWithin(timeout) {
-                               case (rn:RemoteNode, msg:Message)  => msg.body match {
-                                 case bda:BulkDataAck => {
-                                   // don't need to do anything, we're ignoring these
-                                 }
-                                 case ric:RecvIterClose => { // should probably have a status here at some point
-                                   logger.warn("Got close, all done")
-                                   MessageHandler.unregisterActor(id)
-                                   exit
-                                 }
-                                 case msgb => {
-                                   logger.warn("Copy end loop got unexpected message body: "+msgb)
-                                 }
-                               }
-                               case TIMEOUT => {
-                                 logger.warn("Copy end loop timed out waiting for finish")
-                                 MessageHandler.unregisterActor(id)
-                                 exit("TIMEOUT")
-                               }
-                               case msg =>
-                                 logger.warn("Copy end loop got unexpected message: "+msg)
-                             }
-                           }
-                         }
-                         case _ => {
-                           logger.warn("Unexpected reply to copy start request")
-                           MessageHandler.unregisterActor(id)
-                           exit("Unexpected reply to copy start request")
-                         }
-                       }
-                     },
-                     polServ.nodes.length)
+      val rng = new KeyRange
+      val value = "x"*valBytes
+      rng.minKey=polServ.min
+      rng.maxKey=polServ.max
+      val csr = new CopyStartRequest
+      csr.ranges = new AvroArray[KeyRange](1024, Schema.createArray((new KeyRange).getSchema))
+      csr.ranges.add(rng)
+      csr.namespace = namespace
+      polServ.nodes.foreach(node => {
+        c+=1
+        val a = new Actor {
+          self.trapExit = true
+          def act() {
+            bulkPutBody(node,csr,polServ,value,srec,erec)
+          }
         }
-      }
-      link(a)
-      a.start
+        link(a)
+        a.start
+      })
     }
     while(c > 0) {
       receiveWithin(timeout) {
