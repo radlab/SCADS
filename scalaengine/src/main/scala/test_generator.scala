@@ -1,3 +1,7 @@
+/*
+THIS FILE IS OLD!! don't use
+*/
+
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.storage._
 import edu.berkeley.cs.scads.test._
@@ -5,8 +9,13 @@ import edu.berkeley.cs.scads.comm.Conversions._
 import scala.actors._
 import scala.actors.Actor._
 import org.apache.avro.util.Utf8
+import org.apache.zookeeper.CreateMode
 import org.apache.log4j.Logger
 import org.apache.log4j.BasicConfigurator
+
+case class PolicyRange(val minKey:Int, val maxKey:Int) {
+	def contains(needle:Int) = (needle >= minKey && needle < maxKey)
+}
 
 object ZooKeeperServer extends optional.Application {
 	def main(port: Int, data_path: String):Unit = {
@@ -35,7 +44,24 @@ object SetupNodes{
 		val k1 = new IntRec
 		val v1 = new StringRec
 		cluster.createNamespace(namespace, k1.getSchema(), v1.getSchema())
+		
+		// set up partitions for empty and fake clusters
+		val minKey = new IntRec
+		val maxKey = new IntRec
+		val partition = new KeyPartition; partition.minKey = minKey.toBytes; partition.maxKey = maxKey.toBytes
+		val policy = new PartitionedPolicy; policy.partitions = List(partition)
+		cluster.addPartition(namespace,"empty",policy)
+		
+		minKey.f1 = -1
+		maxKey.f1 = -1
+		partition.minKey = minKey.toBytes; partition.maxKey = maxKey.toBytes
+		policy.partitions = List(partition)
+		cluster.addPartition(namespace,"fake",policy)
 	}
+	/**
+	* file1: partition, min,max
+	* file2: partition,server
+	*/
 	def setPartitions(cluster:ScadsCluster, filename:String,namespace:String) = {
 		// tell each server which partition it has
 		// and register each server with zookeeper
@@ -50,10 +76,10 @@ object SetupNodes{
 				logger.info("Setting "+tokens(1).trim+" with partition "+part)
 				cr.partition = part
 				Sync.makeRequest(RemoteNode(tokens(1).trim,9991), new Utf8("Storage"),cr)
-				/*try {
+				try {
 					if (!part.equals("1")) cluster.addPartition(namespace,part)
 					cluster.namespaces.get(namespace+"/partitions/"+part+"/servers").createChild(tokens(1).trim, "", CreateMode.PERSISTENT)
-				} catch { case e => logger.warn("Got exception when adding server to placement "+ e.toString) }*/
+				} catch { case e => logger.warn("Got exception when adding server to placement "+ e.toString) }
 			} 
 		})
 		
@@ -156,6 +182,7 @@ object PolicyRange {
 	}
 }
 */
+
 class RequestLogger(val queue:java.util.concurrent.BlockingQueue[String]) extends Runnable {
 	//import edu.berkeley.xtrace._
 	val xtrace_on = System.getProperty("xtrace_stats","false").toBoolean	
@@ -501,6 +528,7 @@ class SimpleRequestHandler(var period_nanos:Long, mapping: Map[PolicyRange,List[
 	val request_id = new java.util.concurrent.atomic.AtomicLong
 	val request_count = new java.util.concurrent.atomic.AtomicLong
 	val request_map = new java.util.concurrent.ConcurrentHashMap[Long,RequestSent] // id -> RequestSent(request type, key, starttime in nanos, start timestamp)
+	val replica_map = new java.util.concurrent.ConcurrentHashMap[Long,RequestSent] // id -> RequestSent(request type, key, starttime in nanos, start timestamp)
 	val SUCCESS:Int = 0;	val FAILED:Int = 1;		val EXCEPT:Int = 2
 
 	// logging stuff
@@ -553,7 +581,7 @@ class SimpleRequestHandler(var period_nanos:Long, mapping: Map[PolicyRange,List[
 	def run():Unit = {
 		// map of duration -> interval time
 		val basetime = (960*(java.lang.Math.pow(10,6))).toInt
-		val rates = List(2,4,10,12,14,16).map(i=>i*1000)//.map(i=>i/2)
+		val rates = List(2,4,6,8,10,12,14).map(i=>i*1000)//.map(i=>i/2)
 		val workload = Map[Int,(Int,Int)]( (0 until rates.size).map(i=> (i,(300*1000/*basetime/rates(i).toInt*/,(java.lang.Math.pow(10,9)/rates(i)).toInt))):_* )//Map[Int,(Int,Int)]( (0->(120000,2000000)),(1->(120000,1000000)) )
 		//val rates = List(16).map(i=>i*1000)
 		//val workload = Map[Int,(Int,Int)]( (0 until rates.size).map(i=> (i,(60*1000,(java.lang.Math.pow(10,9)/rates(i)).toInt))):_* )
@@ -622,11 +650,14 @@ class SimpleRequestHandler(var period_nanos:Long, mapping: Map[PolicyRange,List[
 	*/
 	protected def logRequest(req:RequestResponse):Unit = {
 		if (req==null) return
-		val metadata = request_map.remove(req.id)
+		var metadata = request_map.remove(req.id)
+		var primary = 0 // was first returned request?
+		if (metadata == null) { primary = 1; metadata = replica_map.remove(req.id) }// check for replica's response
 		if (metadata != null && logrnd.nextDouble<0.02) { // log some requests
 			val latency = if (req.status == EXCEPT) 1000 else (req.receiveNano-metadata.startNano)/1000000.0 // if failed request, latency=1000ms
-			// request type, key, hostname, latency, sucess status, request rate
-			val details = metadata.request_type+","+metadata.key+","+req.host+","+latency+","+req.status+","+(java.lang.Math.pow(10,9)/period_nanos).toInt+","+metadata.startTimeStamp+","+req.receiveTimeStamp
+			
+			// log request type, key, hostname, latency, sucess status, request rate, start, end, was primary request
+			val details = metadata.request_type+","+metadata.key+","+req.host+","+latency+","+req.status+","+(java.lang.Math.pow(10,9)/period_nanos).toInt+","+metadata.startTimeStamp+","+req.receiveTimeStamp+","+primary
 			if (xtrace_logger_queue != null) xtrace_logger_queue.put(details)
 			if (req.id.longValue > duration*(java.lang.Math.pow(10,6)/period_nanos.toInt)-500000+previousIntervalsCount) { requestLog.write(details); requestLog.newLine }
 		}
@@ -644,6 +675,7 @@ class SimpleRequestHandler(var period_nanos:Long, mapping: Map[PolicyRange,List[
 		//logger.info("Generating request "+id)
 		val request_type = "get"
 		request_map.put(id, RequestSent(request_type, key.f1, System.nanoTime, System.currentTimeMillis))// update global map of requests
+		if (nodes.size > 1) replica_map.put(id, RequestSent(request_type, key.f1, System.nanoTime, System.currentTimeMillis))
 		(id, nodes, gr)
 	}
 	/**
