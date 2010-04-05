@@ -49,6 +49,11 @@ class ZooKeeperProxy(server: String) extends Watcher {
       updateChildren(false)
       children(name)
     }
+		def deleteChild(name:String):ZooKeeperNode = {
+			conn.delete(prefix + name,-1)
+			updateChildren(false)
+			this
+		}
 
     def updateChildren(watch: Boolean):HashMap[String, ZooKeeperNode] = {
       if(!childrenCache.isDefined)
