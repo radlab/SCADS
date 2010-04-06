@@ -243,13 +243,30 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
     reader.read(null,decoder)
   }
 
+  private class ShippedClassLoader(ba:ByteBuffer) extends ClassLoader {
+    override def findClass(name:String):Class[_] = {
+      return defineClass(name, ba.array, ba.position, ba.remaining)
+    }
+  }
+
+  private def deserialize(name:String, ba:ByteBuffer):Any = {
+    try {
+      val loader = new ShippedClassLoader(ba)
+      Class.forName(name,false,loader)
+    } catch {
+      case ex:java.io.IOException => {
+        ex.printStackTrace
+        (null,0)
+      }
+    } 
+  }
+
   class Request(src: RemoteNode, req: Message) extends Runnable {
     def reply(body: AnyRef) = {
       val resp = new Message
       resp.body = body
       resp.dest = req.src
       resp.id = req.id
-      println("Sending " + resp + " to " + src)
       MessageHandler.sendMessage(src, resp)
     }
 
@@ -534,6 +551,49 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
         val resp = new FlatMapResponse
         resp.records = result
         reply(resp)
+      }
+
+      case filtreq:FilterRequest  => {
+        val ns = namespaces(filtreq.namespace)
+        val recordSet = new RecordSet
+        recordSet.records = new AvroArray[Record](1024, Schema.createArray((new Record).getSchema))
+        val key = Class.forName(filtreq.keyType).asInstanceOf[Class[SpecificRecordBase]].newInstance()
+        val value = Class.forName(filtreq.valueType).asInstanceOf[Class[SpecificRecordBase]].newInstance()
+        try {
+          val fclass = deserialize(filtreq.codename,filtreq.code)
+          fclass match {
+            case cl:Class[_] => {
+              val o = cl.newInstance
+              val methods = cl.getMethods()
+              var midx = 0
+              for (i <- (1 to (methods.length-1))) {
+                val method = methods(i)
+                if (method.getName.indexOf("apply") >= 0) {
+                  midx = i
+                }
+              }
+              val method = methods(midx)
+              iterateOverRange(ns, new KeyRange, false, (keyBytes, valueBytes, _) => {
+                key.parse(keyBytes.getData)
+                value.parse(valueBytes.getData)
+                val b = method.invoke(o,key,value).asInstanceOf[Boolean]
+                if (b) {
+                  val rec = new Record
+                  rec.key = keyBytes.getData
+                  rec.value = valueBytes.getData
+                  recordSet.records.add(rec)
+                }
+              })
+              reply(recordSet)
+            }
+          }
+        } catch {
+          case e: Throwable => {
+            println("Filter Fail")
+            e.printStackTrace()
+            reply(recordSet)
+          }
+        }
       }
       // End of message handling
     }

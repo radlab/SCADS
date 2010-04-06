@@ -19,6 +19,8 @@ import java.nio.ByteBuffer
 import scala.collection.jcl.ArrayList
 import java.util.Arrays
 import scala.concurrent.SyncVar
+import scala.tools.nsc.interpreter.AbstractFileClassLoader
+import scala.tools.nsc.io.AbstractFile
 
 class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 	val namespaces = root.getOrCreate("namespaces")
@@ -262,6 +264,50 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     ret
   }
 
+  /* get array of bytes which is the compiled version of cl */
+  private def getFunctionCode(cl:AnyRef):java.nio.ByteBuffer = {
+    val ldr = cl.getClass.getClassLoader
+    ldr match {
+      case afcl:AbstractFileClassLoader => {
+        val name = cl.getClass.getName
+        val l = afcl.asInstanceOf[AbstractFileClassLoader]
+        val rootField = l.getClass.getDeclaredField("root")
+        rootField.setAccessible(true)
+        var file: AbstractFile = rootField.get(afcl).asInstanceOf[AbstractFile]
+        val pathParts = name.split("[./]").toList
+        for (dirPart <- pathParts.init) {
+          file = file.lookupName(dirPart, true)
+            if (file == null) {
+              throw new ClassNotFoundException(name)
+            }
+        }
+        file = file.lookupName(pathParts.last+".class", false)
+        if (file == null) {
+          throw new ClassNotFoundException(name)
+        }
+        val theBytes = file.toByteArray
+        java.nio.ByteBuffer.wrap(theBytes)
+      }
+      case rcl:ClassLoader => {
+        val name = cl.getClass.getName.replaceAll("\\.", "/")+".class"
+        val istream = cl.getClass.getResourceAsStream(name)
+        if (istream == null) {
+          logger.error("Couldn't find stream for class")
+          null
+        } else {
+          val buf = new Array[Byte](1024)
+          val os = new java.io.ByteArrayOutputStream(1024)
+          var br = istream.read(buf)
+          while(br >= 0) {
+            os.write(buf,0,br)
+            br = istream.read(buf)
+          }
+          java.nio.ByteBuffer.wrap(os.toByteArray)
+        }
+      }
+    }
+  }
+
   def put[K <: KeyType, V <: ValueType](key: K, value: V): Unit = {
     val nodes = serversForKey(key)
     val pr = new PutRequest
@@ -417,6 +463,63 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       }
     }
     sv.get
+  }
+
+
+  def filter(func: (KeyType, ValueType) => Boolean): Iterator[Record] = {
+    val result = new SyncVar[List[Record]]
+    var list = List[Record]()
+    val ranges = splitRange(null, null).counted
+    actor {
+      val id = MessageHandler.registerActor(self)
+      val msg = new Message
+      val fr = new FilterRequest
+      msg.src = new java.lang.Long(id)
+      msg.dest = dest
+      msg.body = fr
+      fr.namespace = namespace
+      fr.keyType = keyClass.getName
+      fr.valueType = valueClass.getName
+      fr.codename = func.getClass.getName
+      fr.code = getFunctionCode(func)
+      ranges.foreach(r => {
+        MessageHandler.sendMessage(r.nodes.first, msg)
+      })
+      var remaining = ranges.count
+      loop {
+        reactWithin(timeout) {
+          case (_, msg: Message) => {
+            val resp = msg.body.asInstanceOf[RecordSet]
+            val recit = resp.records.iterator
+            while (recit.hasNext)
+              list = list:::List(recit.next)
+            remaining -= 1
+            if(remaining < 0) { // count starts at 0
+              result.set(list)
+              MessageHandler.unregisterActor(id)
+              exit
+            }
+          }
+          case TIMEOUT => {
+            logger.warn("Timeout waiting for filter to return")
+            result.set(null)
+            MessageHandler.unregisterActor(id)
+            exit
+          }
+          case m => {
+            logger.fatal("Unexpected message in filter: " + m)
+            result.set(null)
+            MessageHandler.unregisterActor(id)
+            exit
+          }
+        }
+      }
+    }
+    val rlist = result.get
+    if (rlist == null)
+      null
+    else
+      rlist.elements
   }
 
   // call from within an actor only
