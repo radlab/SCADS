@@ -36,11 +36,11 @@ class ScadsLanguage extends StdTokenParsers with ImplicitConversions {
 
 	def attribute: Parser[Attribute] = (
       attrType ~ ident ^^
-		    {case attrType ~ attrName => new Attribute(attrName, attrType)}
+		    {case attrType ~ attrName => new SimpleAttribute(attrName, attrType)}
     | "FOREIGN" ~ "KEY" ~ ident ~ "REF" ~ ident ~ "MAX" ~ intLiteral ^^
-        {case "FOREIGN" ~ "KEY" ~ attrName ~ "REF" ~ foreignType ~ "MAX" ~ cardinality => new Attribute(attrName, IntegerType)}
+        {case "FOREIGN" ~ "KEY" ~ attrName ~ "REF" ~ foreignType ~ "MAX" ~ cardinality => new ForeignKey(attrName, foreignType, FixedCardinality(cardinality))}
     | "FOREIGN" ~ "KEY" ~ ident ~ "REF" ~ ident ^^
-        {case "FOREIGN" ~ "KEY" ~ attrName ~ "REF" ~ foreignType => new Attribute(attrName, IntegerType)}
+        {case "FOREIGN" ~ "KEY" ~ attrName ~ "REF" ~ foreignType => new ForeignKey(attrName, foreignType, InfiniteCardinality)}
     )
 
 	def primaryKey: Parser[List[String]] = "PRIMARY" ~> "(" ~> repsep(ident, ",") <~")"

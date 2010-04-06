@@ -8,15 +8,16 @@ object BooleanType extends AttributeType
 object StringType extends AttributeType
 object IntegerType extends AttributeType
 
-case class Attribute(name: String, attrType: AttributeType) extends Tree
 case class Entity(name: String, attributes: List[Attribute], keys: List[String]) extends Tree
 
-/* Relationships */
+abstract class Attribute {val name: String}
+case class ForeignKey(name: String, referencedEntity: String, cardinality: Cardinality) extends Attribute
+case class SimpleAttribute(name: String, attrType: AttributeType) extends Attribute
+
+/* Relationship Cardinalities */
 abstract class Cardinality extends Tree
 case class FixedCardinality(max: Int) extends Cardinality
 object InfiniteCardinality extends Cardinality
-
-case class Relationship(name: String, from: String, to: String, cardinality: Cardinality) extends Tree
 
 /* Queries */
 abstract class Value extends Tree
@@ -53,4 +54,4 @@ object Ascending extends Direction
 object Descending extends Direction
 
 /* SCADS Spec */
-case class Spec(entities: List[Entity], relationships: List[Relationship], queries: List[Query]) extends Tree
+case class Spec(entities: List[Entity], queries: List[Query]) extends Tree
