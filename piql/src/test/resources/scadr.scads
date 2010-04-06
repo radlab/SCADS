@@ -33,7 +33,7 @@ ENTITY atReference
 ENTITY hashTag
 {
 	string name,
-  FOREIGN KEY referingThought REF thought MAX 10
+  FOREIGN KEY referringThought REF thought MAX 10
 	PRIMARY(name, referringThought)
 }
 

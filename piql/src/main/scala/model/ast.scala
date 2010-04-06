@@ -11,7 +11,7 @@ object IntegerType extends AttributeType
 case class Entity(name: String, attributes: List[Attribute], keys: List[String]) extends Tree
 
 abstract class Attribute {val name: String}
-case class ForeignKey(name: String, referencedEntity: String, cardinality: Cardinality) extends Attribute
+case class ForeignKey(name: String, foreignType: String, cardinality: Cardinality) extends Attribute
 case class SimpleAttribute(name: String, attrType: AttributeType) extends Attribute
 
 /* Relationship Cardinalities */

@@ -302,12 +302,14 @@ class Binder(spec: Spec) {
 			return done
 
 		val currentEntity = untouched.first
-		val toRelationships = spec.relationships.filter(_.to equals currentEntity.name)
-		val fromRelationships = spec.relationships.filter(_.from equals currentEntity.name)
+		val fkDependencies = currentEntity.attributes.flatMap {
+      case a: ForeignKey => List(a)
+      case _ => Nil
+    }
+    val unmetFkDependencies = fkDependencies.filter(k => !done.map(_.name).contains(k.foreignType))
 
-		val fkDependencies = toRelationships.map(_.from).flatMap(r => untouched.find(_.name equals r))
 		val reqEntities =
-			if(fkDependencies.size == 0)
+			if(unmetFkDependencies.size == 0)
 				Nil
 			else
 				bindEntities(
@@ -317,23 +319,35 @@ class Binder(spec: Spec) {
 		val donePrime = done ++ reqEntities
 		val doneNames = donePrime.map(_.name)
 
-		val attributes = currentEntity.attributes.map(a => {
-			new Schema.Field(a.name, a.attrType match {
-				case StringType => Schema.create(Schema.Type.STRING)
-				case IntegerType => Schema.create(Schema.Type.INT)
-				case BooleanType => Schema.create(Schema.Type.BOOLEAN)
-			}, "", null)
-		}) ++ toRelationships.map(r => {
-			new Schema.Field(r.name, donePrime.find(_.name == r.from).get.keySchema, "", null)
-		})
+		val attributes = currentEntity.attributes.map {
+      case SimpleAttribute(attrName, attrType) =>
+        new Schema.Field(attrName, attrType match {
+				  case StringType => Schema.create(Schema.Type.STRING)
+				  case IntegerType => Schema.create(Schema.Type.INT)
+				  case BooleanType => Schema.create(Schema.Type.BOOLEAN)
+			  }, "", null)
+      case ForeignKey(attrName, foreignType, _) => {
+	      new Schema.Field(attrName, donePrime.find(_.name equals foreignType).get.keySchema, "", null)
+      }
+		}
 
 		val keyParts = currentEntity.keys.map(k => attributes.find(k equals _.name).get)
 		val valueParts = attributes.filter(a => !(currentEntity.keys contains a.name))
 
-		val relationships = (
-			toRelationships.map(r => new BoundRelationship(r.name, r.from, r.cardinality, ForeignKeyHolder)) ++
-			fromRelationships.map(r => new BoundRelationship(r.name, r.to, r.cardinality, ForeignKeyTarget))
-		)
+    val relationships = untouched.flatMap(e => {
+      e.attributes.flatMap {
+        case ForeignKey(attrName, currentEntity.name, cardinality) =>
+          List(new BoundRelationship(attrName, e.name, cardinality, ForeignKeyHolder))
+        case _ => Nil
+      }
+    }) ++
+    done.flatMap(e => {
+      e.relationships.flatMap {
+        case BoundRelationship(name, currentEntity.name, cardinality, ForeignKeyHolder) =>
+          List(BoundRelationship(name, e.name, cardinality, ForeignKeyTarget))
+        case _ => Nil
+      }
+    })
 
 		val keySchema = Schema.createRecord(currentEntity.name + "Key", "", "", false)
 		keySchema.setFields(java.util.Arrays.asList(keyParts.toArray:_*))
