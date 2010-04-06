@@ -31,7 +31,7 @@ object Compiler {
 	def getAST(piqlCode: String): Spec = {
 		Parser.parse(piqlCode) match {
 			case Parser.Success(result, _) => result
-			case _ => throw new RuntimeException("Parse Failure")
+			case failure => throw new RuntimeException("Parse Failure: " + failure)
 		}
 	}
 
