@@ -9,7 +9,7 @@ class ScadsLanguage extends StdTokenParsers with ImplicitConversions {
 	type Tokens = Lexer
   	val lexical = new Lexer
 
-	lexical.reserved ++= List("ENTITY", "PRIMARY", "RELATIONSHIP", "FROM", "TO", "MANY", "QUERY", "FETCH", "OF", "BY", "WHERE", "AND", "OR", "ORDER", "BY", "ASC", "DESC", "LIMIT", "MAX", "PAGINATE", "UNION", "this", "string", "int", "bool", "true", "false")
+	lexical.reserved ++= List("ENTITY", "PRIMARY", "FOREIGN", "KEY", "REF", "FROM", "TO", "MANY", "QUERY", "FETCH", "OF", "BY", "WHERE", "AND", "OR", "ORDER", "BY", "ASC", "DESC", "LIMIT", "MAX", "PAGINATE", "UNION", "this", "string", "int", "bool", "true", "false")
  	lexical.delimiters ++= List("{", "}", "[", "]", "<", ">", "(", ")", ",", ":", ";", "=", ".")
 
 	def intLiteral: Parser[Int] =
@@ -34,22 +34,19 @@ class ScadsLanguage extends StdTokenParsers with ImplicitConversions {
 		|	"bool" ^^ ((_) => BooleanType)
 		)
 
-	def attribute: Parser[Attribute] = attrType ~ ident ^^
-		{case attrType ~ attrName => new Attribute(attrName, attrType)}
+	def attribute: Parser[Attribute] = (
+      attrType ~ ident ^^
+		    {case attrType ~ attrName => new Attribute(attrName, attrType)}
+    | "FOREIGN" ~ "KEY" ~ ident ~ "REF" ~ ident ~ "MAX" ~ intLiteral ^^
+        {case "FOREIGN" ~ "KEY" ~ attrName ~ "REF" ~ foreignType ~ "MAX" ~ cardinality => new Attribute(attrName, IntegerType)}
+    | "FOREIGN" ~ "KEY" ~ ident ~ "REF" ~ ident ^^
+        {case "FOREIGN" ~ "KEY" ~ attrName ~ "REF" ~ foreignType => new Attribute(attrName, IntegerType)}
+    )
 
 	def primaryKey: Parser[List[String]] = "PRIMARY" ~> "(" ~> repsep(ident, ",") <~")"
 
 	def entity: Parser[Entity] = "ENTITY" ~ ident ~ "{" ~ repsep(attribute, ",") ~ primaryKey ~ "}" ^^
 		{case "ENTITY" ~ eName ~ "{" ~ attrs ~ pk ~ "}" => new Entity(eName, attrs, pk)}
-
-	/* Relationship Parsing */
-
-	def cardinality: Parser[Cardinality] = (
-			intLiteral ^^ ((x:Int) => new FixedCardinality(x))
-		|	"MANY" ^^ (x => InfiniteCardinality))
-
-	def relationship: Parser[Relationship] = "RELATIONSHIP" ~ ident ~ "FROM" ~ ident ~ "TO" ~ cardinality ~ ident ^^
-		{case "RELATIONSHIP" ~ name ~ "FROM" ~ fromEntity ~ "TO" ~ card ~ toEntity => new Relationship(name, fromEntity, toEntity, card)}
 
 	/* Query Parsing */
 	def parameter: Parser[Value] = (
@@ -119,8 +116,8 @@ class ScadsLanguage extends StdTokenParsers with ImplicitConversions {
 			case "QUERY" ~ name ~ "FETCH" ~ entityType ~ None ~ joins ~ predicates ~ order ~ limit  => new Query(name, List(new Join(entityType, null, null)) ++ joins, predicates, order, limit)
 		}
 
-	def spec: Parser[Spec] = rep(entity) ~ rep(relationship) ~ rep(query) ^^
-		{case entities ~ relationships ~ queries => new Spec(entities, relationships, queries)}
+	def spec: Parser[Spec] = rep(entity) ~ rep(query) ^^
+		{case entities ~ queries => new Spec(entities, queries)}
 
 	def parse(input: String) =
 		phrase(spec)(new lexical.Scanner(input))

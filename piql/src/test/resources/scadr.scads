@@ -10,40 +10,32 @@ ENTITY user
 ENTITY thought
 {
 	int timestamp,
-	string thought
+	string thought,
+  FOREIGN KEY owner REF user
 	PRIMARY(owner, timestamp)
 }
 
 ENTITY subscription
 {
+  FOREIGN KEY owner REF user MAX 5000,
+  FOREIGN KEY target REF user,
 	bool approved
 	PRIMARY(owner, target)
 }
 
 ENTITY atReference
 {
-    PRIMARY(referent, referringThought)
+  FOREIGN KEY referent REF user,
+  FOREIGN KEY referringThought REF thought MAX 10
+  PRIMARY(referent, referringThought)
 }
 
 ENTITY hashTag
 {
-	string name
+	string name,
+  FOREIGN KEY referingThought REF thought MAX 10
 	PRIMARY(name, referringThought)
 }
-
-//Users and thoughts
-RELATIONSHIP owner FROM user TO MANY thought
-
-//Users - subscriptions - users
-RELATIONSHIP owner FROM user TO 5000 subscription
-RELATIONSHIP target FROM user TO MANY subscription
-
-//Thoughts and hashtags
-RELATIONSHIP referringThought FROM thought TO 10 hashTag
-
-//Thoughts - references - users
-RELATIONSHIP referringThought FROM thought TO 10 atReference
-RELATIONSHIP referent FROM user TO MANY atReference
 
 QUERY myThoughts
 FETCH thought
