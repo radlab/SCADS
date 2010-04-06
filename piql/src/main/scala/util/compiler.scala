@@ -5,6 +5,16 @@ import org.apache.log4j.Logger
 
 import edu.berkeley.cs.scads.piql.parser._
 
+object PIQL2SQL {
+  def main(args: Array[String]): Unit = {
+    val piql = Compiler.readFile(new File(args(0)))
+    val ast = Compiler.getAST(piql)
+    val boundAst = new Binder(ast).bind
+    val opt = new Optimizer(boundAst).optimizedSpec
+    println(opt)
+  }
+}
+
 object Compiler {
   val logger = Logger.getLogger("scads.piql.compiler")
 	object Parser extends ScadsLanguage
