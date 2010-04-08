@@ -11,7 +11,7 @@ object PIQL2SQL {
     val ast = Compiler.getAST(piql)
     val boundAst = new Binder(ast).bind
     val opt = new Optimizer(boundAst).optimizedSpec
-    println(opt)
+    println(DDLGen(opt))
   }
 }
 

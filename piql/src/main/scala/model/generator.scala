@@ -45,7 +45,7 @@ abstract class Generator[InputType] {
     outputCont(" {\n", "}\n", parts:_*)(child)
 
   protected def outputParen(parts: String*)(child: => Unit)(implicit sb: StringBuilder, indnt: Indentation):Unit =
-    outputCont(" (\n", ")\n", parts:_*)(child)
+    outputCont(" (\n", ");\n", parts:_*)(child)
 
 	protected def outputCont(start: String, end: String, parts: String*)(child: => Unit)(implicit sb: StringBuilder, indnt: Indentation):Unit = {
 		(0 to indnt.count).foreach((i) => sb.append(indentChar))
