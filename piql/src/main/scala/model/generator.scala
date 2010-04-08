@@ -41,15 +41,21 @@ abstract class Generator[InputType] {
 		sb.append("\n")
 	}
 
-	protected def outputCont(parts: String*)(child: => Unit)(implicit sb: StringBuilder, indnt: Indentation):Unit = {
+  protected def outputBraced(parts: String*)(child: => Unit)(implicit sb: StringBuilder, indnt: Indentation):Unit =
+    outputCont(" {\n", "}\n", parts:_*)(child)
+
+  protected def outputParen(parts: String*)(child: => Unit)(implicit sb: StringBuilder, indnt: Indentation):Unit =
+    outputCont(" (\n", ")\n", parts:_*)(child)
+
+	protected def outputCont(start: String, end: String, parts: String*)(child: => Unit)(implicit sb: StringBuilder, indnt: Indentation):Unit = {
 		(0 to indnt.count).foreach((i) => sb.append(indentChar))
 		parts.foreach(sb.append(_))
-		sb.append(" {\n")
+		sb.append(start)
 		indent {
 			child
 		}
 		(0 to indnt.count).foreach((i) => sb.append(indentChar))
-		sb.append("}\n")
+		sb.append(end)
 	}
 
 	protected def outputPartial(parts: String*)(implicit sb: StringBuilder, indnt: Indentation):Unit = {

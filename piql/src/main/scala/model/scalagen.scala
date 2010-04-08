@@ -25,7 +25,7 @@ object ScalaGen extends Generator[BoundSpec] {
 	}
 
 	protected def generate(entity: BoundEntity)(implicit sb: StringBuilder, indnt: Indentation): Unit = {
-		outputCont("class ", entity.name, "(implicit cluster: ScadsCluster) extends Entity(cluster)") {
+		outputBraced("class ", entity.name, "(implicit cluster: ScadsCluster) extends Entity(cluster)") {
       output("val namespace = cluster.getNamespace[SpecificRecordBase, SpecificRecordBase](", quote("ent_" + entity.name), ")")
 			def outputFields(r: Schema, prefix: String): Unit = {
 				r.getFields.foreach(f => f.schema().getType match {
@@ -42,11 +42,11 @@ object ScalaGen extends Generator[BoundSpec] {
 				val fields = r.getFields.toList
 				fields.filter(_.schema.getType == Type.RECORD).foreach(f => outputObjects(f.schema, f.name, Some(prefix.getOrElse("") + f.name)))
 
-				outputCont("object ", prefix.getOrElse(name), " extends EntityPart") {
+				outputBraced("object ", prefix.getOrElse(name), " extends EntityPart") {
 					output("def getSchema(): Schema = Schema.parse(\"\"\"", r.toString, "\"\"\")")
 
-					outputCont("def get(f: Int): Object =") {
-						outputCont("f match ") {
+					outputBraced("def get(f: Int): Object =") {
+						outputBraced("f match ") {
 							fields.zipWithIndex.foreach {
 								case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.INT) =>
 									output("case ", idx.toString, " => new java.lang.Integer(", prefix.getOrElse(""), field.name, ")")
@@ -61,8 +61,8 @@ object ScalaGen extends Generator[BoundSpec] {
 						}
 					}
 
-					outputCont("def put(f: Int, v: Any): Unit =") {
-						outputCont("f match") {
+					outputBraced("def put(f: Int, v: Any): Unit =") {
+						outputBraced("f match") {
 							fields.zipWithIndex.foreach {
 								case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.INT) =>
 									output("case ", idx.toString, " => ", prefix.getOrElse(""), field.name, " = v.asInstanceOf[java.lang.Integer].intValue")
