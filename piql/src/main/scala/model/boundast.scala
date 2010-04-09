@@ -32,10 +32,11 @@ case class BoundRelationship(name: String, target: String, cardinality: Cardinal
 
 /* Joins */
 abstract sealed class BoundJoin
-abstract class FixedCardinalityJoin extends BoundJoin
+abstract class ActualJoin extends BoundJoin {val name: String; val child: BoundFetch}
+abstract class FixedCardinalityJoin extends ActualJoin
 case class BoundPointerJoin(name: String, child: BoundFetch) extends FixedCardinalityJoin
 case class BoundFixedTargetJoin(name: String, cardinality: Int, child: BoundFetch) extends FixedCardinalityJoin
-case class BoundInfiniteTargetJoin(name: String, child: BoundFetch) extends BoundJoin
+case class BoundInfiniteTargetJoin(name: String, child: BoundFetch) extends ActualJoin
 object NoJoin extends BoundJoin
 
 /* Ordering */

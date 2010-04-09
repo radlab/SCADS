@@ -25,11 +25,11 @@ object DDLGen extends Generator[BoundSpec] {
 
           def keyFields(r: Schema, prefix: String): Seq[String] = {
             r.getFields.flatMap(f => f.schema().getType match {
-              case Type.RECORD => keyFields(f.schema, prefix + f.name) 
+              case Type.RECORD => keyFields(f.schema, prefix + f.name)
               case _ => List(prefix + f.name)
             })
           }
-          output("PRIMARY KEY", keyFields(entity.keySchema, "").map("`" + _ + "`").mkString("(", ",", ")")) 
+          output("PRIMARY KEY", keyFields(entity.keySchema, "").map("`" + _ + "`").mkString("(", ",", ")"))
         }
       }
     }
