@@ -534,23 +534,45 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
       }
 
       case fmreq: FlatMapRequest => {
-        println("Processing flatmap request")
         val ns = namespaces(fmreq.namespace)
-        val func = Closure(fmreq.closure).asInstanceOf[(SpecificRecordBase, SpecificRecordBase) => List[SpecificRecordBase]]
         var result = new GenericData.Array[ByteBuffer](10, Schema.createArray(Schema.create(Schema.Type.BYTES)))
 
         val key = Class.forName(fmreq.keyType).asInstanceOf[Class[SpecificRecordBase]].newInstance()
         val value = Class.forName(fmreq.valueType).asInstanceOf[Class[SpecificRecordBase]].newInstance()
-        iterateOverRange(ns, new KeyRange, false, (keyBytes, valueBytes, _) => {
-          key.parse(keyBytes.getData)
-          value.parse(valueBytes.getData)
-          func(key, value).map(v => ByteBuffer.wrap(v.toBytes)).foreach(result.add)
-          println(result)
-        })
-
-        val resp = new FlatMapResponse
-        resp.records = result
-        reply(resp)
+        try {
+          val fclass = deserialize(fmreq.codename,fmreq.closure)
+          fclass match {
+            case cl:Class[_] => {
+              val o = cl.newInstance
+              val methods = cl.getMethods()
+              var midx = 0
+              for (i <- (1 to (methods.length-1))) {
+                val method = methods(i)
+                if (method.getName.indexOf("apply") >= 0) {
+                  midx = i
+                }
+              }
+              val method = methods(midx)
+              iterateOverRange(ns, new KeyRange, false, (keyBytes, valueBytes, _) => {
+                key.parse(keyBytes.getData)
+                value.parse(valueBytes.getData)
+                method.invoke(o,key,value).asInstanceOf[List[SpecificRecordBase]].
+                  map(v => ByteBuffer.wrap(v.toBytes)).foreach(result.add)
+              })
+              
+              val resp = new FlatMapResponse
+              resp.records = result
+              reply(resp)
+            }
+          }
+        } catch {
+          case e: Throwable => {
+            println("Filter Fail")
+            e.printStackTrace()
+            val resp = new FlatMapResponse
+            reply(resp)
+          }
+        }
       }
 
       case filtreq:FilterRequest  => {

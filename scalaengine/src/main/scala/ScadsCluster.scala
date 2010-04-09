@@ -13,8 +13,10 @@ import org.apache.avro.util.Utf8
 import scala.actors._
 import scala.actors.Actor._
 import edu.berkeley.cs.scads.test.IntRec
+import edu.berkeley.cs.scads.test.StringRec
 import org.apache.log4j.Logger
 import org.apache.avro.generic.GenericData.{Array => AvroArray}
+import org.apache.avro.generic.GenericData
 import java.nio.ByteBuffer
 import scala.collection.jcl.ArrayList
 import java.util.Arrays
@@ -269,9 +271,9 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     val ldr = cl.getClass.getClassLoader
     ldr match {
       case afcl:AbstractFileClassLoader => {
+        // can't use getResourceAsStream here because it always returns null on an AFCL
         val name = cl.getClass.getName
-        val l = afcl.asInstanceOf[AbstractFileClassLoader]
-        val rootField = l.getClass.getDeclaredField("root")
+        val rootField = afcl.getClass.getDeclaredField("root")
         rootField.setAccessible(true)
         var file: AbstractFile = rootField.get(afcl).asInstanceOf[AbstractFile]
         val pathParts = name.split("[./]").toList
@@ -306,6 +308,18 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
         }
       }
     }
+  }
+
+  def decodeKey(b:Array[Byte]): GenericData.Record = {
+    val decoder = new org.apache.avro.io.BinaryDecoder(new java.io.ByteArrayInputStream(b))
+    val reader = new org.apache.avro.generic.GenericDatumReader[GenericData.Record](schema)
+    reader.read(null,decoder)
+  }
+
+  def decodeKey(b:java.nio.ByteBuffer): GenericData.Record = {
+    val decoder = new org.apache.avro.io.BinaryDecoder(new java.io.ByteArrayInputStream(b.array, b.position, b.remaining))
+    val reader = new org.apache.avro.generic.GenericDatumReader[GenericData.Record](schema)
+    reader.read(null,decoder)
   }
 
   def put[K <: KeyType, V <: ValueType](key: K, value: V): Unit = {
@@ -377,7 +391,8 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
         req.namespace = namespace
         req.keyType = keyClass.getName
         req.valueType = valueClass.getName
-        req.closure = Closure(func)
+        req.codename = func.getClass.getName
+        req.closure = getFunctionCode(func)
 
         ranges.foreach(r => {
           MessageHandler.sendMessage(r.nodes.first, msg)
@@ -385,7 +400,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
 
         var remaining = ranges.count
         loop {
-          reactWithin(1000) {
+          reactWithin(timeout) {
             case (_, msg: Message) => {
               val resp = msg.body.asInstanceOf[FlatMapResponse]
 
@@ -394,13 +409,11 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
               while(records.hasNext) {
                 val rec = retClass.newInstance.asInstanceOf[RetType]
                 rec.parse(records.next)
-                partialElements = partialElements:::List(rec)
+                partialElements ++= List(rec)
               }
 
-              println(partialElements)
-
               remaining -= 1
-              if(remaining <= 0) {
+              if(remaining < 0) { // count starts a 0
                 result.set(partialElements)
                 MessageHandler.unregisterActor(id)
               }
@@ -466,9 +479,9 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
   }
 
 
-  def filter(func: (KeyType, ValueType) => Boolean): Iterator[Record] = {
-    val result = new SyncVar[List[Record]]
-    var list = List[Record]()
+  def filter(func: (KeyType, ValueType) => Boolean): Iterable[(KeyType,ValueType)] = {
+    val result = new SyncVar[List[(KeyType,ValueType)]]
+    var list = List[(KeyType,ValueType)]()
     val ranges = splitRange(null, null).counted
     actor {
       val id = MessageHandler.registerActor(self)
@@ -491,8 +504,14 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
           case (_, msg: Message) => {
             val resp = msg.body.asInstanceOf[RecordSet]
             val recit = resp.records.iterator
-            while (recit.hasNext)
-              list = list:::List(recit.next)
+            while (recit.hasNext) {
+              val rec = recit.next
+              val kinst = keyClass.newInstance.asInstanceOf[KeyType]
+              val vinst = valueClass.newInstance.asInstanceOf[ValueType]
+              kinst.parse(rec.key)
+              vinst.parse(rec.value)
+              list = list:::List((kinst,vinst))
+            }
             remaining -= 1
             if(remaining < 0) { // count starts at 0
               result.set(list)
@@ -519,11 +538,11 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     if (rlist == null)
       null
     else
-      rlist.elements
+      rlist
   }
 
   // call from within an actor only
-  private def bulkPutBody(rn:RemoteNode, csr:CopyStartRequest, polServ:polServer, value:String, srec:IntRec, erec:IntRec):Unit = {
+  private def bulkPutBody(rn:RemoteNode, csr:CopyStartRequest, polServ:polServer, valBytes:Array[Byte], srec:IntRec, erec:IntRec):Unit = {
     val id = MessageHandler.registerActor(self)
     val myId = new java.lang.Long(id)
     Sync.makeRequest(rn,dest,csr,timeout) match {
@@ -553,7 +572,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
           val rec = new Record
           sirec.f1 = i
           rec.key = sirec.toBytes
-          rec.value = value
+          rec.value = valBytes
           sendIt.put(rec)
           recsSent += 1
         }
@@ -599,7 +618,31 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     }
   }
 
-  def bulkPut(start:Int, end:Int, valBytes:Int): Long = {
+  def bulkPut(start:Int, end:Int, valByteCount:Int): Long = {
+    val kinst = keyClass.newInstance.asInstanceOf[KeyType]
+    kinst match {
+      case ir:IntRec => {} // this one is okay
+      case _ => {
+        logger.fatal("Can't bulkPut to namespaces that don't use IntRec keys")
+        return 0
+      }
+    }
+    val vinst = valueClass.newInstance.asInstanceOf[ValueType]
+    val valBytes = 
+    vinst match {
+      case ir:IntRec => {
+        ir.f1 = 42 // the answer
+        ir.toBytes
+      }
+      case sr:StringRec => {
+        sr.f1 = "x"*valByteCount
+        sr.toBytes
+      }
+      case _ => {
+        logger.fatal("bulkPut only supported to namespaces with IntRec or StringRec values")
+        return 0
+      }
+    }
     val srec = new IntRec
     val erec = new IntRec
     srec.f1 = start
@@ -610,7 +653,6 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     while(rangeIt.hasNext()) {
       val polServ = rangeIt.next
       val rng = new KeyRange
-      val value = "x"*valBytes
       rng.minKey=polServ.min
       rng.maxKey=polServ.max
       val csr = new CopyStartRequest
@@ -622,7 +664,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
         val a = new Actor {
           self.trapExit = true
           def act() {
-            bulkPutBody(node,csr,polServ,value,srec,erec)
+            bulkPutBody(node,csr,polServ,valBytes,srec,erec)
           }
         }
         link(a)

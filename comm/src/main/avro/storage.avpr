@@ -156,6 +156,7 @@
 		  {"name": "namespace", "type": "string"},
 		  {"name": "keyType", "type": "string"},
 		  {"name": "valueType", "type": "string"},
+			{"name": "codename", "type": "string"},
 		  {"name": "closure", "type": "bytes"}]
     },
 
