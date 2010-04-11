@@ -3,12 +3,14 @@ package edu.berkeley.cs.scads.storage
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.test._
 import edu.berkeley.cs.scads.comm.Conversions._
+import edu.berkeley.cs.scads.comm.Storage.AvroConversions._
 import org.apache.avro.specific.SpecificRecordBase
 import org.apache.avro.util.Utf8
 import scala.actors._
 import scala.actors.Actor._
 import org.apache.log4j.Logger
 import org.apache.zookeeper.{ZooKeeper, Watcher, WatchedEvent, CreateMode, ZooDefs}
+import java.nio.ByteBuffer
 
 case class IntegerPolicyRange(val minKey:Int, val maxKey:Int) {
 	def contains(needle:Int) = (needle >= minKey && needle < maxKey)
@@ -408,16 +410,16 @@ trait ClusterChanger {
 		ranges.map(range=>{
 			val keyrange = new KeyRange
 			keyrange.backwards = false
-			keyrange.minKey = range._1.toBytes
-			keyrange.maxKey = range._2.toBytes
+			keyrange.minKey = ByteBuffer.wrap(range._1.toBytes)
+			keyrange.maxKey = ByteBuffer.wrap(range._2.toBytes)
 			keyrange
 		})
 	}
 	protected def rangesToPartitionedPolicy(ranges: List[(SpecificRecordBase,SpecificRecordBase)]):PartitionedPolicy = {
 		val partitions:List[KeyPartition] = ranges.map(range=>{
 			val partition = new KeyPartition
-			partition.minKey = range._1.toBytes
-			partition.maxKey = range._2.toBytes
+			partition.minKey = ByteBuffer.wrap(range._1.toBytes)
+			partition.maxKey = ByteBuffer.wrap(range._2.toBytes)
 			partition
 		})
 		val policy = new PartitionedPolicy; policy.partitions = partitions
@@ -499,10 +501,11 @@ class CopyActor(host:RemoteNode ,scads_req:Object, waitTime:Int) extends Actor {
 	
 	def act = {
 		val req = new Message
-		req.body = scads_req
+		req.body = scads_req.asInstanceOf[Message_body_Iface]
 		req.dest = new Utf8("Storage")
 		val id = MessageHandler.registerActor(self)
-		req.src = new java.lang.Long(id)
+		//req.src = new java.lang.Long(id)
+		req.src = id
 		makeRequest(req,id)
 	}
 	def makeRequest(req:Message,id:Long):Object = {

@@ -5,12 +5,15 @@ import org.specs.runner.JUnit4
 
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.comm.Conversions._
+import edu.berkeley.cs.scads.comm.Storage.AvroConversions._
 
 import edu.berkeley.cs.scads.storage._
 
 import org.apache.log4j.Logger
 import org.apache.zookeeper.KeeperException.NodeExistsException
 import org.apache.avro.util.Utf8
+
+import java.nio.ByteBuffer
 
 object KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specification") {
   private val lgr = Logger.getLogger("KeyStoreSpec")
@@ -225,7 +228,10 @@ object KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specification") {
     val pr = new PutRequest
     pr.namespace = ns 
     pr.key = key
-    pr.value = value
+    pr.value = value match {
+        case null => null
+        case _    => ByteBuffer.wrap(value)
+    }
     Sync.makeRequest(TestScalaEngine.node,  new Utf8("Storage"), pr)
   }
 
@@ -258,8 +264,8 @@ object KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specification") {
     kr.offset = null
     kr.backwards = false
     if (!all) {
-      kr.minKey = start.toBytes
-      kr.maxKey = end.toBytes
+      kr.minKey = ByteBuffer.wrap(start.toBytes)
+      kr.maxKey = ByteBuffer.wrap(end.toBytes)
     } else {
       kr.minKey = null
       kr.maxKey = null
@@ -308,7 +314,10 @@ object KeyStoreSpec extends SpecificationWithJUnit("KeyStore Specification") {
     req.namespace = ns
     req.key = key
     req.value = value
-    req.expectedValue = expected
+    req.expectedValue = expected match {
+        case null => null
+        case _    => ByteBuffer.wrap(expected)
+    }
     req.prefixMatch = prefix
     println("Writing TSET request: ")
     val res = Sync.makeRequest(TestScalaEngine.node,  new Utf8("Storage"), req)

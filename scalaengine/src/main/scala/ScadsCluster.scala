@@ -2,6 +2,7 @@ package edu.berkeley.cs.scads.storage
 
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.comm.Conversions._
+import edu.berkeley.cs.scads.comm.Storage.AvroConversions._
 
 import org.apache.avro.Schema
 
@@ -324,10 +325,11 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
 
   def put[K <: KeyType, V <: ValueType](key: K, value: V): Unit = {
     val nodes = serversForKey(key)
-    val pr = new PutRequest
-    pr.namespace = namespace
-    pr.key = key.toBytes
-    pr.value = value.toBytes
+    //val pr = new PutRequest
+    //pr.namespace = namespace
+    //pr.key = key.toBytes
+    //pr.value = value.toBytes
+    val pr = PutRequest(namespace, ByteBuffer.wrap(key.toBytes), ByteBuffer.wrap(value.toBytes))
     applyToSet(nodes,(rn)=>{Sync.makeRequest(rn,dest,pr,timeout)},nodes.size)
   }
 
@@ -383,16 +385,27 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
         val id = MessageHandler.registerActor(self)
         val ranges = splitRange(null, null).counted
         var partialElements = List[RetType]()
-        val msg = new Message
-        val req = new FlatMapRequest
-        msg.src = new java.lang.Long(id)
-        msg.dest = dest
-        msg.body = req
-        req.namespace = namespace
-        req.keyType = keyClass.getName
-        req.valueType = valueClass.getName
-        req.codename = func.getClass.getName
-        req.closure = getFunctionCode(func)
+        //val msg = new Message
+        //val req = new FlatMapRequest
+        //msg.src = new java.lang.Long(id)
+        //msg.dest = dest
+        //msg.body = req
+        //req.namespace = namespace
+        //req.keyType = keyClass.getName
+        //req.valueType = valueClass.getName
+        //req.codename = func.getClass.getName
+        //req.closure = getFunctionCode(func)
+
+        val msg = Message(
+                id,
+                dest,
+                null, 
+                FlatMapRequest(
+                    namespace,
+                    keyClass.getName,
+                    valueClass.getName,
+                    func.getClass.getName,
+                    getFunctionCode(func)))
 
         ranges.foreach(r => {
           MessageHandler.sendMessage(r.nodes.first, msg)
@@ -405,12 +418,18 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
               val resp = msg.body.asInstanceOf[FlatMapResponse]
 
               //TODO: Use scala idioms for iteration
-              val records = resp.records.iterator()
-              while(records.hasNext) {
-                val rec = retClass.newInstance.asInstanceOf[RetType]
-                rec.parse(records.next)
-                partialElements ++= List(rec)
-              }
+              //val records = resp.records.iterator()
+              //while(records.hasNext) {
+              //  val rec = retClass.newInstance.asInstanceOf[RetType]
+              //  rec.parse(records.next)
+              //  partialElements ++= List(rec)
+              //}
+              resp.records.foreach( b => {
+                  val rec = retClass.newInstance.asInstanceOf[RetType]
+                  rec.parse(b)
+                  partialElements ++= List(rec)
+              })
+
 
               remaining -= 1
               if(remaining < 0) { // count starts a 0
@@ -436,7 +455,8 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       val id = MessageHandler.registerActor(self)
       val msg = new Message
       val crr = new CountRangeRequest
-      msg.src = new java.lang.Long(id)
+      //msg.src = new java.lang.Long(id)
+      msg.src = id
       msg.dest = dest
       msg.body = crr
       crr.namespace = namespace
@@ -487,7 +507,8 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       val id = MessageHandler.registerActor(self)
       val msg = new Message
       val fr = new FilterRequest
-      msg.src = new java.lang.Long(id)
+      //msg.src = new java.lang.Long(id)
+      msg.src = id
       msg.dest = dest
       msg.body = fr
       fr.namespace = namespace
@@ -580,8 +601,10 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
         val fin = new TransferFinished
         fin.sendActorId = id.longValue
         val msg = new Message
-        msg.src = myId
-        msg.dest = new java.lang.Long(tsr.recvActorId)
+        //msg.src = myId
+        msg.src = id
+        //msg.dest = new java.lang.Long(tsr.recvActorId)
+        msg.dest = tsr.recvActorId
         msg.body = fin
         MessageHandler.sendMessage(rn,msg)
         logger.warn("TransferFinished and sent")
@@ -655,10 +678,11 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       val rng = new KeyRange
       rng.minKey=polServ.min
       rng.maxKey=polServ.max
-      val csr = new CopyStartRequest
-      csr.ranges = new AvroArray[KeyRange](1024, Schema.createArray((new KeyRange).getSchema))
-      csr.ranges.add(rng)
-      csr.namespace = namespace
+      //val csr = new CopyStartRequest
+      //csr.ranges = new AvroArray[KeyRange](1024, Schema.createArray((new KeyRange).getSchema))
+      //csr.ranges.add(rng)
+      //csr.namespace = namespace
+      val csr = CopyStartRequest(namespace, List(rng))
       polServ.nodes.foreach(node => {
         c+=1
         val a = new Actor {
