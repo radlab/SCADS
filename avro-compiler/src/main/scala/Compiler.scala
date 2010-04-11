@@ -400,7 +400,7 @@ class Compiler(val protocol: Protocol) {
             } 
         })
 
-        println(classMap)
+        //println(classMap)
 
         val sb = new StringBuilder
         sb.append("/*\n")

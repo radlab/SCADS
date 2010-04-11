@@ -8,6 +8,7 @@ import scala.actors._
 import org.apache.log4j.Logger
 import org.apache.avro.util.Utf8
 
+
 trait ServiceHandler {
   def receiveMessage(src: RemoteNode, msg:Message)
 }
@@ -49,7 +50,7 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
   }
 
   def receiveMessage(src: RemoteNode, msg: Message): Unit = msg.dest match {
-    case l:java.lang.Long => {
+    case AvroLong(l) => {
       val act = getActor(l.longValue)
       if (act != null) {
         act ! (src,msg)
@@ -58,12 +59,7 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
         logger.warn("Got message for null actor")
       }
     }
-    case s:String => {
-      var service = getService(s)
-      if (service != null)
-        service.receiveMessage(src,msg)
-    }
-    case u:Utf8 => {
+    case AvroString(u) => {
       var service = getService(u.toString)
       if (service != null)
         service.receiveMessage(src,msg)
@@ -78,7 +74,15 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
 class StorageEchoServer extends NioAvroChannelManagerBase[Message, Message] {
   def receiveMessage(src: RemoteNode, req: Message): Unit = {
     val resp = new Message
-    resp.dest = req.src
+    if (req.src == null) {
+        // TODO: what do we do here?
+    } else {
+        resp.dest = req.src match {
+            case l:AvroLong   => l
+            case s:AvroString => s
+        }
+    }
+
     sendMessage(src, resp)
   }
 }

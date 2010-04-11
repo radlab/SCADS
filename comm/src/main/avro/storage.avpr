@@ -88,7 +88,7 @@
 
 		{"name": "SyncRangeRequest", "type": "record", "fields": [
 		  {"name": "namespace", "type": "string"},
-			{"name": "method", "type": {"type":"enum", "name":"synctype", "symbols":["SIMPLE","MERKLE"]}},
+			{"name": "method", "type": "int" },
 			{"name": "destinationHost", "type": "string"},
 			{"name": "destinationPort", "type": "int"},
 			{"name": "range", "type": "KeyRange"}]

@@ -1,5 +1,6 @@
 
 import edu.berkeley.cs.scads.comm._
+import edu.berkeley.cs.scads.comm.Storage.AvroConversions._
 import org.apache.avro.util._
 import java.nio.ByteBuffer
 import java.util.concurrent.Semaphore
@@ -43,12 +44,13 @@ object PerfActorEchoSender {
   }
 
   class SendActor(id:Long) extends Actor {
-    val did = new java.lang.Long(id)
+    //val did = new java.lang.Long(id)
     def act() {
       (1 to testSize/numActors).foreach( j => {
         val req = new Message
-        req.src = new java.lang.Long(id)
-        req.dest = did
+        //req.src = new java.lang.Long(id)
+        req.src = id
+        req.dest = id
         req.body = null
         MessageHandler.sendMessage(dest, req)
       })
@@ -106,10 +108,10 @@ object PerfMultiActorEchoSender {
         sem.acquire
         actor {
           val idl = MessageHandler.registerActor(self)
-          val id = new java.lang.Long(idl)
+          //val id = new java.lang.Long(idl)
           val req = new Message
-          req.src = id
-          req.dest = id
+          req.src = idl
+          req.dest = idl
           req.body = null
           MessageHandler.sendMessage(dest, req)
           react {
@@ -176,7 +178,8 @@ object PerfActorSender {
           val id = MessageHandler.registerActor(self)
           (1 to testSize/5).foreach(j => {
             val req = new Message
-            req.src = new java.lang.Long(15)
+            //req.src = new java.lang.Long(15)
+            req.src = 15L
             req.body = null
             MessageHandler.sendMessage(dest, req)
           })
@@ -222,7 +225,8 @@ object PerfSenderTrivial {
       val start = System.currentTimeMillis()
       (1 to testSize).foreach(i => {
         val req = new Message
-        req.src = new java.lang.Long(15)
+        //req.src = new java.lang.Long(15)
+        req.src = 15L
         req.body = null
         mgr.sendMessage(dest, req)
       })
@@ -261,7 +265,8 @@ object PerfSender {
         pr.value = ByteBuffer.wrap("__value__".getBytes)
 
         val req = new Message
-        req.src = new java.lang.Long(15)
+        //req.src = new java.lang.Long(15)
+        req.src = 15L
         req.body = pr
 
         mgr.sendMessage(dest, req)

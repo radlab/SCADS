@@ -533,6 +533,9 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
         simpleSyncSink(ssreq,src,req)
       }
 
+                 /* 
+                    // Strange bug happens when you uncomment this code.
+                    // scalac will crash.
       case fmreq: FlatMapRequest => {
         val ns = namespaces(fmreq.namespace)
         var result = new GenericData.Array[ByteBuffer](10, Schema.createArray(Schema.create(Schema.Type.BYTES)))
@@ -574,6 +577,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
           }
         }
       }
+      */
 
       case filtreq:FilterRequest  => {
         val ns = namespaces(filtreq.namespace)
