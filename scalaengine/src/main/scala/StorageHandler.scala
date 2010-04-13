@@ -163,10 +163,10 @@ class SendIter(targetNode:RemoteNode, id:java.lang.Long, receiverId:java.lang.Lo
 
   def flush() {
     if (speedLimit != 0) {
-      val secs = (System.currentTimeMillis - lastSentTime)/1000
-      val target = bytesSentLast / speedLimit
+      val secs = (System.currentTimeMillis - lastSentTime)/1000.0
+      val target = bytesSentLast / speedLimit.toDouble
       if (target > secs)  // if we wanted to take longer than we actually did
-        Thread.sleep((target-secs)*1000)
+        Thread.sleep(((target-secs)*1000).toLong)
     }
     val bd = new BulkData
     bd.seqNum = seqNum
