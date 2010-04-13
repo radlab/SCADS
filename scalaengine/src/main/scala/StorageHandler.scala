@@ -617,6 +617,53 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
           }
         }
       }
+
+      case foldreq:FoldRequest  => {
+        val ns = namespaces(foldreq.namespace)
+        val key = Class.forName(foldreq.keyType).asInstanceOf[Class[SpecificRecordBase]].newInstance()
+        val value = Class.forName(foldreq.valueType).asInstanceOf[Class[SpecificRecordBase]].newInstance()
+        var initVals = (
+          Class.forName(foldreq.retType).asInstanceOf[Class[SpecificRecordBase]].newInstance(),
+          Class.forName(foldreq.retType).asInstanceOf[Class[SpecificRecordBase]].newInstance() 
+        )
+        initVals._1.parse(foldreq.initValueOne)
+        initVals._2.parse(foldreq.initValueOne)
+        try {
+          val fclass = deserialize(foldreq.codename,foldreq.code)
+          fclass match {
+            case cl:Class[_] => {
+              val o = cl.newInstance
+              val methods = cl.getMethods()
+              var midx = 0
+              for (i <- (1 to (methods.length-1))) {
+                val method = methods(i)
+                if (method.getName.indexOf("apply") >= 0) {
+                  midx = i
+                }
+              }
+              val method = methods(midx)
+              val range = new KeyRange
+              if (foldreq.direction == 1)
+                range.backwards = true
+              iterateOverRange(ns, range, false, (keyBytes, valueBytes, _) => {
+                key.parse(keyBytes.getData)
+                value.parse(valueBytes.getData)
+                initVals = method.invoke(o,initVals,(key,value)).asInstanceOf[(SpecificRecordBase,SpecificRecordBase)]
+              })
+              val retRec = new Record
+              retRec.key = initVals._1.toBytes
+              retRec.value = initVals._2.toBytes
+              reply(retRec)
+            }
+          }
+        } catch {
+          case e: Throwable => {
+            println("Fold Fail")
+            e.printStackTrace()
+            reply(new Record)
+          }
+        }
+      }
       // End of message handling
     }
 

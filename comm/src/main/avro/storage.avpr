@@ -171,6 +171,18 @@
 			{"name": "codename", "type": "string"},
 		  {"name": "code", "type": "bytes"}]
     },
+
+		{"name": "FoldRequest", "type": "record", "fields": [
+		  {"name": "namespace", "type": "string"},
+		  {"name": "keyType", "type": "string"},
+		  {"name": "valueType", "type": "string"},
+		  {"name": "retType", "type": "string"},
+		  {"name": "initValueOne", "type": "bytes"},
+		  {"name": "initValueTwo", "type": "bytes"},
+		  {"name": "direction", "type": "int"},
+			{"name": "codename", "type": "string"},
+		  {"name": "code", "type": "bytes"}]
+    },
 					
 
 		{"name": "Message", "type": "record", "fields": [
@@ -202,6 +214,7 @@
                  "FlatMapRequest",
                  "FlatMapResponse",
 								 "FilterRequest",
+								 "FoldRequest",
 
 								 "Record", 
 								 "RecordSet",
