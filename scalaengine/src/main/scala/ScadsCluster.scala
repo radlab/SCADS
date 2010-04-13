@@ -607,7 +607,10 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     if (rlist == null)
       z
     else
-      rlist.foldLeft(z)(func)
+      if (dir == 0)
+        rlist.foldLeft(z)(func)
+      else
+        rlist.foldRight(z)(func)
   }
 
   // call from within an actor only
