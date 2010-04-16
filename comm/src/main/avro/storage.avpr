@@ -176,7 +176,6 @@
 		  {"name": "namespace", "type": "string"},
 		  {"name": "keyType", "type": "string"},
 		  {"name": "valueType", "type": "string"},
-		  {"name": "retType", "type": "string"},
 		  {"name": "initValueOne", "type": "bytes"},
 		  {"name": "initValueTwo", "type": "bytes"},
 		  {"name": "direction", "type": "int"},

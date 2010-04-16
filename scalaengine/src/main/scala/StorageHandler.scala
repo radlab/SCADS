@@ -623,11 +623,11 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
         val key = Class.forName(foldreq.keyType).asInstanceOf[Class[SpecificRecordBase]].newInstance()
         val value = Class.forName(foldreq.valueType).asInstanceOf[Class[SpecificRecordBase]].newInstance()
         var initVals = (
-          Class.forName(foldreq.retType).asInstanceOf[Class[SpecificRecordBase]].newInstance(),
-          Class.forName(foldreq.retType).asInstanceOf[Class[SpecificRecordBase]].newInstance() 
+          Class.forName(foldreq.keyType).asInstanceOf[Class[SpecificRecordBase]].newInstance(),
+          Class.forName(foldreq.valueType).asInstanceOf[Class[SpecificRecordBase]].newInstance() 
         )
         initVals._1.parse(foldreq.initValueOne)
-        initVals._2.parse(foldreq.initValueOne)
+        initVals._2.parse(foldreq.initValueTwo)
         try {
           val fclass = deserialize(foldreq.codename,foldreq.code)
           fclass match {

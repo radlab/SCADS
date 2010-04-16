@@ -541,16 +541,15 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       rlist
   }
 
-  def foldLeft[B <: SpecificRecordBase](z:(B,B))(func: ((B,B),(B,B)) => (B,B))(implicit retType: scala.reflect.Manifest[B]): (B,B) = 
+  def foldLeft(z:(KeyType,ValueType))(func: ((KeyType,ValueType),(KeyType,ValueType)) => (KeyType,ValueType)): (KeyType,ValueType) = 
     doFold(z)(func,0)
 
-  def foldRight[B <: SpecificRecordBase](z:(B,B))(func: ((B,B),(B,B)) => (B,B))(implicit retType: scala.reflect.Manifest[B]): (B,B) = 
+  def foldRight(z:(KeyType,ValueType))(func: ((KeyType,ValueType),(KeyType,ValueType)) => (KeyType,ValueType)): (KeyType,ValueType) = 
     doFold(z)(func,1)
 
-  private def doFold[B <: SpecificRecordBase](z:(B,B))(func: ((B,B),(B,B)) => (B,B),dir:Int)(implicit retType: scala.reflect.Manifest[B]): (B,B) = {
-    val retClass = retType.erasure
-    var list = List[(B,B)]()
-    val result = new SyncVar[List[(B,B)]]
+  private def doFold(z:(KeyType,ValueType))(func: ((KeyType,ValueType),(KeyType,ValueType)) => (KeyType,ValueType),dir:Int): (KeyType,ValueType) = {
+    var list = List[(KeyType,ValueType)]()
+    val result = new SyncVar[List[(KeyType,ValueType)]]
     val ranges = splitRange(null, null).counted
     actor {
       val id = MessageHandler.registerActor(self)
@@ -562,7 +561,6 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       fr.namespace = namespace
       fr.keyType = keyClass.getName
       fr.valueType = valueClass.getName
-      fr.retType = retClass.getName
       fr.initValueOne = z._1.toBytes
       fr.initValueTwo = z._2.toBytes
       fr.codename = func.getClass.getName
@@ -576,8 +574,8 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
         reactWithin(timeout) {
           case (_, msg: Message) => {
             val rec = msg.body.asInstanceOf[Record]
-            val retk = retClass.newInstance.asInstanceOf[B]
-            val retv = retClass.newInstance.asInstanceOf[B]
+            val retk = keyClass.newInstance.asInstanceOf[KeyType]
+            val retv = valueClass.newInstance.asInstanceOf[ValueType]
             retk.parse(rec.key)
             retv.parse(rec.value)
             list ++= List((retk,retv))
@@ -611,6 +609,15 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
         rlist.foldLeft(z)(func)
       else
         rlist.foldRight(z)(func)
+  }
+
+  // TODO: Return Value?
+  def ++=(that:Iterable[(KeyType,ValueType)]):Long = {
+    val start = System.currentTimeMillis
+    that foreach (pair => {
+      put(pair._1,pair._2)
+    })
+    System.currentTimeMillis-start
   }
 
   // call from within an actor only
