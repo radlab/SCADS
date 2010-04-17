@@ -17,6 +17,8 @@ import edu.berkeley.cs.scads.test.StringRec
 import org.apache.log4j.Logger
 import org.apache.avro.generic.GenericData.{Array => AvroArray}
 import org.apache.avro.generic.GenericData
+import org.apache.avro.io.BinaryData
+
 import java.nio.ByteBuffer
 import scala.collection.jcl.ArrayList
 import java.util.Arrays
@@ -266,6 +268,61 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     ret
   }
 
+  private def multiSetApply(nmsgl:List[(List[RemoteNode],Object)], repliesRequired:Int):List[Object] = {
+    var theList = List[Object]()
+    if (nmsgl.length == 0) {
+      logger.warn("Empty list passed to multiSetApply, returning an empty list")
+      return theList
+    }
+    val reps = new Array[Int](nmsgl.length)
+    var totalNeeded = nmsgl.length
+    val resp = new SyncVar[List[Object]]
+    actor {
+      val id = MessageHandler.registerActor(self)
+      val msg = new Message
+      msg.dest = dest
+      msg.src = new java.lang.Long(id)
+      var p = 0L
+      nmsgl.foreach((nb)=>{
+        msg.body = nb._2
+        msg.id = p
+        nb._1.foreach((rn)=> {
+          MessageHandler.sendMessage(rn,msg)
+        })
+        p = p + 1
+      })
+      reactWithin(timeout) {
+        case (RemoteNode(hostname, port), reply: Message) => reply.body match {
+          case exp: ProcessingException => {
+            logger.error("ProcessingException in multiSetApply: "+exp)
+            resp.set(theList)
+            exit
+          }
+					case obj => {
+            if (reps(reply.id.intValue) < repliesRequired)
+              theList ++= List(obj)
+            reps(reply.id.intValue) += 1
+            if (reps(reply.id.intValue) == repliesRequired)
+              totalNeeded -= 1
+            if (totalNeeded == 0) {
+              resp.set(theList)
+              exit
+            }
+          }
+				}
+				case TIMEOUT => {
+          logger.error("TIMEOUT in multiSetApply")
+          resp.set(theList)
+        }
+				case msg => {
+          logger.warn("Unexpected message in multiSetApply: " + msg)
+        }
+			}
+      MessageHandler.unregisterActor(id)
+    }
+    resp.get
+  }
+
   /* get array of bytes which is the compiled version of cl */
   private def getFunctionCode(cl:AnyRef):java.nio.ByteBuffer = {
     val ldr = cl.getClass.getClassLoader
@@ -368,6 +425,63 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
   def get[K <: KeyType](key: K): Option[ValueType] = {
     val retValue = valueClass.newInstance().asInstanceOf[ValueType]
     get(key, retValue)
+  }
+
+  def getRange[K <: KeyType](start:K, end:K):Seq[(KeyType,ValueType)] =
+    getRange(start,end,0,0,false)
+  def getRange[K <: KeyType](start:K, end:K, limit:Int, offset: Int, backwards:Boolean): Seq[(KeyType,ValueType)] = {
+    val nodeIter = splitRange(start,end)
+    var nol = List[(List[RemoteNode],Object)]()
+    while(nodeIter.hasNext()) { 
+      val polServ = nodeIter.next
+      val kr = new KeyRange
+
+      if (start != null || polServ.min != null) {
+        if (start == null)
+          kr.minKey = polServ.min
+        else if (polServ.min == null)
+          kr.minKey = start.toBytes
+        else if (BinaryData.compare(start.toBytes,0,polServ.min.array,polServ.min.position,schema) < 0) // start key is less
+          kr.minKey = polServ.min
+        else
+          kr.minKey = start.toBytes
+      }
+
+      if (end != null || polServ.max != null) {
+        if (end == null)
+          kr.maxKey = polServ.max
+        else if (polServ.max == null)
+          kr.maxKey = end.toBytes
+        else if (BinaryData.compare(end.toBytes,0,polServ.max.array,polServ.max.position,schema) < 0) // end key is less
+          kr.maxKey = end.toBytes
+        else
+          kr.maxKey = polServ.max
+      }
+
+      if (limit != 0)
+        kr.limit = limit
+      kr.offset = offset
+      kr.backwards = backwards
+      val grr = new GetRangeRequest
+      grr.namespace = namespace
+      grr.range = kr
+      nol = (polServ.nodes,grr) :: nol
+    }
+    val reps = multiSetApply(nol,1) // we'll just take the first reply from each set
+    var retList = List[(KeyType,ValueType)]()
+    reps.foreach((rep) => {
+      val rs = rep.asInstanceOf[RecordSet]
+      val recit = rs.records.iterator
+      while (recit.hasNext) {
+        val rec = recit.next
+        val kinst = keyClass.newInstance.asInstanceOf[KeyType]
+        val vinst = valueClass.newInstance.asInstanceOf[ValueType]
+        kinst.parse(rec.key)
+        vinst.parse(rec.value)
+        retList = (kinst,vinst) :: retList
+      }
+    })
+    retList.reverse
   }
 
   def flatMap[RetType <: SpecificRecordBase](func: (KeyType, ValueType) => List[RetType])(implicit retType: scala.reflect.Manifest[RetType]): Seq[RetType] = {
