@@ -33,10 +33,18 @@ def loadData(file:String):Long = {
 }
 
 def findMinTweet():Long = {
+  ns.getRange(null,null,1,0,false)(0)._1.f1
+}
+
+def findMinTweetSlow():Long = {
   ns.foldLeft((new LongRec,new Tweet))((a:(LongRec,Tweet), kv:(LongRec,Tweet))=>{if((a._1.f1 == 0) || (a._1.f1 > kv._1.f1)) a._1.f1 = kv._1.f1;a})._1.f1
 }
 
 def findMaxTweet():Long = {
+  ns.getRange(null,null,1,0,true)(0)._1.f1
+}
+
+def findMaxTweetSlow():Long = {
   ns.foldLeft((new LongRec,new Tweet))((a:(LongRec,Tweet), kv:(LongRec,Tweet))=>{if((a._1.f1 == 0) || (a._1.f1 < kv._1.f1)) a._1.f1 = kv._1.f1;a})._1.f1
 }
 
