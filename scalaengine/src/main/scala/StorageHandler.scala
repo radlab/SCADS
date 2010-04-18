@@ -189,6 +189,40 @@ class SendIter(targetNode:RemoteNode, id:java.lang.Long, receiverId:java.lang.Lo
     }
   }
 
+  def finish(timeout:Int): Unit = {
+    flush
+    val fin = new TransferFinished
+    fin.sendActorId = id.longValue
+    val msg = new Message
+    msg.src = id
+    msg.dest = receiverId
+    msg.body = fin
+    MessageHandler.sendMessage(targetNode,msg)
+    // now we loop and wait for acks and final cleanup from other side
+    var done = false
+    while(!done) {
+      receiveWithin(timeout) {
+        case (rn:RemoteNode, msg:Message)  => msg.body match {
+          case bda:BulkDataAck => {
+            // don't need to do anything, we're ignoring these
+          }
+          case ric:RecvIterClose => { // should probably have a status here at some point
+            done = true
+          }
+          case msgb => {
+            logger.warn("Copy end loop got unexpected message body: "+msgb)
+          }
+        }
+          case TIMEOUT => {
+            logger.warn("Copy end loop timed out waiting for finish")
+            done = true
+          }
+        case msg =>
+          logger.warn("Copy end loop got unexpected message: "+msg)
+      }
+    }
+  }
+
   def put(rec:Record): Unit = {
     while (windowLeft <= 0) { // not enough acks processed
       receiveWithin(60000) { // we'll allow 1 minute for an ack

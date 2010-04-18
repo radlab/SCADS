@@ -20,6 +20,7 @@ import org.apache.avro.generic.GenericData
 import org.apache.avro.io.BinaryData
 
 import java.nio.ByteBuffer
+import scala.collection.mutable.HashMap
 import scala.collection.jcl.ArrayList
 import java.util.Arrays
 import scala.concurrent.SyncVar
@@ -268,6 +269,11 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     ret
   }
 
+  /* send messages to multiple nodes.  nmsgl is a list of a list of nodes and message body.
+   * for each element of the list, each node in the list of nodes will have the associated
+   * message sent to it.  for each element of nmsgl repliesRequired replies will be waited for
+   * before returning
+   * */
   private def multiSetApply(nmsgl:List[(List[RemoteNode],Object)], repliesRequired:Int):List[Object] = {
     var theList = List[Object]()
     if (nmsgl.length == 0) {
@@ -727,11 +733,83 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
 
   // TODO: Return Value?
   def ++=(that:Iterable[(KeyType,ValueType)]):Long = {
-    val start = System.currentTimeMillis
-    that foreach (pair => {
-      put(pair._1,pair._2)
-    })
-    System.currentTimeMillis-start
+    val ret = new SyncVar[Long]
+    actor {
+      val id = MessageHandler.registerActor(self)
+      val sendIterMap = new HashMap[Int,List[SendIter]]
+      val start = System.currentTimeMillis
+      that foreach (pair => {
+        val idx = idxForKey(pair._1)
+        if (sendIterMap.contains(idx)) { // already have an iter open
+          val sil = sendIterMap(idx)
+          val rec = new Record
+          rec.key = pair._1.toBytes
+          rec.value = pair._2.toBytes
+          sil foreach (_.put(rec))
+        } else {
+          // validate that we don't have a gap
+          if (keyComp(nodeCache(idx).min,pair._1.toBytes) > 0) {
+            logger.warn("Gap in partitions, returning empty server list")
+            Nil
+          } else {
+            val polServ =  nodeCache(idx)
+            val nodes = polServ.nodes
+            val rng = new KeyRange
+            rng.minKey=polServ.min
+            rng.maxKey=polServ.max
+            val csr = new CopyStartRequest
+            csr.ranges = new AvroArray[KeyRange](1024, Schema.createArray((new KeyRange).getSchema))
+            csr.ranges.add(rng)
+            csr.namespace = namespace
+            val msg = new Message
+            msg.src = new java.lang.Long(id)
+            msg.dest = dest
+            msg.body = csr
+            nodes.foreach((rn) => {
+              // we need to open up send iters to all the target nodes
+              MessageHandler.sendMessage(rn,msg)
+            })
+            var repsNeeded = nodes.length
+            var silist = List[SendIter]()
+            while(repsNeeded > 0) {
+              receiveWithin(timeout) {
+                case (rn:RemoteNode, msg:Message) => msg.body match {
+                  case tsr:TransferStartReply => {
+                    logger.warn("Got tsr, opening iter")
+                    val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema))
+                    val si = new SendIter(rn,id,tsr.recvActorId,buffer,100,0,logger)
+                    silist = si :: silist
+                    repsNeeded -= 1
+                  }
+                  case other => {
+                    logger.error("Unexpected reply to transfer start request from: "+rn)
+                    repsNeeded -= 1
+                  }
+                }
+                case TIMEOUT => {
+                  logger.error("TIMEOUT waiting for transfer start reply, dieing")
+                  exit
+                }
+                case msg => {
+                  logger.error("Unexpected reply to copy start request: "+msg)
+                  repsNeeded -= 1
+                }
+              }
+            } 
+            // okay now we should have a full list of iters for all nodes
+            sendIterMap += idx -> silist
+            val rec = new Record
+            rec.key = pair._1.toBytes
+            rec.value = pair._2.toBytes
+            silist foreach (_.put(rec))
+          }
+        }
+      })
+      sendIterMap.foreach(_._2.foreach(_.finish(timeout)))
+      MessageHandler.unregisterActor(id)
+      ret.set(System.currentTimeMillis-start)
+    }
+    ret.get
   }
 
   // call from within an actor only
