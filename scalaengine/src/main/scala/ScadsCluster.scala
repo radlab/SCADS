@@ -169,6 +169,10 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     Arrays.sort(nodeCache,null)
   }
 
+  def clearCache():Unit = {
+    nodeCache = null
+  }
+
   private def idxForKey(key:SpecificRecordBase):Int = {
     if (nodeCache == null)
       updateNodeCache
@@ -193,6 +197,8 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
   }
 
   private def splitRange(startKey:SpecificRecordBase,endKey:SpecificRecordBase):RangeIterator = {
+    if (nodeCache == null)
+      updateNodeCache
     val sidx = 
       if (startKey == null)
         0
