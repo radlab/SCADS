@@ -767,36 +767,38 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
     var toSkip: Int = if(range.offset == null) -1 else range.offset.intValue()
     var remaining: Int = if(range.limit == null) -1 else range.limit.intValue()
 
-    if(!range.backwards) {
-      logger.debug("skipping: " + toSkip)
-      while(toSkip > 0 && status == OperationStatus.SUCCESS) {
-        status = cur.getNext(dbeKey, dbeValue, null)
-        toSkip -= 1
+    if (status == OperationStatus.SUCCESS) {
+      if(!range.backwards) {
+        logger.debug("skipping: " + toSkip)
+        while(toSkip > 0 && status == OperationStatus.SUCCESS) {
+          status = cur.getNext(dbeKey, dbeValue, null)
+          toSkip -= 1
+        }
+        
+        status = cur.getCurrent(dbeKey, dbeValue, null)
+        while(status == OperationStatus.SUCCESS &&
+              remaining != 0 &&
+                (range.maxKey == null || ns.comp.compare(range.maxKey, dbeKey.getData) > 0)) {
+                  func(dbeKey, dbeValue,cur)
+                  status = cur.getNext(dbeKey, dbeValue, null)
+                  remaining -= 1
+                }
       }
-
-      status = cur.getCurrent(dbeKey, dbeValue, null)
-      while(status == OperationStatus.SUCCESS &&
-            remaining != 0 &&
-            (range.maxKey == null || ns.comp.compare(range.maxKey, dbeKey.getData) > 0)) {
-              func(dbeKey, dbeValue,cur)
-              status = cur.getNext(dbeKey, dbeValue, null)
-              remaining -= 1
-            }
-    }
-    else {
-      while(toSkip > 0 && status == OperationStatus.SUCCESS) {
-        status = cur.getPrev(dbeKey, dbeValue, null)
-        toSkip -= 1
+      else {
+        while(toSkip > 0 && status == OperationStatus.SUCCESS) {
+          status = cur.getPrev(dbeKey, dbeValue, null)
+          toSkip -= 1
+        }
+        
+        status = cur.getCurrent(dbeKey, dbeValue, null)
+        while(status == OperationStatus.SUCCESS &&
+              remaining != 0 &&
+              (range.minKey == null || ns.comp.compare(range.minKey, dbeKey.getData) < 0)) {
+                func(dbeKey, dbeValue,cur)
+                status = cur.getPrev(dbeKey, dbeValue, null)
+                remaining -= 1
+              }
       }
-
-      status = cur.getCurrent(dbeKey, dbeValue, null)
-      while(status == OperationStatus.SUCCESS &&
-            remaining != 0 &&
-            (range.minKey == null || ns.comp.compare(range.minKey, dbeKey.getData) < 0)) {
-              func(dbeKey, dbeValue,cur)
-              status = cur.getPrev(dbeKey, dbeValue, null)
-              remaining -= 1
-            }
     }
     if (finalFunc != null)
       finalFunc(cur)
