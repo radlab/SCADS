@@ -698,6 +698,48 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
           }
         }
       }
+
+      case foldreq:FoldRequest2L  => {
+        val ns = namespaces(foldreq.namespace)
+        val key = Class.forName(foldreq.keyType).asInstanceOf[Class[SpecificRecordBase]].newInstance()
+        val value = Class.forName(foldreq.valueType).asInstanceOf[Class[SpecificRecordBase]].newInstance()
+        var initVal =  Class.forName(foldreq.initType).asInstanceOf[Class[SpecificRecordBase]].newInstance()
+        initVal.parse(foldreq.initValue)
+        try {
+          val fclass = deserialize(foldreq.codename,foldreq.code)
+          fclass match {
+            case cl:Class[_] => {
+              val o = cl.newInstance
+              val methods = cl.getMethods()
+              var midx = 0
+              for (i <- (1 to (methods.length-1))) {
+                val method = methods(i)
+                if (method.getName.indexOf("apply") >= 0) {
+                  midx = i
+                }
+              }
+              val method = methods(midx)
+              val range = new KeyRange
+              if (foldreq.direction == 1)
+                range.backwards = true
+              iterateOverRange(ns, range, false, (keyBytes, valueBytes, _) => {
+                key.parse(keyBytes.getData)
+                value.parse(valueBytes.getData)
+                initVal = method.invoke(o,initVal,(key,value)).asInstanceOf[SpecificRecordBase]
+              })
+              val rep = new Fold2Reply
+              rep.reply = initVal.toBytes
+              reply(rep)
+            }
+          }
+        } catch {
+          case e: Throwable => {
+            println("Fold2 Fail")
+            e.printStackTrace()
+            reply(new Record)
+          }
+        }
+      }
       // End of message handling
     }
 

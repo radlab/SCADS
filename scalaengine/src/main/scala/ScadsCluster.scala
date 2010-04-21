@@ -763,6 +763,67 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
         rlist.foldRight(z)(func)
   }
 
+  def foldLeft2L[TypeRemote <: SpecificRecordBase,TypeLocal](remInit:TypeRemote,localInit:TypeLocal)
+                                             (remFunc: (TypeRemote,(KeyType,ValueType)) => TypeRemote,
+                                              localFunc: (TypeLocal,TypeRemote) => TypeLocal): TypeLocal = {
+    var list = List[TypeRemote]()
+    val result = new SyncVar[List[TypeRemote]]
+    val ranges = splitRange(null, null).counted
+    actor {
+      val id = MessageHandler.registerActor(self)
+      val msg = new Message
+      val fr = new FoldRequest2L
+      msg.src = new java.lang.Long(id)
+      msg.dest = dest
+      msg.body = fr
+      fr.namespace = namespace
+      fr.keyType = keyClass.getName
+      fr.valueType = valueClass.getName
+      fr.initType = remInit.getClass.getName
+      fr.initValue = remInit.toBytes
+      fr.codename = remFunc.getClass.getName
+      fr.code = getFunctionCode(remFunc)
+      fr.direction = 0 // TODO: Change dir to an enum when we support that
+      ranges.foreach(r => {
+        MessageHandler.sendMessage(r.nodes.first, msg)
+      })
+      var remaining = ranges.count
+      loop {
+        reactWithin(timeout) {
+          case (_, msg: Message) => {
+            val rep = msg.body.asInstanceOf[Fold2Reply]
+            val repv = remInit.getClass.newInstance.asInstanceOf[TypeRemote]
+            repv.parse(rep.reply)
+            list = repv :: list
+            remaining -= 1
+            if(remaining < 0) { // count starts at 0
+              result.set(list)
+              MessageHandler.unregisterActor(id)
+              exit
+            }
+          }
+          case TIMEOUT => {
+            logger.warn("Timeout waiting for foldLeft to return")
+            result.set(null)
+            MessageHandler.unregisterActor(id)
+            exit
+          }
+          case m => {
+            logger.fatal("Unexpected message in foldLeft: " + m)
+            result.set(null)
+            MessageHandler.unregisterActor(id)
+            exit
+          }
+        }
+      }
+    }
+    val rlist = result.get
+    if (rlist == null)
+      localInit
+    else
+      rlist.foldLeft(localInit)(localFunc)
+  }
+
   // TODO: Return Value?
   def ++=(that:Iterable[(KeyType,ValueType)]):Long = {
     val limit = 256
