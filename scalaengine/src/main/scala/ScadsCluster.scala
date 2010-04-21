@@ -157,6 +157,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       val policy = new PartitionedPolicy
       policy.parse(policyData)
 		  val iter = policy.partitions.iterator
+      nsNode.get("partitions/"+part._1).updateChildren(false)
       val nodes = nsNode.get("partitions/"+part._1+"/servers").updateChildren(false).toList.map(ent=>{
         new RemoteNode(ent._1,Integer.parseInt(new String(ent._2.data)))
       }) 
@@ -190,7 +191,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     val idx = idxForKey(key)
     // validate that we don't have a gap
     if (keyComp(nodeCache(idx).min,key.toBytes) > 0) {
-      logger.warn("Gap in partitions, returning empty server list")
+      logger.warn("Possible gap in partitions, returning empty server list")
       Nil
     } else
       nodeCache(idx).nodes
@@ -393,6 +394,10 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
 
   def put[K <: KeyType, V <: ValueType](key: K, value: V): Unit = {
     val nodes = serversForKey(key)
+    if (nodes.length <= 0) {
+      logger.warn("No nodes responsible for this key, not doing anything")
+      return
+    }
     val pr = new PutRequest
     pr.namespace = namespace
     pr.key = key.toBytes
@@ -402,6 +407,10 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
 
   def getBytes[K <: KeyType](key: K): java.nio.ByteBuffer = {
     val nodes = serversForKey(key)
+    if (nodes.length <= 0) {
+      logger.warn("No node responsible for this key, returning null")
+      return null
+    }
     val gr = new GetRequest
     gr.namespace = namespace
     gr.key = key.toBytes
