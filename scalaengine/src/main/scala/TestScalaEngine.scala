@@ -13,7 +13,7 @@ object TestScalaEngine {
 	path.mkdir()
 
 	val zooKeeper = ZooKeep.start("target/testCluster", 2181).root.getOrCreate("scads")
-	val handler = ScalaEngine.main(9000, "localhost:2181", Some(path), None, false)
+	val handler = ScalaEngine.main(9000, "localhost:2181", Some(path), None, false,false)
 	val node = RemoteNode("localhost", 9000)
 	val cluster = new ScadsCluster(zooKeeper)
 
