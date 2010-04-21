@@ -281,15 +281,15 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
    * message sent to it.  for each element of nmsgl repliesRequired replies will be waited for
    * before returning
    * */
-  private def multiSetApply(nmsgl:List[(List[RemoteNode],Object)], repliesRequired:Int):List[Object] = {
-    var theList = List[Object]()
+  private def multiSetApply(nmsgl:List[(List[RemoteNode],Object)], repliesRequired:Int):Array[List[Object]] = {
+    val repArray = new Array[List[Object]](nmsgl.length)
     if (nmsgl.length == 0) {
       logger.warn("Empty list passed to multiSetApply, returning an empty list")
-      return theList
+      return repArray
     }
     val reps = new Array[Int](nmsgl.length)
     var totalNeeded = nmsgl.length
-    val resp = new SyncVar[List[Object]]
+    val resp = new SyncVar[Array[List[Object]]]
     actor {
       val id = MessageHandler.registerActor(self)
       val msg = new Message
@@ -304,38 +304,45 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
         })
         p = p + 1
       })
-      reactWithin(timeout) {
-        case (RemoteNode(hostname, port), reply: Message) => reply.body match {
-          case exp: ProcessingException => {
-            logger.error("ProcessingException in multiSetApply: "+exp)
-            resp.set(theList)
-            exit
-          }
-					case obj => {
-            if (reps(reply.id.intValue) < repliesRequired)
-              theList ++= List(obj)
-            reps(reply.id.intValue) += 1
-            if (reps(reply.id.intValue) == repliesRequired)
-              totalNeeded -= 1
-            if (totalNeeded == 0) {
-              resp.set(theList)
+      loop {
+        reactWithin(timeout) {
+          case (RemoteNode(hostname, port), reply: Message) => reply.body match {
+            case exp: ProcessingException => {
+              logger.error("ProcessingException in multiSetApply: "+exp)
+              resp.set(repArray)
+              MessageHandler.unregisterActor(id)
               exit
             }
+					  case obj => {
+              if (reps(reply.id.intValue) < repliesRequired) {
+                if (repArray(reply.id.intValue) == null)
+                  repArray(reply.id.intValue) = List[Object]()
+                repArray(reply.id.intValue) = obj :: repArray(reply.id.intValue)
+              }
+              reps(reply.id.intValue) += 1
+              if (reps(reply.id.intValue) == repliesRequired)
+                totalNeeded -= 1
+              if (totalNeeded == 0) {
+                resp.set(repArray)
+                MessageHandler.unregisterActor(id)
+                exit
+              }
+            }
+				  }
+          case TIMEOUT => {
+            logger.error("TIMEOUT in multiSetApply")
+            MessageHandler.unregisterActor(id)
+            resp.set(repArray)
           }
-				}
-				case TIMEOUT => {
-          logger.error("TIMEOUT in multiSetApply")
-          resp.set(theList)
-        }
-				case msg => {
-          logger.warn("Unexpected message in multiSetApply: " + msg)
-        }
-			}
-      MessageHandler.unregisterActor(id)
+          case msg => {
+            logger.warn("Unexpected message in multiSetApply: " + msg)
+          }
+			  }
+      }
     }
     resp.get
   }
-
+  
   /* get array of bytes which is the compiled version of cl */
   private def getFunctionCode(cl:AnyRef):java.nio.ByteBuffer = {
     val ldr = cl.getClass.getClassLoader
@@ -488,18 +495,28 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       grr.range = kr
       nol = (polServ.nodes,grr) :: nol
     }
-    val reps = multiSetApply(nol,1) // we'll just take the first reply from each set
+    val r = multiSetApply(nol.reverse,1) // we'll just take the first reply from each set
     var retList = List[(KeyType,ValueType)]()
-    reps.foreach((rep) => {
-      val rs = rep.asInstanceOf[RecordSet]
-      val recit = rs.records.iterator
-      while (recit.hasNext) {
-        val rec = recit.next
-        val kinst = keyClass.newInstance.asInstanceOf[KeyType]
-        val vinst = valueClass.newInstance.asInstanceOf[ValueType]
-        kinst.parse(rec.key)
-        vinst.parse(rec.value)
-        retList = (kinst,vinst) :: retList
+    var added = 0
+    val reps = 
+      if (backwards)
+        r.reverse
+      else
+        r
+    reps.foreach((repl) => {
+      if (limit == 0 || (added < limit)) {
+        val rep = repl(0)
+        val rs = rep.asInstanceOf[RecordSet]
+        val recit = rs.records.iterator
+        while (recit.hasNext && (limit == 0 || (added < limit))) {
+          val rec = recit.next
+          val kinst = keyClass.newInstance.asInstanceOf[KeyType]
+          val vinst = valueClass.newInstance.asInstanceOf[ValueType]
+          kinst.parse(rec.key)
+          vinst.parse(rec.value)
+          retList = (kinst,vinst) :: retList
+          added += 1
+        }
       }
     })
     retList.reverse
