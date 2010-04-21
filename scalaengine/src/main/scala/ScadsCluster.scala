@@ -765,32 +765,58 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
 
   // TODO: Return Value?
   def ++=(that:Iterable[(KeyType,ValueType)]):Long = {
+    val limit = 256
     val ret = new SyncVar[Long]
     actor {
       val id = MessageHandler.registerActor(self)
-      val sendIterMap = new HashMap[Int,List[SendIter]]
+      val bufferMap = new HashMap[Int,(AvroArray[Record],Int)]
+      val recvIterMap = new HashMap[RemoteNode,java.lang.Long]
       val start = System.currentTimeMillis
+      var cnt = 0
       that foreach (pair => {
+        cnt+=1
         val idx = idxForKey(pair._1)
-        if (sendIterMap.contains(idx)) { // already have an iter open
-          val sil = sendIterMap(idx)
+        val polServ =  nodeCache(idx)
+        val nodes = polServ.nodes
+        if (bufferMap.contains(idx)) { // already have an iter open
+          val bufseq = bufferMap(idx)
+          val buf = bufseq._1
           val rec = new Record
           rec.key = pair._1.toBytes
           rec.value = pair._2.toBytes
-          sil foreach (_.put(rec))
+          buf.add(rec)
+          if (buf.size >= limit) { // send the buffer
+            val bd = new BulkData
+            bd.seqNum = bufseq._2
+            //bufseq._2 += 1
+            bd.sendActorId = id
+            val rs = new RecordSet
+            rs.records = buf
+            bd.records = rs
+            val msg = new Message
+            msg.src = new java.lang.Long(id)
+            msg.body = bd
+            nodes.foreach((rn) => {
+              if (recvIterMap.contains(rn)) {
+                msg.dest = recvIterMap(rn)
+                MessageHandler.sendMessage(rn,msg)
+              } else {
+                logger.warn("Not sending to: "+rn+". Have no iter open to it")
+              }
+            })
+            buf.clear
+          }
         } else {
           // validate that we don't have a gap
           if (keyComp(nodeCache(idx).min,pair._1.toBytes) > 0) {
             logger.warn("Gap in partitions, returning empty server list")
             Nil
           } else {
-            val polServ =  nodeCache(idx)
-            val nodes = polServ.nodes
             val rng = new KeyRange
             rng.minKey=polServ.min
             rng.maxKey=polServ.max
             val csr = new CopyStartRequest
-            csr.ranges = new AvroArray[KeyRange](1024, Schema.createArray((new KeyRange).getSchema))
+            csr.ranges = new AvroArray[KeyRange](2, Schema.createArray((new KeyRange).getSchema))
             csr.ranges.add(rng)
             csr.namespace = namespace
             val msg = new Message
@@ -802,19 +828,24 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
               MessageHandler.sendMessage(rn,msg)
             })
             var repsNeeded = nodes.length
-            var silist = List[SendIter]()
-            while(repsNeeded > 0) {
+            while (repsNeeded > 0) {
               receiveWithin(timeout) {
                 case (rn:RemoteNode, msg:Message) => msg.body match {
                   case tsr:TransferStartReply => {
-                    logger.warn("Got tsr, opening iter")
-                    val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema))
-                    val si = new SendIter(rn,id,tsr.recvActorId,buffer,100,0,logger)
-                    silist = si :: silist
+                    val thenode =
+                      if (rn.hostname == "localhost")
+                        new RemoteNode(java.net.InetAddress.getLocalHost.getHostName,rn.port)
+                      else
+                        rn
+                    logger.warn("Got tsr from: "+thenode)
+                    recvIterMap += thenode -> new java.lang.Long(tsr.recvActorId)
                     repsNeeded -= 1
                   }
+                  case bda:BulkDataAck => {
+                    logger.debug("Data ack, ignoring for now")
+                  }
                   case other => {
-                    logger.error("Unexpected reply to transfer start request from: "+rn)
+                    logger.error("Unexpected reply to transfer start request from: "+rn+": "+other)
                     repsNeeded -= 1
                   }
                 }
@@ -827,18 +858,83 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
                   repsNeeded -= 1
                 }
               }
-            } 
+            }
             // okay now we should have a full list of iters for all nodes
-            sendIterMap += idx -> silist
+            val buffer = new AvroArray[Record](limit, Schema.createArray((new Record).getSchema))
+            bufferMap += idx -> (buffer,0)
             val rec = new Record
             rec.key = pair._1.toBytes
             rec.value = pair._2.toBytes
-            silist foreach (_.put(rec))
+            buffer.add(rec)
           }
         }
       })
-      sendIterMap.foreach(_._2.foreach(_.finish(timeout)))
+      bufferMap.foreach((idxbuf) => {
+        val bufseq = idxbuf._2
+        val buf = bufseq._1
+        val polServ =  nodeCache(idxbuf._1)
+        val nodes = polServ.nodes
+        if (buf.size >= 0) { // send the buffer
+          val bd = new BulkData
+          bd.seqNum = bufseq._2
+          //bufseq._2 += 1
+          bd.sendActorId = id
+          val rs = new RecordSet
+          rs.records = buf
+          bd.records = rs
+          val msg = new Message
+          msg.src = new java.lang.Long(id)
+          msg.body = bd
+          nodes.foreach((rn) => {
+            if (recvIterMap.contains(rn)) {
+              msg.dest = recvIterMap(rn)
+              MessageHandler.sendMessage(rn,msg)
+              } else {
+                logger.warn("Not sending to: "+rn+". Have no iter open to it")
+              }
+          })
+          buf.clear
+        }
+      })
+      // now send close messages and wait for everything to close up
+      val fin = new TransferFinished
+      fin.sendActorId = id.longValue
+      val msg = new Message
+      msg.src = new java.lang.Long(id)
+      msg.body = fin
+      var repsNeeded = 0
+      recvIterMap.foreach((rnid)=> {
+        msg.dest = rnid._2
+        repsNeeded += 1
+        MessageHandler.sendMessage(rnid._1,msg)
+      })
+      while (repsNeeded > 0) {
+        receiveWithin(timeout) {
+          case (rn:RemoteNode, msg:Message) => msg.body match {
+            case bda:BulkDataAck => {
+              logger.debug("Data ack, ignoring for now")
+            }
+            case ric:RecvIterClose => {
+              logger.warn("Got close for: "+rn)
+              repsNeeded -= 1
+            }
+            case other => {
+              logger.error("Unexpected message type waiting for acks/closes: "+rn+": "+other)
+              repsNeeded -= 1
+            }
+          }
+          case TIMEOUT => {
+            logger.error("TIMEOUT waiting for transfer start reply, dieing")
+            repsNeeded = 0
+          }
+          case msg => {
+            logger.error("Unexpected message waiting for acks/closes: "+msg)
+            repsNeeded -= 1
+          }
+        }
+      }
       MessageHandler.unregisterActor(id)
+      println("Send a total of: "+cnt)
       ret.set(System.currentTimeMillis-start)
     }
     ret.get
