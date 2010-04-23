@@ -1,5 +1,6 @@
 package deploylib.xresults
 
+import deploylib._
 import java.net.InetAddress
 import scala.xml.{NodeSeq, UnprefixedAttribute, Elem, Node, Null, Text, TopScope }
 import java.io.File

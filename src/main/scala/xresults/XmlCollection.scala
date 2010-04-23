@@ -1,5 +1,6 @@
 package deploylib.xresults
 
+import deploylib._
 import org.xmldb.api.base._
 import org.xmldb.api.modules._
 import org.xmldb.api._

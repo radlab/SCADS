@@ -72,15 +72,4 @@
       <version>0.7.1</version>
     </dependency>
 	</dependencies>
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.scala-tools</groupId>
-				<artifactId>maven-scala-plugin</artifactId>
-				<configuration>
-					<mainConsole>deploylib.DeployConsole</mainConsole>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
 </project>

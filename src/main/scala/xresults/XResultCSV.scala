@@ -1,5 +1,6 @@
 package deploylib.xresults
 
+import deploylib._
 import java.io.File
 
 object XResultCSV {

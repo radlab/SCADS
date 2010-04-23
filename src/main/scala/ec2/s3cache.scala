@@ -1,9 +1,8 @@
 package deploylib.ec2
 
+import deploylib._
 import java.io.File
-
 import org.apache.log4j.Logger
-
 import org.jets3t.service.model.S3Object
 import org.jets3t.service.impl.rest.httpclient.RestS3Service
 import org.jets3t.service.security.AWSCredentials

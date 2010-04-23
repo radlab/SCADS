@@ -1,14 +1,15 @@
 package deploylib.ec2
 
-import deploylib.xresults._
+import deploylib._
 import deploylib.runit._
+import deploylib.xresults._
 
 import com.amazonaws.ec2._
 import com.amazonaws.ec2.model._
 import org.apache.log4j.Logger
 import java.io.File
 
-import scala.collection.jcl.Conversions._
+import scala.collection.JavaConversions._
 import scala.collection.immutable.TreeHashMap
 
 /**
@@ -29,7 +30,7 @@ object EC2Instance  extends AWSConnection {
   	config.setServiceURL(System.getenv("EC2_URL"))
 
   protected val client = new AmazonEC2Client(accessKeyId, secretAccessKey, config)
-	var instanceData:Map[String, RunningInstance] = new scala.collection.immutable.EmptyMap[String, RunningInstance]
+	var instanceData:Map[String, RunningInstance] = Map[String, RunningInstance]()
 	protected val instances = new scala.collection.mutable.HashMap[String, EC2Instance]
 	protected var lastUpdate = 0L
 
@@ -43,7 +44,7 @@ object EC2Instance  extends AWSConnection {
 				logger.debug("Skipping ec2 update since it was done less than 10 seconds ago")
 			else {
 				val result = client.describeInstances(new DescribeInstancesRequest()).getDescribeInstancesResult()
-				instanceData = TreeHashMap(result.getReservation.flatMap((r) => {
+				instanceData = Map(result.getReservation.flatMap((r) => {
 					r.getRunningInstance.map((i) => {
 						(i.getInstanceId, i)
 					})

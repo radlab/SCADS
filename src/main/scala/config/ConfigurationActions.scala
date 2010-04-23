@@ -2,6 +2,7 @@ package deploylib.config
 
 import java.io.File
 
+import deploylib._
 import deploylib.runit._
 import deploylib.xresults._
 
