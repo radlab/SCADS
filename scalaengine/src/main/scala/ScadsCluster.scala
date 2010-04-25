@@ -116,6 +116,29 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       org.apache.avro.io.BinaryData.compare(max.array, max.position, p.max.array, p.max.position,
                                             schema)
     }
+
+    override def toString():String = {
+      val sb = new java.lang.StringBuffer
+      val k = keyClass.newInstance.asInstanceOf[KeyType]
+      sb.append("[")
+      if (min != null) {
+        k.parse(min)
+        sb.append(k.toString)
+      } else
+        sb.append("-inf")
+      sb.append(", ")
+      if (min != null) {
+        k.parse(max)
+        sb.append(k.toString)
+      } else
+        sb.append("inf")
+      sb.append("): ")
+      nodes.foreach((node) => {
+        sb.append(node)
+        sb.append(" ")
+      })
+      return sb.toString
+    }
   }
 
   private class RangeIterator(start:Int, end:Int) extends Iterator[polServer] {
@@ -172,6 +195,15 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
 
   def clearCache():Unit = {
     nodeCache = null
+  }
+
+  def printCache():Unit = {
+    if (nodeCache == null)
+      updateNodeCache
+    println("Current cache:")
+    for (i <- (0 to (nodeCache.length - 1))) {
+      println(nodeCache(i))
+    }
   }
 
   private def idxForKey(key:SpecificRecordBase):Int = {
@@ -771,22 +803,32 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     val ranges = splitRange(null, null).counted
     actor {
       val id = MessageHandler.registerActor(self)
-      val msg = new Message
-      val fr = new FoldRequest2L
-      msg.src = new java.lang.Long(id)
-      msg.dest = dest
-      msg.body = fr
-      fr.namespace = namespace
-      fr.keyType = keyClass.getName
-      fr.valueType = valueClass.getName
-      fr.initType = remInit.getClass.getName
-      fr.initValue = remInit.toBytes
-      fr.codename = remFunc.getClass.getName
-      fr.code = getFunctionCode(remFunc)
-      fr.direction = 0 // TODO: Change dir to an enum when we support that
-      ranges.foreach(r => {
-        MessageHandler.sendMessage(r.nodes.first, msg)
-      })
+      try {
+        val msg = new Message
+        val fr = new FoldRequest2L
+        msg.src = new java.lang.Long(id)
+        msg.dest = dest
+        msg.body = fr
+        fr.namespace = namespace
+        fr.keyType = keyClass.getName
+        fr.valueType = valueClass.getName
+        fr.initType = remInit.getClass.getName
+        fr.initValue = remInit.toBytes
+        fr.codename = remFunc.getClass.getName
+        fr.code = getFunctionCode(remFunc)
+        fr.direction = 0 // TODO: Change dir to an enum when we support that
+        ranges.foreach(r => {
+          MessageHandler.sendMessage(r.nodes.first, msg)
+        })
+      } catch {
+        case t:Throwable => {
+          println("Some error processing foldLeft2L")
+          t.printStackTrace()
+          result.set(null)
+          MessageHandler.unregisterActor(id)
+          exit
+        }
+      }
       var remaining = ranges.count
       loop {
         reactWithin(timeout) {
