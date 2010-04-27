@@ -6,6 +6,9 @@
 		{"name": "IntRec", "type": "record", "fields": [
 			{"name": "f1", "type": "int"}
 		]},
+		{"name": "LongRec", "type": "record", "fields": [
+			{"name": "f1", "type": "long"}
+		]},
 		{"name": "StringRec", "type": "record", "fields": [
 			{"name": "f1", "type": "string"}
 		]},

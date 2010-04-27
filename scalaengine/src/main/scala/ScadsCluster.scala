@@ -562,6 +562,85 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       rlist
   }
 
+  def foldLeft(z:(KeyType,ValueType))(func: ((KeyType,ValueType),(KeyType,ValueType)) => (KeyType,ValueType)): (KeyType,ValueType) = 
+    doFold(z)(func,0)
+
+  def foldRight(z:(KeyType,ValueType))(func: ((KeyType,ValueType),(KeyType,ValueType)) => (KeyType,ValueType)): (KeyType,ValueType) = 
+    doFold(z)(func,1)
+
+  private def doFold(z:(KeyType,ValueType))(func: ((KeyType,ValueType),(KeyType,ValueType)) => (KeyType,ValueType),dir:Int): (KeyType,ValueType) = {
+    var list = List[(KeyType,ValueType)]()
+    val result = new SyncVar[List[(KeyType,ValueType)]]
+    val ranges = splitRange(null, null).counted
+    actor {
+      val id = MessageHandler.registerActor(self)
+      val msg = new Message
+      val fr = new FoldRequest
+      msg.src = new java.lang.Long(id)
+      msg.dest = dest
+      msg.body = fr
+      fr.namespace = namespace
+      fr.keyType = keyClass.getName
+      fr.valueType = valueClass.getName
+      fr.initValueOne = z._1.toBytes
+      fr.initValueTwo = z._2.toBytes
+      fr.codename = func.getClass.getName
+      fr.code = getFunctionCode(func)
+      fr.direction = dir // TODO: Change dir to an enum when we support that
+      ranges.foreach(r => {
+        MessageHandler.sendMessage(r.nodes.first, msg)
+      })
+      var remaining = ranges.count
+      loop {
+        reactWithin(timeout) {
+          case (_, msg: Message) => {
+            val rec = msg.body.asInstanceOf[Record]
+            val retk = keyClass.newInstance.asInstanceOf[KeyType]
+            val retv = valueClass.newInstance.asInstanceOf[ValueType]
+            retk.parse(rec.key)
+            retv.parse(rec.value)
+            list ++= List((retk,retv))
+            remaining -= 1
+            if(remaining < 0) { // count starts at 0
+              result.set(list)
+              MessageHandler.unregisterActor(id)
+              exit
+            }
+          }
+          case TIMEOUT => {
+            logger.warn("Timeout waiting for foldLeft to return")
+            result.set(null)
+            MessageHandler.unregisterActor(id)
+            exit
+          }
+          case m => {
+            logger.fatal("Unexpected message in foldLeft: " + m)
+            result.set(null)
+            MessageHandler.unregisterActor(id)
+            exit
+          }
+        }
+      }
+    }
+    val rlist = result.get
+    if (rlist == null)
+      z
+    else
+      if (dir == 0)
+        rlist.foldLeft(z)(func)
+      else
+        rlist.foldRight(z)(func)
+  }
+
+  // TODO: Return Value?
+  def ++=(that:Iterable[(KeyType,ValueType)]):Long = {
+    val start = System.currentTimeMillis
+    that foreach (pair => {
+      put(pair._1,pair._2)
+    })
+    System.currentTimeMillis-start
+  }
+
   // call from within an actor only
   private def bulkPutBody(rn:RemoteNode, csr:CopyStartRequest, polServ:polServer, valBytes:Array[Byte], srec:IntRec, erec:IntRec):Unit = {
     val id = MessageHandler.registerActor(self)

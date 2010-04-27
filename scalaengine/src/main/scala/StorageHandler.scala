@@ -167,10 +167,10 @@ class SendIter(targetNode:RemoteNode, id:java.lang.Long, receiverId:java.lang.Lo
 
   def flush() {
     if (speedLimit != 0) {
-      val secs = (System.currentTimeMillis - lastSentTime)/1000
-      val target = bytesSentLast / speedLimit
+      val secs = (System.currentTimeMillis - lastSentTime)/1000.0
+      val target = bytesSentLast / speedLimit.toDouble
       if (target > secs)  // if we wanted to take longer than we actually did
-        Thread.sleep((target-secs)*1000)
+        Thread.sleep(((target-secs)*1000).toLong)
     }
     val bd = new BulkData
     bd.seqNum = seqNum
@@ -648,6 +648,53 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
             println("Filter Fail")
             e.printStackTrace()
             reply(recordSet)
+          }
+        }
+      }
+
+      case foldreq:FoldRequest  => {
+        val ns = namespaces(foldreq.namespace)
+        val key = Class.forName(foldreq.keyType).asInstanceOf[Class[SpecificRecordBase]].newInstance()
+        val value = Class.forName(foldreq.valueType).asInstanceOf[Class[SpecificRecordBase]].newInstance()
+        var initVals = (
+          Class.forName(foldreq.keyType).asInstanceOf[Class[SpecificRecordBase]].newInstance(),
+          Class.forName(foldreq.valueType).asInstanceOf[Class[SpecificRecordBase]].newInstance() 
+        )
+        initVals._1.parse(foldreq.initValueOne)
+        initVals._2.parse(foldreq.initValueTwo)
+        try {
+          val fclass = deserialize(foldreq.codename,foldreq.code)
+          fclass match {
+            case cl:Class[_] => {
+              val o = cl.newInstance
+              val methods = cl.getMethods()
+              var midx = 0
+              for (i <- (1 to (methods.length-1))) {
+                val method = methods(i)
+                if (method.getName.indexOf("apply") >= 0) {
+                  midx = i
+                }
+              }
+              val method = methods(midx)
+              val range = new KeyRange
+              if (foldreq.direction == 1)
+                range.backwards = true
+              iterateOverRange(ns, range, false, (keyBytes, valueBytes, _) => {
+                key.parse(keyBytes.getData)
+                value.parse(valueBytes.getData)
+                initVals = method.invoke(o,initVals,(key,value)).asInstanceOf[(SpecificRecordBase,SpecificRecordBase)]
+              })
+              val retRec = new Record
+              retRec.key = initVals._1.toBytes
+              retRec.value = initVals._2.toBytes
+              reply(retRec)
+            }
+          }
+        } catch {
+          case e: Throwable => {
+            println("Fold Fail")
+            e.printStackTrace()
+            reply(new Record)
           }
         }
       }
