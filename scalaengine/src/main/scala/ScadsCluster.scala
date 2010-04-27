@@ -576,7 +576,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       val id = MessageHandler.registerActor(self)
       val msg = new Message
       val fr = new FoldRequest
-      msg.src = new java.lang.Long(id)
+      msg.src = id.asInstanceOf[Long]
       msg.dest = dest
       msg.body = fr
       fr.namespace = namespace
