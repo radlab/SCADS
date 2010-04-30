@@ -4,10 +4,13 @@ import scala.util.parsing.combinator._
 import scala.util.parsing.combinator.syntactical._
 import scala.util.parsing.combinator.lexical._
 
-class Lexer extends StdLexical with ImplicitConversions
+class Lexer extends StdLexical with ImplicitConversions {
+  override def letter = elem("letter", (c: Char) => {c.isLetter || (c compare '_') == 0})
+}
+
 class ScadsLanguage extends StdTokenParsers with ImplicitConversions {
 	type Tokens = Lexer
-  	val lexical = new Lexer
+  val lexical = new Lexer
 
 	lexical.reserved ++= List("ENTITY", "PRIMARY", "FOREIGN", "KEY", "REF", "FROM", "TO", "MANY", "QUERY", "FETCH", "OF", "BY", "WHERE", "AND", "OR", "ORDER", "BY", "ASC", "DESC", "LIMIT", "MAX", "PAGINATE", "UNION", "this", "string", "int", "bool", "true", "false")
  	lexical.delimiters ++= List("{", "}", "[", "]", "<", ">", "(", ")", ",", ":", ";", "=", ".")
