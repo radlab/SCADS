@@ -46,8 +46,9 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
       false
   }
 
+  //TODO: The default should be to use a random server from the cluster... not the local test node.
   def createNamespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](ns: String, keySchema: Schema, valueSchema: Schema)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): Namespace[KeyType, ValueType] = {
-    createNamespace[KeyType, ValueType](ns, keySchema, valueSchema, List[RemoteNode]())
+    createNamespace[KeyType, ValueType](ns, keySchema, valueSchema, List[RemoteNode](TestScalaEngine.node))
   }
 
 	def createNamespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](ns: String, keySchema: Schema, valueSchema: Schema, servers: List[RemoteNode])(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): Namespace[KeyType, ValueType] = {
