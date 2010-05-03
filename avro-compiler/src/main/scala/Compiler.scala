@@ -118,7 +118,10 @@ class Compiler(val protocol: Protocol) {
                         "implicit def " + elm.className + "2" + pclass.className + 
                         "(iface: " + elm.className + "): " + pclass.primitiveClassName + " = {")
                     indent {
-                        output("iface.asInstanceOf[PrimitiveWrapper[" + pclass.primitiveClassName + "]].value")                    
+                      pclass.primitiveClassName match {
+                        case "Int" | "Long" => output("iface.asInstanceOf[PrimitiveWrapper[" + pclass.primitiveClassName + "]].value")                    
+                        case _ => output("if(iface == null) null else iface.asInstanceOf[PrimitiveWrapper[" + pclass.primitiveClassName + "]].value")                    
+                      }
                     }
                     output("}")
                 })
