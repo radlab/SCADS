@@ -36,7 +36,8 @@ class ZooKeeperProxy(server: String) extends Watcher {
 			conn.setData(path, d, if(statCache.isDefined) statCache.get.getVersion else -1)
 		}
 
-    def get(rpath: String): ZooKeeperNode = rpath.split("/").foldLeft(this)((n,p) => n.children(p))
+    def get(rpath: String): ZooKeeperNode = rpath.split("/").foldLeft(this)((n,p) => n.updateChildren(false).apply(p))
+
     def getOrCreate(rpath: String): ZooKeeperNode = {
       rpath.split("/").foldLeft(this)((n,p) => n.children.get(p) match {
         case Some(c) => c
