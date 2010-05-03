@@ -2,12 +2,14 @@ package edu.berkeley.cs.scads.piql
 
 import scala.collection.mutable.HashMap
 import org.apache.log4j.Logger
-import edu.berkeley.cs.scads.piql.parser.BoundValue
+import edu.berkeley.cs.scads.piql.parser.{BoundValue, BoundIntegerValue, BoundStringValue}
 import org.apache.avro.generic.IndexedRecord
 
 abstract sealed class JoinCondition
 case class AttributeCondition(attrName: String) extends JoinCondition
 case class BoundValueLiteralCondition(fieldValue: BoundValue) extends JoinCondition
+
+case class EntityClass(name: String)
 
 /* Query Plan Nodes */
 abstract sealed class QueryPlan
@@ -18,7 +20,7 @@ case class PrefixGet(namespace: String, prefix: List[BoundValue], limit: BoundVa
 case class SequentialDereferenceIndex(targetNamespace: String, child: TupleProvider) extends TupleProvider
 case class PrefixJoin(namespace: String, conditions: Seq[JoinCondition], limit: BoundValue, ascending: Boolean, child: EntityProvider) extends TupleProvider
 case class PointerJoin(namespace: String, conditions: Seq[JoinCondition], child: EntityProvider) extends TupleProvider
-case class Materialize(entityType: String, child: TupleProvider) extends EntityProvider
+case class Materialize(entityType: EntityClass, child: TupleProvider) extends EntityProvider
 case class Selection(equalityMap: HashMap[String, BoundValue], child: EntityProvider) extends EntityProvider
 case class Sort(fields: List[String], ascending: Boolean, child: EntityProvider) extends EntityProvider
 case class TopK(k: BoundValue, child: EntityProvider) extends EntityProvider
@@ -31,10 +33,14 @@ abstract trait QueryExecutor {
 	type TupleStream = Seq[(IndexedRecord, IndexedRecord)]
 	type EntityStream = Seq[Entity[_,_]]
 
-	/* Tuple Providers */
-	protected def singleGet(namespace: String, key: BoundValue)(implicit env: Environment): TupleStream = null
+  implicit def toBoundInt(i: Int) = BoundIntegerValue(i)
+  implicit def toBoundString(s: String) = BoundStringValue(s)
 
-	protected def prefixGet(namespace: String, prefix: BoundValue, limit: BoundValue, ascending: Boolean)(implicit env: Environment): TupleStream = null
+
+	/* Tuple Providers */
+	protected def singleGet(namespace: String, key: List[BoundValue])(implicit env: Environment): TupleStream = null
+
+	protected def prefixGet(namespace: String, prefix: List[BoundValue], limit: BoundValue, ascending: Boolean)(implicit env: Environment): TupleStream = null
 
 	protected def sequentialDereferenceIndex(targetNamespace: String, child: TupleStream)(implicit env: Environment): TupleStream = null
 

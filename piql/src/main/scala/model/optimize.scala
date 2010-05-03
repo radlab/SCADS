@@ -57,7 +57,7 @@ class Optimizer(spec: BoundSpec) {
 	def optimize(fetch: BoundFetch, range: BoundRange):EntityProvider = {
 		fetch match {
 			case BoundFetch(entity, Nil, Unsorted, BoundPointerJoin(rname, child)) => {
-				Materialize(entity.name,
+				Materialize(EntityClass(entity.name),
 					PointerJoin(entity.namespace, List(AttributeCondition(rname)), optimize(child, range))
 				)
 			}
@@ -75,7 +75,7 @@ class Optimizer(spec: BoundSpec) {
 						PrefixJoin(ns, child.entity.keySchema.getFields.map(k => AttributeCondition(k.name)), joinLimit, true, childPlan)
 					}
 				}
-				Materialize(entity.name, tupleStream)
+				Materialize(EntityClass(entity.name), tupleStream)
 			}
 			case BoundFetch(_, _, Sorted(attr, asc), f:FixedCardinalityJoin) => {
 				Sort(List(attr), asc,
@@ -110,7 +110,7 @@ class Optimizer(spec: BoundSpec) {
 					}
 				}
 
-				val entityStream = Materialize(entity.name, tupleStream)
+				val entityStream = Materialize(EntityClass(entity.name), tupleStream)
 
 				TopK(joinLimit, ordering match {
 					case Sorted(attr, asc) => Sort(List(attr), asc, entityStream)
@@ -145,7 +145,7 @@ class Optimizer(spec: BoundSpec) {
           case PrimaryIndex(_, _) => indexLookup
           case SecondaryIndex(_, _, tns) => SequentialDereferenceIndex(tns,  indexLookup)
         }
-				new Materialize(entity.name, tupleStream)
+				new Materialize(EntityClass(entity.name), tupleStream)
 			}
 		}
 	}
