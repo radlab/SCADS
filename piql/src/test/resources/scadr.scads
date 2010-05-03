@@ -10,7 +10,7 @@ ENTITY user
 ENTITY thought
 {
 	int timestamp,
-	string thought,
+	string text,
   FOREIGN KEY owner REF user
 	PRIMARY(owner, timestamp)
 }
@@ -23,30 +23,11 @@ ENTITY subscription
 	PRIMARY(owner, target)
 }
 
-ENTITY atReference
-{
-  FOREIGN KEY referent REF user,
-  FOREIGN KEY referringThought REF thought MAX 10
-  PRIMARY(referent, referringThought)
-}
-
-ENTITY hashTag
-{
-	string name,
-  FOREIGN KEY referringThought REF thought MAX 10
-	PRIMARY(name, referringThought)
-}
-
 QUERY myThoughts
 FETCH thought
 	OF user BY owner
 WHERE user=[this]
 LIMIT [1: numperpage] MAX 10
-
-QUERY thoughtsByHashTag
-FETCH thought OF hashTag BY referringThought
-WHERE name=[1:name]
-ORDER BY timestamp LIMIT [2:count] MAX 100
 
 // These are people that I am following
 // NOT people that are following me
@@ -65,14 +46,6 @@ FETCH thought
 WHERE me=[this] AND subscription.approved = true
 ORDER BY timestamp
 LIMIT [1:count] MAX 100
-
-// these are people that reference me in their thoughts
-QUERY myReferences
-FETCH thought
-    OF atReference BY referringThought
-    OF user BY referent
-WHERE user=[this]
-LIMIT 10 MAX 10
 
 QUERY needsApproval
 FETCH subscription

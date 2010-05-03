@@ -48,6 +48,8 @@ abstract class Entity[KeyType <: SpecificRecordBase, ValueType <: SpecificRecord
   val key: KeyType
   val value: ValueType
 
+  val indexes: Map[String, Schema]
+
   def load(pk: KeyType)(implicit cluster: ScadsCluster): Unit = {
     key.parse(pk.toBytes)
     cluster.getNamespace[KeyType, ValueType](namespace).get(pk, value)

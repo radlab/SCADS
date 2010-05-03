@@ -79,6 +79,15 @@ object ScalaGen extends Generator[BoundSpec] {
       outputBraced("object value extends ", entity.name, ".ValueType") {
         outputFunctions(entity.valueSchema, None)
       }
+
+      val subparts: List[Schema.Field] = (entity.keySchema.getFields.toList ++ entity.valueSchema.getFields.toList).filter(_.schema.getType == Type.RECORD)
+      subparts.foreach(p => {
+        outputBraced("object ", p.name, " extends ", entity.name, ".", p.name, "Type") {
+          outputFunctions(p.schema, Some(p.name))
+        }
+      })
+
+      output("val indexes: Map[String, Schema] = null")
     }
 
     outputBraced("object ", entity.name) {
@@ -86,15 +95,15 @@ object ScalaGen extends Generator[BoundSpec] {
 				val fields = r.getFields.toList
 				fields.filter(_.schema.getType == Type.RECORD).foreach(f => outputObjects(f.schema, f.name, Some(prefix.getOrElse("") + f.name)))
 
-				outputBraced("class ", prefix.getOrElse(name), " extends EntityPart") {
+				outputBraced("class ", prefix.getOrElse(name), "Type extends EntityPart") {
 					output("def getSchema(): Schema = Schema.parse(\"\"\"", r.toString, "\"\"\")")
           output("def put(f: Int, v: Any): Unit = throw new java.lang.RuntimeException(", quote("unsupported"), ")")
           output("def get(f: Int): Object = throw new java.lang.RuntimeException(", quote("unsupported"), ")")
 				}
 			}
 
-			outputObjects(entity.keySchema, "KeyType", None)
-			outputObjects(entity.valueSchema, "ValueType", None)
+			outputObjects(entity.keySchema, "Key", None)
+			outputObjects(entity.valueSchema, "Value", None)
 		}
 	}
 

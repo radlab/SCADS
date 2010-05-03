@@ -57,4 +57,8 @@ object Compiler {
     compiler.compile(code)
     compiler.classLoader
   }
+
+  def main(args: Array[String]): Unit = {
+    getClassLoader(readFile(new File(args(0))))
+  }
 }
