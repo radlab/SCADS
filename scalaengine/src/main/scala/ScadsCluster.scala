@@ -85,7 +85,14 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 	}
 
   def getNamespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](ns: String)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): Namespace[KeyType, ValueType] = {
-    new Namespace[KeyType, ValueType](ns, 5000, root)
+    namespaces.children.get(ns) match {
+      case Some(_) => new Namespace[KeyType, ValueType](ns, 5000, root)
+      case None => {
+        createNamespace[KeyType, ValueType](ns, keyType.erasure.newInstance.asInstanceOf[SpecificRecordBase].getSchema, valueType.erasure.newInstance.asInstanceOf[SpecificRecordBase].getSchema)
+        namespaces.updateChildren(false)
+        new Namespace[KeyType, ValueType](ns, 5000, root)
+      }
+    }
   }
 }
 
