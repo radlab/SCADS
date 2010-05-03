@@ -7,7 +7,7 @@ import org.apache.avro.generic.IndexedRecord
 
 abstract sealed class JoinCondition
 case class AttributeCondition(attrName: String) extends JoinCondition
-case class FieldLiteralCondition(fieldValue: BoundValue) extends JoinCondition
+case class BoundValueLiteralCondition(fieldValue: BoundValue) extends JoinCondition
 
 /* Query Plan Nodes */
 abstract sealed class QueryPlan
@@ -22,3 +22,32 @@ case class Materialize(entityType: String, child: TupleProvider) extends EntityP
 case class Selection(equalityMap: HashMap[String, BoundValue], child: EntityProvider) extends EntityProvider
 case class Sort(fields: List[String], ascending: Boolean, child: EntityProvider) extends EntityProvider
 case class TopK(k: BoundValue, child: EntityProvider) extends EntityProvider
+
+class Environment
+
+abstract trait QueryExecutor {
+	val qLogger = Logger.getLogger("scads.queryexecution")
+	/* Type Definitions */
+	type TupleStream = Seq[(IndexedRecord, IndexedRecord)]
+	type EntityStream = Seq[Entity[_,_]]
+
+	/* Tuple Providers */
+	protected def singleGet(namespace: String, key: BoundValue)(implicit env: Environment): TupleStream = null
+
+	protected def prefixGet(namespace: String, prefix: BoundValue, limit: BoundValue, ascending: Boolean)(implicit env: Environment): TupleStream = null
+
+	protected def sequentialDereferenceIndex(targetNamespace: String, child: TupleStream)(implicit env: Environment): TupleStream = null
+
+	protected def prefixJoin(namespace: String, conditions: List[JoinCondition], limit: BoundValue, ascending: Boolean, child: EntityStream)(implicit env: Environment): TupleStream = null
+
+	protected def pointerJoin(namespace: String, conditions: List[JoinCondition], child: EntityStream)(implicit env: Environment): TupleStream = null
+
+	/* Entity Providers */
+	protected def materialize(entityClass: Class[Entity[_,_]], child: TupleStream)(implicit env: Environment): EntityStream = null
+
+	protected def selection(equalityMap: HashMap[String, BoundValue], child: EntityStream): EntityStream = null
+
+	protected def sort(fields: List[String], ascending: Boolean, child: EntityStream): EntityStream = null
+
+	protected def topK(k: BoundValue, child: EntityStream): EntityStream = null
+}
