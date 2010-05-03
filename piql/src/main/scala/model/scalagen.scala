@@ -25,8 +25,8 @@ object ScalaGen extends Generator[BoundSpec] {
 	}
 
 	protected def generate(entity: BoundEntity)(implicit sb: StringBuilder, indnt: Indentation): Unit = {
-		outputBraced("class ", entity.name, "(implicit cluster: ScadsCluster) extends Entity(cluster)") {
-      output("val namespace = cluster.getNamespace[SpecificRecordBase, SpecificRecordBase](", quote("ent_" + entity.name), ")")
+		outputBraced("class ", entity.name, " extends Entity[", entity.name, ".KeyType", ",", entity.name, ".ValueType]") {
+      output("val namespace = ", quote("ent_" + entity.name))
 			def outputFields(r: Schema, prefix: String): Unit = {
 				r.getFields.foreach(f => f.schema().getType match {
 					case Type.STRING => output("var ", prefix + f.name, ":String = \"\"")
@@ -38,48 +38,63 @@ object ScalaGen extends Generator[BoundSpec] {
 			outputFields(entity.keySchema, "")
 			outputFields(entity.valueSchema, "")
 
+      def outputFunctions(r: Schema, prefix: Option[String]): Unit = {
+				val fields = r.getFields.toList
+
+        outputBraced("override def get(f: Int): Object =") {
+          outputBraced("f match ") {
+            fields.zipWithIndex.foreach {
+              case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.INT) =>
+                output("case ", idx.toString, " => new java.lang.Integer(", prefix.getOrElse(""), field.name, ")")
+              case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.BOOLEAN) =>
+                output("case ", idx.toString, " => boolean2Boolean(", prefix.getOrElse(""), field.name, ")")
+              case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.STRING) =>
+                output("case ", idx.toString, " => new Utf8(", prefix.getOrElse(""), field.name, ")")
+              case (field: Schema.Field, idx: Int) =>
+                output("case ", idx.toString, " => ", prefix.getOrElse(""), field.name)
+            }
+            output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad index\")")
+          }
+        }
+
+        outputBraced("override def put(f: Int, v: Any): Unit =") {
+          outputBraced("f match") {
+            fields.zipWithIndex.foreach {
+              case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.INT) =>
+                output("case ", idx.toString, " => ", prefix.getOrElse(""), field.name, " = v.asInstanceOf[java.lang.Integer].intValue")
+              case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.BOOLEAN) =>
+                output("case ", idx.toString, " => ", prefix.getOrElse(""), field.name, " = v.asInstanceOf[java.lang.Boolean].booleanValue")
+              case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.STRING) =>
+                output("case ", idx.toString, " => ", prefix.getOrElse(""), field.name, " = v.toString")
+              case (field: Schema.Field, idx: Int) =>
+            }
+            output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad index\")")
+          }
+        }
+      }
+
+      outputBraced("object key extends ", entity.name, ".KeyType") {
+        outputFunctions(entity.keySchema, None)
+      }
+      outputBraced("object value extends ", entity.name, ".ValueType") {
+        outputFunctions(entity.valueSchema, None)
+      }
+    }
+
+    outputBraced("object ", entity.name) {
 			def outputObjects(r: Schema, name: String, prefix: Option[String]) {
 				val fields = r.getFields.toList
 				fields.filter(_.schema.getType == Type.RECORD).foreach(f => outputObjects(f.schema, f.name, Some(prefix.getOrElse("") + f.name)))
 
-				outputBraced("object ", prefix.getOrElse(name), " extends EntityPart") {
+				outputBraced("class ", prefix.getOrElse(name), " extends EntityPart") {
 					output("def getSchema(): Schema = Schema.parse(\"\"\"", r.toString, "\"\"\")")
-
-					outputBraced("def get(f: Int): Object =") {
-						outputBraced("f match ") {
-							fields.zipWithIndex.foreach {
-								case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.INT) =>
-									output("case ", idx.toString, " => new java.lang.Integer(", prefix.getOrElse(""), field.name, ")")
-								case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.BOOLEAN) =>
-									output("case ", idx.toString, " => boolean2Boolean(", prefix.getOrElse(""), field.name, ")")
-								case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.STRING) =>
-									output("case ", idx.toString, " => new Utf8(", prefix.getOrElse(""), field.name, ")")
-								case (field: Schema.Field, idx: Int) =>
-									output("case ", idx.toString, " => ", prefix.getOrElse(""), field.name)
-							}
-							output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad index\")")
-						}
-					}
-
-					outputBraced("def put(f: Int, v: Any): Unit =") {
-						outputBraced("f match") {
-							fields.zipWithIndex.foreach {
-								case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.INT) =>
-									output("case ", idx.toString, " => ", prefix.getOrElse(""), field.name, " = v.asInstanceOf[java.lang.Integer].intValue")
-								case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.BOOLEAN) =>
-									output("case ", idx.toString, " => ", prefix.getOrElse(""), field.name, " = v.asInstanceOf[java.lang.Boolean].booleanValue")
-								case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.STRING) =>
-									output("case ", idx.toString, " => ", prefix.getOrElse(""), field.name, " = v.toString")
-								case (field: Schema.Field, idx: Int) =>
-							}
-							output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad index\")")
-						}
-					}
+          output("def put(f: Int, v: Any): Unit = throw new java.lang.RuntimeException(", quote("unsupported"), ")")
+          output("def get(f: Int): Object = throw new java.lang.RuntimeException(", quote("unsupported"), ")")
 				}
 			}
 
-			outputObjects(entity.keySchema, "key", None)
-			outputObjects(entity.valueSchema, "value", None)
+			outputObjects(entity.keySchema, "KeyType", None)
+			outputObjects(entity.valueSchema, "ValueType", None)
 		}
 	}
 

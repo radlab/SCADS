@@ -42,18 +42,19 @@ abstract class EntityPart extends SpecificRecordBase with SpecificRecord {
 	}
 }
 
-abstract class Entity(cluster: ScadsCluster) {
-  val namespace: Namespace[SpecificRecordBase, SpecificRecordBase]
-  val key: EntityPart
-  val value: EntityPart
+abstract class Entity[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]) {
+  val namespace: String
 
-  def load(pk: SpecificRecordBase): Unit = {
+  val key: KeyType
+  val value: ValueType
+
+  def load(pk: KeyType)(implicit cluster: ScadsCluster): Unit = {
     key.parse(pk.toBytes)
-    namespace.get(pk, value)
+    cluster.getNamespace[KeyType, ValueType](namespace).get(pk, value)
   }
 
-  def save: Unit = {
+  def save(implicit cluster: ScadsCluster): Unit = {
     println("Storing value: " + value.toBytes.toList + " to key: " + key.toBytes.toList)
-    namespace.put(key,value)
+    cluster.getNamespace[KeyType, ValueType](namespace).put(key,value)
   }
 }
