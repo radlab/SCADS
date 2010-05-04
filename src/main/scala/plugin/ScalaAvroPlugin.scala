@@ -16,9 +16,11 @@ import scala.collection.mutable.{HashMap,HashSet,MutableList}
 
 import org.apache.avro.Schema
 
+// TODO: consolidate this state obj
 class AvroState(
     val recordClassSchemas: HashMap[String,Schema], 
-    val unions: HashMap[String,HashSet[String]])
+    val unions: HashMap[String,HashSet[String]],
+    val hasObjClass: HashMap[String,Boolean])
 
 class ScalaAvroPlugin(val global: Global) extends Plugin {
   import global._
@@ -28,10 +30,13 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
   val name = "avro-scala-plugin"
   val description = "Support for auto generation of Avro Records"
   
+  // TODO: i dont think unitsWithSynthetics is in use anywhere
   val unitsWithSynthetics = new MutableList[CompilationUnit]
   val unitsInError = new MutableList[CompilationUnit]
 
-  val state = new AvroState(new HashMap[String,Schema], new HashMap[String,HashSet[String]])
+  val state = new AvroState(new HashMap[String,Schema], 
+                            new HashMap[String,HashSet[String]],
+                            new HashMap[String,Boolean])
 
   object earlyNamer extends PluginComponent {
 	val global : ScalaAvroPlugin.this.global.type = ScalaAvroPlugin.this.global
@@ -89,6 +94,7 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
   }
       
   val components = List[PluginComponent](
+    new Preprocess(this, global),
     new InitialTransformComponent(this, global),
     earlyNamer,
     earlyTyper,

@@ -239,6 +239,8 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
         def isAnnotatedRecordSym(sym: Symbol) = {	 	
             if (sym != null) {
                 val testSym = if (sym.isModule) sym.moduleClass else sym
+                println("testSym: " + testSym)
+                println("testSym.annotations: " + testSym.annotations)
                 testSym.annotations exists { _.toString == plugin.avroRecordAnnotationClass }
             } else false
         }
@@ -271,6 +273,8 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
                     case _ => false
                 }
             }
+
+            println("avroClassDefs: " + avroClassDefs)
 
             // find all the union defs
             val avroUnionDefs = stats.filter { s =>

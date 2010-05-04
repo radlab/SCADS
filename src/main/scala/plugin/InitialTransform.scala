@@ -13,8 +13,8 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
   import global._
   import global.definitions._
 
-  val runsAfter = List[String]("parser")
-  override val runsRightAfter = Some("parser")
+  val runsAfter = List[String]("preprocessor")
+  override val runsRightAfter = Some("preprocessor")
   val phaseName = "initialtransform"
 
   def newTransformer(unit: CompilationUnit) = new InitialTransformer(unit)
@@ -22,15 +22,8 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
   class InitialTransformer(val unit: CompilationUnit) extends /*Typing*/ Transformer {
     import CODE._
 
-    def preTransform(tree: Tree): Tree = tree match {
-      case md @ ModuleDef(mods, name, impl) =>
-        //ValDef( // sym=<none>, sym.tpe=<notype>, tpe=null
-        //  0, // flags=, annots=List()
-        //  "findMe",
-        //  TypeTree(), // sym=null, tpe=null,
-        //  Literal(Constant(abc))
-        //)  
-        val schema = ValDef(
+    def mkModuleDefSchema = {
+        ValDef(
             NoMods,
             newTermName("schema"),
             TypeTree(),
@@ -47,8 +40,55 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
                 List(
                     Literal(Constant("__json__"))))
         )
-        val schemaWithPos = atPos(tree.pos)(schema)
-        val newImpl = treeCopy.Template( impl, impl.parents, impl.self, impl.body ::: List(schemaWithPos) )
+    }
+
+    def mkModuleCtor = {
+        DefDef( // sym=<none>, sym.tpe=<notype>, tpe=null    
+          NoMods, // flags=, annots=List()    
+          newTermName("<init>"),    
+          List(), // no type parameter    
+          List(List()), // no parameter    
+          TypeTree(),
+          Block( // sym=null, tpe=null    
+            List( // 1 statement(s)    
+              Apply( // sym=<none>, tpe=null    
+                Select( // sym=<none>, sym.tpe=<notype>, tpe=null    
+                  Super(newTermName(""), newTermName("")), // sym=<none>, sym.tpe=<notype>, tpe=null,    
+                  newTermName("<init>")),    
+                List() // no argument    
+              )    
+            ),    
+            Literal(Constant(()))    
+          )    
+        )  
+    }
+
+
+    def preTransform(tree: Tree): Tree = tree match {
+      case pd @ PackageDef(pid, stats) =>
+        println("preTransform: packageDef -- adding needed module classes")
+        val moduleDefs = plugin.state.hasObjClass.keysIterator.filter( c => !plugin.state.hasObjClass.get(c).get ).map(c => {
+            ModuleDef(
+              NoMods,
+              newTermName(c),
+              Template(
+                List(Select(Ident(nme.scala_) setSymbol ScalaPackage, nme.ScalaObject.toTypeName)),
+                emptyValDef,
+                List(mkModuleCtor)
+              ))
+        })
+        treeCopy.PackageDef(tree, pid, stats ::: moduleDefs.toList )
+      case md @ ModuleDef(mods, name, impl) =>
+        println("preTransform: ModuleDef -- adding schema field for: " + name.toString)
+        //ValDef( // sym=<none>, sym.tpe=<notype>, tpe=null
+        //  0, // flags=, annots=List()
+        //  "findMe",
+        //  TypeTree(), // sym=null, tpe=null,
+        //  Literal(Constant(abc))
+        //)  
+        if (!plugin.state.hasObjClass.contains(name.toString))
+            return tree     
+        val newImpl = treeCopy.Template( impl, impl.parents, impl.self, impl.body ::: List(atPos(tree.pos)(mkModuleDefSchema)) )
         treeCopy.ModuleDef( md, mods, name, newImpl ) 
       case cd @ ClassDef(mods, name, tparams, impl) =>
           println("mods: " + mods)
@@ -77,13 +117,10 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
           })) return tree
           */
 
-          if (!mods.annotations.exists( a => {
-            a match {
-                case Apply(Select(New(sym),_),_) =>
-                    println("sym found: " + sym)
-                    sym.toString.indexOf("AvroRecord") != -1
-            }
-          })) return tree
+          println("mods.annotations: " + mods.annotations)
+
+          if (!plugin.state.hasObjClass.contains(name.toString))
+              return tree
 
           println("preTransform classdef: " + name)
           //println("template: " + impl)
