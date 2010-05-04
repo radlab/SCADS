@@ -337,14 +337,14 @@ class Binder(spec: Spec) {
     val relationships = untouched.flatMap(e => {
       e.attributes.flatMap {
         case ForeignKey(attrName, currentEntity.name, cardinality) =>
-          List(new BoundRelationship(attrName, e.name, cardinality, ForeignKeyHolder))
+          List(new BoundRelationship(attrName, e.name, cardinality, ForeignKeyTarget))
         case _ => Nil
       }
     }) ++
     done.flatMap(e => {
       e.relationships.flatMap {
-        case BoundRelationship(name, currentEntity.name, cardinality, ForeignKeyHolder) =>
-          List(BoundRelationship(name, e.name, cardinality, ForeignKeyTarget))
+        case BoundRelationship(name, currentEntity.name, cardinality, ForeignKeyTarget) =>
+          List(BoundRelationship(name, e.name, cardinality, ForeignKeyHolder))
         case _ => Nil
       }
     })
