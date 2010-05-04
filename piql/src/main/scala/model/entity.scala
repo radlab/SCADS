@@ -59,4 +59,8 @@ abstract class Entity[KeyType <: SpecificRecordBase, ValueType <: SpecificRecord
     println("Storing value: " + value.toBytes.toList + " to key: " + key.toBytes.toList)
     env.namespaces(namespace).put(key,value)
   }
+
+  override def toString(): String = {
+    "<Entity " + key.toString + " " + value.toString + ">"
+  }
 }
