@@ -76,5 +76,5 @@ abstract trait QueryExecutor {
 
 	protected def sort(fields: List[String], ascending: Boolean, child: EntityStream): EntityStream = null
 
-	protected def topK(k: BoundValue, child: EntityStream): EntityStream = null
+	protected def topK(k: BoundIntegerValue, child: EntityStream): EntityStream = child.take(k.value)
 }
