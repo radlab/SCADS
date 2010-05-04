@@ -99,6 +99,22 @@ object ScalaGen extends Generator[BoundSpec] {
 
       output("val indexes: Map[String, Schema] = null")
 
+      outputBraced("override def get(fieldName: String): Object =") {
+        outputBraced("fieldName match ") {
+          (entity.keySchema.getFields.toList ++ entity.valueSchema.getFields).foreach {
+            case field: Schema.Field if(field.schema.getType == Type.INT) =>
+              output("case ", quote(field.name), " => new java.lang.Integer(", field.name, ")")
+            case field: Schema.Field if(field.schema.getType == Type.BOOLEAN) =>
+              output("case ", quote(field.name), " => boolean2Boolean(", field.name, ")")
+            case field: Schema.Field if(field.schema.getType == Type.STRING) =>
+              output("case ", quote(field.name), " => new Utf8(", field.name, ")")
+            case field: Schema.Field =>
+              output("case ", quote(field.name), " => ", field.name)
+          }
+          output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad index\")")
+        }
+      }
+
       entity.queries.foreach(Function.tupled(generateQuery))
     }
 
