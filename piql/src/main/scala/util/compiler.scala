@@ -59,6 +59,13 @@ object Compiler {
   }
 
   def main(args: Array[String]): Unit = {
-    getClassLoader(readFile(new File(args(0))))
+    val ast = getAST(readFile(new File(args(0))))
+    val boundAst = new Binder(ast).bind
+    val opt = new Optimizer(boundAst).optimizedSpec
+    val compiler = new ScalaCompiler
+    val code = ScalaGen(opt)
+
+    println(code)
+    compiler.compile(code)
   }
 }
