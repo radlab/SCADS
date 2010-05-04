@@ -18,6 +18,7 @@ case class BoundSpec(entities: Map[String, BoundEntity], orphanQueries: HashMap[
 case class BoundEntity(name: String, keySchema: Schema, valueSchema: Schema, relationships: List[BoundRelationship]) {
 	val queries = new HashMap[String, BoundQuery]()
 	val indexes = new scala.collection.mutable.ArrayBuffer[Index]()
+  indexes += PrimaryIndex(namespace, keySchema.getFields.map(_.name()).toList)
 
   def namespace: String = "ent_" + name
 
@@ -59,17 +60,21 @@ abstract class BoundValue {
 case class BoundParameter(name: String, schema: Schema) extends BoundValue
 case class BoundThisAttribute(name: String, schema: Schema) extends BoundValue
 
-object BoundTrueValue extends BoundValue {
+abstract class BoundFixedValue[A] extends BoundValue {val value: A}
+
+object BoundTrueValue extends BoundFixedValue[Boolean] {
 	val schema = Schema.create(Schema.Type.BOOLEAN)
+  val value = true
 }
-object BoundFalseValue extends BoundValue {
+object BoundFalseValue extends BoundFixedValue[Boolean] {
 	val schema = Schema.create(Schema.Type.BOOLEAN)
+  val value = false
 }
 
-case class BoundIntegerValue(value: Int) extends BoundValue {
+case class BoundIntegerValue(value: Int) extends BoundFixedValue[Int] {
 	val schema = Schema.create(Schema.Type.INT)
 }
-case class BoundStringValue(value: String) extends BoundValue {
+case class BoundStringValue(value: String) extends BoundFixedValue[String] {
 	val schema = Schema.create(Schema.Type.STRING)
 }
 

@@ -55,8 +55,8 @@ abstract class Entity[KeyType <: SpecificRecordBase, ValueType <: SpecificRecord
     cluster.getNamespace[KeyType, ValueType](namespace).get(pk, value)
   }
 
-  def save(implicit cluster: ScadsCluster): Unit = {
+  def save(implicit env: Environment): Unit = {
     println("Storing value: " + value.toBytes.toList + " to key: " + key.toBytes.toList)
-    cluster.getNamespace[KeyType, ValueType](namespace).put(key,value)
+    env.namespaces(namespace).put(key,value)
   }
 }

@@ -173,7 +173,7 @@ object ScalaGen extends Generator[BoundSpec] {
       null
     outputPlan(methodName, fieldValues, childValue)
   }
-  
+
   protected def outputPlan(func: String, args: List[Any], child: QueryPlan)(implicit sb: StringBuilder, indnt: Indentation):Unit = {
     outputPartial(func, "(")
     val argCode = args.map(argToCode)

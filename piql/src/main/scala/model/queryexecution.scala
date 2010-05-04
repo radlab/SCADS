@@ -2,8 +2,10 @@ package edu.berkeley.cs.scads.piql
 
 import scala.collection.mutable.HashMap
 import org.apache.log4j.Logger
-import edu.berkeley.cs.scads.piql.parser.{BoundValue, BoundIntegerValue, BoundStringValue}
-import org.apache.avro.generic.IndexedRecord
+import edu.berkeley.cs.scads.piql.parser.{BoundValue, BoundIntegerValue, BoundStringValue, BoundFixedValue}
+import org.apache.avro.specific.SpecificRecordBase
+import org.apache.avro.generic.{IndexedRecord, GenericData}
+import edu.berkeley.cs.scads.storage.Namespace
 
 abstract sealed class JoinCondition
 case class AttributeCondition(attrName: String) extends JoinCondition
@@ -25,20 +27,32 @@ case class Selection(equalityMap: HashMap[String, BoundValue], child: EntityProv
 case class Sort(fields: List[String], ascending: Boolean, child: EntityProvider) extends EntityProvider
 case class TopK(k: BoundValue, child: EntityProvider) extends EntityProvider
 
-class Environment
+class Environment {
+  var namespaces: Map[String, Namespace[SpecificRecordBase, SpecificRecordBase]] = null
+}
 
 abstract trait QueryExecutor {
 	val qLogger = Logger.getLogger("scads.queryexecution")
 	/* Type Definitions */
-	type TupleStream = Seq[(IndexedRecord, IndexedRecord)]
+	type TupleStream = Seq[(SpecificRecordBase, SpecificRecordBase)]
 	type EntityStream = Seq[Entity[_,_]]
 
   implicit def toBoundInt(i: Int) = BoundIntegerValue(i)
   implicit def toBoundString(s: String) = BoundStringValue(s)
 
-
 	/* Tuple Providers */
-	protected def singleGet(namespace: String, key: List[BoundValue])(implicit env: Environment): TupleStream = null
+	protected def singleGet(namespace: String, key: List[BoundValue])(implicit env: Environment): TupleStream = {
+    val ns = env.namespaces(namespace)
+    val keyRec = ns.keyClass.newInstance().asInstanceOf[SpecificRecordBase]
+    key.zipWithIndex.foreach {
+      case(value: BoundFixedValue[_], idx: Int) => keyRec.put(idx, value)
+    }
+
+    ns.get(keyRec) match {
+      case Some(v) => List((keyRec, v))
+      case None => List(null)
+    }
+  }
 
 	protected def prefixGet(namespace: String, prefix: List[BoundValue], limit: BoundValue, ascending: Boolean)(implicit env: Environment): TupleStream = null
 
@@ -49,7 +63,14 @@ abstract trait QueryExecutor {
 	protected def pointerJoin(namespace: String, conditions: List[JoinCondition], child: EntityStream)(implicit env: Environment): TupleStream = null
 
 	/* Entity Providers */
-	protected def materialize(entityClass: Class[Entity[_,_]], child: TupleStream)(implicit env: Environment): EntityStream = null
+	protected def materialize(entityClass: Class[Entity[_,_]], child: TupleStream)(implicit env: Environment): EntityStream = {
+    child.map(c => {
+      val e = entityClass.newInstance().asInstanceOf[Entity[SpecificRecordBase,SpecificRecordBase]]
+      e.key.parse(c._1.toBytes)
+      e.value.parse(c._2.toBytes)
+      e
+    })
+  }
 
 	protected def selection(equalityMap: HashMap[String, BoundValue], child: EntityStream): EntityStream = null
 
