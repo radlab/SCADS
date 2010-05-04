@@ -14,6 +14,14 @@ import java.nio.ByteBuffer
 
 trait AvroConversions {
 
+    /** NOTE: 
+     * For the runtime, to get a list of byte buffers, you MUST do
+     * List[ByteBuffer]. To get a list of strings you MUST do
+     * List[String]. List[Array[Byte]] and List[Utf8] will NOT work. 
+     * TODO: we'll have to resolve this! basically these two methods will
+     * need to take a paramater which indicates how to resolve these issues.
+     */
+
     /**
      * We can't do type safe lists here because the types can change based on runtime types.
      * For example: 
@@ -29,9 +37,19 @@ trait AvroConversions {
             case Type.ARRAY => list.foreach( 
                 elem => genericArray.add(scalaListToGenericArray(elem.asInstanceOf[List[_]], schema.getElementType)) )
             case Type.BYTES => list.foreach( 
-                elem => genericArray.add(ByteBuffer.wrap(elem.asInstanceOf[Array[Byte]])) )
+                elem => 
+                    //if (elem.isInstanceOf[Array[Byte]])
+                    //    genericArray.add(ByteBuffer.wrap(elem.asInstanceOf[Array[Byte]])) 
+                    //else
+                        genericArray.add(elem.asInstanceOf[ByteBuffer])
+                )
             case Type.STRING => list.foreach(
-                elem => genericArray.add(new Utf8(elem.asInstanceOf[String])) )
+                elem => 
+                    //if (elem.isInstanceOf[String])
+                        genericArray.add(new Utf8(elem.asInstanceOf[String])) 
+                    //else
+                    //    genericArray.add(elem.asInstanceOf[Utf8])
+                )
             case _ => list.foreach( elem => genericArray.add(elem) )
         }
         genericArray

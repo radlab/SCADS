@@ -172,17 +172,31 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
         deffer
     }
 
+    val byteBufferClz = definitions.getClass("java.nio.ByteBuffer")
+    val utf8Clz = definitions.getClass("org.apache.avro.util.Utf8")
+
     def createSchema(sym: Symbol): Schema = {
         println("createSchema() called with sym: " + sym)
         if (primitiveClasses.get(sym.tpe.typeSymbol).isDefined)
             primitiveClasses.get(sym.tpe.typeSymbol).get
         else if (sym.tpe.typeSymbol == ArrayClass) {
-            println("sym.tpe.normalize.typeArgs.head: " + sym.tpe.normalize.typeArgs.head) 
+            println("sym.tpe.typeArgs.head: " + sym.tpe.typeArgs.head)
+            //println("sym.tpe.typeArgs.head: " + sym.tpe.asInstanceOf[TypeRef].args)
+            //println("sym.tpe.normalize.typeArgs.head: " + sym.tpe.normalize.typeArgs.head) 
             if (sym.tpe.normalize.typeArgs.head != ByteClass.tpe)
                 throw new UnsupportedOperationException("Bad Array Found: " + sym.tpe)
             Schema.create(AvroType.BYTES)
+        } else if (sym.tpe.typeSymbol == byteBufferClz) {
+            println ("byte buffer found")
+            Schema.create(AvroType.BYTES)
+        } else if (sym.tpe.typeSymbol == utf8Clz) {
+            println ("utf8 found")
+            Schema.create(AvroType.STRING)
         } else if (sym.tpe.typeSymbol == ListClass) {
-            val listParam = sym.tpe.normalize.typeArgs.head 
+            //val listParam = sym.tpe.normalize.typeArgs.head 
+            val listParam = sym.tpe.typeArgs.head
+            println ("listParam: " + listParam)
+            println ("typeParams: " + sym.tpe.typeParams)
             Schema.createArray(createSchema(listParam.typeSymbol))
         } else if (plugin.state.recordClassSchemas.get(sym.tpe.normalize.toString).isDefined) {
             plugin.state.recordClassSchemas.get(sym.tpe.normalize.toString).getOrElse(throw new IllegalStateException("should not be null"))
