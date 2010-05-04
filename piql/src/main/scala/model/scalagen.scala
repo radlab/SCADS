@@ -25,6 +25,10 @@ object ScalaGen extends Generator[BoundSpec] {
 		output("import scala.collection.mutable.HashMap")
 
 		spec.entities.values.foreach(generate)
+
+    outputBraced("object Queries extends QueryExecutor") {
+      spec.orphanQueries.foreach(Function.tupled(generateQuery))
+    }
 	}
 
 	protected def generate(entity: BoundEntity)(implicit sb: StringBuilder, indnt: Indentation): Unit = {
@@ -125,6 +129,7 @@ object ScalaGen extends Generator[BoundSpec] {
     case false | BoundFalseValue => "false"
     case BoundParameter(name, _) => name
     case BoundThisAttribute(name, _) => name
+    case BoundIntegerValue(i) => i.toString
     case AttributeCondition(attr) => "AttributeCondition(" + quote(attr) + ")"
     case u: AnyRef => {
       logger.fatal("I don't know how to generate scala for argument of type: " + u.getClass + " => " + u)
