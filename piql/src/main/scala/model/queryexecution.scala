@@ -45,7 +45,7 @@ abstract trait QueryExecutor {
     val ns = env.namespaces(namespace)
     val keyRec = ns.keyClass.newInstance().asInstanceOf[SpecificRecordBase]
     key.zipWithIndex.foreach {
-      case(value: BoundFixedValue[_], idx: Int) => keyRec.put(idx, value)
+      case(v: BoundFixedValue[_], idx: Int) => keyRec.put(idx, v.value)
     }
 
     ns.get(keyRec) match {
