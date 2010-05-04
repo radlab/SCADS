@@ -175,33 +175,34 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
     val byteBufferClz = definitions.getClass("java.nio.ByteBuffer")
     val utf8Clz = definitions.getClass("org.apache.avro.util.Utf8")
 
-    def createSchema(sym: Symbol): Schema = {
-        println("createSchema() called with sym: " + sym)
-        if (primitiveClasses.get(sym.tpe.typeSymbol).isDefined)
-            primitiveClasses.get(sym.tpe.typeSymbol).get
-        else if (sym.tpe.typeSymbol == ArrayClass) {
-            println("sym.tpe.typeArgs.head: " + sym.tpe.typeArgs.head)
-            //println("sym.tpe.typeArgs.head: " + sym.tpe.asInstanceOf[TypeRef].args)
-            //println("sym.tpe.normalize.typeArgs.head: " + sym.tpe.normalize.typeArgs.head) 
-            if (sym.tpe.normalize.typeArgs.head != ByteClass.tpe)
-                throw new UnsupportedOperationException("Bad Array Found: " + sym.tpe)
+    def createSchema(tpe: Type): Schema = {
+        println("createSchema() called with tpe: " + tpe)
+        if (primitiveClasses.get(tpe.typeSymbol).isDefined)
+            primitiveClasses.get(tpe.typeSymbol).get
+        else if (tpe.typeSymbol == ArrayClass) {
+            println("tpe.typeArgs.head: " + tpe.typeArgs.head)
+            //println("tpe.typeArgs.head: " + tpe.asInstanceOf[TypeRef].args)
+            //println("tpe.normalize.typeArgs.head: " + tpe.normalize.typeArgs.head) 
+            if (tpe.normalize.typeArgs.head != ByteClass.tpe)
+                throw new UnsupportedOperationException("Bad Array Found: " + tpe)
             Schema.create(AvroType.BYTES)
-        } else if (sym.tpe.typeSymbol == byteBufferClz) {
+        } else if (tpe.typeSymbol == byteBufferClz) {
             println ("byte buffer found")
             Schema.create(AvroType.BYTES)
-        } else if (sym.tpe.typeSymbol == utf8Clz) {
+        } else if (tpe.typeSymbol == utf8Clz) {
             println ("utf8 found")
             Schema.create(AvroType.STRING)
-        } else if (sym.tpe.typeSymbol == ListClass) {
-            //val listParam = sym.tpe.normalize.typeArgs.head 
-            val listParam = sym.tpe.typeArgs.head
-            println ("listParam: " + listParam)
-            println ("typeParams: " + sym.tpe.typeParams)
-            Schema.createArray(createSchema(listParam.typeSymbol))
-        } else if (plugin.state.recordClassSchemas.get(sym.tpe.normalize.toString).isDefined) {
-            plugin.state.recordClassSchemas.get(sym.tpe.normalize.toString).getOrElse(throw new IllegalStateException("should not be null"))
-        } else if (plugin.state.unions.contains(sym.tpe.normalize.toString)) {
-            val unionSchemas = plugin.state.unions.get(sym.tpe.normalize.toString).get.toList.map( u => {
+        } else if (tpe.typeSymbol == ListClass) {
+            //val listParam = tpe.normalize.typeArgs.head 
+            val listParam = tpe.typeArgs.head
+            //println ("listParam: " + listParam)
+            //println ("typeParams: " + tpe.typeParams)
+            //println (" tpe.typeArgs.head.typeArgs.head " + tpe.typeArgs.head.typeArgs.head)
+            Schema.createArray(createSchema(listParam))
+        } else if (plugin.state.recordClassSchemas.get(tpe.normalize.toString).isDefined) {
+            plugin.state.recordClassSchemas.get(tpe.normalize.toString).getOrElse(throw new IllegalStateException("should not be null"))
+        } else if (plugin.state.unions.contains(tpe.normalize.toString)) {
+            val unionSchemas = plugin.state.unions.get(tpe.normalize.toString).get.toList.map( u => {
                 plugin.state.recordClassSchemas.get(u).get 
             })
             println("unionSchemas: " + unionSchemas)
@@ -209,8 +210,11 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
             listBuffer ++= unionSchemas
             Schema.createUnion(listBuffer)
         } else 
-            throw new UnsupportedOperationException("Cannot support yet: " + sym.tpe)
+            throw new UnsupportedOperationException("Cannot support yet: " + tpe)
     }
+
+
+    def createSchema(sym: Symbol): Schema = createSchema(sym.tpe) 
 
     def createSchemaFieldVal(name: Name, templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
         println("name: " + name)
