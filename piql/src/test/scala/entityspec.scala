@@ -64,10 +64,10 @@ object EntitySpec extends SpecificationWithJUnit("Scads Entity Specification") {
       val a = e1.newInstance()
       a.setField("sf1", "test")
       a.setField("if1", new Integer(1))
-      a.save
+      //a.save
 
       val b = e1.newInstance()
-      b.load(a.key)
+      //b.load(a.key)
 
       b.getField("sf1") must_== "test"
       b.getField("if1") must_== 1
