@@ -383,6 +383,60 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     get(key, retValue)
   }
 
+  def getPrefix[K <: KeyType](key: K, fields:Int):Seq[(KeyType,ValueType)] = {
+    val nodes = serversForKey(key)
+    val gpr = new GetPrefixRequest
+    gpr.namespace = namespace
+
+    val fcount = key.getSchema.getFields.size
+    if (fields > fcount)
+      throw new Throwable("Request fields larger than number of fields key has")
+    
+    for (i <- (fields to (fcount - 1))) { // set remaining values to min
+      key.get(i) match {
+        case _:java.lang.Integer =>
+          key.put(i,java.lang.Integer.MIN_VALUE)
+        case _:java.lang.Long =>
+          key.put(i,java.lang.Long.MIN_VALUE)
+        case _:java.lang.Float =>
+          key.put(i,java.lang.Float.MIN_VALUE)
+        case _:java.lang.Double =>
+          key.put(i,java.lang.Double.MIN_VALUE)
+        case _:String =>
+          key.put(i,"")
+        case a:Array[_] => // set to 0 len array of same type
+          key.put(i,a.take(0))
+        case other =>
+          logger.warn("Got a type I don't know how to set to minimum, this getPrefix might not behave as expected")
+      }
+    }
+
+    gpr.start = key.toBytes
+    gpr.fields = fields
+    var retList = List[(KeyType,ValueType)]()
+    applyToSet(nodes,
+               (rn)=> {
+                 Sync.makeRequest(rn,dest,gpr,timeout)
+               },1) match {
+      case rs:RecordSet => {
+        val recit = rs.records.iterator
+        while (recit.hasNext) {
+          val rec = recit.next
+          val kinst = keyClass.newInstance.asInstanceOf[KeyType]
+          val vinst = valueClass.newInstance.asInstanceOf[ValueType]
+          kinst.parse(rec.key)
+          vinst.parse(rec.value)
+          retList = (kinst,vinst) :: retList
+        }
+      }
+      case other => {
+        logger.error("Invalid return from getPrefix request: "+other)
+      }
+    }
+    retList.reverse
+  }
+
+
   def flatMap[RetType <: SpecificRecordBase](func: (KeyType, ValueType) => List[RetType])(implicit retType: scala.reflect.Manifest[RetType]): Seq[RetType] = {
     class ResultSeq extends Actor with Seq[RetType] {
       val retClass = retType.erasure

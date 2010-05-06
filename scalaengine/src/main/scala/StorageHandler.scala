@@ -247,6 +247,19 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
     reader.read(null,decoder)
   }
 
+  private def mkSchema(old:Schema,newsize:Int):Schema = {
+    val result = Schema.createRecord(old.getName, old.getDoc, old.getNamespace, old.isError);
+    val fields = old.getFields
+    val newfields = new java.util.ArrayList[Schema.Field](newsize-1)
+    for (i <- (0 to (newsize-1))) {
+      val of = fields.get(i)
+      val nf = new Schema.Field(of.name,of.schema,of.doc,of.defaultValue,of.order)
+      newfields.add(nf)
+    }
+    result.setFields(newfields)
+    result
+  }
+
   private class ShippedClassLoader(ba:ByteBuffer) extends ClassLoader {
     override def findClass(name:String):Class[_] = {
       return defineClass(name, ba.array, ba.position, ba.remaining)
@@ -378,6 +391,39 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
           rec.value = value.getData
           recordSet.records.add(rec)
         })
+        reply(recordSet)
+      }
+
+      case gpr: GetPrefixRequest => {
+        val ns = namespaces(gpr.namespace)
+
+        val tschema = mkSchema(ns.keySchema,gpr.fields)
+        val recordSet = new RecordSet
+        recordSet.records = new AvroArray[Record](1024, Schema.createArray((new Record).getSchema))
+        
+        val dbeKey:DatabaseEntry = mkDbe(gpr.start)
+        val dbeValue = new DatabaseEntry
+        val cur = ns.db.openCursor(null,null)
+
+        try {
+          var stat = cur.getSearchKeyRange(dbeKey, dbeValue, null)
+          while(stat == OperationStatus.SUCCESS && 
+                (org.apache.avro.io.BinaryData.compare(dbeKey.getData,dbeKey.getOffset,gpr.start.array,gpr.start.position,tschema) == 0)) 
+          {
+            val rec = new Record
+            rec.key = dbeKey.getData
+            rec.value = dbeValue.getData
+            recordSet.records = rec :: recordSet.records
+            stat = cur.getNext(dbeKey, dbeValue, null)
+          }
+          recordSet.records = recordSet.records.reverse
+          cur.close
+        } catch {
+          case t:Throwable => {
+            cur.close
+            throw t
+          }
+        }
         reply(recordSet)
       }
 

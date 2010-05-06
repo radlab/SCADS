@@ -43,6 +43,11 @@
 			{"name": "namespace", "type": "string"},
 			{"name": "range", "type": "KeyRange"}]
 		},
+		{"name": "GetPrefixRequest", "type": "record", "fields": [
+			{"name": "namespace", "type": "string"},
+			{"name": "start", "type": "bytes"},
+			{"name": "fields", "type":"int"}]
+		},
 		{"name": "CountRangeRequest", "type": "record", "fields": [
 			{"name": "namespace", "type": "string"},
 			{"name": "range", "type": "KeyRange"}]
@@ -191,7 +196,8 @@
 		  {"name": "body", "type": [
 							   "null", 
 							 	 "GetRequest",
-								 "GetRangeRequest", 
+								 "GetRangeRequest",
+								 "GetPrefixRequest",
 								 "CountRangeRequest", 
 								 "RemoveRangeRequest",	
 								 "PutRequest", 
