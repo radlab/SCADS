@@ -401,20 +401,41 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
         val recordSet = new RecordSet
         recordSet.records = new AvroArray[Record](1024, Schema.createArray((new Record).getSchema))
         
+        var remaining = gpr.limit match {
+          case null       => -1
+          case AvroInt(i) => i
+        }
+        var ascending = gpr.ascending
+
         val dbeKey:DatabaseEntry = mkDbe(gpr.start)
         val dbeValue = new DatabaseEntry
         val cur = ns.db.openCursor(null,null)
 
         try {
           var stat = cur.getSearchKeyRange(dbeKey, dbeValue, null)
-          while(stat == OperationStatus.SUCCESS && 
+
+          if (!ascending) {
+            // skip backwards because we've probably gone too far forward
+            while (stat == OperationStatus.SUCCESS &&
+                   (org.apache.avro.io.BinaryData.compare(dbeKey.getData,dbeKey.getOffset,gpr.start.array,gpr.start.position,tschema) > 0)) {
+                     stat = cur.getPrev(dbeKey,dbeValue,null)
+                   }
+          }
+
+          while(stat == OperationStatus.SUCCESS &&
+                remaining != 0 &&
                 (org.apache.avro.io.BinaryData.compare(dbeKey.getData,dbeKey.getOffset,gpr.start.array,gpr.start.position,tschema) == 0)) 
           {
             val rec = new Record
             rec.key = dbeKey.getData
             rec.value = dbeValue.getData
             recordSet.records = rec :: recordSet.records
-            stat = cur.getNext(dbeKey, dbeValue, null)
+            stat = 
+              if (gpr.ascending)
+                cur.getNext(dbeKey, dbeValue, null)
+              else
+                cur.getPrev(dbeKey, dbeValue, null)
+            remaining -= 1
           }
           recordSet.records = recordSet.records.reverse
           cur.close

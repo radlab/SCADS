@@ -46,6 +46,8 @@
 		{"name": "GetPrefixRequest", "type": "record", "fields": [
 			{"name": "namespace", "type": "string"},
 			{"name": "start", "type": "bytes"},
+			{"name": "limit", "type": ["null", "int"]},
+			{"name": "ascending", "type":"boolean"},
 			{"name": "fields", "type":"int"}]
 		},
 		{"name": "CountRangeRequest", "type": "record", "fields": [

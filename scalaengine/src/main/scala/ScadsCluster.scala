@@ -383,29 +383,59 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     get(key, retValue)
   }
 
-  def getPrefix[K <: KeyType](key: K, fields:Int):Seq[(KeyType,ValueType)] = {
+  def getPrefix[K <: KeyType](key: K, fields:Int):Seq[(KeyType,ValueType)] = 
+    getPrefix(key,fields,-1,true)
+  def getPrefix[K <: KeyType](key: K, fields:Int, limit:Int, ascending:Boolean):Seq[(KeyType,ValueType)] = {
     val nodes = serversForKey(key)
     val gpr = new GetPrefixRequest
     gpr.namespace = namespace
+    if (limit >= 0)
+      gpr.limit = limit
+    gpr.ascending = ascending
 
     val fcount = key.getSchema.getFields.size
     if (fields > fcount)
       throw new Throwable("Request fields larger than number of fields key has")
     
-    for (i <- (fields to (fcount - 1))) { // set remaining values to min
+    for (i <- (fields to (fcount - 1))) { // set remaining values to min/max
       key.get(i) match {
+        case _:java.lang.Boolean =>
+          if (ascending)
+            key.put(i,false)
+          else
+            key.put(i,true)
         case _:java.lang.Integer =>
-          key.put(i,java.lang.Integer.MIN_VALUE)
+          if (ascending)
+            key.put(i,java.lang.Integer.MIN_VALUE)
+          else
+            key.put(i,java.lang.Integer.MAX_VALUE)
         case _:java.lang.Long =>
-          key.put(i,java.lang.Long.MIN_VALUE)
+          if (ascending)
+            key.put(i,java.lang.Long.MIN_VALUE)
+          else
+            key.put(i,java.lang.Long.MAX_VALUE)
         case _:java.lang.Float =>
-          key.put(i,java.lang.Float.MIN_VALUE)
+          if (ascending)
+            key.put(i,java.lang.Float.MIN_VALUE)
+          else
+            key.put(i,java.lang.Float.MAX_VALUE)
         case _:java.lang.Double =>
-          key.put(i,java.lang.Double.MIN_VALUE)
+          if (ascending)
+            key.put(i,java.lang.Double.MIN_VALUE)
+          else
+            key.put(i,java.lang.Double.MAX_VALUE)
         case _:String =>
-          key.put(i,"")
+          if (ascending)
+            key.put(i,"")
+          else {
+            // NOTE: We make the "max" string 20 max char values.  This won't work if you're putting big, max valued strings in your db
+            key.put(i,new String(Array.make[Byte](20,127)))
+          }
         case a:Array[_] => // set to 0 len array of same type
-          key.put(i,a.take(0))
+          if (ascending)
+            key.put(i,a.take(0))
+          else
+            throw new Exception("Can't do descending search with an array in the prefix")
         case other =>
           logger.warn("Got a type I don't know how to set to minimum, this getPrefix might not behave as expected")
       }
