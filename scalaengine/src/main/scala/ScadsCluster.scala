@@ -107,8 +107,8 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
    * - add a check that schema of record matches namespace schema or is at least resolvable to the local schema */
   private val dest = new Utf8("Storage")
   private val logger = Logger.getLogger("Namespace")
-  val keyClass = keyType.erasure
-  val valueClass = valueType.erasure
+  val keyClass = keyType.erasure.asInstanceOf[Class[SpecificRecordBase]]
+  val valueClass = valueType.erasure.asInstanceOf[Class[SpecificRecordBase]]
   private val nsNode = root.get("namespaces/"+namespace)
   private val schema = Schema.parse(new String(nsNode.get("keySchema").data))
 
