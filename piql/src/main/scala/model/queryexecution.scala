@@ -9,7 +9,7 @@ import edu.berkeley.cs.scads.storage.Namespace
 
 abstract sealed class JoinCondition
 case class AttributeCondition(attrName: String) extends JoinCondition
-case class BoundValueLiteralCondition(fieldValue: BoundValue) extends JoinCondition
+case class BoundValueLiteralCondition[T](fieldValue: BoundFixedValue[T]) extends JoinCondition
 
 case class EntityClass(name: String)
 
@@ -43,7 +43,7 @@ abstract trait QueryExecutor {
 	/* Tuple Providers */
 	protected def singleGet(namespace: String, key: List[BoundValue])(implicit env: Environment): TupleStream = {
     val ns = env.namespaces(namespace)
-    val keyRec = ns.keyClass.newInstance().asInstanceOf[SpecificRecordBase]
+    val keyRec = ns.keyClass.newInstance()
     key.zipWithIndex.foreach {
       case(v: BoundFixedValue[_], idx: Int) => keyRec.put(idx, v.value)
     }
@@ -54,13 +54,47 @@ abstract trait QueryExecutor {
     }
   }
 
-	protected def prefixGet(namespace: String, prefix: List[BoundValue], limit: BoundValue, ascending: Boolean)(implicit env: Environment): TupleStream = null
+  //TODO: Use limit/ascending parameters
+	protected def prefixGet(namespace: String, prefix: List[BoundValue], limit: BoundValue, ascending: Boolean)(implicit env: Environment): TupleStream = {
+    val ns = env.namespaces(namespace)
+    val key = ns.keyClass.newInstance()
+    prefix.zipWithIndex.foreach {
+      case (value: BoundValue, idx: Int) => key.put(idx, value)
+    }
+    ns.getPrefix(key, prefix.length)
+  }
 
-	protected def sequentialDereferenceIndex(targetNamespace: String, child: TupleStream)(implicit env: Environment): TupleStream = null
+  //TODO: Deal with values that return None
+	protected def sequentialDereferenceIndex(targetNamespace: String, child: TupleStream)(implicit env: Environment): TupleStream = {
+    val ns = env.namespaces(targetNamespace)
+    child.map(c => (c._2, ns.get(c._2).get))
+  }
 
-	protected def prefixJoin(namespace: String, conditions: List[JoinCondition], limit: BoundValue, ascending: Boolean, child: EntityStream)(implicit env: Environment): TupleStream = null
+  //TODO: use limit / ascending parameters
+  //TODO: parallelize
+	protected def prefixJoin(namespace: String, conditions: List[JoinCondition], limit: BoundValue, ascending: Boolean, child: EntityStream)(implicit env: Environment): TupleStream = {
+    val ns = env.namespaces(namespace)
+    child.flatMap(c => {
+      val key = ns.keyClass.newInstance()
+      conditions.zipWithIndex.foreach {
+        case (cond: AttributeCondition, idx: Int) => key.put(idx, c.get(cond.attrName))
+        case (cond: BoundValueLiteralCondition[_], idx: Int) => key.put(idx, cond.fieldValue.value)
+      }
+      ns.getPrefix(key, conditions.length)
+    })
+  }
 
-	protected def pointerJoin(namespace: String, conditions: List[JoinCondition], child: EntityStream)(implicit env: Environment): TupleStream = null
+	protected def pointerJoin(namespace: String, conditions: List[JoinCondition], child: EntityStream)(implicit env: Environment): TupleStream = {
+    val ns = env.namespaces(namespace)
+    child.map(c => {
+      val key = ns.keyClass.newInstance()
+      conditions.zipWithIndex.foreach {
+        case (cond: AttributeCondition, idx: Int) => key.put(idx, c.get(cond.attrName))
+        case (cond: BoundValueLiteralCondition[_], idx: Int) => key.put(idx, cond.fieldValue.value)
+      }
+      (key, ns.get(key).get)
+    })
+  }
 
 	/* Entity Providers */
 	protected def materialize(entityClass: Class[Entity[_,_]], child: TupleStream)(implicit env: Environment): EntityStream = {
@@ -72,9 +106,24 @@ abstract trait QueryExecutor {
     })
   }
 
-	protected def selection(equalityMap: HashMap[String, BoundValue], child: EntityStream): EntityStream = null
+	protected def selection(equalityMap: HashMap[String, BoundValue], child: EntityStream): EntityStream = {
+    child.filter(c => {
+      equalityMap.map {case (attrName: String, bv: BoundFixedValue[_]) => c.get(attrName) equals bv.value}.reduceLeft(_&_)
+    })
+  }
 
-	protected def sort(fields: List[String], ascending: Boolean, child: EntityStream): EntityStream = null
+	protected def sort(fields: List[String], ascending: Boolean, child: EntityStream): EntityStream = {
+    val comparator = (a: Entity[_,_], b: Entity[_,_]) => {
+      fields.map(f => (a.get(f), b.get(f)) match {
+        case (x: Integer, y: Integer) => x.intValue() < y.intValue()
+        case (x: String, y: String) => x < y
+      }).reduceLeft(_&_)
+    }
+
+    val ret = child.toArray
+    scala.util.Sorting.stableSort(ret, comparator)
+    if(ascending) ret else ret.reverse
+  }
 
 	protected def topK(k: BoundIntegerValue, child: EntityStream): EntityStream = child.take(k.value)
 }
