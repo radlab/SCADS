@@ -25,7 +25,7 @@ object ZooKeep {
 					logger.info("Connection to zookeeper failed, waiting")
 				}
 			}
-			Thread.sleep(5000)
+			Thread.sleep(100)
 		}
 
     new ZooKeeperProxy("localhost:" + port)
