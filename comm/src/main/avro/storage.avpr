@@ -189,6 +189,20 @@
 			{"name": "codename", "type": "string"},
 		  {"name": "code", "type": "bytes"}]
     },
+
+		{"name": "FoldRequest2L", "type": "record", "fields": [
+		  {"name": "namespace", "type": "string"},
+		  {"name": "keyType", "type": "string"},
+		  {"name": "valueType", "type": "string"},
+		  {"name": "initType", "type": "string"},			
+		  {"name": "initValue", "type": "bytes"},
+		  {"name": "direction", "type": "int"},
+			{"name": "codename", "type": "string"},
+		  {"name": "code", "type": "bytes"}]
+    },
+		{"name": "Fold2Reply", "type": "record", "fields": [
+		  {"name": "reply", "type": "bytes"}]
+    },
 					
 
 		{"name": "Message", "type": "record", "fields": [
@@ -222,6 +236,8 @@
                  "FlatMapResponse",
 								 "FilterRequest",
 								 "FoldRequest",
+								 "FoldRequest2L",
+								 "Fold2Reply",
 
 								 "Record", 
 								 "RecordSet",

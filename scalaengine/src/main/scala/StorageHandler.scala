@@ -193,6 +193,40 @@ class SendIter(targetNode:RemoteNode, id:java.lang.Long, receiverId:java.lang.Lo
     }
   }
 
+  def finish(timeout:Int): Unit = {
+    flush
+    val fin = new TransferFinished
+    fin.sendActorId = id.longValue
+    val msg = new Message
+    msg.src = id.longValue
+    msg.dest = receiverId.longValue
+    msg.body = fin
+    MessageHandler.sendMessage(targetNode,msg)
+    // now we loop and wait for acks and final cleanup from other side
+    var done = false
+    while(!done) {
+      receiveWithin(timeout) {
+        case (rn:RemoteNode, msg:Message)  => msg.body match {
+          case bda:BulkDataAck => {
+            // don't need to do anything, we're ignoring these
+          }
+          case ric:RecvIterClose => { // should probably have a status here at some point
+            done = true
+          }
+          case msgb => {
+            logger.warn("Copy end loop got unexpected message body: "+msgb)
+          }
+        }
+          case TIMEOUT => {
+            logger.warn("Copy end loop timed out waiting for finish")
+            done = true
+          }
+        case msg =>
+          logger.warn("Copy end loop got unexpected message: "+msg)
+      }
+    }
+  }
+
   def put(rec:Record): Unit = {
     while (windowLeft <= 0) { // not enough acks processed
       receiveWithin(60000) { // we'll allow 1 minute for an ack
@@ -765,6 +799,48 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
           }
         }
       }
+
+      case foldreq:FoldRequest2L  => {
+        val ns = namespaces(foldreq.namespace)
+        val key = Class.forName(foldreq.keyType).asInstanceOf[Class[SpecificRecordBase]].newInstance()
+        val value = Class.forName(foldreq.valueType).asInstanceOf[Class[SpecificRecordBase]].newInstance()
+        var initVal =  Class.forName(foldreq.initType).asInstanceOf[Class[SpecificRecordBase]].newInstance()
+        initVal.parse(foldreq.initValue)
+        try {
+          val fclass = deserialize(foldreq.codename,foldreq.code)
+          fclass match {
+            case cl:Class[_] => {
+              val o = cl.newInstance
+              val methods = cl.getMethods()
+              var midx = 0
+              for (i <- (1 to (methods.length-1))) {
+                val method = methods(i)
+                if (method.getName.indexOf("apply") >= 0) {
+                  midx = i
+                }
+              }
+              val method = methods(midx)
+              val range = new KeyRange
+              if (foldreq.direction == 1)
+                range.backwards = true
+              iterateOverRange(ns, range, false, (keyBytes, valueBytes, _) => {
+                key.parse(keyBytes.getData)
+                value.parse(valueBytes.getData)
+                initVal = method.invoke(o,initVal,(key,value)).asInstanceOf[SpecificRecordBase]
+              })
+              val rep = new Fold2Reply
+              rep.reply = initVal.toBytes
+              reply(rep)
+            }
+          }
+        } catch {
+          case e: Throwable => {
+            println("Fold2 Fail")
+            e.printStackTrace()
+            reply(new Record)
+          }
+        }
+      }
       // End of message handling
     }
 
@@ -844,36 +920,38 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
         case AvroInt(i) => i
     }
 
-    if(!range.backwards) {
-      logger.debug("skipping: " + toSkip)
-      while(toSkip > 0 && status == OperationStatus.SUCCESS) {
-        status = cur.getNext(dbeKey, dbeValue, null)
-        toSkip -= 1
+    if (status == OperationStatus.SUCCESS) {
+      if(!range.backwards) {
+        logger.debug("skipping: " + toSkip)
+        while(toSkip > 0 && status == OperationStatus.SUCCESS) {
+          status = cur.getNext(dbeKey, dbeValue, null)
+          toSkip -= 1
+        }
+        
+        status = cur.getCurrent(dbeKey, dbeValue, null)
+        while(status == OperationStatus.SUCCESS &&
+              remaining != 0 &&
+                (range.maxKey == null || ns.comp.compare(range.maxKey, dbeKey.getData) > 0)) {
+                  func(dbeKey, dbeValue,cur)
+                  status = cur.getNext(dbeKey, dbeValue, null)
+                  remaining -= 1
+                }
       }
-
-      status = cur.getCurrent(dbeKey, dbeValue, null)
-      while(status == OperationStatus.SUCCESS &&
-            remaining != 0 &&
-            (range.maxKey == null || ns.comp.compare(range.maxKey, dbeKey.getData) > 0)) {
-              func(dbeKey, dbeValue,cur)
-              status = cur.getNext(dbeKey, dbeValue, null)
-              remaining -= 1
-            }
-    }
-    else {
-      while(toSkip > 0 && status == OperationStatus.SUCCESS) {
-        status = cur.getPrev(dbeKey, dbeValue, null)
-        toSkip -= 1
+      else {
+        while(toSkip > 0 && status == OperationStatus.SUCCESS) {
+          status = cur.getPrev(dbeKey, dbeValue, null)
+          toSkip -= 1
+        }
+        
+        status = cur.getCurrent(dbeKey, dbeValue, null)
+        while(status == OperationStatus.SUCCESS &&
+              remaining != 0 &&
+              (range.minKey == null || ns.comp.compare(range.minKey, dbeKey.getData) < 0)) {
+                func(dbeKey, dbeValue,cur)
+                status = cur.getPrev(dbeKey, dbeValue, null)
+                remaining -= 1
+              }
       }
-
-      status = cur.getCurrent(dbeKey, dbeValue, null)
-      while(status == OperationStatus.SUCCESS &&
-            remaining != 0 &&
-            (range.minKey == null || ns.comp.compare(range.minKey, dbeKey.getData) < 0)) {
-              func(dbeKey, dbeValue,cur)
-              status = cur.getPrev(dbeKey, dbeValue, null)
-              remaining -= 1
-            }
     }
     if (finalFunc != null)
       finalFunc(cur)

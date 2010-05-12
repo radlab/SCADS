@@ -18,12 +18,16 @@ import edu.berkeley.cs.scads.test.StringRec
 import org.apache.log4j.Logger
 import org.apache.avro.generic.GenericData.{Array => AvroArray}
 import org.apache.avro.generic.GenericData
+import org.apache.avro.io.BinaryData
+
 import java.nio.ByteBuffer
+import scala.collection.mutable.HashMap
 import scala.collection.jcl.ArrayList
 import java.util.Arrays
 import scala.concurrent.SyncVar
 import scala.tools.nsc.interpreter.AbstractFileClassLoader
 import scala.tools.nsc.io.AbstractFile
+import edu.berkeley.cs.scads.avro.compiler.{UnionInterface, PrimitiveWrapper, ScalaLib}
 
 class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 	val namespaces = root.getOrCreate("namespaces")
@@ -125,6 +129,29 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       org.apache.avro.io.BinaryData.compare(max.array, max.position, p.max.array, p.max.position,
                                             schema)
     }
+
+    override def toString():String = {
+      val sb = new java.lang.StringBuffer
+      val k = keyClass.newInstance.asInstanceOf[KeyType]
+      sb.append("[")
+      if (min != null) {
+        k.parse(min)
+        sb.append(k.toString)
+      } else
+        sb.append("-inf")
+      sb.append(", ")
+      if (min != null) {
+        k.parse(max)
+        sb.append(k.toString)
+      } else
+        sb.append("inf")
+      sb.append("): ")
+      nodes.foreach((node) => {
+        sb.append(node)
+        sb.append(" ")
+      })
+      return sb.toString
+    }
   }
 
   private class RangeIterator(start:Int, end:Int) extends Iterator[polServer] {
@@ -166,6 +193,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       val policy = new PartitionedPolicy
       policy.parse(policyData)
 		  val iter = policy.partitions.iterator
+      nsNode.get("partitions/"+part._1).updateChildren(false)
       val nodes = nsNode.get("partitions/"+part._1+"/servers").updateChildren(false).toList.map(ent=>{
         new RemoteNode(ent._1,Integer.parseInt(new String(ent._2.data)))
       }) 
@@ -176,6 +204,19 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       }
 		})
     Arrays.sort(nodeCache,null)
+  }
+
+  def clearCache():Unit = {
+    nodeCache = null
+  }
+
+  def printCache():Unit = {
+    if (nodeCache == null)
+      updateNodeCache
+    println("Current cache:")
+    for (i <- (0 to (nodeCache.length - 1))) {
+      println(nodeCache(i))
+    }
   }
 
   private def idxForKey(key:SpecificRecordBase):Int = {
@@ -195,13 +236,15 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     val idx = idxForKey(key)
     // validate that we don't have a gap
     if (keyComp(nodeCache(idx).min,key.toBytes) > 0) {
-      logger.warn("Gap in partitions, returning empty server list")
+      logger.warn("Possible gap in partitions, returning empty server list")
       Nil
     } else
       nodeCache(idx).nodes
   }
 
   private def splitRange(startKey:SpecificRecordBase,endKey:SpecificRecordBase):RangeIterator = {
+    if (nodeCache == null)
+      updateNodeCache
     val sidx = 
       if (startKey == null)
         0
@@ -278,6 +321,74 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     ret
   }
 
+  /* send messages to multiple nodes.  nmsgl is a list of a list of nodes and message body.
+   * for each element of the list, each node in the list of nodes will have the associated
+   * message sent to it.  for each element of nmsgl repliesRequired replies will be waited for
+   * before returning
+   * */
+  private def multiSetApply(nmsgl:List[(List[RemoteNode],Message_body_Iface)], repliesRequired:Int):Array[List[Object]] = {
+    val repArray = new Array[List[Object]](nmsgl.length)
+    if (nmsgl.length == 0) {
+      logger.warn("Empty list passed to multiSetApply, returning an empty list")
+      return repArray
+    }
+    val reps = new Array[Int](nmsgl.length)
+    var totalNeeded = nmsgl.length
+    val resp = new SyncVar[Array[List[Object]]]
+    actor {
+      val id = MessageHandler.registerActor(self)
+      val msg = new Message
+      msg.dest = dest
+      msg.src = id
+      var p = 0L
+      nmsgl.foreach((nb)=>{
+        msg.body = nb._2
+        msg.id = p
+        nb._1.foreach((rn)=> {
+          MessageHandler.sendMessage(rn,msg)
+        })
+        p = p + 1
+      })
+      loop {
+        reactWithin(timeout) {
+          case (RemoteNode(hostname, port), reply: Message) => reply.body match {
+            case exp: ProcessingException => {
+              logger.error("ProcessingException in multiSetApply: "+exp)
+              resp.set(repArray)
+              MessageHandler.unregisterActor(id)
+              exit
+            }
+					  case obj => {
+              val intid = reply.id.asInstanceOf[PrimitiveWrapper[Long]].value.intValue
+              if (reps(intid) < repliesRequired) {
+                if (repArray(intid) == null)
+                  repArray(intid) = List[Object]()
+                repArray(intid) = obj :: repArray(intid)
+              }
+              reps(intid) += 1
+              if (reps(intid) == repliesRequired)
+                totalNeeded -= 1
+              if (totalNeeded == 0) {
+                resp.set(repArray)
+                MessageHandler.unregisterActor(id)
+                exit
+              }
+            }
+				  }
+          case TIMEOUT => {
+            logger.error("TIMEOUT in multiSetApply")
+            MessageHandler.unregisterActor(id)
+            resp.set(repArray)
+          }
+          case msg => {
+            logger.warn("Unexpected message in multiSetApply: " + msg)
+          }
+			  }
+      }
+    }
+    resp.get
+  }
+  
   /* get array of bytes which is the compiled version of cl */
   private def getFunctionCode(cl:AnyRef):java.nio.ByteBuffer = {
     val ldr = cl.getClass.getClassLoader
@@ -336,16 +447,20 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
 
   def put[K <: KeyType, V <: ValueType](key: K, value: V): Unit = {
     val nodes = serversForKey(key)
-    //val pr = new PutRequest
-    //pr.namespace = namespace
-    //pr.key = key.toBytes
-    //pr.value = value.toBytes
     val pr = PutRequest(namespace, ByteBuffer.wrap(key.toBytes), ByteBuffer.wrap(value.toBytes))
+    if (nodes.length <= 0) {
+      logger.warn("No nodes responsible for this key, not doing anything")
+      return
+    }
     applyToSet(nodes,(rn)=>{Sync.makeRequest(rn,dest,pr,timeout)},nodes.size)
   }
 
   def getBytes[K <: KeyType](key: K): java.nio.ByteBuffer = {
     val nodes = serversForKey(key)
+    if (nodes.length <= 0) {
+      logger.warn("No node responsible for this key, returning null")
+      return null
+    }
     val gr = new GetRequest
     gr.namespace = namespace
     gr.key = key.toBytes
@@ -466,6 +581,71 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     retList.reverse
   }
 
+
+  def getRange[K <: KeyType](start:K, end:K):Seq[(KeyType,ValueType)] =
+    getRange(start,end,0,0,false)
+  def getRange[K <: KeyType](start:K, end:K, limit:Int, offset: Int, backwards:Boolean): Seq[(KeyType,ValueType)] = {
+    val nodeIter = splitRange(start,end)
+    var nol = List[(List[RemoteNode],Message_body_Iface)]()
+    while(nodeIter.hasNext()) { 
+      val polServ = nodeIter.next
+      val kr = new KeyRange(
+        if (start != null || polServ.min != null) {
+          if (start == null)
+            polServ.min
+          else if (polServ.min == null)
+            ByteBuffer.wrap(start.toBytes)
+          else if (BinaryData.compare(start.toBytes,0,polServ.min.array,polServ.min.position,schema) < 0) // start key is less
+            polServ.min
+          else
+            ByteBuffer.wrap(start.toBytes)
+        } else null,
+        if (end != null || polServ.max != null) {
+          if (end == null)
+            polServ.max
+          else if (polServ.max == null)
+            ByteBuffer.wrap(end.toBytes)
+          else if (BinaryData.compare(end.toBytes,0,polServ.max.array,polServ.max.position,schema) < 0) // end key is less
+            ByteBuffer.wrap(end.toBytes)
+          else
+            polServ.max
+        } else null,
+        if (limit != 0)
+          limit
+        else
+          null,
+        offset,backwards)
+      val grr = new GetRangeRequest
+      grr.namespace = namespace
+      grr.range = kr
+      nol = (polServ.nodes,grr) :: nol
+    }
+    val r = multiSetApply(nol.reverse,1) // we'll just take the first reply from each set
+    var retList = List[(KeyType,ValueType)]()
+    var added = 0
+    val reps = 
+      if (backwards)
+        r.reverse
+      else
+        r
+    reps.foreach((repl) => {
+      if (limit == 0 || (added < limit)) {
+        val rep = repl(0)
+        val rs = rep.asInstanceOf[RecordSet]
+        val recit = rs.records.iterator
+        while (recit.hasNext && (limit == 0 || (added < limit))) {
+          val rec = recit.next
+          val kinst = keyClass.newInstance.asInstanceOf[KeyType]
+          val vinst = valueClass.newInstance.asInstanceOf[ValueType]
+          kinst.parse(rec.key)
+          vinst.parse(rec.value)
+          retList = (kinst,vinst) :: retList
+          added += 1
+        }
+      }
+    })
+    retList.reverse
+  }
 
   def flatMap[RetType <: SpecificRecordBase](func: (KeyType, ValueType) => List[RetType])(implicit retType: scala.reflect.Manifest[RetType]): Seq[RetType] = {
     class ResultSeq extends Actor with Seq[RetType] {
@@ -727,19 +907,258 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
         rlist.foldRight(z)(func)
   }
 
+  def foldLeft2L[TypeRemote <: SpecificRecordBase,TypeLocal](remInit:TypeRemote,localInit:TypeLocal)
+                                             (remFunc: (TypeRemote,(KeyType,ValueType)) => TypeRemote,
+                                              localFunc: (TypeLocal,TypeRemote) => TypeLocal): TypeLocal = {
+    var list = List[TypeRemote]()
+    val result = new SyncVar[List[TypeRemote]]
+    val ranges = splitRange(null, null).counted
+    actor {
+      val id = MessageHandler.registerActor(self)
+      try {
+        val msg = new Message
+        val fr = new FoldRequest2L
+        msg.src = id
+        msg.dest = dest
+        msg.body = fr
+        fr.namespace = namespace
+        fr.keyType = keyClass.getName
+        fr.valueType = valueClass.getName
+        fr.initType = remInit.getClass.getName
+        fr.initValue = remInit.toBytes
+        fr.codename = remFunc.getClass.getName
+        fr.code = getFunctionCode(remFunc)
+        fr.direction = 0 // TODO: Change dir to an enum when we support that
+        ranges.foreach(r => {
+          MessageHandler.sendMessage(r.nodes.first, msg)
+        })
+      } catch {
+        case t:Throwable => {
+          println("Some error processing foldLeft2L")
+          t.printStackTrace()
+          result.set(null)
+          MessageHandler.unregisterActor(id)
+          exit
+        }
+      }
+      var remaining = ranges.count
+      loop {
+        reactWithin(timeout) {
+          case (_, msg: Message) => {
+            val rep = msg.body.asInstanceOf[Fold2Reply]
+            val repv = remInit.getClass.newInstance.asInstanceOf[TypeRemote]
+            repv.parse(rep.reply)
+            list = repv :: list
+            remaining -= 1
+            if(remaining < 0) { // count starts at 0
+              result.set(list)
+              MessageHandler.unregisterActor(id)
+              exit
+            }
+          }
+          case TIMEOUT => {
+            logger.warn("Timeout waiting for foldLeft to return")
+            result.set(null)
+            MessageHandler.unregisterActor(id)
+            exit
+          }
+          case m => {
+            logger.fatal("Unexpected message in foldLeft: " + m)
+            result.set(null)
+            MessageHandler.unregisterActor(id)
+            exit
+          }
+        }
+      }
+    }
+    val rlist = result.get
+    if (rlist == null)
+      localInit
+    else
+      rlist.foldLeft(localInit)(localFunc)
+  }
+
   // TODO: Return Value?
   def ++=(that:Iterable[(KeyType,ValueType)]):Long = {
-    val start = System.currentTimeMillis
-    that foreach (pair => {
-      put(pair._1,pair._2)
-    })
-    System.currentTimeMillis-start
+    val limit = 256
+    val ret = new SyncVar[Long]
+    actor {
+      val id = MessageHandler.registerActor(self)
+      val bufferMap = new HashMap[Int,(AvroArray[Record],Int)]
+      val recvIterMap = new HashMap[RemoteNode,java.lang.Long]
+      val start = System.currentTimeMillis
+      var cnt = 0
+      that foreach (pair => {
+        cnt+=1
+        val idx = idxForKey(pair._1)
+        val polServ =  nodeCache(idx)
+        val nodes = polServ.nodes
+        if (bufferMap.contains(idx)) { // already have an iter open
+          val bufseq = bufferMap(idx)
+          val buf = bufseq._1
+          val rec = new Record
+          rec.key = pair._1.toBytes
+          rec.value = pair._2.toBytes
+          buf.add(rec)
+          if (buf.size >= limit) { // send the buffer
+            val bd = new BulkData
+            bd.seqNum = bufseq._2
+            //bufseq._2 += 1
+            bd.sendActorId = id
+            val rs = new RecordSet
+            rs.records = buf
+            bd.records = rs
+            val msg = new Message
+            msg.src = id
+            msg.body = bd
+            nodes.foreach((rn) => {
+              if (recvIterMap.contains(rn)) {
+                msg.dest = new AvroLong(recvIterMap(rn).longValue)
+                MessageHandler.sendMessage(rn,msg)
+              } else {
+                logger.warn("Not sending to: "+rn+". Have no iter open to it")
+              }
+            })
+            buf.clear
+          }
+        } else {
+          // validate that we don't have a gap
+          if (keyComp(nodeCache(idx).min,pair._1.toBytes) > 0) {
+            logger.warn("Gap in partitions, returning empty server list")
+            Nil
+          } else {
+            val rng = new KeyRange
+            rng.minKey=polServ.min
+            rng.maxKey=polServ.max
+            val csr = new CopyStartRequest
+            csr.ranges = new AvroArray[KeyRange](2, Schema.createArray((new KeyRange).getSchema))
+            csr.ranges.add(rng)
+            csr.namespace = namespace
+            val msg = new Message
+            msg.src = id
+            msg.dest = dest
+            msg.body = csr
+            nodes.foreach((rn) => {
+              // we need to open up send iters to all the target nodes
+              MessageHandler.sendMessage(rn,msg)
+            })
+            var repsNeeded = nodes.length
+            while (repsNeeded > 0) {
+              receiveWithin(timeout) {
+                case (rn:RemoteNode, msg:Message) => msg.body match {
+                  case tsr:TransferStartReply => {
+                    val thenode =
+                      if (rn.hostname == "localhost")
+                        new RemoteNode(java.net.InetAddress.getLocalHost.getHostName,rn.port)
+                      else
+                        rn
+                    logger.warn("Got tsr from: "+thenode)
+                    recvIterMap += thenode -> new java.lang.Long(tsr.recvActorId)
+                    repsNeeded -= 1
+                  }
+                  case bda:BulkDataAck => {
+                    logger.debug("Data ack, ignoring for now")
+                  }
+                  case other => {
+                    logger.error("Unexpected reply to transfer start request from: "+rn+": "+other)
+                    repsNeeded -= 1
+                  }
+                }
+                case TIMEOUT => {
+                  logger.error("TIMEOUT waiting for transfer start reply, dieing")
+                  exit
+                }
+                case msg => {
+                  logger.error("Unexpected reply to copy start request: "+msg)
+                  repsNeeded -= 1
+                }
+              }
+            }
+            // okay now we should have a full list of iters for all nodes
+            val buffer = new AvroArray[Record](limit, Schema.createArray((new Record).getSchema))
+            bufferMap += idx -> (buffer,0)
+            val rec = new Record
+            rec.key = pair._1.toBytes
+            rec.value = pair._2.toBytes
+            buffer.add(rec)
+          }
+        }
+      })
+      bufferMap.foreach((idxbuf) => {
+        val bufseq = idxbuf._2
+        val buf = bufseq._1
+        val polServ =  nodeCache(idxbuf._1)
+        val nodes = polServ.nodes
+        if (buf.size >= 0) { // send the buffer
+          val bd = new BulkData
+          bd.seqNum = bufseq._2
+          //bufseq._2 += 1
+          bd.sendActorId = id
+          val rs = new RecordSet
+          rs.records = buf
+          bd.records = rs
+          val msg = new Message
+          msg.src = id
+          msg.body = bd
+          nodes.foreach((rn) => {
+            if (recvIterMap.contains(rn)) {
+              msg.dest = recvIterMap(rn).longValue
+              MessageHandler.sendMessage(rn,msg)
+              } else {
+                logger.warn("Not sending to: "+rn+". Have no iter open to it")
+              }
+          })
+          buf.clear
+        }
+      })
+      // now send close messages and wait for everything to close up
+      val fin = new TransferFinished
+      fin.sendActorId = id.longValue
+      val msg = new Message
+      msg.src = id
+      msg.body = fin
+      var repsNeeded = 0
+      recvIterMap.foreach((rnid)=> {
+        msg.dest = rnid._2.longValue
+        repsNeeded += 1
+        MessageHandler.sendMessage(rnid._1,msg)
+      })
+      while (repsNeeded > 0) {
+        receiveWithin(timeout) {
+          case (rn:RemoteNode, msg:Message) => msg.body match {
+            case bda:BulkDataAck => {
+              logger.debug("Data ack, ignoring for now")
+            }
+            case ric:RecvIterClose => {
+              logger.warn("Got close for: "+rn)
+              repsNeeded -= 1
+            }
+            case other => {
+              logger.error("Unexpected message type waiting for acks/closes: "+rn+": "+other)
+              repsNeeded -= 1
+            }
+          }
+          case TIMEOUT => {
+            logger.error("TIMEOUT waiting for transfer start reply, dieing")
+            repsNeeded = 0
+          }
+          case msg => {
+            logger.error("Unexpected message waiting for acks/closes: "+msg)
+            repsNeeded -= 1
+          }
+        }
+      }
+      MessageHandler.unregisterActor(id)
+      println("Send a total of: "+cnt)
+      ret.set(System.currentTimeMillis-start)
+    }
+    ret.get
   }
 
   // call from within an actor only
   private def bulkPutBody(rn:RemoteNode, csr:CopyStartRequest, polServ:polServer, valBytes:Array[Byte], srec:IntRec, erec:IntRec):Unit = {
     val id = MessageHandler.registerActor(self)
-    val myId = new java.lang.Long(id)
+    val myId = id
     Sync.makeRequest(rn,dest,csr,timeout) match {
       case tsr: TransferStartReply => {
         logger.warn("Got TransferStartReply, sending data")
