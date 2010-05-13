@@ -68,7 +68,6 @@ object ScalaGen extends Generator[BoundSpec] {
           case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.STRING) =>
             output("case ", idx.toString, " => ", prefix.getOrElse(""), field.name, " = v.toString")
           case (field: Schema.Field, idx: Int) =>
-            output("case ", idx.toString, " => ", prefix.getOrElse(""), field.name, ".put(0, v)") //TODO: won't work for multi part keys!
         }
         output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad index\")")
       }
