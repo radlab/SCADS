@@ -423,8 +423,9 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
           val rec = new Record
           rec.key = key.getData
           rec.value = value.getData
-          recordSet.records.add(rec)
+          recordSet.records = rec :: recordSet.records
         })
+        recordSet.records = recordSet.records.reverse
         reply(recordSet)
       }
 
