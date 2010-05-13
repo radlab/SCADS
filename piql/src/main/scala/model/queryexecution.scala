@@ -6,6 +6,7 @@ import edu.berkeley.cs.scads.piql.parser.{BoundValue, BoundIntegerValue, BoundSt
 import org.apache.avro.specific.SpecificRecordBase
 import org.apache.avro.generic.{IndexedRecord, GenericData}
 import edu.berkeley.cs.scads.storage.Namespace
+import edu.berkeley.Log2
 
 abstract sealed class JoinCondition
 case class AttributeCondition(attrName: String) extends JoinCondition
@@ -42,39 +43,51 @@ abstract trait QueryExecutor {
 
 	/* Tuple Providers */
 	protected def singleGet(namespace: String, key: List[BoundValue])(implicit env: Environment): TupleStream = {
+    qLogger.debug("test")
+    Log2.debug(qLogger, "singleGet", namespace, key)
     val ns = env.namespaces(namespace)
     val keyRec = ns.keyClass.newInstance()
     key.zipWithIndex.foreach {
       case(v: BoundFixedValue[_], idx: Int) => keyRec.put(idx, v.value)
     }
 
-    ns.get(keyRec) match {
+    val result = ns.get(keyRec) match {
       case Some(v) => List((keyRec, v))
       case None => List(null)
     }
+
+    Log2.debug(qLogger, "singleGet Result:", result)
+    return result
   }
 
   //TODO: Use limit/ascending parameters
 	protected def prefixGet(namespace: String, prefix: List[BoundValue], limit: BoundValue, ascending: Boolean)(implicit env: Environment): TupleStream = {
+    Log2.debug(qLogger, "prefixGet", namespace, prefix, limit, boolean2Boolean(ascending))
     val ns = env.namespaces(namespace)
     val key = ns.keyClass.newInstance()
     prefix.zipWithIndex.foreach {
       case (value: BoundValue, idx: Int) => key.put(idx, value)
     }
-    ns.getPrefix(key, prefix.length)
+    val result = ns.getPrefix(key, prefix.length)
+    Log2.debug(qLogger, "singleGet result:", result)
+    return result
   }
 
   //TODO: Deal with values that return None
 	protected def sequentialDereferenceIndex(targetNamespace: String, child: TupleStream)(implicit env: Environment): TupleStream = {
+    Log2.debug(qLogger, "sequentialDereferenceIndex", targetNamespace, child)
     val ns = env.namespaces(targetNamespace)
-    child.map(c => (c._2, ns.get(c._2).get))
+    val result = child.map(c => (c._2, ns.get(c._2).get))
+    Log2.debug(qLogger, "sequentialDereferenceIndex result:", result)
+    return result
   }
 
   //TODO: use limit / ascending parameters
   //TODO: parallelize
 	protected def prefixJoin(namespace: String, conditions: List[JoinCondition], limit: BoundValue, ascending: Boolean, child: EntityStream)(implicit env: Environment): TupleStream = {
+    Log2.debug(qLogger, "prefixJoin", namespace, conditions, limit, boolean2Boolean(ascending), child)
     val ns = env.namespaces(namespace)
-    child.flatMap(c => {
+    val result = child.flatMap(c => {
       val key = ns.keyClass.newInstance()
       conditions.zipWithIndex.foreach {
         case (cond: AttributeCondition, idx: Int) => key.put(idx, c.get(cond.attrName))
@@ -82,37 +95,50 @@ abstract trait QueryExecutor {
       }
       ns.getPrefix(key, conditions.length)
     })
+    Log2.debug(qLogger, "prefixJoin result: ", result)
+    return result
   }
 
 	protected def pointerJoin(namespace: String, conditions: List[JoinCondition], child: EntityStream)(implicit env: Environment): TupleStream = {
+    Log2.debug(qLogger, "pointerJoin", namespace, conditions, child)
     val ns = env.namespaces(namespace)
-    child.map(c => {
+    val result = child.map(c => {
       val key = ns.keyClass.newInstance()
       conditions.zipWithIndex.foreach {
         case (cond: AttributeCondition, idx: Int) => key.put(idx, c.get(cond.attrName))
         case (cond: BoundValueLiteralCondition[_], idx: Int) => key.put(idx, cond.fieldValue.value)
       }
+      Log2.debug(qLogger, "pointerJoin doing get on key: ", key)
       (key, ns.get(key).get)
     })
+    Log2.debug(qLogger, "pointerJoin result:", result)
+    return result
   }
 
 	/* Entity Providers */
 	protected def materialize(entityClass: Class[Entity[_,_]], child: TupleStream)(implicit env: Environment): EntityStream = {
-    child.map(c => {
+    Log2.debug(qLogger, "materialize", entityClass, child)
+    val result = child.map(c => {
       val e = entityClass.newInstance().asInstanceOf[Entity[SpecificRecordBase,SpecificRecordBase]]
       e.key.parse(c._1.toBytes)
       e.value.parse(c._2.toBytes)
       e
     })
+    Log2.debug(qLogger, "materialize result:", result)
+    return result
   }
 
 	protected def selection(equalityMap: HashMap[String, BoundValue], child: EntityStream): EntityStream = {
-    child.filter(c => {
+    Log2.debug(qLogger, "selection", equalityMap, child)
+    val result = child.filter(c => {
       equalityMap.map {case (attrName: String, bv: BoundFixedValue[_]) => c.get(attrName) equals bv.value}.reduceLeft(_&_)
     })
+    Log2.debug(qLogger, "selection result: ", result)
+    return result
   }
 
 	protected def sort(fields: List[String], ascending: Boolean, child: EntityStream): EntityStream = {
+    Log2.debug(qLogger, "sort", fields, boolean2Boolean(ascending), child)
     val comparator = (a: Entity[_,_], b: Entity[_,_]) => {
       fields.map(f => (a.get(f), b.get(f)) match {
         case (x: Integer, y: Integer) => x.intValue() < y.intValue()
@@ -122,7 +148,9 @@ abstract trait QueryExecutor {
 
     val ret = child.toArray
     scala.util.Sorting.stableSort(ret, comparator)
-    if(ascending) ret else ret.reverse
+    val result = if(ascending) ret else ret.reverse
+    Log2.debug(qLogger, "sort result:", result)
+    return result
   }
 
 	protected def topK(k: BoundIntegerValue, child: EntityStream): EntityStream = child.take(k.value)
