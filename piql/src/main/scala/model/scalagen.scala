@@ -30,7 +30,7 @@ object ScalaGen extends Generator[BoundSpec] {
     }
 	}
 
-  def outputFields(r: Schema, prefix: String)(implicit sb: StringBuilder, indnt: Indentation): Unit = {
+  protected def outputFields(r: Schema, prefix: String)(implicit sb: StringBuilder, indnt: Indentation): Unit = {
     r.getFields.foreach(f => f.schema().getType match {
       case Type.STRING => output("var ", prefix + f.name, ":String = \"\"")
       case Type.BOOLEAN =>output("var ", prefix + f.name, ":Boolean = false")
@@ -39,7 +39,7 @@ object ScalaGen extends Generator[BoundSpec] {
     })
   }
 
-  def outputFunctions(r: Schema, prefix: Option[String])(implicit sb: StringBuilder, indnt: Indentation): Unit = {
+  protected def outputFunctions(r: Schema, prefix: Option[String])(implicit sb: StringBuilder, indnt: Indentation): Unit = {
     val fields = r.getFields.toList
 
     outputBraced("override def get(f: Int): Object =") {
@@ -68,6 +68,7 @@ object ScalaGen extends Generator[BoundSpec] {
           case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.STRING) =>
             output("case ", idx.toString, " => ", prefix.getOrElse(""), field.name, " = v.toString")
           case (field: Schema.Field, idx: Int) =>
+            output("case ", idx.toString, " => ", prefix.getOrElse(""), field.name, ".put(0, v)") //TODO: won't work for multi part keys!
         }
         output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad index\")")
       }
