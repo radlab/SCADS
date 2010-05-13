@@ -498,6 +498,73 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     get(key, retValue)
   }
 
+  def minRecord(rec:SpecificRecordBase, prefix:Int, ascending:Boolean):Unit = { 
+    val fields = rec.getSchema.getFields
+    for (i <- (prefix to (fields.size() - 1))) { // set remaining values to min/max
+      fields.get(i).schema.getType match {
+        case org.apache.avro.Schema.Type.ARRAY =>
+          if (ascending)
+            rec.put(i,new GenericData.Array(0,fields.get(i).schema))
+          else
+            throw new Exception("Can't do descending search with an array in the prefix")
+        case org.apache.avro.Schema.Type.BOOLEAN =>
+          if (ascending)
+            rec.put(i,false)
+          else
+            rec.put(i,true)
+        case org.apache.avro.Schema.Type.BYTES =>
+          if (ascending)
+            rec.put(i,ByteBuffer.allocate(0))
+          else
+            throw new Exception("Can't do descending search with bytes the prefix")
+        case org.apache.avro.Schema.Type.DOUBLE =>
+          if (ascending)
+            rec.put(i,java.lang.Double.MIN_VALUE)
+          else
+            rec.put(i,java.lang.Double.MAX_VALUE)
+        case org.apache.avro.Schema.Type.ENUM =>
+          throw new Exception("ENUM not supported at the moment")
+        case org.apache.avro.Schema.Type.FIXED =>
+          throw new Exception("FIXED not supported at the moment")
+        case org.apache.avro.Schema.Type.FLOAT =>
+          if (ascending)
+            rec.put(i,java.lang.Float.MIN_VALUE)
+          else
+            rec.put(i,java.lang.Float.MAX_VALUE)
+        case org.apache.avro.Schema.Type.INT =>
+          if (ascending)
+            rec.put(i,java.lang.Integer.MIN_VALUE)
+          else
+            rec.put(i,java.lang.Integer.MAX_VALUE)
+        case org.apache.avro.Schema.Type.LONG =>
+          if (ascending)
+            rec.put(i,java.lang.Long.MIN_VALUE)
+          else
+            rec.put(i,java.lang.Long.MAX_VALUE)
+        case org.apache.avro.Schema.Type.MAP =>
+          throw new Exception("MAP not supported at the moment")
+        case org.apache.avro.Schema.Type.NULL =>
+          // null is only null, so it's already min, has no max
+          if (!ascending)
+            throw new Exception("Can't do descending search with null in the prefix")
+        case org.apache.avro.Schema.Type.RECORD => 
+          if (rec.get(i) != null)
+            minRecord(rec.get(i).asInstanceOf[SpecificRecordBase],0,ascending)
+        case org.apache.avro.Schema.Type.STRING => 
+          if (ascending)
+            rec.put(i,new Utf8(""))
+          else {
+            // NOTE: We make the "max" string 20 max char values.  This won't work if you're putting big, max valued strings in your db
+            rec.put(i,new Utf8(new String(Array.make[Byte](20,127))))
+          }
+        case org.apache.avro.Schema.Type.UNION => 
+          throw new Exception("UNION not supported at the moment")
+        case other =>
+          logger.warn("Got a type I don't know how to set to minimum, this getPrefix might not behave as expected: "+other)
+      }
+    }
+  }
+
   def getPrefix[K <: KeyType](key: K, fields:Int):Seq[(KeyType,ValueType)] = 
     getPrefix(key,fields,-1,true)
   def getPrefix[K <: KeyType](key: K, fields:Int, limit:Int, ascending:Boolean):Seq[(KeyType,ValueType)] = {
@@ -512,49 +579,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     if (fields > fcount)
       throw new Throwable("Request fields larger than number of fields key has")
     
-    for (i <- (fields to (fcount - 1))) { // set remaining values to min/max
-      key.get(i) match {
-        case _:java.lang.Boolean =>
-          if (ascending)
-            key.put(i,false)
-          else
-            key.put(i,true)
-        case _:java.lang.Integer =>
-          if (ascending)
-            key.put(i,java.lang.Integer.MIN_VALUE)
-          else
-            key.put(i,java.lang.Integer.MAX_VALUE)
-        case _:java.lang.Long =>
-          if (ascending)
-            key.put(i,java.lang.Long.MIN_VALUE)
-          else
-            key.put(i,java.lang.Long.MAX_VALUE)
-        case _:java.lang.Float =>
-          if (ascending)
-            key.put(i,java.lang.Float.MIN_VALUE)
-          else
-            key.put(i,java.lang.Float.MAX_VALUE)
-        case _:java.lang.Double =>
-          if (ascending)
-            key.put(i,java.lang.Double.MIN_VALUE)
-          else
-            key.put(i,java.lang.Double.MAX_VALUE)
-        case _:String =>
-          if (ascending)
-            key.put(i,"")
-          else {
-            // NOTE: We make the "max" string 20 max char values.  This won't work if you're putting big, max valued strings in your db
-            key.put(i,new String(Array.make[Byte](20,127)))
-          }
-        case a:Array[_] => // set to 0 len array of same type
-          if (ascending)
-            key.put(i,a.take(0))
-          else
-            throw new Exception("Can't do descending search with an array in the prefix")
-        case other =>
-          logger.warn("Got a type I don't know how to set to minimum, this getPrefix might not behave as expected")
-      }
-    }
+    minRecord(key,fields,ascending)
 
     gpr.start = key.toBytes
     gpr.fields = fields
