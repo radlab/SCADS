@@ -82,17 +82,31 @@ abstract trait QueryExecutor {
     return result
   }
 
+  private def mkKey(keyClass: Class[EntityPart], conditions: List[JoinCondition], entity: Entity[_,_]): SpecificRecordBase = {
+    val key = keyClass.newInstance()
+    val keyParts = conditions.flatMap {
+      case AttributeCondition(attrName) => entity.get(attrName) match {
+        case ep: EntityPart => ep.flatValues
+        case value => List(value)
+      }
+      case bv: BoundValueLiteralCondition[_] => List(bv.fieldValue.value)
+    }
+
+
+    keyParts.zipWithIndex.foreach {
+      case(v: Any, idx: Int) => {println("setting " + idx + " " + v); key.flatPut(idx, v)}
+    }
+    return key
+  }
+
   //TODO: use limit / ascending parameters
   //TODO: parallelize
 	protected def prefixJoin(namespace: String, conditions: List[JoinCondition], limit: BoundValue, ascending: Boolean, child: EntityStream)(implicit env: Environment): TupleStream = {
     Log2.debug(qLogger, "prefixJoin", namespace, conditions, limit, boolean2Boolean(ascending), child)
     val ns = env.namespaces(namespace)
     val result = child.flatMap(c => {
-      val key = ns.keyClass.newInstance()
-      conditions.zipWithIndex.foreach {
-        case (cond: AttributeCondition, idx: Int) => key.put(idx, c.get(cond.attrName))
-        case (cond: BoundValueLiteralCondition[_], idx: Int) => key.put(idx, cond.fieldValue.value)
-      }
+      val key = mkKey(ns.keyClass.asInstanceOf[Class[EntityPart]], conditions, c)
+      Log2.debug(qLogger, "prefixJoin doing get on key: ", key)
       ns.getPrefix(key, conditions.length)
     })
     Log2.debug(qLogger, "prefixJoin result: ", result)
@@ -103,11 +117,8 @@ abstract trait QueryExecutor {
     Log2.debug(qLogger, "pointerJoin", namespace, conditions, child)
     val ns = env.namespaces(namespace)
     val result = child.map(c => {
-      val key = ns.keyClass.newInstance()
-      conditions.zipWithIndex.foreach {
-        case (cond: AttributeCondition, idx: Int) => key.put(idx, c.get(cond.attrName))
-        case (cond: BoundValueLiteralCondition[_], idx: Int) => key.put(idx, cond.fieldValue.value)
-      }
+      val key = mkKey(ns.keyClass.asInstanceOf[Class[EntityPart]], conditions, c)
+
       Log2.debug(qLogger, "pointerJoin doing get on key: ", key)
       (key, ns.get(key).get)
     })

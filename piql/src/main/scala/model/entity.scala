@@ -40,6 +40,9 @@ abstract class EntityPart extends SpecificRecordBase with SpecificRecord {
 		val dec = new BinaryDecoder(in)
 		reader.read(this, dec)
 	}
+
+  def flatPut(idx: Int, value: Any)
+  def flatValues: List[Any]
 }
 
 abstract class Entity[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]) {
