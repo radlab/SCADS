@@ -92,6 +92,7 @@ abstract trait QueryExecutor {
       case bv: BoundValueLiteralCondition[_] => List(bv.fieldValue.value)
     }
 
+    println("keyParts:" + keyParts)
 
     keyParts.zipWithIndex.foreach {
       case(v: Any, idx: Int) => {println("setting " + idx + " " + v); key.flatPut(idx, v)}

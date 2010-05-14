@@ -53,7 +53,7 @@ abstract class Entity[KeyType <: SpecificRecordBase, ValueType <: SpecificRecord
 
   val indexes: Map[String, Schema]
 
-  def get(fieldName: String): Object
+  def get(fieldName: String): Any
 
   def load(pk: KeyType)(implicit cluster: ScadsCluster): Unit = {
     key.parse(pk.toBytes)
