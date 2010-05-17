@@ -59,8 +59,8 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
         val list = clazz.info.decls.toList filter (_ hasFlag ACCESSOR)
 
         // TODO: find a better way to get a handle to these types
-        val byteBufferTpe = unit.depends.filter(i => i.fullNameString == "java.nio.ByteBuffer" && !i.isModuleClass).head.tpe
-        val utf8Tpe = unit.depends.filter(i => i.fullNameString == "org.apache.avro.util.Utf8" && !i.isModuleClass).head.tpe
+        val byteBufferTpe = unit.depends.filter(i => i.fullName == "java.nio.ByteBuffer" && !i.isModuleClass).head.tpe
+        val utf8Tpe = unit.depends.filter(i => i.fullName == "org.apache.avro.util.Utf8" && !i.isModuleClass).head.tpe
 
         println("utf8Tpe: " + utf8Tpe)
 
@@ -220,10 +220,10 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
         println("name: " + name)
         println("clazz.name: " + clazz.name)
         println("clazz.owner.name: " + clazz.owner.name)
-        println("clazz.owner.fullNameString: " + clazz.owner.fullNameString)
-        println("clazz.fullNameString: " + clazz.fullNameString) 
+        println("clazz.owner.fullName: " + clazz.owner.fullName)
+        println("clazz.fullName: " + clazz.fullName) 
 
-        val newRecord = Schema.createRecord(clazz.name.toString, "Auto-Generated Schema", clazz.owner.fullNameString, false)
+        val newRecord = Schema.createRecord(clazz.name.toString, "Auto-Generated Schema", clazz.owner.fullName, false)
 
         val fieldList = instanceVars.map( iVar => {
             val fieldSchema = createSchema(iVar)
@@ -240,8 +240,8 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
         b ++= fieldList
         newRecord.setFields(b)
         println("newRecord: " + newRecord.toString)
-        //assert( plugin.state.contains(clazz.fullNameString) )
-        plugin.state.recordClassSchemas += clazz.fullNameString -> newRecord
+        //assert( plugin.state.contains(clazz.fullName) )
+        plugin.state.recordClassSchemas += clazz.fullName -> newRecord
 
         val newSym = clazz.newValue(clazz.pos.focus, newTermName("_schema"))
         newSym setFlag PRIVATE 
@@ -309,16 +309,16 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
             }
 
             // add all union defs to union set 
-            avroUnionDefs.foreach( ud => plugin.state.unions += ud.symbol.fullNameString -> new HashSet[String] )
+            avroUnionDefs.foreach( ud => plugin.state.unions += ud.symbol.fullName -> new HashSet[String] )
 
             // compute closure for each union
             avroClassDefs.foreach( cd => {
                 val cdCast = cd.asInstanceOf[ClassDef]
                 val parents = cdCast.impl.parents
-                println("parents: " + parents.map( _.symbol.fullNameString ))
-                val unionDefParents = parents.filter( p => plugin.state.unions.contains(p.symbol.fullNameString) )
+                println("parents: " + parents.map( _.symbol.fullName ))
+                val unionDefParents = parents.filter( p => plugin.state.unions.contains(p.symbol.fullName) )
                 unionDefParents.foreach( p => 
-                    plugin.state.unions.get(p.symbol.fullNameString).get.add(cdCast.symbol.fullNameString) )
+                    plugin.state.unions.get(p.symbol.fullName).get.add(cdCast.symbol.fullName) )
             })
 
             println("plugin.state.unions: " + plugin.state.unions)
@@ -332,8 +332,8 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
             // (like the class symbol or type)
             val dependencyGraph = new DirectedGraph[String]
 
-            avroClassDefs.foreach( classDef => dependencyGraph.add(classDef.symbol.fullNameString) )
-            avroClassDefs.foreach( classDef => plugin.state.recordClassSchemas += (classDef.symbol.fullNameString -> null) )
+            avroClassDefs.foreach( classDef => dependencyGraph.add(classDef.symbol.fullName) )
+            avroClassDefs.foreach( classDef => plugin.state.recordClassSchemas += (classDef.symbol.fullName -> null) )
 
             def containsUnionType(sym: Symbol):Boolean = {
                 if (sym.tpe.typeSymbol == ListClass)
@@ -359,7 +359,7 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
                     isInstanceVar(iv) && containsUnionType(iv.symbol) ).map( iv =>
                         getUnionType(iv.symbol))
                 unionInstanceVars.foreach(l => l.foreach( clz2 => {
-                    dependencyGraph.addEdge(classDef.symbol.fullNameString, clz2)
+                    dependencyGraph.addEdge(classDef.symbol.fullName, clz2)
                 }))
             })
 
@@ -386,8 +386,8 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
                 val avroInstanceVars = instanceVars.filter( iv => containsRecordType(iv.symbol) ).map( iv => getRecordType(iv.symbol) )
                 println("avroInstanceVars (Records): " + avroInstanceVars)
                 avroInstanceVars.foreach( ivSym => {
-                    if (!dependencyGraph.containsEdge(classDef.symbol.fullNameString, ivSym.tpe.normalize.toString))
-                        dependencyGraph.addEdge(classDef.symbol.fullNameString, ivSym.tpe.normalize.toString) 
+                    if (!dependencyGraph.containsEdge(classDef.symbol.fullName, ivSym.tpe.normalize.toString))
+                        dependencyGraph.addEdge(classDef.symbol.fullName, ivSym.tpe.normalize.toString) 
                 })
             })
 
@@ -398,7 +398,7 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
             println("TSort: " + tSort)
 
             // TODO: this isn't very efficient
-            val sortedAvroClassDefs = tSort.map( className => avroClassDefs.filter( classDef => classDef.symbol.fullNameString == className ).head )
+            val sortedAvroClassDefs = tSort.map( className => avroClassDefs.filter( classDef => classDef.symbol.fullName == className ).head )
 
             val newAvroStats = for (m <- sortedAvroClassDefs) yield {
                 m match {
@@ -426,7 +426,7 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
                         if (!isAnnotatedRecordSym(m.symbol)) {
                             m
                         } else {
-                            newAvroStats.filter(cd => m.symbol.fullNameString == cd.symbol.fullNameString).head
+                            newAvroStats.filter(cd => m.symbol.fullName == cd.symbol.fullName).head
                         }
                     case _ => m
                 }
@@ -437,14 +437,14 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
             val newModuleDefs = newPackageStats.
                 filter( s => 
                     s.isInstanceOf[ModuleDef] && 
-                    plugin.state.recordClassSchemas.contains(s.symbol.fullNameString) ).
+                    plugin.state.recordClassSchemas.contains(s.symbol.fullName) ).
                 map( _.asInstanceOf[ModuleDef] ).
                 map ( md => {
                     val mods = md.mods
                     val name = md.name
                     val impl = md.impl
 
-                    val schema = plugin.state.recordClassSchemas.get(md.symbol.fullNameString).get
+                    val schema = plugin.state.recordClassSchemas.get(md.symbol.fullName).get
 
                     val nonSchemaMbrs = impl.body.filterNot( mbr => mbr.isInstanceOf[ValDef] && mbr.asInstanceOf[ValDef].name.toString == "schema " )
                     val schemaMbr = impl.body.filter( mbr => mbr.isInstanceOf[ValDef] && mbr.asInstanceOf[ValDef].name.toString == "schema " ).head /* the extra space is important */
@@ -456,7 +456,7 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
                     }
                     println("newSchemaMbr: " + newSchemaMbr)
                     //val newSym = md.symbol.moduleClass.newValue(md.symbol.pos.focus, newTermName("schema "))
-                    //val schemaTpe = unit.depends.filter(i => i.fullNameString == "org.apache.avro.Schema" && !i.isModuleClass).head.tpe
+                    //val schemaTpe = unit.depends.filter(i => i.fullName == "org.apache.avro.Schema" && !i.isModuleClass).head.tpe
                     //newSym setFlag PRIVATE | LOCAL
                     //newSym setInfo schemaTpe 
                     //md.symbol.info.decls enter newSym
@@ -491,7 +491,7 @@ class GenerateSynthetics(plugin: ScalaAvroPlugin, val global : Global) extends P
                 m match {
                     case md @ ModuleDef(mods, name, impl) =>
                         val replacement = newModuleDefs.filter(
-                            _.symbol.fullNameString == md.symbol.fullNameString)
+                            _.symbol.fullName == md.symbol.fullName)
                         if (replacement.isEmpty)
                             m
                         else
