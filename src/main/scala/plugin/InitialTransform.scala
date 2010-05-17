@@ -164,21 +164,29 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
                         Ident(newTypeName("String")), 
                         EmptyTree))),
             TypeTree(),
-            Apply(
-                Select(
-                    New(
-                      Select(
+            If(
+                Apply(
+                    Select(
+                        Ident(newTermName("p")),
+                        newTermName("$eq$eq")),
+                    List(
+                        Literal(Constant(null)))),
+                Literal(Constant(null)),
+                Apply(
+                    Select(
+                        New(
                         Select(
                             Select(
                                 Select(
-                                    Ident(newTermName("org")), 
-                                newTermName("apache")),
-                                newTermName("avro")),
-                            newTermName("util")),
-                        newTypeName("Utf8"))),
-                    newTermName("<init>")),
-                List(
-                    Ident(newTermName("p")))))
+                                    Select(
+                                        Ident(newTermName("org")), 
+                                    newTermName("apache")),
+                                    newTermName("avro")),
+                                newTermName("util")),
+                            newTypeName("Utf8"))),
+                        newTermName("<init>")),
+                    List(
+                        Ident(newTermName("p"))))))
           val mkUtf8WithPos = atPos(tree.pos)(mkUtf8)
 
           // def mkByteBuffer(bytes: Array[Byte]) = java.nio.ByteBuffer.wrap(bytes)
@@ -202,16 +210,24 @@ class InitialTransformComponent(plugin: ScalaAvroPlugin, val global: Global) ext
                     Ident(newTermName("java")), 
                     newTermName("nio")),
                 newTypeName("ByteBuffer")),
-            Apply(
-                Select(
+            If(
+                Apply(
+                    Select(
+                        Ident(newTermName("bytes")),
+                        newTermName("$eq$eq")),
+                    List(
+                        Literal(Constant(null)))),
+                Literal(Constant(null)),
+                Apply(
                     Select(
                         Select(
-                            Ident(newTermName("java")), 
-                            newTermName("nio")),
-                        newTermName("ByteBuffer")),
-                    newTermName("wrap")),
-                List(
-                    Ident(newTermName("bytes")))))
+                            Select(
+                                Ident(newTermName("java")), 
+                                newTermName("nio")),
+                            newTermName("ByteBuffer")),
+                        newTermName("wrap")),
+                    List(
+                        Ident(newTermName("bytes"))))))
           val mkByteBufferWithPos = atPos(tree.pos)(mkByteBuffer)
 
           // def getSchema = <Module>.schema
