@@ -14,7 +14,7 @@
 	<dependencies>
 		<dependency>
 			<groupId>edu.berkeley.cs.scads</groupId>
-			<artifactId>client</artifactId>
+			<artifactId>piql</artifactId>
 			<version>1.0-SNAPSHOT</version>
 		</dependency>
 	</dependencies>
@@ -26,7 +26,7 @@
 				<version>1.0-SNAPSHOT</version>
 				<executions>
 					<execution>
-						<phase>compile</phase>
+						<phase>generate-resources</phase>
 						<goals>
 							<goal>compile</goal>
 						</goals>

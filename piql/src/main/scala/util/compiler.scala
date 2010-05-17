@@ -58,6 +58,19 @@ object Compiler {
     compiler.classLoader
   }
 
+  def compileToFile(input: File, output: File) {
+    val ast = getAST(readFile(input))
+    val boundAst = new Binder(ast).bind
+    val opt = new Optimizer(boundAst).optimizedSpec
+    val compiler = new ScalaCompiler
+    val code = ScalaGen(opt)
+
+    println(code)
+    val writer = new java.io.BufferedWriter(new java.io.OutputStreamWriter(new java.io.FileOutputStream(output)))
+    writer.write(code)
+    writer.close
+  }
+
   def main(args: Array[String]): Unit = {
     val ast = getAST(readFile(new File(args(0))))
     val boundAst = new Binder(ast).bind

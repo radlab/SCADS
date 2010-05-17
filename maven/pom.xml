@@ -23,7 +23,7 @@
     </dependency>
 		<dependency>
 			<groupId>edu.berkeley.cs.scads</groupId>
-			<artifactId>client</artifactId>
+			<artifactId>piql</artifactId>
 			<version>1.0-SNAPSHOT</version>
 		</dependency>
   </dependencies>
