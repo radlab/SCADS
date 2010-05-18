@@ -33,7 +33,7 @@ trait PolicyParse {
 			val part = iter.next
 			if (part.minKey!=null) kmin.parse(part.minKey)
 			if (part.maxKey!=null) kmax.parse(part.maxKey)
-			ranges += (kmin,kmax)
+			ranges += Tuple2(kmin,kmax)
 		}
 		ranges.toList
 	}

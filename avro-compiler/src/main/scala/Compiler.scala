@@ -8,7 +8,7 @@ import org.apache.avro.Schema.Field.Order
 import org.apache.avro.Protocol
 
 import scala.collection.mutable.HashMap
-import scala.collection.jcl.Conversions 
+import scala.collection.JavaConversions._
 
 import org.apache.log4j.Logger
 
@@ -389,7 +389,7 @@ class Compiler(val protocol: Protocol) {
     private implicit def mkList[T](collection: JCollection[T]):List[T] = {
         val arrayList = new ArrayList[T]
         arrayList.addAll(collection)
-        Conversions.convertList(arrayList).toList
+        asList(arrayList).toList
     }
 
     private def issueWarning(warning: String) = {
@@ -406,7 +406,7 @@ class Compiler(val protocol: Protocol) {
         validate
 
         // Step 1: Add all records to the class map
-        schemas.foreach(schema => {
+        asIterable(schemas).foreach(schema => {
             schema.getType match {
                 case Type.RECORD => 
                     classMap += AvroRecordClass(schema) -> List[AvroUnionInterfaceClass]()
@@ -414,7 +414,7 @@ class Compiler(val protocol: Protocol) {
         })
 
         // Step 2: Resolve all union types
-        schemas.foreach(schema => {
+        asIterable(schemas).foreach(schema => {
             schema.getType match {
                 case Type.RECORD => preProcessRecord(schema)
                 case _ => throw new UnsupportedFeatureException("Cannot handle: " + schema.getType) 
@@ -488,12 +488,12 @@ class Compiler(val protocol: Protocol) {
 
     private def fieldsInOrder(schema: Schema):List[(String,Field)] = {
         assert( schema.getType == Type.RECORD )
-        Conversions.convertList(schema.getFields).toList.sort(_.pos < _.pos).map(e => (e.name, e)).toList
+        asList(schema.getFields).toList.sort(_.pos < _.pos).map(e => (e.name, e)).toList
     }
 
     private def iterateRecordFields(schema: Schema, closure: (String, Field) => Unit) = {
         assert( schema.getType == Type.RECORD )
-        Conversions.convertList(schema.getFields).toList.foreach(entry => {
+        asList(schema.getFields).toList.foreach(entry => {
             val fieldName = entry.name 
             val field = entry 
             closure(fieldName, field)
@@ -502,7 +502,7 @@ class Compiler(val protocol: Protocol) {
 
     private def iterateUnionTypes(schema: Schema, closure: (Schema) => Unit) = {
         assert( schema.getType == Type.UNION )
-        Conversions.convertList(schema.getTypes).toList.foreach(closure(_))
+        asList(schema.getTypes).toList.foreach(closure(_))
     }
 
     private def processRecord(schema: Schema) = {

@@ -2,7 +2,9 @@ package edu.berkeley.cs.scads.piql.parser
 
 import org.apache.log4j.Logger
 import scala.collection.mutable.HashMap
-import scala.collection.jcl.Conversions._
+import scala.collection.JavaConversions._
+
+import edu.berkeley.cs.scads.piql._
 
 sealed abstract class OptimizerException extends Exception
 object Unsatisfiable extends OptimizerException

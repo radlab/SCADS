@@ -1,7 +1,7 @@
 package edu.berkeley.cs.scads
 
 import java.io.File
-import scala.collection.jcl.Conversions.convertList
+import scala.collection.JavaConversions._
 import com.sleepycat.je.{Environment, EnvironmentConfig, DatabaseEntry, OperationStatus}
 
 object DbDumper {

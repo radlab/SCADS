@@ -61,7 +61,7 @@ class RecvIter(id:java.lang.Long, logger:Logger) {
         case (rn:RemoteNode, msg: Message) => msg.body match {
           case bd:BulkData => {
             logger.debug("Got bulk data, inserting")
-            val it:java.util.Iterator[Record] = bd.records.records.iterator
+            val it = bd.records.records.iterator
             while(it.hasNext) {
               val rec = it.next
               recFunc(rec)
@@ -104,7 +104,7 @@ class RecvIter(id:java.lang.Long, logger:Logger) {
 
 class RecvPullIter(id:java.lang.Long, logger:Logger) extends Iterator[Record] {
   implicit def mkDbe(buff: ByteBuffer): DatabaseEntry = new DatabaseEntry(buff.array, buff.position, buff.remaining)
-  private var curRecs:java.util.Iterator[Record] = null
+  private var curRecs: Iterator[Record] = null
   private var done = false
 
   private def nextBuf() = {
@@ -528,8 +528,8 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
                 val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema))
                 val sendIt = new SendIter(rn,myId,csr.recvActorId,buffer,100,crr.rateLimit,logger)
                 var recsSent:Long = 0
-                val rangeIt = crr.ranges.iterator()
-                while(rangeIt.hasNext()) {
+                val rangeIt = crr.ranges.iterator
+                while(rangeIt.hasNext) {
                   iterateOverRange(ns, rangeIt.next(), false, (key, value, cursor) => {
                     val rec = new Record
                     rec.key = key.getData

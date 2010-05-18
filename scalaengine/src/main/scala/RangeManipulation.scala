@@ -140,8 +140,8 @@ object RangeManipulation {
 				result += range
 			else if (union(range,to_rem).equals(to_rem)) {} 	// range inside to_rem (or equal), don't do anything
 			else if (union(range,to_rem).equals(range)) {			// to_rem falls completely inside range, split range into [at most] two
-				if (!range._1.equals(to_rem._1)) result += (range._1,to_rem._1)
-				if (!to_rem._2.equals(range._2)) result += (to_rem._2,range._2)
+				if (!range._1.equals(to_rem._1)) result += Tuple2(range._1,to_rem._1)
+				if (!to_rem._2.equals(range._2)) result += Tuple2(to_rem._2,range._2)
 			}
 			else if (includesKey(to_rem._1,range) 	// if to_rem.start falls within range, add first part of range back to list
 				|| includesKey(to_rem._2,range))			// if to_rem.end falls within range, add last part of range back to list

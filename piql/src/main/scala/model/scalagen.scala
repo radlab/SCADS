@@ -1,12 +1,14 @@
 package edu.berkeley.cs.scads.piql.parser
 
-import scala.collection.jcl.Conversions._
+import scala.collection.JavaConversions._
 import org.apache.log4j.Logger
 
 import org.apache.avro.Schema
 import org.apache.avro.Schema.Type
 
 import scala.collection.mutable.HashMap
+
+import edu.berkeley.cs.scads.piql._
 
 object ScalaGen extends Generator[BoundSpec] {
 	val logger = Logger.getLogger("scads.scalagen")

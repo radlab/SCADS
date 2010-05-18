@@ -5,7 +5,7 @@ import org.apache.zookeeper.Watcher.Event.EventType
 import org.apache.zookeeper.Watcher.Event.KeeperState
 import org.apache.zookeeper.data.Stat
 import scala.collection.mutable.HashMap
-import scala.collection.jcl.Conversions._
+import scala.collection.JavaConversions._
 
 
 
@@ -61,7 +61,9 @@ class ZooKeeperProxy(server: String) extends Watcher {
         childrenCache = Some(new HashMap[String, ZooKeeperNode]())
 
       val c = conn.getChildren(path, watch)
-      children.retain((p, n) => {
+      children.filter( t => {
+        val p = t._1
+        val n = t._2
         if(!c.contains(p)) {
           n.watchedEvent(EventType.NodeDeleted)
           false
@@ -71,7 +73,8 @@ class ZooKeeperProxy(server: String) extends Watcher {
         }
       })
 
-      (c -- children.keys.toList).foreach(k => {
+      c --= children.keys.toList
+      c.foreach(k => {
         children += ((k, new ZooKeeperNode(prefix + k)))
       })
       children

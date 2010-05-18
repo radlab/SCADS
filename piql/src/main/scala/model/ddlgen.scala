@@ -1,6 +1,6 @@
 package edu.berkeley.cs.scads.piql.parser
 
-import scala.collection.jcl.Conversions._
+import scala.collection.JavaConversions._
 import org.apache.log4j.Logger
 
 import org.apache.avro.Schema

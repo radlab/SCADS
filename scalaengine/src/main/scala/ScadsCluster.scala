@@ -22,7 +22,6 @@ import org.apache.avro.io.BinaryData
 
 import java.nio.ByteBuffer
 import scala.collection.mutable.HashMap
-import scala.collection.jcl.ArrayList
 import java.util.Arrays
 import scala.concurrent.SyncVar
 import scala.tools.nsc.interpreter.AbstractFileClassLoader
@@ -679,7 +678,8 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
 
       def apply(ordinal: Int): RetType = result.get.apply(ordinal)
       def length: Int = result.get.length
-      def elements: Iterator[RetType] = result.get.elements
+      override def elements: Iterator[RetType] = result.get.elements
+      override def iterator: Iterator[RetType] = elements
 
       def act(): Unit = {
         val id = MessageHandler.registerActor(self)

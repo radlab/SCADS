@@ -14,19 +14,21 @@ import scala.tools.nsc.interpreter.AbstractFileClassLoader
  */
 class ScalaCompiler {
 	val logger = Logger.getLogger("scads.scalacompiler")
+  val virtualDirectory = new VirtualDirectory("(memory)", None)
+
   val settings = new Settings(error)
   settings.deprecation.value = true
   settings.unchecked.value = true
+  settings.outputDirs.setSingleOutput(virtualDirectory)
 
 	/* If we are running inside maven surefire, the actual classpath has been cleared so use the one for this test */
 	if(System.getProperty("surefire.test.class.path") != null)
 		settings.classpath.value = System.getProperty("surefire.test.class.path")
 
-  val virtualDirectory = new VirtualDirectory("(memory)", None)
+
   val reporter = new ConsoleReporter(settings)
   val compiler = new Global(settings, reporter)
   val classLoader = new AbstractFileClassLoader(virtualDirectory, Thread.currentThread.getContextClassLoader())
-  compiler.genJVM.outputDir = virtualDirectory
 
   def compile(source: String): Unit = {
 		logger.debug("Begining scala snipit compilation")

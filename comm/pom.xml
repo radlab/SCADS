@@ -36,8 +36,8 @@
         </dependency>
 		<dependency>
 			<groupId>org.scala-tools.testing</groupId>
-			<artifactId>specs</artifactId>
-			<version>1.6.0</version>
+			<artifactId>specs_2.8.0.Beta1</artifactId>
+			<version>1.6.5-SNAPSHOT</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -69,14 +69,42 @@
 					</systemProperties>
 				</configuration>
 			</plugin>
-			<plugin>
-				<groupId>org.scala-tools</groupId>
-				<artifactId>maven-scala-plugin</artifactId>
-				<configuration>
-					<jvmArgs><arg>-Xmx512M</arg></jvmArgs>
-					<javaRebelPath>${env.JREBELPATH}</javaRebelPath>
-				</configuration>
-			</plugin>
+            <plugin>
+                <groupId>org.scala-tools</groupId>
+                <artifactId>maven-scala-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>scala-compile</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                            <goal>compile</goal>
+                        </goals>
+                        <configuration>
+                            <jvmArgs>
+                                <arg>-Xmx1G</arg>
+                            </jvmArgs>
+                            <args>
+                                <arg>-deprecation</arg>
+                                <arg>-unchecked</arg>
+                            </args>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>scala-test-compile</id>
+                        <phase>process-test-resources</phase>
+                        <goals>
+                            <goal>testCompile</goal>
+                        </goals>
+                        <configuration>
+                            <args>
+                                <arg>-deprecation</arg>
+                                <arg>-unchecked</arg>
+                            </args>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
 			<plugin>
 				<groupId>edu.berkeley.cs.scads</groupId>
 				<artifactId>avro-scala-maven-plugin</artifactId>

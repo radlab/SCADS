@@ -8,8 +8,6 @@ import org.apache.avro.io._
 import org.apache.avro.ipc._
 import org.apache.avro.specific._
 
-import scala.collection.jcl.Conversions._
-
 case class RemoteNode(hostname:String, port: Int) {
     private val socketAddress = new InetSocketAddress(hostname, port) 
     def getInetSocketAddress:InetSocketAddress = socketAddress 

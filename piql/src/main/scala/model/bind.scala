@@ -3,8 +3,9 @@ package edu.berkeley.cs.scads.piql.parser
 import org.apache.log4j.Logger
 import scala.collection.mutable.HashMap
 import org.apache.avro.Schema
-import scala.collection.jcl.Conversions._
+import scala.collection.JavaConversions._
 
+import edu.berkeley.cs.scads.piql._
 
 /* Exceptions that can occur during binding */
 sealed class BindingException extends Exception
@@ -362,7 +363,7 @@ class Binder(spec: Spec) {
 
 		bindEntities(
 			untouched.drop(1).filter(e => !(doneNames.contains(e.name))),
-			donePrime + boundEntity
+			donePrime ++ List(boundEntity)
 		)
 	}
 }

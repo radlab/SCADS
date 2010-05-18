@@ -15,7 +15,7 @@ case class BoundValueLiteralCondition[T](fieldValue: BoundFixedValue[T]) extends
 case class EntityClass(name: String)
 
 /* Query Plan Nodes */
-abstract sealed class QueryPlan
+abstract class QueryPlan
 abstract class TupleProvider extends QueryPlan
 abstract class EntityProvider extends QueryPlan
 case class SingleGet(namespace: String, key: List[BoundValue]) extends TupleProvider

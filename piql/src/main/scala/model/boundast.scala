@@ -1,9 +1,11 @@
 package edu.berkeley.cs.scads.piql.parser
 
 import scala.collection.mutable.HashMap
-import scala.collection.jcl.Conversions._
+import scala.collection.JavaConversions._
 
 import org.apache.avro.Schema
+
+import edu.berkeley.cs.scads.piql._
 
 object NoDuplicateMap {
 	def apply[A,B](pairs: List[(A,B)]) = {

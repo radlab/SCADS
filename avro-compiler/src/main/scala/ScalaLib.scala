@@ -7,7 +7,7 @@ import org.apache.avro.generic.{GenericData,GenericArray}
 import org.apache.avro.Schema
 import org.apache.avro.Schema.Type
 
-import scala.collection.jcl.Conversions
+import scala.collection.JavaConversions._
 
 abstract class PrimitiveWrapper[T](var value: T) 
 
@@ -32,7 +32,7 @@ object ScalaLib {
 
     def convertJMapToMap[T](jmap: JMap[String, T]): MapIface[String, T] = {
         if (jmap == null) return null
-        Conversions.convertMap(jmap)
+        asMap(jmap)
     }
 
     def convertMapToJMap[T](map: MapIface[String, T]): JMap[String, T] = {
@@ -48,7 +48,7 @@ object ScalaLib {
             case null => null
             case map: MapIface[String,_] => convertMapToJMap(map)
             case list: List[_] => convertListToGenericArray(list, 
-                Conversions.convertList(unionSchema.getTypes).toList.filter(_.getType == Type.ARRAY).apply(0))
+                asList(unionSchema.getTypes).toList.filter(_.getType == Type.ARRAY).apply(0))
             case obj: Object => obj
         }
         case o: Object => o
