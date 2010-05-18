@@ -52,4 +52,16 @@
     </plugins>
   </build>
 
+	<distributionManagement>
+		<repository>
+			<id>releases</id>
+			<name>Radlab Repository</name>
+			<url>http://scm.millennium.berkeley.edu:8081/nexus/content/repositories/releases</url>
+		</repository>
+		<snapshotRepository>
+			<id>snapshots</id>
+			<name>Radlab Repository</name>
+			<url>http://scm.millennium.berkeley.edu:8081/nexus/content/repositories/snapshots</url>
+		</snapshotRepository>
+	</distributionManagement>
 </project>
