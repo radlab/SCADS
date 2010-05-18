@@ -6,6 +6,8 @@
 import org.apache.avro.specific.SpecificRecordBase
 import edu.berkeley.cs.scads.storage.{Namespace, TestScalaEngine}
 
+import piql._
+
 implicit val env = new edu.berkeley.cs.scads.piql.Environment
 
 env.namespaces = Map("ent_user" -> TestScalaEngine.cluster.getNamespace[user.KeyType, user.ValueType]("ent_user").asInstanceOf[Namespace[SpecificRecordBase,SpecificRecordBase]])
