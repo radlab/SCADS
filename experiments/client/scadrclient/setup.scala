@@ -8,39 +8,33 @@ import edu.berkeley.cs.scads.storage.{Namespace, TestScalaEngine}
 
 import piql._
 
-implicit val env = new edu.berkeley.cs.scads.piql.Environment
+implicit val env = (new Configurator).configureTestCluster
 
-env.namespaces = Map("ent_user" -> TestScalaEngine.cluster.getNamespace[user.KeyType, user.ValueType]("ent_user").asInstanceOf[Namespace[SpecificRecordBase,SpecificRecordBase]])
-env.namespaces += "ent_thought" -> TestScalaEngine.cluster.getNamespace[thought.KeyType, thought.ValueType]("ent_thought").asInstanceOf[Namespace[SpecificRecordBase,SpecificRecordBase]]
-env.namespaces += "ent_subscription" -> TestScalaEngine.cluster.getNamespace[subscription.KeyType, subscription.ValueType]("ent_subscription").asInstanceOf[Namespace[SpecificRecordBase,SpecificRecordBase]]
-
-
-
-val u1 = new user
+val u1 = new User
 u1.key.name = "marmbrus"
 u1.value.password = "pass"
 u1.value.email = "marmbrus@berkeley.edu"
 u1.save
 
-val u2 = new user
+val u2 = new User
 u2.key.name = "sltu"
 u2.value.password = "pass"
 u2.value.email = "sltu@cs.berkeley.edu"
 u2.save
 
-val s = new subscription
+val s = new Subscription
 s.value.approved = true
 s.key.owner.name = "marmbrus"
 s.key.target.name = "sltu"
 s.save
 
-val t1 = new thought
+val t1 = new Thought
 t1.key.owner.name = u1.name
 t1.key.timestamp = 1
 t1.value.text = "michael: Hey there scadr world!"
 t1.save
 
-val t2 = new thought
+val t2 = new Thought
 t2.key.owner.name = u2.name
 t2.key.timestamp = 1
 t2.value.text = "stephen: Hey there from me too!"
