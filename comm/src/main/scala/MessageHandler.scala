@@ -24,7 +24,7 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
   /* TODO: When curActorId hits MAX_LONG, collect all existing actors
    * and give them ids 0-n, and reset curActorId to (n+1) */
   def registerActor(a: Actor): Long = {
-    if (actorRegistry.size >= Math.MAX_LONG)
+    if (actorRegistry.size >= Long.MaxValue)
       throw new IllegalStateException("Too many actors!")
     val id = curActorId.getAndIncrement
     actorRegistry.put(id, a)

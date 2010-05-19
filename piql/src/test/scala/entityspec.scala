@@ -11,7 +11,7 @@ class DynamicDispatchObject(obj: AnyRef) {
   val cls = obj.getClass
 
   def setField(fieldName: String, value: Object): Unit = {
-    val mutator = cls.getMethods.filter(_.getName.equals(fieldName + "_$eq")).first
+    val mutator = cls.getMethods.filter(_.getName.equals(fieldName + "_$eq")).head
     mutator.invoke(obj, value)
   }
 
@@ -50,7 +50,7 @@ object EntitySpec extends SpecificationWithJUnit("Scads Entity Specification") {
    "serialize field values" in {
       val a = e1.newInstance()
       a.setField("sf1", "test")
-      a.setField("if1", new Integer(1))
+      a.setField("if1", new java.lang.Integer(1))
 
       val b = e1.newInstance()
       b.key.parse(a.key.toBytes)
@@ -63,7 +63,7 @@ object EntitySpec extends SpecificationWithJUnit("Scads Entity Specification") {
     "retain field values through load/store" in {
       val a = e1.newInstance()
       a.setField("sf1", "test")
-      a.setField("if1", new Integer(1))
+      a.setField("if1", new java.lang.Integer(1))
       //a.save
 
       val b = e1.newInstance()

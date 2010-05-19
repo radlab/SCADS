@@ -151,7 +151,7 @@ object RangeManipulation {
 	}
 	
 	def sortRanges(ranges:List[(SpecificRecordBase,SpecificRecordBase)]):List[(SpecificRecordBase,SpecificRecordBase)] = {
-		ranges.sort((one,two)=> { 
+		ranges.sortWith((one,two)=> { 
 			val comp = if (!one._1.equals(two._1)) one._1.compareTo(two._1) else one._2.compareTo(two._2)
 			if (comp < 0) true else false 
 		})

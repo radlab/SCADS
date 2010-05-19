@@ -24,7 +24,7 @@ case class BoundEntity(name: String, keySchema: Schema, valueSchema: Schema, rel
 
   def namespace: String = "ent_" + name
 
-	def attributes: Map[String, Schema] = Map(keySchema.getFields.map(f => f.name -> f.schema) ++ valueSchema.getFields.map(f => f.name -> f.schema):_*)
+	def attributes: Map[String, Schema] = Map(keySchema.getFields.map(f => f.name -> f.schema).toList ++ valueSchema.getFields.map(f => f.name -> f.schema).toList:_*)
 }
 
 /* Bound Relationship */

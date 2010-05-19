@@ -26,10 +26,10 @@ object ScalaGen extends Generator[BoundSpec] {
 		output("import org.apache.avro.specific.SpecificRecordBase")
 		output("import scala.collection.mutable.HashMap")
 
-		spec.entities.values.foreach(generate)
+		spec.entities.valuesIterator.foreach(generate)
 
     outputBraced("object Queries extends QueryExecutor") {
-      spec.orphanQueries.foreach(Function.tupled(generateQuery))
+      spec.orphanQueries.foreach((generateQuery _).tupled)
     }
 	}
 
@@ -109,7 +109,7 @@ object ScalaGen extends Generator[BoundSpec] {
       entity.keySchema.getFields.foreach(f => output("def ", f.name, " = key.", f.name))
       entity.valueSchema.getFields.foreach(f => output("def ", f.name, " = value.", f.name))
 
-      entity.queries.foreach(Function.tupled(generateQuery))
+      entity.queries.foreach((generateQuery _).tupled)
     }
 
     outputBraced("object ", entity.name) {

@@ -33,7 +33,7 @@ class Optimizer(spec: BoundSpec) {
 			query._2.plan = getPlan(query._2)
 		})
 
-		spec.entities.values.foreach((entity) => {
+		spec.entities.valuesIterator.foreach((entity) => {
 			entity.queries.foreach((query) => {
 				logger.debug("Optimizing: " + query._1)
 				query._2.plan = getPlan(query._2)
@@ -127,7 +127,7 @@ class Optimizer(spec: BoundSpec) {
 					case Sorted(attr, asc) => (List(attr), asc)
 					case Unsorted => (List(), true)
 				}
-				val selectedIndex = selectOrCreateIndex(entity, equalityMap.keys.toList, orderingAttributes)
+				val selectedIndex = selectOrCreateIndex(entity, equalityMap.keysIterator.toList, orderingAttributes)
 
 				val indexLookup =
 					if(selectedIndex.attributes.size > equalityMap.size) {
@@ -162,7 +162,7 @@ class Optimizer(spec: BoundSpec) {
 		if(candidateIndexes.size == 0) {
 			/* No index exists, so we must create one. */
 			val idxName = "idx" + entity.name + (equalityAttributes ++ orderingAttributes).mkString("", "_", "")
-			val idxAttributes = equalityAttributes ++ orderingAttributes ++ (entity.keySchema.getFields.map(_.name).toList -- equalityAttributes -- orderingAttributes)
+			val idxAttributes = equalityAttributes ++ orderingAttributes ++ (entity.keySchema.getFields.map(_.name).toList.filterNot(equalityAttributes.contains).filterNot( orderingAttributes.contains))
 			val newIndex = new SecondaryIndex(idxName, idxAttributes, entity.namespace)
 			logger.debug("Creating index on " + entity.name + " over attributes" + idxAttributes)
 			entity.indexes.append(newIndex)

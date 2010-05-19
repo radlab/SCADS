@@ -67,7 +67,7 @@ class Binder(spec: Spec) {
 					case Unlimited => Array[Parameter]()
 				}
 			val allParameters = predParameters ++ limitParameters
-			val parameters = Set(allParameters: _*).toList.sort(_.ordinal < _.ordinal)
+			val parameters = Set(allParameters: _*).toList.sortWith(_.ordinal < _.ordinal)
 
 			/* Ensure any duplicate parameter names are actually the same parameter */
 			if(parameters.size != Set(allParameters.map(_.name): _*).size)
@@ -135,7 +135,7 @@ class Binder(spec: Spec) {
 						case Some(_) => throw new AmbiguiousJoinAlias(q.name, j.alias)
 					}
 
-				entity.attributes.keys.foreach((a) => {
+				entity.attributes.keysIterator.foreach((a) => {
 					if(!duplicateAttributes.contains(a))
 						attributeMap.get(a) match {
 							case None => attributeMap.put(a, fetch)
@@ -302,7 +302,7 @@ class Binder(spec: Spec) {
 		if(untouched.size == 0)
 			return done
 
-		val currentEntity = untouched.first
+		val currentEntity = untouched.head
 		val fkDependencies = currentEntity.attributes.flatMap {
       case a: ForeignKey => List(a)
       case _ => Nil

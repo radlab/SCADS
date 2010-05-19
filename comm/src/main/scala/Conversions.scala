@@ -15,8 +15,8 @@ object Conversions {
 			def remove(): Unit = iter.next
 		}
 
-		def getSchema(): Schema = Schema.createArray(base.first.getSchema())
-		def iterator(): java.util.Iterator[RecType] = new IterWrapper(base.elements)
+		def getSchema(): Schema = Schema.createArray(base.head.getSchema())
+		def iterator(): java.util.Iterator[RecType] = new IterWrapper(base.iterator)
 		def peek(): RecType = base.last
 		def add(elem: RecType): Unit = null
 		def size():Long = base.size

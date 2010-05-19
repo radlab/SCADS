@@ -46,7 +46,7 @@ object ScalaLib {
         case null => null
         case w: PrimitiveWrapper[_] => w.value match {
             case null => null
-            case map: MapIface[String,_] => convertMapToJMap(map)
+            case map: MapIface[_,_] => convertMapToJMap(map.asInstanceOf[MapIface[String,_]])
             case list: List[_] => convertListToGenericArray(list, 
                 asList(unionSchema.getTypes).toList.filter(_.getType == Type.ARRAY).apply(0))
             case obj: Object => obj

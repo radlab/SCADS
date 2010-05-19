@@ -195,7 +195,7 @@ class ClientMapping(server:String) extends PartitionWatcher(server) with ReadZoo
 		}):_*)
 		
 		synchronized { // set the read-only version of the mapping
-			mapping = mapping.update(ns,temp_ns)
+			mapping = mapping.updated(ns,temp_ns)
 		}
 		logger.info("total map convert time: "+((System.nanoTime-startt)/1000000.0)+" ms")
 	}
@@ -519,11 +519,14 @@ class CopyActor(host:RemoteNode ,scads_req:Object, waitTime:Int) extends Actor {
 						case (RemoteNode(hostname2, port2), msg2: Message) => msg2.body match {
 							case fail:TransferFailed => { logger.warn("Transfer started but failed: "+fail); done=true; success=false } 
 							case good:TransferSucceeded => { logger.info("records: "+good.recordsSent+", time: "+good.milliseconds); done=true; success=true }
+                            case msg => { logger.warn("Unexpected msg: " + msg); done=true; success=false }
 						}
 						case TIMEOUT => { logger.warn("Transfer started but timed out"); done=true; success=false; }
+                        case msg => { logger.warn("Unexpected msg: " + msg); done=true; success=false; }
 					}
 					MessageHandler.unregisterActor(id)
 				}
+                case msg => { logger.warn("Unexpected msg: " + msg); done=true; success=false }
 			}
 			case TIMEOUT => { logger.warn("Transfer timed out"); done=true; success=false; MessageHandler.unregisterActor(id) }
 			case msg => { logger.warn("Unexpected message: " + msg); done=true; success=false; MessageHandler.unregisterActor(id) }

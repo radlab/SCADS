@@ -145,7 +145,7 @@ trait Application
 
   private lazy val parameterTypes   = mainMethod.getGenericParameterTypes.toList
   private lazy val argumentNames    = (new BytecodeReadingParanamer lookupParameterNames mainMethod map (_.replaceAll("\\$.+", ""))).toList
-  private lazy val mainArgs         = List.map2(argumentNames, parameterTypes)(MainArg(_, _))
+  private lazy val mainArgs         = (argumentNames, parameterTypes).zipped.map(MainArg(_, _))
   private lazy val reqArgs          = mainArgs filter (x => !x.isOptional)
   private def posArgCount           = mainArgs filter (_.isPositional) size
 

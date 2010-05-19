@@ -554,7 +554,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
             rec.put(i,new Utf8(""))
           else {
             // NOTE: We make the "max" string 20 max char values.  This won't work if you're putting big, max valued strings in your db
-            rec.put(i,new Utf8(new String(Array.make[Byte](20,127))))
+            rec.put(i,new Utf8(new String(Array.fill[Byte](20)(127.asInstanceOf[Byte]))))
           }
         case org.apache.avro.Schema.Type.UNION => 
           throw new Exception("UNION not supported at the moment")
@@ -678,12 +678,13 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
 
       def apply(ordinal: Int): RetType = result.get.apply(ordinal)
       def length: Int = result.get.length
-      override def elements: Iterator[RetType] = result.get.elements
+      override def elements: Iterator[RetType] = result.get.iterator
       override def iterator: Iterator[RetType] = elements
 
       def act(): Unit = {
         val id = MessageHandler.registerActor(self)
-        val ranges = splitRange(null, null).counted
+        val ranges = splitRange(null, null)
+        var remaining = 0 /** Use ranges.size once we upgrade to RC2 or greater */
         var partialElements = List[RetType]()
         //val msg = new Message
         //val req = new FlatMapRequest
@@ -708,10 +709,10 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
                     getFunctionCode(func)))
 
         ranges.foreach(r => {
-          MessageHandler.sendMessage(r.nodes.first, msg)
+          MessageHandler.sendMessage(r.nodes.head, msg)
+          remaining += 1
         })
 
-        var remaining = ranges.count
         loop {
           reactWithin(timeout) {
             case (_, msg: Message) => {
@@ -750,7 +751,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
   def size():Int = {
     val sv = new SyncVar[Int]
     val s = new java.util.concurrent.atomic.AtomicInteger()
-    val ranges = splitRange(null, null).counted
+    val ranges = splitRange(null, null)
     actor {
       val id = MessageHandler.registerActor(self)
       val msg = new Message
@@ -760,14 +761,16 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       msg.dest = dest
       msg.body = crr
       crr.namespace = namespace
+      var remaining = 0 /** use ranges.size once we upgrade to RC2 */
       ranges.foreach(r => {
         val kr = new KeyRange
         kr.minKey = r.min
         kr.maxKey = r.max
         crr.range = kr
-        MessageHandler.sendMessage(r.nodes.first, msg)
+        MessageHandler.sendMessage(r.nodes.head, msg)
+        remaining += 1
       })
-      var remaining = ranges.count
+
       loop {
         reactWithin(timeout) {
           case (_, msg: Message) => {
@@ -802,7 +805,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
   def filter(func: (KeyType, ValueType) => Boolean): Iterable[(KeyType,ValueType)] = {
     val result = new SyncVar[List[(KeyType,ValueType)]]
     var list = List[(KeyType,ValueType)]()
-    val ranges = splitRange(null, null).counted
+    val ranges = splitRange(null, null)
     actor {
       val id = MessageHandler.registerActor(self)
       val msg = new Message
@@ -816,10 +819,12 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       fr.valueType = valueClass.getName
       fr.codename = func.getClass.getName
       fr.code = getFunctionCode(func)
+      var remaining = 0 /** use ranges.size once we upgrade to RC2 */
       ranges.foreach(r => {
-        MessageHandler.sendMessage(r.nodes.first, msg)
+        MessageHandler.sendMessage(r.nodes.head, msg)
+        remaining += 1
       })
-      var remaining = ranges.count
+
       loop {
         reactWithin(timeout) {
           case (_, msg: Message) => {
@@ -871,7 +876,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
   private def doFold(z:(KeyType,ValueType))(func: ((KeyType,ValueType),(KeyType,ValueType)) => (KeyType,ValueType),dir:Int): (KeyType,ValueType) = {
     var list = List[(KeyType,ValueType)]()
     val result = new SyncVar[List[(KeyType,ValueType)]]
-    val ranges = splitRange(null, null).counted
+    val ranges = splitRange(null, null)
     actor {
       val id = MessageHandler.registerActor(self)
       val msg = new Message
@@ -887,10 +892,12 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       fr.codename = func.getClass.getName
       fr.code = getFunctionCode(func)
       fr.direction = dir // TODO: Change dir to an enum when we support that
+      var remaining = 0 /** use ranges.size once we upgrade to RC2 */
       ranges.foreach(r => {
-        MessageHandler.sendMessage(r.nodes.first, msg)
+        MessageHandler.sendMessage(r.nodes.head, msg)
+        remaining += 1
       })
-      var remaining = ranges.count
+
       loop {
         reactWithin(timeout) {
           case (_, msg: Message) => {
@@ -937,9 +944,10 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
                                               localFunc: (TypeLocal,TypeRemote) => TypeLocal): TypeLocal = {
     var list = List[TypeRemote]()
     val result = new SyncVar[List[TypeRemote]]
-    val ranges = splitRange(null, null).counted
+    val ranges = splitRange(null, null)
     actor {
       val id = MessageHandler.registerActor(self)
+      var remaining = 0 /** use ranges.size once we upgrade to RC2 */
       try {
         val msg = new Message
         val fr = new FoldRequest2L
@@ -955,7 +963,8 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
         fr.code = getFunctionCode(remFunc)
         fr.direction = 0 // TODO: Change dir to an enum when we support that
         ranges.foreach(r => {
-          MessageHandler.sendMessage(r.nodes.first, msg)
+          MessageHandler.sendMessage(r.nodes.head, msg)
+          remaining += 1
         })
       } catch {
         case t:Throwable => {
@@ -966,7 +975,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
           exit
         }
       }
-      var remaining = ranges.count
+
       loop {
         reactWithin(timeout) {
           case (_, msg: Message) => {

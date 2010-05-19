@@ -73,7 +73,7 @@ class ZooKeeperProxy(server: String) extends Watcher {
         }
       })
 
-      c --= children.keys.toList
+      c --= children.keysIterator.toList
       c.foreach(k => {
         children += ((k, new ZooKeeperNode(prefix + k)))
       })
@@ -97,7 +97,7 @@ class ZooKeeperProxy(server: String) extends Watcher {
     }
 
     override def toString(): String = 
-      "<znode path:" + path + ", data: '" + new String(data) + "', children: " + children.keys.toList + ">"
+      "<znode path:" + path + ", data: '" + new String(data) + "', children: " + children.keysIterator.toList + ">"
   }
 
   def process(event: WatchedEvent): Unit = {

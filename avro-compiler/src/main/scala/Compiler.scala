@@ -233,7 +233,7 @@ class Compiler(val protocol: Protocol) {
                         indent {
                             output("case null => null")
 
-                            classMap.keys.filter(_.isInstanceOf[AvroPrimitiveClass]).foreach( clazz => {
+                            classMap.keysIterator.filter(_.isInstanceOf[AvroPrimitiveClass]).foreach( clazz => {
                                 clazz match {
                                     case AvroIntClass => 
                                         output("case int:java.lang.Integer => new AvroInt(int.intValue)")
@@ -441,12 +441,12 @@ class Compiler(val protocol: Protocol) {
 
 
         sb.append("// Union Interfaces //\n")
-        classMap.keys.filter(_.isInstanceOf[AvroUnionInterfaceClass]).foreach(c => sb.append(generator(c))) 
+        classMap.keysIterator.filter(_.isInstanceOf[AvroUnionInterfaceClass]).foreach(c => sb.append(generator(c))) 
         sb.append("\n\n")
 
-        if (!classMap.keys.filter(_.isInstanceOf[AvroPrimitiveClass]).toList.isEmpty) {
+        if (!classMap.keysIterator.filter(_.isInstanceOf[AvroPrimitiveClass]).toList.isEmpty) {
             sb.append("// Primitive Class Wrappers //\n")
-            classMap.keys.filter(_.isInstanceOf[AvroPrimitiveClass]).foreach(c => sb.append(generator(c)))
+            classMap.keysIterator.filter(_.isInstanceOf[AvroPrimitiveClass]).foreach(c => sb.append(generator(c)))
             sb.append("\n\n")
         }
 
@@ -465,19 +465,19 @@ class Compiler(val protocol: Protocol) {
         sb.append("\")\n")
         sb.append("// Implicit Conversion Helpers //\n")
         sb.append("object AvroConversions {\n")
-        classMap.keys.filter(_.isInstanceOf[AvroPrimitiveClass]).foreach(c => sb.append(conversionGenerator(c.asInstanceOf[AvroPrimitiveClass])))
-        reverseClassMap.keys.foreach(iface => sb.append(reverseConversionGenerator(iface)))
+        classMap.keysIterator.filter(_.isInstanceOf[AvroPrimitiveClass]).foreach(c => sb.append(conversionGenerator(c.asInstanceOf[AvroPrimitiveClass])))
+        reverseClassMap.keysIterator.foreach(iface => sb.append(reverseConversionGenerator(iface)))
         sb.append("}\n\n")
         sb.append("}\n\n")
 
         sb.append("// Record Classes //\n")
-        classMap.keys.filter(_.isInstanceOf[AvroRecordClass]).foreach(c => sb.append(generator(c)))
+        classMap.keysIterator.filter(_.isInstanceOf[AvroRecordClass]).foreach(c => sb.append(generator(c)))
 
         sb.toString
     }
 
     private def genReverseClassMap {
-        classMap.keys.foreach( k => {
+        classMap.keysIterator.foreach( k => {
             classMap.get(k).get.foreach( iface => {
                 val list = reverseClassMap.get(iface).getOrElse(List[AvroClass]()) ::: List(k)
                 reverseClassMap += iface -> list
@@ -488,7 +488,7 @@ class Compiler(val protocol: Protocol) {
 
     private def fieldsInOrder(schema: Schema):List[(String,Field)] = {
         assert( schema.getType == Type.RECORD )
-        asList(schema.getFields).toList.sort(_.pos < _.pos).map(e => (e.name, e)).toList
+        asList(schema.getFields).toList.sortWith(_.pos < _.pos).map(e => (e.name, e)).toList
     }
 
     private def iterateRecordFields(schema: Schema, closure: (String, Field) => Unit) = {
