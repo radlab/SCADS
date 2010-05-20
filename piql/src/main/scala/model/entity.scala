@@ -25,7 +25,7 @@ trait KeyValueLike {
 
 abstract class EntityPart extends SpecificRecordBase 
                           with    SpecificRecord
-                          /* with    KeyValueLike */ {
+                          with    KeyValueLike {
 	val reader = new PiqlDataReader(getSchema)
 
   override def parse(bytes: ByteBuffer): Unit = {

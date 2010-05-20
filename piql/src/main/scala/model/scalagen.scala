@@ -70,6 +70,16 @@ object ScalaGen extends Generator[BoundSpec] {
       }
     }
 
+    outputBraced("override def get(f: String): Any =") {
+      outputBraced("f match ") {
+        fields.zipWithIndex.foreach { 
+          case (field: Schema.Field, idx: Int) => 
+            output("case ", quote(field.name), " => get(", idx.toString, ")")
+        }
+        output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad field name: \" + f)")
+      }
+    }
+
     outputBraced("override def put(f: Int, v: Any): Unit =") {
       outputBraced("f match") {
         fields.zipWithIndex.foreach {
@@ -85,6 +95,17 @@ object ScalaGen extends Generator[BoundSpec] {
         output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad index\")")
       }
     }
+
+    outputBraced("override def put(f: String, v: Any): Unit =") {
+      outputBraced("f match ") {
+        fields.zipWithIndex.foreach {
+          case (field: Schema.Field, idx: Int) => 
+            output("case ", quote(field.name), " => put(", idx.toString, ", v)")
+        }
+        output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad field name: \" + f)")
+      }
+    }
+
   }
 
 
@@ -116,18 +137,57 @@ object ScalaGen extends Generator[BoundSpec] {
             throw new IllegalArgumentException("Invalid field schema type: " +e)
       }
 
+      /** TODO: is there a better way to get this class name? */
+      def stripKey(s: String) = s.substring(0, s.length - 3)
+      def stripValue(s: String) = s.substring(0, s.length - 5)
+      def mkKeyType(s: String) = stripKey(s) + ".KeyType"
+      def mkValueType(s: String) = stripValue(s) + ".ValueType"
+
+      sealed trait KeyValueType
+      object KeyType extends KeyValueType
+      object ValueType extends KeyValueType
+
+      def stripType(t: KeyValueType, s: String) = 
+        if (t == KeyType)
+          stripKey(s)
+        else if (t == ValueType)
+          stripValue(s)
+        else
+          throw new IllegalArgumentException("Bad KeyValueType: " + t)
+
+      def mkType(t: KeyValueType, s: String) = 
+        if (t == KeyType)
+          mkKeyType(s)
+        else if (t == ValueType)
+          mkValueType(s)
+        else
+          throw new IllegalArgumentException("Bad KeyValueType: " + t)
+
+      def mkStrRep(t: KeyValueType) = 
+        if (t == KeyType)
+          "key"
+        else if (t == ValueType)
+          "value"
+        else
+          throw new IllegalArgumentException("Bad KeyValueType: " + t)
+
+      def mkCaseMatches(fields: List[Schema.Field], t: KeyValueType) {
+        fields.foreach(field => {
+          if (field.schema.getType == Type.RECORD) {
+            outputBraced("case ", quote(field.name), " => fieldValue$ match ") {
+              output("case e$: ", stripType(t, field.schema.getName), " => ", field.name, " = e$.", mkStrRep(t))
+              output("case f$: ", mkType(t, field.schema.getName), " => ", field.name, " = f$")
+              output("case _ => throw new IllegalArgumentException(\"Bad object type for field \" + " + field.name + ")")
+            }
+          } else 
+            output("case ", quote(field.name), " => ", field.name, " = fieldValue$.asInstanceOf[" + mkClazzName(field.schema.getType) + "]")
+        })
+      }
+
       outputBraced("override def put(fieldName$: String, fieldValue$: Any): Unit =") {
         outputBraced("fieldName$ match ") {
-          (entity.keySchema.getFields.toList ++ entity.valueSchema.getFields).foreach(field => {
-              if (field.schema.getType == Type.RECORD) {
-                outputBraced("case ", quote(field.name), " => fieldValue$ match ") {
-                  /** TODO: is there a better way to get this class name? */
-                  output("case e$: ", field.schema.getName.substring(0, field.schema.getName.length - 3) /* strip "Key" from name */, " => ", field.name, " = e$.key")
-                  output("case f$ => ", field.name, " = f$.asInstanceOf[SpecificRecordBase]")
-                }
-              } else 
-                output("case ", quote(field.name), " => ", field.name, " = fieldValue$.asInstanceOf[" + mkClazzName(field.schema.getType) + "]")
-          })
+          mkCaseMatches(entity.keySchema.getFields.toList, KeyType)
+          mkCaseMatches(entity.valueSchema.getFields.toList, ValueType)
           output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad field name: \" + fieldName$)")
         }
       }
@@ -135,24 +195,30 @@ object ScalaGen extends Generator[BoundSpec] {
       entity.keySchema.getFields.foreach(f => output("def ", f.name, " = key.", f.name))
       entity.valueSchema.getFields.foreach(f => output("def ", f.name, " = value.", f.name))
 
-      def mkSetter(fields: List[Schema.Field], prefix: String) {
+      def mkSetter(fields: List[Schema.Field], t: KeyValueType) {
+        val prefix = mkStrRep(t)
         fields.foreach(f => {
-          outputBraced("def ", f.name, "_=(v: ", mkClazzName(f.schema.getType), "): Unit =") {
-            f.schema.getType match {
-              case Type.INT | Type.BOOLEAN | Type.STRING =>
-                output(prefix, ".", f.name, " = v") 
-              case Type.RECORD =>
-                output(prefix, ".", f.name, ".parse(v.toBytes)") 
-              case e => 
-                logger.fatal("Bad field name: " + f)
-                throw new IllegalArgumentException("Bad field name: " + f)
-            }
+          f.schema.getType match {
+            case Type.INT | Type.BOOLEAN | Type.STRING =>
+              outputBraced("def ", f.name, "_=(v$: ", mkClazzName(f.schema.getType), "): Unit =") {
+                output(prefix, ".", f.name, " = v$") 
+              }
+            case Type.RECORD =>
+              outputBraced("def ", f.name, "_=(v$: ", stripType(t, f.schema.getName), "): Unit =") {
+                output(f.name, " = v$.", prefix)
+              }
+              outputBraced("def ", f.name, "_=(v$: ", mkType(t, f.schema.getName), "): Unit =") {
+                output(prefix, ".", f.name, ".parse(v$.toBytes)")
+              }
+            case e => 
+              logger.fatal("Bad field name: " + f)
+              throw new IllegalArgumentException("Bad field name: " + f)
           }
         })
       }
 
-      mkSetter(entity.keySchema.getFields.toList, "key")
-      mkSetter(entity.valueSchema.getFields.toList, "value")
+      mkSetter(entity.keySchema.getFields.toList, KeyType)
+      mkSetter(entity.valueSchema.getFields.toList, ValueType)
 
       entity.queries.foreach((generateQuery _).tupled)
     }
