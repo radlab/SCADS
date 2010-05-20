@@ -53,7 +53,7 @@ abstract trait QueryExecutor {
 
     val result = ns.get(keyRec) match {
       case Some(v) => List((keyRec, v))
-      case None => List(null)
+      case None => Nil
     }
 
     Log2.debug(qLogger, "singleGet Result:", result)
