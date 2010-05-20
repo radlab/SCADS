@@ -4,7 +4,7 @@ import scala.collection.JavaConversions._
 import org.apache.log4j.Logger
 
 import org.apache.avro.Schema
-import org.apache.avro.Schema.Type
+import org.apache.avro.Schema.{Field, Type}
 
 import scala.collection.mutable.HashMap
 
@@ -102,12 +102,57 @@ object ScalaGen extends Generator[BoundSpec] {
           (entity.keySchema.getFields.toList ++ entity.valueSchema.getFields).foreach(field => {
               output("case ", quote(field.name), " => ", field.name)
           })
-          output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad index\")")
+          output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad field name: \" + fieldName)")
+        }
+      }
+
+      def mkClazzName(t: Type): String = t match {
+          case Type.INT => "Int"
+          case Type.BOOLEAN => "Boolean"
+          case Type.STRING => "String"
+          case Type.RECORD => "SpecificRecordBase"
+          case e => 
+            logger.fatal("Invalid field schema type: " + e)
+            throw new IllegalArgumentException("Invalid field schema type: " +e)
+      }
+
+      outputBraced("override def put(fieldName$: String, fieldValue$: Any): Unit =") {
+        outputBraced("fieldName$ match ") {
+          (entity.keySchema.getFields.toList ++ entity.valueSchema.getFields).foreach(field => {
+              if (field.schema.getType == Type.RECORD) {
+                outputBraced("case ", quote(field.name), " => fieldValue$ match ") {
+                  /** TODO: is there a better way to get this class name? */
+                  output("case e$: ", field.schema.getName.substring(0, field.schema.getName.length - 3) /* strip "Key" from name */, " => ", field.name, " = e$.key")
+                  output("case f$ => ", field.name, " = f$.asInstanceOf[SpecificRecordBase]")
+                }
+              } else 
+                output("case ", quote(field.name), " => ", field.name, " = fieldValue$.asInstanceOf[" + mkClazzName(field.schema.getType) + "]")
+          })
+          output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad field name: \" + fieldName$)")
         }
       }
 
       entity.keySchema.getFields.foreach(f => output("def ", f.name, " = key.", f.name))
       entity.valueSchema.getFields.foreach(f => output("def ", f.name, " = value.", f.name))
+
+      def mkSetter(fields: List[Schema.Field], prefix: String) {
+        fields.foreach(f => {
+          outputBraced("def ", f.name, "_=(v: ", mkClazzName(f.schema.getType), "): Unit =") {
+            f.schema.getType match {
+              case Type.INT | Type.BOOLEAN | Type.STRING =>
+                output(prefix, ".", f.name, " = v") 
+              case Type.RECORD =>
+                output(prefix, ".", f.name, ".parse(v.toBytes)") 
+              case e => 
+                logger.fatal("Bad field name: " + f)
+                throw new IllegalArgumentException("Bad field name: " + f)
+            }
+          }
+        })
+      }
+
+      mkSetter(entity.keySchema.getFields.toList, "key")
+      mkSetter(entity.valueSchema.getFields.toList, "value")
 
       entity.queries.foreach((generateQuery _).tupled)
     }

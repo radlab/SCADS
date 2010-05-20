@@ -18,7 +18,14 @@ class PiqlDataReader(schema: Schema) extends SpecificDatumReader[Any](schema) {
 	}
 }
 
-abstract class EntityPart extends SpecificRecordBase with SpecificRecord {
+trait KeyValueLike { 
+    def get(k: String): Any
+    def put(k: String, v: Any): Unit
+}
+
+abstract class EntityPart extends SpecificRecordBase 
+                          with    SpecificRecord
+                          /* with    KeyValueLike */ {
 	val reader = new PiqlDataReader(getSchema)
 
   override def parse(bytes: ByteBuffer): Unit = {
@@ -45,15 +52,13 @@ abstract class EntityPart extends SpecificRecordBase with SpecificRecord {
   def flatValues: List[Any]
 }
 
-abstract class Entity[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]) {
+abstract class Entity[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase] (implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]) extends KeyValueLike {
   val namespace: String
 
   val key: KeyType
   val value: ValueType
 
   val indexes: Map[String, Schema]
-
-  def get(fieldName: String): Any
 
   def load(pk: KeyType)(implicit cluster: ScadsCluster): Unit = {
     key.parse(pk.toBytes)
