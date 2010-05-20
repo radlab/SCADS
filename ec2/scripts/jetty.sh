@@ -1,18 +1,9 @@
-cat <<EOF > /etc/apt/sources.list
-###### Ubuntu Main Repos
-deb http://us.archive.ubuntu.com/ubuntu/ karmic main restricted universe multiverse 
-deb-src http://us.archive.ubuntu.com/ubuntu/ karmic main restricted universe multiverse 
-
-###### Ubuntu Update Repos
-deb http://us.archive.ubuntu.com/ubuntu/ karmic-security main restricted universe multiverse 
-deb http://us.archive.ubuntu.com/ubuntu/ karmic-updates main restricted universe multiverse 
-deb-src http://us.archive.ubuntu.com/ubuntu/ karmic-security main restricted universe multiverse 
-deb-src http://us.archive.ubuntu.com/ubuntu/ karmic-updates main restricted universe multiverse 
-EOF
-
-apt-get update
-yes | apt-get -y install sun-java6-jdk
 apt-get -y install jetty
+
+mkdir /home/jetty/.ssh
+cp /home/ubuntu/.ssh/authorized_keys /home/jetty/.ssh/
+chown -R jetty /home/jetty/
+chgrp -R jetty /home/jetty/
 
 cat <<EOF > /etc/default/jetty
 # Defaults for jetty see /etc/init.d/jetty for more
@@ -69,33 +60,4 @@ ln -s /var/lib/jetty/webapps /usr/share/java/webapps
 update-rc.d jetty defaults
 /etc/init.d/jetty start
 
-apt-get install xinetd
 
-cat <<EOF > /etc/xinetd.d/jetty
-service jetty
-{
- type = UNLISTED
- disable = no
- socket_type = stream
- protocol = tcp
- user = root
- wait = no
- port = 80
- redirect = 127.0.0.1 8080 
- log_type = FILE /tmp/jettyredirect.log
-}
-EOF
-/etc/init.d/xinetd restart
-
-cd /usr/share/jetty/webapps 
-wget -c http://nexus.sonatype.org/downloads/nexus-webapp-1.5.0.war -O /usr/share/jetty/webapps/nexus.war
-wget -c http://hudson-ci.org/latest/hudson.war -O /usr/share/jetty/webapps/hudson.war
-
-mkdir -p /home/jetty/hudson
-mkdir -p /home/jetty/nexus
-
-chown -R jetty:adm /home/jetty
-echo export HUDSON_HOME=/home/jetty/hudson >> /etc/default/jetty
-ln -s /home/jetty/nexus /usr/share/jetty/sonatype-work
-
-reboot

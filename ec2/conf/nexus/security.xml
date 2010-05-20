@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<security>
+  <version>2.0.2</version>
+  <users>
+    <user>
+      <id>anonymous</id>
+      <name>Nexus Anonynmous User</name>
+      <password>0a92fab3230134cca6eadd9898325b9b2ae67998</password>
+      <status>active</status>
+      <email>changeme2@yourcompany.com</email>
+    </user>
+    <user>
+      <id>deployment</id>
+      <name>Deployment User</name>
+      <password>ba697d6722521e5469eb13b1733e0008267de8ce</password>
+      <status>active</status>
+      <email>changeme1@yourcompany.com</email>
+    </user>
+    <user>
+      <id>admin</id>
+      <name>Administrator</name>
+      <password>02cf7621a2c59a450216dbff5f1d8266a36d8b37</password>
+      <status>active</status>
+      <email>marmbrus@cs.berkeley.edu</email>
+    </user>
+  </users>
+  <userRoleMappings>
+    <userRoleMapping>
+      <userId>anonymous</userId>
+      <source>default</source>
+      <roles>
+        <role>anonymous</role>
+        <role>repo-all-read</role>
+      </roles>
+    </userRoleMapping>
+    <userRoleMapping>
+      <userId>deployment</userId>
+      <source>default</source>
+      <roles>
+        <role>deployment</role>
+        <role>repo-all-full</role>
+      </roles>
+    </userRoleMapping>
+    <userRoleMapping>
+      <userId>admin</userId>
+      <source>default</source>
+      <roles>
+        <role>admin</role>
+      </roles>
+    </userRoleMapping>
+  </userRoleMappings>
+</security>

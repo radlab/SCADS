@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nexusConfiguration>
+  <version>1.0.8</version>
+  <security>
+    <enabled>true</enabled>
+    <anonymousAccessEnabled>true</anonymousAccessEnabled>
+    <anonymousPassword>{H0zpIUvrlJEH9QGpSsCeP2YlbHCKUWkGvIA+o+V4HO4=}</anonymousPassword>
+    <realms>
+      <realm>XmlAuthenticatingRealm</realm>
+      <realm>XmlAuthorizingRealm</realm>
+    </realms>
+  </security>
+  <globalConnectionSettings />
+  <restApi />
+  <httpProxy>
+    <enabled>true</enabled>
+  </httpProxy>
+  <routing>
+    <groups />
+  </routing>
+  <repositories>
+    <repository>
+      <id>central</id>
+      <name>Maven Central</name>
+      <artifactMaxAge>-1</artifactMaxAge>
+      <remoteStorage>
+        <url>http://repo1.maven.org/maven2/</url>
+      </remoteStorage>
+    </repository>
+    <repository>
+      <id>apache-snapshots</id>
+      <name>Apache Snapshots</name>
+      <repositoryPolicy>snapshot</repositoryPolicy>
+      <remoteStorage>
+        <url>http://repository.apache.org/snapshots</url>
+      </remoteStorage>
+    </repository>
+    <repository>
+      <id>codehaus-snapshots</id>
+      <name>Codehaus Snapshots</name>
+      <repositoryPolicy>snapshot</repositoryPolicy>
+      <remoteStorage>
+        <url>http://snapshots.repository.codehaus.org/</url>
+      </remoteStorage>
+    </repository>
+    <repository>
+      <id>releases</id>
+      <name>Releases</name>
+      <allowWrite>true</allowWrite>
+      <artifactMaxAge>-1</artifactMaxAge>
+    </repository>
+    <repository>
+      <id>snapshots</id>
+      <name>Snapshots</name>
+      <allowWrite>true</allowWrite>
+      <repositoryPolicy>snapshot</repositoryPolicy>
+    </repository>
+    <repository>
+      <id>thirdparty</id>
+      <name>3rd party</name>
+      <allowWrite>true</allowWrite>
+      <artifactMaxAge>-1</artifactMaxAge>
+    </repository>
+    <repository>
+      <id>sun</id>
+      <name>Sun Licensed jars</name>
+      <allowWrite>true</allowWrite>
+      <checksumPolicy>ignore</checksumPolicy>
+    </repository>
+    <repository>
+      <id>scala</id>
+      <name>Scala Releases</name>
+      <artifactMaxAge>-1</artifactMaxAge>
+      <downloadRemoteIndexes>true</downloadRemoteIndexes>
+      <remoteStorage>
+        <url>http://scala-tools.org/repo-releases</url>
+      </remoteStorage>
+    </repository>
+    <repository>
+      <id>scalasnap</id>
+      <name>Scala Snapshots</name>
+      <repositoryPolicy>snapshot</repositoryPolicy>
+      <downloadRemoteIndexes>true</downloadRemoteIndexes>
+      <remoteStorage>
+        <url>http://scala-tools.org/repo-snapshots/</url>
+      </remoteStorage>
+    </repository>
+    <repository>
+      <id>oracle</id>
+      <name>Oracle DB</name>
+      <artifactMaxAge>-1</artifactMaxAge>
+      <downloadRemoteIndexes>true</downloadRemoteIndexes>
+      <remoteStorage>
+        <url>http://download.oracle.com/maven</url>
+      </remoteStorage>
+    </repository>
+    <repository>
+      <id>apache</id>
+      <name>Apache Releases</name>
+      <artifactMaxAge>-1</artifactMaxAge>
+      <downloadRemoteIndexes>true</downloadRemoteIndexes>
+      <remoteStorage>
+        <url>https://repository.apache.org/content/groups/public/</url>
+      </remoteStorage>
+    </repository>
+    <repository>
+      <id>twdata</id>
+      <name>TWData Repository</name>
+      <artifactMaxAge>-1</artifactMaxAge>
+      <downloadRemoteIndexes>true</downloadRemoteIndexes>
+      <remoteStorage>
+        <url>http://twdata-m2-repository.googlecode.com/svn/</url>
+      </remoteStorage>
+    </repository>
+    <repository>
+      <id>snakeyaml</id>
+      <name>Snake YAML</name>
+      <artifactMaxAge>-1</artifactMaxAge>
+      <downloadRemoteIndexes>true</downloadRemoteIndexes>
+      <remoteStorage>
+        <url>http://snakeyamlrepo.appspot.com/repository</url>
+      </remoteStorage>
+    </repository>
+    <repository>
+      <id>zookeeper</id>
+      <name>zookeeper</name>
+      <artifactMaxAge>-1</artifactMaxAge>
+      <downloadRemoteIndexes>true</downloadRemoteIndexes>
+      <remoteStorage>
+        <url>http://people.apache.org/~chirino/zk-repo/</url>
+      </remoteStorage>
+    </repository>
+    <repository>
+      <id>jboss-maven2</id>
+      <name>jboss-maven2</name>
+      <artifactMaxAge>-1</artifactMaxAge>
+      <checksumPolicy>strict</checksumPolicy>
+      <downloadRemoteIndexes>true</downloadRemoteIndexes>
+      <remoteStorage>
+        <url>http://repository.jboss.com/maven2/</url>
+      </remoteStorage>
+    </repository>
+    <repository>
+      <id>stopwatch</id>
+      <name>stopwatch</name>
+      <repositoryPolicy>snapshot</repositoryPolicy>
+      <remoteStorage>
+        <url>http://repo.alexboisvert.org/maven2/</url>
+      </remoteStorage>
+    </repository>
+  </repositories>
+  <repositoryShadows>
+    <repositoryShadow>
+      <id>central-m1</id>
+      <name>Central M1 shadow</name>
+      <shadowOf>central</shadowOf>
+      <type>m2-m1-shadow</type>
+    </repositoryShadow>
+  </repositoryShadows>
+  <repositoryGrouping>
+    <pathMappings>
+      <pathMapping>
+        <id>53e9a9fbd6b0</id>
+        <groupId>*</groupId>
+        <routePattern>.*/org/codehaus/mojo/.*</routePattern>
+        <routeType>exclusive</routeType>
+        <repositories>
+          <repository>oracle</repository>
+        </repositories>
+      </pathMapping>
+    </pathMappings>
+    <repositoryGroups>
+      <repositoryGroup>
+        <groupId>public</groupId>
+        <name>Public Repositories</name>
+        <type>maven2</type>
+        <repositories>
+          <repository>releases</repository>
+          <repository>snapshots</repository>
+          <repository>central</repository>
+          <repository>apache</repository>
+          <repository>thirdparty</repository>
+          <repository>sun</repository>
+          <repository>scala</repository>
+          <repository>scalasnap</repository>
+          <repository>twdata</repository>
+          <repository>snakeyaml</repository>
+          <repository>apache-snapshots</repository>
+          <repository>zookeeper</repository>
+          <repository>oracle</repository>
+          <repository>jboss-maven2</repository>
+          <repository>stopwatch</repository>
+        </repositories>
+      </repositoryGroup>
+      <repositoryGroup>
+        <groupId>public-snapshots</groupId>
+        <name>Public Snapshot Repositories</name>
+        <type>maven2</type>
+        <repositories>
+          <repository>apache-snapshots</repository>
+          <repository>stopwatch</repository>
+        </repositories>
+      </repositoryGroup>
+    </repositoryGroups>
+  </repositoryGrouping>
+  <repositoryTargets>
+    <repositoryTarget>
+      <id>1</id>
+      <name>All (Maven2)</name>
+      <contentClass>maven2</contentClass>
+      <patterns>
+        <pattern>.*</pattern>
+      </patterns>
+    </repositoryTarget>
+    <repositoryTarget>
+      <id>2</id>
+      <name>All (Maven1)</name>
+      <contentClass>maven1</contentClass>
+      <patterns>
+        <pattern>.*</pattern>
+      </patterns>
+    </repositoryTarget>
+    <repositoryTarget>
+      <id>3</id>
+      <name>All but sources (Maven2)</name>
+      <contentClass>maven2</contentClass>
+      <patterns>
+        <pattern>(?!.*-sources.*).*</pattern>
+      </patterns>
+    </repositoryTarget>
+    <repositoryTarget>
+      <id>4</id>
+      <name>All Metadata (Maven2)</name>
+      <contentClass>maven2</contentClass>
+      <patterns>
+        <pattern>.*maven-metadata\.xml.*</pattern>
+      </patterns>
+    </repositoryTarget>
+  </repositoryTargets>
+  <smtpConfiguration>
+    <host>smtp-host</host>
+    <port>25</port>
+    <username>smtp-username</username>
+    <password>{Mm3jIes2dNYHSk/yMfxz41AEb5IreJG1EQaQjCldsaM=}</password>
+    <systemEmailAddress>system@nexus.org</systemEmailAddress>
+  </smtpConfiguration>
+</nexusConfiguration>
