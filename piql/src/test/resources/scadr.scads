@@ -1,4 +1,4 @@
-ENTITY user
+ENTITY User
 {
 	string name,
 	string password,
@@ -7,63 +7,63 @@ ENTITY user
 	PRIMARY(name)
 }
 
-ENTITY thought
+ENTITY Thought
 {
 	int timestamp,
 	string text,
-    FOREIGN KEY owner REF user
+    FOREIGN KEY owner REF User
 	PRIMARY(owner, timestamp)
 }
 
-ENTITY subscription
+ENTITY Subscription
 {
-    FOREIGN KEY owner REF user MAX 5000,
-    FOREIGN KEY target REF user,
+    FOREIGN KEY owner REF User MAX 5000,
+    FOREIGN KEY target REF User,
 	bool approved
 	PRIMARY(owner, target)
 }
 
 QUERY myThoughts
-FETCH thought
-	OF user BY owner
-WHERE user=[this]
+FETCH Thought
+	OF User BY owner
+WHERE User=[this]
 LIMIT [1: numperpage] MAX 10
 
 // These are people that I am following
 // NOT people that are following me
 QUERY myFollowing
-FETCH user
-	OF subscription BY target
-	OF user me BY owner
+FETCH User
+	OF Subscription BY target
+	OF User me BY owner
 WHERE me=[this]
 LIMIT [1:numperpage] MAX 30
 
 QUERY thoughtstream
-FETCH thought
-	OF user friend BY owner
-	OF subscription BY target
-	OF user me BY owner
-WHERE me=[this] AND subscription.approved = true
+FETCH Thought
+	OF User friend BY owner
+	OF Subscription BY target
+	OF User me BY owner
+WHERE me=[this] AND Subscription.approved = true
 ORDER BY timestamp
 LIMIT [1:count] MAX 100
 
 QUERY needsApproval
-FETCH subscription
-	OF user BY target
-WHERE user = [this] AND subscription.approved = false
+FETCH Subscription
+	OF User BY target
+WHERE User = [this] AND Subscription.approved = false
 LIMIT [1: count] MAX 100
 
 QUERY userByName
-FETCH user
-WHERE user.name = [1:name]
+FETCH User
+WHERE User.name = [1:name]
 
 QUERY userByEmail
-FETCH user
+FETCH User
 WHERE email = [1:email]
 LIMIT 10 MAX 10
 
 QUERY findUserByPK
-FETCH user
+FETCH User
 WHERE name = [1:name]
 
 /* Missing Queries */
