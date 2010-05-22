@@ -34,7 +34,6 @@ object Util {
 			}
 			catch {
 				case ce: java.net.ConnectException => logAndStore(ce)
-				case te: org.apache.thrift.transport.TTransportException => logAndStore(te)
 				case rt: RetryableException => logAndStore(rt)
 			}
 		}

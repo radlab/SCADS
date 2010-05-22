@@ -57,11 +57,6 @@
 			<version>1.2.12</version>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.thrift</groupId>
-			<artifactId>libthrift</artifactId>
-			<version>0.3-xtrace-SNAPSHOT</version>
-		</dependency>
-		<dependency>
 			<groupId>org.exist-db</groupId>
 			<artifactId>exist-db</artifactId>
 			<version>1.4.0</version>
