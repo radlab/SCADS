@@ -169,21 +169,12 @@ object ScalaGen extends Generator[BoundSpec] {
 
       /** TODO: is there a better way to get this class name? */
       def stripKey(s: String) = s.substring(0, s.length - 3)
-      def stripValue(s: String) = s.substring(0, s.length - 5)
       def mkKeyType(s: String) = stripKey(s) + ".KeyType"
-      def mkValueType(s: String) = stripValue(s) + ".ValueType"
+      def mkValueType(s: String) = stripKey(s) + ".ValueType"
 
       sealed trait KeyValueType
       object KeyType extends KeyValueType
       object ValueType extends KeyValueType
-
-      def stripType(t: KeyValueType, s: String) = 
-        if (t == KeyType)
-          stripKey(s)
-        else if (t == ValueType)
-          stripValue(s)
-        else
-          throw new IllegalArgumentException("Bad KeyValueType: " + t)
 
       def mkType(t: KeyValueType, s: String) = 
         if (t == KeyType)
@@ -205,9 +196,10 @@ object ScalaGen extends Generator[BoundSpec] {
         fields.foreach(field => {
           if (field.schema.getType == Type.RECORD) {
             outputBraced("case ", quote(field.name), " => fieldValue$ match ") {
-              output("case e$: ", stripType(t, field.schema.getName), " => ", field.name, " = e$.", mkStrRep(t))
+              System.err.println("field.schema.getName = " + field.schema.getName)
+              output("case e$: ", stripKey(field.schema.getName), " => ", field.name, " = e$.", mkStrRep(t))
               output("case f$: ", mkType(t, field.schema.getName), " => ", field.name, " = f$")
-              output("case _ => throw new IllegalArgumentException(\"Bad object type for field \" + " + field.name + ")")
+              output("case _ => throw new IllegalArgumentException(\"Bad object type for field " + field.name + "\")")
             }
           } else 
             output("case ", quote(field.name), " => ", field.name, " = fieldValue$.asInstanceOf[" + mkClazzName(field.schema.getType) + "]")
@@ -234,7 +226,7 @@ object ScalaGen extends Generator[BoundSpec] {
                 output(prefix, ".", f.name, " = v$") 
               }
             case Type.RECORD =>
-              outputBraced("def ", f.name, "_=(v$: ", stripType(t, f.schema.getName), "): Unit =") {
+              outputBraced("def ", f.name, "_=(v$: ", stripKey(f.schema.getName), "): Unit =") {
                 output(f.name, " = v$.", prefix)
               }
               outputBraced("def ", f.name, "_=(v$: ", mkType(t, f.schema.getName), "): Unit =") {
