@@ -72,4 +72,6 @@ abstract class Generator[InputType] {
   }
 
   protected def generate(elm: InputType)(implicit sb: StringBuilder, indnt: Indentation): Unit
+
+  protected def quote(string: String) = "\"" + string + "\""
 }

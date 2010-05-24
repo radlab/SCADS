@@ -284,8 +284,6 @@ object ScalaGen extends Generator[BoundSpec] {
 		}
 	}
 
-	protected def quote(string: String) = "\"" + string + "\""
-
   protected def argToCode(arg: Any): String = arg match {
     case c: Class[_] => "classOf[" + c.getName + "]"
     case s: String => "\"" + s + "\""
