@@ -266,6 +266,7 @@ object ScalaGen extends Generator[BoundSpec] {
                 case ((f: String, t: Type), idx: Int) if(t == Type.STRING) =>
                   output("case ", idx.toString, " => ", f, " = v.toString")
               }
+              output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad index\")")
             }
           }
 
