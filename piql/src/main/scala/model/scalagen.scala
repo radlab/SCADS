@@ -329,6 +329,7 @@ object ScalaGen extends Generator[BoundSpec] {
     case Type.STRING => "String"
     case Type.BOOLEAN => "Boolean"
     case Type.INT => "Int"
+    case Type.RECORD => s.getName()
   }
 
   protected def generateQuery(name: String, query: BoundQuery)(implicit sb: StringBuilder, indnt: Indentation) {
