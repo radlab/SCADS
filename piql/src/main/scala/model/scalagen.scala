@@ -139,8 +139,8 @@ object ScalaGen extends Generator[BoundSpec] {
   }
 
   /** TODO: is there a better way to get this class name? */
-  private def stripKey(s: String) = s.substring(0, s.length - 3)
-  private def isKeyType(s: String) = s.endsWith("Key")
+  private def stripKeyType(s: String) = s.split("\\$")(0) // SPLIT takes regex...
+  private def isKeyType(s: String) = s.endsWith("$KeyType")
 
 	protected def generate(entity: BoundEntity)(implicit sb: StringBuilder, indnt: Indentation): Unit = {
 		outputBraced("class ", entity.name, " extends Entity[", entity.name, ".KeyType", ",", entity.name, ".ValueType] with QueryExecutor") {
@@ -160,31 +160,9 @@ object ScalaGen extends Generator[BoundSpec] {
         }
       }
 
-      def mkClazzName(t: Type): String = t match {
-          case Type.INT => "Int"
-          case Type.BOOLEAN => "Boolean"
-          case Type.STRING => "String"
-          case Type.RECORD => "SpecificRecordBase"
-          case e =>
-            logger.fatal("Invalid field schema type: " + e)
-            throw new IllegalArgumentException("Invalid field schema type: " +e)
-      }
-
-
-      def mkKeyType(s: String) = stripKey(s) + ".KeyType"
-      def mkValueType(s: String) = stripKey(s) + ".ValueType"
-
       sealed trait KeyValueType
       object KeyType extends KeyValueType
       object ValueType extends KeyValueType
-
-      def mkType(t: KeyValueType, s: String) =
-        if (t == KeyType)
-          mkKeyType(s)
-        else if (t == ValueType)
-          mkValueType(s)
-        else
-          throw new IllegalArgumentException("Bad KeyValueType: " + t)
 
       def mkStrRep(t: KeyValueType) =
         if (t == KeyType)
@@ -194,24 +172,24 @@ object ScalaGen extends Generator[BoundSpec] {
         else
           throw new IllegalArgumentException("Bad KeyValueType: " + t)
 
-      def mkCaseMatches(fields: List[Schema.Field], t: KeyValueType) {
+      def mkCaseMatches(fields: List[Schema.Field]) {
         fields.foreach(field => {
           if (field.schema.getType == Type.RECORD) {
             outputBraced("case ", quote(field.name), " => fieldValue$ match ") {
               System.err.println("field.schema.getName = " + field.schema.getName)
-              output("case e$: ", stripKey(field.schema.getName), " => ", field.name, " = e$.", mkStrRep(t))
-              output("case f$: ", mkType(t, field.schema.getName), " => ", field.name, " = f$")
+              output("case e$: ", stripKeyType(field.schema.getName), " => ", field.name, " = e$.key")
+              output("case f$: ", toScalaType(field.schema), " => ", field.name, " = f$")
               output("case _ => throw new IllegalArgumentException(\"Bad object type for field " + field.name + "\")")
             }
           } else
-            output("case ", quote(field.name), " => ", field.name, " = fieldValue$.asInstanceOf[" + mkClazzName(field.schema.getType) + "]")
+            output("case ", quote(field.name), " => ", field.name, " = fieldValue$.asInstanceOf[" + toScalaType(field.schema) + "]")
         })
       }
 
       outputBraced("override def put(fieldName$: String, fieldValue$: Any): Unit =") {
         outputBraced("fieldName$ match ") {
-          mkCaseMatches(entity.keySchema.getFields.toList, KeyType)
-          mkCaseMatches(entity.valueSchema.getFields.toList, ValueType)
+          mkCaseMatches(entity.keySchema.getFields.toList)
+          mkCaseMatches(entity.valueSchema.getFields.toList)
           output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad field name: \" + fieldName$)")
         }
       }
@@ -224,14 +202,14 @@ object ScalaGen extends Generator[BoundSpec] {
         fields.foreach(f => {
           f.schema.getType match {
             case Type.INT | Type.BOOLEAN | Type.STRING =>
-              outputBraced("def ", f.name, "_=(v$: ", mkClazzName(f.schema.getType), "): Unit =") {
+              outputBraced("def ", f.name, "_=(v$: ", toScalaType(f.schema), "): Unit =") {
                 output(prefix, ".", f.name, " = v$")
               }
             case Type.RECORD =>
-              outputBraced("def ", f.name, "_=(v$: ", stripKey(f.schema.getName), "): Unit =") {
-                output(f.name, " = v$.", prefix)
+              outputBraced("def ", f.name, "_=(v$: ", stripKeyType(f.schema.getName), "): Unit =") {
+                output(f.name, " = v$.key")
               }
-              outputBraced("def ", f.name, "_=(v$: ", mkType(t, f.schema.getName), "): Unit =") {
+              outputBraced("def ", f.name, "_=(v$: ", toScalaType(f.schema), "): Unit =") {
                 output(prefix, ".", f.name, ".parse(v$.toBytes)")
               }
             case e =>
@@ -254,12 +232,12 @@ object ScalaGen extends Generator[BoundSpec] {
         def isKeyPart = isKeyType(r.getName)
         val classMods = 
           if (isKeyPart)
-            "KeyPart[" + stripKey(r.getName) + "]"
+            "KeyPart[" + stripKeyType(r.getName) + "]"
           else
             "EntityPart"
 				outputBraced("class ", prefix.getOrElse(name), "Type extends ", classMods) {
           if (isKeyPart)
-            output("val namespace$ = ", quote("ent_" + stripKey(r.getName)))
+            output("val namespace$ = ", quote("ent_" + stripKeyType(r.getName)))
 					output("def getSchema(): Schema = Schema.parse(\"\"\"", r.toString, "\"\"\")")
           outputFields(r)
 
@@ -329,7 +307,7 @@ object ScalaGen extends Generator[BoundSpec] {
     case Type.STRING => "String"
     case Type.BOOLEAN => "Boolean"
     case Type.INT => "Int"
-    case Type.RECORD => s.getName()
+    case Type.RECORD => s.getName.replace('$', '.')
   }
 
   protected def generateQuery(name: String, query: BoundQuery)(implicit sb: StringBuilder, indnt: Indentation) {
