@@ -368,9 +368,9 @@ class Binder(spec: Spec) {
       }
     })
 
-		val keySchema = Schema.createRecord(currentEntity.name + "Key", "", "", false)
+		val keySchema = Schema.createRecord(currentEntity.name + ".KeyType", "", "", false)
 		keySchema.setFields(java.util.Arrays.asList(keyParts.toArray:_*))
-		val valueSchema = Schema.createRecord(currentEntity.name + "Value", "", "", false)
+		val valueSchema = Schema.createRecord(currentEntity.name + ".ValueType", "", "", false)
 		valueSchema.setFields(java.util.Arrays.asList(valueParts.toArray:_*))
 
 		val boundEntity = new BoundEntity(
