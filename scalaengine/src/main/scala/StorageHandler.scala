@@ -275,6 +275,14 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
   }
   java.lang.Runtime.getRuntime().addShutdownHook(new SDRunner(this))
 
+  val availServs = root.getOrCreate("availableServers")
+  val lport =
+    if (port == 0) 
+      MessageHandler.getLocalPort
+    else
+      port
+  availServs.createChild(localAddr, (lport+"").getBytes, CreateMode.EPHEMERAL)
+
   private def decodeKey(ns:Namespace, dbe:DatabaseEntry): GenericData.Record = {
     val decoder = new BinaryDecoder(new ByteArrayInputStream(dbe.getData(),dbe.getOffset(),dbe.getSize()))
     val reader = new GenericDatumReader[GenericData.Record](ns.keySchema)

@@ -29,7 +29,9 @@ object ScalaEngine extends optional.Application {
     val env = new Environment(dir, config)
     logger.info("Connecting to zookeeper")
     val zooRoot = new ZooKeeperProxy(zooKeeper).root("scads")
-    val handler = new StorageHandler(env, zooRoot)
+    val handler = new StorageHandler(env, zooRoot,
+                                     java.net.InetAddress.getLocalHost.getHostName,
+                                     port)
     logger.info("Starting listener")
     MessageHandler.registerService("Storage",handler)
     MessageHandler.startListener(port)
