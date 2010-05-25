@@ -62,13 +62,24 @@ object GraphVis {
     }
   }
 
+  def getJoinPredicates(ns: String, conditions: Seq[JoinCondition], child: DotNode)(implicit env: Environment): DotNode = {
+    val namespace = env.namespaces(ns)
+
+    conditions.zipWithIndex.foldLeft(child) {
+      case (subPlan: DotNode, (value: JoinCondition, idx: Int)) => {
+        val fieldName = namespace.keySchema.getFields.get(idx).name
+        DotNode("selection " + fieldName + "=" + value, List(subPlan))
+      }
+    }
+  }
+
   def generateGraph(plan: QueryPlan)(implicit env: Environment): DotComponent = {
     plan match {
       case SingleGet(ns, key) => SubGraph("SingleGet", List(getPredicates(ns, key, DotNode(ns))))
       case PrefixGet(ns, prefix, limit, ascending) => SubGraph("PrefixGet", List(getPredicates(ns, prefix, DotNode(ns))))
       case SequentialDereferenceIndex(ns, child) => SubGraph("SequentialDeref", List(DotNode("deref", List(DotNode(ns), generateGraph(child)))))
-      case PrefixJoin(ns, conditions, limit, ascending, child) => SubGraph("PrefixJoin", List(DotNode("join", List(DotNode(ns), generateGraph(child)))))
-      case PointerJoin(ns, conditions, child) => SubGraph("PointerJoin", List(DotNode("join", List(DotNode(ns), generateGraph(child)))))
+      case PrefixJoin(ns, conditions, limit, ascending, child) => SubGraph("PrefixJoin", List(getJoinPredicates(ns, conditions, DotNode("join", List(DotNode(ns), generateGraph(child))))))
+      case PointerJoin(ns, conditions, child) => SubGraph("PointerJoin", List(getJoinPredicates(ns, conditions, DotNode("join", List(DotNode(ns), generateGraph(child))))))
       case Materialize(entityType, child) => generateGraph(child)
       case Selection(equalityMap, child) => DotNode("selection", List(generateGraph(child)))
       case Sort(fields, ascending, child) => DotNode("sort", List(generateGraph(child)))
