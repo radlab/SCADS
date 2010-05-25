@@ -57,11 +57,6 @@ QUERY userByName
 FETCH User
 WHERE User.name = [1:name]
 
-QUERY userByEmail
-FETCH User
-WHERE email = [1:email]
-LIMIT 10 MAX 10
-
 QUERY findUserByPK
 FETCH User
 WHERE name = [1:name]
