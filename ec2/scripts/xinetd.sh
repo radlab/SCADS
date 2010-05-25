@@ -1,5 +1,5 @@
 
-apt-get install xinetd
+apt-get -y install xinetd
 
 cat <<EOF > /etc/xinetd.d/jetty
 service jetty

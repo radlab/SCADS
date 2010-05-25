@@ -1,6 +1,6 @@
 apt-get -y install jetty
 
-mkdir /home/jetty/.ssh
+mkdir -p /home/jetty/.ssh
 cp /home/ubuntu/.ssh/authorized_keys /home/jetty/.ssh/
 chown -R jetty /home/jetty/
 chgrp -R jetty /home/jetty/
