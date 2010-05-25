@@ -4,7 +4,7 @@ import scala.collection.mutable.HashMap
 import scala.collection.JavaConversions._
 
 import org.apache.avro.Schema
-
+import org.apache.avro.specific.SpecificRecordBase
 import edu.berkeley.cs.scads.piql._
 
 object NoDuplicateMap {
@@ -78,6 +78,10 @@ case class BoundIntegerValue(value: Int) extends BoundFixedValue[Int] {
 }
 case class BoundStringValue(value: String) extends BoundFixedValue[String] {
 	val schema = Schema.create(Schema.Type.STRING)
+}
+
+case class BoundAvroRecordValue(value: SpecificRecordBase) extends BoundFixedValue[SpecificRecordBase] {
+	val schema = value.getSchema()
 }
 
 /* Bound Predicates */

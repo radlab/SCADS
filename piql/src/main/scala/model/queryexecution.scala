@@ -72,7 +72,7 @@ abstract trait QueryExecutor {
     val ns = env.namespaces(namespace)
     val key = ns.keyClass.newInstance()
     prefix.zipWithIndex.foreach {
-      case (value: BoundValue, idx: Int) => key.put(idx, value)
+      case (value: BoundFixedValue[_], idx: Int) => key.put(idx, value.value)
     }
     val result = ns.getPrefix(key, prefix.length)
     Log2.debug(qLogger, "singleGet result:", result)
