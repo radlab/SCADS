@@ -492,7 +492,12 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
 
   def put[K <: KeyType, V <: ValueType](key: K, value: V): Unit = {
     val nodes = serversForKey(key)
-    val pr = PutRequest(namespace, ByteBuffer.wrap(key.toBytes), ByteBuffer.wrap(value.toBytes))
+    def nullSafeWrap(v: V): ByteBuffer = 
+      if (value eq null)
+        null
+      else 
+        ByteBuffer.wrap(value.toBytes)
+    val pr = PutRequest(namespace, ByteBuffer.wrap(key.toBytes), nullSafeWrap(value))
     if (nodes.length <= 0) {
       logger.warn("No nodes responsible for this key, not doing anything")
       return
