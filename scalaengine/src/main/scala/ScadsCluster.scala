@@ -80,6 +80,48 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
     new Namespace[KeyType, ValueType](ns, 5000, root)
 	}
 
+  def createAndConfigureNamespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](ns:String, splitPoints:List[SpecificRecordBase])(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): Namespace[KeyType, ValueType] = {
+		val nsRoot = namespaces.createChild(ns, "", CreateMode.PERSISTENT)
+    val keySchema = keyType.erasure.newInstance.asInstanceOf[SpecificRecordBase].getSchema
+    val valueSchema = valueType.erasure.newInstance.asInstanceOf[SpecificRecordBase].getSchema
+		nsRoot.createChild("keySchema", keySchema.toString(), CreateMode.PERSISTENT)
+		nsRoot.createChild("valueSchema", valueSchema.toString(), CreateMode.PERSISTENT)
+    val sps = splitPoints.size
+    val available = root.get("availableServers").updateChildren(false)
+    if (available.size < sps)
+      throw new Exception("Not enough available servers")
+    var i = 1
+    available.foreach(serv => {
+      if (i <= (sps+1)) {
+        val node = new RemoteNode(serv._1,Integer.parseInt(new String(serv._2.data)))
+	      val partition = nsRoot.getOrCreate("partitions/"+i)
+	      val policy = new PartitionedPolicy
+        val kp = new KeyPartition(
+          if (i != 1) 
+            ByteBuffer.wrap(splitPoints(i-2).toBytes)
+          else
+            null,
+          if (i != (sps+1))
+            ByteBuffer.wrap(splitPoints(i-1).toBytes)
+          else
+            null)
+ 	      policy.partitions = List(kp)
+
+        println("part: "+i)
+        println("pol: "+kp)
+
+        partition.createChild("policy", policy.toBytes, CreateMode.PERSISTENT)
+		    partition.createChild("servers", "", CreateMode.PERSISTENT)
+        val cr = new ConfigureRequest
+        cr.namespace = ns
+        cr.partition = i+""
+        Sync.makeRequest(node, new Utf8("Storage"), cr)
+        i += 1
+      }
+    })
+    new Namespace[KeyType, ValueType](ns, 5000, root)
+  }
+
 	def addPartition(ns:String, name:String, policy:PartitionedPolicy):Unit = {
 		val partition = namespaces.getOrCreate(ns+"/partitions/"+name)
 
@@ -143,7 +185,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       } else
         sb.append("-inf")
       sb.append(", ")
-      if (min != null) {
+      if (max != null) {
         k.parse(max)
         sb.append(k.toString)
       } else
