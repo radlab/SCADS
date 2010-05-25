@@ -102,8 +102,8 @@ object ScalaGen extends Generator[BoundSpec] {
 
     outputBraced("override def get(f: String): Any =") {
       outputBraced("f match ") {
-        fields.zipWithIndex.foreach { 
-          case (field: Schema.Field, idx: Int) => 
+        fields.zipWithIndex.foreach {
+          case (field: Schema.Field, idx: Int) =>
             output("case ", quote(field.name), " => get(", idx.toString, ")")
         }
         output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad field name: \" + f)")
@@ -129,7 +129,7 @@ object ScalaGen extends Generator[BoundSpec] {
     outputBraced("override def put(f: String, v: Any): Unit =") {
       outputBraced("f match ") {
         fields.zipWithIndex.foreach {
-          case (field: Schema.Field, idx: Int) => 
+          case (field: Schema.Field, idx: Int) =>
             output("case ", quote(field.name), " => put(", idx.toString, ", v)")
         }
         output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad field name: \" + f)")
@@ -162,7 +162,7 @@ object ScalaGen extends Generator[BoundSpec] {
           case Type.BOOLEAN => "Boolean"
           case Type.STRING => "String"
           case Type.RECORD => "SpecificRecordBase"
-          case e => 
+          case e =>
             logger.fatal("Invalid field schema type: " + e)
             throw new IllegalArgumentException("Invalid field schema type: " +e)
       }
@@ -176,7 +176,7 @@ object ScalaGen extends Generator[BoundSpec] {
       object KeyType extends KeyValueType
       object ValueType extends KeyValueType
 
-      def mkType(t: KeyValueType, s: String) = 
+      def mkType(t: KeyValueType, s: String) =
         if (t == KeyType)
           mkKeyType(s)
         else if (t == ValueType)
@@ -184,7 +184,7 @@ object ScalaGen extends Generator[BoundSpec] {
         else
           throw new IllegalArgumentException("Bad KeyValueType: " + t)
 
-      def mkStrRep(t: KeyValueType) = 
+      def mkStrRep(t: KeyValueType) =
         if (t == KeyType)
           "key"
         else if (t == ValueType)
@@ -201,7 +201,7 @@ object ScalaGen extends Generator[BoundSpec] {
               output("case f$: ", mkType(t, field.schema.getName), " => ", field.name, " = f$")
               output("case _ => throw new IllegalArgumentException(\"Bad object type for field " + field.name + "\")")
             }
-          } else 
+          } else
             output("case ", quote(field.name), " => ", field.name, " = fieldValue$.asInstanceOf[" + mkClazzName(field.schema.getType) + "]")
         })
       }
@@ -223,7 +223,7 @@ object ScalaGen extends Generator[BoundSpec] {
           f.schema.getType match {
             case Type.INT | Type.BOOLEAN | Type.STRING =>
               outputBraced("def ", f.name, "_=(v$: ", mkClazzName(f.schema.getType), "): Unit =") {
-                output(prefix, ".", f.name, " = v$") 
+                output(prefix, ".", f.name, " = v$")
               }
             case Type.RECORD =>
               outputBraced("def ", f.name, "_=(v$: ", stripKey(f.schema.getName), "): Unit =") {
@@ -232,7 +232,7 @@ object ScalaGen extends Generator[BoundSpec] {
               outputBraced("def ", f.name, "_=(v$: ", mkType(t, f.schema.getName), "): Unit =") {
                 output(prefix, ".", f.name, ".parse(v$.toBytes)")
               }
-            case e => 
+            case e =>
               logger.fatal("Bad field name: " + f)
               throw new IllegalArgumentException("Bad field name: " + f)
           }

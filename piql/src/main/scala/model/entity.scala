@@ -18,12 +18,12 @@ class PiqlDataReader(schema: Schema) extends SpecificDatumReader[Any](schema) {
 	}
 }
 
-trait KeyValueLike { 
+trait KeyValueLike {
     def get(k: String): Any
     def put(k: String, v: Any): Unit
 }
 
-abstract class EntityPart extends SpecificRecordBase 
+abstract class EntityPart extends SpecificRecordBase
                           with    SpecificRecord
                           with    KeyValueLike {
 	val reader = new PiqlDataReader(getSchema)
