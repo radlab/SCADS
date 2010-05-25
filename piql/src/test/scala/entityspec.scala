@@ -6,6 +6,7 @@ import org.specs.runner.JUnit4
 import edu.berkeley.cs.scads.piql.{Compiler, Entity}
 import edu.berkeley.cs.scads.storage.{TestScalaEngine}
 import org.apache.avro.specific.SpecificRecordBase
+import edu.berkeley.cs.scads.piql.DynamicDispatch._
 
 object EntitySpec extends SpecificationWithJUnit("Scads Entity Specification") {
   implicit val cluster = TestScalaEngine.cluster
