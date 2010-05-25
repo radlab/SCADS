@@ -81,14 +81,18 @@ abstract class Entity[KeyType <: SpecificRecordBase, ValueType <: SpecificRecord
 
   val indexes: Map[String, Schema]
 
-  def load(pk: KeyType)(implicit cluster: ScadsCluster): Unit = {
+  def load(pk: KeyType)(implicit cluster: ScadsCluster) {
     key.parse(pk.toBytes)
     cluster.getNamespace[KeyType, ValueType](namespace).get(pk, value)
   }
 
-  def save(implicit env: Environment): Unit = {
+  def save(implicit env: Environment) {
     //println("Storing value: " + value.toBytes.toList + " to key: " + key.toBytes.toList)
     env.namespaces(namespace).put(key,value)
+  }
+
+  def delete(implicit env: Environment) {
+    env.namespaces(namespace).put(key,null)
   }
 
   override def toString(): String = {
