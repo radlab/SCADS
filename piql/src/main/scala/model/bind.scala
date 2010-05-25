@@ -320,6 +320,8 @@ class Binder(spec: Spec) {
 		val donePrime = done ++ reqEntities
 		val doneNames = donePrime.map(_.name)
 
+    logger.debug("Calculating attribute types for entity " + currentEntity.name)
+    logger.debug("Already calculated: " + doneNames)
 		val attributes = currentEntity.attributes.map {
       case SimpleAttribute(attrName, attrType) =>
         new Schema.Field(attrName, attrType match {
@@ -328,11 +330,27 @@ class Binder(spec: Spec) {
 				  case BooleanType => Schema.create(Schema.Type.BOOLEAN)
 			  }, "", null)
       case ForeignKey(attrName, foreignType, _) => {
-	      new Schema.Field(attrName, donePrime.find(_.name equals foreignType).get.keySchema, "", null)
+        val fkType = donePrime.find(_.name equals foreignType) match {
+          case Some(fkt) => fkt
+          case None => {
+            logger.fatal("Can't resolve key type for " + foreignType)
+            throw new InternalBindingError("Can't resolve key type for " + foreignType)
+          }
+        }
+	      new Schema.Field(attrName, fkType.keySchema, "", null)
       }
 		}
 
-		val keyParts = currentEntity.keys.map(k => attributes.find(k equals _.name).get)
+    def findKeyAttribute(name: String): Schema.Field = {
+      attributes.find(name equals _.name) match {
+        case Some(k) => k
+        case None => {
+          logger.fatal("Unknown attribute '" + name + "'referenced in primary key for entity " + currentEntity.name)
+          throw new UnknownAttributeException(name, "N/A")
+        }
+      }
+    }
+		val keyParts = currentEntity.keys.map(findKeyAttribute)
 		val valueParts = attributes.filter(a => !(currentEntity.keys contains a.name))
 
     val relationships = untouched.flatMap(e => {
