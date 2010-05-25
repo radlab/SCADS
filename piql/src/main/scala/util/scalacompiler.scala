@@ -24,7 +24,10 @@ class ScalaCompiler {
 	/* If we are running inside maven surefire, the actual classpath has been cleared so use the one for this test */
 	if(System.getProperty("surefire.test.class.path") != null)
 		settings.classpath.value = System.getProperty("surefire.test.class.path")
+  else
+    settings.classpath.value = System.getProperty("java.class.path")
 
+  logger.debug("ScalaCompiler classpath: " + settings.classpath.value)
 
   val reporter = new ConsoleReporter(settings)
   val compiler = new Global(settings, reporter)
