@@ -176,7 +176,7 @@ class TwitterJSONFileIter(f: File) extends Iterator[Tweet] {
 
 }
 
-
+/*
 class TwitterIterWithKeys(f:File) extends Iterable[(LongRec,Tweet)] {
   private class WrapIt(f:File) extends Iterator[(LongRec,Tweet)] {
     val ti = new TwitterJSONFileIter(f)
@@ -191,4 +191,4 @@ class TwitterIterWithKeys(f:File) extends Iterable[(LongRec,Tweet)] {
   def elements():Iterator[(LongRec,Tweet)] = {
     new WrapIt(f)
   }
-}
+}*/
