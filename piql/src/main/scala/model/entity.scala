@@ -66,7 +66,7 @@ abstract class Entity[KeyType <: SpecificRecordBase, ValueType <: SpecificRecord
   }
 
   def save(implicit env: Environment): Unit = {
-    println("Storing value: " + value.toBytes.toList + " to key: " + key.toBytes.toList)
+    //println("Storing value: " + value.toBytes.toList + " to key: " + key.toBytes.toList)
     env.namespaces(namespace).put(key,value)
   }
 

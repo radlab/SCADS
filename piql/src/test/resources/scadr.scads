@@ -2,8 +2,9 @@ ENTITY User
 {
 	string name,
 	string password,
-	string email,
-	string profileData
+	string profileData,
+  string fullname,
+  string url
 	PRIMARY(name)
 }
 
