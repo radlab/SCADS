@@ -15,8 +15,9 @@
 		<module>piql</module>
 		<module>scalaengine</module>
 		<module>comm</module>
-        <module>avro-compiler</module>
-        <module>avro-maven-plugin</module>
+    <module>avro-compiler</module>
+    <module>avro-maven-plugin</module>
+    <module>experiments/client/scadrclient</module>
 	</modules>
 	<dependencies>
 		<dependency>
