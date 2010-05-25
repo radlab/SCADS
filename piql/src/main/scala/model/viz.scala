@@ -16,7 +16,7 @@ abstract class DotComponent {val id: String}
 
 case class SubGraph(label: String, nodes: List[DotComponent]) extends DotComponent {
   val graphId = "cluster" + DotComponent.nextId
-  val id = nodes.first.id
+  val id = nodes.head.id
 }
 
 case class DotNode(label: String, children: List[DotComponent] = Nil) extends DotComponent {
