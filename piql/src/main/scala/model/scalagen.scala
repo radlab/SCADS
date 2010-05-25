@@ -42,7 +42,7 @@ object ScalaGen extends Generator[BoundSpec] {
     def mkValueType(entity: BoundEntity) = entity.name + ".ValueType"
 
     outputBraced("object Configurator") {
-      outputBraced("def configure(c: ScadsCluster = edu.berkeley.cs.scads.TestScalaEngine.cluster): Environment = ") {
+      outputBraced("def configure(c: ScadsCluster = edu.berkeley.cs.scads.storage.TestScalaEngine.cluster): Environment = ") {
         output("val env = new Environment")
         outputPartial("env.namespaces = Map(")
         entities.zipWithIndex.foreach( t => {
