@@ -2,7 +2,8 @@ package edu.berkeley.cs.scads.piql
 
 import scala.collection.mutable.HashMap
 import org.apache.log4j.Logger
-import edu.berkeley.cs.scads.piql.parser.{BoundValue, BoundIntegerValue, BoundStringValue, BoundFixedValue}
+import edu.berkeley.cs.scads.piql.parser.{BoundValue, BoundIntegerValue, BoundStringValue, 
+                                          BoundFixedValue, BoundTrueValue, BoundFalseValue}
 import org.apache.avro.specific.SpecificRecordBase
 import org.apache.avro.generic.{IndexedRecord, GenericData}
 import edu.berkeley.cs.scads.storage.Namespace
@@ -40,6 +41,11 @@ abstract trait QueryExecutor {
 
   implicit def toBoundInt(i: Int) = BoundIntegerValue(i)
   implicit def toBoundString(s: String) = BoundStringValue(s)
+  implicit def toBoundBoolean(b: Boolean) = 
+    if (b)
+      BoundTrueValue
+    else
+      BoundFalseValue
 
 	/* Tuple Providers */
 	protected def singleGet(namespace: String, key: List[BoundValue])(implicit env: Environment): TupleStream = {

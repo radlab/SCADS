@@ -10,7 +10,10 @@ import java.io.InputStream
 import java.io.ByteArrayInputStream
 import java.nio.ByteBuffer
 
+import scala.reflect.Manifest
+
 import edu.berkeley.cs.scads.storage.{ScadsCluster, Namespace}
+import edu.berkeley.cs.scads.piql.parser.BoundValue
 
 class PiqlDataReader(schema: Schema) extends SpecificDatumReader[Any](schema) {
 	override def newRecord(old: Object, schema: Schema): Object = {
@@ -21,6 +24,24 @@ class PiqlDataReader(schema: Schema) extends SpecificDatumReader[Any](schema) {
 trait KeyValueLike {
     def get(k: String): Any
     def put(k: String, v: Any): Unit
+}
+
+abstract class KeyPart[T <: Entity[_,_]](implicit manifest: Manifest[T]) 
+extends EntityPart with QueryExecutor { 
+  protected val namespace$: String
+  protected def flatBoundValues$: List[BoundValue]
+  def retrieve()(implicit env: Environment): T = {
+    qLogger.debug("Executing KeyPart Get") 
+    val result = 
+      materialize(
+        manifest.erasure.asInstanceOf[Class[Entity[_,_]]],
+        singleGet(namespace$, flatBoundValues$))
+    val s = result.asInstanceOf[Seq[T]]
+    if (s.isEmpty)
+      null.asInstanceOf[T]
+    else
+      s.head
+  }
 }
 
 abstract class EntityPart extends SpecificRecordBase
