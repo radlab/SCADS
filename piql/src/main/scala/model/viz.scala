@@ -93,6 +93,7 @@ object DotGen extends Generator[DotGraph] {
 
   protected def generate(graph: DotGraph)(implicit sb: StringBuilder, indnt: Indentation): Unit = {
     outputBraced("digraph ", graph.name) {
+      output("rankdir=BT;")
       graph.components.foreach(generateSubGraph)
     }
   }
@@ -102,7 +103,7 @@ object DotGen extends Generator[DotGraph] {
       case node: DotNode => {
         output(node.id, "[label=", quote(node.label), "];")
         node.children.foreach(generateSubGraph)
-        node.children.map(_.id).foreach(id => output(node.id, " -> ", id, ";"))
+        node.children.map(_.id).foreach(id => output(id, " -> ", node.id, ";"))
       }
       case subGraph: SubGraph => {
         outputBraced("subgraph ", subGraph.graphId) {
