@@ -45,7 +45,11 @@ object GraphVis {
       e._2.queries.map(q => SubGraph(e._1 + "." + q._1, List(generateGraph(q._2.plan))))
     })
 
-    println(DotGen(DotGraph("QueryPlans", orphanPlans ++ instancePlans)))
+    val outfile = new java.io.FileWriter("plans.dot")
+    val dot = DotGen(DotGraph("QueryPlans", orphanPlans ++ instancePlans))
+    outfile.write(dot)
+    println(dot)
+    outfile.close()
     System.exit(0)
   }
 
