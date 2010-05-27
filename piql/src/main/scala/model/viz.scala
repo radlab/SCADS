@@ -12,16 +12,21 @@ object DotComponent {
   def nextId = curId.getAndIncrement()
 }
 
-abstract class DotComponent {val id: String}
+abstract class DotComponent {
+  val id: String
+  def flatten: List[DotComponent]
+}
 
 case class SubGraph(label: String, nodes: List[DotComponent]) extends DotComponent {
   val graphId = "cluster" + DotComponent.nextId
   val id = nodes.head.id
+  def flatten: List[DotComponent] = this :: nodes ++ nodes.flatMap(_.flatten)
 }
 
 case class DotNode(label: String, children: List[DotComponent] = Nil, shape: String = "box", fillcolor: String = "azure3", style: String = "none") extends DotComponent {
   val id = "dotNode" + DotComponent.nextId
   def this(label: String, child: DotNode) = this(label, List(child))
+  def flatten: List[DotComponent] = this :: children ++ children.flatMap(_.flatten)
 }
 
 object GraphVis {
@@ -37,7 +42,9 @@ object GraphVis {
     })
 
     val outfile = new java.io.FileWriter("plans.dot")
+    val graph = DotGraph("QueryPlans", orphanPlans ++ instancePlans)
     val dot = DotGen(DotGraph("QueryPlans", orphanPlans ++ instancePlans))
+    println(graph)
     outfile.write(dot)
     outfile.close()
     System.exit(0)
@@ -68,8 +75,8 @@ object GraphVis {
     }
 
     plan match {
-      case SingleGet(ns, key) => SubGraph("SingleGet", List(getPredicates(ns, key, DotNode(ns))))
-      case PrefixGet(ns, prefix, limit, ascending) => SubGraph("PrefixGet", List(getPredicates(ns, prefix, DotNode(ns))))
+      case SingleGet(ns, key) => SubGraph("SingleGet", getPredicates(ns, key, DotNode(ns)).flatten)
+      case PrefixGet(ns, prefix, limit, ascending) => SubGraph("PrefixGet", getPredicates(ns, prefix, DotNode(ns)).flatten)
       case SequentialDereferenceIndex(ns, child) => SubGraph("SequentialDeref", List(DotNode("deref", List(DotNode(ns), generateGraph(child, entities)))))
       case PrefixJoin(ns, conditions, limit, ascending, child) => SubGraph("PrefixJoin", List(getJoinPredicates(ns, conditions, DotNode("join", List(DotNode(ns), generateGraph(child, entities)), shape="diamond"))))
       case PointerJoin(ns, conditions, child) => SubGraph("PointerJoin", List(getJoinPredicates(ns, conditions, DotNode("join", List(DotNode(ns), generateGraph(child, entities)), shape="diamond"))))
@@ -87,22 +94,28 @@ object DotGen extends Generator[DotGraph] {
   protected def generate(graph: DotGraph)(implicit sb: StringBuilder, indnt: Indentation): Unit = {
     outputBraced("digraph ", graph.name) {
       output("rankdir=BT;")
-      graph.components.foreach(generateSubGraph)
+      graph.components.foreach(generateSubGraph(_, Nil))
     }
   }
 
-  protected def generateSubGraph(graph: DotComponent)(implicit sb: StringBuilder, indnt: Indentation): Unit = {
+  protected def generateSubGraph(graph: DotComponent, done: List[DotComponent])(implicit sb: StringBuilder, indnt: Indentation): Unit = {
+    def outputNode(node: DotNode): Unit = output(node.id, "[label=", quote(node.label), ", shape=", node.shape, ", fillcolor=", node.fillcolor, ", style=", node.style, "];")
+
     graph match {
       case node: DotNode => {
-        output(node.id, "[label=", quote(node.label), ", shape=", node.shape, ", fillcolor=", node.fillcolor, ", style=", node.style, "];")
-        node.children.foreach(generateSubGraph)
+        outputNode(node)
+        node.children.foreach(generateSubGraph(_, node :: done))
         node.children.map(_.id).foreach(id => output(id, " -> ", node.id, ";"))
       }
       case subGraph: SubGraph => {
         outputBraced("subgraph ", subGraph.graphId) {
           output("label=", quote(subGraph.label), ";")
-          subGraph.nodes.foreach(generateSubGraph)
+          subGraph.nodes.foreach {
+            case n: DotNode => outputNode(n)
+            case s: SubGraph =>
+          }
         }
+        subGraph.nodes.foreach(generateSubGraph(_, subGraph.nodes ++ done))
       }
     }
   }
