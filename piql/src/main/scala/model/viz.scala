@@ -30,64 +30,53 @@ object GraphVis {
     val ast = Compiler.getAST(piql)
     val boundAst = new Binder(ast).bind
     val spec = new Optimizer(boundAst).optimizedSpec
-    val code = ScalaGen(spec)
-    val compiler = new ScalaCompiler
-    compiler.compile(code)
-    val configurator = compiler.classLoader.loadClass("piql.Configurator")
-
-    implicit val env: Environment = configurator.callStatic("configure", List(TestScalaEngine.cluster)) match {
-      case e: Environment => e
-      case err => throw new RuntimeException("Bad configurator return type: " + err.getClass)
-    }
-
-    val orphanPlans = spec.orphanQueries.map(q => SubGraph(q._1, List(generateGraph(q._2.plan))))
+    val entities = spec.entities.map(_._2).toList
+    val orphanPlans = spec.orphanQueries.map(q => SubGraph(q._1, List(generateGraph(q._2.plan, entities))))
     val instancePlans = spec.entities.flatMap(e => {
-      e._2.queries.map(q => SubGraph(e._1 + "." + q._1, List(generateGraph(q._2.plan))))
+      e._2.queries.map(q => SubGraph(e._1 + "." + q._1, List(generateGraph(q._2.plan, entities))))
     })
 
     val outfile = new java.io.FileWriter("plans.dot")
     val dot = DotGen(DotGraph("QueryPlans", orphanPlans ++ instancePlans))
     outfile.write(dot)
-    println(dot)
     outfile.close()
     System.exit(0)
   }
 
   protected def getPlans(spec: BoundSpec): Iterable[QueryPlan] = spec.orphanQueries.map(_._2).map(_.plan) ++ spec.entities.map(_._2).flatMap(_.queries).map(_._2).map(_.plan)
 
-  protected def getPredicates(ns: String, keySpec: List[BoundValue], child: DotNode)(implicit env: Environment): DotNode = {
-    val namespace = env.namespaces(ns)
+  def generateGraph(plan: QueryPlan, entities: List[BoundEntity]): DotComponent = {
 
-    keySpec.zipWithIndex.foldLeft(child) {
-      case (subPlan: DotNode, (value: BoundValue, idx: Int)) => {
-        val fieldName = namespace.keySchema.getFields.get(idx).name
-        DotNode("selection " + fieldName + "=" + value, List(subPlan), shape="ellipse")
+    def getPredicates(ns: String, keySpec: List[BoundValue], child: DotNode): DotNode = {
+      val keySchema = entities.find(_.namespace equals ns).get.keySchema
+      keySpec.zipWithIndex.foldLeft(child) {
+        case (subPlan: DotNode, (value: BoundValue, idx: Int)) => {
+          val fieldName = keySchema.getFields.get(idx).name
+          DotNode("selection " + fieldName + "=" + value, List(subPlan), shape="ellipse")
+        }
       }
     }
-  }
 
-  def getJoinPredicates(ns: String, conditions: Seq[JoinCondition], child: DotNode)(implicit env: Environment): DotNode = {
-    val namespace = env.namespaces(ns)
-
-    conditions.zipWithIndex.foldLeft(child) {
-      case (subPlan: DotNode, (value: JoinCondition, idx: Int)) => {
-        val fieldName = namespace.keySchema.getFields.get(idx).name
-        DotNode("selection " + fieldName + "=" + value, List(subPlan), shape="ellipse")
+    def getJoinPredicates(ns: String, conditions: Seq[JoinCondition], child: DotNode): DotNode = {
+      val keySchema = entities.find(_.namespace equals ns).get.keySchema
+      conditions.zipWithIndex.foldLeft(child) {
+        case (subPlan: DotNode, (value: JoinCondition, idx: Int)) => {
+          val fieldName = keySchema.getFields.get(idx).name
+          DotNode("selection " + fieldName + "=" + value, List(subPlan), shape="ellipse")
+        }
       }
     }
-  }
 
-  def generateGraph(plan: QueryPlan)(implicit env: Environment): DotComponent = {
     plan match {
       case SingleGet(ns, key) => SubGraph("SingleGet", List(getPredicates(ns, key, DotNode(ns))))
       case PrefixGet(ns, prefix, limit, ascending) => SubGraph("PrefixGet", List(getPredicates(ns, prefix, DotNode(ns))))
-      case SequentialDereferenceIndex(ns, child) => SubGraph("SequentialDeref", List(DotNode("deref", List(DotNode(ns), generateGraph(child)))))
-      case PrefixJoin(ns, conditions, limit, ascending, child) => SubGraph("PrefixJoin", List(getJoinPredicates(ns, conditions, DotNode("join", List(DotNode(ns), generateGraph(child)), shape="diamond"))))
-      case PointerJoin(ns, conditions, child) => SubGraph("PointerJoin", List(getJoinPredicates(ns, conditions, DotNode("join", List(DotNode(ns), generateGraph(child)), shape="diamond"))))
-      case Materialize(entityType, child) => generateGraph(child)
-      case Selection(equalityMap, child) => DotNode("selection", List(generateGraph(child)), style="filled")
-      case Sort(fields, ascending, child) => DotNode("sort", List(generateGraph(child)), style="filled")
-      case TopK(k, child) => DotNode("topk " + k, List(generateGraph(child)), style="filled")
+      case SequentialDereferenceIndex(ns, child) => SubGraph("SequentialDeref", List(DotNode("deref", List(DotNode(ns), generateGraph(child, entities)))))
+      case PrefixJoin(ns, conditions, limit, ascending, child) => SubGraph("PrefixJoin", List(getJoinPredicates(ns, conditions, DotNode("join", List(DotNode(ns), generateGraph(child, entities)), shape="diamond"))))
+      case PointerJoin(ns, conditions, child) => SubGraph("PointerJoin", List(getJoinPredicates(ns, conditions, DotNode("join", List(DotNode(ns), generateGraph(child, entities)), shape="diamond"))))
+      case Materialize(entityType, child) => generateGraph(child, entities)
+      case Selection(equalityMap, child) => DotNode("selection", List(generateGraph(child, entities)), style="filled")
+      case Sort(fields, ascending, child) => DotNode("sort", List(generateGraph(child, entities)), style="filled")
+      case TopK(k, child) => DotNode("topk " + k, List(generateGraph(child, entities)), style="filled")
     }
   }
 }
