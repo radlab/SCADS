@@ -24,11 +24,23 @@ ENTITY Subscription
 	PRIMARY(owner, target)
 }
 
+QUERY mySubscriptionTo
+FETCH Subscription
+  OF User BY owner
+WHERE User=[this] AND Subscription.target=[1: user]
+
 QUERY myThoughts
 FETCH Thought
 	OF User BY owner
 WHERE User=[this]
 LIMIT [1: numperpage] MAX 10
+
+QUERY myFollowers
+FETCH User
+  OF Subscription BY owner
+  OF User me BY target
+WHERE me=[this]
+LIMIT [1:numperpage] MAX 1000
 
 // These are people that I am following
 // NOT people that are following me
