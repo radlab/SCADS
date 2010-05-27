@@ -26,13 +26,13 @@ trait KeyValueLike {
     def put(k: String, v: Any): Unit
 }
 
-abstract class KeyPart[T <: Entity[_,_]](implicit manifest: Manifest[T]) 
-extends EntityPart with QueryExecutor { 
+abstract class KeyPart[T <: Entity[_,_]](implicit manifest: Manifest[T])
+extends EntityPart with QueryExecutor {
   protected val namespace$: String
   protected def flatBoundValues$: List[BoundValue]
   def retrieve()(implicit env: Environment): T = {
-    qLogger.debug("Executing KeyPart Get") 
-    val result = 
+    qLogger.debug("Executing KeyPart Get")
+    val result =
       materialize(
         manifest.erasure.asInstanceOf[Class[Entity[_,_]]],
         singleGet(namespace$, flatBoundValues$))
@@ -137,10 +137,10 @@ abstract class Entity[KeyType <: SpecificRecordBase, ValueType <: SpecificRecord
     // 2) delete the old indexes
     deleteOldSecondaryIndexes
     // 3) save the new indexes
-    updateSecondaryIndexes 
+    updateSecondaryIndexes
     // 4) set oldEntity to reflect this newly saved object
     oldEntity = newEntityInstance
-    oldEntity.key.parse(key.toBytes) 
+    oldEntity.key.parse(key.toBytes)
     oldEntity.value.parse(value.toBytes)
   }
 

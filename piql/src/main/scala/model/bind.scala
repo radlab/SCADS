@@ -105,8 +105,8 @@ class Binder(spec: Spec) {
 					case None => None
 					case Some(relName) => entity.relationships.find(r => (r.target equals child._1.get.entity.name) && (r.name equals relName)) match {
 						case Some(rel) => Some(rel)
-						case None => 
-              logger.debug("Unknown relation: " + relName) 
+						case None =>
+              logger.debug("Unknown relation: " + relName)
               logger.debug("child._1.get.entity.name: " + child._1.get.entity.name)
               throw new UnknownRelationshipException(relName)
 					}

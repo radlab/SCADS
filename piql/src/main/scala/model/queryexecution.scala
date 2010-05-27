@@ -2,7 +2,7 @@ package edu.berkeley.cs.scads.piql
 
 import scala.collection.mutable.HashMap
 import org.apache.log4j.Logger
-import edu.berkeley.cs.scads.piql.parser.{BoundValue, BoundIntegerValue, BoundStringValue, 
+import edu.berkeley.cs.scads.piql.parser.{BoundValue, BoundIntegerValue, BoundStringValue,
                                           BoundFixedValue, BoundTrueValue, BoundFalseValue, BoundAvroRecordValue}
 import org.apache.avro.specific.{SpecificRecord, SpecificRecordBase}
 import org.apache.avro.generic.{IndexedRecord, GenericData}
@@ -41,7 +41,7 @@ abstract trait QueryExecutor {
 
   implicit def toBoundInt(i: Int) = BoundIntegerValue(i)
   implicit def toBoundString(s: String) = BoundStringValue(s)
-  implicit def toBoundBoolean(b: Boolean) = 
+  implicit def toBoundBoolean(b: Boolean) =
     if (b)
       BoundTrueValue
     else
@@ -145,7 +145,7 @@ abstract trait QueryExecutor {
         e.value.parse(value)
         e
       }
-      val retVal = mkEntityClass(c._1.toBytes, c._2.toBytes) 
+      val retVal = mkEntityClass(c._1.toBytes, c._2.toBytes)
       val cpy = mkEntityClass(c._1.toBytes, c._2.toBytes)
       retVal.oldEntity = cpy.asInstanceOf[retVal.EntityType]
       retVal
@@ -168,7 +168,7 @@ abstract trait QueryExecutor {
               (bar.value compareTo sr) == 0
             case _ => false
           }
-        case (attrName: String, bv: BoundFixedValue[_]) => 
+        case (attrName: String, bv: BoundFixedValue[_]) =>
           c.get(attrName) equals bv.value
       }.reduceLeft(_&_)
     })

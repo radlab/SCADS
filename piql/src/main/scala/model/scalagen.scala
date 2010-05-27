@@ -66,7 +66,7 @@ object ScalaGen extends Generator[BoundSpec] {
             indexes.map(idx => (idx.namespace, name + "." + idx.namespace + "_", toScalaType(idx.targetEntity.keySchema)))
           }).toList
 
-        outputNamespaceList(entitiesList ++ indexesList) 
+        outputNamespaceList(entitiesList ++ indexesList)
 
         outputPartialCont(")")
         outputPartialEnd
@@ -252,7 +252,7 @@ object ScalaGen extends Generator[BoundSpec] {
 				val fields = r.getFields.toList
 				fields.filter(_.schema.getType == Type.RECORD).foreach(f => outputObjects(f.schema, f.name, Some(prefix.getOrElse("") + f.name)))
         def isKeyPart = isKeyType(r.getName)
-        val classMods = 
+        val classMods =
           if (isKeyPart)
             "KeyPart[" + stripKeyType(r.getName) + "]"
           else
@@ -266,7 +266,7 @@ object ScalaGen extends Generator[BoundSpec] {
           output("def flatValues = List(", getFields(r, List()).map(_._1).mkString(","), ")")
 
           if (isKeyPart)
-            output("def flatBoundValues$ = List(", getFields(r, List()).map { 
+            output("def flatBoundValues$ = List(", getFields(r, List()).map {
               case (f: String, t: Type) =>
                 t match {
                   case Type.INT => "toBoundInt(" + f + ")"
@@ -304,13 +304,13 @@ object ScalaGen extends Generator[BoundSpec] {
 
       // output secondary index classes
       entity.secondaryIndexes.foreach( secondaryIndex => {
-        val keyEntityClass = toScalaType(secondaryIndex.targetEntity.keySchema) 
+        val keyEntityClass = toScalaType(secondaryIndex.targetEntity.keySchema)
         outputBraced("class ", secondaryIndex.namespace, "_ extends SecondaryIndexType[", entity.name, ",", keyEntityClass, "]") {
           output("val namespace = ", quote(secondaryIndex.namespace))
           val thisSchema = Schema.createRecord(secondaryIndex.namespace, "", "", false)
           val fields = secondaryIndex.attributes
             .map(attr => {
-              (attr,entity.attributes.getOrElse(attr, 
+              (attr,entity.attributes.getOrElse(attr,
                   throw new IllegalStateException("Entity does not have attribute: " +attr)))})
             .map(tuple => {
               val (attr, schema) = tuple
@@ -319,7 +319,7 @@ object ScalaGen extends Generator[BoundSpec] {
           outputFields(thisSchema)
           thisSchema.getFields.filter(_.schema.getType == Type.RECORD).foreach(f =>
             output("object ", f.name, " extends ", toScalaType(f.schema)))
-           
+
           output("def getSchema(): Schema = Schema.parse(\"\"\"", thisSchema.toString, "\"\"\")")
 
           output("def flatValues = List(", getFields(thisSchema, List()).map(_._1).mkString(","), ")")
@@ -340,23 +340,23 @@ object ScalaGen extends Generator[BoundSpec] {
           outputBraced("def get(idx$: Int): Object = idx$ match ") {
             secondaryIndex.attributes.zipWithIndex.foreach(tuple => {
               val (attr, idx) = tuple
-              entity.attributes.get(attr) match { 
+              entity.attributes.get(attr) match {
                   case Some(schema) =>
                     schema.getType match {
-                      case Type.INT => 
+                      case Type.INT =>
                         val lval = "new java.lang.Integer(" + attr + ")"
                         output("case ", idx.toString, " => ", lval)
-                      case Type.BOOLEAN => 
+                      case Type.BOOLEAN =>
                         val lval = "boolean2Boolean(" + attr + ")"
                         output("case ", idx.toString, " => ", lval)
-                      case Type.STRING => 
+                      case Type.STRING =>
                         val lval = "new Utf8(" + attr + ")"
                         output("case ", idx.toString, " => ", lval)
-                      case Type.RECORD => 
-                        output("case ", idx.toString, " => ", attr)               
+                      case Type.RECORD =>
+                        output("case ", idx.toString, " => ", attr)
                       case t => throw new IllegalStateException("Bad schema type: " + t)
                     }
-                  case None => throw new IllegalStateException("Entity does not have attribute: " + attr) 
+                  case None => throw new IllegalStateException("Entity does not have attribute: " + attr)
               }
             })
           }
@@ -364,39 +364,39 @@ object ScalaGen extends Generator[BoundSpec] {
           outputBraced("def put(idx$: Int, v$: Any): Unit = idx$ match ") {
             secondaryIndex.attributes.zipWithIndex.foreach(tuple => {
               val (attr, idx) = tuple
-              entity.attributes.get(attr) match { 
+              entity.attributes.get(attr) match {
                   case Some(schema) =>
                     schema.getType match {
-                      case Type.INT => 
+                      case Type.INT =>
                         val lval = "v$.asInstanceOf[java.lang.Integer].intValue"
                         output("case ", idx.toString, " => ", attr, " = ", lval)
-                      case Type.BOOLEAN => 
+                      case Type.BOOLEAN =>
                         val lval = "v$.asInstanceOf[java.lang.Boolean].booleanValue"
                         output("case ", idx.toString, " => ", attr, " = ", lval)
-                      case Type.STRING => 
+                      case Type.STRING =>
                         val lval = "v$.asInstanceOf[java.lang.String].toString"
                         output("case ", idx.toString, " => ", attr, " = ", lval)
-                      case Type.RECORD => 
-                        output("case ", idx.toString, " => ", attr, ".parse(v$.asInstanceOf[", toScalaType(schema), "].toBytes)")               
+                      case Type.RECORD =>
+                        output("case ", idx.toString, " => ", attr, ".parse(v$.asInstanceOf[", toScalaType(schema), "].toBytes)")
                       case t => throw new IllegalStateException("Bad schema type: " + t)
                     }
-                  case None => throw new IllegalStateException("Entity does not have attribute: " + attr) 
+                  case None => throw new IllegalStateException("Entity does not have attribute: " + attr)
               }
             })
           }
 
           outputBraced("def fillFromEntity(entity: ", entity.name, "): Unit = ") {
-            secondaryIndex.attributes.foreach(attr => 
+            secondaryIndex.attributes.foreach(attr =>
               entity.attributes.get(attr) match {
-                case Some(schema) => 
+                case Some(schema) =>
                   schema.getType match {
                     case Type.INT | Type.BOOLEAN | Type.STRING =>
-                      output(attr, " = entity.", attr) 
+                      output(attr, " = entity.", attr)
                     case Type.RECORD =>
                       output(attr, ".parse(entity.", attr, ".toBytes)")
                     case t => throw new IllegalStateException("Bad schema type: " + t)
                   }
-                case None => throw new IllegalStateException("Entity does not have attribute: " + attr) 
+                case None => throw new IllegalStateException("Entity does not have attribute: " + attr)
               })
           }
 
@@ -404,7 +404,7 @@ object ScalaGen extends Generator[BoundSpec] {
             output("val targetKey = new ", keyEntityClass)
             val keyFields = secondaryIndex.targetEntity.keySchema.getFields.toList
             keyFields.foreach(field => field.schema.getType match {
-              case Type.INT | Type.STRING | Type.BOOLEAN => 
+              case Type.INT | Type.STRING | Type.BOOLEAN =>
                 output("targetKey.", field.name, " = ", field.name)
               case Type.RECORD =>
                 output("targetKey.", field.name, ".parse(", field.name, ".toBytes)")
@@ -429,9 +429,9 @@ object ScalaGen extends Generator[BoundSpec] {
     case false => "false"
     case BoundTrueValue => "BoundTrueValue"
     case BoundFalseValue => "BoundFalseValue"
-    case BoundParameter(name, schema) => 
+    case BoundParameter(name, schema) =>
         schema.getType match {
-          case Type.RECORD => 
+          case Type.RECORD =>
             "toBoundRecord(" + name + ")"
           case _ => name
         }
