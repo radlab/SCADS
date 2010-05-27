@@ -429,7 +429,12 @@ object ScalaGen extends Generator[BoundSpec] {
     case false => "false"
     case BoundTrueValue => "BoundTrueValue"
     case BoundFalseValue => "BoundFalseValue"
-    case BoundParameter(name, _) => name
+    case BoundParameter(name, schema) => 
+        schema.getType match {
+          case Type.RECORD => 
+            "toBoundRecord(" + name + ")"
+          case _ => name
+        }
     case BoundThisAttribute(name, _) => name
     case BoundIntegerValue(i) => i.toString
     case AttributeCondition(attr) => "AttributeCondition(" + quote(attr) + ")"

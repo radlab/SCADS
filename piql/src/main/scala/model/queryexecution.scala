@@ -4,7 +4,7 @@ import scala.collection.mutable.HashMap
 import org.apache.log4j.Logger
 import edu.berkeley.cs.scads.piql.parser.{BoundValue, BoundIntegerValue, BoundStringValue, 
                                           BoundFixedValue, BoundTrueValue, BoundFalseValue, BoundAvroRecordValue}
-import org.apache.avro.specific.SpecificRecordBase
+import org.apache.avro.specific.{SpecificRecord, SpecificRecordBase}
 import org.apache.avro.generic.{IndexedRecord, GenericData}
 import edu.berkeley.cs.scads.storage.Namespace
 import edu.berkeley.Log2
@@ -157,7 +157,20 @@ abstract trait QueryExecutor {
 	protected def selection(equalityMap: HashMap[String, BoundValue], child: EntityStream): EntityStream = {
     Log2.debug(qLogger, "selection", equalityMap, child)
     val result = child.filter(c => {
-      equalityMap.map {case (attrName: String, bv: BoundFixedValue[_]) => c.get(attrName) equals bv.value}.reduceLeft(_&_)
+      equalityMap.map {
+        case (attrName: String, bar: BoundAvroRecordValue) =>
+          c.get(attrName) match {
+            case sr: SpecificRecord =>
+              /** This kludge is because the equals method in
+               * SpecificRecordBase requires that the name of the schema is
+               * identical to be considered equal, and since only require
+               * structural equality, this hack is necessary */
+              (bar.value compareTo sr) == 0
+            case _ => false
+          }
+        case (attrName: String, bv: BoundFixedValue[_]) => 
+          c.get(attrName) equals bv.value
+      }.reduceLeft(_&_)
     })
     Log2.debug(qLogger, "selection result: ", result)
     return result
