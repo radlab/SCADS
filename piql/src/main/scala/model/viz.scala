@@ -2,121 +2,125 @@ package edu.berkeley.cs.scads.piql
 
 import java.io.File
 import edu.berkeley.cs.scads.piql.parser._
-import edu.berkeley.cs.scads.piql.DynamicDispatch._
-import edu.berkeley.cs.scads.storage.TestScalaEngine
 
-case class DotGraph(name: String, components: Iterable[DotComponent])
-
-object DotComponent {
-  private val curId = new java.util.concurrent.atomic.AtomicInteger
-  def nextId = curId.getAndIncrement()
-}
-
-abstract class DotComponent {
-  val id: String
-  def flatten: List[DotComponent]
-}
-
-case class SubGraph(label: String, nodes: List[DotComponent]) extends DotComponent {
-  val graphId = "cluster" + DotComponent.nextId
-  val id = nodes.head.id
-  def flatten: List[DotComponent] = this :: nodes ++ nodes.flatMap(_.flatten)
-}
-
-case class DotNode(label: String, children: List[DotComponent] = Nil, shape: String = "box", fillcolor: String = "azure3", style: String = "none") extends DotComponent {
-  val id = "dotNode" + DotComponent.nextId
-  def this(label: String, child: DotNode) = this(label, List(child))
-  def flatten: List[DotComponent] = this :: children ++ children.flatMap(_.flatten)
-}
-
-object GraphVis {
+object GraphViz {
   def main(args: Array[String]): Unit = {
     val piql = Compiler.readFile(new File(args(0)))
     val ast = Compiler.getAST(piql)
     val boundAst = new Binder(ast).bind
     val spec = new Optimizer(boundAst).optimizedSpec
     val entities = spec.entities.map(_._2).toList
-    val orphanPlans = spec.orphanQueries.map(q => SubGraph(q._1, List(generateGraph(q._2.plan, entities))))
-    val instancePlans = spec.entities.flatMap(e => {
-      e._2.queries.map(q => SubGraph(e._1 + "." + q._1, List(generateGraph(q._2.plan, entities))))
+    val orphanQueries = spec.orphanQueries
+    val instanceQueries = spec.entities.flatMap(_._2.queries)
+    val grapher = new GraphVis(spec.entities.map(_._2).toList)
+
+    (orphanQueries ++ instanceQueries).foreach(q => {
+      val outfile = new java.io.FileWriter(q._1 + ".dot")
+      outfile.write(grapher(q._2.plan))
+      outfile.close()
     })
-
-    val outfile = new java.io.FileWriter("plans.dot")
-    val graph = DotGraph("QueryPlans", orphanPlans ++ instancePlans)
-    val dot = DotGen(DotGraph("QueryPlans", orphanPlans ++ instancePlans))
-    println(graph)
-    outfile.write(dot)
-    outfile.close()
     System.exit(0)
-  }
-
-  protected def getPlans(spec: BoundSpec): Iterable[QueryPlan] = spec.orphanQueries.map(_._2).map(_.plan) ++ spec.entities.map(_._2).flatMap(_.queries).map(_._2).map(_.plan)
-
-  def generateGraph(plan: QueryPlan, entities: List[BoundEntity]): DotComponent = {
-
-    def getPredicates(ns: String, keySpec: List[BoundValue], child: DotNode): DotNode = {
-      val keySchema = entities.find(_.namespace equals ns).get.keySchema
-      keySpec.zipWithIndex.foldLeft(child) {
-        case (subPlan: DotNode, (value: BoundValue, idx: Int)) => {
-          val fieldName = keySchema.getFields.get(idx).name
-          DotNode("selection " + fieldName + "=" + value, List(subPlan), shape="ellipse")
-        }
-      }
-    }
-
-    def getJoinPredicates(ns: String, conditions: Seq[JoinCondition], child: DotNode): DotNode = {
-      val keySchema = entities.find(_.namespace equals ns).get.keySchema
-      conditions.zipWithIndex.foldLeft(child) {
-        case (subPlan: DotNode, (value: JoinCondition, idx: Int)) => {
-          val fieldName = keySchema.getFields.get(idx).name
-          DotNode("selection " + fieldName + "=" + value, List(subPlan), shape="ellipse")
-        }
-      }
-    }
-
-    plan match {
-      case SingleGet(ns, key) => SubGraph("SingleGet", getPredicates(ns, key, DotNode(ns)).flatten)
-      case PrefixGet(ns, prefix, limit, ascending) => SubGraph("PrefixGet", getPredicates(ns, prefix, DotNode(ns)).flatten)
-      case SequentialDereferenceIndex(ns, child) => SubGraph("SequentialDeref", List(DotNode("deref", List(DotNode(ns), generateGraph(child, entities)))))
-      case PrefixJoin(ns, conditions, limit, ascending, child) => SubGraph("PrefixJoin", List(getJoinPredicates(ns, conditions, DotNode("join", List(DotNode(ns), generateGraph(child, entities)), shape="diamond"))))
-      case PointerJoin(ns, conditions, child) => SubGraph("PointerJoin", List(getJoinPredicates(ns, conditions, DotNode("join", List(DotNode(ns), generateGraph(child, entities)), shape="diamond"))))
-      case Materialize(entityType, child) => generateGraph(child, entities)
-      case Selection(equalityMap, child) => DotNode("selection", List(generateGraph(child, entities)), style="filled")
-      case Sort(fields, ascending, child) => DotNode("sort", List(generateGraph(child, entities)), style="filled")
-      case TopK(k, child) => DotNode("topk " + k, List(generateGraph(child, entities)), style="filled")
-    }
   }
 }
 
-object DotGen extends Generator[DotGraph] {
+class GraphVis(entities: List[BoundEntity]) extends Generator[QueryPlan] {
   private val curId = new java.util.concurrent.atomic.AtomicInteger
+  protected def nextId = curId.getAndIncrement()
 
-  protected def generate(graph: DotGraph)(implicit sb: StringBuilder, indnt: Indentation): Unit = {
-    outputBraced("digraph ", graph.name) {
+  protected def generate(plan: QueryPlan)(implicit sb: StringBuilder, indnt: Indentation): Unit = {
+    outputBraced("digraph QueryPlan") {
       output("rankdir=BT;")
-      graph.components.foreach(generateSubGraph(_, Nil))
+      generateGraph(plan)
     }
   }
 
-  protected def generateSubGraph(graph: DotComponent, done: List[DotComponent])(implicit sb: StringBuilder, indnt: Indentation): Unit = {
-    def outputNode(node: DotNode): Unit = output(node.id, "[label=", quote(node.label), ", shape=", node.shape, ", fillcolor=", node.fillcolor, ", style=", node.style, "];")
+  case class DotNode(id: String)
+  protected def outputDotNode(label: String, shape: String = "box", fillcolor: String = "azure3", style: String = "none", children:List[DotNode]= Nil)(implicit sb: StringBuilder, indnt: Indentation): DotNode = {
+    val node = DotNode("node" + nextId)
+    output(node.id, "[label=", quote(label), ", shape=", shape, ", fillcolor=", fillcolor, ", style=", style, "];")
+    children.foreach(outputEdge(_, node))
+    return node
+  }
 
-    graph match {
-      case node: DotNode => {
-        outputNode(node)
-        node.children.foreach(generateSubGraph(_, node :: done))
-        node.children.map(_.id).foreach(id => output(id, " -> ", node.id, ";"))
-      }
-      case subGraph: SubGraph => {
-        outputBraced("subgraph ", subGraph.graphId) {
-          output("label=", quote(subGraph.label), ";")
-          subGraph.nodes.foreach {
-            case n: DotNode => outputNode(n)
-            case s: SubGraph =>
-          }
-        }
-        subGraph.nodes.foreach(generateSubGraph(_, subGraph.nodes ++ done))
+  protected def outputEdge(src: DotNode, dest: DotNode)(implicit sb: StringBuilder, indnt: Indentation): DotNode = {
+    output(src.id, " -> ", dest.id, ";")
+    return dest
+  }
+
+  protected def outputCluster[A](label: String)(func: => A)(implicit sb: StringBuilder, indnt: Indentation): A = {
+    outputBraced("subGraph ", "cluster" + nextId) {
+      output("label=", quote(label), ";")
+      func
+    }
+  }
+
+  protected def getPredicates(ns: String, keySpec: List[BoundValue], child: DotNode)(implicit sb: StringBuilder, indnt: Indentation): DotNode = {
+    val keySchema = entities.find(_.namespace equals ns).get.keySchema
+    keySpec.zipWithIndex.foldLeft(child) {
+      case (subPlan: DotNode, (value: BoundValue, idx: Int)) => {
+        val fieldName = keySchema.getFields.get(idx).name
+        val selection = outputDotNode("selection\n" + fieldName + "=" + value, shape="ellipse")
+        outputEdge(subPlan, selection)
       }
     }
+  }
+
+
+  protected def getJoinPredicates(ns: String, conditions: Seq[JoinCondition], child: DotNode)(implicit sb: StringBuilder, indnt: Indentation): DotNode = {
+    val keySchema = entities.find(_.namespace equals ns).get.keySchema
+    conditions.zipWithIndex.foldLeft(child) {
+      case (subPlan: DotNode, (value: JoinCondition, idx: Int)) => {
+        val fieldName = keySchema.getFields.get(idx).name
+        val selection = outputDotNode("selection\n" + fieldName + "=" + prettyPrint(value), shape="ellipse")
+        outputEdge(subPlan, selection)
+      }
+    }
+  }
+
+  protected def generateGraph(plan: QueryPlan)(implicit sb: StringBuilder, indnt: Indentation): DotNode = {
+    plan match {
+      case SingleGet(ns, key) => {
+        outputCluster("SingleGet") {
+          getPredicates(ns, key, outputDotNode(ns))
+        }
+      }
+      case PrefixGet(ns, prefix, limit, ascending) => {
+        outputCluster("PrefixGet") {
+          getPredicates(ns, prefix, outputDotNode(ns))
+        }
+      }
+      case SequentialDereferenceIndex(ns, child) => {
+        val childGraph = generateGraph(child)
+        outputCluster("SequentialDeref") {
+          val targetNs = outputDotNode(ns)
+          outputDotNode("Dereference", children=List(targetNs, childGraph))
+        }
+      }
+      case PrefixJoin(ns, conditions, limit, ascending, child) => {
+        val childGraph = generateGraph(child)
+        outputCluster("PrefixJoin") {
+          val source = outputDotNode(ns)
+          val join = outputDotNode("Join", shape="diamond", children=List(childGraph, source))
+          getJoinPredicates(ns, conditions, join)
+        }
+      }
+      case PointerJoin(ns, conditions, child) => {
+        val childGraph = generateGraph(child)
+        outputCluster("PointerJoin") {
+          val source = outputDotNode(ns)
+          val join = outputDotNode("Join", shape="diamond", children=List(childGraph, source))
+          getJoinPredicates(ns, conditions, join)
+        }
+      }
+      case Materialize(entityType, child) => generateGraph(child)
+      case Selection(equalityMap, child) => outputDotNode("selection", children=List(generateGraph(child)), style="filled")
+      case Sort(fields, ascending, child) => outputDotNode("sort", children=List(generateGraph(child)), style="filled")
+      case TopK(k, child) => outputDotNode("topk " + k, children=List(generateGraph(child)), style="filled")
+    }
+  }
+
+  protected def prettyPrint(cond: JoinCondition): String = cond match {
+    case AttributeCondition(name) => "[child]." + name
+    case BoundValueLiteralCondition(value) => value.value.toString
   }
 }
