@@ -18,7 +18,7 @@ sealed abstract class Index {
 }
 
 case class PrimaryIndex(namespace: String, attributes: List[String]) extends Index
-case class SecondaryIndex(namespace: String, attributes: List[String], targetNamespace: String) extends Index
+case class SecondaryIndex(namespace: String, attributes: List[String], targetEntity: BoundEntity) extends Index
 
 /**
  * The optimizer takes in a BoundQuery and figures out how to satisfy it.
@@ -68,8 +68,8 @@ class Optimizer(spec: BoundSpec) {
 				val selectedIndex = selectOrCreateIndex(entity, List(rname), List())
 				val joinLimit = BoundIntegerValue(cardinality)
 				val tupleStream = selectedIndex match {
-					case SecondaryIndex(ns, attrs, tns) => {
-						SequentialDereferenceIndex(tns,
+					case SecondaryIndex(ns, attrs, ent) => {
+						SequentialDereferenceIndex(ent.namespace,
 							PrefixJoin(ns, child.entity.keySchema.getFields.map(k => AttributeCondition(k.name)), joinLimit, true, childPlan)
 						)
 					}
@@ -102,8 +102,8 @@ class Optimizer(spec: BoundSpec) {
 				}
 
 				val tupleStream = selectedIndex match {
-					case SecondaryIndex(ns, attrs, tns) => {
-						SequentialDereferenceIndex(tns,
+					case SecondaryIndex(ns, attrs, ent) => {
+						SequentialDereferenceIndex(ent.namespace,
 							PrefixJoin(ns, child.entity.keySchema.getFields.map(k => AttributeCondition(k.name)), joinLimit, asc,  childPlan)
 						)
 					}
@@ -145,7 +145,7 @@ class Optimizer(spec: BoundSpec) {
 
         val tupleStream = selectedIndex match {
           case PrimaryIndex(_, _) => indexLookup
-          case SecondaryIndex(_, _, tns) => SequentialDereferenceIndex(tns,  indexLookup)
+          case SecondaryIndex(_, _, ent) => SequentialDereferenceIndex(ent.namespace,  indexLookup)
         }
 				new Materialize(EntityClass(entity.name), tupleStream)
 			}
@@ -163,7 +163,7 @@ class Optimizer(spec: BoundSpec) {
 			/* No index exists, so we must create one. */
 			val idxName = "idx" + entity.name + (equalityAttributes ++ orderingAttributes).mkString("", "_", "")
 			val idxAttributes = equalityAttributes ++ orderingAttributes ++ (entity.keySchema.getFields.map(_.name).toList.filterNot(equalityAttributes.contains).filterNot( orderingAttributes.contains))
-			val newIndex = new SecondaryIndex(idxName, idxAttributes, entity.namespace)
+			val newIndex = new SecondaryIndex(idxName, idxAttributes, entity)
 			logger.debug("Creating index on " + entity.name + " over attributes" + idxAttributes)
 			entity.indexes.append(newIndex)
 			newIndex

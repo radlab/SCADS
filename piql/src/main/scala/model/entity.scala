@@ -73,26 +73,81 @@ abstract class EntityPart extends SpecificRecordBase
   def flatValues: List[Any]
 }
 
+abstract class SecondaryIndexType[EntityType <: Entity[_,_], TargetType <: KeyPart[_]] extends EntityPart {
+
+  val namespace: String
+
+  def save(implicit env: Environment) {
+    env.namespaces(namespace).put(this, mkTargetKey)
+  }
+
+  def delete(implicit env: Environment) {
+    env.namespaces(namespace).put(this, null)
+  }
+
+  def fillFromEntity(entity: EntityType): Unit
+  def mkTargetKey: TargetType
+
+  def get(k: String): Any = throw new UnsupportedOperationException("get")
+  def put(k: String, v: Any): Unit = throw new UnsupportedOperationException("get")
+
+}
+
 abstract class Entity[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase] (implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]) extends KeyValueLike {
+
   val namespace: String
 
   val key: KeyType
   val value: ValueType
 
   val indexes: Map[String, Schema]
+  val secondaryIndexes: List[SecondaryIndexType[EntityType, _]]
 
+  type EntityType <: Entity[KeyType, ValueType]
+  /* private[piql] */ var oldEntity: EntityType
+
+  protected def newEntityInstance: EntityType
+
+  def deleteCurrentSecondaryIndexes(implicit env: Environment) {
+    secondaryIndexes.foreach(_.fillFromEntity(this.asInstanceOf[EntityType]))
+    secondaryIndexes.foreach(_.delete)
+  }
+
+  def deleteOldSecondaryIndexes(implicit env: Environment) {
+    if (oldEntity ne null) {
+      secondaryIndexes.foreach(_.fillFromEntity(oldEntity))
+      secondaryIndexes.foreach(_.delete)
+    }
+  }
+
+  def updateSecondaryIndexes(implicit env: Environment) {
+    secondaryIndexes.foreach(_.fillFromEntity(this.asInstanceOf[EntityType]))
+    secondaryIndexes.foreach(_.save)
+  }
+
+  /** TODO: remove load */
   def load(pk: KeyType)(implicit cluster: ScadsCluster) {
     key.parse(pk.toBytes)
     cluster.getNamespace[KeyType, ValueType](namespace).get(pk, value)
   }
 
   def save(implicit env: Environment) {
-    //println("Storing value: " + value.toBytes.toList + " to key: " + key.toBytes.toList)
-    env.namespaces(namespace).put(key,value)
+    // 1) save the new values
+    env.namespaces(namespace).put(key, value)
+    // 2) delete the old indexes
+    deleteOldSecondaryIndexes
+    // 3) save the new indexes
+    updateSecondaryIndexes 
+    // 4) set oldEntity to reflect this newly saved object
+    oldEntity = newEntityInstance
+    oldEntity.key.parse(key.toBytes) 
+    oldEntity.value.parse(value.toBytes)
   }
 
   def delete(implicit env: Environment) {
-    env.namespaces(namespace).put(key,null)
+    deleteOldSecondaryIndexes
+    deleteCurrentSecondaryIndexes
+    env.namespaces(namespace).put(key, null)
   }
 
   override def toString(): String = {

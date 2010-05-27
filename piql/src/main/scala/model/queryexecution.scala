@@ -139,10 +139,16 @@ abstract trait QueryExecutor {
 	protected def materialize(entityClass: Class[Entity[_,_]], child: TupleStream)(implicit env: Environment): EntityStream = {
     Log2.debug(qLogger, "materialize", entityClass, child)
     val result = child.map(c => {
-      val e = entityClass.newInstance().asInstanceOf[Entity[SpecificRecordBase,SpecificRecordBase]]
-      e.key.parse(c._1.toBytes)
-      e.value.parse(c._2.toBytes)
-      e
+      def mkEntityClass(key: Array[Byte], value: Array[Byte]): Entity[SpecificRecordBase, SpecificRecordBase] = {
+        val e = entityClass.newInstance().asInstanceOf[Entity[SpecificRecordBase,SpecificRecordBase]]
+        e.key.parse(key)
+        e.value.parse(value)
+        e
+      }
+      val retVal = mkEntityClass(c._1.toBytes, c._2.toBytes) 
+      val cpy = mkEntityClass(c._1.toBytes, c._2.toBytes)
+      retVal.oldEntity = cpy.asInstanceOf[retVal.EntityType]
+      retVal
     })
     Log2.debug(qLogger, "materialize result:", result)
     return result
