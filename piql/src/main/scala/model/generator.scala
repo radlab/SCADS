@@ -26,10 +26,11 @@ abstract class Generator[InputType] {
 	 * Increases the indentation level for all outputs that are made during the provided function.
 	 * Intended to be nested arbitarily.
 	 */
-	protected def indent(func: => Unit)(implicit sb: StringBuilder, indnt: Indentation): Unit = {
+	protected def indent[A](func: => A)(implicit sb: StringBuilder, indnt: Indentation): A = {
 		indnt.count += 1
-		func
+		val result: A = func
 		indnt.count -= 1
+    return result
 	}
 
 	/**
@@ -41,21 +42,22 @@ abstract class Generator[InputType] {
 		sb.append("\n")
 	}
 
-  protected def outputBraced(parts: String*)(child: => Unit)(implicit sb: StringBuilder, indnt: Indentation):Unit =
+  protected def outputBraced[A](parts: String*)(child: => A)(implicit sb: StringBuilder, indnt: Indentation):A =
     outputCont(" {\n", "}\n", parts:_*)(child)
 
-  protected def outputParen(parts: String*)(child: => Unit)(implicit sb: StringBuilder, indnt: Indentation):Unit =
+  protected def outputParen[A](parts: String*)(child: => A)(implicit sb: StringBuilder, indnt: Indentation):A =
     outputCont(" (\n", ");\n", parts:_*)(child)
 
-	protected def outputCont(start: String, end: String, parts: String*)(child: => Unit)(implicit sb: StringBuilder, indnt: Indentation):Unit = {
+	protected def outputCont[A](start: String, end: String, parts: String*)(child: => A)(implicit sb: StringBuilder, indnt: Indentation):A = {
 		(0 to indnt.count).foreach((i) => sb.append(indentChar))
 		parts.foreach(sb.append(_))
 		sb.append(start)
-		indent {
+		val result: A = indent {
 			child
 		}
 		(0 to indnt.count).foreach((i) => sb.append(indentChar))
 		sb.append(end)
+    return result
 	}
 
 	protected def outputPartial(parts: String*)(implicit sb: StringBuilder, indnt: Indentation):Unit = {
