@@ -75,5 +75,5 @@ abstract class Generator[InputType] {
 
   protected def generate(elm: InputType)(implicit sb: StringBuilder, indnt: Indentation): Unit
 
-  protected def quote(string: String) = "\"" + string.replace("\"", "\\\"") + "\""
+  protected def quote(string: String) = "\"" + string.replaceAll("\"", "\\\"").replaceAll("\n", "\\\\n") + "\""
 }
