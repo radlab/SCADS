@@ -33,6 +33,7 @@ QUERY myThoughts
 FETCH Thought
 	OF User BY owner
 WHERE User=[this]
+ORDER BY timestamp DESC
 LIMIT [1: numperpage] MAX 10
 
 QUERY myFollowers
@@ -57,7 +58,7 @@ FETCH Thought
 	OF Subscription BY target
 	OF User me BY owner
 WHERE me=[this] AND Subscription.approved = true
-ORDER BY timestamp
+ORDER BY timestamp DESC
 LIMIT [1:count] MAX 100
 
 QUERY userByName
