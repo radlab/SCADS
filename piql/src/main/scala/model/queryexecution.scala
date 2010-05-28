@@ -108,15 +108,14 @@ abstract trait QueryExecutor {
     return key
   }
 
-  //TODO: use limit / ascending parameters
   //TODO: parallelize
-	protected def prefixJoin(namespace: String, conditions: List[JoinCondition], limit: BoundValue, ascending: Boolean, child: EntityStream)(implicit env: Environment): TupleStream = {
+	protected def prefixJoin(namespace: String, conditions: List[JoinCondition], limit: BoundIntegerValue, ascending: Boolean, child: EntityStream)(implicit env: Environment): TupleStream = {
     Log2.debug(qLogger, "prefixJoin", namespace, conditions, limit, boolean2Boolean(ascending), child)
     val ns = env.namespaces(namespace)
     val result = child.flatMap(c => {
       val key = mkKey(ns.keyClass.asInstanceOf[Class[EntityPart]], conditions, c)
       Log2.debug(qLogger, "prefixJoin doing get on key: ", key)
-      ns.getPrefix(key, conditions.length)
+      ns.getPrefix(key, conditions.length, limit.value, ascending)
     })
     Log2.debug(qLogger, "prefixJoin result: ", result)
     return result
@@ -158,6 +157,8 @@ abstract trait QueryExecutor {
     Log2.debug(qLogger, "selection", equalityMap, child)
     val result = child.filter(c => {
       equalityMap.map {
+        // TODO: make BoundFixedValue have a compareTo method so we don't have
+        // to check for specific types
         case (attrName: String, bar: BoundAvroRecordValue) =>
           c.get(attrName) match {
             case sr: SpecificRecord =>
