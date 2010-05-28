@@ -374,7 +374,7 @@ object ScalaGen extends Generator[BoundSpec] {
                         val lval = "v$.asInstanceOf[java.lang.Boolean].booleanValue"
                         output("case ", idx.toString, " => ", attr, " = ", lval)
                       case Type.STRING =>
-                        val lval = "v$.asInstanceOf[java.lang.String].toString"
+                        val lval = "v$.toString"
                         output("case ", idx.toString, " => ", attr, " = ", lval)
                       case Type.RECORD =>
                         output("case ", idx.toString, " => ", attr, ".parse(v$.asInstanceOf[", toScalaType(schema), "].toBytes)")
