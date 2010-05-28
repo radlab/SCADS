@@ -120,8 +120,8 @@ class GraphVis(entities: List[BoundEntity]) extends Generator[QueryPlan] {
   }
 
   protected def prettyPrint(value: BoundValue): String = value match {
-    case BoundTrueValue => "BoundTrueValue"
-    case BoundFalseValue => "BoundFalseValue"
+    case BoundTrueValue => "true"
+    case BoundFalseValue => "false"
     case BoundParameter(name, _) => "[" + name + "]"
     case BoundThisAttribute(name, _) => "[this]." + name
     case BoundIntegerValue(i) => i.toString
