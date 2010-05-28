@@ -59,7 +59,7 @@ class GraphVis(entities: List[BoundEntity]) extends Generator[QueryPlan] {
     keySpec.zipWithIndex.foldLeft(child) {
       case (subPlan: DotNode, (value: BoundValue, idx: Int)) => {
         val fieldName = keySchema.getFields.get(idx).name
-        val selection = outputDotNode("selection\n" + fieldName + "=" + value, shape="ellipse")
+        val selection = outputDotNode("selection\n" + fieldName + "=" + prettyPrint(value), shape="ellipse")
         outputEdge(subPlan, selection)
       }
     }
@@ -113,10 +113,18 @@ class GraphVis(entities: List[BoundEntity]) extends Generator[QueryPlan] {
         }
       }
       case Materialize(entityType, child) => generateGraph(child)
-      case Selection(equalityMap, child) => outputDotNode("selection", children=List(generateGraph(child)), style="filled")
-      case Sort(fields, ascending, child) => outputDotNode("sort", children=List(generateGraph(child)), style="filled")
-      case TopK(k, child) => outputDotNode("topk " + k, children=List(generateGraph(child)), style="filled")
+      case Selection(equalityMap, child) => outputDotNode("Selection", children=List(generateGraph(child)), style="filled")
+      case Sort(fields, ascending, child) => outputDotNode("Sort" + fields.mkString("[", ",", "]"), children=List(generateGraph(child)), style="filled")
+      case TopK(k, child) => outputDotNode("TopK " + prettyPrint(k), children=List(generateGraph(child)), style="filled")
     }
+  }
+
+  protected def prettyPrint(value: BoundValue): String = value match {
+    case BoundTrueValue => "BoundTrueValue"
+    case BoundFalseValue => "BoundFalseValue"
+    case BoundParameter(name, _) => "[" + name + "]"
+    case BoundThisAttribute(name, _) => "[this]." + name
+    case BoundIntegerValue(i) => i.toString
   }
 
   protected def prettyPrint(cond: JoinCondition): String = cond match {
