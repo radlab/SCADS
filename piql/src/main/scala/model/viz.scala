@@ -42,8 +42,8 @@ class GraphVis(entities: List[BoundEntity]) extends Generator[QueryPlan] {
     return node
   }
 
-  protected def outputEdge(src: DotNode, dest: DotNode)(implicit sb: StringBuilder, indnt: Indentation): DotNode = {
-    output(src.id, " -> ", dest.id, ";")
+  protected def outputEdge(src: DotNode, dest: DotNode, label: String = "")(implicit sb: StringBuilder, indnt: Indentation): DotNode = {
+    output(src.id, " -> ", dest.id, "[label=", quote(label), "];")
     return dest
   }
 
@@ -96,7 +96,8 @@ class GraphVis(entities: List[BoundEntity]) extends Generator[QueryPlan] {
         val childPlan = generateGraph(child)
         val graph = outputCluster("SequentialDeref\n", childPlan.recCount.toString, " GET Operations") {
           val targetNs = outputDotNode(ns)
-          outputDotNode("Dereference", children=List(targetNs))
+          val op = outputDotNode("Dereference", children=List(targetNs))
+          outputEdge(childPlan.graph, op, childPlan.recCount + " record(s)")
         }
         SubPlan(graph, childPlan.recCount)
       }
@@ -104,10 +105,11 @@ class GraphVis(entities: List[BoundEntity]) extends Generator[QueryPlan] {
         val childPlan = generateGraph(child)
         val graph = outputCluster("PrefixJoin\n", childPlan.recCount.toString, " GETRANGE Operations") {
           val source = outputDotNode(ns)
-          val join = outputDotNode("Join", shape="diamond", children=List(childPlan.graph, source))
+          val join = outputDotNode("Join", shape="diamond", children=List(source))
+          outputEdge(childPlan.graph, join, childPlan.recCount + " record(s)")
           val pred = getJoinPredicates(ns, conditions, join)
           limit match {
-            case biv: BoundIntegerValue => outputEdge(pred, outputDotNode("DataStopAfter(" + biv.value + ")"))
+            case biv: BoundIntegerValue => outputEdge(pred, outputDotNode("DataStopAfter(" + biv.value + ")", fillcolor="aquamarine4", style="filled"))
             case v => outputEdge(pred, outputDotNode("StopAfter(" + prettyPrint(v) + ")"))
           }
         }
@@ -117,7 +119,8 @@ class GraphVis(entities: List[BoundEntity]) extends Generator[QueryPlan] {
         val childPlan = generateGraph(child)
         val graph = outputCluster("PointerJoin\n", childPlan.recCount.toString, " GET Operations") {
           val source = outputDotNode(ns)
-          val join = outputDotNode("Join", shape="diamond", children=List(childPlan.graph, source))
+          val join = outputDotNode("Join", shape="diamond", children=List(source))
+          outputEdge(childPlan.graph, join, childPlan.recCount + "record(s)")
           getJoinPredicates(ns, conditions, join)
         }
         SubPlan(graph, childPlan.recCount)
@@ -127,18 +130,21 @@ class GraphVis(entities: List[BoundEntity]) extends Generator[QueryPlan] {
         val childPlan = generateGraph(child)
         val graph = equalityMap.map(p => p._1 + "=" + prettyPrint(p._2)).foldLeft(childPlan.graph) {
           case (child: DotNode, pred: String) =>
-            outputDotNode("Selection\n" + pred, children=List(child), style="filled")
+            outputDotNode("Selection\n" + pred, style="filled")
         }
+        outputEdge(childPlan.graph, graph, childPlan.recCount + "record(s)")
         SubPlan(graph, childPlan.recCount)
       }
       case Sort(fields, ascending, child) => {
         val childPlan = generateGraph(child)
-        val graph = outputDotNode("Sort " + fields.mkString("[", ",", "]"), children=List(childPlan.graph), style="filled")
+        val graph = outputDotNode("Sort " + fields.mkString("[", ",", "]"), style="filled")
+        outputEdge(childPlan.graph, graph, childPlan.recCount + " record(s)")
         SubPlan(graph, childPlan.recCount)
       }
       case TopK(k, child) => {
         val childPlan = generateGraph(child)
-        val graph = outputDotNode("TopK " + prettyPrint(k), children=List(childPlan.graph), style="filled")
+        val graph = outputDotNode("TopK " + prettyPrint(k), style="filled")
+        outputEdge(childPlan.graph, graph, childPlan.recCount + " record(s)")
         SubPlan(graph, getIntValue(k))
       }
     }
@@ -147,7 +153,7 @@ class GraphVis(entities: List[BoundEntity]) extends Generator[QueryPlan] {
   //TODO: Fix the types so this casting isn't needed
   protected def getIntValue(v: BoundValue): Int = v match {
     case biv: BoundIntegerValue => biv.value
-    case _ => 1000
+    case _ => 0
   }
 
   protected def prettyPrint(value: BoundValue): String = value match {
