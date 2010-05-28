@@ -47,9 +47,9 @@ class GraphVis(entities: List[BoundEntity]) extends Generator[QueryPlan] {
     return dest
   }
 
-  protected def outputCluster[A](label: String)(func: => A)(implicit sb: StringBuilder, indnt: Indentation): A = {
+  protected def outputCluster[A](label: String*)(func: => A)(implicit sb: StringBuilder, indnt: Indentation): A = {
     outputBraced("subGraph ", "cluster" + nextId) {
-      output("label=", quote(label), ";")
+      output("label=", quote(label.mkString), ";")
       func
     }
   }
@@ -77,46 +77,77 @@ class GraphVis(entities: List[BoundEntity]) extends Generator[QueryPlan] {
     }
   }
 
-  protected def generateGraph(plan: QueryPlan)(implicit sb: StringBuilder, indnt: Indentation): DotNode = {
+  case class SubPlan(graph: DotNode, recCount: Int)
+  protected def generateGraph(plan: QueryPlan)(implicit sb: StringBuilder, indnt: Indentation): SubPlan = {
     plan match {
       case SingleGet(ns, key) => {
-        outputCluster("SingleGet") {
+        val graph = outputCluster("SingleGet\n1 GET Operation") {
           getPredicates(ns, key, outputDotNode(ns))
         }
+        SubPlan(graph, 1)
       }
       case PrefixGet(ns, prefix, limit, ascending) => {
-        outputCluster("PrefixGet") {
+        val graph = outputCluster("PrefixGet\n1 GET_RANGE Operation") {
           getPredicates(ns, prefix, outputDotNode(ns))
         }
+        SubPlan(graph, getIntValue(limit))
       }
       case SequentialDereferenceIndex(ns, child) => {
-        val childGraph = generateGraph(child)
-        outputCluster("SequentialDeref") {
+        val childPlan = generateGraph(child)
+        val graph = outputCluster("SequentialDeref\n", childPlan.recCount.toString, " GET Operations") {
           val targetNs = outputDotNode(ns)
-          outputDotNode("Dereference", children=List(targetNs, childGraph))
+          outputDotNode("Dereference", children=List(targetNs))
         }
+        SubPlan(graph, childPlan.recCount)
       }
       case PrefixJoin(ns, conditions, limit, ascending, child) => {
-        val childGraph = generateGraph(child)
-        outputCluster("PrefixJoin") {
+        val childPlan = generateGraph(child)
+        val graph = outputCluster("PrefixJoin\n", childPlan.recCount.toString, " GETRANGE Operations") {
           val source = outputDotNode(ns)
-          val join = outputDotNode("Join", shape="diamond", children=List(childGraph, source))
-          getJoinPredicates(ns, conditions, join)
+          val join = outputDotNode("Join", shape="diamond", children=List(childPlan.graph, source))
+          val pred = getJoinPredicates(ns, conditions, join)
+          limit match {
+            case biv: BoundIntegerValue => outputEdge(pred, outputDotNode("DataStopAfter(" + biv.value + ")"))
+            case v => outputEdge(pred, outputDotNode("StopAfter(" + prettyPrint(v) + ")"))
+          }
         }
+        SubPlan(graph, getIntValue(limit) * childPlan.recCount)
       }
       case PointerJoin(ns, conditions, child) => {
-        val childGraph = generateGraph(child)
-        outputCluster("PointerJoin") {
+        val childPlan = generateGraph(child)
+        val graph = outputCluster("PointerJoin\n", childPlan.recCount.toString, " GET Operations") {
           val source = outputDotNode(ns)
-          val join = outputDotNode("Join", shape="diamond", children=List(childGraph, source))
+          val join = outputDotNode("Join", shape="diamond", children=List(childPlan.graph, source))
           getJoinPredicates(ns, conditions, join)
         }
+        SubPlan(graph, childPlan.recCount)
       }
       case Materialize(entityType, child) => generateGraph(child)
-      case Selection(equalityMap, child) => outputDotNode("Selection", children=List(generateGraph(child)), style="filled")
-      case Sort(fields, ascending, child) => outputDotNode("Sort" + fields.mkString("[", ",", "]"), children=List(generateGraph(child)), style="filled")
-      case TopK(k, child) => outputDotNode("TopK " + prettyPrint(k), children=List(generateGraph(child)), style="filled")
+      case Selection(equalityMap, child) => {
+        val childPlan = generateGraph(child)
+        val graph = equalityMap.map(p => p._1 + "=" + prettyPrint(p._2)).foldLeft(childPlan.graph) {
+          case (child: DotNode, pred: String) =>
+            outputDotNode("Selection\n" + pred, children=List(child), style="filled")
+        }
+        SubPlan(graph, childPlan.recCount)
+      }
+      case Sort(fields, ascending, child) => {
+        val childPlan = generateGraph(child)
+        val graph = outputDotNode("Sort " + fields.mkString("[", ",", "]"), children=List(childPlan.graph), style="filled")
+        SubPlan(graph, childPlan.recCount)
+      }
+      case TopK(k, child) => {
+        val childPlan = generateGraph(child)
+        val graph = outputDotNode("TopK " + prettyPrint(k), children=List(childPlan.graph), style="filled")
+        SubPlan(graph, getIntValue(k))
+      }
     }
+  }
+
+  //TODO: Fix the types so this casting isn't needed
+  protected def getIntValue(v: BoundValue): Int = v match {
+    case biv: BoundIntegerValue => biv.value
+    case _ => 1000
   }
 
   protected def prettyPrint(value: BoundValue): String = value match {
