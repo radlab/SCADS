@@ -615,9 +615,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     }
   }
 
-  def getPrefix[K <: KeyType](key: K, fields:Int):Seq[(KeyType,ValueType)] = 
-    getPrefix(key,fields,-1,true)
-  def getPrefix[K <: KeyType](key: K, fields:Int, limit:Int, ascending:Boolean):Seq[(KeyType,ValueType)] = {
+  def getPrefix[K <: KeyType](key: K, fields: Int, limit: Int = -1, ascending: Boolean = true):Seq[(KeyType,ValueType)] = {
     val nodes = serversForKey(key)
     val gpr = new GetPrefixRequest
     gpr.namespace = namespace

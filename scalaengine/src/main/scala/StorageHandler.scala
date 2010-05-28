@@ -457,6 +457,12 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
         try {
           var stat = cur.getSearchKeyRange(dbeKey, dbeValue, null)
 
+          // check return value of stat, since if we're looking for the last key desc
+          // then stat will not succeed
+          if (stat == OperationStatus.NOTFOUND) {
+            stat = cur.getLast(dbeKey, dbeValue, null)
+          }
+
           if (!ascending) {
             // skip backwards because we've probably gone too far forward
             while (stat == OperationStatus.SUCCESS &&
