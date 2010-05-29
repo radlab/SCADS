@@ -34,35 +34,48 @@ trait MethodGen extends ScalaAvroPluginComponent
     import CODE._
 
     /** AST nodes for runtime helper methods */
+    /** TODO: refactor this so it's more generalized instead of being so
+     * explicit */
 
     /** this.mkUtf8(this.sym) */
     private def string2utf8(clazz: Symbol, sym: Symbol): Tree = {
-        Apply(
-            This(clazz) DOT newTermName("mkUtf8"),
-            List(This(clazz) DOT sym))
+      oneArgFunction(clazz, sym, "mkUtf8")
     }
 
     /** this.mkByteBuffer(this.sym) */
     private def byteArray2byteBuffer(clazz: Symbol, sym: Symbol): Tree = {
-        Apply(
-            This(clazz) DOT newTermName("mkByteBuffer"),
-            List(This(clazz) DOT sym))
+      oneArgFunction(clazz, sym, "mkByteBuffer")
+    }
+
+    private def oneArgFunction(clazz: Symbol, sym: Symbol, funcName: String): Tree = {
+      Apply(
+        This(clazz) DOT newTermName(funcName),
+        List(This(clazz) DOT sym))
     }
 
     /** this.scalaListToGenericArray(
      *  this.sym, this.getSchema.getField(sym.name).schema) */
     private def list2GenericArray(clazz: Symbol, sym: Symbol): Tree = {
-        Apply(
-            This(clazz) DOT newTermName("scalaListToGenericArray"),
-            List(
-                This(clazz) DOT sym,
-                Apply(
-                    Select(
-                        Apply(
-                            This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
-                            List(LIT(sym.name.toString.trim))),
-                        newTermName("schema")),
-                    List())))
+      twoArgFunction(clazz, sym, "scalaListToGenericArray")
+    }
+
+    /** this.unwrapOption(this.sym, this.getSchema.getField(sym.name).schema */
+    private def unwrapOption(clazz: Symbol, sym: Symbol): Tree = {
+      twoArgFunction(clazz, sym, "unwrapOption")
+    }
+
+    private def twoArgFunction(clazz: Symbol, sym: Symbol, funcName: String): Tree = {
+      Apply(
+        This(clazz) DOT newTermName(funcName),
+        List(
+          This(clazz) DOT sym,
+          Apply(
+            Select(
+              Apply(
+                This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
+                List(LIT(sym.name.toString.trim))),
+              newTermName("schema")),
+            Nil)))
     }
 
     /** this.sym.asInstanceOf[java.lang.Object] */
@@ -70,14 +83,15 @@ trait MethodGen extends ScalaAvroPluginComponent
 
     /** Map symbol to symbol handler */
     private var symMap = Map(
-      StringClass -> ((clazz:Symbol, sym:Symbol) => string2utf8(clazz,sym)),
-      ArrayClass  -> ((clazz:Symbol, sym:Symbol) => 
+      StringClass -> (string2utf8 _),
+      ArrayClass  -> ((clazz: Symbol, sym: Symbol) => 
         if (sym.tpe.typeArgs.head.typeSymbol == ByteClass)
-            byteArray2byteBuffer(clazz,sym)
+          byteArray2byteBuffer(clazz,sym)
         else
-            throw new UnsupportedOperationException("Cannot handle this right now")
+          throw new UnsupportedOperationException("Cannot handle this right now")
         ),
-      ListClass   -> ((clazz:Symbol, sym:Symbol) =>  list2GenericArray(clazz,sym)))
+      ListClass   -> (list2GenericArray _),
+      OptionClass -> (unwrapOption _))
 
     private def generateGetMethod(templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
       val newSym = clazz.newMethod(clazz.pos.focus, newTermName("get"))
@@ -91,14 +105,14 @@ trait MethodGen extends ScalaAvroPluginComponent
       println(symMap)
       val cases = for ((sym, i) <- instanceVars.zipWithIndex) yield {
         CASE(LIT(i)) ==> {
-          val fn = symMap get (sym.tpe.typeSymbol) getOrElse ( (c:Symbol, s:Symbol) => sym2obj(c,s) )
+          val fn = symMap get (sym.tpe.typeSymbol) getOrElse ((sym2obj _))
           fn(clazz, sym)
         }
       }
 
       localTyper.typed {
         DEF(newSym) === {
-            arg MATCH { cases ::: default : _* }
+          arg MATCH { cases ::: default : _* }
         }   
       }   
     }
@@ -112,14 +126,12 @@ trait MethodGen extends ScalaAvroPluginComponent
       // TODO: throw avro bad index class
       val default = List(DEFAULT ==> THROW(IndexOutOfBoundsExceptionClass, newSym ARG 0))
 
-      val list = clazz.info.decls.toList filter (_ hasFlag ACCESSOR)
-
       val byteBufferTpe = byteBufferClass.tpe
       val utf8Tpe = utf8Class.tpe
 
       val cases = for ((sym, i) <- instanceVars.zipWithIndex) yield {
-        val accessors = list.filter(_.name.toString.trim equals (sym.name.toString.trim + "_$eq"))
         val rhs = 
+          // TODO: i think sym == [Class] would work here too
           if (sym.tpe.typeSymbol == StringClass) {
             typer typed ((newSym ARG 1) AS utf8Tpe DOT newTermName("toString"))
           } else if (sym.tpe.typeSymbol == ArrayClass && sym.tpe.normalize.typeArgs.head == ByteClass.tpe) {
@@ -127,14 +139,33 @@ trait MethodGen extends ScalaAvroPluginComponent
           } else if (sym.tpe.typeSymbol == ListClass) {
             val apply = 
               Apply(
+                Select(
+                  This(clazz),
+                  newTermName("genericArrayToScalaList")),
+                List(Apply(
                   Select(
-                      This(clazz),
-                      newTermName("genericArrayToScalaList")),
-                  List(Apply(
-                      Select(
-                          This(clazz),
-                          newTermName("castToGenericArray")),
-                      List(newSym ARG 1)))) AS sym.tpe
+                    This(clazz),
+                    newTermName("castToGenericArray")),
+                  List(newSym ARG 1)))) AS sym.tpe
+            typer typed apply
+          } else if (sym.tpe.typeSymbol == OptionClass) {
+            val paramSym = sym.tpe.typeArgs.head.typeSymbol
+            val useNative = 
+              (paramSym == utf8Class) ||
+              (paramSym == byteBufferClass)
+            val apply =
+              Apply(
+                This(clazz) DOT newTermName("wrapOption"),
+                List(
+                  (newSym ARG 1),
+                  Apply(
+                    Select(
+                      Apply(
+                        This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
+                        List(LIT(sym.name.toString.trim))),
+                      newTermName("schema")),
+                    Nil),
+                  LIT(useNative))) AS sym.tpe
             typer typed apply
           } else {
             typer typed ((newSym ARG 1) AS sym.tpe)

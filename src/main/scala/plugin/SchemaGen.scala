@@ -50,6 +50,7 @@ trait SchemaGen extends ScalaAvroPluginComponent
       DoubleClass  -> Schema.create(AvroType.DOUBLE),
       BooleanClass -> Schema.create(AvroType.BOOLEAN),
       StringClass  -> Schema.create(AvroType.STRING),
+      NullClass    -> Schema.create(AvroType.NULL),
 
       /** Primitives in the Avro sense */
       byteBufferClass -> Schema.create(AvroType.BYTES),
@@ -66,6 +67,10 @@ trait SchemaGen extends ScalaAvroPluginComponent
       } else if (tpe.typeSymbol == ListClass) {
         val listParam = tpe.typeArgs.head
         Schema.createArray(createSchema(listParam))
+      } else if (tpe.typeSymbol == OptionClass) {
+        val listParam = tpe.typeArgs.head
+        Schema.createUnion(JArrays.asList(
+          Array(createSchema(NullClass.tpe), createSchema(listParam)):_*))
       } else if (isRecord(tpe.typeSymbol)) { 
         retrieveRecordSchema(tpe.typeSymbol).get 
       } else if (isUnion(tpe.typeSymbol)) {

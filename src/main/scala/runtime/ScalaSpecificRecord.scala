@@ -3,7 +3,8 @@ package runtime
 
 import org.apache.avro.Schema
 import org.apache.avro.Schema.Type
-import org.apache.avro.specific.SpecificRecord
+import org.apache.avro.io.BinaryEncoder
+import org.apache.avro.specific.{SpecificDatumWriter, SpecificRecord}
 import org.apache.avro.generic.{GenericArray, GenericData}
 import org.apache.avro.util.Utf8
 
@@ -12,12 +13,17 @@ import scala.collection.mutable.ListBuffer
 import scala.reflect.Manifest
 
 import java.nio.ByteBuffer
+import java.io.ByteArrayOutputStream
 
 private[runtime] class UnimplementedFunctionalityException extends RuntimeException("Unimplemented")
 
 trait ScalaSpecificRecord extends SpecificRecord {
   def toBytes: Array[Byte] = {
-      throw new UnimplementedFunctionalityException
+    val out = new ByteArrayOutputStream
+    val enc = new BinaryEncoder(out)
+    val writer = new SpecificDatumWriter[ScalaSpecificRecord](getSchema)
+    writer.write(this, enc)
+    out.toByteArray
   }
 }
 
@@ -94,5 +100,72 @@ trait AvroConversions {
   }
 
   def castToGenericArray(obj: Any): GenericArray[_] = obj.asInstanceOf[GenericArray[_]]
+
+  /** Assume that schema is a union type which contains only
+   2 fields, a NULL field, and another field that isn't NULL 
+   */                                    
+  def findNonNull(schema: Schema): Schema = schema.getType match {
+    case Type.UNION =>
+      if (schema.getTypes.size != 2) {
+        throw new IllegalArgumentException("Not a union schema with 2 types")
+      }
+      val left = schema.getTypes.get(0)
+      val right = schema.getTypes.get(1)
+      if (left.getType == Type.NULL) {
+        right
+      } else if (right.getType == Type.NULL) {
+        left
+      } else {
+        throw new IllegalArgumentException("No null type found")
+      }
+    case _ => 
+      throw new IllegalArgumentException("Not a union schema")
+  }
+
+  def unwrapOption(opt: Option[_], schema: Schema): AnyRef = opt match {
+    case Some(inner) =>
+      // NOTE: we don't have to worry about another nested union schema, since avro
+      // disallowes nested unions
+      val schema0 = findNonNull(schema)
+
+      // must do conversions here if necessary...
+      schema0.getType match {
+        case Type.STRING =>
+          if (inner.isInstanceOf[Utf8])
+            inner.asInstanceOf[Utf8]
+          else
+            inner.toString
+        case Type.ARRAY =>
+          // TODO: handle the obj being a native generic array
+          scalaListToGenericArray(inner.asInstanceOf[List[_]], schema0)      
+        case Type.BYTES =>
+          if (inner.isInstanceOf[ByteBuffer])
+            inner.asInstanceOf[ByteBuffer]
+          else
+            ByteBuffer.wrap(inner.asInstanceOf[Array[Byte]])
+        case _ =>
+          inner.asInstanceOf[AnyRef]
+      }
+    case None =>
+      null.asInstanceOf[AnyRef]
+  }
+   
+  def wrapOption(obj: Any, schema: Schema, returnNativeType: Boolean): Option[_] = {
+    if (obj.asInstanceOf[AnyRef] eq null)
+      None
+    else {
+      val schema0 = findNonNull(schema)
+      val obj0 = if (returnNativeType) obj else schema0.getType match {
+        case Type.STRING => 
+          obj.toString
+        case Type.ARRAY =>
+          // TODO: handle generic 
+          genericArrayToScalaList(obj.asInstanceOf[GenericArray[_]])           
+        case Type.BYTES =>
+          obj.asInstanceOf[ByteBuffer].array          
+      }
+      Some(obj0)
+    }
+  }
 
 }
