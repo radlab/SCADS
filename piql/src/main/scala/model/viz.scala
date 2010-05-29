@@ -150,10 +150,14 @@ class GraphVis(entities: List[BoundEntity]) extends Generator[QueryPlan] {
     }
   }
 
-  //TODO: Fix the types so this casting isn't needed
-  protected def getIntValue(v: BoundValue): Int = v match {
-    case biv: BoundIntegerValue => biv.value
-    case _ => 0
+  protected def getIntValue(v: BoundRange): Int = v match {
+    case BoundLimit(_, max) => max
+    case BoundUnlimited => 100000000
+  }
+
+  protected def prettyPrint(value: BoundRange): String = value match {
+    case BoundLimit(l,m) => prettyPrint(l) + " MAX " + m
+    case BoundUnlimited => "UNBOUNDED"
   }
 
   protected def prettyPrint(value: BoundValue): String = value match {

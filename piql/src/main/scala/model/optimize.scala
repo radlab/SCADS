@@ -66,7 +66,7 @@ class Optimizer(spec: BoundSpec) {
 			case BoundFetch(entity, Nil, Unsorted, BoundFixedTargetJoin(rname, cardinality, child)) => {
 				val childPlan = optimize(child, range)
 				val selectedIndex = selectOrCreateIndex(entity, List(rname), List())
-				val joinLimit = BoundIntegerValue(cardinality)
+				val joinLimit = BoundLimit(BoundIntegerValue(cardinality), cardinality)
 				val tupleStream = selectedIndex match {
 					case SecondaryIndex(ns, attrs, ent) => {
 						SequentialDereferenceIndex(ent.namespace,
@@ -96,25 +96,24 @@ class Optimizer(spec: BoundSpec) {
 					case Unsorted => (List(), true)
 				}
 				val selectedIndex = selectOrCreateIndex(entity, List(rname), orderField)
-				val joinLimit = range match {
-					case BoundLimit(l, _) => l
-					case BoundUnlimited => throw new UnboundedQuery("Unbounded Target Join lookup")
-				}
+
+			  if(range == BoundUnlimited)
+          logger.fatal("Unbounded target join detected")
 
 				val tupleStream = selectedIndex match {
 					case SecondaryIndex(ns, attrs, ent) => {
 						SequentialDereferenceIndex(ent.namespace,
-							PrefixJoin(ns, child.entity.keySchema.getFields.map(k => AttributeCondition(k.name)), joinLimit, asc,  childPlan)
+							PrefixJoin(ns, child.entity.keySchema.getFields.map(k => AttributeCondition(k.name)), range, asc,  childPlan)
 						)
 					}
 					case PrimaryIndex(ns, attrs) => {
-						PrefixJoin(ns, child.entity.keySchema.getFields.map(k => AttributeCondition(k.name)), joinLimit, asc,  childPlan)
+						PrefixJoin(ns, child.entity.keySchema.getFields.map(k => AttributeCondition(k.name)), range, asc,  childPlan)
 					}
 				}
 
 				val entityStream = Materialize(EntityClass(entity.name), tupleStream)
 
-				TopK(joinLimit, ordering match {
+				TopK(range, ordering match {
 					case Sorted(attr, asc) => Sort(List(attr), asc, entityStream)
 					case Unsorted => entityStream
 				})
@@ -132,12 +131,11 @@ class Optimizer(spec: BoundSpec) {
 				val indexLookup =
 					if(selectedIndex.attributes.size > equalityMap.size) {
 						val prefix = selectedIndex.attributes.slice(0, equalityMap.size).map(equalityMap)
-						val limit = range match {
-							case BoundLimit(l, _) => l
-							case BoundUnlimited => throw new UnboundedQuery("Unbounded index prefix lookup")
-						}
 
-						PrefixGet(selectedIndex.namespace, prefix, limit, asc)
+            if(range ==BoundUnlimited)
+              logger.fatal("Unbounded index prefix lookup")
+
+						PrefixGet(selectedIndex.namespace, prefix, range, asc)
 					}
 					else {
 						SingleGet(selectedIndex.namespace, selectedIndex.attributes.map(equalityMap))
