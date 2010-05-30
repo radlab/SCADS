@@ -1,0 +1,18 @@
+<lift:surround with="default" at="content">
+	<h1>Data Manipulation Repl</h1>
+	<div id="history">
+	</div>
+	<lift:comet type="Repl"/><br/>
+
+	<h2>Examples</h2>
+	<ul>
+		<li>val x = AvroIter[twitter.Tweet](new java.io.File("short.txt.avro"))</li>
+		<li>val hist = x.filter(_.user != null).map(_.user.followers_count.intValue).foldLeft(new Histogram(10, 1000))(_.add(_))</li>
+		<li>repl ! Disp(hist.view)</li>
+		<li>AvroIter.vis("data", repl)</li>
+	</ul>
+
+	<div id="chart">
+	</div>
+</lift:surround>
+
