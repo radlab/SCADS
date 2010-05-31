@@ -71,6 +71,13 @@ object Compiler {
     writer.close
   }
 
+  def getOptimizedSpec(code: String): BoundSpec = {
+    val ast = getAST(code)
+    val boundAst = new Binder(ast).bind
+    val opt = new Optimizer(boundAst)
+    opt.optimizedSpec
+  }
+
   def main(args: Array[String]): Unit = {
     val ast = getAST(readFile(new File(args(0))))
     val boundAst = new Binder(ast).bind
