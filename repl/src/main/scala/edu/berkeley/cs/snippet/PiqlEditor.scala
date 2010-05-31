@@ -13,8 +13,8 @@ import net.liftweb.http.js._
 import net.liftweb.http.js.JsCmds._
 import net.liftweb.http.js.JE._
 
-import edu.berkeley.cs.scads.piql.Compiler
-import edu.berkeley.cs.scads.piql.parser.BoundSpec
+import edu.berkeley.cs.scads.piql.{Compiler, GraphViz}
+import edu.berkeley.cs.scads.piql.parser.{BoundSpec, BoundQuery}
 
 object PiqlSpec extends SessionVar[Box[BoundSpec]](Empty)
 
@@ -23,21 +23,20 @@ class PiqlEditor {
 
   protected def validatePiql(code: String): JsCmd = {
     val spec = Compiler.getOptimizedSpec(code)
+    val grapher = new GraphViz(spec.entities.values.toList)
     PiqlSpec.set(Full(spec))
 
-    def mkQueryLink(queryName: String) = <a href={"/dotgraph/" + queryName} target="_blank">{queryName}</a>
-    val result =
-      <ul>
-        <span>{
-          spec.entities.values.map(e => {
-              <li>{e.name}</li>
-              <ul>{e.queries.keys.map(q => <li>{mkQueryLink(q)}</li>)}</ul>
-          })}
-        </span>
-          <li>Other Queries</li>
-          <ul>{spec.orphanQueries.keys.map(q => <li>{mkQueryLink(q)}</li>)}</ul>
-      </ul>
-    SetHtml("status", result)
+    def mkQueryLink(query: BoundQuery) = {
+      val recCount = grapher.getAnnotatedPlan(query.plan).recCount match {
+        case Some(c) => <span>{c + "Records Max"}</span>
+        case None => <font color="red">UNBOUNDED</font>
+      }
+      <li><a href={"/dotgraph/" + query.name} target="_blank">{query.name}</a> - {recCount}</li>
+    }
+
+    val entityQueries = spec.entities.values.map(e => <li>{e.name}</li><ul>{e.queries.values.map(mkQueryLink)}</ul>)
+    val otherQueries = <li>Static Queries</li><ul>{spec.orphanQueries.values.map(mkQueryLink)}</ul>;
+    SetHtml("status", <ul>{entityQueries}{otherQueries}</ul>)
   }
 
   def editor(xhtml: NodeSeq): NodeSeq = {
