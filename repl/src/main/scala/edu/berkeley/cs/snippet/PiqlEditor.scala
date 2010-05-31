@@ -13,16 +13,19 @@ import net.liftweb.http.js._
 import net.liftweb.http.js.JsCmds._
 import net.liftweb.http.js.JE._
 
+import edu.berkeley.cs.scads.piql.Compiler
 
 class PiqlEditor {
+  val defaultPiql = Compiler.readFile(new java.io.File("../piql/src/test/resources/scadr.scads"))
+
   protected def validatePiql(code: String): JsCmd = {
-    println("running validator")
-    SetHtml("status", "Valid PIQL!")
+    val spec = Compiler.getOptimizedSpec(code)
+    SetHtml("status", spec.entities.map(_._1).mkString)
   }
 
   def editor(xhtml: NodeSeq): NodeSeq = {
     bind("edit", xhtml,
-      "editor" -> SHtml.textarea("", (t: String) => (), "id" -> "piqlcode"),
+      "editor" -> SHtml.textarea(defaultPiql, (t: String) => (), "id" -> "piqlcode"),
       "validate" -> <button onclick={SHtml.ajaxCall(ValById("piqlcode"), validatePiql _)._2}>Validate PIQL</button>)
   }
 }
