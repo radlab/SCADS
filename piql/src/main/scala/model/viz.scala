@@ -23,7 +23,7 @@ object GraphViz {
   }
 }
 
-class GraphVis(entities: List[BoundEntity]) extends Generator[QueryPlan] {
+class GraphViz(entities: List[BoundEntity]) extends Generator[QueryPlan] {
   private val curId = new java.util.concurrent.atomic.AtomicInteger
   protected def nextId = curId.getAndIncrement()
 
@@ -77,14 +77,14 @@ class GraphVis(entities: List[BoundEntity]) extends Generator[QueryPlan] {
     }
   }
 
-  case class SubPlan(graph: DotNode, recCount: Int)
+  case class SubPlan(graph: DotNode, recCount: Option[Int])
   protected def generateGraph(plan: QueryPlan)(implicit sb: StringBuilder, indnt: Indentation): SubPlan = {
     plan match {
       case SingleGet(ns, key) => {
         val graph = outputCluster("SingleGet\n1 GET Operation") {
           getPredicates(ns, key, outputDotNode(ns))
         }
-        SubPlan(graph, 1)
+        SubPlan(graph, Some(1))
       }
       case PrefixGet(ns, prefix, limit, ascending) => {
         val graph = outputCluster("PrefixGet\n1 GET_RANGE Operation") {
@@ -113,7 +113,7 @@ class GraphVis(entities: List[BoundEntity]) extends Generator[QueryPlan] {
             case v => outputEdge(pred, outputDotNode("StopAfter(" + prettyPrint(v) + ")"))
           }
         }
-        SubPlan(graph, getIntValue(limit) * childPlan.recCount)
+        SubPlan(graph, multiply(getIntValue(limit), childPlan.recCount))
       }
       case PointerJoin(ns, conditions, child) => {
         val childPlan = generateGraph(child)
@@ -150,9 +150,14 @@ class GraphVis(entities: List[BoundEntity]) extends Generator[QueryPlan] {
     }
   }
 
-  protected def getIntValue(v: BoundRange): Int = v match {
-    case BoundLimit(_, max) => max
-    case BoundUnlimited => 100000000
+  protected def multiply(a: Option[Int], b: Option[Int]): Option[Int] = (a,b) match {
+    case (Some(x), Some(y)) => Some(x * y)
+    case _ => None
+  }
+
+  protected def getIntValue(v: BoundRange): Option[Int] = v match {
+    case BoundLimit(_, max) => Some(max)
+    case BoundUnlimited => None
   }
 
   protected def prettyPrint(value: BoundRange): String = value match {
