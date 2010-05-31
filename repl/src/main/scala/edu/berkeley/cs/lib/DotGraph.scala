@@ -6,7 +6,7 @@ import _root_.net.liftweb.util._
 import _root_.net.liftweb.common._
 import net.liftweb.http.provider.HTTPCookie
 
-import edu.berkeley.cs.snippet.PiqlSpec
+import edu.berkeley.cs.snippet.PiqlGraphs
 import edu.berkeley.cs.scads.piql.GraphViz
 import edu.berkeley.cs.scads.piql.QueryPlan
 
@@ -24,9 +24,7 @@ object DotGraph {
     val proc = Runtime.getRuntime().exec("/Applications/Graphviz.app/Contents/MacOS/dot -Tpng")
     val outstream = proc.getOutputStream()
 
-    val spec = PiqlSpec.open_!
-    val grapher = new GraphViz(spec.entities.values.toList)
-    outstream.write(grapher(getPlan(graphId)).getBytes)
+    outstream.write(PiqlGraphs.getGraph(graphId.toInt).getBytes)
     outstream.close()
 
     val instream = proc.getInputStream
@@ -38,17 +36,5 @@ object DotGraph {
       read = instream.read(buff)
     }
     GraphPng(graphStream.toByteArray)
-  }
-
-  //TODO: Cleanup / handle dup query names
-  private def getPlan(name: String): QueryPlan = {
-    val spec = PiqlSpec.open_!
-    spec.entities.values.foreach(e => {
-      e.queries.get(name) match {
-      case Some(q) => return q.plan
-      case None =>
-    }})
-
-    spec.orphanQueries(name).plan
   }
 }
