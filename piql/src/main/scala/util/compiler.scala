@@ -5,6 +5,7 @@ import org.apache.log4j.Logger
 
 import edu.berkeley.cs.scads.piql.parser._
 
+@deprecated("PIQL2SQL has been deprecated in favor of the native execution engine")
 object PIQL2SQL {
   def main(args: Array[String]): Unit = {
     val piql = Compiler.readFile(new File(args(0)))
