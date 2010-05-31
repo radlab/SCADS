@@ -14,8 +14,14 @@ class SilentReporter extends Reporter {
   def info0(pos: Position, msg: String, severity: Severity, force: Boolean) = {
     severity match {
       case INFO =>
-      case WARNING => warningReported = true
-      case ERROR => errorReported = true
+        println("[INFO] " + msg)
+      case WARNING => 
+        warningReported = true
+        println("[WARNING] " + msg) 
+      case ERROR => 
+        errorReported = true
+        println("[ERROR] " + msg)
     }
+    severity.count += 1
   }
 }

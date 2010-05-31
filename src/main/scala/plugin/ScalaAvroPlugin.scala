@@ -24,7 +24,7 @@ trait ScalaAvroPluginComponent extends PluginComponent {
 
   protected def debug(a: AnyRef) {
     if (settings.debug.value) log(a)
-    println(a)
+    //println(a)
   }
 
   protected def isValDef(tree: Tree): Boolean = tree.isInstanceOf[ValDef] 
@@ -123,6 +123,7 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
     val runsAfter = List[String]("parser")
     def newPhase(_prev: Phase): StdPhase = new StdPhase(_prev) {
       override val checkable = false
+      override def keepsTypeParams = false
       def apply(unit: CompilationUnit) {
     	val silentReporter = new SilentReporter
     	val cachedReporter = global.reporter
@@ -148,6 +149,7 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
     override val runsRightAfter = Some("earlynamer")
     def newPhase(_prev: Phase): StdPhase = new StdPhase(_prev) {
       import analyzer.{resetTyper, newTyper, rootContext}
+      override def keepsTypeParams = false
       resetTyper()
       override def run { 
         currentRun.units foreach applyPhase
@@ -168,6 +170,9 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
         	unitsInError += unit
           }
         }
+
+        println("reporter: " + global.reporter)
+
       }
     }
   }
