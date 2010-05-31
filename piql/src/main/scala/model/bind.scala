@@ -282,7 +282,7 @@ class Binder(spec: Spec) {
 			}
 
 			/* Build the final bound query */
-			val boundQuery = BoundQuery(toBoundFetch(fetchTree), parameters.map((p) => boundParams(p.name)), boundRange)
+			val boundQuery = BoundQuery(q.name, toBoundFetch(fetchTree), parameters.map((p) => boundParams(p.name)), boundRange)
 
 			/* Place bound query either in its entity or as an orphan */
 			val placement: HashMap[String, BoundQuery] = thisType match {

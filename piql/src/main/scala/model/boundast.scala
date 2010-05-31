@@ -50,7 +50,7 @@ case class Sorted(attribute: String, ascending: Boolean) extends BoundOrder
 object Unsorted extends BoundOrder
 
 /* BoundQuery and FetchTree */
-case class BoundQuery(fetchTree: BoundFetch, parameters: List[BoundParameter], range:BoundRange) {var plan: QueryPlan = null}
+case class BoundQuery(name: String, fetchTree: BoundFetch, parameters: List[BoundParameter], range:BoundRange) {var plan: QueryPlan = null}
 case class BoundFetch(entity: BoundEntity, predicates: List[BoundPredicate], order: BoundOrder, join: BoundJoin)
 
 abstract sealed class BoundRange
