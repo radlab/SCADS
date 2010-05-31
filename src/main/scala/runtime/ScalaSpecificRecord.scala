@@ -134,7 +134,7 @@ trait AvroConversions {
           if (inner.isInstanceOf[Utf8])
             inner.asInstanceOf[Utf8]
           else
-            inner.toString
+            new Utf8(inner.toString)
         case Type.ARRAY =>
           // TODO: handle the obj being a native generic array
           scalaListToGenericArray(inner.asInstanceOf[List[_]], schema0)      
@@ -163,6 +163,8 @@ trait AvroConversions {
           genericArrayToScalaList(obj.asInstanceOf[GenericArray[_]])           
         case Type.BYTES =>
           obj.asInstanceOf[ByteBuffer].array          
+        case _ =>
+          obj
       }
       Some(obj0)
     }
