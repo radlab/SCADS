@@ -7,6 +7,8 @@ import _root_.net.liftweb.sitemap._
 import _root_.net.liftweb.sitemap.Loc._
 import Helpers._
 
+import edu.berkeley.cs.lib.DotGraph
+
 /**
   * A class that's instantiated early and run.  It allows the application
   * to modify lift's environment
@@ -22,5 +24,6 @@ class Boot {
       Menu(Loc("Scala REPL", List("repl"), "Scala REPL")) :: Nil
 
     LiftRules.setSiteMap(SiteMap(entries:_*))
+    LiftRules.dispatch.prepend(DotGraph.dispatchRules)
   }
 }
