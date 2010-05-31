@@ -23,11 +23,22 @@ object GraphViz {
   }
 }
 
+case class AnnotatedPlan(dotCode: String, recCount: Option[Int])
 class GraphViz(entities: List[BoundEntity]) extends Generator[QueryPlan] {
   private val curId = new java.util.concurrent.atomic.AtomicInteger
   protected def nextId = curId.getAndIncrement()
 
-  protected def generate(plan: QueryPlan)(implicit sb: StringBuilder, indnt: Indentation): Unit = {
+  def getAnnotatedPlan(plan: QueryPlan): AnnotatedPlan = {
+    implicit val indnt = new Indentation
+    implicit val sb = new StringBuilder
+    val subPlan = generatePlan(plan)
+    AnnotatedPlan(sb.toString, subPlan.recCount)
+  }
+
+  /* Need a function with return type Unit for Generator */
+  protected def generate(plan: QueryPlan)(implicit sb: StringBuilder, indnt: Indentation): Unit = generatePlan(plan)
+
+  protected def generatePlan(plan: QueryPlan)(implicit sb: StringBuilder, indnt: Indentation): SubPlan = {
     outputBraced("digraph QueryPlan") {
       output("rankdir=BT;")
       generateGraph(plan)
