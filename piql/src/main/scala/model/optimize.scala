@@ -60,11 +60,11 @@ class Optimizer(spec: BoundSpec) {
 		fetch match {
 			case BoundFetch(entity, Nil, Unsorted, BoundPointerJoin(rname, child)) => {
 				Materialize(EntityClass(entity.name),
-					PointerJoin(entity.namespace, List(AttributeCondition(rname)), optimize(child, range))
+					PointerJoin(entity.namespace, List(AttributeCondition(rname)), optimize(child, BoundUnlimited))
 				)
 			}
 			case BoundFetch(entity, Nil, Unsorted, BoundFixedTargetJoin(rname, cardinality, child)) => {
-				val childPlan = optimize(child, range)
+				val childPlan = optimize(child, BoundUnlimited)
 				val selectedIndex = selectOrCreateIndex(entity, List(rname), List())
 				val joinLimit = BoundLimit(BoundIntegerValue(cardinality), cardinality)
 				val tupleStream = selectedIndex match {
@@ -90,7 +90,7 @@ class Optimizer(spec: BoundSpec) {
 				)
 			}
 			case BoundFetch(entity, predicates, ordering, BoundInfiniteTargetJoin(rname, child)) => {
-				val childPlan = optimize(child, range)
+				val childPlan = optimize(child, BoundUnlimited)
 				val (orderField, asc) = ordering match {
 					case Sorted(attr, asc) => (List(attr), asc)
 					case Unsorted => (List(), true)
