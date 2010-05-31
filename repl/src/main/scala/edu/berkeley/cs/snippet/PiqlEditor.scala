@@ -45,8 +45,12 @@ class PiqlEditor {
         case Some(c) => <span>{c + "Records Max"}</span>
         case None => <font color="red">UNBOUNDED</font>
       }
+      val opCount = aPlan.ops match {
+        case Some(o) => <span>{o} Operations</span>
+        case None => <font color="red">UNBOUNDED K/V Operations</font>
+      }
       val graphId = PiqlGraphs.addGraph(aPlan.dotCode)
-      <li><a href={"/dotgraph/" + graphId} class="highslide" onclick="return hs.expand(this)">{query.name}</a> - {recCount}</li>
+      <li><a href={"/dotgraph/" + graphId} class="highslide" onclick="return hs.expand(this)">{query.name}</a> - {recCount}, {opCount}</li>
     }
 
     val entityQueries = spec.entities.values.map(e => <li>{e.name}</li><ul>{e.queries.values.map(mkQueryLink)}</ul>)
