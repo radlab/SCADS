@@ -31,7 +31,7 @@ class PiqlEditor {
         case Some(c) => <span>{c + "Records Max"}</span>
         case None => <font color="red">UNBOUNDED</font>
       }
-      <li><a href={"/dotgraph/" + query.name} target="_blank">{query.name}</a> - {recCount}</li>
+      <li><a href={"/dotgraph/" + query.name} class="highslide" onclick="return hs.expand(this)">{query.name}</a> - {recCount}</li>
     }
 
     val entityQueries = spec.entities.values.map(e => <li>{e.name}</li><ul>{e.queries.values.map(mkQueryLink)}</ul>)
