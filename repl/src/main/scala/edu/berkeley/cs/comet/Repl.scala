@@ -10,7 +10,7 @@ import net.liftweb.http.SHtml
 import net.liftweb.http.RenderOut
 import net.liftweb.http.js.JsCmds._
 import net.liftweb.http.js.JE._
-import net.liftweb.http.js.jquery.JqJsCmds._
+import net.liftweb.http.js.jquery.JqJsCmds.AppendHtml
 import java.io._
 import Helpers._
 import _root_.net.liftweb.common.{Box,Empty,Full}
@@ -18,7 +18,10 @@ import _root_.net.liftweb.common.{Box,Empty,Full}
 import scala.xml.XML
 
 import scala.tools.nsc._
+import edu.berkeley.cs.scads.piql.parser._
+import edu.berkeley.cs.snippet.PiqlSpec
 
+object InitRepl
 case class Exec(cmd: String)
 case class Disp(seq: NodeSeq)
 
@@ -28,25 +31,39 @@ class Repl extends CometActor {
 	val stream = new ByteArrayOutputStream
 	val writer = new PrintWriter(stream)
 	val interp = new Interpreter(settings, writer)
-	interp.bind("repl", "net.liftweb.http.CometActor", this)
-	interp.interpret("import edu.berkeley.cs.comet._")
-	println("Creating interpreter")
+  this ! InitRepl
 
   override def lowPriority = {
+    case InitRepl => {
+      outputToConsole(<p>Initalizing REPL</p>)
+     	interp.bind("repl", "net.liftweb.http.CometActor", this)
+      PiqlSpec.get match {
+        case Full(spec) => {
+          val code = ScalaGen(spec)
+          val unpackaged = code.split("\n").drop(2).mkString("\n")
+          interp.interpret(unpackaged)
+        }
+        case _ =>
+      }
+      outputToConsole(<p>Ready...</p>)
+    }
 		case Disp(seq) => partialUpdate(AppendHtml("history", seq))
 		case Exec(cmd) => {
-			partialUpdate(AppendHtml("history", <p>{cmd}</p>))
+			outputToConsole(<p>{cmd}</p>)
 			interp.interpret(cmd)
 			writer.flush()
-			val res = AppendHtml("history", <p>{stream.toString()}</p>)
+			outputToConsole(<p>{stream.toString()}</p>)
 			stream.reset()
-			partialUpdate(res)
 		}
+  }
+
+  private def outputToConsole(text: NodeSeq): Unit = {
+    partialUpdate(CmdPair(AppendHtml("history", text), JsRaw("""var objDiv = document.getElementById("history"); objDiv.scrollTop = objDiv.scrollHeight;""")))
   }
 
 	def render: RenderOut = <span></span>
 
   override lazy val fixedRender: Box[NodeSeq] = {
-  	SHtml.ajaxText("", (cmd: String) => {this ! Exec(cmd); SetValById("cmdline", "") }, ("id", "cmdline"))
+  	SHtml.ajaxText("", (cmd: String) => {this ! Exec(cmd); SetValueAndFocus("cmdline", "") }, ("id", "cmdline"))
 	}
 }}}
