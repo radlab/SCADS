@@ -25,7 +25,7 @@ class PiqlEditor {
     val spec = Compiler.getOptimizedSpec(code)
     PiqlSpec.set(Full(spec))
 
-    def mkQueryLink(queryName: String) = <a href={"/dotgraph/" + queryName}>{queryName}</a>
+    def mkQueryLink(queryName: String) = <a href={"/dotgraph/" + queryName} target="_blank">{queryName}</a>
     val result =
       <ul>
         <span>{
