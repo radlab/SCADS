@@ -7,7 +7,7 @@ import _root_.net.liftweb.common._
 import net.liftweb.http.provider.HTTPCookie
 
 import edu.berkeley.cs.snippet.PiqlSpec
-import edu.berkeley.cs.scads.piql.GraphVis
+import edu.berkeley.cs.scads.piql.GraphViz
 import edu.berkeley.cs.scads.piql.QueryPlan
 
 object DotGraph {
@@ -25,7 +25,7 @@ object DotGraph {
     val outstream = proc.getOutputStream()
 
     val spec = PiqlSpec.open_!
-    val grapher = new GraphVis(spec.entities.values.toList)
+    val grapher = new GraphViz(spec.entities.values.toList)
     outstream.write(grapher(getPlan(graphId)).getBytes)
     outstream.close()
 
