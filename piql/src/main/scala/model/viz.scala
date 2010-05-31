@@ -23,7 +23,7 @@ object GraphViz {
   }
 }
 
-case class AnnotatedPlan(dotCode: String, recCount: Option[Int])
+case class AnnotatedPlan(dotCode: String, recCount: Option[Int], ops: Option[Int])
 class GraphViz(entities: List[BoundEntity]) extends Generator[QueryPlan] {
   private val curId = new java.util.concurrent.atomic.AtomicInteger
   protected def nextId = curId.getAndIncrement()
@@ -32,7 +32,7 @@ class GraphViz(entities: List[BoundEntity]) extends Generator[QueryPlan] {
     implicit val indnt = new Indentation
     implicit val sb = new StringBuilder
     val subPlan = generatePlan(plan)
-    AnnotatedPlan(sb.toString, subPlan.recCount)
+    AnnotatedPlan(sb.toString, subPlan.recCount, subPlan.ops)
   }
 
   /* Need a function with return type Unit for Generator */
@@ -95,20 +95,20 @@ class GraphViz(entities: List[BoundEntity]) extends Generator[QueryPlan] {
     }
   }
 
-  case class SubPlan(graph: DotNode, recCount: Option[Int])
+  case class SubPlan(graph: DotNode, recCount: Option[Int], ops: Option[Int])
   protected def generateGraph(plan: QueryPlan)(implicit sb: StringBuilder, indnt: Indentation): SubPlan = {
     plan match {
       case SingleGet(ns, key) => {
         val graph = outputCluster("SingleGet\n1 GET Operation") {
           getPredicates(ns, key, outputDotNode(ns))
         }
-        SubPlan(graph, Some(1))
+        SubPlan(graph, Some(1), Some(1))
       }
       case PrefixGet(ns, prefix, limit, ascending) => {
         val graph = outputCluster("PrefixGet\n1 GET_RANGE Operation") {
           getPredicates(ns, prefix, outputDotNode(ns))
         }
-        SubPlan(graph, getIntValue(limit))
+        SubPlan(graph, getIntValue(limit), Some(1))
       }
       case SequentialDereferenceIndex(ns, child) => {
         val childPlan = generateGraph(child)
@@ -117,7 +117,7 @@ class GraphViz(entities: List[BoundEntity]) extends Generator[QueryPlan] {
           val op = outputDotNode("Dereference", children=List(targetNs))
           outputRecCountEdge(childPlan.graph, op, childPlan.recCount)
         }
-        SubPlan(graph, childPlan.recCount)
+        SubPlan(graph, childPlan.recCount, add(childPlan.ops, childPlan.recCount))
       }
       case PrefixJoin(ns, conditions, limit, ascending, child) => {
         val childPlan = generateGraph(child)
@@ -131,7 +131,7 @@ class GraphViz(entities: List[BoundEntity]) extends Generator[QueryPlan] {
             case _ => pred
           }
         }
-        SubPlan(graph, multiply(getIntValue(limit), childPlan.recCount))
+        SubPlan(graph, multiply(getIntValue(limit), childPlan.recCount), add(childPlan.ops, childPlan.recCount))
       }
       case PointerJoin(ns, conditions, child) => {
         val childPlan = generateGraph(child)
@@ -141,7 +141,7 @@ class GraphViz(entities: List[BoundEntity]) extends Generator[QueryPlan] {
           outputRecCountEdge(childPlan.graph, join, childPlan.recCount)
           getJoinPredicates(ns, conditions, join)
         }
-        SubPlan(graph, childPlan.recCount)
+        SubPlan(graph, childPlan.recCount, add(childPlan.ops, childPlan.recCount))
       }
       case Materialize(entityType, child) => generateGraph(child)
       case Selection(equalityMap, child) => {
@@ -151,21 +151,26 @@ class GraphViz(entities: List[BoundEntity]) extends Generator[QueryPlan] {
             outputDotNode("Selection\n" + pred, style="filled")
         }
         outputRecCountEdge(childPlan.graph, graph, childPlan.recCount)
-        SubPlan(graph, childPlan.recCount)
+        SubPlan(graph, childPlan.recCount, childPlan.ops)
       }
       case Sort(fields, ascending, child) => {
         val childPlan = generateGraph(child)
         val graph = outputDotNode("Sort " + fields.mkString("[", ",", "]"), style="filled")
         outputRecCountEdge(childPlan.graph, graph, childPlan.recCount)
-        SubPlan(graph, childPlan.recCount)
+        SubPlan(graph, childPlan.recCount, childPlan.ops)
       }
       case TopK(k, child) => {
         val childPlan = generateGraph(child)
         val graph = outputDotNode("TopK " + prettyPrint(k), style="filled")
         outputRecCountEdge(childPlan.graph, graph, childPlan.recCount)
-        SubPlan(graph, getIntValue(k))
+        SubPlan(graph, getIntValue(k), childPlan.ops)
       }
     }
+  }
+
+  protected def add(a: Option[Int], b: Option[Int]): Option[Int] = (a,b) match {
+    case (Some(x), Some(y)) => Some(x + y)
+    case _ => None
   }
 
   protected def multiply(a: Option[Int], b: Option[Int]): Option[Int] = (a,b) match {
