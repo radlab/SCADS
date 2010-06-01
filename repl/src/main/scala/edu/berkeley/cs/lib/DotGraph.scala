@@ -17,9 +17,9 @@ object DotGraph {
   }
 
   case class GraphPng(data: Array[Byte]) extends LiftResponse with HeaderDefaults {
-    def toResponse = InMemoryResponse(data, ("Content-Length", data.length.toString) :: ("Content-Type", "image/png") :: headers, cookies, 200) 
+    def toResponse = InMemoryResponse(data, ("Content-Length", data.length.toString) :: ("Content-Type", "image/png") :: headers, cookies, 200)
   }
-  
+
   def getGraph(graphId: String): LiftResponse = {
     val proc = Runtime.getRuntime().exec("/Applications/Graphviz.app/Contents/MacOS/dot -Tpng")
     val outstream = proc.getOutputStream()
