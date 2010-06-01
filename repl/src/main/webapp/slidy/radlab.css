@@ -1,0 +1,69 @@
+/* @override 
+	http://localhost/~marmbrus/slidy/radlab/radlab.css
+	http://localhost:8080/slidy/radlab.css
+*/
+
+div.sponsors img {
+	width:150px;
+	vertical-align: middle;
+}
+
+h2 {
+	margin-top: 0;
+	margin-bottom: 0;
+}
+div.associates img {
+	width:75px
+}
+
+div.leftside {
+	float: left;
+	width: 50%;
+}
+
+div.rightside {
+	float: right;
+	width: 50%;
+}
+
+h1 {
+	font-variant: small-caps;
+	color: #001850;
+}
+
+body {
+	overflow: hidden;
+}
+
+div.slide.content h1 {
+	color: #fc3;
+	background: -webkit-gradient(linear, left top, right top, color-stop(0,#white), color-stop(.10,#001850));
+	padding-left: 25px;
+}
+
+table.code {
+	width: 75%;
+	font-family: "Courier New", Courier, mono;
+	font-weight: bold;
+	text-align: left;
+}
+
+table#summary {
+	text-align: center;
+}
+
+#summary tr td.heading {
+	border: 1px solid;
+}
+
+iframe.graph {
+	border-style: none;
+	width: 100%;
+	height: 550px;
+}
+
+
+div.slide.titlepage {
+	background: url(radlab.png) no-repeat center top;
+	padding-top: 120px;
+}

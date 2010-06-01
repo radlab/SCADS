@@ -19,9 +19,13 @@ class Boot {
     LiftRules.addToPackages("edu.berkeley.cs")
 
     // Build SiteMap
-    val entries = Menu(Loc("Home", List("index"), "Home")) :: 
-      Menu(Loc("PIQL Console", List("piql"), "PIQL Console")) ::
-      Menu(Loc("Scala REPL", List("repl"), "Scala REPL")) :: Nil
+    val entries = List(
+      Menu("Home") / "index",
+      Menu("PIQL Console") / "piql",
+      Menu("Scala REPL") / "repl",
+      Menu("Talks") / "talks" submenus(
+        Menu("Spring 2010 RAD LAB Retreat") / "talks" / "retreat")
+      )
 
     LiftRules.setSiteMap(SiteMap(entries:_*))
     LiftRules.dispatch.prepend(DotGraph.dispatchRules)
