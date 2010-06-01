@@ -1,8 +1,9 @@
 <lift:surround with="talk" at="content">
   <div class="slide titlepage"> 
-    <h1>SCADS: Scale-Independent Structured Storage for Interactive Applications</h1>
-    <h2>Michael Armbrust</h2>
-    <h3>RAD Lab Spring Retreat, January 2010</h3>
+    <h1>PIQL: A Performance Insightful Query Language</h1>
+    <h2>Michael Armbrust, Stephen Tu</h2>
+    <h2>Nick Lanham, Beth Trushkowsky</h2>
+    <h3>RAD Lab Summer Retreat, May 2010</h3>
     <h3>Follow along at: <a href="http://piql.knowsql.org">http://piql.knowsql.org</a></h3>
     <div class="sponsors">
       <img src="google.png"/>
@@ -30,6 +31,7 @@
   </div>
   <div class="slide content"> 
     <h1>Status Quo</h1>
+    <img class="accentimg" src="failwhale.jpg"/>
     <ul>
       <li>Developers find it difficult to write scalable sites using a traditional RDBMS</li>
       <ul>
@@ -89,11 +91,12 @@
   <div class="slide content">
     <h1>Fresh PIQL (aka PIQL 1.0)</h1>
     <ul>
-      <li>Verifiably constant work queries run on demand</li>
+      <li>Verifiably constant work queries</li>
+      <li>Run on-demand</li>
       <li>Scale independence requirements:</li>
       <ul>
         <li><b>Fixed Response time:</b> must complete in less than 300ms</li>
-        <li><b>Constant cost per user:</b> Must use a <b>bounded</b> number of <b>constant work</b> operators</li>
+        <li><b>Constant cost per user:</b> Must use a <i>bounded</i> number of <i>constant work</i> operators</li>
         <li><b>Bounded Staleness:</b> N/A</li>
       </ul>
     </ul>
@@ -118,7 +121,7 @@
     </ul> 
   </div>
   <div class="slide content">
-    <h1>PIQL Interactive Console</h1>
+    <h1>Other Queries</h1>
     <ul>
       <li>Many queries do not fit into the <i>Fresh PIQL</i> model:</li>
       <ul>
@@ -134,9 +137,9 @@
       <li>Automatic pre-computation/caching of longer running queries</li>
       <li>Scale independence requirements:</li>
       <ul>
-        <li>Fixed Interactive Response Time: Cache query results and respond with pre-calculated answer</li>
-        <li>Constant cost per user: The running of the query must do no more than O(N) work total</li>
-        <li>Bounded staleness: The query must parallelize</li>
+        <li><b>Fixed Interactive Response Time:</b> Cache query results and respond with <i>pre-calculated</i> answer</li>
+        <li><b>Constant cost per user:</b> The running of the query must do no more than <i>O(N) work total</i></li>
+        <li><b>Bounded staleness:</b> The query must <i>parallelize</i></li>
       </ul>
     </ul>
   </div>
@@ -172,7 +175,7 @@
         <li>Intelligent pre-execution</li>
         <li>Continually updated, streaming?</li>
       </ul>
-      <li>Which long running queries are scale independent</li> 
+      <li>Which long running queries are scale independent?</li> 
     </ul>
   </div>
   <div class="slide content">
@@ -188,7 +191,7 @@
   <div class="slide content">
     <h1>Summary</h1>
     <ul>
-      <li>PIQL helps developers to meet SLAs by statically analyzing query plans for computational bounds independent of the size or runtime parameters</li>
+      <li>PIQL helps developers to meet SLAs by statically analyzing query plans for computational bounds independent of the data size or runtime parameters</li>
     </ul>
     <table id="summary">
       <tr>
@@ -217,5 +220,8 @@
         <td class="other" colspan="3">Hadoop, Pig, Spark, etc</td>
       </tr>
     </table>
+    <ul>
+      <li>Questions?</li>
+    </ul>
   </div>
 </lift:surround>

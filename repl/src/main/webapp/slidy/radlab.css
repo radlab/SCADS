@@ -35,6 +35,10 @@ body {
 	overflow: hidden;
 }
 
+div.slide.titlepage {
+	font-size: 18px;
+}
+
 div.slide.content h1 {
 	color: #fc3;
 	background: -webkit-gradient(linear, left top, right top, color-stop(0,#white), color-stop(.10,#001850));
@@ -50,6 +54,24 @@ table.code {
 
 table#summary {
 	text-align: center;
+}
+
+#summary tr td.allowed {
+	background-color: #00b840;
+}
+
+#summary tr td.disallowed {
+	background-color: #da272a;
+}
+
+#summary tr td.other {
+	background-color: #b9bbbb;
+}
+
+img.accentimg {
+	height: 30%;
+	float: right;
+	padding: 10px;
 }
 
 #summary tr td.heading {
