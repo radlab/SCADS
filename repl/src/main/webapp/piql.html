@@ -1,9 +1,17 @@
 <lift:surround with="default" at="content">
   <h1>PIQL Query Visualizer</h1>
   <lift:PiqlEditor.editor>
-    <edit:editor/><br/>
-    <edit:validate/>
+    <table width="100%" height="75%">
+      <tr>
+        <td>
+          <edit:editor/><br/>
+          <edit:validate/>
+          <a href="/repl.html">Scala REPL</a>
+        </td>
+        <td>
+          <table id="status"></table>
+        </td>
+      </tr>
+    </table>
   </lift:PiqlEditor.editor>
-  <div id="status"></div>
-  <a href="/repl.html">Scala REPL</a>
 </lift:surround>

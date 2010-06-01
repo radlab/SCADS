@@ -16,14 +16,5 @@
 
 #piqlcode {
 	height: 300px;
-	width: 70%
-}
-
-#status {
-	width: 20%;
-	float: right;
-	clear: none;
-	top: 0;
-	position: fixed;
-	right: 0;
+	width: 100%;
 }

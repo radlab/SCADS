@@ -32,30 +32,30 @@ object PiqlGraphs {
 }
 
 class PiqlEditor {
-  val defaultPiql = Compiler.readFile(new java.io.File("../piql/src/test/resources/scadr.scads"))
+  val defaultPiql = Compiler.readFile(new java.io.File("src/main/resources/scadr.piql"))
 
   protected def validatePiql(code: String): JsCmd = {
     val spec = Compiler.getOptimizedSpec(code)
     val grapher = new GraphViz(spec.entities.values.toList)
     PiqlSpec.set(Full(spec))
 
-    def mkQueryLink(query: BoundQuery) = {
+    def mkQueryLink(location: String, query: BoundQuery): NodeSeq = {
       val aPlan = grapher.getAnnotatedPlan(query.plan)
       val recCount = aPlan.recCount match {
-        case Some(c) => <span>{c + "Records Max"}</span>
+        case Some(c) => <span>{c}</span>
         case None => <font color="red">UNBOUNDED</font>
       }
       val opCount = aPlan.ops match {
-        case Some(o) => <span>{o} Operations</span>
-        case None => <font color="red">UNBOUNDED K/V Operations</font>
+        case Some(o) => <span>{o}</span>
+        case None => <font color="red">UNBOUNDED</font>
       }
       val graphId = PiqlGraphs.addGraph(aPlan.dotCode)
-      <li><a href={"/dotgraph/" + graphId} class="highslide" onclick="return hs.expand(this)">{query.name}</a> - {recCount}, {opCount}</li>
+      <tr><td><a href={"/dotgraph/" + graphId} class="highslide" onclick="return hs.expand(this)">{query.name}</a></td><td>{location}</td><td>{recCount}</td><td>{opCount}</td></tr>
     }
 
-    val entityQueries = spec.entities.values.map(e => <li>{e.name}</li><ul>{e.queries.values.map(mkQueryLink)}</ul>)
-    val otherQueries = <li>Static Queries</li><ul>{spec.orphanQueries.values.map(mkQueryLink)}</ul>;
-    SetHtml("status", <ul>{entityQueries}{otherQueries}</ul>)
+    val entityQueries: NodeSeq = spec.entities.values.flatMap(e => e.queries.values.map(mkQueryLink(e.name, _))).reduceLeft(_++_)
+    val otherQueries: NodeSeq = spec.orphanQueries.values.map(mkQueryLink("static", _)).reduceLeft(_++_)
+    SetHtml("status", <tr><td>Plan</td><td>Location</td><td>Recs</td><td>Ops</td></tr> ++ entityQueries ++ otherQueries)
   }
 
   def editor(xhtml: NodeSeq): NodeSeq = {
