@@ -27,6 +27,7 @@ case class AnnotatedPlan(dotCode: String, recCount: Option[Int], ops: Option[Int
 class GraphViz(entities: List[BoundEntity]) extends Generator[QueryPlan] {
   private val curId = new java.util.concurrent.atomic.AtomicInteger
   protected def nextId = curId.getAndIncrement()
+  val indexes = entities.flatMap(_.indexes)
 
   def getAnnotatedPlan(plan: QueryPlan): AnnotatedPlan = {
     implicit val indnt = new Indentation
@@ -72,23 +73,22 @@ class GraphViz(entities: List[BoundEntity]) extends Generator[QueryPlan] {
     }
   }
 
+  protected def getFieldName(ns: String, ord: Int): String = indexes.find(_.namespace equals ns).get.attributes(ord)
+
   protected def getPredicates(ns: String, keySpec: List[BoundValue], child: DotNode)(implicit sb: StringBuilder, indnt: Indentation): DotNode = {
-    val keySchema = entities.find(_.namespace equals ns).get.keySchema
     keySpec.zipWithIndex.foldLeft(child) {
       case (subPlan: DotNode, (value: BoundValue, idx: Int)) => {
-        val fieldName = keySchema.getFields.get(idx).name
+        val fieldName = getFieldName(ns, idx)
         val selection = outputDotNode("selection\n" + fieldName + "=" + prettyPrint(value), shape="ellipse")
         outputEdge(subPlan, selection)
       }
     }
   }
 
-
   protected def getJoinPredicates(ns: String, conditions: Seq[JoinCondition], child: DotNode)(implicit sb: StringBuilder, indnt: Indentation): DotNode = {
-    val keySchema = entities.find(_.namespace equals ns).get.keySchema
     conditions.zipWithIndex.foldLeft(child) {
       case (subPlan: DotNode, (value: JoinCondition, idx: Int)) => {
-        val fieldName = keySchema.getFields.get(idx).name
+        val fieldName = getFieldName(ns, idx)
         val selection = outputDotNode("selection\n" + fieldName + "=" + prettyPrint(value), shape="ellipse")
         outputEdge(subPlan, selection)
       }
