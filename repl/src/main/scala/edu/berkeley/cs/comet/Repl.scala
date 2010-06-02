@@ -22,40 +22,53 @@ import edu.berkeley.cs.scads.piql.parser._
 import edu.berkeley.cs.snippet.PiqlSpec
 
 object InitRepl
-case class Exec(cmd: String)
-case class Disp(seq: NodeSeq)
+case class ExecuteScala(scalaCmd: String)
+case class DisplayNodeSeq(seq: NodeSeq)
 
 class Repl extends CometActor {
-	val settings = new Settings
+	private val settings = new Settings
 	settings.classpath.value = Thread.currentThread.getContextClassLoader.asInstanceOf[java.net.URLClassLoader].getURLs.toList.mkString(":")
-	val stream = new ByteArrayOutputStream
-	val writer = new PrintWriter(stream)
-	val interp = new Interpreter(settings, writer)
+	private val stream = new ByteArrayOutputStream
+	private val writer = new PrintWriter(stream)
+	private var interpreter: Interpreter = null
+
   this ! InitRepl
 
   override def lowPriority = {
     case InitRepl => {
       outputToConsole(<p>Initalizing REPL</p>)
-     	interp.bind("repl", "net.liftweb.http.CometActor", this)
+      interpreter = new Interpreter(settings, writer)
+     	interpreter.bind("repl", "net.liftweb.http.CometActor", this)
       PiqlSpec.get match {
         case Full(spec) => {
           val code = ScalaGen(spec)
           val unpackaged = code.split("\n").drop(2).mkString("\n")
-          interp.interpret(unpackaged)
+          interpret(unpackaged)
         }
-        case _ =>
+        case _ => outputToConsole("No PIQL Spec Available for compilation")
       }
       outputToConsole(<p>Ready...</p>)
     }
-		case Disp(seq) => partialUpdate(AppendHtml("history", seq))
-		case Exec(cmd) => {
+		case DisplayNodeSeq(seq) => outputToConsole(seq)
+		case ExecuteScala(cmd) => {
 			outputToConsole(<p>{cmd}</p>)
-			interp.interpret(cmd)
-			writer.flush()
-			outputToConsole(<p>{stream.toString()}</p>)
-			stream.reset()
-		}
+      interpret(cmd)
+    }
   }
+
+  private def interpret(scalaCmd: String) = {
+    interpreter.interpret(scalaCmd)
+    flushConsole()
+  }
+
+  private def flushConsole() = {
+    writer.flush()
+    val result = stream.toString
+    if(result.length > 0)
+      outputToConsole(<p>{result}</p>)
+    stream.reset()
+  }
+
 
   private def outputToConsole(text: NodeSeq): Unit = {
     partialUpdate(CmdPair(AppendHtml("history", text), JsRaw("""var objDiv = document.getElementById("history"); objDiv.scrollTop = objDiv.scrollHeight;""")))
@@ -64,6 +77,6 @@ class Repl extends CometActor {
 	def render: RenderOut = <span></span>
 
   override lazy val fixedRender: Box[NodeSeq] = {
-  	SHtml.ajaxText("", (cmd: String) => {this ! Exec(cmd); SetValueAndFocus("cmdline", "") }, ("id", "cmdline"))
+  	SHtml.ajaxText("", (cmd: String) => {this ! ExecuteScala(cmd); SetValueAndFocus("cmdline", "") }, ("id", "cmdline"))
 	}
 }}}
