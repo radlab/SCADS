@@ -3,15 +3,7 @@
 	<div id="history">
 	</div>
 	<lift:comet type="Repl"/><br/>
-
-	<h2>Examples</h2>
-	<ul>
-		<li>val x = AvroIter[twitter.Tweet](new java.io.File("short.txt.avro"))</li>
-		<li>val hist = x.filter(_.user != null).map(_.user.followers_count.intValue).foldLeft(new Histogram(10, 1000))(_.add(_))</li>
-		<li>repl ! Disp(hist.view)</li>
-		<li>AvroIter.vis("data", repl)</li>
-	</ul>
-
+  <a href="/talks/retreat.html#(10)">Return to Talk</a>
 	<div id="chart">
 	</div>
 </lift:surround>
