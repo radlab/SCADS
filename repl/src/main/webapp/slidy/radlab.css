@@ -42,6 +42,7 @@ div.slide.titlepage {
 div.slide.content h1 {
 	color: #fc3;
 	background: -webkit-gradient(linear, left top, right top, color-stop(0,#white), color-stop(.10,#001850));
+	background: -moz-linear-gradient(left, white, #001850 10%);
 	padding-left: 25px;
 }
 
@@ -86,6 +87,6 @@ iframe.graph {
 
 
 div.slide.titlepage {
-	background: url(radlab.png) no-repeat center top;
+	background: url(/talks/radlab.png) no-repeat center top;
 	padding-top: 120px;
 }
