@@ -36,16 +36,16 @@ class Repl extends CometActor {
 
   override def lowPriority = {
     case InitRepl => {
-      outputToConsole(<p>Initalizing REPL</p>)
       interpreter = new Interpreter(settings, writer)
      	interpreter.bind("repl", "net.liftweb.http.CometActor", this)
+      outputToConsole(<p>Attempting PIQL Compilation</p>)
       PiqlSpec.get match {
         case Full(spec) => {
           val code = ScalaGen(spec)
           val unpackaged = code.split("\n").drop(2).mkString("\n")
           interpret(unpackaged)
         }
-        case _ => outputToConsole("No PIQL Spec Available for compilation")
+        case _ => outputToConsole(<p>No PIQL Spec Available for compilation</p>)
       }
       outputToConsole(<p>Ready...</p>)
     }
@@ -65,7 +65,7 @@ class Repl extends CometActor {
     writer.flush()
     val result = stream.toString
     if(result.length > 0)
-      outputToConsole(<p>{result}</p>)
+      outputToConsole(<span>{NodeSeq.fromSeq(result.split("\n").map(line => {<p>{line}</p>}))}</span>)
     stream.reset()
   }
 
@@ -77,6 +77,7 @@ class Repl extends CometActor {
 	def render: RenderOut = <span></span>
 
   override lazy val fixedRender: Box[NodeSeq] = {
-  	SHtml.ajaxText("", (cmd: String) => {this ! ExecuteScala(cmd); SetValueAndFocus("cmdline", "") }, ("id", "cmdline"))
+    SHtml.ajaxText("", (cmd: String) => {this ! ExecuteScala(cmd); SetValueAndFocus("cmdline", "") }, ("id", "cmdline")) ++
+    SHtml.a(() => {this ! InitRepl; SetHtml("history", <p>Initalizing REPL</p>)}, <span>Reset REPL</span>)
 	}
 }}}
