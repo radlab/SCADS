@@ -30,12 +30,13 @@
     <img src="bigpic.png" width="100%"/>
   </div>
   <div class="slide content">
-    <h1>Status Quo</h1>
+    <h1>Motivation</h1>
     <img class="accentimg" src="failwhale.jpg"/>
     <ul>
-      <li>Developers find it difficult to write scalable sites using a traditional RDBMS</li>
+      <li>Developers find it difficult to write fast/scalable sites using a traditional RDBMS</li>
       <ul>
-        <li>Ex: Many of Twitter's "Fail Whales" caused by slow DB queries [Chirp 2010]</li>
+        <li>Ex: Many of Twitter's "Fail Whales" caused by unintentionally slow DB queries [Chirp 2010]</li>
+        <li>Page load time now used as Goolgle Search ranking feature!</li>
       </ul>
       <li>NoSQL provides trivial <i>performance transparency</i></li>
       <ul>
@@ -50,9 +51,9 @@
     </ul>
   </div>
   <div class="slide content">
-    <h1>PIQL Enforces Scale Independence</h1>
+    <h1>PIQL Enforces Scale Independence For All Queries</h1>
     <ul>
-      <li>As a site's user base grows ensure no changes needed to application code or queries while keeping constant:</li>
+      <li>As a site's user base grows ensure no changes will be needed to application code or queries in order to keep the following constant:</li>
       <ul>
         <li>Cost per user</li>
         <li>Request latency</li>
@@ -80,12 +81,14 @@
       <ul>
         <li>Disallowed by design</li>
         <li>Usually abandoned for scalability reasons eventually.  Ex: Twitter</li>
+        <li>Add "Snowflake" ID generation support in next version?</li>
       </ul>
       <li>Need for full-text search</li>
       <ul>
         <li>Work around possible with self maintained index</li>
         <li>Possible feature for PIQL 2.0</li>
       </ul>
+      <li>Other language and usability suggestions</li>
     </ul>
   </div>
   <div class="slide content">
@@ -191,7 +194,7 @@
   <div class="slide content">
     <h1>Summary</h1>
     <ul>
-      <li>PIQL helps developers to meet SLAs by statically analyzing query plans for computational bounds independent of the data size or runtime parameters</li>
+      <li>PIQL helps developers to meet SLOs by statically analyzing query plans for computational bounds independent of the data size or runtime parameters</li>
     </ul>
     <table id="summary">
       <tr>
