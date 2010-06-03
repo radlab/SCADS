@@ -21,7 +21,7 @@ object DotGraph {
   }
 
   def getGraph(graphId: String): LiftResponse = {
-    val proc = Runtime.getRuntime().exec("/Applications/Graphviz.app/Contents/MacOS/dot -Tpng")
+    val proc = Runtime.getRuntime().exec("/usr/bin/dot -Tpng")
     val outstream = proc.getOutputStream()
 
     outstream.write(PiqlGraphs.getGraph(graphId.toInt).getBytes)
