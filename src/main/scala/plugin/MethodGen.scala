@@ -102,7 +102,7 @@ trait MethodGen extends ScalaAvroPluginComponent
       val arg = newSym ARG 0
       // TODO: throw the avro bad index exception here
       val default = List(DEFAULT ==> THROW(IndexOutOfBoundsExceptionClass, arg))
-      println(symMap)
+      debug(symMap)
       val cases = for ((sym, i) <- instanceVars.zipWithIndex) yield {
         CASE(LIT(i)) ==> {
           val fn = symMap get (sym.tpe.typeSymbol) getOrElse ((sym2obj _))
@@ -181,15 +181,54 @@ trait MethodGen extends ScalaAvroPluginComponent
       }   
     }
 
-    private def generateGetSchemaMethod(clazz: Symbol): Tree = {
+    private def generateGetSchemaMethod(clazzTree: ClassDef): Tree = {
+      val clazz = clazzTree.symbol
       val newSym = clazz.newMethod(clazz.pos.focus, newTermName("getSchema"))
       newSym setFlag SYNTHETICMETH 
       newSym setInfo MethodType(newSym.newSyntheticValueParams(Nil), schemaClass.tpe)
       clazz.info.decls enter newSym 
+      //println("localTyper.context1.enclClass: " + localTyper.context1.enclClass)
+      //println("companionModuleOf(clazz): " + companionModuleOf(clazzTree))
+      //println("companionModuleOf(clazz).moduleClass: " + companionModuleOf(clazzTree.symbol).moduleClass)
+
+      // the strategy: walk up the owner enclClass field; if we see an actual
+      // class, then we know that its an instance class. if we only see
+      // objects, then its fine
+      var startSym = clazz.owner
+      debug("startSym = " + startSym)
+      def useObj(curSym: Symbol): Boolean = {
+        debug("\tcurSym = " + curSym)
+        debug("\tcurSym.isPackage= " + curSym.isPackage)
+        debug("\tcurSym.isPackageClass = " + curSym.isPackageClass)
+        debug("\tcurSym.isClass = " + curSym.isClass)
+        debug("\tcurSym.isModuleClass = " + curSym.isModuleClass)
+        debug("\tcurSym.isTerm = " + curSym.isTerm)
+        if (curSym.isPackage || curSym.isPackageClass)
+          true /** TODO: what __should__ we do in this case? */
+        else if (!curSym.isModuleClass)
+          false /** We see a non object, so we have to work around */
+        else if (curSym.owner == NoSymbol)
+          true /** When would we get to this case if possible? */
+        else
+          useObj(curSym.owner) /** Check parent */
+      }
+      debug("useObj(startSym): " + useObj(startSym))
+
+      // TODO: temporary hack until we can figure out how to reference the
+      // module in nested inner classes (where an instance is needed)
+      val innerTree: Tree =  /** Not sure why compiler needs type information (Tree) here */
+        if (useObj(startSym)) 
+          { This(companionModuleOf(clazzTree.symbol).moduleClass) DOT newTermName("schema") }
+        else
+          Apply(
+            Ident(newTermName("org")) DOT 
+              newTermName("apache")   DOT
+              newTermName("avro")     DOT
+              newTermName("Schema")   DOT
+              newTermName("parse"),
+            List(LIT(retrieveRecordSchema(clazz).get.toString)))
       localTyper.typed {
-        DEF(newSym) === {
-          This(clazz.companionModule.moduleClass) DOT newTermName("schema")
-        }
+        DEF(newSym) === { innerTree }
       }
     }
 
@@ -197,12 +236,16 @@ trait MethodGen extends ScalaAvroPluginComponent
       val newTree = tree match {
         case cd @ ClassDef(mods, name, tparams, impl) if (cd.symbol.hasAnnotation(avroRecordAnnotation)) =>
           debug(retrieveRecordSchema(cd.symbol))
+          debug(cd.symbol.fullName + "'s enclClass: " + cd.symbol.enclClass)
+          debug("owner.enclClass: " + cd.symbol.owner.enclClass)
+          debug("toplevelClass: " + cd.symbol.toplevelClass)
+          debug("owner.toplevelClass: " + cd.symbol.owner.toplevelClass)
 
           val instanceVars = for (member <- impl.body if isValDef(member)) yield { member.symbol }
           val newMethods = List(
             generateGetMethod(impl, cd.symbol, instanceVars),
             generateSetMethod(impl, cd.symbol, instanceVars),
-            generateGetSchemaMethod(cd.symbol))
+            generateGetSchemaMethod(cd))
 
           val newImpl = treeCopy.Template(impl, impl.parents, impl.self, newMethods ::: impl.body)
           treeCopy.ClassDef(cd, mods, name, tparams, newImpl)

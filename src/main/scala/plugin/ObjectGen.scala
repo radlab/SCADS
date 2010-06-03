@@ -35,7 +35,11 @@ trait ObjectGen extends ScalaAvroPluginComponent
 
     override def transform(tree: Tree) : Tree = {
       val newTree = tree match {
-        case md @ ModuleDef(mods, name, impl) if (md.symbol.companionClass.hasAnnotation(avroRecordAnnotation)) =>
+        case md @ ModuleDef(mods, name, impl) if (companionClassOf(md.symbol).hasAnnotation(avroRecordAnnotation)) =>
+          debug("Adding module to companionModule map")
+          companionModuleMap += md.symbol.fullName -> md.symbol
+          debug("companionModuleMap: " + companionModuleMap)
+
           debug("generating schema obj for module: " + md.symbol.fullName)
 
           val clazz = md.symbol.moduleClass
@@ -56,7 +60,7 @@ trait ObjectGen extends ScalaAvroPluginComponent
                   newTermName("avro")     DOT
                   newTermName("Schema")   DOT
                   newTermName("parse"),
-                List(LIT(retrieveRecordSchema(md.symbol.companionClass).get.toString)))
+                List(LIT(retrieveRecordSchema(companionClassOf(md.symbol)).get.toString)))
             }
           })
 

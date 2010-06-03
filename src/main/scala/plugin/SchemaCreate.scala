@@ -30,6 +30,9 @@ trait SchemaCreate extends ScalaAvroPluginComponent {
       debug("Adding schema for class: " + sym.fullName)
       addRecordSchema(sym, 
           Schema.createRecord(sym.name.toString, "Auto-generated schema", sym.owner.fullName, false))
+      debug("Registering class in companionClassMap")
+      companionClassMap += sym.fullName -> sym
+      debug("companionClassMap: " + companionClassMap) 
     case _ => ()
   }
 }
