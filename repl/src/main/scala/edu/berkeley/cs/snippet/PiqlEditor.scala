@@ -32,7 +32,7 @@ object PiqlGraphs {
 }
 
 class PiqlEditor {
-  val defaultPiql = Compiler.readFile(new java.io.File("src/main/resources/scadr.piql"))
+  val defaultPiql = Compiler.readInputStream(Thread.currentThread().getContextClassLoader().getResourceAsStream("scadr.piql"))
 
   protected def validatePiql(code: String): JsCmd = {
     val spec = Compiler.getOptimizedSpec(code)
