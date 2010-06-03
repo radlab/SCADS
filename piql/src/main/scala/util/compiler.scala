@@ -1,6 +1,7 @@
 package edu.berkeley.cs.scads.piql
 
 import java.io.File
+import java.io.InputStream
 import org.apache.log4j.Logger
 
 import edu.berkeley.cs.scads.piql.parser._
@@ -21,8 +22,12 @@ object Compiler {
 	object Parser extends ScadsLanguage
 
 	def readFile(file: File): String = {
-		val fis = new java.io.FileInputStream(file)
-		val in = new java.io.BufferedReader(new java.io.InputStreamReader(fis, "UTF-8"))
+    val fis = new java.io.FileInputStream(file)
+    readInputStream(fis)
+  }
+
+  def readInputStream(stream: InputStream): String = {
+		val in = new java.io.BufferedReader(new java.io.InputStreamReader(stream, "UTF-8"))
 		val ret = new StringBuilder
 		var line: String = in.readLine()
 
