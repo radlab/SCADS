@@ -60,7 +60,7 @@ class Optimizer(spec: BoundSpec) {
 		fetch match {
 			case BoundFetch(entity, Nil, Unsorted, BoundPointerJoin(rname, child)) => {
 				Materialize(EntityClass(entity.name),
-					PointerJoin(entity.namespace, List(AttributeCondition(rname)), optimize(child, BoundUnlimited))
+					PointerJoin(entity.namespace, List(AttributeCondition(rname)), optimize(child, range))
 				)
 			}
 			case BoundFetch(entity, Nil, Unsorted, BoundFixedTargetJoin(rname, cardinality, child)) => {
