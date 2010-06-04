@@ -119,7 +119,7 @@ class GraphViz(entities: List[BoundEntity]) extends Generator[QueryPlan] {
       }
       case SequentialDereferenceIndex(ns, child) => {
         val childPlan = generateGraph(child)
-        val graph = outputCluster("SequentialDeref\n", childPlan.recCount.toString, " GET Operations") {
+        val graph = outputCluster("SequentialDeref\n", prettyPrint(childPlan.recCount), " GET Operations") {
           val targetNs = outputDotNode(ns)
           val op = outputDotNode("Dereference", children=List(targetNs))
           outputRecCountEdge(childPlan.graph, op, childPlan.recCount)
@@ -128,7 +128,7 @@ class GraphViz(entities: List[BoundEntity]) extends Generator[QueryPlan] {
       }
       case PrefixJoin(ns, conditions, limit, ascending, child) => {
         val childPlan = generateGraph(child)
-        val graph = outputCluster("PrefixJoin\n", childPlan.recCount.toString, " GETRANGE Operations") {
+        val graph = outputCluster("PrefixJoin\n", prettyPrint(childPlan.recCount), " GETRANGE Operations") {
           val source = outputDotNode(ns)
           val join = outputDotNode("Join", shape="diamond", children=List(source))
           outputRecCountEdge(childPlan.graph, join, childPlan.recCount)
@@ -139,7 +139,7 @@ class GraphViz(entities: List[BoundEntity]) extends Generator[QueryPlan] {
       }
       case PointerJoin(ns, conditions, child) => {
         val childPlan = generateGraph(child)
-        val graph = outputCluster("PointerJoin\n", childPlan.recCount.toString, " GET Operations") {
+        val graph = outputCluster("PointerJoin\n", prettyPrint(childPlan.recCount), " GET Operations") {
           val source = outputDotNode(ns)
           val join = outputDotNode("Join", shape="diamond", children=List(source))
           outputRecCountEdge(childPlan.graph, join, childPlan.recCount)
@@ -185,6 +185,11 @@ class GraphViz(entities: List[BoundEntity]) extends Generator[QueryPlan] {
   protected def getIntValue(v: BoundRange): Option[Int] = v match {
     case BoundLimit(_, max) => Some(max)
     case BoundUnlimited => None
+  }
+
+  protected def prettyPrint(count: Option[Int]): String = count match {
+    case Some(c) => c.toString
+    case None => "UNBOUNDED"
   }
 
   protected def prettyPrint(value: BoundRange): String = value match {
