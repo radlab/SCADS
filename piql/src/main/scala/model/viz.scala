@@ -73,6 +73,13 @@ class GraphViz(entities: List[BoundEntity]) extends Generator[QueryPlan] {
     }
   }
 
+  protected def outputStopOperator(childPlan: DotNode, limit: BoundRange)(implicit sb: StringBuilder, indnt: Indentation): DotNode = {
+    limit match {
+      case bl: BoundLimit => outputEdge(childPlan, outputDotNode("StopAfter(" + prettyPrint(bl) + ")"))
+      case _ => childPlan
+    }
+  }
+
   protected def getFieldName(ns: String, ord: Int): String = indexes.find(_.namespace equals ns).get.attributes(ord)
 
   protected def getPredicates(ns: String, keySpec: List[BoundValue], child: DotNode)(implicit sb: StringBuilder, indnt: Indentation): DotNode = {
@@ -126,10 +133,7 @@ class GraphViz(entities: List[BoundEntity]) extends Generator[QueryPlan] {
           val join = outputDotNode("Join", shape="diamond", children=List(source))
           outputRecCountEdge(childPlan.graph, join, childPlan.recCount)
           val pred = getJoinPredicates(ns, conditions, join)
-          limit match {
-            case bl: BoundLimit => outputEdge(pred, outputDotNode("StopAfter(" + prettyPrint(bl) + ")"))
-            case _ => pred
-          }
+          outputStopOperator(pred, limit)
         }
         SubPlan(graph, multiply(getIntValue(limit), childPlan.recCount), add(childPlan.ops, childPlan.recCount))
       }
