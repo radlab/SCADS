@@ -59,8 +59,17 @@ class PiqlEditor {
       <tr><td><a href={"/dotgraph/" + graphId} class="highslide" onclick="return hs.expand(this)">{query.name}</a></td><td>{location}</td><td>{recCount}</td><td>{opCount}</td></tr>
     }
 
-    val entityQueries: NodeSeq = spec.entities.values.flatMap(e => e.queries.values.map(mkQueryLink(e.name, _))).reduceLeft(_++_)
-    val otherQueries: NodeSeq = spec.orphanQueries.values.map(mkQueryLink("static", _)).reduceLeft(_++_)
+    val entityQ = spec.entities.values.flatMap(e => e.queries.values.map(mkQueryLink(e.name, _))).toList
+    val entityQueries: NodeSeq = 
+      if (entityQ.isEmpty)
+        <span></span>
+      else 
+        entityQ.reduceLeft(_++_)
+    val otherQueries: NodeSeq = 
+      if (spec.orphanQueries.isEmpty)
+        <span></span> 
+      else
+        spec.orphanQueries.values.map(mkQueryLink("static", _)).reduceLeft(_++_)
     SetHtml("status", <tr><td>Plan</td><td>Location</td><td>Recs</td><td>Ops</td></tr> ++ entityQueries ++ otherQueries)
   }
 
