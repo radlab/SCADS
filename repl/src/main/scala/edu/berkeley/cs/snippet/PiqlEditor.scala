@@ -35,7 +35,13 @@ class PiqlEditor {
   val defaultPiql = Compiler.readInputStream(Thread.currentThread().getContextClassLoader().getResourceAsStream("scadr.piql"))
 
   protected def validatePiql(code: String): JsCmd = {
-    val spec = Compiler.getOptimizedSpec(code)
+    val spec = 
+      try { 
+        Compiler.getOptimizedSpec(code)
+      } catch {
+        case _ => return Alert("Invalid PIQL spec")
+      }
+
     val grapher = new GraphViz(spec.entities.values.toList)
     PiqlSpec.set(Full(spec))
 
