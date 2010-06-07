@@ -9,8 +9,10 @@ import scala.collection.JavaConversions._
 
 
 
-class ZooKeeperProxy(server: String) extends Watcher {
-  val conn = new ZooKeeper(server, 3000, this)
+class ZooKeeperProxy(server: String, port: Int) extends Watcher {
+  def this(server: String) = this(server, 3000)
+
+  val conn = new ZooKeeper(server, port, this)
   val root = new ZooKeeperNode("/")
 	
   class ZooKeeperNode(val path: String) {
