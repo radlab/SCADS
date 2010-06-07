@@ -1,9 +1,17 @@
-<lift:surround with="default" at="content">
-	<h1>Data Manipulation Repl</h1>
-	<div id="history">
-	</div>
-	<lift:comet type="Repl"/><br/>
-  <a href="/talks/retreat.html#(10)">Return to Talk</a>
-	<div id="chart">
-	</div>
+<lift:surround with="indigo" at="content">
+  <div class="main">
+    <div class="content">
+	    <h1>Data Manipulation Repl</h1>
+      <div id="history"></div>
+	    <lift:comet type="Repl"/>
+    </div>
+    <div class="sidenav">
+      <h1>Example Commands</h1>
+      <ul>
+        <li>Init Database: implicit val env = Configurator.configure()</li>
+      </ul>
+      <a href="/talks/retreat.html#(10)">Return to Talk</a>
+    </div>
+    <div class="clearer"><span></span></div>
+  </div>
 </lift:surround>
