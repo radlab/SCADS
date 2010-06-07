@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+	<head>
+		<title>SCADS: RAD Lab Retreat - Spring 2010</title>
+		<meta name="copyright" content="Reliable Adaptive Distributed Systems Labratory - University of California, Berkeley" />
+		<link rel="stylesheet" type="text/css" media="screen, projection, print" href="slidy.css" />
+		<link rel="stylesheet" type="text/css" media="screen, projection, print" href="radlab.css" />
+		<script src="slidy.js" charset="utf-8" type="text/javascript"></script>
+		<script src="swfobject.js" charset="utf-8" type="text/javascript"></script>
+	</head>
+	<body>
+		<div class="slide titlepage">
+			<h1>CSV Files and Other Grad Student Anti-Patterns</h1>
+			<h2>Michael Armbrust</h2>
+			<h3>RAD Lab Spring Retreat, January 2010</h3>
+			<div class="sponsors">
+				<img src="google.png"/>
+				<img src="microsoft.png"/>
+				<img src="sun.png"/>
+				<div class="associates">
+					<img src="aws.gif"/>
+					<img src="cisco.png"/>
+					<img src="cloudera.png"/>
+					<img src="ebay.gif"/>
+					<img src="facebook.tiff"/>
+					<img src="fujitsu.png"/><br/>
+					<img src="hp.png"/>
+					<img src="intel.gif">
+					<img src="netapp.png"/>
+					<img src="sap.gif"/>
+					<img src="vmware.png"/>
+					<img src="yahoo.png"/>
+				</div>
+			</div>
+		</div>
+		<div class="slide content">
+			<h1>The Purpose of a Graduate Student</h1>
+			<table>
+				<tr>
+					<td class="incremental"><img src="dave.jpg"/></td>
+					<td class="incremental"><img src="arrow.png"/></td>
+					<td class="incremental">Hey you, make this graph!</td>
+					<td class="incremental"><img src="arrow.png"/></td>
+					<td class="incremental"><img src="me.jpg" width="75px"/></td>
+					<td class="incremental"><img src="arrow.png"/></td>
+					<td class="incremental">
+						<object xmlns="http://www.w3.org/1999/xhtml" type="application/x-shockwave-flash" data="open-flash-chart.swf" width="300" height="450" id="my_chart" style="visibility: visible; "><param name="flashvars" value="data-file=optimization.json" /></object>
+					</td>
+				</tr>
+			</table>
+	 	</div>
+		<div class="slide content">
+			<h1>Selected Anti-Paterns</h1>
+			<ul>
+				<li class="incremental">Leaving EC2 instances on to preserve configuration / data</li>
+				<li class="incremental">Encoding experiment parameters in the filename Ex. <tt>54/10/kernel_5_5_50_50_1_1.ramp</tt></li>
+				<li class="incremental">Configuring/running/recording multi-machine experiments by hand</li>
+				<li class="incremental">Spending hours copying/rearranging data in excel by hand</li>
+				<li class="incremental">Subsequently forgetting which experiment led to which data point in the resulting graph</li>
+				<li class="incremental">Rerunning an experiment because its faster than reinterpreting your old results</li>
+			</ul>
+	 	</div>
+		<div class="slide content">
+			<h1>DeployLib</h1>
+			<ul>
+				<li>If you ever ssh you are doing it wrong!</li>
+				<li>Scala library for controlling experiments running on remote machines</li>
+				<li>Can be used in scripts for automation or as an enhanced commandline for debugging</li>
+				<li>Abstracts away differences between environments (RCluster, EC2)</li>
+				<li>Specific inplementations provide optimizations (eg Use S3 to upload to many EC2Instances)</li>
+				<li>Tries to hide messy details:</li>
+				<ul>
+					<li>Automatic retry for transient failures</li>
+					<li>Service failure notification</li>
+					<li>Log monitoring and collection</li>
+				</ul>
+				<li>If you use it to build higher level constructs you get something like deployment type-safety</li>
+			</ul>
+	 	</div>
+		<div class="slide content">
+			<h1>XResult</h1>
+			<ul>
+				<li>Central result collection database (XML)</li>
+				<li>Integrated with deploylib so your configurations are automatically captured</li>
+				<li>Many helper functions for capturing common experiment patterns:</li>
+				<ul>
+					<li>Timed benchmark</li>
+					<li>Timelimited benchmark with histogram</li>
+				</ul>
+			</ul>
+<pre>
+XResult.timeLimitedBenchmark(60, &lt;myfunc param="10"/&gt;) {
+  myFunc.call(10)
+}
+</pre>
+	 	</div>
+		<div class="slide content">
+			<h1>XGraph</h1>
+			<ul>
+				<li>XPath to Interactive FlashChart Library</li>
+				<li>Graphs automatically update when you add more data</li>
+				<li>Automatic data provenance for all your graphs!</li>
+			</ul>
+			<center>
+				<object xmlns="http://www.w3.org/1999/xhtml" type="application/x-shockwave-flash" data="open-flash-chart.swf" width="400" height="350" id="my_chart" style="visibility: visible; "><param name="flashvars" value="data-file=scadrThoughtstreamThroughput.json" /></object>
+			</center>
+	 	</div>
+		<div class="slide content">
+			<h1>RadPanel</h1>
+			<ul>
+				<li>Centralized Experiment Dashboard</li>
+			</ul>
+			<iframe class="graph" src="http://localhost:8080/"></iframe>
+	 	</div>
+		<div class="slide content">
+			<h1>Thanks!</h1>
+			<p>Beth Trushkowsky, Rean Griffith, Tim Yung, Aaron Beitch, Nick Lanham, Andy Konwinski, Jesse Trutna, Peter Bodik</p>
+		</div>
+	</body>
+</html>

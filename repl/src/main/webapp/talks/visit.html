@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+  <head>
+    <title>SCADS: Hasso Plattner Visit - Spring 2010</title>
+    <meta name="copyright" content="Reliable Adaptive Distributed Systems Labratory - University of California, Berkeley" />
+    <link rel="stylesheet" type="text/css" media="screen, projection, print" href="slidy.css" />
+    <link rel="stylesheet" type="text/css" media="screen, projection, print" href="radlab.css" />
+    <script src="slidy.js" charset="utf-8" type="text/javascript"></script>
+    <script src="swfobject.js" charset="utf-8" type="text/javascript"></script>
+  </head>
+  <body>
+    <div class="slide titlepage">
+      <h1>SCADS: Scale-Independent Structured Storage for Interactive Applications</h1>
+      <h2>Michael Armbrust</h2>
+      <div class="sponsors">
+        <img src="google.png"/>
+        <img src="microsoft.png"/>
+        <img src="sun.png"/>
+        <div class="associates">
+          <img src="aws.gif"/>
+          <img src="cisco.png"/>
+          <img src="cloudera.png"/>
+          <img src="ebay.gif"/>
+          <img src="facebook.tiff"/>
+          <img src="fujitsu.png"/><br/>
+          <img src="hp.png"/>
+          <img src="intel.gif">
+            <img src="netapp.png"/>
+            <img src="sap.gif"/>
+            <img src="vmware.png"/>
+            <img src="yahoo.png"/>
+          </div>
+        </div>
+      </div>
+      <div class="slide content">
+        <h1>Scale Independence</h1>
+        <ul>
+          <li>Every large internet site designed around an RDBMS has been forced to re-architect their use of the RDBMS or switch to key/value stores.</li>
+          <li><i>Scale Independence</i> means as site's user base grows</li>
+          <ul>
+            <li>No changes to application</li>
+            <li>Cost per user remains constant</li>
+            <li>Request latency remains constant</li>
+          </ul>
+          <li>Key Innovations</li>
+          <ul>
+            <li><b>Performance insightful query language</b></li>
+            <li>Declarative performance/consistency trade-offs</li>
+            <li>Automatic scale up and down using machine learning</li>
+          </ul>
+        </ul>
+      </div>
+      <div class="slide content">
+        <h1>Query Language: PIQL</h1>
+        <center><img src="spectrumpiql.png" width="75%"/></center>
+        <ul>
+          <li>Scale-Independent declarative language subset</li>
+          <ul>
+            <li>Only allow developers to write queries where we can calculate a bound for the number of underlying operations it will perform</li>
+            <li>Optimizer decides what indexes are needed and will automatically parallelized queries where possible</li>
+            <li>Provides physical/logical data independence</li>
+          </ul>
+          <li>Performance feedback given to developer by the compiler</li>
+          <ul>
+            <li>Unbounded queries are disallowed</li>
+            <li>Queries above specified threshold generate a warning</li>
+          </ul>
+        </ul>
+      </div>
+      <div class="slide content">
+        <h1>PIQL Overview: Entities</h1>
+        <ul>
+          <li>Analagous to relations</li>
+          <li>Unit of atomic update</li>
+          <li>Using SCADr, a Twitter clone, as example:</li>
+        </ul>
+        <table>
+          <tr>
+            <td>
+              <pre>
+ENTITY User {
+  string username,
+  string password
+  PRIMARY(username)
+}
+              </pre>
+            </td>
+            <td>
+              <pre>
+ENTITY Subscription {
+  boolean approved,
+  FOREIGN KEY owner
+    REFERENCES User MAX 5000,
+  FOREIGN KEY target
+      REFERENCES User,
+  PRIMARY(owner, target)
+}
+              </pre>
+            </td>
+          </tr>
+        </table>
+      </div>
+      <div class="slide content">
+        <h1>PIQL Overview: Queries</h1>
+        <ul>
+          <li>Must be declared ahead of time</li>
+          <li>Can be parameterized like stored procedures</li>
+          <li>Allows SQL-like <tt>WHERE</tt>, <tt>ORDER BY</tt> and <tt>LIMIT</tt></li>
+          </ul><pre>
+QUERY findUser
+SELECT User
+WHERE name = [1:name]
+        </pre>
+        <ul>
+          <li>Joins can be performed as long as intermediate/final results are bounded</li>
+        </ul>
+        <pre>
+QUERY subscribers
+SELECT user
+  JOIN subscription ON target
+  JOIN user me ON owner
+WHERE me=[this]
+        </pre>
+      </div>
+      <div class="slide content">
+        <h1>PIQL Overview: Queries</h1>
+        <ul>
+          <li>Even more complicated queries like Twitters 'timeline' can be expressed</li>
+        </ul>
+        <pre>
+QUERY thoughtstream
+SELECT Thought
+  JOIN User AS friend ON owner
+  JOIN Subscription ON target
+  JOIN User AS me ON owner
+WHERE me=[this] AND approved = true
+ORDER BY timestamp
+LIMIT [1:count] MAX 100
+        </pre>
+        <ul>
+          <li>Created PIQL specs for subsets of Twitter, Facebook, and E-Bay to explore expressiveness</li>
+        </ul>
+      </div>
+      <div class="slide content">
+        <h1>Implementation: Usage</h1>
+        <div class="leftside"/>
+        <ul>
+          <li>PIQL takes in a set of Entities, Relationships and Queries and produces a jar</li>
+          <ul>
+            <li>Entities become Entity Classes</li>
+            <li>Queries become Query Functions</li>
+          </ul>
+        </ul>
+        <pre>
+//Creation
+val u = new User
+u.name("marmbrus")
+u.save
+
+//Retrieval
+val u = Queries
+.findUser("marmbrus")
+val t = u.thoughtstream(10)
+        </pre>
+      </div>
+      <div class="rightside">
+        <img src="piqlstack.png" width="100%"/>
+      </div>
+    </div>
+    <div class="slide content">
+      <h1>Demo: SCADr</h1>
+      <ul>
+        <li>Simple clone of twitter: SCADr</li>
+        <li>Implemented over the weekend</li>
+        <li>http://scadr.knowsql.org</li>
+      </ul>
+      <a href="http://scadr.knowsql.org" target="scadr">EC2 Version</a> or
+      <a href="http://localhost:9000" target="scadr">Local Version</a>
+      <iframe name="scadr"class="graph"></iframe>
+    </div>
+    <div class="slide content">
+      <h1>Results: Experiment Setup</h1>
+      <ul>
+        <li>SCADS cluster with the SCADr PIQL spec</li>
+        <li>Run on 100s of EC2 small instances</li>
+        <li>Automatic user generator:</li>
+        <ul>
+          <li>10,000 users/machine</li>
+          <li>10 subscriptions/user</li>
+          <li>20 thoughts/user</li>
+        </ul>
+        <li>One load client per machine simulating an appserver making thoughtstream requests</li>
+      </ul>
+    </div>
+    <div class="slide content">
+      <h1>Results: Query Performance Scaling</h1>
+      <center>
+        <object xmlns="http://www.w3.org/1999/xhtml" type="application/x-shockwave-flash" data="open-flash-chart.swf" width="600" height="450" id="my_chart" style="visibility: visible; "><param name="flashvars" value="data-file=scadrThoughtstreamThroughput.json" /></object>
+      </center>
+    </div>
+    <div class="slide content">
+      <h1>Results: Performance Predictability</h1>
+      <center>
+        <img src="querycdf.png" height="75%"/>
+      </center>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,45 @@
+ENTITY User
+{
+  string name,
+  string hometown
+  PRIMARY(name)
+}
+
+ENTITY Thought
+{
+  int timestamp,
+  string text,
+  FOREIGN KEY owner REF User
+  PRIMARY(owner, timestamp)
+}
+
+ENTITY Subscription
+{
+  FOREIGN KEY owner REF User,
+  FOREIGN KEY target REF User,
+  bool approved
+  PRIMARY(owner, target)
+}
+
+QUERY userByName
+FETCH User
+WHERE User.name = [1:name]
+
+QUERY userByHomeTown
+FETCH User
+WHERE hometown = [1:hometown]
+
+QUERY myThoughts
+FETCH Thought
+  OF User BY owner
+WHERE User=[this]
+LIMIT [1: numperpage] MAX 10
+
+QUERY thoughtstream
+FETCH Thought
+  OF User friend BY owner
+  OF Subscription BY target
+  OF User me BY owner
+WHERE me=[this] AND Subscription.approved = true
+ORDER BY timestamp
+LIMIT [1:count] MAX 10

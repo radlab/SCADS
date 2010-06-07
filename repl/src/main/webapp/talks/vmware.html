@@ -1,0 +1,431 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+	<head>
+		<title>SCADS: VMWare Visit - March 2010</title>
+		<meta name="copyright" content="Reliable Adaptive Distributed Systems Labratory - University of California, Berkeley" />
+		<link rel="stylesheet" type="text/css" media="screen, projection, print" href="slidy.css" />
+		<link rel="stylesheet" type="text/css" media="screen, projection, print" href="radlab.css" />
+		<script src="slidy.js" charset="utf-8" type="text/javascript"></script>
+		<script src="swfobject.js" charset="utf-8" type="text/javascript"></script>
+	</head>
+	<body>
+		<div class="slide titlepage">
+			<h1>SCADS: Scale-Independent Structured Storage for Interactive Applications</h1>
+			<h2>Michael Armbrust</h2>
+			<h3>VMWare, March 2010</h3>
+			<div class="sponsors">
+				<img src="google.png"/>
+				<img src="microsoft.png"/>
+				<img src="sun.png"/>
+				<div class="associates">
+					<img src="aws.gif"/>
+					<img src="cisco.png"/>
+					<img src="cloudera.png"/>
+					<img src="ebay.gif"/>
+					<img src="facebook.tiff"/>
+					<img src="fujitsu.png"/><br/>
+					<img src="hp.png"/>
+					<img src="intel.gif">
+					<img src="netapp.png"/>
+					<img src="sap.gif"/>
+					<img src="vmware.png"/>
+					<img src="yahoo.png"/>
+				</div>
+			</div>
+		</div>
+		<div class="slide content">
+			<h1>Motivation</h1>
+			<ul>
+				<li>Every large internet site has either built a system on top of their RDBMS or switched to key/value stores.</li>
+			</ul>
+		</div>
+		<div class="slide content">
+			<h1>Scale Independence</h1>
+			<ul>
+				<li>As a site's user base grows</li>
+				<ul>
+					<li>No changes to application</li>
+					<li>Cost per user remains constant</li>
+					<li>Request latency remains constant</li>
+				</ul>
+				<li>Key Innovations</li>
+				<ul>
+					<li><b>Performance insightful query language</b></li>
+					<li>Declarative performance/consistency trade-offs</li>
+					<li>Automatic scale up and down using machine learning</li>
+				</ul>
+			</ul>
+		</div>
+		<div class="slide content">
+			<h1>Query Language: SQL</h1>
+			<center><img src="spectrumsql.png" width="75%"/></center>
+			<ul>
+				<li>Powerful Declarative Query Language</li>
+				<ul>
+					<li>Sufficiently expressive to execute any query</li>
+					<li>Optimizer decides the <i>best</i> execution plan</li>
+					<li>Provides physical/logical data independence</li>
+				</ul>
+				<li>Performance Opaque</li>
+				<ul>
+					<li>Easy to express queries that are computationally expensive (especially as the user base grows)</li>
+					<li>Most large sites end up using them as a key/value store with proprietary layer</li>
+				</ul>
+			</ul>
+		</div>
+		<div class="slide content">
+			<h1>Query Language: K/V Store</h1>
+			<center><img src="spectrumnosql.png" width="75%"/></center>
+			<ul>
+				<li>Simple Query Interface</li>
+				<ul>
+					<li>More complex queries are expressed as imperative programs that perform many simple operations</li>
+					<li>Changes to physical schema require developers to manually fix queries</li>
+				</ul>
+				<li>Trivial Performance Model</li>
+				<ul>
+					<li>Simple operations generally have fixed latency</li>
+					<li>Expensive queries are obvious</li>
+				</ul>
+				<li>Inherently distributed</li>
+			</ul>
+		</div>
+		<div class="slide content">
+			<h1>K/V Store Example: Inbox Search</h1>
+			<ul>
+				<li>Cassandra's Datamodel</li>
+				<ul>
+					<li>Every <b>row</b> is identified by a unique <b>key</b>. The key is a string and there is no limit on its size.</li>
+					<li>An instance of Cassandra has <b>one table</b> which is made up of one or more <b>column families</b> as defined by the user.</li>
+					<li>The number of column families and the name of each of the above must be fixed at the time the cluster is started.</li>
+					<li>Each <b>column family</b> can contain one of two structures: <b>supercolumns</b> or <b>columns</b>. Both of these are dynamically created and there is no limit on the number of these that can be stored in a column family.</li>
+					<li>Columns are constructs that have a <b>name</b>, a <b>value</b> and a user-defined <b>timestamp</b> associated with them. The number of columns that can be contained in a column family is very large. Columns could be of variable number per key.</li>
+					<li>“<b>Supercolumns</b>” are a construct that have a name, and an infinite number of columns associated with them. The number of “Supercolumns” associated with any column family could be infinite and of a variable number per key. They exhibit the same characteristics as columns.</li>
+				</ul>
+		</div>
+		<div class="slide content">
+			<h1>K/V Store Example: Inbox Search</h1>
+			<img src="cassandramodel.png" width="100%"/>
+		</div>
+		<div class="slide content">
+			<h1>K/V Store Example: Inbox Search</h1>
+			<ul>
+				<li>Implementing inbox search on Cassandra:</li>
+				<ul>
+					<li><tt>userId</tt> =&gt; <b>key</b></li>
+					<li>each <tt>word</tt> in each e-mail =&gt; <b>super column</b></li>
+					<li>for each message containing the word the <tt>messageTimestamp</tt> =&gt; <b>column</b></li>
+					<li><tt>messageId</tt> =&gt; <b>value</b></li>
+					<li><b>timestamp</b> unused</li>
+				</ul>
+				<li>Developer is responsible for creating all of the entries manually</li>
+				<li>System was <i>designed</i> for this query</li>
+				<li>There are examples from digg and others of <i>actually</i> writing queries against this model.</li>
+			</ul>
+		</div>
+		<div class="slide content">
+			<h1>Query Language: PIQL</h1>
+			<center><img src="spectrumpiql.png" width="75%"/></center>
+			<ul>
+				<li>Scale-Independent declarative language subset</li>
+				<ul>
+					<li>Only allow developers to write queries where we can calculate a bound for the number of underlying operations it will perform</li>
+					<li>Optimizer decides what indexes are needed and will automatically parallelized queries where possible</li>
+					<li>Provides physical/logical data independence</li>
+				</ul>
+				<li>Performance feedback given to developer by the compiler</li>
+				<ul>
+					<li>Unbounded queries are disallowed</li>
+					<li>Queries above specified threshold generate a warning</li>
+				</ul>
+			</ul>
+		</div>
+		<div class="slide content">
+			<h1>PIQL Example: Inbox Search</h1>
+<pre>
+FETCH message
+  OF user BY recipient
+WHERE user = [this] AND
+  message.text CONTAINS [1: word]
+ORDER BY timestamp
+</pre>
+		</div>
+		<div class="slide content">
+			<h1>PIQL Overview: Entities</h1>
+			<ul>
+				<li>Analagous to relations</li>
+				<li>Unit of atomic update</li>
+				<li>Using SCADr, a Twitter clone, as example:</li>
+			</ul>
+			<table>
+				<tr>
+					<td>
+<pre>
+ENTITY User {
+  string username,
+  string password
+  PRIMARY(username)
+}
+</pre>
+					</td>
+					<td>
+<pre>
+ENTITY Subscription {
+  boolean approved,
+  FOREIGN KEY owner REF User MAX 5000,
+  FOREIGN KEY target REF User,
+  PRIMARY(owner, target)
+}
+</pre>
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+<pre>
+ENTITY Thought {
+  int timestamp,
+  string text,
+  FOREIGN KEY owner REF User,
+  PRIMARY(owner, timestamp)
+}
+</pre>
+					</td>
+				</tr>
+			</table>
+		</div>
+			<div class="slide content">
+				<h1>PIQL Overview: Queries</h1>
+				<ul>
+					<li>Must be declared ahead of time</li>
+					<li>Can be parameterized like stored procedures</li>
+					<li>Allows SQL-like <tt>WHERE</tt>, <tt>ORDER BY</tt> and <tt>LIMIT</tt></li>
+				</ul><pre>
+QUERY findUser
+FETCH User
+WHERE name = [1:name]
+</pre>
+				<ul>
+					<li>Joins can be performed as long as intermediate/final results are bounded</li>
+				</ul>
+<pre>
+QUERY subscribers
+FETCH user
+  OF subscription BY target
+  OF user me BY owner
+WHERE me=[this]
+</pre>
+				</div>
+				<div class="slide content">
+					<h1>PIQL Overview: Queries</h1>
+					<ul>
+						<li>Even more complicated queries like Twitters 'timeline' can be expressed</li>
+					</ul>
+<pre>
+QUERY thoughtstream
+FETCH Thought
+  OF User AS friend BY owner
+  OF Subscription BY target
+  OF User AS me BY owner
+WHERE me=[this] AND approved = true
+ORDER BY timestamp
+LIMIT [1:count] MAX 100
+</pre>
+					<ul>
+						<li>Created PIQL specs for subsets of Twitter, Facebook, and E-Bay to explore expressiveness</li>
+					</ul>
+				</div>
+				<div class="slide content">
+					<h1>Implementation: Usage</h1>
+					<div class="leftside"/>
+					<ul>
+						<li>PIQL takes in a set of Entities, Relationships and Queries and produces a jar</li>
+						<ul>
+							<li>Entities become Entity Classes</li>
+							<li>Queries become Query Functions</li>
+						</ul>
+					</ul>
+<pre>
+//Creation
+val u = new User
+u.name("marmbrus")
+u.save
+
+//Retrieval
+val u = Queries
+  .findUser("marmbrus")
+val t = u.thoughtstream(10)
+</pre>
+						</div>
+						<div class="rightside">
+							<img src="piqlstackgenerated.png" width="100%"/>
+						</div>
+					</div>
+					<div class="slide content">
+						<h1>Implementation: Read Path</h1>
+						<div class="leftside">
+							<ul>
+								<li>Operators that perform <tt>get</tt> and <tt>get_set</tt> operations on the underlying store.</li>
+								<ul>
+									<li>SingleGet</li>
+									<li>PrefixGet</li>
+									<li>DereferenceIndex</li>
+									<li>PrefixJoin</li>
+									<li>PointerJoin</li>
+								</ul>
+								<li>Operators that perform local computation</li>
+								<ul>
+									<li>Materialize</li>
+									<li>Selection</li>
+									<li>Sort</li>
+									<li>TopK</li>
+								</ul>
+							</ul>
+						</div>
+						<div class="rightside">
+							<img src="piqlstackoperators.png" width="100%"/>
+						</div>
+					</div>
+					<div class="slide content">
+						<h1>Implementation: Write Path</h1>
+						<div class="leftside">
+							<ul>
+								<li>Each app server maintains a write ahead log for durability</li>
+								<li>Writes that fail will be retried until they succeed</li>
+							</ul>
+						</div>
+						<div class="rightside">
+							<img src="piqlstackwrite.png" width="100%"/>
+						</div>
+					</div>
+					<div class="slide content">
+						<h1>Implementation: SCADS Store</h1>
+						<div class="leftside">
+							<ul>
+								<li>Individual storage nodes provide simple functions over contiguous ranges of keys</li>
+								<ul>
+									<li><tt>get</tt></li>
+									<li><tt>get_set</tt></li>
+									<li><tt>put</tt></li>
+									<li><tt>test_set</tt></li>
+								</ul>
+								<li>Zookeeper tracks responsibility policies for all storage nodes in the cluster</li>
+							</ul>
+						</div>
+						<div class="rightside">
+							<img src="piqlstackscads.png" width="100%"/>
+						</div>
+					</div>
+					<div class="slide content">
+						<h1>Implementation: Adjustable Consistency</h1>
+						<div class="leftside">
+							<ul>
+								<li>Write Policies</li>
+								<ul>
+									<li>Write All vs. Write Some</li>
+									<li>Simple Put vs. Test/Set vs. 2PC</li>
+								</ul>
+								<li>Read Policies</li>
+								<ul>
+									<li>Read One</li>
+									<li>Read Closest</li>
+									<li>Read Quorum</li>
+									<li>Read All</li>
+								</ul>
+							</ul>
+						</div>
+						<div class="rightside">
+							<img src="piqlstackconsistency.png" width="100%"/>
+						</div>
+					</div>
+					<div class="slide content">
+						<h1>Demo: SCADr</h1>
+						<ul>
+							<li>Simple clone of twitter: SCADr</li>
+							<li>Implemented over the weekend</li>
+							<li>http://scadr.knowsql.org</li>
+						</ul>
+						<a href="http://scadr.knowsql.org" target="scadr">EC2 Version</a> or
+						<a href="http://localhost:9000" target="scadr">Local Version</a>
+						<iframe name="scadr"class="graph"></iframe>
+					</div>
+					<div class="slide content">
+						<h1>Results: Experiment Setup</h1>
+						<ul>
+							<li>SCADS cluster with the SCADr PIQL spec</li>
+							<li>Run on 100s of EC2 small instances</li>
+							<li>Automatic user generator:</li>
+							<ul>
+								<li>10,000 users/machine</li>
+								<li>10 subscriptions/user</li>
+								<li>20 thoughts/user</li>
+							</ul>
+							<li>One load client per machine simulating an appserver making thoughtstream requests</li>
+						</ul>
+					</div>
+					<div class="slide content">
+						<h1>Results: Query Performance Scaling</h1>
+						<center>
+							<object xmlns="http://www.w3.org/1999/xhtml" type="application/x-shockwave-flash" data="open-flash-chart.swf" width="600" height="450" id="my_chart" style="visibility: visible; "><param name="flashvars" value="data-file=scadrThoughtstreamThroughput.json" /></object>
+						</center>
+					</div>
+					<div class="slide content">
+						<h1>Results: Query Latency Scaling</h1>
+						<center>
+              <img src="querycdf.png" height="75%"/>
+						</center>
+					</div>
+					<div class="slide content">
+						<h1>Optimizations</h1>
+						<div class="leftside">
+							<ul>
+								<li>Query based primary key ordering suggestion</li>
+								<ul>
+									<li>Converts index dereferencing random reads to sequential reads</li>
+									<li>70% increase in throughput</li>
+								</ul>
+								<li>Intra-query Parallelism</li>
+							 	<ul>
+									<li>Thrift induced contention actually decreased performance</li>
+								</ul>
+							</ul>
+						</div>
+						<div class="rightside">
+							<object xmlns="http://www.w3.org/1999/xhtml" type="application/x-shockwave-flash" data="open-flash-chart.swf" width="300" height="450" id="my_chart" style="visibility: visible; "><param name="flashvars" value="data-file=optimization.json" /></object>
+						</div>
+					</div>
+					<div class="slide content">
+						<h1>What's Next?</h1>
+						<div class="leftside">
+							<ul>
+								<li>Single Node Performance</li>
+								<ul>
+									<li>More optimizations</li>
+									<li>Increased parallelism</li>
+								</ul>
+								<li>Query Language Features</li>
+								<ul>
+									<li>Aggregates</li>
+									<li>Composite Indexes</li>
+									<li>Geospatial Indexes</li>
+									<li>Query Pagination</li>
+								</ul>
+							</ul>
+						</div>
+						<div class="rightside">
+							<ul>
+								<li>Flexible Consistency</li>
+								<ul>
+									<li>Index only plans</li>
+									<li>Read policies</li>
+									<li>Write policies</li>
+									<li>Session guarantees</li>
+								</ul>
+								<li>Time based query performance prediction</li>
+								<li>Applications written by undergrads (which?)</li>
+							</ul>
+						</div>
+					</div>
+				</body>
+			</html>
