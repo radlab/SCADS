@@ -14,8 +14,8 @@ trait UnionDiscover extends ScalaAvroPluginComponent {
   import global._
   import global.definitions._
 
-  val runsAfter = List[String]("earlytyper")
-  override val runsRightAfter = Some("earlytyper")
+  val runsAfter = List[String]("ctorretype")
+  override val runsRightAfter = Some("ctorretype")
   val phaseName = "uniondiscover"
 
   def newPhase(prev: Phase): Phase = new TraverserPhase(prev)

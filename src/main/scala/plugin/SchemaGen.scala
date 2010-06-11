@@ -88,7 +88,7 @@ trait SchemaGen extends ScalaAvroPluginComponent
 
     override def transform(tree: Tree) : Tree = {
       val newTree = tree match {
-        case cd @ ClassDef(mods, name, tparams, impl) if (cd.symbol.hasAnnotation(avroRecordAnnotation)) =>
+        case cd @ ClassDef(mods, name, tparams, impl) if (cd.symbol.tpe.parents.contains(avroRecordTrait.tpe)) =>
 
           val instanceVars = for (member <- impl.body if isValDef(member)) yield { member.symbol }
 

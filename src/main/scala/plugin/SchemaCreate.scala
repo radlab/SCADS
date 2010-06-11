@@ -25,7 +25,7 @@ trait SchemaCreate extends ScalaAvroPluginComponent {
   def newTraverser(): Traverser = new ForeachTreeTraverser(check)
 
   def check(tree: Tree): Unit = tree match {
-    case cd @ ClassDef(_, _, _, _) if (cd.symbol.hasAnnotation(avroRecordAnnotation)) =>
+    case cd @ ClassDef(_, _, _, _) if (cd.symbol.tpe.parents.contains(avroRecordTrait.tpe)) =>
       val sym = cd.symbol
       debug("Adding schema for class: " + sym.fullName)
       addRecordSchema(sym, 

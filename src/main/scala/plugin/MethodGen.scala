@@ -119,7 +119,7 @@ trait MethodGen extends ScalaAvroPluginComponent
 
     private def generateSetMethod(templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
       val newSym = clazz.newMethod(clazz.pos.focus, newTermName("put"))
-      newSym setFlag SYNTHETICMETH 
+      newSym setFlag SYNTHETICMETH | OVERRIDE
       newSym setInfo MethodType(newSym.newSyntheticValueParams(List(IntClass.tpe, AnyClass.tpe)), UnitClass.tpe)
       clazz.info.decls enter newSym 
 
@@ -184,7 +184,7 @@ trait MethodGen extends ScalaAvroPluginComponent
     private def generateGetSchemaMethod(clazzTree: ClassDef): Tree = {
       val clazz = clazzTree.symbol
       val newSym = clazz.newMethod(clazz.pos.focus, newTermName("getSchema"))
-      newSym setFlag SYNTHETICMETH 
+      newSym setFlag SYNTHETICMETH | OVERRIDE
       newSym setInfo MethodType(newSym.newSyntheticValueParams(Nil), schemaClass.tpe)
       clazz.info.decls enter newSym 
       //println("localTyper.context1.enclClass: " + localTyper.context1.enclClass)
@@ -234,7 +234,7 @@ trait MethodGen extends ScalaAvroPluginComponent
 
     override def transform(tree: Tree) : Tree = {
       val newTree = tree match {
-        case cd @ ClassDef(mods, name, tparams, impl) if (cd.symbol.hasAnnotation(avroRecordAnnotation)) =>
+        case cd @ ClassDef(mods, name, tparams, impl) if (cd.symbol.tpe.parents.contains(avroRecordTrait.tpe)) =>
           debug(retrieveRecordSchema(cd.symbol))
           debug(cd.symbol.fullName + "'s enclClass: " + cd.symbol.enclClass)
           debug("owner.enclClass: " + cd.symbol.owner.enclClass)
