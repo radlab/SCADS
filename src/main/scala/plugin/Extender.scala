@@ -38,7 +38,7 @@ trait Extender extends ScalaAvroPluginComponent
       val (car, cdr) = clazz.tpe.parents.splitAt(1)
       if (car.head != ObjectClass.tpe && !(car.head <:< SpecificRecordBaseClass.tpe))
         warn("Replacing inheritance of non specific record base type")
-      ClassInfoType(List(SpecificRecordBaseClass.tpe, ScalaSpecificRecord.tpe, AvroConversions.tpe) ::: cdr, decls, clazz)
+      ClassInfoType(List(SpecificRecordBaseClass.tpe, AvroConversions.tpe) ::: cdr, decls, clazz)
     case _ => tpe
   }
 
@@ -60,26 +60,9 @@ trait Extender extends ScalaAvroPluginComponent
         if (!cd.hasFlag(Flags.CASE))
           throw new NonCaseClassException(name.toString)
 
-        debug("Extending class: " + name.toString)
+        // todo: for case objects, throw exception
 
-        // def this() = super()
-        // i dont think you can even do this in scala, but you can write an
-        // AST for it :)
-        // TODO: is this safe (it is possible that future versions will disallow this)?
-        //val ctor = localTyper typed { DefDef(
-        //  NoMods,
-        //  nme.CONSTRUCTOR,
-        //  List(),
-        //  List(List()),
-        //  TypeTree(),
-        //  Block(
-        //      List(
-        //          Apply(
-        //              Select(
-        //                  Super("",""),
-        //                  newTermName("<init>")),
-        //              List())),
-        //      Literal(Constant(())))) }
+        debug("Extending class: " + name.toString)
 
         def isCtor(tree: Tree): Boolean = {
           (tree.symbol ne null) && tree.symbol.name == nme.CONSTRUCTOR
@@ -87,23 +70,32 @@ trait Extender extends ScalaAvroPluginComponent
         val ctors = for (member <- impl.body if isCtor(member)) yield { member.symbol }
         assert (!ctors.isEmpty)
 
-        val pos = ctors.last.pos
-        val ctorSym = cd.symbol.newConstructor(pos.withPoint(pos.point + 1))
-        // TODO: look for defult ctor 
-        ctorSym setFlag METHOD
-        ctorSym setInfo MethodType(ctorSym.newSyntheticValueParams(List()), cd.symbol.tpe)
-        cd.symbol.info.decls enter ctorSym
+        val containsDefaultCtor = !ctors.map(_.info).filter {
+          case MethodType(Nil, _) => true
+          case _ => false
+        }.isEmpty
 
-        val instanceVars = for (member <- impl.body if isValDef(member)) yield { member.symbol }
+        val ctor = 
+          if (containsDefaultCtor) {
+            None
+          } else {
+            val pos = ctors.last.pos
+            val ctorSym = cd.symbol.newConstructor(pos.withPoint(pos.point + 1))
+            ctorSym setFlag METHOD
+            ctorSym setInfo MethodType(ctorSym.newSyntheticValueParams(List()), cd.symbol.tpe)
+            cd.symbol.info.decls enter ctorSym
 
-        val ctor = localTyper typed {
-          DEF(ctorSym) === Block(List(
-            Apply(
-              This(cd.symbol) DOT nme.CONSTRUCTOR,
-              instanceVars.map(v => DefaultValues.get(v.tpe.typeSymbol).getOrElse(LIT(null)) 
-            ))),
-            Literal(Constant(())))
-        }
+            val instanceVars = for (member <- impl.body if isValDef(member)) yield { member.symbol }
+
+            Some(localTyper typed {
+              DEF(ctorSym) === Block(List(
+                Apply(
+                  This(cd.symbol) DOT nme.CONSTRUCTOR,
+                  instanceVars.map(v => DefaultValues.get(v.tpe.typeSymbol).getOrElse(LIT(null)) 
+                ))),
+                Literal(Constant(())))
+            })
+          }
 
         def toTypedSelectTree(s: String): Tree = {
           if ((s eq null) || s.isEmpty)
@@ -130,12 +122,10 @@ trait Extender extends ScalaAvroPluginComponent
 
         val specificRecordBase = toTypedSelectTree("org.apache.avro.specific.SpecificRecordBase")
 
-        val scalaSpecificRecord = toTypedSelectTree("com.googlecode.avro.runtime.ScalaSpecificRecord")
-
         val avroConversions = toTypedSelectTree("com.googlecode.avro.runtime.AvroConversions")
 
         val (car, cdr) = impl.parents.splitAt(1)
-        val newImpl = treeCopy.Template(impl, List(specificRecordBase, scalaSpecificRecord, avroConversions) ::: cdr, impl.self, impl.body ::: List(ctor))
+        val newImpl = treeCopy.Template(impl, List(specificRecordBase, avroConversions) ::: cdr, impl.self, impl.body ::: ctor.toList)
         treeCopy.ClassDef(tree, mods, name, tparams, newImpl)
       case _ => tree
     }
