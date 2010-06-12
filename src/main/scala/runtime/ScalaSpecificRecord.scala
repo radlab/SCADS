@@ -31,18 +31,23 @@ trait ScalaSpecificRecord extends SpecificRecord {
 trait AvroConversions {
 
   def mkUtf8(p: String): Utf8 = 
-      if (p eq null)
-          null
-      else
-          new Utf8(p)
+    if (p eq null)
+      null
+    else
+      new Utf8(p)
 
   def mkByteBuffer(bytes: Array[Byte]): ByteBuffer = 
-      if (bytes eq null)
-          null
-      else
-          ByteBuffer.wrap(bytes)
+    if (bytes eq null)
+      null
+    else
+      ByteBuffer.wrap(bytes)
 
   def scalaMapToJMap(map: Map[_,_], schema: Schema): JMap[_,_] = {
+    if (schema eq null)
+      throw new IllegalArgumentException("schema must not be null")
+    if (map eq null)
+      return null.asInstanceOf[JMap[_,_]]
+      
     val jHashMap = new JHashMap[Any,Any]
     map.foreach(kv => {
       val (key, value0) = kv
@@ -66,6 +71,11 @@ trait AvroConversions {
   }
 
   def jMapToScalaMap(jmap: JMap[_,_], schema: Schema): Map[_,_] = {
+    if (schema eq null)
+      throw new IllegalArgumentException("schema must not be null")
+    if (jmap eq null)
+      return null.asInstanceOf[Map[_,_]]
+
     val mMap = MMap[Any,Any]()
     val iter = jmap.keySet.iterator
     while (iter.hasNext) {
@@ -132,6 +142,8 @@ trait AvroConversions {
   }
 
   def genericArrayToScalaList(genericArray: GenericArray[_]): List[_] = {
+      if (genericArray eq null)
+        return null
       val listBuffer = new ListBuffer[Any]
       val iter = genericArray.iterator
       while (iter.hasNext) {

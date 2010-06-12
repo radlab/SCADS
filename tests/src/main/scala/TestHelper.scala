@@ -4,9 +4,13 @@ package test
 import org.apache.avro.Schema
 import Schema.{ Field, Type }
 
+import org.apache.avro.io._
+import org.apache.avro.specific._
 import org.apache.avro.generic.GenericContainer
 
 import java.util.{ Arrays => JArrays, List => JList }
+import java.io.{ ByteArrayInputStream, ByteArrayOutputStream }
+import scala.reflect.Manifest
 
 import junit.framework._
 import Assert._
@@ -25,6 +29,36 @@ object SchemaCompare {
     println("expected: " + expected)
     println("actual: " + actual)
     Assert.assertEquals(expected, actual)
+  }
+
+}
+
+object RecordCompare {
+
+  def toBytes[T <: SpecificRecord](obj: T): Array[Byte] = {
+    val writer = new SpecificDatumWriter[T](obj.getSchema)
+    val buffer = new ByteArrayOutputStream(1024)
+    val encoder = new BinaryEncoder(buffer)
+    writer.write(obj, encoder) 
+    buffer.toByteArray
+  }
+
+  def fromBytes[T <: SpecificRecord](bytes: Array[Byte], clz: Class[T]): T = {
+    val decoderFactory = new DecoderFactory
+    val reader = new SpecificDatumReader[T](SchemaCompare.extractSchema(clz))
+    val inStream = decoderFactory.createBinaryDecoder(bytes, null)
+    val newInstance = clz.newInstance 
+    reader.read(newInstance, inStream)
+    newInstance
+  }
+
+  def assertReadWriteEquals[T <: SpecificRecord](record: T)(implicit manifest: Manifest[T]) {
+    println("orig record: " + record)
+    val bytes = toBytes(record)
+    /** Type inference requires explicit T here to infer T */
+    val copy: T = fromBytes(bytes, manifest.erasure.asInstanceOf[Class[T]])
+    println("new record: " + record)
+    Assert.assertEquals(record, copy)
   }
 
 }
