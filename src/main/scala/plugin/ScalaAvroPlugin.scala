@@ -15,8 +15,9 @@ import nsc.symtab.Flags._
 
 import scala.collection.mutable.{Map,HashMap,HashSet,MutableList,ListBuffer}
 
-import org.apache.avro.Schema
+import org.apache.avro.{specific, Schema}
 import Schema.Type
+import specific.SpecificRecord
 
 trait ScalaAvroPluginComponent extends PluginComponent {
   import global._
@@ -38,6 +39,9 @@ trait ScalaAvroPluginComponent extends PluginComponent {
   // TODO: the following values are lazy so that a NPE doesn't get thrown
   // upon instantiation
 
+  /** Definitions doesn't contain one for MapClass */
+  protected lazy val MapClass = definitions.getClass("scala.collection.immutable.Map")
+
   /** Avro Scala Plugin Annotations */
   protected lazy val avroRecordTrait = definitions.getClass("com.googlecode.avro.marker.AvroRecord")
   protected lazy val avroUnionAnnotation = definitions.getClass("com.googlecode.avro.annotation.AvroUnion")
@@ -48,6 +52,7 @@ trait ScalaAvroPluginComponent extends PluginComponent {
 
   /** Avro Internal Types */
   protected lazy val schemaClass = definitions.getClass("org.apache.avro.Schema")
+  protected lazy val SpecificRecordIface = definitions.getClass("org.apache.avro.specific.SpecificRecord")
   protected lazy val SpecificRecordBaseClass = definitions.getClass("org.apache.avro.specific.SpecificRecordBase")
 
   /** Scala Avro Internal types */
@@ -78,6 +83,13 @@ trait ScalaAvroPluginComponent extends PluginComponent {
   }
 
   protected def isRecord(sym: Symbol) = classToSchema.contains(sym)
+
+  protected def isExternalRecord(sym: Symbol) = sym.tpe <:< SpecificRecordIface.tpe
+
+  protected def retrieveExternalRecordSchema(sym: Symbol): Schema = {
+    val clazz = Class.forName(sym.fullName.toString).asInstanceOf[Class[SpecificRecord]]
+    clazz.newInstance.getSchema
+  }
 
   protected def retrieveUnionRecords(name: Symbol): List[Symbol] = unionToExtenders.get(name) match {
     case Some(l) => l

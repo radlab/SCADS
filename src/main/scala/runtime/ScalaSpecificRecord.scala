@@ -8,12 +8,13 @@ import org.apache.avro.specific.{SpecificDatumWriter, SpecificRecord}
 import org.apache.avro.generic.{GenericArray, GenericData}
 import org.apache.avro.util.Utf8
 
-import scala.collection.mutable.ListBuffer
-
+import scala.collection.mutable.{Map => MMap, ListBuffer}
+import scala.collection.immutable.{Map => ImmMap}
 import scala.reflect.Manifest
 
 import java.nio.ByteBuffer
 import java.io.ByteArrayOutputStream
+import java.util.{Map => JMap, HashMap => JHashMap}
 
 private[runtime] class UnimplementedFunctionalityException extends RuntimeException("Unimplemented")
 
@@ -40,6 +41,54 @@ trait AvroConversions {
           null
       else
           ByteBuffer.wrap(bytes)
+
+  def scalaMapToJMap(map: Map[_,_], schema: Schema): JMap[_,_] = {
+    val jHashMap = new JHashMap[Any,Any]
+    map.foreach(kv => {
+      val (key, value0) = kv
+      val value = schema.getValueType.getType match {
+        case Type.ARRAY => 
+          scalaListToGenericArray(value0.asInstanceOf[List[_]], schema.getValueType)          
+        case Type.MAP =>
+          scalaMapToJMap(value0.asInstanceOf[Map[_,_]], schema.getValueType)
+        case Type.STRING =>
+          // assume String -> Utf8 for now
+          new Utf8(value0.asInstanceOf[String])
+        case Type.BYTES =>
+          // assume Array[Byte] -> ByteBuffer for now
+          ByteBuffer.wrap(value0.asInstanceOf[Array[Byte]])
+        case _ => value0
+      }
+      // assume that key is String
+      jHashMap.put(new Utf8(key.toString), value)
+    })
+    jHashMap
+  }
+
+  def jMapToScalaMap(jmap: JMap[_,_], schema: Schema): Map[_,_] = {
+    val mMap = MMap[Any,Any]()
+    val iter = jmap.keySet.iterator
+    while (iter.hasNext) {
+      val key = iter.next
+      val value0 = jmap.get(key)
+      val value = schema.getValueType.getType match {
+        case Type.ARRAY =>
+          genericArrayToScalaList(value0.asInstanceOf[GenericArray[_]])
+        case Type.MAP =>
+          jMapToScalaMap(value0.asInstanceOf[JMap[_,_]], schema.getValueType)
+        case Type.STRING =>
+          // assume Utf8 -> String for now
+          value0.asInstanceOf[Utf8].toString
+        case Type.BYTES =>
+          // assume ByteBuffer -> Array[Byte] for now
+          value0.asInstanceOf[ByteBuffer].array
+        case _ => value0
+      }
+      // assume that key is Utf8
+      mMap += key.asInstanceOf[Utf8].toString -> value
+    }
+    ImmMap[Any,Any](mMap.toList:_*)
+  }
 
   /** NOTE: 
     * For the runtime, to get a list of byte buffers, you MUST do
@@ -100,6 +149,8 @@ trait AvroConversions {
   }
 
   def castToGenericArray(obj: Any): GenericArray[_] = obj.asInstanceOf[GenericArray[_]]
+
+  def castToJMap(obj: Any): JMap[_,_] = obj.asInstanceOf[JMap[_,_]]
 
   /** Assume that schema is a union type which contains only
    2 fields, a NULL field, and another field that isn't NULL 

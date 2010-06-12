@@ -7,6 +7,11 @@ import Assert._
 import SchemaCompare._
 import SchemaDSL._
 
+object Helper {
+  val PREFIX = "com.googlecode.avro.test"
+  def mkClassName(c: String) = PREFIX + "." + c
+}
+
 class TestSchemaCreation extends TestCase {
 
   def test0() = {
@@ -26,6 +31,32 @@ class TestSchemaCreation extends TestCase {
   def test2() = {
     val test2 = classOf[Test2] ==> "ints" ~~> ARRAY_(BOOLEAN_) :: Nil
     SchemaCompare.assertSchemaEquals(test2, classOf[Test2])
+  }
+
+  def test3() = {
+    val test3 = Helper.mkClassName("Test3Obj.test3_meth0.Test3") ==> "i" ~~> INT_ :: Nil  
+    val testObj = Test3Obj.test3_meth0
+    SchemaCompare.assertSchemaEquals(test3, testObj.getSchema)
+  }
+
+  def test4() = {
+    val test4 = Helper.mkClassName("Test4Class.test4_meth0.Test4")  ==> "b" ~~> BYTES_ :: Nil
+    val test4Obj = new Test4Class
+    val testObj = test4Obj.test4_meth0
+    SchemaCompare.assertSchemaEquals(test4, testObj.getSchema)
+  }
+
+  def test5() = {
+    val test5Inner = classOf[Test5Inner] ==> "i" ~~> INT_ :: Nil
+    val test5Outer = classOf[Test5] ==> "map" ~~> MAP_(test5Inner) :: Nil
+    SchemaCompare.assertSchemaEquals(test5Outer, classOf[Test5])
+  }
+
+  def test6() = {
+    val test6 = classOf[Test6] ==> 
+      "key0" ~~> STRING_ :: "key1" ~~> DOUBLE_ ::
+      "value0" ~~> STRING_ :: "value1" ~~> BYTES_ :: Nil
+    SchemaCompare.assertSchemaEquals(test6, classOf[Test6])
   }
 
 }

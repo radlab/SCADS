@@ -87,13 +87,22 @@ trait Extender extends ScalaAvroPluginComponent
 
             val instanceVars = for (member <- impl.body if isValDef(member)) yield { member.symbol }
 
+            debug("clazz.caseFieldAccessors: " + cd.symbol.caseFieldAccessors)
+            debug("clazz.primaryConstructor.tpe.paramTypes: " + cd.symbol.primaryConstructor.tpe.paramTypes)
+
+            val innerSize = cd.symbol.primaryConstructor.tpe.paramTypes.size
+            val (inner, outer) = /** Scala only lets you curry once for case class ctors */
+              instanceVars
+                .map(v => DefaultValues.get(v.tpe.typeSymbol).getOrElse(LIT(null)))
+                .splitAt(innerSize)
+
+            val apply0 = Apply(This(cd.symbol) DOT nme.CONSTRUCTOR, inner)
+            val apply = 
+              if (outer.isEmpty) apply0
+              else Apply(apply0, outer)
+
             Some(localTyper typed {
-              DEF(ctorSym) === Block(List(
-                Apply(
-                  This(cd.symbol) DOT nme.CONSTRUCTOR,
-                  instanceVars.map(v => DefaultValues.get(v.tpe.typeSymbol).getOrElse(LIT(null)) 
-                ))),
-                Literal(Constant(())))
+              DEF(ctorSym) === Block(List(apply), Literal(Constant(())))
             })
           }
 

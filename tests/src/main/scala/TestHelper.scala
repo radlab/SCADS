@@ -68,6 +68,12 @@ object SchemaDSL {
     }
   }
 
+  class SchemaMap(val schema: SchemaSchema) extends SchemaSchema {
+    def toSchema = {
+      Schema.createMap(schema.toSchema)
+    }
+  }
+
   object INT_ extends SchemaPrimitive(Type.INT)
   object LONG_ extends SchemaPrimitive(Type.LONG)
   object FLOAT_ extends SchemaPrimitive(Type.FLOAT)
@@ -79,6 +85,10 @@ object SchemaDSL {
 
   object ARRAY_ {
     def apply(schema: SchemaSchema) = new SchemaArray(schema)
+  }
+
+  object MAP_ {
+    def apply(schema: SchemaSchema) = new SchemaMap(schema)
   }
 
   final class DoubleArrow(val name: String) {

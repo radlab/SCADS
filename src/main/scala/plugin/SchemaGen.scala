@@ -57,6 +57,8 @@ trait SchemaGen extends ScalaAvroPluginComponent
       utf8Class       -> Schema.create(AvroType.STRING)
     )
 
+
+
     private def createSchema(tpe: Type): Schema = {
       if (primitiveClasses.get(tpe.typeSymbol).isDefined) {
         primitiveClasses.get(tpe.typeSymbol).get
@@ -74,8 +76,15 @@ trait SchemaGen extends ScalaAvroPluginComponent
         }
         Schema.createUnion(JArrays.asList(
           Array(createSchema(NullClass.tpe), createSchema(listParam)):_*))
+      } else if (tpe.typeSymbol == MapClass) {
+        val (keyTpe, valueTpe) = (tpe.typeArgs.head, tpe.typeArgs.tail.head)
+        if (keyTpe.typeSymbol != StringClass)
+          throw new UnsupportedOperationException("Avro maps require string key")
+        Schema.createMap(createSchema(valueTpe)) 
       } else if (isRecord(tpe.typeSymbol)) { 
         retrieveRecordSchema(tpe.typeSymbol).get 
+      } else if (isExternalRecord(tpe.typeSymbol)) {
+        retrieveExternalRecordSchema(tpe.typeSymbol)
       } else if (isUnion(tpe.typeSymbol)) {
         Schema.createUnion(JArrays.asList(
           retrieveUnionRecords(tpe.typeSymbol).

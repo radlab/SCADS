@@ -59,6 +59,10 @@ trait MethodGen extends ScalaAvroPluginComponent
       twoArgFunction(clazz, sym, "scalaListToGenericArray")
     }
 
+    private def map2jmap(clazz: Symbol, sym: Symbol): Tree = {
+      twoArgFunction(clazz, sym, "scalaMapToJMap")
+    }
+
     /** this.unwrapOption(this.sym, this.getSchema.getField(sym.name).schema */
     private def unwrapOption(clazz: Symbol, sym: Symbol): Tree = {
       twoArgFunction(clazz, sym, "unwrapOption")
@@ -91,6 +95,7 @@ trait MethodGen extends ScalaAvroPluginComponent
           throw new UnsupportedOperationException("Cannot handle this right now")
         ),
       ListClass   -> (list2GenericArray _),
+      MapClass    -> (map2jmap _),
       OptionClass -> (unwrapOption _))
 
     private def generateGetMethod(templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
@@ -129,9 +134,18 @@ trait MethodGen extends ScalaAvroPluginComponent
       val byteBufferTpe = byteBufferClass.tpe
       val utf8Tpe = utf8Class.tpe
 
+      def selectSchemaField(sym: Symbol): Tree = 
+        Apply(
+          Select(
+            Apply(
+              This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
+              List(LIT(sym.name.toString.trim))),
+            newTermName("schema")),
+          Nil)
+
       val cases = for ((sym, i) <- instanceVars.zipWithIndex) yield {
         val rhs = 
-          // TODO: i think sym == [Class] would work here too
+          // TODO: refactor this mess
           if (sym.tpe.typeSymbol == StringClass) {
             typer typed ((newSym ARG 1) AS utf8Tpe DOT newTermName("toString"))
           } else if (sym.tpe.typeSymbol == ArrayClass && sym.tpe.normalize.typeArgs.head == ByteClass.tpe) {
@@ -148,6 +162,19 @@ trait MethodGen extends ScalaAvroPluginComponent
                     newTermName("castToGenericArray")),
                   List(newSym ARG 1)))) AS sym.tpe
             typer typed apply
+          } else if (sym.tpe.typeSymbol == MapClass) {
+            val apply = 
+              Apply(
+                Select(
+                  This(clazz),
+                  newTermName("jMapToScalaMap")),
+                List(Apply(
+                  Select(
+                    This(clazz),
+                    newTermName("castToJMap")),
+                  List(newSym ARG 1)),
+                  selectSchemaField(sym))) AS sym.tpe
+            typer typed apply
           } else if (sym.tpe.typeSymbol == OptionClass) {
             val paramSym = sym.tpe.typeArgs.head.typeSymbol
             val useNative = 
@@ -158,13 +185,7 @@ trait MethodGen extends ScalaAvroPluginComponent
                 This(clazz) DOT newTermName("wrapOption"),
                 List(
                   (newSym ARG 1),
-                  Apply(
-                    Select(
-                      Apply(
-                        This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
-                        List(LIT(sym.name.toString.trim))),
-                      newTermName("schema")),
-                    Nil),
+                  selectSchemaField(sym),
                   LIT(useNative))) AS sym.tpe
             typer typed apply
           } else {
