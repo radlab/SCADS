@@ -212,35 +212,19 @@ trait MethodGen extends ScalaAvroPluginComponent
       //println("companionModuleOf(clazz): " + companionModuleOf(clazzTree))
       //println("companionModuleOf(clazz).moduleClass: " + companionModuleOf(clazzTree.symbol).moduleClass)
 
-      // the strategy: walk up the owner enclClass field; if we see an actual
-      // class, then we know that its an instance class. if we only see
-      // objects, then its fine
-      var startSym = clazz.owner
-      debug("startSym = " + startSym)
-      def useObj(curSym: Symbol): Boolean = {
-        debug("\tcurSym = " + curSym)
-        debug("\tcurSym.isPackage= " + curSym.isPackage)
-        debug("\tcurSym.isPackageClass = " + curSym.isPackageClass)
-        debug("\tcurSym.isClass = " + curSym.isClass)
-        debug("\tcurSym.isModuleClass = " + curSym.isModuleClass)
-        debug("\tcurSym.isTerm = " + curSym.isTerm)
-        if (curSym.isPackage || curSym.isPackageClass)
-          true /** TODO: what __should__ we do in this case? */
-        else if (!curSym.isModuleClass)
-          false /** We see a non object, so we have to work around */
-        else if (curSym.owner == NoSymbol)
-          true /** When would we get to this case if possible? */
-        else
-          useObj(curSym.owner) /** Check parent */
-      }
-      debug("useObj(startSym): " + useObj(startSym))
-
-      // TODO: temporary hack until we can figure out how to reference the
-      // module in nested inner classes (where an instance is needed)
       val innerTree: Tree =  /** Not sure why compiler needs type information (Tree) here */
-        if (useObj(startSym)) 
-          { This(companionModuleOf(clazzTree.symbol).moduleClass) DOT newTermName("schema") }
-        else
+        if (clazz.owner.isClass) { /** Only when the owner of this class is another class can we perform
+                                    *  the optimization of referencing the companion object */
+            debug("--- clazz ---: " + clazz)
+            debug("clazz.toplevelClass: " + clazz.toplevelClass)
+            debug("clazz.outerClass: " + clazz.outerClass)
+            debug("clazz.enclClass: " + clazz.enclClass)
+            if (clazz.toplevelClass == clazz) {
+              This(companionModuleOf(clazzTree.symbol).moduleClass) DOT newTermName("schema")
+            } else {
+              This(clazz.outerClass) DOT newTermName(clazz.name.toString) DOT newTermName("schema")
+            }
+        } else /** Fall back to the naive version in the other cases */
           Apply(
             Ident(newTermName("org")) DOT 
               newTermName("apache")   DOT
