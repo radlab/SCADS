@@ -59,4 +59,10 @@ class TestSchemaCreation extends TestCase {
     SchemaCompare.assertSchemaEquals(test6, classOf[Test6])
   }
 
+  def test7() = {
+    val test7 = classOf[Test7] ==>
+      "opt" ~~> (NULL_ | STRING_) :: Nil
+    SchemaCompare.assertSchemaEquals(test7, classOf[Test7])
+  }
+
 }

@@ -28,4 +28,9 @@ class TestReadWrite extends TestCase {
   def test6_rw() {
     assertReadWriteEquals(Test6("key0", 1002.343)("value0", "value1".getBytes))
   }
+
+  def test7_rw() {
+    assertReadWriteEquals(Test7(None))
+    assertReadWriteEquals(Test7(Some("MY STRING")))
+  }
 }

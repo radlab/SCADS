@@ -209,7 +209,7 @@ trait AvroConversions {
         case _ =>
           inner.asInstanceOf[AnyRef]
       }
-    case None =>
+    case None | null =>
       null.asInstanceOf[AnyRef]
   }
    
