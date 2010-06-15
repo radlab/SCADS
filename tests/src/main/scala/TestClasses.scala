@@ -39,3 +39,5 @@ case class Test5Inner(var i: Int) extends AvroRecord
 case class Test6(var key0: String, var key1: Double)(var value0: String, var value1: Array[Byte]) extends AvroRecord
 
 case class Test7(var opt: Option[String]) extends AvroRecord
+
+case class Test8(var n0: Int, var n1: Long, var n2: Float, var n3: Double) extends AvroRecord

@@ -46,10 +46,10 @@ trait Extender extends ScalaAvroPluginComponent
     import CODE._
 
     private val DefaultValues = Map(
-      IntClass -> ZERO,
-      LongClass -> ZERO,
-      FloatClass -> ZERO,
-      DoubleClass -> ZERO,
+      IntClass     -> LIT(0),
+      LongClass    -> LIT(0L),
+      FloatClass   -> LIT(0.f),
+      DoubleClass  -> LIT(0.0),
       BooleanClass -> FALSE)
 
     private def preTransform(tree: Tree): Tree = tree match {

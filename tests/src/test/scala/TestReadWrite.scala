@@ -33,4 +33,10 @@ class TestReadWrite extends TestCase {
     assertReadWriteEquals(Test7(None))
     assertReadWriteEquals(Test7(Some("MY STRING")))
   }
+
+  def test8_rw() {
+    assertReadWriteEquals(Test8(0, 0L, 0.f, 0.0)) 
+    assertReadWriteEquals(Test8(1, 2L, 1.332540f, 1200.93290)) 
+  }
+
 }
