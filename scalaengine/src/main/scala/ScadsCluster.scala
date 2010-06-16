@@ -424,6 +424,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
             logger.error("TIMEOUT in multiSetApply")
             MessageHandler.unregisterActor(id)
             resp.set(repArray)
+            exit
           }
           case msg => {
             logger.warn("Unexpected message in multiSetApply: " + msg)
@@ -826,7 +827,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
             val resp = msg.body.asInstanceOf[Int]
             s.addAndGet(resp)
             remaining -= 1
-            if(remaining < 0) { // count starts at 0
+            if(remaining <= 0) {
               sv.set(s.get)
               MessageHandler.unregisterActor(id)
               exit
@@ -888,7 +889,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
               list = list:::List((kinst,vinst))
             }
             remaining -= 1
-            if(remaining < 0) { // count starts at 0
+            if(remaining <= 0) {
               result.set(list)
               MessageHandler.unregisterActor(id)
               exit
@@ -957,7 +958,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
             retv.parse(rec.value)
             list ++= List((retk,retv))
             remaining -= 1
-            if(remaining < 0) { // count starts at 0
+            if(remaining <= 0) {
               result.set(list)
               MessageHandler.unregisterActor(id)
               exit
@@ -1033,7 +1034,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
             repv.parse(rep.reply)
             list = repv :: list
             remaining -= 1
-            if(remaining < 0) { // count starts at 0
+            if(remaining <= 0) {
               result.set(list)
               MessageHandler.unregisterActor(id)
               exit
