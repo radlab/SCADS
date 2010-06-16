@@ -11,3 +11,6 @@ target/
 *.iws
 *.swp
 client/src/test/resources/test-classpath.properties
+.classpath
+.project
+.settings/
