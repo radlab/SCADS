@@ -24,7 +24,8 @@ class Boot {
       Menu("PIQL Console") / "piql",
       Menu("Scala REPL") / "repl",
       Menu("Talks") / "talks" submenus(
-        Menu("Spring 2010 RAD LAB Retreat") / "talks" / "sigmod")
+        Menu("SIGMOD Demo Session") / "talks" / "sigmod",
+        Menu("Spring 2010 RAD LAB Retreat") / "talks" / "retreat")
       )
 
     LiftRules.setSiteMap(SiteMap(entries:_*))
