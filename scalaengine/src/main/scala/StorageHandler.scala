@@ -302,15 +302,18 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
     result
   }
 
-  private class ShippedClassLoader(ba:ByteBuffer) extends ClassLoader {
+  private class ShippedClassLoader(ba:ByteBuffer,targetClass:String) extends ClassLoader {
     override def findClass(name:String):Class[_] = {
-      return defineClass(name, ba.array, ba.position, ba.remaining)
+      if (name.equals(targetClass))
+        defineClass(name, ba.array, ba.position, ba.remaining)
+      else 
+        Class.forName(name)
     }
   }
 
   private def deserialize(name:String, ba:ByteBuffer):Any = {
     try {
-      val loader = new ShippedClassLoader(ba)
+      val loader = new ShippedClassLoader(ba,name)
       Class.forName(name,false,loader)
     } catch {
       case ex:java.io.IOException => {
@@ -753,7 +756,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
                   val rec = new Record
                   rec.key = keyBytes.getData
                   rec.value = valueBytes.getData
-                  recordSet.records.add(rec)
+                  recordSet.records = rec :: recordSet.records
                 }
               })
               reply(recordSet)
