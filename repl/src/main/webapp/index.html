@@ -1,0 +1,63 @@
+<lift:surround with="indigo" at="content">
+  <div class="main">
+    <div class="content">
+      <h1>What is PIQL?</h1>
+      <p>
+        Large-scale websites are increasingly moving from relational databases to distributed key-value stores for high request rate, low latency workloads.
+        Often this move is motivated not only by key-value stores’ ability to scale simply by adding more hardware, but also by the easy to understand predictable performance they provide for all operations.
+        While this data model works well, lookups are only done by primary key. More complex queries require onerous, explicit index management and imperative data lookups by the developer.
+        We demonstrate PIQL, a Performance Insightful Query Language that allows developers to express many of the queries found on these websites, while still providing strict bounds on the number of I/O operations for any query.
+      </p>
+
+      <h1>What websites have been build using PIQL?</h1>
+      <p>
+        One of our motivating applications is SCADr, a clone of twitter.
+        Implemented using PIQL, SCADr demonstrates that even relatively complex queries like the "thoughstream" can be implemented in a performance safe way.
+      </p>
+
+      <h1>But can normal developers use it?</h1>
+      <p>
+        As part of the <a href="http://radlab.cs.berkeley.edu">RAD Lab</a> Final Demo, we have hired a number of undergraduates, with only a semester of web development experience, to create compelling large scalable application.
+        Using the PiqlOnRails library they have implemented two prototype applications.
+        While porting their applications from ActiveRecord to PIQL, the undergraduates were forced to make some changes to their data model including removing the dependence on auto-incrementing primary keys. (A change Twitter was recently forced to make due to scaling issues.)
+      </p>
+      <p>
+        gRADit is a GRE vocabulary study tool with a social component to keep you motivated.
+      </p>
+      <img src="/img/gradit.png" width="300px"/><br/>
+      <p>RADish, is a firefox plugin that automatically filters comments found on sites you visit based on a number of factors including your social network</p>
+      <img src="/img/radish.png" width="300px"/>
+      <h1>Does it scale?</h1>
+      <p>
+        Since it runs on top of a scalable key/value store and each query performs only a bounded number of simple operations, out initial performance tests unsurprisingly show linear scaling as we add machines to the cluster
+      </p>
+        <object xmlns="http://www.w3.org/1999/xhtml" type="application/x-shockwave-flash" data="talks/open-flash-chart.swf" width="600" height="450" id="my_chart" style="visibility: visible; "><param name="flashvars" value="data-file=/talks/json/scadrThoughtstreamThroughput.png" /></object>
+      <h1>What about queries I can't run in PIQL</h1>
+      <p>
+        Due to the strict performance requirements of interactive applications, PIQL won't let you run interesting analytics queries that touch unbounded amounts of data.
+        However, all PIQL entities are serialized using Apache Avro, and thus it is relatively easy to write batch queries using other frameworks like Hadoop which are intended for operator-facing batch queries.
+      </p>
+      <h1>How can I try it out?</h1>
+      <p>
+        The <a href="/piql.html">PIQL Query Visualizer</a> is preloaded with example entities and queries from the SCADr application.
+        However, there are currently some unsafe queries that could slow down the site if it were to become popular.
+        From the editor you can use the query visualizer to find the parts of the queries that are performance unsafe and fix them using LIMIT clauses and data cardinality constraints.
+      </p>
+    </div>
+    <div class="sidenav">
+      <h1>Meet the Team</h1>
+      <ul>
+        <li><a href="http://cs.berkeley.edu/~marmbrus">Michael Armbrust</a></li>
+        <li><a href="http://cs.berkeley.edu/~nickl">Nick Lanham</a></li>
+        <li><a href="http://cs.berkeley.edu/~trush">Beth Trushkowsky</a></li>
+        <li><a href="http://cs.berkeley.edu/~sltu">Stephen Tu</a></li>
+      </ul>
+      <h1>Publications</h1>
+      <ul>
+        <li><a href="http://radlab.cs.berkeley.edu/publication/185">SCADS: Scale-independent storage for social computing applications - CIDR'09</a></li>
+        <li><a href="www.eecs.berkeley.edu/~franklin/Papers/socc10armbrust.pdf">A Case for PIQL: A Performance Insightful Query Language - <b>SOCC'10</b></a></li>
+      </ul>
+    </div>
+    <div class="clearer"><span></span></div>
+  </div>
+</lift:surround>

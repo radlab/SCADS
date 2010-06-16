@@ -1,0 +1,21 @@
+/* @override http://localhost:8080/stylesheets/repl.css */
+
+#history {
+	background:black; 
+	color:#ccc; 
+	overflow-y:auto; 
+	width:100%; 
+	height:400px;
+	font: bold 20px "Courier New", Courier, mono;
+}
+
+#cmdline {
+	width: 100%;
+	font: bold 16px "Courier New", Courier, mono;
+}
+
+#piqlcode {
+	height: 300px;
+	width: 100%;
+	font: bold 16px "Courier New", Courier, mono;
+}

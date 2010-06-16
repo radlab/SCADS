@@ -12,7 +12,7 @@ object GraphViz {
     val entities = spec.entities.map(_._2).toList
     val orphanQueries = spec.orphanQueries
     val instanceQueries = spec.entities.flatMap(_._2.queries)
-    val grapher = new GraphVis(spec.entities.map(_._2).toList)
+    val grapher = new GraphViz(spec.entities.map(_._2).toList)
 
     (orphanQueries ++ instanceQueries).foreach(q => {
       val outfile = new java.io.FileWriter(q._1 + ".dot")
@@ -23,11 +23,23 @@ object GraphViz {
   }
 }
 
-class GraphVis(entities: List[BoundEntity]) extends Generator[QueryPlan] {
+case class AnnotatedPlan(dotCode: String, recCount: Option[Int], ops: Option[Int])
+class GraphViz(entities: List[BoundEntity]) extends Generator[QueryPlan] {
   private val curId = new java.util.concurrent.atomic.AtomicInteger
   protected def nextId = curId.getAndIncrement()
+  val indexes = entities.flatMap(_.indexes)
 
-  protected def generate(plan: QueryPlan)(implicit sb: StringBuilder, indnt: Indentation): Unit = {
+  def getAnnotatedPlan(plan: QueryPlan): AnnotatedPlan = {
+    implicit val indnt = new Indentation
+    implicit val sb = new StringBuilder
+    val subPlan = generatePlan(plan)
+    AnnotatedPlan(sb.toString, subPlan.recCount, subPlan.ops)
+  }
+
+  /* Need a function with return type Unit for Generator */
+  protected def generate(plan: QueryPlan)(implicit sb: StringBuilder, indnt: Indentation): Unit = generatePlan(plan)
+
+  protected def generatePlan(plan: QueryPlan)(implicit sb: StringBuilder, indnt: Indentation): SubPlan = {
     outputBraced("digraph QueryPlan") {
       output("rankdir=BT;")
       generateGraph(plan)
@@ -42,8 +54,8 @@ class GraphVis(entities: List[BoundEntity]) extends Generator[QueryPlan] {
     return node
   }
 
-  protected def outputEdge(src: DotNode, dest: DotNode, label: String = "")(implicit sb: StringBuilder, indnt: Indentation): DotNode = {
-    output(src.id, " -> ", dest.id, "[label=", quote(label), "];")
+  protected def outputEdge(src: DotNode, dest: DotNode, label: String = "", color: String = "black")(implicit sb: StringBuilder, indnt: Indentation): DotNode = {
+    output(src.id, " -> ", dest.id, "[label=", quote(label), ", color=", quote(color), "];")
     return dest
   }
 
@@ -54,76 +66,86 @@ class GraphVis(entities: List[BoundEntity]) extends Generator[QueryPlan] {
     }
   }
 
+  def outputRecCountEdge(src: DotNode, dest: DotNode, recCount: Option[Int])(implicit sb: StringBuilder, indnt: Indentation): DotNode = {
+    recCount match {
+      case Some(c) => outputEdge(src, dest, label=c + " record(s)")
+      case None => outputEdge(src, dest, label="UNBOUNDED", color="red")
+    }
+  }
+
+  protected def outputStopOperator(childPlan: DotNode, limit: BoundRange)(implicit sb: StringBuilder, indnt: Indentation): DotNode = {
+    limit match {
+      case bl: BoundLimit => outputEdge(childPlan, outputDotNode("StopAfter(" + prettyPrint(bl) + ")"))
+      case _ => childPlan
+    }
+  }
+
+  protected def getFieldName(ns: String, ord: Int): String = indexes.find(_.namespace equals ns).get.attributes(ord)
+
   protected def getPredicates(ns: String, keySpec: List[BoundValue], child: DotNode)(implicit sb: StringBuilder, indnt: Indentation): DotNode = {
-    val keySchema = entities.find(_.namespace equals ns).get.keySchema
     keySpec.zipWithIndex.foldLeft(child) {
       case (subPlan: DotNode, (value: BoundValue, idx: Int)) => {
-        val fieldName = keySchema.getFields.get(idx).name
+        val fieldName = getFieldName(ns, idx)
         val selection = outputDotNode("selection\n" + fieldName + "=" + prettyPrint(value), shape="ellipse")
         outputEdge(subPlan, selection)
       }
     }
   }
-
 
   protected def getJoinPredicates(ns: String, conditions: Seq[JoinCondition], child: DotNode)(implicit sb: StringBuilder, indnt: Indentation): DotNode = {
-    val keySchema = entities.find(_.namespace equals ns).get.keySchema
     conditions.zipWithIndex.foldLeft(child) {
       case (subPlan: DotNode, (value: JoinCondition, idx: Int)) => {
-        val fieldName = keySchema.getFields.get(idx).name
+        val fieldName = getFieldName(ns, idx)
         val selection = outputDotNode("selection\n" + fieldName + "=" + prettyPrint(value), shape="ellipse")
         outputEdge(subPlan, selection)
       }
     }
   }
 
-  case class SubPlan(graph: DotNode, recCount: Int)
+  case class SubPlan(graph: DotNode, recCount: Option[Int], ops: Option[Int])
   protected def generateGraph(plan: QueryPlan)(implicit sb: StringBuilder, indnt: Indentation): SubPlan = {
     plan match {
       case SingleGet(ns, key) => {
         val graph = outputCluster("SingleGet\n1 GET Operation") {
           getPredicates(ns, key, outputDotNode(ns))
         }
-        SubPlan(graph, 1)
+        SubPlan(graph, Some(1), Some(1))
       }
       case PrefixGet(ns, prefix, limit, ascending) => {
         val graph = outputCluster("PrefixGet\n1 GET_RANGE Operation") {
           getPredicates(ns, prefix, outputDotNode(ns))
         }
-        SubPlan(graph, getIntValue(limit))
+        SubPlan(graph, getIntValue(limit), Some(1))
       }
       case SequentialDereferenceIndex(ns, child) => {
         val childPlan = generateGraph(child)
-        val graph = outputCluster("SequentialDeref\n", childPlan.recCount.toString, " GET Operations") {
+        val graph = outputCluster("SequentialDeref\n", prettyPrint(childPlan.recCount), " GET Operations") {
           val targetNs = outputDotNode(ns)
           val op = outputDotNode("Dereference", children=List(targetNs))
-          outputEdge(childPlan.graph, op, childPlan.recCount + " record(s)")
+          outputRecCountEdge(childPlan.graph, op, childPlan.recCount)
         }
-        SubPlan(graph, childPlan.recCount)
+        SubPlan(graph, childPlan.recCount, add(childPlan.ops, childPlan.recCount))
       }
       case PrefixJoin(ns, conditions, limit, ascending, child) => {
         val childPlan = generateGraph(child)
-        val graph = outputCluster("PrefixJoin\n", childPlan.recCount.toString, " GETRANGE Operations") {
+        val graph = outputCluster("PrefixJoin\n", prettyPrint(childPlan.recCount), " GETRANGE Operations") {
           val source = outputDotNode(ns)
           val join = outputDotNode("Join", shape="diamond", children=List(source))
-          outputEdge(childPlan.graph, join, childPlan.recCount + " record(s)")
+          outputRecCountEdge(childPlan.graph, join, childPlan.recCount)
           val pred = getJoinPredicates(ns, conditions, join)
-          limit match {
-            case biv: BoundIntegerValue => outputEdge(pred, outputDotNode("DataStopAfter(" + biv.value + ")", fillcolor="aquamarine4", style="filled"))
-            case v => outputEdge(pred, outputDotNode("StopAfter(" + prettyPrint(v) + ")"))
-          }
+          outputStopOperator(pred, limit)
         }
-        SubPlan(graph, getIntValue(limit) * childPlan.recCount)
+        SubPlan(graph, multiply(getIntValue(limit), childPlan.recCount), add(childPlan.ops, childPlan.recCount))
       }
       case PointerJoin(ns, conditions, child) => {
         val childPlan = generateGraph(child)
-        val graph = outputCluster("PointerJoin\n", childPlan.recCount.toString, " GET Operations") {
+        val graph = outputCluster("PointerJoin\n", prettyPrint(childPlan.recCount), " GET Operations") {
           val source = outputDotNode(ns)
           val join = outputDotNode("Join", shape="diamond", children=List(source))
-          outputEdge(childPlan.graph, join, childPlan.recCount + "record(s)")
+          outputRecCountEdge(childPlan.graph, join, childPlan.recCount)
           getJoinPredicates(ns, conditions, join)
         }
-        SubPlan(graph, childPlan.recCount)
+        SubPlan(graph, childPlan.recCount, add(childPlan.ops, childPlan.recCount))
       }
       case Materialize(entityType, child) => generateGraph(child)
       case Selection(equalityMap, child) => {
@@ -132,28 +154,47 @@ class GraphVis(entities: List[BoundEntity]) extends Generator[QueryPlan] {
           case (child: DotNode, pred: String) =>
             outputDotNode("Selection\n" + pred, style="filled")
         }
-        outputEdge(childPlan.graph, graph, childPlan.recCount + "record(s)")
-        SubPlan(graph, childPlan.recCount)
+        outputRecCountEdge(childPlan.graph, graph, childPlan.recCount)
+        SubPlan(graph, childPlan.recCount, childPlan.ops)
       }
       case Sort(fields, ascending, child) => {
         val childPlan = generateGraph(child)
         val graph = outputDotNode("Sort " + fields.mkString("[", ",", "]"), style="filled")
-        outputEdge(childPlan.graph, graph, childPlan.recCount + " record(s)")
-        SubPlan(graph, childPlan.recCount)
+        outputRecCountEdge(childPlan.graph, graph, childPlan.recCount)
+        SubPlan(graph, childPlan.recCount, childPlan.ops)
       }
       case TopK(k, child) => {
         val childPlan = generateGraph(child)
         val graph = outputDotNode("TopK " + prettyPrint(k), style="filled")
-        outputEdge(childPlan.graph, graph, childPlan.recCount + " record(s)")
-        SubPlan(graph, getIntValue(k))
+        outputRecCountEdge(childPlan.graph, graph, childPlan.recCount)
+        SubPlan(graph, getIntValue(k), childPlan.ops)
       }
     }
   }
 
-  //TODO: Fix the types so this casting isn't needed
-  protected def getIntValue(v: BoundValue): Int = v match {
-    case biv: BoundIntegerValue => biv.value
-    case _ => 0
+  protected def add(a: Option[Int], b: Option[Int]): Option[Int] = (a,b) match {
+    case (Some(x), Some(y)) => Some(x + y)
+    case _ => None
+  }
+
+  protected def multiply(a: Option[Int], b: Option[Int]): Option[Int] = (a,b) match {
+    case (Some(x), Some(y)) => Some(x * y)
+    case _ => None
+  }
+
+  protected def getIntValue(v: BoundRange): Option[Int] = v match {
+    case BoundLimit(_, max) => Some(max)
+    case BoundUnlimited => None
+  }
+
+  protected def prettyPrint(count: Option[Int]): String = count match {
+    case Some(c) => c.toString
+    case None => "UNBOUNDED"
+  }
+
+  protected def prettyPrint(value: BoundRange): String = value match {
+    case BoundLimit(l,m) => prettyPrint(l) + " MAX " + m
+    case BoundUnlimited => "UNBOUNDED"
   }
 
   protected def prettyPrint(value: BoundValue): String = value match {

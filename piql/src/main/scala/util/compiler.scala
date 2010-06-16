@@ -1,10 +1,12 @@
 package edu.berkeley.cs.scads.piql
 
 import java.io.File
+import java.io.InputStream
 import org.apache.log4j.Logger
 
 import edu.berkeley.cs.scads.piql.parser._
 
+@deprecated("PIQL2SQL has been deprecated in favor of the native execution engine")
 object PIQL2SQL {
   def main(args: Array[String]): Unit = {
     val piql = Compiler.readFile(new File(args(0)))
@@ -20,8 +22,12 @@ object Compiler {
 	object Parser extends ScadsLanguage
 
 	def readFile(file: File): String = {
-		val fis = new java.io.FileInputStream(file)
-		val in = new java.io.BufferedReader(new java.io.InputStreamReader(fis, "UTF-8"))
+    val fis = new java.io.FileInputStream(file)
+    readInputStream(fis)
+  }
+
+  def readInputStream(stream: InputStream): String = {
+		val in = new java.io.BufferedReader(new java.io.InputStreamReader(stream, "UTF-8"))
 		val ret = new StringBuilder
 		var line: String = in.readLine()
 
@@ -69,6 +75,13 @@ object Compiler {
     val writer = new java.io.BufferedWriter(new java.io.OutputStreamWriter(new java.io.FileOutputStream(output)))
     writer.write(code)
     writer.close
+  }
+
+  def getOptimizedSpec(code: String): BoundSpec = {
+    val ast = getAST(code)
+    val boundAst = new Binder(ast).bind
+    val opt = new Optimizer(boundAst)
+    opt.optimizedSpec
   }
 
   def main(args: Array[String]): Unit = {

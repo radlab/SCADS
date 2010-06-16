@@ -1,0 +1,497 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="800"
+   height="1000"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.47 r22583"
+   sodipodi:docname="piqlstack.svg"
+   inkscape:export-filename="/Users/marmbrus/Sites/slidy/radlab/piqlstack.png"
+   inkscape:export-xdpi="90"
+   inkscape:export-ydpi="90">
+  <defs
+     id="defs4">
+    <marker
+       inkscape:stockid="Arrow2Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow2Lend"
+       style="overflow:visible;">
+      <path
+         id="path4379"
+         style="font-size:12.0;fill-rule:evenodd;stroke-width:0.62500000;stroke-linejoin:round;"
+         d="M 8.7185878,4.0337352 L -2.2072895,0.016013256 L 8.7185884,-4.0017078 C 6.9730900,-1.6296469 6.9831476,1.6157441 8.7185878,4.0337352 z "
+         transform="scale(1.1) rotate(180) translate(1,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lstart"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Lstart"
+       style="overflow:visible">
+      <path
+         id="path4358"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1.0pt;marker-start:none"
+         transform="scale(0.8) translate(12.5,0)" />
+    </marker>
+    <inkscape:perspective
+       sodipodi:type="inkscape:persp3d"
+       inkscape:vp_x="177.99286 : 701.62812 : 1"
+       inkscape:vp_y="0 : 826.0972 : 0"
+       inkscape:vp_z="331.04899 : 701.62812 : 1"
+       inkscape:persp3d-origin="254.52092 : 556.73588 : 1"
+       id="perspective10" />
+    <filter
+       id="filter3080"
+       inkscape:label="Combined lighting"
+       inkscape:menu="Bevels"
+       inkscape:menu-tooltip="Basic specular bevel to use for building textures"
+       color-interpolation-filters="sRGB">
+      <feGaussianBlur
+         id="feGaussianBlur3082"
+         stdDeviation="6"
+         in="SourceGraphic"
+         result="result0" />
+      <feDiffuseLighting
+         id="feDiffuseLighting3084"
+         lighting-color="#ffffff"
+         diffuseConstant="1"
+         surfaceScale="4"
+         result="result5">
+        <feDistantLight
+           id="feDistantLight3086"
+           elevation="45"
+           azimuth="235" />
+      </feDiffuseLighting>
+      <feComposite
+         id="feComposite3088"
+         in2="SourceGraphic"
+         k1="1.4"
+         in="result5"
+         result="fbSourceGraphic"
+         operator="arithmetic"
+         k2="0"
+         k3="0"
+         k4="0" />
+      <feGaussianBlur
+         id="feGaussianBlur3090"
+         result="result0"
+         in="fbSourceGraphic"
+         stdDeviation="6" />
+      <feSpecularLighting
+         id="feSpecularLighting3092"
+         specularExponent="25"
+         specularConstant="1"
+         surfaceScale="4"
+         lighting-color="#ffffff"
+         result="result1"
+         in="result0">
+        <feDistantLight
+           id="feDistantLight3094"
+           azimuth="235"
+           elevation="45" />
+      </feSpecularLighting>
+      <feComposite
+         id="feComposite3096"
+         in2="result1"
+         k3="1"
+         k2="1"
+         operator="arithmetic"
+         result="result4"
+         in="fbSourceGraphic"
+         k1="0"
+         k4="0" />
+      <feComposite
+         id="feComposite3098"
+         in2="SourceGraphic"
+         operator="in"
+         result="result2"
+         in="result4" />
+    </filter>
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.49497475"
+     inkscape:cx="551.37162"
+     inkscape:cy="469.56617"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="1440"
+     inkscape:window-height="802"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:snap-center="false"
+     inkscape:snap-object-midpoints="false" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,-52.362183)">
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot3335"
+       style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans"><flowRegion
+         id="flowRegion3337"><rect
+           id="rect3339"
+           width="142.85715"
+           height="61.42857"
+           x="431.42856"
+           y="483.79074" /></flowRegion><flowPara
+         id="flowPara3341" /></flowRoot>    <rect
+       style="fill:#808000;fill-rule:evenodd;stroke:#000000;stroke-width:0.99900782px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter3080)"
+       id="rect2816"
+       width="161.56926"
+       height="145.62566"
+       x="68.9403"
+       y="221.58139"
+       ry="12.192386"
+       transform="matrix(1.3569137,0,0,-0.87720494,-14.294701,1171.2242)"
+       rx="4.4176145" />
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot3118"
+       style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans"
+       transform="translate(-35.950494,648.73326)"><flowRegion
+         id="flowRegion3120"><rect
+           id="rect3122"
+           width="254.55844"
+           height="145.46196"
+           x="96.974648"
+           y="213.93558"
+           style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans" /></flowRegion><flowPara
+         id="flowPara3124">Storage</flowPara><flowPara
+         id="flowPara3126">Node</flowPara></flowRoot>    <rect
+       rx="4.4263935"
+       transform="matrix(1.3542225,0,0,-0.87720494,220.11732,1172.6528)"
+       ry="12.192386"
+       y="221.58139"
+       x="68.9403"
+       height="145.62566"
+       width="161.56926"
+       id="rect3167"
+       style="fill:#808000;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter3080)" />
+    <flowRoot
+       transform="translate(198.33522,650.16186)"
+       style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans"
+       id="flowRoot3169"
+       xml:space="preserve"><flowRegion
+         id="flowRegion3171"><rect
+           style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans"
+           y="213.93558"
+           x="96.974648"
+           height="145.46196"
+           width="254.55844"
+           id="rect3173" /></flowRegion><flowPara
+         id="flowPara3175">Storage</flowPara><flowPara
+         id="flowPara3177">Node</flowPara></flowRoot>    <rect
+       rx="4.4263935"
+       transform="matrix(1.3542225,0,0,-0.87720494,-14.168394,1035.5099)"
+       ry="12.192386"
+       y="221.58139"
+       x="68.9403"
+       height="145.62566"
+       width="161.56926"
+       id="rect3210"
+       style="fill:#808000;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter3080)" />
+    <flowRoot
+       transform="translate(-35.950494,513.01896)"
+       style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans"
+       id="flowRoot3212"
+       xml:space="preserve"><flowRegion
+         id="flowRegion3214"><rect
+           style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans"
+           y="213.93558"
+           x="96.974648"
+           height="145.46196"
+           width="254.55844"
+           id="rect3216" /></flowRegion><flowPara
+         id="flowPara3218">Storage</flowPara><flowPara
+         id="flowPara3220">Node</flowPara></flowRoot>    <rect
+       style="fill:#808000;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter3080)"
+       id="rect3224"
+       width="161.56926"
+       height="145.62566"
+       x="68.9403"
+       y="221.58139"
+       ry="12.192386"
+       transform="matrix(1.3542225,0,0,-0.87720494,222.97447,1035.5099)"
+       rx="4.4263935" />
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot3226"
+       style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans"
+       transform="translate(201.19237,513.01896)"><flowRegion
+         id="flowRegion3228"><rect
+           id="rect3230"
+           width="254.55844"
+           height="145.46196"
+           x="96.974648"
+           y="213.93558"
+           style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans" /></flowRegion><flowPara
+         id="flowPara3232">Storage</flowPara><flowPara
+         id="flowPara3234">Node</flowPara></flowRoot>    <rect
+       rx="4.4263935"
+       transform="matrix(1.3542225,0,0,-0.87720494,454.40304,1174.0814)"
+       ry="12.192386"
+       y="221.58139"
+       x="68.9403"
+       height="305.22348"
+       width="157.34964"
+       id="rect3267"
+       style="fill:#800000;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter3080)" />
+    <flowRoot
+       transform="translate(428.1134,577.44981)"
+       style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans"
+       id="flowRoot3269"
+       xml:space="preserve"><flowRegion
+         id="flowRegion3271"><rect
+           style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans"
+           y="213.93558"
+           x="96.974648"
+           height="145.46196"
+           width="254.55844"
+           id="rect3273" /></flowRegion><flowPara
+         id="flowPara3277">Zoo</flowPara><flowPara
+         id="flowPara3287">Keeper</flowPara></flowRoot>    <rect
+       rx="4.4263935"
+       transform="matrix(1.3542225,0,0,-0.87720494,-14.168391,896.93848)"
+       ry="12.192386"
+       y="221.58139"
+       x="68.9403"
+       height="75.598022"
+       width="503.35736"
+       id="rect3291"
+       style="fill:#000080;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter3080)" />
+    <flowRoot
+       transform="translate(-15.926219,430.5134)"
+       style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans"
+       id="flowRoot3293"
+       xml:space="preserve"><flowRegion
+         id="flowRegion3295"><rect
+           style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans"
+           y="213.93558"
+           x="96.974648"
+           height="45.461945"
+           width="680.27271"
+           id="rect3297" /></flowRegion><flowPara
+         id="flowPara3301">Thrift RPC</flowPara></flowRoot>    <rect
+       style="fill:#008000;fill-rule:evenodd;stroke:#000000;stroke-width:0.99037856px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter3080)"
+       id="rect3307"
+       width="238.57707"
+       height="155.39694"
+       x="68.9403"
+       y="221.58139"
+       ry="12.192386"
+       transform="matrix(1.3806626,0,0,-0.87720494,-8.864329,821.09893)"
+       rx="4.3416266" />
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot3309"
+       style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans"
+       transform="translate(-13.882252,315.79685)"><flowRegion
+         id="flowRegion3311"><rect
+           id="rect3313"
+           width="333.12985"
+           height="111.17623"
+           x="96.974648"
+           y="213.93558"
+           style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans" /></flowRegion><flowPara
+         id="flowPara3317">Read Policy</flowPara></flowRoot>    <rect
+       rx="4.3312874"
+       transform="matrix(1.3839584,0,0,-0.87720494,341.17414,821.09893)"
+       ry="12.192386"
+       y="221.58139"
+       x="68.9403"
+       height="155.39694"
+       width="238.57707"
+       id="rect3321"
+       style="fill:#008000;fill-rule:evenodd;stroke:#000000;stroke-width:0.98919857px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter3080)" />
+    <flowRoot
+       transform="translate(339.49728,315.79685)"
+       style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans"
+       id="flowRoot3323"
+       xml:space="preserve"><flowRegion
+         id="flowRegion3325"><rect
+           style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans"
+           y="213.93558"
+           x="96.974648"
+           height="111.17623"
+           width="330.27271"
+           id="rect3327" /></flowRegion><flowPara
+         id="flowPara3331">Write Policy</flowPara></flowRoot>    <rect
+       rx="4.3312874"
+       transform="matrix(1.3839584,0,0,-0.87720494,-9.484693,669.119)"
+       ry="12.192386"
+       y="221.58139"
+       x="68.9403"
+       height="155.39694"
+       width="238.57707"
+       id="rect3347"
+       style="fill:#008000;fill-rule:evenodd;stroke:#000000;stroke-width:0.98919857px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter3080)" />
+    <flowRoot
+       transform="translate(-12.651783,138.46535)"
+       style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans"
+       id="flowRoot3349"
+       xml:space="preserve"><flowRegion
+         id="flowRegion3351"><rect
+           style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans"
+           y="213.93558"
+           x="96.974648"
+           height="111.17623"
+           width="333.12985"
+           id="rect3353" /></flowRegion><flowPara
+         id="flowPara3355">Query Operators</flowPara></flowRoot>    <rect
+       style="fill:#008000;fill-rule:evenodd;stroke:#000000;stroke-width:0.98919857px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter3080)"
+       id="rect3359"
+       width="238.57707"
+       height="155.39694"
+       x="68.9403"
+       y="221.58139"
+       ry="12.192386"
+       transform="matrix(1.3839584,0,0,-0.87720494,341.17414,669.11896)"
+       rx="4.3312874" />
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot3361"
+       style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans"
+       transform="translate(336.20041,142.0786)"><flowRegion
+         id="flowRegion3363"><rect
+           id="rect3365"
+           width="333.12985"
+           height="111.17623"
+           x="96.974648"
+           y="213.93558"
+           style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans" /></flowRegion><flowPara
+         id="flowPara3367">WAL</flowPara><flowPara
+         id="flowPara3395">Executor</flowPara></flowRoot>    <rect
+       style="fill:#008000;fill-rule:evenodd;stroke:#000000;stroke-width:0.98919857px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter3080)"
+       id="rect3371"
+       width="238.57707"
+       height="155.39694"
+       x="68.9403"
+       y="221.58139"
+       ry="12.192386"
+       transform="matrix(1.3839584,0,0,-0.87720494,-9.484693,517.13897)"
+       rx="4.3312874" />
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot3373"
+       style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans"
+       transform="translate(-13.491627,-9.6377191)"><flowRegion
+         id="flowRegion3375"><rect
+           id="rect3377"
+           width="333.12985"
+           height="111.17623"
+           x="96.974648"
+           y="213.93558"
+           style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans" /></flowRegion><flowPara
+         id="flowPara3379">Query</flowPara><flowPara
+         id="flowPara3393">Functions</flowPara></flowRoot>    <rect
+       rx="4.3312874"
+       transform="matrix(1.3839584,0,0,-0.87720494,341.17414,517.13903)"
+       ry="12.192386"
+       y="221.58139"
+       x="68.9403"
+       height="155.39694"
+       width="238.57707"
+       id="rect3383"
+       style="fill:#008000;fill-rule:evenodd;stroke:#000000;stroke-width:0.98919857px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter3080)" />
+    <flowRoot
+       transform="translate(338.00705,-9.2861041)"
+       style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans"
+       id="flowRoot3385"
+       xml:space="preserve"><flowRegion
+         id="flowRegion3387"><rect
+           style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans"
+           y="213.93558"
+           x="96.974648"
+           height="111.17623"
+           width="333.12985"
+           id="rect3389" /></flowRegion><flowPara
+         id="flowPara3391">Entity</flowPara><flowPara
+         id="flowPara3397">Classes</flowPara></flowRoot>    <rect
+       rx="4.4263935"
+       transform="matrix(1.3542225,0,0,-0.87720494,-9.882679,369.79566)"
+       ry="12.192386"
+       y="221.58139"
+       x="68.9403"
+       height="95.140625"
+       width="505.10519"
+       id="rect3401"
+       style="fill:#008080;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter3080)" />
+    <flowRoot
+       transform="translate(-18.167571,-109.07785)"
+       style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans"
+       id="flowRoot3403"
+       xml:space="preserve"><flowRegion
+         id="flowRegion3405"><rect
+           style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;writing-mode:lr-tb;text-anchor:middle;fill:#ffffff;font-family:Bitstream Vera Sans;-inkscape-font-specification:Bitstream Vera Sans"
+           y="213.93558"
+           x="96.974648"
+           height="55.461952"
+           width="687.41559"
+           id="rect3407" /></flowRegion><flowPara
+         id="flowPara3411">Web Application</flowPara></flowRoot>    <path
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-start:url(#Arrow1Lstart);marker-end:url(#Arrow2Lend)"
+       d="m 84.852814,996.17547 448.507736,0"
+       id="path3581" />
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot5128"
+       style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans"
+       transform="translate(91.84095,990.77729)"><flowRegion
+         id="flowRegion5130"><rect
+           id="rect5132"
+           width="391.93918"
+           height="72.73098"
+           x="123.23861"
+           y="6.0098958" /></flowRegion><flowPara
+         id="flowPara5134">Partitions</flowPara></flowRoot>    <flowRoot
+       xml:space="preserve"
+       id="flowRoot5136"
+       style="font-size:40px;font-style:normal;font-weight:normal;fill:#000000;fill-opacity:1;stroke:none;font-family:Bitstream Vera Sans"
+       transform="matrix(-0.00365242,-0.99999333,0.99999333,-0.00365242,-84.074493,970.71325)"><flowRegion
+         id="flowRegion5138"><rect
+           id="rect5140"
+           width="173.74625"
+           height="50.507641"
+           x="34.345188"
+           y="88.842407"
+           ry="0" /></flowRegion><flowPara
+         id="flowPara5142">Replicas</flowPara></flowRoot>    <path
+       id="path5144"
+       d="M 63.548923,728.6554 63.383831,965.83691"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-start:url(#Arrow1Lstart);marker-end:url(#Arrow2Lend)" />
+  </g>
+</svg>

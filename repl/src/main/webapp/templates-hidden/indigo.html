@@ -1,0 +1,49 @@
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:lift="http://liftweb.net/">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=iso-8859-1"/>
+    <link rel="stylesheet" type="text/css" href="/stylesheets/indigo.css" media="screen"/>
+    <script id="jquery" src="/classpath/jquery.js" type="text/javascript"></script>
+    <script src="/highcharts/highcharts.js" type="text/javascript"></script>
+    <script src="/highcharts/excanvas-compressed.js" type="text/javascript"></script>
+    <script src="/highslide/highslide-full.js" type="text/javascript"></script>
+    <link href="/stylesheets/repl.css" rel="stylesheet" type="text/css"/>
+    <link href="/highslide/highslide.css" rel="stylesheet" type="text/css"/>
+    <script type="text/javascript">
+      hs.align = 'center';
+    </script>
+    <title>PIQL: The Performance Insightful Query Language</title>
+  </head>
+
+  <body>
+
+    <div class="container">
+
+      <div class="header">
+
+        <div class="title">
+          <h1>PIQL: A Performance Insightful Query Language</h1>
+        </div>
+
+        <div class="navigation">
+          <a href="index.html">Home</a>
+          <a href="talks/sigmod.html">Slides</a>
+          <a href="piql.html">Query Visualizer</a>
+          <a href="repl.html">Interactive REPL</a>
+          <a href="http://scadr.knowsql.org">Sample Application: SCADr</a>
+          <div class="clearer"><span></span></div>
+        </div>
+
+      </div>
+
+      <lift:bind name="content" />
+      <lift:msgs/>
+
+
+    </div>
+
+    <div class="footer">&copy; 2006 <a href="index.html">Website.com</a>. Valid <a href="http://jigsaw.w3.org/css-validator/check/referer">CSS</a> &amp; <a href="http://validator.w3.org/check?uri=referer">XHTML</a>. Template design by <a href="http://arcsin.se">Arcsin</a>
+    </div>
+
+  </body>
+
+</html>

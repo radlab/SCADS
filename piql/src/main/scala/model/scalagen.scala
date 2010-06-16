@@ -438,6 +438,7 @@ object ScalaGen extends Generator[BoundSpec] {
     case BoundThisAttribute(name, _) => name
     case BoundIntegerValue(i) => i.toString
     case AttributeCondition(attr) => "AttributeCondition(" + quote(attr) + ")"
+    case BoundLimit(v, _) => argToCode(v)
     case u: AnyRef => {
       logger.fatal("I don't know how to generate scala for argument of type: " + u.getClass + " => " + u)
       ""

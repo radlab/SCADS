@@ -1,0 +1,148 @@
+<lift:surround with="talk" at="content">
+  <div class="slide titlepage">
+    <h1>PIQL: A Performance Insightful Query Language</h1>
+    <h2>Michael Armbrust, Nick Lanham, Beth Trushkowsky, Stephen Tu</h2>
+    <h3>SIGMOD Demo Session 2010</h3>
+    <div class="sponsors">
+      <img src="google.png"/>
+      <img src="microsoft.png"/>
+      <img src="sun.png"/>
+      <div class="associates">
+        <img src="aws.gif"/>
+        <img src="cisco.png"/>
+        <img src="cloudera.png"/>
+        <img src="ebay.gif"/>
+        <img src="facebook.tiff"/>
+        <img src="fujitsu.png"/><br/>
+        <img src="hp.png"/>
+        <img src="intel.gif"/>
+        <img src="netapp.png"/>
+        <img src="sap.gif"/>
+        <img src="vmware.png"/>
+        <img src="yahoo.png"/>
+      </div>
+    </div>
+  </div>
+  <div class="slide content">
+    <h1>Motivation</h1>
+    <img class="accentimg" src="failwhale.jpg"/>
+    <ul>
+      <li>Developers find it difficult to write fast/scalable sites using a traditional RDBMS</li>
+      <ul>
+        <li>Ex: Many of Twitter's "Fail Whales" caused by unintentionally slow DB queries [Chirp 2010]</li>
+      </ul>
+      <li>Speed is an increasingly important metric for website success</li>
+      <ul>
+        <li>Research has show measuable changes in user behavior due to small changes in latency</li>
+        <li>Websites that can not keep up with scaling demands will fail. Ex: Friendster</li>
+        <li>Page load time now used as Google Search ranking feature</li>
+      </ul>
+      <li>Result: Many developers are abandoning the RDBMS for large-scale interactive applications</li>
+      <ul>
+        <li>Facebook</li>
+        <li>Twitter</li>
+        <li>Google</li>
+        <li>Amazon</li>
+        <li>Digg</li>
+        <li>and many more...</li>
+      </ul>
+    </ul>
+  </div>
+  <div class="slide content">
+    <h1>Query Language: SQL</h1>
+    <center><img src="spectrumsql.png" width="75%"/></center>
+    <ul>
+      <li>Powerful Declarative Query Language</li>
+      <ul>
+        <li>Sufficiently expressive to execute any query</li>
+        <li>Optimizer decides the <i>best</i> execution plan</li>
+        <li>Provides physical/logical data independence</li>
+      </ul>
+      <li>Performance Opaque</li>
+      <ul>
+        <li>Easy to express queries that are computationally expensive (especially as the user base grows)</li>
+        <li>Some large sites end up using them as a key/value store with proprietary layer on top</li>
+      </ul>
+    </ul>
+  </div>
+  <div class="slide content">
+    <h1>Query Language: K/V Store</h1>
+    <center><img src="spectrumnosql.png" width="75%"/></center>
+    <ul>
+      <li>Simple Query Interface</li>
+      <ul>
+        <li>More complex queries are expressed as imperative programs that perform many simple operations</li>
+        <li>Changes to physical schema require developers to manually fix queries</li>
+      </ul>
+      <li>Trivial Performance Model</li>
+      <ul>
+        <li>Simple operations (get/put) generally have fixed latency</li>
+        <li>Expensive queries are obvious</li>
+      </ul>
+      <li>Inherently distributed</li>
+    </ul>
+  </div>
+  <div class="slide content">
+    <h1>K/V Store Example: Digg</h1>
+    <ul>
+      <li>Cassandra's Datamodel</li>
+      <ul>
+        <li>Every <b>row</b> is identified by a unique <b>key</b>. The key is a string and there is no limit on its size.</li>
+        <li>An instance of Cassandra has <b>one table</b> which is made up of one or more <b>column families</b> as defined by the user.</li>
+        <li>The number of column families and the name of each of the above must be fixed at the time the cluster is started.</li>
+        <li>Each <b>column family</b> can contain one of two structures: <b>supercolumns</b> or <b>columns</b>. Both of these are dynamically created and there is no limit on the number of these that can be stored in a column family.</li>
+        <li>Columns are constructs that have a <b>name</b>, a <b>value</b> and a user-defined <b>timestamp</b> associated with them. The number of columns that can be contained in a column family is very large. Columns could be of variable number per key.</li>
+        <li>“<b>Supercolumns</b>” are a construct that have a name, and an infinite number of columns associated with them. The number of “Supercolumns” associated with any column family could be infinite and of a variable number per key. They exhibit the same characteristics as columns.</li>
+      </ul>
+    </ul>
+  </div>
+  <div class="slide content">
+    <h1>K/V Store Example: Digg</h1>
+    <img src="cassandramodel.png" width="100%"/>
+  </div>
+  <div class="slide content">
+    <h1>K/V Store Example: Digg</h1>
+    <ul>
+      <li>Implementing Digg Intersection on Cassandra (i.e. Which of my freinds dugg this article?)</li>
+      <ul>
+        <li>Create a set of buckets per (user, item) pair, with each bucket containing a list of users who dugg the item who are also friends of the viewing user.</li>
+        <li>When an item is dugg, asynchronously populate Cassandra by fetching the list of followers of the digging user, and placing one column in each of their buckets.</li>
+      </ul>
+      <li>Data Model?</li>
+      <ul>
+        <li><b>row key</b> =&gt; viewingUserId</li>
+        <li><b>super column family</b> =&gt; articleId</li>
+        <li><b>column</b> =&gt; diggingUserId</li>
+        <li><b>value</b> =&gt; =&gt; unused?</li>
+        <li><b>timestamp</b> =&gt; unused?</li>
+      </ul>
+      <li>Developer is responsible for creating all of the entries manually</li>
+      <li>Blog post does not mention how to handle addition/deletion of friends</li>
+    </ul>
+  </div>
+  <div class="slide content">
+    <h1>SQL Example: Digg</h1>
+    <pre>
+SELECT friendships.targetUser FROM diggs    
+  JOIN friendships ON friendships.targetUser = diggs.username
+WHERE friendships.owner = [username] AND diggs.articleId = [article]
+    </pre>
+  </div>
+  <div class="slide content">
+    <h1>Query Language: PIQL</h1>
+    <center><img src="spectrumpiql.png" width="75%"/></center>
+    <ul>
+      <li>Scale-Independent declarative language subset</li>
+      <ul>
+        <li>Only allow developers to write queries where we can calculate a bound for the number of underlying operations it will perform</li>
+        <li>Optimizer decides what indexes are needed and will automatically parallelized queries where possible</li>
+        <li>Provides physical/logical data independence</li>
+      </ul>
+      <li>Performance feedback given to developer by the compiler</li>
+      <ul>
+        <li>Unbounded queries are disallowed</li>
+        <li>Queries above specified threshold generate a warning</li>
+      </ul>
+    </ul>
+  </div>
+</lift:surround>
