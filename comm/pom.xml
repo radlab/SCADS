@@ -121,6 +121,7 @@
 			<plugin>
 				<groupId>com.thoughtworks.paranamer</groupId>
 				<artifactId>paranamer-maven-plugin</artifactId>
+        <version>2.2</version>
 				<executions>
 					<execution>
 						<id>run</id>  <!-- id is optional -->
