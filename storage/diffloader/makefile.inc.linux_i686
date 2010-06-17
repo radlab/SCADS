@@ -1,8 +1,0 @@
-# Linux specific paths
-
-THRIFT_DIR = /usr/include/thrift
-BOOST_DIR = /usr/boost/include/boost-1_33_1/
-LIB_DIRS = -L/usr/lib
-BDB =
-RUBY_INCLUDES = -I/usr/lib/ruby/1.8/i386-linux/
-RUBY_LIB = ruby1.8
