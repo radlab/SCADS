@@ -7,29 +7,26 @@ import scala.concurrent.SyncVar
 import org.apache.log4j.Logger
 import org.apache.avro.util.Utf8
 
-import edu.berkeley.cs.scads.comm.Storage.AvroConversions._
-
 object Sync {
 	val logger = Logger.getLogger("scads.comm.sync")
 
-	def makeRequest(rn: RemoteNode, dest: Object, reqBody: Object): Object = 
+	def makeRequest(rn: RemoteNode, dest: Object, reqBody: MessageBody): Object = 
     makeRequest(rn,dest,reqBody,10000)
 
-	def makeRequest(rn: RemoteNode, dest: Object, reqBody: Object, timeout:Long): Object = {
+	def makeRequest(rn: RemoteNode, dest: Object, reqBody: MessageBody, timeout:Long): Object = {
 		val resp = new SyncVar[Either[Throwable, Object]]
 
 		val a = actor {
-			val req = new Message
-			req.body = reqBody.asInstanceOf[Message_body_Iface] // Hack for now
+			val req = classOf[Message].newInstance() //HACK
+			req.body = reqBody
       req.dest = dest match {
-        case l: java.lang.Long => new AvroLong(l.asInstanceOf[Long]) // TODO: is this the right type of long we want?
-        case s: String         => new AvroString(new Utf8(s))
-        case u: Utf8           => new AvroString(u)
+        case l: java.lang.Long => new ActorNumber(l.asInstanceOf[Long]) // TODO: is this the right type of long we want?
+        case s: String         => new ActorName(s)
+        case u: Utf8           => new ActorName(u.toString)
         case _                 => throw new IllegalArgumentException("bad dest obj")
       }
       val id = MessageHandler.registerActor(self)
-			//req.src = new java.lang.Long(id)
-            req.src = id
+      req.src = Some(ActorNumber(id))
 			MessageHandler.sendMessage(rn, req)
 			reactWithin(timeout) {
 				case (RemoteNode(hostname, port), msg: Message) => msg.body match {
@@ -48,22 +45,21 @@ object Sync {
 		}
 	}
 
-	def makeRequestNoTimeout(rn: RemoteNode, dest: Object, reqBody: Object): Object = {
+	def makeRequestNoTimeout(rn: RemoteNode, dest: Object, reqBody: MessageBody): Object = {
 		val resp = new SyncVar[Either[Throwable, Object]]
 
 		val a = actor {
-			val req = new Message
-			req.body = reqBody.asInstanceOf[Message_body_Iface] // Hack for now
+			val req = classOf[Message].newInstance() //HACK 
+			req.body = reqBody
       req.dest = dest match {
-        case l: java.lang.Long => new AvroLong(l.asInstanceOf[Long]) // TODO: is this the right type of long we want?
-        case s: String         => new AvroString(new Utf8(s))
-        case u: Utf8           => new AvroString(u)
+        case l: java.lang.Long => new ActorNumber(l.asInstanceOf[Long]) // TODO: is this the right type of long we want?
+        case s: String         => new ActorName(s)
+        case u: Utf8           => new ActorName(u.toString)
         case _                 => throw new IllegalArgumentException("bad dest obj")
       }
 
       val id = MessageHandler.registerActor(self)
-			//req.src = new java.lang.Long(id)
-            req.src = id
+      req.src = Some(ActorNumber(id))
 			MessageHandler.sendMessage(rn, req)
 			react {
 				case (RemoteNode(hostname, port), msg: Message) => msg.body match {

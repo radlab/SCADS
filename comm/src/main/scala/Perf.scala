@@ -1,6 +1,5 @@
 
 import edu.berkeley.cs.scads.comm._
-import edu.berkeley.cs.scads.comm.Storage.AvroConversions._
 import org.apache.avro.util._
 import java.nio.ByteBuffer
 import java.util.concurrent.Semaphore
@@ -47,10 +46,10 @@ object PerfActorEchoSender {
     //val did = new java.lang.Long(id)
     def act() {
       (1 to testSize/numActors).foreach( j => {
-        val req = new Message
+        val req = classOf[Message].newInstance() //HACK
         //req.src = new java.lang.Long(id)
-        req.src = id
-        req.dest = id
+        req.src = Some(ActorNumber(id))
+        req.dest = ActorNumber(id)
         req.body = null
         MessageHandler.sendMessage(dest, req)
       })
@@ -109,9 +108,9 @@ object PerfMultiActorEchoSender {
         actor {
           val idl = MessageHandler.registerActor(self)
           //val id = new java.lang.Long(idl)
-          val req = new Message
-          req.src = idl
-          req.dest = idl
+          val req = classOf[Message].newInstance() //HACK
+          req.src = Some(ActorNumber(idl))
+          req.dest = ActorNumber(idl)
           req.body = null
           MessageHandler.sendMessage(dest, req)
           react {
@@ -177,9 +176,9 @@ object PerfActorSender {
         actor {
           val id = MessageHandler.registerActor(self)
           (1 to testSize/5).foreach(j => {
-            val req = new Message
+            val req = classOf[Message].newInstance() //HACK
             //req.src = new java.lang.Long(15)
-            req.src = 15L
+            req.src = Some(ActorNumber(15L))
             req.body = null
             MessageHandler.sendMessage(dest, req)
           })
@@ -224,9 +223,9 @@ object PerfSenderTrivial {
     (1 to 10).foreach(t => {
       val start = System.currentTimeMillis()
       (1 to testSize).foreach(i => {
-        val req = new Message
+        val req = classOf[Message].newInstance() //HACK
         //req.src = new java.lang.Long(15)
-        req.src = 15L
+        req.src = Some(ActorNumber(15L))
         req.body = null
         mgr.sendMessage(dest, req)
       })
@@ -259,14 +258,14 @@ object PerfSender {
     (1 to 10).foreach(t => {
       val start = System.currentTimeMillis()
       (1 to testSize).foreach(i => {
-        val pr = new PutRequest
-        pr.namespace = new Utf8("__namespace__")
-        pr.key = ByteBuffer.wrap("__key__".getBytes)
-        pr.value = ByteBuffer.wrap("__value__".getBytes)
+        val pr = classOf[PutRequest].newInstance() 
+        pr.namespace = "__namespace__"
+        pr.key = "__key__".getBytes
+        pr.value = Some("__value__".getBytes)
 
-        val req = new Message
+        val req = classOf[Message].newInstance() //HACK
         //req.src = new java.lang.Long(15)
-        req.src = 15L
+        req.src = Some(ActorNumber(15L))
         req.body = pr
 
         mgr.sendMessage(dest, req)

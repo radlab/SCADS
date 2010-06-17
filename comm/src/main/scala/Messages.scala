@@ -1,9 +1,9 @@
 package edu.berkeley.cs.scads.comm
 
 import com.googlecode.avro.marker.AvroRecord
+import com.googlecode.avro.annotation.AvroUnion
 
-
-sealed trait MessageBody
+@AvroUnion sealed trait MessageBody
 case class Record(var key: Array[Byte], var value: Array[Byte]) extends AvroRecord with MessageBody
 case class RecordSet(var records: List[Record]) extends AvroRecord with MessageBody
 
@@ -41,8 +41,8 @@ case class FoldRequest(var namespace: String, var keyType: String, var valueType
 case class FoldRequest2L(var namespace: String, var keyType: String, var valueType: String, var initValueOne: Array[Byte], var initValueTwo: Array[Byte], var direction: Int, var codename: String, var code: Array[Byte]) extends AvroRecord with MessageBody
 case class Fold2Reply(var reply: Array[Byte]) extends AvroRecord with MessageBody
 
-sealed trait ActorId
+@AvroUnion sealed trait ActorId
 case class ActorNumber(var num: Long) extends AvroRecord with ActorId
 case class ActorName(var name: String) extends AvroRecord with ActorId
 
-case class Message(var src: Option[ActorId], dest: ActorId, id: Option[Long], body: MessageBody)
+case class Message(var src: Option[ActorId], var dest: ActorId, var id: Option[Long], var body: MessageBody) extends AvroRecord

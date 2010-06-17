@@ -50,7 +50,7 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
   }
 
   def receiveMessage(src: RemoteNode, msg: Message): Unit = msg.dest match {
-    case AvroLong(l) => {
+    case ActorNumber(l) => {
       val act = getActor(l.longValue)
       if (act != null) {
         act ! (src,msg)
@@ -59,7 +59,7 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
         logger.warn("Got message for null actor")
       }
     }
-    case AvroString(u) => {
+    case ActorName(u) => {
       var service = getService(u.toString)
       if (service != null)
         service.receiveMessage(src,msg)
@@ -73,15 +73,7 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
 
 class StorageEchoServer extends NioAvroChannelManagerBase[Message, Message] {
   def receiveMessage(src: RemoteNode, req: Message): Unit = {
-    val resp = new Message
-    if (req.src == null) {
-        // TODO: what do we do here?
-    } else {
-        resp.dest = req.src match {
-            case l:AvroLong   => l
-            case s:AvroString => s
-        }
-    }
+    val resp = new Message(Some(ActorName("echo")), req.src.get, None, new Record("test".getBytes, "test".getBytes))
 
     sendMessage(src, resp)
   }
