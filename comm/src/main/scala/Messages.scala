@@ -45,4 +45,4 @@ case class Fold2Reply(var reply: Array[Byte]) extends AvroRecord with MessageBod
 case class ActorNumber(var num: Long) extends AvroRecord with ActorId
 case class ActorName(var name: String) extends AvroRecord with ActorId
 
-case class Message(var src: Option[ActorId], var dest: ActorId, var id: Option[Long], var body: MessageBody) extends AvroRecord
+case class Message(var src: ActorId, var dest: ActorId, var id: Option[Long], var body: MessageBody) extends AvroRecord

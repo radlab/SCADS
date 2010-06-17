@@ -73,7 +73,7 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
 
 class StorageEchoServer extends NioAvroChannelManagerBase[Message, Message] {
   def receiveMessage(src: RemoteNode, req: Message): Unit = {
-    val resp = new Message(Some(ActorName("echo")), req.src.get, None, new Record("test".getBytes, "test".getBytes))
+    val resp = new Message(ActorName("echo"), req.src, None, new Record("test".getBytes, "test".getBytes))
 
     sendMessage(src, resp)
   }

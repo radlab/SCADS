@@ -48,7 +48,7 @@ object PerfActorEchoSender {
       (1 to testSize/numActors).foreach( j => {
         val req = classOf[Message].newInstance() //HACK
         //req.src = new java.lang.Long(id)
-        req.src = Some(ActorNumber(id))
+        req.src = ActorNumber(id)
         req.dest = ActorNumber(id)
         req.body = null
         MessageHandler.sendMessage(dest, req)
@@ -109,7 +109,7 @@ object PerfMultiActorEchoSender {
           val idl = MessageHandler.registerActor(self)
           //val id = new java.lang.Long(idl)
           val req = classOf[Message].newInstance() //HACK
-          req.src = Some(ActorNumber(idl))
+          req.src = ActorNumber(idl)
           req.dest = ActorNumber(idl)
           req.body = null
           MessageHandler.sendMessage(dest, req)
@@ -178,7 +178,7 @@ object PerfActorSender {
           (1 to testSize/5).foreach(j => {
             val req = classOf[Message].newInstance() //HACK
             //req.src = new java.lang.Long(15)
-            req.src = Some(ActorNumber(15L))
+            req.src = ActorNumber(15L)
             req.body = null
             MessageHandler.sendMessage(dest, req)
           })
@@ -225,7 +225,7 @@ object PerfSenderTrivial {
       (1 to testSize).foreach(i => {
         val req = classOf[Message].newInstance() //HACK
         //req.src = new java.lang.Long(15)
-        req.src = Some(ActorNumber(15L))
+        req.src = ActorNumber(15L)
         req.body = null
         mgr.sendMessage(dest, req)
       })
@@ -265,7 +265,7 @@ object PerfSender {
 
         val req = classOf[Message].newInstance() //HACK
         //req.src = new java.lang.Long(15)
-        req.src = Some(ActorNumber(15L))
+        req.src = ActorNumber(15L)
         req.body = pr
 
         mgr.sendMessage(dest, req)

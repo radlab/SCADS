@@ -6,9 +6,10 @@ import org.specs.runner.JUnit4
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.comm.Conversions._
 
-import org.apache.avro.util.Utf8
-
 import org.apache.log4j.Logger
+
+import com.googlecode.avro.marker.AvroRecord
+import com.googlecode.avro.annotation.AvroUnion
 
 object ActorSpec extends SpecificationWithJUnit("Actor Specification") {
 
@@ -17,7 +18,7 @@ object ActorSpec extends SpecificationWithJUnit("Actor Specification") {
   def mkGetRequest(str: String):GetRequest = {
     val m = new GetRequest
     m.namespace = "testNS"
-    m.key = str.getBytes
+    m.key = Some(str.getBytes)
     m
   }
 
@@ -26,8 +27,12 @@ object ActorSpec extends SpecificationWithJUnit("Actor Specification") {
       "echo works" in {
         val server = new StorageEchoServer
         server.startListener(7000)
-        val resp = Sync.makeRequest(RemoteNode("localhost",7000),new Utf8("ActorTest"),mkGetRequest("test message"))
-        resp must beNull
+        val resp = Sync.makeRequest(RemoteNode("localhost",7000), ActorName("ActorTest"),mkGetRequest("test message")) match {
+          case Record(_, _) => true
+          case _ => false
+        }
+
+        resp must_== true
       }
 
       "simultaneous echos work" in {
@@ -38,8 +43,11 @@ object ActorSpec extends SpecificationWithJUnit("Actor Specification") {
         (1 to 10).foreach( i => {
           val t = new Thread {
             override def run = {
-              val resp = Sync.makeRequest(RemoteNode("localhost",7000),new Utf8("ActorTest"),mkGetRequest("test message_thread_"+i))
-              resp must beNull
+              val resp = Sync.makeRequest(RemoteNode("localhost",7000), ActorName("ActorTest"),mkGetRequest("test message_thread_"+i)) match {
+                case Record(_, _) => true
+                case _ => false
+              }
+              resp must_== true
               lock.synchronized {
                 numFinished += 1
                 if (numFinished == 10) lock.notify
