@@ -14,7 +14,7 @@ case class KeyPartition(var minKey: Option[Array[Byte]], var maxKey: Option[Arra
 case class PartitionedPolicy(var partitions: List[KeyPartition]) extends AvroRecord with MessageBody
 
 case class KeyRange(var minKey: Option[Array[Byte]], var maxKey: Option[Array[Byte]], var limit: Option[Int], var offset: Option[Int], var backwards: Boolean) extends AvroRecord with MessageBody
-case class GetRequest(var namespace: String, var key: Option[Array[Byte]]) extends AvroRecord with MessageBody
+case class GetRequest(var namespace: String, var key: Array[Byte]) extends AvroRecord with MessageBody
 case class GetRangeRequest(var namespace: String, var range: KeyRange) extends AvroRecord with MessageBody
 case class GetPrefixRequest(var namespace: String, var start: Array[Byte], var limit: Option[Int], var ascending: Boolean, var fields: Int) extends AvroRecord with MessageBody
 case class CountRangeRequest(var namespace: String, var range: KeyRange) extends AvroRecord with MessageBody
@@ -38,7 +38,7 @@ case class FlatMapRequest(var namespace: String, var keyType: String, var valueT
 case class FlatMapResponse(var records: List[Array[Byte]]) extends AvroRecord with MessageBody
 case class FilterRequest(var namespace: String, var keyType: String, var valueType: String, var codename: String, var code: Array[Byte]) extends AvroRecord with MessageBody
 case class FoldRequest(var namespace: String, var keyType: String, var valueType: String, var initValueOne: Array[Byte], var initValueTwo: Array[Byte], var direction: Int, var codename: String, var code: Array[Byte]) extends AvroRecord with MessageBody
-case class FoldRequest2L(var namespace: String, var keyType: String, var valueType: String, var initValueOne: Array[Byte], var initValueTwo: Array[Byte], var direction: Int, var codename: String, var code: Array[Byte]) extends AvroRecord with MessageBody
+case class FoldRequest2L(var namespace: String, var keyType: String, var valueType: String, var initType: String, var initValue: Array[Byte], var direction: Int, var codename: String, var code: Array[Byte]) extends AvroRecord with MessageBody
 case class Fold2Reply(var reply: Array[Byte]) extends AvroRecord with MessageBody
 
 @AvroUnion sealed trait ActorId

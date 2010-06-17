@@ -14,7 +14,6 @@ import org.apache.avro.generic.GenericData.{Array => AvroArray}
 import org.apache.avro.generic.GenericData
 import org.apache.avro.io.BinaryData
 
-import java.nio.ByteBuffer
 import scala.collection.mutable.HashMap
 import java.util.Arrays
 import scala.concurrent.SyncVar
@@ -144,7 +143,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
   /* TODOS:
    * - create the namespace if it doesn't exist
    * - add a check that schema of record matches namespace schema or is at least resolvable to the local schema */
-  private val dest = new Utf8("Storage")
+  private val dest = ActorName("Storage")
   private val logger = Logger.getLogger("Namespace")
   val keyClass = keyType.erasure.asInstanceOf[Class[ScalaSpecificRecord]]
   val valueClass = valueType.erasure.asInstanceOf[Class[ScalaSpecificRecord]]
@@ -156,34 +155,36 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
 
   private var nodeCache:Array[polServer] = null
 
-  private case class polServer(min:ByteBuffer,max:ByteBuffer,nodes:List[RemoteNode]) extends Comparable[polServer] {
+  private case class polServer(min: Option[Array[Byte]],max: Option[Array[Byte]],nodes:List[RemoteNode]) extends Comparable[polServer] {
     def compareTo(p:polServer):Int = {
-      if (max == null && p.max == null) return 0;
-      if (max == null) return 1;
-      if (p.max == null) return -1;
-      if (!max.hasArray)
-        throw new Exception("Can't compare without backing array")
-      if (!p.max.hasArray)
-        throw new Exception("Can't compare without backing array")
-      org.apache.avro.io.BinaryData.compare(max.array, max.position, p.max.array, p.max.position,
-                                            schema)
+      (max, p.max) match {
+        case (None, None) => 0
+        case (None, _) => 1
+        case (_, None) => -1
+        case (Some(a), Some(b)) => org.apache.avro.io.BinaryData.compare(a, 0, b, 0, schema)
+      }
     }
 
     override def toString():String = {
       val sb = new java.lang.StringBuffer
       val k = keyClass.newInstance.asInstanceOf[KeyType]
       sb.append("[")
-      if (min != null) {
-        k.parse(min)
-        sb.append(k.toString)
-      } else
-        sb.append("-inf")
+      min match {
+        case Some(m) => {
+          k.parse(m)
+          sb.append(m)
+        }
+        case None => sb.append("-inf")
+      }
       sb.append(", ")
-      if (max != null) {
-        k.parse(max)
-        sb.append(k.toString)
-      } else
-        sb.append("inf")
+      max match {
+        case Some(m) => {
+          k.parse(m)
+          sb.append(k)
+        }
+        case None => sb.append("+inf")
+      }
+
       sb.append("): ")
       nodes.foreach((node) => {
         sb.append(node)
@@ -207,13 +208,13 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
     }
   }
 
-  private def keyComp(part: ByteBuffer, key: Array[Byte]): Int = {
-      if (part == null && key == null) return 0;
-      if (part == null) return -1;
-      if (key == null) return 1;
-    if (!part.hasArray)
-      throw new Exception("Can't compare without backing array")
-    org.apache.avro.io.BinaryData.compare(part.array(), part.position, key, 0, schema)
+  private def keyComp(part: Option[Array[Byte]], key: Option[Array[Byte]]): Int = {
+    (part, key) match {
+      case (None, None) => 0
+      case (None, _) => -1
+      case (_, None) => 1
+      case (Some(a), Some(b)) => org.apache.avro.io.BinaryData.compare(a, 0, b, 0, schema)
+    }
   }
 
   private def updateNodeCache():Unit = {
@@ -261,7 +262,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
   private def idxForKey(key:ScalaSpecificRecord):Int = {
     if (nodeCache == null)
       updateNodeCache
-    val polKey = new polServer(null,key.toBytes,Nil)
+    val polKey = new polServer(None,Some(key.toBytes),Nil)
     val bpos = Arrays.binarySearch(nodeCache,polKey,null)
     if (bpos < 0) 
       ((bpos+1) * -1)
@@ -274,7 +275,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
   def serversForKey(key:ScalaSpecificRecord):List[RemoteNode] = {
     val idx = idxForKey(key)
     // validate that we don't have a gap
-    if (keyComp(nodeCache(idx).min,key.toBytes) > 0) {
+    if (keyComp(nodeCache(idx).min, Some(key.toBytes)) > 0) {
       logger.warn("Possible gap in partitions, returning empty server list")
       Nil
     } else
@@ -306,9 +307,9 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
 		while (iter.hasNext) {
 			val part = iter.next
       if ( (part.minKey == null ||
-            keyComp(part.minKey,kdata) >= 0) &&
+            keyComp(part.minKey,Some(kdata)) >= 0) &&
            (part.maxKey == null ||
-            keyComp(part.maxKey,kdata) < 0) )
+            keyComp(part.maxKey,Some(kdata)) < 0) )
         return true
 		}
     false
@@ -365,7 +366,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
    * message sent to it.  for each element of nmsgl repliesRequired replies will be waited for
    * before returning
    * */
-  private def multiSetApply(nmsgl:List[(List[RemoteNode],Message_body_Iface)], repliesRequired:Int):Array[List[Object]] = {
+  private def multiSetApply(nmsgl:List[(List[RemoteNode],MessageBody)], repliesRequired:Int):Array[List[Object]] = {
     val repArray = new Array[List[Object]](nmsgl.length)
     if (nmsgl.length == 0) {
       logger.warn("Empty list passed to multiSetApply, returning an empty list")
@@ -378,11 +379,11 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
       val id = MessageHandler.registerActor(self)
       val msg = new Message
       msg.dest = dest
-      msg.src = id
+      msg.src = ActorNumber(id)
       var p = 0L
       nmsgl.foreach((nb)=>{
         msg.body = nb._2
-        msg.id = p
+        msg.id = Some(p)
         nb._1.foreach((rn)=> {
           MessageHandler.sendMessage(rn,msg)
         })
@@ -398,7 +399,10 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
               exit
             }
 					  case obj => {
-              val intid = reply.id.asInstanceOf[PrimitiveWrapper[Long]].value.intValue
+              val intid = reply.id match {
+                case Some(i) => i.intValue
+                case None => throw new RuntimeException("No sequence id on message")
+              }
               if (reps(intid) < repliesRequired) {
                 if (repArray(intid) == null)
                   repArray(intid) = List[Object]()
@@ -430,7 +434,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
   }
   
   /* get array of bytes which is the compiled version of cl */
-  private def getFunctionCode(cl:AnyRef):java.nio.ByteBuffer = {
+  private def getFunctionCode(cl:AnyRef):Array[Byte] = {
     val ldr = cl.getClass.getClassLoader
     ldr match {
       case afcl:AbstractFileClassLoader => {
@@ -450,8 +454,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
         if (file == null) {
           throw new ClassNotFoundException(name)
         }
-        val theBytes = file.toByteArray
-        java.nio.ByteBuffer.wrap(theBytes)
+        file.toByteArray
       }
       case rcl:ClassLoader => {
         val name = cl.getClass.getName.replaceAll("\\.", "/")+".class"
@@ -467,7 +470,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
             os.write(buf,0,br)
             br = istream.read(buf)
           }
-          java.nio.ByteBuffer.wrap(os.toByteArray)
+          os.toByteArray
         }
       }
     }
@@ -479,20 +482,15 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
     reader.read(null,decoder)
   }
 
-  def decodeKey(b:java.nio.ByteBuffer): GenericData.Record = {
-    val decoder = new org.apache.avro.io.BinaryDecoder(new java.io.ByteArrayInputStream(b.array, b.position, b.remaining))
+  def decodeKey(b:Array[Byte]): GenericData.Record = {
+    val decoder = new org.apache.avro.io.BinaryDecoder(new java.io.ByteArrayInputStream(b.array, 0, 0))
     val reader = new org.apache.avro.generic.GenericDatumReader[GenericData.Record](schema)
     reader.read(null,decoder)
   }
 
-  def put[K <: KeyType, V <: ValueType](key: K, value: V): Unit = {
+  def put[K <: KeyType, V <: ValueType](key: K, value: Option[V]): Unit = {
     val nodes = serversForKey(key)
-    def nullSafeWrap(v: V): ByteBuffer = 
-      if (value eq null)
-        null
-      else 
-        ByteBuffer.wrap(value.toBytes)
-    val pr = PutRequest(namespace, ByteBuffer.wrap(key.toBytes), nullSafeWrap(value))
+    val pr = PutRequest(namespace, key.toBytes, value match {case Some(r) => Some(r.toBytes); case None => None})
     if (nodes.length <= 0) {
       logger.warn("No nodes responsible for this key, not doing anything")
       return
@@ -500,7 +498,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
     applyToSet(nodes,(rn)=>{Sync.makeRequest(rn,dest,pr,timeout)},nodes.size)
   }
 
-  def getBytes[K <: KeyType](key: K): java.nio.ByteBuffer = {
+  def getBytes[K <: KeyType](key: K): Array[Byte] = {
     val nodes = serversForKey(key)
     if (nodes.length <= 0) {
       logger.warn("No node responsible for this key, returning null")
@@ -523,7 +521,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
                  }
                },
                1) match { // we pass one here to return after the first reply
-      case bb:java.nio.ByteBuffer => bb
+      case bb:Array[Byte] => bb
       case other => null
     }
   }
@@ -559,7 +557,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
             rec.put(i,true)
         case org.apache.avro.Schema.Type.BYTES =>
           if (ascending)
-            rec.put(i,ByteBuffer.allocate(0))
+            rec.put(i,"".getBytes)
           else
             throw new Exception("Can't do descending search with bytes the prefix")
         case org.apache.avro.Schema.Type.DOUBLE =>
@@ -615,7 +613,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
     val gpr = new GetPrefixRequest
     gpr.namespace = namespace
     if (limit >= 0)
-      gpr.limit = limit
+      gpr.limit = Some(limit)
     gpr.ascending = ascending
 
     val fcount = key.getSchema.getFields.size
@@ -654,7 +652,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
     getRange(start,end,0,0,false)
   def getRange[K <: KeyType](start:K, end:K, limit:Int, offset: Int, backwards:Boolean): Seq[(KeyType,ValueType)] = {
     val nodeIter = splitRange(start,end)
-    var nol = List[(List[RemoteNode],Message_body_Iface)]()
+    var nol = List[(List[RemoteNode],MessageBody)]()
     while(nodeIter.hasNext()) { 
       val polServ = nodeIter.next
       val kr = new KeyRange(
@@ -662,27 +660,27 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
           if (start == null)
             polServ.min
           else if (polServ.min == null)
-            ByteBuffer.wrap(start.toBytes)
-          else if (BinaryData.compare(start.toBytes,0,polServ.min.array,polServ.min.position,schema) < 0) // start key is less
+            Some(start.toBytes)
+          else if (BinaryData.compare(start.toBytes,0,polServ.min.get,0,schema) < 0) // start key is less
             polServ.min
           else
-            ByteBuffer.wrap(start.toBytes)
+            Some(start.toBytes)
         } else null,
         if (end != null || polServ.max != null) {
           if (end == null)
             polServ.max
           else if (polServ.max == null)
-            ByteBuffer.wrap(end.toBytes)
-          else if (BinaryData.compare(end.toBytes,0,polServ.max.array,polServ.max.position,schema) < 0) // end key is less
-            ByteBuffer.wrap(end.toBytes)
+            Some(end.toBytes)
+          else if (BinaryData.compare(end.toBytes,0,polServ.max.get,0,schema) < 0) // end key is less
+            Some(end.toBytes)
           else
             polServ.max
         } else null,
         if (limit != 0)
-          limit
+          Some(limit)
         else
-          null,
-        offset,backwards)
+          None,
+        Some(offset),backwards)
       val grr = new GetRangeRequest
       grr.namespace = namespace
       grr.range = kr
@@ -742,7 +740,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
         //req.closure = getFunctionCode(func)
 
         val msg = Message(
-                id,
+                ActorNumber(id),
                 dest,
                 null, 
                 FlatMapRequest(
@@ -801,7 +799,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
       val msg = new Message
       val crr = new CountRangeRequest
       //msg.src = new java.lang.Long(id)
-      msg.src = id
+      msg.src = ActorNumber(id)
       msg.dest = dest
       msg.body = crr
       crr.namespace = namespace
@@ -855,7 +853,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
       val msg = new Message
       val fr = new FilterRequest
       //msg.src = new java.lang.Long(id)
-      msg.src = id
+      msg.src = ActorNumber(id)
       msg.dest = dest
       msg.body = fr
       fr.namespace = namespace
@@ -925,7 +923,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
       val id = MessageHandler.registerActor(self)
       val msg = new Message
       val fr = new FoldRequest
-      msg.src = id.asInstanceOf[Long]
+      msg.src = ActorNumber(id)
       msg.dest = dest
       msg.body = fr
       fr.namespace = namespace
@@ -995,7 +993,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
       try {
         val msg = new Message
         val fr = new FoldRequest2L
-        msg.src = id
+        msg.src = ActorNumber(id)
         msg.dest = dest
         msg.body = fr
         fr.namespace = namespace
@@ -1062,7 +1060,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
     val ret = new SyncVar[Long]
     actor {
       val id = MessageHandler.registerActor(self)
-      val bufferMap = new HashMap[Int,(AvroArray[Record],Int)]
+      val bufferMap = new HashMap[Int,(scala.collection.mutable.ArrayBuffer[Record],Int)]
       val recvIterMap = new HashMap[RemoteNode,java.lang.Long]
       val start = System.currentTimeMillis
       var cnt = 0
@@ -1077,21 +1075,21 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
           val rec = new Record
           rec.key = pair._1.toBytes
           rec.value = pair._2.toBytes
-          buf.add(rec)
+          buf.append(rec)
           if (buf.size >= limit) { // send the buffer
             val bd = new BulkData
             bd.seqNum = bufseq._2
             //bufseq._2 += 1
             bd.sendActorId = id
             val rs = new RecordSet
-            rs.records = buf
+            rs.records = buf.toList
             bd.records = rs
             val msg = new Message
-            msg.src = id
+            msg.src = ActorNumber(id)
             msg.body = bd
             nodes.foreach((rn) => {
               if (recvIterMap.contains(rn)) {
-                msg.dest = new AvroLong(recvIterMap(rn).longValue)
+                msg.dest = ActorNumber(recvIterMap(rn).longValue)
                 MessageHandler.sendMessage(rn,msg)
               } else {
                 logger.warn("Not sending to: "+rn+". Have no iter open to it")
@@ -1101,7 +1099,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
           }
         } else {
           // validate that we don't have a gap
-          if (keyComp(nodeCache(idx).min,pair._1.toBytes) > 0) {
+          if (keyComp(nodeCache(idx).min,Some(pair._1.toBytes)) > 0) {
             logger.warn("Gap in partitions, returning empty server list")
             Nil
           } else {
@@ -1232,155 +1230,4 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
     }
     ret.get
   }
-
-  // call from within an actor only
-  private def bulkPutBody(rn:RemoteNode, csr:CopyStartRequest, polServ:polServer, valBytes:Array[Byte], srec:IntRec, erec:IntRec):Unit = {
-    val id = MessageHandler.registerActor(self)
-    val myId = id
-    Sync.makeRequest(rn,dest,csr,timeout) match {
-      case tsr: TransferStartReply => {
-        logger.warn("Got TransferStartReply, sending data")
-        val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema))
-        val sendIt = new SendIter(rn,id,tsr.recvActorId,buffer,100,0,logger)
-        var recsSent:Long = 0
-        val sirec = new IntRec
-        val eirec = new IntRec
-        if (polServ.min != null)
-          sirec.parse(polServ.min)
-        else
-          sirec.f1 = srec.f1
-        if (sirec.f1 < srec.f1)
-          sirec.f1 = srec.f1
-        
-        if (polServ.max != null) {
-          eirec.parse(polServ.max)
-          eirec.f1 = eirec.f1 - 1
-        }
-        else
-          eirec.f1 = erec.f1-1
-        if (eirec.f1 > erec.f1)
-          eirec.f1 = erec.f1-1
-        for (i <- (sirec.f1 to eirec.f1)) {
-          val rec = new Record
-          sirec.f1 = i
-          rec.key = sirec.toBytes
-          rec.value = valBytes
-          sendIt.put(rec)
-          recsSent += 1
-        }
-        sendIt.flush
-        val fin = new TransferFinished
-        fin.sendActorId = id.longValue
-        val msg = new Message
-        //msg.src = myId
-        msg.src = id
-        //msg.dest = new java.lang.Long(tsr.recvActorId)
-        msg.dest = tsr.recvActorId
-        msg.body = fin
-        MessageHandler.sendMessage(rn,msg)
-        logger.warn("TransferFinished and sent")
-        // now we loop and wait for acks and final cleanup from other side
-        while(true) {
-          receiveWithin(timeout) {
-            case (rn:RemoteNode, msg:Message)  => msg.body match {
-              case bda:BulkDataAck => {
-                // don't need to do anything, we're ignoring these
-              }
-              case ric:RecvIterClose => { // should probably have a status here at some point
-                MessageHandler.unregisterActor(id)
-                exit
-              }
-              case msgb => {
-                logger.warn("Copy end loop got unexpected message body: "+msgb)
-              }
-            }
-            case TIMEOUT => {
-              logger.warn("Copy end loop timed out waiting for finish")
-              MessageHandler.unregisterActor(id)
-              exit("TIMEOUT")
-            }
-            case msg =>
-              logger.warn("Copy end loop got unexpected message: "+msg)
-          }
-        }
-      }
-      case _ => {
-        logger.warn("Unexpected reply to copy start request")
-        MessageHandler.unregisterActor(id)
-        exit("Unexpected reply to copy start request")
-      }
-    }
-  }
-
-  def bulkPut(start:Int, end:Int, valByteCount:Int): Long = {
-    val kinst = keyClass.newInstance.asInstanceOf[KeyType]
-    kinst match {
-      case ir:IntRec => {} // this one is okay
-      case _ => {
-        logger.fatal("Can't bulkPut to namespaces that don't use IntRec keys")
-        return 0
-      }
-    }
-    val vinst = valueClass.newInstance.asInstanceOf[ValueType]
-    val valBytes = 
-    vinst match {
-      case ir:IntRec => {
-        ir.f1 = 42 // the answer
-        ir.toBytes
-      }
-      case sr:StringRec => {
-        sr.f1 = "x"*valByteCount
-        sr.toBytes
-      }
-      case _ => {
-        logger.fatal("bulkPut only supported to namespaces with IntRec or StringRec values")
-        return 0
-      }
-    }
-    val srec = new IntRec
-    val erec = new IntRec
-    srec.f1 = start
-    erec.f1 = end
-    val rangeIt = splitRange(srec,erec)
-    var c = 0
-    val startTime = System.currentTimeMillis()
-    while(rangeIt.hasNext()) {
-      val polServ = rangeIt.next
-      val rng = new KeyRange
-      rng.minKey=polServ.min
-      rng.maxKey=polServ.max
-      //val csr = new CopyStartRequest
-      //csr.ranges = new AvroArray[KeyRange](1024, Schema.createArray((new KeyRange).getSchema))
-      //csr.ranges.add(rng)
-      //csr.namespace = namespace
-      val csr = CopyStartRequest(namespace, List(rng))
-      polServ.nodes.foreach(node => {
-        c+=1
-        val a = new Actor {
-          self.trapExit = true
-          def act() {
-            bulkPutBody(node,csr,polServ,valBytes,srec,erec)
-          }
-        }
-        link(a)
-        a.start
-      })
-    }
-    while(c > 0) {
-      receiveWithin(timeout) {
-        case Exit(act,reason) => 
-          c -= 1
-        case TIMEOUT => {
-          logger.warn("Timeout waiting for actors to exit from bulkPut")
-          // force exit from here, TODO: shoot actors somehow?
-          c = 0
-        }
-        case msg =>
-          logger.warn("Unexpected message waiting for actor exits from bulkPut: "+msg)
-      }
-    }
-    val endTime = System.currentTimeMillis
-    endTime-startTime
-  }
-
 }

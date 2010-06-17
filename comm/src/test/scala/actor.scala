@@ -18,7 +18,7 @@ object ActorSpec extends SpecificationWithJUnit("Actor Specification") {
   def mkGetRequest(str: String):GetRequest = {
     val m = new GetRequest
     m.namespace = "testNS"
-    m.key = Some(str.getBytes)
+    m.key = str.getBytes
     m
   }
 
