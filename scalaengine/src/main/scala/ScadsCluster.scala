@@ -1,20 +1,14 @@
 package edu.berkeley.cs.scads.storage
 
 import edu.berkeley.cs.scads.comm._
-import edu.berkeley.cs.scads.comm.Conversions._
-import edu.berkeley.cs.scads.comm.Storage.AvroConversions._
 
 import org.apache.avro.Schema
 
 import org.apache.zookeeper.CreateMode
 
-
-import org.apache.avro.specific.SpecificRecordBase
 import org.apache.avro.util.Utf8
 import scala.actors._
 import scala.actors.Actor._
-import edu.berkeley.cs.scads.test.IntRec
-import edu.berkeley.cs.scads.test.StringRec
 import org.apache.log4j.Logger
 import org.apache.avro.generic.GenericData.{Array => AvroArray}
 import org.apache.avro.generic.GenericData
@@ -26,7 +20,7 @@ import java.util.Arrays
 import scala.concurrent.SyncVar
 import scala.tools.nsc.interpreter.AbstractFileClassLoader
 import scala.tools.nsc.io.AbstractFile
-import edu.berkeley.cs.scads.avro.compiler.{UnionInterface, PrimitiveWrapper, ScalaLib}
+import com.googlecode.avro.runtime.ScalaSpecificRecord
 
 class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 	val namespaces = root.getOrCreate("namespaces")
@@ -50,7 +44,7 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
   }
 
   //TODO: There should perhaps be some load-balancing since we just pick a totally random server at this point
-  def createNamespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](ns: String, keySchema: Schema, valueSchema: Schema)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): Namespace[KeyType, ValueType] = {
+  def createNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String, keySchema: Schema, valueSchema: Schema)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): Namespace[KeyType, ValueType] = {
     val available = root.get("availableServers").updateChildren(false)
     if (available.size <= 0)
       throw new Exception("No available servers")
@@ -58,34 +52,34 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
     createNamespace[KeyType, ValueType](ns, keySchema, valueSchema, List[RemoteNode](new RemoteNode(serv._1,Integer.parseInt(new String(serv._2.data)))))
   }
 
-	def createNamespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](ns: String, keySchema: Schema, valueSchema: Schema, servers: List[RemoteNode])(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): Namespace[KeyType, ValueType] = {
-		val nsRoot = namespaces.createChild(ns, "", CreateMode.PERSISTENT)
-		nsRoot.createChild("keySchema", keySchema.toString(), CreateMode.PERSISTENT)
-		nsRoot.createChild("valueSchema", valueSchema.toString(), CreateMode.PERSISTENT)
+	def createNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String, keySchema: Schema, valueSchema: Schema, servers: List[RemoteNode])(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): Namespace[KeyType, ValueType] = {
+		val nsRoot = namespaces.createChild(ns, "".getBytes, CreateMode.PERSISTENT)
+		nsRoot.createChild("keySchema", keySchema.toString.getBytes, CreateMode.PERSISTENT)
+		nsRoot.createChild("valueSchema", valueSchema.toString.getBytes, CreateMode.PERSISTENT)
 
 		val partition = nsRoot.getOrCreate("partitions/1")
 		val policy = new PartitionedPolicy
 		policy.partitions = List(new KeyPartition)
 
 		partition.createChild("policy", policy.toBytes, CreateMode.PERSISTENT)
-		partition.createChild("servers", "", CreateMode.PERSISTENT)
+		partition.createChild("servers", "".getBytes, CreateMode.PERSISTENT)
 
     servers.foreach(s => {
       val cr = new ConfigureRequest
       cr.namespace = ns
       cr.partition = "1"
-      Sync.makeRequest(s, new Utf8("Storage"), cr)
+      Sync.makeRequest(s, ActorName("Storage"), cr)
     })
 
     new Namespace[KeyType, ValueType](ns, 5000, root)
 	}
 
-  def createAndConfigureNamespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](ns:String, splitPoints:List[SpecificRecordBase])(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): Namespace[KeyType, ValueType] = {
-		val nsRoot = namespaces.createChild(ns, "", CreateMode.PERSISTENT)
-    val keySchema = keyType.erasure.newInstance.asInstanceOf[SpecificRecordBase].getSchema
-    val valueSchema = valueType.erasure.newInstance.asInstanceOf[SpecificRecordBase].getSchema
-		nsRoot.createChild("keySchema", keySchema.toString(), CreateMode.PERSISTENT)
-		nsRoot.createChild("valueSchema", valueSchema.toString(), CreateMode.PERSISTENT)
+  def createAndConfigureNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns:String, splitPoints:List[ScalaSpecificRecord])(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): Namespace[KeyType, ValueType] = {
+		val nsRoot = namespaces.createChild(ns, "".getBytes, CreateMode.PERSISTENT)
+    val keySchema = keyType.erasure.newInstance.asInstanceOf[ScalaSpecificRecord].getSchema
+    val valueSchema = valueType.erasure.newInstance.asInstanceOf[ScalaSpecificRecord].getSchema
+		nsRoot.createChild("keySchema", keySchema.toString.getBytes, CreateMode.PERSISTENT)
+		nsRoot.createChild("valueSchema", valueSchema.toString.getBytes, CreateMode.PERSISTENT)
     val sps = splitPoints.size
     val available = root.get("availableServers").updateChildren(false)
     if (available.size < sps)
@@ -98,24 +92,24 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 	      val policy = new PartitionedPolicy
         val kp = new KeyPartition(
           if (i != 1) 
-            ByteBuffer.wrap(splitPoints(i-2).toBytes)
+            Some(splitPoints(i-2).toBytes)
           else
-            null,
+            None,
           if (i != (sps+1))
-            ByteBuffer.wrap(splitPoints(i-1).toBytes)
+            Some(splitPoints(i-1).toBytes)
           else
-            null)
+            None)
  	      policy.partitions = List(kp)
 
         println("part: "+i)
         println("pol: "+kp)
 
         partition.createChild("policy", policy.toBytes, CreateMode.PERSISTENT)
-		    partition.createChild("servers", "", CreateMode.PERSISTENT)
+		    partition.createChild("servers", "".getBytes, CreateMode.PERSISTENT)
         val cr = new ConfigureRequest
         cr.namespace = ns
         cr.partition = i+""
-        Sync.makeRequest(node, new Utf8("Storage"), cr)
+        Sync.makeRequest(node, ActorName("Storage"), cr)
         i += 1
       }
     })
@@ -126,7 +120,7 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 		val partition = namespaces.getOrCreate(ns+"/partitions/"+name)
 
 		partition.createChild("policy", policy.toBytes, CreateMode.PERSISTENT)
-		partition.createChild("servers", "", CreateMode.PERSISTENT)
+		partition.createChild("servers", "".getBytes, CreateMode.PERSISTENT)
 	}
 	def addPartition(ns:String,name:String):Unit = {
 		val policy = new PartitionedPolicy
@@ -134,11 +128,11 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 		addPartition(ns,name,policy)
 	}
 
-  def getNamespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](ns: String)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): Namespace[KeyType, ValueType] = {
+  def getNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): Namespace[KeyType, ValueType] = {
     namespaces.children.get(ns) match {
       case Some(_) => new Namespace[KeyType, ValueType](ns, 5000, root)
       case None => {
-        createNamespace[KeyType, ValueType](ns, keyType.erasure.newInstance.asInstanceOf[SpecificRecordBase].getSchema, valueType.erasure.newInstance.asInstanceOf[SpecificRecordBase].getSchema)
+        createNamespace[KeyType, ValueType](ns, keyType.erasure.newInstance.asInstanceOf[ScalaSpecificRecord].getSchema, valueType.erasure.newInstance.asInstanceOf[ScalaSpecificRecord].getSchema)
         namespaces.updateChildren(false)
         new Namespace[KeyType, ValueType](ns, 5000, root)
       }
@@ -146,19 +140,19 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
   }
 }
 
-class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKeeperNode)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]) {
+class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKeeperNode)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]) {
   /* TODOS:
    * - create the namespace if it doesn't exist
    * - add a check that schema of record matches namespace schema or is at least resolvable to the local schema */
   private val dest = new Utf8("Storage")
   private val logger = Logger.getLogger("Namespace")
-  val keyClass = keyType.erasure.asInstanceOf[Class[SpecificRecordBase]]
-  val valueClass = valueType.erasure.asInstanceOf[Class[SpecificRecordBase]]
+  val keyClass = keyType.erasure.asInstanceOf[Class[ScalaSpecificRecord]]
+  val valueClass = valueType.erasure.asInstanceOf[Class[ScalaSpecificRecord]]
   private val nsNode = root.get("namespaces/"+namespace)
   private val schema = Schema.parse(new String(nsNode.get("keySchema").data))
 
-  lazy val keySchema = keyClass.newInstance.asInstanceOf[SpecificRecordBase].getSchema()
-  lazy val valueSchema = valueClass.newInstance.asInstanceOf[SpecificRecordBase].getSchema()
+  lazy val keySchema = keyClass.newInstance.asInstanceOf[ScalaSpecificRecord].getSchema()
+  lazy val valueSchema = valueClass.newInstance.asInstanceOf[ScalaSpecificRecord].getSchema()
 
   private var nodeCache:Array[polServer] = null
 
@@ -264,7 +258,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     }
   }
 
-  private def idxForKey(key:SpecificRecordBase):Int = {
+  private def idxForKey(key:ScalaSpecificRecord):Int = {
     if (nodeCache == null)
       updateNodeCache
     val polKey = new polServer(null,key.toBytes,Nil)
@@ -277,7 +271,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       bpos + 1
   }
 
-  def serversForKey(key:SpecificRecordBase):List[RemoteNode] = {
+  def serversForKey(key:ScalaSpecificRecord):List[RemoteNode] = {
     val idx = idxForKey(key)
     // validate that we don't have a gap
     if (keyComp(nodeCache(idx).min,key.toBytes) > 0) {
@@ -287,7 +281,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       nodeCache(idx).nodes
   }
 
-  private def splitRange(startKey:SpecificRecordBase,endKey:SpecificRecordBase):RangeIterator = {
+  private def splitRange(startKey:ScalaSpecificRecord,endKey:ScalaSpecificRecord):RangeIterator = {
     if (nodeCache == null)
       updateNodeCache
     val sidx = 
@@ -304,7 +298,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     new RangeIterator(sidx,eidx)
   }
 
-	private def keyInPolicy(policy:Array[Byte], key: SpecificRecordBase):Boolean = {
+	private def keyInPolicy(policy:Array[Byte], key: ScalaSpecificRecord):Boolean = {
 		val pdata = new PartitionedPolicy
 		pdata.parse(policy)
 		val iter = pdata.partitions.iterator
@@ -320,7 +314,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     false
 	}
 
-  def serversForKeySlow(key:SpecificRecordBase):List[RemoteNode] = {
+  def serversForKeySlow(key:ScalaSpecificRecord):List[RemoteNode] = {
     val partitions = nsNode.get("partitions").updateChildren(false)
     partitions.map(part=>{
       val policyData = 	nsNode.get("partitions/"+part._1+"/policy").updateData(false)
@@ -549,7 +543,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     get(key, retValue)
   }
 
-  def minRecord(rec:SpecificRecordBase, prefix:Int, ascending:Boolean):Unit = { 
+  def minRecord(rec:ScalaSpecificRecord, prefix:Int, ascending:Boolean):Unit = { 
     val fields = rec.getSchema.getFields
     for (i <- (prefix to (fields.size() - 1))) { // set remaining values to min/max
       fields.get(i).schema.getType match {
@@ -600,7 +594,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
             throw new Exception("Can't do descending search with null in the prefix")
         case org.apache.avro.Schema.Type.RECORD => 
           if (rec.get(i) != null)
-            minRecord(rec.get(i).asInstanceOf[SpecificRecordBase],0,ascending)
+            minRecord(rec.get(i).asInstanceOf[ScalaSpecificRecord],0,ascending)
         case org.apache.avro.Schema.Type.STRING => 
           if (ascending)
             rec.put(i,new Utf8(""))
@@ -721,7 +715,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     retList.reverse
   }
 
-  def flatMap[RetType <: SpecificRecordBase](func: (KeyType, ValueType) => List[RetType])(implicit retType: scala.reflect.Manifest[RetType]): Seq[RetType] = {
+  def flatMap[RetType <: ScalaSpecificRecord](func: (KeyType, ValueType) => List[RetType])(implicit retType: scala.reflect.Manifest[RetType]): Seq[RetType] = {
     class ResultSeq extends Actor with Seq[RetType] {
       val retClass = retType.erasure
       val result = new SyncVar[List[RetType]]
@@ -989,7 +983,7 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
         rlist.foldRight(z)(func)
   }
 
-  def foldLeft2L[TypeRemote <: SpecificRecordBase,TypeLocal](remInit:TypeRemote,localInit:TypeLocal)
+  def foldLeft2L[TypeRemote <: ScalaSpecificRecord,TypeLocal](remInit:TypeRemote,localInit:TypeLocal)
                                              (remFunc: (TypeRemote,(KeyType,ValueType)) => TypeRemote,
                                               localFunc: (TypeLocal,TypeRemote) => TypeLocal): TypeLocal = {
     var list = List[TypeRemote]()

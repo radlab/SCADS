@@ -11,7 +11,7 @@ case class ProcessingException(var cause: String, var stacktrace: String) extend
 case class TestAndSetFailure(var key: Array[Byte], var currentValue: Option[Array[Byte]]) extends AvroRecord with MessageBody
 
 case class KeyPartition(var minKey: Option[Array[Byte]], var maxKey: Option[Array[Byte]]) extends AvroRecord with MessageBody
-case class PartitionPolicy(var partitions: List[KeyPartition]) extends AvroRecord with MessageBody
+case class PartitionedPolicy(var partitions: List[KeyPartition]) extends AvroRecord with MessageBody
 
 case class KeyRange(var minKey: Option[Array[Byte]], var maxKey: Option[Array[Byte]], var limit: Option[Int], var offset: Option[Int], var backwards: Boolean) extends AvroRecord with MessageBody
 case class GetRequest(var namespace: String, var key: Option[Array[Byte]]) extends AvroRecord with MessageBody
