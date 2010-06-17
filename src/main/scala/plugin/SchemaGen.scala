@@ -74,8 +74,15 @@ trait SchemaGen extends ScalaAvroPluginComponent
         if (listParam.typeSymbol == OptionClass) {
           throw new UnsupportedOperationException("Cannot nest option types")
         }
-        Schema.createUnion(JArrays.asList(
-          Array(createSchema(NullClass.tpe), createSchema(listParam)):_*))
+        if (isUnion(listParam.typeSymbol)) {
+          // special case when you do Option[A], where A is an @AvroUnion
+          val innerSchemas = createSchema(listParam).getTypes.toArray(Array[Schema]())
+          Schema.createUnion(JArrays.asList(
+            (Array(createSchema(NullClass.tpe)) ++ innerSchemas):_*))
+        } else {
+          Schema.createUnion(JArrays.asList(
+            Array(createSchema(NullClass.tpe), createSchema(listParam)):_*))
+        }
       } else if (tpe.typeSymbol == MapClass) {
         val (keyTpe, valueTpe) = (tpe.typeArgs.head, tpe.typeArgs.tail.head)
         if (keyTpe.typeSymbol != StringClass)

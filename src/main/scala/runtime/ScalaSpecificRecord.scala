@@ -10,6 +10,7 @@ import org.apache.avro.util.Utf8
 
 import scala.collection.mutable.{Map => MMap, ListBuffer}
 import scala.collection.immutable.{Map => ImmMap}
+import scala.collection.JavaConversions._
 import scala.reflect.Manifest
 
 import java.nio.ByteBuffer
@@ -164,50 +165,36 @@ trait AvroConversions {
 
   def castToJMap(obj: Any): JMap[_,_] = obj.asInstanceOf[JMap[_,_]]
 
-  /** Assume that schema is a union type which contains only
-   2 fields, a NULL field, and another field that isn't NULL 
-   */                                    
-  def findNonNull(schema: Schema): Schema = schema.getType match {
+  private def findOnceInUnion(schema: Schema)(test: Schema => Boolean): Schema = schema.getType match {
     case Type.UNION =>
-      if (schema.getTypes.size != 2) {
-        throw new IllegalArgumentException("Not a union schema with 2 types")
-      }
-      val left = schema.getTypes.get(0)
-      val right = schema.getTypes.get(1)
-      if (left.getType == Type.NULL) {
-        right
-      } else if (right.getType == Type.NULL) {
-        left
-      } else {
-        throw new IllegalArgumentException("No null type found")
-      }
-    case _ => 
-      throw new IllegalArgumentException("Not a union schema")
+      val found = schema.getTypes.filter(test)
+      if (found.size != 1)
+        throw new IllegalArgumentException("Found element " + found.size + "times")
+      found.head
+    case t =>
+      throw new IllegalArgumentException("Bad type given: " + t)
   }
+
+  private def findListInUnion(schema: Schema) = 
+    findOnceInUnion(schema)(_.getType == Type.ARRAY)
+
+  private def findMapInUnion(schema: Schema) = 
+    findOnceInUnion(schema)(_.getType == Type.MAP)
 
   def unwrapOption(opt: Option[_], schema: Schema): AnyRef = opt match {
     case Some(inner) =>
       // NOTE: we don't have to worry about another nested union schema, since avro
       // disallowes nested unions
-      val schema0 = findNonNull(schema)
-
-      // must do conversions here if necessary...
-      schema0.getType match {
-        case Type.STRING =>
-          if (inner.isInstanceOf[Utf8])
-            inner.asInstanceOf[Utf8]
-          else
-            new Utf8(inner.toString)
-        case Type.ARRAY =>
-          // TODO: handle the obj being a native generic array
-          scalaListToGenericArray(inner.asInstanceOf[List[_]], schema0)      
-        case Type.BYTES =>
-          if (inner.isInstanceOf[ByteBuffer])
-            inner.asInstanceOf[ByteBuffer]
-          else
-            ByteBuffer.wrap(inner.asInstanceOf[Array[Byte]])
-        case _ =>
-          inner.asInstanceOf[AnyRef]
+      inner match {
+        case s: String      => new Utf8(s)
+        case u: Utf8        => u
+        case l: List[_]     => 
+          scalaListToGenericArray(l, findListInUnion(schema))
+        case m: Map[_,_]    =>
+          scalaMapToJMap(m, findMapInUnion(schema))
+        case b: ByteBuffer  => b
+        case a: Array[Byte] => ByteBuffer.wrap(a)
+        case _              => inner.asInstanceOf[AnyRef]
       }
     case None | null =>
       null.asInstanceOf[AnyRef]
@@ -217,17 +204,14 @@ trait AvroConversions {
     if (obj.asInstanceOf[AnyRef] eq null)
       None
     else {
-      val schema0 = findNonNull(schema)
-      val obj0 = if (returnNativeType) obj else schema0.getType match {
-        case Type.STRING => 
-          obj.toString
-        case Type.ARRAY =>
-          // TODO: handle generic 
-          genericArrayToScalaList(obj.asInstanceOf[GenericArray[_]])           
-        case Type.BYTES =>
-          obj.asInstanceOf[ByteBuffer].array          
-        case _ =>
-          obj
+      val obj0 = if (returnNativeType) obj else obj match {
+        case u: Utf8            => u.toString
+        case a: GenericArray[_] => 
+          genericArrayToScalaList(a)
+        case b: ByteBuffer      => b.array
+        case m: JMap[_,_]       =>
+          jMapToScalaMap(m, findMapInUnion(schema))
+        case _ => obj
       }
       Some(obj0)
     }

@@ -39,4 +39,19 @@ class TestReadWrite extends TestCase {
     assertReadWriteEquals(Test8(1, 2L, 1.332540f, 1200.93290)) 
   }
 
+  def test9_rw() {
+    assertReadWriteEquals(Test9(None))
+    assertReadWriteEquals(Test9(Some(Test9_A(10))))
+    assertReadWriteEquals(Test9(Some(Test9_B("MYID"))))
+    assertReadWriteEquals(Test9(Some(Test9_C(None))))
+    assertReadWriteEquals(Test9(Some(Test9_C(Some(false)))))
+  }
+
+  def test10_rw() {
+    assertReadWriteEquals(Test10(None, None))
+    assertReadWriteEquals(Test10(Some(List(1,2,3)), None))
+    assertReadWriteEquals(Test10(None, Some(Map("a" -> "b", "c" -> "d"))))
+    assertReadWriteEquals(Test10(Some(List(5,6,7)), Some(Map("k1" -> "v1"))))
+  }
+
 }
