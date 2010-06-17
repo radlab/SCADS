@@ -850,6 +850,62 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     sv.get
   }
 
+  def perNodeSize():List[(RemoteNode,Int)] = {
+    val result = new SyncVar[List[(RemoteNode,Int)]]
+    var list = List[(RemoteNode,Int)]()
+    val ranges = splitRange(null, null)
+    actor {
+      val id = MessageHandler.registerActor(self)
+      val msg = new Message
+      val crr = new CountRangeRequest
+      msg.src = id
+      msg.dest = dest
+      msg.body = crr
+      crr.namespace = namespace
+      var remaining = 0 /** use ranges.size once we upgrade to RC2 */
+      ranges.foreach(r => {
+        val kr = new KeyRange
+        kr.minKey = r.min
+        kr.maxKey = r.max
+        crr.range = kr
+        MessageHandler.sendMessage(r.nodes.head, msg)
+        remaining += 1
+      })
+
+      loop {
+        reactWithin(timeout) {
+          case (src:RemoteNode, msg: Message) => {
+            val resp = msg.body.asInstanceOf[AvroInt]
+            list = (src,resp._value) :: list
+            remaining -= 1
+            if(remaining <= 0) {
+              result.set(list)
+              MessageHandler.unregisterActor(id)
+              exit
+            }
+          }
+          case TIMEOUT => {
+            logger.warn("Timeout waiting for perNodeSize to return")
+            result.set(null)
+            MessageHandler.unregisterActor(id)
+            exit
+          }
+          case m => {
+            logger.fatal("Unexpected message: " + m)
+            result.set(null)
+            MessageHandler.unregisterActor(id)
+            exit
+          }
+        }
+      }
+    }
+    val rlist = result.get
+    if (rlist == null)
+      null
+    else
+      rlist.reverse
+  }
+
 
   def filter(func: (KeyType, ValueType) => Boolean): Iterable[(KeyType,ValueType)] = {
     val result = new SyncVar[List[(KeyType,ValueType)]]
