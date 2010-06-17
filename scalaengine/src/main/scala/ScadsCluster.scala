@@ -806,7 +806,6 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       val id = MessageHandler.registerActor(self)
       val msg = new Message
       val crr = new CountRangeRequest
-      //msg.src = new java.lang.Long(id)
       msg.src = id
       msg.dest = dest
       msg.body = crr
@@ -824,8 +823,8 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       loop {
         reactWithin(timeout) {
           case (_, msg: Message) => {
-            val resp = msg.body.asInstanceOf[Int]
-            s.addAndGet(resp)
+            val resp = msg.body.asInstanceOf[AvroInt]
+            s.addAndGet(resp._value)
             remaining -= 1
             if(remaining <= 0) {
               sv.set(s.get)

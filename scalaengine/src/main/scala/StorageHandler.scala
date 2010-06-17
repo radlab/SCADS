@@ -514,7 +514,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
         iterateOverRange(ns, crr.range, false, (key, value, cursor) => {
           c += 1
         })
-        reply(int2Integer(c))
+        reply(AvroInt(c))
       }
 
       case crr: CopyRangesRequest => {
