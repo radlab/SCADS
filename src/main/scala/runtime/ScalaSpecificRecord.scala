@@ -3,8 +3,8 @@ package runtime
 
 import org.apache.avro.Schema
 import org.apache.avro.Schema.Type
-import org.apache.avro.io.BinaryEncoder
-import org.apache.avro.specific.{SpecificDatumWriter, SpecificRecord}
+import org.apache.avro.io.{BinaryEncoder, BinaryDecoder}
+import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter, SpecificRecord}
 import org.apache.avro.generic.{GenericArray, GenericData}
 import org.apache.avro.util.Utf8
 
@@ -14,7 +14,7 @@ import scala.collection.JavaConversions._
 import scala.reflect.Manifest
 
 import java.nio.ByteBuffer
-import java.io.ByteArrayOutputStream
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.util.{Map => JMap, HashMap => JHashMap}
 
 private[runtime] class UnimplementedFunctionalityException extends RuntimeException("Unimplemented")
@@ -26,6 +26,13 @@ trait ScalaSpecificRecord extends SpecificRecord {
     val writer = new SpecificDatumWriter[ScalaSpecificRecord](getSchema)
     writer.write(this, enc)
     out.toByteArray
+  }
+
+  def parse(data: Array[Byte]): Unit = {
+    val stream = new ByteArrayInputStream(data)
+    val dec = new BinaryDecoder(stream)
+    val reader = new SpecificDatumReader[this.type](getSchema());
+    reader.read(this, dec)
   }
 }
 
