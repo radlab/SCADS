@@ -748,17 +748,31 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
                 }
               }
               val method = methods(midx)
-              iterateOverRange(ns, new KeyRange, false, (keyBytes, valueBytes, _) => {
-                key.parse(keyBytes.getData)
-                value.parse(valueBytes.getData)
-                val b = method.invoke(o,key,value).asInstanceOf[Boolean]
-                if (b) {
-                  val rec = new Record
-                  rec.key = keyBytes.getData
-                  rec.value = valueBytes.getData
-                  recordSet.records = rec :: recordSet.records
-                }
-              })
+              if (filtreq.raw) {
+                val kschema = key.getSchema
+                val vschema = value.getSchema
+                iterateOverRange(ns, new KeyRange, false, (keyBytes, valueBytes, _) => {
+                  val b = method.invoke(o,keyBytes.getData,kschema,valueBytes.getData,vschema).asInstanceOf[Boolean]
+                  if (b) {
+                    val rec = new Record
+                    rec.key = keyBytes.getData
+                    rec.value = valueBytes.getData
+                    recordSet.records = rec :: recordSet.records
+                  }
+                })
+              } else {
+                iterateOverRange(ns, new KeyRange, false, (keyBytes, valueBytes, _) => {
+                  key.parse(keyBytes.getData)
+                  value.parse(valueBytes.getData)
+                  val b = method.invoke(o,key,value).asInstanceOf[Boolean]
+                  if (b) {
+                    val rec = new Record
+                    rec.key = keyBytes.getData
+                    rec.value = valueBytes.getData
+                    recordSet.records = rec :: recordSet.records
+                  }
+                })
+              }
               reply(recordSet)
             }
           }
@@ -841,11 +855,20 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
               val range = new KeyRange
               if (foldreq.direction == 1)
                 range.backwards = true
-              iterateOverRange(ns, range, false, (keyBytes, valueBytes, _) => {
-                key.parse(keyBytes.getData)
-                value.parse(valueBytes.getData)
-                initVal = method.invoke(o,initVal,(key,value)).asInstanceOf[SpecificRecordBase]
-              })
+
+              if (foldreq.raw) {
+                val kschema = key.getSchema
+                val vschema = value.getSchema
+                iterateOverRange(ns, range, false, (keyBytes, valueBytes, _) => {
+                  initVal = method.invoke(o,initVal,keyBytes.getData,kschema,valueBytes.getData,vschema).asInstanceOf[SpecificRecordBase]
+                })
+              } else {
+                iterateOverRange(ns, range, false, (keyBytes, valueBytes, _) => {
+                  key.parse(keyBytes.getData)
+                  value.parse(valueBytes.getData)
+                  initVal = method.invoke(o,initVal,key,value).asInstanceOf[SpecificRecordBase]
+                })
+              }
               val rep = new Fold2Reply
               rep.reply = initVal.toBytes
               reply(rep)

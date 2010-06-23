@@ -907,23 +907,20 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
   }
 
 
-  def filter(func: (KeyType, ValueType) => Boolean): Iterable[(KeyType,ValueType)] = {
+  def filter(func: (KeyType, ValueType) => Boolean): Iterable[(KeyType,ValueType)] = 
+    filtHelp(func.getClass.getName,getFunctionCode(func),false)
+  def filter(func: (Array[Byte], Schema, Array[Byte], Schema) => Boolean): Iterable[(KeyType,ValueType)] = 
+    filtHelp(func.getClass.getName,getFunctionCode(func),true)
+  private def filtHelp(funcName:String, funcCode: java.nio.ByteBuffer, raw:Boolean): Iterable[(KeyType,ValueType)] = {
     val result = new SyncVar[List[(KeyType,ValueType)]]
     var list = List[(KeyType,ValueType)]()
     val ranges = splitRange(null, null)
     actor {
       val id = MessageHandler.registerActor(self)
-      val msg = new Message
-      val fr = new FilterRequest
-      //msg.src = new java.lang.Long(id)
-      msg.src = id
-      msg.dest = dest
-      msg.body = fr
-      fr.namespace = namespace
-      fr.keyType = keyClass.getName
-      fr.valueType = valueClass.getName
-      fr.codename = func.getClass.getName
-      fr.code = getFunctionCode(func)
+      val fr = new FilterRequest(namespace,keyClass.getName,valueClass.getName,
+                                 raw,funcName,funcCode)
+      val msg = new Message(id,dest,null,fr)
+ 
       var remaining = 0 /** use ranges.size once we upgrade to RC2 */
       ranges.foreach(r => {
         MessageHandler.sendMessage(r.nodes.head, msg)
@@ -971,6 +968,8 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
     else
       rlist
   }
+
+
 
   def foldLeft(z:(KeyType,ValueType))(func: ((KeyType,ValueType),(KeyType,ValueType)) => (KeyType,ValueType)): (KeyType,ValueType) = 
     doFold(z)(func,0)
@@ -1045,8 +1044,17 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
   }
 
   def foldLeft2L[TypeRemote <: SpecificRecordBase,TypeLocal](remInit:TypeRemote,localInit:TypeLocal)
-                                             (remFunc: (TypeRemote,(KeyType,ValueType)) => TypeRemote,
-                                              localFunc: (TypeLocal,TypeRemote) => TypeLocal): TypeLocal = {
+                                             (remFunc: (TypeRemote,KeyType,ValueType) => TypeRemote,
+                                              localFunc: (TypeLocal,TypeRemote) => TypeLocal): TypeLocal = 
+    foldLeft2LHelp(remInit,localInit)(remFunc.getClass.getName,getFunctionCode(remFunc),localFunc,false)
+  def foldLeft2L[TypeRemote <: SpecificRecordBase,TypeLocal](remInitRaw:TypeRemote,localInitRaw:TypeLocal)
+                                             (remFunc: (TypeRemote,Array[Byte],Schema,Array[Byte],Schema) => TypeRemote,
+                                              localFunc: (TypeLocal,TypeRemote) => TypeLocal): TypeLocal = 
+    foldLeft2LHelp(remInitRaw,localInitRaw)(remFunc.getClass.getName,getFunctionCode(remFunc),localFunc,true)
+
+  private def foldLeft2LHelp[TypeRemote <: SpecificRecordBase,TypeLocal](remInit:TypeRemote,localInit:TypeLocal)
+                                             (funcName:String,funcCode:java.nio.ByteBuffer,
+                                              localFunc: (TypeLocal,TypeRemote) => TypeLocal,raw:Boolean): TypeLocal = {
     var list = List[TypeRemote]()
     val result = new SyncVar[List[TypeRemote]]
     val ranges = splitRange(null, null)
@@ -1054,19 +1062,10 @@ class Namespace[KeyType <: SpecificRecordBase, ValueType <: SpecificRecordBase](
       val id = MessageHandler.registerActor(self)
       var remaining = 0 /** use ranges.size once we upgrade to RC2 */
       try {
-        val msg = new Message
-        val fr = new FoldRequest2L
-        msg.src = id
-        msg.dest = dest
-        msg.body = fr
-        fr.namespace = namespace
-        fr.keyType = keyClass.getName
-        fr.valueType = valueClass.getName
-        fr.initType = remInit.getClass.getName
-        fr.initValue = remInit.toBytes
-        fr.codename = remFunc.getClass.getName
-        fr.code = getFunctionCode(remFunc)
-        fr.direction = 0 // TODO: Change dir to an enum when we support that
+        val fr = new FoldRequest2L(namespace,keyClass.getName,valueClass.getName,
+                                   remInit.getClass.getName,remInit.toBytes,
+                                   0,funcName,funcCode,raw)
+        val msg = new Message(id,dest,null,fr)
         ranges.foreach(r => {
           MessageHandler.sendMessage(r.nodes.head, msg)
           remaining += 1

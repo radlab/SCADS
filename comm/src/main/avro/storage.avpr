@@ -175,7 +175,8 @@
 		  {"name": "namespace", "type": "string"},
 		  {"name": "keyType", "type": "string"},
 		  {"name": "valueType", "type": "string"},
-			{"name": "codename", "type": "string"},
+      {"name": "raw", "type": "boolean"},
+      {"name": "codename", "type": "string"},
 		  {"name": "code", "type": "bytes"}]
     },
 
@@ -186,7 +187,7 @@
 		  {"name": "initValueOne", "type": "bytes"},
 		  {"name": "initValueTwo", "type": "bytes"},
 		  {"name": "direction", "type": "int"},
-			{"name": "codename", "type": "string"},
+      {"name": "codename", "type": "string"},
 		  {"name": "code", "type": "bytes"}]
     },
 
@@ -198,7 +199,8 @@
 		  {"name": "initValue", "type": "bytes"},
 		  {"name": "direction", "type": "int"},
 			{"name": "codename", "type": "string"},
-		  {"name": "code", "type": "bytes"}]
+		  {"name": "code", "type": "bytes"},
+			{"name": "raw", "type": "boolean"}]
     },
 		{"name": "Fold2Reply", "type": "record", "fields": [
 		  {"name": "reply", "type": "bytes"}]
