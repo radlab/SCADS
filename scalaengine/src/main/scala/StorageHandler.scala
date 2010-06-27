@@ -762,8 +762,8 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
                 })
               } else {
                 iterateOverRange(ns, new KeyRange, false, (keyBytes, valueBytes, _) => {
-                  key.parse(keyBytes.getData)
-                  value.parse(valueBytes.getData)
+                  AvroUtils.fillRecord(keyBytes.getData,key)
+                  AvroUtils.fillRecord(valueBytes.getData,value)
                   val b = method.invoke(o,key,value).asInstanceOf[Boolean]
                   if (b) {
                     val rec = new Record
@@ -813,8 +813,8 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
               if (foldreq.direction == 1)
                 range.backwards = true
               iterateOverRange(ns, range, false, (keyBytes, valueBytes, _) => {
-                key.parse(keyBytes.getData)
-                value.parse(valueBytes.getData)
+                AvroUtils.fillRecord(keyBytes.getData,key)
+                AvroUtils.fillRecord(valueBytes.getData,value)
                 initVals = method.invoke(o,initVals,(key,value)).asInstanceOf[(SpecificRecordBase,SpecificRecordBase)]
               })
               val retRec = new Record
@@ -864,8 +864,8 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
                 })
               } else {
                 iterateOverRange(ns, range, false, (keyBytes, valueBytes, _) => {
-                  key.parse(keyBytes.getData)
-                  value.parse(valueBytes.getData)
+                  AvroUtils.fillRecord(keyBytes.getData,key)
+                  AvroUtils.fillRecord(valueBytes.getData,value)
                   initVal = method.invoke(o,initVal,key,value).asInstanceOf[SpecificRecordBase]
                 })
               }
