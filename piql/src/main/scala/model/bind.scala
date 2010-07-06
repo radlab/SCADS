@@ -332,6 +332,15 @@ class Binder(spec: Spec) {
 				  case IntegerType => Schema.create(Schema.Type.INT)
 				  case BooleanType => Schema.create(Schema.Type.BOOLEAN)
 			  }, "", null)
+      case NullableAttribute(attrName, attrType) =>
+        new Schema.Field(attrName, Schema.createUnion(
+          java.util.Arrays.asList(List[Schema](Schema.create(Schema.Type.NULL),
+                       attrType match {
+				                 case StringType => Schema.create(Schema.Type.STRING)
+				                 case IntegerType => Schema.create(Schema.Type.INT)
+				                 case BooleanType => Schema.create(Schema.Type.BOOLEAN)
+			                 }).toArray: _*))
+                         ,"", null)
       case ForeignKey(attrName, foreignType, _) => {
         val fkType = donePrime.find(_.name equals foreignType) match {
           case Some(fkt) => fkt

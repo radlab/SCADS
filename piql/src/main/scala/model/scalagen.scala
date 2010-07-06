@@ -77,7 +77,7 @@ object ScalaGen extends Generator[BoundSpec] {
 
   protected def getFields(r: Schema, prefix: List[String]): List[(String, Type)] = {
     r.getFields.flatMap(f => f.schema().getType match {
-      case Type.STRING | Type.BOOLEAN | Type.INT => {
+      case Type.STRING | Type.BOOLEAN | Type.INT | Type.UNION => {
         List(((prefix ::: List(f.name)).mkString("."), f.schema().getType))
       }
       case Type.RECORD => getFields(f.schema, prefix ::: List(f.name))
@@ -89,6 +89,13 @@ object ScalaGen extends Generator[BoundSpec] {
       case Type.STRING => output("var ", f.name, ":String = \"\"")
       case Type.BOOLEAN =>output("var ", f.name, ":Boolean = false")
       case Type.INT =>output("var ", f.name, ":Int = 0")
+      case Type.UNION => {
+        f.schema().getTypes.get(1).getType match {
+          case Type.STRING => output("var ", f.name, ":Option[String] = None")
+          case Type.BOOLEAN =>output("var ", f.name, ":Option[Boolean] = None")
+          case Type.INT => output("var ", f.name, ":Option[Int] = None")
+        }
+      }
       case Type.RECORD if(outputRecord) =>
         output("var ", f.name, ": ", toScalaType(f.schema), " = _")
       case Type.RECORD =>
@@ -107,6 +114,19 @@ object ScalaGen extends Generator[BoundSpec] {
             output("case ", idx.toString, " => boolean2Boolean(", field.name, ")")
           case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.STRING) =>
             output("case ", idx.toString, " => new Utf8(", field.name, ")")
+          case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.UNION) => {
+            outputPartial("case ", idx.toString, " => if (",field.name,".isDefined) ")
+            fields(idx).schema.getTypes.get(1).getType match {
+              case Type.INT =>
+                outputPartialCont("new java.lang.Integer(",field.name,".get)")
+              case Type.BOOLEAN =>
+                outputPartialCont("boolean2Boolean(",field.name,".get)")
+              case Type.STRING =>
+                outputPartialCont("new Utf8(",field.name,".get)")
+            }
+            outputPartialCont(" else null")
+            outputPartialEnd
+          }
           case (field: Schema.Field, idx: Int) =>
             output("case ", idx.toString, " => ", field.name)
         }
@@ -133,6 +153,18 @@ object ScalaGen extends Generator[BoundSpec] {
             output("case ", idx.toString, " => ", field.name, " = v.asInstanceOf[java.lang.Boolean].booleanValue")
           case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.STRING) =>
             output("case ", idx.toString, " => ", field.name, " = v.toString")
+          case (field: Schema.Field, idx: Int) if(field.schema.getType == Type.UNION) => {
+            outputPartial("case ", idx.toString, " => ", field.name, " = if (v == null) None else new Some")
+            fields(idx).schema.getTypes.get(1).getType match {
+              case Type.INT =>
+                outputPartialCont("[Int](v.asInstanceOf[java.lang.Integer].intValue)")
+              case Type.BOOLEAN =>
+                outputPartialCont("[Boolean](v.asInstanceOf[java.lang.Boolean].booleanValue)")
+              case Type.STRING =>
+                outputPartialCont("[String](v.toString)")
+            }
+            outputPartialEnd
+          }
           case (field: Schema.Field, idx: Int) =>
             output("case ", idx.toString, " => ", field.name, ".parse(v.asInstanceOf[SpecificRecordBase].toBytes)")
         }
@@ -214,15 +246,37 @@ object ScalaGen extends Generator[BoundSpec] {
       }
 
       entity.keySchema.getFields.foreach(f => output("def ", f.name, " = key.", f.name))
-      entity.valueSchema.getFields.foreach(f => output("def ", f.name, " = value.", f.name))
+      entity.valueSchema.getFields.foreach(f => {
+        f.schema.getType match {
+          case Type.UNION => {
+            outputPartial("def ", f.name, " = value.", f.name,".asInstanceOf")
+            f.schema.getTypes.get(1).getType match {
+              case Type.INT =>
+                outputPartialCont("[Option[Int]]")
+              case Type.BOOLEAN =>
+                outputPartialCont("[Option[Boolean]]")
+              case Type.STRING =>
+                outputPartialCont("[Option[String]]")
+            }
+            outputPartialCont(".getOrElse(null)")
+            outputPartialEnd
+          }
+          case _ =>
+            output("def ", f.name, " = value.", f.name)
+        }
+      })
 
       def mkSetter(fields: List[Schema.Field], t: KeyValueType) {
         val prefix = mkStrRep(t)
         fields.foreach(f => {
           f.schema.getType match {
-            case Type.INT | Type.BOOLEAN | Type.STRING =>
+            case Type.INT | Type.BOOLEAN | Type.STRING | Type.NULL  =>
               outputBraced("def ", f.name, "_=(v$: ", toScalaType(f.schema), "): Unit =") {
                 output(prefix, ".", f.name, " = v$")
+              }
+            case Type.UNION =>
+              outputBraced("def ", f.name, "_=(v$: ", toScalaType(f.schema), "): Unit =") {
+                output(prefix, ".", f.name, " = if (v$ == null) None else new Some[",toScalaType(f.schema),"](v$)")
               }
             case Type.RECORD =>
               outputBraced("def ", f.name, "_=(v$: ", stripKeyType(f.schema.getName), "): Unit =") {
@@ -232,7 +286,7 @@ object ScalaGen extends Generator[BoundSpec] {
                 output(prefix, ".", f.name, ".parse(v$.toBytes)")
               }
             case e =>
-              logger.fatal("Bad field name: " + f)
+              logger.fatal("Bad field name: " + f +" type: "+f.schema.getType)
               throw new IllegalArgumentException("Bad field name: " + f)
           }
         })
@@ -285,6 +339,18 @@ object ScalaGen extends Generator[BoundSpec] {
                   output("case ", idx.toString, " => ", f, " = v.asInstanceOf[java.lang.Boolean].booleanValue")
                 case ((f: String, t: Type), idx: Int) if(t == Type.STRING) =>
                   output("case ", idx.toString, " => ", f, " = v.toString")
+                case ((f: String, t: Type), idx: Int) if(t == Type.UNION) => {
+                  outputPartial("case ", idx.toString, " => ", f, " = new Some")
+                  fields(idx).schema.getTypes.get(1).getType match {
+                    case Type.INT =>
+                      outputPartialCont("[Int](v.asInstanceOf[java.lang.Integer].intValue)")
+                    case Type.BOOLEAN =>
+                      outputPartialCont("[Boolean](v.asInstanceOf[java.lang.Boolean].booleanValue)")
+                    case Type.STRING =>
+                      outputPartialCont("[String](v.toString)")
+                  }
+                  outputPartialEnd
+                }
               }
               output("case _ => throw new org.apache.avro.AvroRuntimeException(\"Bad index\")")
             }
@@ -450,6 +516,7 @@ object ScalaGen extends Generator[BoundSpec] {
     case Type.BOOLEAN => "Boolean"
     case Type.INT => "Int"
     case Type.RECORD => s.getName.replace('$', '.')
+    case Type.UNION => toScalaType(s.getTypes.get(1))
   }
 
   protected def generateQuery(name: String, query: BoundQuery)(implicit sb: StringBuilder, indnt: Indentation) {

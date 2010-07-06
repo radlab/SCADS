@@ -12,7 +12,7 @@ class ScadsLanguage extends StdTokenParsers with ImplicitConversions {
 	type Tokens = Lexer
   val lexical = new Lexer
 
-	lexical.reserved ++= List("ENTITY", "PRIMARY", "FOREIGN", "KEY", "REF", "FROM", "TO", "MANY", "QUERY", "FETCH", "OF", "BY", "WHERE", "AND", "OR", "ORDER", "BY", "ASC", "DESC", "LIMIT", "MAX", "PAGINATE", "UNION", "this", "string", "int", "bool", "true", "false")
+	lexical.reserved ++= List("ENTITY", "PRIMARY", "FOREIGN", "KEY", "REF", "FROM", "TO", "MANY", "QUERY", "FETCH", "OF", "BY", "WHERE", "AND", "OR", "ORDER", "BY", "ASC", "DESC", "LIMIT", "MAX", "PAGINATE", "UNION", "NULL", "this", "string", "int", "bool", "true", "false")
  	lexical.delimiters ++= List("{", "}", "[", "]", "<", ">", "(", ")", ",", ":", ";", "=", ".")
 
 	def intLiteral: Parser[Int] =
@@ -38,7 +38,9 @@ class ScadsLanguage extends StdTokenParsers with ImplicitConversions {
 		)
 
 	def attribute: Parser[Attribute] = (
-      attrType ~ ident ^^
+      attrType ~ ident ~ "NULL" ^^
+        {case attrType ~ attrName ~ "NULL" => new NullableAttribute(attrName, attrType)}
+    | attrType ~ ident ^^
 		    {case attrType ~ attrName => new SimpleAttribute(attrName, attrType)}
     | "FOREIGN" ~ "KEY" ~ ident ~ "REF" ~ ident ~ "MAX" ~ intLiteral ^^
         {case "FOREIGN" ~ "KEY" ~ attrName ~ "REF" ~ foreignType ~ "MAX" ~ cardinality => new ForeignKey(attrName, foreignType, FixedCardinality(cardinality))}

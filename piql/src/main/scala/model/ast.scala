@@ -13,6 +13,7 @@ case class Entity(name: String, attributes: List[Attribute], keys: List[String])
 abstract class Attribute {val name: String}
 case class ForeignKey(name: String, foreignType: String, cardinality: Cardinality) extends Attribute
 case class SimpleAttribute(name: String, attrType: AttributeType) extends Attribute
+case class NullableAttribute(name: String, attrType: AttributeType) extends Attribute
 
 /* Relationship Cardinalities */
 abstract class Cardinality extends Tree
