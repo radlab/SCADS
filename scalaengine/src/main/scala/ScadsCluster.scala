@@ -482,12 +482,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
     reader.read(null,decoder)
   }
 
-  def decodeKey(b:Array[Byte]): GenericData.Record = {
-    val decoder = new org.apache.avro.io.BinaryDecoder(new java.io.ByteArrayInputStream(b.array, 0, 0))
-    val reader = new org.apache.avro.generic.GenericDatumReader[GenericData.Record](schema)
-    reader.read(null,decoder)
-  }
-
+  def put[K <: KeyType, V <: ValueType](key: K, value: V): Unit = put(key, Some(value)) 
   def put[K <: KeyType, V <: ValueType](key: K, value: Option[V]): Unit = {
     val nodes = serversForKey(key)
     val pr = PutRequest(namespace, key.toBytes, value match {case Some(r) => Some(r.toBytes); case None => None})
@@ -1059,9 +1054,9 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
     val limit = 256
     val ret = new SyncVar[Long]
     actor {
-      val id = MessageHandler.registerActor(self)
+      val id = new ActorNumber(MessageHandler.registerActor(self))
       val bufferMap = new HashMap[Int,(scala.collection.mutable.ArrayBuffer[Record],Int)]
-      val recvIterMap = new HashMap[RemoteNode,java.lang.Long]
+      val recvIterMap = new HashMap[RemoteNode, ActorId]
       val start = System.currentTimeMillis
       var cnt = 0
       that foreach (pair => {
@@ -1085,11 +1080,11 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
             rs.records = buf.toList
             bd.records = rs
             val msg = new Message
-            msg.src = ActorNumber(id)
+            msg.src = id
             msg.body = bd
             nodes.foreach((rn) => {
               if (recvIterMap.contains(rn)) {
-                msg.dest = ActorNumber(recvIterMap(rn).longValue)
+                msg.dest = recvIterMap(rn)
                 MessageHandler.sendMessage(rn,msg)
               } else {
                 logger.warn("Not sending to: "+rn+". Have no iter open to it")
@@ -1107,8 +1102,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
             rng.minKey=polServ.min
             rng.maxKey=polServ.max
             val csr = new CopyStartRequest
-            csr.ranges = new AvroArray[KeyRange](2, Schema.createArray((new KeyRange).getSchema))
-            csr.ranges.add(rng)
+            csr.ranges = List(rng) 
             csr.namespace = namespace
             val msg = new Message
             msg.src = id
@@ -1129,7 +1123,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
                       else
                         rn
                     logger.warn("Got tsr from: "+thenode)
-                    recvIterMap += thenode -> new java.lang.Long(tsr.recvActorId)
+                    recvIterMap += thenode -> tsr.recvActorId
                     repsNeeded -= 1
                   }
                   case bda:BulkDataAck => {
@@ -1151,12 +1145,11 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
               }
             }
             // okay now we should have a full list of iters for all nodes
-            val buffer = new AvroArray[Record](limit, Schema.createArray((new Record).getSchema))
-            bufferMap += idx -> (buffer,0)
+            val buffer = new scala.collection.mutable.ArrayBuffer[Record]
+            bufferMap += ((idx, (buffer,0)))
             val rec = new Record
             rec.key = pair._1.toBytes
             rec.value = pair._2.toBytes
-            buffer.add(rec)
           }
         }
       })
@@ -1171,14 +1164,14 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
           //bufseq._2 += 1
           bd.sendActorId = id
           val rs = new RecordSet
-          rs.records = buf
+          rs.records = buf.toList
           bd.records = rs
           val msg = new Message
           msg.src = id
           msg.body = bd
           nodes.foreach((rn) => {
             if (recvIterMap.contains(rn)) {
-              msg.dest = recvIterMap(rn).longValue
+              msg.dest = recvIterMap(rn)
               MessageHandler.sendMessage(rn,msg)
               } else {
                 logger.warn("Not sending to: "+rn+". Have no iter open to it")
@@ -1189,13 +1182,13 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
       })
       // now send close messages and wait for everything to close up
       val fin = new TransferFinished
-      fin.sendActorId = id.longValue
+      fin.sendActorId = id
       val msg = new Message
       msg.src = id
       msg.body = fin
       var repsNeeded = 0
       recvIterMap.foreach((rnid)=> {
-        msg.dest = rnid._2.longValue
+        msg.dest = rnid._2
         repsNeeded += 1
         MessageHandler.sendMessage(rnid._1,msg)
       })
@@ -1224,7 +1217,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
           }
         }
       }
-      MessageHandler.unregisterActor(id)
+      MessageHandler.unregisterActor(id.num)
       println("Send a total of: "+cnt)
       ret.set(System.currentTimeMillis-start)
     }

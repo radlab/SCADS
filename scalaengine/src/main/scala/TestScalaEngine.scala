@@ -23,7 +23,7 @@ object TestScalaEngine {
     cr.namespace = ns
     cr.partition = "1"
     println("Making CR request: " + cr)
-    Sync.makeRequest(node, new Utf8("Storage"), cr)
+    Sync.makeRequest(node, new ActorName("Storage"), cr)
   }
 
 	def rmDir(dir: java.io.File): Boolean = {

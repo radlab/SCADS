@@ -7,9 +7,12 @@ import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.comm.Conversions._
 
 import edu.berkeley.cs.scads.storage._
+import com.googlecode.avro.marker.AvroRecord
+
+case class IntRec(var f1: Int) extends AvroRecord
 
 object NamespaceSpec extends SpecificationWithJUnit("SCADS Namespace") {
-  val intRec = new IntRec
+  val intRec = new IntRec(1)
 
   val gptest = TestScalaEngine.cluster.getNamespace[IntRec, IntRec]("getputtest")
   val fmtest = TestScalaEngine.cluster.getNamespace[IntRec, IntRec]("fmtest")
@@ -19,7 +22,7 @@ object NamespaceSpec extends SpecificationWithJUnit("SCADS Namespace") {
     "implement get/put" in {
       val (ir1, ir2) = (IntRec(1234), IntRec(5478))
 
-      gptest.put(ir1, ir2)
+      gptest.put(ir1, Some(ir2))
       gptest.get(ir1) must_== Some(ir2)
     }
 
