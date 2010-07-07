@@ -26,7 +26,7 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 
   /* If namespace exists, just return false, otherwise, create namespace and return true */
   def createNamespaceIfNotExists(ns: String, keySchema: Schema, valueSchema: Schema): Boolean = {
-    val nsRoot = 
+    val nsRoot =
       try {
         namespaces.get(ns)
       } catch {
@@ -90,7 +90,7 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 	      val partition = nsRoot.getOrCreate("partitions/"+i)
 	      val policy = new PartitionedPolicy
         val kp = new KeyPartition(
-          if (i != 1) 
+          if (i != 1)
             Some(splitPoints(i-2).toBytes)
           else
             None,
@@ -236,7 +236,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
       nsNode.get("partitions/"+part._1).updateChildren(false)
       val nodes = nsNode.get("partitions/"+part._1+"/servers").updateChildren(false).toList.map(ent=>{
         new RemoteNode(ent._1,Integer.parseInt(new String(ent._2.data)))
-      }) 
+      })
 		  while (iter.hasNext) {
 			  val part = iter.next
         nodeCache(idx) = new polServer(part.minKey,part.maxKey,nodes)
@@ -264,7 +264,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
       updateNodeCache
     val polKey = new polServer(None,Some(key.toBytes),Nil)
     val bpos = Arrays.binarySearch(nodeCache,polKey,null)
-    if (bpos < 0) 
+    if (bpos < 0)
       ((bpos+1) * -1)
     else if (bpos == nodeCache.length)
       bpos
@@ -285,16 +285,16 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
   private def splitRange(startKey:ScalaSpecificRecord,endKey:ScalaSpecificRecord):RangeIterator = {
     if (nodeCache == null)
       updateNodeCache
-    val sidx = 
+    val sidx =
       if (startKey == null)
         0
       else
         idxForKey(startKey)
-    val eidx = 
+    val eidx =
       if (endKey == null)
         nodeCache.length - 1
       else
-        idxForKey(endKey) 
+        idxForKey(endKey)
     // Check if this just makes the range and -1 if so
     new RangeIterator(sidx,eidx)
   }
@@ -322,14 +322,14 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
       if (keyInPolicy(policyData,key)) {
         nsNode.get("partitions/"+part._1+"/servers").updateChildren(false).toList.map(ent=>{
           new RemoteNode(ent._1,Integer.parseInt(new String(ent._2.data)))
-        }) 
+        })
       } else
         Nil
 		}).toList.flatten(n=>n).removeDuplicates
   }
 
   private def applyToSet(nodes:List[RemoteNode], func:(RemoteNode) => AnyRef, repliesRequired:Int):AnyRef = {
-    if (repliesRequired > nodes.size) 
+    if (repliesRequired > nodes.size)
       logger.warn("Asked for " + repliesRequired + " but only passed a list of "+nodes.size+ " this will timeout")
     var c = repliesRequired
     var ret:AnyRef = null
@@ -432,7 +432,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
     }
     resp.get
   }
-  
+
   /* get array of bytes which is the compiled version of cl */
   private def getFunctionCode(cl:AnyRef):Array[Byte] = {
     val ldr = cl.getClass.getClassLoader
@@ -482,7 +482,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
     reader.read(null,decoder)
   }
 
-  def put[K <: KeyType, V <: ValueType](key: K, value: V): Unit = put(key, Some(value)) 
+  def put[K <: KeyType, V <: ValueType](key: K, value: V): Unit = put(key, Some(value))
   def put[K <: KeyType, V <: ValueType](key: K, value: Option[V]): Unit = {
     val nodes = serversForKey(key)
     val pr = PutRequest(namespace, key.toBytes, value match {case Some(r) => Some(r.toBytes); case None => None})
@@ -536,7 +536,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
     get(key, retValue)
   }
 
-  def minRecord(rec:ScalaSpecificRecord, prefix:Int, ascending:Boolean):Unit = { 
+  def minRecord(rec:ScalaSpecificRecord, prefix:Int, ascending:Boolean):Unit = {
     val fields = rec.getSchema.getFields
     for (i <- (prefix to (fields.size() - 1))) { // set remaining values to min/max
       fields.get(i).schema.getType match {
@@ -585,17 +585,17 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
           // null is only null, so it's already min, has no max
           if (!ascending)
             throw new Exception("Can't do descending search with null in the prefix")
-        case org.apache.avro.Schema.Type.RECORD => 
+        case org.apache.avro.Schema.Type.RECORD =>
           if (rec.get(i) != null)
             minRecord(rec.get(i).asInstanceOf[ScalaSpecificRecord],0,ascending)
-        case org.apache.avro.Schema.Type.STRING => 
+        case org.apache.avro.Schema.Type.STRING =>
           if (ascending)
             rec.put(i,new Utf8(""))
           else {
             // NOTE: We make the "max" string 20 max char values.  This won't work if you're putting big, max valued strings in your db
             rec.put(i,new Utf8(new String(Array.fill[Byte](20)(127.asInstanceOf[Byte]))))
           }
-        case org.apache.avro.Schema.Type.UNION => 
+        case org.apache.avro.Schema.Type.UNION =>
           throw new Exception("UNION not supported at the moment")
         case other =>
           logger.warn("Got a type I don't know how to set to minimum, this getPrefix might not behave as expected: "+other)
@@ -614,7 +614,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
     val fcount = key.getSchema.getFields.size
     if (fields > fcount)
       throw new Throwable("Request fields larger than number of fields key has")
-    
+
     minRecord(key,fields,ascending)
 
     gpr.start = key.toBytes
@@ -648,7 +648,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
   def getRange[K <: KeyType](start:K, end:K, limit:Int, offset: Int, backwards:Boolean): Seq[(KeyType,ValueType)] = {
     val nodeIter = splitRange(start,end)
     var nol = List[(List[RemoteNode],MessageBody)]()
-    while(nodeIter.hasNext()) { 
+    while(nodeIter.hasNext()) {
       val polServ = nodeIter.next
       val kr = new KeyRange(
         if (start != null || polServ.min != null) {
@@ -684,7 +684,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
     val r = multiSetApply(nol.reverse,1) // we'll just take the first reply from each set
     var retList = List[(KeyType,ValueType)]()
     var added = 0
-    val reps = 
+    val reps =
       if (backwards)
         r.reverse
       else
@@ -737,7 +737,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
         val msg = Message(
                 ActorNumber(id),
                 dest,
-                null, 
+                null,
                 FlatMapRequest(
                     namespace,
                     keyClass.getName,
@@ -904,10 +904,10 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
       rlist
   }
 
-  def foldLeft(z:(KeyType,ValueType))(func: ((KeyType,ValueType),(KeyType,ValueType)) => (KeyType,ValueType)): (KeyType,ValueType) = 
+  def foldLeft(z:(KeyType,ValueType))(func: ((KeyType,ValueType),(KeyType,ValueType)) => (KeyType,ValueType)): (KeyType,ValueType) =
     doFold(z)(func,0)
 
-  def foldRight(z:(KeyType,ValueType))(func: ((KeyType,ValueType),(KeyType,ValueType)) => (KeyType,ValueType)): (KeyType,ValueType) = 
+  def foldRight(z:(KeyType,ValueType))(func: ((KeyType,ValueType),(KeyType,ValueType)) => (KeyType,ValueType)): (KeyType,ValueType) =
     doFold(z)(func,1)
 
   private def doFold(z:(KeyType,ValueType))(func: ((KeyType,ValueType),(KeyType,ValueType)) => (KeyType,ValueType),dir:Int): (KeyType,ValueType) = {
@@ -1102,7 +1102,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
             rng.minKey=polServ.min
             rng.maxKey=polServ.max
             val csr = new CopyStartRequest
-            csr.ranges = List(rng) 
+            csr.ranges = List(rng)
             csr.namespace = namespace
             val msg = new Message
             msg.src = id

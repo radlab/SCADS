@@ -81,7 +81,7 @@ class RecvIter(id: ActorId, logger:Logger) {
             logger.debug("Got copy finished")
             finFunc()
             val ric = new RecvIterClose
-            ric.sendActorId = id 
+            ric.sendActorId = id
             val msg = new Message
             msg.body = ric
             //msg.dest = new java.lang.Long(tf.sendActorId)
@@ -282,7 +282,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
 
   val availServs = root.getOrCreate("availableServers")
   val lport =
-    if (port == 0) 
+    if (port == 0)
       MessageHandler.getLocalPort
     else
       port
@@ -311,7 +311,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
     override def findClass(name:String):Class[_] = {
       if (name.equals(targetClass))
         defineClass(name, ba.array, ba.position, ba.remaining)
-      else 
+      else
         Class.forName(name)
     }
   }
@@ -325,18 +325,20 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
         ex.printStackTrace
         (null,0)
       }
-    } 
+    }
   }
 
   class Request(src: RemoteNode, req: Message) extends Runnable {
     def reply(body: MessageBody) = {
       val resp = new Message
+      resp.src = ActorName("Storage")
       resp.body = body
       if (req.src == null) {
         // TODO: do something here, since resp.dest cannot be null
       }
       resp.dest = req.src
       resp.id = req.id
+      println("req: " + req + " resp: " + resp)
       MessageHandler.sendMessage(src, resp)
     }
 
@@ -351,7 +353,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
         val ns = namespaces(gr.namespace)
         val dbeKey: DatabaseEntry = new DatabaseEntry(gr.key)
         val dbeValue = new DatabaseEntry
-        
+
         ns.db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
         if (dbeValue.getData != null) {
           val retRec = new Record
@@ -438,7 +440,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
         val tschema = mkSchema(ns.keySchema,gpr.fields)
         val recordSet = new RecordSet
         recordSet.records = new AvroArray[Record](1024, Schema.createArray((new Record).getSchema))
-        
+
         var remaining = gpr.limit match {
           case None       => -1
           case Some(i) => i
@@ -468,13 +470,13 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
 
           while(stat == OperationStatus.SUCCESS &&
                 remaining != 0 &&
-                (org.apache.avro.io.BinaryData.compare(dbeKey.getData,dbeKey.getOffset,gpr.start,0,tschema) == 0)) 
+                (org.apache.avro.io.BinaryData.compare(dbeKey.getData,dbeKey.getOffset,gpr.start,0,tschema) == 0))
           {
             val rec = new Record
             rec.key = dbeKey.getData
             rec.value = dbeValue.getData
             recordSet.records = rec :: recordSet.records
-            stat = 
+            stat =
               if (gpr.ascending)
                 cur.getNext(dbeKey, dbeValue, null)
               else
@@ -523,7 +525,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
           msg.body = req
           val rn = new RemoteNode(crr.destinationHost, crr.destinationPort)
           MessageHandler.sendMessage(rn, msg)
-          
+
           // Now reply to requestor with a started message
           val ts = new TransferStarted
           ts.sendActorId = scId
@@ -548,7 +550,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
                 }
                 sendIt.flush
                 val fin = new TransferFinished
-                fin.sendActorId = scId 
+                fin.sendActorId = scId
                 msg.src = scId
                 //msg.dest = new java.lang.Long(csr.recvActorId)
                 msg.dest = csr.recvActorId
@@ -608,7 +610,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
               reply(tf)
               exit()
             }
-            case msg => { 
+            case msg => {
               logger.warn("Unexpected message waiting to start range copy: " + msg)
               MessageHandler.unregisterActor(scId.num)
               val tf = new TransferFailed
@@ -622,17 +624,17 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
         null
       }
 
-      case csreq:CopyStartRequest => { 
+      case csreq:CopyStartRequest => {
         val ns = namespaces(csreq.namespace)
         actor {
           val scId = new ActorNumber(MessageHandler.registerActor(self))
           val recvIt = new RecvIter(scId,logger)
-          val tsr = new TransferStartReply 
+          val tsr = new TransferStartReply
           tsr.recvActorId = scId
           val msg = new Message
           msg.src = scId
           if (req.src == null) {
-               // TODO: do something b/c msg.dest cannot be null 
+               // TODO: do something b/c msg.dest cannot be null
           }
           msg.dest = req.src
           msg.body=tsr
@@ -658,9 +660,9 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
           //  merkleSyncSink(srr)
 
           // TODO: no enums for now, will need to fix in future
-          case 0 => 
+          case 0 =>
               doSimpleSync(srr)
-          case 1 => 
+          case 1 =>
               merkleSyncSink(srr)
         }
       }
@@ -669,7 +671,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
         simpleSyncSink(ssreq,src,req)
       }
 
-                 /* 
+                 /*
                     // Strange bug happens when you uncomment this code.
                     // scalac will crash.
       case fmreq: FlatMapRequest => {
@@ -698,7 +700,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
                 method.invoke(o,key,value).asInstanceOf[List[ScalaSpecificRecord]].
                   map(v => ByteBuffer.wrap(v.toBytes)).foreach(result.add)
               })
-              
+
               val resp = new FlatMapResponse
               resp.records = result
               reply(resp)
@@ -764,7 +766,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
         val value = Class.forName(foldreq.valueType).asInstanceOf[Class[ScalaSpecificRecord]].newInstance()
         var initVals = (
           Class.forName(foldreq.keyType).asInstanceOf[Class[ScalaSpecificRecord]].newInstance(),
-          Class.forName(foldreq.valueType).asInstanceOf[Class[ScalaSpecificRecord]].newInstance() 
+          Class.forName(foldreq.valueType).asInstanceOf[Class[ScalaSpecificRecord]].newInstance()
         )
         initVals._1.parse(foldreq.initValueOne)
         initVals._2.parse(foldreq.initValueTwo)
@@ -872,20 +874,20 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
     }
   }
 
-  private def iterateOverRange(ns: Namespace, range: KeyRange, needTXN: Boolean, func: (DatabaseEntry, DatabaseEntry, Cursor) => Unit): Unit = 
+  private def iterateOverRange(ns: Namespace, range: KeyRange, needTXN: Boolean, func: (DatabaseEntry, DatabaseEntry, Cursor) => Unit): Unit =
     iterateOverRange(ns,range,needTXN,func,null)
 
   private def iterateOverRange(ns: Namespace, range: KeyRange, needTXN: Boolean, func: (DatabaseEntry, DatabaseEntry, Cursor) => Unit, finalFunc: (Cursor) => Unit): Unit = {
     logger.debug("entering iterateOverRange")
     val dbeKey = new DatabaseEntry()
     val dbeValue = new DatabaseEntry()
-    var txn = 
+    var txn =
       if (needTXN)
         env.beginTransaction(null,null)
       else
         null
-    val cur = 
-      if (needTXN) 
+    val cur =
+      if (needTXN)
         ns.db.openCursor(txn,null)
       else
         ns.db.openCursor(null, null)
@@ -932,7 +934,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
           status = cur.getNext(dbeKey, dbeValue, null)
           toSkip -= 1
         }
-        
+
         status = cur.getCurrent(dbeKey, dbeValue, null)
         while(status == OperationStatus.SUCCESS &&
               remaining != 0 &&
@@ -947,7 +949,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
           status = cur.getPrev(dbeKey, dbeValue, null)
           toSkip -= 1
         }
-        
+
         status = cur.getCurrent(dbeKey, dbeValue, null)
         while(status == OperationStatus.SUCCESS &&
               remaining != 0 &&
@@ -978,7 +980,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
         def act() {
           val myId = new ActorNumber(scId)
           val recvIt = new RecvIter(myId,logger)
-          val tsr = new TransferStartReply 
+          val tsr = new TransferStartReply
           tsr.recvActorId = myId
           var txn = env.beginTransaction(null,null)
           recvIt.doRecv(
@@ -1018,7 +1020,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
             sendIt.flush
             val fin = new TransferFinished
             fin.sendActorId = scId
-            msg.src = scId 
+            msg.src = scId
             //msg.dest = new java.lang.Long(csr.recvActorId)
             msg.dest = csr.recvActorId
             msg.body = fin
@@ -1028,7 +1030,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
             loop {
               react {
                 case Exit(act,reas) => {
-                  logger.debug("Got exit from recv, cleaning up") 
+                  logger.debug("Got exit from recv, cleaning up")
                   MessageHandler.unregisterActor(scId.num)
                   reply(EmptyResponse())
                   exit()
@@ -1062,7 +1064,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
           MessageHandler.unregisterActor(scId.num)
           exit
         }
-        case msg => { 
+        case msg => {
           logger.warn("Unexpected message: " + msg)
           MessageHandler.unregisterActor(scId.num)
           exit
@@ -1077,10 +1079,10 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
     actor {
       val scId = new ActorNumber(MessageHandler.registerActor(self))
       val recvIt = new RecvPullIter(scId,logger)
-      val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema)) 
+      val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema))
       val sendIt = new SendIter(src,scId,ssreq.recvIterId,buffer,100,0,logger)
       val tsr = new TransferStartReply
-      tsr.recvActorId = scId 
+      tsr.recvActorId = scId
       val msg = new Message
       msg.src = scId
       if (req.src == null) {
@@ -1118,7 +1120,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
             rec.value = value.getData
             sendIt.put(rec)
           }
-          else if (keyComp > 0) { // case 
+          else if (keyComp > 0) { // case
             while(keyComp > 0) {
               val remKey: DatabaseEntry = curRemoteRec.key
               cursor.put(remKey,curRemoteRec.value)
@@ -1160,8 +1162,8 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
       })
       sendIt.flush
       val fin = new TransferFinished
-      fin.sendActorId = scId 
-      msg.src = scId 
+      fin.sendActorId = scId
+      msg.src = scId
       //msg.dest = new java.lang.Long(ssreq.recvIterId)
       msg.dest = ssreq.recvIterId
       msg.body = fin
@@ -1186,19 +1188,19 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
         //val policy = new PartitionedPolicy
         //policy.parse((nsRoot("partitions").get(partition))("policy").data)
         val lport =
-          if (port == 0) 
+          if (port == 0)
             MessageHandler.getLocalPort
           else
             port
 
         (nsRoot("partitions").get(partition).getOrCreate("servers")).createChild(localAddr, (lport+"").getBytes, CreateMode.EPHEMERAL)
-        
+
         val comp = new AvroComparator(keySchema)
         val dbConfig = new DatabaseConfig
         dbConfig.setAllowCreate(true)
         dbConfig.setBtreeComparator(comp)
         dbConfig.setTransactional(true)
-        
+
         namespaces += ((ns, Namespace(env.openDatabase(null, ns, dbConfig), Schema.parse(keySchema), comp)))
         logger.info("namespace " + ns + " created")
       }

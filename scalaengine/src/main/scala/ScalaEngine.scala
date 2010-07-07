@@ -19,7 +19,7 @@ object ScalaEngine extends optional.Application {
     if(!dir.exists()) {
       dir.mkdir
     }
-    
+
     val startedZookeep =
       if (startZookeep)
 	      ZooKeep.start(dir.getName, 2181).root.getOrCreate("scads")
