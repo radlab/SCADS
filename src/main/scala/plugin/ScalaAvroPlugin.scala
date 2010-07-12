@@ -25,11 +25,11 @@ trait ScalaAvroPluginComponent extends PluginComponent {
 
   protected def debug(a: AnyRef) {
     if (settings.debug.value) log(a)
-    println(a)
+    //println(a)
   }
 
   protected def warn(a: AnyRef) {
-    println(a)
+    //println(a)
   }
 
   protected def isValDef(tree: Tree): Boolean = tree.isInstanceOf[ValDef] 

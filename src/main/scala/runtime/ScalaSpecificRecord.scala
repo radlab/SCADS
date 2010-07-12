@@ -3,7 +3,7 @@ package runtime
 
 import org.apache.avro.Schema
 import org.apache.avro.Schema.Type
-import org.apache.avro.io.{BinaryEncoder, BinaryDecoder}
+import org.apache.avro.io.{BinaryEncoder, BinaryDecoder, DecoderFactory}
 import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter, SpecificRecord}
 import org.apache.avro.generic.{GenericArray, GenericData}
 import org.apache.avro.util.Utf8
@@ -30,7 +30,8 @@ trait ScalaSpecificRecord extends SpecificRecord {
 
   def parse(data: Array[Byte]): Unit = {
     val stream = new ByteArrayInputStream(data)
-    val dec = new BinaryDecoder(stream)
+    val factory = new DecoderFactory
+    val dec = factory.createBinaryDecoder(stream, null) // new decoder
     val reader = new SpecificDatumReader[this.type](getSchema());
     reader.read(this, dec)
   }
