@@ -26,7 +26,7 @@ trait UnionClosure extends ScalaAvroPluginComponent {
     def newTraverser(): Traverser = new ForeachTreeTraverser(check)
 
     def check(tree: Tree): Unit = tree match {
-      case cd @ ClassDef(_, _, _, _) if (cd.symbol.hasAnnotation(avroRecordAnnotation)) =>
+      case cd @ ClassDef(_, _, _, _) if (cd.symbol.tpe.parents.contains(avroRecordTrait.tpe)) =>
         debug("Running union closure on class: " + cd.symbol.fullName)
         val unitUnions = retrieveUnions(unit)
         unitUnions.

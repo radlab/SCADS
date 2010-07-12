@@ -59,6 +59,10 @@ trait MethodGen extends ScalaAvroPluginComponent
       twoArgFunction(clazz, sym, "scalaListToGenericArray")
     }
 
+    private def map2jmap(clazz: Symbol, sym: Symbol): Tree = {
+      twoArgFunction(clazz, sym, "scalaMapToJMap")
+    }
+
     /** this.unwrapOption(this.sym, this.getSchema.getField(sym.name).schema */
     private def unwrapOption(clazz: Symbol, sym: Symbol): Tree = {
       twoArgFunction(clazz, sym, "unwrapOption")
@@ -91,6 +95,7 @@ trait MethodGen extends ScalaAvroPluginComponent
           throw new UnsupportedOperationException("Cannot handle this right now")
         ),
       ListClass   -> (list2GenericArray _),
+      MapClass    -> (map2jmap _),
       OptionClass -> (unwrapOption _))
 
     private def generateGetMethod(templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
@@ -119,7 +124,7 @@ trait MethodGen extends ScalaAvroPluginComponent
 
     private def generateSetMethod(templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
       val newSym = clazz.newMethod(clazz.pos.focus, newTermName("put"))
-      newSym setFlag SYNTHETICMETH 
+      newSym setFlag SYNTHETICMETH | OVERRIDE
       newSym setInfo MethodType(newSym.newSyntheticValueParams(List(IntClass.tpe, AnyClass.tpe)), UnitClass.tpe)
       clazz.info.decls enter newSym 
 
@@ -129,9 +134,18 @@ trait MethodGen extends ScalaAvroPluginComponent
       val byteBufferTpe = byteBufferClass.tpe
       val utf8Tpe = utf8Class.tpe
 
+      def selectSchemaField(sym: Symbol): Tree = 
+        Apply(
+          Select(
+            Apply(
+              This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
+              List(LIT(sym.name.toString.trim))),
+            newTermName("schema")),
+          Nil)
+
       val cases = for ((sym, i) <- instanceVars.zipWithIndex) yield {
         val rhs = 
-          // TODO: i think sym == [Class] would work here too
+          // TODO: refactor this mess
           if (sym.tpe.typeSymbol == StringClass) {
             typer typed ((newSym ARG 1) AS utf8Tpe DOT newTermName("toString"))
           } else if (sym.tpe.typeSymbol == ArrayClass && sym.tpe.normalize.typeArgs.head == ByteClass.tpe) {
@@ -148,6 +162,19 @@ trait MethodGen extends ScalaAvroPluginComponent
                     newTermName("castToGenericArray")),
                   List(newSym ARG 1)))) AS sym.tpe
             typer typed apply
+          } else if (sym.tpe.typeSymbol == MapClass) {
+            val apply = 
+              Apply(
+                Select(
+                  This(clazz),
+                  newTermName("jMapToScalaMap")),
+                List(Apply(
+                  Select(
+                    This(clazz),
+                    newTermName("castToJMap")),
+                  List(newSym ARG 1)),
+                  selectSchemaField(sym))) AS sym.tpe
+            typer typed apply
           } else if (sym.tpe.typeSymbol == OptionClass) {
             val paramSym = sym.tpe.typeArgs.head.typeSymbol
             val useNative = 
@@ -158,13 +185,7 @@ trait MethodGen extends ScalaAvroPluginComponent
                 This(clazz) DOT newTermName("wrapOption"),
                 List(
                   (newSym ARG 1),
-                  Apply(
-                    Select(
-                      Apply(
-                        This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
-                        List(LIT(sym.name.toString.trim))),
-                      newTermName("schema")),
-                    Nil),
+                  selectSchemaField(sym),
                   LIT(useNative))) AS sym.tpe
             typer typed apply
           } else {
@@ -184,42 +205,26 @@ trait MethodGen extends ScalaAvroPluginComponent
     private def generateGetSchemaMethod(clazzTree: ClassDef): Tree = {
       val clazz = clazzTree.symbol
       val newSym = clazz.newMethod(clazz.pos.focus, newTermName("getSchema"))
-      newSym setFlag SYNTHETICMETH 
+      newSym setFlag SYNTHETICMETH | OVERRIDE
       newSym setInfo MethodType(newSym.newSyntheticValueParams(Nil), schemaClass.tpe)
       clazz.info.decls enter newSym 
       //println("localTyper.context1.enclClass: " + localTyper.context1.enclClass)
       //println("companionModuleOf(clazz): " + companionModuleOf(clazzTree))
       //println("companionModuleOf(clazz).moduleClass: " + companionModuleOf(clazzTree.symbol).moduleClass)
 
-      // the strategy: walk up the owner enclClass field; if we see an actual
-      // class, then we know that its an instance class. if we only see
-      // objects, then its fine
-      var startSym = clazz.owner
-      debug("startSym = " + startSym)
-      def useObj(curSym: Symbol): Boolean = {
-        debug("\tcurSym = " + curSym)
-        debug("\tcurSym.isPackage= " + curSym.isPackage)
-        debug("\tcurSym.isPackageClass = " + curSym.isPackageClass)
-        debug("\tcurSym.isClass = " + curSym.isClass)
-        debug("\tcurSym.isModuleClass = " + curSym.isModuleClass)
-        debug("\tcurSym.isTerm = " + curSym.isTerm)
-        if (curSym.isPackage || curSym.isPackageClass)
-          true /** TODO: what __should__ we do in this case? */
-        else if (!curSym.isModuleClass)
-          false /** We see a non object, so we have to work around */
-        else if (curSym.owner == NoSymbol)
-          true /** When would we get to this case if possible? */
-        else
-          useObj(curSym.owner) /** Check parent */
-      }
-      debug("useObj(startSym): " + useObj(startSym))
-
-      // TODO: temporary hack until we can figure out how to reference the
-      // module in nested inner classes (where an instance is needed)
       val innerTree: Tree =  /** Not sure why compiler needs type information (Tree) here */
-        if (useObj(startSym)) 
-          { This(companionModuleOf(clazzTree.symbol).moduleClass) DOT newTermName("schema") }
-        else
+        if (clazz.owner.isClass) { /** Only when the owner of this class is another class can we perform
+                                    *  the optimization of referencing the companion object */
+            debug("--- clazz ---: " + clazz)
+            debug("clazz.toplevelClass: " + clazz.toplevelClass)
+            debug("clazz.outerClass: " + clazz.outerClass)
+            debug("clazz.enclClass: " + clazz.enclClass)
+            if (clazz.toplevelClass == clazz) {
+              This(companionModuleOf(clazzTree.symbol).moduleClass) DOT newTermName("schema")
+            } else {
+              This(clazz.outerClass) DOT newTermName(clazz.name.toString) DOT newTermName("schema")
+            }
+        } else /** Fall back to the naive version in the other cases */
           Apply(
             Ident(newTermName("org")) DOT 
               newTermName("apache")   DOT
@@ -234,7 +239,7 @@ trait MethodGen extends ScalaAvroPluginComponent
 
     override def transform(tree: Tree) : Tree = {
       val newTree = tree match {
-        case cd @ ClassDef(mods, name, tparams, impl) if (cd.symbol.hasAnnotation(avroRecordAnnotation)) =>
+        case cd @ ClassDef(mods, name, tparams, impl) if (cd.symbol.tpe.parents.contains(avroRecordTrait.tpe)) =>
           debug(retrieveRecordSchema(cd.symbol))
           debug(cd.symbol.fullName + "'s enclClass: " + cd.symbol.enclClass)
           debug("owner.enclClass: " + cd.symbol.owner.enclClass)

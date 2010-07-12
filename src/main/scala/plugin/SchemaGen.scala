@@ -57,6 +57,8 @@ trait SchemaGen extends ScalaAvroPluginComponent
       utf8Class       -> Schema.create(AvroType.STRING)
     )
 
+
+
     private def createSchema(tpe: Type): Schema = {
       if (primitiveClasses.get(tpe.typeSymbol).isDefined) {
         primitiveClasses.get(tpe.typeSymbol).get
@@ -72,10 +74,24 @@ trait SchemaGen extends ScalaAvroPluginComponent
         if (listParam.typeSymbol == OptionClass) {
           throw new UnsupportedOperationException("Cannot nest option types")
         }
-        Schema.createUnion(JArrays.asList(
-          Array(createSchema(NullClass.tpe), createSchema(listParam)):_*))
+        if (isUnion(listParam.typeSymbol)) {
+          // special case when you do Option[A], where A is an @AvroUnion
+          val innerSchemas = createSchema(listParam).getTypes.toArray(Array[Schema]())
+          Schema.createUnion(JArrays.asList(
+            (Array(createSchema(NullClass.tpe)) ++ innerSchemas):_*))
+        } else {
+          Schema.createUnion(JArrays.asList(
+            Array(createSchema(NullClass.tpe), createSchema(listParam)):_*))
+        }
+      } else if (tpe.typeSymbol == MapClass) {
+        val (keyTpe, valueTpe) = (tpe.typeArgs.head, tpe.typeArgs.tail.head)
+        if (keyTpe.typeSymbol != StringClass)
+          throw new UnsupportedOperationException("Avro maps require string key")
+        Schema.createMap(createSchema(valueTpe)) 
       } else if (isRecord(tpe.typeSymbol)) { 
         retrieveRecordSchema(tpe.typeSymbol).get 
+      } else if (isExternalRecord(tpe.typeSymbol)) {
+        retrieveExternalRecordSchema(tpe.typeSymbol)
       } else if (isUnion(tpe.typeSymbol)) {
         Schema.createUnion(JArrays.asList(
           retrieveUnionRecords(tpe.typeSymbol).
@@ -88,7 +104,7 @@ trait SchemaGen extends ScalaAvroPluginComponent
 
     override def transform(tree: Tree) : Tree = {
       val newTree = tree match {
-        case cd @ ClassDef(mods, name, tparams, impl) if (cd.symbol.hasAnnotation(avroRecordAnnotation)) =>
+        case cd @ ClassDef(mods, name, tparams, impl) if (cd.symbol.tpe.parents.contains(avroRecordTrait.tpe)) =>
 
           val instanceVars = for (member <- impl.body if isValDef(member)) yield { member.symbol }
 
