@@ -12,6 +12,7 @@ import com.googlecode.avro.marker.AvroRecord
 
 case class IntRec(var f1: Int) extends AvroRecord
 
+@RunWith(classOf[JUnitRunner])
 class NamespaceSpec extends Spec with ShouldMatchers {
 
   describe("SCADS Namespace") {
