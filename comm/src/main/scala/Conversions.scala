@@ -7,6 +7,7 @@ import org.apache.avro.util.Utf8
 import java.io.InputStream
 import java.nio.ByteBuffer
 
+@deprecated("No longer needed with new avro scala compiler plugin")
 object Conversions {
 	class ScalaContainer[RecType <: GenericContainer](base: List[RecType]) extends GenericArray[RecType]{
 		class IterWrapper[T](iter: Iterator[T]) extends java.util.Iterator[T] {

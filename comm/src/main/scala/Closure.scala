@@ -4,7 +4,9 @@ import java.io._
 import java.nio.ByteBuffer
 import org.apache.avro.specific.SpecificRecordBase
 
-
+/**
+ * Helper methods for the serialization of closure to byte arrays.
+ */
 object Closure {
 	def apply(buff: InputStream): Object = {
 		val s = new ObjectInputStream(buff)

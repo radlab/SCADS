@@ -1,6 +1,5 @@
 package edu.berkeley.cs.scads.storage
 
-import java.util.Comparator
 import java.util.concurrent.{BlockingQueue, ArrayBlockingQueue, ThreadPoolExecutor, TimeUnit}
 import java.nio.ByteBuffer
 import java.io.ByteArrayInputStream
@@ -25,233 +24,6 @@ import org.apache.zookeeper.CreateMode
 
 import com.googlecode.avro.runtime.ScalaSpecificRecord
 
-@serializable
-class AvroComparator(val json: String) extends Comparator[Array[Byte]] with java.io.Serializable {
-  @transient
-  lazy val schema = Schema.parse(json)
-
-  def compare(o1: Array[Byte], o2: Array[Byte]): Int = {
-    org.apache.avro.io.BinaryData.compare(o1, 0, o2, 0, schema)
-  }
-
-  def compare(o1: ByteBuffer, o2: Array[Byte]): Int = {
-    if (!o1.hasArray)
-      throw new Exception("Can't compare without backing array")
-    org.apache.avro.io.BinaryData.compare(o1.array(), o1.position, o2, 0, schema)
-  }
-
-  def compare(o1: Array[Byte], o2: ByteBuffer): Int = {
-    if (!o2.hasArray)
-      throw new Exception("Can't compare without backing array")
-    org.apache.avro.io.BinaryData.compare(o1, 0, o2.array, o2.position, schema)
-  }
-
-  override def equals(other: Any): Boolean = other match {
-    case ac: AvroComparator => json equals ac.json
-    case _ => false
-  }
-}
-
-class RecvIter(id: ActorId, logger:Logger) {
-  implicit def mkDbe(buff: ByteBuffer): DatabaseEntry = new DatabaseEntry(buff.array, buff.position, buff.remaining)
-
-  def doRecv(recFunc:(Record) => Unit, finFunc:() => Unit) {
-    loop {
-      react {
-        case (rn:RemoteNode, msg: Message) => msg.body match {
-          case bd:BulkData => {
-            logger.debug("Got bulk data, inserting")
-            val it = bd.records.records.iterator
-            while(it.hasNext) {
-              val rec = it.next
-              recFunc(rec)
-            }
-            val bda = new BulkDataAck
-            bda.seqNum = bd.seqNum
-            bda.sendActorId = id
-            val msg = new Message
-            msg.body = bda
-            //msg.dest = new java.lang.Long(bd.sendActorId)
-            msg.dest = bd.sendActorId
-            msg.src = id
-            MessageHandler.sendMessage(rn,msg)
-            logger.debug("Done and acked")
-          }
-          case tf:TransferFinished => {
-            logger.debug("Got copy finished")
-            finFunc()
-            val ric = new RecvIterClose
-            ric.sendActorId = id
-            val msg = new Message
-            msg.body = ric
-            //msg.dest = new java.lang.Long(tf.sendActorId)
-            msg.dest = tf.sendActorId
-            msg.src = id
-            MessageHandler.sendMessage(rn,msg)
-            exit()
-          }
-          case m => {
-            logger.warn("RecvIter got unexpected type of message: "+msg.body)
-          }
-        }
-        case msg => {
-          logger.warn("RecvIter got unexpected message: "+msg)
-        }
-      }
-    }
-  }
-}
-
-class RecvPullIter(id: ActorId, logger:Logger) extends Iterator[Record] {
-  implicit def mkDbe(buff: ByteBuffer): DatabaseEntry = new DatabaseEntry(buff.array, buff.position, buff.remaining)
-  private var curRecs: Iterator[Record] = null
-  private var done = false
-
-  private def nextBuf() = {
-    if (!done) {
-      receive {
-        case (rn:RemoteNode, msg: Message) => msg.body match {
-          case bd:BulkData => {
-            curRecs = bd.records.records.iterator
-            val bda = new BulkDataAck
-            bda.seqNum = bd.seqNum
-            bda.sendActorId = id
-            val msg = new Message
-            msg.body = bda
-            //msg.dest = new java.lang.Long(bd.sendActorId)
-            msg.dest = bd.sendActorId
-            msg.src = id
-            MessageHandler.sendMessage(rn,msg)
-          }
-          case ric:TransferFinished => {
-            logger.debug("RecvPullIter: Got copy finished")
-            done = true
-            curRecs = null
-          }
-          case m => {
-            logger.warn("RecvPullIter: got unexpected type of message: "+msg.body)
-            done = true
-            curRecs = null
-          }
-        }
-        case msg => {
-          logger.warn("RecvPullIter: got unexpected message: "+msg)
-          done = true
-          curRecs = null
-        }
-      }
-    }
-  }
-
-  def hasNext(): Boolean = {
-    if (done) return false
-    if (curRecs == null || !(curRecs.hasNext)) nextBuf
-    if (done) return false
-    return true
-  }
-
-  def next(): Record = {
-    if (done) return null
-    if (curRecs == null || !(curRecs.hasNext)) nextBuf
-    if (done) return null
-    curRecs.next
-  }
-}
-
-class SendIter(targetNode:RemoteNode, id: ActorId, receiverId: ActorId, buffer:AvroArray[Record], capacity:Int, speedLimit:Int, logger:Logger) {
-  private var windowLeft = 50 // we'll allow 50 un-acked bulk messages for now
-  private var seqNum = 0
-  private var bytesQueued:Long = 0
-  private var bytesSentLast:Long = 0
-  private var lastSentTime:Long = 0
-
-  def flush() {
-    if (speedLimit != 0) {
-      val secs = (System.currentTimeMillis - lastSentTime)/1000.0
-      val target = bytesSentLast / speedLimit.toDouble
-      if (target > secs)  // if we wanted to take longer than we actually did
-        Thread.sleep(((target-secs)*1000).toLong)
-    }
-    val bd = new BulkData
-    bd.seqNum = seqNum
-    seqNum += 1
-    bd.sendActorId = id
-    val rs = new RecordSet
-    rs.records = buffer
-    bd.records = rs
-    val msg = new Message
-    msg.dest = receiverId
-    msg.src = id
-    msg.body = bd
-    MessageHandler.sendMessage(targetNode,msg)
-    windowLeft -= 1
-    buffer.clear
-    if (speedLimit != 0) {
-      bytesSentLast = bytesQueued
-      bytesQueued = 0
-      lastSentTime = System.currentTimeMillis()
-    }
-  }
-
-  def finish(timeout:Int): Unit = {
-    flush
-    val fin = new TransferFinished
-    fin.sendActorId = id
-    val msg = new Message
-    msg.src = id
-    msg.dest = receiverId
-    msg.body = fin
-    MessageHandler.sendMessage(targetNode,msg)
-    // now we loop and wait for acks and final cleanup from other side
-    var done = false
-    while(!done) {
-      receiveWithin(timeout) {
-        case (rn:RemoteNode, msg:Message)  => msg.body match {
-          case bda:BulkDataAck => {
-            // don't need to do anything, we're ignoring these
-          }
-          case ric:RecvIterClose => { // should probably have a status here at some point
-            done = true
-          }
-          case msgb => {
-            logger.warn("Copy end loop got unexpected message body: "+msgb)
-          }
-        }
-          case TIMEOUT => {
-            logger.warn("Copy end loop timed out waiting for finish")
-            done = true
-          }
-        case msg =>
-          logger.warn("Copy end loop got unexpected message: "+msg)
-      }
-    }
-  }
-
-  def put(rec:Record): Unit = {
-    while (windowLeft <= 0) { // not enough acks processed
-      receiveWithin(60000) { // we'll allow 1 minute for an ack
-        case (rn:RemoteNode, msg:Message)  => msg.body match {
-          case bda:BulkDataAck => {
-            logger.debug("Got ack, increasing window")
-            windowLeft += 1
-          }
-          case msgb =>
-            logger.warn("SendIter got unexpected message body: "+msgb)
-        }
-        case TIMEOUT => {
-          logger.warn("SendIter timed out waiting for ack")
-          exit()
-        }
-        case msg =>
-          logger.warn("SendIter got unexpected message: "+msg)
-      }
-    }
-    buffer.add(rec)
-    bytesQueued += rec.value.remaining
-    if (buffer.size >= capacity)  // time to send
-      flush
-  }
-}
 
 class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, localAddr:String, port:Int) extends ServiceHandler {
   def this(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) =
@@ -535,8 +307,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
             case (rn:RemoteNode, msg: Message) => msg.body match {
               case csr: TransferStartReply => {
                 logger.debug("Got TransferStartReply, sending data")
-                val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema))
-                val sendIt = new SendIter(rn,scId,csr.recvActorId,buffer,100,crr.rateLimit,logger)
+                val sendIt = new SendIter(rn,scId,csr.recvActorId,100,crr.rateLimit,logger)
                 var recsSent:Long = 0
                 val rangeIt = crr.ranges.iterator
                 while(rangeIt.hasNext) {
@@ -1009,8 +780,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
           case csr: TransferStartReply => {
             logger.debug("Got TransferStartReply, sending data")
             recvAct.start
-            val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema))
-            val sendIt = new SendIter(rn,scId,csr.recvActorId,buffer,100,0,logger)
+            val sendIt = new SendIter(rn,scId,csr.recvActorId,100,0,logger)
             iterateOverRange(ns, srr.range, false, (key, value, cursor) => {
               val rec = new Record
               rec.key = key.getData
@@ -1079,8 +849,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
     actor {
       val scId = new ActorNumber(MessageHandler.registerActor(self))
       val recvIt = new RecvPullIter(scId,logger)
-      val buffer = new AvroArray[Record](100, Schema.createArray((new Record).getSchema))
-      val sendIt = new SendIter(src,scId,ssreq.recvIterId,buffer,100,0,logger)
+      val sendIt = new SendIter(src,scId,ssreq.recvIterId,100,0,logger)
       val tsr = new TransferStartReply
       tsr.recvActorId = scId
       val msg = new Message
@@ -1269,6 +1038,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
       }
     }
   }
+
   def replyWithError(src:RemoteNode, req:Message, except:ProcessingException):Unit = {
     val resp = new Message
     resp.body = except

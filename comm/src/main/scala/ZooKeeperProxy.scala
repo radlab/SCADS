@@ -7,8 +7,12 @@ import org.apache.zookeeper.data.Stat
 import scala.collection.mutable.HashMap
 import scala.collection.JavaConversions._
 
-
-
+/**
+ * Scalafied interface to Zookeeper
+ * TODO: Remove caching behavior or find a way to clean up the semantics
+ * TODO: Add the ability to execute callbacks on watches (possibly with weak references to callbacks)
+ * TODO: Create a mock version of this class for testing.
+ */
 class ZooKeeperProxy(server: String, port: Int) extends Watcher {
   def this(server: String) = this(server, 3000)
 
