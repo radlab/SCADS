@@ -7,9 +7,12 @@ import com.sleepycat.je.jmx.JEMonitor
 import edu.berkeley.cs.scads.comm._
 import org.apache.log4j.Logger
 
+/**
+ * Application for starting up a standalone scads storage engine
+ */
 object ScalaEngine extends optional.Application {
   private val logger = Logger.getLogger("ScalaEngine")
-  def main(port: Int, zooKeeper: String, dbDir: Option[java.io.File], cachePercentage: Option[Int], verbose: Boolean, startZookeep: Boolean): StorageHandler = {
+  def main(port: Int, zooKeeper: Option[String], dbDir: Option[java.io.File], cachePercentage: Option[Int], verbose: Boolean) : StorageHandler = {
     val config = new EnvironmentConfig()
     config.setAllowCreate(true)
     config.setTransactional(true)
@@ -20,15 +23,16 @@ object ScalaEngine extends optional.Application {
       dir.mkdir
     }
 
-    val startedZookeep =
-      if (startZookeep)
-	      ZooKeep.start(dir.getName, 2181).root.getOrCreate("scads")
-      else
-        null
+    val zooRoot = zooKeeper match {
+      case Some(address) => new ZooKeeperProxy(address).root("scads")
+      case None => {
+        logger.info("No zookeeper specifed.  Running in standalone mode with local zookeeper")
+        ZooKeeperHelper.getTestZooKeeper.root("scads")
+      }
+    }
 
     val env = new Environment(dir, config)
     logger.info("Connecting to zookeeper")
-    val zooRoot = new ZooKeeperProxy(zooKeeper).root("scads")
     val handler = new StorageHandler(env, zooRoot,
                                      java.net.InetAddress.getLocalHost.getHostName,
                                      port)

@@ -17,10 +17,10 @@ object TestScalaEngine {
 	rmDir(path)
 	path.mkdir()
 
-	val zooKeeper = ZooKeep.start("target/testCluster", 2181).root.getOrCreate("scads")
-	val handler = ScalaEngine.main(9000, "localhost:2181", Some(path), None, false,false)
+	val zooKeeper = ZooKeeperHelper.getTestZooKeeper
+	val handler = ScalaEngine.main(9000, Some(zooKeeper.address), Some(path), None, false)
 	val node = RemoteNode("localhost", 9000)
-	val cluster = new ScadsCluster(zooKeeper)
+	val cluster = new ScadsCluster(zooKeeper.root.getOrCreate("scads"))
 
   @deprecated("Use ScadsCluster to create/maintain namespaces")
   def createNamespace(ns: String, keySchema: Schema, valueSchema: Schema): Unit = {

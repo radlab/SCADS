@@ -13,10 +13,8 @@ import scala.collection.JavaConversions._
  * TODO: Add the ability to execute callbacks on watches (possibly with weak references to callbacks)
  * TODO: Create a mock version of this class for testing.
  */
-class ZooKeeperProxy(server: String, port: Int) extends Watcher {
-  def this(server: String) = this(server, 3000)
-
-  val conn = new ZooKeeper(server, port, this)
+class ZooKeeperProxy(val address: String) extends Watcher {
+  val conn = new ZooKeeper(address, 3000, this)
   val root = new ZooKeeperNode("/")
 	
   class ZooKeeperNode(val path: String) {
