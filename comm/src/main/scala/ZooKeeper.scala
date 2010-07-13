@@ -14,8 +14,8 @@ import org.apache.log4j.Logger
  * Helper object for spinning up a local zookeeper instance.  Used primarily for testing.
  */
 object ZooKeeperHelper {
-  private val basePort = 9000
-  private var currentPort = new AtomicInteger 
+  private val basePort = 2000
+  private var currentPort = new AtomicInteger
 	private val logger = Logger.getLogger("scads.test")
 
   /**
