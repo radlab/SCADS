@@ -196,6 +196,6 @@ class PartitionPolicy(schema: Schema, keyClass: Class[ScalaSpecificRecord], nsNo
         })
       } else
         Nil
-		}).toList.flatten(n=>n).removeDuplicates
+		}).toList.flatten(n=>n).distinct
   }
 }
