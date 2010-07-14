@@ -171,8 +171,8 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
         ns.db.get(txn, dbeKey, dbeEv, LockMode.READ_COMMITTED)
 	val expValue = tsr.expectedValue.getOrElse(null)
 
-        if((dbeEv.getData == null && tsr.expectedValue.isDefined != null) ||
-           (dbeEv.getData != null && tsr.expectedValue.isEmpty == null) ||
+        if((dbeEv.getData == null && tsr.expectedValue.isDefined) ||
+           (dbeEv.getData != null && tsr.expectedValue.isEmpty) ||
            (dbeEv.getData != null && tsr.expectedValue.isDefined && !dbeEv.equals(expValue))) {
              /* Throw exception if expected value doesnt match present value */
              txn.abort
