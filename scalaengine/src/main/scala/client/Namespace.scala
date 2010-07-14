@@ -18,6 +18,7 @@ import org.apache.avro.util.Utf8
 import org.apache.avro.generic.GenericData.{Array => AvroArray}
 import org.apache.avro.generic.GenericData
 import org.apache.avro.io.BinaryData
+import org.apache.avro.io.DecoderFactory
 import com.googlecode.avro.runtime.ScalaSpecificRecord
 
 import org.apache.zookeeper.CreateMode
@@ -190,7 +191,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
   }
 
   def decodeKey(b:Array[Byte]): GenericData.Record = {
-    val decoder = new org.apache.avro.io.BinaryDecoder(new java.io.ByteArrayInputStream(b))
+    val decoder = DecoderFactory.defaultFactory().createBinaryDecoder(b, null)
     val reader = new org.apache.avro.generic.GenericDatumReader[GenericData.Record](schema)
     reader.read(null,decoder)
   }

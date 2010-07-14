@@ -19,6 +19,7 @@ import org.apache.avro.Schema
 import org.apache.avro.util.Utf8
 import org.apache.avro.generic.{GenericDatumReader,GenericData}
 import org.apache.avro.io.BinaryDecoder
+import org.apache.avro.io.DecoderFactory
 
 import org.apache.zookeeper.CreateMode
 
@@ -61,7 +62,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
   availServs.createChild(localAddr, (lport+"").getBytes, CreateMode.EPHEMERAL)
 
   private def decodeKey(ns:Namespace, dbe:DatabaseEntry): GenericData.Record = {
-    val decoder = new BinaryDecoder(new ByteArrayInputStream(dbe.getData(),dbe.getOffset(),dbe.getSize()))
+    val decoder = DecoderFactory.defaultFactory().createBinaryDecoder(dbe.getData(), dbe.getOffset(), dbe.getSize, null)
     val reader = new GenericDatumReader[GenericData.Record](ns.keySchema)
     reader.read(null,decoder)
   }
