@@ -6,6 +6,7 @@ import org.apache.zookeeper.Watcher.Event.KeeperState
 import org.apache.zookeeper.data.Stat
 import scala.collection.mutable.HashMap
 import scala.collection.JavaConversions._
+import org.apache.log4j.Logger
 
 /**
  * Scalafied interface to Zookeeper
@@ -15,6 +16,7 @@ import scala.collection.JavaConversions._
  */
 class ZooKeeperProxy(val address: String) extends Watcher {
   val conn = new ZooKeeper(address, 3000, this)
+  val logger = Logger.getLogger("scads.zookeeper")
   val root = new ZooKeeperNode("/")
 	
   class ZooKeeperNode(val path: String) {
