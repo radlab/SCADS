@@ -62,7 +62,7 @@ class ZooKeeperProxy(val address: String) extends Watcher {
 			this
 		}
 
-    def updateChildren(watch: Boolean):HashMap[String, ZooKeeperNode] = {
+    def updateChildren(watch: Boolean = false):HashMap[String, ZooKeeperNode] = {
       if(!childrenCache.isDefined)
         childrenCache = Some(new HashMap[String, ZooKeeperNode]())
 
@@ -86,7 +86,7 @@ class ZooKeeperProxy(val address: String) extends Watcher {
       children
     }
 
-    def updateData(watch: Boolean): Array[Byte] = {
+    def updateData(watch: Boolean = false): Array[Byte] = {
       val stat = new Stat
       val data = conn.getData(path, watch, stat)
 
