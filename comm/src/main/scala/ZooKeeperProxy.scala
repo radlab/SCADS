@@ -15,8 +15,8 @@ import org.apache.log4j.Logger
  * TODO: Create a mock version of this class for testing.
  */
 class ZooKeeperProxy(val address: String) extends Watcher {
-  val conn = new ZooKeeper(address, 3000, this)
   val logger = Logger.getLogger("scads.zookeeper")
+  var conn = new ZooKeeper(address, 3000, this)
   val root = new ZooKeeperNode("/")
 	
   class ZooKeeperNode(val path: String) {
@@ -110,7 +110,10 @@ class ZooKeeperProxy(val address: String) extends Watcher {
     if(event.getType == EventType.None)
       event.getState match {
         case KeeperState.SyncConnected =>
-        case KeeperState.Expired =>
+        case KeeperState.Expired => {
+          logger.info("Connection to Zookeeper Expired.  Attempting to reconnect")
+          conn = new ZooKeeper(address, 3000, this)
+        }
       }
     else {
       root(event.getPath).watchedEvent(event.getType)
