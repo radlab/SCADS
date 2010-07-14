@@ -39,181 +39,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
 
   lazy val keySchema = keyClass.newInstance.asInstanceOf[ScalaSpecificRecord].getSchema()
   lazy val valueSchema = valueClass.newInstance.asInstanceOf[ScalaSpecificRecord].getSchema()
-
-  private var nodeCache:Array[polServer] = null
-
-  private case class polServer(min: Option[Array[Byte]],max: Option[Array[Byte]],nodes:List[RemoteNode]) extends Comparable[polServer] {
-    def compareTo(p:polServer):Int = {
-      (max, p.max) match {
-        case (None, None) => 0
-        case (None, _) => 1
-        case (_, None) => -1
-        case (Some(a), Some(b)) => org.apache.avro.io.BinaryData.compare(a, 0, b, 0, schema)
-      }
-    }
-
-    override def toString():String = {
-      val sb = new java.lang.StringBuffer
-      val k = keyClass.newInstance.asInstanceOf[KeyType]
-      sb.append("[")
-      min match {
-        case Some(m) => {
-          k.parse(m)
-          sb.append(m)
-        }
-        case None => sb.append("-inf")
-      }
-      sb.append(", ")
-      max match {
-        case Some(m) => {
-          k.parse(m)
-          sb.append(k)
-        }
-        case None => sb.append("+inf")
-      }
-
-      sb.append("): ")
-      nodes.foreach((node) => {
-        sb.append(node)
-        sb.append(" ")
-      })
-      return sb.toString
-    }
-  }
-
-  private class RangeIterator(start:Int, end:Int) extends Iterator[polServer] {
-    private var cur = start
-    def hasNext():Boolean = {
-      cur <= end
-    }
-
-    def next():polServer = {
-      if (cur > end)
-        throw new NoSuchElementException()
-      cur += 1
-      nodeCache((cur-1))
-    }
-  }
-
-  private def keyComp(part: Option[Array[Byte]], key: Option[Array[Byte]]): Int = {
-    (part, key) match {
-      case (None, None) => 0
-      case (None, _) => -1
-      case (_, None) => 1
-      case (Some(a), Some(b)) => org.apache.avro.io.BinaryData.compare(a, 0, b, 0, schema)
-    }
-  }
-
-  private def updateNodeCache():Unit = {
-    val partitions = nsNode.get("partitions").updateChildren(false)
-    var ranges:Int = 0
-    partitions.map(part=>{
-      val policyData = 	nsNode.get("partitions/"+part._1+"/policy").updateData(false)
-      val policy = new PartitionedPolicy
-      policy.parse(policyData)
-      ranges += policy.partitions.size.toInt
-    })
-    nodeCache = new Array[polServer](ranges)
-    var idx = 0
-    partitions.map(part=>{
-      val policyData = 	nsNode.get("partitions/"+part._1+"/policy").updateData(false)
-      val policy = new PartitionedPolicy
-      policy.parse(policyData)
-		  val iter = policy.partitions.iterator
-      nsNode.get("partitions/"+part._1).updateChildren(false)
-      val nodes = nsNode.get("partitions/"+part._1+"/servers").updateChildren(false).toList.map(ent=>{
-        new RemoteNode(ent._1,Integer.parseInt(new String(ent._2.data)))
-      })
-		  while (iter.hasNext) {
-			  val part = iter.next
-        nodeCache(idx) = new polServer(part.minKey,part.maxKey,nodes)
-        idx += 1
-      }
-		})
-    Arrays.sort(nodeCache,null)
-  }
-
-  def clearCache():Unit = {
-    nodeCache = null
-  }
-
-  def printCache():Unit = {
-    if (nodeCache == null)
-      updateNodeCache
-    println("Current cache:")
-    for (i <- (0 to (nodeCache.length - 1))) {
-      println(nodeCache(i))
-    }
-  }
-
-  private def idxForKey(key:ScalaSpecificRecord):Int = {
-    if (nodeCache == null)
-      updateNodeCache
-    val polKey = new polServer(None,Some(key.toBytes),Nil)
-    val bpos = Arrays.binarySearch(nodeCache,polKey,null)
-    if (bpos < 0)
-      ((bpos+1) * -1)
-    else if (bpos == nodeCache.length)
-      bpos
-    else
-      bpos + 1
-  }
-
-  def serversForKey(key:ScalaSpecificRecord):List[RemoteNode] = {
-    val idx = idxForKey(key)
-    // validate that we don't have a gap
-    if (keyComp(nodeCache(idx).min, Some(key.toBytes)) > 0) {
-      logger.warn("Possible gap in partitions, returning empty server list")
-      Nil
-    } else
-      nodeCache(idx).nodes
-  }
-
-  private def splitRange(startKey:ScalaSpecificRecord,endKey:ScalaSpecificRecord):RangeIterator = {
-    if (nodeCache == null)
-      updateNodeCache
-    val sidx =
-      if (startKey == null)
-        0
-      else
-        idxForKey(startKey)
-    val eidx =
-      if (endKey == null)
-        nodeCache.length - 1
-      else
-        idxForKey(endKey)
-    // Check if this just makes the range and -1 if so
-    new RangeIterator(sidx,eidx)
-  }
-
-	private def keyInPolicy(policy:Array[Byte], key: ScalaSpecificRecord):Boolean = {
-		val pdata = new PartitionedPolicy
-		pdata.parse(policy)
-		val iter = pdata.partitions.iterator
-    val kdata = key.toBytes
-		while (iter.hasNext) {
-			val part = iter.next
-      if ( (part.minKey == null ||
-            keyComp(part.minKey,Some(kdata)) >= 0) &&
-           (part.maxKey == null ||
-            keyComp(part.maxKey,Some(kdata)) < 0) )
-        return true
-		}
-    false
-	}
-
-  def serversForKeySlow(key:ScalaSpecificRecord):List[RemoteNode] = {
-    val partitions = nsNode.get("partitions").updateChildren(false)
-    partitions.map(part=>{
-      val policyData = 	nsNode.get("partitions/"+part._1+"/policy").updateData(false)
-      if (keyInPolicy(policyData,key)) {
-        nsNode.get("partitions/"+part._1+"/servers").updateChildren(false).toList.map(ent=>{
-          new RemoteNode(ent._1,Integer.parseInt(new String(ent._2.data)))
-        })
-      } else
-        Nil
-		}).toList.flatten(n=>n).removeDuplicates
-  }
+  val partitions = new PartitionPolicy(schema, keyClass, nsNode)
 
   private def applyToSet(nodes:List[RemoteNode], func:(RemoteNode) => AnyRef, repliesRequired:Int):AnyRef = {
     if (repliesRequired > nodes.size)
@@ -371,7 +197,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
 
   def put[K <: KeyType, V <: ValueType](key: K, value: V): Unit = put(key, Some(value))
   def put[K <: KeyType, V <: ValueType](key: K, value: Option[V]): Unit = {
-    val nodes = serversForKey(key)
+    val nodes = partitions.serversForKey(key)
     val pr = PutRequest(namespace, key.toBytes, value match {case Some(r) => Some(r.toBytes); case None => None})
     if (nodes.length <= 0) {
       logger.warn("No nodes responsible for this key, not doing anything")
@@ -381,7 +207,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
   }
 
   def getBytes[K <: KeyType](key: K): Array[Byte] = {
-    val nodes = serversForKey(key)
+    val nodes = partitions.serversForKey(key)
     if (nodes.length <= 0) {
       logger.warn("No node responsible for this key, returning null")
       return null
@@ -491,7 +317,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
   }
 
   def getPrefix[K <: KeyType](key: K, fields: Int, limit: Int = -1, ascending: Boolean = true):Seq[(KeyType,ValueType)] = {
-    val nodes = serversForKey(key)
+    val nodes = partitions.serversForKey(key)
     val gpr = new GetPrefixRequest
     gpr.namespace = namespace
     if (limit >= 0)
@@ -533,7 +359,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
   def getRange[K <: KeyType](start:K, end:K):Seq[(KeyType,ValueType)] =
     getRange(start,end,0,0,false)
   def getRange[K <: KeyType](start:K, end:K, limit:Int, offset: Int, backwards:Boolean): Seq[(KeyType,ValueType)] = {
-    val nodeIter = splitRange(start,end)
+    val nodeIter = partitions.splitRange(start,end)
     var nol = List[(List[RemoteNode],MessageBody)]()
     while(nodeIter.hasNext()) {
       val polServ = nodeIter.next
@@ -607,7 +433,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
 
       def act(): Unit = {
         val id = MessageHandler.registerActor(self)
-        val ranges = splitRange(null, null)
+        val ranges = partitions.splitRange(null, null)
         var remaining = 0 /** Use ranges.size once we upgrade to RC2 or greater */
         var partialElements = List[RetType]()
         //val msg = new Message
@@ -675,7 +501,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
   def size():Int = {
     val sv = new SyncVar[Int]
     val s = new java.util.concurrent.atomic.AtomicInteger()
-    val ranges = splitRange(null, null)
+    val ranges = partitions.splitRange(null, null)
     actor {
       val id = MessageHandler.registerActor(self)
       val msg = new Message
@@ -729,7 +555,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
   def filter(func: (KeyType, ValueType) => Boolean): Iterable[(KeyType,ValueType)] = {
     val result = new SyncVar[List[(KeyType,ValueType)]]
     var list = List[(KeyType,ValueType)]()
-    val ranges = splitRange(null, null)
+    val ranges = partitions.splitRange(null, null)
     actor {
       val id = MessageHandler.registerActor(self)
       val msg = new Message
@@ -800,7 +626,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
   private def doFold(z:(KeyType,ValueType))(func: ((KeyType,ValueType),(KeyType,ValueType)) => (KeyType,ValueType),dir:Int): (KeyType,ValueType) = {
     var list = List[(KeyType,ValueType)]()
     val result = new SyncVar[List[(KeyType,ValueType)]]
-    val ranges = splitRange(null, null)
+    val ranges = partitions.splitRange(null, null)
     actor {
       val id = MessageHandler.registerActor(self)
       val msg = new Message
@@ -868,7 +694,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
                                               localFunc: (TypeLocal,TypeRemote) => TypeLocal): TypeLocal = {
     var list = List[TypeRemote]()
     val result = new SyncVar[List[TypeRemote]]
-    val ranges = splitRange(null, null)
+    val ranges = partitions.splitRange(null, null)
     actor {
       val id = MessageHandler.registerActor(self)
       var remaining = 0 /** use ranges.size once we upgrade to RC2 */
@@ -936,9 +762,9 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
       rlist.foldLeft(localInit)(localFunc)
   }
 
-  // TODO: Return Value?
-  def ++=(that:Iterable[(KeyType,ValueType)]):Long = {
-    val limit = 256
+  // TODO: Fix to no longer depend on ordinals from placement policy internals
+  def ++=(that:Iterable[(KeyType,ValueType)]): Unit = {
+  /*  val limit = 256
     val ret = new SyncVar[Long]
     actor {
       val id = new ActorNumber(MessageHandler.registerActor(self))
@@ -948,11 +774,9 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
       var cnt = 0
       that foreach (pair => {
         cnt+=1
-        val idx = idxForKey(pair._1)
-        val polServ =  nodeCache(idx)
-        val nodes = polServ.nodes
-        if (bufferMap.contains(idx)) { // already have an iter open
-          val bufseq = bufferMap(idx)
+        val nodes = partitions.serversForKey(pair._1) 
+        if (true) { //bufferMap.contains(idx)) { // already have an iter open
+          val bufseq: (scala.collection.mutable.ArrayBuffer[Record],Int) = null //bufferMap(idx)
           val buf = bufseq._1
           val rec = new Record
           rec.key = pair._1.toBytes
@@ -981,13 +805,13 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
           }
         } else {
           // validate that we don't have a gap
-          if (keyComp(nodeCache(idx).min,Some(pair._1.toBytes)) > 0) {
+          if (true) {//partitions.keyComp(nodeCache(idx).min,Some(pair._1.toBytes)) > 0) {
             logger.warn("Gap in partitions, returning empty server list")
             Nil
           } else {
             val rng = new KeyRange
-            rng.minKey=polServ.min
-            rng.maxKey=polServ.max
+            //rng.minKey=polServ.min
+            //rng.maxKey=polServ.max
             val csr = new CopyStartRequest
             csr.ranges = List(rng)
             csr.namespace = namespace
@@ -1033,7 +857,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
             }
             // okay now we should have a full list of iters for all nodes
             val buffer = new scala.collection.mutable.ArrayBuffer[Record]
-            bufferMap += ((idx, (buffer,0)))
+            //bufferMap += ((idx, (buffer,0)))
             val rec = new Record
             rec.key = pair._1.toBytes
             rec.value = pair._2.toBytes
@@ -1108,6 +932,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
       println("Send a total of: "+cnt)
       ret.set(System.currentTimeMillis-start)
     }
-    ret.get
+    ret.get */
+
   }
 }
