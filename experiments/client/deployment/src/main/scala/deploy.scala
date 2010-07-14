@@ -35,9 +35,9 @@ class ScadsDeploy2(storageMachines: List[StorageMachine], dataPlacementMachine: 
 
     class DefaultUnknownNSHandler(logicalBuckets: List[List[StorageMachine]], var defaultPartition: Int) extends UnknownNSHandler {
 
-        override def handleUnknownNS(ns:String):Unit = { 
+        override def handleUnknownNS(ns:String):Unit = {
             logicalBuckets(defaultPartition).foreach( (sm) => {
-                val dp = sm.getDataPlacement(ScadsDeployUtil.getAllRangeRecordSet) 
+                val dp = sm.getDataPlacement(ScadsDeployUtil.getAllRangeRecordSet)
                 dataPlacementMachine.useConnection( (c) => c.add(ns, ListConversions.scala2JavaList(List(dp))) )
             })
         }
@@ -101,7 +101,7 @@ class ScadsDeploy2(storageMachines: List[StorageMachine], dataPlacementMachine: 
     }
 
     def shutdown():Unit = {
-        stopAllServices 
+        stopAllServices
     }
 
     def deploy():Unit = {
@@ -127,7 +127,7 @@ class ScadsDeploy2(storageMachines: List[StorageMachine], dataPlacementMachine: 
         // for each node
         (storageMachines.map[ThriftMachine]( (m) => m ) ++ List(dataPlacementMachine)).foreach((machine) => {
             if ( !machine.getMachine.isPortAvailableToListen(machine.getThriftPort) ) {
-                val msg = "Port " + machine.getThriftPort + " is in use on " + machine.getMachine 
+                val msg = "Port " + machine.getThriftPort + " is in use on " + machine.getMachine
                 logger.fatal(msg)
                 throw new RemotePortInUseException(msg)
             }
@@ -135,7 +135,7 @@ class ScadsDeploy2(storageMachines: List[StorageMachine], dataPlacementMachine: 
 
         // Start the storage engine service on all the storage nodes
         storageMachines.foreach( (rnode) => {
-            val port = rnode.thriftPort 
+            val port = rnode.thriftPort
             // Setup runit on the node
             rnode.machine.setupRunit
             val storageNodeService = new JavaService(
@@ -161,19 +161,19 @@ class ScadsDeploy2(storageMachines: List[StorageMachine], dataPlacementMachine: 
 
 
     def rebalance():Unit = {
-        val knownNs = dataPlacementMachine.getKnownNS 
+        val knownNs = dataPlacementMachine.getKnownNS
         var bucketMap = Map[String,List[Int]]()
         knownNs.foreach( (ns) => {
-            
+
             var bucketList = List[Int]()
 
             logicalBuckets.foreach( (partition) => {
 
-                var bucketCount = 0 
+                var bucketCount = 0
                 var seenOne = false
 
                 partition.foreach( (smachine) => {
-                    
+
                     logger.debug("Looking at node: " + smachine.machine)
                     val dp = dataPlacementMachine.lookup_node(ns, smachine)
                     logger.debug("Returns DP: " + dp)
@@ -188,7 +188,7 @@ class ScadsDeploy2(storageMachines: List[StorageMachine], dataPlacementMachine: 
                         if ( !seenOne ) {
                             bucketCount = count
                         } else if ( bucketCount != count ) {
-                           throw new InconsistentReplicationException("Found node " + smachine + " that has inconsistent data with the partition: bucketCount: " + bucketCount + " count: " + count) 
+                           throw new InconsistentReplicationException("Found node " + smachine + " that has inconsistent data with the partition: bucketCount: " + bucketCount + " count: " + count)
                         }
 
                         seenOne = true
@@ -200,7 +200,7 @@ class ScadsDeploy2(storageMachines: List[StorageMachine], dataPlacementMachine: 
                     } else {
                         logger.debug("No Data Placement for " + smachine)
                         if ( bucketCount != 0 ) {
-                           throw new InconsistentReplicationException("Found node " + smachine + " that has no data, but the partition does") 
+                           throw new InconsistentReplicationException("Found node " + smachine + " that has no data, but the partition does")
                         }
                     }
 
@@ -210,10 +210,10 @@ class ScadsDeploy2(storageMachines: List[StorageMachine], dataPlacementMachine: 
 
             })
 
-            bucketMap += ( ns -> bucketList ) 
+            bucketMap += ( ns -> bucketList )
 
 
-            //val dps = handle.lookup_namespace(ns) 
+            //val dps = handle.lookup_namespace(ns)
             //logger.debug("DPS FOR " + ns + " ARE: " + dps)
             //dps.foreach( (dp) => {
             //    logger.debug("DP IS" + dp)
@@ -285,9 +285,9 @@ class ScadsDeploy2(storageMachines: List[StorageMachine], dataPlacementMachine: 
                         logger.debug("KEYLISTPP+1-th key :" + plus1keyval)
 
                         val rset = ScadsDeployUtil.getRS(dp.rset)
-                        rset.range.setOffset(keylistPP) 
+                        rset.range.setOffset(keylistPP)
                         logger.debug("calling move()")
-                        dataPlacementMachine.move( 
+                        dataPlacementMachine.move(
                             ns, rset, smachine1, smachine2)
                         //val toRemove = handle1.get_set(ns,rset)
                         //logger.debug("TO REMOVE FROM " + tuple1._1 + ": " + toRemove)
@@ -302,7 +302,7 @@ class ScadsDeploy2(storageMachines: List[StorageMachine], dataPlacementMachine: 
                         dataPlacementMachine.useConnection((c)=>c.add(ns, ListConversions.scala2JavaList(List(dp))))
 
                         val nextDp = dataPlacementMachine.lookup_node(ns,smachine2)
-                        if ( isValidDataPlacement(nextDp) ) { 
+                        if ( isValidDataPlacement(nextDp) ) {
                             logger.debug("found valid existing dp:" + nextDp)
                             nextDp.rset.range.setStart_key(plus1keyval)
                             logger.debug("modified existing dp to be: " + nextDp)
@@ -377,7 +377,7 @@ class ScadsDeploy2(storageMachines: List[StorageMachine], dataPlacementMachine: 
                                     dataPlacementMachine.useConnection((c) => c.add(ns, ListConversions.scala2JavaList(List(dpToModify))))
                                     assert( keysMoved == diff, "didnt move all possible from node" )
                                     val moddedDP = dataPlacementMachine.lookup_node(ns, sourceMachine)
-                                    logger.debug("Modded DP: " + moddedDP) 
+                                    logger.debug("Modded DP: " + moddedDP)
                                 }
                             }
 
@@ -398,7 +398,7 @@ class ScadsDeploy2(storageMachines: List[StorageMachine], dataPlacementMachine: 
                             hasKey = sourceMachine.totalCount(ns) > 0
                         }
 
-                        var thisDp = myDp 
+                        var thisDp = myDp
                         logger.debug("THIS DP: " + thisDp)
                         if ( !isValidDataPlacement(thisDp) ) {
                             thisDp = smachine1.getDataPlacement(ScadsDeployUtil.getAllRangeRecordSet)
@@ -435,7 +435,7 @@ class ScadsDeploy2(storageMachines: List[StorageMachine], dataPlacementMachine: 
 
     private def dumpNodeData():Unit = {
         val knownNs = dataPlacementMachine.getKnownNS
-        knownNs.foreach( (ns) => dumpNodeData(ns) ) 
+        knownNs.foreach( (ns) => dumpNodeData(ns) )
     }
 
     private def dumpNodeData(ns: String):Unit = {
@@ -445,12 +445,10 @@ class ScadsDeploy2(storageMachines: List[StorageMachine], dataPlacementMachine: 
                 val dp = dataPlacementMachine.lookup_node(ns, smachine)
                 logger.debug("Returns DP: " + dp)
                 logger.debug("Data:" + smachine.totalSet(ns))
-            }) 
+            })
         })
     }
 
 
 
 }
-
-

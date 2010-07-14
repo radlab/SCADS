@@ -15,7 +15,7 @@ import org.apache.avro.ipc._
 import org.apache.avro.specific._
 
 abstract class NioAvroChannelManagerBase[SendMsgType <: SpecificRecord,RecvMsgType <: SpecificRecord]
-(implicit sendManifest: scala.reflect.Manifest[SendMsgType], 
+(implicit sendManifest: scala.reflect.Manifest[SendMsgType],
 recvManifest: scala.reflect.Manifest[RecvMsgType])
 extends AvroChannelManager[SendMsgType, RecvMsgType] with ChannelHandler {
 
@@ -41,7 +41,7 @@ extends AvroChannelManager[SendMsgType, RecvMsgType] with ChannelHandler {
 
   private def registerReverseMap(channel: SocketChannel) = {
     socketAddrReverseMap.put(
-      channel, 
+      channel,
       RemoteNode(channel.socket.getInetAddress.getHostName, channel.socket.getPort))
   }
 
@@ -93,5 +93,5 @@ extends AvroChannelManager[SendMsgType, RecvMsgType] with ChannelHandler {
 
   def getLocalAddress: InetAddress = endpoint.getListeningAddr
   def getLocalPort: Int = endpoint.getListeningPort
-    
+
 }

@@ -35,8 +35,8 @@ class PiqlEditor {
   val defaultPiql = Compiler.readInputStream(Thread.currentThread().getContextClassLoader().getResourceAsStream("scadr.piql"))
 
   protected def validatePiql(code: String): JsCmd = {
-    val spec = 
-      try { 
+    val spec =
+      try {
         Compiler.getOptimizedSpec(code)
       } catch {
         case _ => return Alert("Invalid PIQL spec")
@@ -60,14 +60,14 @@ class PiqlEditor {
     }
 
     val entityQ = spec.entities.values.flatMap(e => e.queries.values.map(mkQueryLink(e.name, _))).toList
-    val entityQueries: NodeSeq = 
+    val entityQueries: NodeSeq =
       if (entityQ.isEmpty)
         <span></span>
-      else 
+      else
         entityQ.reduceLeft(_++_)
-    val otherQueries: NodeSeq = 
+    val otherQueries: NodeSeq =
       if (spec.orphanQueries.isEmpty)
-        <span></span> 
+        <span></span>
       else
         spec.orphanQueries.values.map(mkQueryLink("static", _)).reduceLeft(_++_)
     SetHtml("status", <tr><td>Plan</td><td>Location</td><td>Recs</td><td>Ops</td></tr> ++ entityQueries ++ otherQueries)

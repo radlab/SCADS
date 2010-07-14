@@ -7,7 +7,7 @@ import scala.collection.jcl.Conversions
 
 class DeployStorageNode(hostname: String, thriftPort: Int) extends StorageNode(hostname, thriftPort) {
 
-    def totalCount(ns:String):Int = { 
+    def totalCount(ns:String):Int = {
         val range = ScadsDeployUtil.getAllRangeRecordSet
         useConnection( (c) => c.count_set(ns,range) )
     }
@@ -22,7 +22,7 @@ class DeployStorageNode(hostname: String, thriftPort: Int) extends StorageNode(h
         val list = useConnection((c) => c.get_set(ns,range))
         if ( list.size == 0 ) {
             null
-        } else { 
+        } else {
             list.get(0)
         }
     }

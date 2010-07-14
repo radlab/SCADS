@@ -25,7 +25,7 @@ object ChannelManagerSpec extends SpecificationWithJUnit("ChannelManager Specifi
 
     override def receiveMessage(src: RemoteNode, msg: TestMsg): Unit = {
       logger.debug("message " + msg + " received from " + src)
-      received.put(msg.payload, System.currentTimeMillis) 
+      received.put(msg.payload, System.currentTimeMillis)
     }
 
     def hasReceived(msgs: String, time: Int):Boolean = hasReceived(List(msgs), time)
@@ -75,7 +75,7 @@ object ChannelManagerSpec extends SpecificationWithJUnit("ChannelManager Specifi
         val client = new TestChannelManager
         val server = new TestChannelManager
         server.startListener(8080)
-        client.sendMessage(RemoteNode("localhost",8080), "test1") 
+        client.sendMessage(RemoteNode("localhost",8080), "test1")
           mustBeTrue(server.hasReceived("test1",10),"must have received message test1")
             server.reset
             lgr.debug("end test 1")
@@ -122,7 +122,7 @@ object ChannelManagerSpec extends SpecificationWithJUnit("ChannelManager Specifi
             val msgs = List("a","b","c","123","456")
               msgs.foreach(client.sendMessage(RemoteNode("localhost",8083),_))
             mustBeTrue(server.hasReceived(msgs.map(string2utf8(_)),10),"server must have recv-ed all msgs")
-            mustBeTrue(client.hasReceived(msgs.map(string2utf8(_)),10),"client must have recv-ed all echos") 
+            mustBeTrue(client.hasReceived(msgs.map(string2utf8(_)),10),"client must have recv-ed all echos")
             lgr.debug("end test 4")
           }
 
@@ -142,7 +142,7 @@ object ChannelManagerSpec extends SpecificationWithJUnit("ChannelManager Specifi
                 }
                 t.start
               })
-            mustBeTrue(server.hasReceived(allMsgs.map(string2utf8(_)),10),"server must have recv-ed all msgs from diff threads") 
+            mustBeTrue(server.hasReceived(allMsgs.map(string2utf8(_)),10),"server must have recv-ed all msgs from diff threads")
             mustBeTrue(client.hasReceived(allMsgs.map(string2utf8(_)),10),"client must have recv-ed all echos")
             server.reset
             lgr.debug("end test 5")
@@ -187,7 +187,7 @@ object ChannelManagerSpec extends SpecificationWithJUnit("ChannelManager Specifi
                 val t = new Thread {
                   override def run = {
                     msgs.foreach(m => client.sendMessageBulk(RemoteNode("localhost",8087),m))
-                    lock.synchronized { 
+                    lock.synchronized {
                       count += 1
                       if (count == 5) lock.notify
                     }

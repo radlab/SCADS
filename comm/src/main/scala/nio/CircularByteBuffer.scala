@@ -14,9 +14,9 @@ class CircularByteBuffer(private var initialSize: Int) {
         if (bytesRemaining < toAppend.length) {
             // expand
             val newSize = Math.max(bytes.length*2, (_size+toAppend.length)*2)
-            val newBytes = new Array[Byte](newSize) 
+            val newBytes = new Array[Byte](newSize)
             if (head+size < bytes.length+1)
-                System.arraycopy(bytes, head, newBytes, 0, _size) 
+                System.arraycopy(bytes, head, newBytes, 0, _size)
             else {
                 System.arraycopy(bytes, head, newBytes, 0, bytes.length-head)
                 System.arraycopy(bytes, 0, newBytes, bytes.length-head, _size-(bytes.length-head))
@@ -28,7 +28,7 @@ class CircularByteBuffer(private var initialSize: Int) {
         // copy until end
         val toCopy = Math.min(toAppend.length, bytes.length-tailStart)
         System.arraycopy(toAppend, 0, bytes, tailStart, toCopy)
-        
+
         // now copy into beginning
         if (toCopy < toAppend.length)
             System.arraycopy(toAppend, toCopy, bytes, 0, toAppend.length-toCopy)
@@ -36,7 +36,7 @@ class CircularByteBuffer(private var initialSize: Int) {
     }
 
     def consumeBytes(length: Int):Array[Byte] = {
-        if (length > _size) 
+        if (length > _size)
             throw new IllegalArgumentException("Cannot consume more bytes than there are")
         if (length < 0)
             throw new IllegalArgumentException("Cannot consume negative bytes")
@@ -65,6 +65,6 @@ class CircularByteBuffer(private var initialSize: Int) {
     def bytesRemaining:Int = bytes.length - _size
 
     def size:Int = _size
-    
+
     def isEmpty:Boolean = _size == 0
 }

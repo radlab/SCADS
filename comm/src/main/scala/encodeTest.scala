@@ -6,7 +6,7 @@ object EncoderTest {
 
     def encodeByteBuffer1(data: ByteBuffer): ByteBuffer = {
         val newBuffer = ByteBuffer.allocate(4 + data.remaining)
-        newBuffer.putInt(data.remaining) 
+        newBuffer.putInt(data.remaining)
         newBuffer.put(data)
         newBuffer.rewind
         newBuffer
@@ -14,8 +14,8 @@ object EncoderTest {
 
     def encodeByteBuffer2(data: ByteBuffer): ByteBuffer = {
         val buf = new Array[Byte](4 + data.remaining)
-        buf(0) = ((data.remaining >> 24) & 0xFF).toByte 
-        buf(1) = ((data.remaining >> 16) & 0xFF).toByte 
+        buf(0) = ((data.remaining >> 24) & 0xFF).toByte
+        buf(1) = ((data.remaining >> 16) & 0xFF).toByte
         buf(2) = ((data.remaining >> 8) & 0xFF).toByte
         buf(3) = (data.remaining & 0xFF).toByte
         data.get(buf, 4, data.remaining)

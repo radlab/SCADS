@@ -45,7 +45,7 @@ scadsDeploy.rebalance
 (usernames ::: usernames2).foreach( (u) => {
     var rtn = Queries.userByName(u)
     if ( rtn.isEmpty ) {
-        println("Crap! Could not find user " + u) 
+        println("Crap! Could not find user " + u)
         //System.exit(1)
     }
     rtn.foreach(println(_))
@@ -59,7 +59,7 @@ def getNRandomUsers(numUsers: Int, offset: Int): List[String] = {
         var found = false
         var nextInt = 0
         while (!found) {
-            nextInt = rGen.nextInt(numUsers) 
+            nextInt = rGen.nextInt(numUsers)
             if ( !seenBefore(nextInt) ) {
                 seenBefore(nextInt) = true
                 found = true
@@ -69,4 +69,3 @@ def getNRandomUsers(numUsers: Int, offset: Int): List[String] = {
     }
     usernames
 }
-

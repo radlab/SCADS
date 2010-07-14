@@ -64,7 +64,7 @@ clientMachines.zip(0 until clientMachines.size).foreach( (rnode,i) => {
 clientMachines.foreach( (rnode) => {
     val clientService = rnode.services(0)
     while (clientService.status.trim.equals("run")) {
-        logger.debug(rnode + " is still running the before data load...")       
+        logger.debug(rnode + " is still running the before data load...")
         Thread.sleep(60000L) // wait a minute, check again.
     }
 })
@@ -102,7 +102,7 @@ clientMachines.zip(0 until clientMachines.size).foreach( (rnode,i) => {
 clientMachines.foreach( (rnode) => {
     val clientService = rnode.services(1)
     while (clientService.status.trim.equals("run")) {
-        logger.debug(rnode + " is still running the after data load...")       
+        logger.debug(rnode + " is still running the after data load...")
         Thread.sleep(60000L) // wait a minute, check again.
     }
 })

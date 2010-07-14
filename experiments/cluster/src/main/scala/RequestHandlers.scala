@@ -17,7 +17,7 @@ class StaticRequestHandler(val namespace:String, mapping: Map[PolicyRange,Remote
 	val logger = Logger.getLogger("statichandler")
 	val quorum = 1
 	val failedRequestLatency = 1000L
-	
+
 	val ranges = Array[PolicyRange](mapping.toList.map(e=>e._1):_*)
 	val minKey = ranges.foldLeft(ranges(0).minKey)((out,entry)=>{if(entry.minKey<out) entry.minKey else out})
 	val maxKey = ranges.foldLeft(ranges(0).maxKey)((out,entry)=>{if(entry.maxKey>out) entry.maxKey else out})
@@ -40,10 +40,10 @@ class DynamicRequestHandler(val namespace:String, zoo_server:String, val workloa
 	val logger = Logger.getLogger("dynamichandler")
 	val quorum = 1
 	val failedRequestLatency = 1000L
-	
+
 	val server_port = 9991
 	val mapping = new ClientMapping(zoo_server)
-	
+
 	protected def locate(ns:String,needle:Int):List[RemoteNode] = {
 		mapping.locate(ns,needle).map(entry => RemoteNode(entry,server_port))
 	}
@@ -69,7 +69,7 @@ class DynamicRequestHandler(val namespace:String, zoo_server:String, val workloa
 		}
 		waitTime
 	}
-	
+
 	override protected def endInterval(stopTime:Long) = {
 		val waitTime = waitAndClearDelayedRequests
 		if (waitTime > 0L) logger.info("Had to wait additional "+(waitTime-stopTime)/1000.0 + " seconds")
@@ -79,7 +79,7 @@ class DynamicRequestHandler(val namespace:String, zoo_server:String, val workloa
 class DynamicWarmer(namespace:String, zoo_server:String, minKey:Int, maxKey:Int, workload:WorkloadDescription, numClients:Int, override val quorum:Int) extends DynamicRequestHandler(namespace, zoo_server, workload, numClients) {
 	var success_count = new java.util.concurrent.atomic.AtomicInteger
 	var currentKey = new java.util.concurrent.atomic.AtomicInteger(minKey)
-	
+
 	override def logRequest(req:RequestResponse):Unit = {
 		if (req==null) return
 		val metadata = request_map.remove(req.id)
@@ -106,12 +106,12 @@ trait LogToFile {
 	def thread_name:String
 	def server:String
 	def samplingFraction:Double
-	
+
 	val requestLog = new java.io.BufferedWriter(new java.io.FileWriter("/tmp/requestlogs.csv"))
 	var lastFlush:Long = 0L
 	val flushInterval = 30*1000
 	val logrnd = new java.util.Random( (thread_name).hashCode.toLong+System.currentTimeMillis )
-	
+
 	protected def logRequest(req:RequestResponse):Unit = {
 		if (req==null) return
 		val metadata = request_map.remove(req.id)
@@ -135,16 +135,16 @@ trait LogInXtrace {
 	def thread_name:String
 	def server:String
 	def samplingFraction:Double
-	
+
 	var xtrace_logger_queue:java.util.concurrent.BlockingQueue[String] = null
 	val logrnd = new java.util.Random( (server+thread_name).hashCode.toLong+System.currentTimeMillis )
-	
+
 	protected def logRequest(req:RequestResponse):Unit = {
 		if (req==null) return
 		var metadata = request_map.remove(req.id)
 		if (metadata != null && logrnd.nextDouble<samplingFraction) { // log some requests
 			val latency = if (req.status == EXCEPT) failedRequestLatency else (req.receiveNano-metadata.startNano)/1000000.0 // if failed request, latency=1000ms
-			
+
 			// log request type, key, hostname, latency, sucess status//, request rate, start, end
 			val details = metadata.request_type+","+"%010d".format(metadata.key)+","+req.host+","+latency+","+req.status//+","+(java.lang.Math.pow(10,9)/period_nanos).toInt+","+metadata.startTimeStamp+","+req.receiveTimeStamp
 			if (xtrace_logger_queue != null) xtrace_logger_queue.put(details)
@@ -154,13 +154,13 @@ trait LogInXtrace {
 
 class RequestLogger(val queue:java.util.concurrent.BlockingQueue[String]) extends Runnable {
 	import edu.berkeley.xtrace._
-	val xtrace_on = System.getProperty("xtrace_stats","false").toBoolean	
+	val xtrace_on = System.getProperty("xtrace_stats","false").toBoolean
 	var running = true
-	
+
 	def run = {
 		//logger.info("XTRACE SENDER: sending initial report")
 		XTraceContext.startTraceSeverity("xtracesender","Initiated",1)
-		
+
 		while (running) {
 			send(queue.take) // send to xtrace
 		}
@@ -183,7 +183,7 @@ abstract class RequestHandler extends ServiceHandler with Runnable {
 	def quorum:Int
 	def numClients:Int
 	/* end abstract */
-	
+
 	val serviceName = "RequestHandler"
 	MessageHandler.registerService(serviceName,this)
 	val thread_name = Thread.currentThread.getName
@@ -191,11 +191,11 @@ abstract class RequestHandler extends ServiceHandler with Runnable {
 	val requests = new java.util.concurrent.ArrayBlockingQueue[RequestResponse](5000)
 	val stpe = new java.util.concurrent.ScheduledThreadPoolExecutor(2) // threads in pool for generating requests periodically
 	val request_id = new java.util.concurrent.atomic.AtomicLong
-	val request_count = new java.util.concurrent.atomic.AtomicLong	
+	val request_count = new java.util.concurrent.atomic.AtomicLong
 	val request_map = new java.util.concurrent.ConcurrentHashMap[Long,RequestSent] // id -> RequestSent(request type, key, starttime in nanos, start timestamp)
 	val SUCCESS:Int = 0;	val FAILED:Int = 1;		val EXCEPT:Int = 2
 	val nodernd = new java.util.Random( (thread_name).hashCode.toLong+System.currentTimeMillis )
-	
+
 	var requestGenerator:SCADSRequestGenerator = null
 	var period_nanos:Long = 0L
 	var samplingFraction = 0.02
@@ -222,13 +222,13 @@ abstract class RequestHandler extends ServiceHandler with Runnable {
 		requestGenerator = currentInterval.requestGenerator
 		val divisor = requestGenerator match { case g:WarmingSCADSRequestGenerator => 1; case _ => 2*quorum }
 		period_nanos = ( java.lang.Math.pow(10,9) / (currentInterval.numberOfActiveUsers/divisor) ).toLong
-		
-		
+
+
 		var startTime = System.currentTimeMillis
 		var stopTime:Long = 0
 		var currentRunner = stpe.scheduleAtFixedRate(new Requestor, 0, period_nanos, java.util.concurrent.TimeUnit.NANOSECONDS)
 		logger.info("Running at "+(java.lang.Math.pow(10,9)/period_nanos).toInt+ " requests/sec "+(new java.util.Date).toString)
-		
+
 		var running = true
 		while (running) {
 			if (System.currentTimeMillis >= startTime+duration) { // done with this interval
@@ -236,14 +236,14 @@ abstract class RequestHandler extends ServiceHandler with Runnable {
 				stopTime = System.currentTimeMillis
 				endInterval(stopTime)
 				if (currentIntervalI < total_intervals-1) { // have more intervals to run
-					
+
 					// start new interval
 					currentIntervalI += 1
 					currentInterval = workload.workload(currentIntervalI)
 					duration = currentInterval.duration
 					period_nanos = (java.lang.Math.pow(10,9)/(currentInterval.numberOfActiveUsers/divisor)).toLong
 					//samplingFraction = 10000.0 / ((java.lang.Math.pow(10,9)/period_nanos)*10.0*numClients ) // TODO: remove
-					
+
 					startTime = System.currentTimeMillis
 					logger.info("Running at "+(java.lang.Math.pow(10,9)/period_nanos).toInt+ " requests/sec with sampling "+samplingFraction+" "+(new java.util.Date).toString)
 					currentRunner = stpe.scheduleAtFixedRate(new Requestor, 0, period_nanos, java.util.concurrent.TimeUnit.NANOSECONDS)

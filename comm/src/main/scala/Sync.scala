@@ -10,7 +10,7 @@ import org.apache.avro.util.Utf8
 object Sync {
 	val logger = Logger.getLogger("scads.comm.sync")
 
-	def makeRequest(rn: RemoteNode, dest: ActorId, reqBody: MessageBody): Object = 
+	def makeRequest(rn: RemoteNode, dest: ActorId, reqBody: MessageBody): Object =
     makeRequest(rn,dest,reqBody,10000)
 
 	def makeRequest(rn: RemoteNode, dest: ActorId, reqBody: MessageBody, timeout:Long): Object = {
@@ -44,7 +44,7 @@ object Sync {
 		val resp = new SyncVar[Either[Throwable, Object]]
 
 		val a = actor {
-			val req = classOf[Message].newInstance() //HACK 
+			val req = classOf[Message].newInstance() //HACK
 			req.body = reqBody
       req.dest = dest match {
         case l: java.lang.Long => new ActorNumber(l.asInstanceOf[Long]) // TODO: is this the right type of long we want?

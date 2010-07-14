@@ -32,7 +32,7 @@ object ZooKeeperServer {
 object SetupNodes{
 	val logger = Logger.getLogger("cluster.config")
 	val commapattern = java.util.regex.Pattern.compile(",")
-	
+
 	def main(args: Array[String]): Unit = {
 		val createNS = args(0).toBoolean
 		val zoo_dns = args(1)
@@ -44,19 +44,19 @@ object SetupNodes{
 			System.exit(0)
 		} catch { case e => {logger.warn("Got exception "+ e.toString); System.exit(1)}}
 	}
-	
+
 	def createNamespace(cluster:ScadsCluster, namespace:String) = {
 		val k1 = new IntRec
 		val v1 = new StringRec
 		cluster.createNamespace(namespace, k1.getSchema(), v1.getSchema())
-		
+
 		// set up partitions for empty and fake clusters
 		val minKey = new IntRec
 		val maxKey = new IntRec
 		val partition = new KeyPartition; partition.minKey = minKey.toBytes; partition.maxKey = maxKey.toBytes
 		val policy = new PartitionedPolicy; policy.partitions = List(partition)
 		cluster.addPartition(namespace,"empty",policy)
-		
+
 		minKey.f1 = -1
 		maxKey.f1 = -1
 		partition.minKey = minKey.toBytes; partition.maxKey = maxKey.toBytes
@@ -84,9 +84,9 @@ object SetupNodes{
 					if (!part.equals("1")) cluster.addPartition(namespace,part)
 				} catch { case e => logger.warn("Got exception when adding partition "+ e.toString) }
 				cluster.namespaces.get(namespace+"/partitions/"+part+"/servers").createChild(tokens(1).trim, "", CreateMode.PERSISTENT)
-			} 
+			}
 		})
-		
+
 		lines = scala.io.Source.fromFile(policy_file).getLines
 		lines.foreach(line=>{
 			val tokens = commapattern.split(line)
@@ -99,9 +99,9 @@ object SetupNodes{
 					val policy = new PartitionedPolicy; policy.partitions = List(partition)
 					cluster.namespaces.get(namespace+"/partitions/"+part+"/policy").data = policy.toBytes
 				} catch { case e => logger.warn("Got exception when adding modifying placement policy "+ e.toString) }
-			} 
+			}
 		})
-		
+
 	}
 }
 
@@ -110,7 +110,7 @@ object StartRequestHandler {
 	val commapattern = java.util.regex.Pattern.compile(",")
 	System.setProperty("xtrace_stats","true")
 	val xtrace_on = System.getProperty("xtrace_stats","false").toBoolean
-	
+
 	def main(args: Array[String]) {
 		val zoo_dns = args(0)
 		val namespace = args(1)
@@ -119,7 +119,7 @@ object StartRequestHandler {
 		val maxKey = args(4).toInt
 		val replicas = args(5).toInt
 		val clients = args(6).toInt
-		
+
 		val requesthandler = if (doWarming) {
 			val workload = WorkloadGenerators.warmingWorkload(namespace, minKey, maxKey, java.lang.Math.ceil(((maxKey-minKey)*replicas)/1000.toDouble).toInt+10)
 			new DynamicWarmer(namespace, zoo_dns, minKey, maxKey, workload, clients, replicas)
@@ -149,7 +149,7 @@ object ClusterDeployment extends ConfigurationActions {
 	var deploy_jarpath = "target/cluster_scale-1.0-SNAPSHOT-jar-with-dependencies.jar"
 	var (namespace,perServerData,minKey,maxKey,jarpath) = ("perfTest256",10000,0,1000000,"target/scalaengine-1.1-SNAPSHOT-jar-with-dependencies.jar")
 	val directorInfoFile = "/mnt/directorinfo"
-	
+
 	def setupCluster(scads_nodes:List[EC2Instance], num_fake:Int, replicas:Int):Future[Unit] = {
 		Future {
 			scads_nodes(0).executeCommand("rm -rf /mnt/zoo_data")
@@ -166,10 +166,10 @@ object ClusterDeployment extends ConfigurationActions {
 			val create = createJavaService(scads_nodes(0), new java.io.File(deploy_jarpath), "edu.berkeley.cs.scads.scale.cluster.SetupNodes", 256, "true " +scads_nodes(0).privateDnsName + " "+namespace)
 			create.once
 			scads_nodes(0).executeCommand("rm -rf /mnt/services/edu.berkeley.cs.scads.scale.cluster.SetupNodes")
-			
+
 			assert( (scads_nodes.size-1)%replicas == 0)
 			val parts = (scads_nodes.size - 1)/replicas
-			
+
 			val partscsv = (0 until parts).map(p => {
 				val reps = scads_nodes.slice(1+p*replicas,1+p*replicas+replicas)
 				reps.map(node => ((p+1)+","+ node.privateDnsName))
@@ -177,7 +177,7 @@ object ClusterDeployment extends ConfigurationActions {
 			scads_nodes(0).createFile(new java.io.File("/tmp/scads_config.dat"), partscsv)
 			val policycsv = (1 to parts).toList.zip(createPartitions(minKey,perServerData*parts-1,parts)).map(entry=> entry._1+","+entry._2.minKey+","+entry._2.maxKey).mkString("\n")
 			scads_nodes(0).createFile(new java.io.File("/tmp/scads_policy.dat"), policycsv)
-			
+
 			/*
 			val partscsv = (1 until scads_nodes.size).pmap(part=> (part+","+scads_nodes(part).privateDnsName)).mkString("\n")
 			scads_nodes(0).createFile(new java.io.File("/tmp/scads_config.dat"), partscsv)
@@ -188,7 +188,7 @@ object ClusterDeployment extends ConfigurationActions {
 			partition.once
 		}
 	}
-	
+
 	def setupRatioAssociativeClients(clients_per_server:Int, c:List[RunitManager],s:List[EC2Instance]):Future[Unit] = {
 		Future {
 			//assert( c.size % s.size == 0, "clients must be multiple of num servers")
@@ -210,7 +210,7 @@ object ClusterDeployment extends ConfigurationActions {
 			c.pmap(_.createFile(new java.io.File("/tmp/mapping_full.dat"), configcsv))
 		}
 	}
-	
+
 	def doWarming(scads_nodes:List[EC2Instance],clients:List[RunitManager],replicas:Int,minKey:Int,maxKey:Int) = {
 		//val s = scads_nodes.slice(1,scads_nodes.size)
 		//val t = setupFullyAssociatedClients(replicas,clients,s)
@@ -227,7 +227,7 @@ object ClusterDeployment extends ConfigurationActions {
 		loadServices.foreach(_.watchFailures)
 		loadServices.foreach(_.once)
 	}
-	
+
 	def runTest(active_clients:List[EC2Instance], zoo_dns:String, iteration:Int, maxKey:Int, kind:String) = {
 		active_clients.pmap(_.executeCommand("rm -rf /mnt/services/edu.berkeley.cs.scads.scale.cluster.StartRequestHandler"))
 	  val runService = active_clients.pmap(node=> createJavaService(node, new java.io.File(deploy_jarpath), "edu.berkeley.cs.scads.scale.cluster.StartRequestHandler", 1024, zoo_dns+" "+namespace+" false 0 "+maxKey+" 0 "+ active_clients.size))
@@ -242,7 +242,7 @@ object ClusterDeployment extends ConfigurationActions {
 		active_clients.pmap(c=> c.services.pmap(_.clearFailures))
 		active_clients.pmap(_.stopWatches)
 	}
-	
+
 	def runFullTest(clients:List[EC2Instance],totalIters:Int,replicas:Int, zoo_dns:String,director:EC2Instance) = {
 		val clientsPerServer = 2
 		List(100,50,10,2,1).map(_*replicas).foreach(numClients=>{
@@ -258,8 +258,8 @@ object ClusterDeployment extends ConfigurationActions {
 			})
 		})
 	}
-	
-	
+
+
 	def deployDirector(machine: RunitManager, cluster:List[EC2Instance],standbys:List[EC2Instance]) {
 		val cluster_str = cluster.map(n=> n.privateDnsName.replaceAll(".compute-1.internal","")).mkString("\n")
 		val standbys_str = standbys.map(n=> n.privateDnsName.replaceAll(".compute-1.internal","")).mkString("\n")
@@ -278,12 +278,12 @@ object ClusterDeployment extends ConfigurationActions {
 		machine.blockTillFileCreated(new java.io.File("/etc/ld.so.conf.d/mysql.conf/mysql.conf"))
 		machine.executeCommand("ldconfig")
 	}
-	
+
 	def deployMonitoring(machine: RunitManager, experimentsJarURL:String, nBins:Int, minKey:Int, maxKey:Int, aggregationInterval:Long, getSampleProb:Double, putSampleProb:Double) {
 		// set up chukwa collector and monitoring stuff
 		logger.info("setting up monitoring recipes")
 		val recipes = new JSONArray(); recipes.put("scads::monitoring"); recipes.put("chukwa::collector")
-		val parserInfo = new JSONObject(); parserInfo.put("nBins",nBins); parserInfo.put("putSamplingProbability",putSampleProb); parserInfo.put("getSamplingProbability",getSampleProb); parserInfo.put("minKey",minKey); parserInfo.put("maxKey",maxKey); parserInfo.put("aggregationInterval",aggregationInterval); 
+		val parserInfo = new JSONObject(); parserInfo.put("nBins",nBins); parserInfo.put("putSamplingProbability",putSampleProb); parserInfo.put("getSamplingProbability",getSampleProb); parserInfo.put("minKey",minKey); parserInfo.put("maxKey",maxKey); parserInfo.put("aggregationInterval",aggregationInterval);
 		val metricInfo = new JSONObject(); metricInfo.put("port",6001); metricInfo.put("dbhost","localhost"); metricInfo.put("dbuser","root"); metricInfo.put("dbname","metrics"); metricInfo.put("dbpassword","");
 		val monitoringInfo = new JSONObject(); 	monitoringInfo.put("basedir","/mnt/monitoring")
 												monitoringInfo.put("experimentsJarURL",experimentsJarURL)
@@ -310,7 +310,7 @@ object ClusterDeployment extends ConfigurationActions {
 		clients.foreach(_.blockTillFileCreated(new java.io.File("config.js")))
 		clients.pmap(_.executeCommand("chef-solo -j config.js"))
 		clients.pforeach(_.blockTillPortOpen(7831)) // wait until chukwa is listening for xtrace reports
-		
+
 		logger.info("Writing collector/director dns to file")
 		clients.pmap(_.createFile(new java.io.File(directorInfoFile), chukwa_collector_dns))
 	}
@@ -333,8 +333,8 @@ object ClusterDeployment extends ConfigurationActions {
 	   	val addedConfig = xtraceConfig
 	   	addedConfig.put("collectors",xtrace_collector)
 	    serverConfig.put("chukwa",addedConfig);
-	}	
-	
+	}
+
 	def createPartitions(startKey: Int, endKey: Int, numPartitions: Int):List[PolicyRange] = {
 		val partitions = new scala.collection.mutable.ArrayStack[PolicyRange]()
 		val numKeys = endKey - startKey + 1
@@ -357,7 +357,7 @@ class DirectorRunExp(director:RunitManager, policy:String, experimentDuration:St
 
 	director.stopWatches
 	director.executeCommand("rm -rf /mnt/services/scads.director")
-	
+
 	directorArgs += "modelPath" -> "\"/opt/scads/director/scripts/perfmodels/gp_model2_thr.csv\""
 	directorArgs += "getSLA" -> "100"
 	directorArgs += "putSLA" -> "150"
@@ -395,5 +395,5 @@ class DirectorRunExp(director:RunitManager, policy:String, experimentDuration:St
 	val service = ClusterDeployment.createRunitService(director, "scads.director", directorCmd.toString)
 	service.watchFailures
 	service.once
-	
+
 }

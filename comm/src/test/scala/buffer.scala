@@ -10,25 +10,25 @@ object BufferSpec extends SpecificationWithJUnit("Circular buffer spec") {
         "expand properly" >> {
             val buf = new CircularByteBuffer(4)
 
-            val a1 = (1 to buf.bytesRemaining*2).map(_.toByte) 
+            val a1 = (1 to buf.bytesRemaining*2).map(_.toByte)
             buf.append( a1.toArray )
-            buf.size must_== a1.length 
+            buf.size must_== a1.length
 
-            val a2 = (1 to buf.bytesRemaining*2).map(_.toByte) 
-            buf.append( a2.toArray ) 
+            val a2 = (1 to buf.bytesRemaining*2).map(_.toByte)
+            buf.append( a2.toArray )
             buf.size must_== a1.length + a2.length
 
-            val a3 = (1 to buf.bytesRemaining*3).map(_.toByte) 
-            buf.append( a3.toArray ) 
+            val a3 = (1 to buf.bytesRemaining*3).map(_.toByte)
+            buf.append( a3.toArray )
             buf.size must_== a1.length + a2.length + a3.length
         }
 
         "consume bytes properly" >> {
             val buf = new CircularByteBuffer(4)
 
-            val a1 = (1 to 16).map(_.toByte) 
+            val a1 = (1 to 16).map(_.toByte)
             buf.append( a1.toArray )
-            
+
             val a2 = buf.consumeBytes(3)
             buf.size must_== a1.length - a2.length
             a2.toList.equals((1 to 3).map(_.toByte).toList) must_== true
@@ -44,7 +44,7 @@ object BufferSpec extends SpecificationWithJUnit("Circular buffer spec") {
 
         "interleave consume and append properly" >> {
             val buf = new CircularByteBuffer(9)
-        
+
             val a1 = (1 to 9).map(_.toByte)
             buf.append( a1.toArray )
             buf.size must_== a1.length
@@ -71,7 +71,7 @@ object BufferSpec extends SpecificationWithJUnit("Circular buffer spec") {
             buf.append( bb.array )
             buf.size must_== 4
             val a1 = buf.consumeInt
-            a1 must_== 0xabcdef12 
+            a1 must_== 0xabcdef12
         }
 
     }

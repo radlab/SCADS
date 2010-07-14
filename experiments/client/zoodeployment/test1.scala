@@ -23,7 +23,7 @@ val knownNS = clusterDeploy.getAllNamespaces
 val storageURIs = (9000 to 9013)
 val storageNodes = storageURIs.map(new StorageNode("localhost",_))
 storageNodes.foreach( (n) => {
-    knownNS.foreach( (ns) => { 
+    knownNS.foreach( (ns) => {
         n.useConnection((c) => { c.remove_set(ns, RangedPolicy.convert((null,null)).get(0)) })
         n.useConnection((c) => {
             c.set_responsibility_policy(ns,ListConversions.scala2JavaList(List()))
@@ -46,7 +46,7 @@ println("------------- CALLING REBALANCE ----------------")
 clusterDeploy.rebalance
 
 println("------------- ATTEMPTING TO RETRIEVE 0 -> 51 ----------")
-for(i <- 0 until 51) { 
+for(i <- 0 until 51) {
     println(Queries.finduserByPK("user"+i))
 }
 println("------------- SUCCESSFULLY RETRIEVED 0 -> 51 ----------")
@@ -60,7 +60,7 @@ for(i <- 51 until 83) {
 }
 
 println("------------- ATTEMPTING TO RETRIEVE 51 -> 83 BEFORE REBALANCE----------")
-for(i <- 51 until 83) { 
+for(i <- 51 until 83) {
     println(Queries.finduserByPK("user"+i))
 }
 println("------------- SUCCESSFULLY RETRIEVED 51 -> 83 BEFORE REBALANCE ----------")
@@ -69,7 +69,7 @@ println("------------- CALLING REBALANCE ----------------")
 clusterDeploy.rebalance
 
 println("------------- ATTEMPTING TO RETRIEVE 0 -> 83 AFTER REBALANCE----------")
-for(i <- 0 until 83) { 
+for(i <- 0 until 83) {
     println(Queries.finduserByPK("user"+i))
 }
 println("------------- SUCCESSFULLY RETRIEVED 0 -> 83 AFTER REBALANCE ----------")

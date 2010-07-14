@@ -41,7 +41,7 @@ class ClusterDeploy(val zookeeperHost:String, val zookeeperPort:Int, val numRepl
         knownNs.foreach( (ns) => {
             var bucketList = List[Int]()
             logicalBuckets.foreach( (partition) => {
-                var bucketCount = 0 
+                var bucketCount = 0
                 var seenOne = false
                 partition.foreach( (smachine) => {
                     logger.debug("Looking at node: " + smachine.host)
@@ -51,7 +51,7 @@ class ClusterDeploy(val zookeeperHost:String, val zookeeperPort:Int, val numRepl
                         if ( !seenOne ) {
                             bucketCount = count
                         } else if ( bucketCount != count ) {
-                           throw new InconsistentReplicationException("Found node " + smachine + " that has inconsistent data with the partition: bucketCount: " + bucketCount + " count: " + count) 
+                           throw new InconsistentReplicationException("Found node " + smachine + " that has inconsistent data with the partition: bucketCount: " + bucketCount + " count: " + count)
                         }
                         seenOne = true
                         logger.debug("Storage node: " + smachine)
@@ -59,7 +59,7 @@ class ClusterDeploy(val zookeeperHost:String, val zookeeperPort:Int, val numRepl
                     } else if ( policies.size == 0 ) {
                         logger.debug("No Data Placement for " + smachine)
                         if ( bucketCount != 0 ) {
-                           throw new InconsistentReplicationException("Found node " + smachine + " that has no data, but the partition does") 
+                           throw new InconsistentReplicationException("Found node " + smachine + " that has no data, but the partition does")
                         }
                     } else {
                         logger.debug("Found a node with mulitple policies per namespace...")
@@ -68,7 +68,7 @@ class ClusterDeploy(val zookeeperHost:String, val zookeeperPort:Int, val numRepl
                 })
                 bucketList = bucketList ::: List(bucketCount)
             })
-            bucketMap += ( ns -> bucketList ) 
+            bucketMap += ( ns -> bucketList )
         })
 
         println("LOGICAL BUCKETS: " + logicalBuckets)
@@ -125,7 +125,7 @@ class ClusterDeploy(val zookeeperHost:String, val zookeeperPort:Int, val numRepl
                         logger.debug("KEYLISTPP+1-th key :" + plus1keyval)
 
                         val rset = Conversions.convertList(smachine1.useConnection((c) => c.get_responsibility_policy(ns))).toList.apply(0)
-                        rset.range.setOffset(keylistPP) 
+                        rset.range.setOffset(keylistPP)
                         logger.debug("calling move()")
                         move(ns, rset, smachine1, smachine2) // spill the extra from A into B
 
@@ -205,7 +205,7 @@ class ClusterDeploy(val zookeeperHost:String, val zookeeperPort:Int, val numRepl
                                 if ( i == 0 ) ScadsDeployUtil.getAllRangeRecordSet()
                                 else {
                                     val prevNodeRsetList = Conversions.convertList(logicalBuckets(i-1)(j).useConnection((c) => c.get_responsibility_policy(ns))).toList
-                                    if ( prevNodeRsetList.size != 1 ) 
+                                    if ( prevNodeRsetList.size != 1 )
                                         throw new RebalanceInvariantViolationException("Prev bucket node should already be rebalanced")
                                     val prevNodeRset = prevNodeRsetList(0)
                                     val rtn = ScadsDeployUtil.getAllRangeRecordSet()
@@ -242,7 +242,7 @@ class ClusterDeploy(val zookeeperHost:String, val zookeeperPort:Int, val numRepl
         })
 
     }
-    
+
     implicit val stringSort:(String,String)=>Boolean = (e1,e2)=>(e1 compareTo e2)<0
 
     def getLogicalBuckets():List[List[DeployStorageNode]] = {
@@ -255,7 +255,7 @@ class ClusterDeploy(val zookeeperHost:String, val zookeeperPort:Int, val numRepl
 
         var logicalBuckets = List[List[DeployStorageNode]]()
 
-        // We are enforcing the constraint that the number of storage 
+        // We are enforcing the constraint that the number of storage
         // nodes must be divisble by the number of replicas
         if ( numReplicas <= 0 || (storageMachines.size % numReplicas) != 0 ) {
             throw new NonDivisibleReplicaNumberException(storageMachines.size, numReplicas)
@@ -281,7 +281,7 @@ class ClusterDeploy(val zookeeperHost:String, val zookeeperPort:Int, val numRepl
 
     def getEnv():Environment = {
         implicit val env = new Environment
-        env.placement = new ZooKeptCluster(zookeeperHost+":"+zookeeperPort) 
+        env.placement = new ZooKeptCluster(zookeeperHost+":"+zookeeperPort)
         env.session = new TrivialSession
         env.executor = new TrivialExecutor
         env
@@ -303,7 +303,7 @@ class ClusterDeploy(val zookeeperHost:String, val zookeeperPort:Int, val numRepl
 
     private def dumpNodeData():Unit = {
         val knownNs = getAllNamespaces()
-        knownNs.foreach( (ns) => dumpNodeData(ns) ) 
+        knownNs.foreach( (ns) => dumpNodeData(ns) )
     }
 
     private def dumpNodeData(ns: String):Unit = {
@@ -311,7 +311,7 @@ class ClusterDeploy(val zookeeperHost:String, val zookeeperPort:Int, val numRepl
             partition.foreach( (smachine) => {
                 logger.debug("Looking at node: " + smachine)
                 logger.debug("Data:" + smachine.totalSet(ns))
-            }) 
+            })
         })
     }
 

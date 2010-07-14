@@ -69,4 +69,3 @@ object ZooKeeperHelper {
     new ZooKeeperProxy("localhost:" + port)
   }
 }
-

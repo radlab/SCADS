@@ -30,7 +30,7 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
     actorRegistry.put(id, a)
     id
   }
-  
+
   def unregisterActor(id:Long): Unit = {
     actorRegistry.remove(id)
   }

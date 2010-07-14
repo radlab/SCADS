@@ -149,5 +149,3 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
     }
   }
 }
-
-

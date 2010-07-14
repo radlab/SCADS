@@ -64,7 +64,7 @@ class ClientProcess(val dphost:String, val dpport:Int, val clientId:Int, val num
         }
         env
     }
-    
+
 
 }
 
@@ -128,9 +128,9 @@ object DataLoadProcess {
 
     def createSizeLoadFunc:(Int,Int,Environment)=>Unit = {
         val fn = (clientId:Int,threadId:Int,env:Environment) => {
-            val dbFile = new File("target/db9000") 
+            val dbFile = new File("target/db9000")
             if ( !dbFile.isDirectory ) throw new FileNotFoundException("No db directory found")
-            implicit val implicitEnv = env 
+            implicit val implicitEnv = env
             var counter = 0
             val chunkSize = 10000
             var size = recursiveSizeOfFile(dbFile)
@@ -160,7 +160,7 @@ object DataLoadProcess {
                 case true  => (0 to cutOff)
                 case false => (cutOff to numUsers)
             }
-            implicit val implicitEnv = env 
+            implicit val implicitEnv = env
             range.foreach((i) => {
                 val user = new user
                 println("creating user from thread:" + threadId + ", user:" + i)
@@ -171,8 +171,6 @@ object DataLoadProcess {
         }
         fn
     }
-   
+
 
 }
-
-

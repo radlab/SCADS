@@ -66,4 +66,3 @@ object ScadsDeployUtil {
 object ListConversions {
     def scala2JavaList[T](l:List[T]) = java.util.Arrays.asList(l.toArray: _*)
 }
-

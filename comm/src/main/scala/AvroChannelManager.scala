@@ -9,8 +9,8 @@ import org.apache.avro.ipc._
 import org.apache.avro.specific._
 
 case class RemoteNode(hostname:String, port: Int) {
-    private val socketAddress = new InetSocketAddress(hostname, port) 
-    def getInetSocketAddress:InetSocketAddress = socketAddress 
+    private val socketAddress = new InetSocketAddress(hostname, port)
+    def getInetSocketAddress:InetSocketAddress = socketAddress
 }
 
 trait AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: SpecificRecord] {
@@ -43,8 +43,8 @@ trait AvroChannelManager[SendMsgType <: SpecificRecord, RecvMsgType <: SpecificR
   def receiveMessage(src: RemoteNode, msg: RecvMsgType):Unit
 }
 
-class PrintAvroChannelManager[SendMsg <: SpecificRecord, RecvMsg <: SpecificRecord] 
-(implicit sendManifest: scala.reflect.Manifest[SendMsg], 
+class PrintAvroChannelManager[SendMsg <: SpecificRecord, RecvMsg <: SpecificRecord]
+(implicit sendManifest: scala.reflect.Manifest[SendMsg],
 recvManifest: scala.reflect.Manifest[RecvMsg])
 extends NioAvroChannelManagerBase[SendMsg, RecvMsg] {
     override def receiveMessage(src: RemoteNode, msg: RecvMsg):Unit = {
@@ -53,7 +53,7 @@ extends NioAvroChannelManagerBase[SendMsg, RecvMsg] {
     }
 }
 
-class EchoAvroChannelManager[EchoMsg <: SpecificRecord] 
+class EchoAvroChannelManager[EchoMsg <: SpecificRecord]
 (implicit sendManifest: scala.reflect.Manifest[EchoMsg])
 extends NioAvroChannelManagerBase[EchoMsg, EchoMsg] {
     override def receiveMessage(src: RemoteNode, msg: EchoMsg):Unit = {
@@ -63,8 +63,8 @@ extends NioAvroChannelManagerBase[EchoMsg, EchoMsg] {
     }
 }
 
-class DiscardAvroChannelManager[SendMsg <: SpecificRecord, RecvMsg <: SpecificRecord] 
-(implicit sendManifest: scala.reflect.Manifest[SendMsg], 
+class DiscardAvroChannelManager[SendMsg <: SpecificRecord, RecvMsg <: SpecificRecord]
+(implicit sendManifest: scala.reflect.Manifest[SendMsg],
 recvManifest: scala.reflect.Manifest[RecvMsg])
 extends NioAvroChannelManagerBase[SendMsg, RecvMsg] {
     override def receiveMessage(src: RemoteNode, msg: RecvMsg):Unit = {

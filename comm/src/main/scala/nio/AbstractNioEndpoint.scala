@@ -193,8 +193,8 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
         while (selectedKeys.hasNext) {
           val key = selectedKeys.next
           selectedKeys.remove
-          if (key.isValid) 
-            if (key.isAcceptable) 
+          if (key.isValid)
+            if (key.isAcceptable)
               accept(key)
             else if (key.isConnectable)
               connect(key)
@@ -216,21 +216,21 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
       case true  => encodeByteBuffer(data)
     }
     while (buffer.remaining > 0) {
-      socket.write(buffer) 
+      socket.write(buffer)
     }
   }
 
   private def encodeByteBuffer(data: ByteBuffer): ByteBuffer = {
     //val newBuffer = ByteBuffer.allocate(4 + data.remaining)
-    //newBuffer.putInt(data.remaining) 
+    //newBuffer.putInt(data.remaining)
     //newBuffer.put(data)
     //newBuffer.rewind
     //newBuffer
 
     // this seems to run a little faster
     val buf = new Array[Byte](4 + data.remaining)
-    buf(0) = ((data.remaining >> 24) & 0xFF).toByte 
-    buf(1) = ((data.remaining >> 16) & 0xFF).toByte 
+    buf(0) = ((data.remaining >> 24) & 0xFF).toByte
+    buf(1) = ((data.remaining >> 16) & 0xFF).toByte
     buf(2) = ((data.remaining >> 8) & 0xFF).toByte
     buf(3) = (data.remaining & 0xFF).toByte
     data.get(buf, 4, data.remaining)
@@ -249,8 +249,8 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
         dataMapQueue.put(socket, queue)
       }
       val toWrite = if (!encode) {
-        data 
-      } else { 
+        data
+      } else {
         encodeByteBuffer(data)
       }
       queue.add(new QueueEntry(toWrite, callback))
@@ -260,14 +260,14 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
 
   def send(socket: SocketChannel, data: ByteBuffer, encode: Boolean):Unit = send(socket,data,null,encode)
 
-  def send(socket: SocketChannel, data: Array[Byte], callback: WriteCallback, encode: Boolean):Unit = 
+  def send(socket: SocketChannel, data: Array[Byte], callback: WriteCallback, encode: Boolean):Unit =
     send(socket, ByteBuffer.wrap(data), callback, encode)
 
   def send(socket: SocketChannel, data: Array[Byte], encode: Boolean):Unit = send(socket,data,null,encode)
 
   private def sizeOfMessage(data: ByteBuffer, encode: Boolean): Int = encode match {
     case false => data.remaining
-    case true  => data.remaining + 4 
+    case true  => data.remaining + 4
   }
 
   /**
@@ -324,7 +324,7 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
     }
   }
 
-  def sendBulk(socket: SocketChannel, data: Array[Byte], encode: Boolean):Unit = 
+  def sendBulk(socket: SocketChannel, data: Array[Byte], encode: Boolean):Unit =
     sendBulk(socket, ByteBuffer.wrap(data),encode)
 
 
@@ -370,7 +370,7 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
 
   def getListeningPort(): Int = {
     synchronized {
-      if (isListening) 
+      if (isListening)
         serverChannel.socket.getLocalPort
       else
         0
@@ -382,7 +382,7 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
       if (isListening) throw new IllegalStateException("Already listening")
       isListening = true
     }
-    if (serverChannel != null) 
+    if (serverChannel != null)
       throw new IllegalStateException("Should be no server channel")
     serverChannel = ServerSocketChannel.open
     serverChannel.configureBlocking(false)
@@ -392,7 +392,7 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
       if (!initialized) {
         shouldInitialize = true
         initialized = true
-      } 
+      }
     }
     if (shouldInitialize) {
       serverChannel.register(selector, SelectionKey.OP_ACCEPT)
@@ -416,7 +416,7 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
     if (acceptEventHandler != null) acceptEventHandler.acceptEvent(socketChannel)
   }
 
-  protected def connect(key: SelectionKey):Unit = {  
+  protected def connect(key: SelectionKey):Unit = {
     logger.debug("connect() called with: " + key)
     val socketChannel = key.channel.asInstanceOf[SocketChannel]
     try {
@@ -432,7 +432,7 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
     key.interestOps(SelectionKey.OP_READ)
     logger.debug("registing INET socket address now")
     registerInetSocketAddress(
-      new InetSocketAddress(socketChannel.socket.getInetAddress,socketChannel.socket.getPort), 
+      new InetSocketAddress(socketChannel.socket.getInetAddress,socketChannel.socket.getPort),
       socketChannel)
     logger.debug("calling event handler")
     if (connectEventHandler != null) connectEventHandler.connectEvent(socketChannel)
@@ -483,7 +483,7 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
     try {
       numRead = socketChannel.read(readBuffer)
     } catch {
-      case e: IOException => 
+      case e: IOException =>
         // The remote forcibly closed the connection, cancel
         // the selection key and close the channel.
         channelQueue.remove(socketChannel)
@@ -500,7 +500,7 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
       return
     }
 
-    val readByteArray = new Array[Byte](numRead) 
+    val readByteArray = new Array[Byte](numRead)
     readBuffer.rewind
     readBuffer.get(readByteArray)
 
@@ -521,7 +521,7 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
         if (messageSize < 0)
           throw new InvalidMessageSizeException(messageSize)
         channelState.inMessage = true
-        channelState.messageSize = messageSize 
+        channelState.messageSize = messageSize
         //logger.debug("read(): found messageSize: " + messageSize)
       } else if (channelState.inMessage && channelState.buffer.size >= channelState.messageSize) {
         val message = channelState.buffer.consumeBytes(channelState.messageSize)

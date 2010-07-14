@@ -12,7 +12,7 @@ trait ChannelHandler {
 }
 
 trait NioAcceptEventHandler {
-    def acceptEvent(channel: SocketChannel) 
+    def acceptEvent(channel: SocketChannel)
 }
 
 trait NioConnectEventHandler {

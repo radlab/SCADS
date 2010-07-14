@@ -48,7 +48,7 @@ scadsDeploy.rebalance
 (usernames ::: usernames2).foreach( (u) => {
     var rtn = Queries.userByName(u)
     if ( rtn.isEmpty ) {
-        println("Crap! Could not find user " + u) 
+        println("Crap! Could not find user " + u)
         //System.exit(1)
     }
     rtn.foreach(println(_))

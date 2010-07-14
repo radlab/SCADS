@@ -18,7 +18,7 @@ class ZooKeeperProxy(val address: String) extends Watcher {
   val logger = Logger.getLogger("scads.zookeeper")
   var conn = new ZooKeeper(address, 3000, this)
   val root = new ZooKeeperNode("/")
-	
+
   class ZooKeeperNode(val path: String) {
     var childrenCache: Option[HashMap[String, ZooKeeperNode]] = None
     var dataCache: Option[Array[Byte]] = None
@@ -102,7 +102,7 @@ class ZooKeeperProxy(val address: String) extends Watcher {
       case EventType.NodeDeleted =>
     }
 
-    override def toString(): String = 
+    override def toString(): String =
       "<znode path:" + path + ", data: '" + new String(data) + "', children: " + children.keysIterator.toList + ">"
   }
 

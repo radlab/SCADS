@@ -775,7 +775,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
       var cnt = 0
       that foreach (pair => {
         cnt+=1
-        val nodes = partitions.serversForKey(pair._1) 
+        val nodes = partitions.serversForKey(pair._1)
         if (true) { //bufferMap.contains(idx)) { // already have an iter open
           val bufseq: (scala.collection.mutable.ArrayBuffer[Record],Int) = null //bufferMap(idx)
           val buf = bufseq._1

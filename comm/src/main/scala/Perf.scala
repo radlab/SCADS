@@ -37,7 +37,7 @@ object PerfActorEchoSender {
               if (msgs == testSize) lock.notify
             }
           }
-        }        
+        }
       }
     }
   }
@@ -74,7 +74,7 @@ object PerfActorEchoSender {
         ra.start
         refSendArray(i-1) = (new SendActor(rid)).start
       })
-      lock.synchronized { 
+      lock.synchronized {
         while (msgs < testSize) lock.wait
       }
       val end = System.currentTimeMillis()
@@ -131,7 +131,7 @@ object PerfMultiActorEchoSender {
           }
         }
       })
-      lock.synchronized { 
+      lock.synchronized {
         while (msgs < testSize) lock.wait
       }
       val end = System.currentTimeMillis()
@@ -203,7 +203,7 @@ object PerfSenderTrivial {
 
   /**
   * Results on my home desktop, running under scala:console
-  * 
+  *
   * 69715.56051310652req/sec
   * 98921.75289346128req/sec
   * 105307.49789385004req/sec
@@ -258,7 +258,7 @@ object PerfSender {
     (1 to 10).foreach(t => {
       val start = System.currentTimeMillis()
       (1 to testSize).foreach(i => {
-        val pr = classOf[PutRequest].newInstance() 
+        val pr = classOf[PutRequest].newInstance()
         pr.namespace = "__namespace__"
         pr.key = "__key__".getBytes
         pr.value = Some("__value__".getBytes)

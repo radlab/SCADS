@@ -32,7 +32,7 @@ trait RemoteHandleGetter[T] {
 
     def getHandle():T = {
         var haveSNhandle = false
-        var snclient:AnyRef = null  
+        var snclient:AnyRef = null
         while (!haveSNhandle) {
             try {
                 val transport = new TFramedTransport(new TSocket(h, p))
@@ -50,8 +50,8 @@ trait RemoteHandleGetter[T] {
     def getClient(protocol:TProtocol):T
 }
 
-trait Java2ScalaList { 
-    
+trait Java2ScalaList {
+
     implicit def javalist2scalalist[T](jlist: java.util.List[T]):List[T] = {
         val iter = jlist.iterator
         var rtn = List[T]()
@@ -66,12 +66,12 @@ trait Java2ScalaList {
 case class RemoteStorageNode(h:String, p: Int) extends RemoteHandleGetter[StorageEngine.Client] {
     override def getClient(protocol:TProtocol):StorageEngine.Client = new StorageEngine.Client(protocol)
 }
-    
+
 
 case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logger: Logger, logicalBuckets: List[List[Tuple2[RClusterNode,Int]]]) extends TransparentRemoteDataPlacementProvider with Java2ScalaList with DataPlacementValidator {
 
     var defaultPartition = 0
-    
+
     def setDefaultPartition(i:Int):Unit = {
         if ( i < 0 || i >= logicalBuckets.size ) {
             throw new IllegalArgumentException("invalid default partition index: " + i)
@@ -88,48 +88,48 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
     private def generateReverseMapping(): Map[Tuple2[String,Int],Int] = {
         var reverseMapping = Map[Tuple2[String,Int],Int]()
         for ( i <- 0 until logicalBuckets.size ) {
-            logicalBuckets(i).foreach( (tuple) => reverseMapping += ( (tuple._1.hostname,tuple._2) -> i ) ) 
+            logicalBuckets(i).foreach( (tuple) => reverseMapping += ( (tuple._1.hostname,tuple._2) -> i ) )
         }
         logger.debug("REVERSE MAPPING " + reverseMapping)
         reverseMapping
     }
 
     private def addNeverSeenNS(ns: String): Unit = {
-        // for now, if we've NEVER seen an NS before, 
+        // for now, if we've NEVER seen an NS before,
         // add all of its range to the first logical bucket
         val keyRange = new KeyRange(MinKey,MaxKey) // -infty to +infty
         assignRangeToLogicalPartition(defaultPartition, ns, keyRange) // why isn't this implicit def??
     }
 
-    override def lookup(ns: String): Map[StorageNode, KeyRange] = { 
+    override def lookup(ns: String): Map[StorageNode, KeyRange] = {
         var ret = super.lookup(ns)
         if(ret.isEmpty) { addNeverSeenNS(ns); ret = super.lookup(ns) }
-        ret 
-    }   
+        ret
+    }
 
-    override def lookup(ns: String, node: StorageNode): KeyRange = { 
+    override def lookup(ns: String, node: StorageNode): KeyRange = {
         var ret = super.lookup(ns, node)
         if(ret == KeyRange.EmptyRange) { addNeverSeenNS(ns); ret = super.lookup(ns, node) }
-        ret 
-    }   
-    override def lookup(ns: String, key: Key):List[StorageNode] = { 
+        ret
+    }
+    override def lookup(ns: String, key: Key):List[StorageNode] = {
         var ret = super.lookup(ns, key)
         if(ret.isEmpty) { addNeverSeenNS(ns); ret = super.lookup(ns, key) }
-        ret 
-    }   
-    override def lookup(ns: String, range: KeyRange): Map[StorageNode, KeyRange] = { 
+        ret
+    }
+    override def lookup(ns: String, range: KeyRange): Map[StorageNode, KeyRange] = {
         var ret = super.lookup(ns, range)
         if(ret.isEmpty) { addNeverSeenNS(ns); ret = super.lookup(ns, range) }
-        ret 
-    } 
+        ret
+    }
 
     private def dumpNodeData():Unit = {
         val knownNs = space.keySet
-        knownNs.foreach( (ns) => dumpNodeData(ns) ) 
+        knownNs.foreach( (ns) => dumpNodeData(ns) )
     }
 
     private def dumpNodeData(ns: String):Unit = {
-        val handle = getDataPlacementHandle() 
+        val handle = getDataPlacementHandle()
         logicalBuckets.foreach( (partition) => {
             partition.foreach( (tuple) => {
 
@@ -145,7 +145,7 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
 
                 logger.debug("Data:" +rnode.getHandle().get_set(ns, rset))
 
-            }) 
+            })
         })
     }
 
@@ -161,19 +161,19 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
 
     def rebalance():Unit = {
         val knownNs = space.keySet
-        val handle = getDataPlacementHandle() 
+        val handle = getDataPlacementHandle()
         var bucketMap = Map[String,List[Int]]()
         knownNs.foreach( (ns) => {
-            
+
             var bucketList = List[Int]()
 
             logicalBuckets.foreach( (partition) => {
 
-                var bucketCount = 0 
+                var bucketCount = 0
                 var seenOne = false
 
                 partition.foreach( (tuple) => {
-                    
+
                     logger.debug("Looking at node: " + tuple._1)
                     val rnode = new RemoteStorageNode(tuple._1.hostname, tuple._2)
                     val dp = handle.lookup_node(ns, tuple._1.hostname, tuple._2, tuple._2)
@@ -190,7 +190,7 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
                         if ( !seenOne ) {
                             bucketCount = count
                         } else if ( bucketCount != count ) {
-                           throw new InconsistentReplicationException("Found node " + tuple._1 + " that has inconsistent data with the partition: bucketCount: " + bucketCount + " count: " + count) 
+                           throw new InconsistentReplicationException("Found node " + tuple._1 + " that has inconsistent data with the partition: bucketCount: " + bucketCount + " count: " + count)
                         }
 
                         seenOne = true
@@ -202,7 +202,7 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
                     } else {
                         logger.debug("No Data Placement for " + tuple._1)
                         if ( bucketCount != 0 ) {
-                           throw new InconsistentReplicationException("Found node " + tuple._1 + " that has no data, but the partition does") 
+                           throw new InconsistentReplicationException("Found node " + tuple._1 + " that has no data, but the partition does")
                         }
                     }
 
@@ -212,10 +212,10 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
 
             })
 
-            bucketMap += ( ns -> bucketList ) 
+            bucketMap += ( ns -> bucketList )
 
 
-            //val dps = handle.lookup_namespace(ns) 
+            //val dps = handle.lookup_namespace(ns)
             //logger.debug("DPS FOR " + ns + " ARE: " + dps)
             //dps.foreach( (dp) => {
             //    logger.debug("DP IS" + dp)
@@ -317,7 +317,7 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
                         dpHandle.add(ns, listDp)
 
                         val nextDp = dpHandle.lookup_node( ns, tuple2._1.hostname, tuple2._2, tuple2._2 )
-                        if ( isValidDataPlacement(nextDp) ) { 
+                        if ( isValidDataPlacement(nextDp) ) {
                             logger.debug("found valid existing dp:" + nextDp)
 
                             nextDp.rset.range.setStart_key(plus1keyval)
@@ -399,7 +399,7 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
                                     dpHandle.add(ns, dpToModifyList)
                                     assert( keysMoved == diff, "didnt move all possible from node" )
                                     val moddedDP = dpHandle.lookup_node(ns, sourceTuple._1.hostname, sourceTuple._2, sourceTuple._2)
-                                    logger.debug("Modded DP: " + moddedDP) 
+                                    logger.debug("Modded DP: " + moddedDP)
                                 }
                             }
 
@@ -421,7 +421,7 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
                             hasKey = sourceNode.getHandle().count_set(ns, rset) > 0
                         }
 
-                        var thisDp = myDp 
+                        var thisDp = myDp
                         logger.debug("THIS DP: " + thisDp)
                         if ( !isValidDataPlacement(thisDp) ) {
                             val endrset = new RecordSet()
@@ -463,7 +463,7 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
 
     }
 
-    //private def makeEqualKeyPartition[T <: Field](keylist:List[T], n:Int, cmp:(T,T) => Boolean, dummyCallback:T => T ): 
+    //private def makeEqualKeyPartition[T <: Field](keylist:List[T], n:Int, cmp:(T,T) => Boolean, dummyCallback:T => T ):
     //    List[Tuple2[T,T]] = {
     //    var keylistPP = 0
 
@@ -497,9 +497,9 @@ case class RemoteDataPlacement(dataPlacementNode: Tuple2[RClusterNode,Int], logg
     //            buckets += (lastMaxRange, dummyCallback(nkeylist(nkeylist.length-1)))
     //        } else if ( countSoFar == keylistPP && bucketsSoFar < (n-1) ) {
     //            var lmax = nkeylist(i)
-    //            buckets += (lastMaxRange, lmax)  
+    //            buckets += (lastMaxRange, lmax)
     //            bucketsSoFar += 1
-    //            lastMaxRange = lmax 
+    //            lastMaxRange = lmax
     //            countSoFar = 1
     //        } else {
     //            countSoFar += 1
@@ -560,7 +560,7 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
     }
 
     def shutdown():Unit = {
-        stopAllServices 
+        stopAllServices
     }
 
     def setDefaultDataBucket(i: Int):Unit = rdp.setDefaultPartition(i)
@@ -608,7 +608,7 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
         // for each node
         allNodes.keySet.foreach((node) => {
             if ( !node.isPortAvailableToListen(allNodes(node)) ) {
-                val msg = "Port " + allNodes(node) + " is in use on " + node 
+                val msg = "Port " + allNodes(node) + " is in use on " + node
                 logger.fatal(msg)
                 throw new RemotePortInUseException(msg)
             }
@@ -616,7 +616,7 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
 
         // Start the storage engine service on all the storage nodes
         storageNodes.keySet.foreach( (rnode) => {
-            val port = storageNodes(rnode) 
+            val port = storageNodes(rnode)
             // Setup runit on the node
             rnode.setupRunit
             val storageNodeService = new JavaService(
@@ -677,7 +677,7 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
     //        val from = tuple._1
     //        val to = tuple._2
     //        val rnode = tuple._3
-    //        
+    //
     //        val range = new RangeSet()
     //        range.setStart_key(from.serializeKey)
     //        range.setEnd_key(to.serializeKey)
@@ -690,7 +690,7 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
 
     //}
 
-    //implicit def string2stringfield(s:String):StringField = { 
+    //implicit def string2stringfield(s:String):StringField = {
     //    val f = new StringField
     //    f.value = s
     //    f
@@ -703,7 +703,7 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
     //}
 
     //def equalKeyPartitionUsers(usernames: List[String]):Unit = {
-    //    assignEqualKeyPartition[StringField]( 
+    //    assignEqualKeyPartition[StringField](
     //            usernames.map[StringField]( (s) => s ),
     //            (a,b)=>{ (a.value.compareTo(b.value))<0 },
     //            (a)=>{ val f = new StringField; f.value = a.value+"a"; f},
@@ -711,7 +711,7 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
     //}
 
     //def equalKeyPartitionThoughts(thoughts: List[Int]):Unit = {
-    //    assignEqualKeyPartition[IntegerField]( 
+    //    assignEqualKeyPartition[IntegerField](
     //            thoughts.map[IntegerField]( (t) => t),
     //            (a,b)=>{ a.value < b.value },
     //            (a)=>{ val f = new IntegerField; f.value = a.value+1; f},
@@ -719,14 +719,14 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
     //}
 
     //private def assignEqualKeyPartition[T <: Field](keylist:List[T], cmp:(T,T) => Boolean, dummyCallback:T => T, namespace:String ):Unit = {
-    //    val n = storageNodes.size 
+    //    val n = storageNodes.size
     //    val partitions = makeEqualKeyPartition[T](keylist,n,cmp,dummyCallback)
     //    logger.debug("Partitions " + partitions)
-    //    var i = -1 
+    //    var i = -1
     //    placeEntities[T]( storageNodes.keySet.toList.map((p)=>{ i += 1; (partitions(i)._1,partitions(i)._2,p) }).toArray, namespace)
     //}
 
-    //private def makeEqualKeyPartition[T <: Field](keylist:List[T], n:Int, cmp:(T,T) => Boolean, dummyCallback:T => T ): 
+    //private def makeEqualKeyPartition[T <: Field](keylist:List[T], n:Int, cmp:(T,T) => Boolean, dummyCallback:T => T ):
     //    List[Tuple2[T,T]] = {
     //    var keylistPP = 0
 
@@ -760,9 +760,9 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
     //            buckets += (lastMaxRange, dummyCallback(nkeylist(nkeylist.length-1)))
     //        } else if ( countSoFar == keylistPP && bucketsSoFar < (n-1) ) {
     //            var lmax = nkeylist(i)
-    //            buckets += (lastMaxRange, lmax)  
+    //            buckets += (lastMaxRange, lmax)
     //            bucketsSoFar += 1
-    //            lastMaxRange = lmax 
+    //            lastMaxRange = lmax
     //            countSoFar = 1
     //        } else {
     //            countSoFar += 1
@@ -783,7 +783,7 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
     //            val rnode = tuple._3
     //            ( from, to, rnode ) } ),
     //        getThoughtNamespace())
-    //} 
+    //}
 
 
     //def placeUsers(userPlacement: Array[Tuple3[String,String,RClusterNode]]):Unit = {
@@ -796,7 +796,7 @@ class ScadsDeploy(storageNodes: scala.collection.immutable.Map[RClusterNode,Int]
     //            val rnode = tuple._3
     //            ( from, to, rnode ) } ),
     //        getUserNamespace())
-    //} 
+    //}
 
     //private def getUserNamespace(): String = {
     //    //val user = new user()

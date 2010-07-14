@@ -36,7 +36,7 @@ class StorageMachine(val machine: RClusterNode, thriftPort: Int, syncPort: Int) 
         new DataPlacement(host,thriftPort,syncPort,rs)
     }
 
-    def totalCount(ns:String):Int = { 
+    def totalCount(ns:String):Int = {
         val range = ScadsDeployUtil.getAllRangeRecordSet
         useConnection( (c) => c.count_set(ns,range) )
     }
@@ -51,7 +51,7 @@ class StorageMachine(val machine: RClusterNode, thriftPort: Int, syncPort: Int) 
         val list = useConnection((c) => c.get_set(ns,range))
         if ( list.size == 0 ) {
             null
-        } else { 
+        } else {
             list.get(0)
         }
     }
@@ -71,7 +71,7 @@ case class DataPlacementMachine(machine: RClusterNode, thriftPort: Int, syncPort
     def getLocalNode(handler: UnknownNSHandler) = {
         if ( lpNodeCache == null ) {
             lpNodeCache = new LocalDataPlacementNode( host, thriftPort, handler)
-        }   
+        }
         lpNodeCache
     }
 
@@ -79,18 +79,18 @@ case class DataPlacementMachine(machine: RClusterNode, thriftPort: Int, syncPort
         case null  => List[String]()
         case cache => cache.space.keySet.toList
     }
-    
+
     def lookup_node(ns:String,smachine:StorageMachine):DataPlacement = {
         useConnection( (c) => c.lookup_node(ns, smachine.host, smachine.thriftPort, smachine.syncPort) )
     }
 
     def move(ns:String,rset:RecordSet,from:StorageMachine,to:StorageMachine):Unit = {
-        useConnection( (c) => c.move( 
-            ns, 
-            rset, 
-            from.host, 
-            from.thriftPort, 
-            from.syncPort, 
+        useConnection( (c) => c.move(
+            ns,
+            rset,
+            from.host,
+            from.thriftPort,
+            from.syncPort,
             to.host,
             to.thriftPort,
             to.syncPort) )
@@ -101,27 +101,27 @@ case class DataPlacementMachine(machine: RClusterNode, thriftPort: Int, syncPort
 case class LocalDataPlacementNode(host: String, port: Int, handler: UnknownNSHandler) extends TransparentRemoteDataPlacementProvider {
     val logger = Logger.getLogger("scads.placementNode")
 
-    override def lookup(ns: String): Map[StorageNode, KeyRange] = { 
+    override def lookup(ns: String): Map[StorageNode, KeyRange] = {
         var ret = super.lookup(ns)
         if(ret.isEmpty) { handler.handleUnknownNS(ns); ret = super.lookup(ns) }
-        ret 
-    }   
+        ret
+    }
 
-    override def lookup(ns: String, node: StorageNode): KeyRange = { 
+    override def lookup(ns: String, node: StorageNode): KeyRange = {
         var ret = super.lookup(ns, node)
         if(ret == KeyRange.EmptyRange) { handler.handleUnknownNS(ns); ret = super.lookup(ns, node) }
-        ret 
-    }   
-    override def lookup(ns: String, key: Key):List[StorageNode] = { 
+        ret
+    }
+    override def lookup(ns: String, key: Key):List[StorageNode] = {
         var ret = super.lookup(ns, key)
         if(ret.isEmpty) { handler.handleUnknownNS(ns); ret = super.lookup(ns, key) }
-        ret 
-    }   
-    override def lookup(ns: String, range: KeyRange): Map[StorageNode, KeyRange] = { 
+        ret
+    }
+    override def lookup(ns: String, range: KeyRange): Map[StorageNode, KeyRange] = {
         var ret = super.lookup(ns, range)
         if(ret.isEmpty) { handler.handleUnknownNS(ns); ret = super.lookup(ns, range) }
-        ret 
-    } 
+        ret
+    }
 }
 
 object StorageMachine {

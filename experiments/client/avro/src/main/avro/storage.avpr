@@ -171,20 +171,20 @@
 			{"name": "codename", "type": "string"},
 		  {"name": "code", "type": "bytes"}]
     },
-					
+
 
 		{"name": "Message", "type": "record", "fields": [
 		  {"name": "src", "type": ["long","string","null"]},
 		  {"name": "dest", "type": ["long","string"]},
 		  {"name": "id", "type": ["long","null"]},
 		  {"name": "body", "type": [
-							   "null", 
+							   "null",
 							 	 "GetRequest",
-								 "GetRangeRequest", 
-								 "CountRangeRequest", 
-								 "RemoveRangeRequest",	
-								 "PutRequest", 
-								 "TestSetRequest", 
+								 "GetRangeRequest",
+								 "CountRangeRequest",
+								 "RemoveRangeRequest",
+								 "PutRequest",
+								 "TestSetRequest",
 								 "ConfigureRequest",
 								 "CopyRangesRequest",
 								 "CopyStartRequest",
@@ -203,9 +203,9 @@
                  "FlatMapResponse",
 								 "FilterRequest",
 
-								 "Record", 
+								 "Record",
 								 "RecordSet",
-								 "ProcessingException", 
+								 "ProcessingException",
 								 "TestAndSetFailure",
 								 "int"
 			 ]}]
