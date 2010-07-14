@@ -32,5 +32,7 @@ class NamespaceSpec extends Spec with ShouldMatchers {
     it("should correctly return ranges of data") {pending}
     it("should correctly return records by prefix") {pending}
     it("should allow data to be moved/copied") {pending}
+    it("should efficently bulk load from iterator using ++=") {pending}
+    it("should allow you to truncate the contents of a namespace") {pending}
   }
 }
