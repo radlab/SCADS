@@ -444,12 +444,9 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
         simpleSyncSink(ssreq,src,req)
       }
 
-                 /*
-                    // Strange bug happens when you uncomment this code.
-                    // scalac will crash.
       case fmreq: FlatMapRequest => {
         val ns = namespaces(fmreq.namespace)
-        var result = new GenericData.Array[ByteBuffer](10, Schema.createArray(Schema.create(Schema.Type.BYTES)))
+        var result = new ArrayBuffer[Array[Byte]]
 
         val key = Class.forName(fmreq.keyType).asInstanceOf[Class[ScalaSpecificRecord]].newInstance()
         val value = Class.forName(fmreq.valueType).asInstanceOf[Class[ScalaSpecificRecord]].newInstance()
@@ -471,11 +468,11 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
                 key.parse(keyBytes.getData)
                 value.parse(valueBytes.getData)
                 method.invoke(o,key,value).asInstanceOf[List[ScalaSpecificRecord]].
-                  map(v => ByteBuffer.wrap(v.toBytes)).foreach(result.add)
+                  map(_.toBytes).foreach(result.append(_))
               })
 
               val resp = new FlatMapResponse
-              resp.records = result
+              resp.records = result.toList
               reply(resp)
             }
           }
@@ -488,7 +485,6 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
           }
         }
       }
-      */
 
       case filtreq:FilterRequest  => {
         val ns = namespaces(filtreq.namespace)
