@@ -31,6 +31,7 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 	val namespaces = root.getOrCreate("namespaces")
 
   /* If namespace exists, just return false, otherwise, create namespace and return true */
+  @deprecated("don't use")
   def createNamespaceIfNotExists(ns: String, keySchema: Schema, valueSchema: Schema): Boolean = {
     val nsRoot =
       try {
@@ -53,7 +54,7 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
     val available = root.get("availableServers").updateChildren(false)
     if (available.size <= 0)
       throw new Exception("No available servers")
-    val serv = available.toArray.apply((Math.random*available.size).intValue)
+    val serv = available.toArray.apply((scala.math.random*available.size).intValue)
     createNamespace[KeyType, ValueType](ns, keySchema, valueSchema, List[RemoteNode](new RemoteNode(serv._1,Integer.parseInt(new String(serv._2.data)))))
   }
 
@@ -121,18 +122,22 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
     new Namespace[KeyType, ValueType](ns, 5000, root)
   }
 
+  @deprecated("don't use")
 	def addPartition(ns:String, name:String, policy:PartitionedPolicy):Unit = {
 		val partition = namespaces.getOrCreate(ns+"/partitions/"+name)
 
 		partition.createChild("policy", policy.toBytes, CreateMode.PERSISTENT)
 		partition.createChild("servers", "".getBytes, CreateMode.PERSISTENT)
 	}
-	def addPartition(ns:String,name:String):Unit = {
+
+  @deprecated("don't use")
+  def addPartition(ns:String,name:String):Unit = {
 		val policy = new PartitionedPolicy
 		policy.partitions = List(new KeyPartition)
 		addPartition(ns,name,policy)
 	}
 
+  @deprecated("don't use")
   def getNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): Namespace[KeyType, ValueType] = {
     namespaces.children.get(ns) match {
       case Some(_) => new Namespace[KeyType, ValueType](ns, 5000, root)
