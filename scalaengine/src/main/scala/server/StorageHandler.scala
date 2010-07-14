@@ -7,6 +7,7 @@ import java.net.InetAddress
 
 import scala.actors._
 import scala.actors.Actor._
+import scala.collection.mutable.ArrayBuffer
 
 import org.apache.log4j.Logger
 import com.sleepycat.je.{Cursor,Database, DatabaseConfig, DatabaseException, DatabaseEntry, Environment, LockMode, OperationStatus, Durability, Transaction}
@@ -80,16 +81,16 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
     result
   }
 
-  private class ShippedClassLoader(ba:ByteBuffer,targetClass:String) extends ClassLoader {
+  private class ShippedClassLoader(ba:Array[Byte],targetClass:String) extends ClassLoader {
     override def findClass(name:String):Class[_] = {
       if (name.equals(targetClass))
-        defineClass(name, ba.array, ba.position, ba.remaining)
+        defineClass(name, ba, 0, ba.size)
       else
         Class.forName(name)
     }
   }
 
-  private def deserialize(name:String, ba:ByteBuffer):Any = {
+  private def deserialize(name:String, ba:Array[Byte]):Any = {
     try {
       val loader = new ShippedClassLoader(ba,name)
       Class.forName(name,false,loader)
@@ -196,14 +197,14 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
       case grr: GetRangeRequest => {
         val ns = namespaces(grr.namespace)
         val recordSet = new RecordSet
-        recordSet.records = new AvroArray[Record](1024, Schema.createArray((new Record).getSchema))
+        val records = new ArrayBuffer[Record]
         iterateOverRange(ns, grr.range, false, (key, value, cursor) => {
           val rec = new Record
           rec.key = key.getData
           rec.value = value.getData
-          recordSet.records = rec :: recordSet.records
+          records += rec
         })
-        recordSet.records = recordSet.records.reverse
+        recordSet.records = records.toList
         reply(recordSet)
       }
 
@@ -212,7 +213,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
 
         val tschema = mkSchema(ns.keySchema,gpr.fields)
         val recordSet = new RecordSet
-        recordSet.records = new AvroArray[Record](1024, Schema.createArray((new Record).getSchema))
+        val records = new ArrayBuffer[Record]
 
         var remaining = gpr.limit match {
           case None       => -1
@@ -248,7 +249,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
             val rec = new Record
             rec.key = dbeKey.getData
             rec.value = dbeValue.getData
-            recordSet.records = rec :: recordSet.records
+            records += rec
             stat =
               if (gpr.ascending)
                 cur.getNext(dbeKey, dbeValue, null)
@@ -256,7 +257,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
                 cur.getPrev(dbeKey, dbeValue, null)
             remaining -= 1
           }
-          recordSet.records = recordSet.records.reverse
+          recordSet.records = records.toList
           cur.close
         } catch {
           case t:Throwable => {
@@ -492,7 +493,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
       case filtreq:FilterRequest  => {
         val ns = namespaces(filtreq.namespace)
         val recordSet = new RecordSet
-        recordSet.records = new AvroArray[Record](1024, Schema.createArray((new Record).getSchema))
+        val records = new ArrayBuffer[Record]
         val key = Class.forName(filtreq.keyType).asInstanceOf[Class[ScalaSpecificRecord]].newInstance()
         val value = Class.forName(filtreq.valueType).asInstanceOf[Class[ScalaSpecificRecord]].newInstance()
         try {
@@ -517,9 +518,10 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
                   val rec = new Record
                   rec.key = keyBytes.getData
                   rec.value = valueBytes.getData
-                  recordSet.records = rec :: recordSet.records
+                  records += rec
                 }
               })
+              recordSet.records = records.toList
               reply(recordSet)
             }
           }
