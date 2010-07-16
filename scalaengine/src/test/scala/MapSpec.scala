@@ -34,5 +34,8 @@ class NamespaceSpec extends Spec with ShouldMatchers {
     it("should allow data to be moved/copied") {pending}
     it("should efficently bulk load from iterator using ++=") {pending}
     it("should allow you to truncate the contents of a namespace") {pending}
+    it("should automatically handle schema resolution") {pending}
+
+    it("should implement closure-shipping version of flatMap") {pending}
   }
 }
