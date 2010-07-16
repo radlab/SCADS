@@ -25,8 +25,7 @@ import org.apache.zookeeper.CreateMode
 
 abstract trait PartitionPolicy[KeyType <: IndexedRecord] {
   protected val logger: Logger
-  protected val schema: Schema
-  protected val keyClass: Class[_]
+  protected val keySchema: Schema
   protected val nsNode: ZooKeeperProxy#ZooKeeperNode
   private var nodeCache:Array[polServer] = null
 
@@ -54,7 +53,7 @@ abstract trait PartitionPolicy[KeyType <: IndexedRecord] {
         case (None, None) => 0
         case (None, _) => 1
         case (_, None) => -1
-        case (Some(a), Some(b)) => org.apache.avro.io.BinaryData.compare(a, 0, b, 0, schema)
+        case (Some(a), Some(b)) => org.apache.avro.io.BinaryData.compare(a, 0, b, 0, keySchema)
       }
     }
 
@@ -73,13 +72,13 @@ abstract trait PartitionPolicy[KeyType <: IndexedRecord] {
     }
   }
 
-  
+
   def keyComp(part: Option[Array[Byte]], key: Option[Array[Byte]]): Int = {
     (part, key) match {
       case (None, None) => 0
       case (None, _) => -1
       case (_, None) => 1
-      case (Some(a), Some(b)) => org.apache.avro.io.BinaryData.compare(a, 0, b, 0, schema)
+      case (Some(a), Some(b)) => org.apache.avro.io.BinaryData.compare(a, 0, b, 0, keySchema)
     }
   }
 
