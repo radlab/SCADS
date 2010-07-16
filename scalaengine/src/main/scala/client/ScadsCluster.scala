@@ -77,7 +77,7 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
       Sync.makeRequest(s, ActorName("Storage"), cr)
     })
 
-    new Namespace[KeyType, ValueType](ns, 5000, root)
+    new SpecificNamespace[KeyType, ValueType](ns, 5000, root)
 	}
 
   def createAndConfigureNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns:String, splitPoints:List[ScalaSpecificRecord])(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): Namespace[KeyType, ValueType] = {
@@ -119,7 +119,7 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
         i += 1
       }
     })
-    new Namespace[KeyType, ValueType](ns, 5000, root)
+    new SpecificNamespace[KeyType, ValueType](ns, 5000, root)
   }
 
   @deprecated("don't use")
@@ -140,11 +140,11 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
   @deprecated("don't use")
   def getNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): Namespace[KeyType, ValueType] = {
     namespaces.children.get(ns) match {
-      case Some(_) => new Namespace[KeyType, ValueType](ns, 5000, root)
+      case Some(_) => new SpecificNamespace[KeyType, ValueType](ns, 5000, root)
       case None => {
         createNamespace[KeyType, ValueType](ns, keyType.erasure.newInstance.asInstanceOf[ScalaSpecificRecord].getSchema, valueType.erasure.newInstance.asInstanceOf[ScalaSpecificRecord].getSchema)
         namespaces.updateChildren(false)
-        new Namespace[KeyType, ValueType](ns, 5000, root)
+        new SpecificNamespace[KeyType, ValueType](ns, 5000, root)
       }
     }
   }

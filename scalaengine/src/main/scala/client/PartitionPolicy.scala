@@ -17,53 +17,22 @@ import org.apache.avro.Schema
 import org.apache.avro.util.Utf8
 import org.apache.avro.generic.GenericData.{Array => AvroArray}
 import org.apache.avro.generic.GenericData
+import org.apache.avro.generic.IndexedRecord
 import org.apache.avro.io.BinaryData
-import com.googlecode.avro.runtime.ScalaSpecificRecord
 
 import org.apache.zookeeper.CreateMode
 
-class PartitionPolicy(schema: Schema, keyClass: Class[ScalaSpecificRecord], nsNode: ZooKeeperProxy#ZooKeeperNode)  {
-  private var logger = Logger.getLogger("scads.partitionpolicy")
+
+abstract trait PartitionPolicy[KeyType <: IndexedRecord] {
+  protected val logger: Logger
+  protected val schema: Schema
+  protected val keyClass: Class[_]
+  protected val nsNode: ZooKeeperProxy#ZooKeeperNode
   private var nodeCache:Array[polServer] = null
 
-  case class polServer(min: Option[Array[Byte]],max: Option[Array[Byte]],nodes:List[RemoteNode]) extends Comparable[polServer] {
-    def compareTo(p:polServer):Int = {
-      (max, p.max) match {
-        case (None, None) => 0
-        case (None, _) => 1
-        case (_, None) => -1
-        case (Some(a), Some(b)) => org.apache.avro.io.BinaryData.compare(a, 0, b, 0, schema)
-      }
-    }
-
-    override def toString():String = {
-      val sb = new java.lang.StringBuffer
-      val k = keyClass.newInstance
-      sb.append("[")
-      min match {
-        case Some(m) => {
-          k.parse(m)
-          sb.append(m)
-        }
-        case None => sb.append("-inf")
-      }
-      sb.append(", ")
-      max match {
-        case Some(m) => {
-          k.parse(m)
-          sb.append(k)
-        }
-        case None => sb.append("+inf")
-      }
-
-      sb.append("): ")
-      nodes.foreach((node) => {
-        sb.append(node)
-        sb.append(" ")
-      })
-      return sb.toString
-    }
-  }
+  /* DeSerialization Methods */
+  protected def serializeKey(key: KeyType): Array[Byte]
+  protected def deserializeKey(key: Array[Byte]): KeyType
 
   class RangeIterator(start:Int, end:Int) extends Iterator[polServer] {
     private var cur = start
@@ -79,6 +48,32 @@ class PartitionPolicy(schema: Schema, keyClass: Class[ScalaSpecificRecord], nsNo
     }
   }
 
+  case class polServer(min: Option[Array[Byte]],max: Option[Array[Byte]],nodes:List[RemoteNode]) extends Comparable[polServer] {
+    def compareTo(p:polServer):Int = {
+      (max, p.max) match {
+        case (None, None) => 0
+        case (None, _) => 1
+        case (_, None) => -1
+        case (Some(a), Some(b)) => org.apache.avro.io.BinaryData.compare(a, 0, b, 0, schema)
+      }
+    }
+
+    override def toString():String = {
+      val sb = new java.lang.StringBuffer
+      sb.append("[")
+      sb.append(min.map(deserializeKey).getOrElse("-inf"))
+      sb.append(", ")
+      sb.append(max.map(deserializeKey).getOrElse("+inf"))
+      sb.append("): ")
+      nodes.foreach((node) => {
+        sb.append(node)
+        sb.append(" ")
+      })
+      return sb.toString
+    }
+  }
+
+  
   def keyComp(part: Option[Array[Byte]], key: Option[Array[Byte]]): Int = {
     (part, key) match {
       case (None, None) => 0
@@ -130,10 +125,10 @@ class PartitionPolicy(schema: Schema, keyClass: Class[ScalaSpecificRecord], nsNo
     }
   }
 
-  def idxForKey(key:ScalaSpecificRecord):Int = {
+  def idxForKey(key:KeyType):Int = {
     if (nodeCache == null)
       updateNodeCache
-    val polKey = new polServer(None,Some(key.toBytes),Nil)
+    val polKey = new polServer(None,Some(serializeKey(key)),Nil)
     val bpos = Arrays.binarySearch(nodeCache,polKey,null)
     if (bpos < 0)
       ((bpos+1) * -1)
@@ -143,38 +138,31 @@ class PartitionPolicy(schema: Schema, keyClass: Class[ScalaSpecificRecord], nsNo
       bpos + 1
   }
 
-  def serversForKey(key:ScalaSpecificRecord):List[RemoteNode] = {
+  protected def serversForKey(key:KeyType):List[RemoteNode] = {
     val idx = idxForKey(key)
     // validate that we don't have a gap
-    if (keyComp(nodeCache(idx).min, Some(key.toBytes)) > 0) {
+    if (keyComp(nodeCache(idx).min, Some(serializeKey(key))) > 0) {
       logger.warn("Possible gap in partitions, returning empty server list")
       Nil
     } else
       nodeCache(idx).nodes
   }
 
-  def splitRange(startKey:ScalaSpecificRecord,endKey:ScalaSpecificRecord):RangeIterator = {
+  protected def splitRange(startKey: Option[KeyType],endKey: Option[KeyType]):RangeIterator = {
     if (nodeCache == null)
       updateNodeCache
-    val sidx =
-      if (startKey == null)
-        0
-      else
-        idxForKey(startKey)
-    val eidx =
-      if (endKey == null)
-        nodeCache.length - 1
-      else
-        idxForKey(endKey)
-    // Check if this just makes the range and -1 if so
+
+    val sidx = startKey.map(idxForKey).getOrElse(0)
+    val eidx = endKey.map(idxForKey).getOrElse(nodeCache.length - 1)
+
     new RangeIterator(sidx,eidx)
   }
 
-	private def keyInPolicy(policy:Array[Byte], key: ScalaSpecificRecord):Boolean = {
+	private def keyInPolicy(policy:Array[Byte], key: KeyType):Boolean = {
 		val pdata = new PartitionedPolicy
 		pdata.parse(policy)
 		val iter = pdata.partitions.iterator
-    val kdata = key.toBytes
+    val kdata = serializeKey(key)
 		while (iter.hasNext) {
 			val part = iter.next
       if ( (part.minKey == null ||
@@ -186,7 +174,7 @@ class PartitionPolicy(schema: Schema, keyClass: Class[ScalaSpecificRecord], nsNo
     false
 	}
 
-  private def serversForKeySlow(key:ScalaSpecificRecord):List[RemoteNode] = {
+  private def serversForKeySlow(key:KeyType):List[RemoteNode] = {
     val partitions = nsNode.get("partitions").updateChildren(false)
     partitions.map(part=>{
       val policyData = 	nsNode.get("partitions/"+part._1+"/policy").updateData(false)

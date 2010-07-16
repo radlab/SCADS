@@ -14,6 +14,7 @@ import scala.tools.nsc.io.AbstractFile
 import org.apache.log4j.Logger
 
 import org.apache.avro.Schema
+import org.apache.avro.generic.IndexedRecord
 import org.apache.avro.util.Utf8
 import org.apache.avro.generic.GenericData.{Array => AvroArray}
 import org.apache.avro.generic.GenericData
@@ -23,6 +24,29 @@ import com.googlecode.avro.runtime.ScalaSpecificRecord
 
 import org.apache.zookeeper.CreateMode
 
+
+class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKeeperNode)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]) extends Namespace[KeyType, ValueType](namespace, timeout, root) with PartitionPolicy[KeyType] {
+  val keyClass = keyType.erasure.asInstanceOf[Class[ScalaSpecificRecord]]
+  val valueClass = valueType.erasure.asInstanceOf[Class[ScalaSpecificRecord]]
+  lazy val keySchema = keyClass.newInstance.asInstanceOf[ScalaSpecificRecord].getSchema()
+  lazy val valueSchema = valueClass.newInstance.asInstanceOf[ScalaSpecificRecord].getSchema()
+
+  protected def serializeKey(key: KeyType): Array[Byte] = key.toBytes
+  protected def serializeValue(value: ValueType): Array[Byte] = value.toBytes
+
+  protected def deserializeKey(key: Array[Byte]): KeyType = {
+    val ret = keyClass.newInstance.asInstanceOf[KeyType]
+    ret.parse(key)
+    ret
+  }
+
+  protected def deserializeValue(value: Array[Byte]): ValueType = {
+    val ret = valueClass.newInstance.asInstanceOf[ValueType]
+    ret.parse(value)
+    ret
+  }
+}
+
 /**
  * Handles interaction with a single SCADS Namespace
  * TODO: factor out routing decions into self-contained class
@@ -30,17 +54,24 @@ import org.apache.zookeeper.CreateMode
  * TODO: Add functions for splitting/merging partitions
  * TODO: Handle the need for possible schema resolutions
  */
-class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKeeperNode)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]) {
-  private val dest = ActorName("Storage")
-  private val logger = Logger.getLogger("Namespace")
-  val keyClass = keyType.erasure.asInstanceOf[Class[ScalaSpecificRecord]]
-  val valueClass = valueType.erasure.asInstanceOf[Class[ScalaSpecificRecord]]
-  private val nsNode = root.get("namespaces/"+namespace)
-  private val schema = Schema.parse(new String(nsNode.get("keySchema").data))
+abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord](namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKeeperNode) {
+  protected val dest = ActorName("Storage")
+  protected val logger = Logger.getLogger("Namespace")
+  protected val nsNode = root.get("namespaces/"+namespace)
+  protected val schema = Schema.parse(new String(nsNode.get("keySchema").data))
 
-  lazy val keySchema = keyClass.newInstance.asInstanceOf[ScalaSpecificRecord].getSchema()
-  lazy val valueSchema = valueClass.newInstance.asInstanceOf[ScalaSpecificRecord].getSchema()
-  val partitions = new PartitionPolicy(schema, keyClass, nsNode)
+  val keyClass: Class[_]
+  val valueClass: Class[_]
+
+  /* Partition Policy Methods */
+  protected def serversForKey(key:KeyType):List[RemoteNode]
+  protected def splitRange(startKey: Option[KeyType],endKey: Option[KeyType]): PartitionPolicy[KeyType]#RangeIterator
+
+  /* DeSerialization Methods */
+  protected def serializeKey(key: KeyType): Array[Byte]
+  protected def serializeValue(value: ValueType): Array[Byte]
+  protected def deserializeKey(key: Array[Byte]): KeyType
+  protected def deserializeValue(value: Array[Byte]): ValueType 
 
   private def applyToSet(nodes:List[RemoteNode], func:(RemoteNode) => AnyRef, repliesRequired:Int):AnyRef = {
     if (repliesRequired > nodes.size)
@@ -198,8 +229,8 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
 
   def put[K <: KeyType, V <: ValueType](key: K, value: V): Unit = put(key, Some(value))
   def put[K <: KeyType, V <: ValueType](key: K, value: Option[V]): Unit = {
-    val nodes = partitions.serversForKey(key)
-    val pr = PutRequest(namespace, key.toBytes, value match {case Some(r) => Some(r.toBytes); case None => None})
+    val nodes = serversForKey(key)
+    val pr = PutRequest(namespace, serializeKey(key), value map serializeValue)
     if (nodes.length <= 0) {
       logger.warn("No nodes responsible for this key, not doing anything")
       return
@@ -207,15 +238,13 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
     applyToSet(nodes,(rn)=>{Sync.makeRequest(rn,dest,pr,timeout)},nodes.size)
   }
 
-  def getBytes[K <: KeyType](key: K): Array[Byte] = {
-    val nodes = partitions.serversForKey(key)
+  def getBytes[K <: KeyType](key: K): Option[Array[Byte]] = {
+    val nodes = serversForKey(key)
     if (nodes.length <= 0) {
       logger.warn("No node responsible for this key, returning null")
       return null
     }
-    val gr = new GetRequest
-    gr.namespace = namespace
-    gr.key = key.toBytes
+    val gr = GetRequest(namespace, serializeKey(key))
     applyToSet(nodes,
                (rn)=> {
                  Sync.makeRequest(rn,dest,gr,timeout) match {
@@ -230,27 +259,16 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
                  }
                },
                1) match { // we pass one here to return after the first reply
-      case bb:Array[Byte] => bb
-      case other => null
+      case bb:Array[Byte] => Some(bb)
+      case other => None
     }
-  }
-
-  def get[K <: KeyType, V <: ValueType](key: K, oldValue: V): Option[V] = {
-    val bb = getBytes(key)
-    if (bb != null) {
-      oldValue.parse(bb)
-      Some(oldValue)
-    }
-    else
-      None
   }
 
   def get[K <: KeyType](key: K): Option[ValueType] = {
-    val retValue = valueClass.newInstance().asInstanceOf[ValueType]
-    get(key, retValue)
+    getBytes(key) map deserializeValue
   }
 
-  def minRecord(rec:ScalaSpecificRecord, prefix:Int, ascending:Boolean):Unit = {
+  def minRecord(rec:IndexedRecord, prefix:Int, ascending:Boolean):Unit = {
     val fields = rec.getSchema.getFields
     for (i <- (prefix to (fields.size() - 1))) { // set remaining values to min/max
       fields.get(i).schema.getType match {
@@ -318,7 +336,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
   }
 
   def getPrefix[K <: KeyType](key: K, fields: Int, limit: Int = -1, ascending: Boolean = true):Seq[(KeyType,ValueType)] = {
-    val nodes = partitions.serversForKey(key)
+    val nodes = serversForKey(key)
     val gpr = new GetPrefixRequest
     gpr.namespace = namespace
     if (limit >= 0)
@@ -331,7 +349,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
 
     minRecord(key,fields,ascending)
 
-    gpr.start = key.toBytes
+    gpr.start = serializeKey(key)
     gpr.fields = fields
     var retList = List[(KeyType,ValueType)]()
     applyToSet(nodes,
@@ -342,11 +360,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
         val recit = rs.records.iterator
         while (recit.hasNext) {
           val rec = recit.next
-          val kinst = keyClass.newInstance.asInstanceOf[KeyType]
-          val vinst = valueClass.newInstance.asInstanceOf[ValueType]
-          kinst.parse(rec.key)
-          vinst.parse(rec.value)
-          retList = (kinst,vinst) :: retList
+          retList = (deserializeKey(rec.key), deserializeValue(rec.value)) :: retList
         }
       }
       case other => {
@@ -357,10 +371,8 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
   }
 
 
-  def getRange[K <: KeyType](start:K, end:K):Seq[(KeyType,ValueType)] =
-    getRange(start,end,0,0,false)
-  def getRange[K <: KeyType](start:K, end:K, limit:Int, offset: Int, backwards:Boolean): Seq[(KeyType,ValueType)] = {
-    val nodeIter = partitions.splitRange(start,end)
+  def getRange(start: Option[KeyType], end: Option[KeyType], limit:Int = 0, offset: Int = 0, backwards:Boolean = false): Seq[(KeyType,ValueType)] = {
+  /*  val nodeIter = splitRange(start,end)
     var nol = List[(List[RemoteNode],MessageBody)]()
     while(nodeIter.hasNext()) {
       val polServ = nodeIter.next
@@ -369,19 +381,19 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
           if (start == null)
             polServ.min
           else if (polServ.min == null)
-            Some(start.toBytes)
-          else if (BinaryData.compare(start.toBytes,0,polServ.min.get,0,schema) < 0) // start key is less
+            Some(serializeKey(start))
+          else if (BinaryData.compare(serializeKey(start),0,polServ.min.get,0,schema) < 0) // start key is less
             polServ.min
           else
-            Some(start.toBytes)
+            Some(serializeKey(start))
         } else null,
         if (end != null || polServ.max != null) {
           if (end == null)
             polServ.max
           else if (polServ.max == null)
-            Some(end.toBytes)
-          else if (BinaryData.compare(end.toBytes,0,polServ.max.get,0,schema) < 0) // end key is less
-            Some(end.toBytes)
+            Some(serializeKey(end))
+          else if (BinaryData.compare(serializeKey(end),0,polServ.max.get,0,schema) < 0) // end key is less
+            Some(serializeKey(end))
           else
             polServ.max
         } else null,
@@ -410,16 +422,13 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
         val recit = rs.records.iterator
         while (recit.hasNext && (limit == 0 || (added < limit))) {
           val rec = recit.next
-          val kinst = keyClass.newInstance.asInstanceOf[KeyType]
-          val vinst = valueClass.newInstance.asInstanceOf[ValueType]
-          kinst.parse(rec.key)
-          vinst.parse(rec.value)
-          retList = (kinst,vinst) :: retList
+          retList = (deserializeKey(rec.key),deserializeValue(rec.value)) :: retList
           added += 1
         }
       }
     })
-    retList.reverse
+    retList.reverse */
+    Nil
   }
 
   def flatMap[RetType <: ScalaSpecificRecord](func: (KeyType, ValueType) => List[RetType])(implicit retType: scala.reflect.Manifest[RetType]): Seq[RetType] = {
@@ -434,7 +443,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
 
       def act(): Unit = {
         val id = MessageHandler.registerActor(self)
-        val ranges = partitions.splitRange(null, null)
+        val ranges = splitRange(null, null)
         var remaining = 0 /** Use ranges.size once we upgrade to RC2 or greater */
         var partialElements = List[RetType]()
         //val msg = new Message
@@ -502,7 +511,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
   def size():Int = {
     val sv = new SyncVar[Int]
     val s = new java.util.concurrent.atomic.AtomicInteger()
-    val ranges = partitions.splitRange(null, null)
+    val ranges = splitRange(null, null)
     actor {
       val id = MessageHandler.registerActor(self)
       val msg = new Message
@@ -556,7 +565,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
   def filter(func: (KeyType, ValueType) => Boolean): Iterable[(KeyType,ValueType)] = {
     val result = new SyncVar[List[(KeyType,ValueType)]]
     var list = List[(KeyType,ValueType)]()
-    val ranges = partitions.splitRange(null, null)
+    val ranges = splitRange(null, null)
     actor {
       val id = MessageHandler.registerActor(self)
       val msg = new Message
@@ -583,11 +592,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
             val recit = resp.records.iterator
             while (recit.hasNext) {
               val rec = recit.next
-              val kinst = keyClass.newInstance.asInstanceOf[KeyType]
-              val vinst = valueClass.newInstance.asInstanceOf[ValueType]
-              kinst.parse(rec.key)
-              vinst.parse(rec.value)
-              list = list:::List((kinst,vinst))
+              list = list:::List((deserializeKey(rec.key),deserializeValue(rec.value)))
             }
             remaining -= 1
             if(remaining <= 0) {
@@ -627,7 +632,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
   private def doFold(z:(KeyType,ValueType))(func: ((KeyType,ValueType),(KeyType,ValueType)) => (KeyType,ValueType),dir:Int): (KeyType,ValueType) = {
     var list = List[(KeyType,ValueType)]()
     val result = new SyncVar[List[(KeyType,ValueType)]]
-    val ranges = partitions.splitRange(null, null)
+    val ranges = splitRange(null, null)
     actor {
       val id = MessageHandler.registerActor(self)
       val msg = new Message
@@ -638,8 +643,8 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
       fr.namespace = namespace
       fr.keyType = keyClass.getName
       fr.valueType = valueClass.getName
-      fr.initValueOne = z._1.toBytes
-      fr.initValueTwo = z._2.toBytes
+      fr.initValueOne = serializeKey(z._1)
+      fr.initValueTwo = serializeValue(z._2)
       fr.codename = func.getClass.getName
       fr.code = getFunctionCode(func)
       fr.direction = dir // TODO: Change dir to an enum when we support that
@@ -653,11 +658,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
         reactWithin(timeout) {
           case (_, msg: Message) => {
             val rec = msg.body.asInstanceOf[Record]
-            val retk = keyClass.newInstance.asInstanceOf[KeyType]
-            val retv = valueClass.newInstance.asInstanceOf[ValueType]
-            retk.parse(rec.key)
-            retv.parse(rec.value)
-            list ++= List((retk,retv))
+            list ++= List((deserializeKey(rec.key),deserializeValue(rec.value)))
             remaining -= 1
             if(remaining <= 0) {
               result.set(list)
@@ -695,7 +696,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
                                               localFunc: (TypeLocal,TypeRemote) => TypeLocal): TypeLocal = {
     var list = List[TypeRemote]()
     val result = new SyncVar[List[TypeRemote]]
-    val ranges = partitions.splitRange(null, null)
+    val ranges = splitRange(null, null)
     actor {
       val id = MessageHandler.registerActor(self)
       var remaining = 0 /** use ranges.size once we upgrade to RC2 */
@@ -775,7 +776,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
       var cnt = 0
       that foreach (pair => {
         cnt+=1
-        val nodes = partitions.serversForKey(pair._1)
+        val nodes = serversForKey(pair._1)
         if (true) { //bufferMap.contains(idx)) { // already have an iter open
           val bufseq: (scala.collection.mutable.ArrayBuffer[Record],Int) = null //bufferMap(idx)
           val buf = bufseq._1
@@ -806,7 +807,7 @@ class Namespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord
           }
         } else {
           // validate that we don't have a gap
-          if (true) {//partitions.keyComp(nodeCache(idx).min,Some(pair._1.toBytes)) > 0) {
+          if (true) {//keyComp(nodeCache(idx).min,Some(pair._1.toBytes)) > 0) {
             logger.warn("Gap in partitions, returning empty server list")
             Nil
           } else {
