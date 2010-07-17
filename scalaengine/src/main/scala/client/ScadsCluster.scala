@@ -11,8 +11,8 @@ import scala.actors._
 import scala.actors.Actor._
 import org.apache.log4j.Logger
 import org.apache.avro.generic.GenericData.{Array => AvroArray}
-import org.apache.avro.generic.GenericData
-import org.apache.avro.io.BinaryData
+import org.apache.avro.generic.{GenericData, IndexedRecord, GenericDatumWriter}
+import org.apache.avro.io.{BinaryData, BinaryEncoder}
 
 import scala.collection.mutable.HashMap
 import java.util.Arrays
@@ -30,6 +30,13 @@ import com.googlecode.avro.runtime.ScalaSpecificRecord
 class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 	val namespaces = root.getOrCreate("namespaces")
 
+  def getNamespace(ns: String, keySchema: Schema, valueSchema: Schema, splitPoints: List[GenericData.Record]): GenericNamespace = {
+    if(!namespaces.updateChildren(false).contains(ns)) {
+      createAndConfigureNamespace(ns, keySchema, valueSchema, splitPoints)
+    }
+    new GenericNamespace(ns, 5000, root)
+  }
+
   def getNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String, splitPoints:List[ScalaSpecificRecord] = Nil)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): SpecificNamespace[KeyType, ValueType] = {
     if(!namespaces.updateChildren(false).contains(ns)) {
       val keySchema = keyType.erasure.newInstance.asInstanceOf[KeyType].getSchema()
@@ -39,7 +46,7 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
     return new SpecificNamespace[KeyType, ValueType](ns, 5000, root)
   }
 
-  def createAndConfigureNamespace(ns:String, keySchema: Schema, valueSchema: Schema, splitPoints:List[ScalaSpecificRecord] = Nil): Unit = {
+  def createAndConfigureNamespace(ns:String, keySchema: Schema, valueSchema: Schema, splitPoints:List[IndexedRecord] = Nil): Unit = {
 		val nsRoot = namespaces.createChild(ns, "".getBytes, CreateMode.PERSISTENT)
 		nsRoot.createChild("keySchema", keySchema.toString.getBytes, CreateMode.PERSISTENT)
 		nsRoot.createChild("valueSchema", valueSchema.toString.getBytes, CreateMode.PERSISTENT)
@@ -55,11 +62,11 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 	      val policy = new PartitionedPolicy
         val kp = new KeyPartition(
           if (i != 1)
-            Some(splitPoints(i-2).toBytes)
+            Some(serializeRecord(splitPoints(i-2)))
           else
             None,
           if (i != (sps+1))
-            Some(splitPoints(i-1).toBytes)
+            Some(serializeRecord(splitPoints(i-1)))
           else
             None)
  	      policy.partitions = List(kp)
@@ -76,5 +83,14 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
         i += 1
       }
     })
+  }
+
+  /* TODO: library pimping scala avro object */
+  protected def serializeRecord(rec: IndexedRecord): Array[Byte] = {
+    val outBuffer = new java.io.ByteArrayOutputStream
+    val encoder = new BinaryEncoder(outBuffer)
+    val writer = new GenericDatumWriter[IndexedRecord](rec.getSchema())
+    writer.write(rec, encoder)
+    outBuffer.toByteArray
   }
 }
