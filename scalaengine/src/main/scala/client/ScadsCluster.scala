@@ -30,6 +30,14 @@ import com.googlecode.avro.runtime.ScalaSpecificRecord
 class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 	val namespaces = root.getOrCreate("namespaces")
 
+  case class UnknownNamespace(ns: String) extends Exception
+  def getNamespace(ns: String): GenericNamespace = {
+    if(!namespaces.updateChildren(false).contains(ns)) {
+      throw UnknownNamespace(ns)
+    }
+    new GenericNamespace(ns, 5000, root)
+  }
+
   def getNamespace(ns: String, keySchema: Schema, valueSchema: Schema, splitPoints: List[GenericData.Record]): GenericNamespace = {
     if(!namespaces.updateChildren(false).contains(ns)) {
       createAndConfigureNamespace(ns, keySchema, valueSchema, splitPoints)
