@@ -20,6 +20,7 @@ import org.apache.avro.generic.GenericData.{Array => AvroArray}
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter}
 import org.apache.avro.io.{BinaryData, DecoderFactory, BinaryEncoder, BinaryDecoder}
 import org.apache.avro.io.DecoderFactory
+import com.googlecode.avro.runtime.AvroScala._
 import com.googlecode.avro.runtime.ScalaSpecificRecord
 
 import org.apache.zookeeper.CreateMode
@@ -54,19 +55,8 @@ class GenericNamespace(namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKe
   val keyWriter = new GenericDatumWriter[GenericData.Record](keySchema)
   val valueWriter = new GenericDatumWriter[GenericData.Record](valueSchema)
 
-  protected def serializeKey(key: GenericData.Record): Array[Byte] = {
-    val outBuffer = new java.io.ByteArrayOutputStream
-    val encoder = new BinaryEncoder(outBuffer)
-    keyWriter.write(key, encoder)
-    outBuffer.toByteArray
-  }
-
-  protected def serializeValue(value: GenericData.Record): Array[Byte] = {
-    val outBuffer = new java.io.ByteArrayOutputStream
-    val encoder = new BinaryEncoder(outBuffer)
-    valueWriter.write(value, encoder)
-    outBuffer.toByteArray
-  }
+  protected def serializeKey(key: GenericData.Record): Array[Byte] = key.toBytes
+  protected def serializeValue(value: GenericData.Record): Array[Byte] = value.toBytes
 
   protected def deserializeKey(key: Array[Byte]): GenericData.Record = {
     val decoder = decoderFactory.createBinaryDecoder(key, null)
