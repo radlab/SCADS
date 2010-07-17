@@ -17,8 +17,8 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.IndexedRecord
 import org.apache.avro.util.Utf8
 import org.apache.avro.generic.GenericData.{Array => AvroArray}
-import org.apache.avro.generic.GenericData
-import org.apache.avro.io.BinaryData
+import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter}
+import org.apache.avro.io.{BinaryData, DecoderFactory, BinaryEncoder, BinaryDecoder}
 import org.apache.avro.io.DecoderFactory
 import com.googlecode.avro.runtime.ScalaSpecificRecord
 
@@ -48,10 +48,35 @@ class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecif
 }
 
 class GenericNamespace(namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKeeperNode) extends Namespace[GenericData.Record, GenericData.Record](namespace, timeout, root) with PartitionPolicy[GenericData.Record] {
-  protected def serializeKey(key: GenericData.Record): Array[Byte] = null
-  protected def serializeValue(value: GenericData.Record): Array[Byte] = null
-  protected def deserializeKey(key: Array[Byte]): GenericData.Record = null
-  protected def deserializeValue(value: Array[Byte]): GenericData.Record = null
+  val decoderFactory = DecoderFactory.defaultFactory()
+  val keyReader = new GenericDatumReader[GenericData.Record](keySchema)
+  val valueReader = new GenericDatumReader[GenericData.Record](valueSchema)
+  val keyWriter = new GenericDatumWriter[GenericData.Record](keySchema)
+  val valueWriter = new GenericDatumWriter[GenericData.Record](valueSchema)
+
+  protected def serializeKey(key: GenericData.Record): Array[Byte] = {
+    val outBuffer = new java.io.ByteArrayOutputStream
+    val encoder = new BinaryEncoder(outBuffer)
+    keyWriter.write(key, encoder)
+    outBuffer.toByteArray
+  }
+
+  protected def serializeValue(value: GenericData.Record): Array[Byte] = {
+    val outBuffer = new java.io.ByteArrayOutputStream
+    val encoder = new BinaryEncoder(outBuffer)
+    valueWriter.write(value, encoder)
+    outBuffer.toByteArray
+  }
+
+  protected def deserializeKey(key: Array[Byte]): GenericData.Record = {
+    val decoder = decoderFactory.createBinaryDecoder(key, null)
+    keyReader.read(null, decoder)
+  }
+
+  protected def deserializeValue(value: Array[Byte]): GenericData.Record = {
+    val decoder = decoderFactory.createBinaryDecoder(value, null)
+    valueReader.read(null, decoder)
+  }
 }
 
 /**

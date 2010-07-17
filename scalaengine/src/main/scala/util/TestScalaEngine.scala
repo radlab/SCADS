@@ -22,16 +22,6 @@ object TestScalaEngine {
 	val node = RemoteNode("localhost", 9000)
 	val cluster = new ScadsCluster(zooKeeper.root.getOrCreate("scads"))
 
-  @deprecated("Use ScadsCluster to create/maintain namespaces")
-  def createNamespace(ns: String, keySchema: Schema, valueSchema: Schema): Unit = {
-    cluster.createNamespace(ns, keySchema, valueSchema)
-    val cr = new ConfigureRequest
-    cr.namespace = ns
-    cr.partition = "1"
-    println("Making CR request: " + cr)
-    Sync.makeRequest(node, new ActorName("Storage"), cr)
-  }
-
 	private def rmDir(dir: java.io.File): Boolean = {
 		if (dir.isDirectory()) {
 			val children = dir.list();
