@@ -189,7 +189,63 @@ object ScalaGen extends Generator[BoundSpec] {
   private def isKeyType(s: String) = s.endsWith("$KeyType")
 
 	protected def generate(entity: BoundEntity)(implicit sb: StringBuilder, indnt: Indentation): Unit = {
-		outputBraced("class ", entity.name, " extends Entity[", entity.name, ".KeyType", ",", entity.name, ".ValueType] with QueryExecutor") {
+    var aidx = 0;
+    outputPartial("class ", entity.name, "(")
+    entity.keySchema.getFields.foreach(f => {
+      if (aidx != 0)
+        outputPartialCont(",")
+      outputPartialCont("arg_",aidx.toString,":Option[",toScalaType(f.schema),"]")
+      aidx+=1
+    })
+    entity.valueSchema.getFields.foreach(f => {
+      if (aidx != 0)
+        outputPartialCont(",")
+      outputPartialCont("arg_",aidx.toString,":Option[",toScalaType(f.schema),"]")
+      aidx+=1;
+    })
+    outputPartialCont(") extends Entity[", entity.name, ".KeyType", ",", entity.name, ".ValueType] with QueryExecutor")
+    outputPartialEnd
+
+		outputBraced() {
+      outputPartial("def this() = this(")
+      for(i <- (2 to aidx))
+        outputPartialCont("None,")
+      if (aidx > 2)
+        outputPartialCont("None")
+      outputPartialCont(")")
+      outputPartialEnd
+
+      aidx = 0
+      outputPartial("def this(")
+      entity.keySchema.getFields.foreach(f => {
+        if (aidx != 0)
+          outputPartialCont(",")
+        outputPartialCont("arg_",aidx.toString,":Any")
+        aidx+=1
+      })
+      entity.valueSchema.getFields.foreach(f => {
+        if (aidx != 0)
+          outputPartialCont(",")
+        outputPartialCont("arg_",aidx.toString,":Any")
+        aidx+=1;
+      })
+      aidx = 0
+      outputPartialCont(") = this(")
+      entity.keySchema.getFields.foreach(f => {
+        if (aidx != 0)
+          outputPartialCont(",")
+        outputPartialCont("if (arg_",aidx.toString,"!=null) new Some[", toScalaType(f.schema),"](arg_",aidx.toString,".asInstanceOf[",toScalaType(f.schema),"]) else None")
+        aidx+=1
+      })
+      entity.valueSchema.getFields.foreach(f => {
+        if (aidx != 0)
+          outputPartialCont(",")
+        outputPartialCont("if (arg_",aidx.toString,"!=null) new Some[", toScalaType(f.schema),"](arg_",aidx.toString,".asInstanceOf[",toScalaType(f.schema),"]) else None")
+        aidx+=1
+      })
+      outputPartialCont(")")
+      outputPartialEnd
+
       output("val namespace = ", quote("ent_" + entity.name))
 
       output("object key extends ", entity.name, ".KeyType")
@@ -201,6 +257,27 @@ object ScalaGen extends Generator[BoundSpec] {
       output("var oldEntity: ", entity.name, " = _")
 
       output("def newEntityInstance = new ", entity.name)
+
+      aidx = 0
+      entity.keySchema.getFields.foreach(f => {
+        f.schema.getType match {
+          case Type.UNION =>
+            output("key.",f.name," = arg_",aidx.toString)
+          case _ =>
+            output("if (arg_",aidx.toString,".isDefined) key.",f.name," = arg_",aidx.toString,".get")
+        }
+        aidx+=1
+      })
+      entity.valueSchema.getFields.foreach(f => {
+        f.schema.getType match {
+          case Type.UNION =>
+            output("value.",f.name," = arg_",aidx.toString)
+          case _ =>
+            output("if (arg_",aidx.toString,".isDefined) value.",f.name," = arg_",aidx.toString,".get")
+        }
+        aidx+=1
+      })
+
 
       outputBraced("override def get(fieldName: String): Any =") {
         outputBraced("fieldName match ") {
