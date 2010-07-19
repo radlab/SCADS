@@ -50,6 +50,14 @@
    {"name": "in_reply_to_screen_name", "type": ["null", "string"]},
    {"name": "created_at", "type": ["null", "string"]},
    {"name": "retweeted_status", "type": ["null","Tweet"]} ]
+  },
+  {"name": "intMap", "type": "record", "fields": [
+   {"name": "m1", "type": {"type":"map", "values": "int"}},
+   {"name": "m2", "type": {"type":"map", "values": "int"}} ]
+  },
+  {"name": "longMap", "type": "record", "fields": [
+   {"name": "m1", "type": {"type":"map", "values": "long"}},
+   {"name": "m2", "type": {"type":"map", "values": "long"}} ]
   }
  ]
 }
