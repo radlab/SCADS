@@ -71,10 +71,9 @@ class GenericNamespace(namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKe
 
 /**
  * Handles interaction with a single SCADS Namespace
- * TODO: factor out routing decions into self-contained class
- * TODO: Split into specific/generic record versions with good variance semantics
- * TODO: Add functions for splitting/merging partitions
+ * TODO: Add functions for splitting/merging partitions (protocol for moving data safely)
  * TODO: Handle the need for possible schema resolutions
+ * TODO: Create KVStore Trait that namespace implements
  */
 abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord](val namespace:String, val timeout:Int, val root: ZooKeeperProxy#ZooKeeperNode) {
   protected val dest = ActorName("Storage")
