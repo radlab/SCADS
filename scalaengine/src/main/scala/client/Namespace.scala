@@ -75,7 +75,7 @@ class GenericNamespace(namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKe
  * TODO: Handle the need for possible schema resolutions
  * TODO: Create KVStore Trait that namespace implements
  */
-abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord](val namespace:String, val timeout:Int, val root: ZooKeeperProxy#ZooKeeperNode) {
+abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord](val namespace:String, val timeout:Int, val root: ZooKeeperProxy#ZooKeeperNode) extends KeyValueStore[KeyType, ValueType] {
   protected val dest = ActorName("Storage")
   protected val logger = Logger.getLogger("Namespace")
   protected val nsNode = root.get("namespaces/"+namespace)
@@ -204,7 +204,6 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord](v
     reader.read(null,decoder)
   }
 
-  def put[K <: KeyType, V <: ValueType](key: K, value: V): Unit = put(key, Some(value))
   def put[K <: KeyType, V <: ValueType](key: K, value: Option[V]): Unit = {
     val nodes = serversForKey(key)
     val pr = PutRequest(namespace, serializeKey(key), value map serializeValue)
@@ -215,7 +214,7 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord](v
     applyToSet(nodes,(rn)=>{Sync.makeRequest(rn,dest,pr,timeout)},nodes.size)
   }
 
-  def getBytes[K <: KeyType](key: K): Option[Array[Byte]] = {
+  protected def getBytes[K <: KeyType](key: K): Option[Array[Byte]] = {
     val nodes = serversForKey(key)
     if (nodes.length <= 0) {
       logger.warn("No node responsible for this key, returning null")
@@ -245,6 +244,7 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord](v
     getBytes(key) map deserializeValue
   }
 
+  /* TODO: this logic should be in the storage handler as its nessesity is really a side effect of the B-Tree Traversal primatives available */
   protected def minRecord(rec:IndexedRecord, prefix:Int, ascending:Boolean):Unit = {
     val fields = rec.getSchema.getFields
     for (i <- (prefix to (fields.size() - 1))) { // set remaining values to min/max
@@ -312,22 +312,21 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord](v
     }
   }
 
-  def getPrefix[K <: KeyType](key: K, fields: Int, limit: Int = -1, ascending: Boolean = true):Seq[(KeyType,ValueType)] = {
+  def getPrefix[K <: KeyType](key: K, prefixSize: Int, limit: Option[Int] = None, ascending: Boolean = true):Seq[(KeyType,ValueType)] = {
     val nodes = serversForKey(key)
     val gpr = new GetPrefixRequest
     gpr.namespace = namespace
-    if (limit >= 0)
-      gpr.limit = Some(limit)
+    gpr.limit = limit
     gpr.ascending = ascending
 
     val fcount = key.getSchema.getFields.size
-    if (fields > fcount)
+    if (prefixSize > fcount)
       throw new Throwable("Request fields larger than number of fields key has")
 
-    minRecord(key,fields,ascending)
+    minRecord(key,prefixSize,ascending)
 
     gpr.start = serializeKey(key)
-    gpr.fields = fields
+    gpr.fields = prefixSize
     var retList = List[(KeyType,ValueType)]()
     applyToSet(nodes,
                (rn)=> {
@@ -348,7 +347,7 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord](v
   }
 
 
-  def getRange(start: Option[KeyType], end: Option[KeyType], limit:Int = 0, offset: Int = 0, backwards:Boolean = false): Seq[(KeyType,ValueType)] = {
+  def getRange(start: Option[KeyType], end: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, backwards:Boolean = false): Seq[(KeyType,ValueType)] = {
   /*  val nodeIter = splitRange(start,end)
     var nol = List[(List[RemoteNode],MessageBody)]()
     while(nodeIter.hasNext()) {
