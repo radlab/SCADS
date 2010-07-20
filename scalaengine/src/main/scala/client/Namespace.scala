@@ -199,7 +199,7 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord](v
   }
 
 
-  def decodeKey(b:Array[Byte]): GenericData.Record = {
+  protected def decodeKey(b:Array[Byte]): GenericData.Record = {
     val decoder = DecoderFactory.defaultFactory().createBinaryDecoder(b, null)
     val reader = new org.apache.avro.generic.GenericDatumReader[GenericData.Record](keySchema)
     reader.read(null,decoder)
@@ -246,7 +246,7 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord](v
     getBytes(key) map deserializeValue
   }
 
-  def minRecord(rec:IndexedRecord, prefix:Int, ascending:Boolean):Unit = {
+  protected def minRecord(rec:IndexedRecord, prefix:Int, ascending:Boolean):Unit = {
     val fields = rec.getSchema.getFields
     for (i <- (prefix to (fields.size() - 1))) { // set remaining values to min/max
       fields.get(i).schema.getType match {
