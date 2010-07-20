@@ -10,65 +10,58 @@ import org.apache.avro.util.Utf8
 
 
 trait ServiceHandler {
-  def receiveMessage(src: RemoteNode, msg:Message)
+  def receiveMessage(src: RemoteNode, msg:Message): Unit
+}
+
+case class ActorService(a: Actor) extends ServiceHandler {
+  def receiveMessage(src: RemoteNode, msg: Message): Unit =  {
+    a ! (src, msg)
+  }
 }
 
 object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
-
   val logger = Logger.getLogger("scads.MessageHandler")
-
-  private val actorRegistry = new ConcurrentHashMap[Long, Actor]
   private val curActorId = new AtomicLong
-  private val serviceRegistry = new ConcurrentHashMap[String, ServiceHandler]
+  private val serviceRegistry = new ConcurrentHashMap[ActorId, ServiceHandler]
 
-  /* TODO: When curActorId hits MAX_LONG, collect all existing actors
-   * and give them ids 0-n, and reset curActorId to (n+1) */
+  /* TODO: deprecate in favor of native actor communication */
   def registerActor(a: Actor): Long = {
-    if (actorRegistry.size >= Long.MaxValue)
-      throw new IllegalStateException("Too many actors!")
     val id = curActorId.getAndIncrement
-    actorRegistry.put(id, a)
+    serviceRegistry.put(ActorNumber(id), ActorService(a))
     id
   }
 
-  def unregisterActor(id:Long): Unit = {
-    actorRegistry.remove(id)
+  def unregisterActor(id:Long): Unit = serviceRegistry.remove(ActorNumber(id))
+
+  @deprecated("don't use")
+  def getActor(id: Long): Actor = serviceRegistry.get(id) match {
+    case ActorService(a) => a
+    case _ => throw new RuntimeException("Asked for an actor found a service.  Don't use this method anyway... its been deprecated")
   }
 
-  def getActor(id: Long): Actor = {
-    actorRegistry.get(id)
+  def registerService(service: ServiceHandler): ActorId = {
+    val id = ActorNumber(curActorId.getAndIncrement)
+    serviceRegistry.put(id, service)
+    id
   }
 
-  def registerService(id: String, service:ServiceHandler): Unit = {
+  def registerService(id: String, service: ServiceHandler): Unit = {
     if (serviceRegistry.containsKey(id))
       throw new IllegalStateException("Service with that ID already registered")
-    serviceRegistry.put(id,service)
+    serviceRegistry.put(ActorName(id),service)
   }
 
   def getService(id: String):ServiceHandler  = {
     return serviceRegistry.get(id)
   }
 
-  def receiveMessage(src: RemoteNode, msg: Message): Unit = msg.dest match {
-    case ActorNumber(l) => {
-      val act = getActor(l.longValue)
-      if (act != null) {
-        act ! (src,msg)
-        return
-      } else {
-        logger.warn("Got message for null actor")
-      }
-    }
-    case ActorName(u) => {
-      var service = getService(u.toString)
-      if (service != null)
-        service.receiveMessage(src,msg)
-    }
-    case _ => {
-      throw new IllegalStateException("Invalid destination type in message")
-    }
+  def receiveMessage(src: RemoteNode, msg: Message): Unit = {
+    val service = serviceRegistry.get(msg.dest)
+    if(service != null)
+      service.receiveMessage(src, msg)
+    else
+      logger.warn("Got message for an unknown service: " + msg.dest)
   }
-
 }
 
 class StorageEchoServer extends NioAvroChannelManagerBase[Message, Message] {
