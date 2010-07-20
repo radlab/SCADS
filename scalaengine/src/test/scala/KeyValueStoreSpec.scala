@@ -59,7 +59,7 @@ class KeyValueStoreSpec extends Spec with ShouldMatchers {
 
 
       it("should correctly return ranges obeying the limit") {
-        val ns = cluster.getNamespace[IntRec, IntRec]("rangetest")
+        val ns = cluster.getNamespace[IntRec, IntRec]("rangetestlimit")
 
         /* Insert Integers 1-100 */
         (1 to 100).foreach(i => ns.put(IntRec(i),IntRec(i)))
@@ -75,7 +75,7 @@ class KeyValueStoreSpec extends Spec with ShouldMatchers {
       }
 
       it("should correctly return ranges backwards") {
-        val ns = cluster.getNamespace[IntRec, IntRec]("rangetest")
+        val ns = cluster.getNamespace[IntRec, IntRec]("rangetestbackwards")
 
         /* Insert Integers 1-100 */
         (1 to 100).foreach(i => ns.put(IntRec(i),IntRec(i)))
