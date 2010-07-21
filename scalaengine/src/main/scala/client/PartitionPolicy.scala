@@ -47,7 +47,7 @@ abstract trait PartitionPolicy[KeyType <: IndexedRecord] {
     }
   }
 
-  case class polServer(min: Option[Array[Byte]],max: Option[Array[Byte]],nodes:List[RemoteNode]) extends Comparable[polServer] {
+  case class polServer(min: Option[Array[Byte]],max: Option[Array[Byte]],nodes:List[RemoteActor]) extends Comparable[polServer] {
     def compareTo(p:polServer):Int = {
       (max, p.max) match {
         case (None, None) => 0
@@ -83,26 +83,24 @@ abstract trait PartitionPolicy[KeyType <: IndexedRecord] {
   }
 
   private def updateNodeCache():Unit = {
-    val partitions = nsNode.get("partitions").updateChildren(false)
+    val partitions = nsNode("partitions").children
     var ranges:Int = 0
     partitions.map(part=>{
-      val policyData = 	nsNode.get("partitions/"+part._1+"/policy").updateData(false)
+      val policyData = part("policy").data
       val policy = new PartitionedPolicy
       policy.parse(policyData)
       ranges += policy.partitions.size.toInt
     })
     nodeCache = new Array[polServer](ranges)
     var idx = 0
-    partitions.map(part=>{
-      val policyData = 	nsNode.get("partitions/"+part._1+"/policy").updateData(false)
+    partitions.map(partition=>{
+      val policyData = 	partition("policy").data
       val policy = new PartitionedPolicy
       policy.parse(policyData)
 		  val iter = policy.partitions.iterator
-      nsNode.get("partitions/"+part._1).updateChildren(false)
-      val nodes = nsNode.get("partitions/"+part._1+"/servers").updateChildren(false).toList.map(ent=>{
-        new RemoteNode(ent._1,Integer.parseInt(new String(ent._2.data)))
-      })
-		  while (iter.hasNext) {
+      val nodes = partition("servers").children.map(s => new RemoteActor().parse(s.data))
+
+      while (iter.hasNext) {
 			  val part = iter.next
         nodeCache(idx) = new polServer(part.minKey,part.maxKey,nodes)
         idx += 1
@@ -137,7 +135,7 @@ abstract trait PartitionPolicy[KeyType <: IndexedRecord] {
       bpos + 1
   }
 
-  protected def serversForKey(key:KeyType):List[RemoteNode] = {
+  protected def serversForKey(key:KeyType):List[RemoteActor] = {
     val idx = idxForKey(key)
     // validate that we don't have a gap
     if (keyComp(nodeCache(idx).min, Some(serializeKey(key))) > 0) {
@@ -172,17 +170,4 @@ abstract trait PartitionPolicy[KeyType <: IndexedRecord] {
 		}
     false
 	}
-
-  private def serversForKeySlow(key:KeyType):List[RemoteNode] = {
-    val partitions = nsNode.get("partitions").updateChildren(false)
-    partitions.map(part=>{
-      val policyData = 	nsNode.get("partitions/"+part._1+"/policy").updateData(false)
-      if (keyInPolicy(policyData,key)) {
-        nsNode.get("partitions/"+part._1+"/servers").updateChildren(false).toList.map(ent=>{
-          new RemoteNode(ent._1,Integer.parseInt(new String(ent._2.data)))
-        })
-      } else
-        Nil
-		}).toList.flatten(n=>n).distinct
-  }
 }

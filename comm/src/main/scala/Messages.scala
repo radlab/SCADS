@@ -4,7 +4,7 @@ import com.googlecode.avro.marker.AvroRecord
 import com.googlecode.avro.annotation.AvroUnion
 
 @AvroUnion sealed trait MessageBody
-case class Record(var key: Array[Byte], var value: Array[Byte]) extends AvroRecord with MessageBody
+case class Record(var key: Array[Byte], var value: Option[Array[Byte]]) extends AvroRecord with MessageBody
 case class RecordSet(var records: List[Record]) extends AvroRecord with MessageBody
 
 case class ProcessingException(var cause: String, var stacktrace: String) extends AvroRecord with MessageBody

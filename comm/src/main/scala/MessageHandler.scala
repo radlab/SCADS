@@ -45,13 +45,13 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
   }
 
   /* TODO: deprecate in favor of native actor communication */
-  def registerActor(a: Actor): Long = {
+  def registerActor(a: Actor): RemoteActor = {
     val id = curActorId.getAndIncrement
     serviceRegistry.put(ActorNumber(id), ActorService(a))
-    id
+    RemoteActor(hostname, port, ActorNumber(id))
   }
 
-  def unregisterActor(id:Long): Unit = serviceRegistry.remove(ActorNumber(id))
+  def unregisterActor(ra: RemoteActor): Unit = serviceRegistry.remove(ra.id)
 
   @deprecated("don't use")
   def getActor(id: Long): Actor = serviceRegistry.get(id) match {
@@ -83,28 +83,4 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
     else
       logger.warn("Got message for an unknown service: " + msg.dest)
   }
-}
-
-class StorageEchoServer extends NioAvroChannelManagerBase[Message, Message] {
-  def receiveMessage(src: RemoteNode, req: Message): Unit = {
-    val resp = new Message(ActorName("echo"), req.src, None, new Record("test".getBytes, "test".getBytes))
-
-    sendMessage(src, resp)
-  }
-}
-
-class StorageEchoPrintServer extends StorageEchoServer {
-  val lock = new Object
-  var numMsgs = 0
-  override def receiveMessage(src: RemoteNode, req: Message): Unit = {
-    lock.synchronized {
-      numMsgs += 1
-      if (numMsgs % 100000 == 0) println("On msg: " + numMsgs)
-    }
-    super.receiveMessage(src, req)
-  }
-}
-
-class StorageDiscardServer extends NioAvroChannelManagerBase[Message, Message] {
-  def receiveMessage(src: RemoteNode, req: Message): Unit = { }
 }

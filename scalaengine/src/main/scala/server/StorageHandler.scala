@@ -27,40 +27,44 @@ import org.apache.zookeeper.CreateMode
 import com.googlecode.avro.runtime.ScalaSpecificRecord
 
 
-class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, localAddr:String, port:Int) extends ServiceHandler {
-  def this(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) =
-    this(env,root,InetAddress.getLocalHost.getHostName,MessageHandler.getLocalPort)
+class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) extends ServiceHandler {
+  /* Hashmap and case class to hold relevent data about open namespaces */
+  protected case class Namespace(db: Database, keySchema: Schema, comp: AvroComparator)
+  protected var namespaces: Map[String, Namespace] = new scala.collection.immutable.HashMap[String, Namespace]
 
-  case class Namespace(db: Database, keySchema: Schema, comp: AvroComparator)
-  var namespaces: Map[String, Namespace] = new scala.collection.immutable.HashMap[String, Namespace]
+  /* Threadpool for execution of incoming requests */
+  protected val outstandingRequests = new ArrayBlockingQueue[Runnable](1024)
+  protected val executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, outstandingRequests)
 
-  val outstandingRequests = new ArrayBlockingQueue[Runnable](1024)
-  val executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, outstandingRequests)
+  protected val logger = Logger.getLogger("scads.storagehandler")
+  protected val remoteHandle = MessageHandler.registerService(this)
 
-  implicit def mkDbe(buff: Array[Byte]): DatabaseEntry = new DatabaseEntry(buff)
-  implicit def mkByteBuffer(dbe: DatabaseEntry): Array[Byte] = {
-    if(dbe.getOffset == 0)
-      return dbe.getData
-    else
-      throw new RuntimeException("Unimplemented")
-  }
-
-  private val logger = Logger.getLogger("StorageHandler")
-
+  /* Register a shutdown hook for proper cleanup */
   class SDRunner(sh: StorageHandler) extends Thread {
     override def run(): Unit = {
       sh.shutdown()
     }
   }
   java.lang.Runtime.getRuntime().addShutdownHook(new SDRunner(this))
+  startup()
 
-  val availServs = root.getOrCreate("availableServers")
-  val lport =
-    if (port == 0)
-      MessageHandler.getLocalPort
+  private def startup(): Unit = {
+    /* Register with the zookeper as an available server */
+    val availServs = root.getOrCreate("availableServers")
+    availServs.createChild(remoteHandle.toString, remoteHandle.toBytes, CreateMode.EPHEMERAL)
+
+    /* TODO: Open already created namespaces? */
+  }
+
+  /* Implicit conversions */
+  implicit def toOption[A](a: A): Option[A] = Option(a)
+  implicit def toDbe(buff: Array[Byte]): DatabaseEntry = new DatabaseEntry(buff)
+  implicit def toByteArray(dbe: DatabaseEntry): Array[Byte] = {
+    if(dbe.getOffset == 0)
+      return dbe.getData
     else
-      port
-  availServs.createChild(localAddr, (lport+"").getBytes, CreateMode.EPHEMERAL)
+      throw new RuntimeException("Unimplemented")
+  }
 
   private def decodeKey(ns:Namespace, dbe:DatabaseEntry): GenericData.Record = {
     val decoder = DecoderFactory.defaultFactory().createBinaryDecoder(dbe.getData(), dbe.getOffset(), dbe.getSize, null)
@@ -133,7 +137,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
           val retRec = new Record
 
           retRec.key = dbeKey
-          retRec.value = dbeValue
+          retRec.value = toByteArray(dbeValue)
 
           reply(retRec)
         } else {
@@ -221,7 +225,7 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
         }
         var ascending = gpr.ascending
 
-        val dbeKey:DatabaseEntry = mkDbe(gpr.start)
+        val dbeKey:DatabaseEntry = gpr.start
         val dbeValue = new DatabaseEntry
         val cur = ns.db.openCursor(null,null)
 
@@ -285,340 +289,16 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
         reply(CountRangeResponse(c))
       }
 
-      case crr: CopyRangesRequest => {
-        val ns = namespaces(crr.namespace)
-        val startTime = System.currentTimeMillis()
-        val act = actor {
-          val msg = new Message
-          val req = new CopyStartRequest
-          req.namespace = crr.namespace
-          req.ranges = crr.ranges
-          val scId = new ActorNumber(MessageHandler.registerActor(self))
-          msg.src = scId
-          msg.dest = ActorName("Storage")
-          msg.body = req
-          val rn = new RemoteNode(crr.destinationHost, crr.destinationPort)
-          MessageHandler.sendMessage(rn, msg)
+      case crr: CopyRangesRequest => throw new RuntimeException("Unimplemented")
+      case csreq:CopyStartRequest => throw new RuntimeException("Unimplemented")
+      case srr: SyncRangeRequest => throw new RuntimeException("Unimplemented")
+      case ssreq:SyncStartRequest => throw new RuntimeException("Unimplemented")
 
-          // Now reply to requestor with a started message
-          val ts = new TransferStarted
-          ts.sendActorId = scId
-          reply(ts)
+      case fmreq: FlatMapRequest => throw new RuntimeException("Unimplemented")
+      case filtreq:FilterRequest  => throw new RuntimeException("Unimplemented")
 
-          reactWithin(60000) {
-            case (rn:RemoteNode, msg: Message) => msg.body match {
-              case csr: TransferStartReply => {
-                logger.debug("Got TransferStartReply, sending data")
-                val sendIt = new SendIter(rn,scId,csr.recvActorId,100,crr.rateLimit,logger)
-                var recsSent:Long = 0
-                val rangeIt = crr.ranges.iterator
-                while(rangeIt.hasNext) {
-                  iterateOverRange(ns, rangeIt.next(), false, (key, value, cursor) => {
-                    val rec = new Record
-                    rec.key = key.getData
-                    rec.value = value.getData
-                    sendIt.put(rec)
-                    recsSent += 1
-                  })
-                }
-                sendIt.flush
-                val fin = new TransferFinished
-                fin.sendActorId = scId
-                msg.src = scId
-                //msg.dest = new java.lang.Long(csr.recvActorId)
-                msg.dest = csr.recvActorId
-                msg.body = fin
-                MessageHandler.sendMessage(rn,msg)
-                logger.debug("TransferFinished and sent")
-                // now we loop and wait for acks and final cleanup from other side
-                loop {
-                  reactWithin(60000) { // we'll allow 1 minute for an ack
-                    case (rn:RemoteNode, msg:Message)  => msg.body match {
-                      case bda:BulkDataAck => {
-                        // don't need to do anything, we're ignoring these
-                      }
-                      case ric:RecvIterClose => { // should probably have a status here at some point
-                        logger.debug("Got close, all done")
-                        val endTime = System.currentTimeMillis
-                        MessageHandler.unregisterActor(scId.num)
-                        val tsm = new TransferSucceeded
-                        tsm.sendActorId = scId
-                        tsm.recordsSent = recsSent
-                        tsm.milliseconds = (endTime - startTime)
-                        reply(tsm)
-                        exit()
-                      }
-                      case msgb =>
-                        logger.warn("Copy end loop got unexpected message body: "+msgb)
-                    }
-                    case TIMEOUT => {
-                      logger.warn("Copy end loop timed out waiting for finish")
-                      val tf = new TransferFailed
-                      tf.sendActorId = scId
-                      tf.reason = "Copy end loop timed out waiting for finish"
-                      reply(tf)
-                      exit()
-                    }
-                    case msg =>
-                      logger.warn("Copy end loop got unexpected message: "+msg)
-                  }
-                }
-              }
-              case _ => {
-                logger.warn("Unexpected reply to copy start request")
-                MessageHandler.unregisterActor(scId.num)
-                val tf = new TransferFailed
-                tf.sendActorId = scId
-                tf.reason = "Unexpected reply to copy start request"
-                reply(tf)
-                exit()
-              }
-            }
-            case TIMEOUT => {
-              logger.warn("Timed out waiting to start a range copy")
-              MessageHandler.unregisterActor(scId.num)
-              val tf = new TransferFailed
-              tf.sendActorId = scId
-              tf.reason = "Timed out waiting to start a range copy"
-              reply(tf)
-              exit()
-            }
-            case msg => {
-              logger.warn("Unexpected message waiting to start range copy: " + msg)
-              MessageHandler.unregisterActor(scId.num)
-              val tf = new TransferFailed
-              tf.sendActorId = scId
-              tf.reason = "Unexpected message waiting to start range copy: "+msg
-              reply(tf)
-              exit()
-            }
-          }
-        }
-        null
-      }
-
-      case csreq:CopyStartRequest => {
-        val ns = namespaces(csreq.namespace)
-        actor {
-          val scId = new ActorNumber(MessageHandler.registerActor(self))
-          val recvIt = new RecvIter(scId,logger)
-          val tsr = new TransferStartReply
-          tsr.recvActorId = scId
-          val msg = new Message
-          msg.src = scId
-          if (req.src == null) {
-               // TODO: do something b/c msg.dest cannot be null
-          }
-          msg.dest = req.src
-          msg.body=tsr
-          MessageHandler.sendMessage(src,msg)
-          var txn = env.beginTransaction(null,null)
-          recvIt.doRecv(
-            rec => {
-              val key:DatabaseEntry = rec.key
-              ns.db.put(txn,key,rec.value)
-            },
-            () => {
-              txn.commit(Durability.COMMIT_NO_SYNC)
-            })
-          MessageHandler.unregisterActor(scId.num)
-        }
-      }
-
-      case srr: SyncRangeRequest => {
-        srr.method match {
-          //case synctype.SIMPLE =>
-          //  doSimpleSync(srr)
-          //case synctype.MERKLE =>
-          //  merkleSyncSink(srr)
-
-          // TODO: no enums for now, will need to fix in future
-          case 0 =>
-              doSimpleSync(srr)
-          case 1 =>
-              merkleSyncSink(srr)
-        }
-      }
-
-      case ssreq:SyncStartRequest => {
-        simpleSyncSink(ssreq,src,req)
-      }
-
-      case fmreq: FlatMapRequest => {
-        val ns = namespaces(fmreq.namespace)
-        var result = new ArrayBuffer[Array[Byte]]
-
-        val key = Class.forName(fmreq.keyType).asInstanceOf[Class[ScalaSpecificRecord]].newInstance()
-        val value = Class.forName(fmreq.valueType).asInstanceOf[Class[ScalaSpecificRecord]].newInstance()
-        try {
-          val fclass = deserialize(fmreq.codename,fmreq.closure)
-          fclass match {
-            case cl:Class[_] => {
-              val o = cl.newInstance
-              val methods = cl.getMethods()
-              var midx = 0
-              for (i <- (1 to (methods.length-1))) {
-                val method = methods(i)
-                if (method.getName.indexOf("apply") >= 0) {
-                  midx = i
-                }
-              }
-              val method = methods(midx)
-              iterateOverRange(ns, new KeyRange, false, (keyBytes, valueBytes, _) => {
-                key.parse(keyBytes.getData)
-                value.parse(valueBytes.getData)
-                method.invoke(o,key,value).asInstanceOf[List[ScalaSpecificRecord]].
-                  map(_.toBytes).foreach(result.append(_))
-              })
-
-              val resp = new FlatMapResponse
-              resp.records = result.toList
-              reply(resp)
-            }
-          }
-        } catch {
-          case e: Throwable => {
-            println("Filter Fail")
-            e.printStackTrace()
-            val resp = new FlatMapResponse
-            reply(resp)
-          }
-        }
-      }
-
-      case filtreq:FilterRequest  => {
-        val ns = namespaces(filtreq.namespace)
-        val recordSet = new RecordSet
-        val records = new ArrayBuffer[Record]
-        val key = Class.forName(filtreq.keyType).asInstanceOf[Class[ScalaSpecificRecord]].newInstance()
-        val value = Class.forName(filtreq.valueType).asInstanceOf[Class[ScalaSpecificRecord]].newInstance()
-        try {
-          val fclass = deserialize(filtreq.codename,filtreq.code)
-          fclass match {
-            case cl:Class[_] => {
-              val o = cl.newInstance
-              val methods = cl.getMethods()
-              var midx = 0
-              for (i <- (1 to (methods.length-1))) {
-                val method = methods(i)
-                if (method.getName.indexOf("apply") >= 0) {
-                  midx = i
-                }
-              }
-              val method = methods(midx)
-              iterateOverRange(ns, new KeyRange, false, (keyBytes, valueBytes, _) => {
-                key.parse(keyBytes.getData)
-                value.parse(valueBytes.getData)
-                val b = method.invoke(o,key,value).asInstanceOf[Boolean]
-                if (b) {
-                  val rec = new Record
-                  rec.key = keyBytes.getData
-                  rec.value = valueBytes.getData
-                  records += rec
-                }
-              })
-              recordSet.records = records.toList
-              reply(recordSet)
-            }
-          }
-        } catch {
-          case e: Throwable => {
-            println("Filter Fail")
-            e.printStackTrace()
-            reply(recordSet)
-          }
-        }
-      }
-
-      case foldreq:FoldRequest  => {
-        val ns = namespaces(foldreq.namespace)
-        val key = Class.forName(foldreq.keyType).asInstanceOf[Class[ScalaSpecificRecord]].newInstance()
-        val value = Class.forName(foldreq.valueType).asInstanceOf[Class[ScalaSpecificRecord]].newInstance()
-        var initVals = (
-          Class.forName(foldreq.keyType).asInstanceOf[Class[ScalaSpecificRecord]].newInstance(),
-          Class.forName(foldreq.valueType).asInstanceOf[Class[ScalaSpecificRecord]].newInstance()
-        )
-        initVals._1.parse(foldreq.initValueOne)
-        initVals._2.parse(foldreq.initValueTwo)
-        try {
-          val fclass = deserialize(foldreq.codename,foldreq.code)
-          fclass match {
-            case cl:Class[_] => {
-              val o = cl.newInstance
-              val methods = cl.getMethods()
-              var midx = 0
-              for (i <- (1 to (methods.length-1))) {
-                val method = methods(i)
-                if (method.getName.indexOf("apply") >= 0) {
-                  midx = i
-                }
-              }
-              val method = methods(midx)
-              val range = new KeyRange
-              if (foldreq.direction == 1)
-                range.backwards = true
-              iterateOverRange(ns, range, false, (keyBytes, valueBytes, _) => {
-                key.parse(keyBytes.getData)
-                value.parse(valueBytes.getData)
-                initVals = method.invoke(o,initVals,(key,value)).asInstanceOf[(ScalaSpecificRecord,ScalaSpecificRecord)]
-              })
-              val retRec = new Record
-              retRec.key = initVals._1.toBytes
-              retRec.value = initVals._2.toBytes
-              reply(retRec)
-            }
-          }
-        } catch {
-          case e: Throwable => {
-            println("Fold Fail")
-            e.printStackTrace()
-            reply(new Record)
-          }
-        }
-      }
-
-      case foldreq:FoldRequest2L  => {
-        val ns = namespaces(foldreq.namespace)
-        val key = Class.forName(foldreq.keyType).asInstanceOf[Class[ScalaSpecificRecord]].newInstance()
-        val value = Class.forName(foldreq.valueType).asInstanceOf[Class[ScalaSpecificRecord]].newInstance()
-        var initVal =  Class.forName(foldreq.initType).asInstanceOf[Class[ScalaSpecificRecord]].newInstance()
-        initVal.parse(foldreq.initValue)
-        try {
-          val fclass = deserialize(foldreq.codename,foldreq.code)
-          fclass match {
-            case cl:Class[_] => {
-              val o = cl.newInstance
-              val methods = cl.getMethods()
-              var midx = 0
-              for (i <- (1 to (methods.length-1))) {
-                val method = methods(i)
-                if (method.getName.indexOf("apply") >= 0) {
-                  midx = i
-                }
-              }
-              val method = methods(midx)
-              val range = new KeyRange
-              if (foldreq.direction == 1)
-                range.backwards = true
-              iterateOverRange(ns, range, false, (keyBytes, valueBytes, _) => {
-                key.parse(keyBytes.getData)
-                value.parse(valueBytes.getData)
-                initVal = method.invoke(o,initVal,(key,value)).asInstanceOf[ScalaSpecificRecord]
-              })
-              val rep = new Fold2Reply
-              rep.reply = initVal.toBytes
-              reply(rep)
-            }
-          }
-        } catch {
-          case e: Throwable => {
-            println("Fold2 Fail")
-            e.printStackTrace()
-            reply(new Record)
-          }
-        }
-      }
-      // End of message handling
+      case foldreq:FoldRequest  => throw new RuntimeException("Unimplemented")
+      case foldreq:FoldRequest2L  => throw new RuntimeException("Unimplemented")
     }
 
     def run():Unit = {
@@ -736,232 +416,14 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
     if (txn != null) txn.commit
   }
 
-  def doSimpleSync(srr: SyncRangeRequest): Unit = {
-    val ns = namespaces(srr.namespace)
-    val act = actor {
-      self.trapExit = true // need this to catch end of recv actor
-      val msg = new Message
-      val req = new SyncStartRequest
-      req.namespace = srr.namespace
-      req.range = srr.range
-      // create the recv iter for replies
-      val recvAct = new Actor {
-        var scId:Long = 0
-        def act() {
-          val myId = new ActorNumber(scId)
-          val recvIt = new RecvIter(myId,logger)
-          val tsr = new TransferStartReply
-          tsr.recvActorId = myId
-          var txn = env.beginTransaction(null,null)
-          recvIt.doRecv(
-            rec => {
-              val key:DatabaseEntry = rec.key
-              ns.db.put(txn,key,rec.value)
-            },
-            () => {
-              txn.commit(Durability.COMMIT_NO_SYNC)
-            })
-          MessageHandler.unregisterActor(scId)
-        }
-      }
-      link(recvAct)
-      val recvActId = new ActorNumber(MessageHandler.registerActor(recvAct))
-      recvAct.scId = recvActId.num
-      req.recvIterId = recvActId
-      val scId = new ActorNumber(MessageHandler.registerActor(self))
-      msg.src = scId
-      msg.dest = new ActorName("Storage")
-      msg.body = req
-      val rn = new RemoteNode(srr.destinationHost, srr.destinationPort)
-      MessageHandler.sendMessage(rn, msg)
-      reactWithin(60000) {
-        case (rn:RemoteNode, msg: Message) => msg.body match {
-          case csr: TransferStartReply => {
-            logger.debug("Got TransferStartReply, sending data")
-            recvAct.start
-            val sendIt = new SendIter(rn,scId,csr.recvActorId,100,0,logger)
-            iterateOverRange(ns, srr.range, false, (key, value, cursor) => {
-              val rec = new Record
-              rec.key = key.getData
-              rec.value = value.getData
-              sendIt.put(rec)
-            })
-            sendIt.flush
-            val fin = new TransferFinished
-            fin.sendActorId = scId
-            msg.src = scId
-            //msg.dest = new java.lang.Long(csr.recvActorId)
-            msg.dest = csr.recvActorId
-            msg.body = fin
-            MessageHandler.sendMessage(rn,msg)
-            logger.debug("TransferFinished and sent")
-            // now we just wait for the receive iter to close
-            loop {
-              react {
-                case Exit(act,reas) => {
-                  logger.debug("Got exit from recv, cleaning up")
-                  MessageHandler.unregisterActor(scId.num)
-                  reply(EmptyResponse())
-                  exit()
-                }
-                case (rn:RemoteNode, msg: Message) => msg.body match {
-                  case bda:BulkDataAck =>
-                    logger.debug("BulkAck. dropped since we're done sending") // TODO: Debug
-                  case other => {
-                    logger.warn("Unexpected message waiting for exit in sync range: "+other)
-                    MessageHandler.unregisterActor(scId.num)
-                    exit()
-                  }
-                }
-                case msg => {
-                  logger.warn("Got unexpected message waiting for exit in sync range: "+msg)
-                  MessageHandler.unregisterActor(scId.num)
-                  reply(EmptyResponse())
-                  exit()
-                }
-              }
-            }
-          }
-          case _ => {
-            logger.warn("Unexpected reply to sync start request")
-            MessageHandler.unregisterActor(scId.num)
-            exit()
-          }
-        }
-        case TIMEOUT => {
-          logger.warn("Timed out waiting to start a range sync")
-          MessageHandler.unregisterActor(scId.num)
-          exit
-        }
-        case msg => {
-          logger.warn("Unexpected message: " + msg)
-          MessageHandler.unregisterActor(scId.num)
-          exit
-        }
-      }
-    }
-    null
-  }
-
-  def simpleSyncSink(ssreq: SyncStartRequest, src: RemoteNode, req: Message): Unit = {
-    val ns = namespaces(ssreq.namespace)
-    actor {
-      val scId = new ActorNumber(MessageHandler.registerActor(self))
-      val recvIt = new RecvPullIter(scId,logger)
-      val sendIt = new SendIter(src,scId,ssreq.recvIterId,100,0,logger)
-      val tsr = new TransferStartReply
-      tsr.recvActorId = scId
-      val msg = new Message
-      msg.src = scId
-      if (req.src == null) {
-          // TODO: do something here, since resp.dest cannot be null
-      }
-      msg.dest = req.src
-      msg.body=tsr
-      MessageHandler.sendMessage(src,msg)
-      val updateIterId = ssreq.recvIterId
-      var curRemoteRec:Record = null
-      iterateOverRange(ns,ssreq.range, true, (key, value, cursor) => {
-        /* Cases are:
-         * 1. My key is less = other side is missing my data, send until in another case
-         * 2. My key is greater = I'm missing data, loop on recvIt, inserting, until in another case
-         * 3. keys are equal = check data, mine greater = send mine, rem greater = insert, equal = do nothing
-         * 4. Other side finished, I'm not = other side is missing data, send what i have left
-         * 5. I'm finished, other side isn't = (this call will be in finalFunc), just insert the rest
-         */
-        // case 4
-        if (!recvIt.hasNext) {
-          val rec = new Record
-          rec.key = key.getData
-          rec.value = value.getData
-          sendIt.put(rec)
-        }
-        else {
-          // so there is at least one more remote record to deal with
-          if (curRemoteRec == null)
-            curRemoteRec = recvIt.next
-
-          var keyComp = ns.comp.compare(key.getData,curRemoteRec.key)
-          if (keyComp < 0) { // case 1
-            val rec = new Record
-            rec.key = key.getData
-            rec.value = value.getData
-            sendIt.put(rec)
-          }
-          else if (keyComp > 0) { // case
-            while(keyComp > 0) {
-              val remKey: DatabaseEntry = curRemoteRec.key
-              cursor.put(remKey,curRemoteRec.value)
-              curRemoteRec = recvIt.next
-              if (curRemoteRec != null)
-                keyComp = ns.comp.compare(key.getData,curRemoteRec.key)
-              else
-                keyComp = 0
-            }
-          }
-              else if (keyComp ==  0) { // case 3
-                val dataComp = ns.comp.compare(value.getData,curRemoteRec.value)
-                if (dataComp < 0) {
-                  // remote greater, just insert
-                  cursor.put(key,curRemoteRec.value)
-                }
-                else if (dataComp > 0) {
-                  // remote less, send over
-                  val rec = new Record
-                  rec.key = key.getData
-                  rec.value = value.getData
-                  sendIt.put(rec)
-                }
-                curRemoteRec = null // we've handled this one, so we need a new one
-              }
-        }
-      },
-      (cursor) => {
-        // final func, case 5
-        if (curRemoteRec != null) {
-          val key: DatabaseEntry = curRemoteRec.key
-          cursor.put(key,curRemoteRec.value)
-        }
-        while (recvIt.hasNext) {
-          curRemoteRec = recvIt.next
-          val key: DatabaseEntry = curRemoteRec.key
-          cursor.put(key,curRemoteRec.value)
-        }
-      })
-      sendIt.flush
-      val fin = new TransferFinished
-      fin.sendActorId = scId
-      msg.src = scId
-      //msg.dest = new java.lang.Long(ssreq.recvIterId)
-      msg.dest = ssreq.recvIterId
-      msg.body = fin
-      MessageHandler.sendMessage(src,msg)
-      logger.debug("TransferFinished and sent for Sync")
-      MessageHandler.unregisterActor(scId.num)
-    }
-  }
-
-  def merkleSyncSink(srr:SyncRangeRequest):Unit = {
-    null
-  }
-
   def openNamespace(ns: String, partition: String): Unit = {
     namespaces.synchronized {
       if (!namespaces.contains(ns)) {
-        val nsRoot = root.get("namespaces").updateChildren(false).get(ns) match {
+        val nsRoot = root("namespaces").get(ns) match {
           case Some(nsr) => nsr
           case None => throw new RuntimeException("Attempted to open namespace that doesn't exist in zookeeper: " + ns)
         }
         val keySchema = new String(nsRoot("keySchema").data)
-        //val policy = new PartitionedPolicy
-        //policy.parse((nsRoot("partitions").get(partition))("policy").data)
-        val lport =
-          if (port == 0)
-            MessageHandler.getLocalPort
-          else
-            port
-
-        (nsRoot("partitions").get(partition).getOrCreate("servers")).createChild(localAddr, (lport+"").getBytes, CreateMode.EPHEMERAL)
 
         val comp = new AvroComparator(keySchema)
         val dbConfig = new DatabaseConfig
@@ -970,7 +432,9 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode, local
         dbConfig.setTransactional(true)
 
         namespaces += ((ns, Namespace(env.openDatabase(null, ns, dbConfig), Schema.parse(keySchema), comp)))
-        logger.info("namespace " + ns + " created")
+        logger.info("namespace " + ns + " opened")
+
+        nsRoot("partitions").apply(partition).getOrCreate("servers").createChild(remoteHandle.toString, remoteHandle.toBytes, CreateMode.EPHEMERAL)
       }
     }
   }

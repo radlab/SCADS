@@ -10,7 +10,6 @@ import org.apache.log4j.Logger
 
 /**
  * Scalafied interface to Zookeeper
- * TODO: Remove caching behavior or find a way to clean up the semantics
  * TODO: Add the ability to execute callbacks on watches (possibly with weak references to callbacks)
  * TODO: Create a mock version of this class for testing.
  */
@@ -24,28 +23,26 @@ class ZooKeeperProxy(val address: String) extends Watcher {
     var dataCache: Option[Array[Byte]] = None
     var statCache: Option[Stat] = None
 
-    def apply(rpath: String): ZooKeeperNode = get(rpath)
+    def name: String = path.split("/").last
+
+    def apply(rpath: String): ZooKeeperNode = rpath.split("/").foldLeft(this)((n,p) => n.updateChildren(false).apply(p))
+
+    def get(rpath: String): Option[ZooKeeperNode] = rpath.split("/").foldLeft(Option(this))((n,p) => n.flatMap(_.updateChildren(false).get(p)))
 
     def prefix: String = if(path equals "/") "/" else path + "/"
 
-    def children: HashMap[String, ZooKeeperNode] = childrenCache match {
-      case Some(c) => c
-      case None => updateChildren(false)
-    }
+    def children: List[ZooKeeperNode] = updateChildren(false).map(_._2).toList
+    def cachedChildren: Iterable[ZooKeeperNode] = childrenCache.getOrElse(updateChildren(false)).map(_._2)
 
-    def data: Array[Byte] = dataCache match {
-      case Some(d) => d
-      case None => updateData(false)
-    }
+    def data: Array[Byte] = updateData(false)
+    def cachedData: Array[Byte] = dataCache.getOrElse(updateData())
 
 		def data_=(d: Array[Byte]): Unit = {
 			conn.setData(path, d, if(statCache.isDefined) statCache.get.getVersion else -1)
 		}
 
-    def get(rpath: String): ZooKeeperNode = rpath.split("/").foldLeft(this)((n,p) => n.updateChildren(false).apply(p))
-
     def getOrCreate(rpath: String): ZooKeeperNode = {
-      rpath.split("/").foldLeft(this)((n,p) => n.children.get(p) match {
+      rpath.split("/").foldLeft(this)((n,p) => n.updateChildren(false).get(p) match {
         case Some(c) => c
         case None => n.createChild(p, "".getBytes, CreateMode.PERSISTENT)
       })
@@ -53,21 +50,21 @@ class ZooKeeperProxy(val address: String) extends Watcher {
 
     def createChild(name: String, data: Array[Byte], mode: CreateMode): ZooKeeperNode = {
       conn.create(prefix + name, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, mode)
-      updateChildren(false)
-      children(name)
+      updateChildren(false).apply(name)
     }
+
 		def deleteChild(name:String):ZooKeeperNode = {
 			conn.delete(prefix + name,-1)
 			updateChildren(false)
 			this
 		}
 
-    def updateChildren(watch: Boolean = false):HashMap[String, ZooKeeperNode] = {
+    protected def updateChildren(watch: Boolean = false):HashMap[String, ZooKeeperNode] = {
       if(!childrenCache.isDefined)
         childrenCache = Some(new HashMap[String, ZooKeeperNode]())
 
       val c = conn.getChildren(path, watch)
-      children.filter( t => {
+      childrenCache.get.filter( t => {
         val p = t._1
         val n = t._2
         if(!c.contains(p)) {
@@ -79,14 +76,14 @@ class ZooKeeperProxy(val address: String) extends Watcher {
         }
       })
 
-      c --= children.keysIterator.toList
+      c --= childrenCache.get.keysIterator.toList
       c.foreach(k => {
-        children += ((k, new ZooKeeperNode(prefix + k)))
+        childrenCache.get += ((k, new ZooKeeperNode(prefix + k)))
       })
-      children
+      childrenCache.get
     }
 
-    def updateData(watch: Boolean = false): Array[Byte] = {
+    protected def updateData(watch: Boolean = false): Array[Byte] = {
       val stat = new Stat
       val data = conn.getData(path, watch, stat)
 
@@ -103,7 +100,7 @@ class ZooKeeperProxy(val address: String) extends Watcher {
     }
 
     override def toString(): String =
-      "<znode path:" + path + ", data: '" + new String(data) + "', children: " + children.keysIterator.toList + ">"
+      "<znode path:" + path + ", data: '" + new String(data) + "', children: " + cachedChildren.map(_.name) + ">"
   }
 
   def process(event: WatchedEvent): Unit = {

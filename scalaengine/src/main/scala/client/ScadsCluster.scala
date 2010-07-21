@@ -32,21 +32,21 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 
   case class UnknownNamespace(ns: String) extends Exception
   def getNamespace(ns: String): GenericNamespace = {
-    if(!namespaces.updateChildren(false).contains(ns)) {
+    if(namespaces.get(ns).isEmpty) {
       throw UnknownNamespace(ns)
     }
     new GenericNamespace(ns, 5000, root)
   }
 
   def getNamespace(ns: String, keySchema: Schema, valueSchema: Schema, splitPoints: List[GenericData.Record]): GenericNamespace = {
-    if(!namespaces.updateChildren(false).contains(ns)) {
+    if(namespaces.get(ns).isEmpty) {
       createAndConfigureNamespace(ns, keySchema, valueSchema, splitPoints)
     }
     new GenericNamespace(ns, 5000, root)
   }
 
   def getNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String, splitPoints:List[ScalaSpecificRecord] = Nil)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): SpecificNamespace[KeyType, ValueType] = {
-    if(!namespaces.updateChildren(false).contains(ns)) {
+    if(namespaces.get(ns).isEmpty) {
       val keySchema = keyType.erasure.newInstance.asInstanceOf[KeyType].getSchema()
       val valueSchema = valueType.erasure.newInstance.asInstanceOf[ValueType].getSchema()
       createAndConfigureNamespace(ns, keySchema, valueSchema)
@@ -59,13 +59,13 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 		nsRoot.createChild("keySchema", keySchema.toString.getBytes, CreateMode.PERSISTENT)
 		nsRoot.createChild("valueSchema", valueSchema.toString.getBytes, CreateMode.PERSISTENT)
     val sps = splitPoints.size
-    val available = root.get("availableServers").updateChildren(false)
-    if (available.size < sps)
+    val availableServers = root("availableServers").children
+    if (availableServers.size < sps)
       throw new Exception("Not enough available servers")
     var i = 1
-    available.foreach(serv => {
+    availableServers.foreach(server => {
       if (i <= (sps+1)) {
-        val node = new RemoteNode(serv._1,Integer.parseInt(new String(serv._2.data)))
+        val storageEngine = new RemoteActor().parse(server.data)
 	      val partition = nsRoot.getOrCreate("partitions/"+i)
 	      val policy = new PartitionedPolicy
         val kp = new KeyPartition(
@@ -87,7 +87,8 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
         val cr = new ConfigureRequest
         cr.namespace = ns
         cr.partition = i+""
-        Sync.makeRequest(node, ActorName("Storage"), cr)
+
+        storageEngine !? cr
         i += 1
       }
     })

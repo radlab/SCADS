@@ -11,15 +11,18 @@ import com.googlecode.avro.annotation.AvroUnion
 
 /* This is a placeholder until stephen's remote actor handles are available */
 case class RemoteActor(var host: String, var port: Int, var id: ActorId) extends AvroRecord {
+
+  def toRemoteNode = RemoteNode(host, port)
+
   def !(body: MessageBody)(implicit sender: RemoteActor): Unit = {
     MessageHandler.sendMessage(RemoteNode(host, port), Message(sender.id, id, None, body))
   }
 
-  def !?(body: MessageBody, timeout: Int = 5000): MessageBody = {
+  def !?(body: MessageBody, timeout: Long = 5000): MessageBody = {
 		val resp = new SyncVar[Either[Throwable, MessageBody]]
     val a = actor {
-      val srcId = ActorNumber(MessageHandler.registerActor(self))
-      MessageHandler.sendMessage(RemoteNode(host, port), Message(srcId, id, None, body))
+      val srcId = MessageHandler.registerActor(self)
+      MessageHandler.sendMessage(srcId.toRemoteNode, Message(srcId.id, id, None, body))
 
       reactWithin(timeout) {
         case (RemoteNode(hostname, port), msg: Message) => msg.body match {
@@ -29,7 +32,7 @@ case class RemoteActor(var host: String, var port: Int, var id: ActorId) extends
         case TIMEOUT => resp.set(Left(new RuntimeException("Timeout")))
         case msg => println("Unexpected message: " + msg)
       }
-      MessageHandler.unregisterActor(srcId.num)
+      MessageHandler.unregisterActor(srcId)
     }
 
     resp.get match {
