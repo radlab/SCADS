@@ -23,6 +23,26 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
   val logger = Logger.getLogger("scads.MessageHandler")
   private val curActorId = new AtomicLong
   private val serviceRegistry = new ConcurrentHashMap[ActorId, ServiceHandler]
+  protected val hostname = java.net.InetAddress.getLocalHost.getHostName()
+  protected val port = startListener()
+
+  protected def startListener(): Int = {
+    var port = 9000
+    var open = false
+    while(!open) {
+      try {
+        startListener(port)
+        open = true
+      }
+      catch {
+        case e: java.net.BindException => {
+          logger.info("Error opening port: " + port + "for message handler.  Trying another port")
+          port += 1
+        }
+      }
+    }
+    return port
+  }
 
   /* TODO: deprecate in favor of native actor communication */
   def registerActor(a: Actor): Long = {
@@ -39,16 +59,17 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
     case _ => throw new RuntimeException("Asked for an actor found a service.  Don't use this method anyway... its been deprecated")
   }
 
-  def registerService(service: ServiceHandler): ActorId = {
+  def registerService(service: ServiceHandler): RemoteActor = {
     val id = ActorNumber(curActorId.getAndIncrement)
     serviceRegistry.put(id, service)
-    id
+    RemoteActor(hostname, port, id)
   }
 
-  def registerService(id: String, service: ServiceHandler): Unit = {
+  def registerService(id: String, service: ServiceHandler): RemoteActor = {
     if (serviceRegistry.containsKey(id))
       throw new IllegalStateException("Service with that ID already registered")
     serviceRegistry.put(ActorName(id),service)
+    RemoteActor(hostname, port, ActorName(id))
   }
 
   def getService(id: String):ServiceHandler  = {
