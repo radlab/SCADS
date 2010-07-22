@@ -6,6 +6,7 @@ import org.apache.avro.specific.SpecificRecordBase
 
 /**
  * Helper methods for the serialization of closure to byte arrays.
+ * TODO: Wrap this code into an AvroRecord called SerializedClosure
  */
 object Closure {
 	def apply(buff: InputStream): Object = {

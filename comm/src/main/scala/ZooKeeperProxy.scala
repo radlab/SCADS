@@ -11,7 +11,7 @@ import org.apache.log4j.Logger
 /**
  * Scalafied interface to Zookeeper
  * TODO: Add the ability to execute callbacks on watches (possibly with weak references to callbacks)
- * TODO: Create a mock version of this class for testing.
+ * TODO: Add actor handle serializing and deserializing with linking to the created ephemeral node.
  */
 class ZooKeeperProxy(val address: String) extends Watcher {
   val logger = Logger.getLogger("scads.zookeeper")

@@ -1,21 +1,17 @@
 import edu.berkeley.cs.scads.comm._
-import org.apache.avro.util.Utf8
+import edu.berkeley.cs.scads.comm.Actors._
+import scala.actors._
 import scala.actors.Actor._
+import scala.concurrent.SyncVar
 
-import edu.berkeley.cs.scads.comm._
-import edu.berkeley.cs.scads.comm.Conversions._
-import scala.actors.Actor._
+val handle = new SyncVar[Array[Byte]]
 
-val ser = new StorageEchoServer
-ser.startListener(9000)
+remoteActor((ra) => {
+  handle.set(ra.toBytes)
+  receive {
+    case EmptyResponse() => {println("got ER") ;reply(EmptyResponse())}
+  }
+})
 
-val a = actor {
-	val id = MessageHandler.registerActor(self)
-	val req = new Message
-	req.src = id
-
-	MessageHandler.sendMessage(RemoteNode("localhost", 9000), req)
-	reactWithin(1000) {
-		case (RemoteNode(host, port), msg) => println(msg)
-	}
-}
+val remoteHandle = new RemoteActor().parse(handle.get)
+println(remoteHandle !? EmptyResponse())

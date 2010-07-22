@@ -10,12 +10,15 @@ import org.apache.avro.util.Utf8
 
 
 trait ServiceHandler {
-  def receiveMessage(src: RemoteNode, msg:Message): Unit
+  def receiveMessage(src: Option[RemoteActor], msg:MessageBody): Unit
 }
 
 case class ActorService(a: Actor) extends ServiceHandler {
-  def receiveMessage(src: RemoteNode, msg: Message): Unit =  {
-    a ! (src, msg)
+  def receiveMessage(src: Option[RemoteActor], msg: MessageBody): Unit =  {
+    src match {
+      case Some(ra) => a.send(msg, ra.outputChannel)
+      case None => a ! msg
+    }
   }
 }
 
@@ -78,8 +81,10 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
 
   def receiveMessage(src: RemoteNode, msg: Message): Unit = {
     val service = serviceRegistry.get(msg.dest)
-    if(service != null)
-      service.receiveMessage(src, msg)
+
+    if(service != null) {
+      service.receiveMessage(msg.src.map(RemoteActor(src.hostname, src.port, _)), msg.body)
+    }
     else
       logger.warn("Got message for an unknown service: " + msg.dest)
   }
