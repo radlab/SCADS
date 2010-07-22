@@ -4,6 +4,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
 import scala.actors._
+import scala.concurrent.SyncVar
 
 import org.apache.log4j.Logger
 import org.apache.avro.util.Utf8
@@ -19,6 +20,19 @@ case class ActorService(a: Actor) extends ServiceHandler {
       case Some(ra) => a.send(msg, ra.outputChannel)
       case None => a ! msg
     }
+  }
+}
+
+class FutureService extends ServiceHandler {
+  val remoteActor = MessageHandler.registerService(this)
+  val messageFuture = new SyncVar[MessageBody]
+
+  def apply() = messageFuture.get
+  def isSet = messageFuture.isSet
+
+  def receiveMessage(src: Option[RemoteActor], msg: MessageBody): Unit = {
+    MessageHandler.unregisterService(remoteActor)
+    messageFuture.set(msg)
   }
 }
 

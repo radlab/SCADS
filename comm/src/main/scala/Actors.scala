@@ -28,7 +28,10 @@ object Actors {
 }
 
 /* This is a placeholder until stephen's remote actor handles are available */
-case class RemoteActor(var host: String, var port: Int, var id: ActorId) extends AvroRecord {
+sealed trait RemoteActor() extends AvroUnion {
+  var host: String
+  var port: Int
+  var id: ActorId
 
   def toRemoteNode = RemoteNode(host, port)
 
@@ -66,4 +69,6 @@ case class RemoteActor(var host: String, var port: Int, var id: ActorId) extends
       case Left(exp) => throw exp
     }
   }
+
+  def !!(body: MessageBody): Future[MessageBody] = throw new RuntimeException("Unimplemented")
 }

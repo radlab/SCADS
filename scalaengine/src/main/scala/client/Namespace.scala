@@ -70,10 +70,9 @@ class GenericNamespace(namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKe
 }
 
 /**
- * Handles interaction with a single SCADS Namespace
+ * KVStore Trait + Quorum Protocol
  * TODO: Add functions for splitting/merging partitions (protocol for moving data safely)
  * TODO: Handle the need for possible schema resolutions
- * TODO: Create KVStore Trait that namespace implements
  */
 abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord](val namespace:String, val timeout:Int, val root: ZooKeeperProxy#ZooKeeperNode) extends KeyValueStore[KeyType, ValueType] {
   protected val logger = Logger.getLogger("Namespace")
@@ -107,74 +106,6 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord](v
     server !? GetRequest(namespace, serializeKey(key)) match {
       case Record(_, value) => value.map(v => deserializeValue(v))
       case _ => throw new RuntimeException("Unexpected Message")
-    }
-  }
-
-  /* TODO: this logic should be in the storage handler as its nessesity is really a side effect of the B-Tree Traversal primatives available */
-  protected def minRecord(rec:IndexedRecord, prefix:Int, ascending:Boolean):Unit = {
-    val fields = rec.getSchema.getFields
-    for (i <- (prefix to (fields.size() - 1))) { // set remaining values to min/max
-      fields.get(i).schema.getType match {
-        case org.apache.avro.Schema.Type.ARRAY =>
-          if (ascending)
-            rec.put(i,new GenericData.Array(0,fields.get(i).schema))
-          else
-            throw new Exception("Can't do descending search with an array in the prefix")
-        case org.apache.avro.Schema.Type.BOOLEAN =>
-          if (ascending)
-            rec.put(i,false)
-          else
-            rec.put(i,true)
-        case org.apache.avro.Schema.Type.BYTES =>
-          if (ascending)
-            rec.put(i,"".getBytes)
-          else
-            throw new Exception("Can't do descending search with bytes the prefix")
-        case org.apache.avro.Schema.Type.DOUBLE =>
-          if (ascending)
-            rec.put(i,java.lang.Double.MIN_VALUE)
-          else
-            rec.put(i,java.lang.Double.MAX_VALUE)
-        case org.apache.avro.Schema.Type.ENUM =>
-          throw new Exception("ENUM not supported at the moment")
-        case org.apache.avro.Schema.Type.FIXED =>
-          throw new Exception("FIXED not supported at the moment")
-        case org.apache.avro.Schema.Type.FLOAT =>
-          if (ascending)
-            rec.put(i,java.lang.Float.MIN_VALUE)
-          else
-            rec.put(i,java.lang.Float.MAX_VALUE)
-        case org.apache.avro.Schema.Type.INT =>
-          if (ascending)
-            rec.put(i,java.lang.Integer.MIN_VALUE)
-          else
-            rec.put(i,java.lang.Integer.MAX_VALUE)
-        case org.apache.avro.Schema.Type.LONG =>
-          if (ascending)
-            rec.put(i,java.lang.Long.MIN_VALUE)
-          else
-            rec.put(i,java.lang.Long.MAX_VALUE)
-        case org.apache.avro.Schema.Type.MAP =>
-          throw new Exception("MAP not supported at the moment")
-        case org.apache.avro.Schema.Type.NULL =>
-          // null is only null, so it's already min, has no max
-          if (!ascending)
-            throw new Exception("Can't do descending search with null in the prefix")
-        case org.apache.avro.Schema.Type.RECORD =>
-          if (rec.get(i) != null)
-            minRecord(rec.get(i).asInstanceOf[ScalaSpecificRecord],0,ascending)
-        case org.apache.avro.Schema.Type.STRING =>
-          if (ascending)
-            rec.put(i,new Utf8(""))
-          else {
-            // NOTE: We make the "max" string 20 max char values.  This won't work if you're putting big, max valued strings in your db
-            rec.put(i,new Utf8(new String(Array.fill[Byte](20)(127.asInstanceOf[Byte]))))
-          }
-        case org.apache.avro.Schema.Type.UNION =>
-          throw new Exception("UNION not supported at the moment")
-        case other =>
-          logger.warn("Got a type I don't know how to set to minimum, this getPrefix might not behave as expected: "+other)
-      }
     }
   }
 

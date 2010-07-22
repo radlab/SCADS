@@ -22,7 +22,7 @@ import org.apache.avro.io.BinaryData
 
 import org.apache.zookeeper.CreateMode
 
-
+@deprecate("use routing table")
 abstract trait PartitionPolicy[KeyType <: IndexedRecord] {
   protected val logger: Logger
   protected val keySchema: Schema
