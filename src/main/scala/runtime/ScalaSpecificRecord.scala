@@ -28,12 +28,13 @@ trait ScalaSpecificRecord extends SpecificRecord {
     out.toByteArray
   }
 
-  def parse(data: Array[Byte]): Unit = {
+  def parse(data: Array[Byte]): this.type = {
     val stream = new ByteArrayInputStream(data)
     val factory = new DecoderFactory
     val dec = factory.createBinaryDecoder(stream, null) // new decoder
     val reader = new SpecificDatumReader[this.type](getSchema());
     reader.read(this, dec)
+    this
   }
 }
 
