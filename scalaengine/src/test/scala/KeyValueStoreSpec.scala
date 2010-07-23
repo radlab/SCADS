@@ -10,8 +10,6 @@ import edu.berkeley.cs.scads.comm.Conversions._
 import edu.berkeley.cs.scads.storage._
 import com.googlecode.avro.marker.AvroRecord
 
-case class IntRec(var f1: Int) extends AvroRecord
-case class StringRec(var f1: String) extends AvroRecord
 
 @RunWith(classOf[JUnitRunner])
 class KeyValueStoreSpec extends Spec with ShouldMatchers {
