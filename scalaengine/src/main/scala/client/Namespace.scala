@@ -28,7 +28,7 @@ import org.apache.zookeeper.CreateMode
 /**
  * Implementation of Scads Namespace that returns ScalaSpecificRecords
  */
-class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKeeperNode)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]) extends Namespace[KeyType, ValueType](namespace, timeout, root) with PartitionPolicy[KeyType] {
+class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKeeperNode)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]) extends Namespace[KeyType, ValueType](namespace, timeout, root) with RepartitioningProtocol[KeyType] {
   protected val keyClass = keyType.erasure.asInstanceOf[Class[ScalaSpecificRecord]]
   protected val valueClass = valueType.erasure.asInstanceOf[Class[ScalaSpecificRecord]]
 
@@ -48,7 +48,7 @@ class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecif
   }
 }
 
-class GenericNamespace(namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKeeperNode) extends Namespace[GenericData.Record, GenericData.Record](namespace, timeout, root) with PartitionPolicy[GenericData.Record] {
+class GenericNamespace(namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKeeperNode) extends Namespace[GenericData.Record, GenericData.Record](namespace, timeout, root) with RepartitioningProtocol[GenericData.Record] {
   val decoderFactory = DecoderFactory.defaultFactory()
   val keyReader = new GenericDatumReader[GenericData.Record](keySchema)
   val valueReader = new GenericDatumReader[GenericData.Record](valueSchema)
@@ -80,35 +80,14 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord](v
   protected val keySchema = Schema.parse(new String(nsNode("keySchema").data))
   protected val valueSchema = Schema.parse(new String(nsNode("valueSchema").data))
 
-  /* Partition Policy Methods */
-  protected def serversForKey(key:KeyType):List[RemoteActor]
-  protected def splitRange(startKey: Option[KeyType],endKey: Option[KeyType]): PartitionPolicy[KeyType]#RangeIterator
-
   /* DeSerialization Methods */
   protected def serializeKey(key: KeyType): Array[Byte]
   protected def serializeValue(value: ValueType): Array[Byte]
   protected def deserializeKey(key: Array[Byte]): KeyType
   protected def deserializeValue(value: Array[Byte]): ValueType
 
-  protected def decodeKey(b:Array[Byte]): GenericData.Record = {
-    val decoder = DecoderFactory.defaultFactory().createBinaryDecoder(b, null)
-    val reader = new org.apache.avro.generic.GenericDatumReader[GenericData.Record](keySchema)
-    reader.read(null,decoder)
-  }
-
-  def put[K <: KeyType, V <: ValueType](key: K, value: Option[V]): Unit = {
-    val nodes = serversForKey(key)
-    serversForKey(key).foreach(_ !? PutRequest(namespace, serializeKey(key), value map serializeValue))
-  }
-
-  def get[K <: KeyType](key: K): Option[ValueType] = {
-    val server = serversForKey(key).first
-    server !? GetRequest(namespace, serializeKey(key)) match {
-      case Record(_, value) => value.map(v => deserializeValue(v))
-      case _ => throw new RuntimeException("Unexpected Message")
-    }
-  }
-
+  def put[K <: KeyType, V <: ValueType](key: K, value: Option[V]): Unit = throw new RuntimeException("Unimplemented") 
+  def get[K <: KeyType](key: K): Option[ValueType] = throw new RuntimeException("Unimplemented") 
   def getPrefix[K <: KeyType](key: K, prefixSize: Int, limit: Option[Int] = None, ascending: Boolean = true):Seq[(KeyType,ValueType)] = throw new RuntimeException("Unimplemented")
   def getRange(start: Option[KeyType], end: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, backwards:Boolean = false): Seq[(KeyType,ValueType)] = throw new RuntimeException("Unimplemented")
   def size():Int = throw new RuntimeException("Unimplemented")

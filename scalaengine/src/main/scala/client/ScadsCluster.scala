@@ -64,7 +64,7 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
       throw new Exception("Not enough available servers")
     var i = 1
     availableServers.foreach(server => {
-      if (i <= (sps+1)) {
+    /*  if (i <= (sps+1)) {
         val storageEngine = new RemoteActor().parse(server.data)
 	      val partition = nsRoot.getOrCreate("partitions/"+i)
 	      val policy = new PartitionedPolicy
@@ -90,16 +90,7 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 
         storageEngine !? cr
         i += 1
-      }
+      }*/
     })
-  }
-
-  /* TODO: library pimping scala avro object */
-  protected def serializeRecord(rec: IndexedRecord): Array[Byte] = {
-    val outBuffer = new java.io.ByteArrayOutputStream
-    val encoder = new BinaryEncoder(outBuffer)
-    val writer = new GenericDatumWriter[IndexedRecord](rec.getSchema())
-    writer.write(rec, encoder)
-    outBuffer.toByteArray
   }
 }
