@@ -11,6 +11,7 @@ case class ActorName(var name: String) extends AvroRecord with ActorId
 
 case class Message(var src: Option[ActorId], var dest: ActorId, var id: Option[Long], var body: MessageBody) extends AvroRecord
 case class ProcessingException(var cause: String, var stacktrace: String) extends AvroRecord with MessageBody
+case class RequestRejected(var reason: String, var req: MessageBody) extends AvroRecord with MessageBody
 case class Record(var key: Array[Byte], var value: Option[Array[Byte]]) extends AvroRecord with MessageBody
 
 /* KVStore Operations */
