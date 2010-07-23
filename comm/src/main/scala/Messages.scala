@@ -33,19 +33,19 @@ case class TestSetRequest(var key: Array[Byte], var value: Option[Array[Byte]], 
 case class TestSetResponse(var success: Boolean) extends AvroRecord with MessageBody
 
 /* Storage Handler Operations */
-case class CreatePartitionRequest(var namespace: String, paritionId: String, var startKey: Option[Array[Byte]], endKey: Option[Array[Byte]]) extends AvroRecord with MessageBody
-case class CreatePartitionResponse(var partitionActor: PartitionActor) extends AvroRecord with MessageBody
+case class CreatePartitionRequest(var namespace: String, var paritionId: String, var startKey: Option[Array[Byte]], var endKey: Option[Array[Byte]]) extends AvroRecord with MessageBody
+case class CreatePartitionResponse(var partitionActor: PartitionService) extends AvroRecord with MessageBody
 
-case class SplitPartitionRequest(var partitionId: String, splitPoint: Array[Byte]) extends AvroRecord with MessageBody
-case class SplitPartitionResponse(var newPartitionActor: PartitionActor) extends AvroRecord with MessageBody
+case class SplitPartitionRequest(var partitionId: String, var splitPoint: Array[Byte]) extends AvroRecord with MessageBody
+case class SplitPartitionResponse(var newPartitionService: PartitionService) extends AvroRecord with MessageBody
 
 case class MergePartitionRequest(var paritionId1: String, var partitionId2: String) extends AvroRecord with MessageBody
-case class MergePartitionResponse(var mergedPartitionActor: PartitionActor) extends AvroRecord with MessageBody
+case class MergePartitionResponse(var mergedPartitionService: PartitionService) extends AvroRecord with MessageBody
 
 case class DeletePartition(var partitionId: String) extends AvroRecord with MessageBody
 
 /* Partition Handler Operations */
-case class CopyData(var dest: PartitionActor, var overwrite: Boolean) extends AvroRecord with MessageBody
+case class CopyData(var dest: PartitionService, var overwrite: Boolean) extends AvroRecord with MessageBody
 
 case class GetResponsibilityRequest() extends AvroRecord with MessageBody
-case class GetResponsibilityResponse(var startKey: Option[Array[Byte]], endKey: Option[Array[Byte]]) extends AvroRecord with MessageBody
+case class GetResponsibilityResponse(var startKey: Option[Array[Byte]], var endKey: Option[Array[Byte]]) extends AvroRecord with MessageBody

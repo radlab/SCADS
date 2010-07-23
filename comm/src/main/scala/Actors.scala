@@ -27,8 +27,15 @@ object Actors {
   }
 }
 
+/* Generic Remote Actor Handle */
+case class RemoteActor(var host: String, var port: Int, var id: ActorId) extends RemoteActorProxy with AvroRecord
+
+/* Specific types for different services */
+case class StorageService(var host: String, var port: Int, var id: ActorId) extends RemoteActorProxy with AvroRecord
+case class PartitionService(var host: String, var port: Int, var id: ActorId) extends RemoteActorProxy with AvroRecord
+
 /* This is a placeholder until stephen's remote actor handles are available */
-sealed trait RemoteActor() extends AvroUnion {
+trait RemoteActorProxy {
   var host: String
   var port: Int
   var id: ActorId
@@ -72,3 +79,5 @@ sealed trait RemoteActor() extends AvroUnion {
 
   def !!(body: MessageBody): Future[MessageBody] = throw new RuntimeException("Unimplemented")
 }
+
+

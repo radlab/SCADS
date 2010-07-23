@@ -31,7 +31,7 @@ class FutureService extends ServiceHandler {
   def isSet = messageFuture.isSet
 
   def receiveMessage(src: Option[RemoteActor], msg: MessageBody): Unit = {
-    MessageHandler.unregisterService(remoteActor)
+    MessageHandler.unregisterActor(remoteActor)
     messageFuture.set(msg)
   }
 }
