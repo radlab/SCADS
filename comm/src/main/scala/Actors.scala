@@ -83,5 +83,3 @@ trait RemoteActorProxy {
   def toPartitionService: PartitionService = new PartitionService(host, port, id)
   def toStorageService: StorageService = new StorageService(host, port, id)
 }
-
-
