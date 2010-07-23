@@ -5,22 +5,28 @@ import org.apache.log4j.Logger
 import org.apache.avro.Schema
 import edu.berkeley.cs.scads.comm.Conversions._
 import org.apache.avro.util.Utf8
+import java.io.File
 
 /**
  * Object that creates a local zookeeper / scads cluster for testing.
- * TODO: Instead of being a singleton it would be nice if this could return multiple concurrent / independent scads clusters.
- * TODO: Instead of hardcoding the directory to be target/testCluster it should use a JVM provided temporary directory for backing storage.
  */
 object TestScalaEngine {
-	val logger = Logger.getLogger("scads.test")
-	val path = new java.io.File("target/testCluster")
-	rmDir(path)
-	path.mkdir()
+  lazy val zooKeeper = ZooKeeperHelper.getTestZooKeeper
+	protected val clusterId = new java.util.concurrent.atomic.AtomicInteger
+  protected val logger = Logger.getLogger("scads.test")
 
-	val zooKeeper = ZooKeeperHelper.getTestZooKeeper
-	val handler = ScalaEngine.main(9000, Some(zooKeeper.address), Some(path), None, false)
-	val node = RemoteNode("localhost", 9000)
-	val cluster = new ScadsCluster(zooKeeper.root.getOrCreate("scads"))
+  def getTestCluster(): ScadsCluster = {
+    val handler = getTestHandler()
+    new ScadsCluster(handler.root)
+  }
+
+  def getTestHandler(): StorageHandler = {
+    val tempDir = File.createTempFile("scads", "testdb")
+    tempDir.delete()
+    tempDir.mkdir()
+
+    ScalaEngine.main(Some("testScads" + clusterId.getAndIncrement), Some(zooKeeper.address), Some(tempDir), None, false)
+  }
 
 	private def rmDir(dir: java.io.File): Boolean = {
 		if (dir.isDirectory()) {
@@ -32,16 +38,4 @@ object TestScalaEngine {
 		}
 		dir.delete();
 	}
-}
-
-import com.googlecode.avro.marker.AvroRecord
-case class IntRec(var x: Int) extends AvroRecord
-
-object Example {
-  def main(args: Array[String]): Unit = {
-    val cluster = TestScalaEngine.cluster
-    val ns = cluster.getNamespace[IntRec, IntRec]("testns")
-    ns.put(IntRec(1), IntRec(2))
-    println("Received Record:" + ns.get(IntRec(1)))
-  }
 }
