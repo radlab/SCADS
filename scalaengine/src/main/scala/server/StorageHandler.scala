@@ -23,21 +23,22 @@ import org.apache.avro.io.BinaryDecoder
 import org.apache.avro.io.DecoderFactory
 
 import org.apache.zookeeper.CreateMode
-
+import com.googlecode.avro.runtime.AvroScala._
 import com.googlecode.avro.runtime.ScalaSpecificRecord
 
-
-class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) extends ServiceHandler {
-  /* Hashmap and case class to hold relevent data about open namespaces */
-  protected case class Namespace(db: Database, keySchema: Schema, comp: AvroComparator)
-  protected var namespaces: Map[String, Namespace] = new scala.collection.immutable.HashMap[String, Namespace]
+/**
+ * Basic implementation of a storage handler using BDB as a backend.
+ */
+class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) extends ServiceHandler {
+  implicit val remoteHandle = MessageHandler.registerService(this).toStorageService
+  protected val logger = Logger.getLogger("scads.storagehandler")
 
   /* Threadpool for execution of incoming requests */
   protected val outstandingRequests = new ArrayBlockingQueue[Runnable](1024)
   protected val executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, outstandingRequests)
 
-  protected val logger = Logger.getLogger("scads.storagehandler")
-  protected val remoteHandle = MessageHandler.registerService(this)
+  /* Hashmap of currently open partition handler, indexed by partitionId */
+  protected var partitions = new scala.collection.immutable.HashMap[String, PartitionHandler]
 
   /* Register a shutdown hook for proper cleanup */
   class SDRunner(sh: StorageHandler) extends Thread {
@@ -48,178 +49,96 @@ class StorageHandler(env: Environment, root: ZooKeeperProxy#ZooKeeperNode) exten
   java.lang.Runtime.getRuntime().addShutdownHook(new SDRunner(this))
   startup()
 
+  /**
+   * Performs the following startup tasks:
+   * * Register with zookeeper as an available server
+   * * TODO: Reopen any partitions.
+   */
   private def startup(): Unit = {
     /* Register with the zookeper as an available server */
     val availServs = root.getOrCreate("availableServers")
     availServs.createChild(remoteHandle.toString, remoteHandle.toBytes, CreateMode.EPHEMERAL)
-
-    /* TODO: Open already created namespaces? */
   }
 
-  /* Implicit conversions */
-  implicit def toOption[A](a: A): Option[A] = Option(a)
-  implicit def toDbe(buff: Array[Byte]): DatabaseEntry = new DatabaseEntry(buff)
-  implicit def toByteArray(dbe: DatabaseEntry): Array[Byte] = {
-    if(dbe.getOffset == 0)
-      return dbe.getData
-    else
-      throw new RuntimeException("Unimplemented")
+  /**
+   * Performs the following shutdown tasks:
+   * * TODO: Shutdown all active partitions
+   * * TODO: Close the BDB Environment
+   */
+  def shutdown(): Unit = {
+
   }
 
-  private def decodeKey(ns:Namespace, dbe:DatabaseEntry): GenericData.Record = {
-    val decoder = DecoderFactory.defaultFactory().createBinaryDecoder(dbe.getData(), dbe.getOffset(), dbe.getSize, null)
-    val reader = new GenericDatumReader[GenericData.Record](ns.keySchema)
-    reader.read(null,decoder)
-  }
-
-  private def mkSchema(old:Schema,newsize:Int):Schema = {
-    val result = Schema.createRecord(old.getName, old.getDoc, old.getNamespace, old.isError);
-    val fields = old.getFields
-    val newfields = new java.util.ArrayList[Schema.Field](newsize-1)
-    for (i <- (0 to (newsize-1))) {
-      val of = fields.get(i)
-      val nf = new Schema.Field(of.name,of.schema,of.doc,of.defaultValue,of.order)
-      newfields.add(nf)
-    }
-    result.setFields(newfields)
-    result
-  }
-
-  private class ShippedClassLoader(ba:Array[Byte],targetClass:String) extends ClassLoader {
-    override def findClass(name:String):Class[_] = {
-      if (name.equals(targetClass))
-        defineClass(name, ba, 0, ba.size)
-      else
-        Class.forName(name)
-    }
-  }
-
-  private def deserialize(name:String, ba:Array[Byte]):Any = {
-    try {
-      val loader = new ShippedClassLoader(ba,name)
-      Class.forName(name,false,loader)
-    } catch {
-      case ex:java.io.IOException => {
-        ex.printStackTrace
-        (null,0)
-      }
-    }
-  }
-
-  class Request(src: RemoteNode, req: Message) extends Runnable {
-    def reply(body: MessageBody) = {
-      throw new RuntimeException("Unimplemented")
-    }
+  /* Request handler class to be executed on this StorageHandlers threadpool */
+  class Request(src: Option[RemoteActor], req: MessageBody) extends Runnable {
+    def reply(msg: MessageBody) = src.foreach(_ ! msg)
 
     val process: PartialFunction[Object, Unit] = {
-      case _ => throw new RuntimeException("Unimplemented")
-    }
+      case createRequest @ CreatePartitionRequest(namespace, partitionId, startKey, endKey) => {
+        /* Retrieve the KeySchema from BDB so we can setup the btree comparator correctly */
+        val nsRoot = root("namespaces").get(namespace).getOrElse(throw new RuntimeException("Attempted to open namespace that doesn't exist in zookeeper: " + createRequest))
+        val keySchemaJson = new String(nsRoot("keySchema").data)
 
-    def run():Unit = {
-      try {
-        //println(req)
-        process(req.body)
-      }
-      catch {
-        case e: Throwable => {
-          logger.error("ProcessingException", e)
-          e.printStackTrace
-          var cause = e.getCause
-          while (cause != null) {
-            e.printStackTrace
-            cause = e.getCause
-          }
-          val resp = new ProcessingException
-          resp.cause = e.toString()
-          resp.stacktrace = e.getStackTrace().mkString("\n")
-          reply(resp)
-        }
-      }
-    }
-  }
-
-  def openNamespace(ns: String, partition: String): Unit = {
-    namespaces.synchronized {
-      if (!namespaces.contains(ns)) {
-        val nsRoot = root("namespaces").get(ns) match {
-          case Some(nsr) => nsr
-          case None => throw new RuntimeException("Attempted to open namespace that doesn't exist in zookeeper: " + ns)
-        }
-        val keySchema = new String(nsRoot("keySchema").data)
-
-        val comp = new AvroComparator(keySchema)
+        /* Configure the new database */
+        logger.info("Opening bdb table for partition: " + createRequest)
+        val comp = new AvroComparator(keySchemaJson)
         val dbConfig = new DatabaseConfig
         dbConfig.setAllowCreate(true)
         dbConfig.setBtreeComparator(comp)
         dbConfig.setTransactional(true)
 
-        namespaces += ((ns, Namespace(env.openDatabase(null, ns, dbConfig), Schema.parse(keySchema), comp)))
-        logger.info("namespace " + ns + " opened")
+        /* Grab a lock on the partitionId. Open the database and instanciate the handler. */
+        val partitionIdLock = nsRoot("partitions").createChild(partitionId, "".getBytes, CreateMode.EPHEMERAL)
+        val db = env.openDatabase(null, createRequest.toJson, dbConfig)
+        val handler = new PartitionHandler(db, partitionIdLock, startKey, endKey, nsRoot)
 
-        nsRoot("partitions").apply(partition).getOrCreate("servers").createChild(remoteHandle.toString, remoteHandle.toBytes, CreateMode.EPHEMERAL)
-      }
-    }
-  }
-
-  def shutdown(): Unit = {
-    var ok = true
-    namespaces.synchronized {
-      namespaces.foreach { tuple:(String,Namespace) => {
-        val (nsStr, ns) = tuple
-        logger.info("Closing: "+nsStr)
-        try {
-          ns.db.close()
-        } catch {
-          case dbe:DatabaseException => {
-            ok = false
-            logger.error("Could not close namespace "+nsStr+": "+dbe)
-          }
-          case excp => {
-            ok = false
-            throw excp
-          }
+        /* Add to our list of open partitions */
+        partitions.synchronized {
+          partitions += ((partitionId, handler))
         }
-        logger.info(if(ok) "[OK]" else "[FAIL]")
-      } }
-    }
-    logger.info("Closing environment")
-    try {
-      env.close()
-    } catch {
-      case dbe:DatabaseException => {
-        ok = false
-        logger.error("Could not close environment: "+dbe)
+
+        reply(CreatePartitionResponse(handler.remoteHandle))
       }
-      case excp => {
-        ok = false
-        throw excp
+      case _ => throw new RuntimeException("Unimplemented")
+    }
+
+    def run():Unit = {
+      try process(req) catch {
+        case e: Throwable => {
+          /* Get the stack trace */
+          val stackTrace = e.getStackTrace().mkString("\n")
+          /* Find the root cause */
+          var cause = e.getCause
+          while (cause != null) {
+            e.printStackTrace
+            cause = e.getCause
+          }
+          /* Log and report the error */
+          logger.error("Exception processing storage request: " + cause)
+          logger.error(stackTrace)
+          src.foreach(_ ! ProcessingException(cause.toString, stackTrace))
+        }
       }
     }
-    logger.info(if(ok) "[OK]" else "[FAIL]")
   }
 
+  /* Enque a recieve message on the threadpool executor */
   def receiveMessage(src: Option[RemoteActor], msg:MessageBody): Unit = {
-    try {
-      //executor.execute(new Request(src, msg))
-    } catch {
-      case ree: java.util.concurrent.RejectedExecutionException => {
-        val resp = new ProcessingException
-        resp.cause = "Thread pool exhausted"
-        resp.stacktrace = ree.toString
-        //replyWithError(src,msg,resp)
-      }
+    try executor.execute(new Request(src, msg)) catch {
+      case ree: java.util.concurrent.RejectedExecutionException => src.foreach(_ ! RequestRejected("Thread Pool Full", msg))
       case e: Throwable => {
-        logger.error("ProcessingException", e)
-        e.printStackTrace
+        /* Get the stack trace */
+        val stackTrace = e.getStackTrace().mkString("\n")
+        /* Find the root cause */
         var cause = e.getCause
         while (cause != null) {
           e.printStackTrace
           cause = e.getCause
         }
-        val resp = new ProcessingException
-        resp.cause = e.toString()
-        resp.stacktrace = e.getStackTrace().mkString("\n")
-        //replyWithError(src,msg,resp)
+        /* Log and report the error */
+        logger.error("Exception enquing storage request for execution: " + cause)
+        logger.error(stackTrace)
+        src.foreach(_ ! ProcessingException(cause.toString, stackTrace))
       }
     }
   }
