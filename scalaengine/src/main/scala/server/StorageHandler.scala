@@ -70,7 +70,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
   }
 
   /* Request handler class to be executed on this StorageHandlers threadpool */
-  class Request(src: Option[RemoteActor], req: MessageBody) extends Runnable {
+  class Request(src: Option[RemoteActorProxy], req: MessageBody) extends Runnable {
     def reply(msg: MessageBody) = src.foreach(_ ! msg)
 
     val process: PartialFunction[Object, Unit] = {
@@ -117,7 +117,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
   }
 
   /* Enque a recieve message on the threadpool executor */
-  def receiveMessage(src: Option[RemoteActor], msg:MessageBody): Unit = {
+  def receiveMessage(src: Option[RemoteActorProxy], msg:MessageBody): Unit = {
     try executor.execute(new Request(src, msg)) catch {
       case ree: java.util.concurrent.RejectedExecutionException => src.foreach(_ ! RequestRejected("Thread Pool Full", msg))
       case e: Throwable => {

@@ -11,11 +11,11 @@ import org.apache.avro.util.Utf8
 
 
 trait ServiceHandler {
-  def receiveMessage(src: Option[RemoteActor], msg:MessageBody): Unit
+  def receiveMessage(src: Option[RemoteActorProxy], msg:MessageBody): Unit
 }
 
 case class ActorService(a: Actor) extends ServiceHandler {
-  def receiveMessage(src: Option[RemoteActor], msg: MessageBody): Unit =  {
+  def receiveMessage(src: Option[RemoteActorProxy], msg: MessageBody): Unit =  {
     src match {
       case Some(ra) => a.send(msg, ra.outputChannel)
       case None => a ! msg
@@ -30,14 +30,19 @@ class FutureService extends ServiceHandler {
   def apply() = messageFuture.get
   def isSet = messageFuture.isSet
 
-  def receiveMessage(src: Option[RemoteActor], msg: MessageBody): Unit = {
+  def receiveMessage(src: Option[RemoteActorProxy], msg: MessageBody): Unit = {
     MessageHandler.unregisterActor(remoteActor)
     messageFuture.set(msg)
   }
 }
 
+/**
+ * The message handler for all scads communication.  It maintains a list of all active services
+ * in a given JVM and multiplexes the underlying network connections.  Services should be
+ * careful to unregister themselves to avoid memory leaks.
+ */
 object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
-  val logger = Logger.getLogger("scads.MessageHandler")
+  protected val logger = Logger.getLogger("scads.messagehandler")
   private val curActorId = new AtomicLong
   private val serviceRegistry = new ConcurrentHashMap[ActorId, ServiceHandler]
   protected val hostname = java.net.InetAddress.getLocalHost.getHostName()
@@ -61,20 +66,13 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
     return port
   }
 
-  /* TODO: deprecate in favor of native actor communication */
-  def registerActor(a: Actor): RemoteActor = {
+  def registerActor(a: Actor): RemoteActorProxy = {
     val id = curActorId.getAndIncrement
     serviceRegistry.put(ActorNumber(id), ActorService(a))
     RemoteActor(hostname, port, ActorNumber(id))
   }
 
-  def unregisterActor(ra: RemoteActor): Unit = serviceRegistry.remove(ra.id)
-
-  @deprecated("don't use")
-  def getActor(id: Long): Actor = serviceRegistry.get(id) match {
-    case ActorService(a) => a
-    case _ => throw new RuntimeException("Asked for an actor found a service.  Don't use this method anyway... its been deprecated")
-  }
+  def unregisterActor(ra: RemoteActorProxy): Unit = serviceRegistry.remove(ra.id)
 
   def registerService(service: ServiceHandler): RemoteActor = {
     val id = ActorNumber(curActorId.getAndIncrement)
@@ -82,7 +80,7 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
     RemoteActor(hostname, port, id)
   }
 
-  def registerService(id: String, service: ServiceHandler): RemoteActor = {
+  def registerService(id: String, service: ServiceHandler): RemoteActorProxy = {
     if (serviceRegistry.containsKey(id))
       throw new IllegalStateException("Service with that ID already registered")
     serviceRegistry.put(ActorName(id),service)

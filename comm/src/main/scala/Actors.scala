@@ -14,7 +14,7 @@ object Actors {
   import scala.actors.Actor._
 
   /* TODO: link to the created actor and unregister on exit */
-  def remoteActor(body: (RemoteActor) => Unit): Actor = {
+  def remoteActor(body: (RemoteActorProxy) => Unit): Actor = {
     val a = new Actor() {
       def act(): Unit = {
         val ra = MessageHandler.registerActor(self)
