@@ -12,10 +12,8 @@
 	</parent>
 	<packaging>pom</packaging>
 	<modules>
-		<module>piql</module>
 		<module>scalaengine</module>
 		<module>comm</module>
-    <module>experiments/client/scadrclient</module>
 	</modules>
 	<dependencies>
 		<dependency>
