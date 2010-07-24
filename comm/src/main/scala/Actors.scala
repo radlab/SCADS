@@ -63,7 +63,7 @@ trait RemoteActorProxy {
       MessageHandler.sendMessage(toRemoteNode, Message(Some(srcId.id), id, None, body))
 
       reactWithin(timeout) {
-        case exp: ProcessingException => resp.set(Left(new RuntimeException("Remote Exception" + exp)))
+        case exp: RemoteException => resp.set(Left(new RuntimeException("Remote Exception" + exp)))
         case obj: MessageBody => resp.set(Right(obj))
         case TIMEOUT => resp.set(Left(new RuntimeException("Timeout")))
         case msg => println("Unexpected message: " + msg)

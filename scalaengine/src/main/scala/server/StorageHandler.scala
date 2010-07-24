@@ -107,16 +107,10 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
         case e: Throwable => {
           /* Get the stack trace */
           val stackTrace = e.getStackTrace().mkString("\n")
-          /* Find the root cause */
-          var cause = e.getCause
-          while (cause != null) {
-            e.printStackTrace
-            cause = e.getCause
-          }
           /* Log and report the error */
-          logger.error("Exception processing storage request: " + cause)
+          logger.error("Exception processing storage request: " + e)
           logger.error(stackTrace)
-          src.foreach(_ ! ProcessingException(cause.toString, stackTrace))
+          src.foreach(_ ! ProcessingException(e.toString, stackTrace))
         }
       }
     }
@@ -128,17 +122,11 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
       case ree: java.util.concurrent.RejectedExecutionException => src.foreach(_ ! RequestRejected("Thread Pool Full", msg))
       case e: Throwable => {
         /* Get the stack trace */
-        val stackTrace = e.getStackTrace().mkString("\n")
-        /* Find the root cause */
-        var cause = e.getCause
-        while (cause != null) {
-          e.printStackTrace
-          cause = e.getCause
-        }
+        var stackTrace = e.getStackTrace().mkString("\n")
         /* Log and report the error */
-        logger.error("Exception enquing storage request for execution: " + cause)
+        logger.error("Exception enquing storage request for execution: " + e)
         logger.error(stackTrace)
-        src.foreach(_ ! ProcessingException(cause.toString, stackTrace))
+        src.foreach(_ ! ProcessingException(e.toString(), stackTrace))
       }
     }
   }
