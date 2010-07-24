@@ -12,19 +12,36 @@ import edu.berkeley.cs.scads.storage._
 class StorageHandlerSpec extends Spec with ShouldMatchers {
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
+  def getHandler() = {
+    val handler = TestScalaEngine.getTestHandler()
+    val root = handler.root
+
+    root.getOrCreate("namespaces/testns/keySchema").data = IntRec.schema.toString.getBytes
+    root.getOrCreate("namespaces/testns/valueSchema").data = IntRec.schema.toString.getBytes
+    root.getOrCreate("namespaces/testns/partitions")
+
+    handler
+  }
+
   describe("StorageHandler") {
     it("should create partitions") {
-      val handler = TestScalaEngine.getTestHandler()
-      val root = handler.root
-
-      root.getOrCreate("namespaces/testns/keySchema").data = IntRec.schema.toString.getBytes
-      root.getOrCreate("namespaces/testns/valueSchema").data = IntRec.schema.toString.getBytes
-      root.getOrCreate("namespaces/testns/partitions")
-
-      val newPartition = handler.remoteHandle !? CreatePartitionRequest("testns", "1", None, None) match {
+      val handler = getHandler()
+      handler.remoteHandle !? CreatePartitionRequest("testns", "1", None, None) match {
         case CreatePartitionResponse(newPart) => newPart
         case u => fail("Unexpected message: " + u)
       }
+    }
+
+    it("should fail to create duplicate partitions") {
+      val handler = getHandler()
+      handler.remoteHandle !? CreatePartitionRequest("testns", "1", None, None) match {
+        case CreatePartitionResponse(newPart) => newPart
+        case u => fail("Unexpected message: " + u)
+      }
+
+      evaluating {
+        handler.remoteHandle !? CreatePartitionRequest("testns", "1", None, None)
+      } should produce[Exception]
     }
   }
 }
