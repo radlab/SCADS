@@ -3,7 +3,7 @@ package edu.berkeley.cs.scads.comm
 import org.apache.log4j.Logger
 import org.apache.log4j.BasicConfigurator
 
-object EchoActor extends ServiceHandler {
+object EchoActor extends MessageReceiver {
   implicit val remoteActor = MessageHandler.registerService(this)
   protected val logger = Logger.getLogger("scads.comm.echoactor")
 

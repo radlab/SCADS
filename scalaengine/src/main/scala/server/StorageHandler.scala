@@ -1,60 +1,31 @@
 package edu.berkeley.cs.scads.storage
 
-import java.util.concurrent.{BlockingQueue, ArrayBlockingQueue, ThreadPoolExecutor, TimeUnit}
-import java.nio.ByteBuffer
-import java.io.ByteArrayInputStream
-import java.net.InetAddress
-
-import scala.actors._
-import scala.actors.Actor._
-import scala.collection.mutable.ArrayBuffer
-
 import org.apache.log4j.Logger
 import com.sleepycat.je.{Cursor,Database, DatabaseConfig, DatabaseException, DatabaseEntry, Environment, LockMode, OperationStatus, Durability, Transaction}
 
 import edu.berkeley.cs.scads.comm._
-import edu.berkeley.cs.scads.comm.Conversions._
 
-import org.apache.avro.generic.GenericData.{Array => AvroArray}
 import org.apache.avro.Schema
-import org.apache.avro.util.Utf8
-import org.apache.avro.generic.{GenericDatumReader,GenericData}
-import org.apache.avro.io.BinaryDecoder
-import org.apache.avro.io.DecoderFactory
+import com.googlecode.avro.runtime.AvroScala._
 
 import org.apache.zookeeper.CreateMode
-import com.googlecode.avro.runtime.AvroScala._
-import com.googlecode.avro.runtime.ScalaSpecificRecord
+
 
 /**
  * Basic implementation of a storage handler using BDB as a backend.
  */
-class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) extends ServiceHandler {
-  implicit val remoteHandle = MessageHandler.registerService(this).toStorageService
+class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) extends ServiceHandler[StorageServiceOperation] {
   protected val logger = Logger.getLogger("scads.storagehandler")
-
-  /* Threadpool for execution of incoming requests */
-  protected val outstandingRequests = new ArrayBlockingQueue[Runnable](1024)
-  protected val executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, outstandingRequests)
 
   /* Hashmap of currently open partition handler, indexed by partitionId */
   protected var partitions = new scala.collection.immutable.HashMap[String, PartitionHandler]
-
-  /* Register a shutdown hook for proper cleanup */
-  class SDRunner(sh: StorageHandler) extends Thread {
-    override def run(): Unit = {
-      sh.shutdown()
-    }
-  }
-  java.lang.Runtime.getRuntime().addShutdownHook(new SDRunner(this))
-  startup()
 
   /**
    * Performs the following startup tasks:
    * * Register with zookeeper as an available server
    * * TODO: Reopen any partitions.
    */
-  private def startup(): Unit = {
+  protected def startup(): Unit = {
     /* Register with the zookeper as an available server */
     val availServs = root.getOrCreate("availableServers")
     availServs.createChild(remoteHandle.toString, remoteHandle.toBytes, CreateMode.EPHEMERAL)
@@ -65,16 +36,15 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
    * * TODO: Shutdown all active partitions
    * * TODO: Close the BDB Environment
    */
-  def shutdown(): Unit = {
+  protected def shutdown(): Unit = {
     root("availableServers").deleteChild(remoteHandle.toString)
     MessageHandler.unregisterActor(remoteHandle)
   }
 
-  /* Request handler class to be executed on this StorageHandlers threadpool */
-  class Request(src: Option[RemoteActorProxy], req: MessageBody) extends Runnable {
+  protected def process(src: Option[RemoteActorProxy], msg: StorageServiceOperation): Unit = {
     def reply(msg: MessageBody) = src.foreach(_ ! msg)
 
-    val process: PartialFunction[StorageServiceOperation, Unit] = {
+    msg match {
       case createRequest @ CreatePartitionRequest(namespace, partitionId, startKey, endKey) => {
         /* Retrieve the KeySchema from BDB so we can setup the btree comparator correctly */
         val nsRoot = root("namespaces").get(namespace).getOrElse(throw new RuntimeException("Attempted to open namespace that doesn't exist in zookeeper: " + createRequest))
@@ -100,36 +70,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
 
         reply(CreatePartitionResponse(handler.remoteHandle))
       }
-    }
-
-    def run():Unit = req match {
-      case sso: StorageServiceOperation =>
-        try process(sso) catch {
-          case e: Throwable => {
-            /* Get the stack trace */
-            val stackTrace = e.getStackTrace().mkString("\n")
-            /* Log and report the error */
-            logger.error("Exception processing storage request: " + e)
-            logger.error(stackTrace)
-            src.foreach(_ ! ProcessingException(e.toString, stackTrace))
-          }
-        }
-      case otherMessage: MessageBody => src.foreach(_ ! RequestRejected("Unexpected message type to a storage service.", req))
-    }
-  }
-
-  /* Enque a recieve message on the threadpool executor */
-  def receiveMessage(src: Option[RemoteActorProxy], msg:MessageBody): Unit = {
-    try executor.execute(new Request(src, msg)) catch {
-      case ree: java.util.concurrent.RejectedExecutionException => src.foreach(_ ! RequestRejected("Thread Pool Full", msg))
-      case e: Throwable => {
-        /* Get the stack trace */
-        var stackTrace = e.getStackTrace().mkString("\n")
-        /* Log and report the error */
-        logger.error("Exception enquing storage request for execution: " + e)
-        logger.error(stackTrace)
-        src.foreach(_ ! ProcessingException(e.toString(), stackTrace))
-      }
+      case _ => reply(ProcessingException("Unimplmented", ""))
     }
   }
 }
