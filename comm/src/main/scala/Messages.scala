@@ -49,3 +49,9 @@ case class CopyData(var dest: PartitionService, var overwrite: Boolean) extends 
 
 case class GetResponsibilityRequest() extends AvroRecord with MessageBody
 case class GetResponsibilityResponse(var startKey: Option[Array[Byte]], var endKey: Option[Array[Byte]]) extends AvroRecord with MessageBody
+
+
+/* Should be placed inside RoutingTable*/
+case class Partition(var endKey: Option[Array[Byte]], var servers: List[PartitionService]) extends AvroRecord
+case class PartitionTable(var partitions : List[Partition]) extends AvroRecord
+
