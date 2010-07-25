@@ -34,52 +34,64 @@ case class RemoteActor(var host: String, var port: Int, var id: ActorId) extends
 case class StorageService(var host: String, var port: Int, var id: ActorId) extends RemoteActorProxy with AvroRecord
 case class PartitionService(var host: String, var port: Int, var id: ActorId) extends RemoteActorProxy with AvroRecord
 
+case class TimeoutException(msg: MessageBody) extends Exception
+
 /* This is a placeholder until stephen's remote actor handles are available */
 trait RemoteActorProxy {
   var host: String
   var port: Int
   var id: ActorId
 
-  def toRemoteNode = RemoteNode(host, port)
+  def remoteNode = RemoteNode(host, port)
 
+  override def toString(): String = id + "@" + host + ":" + port
+
+  /**
+   * Returns an ouput proxy that forwards any messages to the remote actor with and empty sender.
+   */
   def outputChannel = new OutputChannel[Any] {
     def !(msg: Any):Unit = msg match {
-      case msgBody: MessageBody => MessageHandler.sendMessage(toRemoteNode, Message(None, id, None, msgBody))
-      case _ => throw new RuntimeException("Invalid remote message.  Must extend MessageBody.")
+      case msgBody: MessageBody => MessageHandler.sendMessage(remoteNode, Message(None, id, None, msgBody))
+      case otherMessage => throw new RuntimeException("Invalid remote message type:" + otherMessage + " Must extend MessageBody.")
     }
     def forward(msg: Any):Unit = throw new RuntimeException("Unimplemented")
     def send(msg: Any, sender: OutputChannel[Any]):Unit = throw new RuntimeException("Unimplemented")
     def receiver: Actor = throw new RuntimeException("Unimplemented")
   }
 
+  /**
+   * Send a message asynchronously.
+   **/
   def !(body: MessageBody)(implicit sender: RemoteActorProxy): Unit = {
-    MessageHandler.sendMessage(toRemoteNode, Message(Some(sender.id), id, None, body))
+    MessageHandler.sendMessage(remoteNode, Message(Some(sender.id), id, None, body))
   }
 
-  def !?(body: MessageBody, timeout: Long = 5000): MessageBody = {
-		val resp = new SyncVar[Either[Throwable, MessageBody]]
-    val a = actor {
-      val srcId = MessageHandler.registerActor(self)
-      MessageHandler.sendMessage(toRemoteNode, Message(Some(srcId.id), id, None, body))
-
-      reactWithin(timeout) {
-        case exp: RemoteException => resp.set(Left(new RuntimeException("Remote Exception" + exp)))
-        case obj: MessageBody => resp.set(Right(obj))
-        case TIMEOUT => resp.set(Left(new RuntimeException("Timeout")))
-        case msg => println("Unexpected message: " + msg)
+  /**
+   * Send a message and synchronously wait for a response.
+   */
+  def !?(body: MessageBody, timeout: Int = 5000): MessageBody = {
+      val future = new MessageFuture
+      this.!(body)(future.remoteActor)
+      future.get(timeout) match {
+        case Some(exp: RemoteException) => throw new RuntimeException(exp.toString)
+        case Some(msg: MessageBody) => msg
+        case None => {
+          future.cancel
+          throw TimeoutException(body)
+        }
       }
-      MessageHandler.unregisterActor(srcId)
-    }
-
-    resp.get match {
-      case Right(msg) => msg
-      case Left(exp) => throw exp
-    }
   }
 
-  def !!(body: MessageBody): Future[MessageBody] = throw new RuntimeException("Unimplemented")
+  /**
+   * Sends a message and returns a future for the response.
+   */
+  def !!(body: MessageBody): MessageFuture = {
+    val future = new MessageFuture
+    this.!(body)(future.remoteActor)
+    future
+  }
 
-  /* Handle type conversion methods.  Note: Not typesafe */
+  /* Handle type conversion methods.  Note: Not typesafe obviously */
   def toPartitionService: PartitionService = new PartitionService(host, port, id)
   def toStorageService: StorageService = new StorageService(host, port, id)
 }

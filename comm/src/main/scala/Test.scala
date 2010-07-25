@@ -1,31 +1,19 @@
 package edu.berkeley.cs.scads.comm
 
-import org.apache.avro.util.Utf8
+import org.apache.log4j.Logger
+import org.apache.log4j.BasicConfigurator
 
-/*
-object Receiver {
-    val mgr = new PrintAvroChannelManager
-    def receive(port: Int):Unit = {
-        mgr.startListener(port)
-    }
-}
+object EchoActor extends ServiceHandler {
+  implicit val remoteActor = MessageHandler.registerService(this)
+  protected val logger = Logger.getLogger("scads.comm.echoactor")
 
-object EchoReceiver {
-    val mgr = new EchoAvroChannelManager
-    def receive(port: Int):Unit = {
-        mgr.startListener(port)
-    }
-}
+  def receiveMessage(src: Option[RemoteActorProxy], msg: MessageBody): Unit = {
+    logger.info("Received message: " + src + " " + msg)
+    src.foreach(_ ! msg)
+  }
 
-object Sender {
-    val mgr = new PrintAvroChannelManager
-    def send(port: Int):Unit = {
-        (1 to 10).foreach( i => {
-            val record = new Record
-            //record.key = new Utf8("My Key " + i)
-            //record.value = new Utf8("My Value " + i)
-            mgr.sendMessage(RemoteNode("localhost", port), record)
-        })
-    }
+  def main(args: Array[String]): Unit = {
+    BasicConfigurator.configure()
+    logger.info("EchoActor running at: " + remoteActor)
+  }
 }
-*/

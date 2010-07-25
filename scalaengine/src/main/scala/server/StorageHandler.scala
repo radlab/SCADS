@@ -66,14 +66,15 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
    * * TODO: Close the BDB Environment
    */
   def shutdown(): Unit = {
-
+    root("availableServers").deleteChild(remoteHandle.toString)
+    MessageHandler.unregisterActor(remoteHandle)
   }
 
   /* Request handler class to be executed on this StorageHandlers threadpool */
   class Request(src: Option[RemoteActorProxy], req: MessageBody) extends Runnable {
     def reply(msg: MessageBody) = src.foreach(_ ! msg)
 
-    val process: PartialFunction[Object, Unit] = {
+    val process: PartialFunction[StorageServiceOperation, Unit] = {
       case createRequest @ CreatePartitionRequest(namespace, partitionId, startKey, endKey) => {
         /* Retrieve the KeySchema from BDB so we can setup the btree comparator correctly */
         val nsRoot = root("namespaces").get(namespace).getOrElse(throw new RuntimeException("Attempted to open namespace that doesn't exist in zookeeper: " + createRequest))
@@ -99,20 +100,21 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
 
         reply(CreatePartitionResponse(handler.remoteHandle))
       }
-      case _ => throw new RuntimeException("Unimplemented")
     }
 
-    def run():Unit = {
-      try process(req) catch {
-        case e: Throwable => {
-          /* Get the stack trace */
-          val stackTrace = e.getStackTrace().mkString("\n")
-          /* Log and report the error */
-          logger.error("Exception processing storage request: " + e)
-          logger.error(stackTrace)
-          src.foreach(_ ! ProcessingException(e.toString, stackTrace))
+    def run():Unit = req match {
+      case sso: StorageServiceOperation =>
+        try process(sso) catch {
+          case e: Throwable => {
+            /* Get the stack trace */
+            val stackTrace = e.getStackTrace().mkString("\n")
+            /* Log and report the error */
+            logger.error("Exception processing storage request: " + e)
+            logger.error(stackTrace)
+            src.foreach(_ ! ProcessingException(e.toString, stackTrace))
+          }
         }
-      }
+      case otherMessage: MessageBody => src.foreach(_ ! RequestRejected("Unexpected message type to a storage service.", req))
     }
   }
 

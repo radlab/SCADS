@@ -13,6 +13,7 @@ import java.util.concurrent.Executor
 import org.apache.avro.io._
 import org.apache.avro.ipc._
 import org.apache.avro.specific._
+import org.apache.log4j.Logger
 
 abstract class NioAvroChannelManagerBase[SendMsgType <: SpecificRecord,RecvMsgType <: SpecificRecord]
 (implicit sendManifest: scala.reflect.Manifest[SendMsgType],
@@ -75,7 +76,22 @@ extends AvroChannelManager[SendMsgType, RecvMsgType] with ChannelHandler {
     endpoint.flushAllBulk
   }
 
+  def startListener(): Unit = {
+    var port = 9000
+    synchronized {
+      var open = false
+      while(!open) {
+        try startListener(port) catch {
+          case bn: java.net.BindException => port += 1
+        }
+        open = true
+      }
+    }
+  }
+
+  @deprecated("Listener should start automatically")
   override def startListener(port: Int): Unit = {
+    Logger.getRootLogger.fatal("listening " + port)
     endpoint.serve(new InetSocketAddress(port))
   }
 
@@ -94,4 +110,12 @@ extends AvroChannelManager[SendMsgType, RecvMsgType] with ChannelHandler {
   def getLocalAddress: InetAddress = endpoint.getListeningAddr
   def getLocalPort: Int = endpoint.getListeningPort
 
+  def remoteNode = {
+    var address = getLocalAddress
+    while(address == null) {
+      Thread.sleep(10)
+      address = getLocalAddress
+    }
+    RemoteNode(getLocalAddress.getCanonicalHostName(), getLocalPort)
+  }
 }
