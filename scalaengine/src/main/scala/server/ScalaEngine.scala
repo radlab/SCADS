@@ -12,7 +12,7 @@ import org.apache.log4j.Logger
  */
 object ScalaEngine extends optional.Application {
   private val logger = Logger.getLogger("ScalaEngine")
-  def main(port: Int, zooKeeper: Option[String], dbDir: Option[java.io.File], cachePercentage: Option[Int], verbose: Boolean) : StorageHandler = {
+  def main(zooBase: Option[String], zooKeeper: Option[String], dbDir: Option[java.io.File], cachePercentage: Option[Int], verbose: Boolean) : StorageHandler = {
     val config = new EnvironmentConfig()
     config.setAllowCreate(true)
     config.setTransactional(true)
@@ -24,7 +24,7 @@ object ScalaEngine extends optional.Application {
     }
 
     val zooRoot = zooKeeper match {
-      case Some(address) => new ZooKeeperProxy(address).root.getOrCreate("scads")
+      case Some(address) => new ZooKeeperProxy(address).root.getOrCreate(zooBase.getOrElse("scads"))
       case None => {
         logger.info("No zookeeper specifed.  Running in standalone mode with local zookeeper")
         ZooKeeperHelper.getTestZooKeeper.root("scads")

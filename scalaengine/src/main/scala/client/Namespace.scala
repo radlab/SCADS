@@ -86,8 +86,8 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord](v
   protected def deserializeKey(key: Array[Byte]): KeyType
   protected def deserializeValue(value: Array[Byte]): ValueType
 
-  def put[K <: KeyType, V <: ValueType](key: K, value: Option[V]): Unit = throw new RuntimeException("Unimplemented") 
-  def get[K <: KeyType](key: K): Option[ValueType] = throw new RuntimeException("Unimplemented") 
+  def put[K <: KeyType, V <: ValueType](key: K, value: Option[V]): Unit = throw new RuntimeException("Unimplemented")
+  def get[K <: KeyType](key: K): Option[ValueType] = throw new RuntimeException("Unimplemented")
   def getPrefix[K <: KeyType](key: K, prefixSize: Int, limit: Option[Int] = None, ascending: Boolean = true):Seq[(KeyType,ValueType)] = throw new RuntimeException("Unimplemented")
   def getRange(start: Option[KeyType], end: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, backwards:Boolean = false): Seq[(KeyType,ValueType)] = throw new RuntimeException("Unimplemented")
   def size():Int = throw new RuntimeException("Unimplemented")
