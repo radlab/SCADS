@@ -68,7 +68,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
           partitions += ((partitionId, handler))
         }
 
-        reply(CreatePartitionResponse(handler.remoteHandle))
+        reply(CreatePartitionResponse(handler.remoteHandle.toPartitionService))
       }
       case _ => reply(ProcessingException("Unimplmented", ""))
     }
