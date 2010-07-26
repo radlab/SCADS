@@ -27,7 +27,7 @@ object ScalaEngine extends optional.Application {
       case Some(address) => new ZooKeeperProxy(address).root.getOrCreate(zooBase.getOrElse("scads"))
       case None => {
         logger.info("No zookeeper specifed.  Running in standalone mode with local zookeeper")
-        ZooKeeperHelper.getTestZooKeeper.root("scads")
+        ZooKeeperHelper.getTestZooKeeper.root.getOrCreate("scads")
       }
     }
 
