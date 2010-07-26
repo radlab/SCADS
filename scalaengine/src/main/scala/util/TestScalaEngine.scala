@@ -12,6 +12,7 @@ import java.io.File
  */
 object TestScalaEngine {
   lazy val zooKeeper = ZooKeeperHelper.getTestZooKeeper
+  lazy val defaultStorageHandler = getTestHandler()
 	protected val clusterId = new java.util.concurrent.atomic.AtomicInteger
   protected val logger = Logger.getLogger("scads.test")
 

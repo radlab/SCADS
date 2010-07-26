@@ -89,9 +89,7 @@ extends AvroChannelManager[SendMsgType, RecvMsgType] with ChannelHandler {
     }
   }
 
-  @deprecated("Listener should start automatically")
   override def startListener(port: Int): Unit = {
-    Logger.getRootLogger.fatal("listening " + port)
     endpoint.serve(new InetSocketAddress(port))
   }
 

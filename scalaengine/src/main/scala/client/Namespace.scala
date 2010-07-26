@@ -88,8 +88,23 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord](v
   protected def deserializeKey(key: Array[Byte]): KeyType
   protected def deserializeValue(value: Array[Byte]): ValueType
 
-  def put[K <: KeyType, V <: ValueType](key: K, value: Option[V]): Unit = throw new RuntimeException("Unimplemented")
-  def get[K <: KeyType](key: K): Option[ValueType] = throw new RuntimeException("Unimplemented")
+  protected def serversForKey(key: KeyType): List[PartitionService]
+
+  protected val rand = new scala.util.Random
+  protected def pickRandomServer(key: KeyType): PartitionService = {
+    val servers = serversForKey(key)
+    servers(rand.nextInt(servers.size))
+  }
+
+  def put[K <: KeyType, V <: ValueType](key: K, value: Option[V]): Unit =
+    serversForKey(key).foreach(_ !? PutRequest(serializeKey(key), value.map(serializeValue)))
+
+  def get[K <: KeyType](key: K): Option[ValueType] =
+    pickRandomServer(key) !? GetRequest(serializeKey(key)) match {
+      case GetResponse(value) => value map deserializeValue
+      case _ => throw new RuntimeException("Unexpected Message")
+    }
+
   def getPrefix[K <: KeyType](key: K, prefixSize: Int, limit: Option[Int] = None, ascending: Boolean = true):Seq[(KeyType,ValueType)] = throw new RuntimeException("Unimplemented")
   def getRange(start: Option[KeyType], end: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, backwards:Boolean = false): Seq[(KeyType,ValueType)] = throw new RuntimeException("Unimplemented")
   def size():Int = throw new RuntimeException("Unimplemented")
