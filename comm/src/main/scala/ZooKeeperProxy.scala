@@ -16,7 +16,7 @@ import org.apache.log4j.Logger
  */
 class ZooKeeperProxy(val address: String) extends Watcher {
   val logger = Logger.getLogger("scads.zookeeper")
-  var conn = new ZooKeeper(address, 3000, this)
+  var conn = new ZooKeeper(address, 10000, this)
   val root = new ZooKeeperNode("/")
 
   class ZooKeeperNode(val path: String) {
