@@ -86,6 +86,8 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord](v
   protected def deserializeKey(key: Array[Byte]): KeyType
   protected def deserializeValue(value: Array[Byte]): ValueType
 
+  protected def serversForKey(key: KeyType): List[PartitionService]
+
   protected val rand = new scala.util.Random
   protected def pickRandomServer(key: KeyType): PartitionService = {
     val servers = serversForKey(key)
