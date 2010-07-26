@@ -41,7 +41,7 @@ case class TestSetResponse(var success: Boolean) extends AvroRecord with KeyValu
 
 /* Storage Handler Operations */
 @AvroUnion sealed trait StorageServiceOperation extends MessageBody
-case class CreatePartitionRequest(var namespace: String, var paritionId: String, var startKey: Option[Array[Byte]], var endKey: Option[Array[Byte]]) extends AvroRecord with StorageServiceOperation
+case class CreatePartitionRequest(var namespace: String, var paritionId: String, var startKey: Option[Array[Byte]] = None, var endKey: Option[Array[Byte]] = None) extends AvroRecord with StorageServiceOperation
 case class CreatePartitionResponse(var partitionActor: PartitionService) extends AvroRecord with StorageServiceOperation
 
 case class SplitPartitionRequest(var partitionId: String, var splitPoint: Array[Byte]) extends AvroRecord with StorageServiceOperation
