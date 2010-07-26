@@ -90,15 +90,15 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
 
         /* Grab a lock on the partitionId. Open the database and instanciate the handler. */
         val partitionIdLock = nsRoot("partitions").createChild(partitionId, "".getBytes, CreateMode.EPHEMERAL)
-//        val db = env.openDatabase(null, createRequest.toJson, dbConfig)
-//        val handler = new PartitionHandler(db, partitionIdLock, startKey, endKey, nsRoot)
-//
-//        /* Add to our list of open partitions */
-//        partitions.synchronized {
-//          partitions += ((partitionId, handler))
-//        }
-//
-//        reply(CreatePartitionResponse(handler.remoteHandle))
+        val db = env.openDatabase(null, createRequest.toJson, dbConfig)
+        val handler = new PartitionHandler(db, partitionIdLock, startKey, endKey, nsRoot)
+
+        /* Add to our list of open partitions */
+        partitions.synchronized {
+          partitions += ((partitionId, handler))
+        }
+
+        reply(CreatePartitionResponse(handler.remoteHandle))
       }
     }
 

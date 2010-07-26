@@ -1,6 +1,7 @@
 package edu.berkeley.cs.scads.storage
 
 import edu.berkeley.cs.scads.comm._
+import edu.berkeley.cs.scads.storage.routing._
 
 import scala.actors._
 import scala.actors.Actor._
@@ -80,6 +81,7 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord](v
   protected val keySchema = Schema.parse(new String(nsNode("keySchema").data))
   protected val valueSchema = Schema.parse(new String(nsNode("valueSchema").data))
 
+  protected def getKeySchema() : Schema = throw new RuntimeException("Unimplemented")
   /* DeSerialization Methods */
   protected def serializeKey(key: KeyType): Array[Byte]
   protected def serializeValue(value: ValueType): Array[Byte]

@@ -4,7 +4,7 @@ import org.scalatest.WordSpec
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import edu.berkeley.cs.scads.storage.RTable
+import edu.berkeley.cs.scads.storage._
 
 import org.scalatest.WordSpec
 import org.scalatest.matchers.ShouldMatchers
