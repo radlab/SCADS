@@ -26,33 +26,40 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
   case class Partition(range: KeyRange, servers: List[PartitionService])
   var routingTable: RangeTable[Array[Byte], PartitionService] = null
 
+  /**
+   * Initializes the RoutingTable.
+   */
   override def init(){
     super.init()
     if(isNewNamespace){
+      nsRoot.createChild("partitions", "".getBytes, CreateMode.PERSISTENT)
       val servers = cluster.getRandomServers(defaultReplicationFactor)
       val ctr : Long = 1
       nsRoot.createChild("MaxId",  ctr.toString.getBytes, CreateMode.PERSISTENT)
       var handlers : List[PartitionService] = Nil
       for (server <- servers){
-        println("Creating connection " + server.port + ":" + server.host )
         server !? CreatePartitionRequest(namespace, ctr.toString, None, None) match {
-          case CreatePartitionResponse(partitionActor) => partitionActor :: handlers
+          case CreatePartitionResponse(partitionActor) => handlers = partitionActor :: handlers
           case _ => throw new RuntimeException("Unexpected Message")
         }
       }
-      createRoutingTable(handlers) 
+      createRoutingTable(handlers)      
     }else{
       throw new RuntimeException("Loading a partition is not yet implemented")
     }
   }
 
 
-  protected def createRoutingTable(partitionHandlers: List[PartitionService]): Unit = {
+  /**
+   * Just a helper class to create a table and all comparisons
+   */
+  private def createRoutingTable(partitionHandlers: List[PartitionService]): Unit = {
     val keySchema: Schema = getKeySchema()
     routingTable = new RangeTable[Array[Byte], PartitionService](List((None, partitionHandlers)),
       (a: Array[Byte], b: Array[Byte]) => org.apache.avro.io.BinaryData.compare(a, 0, b, 0, keySchema),
       (a: List[PartitionService], b: List[PartitionService]) => a.corresponds(b)
                 ((v1, v2) => (v1.host.compareTo(v2.host) == 0) && (v1.port == v2.port)))
+    println("Created routing table:" + routingTable)
   }
 
   def serversForKey(key: KeyType): List[PartitionService] = {
@@ -70,17 +77,10 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
   def expired(): Unit = throw new RuntimeException("Unimplemented")
 
 
-  /* Returns the newly created PartitionServices from the split */
+  def mergePartitions(mergeKey: KeyType): Unit = throw new RuntimeException("Unimplemented")
+
+   /* Returns the newly created PartitionServices from the split */
   def splitPartition(splitPoint: KeyType): List[PartitionService] = throw new RuntimeException("Unimplemented")
-
-  def mergePartitions(mergeKey: KeyType): Unit = {
-    val rTmp = routingTable.merge(serializeKey(mergeKey))
-    if (rTmp != null)
-      routingTable = rTmp
-    else
-      throw new RuntimeException("Illegal Merge")
-
-  }
 
   def replicatePartition(splitPoint: KeyType, storageHandler: StorageService): PartitionService = throw new RuntimeException("Unimplemented")
 
@@ -97,6 +97,8 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
  *
  * Constructor assigns values to the range -inf to inf. This range can than be split by split(key). Keys are compared with the given
  * comparator
+ *
+ * TODO RangeTable should be fully immutable (also for adding values). Makes programming the protocols easier
  */
 class RangeTable[KeyType, ValueType](
         val rTable: Array[RangeType[KeyType, ValueType]],
@@ -140,12 +142,17 @@ class RangeTable[KeyType, ValueType](
   def idxForKey(key: Option[KeyType]): Int = {
     val pKey = new RangeType[KeyType, ValueType](key, Nil)
     val bpos = Arrays.binarySearch(rTable, pKey, keyComparator)
+    if(bpos == rTable.length)
+      throw new RuntimeException("A key always has to belong to a range. Probably the given comparison function is incorrect.")
     if (bpos < 0)
       ((bpos + 1) * -1)
     else
       bpos
   }
 
+  /**
+   * Returns the list of values which are attached to the range for the given key
+   */
   def valuesForKey(key: KeyType): List[ValueType] = valuesForKey(Option(key))
 
   /**
@@ -155,6 +162,9 @@ class RangeTable[KeyType, ValueType](
     rTable(idxForKey(key)).values
   }
 
+  /**
+   * Returns all ranges from startKey to endKey
+   */
   def valuesForRange(startKey: Option[KeyType], endKey: Option[KeyType]): Array[RangeType[KeyType, ValueType]] = {
     (startKey, endKey) match {
       case (None, None) => return rTable
@@ -238,6 +248,10 @@ class RangeTable[KeyType, ValueType](
 
 }
 
+/**
+ * Represents a range inside RangeTable.
+ * TODO Should be an inner class of RangeTable, but it is impossible to create a RangeType without an existing parent object
+ */
 class RangeType[KeyType, ValueType](val maxKey: Option[KeyType], val values: List[ValueType]) {
   def add(value: ValueType): RangeType[KeyType, ValueType] = {
     if (values.indexOf(value) >= 0)
@@ -245,6 +259,9 @@ class RangeType[KeyType, ValueType](val maxKey: Option[KeyType], val values: Lis
     new RangeType(maxKey, value :: values)
   }
 
+  /**
+   * Removes a value from the Range
+   */
   def remove(value: ValueType): RangeType[KeyType, ValueType] = {
     if (values.size == 1) {
       throw new RuntimeException("It is not allowed to delete the last element in a range")

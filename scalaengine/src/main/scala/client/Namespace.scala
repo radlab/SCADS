@@ -95,9 +95,7 @@ class GenericNamespace(namespace:String,
 }
 
 /**
- * KVStore Trait + Quorum Protocol
- * TODO: Add functions for splitting/merging partitions (protocol for moving data safely)
- * TODO: Handle the need for possible schema resolutions
+ * Quorum Protocol
  */
 abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
       (namespace:String,
@@ -133,33 +131,46 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
 }
 
 
-
+/**
+ * The new protocol interface
+ * TODO Should this abstract class be renamed to protocol?
+ */
 abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
     (val namespace:String,
      val timeout:Int,
      val root: ZooKeeperProxy#ZooKeeperNode)
     (implicit var cluster : ScadsCluster)
         extends KeyValueStore[KeyType, ValueType] {
+
+  protected var isNewNamespace =  root.get(namespace).isEmpty
+  protected var nsRoot : ZooKeeperProxy#ZooKeeperNode = null
+
   protected def getKeySchema() : Schema
+
+
   protected def getValueSchema() : Schema
+
 
   protected def serializeKey(key: KeyType): Array[Byte]
   protected def serializeValue(value: ValueType): Array[Byte]
   protected def deserializeKey(key: Array[Byte]): KeyType
   protected def deserializeValue(value: Array[Byte]): ValueType
 
+  /**
+   * Returns the default replication Factor when initializing a new NS
+   */
   protected def defaultReplicationFactor() : Int = 1 
 
-
- // protected val keySchema : Schema = Schema.parse(new String(nsNode("keySchema").data))
-  //protected val valueSchema : Schema = Schema.parse(new String(nsNode("valueSchema").data))
-
-  protected var isNewNamespace =  root.get(namespace).isEmpty
-  protected var nsRoot : ZooKeeperProxy#ZooKeeperNode = null
-
+  /**
+   * Initializes the protocol/namespace
+   */
   def init() : Unit = {
-    if(isNewNamespace)  {
+    if(isNewNamespace) {
       nsRoot = root.createChild(namespace, "".getBytes, CreateMode.PERSISTENT)
+      nsRoot.createChild("keySchema", getKeySchema().toString.getBytes, CreateMode.PERSISTENT)
+      nsRoot.createChild("valueSchema", getValueSchema.toString.getBytes, CreateMode.PERSISTENT)
+      
+      println("Created Namespace" + nsRoot )
     }else{
       throw new RuntimeException("Loading not yet supported")
     }

@@ -63,13 +63,13 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
 
 
   def getNamespace(ns: String, keySchema: Schema, valueSchema: Schema, splitPoints: List[GenericData.Record]): GenericNamespace = {
-    val namespace = new GenericNamespace(ns, 5000, root, keySchema, valueSchema)
+    val namespace = new GenericNamespace(ns, 5000, namespaces, keySchema, valueSchema)
     namespace.init()
     return namespace
   }
 
   def getNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String, partitions: List[(Option[KeyType], StorageService)] = Nil)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): SpecificNamespace[KeyType, ValueType] = {
-    val namespace = new SpecificNamespace[KeyType, ValueType](ns, 5000, root)
+    val namespace = new SpecificNamespace[KeyType, ValueType](ns, 5000, namespaces)
     namespace.init()
     return namespace
   }
