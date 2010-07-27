@@ -20,6 +20,7 @@ import scala.concurrent.SyncVar
 import scala.tools.nsc.interpreter.AbstractFileClassLoader
 import scala.tools.nsc.io.AbstractFile
 import com.googlecode.avro.runtime.ScalaSpecificRecord
+import scala.util.Random
 
 /**
  * Class for creating/accessing/managing namespaces for a set of scads storage nodes with a given zookeeper root.
@@ -28,69 +29,50 @@ import com.googlecode.avro.runtime.ScalaSpecificRecord
  * TODO: Move parition management code into namespace
  */
 class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
-	val namespaces = root.getOrCreate("namespaces")
+  val namespaces = root.getOrCreate("namespaces")
+  val randomGen = new Random(0)
+  implicit val cluster = this
+
+
+  def getAvailableServers(): List[StorageService] = {
+    val availableServers = root("availableServers").children
+    for (server <- availableServers) yield new StorageService().parse(server.data)
+  }
+
+  def getRandomServers(nbServer: Int): List[StorageService] = {
+    val availableServers = root("availableServers").children
+    require(availableServers.size > 0)
+    var choosenServers = for (i <- 1 to nbServer) yield randomGen.nextInt(availableServers.size)
+    choosenServers = choosenServers.sortBy((a) => a)
+    val choosenIter = choosenServers.iterator
+    val serverIter = availableServers.iterator
+    var pos : Int = 0
+    var result: List[StorageService] = Nil
+    while(choosenIter.hasNext){
+      val choosenPos : Int = choosenIter.next
+      while(pos != choosenPos ){
+        serverIter.next
+        pos += 1
+      }
+      result = new StorageService().parse(serverIter.next.data) :: result
+    }
+    return result
+  }
 
   case class UnknownNamespace(ns: String) extends Exception
-  def getNamespace(ns: String): GenericNamespace = {
-    if(namespaces.get(ns).isEmpty) {
-      throw UnknownNamespace(ns)
-    }
-    new GenericNamespace(ns, 5000, root)
-  }
+
 
   def getNamespace(ns: String, keySchema: Schema, valueSchema: Schema, splitPoints: List[GenericData.Record]): GenericNamespace = {
-    if(namespaces.get(ns).isEmpty) {
-      createAndConfigureNamespace(ns, keySchema, valueSchema, splitPoints)
-    }
-    new GenericNamespace(ns, 5000, root)
+    val namespace = new GenericNamespace(ns, 5000, root, keySchema, valueSchema)
+    namespace.init()
+    return namespace
   }
 
-  def getNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String, splitPoints:List[ScalaSpecificRecord] = Nil)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): SpecificNamespace[KeyType, ValueType] = {
-    if(namespaces.get(ns).isEmpty) {
-      val keySchema = keyType.erasure.newInstance.asInstanceOf[KeyType].getSchema()
-      val valueSchema = valueType.erasure.newInstance.asInstanceOf[ValueType].getSchema()
-      createAndConfigureNamespace(ns, keySchema, valueSchema)
-    }
-    return new SpecificNamespace[KeyType, ValueType](ns, 5000, root)
+  def getNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String, partitions: List[(Option[KeyType], StorageService)] = Nil)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): SpecificNamespace[KeyType, ValueType] = {
+    val namespace = new SpecificNamespace[KeyType, ValueType](ns, 5000, root)
+    namespace.init()
+    return namespace
   }
 
-  def createAndConfigureNamespace(ns:String, keySchema: Schema, valueSchema: Schema, splitPoints:List[IndexedRecord] = Nil): Unit = {
-		val nsRoot = namespaces.createChild(ns, "".getBytes, CreateMode.PERSISTENT)
-		nsRoot.createChild("keySchema", keySchema.toString.getBytes, CreateMode.PERSISTENT)
-		nsRoot.createChild("valueSchema", valueSchema.toString.getBytes, CreateMode.PERSISTENT)
-    val sps = splitPoints.size
-    val availableServers = root("availableServers").children
-    if (availableServers.size < sps)
-      throw new Exception("Not enough available servers")
-    var i = 1
-    availableServers.foreach(server => {
-    /*  if (i <= (sps+1)) {
-        val storageEngine = new RemoteActor().parse(server.data)
-	      val partition = nsRoot.getOrCreate("partitions/"+i)
-	      val policy = new PartitionedPolicy
-        val kp = new KeyPartition(
-          if (i != 1)
-            Some(serializeRecord(splitPoints(i-2)))
-          else
-            None,
-          if (i != (sps+1))
-            Some(serializeRecord(splitPoints(i-1)))
-          else
-            None)
- 	      policy.partitions = List(kp)
 
-        println("part: "+i)
-        println("pol: "+kp)
-
-        partition.createChild("policy", policy.toBytes, CreateMode.PERSISTENT)
-		    partition.createChild("servers", "".getBytes, CreateMode.PERSISTENT)
-        val cr = new ConfigureRequest
-        cr.namespace = ns
-        cr.partition = i+""
-
-        storageEngine !? cr
-        i += 1
-      }*/
-    })
-  }
 }

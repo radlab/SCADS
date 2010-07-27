@@ -6,35 +6,53 @@ import org.apache.avro.generic.IndexedRecord
 import collection.immutable.{TreeMap, SortedMap}
 import org.apache.avro.Schema
 import java.util.{Comparator, Arrays}
+import edu.berkeley.cs.scads.storage.Namespace
+import org.apache.zookeeper.CreateMode
 /* TODO: Stack RepartitioningProtocol on Routing Table to build working implementation */
-abstract trait RepartitioningProtocol[KeyType <: IndexedRecord] extends RoutingTable[KeyType] {
-  override def splitPartition(splitPoint: KeyType): List[PartitionService] = throw new RuntimeException("Unimplemented")
+//abstract trait RepartitioningProtocol[KeyType <: IndexedRecord] extends RoutingTable[KeyType] {
+//  override def splitPartition(splitPoint: KeyType): List[PartitionService] = throw new RuntimeException("Unimplemented")
+//
+//  override def mergePartitions(mergeKey: KeyType): Unit = throw new RuntimeException("Unimplemented")
+//
+//  override def replicatePartition(splitPoint: KeyType, storageHandler: StorageService): PartitionService = throw new RuntimeException("Unimplemented")
+//
+//  override def deleteReplica(splitPoint: KeyType, partitionHandler: PartitionService): Unit = throw new RuntimeException("Unimplemented")
+//}
 
-  override def mergePartitions(mergeKey: KeyType): Unit = throw new RuntimeException("Unimplemented")
 
-  override def replicatePartition(splitPoint: KeyType, storageHandler: StorageService): PartitionService = throw new RuntimeException("Unimplemented")
-
-  override def deleteReplica(splitPoint: KeyType, partitionHandler: PartitionService): Unit = throw new RuntimeException("Unimplemented")
-}
-
-abstract trait RoutingTable[KeyType <: IndexedRecord] {
-  /* Handle to the root node of the scads namespace */
-  protected val nsNode: ZooKeeperProxy#ZooKeeperNode
-
-  protected def serializeKey(key: KeyType): Array[Byte]
-  protected def deserializeKey(key: Array[Byte]): KeyType
-  protected def getKeySchema(): Schema
+abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord] extends Namespace[KeyType, ValueType] {
 
   case class KeyRange(startKey: Option[KeyType], endKey: Option[KeyType])
-  case class Partition(range: KeyRange, servers: List[PartitionService])    
-  var routingTable : RangeTable[Array[Byte], PartitionService]  = null
+  case class Partition(range: KeyRange, servers: List[PartitionService])
+  var routingTable: RangeTable[Array[Byte], PartitionService] = null
 
-  def createRoutingTable(partitionHandlers: List[PartitionService]): Unit = {
-    val keySchema : Schema = getKeySchema()
+  override def init(){
+    super.init()
+    if(isNewNamespace){
+      val servers = cluster.getRandomServers(defaultReplicationFactor)
+      val ctr : Long = 1
+      nsRoot.createChild("MaxId",  ctr.toString.getBytes, CreateMode.PERSISTENT)
+      var handlers : List[PartitionService] = Nil
+      for (server <- servers){
+        println("Creating connection " + server.port + ":" + server.host )
+        server !? CreatePartitionRequest(namespace, ctr.toString, None, None) match {
+          case CreatePartitionResponse(partitionActor) => partitionActor :: handlers
+          case _ => throw new RuntimeException("Unexpected Message")
+        }
+      }
+      createRoutingTable(handlers) 
+    }else{
+      throw new RuntimeException("Loading a partition is not yet implemented")
+    }
+  }
+
+
+  protected def createRoutingTable(partitionHandlers: List[PartitionService]): Unit = {
+    val keySchema: Schema = getKeySchema()
     routingTable = new RangeTable[Array[Byte], PartitionService](List((None, partitionHandlers)),
-      (a:Array[Byte],b:Array[Byte]) => org.apache.avro.io.BinaryData.compare(a, 0, b, 0, keySchema),
-      (a:List[PartitionService], b:List[PartitionService]) => a.corresponds(b)
-                ((v1 , v2) => (v1.host.compareTo(v2.host) == 0) && (v1.port == v2.port)))
+      (a: Array[Byte], b: Array[Byte]) => org.apache.avro.io.BinaryData.compare(a, 0, b, 0, keySchema),
+      (a: List[PartitionService], b: List[PartitionService]) => a.corresponds(b)
+                ((v1, v2) => (v1.host.compareTo(v2.host) == 0) && (v1.port == v2.port)))
   }
 
   def serversForKey(key: KeyType): List[PartitionService] = {
@@ -137,7 +155,7 @@ class RangeTable[KeyType, ValueType](
     rTable(idxForKey(key)).values
   }
 
-  def valuesForRange(startKey: Option[KeyType], endKey : Option[KeyType]) : Array[RangeType[KeyType, ValueType]] = {
+  def valuesForRange(startKey: Option[KeyType], endKey: Option[KeyType]): Array[RangeType[KeyType, ValueType]] = {
     (startKey, endKey) match {
       case (None, None) => return rTable
       case (None, e) => rTable.slice(0, idxForKey(e) + 1)
