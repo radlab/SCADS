@@ -70,7 +70,18 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
 
         reply(CreatePartitionResponse(handler.remoteHandle.toPartitionService))
       }
-      case _ => reply(ProcessingException("Unimplmented", ""))
+      case SplitPartitionRequest(partitionId, splitPoint) => throw new RuntimeException("Unimplemented")
+      case MergePartitionRequest(paritionId1, partitionId2) => throw new RuntimeException("Unimplemented")
+      case DeletePartitionRequest(partitionId) => {
+        /* Get the handler and shut it down */
+        val handler = partitions.get(partitionId).getOrElse {reply(InvalidPartition(partitionId)); return}
+        val dbName = handler.db.getDatabaseName()
+        handler.stop
+
+        env.removeDatabase(null, dbName)
+        reply(DeletePartitionResponse())
+      }
+      case _ => reply(RequestRejected("StorageHandler can't process this message type", msg))
     }
   }
 }
