@@ -52,7 +52,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
 
         /* Configure the new database */
         logger.info("Opening bdb table for partition: " + createRequest)
-        val comp = new AvroComparator(keySchemaJson)
+        val comp = new AvroBdbComparator(keySchemaJson)
         val dbConfig = new DatabaseConfig
         dbConfig.setAllowCreate(true)
         dbConfig.setBtreeComparator(comp)
@@ -61,7 +61,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
         /* Grab a lock on the partitionId. Open the database and instanciate the handler. */
         val partitionIdLock = nsRoot("partitions").createChild(partitionId, "".getBytes, CreateMode.EPHEMERAL)
         val db = env.openDatabase(null, createRequest.toJson, dbConfig)
-        val handler = new PartitionHandler(db, partitionIdLock, startKey, endKey, nsRoot)
+        val handler = new PartitionHandler(db, partitionIdLock, startKey, endKey, nsRoot, Schema.parse(keySchemaJson))
 
         /* Add to our list of open partitions */
         partitions.synchronized {
@@ -70,8 +70,15 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
 
         reply(CreatePartitionResponse(handler.remoteHandle.toPartitionService))
       }
-      case SplitPartitionRequest(partitionId, splitPoint) => throw new RuntimeException("Unimplemented")
-      case MergePartitionRequest(paritionId1, partitionId2) => throw new RuntimeException("Unimplemented")
+      case SplitPartitionRequest(partitionId, splitPoint) => {
+        val handler = partitions.get(partitionId).getOrElse {reply(InvalidPartition(partitionId)); return}
+        throw new RuntimeException("Unimplemented")
+      }
+      case MergePartitionRequest(partitionId1, partitionId2) => {
+        val handler1 = partitions.get(partitionId1).getOrElse {reply(InvalidPartition(partitionId1)); return}
+        val handler2 = partitions.get(partitionId2).getOrElse {reply(InvalidPartition(partitionId2)); return}
+        throw new RuntimeException("Unimplemented")
+      }
       case DeletePartitionRequest(partitionId) => {
         /* Get the handler and shut it down */
         val handler = partitions.get(partitionId).getOrElse {reply(InvalidPartition(partitionId)); return}

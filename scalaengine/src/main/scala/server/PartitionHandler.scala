@@ -1,11 +1,12 @@
 package edu.berkeley.cs.scads.storage
 
 import com.sleepycat.je.{Cursor,Database, DatabaseConfig, DatabaseException, DatabaseEntry, Environment, LockMode, OperationStatus, Durability, Transaction}
+import org.apache.avro.Schema
 import org.apache.log4j.Logger
 
 import edu.berkeley.cs.scads.comm._
 
-class PartitionHandler(val db: Database, partitionIdLock: ZooKeeperProxy#ZooKeeperNode, val startKey: Option[Array[Byte]], val endKey: Option[Array[Byte]], nsRoot: ZooKeeperProxy#ZooKeeperNode) extends ServiceHandler[PartitionServiceOperation] {
+class PartitionHandler(val db: Database, partitionIdLock: ZooKeeperProxy#ZooKeeperNode, val startKey: Option[Array[Byte]], val endKey: Option[Array[Byte]], nsRoot: ZooKeeperProxy#ZooKeeperNode, val keySchema: Schema) extends ServiceHandler[PartitionServiceOperation] with AvroComparator {
   protected val logger = Logger.getLogger("scads.partitionhandler")
 
   protected def startup(): Unit = null
@@ -28,6 +29,59 @@ class PartitionHandler(val db: Database, partitionIdLock: ZooKeeperProxy#ZooKeep
         reply(PutResponse())
       }
       case _ => src.foreach(_ ! ProcessingException("Not Implemented", ""))
+    }
+  }
+
+  def iterateOverRange(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], func: (DatabaseEntry, DatabaseEntry, Cursor) => Unit, limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true, txn: Option[Transaction] = None): Unit = {
+    val (dbeKey, dbeValue) = (new DatabaseEntry, new DatabaseEntry)
+    val cur = db.openCursor(txn.orNull,null)
+
+    var status: OperationStatus = (ascending, minKey, maxKey) match {
+      case (true, None, _) => cur.getFirst(dbeKey, dbeValue, null)
+      case (true, Some(startKey), _) => cur.getSearchKeyRange(new DatabaseEntry(startKey), dbeValue, null)
+      case (false, _, None) => cur.getLast(dbeKey, dbeValue, null)
+      case (false, _, Some(startKey)) => {
+        // Check if maxKey is past the last key in the database, if so start from the end
+        if(cur.getSearchKeyRange(new DatabaseEntry(startKey), dbeValue, null) == OperationStatus.NOTFOUND)
+          cur.getLast(dbeKey, dbeValue, null)
+        else
+          OperationStatus.SUCCESS
+      }
+    }
+
+    var toSkip = offset.getOrElse(0)
+    var returnedCount = 0
+    if (status != OperationStatus.SUCCESS) return
+
+    if(ascending) {
+      while(toSkip > 0 && status == OperationStatus.SUCCESS) {
+        status = cur.getNext(dbeKey, dbeValue, null)
+        toSkip -= 1
+      }
+
+      status = cur.getCurrent(dbeKey, dbeValue, null)
+      while(status == OperationStatus.SUCCESS &&
+            limit.map(_ < returnedCount).getOrElse(true) &&
+            maxKey.map(compare(_, dbeKey.getData) > 0).getOrElse(true)) {
+        func(dbeKey, dbeValue,cur)
+        returnedCount += 1
+        status = cur.getNext(dbeKey, dbeValue, null)
+      }
+    }
+    else {
+      while(toSkip > 0 && status == OperationStatus.SUCCESS) {
+        status = cur.getPrev(dbeKey, dbeValue, null)
+        toSkip -= 1
+      }
+
+      status = cur.getCurrent(dbeKey, dbeValue, null)
+      while(status == OperationStatus.SUCCESS &&
+            limit.map(_ < returnedCount).getOrElse(true) &&
+            minKey.map(compare(_, dbeKey.getData) < 0).getOrElse(true)) {
+        func(dbeKey, dbeValue,cur)
+        returnedCount += 1
+        status = cur.getPrev(dbeKey, dbeValue, null)
+      }
     }
   }
 }
