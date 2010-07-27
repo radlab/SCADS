@@ -43,5 +43,14 @@ class StorageHandlerSpec extends Spec with ShouldMatchers {
         handler.remoteHandle !? CreatePartitionRequest("testns", "1", None, None)
       } should produce[Exception]
     }
+
+    it("should delete partitions") {
+      val handler = getHandler().remoteHandle
+      handler !? CreatePartitionRequest("testns", "1", None, None)
+      handler !? DeletePartitionRequest("1") match {
+        case DeletePartitionResponse() => true
+        case u => fail("Unexpected response to delete partition: " + u)
+      }
+    }
   }
 }

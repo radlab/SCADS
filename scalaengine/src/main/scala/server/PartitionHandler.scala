@@ -5,7 +5,7 @@ import org.apache.log4j.Logger
 
 import edu.berkeley.cs.scads.comm._
 
-class PartitionHandler(db: Database, partitionIdLock: ZooKeeperProxy#ZooKeeperNode, startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], nsRoot: ZooKeeperProxy#ZooKeeperNode) extends ServiceHandler[PartitionServiceOperation] {
+class PartitionHandler(val db: Database, partitionIdLock: ZooKeeperProxy#ZooKeeperNode, val startKey: Option[Array[Byte]], val endKey: Option[Array[Byte]], nsRoot: ZooKeeperProxy#ZooKeeperNode) extends ServiceHandler[PartitionServiceOperation] {
   protected val logger = Logger.getLogger("scads.partitionhandler")
 
   protected def startup(): Unit = null

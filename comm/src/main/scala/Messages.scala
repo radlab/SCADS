@@ -18,6 +18,7 @@ case class Record(var key: Array[Byte], var value: Option[Array[Byte]]) extends 
 @AvroUnion sealed trait RemoteException extends MessageBody
 case class ProcessingException(var cause: String, var stacktrace: String) extends RemoteException with AvroRecord
 case class RequestRejected(var reason: String, var req: MessageBody) extends RemoteException with AvroRecord
+case class InvalidPartition(var partitionId: String) extends RemoteException with AvroRecord
 
 /* KVStore Operations */
 @AvroUnion sealed trait KeyValueStoreOperation extends PartitionServiceOperation
@@ -50,7 +51,8 @@ case class SplitPartitionResponse(var newPartitionService: PartitionService) ext
 case class MergePartitionRequest(var paritionId1: String, var partitionId2: String) extends AvroRecord with StorageServiceOperation
 case class MergePartitionResponse(var mergedPartitionService: PartitionService) extends AvroRecord with StorageServiceOperation
 
-case class DeletePartition(var partitionId: String) extends AvroRecord with StorageServiceOperation
+case class DeletePartitionRequest(var partitionId: String) extends AvroRecord with StorageServiceOperation
+case class DeletePartitionResponse() extends AvroRecord with StorageServiceOperation
 
 /* Partition Handler Operations */
 @AvroUnion sealed trait PartitionServiceOperation extends MessageBody
