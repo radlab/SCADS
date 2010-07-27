@@ -50,7 +50,8 @@ case class SplitPartitionResponse(var newPartitionService: PartitionService) ext
 case class MergePartitionRequest(var paritionId1: String, var partitionId2: String) extends AvroRecord with StorageServiceOperation
 case class MergePartitionResponse(var mergedPartitionService: PartitionService) extends AvroRecord with StorageServiceOperation
 
-case class DeletePartition(var partitionId: String) extends AvroRecord with StorageServiceOperation
+case class DeletePartitionRequest(var partitionId: String) extends AvroRecord with StorageServiceOperation
+case class DeletePartitionResponse() extends AvroRecord with StorageServiceOperation
 
 /* Partition Handler Operations */
 @AvroUnion sealed trait PartitionServiceOperation extends MessageBody
