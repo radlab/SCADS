@@ -8,6 +8,8 @@ import scala.collection.mutable.HashMap
 import scala.collection.JavaConversions._
 import org.apache.log4j.Logger
 
+object RClusterZoo extends ZooKeeperProxy("r2:2181")
+
 /**
  * Scalafied interface to Zookeeper
  * TODO: Add the ability to execute callbacks on watches (possibly with weak references to callbacks)
