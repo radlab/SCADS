@@ -16,6 +16,7 @@ import org.apache.zookeeper.CreateMode
  */
 class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) extends ServiceHandler[StorageServiceOperation] {
   protected val logger = Logger.getLogger("scads.storagehandler")
+  implicit def toOption[A](a: A): Option[A] = Option(a)
 
   /* Hashmap of currently open partition handler, indexed by partitionId */
   protected var partitions = new scala.collection.immutable.HashMap[String, PartitionHandler]
@@ -77,13 +78,46 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
       case MergePartitionRequest(partitionId1, partitionId2) => {
         val handler1 = partitions.get(partitionId1).getOrElse {reply(InvalidPartition(partitionId1)); return}
         val handler2 = partitions.get(partitionId2).getOrElse {reply(InvalidPartition(partitionId2)); return}
-        throw new RuntimeException("Unimplemented")
+
+        /* Validate the merge and shutdown request handling for both partitions */
+        if(handler1.keySchema != handler2.keySchema) throw new RuntimeException("Can't merge handlers with different schemas")
+        if(handler1.compare(handler1.endKey.get, handler2.startKey.get) != 0) throw new RuntimeException("Partition1 endKey different than Partition2 startKey. Merge Aborted. " + handler1.endKey.get.toList + " " +  handler2.startKey.get.toList)
+        handler1.stop
+        handler2.stop
+
+        /* Copy the data from partition2 to partition1 */
+        val txn = env.beginTransaction(null, null)
+        handler2.iterateOverRange(None, None, txn=txn)((key, value, cursor) => {
+          handler1.db.put(txn, key, value)
+          cursor.delete()
+        })
+
+        /* Delete the old database and update the name of the remaining one to reflect the new responsibility policy */
+        val oldName = handler1.db.getDatabaseName
+        val newName = CreatePartitionRequest(handler1.nsRoot.name, handler1.partitionIdLock.name, handler1.startKey, handler2.endKey).toJson
+        val deleteDbName = handler2.db.getDatabaseName()
+        handler1.db.close()
+        handler2.db.close()
+        env.renameDatabase(txn, oldName, newName)
+        env.removeDatabase(txn, deleteDbName)
+
+        /* Reopen the database with the new configuration and create a new partition handler */
+        val comp = new AvroBdbComparator(handler1.keySchema.toString)
+        val dbConfig = new DatabaseConfig
+        dbConfig.setAllowCreate(true)
+        dbConfig.setBtreeComparator(comp)
+        dbConfig.setTransactional(true)
+        val newHandler = new PartitionHandler(env.openDatabase(txn, newName, dbConfig), handler1.partitionIdLock, handler1.startKey, handler2.endKey, handler1.nsRoot, handler1.keySchema)
+
+        txn.commit()
+        reply(MergePartitionResponse(newHandler.remoteHandle.toPartitionService))
       }
       case DeletePartitionRequest(partitionId) => {
         /* Get the handler and shut it down */
         val handler = partitions.get(partitionId).getOrElse {reply(InvalidPartition(partitionId)); return}
         val dbName = handler.db.getDatabaseName()
         handler.stop
+        handler.db.close()
 
         env.removeDatabase(null, dbName)
         reply(DeletePartitionResponse())

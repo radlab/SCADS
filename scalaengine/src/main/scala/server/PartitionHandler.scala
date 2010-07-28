@@ -6,11 +6,12 @@ import org.apache.log4j.Logger
 
 import edu.berkeley.cs.scads.comm._
 
-class PartitionHandler(val db: Database, partitionIdLock: ZooKeeperProxy#ZooKeeperNode, val startKey: Option[Array[Byte]], val endKey: Option[Array[Byte]], nsRoot: ZooKeeperProxy#ZooKeeperNode, val keySchema: Schema) extends ServiceHandler[PartitionServiceOperation] with AvroComparator {
+class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, val startKey: Option[Array[Byte]], val endKey: Option[Array[Byte]], val nsRoot: ZooKeeperProxy#ZooKeeperNode, val keySchema: Schema) extends ServiceHandler[PartitionServiceOperation] with AvroComparator {
   protected val logger = Logger.getLogger("scads.partitionhandler")
+  implicit def toOption[A](a: A): Option[A] = Option(a)
 
   protected def startup(): Unit = null
-  protected def shutdown(): Unit = db.close()
+  protected def shutdown(): Unit = null
 
   protected def process(src: Option[RemoteActorProxy], msg: PartitionServiceOperation): Unit = {
     def reply(msg: MessageBody) = src.foreach(_ ! msg)
@@ -32,7 +33,7 @@ class PartitionHandler(val db: Database, partitionIdLock: ZooKeeperProxy#ZooKeep
     }
   }
 
-  def iterateOverRange(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], func: (DatabaseEntry, DatabaseEntry, Cursor) => Unit, limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true, txn: Option[Transaction] = None): Unit = {
+  def iterateOverRange(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true, txn: Option[Transaction] = None)(func: (DatabaseEntry, DatabaseEntry, Cursor) => Unit): Unit = {
     val (dbeKey, dbeValue) = (new DatabaseEntry, new DatabaseEntry)
     val cur = db.openCursor(txn.orNull,null)
 
@@ -83,5 +84,6 @@ class PartitionHandler(val db: Database, partitionIdLock: ZooKeeperProxy#ZooKeep
         status = cur.getPrev(dbeKey, dbeValue, null)
       }
     }
+    cur.close()
   }
 }
