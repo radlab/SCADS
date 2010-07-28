@@ -36,6 +36,33 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
         })
         reply(GetRangeResponse(records.toList))
       }
+      case CountRangeRequest(minKey, maxKey) => {
+        var count = 0
+        iterateOverRange(minKey, maxKey)((_,_,_) => count += 1)
+        reply(CountRangeResponse(count))
+      }
+      case TestSetRequest(key, value, expectedValue) => {
+        val txn = db.getEnvironment.beginTransaction(null, null)
+        val dbeKey = new DatabaseEntry(key)
+        val dbeCurrentValue = new DatabaseEntry
+        db.get(txn, dbeKey, dbeCurrentValue, LockMode.READ_COMMITTED)
+        val matches = (expectedValue, Option(dbeCurrentValue.getData)) match {
+          case (None, None) => true
+          case (Some(x), Some(y)) if(java.util.Arrays.equals(x,y)) => true
+          case _ => false
+        }
+        if(matches){
+          value match {
+            case Some(v) => db.put(txn, dbeKey, new DatabaseEntry(v))
+            case None => db.delete(txn, dbeKey)
+          }
+          txn.commit()
+          reply(TestSetResponse(true))
+        } else {
+          txn.abort()
+          reply(TestSetResponse(false))
+        }
+      }
       case _ => src.foreach(_ ! ProcessingException("Not Implemented", ""))
     }
   }
