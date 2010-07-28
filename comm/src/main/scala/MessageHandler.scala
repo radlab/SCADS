@@ -31,7 +31,6 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
   def registerService(service: MessageReceiver): RemoteActor = {
     val id = ActorNumber(curActorId.getAndIncrement)
     serviceRegistry.put(id, service)
-    println("Registering service " + hostname + ":" + getLocalPort + ":" + id)
     RemoteActor(hostname, getLocalPort, id)
   }
 

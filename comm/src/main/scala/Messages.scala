@@ -65,3 +65,8 @@ case class GetResponsibilityResponse(var startKey: Option[Array[Byte]], var endK
 /* Test Record Types.  Note: they are here due to problems with the typer (i.e. generated methods aren't visable in the same compilation cycle */
 case class IntRec(var f1: Int) extends AvroRecord
 case class StringRec(var f1: String) extends AvroRecord
+
+
+/* Routing Table Types.  Note: they are here due to problems with the typer (i.e. generated methods aren't visable in the same compilation cycle */
+case class KeyRange(var endKey: Option[Array[Byte]], var servers : List[PartitionService]) extends AvroRecord
+case class Partition(var partitions: List[KeyRange]) extends AvroRecord

@@ -62,7 +62,7 @@ class RangeTableSpec extends WordSpec with ShouldMatchers {
       val r2 = rTable.valuesForRange(Some(0), Some(15))
       transformRangeArray(r2) should be === List((Some(10),List("S1")), (Some(20),List("S2")))
       val r3 = rTable.valuesForRange(Some(30), Some(45))
-      transformRangeArray(r3) should be === List((Some(30),List("S3")), (Some(40),List("S4")), (Some(50),List("S5")))
+      transformRangeArray(r3) should be === List((Some(40),List("S4")), (Some(50),List("S5")))
       val r4 = rTable.valuesForRange(Some(45), Some(70))
       transformRangeArray(r4) should be === List((Some(50),List("S5")), (Some(60),List("S6")), (None, List("S7")))
       val r5 = rTable.valuesForRange(Some(55), None)
@@ -78,20 +78,20 @@ class RangeTableSpec extends WordSpec with ShouldMatchers {
     }
 
 
-    "return the left range for split keys" in {
-      rTable.valuesForKey(10) should be === List("S1")
-      rTable.valuesForKey(20) should be === List("S2")
-      rTable.valuesForKey(60) should be === List("S6")
+    "return the right range for split keys" in {
+      rTable.valuesForKey(10) should be === List("S2")
+      rTable.valuesForKey(20) should be === List("S3")
+      rTable.valuesForKey(60) should be === List("S7")
     }
 
     "allow to add values" in {
-      rTable.addValueToRange(9, "S10")
-      rTable.addValueToRange(10, "S11")
-      rTable.addValueToRange(35, "S30")
-      rTable.addValueToRange(None, "S100")
+      rTable = rTable.addValueToRange(10, "S10")
+      rTable = rTable.addValueToRange(9, "S11")
+      rTable = rTable.addValueToRange(35, "S30")
+      rTable = rTable.addValueToRange(None, "S100")
 
-      rTable.valuesForKey(5) should be === List("S11", "S10", "S1")
-      rTable.valuesForKey(15) should be === List("S2")
+      rTable.valuesForKey(5) should be === List("S11", "S1")
+      rTable.valuesForKey(15) should be === List("S10", "S2")
       rTable.valuesForKey(25) should be === List("S3")
       rTable.valuesForKey(35) should be === List("S30", "S4")
       rTable.valuesForKey(45) should be === List("S5")
@@ -102,15 +102,16 @@ class RangeTableSpec extends WordSpec with ShouldMatchers {
 
     "prevent adding the same value" in {
       intercept[IllegalArgumentException] {
-        rTable.addValueToRange(10, "S11")
+       rTable.addValueToRange(10, "S10")
       }
     }
 
     "delete values" in {
-      rTable.removeValueFromRange(9, "S1")
-      rTable.removeValueFromRange(10, "S10")
-      rTable.removeValueFromRange(35, "S30")
-      rTable.removeValueFromRange(None, "S100")
+      rTable = rTable.removeValueFromRange(9, "S1")
+      rTable = rTable.removeValueFromRange(10, "S10")
+      rTable = rTable.removeValueFromRange(35, "S30")
+      rTable = rTable.removeValueFromRange(None, "S100")
+
       rTable.valuesForKey(5) should be === List("S11")
       rTable.valuesForKey(15) should be === List("S2")
       rTable.valuesForKey(25) should be === List("S3")
@@ -163,8 +164,8 @@ class RangeTableSpec extends WordSpec with ShouldMatchers {
       rangeTable = rangeTable.split(10, List("S1"))
       rangeTable = rangeTable.split(20, List("S1"))
 
-      rangeTable.addValueToRange(10, "S2")
-      rangeTable.addValueToRange(20, "S3")
+      rangeTable = rangeTable.addValueToRange(5, "S2")
+      rangeTable = rangeTable.addValueToRange(15, "S3")
 
       rangeTable.merge(10) should be === null
       rangeTable.merge(20) should be === null
@@ -173,8 +174,8 @@ class RangeTableSpec extends WordSpec with ShouldMatchers {
       rangeTable.valuesForKey(15) should be === List("S3", "S1")
       rangeTable.valuesForKey(25) should be === List("S1")
 
-      rangeTable.addValueToRange(10, "S3")
-      rangeTable.removeValueFromRange(10, "S2")
+      rangeTable = rangeTable.addValueToRange(5, "S3")
+      rangeTable = rangeTable.removeValueFromRange(5, "S2")
       rangeTable = rangeTable.merge(10)
       rangeTable should not be === (null)
 
@@ -184,7 +185,7 @@ class RangeTableSpec extends WordSpec with ShouldMatchers {
 
       rangeTable.merge(20) should be === (null)
 
-      rangeTable.removeValueFromRange(20, "S3")
+      rangeTable = rangeTable.removeValueFromRange(15, "S3")
 
       rangeTable = rangeTable.merge(20)
       rangeTable should not be (null)

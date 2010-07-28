@@ -8,6 +8,7 @@ import org.apache.avro.Schema
 import java.util.{Comparator, Arrays}
 import edu.berkeley.cs.scads.storage.Namespace
 import org.apache.zookeeper.CreateMode
+import com.googlecode.avro.marker.AvroRecord
 /* TODO: Stack RepartitioningProtocol on Routing Table to build working implementation */
 //abstract trait RepartitioningProtocol[KeyType <: IndexedRecord] extends RoutingTable[KeyType] {
 //  override def splitPartition(splitPoint: KeyType): List[PartitionService] = throw new RuntimeException("Unimplemented")
@@ -22,8 +23,7 @@ import org.apache.zookeeper.CreateMode
 
 abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord] extends Namespace[KeyType, ValueType] {
 
-  case class KeyRange(startKey: Option[KeyType], endKey: Option[KeyType])
-  case class Partition(range: KeyRange, servers: List[PartitionService])
+  
   var routingTable: RangeTable[Array[Byte], PartitionService] = null
 
   /**
@@ -142,12 +142,15 @@ class RangeTable[KeyType, ValueType](
   def idxForKey(key: Option[KeyType]): Int = {
     val pKey = new RangeType[KeyType, ValueType](key, Nil)
     val bpos = Arrays.binarySearch(rTable, pKey, keyComparator)
-    if(bpos == rTable.length)
+
+    if(bpos < 0) //nb is in range. This is the most common case, should be placed first
+     ((bpos + 1) * -1)
+    else if(bpos == rTable.length)
       throw new RuntimeException("A key always has to belong to a range. Probably the given comparison function is incorrect.")
-    if (bpos < 0)
-      ((bpos + 1) * -1)
-    else
-      bpos
+    else if (bpos < rTable.length - 1){ //the endkey is right included not left
+      bpos + 1
+    }else
+      bpos //that is the endkey = none case
   }
 
   /**
@@ -225,20 +228,24 @@ class RangeTable[KeyType, ValueType](
 
   def ranges: List[(Option[KeyType], List[ValueType])] = rTable.map(item => (item.maxKey, item.values)).toList
 
-  def addValueToRange(key: KeyType, value: ValueType): Unit = addValueToRange(Option(key), value)
+  def addValueToRange(key: KeyType, value: ValueType): RangeTable[KeyType, ValueType] = addValueToRange(Option(key), value)
 
-  def addValueToRange(key: Option[KeyType], value: ValueType): Unit = {
+  def addValueToRange(key: Option[KeyType], value: ValueType): RangeTable[KeyType, ValueType] = {
     val idx = idxForKey(key)
     val range = rTable(idx)
-    rTable(idx) = range.add(value)
+    val newRTable = rTable.clone
+    newRTable(idx) = range.add(value)
+    return new RangeTable[KeyType, ValueType](newRTable, keyComparator, mergeCondition)
   }
 
-  def removeValueFromRange(key: KeyType, value: ValueType): Unit = removeValueFromRange(Option(key), value)
+  def removeValueFromRange(key: KeyType, value: ValueType): RangeTable[KeyType, ValueType] = removeValueFromRange(Option(key), value)
 
-  def removeValueFromRange(key: Option[KeyType], value: ValueType): Unit = {
+  def removeValueFromRange(key: Option[KeyType], value: ValueType): RangeTable[KeyType, ValueType] = {
     val idx = idxForKey(key)
     val range = rTable(idx)
-    rTable(idx) = range.remove(value)
+    val newRTable = rTable.clone
+    newRTable(idx) = range.remove(value)
+    return new RangeTable[KeyType, ValueType](newRTable, keyComparator, mergeCondition)
   }
 
 
@@ -247,6 +254,8 @@ class RangeTable[KeyType, ValueType](
   }
 
 }
+
+
 
 /**
  * Represents a range inside RangeTable.
