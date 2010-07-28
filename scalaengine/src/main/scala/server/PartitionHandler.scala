@@ -63,8 +63,8 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
       status = cur.getCurrent(dbeKey, dbeValue, null)
       while(status == OperationStatus.SUCCESS &&
             limit.map(_ < returnedCount).getOrElse(true) &&
-            maxKey.map(compare(_, dbeKey.getData) > 0).getOrElse(true)) {
-        func(dbeKey, dbeValue,cur)
+            maxKey.map(compare(_, dbeKey.getData) <= 0).getOrElse(true)) {
+        func(dbeKey, dbeValue, cur)
         returnedCount += 1
         status = cur.getNext(dbeKey, dbeValue, null)
       }
@@ -78,7 +78,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
       status = cur.getCurrent(dbeKey, dbeValue, null)
       while(status == OperationStatus.SUCCESS &&
             limit.map(_ < returnedCount).getOrElse(true) &&
-            minKey.map(compare(_, dbeKey.getData) < 0).getOrElse(true)) {
+            minKey.map(compare(_, dbeKey.getData) >= 0).getOrElse(true)) {
         func(dbeKey, dbeValue,cur)
         returnedCount += 1
         status = cur.getPrev(dbeKey, dbeValue, null)
