@@ -56,7 +56,7 @@ case class DeletePartitionResponse() extends AvroRecord with StorageServiceOpera
 
 /* Partition Handler Operations */
 @AvroUnion sealed trait PartitionServiceOperation extends MessageBody
-case class CopyData(var dest: PartitionService, var overwrite: Boolean) extends AvroRecord with PartitionServiceOperation
+case class CopyData(var src: PartitionService, var overwrite: Boolean) extends AvroRecord with PartitionServiceOperation
 
 case class GetResponsibilityRequest() extends AvroRecord with PartitionServiceOperation
 case class GetResponsibilityResponse(var startKey: Option[Array[Byte]], var endKey: Option[Array[Byte]]) extends AvroRecord with PartitionServiceOperation
