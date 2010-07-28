@@ -63,6 +63,27 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           reply(TestSetResponse(false))
         }
       }
+      case CopyDataRequest(src, overwrite) => {
+        val txn = db.getEnvironment.beginTransaction(null, null)
+        val dbeExistingValue = new DatabaseEntry
+        val dbeKey = new DatabaseEntry
+        val dbeValue = new DatabaseEntry
+        val iter = new PartitionIterator(src, None, None)
+
+        iter.foreach(rec => {
+          dbeKey.setData(rec.key); dbeValue.setData(rec.value.get)
+          if(overwrite == true) {
+            db.put(txn, dbeKey, dbeValue)
+          }
+          else {
+            db.get(txn, dbeKey, dbeExistingValue, LockMode.READ_COMMITTED)
+            if(dbeExistingValue.getData == null)
+              db.put(txn, dbeKey, dbeValue)
+          }
+        })
+        txn.commit()
+        reply(CopyDataResponse())
+      }
       case _ => src.foreach(_ ! ProcessingException("Not Implemented", ""))
     }
   }
