@@ -29,6 +29,13 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
         }
         reply(PutResponse())
       }
+      case GetRangeRequest(minKey, maxKey, limit, offset, ascending) => {
+        val records = new scala.collection.mutable.ArrayBuffer[Record]
+        iterateOverRange(minKey, maxKey, limit, offset, ascending)((key, value, _) => {
+          records += Record(key.getData, value.getData)
+        })
+        reply(GetRangeResponse(records.toList))
+      }
       case _ => src.foreach(_ ! ProcessingException("Not Implemented", ""))
     }
   }
