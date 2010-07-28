@@ -4,7 +4,16 @@ import mesos._
 import java.io.File
 import org.apache.log4j.Logger
 
-object ScadsScheduler extends Scheduler {
+object ScadsScheduler {
+  def main(args: Array[String]): Unit = {
+    System.loadLibrary("mesos")
+    org.apache.log4j.BasicConfigurator.configure()
+    new MesosSchedulerDriver(new ScadsScheduler(), "1@169.229.48.70:9999").run();
+  }
+
+}
+
+class ScadsScheduler extends Scheduler {
   val logger = Logger.getLogger("scads.mesos.scheduler")
   var taskId = 0
   override def getFrameworkName(d: SchedulerDriver): String = "SCADS Framework"
@@ -32,24 +41,22 @@ object ScadsScheduler extends Scheduler {
     logger.info("Status Update: " + code + " " + message)
   }
 
+}
+
+object ScadsExecutor {
   def main(args: Array[String]): Unit = {
     System.loadLibrary("mesos")
-    org.apache.log4j.BasicConfigurator.configure()
-    new MesosSchedulerDriver(this, "1@169.229.48.70:9999").run();
+    val driver = new MesosExecutorDriver(new ScadsExecutor())
+    driver.run()
   }
 }
 
-object ScadsExecutor extends Executor {
+class ScadsExecutor extends Executor {
   System.loadLibrary("mesos")
 
   override def launchTask(d: ExecutorDriver, task: TaskDescription): Unit = {
     println("Starting storage handler" + task.getTaskId())
+    println("Current Directory: " + System.getProperty("user.dir"))
     edu.berkeley.cs.scads.storage.ScalaEngine.main(Some("scads"), Some("r2:2181"), None, None, true)
-  }
-
-  def main(args: Array[String]): Unit = {
-    System.loadLibrary("mesos")
-    val driver = new MesosExecutorDriver(this)
-    driver.run()
   }
 }
