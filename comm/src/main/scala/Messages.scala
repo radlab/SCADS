@@ -31,7 +31,7 @@ case class PutResponse() extends AvroRecord with KeyValueStoreOperation
 case class GetRangeRequest(var minKey: Option[Array[Byte]], var maxKey: Option[Array[Byte]], var limit: Option[Int] = None, var offset: Option[Int] = None, var ascending: Boolean = true) extends AvroRecord with KeyValueStoreOperation
 case class GetRangeResponse(var records: List[Record]) extends AvroRecord with KeyValueStoreOperation
 
-case class CountRangeRequest(var startKey: Option[Array[Byte]], var endKey: Option[Array[Byte]]) extends AvroRecord with KeyValueStoreOperation
+case class CountRangeRequest(var minKey: Option[Array[Byte]], var maxKey: Option[Array[Byte]]) extends AvroRecord with KeyValueStoreOperation
 case class CountRangeResponse(var count: Int) extends AvroRecord with KeyValueStoreOperation
 
 case class GetPrefixRequest(var prefix: Array[Byte], var prefixSize: Int, var limit: Option[Int] = None, var offset: Option[Int] = None, var ascending: Boolean = true) extends AvroRecord with KeyValueStoreOperation
