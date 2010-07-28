@@ -8,7 +8,7 @@ object ScadsScheduler {
   def main(args: Array[String]): Unit = {
     System.loadLibrary("mesos")
     org.apache.log4j.BasicConfigurator.configure()
-    new MesosSchedulerDriver(new ScadsScheduler(), "1@169.229.48.70:9999").run();
+    new MesosSchedulerDriver(new ScadsScheduler(), "1@169.229.48.70:5050").run();
   }
 
 }
@@ -34,7 +34,6 @@ class ScadsScheduler extends Scheduler {
     val params = new StringMap()
     params.set("timeout", "1")
     d.replyToOffer(oid, tasks, params)
-
   }
 
   def statusUpdate(d: SchedulerDriver, code: Int, message: String): Unit = {
@@ -46,6 +45,7 @@ class ScadsScheduler extends Scheduler {
 object ScadsExecutor {
   def main(args: Array[String]): Unit = {
     System.loadLibrary("mesos")
+    org.apache.log4j.BasicConfigurator.configure()
     val driver = new MesosExecutorDriver(new ScadsExecutor())
     driver.run()
   }
@@ -56,7 +56,9 @@ class ScadsExecutor extends Executor {
 
   override def launchTask(d: ExecutorDriver, task: TaskDescription): Unit = {
     println("Starting storage handler" + task.getTaskId())
-    println("Current Directory: " + System.getProperty("user.dir"))
-    edu.berkeley.cs.scads.storage.ScalaEngine.main(Some("scads"), Some("r2:2181"), None, None, true)
+    val tempDir = File.createTempFile("scads", "mesosdb")
+    tempDir.delete()
+    tempDir.mkdir()
+    edu.berkeley.cs.scads.storage.ScalaEngine.main(Some("scads"), Some("r2:2181"), Some(tempDir), None, true)
   }
 }
