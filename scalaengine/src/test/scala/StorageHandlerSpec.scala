@@ -77,5 +77,40 @@ class StorageHandlerSpec extends Spec with ShouldMatchers {
         case u => fail("Merged partition doesn't contain " + i + " instead got: " + u)
       })
     }
+
+    it("should split partitions") {
+      val handler = getHandler().remoteHandle
+      val p = handler !? CreatePartitionRequest("testns", "1", None, IntRec(5).toBytes) match {
+        case CreatePartitionResponse(p) => p
+        case _ => fail("Unexpected response to create partition")
+      }
+
+      (1 to 10).foreach(i => p !? PutRequest(IntRec(i).toBytes, IntRec(i).toBytes))
+
+      val (p1, p2) = handler !? SplitPartitionRequest("1", "2", IntRec(5).toBytes) match {
+        case SplitPartitionResponse(p1, p2) => (p1, p2)
+        case _ => fail("Unexpected response to MergePartition")
+      }
+
+      (1 to 4).foreach(i => p1 !? GetRequest(IntRec(i).toBytes) match {
+        case GetResponse(Some(bytes)) => new IntRec().parse(bytes) should equal(IntRec(i))
+        case u => fail("P1 doesn't contain " + i + " instead got: " + u)
+      })
+
+      (5 to 10).foreach(i => p2 !? GetRequest(IntRec(i).toBytes) match {
+        case GetResponse(Some(bytes)) => new IntRec().parse(bytes) should equal(IntRec(i))
+        case u => fail("P2 doesn't contain " + i + " instead got: " + u)
+      })
+
+      (1 to 4).foreach(i => p2 !? GetRequest(IntRec(i).toBytes) match {
+        case GetResponse(None) =>
+        case u => fail("p1 shouldn't still contain " + i)
+      })
+
+      (5 to 10).foreach(i => p1 !? GetRequest(IntRec(i).toBytes) match {
+        case GetResponse(None) =>
+        case u => fail("p2 shouldn't contain " + i)
+      })
+    }
   }
 }

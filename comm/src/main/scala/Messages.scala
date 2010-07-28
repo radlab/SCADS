@@ -45,8 +45,8 @@ case class TestSetResponse(var success: Boolean) extends AvroRecord with KeyValu
 case class CreatePartitionRequest(var namespace: String, var paritionId: String, var startKey: Option[Array[Byte]] = None, var endKey: Option[Array[Byte]] = None) extends AvroRecord with StorageServiceOperation
 case class CreatePartitionResponse(var partitionActor: PartitionService) extends AvroRecord with StorageServiceOperation
 
-case class SplitPartitionRequest(var partitionId: String, var splitPoint: Array[Byte]) extends AvroRecord with StorageServiceOperation
-case class SplitPartitionResponse(var newPartitionService: PartitionService) extends AvroRecord with StorageServiceOperation
+case class SplitPartitionRequest(var partitionId: String, var newPartitionId: String, var splitPoint: Array[Byte]) extends AvroRecord with StorageServiceOperation
+case class SplitPartitionResponse(var partition1: PartitionService, var partition2: PartitionService) extends AvroRecord with StorageServiceOperation
 
 case class MergePartitionRequest(var paritionId1: String, var partitionId2: String) extends AvroRecord with StorageServiceOperation
 case class MergePartitionResponse(var mergedPartitionService: PartitionService) extends AvroRecord with StorageServiceOperation
