@@ -29,48 +29,68 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
   var routingTable: RangeTable[Array[Byte], PartitionService] = null
   val ZOOKEEPER_ROUTING_TABLE = "routingtable"
   val ZOOKEEPER_PARTITION_ID = "partitionid"
+  var partCtr : Long = 0 //TODO remove when storage service creates IDs
 
   /**
-   * Initializes the RoutingTable.
+   *  Creates a new NS with the given servers
+   *  The ranges has the form (startKey, servers). The first Key has to be None
    */
-  override def init(){
+  override def create(ranges : List[(Option[KeyType], List[StorageService])]){
     super.init()
-    if(isNewNamespace){
-      nsRoot.createChild("partitions", "".getBytes, CreateMode.PERSISTENT)
-      val servers = cluster.getRandomServers(defaultReplicationFactor)
-      val ctr : Long = 0
-      var handlers : List[PartitionService] = Nil
-      for (server <- servers){
-        server !? CreatePartitionRequest(namespace, ctr.toString, None, None) match {
-          case CreatePartitionResponse(partitionActor) => handlers = partitionActor :: handlers
-          case _ => throw new RuntimeException("Unexpected Message")
-        }
-      }
-      createRoutingTable(handlers)      
-    }else{
-      throw new RuntimeException("Loading a partition is not yet implemented")
+    var rTable: Array[RangeType[Array[Byte], PartitionService]] = new Array[RangeType[Array[Byte], PartitionService]](ranges.size)
+    var startKey : Option[Array[Byte]] = None
+    var endKey : Option[Array[Byte]] = None
+    var i = ranges.size - 1
+    for(range <- ranges.reverse){
+      startKey = range._1.map(serializeKey(_))
+      val handlers = createPartitions(startKey, endKey, range._2)
+      rTable(i) =  new RangeType[Array[Byte], PartitionService](endKey, handlers)
+      endKey = startKey
+      i -= 1
     }
+    createRoutingTable(rTable)
+    storeRoutingTable()
   }
 
-  private def createNewPartitionId() : String = {
-    //TODO Check if RT owner
-    var ctr :  Long = 1
-    val nsNode = nsRoot.get(ZOOKEEPER_PARTITION_ID)
-    if (nsNode.isEmpty) {
-      nsRoot.createChild(ZOOKEEPER_PARTITION_ID,  ctr.toString.getBytes, CreateMode.PERSISTENT)
-    }else{
-      var nd = nsNode.get
-      ctr = (new String(nd.data)).toLong
-      ctr += 1
-      nd.data = ctr.toString.getBytes
+  private def load(){
+    loadRoutingTable()
+  }
+
+
+  private def createPartitions(startKey: Option[Array[Byte]] , endKey: Option[Array[Byte]], servers : List[StorageService] )
+        : List[PartitionService] =  {
+    var handlers : List[PartitionService] = Nil
+    for (server <- servers){
+      partCtr += 1
+      server !? CreatePartitionRequest(namespace, partCtr.toString, startKey, endKey) match {
+        case CreatePartitionResponse(partitionActor) => handlers = partitionActor :: handlers
+        case _ => throw new RuntimeException("Unexpected Message")
+      }
     }
-    return ctr.toString
+    return handlers
+  }
+
+
+  private def createNewPartitionId() : String = {
+    throw new RuntimeException("Not needed anymore with new ID generation by the StoragHandle")
+//    //TODO Check if RT owner
+//    var ctr :  Long = 1
+//    val nsNode = nsRoot.get(ZOOKEEPER_PARTITION_ID)
+//    if (nsNode.isEmpty) {
+//      nsRoot.createChild(ZOOKEEPER_PARTITION_ID,  ctr.toString.getBytes, CreateMode.PERSISTENT)
+//    }else{
+//      var nd = nsNode.get
+//      ctr = (new String(nd.data)).toLong
+//      ctr += 1
+//      nd.data = ctr.toString.getBytes
+//    }
+//    return ctr.toString
   }
 
   private def storeRoutingTable() = {
     val ranges = routingTable.ranges.map(a => KeyRange(a.maxKey, a.values))
     val rangeList = Partition(ranges)
-    nsRoot.createChild(ZOOKEEPER_ROUTING_TABLE, rangeList.toBytes, CreateMode.EPHEMERAL)
+    nsRoot.createChild(ZOOKEEPER_ROUTING_TABLE, rangeList.toBytes, CreateMode.PERSISTENT)
   }
 
   private def loadRoutingTable() = {

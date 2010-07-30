@@ -126,8 +126,6 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
   def size():Int = throw new RuntimeException("Unimplemented")
   def ++=(that:Iterable[(KeyType,ValueType)]): Unit = throw new RuntimeException("Unimplemented")
 
-  def load() = throw new RuntimeException("Unimplemented")
-
 }
 
 
@@ -142,7 +140,6 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
     (implicit var cluster : ScadsCluster)
         extends KeyValueStore[KeyType, ValueType] {
 
-  protected var isNewNamespace =  root.get(namespace).isEmpty
   protected var nsRoot : ZooKeeperProxy#ZooKeeperNode = null
 
   protected def getKeySchema() : Schema
@@ -159,20 +156,27 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
   /**
    * Returns the default replication Factor when initializing a new NS
    */
-  protected def defaultReplicationFactor() : Int = 1 
+  protected def defaultReplicationFactor() : Int = 1
 
   /**
-   * Initializes the protocol/namespace
+   * Loads and initializes the protocol for an existing namespace
    */
-  def init() : Unit = {
-    if(isNewNamespace) {
-      nsRoot = root.createChild(namespace, "".getBytes, CreateMode.PERSISTENT)
-      nsRoot.createChild("keySchema", getKeySchema().toString.getBytes, CreateMode.PERSISTENT)
-      nsRoot.createChild("valueSchema", getValueSchema.toString.getBytes, CreateMode.PERSISTENT)
-      
-      println("Created Namespace" + nsRoot )
-    }else{
-      throw new RuntimeException("Loading not yet supported")
-    }
+  def load() : Unit = {
+    require(root.get(namespace).isEmpty)
+  }
+
+  /**
+   *  Creates a new NS with the given servers
+   *  The ranges has the form (startKey, servers). The first Key has to be None
+   */
+  def create(ranges : List[(Option[KeyType], List[StorageService])]) : Unit = {
+    require(!root.get(namespace).isEmpty)
+    require(ranges.size > 0)
+    require(ranges.first._1 == None)
+    println("Creating Namespace" + nsRoot )
+    nsRoot = root.createChild(namespace, "".getBytes, CreateMode.PERSISTENT)
+    nsRoot.createChild("keySchema", getKeySchema().toString.getBytes, CreateMode.PERSISTENT)
+    nsRoot.createChild("valueSchema", getValueSchema.toString.getBytes, CreateMode.PERSISTENT)
   }
 }
+
