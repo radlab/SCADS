@@ -16,7 +16,7 @@ import edu.berkeley.cs.scads.comm._
  */
 class PartitionIterator(partitionService: PartitionService, minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], recsPerMessage: Int = 1000, bufferSize: Int = 5) extends Iterator[Record] {
   val logger = Logger.getLogger("scads.partitioniterator")
-  
+
   /**
    * Queue used to exchange record sets between the actor and the consumer of the iterator
    * Each time a recordset is retrieved a RecordSetTaken message should be sent to the iterActor
@@ -27,8 +27,9 @@ class PartitionIterator(partitionService: PartitionService, minKey: Option[Array
    * Note it is the responsibility of the taker of the last record to set
    * this back to None so that subsuquent calls to next/hasNext will retrieve a new RecordSet
    * from the queue.
+   * A recordset with 0 or 1 items denotes the end of the iterator.
    */
-  protected var currentRecordSet: Option[List[Record]] = None
+  var currentRecordSet: Option[List[Record]] = None
   protected var positionInRecordSet = 0
   protected var done = false
 
@@ -41,33 +42,35 @@ class PartitionIterator(partitionService: PartitionService, minKey: Option[Array
 
     loop {
       if(!done && outstandingRecordSets < bufferSize) {
-        partitionService.!(GetRangeRequest(currentKey, None, limit=Some(recsPerMessage)))
-      }
+        partitionService.!(GetRangeRequest(currentKey, maxKey, limit=Some(recsPerMessage)))
 
-      react {
-        case GetRangeResponse(recs) => {
-          outstandingRecordSets += 1
-          availableRecordSets.offer(recs.dropRight(1))
-          if(recs.size <= 1) {
-            MessageHandler.unregisterActor(remoteActor)
-            availableRecordSets.offer(recs)
-            done = true
-          }
-          else {
-            availableRecordSets.offer(recs.dropRight(1))
-            currentKey = Some(recs.last.key)
+        react {
+          case GetRangeResponse(recs) => {
+            outstandingRecordSets += 1
+            if(recs.size <= 1) {
+              MessageHandler.unregisterActor(remoteActor)
+              availableRecordSets.offer(recs)
+              done = true
+            }
+            else {
+              availableRecordSets.offer(recs.dropRight(1))
+              currentKey = Some(recs.last.key)
+            }
           }
         }
-        case RecordSetTaken => outstandingRecordSets -= 1
-        case msg => logger.error("Unexpected message: " + msg)
+      }
+      else {
+        react {
+          case RecordSetTaken => outstandingRecordSets -= 1
+        }
       }
     }
-
   }
 
   protected def getCurrentRecordSet: List[Record] = {
     currentRecordSet.getOrElse {
       currentRecordSet = Some(availableRecordSets.take)
+      positionInRecordSet = 0
       iterActor ! RecordSetTaken
       currentRecordSet.get
     }
@@ -77,10 +80,10 @@ class PartitionIterator(partitionService: PartitionService, minKey: Option[Array
     val set = getCurrentRecordSet
     val result = set(positionInRecordSet)
     positionInRecordSet += 1
-    if(positionInRecordSet >= set.size && set.size >= 1)
+    if(positionInRecordSet >= set.size && set.size > 1)
       currentRecordSet = None
     result
   }
 
-  def hasNext: Boolean = getCurrentRecordSet.size < positionInRecordSet
+  def hasNext: Boolean = getCurrentRecordSet.size > positionInRecordSet
 }
