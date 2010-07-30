@@ -48,6 +48,9 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
   def receiveMessage(src: RemoteNode, msg: Message): Unit = {
     val service = serviceRegistry.get(msg.dest)
 
+    //Ligher weight log4j that doesn't do string concat unless needed
+    edu.berkeley.Log2.debug(logger, "Received Message: ", src, " ", msg)
+
     if(service != null) {
       service.receiveMessage(msg.src.map(RemoteActor(src.hostname, src.port, _)), msg.body)
     }
