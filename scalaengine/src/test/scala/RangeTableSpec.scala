@@ -10,6 +10,8 @@ import edu.berkeley.cs.scads.storage.routing.RangeType
 import org.scalatest.WordSpec
 import org.scalatest.matchers.ShouldMatchers
 
+//TODO Rewrite to independent tests
+
 @RunWith(classOf[JUnitRunner])
 class RangeTableSpec extends WordSpec with ShouldMatchers {
 
@@ -72,9 +74,7 @@ class RangeTableSpec extends WordSpec with ShouldMatchers {
 
 
     "throw an error if the split key already exists" in {
-      intercept[IllegalArgumentException] {
-        rTable.split(30, List("S10"), false)
-      }
+      rTable.split(30, List("S10"), false) should be === null 
     }
 
 
@@ -141,9 +141,7 @@ class RangeTableSpec extends WordSpec with ShouldMatchers {
     }
 
      "throw an error if the key is not a split key" in {
-       intercept[IllegalArgumentException] {
-          rTable.merge(35)
-       }
+      rTable.merge(35) should be === null
      }
 
     "merge ranges and delete right range values" in {
@@ -194,6 +192,23 @@ class RangeTableSpec extends WordSpec with ShouldMatchers {
       rangeTable.valuesForKey(15) should be === List("S1")
       rangeTable.valuesForKey(25) should be === List("S1")
     }
+
+    "merge ranges and replace values" in {
+
+    }
+
+    "split ranges and replace values" in {
+
+    }
+
+    "return left and right range" in {
+
+    }
+
+    "replace values for range" in {
+      
+    }
+
 
   }
 

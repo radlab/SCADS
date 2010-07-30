@@ -9,7 +9,9 @@ import java.util.{Comparator, Arrays}
 import edu.berkeley.cs.scads.storage.Namespace
 import org.apache.zookeeper.CreateMode
 import com.googlecode.avro.marker.AvroRecord
-/* TODO: Stack RepartitioningProtocol on Routing Table to build working implementation */
+/* TODO: Stack RepartitioningProtocol on Routing Table to build working implementation
+*  TODO: Change implementation to StartKey -> makes it more compliant to the rest
+* */
 //abstract trait RepartitioningProtocol[KeyType <: IndexedRecord] extends RoutingTable[KeyType] {
 //  override def splitPartition(splitPoint: KeyType): List[PartitionService] = throw new RuntimeException("Unimplemented")
 //
@@ -23,8 +25,10 @@ import com.googlecode.avro.marker.AvroRecord
 
 abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord] extends Namespace[KeyType, ValueType] {
 
-  
+
   var routingTable: RangeTable[Array[Byte], PartitionService] = null
+  val ZOOKEEPER_ROUTING_TABLE = "routingtable"
+  val ZOOKEEPER_PARTITION_ID = "partitionid"
 
   /**
    * Initializes the RoutingTable.
@@ -34,8 +38,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     if(isNewNamespace){
       nsRoot.createChild("partitions", "".getBytes, CreateMode.PERSISTENT)
       val servers = cluster.getRandomServers(defaultReplicationFactor)
-      val ctr : Long = 1
-      nsRoot.createChild("MaxId",  ctr.toString.getBytes, CreateMode.PERSISTENT)
+      val ctr : Long = 0
       var handlers : List[PartitionService] = Nil
       for (server <- servers){
         server !? CreatePartitionRequest(namespace, ctr.toString, None, None) match {
@@ -49,16 +52,54 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     }
   }
 
+  private def createNewPartitionId() : String = {
+    //TODO Check if RT owner
+    var ctr :  Long = 1
+    val nsNode = nsRoot.get(ZOOKEEPER_PARTITION_ID)
+    if (nsNode.isEmpty) {
+      nsRoot.createChild(ZOOKEEPER_PARTITION_ID,  ctr.toString.getBytes, CreateMode.PERSISTENT)
+    }else{
+      var nd = nsNode.get
+      ctr = (new String(nd.data)).toLong
+      ctr += 1
+      nd.data = ctr.toString.getBytes
+    }
+    return ctr.toString
+  }
+
+  private def storeRoutingTable() = {
+    val ranges = routingTable.ranges.map(a => KeyRange(a.maxKey, a.values))
+    val rangeList = Partition(ranges)
+    nsRoot.createChild(ZOOKEEPER_ROUTING_TABLE, rangeList.toBytes, CreateMode.EPHEMERAL)
+  }
+
+  private def loadRoutingTable() = {
+    val zkNode = nsRoot.get(ZOOKEEPER_ROUTING_TABLE)
+    val rangeList = new Partition()
+    zkNode match {
+      case None =>  throw new RuntimeException("Can not load empty routing table")
+      case Some(a) => rangeList.parse(a.data)
+    }
+    val partition = rangeList.partitions.map(a => new RangeType(a.endKey, a.servers))
+    createRoutingTable(partition.toArray)
+  }
+
+  private def createRoutingTable(partitionHandlers: List[PartitionService]): Unit = {
+    val arr = new Array[RangeType[Array[Byte], PartitionService]](1)
+    arr(0) =  new RangeType[Array[Byte], PartitionService](None, partitionHandlers)
+    createRoutingTable(arr)
+  }
 
   /**
    * Just a helper class to create a table and all comparisons
    */
-  private def createRoutingTable(partitionHandlers: List[PartitionService]): Unit = {
+  private def createRoutingTable(ranges: Array[RangeType[Array[Byte], PartitionService]]): Unit = {
     val keySchema: Schema = getKeySchema()
-    routingTable = new RangeTable[Array[Byte], PartitionService](List((None, partitionHandlers)),
+    routingTable = new RangeTable[Array[Byte], PartitionService]( ranges,
       (a: Array[Byte], b: Array[Byte]) => org.apache.avro.io.BinaryData.compare(a, 0, b, 0, keySchema),
-      (a: List[PartitionService], b: List[PartitionService]) => a.corresponds(b)
-                ((v1, v2) => (v1.host.compareTo(v2.host) == 0) && (v1.port == v2.port)))
+      (a: List[PartitionService], b: List[PartitionService]) => {
+        a.corresponds(b)((v1, v2) => v1.id == v2.id)
+      })
     println("Created routing table:" + routingTable)
   }
 
@@ -71,15 +112,19 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     (for (range <- ranges) yield range.values).toList
   }
 
-  /* Zookeeper functions */
-  def refresh(): Unit = throw new RuntimeException("Unimplemented")
+  //ZooKeeper functions
+  def refresh(): Unit = {
+    loadRoutingTable()
+  }
 
-  def expired(): Unit = throw new RuntimeException("Unimplemented")
+  def expired(): Unit = {
+    //We do nothing.
+  }
 
 
   def mergePartitions(mergeKey: KeyType): Unit = throw new RuntimeException("Unimplemented")
 
-   /* Returns the newly created PartitionServices from the split */
+
   def splitPartition(splitPoint: KeyType): List[PartitionService] = throw new RuntimeException("Unimplemented")
 
   def replicatePartition(splitPoint: KeyType, storageHandler: StorageService): PartitionService = throw new RuntimeException("Unimplemented")
@@ -166,6 +211,19 @@ class RangeTable[KeyType, ValueType](
   }
 
   /**
+   * Returns the left and right range from a key.
+   * If the value is inside an range and not on the Nothing is returned
+   * None is not allowed as a key
+   */
+  def leftRightValuesForKey(key: KeyType): Option[(List[ValueType],List[ValueType])] = {
+    val pKey = new RangeType[KeyType, ValueType](Option(key), Nil)
+    val bpos = Arrays.binarySearch(rTable, pKey, keyComparator)
+    if(bpos < 0)
+      return None
+    Some((rTable(bpos).values), (rTable(bpos+1).values))
+  }
+
+  /**
    * Returns all ranges from startKey to endKey
    */
   def valuesForRange(startKey: Option[KeyType], endKey: Option[KeyType]): Array[RangeType[KeyType, ValueType]] = {
@@ -181,52 +239,79 @@ class RangeTable[KeyType, ValueType](
   /**
    * Splits the range at the key position. The left range includes the split key
    * The values are either left or right attached.
-   * A split is thread-safe for lookups (but concurrent value addings or merges might be lost)
    *
    */
   def split(key: KeyType, values: List[ValueType], leftAttached: Boolean = true): RangeTable[KeyType, ValueType] = {
     val pKey = new RangeType[KeyType, ValueType](Option(key), Nil)
     var idx = Arrays.binarySearch(rTable, pKey, keyComparator)
     if (idx > 0 && idx < rTable.size)
-      throw new IllegalArgumentException("Split key already splits an existing range")
+      return null
+    else
+      idx = (idx + 1) * -1
+    if (leftAttached) {
+      split(key, values, rTable(idx).values)
+    } else {
+      split(key, rTable(idx).values, values)
+    }
+  }
+
+  /**
+   * Splits the range at the key position. The left range includes the split key
+   * The values are either left or right attached.
+   *
+   */
+  def split(key: KeyType, leftValues: List[ValueType], rightValues: List[ValueType]): RangeTable[KeyType, ValueType] = {
+    val pKey = new RangeType[KeyType, ValueType](Option(key), Nil)
+    var idx = Arrays.binarySearch(rTable, pKey, keyComparator)
+    if (idx > 0 && idx < rTable.size)
+      return null
     else
       idx = (idx + 1) * -1
     val newRTable = new Array[RangeType[KeyType, ValueType]](rTable.size + 1)
     if (idx > 0)
       System.arraycopy(rTable, 0, newRTable, 0, idx)
-    if (leftAttached) {
-      newRTable(idx) = new RangeType(Option(key), values)
-      System.arraycopy(rTable, idx, newRTable, idx + 1, rTable.length - idx)
-    } else {
-      newRTable(idx) = new RangeType(Option(key), rTable(idx).values)
-      newRTable(idx + 1) = new RangeType(rTable(idx).maxKey, values)
-      if (idx + 2 < newRTable.size)
-        System.arraycopy(rTable, idx + 1, newRTable, idx + 2, rTable.length - idx - 1)
-    }
+    if (idx + 2 < newRTable.size)
+      System.arraycopy(rTable, idx + 1, newRTable, idx + 2, rTable.length - idx - 1)
+    newRTable(idx) = new RangeType(Option(key), leftValues)
+    newRTable(idx + 1) = new RangeType(rTable(idx).maxKey, rightValues)
     return new RangeTable[KeyType, ValueType](newRTable, keyComparator, mergeCondition)
   }
 
+
+
   /**
    * Merges the ranges left and right from the key. Per default the left values overwrite the right values.
-   * A merge is thread-safe for lookups (but concurrent value addings or splits might be lost)
    */
   def merge(key: KeyType, deleteLeft: Boolean = true): RangeTable[KeyType, ValueType] = {
     val pKey = new RangeType[KeyType, ValueType](Option(key), Nil)
     val bpos = Arrays.binarySearch(rTable, pKey, keyComparator)
     if (bpos < 0 || bpos == rTable.length)
-      throw new IllegalArgumentException("Key has to be a maxKey (i.e., split key) of a range")
+      return null
+    if(deleteLeft){
+      return merge(key, rTable(bpos + 1).values)
+    }else{
+      return merge(key, rTable(bpos).values)
+    }
+  }
+
+  /**
+   * Merges the ranges left and right from the key. The new partition is assigned the given set of servers.
+   */
+  def merge(key: KeyType, values: List[ValueType]): RangeTable[KeyType, ValueType] = {
+    val pKey = new RangeType[KeyType, ValueType](Option(key), Nil)
+    val bpos = Arrays.binarySearch(rTable, pKey, keyComparator)
+    if (bpos < 0 || bpos == rTable.length)
+      return null
     if (!mergeCondition(rTable(bpos).values, rTable(bpos + 1).values))
       return null
     val newRTable: Array[RangeType[KeyType, ValueType]] = new Array[RangeType[KeyType, ValueType]](rTable.size - 1)
     System.arraycopy(rTable, 0, newRTable, 0, bpos)
     System.arraycopy(rTable, bpos + 1, newRTable, bpos, newRTable.length - bpos)
-    if (!deleteLeft) {
-      newRTable(bpos) = new RangeType(newRTable(bpos).maxKey, rTable(bpos).values)
-    }
+    newRTable(bpos) = new RangeType(newRTable(bpos).maxKey, values)
     return new RangeTable[KeyType, ValueType](newRTable, keyComparator, mergeCondition)
   }
 
-  def ranges: List[(Option[KeyType], List[ValueType])] = rTable.map(item => (item.maxKey, item.values)).toList
+  def ranges : List[RangeType[KeyType, ValueType]] = rTable.toList
 
   def addValueToRange(key: KeyType, value: ValueType): RangeTable[KeyType, ValueType] = addValueToRange(Option(key), value)
 
@@ -248,6 +333,12 @@ class RangeTable[KeyType, ValueType](
     return new RangeTable[KeyType, ValueType](newRTable, keyComparator, mergeCondition)
   }
 
+  def replaceValues(key: Option[KeyType], values: List[ValueType]) : RangeTable[KeyType, ValueType] = {
+    val idx = idxForKey(key)
+    val newRTable = rTable.clone
+    newRTable(idx) = new RangeType(newRTable(idx).maxKey, values)
+    return new RangeTable[KeyType, ValueType](newRTable, keyComparator, mergeCondition)
+  }
 
   override def toString = {
     "RTable(" + ("" /: rTable)(_ + " " + _) + ")"

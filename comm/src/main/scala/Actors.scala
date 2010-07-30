@@ -32,7 +32,7 @@ case class RemoteActor(var host: String, var port: Int, var id: ActorId) extends
 
 /* Specific types for different services. Note: these types are mostly for readability as typesafety isn't enforced when serialized individualy*/
 case class StorageService(var host: String, var port: Int, var id: ActorId) extends RemoteActorProxy with AvroRecord
-case class PartitionService(var host: String, var port: Int, var id: ActorId) extends RemoteActorProxy with AvroRecord
+case class PartitionService(var host: String, var port: Int, var id: ActorId, var storageService:StorageService = null) extends RemoteActorProxy with AvroRecord
 
 case class TimeoutException(msg: MessageBody) extends Exception
 
