@@ -39,5 +39,19 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers {
         (partition !? GetRequest(IntRec(i).toBytes)) should equal(GetResponse(Some(IntRec(i*2).toBytes)))
       })
     }
+
+    it("should copy data") {
+      val p1 = getHandler()
+      val p2 = getHandler()
+
+      (1 to 10000).foreach(i => p1 !? PutRequest(IntRec(i).toBytes, IntRec(i).toBytes))
+
+      p2 !? CopyDataRequest(p1, true)
+
+      (1 to 10000).foreach(i => p2 !? GetRequest(IntRec(i).toBytes) match {
+        case GetResponse(Some(bytes)) => new IntRec().parse(bytes) should equal(IntRec(i))
+        case u => fail("P2 doesn't contain " + i + " instead got: " + u)
+      })
+    }
   }
 }
