@@ -62,15 +62,36 @@ class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
   case class UnknownNamespace(ns: String) extends Exception
 
 
-  def getNamespace(ns: String, keySchema: Schema, valueSchema: Schema, splitPoints: List[GenericData.Record]): GenericNamespace = {
+  def getNamespace(ns: String,
+                   keySchema: Schema,
+                   valueSchema: Schema): GenericNamespace = {
     val namespace = new GenericNamespace(ns, 5000, namespaces, keySchema, valueSchema)
-    namespace.init()
+    namespace.loadOrCreate
     return namespace
   }
 
-  def getNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String, partitions: List[(Option[KeyType], StorageService)] = Nil)(implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): SpecificNamespace[KeyType, ValueType] = {
+   def createNamespace(ns: String,
+                    keySchema:
+                    Schema,
+                    valueSchema: Schema,
+                    servers : List[(Option[GenericData.Record], List[StorageService])]): GenericNamespace = {
+    val namespace = new GenericNamespace(ns, 5000, namespaces, keySchema, valueSchema)
+    namespace.create(servers)
+    return namespace
+  }
+
+
+  def getNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String)
+      (implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): SpecificNamespace[KeyType, ValueType] = {
     val namespace = new SpecificNamespace[KeyType, ValueType](ns, 5000, namespaces)
-    namespace.init()
+    namespace.loadOrCreate
+    return namespace
+  }
+
+  def createNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String, servers: List[(Option[KeyType], List[StorageService])])
+      (implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): SpecificNamespace[KeyType, ValueType] = {
+    val namespace = new SpecificNamespace[KeyType, ValueType](ns, 5000, namespaces)
+    namespace.create(servers)
     return namespace
   }
 

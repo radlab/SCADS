@@ -158,6 +158,22 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
    */
   protected def defaultReplicationFactor() : Int = 1
 
+  def doesNamespaceExist() : Boolean = !root.get(namespace).isEmpty
+
+  /**
+   * Loads the namespace configuration. If it does not exists, it creates a new one with the min replication factor on
+   * randomly selected storagehandlers
+   */
+  def loadOrCreate() : Unit = {
+    if(doesNamespaceExist){
+      load()
+    }else{
+      var randServers = cluster.getRandomServers(defaultReplicationFactor)
+      val startKey : Option[KeyType] = None
+      create(List((startKey, randServers)))
+    }   
+  }
+
   /**
    * Loads and initializes the protocol for an existing namespace
    */
@@ -170,13 +186,15 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
    *  The ranges has the form (startKey, servers). The first Key has to be None
    */
   def create(ranges : List[(Option[KeyType], List[StorageService])]) : Unit = {
-    require(!root.get(namespace).isEmpty)
+    require(root.get(namespace).isEmpty)
     require(ranges.size > 0)
-    require(ranges.first._1 == None)
+    require(ranges.head._1 == None)
     println("Creating Namespace" + nsRoot )
     nsRoot = root.createChild(namespace, "".getBytes, CreateMode.PERSISTENT)
     nsRoot.createChild("keySchema", getKeySchema().toString.getBytes, CreateMode.PERSISTENT)
     nsRoot.createChild("valueSchema", getValueSchema.toString.getBytes, CreateMode.PERSISTENT)
+    nsRoot.createChild("partitions", getValueSchema.toString.getBytes, CreateMode.PERSISTENT)
+
   }
 }
 

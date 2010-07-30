@@ -36,13 +36,15 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
    *  The ranges has the form (startKey, servers). The first Key has to be None
    */
   override def create(ranges : List[(Option[KeyType], List[StorageService])]){
-    super.init()
+    super.create(ranges)
     var rTable: Array[RangeType[Array[Byte], PartitionService]] = new Array[RangeType[Array[Byte], PartitionService]](ranges.size)
     var startKey : Option[Array[Byte]] = None
     var endKey : Option[Array[Byte]] = None
     var i = ranges.size - 1
     for(range <- ranges.reverse){
+      println("Key" + range._1)
       startKey = range._1.map(serializeKey(_))
+      println("Key" + startKey)
       val handlers = createPartitions(startKey, endKey, range._2)
       rTable(i) =  new RangeType[Array[Byte], PartitionService](endKey, handlers)
       endKey = startKey
@@ -52,7 +54,8 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     storeRoutingTable()
   }
 
-  private def load(){
+  override def load(){
+    super.load()
     loadRoutingTable()
   }
 
@@ -62,6 +65,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     var handlers : List[PartitionService] = Nil
     for (server <- servers){
       partCtr += 1
+      println("Sending create request to " + server)
       server !? CreatePartitionRequest(namespace, partCtr.toString, startKey, endKey) match {
         case CreatePartitionResponse(partitionActor) => handlers = partitionActor :: handlers
         case _ => throw new RuntimeException("Unexpected Message")
