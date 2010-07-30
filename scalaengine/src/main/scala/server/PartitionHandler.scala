@@ -68,8 +68,10 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
         val dbeExistingValue = new DatabaseEntry
         val dbeKey = new DatabaseEntry
         val dbeValue = new DatabaseEntry
+        logger.debug("Opening iterator for data copy")
         val iter = new PartitionIterator(src, None, None)
 
+        logger.debug("Begining copy")
         iter.foreach(rec => {
           dbeKey.setData(rec.key); dbeValue.setData(rec.value.get)
           if(overwrite == true) {
@@ -81,7 +83,9 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
               db.put(txn, dbeKey, dbeValue)
           }
         })
+        logger.debug("Copy complete.  Begining commit")
         txn.commit()
+        logger.debug("Comit complete")
         reply(CopyDataResponse())
       }
       case _ => src.foreach(_ ! ProcessingException("Not Implemented", ""))
