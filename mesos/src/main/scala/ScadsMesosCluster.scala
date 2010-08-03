@@ -41,24 +41,3 @@ class ScadsScheduler extends Scheduler {
   }
 
 }
-
-object ScadsExecutor {
-  def main(args: Array[String]): Unit = {
-    System.loadLibrary("mesos")
-    org.apache.log4j.BasicConfigurator.configure()
-    val driver = new MesosExecutorDriver(new ScadsExecutor())
-    driver.run()
-  }
-}
-
-class ScadsExecutor extends Executor {
-  System.loadLibrary("mesos")
-
-  override def launchTask(d: ExecutorDriver, task: TaskDescription): Unit = {
-    println("Starting storage handler" + task.getTaskId())
-    val tempDir = File.createTempFile("scads", "mesosdb")
-    tempDir.delete()
-    tempDir.mkdir()
-    edu.berkeley.cs.scads.storage.ScalaEngine.main(Some("scads"), Some("r2:2181"), Some(tempDir), None, true)
-  }
-}

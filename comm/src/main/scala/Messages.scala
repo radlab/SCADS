@@ -66,3 +66,8 @@ case class GetResponsibilityResponse(var startKey: Option[Array[Byte]], var endK
 /* Test Record Types.  Note: they are here due to problems with the typer (i.e. generated methods aren't visable in the same compilation cycle */
 case class IntRec(var f1: Int) extends AvroRecord
 case class StringRec(var f1: String) extends AvroRecord
+
+
+/* Messages for scads on mesos */
+case class JvmProcess(var classpath: String, var mainclass: String, var args: List[String]) extends AvroRecord
+
