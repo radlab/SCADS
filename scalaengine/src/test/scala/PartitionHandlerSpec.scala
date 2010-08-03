@@ -10,7 +10,6 @@ import edu.berkeley.cs.scads.storage._
 
 @RunWith(classOf[JUnitRunner])
 class PartitionHandlerSpec extends Spec with ShouldMatchers {
-  val currentPartitionId = new java.util.concurrent.atomic.AtomicInteger
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
   def getHandler() = {
@@ -21,8 +20,8 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers {
     root.getOrCreate("namespaces/partitiontestns/valueSchema").data = IntRec.schema.toString.getBytes
     root.getOrCreate("namespaces/partitiontestns/partitions")
 
-    (handler.remoteHandle !? CreatePartitionRequest("partitiontestns", currentPartitionId.getAndIncrement.toString, None, None)) match {
-      case CreatePartitionResponse(newPart) => newPart
+    (handler.remoteHandle !? CreatePartitionRequest("partitiontestns", None, None)) match {
+      case CreatePartitionResponse(newId, newPartService) => newPartService
       case _ => fail("Couldn't get partition handler")
     }
   }

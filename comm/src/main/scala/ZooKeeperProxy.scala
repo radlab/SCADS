@@ -51,6 +51,11 @@ class ZooKeeperProxy(val address: String) extends Watcher {
       })
     }
 
+    def createSequentialChild(name: String, data: Array[Byte] = Array[Byte]()): ZooKeeperNode = {
+      val newNode = conn.create(prefix + name, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL)
+      updateChildren(false).apply(newNode.split("/").last)
+    }
+
     def createChild(name: String, data: Array[Byte], mode: CreateMode): ZooKeeperNode = {
       conn.create(prefix + name, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, mode)
       updateChildren(false).apply(name)

@@ -34,12 +34,10 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     if(isNewNamespace){
       nsRoot.createChild("partitions", "".getBytes, CreateMode.PERSISTENT)
       val servers = cluster.getRandomServers(defaultReplicationFactor)
-      val ctr : Long = 1
-      nsRoot.createChild("MaxId",  ctr.toString.getBytes, CreateMode.PERSISTENT)
       var handlers : List[PartitionService] = Nil
       for (server <- servers){
-        server !? CreatePartitionRequest(namespace, ctr.toString, None, None) match {
-          case CreatePartitionResponse(partitionActor) => handlers = partitionActor :: handlers
+        server !? CreatePartitionRequest(namespace, None, None) match {
+          case CreatePartitionResponse(partitionId, partitionActor) => handlers = partitionActor :: handlers
           case _ => throw new RuntimeException("Unexpected Message")
         }
       }
