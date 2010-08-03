@@ -35,7 +35,9 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers {
       })
 
       (1 to 10).foreach(i => {
-        (partition !? GetRequest(IntRec(i).toBytes)) should equal(GetResponse(Some(IntRec(i*2).toBytes)))
+        (partition !? GetRequest(IntRec(i).toBytes)) match {
+          case GetResponse(Some(bytes)) => new IntRec().parse(bytes) should equal(IntRec(i*2))
+        }
       })
     }
 
