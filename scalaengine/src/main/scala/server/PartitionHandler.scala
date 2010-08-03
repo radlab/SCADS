@@ -46,12 +46,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
         val dbeKey = new DatabaseEntry(key)
         val dbeCurrentValue = new DatabaseEntry
         db.get(txn, dbeKey, dbeCurrentValue, LockMode.READ_COMMITTED)
-        val matches = (expectedValue, Option(dbeCurrentValue.getData)) match {
-          case (None, None) => true
-          case (Some(x), Some(y)) if(java.util.Arrays.equals(x,y)) => true
-          case _ => false
-        }
-        if(matches){
+        if(java.util.Arrays.equals(expectedValue.orNull, dbeCurrentValue.getData)){
           value match {
             case Some(v) => db.put(txn, dbeKey, new DatabaseEntry(v))
             case None => db.delete(txn, dbeKey)
