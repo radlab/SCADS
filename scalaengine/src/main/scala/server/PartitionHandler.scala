@@ -78,8 +78,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
             db.put(txn, dbeKey, dbeValue)
           }
           else {
-            db.get(txn, dbeKey, dbeExistingValue, LockMode.READ_COMMITTED)
-            if(dbeExistingValue.getData == null)
+            if(db.get(txn, dbeKey, dbeExistingValue, LockMode.READ_COMMITTED) != OperationStatus.SUCCESS)
               db.put(txn, dbeKey, dbeValue)
           }
         })

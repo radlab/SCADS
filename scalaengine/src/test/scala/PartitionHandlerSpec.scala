@@ -40,15 +40,36 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers {
       })
     }
 
-    it("should copy data") {
+    it("should copy data overwriting existing data") {
       val p1 = getHandler()
       val p2 = getHandler()
 
       (1 to 10000).foreach(i => p1 !? PutRequest(IntRec(i).toBytes, IntRec(i).toBytes))
+      (1 to 5).foreach(i => p2 !? PutRequest(IntRec(i).toBytes, IntRec(i*2).toBytes))
 
       p2 !? CopyDataRequest(p1, true)
 
       (1 to 10000).foreach(i => p2 !? GetRequest(IntRec(i).toBytes) match {
+        case GetResponse(Some(bytes)) => new IntRec().parse(bytes) should equal(IntRec(i))
+        case u => fail("P2 doesn't contain " + i + " instead got: " + u)
+      })
+    }
+
+    it("should copy data without overwriting existing data") {
+      val p1 = getHandler()
+      val p2 = getHandler()
+
+      (1 to 10).foreach(i => p1 !? PutRequest(IntRec(i).toBytes, IntRec(i).toBytes))
+      (1 to 5).foreach(i => p2 !? PutRequest(IntRec(i).toBytes, IntRec(i*2).toBytes))
+
+      p2 !? CopyDataRequest(p1, false)
+
+      (1 to 5).foreach(i => p2 !? GetRequest(IntRec(i).toBytes) match {
+        case GetResponse(Some(bytes)) => new IntRec().parse(bytes) should equal(IntRec(i*2))
+        case u => fail("P2 doesn't contain " + i + " instead got: " + u)
+      })
+
+      (6 to 10).foreach(i => p2 !? GetRequest(IntRec(i).toBytes) match {
         case GetResponse(Some(bytes)) => new IntRec().parse(bytes) should equal(IntRec(i))
         case u => fail("P2 doesn't contain " + i + " instead got: " + u)
       })
