@@ -35,11 +35,11 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
   /**
    * Performs the following shutdown tasks:
    * * TODO: Shutdown all active partitions
-   * * TODO: Close the BDB Environment
    */
   protected def shutdown(): Unit = {
     root("availableServers").deleteChild(remoteHandle.toString)
-    MessageHandler.unregisterActor(remoteHandle)
+    partitions.values.foreach(_.stop)
+    env.close()
   }
 
   protected def process(src: Option[RemoteActorProxy], msg: StorageServiceOperation): Unit = {

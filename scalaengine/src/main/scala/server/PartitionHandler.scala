@@ -11,7 +11,9 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
   protected def startup(): Unit = null
-  protected def shutdown(): Unit = db.close()
+  protected def shutdown(): Unit = {
+    db.close()
+  }
 
   protected def process(src: Option[RemoteActorProxy], msg: PartitionServiceOperation): Unit = {
     def reply(msg: MessageBody) = src.foreach(_ ! msg)
