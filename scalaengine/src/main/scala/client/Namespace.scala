@@ -19,6 +19,7 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
     (implicit var cluster : ScadsCluster)
         extends KeyValueStore[KeyType, ValueType] {
 
+  protected val logger: Logger
   protected var isNewNamespace =  root.get(namespace).isEmpty
   protected var nsRoot : ZooKeeperProxy#ZooKeeperNode = null
 
@@ -47,7 +48,7 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
       nsRoot.createChild("keySchema", getKeySchema().toString.getBytes, CreateMode.PERSISTENT)
       nsRoot.createChild("valueSchema", getValueSchema.toString.getBytes, CreateMode.PERSISTENT)
       
-      println("Created Namespace" + nsRoot )
+      logger.debug("Created Namespace" + nsRoot )
     }else{
       throw new RuntimeException("Loading not yet supported")
     }

@@ -57,7 +57,6 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
       (a: Array[Byte], b: Array[Byte]) => org.apache.avro.io.BinaryData.compare(a, 0, b, 0, keySchema),
       (a: List[PartitionService], b: List[PartitionService]) => a.corresponds(b)
                 ((v1, v2) => (v1.host.compareTo(v2.host) == 0) && (v1.port == v2.port)))
-    println("Created routing table:" + routingTable)
   }
 
   def serversForKey(key: KeyType): List[PartitionService] = {
