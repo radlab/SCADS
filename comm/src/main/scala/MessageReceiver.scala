@@ -20,31 +20,6 @@ case class ActorService(a: Actor) extends MessageReceiver {
   }
 }
 
-class MessageFuture extends Future[MessageBody] with MessageReceiver {
-  protected[comm] val remoteActor = MessageHandler.registerService(this)
-  protected val message = new SyncVar[MessageBody]
-
-  /* Note: doesn't really implement interface correctly */
-  def inputChannel = new InputChannel[MessageBody] {
-    def ?(): MessageBody = message.get
-    def reactWithin(msec: Long)(pf: PartialFunction[Any, Unit]): Nothing = throw new RuntimeException("Unimplemented")
-    def react(f: PartialFunction[MessageBody, Unit]): Nothing = throw new RuntimeException("Unimplemented")
-    def receive[R](f: PartialFunction[MessageBody, R]): R = f(message.get)
-    def receiveWithin[R](msec: Long)(f: PartialFunction[Any, R]): R = f(message.get(msec).getOrElse(ProcessingException("timeout", "")))
-  }
-
-  def respond(r: (MessageBody) => Unit): Unit = r(message.get)
-  def apply(): MessageBody = message.get
-  def get(timeout: Int): Option[MessageBody] = message.get(timeout)
-  def isSet: Boolean = message.isSet
-  def cancel: Unit = MessageHandler.unregisterActor(remoteActor)
-
-  def receiveMessage(src: Option[RemoteActorProxy], msg: MessageBody): Unit = {
-    MessageHandler.unregisterActor(remoteActor)
-    message.set(msg)
-  }
-}
-
 /**
  * Executes requests of type MessageType on a threadpool by calling a user
  * supplied process method.
