@@ -103,23 +103,44 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
        root: ZooKeeperProxy#ZooKeeperNode) (implicit cluster : ScadsCluster)
               extends Namespace[KeyType, ValueType](namespace, timeout, root)(cluster) {
   protected val logger = Logger.getLogger("Namespace")
-
-  protected val rand = new scala.util.Random
-  protected def pickRandomServer(key: KeyType): PartitionService = {
-    val servers = serversForKey(key)
-    servers(rand.nextInt(servers.size))
-  }
-
   protected def serversForKey(key: KeyType): List[PartitionService]
 
-  def put[K <: KeyType, V <: ValueType](key: K, value: Option[V]): Unit =
-    serversForKey(key).foreach(_ !? PutRequest(serializeKey(key), value.map(serializeValue)))
+  def writeQurorumForKey(key: KeyType):(List[PartitionService], Int) = {
+    val servers = serversForKey(key)
+    (servers, servers.size)
+  }
 
-  def get[K <: KeyType](key: K): Option[ValueType] =
-    pickRandomServer(key) !? GetRequest(serializeKey(key)) match {
-      case GetResponse(value) => value map deserializeValue
-      case _ => throw new RuntimeException("Unexpected Message")
-    }
+  def readQurorumForKey(key: KeyType):(List[PartitionService], Int) = {
+    val servers = serversForKey(key)
+    (servers, servers.size)
+  }
+
+  def put[K <: KeyType, V <: ValueType](key: K, value: Option[V]): Unit = {
+    val (servers,size) = writeQurorumForKey(key)
+    val putRequest = PutRequest(serializeKey(key), value.map(serializeValue))
+    val responses = serversForKey(key).map(_ !! putRequest)
+    responses.blockFor(servers.size)
+  }
+
+  def get[K <: KeyType](key: K): Option[ValueType] = {
+    val (servers, size) = readQurorumForKey(key)
+    val getRequest = GetRequest(serializeKey(key))
+    val responses = servers.map(_ !! getRequest)
+    val votes = new HashMap[Option[ValueType], Int]
+
+    responses.foreach(mf => {
+      val value = mf() match {
+        case GetResponse(v) => v map deserializeValue
+        case u => throw new RuntimeException("Unexpected message during get.")
+      }
+      votes += ((value, votes.getOrElse(value, 0) + 1))
+      if(votes(value) >= size) {
+        return value
+      }
+    })
+
+    throw new RuntimeException("NO QUORUM MET")
+  }
 
   def getPrefix[K <: KeyType](key: K, prefixSize: Int, limit: Option[Int] = None, ascending: Boolean = true):Seq[(KeyType,ValueType)] = throw new RuntimeException("Unimplemented")
   def getRange(start: Option[KeyType], end: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, backwards:Boolean = false): Seq[(KeyType,ValueType)] = throw new RuntimeException("Unimplemented")
@@ -129,7 +150,6 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
   def load() = throw new RuntimeException("Unimplemented")
 
 }
-
 
 /**
  * The new protocol interface
