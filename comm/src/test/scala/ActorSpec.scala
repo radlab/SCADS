@@ -9,7 +9,7 @@ import edu.berkeley.cs.scads.comm._
 
 @RunWith(classOf[JUnitRunner])
 class RemoteActorSpec extends Spec with ShouldMatchers {
-  val msg = GetRequest("Hello World".getBytes)
+  val msg = PutResponse()
 
   describe("RemoteActors") {
     it("should send message asynchronously") {
