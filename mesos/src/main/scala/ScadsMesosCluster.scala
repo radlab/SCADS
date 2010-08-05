@@ -4,6 +4,8 @@ import mesos._
 import java.io.File
 import org.apache.log4j.Logger
 
+import edu.berkeley.cs.scads.comm._
+
 object ScadsScheduler {
   def main(args: Array[String]): Unit = {
     System.loadLibrary("mesos")
@@ -29,7 +31,7 @@ class ScadsScheduler extends Scheduler {
     offers.foreach(offer => {
       taskParams.set("cpus", offer.getParams.get("cpus"))
       taskParams.set("mem", offer.getParams.get("mem"))
-      tasks.add(new TaskDescription(taskId, offer.getSlaveId(), "task" + taskId, taskParams, "".getBytes))
+      tasks.add(new TaskDescription(taskId, offer.getSlaveId(), "task" + taskId, taskParams, JvmProcess("/work/marmbrus/mesos/mesos-2.1.0-SNAPSHOT-jar-with-dependencies.jar", "edu.berkeley.cs.scads.storage.ScalaEngine", "--zooKeeper r6:2181" :: Nil ).toBytes))
       taskId += 1
     })
 
