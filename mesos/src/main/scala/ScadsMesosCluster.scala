@@ -8,7 +8,7 @@ object ScadsScheduler {
   def main(args: Array[String]): Unit = {
     System.loadLibrary("mesos")
     org.apache.log4j.BasicConfigurator.configure()
-    new MesosSchedulerDriver(new ScadsScheduler(), "1@169.229.48.70:5050").run();
+    new MesosSchedulerDriver(new ScadsScheduler(), "1@169.229.48.74:5050").run();
   }
 
 }
@@ -20,19 +20,20 @@ class ScadsScheduler extends Scheduler {
   override def getExecutorInfo(d: SchedulerDriver): ExecutorInfo = new ExecutorInfo("/work/marmbrus/mesos/scads_executor", Array[Byte]())
   override def registered(d: SchedulerDriver, fid: String): Unit = logger.info("Registered SCADS Framework.  Fid: " + fid)
 
-  override def resourceOffer(d: SchedulerDriver, oid: String, offers: SlaveOfferVector) = {
+  override def resourceOffer(d: SchedulerDriver, oid: String, offs: SlaveOfferVector) = {
+    val offers = (0 to offs.capacity.toInt - 1).map(offs.get)
     logger.info("Got offer: " + offers)
 
     val tasks = new TaskDescriptionVector()
     val taskParams = new StringMap()
-    val offer = offers.get(0)
-    taskParams.set("cpus", "1")
-    taskParams.set("mem", "134217728")
-    tasks.add(new TaskDescription(taskId, offer.getSlaveId(), "task" + taskId, taskParams, "".getBytes))
-    taskId += 1
+    offers.foreach(offer => {
+      taskParams.set("cpus", offer.getParams.get("cpus"))
+      taskParams.set("mem", offer.getParams.get("mem"))
+      tasks.add(new TaskDescription(taskId, offer.getSlaveId(), "task" + taskId, taskParams, "".getBytes))
+      taskId += 1
+    })
 
     val params = new StringMap()
-    params.set("timeout", "1")
     d.replyToOffer(oid, tasks, params)
   }
 

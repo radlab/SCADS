@@ -3,7 +3,7 @@ package edu.berkeley.cs.scads.mesos
 import edu.berkeley.cs.scads.comm._
 
 import org.apache.log4j.Logger
-import java.io.File
+import java.io.{File, InputStream, BufferedReader, InputStreamReader}
 import mesos._
 
 object JavaExecutor {
@@ -15,6 +15,16 @@ object JavaExecutor {
   }
 }
 
+class StreamEchoer(stream: InputStream) extends Runnable {
+  val reader = new BufferedReader(new InputStreamReader(stream))
+  val thread = new Thread(this, "StreamEchoer")
+  thread.start()
+
+  def run() = {
+    while(true)
+      println(reader.readLine)
+  }
+}
 
 class JavaExecutor extends Executor {
   val logger = Logger.getLogger("scads.javaexecutor")
@@ -34,6 +44,8 @@ class JavaExecutor extends Executor {
                        processDescription.mainclass) ++ processDescription.args
     logger.info("Execing: " + cmdLine.mkString)
     val proc = Runtime.getRuntime().exec(cmdLine.toArray, Array[String](), tempDir)
+    new StreamEchoer(proc.getInputStream())
+    new StreamEchoer(proc.getErrorStream())
     proc.waitFor()
     d.sendStatusUpdate(new TaskStatus(taskDesc.getTaskId, TaskState.TASK_FINISHED, "".getBytes))
   }
