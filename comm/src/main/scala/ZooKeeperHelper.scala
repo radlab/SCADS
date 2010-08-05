@@ -60,7 +60,7 @@ object ZooKeeperHelper {
           success.set(true)
         }
         catch {
-          case ce: java.net.ConnectException => {
+          case ce: org.apache.zookeeper.KeeperException.ConnectionLossException => {
             logger.info("Connection to test zookeeper on port " + port + " failed, waiting")
             }
         }

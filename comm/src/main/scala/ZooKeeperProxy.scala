@@ -17,32 +17,40 @@ object RClusterZoo extends ZooKeeperProxy("r2:2181")
  * TODO: Recreate ephemeral nodes on reconnect.
  */
 class ZooKeeperProxy(val address: String) extends Watcher {
-  val logger = Logger.getLogger("scads.zookeeper")
-  var conn = new ZooKeeper(address, 10000, this)
+  protected val logger = Logger.getLogger("scads.zookeeper")
+  protected var conn = new ZooKeeper(address, 10000, this)
   val root = new ZooKeeperNode("/")
 
   def close() = conn.close()
+
   class ZooKeeperNode(val path: String) {
-    var childrenCache: Option[HashMap[String, ZooKeeperNode]] = None
-    var dataCache: Option[Array[Byte]] = None
-    var statCache: Option[Stat] = None
+    protected val childrenCache = new HashMap[String, ZooKeeperNode]
+    protected var dataCache: Option[Array[Byte]] = None
+    protected var statCache: Option[Stat] = None
 
     def name: String = path.split("/").last
 
-    def apply(rpath: String): ZooKeeperNode = rpath.split("/").foldLeft(this)((n,p) => n.updateChildren(false).apply(p))
+    def apply(rpath: String): ZooKeeperNode = get(rpath).getOrElse(throw new RuntimeException("Zookeeper node doesn't exist: " + prefix + rpath))
 
-    def get(rpath: String): Option[ZooKeeperNode] = rpath.split("/").foldLeft(Option(this))((n,p) => n.flatMap(_.updateChildren(false).get(p)))
+    def get(rpath: String): Option[ZooKeeperNode] = {
+      val stat = conn.exists(prefix + rpath, false)
+      if(stat == null)
+        None
+      else {
+        Some(rpath.split("/").foldLeft(this)((n,p) => n.childrenCache.getOrElseUpdate(p, new ZooKeeperNode(n.prefix + p))))
+      }
+    }
 
     def prefix: String = if(path equals "/") "/" else path + "/"
 
     def children: List[ZooKeeperNode] = updateChildren(false).map(_._2).toList
-    def cachedChildren: Iterable[ZooKeeperNode] = childrenCache.getOrElse(updateChildren(false)).map(_._2)
+    def cachedChildren: Iterable[ZooKeeperNode] = childrenCache.map(_._2)
 
     def data: Array[Byte] = updateData(false)
     def cachedData: Array[Byte] = dataCache.getOrElse(updateData())
 
 		def data_=(d: Array[Byte]): Unit = {
-			conn.setData(path, d, if(statCache.isDefined) statCache.get.getVersion else -1)
+			conn.setData(path, d, statCache.map(_.getVersion).getOrElse(-1))
 		}
 
     def getOrCreate(rpath: String): ZooKeeperNode = {
@@ -52,48 +60,28 @@ class ZooKeeperProxy(val address: String) extends Watcher {
       })
     }
 
-    def createSequentialChild(name: String, data: Array[Byte] = Array[Byte]()): ZooKeeperNode = {
-      val newNode = conn.create(prefix + name, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL)
-      updateChildren(false).apply(newNode.split("/").last)
+    def createChild(name: String, data: Array[Byte] = Array[Byte](), mode: CreateMode = CreateMode.PERSISTENT): ZooKeeperNode = {
+      val newNode = new ZooKeeperNode(conn.create(prefix + name, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, mode))
+      childrenCache += ((newNode.name, newNode))
+      return newNode
     }
 
-    def createChild(name: String, data: Array[Byte], mode: CreateMode): ZooKeeperNode = {
-      conn.create(prefix + name, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, mode)
-      updateChildren(false).apply(name)
-    }
-
-		def deleteChild(name:String):ZooKeeperNode = {
+		def deleteChild(name:String):Unit = {
 			conn.delete(prefix + name,-1)
-			updateChildren(false)
-			this
 		}
 
     def delete(): Unit = {
       conn.delete(path, -1)
     }
 
-    protected def updateChildren(watch: Boolean = false):HashMap[String, ZooKeeperNode] = {
-      if(!childrenCache.isDefined)
-        childrenCache = Some(new HashMap[String, ZooKeeperNode]())
-
+    protected def updateChildren(watch: Boolean = false): HashMap[String, ZooKeeperNode] = {
       val c = conn.getChildren(path, watch)
-      childrenCache.get.filter( t => {
-        val p = t._1
-        val n = t._2
-        if(!c.contains(p)) {
-          n.watchedEvent(EventType.NodeDeleted)
-          false
-        }
-        else {
-          true
-        }
-      })
-
-      c --= childrenCache.get.keysIterator.toList
+      childrenCache.filter(t => !c.contains(t._1))
+      c --= childrenCache.keysIterator.toList
       c.foreach(k => {
-        childrenCache.get += ((k, new ZooKeeperNode(prefix + k)))
+        childrenCache += ((k, new ZooKeeperNode(prefix + k)))
       })
-      childrenCache.get
+      childrenCache
     }
 
     protected def updateData(watch: Boolean = false): Array[Byte] = {
@@ -113,7 +101,7 @@ class ZooKeeperProxy(val address: String) extends Watcher {
     }
 
     override def toString(): String =
-      "<znode path:" + path + ", data: '" + new String(data) + "', children: " + cachedChildren.map(_.name) + ">"
+      "<znode path:" + path + ", data: '" + new String(data) + "', children: " + children.map(_.name) + ">"
   }
 
   def process(event: WatchedEvent): Unit = {

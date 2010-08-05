@@ -60,7 +60,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
         dbConfig.setTransactional(true)
 
         /* Grab a lock on the partitionId. Open the database and instanciate the handler. */
-        val partitionIdLock = nsRoot("partitions").createSequentialChild("partition")
+        val partitionIdLock = nsRoot("partitions").createChild("partition", mode = CreateMode.EPHEMERAL_SEQUENTIAL)
         val partitionId = partitionIdLock.name
         val db = env.openDatabase(null, namespace, dbConfig)
         val handler = new PartitionHandler(db, partitionIdLock, startKey, endKey, nsRoot, Schema.parse(keySchemaJson))
