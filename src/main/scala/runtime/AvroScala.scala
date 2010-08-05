@@ -47,6 +47,13 @@ object AvroScala {
       rec.getSchema().getFields().foreach(f => genRec.put(f.pos, rec.get(f.pos)))
       genRec
     }
+
+    def compare(lhs: T): Int = GenericData.get.compare(rec, lhs, rec.getSchema())
+    def >(lhs: T): Boolean = compare(lhs) > 0
+    def <(lhs: T): Boolean = compare(lhs) < 0
+    def >=(lhs: T): Boolean = compare(lhs) >= 0
+    def <=(lhs: T): Boolean = compare(lhs) <= 0
+    def ==(lhs: T): Boolean = compare(lhs) == 0
   }
 
   implicit def toRichIndexedRecord[T <: IndexedRecord](rec: T): RichIndexedRecord[T] = new RichIndexedRecord(rec)
