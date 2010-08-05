@@ -53,7 +53,9 @@ object ZooKeeperHelper {
       var connected = false
       while(!connected && !success.isSet) {
         try {
-          val s = new java.net.Socket("localhost", port)
+          val proxy = new ZooKeeperProxy("localhost:" + port)
+          proxy.root("zookeeper")
+          proxy.close()
           connected = true
           success.set(true)
         }

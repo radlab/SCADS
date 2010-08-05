@@ -21,6 +21,7 @@ class ZooKeeperProxy(val address: String) extends Watcher {
   var conn = new ZooKeeper(address, 10000, this)
   val root = new ZooKeeperNode("/")
 
+  def close() = conn.close()
   class ZooKeeperNode(val path: String) {
     var childrenCache: Option[HashMap[String, ZooKeeperNode]] = None
     var dataCache: Option[Array[Byte]] = None
