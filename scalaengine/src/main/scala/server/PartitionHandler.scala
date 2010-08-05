@@ -12,6 +12,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 
   protected def startup(): Unit = null
   protected def shutdown(): Unit = {
+    partitionIdLock.delete()
     db.close()
   }
 

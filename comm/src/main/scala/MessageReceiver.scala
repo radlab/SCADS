@@ -32,13 +32,6 @@ abstract class ServiceHandler[MessageType <: MessageBody] extends MessageReceive
   protected val outstandingRequests = new ArrayBlockingQueue[Runnable](1024)
   protected val executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, outstandingRequests)
 
-  /* Register a shutdown hook for proper cleanup */
-  class SDRunner(sh: ServiceHandler[_]) extends Thread {
-    override def run(): Unit = {
-      sh.stop
-    }
-  }
-  java.lang.Runtime.getRuntime().addShutdownHook(new SDRunner(this))
   startup()
 
   protected def startup(): Unit
@@ -47,6 +40,7 @@ abstract class ServiceHandler[MessageType <: MessageBody] extends MessageReceive
 
   def stop: Unit = {
     MessageHandler.unregisterActor(remoteHandle)
+    executor.shutdown()
     shutdown()
   }
 

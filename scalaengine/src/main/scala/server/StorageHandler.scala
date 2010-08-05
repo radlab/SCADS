@@ -21,6 +21,14 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
   /* Hashmap of currently open partition handler, indexed by partitionId */
   protected var partitions = new scala.collection.immutable.HashMap[String, PartitionHandler]
 
+  /* Register a shutdown hook for proper cleanup */
+  class SDRunner(sh: ServiceHandler[_]) extends Thread {
+    override def run(): Unit = {
+      sh.stop
+    }
+  }
+  java.lang.Runtime.getRuntime().addShutdownHook(new SDRunner(this))
+
   /**
    * Performs the following startup tasks:
    * * Register with zookeeper as an available server
@@ -60,7 +68,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
         dbConfig.setTransactional(true)
 
         /* Grab a lock on the partitionId. Open the database and instanciate the handler. */
-        val partitionIdLock = nsRoot("partitions").createChild("partition", mode = CreateMode.EPHEMERAL_SEQUENTIAL)
+        val partitionIdLock = nsRoot("partitions").createChild(namespace, mode = CreateMode.EPHEMERAL_SEQUENTIAL)
         val partitionId = partitionIdLock.name
         val db = env.openDatabase(null, namespace, dbConfig)
         val handler = new PartitionHandler(db, partitionIdLock, startKey, endKey, nsRoot, Schema.parse(keySchemaJson))
@@ -79,6 +87,10 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
         val dbName = handler.db.getDatabaseName()
         logger.info("Stopping partition " + partitionId + " for delete")
         handler.stop
+
+        synchronized {
+          partitions -= partitionId
+        }
 
         logger.info("Deleting partition " + partitionId)
         /* TODO: Garbage collect data / databases that are unused */
