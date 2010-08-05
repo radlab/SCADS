@@ -81,15 +81,18 @@ extends AvroChannelManager[SendMsgType, RecvMsgType] with ChannelHandler {
     synchronized {
       var open = false
       while(!open) {
-        try startListener(port) catch {
+        try {
+          startListener(port)
+          open = true
+        } catch {
           case bn: java.net.BindException => port += 1
         }
-        open = true
       }
     }
   }
 
   override def startListener(port: Int): Unit = {
+    println("listener starting on port: " + port)
     endpoint.serve(new InetSocketAddress(port))
   }
 
@@ -109,11 +112,6 @@ extends AvroChannelManager[SendMsgType, RecvMsgType] with ChannelHandler {
   def getLocalPort: Int = endpoint.getListeningPort
 
   def remoteNode = {
-    var address = getLocalAddress
-    while(address == null) {
-      Thread.sleep(10)
-      address = getLocalAddress
-    }
     RemoteNode(getLocalAddress.getCanonicalHostName(), getLocalPort)
   }
 }
