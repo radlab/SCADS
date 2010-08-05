@@ -10,7 +10,7 @@ object JavaExecutor {
   def main(args: Array[String]): Unit = {
     System.loadLibrary("mesos")
     org.apache.log4j.BasicConfigurator.configure()
-    val driver = new MesosExecutorDriver(new ScadsExecutor())
+    val driver = new MesosExecutorDriver(new JavaExecutor())
     driver.run()
   }
 }
