@@ -30,7 +30,7 @@ trait UnionDiscover extends ScalaAvroPluginComponent {
     def newTraverser(): Traverser = new ForeachTreeTraverser(check)
 
     def check(tree: Tree): Unit = tree match {
-      case cd @ ClassDef(mods, _, _, _) if (cd.symbol.hasAnnotation(avroUnionAnnotation)) =>
+      case cd @ ClassDef(mods, _, _, _) if (cd.symbol.tpe.parents.contains(avroUnionTrait.tpe)) =>
         if (!mods.isSealed)
           throw new NonSealedClassException(cd.symbol.fullName)
         // TODO: what do we do if it's not abstract?

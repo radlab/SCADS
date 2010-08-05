@@ -42,9 +42,9 @@ trait ScalaAvroPluginComponent extends PluginComponent {
   /** Definitions doesn't contain one for MapClass */
   protected lazy val MapClass = definitions.getClass("scala.collection.immutable.Map")
 
-  /** Avro Scala Plugin Annotations */
+  /** Avro Scala Plugin Traits */
   protected lazy val avroRecordTrait = definitions.getClass("com.googlecode.avro.marker.AvroRecord")
-  protected lazy val avroUnionAnnotation = definitions.getClass("com.googlecode.avro.annotation.AvroUnion")
+  protected lazy val avroUnionTrait = definitions.getClass("com.googlecode.avro.marker.AvroUnion")
 
   /** Avro Extra Primitive Types */
   protected lazy val byteBufferClass = definitions.getClass("java.nio.ByteBuffer")
@@ -64,6 +64,9 @@ trait ScalaAvroPluginComponent extends PluginComponent {
 
   /** Takes a union trait and maps to all its extenders */
   protected val unionToExtenders: Map[Symbol, List[Symbol]]
+
+  /** Takes a union trait and maps to its Avro schema object */
+  protected val unionToSchemas: Map[Symbol, Schema]
 
   /** Takes a compilation unit (a source file) and maps to all union traits
    * inside it*/
@@ -107,6 +110,12 @@ trait ScalaAvroPluginComponent extends PluginComponent {
 
   protected def isUnion(sym: Symbol) = unionToExtenders.contains(sym)
 
+  protected def getOrCreateUnionSchema(sym: Symbol, schema: => Schema): Schema =
+    unionToSchemas.getOrElseUpdate(sym, schema)
+
+  protected def getUnionSchema(sym: Symbol) = 
+    unionToSchemas.get(sym)
+
   protected def retrieveUnions(unit: CompilationUnit): List[Symbol] = unitMap.get(unit) match {
     case Some(l) => l
     case None => Nil
@@ -149,6 +158,7 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
   
   val classToSchema: Map[Symbol, Schema] = new HashMap[Symbol, Schema]
   val unionToExtenders: Map[Symbol, List[Symbol]] = new HashMap[Symbol, List[Symbol]]
+  val unionToSchemas: Map[Symbol, Schema] = new HashMap[Symbol, Schema]
   val unitMap: Map[CompilationUnit, List[Symbol]] = new HashMap[CompilationUnit, List[Symbol]]
   val companionModuleMap: Map[String, Symbol] = new HashMap[String, Symbol]
   val companionClassMap: Map[String, Symbol] = new HashMap[String, Symbol]
@@ -157,6 +167,7 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
     val global : ScalaAvroPlugin.this.global.type = ScalaAvroPlugin.this.global
     val classToSchema = ScalaAvroPlugin.this.classToSchema
     val unionToExtenders = ScalaAvroPlugin.this.unionToExtenders
+    val unionToSchemas = ScalaAvroPlugin.this.unionToSchemas
     val unitMap = ScalaAvroPlugin.this.unitMap
     val companionModuleMap = ScalaAvroPlugin.this.companionModuleMap
     val companionClassMap = ScalaAvroPlugin.this.companionClassMap
@@ -166,6 +177,7 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
     val global : ScalaAvroPlugin.this.global.type = ScalaAvroPlugin.this.global
     val classToSchema = ScalaAvroPlugin.this.classToSchema
     val unionToExtenders = ScalaAvroPlugin.this.unionToExtenders
+    val unionToSchemas = ScalaAvroPlugin.this.unionToSchemas
     val unitMap = ScalaAvroPlugin.this.unitMap
     val companionModuleMap = ScalaAvroPlugin.this.companionModuleMap
     val companionClassMap = ScalaAvroPlugin.this.companionClassMap
@@ -175,6 +187,7 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
     val global : ScalaAvroPlugin.this.global.type = ScalaAvroPlugin.this.global
     val classToSchema = ScalaAvroPlugin.this.classToSchema
     val unionToExtenders = ScalaAvroPlugin.this.unionToExtenders
+    val unionToSchemas = ScalaAvroPlugin.this.unionToSchemas
     val unitMap = ScalaAvroPlugin.this.unitMap
     val companionModuleMap = ScalaAvroPlugin.this.companionModuleMap
     val companionClassMap = ScalaAvroPlugin.this.companionClassMap
@@ -184,6 +197,7 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
     val global : ScalaAvroPlugin.this.global.type = ScalaAvroPlugin.this.global
     val classToSchema = ScalaAvroPlugin.this.classToSchema
     val unionToExtenders = ScalaAvroPlugin.this.unionToExtenders
+    val unionToSchemas = ScalaAvroPlugin.this.unionToSchemas
     val unitMap = ScalaAvroPlugin.this.unitMap
     val companionModuleMap = ScalaAvroPlugin.this.companionModuleMap
     val companionClassMap = ScalaAvroPlugin.this.companionClassMap
@@ -193,6 +207,7 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
     val global : ScalaAvroPlugin.this.global.type = ScalaAvroPlugin.this.global
     val classToSchema = ScalaAvroPlugin.this.classToSchema
     val unionToExtenders = ScalaAvroPlugin.this.unionToExtenders
+    val unionToSchemas = ScalaAvroPlugin.this.unionToSchemas
     val unitMap = ScalaAvroPlugin.this.unitMap
     val companionModuleMap = ScalaAvroPlugin.this.companionModuleMap
     val companionClassMap = ScalaAvroPlugin.this.companionClassMap
@@ -202,6 +217,7 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
     val global : ScalaAvroPlugin.this.global.type = ScalaAvroPlugin.this.global
     val classToSchema = ScalaAvroPlugin.this.classToSchema
     val unionToExtenders = ScalaAvroPlugin.this.unionToExtenders
+    val unionToSchemas = ScalaAvroPlugin.this.unionToSchemas
     val unitMap = ScalaAvroPlugin.this.unitMap
     val companionModuleMap = ScalaAvroPlugin.this.companionModuleMap
     val companionClassMap = ScalaAvroPlugin.this.companionClassMap
@@ -211,6 +227,7 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
     val global : ScalaAvroPlugin.this.global.type = ScalaAvroPlugin.this.global
     val classToSchema = ScalaAvroPlugin.this.classToSchema
     val unionToExtenders = ScalaAvroPlugin.this.unionToExtenders
+    val unionToSchemas = ScalaAvroPlugin.this.unionToSchemas
     val unitMap = ScalaAvroPlugin.this.unitMap
     val companionModuleMap = ScalaAvroPlugin.this.companionModuleMap
     val companionClassMap = ScalaAvroPlugin.this.companionClassMap
@@ -220,6 +237,7 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
     val global : ScalaAvroPlugin.this.global.type = ScalaAvroPlugin.this.global
     val classToSchema = ScalaAvroPlugin.this.classToSchema
     val unionToExtenders = ScalaAvroPlugin.this.unionToExtenders
+    val unionToSchemas = ScalaAvroPlugin.this.unionToSchemas
     val unitMap = ScalaAvroPlugin.this.unitMap
     val companionModuleMap = ScalaAvroPlugin.this.companionModuleMap
     val companionClassMap = ScalaAvroPlugin.this.companionClassMap

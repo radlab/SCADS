@@ -26,4 +26,3 @@ trait AvroRecord extends ScalaSpecificRecord {
   }
 
 }
-

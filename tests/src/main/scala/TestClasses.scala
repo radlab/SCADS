@@ -1,15 +1,13 @@
 package com.googlecode.avro
 package test
 
-import com.googlecode.avro.marker.AvroRecord
-import com.googlecode.avro.annotation.AvroUnion
+import com.googlecode.avro.marker.{ AvroRecord, AvroUnion }
 
 import java.nio.ByteBuffer
 
 case class Test0(var i: Int) extends AvroRecord
 
-@AvroUnion
-sealed trait Test1_Union
+sealed trait Test1_Union extends AvroUnion
 
 case class Test1(var elems: Test1_Union) extends AvroRecord
 
@@ -42,8 +40,7 @@ case class Test7(var opt: Option[String]) extends AvroRecord
 
 case class Test8(var n0: Int, var n1: Long, var n2: Float, var n3: Double) extends AvroRecord
 
-@AvroUnion
-sealed trait Test9_Union
+sealed trait Test9_Union extends AvroUnion
 
 case class Test9_A(var int: Int) extends AvroRecord with Test9_Union
 

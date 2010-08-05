@@ -93,10 +93,10 @@ trait SchemaGen extends ScalaAvroPluginComponent
       } else if (isExternalRecord(tpe.typeSymbol)) {
         retrieveExternalRecordSchema(tpe.typeSymbol)
       } else if (isUnion(tpe.typeSymbol)) {
-        Schema.createUnion(JArrays.asList(
+        getOrCreateUnionSchema(tpe.typeSymbol, Schema.createUnion(JArrays.asList(
           retrieveUnionRecords(tpe.typeSymbol).
           map(_.tpe).
-          map(t => createSchema(t)).toArray:_*))
+          map(t => createSchema(t)).toArray:_*)))
       } else {
         throw new UnsupportedOperationException("Cannot support yet: " + tpe)
       }

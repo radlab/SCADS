@@ -16,7 +16,11 @@ import nsc.ast.TreeDSL
 import nsc.typechecker
 import scala.annotation.tailrec
 
+import java.util.{Arrays => JArrays}
+
 import scala.collection.JavaConversions._
+
+import org.apache.avro.Schema
 
 trait MethodGen extends ScalaAvroPluginComponent
                 with    Transform
@@ -237,8 +241,38 @@ trait MethodGen extends ScalaAvroPluginComponent
       }
     }
 
+    private def generateGetUnionSchemaMethod(clazzTree: ClassDef, unionSchema: Schema): Tree = {
+      val clazz = clazzTree.symbol
+      val newSym = clazz.newMethod(clazz.pos.focus, newTermName("getSchema"))
+      newSym setFlag SYNTHETICMETH | OVERRIDE
+      newSym setInfo MethodType(newSym.newSyntheticValueParams(Nil), schemaClass.tpe)
+      clazz.info.decls enter newSym 
+
+      localTyper.typed {
+        DEF(newSym) === { 
+          Apply(
+            Ident(newTermName("org")) DOT 
+              newTermName("apache")   DOT
+              newTermName("avro")     DOT
+              newTermName("Schema")   DOT
+              newTermName("parse"),
+            List(LIT(unionSchema.toString)))
+        }
+      }
+    }
+
+
     override def transform(tree: Tree) : Tree = {
       val newTree = tree match {
+        case cd @ ClassDef(mods, name, tparams, impl) if (cd.symbol.tpe.parents.contains(avroUnionTrait.tpe)) =>
+          //println("FOUND UNION: " + cd.symbol)
+          val schema = getOrCreateUnionSchema(cd.symbol, 
+              Schema.createUnion(JArrays.asList(retrieveUnionRecords(cd.symbol).map(s => retrieveRecordSchema(s).get).toArray:_*)))
+          //println("SCHEMA: " + schema)
+          cd.symbol.resetFlag(INTERFACE) /** force compiler to generate backing $class class */
+          val newMethod = List(generateGetUnionSchemaMethod(cd, schema))
+          val newImpl = treeCopy.Template(impl, impl.parents, impl.self, newMethod ::: impl.body)
+          treeCopy.ClassDef(cd, mods, name, tparams, newImpl)
         case cd @ ClassDef(mods, name, tparams, impl) if (cd.symbol.tpe.parents.contains(avroRecordTrait.tpe)) =>
           debug(retrieveRecordSchema(cd.symbol))
           debug(cd.symbol.fullName + "'s enclClass: " + cd.symbol.enclClass)
