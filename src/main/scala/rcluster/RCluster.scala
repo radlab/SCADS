@@ -17,9 +17,9 @@ object RCluster {
 	/**
 	 * Returns an array of all rcluster nodes that respond to a simple command in less than 5 seconds
 	 */
-	def activeNodes() = {
+	def activeNodes(timeout: Int = 10000) = {
 		val check = nodes.map((n) => (n, Future(n.executeCommand("hostname"))))
-		Thread.sleep(20000)
+		Thread.sleep(timeout)
 		check.foreach((c) => if(!c._2.isDone) c._2.cancel)
 		check.filter((c) => c._2.isDone && c._2.success).map((c) => c._1)
 	}
