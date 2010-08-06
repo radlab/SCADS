@@ -12,24 +12,24 @@ trait SchemaSource[R] {
 }
 
 object SchemaSource {
+  private[runtime] def findSchema[C <: GenericContainer](implicit r: Manifest[C]): Schema = {
+    val clz = r.erasure.asInstanceOf[Class[C]]
+    if (classOf[AvroRecord].isAssignableFrom(clz))
+      clz.newInstance().getSchema
+    else if (classOf[SpecificRecord].isAssignableFrom(clz))
+      SpecificData.get.getSchema(clz)
+    else if (classOf[AvroUnion].isAssignableFrom(clz)) {
+      // yes, this is disturbing
+      val implClassName = clz.getName + "$class"
+      Class.forName(implClassName)
+        .getMethod("getSchema", clz)
+        .invoke(null, null).asInstanceOf[Schema]
+    } else {
+      throw new RuntimeException("Don't know how to handle class: " + clz)
+    }
+  }
   implicit def genericContainerSchemaSource[C <: GenericContainer](implicit r: Manifest[C]): SchemaSource[C] = 
     new SchemaSource[C] {
-      override def getSchema() = {
-        val clz = r.erasure.asInstanceOf[Class[C]]
-        if (classOf[AvroRecord].isAssignableFrom(clz))
-          clz.newInstance().getSchema
-        else if (classOf[SpecificRecord].isAssignableFrom(clz))
-          SpecificData.get.getSchema(clz)
-        else if (classOf[AvroUnion].isAssignableFrom(clz)) {
-          // yes, this is disturbing
-          val implClassName = clz.getName + "$class"
-          Class.forName(implClassName)
-            .getMethod("getSchema", clz)
-            .invoke(null, null).asInstanceOf[Schema]
-        } else {
-          throw new RuntimeException("Don't know how to handle class: " + clz)
-        }
-      }
+      override def getSchema() = findSchema[C]
     }
 }
-
