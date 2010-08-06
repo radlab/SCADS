@@ -43,9 +43,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     var i = ranges.size - 1
     nsRoot.createChild("partitions", "".getBytes, CreateMode.PERSISTENT)
     for(range <- ranges.reverse){
-      println("Key" + range._1)
       startKey = range._1.map(serializeKey(_))
-      println("Key" + startKey)
       val handlers = createPartitions(startKey, endKey, range._2)
       rTable(i) =  new RangeType[Array[Byte], PartitionService](endKey, handlers)
       endKey = startKey
@@ -65,8 +63,6 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
         : List[PartitionService] =  {
     var handlers : List[PartitionService] = Nil
     for (server <- servers){
-      println("Sending create request to " + server + " NS:" +  namespace + " startkey:" + startKey + " endKey:" + endKey)
-      println("Serialize msg" + CreatePartitionRequest(namespace, startKey, endKey).toBytes)
       server !? CreatePartitionRequest(namespace, startKey, endKey) match {
         case CreatePartitionResponse(partitionId, partitionActor) => handlers = partitionActor :: handlers
         case _ => throw new RuntimeException("Unexpected Message")

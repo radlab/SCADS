@@ -68,9 +68,7 @@ extends AvroChannelManager[SendMsgType, RecvMsgType] with ChannelHandler {
     val channel = getChannel(dest)
     val buffer = new ByteArrayOutputStream(128)
     val encoder = new BinaryEncoder(buffer)
-    println(" message send" + msg)
     msgWriter.write(msg, encoder)
-
     endpoint.send(channel, ByteBuffer.wrap(buffer.toByteArray), null, true)
   }
 
