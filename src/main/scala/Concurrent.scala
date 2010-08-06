@@ -69,7 +69,11 @@ object ParallelConversions {
 }
 
 class ParallelSeq[A](seq: List[A]) {
-	def spmap[B](f : (A) => B) : List[Future[B]] = {
+
+  @deprecated("use apmap")
+  def spmap[B](f : (A) => B) : List[Future[B]] = apmap(f)
+
+  def apmap[B](f : (A) => B) : List[Future[B]] = {
 		seq.map(v => new Future(f(v)))
 	}
 
