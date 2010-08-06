@@ -32,5 +32,14 @@ class ZookeeperProxySpec extends Spec with ShouldMatchers {
 
       zk2.root("path1/path2/path3")
     }
+
+    it("should delete nodes") {
+      val newNode = zk1.root.createChild("test")
+      zk1.root.children should contain(newNode)
+      zk1.root("test")
+      zk1.root.toString
+      newNode.delete
+      zk1.root.children.toString
+    }
   }
 }
