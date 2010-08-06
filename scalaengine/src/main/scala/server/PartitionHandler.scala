@@ -11,7 +11,10 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
   protected def startup(): Unit = null
-  protected def shutdown(): Unit = null
+  protected def shutdown(): Unit = {
+    partitionIdLock.delete()
+    db.close()
+  }
 
   protected def process(src: Option[RemoteActorProxy], msg: PartitionServiceOperation): Unit = {
     def reply(msg: MessageBody) = src.foreach(_ ! msg)
@@ -46,12 +49,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
         val dbeKey = new DatabaseEntry(key)
         val dbeCurrentValue = new DatabaseEntry
         db.get(txn, dbeKey, dbeCurrentValue, LockMode.READ_COMMITTED)
-        val matches = (expectedValue, Option(dbeCurrentValue.getData)) match {
-          case (None, None) => true
-          case (Some(x), Some(y)) if(java.util.Arrays.equals(x,y)) => true
-          case _ => false
-        }
-        if(matches){
+        if(java.util.Arrays.equals(expectedValue.orNull, dbeCurrentValue.getData)){
           value match {
             case Some(v) => db.put(txn, dbeKey, new DatabaseEntry(v))
             case None => db.delete(txn, dbeKey)
@@ -68,20 +66,23 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
         val dbeExistingValue = new DatabaseEntry
         val dbeKey = new DatabaseEntry
         val dbeValue = new DatabaseEntry
+        logger.debug("Opening iterator for data copy")
         val iter = new PartitionIterator(src, None, None)
 
+        logger.debug("Begining copy")
         iter.foreach(rec => {
           dbeKey.setData(rec.key); dbeValue.setData(rec.value.get)
           if(overwrite == true) {
             db.put(txn, dbeKey, dbeValue)
           }
           else {
-            db.get(txn, dbeKey, dbeExistingValue, LockMode.READ_COMMITTED)
-            if(dbeExistingValue.getData == null)
+            if(db.get(txn, dbeKey, dbeExistingValue, LockMode.READ_COMMITTED) != OperationStatus.SUCCESS)
               db.put(txn, dbeKey, dbeValue)
           }
         })
+        logger.debug("Copy complete.  Begining commit")
         txn.commit()
+        logger.debug("Comit complete")
         reply(CopyDataResponse())
       }
       case _ => src.foreach(_ ! ProcessingException("Not Implemented", ""))
@@ -117,7 +118,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 
       status = cur.getCurrent(dbeKey, dbeValue, null)
       while(status == OperationStatus.SUCCESS &&
-            limit.map(_ < returnedCount).getOrElse(true) &&
+            limit.map(_ > returnedCount).getOrElse(true) &&
             maxKey.map(compare(_, dbeKey.getData) <= 0).getOrElse(true)) {
         func(dbeKey, dbeValue, cur)
         returnedCount += 1
@@ -132,7 +133,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 
       status = cur.getCurrent(dbeKey, dbeValue, null)
       while(status == OperationStatus.SUCCESS &&
-            limit.map(_ < returnedCount).getOrElse(true) &&
+            limit.map(_ > returnedCount).getOrElse(true) &&
             minKey.map(compare(_, dbeKey.getData) >= 0).getOrElse(true)) {
         func(dbeKey, dbeValue,cur)
         returnedCount += 1

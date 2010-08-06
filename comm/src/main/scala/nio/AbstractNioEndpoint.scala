@@ -380,28 +380,27 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
   def serve(hostAddress: InetSocketAddress) = {
     synchronized {
       if (isListening) throw new IllegalStateException("Already listening")
+
+      serverChannel = ServerSocketChannel.open
+      serverChannel.configureBlocking(false)
+      serverChannel.socket.bind(hostAddress)
+      var shouldInitialize = false
+      synchronized {
+        if (!initialized) {
+          shouldInitialize = true
+          initialized = true
+        }
+      }
+      if (shouldInitialize) {
+        serverChannel.register(selector, SelectionKey.OP_ACCEPT)
+        fireWriteAndSelectLoop
+      } else {
+        registerQueue.synchronized {
+          registerQueue.add(new RegisterEntry(serverChannel, null, SelectionKey.OP_ACCEPT))
+        }
+        selector.wakeup
+      }
       isListening = true
-    }
-    if (serverChannel != null)
-      throw new IllegalStateException("Should be no server channel")
-    serverChannel = ServerSocketChannel.open
-    serverChannel.configureBlocking(false)
-    serverChannel.socket.bind(hostAddress)
-    var shouldInitialize = false
-    synchronized {
-      if (!initialized) {
-        shouldInitialize = true
-        initialized = true
-      }
-    }
-    if (shouldInitialize) {
-      serverChannel.register(selector, SelectionKey.OP_ACCEPT)
-      fireWriteAndSelectLoop
-    } else {
-      registerQueue.synchronized {
-        registerQueue.add(new RegisterEntry(serverChannel, null, SelectionKey.OP_ACCEPT))
-      }
-      selector.wakeup
     }
     logger.info("Now serving on: " + hostAddress)
   }

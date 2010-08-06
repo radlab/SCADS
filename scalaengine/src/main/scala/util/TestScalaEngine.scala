@@ -29,17 +29,8 @@ object TestScalaEngine {
     ScalaEngine.main(Some("testScads" + clusterId.getAndIncrement), Some(zooKeeper.address), Some(tempDir), None, false)
   }
 
-  def getTestHandler(count: Int): Seq[StorageHandler] = {
-    val root = Some("testScads" + clusterId.getAndIncrement)
-    (1 to count).map(i => {
-      val tempDir = File.createTempFile("scads", "testdb")
+  def getTestHandler(count: Int): List[StorageHandler] = (1 to count).map(_ => getTestHandler()).toList
 
-      tempDir.delete()
-      tempDir.mkdir()
-
-      ScalaEngine.main(root, Some(zooKeeper.address), Some(tempDir), None, false)
-    })
-  }
 
 	private def rmDir(dir: java.io.File): Boolean = {
 		if (dir.isDirectory()) {

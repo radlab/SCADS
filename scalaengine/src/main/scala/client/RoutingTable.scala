@@ -41,6 +41,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     var startKey : Option[Array[Byte]] = None
     var endKey : Option[Array[Byte]] = None
     var i = ranges.size - 1
+    nsRoot.createChild("partitions", "".getBytes, CreateMode.PERSISTENT)
     for(range <- ranges.reverse){
       println("Key" + range._1)
       startKey = range._1.map(serializeKey(_))
@@ -54,7 +55,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     storeRoutingTable()
   }
 
-  override def load(){
+  override def load() : Unit = {
     super.load()
     loadRoutingTable()
   }
@@ -64,32 +65,16 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
         : List[PartitionService] =  {
     var handlers : List[PartitionService] = Nil
     for (server <- servers){
-      partCtr += 1
-      println("Sending create request to " + server)
-      server !? CreatePartitionRequest(namespace, partCtr.toString, startKey, endKey) match {
-        case CreatePartitionResponse(partitionActor) => handlers = partitionActor :: handlers
+      println("Sending create request to " + server + " NS:" +  namespace + " startkey:" + startKey + " endKey:" + endKey)
+      println("Serialize msg" + CreatePartitionRequest(namespace, startKey, endKey).toBytes)
+      server !? CreatePartitionRequest(namespace, startKey, endKey) match {
+        case CreatePartitionResponse(partitionId, partitionActor) => handlers = partitionActor :: handlers
         case _ => throw new RuntimeException("Unexpected Message")
       }
     }
     return handlers
   }
 
-
-  private def createNewPartitionId() : String = {
-    throw new RuntimeException("Not needed anymore with new ID generation by the StoragHandle")
-//    //TODO Check if RT owner
-//    var ctr :  Long = 1
-//    val nsNode = nsRoot.get(ZOOKEEPER_PARTITION_ID)
-//    if (nsNode.isEmpty) {
-//      nsRoot.createChild(ZOOKEEPER_PARTITION_ID,  ctr.toString.getBytes, CreateMode.PERSISTENT)
-//    }else{
-//      var nd = nsNode.get
-//      ctr = (new String(nd.data)).toLong
-//      ctr += 1
-//      nd.data = ctr.toString.getBytes
-//    }
-//    return ctr.toString
-  }
 
   private def storeRoutingTable() = {
     val ranges = routingTable.ranges.map(a => KeyRange(a.maxKey, a.values))
@@ -124,7 +109,6 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
       (a: List[PartitionService], b: List[PartitionService]) => {
         a.corresponds(b)((v1, v2) => v1.id == v2.id)
       })
-    println("Created routing table:" + routingTable)
   }
 
   def serversForKey(key: KeyType): List[PartitionService] = {
