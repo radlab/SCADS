@@ -99,7 +99,7 @@ abstract class RemoteMachine {
 		}
 	}
 
-
+  def !(cmd: String) = executeCommand(cmd)
 
 	/**
 	 * Execute a command sync and return the result as an ExecuteResponse
