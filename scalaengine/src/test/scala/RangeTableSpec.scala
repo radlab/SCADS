@@ -74,7 +74,7 @@ class RangeTableSpec extends WordSpec with ShouldMatchers {
 
 
     "throw an error if the split key already exists" in {
-      rTable.split(30, List("S10"), false) should be === null 
+      rTable.split(30, List("S10"), false) should be === null
     }
 
 
@@ -206,7 +206,7 @@ class RangeTableSpec extends WordSpec with ShouldMatchers {
     }
 
     "replace values for range" in {
-      
+
     }
 
 

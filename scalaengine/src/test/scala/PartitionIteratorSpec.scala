@@ -31,7 +31,9 @@ class PartitionMock extends ServiceHandler[GetRangeRequest] {
 class PartitionIteratorSpec extends Spec with ShouldMatchers {
   describe("The PartitionIterator") {
     it("should iterate over values") {
-      new PartitionIterator(new PartitionMock().remoteHandle.toPartitionService, None, None).map(r => new IntRec().parse(r.key).f1).toList should equal((1 to 10000).toList)
+      val rH = new PartitionMock().remoteHandle
+
+      new PartitionIterator(rH.toPartitionService("1", rH.toStorageService), None, None).map(r => new IntRec().parse(r.key).f1).toList should equal((1 to 10000).toList)
     }
   }
 }

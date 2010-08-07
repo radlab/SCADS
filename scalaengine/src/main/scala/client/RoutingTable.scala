@@ -9,6 +9,7 @@ import java.util.{Comparator, Arrays}
 import edu.berkeley.cs.scads.storage.Namespace
 import org.apache.zookeeper.CreateMode
 import com.googlecode.avro.marker.AvroRecord
+import com.googlecode.avro.runtime.AvroScala._
 /* TODO: Stack RepartitioningProtocol on Routing Table to build working implementation
 *  TODO: Change implementation to StartKey -> makes it more compliant to the rest
 * */
@@ -26,7 +27,7 @@ import com.googlecode.avro.marker.AvroRecord
 abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord] extends Namespace[KeyType, ValueType] {
 
 
-  var routingTable: RangeTable[Array[Byte], PartitionService] = null
+  var routingTable: RangeTable[KeyType, PartitionService] = null
   val ZOOKEEPER_ROUTING_TABLE = "routingtable"
   val ZOOKEEPER_PARTITION_ID = "partitionid"
   var partCtr : Long = 0 //TODO remove when storage service creates IDs
@@ -37,15 +38,15 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
    */
   override def create(ranges : List[(Option[KeyType], List[StorageService])]){
     super.create(ranges)
-    var rTable: Array[RangeType[Array[Byte], PartitionService]] = new Array[RangeType[Array[Byte], PartitionService]](ranges.size)
-    var startKey : Option[Array[Byte]] = None
-    var endKey : Option[Array[Byte]] = None
+    var rTable: Array[RangeType[KeyType, PartitionService]] = new Array[RangeType[KeyType, PartitionService]](ranges.size)
+    var startKey : Option[KeyType] = None
+    var endKey : Option[KeyType] = None
     var i = ranges.size - 1
     nsRoot.createChild("partitions", "".getBytes, CreateMode.PERSISTENT)
     for(range <- ranges.reverse){
-      startKey = range._1.map(serializeKey(_))
+      startKey = range._1
       val handlers = createPartitions(startKey, endKey, range._2)
-      rTable(i) =  new RangeType[Array[Byte], PartitionService](endKey, handlers)
+      rTable(i) =  new RangeType[KeyType, PartitionService](endKey, handlers)
       endKey = startKey
       i -= 1
     }
@@ -59,11 +60,11 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
   }
 
 
-  private def createPartitions(startKey: Option[Array[Byte]] , endKey: Option[Array[Byte]], servers : List[StorageService] )
+  private def createPartitions(startKey: Option[KeyType] , endKey: Option[KeyType], servers : List[StorageService] )
         : List[PartitionService] =  {
     var handlers : List[PartitionService] = Nil
     for (server <- servers){
-      server !? CreatePartitionRequest(namespace, startKey, endKey) match {
+      server !? CreatePartitionRequest(namespace, startKey.map(serializeKey(_)), endKey.map(serializeKey(_))) match {
         case CreatePartitionResponse(partitionId, partitionActor) => handlers = partitionActor :: handlers
         case _ => throw new RuntimeException("Unexpected Message")
       }
@@ -73,46 +74,46 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
 
 
   private def storeRoutingTable() = {
-    val ranges = routingTable.ranges.map(a => KeyRange(a.maxKey, a.values))
-    val rangeList = Partition(ranges)
-    nsRoot.createChild(ZOOKEEPER_ROUTING_TABLE, rangeList.toBytes, CreateMode.PERSISTENT)
+   // val ranges = routingTable.ranges.map(a => KeyRange(a.maxKey, a.values))
+   // val rangeList = Partition(ranges)
+   // nsRoot.createChild(ZOOKEEPER_ROUTING_TABLE, rangeList.toBytes, CreateMode.PERSISTENT)
   }
 
   private def loadRoutingTable() = {
-    val zkNode = nsRoot.get(ZOOKEEPER_ROUTING_TABLE)
-    val rangeList = new Partition()
-    zkNode match {
-      case None =>  throw new RuntimeException("Can not load empty routing table")
-      case Some(a) => rangeList.parse(a.data)
-    }
-    val partition = rangeList.partitions.map(a => new RangeType(a.endKey, a.servers))
-    createRoutingTable(partition.toArray)
+    //val zkNode = nsRoot.get(ZOOKEEPER_ROUTING_TABLE)
+    //val rangeList = new Partition()
+    //zkNode match {
+    //  case None =>  throw new RuntimeException("Can not load empty routing table")
+    //  case Some(a) => rangeList.parse(a.data)
+    //}
+    //val partition = rangeList.partitions.map(a => new RangeType(a.endKey, a.servers))
+    //createRoutingTable(partition.toArray)
   }
 
   private def createRoutingTable(partitionHandlers: List[PartitionService]): Unit = {
-    val arr = new Array[RangeType[Array[Byte], PartitionService]](1)
-    arr(0) =  new RangeType[Array[Byte], PartitionService](None, partitionHandlers)
+    val arr = new Array[RangeType[KeyType, PartitionService]](1)
+    arr(0) =  new RangeType[KeyType, PartitionService](None, partitionHandlers)
     createRoutingTable(arr)
   }
 
   /**
    * Just a helper class to create a table and all comparisons
    */
-  private def createRoutingTable(ranges: Array[RangeType[Array[Byte], PartitionService]]): Unit = {
+  private def createRoutingTable(ranges: Array[RangeType[KeyType, PartitionService]]): Unit = {
     val keySchema: Schema = getKeySchema()
-    routingTable = new RangeTable[Array[Byte], PartitionService]( ranges,
-      (a: Array[Byte], b: Array[Byte]) => org.apache.avro.io.BinaryData.compare(a, 0, b, 0, keySchema),
+    routingTable = new RangeTable[KeyType, PartitionService]( ranges,
+      (a: KeyType, b: KeyType) => a.compare(b), 
       (a: List[PartitionService], b: List[PartitionService]) => {
         a.corresponds(b)((v1, v2) => v1.id == v2.id)
       })
   }
 
   def serversForKey(key: KeyType): List[PartitionService] = {
-    routingTable.valuesForKey(serializeKey(key))
+    routingTable.valuesForKey(key)
   }
 
   def serversForRange(startKey: Option[KeyType], endKey: Option[KeyType]): List[List[PartitionService]] = {
-    val ranges = routingTable.valuesForRange(startKey.map(serializeKey(_)), endKey.map(serializeKey(_)))
+    val ranges = routingTable.valuesForRange(startKey, endKey)
     (for (range <- ranges) yield range.values).toList
   }
 

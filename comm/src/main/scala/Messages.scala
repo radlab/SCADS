@@ -70,4 +70,3 @@ case class Partition(var partitions: List[KeyRange]) extends AvroRecord
 
 /* Messages for scads on mesos */
 case class JvmProcess(var classpath: String, var mainclass: String, var args: List[String]) extends AvroRecord
-

@@ -27,7 +27,7 @@ class RoutingTableSpec extends WordSpec with ShouldMatchers {
     "delete an replica of an partition" is (pending)
 
     "gets notified about routing table changes" is (pending)
-    
+
     "when merge partitions" should {
       "merge partitions" is (pending)
 
@@ -37,4 +37,3 @@ class RoutingTableSpec extends WordSpec with ShouldMatchers {
 
   }
 }
-

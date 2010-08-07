@@ -14,7 +14,7 @@ import com.googlecode.avro.runtime.ScalaSpecificRecord
  */
 class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord]
     (namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKeeperNode)
-    (implicit  cluster : ScadsCluster, keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]) 
+    (implicit  cluster : ScadsCluster, keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType])
         extends QuorumProtocol[KeyType, ValueType](namespace, timeout, root)(cluster) with RoutingProtocol[KeyType, ValueType] {
   protected val keyClass = keyType.erasure.asInstanceOf[Class[ScalaSpecificRecord]]
   protected val valueClass = valueType.erasure.asInstanceOf[Class[ScalaSpecificRecord]]

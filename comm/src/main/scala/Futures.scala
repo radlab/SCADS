@@ -15,7 +15,7 @@ class MessageFuture extends Future[MessageBody] with MessageReceiver {
   protected[comm] val remoteActor = MessageHandler.registerService(this)
   protected val sender = new SyncVar[Option[RemoteActorProxy]]
   protected val message = new SyncVar[MessageBody]
-  protected var forwardList: List[Queue[MessageFuture]] = List() 
+  protected var forwardList: List[Queue[MessageFuture]] = List()
 
   /* Note: doesn't really implement interface correctly */
   def inputChannel = new InputChannel[MessageBody] {
@@ -61,4 +61,3 @@ class FutureCollection(val futures: Seq[MessageFuture]) {
 
   def blockFor(count: Int): Seq[MessageFuture] = (1 to count).map(_ => responses.poll())
 }
-

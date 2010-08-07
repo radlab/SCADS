@@ -24,6 +24,16 @@ class KeyValueStoreSpec extends Spec with ShouldMatchers {
       (1 to 100).foreach(i => ns.get(IntRec(i)) should equal(Some(StringRec(i.toString))))
     }
 
+    it("put should block the quorum"){
+      val ns = cluster.getNamespace[IntRec, StringRec]("quorumtest")
+      for(i <- 0 to 100){
+        ns.put(IntRec(1), StringRec("string1"))
+        ns.get(IntRec(1)) should equal(Some(StringRec("string1")))
+        ns.put(IntRec(1), StringRec("string2"))
+        ns.get(IntRec(1)) should equal(Some(StringRec("string2")))
+      }
+    }
+
     it("should delete data") {
       val ns = cluster.getNamespace[IntRec, StringRec]("deletetest")
 

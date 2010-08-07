@@ -56,7 +56,7 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
       var randServers = cluster.getRandomServers(defaultReplicationFactor)
       val startKey : Option[KeyType] = None
       create(List((startKey, randServers)))
-    }   
+    }
   }
 
 
@@ -72,16 +72,13 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
    *  The ranges has the form (startKey, servers). The first Key has to be None
    */
   def create(ranges : List[(Option[KeyType], List[StorageService])]) : Unit = {
-    require(root.get(namespace).isEmpty)
-    require(ranges.size > 0)
-    require(ranges.head._1 == None)
+    if(!root.get(namespace).isEmpty)
+      throw new RuntimeException("Illegal namespace creation. Namespace already exists")
+    if( ranges.size == 0 || ranges.head._1 != None)
+      throw new RuntimeException("Illegal namespace creation - range size hast to be > 0 and the first key has to be None")
     logger.debug("Created Namespace" + nsRoot )
     nsRoot = root.createChild(namespace, "".getBytes, CreateMode.PERSISTENT)
     nsRoot.createChild("keySchema", getKeySchema().toString.getBytes, CreateMode.PERSISTENT)
     nsRoot.createChild("valueSchema", getValueSchema.toString.getBytes, CreateMode.PERSISTENT)
   }
 }
-
-
-
-
