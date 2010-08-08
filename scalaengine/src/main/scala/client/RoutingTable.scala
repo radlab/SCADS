@@ -155,7 +155,7 @@ class RangeTable[KeyType, ValueType](
         val keyComparator: Comparator[RangeType[KeyType, ValueType]],
         val mergeCondition: (List[ValueType], List[ValueType]) => Boolean) {
   require(rTable.length > 0)
-  require(rTable.last.maxKey == None)
+  require(rTable.head.startKey == None)
 
   /**
    * Helper constructor for creating the Comparator
@@ -166,10 +166,10 @@ class RangeTable[KeyType, ValueType](
     this (rTable,
       new Comparator[RangeType[KeyType, ValueType]]() {
         def compare(a: RangeType[KeyType, ValueType], b: RangeType[KeyType, ValueType]): Int = {
-          (a.maxKey, b.maxKey) match {
+          (a.startKey, b.startKey) match {
             case (None, None) => 0
-            case (None, _) => 1
-            case (_, None) => -1
+            case (None, _) => -1
+            case (_, None) => 1
             case (Some(a), Some(b)) => keyComp(a, b)
           }
         }
@@ -194,13 +194,11 @@ class RangeTable[KeyType, ValueType](
     val bpos = Arrays.binarySearch(rTable, pKey, keyComparator)
 
     if(bpos < 0) //nb is in range. This is the most common case, should be placed first
-     ((bpos + 1) * -1)
-    else if(bpos == rTable.length)
+      calcMidIdx(bpos)     
+    else if(bpos < rTable.length)
+      bpos
+    else
       throw new RuntimeException("A key always has to belong to a range. Probably the given comparison function is incorrect.")
-    else if (bpos < rTable.length - 1){ //the endkey is right included not left
-      bpos + 1
-    }else
-      bpos //that is the endkey = none case
   }
 
   /**
@@ -217,7 +215,7 @@ class RangeTable[KeyType, ValueType](
 
   /**
    * Returns the left and right range from a key.
-   * If the value is inside an range and not on the Nothing is returned
+   * If the value is inside a range, None is returned
    * None is not allowed as a key
    */
   def leftRightValuesForKey(key: KeyType): Option[(List[ValueType],List[ValueType])] = {
@@ -240,10 +238,12 @@ class RangeTable[KeyType, ValueType](
     }
   }
 
+  private def calcMidIdx(idx : Int) : Int = (idx * -1) - 2
 
   /**
    * Splits the range at the key position. The left range includes the split key
    * The values are either left or right attached.
+   * If the splitKey already exists, null is returned.
    *
    */
   def split(key: KeyType, values: List[ValueType], leftAttached: Boolean = true): RangeTable[KeyType, ValueType] = {
@@ -252,7 +252,7 @@ class RangeTable[KeyType, ValueType](
     if (idx > 0 && idx < rTable.size)
       return null
     else
-      idx = (idx + 1) * -1
+      idx = calcMidIdx(idx)
     if (leftAttached) {
       split(key, values, rTable(idx).values)
     } else {
@@ -271,14 +271,13 @@ class RangeTable[KeyType, ValueType](
     if (idx > 0 && idx < rTable.size)
       return null
     else
-      idx = (idx + 1) * -1
+      idx =  calcMidIdx(idx)
     val newRTable = new Array[RangeType[KeyType, ValueType]](rTable.size + 1)
-    if (idx > 0)
-      System.arraycopy(rTable, 0, newRTable, 0, idx)
+    System.arraycopy(rTable, 0, newRTable, 0, idx)
     if (idx + 2 < newRTable.size)
       System.arraycopy(rTable, idx + 1, newRTable, idx + 2, rTable.length - idx - 1)
-    newRTable(idx) = new RangeType(Option(key), leftValues)
-    newRTable(idx + 1) = new RangeType(rTable(idx).maxKey, rightValues)
+    newRTable(idx) = new RangeType(rTable(idx).startKey, leftValues)
+    newRTable(idx + 1) = new RangeType(Option(key), rightValues)
     return new RangeTable[KeyType, ValueType](newRTable, keyComparator, mergeCondition)
   }
 
@@ -293,9 +292,9 @@ class RangeTable[KeyType, ValueType](
     if (bpos < 0 || bpos == rTable.length)
       return null
     if(deleteLeft){
-      return merge(key, rTable(bpos + 1).values)
-    }else{
       return merge(key, rTable(bpos).values)
+    }else{
+      return merge(key, rTable(bpos-1).values)
     }
   }
 
@@ -307,12 +306,13 @@ class RangeTable[KeyType, ValueType](
     val bpos = Arrays.binarySearch(rTable, pKey, keyComparator)
     if (bpos < 0 || bpos == rTable.length)
       return null
-    if (!mergeCondition(rTable(bpos).values, rTable(bpos + 1).values))
+    if (!mergeCondition(rTable(bpos-1).values, rTable(bpos).values))
       return null
     val newRTable: Array[RangeType[KeyType, ValueType]] = new Array[RangeType[KeyType, ValueType]](rTable.size - 1)
     System.arraycopy(rTable, 0, newRTable, 0, bpos)
-    System.arraycopy(rTable, bpos + 1, newRTable, bpos, newRTable.length - bpos)
-    newRTable(bpos) = new RangeType(newRTable(bpos).maxKey, values)
+    if(bpos != newRTable.length)
+      System.arraycopy(rTable, bpos + 1, newRTable, bpos, newRTable.length - bpos)
+    newRTable(bpos-1) = new RangeType(newRTable(bpos-1).startKey, values)
     return new RangeTable[KeyType, ValueType](newRTable, keyComparator, mergeCondition)
   }
 
@@ -341,7 +341,7 @@ class RangeTable[KeyType, ValueType](
   def replaceValues(key: Option[KeyType], values: List[ValueType]) : RangeTable[KeyType, ValueType] = {
     val idx = idxForKey(key)
     val newRTable = rTable.clone
-    newRTable(idx) = new RangeType(newRTable(idx).maxKey, values)
+    newRTable(idx) = new RangeType(newRTable(idx).startKey, values)
     return new RangeTable[KeyType, ValueType](newRTable, keyComparator, mergeCondition)
   }
 
@@ -354,14 +354,14 @@ class RangeTable[KeyType, ValueType](
 
 
 /**
- * Represents a range inside RangeTable.
+ * Represents a range inside RangeTable. StartKey is included in the range
  * TODO Should be an inner class of RangeTable, but it is impossible to create a RangeType without an existing parent object
  */
-class RangeType[KeyType, ValueType](val maxKey: Option[KeyType], val values: List[ValueType]) {
+class RangeType[KeyType, ValueType](val startKey: Option[KeyType], val values: List[ValueType]) {
   def add(value: ValueType): RangeType[KeyType, ValueType] = {
     if (values.indexOf(value) >= 0)
       throw new IllegalArgumentException("Value already exists")
-    new RangeType(maxKey, value :: values)
+    new RangeType(startKey, value :: values)
   }
 
   /**
@@ -371,10 +371,10 @@ class RangeType[KeyType, ValueType](val maxKey: Option[KeyType], val values: Lis
     if (values.size == 1) {
       throw new RuntimeException("It is not allowed to delete the last element in a range")
     }
-    new RangeType(maxKey, values.filterNot(_ == value))
+    new RangeType(startKey, values.filterNot(_ == value))
   }
 
   override def toString = {
-    "[" + maxKey + ":(" + (values.head.toString /: values.tail)(_ + "," + _) + ")]"
+    "[" + startKey + ":(" + (values.head.toString /: values.tail)(_ + "," + _) + ")]"
   }
 }

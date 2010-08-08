@@ -21,14 +21,24 @@ class RangeTableSpec extends WordSpec with ShouldMatchers {
       (a : List[String], b : List[String])  => true)
 
     "return values for a key" in {
-      rTable.valuesForKey(10) should be === List("S6")
-      rTable.valuesForKey(30) should be === List("S6")
-      rTable.valuesForKey(100) should be === List("S6")
+      var rangeTable = createRange()
+      rangeTable.valuesForKey(None) should be === List("S0")
+      rangeTable.valuesForKey(10) should be === List("S0")
+      rangeTable.valuesForKey(30) should be === List("S0")
+      rangeTable.valuesForKey(100) should be === List("S0")
+      rangeTable = createRange((10, "S1"), (20, "S2"), (30, "S3"))
+      rangeTable.valuesForKey(None) should be === List("S0")
+      rangeTable.valuesForKey(5) should be === List("S0")
+      rangeTable.valuesForKey(10) should be === List("S1")
+      rangeTable.valuesForKey(20) should be === List("S2")
+      rangeTable.valuesForKey(25) should be === List("S2")
+      rangeTable.valuesForKey(30) should be === List("S3")
+      rangeTable.valuesForKey(35) should be === List("S3")
+      rangeTable.valuesForKey(100) should be === List("S3")
     }
 
     "split ranges left attached" in {
       rTable = rTable.split(20, List("S1"))
-      var rList = rTable.ranges
       rTable.ranges.size should be === 2
       rTable = rTable.split(40, List("S3"))
       rTable.ranges.size should be === 3
@@ -59,16 +69,20 @@ class RangeTableSpec extends WordSpec with ShouldMatchers {
 
 
     "return values for ranges" in {
-      val r1 = rTable.valuesForRange(None, Option(25))
-      transformRangeArray(r1) should be === List((Some(10),List("S1")), (Some(20),List("S2")), (Some(30),List("S3")))
-      val r2 = rTable.valuesForRange(Some(0), Some(15))
-      transformRangeArray(r2) should be === List((Some(10),List("S1")), (Some(20),List("S2")))
-      val r3 = rTable.valuesForRange(Some(30), Some(45))
-      transformRangeArray(r3) should be === List((Some(40),List("S4")), (Some(50),List("S5")))
-      val r4 = rTable.valuesForRange(Some(45), Some(70))
-      transformRangeArray(r4) should be === List((Some(50),List("S5")), (Some(60),List("S6")), (None, List("S7")))
-      val r5 = rTable.valuesForRange(Some(55), None)
-      transformRangeArray(r5) should be === List((Some(60),List("S6")), (None, List("S7")))
+
+      val rangeTable = createRange((10, "S1"), (20, "S2"), (30, "S3"), (40, "S4"))
+      val r1 = rangeTable.valuesForRange(None, Option(25))
+      transformRangeArray(r1) should be === List((None,List("S0")), (Some(10),List("S1")), (Some(20),List("S2")))
+      val r2 = rangeTable.valuesForRange(Some(0), Some(15))
+      transformRangeArray(r2) should be === List((None,List("S0")), (Some(10),List("S1")))
+      val r3 = rangeTable.valuesForRange(Some(20), Some(35))
+      transformRangeArray(r3) should be === List((Some(20),List("S2")), (Some(30),List("S3")))
+      val r4 = rangeTable.valuesForRange(Some(35), Some(70))
+      transformRangeArray(r4) should be === List((Some(30),List("S3")), (Some(40),List("S4")))
+      val r5 = rangeTable.valuesForRange(Some(35), None)
+      transformRangeArray(r5) should be === List((Some(30),List("S3")), (Some(40), List("S4")))
+      val r6 = rangeTable.valuesForRange(None, None)
+      transformRangeArray(r6) should be === List((None, List("S0")), (Some(10), List("S1")), (Some(20), List("S2")), (Some(30),List("S3")), (Some(40), List("S4")))
 
     }
 
@@ -87,10 +101,10 @@ class RangeTableSpec extends WordSpec with ShouldMatchers {
     "allow to add values" in {
       rTable = rTable.addValueToRange(10, "S10")
       rTable = rTable.addValueToRange(9, "S11")
+      rTable = rTable.addValueToRange(None, "None")
       rTable = rTable.addValueToRange(35, "S30")
-      rTable = rTable.addValueToRange(None, "S100")
-
-      rTable.valuesForKey(5) should be === List("S11", "S1")
+      rTable = rTable.addValueToRange(100, "S100")
+      rTable.valuesForKey(5) should be === List("None", "S11", "S1")
       rTable.valuesForKey(15) should be === List("S10", "S2")
       rTable.valuesForKey(25) should be === List("S3")
       rTable.valuesForKey(35) should be === List("S30", "S4")
@@ -110,7 +124,8 @@ class RangeTableSpec extends WordSpec with ShouldMatchers {
       rTable = rTable.removeValueFromRange(9, "S1")
       rTable = rTable.removeValueFromRange(10, "S10")
       rTable = rTable.removeValueFromRange(35, "S30")
-      rTable = rTable.removeValueFromRange(None, "S100")
+      rTable = rTable.removeValueFromRange(None, "None")
+      rTable = rTable.removeValueFromRange(100, "S100")
 
       rTable.valuesForKey(5) should be === List("S11")
       rTable.valuesForKey(15) should be === List("S2")
@@ -193,28 +208,33 @@ class RangeTableSpec extends WordSpec with ShouldMatchers {
       rangeTable.valuesForKey(25) should be === List("S1")
     }
 
-    "merge ranges and replace values" in {
+    "merge ranges and replace values" is pending
 
-    }
+    "split ranges and replace values" is pending
 
-    "split ranges and replace values" in {
+    "return left and right range" is pending
 
-    }
-
-    "return left and right range" in {
-
-    }
-
-    "replace values for range" in {
-
-    }
+    "replace values for range" is pending
 
 
   }
 
+  /**
+   * Creates a new test range and adds "S0" to the front
+   */
+  def createRange(values : (Int, String)*) = {
+    var setup : List[(Option[Int], List[String])] = values.toList.map(a => (Some(a._1), a._2 :: Nil))
+    setup = (None, List("S0")) :: setup
+      
+    new RangeTable[Int, String](
+        setup,
+        (a: Int, b: Int) => if(a == b) 0 else if (a<b) -1 else 1,
+        (a : List[String], b : List[String]) => a.corresponds(b)(_.compareTo(_) == 0))
+  }
+
    def transformRangeArray(rangeTable: Array[RangeType[Int, String]]) : List[(Option[Int], List[String])] = {
     for(item <- rangeTable.toList)
-        yield  (item.maxKey, item.values)
+        yield  (item.startKey, item.values)
    }
 
 
