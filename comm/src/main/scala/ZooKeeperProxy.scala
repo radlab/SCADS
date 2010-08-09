@@ -19,6 +19,8 @@ object RClusterZoo extends ZooKeeperProxy("r2:2181")
 class ZooKeeperProxy(val address: String) extends Watcher {
   protected val logger = Logger.getLogger("scads.zookeeper")
   protected var conn = new ZooKeeper(address, 10000, this)
+
+  val propagationTime = 100 //TODO Michael should read the real value from the config
   val root = new ZooKeeperNode("/")
 
   def close() = conn.close()
@@ -39,6 +41,10 @@ class ZooKeeperProxy(val address: String) extends Watcher {
       else {
         Some(rpath.split("/").foldLeft(this)((n,p) => n.childrenCache.getOrElseUpdate(p, new ZooKeeperNode(n.prefix + p))))
       }
+    }
+
+    def waitUntilPropagated() : Unit = {
+      wait(propagationTime)
     }
 
     def prefix: String = if(path equals "/") "/" else path + "/"

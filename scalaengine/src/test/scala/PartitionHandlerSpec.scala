@@ -21,7 +21,7 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers {
     root.getOrCreate("namespaces/partitiontestns/partitions")
 
     (handler.remoteHandle !? CreatePartitionRequest("partitiontestns", None, None)) match {
-      case CreatePartitionResponse(newId, newPartService) => newPartService
+      case CreatePartitionResponse(newPartService) => newPartService
       case _ => fail("Couldn't get partition handler")
     }
   }

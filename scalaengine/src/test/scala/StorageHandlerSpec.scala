@@ -27,7 +27,7 @@ class StorageHandlerSpec extends Spec with ShouldMatchers {
     it("should create partitions") {
       val handler = getHandler()
       handler.remoteHandle !? CreatePartitionRequest("testns", None, None) match {
-        case CreatePartitionResponse(newId, newPart) => newPart
+        case CreatePartitionResponse(newPart) => newPart
         case u => fail("Unexpected message: " + u)
       }
     }
@@ -35,7 +35,7 @@ class StorageHandlerSpec extends Spec with ShouldMatchers {
     it("should delete partitions") {
       val handler = getHandler().remoteHandle
       val partId = handler !? CreatePartitionRequest("testns", None, None) match {
-        case CreatePartitionResponse(id, service) => id
+        case CreatePartitionResponse(service) => service.partitionId
         case u => fail("Unexpected msg:" + u)
       }
 

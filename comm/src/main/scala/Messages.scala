@@ -43,7 +43,7 @@ case class TestSetResponse(var success: Boolean) extends AvroRecord with KeyValu
 /* Storage Handler Operations */
 @AvroUnion sealed trait StorageServiceOperation extends MessageBody
 case class CreatePartitionRequest(var namespace: String, var startKey: Option[Array[Byte]] = None, var endKey: Option[Array[Byte]] = None) extends AvroRecord with StorageServiceOperation
-case class CreatePartitionResponse(var partitionId: String, var partitionActor: PartitionService) extends AvroRecord with StorageServiceOperation
+case class CreatePartitionResponse(var partitionActor: PartitionService) extends AvroRecord with StorageServiceOperation
 
 case class DeletePartitionRequest(var partitionId: String) extends AvroRecord with StorageServiceOperation
 case class DeletePartitionResponse() extends AvroRecord with StorageServiceOperation
@@ -65,7 +65,7 @@ case class StringRec(var f1: String) extends AvroRecord
 
 /* Routing Table Types.  Note: they are here due to problems with the typer (i.e. generated methods aren't visable in the same compilation cycle */
 
-case class KeyRange(var endKey: Option[Array[Byte]], var servers : List[PartitionService]) extends AvroRecord
+case class KeyRange(var startKey: Option[Array[Byte]], var servers : List[PartitionService]) extends AvroRecord
 case class Partition(var partitions: List[KeyRange]) extends AvroRecord
 
 /* Messages for scads on mesos */

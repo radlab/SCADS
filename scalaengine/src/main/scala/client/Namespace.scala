@@ -64,7 +64,9 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
    * Loads and initializes the protocol for an existing namespace
    */
   def load() : Unit = {
-    require(root.get(namespace).isEmpty)
+    val node = root.get(namespace)
+    require(node.isDefined)
+    nsRoot = node.get
   }
 
   /**

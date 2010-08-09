@@ -58,6 +58,5 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
   def size():Int = throw new RuntimeException("Unimplemented")
   def ++=(that:Iterable[(KeyType,ValueType)]): Unit = throw new RuntimeException("Unimplemented")
 
-  override def load() : Unit = throw new RuntimeException("Unimplemented")
 
 }

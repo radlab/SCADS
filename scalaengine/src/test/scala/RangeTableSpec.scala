@@ -8,12 +8,11 @@ import edu.berkeley.cs.scads.storage.routing.RangeTable
 import edu.berkeley.cs.scads.storage.routing.RangeType
 
 import org.scalatest.WordSpec
-import org.scalatest.matchers.ShouldMatchers
-
+import org.scalatest.matchers.{HavePropertyMatchResult, HavePropertyMatcher, ShouldMatchers}
 //TODO Rewrite to independent tests
 
 @RunWith(classOf[JUnitRunner])
-class RangeTableSpec extends WordSpec with ShouldMatchers {
+class RangeTableSpec extends WordSpec with ShouldMatchers with RangeBoundMatchers {
 
 "A Range Table" should {
     var rTable : RangeTable[Int, String] = new RangeTable[Int, String](List((None, List("S6"))),
@@ -212,7 +211,81 @@ class RangeTableSpec extends WordSpec with ShouldMatchers {
 
     "split ranges and replace values" is pending
 
-    "return left and right range" is pending
+    "check split keys" in {
+      val rangeTable =   createRange((10, "S1"), (20, "S2"))
+      rangeTable.isSplitKey(5) should be === false
+      rangeTable.isSplitKey(10) should be === true
+      rangeTable.isSplitKey(15) should be === false
+      rangeTable.isSplitKey(20) should be === true
+      rangeTable.isSplitKey(25) should be === false            
+    }
+
+    "return left and right range" in {
+      val rangeTable =   createRange((10, "S1"), (20, "S2"), (30, "S3"), (40, "S4"))
+      rangeTable.lowerUpperBound(10) should have (
+        left (None),
+        center (Some(10)),
+        right (Some(20))
+      )
+
+      rangeTable.lowerUpperBound(20)  should have (
+        left (Some(10)),
+        center (Some(20)),
+        right (Some(30))
+      )
+
+      rangeTable.lowerUpperBound(40) should  have (
+        left (Some(30)),
+        center (Some(40)),
+        right (None)
+      )
+
+      rangeTable.lowerUpperBound(5)  should have (
+        left (None),
+        center (None),
+        right (Some(10))
+      )
+
+      rangeTable.lowerUpperBound(25) should  have (
+        left (Some(10)),
+        center (Some(20)),
+        right (Some(30))
+      )
+
+      rangeTable.lowerUpperBound(45) should have (
+        left (Some(30)),
+        center (Some(40)),
+        right (None)
+      )
+
+
+      val rangeTable2 =   createRange()
+      rangeTable2.lowerUpperBound(10) should have (
+        left (None),
+        center (None),
+        right (None)
+      )
+
+      val rangeTable3 =   createRange((10, "S1"))
+      rangeTable3.lowerUpperBound(10) should have (
+        left (None),
+        center (Some(10)),
+        right (None)
+      )
+
+      rangeTable3.lowerUpperBound(5) should have (
+        left (None),
+        center (None),
+        right (Some(10))
+      )
+
+      rangeTable3.lowerUpperBound(15) should have (
+        left (None),
+        center (Some(10)),
+        right (None)
+      )
+
+    }
 
     "replace values for range" is pending
 
@@ -239,3 +312,20 @@ class RangeTableSpec extends WordSpec with ShouldMatchers {
 
 
 }
+
+
+trait RangeBoundMatchers {
+  def left(expectedValue: Option[Int]) = new HavePropertyMatcher[RangeTable[Int, String]#RangeBound, Option[Int]] {
+    def apply(rangeBound: RangeTable[Int, String]#RangeBound) =
+      HavePropertyMatchResult( rangeBound.left.startKey == expectedValue, "left", expectedValue, rangeBound.left.startKey ) }
+
+   def center(expectedValue: Option[Int]) = new HavePropertyMatcher[RangeTable[Int, String]#RangeBound, Option[Int]] {
+    def apply(rangeBound: RangeTable[Int, String]#RangeBound) =
+      HavePropertyMatchResult( rangeBound.center.startKey == expectedValue, "center", expectedValue, rangeBound.center.startKey ) }
+
+   def right(expectedValue: Option[Int]) = new HavePropertyMatcher[RangeTable[Int, String]#RangeBound, Option[Int]] {
+    def apply(rangeBound: RangeTable[Int, String]#RangeBound) =
+      HavePropertyMatchResult( rangeBound.right.startKey == expectedValue, "right", expectedValue, rangeBound.right.startKey ) }
+
+}
+

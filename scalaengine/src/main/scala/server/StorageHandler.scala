@@ -79,7 +79,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
         }
 
         logger.info("Partition " + partitionId + " created")
-        reply(CreatePartitionResponse(partitionId, handler.remoteHandle.toPartitionService(partitionId, remoteHandle.toStorageService)) )
+        reply(CreatePartitionResponse( handler.remoteHandle.toPartitionService(partitionId, remoteHandle.toStorageService)) )
       }
       case DeletePartitionRequest(partitionId) => {
         /* Get the handler and shut it down */
