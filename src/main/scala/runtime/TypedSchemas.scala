@@ -3,15 +3,11 @@ package runtime
 
 import com.googlecode.avro.marker._
 
-import org.apache.avro._
+import org.apache.avro.{generic, specific, Schema}
 import generic._
 import specific._
 
-trait SchemaSource[R] {
-  def getSchema(): Schema
-}
-
-object SchemaSource {
+object TypedSchemas {
   private[runtime] def findSchema[C <: GenericContainer](implicit r: Manifest[C]): Schema = {
     val clz = r.erasure.asInstanceOf[Class[C]]
     if (classOf[AvroRecord].isAssignableFrom(clz))
@@ -28,8 +24,6 @@ object SchemaSource {
       throw new RuntimeException("Don't know how to handle class: " + clz)
     }
   }
-  implicit def genericContainerSchemaSource[C <: GenericContainer](implicit r: Manifest[C]): SchemaSource[C] = 
-    new SchemaSource[C] {
-      override def getSchema() = findSchema[C]
-    }
+
+  def schemaOf[C <: GenericContainer](implicit s: TypedSchema[C]): Schema = s
 }
