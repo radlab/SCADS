@@ -5,7 +5,7 @@ import scala.concurrent.SyncVar
 import org.apache.log4j.Logger
 
 import java.util.Queue
-import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.LinkedBlockingQueue
 
 object MessageFuture {
   implicit def toFutureCollection(futures: Seq[MessageFuture]): FutureCollection = new FutureCollection(futures)
@@ -56,8 +56,8 @@ class MessageFuture extends Future[MessageBody] with MessageReceiver {
 }
 
 class FutureCollection(val futures: Seq[MessageFuture]) {
-  val responses = new java.util.concurrent.ConcurrentLinkedQueue[MessageFuture]
+  val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture]
   futures.foreach(_.forward(responses))
 
-  def blockFor(count: Int): Seq[MessageFuture] = (1 to count).map(_ => responses.poll())
+  def blockFor(count: Int): Seq[MessageFuture] = (1 to count).map(_ => responses.take())
 }
