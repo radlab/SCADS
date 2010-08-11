@@ -1,11 +1,9 @@
 package edu.berkeley.cs.scads.test
 import org.scalatest.WordSpec
+import edu.berkeley.cs.scads.util.{RangeTable, RangeType}
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
-import edu.berkeley.cs.scads.storage.routing.RangeTable
-import edu.berkeley.cs.scads.storage.routing.RangeType
 
 import org.scalatest.WordSpec
 import org.scalatest.matchers.{HavePropertyMatchResult, HavePropertyMatcher, ShouldMatchers}
