@@ -85,6 +85,9 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
         logger.debug("Comit complete")
         reply(CopyDataResponse())
       }
+      case GetResponsibilityRequest() => {
+        reply(GetResponsibilityResponse(startKey, endKey))
+      }
       case _ => src.foreach(_ ! ProcessingException("Not Implemented", ""))
     }
   }
