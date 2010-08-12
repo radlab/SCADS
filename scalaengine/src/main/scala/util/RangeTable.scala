@@ -100,8 +100,9 @@ class RangeTable[KeyType, ValueType](
    * Warning: Right ranges can be just a placeholder for None with an empty set of servers
    *
    */
-  def lowerUpperBound(key: KeyType): RangeBound = {
-    val idx = idxForKey(Some(key))
+  def lowerUpperBound(key : KeyType) : RangeBound = lowerUpperBound(Some(key))
+  def lowerUpperBound(startKey: Option[KeyType]): RangeBound = {
+    val idx = idxForKey(startKey)
     val lowerBound = if (idx == 0) rTable(0) else rTable(idx - 1)
     val upperBound = if (idx + 1 == rTable.length) new RangeType[KeyType, ValueType](None, Nil) else rTable(idx + 1)
     RangeBound(lowerBound, rTable(idx), upperBound)

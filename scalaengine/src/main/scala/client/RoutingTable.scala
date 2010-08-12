@@ -4,7 +4,6 @@ package edu.berkeley.cs.scads.storage.routing
 import edu.berkeley.cs.scads.util.RangeTable
 import edu.berkeley.cs.scads.util.RangeType
 
-import edu.berkeley.cs.scads.comm._
 import collection.mutable.HashMap
 import org.apache.avro.generic.IndexedRecord
 import collection.immutable.{TreeMap, SortedMap}
@@ -14,6 +13,7 @@ import edu.berkeley.cs.scads.storage.Namespace
 import org.apache.zookeeper.CreateMode
 import com.googlecode.avro.marker.AvroRecord
 import com.googlecode.avro.runtime.AvroScala._
+import edu.berkeley.cs.scads.comm._
 /* TODO: Stack RepartitioningProtocol on Routing Table to build working implementation
 *  TODO: Change implementation to StartKey -> makes it more compliant to the rest
 * */
@@ -29,27 +29,26 @@ import com.googlecode.avro.runtime.AvroScala._
 
 
 abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord] extends Namespace[KeyType, ValueType] {
-
   var routingTable: RangeTable[KeyType, PartitionService] = null
   val ZOOKEEPER_ROUTING_TABLE = "routingtable"
   val ZOOKEEPER_PARTITION_ID = "partitionid"
-  var partCtr : Long = 0 //TODO remove when storage service creates IDs
+  var partCtr: Long = 0 //TODO remove when storage service creates IDs
 
   /**
    *  Creates a new NS with the given servers
    *  The ranges has the form (startKey, servers). The first Key has to be None
    */
-  override def create(ranges : List[(Option[KeyType], List[StorageService])]){
+  override def create(ranges: List[(Option[KeyType], List[StorageService])]) {
     super.create(ranges)
     var rTable: Array[RangeType[KeyType, PartitionService]] = new Array[RangeType[KeyType, PartitionService]](ranges.size)
-    var startKey : Option[KeyType] = None
-    var endKey : Option[KeyType] = None
+    var startKey: Option[KeyType] = None
+    var endKey: Option[KeyType] = None
     var i = ranges.size - 1
     nsRoot.createChild("partitions", "".getBytes, CreateMode.PERSISTENT)
-    for(range <- ranges.reverse){
+    for (range <- ranges.reverse) {
       startKey = range._1
       val handlers = createPartitions(startKey, endKey, range._2)
-      rTable(i) =  new RangeType[KeyType, PartitionService](endKey, handlers)
+      rTable(i) = new RangeType[KeyType, PartitionService](endKey, handlers)
       endKey = startKey
       i -= 1
     }
@@ -57,7 +56,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     storeRoutingTable()
   }
 
-  override def load() : Unit = {
+  override def load(): Unit = {
     super.load()
     loadRoutingTable()
   }
@@ -71,7 +70,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     (for (range <- ranges) yield range.values).toList
   }
 
-    def splitPartition(splitPoint: KeyType) : Unit= {
+  def splitPartition(splitPoint: KeyType): Unit = {
     require(!routingTable.isSplitKey(splitPoint)) //Otherwise it is already a split point
     val bound = routingTable.lowerUpperBound(splitPoint)
     val oldPartitions = bound.center.values
@@ -88,7 +87,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
   }
 
   def mergePartitions(mergeKey: KeyType): Unit = {
-    require(routingTable.checkMergeCondition(mergeKey)) //Otherwise we can not merge the partitions
+    require(routingTable.checkMergeCondition(mergeKey), "Either the key is not a split key, or the sets are different and can not be merged") //Otherwise we can not merge the partitions
 
     val bound = routingTable.lowerUpperBound(mergeKey)
     val leftPart = bound.left.values
@@ -102,25 +101,71 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
 
     deletePartitions(leftPart)
     deletePartitions(rightPart)
+  }
 
+  /**
+   * This function tests if the routing table is in a good state.
+   * Thus, all partitions in the routing table must react and all boundaries must be correct
+   */
+  def validateRoutingTable(): Boolean = {
+    var endKey: Option[KeyType] = None
+    for (range <- routingTable.ranges.reverse) {
+      for (partition <- range.values) {
+        val keys = getStartEndKey(partition)
+        if (keys._1 != range.startKey || keys._2 != endKey) {
+          return false
+        }
+        endKey = range.startKey
+      }
+    }
+    return true
+  }
+
+  /**
+   * This function tests if the whole system is in a valid state
+   */
+  def validateRoutingSystem(): Boolean = {
+    //Retrieve all partitions in the system
+    //Check if no partitions are missing
+    //Perform validate routing Table
+    throw new RuntimeException("Not yet implemented")
   }
 
 
-  def replicatePartition(startKey: Option[KeyType], endKey: Option[KeyType], partitionHandler : PartitionService, storageHandler: StorageService): PartitionService = {
-//    require(checkRange(startKey, endKey))
-//    val newPartition = createPartitions(startKey, endKey, List(storageHandler)).head
-//    routingTable = routingTable.addValueToRange(startKey, newPartition.head)
-//    storeAndPropagateRoutingTable()
-//    newPartition !?  CopyDataRequest()
-//    return newPartition
-    throw new RuntimeException("No implemented")
+  private def getStartEndKey(partitionHandler: PartitionService): (Option[KeyType], Option[KeyType]) = {
+    // This request could be avoided if we would store the ranges in the partitionHandler.
+    // However replication is not on the critical path and so expensive anyway that it does not matter
+
+    val keys = partitionHandler !? GetResponsibilityRequest() match {
+      case GetResponsibilityResponse(s, e) => (s.map(deserializeKey(_)), e.map(deserializeKey(_)))
+      case _ => throw new RuntimeException("Unexpected Message")
+    }
+    return keys
   }
 
-  def deleteReplica(splitPoint: KeyType, partitionHandler: PartitionService): Unit = {
-//    require(checkRange(startKey, endKey))
-//    deletePartitions(startKey, endKey, partitionHandler.storageService)
-//    routingTable = routingTable.removeValueFromRange(startKey, partitionHandler)
-//    storeAndPropagateRoutingTable()
+  /**
+   * Replicates a partition to the given storageHandler.
+   */
+  def replicatePartition(partitionHandler: PartitionService, storageHandler: StorageService): PartitionService = {
+    var keys = getStartEndKey(partitionHandler)
+
+    val newPartition = createPartitions(keys._1, keys._2, List(storageHandler)).head
+    routingTable = routingTable.addValueToRange(keys._1, newPartition)
+
+    storeAndPropagateRoutingTable()
+    newPartition !? CopyDataRequest(partitionHandler, false) match {
+      case CopyDataResponse() => ()
+      case _ => throw new RuntimeException("Unexpected Message")
+    }
+
+    return newPartition
+  }
+
+  def deleteReplica(partitionHandler: PartitionService): Unit = {
+    var keys = getStartEndKey(partitionHandler) //Not really needed, just an additional check
+    routingTable = routingTable.removeValueFromRange(keys._1, partitionHandler)
+    storeAndPropagateRoutingTable()
+    deletePartitions(List(partitionHandler))
   }
 
   def partitions: RangeTable[KeyType, PartitionService] = routingTable
@@ -136,22 +181,20 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
   }
 
 
-
-
-  private def deletePartitions(partitions : List[PartitionService] ) : Unit =  {
-      for (partition <- partitions){
-        partition !? DeletePartitionRequest(partition.partitionId) match {
-          case DeletePartitionResponse() => ()
-          case _ => throw new RuntimeException("Unexpected Message")
-        }
+  private def deletePartitions(partitions: List[PartitionService]): Unit = {
+    for (partition <- partitions) {
+      partition.toStorageService !? DeletePartitionRequest(partition.partitionId) match {
+        case DeletePartitionResponse() => ()
+        case _ => throw new RuntimeException("Unexpected Message")
       }
     }
+  }
 
 
-  private def createPartitions(startKey: Option[KeyType] , endKey: Option[KeyType], servers : List[StorageService] )
-        : List[PartitionService] =  {
-    var handlers : List[PartitionService] = Nil
-    for (server <- servers){
+  private def createPartitions(startKey: Option[KeyType], endKey: Option[KeyType], servers: List[StorageService])
+  : List[PartitionService] = {
+    var handlers: List[PartitionService] = Nil
+    for (server <- servers) {
       server !? CreatePartitionRequest(namespace, startKey.map(serializeKey(_)), endKey.map(serializeKey(_))) match {
         case CreatePartitionResponse(partitionActor) => handlers = partitionActor :: handlers
         case _ => throw new RuntimeException("Unexpected Message")
@@ -162,9 +205,11 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
 
 
   private def storeRoutingTable() = {
-   val ranges = routingTable.ranges.map(a => KeyRange(a.startKey.map(serializeKey(_)), a.values))
-   val rangeList = Partition(ranges)
-   nsRoot.createChild(ZOOKEEPER_ROUTING_TABLE, rangeList.toBytes, CreateMode.PERSISTENT)
+    assert(validateRoutingTable(), "Holy shit, we are about to store a crappy Routing Table.")
+    val ranges = routingTable.ranges.map(a => KeyRange(a.startKey.map(serializeKey(_)), a.values))
+    val rangeList = Partition(ranges)
+    nsRoot.createChild(ZOOKEEPER_ROUTING_TABLE, rangeList.toBytes, CreateMode.PERSISTENT)
+
   }
 
   private def storeAndPropagateRoutingTable() = {
@@ -176,7 +221,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     val zkNode = nsRoot.get(ZOOKEEPER_ROUTING_TABLE)
     val rangeList = new Partition()
     zkNode match {
-      case None =>  throw new RuntimeException("Can not load empty routing table")
+      case None => throw new RuntimeException("Can not load empty routing table")
       case Some(a) => rangeList.parse(a.data)
     }
     val partition = rangeList.partitions.map(a => new RangeType(a.startKey.map(deserializeKey(_)), a.servers))
@@ -185,36 +230,21 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
 
   private def createRoutingTable(partitionHandlers: List[PartitionService]): Unit = {
     val arr = new Array[RangeType[KeyType, PartitionService]](1)
-    arr(0) =  new RangeType[KeyType, PartitionService](None, partitionHandlers)
+    arr(0) = new RangeType[KeyType, PartitionService](None, partitionHandlers)
     createRoutingTable(arr)
   }
 
   /**
-   * Just a helper class to create a table and all comparisons
+   *  Just a helper class to create a table and all comparisons
    */
   private def createRoutingTable(ranges: Array[RangeType[KeyType, PartitionService]]): Unit = {
     val keySchema: Schema = getKeySchema()
-    routingTable = new RangeTable[KeyType, PartitionService]( ranges,
-      (a: KeyType, b: KeyType) => a.compare(b), 
+    routingTable = new RangeTable[KeyType, PartitionService](ranges,
+      (a: KeyType, b: KeyType) => a.compare(b),
       (a: List[PartitionService], b: List[PartitionService]) => {
         a.corresponds(b)((v1, v2) => v1.id == v2.id)
       })
   }
 
 }
-
-//class PartitionProxy[KeyType](val service : PartitionService, val startKey : KeyType, val endKey : KeyType){
-//  def !(body: MessageBody): Unit = {
-//    service ! body
-//  }
-//
-//  def !?(body: MessageBody): MessageBody = {
-//    service !? body
-//  }
-//
-//  def !!(body: MessageBody): MessageFuture = {
-//    service !! body
-//  }
-//
-//}
 

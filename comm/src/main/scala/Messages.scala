@@ -66,7 +66,7 @@ case class StringRec(var f1: String) extends AvroRecord
 /* Routing Table Types.  Note: they are here due to problems with the typer (i.e. generated methods aren't visable in the same compilation cycle */
 
 case class KeyRange(var startKey: Option[Array[Byte]], var servers : List[PartitionService]) extends AvroRecord
-case class Partition(var partitions: List[KeyRange]) extends AvroRecord
+case class RoutingTableMessage(var partitions: List[KeyRange]) extends AvroRecord
 
 /* Messages for scads on mesos */
 case class JvmProcess(var classpath: String, var mainclass: String, var args: List[String]) extends AvroRecord
