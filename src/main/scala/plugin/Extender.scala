@@ -22,7 +22,7 @@ trait Extender extends ScalaAvroPluginComponent
   import global.definitions._
 
   val runsAfter = List[String]("typer")
-  override val runsRightAfter = Some("typer")
+  override val runsBefore = List[String]("superaccessors")
   val phaseName = "extender"
 
   def newTransformer(unit: CompilationUnit) = new ExtenderTransformer(unit)
