@@ -24,12 +24,13 @@ trait ScalaAvroPluginComponent extends PluginComponent {
   import global.definitions
 
   protected def debug(a: AnyRef) {
-    if (settings.debug.value) log(a)
+    if (settings.debug.value) 
+      println(a)
     //println(a)
   }
 
   protected def warn(a: AnyRef) {
-    //println(a)
+    println(a)
   }
 
   protected def isValDef(tree: Tree): Boolean = tree.isInstanceOf[ValDef] 

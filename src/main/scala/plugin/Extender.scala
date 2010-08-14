@@ -11,11 +11,7 @@ import nsc.transform.InfoTransform
 import nsc.transform.TypingTransformers
 import nsc.symtab.Flags
 import nsc.symtab.Flags._
-import nsc.util.Position
-import nsc.util.NoPosition
 import nsc.ast.TreeDSL
-import nsc.typechecker
-import scala.annotation.tailrec
 
 trait Extender extends ScalaAvroPluginComponent
                with    Transform 
@@ -50,7 +46,10 @@ trait Extender extends ScalaAvroPluginComponent
       LongClass    -> LIT(0L),
       FloatClass   -> LIT(0.f),
       DoubleClass  -> LIT(0.0),
-      BooleanClass -> FALSE)
+      BooleanClass -> FALSE,
+      ShortClass   -> LIT(0),
+      ByteClass    -> LIT(0),
+      CharClass    -> LIT(0))
 
     private def preTransform(tree: Tree): Tree = tree match {
       case cd @ ClassDef(mods, name, tparams, impl) 
@@ -71,7 +70,12 @@ trait Extender extends ScalaAvroPluginComponent
         assert (!ctors.isEmpty)
 
         val containsDefaultCtor = !ctors.map(_.info).filter {
-          case MethodType(Nil, _) => true
+          case MethodType(Nil, MethodType(_, _)) =>
+            /** case class Foo()(...) */
+            false
+          case MethodType(Nil, _) => 
+            /** case class Foo() */
+            true
           case _ => false
         }.isEmpty
 
@@ -79,27 +83,37 @@ trait Extender extends ScalaAvroPluginComponent
           if (containsDefaultCtor) {
             None
           } else {
+            // TODO: not sure if this pos stuff is really how we're supposed
+            // to be manipulating
             val pos = ctors.last.pos
+
+            // make new default ctor symbmol
             val ctorSym = cd.symbol.newConstructor(pos.withPoint(pos.point + 1))
             ctorSym setFlag METHOD
             ctorSym setInfo MethodType(ctorSym.newSyntheticValueParams(List()), cd.symbol.tpe)
             cd.symbol.info.decls enter ctorSym
 
-            val instanceVars = for (member <- impl.body if isValDef(member)) yield { member.symbol }
+            val innerCtorTpe = cd.symbol.primaryConstructor.tpe
 
             debug("clazz.caseFieldAccessors: " + cd.symbol.caseFieldAccessors)
             debug("clazz.primaryConstructor.tpe.paramTypes: " + cd.symbol.primaryConstructor.tpe.paramTypes)
+            debug("clazz.primaryConstructor.tpe.resultType: " + cd.symbol.primaryConstructor.tpe.resultType)
+            debug("clazz.primaryConstructor.tpe.finalResultType: " + cd.symbol.primaryConstructor.tpe.finalResultType)
+            debug("clazz.primaryConstructor.tpe.boundSyms: " + cd.symbol.primaryConstructor.tpe.boundSyms)
 
-            val innerSize = cd.symbol.primaryConstructor.tpe.paramTypes.size
-            val (inner, outer) = /** Scala only lets you curry once for case class ctors */
-              instanceVars
-                .map(v => DefaultValues.get(v.tpe.typeSymbol).getOrElse(LIT(null)))
-                .splitAt(innerSize)
+            def mapToDefaults(params: List[Symbol]) =
+              params.map(v => DefaultValues.get(v.tpe.typeSymbol).getOrElse(LIT(null)))
 
-            val apply0 = Apply(This(cd.symbol) DOT nme.CONSTRUCTOR, inner)
-            val apply = 
-              if (outer.isEmpty) apply0
-              else Apply(apply0, outer)
+            val innerParamDefaults = mapToDefaults(innerCtorTpe.params)
+            val apply0 = Apply(This(cd.symbol) DOT nme.CONSTRUCTOR, innerParamDefaults)
+            val apply = innerCtorTpe.resultType match {
+              case MethodType(outerParams, _) =>
+                /** primaryCtor is curried */
+                Apply(apply0, mapToDefaults(outerParams))
+              case _ =>
+                /** primaryCtor is not curried */
+                apply0
+            }
 
             Some(localTyper typed {
               DEF(ctorSym) === Block(List(apply), Literal(Constant(())))

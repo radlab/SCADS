@@ -43,7 +43,7 @@ trait SchemaGen extends ScalaAvroPluginComponent
     import CODE._
 
     private val primitiveClasses = Map(
-      /** Primitives in the Scala sense */
+      /** Primitives in the Scala and Avro sense */
       IntClass     -> Schema.create(AvroType.INT),
       FloatClass   -> Schema.create(AvroType.FLOAT),
       LongClass    -> Schema.create(AvroType.LONG),
@@ -51,6 +51,11 @@ trait SchemaGen extends ScalaAvroPluginComponent
       BooleanClass -> Schema.create(AvroType.BOOLEAN),
       StringClass  -> Schema.create(AvroType.STRING),
       NullClass    -> Schema.create(AvroType.NULL),
+
+      /** Types which are primitives in Scala, but have no exact match in Avro */
+      ShortClass   -> Schema.create(AvroType.INT),
+      ByteClass    -> Schema.create(AvroType.INT),
+      CharClass    -> Schema.create(AvroType.INT),
 
       /** Primitives in the Avro sense */
       byteBufferClass -> Schema.create(AvroType.BYTES),

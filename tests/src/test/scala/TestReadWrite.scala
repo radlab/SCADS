@@ -54,4 +54,20 @@ class TestReadWrite extends TestCase {
     assertReadWriteEquals(Test10(Some(List(5,6,7)), Some(Map("k1" -> "v1"))))
   }
 
+  def test11_rw() {
+    assertReadWriteEquals(Test11(1, 'a', 39))
+  }
+
+  def test12_rw() {
+    val test12 = Test12(12)
+    test12.a1 = "foobar"
+    assertReadWriteEquals(test12)
+  }
+
+  def test13_rw() {
+    val test13 = Test13(10)(true)
+    test13.a2 = Some("FOO")
+    assertReadWriteEquals(test13)
+  }
+
 }

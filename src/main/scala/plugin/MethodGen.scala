@@ -89,6 +89,10 @@ trait MethodGen extends ScalaAvroPluginComponent
     /** this.sym.asInstanceOf[java.lang.Object] */
     private def sym2obj(clazz: Symbol, sym: Symbol): Tree = This(clazz) DOT sym AS ObjectClass.tpe
 
+    /** this.sym.toInt.asInstanceOf[java.lang.Object] */
+    private def sym2int2obj(clazz: Symbol, sym: Symbol): Tree =
+      This(clazz) DOT sym DOT newTermName("toInt") AS ObjectClass.tpe
+
     /** Map symbol to symbol handler */
     private var symMap = Map(
       StringClass -> (string2utf8 _),
@@ -100,7 +104,10 @@ trait MethodGen extends ScalaAvroPluginComponent
         ),
       ListClass   -> (list2GenericArray _),
       MapClass    -> (map2jmap _),
-      OptionClass -> (unwrapOption _))
+      OptionClass -> (unwrapOption _),
+      ShortClass  -> (sym2int2obj _), 
+      ByteClass   -> (sym2int2obj _), 
+      CharClass   -> (sym2int2obj _))
 
     private def generateGetMethod(templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
       val newSym = clazz.newMethod(clazz.pos.focus, newTermName("get"))
@@ -192,6 +199,12 @@ trait MethodGen extends ScalaAvroPluginComponent
                   selectSchemaField(sym),
                   LIT(useNative))) AS sym.tpe
             typer typed apply
+          } else if (sym.tpe.typeSymbol == ShortClass) {
+            typer typed ((newSym ARG 1) AS IntClass.tpe DOT newTermName("toShort"))
+          } else if (sym.tpe.typeSymbol == ByteClass) {
+            typer typed ((newSym ARG 1) AS IntClass.tpe DOT newTermName("toByte"))
+          } else if (sym.tpe.typeSymbol == CharClass) {
+            typer typed ((newSym ARG 1) AS IntClass.tpe DOT newTermName("toChar"))
           } else {
             typer typed ((newSym ARG 1) AS sym.tpe)
           }

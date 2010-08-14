@@ -93,4 +93,29 @@ class TestSchemaCreation extends TestCase {
     SchemaCompare.assertSchemaEquals(test10, classOf[Test10])
   }
 
+  def test11() {
+    val test11 = classOf[Test11] ==>
+      "b" ~~> INT_ ::
+      "c" ~~> INT_ ::
+      "s" ~~> INT_ :: Nil
+    SchemaCompare.assertSchemaEquals(test11, classOf[Test11])
+  }
+
+  def test12() {
+    val test12 = classOf[Test12] ==>
+      "a0" ~~> INT_ ::
+      "a1" ~~> STRING_ :: Nil
+    SchemaCompare.assertSchemaEquals(test12, classOf[Test12])
+  }
+
+  def test13() {
+    val test13 = classOf[Test13] ==>
+      "a0" ~~> INT_ ::
+      "a1" ~~> BOOLEAN_ ::
+      "a2" ~~> (NULL_ | STRING_) :: Nil
+    SchemaCompare.assertSchemaEquals(test13, classOf[Test13])
+  }
+
+
+
 }
