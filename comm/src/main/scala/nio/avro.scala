@@ -99,10 +99,9 @@ extends AvroChannelManager[SendMsgType, RecvMsgType] with ChannelHandler {
   private val decoderFactory = new DecoderFactory
 
   override def processData(socket: SocketChannel, data: Array[Byte], count: Int) = {
-    val is = new ByteBufferInputStream(java.util.Arrays.asList(ByteBuffer.wrap(data)))
     //TODO: consider using direct binary decoders, since there's no reason to
     //buffer (saves a copy of the data)
-    val inStream = decoderFactory.createBinaryDecoder(is, null) 
+    val inStream = decoderFactory.createBinaryDecoder(data, null) 
     val msg = msgRecvClass.newInstance
     msgReader.read(msg, inStream)
     receiveMessage(socketAddrReverseMap.get(socket), msg)
