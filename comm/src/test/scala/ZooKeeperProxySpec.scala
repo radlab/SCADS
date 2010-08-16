@@ -40,6 +40,7 @@ class ZookeeperProxySpec extends Spec with ShouldMatchers {
       zk1.root.toString
       newNode.delete
       zk1.root.children.toString
+      zk1.root.children should not contain(newNode)
     }
   }
 }

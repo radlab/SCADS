@@ -15,6 +15,8 @@ object RClusterZoo extends ZooKeeperProxy("r2:2181")
  * TODO: Add the ability to execute callbacks on watches (possibly with weak references to callbacks)
  * TODO: Add actor handle serializing and deserializing with linking to the created ephemeral node.
  * TODO: Recreate ephemeral nodes on reconnect.
+ *
+ * Warning: Returned instances of ZooKeeperNode are not thread-safe
  */
 class ZooKeeperProxy(val address: String) extends Watcher {
   protected val logger = Logger.getLogger("scads.zookeeper")
@@ -81,12 +83,13 @@ class ZooKeeperProxy(val address: String) extends Watcher {
     }
 
     protected def updateChildren(watch: Boolean = false): HashMap[String, ZooKeeperNode] = {
-      val c = conn.getChildren(path, watch)
-      childrenCache.filter(t => !c.contains(t._1))
-      c --= childrenCache.keysIterator.toList
-      c.foreach(k => {
-        childrenCache += ((k, new ZooKeeperNode(prefix + k)))
-      })
+      val children = Set(conn.getChildren(path, watch) : _*)
+      // keep the children already in the cache
+      childrenCache.retain { case (child, _) => children.contains(child) }
+      // add the ones that aren't there
+      children filter { child => !childrenCache.contains(child) } foreach { child =>
+        childrenCache += ((child, new ZooKeeperNode(prefix + child))) 
+      }
       childrenCache
     }
 
