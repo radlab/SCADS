@@ -207,7 +207,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
   private def storeRoutingTable() = {
     assert(validateRoutingTable(), "Holy shit, we are about to store a crappy Routing Table.")
     val ranges = routingTable.ranges.map(a => KeyRange(a.startKey.map(serializeKey(_)), a.values))
-    val rangeList = Partition(ranges)
+    val rangeList = RoutingTableMessage(ranges)
     nsRoot.createChild(ZOOKEEPER_ROUTING_TABLE, rangeList.toBytes, CreateMode.PERSISTENT)
 
   }
@@ -219,7 +219,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
 
   private def loadRoutingTable() = {
     val zkNode = nsRoot.get(ZOOKEEPER_ROUTING_TABLE)
-    val rangeList = new Partition()
+    val rangeList = new RoutingTableMessage()
     zkNode match {
       case None => throw new RuntimeException("Can not load empty routing table")
       case Some(a) => rangeList.parse(a.data)
