@@ -10,6 +10,8 @@ import com.googlecode.avro.runtime.AvroScala._
 
 import org.apache.zookeeper.CreateMode
 
+import java.util.concurrent.ConcurrentHashMap
+import scala.collection.JavaConversions._
 
 /**
  * Basic implementation of a storage handler using BDB as a backend.
@@ -19,7 +21,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
   /* Hashmap of currently open partition handler, indexed by partitionId */
-  protected var partitions = new scala.collection.immutable.HashMap[String, PartitionHandler]
+  protected val partitions = new ConcurrentHashMap[String, PartitionHandler]
 
   /* Register a shutdown hook for proper cleanup */
   class SDRunner(sh: ServiceHandler[_]) extends Thread {
@@ -74,23 +76,19 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
         val handler = new PartitionHandler(db, partitionIdLock, startKey, endKey, nsRoot, Schema.parse(keySchemaJson))
 
         /* Add to our list of open partitions */
-        partitions.synchronized {
-          partitions += ((partitionId, handler))
-        }
+        partitions.put(partitionId, handler)
 
         logger.info("Partition " + partitionId + " created")
         reply(CreatePartitionResponse( handler.remoteHandle.toPartitionService(partitionId, remoteHandle.toStorageService)) )
       }
       case DeletePartitionRequest(partitionId) => {
         /* Get the handler and shut it down */
-        val handler = partitions.get(partitionId).getOrElse {reply(InvalidPartition(partitionId)); return}
+        val handler = Option(partitions.get(partitionId)) getOrElse {reply(InvalidPartition(partitionId)); return}
         val dbName = handler.db.getDatabaseName()
         logger.info("Stopping partition " + partitionId + " for delete")
         handler.stop
 
-        synchronized {
-          partitions -= partitionId
-        }
+        partitions.remove(partitionId)
 
         logger.info("Deleting partition " + partitionId)
         /* TODO: Garbage collect data / databases that are unused */
