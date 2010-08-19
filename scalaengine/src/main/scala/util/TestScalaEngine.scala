@@ -16,9 +16,9 @@ object TestScalaEngine {
 	protected val clusterId = new java.util.concurrent.atomic.AtomicInteger
   protected val logger = Logger.getLogger("scads.test")
 
-  def getTestCluster(): ScadsCluster = {
+  def getTestCluster(clientID : Int): ScadsCluster = {
     val handler = getTestHandler()
-    new ScadsCluster(handler.root)
+    new ScadsCluster(handler.root, clientID)
   }
 
   def getTestHandler(): StorageHandler = {

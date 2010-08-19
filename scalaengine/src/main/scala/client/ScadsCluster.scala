@@ -28,9 +28,10 @@ import scala.util.Random
  * TODO: Add ability to delete namespaces
  * TODO: Move parition management code into namespace
  */
-class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) {
+class ScadsCluster(root: ZooKeeperProxy#ZooKeeperNode, val clientID : Int) {
   val namespaces = root.getOrCreate("namespaces")
   val randomGen = new Random(0)
+
   implicit val cluster = this
 
 

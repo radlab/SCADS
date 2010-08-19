@@ -147,10 +147,10 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
    * Replicates a partition to the given storageHandler.
    */
   def replicatePartition(partitionHandler: PartitionService, storageHandler: StorageService): PartitionService = {
-    var keys = getStartEndKey(partitionHandler)
+    val (startKey, endKey) = getStartEndKey(partitionHandler)
 
-    val newPartition = createPartitions(keys._1, keys._2, List(storageHandler)).head
-    routingTable = routingTable.addValueToRange(keys._1, newPartition)
+    val newPartition = createPartitions(startKey, endKey, List(storageHandler)).head
+    routingTable = routingTable.addValueToRange(startKey, newPartition)
 
     storeAndPropagateRoutingTable()
     newPartition !? CopyDataRequest(partitionHandler, false) match {
@@ -162,8 +162,8 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
   }
 
   def deleteReplica(partitionHandler: PartitionService): Unit = {
-    var keys = getStartEndKey(partitionHandler) //Not really needed, just an additional check
-    routingTable = routingTable.removeValueFromRange(keys._1, partitionHandler)
+    val (startKey, endKey) = getStartEndKey(partitionHandler) //Not really needed, just an additional check
+    routingTable = routingTable.removeValueFromRange(startKey, partitionHandler)
     storeAndPropagateRoutingTable()
     deletePartitions(List(partitionHandler))
   }
@@ -207,9 +207,9 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
   private def storeRoutingTable() = {
     assert(validateRoutingTable(), "Holy shit, we are about to store a crappy Routing Table.")
     val ranges = routingTable.ranges.map(a => KeyRange(a.startKey.map(serializeKey(_)), a.values))
-    val rangeList = Partition(ranges)
-    nsRoot.createChild(ZOOKEEPER_ROUTING_TABLE, rangeList.toBytes, CreateMode.PERSISTENT)
-
+    val rangeList = RoutingTableMessage(ranges)
+    val zooKeeperRT = nsRoot.getOrCreate(ZOOKEEPER_ROUTING_TABLE)
+    zooKeeperRT.data =  rangeList.toBytes
   }
 
   private def storeAndPropagateRoutingTable() = {
@@ -219,7 +219,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
 
   private def loadRoutingTable() = {
     val zkNode = nsRoot.get(ZOOKEEPER_ROUTING_TABLE)
-    val rangeList = new Partition()
+    val rangeList = new RoutingTableMessage()
     zkNode match {
       case None => throw new RuntimeException("Can not load empty routing table")
       case Some(a) => rangeList.parse(a.data)

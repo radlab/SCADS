@@ -61,6 +61,8 @@ case class GetResponsibilityResponse(var startKey: Option[Array[Byte]], var endK
 case class IntRec(var f1: Int) extends AvroRecord
 case class StringRec(var f1: String) extends AvroRecord
 
+case class QuorumProtocolConfig(var readQuorum : Float, var writeQuorum : Float) extends AvroRecord
+
 
 
 /* Routing Table Types.  Note: they are here due to problems with the typer (i.e. generated methods aren't visable in the same compilation cycle */

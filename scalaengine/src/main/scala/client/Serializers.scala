@@ -15,11 +15,11 @@ import com.googlecode.avro.runtime.ScalaSpecificRecord
 class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord]
     (namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKeeperNode)
     (implicit  cluster : ScadsCluster, keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType])
-        extends QuorumProtocol[KeyType, ValueType](namespace, timeout, root)(cluster) with RoutingProtocol[KeyType, ValueType] {
+        extends QuorumProtocol[KeyType, ValueType](namespace, timeout, root)(cluster) with RoutingProtocol[KeyType, ValueType] with SimpleMetaData[KeyType, ValueType] {
   protected val keyClass = keyType.erasure.asInstanceOf[Class[ScalaSpecificRecord]]
   protected val valueClass = valueType.erasure.asInstanceOf[Class[ScalaSpecificRecord]]
-  protected val keySchema = keyType.erasure.newInstance.asInstanceOf[KeyType].getSchema()
-  protected val valueSchema = valueType.erasure.newInstance.asInstanceOf[ValueType].getSchema()
+  val keySchema = keyType.erasure.newInstance.asInstanceOf[KeyType].getSchema()
+  val valueSchema = valueType.erasure.newInstance.asInstanceOf[ValueType].getSchema()
 
 
   protected def serializeKey(key: KeyType): Array[Byte] = key.toBytes
@@ -50,7 +50,7 @@ class GenericNamespace(namespace:String,
                        val valueSchema:Schema)
                       (implicit cluster : ScadsCluster)
         extends QuorumProtocol[GenericData.Record, GenericData.Record](namespace, timeout, root)(cluster)
-                with RoutingProtocol[GenericData.Record, GenericData.Record] {
+                with RoutingProtocol[GenericData.Record, GenericData.Record] with SimpleMetaData[GenericData.Record, GenericData.Record] {
   val decoderFactory = DecoderFactory.defaultFactory()
   val keyReader = new GenericDatumReader[GenericData.Record](keySchema)
   val valueReader = new GenericDatumReader[GenericData.Record](valueSchema)

@@ -26,6 +26,7 @@ class MessageFuture extends Future[MessageBody] with MessageReceiver {
     def receiveWithin[R](msec: Long)(f: PartialFunction[Any, R]): R = f(message.get(msec).getOrElse(ProcessingException("timeout", "")))
   }
 
+  def source =  sender.get
   def respond(r: (MessageBody) => Unit): Unit = r(message.get)
   def apply(): MessageBody = message.get
   def get(timeout: Int): Option[MessageBody] = message.get(timeout)
