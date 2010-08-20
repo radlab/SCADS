@@ -215,7 +215,7 @@ class RangeTableSpec extends WordSpec with ShouldMatchers with RangeBoundMatcher
       rangeTable.isSplitKey(10) should be === true
       rangeTable.isSplitKey(15) should be === false
       rangeTable.isSplitKey(20) should be === true
-      rangeTable.isSplitKey(25) should be === false            
+      rangeTable.isSplitKey(25) should be === false
     }
 
     "return left and right range" in {
@@ -296,7 +296,7 @@ class RangeTableSpec extends WordSpec with ShouldMatchers with RangeBoundMatcher
   def createRange(values : (Int, String)*) = {
     var setup : List[(Option[Int], List[String])] = values.toList.map(a => (Some(a._1), a._2 :: Nil))
     setup = (None, List("S0")) :: setup
-      
+
     new RangeTable[Int, String](
         setup,
         (a: Int, b: Int) => if(a == b) 0 else if (a<b) -1 else 1,
@@ -326,4 +326,3 @@ trait RangeBoundMatchers {
       HavePropertyMatchResult( rangeBound.right.startKey == expectedValue, "right", expectedValue, rangeBound.right.startKey ) }
 
 }
-

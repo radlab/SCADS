@@ -299,6 +299,3 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
 
 
 }
-
-
-

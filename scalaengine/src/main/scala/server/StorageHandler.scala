@@ -39,10 +39,10 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
   private lazy val partitionDb =
     makeDatabase("partitiondb", None)
 
-  private def makeDatabase(databaseName: String, keySchema: Schema): Database = 
+  private def makeDatabase(databaseName: String, keySchema: Schema): Database =
     makeDatabase(databaseName, Some(new AvroBdbComparator(keySchema)))
 
-  private def makeDatabase(databaseName: String, keySchema: String): Database = 
+  private def makeDatabase(databaseName: String, keySchema: String): Database =
     makeDatabase(databaseName, Some(new AvroBdbComparator(keySchema)))
 
   private def makeDatabase(databaseName: String, comparator: Option[Comparator[Array[Byte]]]): Database = {
@@ -54,7 +54,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
   }
 
   private def makePartitionHandler(
-      namespace: String, partitionIdLock: ZooKeeperProxy#ZooKeeperNode, 
+      namespace: String, partitionIdLock: ZooKeeperProxy#ZooKeeperNode,
       startKey: Option[Array[Byte]], endKey: Option[Array[Byte]]) = {
     /* Configure the new database */
     logger.info("Opening bdb table for partition in namespace: " + namespace)
@@ -64,7 +64,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
     new PartitionHandler(db, partitionIdLock, startKey, endKey, nsRoot, Schema.parse(keySchema))
   }
 
-  private implicit def cursorToIterator(cursor: Cursor): Iterator[(DatabaseEntry, DatabaseEntry)] 
+  private implicit def cursorToIterator(cursor: Cursor): Iterator[(DatabaseEntry, DatabaseEntry)]
     = new Iterator[(DatabaseEntry, DatabaseEntry)] {
       private var cur = getNext()
       private def getNext() = {
@@ -97,9 +97,9 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
 
     /* Reopen partitions */
     val cursor = partitionDb.openCursor(null, null)
-    cursor.map { case (key, value) => 
-      (new String(key.getData), (new CreatePartitionRequest).parse(value.getData)) 
-    } foreach { case (partitionId, request) => 
+    cursor.map { case (key, value) =>
+      (new String(key.getData), (new CreatePartitionRequest).parse(value.getData))
+    } foreach { case (partitionId, request) =>
 
       logger.info("Recreating partition %s from request %s".format(partitionId, request))
 
@@ -108,7 +108,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
 
       /* Grab the lock file. It should already exist, since we're recreating
        * the partition */
-      val partitionIdLock = 
+      val partitionIdLock =
         nsRoot("partitions")
           .get(partitionId)
           .getOrElse(throw new IllegalStateException("Cannot find ZooKeeper Node for partition: " + partitionId)) // TODO: What do we do in this case?
@@ -135,7 +135,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
     env.close()
   }
 
-  private def getNamespaceRoot(namespace: String): ZooKeeperProxy#ZooKeeperNode = 
+  private def getNamespaceRoot(namespace: String): ZooKeeperProxy#ZooKeeperNode =
     root("namespaces")
       .get(namespace)
       .getOrElse(throw new RuntimeException("Attempted to open namespace that doesn't exist in zookeeper: " + namespace))

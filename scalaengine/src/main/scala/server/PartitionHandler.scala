@@ -29,9 +29,9 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
     val keysToValidate = msg match {
       case GetRequest(key) => List(key)
       case PutRequest(key, _) => List(key)
-      case GetRangeRequest(minKey, maxKey, _, _, _) => 
-        minKey.toList ::: maxKey.toList 
-      case CountRangeRequest(minKey, maxKey) => 
+      case GetRangeRequest(minKey, maxKey, _, _, _) =>
+        minKey.toList ::: maxKey.toList
+      case CountRangeRequest(minKey, maxKey) =>
         minKey.toList ::: maxKey.toList
       case TestSetRequest(key, _, _) => List(key)
       case _ => Nil
@@ -116,7 +116,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
   }
 
   // TODO: should iterateOverRange be private? does it have to validate
-  // {min,max}Key? 
+  // {min,max}Key?
   def iterateOverRange(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true, txn: Option[Transaction] = None)(func: (DatabaseEntry, DatabaseEntry, Cursor) => Unit): Unit = {
     val (dbeKey, dbeValue) = (new DatabaseEntry, new DatabaseEntry)
     val cur = db.openCursor(txn.orNull,null)

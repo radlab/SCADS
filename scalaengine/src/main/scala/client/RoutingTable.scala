@@ -247,4 +247,3 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
   }
 
 }
-
