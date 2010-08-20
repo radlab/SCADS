@@ -96,6 +96,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
 
   def getRange(startKey: Option[KeyType], endKey: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, backwards: Boolean = false): Seq[(KeyType, ValueType)] = {
     val partitions = if (backwards) serversForRange(startKey, endKey).reverse else serversForRange(startKey, endKey)
+    println("Range request to " +  partitions )
     var handlers: ArrayBuffer[RangeHandle] = new ArrayBuffer[RangeHandle]
     val sKey = startKey.map(serializeKey(_))
     val eKey = endKey.map(serializeKey(_))

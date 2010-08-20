@@ -15,7 +15,6 @@ import java.util.concurrent.ConcurrentHashMap
 object TestScalaEngine {
   lazy val zooKeeper = ZooKeeperHelper.getTestZooKeeper
   lazy val defaultStorageHandler = getTestHandler()
-	protected val clusterId = new java.util.concurrent.atomic.AtomicInteger
   protected val logger = Logger.getLogger("scads.test")
 
   def getTestCluster(clientID : Int): ScadsCluster = {
@@ -28,7 +27,7 @@ object TestScalaEngine {
     tempDir.delete()
     tempDir.mkdir()
 
-    ScalaEngine.main(Some("testScads" + clusterId.getAndIncrement), Some(zooKeeper.address), Some(tempDir), None, false)
+    ScalaEngine.main(Some("testScads"), Some(zooKeeper.address), Some(tempDir), None, false)
   }
 
   private val tempFileMap = new ConcurrentHashMap[String, File]
