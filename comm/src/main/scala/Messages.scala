@@ -61,7 +61,7 @@ case class GetResponsibilityResponse(var startKey: Option[Array[Byte]], var endK
 case class IntRec(var f1: Int) extends AvroRecord
 case class StringRec(var f1: String) extends AvroRecord
 
-case class QuorumProtocolConfig(var readQuorum : Float, var writeQuorum : Float) extends AvroRecord
+case class QuorumProtocolConfig(var readQuorum : Double, var writeQuorum : Double) extends AvroRecord
 
 
 

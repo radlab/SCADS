@@ -33,7 +33,6 @@ object ScalaEngine extends optional.Application {
 
     logger.info("Opening BDB Environment: " + dir + ", " + config)
     val env = new Environment(dir, config)
-
     return new StorageHandler(env, zooRoot)
   }
 }

@@ -12,7 +12,7 @@ import edu.berkeley.cs.scads.storage._
 class PartitionHandlerSpec extends Spec with ShouldMatchers {
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
-  def getHandler() = {
+  def getHandler(startKey: Option[IntRec] = None, endKey: Option[IntRec] = None) = {
     val handler = TestScalaEngine.getTestHandler()
     val root = handler.root
 
@@ -20,7 +20,7 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers {
     root.getOrCreate("namespaces/partitiontestns/valueSchema").data = IntRec.schema.toString.getBytes
     root.getOrCreate("namespaces/partitiontestns/partitions")
 
-    (handler.remoteHandle !? CreatePartitionRequest("partitiontestns", None, None)) match {
+    (handler.remoteHandle !? CreatePartitionRequest("partitiontestns", startKey.map(_.toBytes), endKey.map(_.toBytes))) match {
       case CreatePartitionResponse(newPartService) => newPartService
       case _ => fail("Couldn't get partition handler")
     }
@@ -75,5 +75,40 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers {
         case u => fail("P2 doesn't contain " + i + " instead got: " + u)
       })
     }
+
+    it("should reject requests which fall outside of its partition range") {
+      val p1 = getHandler(IntRec(0), IntRec(10))
+      val VALUE = IntRec(0).toBytes
+
+      try {
+        p1 !? PutRequest(IntRec(-1).toBytes, VALUE) match {
+          case u => fail("-1 falls outside of the range of p1's key range: " + u)
+        }
+      } catch {
+        case e: RuntimeException =>
+          // supposed to fail
+      }
+
+      p1 !? PutRequest(IntRec(0).toBytes, VALUE) match {
+        case PutResponse() =>
+        case u => fail("0 falls inside of range of p1's key range: " + u)
+      }
+
+      p1 !? PutRequest(IntRec(10).toBytes, VALUE) match {
+        case PutResponse() =>
+        case u => fail("10 falls inside of range of p1's key range: " + u)
+      }
+
+      try {
+        p1 !? CountRangeRequest(Some(IntRec(1).toBytes), Some(IntRec(11).toBytes)) match {
+          case u => fail("11 falls outside of the range of p1's key range: " + u)
+        }
+      } catch {
+        case e: RuntimeException =>
+          // supposed to fail
+      }
+
+    }
+
   }
 }

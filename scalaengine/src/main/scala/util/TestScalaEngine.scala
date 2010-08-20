@@ -7,6 +7,8 @@ import edu.berkeley.cs.scads.comm.Conversions._
 import org.apache.avro.util.Utf8
 import java.io.File
 
+import java.util.concurrent.ConcurrentHashMap
+
 /**
  * Object that creates a local zookeeper / scads cluster for testing.
  */
@@ -27,6 +29,20 @@ object TestScalaEngine {
     tempDir.mkdir()
 
     ScalaEngine.main(Some("testScads" + clusterId.getAndIncrement), Some(zooKeeper.address), Some(tempDir), None, false)
+  }
+
+  private val tempFileMap = new ConcurrentHashMap[String, File]
+
+  def getTestHandler(identifier: String): StorageHandler = {
+    require(identifier ne null)
+
+    val tempDir = File.createTempFile("scads", "testdb")
+    tempDir.delete()
+    tempDir.mkdir()
+
+    val tempDir0 = Option(tempFileMap.putIfAbsent(identifier, tempDir))
+
+    ScalaEngine.main(Some(identifier), Some(zooKeeper.address), tempDir0.orElse(Some(tempDir)), None, false)
   }
 
   def getTestHandler(count: Int): List[StorageHandler] = (1 to count).map(_ => getTestHandler()).toList

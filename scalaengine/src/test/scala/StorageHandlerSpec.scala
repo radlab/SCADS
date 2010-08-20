@@ -12,14 +12,22 @@ import edu.berkeley.cs.scads.storage._
 class StorageHandlerSpec extends Spec with ShouldMatchers {
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
-  def getHandler() = {
-    val handler = TestScalaEngine.getTestHandler()
+  private def initHandler(handler: StorageHandler) {
     val root = handler.root
-
     root.getOrCreate("namespaces/testns/keySchema").data = IntRec.schema.toString.getBytes
     root.getOrCreate("namespaces/testns/valueSchema").data = IntRec.schema.toString.getBytes
     root.getOrCreate("namespaces/testns/partitions")
+  }
 
+  def getHandler(id: String) = {
+    val handler = TestScalaEngine.getTestHandler(id)
+    initHandler(handler)
+    handler
+  }
+
+  def getHandler() = {
+    val handler = TestScalaEngine.getTestHandler()
+    initHandler(handler)
     handler
   }
 
@@ -43,6 +51,27 @@ class StorageHandlerSpec extends Spec with ShouldMatchers {
         case DeletePartitionResponse() => true
         case u => fail("Unexpected response to delete partition: " + u)
       }
+    }
+
+    it("should recreate partitions") {
+      var handler = getHandler("testrecreate")
+
+      val startkey = IntRec(10).toBytes
+      val endkey = IntRec(15).toBytes
+
+      val partId = handler.remoteHandle !? CreatePartitionRequest("testns", Some(startkey), Some(endkey)) match {
+        case CreatePartitionResponse(service) => service.partitionId
+        case u => fail("Unexpected msg:" + u)
+      }
+
+      handler.stop
+
+      handler = getHandler("testrecreate")
+      handler.remoteHandle !? DeletePartitionRequest(partId) match {
+        case DeletePartitionResponse() => true
+        case u => fail("Partition was not recreated, and therefore could not be deleted: " + u)
+      }
+
     }
   }
 }

@@ -4,6 +4,9 @@ package edu.berkeley.cs.scads.comm
  * Not thread safe
  */
 class CircularByteBuffer(private var initialSize: Int) {
+
+    import scala.math.{ max, min }
+
     private var bytes = new Array[Byte](initialSize)
     private var head = 0
     private var _size = 0
@@ -13,7 +16,7 @@ class CircularByteBuffer(private var initialSize: Int) {
     def append(toAppend: Array[Byte]) = {
         if (bytesRemaining < toAppend.length) {
             // expand
-            val newSize = Math.max(bytes.length*2, (_size+toAppend.length)*2)
+            val newSize = max(bytes.length*2, (_size+toAppend.length)*2)
             val newBytes = new Array[Byte](newSize)
             if (head+size < bytes.length+1)
                 System.arraycopy(bytes, head, newBytes, 0, _size)
@@ -26,7 +29,7 @@ class CircularByteBuffer(private var initialSize: Int) {
         }
         val tailStart = (head + _size) % bytes.length
         // copy until end
-        val toCopy = Math.min(toAppend.length, bytes.length-tailStart)
+        val toCopy = min(toAppend.length, bytes.length-tailStart)
         System.arraycopy(toAppend, 0, bytes, tailStart, toCopy)
 
         // now copy into beginning

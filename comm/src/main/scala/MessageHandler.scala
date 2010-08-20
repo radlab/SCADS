@@ -35,10 +35,11 @@ object MessageHandler extends NioAvroChannelManagerBase[Message, Message] {
   }
 
   def registerService(id: String, service: MessageReceiver): RemoteActorProxy = {
-    if (serviceRegistry.containsKey(id))
-      throw new IllegalStateException("Service with that ID already registered")
-    serviceRegistry.put(ActorName(id),service)
-    RemoteActor(hostname, getLocalPort, ActorName(id))
+    val key = ActorName(id)
+    val value0 = serviceRegistry.putIfAbsent(key, service)
+    if (value0 ne null)
+      throw new IllegalArgumentException("Service with %s already registered: %s".format(id, service))
+    RemoteActor(hostname, getLocalPort, key)
   }
 
   def getService(id: String):MessageReceiver  = {
