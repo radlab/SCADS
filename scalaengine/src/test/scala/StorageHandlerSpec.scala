@@ -20,7 +20,7 @@ class StorageHandlerSpec extends Spec with ShouldMatchers {
   }
 
   def getHandler(id: String) = {
-    val handler = TestScalaEngine.getTestHandler(id)
+    val handler = TestScalaEngine.getTestHandler("testScads", id)
     initHandler(handler)
     handler
   }
