@@ -12,9 +12,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 
   protected def startup(): Unit = null
   protected def shutdown(): Unit = {
-    //Don't delete the partition lock, since we'll want to recreate the
-    //partition
-    //partitionIdLock.delete()
+    partitionIdLock.delete()
     db.close()
   }
 

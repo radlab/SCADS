@@ -14,6 +14,8 @@ import java.util.Comparator
 import java.util.concurrent.ConcurrentHashMap
 import scala.collection.JavaConversions._
 
+import org.apache.zookeeper.KeeperException.NodeExistsException
+
 /**
  * Basic implementation of a storage handler using BDB as a backend.
  */
@@ -53,6 +55,9 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
     env.openDatabase(null, databaseName, dbConfig)
   }
 
+  /** Precondition: 
+   *    keySchema is already set in the namespace/keySchema file
+   *    in ZooKeeper */
   private def makePartitionHandler(
       namespace: String, partitionIdLock: ZooKeeperProxy#ZooKeeperNode,
       startKey: Option[Array[Byte]], endKey: Option[Array[Byte]]) = {
@@ -64,6 +69,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
     new PartitionHandler(db, partitionIdLock, startKey, endKey, nsRoot, Schema.parse(keySchema))
   }
 
+  /** Iterator scans the entire cursor and does not close it */
   private implicit def cursorToIterator(cursor: Cursor): Iterator[(DatabaseEntry, DatabaseEntry)]
     = new Iterator[(DatabaseEntry, DatabaseEntry)] {
       private var cur = getNext()
@@ -92,7 +98,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
   protected def startup(): Unit = {
     /* Register with the zookeper as an available server */
     val availServs = root.getOrCreate("availableServers")
-    println("Created StorageHandler" + remoteHandle.toString)
+    logger.debug("Created StorageHandler" + remoteHandle.toString)
     availServs.createChild(remoteHandle.toString, remoteHandle.toBytes, CreateMode.EPHEMERAL)
 
     /* Reopen partitions */
@@ -103,15 +109,27 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
 
       logger.info("Recreating partition %s from request %s".format(partitionId, request))
 
-      /* Grab namespace root from ZooKeeper */
-      val nsRoot = getNamespaceRoot(request.namespace)
+      /* Grab partition root from ZooKeeper */
+      val partitionsDir = getNamespaceRoot(request.namespace).apply("partitions")
 
-      /* Grab the lock file. It should already exist, since we're recreating
-       * the partition */
+      /* Create the lock file, assuming that it does not already exist (since
+       * the lock files are created ephemerally, so if this node dies, all the
+       * lock files should die accordingly) */
       val partitionIdLock =
-        nsRoot("partitions")
-          .get(partitionId)
-          .getOrElse(throw new IllegalStateException("Cannot find ZooKeeper Node for partition: " + partitionId)) // TODO: What do we do in this case?
+        try {
+          partitionsDir.createChild(partitionId)
+        } catch {
+          case e: NodeExistsException =>
+            /* The lock file has not been removed yet. Assume for now that
+             * this lock file belonged to this partition to begin with, and we
+             * had a race condition where the ephemeral nodes were not removed
+             * in time that the node started back up. Therefore, delete the
+             * existing lock file and recreate it */
+            logger.warn("Clobbering lock file! Namespace: %s, PartitionID: %d".format(request.namespace, partitionId))
+            partitionsDir.deleteChild(partitionId)
+            partitionsDir.createChild(partitionId)
+        }
+      assert(partitionIdLock.name == partitionId, "Lock file was not created with the same name on restore")
 
       /* Make partition handler */
       val handler = makePartitionHandler(request.namespace, partitionIdLock, request.startKey, request.endKey)
@@ -148,8 +166,9 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
         /* Grab root to namespace from ZooKeeper */
         val nsRoot = getNamespaceRoot(namespace)
 
-        /* Grab a lock on the partitionId */
-        val partitionIdLock = nsRoot("partitions").createChild(namespace, mode = CreateMode.PERSISTENT_SEQUENTIAL)
+        /* Grab a lock on the partitionId. 
+         * TODO: Handle sequence wrap-around */
+        val partitionIdLock = nsRoot("partitions").createChild(namespace, mode = CreateMode.EPHEMERAL_SEQUENTIAL)
         val partitionId = partitionIdLock.name
 
         logger.info("Active partitions after insertion in ZooKeeper: %s".format(nsRoot("partitions").children.mkString(",")))
