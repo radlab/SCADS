@@ -12,7 +12,9 @@ import org.apache.zookeeper.CreateMode
 
 import java.util.Comparator
 import java.util.concurrent.ConcurrentHashMap
+
 import scala.collection.JavaConversions._
+import scala.collection.mutable.{ Set => MSet, HashSet }
 
 import org.apache.zookeeper.KeeperException.NodeExistsException
 
@@ -28,6 +30,12 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
    * Must also be lazy so we can reference in startup() */
   protected lazy val partitions = new ConcurrentHashMap[String, PartitionHandler]
 
+  /** 
+   * Map of namespaces to currently open partitions for that namespace.
+   * The values of this map (mutable sets) must be synchronized on before reading/writing 
+   */
+  protected lazy val namespaces = new ConcurrentHashMap[String, MSet[String]]
+
   /* Register a shutdown hook for proper cleanup */
   class SDRunner(sh: ServiceHandler[_]) extends Thread {
     override def run(): Unit = {
@@ -39,35 +47,38 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
   /** Points to the DB that can recreate partitions on restart.
    * Must also be lazy so we can reference in startup() */
   private lazy val partitionDb =
-    makeDatabase("partitiondb", None)
+    makeDatabase("partitiondb", None, None)
 
-  private def makeDatabase(databaseName: String, keySchema: Schema): Database =
-    makeDatabase(databaseName, Some(new AvroBdbComparator(keySchema)))
+  private def makeDatabase(databaseName: String, keySchema: Schema, txn: Option[Transaction]): Database =
+    makeDatabase(databaseName, Some(new AvroBdbComparator(keySchema)), txn)
 
-  private def makeDatabase(databaseName: String, keySchema: String): Database =
-    makeDatabase(databaseName, Some(new AvroBdbComparator(keySchema)))
+  private def makeDatabase(databaseName: String, keySchema: String, txn: Option[Transaction]): Database =
+    makeDatabase(databaseName, Some(new AvroBdbComparator(keySchema)), txn)
 
-  private def makeDatabase(databaseName: String, comparator: Option[Comparator[Array[Byte]]]): Database = {
+  private def makeDatabase(databaseName: String, comparator: Option[Comparator[Array[Byte]]], txn: Option[Transaction]): Database = {
     val dbConfig = new DatabaseConfig
     dbConfig.setAllowCreate(true)
     comparator.foreach(comp => dbConfig.setBtreeComparator(comp))
     dbConfig.setTransactional(true)
-    env.openDatabase(null, databaseName, dbConfig)
+    env.openDatabase(txn.orNull, databaseName, dbConfig)
   }
 
-  /** Precondition: 
-   *    keySchema is already set in the namespace/keySchema file
-   *    in ZooKeeper */
-  private def makePartitionHandler(
-      namespace: String, partitionIdLock: ZooKeeperProxy#ZooKeeperNode,
-      startKey: Option[Array[Byte]], endKey: Option[Array[Byte]]) = {
-    /* Configure the new database */
-    logger.info("Opening bdb table for partition in namespace: " + namespace)
+  private def keySchemaFor(namespace: String) = {
     val nsRoot = getNamespaceRoot(namespace)
     val keySchema = new String(nsRoot("keySchema").data)
-    val db = makeDatabase(namespace, keySchema)
-    new PartitionHandler(db, partitionIdLock, startKey, endKey, nsRoot, Schema.parse(keySchema))
+    Schema.parse(keySchema)
   }
+
+  /** 
+   * Preconditions:
+   *   (1) namespace is a valid namespace in zookeeper
+   *   (2) keySchema is already set in the namespace/keySchema file
+   *       in ZooKeeper 
+   */
+  private def makePartitionHandler(
+      database: Database, namespace: String, partitionIdLock: ZooKeeperProxy#ZooKeeperNode,
+      startKey: Option[Array[Byte]], endKey: Option[Array[Byte]]) =
+    new PartitionHandler(database, partitionIdLock, startKey, endKey, getNamespaceRoot(namespace), keySchemaFor(namespace))
 
   /** Iterator scans the entire cursor and does not close it */
   private implicit def cursorToIterator(cursor: Cursor): Iterator[(DatabaseEntry, DatabaseEntry)]
@@ -131,24 +142,44 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
         }
       assert(partitionIdLock.name == partitionId, "Lock file was not created with the same name on restore")
 
+      /* Add mapping under the namespace */
+      val set = getSetForNamespace(request.namespace) 
+      set.synchronized {
+        set += partitionId
+      }
+
       /* Make partition handler */
-      val handler = makePartitionHandler(request.namespace, partitionIdLock, request.startKey, request.endKey)
+      val db      = makeDatabase(request.namespace, keySchemaFor(request.namespace), None)
+      val handler = makePartitionHandler(db, request.namespace, partitionIdLock, request.startKey, request.endKey)
 
       /* Add to our list of open partitions */
       partitions.put(partitionId, handler)
+
     }
     cursor.close()
 
   }
 
+  private def getSetForNamespace(namespace: String) = {
+    val test = namespaces.get(namespace)
+    if (test ne null)
+      test
+    else {
+      val set0 = new HashSet[String]
+      Option(namespaces.putIfAbsent(namespace, set0)) getOrElse set0
+    }
+  }
+
   /**
    * Performs the following shutdown tasks:
-   * * TODO: Shutdown all active partitions
+   *   Shutdown all active partitions
+   *   Closes the bdb environment
    */
   protected def shutdown(): Unit = {
     root("availableServers").deleteChild(remoteHandle.toString)
     partitions.values.foreach(_.stop)
     partitions.clear()
+    namespaces.clear()
     partitionDb.close()
     env.close()
   }
@@ -173,14 +204,30 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
 
         logger.info("Active partitions after insertion in ZooKeeper: %s".format(nsRoot("partitions").children.mkString(",")))
 
+        /* Add mapping under the namespace */
+        val set = getSetForNamespace(namespace) 
+        set.synchronized {
+          set += partitionId // ensures that DB won't be deleted during creation
+        }
+
+        /* Start a new transaction to atomically make both the namespace DB,
+         * and add an entry into the partition DB */
+        val txn = env.beginTransaction(null, null)
+
+        /* Open the namespace DB */
+        val db = makeDatabase(namespace, keySchemaFor(namespace), Some(txn))
+
+        /* Log to partition DB for recreation */
+        partitionDb.put(txn, new DatabaseEntry(partitionId.getBytes), new DatabaseEntry(createRequest.toBytes))
+
+        /* for now, let errors propogate up to the exception handler */
+        txn.commit()
+
         /* Make partition handler from request */
-        val handler = makePartitionHandler(namespace, partitionIdLock, startKey, endKey)
+        val handler = makePartitionHandler(db, namespace, partitionIdLock, startKey, endKey)
 
         /* Add to our list of open partitions */
         partitions.put(partitionId, handler)
-
-        /* Log to partition DB for recreation */
-        partitionDb.put(null, new DatabaseEntry(partitionId.getBytes), new DatabaseEntry(createRequest.toBytes))
 
         logger.info("Partition " + partitionId + " created")
         reply(CreatePartitionResponse( handler.remoteHandle.toPartitionService(partitionId, remoteHandle.toStorageService)) )
@@ -189,18 +236,34 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
         logger.info("Deleting partition " + partitionId)
 
         /* Get the handler and shut it down */
-        val handler = Option(partitions.get(partitionId)) getOrElse {reply(InvalidPartition(partitionId)); return}
-        val dbName = handler.db.getDatabaseName()
+        val handler = Option(partitions.remove(partitionId)) getOrElse {reply(InvalidPartition(partitionId)); return}
+
+        val dbName = handler.db.getDatabaseName /* dbName is namespace */
+        val dbEnv  = handler.db.getEnvironment
+
         logger.info("Stopping partition " + partitionId + " for delete")
         handler.stop
 
-        /* Remove from in memory map */
-        partitions.remove(partitionId)
+        /* Delete from partitionDB, and (possibly) delete the database in a
+         * single transaction */
+        val txn = env.beginTransaction(null, null)
 
         /* Remove from bdb map */
-        partitionDb.delete(null, new DatabaseEntry(partitionId.getBytes))
+        partitionDb.delete(txn, new DatabaseEntry(partitionId.getBytes))
 
-        /* TODO: Garbage collect data / databases that are unused */
+        val set = getSetForNamespace(dbName)
+        set.synchronized {
+          set -= partitionId
+          if (set.isEmpty) {
+            /* Remove database from environment- this removes all the data
+            * associated with the database */
+            logger.info("Deleting database %s".format(dbName))
+            dbEnv.removeDatabase(txn, dbName)
+          }
+        }
+
+        txn.commit()
+
         reply(DeletePartitionResponse())
       }
       case _ => reply(RequestRejected("StorageHandler can't process this message type", msg))

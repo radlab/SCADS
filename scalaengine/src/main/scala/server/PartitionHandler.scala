@@ -10,8 +10,8 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
   protected val logger = Logger.getLogger("scads.partitionhandler")
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
-  protected def startup(): Unit = null
-  protected def shutdown(): Unit = {
+  protected def startup() { /* No-op */ }
+  protected def shutdown() {
     partitionIdLock.delete()
     db.close()
   }
@@ -37,6 +37,8 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 
     val outOfRangeKeys = keysToValidate filter { key => !isInRange(key) }
     if (outOfRangeKeys.isEmpty) {
+      /** Invariant: All keys as input from client are valid for this
+       * partition */
       msg match {
         case GetRequest(key) => {
           val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry)
