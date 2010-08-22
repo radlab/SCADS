@@ -12,81 +12,95 @@ import scala.collection.JavaConversions._
 
 import org.apache.log4j.Logger
 
-trait JsonRecordParser[T <: IndexedRecord] {
-  self: RichIndexedRecord[T] => 
+object JsonObject {
+  val factory = new JsonFactory
+}
+
+class JsonObject(json: String) {
   val logger = Logger.getLogger("scads.avro.jsonparser")
 
-  def parseJson(json: String): T = {
-    val factory = new JsonFactory
-    val parser = factory.createJsonParser(json)
+  def toAvro[T <: IndexedRecord](implicit manifest: Manifest[T]): Option[T] = {
+    val parser = JsonObject.factory.createJsonParser(json)
+    val record = manifest.erasure.newInstance().asInstanceOf[T]
 
-    if(parser.nextToken != JsonToken.START_OBJECT)
-      throw new RuntimeException("Expected object for json record")
+    logger.debug("Parsing: " + json)
 
-    parseJson(parser)
+    if(parser.nextToken != JsonToken.START_OBJECT) {
+      logger.warn("Failed to parse JSON object: " + json + ". Expected START_OBJECT, found " + parser.getCurrentToken)
+      return None
+    }
+
+    parseRecord(parser, record)
   }
 
-  def parseJson(parser: JsonParser): T = {
-    val schema = rec.getSchema
+  protected def canBe(schema: Schema, fieldType: Schema.Type): Boolean = {
+    if(fieldType == schema.getType) true
+    else if(schema.getType == Type.UNION && schema.getTypes.find(_.getType == fieldType).isDefined) true
+    else false
+  }
+
+  protected def parseValue(parser: JsonParser, schema: Schema, fieldname: String): Any = {
+    parser.getCurrentToken match {
+      case JsonToken.START_OBJECT     if(canBe(schema, Type.RECORD)) => {
+        val subRecordSchema: Schema =
+          if(schema.getType == Type.RECORD)
+            schema
+          else if(schema.getType == Type.UNION)
+            schema.getTypes.find(_.getType == Type.RECORD).getOrElse(throw new RuntimeException("Unexpected subrecord"))
+          else
+            throw new RuntimeException("Unexpected sub record")
+
+        val className = subRecordSchema.getNamespace + "." + subRecordSchema.getName
+        val subRecordClass = Thread.currentThread.getContextClassLoader.loadClass(className).asInstanceOf[Class[IndexedRecord]]
+        val subRecord = subRecordClass.newInstance()
+
+        parseRecord(parser, subRecord).orNull
+      }
+      case JsonToken.START_ARRAY      if(canBe(schema, Type.ARRAY)) => {
+        val array = new GenericData.Array[Any](1, schema)
+        while(parser.nextToken != JsonToken.END_ARRAY) {
+          array.add(parseValue(parser, schema.getElementType, fieldname))
+        }
+        array
+      }
+      case JsonToken.VALUE_STRING       if(canBe(schema, Type.STRING)) => new Utf8(parser.getText)
+      case JsonToken.VALUE_NUMBER_INT   if(canBe(schema, Type.LONG)) => parser.getLongValue
+      case JsonToken.VALUE_NUMBER_INT   if(canBe(schema, Type.INT)) => parser.getIntValue
+      case JsonToken.VALUE_NUMBER_FLOAT if(canBe(schema, Type.DOUBLE)) => parser.getDoubleValue
+      case JsonToken.VALUE_TRUE         if(canBe(schema, Type.BOOLEAN)) => true
+      case JsonToken.VALUE_FALSE        if(canBe(schema, Type.BOOLEAN)) => false
+      case JsonToken.VALUE_NULL         if(canBe(schema, Type.NULL)) => null
+      case unexp => {
+        logger.warn("Don't know how to populate field " + fieldname + ". Found: " + parser.getCurrentToken + ", Expected: " + schema)
+        null
+      }
+    }
+  }
+
+  protected def parseRecord[RecType <: IndexedRecord](parser: JsonParser, record: RecType): Option[RecType] = {
+    val schema = record.getSchema
+    var missingFields = schema.getFields.filter(f => !canBe(f.schema, Type.NULL)).map(_.name)
 
     while(parser.nextToken != JsonToken.END_OBJECT) {
       val fieldname = parser.getCurrentName()
       val field = schema.getField(fieldname)
-      val valueType = parser.nextToken
+      parser.nextToken
 
       if(field == null) {
-        logger.warn("Ignoring missing field: " + fieldname)
-      }
-      else if(valueType == JsonToken.START_OBJECT) {
-        val subRecordSchema: Schema = 
-          if(field.schema.getType == Type.RECORD)
-            field.schema
-          else if(field.schema.getType == Type.UNION)
-            field.schema.getTypes.find(_.getType == Type.RECORD).getOrElse(throw new RuntimeException("Unexpected subrecord for field: " + fieldname))
-          else
-            throw new RuntimeException("Unexpected sub record")
-
-        val className = subRecordSchema.getNamespace + "." + subRecordSchema.getName 
-        val subRecordClass = Thread.currentThread.getContextClassLoader.loadClass(className).asInstanceOf[Class[IndexedRecord]]
-        val subRecord = subRecordClass.newInstance()
-
-        subRecord.parseJson(parser)
-        rec.put(field.pos, subRecord)
-      } else if(valueType == JsonToken.START_ARRAY) {
-        val array = new GenericData.Array[Any](1, field.schema)
-        while(parser.nextToken == JsonToken.END_ARRAY) {
-          parser.getCurrentToken match {
-            case JsonToken.VALUE_NUMBER_FLOAT => array.add(parser.getDoubleValue)
-          }
-        }
-
-        rec.put(field.pos, array)
+        logger.warn("Unexpected field: " + fieldname + " in " + schema)
+        parser.nextToken
+        return None
       } else  {
-        /* Helper function to test if a given schema (union or otherwise) can represent a specific type */
-        def canBe(fieldType: Schema.Type): Boolean = {
-          if(fieldType == field.schema.getType) true
-          else if(field.schema.getType == Type.UNION && field.schema.getTypes.find(_.getType == fieldType).isDefined) true
-          else false
-        }
-
-        valueType match {
-          case JsonToken.VALUE_STRING     if(canBe(Type.STRING)) =>
-            rec.put(field.pos, new Utf8(parser.getText))
-          case JsonToken.VALUE_NUMBER_INT if(canBe(Type.LONG)) => 
-            rec.put(field.pos, parser.getLongValue)
-          case JsonToken.VALUE_NUMBER_INT if(canBe(Type.INT)) =>
-            rec.put(field.pos, parser.getIntValue)
-          case JsonToken.VALUE_TRUE       if(canBe(Type.BOOLEAN)) => 
-            rec.put(field.pos, true)
-          case JsonToken.VALUE_FALSE      if(canBe(Type.BOOLEAN)) => 
-            rec.put(field.pos, true)
-          case JsonToken.VALUE_NULL       if(canBe(Type.NULL)) =>
-            rec.put(field.pos, null)
-          case unexp => logger.warn("Don't know how to populate field '" + fieldname + "', found: " + valueType + " expected: " + field.schema)
-        }
+        missingFields -= field.name
+        record.put(field.pos, parseValue(parser, field.schema, field.name))
       }
     }
 
-    return rec
+    if(missingFields.size > 0) {
+      logger.warn("Invalid record.  The following required fields are missing: " + missingFields)
+      None
+    }
+    else
+      Some(record)
   }
 }

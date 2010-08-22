@@ -9,5 +9,5 @@ package object runtime {
     new TypedSchema[C](schema)
   }
 
-  implicit def toRichIndexedRecord[T <: IndexedRecord](rec: T): RichIndexedRecord[T] = new RichIndexedRecord(rec)
+  implicit def toJsonObject(json: String) = new JsonObject(json)
 }
