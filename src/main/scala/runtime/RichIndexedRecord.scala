@@ -11,7 +11,7 @@ import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWri
 /**
  * Collection of implicit conversions to scala-ify the Avro Java Library.
  */
-class RichIndexedRecord[T <: IndexedRecord](val rec: T) {
+class RichIndexedRecord[T <: IndexedRecord](val rec: T) extends JsonRecordParser[T] {
   lazy val reader = new GenericDatumReader[T](rec.getSchema())
 
   @inline def toJson: String = {
