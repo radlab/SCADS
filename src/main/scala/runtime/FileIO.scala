@@ -6,8 +6,8 @@ import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter}
 import org.apache.avro.file.{DataFileReader, DataFileWriter}
 
 object AvroInFile {
-  def apply[RecordType <: ScalaSpecificRecord](file: File)(implicit schema: TypedSchema[RecordType]): DataFileReader[RecordType] = {
-    new DataFileReader[RecordType](file, new SpecificDatumReader[RecordType](schema)) 
+  def apply[RecordType <: ScalaSpecificRecord](file: File)(implicit schema: TypedSchema[RecordType]): DataFileReader[RecordType] with Iterator[RecordType] = {
+    new DataFileReader[RecordType](file, new SpecificDatumReader[RecordType](schema)) with Iterator[RecordType]
   }
 }
 
