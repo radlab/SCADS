@@ -15,6 +15,19 @@ import org.apache.avro.ipc._
 import org.apache.avro.specific._
 import org.apache.log4j.Logger
 
+import scala.reflect.Manifest.classType
+
+/**
+ * Easier to instantiate via reflection
+ */
+class DefaultNioChannelManager[S <: SpecificRecord, R <: SpecificRecord](
+    recvMsg: (AvroChannelManager[S, R], RemoteNode, R) => Unit, sendClz: Class[S], recvClz: Class[R]) 
+  extends NioAvroChannelManagerBase[S, R]()(classType(sendClz), classType(recvClz)) {
+  override def receiveMessage(remoteNode: RemoteNode, msg: R) {
+    recvMsg(this, remoteNode, msg)
+  }
+}
+
 abstract class NioAvroChannelManagerBase[SendMsgType <: SpecificRecord,RecvMsgType <: SpecificRecord]
 (implicit sendManifest: scala.reflect.Manifest[SendMsgType],
 recvManifest: scala.reflect.Manifest[RecvMsgType])

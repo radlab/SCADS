@@ -62,3 +62,44 @@ class FutureCollection(val futures: Seq[MessageFuture]) {
 
   def blockFor(count: Int): Seq[MessageFuture] = (1 to count).map(_ => responses.take())
 }
+
+class FutureTimeoutException extends RuntimeException
+class FutureException(ex: Throwable) extends RuntimeException(ex)
+
+class BlockingFuture {
+  private var ex: Throwable = _
+  private var done          = false
+
+  def await(timeout: Int) {
+    synchronized {
+      if (!done)
+        wait(timeout)
+      if (!done)
+        throw new FutureTimeoutException
+      if (ex ne null)
+        throw new FutureException(ex)
+    }
+  }
+
+  def await() { await(0) }
+
+  def finish() {
+    synchronized {
+      if (done)
+        throw new IllegalStateException("Future already done")
+      done = true
+      notifyAll()
+    }
+  }
+
+  def finishWithError(error: Throwable) {
+    require(error ne null)
+    synchronized {
+      if (done)
+        throw new IllegalStateException("Future already done")
+      done = true
+      ex   = error
+      notifyAll()
+    }
+  }
+}

@@ -64,6 +64,7 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
 
   case class InvalidMessageSizeException(val size: Int) extends RuntimeException("Invalid size, must be >= 0: " + size)
 
+  // TODO: replace with BlockingFuture
   class ConnectFuture(val clientSocket: SocketChannel, private var alreadyDone: Boolean) {
     def await = {
       synchronized {
