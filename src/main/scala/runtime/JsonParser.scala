@@ -51,7 +51,7 @@ class JsonObject(json: String) {
             throw new RuntimeException("Unexpected sub record")
 
         val className = subRecordSchema.getNamespace + "." + subRecordSchema.getName
-        val subRecordClass = Thread.currentThread.getContextClassLoader.loadClass(className).asInstanceOf[Class[IndexedRecord]]
+        val subRecordClass = Class.forName(className).asInstanceOf[Class[IndexedRecord]]
         val subRecord = subRecordClass.newInstance()
 
         parseRecord(parser, subRecord).orNull
