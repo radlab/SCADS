@@ -54,7 +54,10 @@ class JsonObject(json: String) {
         val subRecordClass = Class.forName(className).asInstanceOf[Class[IndexedRecord]]
         val subRecord = subRecordClass.newInstance()
 
-        parseRecord(parser, subRecord).orNull
+        parseRecord(parser, subRecord).getOrElse({
+          if (canBe(schema, Type.NULL)) null
+          else throw new RuntimeException("Record cannot be null")
+        })
       }
       case JsonToken.START_ARRAY      if(canBe(schema, Type.ARRAY)) => {
         val array = new GenericData.Array[Any](1, schema)
@@ -71,8 +74,9 @@ class JsonObject(json: String) {
       case JsonToken.VALUE_FALSE        if(canBe(schema, Type.BOOLEAN)) => false
       case JsonToken.VALUE_NULL         if(canBe(schema, Type.NULL)) => null
       case unexp => {
-        logger.warn("Don't know how to populate field " + fieldname + ". Found: " + parser.getCurrentToken + ", Expected: " + schema)
-        null
+        val error = "Don't know how to populate field " + fieldname + ". Found: " + parser.getCurrentToken + ", Expected: " + schema
+        logger.warn(error)
+        throw new RuntimeException(error)
       }
     }
   }
@@ -92,7 +96,13 @@ class JsonObject(json: String) {
         return None
       } else  {
         missingFields -= field.name
-        record.put(field.pos, parseValue(parser, field.schema, field.name))
+        try {
+          record.put(field.pos, parseValue(parser, field.schema, field.name))
+        } catch {
+          case e: Exception =>
+            logger.error("Error in parsing value", e)
+            return None
+        }
       }
     }
 
