@@ -115,6 +115,12 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
     }
   }
 
+  def deleteEntireRange(txn: Option[Transaction]) {
+    iterateOverRange(startKey, endKey, txn = txn)((_, _, cursor) => {
+      cursor.delete()
+    })
+  }
+
   // TODO: should iterateOverRange be private? does it have to validate
   // {min,max}Key?
   def iterateOverRange(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true, txn: Option[Transaction] = None)(func: (DatabaseEntry, DatabaseEntry, Cursor) => Unit): Unit = {

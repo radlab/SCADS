@@ -59,10 +59,15 @@ class StorageHandlerSpec extends Spec with ShouldMatchers {
       val startkey = IntRec(10).toBytes
       val endkey = IntRec(15).toBytes
 
-      val partId = handler.remoteHandle !? CreatePartitionRequest("testns", Some(startkey), Some(endkey)) match {
-        case CreatePartitionResponse(service) => service.partitionId
+      val createRequest = CreatePartitionRequest("testns", Some(startkey), Some(endkey))
+
+      val (service, partId) = handler.remoteHandle !? createRequest match {
+        case CreatePartitionResponse(service) => 
+          (service, service.partitionId)
         case u => fail("Unexpected msg:" + u)
       }
+
+      service !? PutRequest(IntRec(11).toBytes, IntRec(22).toBytes) should equal (PutResponse())
 
       handler.stop
 
@@ -70,6 +75,20 @@ class StorageHandlerSpec extends Spec with ShouldMatchers {
       handler.remoteHandle !? DeletePartitionRequest(partId) match {
         case DeletePartitionResponse() => true
         case u => fail("Partition was not recreated, and therefore could not be deleted: " + u)
+      }
+
+      val service0 = handler.remoteHandle !? createRequest match {
+        case CreatePartitionResponse(service) => 
+          service
+        case u => fail("Unexpected msg:" + u)
+      }
+
+      service0 !? GetRequest(IntRec(11).toBytes) match {
+        case GetResponse(Some(_)) =>
+          fail("Record was not deleted, even though partition was deleted")
+        case GetResponse(None) =>
+          // success
+        case u => fail("Unexpected msg:" + u)
       }
 
     }

@@ -142,11 +142,8 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
         }
       assert(partitionIdLock.name == partitionId, "Lock file was not created with the same name on restore")
 
-      /* Add mapping under the namespace */
-      val set = getSetForNamespace(request.namespace) 
-      set.synchronized {
-        set += partitionId
-      }
+      // no need to grab locks below, because startup runs w/o any invocations
+      // to process (so no races can occur)
 
       /* Make partition handler */
       val db      = makeDatabase(request.namespace, keySchemaFor(request.namespace), None)
@@ -155,12 +152,25 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
       /* Add to our list of open partitions */
       partitions.put(partitionId, handler)
 
+      val lock = getLockForNamespace(request.namespace) 
+      lock += partitionId
+
     }
     cursor.close()
 
   }
 
-  private def getSetForNamespace(namespace: String) = {
+  /**
+   * Lock for a namespace is a set which contains a set of active partition
+   * IDs for that namespace. synchronize on the set before performing any
+   * actions on the namespace.
+   *
+   * TODO: in the current implementation, once a namespace lock is created, it
+   * remains for the duration of the JVM process (and is thus not eligible for
+   * GC). this makes implementation easier (since we don't have to worry about
+   * locks changing over time), but wastes memory
+   */
+  private def getLockForNamespace(namespace: String) = {
     val test = namespaces.get(namespace)
     if (test ne null)
       test
@@ -204,24 +214,32 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
 
         logger.info("Active partitions after insertion in ZooKeeper: %s".format(nsRoot("partitions").children.mkString(",")))
 
-        /* Add mapping under the namespace */
-        val set = getSetForNamespace(namespace) 
-        set.synchronized {
-          set += partitionId // ensures that DB won't be deleted during creation
+        val lock = getLockForNamespace(namespace) 
+
+        /* For now, the creation of DBs under a namespace are executed
+         * serially. It is assumed that a single node will not run multiple
+         * storage handlers sharing the same namespaces (which allows us to
+         * lock the namespace in memory. */
+        val db = lock.synchronized {
+
+          /* Start a new transaction to atomically make both the namespace DB,
+          * and add an entry into the partition DB */
+          val txn = env.beginTransaction(null, null)
+
+          /* Open the namespace DB */
+          val newDb = makeDatabase(namespace, keySchemaFor(namespace), Some(txn))
+
+          /* Log to partition DB for recreation */
+          partitionDb.put(txn, new DatabaseEntry(partitionId.getBytes), new DatabaseEntry(createRequest.toBytes))
+
+          /* for now, let errors propogate up to the exception handler */
+          txn.commit()
+
+          /* On success, add this partitionId to the lock set */
+          lock += partitionId
+
+          newDb
         }
-
-        /* Start a new transaction to atomically make both the namespace DB,
-         * and add an entry into the partition DB */
-        val txn = env.beginTransaction(null, null)
-
-        /* Open the namespace DB */
-        val db = makeDatabase(namespace, keySchemaFor(namespace), Some(txn))
-
-        /* Log to partition DB for recreation */
-        partitionDb.put(txn, new DatabaseEntry(partitionId.getBytes), new DatabaseEntry(createRequest.toBytes))
-
-        /* for now, let errors propogate up to the exception handler */
-        txn.commit()
 
         /* Make partition handler from request */
         val handler = makePartitionHandler(db, namespace, partitionIdLock, startKey, endKey)
@@ -241,28 +259,33 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
         val dbName = handler.db.getDatabaseName /* dbName is namespace */
         val dbEnv  = handler.db.getEnvironment
 
-        logger.info("Stopping partition " + partitionId + " for delete")
+        logger.info("Stopping partition handler for partition " + partitionId)
         handler.stop
 
-        /* Delete from partitionDB, and (possibly) delete the database in a
-         * single transaction */
-        val txn = env.beginTransaction(null, null)
+        val lock = getLockForNamespace(dbName)
+        lock.synchronized {
+          lock -= partitionId
 
-        /* Remove from bdb map */
-        partitionDb.delete(txn, new DatabaseEntry(partitionId.getBytes))
+          /* Delete from partitionDB, and (possibly) delete the database in a
+          * single transaction */
+          val txn = env.beginTransaction(null, null)
 
-        val set = getSetForNamespace(dbName)
-        set.synchronized {
-          set -= partitionId
-          if (set.isEmpty) {
+          /* Remove from bdb map */
+          partitionDb.delete(txn, new DatabaseEntry(partitionId.getBytes))
+
+          if (lock.isEmpty) {
             /* Remove database from environment- this removes all the data
             * associated with the database */
             logger.info("Deleting database %s".format(dbName))
             dbEnv.removeDatabase(txn, dbName)
+          } else {
+            logger.info("Deleting only the keys in range of the partition")
+            /* Remove the keys in range of the partition */
+            handler.deleteEntireRange(txn)
           }
-        }
 
-        txn.commit()
+          txn.commit()
+        }
 
         reply(DeletePartitionResponse())
       }
