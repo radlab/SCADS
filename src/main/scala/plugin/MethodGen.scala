@@ -38,56 +38,23 @@ trait MethodGen extends ScalaAvroPluginComponent
     import CODE._
 
     /** AST nodes for runtime helper methods */
-    /** TODO: refactor this so it's more generalized instead of being so
-     * explicit */
 
     /** this.mkUtf8(this.sym) */
-    private def string2utf8(clazz: Symbol, sym: Symbol): Tree = {
+    private def string2utf8(clazz: Symbol, sym: Symbol): Tree =
       oneArgFunction(clazz, sym, "mkUtf8")
-    }
 
     /** this.mkByteBuffer(this.sym) */
-    private def byteArray2byteBuffer(clazz: Symbol, sym: Symbol): Tree = {
+    private def byteArray2byteBuffer(clazz: Symbol, sym: Symbol): Tree =
       oneArgFunction(clazz, sym, "mkByteBuffer")
-    }
 
-    private def oneArgFunction(clazz: Symbol, sym: Symbol, funcName: String): Tree = {
+    private def oneArgFunction(clazz: Symbol, sym: Symbol, funcName: String): Tree =
       Apply(
         This(clazz) DOT newTermName(funcName),
         List(This(clazz) DOT sym))
-    }
-
-    /** this.scalaListToGenericArray(
-     *  this.sym, this.getSchema.getField(sym.name).schema) */
-    private def list2GenericArray(clazz: Symbol, sym: Symbol): Tree = {
-      twoArgFunction(clazz, sym, "scalaListToGenericArray")
-    }
-
-    private def map2jmap(clazz: Symbol, sym: Symbol): Tree = {
-      twoArgFunction(clazz, sym, "scalaMapToJMap")
-    }
-
-    /** this.unwrapOption(this.sym, this.getSchema.getField(sym.name).schema */
-    private def unwrapOption(clazz: Symbol, sym: Symbol): Tree = {
-      twoArgFunction(clazz, sym, "unwrapOption")
-    }
-
-    private def twoArgFunction(clazz: Symbol, sym: Symbol, funcName: String): Tree = {
-      Apply(
-        This(clazz) DOT newTermName(funcName),
-        List(
-          This(clazz) DOT sym,
-          Apply(
-            Select(
-              Apply(
-                This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
-                List(LIT(sym.name.toString.trim))),
-              newTermName("schema")),
-            Nil)))
-    }
 
     /** this.sym.asInstanceOf[java.lang.Object] */
-    private def sym2obj(clazz: Symbol, sym: Symbol): Tree = This(clazz) DOT sym AS ObjectClass.tpe
+    private def sym2obj(clazz: Symbol, sym: Symbol): Tree = 
+      This(clazz) DOT sym AS ObjectClass.tpe
 
     /** this.sym.toInt.asInstanceOf[java.lang.Object] */
     private def sym2int2obj(clazz: Symbol, sym: Symbol): Tree =
@@ -102,9 +69,6 @@ trait MethodGen extends ScalaAvroPluginComponent
         else
           throw new UnsupportedOperationException("Cannot handle this right now")
         ),
-      ListClass   -> (list2GenericArray _),
-      MapClass    -> (map2jmap _),
-      OptionClass -> (unwrapOption _),
       ShortClass  -> (sym2int2obj _), 
       ByteClass   -> (sym2int2obj _), 
       CharClass   -> (sym2int2obj _))
@@ -150,7 +114,6 @@ trait MethodGen extends ScalaAvroPluginComponent
       val arg = newSym ARG 0
       // TODO: throw the avro bad index exception here
       val default = List(DEFAULT ==> THROW(IndexOutOfBoundsExceptionClass, arg))
-      debug(symMap)
       val cases = for ((sym, i) <- instanceVars.zipWithIndex) yield {
         CASE(LIT(i)) ==> {
           //val fn = symMap get (sym.tpe.typeSymbol) getOrElse ((sym2obj _))
@@ -186,18 +149,11 @@ trait MethodGen extends ScalaAvroPluginComponent
         }
       }
 
-      //val owner0 = localTyper.context1.enclClass.owner
-      //println("clazz: " + clazz + ", owner0: " + owner0)
-      //localTyper.context1.enclClass.owner = clazz
-
-      val tree = atOwner(clazz)(localTyper.typed {
+      atOwner(clazz)(localTyper.typed {
         DEF(newSym) === {
           arg MATCH { cases ::: default : _* }
         }   
       })   
-
-      //localTyper.context1.enclClass.owner = owner0
-      tree
     }
 
     private def generateSetMethod(templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
@@ -288,17 +244,11 @@ trait MethodGen extends ScalaAvroPluginComponent
         CASE(LIT(i)) ==> target
       }
 
-      //val owner0 = localTyper.context1.enclClass.owner
-      //localTyper.context1.enclClass.owner = clazz
-
-      val tree = atOwner(clazz)(localTyper.typed {
+      atOwner(clazz)(localTyper.typed {
         DEF(newSym) === {
             (newSym ARG 0) MATCH { cases ::: default : _* }
         }   
       })
-
-      //localTyper.context1.enclClass.owner = owner0
-      tree
     }
 
     private def generateGetSchemaMethod(clazzTree: ClassDef): Tree = {
