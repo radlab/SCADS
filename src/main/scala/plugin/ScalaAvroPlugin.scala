@@ -52,13 +52,16 @@ trait ScalaAvroPluginComponent extends PluginComponent {
   protected lazy val utf8Class = definitions.getClass("org.apache.avro.util.Utf8")
 
   /** Avro Internal Types */
+  protected lazy val GenericArrayClass = definitions.getClass("org.apache.avro.generic.GenericArray")
   protected lazy val schemaClass = definitions.getClass("org.apache.avro.Schema")
   protected lazy val SpecificRecordIface = definitions.getClass("org.apache.avro.specific.SpecificRecord")
   protected lazy val SpecificRecordBaseClass = definitions.getClass("org.apache.avro.specific.SpecificRecordBase")
+  protected lazy val JMapClass = definitions.getClass("java.util.Map")
 
   /** Scala Avro Internal types */
   protected lazy val ScalaSpecificRecord = definitions.getClass("com.googlecode.avro.runtime.ScalaSpecificRecord")
   protected lazy val AvroConversions = definitions.getClass("com.googlecode.avro.runtime.AvroConversions")
+  protected lazy val GenericArrayWrapperClass = definitions.getClass("com.googlecode.avro.runtime.GenericArrayWrapper")
 
   /** Takes a class symbol and maps to its associated Schema object */
   protected val classToSchema: Map[Symbol, Schema]

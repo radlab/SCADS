@@ -38,7 +38,7 @@ trait ScalaSpecificRecord extends SpecificRecord {
   }
 }
 
-trait AvroConversions {
+trait AvroConversions extends HasAvroConversions {
 
   def mkUtf8(p: String): Utf8 = 
     if (p eq null)

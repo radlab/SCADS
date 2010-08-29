@@ -109,6 +109,38 @@ trait MethodGen extends ScalaAvroPluginComponent
       ByteClass   -> (sym2int2obj _), 
       CharClass   -> (sym2int2obj _))
 
+    private def construct(tpe: Type, args: List[Type]) = tpe match {
+      case TypeRef(pre, sym, _) => TypeRef(pre, sym, args)
+    }
+
+    private def toAvroType(tpe: Type): Type = {
+      if (tpe.typeSymbol.isSubClass(TraversableClass)) {
+        // TODO: this is a bit fragile (for instance, what if somebody defines
+        // their map as a type alias. there won't be any type params
+        val size = tpe.typeArgs.size
+        size match {
+          case 1 =>
+            construct(GenericArrayClass.tpe, List(toAvroType(tpe.typeArgs.head)))
+          case 2 =>
+            construct(JMapClass.tpe, List(utf8Class.tpe, toAvroType(tpe.typeArgs.tail.head)))
+          case _ =>
+            throw new UnsupportedOperationException("Unsupported type: " + tpe)
+        }
+      } else tpe.typeSymbol match {
+        case OptionClass =>
+          toAvroType(tpe.typeArgs.head)
+        case StringClass => utf8Class.tpe 
+        case ArrayClass  =>
+          if (tpe.typeArgs.head.typeSymbol == ByteClass)
+            byteBufferClass.tpe
+          else throw new UnsupportedOperationException("Arrays not used for lists: use scala collections instead")
+        case ShortClass  => IntClass.tpe
+        case ByteClass   => IntClass.tpe
+        case CharClass   => IntClass.tpe 
+        case _ => tpe
+      }
+    }
+
     private def generateGetMethod(templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
       val newSym = clazz.newMethod(clazz.pos.focus, newTermName("get"))
       newSym setFlag SYNTHETICMETH | OVERRIDE 
@@ -121,16 +153,51 @@ trait MethodGen extends ScalaAvroPluginComponent
       debug(symMap)
       val cases = for ((sym, i) <- instanceVars.zipWithIndex) yield {
         CASE(LIT(i)) ==> {
-          val fn = symMap get (sym.tpe.typeSymbol) getOrElse ((sym2obj _))
-          fn(clazz, sym)
+          //val fn = symMap get (sym.tpe.typeSymbol) getOrElse ((sym2obj _))
+          //fn(clazz, sym)
+          //TODO: inline the ones that are easy
+          val avroTpe = toAvroType(sym.tpe)
+          //println("toAvroType: " + avroTpe)
+          val converted = 
+            Apply(
+              TypeApply(
+                This(clazz) DOT newTermName("convert"),
+                List(
+                  TypeTree(sym.tpe),
+                  TypeTree(avroTpe))),
+                List(This(clazz) DOT sym)) 
+          
+          if (avroTpe.typeSymbol == GenericArrayClass) {
+            val schema = 
+              Apply(
+                Apply(
+                  This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
+                  List(LIT(sym.name.toString.trim))) DOT newTermName("schema"),
+                Nil)
+            val t = NEW(TypeTree(construct(GenericArrayWrapperClass.tpe, List(avroTpe.typeArgs.head))), schema, converted) AS ObjectClass.tpe
+            //println("case tree: " + t)
+            t
+          } else {
+            val t = converted AS ObjectClass.tpe
+            //println("no wrapper tree: " + t)
+            t
+          }
+
         }
       }
 
-      localTyper.typed {
+      //val owner0 = localTyper.context1.enclClass.owner
+      //println("clazz: " + clazz + ", owner0: " + owner0)
+      //localTyper.context1.enclClass.owner = clazz
+
+      val tree = atOwner(clazz)(localTyper.typed {
         DEF(newSym) === {
           arg MATCH { cases ::: default : _* }
         }   
-      }   
+      })   
+
+      //localTyper.context1.enclClass.owner = owner0
+      tree
     }
 
     private def generateSetMethod(templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
@@ -155,68 +222,83 @@ trait MethodGen extends ScalaAvroPluginComponent
           Nil)
 
       val cases = for ((sym, i) <- instanceVars.zipWithIndex) yield {
-        val rhs = 
-          // TODO: refactor this mess
-          if (sym.tpe.typeSymbol == StringClass) {
-            typer typed ((newSym ARG 1) AS utf8Tpe DOT newTermName("toString"))
-          } else if (sym.tpe.typeSymbol == ArrayClass && sym.tpe.normalize.typeArgs.head == ByteClass.tpe) {
-            typer typed ((newSym ARG 1) AS byteBufferTpe.normalize DOT newTermName("array"))
-          } else if (sym.tpe.typeSymbol == ListClass) {
-            val apply = 
-              Apply(
-                Select(
-                  This(clazz),
-                  newTermName("genericArrayToScalaList")),
-                List(Apply(
-                  Select(
-                    This(clazz),
-                    newTermName("castToGenericArray")),
-                  List(newSym ARG 1)))) AS sym.tpe
-            typer typed apply
-          } else if (sym.tpe.typeSymbol == MapClass) {
-            val apply = 
-              Apply(
-                Select(
-                  This(clazz),
-                  newTermName("jMapToScalaMap")),
-                List(Apply(
-                  Select(
-                    This(clazz),
-                    newTermName("castToJMap")),
-                  List(newSym ARG 1)),
-                  selectSchemaField(sym))) AS sym.tpe
-            typer typed apply
-          } else if (sym.tpe.typeSymbol == OptionClass) {
-            val paramSym = sym.tpe.typeArgs.head.typeSymbol
-            val useNative = 
-              (paramSym == utf8Class) ||
-              (paramSym == byteBufferClass)
-            val apply =
-              Apply(
-                This(clazz) DOT newTermName("wrapOption"),
-                List(
-                  (newSym ARG 1),
-                  selectSchemaField(sym),
-                  LIT(useNative))) AS sym.tpe
-            typer typed apply
-          } else if (sym.tpe.typeSymbol == ShortClass) {
-            typer typed ((newSym ARG 1) AS IntClass.tpe DOT newTermName("toShort"))
-          } else if (sym.tpe.typeSymbol == ByteClass) {
-            typer typed ((newSym ARG 1) AS IntClass.tpe DOT newTermName("toByte"))
-          } else if (sym.tpe.typeSymbol == CharClass) {
-            typer typed ((newSym ARG 1) AS IntClass.tpe DOT newTermName("toChar"))
-          } else {
-            typer typed ((newSym ARG 1) AS sym.tpe)
-          }
+        //val rhs = 
+        //  // TODO: refactor this mess
+        //  if (sym.tpe.typeSymbol == StringClass) {
+        //    typer typed ((newSym ARG 1) AS utf8Tpe DOT newTermName("toString"))
+        //  } else if (sym.tpe.typeSymbol == ArrayClass && sym.tpe.normalize.typeArgs.head == ByteClass.tpe) {
+        //    typer typed ((newSym ARG 1) AS byteBufferTpe.normalize DOT newTermName("array"))
+        //  } else if (sym.tpe.typeSymbol == ListClass) {
+        //    val apply = 
+        //      Apply(
+        //        Select(
+        //          This(clazz),
+        //          newTermName("genericArrayToScalaList")),
+        //        List(Apply(
+        //          Select(
+        //            This(clazz),
+        //            newTermName("castToGenericArray")),
+        //          List(newSym ARG 1)))) AS sym.tpe
+        //    typer typed apply
+        //  } else if (sym.tpe.typeSymbol == MapClass) {
+        //    val apply = 
+        //      Apply(
+        //        Select(
+        //          This(clazz),
+        //          newTermName("jMapToScalaMap")),
+        //        List(Apply(
+        //          Select(
+        //            This(clazz),
+        //            newTermName("castToJMap")),
+        //          List(newSym ARG 1)),
+        //          selectSchemaField(sym))) AS sym.tpe
+        //    typer typed apply
+        //  } else if (sym.tpe.typeSymbol == OptionClass) {
+        //    val paramSym = sym.tpe.typeArgs.head.typeSymbol
+        //    val useNative = 
+        //      (paramSym == utf8Class) ||
+        //      (paramSym == byteBufferClass)
+        //    val apply =
+        //      Apply(
+        //        This(clazz) DOT newTermName("wrapOption"),
+        //        List(
+        //          (newSym ARG 1),
+        //          selectSchemaField(sym),
+        //          LIT(useNative))) AS sym.tpe
+        //    typer typed apply
+        //  } else if (sym.tpe.typeSymbol == ShortClass) {
+        //    typer typed ((newSym ARG 1) AS IntClass.tpe DOT newTermName("toShort"))
+        //  } else if (sym.tpe.typeSymbol == ByteClass) {
+        //    typer typed ((newSym ARG 1) AS IntClass.tpe DOT newTermName("toByte"))
+        //  } else if (sym.tpe.typeSymbol == CharClass) {
+        //    typer typed ((newSym ARG 1) AS IntClass.tpe DOT newTermName("toChar"))
+        //  } else {
+        //    typer typed ((newSym ARG 1) AS sym.tpe)
+        //  }
+
+        val avroTpe = toAvroType(sym.tpe)
+        val rhs = Apply(
+            TypeApply(
+              This(clazz) DOT newTermName("convert"),
+              List(
+                TypeTree(avroTpe),
+                TypeTree(sym.tpe))),
+              List((newSym ARG 1) AS avroTpe))
         val target = Assign(This(clazz) DOT sym, rhs)
         CASE(LIT(i)) ==> target
       }
 
-      localTyper.typed {
+      //val owner0 = localTyper.context1.enclClass.owner
+      //localTyper.context1.enclClass.owner = clazz
+
+      val tree = atOwner(clazz)(localTyper.typed {
         DEF(newSym) === {
             (newSym ARG 0) MATCH { cases ::: default : _* }
         }   
-      }   
+      })
+
+      //localTyper.context1.enclClass.owner = owner0
+      tree
     }
 
     private def generateGetSchemaMethod(clazzTree: ClassDef): Tree = {
