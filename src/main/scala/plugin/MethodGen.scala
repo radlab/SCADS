@@ -98,9 +98,14 @@ trait MethodGen extends ScalaAvroPluginComponent
           if (tpe.typeArgs.head.typeSymbol == ByteClass)
             byteBufferClass.tpe
           else throw new UnsupportedOperationException("Arrays not used for lists: use scala collections instead")
-        case ShortClass  => IntClass.tpe
-        case ByteClass   => IntClass.tpe
-        case CharClass   => IntClass.tpe 
+        case ByteClass | BoxedByteClass | 
+             ShortClass | BoxedShortClass | 
+             CharClass | BoxedCharacterClass | 
+             IntClass | BoxedIntClass  => BoxedIntClass.tpe 
+        case BooleanClass | BoxedBooleanClass => BoxedBooleanClass.tpe
+        case LongClass | BoxedLongClass  => BoxedLongClass.tpe
+        case FloatClass | BoxedFloatClass  => BoxedFloatClass.tpe
+        case DoubleClass | BoxedDoubleClass => BoxedDoubleClass.tpe
         case _ => tpe
       }
     }

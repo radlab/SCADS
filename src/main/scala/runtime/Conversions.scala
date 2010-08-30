@@ -20,8 +20,130 @@ trait ==>>[A, B] extends (A => B) {
   def apply(a: A): B
 }
 
-object IdentityTransform extends (Any ==>> Any) {
-  def apply(a: Any) = a
+object BasicTransforms {
+
+  object IdentityTransform extends (Any ==>> Any) {
+    def apply(a: Any) = a
+  }
+
+  object toUtf8Conv extends (String ==>> Utf8) {
+    def apply(a: String) = 
+      if (a eq null) null
+      else new Utf8(a)
+  }
+
+  object fromUtf8Conv extends (Utf8 ==>> String) {
+    def apply(a: Utf8) = 
+      if (a eq null) null
+      else a.toString
+  }
+
+  object toByteBufferConv extends (Array[Byte] ==>> ByteBuffer) {
+    def apply(a: Array[Byte]) = 
+      if (a eq null) null
+      else ByteBuffer.wrap(a)
+  }
+
+  object fromByteBufferConv extends (ByteBuffer ==>> Array[Byte]) {
+    def apply(a: ByteBuffer) = 
+      if (a eq null) null
+      else a.array
+  }
+
+  import java.lang.{ Boolean => JBoolean, Short => JShort, Byte => JByte, Character => JCharacter, 
+                     Integer => JInteger, Long => JLong, Float => JFloat, Double => JDouble }
+
+  object shortToJIntConv extends (Short ==>> JInteger) {
+    def apply(a: Short) = JInteger.valueOf(a.toInt)
+  }
+
+  object boxedShortToJIntConv extends (JShort ==>> JInteger) {
+    def apply(a: JShort) = JInteger.valueOf(a.intValue)
+  }
+
+  object jintToShortConv extends (JInteger ==>> Short) {
+    def apply(a: JInteger) = a.shortValue
+  }
+
+  object jintToBoxedShortConv extends (JInteger ==>> JShort) {
+    def apply(a: JInteger) = JShort.valueOf(a.shortValue)
+  }
+
+  object byteToJIntConv extends (Byte ==>> JInteger) {
+    def apply(a: Byte) = JInteger.valueOf(a.toInt)
+  }
+
+  object boxedByteToJIntConv extends (JByte ==>> JInteger) {
+    def apply(a: JByte) = JInteger.valueOf(a.intValue)
+  }
+
+  object jintToByteConv extends (JInteger ==>> Byte) {
+    def apply(a: JInteger) = a.byteValue
+  }
+
+  object jintToBoxedByteConv extends (JInteger ==>> JByte) {
+    def apply(a: JInteger) = JByte.valueOf(a.byteValue)
+  }
+
+  object charToJIntConv extends (Char ==>> JInteger) {
+    def apply(a: Char) = JInteger.valueOf(a.toInt)
+  }
+
+  object boxedCharToJIntConv extends (JCharacter ==>> JInteger) {
+    // TODO: is there a better way to do this one?
+    def apply(a: JCharacter) = JInteger.valueOf(a.charValue.toInt)
+  }
+
+  object jintToCharConv extends (JInteger ==>> Char) {
+    // TODO: is there a better way to do this one?
+    def apply(a: JInteger) = a.intValue.toChar
+  }
+
+  object jintToBoxedCharConv extends (JInteger ==>> JCharacter) {
+    // TODO: is there a better way to do this one?
+    def apply(a: JInteger) = JCharacter.valueOf(a.intValue.toChar)
+  }
+
+  object intToJIntConv extends (Int ==>> JInteger) {
+    def apply(a: Int) = JInteger.valueOf(a)
+  }
+
+  object jintToIntConv extends (JInteger ==>> Int) {
+    def apply(a: JInteger) = a.intValue
+  }
+
+  object longToJLongConv extends (Long ==>> JLong) {
+    def apply(a: Long) = JLong.valueOf(a)
+  }
+
+  object jlongToLongConv extends (JLong ==>> Long) {
+    def apply(a: JLong) = a.longValue
+  }
+
+  object floatToJFloatConv extends (Float ==>> JFloat) {
+    def apply(a: Float) = JFloat.valueOf(a)
+  }
+
+  object jfloatToFloatConv extends (JFloat ==>> Float) {
+    def apply(a: JFloat) = a.floatValue
+  }
+
+  object doubleToJDoubleConv extends (Double ==>> JDouble) {
+    def apply(a: Double) = JDouble.valueOf(a)
+  }
+
+  object jdoubleToDoubleConv extends (JDouble ==>> Double) {
+    def apply(a: JDouble) = a.doubleValue
+  }
+
+  object booleanToJBooleanConv extends (Boolean ==>> JBoolean) {
+    def apply(a: Boolean) = JBoolean.valueOf(a)
+  }
+
+  object jbooleanToBooleanConv extends (JBoolean ==>> Boolean) {
+    def apply(a: JBoolean) = a.booleanValue
+  }
+
 }
 
 /**
@@ -81,6 +203,7 @@ trait HasAvroConversions extends HasAvroPrimitiveConversions
                          with    HasTraversableConversions
                          with    HasOptionConversions {
 
+  import BasicTransforms._
 
   def convert[A, B](a: A)(implicit trfm: A ==>> B): B = a
 
@@ -91,53 +214,43 @@ trait HasAvroConversions extends HasAvroPrimitiveConversions
 
 trait HasAvroPrimitiveConversions {
 
-  implicit object toUtf8Conv extends (String ==>> Utf8) {
-    def apply(a: String) = 
-      if (a eq null) null
-      else new Utf8(a)
-  }
+  import BasicTransforms._
 
-  implicit object fromUtf8Conv extends (Utf8 ==>> String) {
-    def apply(a: Utf8) = 
-      if (a eq null) null
-      else a.toString
-  }
+  implicit def stringToUtf8 = toUtf8Conv 
+  implicit def utf8ToString = fromUtf8Conv
 
-  implicit object toByteBufferConv extends (Array[Byte] ==>> ByteBuffer) {
-    def apply(a: Array[Byte]) = 
-      if (a eq null) null
-      else ByteBuffer.wrap(a)
-  }
+  implicit def byteArrayToByteBuffer = toByteBufferConv
+  implicit def byteBufferToByteArray = fromByteBufferConv
 
-  implicit object fromByteBufferConv extends (ByteBuffer ==>> Array[Byte]) {
-    def apply(a: ByteBuffer) = 
-      if (a eq null) null
-      else a.array
-  }
+  implicit def shortToJInt  = shortToJIntConv
+  implicit def jshortToJInt = boxedShortToJIntConv
+  implicit def jintToShort  = jintToShortConv
+  implicit def jintToJShort = jintToBoxedShortConv
 
-  implicit object shortToIntConv extends (Short ==>> Int) {
-    def apply(a: Short) = a.toInt
-  }
-  
-  implicit object intToShortConv extends (Int ==>> Short) {
-    def apply(a: Int) = a.toShort
-  }
+  implicit def byteToJInt   = byteToJIntConv
+  implicit def jbyteToJInt  = boxedByteToJIntConv
+  implicit def jintToByte   = jintToByteConv
+  implicit def jintToJByte  = jintToBoxedByteConv
 
-  implicit object byteToIntConv extends (Byte ==>> Int) {
-    def apply(a: Byte) = a.toInt
-  }
-  
-  implicit object intToByteConv extends (Int ==>> Byte) {
-    def apply(a: Int) = a.toByte
-  }
+  implicit def charToJInt   = charToJIntConv
+  implicit def jcharToJInt  = boxedCharToJIntConv
+  implicit def jintToChar   = jintToCharConv
+  implicit def jintToJChar  = jintToBoxedCharConv
 
-  implicit object charToIntConv extends (Char ==>> Int) {
-    def apply(a: Char) = a.toInt
-  }
-  
-  implicit object intToCharConv extends (Int ==>> Char) {
-    def apply(a: Int) = a.toChar
-  }
+  implicit def intToJInt = intToJIntConv
+  implicit def jintToInt = jintToIntConv
+
+  implicit def longToJLong = longToJLongConv
+  implicit def jlongToLong = jlongToLongConv
+
+  implicit def floatToJFloat = floatToJFloatConv
+  implicit def jfloatToFloat = jfloatToFloatConv
+
+  implicit def doubleToJDouble = doubleToJDoubleConv
+  implicit def jdoubleToDouble = jdoubleToDoubleConv
+
+  implicit def booleanToJBoolean = booleanToJBooleanConv
+  implicit def jbooleanToBoolean = jbooleanToBooleanConv
 
 }
 
