@@ -11,7 +11,7 @@ import java.nio.ByteBuffer
 import scala.collection.Traversable
 import scala.collection.mutable.ArrayBuffer
 
-import java.util.{ Map => JMap, Iterator => JIterator, TreeMap }
+import java.util.{ Map => JMap, Iterator => JIterator, AbstractMap, AbstractSet }
 
 /**
  * http://stackoverflow.com/questions/2257341/java-scala-deep-collections-interoperability
@@ -319,10 +319,14 @@ trait HasTraversableConversions {
     def apply(a: M0) = {
       if (a eq null) null
       else {
-        /* TODO: don't use TreeMap, instead use an AbstractMap wrapping a */
-        val rtn = new TreeMap[K1, V1]
-        a.foreach(t => rtn.put(keyTrfm(t._1), valTrfm(t._2)))
-        rtn
+        import scala.collection.JavaConversions._
+        new AbstractMap[K1, V1] {
+          def entrySet = new AbstractSet[JMap.Entry[K1,V1]] {
+            def iterator =
+              a.map(t => new AbstractMap.SimpleImmutableEntry[K1, V1](keyTrfm(t._1), valTrfm(t._2))).toIterator
+            def size = a.size
+          }
+        }
       }
     }
   }

@@ -61,3 +61,5 @@ case class Test12(var a0: Int) extends AvroRecord {
 case class Test13(var a0: Int)(var a1: Boolean) extends AvroRecord {
   var a2: Option[String] = None
 }
+
+case class Test14(var a0: Option[Array[Byte]] = None, var a1: Option[Array[Byte]] = None) extends AvroRecord
