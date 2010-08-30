@@ -109,6 +109,9 @@ trait MethodGen extends ScalaAvroPluginComponent
         case _ => tpe
       }
     }
+    
+    private def needsSchemaToConvert(tpe: Type) = 
+      tpe.typeSymbol.isSubClass(TraversableClass)
 
     private def generateGetMethod(templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
       val newSym = clazz.newMethod(clazz.pos.focus, newTermName("get"))
@@ -126,13 +129,14 @@ trait MethodGen extends ScalaAvroPluginComponent
 
           //TODO: inline the ones that are easy
           val avroTpe = toAvroType(sym.tpe)
-          //println("toAvroType: " + avroTpe)
           val schema = 
-            Apply(
+            if (needsSchemaToConvert(sym.tpe))
               Apply(
-                This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
-                List(LIT(sym.name.toString.trim))) DOT newTermName("schema"),
-              Nil)
+                Apply(
+                  This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
+                  List(LIT(sym.name.toString.trim))) DOT newTermName("schema"),
+                Nil)
+            else LIT(null)
           Apply(
             TypeApply(
               This(clazz) DOT newTermName("convert"),
@@ -176,11 +180,13 @@ trait MethodGen extends ScalaAvroPluginComponent
 
         val avroTpe = toAvroType(sym.tpe)
         val schema = 
-          Apply(
+          if (needsSchemaToConvert(sym.tpe))
             Apply(
-              This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
-              List(LIT(sym.name.toString.trim))) DOT newTermName("schema"),
-            Nil)
+              Apply(
+                This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
+                List(LIT(sym.name.toString.trim))) DOT newTermName("schema"),
+              Nil)
+          else LIT(null)
         val rhs = Apply(
             TypeApply(
               This(clazz) DOT newTermName("convert"),
