@@ -24,7 +24,7 @@ trait ObjectGen extends ScalaAvroPluginComponent
                 with    TreeDSL {
   import global._
   import definitions._
-  	  
+      
   val runsAfter = List[String]("schemagen")
   override val runsRightAfter = Some("schemagen")
   val phaseName = "objectgen"
@@ -33,67 +33,66 @@ trait ObjectGen extends ScalaAvroPluginComponent
   class ObjectGenTransformer(unit: CompilationUnit) extends TypingTransformer(unit) {
     import CODE._
 
+    private def pimpModuleDef(md: ModuleDef): Tree = {
+      debug("pimping the module def: " + md)
+
+      val impl  = md.impl
+      val clazz = md.symbol.moduleClass
+
+      val valSym = clazz.newValue(clazz.pos.focus, newTermName("schema "))
+      valSym setFlag (PRIVATE | LOCAL)
+      valSym setInfo schemaClass.tpe
+      clazz.info.decls enter valSym
+
+      val valDef = localTyper.typed {
+        VAL(valSym) === {
+          Apply(
+            Ident(newTermName("org")) DOT 
+              newTermName("apache")   DOT
+              newTermName("avro")     DOT
+              newTermName("Schema")   DOT
+              newTermName("parse"),
+            List(LIT(retrieveRecordSchema(companionClassOf(md.symbol)).get.toString)))
+        }
+      }
+
+      // !!! HACK !!!
+      val owner0 = localTyper.context1.enclClass.owner
+      localTyper.context1.enclClass.owner = clazz
+
+      val getterSym = clazz.newMethod(clazz.pos.focus, newTermName("schema"))
+      getterSym setFlag (METHOD | STABLE | ACCESSOR)
+      getterSym setInfo MethodType(getterSym.newSyntheticValueParams(Nil), schemaClass.tpe)
+      clazz.info.decls enter getterSym
+
+      val getDef = atOwner(clazz)(localTyper.typed {
+        DEF(getterSym) === { THIS(clazz) DOT newTermName("schema ") }
+      })
+
+      // !!! RESTORE HACK !!!
+      localTyper.context1.enclClass.owner = owner0
+
+      val impl0 = treeCopy.Template(impl, impl.parents, impl.self, valDef :: getDef :: impl.body)
+      treeCopy.ModuleDef(md, md.mods, md.name, impl0)
+    }
+
     override def transform(tree: Tree) : Tree = {
       val newTree = tree match {
         case md @ ModuleDef(mods, name, impl) if (companionClassOf(md.symbol).tpe.parents.contains(avroRecordTrait.tpe)) =>
+
           debug("Adding module to companionModule map")
           companionModuleMap += md.symbol.fullName -> md.symbol
           debug("companionModuleMap: " + companionModuleMap)
 
-          debug("generating schema obj for module: " + md.symbol.fullName)
+          val hasSchemaDef = ! ( impl.body.filter { 
+            case ValDef(_, n, _, _) if (n.toString == "schema ") => true
+            case _ => false
+          } isEmpty )
 
-          val clazz = md.symbol.moduleClass
+          if (hasSchemaDef)
+            throw new AssertionError("Object cannot have schema member already defined: %s".format(md.symbol))
 
-          val valSym = clazz.newValue(clazz.pos.focus, newTermName("schema "))
-          valSym setFlag PRIVATE | MUTABLE | LOCAL
-          //valSym setFlag FINAL
-          //valSym setInfo TypeRef(ThisType(nme.lang), StringClass, Nil)
-          valSym setInfo schemaClass.tpe
-          clazz.info.decls enter valSym
-          //println("mbr: " + clazz.tpe.member(newTermName("schema ")))
-
-          val valDef = atOwner(clazz)(localTyper.typed {
-            VAL(valSym) === {
-              Apply(
-                Ident(newTermName("org")) DOT 
-                  newTermName("apache")   DOT
-                  newTermName("avro")     DOT
-                  newTermName("Schema")   DOT
-                  newTermName("parse"),
-                List(LIT(retrieveRecordSchema(companionClassOf(md.symbol)).get.toString)))
-            }
-          })
-
-          debug("valDef: " + valDef)
-          
-          val owner0 = localTyper.context1.enclClass.owner
-          localTyper.context1.enclClass.owner = clazz
-
-          val getterSym = clazz.newMethod(clazz.pos.focus, newTermName("schema"))
-          getterSym setFlag METHOD | ACCESSOR
-          getterSym setInfo MethodType(getterSym.newSyntheticValueParams(Nil), schemaClass.tpe)
-          clazz.info.decls enter getterSym
-
-          val getDef = atOwner(clazz)(localTyper.typed {
-              DEF(getterSym) === { THIS(clazz) DOT newTermName("schema ") }
-          })
-
-          val setterSym = clazz.newMethod(clazz.pos.focus, newTermName("schema_$eq"))
-          setterSym setFlag METHOD | ACCESSOR
-          setterSym setInfo MethodType(setterSym.newSyntheticValueParams(List(schemaClass.tpe)), UnitClass.tpe)
-          clazz.info.decls enter setterSym
-
-          val setDef = atOwner(clazz)(localTyper.typed {
-              DEF(setterSym) === { 
-                  (THIS(clazz) DOT newTermName("schema ")) === (setterSym ARG 0)
-              }
-          })
-
-          localTyper.context1.enclClass.owner = owner0
-
-          val (car, cdr) = impl.body.splitAt(1)
-          val newImpl = treeCopy.Template(impl, impl.parents, impl.self, car ::: List(valDef, getDef, setDef) ::: cdr)
-          treeCopy.ModuleDef(md, mods, name, newImpl)  
+          pimpModuleDef(md)
         case _ => tree
       }
       super.transform(newTree)
