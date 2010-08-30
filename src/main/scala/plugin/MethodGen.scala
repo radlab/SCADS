@@ -137,15 +137,12 @@ trait MethodGen extends ScalaAvroPluginComponent
                   This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
                   List(LIT(sym.name.toString.trim))) DOT newTermName("schema"),
                 Nil)
-            val t = NEW(TypeTree(construct(GenericArrayWrapperClass.tpe, List(avroTpe.typeArgs.head))), schema, converted) AS ObjectClass.tpe
-            //println("case tree: " + t)
-            t
-          } else {
-            val t = converted AS ObjectClass.tpe
-            //println("no wrapper tree: " + t)
-            t
-          }
-
+            val newWrapper = NEW(TypeTree(construct(GenericArrayWrapperClass.tpe, List(avroTpe.typeArgs.head))), schema, converted) AS ObjectClass.tpe
+            If(
+              sym IS_NULL,
+              LIT(null),
+              newWrapper)
+          } else converted AS ObjectClass.tpe
         }
       }
 

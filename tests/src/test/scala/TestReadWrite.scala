@@ -48,10 +48,10 @@ class TestReadWrite extends TestCase {
   }
 
   def test10_rw() {
-    assertReadWriteEquals(Test10(None, None))
-    assertReadWriteEquals(Test10(Some(List(1,2,3)), None))
-    assertReadWriteEquals(Test10(None, Some(Map("a" -> "b", "c" -> "d"))))
-    assertReadWriteEquals(Test10(Some(List(5,6,7)), Some(Map("k1" -> "v1"))))
+    assertReadWriteEquals(Test10(Nil, Map.empty))
+    assertReadWriteEquals(Test10(List(Some(1),None), Map("a" -> Some("b"))))
+    //assertReadWriteEquals(Test10(None, Some(Map("a" -> "b", "c" -> "d"))))
+    //assertReadWriteEquals(Test10(Some(List(5,6,7)), Some(Map("k1" -> "v1"))))
   }
 
   def test11_rw() {

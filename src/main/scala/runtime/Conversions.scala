@@ -92,19 +92,27 @@ trait HasAvroConversions extends HasAvroPrimitiveConversions
 trait HasAvroPrimitiveConversions {
 
   implicit object toUtf8Conv extends (String ==>> Utf8) {
-    def apply(a: String) = new Utf8(a)
+    def apply(a: String) = 
+      if (a eq null) null
+      else new Utf8(a)
   }
 
   implicit object fromUtf8Conv extends (Utf8 ==>> String) {
-    def apply(a: Utf8) = a.toString
+    def apply(a: Utf8) = 
+      if (a eq null) null
+      else a.toString
   }
 
   implicit object toByteBufferConv extends (Array[Byte] ==>> ByteBuffer) {
-    def apply(a: Array[Byte]) = ByteBuffer.wrap(a)
+    def apply(a: Array[Byte]) = 
+      if (a eq null) null
+      else ByteBuffer.wrap(a)
   }
 
   implicit object fromByteBufferConv extends (ByteBuffer ==>> Array[Byte]) {
-    def apply(a: ByteBuffer) = a.array
+    def apply(a: ByteBuffer) = 
+      if (a eq null) null
+      else a.array
   }
 
   implicit object shortToIntConv extends (Short ==>> Int) {
@@ -142,7 +150,8 @@ trait HasOptionConversions {
   implicit def fromOption[FromElem, ToElem]
     (implicit trfm: FromElem ==>> ToElem) = new (Option[FromElem] ==>> ToElem) {
     def apply(a: Option[FromElem]) =
-      a.map(trfm).getOrElse(null).asInstanceOf[ToElem]
+      if (a eq null) null.asInstanceOf[ToElem]
+      else a.map(trfm).getOrElse(null).asInstanceOf[ToElem]
   }
 
 }
