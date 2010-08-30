@@ -221,7 +221,10 @@ trait MethodGen extends ScalaAvroPluginComponent
             } else {
               This(clazz.outerClass) DOT newTermName(clazz.name.toString) DOT newTermName("schema")
             }
-        } else /** Fall back to the naive version in the other cases */
+        } else { /** Fall back to the naive version in the other cases */
+          // TODO: change getSchema to be a lazy val here instead (so we can
+          // at least cache the invocations)
+          warning("Unable to optimize getSchema method for class %s".format(clazz.fullName.toString))
           Apply(
             Ident(newTermName("org")) DOT 
               newTermName("apache")   DOT
@@ -229,6 +232,7 @@ trait MethodGen extends ScalaAvroPluginComponent
               newTermName("Schema")   DOT
               newTermName("parse"),
             List(LIT(retrieveRecordSchema(clazz).get.toString)))
+        }
       localTyper.typed {
         DEF(newSym) === { innerTree }
       }
