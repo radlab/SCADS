@@ -58,7 +58,9 @@ object BasicTransforms {
   }
 
   object boxedShortToJIntConv extends (JShort ==>> JInteger) {
-    def apply(a: JShort) = JInteger.valueOf(a.intValue)
+    def apply(a: JShort) = 
+      if (a eq null) null
+      else JInteger.valueOf(a.intValue)
   }
 
   object jintToShortConv extends (JInteger ==>> Short) {
@@ -66,7 +68,9 @@ object BasicTransforms {
   }
 
   object jintToBoxedShortConv extends (JInteger ==>> JShort) {
-    def apply(a: JInteger) = JShort.valueOf(a.shortValue)
+    def apply(a: JInteger) = 
+      if (a eq null) null
+      else JShort.valueOf(a.shortValue)
   }
 
   object byteToJIntConv extends (Byte ==>> JInteger) {
@@ -74,7 +78,9 @@ object BasicTransforms {
   }
 
   object boxedByteToJIntConv extends (JByte ==>> JInteger) {
-    def apply(a: JByte) = JInteger.valueOf(a.intValue)
+    def apply(a: JByte) = 
+      if (a eq null) null
+      else JInteger.valueOf(a.intValue)
   }
 
   object jintToByteConv extends (JInteger ==>> Byte) {
@@ -82,7 +88,9 @@ object BasicTransforms {
   }
 
   object jintToBoxedByteConv extends (JInteger ==>> JByte) {
-    def apply(a: JInteger) = JByte.valueOf(a.byteValue)
+    def apply(a: JInteger) = 
+      if (a eq null) null
+      else JByte.valueOf(a.byteValue)
   }
 
   object charToJIntConv extends (Char ==>> JInteger) {
@@ -91,7 +99,9 @@ object BasicTransforms {
 
   object boxedCharToJIntConv extends (JCharacter ==>> JInteger) {
     // TODO: is there a better way to do this one?
-    def apply(a: JCharacter) = JInteger.valueOf(a.charValue.toInt)
+    def apply(a: JCharacter) = 
+      if (a eq null) null
+      else JInteger.valueOf(a.charValue.toInt)
   }
 
   object jintToCharConv extends (JInteger ==>> Char) {
@@ -101,7 +111,9 @@ object BasicTransforms {
 
   object jintToBoxedCharConv extends (JInteger ==>> JCharacter) {
     // TODO: is there a better way to do this one?
-    def apply(a: JInteger) = JCharacter.valueOf(a.intValue.toChar)
+    def apply(a: JInteger) = 
+      if (a eq null) null
+      else JCharacter.valueOf(a.intValue.toChar)
   }
 
   object intToJIntConv extends (Int ==>> JInteger) {
