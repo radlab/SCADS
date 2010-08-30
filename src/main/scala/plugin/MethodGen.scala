@@ -123,31 +123,23 @@ trait MethodGen extends ScalaAvroPluginComponent
         CASE(LIT(i)) ==> {
           //val fn = symMap get (sym.tpe.typeSymbol) getOrElse ((sym2obj _))
           //fn(clazz, sym)
+
           //TODO: inline the ones that are easy
           val avroTpe = toAvroType(sym.tpe)
           //println("toAvroType: " + avroTpe)
-          val converted = 
+          val schema = 
             Apply(
-              TypeApply(
-                This(clazz) DOT newTermName("convert"),
-                List(
-                  TypeTree(sym.tpe),
-                  TypeTree(avroTpe))),
-                List(This(clazz) DOT sym)) 
-          
-          if (avroTpe.typeSymbol == GenericArrayClass) {
-            val schema = 
               Apply(
-                Apply(
-                  This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
-                  List(LIT(sym.name.toString.trim))) DOT newTermName("schema"),
-                Nil)
-            val newWrapper = NEW(TypeTree(construct(GenericArrayWrapperClass.tpe, List(avroTpe.typeArgs.head))), schema, converted) AS ObjectClass.tpe
-            If(
-              sym IS_NULL,
-              LIT(null),
-              newWrapper)
-          } else converted AS ObjectClass.tpe
+                This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
+                List(LIT(sym.name.toString.trim))) DOT newTermName("schema"),
+              Nil)
+          Apply(
+            TypeApply(
+              This(clazz) DOT newTermName("convert"),
+              List(
+                TypeTree(sym.tpe),
+                TypeTree(avroTpe))),
+              List(schema, This(clazz) DOT sym)) AS ObjectClass.tpe
         }
       }
 
@@ -180,68 +172,22 @@ trait MethodGen extends ScalaAvroPluginComponent
           Nil)
 
       val cases = for ((sym, i) <- instanceVars.zipWithIndex) yield {
-        //val rhs = 
-        //  // TODO: refactor this mess
-        //  if (sym.tpe.typeSymbol == StringClass) {
-        //    typer typed ((newSym ARG 1) AS utf8Tpe DOT newTermName("toString"))
-        //  } else if (sym.tpe.typeSymbol == ArrayClass && sym.tpe.normalize.typeArgs.head == ByteClass.tpe) {
-        //    typer typed ((newSym ARG 1) AS byteBufferTpe.normalize DOT newTermName("array"))
-        //  } else if (sym.tpe.typeSymbol == ListClass) {
-        //    val apply = 
-        //      Apply(
-        //        Select(
-        //          This(clazz),
-        //          newTermName("genericArrayToScalaList")),
-        //        List(Apply(
-        //          Select(
-        //            This(clazz),
-        //            newTermName("castToGenericArray")),
-        //          List(newSym ARG 1)))) AS sym.tpe
-        //    typer typed apply
-        //  } else if (sym.tpe.typeSymbol == MapClass) {
-        //    val apply = 
-        //      Apply(
-        //        Select(
-        //          This(clazz),
-        //          newTermName("jMapToScalaMap")),
-        //        List(Apply(
-        //          Select(
-        //            This(clazz),
-        //            newTermName("castToJMap")),
-        //          List(newSym ARG 1)),
-        //          selectSchemaField(sym))) AS sym.tpe
-        //    typer typed apply
-        //  } else if (sym.tpe.typeSymbol == OptionClass) {
-        //    val paramSym = sym.tpe.typeArgs.head.typeSymbol
-        //    val useNative = 
-        //      (paramSym == utf8Class) ||
-        //      (paramSym == byteBufferClass)
-        //    val apply =
-        //      Apply(
-        //        This(clazz) DOT newTermName("wrapOption"),
-        //        List(
-        //          (newSym ARG 1),
-        //          selectSchemaField(sym),
-        //          LIT(useNative))) AS sym.tpe
-        //    typer typed apply
-        //  } else if (sym.tpe.typeSymbol == ShortClass) {
-        //    typer typed ((newSym ARG 1) AS IntClass.tpe DOT newTermName("toShort"))
-        //  } else if (sym.tpe.typeSymbol == ByteClass) {
-        //    typer typed ((newSym ARG 1) AS IntClass.tpe DOT newTermName("toByte"))
-        //  } else if (sym.tpe.typeSymbol == CharClass) {
-        //    typer typed ((newSym ARG 1) AS IntClass.tpe DOT newTermName("toChar"))
-        //  } else {
-        //    typer typed ((newSym ARG 1) AS sym.tpe)
-        //  }
+        //TODO: inline the ones that are easy
 
         val avroTpe = toAvroType(sym.tpe)
+        val schema = 
+          Apply(
+            Apply(
+              This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
+              List(LIT(sym.name.toString.trim))) DOT newTermName("schema"),
+            Nil)
         val rhs = Apply(
             TypeApply(
               This(clazz) DOT newTermName("convert"),
               List(
                 TypeTree(avroTpe),
                 TypeTree(sym.tpe))),
-              List((newSym ARG 1) AS avroTpe))
+              List(schema, (newSym ARG 1) AS avroTpe))
         val target = Assign(This(clazz) DOT sym, rhs)
         CASE(LIT(i)) ==> target
       }
