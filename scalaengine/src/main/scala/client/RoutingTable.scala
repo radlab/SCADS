@@ -12,7 +12,7 @@ import java.util.{Comparator, Arrays}
 import edu.berkeley.cs.scads.storage.Namespace
 import org.apache.zookeeper.CreateMode
 import com.googlecode.avro.marker.AvroRecord
-import com.googlecode.avro.runtime.AvroScala._
+import com.googlecode.avro.runtime._
 import edu.berkeley.cs.scads.comm._
 /* TODO: Stack RepartitioningProtocol on Routing Table to build working implementation
 *  TODO: Change implementation to StartKey -> makes it more compliant to the rest

@@ -7,7 +7,7 @@ import scala.actors.Actor._
 import org.apache.log4j.Logger
 
 import com.googlecode.avro.marker.AvroRecord
-import com.googlecode.avro.annotation.AvroUnion
+import com.googlecode.avro.marker.AvroUnion
 
 object Actors {
   import scala.actors._

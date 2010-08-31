@@ -6,8 +6,7 @@ import edu.berkeley.cs.scads.storage.routing._
 import org.apache.avro.Schema
 import org.apache.avro.generic.{IndexedRecord, GenericData, GenericDatumReader, GenericDatumWriter}
 import org.apache.avro.io.{BinaryData, DecoderFactory, BinaryEncoder, BinaryDecoder}
-import com.googlecode.avro.runtime.AvroScala._
-import com.googlecode.avro.runtime.ScalaSpecificRecord
+import com.googlecode.avro.runtime._
 
 /**
  * Implementation of Scads Namespace that returns ScalaSpecificRecords

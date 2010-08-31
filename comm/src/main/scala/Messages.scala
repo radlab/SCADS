@@ -1,13 +1,13 @@
 package edu.berkeley.cs.scads.comm
 
 import com.googlecode.avro.marker.AvroRecord
-import com.googlecode.avro.annotation.AvroUnion
+import com.googlecode.avro.marker.AvroUnion
 
 /* Base message type for all scads messages */
-@AvroUnion sealed trait MessageBody
+sealed trait MessageBody extends AvroUnion
 
 /* General message types */
-@AvroUnion sealed trait ActorId
+sealed trait ActorId extends AvroUnion
 case class ActorNumber(var num: Long) extends AvroRecord with ActorId
 case class ActorName(var name: String) extends AvroRecord with ActorId
 
@@ -15,13 +15,13 @@ case class Message(var src: Option[ActorId], var dest: ActorId, var id: Option[L
 case class Record(var key: Array[Byte], var value: Option[Array[Byte]]) extends AvroRecord with MessageBody
 
 /* Exceptions */
-@AvroUnion sealed trait RemoteException extends MessageBody
+sealed trait RemoteException extends MessageBody
 case class ProcessingException(var cause: String, var stacktrace: String) extends RemoteException with AvroRecord
 case class RequestRejected(var reason: String, var req: MessageBody) extends RemoteException with AvroRecord
 case class InvalidPartition(var partitionId: String) extends RemoteException with AvroRecord
 
 /* KVStore Operations */
-@AvroUnion sealed trait KeyValueStoreOperation extends PartitionServiceOperation
+sealed trait KeyValueStoreOperation extends PartitionServiceOperation
 case class GetRequest(var key: Array[Byte]) extends AvroRecord with KeyValueStoreOperation
 case class GetResponse(var value: Option[Array[Byte]]) extends AvroRecord with KeyValueStoreOperation
 
@@ -41,7 +41,7 @@ case class TestSetRequest(var key: Array[Byte], var value: Option[Array[Byte]], 
 case class TestSetResponse(var success: Boolean) extends AvroRecord with KeyValueStoreOperation
 
 /* Storage Handler Operations */
-@AvroUnion sealed trait StorageServiceOperation extends MessageBody
+sealed trait StorageServiceOperation extends MessageBody
 case class CreatePartitionRequest(var namespace: String, var startKey: Option[Array[Byte]] = None, var endKey: Option[Array[Byte]] = None) extends AvroRecord with StorageServiceOperation
 case class CreatePartitionResponse(var partitionActor: PartitionService) extends AvroRecord with StorageServiceOperation
 
@@ -49,7 +49,7 @@ case class DeletePartitionRequest(var partitionId: String) extends AvroRecord wi
 case class DeletePartitionResponse() extends AvroRecord with StorageServiceOperation
 
 /* Partition Handler Operations */
-@AvroUnion sealed trait PartitionServiceOperation extends MessageBody
+sealed trait PartitionServiceOperation extends MessageBody
 case class CopyDataRequest(var src: PartitionService, var overwrite: Boolean) extends AvroRecord with PartitionServiceOperation
 case class CopyDataResponse() extends AvroRecord with PartitionServiceOperation
 
