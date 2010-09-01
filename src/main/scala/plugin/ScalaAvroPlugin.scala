@@ -60,7 +60,7 @@ trait ScalaAvroPluginComponent extends PluginComponent {
 
   /** Scala Avro Internal types */
   protected lazy val ScalaSpecificRecord = definitions.getClass("com.googlecode.avro.runtime.ScalaSpecificRecord")
-  protected lazy val AvroConversions = definitions.getClass("com.googlecode.avro.runtime.AvroConversions")
+  protected lazy val AvroConversions = definitions.getClass("com.googlecode.avro.runtime.HasAvroConversions")
   protected lazy val GenericArrayWrapperClass = definitions.getClass("com.googlecode.avro.runtime.GenericArrayWrapper")
 
   /** Takes a class symbol and maps to its associated Schema object */
