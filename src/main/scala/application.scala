@@ -99,6 +99,8 @@ case class BoolArg(name: String) extends MainArg {
   def usage = "[--%s]".format(name)
 }
 
+case class DefaultArgValue(name: String, valueMethod: Method)
+
 /**
  *  This trait automagically finds a main method on the object 
  *  which mixes this in and based on method names and types figures
@@ -223,31 +225,38 @@ trait Application
     // verify minimum quantity of positional arguments
     if (args.size < posArgCount)
       usageError("too few arguments: expected %d, got %d".format(posArgCount, args.size))
-    
+
+    val ordinalRegEx = "main\\$default\\$(\\d+)".r
+    val defaultArgs = methods(_.getName startsWith "main$default$").map(x => DefaultArgValue(mainArgs(ordinalRegEx.findFirstMatchIn(x.getName).get.group(1).toInt - 1).name, x))
+
     // verify all required options are present
-    val missingArgs = reqArgs filter (x => !(options contains x.name) && !(x.name matches """^arg\d+$"""))
+    val absentArgs = reqArgs filter (x => !(options contains x.name) && !(x.name matches """^arg\d+$"""))
+    val defaultValues = Map[String, Object](absentArgs.flatMap(ma => defaultArgs.find(_.name equals ma.name).map(da => (da.name, da.valueMethod.invoke(this)))):_*)
+    val missingArgs = absentArgs filter (x => !(defaultValues contains x.name))
+
     if (!missingArgs.isEmpty) {
-      val missingStr = missingArgs map ("--" + _.name) mkString " "        
+      val missingStr = missingArgs map ("--" + _.name) mkString " "
       val s = if (missingArgs.size == 1) "" else "s"
-      
+
       usageError("missing required option%s: %s".format(s, missingStr))
     }
-    
+
     def determineValue(ma: MainArg): AnyRef = {
       val MainArg(name, _, tpe) = ma
       def isPresent = options contains name
-      
-      if (ma.isPositional)      coerceTo(name, tpe)(args(ma.pos - 1))
-      else if (isPresent)       coerceTo(name, tpe)(options(name))
-      else if (ma.isBoolean)    jl.Boolean.FALSE
-      else if (ma.isOptional)   None
-      else                      missing(name)
+
+      if (ma.isPositional)                  coerceTo(name, tpe)(args(ma.pos - 1))
+      else if (isPresent)                   coerceTo(name, tpe)(options(name))
+      else if (defaultValues contains name) coerceTo(name, tpe)(defaultValues(name).toString)
+      else if (ma.isBoolean)                jl.Boolean.FALSE
+      else if (ma.isOptional)               None
+      else                                  missing(name)
     }
-    
+
     mainMethod.invoke(this, (mainArgs map determineValue).toArray : _*)
   }
-  
-  
+
+
   def main(cmdline: Array[String]) {
     try {
       _opts = Options.parse(argInfos, cmdline: _*)
