@@ -12,7 +12,7 @@ import com.googlecode.avro.marker.AvroRecord
 
 @RunWith(classOf[JUnitRunner])
 class KeyValueStoreSpec extends Spec with ShouldMatchers {
-  val cluster = TestScalaEngine.getTestCluster(1)
+  val cluster = TestScalaEngine.getTestCluster()
 
   implicit def toOption[A](a: A): Option[A] = Option(a)
 

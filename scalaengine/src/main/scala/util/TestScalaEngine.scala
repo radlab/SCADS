@@ -36,9 +36,9 @@ object TestScalaEngine {
    * Returns a ScadsCluster instance for the cluster `testScads` guaranteed to 
    * contain at least one node.
    */
-  def getTestCluster(clientID : Int): ScadsCluster = {
+  def getTestCluster(): ScadsCluster = {
     val handler = getTestHandler()
-    new ScadsCluster(handler.root, clientID)
+    new ScadsCluster(handler.root)
   }
 
   /**
