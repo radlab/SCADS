@@ -95,3 +95,4 @@ trait RemoteActorProxy {
   def toPartitionService(partitionId : String, storageService : StorageService): PartitionService = new PartitionService(host, port, id, partitionId, storageService)
   def toStorageService: StorageService = new StorageService(host, port, id)
 }
+

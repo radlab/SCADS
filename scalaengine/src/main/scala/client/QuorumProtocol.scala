@@ -31,7 +31,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
   protected def serversForRange(startKey: Option[KeyType], endKey: Option[KeyType]): List[List[PartitionService]]
 
 
-  protected def setReadWriteQuorum(readQuorum: Double, writeQuorum: Double) = {
+  def setReadWriteQuorum(readQuorum: Double, writeQuorum: Double) = {
     require(0 < readQuorum && readQuorum <= 1)
     require(0 < writeQuorum && writeQuorum <= 1)
     require(writeQuorum + readQuorum > 1)
@@ -93,10 +93,8 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     return extractValueFromRecord(record)
   }
 
-
   def getRange(startKey: Option[KeyType], endKey: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, backwards: Boolean = false): Seq[(KeyType, ValueType)] = {
     val partitions = if (backwards) serversForRange(startKey, endKey).reverse else serversForRange(startKey, endKey)
-    println("Range request to " +  partitions )
     var handlers: ArrayBuffer[RangeHandle] = new ArrayBuffer[RangeHandle]
     val sKey = startKey.map(serializeKey(_))
     val eKey = endKey.map(serializeKey(_))

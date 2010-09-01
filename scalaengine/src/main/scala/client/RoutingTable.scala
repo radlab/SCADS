@@ -183,7 +183,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
 
   private def deletePartitions(partitions: List[PartitionService]): Unit = {
     for (partition <- partitions) {
-      partition.toStorageService !? DeletePartitionRequest(partition.partitionId) match {
+      partition.storageService !? DeletePartitionRequest(partition.partitionId) match {
         case DeletePartitionResponse() => ()
         case _ => throw new RuntimeException("Unexpected Message")
       }

@@ -14,7 +14,8 @@ import edu.berkeley.cs.scads.config._
  * in a given JVM and multiplexes the underlying network connections.  Services should be
  * careful to unregister themselves to avoid memory leaks.
  */
-object MessageHandler extends AvroChannelManager[Message, Message] {
+class MessageHandler extends AvroChannelManager[Message, Message] {
+
   private val config = Config.config
   private val logger = Logger.getLogger("scads.messagehandler")
 
@@ -133,3 +134,43 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
     serviceRegistry.get(id)
 
 }
+
+
+object MessageHandler  {
+
+  var instance : MessageHandler = null // MessageHandlerFactory.create
+
+  def get() : MessageHandler = instance
+
+  def sendMessage(dest: RemoteNode, msg: Message) = instance.sendMessage(dest, msg)
+
+  def sendMessageBulk(dest: RemoteNode, msg: Message) = instance.sendMessageBulk(dest, msg)
+
+  def flush = instance.flush
+
+  def startListener(port: Int) = instance.startListener(port)
+
+  def receiveMessage(src: RemoteNode, msg: Message)  = instance.receiveMessage(src, msg)
+
+  def registerActor(a: Actor): RemoteActorProxy = instance.registerActor(a)
+
+  def unregisterActor(ra: RemoteActorProxy) = instance.unregisterActor(ra)
+
+  def registerService(service: MessageReceiver): RemoteActor = instance.registerService(service)
+
+  def registerService(id: String, service: MessageReceiver): RemoteActorProxy = instance.registerService(id, service)
+
+  def getService(id: String): MessageReceiver = instance.getService(id)
+}
+
+//object MessageHandlerFactory  {
+//
+//  var creatorFn : () => MessageHandler = () => {
+//    println("Created a msgHandler")
+//    new MessageHandler()
+//  }
+//
+//  def create() : MessageHandler = {
+//     creatorFn()
+//  }
+//}

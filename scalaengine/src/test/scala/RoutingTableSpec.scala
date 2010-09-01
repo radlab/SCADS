@@ -8,6 +8,8 @@ import edu.berkeley.cs.scads.storage._
 
 import org.scalatest.WordSpec
 import org.scalatest.matchers.ShouldMatchers
+import org.apache.avro.generic.IndexedRecord
+import edu.berkeley.cs.scads.comm.StorageService
 
 @RunWith(classOf[JUnitRunner])
 class RoutingTableSpec extends WordSpec with ShouldMatchers {
@@ -37,3 +39,5 @@ class RoutingTableSpec extends WordSpec with ShouldMatchers {
 
   }
 }
+
+
