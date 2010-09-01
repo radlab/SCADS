@@ -13,7 +13,7 @@ import com.googlecode.avro.runtime._
  */
 class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord]
     (namespace:String, timeout:Int, root: ZooKeeperProxy#ZooKeeperNode)
-    (implicit  cluster : ScadsCluster, keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType])
+    (implicit  cluster : ScadsClusterManager, keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType])
         extends QuorumProtocol[KeyType, ValueType](namespace, timeout, root)(cluster) with RoutingProtocol[KeyType, ValueType] with SimpleMetaData[KeyType, ValueType] {
   protected val keyClass = keyType.erasure.asInstanceOf[Class[ScalaSpecificRecord]]
   protected val valueClass = valueType.erasure.asInstanceOf[Class[ScalaSpecificRecord]]
@@ -47,7 +47,7 @@ class GenericNamespace(namespace:String,
                        root: ZooKeeperProxy#ZooKeeperNode,
                        val keySchema:Schema,
                        val valueSchema:Schema)
-                      (implicit cluster : ScadsCluster)
+                      (implicit cluster : ScadsClusterManager)
         extends QuorumProtocol[GenericData.Record, GenericData.Record](namespace, timeout, root)(cluster)
                 with RoutingProtocol[GenericData.Record, GenericData.Record] with SimpleMetaData[GenericData.Record, GenericData.Record] {
   val decoderFactory = DecoderFactory.defaultFactory()
@@ -73,5 +73,4 @@ class GenericNamespace(namespace:String,
     val decoder = decoderFactory.createBinaryDecoder(value, null)
     valueReader.read(null, decoder)
   }
-
 }
