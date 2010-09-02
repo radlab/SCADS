@@ -17,9 +17,8 @@ import org.apache.avro.io.{BinaryData, BinaryEncoder}
 import scala.collection.mutable.HashMap
 import java.util.Arrays
 import scala.concurrent.SyncVar
-import scala.tools.nsc.interpreter.AbstractFileClassLoader
-import scala.tools.nsc.io.AbstractFile
-import com.googlecode.avro.runtime.ScalaSpecificRecord
+
+import com.googlecode.avro.runtime._
 import scala.util.Random
 
 class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) extends ScadsClusterManager

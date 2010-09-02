@@ -116,7 +116,49 @@ class KeyValueStoreSpec extends Spec with ShouldMatchers {
 
     it("should implement test/set") {pending}
     it("should correctly return a count of records") {pending}
-    it("should handle schema resolution automatically") {pending}
+
+    it("should handle prefix schema resolution automatically") {
+      import scala.collection.JavaConversions._
+
+      import org.apache.avro.{ generic, Schema }
+      import generic._
+      import Schema._
+
+      import org.codehaus.jackson.node.NullNode 
+
+      // 1 int field
+      val oldSchema = 
+        Schema.createRecord("TestRec", "", "testns", false)
+      oldSchema.setFields(Seq(new Field("f1", Schema.create(Type.INT), "", null)))
+
+      // 2 int fields, f2 optional
+      val newSchema = 
+        Schema.createRecord("TestRec", "", "testns", false)
+      newSchema.setFields(Seq(new Field("f1", Schema.create(Type.INT), "", null), 
+                              new Field("f2", Schema.createUnion(Seq(Schema.create(Type.NULL), Schema.create(Type.INT))), "", NullNode.instance)))
+
+      // load the cluster once with an "old" version (1 field)
+      val oldNs = cluster.getNamespace("prefixSchemaRes", oldSchema, oldSchema) 
+
+      // now, load the cluster with a "new" version (2 fields)
+      val newNs = cluster.getNamespace("prefixSchemaRes", newSchema, newSchema)
+
+      def newIntRec(f1: Int, f2: Option[Int]) = {
+        val rec = new GenericData.Record(newSchema)
+        rec.put(0, f1)
+        rec.put(1, f2.map(i => java.lang.Integer.valueOf(i)).orNull)
+        rec
+      }
+
+      for (i <- 1 to 10) {
+        newNs.put(newIntRec(i, Some(i)), newIntRec(i, Some(i)))
+        newNs.get(newIntRec(i, Some(i))) should equal(Some(newIntRec(i, None)))
+      }
+
+    }
+
+    it("should handle general schema resolution automatically") {pending}
+
     it("should correctly return records by prefix") {pending}
     it("should allow data to be moved/copied") {pending}
     it("should efficently bulk load from iterator using ++=") {pending}

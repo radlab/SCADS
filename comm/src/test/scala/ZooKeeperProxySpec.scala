@@ -37,10 +37,10 @@ class ZookeeperProxySpec extends Spec with ShouldMatchers {
       val newNode = zk1.root.createChild("test")
       zk1.root.children should contain(newNode)
       zk1.root("test")
-      zk1.root.toString
+
       newNode.delete
-      zk1.root.children.toString
       zk1.root.children should not contain(newNode)
+      zk1.root.get("test") should equal(None)
     }
   }
 }
