@@ -238,6 +238,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
    *  Just a helper class to create a table and all comparisons
    */
   private def createRoutingTable(ranges: Array[RangeType[KeyType, PartitionService]]): Unit = {
+    implicit def toRichIndexedRecord[T <: IndexedRecord](i: T) = new RichIndexedRecord[T](i)
     val keySchema: Schema = getKeySchema()
     routingTable = new RangeTable[KeyType, PartitionService](ranges,
       (a: KeyType, b: KeyType) => a.compare(b),
