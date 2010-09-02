@@ -106,17 +106,17 @@ class ZooKeeperProxy(val address: String) extends Watcher {
     @deprecated("to be removed - use data instead")
     def cachedData: Array[Byte] = data 
 
-		def data_=(d: Array[Byte]) {
-			conn.setData(path, d, -1)
-		}
+    def data_=(d: Array[Byte]) {
+      conn.setData(path, d, -1)
+    }
 
     def createChild(name: String, data: Array[Byte] = Array.empty, mode: CreateMode = CreateMode.PERSISTENT): ZooKeeperNode =
       getOrElseUpdateNode(fullPath(name), newNode(fullPath(name), data, mode))
 
-		def deleteChild(name:String) {
-			conn.delete(fullPath(name), -1)
+    def deleteChild(name:String) {
+      conn.delete(fullPath(name), -1)
       canonicalMap.remove(fullPath(name))
-		}
+    }
 
     def delete() {
       conn.delete(path, -1)
