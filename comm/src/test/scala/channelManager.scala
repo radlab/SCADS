@@ -12,7 +12,6 @@ import java.util.concurrent.ConcurrentHashMap
 import org.apache.log4j.Logger
 
 import com.googlecode.avro.marker.AvroRecord
-import com.googlecode.avro.annotation.AvroUnion
 
 case class TestMsg(var payload: String) extends AvroRecord
 

@@ -13,6 +13,9 @@ import org.apache.log4j.Logger
 object ScalaEngine extends optional.Application {
   private val logger = Logger.getLogger("ScalaEngine")
   def main(zooBase: Option[String], zooKeeper: Option[String], dbDir: Option[java.io.File], cachePercentage: Option[Int], verbose: Boolean) : StorageHandler = {
+    if(verbose)
+      org.apache.log4j.BasicConfigurator.configure()
+
     val config = new EnvironmentConfig()
     config.setAllowCreate(true)
     config.setTransactional(true)

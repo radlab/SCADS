@@ -17,7 +17,7 @@ import java.util.Arrays
 abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
 (namespace: String,
  timeout: Int,
- root: ZooKeeperProxy#ZooKeeperNode)(implicit cluster: ScadsCluster)
+ root: ZooKeeperProxy#ZooKeeperNode)(implicit cluster: ScadsClusterManager)
         extends Namespace[KeyType, ValueType](namespace, timeout, root)(cluster) with AvroComparator {
   protected var readQuorum: Double = 0.001
   protected var writeQuorum: Double = 1

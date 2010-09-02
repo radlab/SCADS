@@ -12,9 +12,9 @@
 	</parent>
 	<packaging>pom</packaging>
 	<modules>
-		<module>scalaengine</module>
-		<module>comm</module>
 		<module>config</module>
+		<module>comm</module>
+		<module>scalaengine</module>
 	</modules>
 	<dependencies>
 		<dependency>
