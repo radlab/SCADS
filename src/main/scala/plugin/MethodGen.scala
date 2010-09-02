@@ -37,41 +37,9 @@ trait MethodGen extends ScalaAvroPluginComponent
   class MethodGenTransformer(unit: CompilationUnit) extends TypingTransformer(unit) {
     import CODE._
 
-    /** AST nodes for runtime helper methods */
-
-    /** this.mkUtf8(this.sym) */
-    private def string2utf8(clazz: Symbol, sym: Symbol): Tree =
-      oneArgFunction(clazz, sym, "mkUtf8")
-
-    /** this.mkByteBuffer(this.sym) */
-    private def byteArray2byteBuffer(clazz: Symbol, sym: Symbol): Tree =
-      oneArgFunction(clazz, sym, "mkByteBuffer")
-
-    private def oneArgFunction(clazz: Symbol, sym: Symbol, funcName: String): Tree =
-      Apply(
-        This(clazz) DOT newTermName(funcName),
-        List(This(clazz) DOT sym))
-
     /** this.sym.asInstanceOf[java.lang.Object] */
-    private def sym2obj(clazz: Symbol, sym: Symbol): Tree = 
+    private def castToObject(clazz: Symbol, sym: Symbol): Tree = 
       This(clazz) DOT sym AS ObjectClass.tpe
-
-    /** this.sym.toInt.asInstanceOf[java.lang.Object] */
-    private def sym2int2obj(clazz: Symbol, sym: Symbol): Tree =
-      This(clazz) DOT sym DOT newTermName("toInt") AS ObjectClass.tpe
-
-    /** Map symbol to symbol handler */
-    private var symMap = Map(
-      StringClass -> (string2utf8 _),
-      ArrayClass  -> ((clazz: Symbol, sym: Symbol) => 
-        if (sym.tpe.typeArgs.head.typeSymbol == ByteClass)
-          byteArray2byteBuffer(clazz,sym)
-        else
-          throw new UnsupportedOperationException("Cannot handle this right now")
-        ),
-      ShortClass  -> (sym2int2obj _), 
-      ByteClass   -> (sym2int2obj _), 
-      CharClass   -> (sym2int2obj _))
 
     private def construct(tpe: Type, args: List[Type]) = tpe match {
       case TypeRef(pre, sym, _) => TypeRef(pre, sym, args)
@@ -88,7 +56,7 @@ trait MethodGen extends ScalaAvroPluginComponent
           case 2 =>
             construct(JMapClass.tpe, List(utf8Class.tpe, toAvroType(tpe.typeArgs.tail.head)))
           case _ =>
-            throw new UnsupportedOperationException("Unsupported type: " + tpe)
+            throw new UnsupportedOperationException("Unsupported collection type: " + tpe)
         }
       } else tpe.typeSymbol match {
         case OptionClass =>
@@ -113,6 +81,12 @@ trait MethodGen extends ScalaAvroPluginComponent
     private def needsSchemaToConvert(tpe: Type) = 
       tpe.typeSymbol.isSubClass(TraversableClass)
 
+    private def canInline(tpe: Type) = 
+      tpe == toAvroType(tpe) || (tpe.typeSymbol match {
+        case IntClass | LongClass | BooleanClass | FloatClass | DoubleClass => true
+        case _ => false
+      })
+
     private def generateGetMethod(templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
       val newSym = clazz.newMethod(clazz.pos.focus, newTermName("get"))
       newSym setFlag SYNTHETICMETH | OVERRIDE 
@@ -124,26 +98,26 @@ trait MethodGen extends ScalaAvroPluginComponent
       val default = List(DEFAULT ==> THROW(IndexOutOfBoundsExceptionClass, arg))
       val cases = for ((sym, i) <- instanceVars.zipWithIndex) yield {
         CASE(LIT(i)) ==> {
-          //val fn = symMap get (sym.tpe.typeSymbol) getOrElse ((sym2obj _))
-          //fn(clazz, sym)
-
-          //TODO: inline the ones that are easy
-          val avroTpe = toAvroType(sym.tpe)
-          val schema = 
-            if (needsSchemaToConvert(sym.tpe))
-              Apply(
+          if (canInline(sym.tpe)) // trivial ones where no conversions are necessary
+            castToObject(clazz, sym)
+          else {
+            val avroTpe = toAvroType(sym.tpe)
+            val schema = 
+              if (needsSchemaToConvert(sym.tpe))
                 Apply(
-                  This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
-                  List(LIT(sym.name.toString.trim))) DOT newTermName("schema"),
-                Nil)
-            else LIT(null)
-          Apply(
-            TypeApply(
-              This(clazz) DOT newTermName("convert"),
-              List(
-                TypeTree(sym.tpe),
-                TypeTree(avroTpe))),
-              List(schema, This(clazz) DOT sym)) AS ObjectClass.tpe
+                  Apply(
+                    This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
+                    List(LIT(sym.name.toString.trim))) DOT newTermName("schema"),
+                  Nil)
+              else LIT(null)
+            Apply(
+              TypeApply(
+                This(clazz) DOT newTermName("convert"),
+                List(
+                  TypeTree(sym.tpe),
+                  TypeTree(avroTpe))),
+                List(schema, This(clazz) DOT sym)) AS ObjectClass.tpe
+          }
         }
       }
 
@@ -176,26 +150,28 @@ trait MethodGen extends ScalaAvroPluginComponent
           Nil)
 
       val cases = for ((sym, i) <- instanceVars.zipWithIndex) yield {
-        //TODO: inline the ones that are easy
-
-        val avroTpe = toAvroType(sym.tpe)
-        val schema = 
-          if (needsSchemaToConvert(sym.tpe))
+        val rhs =
+          if (canInline(sym.tpe))
+            ((newSym ARG 1) AS sym.tpe)
+          else {
+            val avroTpe = toAvroType(sym.tpe)
+            val schema = 
+              if (needsSchemaToConvert(sym.tpe))
+                Apply(
+                  Apply(
+                    This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
+                    List(LIT(sym.name.toString.trim))) DOT newTermName("schema"),
+                  Nil)
+              else LIT(null)
             Apply(
-              Apply(
-                This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
-                List(LIT(sym.name.toString.trim))) DOT newTermName("schema"),
-              Nil)
-          else LIT(null)
-        val rhs = Apply(
-            TypeApply(
-              This(clazz) DOT newTermName("convert"),
-              List(
-                TypeTree(avroTpe),
-                TypeTree(sym.tpe))),
-              List(schema, (newSym ARG 1) AS avroTpe))
-        val target = Assign(This(clazz) DOT sym, rhs)
-        CASE(LIT(i)) ==> target
+              TypeApply(
+                This(clazz) DOT newTermName("convert"),
+                List(
+                  TypeTree(avroTpe),
+                  TypeTree(sym.tpe))),
+                List(schema, (newSym ARG 1) AS avroTpe))
+          }
+        CASE(LIT(i)) ==> Assign(This(clazz) DOT sym, rhs)
       }
 
       atOwner(clazz)(localTyper.typed {
