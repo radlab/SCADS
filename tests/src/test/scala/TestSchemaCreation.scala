@@ -88,8 +88,8 @@ class TestSchemaCreation extends TestCase {
 
   def test10() {
     val test10 = classOf[Test10] ==>
-      "optList" ~~> (NULL_ | ARRAY_(INT_)) ::
-      "optMap"  ~~> (NULL_ | MAP_(STRING_)) :: Nil
+      "optList" ~~> ARRAY_(NULL_ | INT_) ::
+      "optMap"  ~~> MAP_(NULL_ | STRING_) :: Nil
     SchemaCompare.assertSchemaEquals(test10, classOf[Test10])
   }
 

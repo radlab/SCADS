@@ -145,7 +145,7 @@ trait Extender extends ScalaAvroPluginComponent
 
         val specificRecordBase = toTypedSelectTree("org.apache.avro.specific.SpecificRecordBase")
 
-        val avroConversions = toTypedSelectTree("com.googlecode.avro.runtime.AvroConversions")
+        val avroConversions = toTypedSelectTree("com.googlecode.avro.runtime.HasAvroConversions")
 
         val (car, cdr) = impl.parents.splitAt(1)
         val newImpl = treeCopy.Template(impl, List(specificRecordBase, avroConversions) ::: cdr, impl.self, impl.body ::: ctor.toList)

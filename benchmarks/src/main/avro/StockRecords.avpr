@@ -1,0 +1,66 @@
+{
+"namespace" : "benchmarks.stock",
+"protocol"  : "Benchmarks",
+"types" : [
+  { 
+    "name" : "Primitives", 
+    "type" : "record", 
+    "fields" : [
+      { "name" : "i", "type" : "int" },
+      { "name" : "j", "type" : "long" },
+      { "name" : "k", "type" : "boolean" }
+    ]
+  },
+  { 
+    "name" : "ArrayOfPrimitives", 
+    "type" : "record", 
+    "fields" : [
+      { "name" : "i", "type" : { "type" : "array", "items" : "int" } },
+      { "name" : "j", "type" : { "type" : "array", "items" : "long" } }
+    ]
+  },
+  { 
+    "name" : "ByteContainer", 
+    "type" : "record", 
+    "fields" : [
+      { "name" : "i", "type" : "bytes" }
+    ]
+  },
+  { 
+    "name" : "InnerMessage1", 
+    "type" : "record", 
+    "fields" : [
+      { "name" : "i", "type" : "float" }
+    ]
+  },
+  { 
+    "name" : "InnerMessage2", 
+    "type" : "record", 
+    "fields" : [
+      { "name" : "i", "type" : "double" }
+    ]
+  },
+  { 
+    "name" : "MessageContainer", 
+    "type" : "record", 
+    "fields" : [
+      { "name" : "i", "type" : "InnerMessage1" },
+      { "name" : "j", "type" : "InnerMessage2" }
+    ]
+  },
+  { 
+    "name" : "StringRec", 
+    "type" : "record", 
+    "fields" : [
+      { "name" : "i", "type" : "string" }
+    ]
+  },
+  { 
+    "name" : "RecordList", 
+    "type" : "record", 
+    "fields" : [
+      { "name" : "i", "type" : { "type": "array", "items" : "StringRec" } }
+    ]
+  }
+]
+}

@@ -59,40 +59,50 @@ trait SchemaGen extends ScalaAvroPluginComponent
 
       /** Primitives in the Avro sense */
       byteBufferClass -> Schema.create(AvroType.BYTES),
-      utf8Class       -> Schema.create(AvroType.STRING)
+      utf8Class       -> Schema.create(AvroType.STRING),
+
+      /** Boxed primitives */
+      BoxedIntClass       -> Schema.create(AvroType.INT),
+      BoxedByteClass      -> Schema.create(AvroType.INT),
+      BoxedShortClass     -> Schema.create(AvroType.INT),
+      BoxedCharacterClass -> Schema.create(AvroType.INT),
+      BoxedBooleanClass   -> Schema.create(AvroType.BOOLEAN),
+      BoxedFloatClass     -> Schema.create(AvroType.FLOAT),
+      BoxedLongClass      -> Schema.create(AvroType.LONG),
+      BoxedDoubleClass    -> Schema.create(AvroType.DOUBLE)
     )
 
-
-
     private def createSchema(tpe: Type): Schema = {
-      if (primitiveClasses.get(tpe.typeSymbol).isDefined) {
-        primitiveClasses.get(tpe.typeSymbol).get
+      if (primitiveClasses.contains(tpe.typeSymbol)) {
+        primitiveClasses(tpe.typeSymbol)
       } else if (tpe.typeSymbol == ArrayClass) {
         if (tpe.normalize.typeArgs.head != ByteClass.tpe)
-          throw new UnsupportedOperationException("Bad Array Found: " + tpe)
+          throw new UnsupportedOperationException("Bad Array Found: " + tpe + ". Use scala collections for lists")
         createSchema(byteBufferClass.tpe)
-      } else if (tpe.typeSymbol == ListClass) {
-        val listParam = tpe.typeArgs.head
-        Schema.createArray(createSchema(listParam))
+      } else if (tpe.typeSymbol.isSubClass(TraversableClass)) {
+        tpe.typeArgs.size match {
+          case 1 =>
+            Schema.createArray(createSchema(tpe.typeArgs.head))
+          case 2 =>
+            if (tpe.typeArgs.head.typeSymbol != StringClass && 
+                tpe.typeArgs.head.typeSymbol != utf8Class)
+              throw new UnsupportedOperationException("Avro maps require string/utf8 keys")
+            Schema.createMap(createSchema(tpe.typeArgs.tail.head))
+          case i =>
+            throw new AssertionError("Oops, %d type args found".format(i))
+        }
       } else if (tpe.typeSymbol == OptionClass) {
         val listParam = tpe.typeArgs.head
-        if (listParam.typeSymbol == OptionClass) {
-          throw new UnsupportedOperationException("Cannot nest option types")
-        }
+        if (listParam.typeSymbol == OptionClass)
+          throw new UnsupportedOperationException("Implementation limitation: Cannot nest option types")
         if (isUnion(listParam.typeSymbol)) {
-          // special case when you do Option[A], where A is an @AvroUnion
+          // special case when you do Option[A], where A is an AvroUnion
           val innerSchemas = createSchema(listParam).getTypes.toArray(Array[Schema]())
           Schema.createUnion(JArrays.asList(
             (Array(createSchema(NullClass.tpe)) ++ innerSchemas):_*))
-        } else {
+        } else
           Schema.createUnion(JArrays.asList(
             Array(createSchema(NullClass.tpe), createSchema(listParam)):_*))
-        }
-      } else if (tpe.typeSymbol == MapClass) {
-        val (keyTpe, valueTpe) = (tpe.typeArgs.head, tpe.typeArgs.tail.head)
-        if (keyTpe.typeSymbol != StringClass)
-          throw new UnsupportedOperationException("Avro maps require string key")
-        Schema.createMap(createSchema(valueTpe)) 
       } else if (isRecord(tpe.typeSymbol)) { 
         retrieveRecordSchema(tpe.typeSymbol).get 
       } else if (isExternalRecord(tpe.typeSymbol)) {
@@ -102,9 +112,7 @@ trait SchemaGen extends ScalaAvroPluginComponent
           retrieveUnionRecords(tpe.typeSymbol).
           map(_.tpe).
           map(t => createSchema(t)).toArray:_*)))
-      } else {
-        throw new UnsupportedOperationException("Cannot support yet: " + tpe)
-      }
+      } else throw new UnsupportedOperationException("Cannot support yet: " + tpe)
     }
 
     override def transform(tree: Tree) : Tree = {

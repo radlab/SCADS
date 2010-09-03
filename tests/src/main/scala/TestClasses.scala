@@ -50,7 +50,7 @@ case class Test9_C(var optBool: Option[Boolean]) extends AvroRecord with Test9_U
 
 case class Test9(var id: Option[Test9_Union]) extends AvroRecord
 
-case class Test10(var optList: Option[List[Int]], var optMap: Option[Map[String, String]]) extends AvroRecord
+case class Test10(var optList: List[Option[Int]], var optMap: Map[String, Option[String]]) extends AvroRecord
 
 case class Test11(var b: Byte, var c: Char, var s: Short) extends AvroRecord
 
@@ -61,3 +61,5 @@ case class Test12(var a0: Int) extends AvroRecord {
 case class Test13(var a0: Int)(var a1: Boolean) extends AvroRecord {
   var a2: Option[String] = None
 }
+
+case class Test14(var a0: Option[Array[Byte]] = None, var a1: Option[Array[Byte]] = None) extends AvroRecord
