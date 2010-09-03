@@ -78,8 +78,9 @@ trait MethodGen extends ScalaAvroPluginComponent
       }
     }
     
-    private def needsSchemaToConvert(tpe: Type) = 
-      tpe.typeSymbol.isSubClass(TraversableClass)
+    private def needsSchemaToConvert(tpe: Type): Boolean = 
+      tpe.typeSymbol.isSubClass(TraversableClass) || 
+      (tpe.typeSymbol == OptionClass && needsSchemaToConvert(tpe.typeArgs.head))
 
     private def canInline(tpe: Type) = 
       tpe == toAvroType(tpe) || (tpe.typeSymbol match {
@@ -106,8 +107,8 @@ trait MethodGen extends ScalaAvroPluginComponent
               if (needsSchemaToConvert(sym.tpe))
                 Apply(
                   Apply(
-                    This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
-                    List(LIT(sym.name.toString.trim))) DOT newTermName("schema"),
+                    This(clazz) DOT newTermName("getSchema") DOT newTermName("getFields") DOT newTermName("get"),
+                    List(LIT(i))) DOT newTermName("schema"),
                   Nil)
               else LIT(null)
             Apply(
@@ -140,15 +141,6 @@ trait MethodGen extends ScalaAvroPluginComponent
       val byteBufferTpe = byteBufferClass.tpe
       val utf8Tpe = utf8Class.tpe
 
-      def selectSchemaField(sym: Symbol): Tree = 
-        Apply(
-          Select(
-            Apply(
-              This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
-              List(LIT(sym.name.toString.trim))),
-            newTermName("schema")),
-          Nil)
-
       val cases = for ((sym, i) <- instanceVars.zipWithIndex) yield {
         val rhs =
           if (canInline(sym.tpe))
@@ -159,8 +151,8 @@ trait MethodGen extends ScalaAvroPluginComponent
               if (needsSchemaToConvert(sym.tpe))
                 Apply(
                   Apply(
-                    This(clazz) DOT newTermName("getSchema") DOT newTermName("getField"),
-                    List(LIT(sym.name.toString.trim))) DOT newTermName("schema"),
+                    This(clazz) DOT newTermName("getSchema") DOT newTermName("getFields") DOT newTermName("get"),
+                    List(LIT(i))) DOT newTermName("schema"),
                   Nil)
               else LIT(null)
             Apply(

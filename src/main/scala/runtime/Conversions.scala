@@ -4,7 +4,7 @@ package runtime
 import org.apache.avro.Schema
 import Schema.Type
 import org.apache.avro.generic.{ GenericArray, GenericData }
-import org.apache.avro.util.Utf8
+import org.apache.avro.util._
 
 import java.nio.ByteBuffer
 
@@ -17,12 +17,19 @@ import java.util.{ Map => JMap, Iterator => JIterator, AbstractMap, AbstractSet 
  * Motivated by:
  * http://stackoverflow.com/questions/2257341/java-scala-deep-collections-interoperability
  */
-trait ==>>[A, B] extends ((Schema, A) => B)
+trait ==>>[A, B] extends ((Schema, A) => B) {
+  /** True iff this transformation is the identity transform */
+  def isIdentity: Boolean = false
+
+  /** True iff this transformation is a (un)-boxing operation */
+  def isBox: Boolean = false
+}
 
 object BasicTransforms {
 
   object IdentityTransform extends (Any ==>> Any) {
     def apply(s: Schema, a: Any) = a
+    override def isIdentity = true
   }
 
   object toUtf8Conv extends (String ==>> Utf8) {
@@ -117,43 +124,55 @@ object BasicTransforms {
 
   object intToJIntConv extends (Int ==>> JInteger) {
     def apply(s: Schema, a: Int) = JInteger.valueOf(a)
+    override def isBox = true
   }
 
   object jintToIntConv extends (JInteger ==>> Int) {
     def apply(s: Schema, a: JInteger) = a.intValue
+    override def isBox = true
   }
 
   object longToJLongConv extends (Long ==>> JLong) {
     def apply(s: Schema, a: Long) = JLong.valueOf(a)
+    override def isBox = true
   }
 
   object jlongToLongConv extends (JLong ==>> Long) {
     def apply(s: Schema, a: JLong) = a.longValue
+    override def isBox = true
   }
 
   object floatToJFloatConv extends (Float ==>> JFloat) {
     def apply(s: Schema, a: Float) = JFloat.valueOf(a)
+    override def isBox = true
   }
 
   object jfloatToFloatConv extends (JFloat ==>> Float) {
     def apply(s: Schema, a: JFloat) = a.floatValue
+    override def isBox = true
   }
 
   object doubleToJDoubleConv extends (Double ==>> JDouble) {
     def apply(s: Schema, a: Double) = JDouble.valueOf(a)
+    override def isBox = true
   }
 
   object jdoubleToDoubleConv extends (JDouble ==>> Double) {
     def apply(s: Schema, a: JDouble) = a.doubleValue
+    override def isBox = true
   }
 
   object booleanToJBooleanConv extends (Boolean ==>> JBoolean) {
     def apply(s: Schema, a: Boolean) = JBoolean.valueOf(a)
+    override def isBox = true
   }
 
   object jbooleanToBooleanConv extends (JBoolean ==>> Boolean) {
     def apply(s: Schema, a: JBoolean) = a.booleanValue
+    override def isBox = true
   }
+
+  private[runtime] final val StringSchema = Schema.create(Type.STRING)
 
 }
 
@@ -172,9 +191,9 @@ trait HasAvroConversions extends HasAvroPrimitiveConversions
 
   import BasicTransforms._
 
-  def convert[A, B](s: Schema, a: A)(implicit trfm: A ==>> B): B = trfm(s, a)
+  @inline def convert[A, B](s: Schema, a: A)(implicit trfm: A ==>> B): B = trfm(s, a)
 
-  implicit def identity[A] =
+  @inline implicit def identity[A] =
     IdentityTransform.asInstanceOf[==>>[A, A]]
 
 }
@@ -224,14 +243,25 @@ trait HasAvroPrimitiveConversions {
 trait HasOptionConversions {
 
   implicit def toOption[FromElem, ToElem](implicit trfm: FromElem ==>> ToElem) = new (FromElem ==>> Option[ToElem]) {
-    def apply(s: Schema, a: FromElem) = Option(a).map(trfm.curried(s))
+    def apply(s: Schema, a: FromElem) = {
+      val optA = Option(a)
+      if (trfm.isIdentity || trfm.isBox)
+        optA.asInstanceOf[Option[ToElem]]
+      else
+        optA.map(trfm.curried(s))
+    }
   }
 
   implicit def fromOption[FromElem, ToElem]
     (implicit trfm: FromElem ==>> ToElem) = new (Option[FromElem] ==>> ToElem) {
     def apply(s: Schema, a: Option[FromElem]) =
       if (a eq null) null.asInstanceOf[ToElem]
-      else a.map(trfm.curried(s)).getOrElse(null).asInstanceOf[ToElem]
+      else {
+        if (trfm.isIdentity || trfm.isBox)
+          a.asInstanceOf[Option[ToElem]].getOrElse(null).asInstanceOf[ToElem]
+        else
+          a.map(trfm.curried(s)).getOrElse(null).asInstanceOf[ToElem]
+      }
   }
 
 }
@@ -242,7 +272,9 @@ trait HasTraversableConversions {
     (implicit ev: ToColl <:< Traversable[ToElem], trfm: FromElem ==>> ToElem, bf: BuilderFactory[ToElem, ToColl]) = new (GenericArray[FromElem] ==>> ToColl) {
     def apply(s: Schema, a: GenericArray[FromElem]) = {
       import scala.collection.JavaConversions._
-      val res = a.iterator.map(trfm.curried(s.getElementType))
+      val res = 
+        if (trfm.isIdentity || trfm.isBox) asIterator(a.iterator.asInstanceOf[JIterator[ToElem]])
+        else a.iterator.map(trfm.curried(s.getElementType))
       val builder = bf.newBuilder
       builder ++= res
       builder.result
@@ -255,20 +287,34 @@ trait HasTraversableConversions {
       assert(s.getType == Type.ARRAY)
       if (a eq null) null
       else {
-        val res = a.map(trfm.curried(s.getElementType))
+        val res =
+          if (trfm.isIdentity || trfm.isBox)
+            a.asInstanceOf[Traversable[ToElem]] 
+          else
+            a.map(trfm.curried(s.getElementType))
         /* View Generic Array */
         new GenericArray[ToElem] {
           import scala.collection.JavaConversions._
-          def add(elem: ToElem) = error("ARRAY IS IMMUTABLE")
-          def clear = error("ARRAY IS IMMUTABLE")
-          def peek = error("NOT SUPPORTED")
+          def add(elem: ToElem) = error("ADD NOT SUPPORTED - ARRAY IS IMMUTABLE")
+          def clear = error("CLEAR NOT SUPPORTED - ARRAY IS IMMUTABLE")
+          def peek = error("PEEK NOT SUPPORTED")
           def size = res.size
-          def iterator = res.toIterator
+          def iterator = 
+            if (res.isInstanceOf[Iterable[_]]) // Iterable provides more efficient implementations of iterators
+              res.asInstanceOf[Iterable[ToElem]].iterator 
+            else
+              res.toIterator
           def getSchema = s
         }
       }
     }
   }
+
+  @inline private def transform[A, B](trfm: A ==>> B, schema: Schema, a: A): B = 
+    if (trfm.isIdentity || trfm.isBox) a.asInstanceOf[B]
+    else trfm(schema, a)
+
+  import BasicTransforms.StringSchema
 
   implicit def toMap[M0, K0, V0, K1, V1]
     (implicit ev: M0 <:< Traversable[(K0, V0)], keyTrfm: K0 ==>> K1, valTrfm: V0 ==>> V1): M0 ==>> JMap[K1, V1] = new (M0 ==>> JMap[K1, V1]) {
@@ -278,9 +324,15 @@ trait HasTraversableConversions {
       else {
         import scala.collection.JavaConversions._
         new AbstractMap[K1, V1] {
-          def entrySet = new AbstractSet[JMap.Entry[K1,V1]] {
-            def iterator =
-              a.map(t => new AbstractMap.SimpleImmutableEntry[K1, V1](keyTrfm(Schema.create(Type.STRING), t._1), valTrfm(s.getValueType, t._2))).toIterator
+          def entrySet = new AbstractSet[JMap.Entry[K1, V1]] {
+            def iterator = {
+              val res = 
+                a.map(t => new AbstractMap.SimpleImmutableEntry[K1, V1](transform(keyTrfm, StringSchema, t._1), transform(valTrfm, s.getValueType, t._2)))
+              if (res.isInstanceOf[Iterable[_]])
+                res.asInstanceOf[Iterable[JMap.Entry[K1, V1]]].iterator
+              else 
+                res.toIterator
+            }
             def size = a.size
           }
         }
@@ -293,7 +345,7 @@ trait HasTraversableConversions {
     def apply(s: Schema, a: JMap[K0, V0]) = {
       import scala.collection.JavaConversions._
       val builder = bf.newBuilder
-      builder ++= a.map(t => (keyTrfm(Schema.create(Type.STRING), t._1), valTrfm(s.getValueType, t._2)))
+      builder ++= a.map(t => (transform(keyTrfm, StringSchema, t._1), transform(valTrfm, s.getValueType, t._2)))
       builder.result
     }
   }
