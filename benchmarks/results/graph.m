@@ -51,12 +51,13 @@ for i=[1:length(times)]
         stock(1)/stock(2), stock(3)/stock(4);
         java(1)/java(2), java(3)/java(4) ], 0.3, 'grouped');
 
-  title(sprintf('Benchmark Results for %s', name{1}));
+  title(sprintf('Benchmark Results for %s', name{1}), 'fontsize', 16);
   legend({ 'Serialization', 'Deserialization' }, 'location', 'southeast');
-  xlabel('Messages/Second');
-  ylabel('Record Type');
+  xlabel('Messages/Second', 'fontsize', 16);
+  ylabel('Record Type', 'fontsize', 16);
   set(gca, 'ytick', 1:1:3);
   set(gca, 'yticklabel', { 'Plugin', 'Stock', 'Java' });
+  set(gca, 'fontsize', 16);
 
   print(sprintf('%s.png', name{2}), '-dpng');
   print(sprintf('%s.pdf', name{2}), '-dpdf');
