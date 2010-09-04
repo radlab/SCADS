@@ -289,6 +289,10 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
 
         reply(DeletePartitionResponse())
       }
+      case GetPartitionsRequest() => {
+        reply(GetPartitionsResponse(partitions.toList.map( a => a._2.remoteHandle.toPartitionService(a._1, remoteHandle.toStorageService))))
+
+      }
       case _ => reply(RequestRejected("StorageHandler can't process this message type", msg))
     }
   }

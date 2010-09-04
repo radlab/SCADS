@@ -138,7 +138,7 @@ class MessageHandler extends AvroChannelManager[Message, Message] {
 
 object MessageHandler  {
 
-  var instance : MessageHandler = null // MessageHandlerFactory.create
+  var instance : MessageHandler = MessageHandlerFactory.create
 
   def get() : MessageHandler = instance
 
@@ -163,14 +163,14 @@ object MessageHandler  {
   def getService(id: String): MessageReceiver = instance.getService(id)
 }
 
-//object MessageHandlerFactory  {
-//
-//  var creatorFn : () => MessageHandler = () => {
-//    println("Created a msgHandler")
-//    new MessageHandler()
-//  }
-//
-//  def create() : MessageHandler = {
-//     creatorFn()
-//  }
-//}
+object MessageHandlerFactory  {
+
+  var creatorFn : () => MessageHandler = () => {
+    println("Created a msgHandler")
+   new MessageHandler()
+ }
+
+  def create() : MessageHandler = {
+     creatorFn()
+  }
+}

@@ -32,9 +32,9 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
 
 
   def setReadWriteQuorum(readQuorum: Double, writeQuorum: Double) = {
-    require(0 < readQuorum && readQuorum <= 1)
-    require(0 < writeQuorum && writeQuorum <= 1)
-    require(writeQuorum + readQuorum > 1)
+    require(0 < readQuorum && readQuorum <= 1, "Read quorum has to be in the range 0 < RQ <= 1 but was " + readQuorum)
+    require(0 < writeQuorum && writeQuorum <= 1, "Write quorum has to be in the range 0 < WQ <= 1 but was " + writeQuorum)
+    require((writeQuorum + readQuorum) >= 1, "Read + write quorum has to be >= 1 but was " + (readQuorum + writeQuorum))
     this.readQuorum = readQuorum
     this.writeQuorum = writeQuorum
     val config = new QuorumProtocolConfig(readQuorum, writeQuorum)
@@ -71,6 +71,23 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     (servers, readQuorum(servers.size))
   }
 
+  /**
+   * Returns all value versions for a given key. Does not perform read-repair. 
+   * r
+   */
+  def getAllVersions[K <: KeyType](key: K): List[Option[ValueType]] = {
+    val (servers, quorum) = readQuorumForKey(key)
+    val serKey = serializeKey(key)
+    val getRequest = GetRequest(serKey)
+
+    val resp = servers.map(_ !? getRequest)
+
+    servers.map(_ !? getRequest match {
+      case GetResponse(v) => extractValueFromRecord(v)
+      case u => throw new RuntimeException("Unexpected message during get.")
+    })
+ }
+
   def put[K <: KeyType, V <: ValueType](key: K, value: Option[V]): Unit = {
     val (servers, quorum) = writeQuorumForKey(key)
     val putRequest = PutRequest(serializeKey(key), value.map(createRecord))
@@ -88,8 +105,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     val record = handler.vote(quorum)
     if (handler.failed)
       throw new RuntimeException("Not enough servers responded. We need to throw better exceptions for that case")
-
-    ReadRepairer !! handler
+    ReadRepairer ! handler
     return extractValueFromRecord(record)
   }
 
@@ -137,6 +153,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
           )
       }
     }
+    handlers.foreach(ReadRepairer ! _)
     result.toList //If this is to expensive, we should consider a different data structure
   }
 
@@ -152,7 +169,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
    * Tests the range for conflicts and marks all violations for future resolution.
    * This class is optimized for none/few violations.
    */
-  class RangeHandle(val futures: Seq[MessageFuture], val timeout: Long = 10000) {
+  class RangeHandle(val futures: Seq[MessageFuture], val timeout: Long = 100000) {
     val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture]
     futures.foreach(_.forward(responses))
     var loosers = new HashMap[Array[Byte], (Array[Byte], List[RemoteActorProxy])]
@@ -161,18 +178,28 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     var winnerExceptions = new HashMap[Array[Byte], RemoteActorProxy]()
     val startTime = System.currentTimeMillis
     var failed = false
+    var ctr = 0
+
 
     def vote(quorum: Int): ArrayBuffer[Record] = {
       (1 to quorum).foreach(_ => processNext())
       return winners
     }
 
+    def processRest() = {
+      for (i <- 1 to futures.length - ctr) {
+        processNext()
+      }
+    }
+
+
     private def processNext(): Unit = {
+      ctr += 1
       val time = startTime - System.currentTimeMillis + timeout
-      val future = responses.poll(if (time > 0) time else 0, TimeUnit.MILLISECONDS)
+      val future = responses.poll(if (time > 0) time else 1, TimeUnit.MILLISECONDS)
       if (future == null) {
         failed = true
-        exit
+        return
       }
       val result = future() match {
         case GetRangeResponse(v) => v
@@ -231,12 +258,12 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
 
   }
 
-  class GetHandler(val key: Array[Byte], val futures: Seq[MessageFuture], val timeout: Long = 10000) {
+  class GetHandler(val key: Array[Byte], val futures: Seq[MessageFuture], val timeout: Long = 100) {
     val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture]
     futures.foreach(_.forward(responses))
     var losers: MutableList[RemoteActorProxy] = new MutableList
-    var winner: Option[Array[Byte]] = None
-    var curPartition: Option[RemoteActorProxy] = None
+    var winners: MutableList[RemoteActorProxy] = new MutableList
+    var winnerValue: Option[Array[Byte]] = None
     var ctr = 0
     val startTime = System.currentTimeMillis
     var failed = false
@@ -245,7 +272,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
 
     def vote(quorum: Int): Option[Array[Byte]] = {
       (1 to quorum).foreach(_ => compareNext())
-      return winner
+      return winnerValue
     }
 
     def processRest() = {
@@ -255,21 +282,24 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     }
 
     private def compareNext(): Unit = {
+      ctr += 1
       val time = startTime - System.currentTimeMillis + timeout
       val future = responses.poll(if (time > 0) time else 0, TimeUnit.MILLISECONDS)
       if (future == null) {
         failed = true
-        exit
+        return
       }
       future() match {
         case m@GetResponse(v) => {
-          val cmp = QuorumProtocol.this.compareRecord(winner, v)
-          if (cmp < 0) {
+          val cmp = QuorumProtocol.this.compareRecord(winnerValue, v)
+          if (cmp > 0) {
             future.source.foreach(losers += _)
-          } else if (cmp > 0) {
-            curPartition.foreach(losers += _)
-            curPartition = future.source
-            winner = v
+          } else if (cmp < 0) {
+            losers ++= winners
+            winners.clear
+            winnerValue = v
+          }else{
+            future.source.foreach(winners += _)
           }
         }
         case _ => throw new RuntimeException("")
@@ -279,22 +309,30 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
   }
 
   object ReadRepairer extends Actor {
+    this.start
+    
     def act() {
       while (true) {
         receive {
-          case handler: GetHandler =>
+          case handler: GetHandler =>   {
+            handler.processRest()
             for (server <- handler.repairList)
-              server !! PutRequest(handler.key, handler.winner)
-          case handler: RangeHandle =>
-            for ((key, (data, servers)) <- handler.loosers)
-              for (server <- servers)
+              server !! PutRequest(handler.key, handler.winnerValue)
+          }
+          case handler: RangeHandle => {
+            handler.processRest()
+            for ((key, (data, servers)) <- handler.loosers){
+              for (server <- servers)     {
+
                 server !! PutRequest(key, Some(data))
+              }
+            }
+          }
           case _ => throw new RuntimeException("Unknown message")
 
         }
       }
     }
   }
-
 
 }

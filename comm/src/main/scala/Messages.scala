@@ -48,6 +48,9 @@ case class CreatePartitionResponse(var partitionActor: PartitionService) extends
 case class DeletePartitionRequest(var partitionId: String) extends AvroRecord with StorageServiceOperation
 case class DeletePartitionResponse() extends AvroRecord with StorageServiceOperation
 
+case class GetPartitionsRequest() extends AvroRecord with StorageServiceOperation
+case class GetPartitionsResponse(var partitions: List[PartitionService]) extends AvroRecord with StorageServiceOperation
+
 /* Partition Handler Operations */
 sealed trait PartitionServiceOperation extends MessageBody
 case class CopyDataRequest(var src: PartitionService, var overwrite: Boolean) extends AvroRecord with PartitionServiceOperation

@@ -114,6 +114,13 @@ class KeyValueStoreSpec extends Spec with ShouldMatchers {
       }
     }
 
+    it("should return all versions") {
+      val ns = cluster.getNamespace[IntRec, StringRec]("allversions")
+      ns.put(IntRec(1), StringRec("string1"))
+      val values = ns.getAllVersions(IntRec(1)).map(_.get.f1)
+      values should contain ("string1")
+    }
+
     it("should implement test/set") {pending}
     it("should correctly return a count of records") {pending}
 

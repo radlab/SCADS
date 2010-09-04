@@ -41,18 +41,22 @@ abstract trait SimpleMetaData[KeyType <: IndexedRecord, ValueType <: IndexedReco
       if(data2.isEmpty){
         return 0
       }
-      return 1
+      return -1
     }
     if(data2.isEmpty){
-      return -1
+      return 1
     }
     compareRecord(data1.get, data2.get)
   }
 
   override protected def compareRecord(data1 : Array[Byte], data2 : Array[Byte]) : Int = {
     for(i <- 0 until 16){
-      if(! (data1(i).compare(data2(i)) == 0))
-        return data1(i).compare(data2(i))
+      if(data1(i) == data2(i)) {   //Check common case first
+      }else if((data1(i) < data2(i)) ^ ((data1(i) < 0) != (data2(i) < 0)) ){ //bitwise comparison for unsigned Bytes
+        return -1
+      }else{
+        return 1
+      }
     }
     return 0
   }
