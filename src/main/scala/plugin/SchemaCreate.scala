@@ -27,9 +27,12 @@ trait SchemaCreate extends ScalaAvroPluginComponent {
   def check(tree: Tree): Unit = tree match {
     case cd @ ClassDef(_, _, _, _) if (cd.symbol.tpe.parents.contains(avroRecordTrait.tpe)) =>
       val sym = cd.symbol
-      debug("Adding schema for class: " + sym.fullName)
+      val namespace = 
+        if (sym.owner.fullName == "<empty>") None // Issue #6 - handle default package classes
+        else Some(sym.owner.fullName)
+      debug("Adding schema for class %s, namespace %s".format(sym.fullName, namespace))
       addRecordSchema(sym, 
-          Schema.createRecord(sym.name.toString, "Auto-generated schema", sym.owner.fullName, false))
+          Schema.createRecord(sym.name.toString, "Auto-generated schema", namespace.orNull, false))
       debug("Registering class in companionClassMap")
       companionClassMap += sym.fullName -> sym
       debug("companionClassMap: " + companionClassMap) 
