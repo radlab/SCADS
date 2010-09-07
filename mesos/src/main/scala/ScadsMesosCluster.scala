@@ -46,7 +46,7 @@ class ScadsMesosCluster(val root: ZooKeeperProxy#ZooKeeperNode) extends Schedule
       if(taskId < 10) {
         taskParams.put("cpus", offer.getParams.get("cpus"))
         taskParams.put("mem", offer.getParams.get("mem"))
-        tasks.add(new TaskDescription(taskId, offer.getSlaveId(), "task" + taskId, taskParams, JvmProcess("/work/marmbrus/mesos/mesos-2.1.0-SNAPSHOT-jar-with-dependencies.jar", "edu.berkeley.cs.scads.storage.ScalaEngine", "--zooKeeper" :: "169.229.48.70:2181" :: "--zooBase" :: root.name :: "--verbose" :: Nil ).toBytes))
+        tasks.add(new TaskDescription(taskId, offer.getSlaveId(), "task" + taskId, taskParams, JvmProcess("/work/marmbrus/mesos/mesos-scads-2.1.0-SNAPSHOT-jar-with-dependencies.jar", "edu.berkeley.cs.scads.storage.ScalaEngine", "--zooKeeper" :: "169.229.48.70:2181" :: "--zooBase" :: root.name :: "--verbose" :: Nil ).toBytes))
         taskId += 1
       }
     })
