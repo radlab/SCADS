@@ -13,6 +13,11 @@
   </parent>
   <dependencies>
     <dependency>
+      <groupId>optional</groupId>
+      <artifactId>optional_${scala.version}</artifactId>
+      <version>1.0</version>
+    </dependency>
+    <dependency>
       <groupId>com.sleepycat</groupId>
       <artifactId>je</artifactId>
       <version>4.0.71</version>
