@@ -37,6 +37,10 @@ class QuorumProtSpec extends WordSpec with ShouldMatchers {
     }
   }
 
+  def getAllVersions(ns : SpecificNamespace[IntRec, IntRec], key : Int) : List[Int] = {
+    ns.getAllVersions(IntRec(key)).map(_._2.get.f1)
+  }
+
   "A Quorum Protocl" should {
 
     "respond after the read quorum" in {
@@ -66,13 +70,13 @@ class QuorumProtSpec extends WordSpec with ShouldMatchers {
       messageHandler.blockReceivers(blockedPartitions)
       ns.put(IntRec(1), IntRec(2))
       messageHandler.unblockReceivers(blockedPartitions)
-      var values = ns.getAllVersions(IntRec(1)).map(_.get.f1)
+      var values = getAllVersions(ns, 1)
 
       values should contain(1)
       values should contain(2)
       ns.get(IntRec(1)) //should trigger read repair
       Thread.sleep(1000)      
-      values = ns.getAllVersions(IntRec(1)).map(_.get.f1)
+      values = getAllVersions(ns, 1)
       values should have length (3)
       values should (contain (2) and not contain (1))
     }
@@ -86,12 +90,12 @@ class QuorumProtSpec extends WordSpec with ShouldMatchers {
       messageHandler.blockReceivers(blockedPartitions)
       ns.put(IntRec(1), IntRec(2))
       messageHandler.unblockReceivers(blockedPartitions)
-      var values = ns.getAllVersions(IntRec(1)).map(_.get.f1)
+      var values = getAllVersions(ns, 1)
       values should contain(1)
       values should contain(2)
       ns.get(IntRec(1)) //should trigger read repair
       Thread.sleep(1000)
-      values = ns.getAllVersions(IntRec(1)).map(_.get.f1)
+      values = getAllVersions(ns, 1)
       values should have length (10)
       values should (contain (2) and not contain (1))
 
@@ -105,11 +109,9 @@ class QuorumProtSpec extends WordSpec with ShouldMatchers {
       (1 to 50).foreach(i => ns.put(IntRec(i),IntRec(2)))
       messageHandler.unblockReceivers(blockedPartitions)
       ns.getRange(None, None)
-      val allVersions = (1 to 50).flatMap(i => ns.getAllVersions(IntRec(i)).map(_.get.f1))
+      val allVersions = (1 to 50).flatMap(i => getAllVersions(ns, i))
       allVersions should (contain (2) and not contain (1))
     }
-
-    "tolerate dead servers" is (pending)
 
     "tolerate message delays" is (pending)
 

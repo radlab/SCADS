@@ -23,6 +23,7 @@ object TestScalaEngine {
   /** The default name for a test scads cluster */
   private val TestCluster = "testScads"
 
+
   private def makeScadsTempDir() = {
     val tempDir = File.createTempFile("scads", "testdb")
     /* This strange sequence of delete and mkdir is required so that BDB can
@@ -35,11 +36,13 @@ object TestScalaEngine {
   /**
    * Returns a ScadsCluster instance for the cluster `testScads` guaranteed to 
    * contain at least one node.
+   * Creates a new StorageHandler
    */
   def getTestCluster(): ScadsCluster = {
     val handler = getTestHandler()
     new ScadsCluster(handler.root)
   }
+
 
   /**
    * Create and return a fresh scala engine, guaranteed to use a BDB 

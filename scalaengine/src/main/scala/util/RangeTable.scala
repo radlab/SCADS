@@ -15,8 +15,9 @@ class RangeTable[KeyType, ValueType](
         val rTable: Array[RangeType[KeyType, ValueType]],
         val keyComparator: Comparator[RangeType[KeyType, ValueType]],
         val mergeCondition: (List[ValueType], List[ValueType]) => Boolean) {
-  require(rTable.length > 0)
-  require(rTable.head.startKey == None)
+  require(rTable.length > 0 , "At least the startKey (None) has to exist at any time")
+  require(rTable.head.startKey == None, "First key has to be None, but was " + rTable.head.startKey )
+
 
   /**
    *  Helper constructor for creating the Comparator

@@ -88,7 +88,7 @@ class ZooKeeperProxy(val address: String) extends Watcher {
       })
 
     def waitUntilPropagated() {
-      wait(propagationTime)
+      Thread.sleep(propagationTime)
     }
 
     @inline private def childrenMap: Map[String, ZooKeeperNode] =

@@ -72,21 +72,39 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
   }
 
   /**
-   * Returns all value versions for a given key. Does not perform read-repair. 
-   * r
+   * Returns all value versions for a given key. Does not perform read-repair.
    */
-  def getAllVersions[K <: KeyType](key: K): List[Option[ValueType]] = {
-    val (servers, quorum) = readQuorumForKey(key)
+  def getAllVersions[K <: KeyType](key: K): List[(PartitionService, Option[ValueType])] = {
+    val (partitions, quorum) = readQuorumForKey(key)
     val serKey = serializeKey(key)
     val getRequest = GetRequest(serKey)
 
-    val resp = servers.map(_ !? getRequest)
-
-    servers.map(_ !? getRequest match {
-      case GetResponse(v) => extractValueFromRecord(v)
-      case u => throw new RuntimeException("Unexpected message during get.")
-    })
+    for (partition <- partitions) yield {
+      val values = partition !? getRequest match {
+        case GetResponse(v) => extractValueFromRecord(v)
+        case u => throw new RuntimeException("Unexpected message during get.")
+      }
+      (partition, values) 
+    }
  }
+
+  def getAllRangeVersions(startKey: Option[KeyType], endKey: Option[KeyType]) : List[(PartitionService, List[(KeyType, ValueType)])] = {
+    val ranges = serversForRange(startKey, endKey)
+    val sKey = startKey.map(serializeKey(_))
+    val eKey = endKey.map(serializeKey(_))
+    var rangeRequest = new GetRangeRequest(sKey, eKey, None, None, true)
+    var result : List[(PartitionService, List[(KeyType, ValueType)])] = Nil
+    for(partitions <- ranges) {
+      for(partition <- partitions) {
+        val values = partition !? rangeRequest  match {
+           case GetRangeResponse(v) => v.map(a => (deserializeKey(a.key), extractValueFromRecord(a.value).get))
+           case _ => throw new RuntimeException("Unexpected Message")
+        }
+        result = (partition, values) :: result
+      }
+    }
+    result.reverse
+  }
 
   def put[K <: KeyType, V <: ValueType](key: K, value: Option[V]): Unit = {
     val (servers, quorum) = writeQuorumForKey(key)
@@ -204,7 +222,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
       val result = future() match {
         case GetRangeResponse(v) => v
         case GetPrefixResponse(v) => v
-        case _ => throw new RuntimeException("")
+        case _ => throw new RuntimeException("Unexpected Message")
       }
 
 

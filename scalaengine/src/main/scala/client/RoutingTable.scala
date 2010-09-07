@@ -48,7 +48,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     for (range <- ranges.reverse) {
       startKey = range._1
       val handlers = createPartitions(startKey, endKey, range._2)
-      rTable(i) = new RangeType[KeyType, PartitionService](endKey, handlers)
+      rTable(i) = new RangeType[KeyType, PartitionService](startKey, handlers)
       endKey = startKey
       i -= 1
     }
@@ -70,37 +70,64 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     (for (range <- ranges) yield range.values).toList
   }
 
-  def splitPartition(splitPoint: KeyType): Unit = {
-    require(!routingTable.isSplitKey(splitPoint)) //Otherwise it is already a split point
-    val bound = routingTable.lowerUpperBound(splitPoint)
-    val oldPartitions = bound.center.values
-    val storageServers = oldPartitions.map(_.storageService)
-    val leftPart = createPartitions(bound.center.startKey, Some(splitPoint), storageServers)
-    val rightPart = createPartitions(Some(splitPoint), bound.right.startKey, storageServers)
-
-    routingTable = routingTable.split(splitPoint, leftPart, rightPart)
+  def splitPartition(splitPoints: List[KeyType]): Unit = {
+    var oldPartitions = for(splitPoint <- splitPoints) yield {
+      require(!routingTable.isSplitKey(splitPoint)) //Otherwise it is already a split point
+      val bound = routingTable.lowerUpperBound(splitPoint)
+      val oldPartitions = bound.center.values
+      val storageServers = oldPartitions.map(_.storageService)
+      val leftPart = createPartitions(bound.center.startKey, Some(splitPoint), storageServers)
+      val rightPart = createPartitions(Some(splitPoint), bound.right.startKey, storageServers)
+      routingTable = routingTable.split(splitPoint, leftPart, rightPart)
+      oldPartitions
+    }
 
     storeAndPropagateRoutingTable()
-
-    deletePartitions(oldPartitions)
-
+    for(oldPartition <- oldPartitions)
+      deletePartitionService(oldPartition)
   }
 
-  def mergePartitions(mergeKey: KeyType): Unit = {
-    require(routingTable.checkMergeCondition(mergeKey), "Either the key is not a split key, or the sets are different and can not be merged") //Otherwise we can not merge the partitions
+  def mergePartitions(mergeKeys: List[KeyType]): Unit = {
+    val oldPartitions = for(mergeKey <- mergeKeys) yield {
+      require(routingTable.checkMergeCondition(mergeKey), "Either the key is not a split key, or the sets are different and can not be merged") //Otherwise we can not merge the partitions
 
-    val bound = routingTable.lowerUpperBound(mergeKey)
-    val leftPart = bound.left.values
-    val rightPart = bound.center.values //have to use center as this is the partition with the split key
-    val storageServers = leftPart.map(_.storageService)
-    val mergePartition = createPartitions(bound.left.startKey, bound.right.startKey, storageServers)
+      val bound = routingTable.lowerUpperBound(mergeKey)
+      val leftPart = bound.left.values
+      val rightPart = bound.center.values //have to use center as this is the partition with the split key
+      val storageServers = leftPart.map(_.storageService)
+      val mergePartition = createPartitions(bound.left.startKey, bound.right.startKey, storageServers)
 
-    routingTable = routingTable.merge(mergeKey, mergePartition)
+      routingTable = routingTable.merge(mergeKey, mergePartition)
+      (leftPart, rightPart)
+    }
 
     storeAndPropagateRoutingTable()
 
-    deletePartitions(leftPart)
-    deletePartitions(rightPart)
+    for((leftPart, rightPart) <- oldPartitions){
+      deletePartitionService(leftPart)
+      deletePartitionService(rightPart)
+    }
+  }
+
+
+  /**
+   * Replicates a partition to the given storageHandler.
+   */
+  def replicatePartitions(targets : List[(PartitionService, StorageService)]): List[PartitionService] = {
+    val result = for((partitionHandler, storageHandler) <- targets) yield {
+      val (startKey, endKey) = getStartEndKey(partitionHandler)
+      val newPartition = createPartitions(startKey, endKey, List(storageHandler)).head
+      routingTable = routingTable.addValueToRange(startKey, newPartition)
+      (newPartition, partitionHandler)
+    }
+    storeAndPropagateRoutingTable()
+    for((newPartition, oldPartition) <- result){
+      newPartition !? CopyDataRequest(oldPartition, false) match {
+        case CopyDataResponse() => ()
+        case _ => throw new RuntimeException("Unexpected Message")
+      }
+    }
+    return result.map(_._1)
   }
 
   /**
@@ -113,10 +140,11 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
       for (partition <- range.values) {
         val keys = getStartEndKey(partition)
         if (keys._1 != range.startKey || keys._2 != endKey) {
+          assert(false, "The routing table is corrupted. Partition: " + partition + " with key [" + keys._1 + "," + keys._2 + "] != [" +  range.startKey + "," + endKey + "] from table:" + routingTable)
           return false
         }
-        endKey = range.startKey
       }
+      endKey = range.startKey
     }
     return true
   }
@@ -132,40 +160,15 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
   }
 
 
-  private def getStartEndKey(partitionHandler: PartitionService): (Option[KeyType], Option[KeyType]) = {
-    // This request could be avoided if we would store the ranges in the partitionHandler.
-    // However replication is not on the critical path and so expensive anyway that it does not matter
 
-    val keys = partitionHandler !? GetResponsibilityRequest() match {
-      case GetResponsibilityResponse(s, e) => (s.map(deserializeKey(_)), e.map(deserializeKey(_)))
-      case _ => throw new RuntimeException("Unexpected Message")
+
+  def deletePartitions(partitionHandlers: List[PartitionService]): Unit = {
+    for(partitionHandler <- partitionHandlers){
+      val (startKey, endKey) = getStartEndKey(partitionHandler) //Not really needed, just an additional check
+      routingTable = routingTable.removeValueFromRange(startKey, partitionHandler)
     }
-    return keys
-  }
-
-  /**
-   * Replicates a partition to the given storageHandler.
-   */
-  def replicatePartition(partitionHandler: PartitionService, storageHandler: StorageService): PartitionService = {
-    val (startKey, endKey) = getStartEndKey(partitionHandler)
-
-    val newPartition = createPartitions(startKey, endKey, List(storageHandler)).head
-    routingTable = routingTable.addValueToRange(startKey, newPartition)
-
     storeAndPropagateRoutingTable()
-    newPartition !? CopyDataRequest(partitionHandler, false) match {
-      case CopyDataResponse() => ()
-      case _ => throw new RuntimeException("Unexpected Message")
-    }
-
-    return newPartition
-  }
-
-  def deleteReplica(partitionHandler: PartitionService): Unit = {
-    val (startKey, endKey) = getStartEndKey(partitionHandler) //Not really needed, just an additional check
-    routingTable = routingTable.removeValueFromRange(startKey, partitionHandler)
-    storeAndPropagateRoutingTable()
-    deletePartitions(List(partitionHandler))
+    deletePartitionService(partitionHandlers)
   }
 
   def partitions: RangeTable[KeyType, PartitionService] = routingTable
@@ -180,8 +183,20 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     //We do nothing.
   }
 
+  private def getStartEndKey(partitionHandler: PartitionService): (Option[KeyType], Option[KeyType]) = {
+    // This request could be avoided if we would store the ranges in the partitionHandler.
+    // However replication is not on the critical path and so expensive anyway that it does not matter
 
-  private def deletePartitions(partitions: List[PartitionService]): Unit = {
+    val keys = partitionHandler !? GetResponsibilityRequest() match {
+      case GetResponsibilityResponse(s, e) => (s.map(deserializeKey(_)), e.map(deserializeKey(_)))
+      case _ => throw new RuntimeException("Unexpected Message")
+    }
+    return keys
+  }
+
+
+
+  private def deletePartitionService(partitions: List[PartitionService]): Unit = {
     for (partition <- partitions) {
       partition.storageService !? DeletePartitionRequest(partition.partitionId) match {
         case DeletePartitionResponse() => ()
@@ -193,14 +208,12 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
 
   private def createPartitions(startKey: Option[KeyType], endKey: Option[KeyType], servers: List[StorageService])
   : List[PartitionService] = {
-    var handlers: List[PartitionService] = Nil
-    for (server <- servers) {
+    for (server <- servers) yield {
       server !? CreatePartitionRequest(namespace, startKey.map(serializeKey(_)), endKey.map(serializeKey(_))) match {
-        case CreatePartitionResponse(partitionActor) => handlers = partitionActor :: handlers
+        case CreatePartitionResponse(partitionActor) => partitionActor
         case _ => throw new RuntimeException("Unexpected Message")
       }
     }
-    return handlers
   }
 
 
@@ -246,5 +259,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
         a.corresponds(b)((v1, v2) => v1.id == v2.id)
       })
   }
+
+
 
 }

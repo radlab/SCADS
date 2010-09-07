@@ -12,6 +12,7 @@ import com.googlecode.avro.marker.AvroRecord
 
 @RunWith(classOf[JUnitRunner])
 class KeyValueStoreSpec extends Spec with ShouldMatchers {
+  val storageHandlers = TestScalaEngine.getTestHandler(5)
   val cluster = TestScalaEngine.getTestCluster()
 
   implicit def toOption[A](a: A): Option[A] = Option(a)
@@ -117,7 +118,7 @@ class KeyValueStoreSpec extends Spec with ShouldMatchers {
     it("should return all versions") {
       val ns = cluster.getNamespace[IntRec, StringRec]("allversions")
       ns.put(IntRec(1), StringRec("string1"))
-      val values = ns.getAllVersions(IntRec(1)).map(_.get.f1)
+      val values = ns.getAllVersions(IntRec(1)).map(_._2.get.f1)
       values should contain ("string1")
     }
 
