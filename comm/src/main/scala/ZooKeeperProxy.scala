@@ -20,12 +20,12 @@ object RClusterZoo extends ZooKeeperProxy("r2:2181")
  *
  * Instances of ZooKeeperProxy and ZooKeeperNode are thread-safe 
  */
-class ZooKeeperProxy(val address: String) extends Watcher {
+class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watcher {
  
   protected val logger = Logger.getLogger("scads.zookeeper")
 
   // must be volatile because it's set from watcher thread
-  @volatile protected var conn = new ZooKeeper(address, 10000, this)
+  @volatile protected var conn = new ZooKeeper(address, timeout, this)
 
   /** 
    * maintains a canonical mapping of (full) zookeeper path to a zookeeper
@@ -33,7 +33,6 @@ class ZooKeeperProxy(val address: String) extends Watcher {
    */
   private final val canonicalMap = new ConcurrentHashMap[String, ZooKeeperNode]
 
-  val propagationTime = 100 //TODO Michael should read the real value from the config
   val root = getOrElseUpdateNode("/", new ZooKeeperNode("/"))
 
   def close() = conn.close()
@@ -88,7 +87,7 @@ class ZooKeeperProxy(val address: String) extends Watcher {
       })
 
     def waitUntilPropagated() {
-      Thread.sleep(propagationTime)
+      Thread.sleep(timeout)
     }
 
     @inline private def childrenMap: Map[String, ZooKeeperNode] =
