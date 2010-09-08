@@ -1,27 +1,28 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-	<modelVersion>4.0.0</modelVersion>
-	<groupId>edu.berkeley.cs.scads</groupId>
-	<artifactId>scads</artifactId>
-	<version>2.1.0-SNAPSHOT</version>
-	<name>Scalable Consistency Adjustable Data Storage</name>
-	<parent>
-		<groupId>edu.berkeley.cs.radlab</groupId>
-		<artifactId>ScalaAvroProject</artifactId>
-		<version>2.1.0-SNAPSHOT</version>
-	</parent>
-	<packaging>pom</packaging>
-	<modules>
-		<module>config</module>
-		<module>comm</module>
-		<module>scalaengine</module>
-	</modules>
-	<dependencies>
-		<dependency>
-			<groupId>log4j</groupId>
-			<artifactId>log4j</artifactId>
-			<version>1.2.15</version>
-		</dependency>
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>edu.berkeley.cs.scads</groupId>
+  <artifactId>scads</artifactId>
+  <version>2.1.0-SNAPSHOT</version>
+  <name>Scalable Consistency Adjustable Data Storage</name>
+  <parent>
+    <groupId>edu.berkeley.cs.radlab</groupId>
+    <artifactId>ScalaAvroProject</artifactId>
+    <version>2.1.0-SNAPSHOT</version>
+  </parent>
+  <packaging>pom</packaging>
+  <modules>
+    <module>config</module>
+    <module>comm</module>
+    <module>scalaengine</module>
+    <module>mesos</module>
+  </modules>
+  <dependencies>
+    <dependency>
+      <groupId>log4j</groupId>
+      <artifactId>log4j</artifactId>
+      <version>1.2.15</version>
+    </dependency>
     <dependency>
       <groupId>org.scalatest</groupId>
       <artifactId>scalatest</artifactId>
@@ -34,29 +35,29 @@
       <version>4.7</version>
       <scope>test</scope>
     </dependency>
-	</dependencies>
-	<build>
-		<testResources>
-			<testResource>
-				<directory>src/test/resources</directory>
-				<includes>
-					<include>test-log4j.properties</include>
-				</includes>
-			</testResource>
-		</testResources>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<systemProperties>
-						<property>
-							<name>log4j.configuration</name>
-							<value>test-log4j.properties</value>
-						</property>
-					</systemProperties>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
+  </dependencies>
+  <build>
+    <testResources>
+      <testResource>
+        <directory>src/test/resources</directory>
+        <includes>
+          <include>test-log4j.properties</include>
+        </includes>
+      </testResource>
+    </testResources>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemProperties>
+            <property>
+              <name>log4j.configuration</name>
+              <value>test-log4j.properties</value>
+            </property>
+          </systemProperties>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>
