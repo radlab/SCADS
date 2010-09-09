@@ -21,27 +21,26 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
     db.close()
   }
 
-  @inline private def isInRange(key: Array[Byte]) =
+  @inline private def isInRange(key: Array[Byte], includeMaxKey: Boolean) =
     startKey.map(sk => compare(sk, key) <= 0).getOrElse(true) &&
-    endKey.map(ek => compare(ek, key) > 0).getOrElse(true) // must be > b/c endKey is exclusive
+    endKey.map(ek => if (includeMaxKey) compare(ek, key) >= 0 else compare(ek, key) > 0).getOrElse(true)
 
   protected def process(src: Option[RemoteActorProxy], msg: PartitionServiceOperation): Unit = {
     def reply(msg: MessageBody) = src.foreach(_ ! msg)
 
     // key validation
-    val keysToValidate = msg match {
-      case GetRequest(key) => List(key)
-      case PutRequest(key, _) => List(key)
+    val keysInRange = msg match {
+      case GetRequest(key) => isInRange(key, false)
+      case PutRequest(key, _) => isInRange(key, false)
       case GetRangeRequest(minKey, maxKey, _, _, _) =>
-        minKey.toList ::: maxKey.toList
+        minKey.map(k => isInRange(k, false)).getOrElse(true) && maxKey.map(k => isInRange(k, true)).getOrElse(true)
       case CountRangeRequest(minKey, maxKey) =>
-        minKey.toList ::: maxKey.toList
-      case TestSetRequest(key, _, _) => List(key)
-      case _ => Nil
+        minKey.map(k => isInRange(k, false)).getOrElse(true) && maxKey.map(k => isInRange(k, true)).getOrElse(true)
+      case TestSetRequest(key, _, _) => isInRange(key, false)
+      case _ => true 
     }
 
-    val outOfRangeKeys = keysToValidate filter { key => !isInRange(key) }
-    if (outOfRangeKeys.isEmpty) {
+    if (keysInRange) {
       /** Invariant: All keys as input from client are valid for this
        * partition */
       msg match {
@@ -58,19 +57,17 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           reply(PutResponse())
         }
         case GetRangeRequest(minKey, maxKey, limit, offset, ascending) => {
-          // TODO: check if maxKey == endKey, and if so, pass includeMaxKey =
-          // false to iterateOverRange
+          val maxIsEnd = JArrays.equals(endKey.orNull, maxKey.orNull)
           val records = new scala.collection.mutable.ListBuffer[Record]
-          iterateOverRange(minKey, maxKey, limit, offset, ascending)((key, value, _) => {
+          iterateOverRange(minKey, maxKey, limit, offset, ascending, !maxIsEnd)((key, value, _) => {
             records += Record(key.getData, value.getData)
           })
           reply(GetRangeResponse(records.toList))
         }
         case CountRangeRequest(minKey, maxKey) => {
-          // TODO: check if maxKey == endKey, and if so, pass includeMaxKey =
-          // false to iterateOverRange
+          val maxIsEnd = JArrays.equals(endKey.orNull, maxKey.orNull)
           var count = 0
-          iterateOverRange(minKey, maxKey)((_,_,_) => count += 1)
+          iterateOverRange(minKey, maxKey, includeMaxKey = !maxIsEnd)((_,_,_) => count += 1)
           reply(CountRangeResponse(count))
         }
         case TestSetRequest(key, value, expectedValue) => {
@@ -120,7 +117,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
         case _ => src.foreach(_ ! ProcessingException("Not Implemented", ""))
       }
     } else {
-      reply(RequestRejected("The following keys are out of range: %s".format(outOfRangeKeys.mkString(",")), msg))
+      reply(RequestRejected("Key(s) are out of range", msg))
     }
   }
 
@@ -135,7 +132,6 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
   // TODO: points to validate 
   // (1) should iterateOverRange be private? 
   // (2) does it have to validate {min,max}Key?
-  // (3) currently, maxKey is *included* in the iteration, should it be excluded?
   def iterateOverRange(minKey: Option[Array[Byte]], 
                        maxKey: Option[Array[Byte]], 
                        limit: Option[Int] = None, 
