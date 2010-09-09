@@ -180,7 +180,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
 
   def size(): Int = throw new RuntimeException("Unimplemented")
 
-  def ++=(that: Iterable[(KeyType, ValueType)]): Unit = throw new RuntimeException("Unimplemented")
+  def ++=(that: Iterable[(KeyType, ValueType)]): Unit = that.foreach(r => put(r._1, r._2))
 
 
   /**
