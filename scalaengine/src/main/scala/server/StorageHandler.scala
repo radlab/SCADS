@@ -12,16 +12,29 @@ import org.apache.zookeeper.CreateMode
 
 import java.util.Comparator
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
+import java.util.{ Arrays => JArrays }
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.{ Set => MSet, HashSet }
 
 import org.apache.zookeeper.KeeperException.NodeExistsException
 
+object StorageHandler {
+  val idGen = new AtomicLong
+}
+
 /**
  * Basic implementation of a storage handler using BDB as a backend.
  */
-class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) extends ServiceHandler[StorageServiceOperation] {
+class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) 
+  extends ServiceHandler[StorageServiceOperation] {
+
+  val counterId = StorageHandler.idGen.getAndIncrement()
+
+  override def toString = 
+    "<CounterID: %d, EnvDir: %s, Handle: %s>".format(counterId, env.getHome.getCanonicalPath, remoteHandle)
+
   /** Logger must be lazy so we can reference in startup() */
   protected lazy val logger = Logger.getLogger("scads.storagehandler")
   implicit def toOption[A](a: A): Option[A] = Option(a)
@@ -30,11 +43,26 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
    * Must also be lazy so we can reference in startup() */
   protected lazy val partitions = new ConcurrentHashMap[String, PartitionHandler]
 
+  /**
+   * Factory for NamespaceContext
+   */
+  object NamespaceContext {
+    def apply(schema: Schema): NamespaceContext = {
+      val comparator = new AvroComparator { val keySchema = schema }
+      NamespaceContext(comparator, new HashSet[(String, PartitionHandler)])
+    }
+  }
+
+  /**
+   * Contains metadata for namespace
+   */
+  case class NamespaceContext(comparator: AvroComparator, partitions: MSet[(String, PartitionHandler)])
+
   /** 
    * Map of namespaces to currently open partitions for that namespace.
    * The values of this map (mutable sets) must be synchronized on before reading/writing 
    */
-  protected lazy val namespaces = new ConcurrentHashMap[String, MSet[String]]
+  protected lazy val namespaces = new ConcurrentHashMap[String, NamespaceContext]
 
   /* Register a shutdown hook for proper cleanup */
   class SDRunner(sh: ServiceHandler[_]) extends Thread {
@@ -152,8 +180,8 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
       /* Add to our list of open partitions */
       partitions.put(partitionId, handler)
 
-      val lock = getLockForNamespace(request.namespace) 
-      lock += partitionId
+      val ctx = getContextForNamespace(request.namespace) 
+      ctx.partitions += ((partitionId, handler))
 
     }
     cursor.close()
@@ -161,22 +189,21 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
   }
 
   /**
-   * Lock for a namespace is a set which contains a set of active partition
-   * IDs for that namespace. synchronize on the set before performing any
-   * actions on the namespace.
+   * WARNING: you must synchronize on the context for a namespace before
+   * performaning any mutating operations
    *
    * TODO: in the current implementation, once a namespace lock is created, it
    * remains for the duration of the JVM process (and is thus not eligible for
    * GC). this makes implementation easier (since we don't have to worry about
    * locks changing over time), but wastes memory
    */
-  private def getLockForNamespace(namespace: String) = {
+  private def getContextForNamespace(namespace: String) = {
     val test = namespaces.get(namespace)
     if (test ne null)
       test
     else {
-      val set0 = new HashSet[String]
-      Option(namespaces.putIfAbsent(namespace, set0)) getOrElse set0
+      val ctx = NamespaceContext(keySchemaFor(namespace))
+      Option(namespaces.putIfAbsent(namespace, ctx)) getOrElse ctx
     }
   }
 
@@ -204,6 +231,8 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
 
     msg match {
       case createRequest @ CreatePartitionRequest(namespace, startKey, endKey) => {
+        logger.info("[%s] CreatePartitionRequest for namespace %s, [%s, %s)".format(this, namespace, JArrays.toString(startKey.orNull), JArrays.toString(endKey.orNull)))
+
         /* Grab root to namespace from ZooKeeper */
         val nsRoot = getNamespaceRoot(namespace)
 
@@ -212,15 +241,17 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
         val partitionIdLock = nsRoot("partitions").createChild(namespace, mode = CreateMode.EPHEMERAL_SEQUENTIAL)
         val partitionId = partitionIdLock.name
 
-        logger.info("Active partitions after insertion in ZooKeeper: %s".format(nsRoot("partitions").children.mkString(",")))
+        //logger.info("Active partitions after insertion in ZooKeeper: %s".format(nsRoot("partitions").children.mkString(",")))
 
-        val lock = getLockForNamespace(namespace) 
+        logger.info("%d active partitions after insertion in ZooKeeper".format(nsRoot("partitions").children.size))
+
+        val ctx = getContextForNamespace(namespace) 
 
         /* For now, the creation of DBs under a namespace are executed
          * serially. It is assumed that a single node will not run multiple
          * storage handlers sharing the same namespaces (which allows us to
          * lock the namespace in memory. */
-        val db = lock.synchronized {
+        val handler = ctx.synchronized {
 
           /* Start a new transaction to atomically make both the namespace DB,
           * and add an entry into the partition DB */
@@ -235,19 +266,23 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
           /* for now, let errors propogate up to the exception handler */
           txn.commit()
 
-          /* On success, add this partitionId to the lock set */
-          lock += partitionId
+          /* Make partition handler from request */
+          val handler = makePartitionHandler(newDb, namespace, partitionIdLock, startKey, endKey)
 
-          newDb
+          /* Add to our list of open partitions */
+          val test = partitions.put(partitionId, handler)
+          assert(test eq null, "Partition ID was not unique: %s".format(partitionId))
+
+          /* On success, add this partitionId to the ctx set */
+          val succ = ctx.partitions.add((partitionId, handler))
+          assert(succ, "Handler not successfully added to partitions")
+
+          logger.info("[%s] %d active partitions after insertion on this StorageHandler".format(this, ctx.partitions.size))
+
+          handler
         }
 
-        /* Make partition handler from request */
-        val handler = makePartitionHandler(db, namespace, partitionIdLock, startKey, endKey)
-
-        /* Add to our list of open partitions */
-        partitions.put(partitionId, handler)
-
-        logger.info("Partition " + partitionId + " created")
+        logger.info("Partition %s in namespace %s created".format(partitionId, namespace))
         reply(CreatePartitionResponse( handler.remoteHandle.toPartitionService(partitionId, remoteHandle.toStorageService)) )
       }
       case DeletePartitionRequest(partitionId) => {
@@ -259,12 +294,15 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
         val dbName = handler.db.getDatabaseName /* dbName is namespace */
         val dbEnv  = handler.db.getEnvironment
 
-        logger.info("Stopping partition handler for partition " + partitionId)
-        handler.stop
+        //logger.info("Unregistering handler from MessageHandler for partition %s in namespace %s".format(partitionId, dbName))
+        handler.stopListening
 
-        val lock = getLockForNamespace(dbName)
-        lock.synchronized {
-          lock -= partitionId
+        logger.info("[%s] Deleting partition [%s, %s) for namespace %s".format(this, JArrays.toString(handler.startKey.orNull), JArrays.toString(handler.endKey.orNull), dbName))
+
+        val ctx = getContextForNamespace(dbName)
+        ctx.synchronized {
+          val succ = ctx.partitions.remove((partitionId, handler))
+          assert(succ, "Handler not successfully removed from partitions")
 
           /* Delete from partitionDB, and (possibly) delete the database in a
           * single transaction */
@@ -273,19 +311,36 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) e
           /* Remove from bdb map */
           partitionDb.delete(txn, new DatabaseEntry(partitionId.getBytes))
 
-          if (lock.isEmpty) {
+          if (ctx.partitions.isEmpty) {
             /* Remove database from environment- this removes all the data
             * associated with the database */
-            logger.info("Deleting database %s".format(dbName))
+            logger.info("[%s] Deleting database %s for namespace %s".format(this, dbName, dbName))
+            handler.db.close() /* Close underlying DB */
             dbEnv.removeDatabase(txn, dbName)
           } else {
-            logger.info("Deleting only the keys in range of the partition")
-            /* Remove the keys in range of the partition */
-            handler.deleteEntireRange(txn)
+            logger.info("[%s] Garbage collecting inaccessible keys, since %d partitions in namespace %s remain".format(this, ctx.partitions.size, dbName))
+
+            implicit def orderedByteArrayView(thiz: Array[Byte]) = new Ordered[Array[Byte]] {
+              def compare(that: Array[Byte]) = ctx.comparator.compare(thiz, that) 
+            }
+
+            val thisPartition = handler
+            var thisSlice = Slice(thisPartition.startKey, thisPartition.endKey)
+            ctx.partitions.foreach { t =>
+              val thatPartition = t._2
+              val thatSlice = Slice(thatPartition.startKey, thatPartition.endKey)
+              thisSlice = thisSlice.remove(thatSlice) /* Remove (from deletion) slice which cannot be deleted */
+            }
+            thisSlice.foreach((startKey, endKey) => {
+              logger.info("++ [%s] Deleting range: [%s, %s)".format(this, JArrays.toString(startKey.orNull), JArrays.toString(endKey.orNull)))
+              handler.deleteRange(startKey, endKey, false, txn)
+            })
           }
 
           txn.commit()
         }
+
+        handler.stop
 
         reply(DeletePartitionResponse())
       }

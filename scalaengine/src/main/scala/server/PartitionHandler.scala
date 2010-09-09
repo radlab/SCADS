@@ -6,6 +6,11 @@ import org.apache.log4j.Logger
 
 import edu.berkeley.cs.scads.comm._
 
+import java.util.{ Arrays => JArrays }
+
+/**
+ * Handles a partition from [startKey, endKey)
+ */
 class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, val startKey: Option[Array[Byte]], val endKey: Option[Array[Byte]], val nsRoot: ZooKeeperProxy#ZooKeeperNode, val keySchema: Schema) extends ServiceHandler[PartitionServiceOperation] with AvroComparator {
   protected val logger = Logger.getLogger("scads.partitionhandler")
   implicit def toOption[A](a: A): Option[A] = Option(a)
@@ -16,9 +21,9 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
     db.close()
   }
 
-  private def isInRange(key: Array[Byte]) =
+  @inline private def isInRange(key: Array[Byte]) =
     startKey.map(sk => compare(sk, key) <= 0).getOrElse(true) &&
-    endKey.map(ek => compare(ek, key) >= 0).getOrElse(true)
+    endKey.map(ek => compare(ek, key) > 0).getOrElse(true) // must be > b/c endKey is exclusive
 
   protected def process(src: Option[RemoteActorProxy], msg: PartitionServiceOperation): Unit = {
     def reply(msg: MessageBody) = src.foreach(_ ! msg)
@@ -53,13 +58,17 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           reply(PutResponse())
         }
         case GetRangeRequest(minKey, maxKey, limit, offset, ascending) => {
-          val records = new scala.collection.mutable.ArrayBuffer[Record]
+          // TODO: check if maxKey == endKey, and if so, pass includeMaxKey =
+          // false to iterateOverRange
+          val records = new scala.collection.mutable.ListBuffer[Record]
           iterateOverRange(minKey, maxKey, limit, offset, ascending)((key, value, _) => {
             records += Record(key.getData, value.getData)
           })
           reply(GetRangeResponse(records.toList))
         }
         case CountRangeRequest(minKey, maxKey) => {
+          // TODO: check if maxKey == endKey, and if so, pass includeMaxKey =
+          // false to iterateOverRange
           var count = 0
           iterateOverRange(minKey, maxKey)((_,_,_) => count += 1)
           reply(CountRangeResponse(count))
@@ -69,7 +78,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           val dbeKey = new DatabaseEntry(key)
           val dbeCurrentValue = new DatabaseEntry
           db.get(txn, dbeKey, dbeCurrentValue, LockMode.READ_COMMITTED)
-          if(java.util.Arrays.equals(expectedValue.orNull, dbeCurrentValue.getData)){
+          if(JArrays.equals(expectedValue.orNull, dbeCurrentValue.getData)){
             value match {
               case Some(v) => db.put(txn, dbeKey, new DatabaseEntry(v))
               case None => db.delete(txn, dbeKey)
@@ -115,15 +124,26 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
     }
   }
 
-  def deleteEntireRange(txn: Option[Transaction]) {
-    iterateOverRange(startKey, endKey, txn = txn)((_, _, cursor) => {
+  def deleteEntireRange(txn: Option[Transaction]) { deleteRange(startKey, endKey, false, txn) }
+
+  def deleteRange(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], includeMaxKey: Boolean, txn: Option[Transaction]) {
+    iterateOverRange(startKey, endKey, includeMaxKey = includeMaxKey, txn = txn)((_, _, cursor) => {
       cursor.delete()
     })
   }
 
-  // TODO: should iterateOverRange be private? does it have to validate
-  // {min,max}Key?
-  def iterateOverRange(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true, txn: Option[Transaction] = None)(func: (DatabaseEntry, DatabaseEntry, Cursor) => Unit): Unit = {
+  // TODO: points to validate 
+  // (1) should iterateOverRange be private? 
+  // (2) does it have to validate {min,max}Key?
+  // (3) currently, maxKey is *included* in the iteration, should it be excluded?
+  def iterateOverRange(minKey: Option[Array[Byte]], 
+                       maxKey: Option[Array[Byte]], 
+                       limit: Option[Int] = None, 
+                       offset: Option[Int] = None, 
+                       ascending: Boolean = true, 
+                       includeMaxKey: Boolean = true,
+                       txn: Option[Transaction] = None)
+      (func: (DatabaseEntry, DatabaseEntry, Cursor) => Unit): Unit = {
     val (dbeKey, dbeValue) = (new DatabaseEntry, new DatabaseEntry)
     val cur = db.openCursor(txn.orNull,null)
 
@@ -153,7 +173,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
       status = cur.getCurrent(dbeKey, dbeValue, null)
       while(status == OperationStatus.SUCCESS &&
             limit.map(_ > returnedCount).getOrElse(true) &&
-            maxKey.map(compare(dbeKey.getData, _) <= 0).getOrElse(true)) {
+            maxKey.map(mk => if (includeMaxKey) compare(dbeKey.getData, mk) <= 0 else compare(dbeKey.getData, mk) < 0).getOrElse(true)) {
         func(dbeKey, dbeValue, cur)
         returnedCount += 1
         status = cur.getNext(dbeKey, dbeValue, null)

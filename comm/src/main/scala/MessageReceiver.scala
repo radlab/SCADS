@@ -63,11 +63,20 @@ abstract class ServiceHandler[MessageType <: MessageBody] extends MessageReceive
   /* Callback for when a message is received */
   protected def process(src: Option[RemoteActorProxy], msg: MessageType): Unit
 
-  def stop: Unit = {
+  def stop {
+    stopListening
+    executor.shutdownNow()
+    shutdown()
+  }
+
+  /**
+   * Un-registers this ServiceHandler from the MessageHandler. After calling
+   * stopListening, this ServiceHandler will no longer receive new requests.
+   * However, its resources will open until stop is called explicitly
+   */
+  def stopListening {
     startupGuard.await() /* Let the service start up properly first, before shutting down */
     MessageHandler.unregisterActor(remoteHandle)
-    executor.shutdown()
-    shutdown()
   }
 
   /* Request handler class to be executed on this StorageHandlers threadpool */

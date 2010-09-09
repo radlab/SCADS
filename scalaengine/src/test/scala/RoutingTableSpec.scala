@@ -62,7 +62,9 @@ class RoutingTableSpec extends WordSpec with ShouldMatchers {
             (100 ,storageServices.slice(7,10))))
       (1 to 150 by 5).foreach(i => ns.put(IntRec(i), IntRec(i)))
       val partitionToDelete = ns.partitions.ranges(1).values(0)
+      println("Going to delete partition: %s".format(partitionToDelete))
       ns.deletePartitions(List(partitionToDelete))
+      println("DONE deleting partition")
       ns.getRange(None, None).map(_._1.f1) should equal (1 to 150 by 5)
       for(x <- (1 to 150 by 5)){
         ns.get(IntRec(x)).getOrElse(IntRec(-1)).f1 should equal (x)

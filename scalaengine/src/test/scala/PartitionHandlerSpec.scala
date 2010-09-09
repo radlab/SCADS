@@ -77,7 +77,7 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers {
     }
 
     it("should reject requests which fall outside of its partition range") {
-      val p1 = getHandler(IntRec(0), IntRec(10))
+      val p1 = getHandler(IntRec(0), IntRec(10)) // [0, 10)
       val VALUE = IntRec(0).toBytes
 
       try {
@@ -94,9 +94,9 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers {
         case u => fail("0 falls inside of range of p1's key range: " + u)
       }
 
-      p1 !? PutRequest(IntRec(10).toBytes, VALUE) match {
+      p1 !? PutRequest(IntRec(9).toBytes, VALUE) match {
         case PutResponse() =>
-        case u => fail("10 falls inside of range of p1's key range: " + u)
+        case u => fail("9 falls inside of range of p1's key range: " + u)
       }
 
       try {

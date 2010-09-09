@@ -41,7 +41,7 @@ class QuorumProtSpec extends WordSpec with ShouldMatchers {
     ns.getAllVersions(IntRec(key)).map(_._2.get.f1)
   }
 
-  "A Quorum Protocl" should {
+  "A Quorum Protocol" should {
 
     "respond after the read quorum" in {
 

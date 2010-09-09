@@ -138,7 +138,7 @@ class MessageHandler extends AvroChannelManager[Message, Message] {
 
 object MessageHandler  {
 
-  var instance : MessageHandler = MessageHandlerFactory.create
+  lazy val instance : MessageHandler = MessageHandlerFactory.create
 
   def get() : MessageHandler = instance
 
@@ -165,7 +165,7 @@ object MessageHandler  {
 
 object MessageHandlerFactory  {
 
-  var creatorFn : () => MessageHandler = () => {
+  @volatile var creatorFn : () => MessageHandler = () => {
     println("Created a msgHandler")
    new MessageHandler()
  }
