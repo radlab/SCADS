@@ -159,7 +159,7 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
         found = true
       } catch {
         case ex: Exception => 
-          logger.error("Could not listen on port %d".format(port), ex)
+          logger.warn("Could not listen on port %d, trying %d".format(port, port + 1))
           port += 1
       } finally { numTries += 1 }
     }
