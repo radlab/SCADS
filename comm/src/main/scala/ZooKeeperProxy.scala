@@ -133,7 +133,7 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watc
 
     /* TODO: Implement using watches */
     def awaitChild(name: String, seqNumber: Option[Int] = None): Unit = {
-      val fullName = name + seqNumber.map(s => "%010d".format(s))
+      val fullName = seqNumber.map(s => "%s%010d".format(name, s)).getOrElse(name)
       while(get(fullName).isEmpty) {
         Thread.sleep(1000)
       }
