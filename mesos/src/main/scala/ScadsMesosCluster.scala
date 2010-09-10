@@ -7,7 +7,7 @@ import org.apache.log4j.Logger
 import org.apache.zookeeper.CreateMode
 
 import edu.berkeley.cs.scads.comm._
-import edu.berkeley.cs.scads.storage.ScadsClusterManager
+import edu.berkeley.cs.scads.storage.ScadsCluster
 
 import scala.collection.JavaConversions._
 
@@ -75,9 +75,17 @@ class ServiceScheduler(name: String) extends Scheduler {
   }
 }
 
-class ScadsMesosCluster(val root: ZooKeeperProxy#ZooKeeperNode, initialSize: Int) extends ScadsClusterManager {
+class ScadsMesosCluster(root: ZooKeeperProxy#ZooKeeperNode, initialSize: Int) extends ScadsCluster(root) {
+  val logger = Logger.getLogger("scads.mesos.scadscluster")
   val scheduler = new ServiceScheduler("ScadsCluster " + root)
   val procDesc = JvmProcess("/work/marmbrus/mesos/mesos-scads-2.1.0-SNAPSHOT-jar-with-dependencies.jar", "edu.berkeley.cs.scads.storage.ScalaEngine", "--zooKeeper" :: "169.229.48.70:2181" :: "--zooBase" :: root.name :: "--verbose" :: Nil )
 
   (1 to initialSize).foreach(i => scheduler.runService(2048, 3, procDesc))
+
+  def blockTillReady: Unit = {
+    while(getAvailableServers.size < initialSize) {
+      logger.info("Waiting for cluster to start " + getAvailableServers.size + " of " + initialSize + " ready.")
+      Thread.sleep(1000)
+    }
+  }
 }
