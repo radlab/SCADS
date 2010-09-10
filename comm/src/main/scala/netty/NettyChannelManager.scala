@@ -10,7 +10,7 @@ import channel._
 import handler.codec.frame._
 import socket.nio._
 
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 
 import org.apache.avro.specific.SpecificRecord
 
@@ -31,7 +31,7 @@ abstract class NettyChannelManager[S <: SpecificRecord, R <: SpecificRecord](
     implicit sendManifest: Manifest[S], recvManifest: Manifest[R])
   extends AvroChannelManager[S, R] {
 
-  protected val log = Logger.getLogger("scads.nettyChannelManager")
+  protected val log = Logger()
 
   private def pipelineFactory(handler: ChannelHandler) = new ChannelPipelineFactory {
     override def getPipeline() =

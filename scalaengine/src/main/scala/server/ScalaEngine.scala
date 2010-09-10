@@ -5,13 +5,13 @@ import com.sleepycat.je.EnvironmentConfig
 import com.sleepycat.je.jmx.JEMonitor
 
 import edu.berkeley.cs.scads.comm._
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 
 /**
  * Application for starting up a standalone scads storage engine
  */
 object ScalaEngine extends optional.Application {
-  private val logger = Logger.getLogger("ScalaEngine")
+  private val logger = Logger()
   def main(zooBase: Option[String], zooKeeper: Option[String], dbDir: Option[java.io.File], cachePercentage: Option[Int], verbose: Boolean) : StorageHandler = {
     if(verbose)
       org.apache.log4j.BasicConfigurator.configure()

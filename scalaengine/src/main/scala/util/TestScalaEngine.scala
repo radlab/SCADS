@@ -1,7 +1,7 @@
 package edu.berkeley.cs.scads.storage
 
 import edu.berkeley.cs.scads.comm._
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 import org.apache.avro.Schema
 import edu.berkeley.cs.scads.comm.Conversions._
 import org.apache.avro.util.Utf8
@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap
 object TestScalaEngine {
   lazy val zooKeeper = ZooKeeperHelper.getTestZooKeeper
   lazy val defaultStorageHandler = getTestHandler()
-  protected val logger = Logger.getLogger("scads.test")
+  protected val logger = Logger()
 
   /** Maps (cluster name, test node ID) -> Temp file for BDB env */
   private val tempFileMap = new ConcurrentHashMap[(String, String), File]

@@ -1,11 +1,11 @@
 package edu.berkeley.cs.scads.comm
 
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 import org.apache.log4j.BasicConfigurator
 
 object EchoActor extends MessageReceiver {
   implicit val remoteActor = MessageHandler.registerService(this)
-  protected val logger = Logger.getLogger("scads.comm.echoactor")
+  protected val logger = Logger()
 
   def receiveMessage(src: Option[RemoteActorProxy], msg: MessageBody): Unit = {
     logger.info("Received message: " + src + " " + msg)

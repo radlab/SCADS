@@ -6,7 +6,7 @@ import scala.concurrent.SyncVar
 import java.util.concurrent.{ BlockingQueue, ArrayBlockingQueue, 
                               CountDownLatch, ThreadPoolExecutor, TimeUnit}
 
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 
 trait MessageReceiver {
   def receiveMessage(src: Option[RemoteActorProxy], msg:MessageBody): Unit

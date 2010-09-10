@@ -1,6 +1,6 @@
 package edu.berkeley.cs.scads.storage
 
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 import com.sleepycat.je.{Cursor,Database, DatabaseConfig, DatabaseException, DatabaseEntry, Environment, LockMode, OperationStatus, Durability, Transaction}
 
 import edu.berkeley.cs.scads.comm._
@@ -36,7 +36,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode)
     "<CounterID: %d, EnvDir: %s, Handle: %s>".format(counterId, env.getHome.getCanonicalPath, remoteHandle)
 
   /** Logger must be lazy so we can reference in startup() */
-  protected lazy val logger = Logger.getLogger("scads.storagehandler")
+  protected lazy val logger = Logger()
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
   /** Hashmap of currently open partition handler, indexed by partitionId.
@@ -164,7 +164,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode)
              * had a race condition where the ephemeral nodes were not removed
              * in time that the node started back up. Therefore, delete the
              * existing lock file and recreate it */
-            logger.warn("Clobbering lock file! Namespace: %s, PartitionID: %d".format(request.namespace, partitionId))
+            logger.critical("Clobbering lock file! Namespace: %s, PartitionID: %d".format(request.namespace, partitionId))
             partitionsDir.deleteChild(partitionId)
             partitionsDir.createChild(partitionId)
         }

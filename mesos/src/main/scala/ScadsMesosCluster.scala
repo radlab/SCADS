@@ -2,7 +2,7 @@ package edu.berkeley.cs.scads.mesos
 
 import mesos._
 import java.io.File
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 
 import org.apache.zookeeper.CreateMode
 
@@ -25,7 +25,7 @@ class ServiceScheduler(name: String) extends Scheduler {
 
   /* Invoke this to ensure the mesos libraries are loaded.  Is there a cleaner way? */
   ScadsMesosCluster
-  val logger = Logger.getLogger("scads.mesos.scheduler")
+  val logger = Logger()
   var taskId = 0
 
   val thread = new Thread() {
@@ -67,7 +67,7 @@ class ServiceScheduler(name: String) extends Scheduler {
 
   override def statusUpdate(d: SchedulerDriver, status: TaskStatus): Unit = {
     logger.info("Status Update: " + status.getTaskId + " " + status.getState)
-    logger.debug(new String(status.getData))
+    logger.info(new String(status.getData))
   }
 
   def runService(mem: Int, cores: Int, desc: JvmProcess): Unit = synchronized {
@@ -76,7 +76,7 @@ class ServiceScheduler(name: String) extends Scheduler {
 }
 
 class ScadsMesosCluster(root: ZooKeeperProxy#ZooKeeperNode, initialSize: Int) extends ScadsCluster(root) {
-  val logger = Logger.getLogger("scads.mesos.scadscluster")
+  val logger = Logger()
   val scheduler = new ServiceScheduler("ScadsCluster " + root)
   val procDesc = JvmProcess("/work/marmbrus/mesos/mesos-scads-2.1.0-SNAPSHOT-jar-with-dependencies.jar", "edu.berkeley.cs.scads.storage.ScalaEngine", "--zooKeeper" :: "169.229.48.70:2181" :: "--zooBase" :: root.name :: "--verbose" :: Nil )
 

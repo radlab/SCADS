@@ -9,7 +9,7 @@ import edu.berkeley.cs.scads.comm._
 
 import java.util.concurrent.ConcurrentHashMap
 
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 
 import com.googlecode.avro.marker.AvroRecord
 
@@ -20,7 +20,7 @@ class ChannelManagerSpec extends Spec with ShouldMatchers {
   var currentPort = 9000
 
   class TestChannelManager extends NioAvroChannelManagerBase[TestMsg, TestMsg] {
-    val logger = Logger.getLogger("TestChannelManager")
+    val logger = Logger()
 
       /* msg -> time received */
     private val received = new ConcurrentHashMap[String,Long]
@@ -56,7 +56,7 @@ class ChannelManagerSpec extends Spec with ShouldMatchers {
       sendMessage(src, msg)
     }
   }
-  val lgr = Logger.getLogger("ChannelManagerSpec")
+  val lgr = Logger()
 
     implicit def string2testmsg(str: String):TestMsg = {
     val m = classOf[TestMsg].newInstance

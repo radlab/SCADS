@@ -4,7 +4,7 @@ import scala.concurrent.SyncVar
 import scala.actors._
 import scala.actors.Actor._
 
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 
 import com.googlecode.avro.marker.AvroRecord
 import com.googlecode.avro.marker.AvroUnion

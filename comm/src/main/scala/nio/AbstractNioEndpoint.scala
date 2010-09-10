@@ -20,13 +20,13 @@ import org.apache.avro.specific.SpecificRecord
 
 import scala.collection.mutable.ListBuffer
 
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 
 class NioEndpoint(protected val channelHandler: ChannelHandler) {
   if (channelHandler == null)
     throw new IllegalArgumentException("Cannot pass in null values to constructor")
 
-  private val logger = Logger.getLogger("AbstractNioEndpoint")
+  private val logger = Logger()
 
   var acceptEventHandler: NioAcceptEventHandler = null
   var connectEventHandler: NioConnectEventHandler = null
@@ -424,7 +424,7 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
     } catch {
       case e: IOException =>
         // Cancel the channel's registration with our selector
-        logger.error(e)
+        logger.error("failed to connect with error: %s", e.getMessage)
       key.cancel
       return
     }

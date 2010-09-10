@@ -5,13 +5,13 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.Spec
 import org.scalatest.matchers.ShouldMatchers
 
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.storage._
 
 class PartitionMock extends ServiceHandler[GetRangeRequest] {
-  val logger = Logger.getLogger("scads.test.partitionmock")
+  val logger = Logger()
   def startup(): Unit = null
   def shutdown(): Unit = null
 

@@ -12,7 +12,6 @@ object IntKeyScaleTest extends optional.Application {
   implicit def toOption[A](a: A) = Option(a)
 
   def main(clusterSize: Int, recsPerServer: Int = 100): Unit = {
-    org.apache.log4j.BasicConfigurator.configure
     println("Begining cluster scale test with " + clusterSize + " servers.")
     val cluster = ScadsMesosCluster(clusterSize)
     val coordination = cluster.root.getOrCreate("coordination")

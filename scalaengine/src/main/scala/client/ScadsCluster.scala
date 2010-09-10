@@ -9,7 +9,7 @@ import org.apache.zookeeper.CreateMode
 import org.apache.avro.util.Utf8
 import scala.actors._
 import scala.actors.Actor._
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 import org.apache.avro.generic.GenericData.{Array => AvroArray}
 import org.apache.avro.generic.{GenericData, IndexedRecord, GenericDatumWriter}
 import org.apache.avro.io.{BinaryData, BinaryEncoder}

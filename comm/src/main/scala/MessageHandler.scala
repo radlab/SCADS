@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 import scala.actors._
 
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 
 import edu.berkeley.cs.scads.config._
 
@@ -17,7 +17,7 @@ import edu.berkeley.cs.scads.config._
 object MessageHandler extends AvroChannelManager[Message, Message] {
 
   private val config = Config.config
-  private val logger = Logger.getLogger("scads.messagehandler")
+  private val logger = Logger()
 
   private val curActorId      = new AtomicLong
   private val serviceRegistry = new ConcurrentHashMap[ActorId, MessageReceiver]
@@ -135,14 +135,13 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
   private def doReceiveMessage0(src: RemoteNode, msg: Message) {
     val service = serviceRegistry.get(msg.dest)
 
-    //Ligher weight log4j that doesn't do string concat unless needed
-    edu.berkeley.Log2.debug(logger, "Received Message: ", src, " ", msg)
+    logger.debug("Received Message: %s from %s", msg, src)
 
     if(service != null) {
       service.receiveMessage(msg.src.map(RemoteActor(src.hostname, src.port, _)), msg.body)
     }
     else
-      logger.warn("Got message for an unknown service: " + msg.dest)
+      logger.critical("Got message for an unknown service: " + msg.dest)
   }
 
   /** Immediately start listener on instantiation */ 
@@ -159,7 +158,7 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
         found = true
       } catch {
         case ex: Exception => 
-          logger.warn("Could not listen on port %d, trying %d".format(port, port + 1))
+          logger.critical("Could not listen on port %d, trying %d".format(port, port + 1))
           port += 1
       } finally { numTries += 1 }
     }

@@ -6,7 +6,7 @@ import org.apache.zookeeper.Watcher.Event.KeeperState
 import org.apache.zookeeper.data.Stat
 import scala.collection.mutable.HashMap
 import scala.collection.JavaConversions._
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 
 import java.util.concurrent.ConcurrentHashMap
 
@@ -22,7 +22,7 @@ object RClusterZoo extends ZooKeeperProxy("r2:2181")
  */
 class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watcher {
  
-  protected val logger = Logger.getLogger("scads.zookeeper")
+  protected val logger = Logger()
 
   // must be volatile because it's set from watcher thread
   @volatile protected var conn = new ZooKeeper(address, timeout, this)

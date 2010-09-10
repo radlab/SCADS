@@ -13,7 +13,7 @@ import java.util.concurrent.Executor
 import org.apache.avro.io._
 import org.apache.avro.ipc._
 import org.apache.avro.specific._
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 
 import scala.reflect.Manifest.classType
 
@@ -23,6 +23,7 @@ import scala.reflect.Manifest.classType
 class DefaultNioChannelManager[S <: SpecificRecord, R <: SpecificRecord](
     recvMsg: (AvroChannelManager[S, R], RemoteNode, R) => Unit, sendClz: Class[S], recvClz: Class[R]) 
   extends NioAvroChannelManagerBase[S, R]()(classType(sendClz), classType(recvClz)) {
+
   override def receiveMessage(remoteNode: RemoteNode, msg: R) {
     recvMsg(this, remoteNode, msg)
   }
@@ -33,6 +34,7 @@ abstract class NioAvroChannelManagerBase[SendMsgType <: SpecificRecord,RecvMsgTy
 recvManifest: scala.reflect.Manifest[RecvMsgType])
 extends AvroChannelManager[SendMsgType, RecvMsgType] with ChannelHandler {
 
+  protected val logger: Logger = Logger()
   private val msgRecvClass = recvManifest.erasure.asInstanceOf[Class[RecvMsgType]]
   private val msgSendClass = sendManifest.erasure.asInstanceOf[Class[SendMsgType]]
 
@@ -105,8 +107,8 @@ extends AvroChannelManager[SendMsgType, RecvMsgType] with ChannelHandler {
   }
 
   override def startListener(port: Int): Unit = {
-    println("listener starting on port: " + port)
     endpoint.serve(new InetSocketAddress(port))
+    logger.info("Listener started on port: %d", port)
   }
 
   private val decoderFactory = new DecoderFactory

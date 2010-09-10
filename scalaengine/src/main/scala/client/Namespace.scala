@@ -3,7 +3,7 @@ package edu.berkeley.cs.scads.storage
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.storage.routing._
 
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 import org.apache.avro.Schema
 import org.apache.avro.generic.IndexedRecord
 import org.apache.zookeeper.CreateMode

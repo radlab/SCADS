@@ -5,7 +5,7 @@ import java.util.concurrent.ArrayBlockingQueue
 import scala.actors._
 import scala.actors.Actor._
 
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 
 import edu.berkeley.cs.scads.comm._
 
@@ -15,7 +15,7 @@ import edu.berkeley.cs.scads.comm._
  * Note, this iterator is not threadsafe.
  */
 class PartitionIterator(partitionService: PartitionService, minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], recsPerMessage: Int = 1000, bufferSize: Int = 5) extends Iterator[Record] {
-  val logger = Logger.getLogger("scads.partitioniterator")
+  val logger = Logger()
 
   /**
    * Queue used to exchange record sets between the actor and the consumer of the iterator

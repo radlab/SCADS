@@ -10,7 +10,7 @@ import org.apache.avro._
 import io._
 import specific._
 
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 
 import scala.reflect.Manifest.classType
 
@@ -29,7 +29,7 @@ abstract class BlockingChannelManager[S <: SpecificRecord, R <: SpecificRecord](
     implicit sendManifest: Manifest[S], recvManifest: Manifest[R])
   extends AvroChannelManager[S, R] {
 
-  protected val log = Logger.getLogger("scads.blockingChannelManager")
+  protected val log = Logger()
 
   // Avro serialization
 

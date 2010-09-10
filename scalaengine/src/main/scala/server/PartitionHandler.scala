@@ -2,7 +2,7 @@ package edu.berkeley.cs.scads.storage
 
 import com.sleepycat.je.{Cursor,Database, DatabaseConfig, DatabaseException, DatabaseEntry, Environment, LockMode, OperationStatus, Durability, Transaction}
 import org.apache.avro.Schema
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 
 import edu.berkeley.cs.scads.comm._
 
@@ -12,7 +12,7 @@ import java.util.{ Arrays => JArrays }
  * Handles a partition from [startKey, endKey)
  */
 class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, val startKey: Option[Array[Byte]], val endKey: Option[Array[Byte]], val nsRoot: ZooKeeperProxy#ZooKeeperNode, val keySchema: Schema) extends ServiceHandler[PartitionServiceOperation] with AvroComparator {
-  protected val logger = Logger.getLogger("scads.partitionhandler")
+  protected val logger = Logger()
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
   protected def startup() { /* No-op */ }

@@ -2,7 +2,7 @@ package edu.berkeley.cs.scads.mesos
 
 import edu.berkeley.cs.scads.comm._
 
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 import java.io.{File, InputStream, BufferedReader, InputStreamReader}
 import com.googlecode.avro.marker._
 import mesos._
@@ -41,7 +41,7 @@ class StreamTailer(stream: InputStream, size: Int = 100) extends Runnable {
 }
 
 class JavaExecutor extends Executor {
-  val logger = Logger.getLogger("scads.javaexecutor")
+  val logger = Logger()
   System.loadLibrary("mesos")
 
   override def launchTask(d: ExecutorDriver, taskDesc: TaskDescription): Unit = {
@@ -63,7 +63,7 @@ class JavaExecutor extends Executor {
     val proc = Runtime.getRuntime().exec(cmdLine.toArray, Array[String](), tempDir)
     val stdout = new StreamTailer(proc.getInputStream())
     val stderr = new StreamTailer(proc.getErrorStream())
-    def output = List("===stdout===", stdout.tail,  "===stderr===", stderr.tail).mkString.getBytes
+    def output = List("===stdout===", stdout.tail,  "===stderr===", stderr.tail).mkString("\n").getBytes
     d.sendStatusUpdate(new TaskStatus(taskDesc.getTaskId, TaskState.TASK_RUNNING, output))
     val result = proc.waitFor()
     val finalTaskState = result match {

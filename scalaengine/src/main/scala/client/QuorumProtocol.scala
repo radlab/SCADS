@@ -2,7 +2,7 @@ package edu.berkeley.cs.scads.storage
 
 import edu.berkeley.cs.scads.comm._
 import org.apache.avro.generic.IndexedRecord
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 import org.apache.zookeeper.CreateMode
 import java.nio.ByteBuffer
 import actors.Actor
@@ -24,7 +24,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
 
   protected val ZK_QUORUM_CONFIG = "quorumProtConfig"
 
-  protected val logger = Logger.getLogger("Namespace")
+  protected val logger = Logger()
 
   protected def serversForKey(key: KeyType): List[PartitionService]
 

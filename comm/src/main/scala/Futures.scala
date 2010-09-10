@@ -2,7 +2,7 @@ package edu.berkeley.cs.scads.comm
 
 import scala.actors._
 import scala.concurrent.SyncVar
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 
 import java.util.Queue
 import java.util.concurrent.LinkedBlockingQueue

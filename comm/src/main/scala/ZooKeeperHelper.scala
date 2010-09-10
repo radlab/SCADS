@@ -8,7 +8,7 @@ import scala.concurrent.SyncVar
 import org.apache.zookeeper.server.ServerConfig
 import org.apache.zookeeper.server.ZooKeeperServerMain
 
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 
 /**
  * Helper object for spinning up a local zookeeper instance.  Used primarily for testing.
@@ -16,7 +16,7 @@ import org.apache.log4j.Logger
 object ZooKeeperHelper {
   private val basePort = 2000
   private var currentPort = new AtomicInteger
-	private val logger = Logger.getLogger("scads.test")
+	private val logger = Logger()
 
   /**
    * Create a local zookeeper instance in JVM and return a ZooKeeperProxy for it.  Intended for testing purposes only.
@@ -43,7 +43,7 @@ object ZooKeeperHelper {
         } catch {
           case portInUse: java.net.BindException => success.set(false)
           case otherError => {
-            logger.warn("Unexpected error when creating test zookeeper: " + otherError + ". Attempting again")
+            logger.critical("Unexpected error when creating test zookeeper: " + otherError + ". Attempting again")
             success.set(false)
           }
         }
