@@ -20,7 +20,6 @@ class ChannelManagerSpec extends Spec with ShouldMatchers {
   var currentPort = 9000
 
   class TestChannelManager extends NioAvroChannelManagerBase[TestMsg, TestMsg] {
-    val logger = Logger()
 
       /* msg -> time received */
     private val received = new ConcurrentHashMap[String,Long]
