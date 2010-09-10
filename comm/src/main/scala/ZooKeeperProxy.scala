@@ -122,6 +122,23 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watc
       canonicalMap.remove(path)
     }
 
+    def deleteRecursive: Unit = {
+      children.foreach(_.deleteRecursive)
+      delete
+    }
+
+    def sequenceNumber: Int = {
+      name.drop(name.length - 10).toInt
+    }
+
+    /* TODO: Implement using watches */
+    def awaitChild(name: String, seqNumber: Option[Int] = None): Unit = {
+      val fullName = name + seqNumber.map(s => "%010d".format(s))
+      while(get(fullName).isEmpty) {
+        Thread.sleep(1000)
+      }
+    }
+
     protected def getData(watch: Boolean = false): Array[Byte] = {
       val stat = new Stat
       conn.getData(path, watch, stat)
