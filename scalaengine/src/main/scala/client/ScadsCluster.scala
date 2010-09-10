@@ -21,16 +21,13 @@ import scala.concurrent.SyncVar
 import com.googlecode.avro.runtime._
 import scala.util.Random
 
-class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) extends ScadsClusterManager
-
 /**
  * Class for creating/accessing/managing namespaces for a set of scads storage nodes with a given zookeeper root.
  * TODO: Remove reduancy in CreateNamespace functions
  * TODO: Add ability to delete namespaces
  * TODO: Move parition management code into namespace
  */
-trait ScadsClusterManager {
-  val root: ZooKeeperProxy#ZooKeeperNode
+class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) {
   val namespaces = root.getOrCreate("namespaces")
   val clients = root.getOrCreate("clients")
   val randomGen = new Random(0)

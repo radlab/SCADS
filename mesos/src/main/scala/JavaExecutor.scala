@@ -4,7 +4,10 @@ import edu.berkeley.cs.scads.comm._
 
 import org.apache.log4j.Logger
 import java.io.{File, InputStream, BufferedReader, InputStreamReader}
+import com.googlecode.avro.marker._
 import mesos._
+
+case class JvmProcess(var classpath: String, var mainclass: String, var args: List[String]) extends AvroRecord
 
 object JavaExecutor {
   def main(args: Array[String]): Unit = {
@@ -47,7 +50,7 @@ class JavaExecutor extends Executor {
     tempDir.delete()
     tempDir.mkdir()
 
-    val processDescription = new JvmProcess().parse(taskDesc.getArg())
+    val processDescription = classOf[JvmProcess].newInstance.parse(taskDesc.getArg())
     logger.debug("Requested memory: " + taskDesc.getParams().get("mem"))
     val cmdLine = List("/usr/lib/jvm/java-6-sun/bin/java",
                        "-server",

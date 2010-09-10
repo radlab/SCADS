@@ -18,7 +18,7 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
     (val namespace:String,
      val timeout:Int,
      val root: ZooKeeperProxy#ZooKeeperNode)
-    (implicit var cluster : ScadsClusterManager)
+    (implicit var cluster : ScadsCluster)
         extends KeyValueStore[KeyType, ValueType] {
 
 
