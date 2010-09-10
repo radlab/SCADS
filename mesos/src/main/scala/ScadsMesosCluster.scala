@@ -67,7 +67,10 @@ class ServiceScheduler(name: String) extends Scheduler {
 
   override def statusUpdate(d: SchedulerDriver, status: TaskStatus): Unit = {
     logger.info("Status Update: " + status.getTaskId + " " + status.getState)
-    logger.info(new String(status.getData))
+    if(status.getState == TaskState.TASK_FAILED)
+      logger.info(new String(status.getData))
+    else
+      logger.debug(new String(status.getData))
   }
 
   def runService(mem: Int, cores: Int, desc: JvmProcess): Unit = synchronized {
