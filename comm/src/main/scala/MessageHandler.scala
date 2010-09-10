@@ -1,6 +1,6 @@
 package edu.berkeley.cs.scads.comm
 
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.{ ConcurrentHashMap, CopyOnWriteArrayList, Executors, TimeUnit }
 import java.util.concurrent.atomic.AtomicLong
 
 import scala.actors._
@@ -14,7 +14,7 @@ import edu.berkeley.cs.scads.config._
  * in a given JVM and multiplexes the underlying network connections.  Services should be
  * careful to unregister themselves to avoid memory leaks.
  */
-class MessageHandler extends AvroChannelManager[Message, Message] {
+object MessageHandler extends AvroChannelManager[Message, Message] {
 
   private val config = Config.config
   private val logger = Logger.getLogger("scads.messagehandler")
@@ -23,6 +23,10 @@ class MessageHandler extends AvroChannelManager[Message, Message] {
   private val serviceRegistry = new ConcurrentHashMap[ActorId, MessageReceiver]
 
   private val hostname = java.net.InetAddress.getLocalHost.getHostName()
+
+  private val listeners = new CopyOnWriteArrayList[MessageHandlerListener[Message, Message]]
+
+  private lazy val delayExecutor = Executors.newScheduledThreadPool(0) /* Don't keep any core threads alive */
 
   private lazy val impl = 
     try getImpl
@@ -50,14 +54,64 @@ class MessageHandler extends AvroChannelManager[Message, Message] {
     ctor.newInstance(recvMsgCallback, classOf[Message], classOf[Message])
   }
 
+  /**
+   * Implemented in Java style for efficiency concerns
+   */
+  @inline private def foldLeftListeners(evt: MessageHandlerEvent[Message, Message]): MessageHandlerResponse = {
+    if (listeners.isEmpty) RelayMessage
+    else {
+      val iter     = listeners.iterator
+      var continue = iter.hasNext
+      var result: MessageHandlerResponse = RelayMessage
+      while (continue) {
+        val listener = iter.next()
+        result = 
+          try {
+            val res = listener.handleEvent(evt)
+            if (res eq null) {
+              logger.error("MessageHandlerListener %s returned null, ignoring".format(listener))
+              RelayMessage
+            } else res
+          } catch {
+            case e: Exception =>
+              logger.error("Caught exception while executing MessageHandlerListener %s".format(listener), e)
+              RelayMessage
+          }
+        result match {
+          case RelayMessage => /* Progress down the chain */
+            continue = iter.hasNext
+          case DropMessage | DelayMessage(_, _) => /* Stop the chain */
+            continue = false
+        }
+      }
+      result
+    }
+  }
+
+  @inline private def toRunnable(f: => Unit) = new Runnable {
+    def run() { f }
+  }
+
   // Delegation overrides
 
   override def sendMessage(dest: RemoteNode, msg: Message) {
-    impl.sendMessage(dest, msg)
+    val evt = MessagePending[Message, Message](dest, Left(msg))
+    foldLeftListeners(evt) match {
+      case RelayMessage => impl.sendMessage(dest, msg)
+      case DropMessage  => /* Drop the message */
+      case DelayMessage(delay, units) =>
+        delayExecutor.schedule(toRunnable(impl.sendMessage(dest, msg)), delay, units)        
+    }
   }
 
   override def sendMessageBulk(dest: RemoteNode, msg: Message) {
-    impl.sendMessageBulk(dest, msg)
+    val evt = MessagePending[Message, Message](dest, Left(msg))
+    foldLeftListeners(evt) match {
+      case RelayMessage => impl.sendMessageBulk(dest, msg)
+      case DropMessage  => /* Drop the message */
+      case DelayMessage(delay, units) =>
+        delayExecutor.schedule(toRunnable(impl.sendMessageBulk(dest, msg)), delay, units)        
+    }
   }
 
   override def flush { impl.flush }
@@ -65,10 +119,20 @@ class MessageHandler extends AvroChannelManager[Message, Message] {
   override def startListener(port: Int) { impl.startListener(port) }
 
   override def receiveMessage(src: RemoteNode, msg: Message) {
-    impl.receiveMessage(src, msg)
+    throw new AssertionError("Should not be called- doReceiveMessage should be called instead")
   }
 
   private def doReceiveMessage(src: RemoteNode, msg: Message) {
+    val evt = MessagePending[Message, Message](src, Right(msg))
+    foldLeftListeners(evt) match {
+      case RelayMessage => doReceiveMessage0(src, msg)
+      case DropMessage  => /* Drop the message */
+      case DelayMessage(delay, units) =>
+        delayExecutor.schedule(toRunnable(doReceiveMessage0(src, msg)), delay, units)        
+    }
+  }
+
+  private def doReceiveMessage0(src: RemoteNode, msg: Message) {
     val service = serviceRegistry.get(msg.dest)
 
     //Ligher weight log4j that doesn't do string concat unless needed
@@ -133,44 +197,73 @@ class MessageHandler extends AvroChannelManager[Message, Message] {
   def getService(id: String): MessageReceiver = 
     serviceRegistry.get(id)
 
-}
-
-
-object MessageHandler  {
-
-  lazy val instance : MessageHandler = MessageHandlerFactory.create
-
-  def get() : MessageHandler = instance
-
-  def sendMessage(dest: RemoteNode, msg: Message) = instance.sendMessage(dest, msg)
-
-  def sendMessageBulk(dest: RemoteNode, msg: Message) = instance.sendMessageBulk(dest, msg)
-
-  def flush = instance.flush
-
-  def startListener(port: Int) = instance.startListener(port)
-
-  def receiveMessage(src: RemoteNode, msg: Message)  = instance.receiveMessage(src, msg)
-
-  def registerActor(a: Actor): RemoteActorProxy = instance.registerActor(a)
-
-  def unregisterActor(ra: RemoteActorProxy) = instance.unregisterActor(ra)
-
-  def registerService(service: MessageReceiver): RemoteActor = instance.registerService(service)
-
-  def registerService(id: String, service: MessageReceiver): RemoteActorProxy = instance.registerService(id, service)
-
-  def getService(id: String): MessageReceiver = instance.getService(id)
-}
-
-object MessageHandlerFactory  {
-
-  @volatile var creatorFn : () => MessageHandler = () => {
-    println("Created a msgHandler")
-   new MessageHandler()
- }
-
-  def create() : MessageHandler = {
-     creatorFn()
+  /**
+   * Register a MessageHandlerListener. Listeners are registered in FIFO
+   * order. Note that priority is given to the beginning listeners, meaning if
+   * listener A comes before B, and A drops/delays a message, B will never receive
+   * notification of that message. Only if A relays the message will B get a
+   * chance to act on the message
+   *
+   * Note: This implementation does check if listener is already registered.
+   * If so, this is a no-op (priority is also not changed). Also, registering
+   * (and unregistering) is a fairly expensive operation, since the backing
+   * list is implemented as a COW list, so it is recommended that listeners
+   * are added as part of an initialization sequence, and not touched then.
+   */ 
+  def registerListener(listener: MessageHandlerListener[Message, Message]) {
+    listeners.addIfAbsent(listener)
   }
+
+  /**
+   * Unregisters a MessageHandlerListener.
+   *
+   * Note: Is a no-op if listener is not already registered
+   */
+  def unregisterListener(listener: MessageHandlerListener[Message, Message]) {
+    listeners.remove(listener)
+  }
+
+}
+
+sealed abstract class MessageHandlerEvent[SendType, RecvType]
+
+/**
+ * Indicates that either a message is about to be sent, or a message is about
+ * to be received. A LeftProjection of message indicates the former, a
+ * RightProjection indicates the latter
+ */
+case class MessagePending[SendType, RecvType](remote: RemoteNode, msg: Either[SendType, RecvType])
+  extends MessageHandlerEvent[SendType, RecvType]
+
+sealed abstract class MessageHandlerResponse
+
+/**
+ * Drop the message corresponding to the MessageHandlerEvent entirely
+ */
+case object DropMessage extends MessageHandlerResponse
+
+/**
+ * Delay the message corresponding to the MessageHandlerEvent by delay. If the
+ * message is about to be sent, this means don't send it until delay has
+ * elasped. If the message is about to be received, this means don't receive
+ * the message until the delay has elasped.
+ */
+case class DelayMessage(delay: Long, units: TimeUnit)
+  extends MessageHandlerResponse
+
+/**
+ * Resume the regular course of action for the message
+ */
+case object RelayMessage extends MessageHandlerResponse
+
+/**
+ * Base trait for a MessageHandler event listener
+ */
+trait MessageHandlerListener[SendType, RecvType] {
+
+  /**
+   * Main method for listeners to supply.
+   */
+  def handleEvent(evt: MessageHandlerEvent[SendType, RecvType]): MessageHandlerResponse
+
 }

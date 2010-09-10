@@ -21,6 +21,10 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
     db.close()
   }
 
+  override def toString = 
+    "<PartitionHandler namespace: %s, keyRange: [%s, %s)>".format(
+      partitionIdLock.name, JArrays.toString(startKey.orNull), JArrays.toString(endKey.orNull))
+
   @inline private def isInRange(key: Array[Byte], includeMaxKey: Boolean) =
     startKey.map(sk => compare(sk, key) <= 0).getOrElse(true) &&
     endKey.map(ek => if (includeMaxKey) compare(ek, key) >= 0 else compare(ek, key) > 0).getOrElse(true)
@@ -57,6 +61,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           reply(PutResponse())
         }
         case GetRangeRequest(minKey, maxKey, limit, offset, ascending) => {
+          logger.debug("[%s] GetRangeRequest: [%s, %s)".format(this, JArrays.toString(minKey.orNull), JArrays.toString(maxKey.orNull)))
           val maxIsEnd = JArrays.equals(endKey.orNull, maxKey.orNull)
           val records = new scala.collection.mutable.ListBuffer[Record]
           iterateOverRange(minKey, maxKey, limit, offset, ascending, !maxIsEnd)((key, value, _) => {
