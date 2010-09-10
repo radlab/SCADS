@@ -59,13 +59,17 @@ class JavaExecutor extends Executor {
                        processDescription.mainclass) ++ processDescription.args
 
     logger.info("Execing: " + cmdLine.mkString(" "))
+    d.sendStatusUpdate(new TaskStatus(taskDesc.getTaskId, TaskState.TASK_STARTING, new Array[Byte](0)))
     val proc = Runtime.getRuntime().exec(cmdLine.toArray, Array[String](), tempDir)
     val stdout = new StreamTailer(proc.getInputStream())
     val stderr = new StreamTailer(proc.getErrorStream())
+    def output = List("===stdout===", stdout.tail,  "===stderr===", stderr.tail).mkString.getBytes
+    d.sendStatusUpdate(new TaskStatus(taskDesc.getTaskId, TaskState.TASK_RUNNING, output))
     val result = proc.waitFor()
-    if(result == 0)
-      d.sendStatusUpdate(new TaskStatus(taskDesc.getTaskId, TaskState.TASK_FINISHED, "".getBytes))
-    else
-      d.sendStatusUpdate(new TaskStatus(taskDesc.getTaskId, TaskState.TASK_FAILED, stdout.tail.getBytes))
+    val finalTaskState = result match {
+      case 0 => TaskState.TASK_FINISHED
+      case _ => TaskState.TASK_FAILED
+    }
+    d.sendStatusUpdate(new TaskStatus(taskDesc.getTaskId, finalTaskState, output))
   }
 }
