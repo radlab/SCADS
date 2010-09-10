@@ -38,7 +38,7 @@ class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) {
   //TODO Nice storagehandler, cluster wrap-up
 
   def getAvailableServers(): List[StorageService] = {
-    val availableServers = root("availableServers").children
+    val availableServers = root.getOrCreate("availableServers").children
     for (server <- availableServers)
       yield new StorageService().parse(server.data)
   }
