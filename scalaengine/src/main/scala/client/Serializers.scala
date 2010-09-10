@@ -88,7 +88,7 @@ private[storage] trait AvroSerializing[KeyType <: IndexedRecord, ValueType <: In
     validate()
   }
 
-  override def create(ranges: List[(Option[KeyType], List[StorageService])]) {
+  override def create(ranges: Seq[(Option[KeyType], List[StorageService])]) {
     super.create(ranges)
     validate()
   }

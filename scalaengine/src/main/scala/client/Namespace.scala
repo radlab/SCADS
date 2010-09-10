@@ -76,7 +76,7 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
    *  Creates a new NS with the given servers
    *  The ranges has the form (startKey, servers). The first Key has to be None
    */
-  def create(ranges : List[(Option[KeyType], List[StorageService])]) : Unit = {
+  def create(ranges : Seq[(Option[KeyType], List[StorageService])]) : Unit = {
     if(!root.get(namespace).isEmpty)
       throw new RuntimeException("Illegal namespace creation. Namespace already exists")
     if( ranges.size == 0 || ranges.head._1 != None)

@@ -53,7 +53,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     writeQuorum = config.writeQuorum
   }
 
-  override def create(ranges: List[(Option[KeyType], List[StorageService])]) {
+  override def create(ranges: Seq[(Option[KeyType], List[StorageService])]) {
     super.create(ranges)
     val config = new QuorumProtocolConfig(readQuorum, writeQuorum)
     nsRoot.createChild(ZK_QUORUM_CONFIG, config.toBytes, CreateMode.PERSISTENT)

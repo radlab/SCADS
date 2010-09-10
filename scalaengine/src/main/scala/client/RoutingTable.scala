@@ -38,7 +38,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
    *  Creates a new NS with the given servers
    *  The ranges has the form (startKey, servers). The first Key has to be None
    */
-  override def create(ranges: List[(Option[KeyType], List[StorageService])]) {
+  override def create(ranges: Seq[(Option[KeyType], List[StorageService])]) {
     super.create(ranges)
     var rTable: Array[RangeType[KeyType, PartitionService]] = new Array[RangeType[KeyType, PartitionService]](ranges.size)
     var startKey: Option[KeyType] = None
