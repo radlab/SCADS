@@ -16,6 +16,7 @@
     <module>comm</module>
     <module>scalaengine</module>
     <module>mesos</module>
+    <module>perf</module>
   </modules>
   <dependencies>
     <dependency>
