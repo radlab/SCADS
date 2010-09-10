@@ -11,12 +11,14 @@ object IntKeyScaleTest extends optional.Application {
   implicit val zooRoot = RClusterZoo.root
   implicit def toOption[A](a: A) = Option(a)
 
-  def main(clusterSize: Int, recsPerServer: Int = 100): Unit = {
+  def main(clusterSize: Int, recsPerServer: Int = 100, workAround: Boolean = true): Unit = {
     println("Begining cluster scale test with " + clusterSize + " servers.")
     val cluster = ScadsMesosCluster(clusterSize)
+    println("Cluster located at: " + cluster.root)
     val coordination = cluster.root.getOrCreate("coordination")
     cluster.blockTillReady
 
+    /*FIXME*/ if(workAround) {println("creating namespace"); cluster.getNamespace[IntRec, IntRec]("intkeytest")}
     val procDesc = JvmProcess(
       "/work/marmbrus/mesos/perf-2.1.0-SNAPSHOT.jar:/work/marmbrus/mesos:/work/marmbrus/mesos/mesos-scads-2.1.0-SNAPSHOT-jar-with-dependencies.jar",
       "edu.berkeley.cs.scads.perf.IntKeyScaleClient",
