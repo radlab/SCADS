@@ -315,6 +315,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
           } else if (cmp < 0) {
             losers ++= winners
             winners.clear
+            future.source.foreach(winners += _)
             winnerValue = v
           }else{
             future.source.foreach(winners += _)

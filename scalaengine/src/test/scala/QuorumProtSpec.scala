@@ -152,7 +152,9 @@ class QuorumProtSpec extends WordSpec with ShouldMatchers {
         blocker.blockReceivers(blockedPartitions)
         (1 to 50).foreach(i => ns.put(IntRec(i),IntRec(2)))
         blocker.unblockReceivers(blockedPartitions)
+        Thread.sleep(1000)
         ns.getRange(None, None)
+        Thread.sleep(1000)
         val allVersions = (1 to 50).flatMap(i => getAllVersions(ns, i))
         allVersions should (contain (2) and not contain (1))
       }
