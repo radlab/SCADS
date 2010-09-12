@@ -37,15 +37,34 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers {
       (1 to 10).foreach(i => {
         (partition !? GetRequest(IntRec(i).toBytes)) match {
           case GetResponse(Some(bytes)) => new IntRec().parse(bytes) should equal(IntRec(i*2))
+          case m => fail("Expected GetResponse but got: " + m)
         }
       })
+    }
+
+    it("should bulk load values") {
+      val p = getHandler()
+
+      val req = BulkPutRequest((1 to 1000).map(i => PutRequest(IntRec(i).toBytes, IntRec(i * 2).toBytes)).toSeq)
+      p !? req match {
+        case BulkPutResponse() => // success
+        case m => fail("Expected BulkPutResponse but got: " + m)
+      }
+
+      (1 to 1000).foreach(i => {
+        (p !? GetRequest(IntRec(i).toBytes)) match {
+          case GetResponse(Some(bytes)) => new IntRec().parse(bytes) should equal(IntRec(i * 2))
+          case m => fail("Expected GetResponse but got: " + m)
+        }
+      })
+
     }
 
     it("should copy data overwriting existing data") {
       val p1 = getHandler()
       val p2 = getHandler()
 
-      (1 to 10000).foreach(i => p1 !? PutRequest(IntRec(i).toBytes, IntRec(i).toBytes))
+      p1 !? BulkPutRequest((1 to 10000).map(i => PutRequest(IntRec(i).toBytes, IntRec(i).toBytes)).toSeq)
       (1 to 5).foreach(i => p2 !? PutRequest(IntRec(i).toBytes, IntRec(i*2).toBytes))
 
       p2 !? CopyDataRequest(p1, true)
@@ -97,6 +116,21 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers {
       p1 !? PutRequest(IntRec(9).toBytes, VALUE) match {
         case PutResponse() =>
         case u => fail("9 falls inside of range of p1's key range: " + u)
+      }
+
+      try {
+        p1 !? GetRequest(IntRec(10).toBytes) match {
+          case u @ GetResponse(_) => fail("10 is outside of p1's range - should return error: " + u)
+          case u => fail("Unexpected message: " + u)
+        }
+      } catch {
+        case e: RuntimeException =>
+          // supposed to fail
+      }
+
+      p1 !? CountRangeRequest(Some(IntRec(0).toBytes), Some(IntRec(10).toBytes)) match {
+        case CountRangeResponse(cnt) => cnt should equal(2)
+        case u => fail("[0, 10) is bounded by p1's key range: " + u)
       }
 
       try {

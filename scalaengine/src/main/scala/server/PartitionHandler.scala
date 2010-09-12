@@ -141,7 +141,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           val dbeKey = new DatabaseEntry
           val dbeValue = new DatabaseEntry
           logger.debug("Opening iterator for data copy")
-          val iter = new PartitionIterator(src, None, None)
+          val iter = new PartitionIterator(src, startKey, endKey)
 
           logger.debug("Begining copy")
           iter.foreach(rec => {

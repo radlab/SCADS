@@ -10,7 +10,7 @@ import net.lag.logging.Logger
 import edu.berkeley.cs.scads.comm._
 
 /**
- * Iterator that makes succesive GetRange requests to the specified partitionService to retrieve all values [minKey, maxKey].
+ * Iterator that makes succesive GetRange requests to the specified partitionService to retrieve all values [minKey, maxKey).
  * Records are retrieved in batches of size recsPerMessage by an async Actor and are buffered upto bufferSize.
  * Note, this iterator is not threadsafe.
  */
