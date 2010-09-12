@@ -264,7 +264,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     routingTable = new RangeTable[KeyType, PartitionService](ranges,
       (a: KeyType, b: KeyType) => a.compare(b),
       (a: List[PartitionService], b: List[PartitionService]) => {
-        a.corresponds(b)((v1, v2) => v1.id == v2.id)
+        a.corresponds(b)((v1, v2) => v1.storageService.id == v2.storageService.id)
       })
   }
 

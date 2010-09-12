@@ -27,6 +27,8 @@ class RoutingTableSpec extends WordSpec with ShouldMatchers {
 
   implicit def toIntFromIntRec(a : IntRec) : Int = a.f1
 
+  
+
   "A Routing Table" should {
 
     "route requests" in {
@@ -88,13 +90,19 @@ class RoutingTableSpec extends WordSpec with ShouldMatchers {
     }
 
     "merge partitions" in {
-      val ns : SpecificNamespace[IntRec, IntRec] = client1.createNamespace[IntRec, IntRec]("splitparttest", List(
+      val ns : SpecificNamespace[IntRec, IntRec] = client1.createNamespace[IntRec, IntRec]("mergeparttest", List(
             (None,storageServices.slice(0,3)),
             (50 ,storageServices.slice(0,3)),
             (100 ,storageServices.slice(3,6)),
             (150 ,storageServices.slice(3,6))))
        (1 to 150 by 5).foreach(i => ns.put(IntRec(i), IntRec(i)))
+       println("Before routing table " + ns.routingTable)
+       println("Before all range versions" + ns.getAllRangeVersions(None, None))
+       Thread.sleep(1000) 
        ns.mergePartitions(List(IntRec(50), IntRec(150)))
+       Thread.sleep(1000)
+       println("After Routing table " + ns.routingTable)
+       println("After all range versions " + ns.getAllRangeVersions(None, None))
        ns.getRange(None, None).map(_._1.f1) should equal (1 to 150 by 5)
        val ranges = ns.getAllRangeVersions(None, None).map(_._1.storageService)
        ranges should have size (6)

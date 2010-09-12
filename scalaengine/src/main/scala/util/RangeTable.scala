@@ -1,6 +1,7 @@
 package edu.berkeley.cs.scads.util
 
 import java.util.{Comparator, Arrays}
+import net.lag.logging.Logger
 
 /**
  * Range Table data structure. Allows to split the range -inf to inf in arbitrary sub-ranges and assign values per sub-range.
@@ -18,6 +19,7 @@ class RangeTable[KeyType, ValueType](
   require(rTable.length > 0 , "At least the startKey (None) has to exist at any time")
   require(rTable.head.startKey == None, "First key has to be None, but was " + rTable.head.startKey )
 
+  protected lazy val logger = Logger()
 
   /**
    *  Helper constructor for creating the Comparator
@@ -208,12 +210,14 @@ class RangeTable[KeyType, ValueType](
   }
 
   private def checkMergeCondition(bpos: Int): Boolean = {
-    if (bpos < 0 || bpos == rTable.length)
-      false
-    else if (!mergeCondition(rTable(bpos - 1).values, rTable(bpos).values))
-      false
-    else
-      true
+    if (bpos < 0 || bpos == rTable.length){
+      logger.info("[%s] Merge Condition failed - key is not a split key".format(this))
+      return false
+    }else if (!mergeCondition(rTable(bpos - 1).values, rTable(bpos).values)){
+      logger.info("[%s] Merge Condition failed - sets are not equal. $s != $s", this, rTable(bpos - 1), rTable(bpos) )   
+      return false
+    }else
+      return true
   }
 
 
