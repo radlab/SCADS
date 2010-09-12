@@ -9,7 +9,8 @@ import edu.berkeley.cs.scads.comm._
 import java.util.{ Arrays => JArrays }
 
 /**
- * Handles a partition from [startKey, endKey)
+ * Handles a partition from [startKey, endKey). Refuses to service any
+ * requests which fall out of this range, by returning a ProcessingException
  */
 class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, val startKey: Option[Array[Byte]], val endKey: Option[Array[Byte]], val nsRoot: ZooKeeperProxy#ZooKeeperNode, val keySchema: Schema) extends ServiceHandler[PartitionServiceOperation] with AvroComparator {
   protected val logger = Logger()
@@ -25,23 +26,53 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
     "<PartitionHandler namespace: %s, keyRange: [%s, %s)>".format(
       partitionIdLock.name, JArrays.toString(startKey.orNull), JArrays.toString(endKey.orNull))
 
-  @inline private def isInRange(key: Array[Byte], includeMaxKey: Boolean) =
+  /**
+   * True iff a particular (non-null) key is bounded by [startKey, endKey)
+   */
+  @inline private def isInRange(key: Array[Byte]) =
     startKey.map(sk => compare(sk, key) <= 0).getOrElse(true) &&
-    endKey.map(ek => if (includeMaxKey) compare(ek, key) >= 0 else compare(ek, key) > 0).getOrElse(true)
+    endKey.map(ek => compare(ek, key) > 0).getOrElse(true)
+
+  /**
+   * True iff startKey <= key
+   */
+  @inline private def isStartKeyLEQ(key: Option[Array[Byte]]) = 
+    startKey.map(sk => /* If we have startKey that is not -INF */
+        key.map(usrKey => /* If we have a user key that is not -INF */
+          compare(sk, usrKey) <= 0) /* Both keys exist (not -INF), use compare to check range */
+        .getOrElse(false)) /* startKey not -INF, but user key is -INF, so false */
+    .getOrElse(true) /* startKey is -INF, so any user key works */
+
+  /**
+   * True iff endKey >= key
+   */
+  @inline private def isEndKeyGEQ(key: Option[Array[Byte]]) =
+    endKey.map(ek => /* If we have endKey that is not +INF */
+        key.map(usrKey => /* If we have a user key that is not +INF */
+          compare(ek, usrKey) >= 0) /* Both keys exist (not +INF), use compare to check range */
+        .getOrElse(false)) /* endKey not +INF, but user key is +INF, so false */
+    .getOrElse(true) /* startKey is +INF, so any user key works */
 
   protected def process(src: Option[RemoteActorProxy], msg: PartitionServiceOperation): Unit = {
     def reply(msg: MessageBody) = src.foreach(_ ! msg)
 
     // key validation
-    val keysInRange = msg match {
-      case GetRequest(key) => isInRange(key, false)
-      case PutRequest(key, _) => isInRange(key, false)
+    val (keysInRange, keysInQuestion) = msg match {
+      /* GetRequest key must be bounded by [startKey, endKey) */
+      case GetRequest(key) => (isInRange(key), Left(key))
+      /* PutRequest key must be bounded by [startKey, endKey) */
+      case PutRequest(key, _) => (isInRange(key), Left(key))
+      /* Requires startKey <= minKey and endKey >= maxKey (so specifying the
+       * entire range is allowed */
       case GetRangeRequest(minKey, maxKey, _, _, _) =>
-        minKey.map(k => isInRange(k, false)).getOrElse(true) && maxKey.map(k => isInRange(k, true)).getOrElse(true)
+        (isStartKeyLEQ(minKey) && isEndKeyGEQ(maxKey), Right((minKey, maxKey)))
+      /* Requires startKey <= minKey and endKey >= maxKey (so specifying the
+       * entire range is allowed */
       case CountRangeRequest(minKey, maxKey) =>
-        minKey.map(k => isInRange(k, false)).getOrElse(true) && maxKey.map(k => isInRange(k, true)).getOrElse(true)
-      case TestSetRequest(key, _, _) => isInRange(key, false)
-      case _ => true 
+        (isStartKeyLEQ(minKey) && isEndKeyGEQ(maxKey), Right((minKey, maxKey)))
+      /* TestSetRequest key must be bounded by [startKey, endKey) */
+      case TestSetRequest(key, _, _) => (isInRange(key), Left(key))
+      case _ => (true, null)
     }
 
     if (keysInRange) {
@@ -61,7 +92,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           reply(PutResponse())
         }
         case GetRangeRequest(minKey, maxKey, limit, offset, ascending) => {
-          logger.debug("[%s] GetRangeRequest: [%s, %s)".format(this, JArrays.toString(minKey.orNull), JArrays.toString(maxKey.orNull)))
+          logger.debug("[%s] GetRangeRequest: [%s, %s)", this, JArrays.toString(minKey.orNull), JArrays.toString(maxKey.orNull))
           val maxIsEnd = JArrays.equals(endKey.orNull, maxKey.orNull)
           val records = new scala.collection.mutable.ListBuffer[Record]
           iterateOverRange(minKey, maxKey, limit, offset, ascending, !maxIsEnd)((key, value, _) => {
@@ -122,28 +153,44 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
         case _ => src.foreach(_ ! ProcessingException("Not Implemented", ""))
       }
     } else {
-      reply(RequestRejected("Key(s) are out of range", msg))
+      val errorMsg = keysInQuestion match {
+        case Left(key) =>
+          "Expected a key in range [%s, %s), but got %s".format(
+            JArrays.toString(startKey.orNull), 
+            JArrays.toString(endKey.orNull), 
+            JArrays.toString(key))
+        case Right((minKey, maxKey)) =>
+          "Expected a range bounded (inclusively) by [%s, %s), but got [%s, %s)".format(
+            JArrays.toString(startKey.orNull),
+            JArrays.toString(endKey.orNull),
+            JArrays.toString(minKey.orNull),
+            JArrays.toString(maxKey.orNull))
+      }
+      logger.error("Received errorneous request %s. Error was: %s", msg, errorMsg)
+      reply(RequestRejected("Key(s) are out of range: %s".format(errorMsg), msg))
     }
   }
 
-  def deleteEntireRange(txn: Option[Transaction]) { deleteRange(startKey, endKey, false, txn) }
+  def deleteEntireRange(txn: Option[Transaction]) { deleteRange(startKey, endKey, txn) }
 
-  def deleteRange(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], includeMaxKey: Boolean, txn: Option[Transaction]) {
-    iterateOverRange(startKey, endKey, includeMaxKey = includeMaxKey, txn = txn)((_, _, cursor) => {
+  def deleteRange(lowerKey: Option[Array[Byte]], upperKey: Option[Array[Byte]], txn: Option[Transaction]) {
+    assert(!isStartKeyLEQ(lowerKey) || !isEndKeyGEQ(upperKey), "startKey <= lowerKey && endKey >= upperKey required")
+    iterateOverRange(lowerKey, upperKey, includeMaxKey = !JArrays.equals(endKey.orNull, upperKey.orNull), txn = txn)((_, _, cursor) => {
       cursor.delete()
     })
   }
 
-  // TODO: points to validate 
-  // (1) should iterateOverRange be private? 
-  // (2) does it have to validate {min,max}Key?
-  def iterateOverRange(minKey: Option[Array[Byte]], 
-                       maxKey: Option[Array[Byte]], 
-                       limit: Option[Int] = None, 
-                       offset: Option[Int] = None, 
-                       ascending: Boolean = true, 
-                       includeMaxKey: Boolean = true,
-                       txn: Option[Transaction] = None)
+  /**
+   * Low level method to iterate over a given range on the database. it is up
+   * to the caller to validate minKey and maxKey.
+   */
+  private def iterateOverRange(minKey: Option[Array[Byte]], 
+                               maxKey: Option[Array[Byte]], 
+                               limit: Option[Int] = None, 
+                               offset: Option[Int] = None, 
+                               ascending: Boolean = true, 
+                               includeMaxKey: Boolean = true,
+                               txn: Option[Transaction] = None)
       (func: (DatabaseEntry, DatabaseEntry, Cursor) => Unit): Unit = {
     val (dbeKey, dbeValue) = (new DatabaseEntry, new DatabaseEntry)
     val cur = db.openCursor(txn.orNull,null)

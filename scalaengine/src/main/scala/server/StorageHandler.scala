@@ -333,7 +333,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode)
             }
             thisSlice.foreach((startKey, endKey) => {
               logger.info("++ [%s] Deleting range: [%s, %s)".format(this, JArrays.toString(startKey.orNull), JArrays.toString(endKey.orNull)))
-              handler.deleteRange(startKey, endKey, false, txn)
+              handler.deleteRange(startKey, endKey, txn)
             })
           }
 
