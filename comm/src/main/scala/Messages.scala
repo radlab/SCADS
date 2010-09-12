@@ -28,6 +28,9 @@ case class GetResponse(var value: Option[Array[Byte]]) extends AvroRecord with K
 case class PutRequest(var key: Array[Byte], var value: Option[Array[Byte]]) extends AvroRecord with KeyValueStoreOperation
 case class PutResponse() extends AvroRecord with KeyValueStoreOperation
 
+case class BulkPutRequest(var records: Seq[PutRequest]) extends AvroRecord with KeyValueStoreOperation
+case class BulkPutResponse() extends AvroRecord with KeyValueStoreOperation
+
 case class GetRangeRequest(var minKey: Option[Array[Byte]], var maxKey: Option[Array[Byte]], var limit: Option[Int] = None, var offset: Option[Int] = None, var ascending: Boolean = true) extends AvroRecord with KeyValueStoreOperation
 case class GetRangeResponse(var records: List[Record]) extends AvroRecord with KeyValueStoreOperation
 

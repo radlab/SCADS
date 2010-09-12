@@ -7,7 +7,7 @@ import java.io.{File, InputStream, BufferedReader, InputStreamReader}
 import com.googlecode.avro.marker._
 import mesos._
 
-case class JvmProcess(var classpath: String, var mainclass: String, var args: List[String]) extends AvroRecord
+case class JvmProcess(var classpath: String, var mainclass: String, var args: List[String], var props: Map[String, String] = Map.empty) extends AvroRecord
 
 object JavaExecutor {
   def main(args: Array[String]): Unit = {
@@ -55,6 +55,7 @@ class JavaExecutor extends Executor {
     val cmdLine = List("/usr/lib/jvm/java-6-sun/bin/java",
                        "-server",
                        "-Xmx" + taskDesc.getParams().get("mem").toInt + "M",
+                       processDescription.props.map(kv => "-D%s=%s".format(kv._1, kv._2)).mkString(" "),
                        "-cp", processDescription.classpath,
                        processDescription.mainclass) ++ processDescription.args
 

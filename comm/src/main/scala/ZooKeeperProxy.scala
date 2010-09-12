@@ -10,7 +10,7 @@ import net.lag.logging.Logger
 
 import java.util.concurrent.{ ConcurrentHashMap, TimeUnit }
 
-object RClusterZoo extends ZooKeeperProxy("r2:2181")
+object RClusterZoo extends ZooKeeperProxy("r2.millennium.berkeley.edu:2181")
 
 /**
  * Scalafied interface to Zookeeper

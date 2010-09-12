@@ -169,7 +169,20 @@ class KeyValueStoreSpec extends Spec with ShouldMatchers {
 
     it("should correctly return records by prefix") {pending}
     it("should allow data to be moved/copied") {pending}
-    it("should efficently bulk load from iterator using ++=") {pending}
+
+    it("should efficently bulk load from iterator using ++=") {
+    
+      val ns = cluster.getNamespace[IntRec, StringRec]("pluspluseqtest")
+
+      val recs = (1 to 5000).map(i => (IntRec(i), StringRec(i.toString)))
+      ns ++= recs 
+      ns.getRange(None, None) should equal(recs)
+
+      val recs2 = (10000 to 10100).map(i => (IntRec(i), StringRec(i.toString)))
+      ns ++= recs2
+      ns.getRange(Some(IntRec(10000)), None) should equal(recs2)
+    }
+
     it("should allow you to truncate the contents of a namespace") {pending}
     it("should automatically handle schema resolution") {pending}
 
