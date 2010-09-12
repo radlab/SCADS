@@ -26,9 +26,6 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
 
   protected val logger = Logger()
 
-  protected def serversForKey(key: KeyType): List[PartitionService]
-
-  protected def serversForRange(startKey: Option[KeyType], endKey: Option[KeyType]): List[List[PartitionService]]
 
 
   def setReadWriteQuorum(readQuorum: Double, writeQuorum: Double) = {
@@ -90,12 +87,10 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
 
   def getAllRangeVersions(startKey: Option[KeyType], endKey: Option[KeyType]) : List[(PartitionService, List[(KeyType, ValueType)])] = {
     val ranges = serversForRange(startKey, endKey)
-    val sKey = startKey.map(serializeKey(_))
-    val eKey = endKey.map(serializeKey(_))
-    var rangeRequest = new GetRangeRequest(sKey, eKey, None, None, true)
     var result : List[(PartitionService, List[(KeyType, ValueType)])] = Nil
-    for(partitions <- ranges) {
-      for(partition <- partitions) {
+    for(range <- ranges) {
+      val rangeRequest = new GetRangeRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), None, None, true)
+      for(partition <- range.values) {
         val values = partition !? rangeRequest  match {
            case GetRangeResponse(v) => v.map(a => (deserializeKey(a.key), extractValueFromRecord(a.value).get))
            case _ => throw new RuntimeException("Unexpected Message")
@@ -127,35 +122,36 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     return extractValueFromRecord(record)
   }
 
+  //TODO Offset does not work if split over several partitions
   def getRange(startKey: Option[KeyType], endKey: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, backwards: Boolean = false): Seq[(KeyType, ValueType)] = {
-    val partitions = if (backwards) serversForRange(startKey, endKey).reverse else serversForRange(startKey, endKey)
+    var partitions = if (backwards) serversForRange(startKey, endKey).reverse else serversForRange(startKey, endKey)
     var handlers: ArrayBuffer[RangeHandle] = new ArrayBuffer[RangeHandle]
     val sKey = startKey.map(serializeKey(_))
     val eKey = endKey.map(serializeKey(_))
-    var rangeRequest = new GetRangeRequest(sKey, eKey, limit, offset, !backwards)
-    var serversToRequest: List[List[PartitionService]] = Nil
-    if (limit.isEmpty) {
-      for (servers <- partitions)
-        handlers.append(new RangeHandle(servers.map(_ !! rangeRequest)))
-    } else {
-      handlers.append(new RangeHandle(partitions.head.map(_ !! rangeRequest)))
-      serversToRequest = partitions.tail
-    }
+
+    do {
+      val range = partitions.head
+      val rangeRequest = new GetRangeRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), limit, offset, !backwards)
+      handlers.append(new RangeHandle(range.values.map(_ !! rangeRequest)))
+      partitions = partitions.tail
+    } while(!partitions.isEmpty &&  limit.isEmpty)
+
     var result = new ArrayBuffer[(KeyType, ValueType)]
     var openRec: Long = if (limit.isDefined) limit.get else java.lang.Long.MAX_VALUE
     var servers = partitions
     var cur = 0
     for (handler <- handlers) {
       if (openRec > 0) {
-        val records = handler.vote(readQuorum(servers.head.size))
+        val records = handler.vote(readQuorum(handler.futures.size))
         if (handler.failed)
           throw new RuntimeException("Not enough servers responded. We need to throw better exceptions for that case")
         //if we do not get enough records, we request more, before we process the current batch
-        if (records.length <= openRec && !serversToRequest.isEmpty) {
-          if (limit.isDefined)
-            rangeRequest = new GetRangeRequest(sKey, eKey, Some(openRec.toInt), offset, !backwards)
-          handlers.append(new RangeHandle(servers.head.map(_ !! rangeRequest)))
-          servers = servers.tail
+        if (records.length <= openRec && !partitions.isEmpty) {
+          val range = partitions.head
+          val newLimit = if(limit.isDefined) Some(openRec.toInt) else None
+          val rangeRequest = new GetRangeRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), newLimit, offset, !backwards)
+          handlers.append(new RangeHandle(range.values.map(_ !! rangeRequest)))
+          partitions = partitions.tail
         }
         result.appendAll(records.flatMap(a =>
           if (openRec > 0) {
@@ -168,7 +164,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
           } else
             Nil
           )
-          )
+        )
       }
     }
     handlers.foreach(ReadRepairer ! _)

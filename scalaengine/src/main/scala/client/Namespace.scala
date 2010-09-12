@@ -40,6 +40,12 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
   protected def deserializeKey(key: Array[Byte]): KeyType
   protected def deserializeValue(value: Array[Byte]): ValueType
 
+  protected def serversForKey(key: KeyType): List[PartitionService]
+
+  protected def serversForRange(startKey: Option[KeyType], endKey: Option[KeyType]): List[FullRange]
+
+  case class FullRange(startKey: Option[KeyType], endKey: Option[KeyType], values : List[PartitionService])
+
   /**
    * Returns the default replication Factor when initializing a new NS
    */

@@ -65,9 +65,17 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     routingTable.valuesForKey(key)
   }
 
-  def serversForRange(startKey: Option[KeyType], endKey: Option[KeyType]): List[List[PartitionService]] = {
-    val ranges = routingTable.valuesForRange(startKey, endKey)
-    (for (range <- ranges) yield range.values).toList
+  def serversForRange(startKey: Option[KeyType], endKey: Option[KeyType]): List[FullRange] = {
+    var ranges = routingTable.valuesForRange(startKey, endKey)
+    val result = new  Array[FullRange](ranges.size)
+    var sKey: Option[KeyType] = None
+    var eKey: Option[KeyType] = None
+    for (i <- ranges.size - 1 to 0 by -1){
+      sKey = ranges(i).startKey
+      result(i) = new FullRange(sKey, eKey, ranges(i).values)
+      eKey = sKey
+    }
+    result.toList
   }
 
   def splitPartition(splitPoints: List[KeyType]): Unit = {

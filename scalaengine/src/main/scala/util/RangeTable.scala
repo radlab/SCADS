@@ -133,7 +133,6 @@ class RangeTable[KeyType, ValueType](
   }
 
 
-
   /**
    * Splits the range at the key position. The left range includes the split key
    * The values are either left or right attached.
