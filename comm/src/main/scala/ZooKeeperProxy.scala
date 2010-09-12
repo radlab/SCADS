@@ -8,7 +8,7 @@ import scala.collection.mutable.HashMap
 import scala.collection.JavaConversions._
 import net.lag.logging.Logger
 
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.{ ConcurrentHashMap, TimeUnit }
 
 object RClusterZoo extends ZooKeeperProxy("r2:2181")
 
@@ -36,9 +36,6 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watc
   val root = getOrElseUpdateNode("/", new ZooKeeperNode("/"))
 
   def close() = conn.close()
-
-  @inline private def isSequential(mode: CreateMode) = 
-    mode == CreateMode.EPHEMERAL_SEQUENTIAL || mode == CreateMode.PERSISTENT_SEQUENTIAL
 
   @inline private def getNode(fullPath: String) =
     Option(canonicalMap.get(fullPath)) 
@@ -131,12 +128,20 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watc
       name.drop(name.length - 10).toInt
     }
 
-    /* TODO: Implement using watches */
-    def awaitChild(name: String, seqNumber: Option[Int] = None): Unit = {
-      val fullName = seqNumber.map(s => "%s%010d".format(name, s)).getOrElse(name)
-      while(get(fullName).isEmpty) {
-        Thread.sleep(1000)
+    def awaitChild(name: String, seqNumber: Option[Int] = None, timeout: Long = 10000, unit: TimeUnit = TimeUnit.MILLISECONDS): Unit = {
+      val fullName = fullPath(seqNumber.map(s => "%s%010d".format(name, s)).getOrElse(name))
+      val blocker = new BlockingFuture 
+      val watcher = new Watcher {
+        def process(evt: WatchedEvent) {
+          evt.getType match {
+            case EventType.NodeCreated => blocker.finish()
+            case e => 
+              blocker.finishWithError(new RuntimeException("Expected NodeCreated event for node %s, but got %s event instead".format(fullName, e)))
+          }
+        }
       }
+      if (conn.exists(fullName, watcher) eq null)
+        blocker.await(unit.toMillis(timeout))
     }
 
     protected def getData(watch: Boolean = false): Array[Byte] = {

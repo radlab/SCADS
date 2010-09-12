@@ -70,7 +70,7 @@ class BlockingFuture {
   private var ex: Throwable = _
   private var done          = false
 
-  def await(timeout: Int) {
+  def await(timeout: Long) {
     synchronized {
       if (!done)
         wait(timeout)
@@ -81,7 +81,7 @@ class BlockingFuture {
     }
   }
 
-  def await() { await(0) }
+  def await() { await(0L) }
 
   def finish() {
     synchronized {

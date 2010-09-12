@@ -5,12 +5,19 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.Spec
 import org.scalatest.matchers.ShouldMatchers
 
+import java.util.concurrent.CountDownLatch
+
 import edu.berkeley.cs.scads.comm._
 
 @RunWith(classOf[JUnitRunner])
 class ZookeeperProxySpec extends Spec with ShouldMatchers {
   val zk1 = ZooKeeperHelper.getTestZooKeeper()
   val zk2 = new ZooKeeperProxy(zk1.address)
+
+  def spawn(f: => Unit) = new Thread {
+    start()
+    override def run() { f }
+  }
 
   describe("The zookeeper proxy") {
     it("should create nodes") {
@@ -41,6 +48,24 @@ class ZookeeperProxySpec extends Spec with ShouldMatchers {
       newNode.delete
       zk1.root.children should not contain(newNode)
       zk1.root.get("test") should equal(None)
+    }
+
+    it("should awaitChild properly") {
+
+      val barrierA = new CountDownLatch(1)
+
+      // wait thread
+      spawn {
+        zk1.root.awaitChild("testAwaitChild")
+        barrierA.countDown()
+        assert(zk1.root("testAwaitChild") != null)
+      }
+
+      Thread.sleep(3000) // try to give the wait thread a chance to block
+      zk2.root.createChild("testAwaitChild")
+      barrierA.await()
+
+
     }
   }
 }
