@@ -183,11 +183,17 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
     }
   }
 
+  /**
+   * Delete [startKey, endKey)
+   */
   def deleteEntireRange(txn: Option[Transaction]) { deleteRange(startKey, endKey, txn) }
 
+  /**
+   * Delete [lowerKey, upperKey)
+   */
   def deleteRange(lowerKey: Option[Array[Byte]], upperKey: Option[Array[Byte]], txn: Option[Transaction]) {
-    assert(!isStartKeyLEQ(lowerKey) || !isEndKeyGEQ(upperKey), "startKey <= lowerKey && endKey >= upperKey required")
-    iterateOverRange(lowerKey, upperKey, includeMaxKey = !JArrays.equals(endKey.orNull, upperKey.orNull), txn = txn)((_, _, cursor) => {
+    assert(isStartKeyLEQ(lowerKey) && isEndKeyGEQ(upperKey), "startKey <= lowerKey && endKey >= upperKey required")
+    iterateOverRange(lowerKey, upperKey, includeMaxKey = false, txn = txn)((_, _, cursor) => {
       cursor.delete()
     })
   }
@@ -222,7 +228,10 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 
     var toSkip = offset.getOrElse(0)
     var returnedCount = 0
-    if (status != OperationStatus.SUCCESS) return
+    if (status != OperationStatus.SUCCESS) {
+      cur.close()
+      return
+    }
 
     if(ascending) {
       while(toSkip > 0 && status == OperationStatus.SUCCESS) {

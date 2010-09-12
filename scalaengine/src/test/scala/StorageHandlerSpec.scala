@@ -17,6 +17,10 @@ class StorageHandlerSpec extends Spec with ShouldMatchers {
     root.getOrCreate("namespaces/testns/keySchema").data = IntRec.schema.toString.getBytes
     root.getOrCreate("namespaces/testns/valueSchema").data = IntRec.schema.toString.getBytes
     root.getOrCreate("namespaces/testns/partitions")
+
+    root.getOrCreate("namespaces/testgc/keySchema").data = IntRec.schema.toString.getBytes
+    root.getOrCreate("namespaces/testgc/valueSchema").data = IntRec.schema.toString.getBytes
+    root.getOrCreate("namespaces/testgc/partitions")
   }
 
   def getHandler(id: String) = {
@@ -51,6 +55,64 @@ class StorageHandlerSpec extends Spec with ShouldMatchers {
         case DeletePartitionResponse() => true
         case u => fail("Unexpected response to delete partition: " + u)
       }
+    }
+
+    it("should garbage collect deleted partitions") {
+      val handler = getHandler().remoteHandle
+
+      def createPartition(lower: Option[Int], upper: Option[Int]): PartitionService = {
+        handler !? CreatePartitionRequest("testgc", lower.map(l => IntRec(l).toBytes), upper.map(u => IntRec(u).toBytes)) match {
+          case CreatePartitionResponse(service) => service
+          case u => fail("Unexpected msg:" + u)
+        }
+      }
+
+      def deletePartition(partId: String) {
+        handler !? DeletePartitionRequest(partId) match {
+          case DeletePartitionResponse() => // success 
+          case u => fail("Unexpected response to delete partition: " + u)
+        }
+      }
+
+      val p0_100 = createPartition(Some(0), Some(100)) // [0, 100)
+      (1 until 100).foreach(i => p0_100 !? PutRequest(IntRec(i).toBytes, IntRec(i).toBytes)) 
+
+      val p25_50 = createPartition(Some(25), Some(50)) // [25, 50)
+      val p75_100 = createPartition(Some(75), Some(100)) // [75, 100)
+
+      deletePartition(p0_100.partitionId) // should only delete keys in [0, 25) and [50, 75)
+
+      def expectEmptyRange(view: PartitionService, lower: Int, upper: Int) {
+        (lower until upper).foreach(i => {
+          view !? GetRequest(IntRec(i).toBytes) match {
+            case GetResponse(Some(value)) => fail("Should have deleted key " + i)
+            case GetResponse(None) => // success
+            case u => fail("Unexpected msg: " + u)
+          }
+        })
+      }
+
+      def expectFullRange(view: PartitionService, lower: Int, upper: Int) {
+        (lower until upper).foreach(i => {
+          view !? GetRequest(IntRec(i).toBytes) match {
+            case GetResponse(Some(value)) => new IntRec().parse(value) should equal(IntRec(i)) 
+            case GetResponse(None) => fail("Should NOT have deleted key " + i) 
+            case u => fail("Unexpected msg: " + u)
+          }
+        })
+      }
+
+      val pAll = createPartition(None, None)
+
+      expectEmptyRange(pAll, 0, 25)
+      expectFullRange(pAll, 25, 50)
+      expectEmptyRange(pAll, 50, 75)
+      expectFullRange(pAll, 75, 100)
+
+      deletePartition(pAll.partitionId)
+      deletePartition(p25_50.partitionId)
+      deletePartition(p75_100.partitionId)
+
     }
 
     it("should recreate partitions") {

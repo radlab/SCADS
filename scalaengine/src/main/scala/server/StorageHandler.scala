@@ -231,7 +231,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode)
 
     msg match {
       case createRequest @ CreatePartitionRequest(namespace, startKey, endKey) => {
-        logger.info("[%s] CreatePartitionRequest for namespace %s, [%s, %s)".format(this, namespace, JArrays.toString(startKey.orNull), JArrays.toString(endKey.orNull)))
+        logger.info("[%s] CreatePartitionRequest for namespace %s, [%s, %s)", this, namespace, JArrays.toString(startKey.orNull), JArrays.toString(endKey.orNull))
 
         /* Grab root to namespace from ZooKeeper */
         val nsRoot = getNamespaceRoot(namespace)
@@ -297,7 +297,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode)
         //logger.info("Unregistering handler from MessageHandler for partition %s in namespace %s".format(partitionId, dbName))
         handler.stopListening
 
-        logger.info("[%s] Deleting partition [%s, %s) for namespace %s".format(this, JArrays.toString(handler.startKey.orNull), JArrays.toString(handler.endKey.orNull), dbName))
+        logger.info("[%s] Deleting partition [%s, %s) for namespace %s", this, JArrays.toString(handler.startKey.orNull), JArrays.toString(handler.endKey.orNull), dbName)
 
         val ctx = getContextForNamespace(dbName)
         ctx.synchronized {
@@ -318,7 +318,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode)
             handler.db.close() /* Close underlying DB */
             dbEnv.removeDatabase(txn, dbName)
           } else {
-            logger.info("[%s] Garbage collecting inaccessible keys, since %d partitions in namespace %s remain".format(this, ctx.partitions.size, dbName))
+            logger.info("[%s] Garbage collecting inaccessible keys, since %d partitions in namespace %s remain", this, ctx.partitions.size, dbName)
 
             implicit def orderedByteArrayView(thiz: Array[Byte]) = new Ordered[Array[Byte]] {
               def compare(that: Array[Byte]) = ctx.comparator.compare(thiz, that) 
@@ -332,7 +332,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode)
               thisSlice = thisSlice.remove(thatSlice) /* Remove (from deletion) slice which cannot be deleted */
             }
             thisSlice.foreach((startKey, endKey) => {
-              logger.info("++ [%s] Deleting range: [%s, %s)".format(this, JArrays.toString(startKey.orNull), JArrays.toString(endKey.orNull)))
+              logger.info("++ [%s] Deleting range: [%s, %s)", this, JArrays.toString(startKey.orNull), JArrays.toString(endKey.orNull))
               handler.deleteRange(startKey, endKey, txn)
             })
           }

@@ -63,7 +63,7 @@ case class FromLeft[A <% Ordered[A]](endKey: A) extends CustomSlice[A] {
   def remove(slice: Slice[A]) = slice match {
     case EntireRange() => EmptyRange()
     case EmptyRange()  => this
-    case FromLeft(thatEndKey) if endKey.compare(thatEndKey) == 0 => EmptyRange()
+    case FromLeft(thatEndKey) if endKey <= thatEndKey => EmptyRange()
     case FromLeft(thatEndKey) =>
       BoundedSlice(min(endKey, thatEndKey), max(endKey, thatEndKey))
     case ToRight(startKey) if startKey >= endKey => this
@@ -86,7 +86,7 @@ case class ToRight[A <% Ordered[A]](startKey: A) extends CustomSlice[A] {
     case EmptyRange()  => this
     case FromLeft(thatEndKey) if startKey >= thatEndKey => this
     case FromLeft(thatEndKey) => ToRight(thatEndKey)
-    case ToRight(thatStartKey) if startKey.compare(thatStartKey) == 0 => EmptyRange()
+    case ToRight(thatStartKey) if startKey >= thatStartKey => EmptyRange()
     case ToRight(thatStartKey) =>
       BoundedSlice(min(startKey, thatStartKey), max(startKey, thatStartKey))
     case BoundedSlice(thatStartKey, thatEndKey) if thatEndKey <= startKey => this
