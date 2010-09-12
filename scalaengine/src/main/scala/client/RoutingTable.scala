@@ -69,9 +69,12 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     var ranges = routingTable.valuesForRange(startKey, endKey)
     val result = new  Array[FullRange](ranges.size)
     var sKey: Option[KeyType] = None
-    var eKey: Option[KeyType] = None
+    var eKey: Option[KeyType] = endKey
     for (i <- ranges.size - 1 to 0 by -1){
-      sKey = ranges(i).startKey
+      if(i == 0)
+        sKey = startKey
+      else
+        sKey = ranges(i).startKey
       result(i) = new FullRange(sKey, eKey, ranges(i).values)
       eKey = sKey
     }

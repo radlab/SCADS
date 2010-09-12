@@ -42,6 +42,12 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
 
   protected def serversForKey(key: KeyType): List[PartitionService]
 
+  /**
+   * Returns a list of ranges where to find the data for the given range.
+   *
+   * For example, for the routing table [None -> (S1,S3); 100 -> (S2, S4), 150 -> (S6, S7)]
+   * serversForRange(10,130) would return ((10, 100) -> (S1, S3); (100, 130) -> (S2, S4)) 
+   */
   protected def serversForRange(startKey: Option[KeyType], endKey: Option[KeyType]): List[FullRange]
 
   case class FullRange(startKey: Option[KeyType], endKey: Option[KeyType], values : List[PartitionService])
