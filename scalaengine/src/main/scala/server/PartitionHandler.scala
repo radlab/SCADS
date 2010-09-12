@@ -91,6 +91,18 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           }
           reply(PutResponse())
         }
+        case BulkPutRequest(records) => {
+          val txn = db.getEnvironment.beginTransaction(null, null)
+          records.foreach(rec => db.put(txn, new DatabaseEntry(rec.key), new DatabaseEntry(rec.value.get)))
+          try {
+            txn.commit()
+            reply(BulkPutResponse())
+          } catch {
+            case e: Exception =>
+              logger.error(e, "Could not commit BulkPutRequest")
+              reply(ProcessingException(e.getMessage, e.getStackTrace.mkString("\n")))
+          }
+        }
         case GetRangeRequest(minKey, maxKey, limit, offset, ascending) => {
           logger.debug("[%s] GetRangeRequest: [%s, %s)", this, JArrays.toString(minKey.orNull), JArrays.toString(maxKey.orNull))
           val maxIsEnd = JArrays.equals(endKey.orNull, maxKey.orNull)

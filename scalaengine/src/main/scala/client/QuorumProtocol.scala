@@ -180,8 +180,66 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
 
   def size(): Int = throw new RuntimeException("Unimplemented")
 
-  def ++=(that: Iterable[(KeyType, ValueType)]): Unit = that.foreach(r => put(r._1, r._2))
+  private final val BufSize = 1024
+  private final val FutureCollSize = 1024
 
+  /**
+   * Bulk put. Still obeys write quorums
+   */
+  def ++=(that: Iterable[(KeyType, ValueType)]) {
+    /* Buffers KV tuples until the average buffer size for all the servers is
+     * greater than BufSize. Then sends the request to the servers, while
+     * repeating the buffering process for the next set of KV tuples. When the
+     * tuple stream runs out, or when the outstanding future collection grows
+     * above a certain threshold, blocks (via quorum) on each of the returned
+     * future collections.
+     */
+    val serverBuffers = new HashMap[PartitionService, ArrayBuffer[PutRequest]]
+    val outstandingFutureColls = new ArrayBuffer[FutureCollection]
+
+    def averageBufferSize =
+      serverBuffers.values.foldLeft(0)(_ + _.size) / serverBuffers.size.toDouble 
+
+    def writeServerBuffers() {
+      outstandingFutureColls += new FutureCollection(serverBuffers.map { tup => 
+        tup._1 !! BulkPutRequest(tup._2.toSeq)
+      }.toSeq)
+      serverBuffers.clear() // clear buffers
+    }
+
+    def blockFutureCollections() {
+      outstandingFutureColls.foreach(coll => coll.blockFor(scala.math.ceil(coll.futures.size * writeQuorum).toInt))
+      outstandingFutureColls.clear() // clear ftch colls
+    }
+
+    that.foreach { kvEntry => 
+
+      val (servers, quorum) = writeQuorumForKey(kvEntry._1)
+      val putRequest = PutRequest(serializeKey(kvEntry._1), Some(createRecord(kvEntry._2)))
+
+      for (server <- servers) {
+        val buf = serverBuffers.getOrElseUpdate(server, new ArrayBuffer[PutRequest])
+        buf += putRequest
+      }
+
+      if (averageBufferSize >= BufSize.toDouble)
+        // time to flush server buffers
+        writeServerBuffers()
+
+      if (outstandingFutureColls.size > FutureCollSize)
+        // time to block on collections (via quorum) so that we don't congest
+        // the network
+        blockFutureCollections()
+
+    }
+
+    if (!serverBuffers.isEmpty) {
+      // outstanding keys since last flush - since we've reached the end of
+      // the iterable collection, we must write and block now
+      writeServerBuffers()
+      blockFutureCollections()
+    }
+  }
 
   /**
    * Tests the range for conflicts and marks all violations for future resolution.
