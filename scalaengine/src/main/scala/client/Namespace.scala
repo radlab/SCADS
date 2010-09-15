@@ -25,8 +25,8 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
   protected val logger: Logger
   protected var nsRoot : ZooKeeperProxy#ZooKeeperNode = null
 
-  protected def getKeySchema() : Schema
-  protected def getValueSchema() : Schema
+  def getKeySchema() : Schema
+  def getValueSchema() : Schema
 
   protected def createRecord(value : ValueType) : Array[Byte]
   protected def extractValueFromRecord(record: Option[Array[Byte]]): Option[ValueType]
