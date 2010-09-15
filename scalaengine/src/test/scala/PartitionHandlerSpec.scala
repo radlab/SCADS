@@ -60,6 +60,28 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers {
 
     }
 
+    it("should get ranges of data") {
+      val p = getHandler()
+
+      val req = BulkPutRequest((1 to 100).map(i => PutRequest(IntRec(i).toBytes, IntRec(i * 2).toBytes)).toSeq)
+      p !? req match {
+        case BulkPutResponse() => // success
+        case m => fail("Expected BulkPutResponse but got: " + m)
+      }
+
+      p !? GetRangeRequest(None, None) match {
+        case GetRangeResponse(resps) =>
+          resps.map(rec => new IntRec().parse(rec.key).f1) should equal(1 to 100)
+        case m => fail("Expected GetRangeResponse but got: " + m)
+      }
+
+      p !? GetRangeRequest(Some(IntRec(25).toBytes), Some(IntRec(75).toBytes)) match {
+        case GetRangeResponse(resps) =>
+          resps.map(rec => new IntRec().parse(rec.key).f1) should equal(25 until 75)
+        case m => fail("Expected GetRangeResponse but got: " + m)
+      }
+    }
+
     it("should copy data overwriting existing data") {
       val p1 = getHandler()
       val p2 = getHandler()
