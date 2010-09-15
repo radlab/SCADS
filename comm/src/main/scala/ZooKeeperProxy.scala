@@ -128,7 +128,7 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watc
       name.drop(name.length - 10).toInt
     }
 
-    def awaitChild(name: String, seqNumber: Option[Int] = None, timeout: Long = 10000, unit: TimeUnit = TimeUnit.MILLISECONDS): Unit = {
+    def awaitChild(name: String, seqNumber: Option[Int] = None, timeout: Long = 24*60*60*1000, unit: TimeUnit = TimeUnit.MILLISECONDS): Unit = {
       val fullName = fullPath(seqNumber.map(s => "%s%010d".format(name, s)).getOrElse(name))
       val blocker = new BlockingFuture 
       val watcher = new Watcher {
