@@ -168,6 +168,14 @@ class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecif
 
   def newValueInstance =
     valueClass.newInstance
+  
+  lazy val genericNamespace = createGenericVersion()
+
+  private def createGenericVersion(): GenericNamespace = {
+    val genericNs = new GenericNamespace(namespace, timeout, root, keySchema, valueSchema)
+    genericNs.load
+    genericNs
+  }
 }
 
 class GenericNamespace(namespace: String,
