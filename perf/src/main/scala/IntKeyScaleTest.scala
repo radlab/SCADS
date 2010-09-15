@@ -89,7 +89,7 @@ object IntKeyScaleClient extends optional.Application {
     val endKey = (clientId + 1) * recsPerServer
 
     val startTime = System.currentTimeMillis
-    (startKey to endKey).foreach(i => ns.put(IntRec(i), IntRec(i)))
+    ns ++= (startKey to endKey).view.map(i => (IntRec(i), IntRec(i)))
     writeResults.put(WriteClient(clusterName, clientId), WritePerfResult(recsPerServer, startTime, System.currentTimeMillis))
 
     registerAndBlock("endWrite")
