@@ -8,8 +8,9 @@ import edu.berkeley.cs.scads.storage.routing._
 import org.apache.avro.Schema
 import Schema.Type
 import org.apache.avro.generic.{IndexedRecord, GenericData, GenericDatumReader, GenericDatumWriter}
-import org.apache.avro.io.{BinaryData, DecoderFactory, BinaryEncoder, BinaryDecoder, DatumReader, ResolvingDecoder}
-import org.apache.avro.specific.SpecificDatumReader
+import org.apache.avro.io.{BinaryData, DecoderFactory, BinaryEncoder, BinaryDecoder, 
+                           DatumReader, DatumWriter, ResolvingDecoder}
+import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter}
 
 import com.googlecode.avro.runtime._
 
@@ -96,10 +97,20 @@ private[storage] trait AvroSerializing[KeyType <: IndexedRecord, ValueType <: In
   val keyReader: DatumReader[KeyType]
   val valueReader: DatumReader[ValueType] 
 
-  protected def newKeyInstance: KeyType = 
-    null.asInstanceOf[KeyType]
-  protected def newValueInstance: ValueType = 
-    null.asInstanceOf[ValueType]
+  val keyWriter: DatumWriter[KeyType]
+  val valueWriter: DatumWriter[ValueType]
+
+  protected val bufferSize = 128
+
+  /**
+   * Return a new key instance, or null to use the default
+   */
+  protected def newKeyInstance: KeyType
+
+  /**
+   * Return a new value instance, or null to use the default
+   */
+  protected def newValueInstance: ValueType
 
   protected val decoderFactory = (new DecoderFactory).configureDirectDecoder(true)
 
@@ -111,6 +122,20 @@ private[storage] trait AvroSerializing[KeyType <: IndexedRecord, ValueType <: In
   protected def deserializeValue(value: Array[Byte]): ValueType = {
     val dec = decoderFactory.createBinaryDecoder(value, null)
     valueReader.read(newValueInstance, new ResolvingDecoder(valueSchemaResolver, dec))
+  }
+
+  protected def serializeKey(key: KeyType): Array[Byte] = {
+    val baos = new ByteArrayOutputStream(bufferSize)
+    val enc  = new BinaryEncoder(baos)
+    keyWriter.write(key, enc)
+    baos.toByteArray
+  }
+
+  protected def serializeValue(value: ValueType): Array[Byte] = {
+    val baos = new ByteArrayOutputStream(bufferSize)
+    val enc  = new BinaryEncoder(baos)
+    valueWriter.write(value, enc)
+    baos.toByteArray
   }
 
 }
@@ -135,14 +160,14 @@ class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecif
   val keyReader   = new SpecificDatumReader[KeyType](keySchema)
   val valueReader = new SpecificDatumReader[ValueType](valueSchema)
 
-  override def newKeyInstance =
+  val keyWriter   = new SpecificDatumWriter[KeyType](keySchema)
+  val valueWriter = new SpecificDatumWriter[ValueType](valueSchema)
+
+  def newKeyInstance =
     keyClass.newInstance
 
-  override def newValueInstance =
+  def newValueInstance =
     valueClass.newInstance
-
-  protected def serializeKey(key: KeyType): Array[Byte] = key.toBytes
-  protected def serializeValue(value: ValueType): Array[Byte] = value.toBytes
 }
 
 class GenericNamespace(namespace: String,
@@ -162,8 +187,9 @@ class GenericNamespace(namespace: String,
   val keyWriter   = new GenericDatumWriter[GenericData.Record](keySchema)
   val valueWriter = new GenericDatumWriter[GenericData.Record](valueSchema)
 
-  implicit def toRichIndexedRecord[T <: IndexedRecord](i: T) = new RichIndexedRecord[T](i)
+  def newKeyInstance =
+    null.asInstanceOf[GenericData.Record]
 
-  protected def serializeKey(key: GenericData.Record): Array[Byte] = key.toBytes
-  protected def serializeValue(value: GenericData.Record): Array[Byte] = value.toBytes
+  def newValueInstance =
+    null.asInstanceOf[GenericData.Record]
 }
