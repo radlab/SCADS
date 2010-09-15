@@ -3,59 +3,78 @@ package edu.berkeley.cs.scads.piql
 import edu.berkeley.cs.scads.storage._
 import com.googlecode.avro.marker._
 
-class ScadrClient(cluster: ScadsCluster) extends PhysicalOperators {
+import org.apache.avro.util._
+
+case class UserKey(var username: String) extends AvroRecord
+case class UserValue(var homeTown: String) extends AvroRecord
+
+case class ThoughtKey(var owner: String, var timestamp: Int) extends AvroRecord
+case class ThoughtValue(var text: String) extends AvroRecord
+
+case class SubscriptionKey(var owner: String, var target: String) extends AvroRecord
+case class SubscriptionValue(var approved: Boolean) extends AvroRecord
+
+case class HashTagKey(var tag: String, var timestamp: Int, var owner: String) extends AvroRecord
+case class HashTagValue() extends AvroRecord
+
+case class UserTarget(var target: String) extends AvroRecord
+
+class ScadrClient(cluster: ScadsCluster) extends QueryPlans {
   val maxResultsPerPage = 10
   val maxSubscriptions = 5000
 
-  case class UserKey(var username: String) extends AvroRecord
-  case class UserValue(var homeTown: String) extends AvroRecord
-
-  case class ThoughtKey(var owner: String, var timestamp: Int) extends AvroRecord
-  case class ThoughtValue(var text: String) extends AvroRecord
-
-  case class SubscriptionKey(var owner: String, var target: String) extends AvroRecord
-  case class SubscriptionValue(var approved: Boolean) extends AvroRecord
+  implicit def toGeneric(ns: SpecificNamespace[_, _]) = ns.genericNamespace
 
   /* TODO: Fix variance of namespace to remove cast */
-  val users = cluster.getNamespace[UserKey, UserValue]("users").asInstanceOf[Namespace]
-  val thoughts = cluster.getNamespace[ThoughtKey, ThoughtValue]("thoughts").asInstanceOf[Namespace]
-  val subscriptions = cluster.getNamespace[SubscriptionKey, SubscriptionValue]("subscriptions").asInstanceOf[Namespace]
+  val users = cluster.getNamespace[UserKey, UserValue]("users")
+  val thoughts = cluster.getNamespace[ThoughtKey, ThoughtValue]("thoughts")
+  val subscriptions = cluster.getNamespace[SubscriptionKey, SubscriptionValue]("subscriptions")
+  val tags = cluster.getNamespace[HashTagKey, HashTagValue]("tags")
 
-  case class UserTarget(var target: String) extends AvroRecord
-  val idxUsersTarget = cluster.getNamespace[UserTarget, UserKey]("idxUsersTarget").asInstanceOf[Namespace]
+  val idxUsersTarget = cluster.getNamespace[UserTarget, UserKey]("idxUsersTarget")
 
   val findUserPlan = IndexLookup(users, Array(ParameterValue(0)))
   def findUser(username: String): QueryResult =
-    findUserPlan.execute(Array[Any](username))
+    findUserPlan.getIterator(Array[Any](new Utf8(username))).toList
 
   val myThoughtsPlan = IndexScan(thoughts, Array(ParameterValue(0)), ParameterLimit(1, maxResultsPerPage), true)
-  def myThoughts(username: String, count: Int): QueryResult = {
-    myThoughtsPlan.execute(Array[Any](username, count))
-  }
+  def myThoughts(username: String, count: Int): QueryResult =
+    myThoughtsPlan.getIterator(Array[Any](username, count)).toList
 
-  val myFollowersPlan =
-    IndexLookupJoin(users, Array(AttributeValue("target")),
+  val usersFollowedByPlan =
+    IndexLookupJoin(users, Array(AttributeValue(0, 1)),
       IndexScan(subscriptions, Array(ParameterValue(0)), ParameterLimit(1, maxResultsPerPage), true)
     )
-  def myFollowers(username: String, count: Int): QueryResult = {
-    myThoughtsPlan.execute(Array[Any](username, count))
-  }
+  def usersFollowedBy(username: String, count: Int): QueryResult =
+    myThoughtsPlan.getIterator(Array[Any](username, count)).toList
 
-  val myFollowingPlan =
-    IndexLookupJoin(users, Array(AttributeValue("target")),
-      IndexScan(idxUsersTarget, Array(ParameterValue(0)), ParameterLimit(1, maxResultsPerPage), true)
+  val usersFollowingPlan =
+    IndexLookupJoin(users, Array(AttributeValue(1, 0)),
+      SequentialDereferenceIndex(subscriptions,
+        IndexScan(idxUsersTarget, Array(ParameterValue(0)), ParameterLimit(1, maxResultsPerPage), true)
+      )
     )
-  def myFollowing(username: String, count: Int): QueryResult = {
-    myFollowingPlan.execute(Array[Any](username, count))
-  }
+  def usersFollowing(username: String, count: Int): QueryResult =
+    usersFollowingPlan.getIterator(Array[Any](username, count)).toList
 
   val thoughtStreamPlan =
-    IndexMergeJoin(thoughts, Array(AttributeValue("target")), Array("timestamp"), ParameterLimit(1, maxResultsPerPage), false,
-      Selection(Equality(FixedValue(true), AttributeValue("approved")),
+    IndexMergeJoin(thoughts, Array(AttributeValue(0, 1)), Array("timestamp"), ParameterLimit(1, maxResultsPerPage), false,
+      Selection(Equality(FixedValue(true), AttributeValue(1, 0)),
         IndexScan(subscriptions, Array(ParameterValue(0)), FixedLimit(maxSubscriptions), true)
       )
     )
-  def thoughtstream(username: String, count: Int): QueryResult = {
-    thoughtStreamPlan.execute(Array[Any](username, count))
-  }
+  def thoughtstream(username: String, count: Int): QueryResult =
+    thoughtStreamPlan.getIterator(Array[Any](username, count)).toList
+
+  /* SELECT thoughts.*
+     FROM thoughts
+       JOIN tags ON thoughts.owner = tags.owner AND thoughts.timestamp = tags.timestamp
+     WHERE tags.tag = [1: tag]
+     ORDER BY timestamp DESC */
+  val thoughsByHashTagPlan =
+    IndexLookupJoin(thoughts, Array(AttributeValue(0, 1), AttributeValue(0,2)),
+      IndexScan(tags, Array(ParameterValue(0)), ParameterLimit(1, 10), false)
+    )
+  def thoughtsByHashTag(tag: String, count: Int): QueryResult =
+    thoughsByHashTagPlan.getIterator(Array[Any](tag, count)).toList
 }
