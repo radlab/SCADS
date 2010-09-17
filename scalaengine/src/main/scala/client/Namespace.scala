@@ -42,6 +42,8 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
 
   protected def serversForKey(key: KeyType): List[PartitionService]
 
+  protected def newKeyInstance: KeyType
+
   /**
    * Returns a list of ranges where to find the data for the given range.
    *

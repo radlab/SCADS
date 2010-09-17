@@ -9,11 +9,14 @@ import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.comm.Conversions._
 import edu.berkeley.cs.scads.storage._
 import com.googlecode.avro.marker.AvroRecord
+import org.apache.avro.generic._
+import net.lag.logging.Logger
 
 @RunWith(classOf[JUnitRunner])
 class KeyValueStoreSpec extends Spec with ShouldMatchers {
   val storageHandlers = TestScalaEngine.getTestHandler(5)
   val cluster = TestScalaEngine.getTestCluster()
+  val logger = Logger()
 
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
@@ -49,6 +52,27 @@ class KeyValueStoreSpec extends Spec with ShouldMatchers {
     }
 
     describe("getRange Method") {
+      it("it should suport prefixKeys") {
+        val ns = cluster.getNamespace[IntRec3, IntRec]("prefixrange")
+        val data = for(i <- 1 to 10; j <- 1 to 10; k <- 1 to 10)
+          yield (IntRec3(i,k,j), IntRec(1))
+
+        ns ++= data
+
+        def prefixRec(i: Option[Int], j: Option[Int], k: Option[Int]): GenericData.Record = {
+          val rec = new GenericData.Record(IntRec3.schema)
+          rec.put(0, i.orNull: Any)
+          rec.put(1, j.orNull: Any)
+          rec.put(2, k.orNull: Any)
+          rec
+        }
+
+        ns.genericNamespace.getRange(prefixRec(1, None, None), prefixRec(1, None, None)).size should equal(100)
+        ns.genericNamespace.getRange(prefixRec(1, None, None), prefixRec(2, None, None)).size should equal(200)
+        ns.genericNamespace.getRange(prefixRec(1, None, None), prefixRec(3, None, None)).size should equal(300)
+        ns.genericNamespace.getRange(prefixRec(2, None, None), prefixRec(3, None, None)).size should equal(200)
+        ns.genericNamespace.getRange(prefixRec(3, None, None), prefixRec(3, None, None)).size should equal(100)
+      }
       it("should correctly return ranges") {
         val ns = cluster.getNamespace[IntRec, IntRec]("rangetest")
 

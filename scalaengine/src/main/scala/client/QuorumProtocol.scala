@@ -1,7 +1,10 @@
 package edu.berkeley.cs.scads.storage
 
+import scala.collection.JavaConversions._
+
 import edu.berkeley.cs.scads.comm._
-import org.apache.avro.generic.IndexedRecord
+import org.apache.avro.generic.{GenericData, IndexedRecord}
+import org.apache.avro.Schema
 import net.lag.logging.Logger
 import org.apache.zookeeper.CreateMode
 import java.nio.ByteBuffer
@@ -9,6 +12,7 @@ import actors.Actor
 import java.util.concurrent.TimeUnit
 import collection.mutable.{ArrayBuffer, MutableList, HashMap}
 import java.util.Arrays
+
 
 /**
  * Quorum Protocol
@@ -25,8 +29,6 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
   protected val ZK_QUORUM_CONFIG = "quorumProtConfig"
 
   protected val logger = Logger()
-
-
 
   def setReadWriteQuorum(readQuorum: Double, writeQuorum: Double) = {
     require(0 < readQuorum && readQuorum <= 1, "Read quorum has to be in the range 0 < RQ <= 1 but was " + readQuorum)
@@ -122,8 +124,47 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     return extractValueFromRecord(record)
   }
 
+  protected def minVal(fieldType: org.apache.avro.Schema.Type): Any = fieldType match {
+    case org.apache.avro.Schema.Type.BOOLEAN => false
+    case org.apache.avro.Schema.Type.DOUBLE => java.lang.Double.MIN_VALUE
+    case org.apache.avro.Schema.Type.FLOAT => java.lang.Float.MIN_VALUE
+    case org.apache.avro.Schema.Type.INT => java.lang.Integer.MIN_VALUE
+    case org.apache.avro.Schema.Type.LONG => java.lang.Long.MIN_VALUE
+    case org.apache.avro.Schema.Type.STRING => new org.apache.avro.util.Utf8("")
+    case unsupportedType =>
+      throw new RuntimeException("Invalid key type in partial key getRange. " + unsupportedType + " not supported for inquality queries.")
+  }
+
+  protected def maxVal(fieldType: org.apache.avro.Schema.Type): Any = fieldType match {
+    case org.apache.avro.Schema.Type.BOOLEAN => true
+    case org.apache.avro.Schema.Type.DOUBLE => java.lang.Double.MAX_VALUE
+    case org.apache.avro.Schema.Type.FLOAT => java.lang.Float.MAX_VALUE
+    case org.apache.avro.Schema.Type.INT => java.lang.Integer.MAX_VALUE
+    case org.apache.avro.Schema.Type.LONG => java.lang.Long.MAX_VALUE
+    case org.apache.avro.Schema.Type.STRING => new org.apache.avro.util.Utf8(new String(Array.fill[Byte](20)(127.asInstanceOf[Byte])))
+    case unsupportedType =>
+      throw new RuntimeException("Invalid key type in partial key getRange. " + unsupportedType + " not supported for inquality queries.")
+  }
+
+  protected def fillOutKey(keyPrefix: KeyType, fillFunc: Schema.Type => Any): KeyType = {
+    val filledRec = newKeyInstance
+
+    logger.info("Original key: %s", keyPrefix)
+    keyPrefix.getSchema.getFields.foreach(field => {
+      logger.info("Processing field %s", field)
+      if(keyPrefix.get(field.pos) == null)
+       filledRec.put(field.pos, fillFunc(field.schema.getType))
+      else
+       filledRec.put(field.pos, keyPrefix.get(field.pos))
+    })
+    logger.info("Filled key: %s", filledRec)
+    filledRec
+  }
+
   //TODO Offset does not work if split over several partitions
-  def getRange(startKey: Option[KeyType], endKey: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, backwards: Boolean = false): Seq[(KeyType, ValueType)] = {
+  def getRange(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, backwards: Boolean = false): Seq[(KeyType, ValueType)] = {
+    val startKey = startKeyPrefix.map(fillOutKey(_, minVal))
+    val endKey = endKeyPrefix.map(fillOutKey(_, maxVal))
     var partitions = if (backwards) serversForRange(startKey, endKey).reverse else serversForRange(startKey, endKey)
     var handlers: ArrayBuffer[RangeHandle] = new ArrayBuffer[RangeHandle]
     val sKey = startKey.map(serializeKey(_))
