@@ -195,9 +195,6 @@ class GenericNamespace(namespace: String,
   val keyWriter   = new GenericDatumWriter[GenericData.Record](keySchema)
   val valueWriter = new GenericDatumWriter[GenericData.Record](valueSchema)
 
-  def newKeyInstance =
-    null.asInstanceOf[GenericData.Record]
-
-  def newValueInstance =
-    null.asInstanceOf[GenericData.Record]
+  def newKeyInstance = new GenericData.Record(keySchema)
+  def newValueInstance = new GenericData.Record(valueSchema)
 }
