@@ -172,8 +172,6 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
   }
 
 
-  def getPrefix[K <: KeyType](key: K, prefixSize: Int, limit: Option[Int] = None, ascending: Boolean = true): Seq[(KeyType, ValueType)] = throw new RuntimeException("Unimplemented")
-
   def size(): Int = throw new RuntimeException("Unimplemented")
 
   private final val BufSize = 1024
