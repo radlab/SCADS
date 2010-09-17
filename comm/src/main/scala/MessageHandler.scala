@@ -135,7 +135,7 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
   private def doReceiveMessage0(src: RemoteNode, msg: Message) {
     val service = serviceRegistry.get(msg.dest)
 
-    logger.debug("Received Message: %s from %s", msg, src)
+    logger.trace("Received Message: %s from %s", msg, src)
 
     if(service != null) {
       service.receiveMessage(msg.src.map(RemoteActor(src.hostname, src.port, _)), msg.body)
