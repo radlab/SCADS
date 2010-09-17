@@ -65,6 +65,8 @@ case class GetResponsibilityResponse(var startKey: Option[Array[Byte]], var endK
 
 /* Test Record Types.  Note: they are here due to problems with the typer (i.e. generated methods aren't visable in the same compilation cycle */
 case class IntRec(var f1: Int) extends AvroRecord
+case class IntRec2(var f1: Int, var f2: Int) extends AvroRecord
+case class IntRec3(var f1: Int, var f2: Int, var f3: Int) extends AvroRecord
 case class StringRec(var f1: String) extends AvroRecord
 
 case class QuorumProtocolConfig(var readQuorum : Double, var writeQuorum : Double) extends AvroRecord
