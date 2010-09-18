@@ -19,13 +19,12 @@ case class HashTagValue() extends AvroRecord
 
 case class UserTarget(var target: String) extends AvroRecord
 
-class ScadrClient(cluster: ScadsCluster) extends QueryPlans {
+class ScadrClient(cluster: ScadsCluster, executor: QueryExecutor) {
   val maxResultsPerPage = 10
   val maxSubscriptions = 5000
 
   implicit def toGeneric(ns: SpecificNamespace[_, _]) = ns.genericNamespace
 
-  /* TODO: Fix variance of namespace to remove cast */
   val users = cluster.getNamespace[UserKey, UserValue]("users")
   val thoughts = cluster.getNamespace[ThoughtKey, ThoughtValue]("thoughts")
   val subscriptions = cluster.getNamespace[SubscriptionKey, SubscriptionValue]("subscriptions")
@@ -35,18 +34,18 @@ class ScadrClient(cluster: ScadsCluster) extends QueryPlans {
 
   val findUserPlan = IndexLookup(users, Array(ParameterValue(0)))
   def findUser(username: String): QueryResult =
-    findUserPlan.getIterator(Array[Any](new Utf8(username))).toList
+    executor(findUserPlan, new Utf8(username)).toList
 
   val myThoughtsPlan = IndexScan(thoughts, Array(ParameterValue(0)), ParameterLimit(1, maxResultsPerPage), true)
   def myThoughts(username: String, count: Int): QueryResult =
-    myThoughtsPlan.getIterator(Array[Any](username, count)).toList
+    executor(myThoughtsPlan, username, count).toList
 
   val usersFollowedByPlan =
     IndexLookupJoin(users, Array(AttributeValue(0, 1)),
       IndexScan(subscriptions, Array(ParameterValue(0)), ParameterLimit(1, maxResultsPerPage), true)
     )
   def usersFollowedBy(username: String, count: Int): QueryResult =
-    myThoughtsPlan.getIterator(Array[Any](username, count)).toList
+    executor(usersFollowedByPlan, username, count).toList
 
   val usersFollowingPlan =
     IndexLookupJoin(users, Array(AttributeValue(1, 0)),
@@ -55,7 +54,7 @@ class ScadrClient(cluster: ScadsCluster) extends QueryPlans {
       )
     )
   def usersFollowing(username: String, count: Int): QueryResult =
-    usersFollowingPlan.getIterator(Array[Any](username, count)).toList
+    executor(usersFollowingPlan, username, count).toList
 
   val thoughtStreamPlan =
     IndexMergeJoin(thoughts, Array(AttributeValue(0, 1)), Array("timestamp"), ParameterLimit(1, maxResultsPerPage), false,
@@ -64,7 +63,7 @@ class ScadrClient(cluster: ScadsCluster) extends QueryPlans {
       )
     )
   def thoughtstream(username: String, count: Int): QueryResult =
-    thoughtStreamPlan.getIterator(Array[Any](username, count)).toList
+    executor(thoughtStreamPlan, username, count).toList
 
   /* SELECT thoughts.*
      FROM thoughts
@@ -76,5 +75,5 @@ class ScadrClient(cluster: ScadsCluster) extends QueryPlans {
       IndexScan(tags, Array(ParameterValue(0)), ParameterLimit(1, 10), false)
     )
   def thoughtsByHashTag(tag: String, count: Int): QueryResult =
-    thoughsByHashTagPlan.getIterator(Array[Any](tag, count)).toList
+    executor(thoughsByHashTagPlan, tag, count).toList
 }
