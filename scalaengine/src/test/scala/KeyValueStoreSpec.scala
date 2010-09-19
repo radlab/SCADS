@@ -52,7 +52,7 @@ class KeyValueStoreSpec extends Spec with ShouldMatchers {
     }
 
     describe("getRange Method") {
-      it("it should suport prefixKeys") {
+      it("should suport prefixKeys") {
         val ns = cluster.getNamespace[IntRec3, IntRec]("prefixrange")
         val data = for(i <- 1 to 10; j <- 1 to 10; k <- 1 to 10)
           yield (IntRec3(i,k,j), IntRec(1))
@@ -73,6 +73,26 @@ class KeyValueStoreSpec extends Spec with ShouldMatchers {
         ns.genericNamespace.getRange(prefixRec(2, None, None), prefixRec(3, None, None)).size should equal(200)
         ns.genericNamespace.getRange(prefixRec(3, None, None), prefixRec(3, None, None)).size should equal(100)
       }
+
+      it("should support composite primary keys") {
+        /* simple get/puts */
+        val ns = cluster.getNamespace[CompIntStringRec, IntRec]("compkeytest")
+        
+        val data = for (i <- 1 to 10; c <- 'a' to 'c') 
+          yield (CompIntStringRec(IntRec(i), StringRec(c.toString)), IntRec(1))
+
+        data.foreach(kv => ns.put(kv._1, kv._2))
+        data.foreach(kv => ns.get(kv._1) should equal(Some(kv._2)))
+
+        /* getRange, full records */
+        ns.getRange(None, None) should equal(data)
+
+        /* getRange, prefix */
+        ns.getRange(Some(CompIntStringRec(IntRec(1), null)), Some(CompIntStringRec(IntRec(1), null))) should equal(
+          ('a' to 'c').map(c => (CompIntStringRec(IntRec(1), StringRec(c.toString)), IntRec(1))))
+
+      }
+
       it("should correctly return ranges") {
         val ns = cluster.getNamespace[IntRec, IntRec]("rangetest")
 
@@ -88,7 +108,6 @@ class KeyValueStoreSpec extends Spec with ShouldMatchers {
         ns.getRange(None, IntRec(110)).map(_._1.f1)        should equal(1 to 100)
         ns.getRange(IntRec(-10), IntRec(110)).map(_._1.f1) should equal(1 to 100)
       }
-
 
       it("should correctly return ranges obeying the limit") {
         val ns = cluster.getNamespace[IntRec, IntRec]("rangetestlimit")

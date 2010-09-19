@@ -12,7 +12,8 @@ import org.apache.zookeeper.CreateMode
 
 /**
  * The new protocol interface
- * TODO Should this abstract class be renamed to protocol?
+ * TODO: Should this abstract class be renamed to protocol?
+ * TODO: KeyType should really be a subtype of GenericRecord
  */
 abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
     (val namespace:String,
@@ -43,6 +44,7 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
   protected def serversForKey(key: KeyType): List[PartitionService]
 
   protected def newKeyInstance: KeyType
+  protected def newRecordInstance(schema: Schema): IndexedRecord
 
   /**
    * Returns a list of ranges where to find the data for the given range.

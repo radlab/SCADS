@@ -112,6 +112,12 @@ private[storage] trait AvroSerializing[KeyType <: IndexedRecord, ValueType <: In
    */
   protected def newValueInstance: ValueType
 
+  /**
+   * Given a record schema, return a new instance of a record for that schema
+   * Very similiar to newRecord for Avro DatumReaders
+   */
+  protected def newRecordInstance(schema: Schema): IndexedRecord
+
   protected val decoderFactory = (new DecoderFactory).configureDirectDecoder(true)
 
   protected def deserializeKey(key: Array[Byte]): KeyType = {
@@ -157,7 +163,10 @@ class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecif
   val keySchema   = keyClass.newInstance.getSchema
   val valueSchema = valueClass.newInstance.getSchema
 
-  val keyReader   = new SpecificDatumReader[KeyType](keySchema)
+  val keyReader   = new SpecificDatumReader[KeyType](keySchema) {
+    def exposedNewRecord(old: AnyRef, schema: Schema): AnyRef = 
+      newRecord(old, schema)
+  }
   val valueReader = new SpecificDatumReader[ValueType](valueSchema)
 
   val keyWriter   = new SpecificDatumWriter[KeyType](keySchema)
@@ -168,6 +177,11 @@ class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecif
 
   def newValueInstance =
     valueClass.newInstance
+
+  def newRecordInstance(schema: Schema) = {
+    assert(schema.getType == Type.RECORD)
+    keyReader.exposedNewRecord(null, schema).asInstanceOf[IndexedRecord]
+  }
   
   lazy val genericNamespace = createGenericVersion()
 
@@ -189,7 +203,10 @@ class GenericNamespace(namespace: String,
     with    SimpleMetaData[GenericData.Record, GenericData.Record]
     with    AvroSerializing[GenericData.Record, GenericData.Record] {
 
-  val keyReader   = new GenericDatumReader[GenericData.Record](keySchema)
+  val keyReader   = new GenericDatumReader[GenericData.Record](keySchema) {
+    def exposedNewRecord(old: AnyRef, schema: Schema): AnyRef = 
+      newRecord(old, schema)
+  }
   val valueReader = new GenericDatumReader[GenericData.Record](valueSchema)
 
   val keyWriter   = new GenericDatumWriter[GenericData.Record](keySchema)
@@ -197,4 +214,10 @@ class GenericNamespace(namespace: String,
 
   def newKeyInstance = new GenericData.Record(keySchema)
   def newValueInstance = new GenericData.Record(valueSchema)
+
+  def newRecordInstance(schema: Schema) = {
+    assert(schema.getType == Type.RECORD)
+    keyReader.exposedNewRecord(null, schema).asInstanceOf[IndexedRecord]
+  }
+
 }

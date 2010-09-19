@@ -3,7 +3,7 @@ package edu.berkeley.cs.scads.storage
 import scala.collection.JavaConversions._
 
 import edu.berkeley.cs.scads.comm._
-import org.apache.avro.generic.{GenericData, IndexedRecord}
+import org.apache.avro.generic.{GenericData, GenericRecord, IndexedRecord}
 import org.apache.avro.Schema
 import Schema.Type
 import org.apache.avro.util.Utf8
@@ -133,36 +133,40 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     return extractValueFromRecord(record)
   }
 
-  protected def minVal(fieldType: Type): Any = fieldType match {
+  protected def minVal(fieldType: Type, fieldSchema: Schema): Any = fieldType match {
     case Type.BOOLEAN => false
     case Type.DOUBLE => java.lang.Double.MIN_VALUE
     case Type.FLOAT => java.lang.Float.MIN_VALUE
     case Type.INT => java.lang.Integer.MIN_VALUE
     case Type.LONG => java.lang.Long.MIN_VALUE
     case Type.STRING => new Utf8(MinString)
+    case Type.RECORD =>
+      fillOutKey(newRecordInstance(fieldSchema), () => newRecordInstance(fieldSchema))(minVal _)
     case unsupportedType =>
       throw new RuntimeException("Invalid key type in partial key getRange. " + unsupportedType + " not supported for inquality queries.")
   }
 
-  protected def maxVal(fieldType: Type): Any = fieldType match {
+  protected def maxVal(fieldType: Type, fieldSchema: Schema): Any = fieldType match {
     case Type.BOOLEAN => true
     case Type.DOUBLE => java.lang.Double.MAX_VALUE
     case Type.FLOAT => java.lang.Float.MAX_VALUE
     case Type.INT => java.lang.Integer.MAX_VALUE
     case Type.LONG => java.lang.Long.MAX_VALUE
     case Type.STRING => new Utf8(MaxString) 
+    case Type.RECORD => 
+      fillOutKey(newRecordInstance(fieldSchema), () => newRecordInstance(fieldSchema))(maxVal _)
     case unsupportedType =>
       throw new RuntimeException("Invalid key type in partial key getRange. " + unsupportedType + " not supported for inquality queries.")
   }
 
-  protected def fillOutKey(keyPrefix: KeyType, fillFunc: Schema.Type => Any): KeyType = {
-    val filledRec = newKeyInstance
+  protected def fillOutKey[R <: IndexedRecord](keyPrefix: R, keyFactory: () => R)(fillFunc: (Type, Schema) => Any): R = {
+    val filledRec = keyFactory()
 
     logger.info("Original key: %s", keyPrefix)
     keyPrefix.getSchema.getFields.foreach(field => {
       logger.info("Processing field %s", field)
       if(keyPrefix.get(field.pos) == null)
-       filledRec.put(field.pos, fillFunc(field.schema.getType))
+       filledRec.put(field.pos, fillFunc(field.schema.getType, field.schema))
       else
        filledRec.put(field.pos, keyPrefix.get(field.pos))
     })
@@ -172,8 +176,8 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
 
   //TODO Offset does not work if split over several partitions
   def getRange(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, backwards: Boolean = false): Seq[(KeyType, ValueType)] = {
-    val startKey = startKeyPrefix.map(fillOutKey(_, minVal))
-    val endKey = endKeyPrefix.map(fillOutKey(_, maxVal))
+    val startKey = startKeyPrefix.map(prefix => fillOutKey(prefix, newKeyInstance _)(minVal))
+    val endKey = endKeyPrefix.map(prefix => fillOutKey(prefix, newKeyInstance _)(maxVal))
     var partitions = if (backwards) serversForRange(startKey, endKey).reverse else serversForRange(startKey, endKey)
     var handlers: ArrayBuffer[RangeHandle] = new ArrayBuffer[RangeHandle]
     val sKey = startKey.map(serializeKey(_))
