@@ -146,13 +146,13 @@ class KeyValueStoreSpec extends Spec with ShouldMatchers {
         (1 to 100).foreach(i => ns.put(IntRec(i),IntRec(i)))
 
         /* Various range checks */
-        ns.getRange(None, None, backwards=true).map(_._1.f1)               should equal(100 to 1 by -1)
-        ns.getRange(None, IntRec(50), backwards=true).map(_._1.f1)         should equal(49 to 1 by -1)
-        ns.getRange(IntRec(50), None, backwards=true).map(_._1.f1)         should equal(100 to 50 by -1)
-        ns.getRange(IntRec(10), IntRec(90), backwards=true).map(_._1.f1)   should equal(89 to 10 by -1)
-        ns.getRange(IntRec(-10), None, backwards=true).map(_._1.f1)        should equal(100 to 1 by -1)
-        ns.getRange(None, IntRec(110), backwards=true).map(_._1.f1)        should equal(100 to 1 by -1)
-        ns.getRange(IntRec(-10), IntRec(110), backwards=true).map(_._1.f1) should equal(100 to 1 by -1)
+        ns.getRange(None, None, ascending=false).map(_._1.f1)               should equal(100 to 1 by -1)
+        ns.getRange(None, IntRec(50), ascending=false).map(_._1.f1)         should equal(49 to 1 by -1)
+        ns.getRange(IntRec(50), None, ascending=false).map(_._1.f1)         should equal(100 to 50 by -1)
+        ns.getRange(IntRec(10), IntRec(90), ascending=false).map(_._1.f1)   should equal(89 to 10 by -1)
+        ns.getRange(IntRec(-10), None, ascending=false).map(_._1.f1)        should equal(100 to 1 by -1)
+        ns.getRange(None, IntRec(110), ascending=false).map(_._1.f1)        should equal(100 to 1 by -1)
+        ns.getRange(IntRec(-10), IntRec(110), ascending=false).map(_._1.f1) should equal(100 to 1 by -1)
 
       }
 
@@ -161,13 +161,13 @@ class KeyValueStoreSpec extends Spec with ShouldMatchers {
         /* Insert Integers 1-100 */
         (1 to 100).foreach(i => ns.put(IntRec(i),IntRec(i)))
 
-        ns.getRange(None, None, limit=10, backwards=true).map(_._1.f1)               should equal(100 to 91 by -1)
-        ns.getRange(None, IntRec(50), limit=10, backwards=true).map(_._1.f1)         should equal(49 to 40 by -1)
-        ns.getRange(IntRec(50), None, limit=10, backwards=true).map(_._1.f1)         should equal(100 to 91 by -1)
-        ns.getRange(IntRec(10), IntRec(90), limit=10, backwards=true).map(_._1.f1)   should equal(89 to 80 by -1)
-        ns.getRange(IntRec(-10), None, limit=10, backwards=true).map(_._1.f1)        should equal(100 to 91 by -1)
-        ns.getRange(None, IntRec(110), limit=10, backwards=true).map(_._1.f1)        should equal(100 to 91 by -1)
-        ns.getRange(IntRec(-10), IntRec(110), limit=10, backwards=true).map(_._1.f1) should equal(100 to 91 by -1)
+        ns.getRange(None, None, limit=10, ascending=false).map(_._1.f1)               should equal(100 to 91 by -1)
+        ns.getRange(None, IntRec(50), limit=10, ascending=false).map(_._1.f1)         should equal(49 to 40 by -1)
+        ns.getRange(IntRec(50), None, limit=10, ascending=false).map(_._1.f1)         should equal(100 to 91 by -1)
+        ns.getRange(IntRec(10), IntRec(90), limit=10, ascending=false).map(_._1.f1)   should equal(89 to 80 by -1)
+        ns.getRange(IntRec(-10), None, limit=10, ascending=false).map(_._1.f1)        should equal(100 to 91 by -1)
+        ns.getRange(None, IntRec(110), limit=10, ascending=false).map(_._1.f1)        should equal(100 to 91 by -1)
+        ns.getRange(IntRec(-10), IntRec(110), limit=10, ascending=false).map(_._1.f1) should equal(100 to 91 by -1)
 
       }
     }

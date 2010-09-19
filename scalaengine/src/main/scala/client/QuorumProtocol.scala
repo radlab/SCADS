@@ -199,7 +199,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
   }
 
   //TODO Offset does not work if split over several partitions
-  def getRange(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, backwards: Boolean = false): Seq[(KeyType, ValueType)] = {
+  def getRange(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = false): Seq[(KeyType, ValueType)] = {
     val startKey = startKeyPrefix.map(prefix => fillOutKey(prefix, newKeyInstance _)(minVal))
     val endKey = endKeyPrefix.map(prefix => fillOutKey(prefix, newKeyInstance _)(maxVal))
     var partitions = if (backwards) serversForRange(startKey, endKey).reverse else serversForRange(startKey, endKey)
@@ -209,7 +209,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
 
     do {
       val range = partitions.head
-      val rangeRequest = new GetRangeRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), limit, offset, !backwards)
+      val rangeRequest = new GetRangeRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), limit, offset, ascending)
       handlers.append(new RangeHandle(range.values.map(_ !! rangeRequest)))
       partitions = partitions.tail
     } while(!partitions.isEmpty &&  limit.isEmpty)
