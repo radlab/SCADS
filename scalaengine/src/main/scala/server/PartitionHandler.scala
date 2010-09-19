@@ -199,7 +199,8 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
   /**
    * Low level method to iterate over a given range on the database. it is up
    * to the caller to validate minKey and maxKey. The range iterated over is
-   * [minKey, maxKey)
+   * [minKey, maxKey), with the order specified by ascending (and limits
+   * respected)
    */
   private def iterateOverRange(minKey: Option[Array[Byte]], 
                                maxKey: Option[Array[Byte]], 
@@ -218,9 +219,23 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
       case (false, _, Some(startKey)) => {
         // Check if maxKey is past the last key in the database, if so start from the end
         if(cur.getSearchKeyRange(new DatabaseEntry(startKey), dbeValue, null) == OperationStatus.NOTFOUND)
+          // no need to skip back one since the maxKey was not found anyways
           cur.getLast(dbeKey, dbeValue, null)
-        else
-          OperationStatus.SUCCESS
+        else {
+          // need to check that the cursor is pointing to the first key that
+          // is LESS THAN maxKey. getSearchKeyRange semantics only guarantee
+          // that the cursor is pointing to the smallest key >= maxKey
+          var status = cur.getCurrent(dbeKey, dbeValue, null)
+          assert(status == OperationStatus.SUCCESS, "Cursor does not point to anything after getSearchKeyRange")
+          var cont = JArrays.equals(startKey, dbeKey.getData)
+          while (cont && status == OperationStatus.SUCCESS) {
+            // move to the previous key
+            status = cur.getPrev(dbeKey, dbeValue, null)
+            if (!JArrays.equals(startKey, dbeKey.getData)) 
+              cont = false
+          }
+          status
+        }
       }
     }
 
