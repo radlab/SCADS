@@ -5,6 +5,8 @@ import scala.collection.JavaConversions._
 import edu.berkeley.cs.scads.comm._
 import org.apache.avro.generic.{GenericData, IndexedRecord}
 import org.apache.avro.Schema
+import Schema.Type
+import org.apache.avro.util.Utf8
 import net.lag.logging.Logger
 import org.apache.zookeeper.CreateMode
 import java.nio.ByteBuffer
@@ -13,6 +15,10 @@ import java.util.concurrent.TimeUnit
 import collection.mutable.{ArrayBuffer, MutableList, HashMap}
 import java.util.Arrays
 
+private[storage] object QuorumProtocol {
+  val MinString = "" 
+  val MaxString = new String(Array.fill[Byte](20)(127.asInstanceOf[Byte]))
+}
 
 /**
  * Quorum Protocol
@@ -23,6 +29,9 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
  timeout: Int,
  root: ZooKeeperProxy#ZooKeeperNode)(implicit cluster: ScadsCluster)
         extends Namespace[KeyType, ValueType](namespace, timeout, root)(cluster) with AvroComparator {
+  
+  import QuorumProtocol._
+
   protected var readQuorum: Double = 0.001
   protected var writeQuorum: Double = 1
 
@@ -124,24 +133,24 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     return extractValueFromRecord(record)
   }
 
-  protected def minVal(fieldType: org.apache.avro.Schema.Type): Any = fieldType match {
-    case org.apache.avro.Schema.Type.BOOLEAN => false
-    case org.apache.avro.Schema.Type.DOUBLE => java.lang.Double.MIN_VALUE
-    case org.apache.avro.Schema.Type.FLOAT => java.lang.Float.MIN_VALUE
-    case org.apache.avro.Schema.Type.INT => java.lang.Integer.MIN_VALUE
-    case org.apache.avro.Schema.Type.LONG => java.lang.Long.MIN_VALUE
-    case org.apache.avro.Schema.Type.STRING => new org.apache.avro.util.Utf8("")
+  protected def minVal(fieldType: Type): Any = fieldType match {
+    case Type.BOOLEAN => false
+    case Type.DOUBLE => java.lang.Double.MIN_VALUE
+    case Type.FLOAT => java.lang.Float.MIN_VALUE
+    case Type.INT => java.lang.Integer.MIN_VALUE
+    case Type.LONG => java.lang.Long.MIN_VALUE
+    case Type.STRING => new Utf8(MinString)
     case unsupportedType =>
       throw new RuntimeException("Invalid key type in partial key getRange. " + unsupportedType + " not supported for inquality queries.")
   }
 
-  protected def maxVal(fieldType: org.apache.avro.Schema.Type): Any = fieldType match {
-    case org.apache.avro.Schema.Type.BOOLEAN => true
-    case org.apache.avro.Schema.Type.DOUBLE => java.lang.Double.MAX_VALUE
-    case org.apache.avro.Schema.Type.FLOAT => java.lang.Float.MAX_VALUE
-    case org.apache.avro.Schema.Type.INT => java.lang.Integer.MAX_VALUE
-    case org.apache.avro.Schema.Type.LONG => java.lang.Long.MAX_VALUE
-    case org.apache.avro.Schema.Type.STRING => new org.apache.avro.util.Utf8(new String(Array.fill[Byte](20)(127.asInstanceOf[Byte])))
+  protected def maxVal(fieldType: Type): Any = fieldType match {
+    case Type.BOOLEAN => true
+    case Type.DOUBLE => java.lang.Double.MAX_VALUE
+    case Type.FLOAT => java.lang.Float.MAX_VALUE
+    case Type.INT => java.lang.Integer.MAX_VALUE
+    case Type.LONG => java.lang.Long.MAX_VALUE
+    case Type.STRING => new Utf8(MaxString) 
     case unsupportedType =>
       throw new RuntimeException("Invalid key type in partial key getRange. " + unsupportedType + " not supported for inquality queries.")
   }
