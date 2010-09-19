@@ -246,7 +246,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
       }
     }
     handlers.foreach(ReadRepairer ! _)
-    result.toList //If this is to expensive, we should consider a different data structure
+    result
   }
 
 
