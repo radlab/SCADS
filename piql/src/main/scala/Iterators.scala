@@ -24,6 +24,15 @@ trait QueryExecutor {
     }
     boundKey
   }
+
+  protected def bindLimit(limit: Limit)(implicit ctx: Context): Int = limit match {
+    case FixedLimit(l) => l
+    case ParameterLimit(lim, max) =>
+      if(lim <= max)
+        lim
+      else
+        throw new RuntimeException("Limit out of range")
+  }
 }
 
 object SimpleExecutor extends QueryExecutor {
@@ -53,7 +62,7 @@ object SimpleExecutor extends QueryExecutor {
         var pos = 0
 
         def open: Unit = 
-          result = namespace.getRange(Some(boundKeyPrefix), Some(boundKeyPrefix))
+          result = namespace.getRange(Some(boundKeyPrefix), Some(boundKeyPrefix), limit=bindLimit(limit), ascending=ascending)
         def close: Unit = 
           result = Nil
 
