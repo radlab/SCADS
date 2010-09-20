@@ -15,7 +15,7 @@ trait Predicate
 case class Equality(v1: Value, v2: Value) extends Predicate
 
 /* Query Plan Nodes */
-abstract class QueryPlan 
+abstract class QueryPlan
 case class IndexLookup(namespace: Namespace, key: KeyGenerator) extends QueryPlan
 case class IndexScan(namespace: Namespace, keyPrefix: KeyGenerator, limit: Limit, ascending: Boolean) extends QueryPlan
 case class SequentialDereferenceIndex(targetNamespace: Namespace, child: QueryPlan) extends QueryPlan
