@@ -14,6 +14,7 @@ import actors.Actor
 import java.util.concurrent.TimeUnit
 import collection.mutable.{ArrayBuffer, MutableList, HashMap}
 import java.util.Arrays
+import scala.concurrent.ManagedBlocker
 
 private[storage] object QuorumProtocol {
   val MinString = "" 
@@ -119,18 +120,41 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     responses.blockFor(quorum)
   }
 
-  def get[K <: KeyType](key: K): Option[ValueType] = {
+  @inline private def makeGetHandler(key: KeyType) = {
     val (servers, quorum) = readQuorumForKey(key)
     val serKey = serializeKey(key)
     val getRequest = GetRequest(serKey)
     val responses = servers.map(_ !! getRequest)
+    (new GetHandler(serKey, responses), quorum)
+  }
 
-    val handler = new GetHandler(serKey, responses)
+  @inline private def finishGetHandler(handler: GetHandler, quorum: Int) = {
     val record = handler.vote(quorum)
     if (handler.failed)
       throw new RuntimeException("Not enough servers responded. We need to throw better exceptions for that case")
     ReadRepairer ! handler
-    return extractValueFromRecord(record)
+    extractValueFromRecord(record)
+  }
+
+  def get[K <: KeyType](key: K): Option[ValueType] = {
+    val (handler, quorum) = makeGetHandler(key)
+    finishGetHandler(handler, quorum)
+  }
+
+  class AsyncGetActor[K <: KeyType](key: K, blockingFuture: BlockingFuture[Option[ValueType]]) 
+    extends ManagedBlockingActor {
+    def act() {
+      managedBlock {
+        val (handler, quorum) = makeGetHandler(key)
+        blockingFuture.finish(finishGetHandler(handler, quorum))
+      }
+    }
+  }
+
+  def asyncGet[K <: KeyType](key: K): ScadsFuture[Option[ValueType]] = {
+    val ftch = new BlockingFuture[Option[ValueType]]
+    (new AsyncGetActor(key, ftch)).start()
+    ftch
   }
 
   protected def minVal(fieldType: Type, fieldSchema: Schema): Any = fieldType match {
@@ -382,7 +406,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
 
   }
 
-  class GetHandler(val key: Array[Byte], val futures: Seq[MessageFuture], val timeout: Long = 100) {
+  class GetHandler(val key: Array[Byte], val futures: Seq[MessageFuture], val timeout: Long = 5000) {
     val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture]
     futures.foreach(_.forward(responses))
     var losers: MutableList[RemoteActorProxy] = new MutableList
@@ -433,30 +457,57 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
 
   }
 
-  object ReadRepairer extends Actor {
-    this.start
+  /**
+   * ReadRepairer actor - calls to processRest() run in a managed blocker, so that
+   * the ForkJoinPool does not starve
+   */
+  object ReadRepairer extends ManagedBlockingActor {
+    start() /* Auto start */
     
     def act() {
-      while (true) {
-        receive {
-          case handler: GetHandler =>   {
-            handler.processRest()
+      loop {
+        react {
+          case handler: GetHandler =>
+            managedBlock {
+              handler.processRest()
+            }
             for (server <- handler.repairList)
               server !! PutRequest(handler.key, handler.winnerValue)
-          }
-          case handler: RangeHandle => {
-            handler.processRest()
-            for ((key, (data, servers)) <- handler.loosers){
-              for (server <- servers)     {
-
+          case handler: RangeHandle =>
+            managedBlock {
+              handler.processRest()
+            }
+            for ((key, (data, servers)) <- handler.loosers) {
+              for (server <- servers) {
                 server !! PutRequest(key, Some(data))
               }
             }
-          }
           case _ => throw new RuntimeException("Unknown message")
-
         }
       }
+    }
+  }
+
+  /**
+   * Default ManagedBlocker for a function which has no means to query
+   * progress
+   */
+  class DefaultManagedBlocker(f: () => Unit) extends ManagedBlocker {
+    private var completed = false
+    def block() = {
+      f()
+      completed = true
+      true
+    }
+    def isReleasable = completed
+  }
+
+  /**
+   * Actor which makes it easier to invoke managedBlock
+   */
+  trait ManagedBlockingActor extends Actor {
+    protected def managedBlock(f: => Unit) {
+      scheduler.managedBlock(new DefaultManagedBlocker(() => f))
     }
   }
 

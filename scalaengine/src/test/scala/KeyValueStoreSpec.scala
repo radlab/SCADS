@@ -51,6 +51,20 @@ class KeyValueStoreSpec extends Spec with ShouldMatchers {
       ns.getRange(None, None).map(_._1.f1) should equal(2 to 100 by 2)
     }
 
+    it("should implement asyncGet") {
+      val ns = cluster.getNamespace[IntRec, IntRec]("asyncgettest")
+
+      val recs = (1 to 500).map(i => (IntRec(i), IntRec(3 * i)))
+      ns ++= recs
+
+      val ftchs = (1 to 500).map(i => ns.asyncGet(IntRec(i)))
+
+      ftchs.zip((1 to 500)).foreach {
+        case (ftch, i) =>
+          ftch() should equal(Some(IntRec(3 * i))) 
+      }
+    }
+
     describe("getRange Method") {
       it("should suport prefixKeys") {
         val ns = cluster.getNamespace[IntRec3, IntRec]("prefixrange")

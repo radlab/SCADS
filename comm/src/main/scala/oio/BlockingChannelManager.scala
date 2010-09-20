@@ -145,7 +145,7 @@ abstract class BlockingChannelManager[S <: SpecificRecord, R <: SpecificRecord](
   }
 
   class SendTask(val bytes: Array[Byte], val offset: Int, val length: Int, val flush: Boolean) {
-    val future = new BlockingFuture
+    val future = new BlockingFuture[Unit]
   }
 
   trait RunnableHelper {

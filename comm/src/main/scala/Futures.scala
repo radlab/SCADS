@@ -5,13 +5,45 @@ import scala.concurrent.SyncVar
 import net.lag.logging.Logger
 
 import java.util.Queue
-import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.{ LinkedBlockingQueue, TimeUnit }
+
+/**
+ * This is the base trait for any type of future in SCADS.
+ */
+trait ScadsFuture[T] {
+
+  /**
+   * Cancels the current future
+   */
+  def cancel(): Unit
+
+  /**
+   * Block on the future until T is ready
+   */
+  def get(): T
+
+  /**
+   * Same as get()
+   */
+  def apply(): T = get()
+
+  /**
+   * Block for up to timeout.
+   */
+  def get(timeout: Long, unit: TimeUnit = TimeUnit.MILLISECONDS): Option[T]
+
+  /**
+   * True iff the future has already been set
+   */
+  def isSet: Boolean
+
+}
 
 object MessageFuture {
   implicit def toFutureCollection(futures: Seq[MessageFuture]): FutureCollection = new FutureCollection(futures)
 }
 
-class MessageFuture extends Future[MessageBody] with MessageReceiver {
+class MessageFuture extends Future[MessageBody] with ScadsFuture[MessageBody] with MessageReceiver {
   protected[comm] val remoteActor = MessageHandler.registerService(this)
   protected val sender = new SyncVar[Option[RemoteActorProxy]]
   protected val message = new SyncVar[MessageBody]
@@ -28,8 +60,15 @@ class MessageFuture extends Future[MessageBody] with MessageReceiver {
 
   def source =  sender.get
   def respond(r: (MessageBody) => Unit): Unit = r(message.get)
-  def apply(): MessageBody = message.get
-  def get(timeout: Int): Option[MessageBody] = message.get(timeout)
+
+  def get(): MessageBody = message.get
+
+  def get(timeout: Int): Option[MessageBody] =
+    get(timeout, TimeUnit.MILLISECONDS)
+
+  def get(timeout: Long, unit: TimeUnit): Option[MessageBody] = 
+    message.get(unit.toMillis(timeout))
+
   def isSet: Boolean = message.isSet
 
   /**
@@ -66,28 +105,48 @@ class FutureCollection(val futures: Seq[MessageFuture]) {
 class FutureTimeoutException extends RuntimeException
 class FutureException(ex: Throwable) extends RuntimeException(ex)
 
-class BlockingFuture {
+/**
+ * Default synchronized-based implementation of ScadsFuture
+ */
+class BlockingFuture[T] extends ScadsFuture[T] {
   private var ex: Throwable = _
   private var done          = false
+  private var elem: T       = _
 
-  def await(timeout: Long) {
+  def cancel() { error("UNIMPLEMENTED") }
+
+  def isSet: Boolean = synchronized { done }
+
+  def await(timeout: Long): T = {
+    val opt = get(timeout, TimeUnit.MILLISECONDS)
+    opt.getOrElse(throw new FutureTimeoutException)
+  }
+
+  def await(): T = await(0L)
+
+  def get(): T = await(0L)
+
+  def get(timeout: Long, unit: TimeUnit): Option[T] = {
     synchronized {
       if (!done)
-        wait(timeout)
-      if (!done)
-        throw new FutureTimeoutException
-      if (ex ne null)
+        wait(unit.toMillis(timeout))
+      if (!done) None
+      else if (ex ne null)
         throw new FutureException(ex)
+      else {
+        assert(elem.asInstanceOf[AnyRef] ne null, "Element cannot be null if done")
+        Some(elem)
+      }
     }
   }
 
-  def await() { await(0L) }
-
-  def finish() {
+  def finish(e: T) {
+    require(e.asInstanceOf[AnyRef] ne null)
     synchronized {
       if (done)
         throw new IllegalStateException("Future already done")
       done = true
+      elem = e
       notifyAll()
     }
   }

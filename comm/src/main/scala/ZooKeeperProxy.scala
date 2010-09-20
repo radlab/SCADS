@@ -130,7 +130,7 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watc
 
     def awaitChild(name: String, seqNumber: Option[Int] = None, timeout: Long = 24*60*60*1000, unit: TimeUnit = TimeUnit.MILLISECONDS): Unit = {
       val fullName = fullPath(seqNumber.map(s => "%s%010d".format(name, s)).getOrElse(name))
-      val blocker = new BlockingFuture 
+      val blocker = new BlockingFuture[Unit] 
       val watcher = new Watcher {
         def process(evt: WatchedEvent) {
           evt.getType match {
