@@ -202,7 +202,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
   def getRange(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = false): Seq[(KeyType, ValueType)] = {
     val startKey = startKeyPrefix.map(prefix => fillOutKey(prefix, newKeyInstance _)(minVal))
     val endKey = endKeyPrefix.map(prefix => fillOutKey(prefix, newKeyInstance _)(maxVal))
-    var partitions = if (backwards) serversForRange(startKey, endKey).reverse else serversForRange(startKey, endKey)
+    var partitions = if (ascending) serversForRange(startKey, endKey)else serversForRange(startKey, endKey).reverse
     var handlers: ArrayBuffer[RangeHandle] = new ArrayBuffer[RangeHandle]
     val sKey = startKey.map(serializeKey(_))
     val eKey = endKey.map(serializeKey(_))
@@ -227,7 +227,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
         if (records.length <= openRec && !partitions.isEmpty) {
           val range = partitions.head
           val newLimit = if(limit.isDefined) Some(openRec.toInt) else None
-          val rangeRequest = new GetRangeRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), newLimit, offset, !backwards)
+          val rangeRequest = new GetRangeRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), newLimit, offset, ascending)
           handlers.append(new RangeHandle(range.values.map(_ !! rangeRequest)))
           partitions = partitions.tail
         }
