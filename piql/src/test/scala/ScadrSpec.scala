@@ -41,17 +41,28 @@ trait QueryResultMatchers {
   }
 
   def returnTuples[A <: IndexedRecord](right: Array[A]) = new QueryResultMatcher(List(right))
-  def returnTuples(right: QueryResult) = new QueryResultMatcher(right)
+  def returnTuples[A <: IndexedRecord](right: Seq[Array[A]]) = new QueryResultMatcher(right)
 }
 
 @RunWith(classOf[JUnitRunner])
 class ScadrSpec extends Spec with ShouldMatchers with QueryResultMatchers {
   val client = new ScadrClient(TestScalaEngine.getTestCluster, SimpleExecutor)
-  client.users ++= (1 to 10).map(i => (UserKey("User" + i), UserValue("UserHomeTown" + i)))
+  client.bulkLoadTestData
 
   describe("The SCADr client") {
-    it("should have a findUser") {
-      client.findUser("User1") should returnTuples(Array(UserKey("User1"), UserValue("UserHomeTown1")))
+    it("findUser") {
+      client.userData.foreach(u => client.findUser(u._1.username) should returnTuples(Array(u._1, u._2)))
+    }
+
+    it("myThoughts") {
+      client.userData.foreach(u => {
+        val answer = client.thoughtData.filter(_._1.owner equals u._1.username).map(t => Array(t._1, t._2)).reverse
+        client.myThoughts(u._1.username, 10) should returnTuples(answer)
+      })
+    }
+
+    it("usersFollowedBy") {
+      client.userData.flatMap(u => client.usersFollowedBy(u._1.username, 10)).size should equal(client.subscriptionData.size)
     }
   }
 }

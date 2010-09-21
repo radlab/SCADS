@@ -18,10 +18,9 @@ case class Equality(v1: Value, v2: Value) extends Predicate
 abstract class QueryPlan
 case class IndexLookup(namespace: Namespace, key: KeyGenerator) extends QueryPlan
 case class IndexScan(namespace: Namespace, keyPrefix: KeyGenerator, limit: Limit, ascending: Boolean) extends QueryPlan
-case class SequentialDereferenceIndex(targetNamespace: Namespace, child: QueryPlan) extends QueryPlan
 case class IndexLookupJoin(namespace: Namespace, key: KeyGenerator, child: QueryPlan) extends QueryPlan
 case class IndexScanJoin(namespace: Namespace, keyPrefix: KeyGenerator, limit: Limit, ascending: Boolean, child: QueryPlan) extends QueryPlan
-case class IndexMergeJoin(namespace: Namespace, keyPrefix: KeyGenerator, sortFields: Seq[String], limit: Limit, ascending: Boolean, child: QueryPlan) extends QueryPlan
+case class IndexMergeJoin(namespace: Namespace, keyPrefix: KeyGenerator, sortFields: Seq[AttributeValue], limit: Limit, ascending: Boolean, child: QueryPlan) extends QueryPlan
 case class Selection(predicate: Predicate, child: QueryPlan) extends QueryPlan
 case class Sort(fields: List[String], ascending: Boolean, child: QueryPlan) extends QueryPlan
 case class StopAfter(count: Limit, child: QueryPlan) extends QueryPlan

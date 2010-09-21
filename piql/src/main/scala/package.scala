@@ -10,4 +10,6 @@ package object piql {
   type CursorPosition = Seq[Any]
   type Tuple = Array[Record]
   type QueryResult = Seq[Tuple]
+
+  implicit def toRichTuple(t: Tuple) = new RichTuple(t)
 }
