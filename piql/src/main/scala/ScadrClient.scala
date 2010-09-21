@@ -20,7 +20,7 @@ case class HashTagValue() extends AvroRecord
 case class UserTarget(var target: String, var owner: String) extends AvroRecord
 case class NullRecord(var b: Boolean) extends AvroRecord
 
-class ScadrClient(cluster: ScadsCluster, executor: QueryExecutor, numUsers: Int = 100, thoughtsPerUser: Int = 10, subscriptionsPerUser: Int = 10) {
+class ScadrClient(cluster: ScadsCluster, executor: QueryExecutor, numUsers: Int = 100, thoughtsPerUser: Int = 10, subscriptionsPerUser: Int = 10, tagsPerThought: Int = 5) {
   val maxResultsPerPage = 10
   val maxSubscriptions = 5000
 

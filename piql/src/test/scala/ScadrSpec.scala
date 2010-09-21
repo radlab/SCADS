@@ -46,7 +46,7 @@ trait QueryResultMatchers {
 
 @RunWith(classOf[JUnitRunner])
 class ScadrSpec extends Spec with ShouldMatchers with QueryResultMatchers {
-  val client = new ScadrClient(TestScalaEngine.getTestCluster, SimpleExecutor)
+  val client = new ScadrClient(TestScalaEngine.getTestCluster, new SimpleExecutor with DebugExecutor)
   client.bulkLoadTestData
 
   describe("The SCADr client") {
