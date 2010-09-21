@@ -10,6 +10,7 @@ import edu.berkeley.cs.scads.comm.Conversions._
 import edu.berkeley.cs.scads.storage._
 import com.googlecode.avro.marker.AvroRecord
 import org.apache.avro.generic._
+import org.apache.avro.util.Utf8
 import net.lag.logging.Logger
 
 @RunWith(classOf[JUnitRunner])
@@ -86,6 +87,42 @@ class KeyValueStoreSpec extends Spec with ShouldMatchers {
         ns.genericNamespace.getRange(prefixRec(1, None, None), prefixRec(3, None, None)).size should equal(300)
         ns.genericNamespace.getRange(prefixRec(2, None, None), prefixRec(3, None, None)).size should equal(200)
         ns.genericNamespace.getRange(prefixRec(3, None, None), prefixRec(3, None, None)).size should equal(100)
+
+        ns.genericNamespace.getRange(prefixRec(1, None, None), prefixRec(1, None, None), ascending=false).size should equal(100)
+        ns.genericNamespace.getRange(prefixRec(1, None, None), prefixRec(2, None, None), ascending=false).size should equal(200)
+        ns.genericNamespace.getRange(prefixRec(1, None, None), prefixRec(3, None, None), ascending=false).size should equal(300)
+        ns.genericNamespace.getRange(prefixRec(2, None, None), prefixRec(3, None, None), ascending=false).size should equal(200)
+        ns.genericNamespace.getRange(prefixRec(3, None, None), prefixRec(3, None, None), ascending=false).size should equal(100)
+      }
+
+      it("should suport prefixKeys with strings") {
+        val ns = cluster.getNamespace[StringRec3, IntRec]("prefixrangestring")
+        def toString(i: Int) = "%04d".format(i)
+        def toUtf8(i: Int) = new Utf8("%04d".format(i))
+        val data = for(i <- 1 to 10; j <- 1 to 10; k <- 1 to 10)
+          yield (StringRec3(toString(i), toString(k), toString(j)), IntRec(1))
+
+        ns ++= data
+
+        def prefixRec(i: Option[Int], j: Option[Int], k: Option[Int]): GenericData.Record = {
+          val rec = new GenericData.Record(StringRec3.schema)
+          rec.put(0, i.map(toUtf8).orNull: Any)
+          rec.put(1, j.map(toUtf8).orNull: Any)
+          rec.put(2, k.map(toUtf8).orNull: Any)
+          rec
+        }
+
+        ns.genericNamespace.getRange(prefixRec(1, None, None), prefixRec(1, None, None)).size should equal(100)
+        ns.genericNamespace.getRange(prefixRec(1, None, None), prefixRec(2, None, None)).size should equal(200)
+        ns.genericNamespace.getRange(prefixRec(1, None, None), prefixRec(3, None, None)).size should equal(300)
+        ns.genericNamespace.getRange(prefixRec(2, None, None), prefixRec(3, None, None)).size should equal(200)
+        ns.genericNamespace.getRange(prefixRec(3, None, None), prefixRec(3, None, None)).size should equal(100)
+
+        ns.genericNamespace.getRange(prefixRec(1, None, None), prefixRec(1, None, None), ascending=false).size should equal(100)
+        ns.genericNamespace.getRange(prefixRec(1, None, None), prefixRec(2, None, None), ascending=false).size should equal(200)
+        ns.genericNamespace.getRange(prefixRec(1, None, None), prefixRec(3, None, None), ascending=false).size should equal(300)
+        ns.genericNamespace.getRange(prefixRec(2, None, None), prefixRec(3, None, None), ascending=false).size should equal(200)
+        ns.genericNamespace.getRange(prefixRec(3, None, None), prefixRec(3, None, None), ascending=false).size should equal(100)
       }
 
       it("should support composite primary keys") {

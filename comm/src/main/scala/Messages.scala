@@ -68,6 +68,8 @@ case class IntRec(var f1: Int) extends AvroRecord
 case class IntRec2(var f1: Int, var f2: Int) extends AvroRecord
 case class IntRec3(var f1: Int, var f2: Int, var f3: Int) extends AvroRecord
 case class StringRec(var f1: String) extends AvroRecord
+case class StringRec2(var f1: String, var f2: String) extends AvroRecord
+case class StringRec3(var f1: String, var f2: String, var f3: String) extends AvroRecord
 case class CompIntStringRec(var intRec: IntRec, var stringRec: StringRec) extends AvroRecord
 
 case class QuorumProtocolConfig(var readQuorum : Double, var writeQuorum : Double) extends AvroRecord

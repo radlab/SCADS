@@ -226,14 +226,8 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           // is LESS THAN maxKey. getSearchKeyRange semantics only guarantee
           // that the cursor is pointing to the smallest key >= maxKey
           var status = cur.getCurrent(dbeKey, dbeValue, null)
-          assert(status == OperationStatus.SUCCESS, "Cursor does not point to anything after getSearchKeyRange")
-          var cont = JArrays.equals(startKey, dbeKey.getData)
-          while (cont && status == OperationStatus.SUCCESS) {
-            // move to the previous key
+          if(status == OperationStatus.SUCCESS && compare(startKey, dbeKey.getData) <= 0)
             status = cur.getPrev(dbeKey, dbeValue, null)
-            if (!JArrays.equals(startKey, dbeKey.getData)) 
-              cont = false
-          }
           status
         }
       }
