@@ -186,15 +186,12 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
   protected def fillOutKey[R <: IndexedRecord](keyPrefix: R, keyFactory: () => R)(fillFunc: (Type, Schema) => Any): R = {
     val filledRec = keyFactory()
 
-    logger.info("Original key: %s", keyPrefix)
     keyPrefix.getSchema.getFields.foreach(field => {
-      logger.info("Processing field %s", field)
       if(keyPrefix.get(field.pos) == null)
        filledRec.put(field.pos, fillFunc(field.schema.getType, field.schema))
       else
        filledRec.put(field.pos, keyPrefix.get(field.pos))
     })
-    logger.info("Filled key: %s", filledRec)
     filledRec
   }
 
