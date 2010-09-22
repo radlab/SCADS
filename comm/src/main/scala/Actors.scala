@@ -6,8 +6,8 @@ import scala.actors.Actor._
 
 import net.lag.logging.Logger
 
-import com.googlecode.avro.marker.AvroRecord
-import com.googlecode.avro.marker.AvroUnion
+import edu.berkeley.cs.avro.marker.AvroRecord
+import edu.berkeley.cs.avro.marker.AvroUnion
 
 object Actors {
   import scala.actors._

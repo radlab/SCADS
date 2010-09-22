@@ -3,7 +3,7 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.googlecode</groupId>
+  <groupId>edu.berkeley.cs</groupId>
   <artifactId>avro-scala-compiler-plugin-benchmarks</artifactId>
   <version>1.1-SNAPSHOT</version>
   <name>Benchmarks for Scala Compiler Plugin for Avro</name>
@@ -20,7 +20,7 @@
       <version>2.8.0</version>
     </dependency>
     <dependency>
-      <groupId>com.googlecode</groupId>
+      <groupId>edu.berkeley.cs</groupId>
       <artifactId>avro-scala-compiler-plugin</artifactId>
       <version>1.1-SNAPSHOT</version>
     </dependency>
@@ -65,7 +65,7 @@
           </args>
           <compilerPlugins>
             <compilerPlugin>
-              <groupId>com.googlecode</groupId>
+              <groupId>edu.berkeley.cs</groupId>
               <artifactId>avro-scala-compiler-plugin</artifactId>
               <version>1.1-SNAPSHOT</version>
             </compilerPlugin>

@@ -3,8 +3,8 @@ package edu.berkeley.cs.scads.perf
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.mesos._
 import edu.berkeley.cs.scads.storage._
-import com.googlecode.avro.runtime._
-import com.googlecode.avro.marker._
+import edu.berkeley.cs.avro.runtime._
+import edu.berkeley.cs.avro.marker._
 
 import org.apache.zookeeper.CreateMode
 

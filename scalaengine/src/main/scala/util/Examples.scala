@@ -1,7 +1,7 @@
 package edu.berkeley.cs.scads.storage.examples
 
 import edu.berkeley.cs.scads.storage._
-import com.googlecode.avro.marker.AvroRecord
+import edu.berkeley.cs.avro.marker.AvroRecord
 
 case class IntRec(var x: Int) extends AvroRecord
 

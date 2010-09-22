@@ -6,7 +6,7 @@ import com.sleepycat.je.{Cursor,Database, DatabaseConfig, DatabaseException, Dat
 import edu.berkeley.cs.scads.comm._
 
 import org.apache.avro.Schema
-import com.googlecode.avro.runtime._
+import edu.berkeley.cs.avro.runtime._
 
 import org.apache.zookeeper.CreateMode
 

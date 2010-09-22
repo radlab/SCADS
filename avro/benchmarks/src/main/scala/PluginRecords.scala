@@ -1,7 +1,7 @@
 package benchmarks
 package plugin
 
-import com.googlecode.avro.marker._
+import edu.berkeley.cs.avro.marker._
 
 case class Primitives(var i: Int, var j: Long, var k: Boolean) extends AvroRecord
 

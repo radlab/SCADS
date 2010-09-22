@@ -1,7 +1,7 @@
-package com.googlecode.avro
+package edu.berkeley.cs.avro
 package test
 
-import com.googlecode.avro.marker.{ AvroRecord, AvroUnion }
+import edu.berkeley.cs.avro.marker.{ AvroRecord, AvroUnion }
 
 import java.nio.ByteBuffer
 

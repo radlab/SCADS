@@ -1,4 +1,4 @@
-package com.googlecode.avro
+package edu.berkeley.cs.avro
 
 import org.apache.avro.generic.{GenericContainer, IndexedRecord}
 

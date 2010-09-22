@@ -1,4 +1,4 @@
-package com.googlecode.avro
+package edu.berkeley.cs.avro
 package util
 
 case class BuilderSet(val name: String, val prefix: String, val entries: List[BuilderEntry])
@@ -52,7 +52,7 @@ case class BuilderEntry2ImplicitKey(_coll: String, val elem0: String, val elem1:
 
 
 object PrintBuilders {
-  val `package` = "com.googlecode.avro.runtime"
+  val `package` = "edu.berkeley.cs.avro.runtime"
 
   val builders = List(
     BuilderSet("HasCollectionBuilders", "scala.collection",

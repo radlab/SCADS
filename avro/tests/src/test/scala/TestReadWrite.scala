@@ -1,4 +1,4 @@
-package com.googlecode.avro
+package edu.berkeley.cs.avro
 package test
 
 import junit.framework._

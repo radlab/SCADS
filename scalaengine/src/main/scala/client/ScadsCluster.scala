@@ -18,7 +18,7 @@ import scala.collection.mutable.HashMap
 import java.util.Arrays
 import scala.concurrent.SyncVar
 
-import com.googlecode.avro.runtime._
+import edu.berkeley.cs.avro.runtime._
 import scala.util.Random
 
 /**

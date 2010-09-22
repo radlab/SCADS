@@ -1,4 +1,4 @@
-package com.googlecode.avro
+package edu.berkeley.cs.avro
 package test
 
 import junit.framework._
@@ -8,7 +8,7 @@ import SchemaCompare._
 import SchemaDSL._
 
 object Helper {
-  val PREFIX = "com.googlecode.avro.test"
+  val PREFIX = "edu.berkeley.cs.avro.test"
   def mkClassName(c: String) = PREFIX + "." + c
 }
 

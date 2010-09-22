@@ -12,7 +12,7 @@ import org.apache.avro.io.{BinaryData, DecoderFactory, BinaryEncoder, BinaryDeco
                            DatumReader, DatumWriter, ResolvingDecoder}
 import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter}
 
-import com.googlecode.avro.runtime._
+import edu.berkeley.cs.avro.runtime._
 
 private[storage] trait AvroSerializing[KeyType <: IndexedRecord, ValueType <: IndexedRecord] 
   extends Namespace[KeyType, ValueType] {

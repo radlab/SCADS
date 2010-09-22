@@ -3,7 +3,7 @@ package edu.berkeley.cs.scads.perf
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.mesos._
 
-import com.googlecode.avro.runtime._
+import edu.berkeley.cs.avro.runtime._
 
 object SingleClient extends optional.Application {
   implicit val zooRoot = RClusterZoo.root

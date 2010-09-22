@@ -1,7 +1,7 @@
-package com.googlecode.avro
+package edu.berkeley.cs.avro
 package runtime
 
-import com.googlecode.avro.marker._
+import edu.berkeley.cs.avro.marker._
 
 import org.apache.avro.{generic, specific, Schema}
 import generic._

@@ -1,7 +1,7 @@
 package edu.berkeley.cs.scads.piql
 
 import edu.berkeley.cs.scads.storage._
-import com.googlecode.avro.marker._
+import edu.berkeley.cs.avro.marker._
 
 import org.apache.avro.util._
 

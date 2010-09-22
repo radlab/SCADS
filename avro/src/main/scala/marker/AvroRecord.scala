@@ -1,10 +1,10 @@
-package com.googlecode.avro
+package edu.berkeley.cs.avro
 package marker
 
 import org.apache.avro.{specific, Schema}
 import specific.SpecificRecord
 
-import com.googlecode.avro.runtime.ScalaSpecificRecord
+import edu.berkeley.cs.avro.runtime.ScalaSpecificRecord
 
 private[marker] class NoImplementationException extends Exception("Need to run through compiler plugin")
 

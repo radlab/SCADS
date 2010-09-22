@@ -13,6 +13,7 @@
   <packaging>pom</packaging>
   <modules>
     <module>config</module>
+    <module>avro</module>
     <module>comm</module>
     <module>scalaengine</module>
     <module>mesos</module>

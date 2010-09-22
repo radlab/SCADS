@@ -1,7 +1,7 @@
 package edu.berkeley.cs.scads.comm
 
-import com.googlecode.avro.marker.AvroRecord
-import com.googlecode.avro.marker.AvroUnion
+import edu.berkeley.cs.avro.marker.AvroRecord
+import edu.berkeley.cs.avro.marker.AvroUnion
 
 /* Base message type for all scads messages */
 sealed trait MessageBody extends AvroUnion

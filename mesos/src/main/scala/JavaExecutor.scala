@@ -4,7 +4,7 @@ import edu.berkeley.cs.scads.comm._
 
 import net.lag.logging.Logger
 import java.io.{File, InputStream, BufferedReader, InputStreamReader}
-import com.googlecode.avro.marker._
+import edu.berkeley.cs.avro.marker._
 import mesos._
 
 case class JvmProcess(var classpath: String, var mainclass: String, var args: List[String], var props: Map[String, String] = Map.empty) extends AvroRecord

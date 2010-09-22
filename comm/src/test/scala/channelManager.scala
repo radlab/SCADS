@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 import net.lag.logging.Logger
 
-import com.googlecode.avro.marker.AvroRecord
+import edu.berkeley.cs.avro.marker.AvroRecord
 
 case class TestMsg(var payload: String) extends AvroRecord
 

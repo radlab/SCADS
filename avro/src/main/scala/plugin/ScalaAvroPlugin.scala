@@ -1,4 +1,4 @@
-package com.googlecode.avro
+package edu.berkeley.cs.avro
 package plugin
 
 import scala.tools.nsc
@@ -44,8 +44,8 @@ trait ScalaAvroPluginComponent extends PluginComponent {
   protected lazy val MapClass = definitions.getClass("scala.collection.immutable.Map")
 
   /** Avro Scala Plugin Traits */
-  protected lazy val avroRecordTrait = definitions.getClass("com.googlecode.avro.marker.AvroRecord")
-  protected lazy val avroUnionTrait = definitions.getClass("com.googlecode.avro.marker.AvroUnion")
+  protected lazy val avroRecordTrait = definitions.getClass("edu.berkeley.cs.avro.marker.AvroRecord")
+  protected lazy val avroUnionTrait = definitions.getClass("edu.berkeley.cs.avro.marker.AvroUnion")
 
   /** Avro Extra Primitive Types */
   protected lazy val byteBufferClass = definitions.getClass("java.nio.ByteBuffer")
@@ -59,9 +59,9 @@ trait ScalaAvroPluginComponent extends PluginComponent {
   protected lazy val JMapClass = definitions.getClass("java.util.Map")
 
   /** Scala Avro Internal types */
-  protected lazy val ScalaSpecificRecord = definitions.getClass("com.googlecode.avro.runtime.ScalaSpecificRecord")
-  protected lazy val AvroConversions = definitions.getClass("com.googlecode.avro.runtime.HasAvroConversions")
-  protected lazy val GenericArrayWrapperClass = definitions.getClass("com.googlecode.avro.runtime.GenericArrayWrapper")
+  protected lazy val ScalaSpecificRecord = definitions.getClass("edu.berkeley.cs.avro.runtime.ScalaSpecificRecord")
+  protected lazy val AvroConversions = definitions.getClass("edu.berkeley.cs.avro.runtime.HasAvroConversions")
+  protected lazy val GenericArrayWrapperClass = definitions.getClass("edu.berkeley.cs.avro.runtime.GenericArrayWrapper")
 
   /** Takes a class symbol and maps to its associated Schema object */
   protected val classToSchema: Map[Symbol, Schema]

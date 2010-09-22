@@ -8,7 +8,7 @@ import org.scalatest.matchers.ShouldMatchers
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.comm.Conversions._
 import edu.berkeley.cs.scads.storage._
-import com.googlecode.avro.marker.AvroRecord
+import edu.berkeley.cs.avro.marker.AvroRecord
 import org.apache.avro.generic._
 import org.apache.avro.util.Utf8
 import net.lag.logging.Logger

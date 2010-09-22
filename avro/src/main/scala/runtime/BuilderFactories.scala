@@ -1,4 +1,4 @@
-package com.googlecode.avro.runtime
+package edu.berkeley.cs.avro.runtime
 trait HasCollectionBuilders {
   implicit def scala$collection$BitSetFactory = new BuilderFactory[Int, scala.collection.BitSet] {
     def newBuilder = scala.collection.BitSet.newBuilder
