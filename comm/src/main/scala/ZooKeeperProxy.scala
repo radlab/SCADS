@@ -21,7 +21,7 @@ object RClusterZoo extends ZooKeeperProxy("r2.millennium.berkeley.edu:2181")
  * Instances of ZooKeeperProxy and ZooKeeperNode are thread-safe 
  */
 class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watcher {
- 
+  self =>
   protected val logger = Logger()
 
   // must be volatile because it's set from watcher thread
@@ -72,6 +72,8 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watc
 
     @inline private def fullPath(rpath: String) =
       prefix + rpath
+
+    val proxy = self
 
     def apply(rpath: String): ZooKeeperNode = 
       get(rpath).getOrElse(throw new RuntimeException("Zookeeper node doesn't exist: " + fullPath(rpath)))
