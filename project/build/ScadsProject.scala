@@ -7,6 +7,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
 
   lazy val config      = project("config", "SCADS Config")
 
+  lazy val avro        = project("avro", "Avro Scala Compiler Plugin")
   lazy val comm        = pluginProject("comm", "SCADS Communication Manager", config)
   lazy val scalaengine = pluginProject("scalaengine", "SCADS Storange Engine", config, comm)
   lazy val mesos       = pluginProject("mesos", "SCADS Mesos Binding", config, scalaengine)
