@@ -56,6 +56,22 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     storeRoutingTable()
   }
 
+  override def delete() {
+    val storageHandlers = routingTable.rTable.flatMap(_.values.map(_.storageService)).toSet
+    storageHandlers foreach { handler => 
+      handler !? DeleteNamespaceRequest(namespace) match {
+        case DeleteNamespaceResponse() => 
+          logger.info("Successfully deleted namespace %s on StorageHandler %s", namespace, handler)
+        case InvalidNamespace(_) =>
+          logger.error("Got invalid namespace error for namespace %s on StorageService %s", namespace, handler)
+        case e =>
+          logger.error("Unexpected message from DeleteNamespaceRequest: %s", e) 
+      }
+    }
+    routingTable = null
+    super.delete()
+  }
+
   override def load(): Unit = {
     super.load()
     loadRoutingTable()

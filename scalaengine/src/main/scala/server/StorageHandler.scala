@@ -190,7 +190,8 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode)
 
   /**
    * WARNING: you must synchronize on the context for a namespace before
-   * performaning any mutating operations
+   * performaning any mutating operations (or to have the correct memory
+   * read semantics)
    *
    * TODO: in the current implementation, once a namespace lock is created, it
    * remains for the duration of the JVM process (and is thus not eligible for
@@ -206,6 +207,9 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode)
       Option(namespaces.putIfAbsent(namespace, ctx)) getOrElse ctx
     }
   }
+
+  @inline private def removeNamespaceContext(namespace: String) = 
+    Option(namespaces.remove(namespace))
 
   /**
    * Performs the following shutdown tasks:
@@ -347,6 +351,25 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode)
       case GetPartitionsRequest() => {
         reply(GetPartitionsResponse(partitions.toList.map( a => a._2.remoteHandle.toPartitionService(a._1, remoteHandle.toStorageService))))
 
+      }
+      case DeleteNamespaceRequest(namespace) => {
+
+        val ctx = removeNamespaceContext(namespace).getOrElse { reply(InvalidNamespace(namespace)); return }
+
+        logger.info("WARNING: About to delete namespace %s! All information and metadata will be lost!", namespace)
+
+        ctx.synchronized {
+          val txn = env.beginTransaction(null, null)
+          ctx.partitions.foreach { case (partitionId, handler) => 
+            handler.stop /* Closes DB handle */
+            logger.info("Deleting metadata for partition %s", partitionId)
+            partitionDb.delete(txn, new DatabaseEntry(partitionId.getBytes)) 
+          }
+          env.removeDatabase(txn, namespace)
+          txn.commit()
+        }
+
+        reply(DeleteNamespaceResponse())
       }
       case _ => reply(RequestRejected("StorageHandler can't process this message type", msg))
     }

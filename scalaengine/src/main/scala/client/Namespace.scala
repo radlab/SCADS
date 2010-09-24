@@ -13,7 +13,6 @@ import org.apache.zookeeper.CreateMode
 /**
  * The new protocol interface
  * TODO: Should this abstract class be renamed to protocol?
- * TODO: KeyType should really be a subtype of GenericRecord
  */
 abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
     (val namespace:String,
@@ -102,4 +101,15 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
     nsRoot.createChild("keySchema", getKeySchema().toString.getBytes, CreateMode.PERSISTENT)
     nsRoot.createChild("valueSchema", getValueSchema.toString.getBytes, CreateMode.PERSISTENT)
   }
+
+  /**
+   * Deletes the entire namespace, along with any associated metadata. After
+   * calling delete, this namespace instance is no longer usable
+   */
+  def delete() {
+    logger.info("Deleting zookeeper metadata for namespace %s", namespace)
+    nsRoot.deleteRecursive
+    nsRoot = null
+  }
+
 }

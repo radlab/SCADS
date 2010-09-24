@@ -50,8 +50,11 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watc
         if (test1 ne null) test1
         else {
           val newNode0 = newNode // only can evaluate newNode once
-          val test2 = canonicalMap.putIfAbsent(newNode0.path, newNode0)
-          assert(test2 eq null, "newNode should not produce name collisions")
+          val test2 = canonicalMap.put(newNode0.path, newNode0)
+          //assert(test2 eq null, "newNode should not produce name collisions: alreadyPresent %s, newNode %s".format(test2.path, newNode0.path))
+          //logger.info("newNode was placed into canonicalMap: %s", newNode0.path)
+          if (test2 ne null)
+            logger.warning("replacing stale entry (most likely an ephemeral node which was deleted from another client): %s", newNode0.path)
           newNode0
         }
       }
@@ -109,24 +112,29 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watc
     def createChild(name: String, data: Array[Byte] = Array.empty, mode: CreateMode = CreateMode.PERSISTENT): ZooKeeperNode =
       getOrElseUpdateNode(fullPath(name), newNode(fullPath(name), data, mode))
 
-    def deleteChild(name:String) {
+    def deleteChild(name: String) {
       conn.delete(fullPath(name), -1)
-      canonicalMap.remove(fullPath(name))
+      if (canonicalMap.remove(fullPath(name)) eq null)
+        logger.warning("deleteChild() - No canonical node existed previously for fullPath: %s", fullPath(name))
+      else
+        logger.info("deleteChild() - successfully deleted child: %s", fullPath(name))
     }
 
     def delete() {
       conn.delete(path, -1)
-      canonicalMap.remove(path)
+      if (canonicalMap.remove(path) eq null)
+        logger.warning("delete() - No canonical node existed previously for path: %s", path)
+      else
+        logger.info("delete() - successfully deleted path: %s", path)
     }
 
-    def deleteRecursive: Unit = {
+    def deleteRecursive() {
       children.foreach(_.deleteRecursive)
       delete
     }
 
-    def sequenceNumber: Int = {
+    def sequenceNumber: Int =
       name.drop(name.length - 10).toInt
-    }
 
     def awaitChild(name: String, seqNumber: Option[Int] = None, timeout: Long = 24*60*60*1000, unit: TimeUnit = TimeUnit.MILLISECONDS): Unit = {
       val fullName = fullPath(seqNumber.map(s => "%s%010d".format(name, s)).getOrElse(name))
