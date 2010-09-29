@@ -163,6 +163,13 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watc
         blocker.await(unit.toMillis(timeout))
     }
 
+    def registerAndAwait(barrierName: String, count: Int): Int = {
+      val node = getOrCreate(barrierName)
+      val seqNum = node.createChild("client", mode = CreateMode.EPHEMERAL_SEQUENTIAL).sequenceNumber
+      node.awaitChild("client", Some(count - 1))
+      seqNum
+    }
+
     protected def getData(watch: Boolean = false): Array[Byte] = {
       val stat = new Stat
       conn.getData(path, watch, stat)
