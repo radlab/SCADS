@@ -12,6 +12,14 @@ import java.util.concurrent.{ ConcurrentHashMap, TimeUnit }
 
 object RClusterZoo extends ZooKeeperProxy("r2.millennium.berkeley.edu:2181")
 
+object ZooKeeperNode {
+  val uriRegEx = """zk://([^/]*)/(.*)""".r
+  def apply(uri: String): ZooKeeperProxy#ZooKeeperNode = uri match {
+    case uriRegEx(address, path) => new ZooKeeperProxy(address).root(path)
+    case _ => throw new RuntimeException("Invalid ZooKeeper URI: " + uri)
+  }
+}
+
 /**
  * Scalafied interface to Zookeeper
  * TODO: Add the ability to execute callbacks on watches (possibly with weak references to callbacks)
@@ -74,6 +82,7 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watc
       prefix + rpath
 
     val proxy = self
+    def canonicalAddress = "zk://" + proxy.address + path
 
     def apply(rpath: String): ZooKeeperNode = 
       get(rpath).getOrElse(throw new RuntimeException("Zookeeper node doesn't exist: " + fullPath(rpath)))
