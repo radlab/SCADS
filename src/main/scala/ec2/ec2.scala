@@ -2,7 +2,6 @@ package deploylib.ec2
 
 import deploylib._
 import deploylib.runit._
-import deploylib.xresults._
 
 import com.amazonaws.ec2._
 import com.amazonaws.ec2.model._
@@ -206,17 +205,6 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
 		if(ls(new File("/mnt")).filter(_.name equals "services").size == 0) {
 			logger.debug("EC2Instance " + instanceId + " seen for the first time, configuring and storing xml")
 			mkdir(new java.io.File("/mnt/services"))
-
-			XResult.storeUnrelatedXml(
-				<instance id={instanceId}>
-					<imageId>{imageId}</imageId>
-					<publicDnsName>{publicDnsName}</publicDnsName>
-					<privateDnsName>{privateDnsName}</privateDnsName>
-					<keyName>{keyName}</keyName>
-					<instanceType>{instanceType}</instanceType>
-					<availabilityZone>{availabilityZone}</availabilityZone>
-				</instance>
-			)
 		}
 	}
 

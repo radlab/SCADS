@@ -4,7 +4,6 @@ import java.io.File
 
 import deploylib._
 import deploylib.runit._
-import deploylib.xresults._
 
 import net.lag.logging.Logger
 
@@ -46,8 +45,7 @@ trait ConfigurationActions {
 
 	def createJavaService(target: RunitManager, localJar: File, className: String, maxHeapMb: Int, args: String): RunitService = {
 		val remoteJar = uploadFile(target, localJar, target.rootDirectory)
-    val expIdFlag = if(XResult.experimentId != null) "-DexperimentId=" + XResult.experimentId else ""
-    val jvmArgs = "-server -Xmx" + maxHeapMb + "m " + expIdFlag + " -XX:+HeapDumpOnOutOfMemoryError "
+    val jvmArgs = "-server -Xmx" + maxHeapMb + "m " +  " -XX:+HeapDumpOnOutOfMemoryError "
 		val runCmd = target.javaCmd + " " +
                   jvmArgs + " " +
 								 "-cp .:" + remoteJar + " " +
@@ -56,15 +54,6 @@ trait ConfigurationActions {
 		val log4jProperties = createFile(target, new File(service.serviceDir, "log4j.properties"),  Array("log4j.rootLogger=INFO, stdout",
 																						 "log4j.appender.stdout=org.apache.log4j.ConsoleAppender",
 																						 "log4j.appender.stdout.layout=org.apache.log4j.SimpleLayout").mkString("", "\n", "\n"), "644")
-
-    XResult.storeXml(<configuration type="javaservice">
-                      <target>{target.hostname}</target>
-                      <localJar>{localJar}</localJar>
-                      <className>{className}</className>
-                      <maxHeap>{maxHeapMb.toString}</maxHeap>
-                      <args>{args}</args>
-											<cmdLine>{runCmd}</cmdLine>
-                     </configuration>)
 
     return service
 	}
