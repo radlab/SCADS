@@ -56,6 +56,8 @@ class JavaExecutor extends Executor {
     val cmdLine = List[String](Config.config.getString("mesos.javaPath").get,
                        "-server",
                        "-Xmx" + taskDesc.getParams().get("mem").toInt + "M",
+                       "-Xms" + taskDesc.getParams().get("mem").toInt + "M",
+                       "-XX:+HeapDumpOnOutOfMemoryError",
                        processDescription.props.map(kv => "-D%s=%s".format(kv._1, kv._2)).mkString(" "),
                        "-cp", processDescription.classpath,
                        processDescription.mainclass) ++ processDescription.args
