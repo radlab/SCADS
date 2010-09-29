@@ -2,15 +2,17 @@ package edu.berkeley.cs.scads.perf
 
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.mesos._
+import edu.berkeley.cs.scads.config._
 import edu.berkeley.cs.scads.storage._
 import edu.berkeley.cs.avro.runtime._
 import edu.berkeley.cs.avro.marker._
 
 import org.apache.zookeeper.CreateMode
 
-import net.lag.logging.Logger
 
 import ParallelConversions._
+
+import java.io.File
 
 case class WriteClient(var cluster: String, var clientId: Int) extends AvroRecord
 case class WritePerfResult(var numKeys: Int, var startTime: Long, var endTime: Long) extends AvroRecord
@@ -18,30 +20,25 @@ case class WritePerfResult(var numKeys: Int, var startTime: Long, var endTime: L
 case class ReadClient(var cluster: String, var clientId: Int, var threadId: Int) extends AvroRecord
 case class ReadPerfResult(var numKeys: Int, var startTime: Long, var endTime: Long) extends AvroRecord
 
-object IntKeyScaleTest extends optional.Application {
-  implicit val zooRoot = RClusterZoo.root
-  implicit def toOption[A](a: A) = Option(a)
-  val logger = Logger()
-
+object IntKeyScaleTest extends Experiment {
   def main(clusterSize: Int, recsPerServer: Int = 10000, readCount: Int = 1000): Unit = {
-    println("Begining cluster scale test with " + clusterSize + " servers.")
-    val cluster = ScadsMesosCluster(clusterSize)
-    println("Cluster located at: " + cluster.root)
-    cluster.blockTillReady
+    println("Begining cluster scale test with " + clusterSize + " servers. With Scheduler %s", scheduler)
+
+    val cluster = getExperimentalCluster(clusterSize)
 
     val keySplits = None +: ((clusterSize + 1) to (clusterSize - 1)).map(i => Some(IntRec(i * recsPerServer))) :+  None
     cluster.createNamespace[IntRec, IntRec]("intkeytest", keySplits zip cluster.getAvailableServers.map(List(_)))
     val writeResults = cluster.getNamespace[WriteClient, WritePerfResult]("writeResults")
     val readResults = cluster.getNamespace[ReadClient, ReadPerfResult]("readResults")
 
+    val jars = new File(baseDir, "perf-2.1.0-SNAPSHOT.jar") :: new File(baseDir, "mesos-scads-2.1.0-SNAPSHOT-jar-with-dependencies.jar") :: Nil
     val procDesc = JvmProcess(
-      "/work/marmbrus/mesos/perf-2.1.0-SNAPSHOT.jar:/work/marmbrus/mesos:/work/marmbrus/mesos/mesos-scads-2.1.0-SNAPSHOT-jar-with-dependencies.jar",
+      jars.map(_.toString).mkString(":"),
       "edu.berkeley.cs.scads.perf.IntKeyScaleClient",
-      "--clusterSize" :: clusterSize.toString :: "--recsPerServer" :: recsPerServer.toString ::"--clusterName" :: cluster.root.name :: "--readCount" :: readCount.toString :: Nil)
+      "--clusterSize" :: clusterSize.toString :: "--recsPerServer" :: recsPerServer.toString ::"--clusterAddress" :: cluster.root.canonicalAddress :: "--readCount" :: readCount.toString :: Nil)
 
     val coordination = cluster.root.getOrCreate("coordination")
-    val clients = new ServiceScheduler("IntKey Scale Test")
-    (1 to clusterSize).foreach(i => clients.runService(512, 1, procDesc))
+    (1 to clusterSize).foreach(i => scheduler.runService(512, 1, procDesc))
 
     println("Waiting for clients to start")
     coordination.getOrCreate("startWrite").awaitChild("client", clusterSize - 1)
@@ -63,13 +60,10 @@ object IntKeyScaleTest extends optional.Application {
   }
 }
 
-object IntKeyScaleClient extends optional.Application {
-  implicit val zooRoot = RClusterZoo.root
-  implicit def toOption[A](a: A) = Option(a)
-  val logger = Logger()
+object IntKeyScaleClient extends ExperimentPart {
 
-  def main(clusterSize: Int, recsPerServer: Int, clusterName: String, readCount: Int): Unit = {
-    val clusterRoot = zooRoot(clusterName)
+  def main(clusterSize: Int, recsPerServer: Int, clusterAddress: String, readCount: Int): Unit = {
+    val clusterRoot = ZooKeeperNode(clusterAddress)
     val coordination = clusterRoot("coordination")
     val cluster = new ScadsCluster(clusterRoot)
     val ns = cluster.getNamespace[IntRec, IntRec]("intkeytest")
@@ -90,7 +84,7 @@ object IntKeyScaleClient extends optional.Application {
 
     val startTime = System.currentTimeMillis
     ns ++= (startKey to endKey).view.map(i => (IntRec(i), IntRec(i)))
-    writeResults.put(WriteClient(clusterName, clientId), WritePerfResult(recsPerServer, startTime, System.currentTimeMillis))
+    writeResults.put(WriteClient(clusterAddress, clientId), WritePerfResult(recsPerServer, startTime, System.currentTimeMillis))
 
     registerAndBlock("endWrite")
 
@@ -104,7 +98,7 @@ object IntKeyScaleClient extends optional.Application {
         }
         catch { case e =>  logger.debug("Exception during read %s", e)}
       )
-      (ReadClient(clusterName, clientId, threadId), ReadPerfResult(successes, startTime, System.currentTimeMillis))
+      (ReadClient(clusterAddress, clientId, threadId), ReadPerfResult(successes, startTime, System.currentTimeMillis))
     })
 
     registerAndBlock("endRead")

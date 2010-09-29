@@ -70,6 +70,7 @@ protected class ServiceScheduler(name: String, val basePath: String, mesosMaster
   }
 
   def runService(mem: Int, cores: Int, desc: JvmProcess): Unit = synchronized {
+    logger.debug("Running Service %s with %d cores and %dMb RAM", desc, cores, mem)
     outstandingTasks ::= ServiceDescription(mem, cores, desc)
   }
 }
