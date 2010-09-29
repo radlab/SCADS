@@ -138,7 +138,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode)
     /* Register with the zookeper as an available server */
     val availServs = root.getOrCreate("availableServers")
     logger.debug("Created StorageHandler" + remoteHandle.toString)
-    availServs.createChild(remoteHandle.toString, remoteHandle.toBytes, CreateMode.EPHEMERAL)
+    availServs.createChild(remoteHandle.toString, remoteHandle.toBytes, CreateMode.EPHEMERAL_SEQUENTIAL)
 
     /* Reopen partitions */
     val cursor = partitionDb.openCursor(null, null)
