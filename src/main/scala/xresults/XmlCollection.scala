@@ -6,11 +6,11 @@ import org.xmldb.api.modules._
 import org.xmldb.api._
 import org.exist.xmldb.DatabaseInstanceManager
 
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 import scala.xml.{NodeSeq, UnprefixedAttribute, Elem, Node, Null, Text, TopScope }
 
 class XmlCollection(url: String, username: String, password: String) {
-  val logger = Logger.getLogger("deploylib.xresult")
+  val logger = Logger()
 
   lazy val collection = getCollection()
 	lazy val queryService = collection.getService("XPathQueryService", "1.0").asInstanceOf[XPathQueryService]

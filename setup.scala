@@ -1,4 +1,4 @@
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 import org.apache.log4j.Level._
 
 import deploylib._

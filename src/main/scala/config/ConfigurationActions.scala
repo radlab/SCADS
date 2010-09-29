@@ -6,12 +6,12 @@ import deploylib._
 import deploylib.runit._
 import deploylib.xresults._
 
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 
 object Config extends ConfigurationActions
 
 trait ConfigurationActions {
-	val logger = Logger.getLogger("deploylib.config")
+	val logger = Logger()
 
 	def createDirectory(target: RemoteMachine, directory: File): File = {
 		target.executeCommand("mkdir -p " + directory)

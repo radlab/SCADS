@@ -56,7 +56,7 @@ class RClusterNode(num: Int) extends RemoteMachine with RunitManager {
 					case Some(_) => logger.debug("runsvdir already running on " + this)
 					case None => {
 						logger.debug("Starting runsv since we only found " + whatsRunning)
-						logger.debug(executeCommand("/bin/bash -c \"PATH=" + runitBinaryPath + " /usr/bin/nohup " + runsvdirCmd + " " + serviceRoot + "\"&"))
+						logger.debug("Result: %s", executeCommand("/bin/bash -c \"PATH=" + runitBinaryPath + " /usr/bin/nohup " + runsvdirCmd + " " + serviceRoot + "\"&"))
 					}
 				}
 			}
@@ -84,7 +84,7 @@ class RClusterNode(num: Int) extends RemoteMachine with RunitManager {
 		else {
 			executeCommand("cp " + cacheFile + " " + remoteFile) match {
 				case ExecuteResponse(Some(0), _, _) => logger.debug("Success")
-				case _ => logger.warn("Copy error")
+				case _ => logger.warning("Copy error")
 			}
 		}
 	}

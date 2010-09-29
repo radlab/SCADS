@@ -2,14 +2,14 @@ package deploylib.ec2
 
 import deploylib._
 import java.io.File
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 import org.jets3t.service.model.S3Object
 import org.jets3t.service.impl.rest.httpclient.RestS3Service
 import org.jets3t.service.security.AWSCredentials
 import org.jets3t.service.acl.AccessControlList
 
 object S3Cache extends AWSConnection {
-	protected val logger = Logger.getLogger("deploylib.ec2.S3Cache")
+	protected val logger = Logger()
 	protected val credentials = new AWSCredentials(accessKeyId, secretAccessKey)
 	val s3Service = new RestS3Service(credentials)
 	val bucket = s3Service.getBucket("deploylibcache")

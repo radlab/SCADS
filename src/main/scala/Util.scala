@@ -4,7 +4,7 @@ import java.io.File
 import java.security.MessageDigest
 import java.math.BigInteger
 import java.io.FileInputStream
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 
 abstract class RetryableException extends Exception
 
@@ -12,7 +12,7 @@ abstract class RetryableException extends Exception
  * A set of utility functions for reliably running experiments.
  */
 object Util {
-	val logger = Logger.getLogger("deploylib.util")
+	val logger = Logger()
 
 	/**
 	 * Runs the provided function and will retry, pausing for 1 second, in the case of a number of transient failures (for instance TTransportException).
@@ -23,7 +23,7 @@ object Util {
 
 		def logAndStore(e: Exception) = {
 			lastException = e
-			logger.warn("Retrying due to" + e + ": " + usedTries + " of " + tries)
+			logger.warning("Retrying due to" + e + ": " + usedTries + " of " + tries)
 			Thread.sleep(1000)
 		}
 

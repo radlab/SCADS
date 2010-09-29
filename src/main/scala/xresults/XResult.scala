@@ -39,7 +39,7 @@ object XResult extends XmlCollection("xmldb:exist://scm.millennium.berkeley.edu:
    */
   def startExperiment(experimentData: NodeSeq):Unit = {
     if(experimentId != null)
-      logger.warn("Experiment: " + experimentId + " is already running.  Starting a new one anyway.")
+      logger.warning("Experiment: " + experimentId + " is already running.  Starting a new one anyway.")
 		experimentStack.push(newExperimentId())
     logger.info("Begining experiment: " + experimentId)
     storeUnrelatedXml(experimentId,
@@ -54,7 +54,7 @@ object XResult extends XmlCollection("xmldb:exist://scm.millennium.berkeley.edu:
 	 */
 	def beginSubExperiment(subElement: Elem):Unit = {
 		if(experimentId == null)
-			logger.warn("No experiment running, ignoring request for sub experiment")
+			logger.warning("No experiment running, ignoring request for sub experiment")
 		else {
 			val newId = newExperimentId()
 			storeXml(subElement % new UnprefixedAttribute("experimentId", newId, Null))
@@ -82,8 +82,8 @@ object XResult extends XmlCollection("xmldb:exist://scm.millennium.berkeley.edu:
 	 */
   def storeXml(elem: Elem):Unit = {
     if(experimentId == null) {
-      logger.warn("No experiment running, logging results to console.")
-      logger.warn(elem)
+      logger.warning("No experiment running, logging results to console.")
+      logger.warning(elem)
     }
     else {
 			val updateCmd =

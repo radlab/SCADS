@@ -69,4 +69,3 @@ services("rails").start
 services("haproxy").start
 services("nginx").start
 services("faban").start
-

@@ -3,7 +3,7 @@ package deploylib.runit
 import deploylib._
 import java.io.File
 import scala.util.matching.Regex
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 import deploylib.xresults._
 
 case class RunitStatus(status: String, pid: Int, upTime: Int)
@@ -12,7 +12,7 @@ object BadStatus extends Exception
 case class UnsucessfulSvCmdException(resp: ExecuteResponse) extends Exception
 
 case class RunitService(manager: RunitManager, name: String) {
-	val logger = Logger.getLogger("deploylib.runitservice")
+	val logger = Logger()
 	val serviceDir = new File(manager.serviceRoot, name)
 	val superviseDir = new File(serviceDir, "supervise")
 	val statFile = new File(superviseDir, "stat")
@@ -25,7 +25,7 @@ case class RunitService(manager: RunitManager, name: String) {
 		manager.executeCommand(manager.svCmd + " " + cmd + " " + serviceDir) match {
 			case ExecuteResponse(Some(0), out, "") => logger.debug("Service " + name + " on " + manager.hostname + " " + cmd)
 			case e => {
-				logger.warn("Unexpected result while running sv on " + manager.hostname + ": " + e)
+				logger.warning("Unexpected result while running sv on " + manager.hostname + ": " + e)
 				throw new UnsucessfulSvCmdException(e)
 			}
 		}
@@ -45,7 +45,7 @@ case class RunitService(manager: RunitManager, name: String) {
 		case ExecuteResponse(Some(0), runRegex(status, pid, sec), "") => RunitStatus(status, pid.toInt, sec.toInt)
 		case ExecuteResponse(Some(1), _, _) => RunitStatus("nonexistant", -1, 0)
 		case unknown => {
-			logger.warn("Unable to parse service status: " + unknown)
+			logger.warning("Unable to parse service status: " + unknown)
 			throw BadStatus
 		}
 	}

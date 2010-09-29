@@ -1,7 +1,7 @@
 package deploylib
 
 import java.io.{File, BufferedReader, InputStreamReader}
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 import ch.ethz.ssh2.{Connection, Session, ChannelCondition, SCPClient}
 
 /**
@@ -60,7 +60,7 @@ abstract class RemoteMachine {
 	lazy val svlogdCmd: File = new File(runitBinaryPath, "svlogd")
 	lazy val serviceRoot = new File(rootDirectory, "services")
 
-	val logger = Logger.getLogger("deploylib.remoteMachine")
+	val logger = Logger()
 	private var connection: Connection = null
 
 	/**
@@ -79,7 +79,7 @@ abstract class RemoteMachine {
 		}
 		catch {
       case ioe: java.io.IOException => {
-     		logger.warn("connection to " + hostname + " failed")
+     		logger.warning("connection to " + hostname + " failed")
 				connection = new Connection(hostname)
 				logger.info("Connecting to " + hostname)
 				connection.connect()
@@ -88,7 +88,7 @@ abstract class RemoteMachine {
 				func(connection)
       }
 			case e: java.net.SocketException => {
-				logger.warn("connection to " + hostname + " failed")
+				logger.warning("connection to " + hostname + " failed")
 				connection = new Connection(hostname)
 				logger.info("Connecting to " + hostname)
 				connection.connect()
@@ -229,7 +229,7 @@ abstract class RemoteMachine {
         hash
       }
 			case ExecuteResponse(Some(1),"", failureResponse) => {
-        logger.warn("Hash command returned with an error")
+        logger.warning("Hash command returned with an error")
         ""
       }
 			case e: ExecuteResponse => {

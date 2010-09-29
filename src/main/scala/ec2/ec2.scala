@@ -6,7 +6,7 @@ import deploylib.xresults._
 
 import com.amazonaws.ec2._
 import com.amazonaws.ec2.model._
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 import java.io.File
 
 import scala.collection.JavaConversions._
@@ -19,7 +19,7 @@ import scala.collection.immutable.TreeHashMap
  * This means it is safe to make many concurrent calls to the static methods or instance methods of a specific EC2Instance concurrently from many threads with out fear of overloading amazons api.
  */
 object EC2Instance  extends AWSConnection {
-	protected val logger = Logger.getLogger("deploylib.ec2")
+	protected val logger = Logger()
 
   var keyName = System.getenv("AWS_KEY_NAME")
   var keyPath = System.getenv("AWS_KEY_PATH")
