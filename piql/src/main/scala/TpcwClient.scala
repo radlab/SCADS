@@ -8,12 +8,15 @@ import org.apache.avro.util._
 class TpcwClient(cluster: ScadsCluster, executor: QueryExecutor) {
     val address = cluster.getNamespace[AddressKey, AddressValue]("address")
     val author = cluster.getNamespace[AuthorKey, AuthorValue]("author")
+    val authorFNameIndex = cluster.getNamespace[AuthorFNameIndexKey, NullRecord]("author_fname_index")
+    val authorLNameIndex = cluster.getNamespace[AuthorLNameIndexKey, NullRecord]("author_lname_index")
     val xacts = cluster.getNamespace[CcXactsKey, CcXactsValue]("xacts")
     val country = cluster.getNamespace[CountryKey, CountryValue]("country")
     val customer = cluster.getNamespace[CustomerKey, CustomerValue]("customer")
     val customerNameIndex = cluster.getNamespace[CustomerNameKey, CustomerKey]("customer_index")  //Extra index
     val item = cluster.getNamespace[ItemKey, ItemValue]("item")
     val itemSubjectDateTitleIndex = cluster.getNamespace[ItemSubjectDateTitleIndexKey, ItemKey]("item_subject_date_title_index")
+    val itemAuthorTitleIndex = cluster.getNamespace[ItemSubjectDateTitleIndexKey, ItemKey]("item_author_title_index")
     val orderline = cluster.getNamespace[OrderLineKey, OrderLineValue]("orderline")
     val order = cluster.getNamespace[OrdersKey, OrdersValue]("orders")
 
@@ -31,7 +34,7 @@ class TpcwClient(cluster: ScadsCluster, executor: QueryExecutor) {
                             IndexLookupJoin(
                                item,
                                Array(AttributeValue(0, 1)),
-                               IndexLookup(itemSubjectDateTitleIndex, Array(ParameterValue(0))))
+                               IndexScan(itemSubjectDateTitleIndex, Array(ParameterValue(0)), ))
                           )
     def newProductWI(subject: String): QueryResult =
       exec(newProductPlan, new Utf8(username))
@@ -44,6 +47,12 @@ class TpcwClient(cluster: ScadsCluster, executor: QueryExecutor) {
     def productDetailWI(bookId: Int): QueryResult =
       exec(newProductPlan, bookId)
 
+    def searchByAuthorPlan =
+
+      Union(
+        IndexLookup(authorFNameIndex, Array(ParameterValue(0))),
+        IndexLookup(author, Array(ParameterValue(0))),
+        AttributeValue(0,0))
   
 
     def exec(plan: QueryPlan, args: Any*) = {

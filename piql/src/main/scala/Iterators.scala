@@ -233,5 +233,9 @@ class SimpleExecutor extends QueryExecutor {
         def next = {taken += 1; childIterator.next}
       }
     }
+    
+    case Union(chil1, child2, eqField)  =>{
+      throw new RuntimeException("Not yet implemented")
+    }
   }
 }

@@ -24,3 +24,4 @@ case class IndexMergeJoin(namespace: Namespace, keyPrefix: KeyGenerator, sortFie
 case class Selection(predicate: Predicate, child: QueryPlan) extends QueryPlan
 case class Sort(fields: List[String], ascending: Boolean, child: QueryPlan) extends QueryPlan
 case class StopAfter(count: Limit, child: QueryPlan) extends QueryPlan
+case class Union(child1 : QueryPlan, child2 : QueryPlan, eqField : AttributeValue) extends QueryPlan
