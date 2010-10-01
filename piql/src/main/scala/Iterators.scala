@@ -12,6 +12,55 @@ abstract class QueryIterator extends Iterator[Tuple] {
   def close: Unit
 }
 
+/**
+ * A PageResult is returned for a paginated query.
+ *
+ * Note: Assumes iterator has not been open yet 
+ */
+class PageResult(private val iterator: QueryIterator, val elemsPerPage: Int) extends Iterator[QueryResult] {
+  assert(elemsPerPage > 0)
+
+  var limitReached = false
+  var curBuf: QueryResult = null
+
+  def open: Unit = {
+    iterator.open
+  }
+
+  def hasAnotherPage: Boolean = hasNext
+
+  def nextPage: QueryResult = next
+
+  def hasNext = {
+    if (curBuf ne null) true
+    else if (limitReached) false
+    else {
+      val builder = Seq.newBuilder[Tuple]
+      var cnt = 0
+      while (cnt < elemsPerPage && iterator.hasNext) {
+        builder += iterator.next
+        cnt += 1
+      }
+      if (cnt == 0) {
+        limitReached = true
+        //iterator.close
+        false
+      } else {
+        curBuf = builder.result
+        true
+      }
+    }
+  }
+
+  def next = {
+    if (!hasNext) // pages in the next page if one exists
+      throw new java.util.NoSuchElementException("No results left")
+    val res = curBuf
+    curBuf = null
+    res
+  }
+}
+
 trait QueryExecutor {
   protected val logger = Logger("edu.berkeley.cs.scads.piql.QueryExecutor")
 
@@ -96,18 +145,36 @@ class SimpleExecutor extends QueryExecutor {
           val boundKeyPrefix = bindKey(namespace, keyPrefix)
           var result: Seq[(Record, Record)] = Nil
           var pos = 0
+          var offset = 0
+          var limitReached = false
+          val boundLimit = bindLimit(limit)
 
-          def open: Unit = {
-            result = namespace.getRange(boundKeyPrefix, boundKeyPrefix, limit=bindLimit(limit), ascending=ascending)
-            logger.debug("IndexScan Prefetch Returned %s, with limit %s", result, limit)
+          @inline private def doFetch() {
+            logger.debug("BoundKeyPrefix: %s", boundKeyPrefix)
+            result = namespace.getRange(boundKeyPrefix, boundKeyPrefix, offset=offset, limit=boundLimit, ascending=ascending)
+            logger.debug("IndexScan Prefetch Returned %s, with offset %d, limit %d", result, offset, boundLimit)
+            offset += result.size
+            pos = 0
+            if (result.size < boundLimit)
+              limitReached = true
           }
+
+          def open: Unit = doFetch() 
 
           def close: Unit =
             result = Nil
 
-          def hasNext = pos < result.size
+          def hasNext = 
+            if (pos < result.size) true
+            else if (limitReached) false
+            else {
+              // need to fetch more from KV store to see if we really have more
+              doFetch()
+              hasNext
+            }
+
           def next = {
-            if(pos >= result.size)
+            if (!hasNext)
               throw new java.util.NoSuchElementException("Next on empty iterator")
 
             val tuple = Array(result(pos)._1, result(pos)._2)

@@ -44,7 +44,7 @@ class ScadrClient(cluster: ScadsCluster, executor: QueryExecutor, numUsers: Int 
   //TODO: File bug on scala compiler.  Can't instantiate this class if types are given for the following explicitly
   val userData: Seq[(UserKey, UserValue)] = (1 to numUsers).view.map(i => (UserKey("User" + i), UserValue("hometown" + (i % 10))))
   val thoughtData: Seq[(ThoughtKey, ThoughtValue)] = userData.flatMap(user => (1 to thoughtsPerUser).view.map(i => (ThoughtKey(user._1.username, i), ThoughtValue(user._1.username + " thinks " + i))))
-  val subscriptionData: Seq[(SubscriptionKey, SubscriptionValue)] = userData.flatMap(user => randomInts(user._1.username.hashCode, numUsers, thoughtsPerUser).view.map(u => (SubscriptionKey(user._1.username, userData(u)._1.username), SubscriptionValue(true))))
+  val subscriptionData: Seq[(SubscriptionKey, SubscriptionValue)] = userData.flatMap(user => randomInts(user._1.username.hashCode, numUsers, subscriptionsPerUser).view.map(u => (SubscriptionKey(user._1.username, userData(u)._1.username), SubscriptionValue(true))))
   val idxUsersTargetData: Seq[(UserTarget, NullRecord)] = subscriptionData.map(s => (UserTarget(s._1.target, s._1.owner), NullRecord(true)))
 
   val users = cluster.getNamespace[UserKey, UserValue]("users")
@@ -79,13 +79,22 @@ class ScadrClient(cluster: ScadsCluster, executor: QueryExecutor, numUsers: Int 
     exec(myThoughtsPlan, new Utf8(username), count)
 
   val usersFollowedByPlan =
-    StopAfter(ParameterLimit(1, maxResultsPerPage),
-      IndexLookupJoin(users, Array(AttributeValue(0, 1)),
-        IndexScan(subscriptions, Array(ParameterValue(0)), ParameterLimit(1, maxResultsPerPage), true)
-      )
+    IndexLookupJoin(users, Array(AttributeValue(0, 1)),
+      IndexScan(subscriptions, Array(ParameterValue(0)), ParameterLimit(1, maxResultsPerPage), true)
     )
+  
+  val usersFollowedByStopAfterPlan =
+    StopAfter(ParameterLimit(1, maxResultsPerPage), usersFollowedByPlan)
+
   def usersFollowedBy(username: String, count: Int): QueryResult =
-    exec(usersFollowedByPlan, new Utf8(username), count)
+    exec(usersFollowedByStopAfterPlan, new Utf8(username), count)
+
+  def usersFollowedByPaginate(username: String, count: Int): PageResult = {
+    val iterator = executor(usersFollowedByPlan, new Utf8(username), count)
+    val res = new PageResult(iterator, count) 
+    res.open
+    res
+  }
 
   val usersFollowingPlan =
     StopAfter(ParameterLimit(1, maxResultsPerPage),

@@ -64,5 +64,15 @@ class ScadrSpec extends Spec with ShouldMatchers with QueryResultMatchers {
     it("usersFollowedBy") {
       client.userData.flatMap(u => client.usersFollowedBy(u._1.username, 10)).size should equal(client.subscriptionData.size)
     }
+
+    it("usersFollowedByPaginate") {
+      client.userData.foreach(u => {
+        //println("User: %s".format(u._1.username))
+        val flattened = client.usersFollowedByPaginate(u._1.username, 2).toList.flatMap(x => x)
+        val subsPerUser = client.usersFollowedBy(u._1.username, 10)
+        flattened.size should equal(subsPerUser.size)
+      })
+    }
+
   }
 }
