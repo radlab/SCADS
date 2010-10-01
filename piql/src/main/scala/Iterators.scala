@@ -4,6 +4,10 @@ import net.lag.logging.Logger
 import org.apache.avro.util.Utf8
 import org.apache.avro.generic.{GenericData, IndexedRecord}
 
+import edu.berkeley.cs.scads.comm.ScadsFuture
+
+import java.{ util => ju }
+
 case class Context(parameters: Array[Any], state: Option[List[Any]])
 
 abstract class QueryIterator extends Iterator[Tuple] {
@@ -54,7 +58,7 @@ class PageResult(private val iterator: QueryIterator, val elemsPerPage: Int) ext
 
   def next = {
     if (!hasNext) // pages in the next page if one exists
-      throw new java.util.NoSuchElementException("No results left")
+      throw new ju.NoSuchElementException("No results left")
     val res = curBuf
     curBuf = null
     res
@@ -133,7 +137,7 @@ class SimpleExecutor extends QueryExecutor {
 
         def hasNext = result.isDefined
         def next = {
-          val tuple = Array(boundKey, result.getOrElse(throw new java.util.NoSuchElementException("Next on empty iterator")))
+          val tuple = Array(boundKey, result.getOrElse(throw new ju.NoSuchElementException("Next on empty iterator")))
           result = None
           tuple
         }
@@ -175,7 +179,7 @@ class SimpleExecutor extends QueryExecutor {
 
           def next = {
             if (!hasNext)
-              throw new java.util.NoSuchElementException("Next on empty iterator")
+              throw new ju.NoSuchElementException("Next on empty iterator")
 
             val tuple = Array(result(pos)._1, result(pos)._2)
             pos += 1
@@ -301,4 +305,97 @@ class SimpleExecutor extends QueryExecutor {
       }
     }
   }
+}
+
+/**
+ * TODO: Should abstract out the common parts between the query iterators.
+ */
+class ParallelExecutor extends SimpleExecutor {
+
+  override def apply(plan: QueryPlan)(implicit ctx: Context): QueryIterator = plan match {
+    case IndexLookup(namespace, key) => {
+      new QueryIterator {
+        val name = "ParallelIndexLookup"
+        val boundKey = bindKey(namespace, key)
+        var ftch: Option[ScadsFuture[Option[Record]]] = None 
+
+        def open: Unit =
+          ftch = Some(namespace.asyncGet(boundKey))
+        def close: Unit =
+          ftch = None
+
+        def hasNext =
+          ftch.flatMap(_.get).isDefined
+
+        def next = {
+          val tuple = Array(boundKey, ftch.flatMap(_.get).getOrElse(throw new ju.NoSuchElementException("Empty iterator")))
+          ftch = None
+          tuple
+        }
+      }
+    }
+    case IndexScan(namespace, keyPrefix, limit, ascending) => {
+        new QueryIterator {
+          val name = "ParallelIndexScan"
+          val boundKeyPrefix = bindKey(namespace, keyPrefix)
+
+          var result: Seq[(Record, Record)] = Nil
+          var ftch: ScadsFuture[Seq[(Record, Record)]] = _
+
+          var pos = 0
+          var offset = 0
+          var limitReached = false
+          val boundLimit = bindLimit(limit)
+          var ftchInvoked = false
+
+          @inline private def doFetch() {
+            logger.debug("BoundKeyPrefix: %s", boundKeyPrefix)
+            ftch = namespace.asyncGetRange(boundKeyPrefix, boundKeyPrefix, offset=offset, limit=boundLimit, ascending=ascending)
+            ftchInvoked = false
+          }
+
+          @inline private def updateFuture() {
+            result = ftch.get
+            logger.debug("IndexScan Prefetch Returned %s, with offset %d, limit %d", result, offset, boundLimit)
+            offset += result.size
+            pos = 0
+            if (result.size < boundLimit)
+              limitReached = true
+            ftchInvoked = true
+          }
+
+          def open: Unit = doFetch() 
+
+          def close: Unit = {
+            result = Nil
+            ftch = null
+          }
+
+          def hasNext = 
+            if (ftchInvoked) { // have we already blocked on ftch and stored the result in result?
+              if (pos < result.size) true
+              else if (limitReached) false
+              else {
+                // need to fetch more from KV store to see if we really have more
+                doFetch()
+                hasNext
+              }
+            } else {
+              updateFuture()
+              hasNext
+            }
+
+          def next = {
+            if (!hasNext)
+              throw new ju.NoSuchElementException("Next on empty iterator")
+
+            val tuple = Array(result(pos)._1, result(pos)._2)
+            pos += 1
+            tuple
+          }
+        }
+    }
+    case _ => super.apply(plan)
+  }
+
 }
