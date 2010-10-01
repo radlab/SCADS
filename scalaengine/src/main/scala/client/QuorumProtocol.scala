@@ -166,35 +166,11 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
    */
   def asyncGet[K <: KeyType](key: K): ScadsFuture[Option[ValueType]] = {
     val (ftchs, serKey, quorum) = makeGetRequests(key)
-    new ScadsFuture[Option[ValueType]] {
-      import java.util.concurrent.atomic.AtomicBoolean
-      import scala.concurrent.SyncVar
-
-      /** Guard finishGetHandler from only running once */
-      private val guard = new AtomicBoolean(false)
-      private val syncVar = new SyncVar[Option[ValueType]]
-
-      def cancel = error("TODO: Implement me!")
-      def get = get(java.lang.Long.MAX_VALUE, TimeUnit.MILLISECONDS).get 
-      def get(timeout: Long, unit: TimeUnit) = { 
-        val isFirst = guard.compareAndSet(false, true)
-        if (isFirst) {
-          finishGetHandler(new GetHandler(serKey, ftchs, unit.toMillis(timeout)), quorum) match {
-            case resp @ Some(optValue) =>
-              syncVar.set(optValue)
-              resp
-            case None =>
-              /* Failed - log error */
-              logger.error("Could not complete get request - not enough servers responded") 
-              None
-          }
-        } else {
-          // other thread beat us out to finishing the get handler- in this
-          // case just wait on the sync var
-          syncVar.get(unit.toMillis(timeout))
-        }
-      }
-      def isSet = syncVar.isSet
+    new ComputationFuture[Option[ValueType]] {
+      def compute(timeoutHint: Long, unit: TimeUnit) = 
+        finishGetHandler(new GetHandler(serKey, ftchs, unit.toMillis(timeoutHint)), quorum)
+          .getOrElse(throw new RuntimeException("Could not complete get request - not enough servers responded"))
+      def cancelComputation = error("NOT IMPLEMENTED")
     }
   }
 

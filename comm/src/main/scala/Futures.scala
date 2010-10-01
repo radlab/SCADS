@@ -162,3 +162,65 @@ class BlockingFuture[T] extends ScadsFuture[T] {
     }
   }
 }
+
+/**
+ *  Default future which wraps a computation in a future. This computation is allowed to fail. 
+ *  The semantics are that if the computation fails (by throwing an exception), then calls to get() will also throw an
+ *  exception. Otherwise, the value from the computation will be returned.
+ *  Note that the computation does NOT start running until the first call to
+ *  get() is invoked
+ */
+trait ComputationFuture[T] extends ScadsFuture[T] {
+
+  import java.util.concurrent.atomic.AtomicBoolean
+  import scala.concurrent.SyncVar
+
+  /**
+   * The computation that should run with this future. Is guaranteed to only
+   * be called at most once. Timeout hint is a hint for how long the user is
+   * willing to wait for this computation to compute
+   */
+  protected def compute(timeoutHint: Long, unit: TimeUnit): T 
+
+  /**
+   * Signals a request to cancel the computation. Is guaranteed to only be
+   * called at most once.
+   */
+  protected def cancelComputation: Unit
+
+  /** Guard the computation from only running once */
+  private val computeGuard = new AtomicBoolean(false)
+
+  /** Guard the cancellation request from only being invoked once */
+  private val cancelGuard = new AtomicBoolean(false)
+
+  /** Store the result */
+  private val syncVar = new SyncVar[Either[T, Throwable]]
+
+  def cancel = 
+    if (cancelGuard.compareAndSet(false, true)) 
+      cancelComputation
+
+  def get = get(java.lang.Long.MAX_VALUE, TimeUnit.MILLISECONDS).get 
+
+  @inline private def dispatchResult(res: Either[T, Throwable]): T = res match {
+    case Left(value) => value
+    case Right(ex)   => throw new RuntimeException(ex)
+  }
+
+  def get(timeout: Long, unit: TimeUnit) = { 
+    if (computeGuard.compareAndSet(false, true)) {
+      // this is a bit of a hack now, since the computation blocks the current
+      // thread. will have to move to a separate thread for true get semantics
+      try syncVar.set(Left(compute(timeout, unit))) catch {
+        case e: Throwable => syncVar.set(Right(e))
+      }
+      Some(dispatchResult(syncVar.get))
+    } else {
+      // other thread beat us out to finishing the get handler- in this
+      // case just wait on the sync var
+      syncVar.get(unit.toMillis(timeout)).map(dispatchResult)
+    }   
+  }   
+  def isSet = syncVar.isSet
+}
