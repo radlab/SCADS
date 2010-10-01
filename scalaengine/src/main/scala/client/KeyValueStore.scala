@@ -9,6 +9,7 @@ trait KeyValueStore[KeyType <: IndexedRecord, ValueType <: IndexedRecord] {
   def get[K <: KeyType](key: K): Option[ValueType]
   def asyncGet[K <: KeyType](key: K): ScadsFuture[Option[ValueType]]
   def getRange(start: Option[KeyType], end: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true): Seq[(KeyType,ValueType)]
+  def asyncGetRange(start: Option[KeyType], end: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true): ScadsFuture[Seq[(KeyType,ValueType)]]
   def size():Int
   def ++=(that:Iterable[(KeyType,ValueType)]): Unit
 }

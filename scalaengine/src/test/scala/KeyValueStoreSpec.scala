@@ -209,6 +209,24 @@ class KeyValueStoreSpec extends Spec with ShouldMatchers {
       }
     }
 
+    it("should implement asyncGetRange") {
+
+      val ns = cluster.getNamespace[IntRec, IntRec]("asyncgetrangetest")
+
+      /* Insert Integers 1-100 */
+      (1 to 100).foreach(i => ns.put(IntRec(i),IntRec(i)))
+
+      /* Various range checks */
+      ns.asyncGetRange(None, None).get.map(_._1.f1)               should equal(1 to 100)
+      ns.asyncGetRange(None, IntRec(50)).get.map(_._1.f1)         should equal(1 until 50)
+      ns.asyncGetRange(IntRec(50), None).get.map(_._1.f1)         should equal(50 to 100)
+      ns.asyncGetRange(IntRec(10), IntRec(90)).get.map(_._1.f1)   should equal(10 until 90)
+      ns.asyncGetRange(IntRec(-10), None).get.map(_._1.f1)        should equal(1 to 100)
+      ns.asyncGetRange(None, IntRec(110)).get.map(_._1.f1)        should equal(1 to 100)
+      ns.asyncGetRange(IntRec(-10), IntRec(110)).get.map(_._1.f1) should equal(1 to 100)
+
+    }
+
     it("should return all versions") {
       val ns = cluster.getNamespace[IntRec, StringRec]("allversions")
       ns.put(IntRec(1), StringRec("string1"))

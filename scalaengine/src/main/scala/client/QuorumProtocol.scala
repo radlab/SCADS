@@ -212,21 +212,17 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     filledRec
   }
 
-  //TODO Offset does not work if split over several partitions
-  def getRange(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true): Seq[(KeyType, ValueType)] = {
-    val startKey = startKeyPrefix.map(prefix => fillOutKey(prefix, newKeyInstance _)(minVal))
-    val endKey = endKeyPrefix.map(prefix => fillOutKey(prefix, newKeyInstance _)(maxVal))
-    var partitions = if (ascending) serversForRange(startKey, endKey)else serversForRange(startKey, endKey).reverse
-    var handlers: ArrayBuffer[RangeHandle] = new ArrayBuffer[RangeHandle]
-    val sKey = startKey.map(serializeKey(_))
-    val eKey = endKey.map(serializeKey(_))
+  /**
+   * Finish a get range request. Ftchs are the GetRangeRequests which have
+   * already been sent out, and partitions are the available servers to pull
+   * data from 
+   */
+  private def finishGetRangeRequest(partitions: List[FullRange], ftchs: Seq[Seq[MessageFuture]], limit: Option[Int], offset: Option[Int], ascending: Boolean, timeout: Option[Long]): Seq[(KeyType, ValueType)] = {
 
-    do {
-      val range = partitions.head
-      val rangeRequest = new GetRangeRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), limit, offset, ascending)
-      handlers.append(new RangeHandle(range.values.map(_ !! rangeRequest)))
-      partitions = partitions.tail
-    } while(!partitions.isEmpty &&  limit.isEmpty)
+    def newRangeHandle(ftchs: Seq[MessageFuture]) = 
+      timeout.map(t => new RangeHandle(ftchs, t)).getOrElse(new RangeHandle(ftchs))
+
+    var handlers = ftchs.map(x => newRangeHandle(x)).toBuffer
 
     var result = new ArrayBuffer[(KeyType, ValueType)]
     var openRec: Long = if (limit.isDefined) limit.get else java.lang.Long.MAX_VALUE
@@ -238,12 +234,12 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
         if (handler.failed)
           throw new RuntimeException("Not enough servers responded. We need to throw better exceptions for that case")
         //if we do not get enough records, we request more, before we process the current batch
-        if (records.length <= openRec && !partitions.isEmpty) {
-          val range = partitions.head
+        if (records.length <= openRec && !servers.isEmpty) {
+          val range = servers.head
           val newLimit = if(limit.isDefined) Some(openRec.toInt) else None
           val rangeRequest = new GetRangeRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), newLimit, offset, ascending)
-          handlers.append(new RangeHandle(range.values.map(_ !! rangeRequest)))
-          partitions = partitions.tail
+          handlers.append(newRangeHandle(range.values.map(_ !! rangeRequest)))
+          servers = servers.tail
         }
         result.appendAll(records.flatMap(a =>
           if (openRec > 0) {
@@ -263,6 +259,38 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     result
   }
 
+  private def startGetRangeRequest(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int], offset: Option[Int], ascending: Boolean): (List[FullRange], Seq[Seq[MessageFuture]]) = {
+    val startKey = startKeyPrefix.map(prefix => fillOutKey(prefix, newKeyInstance _)(minVal))
+    val endKey = endKeyPrefix.map(prefix => fillOutKey(prefix, newKeyInstance _)(maxVal))
+    val partitions = if (ascending) serversForRange(startKey, endKey) else serversForRange(startKey, endKey).reverse
+
+    limit match {
+      case Some(_) => /* if limit is defined, then only send a req to the first server. return a pointer to the tail of the first partition */
+        val range = partitions.head
+        val rangeRequest = new GetRangeRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), limit, offset, ascending)
+        (partitions.tail, Seq(range.values.map(_ !! rangeRequest)))
+      case None => /* if no limit is defined, then we'll have to send a request to every server. the pointer should be nil since no servers left */
+        (Nil, partitions.map(range => {
+          val rangeRequest = new GetRangeRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), limit, offset, ascending)
+          range.values.map(_ !! rangeRequest)
+        }).toSeq)
+    }
+  }
+
+  //TODO Offset does not work if split over several partitions
+  def getRange(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true): Seq[(KeyType, ValueType)] = {
+    val (ptr, ftchs) = startGetRangeRequest(startKeyPrefix, endKeyPrefix, limit, offset, ascending)
+    finishGetRangeRequest(ptr, ftchs, limit, offset, ascending, None)
+  }
+
+  def asyncGetRange(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true): ScadsFuture[Seq[(KeyType, ValueType)]] = {
+    val (ptr, ftchs) = startGetRangeRequest(startKeyPrefix, endKeyPrefix, limit, offset, ascending)
+    new ComputationFuture[Seq[(KeyType, ValueType)]] {
+      def compute(timeoutHint: Long, unit: TimeUnit) = 
+        finishGetRangeRequest(ptr, ftchs, limit, offset, ascending, Some(unit.toMillis(timeoutHint)))
+      def cancelComputation = error("NOT IMPLEMENTED")
+    }
+  }
 
   def size(): Int = throw new RuntimeException("Unimplemented")
 
