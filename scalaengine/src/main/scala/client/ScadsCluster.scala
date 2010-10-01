@@ -44,27 +44,15 @@ class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) {
   }
 
   def getRandomServers(nbServer: Int): List[StorageService] = {
-    val availableServers = root("availableServers").children
+    val availableServers = root("availableServers").children.toSeq
     require(availableServers.size > 0)
-    var choosenServers = for (i <- 1 to nbServer) yield randomGen.nextInt(availableServers.size)
-    choosenServers = choosenServers.sortBy((a) => a)
-    val choosenIter = choosenServers.iterator
-    val serverIter = availableServers.iterator
-    var pos : Int = 0
-    var result: List[StorageService] = Nil
-    while(choosenIter.hasNext){
-      val choosenPos : Int = choosenIter.next
-      while(pos != choosenPos ){
-        serverIter.next
-        pos += 1
-      }
-      result = new StorageService().parse(serverIter.next.data) :: result
-    }
-    return result
+    (1 to nbServer)
+      .map(i => randomGen.nextInt(availableServers.size))
+      .map(i => availableServers(i))
+      .map(n => new StorageService().parse(n.data)).toList
   }
 
   case class UnknownNamespace(ns: String) extends Exception
-
 
   def getNamespace(ns: String,
                    keySchema: Schema,

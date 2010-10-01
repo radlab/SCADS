@@ -246,7 +246,8 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
         toSkip -= 1
       }
 
-      status = cur.getCurrent(dbeKey, dbeValue, null)
+      if (status == OperationStatus.SUCCESS)
+        status = cur.getCurrent(dbeKey, dbeValue, null)
       while(status == OperationStatus.SUCCESS &&
             limit.map(_ > returnedCount).getOrElse(true) &&
             maxKey.map(mk => compare(dbeKey.getData, mk) < 0 /* Exclude maxKey from range */).getOrElse(true)) {
@@ -261,7 +262,8 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
         toSkip -= 1
       }
 
-      status = cur.getCurrent(dbeKey, dbeValue, null)
+      if (status == OperationStatus.SUCCESS)
+        status = cur.getCurrent(dbeKey, dbeValue, null)
       while(status == OperationStatus.SUCCESS &&
             limit.map(_ > returnedCount).getOrElse(true) &&
             minKey.map(compare(_, dbeKey.getData) <= 0).getOrElse(true)) {

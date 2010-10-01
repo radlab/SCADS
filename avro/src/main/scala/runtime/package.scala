@@ -11,4 +11,5 @@ package object runtime {
 
   implicit def toRichIndexedRecord(record: IndexedRecord) = new RichIndexedRecord(record)
   implicit def toJsonObject(json: String) = new JsonObject(json)
+  implicit def toOption[A](a: A) = Option(a)
 }

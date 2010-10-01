@@ -1,6 +1,7 @@
 package edu.berkeley.cs.scads.mesos
 
 import edu.berkeley.cs.scads.comm._
+import edu.berkeley.cs.scads.config.Config
 
 import net.lag.logging.Logger
 import java.io.{File, InputStream, BufferedReader, InputStreamReader}
@@ -12,7 +13,7 @@ case class JvmProcess(var classpath: String, var mainclass: String, var args: Li
 object JavaExecutor {
   def main(args: Array[String]): Unit = {
     System.loadLibrary("mesos")
-    org.apache.log4j.BasicConfigurator.configure()
+    Config.config
     val driver = new MesosExecutorDriver(new JavaExecutor())
     driver.run()
   }
@@ -52,9 +53,11 @@ class JavaExecutor extends Executor {
 
     val processDescription = classOf[JvmProcess].newInstance.parse(taskDesc.getArg())
     logger.debug("Requested memory: " + taskDesc.getParams().get("mem"))
-    val cmdLine = List("/usr/lib/jvm/java-6-sun/bin/java",
+    val cmdLine = List[String](Config.config.getString("mesos.javaPath").get,
                        "-server",
                        "-Xmx" + taskDesc.getParams().get("mem").toInt + "M",
+                       "-Xms" + taskDesc.getParams().get("mem").toInt + "M",
+                       "-XX:+HeapDumpOnOutOfMemoryError",
                        processDescription.props.map(kv => "-D%s=%s".format(kv._1, kv._2)).mkString(" "),
                        "-cp", processDescription.classpath,
                        processDescription.mainclass) ++ processDescription.args

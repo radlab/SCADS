@@ -5,13 +5,10 @@ import edu.berkeley.cs.scads.mesos._
 
 import edu.berkeley.cs.avro.runtime._
 
-object SingleClient extends optional.Application {
-  implicit val zooRoot = RClusterZoo.root
-
+object SingleClient extends Experiment {
   def main(numRecords: Int = 1000): Unit = {
     println("Starting test with " + numRecords + " records")
-    val cluster = ScadsMesosCluster()
-    Thread.sleep(10000)
+    val cluster = getExperimentalCluster(1)
 
     val ns = cluster.getNamespace[IntRec, IntRec]("singleclientperftests")
 

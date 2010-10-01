@@ -166,5 +166,14 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers {
 
     }
 
+    it("should respect limits and offsets for ranges") {
+      val p1 = getHandler()
+      p1 !? BulkPutRequest((1 to 100).map(i => PutRequest(IntRec(i).toBytes, IntRec(i).toBytes)).toSeq)
+      p1 !? GetRangeRequest(Some(IntRec(91).toBytes), None, offset=Some(10)) match {
+        case GetRangeResponse(Nil) => // success
+        case m => fail("Expected empty GetRangeResponse but got: " + m)
+      }
+    }
+
   }
 }
