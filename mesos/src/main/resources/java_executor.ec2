@@ -1,3 +1,0 @@
-#!/bin/bash
-
-exec /usr/bin/java -Dscads.config=/nfs/scads.config -Djava.library.path=/root/mesos/lib/java/ -cp /nfs/mesos-scads-2.1.0-SNAPSHOT-jar-with-dependencies.jar edu.berkeley.cs.scads.mesos.JavaExecutor $@
