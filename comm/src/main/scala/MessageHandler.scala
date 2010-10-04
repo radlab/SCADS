@@ -22,7 +22,7 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
   private val curActorId      = new AtomicLong
   private val serviceRegistry = new ConcurrentHashMap[ActorId, MessageReceiver]
 
-  private val hostname = java.net.InetAddress.getLocalHost.getHostName()
+  private val hostname = java.net.InetAddress.getLocalHost.getCanonicalHostName()
 
   private val listeners = new CopyOnWriteArrayList[MessageHandlerListener[Message, Message]]
 
@@ -95,6 +95,7 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
   // Delegation overrides
 
   override def sendMessage(dest: RemoteNode, msg: Message) {
+    logger.debug("Sending %s to %s", msg, dest)
     val evt = MessagePending[Message, Message](dest, Left(msg))
     foldLeftListeners(evt) match {
       case RelayMessage => impl.sendMessage(dest, msg)
