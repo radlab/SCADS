@@ -64,10 +64,6 @@ class Future[A](f: => A) {
 	}
 }
 
-object ParallelConversions {
-	implicit def toParallelSeq[A](itr: Iterable[A]): ParallelSeq[A] = new ParallelSeq(itr.toList)
-}
-
 class ParallelSeq[A](seq: List[A]) {
 
   @deprecated("use apmap")
