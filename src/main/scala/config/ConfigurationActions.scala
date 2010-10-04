@@ -7,8 +7,6 @@ import deploylib.runit._
 
 import net.lag.logging.Logger
 
-object Config extends ConfigurationActions
-
 trait ConfigurationActions {
 	val logger = Logger()
 

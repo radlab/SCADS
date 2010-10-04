@@ -136,7 +136,6 @@ object EC2Instance  extends AWSConnection {
 class EC2Instance protected (val instanceId: String) extends RemoteMachine with RunitManager {
 	lazy val hostname: String = getHostname()
 	val username: String = "root"
-	val privateKey: File = new File("/Users/marmbrus/.ec2/amazon/marmbrus.key")
 	val rootDirectory: File = new File("/mnt/")
 	val runitBinaryPath:File = new File("/usr/bin")
 	val javaCmd:File = new File("/usr/bin/java")

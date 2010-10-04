@@ -32,7 +32,13 @@ abstract class RemoteMachine {
 	/**
 	 * The private key used to authenticate with the remote ssh server
 	 */
-	val privateKey: File
+  val privateKey: File = findPrivateKey
+
+  private def findPrivateKey: File = {
+    val rsa = new File(System.getProperty("user.home"), ".ssh/id_rsa")
+    val dsa = new File(System.getProperty("user.home"), ".ssh/id_dsa")
+    if(rsa.exists) rsa else dsa
+  }
 
 	/**
 	 * The default root directory for operations (The user should have read write permissions to this directory)
@@ -67,15 +73,15 @@ abstract class RemoteMachine {
 	 * Provide an ssh connection to the server.  If one is not already available or has been disconnected, create one.
 	 */
 	protected def useConnection[ReturnType](func: (Connection) => ReturnType): ReturnType = {
-		if(connection == null) {
-			connection = new Connection(hostname)
-            logger.info("Connecting to " + hostname)
-			connection.connect()
-            logger.info("Authenticating with username " + username + " privateKey " + privateKey)
-			connection.authenticateWithPublicKey(username, privateKey, "")
-		}
+    if(connection == null) {
+      connection = new Connection(hostname)
+      logger.info("Connecting to " + hostname)
+      connection.connect()
+      logger.info("Authenticating with username " + username + " privateKey " + privateKey)
+      connection.authenticateWithPublicKey(username, privateKey, "")
+    }
 		try {
-		func(connection)
+      func(connection)
 		}
 		catch {
       case ioe: java.io.IOException => {
@@ -99,22 +105,31 @@ abstract class RemoteMachine {
 		}
 	}
 
-  def !(cmd: String) = executeCommand(cmd)
+  /**
+   * Executes a command and throw an error if it doesn't return 0
+   */
+  def !(cmd: String) = executeCommand(cmd) match {
+    case ExecuteResponse(Some(0), stdout, stderr) => logger.debug("===stdout %s: %s===\n%s===stderr %s:%s===%s\n", hostname, cmd, stdout, hostname, cmd, stderr)
+    case ExecuteResponse(_, stdout, stderr) => {
+      logger.warning("===stdout %s: %s===\n%s===stderr %s:%s===%s\n", hostname, cmd, stdout, hostname, cmd, stderr)
+      throw new RuntimeException("Cmd: " + cmd + " failed")
+    }
+  }
 
 	/**
 	 * Execute a command sync and return the result as an ExecuteResponse
 	 */
-        def executeCommand( cmd: String ) : ExecuteResponse = {
-            // Pass a timeout of 0, which means "no timeout"
-            executeCommand( cmd, 0 )
-        }
+   def executeCommand( cmd: String ) : ExecuteResponse = {
+     // Pass a timeout of 0, which means "no timeout"
+     executeCommand( cmd, 0 )
+   }
 
-        /**
-	 * Execute a command sync with a maximum timeout to wait for result
-         * and return the result as an ExecuteResponse
-	 */
-        def executeCommand(cmd: String, timeout: Long): ExecuteResponse = {
-		useConnection((c) => {
+   /**
+   * Execute a command sync with a maximum timeout to wait for result
+   * and return the result as an ExecuteResponse
+   */
+   def executeCommand(cmd: String, timeout: Long): ExecuteResponse = {
+     useConnection((c) => {
 			val stdout = new StringBuilder
                         val stderr = new StringBuilder
 
@@ -127,25 +142,25 @@ abstract class RemoteMachine {
 
 			var continue = true
 			var exitStatus:java.lang.Integer = null
-			while(continue) {
-				val status = session.waitForCondition(ChannelCondition.STDOUT_DATA |
-                                                                        ChannelCondition.STDERR_DATA |
-									ChannelCondition.EXIT_STATUS |
-									ChannelCondition.EXIT_SIGNAL |
-									ChannelCondition.EOF |
-									ChannelCondition.CLOSED |
-                                                                        ChannelCondition.TIMEOUT, timeout)
+      while(continue) {
+        val status = session.waitForCondition(ChannelCondition.STDOUT_DATA |
+          ChannelCondition.STDERR_DATA |
+          ChannelCondition.EXIT_STATUS |
+          ChannelCondition.EXIT_SIGNAL |
+          ChannelCondition.EOF |
+          ChannelCondition.CLOSED |
+          ChannelCondition.TIMEOUT, timeout)
 
-				if((status & ChannelCondition.STDOUT_DATA) != 0) {
-					while(outReader.ready) {
-						val line = outReader.readLine()
-						if(line != null) {
-							logger.debug("Received STDOUT_DATA: " + line)
-							stdout.append(line)
-							stdout.append("\n")
-						}
-					}
-				}
+        if((status & ChannelCondition.STDOUT_DATA) != 0) {
+          while(outReader.ready) {
+            val line = outReader.readLine()
+              if(line != null) {
+              logger.debug("Received STDOUT_DATA: " + line)
+              stdout.append(line)
+              stdout.append("\n")
+            }
+          }
+        }
 				if((status & ChannelCondition.STDERR_DATA) != 0) {
 					while(errReader.ready) {
 						val line = errReader.readLine()

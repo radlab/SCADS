@@ -32,15 +32,8 @@ class RClusterNode(num: Int) extends RemoteMachine with RunitManager {
 	val hostname = "r" + num + ".millennium.berkeley.edu"
 	val username = Util.username
 	val rootDirectory = new File("/scratch/" + Util.username + "/")
-	val privateKey = findPrivateKey()
 	val runitBinaryPath = new File("/work/" + Util.username + "/runit")
 	val javaCmd = new File("/usr/lib/jvm/java-6-sun/bin/java")
-
-  private def findPrivateKey(): File = {
-    val rsa = new File(System.getProperty("user.home"), ".ssh/id_rsa")
-    val dsa = new File(System.getProperty("user.home"), ".ssh/id_dsa")
-    if(rsa.exists) rsa else dsa
-  }
 
 	def setupRunit() {
 		executeCommand("mkdir -p " + serviceRoot) match {
