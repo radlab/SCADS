@@ -16,7 +16,7 @@ object ZooKeeperNode {
   val uriRegEx = """zk://([^/]*)/(.*)""".r
   def apply(uri: String): ZooKeeperProxy#ZooKeeperNode = uri match {
     case uriRegEx(address, "") => new ZooKeeperProxy(address).root
-    case uriRegEx(address, path) => new ZooKeeperProxy(address).root(path)
+    case uriRegEx(address, path) => new ZooKeeperProxy(address).root.getOrCreate(path)
     case _ => throw new RuntimeException("Invalid ZooKeeper URI: " + uri)
   }
 }
