@@ -244,7 +244,7 @@ abstract class RemoteMachine {
         hash
       }
 			case ExecuteResponse(Some(1),"", failureResponse) => {
-        logger.warning("Hash command returned with an error")
+        logger.debug("Hash command returned with an error")
         ""
       }
 			case e: ExecuteResponse => {
