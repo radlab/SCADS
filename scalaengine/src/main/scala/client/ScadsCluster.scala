@@ -52,6 +52,10 @@ class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) {
       .map(n => new StorageService().parse(n.data)).toList
   }
 
+  def shutdown: Unit = {
+    getAvailableServers.foreach(_ !! ShutdownStorageHandler())
+  }
+
   case class UnknownNamespace(ns: String) extends Exception
 
   def getNamespace(ns: String,

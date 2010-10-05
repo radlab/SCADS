@@ -371,6 +371,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode)
 
         reply(DeleteNamespaceResponse())
       }
+      case ShutdownStorageHandler() => System.exit(0)
       case _ => reply(RequestRejected("StorageHandler can't process this message type", msg))
     }
   }
