@@ -34,7 +34,7 @@ case class ActorService(a: Actor) extends MessageReceiver {
  *
  * TODO: fix this problem
  */
-abstract class ServiceHandler[MessageType <: MessageBody] extends MessageReceiver {
+abstract trait ServiceHandler[MessageType <: MessageBody] extends MessageReceiver {
 
   protected val logger: Logger
 
