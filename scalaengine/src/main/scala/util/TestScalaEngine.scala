@@ -2,9 +2,6 @@ package edu.berkeley.cs.scads.storage
 
 import edu.berkeley.cs.scads.comm._
 import net.lag.logging.Logger
-import org.apache.avro.Schema
-import edu.berkeley.cs.scads.comm.Conversions._
-import org.apache.avro.util.Utf8
 import java.io.File
 
 import java.util.concurrent.ConcurrentHashMap
@@ -17,11 +14,13 @@ object TestScalaEngine {
   lazy val defaultStorageHandler = getTestHandler()
   protected val logger = Logger()
 
+  implicit def toOption[A](a: A) = Option(a)
+
   /** Maps (cluster name, test node ID) -> Temp file for BDB env */
   private val tempFileMap = new ConcurrentHashMap[(String, String), File]
   
   /** The default name for a test scads cluster */
-  private val TestCluster = "testScads"
+  private val testCluster = zooKeeper.root.getOrCreate("testScads")
 
 
   private def makeScadsTempDir() = {
@@ -57,7 +56,7 @@ object TestScalaEngine {
    */
   def getTestHandler(): StorageHandler = {
     val tempDir = makeScadsTempDir()
-    ScalaEngine.main(Some(TestCluster), Some(zooKeeper.address), Some(tempDir), None, false)
+    ScalaEngine.main(testCluster.canonicalAddress, tempDir, None, false)
   }
 
   /**
@@ -75,8 +74,9 @@ object TestScalaEngine {
 
     val tempDir = makeScadsTempDir()
     val tempDir0 = Option(tempFileMap.putIfAbsent((clusterId, nodeId), tempDir))
+    val zooAddress = zooKeeper.root.getOrCreate(clusterId)
 
-    ScalaEngine.main(Some(clusterId), Some(zooKeeper.address), tempDir0.orElse(Some(tempDir)), None, false)
+    ScalaEngine.main(zooAddress.canonicalAddress, tempDir0.orElse(Some(tempDir)), None, false)
   }
 
   /**

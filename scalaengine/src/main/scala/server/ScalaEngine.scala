@@ -12,7 +12,7 @@ import net.lag.logging.Logger
  */
 object ScalaEngine extends optional.Application {
   private val logger = Logger()
-  def main(zooBase: Option[String], zooKeeper: Option[String], dbDir: Option[java.io.File], cachePercentage: Option[Int], verbose: Boolean) : StorageHandler = {
+  def main(clusterAddress: Option[String], dbDir: Option[java.io.File], cachePercentage: Option[Int], verbose: Boolean) : StorageHandler = {
     if(verbose)
       org.apache.log4j.BasicConfigurator.configure()
 
@@ -26,13 +26,7 @@ object ScalaEngine extends optional.Application {
       dir.mkdir
     }
 
-    val zooRoot = zooKeeper match {
-      case Some(address) => new ZooKeeperProxy(address).root.getOrCreate(zooBase.getOrElse("scads"))
-      case None => {
-        logger.info("No zookeeper specifed.  Running in standalone mode with local zookeeper")
-        ZooKeeperHelper.getTestZooKeeper.root.getOrCreate("scads")
-      }
-    }
+    val zooRoot = clusterAddress.map(p => ZooKeeperNode(p)).getOrElse(ZooKeeperHelper.getTestZooKeeper.root.getOrCreate("scads"))
 
     logger.info("Opening BDB Environment: " + dir + ", " + config)
     val env = new Environment(dir, config)
