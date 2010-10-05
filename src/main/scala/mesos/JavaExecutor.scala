@@ -60,7 +60,6 @@ class StreamTailer(stream: InputStream, size: Int = 100) extends Runnable {
 class JavaExecutor extends Executor {
   val logger = Logger()
   val httpClient = new HttpClient()
-  System.loadLibrary("mesos")
 
   protected def loadClasspath(classSources: List[ClassSource]): String = classSources.map {
       case ServerSideJar(path) => path
