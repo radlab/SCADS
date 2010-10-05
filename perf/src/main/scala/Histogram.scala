@@ -48,4 +48,3 @@ protected case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Lon
    });"""}
 </script>
 }
-

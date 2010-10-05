@@ -11,22 +11,27 @@ import org.apache.zookeeper.CreateMode
 
 import net.lag.logging.Logger
 
-trait ExperimentPart extends optional.Application {
+trait Experiment extends optional.Application {
   implicit val zooRoot = ZooKeeperNode(Config.config("mesos.zooKeeperRoot", "zk://r2.millennium.berkeley.edu:2181/"))
   val logger = Logger()
   val resultCluster = new ScadsCluster(ZooKeeperNode("zk://r2.millennium.berkeley.edu:2181/scads/results"))
-}
 
-trait Experiment extends ExperimentPart {
-  val name = this.getClass.getName
-  val mesosMaster = Config.config("mesos.master", "1@" + java.net.InetAddress.getLocalHost.getHostName + ":5050")
-  val scheduler = ServiceScheduler(name, mesosMaster)
-  val expRoot = zooRoot.getOrCreate("scads/experiments").createChild("IntKeyScaleExperiment", mode = CreateMode.PERSISTENT_SEQUENTIAL)
+  val jarPath = ServerSideJar("/root/perf-2.1.0-SNAPSHOT.jar") ::
+                ServerSideJar("/root/perf-2.1.0-SNAPSHOT-jar-with-dependencies.jar") :: Nil
 
-  def getExperimentalCluster(clusterSize: Int): ScadsMesosCluster = {
-    val cluster = new ScadsMesosCluster(expRoot, scheduler, clusterSize)
-    println("Cluster located at: " + cluster.root)
-    cluster.blockTillReady
-    cluster
+  lazy val scheduler = startScheduler
+  private def startScheduler: ExperimentScheduler = {
+    val mesosMaster = Config.config("mesos.master", "1@" + java.net.InetAddress.getLocalHost.getHostName + ":5050")
+    ExperimentScheduler("Scads Perf Experiment: " + this.getClass.getName, mesosMaster)
   }
+
+  implicit def blockingCluster(cluster: ScadsCluster) = new {
+    def blockUntilReady(clusterSize: Int): Unit = {
+      while(cluster.getAvailableServers.size < clusterSize) {
+        logger.info("Waiting for cluster to start " + cluster.getAvailableServers.size + " of " + clusterSize + " ready.")
+        Thread.sleep(1000)
+      }
+    }
+  }
+
 }
