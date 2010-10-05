@@ -1,7 +1,8 @@
 package edu.berkeley.cs.scads.perf
 
+import deploylib._
+import deploylib.mesos._
 import edu.berkeley.cs.scads.comm._
-import edu.berkeley.cs.scads.mesos._
 import edu.berkeley.cs.scads.config._
 import edu.berkeley.cs.scads.storage._
 import edu.berkeley.cs.avro.runtime._
@@ -9,78 +10,59 @@ import edu.berkeley.cs.avro.marker._
 
 import org.apache.zookeeper.CreateMode
 
-
-import ParallelConversions._
-
 import java.io.File
 
 case class WriteClient(var cluster: String, var clientId: Int, var iteration: Int) extends AvroRecord
 case class WritePerfResult(var numKeys: Int, var startTime: Long, var endTime: Long) extends AvroRecord
 
 case class ReadClient(var cluster: String, var clientId: Int, var threadId: Int, var iteration: Int) extends AvroRecord
-case class ReadPerfResult(var numKeys: Int, var startTime: Long, var endTime: Long) extends AvroRecord
+case class ReadPerfResult(var startTime: Long, var endTime: Long, var times: Histogram) extends AvroRecord
 
 object IntKeyScaleTest extends Experiment {
-  def main(clusterSize: Int, recsPerServer: Int = 10000, readCount: Int = 1000, readThreads: Int = 10, numIterations: Int = 5): Unit = {
-    println("Begining cluster scale test with " + clusterSize + " servers. With Scheduler %s", scheduler)
+  val writeResults = resultCluster.getNamespace[WriteClient, WritePerfResult]("writeResults")
+  val readResults = resultCluster.getNamespace[ReadClient, ReadPerfResult]("readResults")
 
-    val cluster = getExperimentalCluster(clusterSize)
+  def run(clusterSize: Int, recsPerServer: Int = 10000, readCount: Int = 1000, readThreads: Int = 10, numIterations: Int = 5): ZooKeeperProxy#ZooKeeperNode = {
+    val expRoot = zooRoot.getOrCreate("scads/experiments").createChild("IntKeyScaleExperiment", mode = CreateMode.PERSISTENT_SEQUENTIAL)
 
-    val keySplits = None +: ((clusterSize + 1) to (clusterSize - 1)).map(i => Some(IntRec(i * recsPerServer))) :+  None
-    cluster.createNamespace[IntRec, IntRec]("intkeytest", keySplits zip cluster.getAvailableServers.map(List(_)))
-    val writeResults = cluster.getNamespace[WriteClient, WritePerfResult]("writeResults")
-    val readResults = cluster.getNamespace[ReadClient, ReadPerfResult]("readResults")
+    val serverDesc = JvmProcess(
+      jarPath,
+      "edu.berkeley.cs.scads.storage.ScalaEngine",
+      "--clusterAddress" :: expRoot.canonicalAddress :: Nil)
 
-    val jars = new File(baseDir, "perf-2.1.0-SNAPSHOT.jar") :: new File(baseDir, "mesos-scads-2.1.0-SNAPSHOT-jar-with-dependencies.jar") :: Nil
-    val procDesc = JvmProcess(
-      jars.map(_.toString).mkString(":"),
-      "edu.berkeley.cs.scads.perf.IntKeyScaleClient",
+    val clientDesc = JvmProcess(
+      jarPath,
+      "edu.berkeley.cs.scads.perf.IntKeyScaleTest",
       "--clusterSize" :: clusterSize.toString ::
       "--recsPerServer" :: recsPerServer.toString ::
-      "--clusterAddress" :: cluster.root.canonicalAddress ::
+      "--clusterAddress" :: expRoot.canonicalAddress ::
       "--readCount" :: readCount.toString ::
       "--numIterations" :: numIterations.toString ::
       "--readThreads" :: readThreads.toString:: Nil)
 
-    val coordination = cluster.root.getOrCreate("coordination")
-    (1 to clusterSize).foreach(i => scheduler.runService(512, 1, procDesc))
+    val procs = (1 to clusterSize).map(_ => serverDesc) ++ (1 to clusterSize).map(_ => clientDesc)
+    scheduler.scheduleExperiment(procs)
 
-    println("Waiting for clients to start")
-    coordination.getOrCreate("startWrite").awaitChild("client", clusterSize - 1)
-
-    for(i <- numIterations) {
-      println("Waiting for writing to complete")
-      coordination.getOrCreate("endWrite" + i).awaitChild("client", clusterSize - 1)
-      println("Begining Read Portion of Test")
-      coordination.getOrCreate("endRead" + i).awaitChild("client", clusterSize - 1)
-      println("Deleting keys")
-      coordination.getOrCreate("endDelete" + i).awaitChild("client", clusterSize - 1)
-    }
-
-    println("Test Done")
-
-    writeResults.getRange(None, None).map(r => "Client: %d, %f".format(r._1.clientId, r._2.numKeys.toFloat / ((r._2.endTime - r._2.startTime) / 1000))).foreach(println)
-    val r = readResults.getRange(None, None)
-    val readStart = r.map(_._2.startTime).min
-    val readEnd = r.map(_._2.endTime).max
-    val readsTotal = r.map(_._2.numKeys).sum
-    println("Total Reads: " + readsTotal)
-    println("Read Performance: " + readsTotal.toFloat / ((readEnd - readStart) / 1000))
-
-    System.exit(0)
+    expRoot
   }
-}
 
-object IntKeyScaleClient extends ExperimentPart {
   def main(clusterSize: Int, numIterations: Int, recsPerServer: Int, clusterAddress: String, readCount: Int, readThreads: Int): Unit = {
     val clusterRoot = ZooKeeperNode(clusterAddress)
-    val coordination = clusterRoot("coordination")
+    val coordination = clusterRoot.getOrCreate("coordination")
     val cluster = new ScadsCluster(clusterRoot)
-    val ns = cluster.getNamespace[IntRec, IntRec]("intkeytest")
-    val writeResults = cluster.getNamespace[WriteClient, WritePerfResult]("writeResults")
-    val readResults = cluster.getNamespace[ReadClient, ReadPerfResult]("readResults")
 
-    val clientId = coordination.registerAndAwait("startWrite", clusterSize)
+    val clientId = coordination.registerAndAwait("clientsStart", clusterSize)
+    if(clientId == 0) {
+      cluster.blockUntilReady(clusterSize)
+
+      val keySplits = None +: (1 to (clusterSize - 1)).map(i => Some(IntRec(i * recsPerServer)))
+      val partitions = keySplits zip cluster.getAvailableServers.map(List(_))
+      logger.info("Cluster configured with the following partitions %s", partitions)
+      cluster.createNamespace[IntRec, IntRec]("intkeytest", partitions)
+    }
+
+    coordination.registerAndAwait("startWrite", clusterSize)
+    val ns = cluster.getNamespace[IntRec, IntRec]("intkeytest")
     val startKey = clientId * recsPerServer
     val endKey = (clientId + 1) * recsPerServer
 
@@ -94,29 +76,30 @@ object IntKeyScaleClient extends ExperimentPart {
       coordination.registerAndAwait("endWrite" + iteration, clusterSize)
 
       readResults ++= (1 to readThreads).pmap(threadId => {
-        val startTime = System.currentTimeMillis
-        var successes = 0
+        val times = Histogram(1, 1000)
+        val startTime = System.currentTimeMillis()
         (1 to readCount).foreach(i =>
           try {
+            val startTime = System.currentTimeMillis
             val randRec = scala.util.Random.nextInt(clusterSize * recsPerServer)
-            if(ns.get(IntRec(randRec)).get.f1 == randRec)
-              successes += 1
+
+            if(ns.get(IntRec(randRec)).get.f1 == randRec) {
+              val endTime = System.currentTimeMillis
+              times.add(endTime - startTime)
+            }
             else
               logger.warning("Failed Read")
           }
           catch { case e =>  logger.debug("Exception during read %s", e)}
         )
-        (ReadClient(clusterAddress, clientId, threadId, iteration), ReadPerfResult(successes, startTime, System.currentTimeMillis))
+        (ReadClient(clusterAddress, clientId, threadId, iteration), ReadPerfResult(startTime, System.currentTimeMillis, times))
       })
 
       coordination.registerAndAwait("endRead" + iteration, clusterSize)
-      if(clientId == 0) {
-        logger.info("Begining delete of IntKey namespace")
-        ns.delete
-        logger.info("Delete complete")
-      }
-      coordination.registerAndAwait("endDelete" + iteration, clusterSize)
     }
+
+    if(clientId == 0)
+      cluster.shutdown
 
     System.exit(0)
   }

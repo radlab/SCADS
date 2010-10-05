@@ -58,6 +58,8 @@ case class GetPartitionsResponse(var partitions: List[PartitionService]) extends
 case class DeleteNamespaceRequest(var namespace: String) extends AvroRecord with StorageServiceOperation
 case class DeleteNamespaceResponse() extends AvroRecord with StorageServiceOperation
 
+case class ShutdownStorageHandler() extends AvroRecord with StorageServiceOperation
+
 /* Partition Handler Operations */
 sealed trait PartitionServiceOperation extends MessageBody
 case class CopyDataRequest(var src: PartitionService, var overwrite: Boolean) extends AvroRecord with PartitionServiceOperation

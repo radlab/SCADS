@@ -15,7 +15,8 @@ object RClusterZoo extends ZooKeeperProxy("r2.millennium.berkeley.edu:2181")
 object ZooKeeperNode {
   val uriRegEx = """zk://([^/]*)/(.*)""".r
   def apply(uri: String): ZooKeeperProxy#ZooKeeperNode = uri match {
-    case uriRegEx(address, path) => new ZooKeeperProxy(address).root(path)
+    case uriRegEx(address, "") => new ZooKeeperProxy(address).root
+    case uriRegEx(address, path) => new ZooKeeperProxy(address).root.getOrCreate(path)
     case _ => throw new RuntimeException("Invalid ZooKeeper URI: " + uri)
   }
 }
@@ -94,7 +95,11 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watc
     def getOrCreate(rpath: String): ZooKeeperNode =
       rpath.split("/").foldLeft(this)((n,p) => {
         val fullPath0 = n.fullPath(p)
-        n.childrenMap.get(p).getOrElse(getOrElseUpdateNode(fullPath0, newNode(fullPath0)))
+        n.childrenMap.get(p).getOrElse(
+          try getOrElseUpdateNode(fullPath0, newNode(fullPath0)) catch {
+            case e: org.apache.zookeeper.KeeperException.NodeExistsException => n.childrenMap.get(p).get
+          }
+        )
       })
 
     def waitUntilPropagated() {

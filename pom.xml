@@ -16,7 +16,6 @@
     <module>avro</module>
     <module>comm</module>
     <module>scalaengine</module>
-    <module>mesos</module>
     <module>piql</module>
     <module>perf</module>
   </modules>
