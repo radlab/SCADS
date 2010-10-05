@@ -10,22 +10,10 @@ import net.lag.logging.Logger
 
 import ec2._
 import edu.berkeley.cs.avro.marker._
+import edu.berkeley.cs.scads.comm._
 
 
 import _root_.mesos._
-
-sealed trait ClassSource extends AvroUnion
-case class ServerSideJar(var path: String) extends AvroRecord with ClassSource
-protected case class S3CachedJar(var url: String) extends AvroRecord with ClassSource
-
-object S3CachedJar {
-  def apply(jarLocation: File): S3CachedJar = {
-    new S3CachedJar(S3Cache.getCacheUrl(jarLocation))
-  }
-}
-
-object JvmProcess {def apply(bytes: Array[Byte]) = classOf[JvmProcess].newInstance.parse(bytes)}
-case class JvmProcess(var classpath: List[ClassSource], var mainclass: String, var args: List[String], var props: Map[String, String] = Map.empty) extends AvroRecord
 
 object JavaExecutor {
   def main(args: Array[String]): Unit = {

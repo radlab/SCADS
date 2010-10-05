@@ -2,6 +2,8 @@ package deploylib
 package mesos
 
 import _root_.mesos._
+import edu.berkeley.cs.scads.comm._
+
 import java.io.File
 import net.lag.logging.Logger
 
@@ -11,12 +13,16 @@ import scala.collection.JavaConversions._
 object ExperimentScheduler {
   System.loadLibrary("mesos")
 
-  def apply(name: String, mesosMaster: String = "1@" + java.net.InetAddress.getLocalHost.getHostAddress + ":5050") = new ExperimentScheduler(name, mesosMaster)
+  def apply(name: String, mesosMaster: String = "1@" + java.net.InetAddress.getLocalHost.getHostAddress + ":5050") = new LocalExperimentScheduler(name, mesosMaster)
 }
 
 case class Experiment(var processes: Seq[JvmProcess])
 
-class ExperimentScheduler protected (name: String, mesosMaster: String) extends Scheduler {
+abstract trait ExperimentScheduler {
+  def scheduleExperiment(processes: Seq[JvmProcess]): Unit
+}
+
+class LocalExperimentScheduler protected (name: String, mesosMaster: String) extends Scheduler with ExperimentScheduler{
   val logger = Logger()
   var taskId = 0
   var driver = new MesosSchedulerDriver(this, mesosMaster)
@@ -77,5 +83,5 @@ class ExperimentScheduler protected (name: String, mesosMaster: String) extends 
     }
   }
 
-  def stop = driver.stop
+  def stopDriver = driver.stop
 }
