@@ -1,3 +1,0 @@
-#!/bin/bash
-
-mvn scala:run -DmainClass=edu.berkeley.cs.scads.Compiler -DaddArgs="$1|$2"

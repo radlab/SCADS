@@ -1,3 +1,0 @@
-#!/bin/bash
-
-mvn scala:run -DmainClass=edu.berkeley.cs.scads.test.ScadrLangSpec
