@@ -7,6 +7,7 @@ import org.apache.avro.generic.{GenericData, IndexedRecord}
 import edu.berkeley.cs.scads.comm.ScadsFuture
 
 import java.{ util => ju }
+import scala.collection.mutable.Queue
 
 case class Context(parameters: Array[Any], state: Option[List[Any]])
 
@@ -394,6 +395,52 @@ class ParallelExecutor extends SimpleExecutor {
             tuple
           }
         }
+    }
+    case IndexLookupJoin(namespace, key, child) => {
+      new QueryIterator {
+        val name = "ParallelIndexLookupJoin"
+        val childIterator = apply(child)
+        var nextTuple: Tuple = null
+        val ftchs = new Queue[(Tuple, Record, ScadsFuture[Option[Record]])]
+        val windowSize = 10 // keep 10 outstanding ftchs at a time
+
+        def open = {childIterator.open; fillFutures()}
+        def close = childIterator.close
+
+        def hasNext = (nextTuple != null) || ({
+          var found = false
+          while (!found && !ftchs.isEmpty) {
+            val (childTuple, boundKey, ftch) = ftchs.dequeue()
+            ftch.get match {
+              case Some(recVal) =>
+                nextTuple = childTuple ++ Array[Record](boundKey, recVal)
+                found = true // done
+              case None => // keep going
+            }
+            if (ftchs.isEmpty && childIterator.hasNext) // need to get more records
+              fillFutures()
+          }
+          found
+        })
+
+        def next = {
+          if (!hasNext)
+            throw new ju.NoSuchElementException("Next on empty iterator")
+          val ret = nextTuple
+          nextTuple = null
+          fillFutures()
+          ret
+        }
+
+        private def fillFutures() {
+          while (childIterator.hasNext && ftchs.size < windowSize) {
+            val childTuple = childIterator.next
+            val boundKey = bindKey(namespace, key, childTuple)
+            val valueFtch = namespace.asyncGet(boundKey)
+            ftchs += ((childTuple, boundKey, valueFtch))
+          }
+        }
+      }
     }
     case _ => super.apply(plan)
   }
