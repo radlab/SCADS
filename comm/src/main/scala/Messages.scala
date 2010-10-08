@@ -68,6 +68,15 @@ case class CopyDataResponse() extends AvroRecord with PartitionServiceOperation
 case class GetResponsibilityRequest() extends AvroRecord with PartitionServiceOperation
 case class GetResponsibilityResponse(var startKey: Option[Array[Byte]], var endKey: Option[Array[Byte]]) extends AvroRecord with PartitionServiceOperation
 
+/* Messages for the Remote Experiment Running Daemon. Located here due to limitations in MessageHandler */
+sealed trait ClassSource extends AvroUnion
+case class ServerSideJar(var path: String) extends AvroRecord with ClassSource
+case class S3CachedJar(var url: String) extends AvroRecord with ClassSource
+
+object JvmProcess {def apply(bytes: Array[Byte]) = classOf[JvmProcess].newInstance.parse(bytes)}
+case class JvmProcess(var classpath: List[ClassSource], var mainclass: String, var args: List[String], var props: Map[String, String] = Map.empty) extends AvroRecord
+sealed trait ExperimentOperation extends MessageBody
+case class RunExperiment(var processes: List[JvmProcess]) extends AvroRecord with ExperimentOperation
 
 /* Test Record Types.  Note: they are here due to problems with the typer (i.e. generated methods aren't visable in the same compilation cycle */
 case class IntRec(var f1: Int) extends AvroRecord

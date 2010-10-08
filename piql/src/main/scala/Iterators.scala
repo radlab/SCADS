@@ -7,6 +7,7 @@ import org.apache.avro.generic.{GenericData, IndexedRecord}
 import edu.berkeley.cs.scads.comm.ScadsFuture
 
 import java.{ util => ju }
+import scala.collection.mutable.Queue
 
 case class Context(parameters: Array[Any], state: Option[List[Any]])
 
@@ -219,45 +220,106 @@ class SimpleExecutor extends QueryExecutor {
       }
     }
     case IndexMergeJoin(namespace, keyPrefix, sortFields, limit, ascending, child) => {
+      // TODO: Unifty this iterator and ParallelIndexMergeJoin, since a lot of
+      // code is repeated
       new QueryIterator {
         val name = "SimpleIndexMergeJoin"
         val childIterator = apply(child)
-        var tupleBuffers: IndexedSeq[IndexedSeq[Tuple]] = null
-        var bufferPos: Array[Int] = null
-        var nextTuple: Tuple = null
 
+        val boundLimit = bindLimit(limit)
+
+        /** (key, child tup, offset, limit reached?) */
+        var tupleData: Array[(Record, Tuple, Int, Boolean)] = null
+
+        var tupleBuffers: Array[IndexedSeq[Tuple]] = null
+
+        var bufferPos: Array[Int] = null
+
+        var nextTuple: Tuple = null
 
         def open: Unit = {
           childIterator.open
-          tupleBuffers = childIterator.map(childValue => {
-            val boundKeyPrefix = bindKey(namespace, keyPrefix, childValue)
-            val records = namespace.getRange(boundKeyPrefix, boundKeyPrefix, limit=bindLimit(limit), ascending=ascending)
-            logger.debug("IndexMergeJoin Prefetch Using Key %s: %s", boundKeyPrefix, records)
-            records.map(r => childValue ++ Array[Record](r._1, r._2)).toIndexedSeq
-          }).toIndexedSeq
 
+          val tupleDatum = childIterator.map(childValue => {
+            val boundKeyPrefix = bindKey(namespace, keyPrefix, childValue)
+            val records = namespace.getRange(boundKeyPrefix, boundKeyPrefix, limit=boundLimit, ascending=ascending)
+            logger.debug("IndexMergeJoin Prefetch Using Key %s: %s", boundKeyPrefix, records)
+
+            val recIdxSeq = records.map(r => childValue ++ Array[Record](r._1, r._2)).toIndexedSeq
+            (boundKeyPrefix, childValue, records.size, records.size < boundLimit, recIdxSeq)
+          }).toSeq
+
+          tupleData = tupleDatum.map(x => (x._1, x._2, x._3, x._4)).toArray
+
+          tupleBuffers = tupleDatum.map(_._5).toArray
           bufferPos = Array.fill(tupleBuffers.size)(0)
-          getNext
+
+          getNext // load the first result
         }
+
         def close: Unit = childIterator.close
 
         def hasNext = (nextTuple != null)
+
         def next = {
+          if (!hasNext)
+            throw new ju.NoSuchElementException("Next on empty iterator")
           val ret = nextTuple
           getNext
           ret
         }
 
+        private def fillBuffer(i: Int) {
+          val (key, tup, offset, limitReached) = tupleData(i)
+          assert(!limitReached)
+          val records = namespace.getRange(key, key, offset=offset, limit=boundLimit, ascending=ascending)
+          logger.debug("IndexMergeJoin Prefetch Using Key %s: %s", key, records)
+          tupleBuffers(i) ++= records.map(r => tup ++ Array[Record](r._1, r._2)).toIndexedSeq
+          tupleData(i) = ((key, tup, offset + records.size, records.size < boundLimit))
+        }
+
+        private def bufferLimitReached(i: Int) =
+          tupleData(i)._4
+
         private def getNext: Unit = {
-          var minIdx = 0
-          for(i <- (1 to (tupleBuffers.size - 1))) {
-            if((ascending && (compareTuples(tupleBuffers(i)(bufferPos(i)), tupleBuffers(minIdx)(bufferPos(minIdx)), sortFields) < 0)) ||
-              (!ascending && (compareTuples(tupleBuffers(i)(bufferPos(i)), tupleBuffers(minIdx)(bufferPos(minIdx)), sortFields) > 0))) {
-              minIdx = i
+
+          // find the first available buffer
+          var minIdx = -1 
+          var idx = 0
+          while (minIdx == -1 && idx < tupleBuffers.size) {
+
+            // if this buffer has already been scanned over but we can still fetch from KV store
+            if (bufferPos(idx) == tupleBuffers(idx).size && !bufferLimitReached(idx)) { 
+              fillBuffer(idx) // do the fetch
             }
+
+            // if there is a buffer with contents, then we've found the start
+            if (bufferPos(idx) < tupleBuffers(idx).size) { 
+              minIdx = idx
+            }
+            idx += 1
           }
-          nextTuple = tupleBuffers(minIdx)(bufferPos(minIdx))
-          bufferPos(minIdx) += 1
+
+          if (minIdx == -1) nextTuple = null
+          else { 
+            for(i <- ((minIdx + 1) to (tupleBuffers.size - 1))) {
+              if (bufferPos(i) == tupleBuffers(i).size && !bufferLimitReached(i)) {
+                fillBuffer(i)
+              }
+
+              if (bufferPos(i) < tupleBuffers(i).size) {
+                if((ascending && (compareTuples(tupleBuffers(i)(bufferPos(i)), tupleBuffers(minIdx)(bufferPos(minIdx)), sortFields) < 0)) ||
+                  (!ascending && (compareTuples(tupleBuffers(i)(bufferPos(i)), tupleBuffers(minIdx)(bufferPos(minIdx)), sortFields) > 0))) {
+                  minIdx = i
+                }
+              }
+            }
+            nextTuple = tupleBuffers(minIdx)(bufferPos(minIdx))
+            bufferPos(minIdx) += 1 
+            // NO prefetching here if minIdx buffer becomes entirely scanned-
+            // this is unlike ParallelIndexMergeJoin which does a prefetch for
+            // this case
+          }
         }
       }
     }
@@ -399,6 +461,168 @@ class ParallelExecutor extends SimpleExecutor {
           }
         }
     }
+    case IndexLookupJoin(namespace, key, child) => {
+      new QueryIterator {
+        val name = "ParallelIndexLookupJoin"
+        val childIterator = apply(child)
+        var nextTuple: Tuple = null
+        val ftchs = new Queue[(Tuple, Record, ScadsFuture[Option[Record]])]
+        val windowSize = 10 // keep 10 outstanding ftchs at a time
+
+        def open = {childIterator.open; fillFutures()}
+        def close = childIterator.close
+
+        def hasNext = (nextTuple != null) || ({
+          var found = false
+          while (!found && !ftchs.isEmpty) {
+            val (childTuple, boundKey, ftch) = ftchs.dequeue()
+            ftch.get match {
+              case Some(recVal) =>
+                nextTuple = childTuple ++ Array[Record](boundKey, recVal)
+                found = true // done
+              case None => // keep going
+            }
+            if (ftchs.isEmpty && childIterator.hasNext) // need to get more records
+              fillFutures()
+          }
+          found
+        })
+
+        def next = {
+          if (!hasNext)
+            throw new ju.NoSuchElementException("Next on empty iterator")
+          val ret = nextTuple
+          nextTuple = null
+          fillFutures()
+          ret
+        }
+
+        private def fillFutures() {
+          while (childIterator.hasNext && ftchs.size < windowSize) {
+            val childTuple = childIterator.next
+            val boundKey = bindKey(namespace, key, childTuple)
+            val valueFtch = namespace.asyncGet(boundKey)
+            ftchs += ((childTuple, boundKey, valueFtch))
+          }
+        }
+      }
+    }
+    case IndexMergeJoin(namespace, keyPrefix, sortFields, limit, ascending, child) => {
+      new QueryIterator {
+        val name = "ParallelIndexMergeJoin"
+        val childIterator = apply(child)
+
+        val boundLimit = bindLimit(limit)
+
+        /**
+         * (key, child tup, offset, limit reached?, outstanding ftch)
+         */
+        var tupleData: Array[(Record, Tuple, Int, Boolean, ScadsFuture[Seq[(Record, Record)]])] = null
+
+        var tupleBuffers: Array[IndexedSeq[Tuple]] = null
+
+        var bufferPos: Array[Int] = null
+
+        var nextTuple: Tuple = null
+
+        def open: Unit = {
+          childIterator.open
+
+          tupleData = childIterator.map(childValue => {
+            val boundKeyPrefix = bindKey(namespace, keyPrefix, childValue)
+            val ftch = namespace.asyncGetRange(boundKeyPrefix, boundKeyPrefix, limit=boundLimit, ascending=ascending)
+            (boundKeyPrefix, childValue, 0, false, ftch)
+          }).toArray
+
+          tupleBuffers = Array.fill(tupleData.size)(IndexedSeq.empty)
+          bufferPos = Array.fill(tupleBuffers.size)(0)
+        }
+
+        def close: Unit = childIterator.close
+
+        def hasNext = (nextTuple != null) || ({
+
+          // find the first available buffer
+          var minIdx = -1 
+          var idx = 0
+          while (minIdx == -1 && idx < tupleBuffers.size) {
+
+            // if this buffer has already been scanned over but we can still fetch from KV store
+            if (bufferPos(idx) == tupleBuffers(idx).size && !bufferLimitReached(idx)) { 
+              fillBuffer(idx) // do the fetch
+            }
+
+            // if there is a buffer with contents, then we've found the start
+            if (bufferPos(idx) < tupleBuffers(idx).size) { 
+              minIdx = idx
+            }
+            idx += 1
+          }
+
+          if (minIdx == -1) false
+          else { 
+            for(i <- ((minIdx + 1) to (tupleBuffers.size - 1))) {
+              if (bufferPos(i) == tupleBuffers(i).size && !bufferLimitReached(i)) {
+                fillBuffer(i)
+              }
+
+              if (bufferPos(i) < tupleBuffers(i).size) {
+                if((ascending && (compareTuples(tupleBuffers(i)(bufferPos(i)), tupleBuffers(minIdx)(bufferPos(minIdx)), sortFields) < 0)) ||
+                  (!ascending && (compareTuples(tupleBuffers(i)(bufferPos(i)), tupleBuffers(minIdx)(bufferPos(minIdx)), sortFields) > 0))) {
+                  minIdx = i
+                }
+              }
+            }
+            nextTuple = tupleBuffers(minIdx)(bufferPos(minIdx))
+            bufferPos(minIdx) += 1 
+
+            // do another fetch if we reach the end of minIdx's buffer- this
+            // is unlike SimpleIndexMergeJoin which does not do another fetch
+            // here.
+            if (bufferPos(minIdx) == tupleBuffers(minIdx).size && !bufferLimitReached(minIdx))
+              fillBuffer(minIdx)
+
+            true
+          }
+        })
+
+        private def fillBuffer(i: Int) {
+
+          val (key, tup, offset, limitReached, ftch) = tupleData(i)
+
+          assert(!limitReached)
+          assert(key != null && tup != null && ftch != null && offset != -1)
+
+          val records = ftch.get
+          logger.debug("IndexMergeJoin Prefetch Using Key %s: %s", key, records)
+
+          // TODO: is it slow to ++= append to an IndexedSeq??
+          tupleBuffers(i) ++= records.map(r => tup ++ Array[Record](r._1, r._2)).toIndexedSeq
+
+          if (records.size < boundLimit) { // end of records in KV store
+            tupleData(i) = ((null, null, -1, true, null)) // sentinel values
+          } else { // still can ask for more records
+            val newOffset = records.size + offset
+            val newFtch = namespace.asyncGetRange(key, key, offset=newOffset, limit=boundLimit, ascending=ascending)
+            tupleData(i) = ((key, tup, newOffset, limitReached, newFtch))
+          }
+        }
+
+        private def bufferLimitReached(i: Int) =
+          tupleData(i)._4
+
+        def next = {
+          if (!hasNext)
+            throw new ju.NoSuchElementException("Next on empty iterator")
+
+          val ret = nextTuple
+          nextTuple = null
+          ret
+        }
+
+      }
+    }
+
     case _ => super.apply(plan)
   }
 

@@ -106,15 +106,24 @@ class ScadrClient(cluster: ScadsCluster, executor: QueryExecutor, numUsers: Int 
     exec(usersFollowingPlan, new Utf8(username), count)
 
   val thoughtStreamPlan =
-    StopAfter(ParameterLimit(1, maxResultsPerPage),
-      IndexMergeJoin(thoughts, Array(AttributeValue(0, 1)), Array(AttributeValue(2, 1)), ParameterLimit(1, maxResultsPerPage), false,
-        Selection(Equality(FixedValue(true), AttributeValue(1, 0)),
-          IndexScan(subscriptions, Array(ParameterValue(0)), FixedLimit(maxSubscriptions), true)
-        )
+    IndexMergeJoin(thoughts, Array(AttributeValue(0, 1)), Array(AttributeValue(2, 1)), ParameterLimit(1, maxResultsPerPage), false,
+      Selection(Equality(FixedValue(true), AttributeValue(1, 0)),
+        IndexScan(subscriptions, Array(ParameterValue(0)), FixedLimit(maxSubscriptions), true)
       )
     )
+
+  val thoughtStreamStopAfterPlan = 
+    StopAfter(ParameterLimit(1, maxResultsPerPage), thoughtStreamPlan)
+
   def thoughtstream(username: String, count: Int): QueryResult =
-    exec(thoughtStreamPlan, new Utf8(username), count)
+    exec(thoughtStreamStopAfterPlan, new Utf8(username), count)
+
+  def thoughtstreamPaginate(username: String, count: Int): PageResult = {
+    val iterator = executor(thoughtStreamPlan, new Utf8(username), count)
+    val res = new PageResult(iterator, count) 
+    res.open
+    res
+  }
 
   /* SELECT thoughts.*
      FROM thoughts
