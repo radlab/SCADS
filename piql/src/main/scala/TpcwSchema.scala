@@ -53,12 +53,12 @@ case class AuthorValue(
         var A_BIO : String
         )   extends AvroRecord
 
-case class AuthorFNameIndexKey(var A_FName : String, A_ID : Int)  extends AvroRecord
-case class AuthorLNameIndexKey(var A_LName : String, A_ID : Int)  extends AvroRecord
+case class AuthorFNameIndexKey(var A_FName : String, A_ID : Int)  extends AvroRecord      //Additional
+case class AuthorLNameIndexKey(var A_LName : String, A_ID : Int)  extends AvroRecord      //Additional
 
-case class CustomerKey(var C_ID : Int) extends AvroRecord
+//Different PK
+case class CustomerKey(var C_UNAME : String) extends AvroRecord
 case class CustomerValue(
-        var C_UNAME : String,
         var C_PASSWD : String,
         var C_FNAME : String,
         var C_LNAME : String,
@@ -82,7 +82,7 @@ case class CustomerNameKey(var C_FNAME : String) extends AvroRecord
 case class OrdersKey(var O_ID : Int) extends AvroRecord
 case class OrdersValue(
         var O_C_ID : Int,
-        var O_DATE : Long,
+        var O_DATE_Time : Long, //Change: Stores date and time
         var O_SUB_TOTAL : Double,
         var O_TAX : Double,
         var O_TOTAL : Double,
@@ -92,6 +92,9 @@ case class OrdersValue(
         var O_SHIP_ADDR_ID : Int,
         var O_STATUS : String
         )   extends AvroRecord
+
+case class CustomerOrderIndex(var C_UNAME : String, var O_DATE : Long)
+
 
 case class OrderLineKey(var OL_ID : Int) extends AvroRecord
 case class OrderLineValue(

@@ -22,6 +22,8 @@ case class IndexLookupJoin(namespace: Namespace, key: KeyGenerator, child: Query
 case class IndexScanJoin(namespace: Namespace, keyPrefix: KeyGenerator, limit: Limit, ascending: Boolean, child: QueryPlan) extends QueryPlan
 case class IndexMergeJoin(namespace: Namespace, keyPrefix: KeyGenerator, sortFields: Seq[AttributeValue], limit: Limit, ascending: Boolean, child: QueryPlan) extends QueryPlan
 case class Selection(predicate: Predicate, child: QueryPlan) extends QueryPlan
-case class Sort(fields: List[String], ascending: Boolean, child: QueryPlan) extends QueryPlan
+case class Sort(fields: List[String], ascending: Boolean, child: QueryPlan) extends QueryPlan  //TODO: Why does it take List[String]
 case class StopAfter(count: Limit, child: QueryPlan) extends QueryPlan
+
 case class Union(child1 : QueryPlan, child2 : QueryPlan, eqField : AttributeValue) extends QueryPlan
+

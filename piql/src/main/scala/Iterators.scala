@@ -210,7 +210,7 @@ class SimpleExecutor extends QueryExecutor {
             val value = namespace.get(boundKey)
 
             if(value.isDefined) {
-              nextTuple = childTuple ++ Array[Record](boundKey, value.get)
+              nextTuple = childTuple ++ Array[Record](boundKey, value.get)    //TODO: Why does it return the boundKey???
               return
             }
           }
