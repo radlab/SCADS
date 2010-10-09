@@ -49,7 +49,7 @@ class JavaExecutor extends Executor {
   val logger = Logger()
   val httpClient = new HttpClient()
 
-  protected def loadClasspath(classSources: List[ClassSource]): String = classSources.map {
+  protected def loadClasspath(classSources: Seq[ClassSource]): String = classSources.map {
       case ServerSideJar(path) => path
       case S3CachedJar(urlString) => {
         val method = new GetMethod(urlString)
