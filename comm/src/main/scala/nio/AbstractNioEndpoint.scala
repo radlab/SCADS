@@ -417,14 +417,14 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
   }
 
   protected def connect(key: SelectionKey):Unit = {
-    logger.debug("connect() called with: " + key)
+    logger.debug("connect() called with: %s", key)
     val socketChannel = key.channel.asInstanceOf[SocketChannel]
     try {
       socketChannel.finishConnect
     } catch {
       case e: IOException =>
         // Cancel the channel's registration with our selector
-        logger.error("failed to connect with error: %s", e.getMessage)
+        logger.error("failed to connect to %s with error: %s", key.channel, e.getMessage)
       key.cancel
       return
     }
@@ -445,6 +445,7 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
   * Connect is thread safe
   */
   def connect(hostAddress: InetSocketAddress):ConnectFuture = {
+    logger.info("Connecting to %s", hostAddress)
     synchronized {
       if (!initialized) {
         fireWriteAndSelectLoop
