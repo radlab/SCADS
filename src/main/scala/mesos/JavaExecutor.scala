@@ -31,11 +31,12 @@ class StreamTailer(stream: InputStream, size: Int = 100) extends Runnable {
   thread.start()
 
   def run() = {
-    while(true) {
-      val line = reader.readLine()
+    var line = reader.readLine()
+    while(line != null) {
       println(line)
       lines(pos) = line
       pos = (pos + 1) % size
+      line = reader.readLine()
     }
   }
 
