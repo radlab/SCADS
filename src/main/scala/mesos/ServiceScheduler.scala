@@ -10,7 +10,7 @@ import net.lag.logging.Logger
 import scala.collection.mutable.{Buffer, ListBuffer}
 import scala.collection.JavaConversions._
 
-object ExperimentScheduler {
+object LocalExperimentScheduler {
   System.loadLibrary("mesos")
 
   def apply(name: String, mesosMaster: String = "1@" + java.net.InetAddress.getLocalHost.getHostAddress + ":5050") = new LocalExperimentScheduler(name, mesosMaster)
