@@ -43,7 +43,10 @@ class RichIndexedRecord[T <: IndexedRecord](val rec: T) {
 
   @inline def toGenericRecord: GenericData.Record = {
     val genRec = new GenericData.Record(rec.getSchema())
-    rec.getSchema().getFields().foreach(f => genRec.put(f.pos, rec.get(f.pos)))
+    rec.getSchema().getFields.foreach(f => genRec.put(f.pos, rec.get(f.pos) match {
+      case r: IndexedRecord => r.toGenericRecord
+      case o => o
+    }))
     genRec
   }
 
