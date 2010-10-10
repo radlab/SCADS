@@ -47,49 +47,85 @@ trait QueryResultMatchers {
 abstract class AbstractScadrSpec extends Spec with ShouldMatchers with QueryResultMatchers {
     
   val client: ScadrClient
+  val loader = new ScadrLoader(client, 1)
+  val data = loader.getData(0)
+  data.load()
 
-  client.bulkLoadTestData
+  private def usersFollowedBy(username: String) = {
+    val subs = data.subscriptionData.filter { case (k, v) => k.owner == username } map { case (k, v) => k.target } toSet
+    val users = data.userData.filter({ case (k, v) => subs.contains(k.username) }).sortBy(_._1.username)
+    users
+  }
+
+  private def thoughtstream(username: String) = {
+    // compute actual answer in memory...
+    val subs = data.subscriptionData.filter { case(k, v) => k.owner == username }
+    val allThoughts = subs.flatMap(x => data.thoughtData.filter { case (k, v) => k.owner == x._1.target })
+    val answer = allThoughts.sortWith({ case (a, b) => a._1.timestamp > b._1.timestamp || (a._1.timestamp == b._1.timestamp && a._1.owner < b._1.owner) })
+    answer
+  }
 
   describe("The SCADr client") {
     it("findUser") {
-      client.userData.foreach(u => client.findUser(u._1.username) should returnTuples(Array(u._1, u._2)))
+      data.userData.foreach(u => client.findUser(u._1.username) should returnTuples(Array(u._1, u._2)))
     }
 
     it("myThoughts") {
-      client.userData.foreach(u => {
-        val answer = client.thoughtData.filter(_._1.owner equals u._1.username).map(t => Array(t._1, t._2)).reverse
+      data.userData.foreach(u => {
+        val answer = data.thoughtData.filter(_._1.owner equals u._1.username).map(t => Array(t._1, t._2)).reverse.take(10)
         client.myThoughts(u._1.username, 10) should returnTuples(answer)
       })
     }
 
     it("usersFollowedBy") {
-      client.userData.flatMap(u => client.usersFollowedBy(u._1.username, 10)).size should equal(client.subscriptionData.size)
+      data.userData.foreach(u => {
+        val followers = client.usersFollowedBy(u._1.username, 10)
+        val users = usersFollowedBy(u._1.username).take(10)
+        followers.map(x => Array(x(2), x(3))) should returnTuples (users.map(x => Array(x._1, x._2)))
+      })
     }
 
     it("usersFollowedByPaginate") {
-      client.userData.foreach(u => {
-        //println("User: %s".format(u._1.username))
-        val flattened = client.usersFollowedByPaginate(u._1.username, 2).toList.flatMap(x => x)
-        val subsPerUser = client.usersFollowedBy(u._1.username, 10)
-        flattened.size should equal(subsPerUser.size)
+      data.userData.foreach(u => {
+        val flattened = client.usersFollowedByPaginate(u._1.username, 2).toList.flatten
+        flattened.size should equal(loader.numSubscriptionsPerUser)
+        val users = usersFollowedBy(u._1.username)
+        flattened.map(x => Array(x(2), x(3))) should returnTuples (users.map(x => Array(x._1, x._2)))
+      })
+    }
+
+    it("usersFollowing") {
+      data.userData.foreach(u => {
+        val following = client.usersFollowing(u._1.username, 10)
+
+        // compute using the index
+        val subs = data.idxUsersTargetData.filter { case (k, v) => k.target == u._1.username } map { case (k, v) => k.owner } toSet 
+
+        val users = data.userData.filter({ case (k, v) => subs.contains(k.username) }).sortBy(_._1.username).take(10)
+        following.map(x => Array(x(2), x(3))) should returnTuples (users.map(x => Array(x._1, x._2)))
+
+        // compute with brute force
+        val subs0 = data.subscriptionData.filter { case (k, v) => k.target == u._1.username } map { case (k, v) => k.owner } toSet
+        val users0 = data.userData.filter({ case (k, v) => subs0.contains(k.username) }).sortBy(_._1.username).take(10)
+        following.map(x => Array(x(2), x(3))) should returnTuples (users0.map(x => Array(x._1, x._2)))
       })
     }
 
     it("thoughtstream") {
-      client.userData.foreach(u => {
+      data.userData.foreach(u => {
         val thoughts = client.thoughtstream(u._1.username, 10)
-        thoughts.size should equal(10)
-
-        // compute actual answer in memory...
-        val subs = client.subscriptionData.filter { case(k, v) => k.owner == u._1.username }
-        val allThoughts = subs.flatMap(x => client.thoughtData.filter { case (k, v) => k.owner == x._1.target })
-        val answer = allThoughts.sortWith({ case (a, b) => a._1.timestamp > b._1.timestamp || (a._1.timestamp == b._1.timestamp && a._1.owner < b._1.owner) }).take(10)
-
-        // compare
+        val answer = thoughtstream(u._1.username).take(10)
         (thoughts.map(x => Array(x(2), x(3)))) should returnTuples(answer.map(t => Array(t._1, t._2)))
       })
     }
 
+    it("thoughtstreamPaginate") {
+      data.userData.foreach(u => {
+        val thoughts = client.thoughtstreamPaginate(u._1.username, 4).toList.flatten
+        val answer = thoughtstream(u._1.username)
+        (thoughts.map(x => Array(x(2), x(3)))) should returnTuples(answer.map(t => Array(t._1, t._2)))
+      })
+    }
 
   }
 }
