@@ -15,7 +15,7 @@ case class SubscriptionKey(var owner: String, var target: String) extends AvroRe
 case class SubscriptionValue(var approved: Boolean) extends AvroRecord
 
 case class HashTagKey(var tag: String, var timestamp: Int, var owner: String) extends AvroRecord
-case class HashTagValue() extends AvroRecord
+case class HashTagValue(var dummy: Boolean) extends AvroRecord
 
 case class UserTarget(var target: String, var owner: String) extends AvroRecord
 case class NullRecord(var b: Boolean) extends AvroRecord

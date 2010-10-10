@@ -12,6 +12,8 @@ import org.apache.avro.generic.{GenericData, IndexedRecord}
 import edu.berkeley.cs.scads.storage.TestScalaEngine
 import edu.berkeley.cs.scads.piql._
 
+import scala.collection.mutable.{ ArrayBuffer, HashMap }
+
 trait QueryResultMatchers {
   type Tuple = Array[GenericData.Record]
   type QueryResult = Seq[Tuple]
@@ -125,6 +127,27 @@ abstract class AbstractScadrSpec extends Spec with ShouldMatchers with QueryResu
         val answer = thoughtstream(u._1.username)
         (thoughts.map(x => Array(x(2), x(3)))) should returnTuples(answer.map(t => Array(t._1, t._2)))
       })
+    }
+
+    it("thoughtsByHashTag") {
+
+      val tagData = data.tagData.foldLeft(new HashMap[String, ArrayBuffer[HashTagKey]]) { case (m, (k, v)) => 
+        m.getOrElseUpdate(k.tag, new ArrayBuffer[HashTagKey]) += k 
+        m
+      }
+      val thoughtData = data.thoughtData.toMap
+
+      tagData.foreach { case (tag, tagKeys) => 
+        val thoughtsByTag = client.thoughtsByHashTag(tag, 10)
+
+        val thoughts = tagKeys
+          .map(tagKey => (ThoughtKey(tagKey.owner, tagKey.timestamp), thoughtData(ThoughtKey(tagKey.owner, tagKey.timestamp))))
+          .sortWith({ case (a, b) => a._1.timestamp > b._1.timestamp || (a._1.timestamp == b._1.timestamp && a._1.owner > b._1.owner) })
+          .take(10)
+
+        thoughtsByTag.map(x => Array(x(2), x(3))) should returnTuples(thoughts.map(x => Array(x._1, x._2)))
+      }
+
     }
 
   }

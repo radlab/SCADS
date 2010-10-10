@@ -203,8 +203,8 @@ class ScadrLoader(val client: ScadrClient,
     val idxUsersTargetData: Seq[(UserTarget, NullRecord)] = 
       subscriptionData.map(s => (UserTarget(s._1.target, s._1.owner), NullRecord(true)))
 
-    val tagData: Seq[(HashTagKey, HashTagValue)] = 
-      thoughtData.flatMap(thought => randomStrings(thought._1.owner.hashCode, numThoughtsPerUser).map(tag => (HashTagKey(tag, thought._1.timestamp, thought._1.owner), HashTagValue())))
+    val tagData: Seq[(HashTagKey, HashTagValue)] =
+      thoughtData.flatMap(thought => randomStrings(thought._1.owner.hashCode, numTagsPerThought).map(tag => (HashTagKey(tag, thought._1.timestamp, thought._1.owner), HashTagValue(false))))
 
     //val thoughtData: Seq[(ThoughtKey, ThoughtValue)] = userData.flatMap(user => (1 to numThoughtsPerUser).view.map(i => (ThoughtKey(user._1.username, i), ThoughtValue(user._1.username + " thinks " + i))))
     //val subscriptionData: Seq[(SubscriptionKey, SubscriptionValue)] = userData.flatMap(user => randomInts(user._1.username.hashCode, numUsers, numSubscriptionsPerUser).view.map(u => (SubscriptionKey(user._1.username, userData(u)._1.username), SubscriptionValue(true))))
