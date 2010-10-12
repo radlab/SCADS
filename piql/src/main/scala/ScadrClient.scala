@@ -20,10 +20,8 @@ case class HashTagValue(var dummy: Boolean) extends AvroRecord
 case class UserTarget(var target: String, var owner: String) extends AvroRecord
 case class NullRecord(var b: Boolean) extends AvroRecord
 
-class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor) {
-
+class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscriptions: Int = 5000) {
   val maxResultsPerPage = 10
-  val maxSubscriptions = 5000
 
   implicit def toGeneric(ns: SpecificNamespace[_, _]) = ns.genericNamespace
 
