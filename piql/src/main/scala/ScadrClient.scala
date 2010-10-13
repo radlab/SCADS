@@ -33,6 +33,7 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
   lazy val thoughts = cluster.getNamespace[ThoughtKey, ThoughtValue]("thoughts")
   lazy val subscriptions = cluster.getNamespace[SubscriptionKey, SubscriptionValue]("subscriptions")
   lazy val tags = cluster.getNamespace[HashTagKey, HashTagValue]("tags")
+  lazy val test = println("hello")
 
   lazy val idxUsersTarget = cluster.getNamespace[UserTarget, NullRecord]("idxUsersTarget")
 
@@ -42,23 +43,23 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
     iterator.toList
   }
 
-  private val findUserPlan = IndexLookup(users, Array(ParameterValue(0)))
+  private lazy val findUserPlan = IndexLookup(users, Array(ParameterValue(0)))
   def findUser(username: String): QueryResult =
     exec(findUserPlan, new Utf8(username))
 
-  private val myThoughtsPlan =
+  private lazy val myThoughtsPlan =
     StopAfter(ParameterLimit(1, maxResultsPerPage),
       IndexScan(thoughts, Array(ParameterValue(0)), ParameterLimit(1, maxResultsPerPage), false)
     )
   def myThoughts(username: String, count: Int): QueryResult =
     exec(myThoughtsPlan, new Utf8(username), count)
 
-  private val usersFollowedByPlan =
+  private lazy val usersFollowedByPlan =
     IndexLookupJoin(users, Array(AttributeValue(0, 1)),
       IndexScan(subscriptions, Array(ParameterValue(0)), ParameterLimit(1, maxResultsPerPage), true)
     )
   
-  private val usersFollowedByStopAfterPlan =
+  private lazy val usersFollowedByStopAfterPlan =
     StopAfter(ParameterLimit(1, maxResultsPerPage), usersFollowedByPlan)
 
   /**
@@ -74,7 +75,7 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
     res
   }
 
-  private val usersFollowingPlan =
+  private lazy val usersFollowingPlan =
     StopAfter(ParameterLimit(1, maxResultsPerPage),
       IndexLookupJoin(users, Array(AttributeValue(0, 1)),
         IndexScan(idxUsersTarget, Array(ParameterValue(0)), ParameterLimit(1, maxResultsPerPage), true)
@@ -87,14 +88,14 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
   def usersFollowing(username: String, count: Int): QueryResult =
     exec(usersFollowingPlan, new Utf8(username), count)
 
-  private val thoughtStreamPlan =
+  private lazy val thoughtStreamPlan =
     IndexMergeJoin(thoughts, Array(AttributeValue(0, 1)), Array(AttributeValue(2, 1)), ParameterLimit(1, maxResultsPerPage), false,
       Selection(Equality(FixedValue(true), AttributeValue(1, 0)),
         IndexScan(subscriptions, Array(ParameterValue(0)), FixedLimit(maxSubscriptions), true)
       )
     )
 
-  private val thoughtStreamStopAfterPlan = 
+  private lazy val thoughtStreamStopAfterPlan = 
     StopAfter(ParameterLimit(1, maxResultsPerPage), thoughtStreamPlan)
 
   def thoughtstream(username: String, count: Int): QueryResult =
@@ -112,7 +113,7 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
        JOIN tags ON thoughts.owner = tags.owner AND thoughts.timestamp = tags.timestamp
      WHERE tags.tag = [1: tag]
      ORDER BY timestamp DESC */
-  private val thoughsByHashTagPlan =
+  private lazy val thoughsByHashTagPlan =
     StopAfter(ParameterLimit(1, maxResultsPerPage),
       IndexLookupJoin(thoughts, Array(AttributeValue(0, 2), AttributeValue(0, 1)),
         IndexScan(tags, Array(ParameterValue(0)), ParameterLimit(1, maxResultsPerPage), false)
