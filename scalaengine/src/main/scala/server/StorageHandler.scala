@@ -180,7 +180,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode)
       /* Add to our list of open partitions */
       partitions.put(partitionId, handler)
 
-      val ctx = getContextForNamespace(request.namespace) 
+      val ctx = getOrCreateContextForNamespace(request.namespace) 
       ctx.partitions += ((partitionId, handler))
 
     }
@@ -198,7 +198,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode)
    * GC). this makes implementation easier (since we don't have to worry about
    * locks changing over time), but wastes memory
    */
-  private def getContextForNamespace(namespace: String) = {
+  private def getOrCreateContextForNamespace(namespace: String) = {
     val test = namespaces.get(namespace)
     if (test ne null)
       test
@@ -207,6 +207,9 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode)
       Option(namespaces.putIfAbsent(namespace, ctx)) getOrElse ctx
     }
   }
+
+  @inline private def getContextForNamespace(namespace: String) = 
+    Option(namespaces.get(namespace))
 
   @inline private def removeNamespaceContext(namespace: String) = 
     Option(namespaces.remove(namespace))
@@ -249,12 +252,13 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode)
 
         logger.info("%d active partitions after insertion in ZooKeeper".format(nsRoot("partitions").children.size))
 
-        val ctx = getContextForNamespace(namespace) 
+        val ctx = getOrCreateContextForNamespace(namespace) 
 
         /* For now, the creation of DBs under a namespace are executed
          * serially. It is assumed that a single node will not run multiple
          * storage handlers sharing the same namespaces (which allows us to
          * lock the namespace in memory. */
+        // TODO: cleanup if fails
         val handler = ctx.synchronized {
 
           /* Start a new transaction to atomically make both the namespace DB,
@@ -303,7 +307,16 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode)
 
         logger.info("[%s] Deleting partition [%s, %s) for namespace %s", this, JArrays.toString(handler.startKey.orNull), JArrays.toString(handler.endKey.orNull), dbName)
 
-        val ctx = getContextForNamespace(dbName)
+        val ctx = getContextForNamespace(dbName) getOrElse {
+          /**
+           * Race condition - a request to delete a namespace is going on
+           * right now- this error can actually be safely ignored since this
+           * partition will be deleted (in response to the namespace deletion
+           * request)
+           */
+          reply(RequestRejected("Partition will be removed by a delete namespace request currently in progress", msg)); return
+        }
+
         ctx.synchronized {
           val succ = ctx.partitions.remove((partitionId, handler))
           assert(succ, "Handler not successfully removed from partitions")
@@ -361,6 +374,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode)
         ctx.synchronized {
           val txn = env.beginTransaction(null, null)
           ctx.partitions.foreach { case (partitionId, handler) => 
+            partitions.remove(partitionId) /* remove from map */
             handler.stop /* Closes DB handle */
             logger.info("Deleting metadata for partition %s", partitionId)
             partitionDb.delete(txn, new DatabaseEntry(partitionId.getBytes)) 
