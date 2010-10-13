@@ -13,7 +13,7 @@ object Histogram {
 
 protected case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Long]) extends AvroRecord{
 	def add(value: Long):Histogram = {
-		val bucket = (value / buckets.length).toInt
+		val bucket = (value / bucketSize).toInt
 		if(bucket >= buckets.length)
 			buckets(buckets.length - 1) += 1
 		else
