@@ -12,8 +12,9 @@ import ec2._
 import edu.berkeley.cs.avro.marker._
 import edu.berkeley.cs.scads.comm._
 
-
 import _root_.mesos._
+
+import scala.collection.JavaConversions._
 
 object JavaExecutor {
   def main(args: Array[String]): Unit = {
@@ -101,5 +102,13 @@ class JavaExecutor extends Executor {
       case _ => TaskState.TASK_FAILED
     }
     d.sendStatusUpdate(new TaskStatus(taskDesc.getTaskId, finalTaskState, output))
+    logger.info("Cleaning up working directory %s", tempDir)
+    deleteRecursive(tempDir)
+  }
+
+  protected def deleteRecursive(f: File): Unit = {
+    if(f.isDirectory)
+      f.listFiles.foreach(deleteRecursive)
+    f.delete()
   }
 }
