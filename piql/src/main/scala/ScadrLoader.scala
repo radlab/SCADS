@@ -108,7 +108,7 @@ class ScadrLoader(val client: ScadrClient,
   }
 
   private def toUser(idx: Int) = "User" + idx
-  def randomUser = toUser(scala.util.Random.nextInt(numUsers))
+  def randomUser = toUser(scala.util.Random.nextInt(numUsers) + 1) // must be + 1 since users are indexed starting from 1
 
   /**
    * Get the key splits based on the num* parameters and the scads cluster.
