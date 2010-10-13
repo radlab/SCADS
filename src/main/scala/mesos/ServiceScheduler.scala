@@ -38,7 +38,7 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String) ext
   }
 
   override def getFrameworkName(d: SchedulerDriver): String = "SCADS Service Framework: " + name
-  override def getExecutorInfo(d: SchedulerDriver): ExecutorInfo = new ExecutorInfo("/root/java_executor", Array[Byte]())
+  override def getExecutorInfo(d: SchedulerDriver): ExecutorInfo = new ExecutorInfo("/root/mesos/frameworks/deploylib/java_executor", Array[Byte]())
   override def registered(d: SchedulerDriver, fid: String): Unit = logger.info("Registered SCADS Framework.  Fid: " + fid)
 
   override def resourceOffer(d: SchedulerDriver, oid: String, offers: java.util.List[SlaveOffer]) = awaitingSiblings.synchronized {
