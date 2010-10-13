@@ -97,7 +97,9 @@ trait QueryExecutor {
   }
 
   protected def evalPredicate(predicate: Predicate, tuple: Tuple)(implicit ctx: Context): Boolean = predicate match {
-    case Equality(v1, v2) => compareAny(bindValue(v1, tuple), bindValue(v2, tuple)) == 0
+    case Equality(v1, v2) => {
+      compareAny(bindValue(v1, tuple), bindValue(v2, tuple)) == 0
+    }
   }
 
   protected def compareTuples(left: Tuple, right: Tuple, attributes: Seq[AttributeValue])(implicit ctx: Context): Int = {

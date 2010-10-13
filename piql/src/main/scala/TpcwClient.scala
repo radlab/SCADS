@@ -5,20 +5,19 @@ import edu.berkeley.cs.avro.marker._
 
 import org.apache.avro.util._
 
-class TpcwClient(cluster: ScadsCluster, executor: QueryExecutor) {
-    val address = cluster.getNamespace[AddressKey, AddressValue]("address")
-    val author = cluster.getNamespace[AuthorKey, AuthorValue]("author")
-    val authorNameIndex = cluster.getNamespace[AuthorFNameIndexKey, NullRecord]("author_fname_index")
+class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
+    lazy val address = cluster.getNamespace[AddressKey, AddressValue]("address")
+    lazy val author = cluster.getNamespace[AuthorKey, AuthorValue]("author")
+    lazy val authorNameIndex = cluster.getNamespace[AuthorFNameIndexKey, NullRecord]("author_fname_index")
     //val authorLNameIndex = cluster.getNamespace[AuthorLNameIndexKey, NullRecord]("author_lname_index") //make it one
-    val xacts = cluster.getNamespace[CcXactsKey, CcXactsValue]("xacts")
-    val country = cluster.getNamespace[CountryKey, CountryValue]("country")
-    val customer = cluster.getNamespace[CustomerKey, CustomerValue]("customer")
-    val item = cluster.getNamespace[ItemKey, ItemValue]("item")
-    val itemSubjectDateTitleIndex = cluster.getNamespace[ItemSubjectDateTitleIndexKey, ItemKey]("item_subject_date_title_index")
-    val itemAuthorTitleIndex = cluster.getNamespace[ItemSubjectDateTitleIndexKey, ItemKey]("item_author_title_index")
-    val orderline = cluster.getNamespace[OrderLineKey, OrderLineValue]("orderline")
-    val order = cluster.getNamespace[OrdersKey, OrdersValue]("orders")
-    val customerOrderIndex = cluster.getNamespace[CustomerOrderIndex, OrdersKey]("customer_index")  //Extra index
+    lazy val xacts = cluster.getNamespace[CcXactsKey, CcXactsValue]("xacts")
+    lazy val country = cluster.getNamespace[CountryKey, CountryValue]("country")
+    lazy val customer = cluster.getNamespace[CustomerKey, CustomerValue]("customer")
+    lazy val item = cluster.getNamespace[ItemKey, ItemValue]("item")
+    lazy val itemSubjectDateTitleIndex = cluster.getNamespace[ItemSubjectDateTitleIndexKey, ItemKey]("item_subject_date_title_index")
+    lazy val orderline = cluster.getNamespace[OrderLineKey, OrderLineValue]("orderline")
+    lazy val order = cluster.getNamespace[OrdersKey, OrdersValue]("orders")
+    lazy val customerOrderIndex = cluster.getNamespace[CustomerOrderIndex, OrdersKey]("customer_index")  //Extra index
 
     def paraSelector(i : Int) = Array(ParameterValue(i))
     def projection(record: Int, attribute: Int) = Array(AttributeValue(record, attribute))
@@ -39,10 +38,10 @@ class TpcwClient(cluster: ScadsCluster, executor: QueryExecutor) {
                             IndexLookupJoin(
                                item,
                                projection(0, 1),
-                               IndexScan(itemSubjectDateTitleIndex, firstPara, 50, true))
+                               IndexScan(itemSubjectDateTitleIndex, firstPara, FixedLimit(50), true))
                           )
       def newProductWI(subject: String): QueryResult =
-      exec(newProductPlan, new Utf8(username))
+      exec(newProductPlan, new Utf8(subject))
 
     val productDetailPlan = IndexLookupJoin( //(ItemKey, ItemValue, AuthorKey, AuthorValue)
                                author,
@@ -60,7 +59,7 @@ class TpcwClient(cluster: ScadsCluster, executor: QueryExecutor) {
           IndexLookupJoin(
             item,
             projection(0,1), //(authorNameIndex, null)
-            IndexScan(authorNameIndex, firstPara, 50, true)
+            IndexScan(authorNameIndex, firstPara, FixedLimit(50), true)
             )
           )
     def searchByAuthorWI(name : String) = exec(searchByAuthorPlan, name)
@@ -72,28 +71,28 @@ class TpcwClient(cluster: ScadsCluster, executor: QueryExecutor) {
       IndexLookupJoin( // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), ItemValue
         item,
         projection(1,0), // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID)
-        IndexScan(itemSubjectDateTitleIndex, firstPara, 50, true)
+        IndexScan(itemSubjectDateTitleIndex, firstPara, FixedLimit(50), true)
       )
     )
     def searchBySubjectWI(subject : String) = exec(searchBySubjectPlan, subject)
 
     val orderDisplayCustomerPlan =
       Selection(
-        Equality(projection(0,0),ParameterValue(1)),
-        IndexLookup(customer, Array(ParameterValue(0)))
+        Equality(AttributeValue(0,0),ParameterValue(1)),
+        IndexLookup(customer, paraSelector(0))  // CustomerName, (C_PASSWD, C_FNAME, C_LNAME,....)
       )
-    def orderDisplayCustomerWI(cName : String, cPassword : String) = exec(orderDisplayCustomerPlan, cname, cPassword)
+    def orderDisplayCustomerWI(cName : String, cPassword : String) = exec(orderDisplayCustomerPlan, cName, cPassword)
 
-    val orderDisplayOrder =
-      IndexLookupJoin(
-
-        IndexScan(
-          customerOrderIndex,
-          firstPara,
-          1,
-          false
-        )
-      )
+//    val orderDisplayOrder =
+//      IndexLookupJoin(
+//
+//        IndexScan(
+//          customerOrderIndex,
+//          firstPara,
+//          1,
+//          false
+//        )
+//      )
 
     def exec(plan: QueryPlan, args: Any*) = {
       val iterator = executor(plan, args:_*)
@@ -101,6 +100,8 @@ class TpcwClient(cluster: ScadsCluster, executor: QueryExecutor) {
       iterator.toList
     }
 
+
+  
   //AttributeValue does it start counting from 0 or 1???
   //Questions: Why das Attribute value take a record ID?
   //should we rename KeyGenerator to projection?

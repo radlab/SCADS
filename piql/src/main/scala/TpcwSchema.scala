@@ -6,7 +6,7 @@ import edu.berkeley.cs.avro.marker._
 import org.apache.avro.util._
 
 
-case class ItemKey(var I_ID : Int) extends AvroRecord
+case class ItemKey(var I_ID : String) extends AvroRecord
 case class ItemValue(
         var I_TITLE : String,
         var A_ID : Int,
@@ -37,14 +37,14 @@ case class ItemSubjectDateTitleIndexKey(
         var I_TITLE : String
         ) extends AvroRecord
 
-case class CountryKey(var CO_ID : Int) extends AvroRecord
+case class CountryKey(var CO_ID : String) extends AvroRecord
 case class CountryValue(
         var CO_NAME : String,
         var CO_EXCHANGE : Float,
         var CO_CURRENCY : String
         )   extends AvroRecord
 
-case class AuthorKey(var A_ID : Int) extends AvroRecord
+case class AuthorKey(var A_ID : String) extends AvroRecord
 case class AuthorValue(
         var A_FNAME : String,
         var A_LNAME : String,
@@ -53,8 +53,8 @@ case class AuthorValue(
         var A_BIO : String
         )   extends AvroRecord
 
-case class AuthorFNameIndexKey(var A_FName : String, A_ID : Int)  extends AvroRecord      //Additional
-case class AuthorLNameIndexKey(var A_LName : String, A_ID : Int)  extends AvroRecord      //Additional
+case class AuthorFNameIndexKey(var A_FName : String, var A_ID : Int)  extends AvroRecord      //Additional
+case class AuthorLNameIndexKey(var A_LName : String, var A_ID : Int)  extends AvroRecord      //Additional
 
 //Different PK
 case class CustomerKey(var C_UNAME : String) extends AvroRecord
@@ -79,33 +79,32 @@ case class CustomerValue(
 case class CustomerNameKey(var C_FNAME : String) extends AvroRecord
 
 
-case class OrdersKey(var O_ID : Int) extends AvroRecord
+case class OrdersKey(var O_ID : String) extends AvroRecord
 case class OrdersValue(
-        var O_C_ID : Int,
+        var O_C_ID : String,
         var O_DATE_Time : Long, //Change: Stores date and time
         var O_SUB_TOTAL : Double,
         var O_TAX : Double,
         var O_TOTAL : Double,
         var O_SHIP_TYPE : String,
         var O_SHIP_DATE : Long,
-        var O_BILL_ADDR_ID : Int,
-        var O_SHIP_ADDR_ID : Int,
+        var O_BILL_ADDR_ID : String,
+        var O_SHIP_ADDR_ID : String,
         var O_STATUS : String
         )   extends AvroRecord
 
-case class CustomerOrderIndex(var C_UNAME : String, var O_DATE : Long)
+case class CustomerOrderIndex(var C_UNAME : String, var O_DATE : Long) extends AvroRecord
 
 
-case class OrderLineKey(var OL_ID : Int) extends AvroRecord
+case class OrderLineKey(var OL_O_ID : String, var OL_ID : String) extends AvroRecord
 case class OrderLineValue(
-        var OL_O_ID : Int,
         var OL_I_ID : Int,
         var OL_QTY : Int,
         var OL_DISCOUNT : Float,
         var OL_COMMENT : String
         ) extends AvroRecord
 
-case class CcXactsKey(var CX_O_ID : Int) extends AvroRecord
+case class CcXactsKey(var CX_O_ID : String) extends AvroRecord
 case class CcXactsValue(
         var CX_TYPE : String,
         var CX_NUM : Int,
@@ -117,7 +116,7 @@ case class CcXactsValue(
         var CX_CO_ID : Int
         ) extends AvroRecord
 
-case class AddressKey(var ADDR_ID : Int) extends AvroRecord
+case class AddressKey(var ADDR_ID : String) extends AvroRecord
 case class AddressValue(
         var ADDR_STREET1 : String,
         var ADDR_STREET2 : String,
