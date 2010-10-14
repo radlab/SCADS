@@ -23,6 +23,10 @@ abstract trait Experiment {
     var clusterAddress: String
   }
 
+  implicit def duplicate(process: JvmProcess) = new {
+    def *(count: Int): Seq[JvmProcess] = Array.fill(count)(process)
+  }
+
   implicit def blockingCluster(cluster: ScadsCluster) = new {
     def blockUntilReady(clusterSize: Int): Unit = {
       while(cluster.getAvailableServers.size < clusterSize) {
@@ -32,18 +36,18 @@ abstract trait Experiment {
     }
   }
 
-  def run(clients: List[IndexedRecord], numServers: Int)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler): Unit = {
-    val expRoot = zooRoot.getOrCreate("scads/experiments").createChild("IntKeyScaleExperiment", mode = CreateMode.PERSISTENT_SEQUENTIAL)
-    clients.foreach(c => c.put(c.getSchema.getField("clusterAddress").pos, new org.apache.avro.util.Utf8(expRoot.canonicalAddress)))
-    val clientDescriptions = clients.map(c => JvmProcess(classpath, this.getClass.getCanonicalName.dropRight(1), c.getClass.getName :: c.toJson :: Nil))
-    val serverDescription = JvmProcess(
+  def newExperimentRoot = zooRoot.getOrCreate("scads/experiments").createChild("IntKeyScaleExperiment", mode = CreateMode.PERSISTENT_SEQUENTIAL)
+
+  def serverJvmProcess(clusterAddress: String)(implicit classpath: Seq[ClassSource]) =
+    JvmProcess(
       classpath,
       "edu.berkeley.cs.scads.storage.ScalaEngine",
-      "--clusterAddress" :: expRoot.canonicalAddress :: Nil)
+      "--clusterAddress" :: clusterAddress :: Nil)
 
-    scheduler.scheduleExperiment((1 to numServers).map(_ => serverDescription) ++ clientDescriptions)
-    expRoot
-  }
+  implicit def clientJvmProcess(loadClient: AvroRecord with Runnable)(implicit classpath: Seq[ClassSource]): JvmProcess =
+    JvmProcess(classpath,
+      this.getClass.getCanonicalName.dropRight(1),
+      loadClient.getClass.getName :: loadClient.toJson :: Nil)
 
   def main(args: Array[String]): Unit = {
     if(args.size == 2)
