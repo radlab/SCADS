@@ -9,7 +9,7 @@ import org.apache.avro.util._
 case class ItemKey(var I_ID : String) extends AvroRecord
 case class ItemValue(
         var I_TITLE : String,
-        var A_ID : Int,
+        var A_ID : String,
         var I_PUB_DATE : Long,
         var I_PUBLISHER : String,
         var I_SUBJECT : String,
@@ -37,10 +37,10 @@ case class ItemSubjectDateTitleIndexKey(
         var I_TITLE : String
         ) extends AvroRecord
 
-case class CountryKey(var CO_ID : String) extends AvroRecord
+case class CountryKey(var CO_ID : Int) extends AvroRecord
 case class CountryValue(
         var CO_NAME : String,
-        var CO_EXCHANGE : Float,
+        var CO_EXCHANGE : Double,
         var CO_CURRENCY : String
         )   extends AvroRecord
 
@@ -53,8 +53,8 @@ case class AuthorValue(
         var A_BIO : String
         )   extends AvroRecord
 
-case class AuthorFNameIndexKey(var A_FName : String, var A_ID : Int)  extends AvroRecord      //Additional
-case class AuthorLNameIndexKey(var A_LName : String, var A_ID : Int)  extends AvroRecord      //Additional
+case class AuthorNameIndexKey(var Name : String, var A_ID : String)  extends AvroRecord      //Additional
+//case class AuthorLNameIndexKey(var A_LName : String, var A_ID : String)  extends AvroRecord      //Additional
 
 //Different PK
 case class CustomerKey(var C_UNAME : String) extends AvroRecord
@@ -69,7 +69,7 @@ case class CustomerValue(
         var C_LAST_VISIT : Long,
         var C_LOGIN : Long,
         var C_EXPIRATION : Long,
-        var C_DISCOUNT : Float,
+        var C_DISCOUNT : Double,
         var C_BALANCE : Double,
         var C_YTD_PMT : Double,
         var C_BIRTHDATE : Long,
@@ -96,11 +96,10 @@ case class OrdersValue(
 case class CustomerOrderIndex(var C_UNAME : String, var O_DATE : Long) extends AvroRecord
 
 
-case class OrderLineKey(var OL_O_ID : String, var OL_ID : String) extends AvroRecord
+case class OrderLineKey(var OL_O_ID : String, var OL_ID : Int) extends AvroRecord
 case class OrderLineValue(
-        var OL_I_ID : Int,
         var OL_QTY : Int,
-        var OL_DISCOUNT : Float,
+        var OL_DISCOUNT : Double,
         var OL_COMMENT : String
         ) extends AvroRecord
 

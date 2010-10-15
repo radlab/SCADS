@@ -8,7 +8,7 @@ import org.apache.avro.util._
 class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     lazy val address = cluster.getNamespace[AddressKey, AddressValue]("address")
     lazy val author = cluster.getNamespace[AuthorKey, AuthorValue]("author")
-    lazy val authorNameIndex = cluster.getNamespace[AuthorFNameIndexKey, NullRecord]("author_fname_index")
+    lazy val authorNameIndex = cluster.getNamespace[AuthorNameIndexKey, NullRecord]("author_fname_index")
     //val authorLNameIndex = cluster.getNamespace[AuthorLNameIndexKey, NullRecord]("author_lname_index") //make it one
     lazy val xacts = cluster.getNamespace[CcXactsKey, CcXactsValue]("xacts")
     lazy val country = cluster.getNamespace[CountryKey, CountryValue]("country")
@@ -99,6 +99,13 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       iterator.open
       iterator.toList
     }
+
+
+  def loadData(numEBs : Double, numItems : Int) = {
+    val loader = new TpcwLoader(this, numEBs, numItems)
+    
+    loader.load()
+  }
 
 
   

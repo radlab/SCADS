@@ -18,19 +18,22 @@ import collection.mutable.{ArrayBuffer, HashMap}
  * To change this template use File | Settings | File Templates.
  */
 
-class TpcwLoader(val client: TpcwClient,
+class TpcwLoader( val client : TpcwClient,
                   val numEBs : Double,
-                  val numItems : Int,
-                  val numCustomers : Int,
-                  val numAddresses : Int,
-                  val numAuthors : Int,
-                  val numOrders :Int){
+                  val numItems : Int){
+
+	private val numCustomers : Int = (numEBs * 2880).intValue;
+	private val numAddresses : Int = 2 * numCustomers;
+	private val numAuthors : Int = (.25 * numItems).intValue;
+	private val numOrders : Int = (.9 * numCustomers).intValue;
+  private val numCountries = 92;
 
   private var addressIds = new  HashMap[Int, String]()
 	private var orderIds = new  HashMap[Int, String]()
 	private var itemSubjects  = new  HashMap[Int, String]()
-	private var orderDates = new  HashMap[Int, String]()
-  private var scheduledOrderLines = new ArrayBuffer[(String, Int)]();
+	//private var orderDates = new  HashMap[Int, String]() Was used in SimpleDB
+  private var authorIDs = new  HashMap[Int, String]()
+  private var authorNameIndexInserts = ArrayBuffer[(AuthorNameIndexKey, NullRecord)]()
 
   val rand = new scala.util.Random(System.currentTimeMillis)
 
@@ -68,7 +71,7 @@ class TpcwLoader(val client: TpcwClient,
   case class TpcwKeySplits(
     address: Seq[(Option[AddressKey], List[StorageService])],
     author: Seq[(Option[AuthorKey], List[StorageService])],
-    author_fname_index: Seq[(Option[AuthorFNameIndexKey], List[StorageService])],
+    author_fname_index: Seq[(Option[AuthorNameIndexKey], List[StorageService])],
     xacts: Seq[(Option[CcXactsKey], List[StorageService])],
     country: Seq[(Option[CountryKey], List[StorageService])],
     customer: Seq[(Option[CustomerKey], List[StorageService])],
@@ -85,8 +88,7 @@ class TpcwLoader(val client: TpcwClient,
     val splits = keySplits
     client.cluster.createNamespace[AddressKey, AddressValue]("address", splits.address)
     client.cluster.cluster.createNamespace[AuthorKey, AuthorValue]("author", splits.author)
-    client.cluster.cluster.createNamespace[AuthorFNameIndexKey, NullRecord]("author_fname_index", splits.author_fname_index)
-    //val authorLNameIndex = cluster.getNamespace[AuthorLNameIndexKey, NullRecord]("author_lname_index") //make it one
+    client.cluster.cluster.createNamespace[AuthorNameIndexKey, NullRecord]("author_fname_index", splits.author_fname_index)
     client.cluster.cluster.createNamespace[CcXactsKey, CcXactsValue]("xacts", splits.xacts)
     client.cluster.cluster.createNamespace[CountryKey, CountryValue]("country", splits.country)
     client.cluster.cluster.createNamespace[CustomerKey, CustomerValue]("customer", splits.customer)
@@ -98,17 +100,86 @@ class TpcwLoader(val client: TpcwClient,
   }
 
   def load() = {
-
-    client.order ++= (1 to numOrders).view.map(a => createOrder(Generator.generateOrder(a, numCustomers, rand.nextInt(4) + 1)))
+    createNamespaces()
+    client.address ++= (1 to numAddresses).view.map(createAddress(_))
+    client.author ++= (1 to numAuthors).view.map(createAuthor(_))
+    client.authorNameIndex ++= authorNameIndexInserts
+    authorNameIndexInserts.clear
+    client.xacts ++= (1 to numOrders).view.map(createXacts(_))
+    client.country ++= (1 to numCountries).view.map(createCountry(_))
+    client.customer ++= (1 to numCustomers).view.map(createCustomer(_))
+    client.order ++= (1 to numOrders).view.map(createOrder(_))
+    client.orderline ++= (1 to numOrders).view.flatMap(createOrderline(_))
   }
 
+  def createCountry(countryId : Int) : (CountryKey, CountryValue) = {
+    val to = Generator.generateCountry(countryId).asInstanceOf[CountryTO]
+    (CountryKey(countryId), CountryValue(to.getCo_name, to.getCo_exchange, to.getCo_currency))
+  }
 
-  def createOrder(obj : AbstractTO) : (OrdersKey, OrdersValue) = {
+  def createXacts(orderId : Int) : (CcXactsKey,CcXactsValue) = {
+    val idStr = orderIds.getOrElseUpdate(orderId, uuid())
+    val to = Generator.generateCCXacts(orderId).asInstanceOf[CCXactsTO]
+    (CcXactsKey(idStr),
+     CcXactsValue(to.getCx_type,
+      to.getCx_num,
+      to.getCx_name,
+      to.getCs_expiry,
+      to.getCx_auth_id,
+      to.getCx_xact_amt,
+      to.getCx_xact_date,
+      to.getCx_co_id))
+  }
+
+  def createAuthor(id : Int) : (AuthorKey, AuthorValue) = {
+    val to = Generator.generateAuthor(id).asInstanceOf[AuthorTO]
+    val idStr = authorIDs.getOrElseUpdate(id, uuid())
+    authorNameIndexInserts += Tuple2(AuthorNameIndexKey(to.getA_fname, idStr), NullRecord(true))
+    authorNameIndexInserts += Tuple2(AuthorNameIndexKey(to.getA_lname, idStr), NullRecord(true))
+    (AuthorKey(idStr), AuthorValue(to.getA_fname, to.getA_lname, to.getA_mname, to.getA_dob, to.getA_bio))
+  }
+
+  def createAddress(id : Int) : (AddressKey, AddressValue) = {
+    val to = Generator.generateAddress(id).asInstanceOf[AddressTO]
+    val idStr = addressIds.getOrElseUpdate(id, uuid())
+    (AddressKey(idStr),
+    AddressValue( to.getAddr_street_1,
+      to.getAddr_street_2,
+      to.getAddr_city,
+      to.getAddr_state,
+      to.getAddr_zip,
+      to.getAddr_co_id))
+  }
+
+  def createCustomer(id : Int) :  (CustomerKey, CustomerValue) = {
+    val obj = Generator.generateCustomer( id , numCustomers )
+    val to = obj.asInstanceOf[CustomerTO]
+    (CustomerKey("cust" + to.getC_id),
+     CustomerValue(
+       to.getC_passwd,
+       to.getC_fname,
+       to.getC_lname,
+       to.getC_addr_id,
+       to.getC_phone.toString,
+       to.getC_email,
+       to.getC_since,
+       to.getC_last_visit,
+       to.getC_login,
+       to.getC_expiration,
+       to.getC_discount,
+       to.getC_balance,
+       to.getC_ytd_pmt,
+       to.getC_birthday,
+       to.getC_data)        
+    )
+  }
+
+  def createOrder(id : Int) : (OrdersKey, OrdersValue) = {
+    val obj = Generator.generateOrder(id, numCustomers, rand.nextInt(4) + 1)
     val to : OrderTO = obj.asInstanceOf[OrderTO]
-    val id : String = uuid
-    orderIds += to.getO_id -> id
-    (OrdersKey(uuid), OrdersValue(
-      "user" + to.getO_c_id,
+    val idStr = orderIds.getOrElseUpdate(id, uuid())
+    (OrdersKey(idStr), OrdersValue(
+      "cust" + to.getO_c_id,
       to.getO_date,
       to.getO_sub_total,
       to.getO_tax,
@@ -118,7 +189,14 @@ class TpcwLoader(val client: TpcwClient,
       addressIds.getOrElseUpdate(to.getO_bill_addr_id, uuid),
       addressIds.getOrElseUpdate(to.getO_ship_addr_id, uuid),
       to.getO_status))
+  }
 
+  def createOrderline(id : Int) : Seq[(OrderLineKey, OrderLineValue)] = {
+    val orders : Seq[OrderLineTO] = (1 to rand.nextInt(4) + 1).map( Generator.generateOrderLine(id,_, numItems).asInstanceOf[OrderLineTO])
+    for(order <- orders) yield {
+      (OrderLineKey(orderIds(order.getOl_o_id), order.getOl_id),
+       OrderLineValue(order.getOl_qty, order.getOl_discount, order.getOl_comments))
+    }
   }
 
 }
