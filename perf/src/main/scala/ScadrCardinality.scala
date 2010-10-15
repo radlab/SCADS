@@ -12,7 +12,7 @@ import deploylib._
 import deploylib.mesos._
 
 case class ScadrCardinalityClient(var cardinality: Int, var cluster: String, var clientId: Int, var iteration: Int, var threadId: Int) extends AvroRecord
-case class ScadrCardinalityResult(var times: Histogram) extends AvroRecord
+case class ScadrCardinalityResult(var times: Histogram, var skips: Int) extends AvroRecord
 
 object ScadrCardinalityTest extends Experiment {
   val results = resultCluster.getNamespace[ScadrCardinalityClient, ScadrCardinalityResult]("scadrCardinality")
@@ -20,11 +20,16 @@ object ScadrCardinalityTest extends Experiment {
   def clear = results.getRange(None, None).foreach(r => results.put(r._1, None))
 
   def printResults: Unit = {
-    val runs = results.getRange(None, None).groupBy(k => (k._1.cluster, k._1.iteration)).values
+    val runs = results.getRange(None, None).groupBy(k => (k._1.cluster, k._1.iteration)).filterNot(_._1._2 == 1).values
     runs.foreach(run => {
       val totalRequests = run.map(_._2.times.buckets.sum).sum
+      val aggregrateHistogram = run.map(_._2.times).reduceLeft(_ + _)
+      val cumulativeHistogram = aggregrateHistogram.buckets.scanLeft(0L)(_ + _).drop(1)
+      val quantile50ResponseTime = cumulativeHistogram.findIndexOf(_ >= totalRequests * 0.50) * aggregrateHistogram.bucketSize
+      val quantile99ResponseTime = cumulativeHistogram.findIndexOf(_ >= totalRequests * 0.99) * aggregrateHistogram.bucketSize
+      val quantile999ResponseTime = cumulativeHistogram.findIndexOf(_ >= totalRequests * 0.999) * aggregrateHistogram.bucketSize
 
-      println(run.head._1.cardinality + "\t" + totalRequests)
+      println(List(run.head._1.cardinality, totalRequests, quantile50ResponseTime, quantile99ResponseTime, quantile999ResponseTime).mkString("\t"))
     })
   }
 
@@ -80,17 +85,25 @@ object ScadrCardinalityTest extends Experiment {
           val runTime = runLengthMin * 60 * 1000L
           val iterationStartTime = getTime
           var endTime = iterationStartTime
+          var skips = 0
           var failures = 0
 
           while(endTime - iterationStartTime < runTime) {
             val startTime = getTime
             scadrClient.thoughtstream(loader.randomUser, scadrClient.maxResultsPerPage)
             endTime = getTime
-            histogram.add(endTime - startTime)
+            val elapsedTime = endTime - startTime
+            if(elapsedTime < 0) {
+              logger.warning("Time Skip: %d", elapsedTime)
+              skips += 1
+            }
+            else {
+              histogram.add(endTime - startTime)
+            }
           }
 
           logger.info("Thread %d complete", threadId)
-          (ScadrCardinalityClient(followingCardinality, clusterAddress, clientId, iteration, threadId), ScadrCardinalityResult(histogram))
+          (ScadrCardinalityClient(followingCardinality, clusterAddress, clientId, iteration, threadId), ScadrCardinalityResult(histogram, skips))
         })
 
         coordination.registerAndAwait("iteration" + iteration, numClients)
