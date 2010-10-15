@@ -39,6 +39,7 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watc
   /** 
    * maintains a canonical mapping of (full) zookeeper path to a zookeeper
    * node. 
+   * TODO: remove the canonical map
    */
   private final val canonicalMap = new ConcurrentHashMap[String, ZooKeeperNode]
 
@@ -128,8 +129,18 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watc
     def createChild(name: String, data: Array[Byte] = Array.empty, mode: CreateMode = CreateMode.PERSISTENT): ZooKeeperNode =
       getOrElseUpdateNode(fullPath(name), newNode(fullPath(name), data, mode))
 
+    @inline private def safeDelete(path: String): Boolean = {
+      try {
+        conn.delete(path, -1)
+        true
+      } catch {
+        case _: org.apache.zookeeper.KeeperException.NoNodeException => false 
+      }
+    }
+
     def deleteChild(name: String) {
-      conn.delete(fullPath(name), -1)
+      if (!safeDelete(fullPath(name))) 
+        logger.warning("deleteChild() - Child node %s was already deleted", name)
       if (canonicalMap.remove(fullPath(name)) eq null)
         logger.warning("deleteChild() - No canonical node existed previously for fullPath: %s", fullPath(name))
       else
@@ -137,7 +148,8 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watc
     }
 
     def delete() {
-      conn.delete(path, -1)
+      if (!safeDelete(path))
+        logger.warning("delete() - Node %s was already deleted", path)
       if (canonicalMap.remove(path) eq null)
         logger.warning("delete() - No canonical node existed previously for path: %s", path)
       else
