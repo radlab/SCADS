@@ -91,6 +91,6 @@ case class QuorumProtocolConfig(var readQuorum : Double, var writeQuorum : Doubl
 
 /* Routing Table Types.  Note: they are here due to problems with the typer (i.e. generated methods aren't visable in the same compilation cycle */
 
-case class KeyRange(var startKey: Option[Array[Byte]], var servers : List[PartitionService]) extends AvroRecord
-case class RoutingTableMessage(var partitions: List[KeyRange]) extends AvroRecord
+case class KeyRange(var startKey: Option[Array[Byte]], var servers : Seq[PartitionService]) extends AvroRecord
+case class RoutingTableMessage(var partitions: Seq[KeyRange]) extends AvroRecord
 
