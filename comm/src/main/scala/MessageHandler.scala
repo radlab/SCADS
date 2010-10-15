@@ -41,7 +41,7 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
 
   private def getImpl = {
     val clzName = 
-      config.getString("scads.comm.handlerClass", classOf[DefaultNioChannelManager[_,_]].getName)
+      config.getString("scads.comm.handlerClass", classOf[oio.DefaultBlockingChannelManager[_,_]].getName)
     logger.info("Using handler impl class: %s".format(clzName))
 
     val recvMsgCallback = (_: AvroChannelManager[Message, Message], src: RemoteNode, msg: Message) => {
