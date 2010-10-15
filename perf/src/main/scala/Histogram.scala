@@ -11,7 +11,14 @@ object Histogram {
     new Histogram(bucketSize, ArrayBuffer.fill(bucketCount)(0L))
 }
 
-protected case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Long]) extends AvroRecord{
+protected case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Long]) extends AvroRecord {
+  def +(left: Histogram): Histogram = {
+    require(bucketSize == left.bucketSize)
+    require(buckets.size == left.buckets.size)
+
+    Histogram(bucketSize, buckets.zip(left.buckets).map{ case (a,b) => a + b })
+  }
+
 	def add(value: Long):Histogram = {
 		val bucket = (value / bucketSize).toInt
 		if(bucket >= buckets.length)
