@@ -49,7 +49,7 @@ trait QueryResultMatchers {
 abstract class AbstractScadrSpec extends Spec with ShouldMatchers with QueryResultMatchers {
     
   val client: ScadrClient
-  val loader = new ScadrLoader(client, 1)
+  val loader = new ScadrLoader(client, 1, 1)
   val data = loader.getData(0)
   data.load()
 

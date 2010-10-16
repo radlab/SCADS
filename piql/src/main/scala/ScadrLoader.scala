@@ -18,8 +18,7 @@ case class ScadrKeySplits(
     idxUsersTargetKeySplits: Seq[(Option[UserTarget], Seq[StorageService])])
 
 /**
- * Currently the scadr loader assumes a replication factor of 1 when creating
- * key splits. it also assumes all nodes are equal and tries to distribute
+ * Currently the loader assumes all nodes are equal and tries to distribute
  * evenly among the nodes with no preferences for any particular ones.
  */
 class ScadrLoader(val client: ScadrClient,
