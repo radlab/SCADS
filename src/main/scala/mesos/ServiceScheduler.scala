@@ -29,6 +29,8 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String) ext
 
   var outstandingExperiments = new java.util.concurrent.ConcurrentLinkedQueue[Experiment]
   var awaitingSiblings = List[JvmProcess]()
+  var taskIds = List[Int]()
+  var scheduledExperiments = List[List[Int]]()
 
   val driverThread = new Thread("ExperimentScheduler Mesos Driver Thread") { override def run(): Unit = driver.run() }
   driverThread.start()
@@ -52,6 +54,7 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String) ext
         val taskParams = Map(List("mem", "cpus").map(k => k -> offer.getParams.get(k)):_*)
         val task = new TaskDescription(taskId, offer.getSlaveId, proc.mainclass, taskParams, proc.toBytes)
         logger.debug("Scheduling task %d: %s", taskId, proc)
+        taskIds ::= taskId
         taskId += 1
         tasks.add(task)
 
@@ -62,6 +65,8 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String) ext
       if(currentExperiment.processes.size == 0) {
         outstandingExperiments.poll()
         logger.info("Experiment Scheduled. Size: %d", awaitingSiblings.size)
+        scheduledExperiments ::= taskIds
+        taskIds = List[Int]()
         awaitingSiblings = List[JvmProcess]()
       }
       else {
@@ -76,6 +81,13 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String) ext
     if(status.getState == TaskState.TASK_FAILED || status.getState == TaskState.TASK_LOST) {
       logger.warning("Status Update for Task %d: %s", status.getTaskId, status.getState)
       logger.ifWarning(new String(status.getData))
+
+      val siblings = scheduledExperiments.find(_ contains status.getTaskId)
+      logger.info("Killing Failed Experiment Siblings: %s", siblings)
+      siblings match {
+        case Some(ids) => ids.foreach(d.killTask)
+        case None => logger.warning("Failed to locate siblings, can't kill stranded processes")
+      }
     }
     else {
       logger.info("Status Update: " + status.getTaskId + " " + status.getState)
