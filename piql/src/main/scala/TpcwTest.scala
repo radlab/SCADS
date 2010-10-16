@@ -24,6 +24,8 @@ class TpcwTest {
 
     client.loadData(0.1, 100)
     println("cust1 interaction " + client.homeWI("cust1").flatMap(_.map(_.toString)))
+    val subject = client.item.getRange(None,None).head._2.I_SUBJECT
+    println("item" + client.newProductWI(subject).flatMap(_.map(_.toString)))
   }
 }
 

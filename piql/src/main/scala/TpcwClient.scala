@@ -37,7 +37,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
                             projection(3, 1), //(itemSubjectDateTitleIndex, itemKey, itemKey, ItemValue)
                             IndexLookupJoin(
                                item,
-                               projection(0, 1),
+                               projection(1, 0),
                                IndexScan(itemSubjectDateTitleIndex, firstPara, FixedLimit(50), true))
                           )
       def newProductWI(subject: String): QueryResult =
