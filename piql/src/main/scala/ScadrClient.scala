@@ -33,7 +33,6 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
   lazy val thoughts = cluster.getNamespace[ThoughtKey, ThoughtValue]("thoughts")
   lazy val subscriptions = cluster.getNamespace[SubscriptionKey, SubscriptionValue]("subscriptions")
   lazy val tags = cluster.getNamespace[HashTagKey, HashTagValue]("tags")
-  lazy val test = println("hello")
 
   lazy val idxUsersTarget = cluster.getNamespace[UserTarget, NullRecord]("idxUsersTarget")
 
