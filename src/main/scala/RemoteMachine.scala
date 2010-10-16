@@ -15,10 +15,13 @@ case class RemoteFile(name: String, owner: String, permissions: String, modDate:
 
 case class UnknownResponse(er: ExecuteResponse) extends Exception
 
+
 /**
  * Provides a framework for interacting (running commands, uploading/downloading files, etc) with a generic remote machine.
  */
 abstract class RemoteMachine {
+  self =>
+
 	/**
 	 * The hostname that the ssh connection is established with
 	 */
@@ -68,6 +71,8 @@ abstract class RemoteMachine {
 
 	val logger = Logger()
 	private var connection: Connection = null
+
+  implicit def toOption[A](a: A) = Option(a)
 
 	/**
 	 * Provide an ssh connection to the server.  If one is not already available or has been disconnected, create one.
@@ -378,6 +383,22 @@ abstract class RemoteMachine {
 			case er => throw new UnknownResponse(er)
 		}
 	}
+
+  case class RemoteJavaProcess(pid: Int, main: String) {
+    def stack = self !? ("jstack " + pid)
+  }
+
+  def jps: Seq[RemoteJavaProcess] = {
+    val javaProcessRegEx = """(\d+) (\S+)""".r
+    executeCommand("jps") match {
+      case ExecuteResponse(Some(0), out, "") => {
+        out.split("\n").map {
+          case javaProcessRegEx(pid, main) => new RemoteJavaProcess(pid.toInt, main)
+        }
+      }
+      case er => throw new UnknownResponse(er)
+    }
+  }
 
 	override def toString(): String = "<RemoteMachine " + username + "@" + hostname + ">"
 }
