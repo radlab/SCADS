@@ -15,7 +15,7 @@ import net.lag.logging.Logger
 class RangeTable[KeyType, ValueType](
         val rTable: Array[RangeType[KeyType, ValueType]],
         val keyComparator: Comparator[RangeType[KeyType, ValueType]],
-        val mergeCondition: (List[ValueType], List[ValueType]) => Boolean) {
+        val mergeCondition: (Seq[ValueType], Seq[ValueType]) => Boolean) {
   require(rTable.length > 0 , "At least the startKey (None) has to exist at any time")
   require(rTable.head.startKey == None, "First key has to be None, but was " + rTable.head.startKey )
 
@@ -26,7 +26,7 @@ class RangeTable[KeyType, ValueType](
    */
   def this(rTable: Array[RangeType[KeyType, ValueType]],
            keyComp: (KeyType, KeyType) => Int,
-           mergeCondition: (List[ValueType], List[ValueType]) => Boolean) = {
+           mergeCondition: (Seq[ValueType], Seq[ValueType]) => Boolean) = {
     this (rTable,
       new Comparator[RangeType[KeyType, ValueType]]() {
         def compare(a: RangeType[KeyType, ValueType], b: RangeType[KeyType, ValueType]): Int = {
@@ -42,11 +42,11 @@ class RangeTable[KeyType, ValueType](
   }
 
   /**
-   * Creates a new RangeTable from a Simple List
+   * Creates a new RangeTable from a Simple Seq
    */
-  def this(initRanges: List[(Option[KeyType], List[ValueType])],
+  def this(initRanges: Seq[(Option[KeyType], Seq[ValueType])],
            keyComp: (KeyType, KeyType) => Int,
-           mergeCondition: (List[ValueType], List[ValueType]) => Boolean) =
+           mergeCondition: (Seq[ValueType], Seq[ValueType]) => Boolean) =
     this (initRanges.map(item => new RangeType[KeyType, ValueType](item._1, item._2)).toArray, keyComp, mergeCondition)
 
   /**
@@ -87,12 +87,12 @@ class RangeTable[KeyType, ValueType](
   /**
    * Returns the list of values which are attached to the range for the given key
    */
-  def valuesForKey(key: KeyType): List[ValueType] = valuesForKey(Option(key))
+  def valuesForKey(key: KeyType): Seq[ValueType] = valuesForKey(Option(key))
 
   /**
    * Returns all values attached to the range for the given key
    */
-  def valuesForKey(key: Option[KeyType]): List[ValueType] = {
+  def valuesForKey(key: Option[KeyType]): Seq[ValueType] = {
     rTable(idxForKey(key)).values
   }
 
@@ -141,7 +141,7 @@ class RangeTable[KeyType, ValueType](
    * If the splitKey already exists, null is returned.
    *
    */
-  def split(key: KeyType, values: List[ValueType], leftAttached: Boolean = true): RangeTable[KeyType, ValueType] = {
+  def split(key: KeyType, values: Seq[ValueType], leftAttached: Boolean = true): RangeTable[KeyType, ValueType] = {
     var idx = binarySearch(key)
     if (idx > 0 && idx < rTable.size)
       return null
@@ -159,7 +159,7 @@ class RangeTable[KeyType, ValueType](
    * The values are either left or right attached.
    *
    */
-  def split(key: KeyType, leftValues: List[ValueType], rightValues: List[ValueType]): RangeTable[KeyType, ValueType] = {
+  def split(key: KeyType, leftValues: Seq[ValueType], rightValues: Seq[ValueType]): RangeTable[KeyType, ValueType] = {
     var idx = binarySearch(key)
     if (idx > 0 && idx < rTable.size)
       return null
@@ -224,7 +224,7 @@ class RangeTable[KeyType, ValueType](
   /**
    * Merges the ranges left and right from the key. The new partition is assigned the given set of servers.
    */
-  def merge(key: KeyType, values: List[ValueType]): RangeTable[KeyType, ValueType] = {
+  def merge(key: KeyType, values: Seq[ValueType]): RangeTable[KeyType, ValueType] = {
     val bpos = binarySearch(key)
     if (!checkMergeCondition(bpos))
       return null
@@ -236,7 +236,7 @@ class RangeTable[KeyType, ValueType](
     return new RangeTable[KeyType, ValueType](newRTable, keyComparator, mergeCondition)
   }
 
-  def ranges: List[RangeType[KeyType, ValueType]] = rTable.toList
+  def ranges: Seq[RangeType[KeyType, ValueType]] = rTable.toSeq
 
   def addValueToRange(key: KeyType, value: ValueType): RangeTable[KeyType, ValueType] = addValueToRange(Option(key), value)
 
@@ -258,7 +258,7 @@ class RangeTable[KeyType, ValueType](
     return new RangeTable[KeyType, ValueType](newRTable, keyComparator, mergeCondition)
   }
 
-  def replaceValues(key: Option[KeyType], values: List[ValueType]): RangeTable[KeyType, ValueType] = {
+  def replaceValues(key: Option[KeyType], values: Seq[ValueType]): RangeTable[KeyType, ValueType] = {
     val idx = idxForKey(key)
     val newRTable = rTable.clone
     newRTable(idx) = new RangeType(newRTable(idx).startKey, values)
@@ -276,11 +276,11 @@ class RangeTable[KeyType, ValueType](
  * Represents a range inside RangeTable. StartKey is included in the range
  * TODO Should be an inner class of RangeTable, but it is impossible to create a RangeType without an existing parent object
  */
-case class RangeType[KeyType, ValueType](val startKey: Option[KeyType], val values: List[ValueType]) {
+case class RangeType[KeyType, ValueType](val startKey: Option[KeyType], val values: Seq[ValueType]) {
   def add(value: ValueType): RangeType[KeyType, ValueType] = {
     if (values.indexOf(value) >= 0)
       throw new IllegalArgumentException("Value already exists")
-    new RangeType(startKey, value :: values)
+    new RangeType(startKey, value +: values)
   }
 
   /**

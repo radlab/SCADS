@@ -32,7 +32,7 @@ class QuorumProtSpec extends WordSpec with ShouldMatchers {
     }
   }
 
-  def getAllVersions(ns : SpecificNamespace[IntRec, IntRec], key : Int) : List[Int] = {
+  def getAllVersions(ns : SpecificNamespace[IntRec, IntRec], key : Int) : Seq[Int] = {
     ns.getAllVersions(IntRec(key)).map(_._2.get.f1)
   }
 

@@ -62,20 +62,20 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     writeQuorum = config.writeQuorum
   }
 
-  override def create(ranges: Seq[(Option[KeyType], List[StorageService])]) {
+  override def create(ranges: Seq[(Option[KeyType], Seq[StorageService])]) {
     super.create(ranges)
     val config = new QuorumProtocolConfig(readQuorum, writeQuorum)
     nsRoot.createChild(ZK_QUORUM_CONFIG, config.toBytes, CreateMode.PERSISTENT)
   }
 
-  private def writeQuorumForKey(key: KeyType): (List[PartitionService], Int) = {
+  private def writeQuorumForKey(key: KeyType): (Seq[PartitionService], Int) = {
     val servers = serversForKey(key)
     (servers, scala.math.ceil(servers.size * writeQuorum).toInt)
   }
 
   private def readQuorum(nbServers: Int): Int = scala.math.ceil(nbServers * readQuorum).toInt
 
-  private def readQuorumForKey(key: KeyType): (List[PartitionService], Int) = {
+  private def readQuorumForKey(key: KeyType): (Seq[PartitionService], Int) = {
     val servers = serversForKey(key)
     (servers, readQuorum(servers.size))
   }
@@ -83,7 +83,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
   /**
    * Returns all value versions for a given key. Does not perform read-repair.
    */
-  def getAllVersions[K <: KeyType](key: K): List[(PartitionService, Option[ValueType])] = {
+  def getAllVersions[K <: KeyType](key: K): Seq[(PartitionService, Option[ValueType])] = {
     val (partitions, quorum) = readQuorumForKey(key)
     val serKey = serializeKey(key)
     val getRequest = GetRequest(serKey)
@@ -217,7 +217,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
    * already been sent out, and partitions are the available servers to pull
    * data from 
    */
-  private def finishGetRangeRequest(partitions: List[FullRange], ftchs: Seq[Seq[MessageFuture]], limit: Option[Int], offset: Option[Int], ascending: Boolean, timeout: Option[Long]): Seq[(KeyType, ValueType)] = {
+  private def finishGetRangeRequest(partitions: Seq[FullRange], ftchs: Seq[Seq[MessageFuture]], limit: Option[Int], offset: Option[Int], ascending: Boolean, timeout: Option[Long]): Seq[(KeyType, ValueType)] = {
 
     def newRangeHandle(ftchs: Seq[MessageFuture]) = 
       timeout.map(t => new RangeHandle(ftchs, t)).getOrElse(new RangeHandle(ftchs))
@@ -259,7 +259,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     result
   }
 
-  private def startGetRangeRequest(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int], offset: Option[Int], ascending: Boolean): (List[FullRange], Seq[Seq[MessageFuture]]) = {
+  private def startGetRangeRequest(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int], offset: Option[Int], ascending: Boolean): (Seq[FullRange], Seq[Seq[MessageFuture]]) = {
     val startKey = startKeyPrefix.map(prefix => fillOutKey(prefix, newKeyInstance _)(minVal))
     val endKey = endKeyPrefix.map(prefix => fillOutKey(prefix, newKeyInstance _)(maxVal))
     val partitions = if (ascending) serversForRange(startKey, endKey) else serversForRange(startKey, endKey).reverse

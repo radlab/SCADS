@@ -5,8 +5,8 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import scala.concurrent.SyncVar
 
-import org.apache.zookeeper.server.ServerConfig
-import org.apache.zookeeper.server.ZooKeeperServerMain
+import org.apache.zookeeper.server._
+import persistence._
 
 import net.lag.logging.Logger
 
@@ -14,60 +14,66 @@ import net.lag.logging.Logger
  * Helper object for spinning up a local zookeeper instance.  Used primarily for testing.
  */
 object ZooKeeperHelper {
-  private val basePort = 2000
-  private var currentPort = new AtomicInteger
 	private val logger = Logger()
 
+  private val currentPort = new AtomicInteger(2000) // start at port 2000
+
   /**
-   * Create a local zookeeper instance in JVM and return a ZooKeeperProxy for it.  Intended for testing purposes only.
+   * Create a local zookeeper instance in JVM and return a ZooKeeperProxy for it.  
+   * Intended for testing purposes only. Is thread safe. Each separate
+   * invocation of getTestZooKeeper creates a NEW zookeeper instance
    */
   def getTestZooKeeper(): ZooKeeperProxy = {
     val workingDir = File.createTempFile("scads", "zookeeper")
     workingDir.delete()
     workingDir.mkdir()
 
-    var port = 0
-    val success = new SyncVar[Boolean]
+    val serverPort = new SyncVar[Int]
 
-    do {
-      success.unset
-      port = basePort + currentPort.getAndIncrement()
-      logger.debug("Attempting to start test ZooKeeper on port: " + port)
+    val zooThread = new Thread {
+      override def run() {
+        while (true) {
+          val tryingPort = currentPort.getAndIncrement()
+          logger.info("Trying to start zookeeper instance on port %d", tryingPort)
+          try {
 
-      val zooThread = new Thread() {
-        override def run() = try {
-          val config = new ServerConfig()
-          config.parse(Array[String](port.toString, workingDir.toString))
-          val server = new ZooKeeperServerMain
-          server.runFromConfig(config)
-        } catch {
-          case portInUse: java.net.BindException => success.set(false)
-          case otherError => {
-            logger.critical("Unexpected error when creating test zookeeper: " + otherError + ". Attempting again")
-            success.set(false)
+            //val config = new ServerConfig
+            //config.parse(Array(tryingPort.toString, workingDir.toString))
+            //val server = new ZooKeeperServerMain
+            //logger.info("calling runFromConfig with config %s", config)
+            //server.runFromConfig(config)
+
+            // server.runFromConfig does not give you the correct semantics to check to see if 
+            // the server successfully started up, other than polling- the following code below is
+            // how runFromConfig is implemented, except we get to place some code after the
+            // startup and before the join. 
+            // see: http://github.com/apache/zookeeper/blob/release-3.2.1/src/java/main/org/apache/zookeeper/server/NIOServerCnxn.java
+
+            val zkServer = new ZooKeeperServer
+            val ftxn = new FileTxnSnapLog(workingDir, workingDir)
+            zkServer.setTxnLogFactory(ftxn)
+            zkServer.setTickTime(ZooKeeperServer.DEFAULT_TICK_TIME)
+            val cnxnFactory = new NIOServerCnxn.Factory(tryingPort, 0) // no max client connections
+            cnxnFactory.startup(zkServer)
+            serverPort.set(tryingPort)
+            cnxnFactory.join()
+            if (zkServer.isRunning) zkServer.shutdown()
+
+          } catch {
+            case portInUse: java.net.BindException => 
+              logger.warning("Port %d is already in use, trying next port", tryingPort)
+            case otherError => 
+              logger.critical("Unexpected error when creating test zookeeper: " + otherError + ". Attempting again")
           }
         }
       }
-      zooThread.start()
+    }
+    zooThread.start()
 
-      var connected = false
-      while(!connected && !success.isSet) {
-        try {
-          val proxy = new ZooKeeperProxy("localhost:" + port)
-          proxy.root("zookeeper")
-          proxy.close()
-          connected = true
-          success.set(true)
-        }
-        catch {
-          case ce: org.apache.zookeeper.KeeperException.ConnectionLossException => {
-            logger.info("Connection to test zookeeper on port " + port + " failed, waiting")
-            }
-        }
-        Thread.sleep(100)
-      }
-    } while(!success.get)
-
-    new ZooKeeperProxy("localhost:" + port)
+    val successPort = serverPort.get // blocks until server is ready
+    val proxy = new ZooKeeperProxy("localhost:" + successPort)
+    assert(proxy.root("zookeeper") ne null)
+    proxy
   }
+
 }

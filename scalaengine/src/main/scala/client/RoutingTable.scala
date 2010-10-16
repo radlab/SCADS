@@ -18,7 +18,7 @@ import edu.berkeley.cs.scads.comm._
 *  TODO: Change implementation to StartKey -> makes it more compliant to the rest
 * */
 //abstract trait RepartitioningProtocol[KeyType <: IndexedRecord] extends RoutingTable[KeyType] {
-//  override def splitPartition(splitPoint: KeyType): List[PartitionService] = throw new RuntimeException("Unimplemented")
+//  override def splitPartition(splitPoint: KeyType): Seq[PartitionService] = throw new RuntimeException("Unimplemented")
 //
 //  override def mergePartitions(mergeKey: KeyType): Unit = throw new RuntimeException("Unimplemented")
 //
@@ -38,7 +38,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
    *  Creates a new NS with the given servers
    *  The ranges has the form (startKey, servers). The first Key has to be None
    */
-  override def create(ranges: Seq[(Option[KeyType], List[StorageService])]) {
+  override def create(ranges: Seq[(Option[KeyType], Seq[StorageService])]) {
     super.create(ranges)
     var rTable: Array[RangeType[KeyType, PartitionService]] = new Array[RangeType[KeyType, PartitionService]](ranges.size)
     var startKey: Option[KeyType] = None
@@ -77,11 +77,11 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     loadRoutingTable()
   }
 
-  def serversForKey(key: KeyType): List[PartitionService] = {
+  def serversForKey(key: KeyType): Seq[PartitionService] = {
     routingTable.valuesForKey(key)
   }
 
-  def serversForRange(startKey: Option[KeyType], endKey: Option[KeyType]): List[FullRange] = {
+  def serversForRange(startKey: Option[KeyType], endKey: Option[KeyType]): Seq[FullRange] = {
     var ranges = routingTable.valuesForRange(startKey, endKey)
     val result = new  Array[FullRange](ranges.size)
     var sKey: Option[KeyType] = None
@@ -94,10 +94,10 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
       result(i) = new FullRange(sKey, eKey, ranges(i).values)
       eKey = sKey
     }
-    result.toList
+    result.toSeq
   }
 
-  def splitPartition(splitPoints: List[KeyType]): Unit = {
+  def splitPartition(splitPoints: Seq[KeyType]): Unit = {
     var oldPartitions = for(splitPoint <- splitPoints) yield {
       require(!routingTable.isSplitKey(splitPoint)) //Otherwise it is already a split point
       val bound = routingTable.lowerUpperBound(splitPoint)
@@ -114,7 +114,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
       deletePartitionService(oldPartition)
   }
 
-  def mergePartitions(mergeKeys: List[KeyType]): Unit = {
+  def mergePartitions(mergeKeys: Seq[KeyType]): Unit = {
     val oldPartitions = for(mergeKey <- mergeKeys) yield {
       require(routingTable.checkMergeCondition(mergeKey), "Either the key is not a split key, or the sets are different and can not be merged") //Otherwise we can not merge the partitions
 
@@ -140,10 +140,10 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
   /**
    * Replicates a partition to the given storageHandler.
    */
-  def replicatePartitions(targets : List[(PartitionService, StorageService)]): List[PartitionService] = {
+  def replicatePartitions(targets : Seq[(PartitionService, StorageService)]): Seq[PartitionService] = {
     val result = for((partitionHandler, storageHandler) <- targets) yield {
       val (startKey, endKey) = getStartEndKey(partitionHandler)
-      val newPartition = createPartitions(startKey, endKey, List(storageHandler)).head
+      val newPartition = createPartitions(startKey, endKey, Seq(storageHandler)).head
       routingTable = routingTable.addValueToRange(startKey, newPartition)
       (newPartition, partitionHandler)
     }
@@ -189,7 +189,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
 
 
 
-  def deletePartitions(partitionHandlers: List[PartitionService]): Unit = {
+  def deletePartitions(partitionHandlers: Seq[PartitionService]): Unit = {
     for(partitionHandler <- partitionHandlers){
       val (startKey, endKey) = getStartEndKey(partitionHandler) //Not really needed, just an additional check
       routingTable = routingTable.removeValueFromRange(startKey, partitionHandler)
@@ -223,7 +223,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
 
 
 
-  private def deletePartitionService(partitions: List[PartitionService]): Unit = {
+  private def deletePartitionService(partitions: Seq[PartitionService]): Unit = {
     for (partition <- partitions) {
       partition.storageService !? DeletePartitionRequest(partition.partitionId) match {
         case DeletePartitionResponse() => ()
@@ -233,8 +233,8 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
   }
 
 
-  private def createPartitions(startKey: Option[KeyType], endKey: Option[KeyType], servers: List[StorageService])
-  : List[PartitionService] = {
+  private def createPartitions(startKey: Option[KeyType], endKey: Option[KeyType], servers: Seq[StorageService])
+  : Seq[PartitionService] = {
     for (server <- servers) yield {
       server !? CreatePartitionRequest(namespace, startKey.map(serializeKey(_)), endKey.map(serializeKey(_))) match {
         case CreatePartitionResponse(partitionActor) => partitionActor
@@ -247,9 +247,9 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
   private def storeRoutingTable() = {
     assert(validateRoutingTable(), "Holy shit, we are about to store a crappy Routing Table.")
     val ranges = routingTable.ranges.map(a => KeyRange(a.startKey.map(serializeKey(_)), a.values))
-    val rangeList = RoutingTableMessage(ranges)
+    val rangeSeq = RoutingTableMessage(ranges)
     val zooKeeperRT = nsRoot.getOrCreate(ZOOKEEPER_ROUTING_TABLE)
-    zooKeeperRT.data =  rangeList.toBytes
+    zooKeeperRT.data =  rangeSeq.toBytes
   }
 
   private def storeAndPropagateRoutingTable() = {
@@ -259,16 +259,16 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
 
   private def loadRoutingTable() = {
     val zkNode = nsRoot.get(ZOOKEEPER_ROUTING_TABLE)
-    val rangeList = new RoutingTableMessage()
+    val rangeSeq = new RoutingTableMessage()
     zkNode match {
       case None => throw new RuntimeException("Can not load empty routing table")
-      case Some(a) => rangeList.parse(a.data)
+      case Some(a) => rangeSeq.parse(a.data)
     }
-    val partition = rangeList.partitions.map(a => new RangeType(a.startKey.map(deserializeKey(_)), a.servers))
+    val partition = rangeSeq.partitions.map(a => new RangeType(a.startKey.map(deserializeKey(_)), a.servers))
     createRoutingTable(partition.toArray)
   }
 
-  private def createRoutingTable(partitionHandlers: List[PartitionService]): Unit = {
+  private def createRoutingTable(partitionHandlers: Seq[PartitionService]): Unit = {
     val arr = new Array[RangeType[KeyType, PartitionService]](1)
     arr(0) = new RangeType[KeyType, PartitionService](None, partitionHandlers)
     createRoutingTable(arr)
@@ -282,7 +282,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     val keySchema: Schema = getKeySchema()
     routingTable = new RangeTable[KeyType, PartitionService](ranges,
       (a: KeyType, b: KeyType) => a.compare(b),
-      (a: List[PartitionService], b: List[PartitionService]) => {
+      (a: Seq[PartitionService], b: Seq[PartitionService]) => {
         a.corresponds(b)((v1, v2) => v1.storageService.id == v2.storageService.id)
       })
   }

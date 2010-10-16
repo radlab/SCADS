@@ -11,18 +11,19 @@ import edu.berkeley.cs.scads.piql.DataGenerator._
 import scala.collection.mutable.HashSet
 
 case class ScadrKeySplits(
-    usersKeySplits: Seq[(Option[UserKey], List[StorageService])],
-    thoughtsKeySplits: Seq[(Option[ThoughtKey], List[StorageService])],
-    subscriptionsKeySplits: Seq[(Option[SubscriptionKey], List[StorageService])],
-    tagsKeySplits: Seq[(Option[HashTagKey], List[StorageService])],
-    idxUsersTargetKeySplits: Seq[(Option[UserTarget], List[StorageService])])
+    usersKeySplits: Seq[(Option[UserKey], Seq[StorageService])],
+    thoughtsKeySplits: Seq[(Option[ThoughtKey], Seq[StorageService])],
+    subscriptionsKeySplits: Seq[(Option[SubscriptionKey], Seq[StorageService])],
+    tagsKeySplits: Seq[(Option[HashTagKey], Seq[StorageService])],
+    idxUsersTargetKeySplits: Seq[(Option[UserTarget], Seq[StorageService])])
 
 /**
  * Currently the scadr loader assumes a replication factor of 1 when creating
  * key splits. it also assumes all nodes are equal and tries to distribute
  * evenly among the nodes with no preferences for any particular ones.
  */
-class ScadrLoader(val client: ScadrClient, 
+class ScadrLoader(val client: ScadrClient,
+                  val replicationFactor: Int,
                   val numClients: Int, // number of clients to split the loading by
                   val numUsers: Int = 100,
                   val numThoughtsPerUser: Int = 10,
@@ -30,6 +31,7 @@ class ScadrLoader(val client: ScadrClient,
                   val numTagsPerThought: Int = 5) {
 
   require(client != null)
+  require(replicationFactor >= 1)
   require(numUsers >= 0)
   require(numThoughtsPerUser >= 0)
   require(numSubscriptionsPerUser >= 0)
@@ -92,7 +94,7 @@ class ScadrLoader(val client: ScadrClient,
 
     val tagsKeySplits = None +: (1 until clusterSize).map(i => Some(HashTagKey(toKeyString(i * numPerNode), 0, "")))
 
-    val services = servers map (List(_))
+    val services = (0 until clusterSize).map(i => (0 until replicationFactor).map(j => servers((i + j) % clusterSize)))
 
     ScadrKeySplits(usersKeySplits zip services,
                    thoughtsKeySplits zip services,

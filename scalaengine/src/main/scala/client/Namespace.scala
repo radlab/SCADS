@@ -40,7 +40,7 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
   protected def deserializeKey(key: Array[Byte]): KeyType
   protected def deserializeValue(value: Array[Byte]): ValueType
 
-  protected def serversForKey(key: KeyType): List[PartitionService]
+  protected def serversForKey(key: KeyType): Seq[PartitionService]
 
   protected def newKeyInstance: KeyType
   protected def newRecordInstance(schema: Schema): IndexedRecord
@@ -51,9 +51,9 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
    * For example, for the routing table [None -> (S1,S3); 100 -> (S2, S4), 150 -> (S6, S7)]
    * serversForRange(10,130) would return ((10, 100) -> (S1, S3); (100, 130) -> (S2, S4)) 
    */
-  protected def serversForRange(startKey: Option[KeyType], endKey: Option[KeyType]): List[FullRange]
+  protected def serversForRange(startKey: Option[KeyType], endKey: Option[KeyType]): Seq[FullRange]
 
-  case class FullRange(startKey: Option[KeyType], endKey: Option[KeyType], values : List[PartitionService])
+  case class FullRange(startKey: Option[KeyType], endKey: Option[KeyType], values : Seq[PartitionService])
 
   /**
    * Returns the default replication Factor when initializing a new NS
@@ -91,7 +91,7 @@ abstract class Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
    *  Creates a new NS with the given servers
    *  The ranges has the form (startKey, servers). The first Key has to be None
    */
-  def create(ranges : Seq[(Option[KeyType], List[StorageService])]) : Unit = {
+  def create(ranges : Seq[(Option[KeyType], Seq[StorageService])]) : Unit = {
     if(!root.get(namespace).isEmpty)
       throw new RuntimeException("Illegal namespace creation. Namespace already exists")
     if( ranges.size == 0 || ranges.head._1 != None)

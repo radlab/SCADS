@@ -70,7 +70,7 @@ class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) {
                     keySchema:
                     Schema,
                     valueSchema: Schema,
-                    servers : List[(Option[GenericData.Record], List[StorageService])]): GenericNamespace = {
+                    servers : Seq[(Option[GenericData.Record], Seq[StorageService])]): GenericNamespace = {
     val namespace = new GenericNamespace(ns, 5000, namespaces, keySchema, valueSchema)
     namespace.create(servers)
     return namespace
@@ -84,7 +84,7 @@ class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) {
     return namespace
   }
 
-  def createNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String, servers: Seq[(Option[KeyType], List[StorageService])])
+  def createNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String, servers: Seq[(Option[KeyType], Seq[StorageService])])
       (implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): SpecificNamespace[KeyType, ValueType] = {
     val namespace = new SpecificNamespace[KeyType, ValueType](ns, 5000, namespaces)
     namespace.create(servers)

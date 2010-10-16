@@ -51,7 +51,14 @@ abstract trait Experiment {
 
   def main(args: Array[String]): Unit = {
     if(args.size == 2)
+    try
       Class.forName(args(0)).newInstance.asInstanceOf[AvroRecord with Runnable].parse(args(1)).run()
+    catch {
+      case error => {
+        logger.fatal(error, "Exeception in Main Thread.  Killing process.")
+        System.exit(-1)
+      }
+    }
     else
       println("Usage: " + this.getClass.getName + "<class name> <json encoded avro client description>")
   }
