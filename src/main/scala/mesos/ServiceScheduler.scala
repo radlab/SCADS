@@ -82,11 +82,16 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String) ext
       logger.warning("Status Update for Task %d: %s", status.getTaskId, status.getState)
       logger.ifWarning(new String(status.getData))
 
-      val siblings = scheduledExperiments.find(_ contains status.getTaskId)
-      logger.info("Killing Failed Experiment Siblings: %s", siblings)
-      siblings match {
-        case Some(ids) => ids.foreach(d.killTask)
-        case None => logger.warning("Failed to locate siblings, can't kill stranded processes")
+      synchronized {
+        val siblings = scheduledExperiments.find(_ contains status.getTaskId)
+        siblings match {
+          case Some(ids) => {
+            ids.foreach(d.killTask)
+            logger.info("Killing Failed Experiment Siblings: %s", siblings)
+            scheduledExperiments = scheduledExperiments.filterNot(_ equals ids)
+          }
+          case None => logger.debug("Failed to locate siblings, can't kill stranded processes")
+        }
       }
     }
     else {
