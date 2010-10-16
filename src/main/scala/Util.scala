@@ -48,6 +48,8 @@ object Util {
 			return System.getenv("DEPLOY_USER")
 		else if(System.getProperty("deploy.user") != null)
 			return System.getProperty("deploy.user")
+    else if (Config.getString("deploylib.user").isDefined)
+      return Config.getString("deploylib.user").get
 		else
 			return System.getProperty("user.name")
 	}
