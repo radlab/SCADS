@@ -17,7 +17,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     lazy val itemSubjectDateTitleIndex = cluster.getNamespace[ItemSubjectDateTitleIndexKey, ItemKey]("item_subject_date_title_index")
     lazy val orderline = cluster.getNamespace[OrderLineKey, OrderLineValue]("orderline")
     lazy val order = cluster.getNamespace[OrdersKey, OrdersValue]("orders")
-    lazy val customerOrderIndex = cluster.getNamespace[CustomerOrderIndex, OrdersKey]("customer_index")  //Extra index
+    lazy val customerOrderIndex = cluster.getNamespace[CustomerOrderIndex, NullRecord]("customer_index")  //Extra index
 
     def paraSelector(i : Int) = Array(ParameterValue(i))
     def projection(record: Int, attribute: Int) = Array(AttributeValue(record, attribute))
@@ -26,13 +26,13 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
 
     implicit def toGeneric(ns: SpecificNamespace[_, _]) = ns.genericNamespace
 
-    val homeWIPlan = IndexLookup(customer, Array(ParameterValue(0)))
+    private lazy val homeWIPlan = IndexLookup(customer, Array(ParameterValue(0)))
     def homeWI(username: String): QueryResult =
       exec(homeWIPlan, new Utf8(username))
 
 
     //TODO Still missing the like operator. Does the like really work here???
-    val newProductPlan = IndexLookupJoin(  //(itemSubjectDateTitleIndex, itemKey, itemKey, ItemValue, authorKey, authorValue)
+    private lazy val newProductPlan = IndexLookupJoin(  //(itemSubjectDateTitleIndex, itemKey, itemKey, ItemValue, authorKey, authorValue)
                             author,
                             projection(3, 1), //(itemSubjectDateTitleIndex, itemKey, itemKey, ItemValue)
                             IndexLookupJoin(
@@ -43,16 +43,16 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       def newProductWI(subject: String): QueryResult =
       exec(newProductPlan, new Utf8(subject))
 
-    val productDetailPlan = IndexLookupJoin( //(ItemKey, ItemValue, AuthorKey, AuthorValue)
+    private lazy val productDetailPlan = IndexLookupJoin( //(ItemKey, ItemValue, AuthorKey, AuthorValue)
                                author,
                                projection(1, 1), //(ItemKey, ItemValue)
                                IndexLookup(item, Array(ParameterValue(0)))
                             )
-    def productDetailWI(bookId: Int): QueryResult =
+    def productDetailWI(bookId: String): QueryResult =
       exec(newProductPlan, bookId)
 
     //TODO: Alternatively, no limit just pagination!!!
-    val searchByAuthorPlan =
+    private lazy val searchByAuthorPlan =
         Sort(
           projection(3,0), //(authorNameIndex, null, ItemKey, ItemValu)
           true,
@@ -64,7 +64,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
           )
     def searchByAuthorWI(name : String) = exec(searchByAuthorPlan, name)
 
-    val searchBySubjectPlan =
+    private lazy val searchBySubjectPlan =
      IndexLookupJoin( // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), Item, AuthorValue
       item,
       projection(2,1), // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), ItemValue
@@ -76,7 +76,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     )
     def searchBySubjectWI(subject : String) = exec(searchBySubjectPlan, subject)
 
-    val orderDisplayCustomerPlan =
+    private lazy val orderDisplayCustomerPlan =
       Selection(
         Equality(AttributeValue(0,0),ParameterValue(1)),
         IndexLookup(customer, paraSelector(0))  // CustomerName, (C_PASSWD, C_FNAME, C_LNAME,....)

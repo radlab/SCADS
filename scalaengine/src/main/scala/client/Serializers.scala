@@ -157,6 +157,8 @@ class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecif
         with    SimpleMetaData[KeyType, ValueType]
         with    AvroSerializing[KeyType, ValueType] {
 
+  println("Creating NS: " namespace)
+
   protected val keyClass   = keyType.erasure.asInstanceOf[Class[KeyType]]
   protected val valueClass = valueType.erasure.asInstanceOf[Class[ValueType]]
 

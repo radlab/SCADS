@@ -30,10 +30,12 @@ class TpcwLoader( val client : TpcwClient,
 
   private var addressIds = new  HashMap[Int, String]()
 	private var orderIds = new  HashMap[Int, String]()
-	private var itemSubjects  = new  HashMap[Int, String]()
+	private var itemIds  = new  HashMap[Int, String]()
 	//private var orderDates = new  HashMap[Int, String]() Was used in SimpleDB
   private var authorIDs = new  HashMap[Int, String]()
   private var authorNameIndexInserts = ArrayBuffer[(AuthorNameIndexKey, NullRecord)]()
+  private var itemSubjectDateTitleIndexInserts = ArrayBuffer[(ItemSubjectDateTitleIndexKey, ItemKey)]()
+  private var customerOrderIndexInserts = ArrayBuffer[(CustomerOrderIndex, NullRecord)]()
 
   val rand = new scala.util.Random(System.currentTimeMillis)
 
@@ -83,20 +85,19 @@ class TpcwLoader( val client : TpcwClient,
     )
 
 
-
   def createNamespaces() = {
     val splits = keySplits
     client.cluster.createNamespace[AddressKey, AddressValue]("address", splits.address)
-    client.cluster.cluster.createNamespace[AuthorKey, AuthorValue]("author", splits.author)
-    client.cluster.cluster.createNamespace[AuthorNameIndexKey, NullRecord]("author_fname_index", splits.author_fname_index)
-    client.cluster.cluster.createNamespace[CcXactsKey, CcXactsValue]("xacts", splits.xacts)
-    client.cluster.cluster.createNamespace[CountryKey, CountryValue]("country", splits.country)
-    client.cluster.cluster.createNamespace[CustomerKey, CustomerValue]("customer", splits.customer)
-    client.cluster.cluster.createNamespace[ItemKey, ItemValue]("item", splits.item)
-    client.cluster.cluster.createNamespace[ItemSubjectDateTitleIndexKey, ItemKey]("item_subject_date_title_index", splits.item_subject_date_title_index)
-    client.cluster.cluster.createNamespace[OrderLineKey, OrderLineValue]("orderline", splits.orderline)
-    client.cluster.cluster.createNamespace[OrdersKey, OrdersValue]("orders", splits.orders)
-    client.cluster.cluster.createNamespace[CustomerOrderIndex, OrdersKey]("customer_index", splits.customer_index)  //Extra index
+    client.cluster.createNamespace[AuthorKey, AuthorValue]("author", splits.author)
+    client.cluster.createNamespace[AuthorNameIndexKey, NullRecord]("author_fname_index", splits.author_fname_index)
+    client.cluster.createNamespace[CcXactsKey, CcXactsValue]("xacts", splits.xacts)
+    client.cluster.createNamespace[CountryKey, CountryValue]("country", splits.country)
+    client.cluster.createNamespace[CustomerKey, CustomerValue]("customer", splits.customer)
+    client.cluster.createNamespace[ItemKey, ItemValue]("item", splits.item)
+    client.cluster.createNamespace[ItemSubjectDateTitleIndexKey, ItemKey]("item_subject_date_title_index", splits.item_subject_date_title_index)
+    client.cluster.createNamespace[OrderLineKey, OrderLineValue]("orderline", splits.orderline)
+    client.cluster.createNamespace[OrdersKey, OrdersValue]("orders", splits.orders)
+    client.cluster.createNamespace[CustomerOrderIndex, NullRecord]("customer_index", splits.customer_index)  //Extra index
   }
 
   def load() = {
@@ -108,8 +109,49 @@ class TpcwLoader( val client : TpcwClient,
     client.xacts ++= (1 to numOrders).view.map(createXacts(_))
     client.country ++= (1 to numCountries).view.map(createCountry(_))
     client.customer ++= (1 to numCustomers).view.map(createCustomer(_))
+    client.item ++= (1 to numItems).view.map(createItem(_))
+    client.itemSubjectDateTitleIndex ++= itemSubjectDateTitleIndexInserts
+    itemSubjectDateTitleIndexInserts.clear
     client.order ++= (1 to numOrders).view.map(createOrder(_))
     client.orderline ++= (1 to numOrders).view.flatMap(createOrderline(_))
+    client.customerOrderIndex ++=  customerOrderIndexInserts
+    customerOrderIndexInserts.clear
+  }
+
+  def createItem(itemId : Int) : (ItemKey, ItemValue) = {
+    val to = Generator.generateItem(itemId, numItems).asInstanceOf[ItemTO]
+    val idStr = itemIds.getOrElseUpdate(itemId, uuid())
+    itemSubjectDateTitleIndexInserts += Tuple2(
+      ItemSubjectDateTitleIndexKey(to.getI_subject,
+        to.getI_pub_date,
+        to.getI_title),
+      ItemKey(idStr))
+    (ItemKey(idStr),
+     ItemValue(
+        to.getI_title,
+        authorIDs.getOrElseUpdate(to.getI_a_id, uuid()),
+        to.getI_pub_date,
+        to.getI_publisher,
+        to.getI_subject,
+        to.getI_desc,
+        to.getI_related1,
+        to.getI_related2,
+        to.getI_related3,
+        to.getI_related4,
+        to.getI_related5,
+        to.getI_thumbnail,
+        to.getI_image,
+        to.getI_srp,
+        to.getI_cost,
+        to.getI_avail,
+        to.getI_stock,
+        to.getI_isbn,
+        to.getI_page,
+        to.getI_backing,
+        to.getI_dimensions
+       )
+      )
+
   }
 
   def createCountry(countryId : Int) : (CountryKey, CountryValue) = {
@@ -154,7 +196,7 @@ class TpcwLoader( val client : TpcwClient,
   def createCustomer(id : Int) :  (CustomerKey, CustomerValue) = {
     val obj = Generator.generateCustomer( id , numCustomers )
     val to = obj.asInstanceOf[CustomerTO]
-    (CustomerKey("cust" + to.getC_id),
+    (CustomerKey("cust" + to.getC_id), //used naming convention instead of UUID
      CustomerValue(
        to.getC_passwd,
        to.getC_fname,
@@ -173,11 +215,13 @@ class TpcwLoader( val client : TpcwClient,
        to.getC_data)        
     )
   }
+  
 
   def createOrder(id : Int) : (OrdersKey, OrdersValue) = {
     val obj = Generator.generateOrder(id, numCustomers, rand.nextInt(4) + 1)
     val to : OrderTO = obj.asInstanceOf[OrderTO]
     val idStr = orderIds.getOrElseUpdate(id, uuid())
+    customerOrderIndexInserts += Tuple2(CustomerOrderIndex("cust" + to.getO_c_id,to.getO_date, idStr), NullRecord(true))
     (OrdersKey(idStr), OrdersValue(
       "cust" + to.getO_c_id,
       to.getO_date,
@@ -194,8 +238,11 @@ class TpcwLoader( val client : TpcwClient,
   def createOrderline(id : Int) : Seq[(OrderLineKey, OrderLineValue)] = {
     val orders : Seq[OrderLineTO] = (1 to rand.nextInt(4) + 1).map( Generator.generateOrderLine(id,_, numItems).asInstanceOf[OrderLineTO])
     for(order <- orders) yield {
-      (OrderLineKey(orderIds(order.getOl_o_id), order.getOl_id),
-       OrderLineValue(order.getOl_qty, order.getOl_discount, order.getOl_comments))
+      (OrderLineKey(orderIds.getOrElseUpdate(order.getOl_o_id, uuid()), order.getOl_id),
+       OrderLineValue(itemIds.getOrElseUpdate(order.getOl_i_id, uuid()),
+         order.getOl_qty,
+         order.getOl_discount, 
+         order.getOl_comments))
     }
   }
 

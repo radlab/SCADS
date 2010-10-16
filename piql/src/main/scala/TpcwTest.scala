@@ -16,13 +16,14 @@ import org.apache.log4j.Logger
 
 class TpcwTest {
   implicit def toOption[A](a: A): Option[A] = Option(a)
+   val storageHandler = TestScalaEngine.getTestHandler(3)
+   val cluster = new ScadsCluster(storageHandler.head.root)
+   var client = new TpcwClient(cluster, new SimpleExecutor)
   
   def run() = {
-    val storageHandler = TestScalaEngine.getTestHandler(3)
-    val cluster = new ScadsCluster(storageHandler.head.root)
-    var client = new TpcwClient(cluster, new SimpleExecutor)
+
     client.loadData(0.1, 100)
-    println("cust1 interaction " + client.homeWI("cust1"))
+    println("cust1 interaction " + client.homeWI("cust1").flatMap(_.map(_.toString)))
   }
 }
 

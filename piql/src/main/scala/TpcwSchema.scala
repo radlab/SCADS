@@ -19,10 +19,10 @@ case class ItemValue(
         var I_RELATED3 : Int,
         var I_RELATED4 : Int,
         var I_RELATED5 : Int,
-        var I_THUMBNAIL : Array[Byte],
-        var I_IMAGE : Array[Byte],
-        var I_SRP : Float,
-        var I_COST : Float,
+        var I_THUMBNAIL : String,
+        var I_IMAGE : String,
+        var I_SRP : Double,
+        var I_COST : Double,
         var I_AVAIL : Long,
         var I_STOCK : Int,
         var ISBN : String,
@@ -93,11 +93,12 @@ case class OrdersValue(
         var O_STATUS : String
         )   extends AvroRecord
 
-case class CustomerOrderIndex(var C_UNAME : String, var O_DATE : Long) extends AvroRecord
+case class CustomerOrderIndex(var C_UNAME : String, var O_DATE : Long, var O_ID : String) extends AvroRecord
 
 
 case class OrderLineKey(var OL_O_ID : String, var OL_ID : Int) extends AvroRecord
 case class OrderLineValue(
+        var OL_I_ID : String,
         var OL_QTY : Int,
         var OL_DISCOUNT : Double,
         var OL_COMMENT : String
