@@ -59,7 +59,9 @@ object ScadrCardinalityTest extends Experiment {
       val cluster = new ScadsCluster(clusterRoot)
       var executor = Class.forName(executorClass).newInstance.asInstanceOf[QueryExecutor]
       val scadrClient = new ScadrClient(cluster, executor)
-      val loader = new ScadrLoader(scadrClient, numClients,
+      val loader = new ScadrLoader(scadrClient,
+        replicationFactor = 2,
+        numClients = numClients,
         numUsers = numServers * 10000,
         numThoughtsPerUser = 100,
         numSubscriptionsPerUser = followingCardinality,
@@ -70,6 +72,11 @@ object ScadrCardinalityTest extends Experiment {
         logger.info("Awaiting scads cluster startup")
         cluster.blockUntilReady(numServers)
         loader.createNamespaces
+        scadrClient.users.setReadWriteQuorum(0.33, 0.67)
+        scadrClient.thoughts.setReadWriteQuorum(0.33, 0.67)
+        scadrClient.subscriptions.setReadWriteQuorum(0.33, 0.67)
+        scadrClient.tags.setReadWriteQuorum(0.33, 0.67)
+        scadrClient.idxUsersTarget.setReadWriteQuorum(0.33, 0.67)
       }
 
       coordination.registerAndAwait("startBulkLoad", numClients)
