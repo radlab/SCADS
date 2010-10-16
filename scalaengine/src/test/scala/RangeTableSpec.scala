@@ -14,8 +14,8 @@ class RangeTableSpec extends WordSpec with ShouldMatchers with RangeBoundMatcher
 
 "A Range Table" should {
     var rTable : RangeTable[Int, String] = new RangeTable[Int, String](List((None, List("S6"))),
-      (a: Int, b: Int) => if(a == b) 0 else if (a<b) -1 else 1,
-      (a : List[String], b : List[String])  => true)
+      (a: Int, b: Int) => if(a == b) 0 else if (a < b) -1 else 1,
+      (a : Seq[String], b : Seq[String])  => true)
 
     "return values for a key" in {
       var rangeTable = createRange()
@@ -169,8 +169,8 @@ class RangeTableSpec extends WordSpec with ShouldMatchers with RangeBoundMatcher
     "merge ranges based on a merge condition" in {
       var rangeTable : RangeTable[Int, String] = new RangeTable[Int, String](
         List((None, List("S1"))),
-        (a: Int, b: Int) => if(a == b) 0 else if (a<b) -1 else 1,
-        (a : List[String], b : List[String]) => a.corresponds(b)(_.compareTo(_) == 0))
+        (a: Int, b: Int) => if(a == b) 0 else if (a < b) -1 else 1,
+        (a: Seq[String], b: Seq[String]) => a.corresponds(b)(_.compareTo(_) == 0))
       rangeTable = rangeTable.split(10, List("S1"))
       rangeTable = rangeTable.split(20, List("S1"))
 
@@ -299,11 +299,11 @@ class RangeTableSpec extends WordSpec with ShouldMatchers with RangeBoundMatcher
 
     new RangeTable[Int, String](
         setup,
-        (a: Int, b: Int) => if(a == b) 0 else if (a<b) -1 else 1,
-        (a : List[String], b : List[String]) => a.corresponds(b)(_.compareTo(_) == 0))
+        (a: Int, b: Int) => if(a == b) 0 else if (a < b) -1 else 1,
+        (a :Seq[String], b :Seq[String]) => a.corresponds(b)(_.compareTo(_) == 0))
   }
 
-   def transformRangeArray(rangeTable: Array[RangeType[Int, String]]) : List[(Option[Int], List[String])] = {
+   def transformRangeArray(rangeTable: Array[RangeType[Int, String]]) : List[(Option[Int], Seq[String])] = {
     for(item <- rangeTable.toList)
         yield  (item.startKey, item.values)
    }
