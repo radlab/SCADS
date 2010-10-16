@@ -116,6 +116,11 @@ abstract class RemoteMachine {
     }
   }
 
+  def !?(cmd: String) = executeCommand(cmd) match {
+    case ExecuteResponse(Some(0), stdout, "") => stdout
+    case err => throw new UnknownResponse(err)
+  }
+
 	/**
 	 * Execute a command sync and return the result as an ExecuteResponse
 	 */
