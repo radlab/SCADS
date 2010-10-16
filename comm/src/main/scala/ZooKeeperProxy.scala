@@ -10,7 +10,7 @@ import net.lag.logging.Logger
 
 import java.util.concurrent.{ ConcurrentHashMap, TimeUnit }
 
-object RClusterZoo extends ZooKeeperProxy("r2.millennium.berkeley.edu:2181")
+object RClusterZoo extends ZooKeeperProxy((1 to 5).map(i => "zoo%d.millennium.berkeley.edu".format(i)).mkString(","))
 
 object ZooKeeperNode {
   val uriRegEx = """zk://([^/]*)/(.*)""".r
