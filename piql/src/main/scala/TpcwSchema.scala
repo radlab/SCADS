@@ -31,6 +31,8 @@ case class ItemValue(
         var I_DIMENSION : String
         ) extends AvroRecord
 
+
+
 case class ItemSubjectDateTitleIndexKey(
         var I_SUBJECT : String,
         var I_PUB_DATE : Long,
@@ -53,7 +55,7 @@ case class AuthorValue(
         var A_BIO : String
         )   extends AvroRecord
 
-case class AuthorNameIndexKey(var Name : String, var A_ID : String)  extends AvroRecord      //Additional
+case class AuthorNameItemIndexKey(var Name : String, var  I_TITLE : String, var I_ID : String)  extends AvroRecord      //Additional
 //case class AuthorLNameIndexKey(var A_LName : String, var A_ID : String)  extends AvroRecord      //Additional
 
 //Different PK

@@ -4,11 +4,12 @@ import edu.berkeley.cs.scads.storage._
 import edu.berkeley.cs.avro.marker._
 
 import org.apache.avro.util._
+import scala.util.Random
 
 class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     lazy val address = cluster.getNamespace[AddressKey, AddressValue]("address")
     lazy val author = cluster.getNamespace[AuthorKey, AuthorValue]("author")
-    lazy val authorNameIndex = cluster.getNamespace[AuthorNameIndexKey, NullRecord]("author_fname_index")
+    lazy val authorNameItemIndex = cluster.getNamespace[AuthorNameItemIndexKey, NullRecord]("author_fname_index")
     //val authorLNameIndex = cluster.getNamespace[AuthorLNameIndexKey, NullRecord]("author_lname_index") //make it one
     lazy val xacts = cluster.getNamespace[CcXactsKey, CcXactsValue]("xacts")
     lazy val country = cluster.getNamespace[CountryKey, CountryValue]("country")
@@ -53,35 +54,31 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
 
     //TODO: Alternatively, no limit just pagination!!!
     private lazy val searchByAuthorPlan =
-        Sort(
-          projection(3,0), //(authorNameIndex, null, ItemKey, ItemValu)
-          true,
-          IndexLookupJoin(
+          IndexLookupJoin( //(Name, I_TITLE, I_ID), null, ItemKey, ItemValue
             item,
-            projection(0,1), //(authorNameIndex, null)
-            IndexScan(authorNameIndex, firstPara, FixedLimit(50), true)
+            projection(0,2), //(Name, I_TITLE, I_ID), null
+            IndexScan(authorNameItemIndex, firstPara, FixedLimit(50), true)
             )
-          )
-    def searchByAuthorWI(name : String) = exec(searchByAuthorPlan, name)
+    def searchByAuthorWI(name : String) = exec(searchByAuthorPlan, new Utf8(name))
 
     private lazy val searchBySubjectPlan =
-     IndexLookupJoin( // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), Item, AuthorValue
-      item,
-      projection(2,1), // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), ItemValue
-      IndexLookupJoin( // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), ItemValue
+     IndexLookupJoin( // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue, AuthorKey, AuthorValue
+      author,
+      projection(3,1), // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue
+      IndexLookupJoin( // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue
         item,
         projection(1,0), // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID)
         IndexScan(itemSubjectDateTitleIndex, firstPara, FixedLimit(50), true)
       )
     )
-    def searchBySubjectWI(subject : String) = exec(searchBySubjectPlan, subject)
+    def searchBySubjectWI(subject : String) = exec(searchBySubjectPlan, new Utf8(subject))
 
     private lazy val orderDisplayCustomerPlan =
       Selection(
         Equality(AttributeValue(0,0),ParameterValue(1)),
         IndexLookup(customer, paraSelector(0))  // CustomerName, (C_PASSWD, C_FNAME, C_LNAME,....)
       )
-    def orderDisplayCustomerWI(cName : String, cPassword : String) = exec(orderDisplayCustomerPlan, cName, cPassword)
+    def orderDisplayCustomerWI(cName : String, cPassword : String) = exec(orderDisplayCustomerPlan, new Utf8(cName), new Utf8(cPassword))
 
 //    val orderDisplayOrder =
 //      IndexLookupJoin(
@@ -108,8 +105,5 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   }
 
 
-  
-  //AttributeValue does it start counting from 0 or 1???
-  //Questions: Why das Attribute value take a record ID?
-  //should we rename KeyGenerator to projection?
 }
+

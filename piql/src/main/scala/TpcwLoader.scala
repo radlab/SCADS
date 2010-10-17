@@ -32,8 +32,8 @@ class TpcwLoader( val client : TpcwClient,
 	private var orderIds = new  HashMap[Int, String]()
 	private var itemIds  = new  HashMap[Int, String]()
 	//private var orderDates = new  HashMap[Int, String]() Was used in SimpleDB
-  private var authorIDs = new  HashMap[Int, String]()
-  private var authorNameIndexInserts = ArrayBuffer[(AuthorNameIndexKey, NullRecord)]()
+  private var authors = new  HashMap[Int, (AuthorKey, AuthorValue)]()
+  private var AuthorNameItemIndexInserts = ArrayBuffer[(AuthorNameItemIndexKey, NullRecord)]()
   private var itemSubjectDateTitleIndexInserts = ArrayBuffer[(ItemSubjectDateTitleIndexKey, ItemKey)]()
   private var customerOrderIndexInserts = ArrayBuffer[(CustomerOrderIndex, NullRecord)]()
 
@@ -73,7 +73,7 @@ class TpcwLoader( val client : TpcwClient,
   case class TpcwKeySplits(
     address: Seq[(Option[AddressKey], List[StorageService])],
     author: Seq[(Option[AuthorKey], List[StorageService])],
-    author_fname_index: Seq[(Option[AuthorNameIndexKey], List[StorageService])],
+    authorname_item_index: Seq[(Option[AuthorNameItemIndexKey], List[StorageService])],
     xacts: Seq[(Option[CcXactsKey], List[StorageService])],
     country: Seq[(Option[CountryKey], List[StorageService])],
     customer: Seq[(Option[CustomerKey], List[StorageService])],
@@ -89,7 +89,7 @@ class TpcwLoader( val client : TpcwClient,
     val splits = keySplits
     client.cluster.createNamespace[AddressKey, AddressValue]("address", splits.address)
     client.cluster.createNamespace[AuthorKey, AuthorValue]("author", splits.author)
-    client.cluster.createNamespace[AuthorNameIndexKey, NullRecord]("author_fname_index", splits.author_fname_index)
+    client.cluster.createNamespace[AuthorNameItemIndexKey, NullRecord]("author_fname_index", splits.authorname_item_index)
     client.cluster.createNamespace[CcXactsKey, CcXactsValue]("xacts", splits.xacts)
     client.cluster.createNamespace[CountryKey, CountryValue]("country", splits.country)
     client.cluster.createNamespace[CustomerKey, CustomerValue]("customer", splits.customer)
@@ -104,12 +104,12 @@ class TpcwLoader( val client : TpcwClient,
     createNamespaces()
     client.address ++= (1 to numAddresses).view.map(createAddress(_))
     client.author ++= (1 to numAuthors).view.map(createAuthor(_))
-    client.authorNameIndex ++= authorNameIndexInserts
-    authorNameIndexInserts.clear
     client.xacts ++= (1 to numOrders).view.map(createXacts(_))
     client.country ++= (1 to numCountries).view.map(createCountry(_))
     client.customer ++= (1 to numCustomers).view.map(createCustomer(_))
     client.item ++= (1 to numItems).view.map(createItem(_))
+    client.authorNameItemIndex ++= AuthorNameItemIndexInserts
+    AuthorNameItemIndexInserts.clear
     client.itemSubjectDateTitleIndex ++= itemSubjectDateTitleIndexInserts
     itemSubjectDateTitleIndexInserts.clear
     client.order ++= (1 to numOrders).view.map(createOrder(_))
@@ -126,10 +126,16 @@ class TpcwLoader( val client : TpcwClient,
         to.getI_pub_date,
         to.getI_title),
       ItemKey(idStr))
+    val author =  authors.get(to.getI_a_id)
+
+    AuthorNameItemIndexInserts += Tuple2(AuthorNameItemIndexKey(author.get._2.A_FNAME, to.getI_title, idStr), NullRecord(true))
+    AuthorNameItemIndexInserts += Tuple2(AuthorNameItemIndexKey(author.get._2.A_LNAME, to.getI_title, idStr), NullRecord(true))
+
+
     (ItemKey(idStr),
      ItemValue(
         to.getI_title,
-        authorIDs.getOrElseUpdate(to.getI_a_id, uuid()),
+        author.get._1.A_ID,
         to.getI_pub_date,
         to.getI_publisher,
         to.getI_subject,
@@ -175,10 +181,9 @@ class TpcwLoader( val client : TpcwClient,
 
   def createAuthor(id : Int) : (AuthorKey, AuthorValue) = {
     val to = Generator.generateAuthor(id).asInstanceOf[AuthorTO]
-    val idStr = authorIDs.getOrElseUpdate(id, uuid())
-    authorNameIndexInserts += Tuple2(AuthorNameIndexKey(to.getA_fname, idStr), NullRecord(true))
-    authorNameIndexInserts += Tuple2(AuthorNameIndexKey(to.getA_lname, idStr), NullRecord(true))
-    (AuthorKey(idStr), AuthorValue(to.getA_fname, to.getA_lname, to.getA_mname, to.getA_dob, to.getA_bio))
+    var author = (AuthorKey(uuid()), AuthorValue(to.getA_fname, to.getA_lname, to.getA_mname, to.getA_dob, to.getA_bio))
+    authors += id ->  author
+    author
   }
 
   def createAddress(id : Int) : (AddressKey, AddressValue) = {
