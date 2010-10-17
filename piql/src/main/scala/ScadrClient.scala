@@ -120,4 +120,10 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
     )
   def thoughtsByHashTag(tag: String, count: Int): QueryResult =
     exec(thoughsByHashTagPlan, new Utf8(tag), count)
+
+
+  def saveThought(thoughtKey: ThoughtKey, thoughtValue: ThoughtValue) {
+    thoughts.put(thoughtKey, thoughtValue)
+  }
+
 }
