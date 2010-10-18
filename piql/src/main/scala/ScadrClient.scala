@@ -87,10 +87,10 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
   def usersFollowing(username: String, count: Int): QueryResult =
     exec(usersFollowingPlan, new Utf8(username), count)
 
-  private lazy val thoughtStreamPlan =
+  private lazy val thoughtStreamPlan =   // (sub_owner, sub_target), (sub_approved), (thought_owner, thought_timestamp), (thought_text)
     IndexMergeJoin(thoughts, Array(AttributeValue(0, 1)), Array(AttributeValue(2, 1)), ParameterLimit(1, maxResultsPerPage), false,
-      Selection(Equality(FixedValue(true), AttributeValue(1, 0)),
-        IndexScan(subscriptions, Array(ParameterValue(0)), FixedLimit(maxSubscriptions), true)
+      Selection(Equality(FixedValue(true), AttributeValue(1, 0)), // (owner, target), (approved)
+        IndexScan(subscriptions, Array(ParameterValue(0)), FixedLimit(maxSubscriptions), true) // (owner, target), (approved)
       )
     )
 
