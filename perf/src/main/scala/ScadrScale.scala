@@ -13,10 +13,12 @@ import deploylib.mesos._
 
 import scala.util.Random
 
+case class ScaleResultKey(var clientConfig: ScadrScaleTest.LoadClient, var clientId: Int, var iteration: Int, var threadId: Int) extends AvroRecord
+case class ScaleResultValue(var times: Histogram, var skips: Int) extends AvroRecord
+
 object ScadrScaleTest extends Experiment {
-  case class ResultKey(var clientConfig: LoadClient, var clientId: Int, var iteration: Int, var threadId: Int) extends AvroRecord
-  case class ResultValue(var times: Histogram, var skips: Int) extends AvroRecord
-  val results = resultCluster.getNamespace[ResultKey, ResultValue]("scadrScale")
+
+  val results = resultCluster.getNamespace[ScaleResultKey, ScaleResultValue]("scadrScale")
 
   private val random = new Random
 
@@ -151,7 +153,7 @@ object ScadrScaleTest extends Experiment {
           }
 
           logger.info("Thread %d complete", threadId)
-          (ResultKey(this, clientId, iteration, threadId), ResultValue(histogram, skips))
+          (ScaleResultKey(this, clientId, iteration, threadId), ScaleResultValue(histogram, skips))
         })
 
         coordination.registerAndAwait("iteration" + iteration, numClients)
