@@ -19,6 +19,10 @@ protected case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Lon
     Histogram(bucketSize, buckets.zip(left.buckets).map{ case (a,b) => a + b })
   }
 
+  def +=(value: Long) {
+    add(value)
+  }
+
 	def add(value: Long):Histogram = {
 		val bucket = (value / bucketSize).toInt
 		if(bucket >= buckets.length)
