@@ -21,7 +21,6 @@ object EC2Instance  extends AWSConnection {
 	protected val logger = Logger()
 
   var keyName = System.getenv("AWS_KEY_NAME")
-  var keyPath = System.getenv("AWS_KEY_PATH")
 
 	private val config = new AmazonEC2Config()
 
