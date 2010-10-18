@@ -1,6 +1,7 @@
 package edu.berkeley.cs.scads.piql
 
 import scala.util.Random
+import collection.mutable.HashMap
 
 
 /**
@@ -14,7 +15,7 @@ import scala.util.Random
 class TpcwWorkflow(val client: TpcwClient, val customers : Seq[String], val authorNames : Seq[String], val subjects : Seq[String] ) {
   var random = new Random
 
-  case class Action(val action: ActionType.Value, val value: Double)
+  case class Action(val action: ActionType.Value, var nextActions : List[(Int, Action)])
 
   object ActionType extends Enumeration {
     type ActionType = Value
@@ -24,64 +25,37 @@ class TpcwWorkflow(val client: TpcwClient, val customers : Seq[String], val auth
 
   }
 
+  val actions = new HashMap[ActionType.ActionType, Action]()
+  ActionType.values.foreach(a => actions += a -> new Action(a, Nil))
 
-  //      Web Interaction 	Browsing Mix (WIPSb)	Shopping Mix (WIPS)	Ordering Mix (WIPSo)
-  //      Home	29.00 %	16.00 %	9.12 %
-  //      aNew Products	11.00 %	5.00 %	0.46 %
-  //      Best Sellers	11.00 %	5.00 %	0.46 %
-  //      Product Detail	21.00 %	17.00 %	12.35 %
-  //      SearchRequest	12.00 %	20.00 %	14.53 %
-  //
-  //      Search Results	11.00 %	17.00 %	13.08 %
-  //      Shopping Cart	2.00 %	11.60 %	13.53 %
-  //      Customer Registration	0.82 %	3.00 %	12.86 %
-  //      Buy Request	0.75 %	2.60 %	12.73 %
-  //      aBuy Confirm	0.69 %	1.20 %	10.18 %
-  //      aOrder Inquiry	0.30 %	0.75 %	0.25 %
-  //      aOrder Display	0.25 %	0.66 %	0.22 %
-  //      Admin Request	0.10 %	0.10 %	0.12 %
-  //      Admin Confirm	0.09 %	0.09 %	0.11 %
+  actions(ActionType.AdminConfirm).nextActions = List((8348, actions(ActionType.Home)))
+  println("nb of actions " + actions.size)
 
-  private val orderingMix = List(
-    Action(ActionType.Home, 9.12),
-    Action(ActionType.NewProduct, 0.46))
+//The MarkovChain from TPC-W
+//actions(ActionType.AdminConfirm).nextActions = List ( (8348, actions(ActionType.Home)), (9999, actions(ActionType.SearchRequest)))
+//actions(ActionType.AdminRequest).nextActions = List ( (8999, actions(ActionType.AdminConfirm)), (9999, actions(ActionType.Home)))
+//actions(ActionType.BestSeller).nextActions = List ( (1, actions(ActionType.Home)), (333, actions(ActionType.ProductDetail)), (9998, actions(ActionType.SearchRequest)), (9999, actions(ActionType.ShoppingCart)))
+//actions(ActionType.BuyConfirm).nextActions = List ( (2, actions(ActionType.Home)), (9999, actions(ActionType.SearchRequest)))
+//actions(ActionType.BuyRequest).nextActions = List ( (7999, actions(ActionType.BuyConfirm)), (9453, actions(ActionType.Home)), (9999, actions(ActionType.ShoppingCart)))
+//actions(ActionType.CustomerReg).nextActions = List ( (9899, actions(ActionType.BuyRequest)), (9901, actions(ActionType.Home)), (9999, actions(ActionType.SearchRequest)))
+//actions(ActionType.Home).nextActions = List ( (499, actions(ActionType.BestSeller)), (999, actions(ActionType.NewProduct)), (1269, actions(ActionType.OrderInquiry)), (1295, actions(ActionType.SearchRequest)), (9999, actions(ActionType.ShoppingCart)))
+//actions(ActionType.NewProduct).nextActions = List ( (504, actions(ActionType.Home)), (9942, actions(ActionType.ProductDetail)), (9976, actions(ActionType.SearchRequest)), (9999, actions(ActionType.ShoppingCart)))
+//actions(ActionType.OrderDisplay).nextActions = List ( (9939, actions(ActionType.Home)), (9999, actions(ActionType.SearchRequest)))
+//actions(ActionType.OrderInquiry).nextActions = List ( (1168, actions(ActionType.Home)), (9968, actions(ActionType.OrderDisplay)), (9999, actions(ActionType.SearchRequest)))
+//actions(ActionType.ProductDetail).nextActions = List ( (99, actions(ActionType.AdminRequest)), (3750, actions(ActionType.Home)), (5621, actions(ActionType.ProductDetail)), (6341, actions(ActionType.SearchRequest)), (9999, actions(ActionType.ShoppingCart)))
+//actions(ActionType.SearchRequest).nextActions = List ( (815, actions(ActionType.Home)), (9815, actions(ActionType.SearchResult)), (9999, actions(ActionType.ShoppingCart)))
+//actions(ActionType.SearchResult).nextActions = List ( (486, actions(ActionType.Home)), (7817, actions(ActionType.ProductDetail)), (9998, actions(ActionType.SearchRequest)), (9999, actions(ActionType.ShoppingCart)))
+//actions(ActionType.ShoppingCart).nextActions = List ( (9499, actions(ActionType.CustomerReg)), (9918, actions(ActionType.Home)), (9999, actions(ActionType.ShoppingCart)))
+//
 
-  //  val orderingMix = List(
-  //       Action(ActionType.Home, 9.12),
-  //       Action(ActionType.NewProduct, 0.46),
-  //       Action(ActionType.BestSeller, 0.46),
-  //       Action(ActionType.ProductDetail, 12.35),
-  //       Action(ActionType.SearchRequest, 14.53),
-  //       Action(ActionType.SearchResult, 13.08),
-  //       Action(ActionType.ShoppingCart, 13.53),
-  //       Action(ActionType.CustomerReg, 12.86),
-  //       Action(ActionType.BuyRequest, 12.73),
-  //       Action(ActionType.BuyConfirm, 10.18),
-  //       Action(ActionType.OrderInquiry, 0.25),
-  //       Action(ActionType.OrderDisplay, 0.22),
-  //       Action(ActionType.AdminRequest, 0.12),
-  //       Action(ActionType.AdminConfirm, 0.11))
-
-  val orderingMixCDF = calcCDF(orderingMix)
-
-  def executeOrderingMix() = executeMix(orderingMixCDF)
-
-  def calcCDF(mix: List[Action]) = {
-    val normFact = mix.map(_.value).reduceLeft(_ + _)
-    var cummCDF = 0.0
-    for (action <- mix) yield {
-      cummCDF += action.value / normFact
-      Action(action.action, cummCDF)
-    }
-  }
+  actions(ActionType.Home).nextActions = List ( (5000, actions(ActionType.Home)), (9999, actions(ActionType.NewProduct)))
+  actions(ActionType.NewProduct).nextActions = List ( (9999, actions(ActionType.Home)))
 
 
-  def executeMix(mix: List[Action]) = {
+  var nextAction = actions(ActionType.Home)
 
-    val rnd = random.nextDouble()
-    val action = mix.find(rnd < _.value)
-    assert(action.isDefined)
-    action.get match {
+  def executeMix() = {
+    nextAction match {
       case Action(ActionType.Home, _) => {
         println("Home")
         val username = customers(random.nextInt(customers.length))
@@ -97,5 +71,11 @@ class TpcwWorkflow(val client: TpcwClient, val customers : Seq[String], val auth
         println("Not supported")
     }
 
-  }
+    val rnd = random.nextInt(9999)
+
+    val action = nextAction.nextActions.find(rnd < _._1)
+    assert(action.isDefined)
+    nextAction = action.get._2
+
+ }
 }

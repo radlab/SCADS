@@ -44,7 +44,7 @@ class TpcwTest {
     val authors = new ArrayBuffer[String]()
     authors ++= authorsSet
     val  workflow = new TpcwWorkflow(client, cust, authors, subjects)
-    (1 to 100).foreach(_ => workflow.executeOrderingMix())
+    (1 to 100).foreach(_ => workflow.executeMix() )
   }
 }
 
