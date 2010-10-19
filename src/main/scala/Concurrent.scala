@@ -84,4 +84,8 @@ class ParallelSeq[A](seq: List[A]) {
 	def pforeach(f : (A) => Unit) : Unit = {
 		seq.map(v => new Future(f(v))).map(_())
 	}
+
+  def pfilter(f : (A) => Boolean) : List[A] = {
+    seq.map(v => new Future((v, f(v)))).map(_()).filter(_._2).map(_._1)
+  }
 }
