@@ -1,6 +1,7 @@
 package edu.berkeley.cs
 package scads
 package perf
+package scadr.cardinality
 
 import comm._
 import piql._
@@ -11,13 +12,22 @@ import avro.marker._
 import deploylib._
 import deploylib.mesos._
 
-case class CardinalityResultKey(var clientConfig: CardinalityLoadClient, var clientId: Int, var iteration: Int, var threadId: Int) extends AvroRecord
-case class CardinalityResultValue(var times: Histogram, var failures: Int) extends AvroRecord
+case class ResultKey(var clientConfig: LoadClient, var clusterAddress: String, var clientId: Int, var iteration: Int, var threadId: Int) extends AvroRecord
+case class ResultValue(var times: Histogram, var failures: Int) extends AvroRecord
 
-object ScadrCardinalityTest extends Experiment {
-  val results = resultCluster.getNamespace[CardinalityResultKey, CardinalityResultValue]("scadrCardinality")
+object CardinalityExperiment extends Experiment {
+  val results = resultCluster.getNamespace[ResultKey, ResultValue]("scadrCardinality")
 
   def clear = results.getRange(None, None).foreach(r => results.put(r._1, None))
+
+  def successfulPoints = results.getRange(None, None).map(_._1.clientConfig).distinct
+
+  def makeGraph(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler) = {
+    val toSkip = successfulPoints
+    (100 to 1000 by 100).flatMap(c => List("Simple", "Parallel", "Lazy").map(e => LoadClient(10, 10, c, e))).
+    filterNot(toSkip contains _).
+    foreach(e => {Thread.sleep(100); run(e)})
+  }
 
   def printResults: Unit = {
     val runs = results.getRange(None, None).groupBy(k => (k._1.clientConfig, k._1.iteration)).filterNot(_._1._2 == 1).values
@@ -30,35 +40,26 @@ object ScadrCardinalityTest extends Experiment {
       val quantile999ResponseTime = cumulativeHistogram.findIndexOf(_ >= totalRequests * 0.999) * aggregrateHistogram.bucketSize
       val failures = run.map(_._2.failures).sum
 
-      println(List(run.head._1.clientConfig.followingCardinality, failures, run.head._1.clientConfig.executorClass, totalRequests, quantile50ResponseTime, quantile99ResponseTime, quantile999ResponseTime).mkString("\t"))
+      println(List(run.head._1.clientConfig.followingCardinality,
+        failures,
+        run.head._1.clientConfig.executorClass,
+        totalRequests,
+        quantile50ResponseTime,
+        quantile99ResponseTime,
+        quantile999ResponseTime).mkString("\t"))
     })
   }
 
-  def run(followingCardinality: Int, executorClass: String = "edu.berkeley.cs.scads.piql.SimpleExecutor", clusterSize: Int = 10)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler): ZooKeeperProxy#ZooKeeperNode = {
+  def run(clientConfig: LoadClient)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler): ZooKeeperProxy#ZooKeeperNode = {
     val expRoot = newExperimentRoot
-
-    scheduler.scheduleExperiment(
-      serverJvmProcess(expRoot.canonicalAddress) * clusterSize ++
-      clientJvmProcess(
-        CardinalityLoadClient(
-          expRoot.canonicalAddress,
-          clusterSize,
-          clusterSize,
-          followingCardinality,
-          executorClass
-        )
-      ) * clusterSize
-    )
-
+    val procs = serverJvmProcess(expRoot.canonicalAddress) * clientConfig.numServers ++ clientJvmProcess((clientConfig), expRoot) * clientConfig.numClients
+    scheduler.scheduleExperiment(procs)
     expRoot
   }
 }
 
-case class CardinalityLoadClient(var clusterAddress: String, var numServers: Int, var numClients: Int, var followingCardinality: Int, var executorClass: String, var iterations: Int = 5, var threads: Int = 1, var runLengthMin: Int = 5 ) extends AvroRecord with Runnable with Experiment {
-
-  def run() = {
-    val results = resultCluster.getNamespace[CardinalityResultKey, CardinalityResultValue]("scadrCardinality")
-    val clusterRoot = ZooKeeperNode(clusterAddress)
+case class LoadClient(var numServers: Int, var numClients: Int, var followingCardinality: Int, var executorClass: String, var iterations: Int = 5, var threads: Int = 1, var runLengthMin: Int = 5 ) extends AvroClient with AvroRecord {
+  def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode) = {
     val coordination = clusterRoot.getOrCreate("coordination")
     val cluster = new ScadsCluster(clusterRoot)
     var executor = Class.forName(executorClass).newInstance.asInstanceOf[QueryExecutor]
@@ -92,7 +93,7 @@ case class CardinalityLoadClient(var clusterAddress: String, var numServers: Int
     for(iteration <- (1 to iterations)) {
       logger.info("Begining iteration %d", iteration)
 
-      results ++= (1 to threads).pmap(threadId => {
+      CardinalityExperiment.results ++= (1 to threads).pmap(threadId => {
         def getTime = System.nanoTime / 1000000
         val histogram = Histogram(1, 5000)
         val runTime = runLengthMin * 60 * 1000L
@@ -118,7 +119,7 @@ case class CardinalityLoadClient(var clusterAddress: String, var numServers: Int
         }
 
         logger.info("Thread %d complete", threadId)
-        (CardinalityResultKey(this, clientId, iteration, threadId), CardinalityResultValue(histogram, failures))
+        (ResultKey(this, clusterRoot.canonicalAddress, clientId, iteration, threadId), ResultValue(histogram, failures))
       })
 
       coordination.registerAndAwait("iteration" + iteration, numClients)
