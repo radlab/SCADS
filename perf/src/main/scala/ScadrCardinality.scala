@@ -11,11 +11,11 @@ import avro.marker._
 import deploylib._
 import deploylib.mesos._
 
+case class CardinalityResultKey(var clientConfig: CardinalityLoadClient, var clientId: Int, var iteration: Int, var threadId: Int) extends AvroRecord
+case class CardinalityResultValue(var times: Histogram, var failures: Int) extends AvroRecord
 
 object ScadrCardinalityTest extends Experiment {
-  case class ResultKey(var clientConfig: LoadClient, var clientId: Int, var iteration: Int, var threadId: Int) extends AvroRecord
-  case class ResultValue(var times: Histogram, var skips: Int) extends AvroRecord
-  val results = resultCluster.getNamespace[ResultKey, ResultValue]("scadrCardinality")
+  val results = resultCluster.getNamespace[CardinalityResultKey, CardinalityResultValue]("scadrCardinality")
 
   def clear = results.getRange(None, None).foreach(r => results.put(r._1, None))
 
@@ -28,8 +28,9 @@ object ScadrCardinalityTest extends Experiment {
       val quantile50ResponseTime = cumulativeHistogram.findIndexOf(_ >= totalRequests * 0.50) * aggregrateHistogram.bucketSize
       val quantile99ResponseTime = cumulativeHistogram.findIndexOf(_ >= totalRequests * 0.99) * aggregrateHistogram.bucketSize
       val quantile999ResponseTime = cumulativeHistogram.findIndexOf(_ >= totalRequests * 0.999) * aggregrateHistogram.bucketSize
+      val failures = run.map(_._2.failures).sum
 
-      println(List(run.head._1.clientConfig.followingCardinality, run.head._1.clientConfig.executorClass, totalRequests, quantile50ResponseTime, quantile99ResponseTime, quantile999ResponseTime).mkString("\t"))
+      println(List(run.head._1.clientConfig.followingCardinality, failures, run.head._1.clientConfig.executorClass, totalRequests, quantile50ResponseTime, quantile99ResponseTime, quantile999ResponseTime).mkString("\t"))
     })
   }
 
@@ -39,7 +40,7 @@ object ScadrCardinalityTest extends Experiment {
     scheduler.scheduleExperiment(
       serverJvmProcess(expRoot.canonicalAddress) * clusterSize ++
       clientJvmProcess(
-        LoadClient(
+        CardinalityLoadClient(
           expRoot.canonicalAddress,
           clusterSize,
           clusterSize,
@@ -51,77 +52,81 @@ object ScadrCardinalityTest extends Experiment {
 
     expRoot
   }
+}
 
-  case class LoadClient(var clusterAddress: String, var numServers: Int, var numClients: Int, var followingCardinality: Int, var executorClass: String, var iterations: Int = 5, var threads: Int = 50, var runLengthMin: Int = 5 ) extends AvroRecord with Runnable {
-    def run() = {
-      val clusterRoot = ZooKeeperNode(clusterAddress)
-      val coordination = clusterRoot.getOrCreate("coordination")
-      val cluster = new ScadsCluster(clusterRoot)
-      var executor = Class.forName(executorClass).newInstance.asInstanceOf[QueryExecutor]
-      val scadrClient = new ScadrClient(cluster, executor)
-      val loader = new ScadrLoader(scadrClient,
-        replicationFactor = 2,
-        numClients = numClients,
-        numUsers = numServers * 10000,
-        numThoughtsPerUser = 100,
-        numSubscriptionsPerUser = followingCardinality,
-        numTagsPerThought = 5)
+case class CardinalityLoadClient(var clusterAddress: String, var numServers: Int, var numClients: Int, var followingCardinality: Int, var executorClass: String, var iterations: Int = 5, var threads: Int = 1, var runLengthMin: Int = 5 ) extends AvroRecord with Runnable with Experiment {
 
-      val clientId = coordination.registerAndAwait("clientStart", numClients)
-      if(clientId == 0) {
-        logger.info("Awaiting scads cluster startup")
-        cluster.blockUntilReady(numServers)
-        loader.createNamespaces
-        scadrClient.users.setReadWriteQuorum(0.33, 0.67)
-        scadrClient.thoughts.setReadWriteQuorum(0.33, 0.67)
-        scadrClient.subscriptions.setReadWriteQuorum(0.33, 0.67)
-        scadrClient.tags.setReadWriteQuorum(0.33, 0.67)
-        scadrClient.idxUsersTarget.setReadWriteQuorum(0.33, 0.67)
-      }
+  def run() = {
+    val results = resultCluster.getNamespace[CardinalityResultKey, CardinalityResultValue]("scadrCardinality")
+    val clusterRoot = ZooKeeperNode(clusterAddress)
+    val coordination = clusterRoot.getOrCreate("coordination")
+    val cluster = new ScadsCluster(clusterRoot)
+    var executor = Class.forName(executorClass).newInstance.asInstanceOf[QueryExecutor]
+    val scadrClient = new ScadrClient(cluster, executor)
+    val loader = new ScadrLoader(scadrClient,
+      replicationFactor = 1,
+      numClients = numClients,
+      numUsers = numServers * 10000,
+      numThoughtsPerUser = 100,
+      numSubscriptionsPerUser = followingCardinality,
+      numTagsPerThought = 5)
 
-      coordination.registerAndAwait("startBulkLoad", numClients)
-      logger.info("Begining bulk loading of data")
-      loader.getData(clientId).load()
-      logger.info("Bulk loading complete")
-      coordination.registerAndAwait("loadingComplete", numClients)
+    val clientId = coordination.registerAndAwait("clientStart", numClients)
+    if(clientId == 0) {
+      logger.info("Awaiting scads cluster startup")
+      cluster.blockUntilReady(numServers)
+      loader.createNamespaces
+      scadrClient.users.setReadWriteQuorum(0.33, 0.67)
+      scadrClient.thoughts.setReadWriteQuorum(0.33, 0.67)
+      scadrClient.subscriptions.setReadWriteQuorum(0.33, 0.67)
+      scadrClient.tags.setReadWriteQuorum(0.33, 0.67)
+      scadrClient.idxUsersTarget.setReadWriteQuorum(0.33, 0.67)
+    }
 
-      for(iteration <- (1 to iterations)) {
-        logger.info("Begining iteration %d", iteration)
+    coordination.registerAndAwait("startBulkLoad", numClients)
+    logger.info("Begining bulk loading of data")
+    loader.getData(clientId).load()
+    logger.info("Bulk loading complete")
+    coordination.registerAndAwait("loadingComplete", numClients)
 
-        results ++= (1 to threads).pmap(threadId => {
-          def getTime = System.currentTimeMillis
-          val histogram = Histogram(1, 5000)
-          val runTime = runLengthMin * 60 * 1000L
-          val iterationStartTime = getTime
-          var endTime = iterationStartTime
-          var skips = 0
-          var failures = 0
+    for(iteration <- (1 to iterations)) {
+      logger.info("Begining iteration %d", iteration)
 
-          while(endTime - iterationStartTime < runTime) {
-            val startTime = getTime
+      results ++= (1 to threads).pmap(threadId => {
+        def getTime = System.nanoTime / 1000000
+        val histogram = Histogram(1, 5000)
+        val runTime = runLengthMin * 60 * 1000L
+        val iterationStartTime = getTime
+        var endTime = iterationStartTime
+        var failures = 0
+
+        while(endTime - iterationStartTime < runTime) {
+          val startTime = getTime
+          try {
             scadrClient.thoughtstream(loader.randomUser, scadrClient.maxResultsPerPage)
             endTime = getTime
             val elapsedTime = endTime - startTime
-            if(elapsedTime < 0) {
-              logger.warning("Time Skip: %d", elapsedTime)
-              skips += 1
-            }
-            else {
-              histogram.add(endTime - startTime)
+            histogram.add(endTime - startTime)
+          }
+          catch {
+            case e => {
+              logger.warning(e, "Query Failed")
+              failures += 1
+              Thread.sleep(100)
             }
           }
+        }
 
-          logger.info("Thread %d complete", threadId)
-          (ResultKey(this, clientId, iteration, threadId), ResultValue(histogram, skips))
-        })
+        logger.info("Thread %d complete", threadId)
+        (CardinalityResultKey(this, clientId, iteration, threadId), CardinalityResultValue(histogram, failures))
+      })
 
-        coordination.registerAndAwait("iteration" + iteration, numClients)
-      }
-
-      if(clientId == 0)
-        cluster.shutdown
-
-      System.exit(0)
+      coordination.registerAndAwait("iteration" + iteration, numClients)
     }
+
+    if(clientId == 0)
+      cluster.shutdown
+
+    System.exit(0)
   }
 }

@@ -13,20 +13,11 @@ import deploylib.mesos._
 
 import scala.util.Random
 
-case class ScaleResultKey(var clientConfig: ScadrScaleTest.LoadClient, var clientId: Int, var iteration: Int, var threadId: Int) extends AvroRecord
+case class ScaleResultKey(var clientConfig: ScaleLoadClient, var clientId: Int, var iteration: Int, var threadId: Int) extends AvroRecord
 case class ScaleResultValue(var times: Histogram, var skips: Int) extends AvroRecord
 
 object ScadrScaleTest extends Experiment {
-
   val results = resultCluster.getNamespace[ScaleResultKey, ScaleResultValue]("scadrScale")
-
-  private val random = new Random
-
-  /**
-  * True if coin flip with prob succeeds
-  */
-  private def flipCoin(prob: Double): Boolean =
-    random.nextDouble < prob
 
   def clear = results.getRange(None, None).foreach(r => results.put(r._1, None))
 
@@ -51,7 +42,7 @@ object ScadrScaleTest extends Experiment {
     scheduler.scheduleExperiment(
       serverJvmProcess(expRoot.canonicalAddress) * clusterSize ++
       clientJvmProcess(
-        LoadClient(
+        ScaleLoadClient(
           expRoot.canonicalAddress,
           clusterSize,
           clusterSize,
@@ -64,106 +55,111 @@ object ScadrScaleTest extends Experiment {
 
     expRoot
   }
+}
 
-  case class LoadClient(var clusterAddress: String, var numServers: Int, var numClients: Int, var followingCardinality: Int, var executorClass: String, var writeProbability: Double, var iterations: Int = 5, var threads: Int = 50, var runLengthMin: Int = 5 ) extends AvroRecord with Runnable {
-    def run() = {
+case class ScaleLoadClient(var clusterAddress: String, var numServers: Int, var numClients: Int, var followingCardinality: Int, var executorClass: String, var writeProbability: Double, var iterations: Int = 5, var threads: Int = 50, var runLengthMin: Int = 5 ) extends AvroRecord with Runnable with Experiment {
+  def run() = {
+    val random = new Random
+    /* True if coin flip with prob succeeds */
+    def flipCoin(prob: Double): Boolean = random.nextDouble < prob
 
-      val clusterRoot = ZooKeeperNode(clusterAddress)
-      val coordination = clusterRoot.getOrCreate("coordination")
-      val cluster = new ScadsCluster(clusterRoot)
-      var executor = Class.forName(executorClass).newInstance.asInstanceOf[QueryExecutor]
-      val scadrClient = new ScadrClient(cluster, executor)
+    val results = resultCluster.getNamespace[ScaleResultKey, ScaleResultValue]("scadrScale")
 
-      // TODO: configure the loader
-      val loader = new ScadrLoader(scadrClient,
-        replicationFactor = 1,
-        numClients = numClients,
-        numUsers = numServers * 1000,
-        numThoughtsPerUser = 100,
-        numSubscriptionsPerUser = followingCardinality,
-        numTagsPerThought = 5)
+    val clusterRoot = ZooKeeperNode(clusterAddress)
+    val coordination = clusterRoot.getOrCreate("coordination")
+    val cluster = new ScadsCluster(clusterRoot)
+    var executor = Class.forName(executorClass).newInstance.asInstanceOf[QueryExecutor]
+    val scadrClient = new ScadrClient(cluster, executor)
 
-      val clientId = coordination.registerAndAwait("clientStart", numClients)
-      if(clientId == 0) {
-        logger.info("Awaiting scads cluster startup")
-        cluster.blockUntilReady(numServers)
-        loader.createNamespaces
-        scadrClient.users.setReadWriteQuorum(0.33, 0.67)
-        scadrClient.thoughts.setReadWriteQuorum(0.33, 0.67)
-        scadrClient.subscriptions.setReadWriteQuorum(0.33, 0.67)
-        scadrClient.tags.setReadWriteQuorum(0.33, 0.67)
-        scadrClient.idxUsersTarget.setReadWriteQuorum(0.33, 0.67)
-      }
+    // TODO: configure the loader
+    val loader = new ScadrLoader(scadrClient,
+      replicationFactor = 1,
+      numClients = numClients,
+      numUsers = numServers * 1000,
+      numThoughtsPerUser = 100,
+      numSubscriptionsPerUser = followingCardinality,
+      numTagsPerThought = 5)
 
-      coordination.registerAndAwait("startBulkLoad", numClients)
-      logger.info("Begining bulk loading of data")
-      loader.getData(clientId).load()
-      logger.info("Bulk loading complete")
-      coordination.registerAndAwait("loadingComplete", numClients)
+    val clientId = coordination.registerAndAwait("clientStart", numClients)
+    if(clientId == 0) {
+      logger.info("Awaiting scads cluster startup")
+      cluster.blockUntilReady(numServers)
+      loader.createNamespaces
+      scadrClient.users.setReadWriteQuorum(0.33, 0.67)
+      scadrClient.thoughts.setReadWriteQuorum(0.33, 0.67)
+      scadrClient.subscriptions.setReadWriteQuorum(0.33, 0.67)
+      scadrClient.tags.setReadWriteQuorum(0.33, 0.67)
+      scadrClient.idxUsersTarget.setReadWriteQuorum(0.33, 0.67)
+    }
 
-      for(iteration <- (1 to iterations)) {
-        logger.info("Begining iteration %d", iteration)
+    coordination.registerAndAwait("startBulkLoad", numClients)
+    logger.info("Begining bulk loading of data")
+    loader.getData(clientId).load()
+    logger.info("Bulk loading complete")
+    coordination.registerAndAwait("loadingComplete", numClients)
 
-        results ++= (1 to threads).pmap(threadId => {
-          def getTime = System.currentTimeMillis
-          val histogram = Histogram(1, 5000)
-          val runTime = runLengthMin * 60 * 1000L
-          val iterationStartTime = getTime
-          var endTime = iterationStartTime
-          var skips = 0
-          var failures = 0
+    for(iteration <- (1 to iterations)) {
+      logger.info("Begining iteration %d", iteration)
 
-          while(endTime - iterationStartTime < runTime) {
-            val startTime = getTime
+      results ++= (1 to threads).pmap(threadId => {
+        def getTime = System.currentTimeMillis
+        val histogram = Histogram(1, 5000)
+        val runTime = runLengthMin * 60 * 1000L
+        val iterationStartTime = getTime
+        var endTime = iterationStartTime
+        var skips = 0
+        var failures = 0
 
-            // Here we try to emulate a page load for scadr
-            // the assertions below are to prevent the compiler/jvm from
-            // optimizing away the queries
+        while(endTime - iterationStartTime < runTime) {
+          val startTime = getTime
 
-            val currentUser = loader.randomUser
+          // Here we try to emulate a page load for scadr
+          // the assertions below are to prevent the compiler/jvm from
+          // optimizing away the queries
 
-            // 1) load the user's thoughtstream
-            val ts = scadrClient.thoughtstream(currentUser, scadrClient.maxResultsPerPage)
-            assert(ts != null)
-            
-            // 2) load the user's followers
-            val followers = scadrClient.usersFollowing(currentUser, scadrClient.maxResultsPerPage)
-            assert(followers != null)
+          val currentUser = loader.randomUser
 
-            // 3) load the user's followings
-            val followings = scadrClient.usersFollowedBy(currentUser, scadrClient.maxResultsPerPage)
-            assert(followings != null)
+          // 1) load the user's thoughtstream
+          val ts = scadrClient.thoughtstream(currentUser, scadrClient.maxResultsPerPage)
+          assert(ts != null)
 
-            // 4) make a tweet with some probability
-            if (flipCoin(writeProbability)) {
-              val thoughtTime = getTime.toInt
-              scadrClient.saveThought(
-                  ThoughtKey(currentUser, thoughtTime),
-                  ThoughtValue("New thought by user %s at time %d".format(currentUser, thoughtTime)))
-            }
+          // 2) load the user's followers
+          val followers = scadrClient.usersFollowing(currentUser, scadrClient.maxResultsPerPage)
+          assert(followers != null)
 
-            endTime = getTime
-            val elapsedTime = endTime - startTime
-            if (elapsedTime < 0) {
-              logger.warning("Time Skip: %d", elapsedTime)
-              skips += 1
-            } else {
-              histogram += elapsedTime
-            }
+          // 3) load the user's followings
+          val followings = scadrClient.usersFollowedBy(currentUser, scadrClient.maxResultsPerPage)
+          assert(followings != null)
+
+          // 4) make a tweet with some probability
+          if (flipCoin(writeProbability)) {
+            val thoughtTime = getTime.toInt
+            scadrClient.saveThought(
+                ThoughtKey(currentUser, thoughtTime),
+                ThoughtValue("New thought by user %s at time %d".format(currentUser, thoughtTime)))
           }
 
-          logger.info("Thread %d complete", threadId)
-          (ScaleResultKey(this, clientId, iteration, threadId), ScaleResultValue(histogram, skips))
-        })
+          endTime = getTime
+          val elapsedTime = endTime - startTime
+          if (elapsedTime < 0) {
+            logger.warning("Time Skip: %d", elapsedTime)
+            skips += 1
+          } else {
+            histogram += elapsedTime
+          }
+        }
 
-        coordination.registerAndAwait("iteration" + iteration, numClients)
-      }
+        logger.info("Thread %d complete", threadId)
+        (ScaleResultKey(this, clientId, iteration, threadId), ScaleResultValue(histogram, skips))
+      })
 
-      if(clientId == 0)
-        cluster.shutdown
-
-      System.exit(0)
-
+      coordination.registerAndAwait("iteration" + iteration, numClients)
     }
+
+    if(clientId == 0)
+      cluster.shutdown
+
+    System.exit(0)
+
   }
 }
