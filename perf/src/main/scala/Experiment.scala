@@ -29,6 +29,27 @@ abstract trait AvroClient extends IndexedRecord {
   }
 }
 
+object AvroClientMain {
+  val logger = Logger()
+
+  def main(args: Array[String]): Unit = {
+    if(args.size == 3)
+    try {
+      val clusterRoot = ZooKeeperNode(args(1))
+      Class.forName(args(0)).newInstance.asInstanceOf[AvroClient].parse(args(2)).run(clusterRoot)
+    }
+    catch {
+      case error => {
+        logger.fatal(error, "Exeception in Main Thread.  Killing process.")
+        System.exit(-1)
+      }
+    }
+    else
+      println("Usage: " + this.getClass.getName + "<class name> <zookeeper address> <json encoded avro client description>")
+  }
+}
+
+
 abstract trait Experiment {
   val logger = Logger()
   lazy implicit val zookeeper = new ZooKeeperProxy("mesos-ec2.knowsql.org:2181")
@@ -48,22 +69,6 @@ abstract trait Experiment {
 
   implicit def clientJvmProcess(loadClient: AvroClient, clusterRoot: ZooKeeperProxy#ZooKeeperNode)(implicit classpath: Seq[ClassSource]): JvmProcess =
     JvmProcess(classpath,
-      this.getClass.getCanonicalName.dropRight(1),
+      "edu.berkeley.cs.scads.storage.AvroClientMain",
       loadClient.getClass.getName :: clusterRoot.canonicalAddress :: loadClient.toJson :: Nil)
-
-  def main(args: Array[String]): Unit = {
-    if(args.size == 3)
-    try {
-      val clusterRoot = ZooKeeperNode(args(1))
-      Class.forName(args(0)).newInstance.asInstanceOf[AvroClient].parse(args(2)).run(clusterRoot)
-    }
-    catch {
-      case error => {
-        logger.fatal(error, "Exeception in Main Thread.  Killing process.")
-        System.exit(-1)
-      }
-    }
-    else
-      println("Usage: " + this.getClass.getName + "<class name> <json encoded avro client description>")
-  }
 }
