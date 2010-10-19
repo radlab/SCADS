@@ -36,6 +36,7 @@ class TpcwLoader( val client : TpcwClient,
   private var AuthorNameItemIndexInserts = ArrayBuffer[(AuthorNameItemIndexKey, NullRecord)]()
   private var itemSubjectDateTitleIndexInserts = ArrayBuffer[(ItemSubjectDateTitleIndexKey, ItemKey)]()
   private var customerOrderIndexInserts = ArrayBuffer[(CustomerOrderIndex, NullRecord)]()
+  private var itemTitleIndexInserts = ArrayBuffer[(ItemTitleIndexKey, NullRecord)]()
 
   val rand = new scala.util.Random(System.currentTimeMillis)
 
@@ -66,6 +67,7 @@ class TpcwLoader( val client : TpcwClient,
       List((None, servers)),
       List((None, servers)),
       List((None, servers)),
+      List((None, servers)),
       List((None, servers))
       )
   }
@@ -81,7 +83,8 @@ class TpcwLoader( val client : TpcwClient,
     item_subject_date_title_index: Seq[(Option[ItemSubjectDateTitleIndexKey], List[StorageService])],
     orderline: Seq[(Option[OrderLineKey], List[StorageService])],
     orders: Seq[(Option[OrdersKey], List[StorageService])],
-    customer_index: Seq[(Option[CustomerOrderIndex], List[StorageService])]
+    customer_index: Seq[(Option[CustomerOrderIndex], List[StorageService])] ,
+    title_index : Seq[(Option[ItemTitleIndexKey], List[StorageService])]
     )
 
 
@@ -98,6 +101,7 @@ class TpcwLoader( val client : TpcwClient,
     client.cluster.createNamespace[OrderLineKey, OrderLineValue]("orderline", splits.orderline)
     client.cluster.createNamespace[OrdersKey, OrdersValue]("orders", splits.orders)
     client.cluster.createNamespace[CustomerOrderIndex, NullRecord]("customer_index", splits.customer_index)  //Extra index
+    client.cluster.createNamespace[ItemTitleIndexKey, NullRecord]("item_title_index", splits.title_index)
   }
 
   def load() = {
@@ -131,6 +135,9 @@ class TpcwLoader( val client : TpcwClient,
     AuthorNameItemIndexInserts += Tuple2(AuthorNameItemIndexKey(author.get._2.A_FNAME, to.getI_title, idStr), NullRecord(true))
     AuthorNameItemIndexInserts += Tuple2(AuthorNameItemIndexKey(author.get._2.A_LNAME, to.getI_title, idStr), NullRecord(true))
 
+    val tokens = to.getI_title.split("\\s+");
+
+    itemTitleIndexInserts ++= tokens.map(x => (ItemTitleIndexKey(x.toLowerCase, to.getI_title ,idStr), NullRecord(true)))
 
     (ItemKey(idStr),
      ItemValue(

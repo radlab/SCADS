@@ -19,6 +19,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     lazy val orderline = cluster.getNamespace[OrderLineKey, OrderLineValue]("orderline")
     lazy val order = cluster.getNamespace[OrdersKey, OrdersValue]("orders")
     lazy val customerOrderIndex = cluster.getNamespace[CustomerOrderIndex, NullRecord]("customer_index")  //Extra index
+    lazy val itemTitleIndex = cluster.getNamespace[ItemTitleIndexKey, NullRecord]("item_title_index")
 
     def paraSelector(i : Int) = Array(ParameterValue(i))
     def projection(record: Int, attribute: Int) = Array(AttributeValue(record, attribute))
@@ -72,6 +73,36 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       )
     )
     def searchBySubjectWI(subject : String) = exec(searchBySubjectPlan, new Utf8(subject))
+
+//
+//
+//SELECT TOP 50 I_TITLE, I_ID, A_FNAME, A_LNAME FROM ITEM, AUTHOR
+//WHERE I_A_ID = A_ID
+//AND ( I_TITLE LIKE '% ' + @Title + '%' OR I_TITLE LIKE @Title + '%' )
+//
+//order by I_TITLE
+
+  
+
+
+    private lazy val searchByTitlePlan =
+    IndexLookupJoin( // (Token, Title, ID), NullRecord, (I_ID), ItemValue, AuthorKey, AuthorValue
+      author,
+      projection(3,1),
+      IndexLookupJoin( // (Token, Title, ID), NullRecord, (I_ID), ItemValue
+        item,
+        projection(0,2), // (Token, Title, ID), NullRecord
+        IndexScan(
+          itemTitleIndex, 
+          firstPara, //Stephen: Fix it
+          FixedLimit(50),
+          true
+          )
+      )
+    )
+  
+   def searchByTitleWI(titleToken : String) = exec(searchByTitlePlan, new Utf8(titleToken.toLowerCase))
+  
 
     private lazy val orderDisplayCustomerPlan =
       Selection(

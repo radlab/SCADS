@@ -39,6 +39,12 @@ case class ItemSubjectDateTitleIndexKey(
         var I_TITLE : String
         ) extends AvroRecord
 
+case class ItemTitleIndexKey(
+        var Token : String,
+        var Title : String, 
+        var I_ID : String
+        ) extends AvroRecord
+
 case class CountryKey(var CO_ID : Int) extends AvroRecord
 case class CountryValue(
         var CO_NAME : String,
