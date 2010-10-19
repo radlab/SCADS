@@ -50,6 +50,8 @@ class StreamTailer(stream: InputStream, size: Int = 100) extends Runnable {
 class JavaExecutor extends Executor {
   val logger = Logger()
   val httpClient = new HttpClient()
+  //HACK: remove after the mesos teams makes our work directory writable
+  val baseDir = new File("/mnt")
 
   protected def loadClasspath(classSources: Seq[ClassSource]): String = classSources.pmap {
       case ServerSideJar(path) => path
@@ -74,7 +76,7 @@ class JavaExecutor extends Executor {
 
   override def launchTask(d: ExecutorDriver, taskDesc: TaskDescription): Unit = {
     logger.debug("Starting storage handler" + taskDesc.getTaskId())
-    val tempDir = File.createTempFile("deploylib", "mesosJavaExecutorWorkingDir")
+    val tempDir = File.createTempFile("deploylib", "mesosJavaExecutorWorkingDir", baseDir)
     tempDir.delete()
     tempDir.mkdir()
 
