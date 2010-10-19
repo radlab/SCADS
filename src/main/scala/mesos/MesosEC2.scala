@@ -26,13 +26,14 @@ object MesosEC2 extends ConfigurationActions {
 
   def updateClusterUrl: Unit = {
     val location = new File("/root/mesos-ec2/cluster-url")
-    val contents = "1@" + master.publicDnsName + ":5050"
+    val contents = "1@" + master.privateDnsName + ":5050"
+    master ! ("hostname " + master.privateDnsName)
     createFile(master, location, contents, "644")
   }
 
   def updateMasterFile: Unit = {
     val location = new File("/root/mesos-ec2/masters")
-    val contents = master.publicDnsName
+    val contents = master.privateDnsName
     createFile(master, location, contents, "644")
   }
 
@@ -40,6 +41,14 @@ object MesosEC2 extends ConfigurationActions {
     val location = new File("/root/mesos-ec2/slaves")
     val contents = slaves.map(_.privateDnsName).mkString("\n")
     createFile(master, location, contents, "644")
+  }
+
+  def restart: Unit = {
+    updateSlavesFile
+    updateMasterFile
+    updateClusterUrl
+    master ! "/root/mesos-ec2/stop-mesos"
+    master ! "/root/mesos-ec2/start-mesos"
   }
 
   def addSlaves(count: Int): Unit = {
@@ -50,9 +59,12 @@ object MesosEC2 extends ConfigurationActions {
       EC2Instance.keyName,
       "m1.large",
       "us-east-1b")
-    updateSlavesFile
+    EC2Instance.activeInstances.pforeach(_ ! "mkdir -p /mnt/mesos-logs/")
     updateDeploylib
-    slaves.pforeach(_ ! "mkdir -p /mnt/mesos-logs/")
+    logger.info("deploying mesos to new machines")
+    master ! "/root/mesos-ec2/redeploy-mesos"
+    master ! "rm /root/.ssh/known_hosts"
+    restart
   }
 
 }
