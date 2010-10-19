@@ -15,9 +15,9 @@ import java.io.File
 import net.lag.logging.Logger
 
 abstract trait Experiment {
-  implicit val zooRoot = ZooKeeperNode(Config.config("mesos.zooKeeperRoot", "zk://r2.millennium.berkeley.edu:2181/"))
   val logger = Logger()
-  val resultCluster = new ScadsCluster(ZooKeeperNode("zk://r2.millennium.berkeley.edu:2181/scads/results"))
+  lazy val ec2Zoo = new ZooKeeperProxy("mesos-ec2.knowsql.org:2181")
+  lazy val resultCluster = new ScadsCluster(ec2Zoo.root.getOrCreate("scads/results"))
 
   abstract class Client extends Runnable with IndexedRecord {
     var clusterAddress: String
@@ -36,7 +36,7 @@ abstract trait Experiment {
     }
   }
 
-  def newExperimentRoot = zooRoot.getOrCreate("scads/experiments").createChild("IntKeyScaleExperiment", mode = CreateMode.PERSISTENT_SEQUENTIAL)
+  def newExperimentRoot = ec2Zoo.root.getOrCreate("scads/experiments").createChild("IntKeyScaleExperiment", mode = CreateMode.PERSISTENT_SEQUENTIAL)
 
   def serverJvmProcess(clusterAddress: String)(implicit classpath: Seq[ClassSource]) =
     JvmProcess(
