@@ -88,6 +88,7 @@ class JavaExecutor extends Executor {
                        "-Xmx" + taskDesc.getParams().get("mem").toInt + "M",
                        "-Xms" + taskDesc.getParams().get("mem").toInt + "M",
                        "-XX:+HeapDumpOnOutOfMemoryError",
+                       "-XX:+UseConcMarkSweepGC",
                        processDescription.props.map(kv => "-D%s=%s".format(kv._1, kv._2)).mkString(" "),
                        "-cp", classpath,
                        processDescription.mainclass) ++ processDescription.args
