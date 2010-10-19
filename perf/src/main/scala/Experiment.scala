@@ -69,6 +69,6 @@ abstract trait Experiment {
 
   implicit def clientJvmProcess(loadClient: AvroClient, clusterRoot: ZooKeeperProxy#ZooKeeperNode)(implicit classpath: Seq[ClassSource]): JvmProcess =
     JvmProcess(classpath,
-      "edu.berkeley.cs.scads.storage.AvroClientMain",
+      "edu.berkeley.cs.scads.perf.AvroClientMain",
       loadClient.getClass.getName :: clusterRoot.canonicalAddress :: loadClient.toJson :: Nil)
 }
