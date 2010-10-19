@@ -8,6 +8,8 @@ import scala.concurrent.SyncVar
 import org.apache.zookeeper.server._
 import persistence._
 
+import java.net.InetSocketAddress
+
 import net.lag.logging.Logger
 
 /**
@@ -53,7 +55,7 @@ object ZooKeeperHelper {
             val ftxn = new FileTxnSnapLog(workingDir, workingDir)
             zkServer.setTxnLogFactory(ftxn)
             zkServer.setTickTime(ZooKeeperServer.DEFAULT_TICK_TIME)
-            val cnxnFactory = new NIOServerCnxn.Factory(tryingPort, 0) // no max client connections
+            val cnxnFactory = new NIOServerCnxn.Factory(new InetSocketAddress(tryingPort), 0) // no max client connections
             cnxnFactory.startup(zkServer)
             serverPort.set(tryingPort)
             cnxnFactory.join()
