@@ -55,6 +55,7 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String) ext
         val task = new TaskDescription(taskId, offer.getSlaveId, proc.mainclass, taskParams, proc.toBytes)
         logger.debug("Scheduling task %d: %s", taskId, proc)
         taskIds ::= taskId
+        logger.debug("Assigning task %d to slave %s on %s", taskId, offer.getSlaveId, offer.getHost)
         taskId += 1
         tasks.add(task)
 
