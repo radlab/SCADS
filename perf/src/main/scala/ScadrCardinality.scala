@@ -24,7 +24,7 @@ object CardinalityExperiment extends Experiment {
 
   def makeGraph(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler) = {
     val toSkip = successfulPoints
-    (100 to 1000 by 100).flatMap(c => List("Simple", "Parallel", "Lazy").map(e => LoadClient(10, 10, c, e))).
+    (100 to 1000 by 100).flatMap(c => List("Simple", "Parallel", "Lazy").map(e => "edu.berkeley.cs.scads.piql.%sExecutor".format(e)).map(e => LoadClient(10, 10, c, e))).
     filterNot(toSkip contains _).
     foreach(e => {Thread.sleep(100); run(e)})
   }
@@ -52,7 +52,7 @@ object CardinalityExperiment extends Experiment {
 
   def run(clientConfig: LoadClient)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler): ZooKeeperProxy#ZooKeeperNode = {
     val expRoot = newExperimentRoot
-    val procs = serverJvmProcess(expRoot.canonicalAddress) * clientConfig.numServers ++ clientJvmProcess((clientConfig), expRoot) * clientConfig.numClients
+    val procs = serverJvmProcess(expRoot.canonicalAddress) * clientConfig.numServers ++ clientJvmProcess(clientConfig, expRoot) * clientConfig.numClients
     scheduler.scheduleExperiment(procs)
     expRoot
   }
