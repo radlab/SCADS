@@ -27,10 +27,20 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
 
   implicit def toGeneric(ns: SpecificNamespace[_, _]) = ns.genericNamespace
 
+  /**
+   * Select DISTINCT C_FNAME,C_LNAME
+   * from CUSTOMER
+   * where C_UNAME=@C_UNAME
+   */
   private lazy val homeWIPlan = IndexLookup(customer, Array(ParameterValue(0)))
   def homeWI(username: String): QueryResult =
     exec(homeWIPlan, new Utf8(username))
 
+  /**
+   * select top 50 I_ID,I_TITLE,A_FNAME,A_LNAME from ITEM , AUTHOR
+   * where A_ID = I_A_ID AND I_SUBJECT LIKE @CategoryID
+   * order by I_PUB_DATE desc,I_TITLE
+   */
   //TODO Still missing the like operator. Does the like really work here???
   private lazy val newProductPlan = 
     IndexLookupJoin(  //(itemSubjectDateTitleIndex, itemKey, itemKey, ItemValue, authorKey, authorValue)
@@ -44,6 +54,10 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   def newProductWI(subject: String): QueryResult =
     exec(newProductPlan, new Utf8(subject))
 
+  /**
+   * SELECT DISTINCT * FROM ITEM,AUTHOR
+   * WHERE AUTHOR.A_ID = ITEM.I_A_ID AND ITEM.I_ID = @BookID
+   */
   private lazy val productDetailPlan = 
     IndexLookupJoin( //(ItemKey, ItemValue, AuthorKey, AuthorValue)
       author,
@@ -53,34 +67,28 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   def productDetailWI(bookId: String): QueryResult =
     exec(newProductPlan, bookId)
 
+  /**
+   * SELECT top 50 I_TITLE,I_ID,A_FNAME, A_LNAME
+   * FROM ITEM,AUTHOR
+   * WHERE I_A_ID = A_ID
+   * AND ( A_LNAME LIKE '% ' + @Author + '%' OR A_LNAME LIKE @Author + '%' )
+   * order by I_TITLE
+   */
   //TODO: Alternatively, no limit just pagination!!!
   private lazy val searchByAuthorPlan =
     IndexLookupJoin( //(Name, I_TITLE, I_ID), null, ItemKey, ItemValue
       item,
       projection(0,2), //(Name, I_TITLE, I_ID), null
-        IndexScan(authorNameItemIndex, firstPara, FixedLimit(50), true)
+      IndexScan(authorNameItemIndex, firstPara, FixedLimit(50), true)
     )
   def searchByAuthorWI(name : String) = exec(searchByAuthorPlan, new Utf8(name))
 
-  private lazy val searchBySubjectPlan =
-   IndexLookupJoin( // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue, AuthorKey, AuthorValue
-    author,
-    projection(3,1), // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue
-      IndexLookupJoin( // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue
-        item,
-        projection(1,0), // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID)
-        IndexScan(itemSubjectDateTitleIndex, firstPara, FixedLimit(50), true)
-      )
-    )
-  def searchBySubjectWI(subject : String) = exec(searchBySubjectPlan, new Utf8(subject))
-
-  
-  //SELECT TOP 50 I_TITLE, I_ID, A_FNAME, A_LNAME FROM ITEM, AUTHOR
-  //WHERE I_A_ID = A_ID
-  //AND ( I_TITLE LIKE '% ' + @Title + '%' OR I_TITLE LIKE @Title + '%' )
-  //
-  //order by I_TITLE
-
+  /**
+   * SELECT TOP 50 I_TITLE, I_ID, A_FNAME, A_LNAME FROM ITEM, AUTHOR
+   * WHERE I_A_ID = A_ID
+   * AND ( I_TITLE LIKE '% ' + @Title + '%' OR I_TITLE LIKE @Title + '%' )
+   * order by I_TITLE
+   */
   private lazy val searchByTitlePlan =
     IndexLookupJoin( // (Token, Title, ID), NullRecord, (I_ID), ItemValue, AuthorKey, AuthorValue
       author,
@@ -96,9 +104,27 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
         )
       )
     )
-  
   def searchByTitleWI(titleToken : String) = exec(searchByTitlePlan, new Utf8(titleToken.toLowerCase))
-  
+
+  /**
+   * SELECT TOP 50 I_TITLE,I_ID, A_FNAME, A_LNAME
+   * FROM ITEM, AUTHOR
+   * WHERE I_A_ID = A_ID AND I_SUBJECT LIKE @CategoryID
+   * order by I_TITLE
+   */
+  private lazy val searchBySubjectPlan =
+   IndexLookupJoin( // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue, AuthorKey, AuthorValue
+    author,
+    projection(3,1), // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue
+      IndexLookupJoin( // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue
+        item,
+        projection(1,0), // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID)
+        IndexScan(itemSubjectDateTitleIndex, firstPara, FixedLimit(50), true)
+      )
+    )
+  def searchBySubjectWI(subject : String) = exec(searchBySubjectPlan, new Utf8(subject))
+
+
   private lazy val orderDisplayCustomerPlan =
     Selection(
     Equality(AttributeValue(0,0),ParameterValue(1)),
