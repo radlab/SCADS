@@ -233,7 +233,7 @@ class TpcwLoader( val client : TpcwClient,
     val obj = Generator.generateOrder(id, numCustomers, rand.nextInt(4) + 1)
     val to : OrderTO = obj.asInstanceOf[OrderTO]
     val idStr = orderIds.getOrElseUpdate(id, uuid())
-    customerOrderIndexInserts += Tuple2(CustomerOrderIndex("cust" + to.getO_c_id,to.getO_date, idStr), NullRecord(true))
+    customerOrderIndexInserts += Tuple2(CustomerOrderIndex("cust" + to.getO_c_id, to.getO_date, idStr), NullRecord(true))
     (OrdersKey(idStr), OrdersValue(
       "cust" + to.getO_c_id,
       to.getO_date,

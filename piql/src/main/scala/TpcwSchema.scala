@@ -89,7 +89,7 @@ case class CustomerNameKey(var C_FNAME : String) extends AvroRecord
 
 case class OrdersKey(var O_ID : String) extends AvroRecord
 case class OrdersValue(
-        var O_C_ID : String,
+        var O_C_ID : String, // NOTE: O_C_ID is really O_C_UNAME
         var O_DATE_Time : Long, //Change: Stores date and time
         var O_SUB_TOTAL : Double,
         var O_TAX : Double,
@@ -101,8 +101,8 @@ case class OrdersValue(
         var O_STATUS : String
         )   extends AvroRecord
 
+// NOTE: We order latest order by date, not by O_ID as TPC-W spec does
 case class CustomerOrderIndex(var C_UNAME : String, var O_DATE : Long, var O_ID : String) extends AvroRecord
-
 
 case class OrderLineKey(var OL_O_ID : String, var OL_ID : Int) extends AvroRecord
 case class OrderLineValue(

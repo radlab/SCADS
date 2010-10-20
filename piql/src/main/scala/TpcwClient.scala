@@ -21,6 +21,10 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   lazy val customerOrderIndex = cluster.getNamespace[CustomerOrderIndex, NullRecord]("customer_index")  //Extra index
   lazy val itemTitleIndex = cluster.getNamespace[ItemTitleIndexKey, NullRecord]("item_title_index")
 
+  // cardinality constraints
+  // TODO: we need to place these in various queries
+  val maxOrderLinesPerPage = 10
+
   def paraSelector(i : Int) = Array(ParameterValue(i))
   def projection(record: Int, attribute: Int) = Array(AttributeValue(record, attribute))
   val firstPara = paraSelector(0)
@@ -98,7 +102,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       projection(0,2), // (Token, Title, ID), NullRecord
       IndexScan(
         itemTitleIndex, 
-        firstPara, //Stephen: Fix it
+        firstPara,
         FixedLimit(50),
         true
         )
@@ -124,29 +128,92 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     )
   def searchBySubjectWI(subject : String) = exec(searchBySubjectPlan, new Utf8(subject))
 
+  /**
+   * select C_ID from CUSTOMER where C_UNAME=@C_UNAME and C_PASSWD=@C_PASSWD
+   *
+   * DECLARE @O_ID numeric(10) select @O_ID = max(O_ID)from ORDERS where
+   * O_C_ID=@C_ID
+
+   * SELECT 
+   *   C_FNAME,C_LNAME,C_EMAIL,C_PHONE,
+   *   O_ID,O_DATE,O_SUBTOTAL,O_TAX,O_TOTAL,O_SHIP_TYPE,O_SHIP_DATE,
+   *   O_BILL_ADDR,O_SHIP_ADDR,O_CC_TYPE,O_STATUS,
+   *   ADDR_STREET1,ADDR_STREET2,ADDR_CITY,ADDR_STATE,ADDR_ZIP,CO_NAME
+   * FROM CUSTOMER,ADDRESS,COUNTRY,ORDERS
+   * where       
+   *   O_ID=@O_ID and
+   *   C_ID=@C_ID and
+   *   O_BILL_ADDR=ADDR_ID AND
+   *   ADDR_CO_ID=CO_ID
+   */
+
 
   private lazy val orderDisplayCustomerPlan =
     Selection(
-    Equality(AttributeValue(0,0),ParameterValue(1)),
-    IndexLookup(customer, paraSelector(0))  // CustomerName, (C_PASSWD, C_FNAME, C_LNAME,....)
+      Equality(AttributeValue(1, 0), ParameterValue(1)),
+      IndexLookup(customer, paraSelector(0))  // CustomerName, (C_PASSWD, C_FNAME, C_LNAME,....)
     )
-  def orderDisplayCustomerWI(cName : String, cPassword : String) = exec(orderDisplayCustomerPlan, new Utf8(cName), new Utf8(cPassword))
+  private def orderDisplayCustomerWI(cName : String, cPassword : String) = 
+    exec(orderDisplayCustomerPlan, new Utf8(cName), new Utf8(cPassword))
 
-//  val orderDisplayOrder =
-//    IndexLookupJoin(
-//
-//    IndexScan(
-//      customerOrderIndex,
-//      firstPara,
-//      1,
-//      false
-//    )
-//    )
+  private lazy val orderDisplayLastOrder =
+    IndexLookupJoin( // (C_UNAME, O_DATE, O_ID), NullRecord, (O_ID), (O_C_ID, O_DATE_Time, ...) 
+      order,
+      Array(AttributeValue(0, 2)),
+      StopAfter( // (C_UNAME, O_DATE, O_ID), NullRecord
+        FixedLimit(1),
+        IndexScan(
+          customerOrderIndex, 
+          firstPara,
+          FixedLimit(1),
+          false
+        )
+      )
+    )
+  private def orderDisplayLastOrderWI(c_uname: String) =
+    exec(orderDisplayLastOrder, new Utf8(c_uname))
+
+  private lazy val orderDisplayGetAddressInfo =
+    IndexLookupJoin( // (ADDR_ID), (ADDR_STREET_1, ...), (CO_ID), (CO_NAME, ...)
+      country,
+      Array(AttributeValue(1, 5)),
+      IndexLookup(address, firstPara) // (ADDR_ID), (ADDR_STREET_1, ...)
+    )
+  private def orderDisplayGetAddressInfoWI(addr_id: String) = 
+    exec(orderDisplayGetAddressInfo, new Utf8(addr_id))
+
+  private lazy val orderDisplayGetOrderLines =
+    IndexLookupJoin( // (OL_O_ID, OL_ID), (OL_I_ID, ...), (I_ID), (I_TITLE, ...) 
+      item,
+      Array(AttributeValue(1, 0)), 
+      StopAfter( // (OL_O_ID, OL_ID), (OL_I_ID, ...)
+        ParameterLimit(1, maxOrderLinesPerPage),
+        IndexScan(
+          orderline,
+          firstPara,
+          ParameterLimit(1, maxOrderLinesPerPage),
+          true
+        )
+      )
+    )
+  private def orderDisplayGetOrderLinesWI(o_id: String, numOrderLinesPerPage: Int) = 
+    exec(orderDisplayGetOrderLines, new Utf8(o_id), numOrderLinesPerPage)
+
+
+  def orderDisplayWI(c_uname: String, c_passwd: String, numOrderLinesPerPage: Int) = {
+    val cust = orderDisplayCustomerWI(c_uname, c_passwd) 
+    assert(!cust.isEmpty, "No user found with UNAME %s, PASSWD %s".format(c_uname, c_passwd))
+    val lastOrder = orderDisplayLastOrderWI(c_uname)
+    val billingAddrAndCo = orderDisplayGetAddressInfoWI(lastOrder(1)(1).get(7).toString)
+    val shippingAddrAndCo = orderDisplayGetAddressInfoWI(lastOrder(1)(1).get(8).toString)
+    val orderLines = orderDisplayGetOrderLinesWI(lastOrder(1)(0).get(0).toString, numOrderLinesPerPage)
+    orderLines ++ shippingAddrAndCo ++ billingAddrAndCo ++ lastOrder ++ cust
+  }
 
   def exec(plan: QueryPlan, args: Any*) = {
     val iterator = executor(plan, args:_*)
     iterator.open
-    iterator.toList
+    iterator.toSeq
   }
 
   def loadData(numEBs : Double, numItems : Int) = {
