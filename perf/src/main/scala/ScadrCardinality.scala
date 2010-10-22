@@ -12,11 +12,22 @@ import avro.marker._
 import deploylib._
 import deploylib.mesos._
 
+import java.io.File
+
 case class ResultKey(var clientConfig: LoadClient, var clusterAddress: String, var clientId: Int, var iteration: Int, var threadId: Int) extends AvroRecord
 case class ResultValue(var times: Histogram, var failures: Int) extends AvroRecord
+case class Result(var key: ResultKey, var values: ResultValue) extends AvroRecord
 
 object CardinalityExperiment extends Experiment {
   val results = resultCluster.getNamespace[ResultKey, ResultValue]("scadrCardinality")
+
+  def allResults = results.getRange(None,None)
+
+  def backupResults = {
+    val outfile = AvroOutFile[Result](new File("cardinalityResults" + System.currentTimeMillis + ".avro"))
+    allResults.map(r => Result(r._1, r._2)).foreach(outfile.append)
+    outfile.close
+  }
 
   def clear = results.getRange(None, None).foreach(r => results.put(r._1, None))
 
