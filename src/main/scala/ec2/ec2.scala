@@ -97,14 +97,15 @@ object EC2Instance  extends AWSConnection {
 	/**
 	 * Launches a set of instances with the given parameters
 	 */
-	def runInstances(imageId: String, min: Int, max: Int, keyName: String, instanceType: String, location: String): Seq[EC2Instance] = {
+	def runInstances(imageId: String, min: Int, max: Int, keyName: String, instanceType: String, location: String, userData: Option[String] = None): Seq[EC2Instance] = {
+    val encoder = new sun.misc.BASE64Encoder
 		val request = new RunInstancesRequest(
 												imageId,                 // imageID
                         min,                     // minCount
                         max,                     // maxCount
                         keyName,                 // keyName
                         null,                    // securityGroup
-                        null,                    // userData
+                        userData.map(s => encoder.encode(s.getBytes)).orNull,         // userData
                         instanceType,            // instanceType
                         new Placement(location), // placement
                         null,                    // kernelId
