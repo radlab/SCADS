@@ -22,6 +22,8 @@ import scala.collection.mutable.ListBuffer
 
 import net.lag.logging.Logger
 
+import edu.berkeley.cs.scads.config._
+
 class NioEndpoint(protected val channelHandler: ChannelHandler) {
   if (channelHandler == null)
     throw new IllegalArgumentException("Cannot pass in null values to constructor")
@@ -53,6 +55,9 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
 
   protected def registerInetSocketAddress(addr: InetSocketAddress, chan: SocketChannel) = connectionMap.put(addr, chan)
   def getChannelForInetSocketAddress(addr: InetSocketAddress):SocketChannel = connectionMap.get(addr)
+
+
+  private lazy val useTcpNoDelay = Config.config.getBool("scads.comm.tcpNoDelay", true)
 
   case class ChannelState(val buffer: CircularByteBuffer, var inMessage: Boolean, var messageSize: Int)  {
     def this(buffer: CircularByteBuffer) = this(buffer, false, 0)
@@ -411,6 +416,7 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
     val serverSocketChannel = key.channel.asInstanceOf[ServerSocketChannel]
     val socketChannel = serverSocketChannel.accept
     socketChannel.configureBlocking(false)
+    socketChannel.socket.setTcpNoDelay(useTcpNoDelay)
     socketChannel.register(selector, SelectionKey.OP_READ)
     registerInetSocketAddress(new InetSocketAddress(socketChannel.socket.getInetAddress, socketChannel.socket.getPort), socketChannel)
     if (acceptEventHandler != null) acceptEventHandler.acceptEvent(socketChannel)
@@ -453,6 +459,7 @@ class NioEndpoint(protected val channelHandler: ChannelHandler) {
       }
     }
     val clientSocket = SocketChannel.open
+    clientSocket.socket.setTcpNoDelay(useTcpNoDelay)
     clientSocket.configureBlocking(false)
     val connected = clientSocket.connect(hostAddress)
     val future = new ConnectFuture(clientSocket, connected)

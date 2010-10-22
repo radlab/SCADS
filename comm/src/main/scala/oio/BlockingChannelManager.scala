@@ -13,6 +13,7 @@ import specific._
 import net.lag.logging.Logger
 
 import scala.reflect.Manifest.classType
+import edu.berkeley.cs.scads.config._
 
 /**
  * Easier to instantiate via reflection
@@ -30,6 +31,8 @@ abstract class BlockingChannelManager[S <: SpecificRecord, R <: SpecificRecord](
   extends AvroChannelManager[S, R] {
 
   protected val log = Logger()
+
+  private lazy val useTcpNoDelay = Config.config.getBool("scads.comm.tcpNoDelay", true)
 
   // Avro serialization
 
@@ -138,7 +141,7 @@ abstract class BlockingChannelManager[S <: SpecificRecord, R <: SpecificRecord](
     log.info("opening new connection to address: %s".format(addr))
     // open the connection in the current thread
     val socket = new Socket
-    socket.setTcpNoDelay(true)  // disable Nagle's algorithm
+    socket.setTcpNoDelay(useTcpNoDelay)  // disable Nagle's algorithm
     socket.connect(addr, 60000) // wait up til 1 min for connect
 
     new Connection(socket, true) // start send/read threads immediately
@@ -330,7 +333,7 @@ abstract class BlockingChannelManager[S <: SpecificRecord, R <: SpecificRecord](
         try {
           val client = serverSocket.accept()
           if (continue.get) {
-            client.setTcpNoDelay(true) // disable Nagle's algorithm
+            client.setTcpNoDelay(useTcpNoDelay) // disable Nagle's algorithm
 
             val conn = new EphemeralConnection(client)
             val prev = nodeToConnections.putIfAbsent(client.remoteInetSocketAddress, conn)

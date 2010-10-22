@@ -15,6 +15,7 @@ import net.lag.logging.Logger
 import org.apache.avro.specific.SpecificRecord
 
 import scala.reflect.Manifest.classType
+import edu.berkeley.cs.scads.config._
 
 /**
  * Easier to instantiate via reflection
@@ -32,6 +33,8 @@ abstract class NettyChannelManager[S <: SpecificRecord, R <: SpecificRecord](
   extends AvroChannelManager[S, R] {
 
   protected val log = Logger()
+
+  private lazy val useTcpNoDelay = Config.config.getBool("scads.comm.tcpNoDelay", true)
 
   private def pipelineFactory(handler: ChannelHandler) = new ChannelPipelineFactory {
     override def getPipeline() =
@@ -51,7 +54,7 @@ abstract class NettyChannelManager[S <: SpecificRecord, R <: SpecificRecord](
 
   serverBootstrap.setParentHandler(new NettyServerParentHandler)
   serverBootstrap.setPipelineFactory(pipelineFactory(new NettyServerChildHandler))
-  serverBootstrap.setOption("child.tcpNoDelay", true) // disable nagle's algorithm
+  serverBootstrap.setOption("child.tcpNoDelay", useTcpNoDelay) // disable nagle's algorithm
 
   /** TODO: configure thread pools */
   private val clientBootstrap = new ClientBootstrap(
@@ -60,7 +63,7 @@ abstract class NettyChannelManager[S <: SpecificRecord, R <: SpecificRecord](
       Executors.newCachedThreadPool()))
 
   clientBootstrap.setPipelineFactory(pipelineFactory(new NettyClientHandler))
-  clientBootstrap.setOption("tcpNoDelay", true) // disable nagle's algorithm
+  clientBootstrap.setOption("tcpNoDelay", useTcpNoDelay) // disable nagle's algorithm
 
   class NettyBaseHandler extends SimpleChannelHandler {
     override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) {
