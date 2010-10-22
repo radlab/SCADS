@@ -24,11 +24,12 @@ object MesosEC2 extends ConfigurationActions {
   def slaves = EC2Instance.activeInstances.filterNot(i => masterAddress.getHostAddress equals InetAddress.getByName(i.publicDnsName).getHostAddress)
   def master = EC2Instance.activeInstances.find(i => masterAddress.getHostAddress equals InetAddress.getByName(i.publicDnsName).getHostAddress).get
 
+  def clusterUrl = "1@" + master.privateDnsName + ":5050"
+
   def updateClusterUrl: Unit = {
     val location = new File("/root/mesos-ec2/cluster-url")
-    val contents = "1@" + master.privateDnsName + ":5050"
     master ! ("hostname " + master.privateDnsName)
-    createFile(master, location, contents, "644")
+    createFile(master, location, clusterUrl, "644")
   }
 
   def updateMasterFile: Unit = {
@@ -53,18 +54,13 @@ object MesosEC2 extends ConfigurationActions {
 
   def addSlaves(count: Int): Unit = {
     EC2Instance.runInstances(
-      "ami-f8806a91",
+      "ami-3013e759",
       count,
       count,
       EC2Instance.keyName,
       "m1.large",
-      "us-east-1b")
-    EC2Instance.activeInstances.pforeach(_ ! "mkdir -p /mnt/mesos-logs/")
-    updateDeploylib
-    logger.info("deploying mesos to new machines")
-    master ! "/root/mesos-ec2/redeploy-mesos"
-    master ! "rm /root/.ssh/known_hosts"
-    restart
+      "us-east-1b",
+      Some("url=" + clusterUrl))
   }
 
 }
