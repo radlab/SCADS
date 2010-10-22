@@ -41,12 +41,12 @@ abstract class RemoteMachine {
     def defaultKeyFiles = {
       val rsa = new File(System.getProperty("user.home"), ".ssh/id_rsa")
       val dsa = new File(System.getProperty("user.home"), ".ssh/id_dsa")
-      if (rsa.exists) rsa 
+      if (rsa.exists) rsa
       else if (dsa.exists) dsa
       else throw new RuntimeException("No private key found")
     }
     Config.getString("deploylib.private_key") match {
-      case Some(pk) => 
+      case Some(pk) =>
         val f = new File(pk)
         if (f.exists) f
         else defaultKeyFiles

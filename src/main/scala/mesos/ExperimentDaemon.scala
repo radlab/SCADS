@@ -21,7 +21,7 @@ class RemoteExperimentScheduler extends ExperimentScheduler with MessageReceiver
 
 class ExperimentService(mesosMaster: String) extends LocalExperimentScheduler("ExperimentDaemon", mesosMaster) with ServiceHandler[ExperimentOperation] {
   def startup: Unit = {
-    RClusterZoo.root.getOrCreate("scads/experimentService").data = remoteHandle.toBytes 
+    RClusterZoo.root.getOrCreate("scads/experimentService").data = remoteHandle.toBytes
   }
 
   def shutdown: Unit = null
