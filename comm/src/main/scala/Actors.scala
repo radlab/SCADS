@@ -1,6 +1,5 @@
 package edu.berkeley.cs.scads.comm
 
-import scala.concurrent.SyncVar
 import scala.actors._
 import scala.actors.Actor._
 
@@ -8,6 +7,8 @@ import net.lag.logging.Logger
 
 import edu.berkeley.cs.avro.marker.AvroRecord
 import edu.berkeley.cs.avro.marker.AvroUnion
+import collection.mutable.ArrayBuffer
+import concurrent.{Lock, SyncVar}
 
 object Actors {
   import scala.actors._
@@ -70,7 +71,7 @@ trait RemoteActorProxy {
    * Send a message and synchronously wait for a response.
    */
   def !?(body: MessageBody, timeout: Int = 5000): MessageBody = {
-      val future = new MessageFuture
+      val future = new MessageFutureImpl
       this.!(body)(future.remoteActor)
       future.get(timeout) match {
         case Some(exp: RemoteException) => throw new RuntimeException(exp.toString)
@@ -86,9 +87,35 @@ trait RemoteActorProxy {
    * Sends a message and returns a future for the response.
    */
   def !!(body: MessageBody): MessageFuture = {
-    val future = new MessageFuture
+    val future = new MessageFutureImpl
     this.!(body)(future.remoteActor)
     future
+  }
+
+  private var msgSet = new ArrayBuffer[(MessageBody, BatchFuture)]()
+
+  /**
+   * Collects messages for bulk-send
+   */
+  def !!!(body : MessageBody) : MessageFuture = {
+    var future : BatchFuture = null
+    msgSet.synchronized{
+      val i: Int = msgSet.length
+      future = new BatchFuture(i)
+      msgSet += Tuple2(body, future)
+    }
+    return future
+  }
+
+  def commit() : Unit = {
+    msgSet.synchronized{
+      if(msgSet.length == 0){
+        return
+      }
+      val future = if(msgSet.length == 1) !!(msgSet(0)._1) else !!(new BatchRequest(msgSet.map(_._1)))
+      msgSet.map(_._2.future = future)
+      msgSet.clear()
+    }
   }
 
   /* Handle type conversion methods.  Note: Not typesafe obviously */

@@ -4,8 +4,8 @@ import scala.actors._
 import scala.concurrent.SyncVar
 import net.lag.logging.Logger
 
-import java.util.Queue
 import java.util.concurrent.{ LinkedBlockingQueue, TimeUnit }
+import java.util.{LinkedList, Queue}
 
 /**
  * This is the base trait for any type of future in SCADS.
@@ -43,7 +43,91 @@ object MessageFuture {
   implicit def toFutureCollection(futures: Seq[MessageFuture]): FutureCollection = new FutureCollection(futures)
 }
 
-class MessageFuture extends Future[MessageBody] with ScadsFuture[MessageBody] with MessageReceiver {
+class BatchFuture(val pos : Int) extends MessageFuture{
+
+  protected var forwardList: List[Queue[MessageFuture]] = List()
+
+  var future : MessageFuture = null;
+    /**
+   * Cancels the current future
+   */
+  def cancel(): Unit = future.cancel
+
+  /**
+   * Block on the future until T is ready
+   */
+  def get(): MessageBody = {
+    assert(future != null)
+    future.get() match {
+      case BatchRequest(ranges) => return ranges(pos)
+      case a : MessageBody => return a
+      case _ => throw new RuntimeException("Unexpected message") // TODO better failure handling
+    }
+  }
+
+  /**
+   * Block for up to timeout.
+   */
+  def get(timeout: Long, unit: TimeUnit = TimeUnit.MILLISECONDS): Option[MessageBody]  = {
+    assert(future != null)
+    future.get(timeout, unit) match {
+      case Some(BatchRequest(ranges)) => Some(ranges(pos))
+      case a => a
+    }
+  }
+
+  /**
+   * True iff the future has already been set
+   */
+  def isSet: Boolean = future.isSet
+                  
+  class DirectForwardQueue extends LinkedList[MessageFuture]{
+    override def add(e : MessageFuture) = offer(e)
+    override def offer(e : MessageFuture) :  Boolean = {
+      offerRequest()
+      return true;
+    }
+    override def remove() : MessageFuture = throw new RuntimeException("Not implemented")
+    override def poll() : MessageFuture   = throw new RuntimeException("Not implemented")
+    override def element() : MessageFuture = throw new RuntimeException("Not implemented")
+    override def peek() : MessageFuture = throw new RuntimeException("Not implemented")
+  }
+
+  private def offerRequest() : Unit = {
+    forwardList.foreach(_.offer(this))
+  }
+
+  def forward(dest: Queue[MessageFuture]): Unit = {
+    if(isSet)
+      dest.offer(this)
+    else{
+      forwardList ::= dest
+      future.forward(new DirectForwardQueue())      
+    }
+  }
+
+  def receiveMessage(src: Option[RemoteActorProxy], msg: MessageBody): Unit  = {
+    throw new RuntimeException("Not implemented")
+  }
+
+  def source : Option[RemoteActorProxy] = future.source
+  def respond(r: (MessageBody) => Unit): Unit  = future.respond(r)
+}
+
+trait MessageFuture extends ScadsFuture[MessageBody] {
+
+  def forward(dest: Queue[MessageFuture]): Unit
+
+  def receiveMessage(src: Option[RemoteActorProxy], msg: MessageBody): Unit
+
+
+  def source : Option[RemoteActorProxy]
+  def respond(r: (MessageBody) => Unit): Unit
+
+
+}//TODO Rework message hierarchy
+
+class MessageFutureImpl extends Future[MessageBody] with MessageFuture with MessageReceiver {
   protected[comm] val remoteActor = MessageHandler.registerService(this)
   protected val sender = new SyncVar[Option[RemoteActorProxy]]
   protected val message = new SyncVar[MessageBody]
@@ -86,6 +170,8 @@ class MessageFuture extends Future[MessageBody] with ScadsFuture[MessageBody] wi
     else
       forwardList ::= dest
   }
+
+
 
   def receiveMessage(src: Option[RemoteActorProxy], msg: MessageBody): Unit = synchronized {
     MessageHandler.unregisterActor(remoteActor)
