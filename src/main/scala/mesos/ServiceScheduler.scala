@@ -16,8 +16,6 @@ object LocalExperimentScheduler {
   def apply(name: String, mesosMaster: String = "1@" + java.net.InetAddress.getLocalHost.getHostAddress + ":5050") = new LocalExperimentScheduler(name, mesosMaster)
 }
 
-case class Experiment(var processes: Seq[JvmProcess])
-
 abstract trait ExperimentScheduler {
   def scheduleExperiment(processes: Seq[JvmProcess]): Unit
 }
@@ -27,6 +25,7 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String) ext
   var taskId = 0
   var driver = new MesosSchedulerDriver(this, mesosMaster)
 
+  case class Experiment(var processes: Seq[JvmProcess])
   var outstandingExperiments = new java.util.concurrent.ConcurrentLinkedQueue[Experiment]
   var awaitingSiblings = List[JvmProcess]()
   var taskIds = List[Int]()
