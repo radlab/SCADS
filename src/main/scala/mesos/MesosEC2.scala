@@ -8,12 +8,12 @@ import java.io.File
 import java.net.InetAddress
 
 object MesosEC2 extends ConfigurationActions {
-  val rootDir = new File("/root/mesos/frameworks/deploylib")
+  val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
   val masterAddress = InetAddress.getByName("mesos-ec2.knowsql.org")
 
   def updateDeploylib: Unit = {
     val executorScript = Util.readFile(new File("src/main/resources/java_executor"))
-    EC2Instance.activeInstances.pforeach(inst => {
+    slaves.pforeach(inst => {
       createDirectory(inst, rootDir)
       uploadFile(inst, new File("target/deploy-2.1-SNAPSHOT-jar-with-dependencies.jar"), rootDir)
       createFile(inst, new File(rootDir, "java_executor"), executorScript, "755")
@@ -42,6 +42,11 @@ object MesosEC2 extends ConfigurationActions {
     val location = new File("/root/mesos-ec2/slaves")
     val contents = slaves.map(_.privateDnsName).mkString("\n")
     createFile(master, location, contents, "644")
+  }
+
+  def restartSlaves: Unit = {
+    slaves.pforeach(_ ! "service mesos-slave stop")
+    slaves.pforeach(_ ! "service mesos-slave start")
   }
 
   def restart: Unit = {
