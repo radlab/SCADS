@@ -15,7 +15,7 @@ object Deploy extends ConfigurationActions {
   implicit def toFile(str: String) = new java.io.File(str)
 
   def classpath = System.getProperty("java.class.path").split(":")
-  def s3Classpath = (classpath :+ "target/perf-2.1.0-SNAPSHOT.jar").filter(_ endsWith "jar").map(f => S3CachedJar(S3Cache.getCacheUrl(new File(f))))
+  def s3Classpath = ("target/perf-2.1.0-SNAPSHOT.jar" +: classpath).filter(_ endsWith "jar").map(f => S3CachedJar(S3Cache.getCacheUrl(new File(f))))
   def codeS3Classpath = s3Classpath.map(j => """S3CachedJar("%s")""".format(j.url)).toList.toString
 
   def deployJars: Unit = {
@@ -26,8 +26,8 @@ object Deploy extends ConfigurationActions {
 
   def deployCurrentClassPath: Unit = {
     val localSetupFile = Util.readFile("setup.scala")
-    val remoteFileLines = ("implicit val classpath = %s".format(codeS3Classpath)) :+
-      localSetupFile.split("\n").filterNot(_ contains "classpath")
+    val remoteFileLines = localSetupFile.split("\n").filterNot(_ contains "classpath") :+
+      ("implicit val classpath = %s".format(codeS3Classpath))
 
     createFile(MesosEC2.master, "/root/setup.scala", remoteFileLines.mkString("\n"), "644")
   }
