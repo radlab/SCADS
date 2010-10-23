@@ -53,39 +53,54 @@ class JavaExecutor extends Executor {
   val httpClient = new HttpClient()
   //HACK: remove after the mesos teams makes our work directory writable
   val baseDir = new File("/mnt")
+  val jarCache = new File(baseDir, "jarCache")
 
+  if(!jarCache.exists)
+    jarCache.mkdir
+
+  /* Keep a handle to all tasks that are running so we can kill it if needed later */
   case class RunningTask(proc: Process, stdout: StreamTailer, stderr: StreamTailer)
   val runningTasks = new scala.collection.mutable.HashMap[Int, RunningTask]
 
-  protected def loadClasspath(classSources: Seq[ClassSource]): String = classSources.pmap {
+  protected def loadClasspath(classSources: Seq[ClassSource]): String = classSources.map {
       case ServerSideJar(path) => path
-      //TODO: Cache these jars!
       case S3CachedJar(urlString) => {
-        val method = new GetMethod(urlString)
-        logger.info("Downloading %s", urlString)
-        httpClient.executeMethod(method)
-        val instream = method.getResponseBodyAsStream
-        val outfile = File.createTempFile("deploylibS3CachedJar", ".jar")
-        val outstream = new FileOutputStream(outfile)
+        val jarUrl = new URL(urlString)
 
-        var x = instream.read
-        while(x != -1) {
-          outstream.write(x)
-          x = instream.read
+        //Note: this makes the assumption that the name of the file is the Md5 hash of the file.
+        var jarMd5 = new File(jarUrl.getFile).getName
+        val cachedJar = new File(jarCache, jarMd5)
+
+        //TODO: Locks incase there are multiple executors on a machine
+        if((!cachedJar.exists) || !(Util.md5(cachedJar) equals jarMd5)) {
+          val method = new GetMethod(urlString)
+          logger.info("Downloading %s", urlString)
+          httpClient.executeMethod(method)
+          val instream = method.getResponseBodyAsStream
+          val outstream = new FileOutputStream(cachedJar)
+
+          var x = instream.read
+          while(x != -1) {
+            outstream.write(x)
+            x = instream.read
+          }
+          instream.close
+          outstream.close
+          logger.info("Download of %s complete", urlString)
         }
-        instream.close
-        outstream.close
-        outfile.toString
-        logger.info("Download of %s complete", urlString)
+        cachedJar.getCanonicalPath()
       }
   }.mkString(":")
 
   override def launchTask(d: ExecutorDriver, taskDesc: TaskDescription): Unit = {
-    val launchDelay = Random.nextInt(30*1000)
+    val taskId = taskDesc.getTaskId //Note: use this because you can't hold on to taskDesc after this function exits.
+    d.sendStatusUpdate(new TaskStatus(taskId, TaskState.TASK_STARTING, new Array[Byte](0)))
+
+    val launchDelay = Random.nextInt(10*1000)
     logger.info("Delaying startup %dms to avoid overloading zookeeper", launchDelay)
     Thread.sleep(launchDelay)
 
-    logger.info("Starting task" + taskDesc.getTaskId())
+    logger.info("Starting task" + taskId)
     val tempDir = File.createTempFile("deploylib", "mesosJavaExecutorWorkingDir", baseDir)
     tempDir.delete()
     tempDir.mkdir()
@@ -104,29 +119,28 @@ class JavaExecutor extends Executor {
                        processDescription.mainclass) ++ processDescription.args
 
     logger.info("Execing: " + cmdLine.mkString(" "))
-    d.sendStatusUpdate(new TaskStatus(taskDesc.getTaskId, TaskState.TASK_STARTING, new Array[Byte](0)))
     val proc = Runtime.getRuntime().exec(cmdLine.filter(_.size != 0).toArray, Array[String](), tempDir)
     val stdout = new StreamTailer(proc.getInputStream())
     val stderr = new StreamTailer(proc.getErrorStream())
     def output = List(cmdLine, processDescription, "===stdout===", stdout.tail,  "===stderr===", stderr.tail).mkString("\n").getBytes
 
-    val taskThread = new Thread("Task " + taskDesc.getTaskId + "Monitor") {
+    val taskThread = new Thread("Task " + taskId + "Monitor") {
       override def run() = {
         val result = proc.waitFor()
         val finalTaskState = result match {
           case 0 => TaskState.TASK_FINISHED
           case _ => TaskState.TASK_FAILED
         }
-        d.sendStatusUpdate(new TaskStatus(taskDesc.getTaskId, finalTaskState, output))
-        logger.info("Cleaning up working directory %s for %d", tempDir, taskDesc.getTaskId())
+        d.sendStatusUpdate(new TaskStatus(taskId, finalTaskState, output))
+        logger.info("Cleaning up working directory %s for %d", tempDir, taskId)
         deleteRecursive(tempDir)
-        logger.info("Task %d", taskDesc.getTaskId())
+        logger.info("Done cleaning up after Task %d", taskId)
       }
     }
-    taskThread.run()
-    runningTasks += ((taskDesc.getTaskId(), RunningTask(proc, stdout, stderr)))
-    d.sendStatusUpdate(new TaskStatus(taskDesc.getTaskId, TaskState.TASK_RUNNING, output))
-    logger.info("Task %d started", taskDesc.getTaskId())
+    taskThread.start()
+    runningTasks += ((taskId, RunningTask(proc, stdout, stderr)))
+    d.sendStatusUpdate(new TaskStatus(taskId, TaskState.TASK_RUNNING, output))
+    logger.info("Task %d started", taskId)
   }
 
   override def killTask(d: ExecutorDriver, taskId: Int): Unit = {
