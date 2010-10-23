@@ -47,6 +47,7 @@ object CardinalityExperiment extends Experiment {
       val aggregrateHistogram = run.map(_._2.times).reduceLeft(_ + _)
       val cumulativeHistogram = aggregrateHistogram.buckets.scanLeft(0L)(_ + _).drop(1)
       val quantile50ResponseTime = cumulativeHistogram.findIndexOf(_ >= totalRequests * 0.50) * aggregrateHistogram.bucketSize
+      val quantile90ResponseTime = cumulativeHistogram.findIndexOf(_ >= totalRequests * 0.90) * aggregrateHistogram.bucketSize
       val quantile99ResponseTime = cumulativeHistogram.findIndexOf(_ >= totalRequests * 0.99) * aggregrateHistogram.bucketSize
       val quantile999ResponseTime = cumulativeHistogram.findIndexOf(_ >= totalRequests * 0.999) * aggregrateHistogram.bucketSize
       val failures = run.map(_._2.failures).sum
@@ -55,6 +56,7 @@ object CardinalityExperiment extends Experiment {
         failures,
         run.head._1.clientConfig.executorClass,
         totalRequests,
+        quantile90ResponseTime,
         quantile50ResponseTime,
         quantile99ResponseTime,
         quantile999ResponseTime).mkString("\t"))
