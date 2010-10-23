@@ -1,0 +1,5 @@
+#!/bin/bash
+
+sudo ssh -f -w 0:0 root@mesos-ec2 "ifconfig tun0 192.168.0.1 pointopoint 192.168.0.2"
+sudo ifconfig tun0 192.168.0.2 192.168.0.1
+sudo route add -net 10.123.6.101 192.168.0.1

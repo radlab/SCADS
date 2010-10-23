@@ -1,0 +1,9 @@
+#!/bin/bash
+
+if [ ! -f ./classpath ]
+then
+    echo "building classpath..."
+		mvn dependency:build-classpath | grep jar >> ./classpath
+fi
+
+java -cp `cat classpath`:target/classes:target/test-classes $@
