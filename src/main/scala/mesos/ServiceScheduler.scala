@@ -78,21 +78,17 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String) ext
   }
 
   override def statusUpdate(d: SchedulerDriver, status: TaskStatus): Unit = {
-    if(status.getState == TaskState.TASK_FAILED || status.getState == TaskState.TASK_LOST) {
+    if(status.getState == TaskState.TASK_FAILED || status.getState == TaskState.TASK_LOST || status.getState == TaskState.TASK_KILLED) {
       logger.warning("Status Update for Task %d: %s", status.getTaskId, status.getState)
       logger.ifWarning(new String(status.getData))
 
-      synchronized {
-        val siblings = scheduledExperiments.find(_ contains status.getTaskId)
-        siblings match {
-          case Some(ids) => {
-            ids.foreach(d.killTask)
-            logger.info("Killing Failed Experiment Siblings: %s", siblings)
-            scheduledExperiments = scheduledExperiments.filterNot(_ equals ids)
-          }
-          case None => logger.debug("Failed to locate siblings, can't kill stranded processes")
-        }
+      val siblings = scheduledExperiments.find(_ contains status.getTaskId).getOrElse {
+        logger.debug("Failed to locate siblings for task %d, can't kill stranded processes", status.getTaskId)
+        return
       }
+      siblings.foreach(d.killTask)
+      logger.info("Killing Failed Experiment Siblings: %s", siblings)
+      scheduledExperiments = scheduledExperiments.filterNot(_ equals siblings)
     }
     else {
       logger.info("Status Update: " + status.getTaskId + " " + status.getState)
