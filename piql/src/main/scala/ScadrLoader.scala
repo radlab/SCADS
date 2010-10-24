@@ -10,6 +10,8 @@ import edu.berkeley.cs.scads.piql.DataGenerator._
 
 import scala.collection.mutable.HashSet
 
+import net.lag.logging.Logger
+
 case class ScadrKeySplits(
     usersKeySplits: Seq[(Option[UserKey], Seq[StorageService])],
     thoughtsKeySplits: Seq[(Option[ThoughtKey], Seq[StorageService])],
@@ -36,11 +38,12 @@ class ScadrLoader(val client: ScadrClient,
   require(numSubscriptionsPerUser >= 0)
   require(numTagsPerThought >= 0)
 
-
+  val logger = Logger()
 
 
   def createNamespaces() {
     val splits = keySplits
+    logger.info("Creating namespaces with keysplits: %s", splits)
     client.cluster.createNamespace[UserKey, UserValue]("users", splits.usersKeySplits)
     client.cluster.createNamespace[ThoughtKey, ThoughtValue]("thoughts", splits.thoughtsKeySplits)
     client.cluster.createNamespace[SubscriptionKey, SubscriptionValue]("subscriptions", splits.subscriptionsKeySplits)
@@ -108,10 +111,15 @@ class ScadrLoader(val client: ScadrClient,
                        tagData: Seq[(HashTagKey, HashTagValue)],
                        idxUsersTargetData: Seq[(UserTarget, NullRecord)]) {
     def load() {
+      logger.info("Loading users")
       client.users ++= userData
+      logger.info("Loading thoughts")
       client.thoughts ++= thoughtData
+      logger.info("Loading subscriptions")
       client.subscriptions ++= subscriptionData
+      logger.info("Loading tags")
       client.tags ++= tagData
+      logger.info("Loading usersidx")
       client.idxUsersTarget ++= idxUsersTargetData
     }
   }
