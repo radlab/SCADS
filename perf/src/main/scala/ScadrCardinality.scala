@@ -71,16 +71,16 @@ object CardinalityExperiment extends Experiment {
   }
 }
 
-case class LoadClient(var numServers: Int, var numClients: Int, var followingCardinality: Int, var executorClass: String, var iterations: Int = 5, var threads: Int = 1, var runLengthMin: Int = 5 ) extends AvroClient with AvroRecord {
+case class LoadClient(var numServers: Int, var numClients: Int, var followingCardinality: Int, var executorClass: String, var replicationFactor: Int = 1, var iterations: Int = 5, var threads: Int = 1, var runLengthMin: Int = 5 ) extends AvroClient with AvroRecord {
   def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode) = {
     val coordination = clusterRoot.getOrCreate("coordination")
     val cluster = new ScadsCluster(clusterRoot)
     var executor = Class.forName(executorClass).newInstance.asInstanceOf[QueryExecutor]
     val scadrClient = new ScadrClient(cluster, executor)
     val loader = new ScadrLoader(scadrClient,
-      replicationFactor = 1,
+      replicationFactor = replicationFactor,
       numClients = numClients,
-      numUsers = numServers * 10000,
+      numUsers = numServers * 10000 / replicationFactor,
       numThoughtsPerUser = 100,
       numSubscriptionsPerUser = followingCardinality,
       numTagsPerThought = 5)
