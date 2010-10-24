@@ -84,7 +84,7 @@ class KeyValueStoreSpec extends Spec with ShouldMatchers {
 
         val futures = ns.batchAsyncGetRange(queriesAnswers.map(_._1).map(q => (Option(q._1), Option(q._2))))
           futures.zip(queriesAnswers.map(_._2)).foreach {
-          case (future, correctAnswer) => future() should equal(correctAnswer)
+          case (future, correctAnswer) => future().map(_._1.f1) should equal(correctAnswer)
         }
       }
 
