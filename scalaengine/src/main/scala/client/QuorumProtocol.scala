@@ -118,9 +118,9 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     }
  }
 
-  def getAllRangeVersions(startKey: Option[KeyType], endKey: Option[KeyType]) : List[(PartitionService, List[(KeyType, ValueType)])] = {
+  def getAllRangeVersions(startKey: Option[KeyType], endKey: Option[KeyType]): Seq[(PartitionService, Seq[(KeyType, ValueType)])] = {
     val ranges = serversForRange(startKey, endKey)
-    var result : List[(PartitionService, List[(KeyType, ValueType)])] = Nil
+    var result: Seq[(PartitionService, Seq[(KeyType, ValueType)])] = Nil
     for(range <- ranges) {
       val rangeRequest = new GetRangeRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), None, None, true)
       for(partition <- range.values) {
@@ -128,7 +128,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
            case GetRangeResponse(v) => v.map(a => (deserializeKey(a.key), extractValueFromRecord(a.value).get))
            case _ => throw new RuntimeException("Unexpected Message")
         }
-        result = (partition, values) :: result
+        result = (partition, values) +: result
       }
     }
     result.reverse
@@ -485,7 +485,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
       }
     }
 
-    private def merge(newRecords: List[Record], newServer: RemoteActorProxy): Unit = {
+    private def merge(newRecords: Seq[Record], newServer: RemoteActorProxy): Unit = {
       var recordPtr = newRecords
       var i = 0
       while (i < winners.length && !recordPtr.isEmpty) {

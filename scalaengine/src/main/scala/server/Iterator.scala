@@ -21,7 +21,7 @@ class PartitionIterator(partitionService: PartitionService, minKey: Option[Array
    * Queue used to exchange record sets between the actor and the consumer of the iterator
    * Each time a recordset is retrieved a RecordSetTaken message should be sent to the iterActor
    */
-  protected val availableRecordSets = new ArrayBlockingQueue[List[Record]](bufferSize)
+  protected val availableRecordSets = new ArrayBlockingQueue[Seq[Record]](bufferSize)
   /**
    * The current record set being iterated over.
    * Note it is the responsibility of the taker of the last record to set
@@ -29,7 +29,7 @@ class PartitionIterator(partitionService: PartitionService, minKey: Option[Array
    * from the queue.
    * A recordset with 0 or 1 items denotes the end of the iterator.
    */
-  var currentRecordSet: Option[List[Record]] = None
+  var currentRecordSet: Option[Seq[Record]] = None
   protected var positionInRecordSet = 0
   protected var done = false
 
@@ -67,7 +67,7 @@ class PartitionIterator(partitionService: PartitionService, minKey: Option[Array
     }
   }
 
-  protected def getCurrentRecordSet: List[Record] = {
+  protected def getCurrentRecordSet: Seq[Record] = {
     currentRecordSet.getOrElse {
       currentRecordSet = Some(availableRecordSets.take)
       positionInRecordSet = 0
