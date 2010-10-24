@@ -472,8 +472,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
       }
       val result = future() match {
         case GetRangeResponse(v) => v
-        case GetPrefixResponse(v) => v
-        case m => throw new RuntimeException("Unexpected Message (was expecting either GetRangeResponse or GetPrefixResponse): " + m)
+        case m => throw new RuntimeException("Unexpected Message (was expecting GetRangeResponse): " + m)
       }
 
 
