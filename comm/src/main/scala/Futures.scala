@@ -59,7 +59,7 @@ class BatchFuture(val pos : Int) extends MessageFuture{
   def get(): MessageBody = {
     assert(future != null)
     future.get() match {
-      case BatchRequest(ranges) => return ranges(pos)
+      case BatchResponse(ranges) => return ranges(pos)
       case a : MessageBody => return a
       case _ => throw new RuntimeException("Unexpected message") // TODO better failure handling
     }
@@ -71,7 +71,7 @@ class BatchFuture(val pos : Int) extends MessageFuture{
   def get(timeout: Long, unit: TimeUnit = TimeUnit.MILLISECONDS): Option[MessageBody]  = {
     assert(future != null)
     future.get(timeout, unit) match {
-      case Some(BatchRequest(ranges)) => Some(ranges(pos))
+      case Some(BatchResponse(ranges)) => Some(ranges(pos))
       case a => a
     }
   }
