@@ -109,7 +109,21 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           iterateOverRange(minKey, maxKey, limit, offset, ascending)((key, value, _) => {
             records += Record(key.getData, value.getData)
           })
-          reply(GetRangeResponse(records.toList))
+          reply(GetRangeResponse(records))
+        }
+        case BatchRequest(ranges) => {
+          val results = new scala.collection.mutable.ListBuffer[GetRangeResponse]
+          ranges.foreach {
+            case GetRangeRequest(minKey, maxKey, limit, offset, ascending) => {
+              val records = new scala.collection.mutable.ListBuffer[Record]
+              iterateOverRange(minKey, maxKey, limit, offset, ascending)((key, value, _) => {
+                records += Record(key.getData, value.getData)
+              })
+              results += GetRangeResponse(records)
+            }
+            case _ => throw new RuntimeException("BatchRequests only implemented for GetRange")
+          }
+          reply(BatchResponse(results))
         }
         case CountRangeRequest(minKey, maxKey) => {
           var count = 0
