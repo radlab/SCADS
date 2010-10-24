@@ -91,7 +91,7 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String) ext
       scheduledExperiments = scheduledExperiments.filterNot(_ equals siblings)
     }
     else {
-      logger.info("Status Update: " + status.getTaskId + " " + status.getState)
+      logger.debug("Status Update: " + status.getTaskId + " " + status.getState)
       logger.ifDebug(new String(status.getData))
     }
   }
