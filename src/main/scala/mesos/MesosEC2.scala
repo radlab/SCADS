@@ -59,7 +59,7 @@ object MesosEC2 extends ConfigurationActions {
 
   def addSlaves(count: Int): Unit = {
     EC2Instance.runInstances(
-      "ami-3013e759",
+      "ami-58798d31",
       count,
       count,
       EC2Instance.keyName,
