@@ -47,11 +47,11 @@ class BatchFuture(val pos : Int) extends MessageFuture{
 
   protected var forwardList: List[Queue[MessageFuture]] = List()
 
-  var future : MessageFuture = null;
+  var future = new SyncVar[MessageFuture]
     /**
    * Cancels the current future
    */
-  def cancel(): Unit = future.cancel
+  def cancel(): Unit = future.get.cancel
 
   /**
    * Block on the future until T is ready
@@ -70,7 +70,7 @@ class BatchFuture(val pos : Int) extends MessageFuture{
    */
   def get(timeout: Long, unit: TimeUnit = TimeUnit.MILLISECONDS): Option[MessageBody]  = {
     assert(future != null)
-    future.get(timeout, unit) match {
+    future.get.get(timeout, unit) match {
       case Some(BatchResponse(ranges)) => Some(ranges(pos))
       case a => a
     }
@@ -102,7 +102,7 @@ class BatchFuture(val pos : Int) extends MessageFuture{
       dest.offer(this)
     else{
       forwardList ::= dest
-      future.forward(new DirectForwardQueue())      
+      future.get.forward(new DirectForwardQueue())
     }
   }
 
@@ -110,8 +110,8 @@ class BatchFuture(val pos : Int) extends MessageFuture{
     throw new RuntimeException("Not implemented")
   }
 
-  def source : Option[RemoteActorProxy] = future.source
-  def respond(r: (MessageBody) => Unit): Unit  = future.respond(r)
+  def source : Option[RemoteActorProxy] = future.get.source
+  def respond(r: (MessageBody) => Unit): Unit  = future.get.respond(r)
 }
 
 trait MessageFuture extends ScadsFuture[MessageBody] {

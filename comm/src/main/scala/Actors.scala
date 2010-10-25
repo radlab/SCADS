@@ -113,7 +113,7 @@ trait RemoteActorProxy {
         return
       }
       val future = if(msgSet.length == 1) !!(msgSet(0)._1) else !!(new BatchRequest(msgSet.map(_._1)))
-      msgSet.map(_._2.future = future)
+      msgSet.map(_._2.future.set(future))
       msgSet.clear()
     }
   }
