@@ -14,12 +14,12 @@ import deploylib.mesos._
 
 import java.io.File
 
-case class ResultKey(var clientConfig: LoadClient, var clusterAddress: String, var clientId: Int, var iteration: Int, var threadId: Int) extends AvroRecord
+case class ResultKey(var clientConfig: ThoughtStreamClient, var loaderConfig: ScadrLoaderClient, var clusterAddress: String, var clientId: Int, var iteration: Int, var threadId: Int) extends AvroRecord
 case class ResultValue(var times: Histogram, var failures: Int) extends AvroRecord
 case class Result(var key: ResultKey, var values: ResultValue) extends AvroRecord
 
 object CardinalityExperiment extends Experiment {
-  val results = resultCluster.getNamespace[ResultKey, ResultValue]("scadrCardinality")
+  lazy val results = resultCluster.getNamespace[ResultKey, ResultValue]("scadrCardinality")
 
   def allResults = results.getRange(None,None)
 
@@ -31,13 +31,23 @@ object CardinalityExperiment extends Experiment {
 
   def clear = results.getRange(None, None).foreach(r => results.put(r._1, None))
 
-  def successfulPoints = results.getRange(None, None).map(_._1.clientConfig).distinct
+  def makeGraph(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeper: ZooKeeperProxy#ZooKeeperNode) = {
+    val expSize = 1
+    (100 to 1000 by 100).foreach(cardinality => {
+      val executors = List("Simple", "Parallel", "BulkParallel").map(e => "edu.berkeley.cs.scads.piql.%sExecutor".format(e))
+      throw new RuntimeException("Broken")
+    })
+  }
 
-  def makeGraph(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler) = {
-    val toSkip = successfulPoints
-    (100 to 1000 by 100).flatMap(c => List("Simple", "Parallel", "Lazy").map(e => "edu.berkeley.cs.scads.piql.%sExecutor".format(e)).map(e => LoadClient(10, 10, c, e))).
-    filterNot(toSkip contains _).
-    foreach(e => {Thread.sleep(100); run(e)})
+  def newCluster(loaderDesc: ScadrLoaderClient)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeper: ZooKeeperProxy#ZooKeeperNode): ScadsCluster = {
+    val clusterRoot = newExperimentRoot
+    scheduler.scheduleExperiment(serverJvmProcess(clusterRoot.canonicalAddress) * loaderDesc.numServers ++ clientJvmProcess(loaderDesc, clusterRoot) * loaderDesc.numLoaders)
+    new ScadsCluster(clusterRoot)
+  }
+
+  def run(clientDesc: ThoughtStreamClient, cluster: ScadsCluster)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler): Unit = {
+    cluster.root("coordination").get("clients").foreach(_.deleteRecursive)
+    scheduler.scheduleExperiment(clientJvmProcess(clientDesc, cluster.root) * clientDesc.numClients)
   }
 
   def printResults: Unit = {
@@ -52,40 +62,33 @@ object CardinalityExperiment extends Experiment {
       val quantile999ResponseTime = cumulativeHistogram.findIndexOf(_ >= totalRequests * 0.999) * aggregrateHistogram.bucketSize
       val failures = run.map(_._2.failures).sum
 
-      println(List(run.head._1.clientConfig.followingCardinality,
+      println(List(run.head._1.loaderConfig.followingCardinality,
         failures,
         run.head._1.clientConfig.executorClass,
         totalRequests,
-        quantile90ResponseTime,
         quantile50ResponseTime,
+        quantile90ResponseTime,
         quantile99ResponseTime,
         quantile999ResponseTime).mkString("\t"))
     })
   }
 
-  def run(clientConfig: LoadClient)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler): ZooKeeperProxy#ZooKeeperNode = {
-    val expRoot = newExperimentRoot
-    val procs = serverJvmProcess(expRoot.canonicalAddress) * clientConfig.numServers ++ clientJvmProcess(clientConfig, expRoot) * clientConfig.numClients
-    scheduler.scheduleExperiment(procs)
-    expRoot
-  }
 }
 
-case class LoadClient(var numServers: Int, var numClients: Int, var followingCardinality: Int, var executorClass: String, var replicationFactor: Int = 1, var iterations: Int = 5, var threads: Int = 1, var runLengthMin: Int = 5 ) extends AvroClient with AvroRecord {
+case class ScadrLoaderClient(var numServers: Int, var numLoaders: Int, var followingCardinality: Int, var replicationFactor: Int = 1) extends AvroClient with AvroRecord {
   def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode) = {
-    val coordination = clusterRoot.getOrCreate("coordination")
+    val coordination = clusterRoot.getOrCreate("coordination/loaders")
     val cluster = new ScadsCluster(clusterRoot)
-    var executor = Class.forName(executorClass).newInstance.asInstanceOf[QueryExecutor]
-    val scadrClient = new ScadrClient(cluster, executor)
+    val scadrClient = new ScadrClient(cluster, new SimpleExecutor)
     val loader = new ScadrLoader(scadrClient,
       replicationFactor = replicationFactor,
-      numClients = numClients,
+      numClients = numLoaders,
       numUsers = numServers * 10000 / replicationFactor,
       numThoughtsPerUser = 100,
       numSubscriptionsPerUser = followingCardinality,
       numTagsPerThought = 5)
 
-    val clientId = coordination.registerAndAwait("clientStart", numClients)
+    val clientId = coordination.registerAndAwait("clientStart", numLoaders)
     if(clientId == 0) {
       logger.info("Awaiting scads cluster startup")
       cluster.blockUntilReady(numServers)
@@ -97,11 +100,40 @@ case class LoadClient(var numServers: Int, var numClients: Int, var followingCar
       scadrClient.idxUsersTarget.setReadWriteQuorum(0.33, 0.67)
     }
 
-    coordination.registerAndAwait("startBulkLoad", numClients)
+    coordination.registerAndAwait("startBulkLoad", numLoaders)
     logger.info("Begining bulk loading of data")
     loader.getData(clientId).load()
     logger.info("Bulk loading complete")
-    coordination.registerAndAwait("loadingComplete", numClients)
+    coordination.registerAndAwait("loadingComplete", numLoaders)
+
+    if(clientId == 0)
+      clusterRoot.createChild("clusterReady", data=this.toBytes)
+
+    System.exit(0)
+  }
+}
+
+case class ThoughtStreamClient(var numClients: Int, var executorClass: String, var iterations: Int = 5, var threads: Int = 1, var runLengthMin: Int = 5) extends AvroClient with AvroRecord {
+  def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode): Unit = {
+    val coordination = clusterRoot.getOrCreate("coordination/clients")
+    val cluster = new ScadsCluster(clusterRoot)
+    var executor = Class.forName(executorClass).newInstance.asInstanceOf[QueryExecutor]
+    val scadrClient = new ScadrClient(cluster, executor)
+
+    val clientId = coordination.registerAndAwait("clientStart", numClients)
+
+    logger.info("Waiting for cluster to be ready")
+    val clusterConfig = clusterRoot.awaitChild("clusterReady")
+    val loaderConfig = classOf[ScadrLoaderClient].newInstance.parse(clusterConfig.data)
+
+    //TODO: Seperate ScadrData and ScadrLoader, move this to a function
+    val loader = new ScadrLoader(scadrClient,
+      replicationFactor = loaderConfig.replicationFactor,
+      numClients = loaderConfig.numLoaders,
+      numUsers = loaderConfig.numServers * 10000 / loaderConfig.replicationFactor,
+      numThoughtsPerUser = 100,
+      numSubscriptionsPerUser = loaderConfig.followingCardinality,
+      numTagsPerThought = 5)
 
     for(iteration <- (1 to iterations)) {
       logger.info("Begining iteration %d", iteration)
@@ -132,7 +164,7 @@ case class LoadClient(var numServers: Int, var numClients: Int, var followingCar
         }
 
         logger.info("Thread %d complete", threadId)
-        (ResultKey(this, clusterRoot.canonicalAddress, clientId, iteration, threadId), ResultValue(histogram, failures))
+        (ResultKey(this, loaderConfig, clusterRoot.canonicalAddress, clientId, iteration, threadId), ResultValue(histogram, failures))
       })
 
       coordination.registerAndAwait("iteration" + iteration, numClients)

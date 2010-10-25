@@ -49,17 +49,16 @@ object AvroClientMain {
   }
 }
 
-
 abstract trait Experiment {
   val logger = Logger()
-  lazy implicit val zookeeper = new ZooKeeperProxy("mesos-ec2.knowsql.org:2181")
+  lazy val zookeeper = new ZooKeeperProxy("mesos-ec2.knowsql.org:2181")
   lazy val resultCluster = new ScadsCluster(zookeeper.root.getOrCreate("scads/results"))
 
   implicit def duplicate(process: JvmProcess) = new {
     def *(count: Int): Seq[JvmProcess] = Array.fill(count)(process)
   }
 
-  def newExperimentRoot = zookeeper.root.getOrCreate("scads/experiments").createChild("IntKeyScaleExperiment", mode = CreateMode.PERSISTENT_SEQUENTIAL)
+  def newExperimentRoot(implicit zookeeper: ZooKeeperProxy#ZooKeeperNode)  = zookeeper.getOrCreate("scads/experiments").createChild("IntKeyScaleExperiment", mode = CreateMode.PERSISTENT_SEQUENTIAL)
 
   def serverJvmProcess(clusterAddress: String)(implicit classpath: Seq[ClassSource]) =
     JvmProcess(
