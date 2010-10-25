@@ -66,10 +66,10 @@ object CardinalityExperiment extends Experiment {
         failures,
         run.head._1.clientConfig.executorClass,
         totalRequests,
-        quantile50ResponseTime,
-        quantile90ResponseTime,
-        quantile99ResponseTime,
-        quantile999ResponseTime).mkString("\t"))
+        aggregrateHistogram.quantile(0.5),
+        aggregrateHistogram.quantile(0.90),
+        aggregrateHistogram.quantile(0.99),
+        aggregrateHistogram.quantile(0.999)).mkString("\t"))
     })
   }
 
@@ -163,7 +163,7 @@ case class ThoughtStreamClient(var numClients: Int, var executorClass: String, v
           }
         }
 
-        logger.info("Thread %d complete", threadId)
+        logger.info("Thread %d stats 50th: %dms, 90th: %dms, 99th: %dms", threadId, histogram.quantile(0.50), histogram.quantile(0.90), histogram.quantile(0.99))
         (ResultKey(this, loaderConfig, clusterRoot.canonicalAddress, clientId, iteration, threadId), ResultValue(histogram, failures))
       })
 

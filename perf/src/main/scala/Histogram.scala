@@ -33,6 +33,13 @@ protected case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Lon
 		this
 	}
 
+  def totalRequests: Long = buckets.sum
+
+  def quantile(fraction: Double): Int = {
+    val cumulativeSum = buckets.scanLeft(0L)(_ + _).drop(1)
+    cumulativeSum.findIndexOf(_ >= totalRequests * fraction) * bucketSize
+  }
+
 	def view: NodeSeq =
 <script type="text/javascript">{"""
  $(document).ready(function() {
