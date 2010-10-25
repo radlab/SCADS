@@ -1,7 +1,8 @@
 package edu.berkeley.cs
 package scads
 package perf
-package scadr.cardinality
+package scadr
+package cardinality
 
 import comm._
 import piql._
@@ -102,7 +103,13 @@ case class ScadrLoaderClient(var numServers: Int, var numLoaders: Int, var follo
 
     coordination.registerAndAwait("startBulkLoad", numLoaders)
     logger.info("Begining bulk loading of data")
-    loader.getData(clientId).load()
+    val data = loader.getData(clientId)
+    logger.info("Loading users")
+    scadrClient.users ++= data.userData
+    logger.info("Loading thoughts")
+    scadrClient.thoughts ++= data.thoughtData
+    logger.info("Loading subscriptions")
+    scadrClient.subscriptions ++= data.subscriptionData
     logger.info("Bulk loading complete")
     coordination.registerAndAwait("loadingComplete", numLoaders)
 
