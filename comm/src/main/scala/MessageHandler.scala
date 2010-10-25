@@ -95,7 +95,7 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
   // Delegation overrides
 
   override def sendMessage(dest: RemoteNode, msg: Message) {
-    logger.debug("Sending %s to %s", msg, dest)
+    logger.trace("Sending %s to %s", msg, dest)
     val evt = MessagePending[Message, Message](dest, Left(msg))
     foldLeftListeners(evt) match {
       case RelayMessage => impl.sendMessage(dest, msg)
@@ -124,6 +124,7 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
   }
 
   private def doReceiveMessage(src: RemoteNode, msg: Message) {
+    logger.trace("Received message %s from %s", msg, src)
     val evt = MessagePending[Message, Message](src, Right(msg))
     foldLeftListeners(evt) match {
       case RelayMessage => doReceiveMessage0(src, msg)
