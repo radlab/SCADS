@@ -190,6 +190,18 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watc
       apply(fullName)
     }
 
+		def onDataChange(func:() => Unit):Array[Byte] = {
+			val watcher = new Watcher {
+				def process(evt: WatchedEvent) {
+					evt.getType match {
+            case EventType.NodeDataChanged => func()
+            case e => logger.error("HOLY FUCK (now watch is unregistered): %s",e)
+          }
+				}
+			}
+			conn.getData(path, watcher, new Stat)
+		}
+
     def registerAndAwait(barrierName: String, count: Int): Int = {
       val node = getOrCreate(barrierName)
       val seqNum = node.createChild("client", mode = CreateMode.EPHEMERAL_SEQUENTIAL).sequenceNumber

@@ -67,5 +67,12 @@ class ZookeeperProxySpec extends Spec with ShouldMatchers {
 
 
     }
+		it("should do onDataChange properly") {
+			var changed = new scala.concurrent.SyncVar[Int]
+			val newNode = zk1.root.createChild("changingNode")
+			newNode.onDataChange( ()=> { changed.set(1)})
+			newNode.data = "hi!".getBytes
+			changed.get(1000).isDefined should equal(true)
+		}
   }
 }
