@@ -54,6 +54,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     }
     createRoutingTable(rTable)
     storeRoutingTable()
+		loadRoutingTable()
   }
 
   override def delete() {
@@ -257,13 +258,11 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     nsRoot.waitUntilPropagated()
   }
 
-  private def loadRoutingTable() = {
-    val zkNode = nsRoot.get(ZOOKEEPER_ROUTING_TABLE)
+  private def loadRoutingTable():Unit = {
+		logger.debug("loading routing table")
+    val zkNode = nsRoot.get(ZOOKEEPER_ROUTING_TABLE).getOrElse(throw new RuntimeException("Can not load empty routing table"))
     val rangeSeq = new RoutingTableMessage()
-    zkNode match {
-      case None => throw new RuntimeException("Can not load empty routing table")
-      case Some(a) => rangeSeq.parse(a.data)
-    }
+		rangeSeq.parse(zkNode.onDataChange(loadRoutingTable))
     val partition = rangeSeq.partitions.map(a => new RangeType(a.startKey.map(deserializeKey(_)), a.servers))
     createRoutingTable(partition.toArray)
   }
