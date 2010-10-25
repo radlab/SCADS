@@ -78,7 +78,7 @@ object CardinalityExperiment extends Experiment {
 case class ScadrLoaderClient(var numServers: Int, var numLoaders: Int, var followingCardinality: Int, var replicationFactor: Int = 1) extends AvroClient with AvroRecord {
   def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode) = {
     val coordination = clusterRoot.getOrCreate("coordination/loaders")
-    val cluster = new ScadsCluster(clusterRoot)
+    val cluster = new ExperimentalScadsCluster(clusterRoot)
     val scadrClient = new ScadrClient(cluster, new SimpleExecutor)
     val loader = new ScadrLoader(scadrClient,
       replicationFactor = replicationFactor,

@@ -18,13 +18,15 @@ abstract trait AvroClient extends IndexedRecord {
   val logger = Logger()
 
   def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode)
+}
 
-  implicit def blockingCluster(cluster: ScadsCluster) = new {
-    def blockUntilReady(clusterSize: Int): Unit = {
-      while(cluster.getAvailableServers.size < clusterSize) {
-        logger.info("Waiting for cluster to start " + cluster.getAvailableServers.size + " of " + clusterSize + " ready.")
-        Thread.sleep(1000)
-      }
+class ExperimentalScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) extends ScadsCluster(root) {
+  val logger = Logger()
+
+  def blockUntilReady(clusterSize: Int): Unit = {
+    while(getAvailableServers.size < clusterSize) {
+      logger.info("Waiting for cluster to start " + cluster.getAvailableServers.size + " of " + clusterSize + " ready.")
+      Thread.sleep(1000)
     }
   }
 }
