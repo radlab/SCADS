@@ -164,7 +164,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode)
              * had a race condition where the ephemeral nodes were not removed
              * in time that the node started back up. Therefore, delete the
              * existing lock file and recreate it */
-            logger.critical("Clobbering lock file! Namespace: %s, PartitionID: %d".format(request.namespace, partitionId))
+            logger.critical("Clobbering lock file! Namespace: %s, PartitionID: %s".format(request.namespace, partitionId))
             partitionsDir.deleteChild(partitionId)
             partitionsDir.createChild(partitionId)
         }
