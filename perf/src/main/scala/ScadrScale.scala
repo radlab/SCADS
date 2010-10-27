@@ -15,7 +15,7 @@ import deploylib.mesos._
 
 import scala.util.Random
 
-case class ResultKey(var clientConfig: LoadClient, var clusterAddress: String, var clientId: Int, var iteration: Int, var threadId: Int) extends AvroRecord
+case class ResultKey(var clientConfig: LoadClient, var loaderConfig: ScadrLoaderClient, var clusterAddress: String, var clientId: Int, var iteration: Int, var threadId: Int) extends AvroRecord
 case class ResultValue(var times: Histogram, var skips: Int) extends AvroRecord
 
 object ScadrScaleExperiment extends Experiment {
@@ -34,17 +34,17 @@ object ScadrScaleExperiment extends Experiment {
       val quantile99ResponseTime = cumulativeHistogram.findIndexOf(_ >= totalRequests * 0.99) * aggregrateHistogram.bucketSize
       val quantile999ResponseTime = cumulativeHistogram.findIndexOf(_ >= totalRequests * 0.999) * aggregrateHistogram.bucketSize
 
-      println(List(run.head._1.clientConfig.numServers, run.head._1.clientConfig.executorClass, totalRequests, quantile50ResponseTime, quantile99ResponseTime, quantile999ResponseTime).mkString("\t"))
+      println(List(run.head._1.loaderConfig.numServers, run.head._1.clientConfig.executorClass, totalRequests, quantile50ResponseTime, quantile99ResponseTime, quantile999ResponseTime).mkString("\t"))
     })
   }
 }
 
-case class LoadClient(var numServers: Int, var numClients: Int, var followingCardinality: Int, var executorClass: String, var writeProbability: Double, var iterations: Int = 5, var threads: Int = 50, var runLengthMin: Int = 5 ) extends AvroRecord with ReplicatedAvroClient {
+case class LoadClient(var numClients: Int, var executorClass: String, var writeProbability: Double, var iterations: Int = 5, var threads: Int = 50, var runLengthMin: Int = 5) extends AvroRecord with ReplicatedAvroClient {
   /* True if coin flip with prob succeeds */
   protected def flipCoin(prob: Double): Boolean = Random.nextDouble < prob
 
   def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode) = {
-    val coordination = clusterRoot.getOrCreate("coordination")
+    val coordination = clusterRoot.getOrCreate("coordination/clients")
     val cluster = new ScadsCluster(clusterRoot)
     var executor = Class.forName(executorClass).newInstance.asInstanceOf[QueryExecutor]
     val scadrClient = new ScadrClient(cluster, executor)
@@ -68,7 +68,7 @@ case class LoadClient(var numServers: Int, var numClients: Int, var followingCar
       logger.info("Begining iteration %d", iteration)
 
       ScadrScaleExperiment.results ++= (1 to threads).pmap(threadId => {
-        def getTime = System.currentTimeMillis
+        def getTime = System.nanoTime / 1000000
         val histogram = Histogram(1, 5000)
         val runTime = runLengthMin * 60 * 1000L
         val iterationStartTime = getTime
@@ -79,44 +79,47 @@ case class LoadClient(var numServers: Int, var numClients: Int, var followingCar
         while(endTime - iterationStartTime < runTime) {
           val startTime = getTime
 
-          // Here we try to emulate a page load for scadr
-          // the assertions below are to prevent the compiler/jvm from
-          // optimizing away the queries
+          try {
+            // Here we try to emulate a page load for scadr
+            // the assertions below are to prevent the compiler/jvm from
+            // optimizing away the queries
 
-          val currentUser = loader.randomUser
+            val currentUser = loader.randomUser
 
-          // 1) load the user's thoughtstream
-          val ts = scadrClient.thoughtstream(currentUser, scadrClient.maxResultsPerPage)
-          assert(ts != null)
+            // 1) load the user's thoughtstream
+            val ts = scadrClient.thoughtstream(currentUser, scadrClient.maxResultsPerPage)
+            assert(ts != null)
 
-          // 2) load the user's followers
-          val followers = scadrClient.usersFollowing(currentUser, scadrClient.maxResultsPerPage)
-          assert(followers != null)
+            // 2) load the user's followers
+            val followers = scadrClient.usersFollowing(currentUser, scadrClient.maxResultsPerPage)
+            assert(followers != null)
 
-          // 3) load the user's followings
-          val followings = scadrClient.usersFollowedBy(currentUser, scadrClient.maxResultsPerPage)
-          assert(followings != null)
+            // 3) load the user's followings
+            val followings = scadrClient.usersFollowedBy(currentUser, scadrClient.maxResultsPerPage)
+            assert(followings != null)
 
-          // 4) make a tweet with some probability
-          if (flipCoin(writeProbability)) {
-            val thoughtTime = getTime.toInt
-            scadrClient.saveThought(
-                ThoughtKey(currentUser, thoughtTime),
-                ThoughtValue("New thought by user %s at time %d".format(currentUser, thoughtTime)))
-          }
+            // 4) make a tweet with some probability
+            if (flipCoin(writeProbability)) {
+              val thoughtTime = getTime.toInt
+              scadrClient.saveThought(
+                  ThoughtKey(currentUser, thoughtTime),
+                  ThoughtValue("New thought by user %s at time %d".format(currentUser, thoughtTime)))
+            }
 
-          endTime = getTime
-          val elapsedTime = endTime - startTime
-          if (elapsedTime < 0) {
-            logger.warning("Time Skip: %d", elapsedTime)
-            skips += 1
-          } else {
+            endTime = getTime
+            val elapsedTime = endTime - startTime
             histogram += elapsedTime
+          }
+          catch {
+            case e => {
+              logger.warning(e, "Execepting generating page")
+              skips += 1
+            }
           }
         }
 
-        logger.info("Thread %d complete", threadId)
-        (ResultKey(this, clusterRoot.canonicalAddress, clientId, iteration, threadId), ResultValue(histogram, skips))
+        logger.info("Thread %d stats 50th: %dms, 90th: %dms, 99th: %dms", threadId, histogram.quantile(0.50), histogram.quantile(0.90), histogram.quantile(0.99))
+        (ResultKey(this, loaderConfig, clusterRoot.canonicalAddress, clientId, iteration, threadId), ResultValue(histogram, skips))
       })
 
       coordination.registerAndAwait("iteration" + iteration, numClients)
