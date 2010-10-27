@@ -171,6 +171,7 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watc
 
     def awaitChild(name: String, seqNumber: Option[Int] = None, timeout: Long = 24*60*60*1000, unit: TimeUnit = TimeUnit.MILLISECONDS): ZooKeeperProxy#ZooKeeperNode = {
       val fullName = seqNumber.map(s => "%s%010d".format(name, s)).getOrElse(name)
+      val childPath = fullPath(fullName)
       val blocker = new BlockingFuture[Unit] 
       val watcher = new Watcher {
         def process(evt: WatchedEvent) {
@@ -181,8 +182,10 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watc
           }
         }
       }
-      if (conn.exists(fullPath(fullName), watcher) eq null)
+      if (conn.exists(childPath, watcher) eq null) {
+        logger.info("Waiting up to %dms for %s", timeout, childPath)
         blocker.await(unit.toMillis(timeout))
+      }
 
       apply(fullName)
     }
