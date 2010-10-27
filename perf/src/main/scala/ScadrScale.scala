@@ -1,7 +1,8 @@
 package edu.berkeley.cs
 package scads
 package perf
-package scadr.scale
+package scadr
+package scale
 
 import comm._
 import piql._
@@ -36,61 +37,37 @@ object ScadrScaleExperiment extends Experiment {
       println(List(run.head._1.clientConfig.numServers, run.head._1.clientConfig.executorClass, totalRequests, quantile50ResponseTime, quantile99ResponseTime, quantile999ResponseTime).mkString("\t"))
     })
   }
-
-  def makeGraph(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler) =
-    (10 to 100 by 10).foreach(n => run(LoadClient(n, n, 100, "edu.berkeley.cs.scads.piql.SimpleExecutor", 0.01)))
-
-  def run(clientConfig: LoadClient)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler): ZooKeeperProxy#ZooKeeperNode = {
-    val expRoot = newExperimentRoot
-    val procs = serverJvmProcess(expRoot.canonicalAddress) * clientConfig.numServers ++ clientJvmProcess(clientConfig, expRoot) * clientConfig.numClients
-    scheduler.scheduleExperiment(procs)
-    expRoot
-  }
 }
 
-case class LoadClient(var numServers: Int, var numClients: Int, var followingCardinality: Int, var executorClass: String, var writeProbability: Double, var iterations: Int = 5, var threads: Int = 50, var runLengthMin: Int = 5 ) extends AvroRecord with AvroClient {
-  def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode) = {
-    //TODO: Can we mark vars as transient? so this can be outside of the function
-    val random = new Random
-    /* True if coin flip with prob succeeds */
-    def flipCoin(prob: Double): Boolean = random.nextDouble < prob
+case class LoadClient(var numServers: Int, var numClients: Int, var followingCardinality: Int, var executorClass: String, var writeProbability: Double, var iterations: Int = 5, var threads: Int = 50, var runLengthMin: Int = 5 ) extends AvroRecord with ReplicatedAvroClient {
+  /* True if coin flip with prob succeeds */
+  protected def flipCoin(prob: Double): Boolean = Random.nextDouble < prob
 
+  def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode) = {
     val coordination = clusterRoot.getOrCreate("coordination")
     val cluster = new ScadsCluster(clusterRoot)
     var executor = Class.forName(executorClass).newInstance.asInstanceOf[QueryExecutor]
     val scadrClient = new ScadrClient(cluster, executor)
 
-    // TODO: configure the loader
-    val loader = new ScadrLoader(scadrClient,
-      replicationFactor = 1,
-      numClients = numClients,
-      numUsers = numServers * 1000,
-      numThoughtsPerUser = 100,
-      numSubscriptionsPerUser = followingCardinality,
-      numTagsPerThought = 5)
-
     val clientId = coordination.registerAndAwait("clientStart", numClients)
-    if(clientId == 0) {
-      logger.info("Awaiting scads cluster startup")
-      cluster.blockUntilReady(numServers)
-      loader.createNamespaces
-      scadrClient.users.setReadWriteQuorum(0.33, 0.67)
-      scadrClient.thoughts.setReadWriteQuorum(0.33, 0.67)
-      scadrClient.subscriptions.setReadWriteQuorum(0.33, 0.67)
-      scadrClient.tags.setReadWriteQuorum(0.33, 0.67)
-      scadrClient.idxUsersTarget.setReadWriteQuorum(0.33, 0.67)
-    }
 
-    coordination.registerAndAwait("startBulkLoad", numClients)
-    logger.info("Begining bulk loading of data")
-    loader.getData(clientId).load()
-    logger.info("Bulk loading complete")
-    coordination.registerAndAwait("loadingComplete", numClients)
+    logger.info("Waiting for cluster to be ready")
+    val clusterConfig = clusterRoot.awaitChild("clusterReady")
+    val loaderConfig = classOf[ScadrLoaderClient].newInstance.parse(clusterConfig.data)
+
+    //TODO: Seperate ScadrData and ScadrLoader, move this to a function
+    val loader = new ScadrLoader(scadrClient,
+      replicationFactor = loaderConfig.replicationFactor,
+      numClients = loaderConfig.numLoaders,
+      numUsers = loaderConfig.numServers * 10000 / loaderConfig.replicationFactor,
+      numThoughtsPerUser = 100,
+      numSubscriptionsPerUser = loaderConfig.followingCardinality,
+      numTagsPerThought = 5)
 
     for(iteration <- (1 to iterations)) {
       logger.info("Begining iteration %d", iteration)
 
-      ScadrScaleTest.results ++= (1 to threads).pmap(threadId => {
+      ScadrScaleExperiment.results ++= (1 to threads).pmap(threadId => {
         def getTime = System.currentTimeMillis
         val histogram = Histogram(1, 5000)
         val runTime = runLengthMin * 60 * 1000L

@@ -40,17 +40,6 @@ object CardinalityExperiment extends Experiment {
     })
   }
 
-  def newCluster(loaderDesc: ScadrLoaderClient)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeper: ZooKeeperProxy#ZooKeeperNode): ScadsCluster = {
-    val clusterRoot = newExperimentRoot
-    scheduler.scheduleExperiment(serverJvmProcess(clusterRoot.canonicalAddress) * loaderDesc.numServers ++ clientJvmProcess(loaderDesc, clusterRoot) * loaderDesc.numLoaders)
-    new ScadsCluster(clusterRoot)
-  }
-
-  def run(clientDesc: ThoughtStreamClient, cluster: ScadsCluster)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler): Unit = {
-    cluster.root("coordination").get("clients").foreach(_.deleteRecursive)
-    scheduler.scheduleExperiment(clientJvmProcess(clientDesc, cluster.root) * clientDesc.numClients)
-  }
-
   def printResults: Unit = {
     val runs = results.getRange(None, None).groupBy(k => (k._1.clientConfig, k._1.iteration)).filterNot(_._1._2 == 1).values
     runs.foreach(run => {
@@ -77,7 +66,7 @@ object CardinalityExperiment extends Experiment {
 }
 
 
-case class ThoughtStreamClient(var numClients: Int, var executorClass: String, var iterations: Int = 5, var threads: Int = 1, var runLengthMin: Int = 5) extends AvroClient with AvroRecord {
+case class ThoughtStreamClient(var numClients: Int, var executorClass: String, var iterations: Int = 5, var threads: Int = 1, var runLengthMin: Int = 5) extends ReplicatedAvroClient with AvroRecord {
   def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode): Unit = {
     val coordination = clusterRoot.getOrCreate("coordination/clients")
     val cluster = new ScadsCluster(clusterRoot)

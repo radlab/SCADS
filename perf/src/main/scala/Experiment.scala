@@ -45,4 +45,9 @@ abstract trait Experiment {
     JvmProcess(classpath,
       "edu.berkeley.cs.scads.perf.AvroClientMain",
       loadClient.getClass.getName :: clusterRoot.canonicalAddress :: loadClient.toJson :: Nil)
+
+  def run(clientDesc: ReplicatedAvroClient, cluster: ScadsCluster)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler): Unit = {
+    cluster.root("coordination").get("clients").foreach(_.deleteRecursive)
+    scheduler.scheduleExperiment(clientJvmProcess(clientDesc, cluster.root) * clientDesc.numClients)
+  }
 }

@@ -16,6 +16,10 @@ abstract trait AvroClient extends IndexedRecord {
   def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode)
 }
 
+abstract trait ReplicatedAvroClient extends AvroClient {
+  var numClients: Int
+}
+
 object AvroClientMain {
   val logger = Logger()
 

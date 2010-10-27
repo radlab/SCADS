@@ -2,12 +2,24 @@ package edu.berkeley.cs
 package scads
 package perf
 package scadr
-package cardinality
 
 import comm._
 import piql._
+import storage._
 import avro.runtime._
 import avro.marker._
+
+import deploylib._
+import deploylib.mesos._
+
+
+object ScadrLoaderClient extends Experiment {
+  def newCluster(loaderDesc: ScadrLoaderClient)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeper: ZooKeeperProxy#ZooKeeperNode): ScadsCluster = {
+    val clusterRoot = newExperimentRoot
+    scheduler.scheduleExperiment(serverJvmProcess(clusterRoot.canonicalAddress) * loaderDesc.numServers ++ clientJvmProcess(loaderDesc, clusterRoot) * loaderDesc.numLoaders)
+    new ScadsCluster(clusterRoot)
+  }
+}
 
 case class ScadrLoaderClient(var numServers: Int, var numLoaders: Int, var followingCardinality: Int, var replicationFactor: Int = 1) extends AvroClient with AvroRecord {
   def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode) = {
