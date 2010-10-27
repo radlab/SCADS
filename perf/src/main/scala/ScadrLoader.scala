@@ -12,16 +12,15 @@ import avro.marker._
 import deploylib._
 import deploylib.mesos._
 
-
-object ScadrLoaderClient extends Experiment {
-  def newCluster(loaderDesc: ScadrLoaderClient)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeper: ZooKeeperProxy#ZooKeeperNode): ScadsCluster = {
+case class ScadrLoaderClient(var numServers: Int, var numLoaders: Int, var followingCardinality: Int, var replicationFactor: Int = 1) extends AvroClient with AvroRecord {
+  def newCluster(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeper: ZooKeeperProxy#ZooKeeperNode): ScadsCluster = {
     val clusterRoot = newExperimentRoot
-    scheduler.scheduleExperiment(serverJvmProcess(clusterRoot.canonicalAddress) * loaderDesc.numServers ++ clientJvmProcess(loaderDesc, clusterRoot) * loaderDesc.numLoaders)
+    val serverProcs = List.fill(numServers)(serverJvmProcess(clusterRoot.canonicalAddress))
+    val loaderProcs = List.fill(numLoaders)(toJvmProcess(clusterRoot))
+    scheduler.scheduleExperiment(serverProcs ++ loaderProcs)
     new ScadsCluster(clusterRoot)
   }
-}
 
-case class ScadrLoaderClient(var numServers: Int, var numLoaders: Int, var followingCardinality: Int, var replicationFactor: Int = 1) extends AvroClient with AvroRecord {
   def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode) = {
     val coordination = clusterRoot.getOrCreate("coordination/loaders")
     val cluster = new ExperimentalScadsCluster(clusterRoot)
