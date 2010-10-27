@@ -1,0 +1,3 @@
+#!/bin/bash
+
+exec /usr/bin/java -Dscads.config=/root/scads/ec2/scads.config -Djava.library.path=/root/mesos/lib/java/ -cp /root/scads/perf/target/perf-2.1.0-SNAPSHOT.jar:/root/scads/mesos/target/mesos-scads-2.1.0-SNAPSHOT-jar-with-dependencies.jar:/root/scala-2.8.0.final/lib/jline.jar scala.tools.nsc.MainGenericRunner -usejavacp -i /root/scads/ec2/setup.scala
