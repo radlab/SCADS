@@ -21,17 +21,19 @@ object AvroClientMain {
 
   def main(args: Array[String]): Unit = {
     if(args.size == 3)
-    try {
-      val clusterRoot = ZooKeeperNode(args(1))
-      Class.forName(args(0)).newInstance.asInstanceOf[AvroClient].parse(args(2)).run(clusterRoot)
-    }
-    catch {
-      case error => {
-        logger.fatal(error, "Exeception in Main Thread.  Killing process.")
-        System.exit(-1)
+      try {
+        val clusterRoot = ZooKeeperNode(args(1))
+        Class.forName(args(0)).newInstance.asInstanceOf[AvroClient].parse(args(2)).run(clusterRoot)
+      }
+      catch {
+        case error => {
+          logger.fatal(error, "Exeception in Main Thread.  Killing process.")
+          System.exit(-1)
       }
     }
-    else
+    else {
       println("Usage: " + this.getClass.getName + "<class name> <zookeeper address> <json encoded avro client description>")
+      System.exit(-1)
+    }
   }
 }
