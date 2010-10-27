@@ -9,8 +9,7 @@ import scala.util.Random
 class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   lazy val address = cluster.getNamespace[AddressKey, AddressValue]("address")
   lazy val author = cluster.getNamespace[AuthorKey, AuthorValue]("author")
-  lazy val authorNameItemIndex = cluster.getNamespace[AuthorNameItemIndexKey, NullRecord]("author_fname_index")
-  //val authorLNameIndex = cluster.getNamespace[AuthorLNameIndexKey, NullRecord]("author_lname_index") //make it one
+  lazy val authorNameItemIndex = cluster.getNamespace[AuthorNameItemIndexKey, NullRecord]("author_name_index")
   lazy val xacts = cluster.getNamespace[CcXactsKey, CcXactsValue]("xacts")
   lazy val country = cluster.getNamespace[CountryKey, CountryValue]("country")
   lazy val customer = cluster.getNamespace[CustomerKey, CustomerValue]("customer")
@@ -20,10 +19,12 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   lazy val order = cluster.getNamespace[OrdersKey, OrdersValue]("orders")
   lazy val customerOrderIndex = cluster.getNamespace[CustomerOrderIndex, NullRecord]("customer_index")  //Extra index
   lazy val itemTitleIndex = cluster.getNamespace[ItemTitleIndexKey, NullRecord]("item_title_index")
+  lazy val shoppingCartItem = cluster.getNamespace[ShoppingCartItemKey, ShoppingCartItemValue]("shopping_cart_item")
 
   // cardinality constraints
   // TODO: we need to place these in various queries
   val maxOrderLinesPerPage = 10
+  val maxItemsPerCart = 5000
 
   def paraSelector(i : Int) = Array(ParameterValue(i))
   def projection(record: Int, attribute: Int) = Array(AttributeValue(record, attribute))
@@ -118,14 +119,15 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    */
   private lazy val searchBySubjectPlan =
    IndexLookupJoin( // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue, AuthorKey, AuthorValue
-    author,
-    projection(3,1), // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue
-      IndexLookupJoin( // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue
-        item,
-        projection(1,0), // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID)
-        IndexScan(itemSubjectDateTitleIndex, firstPara, FixedLimit(50), true)
-      )
-    )
+     author,
+     projection(3,1), // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue
+     IndexLookupJoin( // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue
+       item,
+       projection(1,0), // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID)
+       IndexScan(itemSubjectDateTitleIndex, firstPara, FixedLimit(50), true)
+     )
+   )
+  //TODO: this is the exact same query as newProductWI...
   def searchBySubjectWI(subject : String) = exec(searchBySubjectPlan, new Utf8(subject))
 
   /**
@@ -153,7 +155,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       Equality(AttributeValue(1, 0), ParameterValue(1)),
       IndexLookup(customer, paraSelector(0))  // CustomerName, (C_PASSWD, C_FNAME, C_LNAME,....)
     )
-  private def orderDisplayCustomerWI(cName : String, cPassword : String) = 
+  def orderDisplayCustomerWI(cName : String, cPassword : String) = 
     exec(orderDisplayCustomerPlan, new Utf8(cName), new Utf8(cPassword))
 
   private lazy val orderDisplayLastOrder =
@@ -170,7 +172,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
         )
       )
     )
-  private def orderDisplayLastOrderWI(c_uname: String) =
+  def orderDisplayLastOrderWI(c_uname: String) =
     exec(orderDisplayLastOrder, new Utf8(c_uname))
 
   private lazy val orderDisplayGetAddressInfo =
@@ -179,7 +181,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       Array(AttributeValue(1, 5)),
       IndexLookup(address, firstPara) // (ADDR_ID), (ADDR_STREET_1, ...)
     )
-  private def orderDisplayGetAddressInfoWI(addr_id: String) = 
+  def orderDisplayGetAddressInfoWI(addr_id: String) = 
     exec(orderDisplayGetAddressInfo, new Utf8(addr_id))
 
   private lazy val orderDisplayGetOrderLines =
@@ -196,7 +198,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
         )
       )
     )
-  private def orderDisplayGetOrderLinesWI(o_id: String, numOrderLinesPerPage: Int) = 
+  def orderDisplayGetOrderLinesWI(o_id: String, numOrderLinesPerPage: Int) = 
     exec(orderDisplayGetOrderLines, new Utf8(o_id), numOrderLinesPerPage)
 
 
@@ -204,10 +206,53 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     val cust = orderDisplayCustomerWI(c_uname, c_passwd) 
     assert(!cust.isEmpty, "No user found with UNAME %s, PASSWD %s".format(c_uname, c_passwd))
     val lastOrder = orderDisplayLastOrderWI(c_uname)
-    val billingAddrAndCo = orderDisplayGetAddressInfoWI(lastOrder(1)(1).get(7).toString)
-    val shippingAddrAndCo = orderDisplayGetAddressInfoWI(lastOrder(1)(1).get(8).toString)
-    val orderLines = orderDisplayGetOrderLinesWI(lastOrder(1)(0).get(0).toString, numOrderLinesPerPage)
-    orderLines ++ shippingAddrAndCo ++ billingAddrAndCo ++ lastOrder ++ cust
+    if (lastOrder.isEmpty) Seq.empty // no orders for this user
+    else {
+      val billingAddrAndCo = orderDisplayGetAddressInfoWI(lastOrder(0)(3).get(7).toString)
+      val shippingAddrAndCo = orderDisplayGetAddressInfoWI(lastOrder(0)(3).get(8).toString)
+      val orderLines = orderDisplayGetOrderLinesWI(lastOrder(0)(2).get(0).toString, numOrderLinesPerPage)
+      Seq(cust(0) ++ lastOrder(0) ++ billingAddrAndCo(0) ++ shippingAddrAndCo(0) ++ orderLines.flatten)
+    }
+  }
+
+  def newShoppingCart(c_uname: String) : (String, Long) = 
+    (c_uname, System.currentTimeMillis)
+
+
+  /**
+   * select C_ID from CUSTOMER where C_UNAME=@C_UNAME and
+   * C_PASSWD=@C_PASSWD
+
+   * SELECT C_UNAME,C_PASSWD,C_FNAME,C_LNAME,C_PHONE,
+   * C_EMAIL,C_BIRTHDATE,C_DATA1,C_DATA2,ADDR_STREET1,
+   * ADDR_STREET2,ADDR_CITY,ADDR_STATE,ADDR_ZIP,CO_NAME
+   * FROM CUSTOMER,ADDRESS,COUNTRY
+   * where C_ADDR_ID=ADDR_ID and ADDR_CO_ID=CO_ID and C_ID = @C_ID
+   */
+
+  private def buyRequestCustomerWI(cName : String, cPassword : String) = 
+    exec(orderDisplayCustomerPlan, new Utf8(cName), new Utf8(cPassword))
+
+  private lazy val buyRequestAddrCoPlan = 
+    IndexLookupJoin( // (C_UNAME), (C_PASSWD, ...), (ADDR_ID), (ADDR_STREET1, ...), (CO_ID), (CO_NAME, ...)
+      country, 
+      Array(AttributeValue(3, 5)),
+      IndexLookupJoin( // (C_UNAME), (C_PASSWD, ...), (ADDR_ID), (ADDR_STREET1, ...)  
+        address,
+        Array(AttributeValue(1, 3)),
+        IndexLookup( // (C_UNAME), (C_PASSWD, ...)
+          customer,
+          firstPara
+        )
+      )
+    )
+  private def buyRequestAddrCoWI(c_uname: String) =
+    exec(buyRequestAddrCoPlan, new Utf8(c_uname))
+
+  def buyRequestExistingWI(c_uname: String, c_passwd: String) = {
+    val cust = orderDisplayCustomerWI(c_uname, c_passwd) 
+    assert(!cust.isEmpty, "No user found with UNAME %s, PASSWD %s".format(c_uname, c_passwd))
+    buyRequestAddrCoWI(c_uname) 
   }
 
   def exec(plan: QueryPlan, args: Any*) = {
@@ -216,9 +261,9 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     iterator.toSeq
   }
 
-  def loadData(numEBs : Double, numItems : Int) = {
-    val loader = new TpcwLoader(this, numEBs, numItems)
-    loader.load()
-  }
+  //def loadData(numEBs : Double, numItems : Int) = {
+  //  val loader = new TpcwLoader(this, numEBs, numItems)
+  //  loader.load()
+  //}
 
 }

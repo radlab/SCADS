@@ -70,7 +70,7 @@ case class CustomerValue(
         var C_PASSWD : String,
         var C_FNAME : String,
         var C_LNAME : String,
-        var C_ADDR_ID : Int,
+        var C_ADDR_ID : String,
         var C_PHONE : String,
         var C_EMAIL : String,
         var C_SINCE : Long,
@@ -134,5 +134,18 @@ case class AddressValue(
         var ADDR_CO_ID : Int
         ) extends AvroRecord
 
+/**
+ * A shopping cart item is keyed on a (C_UNAME, SCL_TIME, SCL_I_ID)
+ */
+case class ShoppingCartItemKey(
+        var C_UNAME : String,
+        var SCL_TIME : Long,
+        var SCL_I_ID : String) extends AvroRecord
+case class ShoppingCartItemValue(
+        var SCL_QTY : Int,
+        var SCL_COST : Double,
+        var SCL_I_SRP : Double, 
+        var SCL_I_TITLE : String,
+        var SCL_I_BACKING : String) extends AvroRecord
 
 
