@@ -97,7 +97,7 @@ class BatchFuture(val pos : Int) extends MessageFuture{
     forwardList.foreach(_.offer(this))
   }
 
-  def forward(dest: Queue[MessageFuture]): Unit = {
+  def forward(dest: Queue[MessageFuture]): Unit = synchronized {
     if(isSet)
       dest.offer(this)
     else{
