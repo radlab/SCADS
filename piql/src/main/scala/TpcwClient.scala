@@ -4,9 +4,13 @@ import edu.berkeley.cs.scads.storage._
 import edu.berkeley.cs.avro.marker._
 import edu.berkeley.cs.avro.runtime._
 
+import ch.ethz.systems.tpcw.populate.data.Utils
+
 import org.apache.avro.util._
 import scala.util.Random
 import scala.collection.mutable.{ Map => MMap }
+
+import java.util.UUID
 
 class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   lazy val address = cluster.getNamespace[AddressKey, AddressValue]("address")
@@ -299,7 +303,167 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     val cust = orderDisplayCustomerWI(c_uname, c_passwd) 
     assert(!cust.isEmpty, "No user found with UNAME %s, PASSWD %s".format(c_uname, c_passwd))
     buyRequestAddrCoWI(c_uname) 
+    val (k, v) = (cust(0)(0).toSpecificRecord[CustomerKey],
+                  cust(0)(1).toSpecificRecord[CustomerValue])
+    v.C_LOGIN = System.currentTimeMillis
+    v.C_EXPIRATION = v.C_LOGIN + (2L * 3600000L) // +2 hrs in millis
+    customer.put(k, v) // save
   }
+
+  /**
+   * -- BEGIN WALL OF SQL --
+   * DECLARE @CO_ID numeric(4)
+   * DECLARE @ADDR_ID numeric(10)
+   *
+   * Select @CO_ID = CO_ID from COUNTRY where CO_NAME=@CO_NAME
+   *
+   * SELECT ADDR_ID
+   * FROM ADDRESS
+   * WHERE
+   * ADDR_STREET1=@ADDR_STREET1 and
+   * ADDR_STREET2=@ADDR_STREET2 and
+   * ADDR_CITY=@ADDR_CITY and
+   * ADDR_STATE=@ADDR_STATE and
+   * ADDR_ZIP=@ADDR_ZIP and
+   * ADDR_CO_ID=@CO_ID
+   *
+   * Select @CO_ID = CO_ID
+   * from COUNTRY
+   * where CO_NAME=@CO_NAME
+   *
+   * Insert into ADDRESS values(@ADDR_STREET1,
+   * @ADDR_STREET2,@ADDR_CITY,@ADDR_STATE,@ADDR_ZIP,
+   * @CO_ID)
+   *
+   * select @ADDR_ID = @@identity
+   *
+   * select C_ID,C_DISCOUNT,C_ADDR_ID
+   * from CUSTOMER
+   * where C_UNAME=@UserID
+   *
+   * DECLARE @O_ID numeric(9)
+   *
+   * Insert into ORDERS values (@O_C_ID,getdate(),@O_SUBTOTAL,
+   * @O_TAX,@O_TOTAL,@O_SHIP_TYPE,NULL,@O_BILL_ADDR,
+   * @O_SHIP_ADDR,@O_CC_TYPE,@O_CC_NUM,@O_CC_NAME,
+   * @O_CC_EXP,'Pending')
+   *
+   * select @O_ID = @@identity
+   *
+   * Insert ORDER_LINE (OL_O_ID,OL_I_ID,OL_QTY,
+   * OL_DISCOUNT,OL_COMMENTS)
+   *
+   * Select @O_ID,SC_I_ID,SC_QTY,1,'comment' from SHOPPING_CART
+   *
+   * update ITEM     set I_STOCK = I_STOCK - SCL_I_QTY + case when (I_STOCK -
+   * SCL_I_QTY < 10) then 21 else 0 end
+   * from SHOPPING_BASKET
+   * where SC_SHOPPING_ID=@Session and SC_HOST=@SC_HOST and SCL_I_ID =
+   * I_ID
+   *
+   * Delete from SHOPPING_CART where SC_ID=@Session
+   *
+   * Insert into CC_XACTS
+   * values(@O_ID,@O_CC_TYPE,@O_CC_EXP,@O_CC_AUTH,@O_TOTAL,getdate(),@CO_ID)
+   */
+
+  def buyConfirmWI(c_uname: String, 
+                   cc_type: String, 
+                   cc_number: Int,
+                   cc_name: String,
+                   cc_expiry: Long,
+                   shipping: String) = {
+    val (userKey, userValue) = homeWI(c_uname) map { case Array(k, v) =>
+      (k.toSpecificRecord[CustomerKey], k.toSpecificRecord[CustomerValue])
+    } head
+    val cart = retrieveShoppingCart(c_uname) map { case Array(k, v) =>
+      (k.toSpecificRecord[ShoppingCartItemKey], v.toSpecificRecord[ShoppingCartItemValue])
+    }
+
+    // calculate costs
+    val sc_sub_total = (cart.foldLeft(0.0) { case (acc, (k, v)) =>
+      acc + v.SCL_COST * v.SCL_QTY.toDouble
+    }) * (1.0 - userValue.C_DISCOUNT)
+
+    val sc_tax = sc_sub_total * 0.0825
+    val sc_ship_cost = 3.0 + (1.0 * cart.size.toDouble)
+    val sc_total = sc_sub_total + sc_tax + sc_ship_cost
+
+    def newUUID = 
+      UUID.randomUUID.toString
+
+    // make order
+    val orderKey = OrdersKey(newUUID)
+    val orderValue = OrdersValue(
+      c_uname,
+      System.currentTimeMillis,
+      sc_sub_total,
+      sc_tax,
+      sc_total,
+      shipping,
+      System.currentTimeMillis + (scala.util.Random.nextInt(7) + 1).toLong * 86400L, // [1..7] days later
+      userValue.C_ADDR_ID,
+      userValue.C_ADDR_ID,
+      "PENDING")
+
+    // make order lines
+    val orderLines = cart.zipWithIndex.map { case ((k, v), idx) =>
+      (OrderLineKey(orderKey.O_ID, idx + 1),
+       OrderLineValue(
+         k.SCL_I_ID,
+         v.SCL_QTY,
+         userValue.C_DISCOUNT,
+         Utils.getRandomAString(20, 100)))
+    }
+
+    // make item stocks updates
+    val items = cart map { case (k, v) =>
+      val (itemKey, itemValue) = retrieveItem(k.SCL_I_ID) map { case Array(k0, v0) =>
+        (k0.toSpecificRecord[ItemKey], v0.toSpecificRecord[ItemValue])
+      } head
+
+      // update conditions given in clause 2.7.3.3
+      if (itemValue.I_STOCK - v.SCL_QTY >= 10)
+        itemValue.I_STOCK -= v.SCL_QTY
+      else
+        itemValue.I_STOCK = scala.math.min(0, (itemValue.I_STOCK - v.SCL_QTY) + 21) // ... uhh, what happens if this goes negative??? that's why i put the min condition there (it's not given in the spec)
+
+      (itemKey, itemValue)
+    }
+
+    // credit card (PGE) auth stuff ignored...
+
+    // make cc txn
+    val ccXactsKey = CcXactsKey(orderKey.O_ID)  
+    val ccXactsValue = CcXactsValue(
+      cc_type,
+      cc_number,
+      cc_name,
+      cc_expiry,
+      Utils.getRandomAString(15),
+      sc_total,
+      System.currentTimeMillis,
+      Utils.getRandomInt(1, 92))
+
+
+    // do the actual updates. first do the writes. NOTE that in the TPC-W spec
+    // this is (obviously) supposed to be atomic, but we're not gonna do that
+    // (eventual consistency FTW)
+    order.put(orderKey, Some(orderValue))
+    orderline ++= orderLines
+    item ++= items
+    xacts.put(ccXactsKey, Some(ccXactsValue))
+
+    // clear shopping cart. unfortunately BulkPut does not support deletion,
+    // so we do this inefficiently by looping. if our numbers are not good we
+    // could try to make this more efficient, but since max cart size is 100,
+    // this shouldn't be THAT bad
+    cart foreach { case (k, _) =>
+      shoppingCartItem.put(k, None) // delete
+    }
+
+  }
+
 
   def exec(plan: QueryPlan, args: Any*) = {
     val iterator = executor(plan, args:_*)

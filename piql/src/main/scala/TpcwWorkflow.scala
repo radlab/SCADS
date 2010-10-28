@@ -4,18 +4,29 @@ import net.lag.logging.Logger
 
 import scala.util.Random
 import collection.mutable.HashMap
-
 import collection.JavaConversions._
 
 import ch.ethz.systems.tpcw.populate.data.Utils
 
-class TpcwWorkflow(val loader: TpcwLoader) {
+import edu.berkeley.cs.avro.runtime._
+
+/**
+ * Warning: Workflow is not threadsafe for now
+ */
+class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
 
   private val logger = Logger("edu.berkeley.cs.scads.piql.TpcwWorkflow")
 
-  val random = new Random
+  val random = randomSeed.map(new Random(_)).getOrElse(new Random)
 
+  /** All possible subjects */
   val subjects = Utils.getSubjects
+
+  /** All possible ship types */
+  val shipTypes = Utils.getShipTypes
+
+  /** All possible credit card types */
+  val ccTypes = Utils.getCreditCards
 
   case class Action(val action: ActionType.Value, var nextActions : List[(Int, Action)])
 
@@ -36,7 +47,25 @@ class TpcwWorkflow(val loader: TpcwLoader) {
   def randomSearchType = 
     SearchTypes(random.nextInt(SearchTypes.size))
 
-  val actions = new HashMap[ActionType.ActionType, Action]()
+  def randomUser = 
+    loader.toCustomer(random.nextInt(loader.numCustomers) + 1)
+
+  def randomSubject =
+    subjects(random.nextInt(subjects.length))
+
+  def randomItem =
+    loader.toItem(random.nextInt(loader.numItems) + 1)
+
+  def randomAuthor = 
+    loader.toAuthor(random.nextInt(loader.numAuthors) + 1)
+
+  def randomShipType =
+    shipTypes(random.nextInt(shipTypes.length))
+
+  def randomCreditCardType = 
+    ccTypes(random.nextInt(ccTypes.length))
+
+  val actions = new HashMap[ActionType.ActionType, Action]
   ActionType.values.foreach(a => actions += a -> new Action(a, Nil))
 
   actions(ActionType.AdminConfirm).nextActions = List((8348, actions(ActionType.Home)))
@@ -63,23 +92,27 @@ class TpcwWorkflow(val loader: TpcwLoader) {
   actions(ActionType.NewProduct).nextActions = List ( (9999, actions(ActionType.Home)))
 
 
-  var nextAction = actions(ActionType.Home)
+  private var nextAction = actions(ActionType.Home) // HOME is start state
+  private var currentUserKey: CustomerKey = _
+  private var currentUserValue: CustomerValue = _
 
   def executeMix() = {
     nextAction match {
       case Action(ActionType.Home, _) => {
         logger.debug("Home")
-        val username = loader.toCustomer(random.nextInt(loader.numCustomers) + 1)
-        loader.client.homeWI(username)
+        val user = randomUser
+        val userData = loader.client.homeWI(user)
+        currentUserKey = userData(0)(0).toSpecificRecord[CustomerKey]
+        currentUserValue = userData(0)(1).toSpecificRecord[CustomerValue]
       }
       case Action(ActionType.NewProduct, _) => {
         logger.debug("NewProduct")
-        val subject = subjects(random.nextInt(subjects.length))
+        val subject = randomSubject
         loader.client.newProductWI(subject)
       }
       case Action(ActionType.ProductDetail, _) => 
         logger.debug("ProductDetail")
-        val item = loader.toItem(random.nextInt(loader.numItems) + 1)
+        val item = randomItem
         loader.client.productDetailWI(item)
       case Action(ActionType.SearchRequest, _) =>
         logger.debug("SearchRequest")
@@ -90,9 +123,10 @@ class TpcwWorkflow(val loader: TpcwLoader) {
         // pick a random search type
         randomSearchType match {
           case SearchResultType.ByAuthor =>
+            val author = randomAuthor
             val name = random.nextBoolean match {
-              case false => loader.toAuthorFname(loader.toAuthor(random.nextInt(loader.numAuthors) + 1))
-              case true => loader.toAuthorLname(loader.toAuthor(random.nextInt(loader.numAuthors) + 1))
+              case false => loader.toAuthorFname(author)
+              case true => loader.toAuthorLname(author)
             }
             loader.client.searchByAuthorWI(name)
           case SearchResultType.ByTitle =>
@@ -103,9 +137,46 @@ class TpcwWorkflow(val loader: TpcwLoader) {
             val title = Utils.getRandomAString(14, 60)
             loader.client.searchByTitleWI(title)
           case SearchResultType.BySubject =>
-            val subject = subjects(random.nextInt(subjects.length))
+            val subject = randomSubject
             loader.client.searchBySubjectWI(subject)
         }
+      case Action(ActionType.ShoppingCart, _) =>
+        logger.debug("ShoppingCart")
+        assert(currentUserKey != null, "Current user should not be null")
+        // generate, for a random user, 1 to 10 items to add to shopping cart.
+        // each item will be added from 1 to 5 times
+        val items = (1 to random.nextInt(10) + 1).map(_ => (randomItem, random.nextInt(5) + 1))
+        loader.client.shoppingCartWI(currentUserKey.C_UNAME, items)
+      case Action(ActionType.CustomerReg, _) =>
+        logger.debug("CustomerReg")
+        //TODO: when do we actually add new customers?
+
+      case Action(ActionType.BuyRequest, _) =>
+        logger.debug("BuyRequest")
+        // for now always assuming existing user
+        loader.client.buyRequestExistingWI(currentUserKey.C_UNAME, currentUserValue.C_PASSWD)
+
+      case Action(ActionType.BuyConfirm, _) =>
+        logger.debug("BuyConfirm")
+
+        val cc_type = randomCreditCardType
+        val cc_number = Utils.getRandomNString(16) 
+        val cc_name = Utils.getRandomAString(14, 30) 
+        val cc_expiry = {
+          import java.util.Calendar
+          val cal = Utils.getCalendar
+          cal.add(Calendar.DAY_OF_YEAR, Utils.getRandomInt(10, 730))
+          cal.getTime.getTime
+        }
+        val shipping = randomShipType
+
+        loader.client.buyConfirmWI(
+          currentUserKey.C_UNAME,
+          cc_type,
+          cc_number,
+          cc_name,
+          cc_expiry,
+          shipping)
       case Action(tpe, _) =>
         logger.error("Not supported: " + tpe)
     }
