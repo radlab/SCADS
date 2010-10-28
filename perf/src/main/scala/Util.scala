@@ -26,9 +26,13 @@ object Deploy extends ConfigurationActions {
 
   def deployCurrentClassPath: Unit = {
     val localSetupFile = Util.readFile("setup.scala")
-    val remoteFileLines = localSetupFile.split("\n").filterNot(_ contains "classpath") :+
-      ("implicit val classpath = %s".format(codeS3Classpath))
+    val remoteFileLines = localSetupFile.split("\n") ++
+      ("implicit val classpath = %s".format(codeS3Classpath) ::
+       "implicit val scheduler = LocalExperimentScheduler(\"MasterConsole\")" ::
+       "implicit val zookeeper = ZooKeeperNode(\"zk://mesos-ec2.knowsql.org/\")" :: Nil)
 
+    MesosEC2.master.upload("target/perf-2.1.0-SNAPSHOT-jar-with-dependencies.jar", "/root")
+    MesosEC2.master.upload("target/perf-2.1.0-SNAPSHOT.jar", "/root")
     createFile(MesosEC2.master, "/root/setup.scala", remoteFileLines.mkString("\n"), "644")
   }
 }
