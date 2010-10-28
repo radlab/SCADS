@@ -24,6 +24,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   lazy val orderline = cluster.getNamespace[OrderLineKey, OrderLineValue]("orderline")
   lazy val order = cluster.getNamespace[OrdersKey, OrdersValue]("orders")
   lazy val customerOrderIndex = cluster.getNamespace[CustomerOrderIndex, NullRecord]("customer_index")  //Extra index
+  lazy val dateOrderIndex = cluster.getNamespace[DateOrderIndex, NullRecord]("date_index")
   lazy val itemTitleIndex = cluster.getNamespace[ItemTitleIndexKey, NullRecord]("item_title_index")
   lazy val shoppingCartItem = cluster.getNamespace[ShoppingCartItemKey, ShoppingCartItemValue]("shopping_cart_item")
 
@@ -406,6 +407,10 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       userValue.C_ADDR_ID,
       "PENDING")
 
+    // make order secondary indexes
+    val customerOrderIndexKey = CustomerOrderIndex(c_uname, orderValue.O_DATE_Time, orderKey.O_ID)
+    val dateOrderIndexKey = DateOrderIndex(orderValue.O_DATE_Time, orderKey.O_ID)
+
     // make order lines
     val orderLines = cart.zipWithIndex.map { case ((k, v), idx) =>
       (OrderLineKey(orderKey.O_ID, idx + 1),
@@ -450,6 +455,8 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     // this is (obviously) supposed to be atomic, but we're not gonna do that
     // (eventual consistency FTW)
     order.put(orderKey, Some(orderValue))
+    customerOrderIndex.put(customerOrderIndexKey, Some(NullRecord(true)))
+    dateOrderIndex.put(dateOrderIndexKey, Some(NullRecord(true)))
     orderline ++= orderLines
     item ++= items
     xacts.put(ccXactsKey, Some(ccXactsValue))
@@ -464,6 +471,30 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
 
   }
 
+  /** Identical query to productDetailWI */
+  def adminRequestWI(bookId: String) =
+    productDetailWI(bookId)
+
+  private lazy val adminConfirmOrdersPlan =
+    StopAfter(
+      FixedLimit(10000),
+      IndexScan(
+        dateOrderIndex,
+        firstPara,
+        FixedLimit(10000),
+        false /* DESC */
+      )
+    )
+  def adminConfirmTop10000(max: Long) =
+    exec(adminConfirmOrdersPlan, max)
+
+  def adminConfirmWI(itemId: String) = {
+
+    // get last 10000 orders by date DESC
+    val top10k = adminConfirmTop10000(java.lang.Long.MAX_VALUE)
+
+
+  }
 
   def exec(plan: QueryPlan, args: Any*) = {
     val iterator = executor(plan, args:_*)

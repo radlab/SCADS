@@ -177,6 +177,10 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
           cc_name,
           cc_expiry,
           shipping)
+      case Action(ActionType.AdminRequest, _) =>
+        logger.debug("AdminRequest")
+        val item = randomItem
+        loader.client.adminRequestWI(item)
       case Action(tpe, _) =>
         logger.error("Not supported: " + tpe)
     }

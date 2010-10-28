@@ -103,6 +103,8 @@ case class OrdersValue(
 
 // NOTE: We order latest order by date, not by O_ID as TPC-W spec does
 case class CustomerOrderIndex(var C_UNAME : String, var O_DATE : Long, var O_ID : String) extends AvroRecord
+case class DateOrderIndex(var O_DATE : Long, var O_ID : String)
+  extends AvroRecord
 
 case class OrderLineKey(var OL_O_ID : String, var OL_ID : Int) extends AvroRecord
 case class OrderLineValue(
