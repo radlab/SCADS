@@ -32,16 +32,24 @@ object CardinalityExperiment extends Experiment {
 
   def clear = results.getRange(None, None).foreach(r => results.put(r._1, None))
 
-  def makeGraph(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeper: ZooKeeperProxy#ZooKeeperNode) = {
-    val expSize = 1
-    (100 to 1000 by 100).foreach(cardinality => {
-      val executors = List("Simple", "Parallel", "BulkParallel").map(e => "edu.berkeley.cs.scads.piql.%sExecutor".format(e))
-      throw new RuntimeException("Broken")
+  def makeGraph(range: Seq[Int] = (100 to 1000 by 100), expSize: Int = 10)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeper: ZooKeeperProxy#ZooKeeperNode) = {
+
+    range.foreach(cardinality => {
+      val executors = List("Simple", "Parallel").map(e => "edu.berkeley.cs.scads.piql.%sExecutor".format(e))
+      logger.info("Building data with cardinality %d", cardinality)
+      val cluster = ScadrLoaderClient(10, 10, cardinality).newCluster
+      executors.foreach(exec => {
+        logger.info("Running test with executor: %s", exec)
+        ThoughtStreamClient(10, exec).schedule(cluster)
+        cluster.root.getOrCreate("coordination/clients").awaitChild("testComplete")
+      })
+      logger.info("Shutting down cluster: %s", cluster)
+      cluster.shutdown
     })
   }
 
   def printResults: Unit = {
-    val runs = results.getRange(None, None).groupBy(k => (k._1.clientConfig, k._1.iteration)).filterNot(_._1._2 == 1).values
+    val runs = results.getRange(None, None).groupBy(k => (k._1.clientConfig, k._1.loaderConfig, k._1.iteration)).filterNot(_._1._3 == 1).values
     runs.foreach(run => {
       val totalRequests = run.map(_._2.times.buckets.sum).sum
       val aggregrateHistogram = run.map(_._2.times).reduceLeft(_ + _)
@@ -122,10 +130,8 @@ case class ThoughtStreamClient(var numClients: Int, var executorClass: String, v
 
       coordination.registerAndAwait("iteration" + iteration, numClients)
     }
-
-    if(clientId == 0)
-      cluster.shutdown
-
+    coordination.getOrCreate("testComplete")
+    logger.info("Test Complete")
     System.exit(0)
   }
 }
