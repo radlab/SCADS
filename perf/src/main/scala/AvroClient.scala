@@ -39,7 +39,7 @@ abstract trait ReplicatedAvroClient extends AvroClient {
   var numClients: Int
 
   def schedule(cluster: ScadsCluster)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler): Unit = {
-    cluster.root("coordination").get("clients").foreach(_.deleteRecursive)
+    cluster.root.get("coordination/clients").foreach(_.deleteRecursive)
     scheduler.scheduleExperiment(toJvmProcess(cluster.root) * numClients)
   }
 
