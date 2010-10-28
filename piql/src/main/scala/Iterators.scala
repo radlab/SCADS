@@ -662,7 +662,7 @@ class BulkParallelExecutor extends ParallelExecutor {
           }).toSeq
 
           val keys = childValues.map(cv => (Some(cv._1), Some(cv._1)))
-          val futures = namespace.batchAsyncGetRange(keys, limit=boundLimit, ascending=ascending)
+          val futures = null//namespace.batchAsyncGetRange(keys, limit=boundLimit, ascending=ascending)
 
           tupleData = childValues.zip(futures).map {
             case ((boundKeyPrefix, childValue), future) =>
@@ -809,7 +809,7 @@ class ResartingParallelExecutor extends ParallelExecutor {
               childValues.map(cv => (Some(augmentKeyWithState(queryState, cv._1)), Some(cv._1)))
 
 
-          val futures = namespace.batchAsyncGetRange(keys, limit=boundLimit, ascending=ascending)
+          val futures = null//namespace.batchAsyncGetRange(keys, limit=boundLimit, ascending=ascending)
 
           tupleData = childValues.zip(futures).map {
             case ((boundKeyPrefix, childValue), future) =>
