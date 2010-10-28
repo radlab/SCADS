@@ -51,7 +51,7 @@ class ScadrLoader(val client: ScadrClient,
     client.cluster.createNamespace[UserTarget, NullRecord]("idxUsersTarget", splits.idxUsersTargetKeySplits)
   }
 
-  private def toUser(idx: Int) = "User" + idx
+  private def toUser(idx: Int) = "User%010d".format(idx)
   def randomUser = toUser(scala.util.Random.nextInt(numUsers) + 1) // must be + 1 since users are indexed starting from 1
 
   /**
