@@ -3,9 +3,26 @@ package runtime
 
 import org.apache.avro.Schema
 import org.apache.avro.io.{BinaryEncoder, BinaryDecoder, DecoderFactory}
-import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter, SpecificRecord}
+import org.apache.avro.specific.{SpecificData, SpecificDatumReader, SpecificDatumWriter, SpecificRecord}
+import org.apache.avro.generic.{ GenericData, IndexedRecord }
 
+import collection.JavaConversions._
 import java.io._
+
+private[runtime] object ScalaSpecificRecordHelpers {
+  def fromGenericRecord[SR <: SpecificRecord](specific: SR, generic: IndexedRecord): SR = {
+    specific.getSchema.getFields.foreach(f => {
+      specific.put(f.pos, generic.get(f.pos) match {
+        case innerGeneric: GenericData.Record =>
+          // create new instance of inner 
+          val innerSpecific = SpecificData.get.getClass(f.schema).newInstance.asInstanceOf[SpecificRecord]
+          fromGenericRecord(innerSpecific, innerGeneric)
+        case x => x
+      })
+    })
+    specific
+  }
+}
 
 trait ScalaSpecificRecord extends SpecificRecord {
 
@@ -42,4 +59,6 @@ trait ScalaSpecificRecord extends SpecificRecord {
     this
   }
 
+  def fromGenericRecord(generic: GenericData.Record): this.type =
+    ScalaSpecificRecordHelpers.fromGenericRecord(this, generic).asInstanceOf[this.type]
 }
