@@ -37,6 +37,11 @@ object ScadrScaleExperiment extends Experiment {
       println(List(run.head._1.loaderConfig.numServers, run.head._1.clientConfig.executorClass, totalRequests, quantile50ResponseTime, quantile99ResponseTime, quantile999ResponseTime).mkString("\t"))
     })
   }
+
+  def makeGraphPoint(size: Int)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeper: ZooKeeperProxy#ZooKeeperNode): Unit = {
+    val cluster = ScadrLoaderClient(size, size, 10).newCluster
+    LoadClient(size, "edu.berkeley.cs.scads.piql.SimpleExecutor", 0.01, threads=10).schedule(cluster)
+  }
 }
 
 case class LoadClient(var numClients: Int, var executorClass: String, var writeProbability: Double, var iterations: Int = 5, var threads: Int = 50, var runLengthMin: Int = 5) extends AvroRecord with ReplicatedAvroClient {
