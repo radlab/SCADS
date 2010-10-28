@@ -20,11 +20,11 @@ class TpcwLoader( val client : TpcwClient,
   require(numClients >= 1)
   require(numItems >= 1)
 
-	val numCustomers : Int = (numEBs * 2880).intValue;
-	val numAddresses : Int = 2 * numCustomers;
-	val numAuthors : Int = (.25 * numItems).intValue;
-	val numOrders : Int = (.9 * numCustomers).intValue;
-  val numCountries = 92;
+	val numCustomers : Int = (numEBs * 2880).intValue
+	val numAddresses : Int = 2 * numCustomers
+	val numAuthors : Int = (.25 * numItems).intValue
+	val numOrders : Int = (.9 * numCustomers).intValue
+  val numCountries : Int = 92
 
   //private var addressIds = new  HashMap[Int, String]()
 	//private var orderIds = new  HashMap[Int, String]()
@@ -40,61 +40,159 @@ class TpcwLoader( val client : TpcwClient,
   // default no arg ctor (which also uses hashCode of the Random object)
   val rand = new scala.util.Random(System.currentTimeMillis)
 
-  private def uuid() : String = UUID.randomUUID.toString
+  private def uuid() : String = 
+    UUID.randomUUID.toString
 
-  private var ctr : Int = 10000
+  private def nameUuid(s: String) : String = 
+    UUID.nameUUIDFromBytes(s.getBytes("UTF-8")).toString
 
-  private def id(c_name : String) : String = {
-    ctr += 1
-    if(ctr > 99999) ctr = 10000
-    c_name + System.currentTimeMillis + ctr;
+  //private var ctr : Int = 10000
+
+  //private def id(c_name : String) : String = {
+  //  ctr += 1
+  //  if(ctr > 99999) ctr = 10000
+  //  c_name + System.currentTimeMillis + ctr;
+  //}
+
+  /**
+   * Given a cluster size, create the hex splits, sorted in string lexicographical order
+   */
+  private def hexSplit(clusterSize: Int) : Seq[Option[String]] = {
+    var size = 16
+    while (size < clusterSize)
+      size *= 16
+    val numPerNode = size.toDouble / clusterSize.toDouble
+    assert(numPerNode >= 1.0)
+    None +: (1 until clusterSize).map(i => ("%x".format((i.toDouble * numPerNode).toInt))).sorted.map(Some(_))
   }
 
-  private def toCustomer(id: Int) = 
-    "cust%d".format(id)
+  /**
+   * Given a cluster size, create 8-bit ASCII split, sorted in string
+   * lexicographical order
+   */
+  private def utf8Split(clusterSize: Int) = {
+    var size = 256 
+    while (size < clusterSize)
+      size = size * 256 
 
-  private def toAuthor(id: Int) =
-    "author%d".format(id)
+    val numPerNode = size / clusterSize
+    assert(numPerNode >= 1)
 
-  private def toAuthorFname(id: Int) =
-    "author_fname%d".format(id)
+    // encodes i as a base 256 string. not super efficient
+    def toKeyString(i: Int): String = i match {
+      case 0 => ""
+      case _ => toKeyString(i / 256) + (i % 256).toChar 
+    }   
 
-  private def toAuthorLname(id: Int) =
-    "author_lname%d".format(id)
+    None +: (1 until clusterSize).map(i => (toKeyString(i * numPerNode))).sorted.map(Some(_))
+  }
 
-  private def toAddress(id: Int) =
-    "address%d".format(id)
+  /**
+   * Splits a given range [0, rangeSplit) between clusterSize. if
+   * clusterSize exceeds the given range, then clusterSize - givenRange
+   * elements are dropped
+   */
+  def rangeSplit(end: Int, clusterSize: Int): Seq[Option[Int]] = {
+    val realSize = clusterSize - scala.math.max(clusterSize - end, 0)
+    val numPerNode = end / realSize
+    None +: (1 until realSize).map(i => Some(i * numPerNode))
+  }
 
-  private def toXact(id: Int) = 
-    "xact%d".format(id)
+  def toCustomer(id: Int) = 
+    nameUuid("cust%d".format(id))
 
-  private def toItem(id: Int) =
-    "item%d".format(id)
+  def toAuthor(id: Int) =
+    nameUuid("author%d".format(id))
 
-  private def toOrder(id: Int) =
-    "order%d".format(id)
+  /**
+   * Author FNAME is generated from taking the author UUID and running
+   * through another UUID
+   */
+  def toAuthorFname(authorId: String) =
+    nameUuid("author_fname_%s".format(authorId))
 
-  private def fromAuthor(author: String) =
-    author.drop(6).toInt
+  /**
+   * Author LNAME is generated from taking the author UUID and running
+   * through another UUID
+   */
+  def toAuthorLname(authorId: String) =
+    nameUuid("author_lname_%s".format(authorId))
+
+  def toAddress(id: Int) =
+    nameUuid("address%d".format(id))
+
+  def toXact(id: Int) = 
+    nameUuid("xact%d".format(id))
+
+  def toItem(id: Int) =
+    nameUuid("item%d".format(id))
+
+  def toOrder(id: Int) =
+    nameUuid("order%d".format(id))
 
   def keySplits: TpcwKeySplits = {
     val servers = client.cluster.getAvailableServers
     val clusterSize = servers.size
+    //TpcwKeySplits(
+    //  List((None, servers)),
+    //  List((None, servers)),
+    //  List((None, servers)),
+    //  List((None, servers)),
+    //  List((None, servers)),
+    //  List((None, servers)),
+    //  List((None, servers)),
+    //  List((None, servers)),
+    //  List((None, servers)),
+    //  List((None, servers)),
+    //  List((None, servers)),
+    //  List((None, servers)),
+    //  List((None, servers))
+    //  )
+
+    val hexSplits = hexSplit(clusterSize) zip servers
+    val utf8Splits = utf8Split(clusterSize) zip servers
+
+    // assume no replication factor
     TpcwKeySplits(
-      List((None, servers)),
-      List((None, servers)),
-      List((None, servers)),
-      List((None, servers)),
-      List((None, servers)),
-      List((None, servers)),
-      List((None, servers)),
-      List((None, servers)),
-      List((None, servers)),
-      List((None, servers)),
-      List((None, servers)),
-      List((None, servers)),
-      List((None, servers))
-      )
+      // addresses
+      hexSplits.map(x => (x._1.map(AddressKey(_)), List(x._2))),
+
+      // authors
+      hexSplits.map(x => (x._1.map(AuthorKey(_)), List(x._2))),
+
+      // authorname_item_indexes
+      hexSplits.map(x => (x._1.map(AuthorNameItemIndexKey(_, "", "")), List(x._2))),
+
+      // xacts
+      hexSplits.map(x => (x._1.map(CcXactsKey(_)), List(x._2))),
+
+      // countries
+      (rangeSplit(numCountries, clusterSize) zip servers).map(x => (x._1.map(CountryKey(_)), List(x._2))),
+
+      // customers
+      hexSplits.map(x => (x._1.map(CustomerKey(_)), List(x._2))),
+
+      // items
+      hexSplits.map(x => (x._1.map(ItemKey(_)), List(x._2))),
+
+      // item_subject_date_title_indexes
+      utf8Splits.map(x => (x._1.map(ItemSubjectDateTitleIndexKey(_, 0L, "")), List(x._2))),
+
+      // orderlines
+      hexSplits.map(x => (x._1.map(OrderLineKey(_, 0)), List(x._2))), 
+
+      // orders
+      hexSplits.map(x => (x._1.map(OrdersKey(_)), List(x._2))),
+
+      // customer_indexes
+      hexSplits.map(x => (x._1.map(CustomerOrderIndex(_, 0, "")), List(x._2))),
+
+      // title_indexes
+      utf8Splits.map(x => (x._1.map(ItemTitleIndexKey(_, "", "")), List(x._2))),
+
+      // shopping_carts
+      hexSplits.map(x => (x._1.map(ShoppingCartItemKey(_, "")), List(x._2)))
+    )
   }
 
   case class TpcwKeySplits(
@@ -118,7 +216,7 @@ class TpcwLoader( val client : TpcwClient,
     val splits = keySplits
     client.cluster.createNamespace[AddressKey, AddressValue]("address", splits.address)
     client.cluster.createNamespace[AuthorKey, AuthorValue]("author", splits.author)
-    client.cluster.createNamespace[AuthorNameItemIndexKey, NullRecord]("author_fname_index", splits.authorname_item_index)
+    client.cluster.createNamespace[AuthorNameItemIndexKey, NullRecord]("author_name_index", splits.authorname_item_index)
     client.cluster.createNamespace[CcXactsKey, CcXactsValue]("xacts", splits.xacts)
     client.cluster.createNamespace[CountryKey, CountryValue]("country", splits.country)
     client.cluster.createNamespace[CustomerKey, CustomerValue]("customer", splits.customer)
@@ -268,8 +366,8 @@ class TpcwLoader( val client : TpcwClient,
 
   def createAuthorNameItemIndexes(item: (ItemKey, ItemValue)) : Seq[(AuthorNameItemIndexKey, NullRecord)] = {
     Seq(
-      (AuthorNameItemIndexKey(toAuthorFname(fromAuthor(item._2.A_ID)), item._2.I_TITLE, item._1.I_ID), NullRecord(true)),
-      (AuthorNameItemIndexKey(toAuthorLname(fromAuthor(item._2.A_ID)), item._2.I_TITLE, item._1.I_ID), NullRecord(true)))
+      (AuthorNameItemIndexKey(toAuthorFname(item._2.A_ID), item._2.I_TITLE, item._1.I_ID), NullRecord(true)),
+      (AuthorNameItemIndexKey(toAuthorLname(item._2.A_ID), item._2.I_TITLE, item._1.I_ID), NullRecord(true)))
   }
 
   def createItemSubjectDateTitleIndex(item: (ItemKey, ItemValue)) : (ItemSubjectDateTitleIndexKey, ItemKey) = {
@@ -303,7 +401,7 @@ class TpcwLoader( val client : TpcwClient,
 
   def createAuthor(id : Int) : (AuthorKey, AuthorValue) = {
     val to = Generator.generateAuthor(id).asInstanceOf[AuthorTO]
-    (AuthorKey(toAuthor(id)), AuthorValue(toAuthorFname(id), toAuthorLname(id), to.getA_mname, to.getA_dob, to.getA_bio))
+    (AuthorKey(toAuthor(id)), AuthorValue(toAuthorFname(toAuthor(id)), toAuthorLname(toAuthor(id)), to.getA_mname, to.getA_dob, to.getA_bio))
     //var author = (AuthorKey(uuid()), AuthorValue(to.getA_fname, to.getA_lname, to.getA_mname, to.getA_dob, to.getA_bio))
     //authors += id ->  author
     //author

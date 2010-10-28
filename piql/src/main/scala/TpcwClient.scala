@@ -2,9 +2,11 @@ package edu.berkeley.cs.scads.piql
 
 import edu.berkeley.cs.scads.storage._
 import edu.berkeley.cs.avro.marker._
+import edu.berkeley.cs.avro.runtime._
 
 import org.apache.avro.util._
 import scala.util.Random
+import scala.collection.mutable.{ Map => MMap }
 
 class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   lazy val address = cluster.getNamespace[AddressKey, AddressValue]("address")
@@ -215,9 +217,53 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     }
   }
 
-  def newShoppingCart(c_uname: String) : (String, Long) = 
-    (c_uname, System.currentTimeMillis)
+  private lazy val retrieveShoppingCartPlan =
+    IndexScan( // (C_UNAME, ...), (SCL_QTY, ...)
+      shoppingCartItem,
+      Array(ParameterValue(0)),
+      FixedLimit(100), // opt limit imposed
+      true)
+  def retrieveShoppingCart(c_uname: String) = 
+    exec(retrieveShoppingCartPlan, new Utf8(c_uname))
 
+  private lazy val retrieveItemPlan =
+    IndexLookup(
+      item,
+      firstPara)
+  def retrieveItem(itemId: String) = 
+    exec(retrieveItemPlan, new Utf8(itemId))
+
+  /**
+   * This is a very simplified shopping cart WI.
+   * Given a c_uname, items will be added to the cart, or the
+   * quantity will be updated. this is not really conformant to the TPC-W
+   * benchmark spec
+   */
+  def shoppingCartWI(c_uname: String, items: Seq[(String, Int)]) = {
+    val cart = retrieveShoppingCart(c_uname) map { case Array(k, v) =>
+      (k.toSpecificRecord[ShoppingCartItemKey], v.toSpecificRecord[ShoppingCartItemValue])
+    }
+    val itemsMap = MMap(items:_*)
+    cart.foreach { case (k, v) =>
+      itemsMap.remove(k.SCL_I_ID) match {
+        case Some(qty) => v.SCL_QTY = qty
+        case None => // no action
+      }
+    }
+    val newCart = cart ++ itemsMap.map { case (k, v) => 
+      val item      = retrieveItem(k)
+      val itemKey   = item(0)(0).toSpecificRecord[ItemKey]
+      val itemValue = item(0)(1).toSpecificRecord[ItemValue]
+
+      val title   = itemValue.I_TITLE
+      val cost    = itemValue.I_COST
+      val srp     = itemValue.I_SRP
+      val backing = itemValue.I_BACKING
+
+      (ShoppingCartItemKey(c_uname, k), ShoppingCartItemValue(v, cost, srp, title, backing))
+    }
+    shoppingCartItem ++= newCart
+  }
 
   /**
    * select C_ID from CUSTOMER where C_UNAME=@C_UNAME and

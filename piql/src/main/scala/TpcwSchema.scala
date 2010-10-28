@@ -135,11 +135,11 @@ case class AddressValue(
         ) extends AvroRecord
 
 /**
- * A shopping cart item is keyed on a (C_UNAME, SCL_TIME, SCL_I_ID)
+ * A shopping cart item is keyed on a (C_UNAME, SCL_I_ID). this means a single
+ * user can only have one active shopping cart at a time
  */
 case class ShoppingCartItemKey(
         var C_UNAME : String,
-        var SCL_TIME : Long,
         var SCL_I_ID : String) extends AvroRecord
 case class ShoppingCartItemValue(
         var SCL_QTY : Int,
@@ -147,5 +147,3 @@ case class ShoppingCartItemValue(
         var SCL_I_SRP : Double, 
         var SCL_I_TITLE : String,
         var SCL_I_BACKING : String) extends AvroRecord
-
-

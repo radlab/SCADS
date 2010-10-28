@@ -1,19 +1,21 @@
 package edu.berkeley.cs.scads.piql
 
+import net.lag.logging.Logger
+
 import scala.util.Random
 import collection.mutable.HashMap
 
+import collection.JavaConversions._
 
-/**
- * Created by IntelliJ IDEA.
- * User: tim
- * Date: Oct 16, 2010
- * Time: 11:56:58 PM
- * To change this template use File | Settings | File Templates.
- */
+import ch.ethz.systems.tpcw.populate.data.Utils
 
-class TpcwWorkflow(val client: TpcwClient, val customers : Seq[String], val authorNames : Seq[String], val subjects : Seq[String] ) {
-  var random = new Random
+class TpcwWorkflow(val loader: TpcwLoader) {
+
+  private val logger = Logger("edu.berkeley.cs.scads.piql.TpcwWorkflow")
+
+  val random = new Random
+
+  val subjects = Utils.getSubjects
 
   case class Action(val action: ActionType.Value, var nextActions : List[(Int, Action)])
 
@@ -24,6 +26,15 @@ class TpcwWorkflow(val client: TpcwClient, val customers : Seq[String], val auth
     CustomerReg, BuyRequest, BuyConfirm, OrderInquiry, OrderDisplay, AdminRequest, AdminConfirm = Value
 
   }
+
+  object SearchResultType extends Enumeration {
+    val ByAuthor, ByTitle, BySubject = Value 
+  }
+  val SearchTypes = Vector(SearchResultType.ByAuthor,
+                           SearchResultType.ByTitle,
+                           SearchResultType.BySubject)
+  def randomSearchType = 
+    SearchTypes(random.nextInt(SearchTypes.size))
 
   val actions = new HashMap[ActionType.ActionType, Action]()
   ActionType.values.foreach(a => actions += a -> new Action(a, Nil))
@@ -57,18 +68,46 @@ class TpcwWorkflow(val client: TpcwClient, val customers : Seq[String], val auth
   def executeMix() = {
     nextAction match {
       case Action(ActionType.Home, _) => {
-        println("Home")
-        val username = customers(random.nextInt(customers.length))
-        client.homeWI(username)
+        logger.debug("Home")
+        val username = loader.toCustomer(random.nextInt(loader.numCustomers) + 1)
+        loader.client.homeWI(username)
       }
       case Action(ActionType.NewProduct, _) => {
-        println("NewProduct")
+        logger.debug("NewProduct")
         val subject = subjects(random.nextInt(subjects.length))
-        client.newProductWI(subject)
+        loader.client.newProductWI(subject)
       }
-
-      case _ =>
-        println("Not supported")
+      case Action(ActionType.ProductDetail, _) => 
+        logger.debug("ProductDetail")
+        val item = loader.toItem(random.nextInt(loader.numItems) + 1)
+        loader.client.productDetailWI(item)
+      case Action(ActionType.SearchRequest, _) =>
+        logger.debug("SearchRequest")
+        // NO-OP, since this action is mostly concerned w/ presenting a user
+        // w/ a form...
+      case Action(ActionType.SearchResult, _) =>
+        logger.debug("SearchResult")
+        // pick a random search type
+        randomSearchType match {
+          case SearchResultType.ByAuthor =>
+            val name = random.nextBoolean match {
+              case false => loader.toAuthorFname(loader.toAuthor(random.nextInt(loader.numAuthors) + 1))
+              case true => loader.toAuthorLname(loader.toAuthor(random.nextInt(loader.numAuthors) + 1))
+            }
+            loader.client.searchByAuthorWI(name)
+          case SearchResultType.ByTitle =>
+            // for now, just pick a random string...
+            // TODO: this really should be fixed- we should
+            // seed the random gen used to create random strings,
+            // so we actually have a hope of matching a title.
+            val title = Utils.getRandomAString(14, 60)
+            loader.client.searchByTitleWI(title)
+          case SearchResultType.BySubject =>
+            val subject = subjects(random.nextInt(subjects.length))
+            loader.client.searchBySubjectWI(subject)
+        }
+      case Action(tpe, _) =>
+        logger.error("Not supported: " + tpe)
     }
 
     val rnd = random.nextInt(9999)
