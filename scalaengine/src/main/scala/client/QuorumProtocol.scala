@@ -40,6 +40,16 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
 
   protected val logger = Logger()
 
+  def dumpDistribution: Unit = {
+    serversForRange(None, None).foreach(r => {
+      r.values.foreach(partition => {
+        partition !? CountRangeRequest(r.startKey.map(serializeKey), r.endKey.map(serializeKey)) match {
+          case CountRangeResponse(num) => logger.info("%s: %d", partition, num)
+        }
+      })
+    })
+  }
+
   def setReadWriteQuorum(readQuorum: Double, writeQuorum: Double) = {
     require(0 < readQuorum && readQuorum <= 1, "Read quorum has to be in the range 0 < RQ <= 1 but was " + readQuorum)
     require(0 < writeQuorum && writeQuorum <= 1, "Write quorum has to be in the range 0 < WQ <= 1 but was " + writeQuorum)
