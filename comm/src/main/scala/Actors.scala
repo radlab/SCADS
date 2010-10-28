@@ -43,6 +43,8 @@ trait RemoteActorProxy {
   var port: Int
   var id: ActorId
 
+  val logger = Logger()
+
   def remoteNode = RemoteNode(host, port)
 
   override def toString(): String = id + "@" + host + ":" + port
@@ -71,7 +73,7 @@ trait RemoteActorProxy {
    * Send a message and synchronously wait for a response.
    */
   def !?(body: MessageBody, timeout: Int = 5000): MessageBody = {
-      val future = new MessageFutureImpl
+      val future = new MessageFuture
       this.!(body)(future.remoteActor)
       future.get(timeout) match {
         case Some(exp: RemoteException) => throw new RuntimeException(exp.toString)
@@ -87,34 +89,46 @@ trait RemoteActorProxy {
    * Sends a message and returns a future for the response.
    */
   def !!(body: MessageBody): MessageFuture = {
-    val future = new MessageFutureImpl
+    val future = new MessageFuture
     this.!(body)(future.remoteActor)
     future
   }
 
-  private var msgSet = new ArrayBuffer[(MessageBody, BatchFuture)]()
+  private var msgSet = List[(MessageBody, MessageFuture)]()
 
   /**
    * Collects messages for bulk-send
    */
   def !!!(body : MessageBody) : MessageFuture = {
-    var future : BatchFuture = null
-    msgSet.synchronized{
-      val i: Int = msgSet.length
-      future = new BatchFuture(i)
-      msgSet += Tuple2(body, future)
+    val future = new MessageFuture
+    synchronized{
+      msgSet ::= Tuple2(body, future)
     }
     return future
   }
 
-  def commit() : Unit = {
-    msgSet.synchronized{
-      if(msgSet.length == 0){
-        return
+  def commit() : Unit = synchronized {
+    val currentSet = msgSet
+    msgSet = Nil
+
+    if(currentSet.length == 1) {
+      logger.debug("Falling back to normal send for commit size 1")
+      this.!(currentSet.head._1)(currentSet.head._2.remoteActor)
+    }
+    else if(currentSet.length > 1) {
+      val batchFuture = !!(new BatchRequest(currentSet.map(_._1)))
+      batchFuture.respond {
+        case BatchResponse(ranges) => {
+          logger.trace("Unpacking %d messages to %d futures", ranges.length, currentSet.length)
+          ranges.zip(currentSet.map(_._2)).foreach {
+            case (msg, subFuture) => subFuture.receiveMessage(batchFuture.source, msg)
+          }
+        }
+        case unexp => {
+          logger.warning("Batch request failed with unexpected message: %s", unexp)
+          currentSet.foreach(_._2.receiveMessage(batchFuture.source, unexp))
+        }
       }
-      val future = if(msgSet.length == 1) !!(msgSet(0)._1) else !!(new BatchRequest(msgSet.map(_._1)))
-      msgSet.map(_._2.future.set(future))
-      msgSet.clear()
     }
   }
 

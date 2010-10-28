@@ -43,93 +43,9 @@ object MessageFuture {
   implicit def toFutureCollection(futures: Seq[MessageFuture]): FutureCollection = new FutureCollection(futures)
 }
 
-class BatchFuture(val pos : Int) extends MessageFuture{
-
-  protected var forwardList: List[Queue[MessageFuture]] = List()
-
-  var future = new SyncVar[MessageFuture]
-    /**
-   * Cancels the current future
-   */
-  def cancel(): Unit = future.get.cancel
-
-  /**
-   * Block on the future until T is ready
-   */
-  def get(): MessageBody = {
-    assert(future != null)
-    future.get() match {
-      case BatchResponse(ranges) => return ranges(pos)
-      case a : MessageBody => return a
-      case _ => throw new RuntimeException("Unexpected message") // TODO better failure handling
-    }
-  }
-
-  /**
-   * Block for up to timeout.
-   */
-  def get(timeout: Long, unit: TimeUnit = TimeUnit.MILLISECONDS): Option[MessageBody]  = {
-    assert(future != null)
-    future.get.get(timeout, unit) match {
-      case Some(BatchResponse(ranges)) => Some(ranges(pos))
-      case a => a
-    }
-  }
-
-  /**
-   * True iff the future has already been set
-   */
-  def isSet: Boolean = future.isSet
-                  
-  class DirectForwardQueue extends LinkedList[MessageFuture]{
-    override def add(e : MessageFuture) = offer(e)
-    override def offer(e : MessageFuture) :  Boolean = {
-      offerRequest()
-      return true;
-    }
-    override def remove() : MessageFuture = throw new RuntimeException("Not implemented")
-    override def poll() : MessageFuture   = throw new RuntimeException("Not implemented")
-    override def element() : MessageFuture = throw new RuntimeException("Not implemented")
-    override def peek() : MessageFuture = throw new RuntimeException("Not implemented")
-  }
-
-  private def offerRequest() : Unit = {
-    forwardList.foreach(_.offer(this))
-  }
-
-  def forward(dest: Queue[MessageFuture]): Unit = synchronized {
-    if(isSet)
-      dest.offer(this)
-    else{
-      forwardList ::= dest
-      future.get.forward(new DirectForwardQueue())
-    }
-  }
-
-  def receiveMessage(src: Option[RemoteActorProxy], msg: MessageBody): Unit  = {
-    throw new RuntimeException("Not implemented")
-  }
-
-  def source : Option[RemoteActorProxy] = future.get.source
-  def respond(r: (MessageBody) => Unit): Unit  = future.get.respond(r)
-}
-
-trait MessageFuture extends ScadsFuture[MessageBody] {
-
-  def forward(dest: Queue[MessageFuture]): Unit
-
-  def receiveMessage(src: Option[RemoteActorProxy], msg: MessageBody): Unit
-
-
-  def source : Option[RemoteActorProxy]
-  def respond(r: (MessageBody) => Unit): Unit
-
-
-}//TODO Rework message hierarchy
-
-class MessageFutureImpl extends Future[MessageBody] with MessageFuture with MessageReceiver {
+class MessageFuture extends Future[MessageBody]  with MessageReceiver {
   protected[comm] val remoteActor = MessageHandler.registerService(this)
-  protected val sender = new SyncVar[Option[RemoteActorProxy]]
+  protected[comm] val sender = new SyncVar[Option[RemoteActorProxy]]
   protected val message = new SyncVar[MessageBody]
   protected var forwardList: List[Queue[MessageFuture]] = List()
 
@@ -142,8 +58,17 @@ class MessageFutureImpl extends Future[MessageBody] with MessageFuture with Mess
     def receiveWithin[R](msec: Long)(f: PartialFunction[Any, R]): R = f(message.get(msec).getOrElse(ProcessingException("timeout", "")))
   }
 
+  def apply() = message.get
+
   def source =  sender.get
-  def respond(r: (MessageBody) => Unit): Unit = r(message.get)
+
+  var respondFunctions: List[MessageBody => Unit] = Nil
+  def respond(r: MessageBody => Unit): Unit = synchronized {
+    if(message.isSet)
+      r(message.get)
+    else
+      respondFunctions ::= r
+  }
 
   def get(): MessageBody = message.get
 
@@ -171,13 +96,12 @@ class MessageFutureImpl extends Future[MessageBody] with MessageFuture with Mess
       forwardList ::= dest
   }
 
-
-
   def receiveMessage(src: Option[RemoteActorProxy], msg: MessageBody): Unit = synchronized {
     MessageHandler.unregisterActor(remoteActor)
     message.set(msg)
     sender.set(src)
     forwardList.foreach(_.offer(this))
+    respondFunctions.foreach(_(msg))
   }
 }
 

@@ -13,7 +13,7 @@ class RemoteActorSpec extends Spec with ShouldMatchers {
 
   describe("RemoteActors") {
     it("should send message asynchronously") {
-      val mailbox = new MessageFutureImpl
+      val mailbox = new MessageFuture
       implicit val sender = mailbox.remoteActor
       mailbox.remoteActor ! msg
       mailbox.get(1000) should equal(Some(msg))
