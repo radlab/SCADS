@@ -7,6 +7,7 @@ import scala.collection.JavaConversions._
 
 import org.apache.avro.io.{BinaryDecoder, BinaryEncoder, DecoderFactory, JsonDecoder, JsonEncoder}
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, IndexedRecord}
+import org.apache.avro.specific.SpecificRecord
 
 /**
  * Collection of implicit conversions to scala-ify the Avro Java Library.
@@ -48,6 +49,12 @@ class RichIndexedRecord[T <: IndexedRecord](val rec: T) {
       case o => o
     }))
     genRec
+  }
+
+  def toSpecificRecord[SR <: SpecificRecord](implicit m: Manifest[SR]): SR = {
+    val specific = m.erasure.newInstance.asInstanceOf[SR]
+    ScalaSpecificRecordHelpers.fromGenericRecord(specific, rec)
+    specific
   }
 
   def compare(lhs: T): Int = GenericData.get.compare(rec, lhs, rec.getSchema())
