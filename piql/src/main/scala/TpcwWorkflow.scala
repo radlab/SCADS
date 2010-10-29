@@ -19,7 +19,7 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
 
   private val logger = Logger("edu.berkeley.cs.scads.piql.TpcwWorkflow")
 
-  val random = randomSeed.map(new Random(_)).getOrElse(new Random)
+  private val random = randomSeed.map(new Random(_)).getOrElse(new Random)
 
   /** All possible subjects */
   val subjects = Utils.getSubjects
@@ -76,32 +76,29 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
   def randomCreditCardType = 
     ccTypes(random.nextInt(ccTypes.length))
 
-  val actions = new HashMap[ActionType.ActionType, Action]
+  private val actions = new HashMap[ActionType.ActionType, Action]
   ActionType.values.foreach(a => actions += a -> new Action(a, Nil))
 
-  actions(ActionType.AdminConfirm).nextActions = List((8348, actions(ActionType.Home)))
-  println("nb of actions " + actions.size)
+  //actions(ActionType.AdminConfirm).nextActions = List((8348, actions(ActionType.Home)))
+  //actions(ActionType.Home).nextActions = List ( (5000, actions(ActionType.Home)), (9999, actions(ActionType.NewProduct)))
+  //actions(ActionType.NewProduct).nextActions = List ( (9999, actions(ActionType.Home)))
+  //println("nb of actions " + actions.size)
 
-//The MarkovChain from TPC-W
-//actions(ActionType.AdminConfirm).nextActions = List ( (8348, actions(ActionType.Home)), (9999, actions(ActionType.SearchRequest)))
-//actions(ActionType.AdminRequest).nextActions = List ( (8999, actions(ActionType.AdminConfirm)), (9999, actions(ActionType.Home)))
-//actions(ActionType.BestSeller).nextActions = List ( (1, actions(ActionType.Home)), (333, actions(ActionType.ProductDetail)), (9998, actions(ActionType.SearchRequest)), (9999, actions(ActionType.ShoppingCart)))
-//actions(ActionType.BuyConfirm).nextActions = List ( (2, actions(ActionType.Home)), (9999, actions(ActionType.SearchRequest)))
-//actions(ActionType.BuyRequest).nextActions = List ( (7999, actions(ActionType.BuyConfirm)), (9453, actions(ActionType.Home)), (9999, actions(ActionType.ShoppingCart)))
-//actions(ActionType.CustomerReg).nextActions = List ( (9899, actions(ActionType.BuyRequest)), (9901, actions(ActionType.Home)), (9999, actions(ActionType.SearchRequest)))
-//actions(ActionType.Home).nextActions = List ( (499, actions(ActionType.BestSeller)), (999, actions(ActionType.NewProduct)), (1269, actions(ActionType.OrderInquiry)), (1295, actions(ActionType.SearchRequest)), (9999, actions(ActionType.ShoppingCart)))
-//actions(ActionType.NewProduct).nextActions = List ( (504, actions(ActionType.Home)), (9942, actions(ActionType.ProductDetail)), (9976, actions(ActionType.SearchRequest)), (9999, actions(ActionType.ShoppingCart)))
-//actions(ActionType.OrderDisplay).nextActions = List ( (9939, actions(ActionType.Home)), (9999, actions(ActionType.SearchRequest)))
-//actions(ActionType.OrderInquiry).nextActions = List ( (1168, actions(ActionType.Home)), (9968, actions(ActionType.OrderDisplay)), (9999, actions(ActionType.SearchRequest)))
-//actions(ActionType.ProductDetail).nextActions = List ( (99, actions(ActionType.AdminRequest)), (3750, actions(ActionType.Home)), (5621, actions(ActionType.ProductDetail)), (6341, actions(ActionType.SearchRequest)), (9999, actions(ActionType.ShoppingCart)))
-//actions(ActionType.SearchRequest).nextActions = List ( (815, actions(ActionType.Home)), (9815, actions(ActionType.SearchResult)), (9999, actions(ActionType.ShoppingCart)))
-//actions(ActionType.SearchResult).nextActions = List ( (486, actions(ActionType.Home)), (7817, actions(ActionType.ProductDetail)), (9998, actions(ActionType.SearchRequest)), (9999, actions(ActionType.ShoppingCart)))
-//actions(ActionType.ShoppingCart).nextActions = List ( (9499, actions(ActionType.CustomerReg)), (9918, actions(ActionType.Home)), (9999, actions(ActionType.ShoppingCart)))
-//
-
-  actions(ActionType.Home).nextActions = List ( (5000, actions(ActionType.Home)), (9999, actions(ActionType.NewProduct)))
-  actions(ActionType.NewProduct).nextActions = List ( (9999, actions(ActionType.Home)))
-
+  // The MarkovChain from TPC-W: Thresholds for the "Ordering Interval"
+  actions(ActionType.AdminConfirm).nextActions = List ( (8348, actions(ActionType.Home)), (9999, actions(ActionType.SearchRequest)))
+  actions(ActionType.AdminRequest).nextActions = List ( (8999, actions(ActionType.AdminConfirm)), (9999, actions(ActionType.Home)))
+  actions(ActionType.BestSeller).nextActions = List ( (1, actions(ActionType.Home)), (333, actions(ActionType.ProductDetail)), (9998, actions(ActionType.SearchRequest)), (9999, actions(ActionType.ShoppingCart)))
+  actions(ActionType.BuyConfirm).nextActions = List ( (2, actions(ActionType.Home)), (9999, actions(ActionType.SearchRequest)))
+  actions(ActionType.BuyRequest).nextActions = List ( (7999, actions(ActionType.BuyConfirm)), (9453, actions(ActionType.Home)), (9999, actions(ActionType.ShoppingCart)))
+  actions(ActionType.CustomerReg).nextActions = List ( (9899, actions(ActionType.BuyRequest)), (9901, actions(ActionType.Home)), (9999, actions(ActionType.SearchRequest)))
+  actions(ActionType.Home).nextActions = List ( (499, actions(ActionType.BestSeller)), (999, actions(ActionType.NewProduct)), (1269, actions(ActionType.OrderInquiry)), (1295, actions(ActionType.SearchRequest)), (9999, actions(ActionType.ShoppingCart)))
+  actions(ActionType.NewProduct).nextActions = List ( (504, actions(ActionType.Home)), (9942, actions(ActionType.ProductDetail)), (9976, actions(ActionType.SearchRequest)), (9999, actions(ActionType.ShoppingCart)))
+  actions(ActionType.OrderDisplay).nextActions = List ( (9939, actions(ActionType.Home)), (9999, actions(ActionType.SearchRequest)))
+  actions(ActionType.OrderInquiry).nextActions = List ( (1168, actions(ActionType.Home)), (9968, actions(ActionType.OrderDisplay)), (9999, actions(ActionType.SearchRequest)))
+  actions(ActionType.ProductDetail).nextActions = List ( (99, actions(ActionType.AdminRequest)), (3750, actions(ActionType.Home)), (5621, actions(ActionType.ProductDetail)), (6341, actions(ActionType.SearchRequest)), (9999, actions(ActionType.ShoppingCart)))
+  actions(ActionType.SearchRequest).nextActions = List ( (815, actions(ActionType.Home)), (9815, actions(ActionType.SearchResult)), (9999, actions(ActionType.ShoppingCart)))
+  actions(ActionType.SearchResult).nextActions = List ( (486, actions(ActionType.Home)), (7817, actions(ActionType.ProductDetail)), (9998, actions(ActionType.SearchRequest)), (9999, actions(ActionType.ShoppingCart)))
+  actions(ActionType.ShoppingCart).nextActions = List ( (9499, actions(ActionType.CustomerReg)), (9918, actions(ActionType.Home)), (9999, actions(ActionType.ShoppingCart)))
 
   private var nextAction = actions(ActionType.Home) // HOME is start state
   private var currentUserKey: CustomerKey = _
@@ -118,6 +115,7 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
           if (shouldCreateNewUser) {
             val (k0, v0) = loader.createCustomer(0)
             k0.C_UNAME = newUserName // use a random UUID for a username
+            loader.client.customer.put(k0, Some(v0)) // save new customer
             (k0, v0)
           } else {
             // pick existing user
@@ -139,6 +137,14 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
         logger.debug("ProductDetail")
         val item = randomItem
         loader.client.productDetailWI(item)
+      case Action(ActionType.OrderDisplay, _) =>
+        logger.debug("OrderDisplay")
+        assert(currentUserKey != null)
+        loader.client.orderDisplayWI(currentUserKey.C_UNAME, currentUserValue.C_PASSWD, 100)
+      case Action(ActionType.OrderInquiry, _) =>
+        logger.debug("OrderInquiry")
+        // NO-OP, since this action is mostly concerned w/ presenting a user
+        // w/ a form...
       case Action(ActionType.SearchRequest, _) =>
         logger.debug("SearchRequest")
         // NO-OP, since this action is mostly concerned w/ presenting a user
@@ -153,6 +159,7 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
               case false => loader.toAuthorFname(author)
               case true => loader.toAuthorLname(author)
             }
+            logger.debug("Search by author name %s", name)
             loader.client.searchByAuthorWI(name)
           case SearchResultType.ByTitle =>
             // for now, just pick a random string...
@@ -160,9 +167,11 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
             // seed the random gen used to create random strings,
             // so we actually have a hope of matching a title.
             val title = Utils.getRandomAString(14, 60)
+            logger.debug("Search by title %s", title)
             loader.client.searchByTitleWI(title)
           case SearchResultType.BySubject =>
             val subject = randomSubject
+            logger.debug("Search by subject %s", subject)
             loader.client.searchBySubjectWI(subject)
         }
       case Action(ActionType.ShoppingCart, _) =>

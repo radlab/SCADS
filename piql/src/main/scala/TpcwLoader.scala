@@ -26,33 +26,13 @@ class TpcwLoader( val client : TpcwClient,
 	val numOrders : Int = (.9 * numCustomers).intValue
   val numCountries : Int = 92
 
-  //private var addressIds = new  HashMap[Int, String]()
-	//private var orderIds = new  HashMap[Int, String]()
-	//private var itemIds  = new  HashMap[Int, String]()
-	////private var orderDates = new  HashMap[Int, String]() Was used in SimpleDB
-  //private var authors = new  HashMap[Int, (AuthorKey, AuthorValue)]()
-  //private var AuthorNameItemIndexInserts = ArrayBuffer[(AuthorNameItemIndexKey, NullRecord)]()
-  //private var itemSubjectDateTitleIndexInserts = ArrayBuffer[(ItemSubjectDateTitleIndexKey, ItemKey)]()
-  //private var customerOrderIndexInserts = ArrayBuffer[(CustomerOrderIndex, NullRecord)]()
-  //private var itemTitleIndexInserts = ArrayBuffer[(ItemTitleIndexKey, NullRecord)]()
-
-  // TODO: currentTimeMillis is not as random of a seed as is provided by the
-  // default no arg ctor (which also uses hashCode of the Random object)
-  val rand = new scala.util.Random(System.currentTimeMillis)
+  val rand = new scala.util.Random
 
   private def uuid() : String = 
     UUID.randomUUID.toString
 
   private def nameUuid(s: String) : String = 
     UUID.nameUUIDFromBytes(s.getBytes("UTF-8")).toString
-
-  //private var ctr : Int = 10000
-
-  //private def id(c_name : String) : String = {
-  //  ctr += 1
-  //  if(ctr > 99999) ctr = 10000
-  //  c_name + System.currentTimeMillis + ctr;
-  //}
 
   /**
    * Given a cluster size, create the hex splits, sorted in string lexicographical order

@@ -1,5 +1,7 @@
 package edu.berkeley.cs.scads.piql
 
+import net.lag.logging.Logger
+
 import edu.berkeley.cs.scads.storage._
 import edu.berkeley.cs.avro.marker._
 import edu.berkeley.cs.avro.runtime._
@@ -13,6 +15,9 @@ import scala.collection.mutable.{ Map => MMap }
 import java.util.UUID
 
 class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
+
+  private val logger = Logger("edu.berkeley.cs.scads.piql.TpcwWorkflow")
+
   lazy val address = cluster.getNamespace[AddressKey, AddressValue]("address")
   lazy val author = cluster.getNamespace[AuthorKey, AuthorValue]("author")
   lazy val authorNameItemIndex = cluster.getNamespace[AuthorNameItemIndexKey, NullRecord]("author_name_index")
@@ -76,7 +81,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       IndexLookup(item, Array(ParameterValue(0)))
     )
   def productDetailWI(bookId: String): QueryResult =
-    exec(newProductPlan, bookId)
+    exec(productDetailPlan, new Utf8(bookId))
 
   /**
    * SELECT top 50 I_TITLE,I_ID,A_FNAME, A_LNAME
@@ -367,14 +372,17 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * values(@O_ID,@O_CC_TYPE,@O_CC_EXP,@O_CC_AUTH,@O_TOTAL,getdate(),@CO_ID)
    */
 
+  /**
+   * Returns the order ID
+   */
   def buyConfirmWI(c_uname: String, 
                    cc_type: String, 
                    cc_number: Int,
                    cc_name: String,
                    cc_expiry: Long,
-                   shipping: String) = {
+                   shipping: String): String = {
     val (userKey, userValue) = homeWI(c_uname) map { case Array(k, v) =>
-      (k.toSpecificRecord[CustomerKey], k.toSpecificRecord[CustomerValue])
+      (k.toSpecificRecord[CustomerKey], v.toSpecificRecord[CustomerValue])
     } head
     val cart = retrieveShoppingCart(c_uname) map { case Array(k, v) =>
       (k.toSpecificRecord[ShoppingCartItemKey], v.toSpecificRecord[ShoppingCartItemValue])
@@ -466,6 +474,9 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       shoppingCartItem.put(k, None) // delete
     }
 
+    logger.debug("finished buy confirmation of %d items", cart.size) 
+
+    orderKey.O_ID
   }
 
   /** Identical query to productDetailWI */
