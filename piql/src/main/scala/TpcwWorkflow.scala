@@ -104,7 +104,11 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
   private var currentUserKey: CustomerKey = _
   private var currentUserValue: CustomerValue = _
 
-  def executeMix() = {
+  /**
+   * Advances the TPC-W markov chain model one state transition. returns the
+   * state that was JUST completed (not the state that was transitioned to).
+   */
+  def executeMix(): ActionType.ActionType = {
     nextAction match {
       case Action(ActionType.Home, _) => {
         logger.debug("Home")
@@ -227,7 +231,8 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
 
     val action = nextAction.nextActions.find(rnd < _._1)
     assert(action.isDefined)
+    val nextAction0 = nextAction
     nextAction = action.get._2
-
+    nextAction0.action
  }
 }

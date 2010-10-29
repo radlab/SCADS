@@ -36,8 +36,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   // TODO: we need to place these in various queries
   val maxOrderLinesPerPage = 10
   val maxItemsPerCart = 5000
-
-  def paraSelector(i : Int) = Array(ParameterValue(i))
+def paraSelector(i : Int) = Array(ParameterValue(i))
   def projection(record: Int, attribute: Int) = Array(AttributeValue(record, attribute))
   val firstPara = paraSelector(0)
 

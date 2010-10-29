@@ -15,13 +15,22 @@ import org.apache.zookeeper.CreateMode
 abstract trait AvroClient extends IndexedRecord {
   val logger = Logger()
 
-  def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode)
+  def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode): Unit
+
+  def newCluster(numServers: Int, numLoaders: Int)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeper: ZooKeeperProxy#ZooKeeperNode): ScadsCluster = {
+    val clusterRoot = newExperimentRoot
+    val serverProcs = List.fill(numServers)(serverJvmProcess(clusterRoot.canonicalAddress))
+    val loaderProcs = List.fill(numLoaders)(toJvmProcess(clusterRoot))
+    scheduler.scheduleExperiment(serverProcs ++ loaderProcs)
+    new ScadsCluster(clusterRoot)
+  }
 
   implicit def duplicate(process: JvmProcess) = new {
     def *(count: Int): Seq[JvmProcess] = Array.fill(count)(process)
   }
 
-  def newExperimentRoot(implicit zookeeper: ZooKeeperProxy#ZooKeeperNode)  = zookeeper.getOrCreate("scads/experiments").createChild("IntKeyScaleExperiment", mode = CreateMode.PERSISTENT_SEQUENTIAL)
+  def newExperimentRoot(implicit zookeeper: ZooKeeperProxy#ZooKeeperNode) = 
+    zookeeper.getOrCreate("scads/experiments").createChild("IntKeyScaleTest", mode = CreateMode.PERSISTENT_SEQUENTIAL)
 
   def toJvmProcess(clusterRoot: ZooKeeperProxy#ZooKeeperNode)(implicit classpath: Seq[ClassSource]): JvmProcess =
     JvmProcess(classpath,

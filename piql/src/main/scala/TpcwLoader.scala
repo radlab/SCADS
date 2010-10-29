@@ -1,5 +1,7 @@
 package edu.berkeley.cs.scads.piql
 
+import net.lag.logging._
+
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.storage._
 import edu.berkeley.cs.avro.marker._
@@ -16,9 +18,22 @@ class TpcwLoader( val client : TpcwClient,
                   val numEBs : Double,
                   val numItems : Int ) {
 
+  private val logger = Logger("edu.berkeley.cs.scads.piql.TpcwLoader")
+
   require(client != null)
   require(numClients >= 1)
-  require(numItems >= 1)
+  require(numEBs > 0.0)
+  require(numItems > 0)
+  
+  /**
+   * See clause 4.2.2 - items MUST be chosen from the following set
+   */
+  val ValidItemCardinalities = Set(1000, 10000, 100000, 1000000, 10000000)
+
+  if (!ValidItemCardinalities.contains(numItems))
+    logger.warning("%d is NOT a valid number of items for a TPC-W benchmark")
+
+  /** Cardinalities defined by clause 4.3 */
 
 	val numCustomers : Int = (numEBs * 2880).intValue
 	val numAddresses : Int = 2 * numCustomers

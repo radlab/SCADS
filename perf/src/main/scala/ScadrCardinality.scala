@@ -37,7 +37,7 @@ object CardinalityExperiment extends Experiment {
     range.foreach(cardinality => {
       val executors = List("Simple", "Parallel").map(e => "edu.berkeley.cs.scads.piql.%sExecutor".format(e))
       logger.info("Building data with cardinality %d", cardinality)
-      val cluster = ScadrLoaderClient(10, 10, cardinality).newCluster
+      val cluster = ScadrLoaderClient(10, 10, cardinality).newCluster(10, 10)
       executors.foreach(exec => {
         logger.info("Running test with executor: %s", exec)
         ThoughtStreamClient(10, exec).schedule(cluster)

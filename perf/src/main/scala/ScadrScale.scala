@@ -39,7 +39,7 @@ object ScadrScaleExperiment extends Experiment {
   }
 
   def makeGraphPoint(size: Int)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeper: ZooKeeperProxy#ZooKeeperNode): Unit = {
-    val cluster = ScadrLoaderClient(size, size, 10).newCluster
+    val cluster = ScadrLoaderClient(size, size, 10).newCluster(size, size)
     LoadClient(size, "edu.berkeley.cs.scads.piql.SimpleExecutor", 0.01, threads=10).schedule(cluster)
   }
 }
