@@ -1,6 +1,6 @@
 package edu.berkeley.cs.scads.storage
 
-import com.sleepycat.je.{Cursor,Database, DatabaseConfig, DatabaseException, DatabaseEntry, Environment, LockMode, OperationStatus, Durability, Transaction}
+import com.sleepycat.je.{Cursor,Database, DatabaseConfig, CursorConfig, DatabaseException, DatabaseEntry, Environment, LockMode, OperationStatus, Durability, Transaction}
 import org.apache.avro.Schema
 import net.lag.logging.Logger
 
@@ -224,7 +224,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
                                txn: Option[Transaction] = None)
       (func: (DatabaseEntry, DatabaseEntry, Cursor) => Unit): Unit = {
     val (dbeKey, dbeValue) = (new DatabaseEntry, new DatabaseEntry)
-    val cur = db.openCursor(txn.orNull,null)
+    val cur = db.openCursor(txn.orNull, CursorConfig.READ_UNCOMMITTED)
 
     var status: OperationStatus = (ascending, minKey, maxKey) match {
       case (true, None, _) => cur.getFirst(dbeKey, dbeValue, null)
