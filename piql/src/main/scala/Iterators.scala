@@ -90,8 +90,8 @@ trait QueryExecutor {
     case FixedLimit(l) => l
     case ParameterLimit(lim, max) => {
       val limitValue = ctx.parameters(lim).asInstanceOf[Int]
-      if(limitValue > max)
-        throw new RuntimeException("Limit out of range")
+      //if(limitValue > max)
+      //  throw new RuntimeException("Limit out of range")
       limitValue
     }
   }
