@@ -98,27 +98,6 @@ class TpcwLoader( val client : TpcwClient,
     None +: (1 until realSize).map(i => Some(i * numPerNode))
   }
 
-
-  private def erfinv(z: Double): Double = {
-    import scala.math._
-    // taylor expansion of erfinv to the 5th term. not very efficient, and not completely accurate
-    // but mostly gets the job done
-    1.0 / 2.0 * sqrt(Pi) * ( z + Pi / 12.0 * pow(z, 3.0) + 7.0 / 480.0 * pow(Pi, 2.0) * pow(z, 5.0) + 127.0 / 40320.0 * pow(Pi, 3.0) * pow(z, 7) + 4369.0 / 5806080.0 * pow(Pi, 4) * pow(z, 9) + 34807.0 / 182476800.0 * pow(Pi, 5) * pow(z, 11)  )
-  }
-
-  /**
-   * Splits from [mu to Long.MAX_VALUE], along numServers such that percentage is evenly
-   * distributed assuming a gaussian distribution centered at mu with sigma given.
-   */
-  def halfGaussSplit(mu: Long, sigma: Long, numServers: Int): Seq[Option[Long]] = {
-    import scala.math._
-    val share = 0.5 / numServers.toDouble
-    val cdfPoints = (1 until numServers).map(x => 0.5 + x.toDouble * share)
-    val keyPoints = cdfPoints.map(cdf => 
-      (sqrt( 2L * sigma * sigma ) * erfinv( 2 * cdf - 1.0 ) + mu).toLong)
-    None +: keyPoints.map(Some(_)) 
-  }
-
   def toCustomer(id: Int) = 
     nameUuid("cust%d".format(id))
 
@@ -154,25 +133,9 @@ class TpcwLoader( val client : TpcwClient,
   def keySplits: TpcwKeySplits = {
     val servers = client.cluster.getAvailableServers
     val clusterSize = servers.size
-    //TpcwKeySplits(
-    //  List((None, servers)),
-    //  List((None, servers)),
-    //  List((None, servers)),
-    //  List((None, servers)),
-    //  List((None, servers)),
-    //  List((None, servers)),
-    //  List((None, servers)),
-    //  List((None, servers)),
-    //  List((None, servers)),
-    //  List((None, servers)),
-    //  List((None, servers)),
-    //  List((None, servers)),
-    //  List((None, servers))
-    //  )
 
     val hexSplits = hexSplit(clusterSize) zip servers
     val utf8Splits = utf8Split(clusterSize) zip servers
-    val timeSplits = halfGaussSplit(System.currentTimeMillis, 1000 * 60 * 10 /* 10 minutes */, clusterSize) zip servers
 
     // assume no replication factor
     TpcwKeySplits(
@@ -209,9 +172,6 @@ class TpcwLoader( val client : TpcwClient,
       // customer_indexes
       hexSplits.map(x => (x._1.map(CustomerOrderIndex(_, 0, "")), List(x._2))),
 
-      // date_indexes
-      timeSplits.map(x => (x._1.map(DateOrderIndex(_, "")), List(x._2))), 
-
       // title_indexes
       utf8Splits.map(x => (x._1.map(ItemTitleIndexKey(_, "", "")), List(x._2))),
 
@@ -232,7 +192,6 @@ class TpcwLoader( val client : TpcwClient,
     orderline: Seq[(Option[OrderLineKey], List[StorageService])],
     orders: Seq[(Option[OrdersKey], List[StorageService])],
     customer_index: Seq[(Option[CustomerOrderIndex], List[StorageService])],
-    date_index: Seq[(Option[DateOrderIndex], List[StorageService])],
     title_index : Seq[(Option[ItemTitleIndexKey], List[StorageService])],
     shopping_cart : Seq[(Option[ShoppingCartItemKey], List[StorageService])]
     )
@@ -251,7 +210,6 @@ class TpcwLoader( val client : TpcwClient,
     client.cluster.createNamespace[OrderLineKey, OrderLineValue]("orderline", splits.orderline)
     client.cluster.createNamespace[OrdersKey, OrdersValue]("orders", splits.orders)
     client.cluster.createNamespace[CustomerOrderIndex, NullRecord]("customer_index", splits.customer_index)  //Extra index
-    client.cluster.createNamespace[DateOrderIndex, NullRecord]("date_index", splits.date_index)
     client.cluster.createNamespace[ItemTitleIndexKey, NullRecord]("item_title_index", splits.title_index)
     client.cluster.createNamespace[ShoppingCartItemKey, ShoppingCartItemValue]("shopping_cart_item", splits.shopping_cart)
   }
@@ -271,27 +229,10 @@ class TpcwLoader( val client : TpcwClient,
       authorNameItemIndexes: Seq[(AuthorNameItemIndexKey, NullRecord)],
       itemSubjectDateTitleIndexes: Seq[(ItemSubjectDateTitleIndexKey, ItemKey)],
       customerOrderIndexes: Seq[(CustomerOrderIndex, NullRecord)],
-      dateOrderIndexes: Seq[(DateOrderIndex, NullRecord)],
       itemTitleIndexes: Seq[(ItemTitleIndexKey, NullRecord)]
     ) {
 
     def load() = {
-      //createNamespaces()
-      //client.address ++= (1 to numAddresses).view.map(createAddress(_))
-      //client.author ++= (1 to numAuthors).view.map(createAuthor(_))
-      //client.xacts ++= (1 to numOrders).view.map(createXacts(_))
-      //client.country ++= (1 to numCountries).view.map(createCountry(_))
-      //client.customer ++= (1 to numCustomers).view.map(createCustomer(_))
-      //client.item ++= (1 to numItems).view.map(createItem(_))
-      //client.authorNameItemIndex ++= AuthorNameItemIndexInserts
-      //AuthorNameItemIndexInserts.clear
-      //client.itemSubjectDateTitleIndex ++= itemSubjectDateTitleIndexInserts
-      //itemSubjectDateTitleIndexInserts.clear
-      //client.order ++= (1 to numOrders).view.map(createOrder(_))
-      //client.orderline ++= (1 to numOrders).view.flatMap(createOrderline(_))
-      //client.customerOrderIndex ++=  customerOrderIndexInserts
-      //customerOrderIndexInserts.clear
-
       client.address ++= addresses
       client.author ++= authors
       client.xacts ++= xacts
@@ -304,7 +245,6 @@ class TpcwLoader( val client : TpcwClient,
       client.authorNameItemIndex ++= authorNameItemIndexes
       client.itemSubjectDateTitleIndex ++= itemSubjectDateTitleIndexes
       client.customerOrderIndex ++= customerOrderIndexes
-      client.dateOrderIndex ++= dateOrderIndexes
       client.itemTitleIndex ++= itemTitleIndexes
     }
   }
@@ -331,7 +271,6 @@ class TpcwLoader( val client : TpcwClient,
     val authorNameItemIndexes = items.flatMap(createAuthorNameItemIndexes(_))
     val itemSubjectDateTitleIndexes = items.map(createItemSubjectDateTitleIndex(_))
     val customerOrderIndexes = orders.map(createCustomerOrderIndex(_)) 
-    val dateOrderIndexes = orders.map(createDateOrderIndex(_))
     val itemTitleIndexes = items.flatMap(createItemTitleIndex(_)) 
        
     TpcwData(
@@ -347,7 +286,6 @@ class TpcwLoader( val client : TpcwClient,
       authorNameItemIndexes,
       itemSubjectDateTitleIndexes,
       customerOrderIndexes,
-      dateOrderIndexes,
       itemTitleIndexes)
   }
 
@@ -494,10 +432,6 @@ class TpcwLoader( val client : TpcwClient,
 
   def createCustomerOrderIndex(order: (OrdersKey, OrdersValue)) : (CustomerOrderIndex, NullRecord) = {
     (CustomerOrderIndex(order._2.O_C_ID, order._2.O_DATE_Time, order._1.O_ID), NullRecord(true))
-  }
-
-  def createDateOrderIndex(order: (OrdersKey, OrdersValue)) : (DateOrderIndex, NullRecord) = {
-    (DateOrderIndex(order._2.O_DATE_Time, order._1.O_ID), NullRecord(true))
   }
 
   def createOrderline(id : Int) : Seq[(OrderLineKey, OrderLineValue)] = {

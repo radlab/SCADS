@@ -6,6 +6,8 @@ import scala.util.Random
 import collection.mutable.HashMap
 import collection.JavaConversions._
 
+import java.util.UUID
+
 import ch.ethz.systems.tpcw.populate.data.Utils
 
 import edu.berkeley.cs.avro.runtime._
@@ -46,6 +48,15 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
                            SearchResultType.BySubject)
   def randomSearchType = 
     SearchTypes(random.nextInt(SearchTypes.size))
+
+  def flipCoin(prob: Double) =
+    random.nextDouble < prob 
+
+  def shouldCreateNewUser = 
+    flipCoin(0.2)
+
+  def newUserName =
+    UUID.randomUUID.toString
 
   def randomUser = 
     loader.toCustomer(random.nextInt(loader.numCustomers) + 1)
@@ -100,10 +111,24 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
     nextAction match {
       case Action(ActionType.Home, _) => {
         logger.debug("Home")
-        val user = randomUser
-        val userData = loader.client.homeWI(user)
-        currentUserKey = userData(0)(0).toSpecificRecord[CustomerKey]
-        currentUserValue = userData(0)(1).toSpecificRecord[CustomerValue]
+
+        // NOTE: technically this should be done in the customer reg
+        // phase, but we're doing it here...
+        val (k, v) = 
+          if (shouldCreateNewUser) {
+            val (k0, v0) = loader.createCustomer(0)
+            k0.C_UNAME = newUserName // use a random UUID for a username
+            (k0, v0)
+          } else {
+            // pick existing user
+            val user = randomUser
+            val userData = loader.client.homeWI(user)
+            (userData(0)(0).toSpecificRecord[CustomerKey],
+             userData(0)(1).toSpecificRecord[CustomerValue])
+          }
+
+        currentUserKey   = k
+        currentUserValue = v
       }
       case Action(ActionType.NewProduct, _) => {
         logger.debug("NewProduct")
@@ -181,6 +206,10 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
         logger.debug("AdminRequest")
         val item = randomItem
         loader.client.adminRequestWI(item)
+      case Action(ActionType.AdminConfirm, _) =>
+        logger.debug("AdminConfirm")
+        // NO-OP! we pondered very deeply about whether or not to run this
+        // query, and then we said no :) 
       case Action(tpe, _) =>
         logger.error("Not supported: " + tpe)
     }
