@@ -31,7 +31,7 @@ class TpcwLoader( val client : TpcwClient,
   val ValidItemCardinalities = Set(1000, 10000, 100000, 1000000, 10000000)
 
   if (!ValidItemCardinalities.contains(numItems))
-    logger.warning("%d is NOT a valid number of items for a TPC-W benchmark")
+    logger.warning("%d is NOT a valid number of items for a TPC-W benchmark", numItems)
 
   /** Cardinalities defined by clause 4.3 */
 
@@ -244,9 +244,29 @@ class TpcwLoader( val client : TpcwClient,
     }
   }
 
+  /**
+   * Assumes clientId is indexed by 0
+   */
   def getData(clientId: Int, useViews: Boolean = true) : TpcwData = {
+    require(0 <= clientId && clientId < numClients, "Invalid client id")
+
+    /** assuming [1, upperBound], returns the slice of data for this clientId */
+    def getSlice(upperBound: Int) = {
+      require(upperBound >= 1)
+      val numPerClient = upperBound / numClients
+      if (numPerClient == 0) { // this is the case where there are more clients than elements to slice
+        if (clientId >= upperBound) Seq.empty
+        else (clientId + 1 to clientId + 1)
+      } else {
+        val start = clientId * numPerClient + 1
+        if (clientId == numClients - 1) (start to upperBound)
+        else (start until (start + numPerClient))
+      }
+    }
+
     def newRange(upperBound: Int) = 
-      if (useViews) (1 to upperBound).view else (1 to upperBound)
+      if (useViews) getSlice(upperBound).view 
+      else getSlice(upperBound)
 
     val addresses = newRange(numAddresses).map(createAddress(_))
     val authors = newRange(numAuthors).map(createAuthor(_))
@@ -256,10 +276,8 @@ class TpcwLoader( val client : TpcwClient,
 
     // these two can't be views b/c we need each invocation to be
     // deterministic
-    //val items = (1 to numItems).view.map(createItem(_))
-    //val orders = (1 to numOrders).view.map(createOrder(_))
-    val items = (1 to numItems).map(createItem(_))
-    val orders = (1 to numOrders).map(createOrder(_))
+    val items = getSlice(numItems).map(createItem(_))
+    val orders = getSlice(numItems).map(createOrder(_))
 
     val orderlines = newRange(numOrders).flatMap(createOrderline(_))
 

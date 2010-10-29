@@ -1,13 +1,18 @@
 import edu.berkeley.cs.scads.storage.TestScalaEngine
 import edu.berkeley.cs.scads.piql._
 
-def init(numNodes: Int) = {
+def init(numNodes: Int, numLoaders: Int) = {
+  require(numNodes > 0)
+  require(numLoaders > 0)
+
   val cluster = TestScalaEngine.getTestCluster
   TestScalaEngine.getTestHandler(numNodes - 1)
   val client = new TpcwClient(cluster, new SimpleExecutor with DebugExecutor)
-  val loader = new TpcwLoader(client, 1, 1.0, 10)
+  val loader = new TpcwLoader(client, numLoaders, 1.0, 10)
   loader.createNamespaces()
-  val data = loader.getData(0)
-  data.load()
+  (0 until numLoaders).foreach(id => {
+    val data = loader.getData(id)
+    data.load()
+  })
   (client, loader)
 }
