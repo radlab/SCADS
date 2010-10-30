@@ -223,6 +223,8 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
         logger.debug("AdminConfirm")
         // NO-OP! we pondered very deeply about whether or not to run this
         // query, and then we said no :) 
+      case Action(ActionType.BestSeller, _) =>
+        // NO-OP b/c this is another analytics query
       case Action(tpe, _) =>
         logger.error("Not supported: " + tpe)
     }

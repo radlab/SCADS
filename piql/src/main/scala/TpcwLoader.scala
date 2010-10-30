@@ -250,6 +250,15 @@ class TpcwLoader( val client : TpcwClient,
   def getData(clientId: Int, useViews: Boolean = true) : TpcwData = {
     require(0 <= clientId && clientId < numClients, "Invalid client id")
 
+    /** log what the entire data set will look like in terms of sizes */
+    logger.info("--- Entire TPC-W data set ---")
+    logger.info("numCustomers: %d", numCustomers)
+    logger.info("numAddresses: %d", numAddresses)
+    logger.info("numAuthors: %d", numAuthors)
+    logger.info("numOrders: %d", numOrders)
+    logger.info("numCountries: %d", numCountries)
+    logger.info("numItems: %d", numItems)
+
     /** assuming [1, upperBound], returns the slice of data for this clientId */
     def getSlice(upperBound: Int) = {
       require(upperBound >= 1)
@@ -277,7 +286,7 @@ class TpcwLoader( val client : TpcwClient,
     // these two can't be views b/c we need each invocation to be
     // deterministic
     val items = getSlice(numItems).map(createItem(_))
-    val orders = getSlice(numItems).map(createOrder(_))
+    val orders = getSlice(numOrders).map(createOrder(_))
 
     val orderlines = newRange(numOrders).flatMap(createOrderline(_))
 
@@ -285,6 +294,15 @@ class TpcwLoader( val client : TpcwClient,
     val itemSubjectDateTitleIndexes = items.map(createItemSubjectDateTitleIndex(_))
     val customerOrderIndexes = orders.map(createCustomerOrderIndex(_)) 
     val itemTitleIndexes = items.flatMap(createItemTitleIndex(_)) 
+
+    /** log what this client will be loading */
+    logger.info("--- ClientId %d's Data Slice ---", clientId)
+    logger.info("numCustomers: %d", getSlice(numCustomers).size)
+    logger.info("numAddresses: %d", getSlice(numAddresses).size)
+    logger.info("numAuthors: %d", getSlice(numAuthors).size)
+    logger.info("numOrders: %d", getSlice(numOrders).size)
+    logger.info("numCountries: %d", getSlice(numCountries).size)
+    logger.info("numItems: %d", getSlice(numItems).size)
        
     TpcwData(
       addresses,
