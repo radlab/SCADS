@@ -96,11 +96,14 @@ case class LoadClient(var numClients: Int,
         while(endTime - iterationStartTime < runTime) {
           val startTime = getTime
           try {
-            val axn = workflow.executeMix()
+            val (axn, wasExecuted) = workflow.executeMix()
             endTime = getTime
             val elapsedTime = endTime - startTime
-            histogram += elapsedTime
-            actionHistograms.getOrElseUpdate(axn.toString, Histogram(1, 5000)) += elapsedTime
+            if (wasExecuted) { // we actually ran the query
+              histogram += elapsedTime
+              actionHistograms.getOrElseUpdate(axn.toString, Histogram(1, 5000)) += elapsedTime
+            } else // we punted the query
+              skips += 1
           } catch {
             case e => {
               logger.warning(e, "Execepting generating page")

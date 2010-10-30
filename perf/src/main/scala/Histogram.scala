@@ -46,7 +46,7 @@ protected case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Lon
   }
 
   /**
-   * Sample standard deviation based off of sqrt(1/(N-1)*sum(Xi-mean(X)))
+   * Sample standard deviation based off of sqrt(1/(N-1)*sum((Xi-mean(X))^2))
    */
   def stddev: Double = {
     val n = totalRequests.toDouble
