@@ -43,12 +43,13 @@ object TpcwScaleExperiment extends Experiment {
    * Make a graph point using `size` servers, `size` clients, `size` loaders, 
    * `ceil(numEBs / size)` threads per client, and `numItems` items
    */
-  def makeGraphPoint(size: Int, numEBs: Double, numItems: Int = 1000)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeper: ZooKeeperProxy#ZooKeeperNode): Unit = {
+  def makeGraphPoint(size: Int, numEBs: Double, numItems: Int = 1000)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeper: ZooKeeperProxy#ZooKeeperNode) = {
     require(size > 0 && numEBs > 0.0 && numItems > 0)
     val numThreads = scala.math.ceil(numEBs / size.toDouble).toInt
     logger.info("%d clients and %f EBs will result in %d threads per client node", size, numEBs, numThreads)
     val cluster = TpcwLoaderClient(size, size, numEBs, numItems).newCluster(size, size)
     LoadClient(size, "edu.berkeley.cs.scads.piql.SimpleExecutor").schedule(cluster)
+    cluster
   }
 
 }
@@ -108,7 +109,8 @@ case class LoadClient(var numClients: Int,
           }
         }
 
-        logger.info("Thread %d stats 50th: %dms, 90th: %dms, 99th: %dms", threadId, histogram.quantile(0.50), histogram.quantile(0.90), histogram.quantile(0.99))
+        logger.info("Thread %d stats 50th: %dms, 90th: %dms, 99th: %dms, avg: %fms, stddev: %fms", 
+            threadId, histogram.quantile(0.50), histogram.quantile(0.90), histogram.quantile(0.99), histogram.average, histogram.stddev)
         (ResultKey(this, loaderConfig, clusterRoot.canonicalAddress, clientId, iteration, threadId), 
          ResultValue(endTime - iterationStartTime, histogram, skips, actionHistograms.toMap /* convert to imm map */))
       })

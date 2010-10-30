@@ -40,6 +40,21 @@ protected case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Lon
     cumulativeSum.findIndexOf(_ >= totalRequests * fraction) * bucketSize
   }
 
+  def average: Double = {
+    val n = totalRequests.toDouble
+    buckets.zipWithIndex.foldLeft(0.0) { case (acc, (num, idx)) => acc + num.toDouble * idx.toDouble * bucketSize.toDouble / n }
+  }
+
+  /**
+   * Sample standard deviation based off of sqrt(1/(N-1)*sum(Xi-mean(X)))
+   */
+  def stddev: Double = {
+    val n = totalRequests.toDouble
+    val xbar = average
+    import scala.math._
+    sqrt(1.0 / (n - 1.0) * buckets.zipWithIndex.foldLeft(0.0) { case (acc, (num, idx)) => acc + num.toDouble * pow(idx.toDouble * bucketSize.toDouble - xbar, 2) })
+  }
+
 	def view: NodeSeq =
 <script type="text/javascript">{"""
  $(document).ready(function() {
