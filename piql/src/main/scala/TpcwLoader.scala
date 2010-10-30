@@ -52,13 +52,17 @@ class TpcwLoader( val client : TpcwClient,
   /**
    * Given a cluster size, create the hex splits, sorted in string lexicographical order
    */
-  private def hexSplit(clusterSize: Int) : Seq[Option[String]] = {
+  private def hexSplit(clusterSize: Int) : Seq[Option[String]] = { 
     var size = 16
-    while (size < clusterSize)
+    var levels = 1
+    while (size < clusterSize) {
       size *= 16
+      levels += 1
+    }
+    size *= 16; levels += 1 // go up one more level than required to get finer granularity
     val numPerNode = size.toDouble / clusterSize.toDouble
     assert(numPerNode >= 1.0)
-    None +: (1 until clusterSize).map(i => ("%x".format((i.toDouble * numPerNode).toInt))).sorted.map(Some(_))
+    None +: (1 until clusterSize).map(i => (("%0" + levels + "x").format((i.toDouble * numPerNode).toInt))).sorted.map(Some(_))
   }
 
   /**
@@ -83,11 +87,43 @@ class TpcwLoader( val client : TpcwClient,
   }
 
   /**
+   * Given a cluster size, create splits over printable chars, defined as
+   * ASCII [33-126]
+   */
+  private def printableCharSplit(clusterSize: Int) = {
+    val (low, high) = (33, 126)
+    val numChars = high - low + 1 
+    var size = numChars
+    var levels = 1
+    while (size < clusterSize) {
+      size *= numChars
+      levels += 1
+    }
+    size *= numChars; levels += 1 // go up one more level than required to get finer granularity
+
+    def toKeyString(i: Int): String = 
+      if (i < numChars) (i + low).toChar.toString
+      else toKeyString(i / numChars) + ((i % numChars) + low).toChar.toString
+
+    def pad(str: String, ch: Char, level: Int): String = {
+      var s = str
+      while (s.length < level) {
+        s = ch.toString + s
+      }
+      s
+    }
+
+    val numPerNode = size.toDouble / clusterSize.toDouble
+    assert(numPerNode >= 1.0)
+    None +: (1 until clusterSize).map(i => pad(toKeyString((i.toDouble * numPerNode).toInt), low.toChar, levels)).sorted.map(Some(_))
+  }
+
+  /**
    * Splits a given range [0, rangeSplit) between clusterSize. if
    * clusterSize exceeds the given range, then clusterSize - givenRange
    * elements are dropped
    */
-  def rangeSplit(end: Int, clusterSize: Int): Seq[Option[Int]] = {
+  private def rangeSplit(end: Int, clusterSize: Int): Seq[Option[Int]] = {
     val realSize = clusterSize - scala.math.max(clusterSize - end, 0)
     val numPerNode = end / realSize
     None +: (1 until realSize).map(i => Some(i * numPerNode))
@@ -130,7 +166,7 @@ class TpcwLoader( val client : TpcwClient,
     val clusterSize = servers.size
 
     val hexSplits = hexSplit(clusterSize) zip servers
-    val utf8Splits = utf8Split(clusterSize) zip servers
+    val printableCharSplits = printableCharSplit(clusterSize) zip servers
 
     // assume no replication factor
     TpcwKeySplits(
@@ -156,7 +192,7 @@ class TpcwLoader( val client : TpcwClient,
       hexSplits.map(x => (x._1.map(ItemKey(_)), List(x._2))),
 
       // item_subject_date_title_indexes
-      utf8Splits.map(x => (x._1.map(ItemSubjectDateTitleIndexKey(_, 0L, "")), List(x._2))),
+      printableCharSplits.map(x => (x._1.map(ItemSubjectDateTitleIndexKey(_, 0L, "")), List(x._2))),
 
       // orderlines
       hexSplits.map(x => (x._1.map(OrderLineKey(_, 0)), List(x._2))), 
@@ -168,7 +204,7 @@ class TpcwLoader( val client : TpcwClient,
       hexSplits.map(x => (x._1.map(CustomerOrderIndex(_, 0, "")), List(x._2))),
 
       // title_indexes
-      utf8Splits.map(x => (x._1.map(ItemTitleIndexKey(_, "", "")), List(x._2))),
+      printableCharSplits.map(x => (x._1.map(ItemTitleIndexKey(_, "", "")), List(x._2))),
 
       // shopping_carts
       hexSplits.map(x => (x._1.map(ShoppingCartItemKey(_, "")), List(x._2)))
