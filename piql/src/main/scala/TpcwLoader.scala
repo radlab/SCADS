@@ -168,6 +168,35 @@ class TpcwLoader( val client : TpcwClient,
     val hexSplits = hexSplit(clusterSize) zip servers
     val printableCharSplits = printableCharSplit(clusterSize) zip servers
 
+    // use sampling to create splits for ItemSubjectDateTitleIndexKey
+    // use 1000x the number of available servers as the number of samples to
+    // take
+
+    val itemSubjSamples = (1 to 1000 * clusterSize)
+      .map(_ => rand.nextInt(numItems) + 1)
+      .map(i => createItemSubjectDateTitleIndex(createItem(i)))
+      .sortWith { case ((ItemSubjectDateTitleIndexKey(x1, x2, _), _), (ItemSubjectDateTitleIndexKey(y1, y2, _), _)) =>
+        x1 < y1 || (x1 == y1 && x2 < y2) 
+      }.toIndexedSeq
+
+    val itemSubDateTitleIndexSplits = 
+      None +: (1 until clusterSize).map(i => Some(itemSubjSamples(i * 1000)._1))
+
+    logger.info("itemSubDateTitleIndexSplits: %s", itemSubDateTitleIndexSplits)
+
+    val itemTitleSamples = (1 to 1000 * clusterSize)
+      .map(_ => rand.nextInt(numItems) + 1)
+      .flatMap(i => createItemTitleIndex(createItem(i)))
+      .sortWith { case ((ItemTitleIndexKey(x1, x2, _), _), (ItemTitleIndexKey(y1, y2, _), _)) =>
+        x1 < y1 || (x1 == y1 && x2 < y2) 
+      }.toIndexedSeq
+
+    val stepSize = itemTitleSamples.size.toDouble / clusterSize.toDouble
+    assert(stepSize > 0.0)
+
+    val itemTitleIndexSplits =
+      None +: (1 until clusterSize).map(i => Some(itemTitleSamples((i.toDouble * stepSize).toInt)._1))
+
     // assume no replication factor
     TpcwKeySplits(
       // addresses
@@ -192,7 +221,7 @@ class TpcwLoader( val client : TpcwClient,
       hexSplits.map(x => (x._1.map(ItemKey(_)), List(x._2))),
 
       // item_subject_date_title_indexes
-      printableCharSplits.map(x => (x._1.map(ItemSubjectDateTitleIndexKey(_, 0L, "")), List(x._2))),
+      (itemSubDateTitleIndexSplits zip servers).map(x => (x._1, List(x._2))),
 
       // orderlines
       hexSplits.map(x => (x._1.map(OrderLineKey(_, 0)), List(x._2))), 
@@ -204,7 +233,7 @@ class TpcwLoader( val client : TpcwClient,
       hexSplits.map(x => (x._1.map(CustomerOrderIndex(_, 0, "")), List(x._2))),
 
       // title_indexes
-      printableCharSplits.map(x => (x._1.map(ItemTitleIndexKey(_, "", "")), List(x._2))),
+      (itemTitleIndexSplits zip servers).map(x => (x._1, List(x._2))),
 
       // shopping_carts
       hexSplits.map(x => (x._1.map(ShoppingCartItemKey(_, "")), List(x._2)))
