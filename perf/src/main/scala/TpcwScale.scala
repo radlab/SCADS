@@ -17,7 +17,7 @@ import scala.util.Random
 import scala.collection.{ mutable => mu }
 
 case class ResultKey(var clientConfig: LoadClient, var loaderConfig: TpcwLoaderClient, var clusterAddress: String, var clientId: Int, var iteration: Int, var threadId: Int) extends AvroRecord
-case class ResultValue(var totalElaspedTime: Long /* in ms */, var times: Histogram, var skips: Int, var timesByAction: Map[String, Histogram]) extends AvroRecord
+case class ResultValue(var totalElaspedTime: Long /* in ms */, var times: Histogram, var skips: Int) extends AvroRecord
 
 object TpcwScaleExperiment extends Experiment {
   val results = resultCluster.getNamespace[ResultKey, ResultValue]("tpcwScale")
@@ -91,7 +91,6 @@ case class LoadClient(var numClients: Int,
         var failures = 0 // unused...
 
         val workflow = new TpcwWorkflow(loader)
-        val actionHistograms = new mu.HashMap[String, Histogram]
 
         while(endTime - iterationStartTime < runTime) {
           val startTime = getTime
@@ -101,7 +100,6 @@ case class LoadClient(var numClients: Int,
             val elapsedTime = endTime - startTime
             if (wasExecuted) { // we actually ran the query
               histogram += elapsedTime
-              actionHistograms.getOrElseUpdate(axn.toString, Histogram(1, 5000)) += elapsedTime
             } else // we punted the query
               skips += 1
           } catch {
@@ -115,7 +113,7 @@ case class LoadClient(var numClients: Int,
         logger.info("Thread %d stats 50th: %dms, 90th: %dms, 99th: %dms, avg: %fms, stddev: %fms", 
             threadId, histogram.quantile(0.50), histogram.quantile(0.90), histogram.quantile(0.99), histogram.average, histogram.stddev)
         (ResultKey(this, loaderConfig, clusterRoot.canonicalAddress, clientId, iteration, threadId), 
-         ResultValue(endTime - iterationStartTime, histogram, skips, actionHistograms.toMap /* convert to imm map */))
+         ResultValue(endTime - iterationStartTime, histogram, skips))
       })
 
       coordination.registerAndAwait("iteration" + iteration, numClients)
