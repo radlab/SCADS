@@ -34,9 +34,9 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
 
   // cardinality constraints
   // TODO: we need to place these in various queries
-  val maxOrderLinesPerPage = 10
+  val maxOrderLinesPerPage = 100
   val maxItemsPerCart = 5000
-def paraSelector(i : Int) = Array(ParameterValue(i))
+  def paraSelector(i : Int) = Array(ParameterValue(i))
   def projection(record: Int, attribute: Int) = Array(AttributeValue(record, attribute))
   val firstPara = paraSelector(0)
 
@@ -64,8 +64,11 @@ def paraSelector(i : Int) = Array(ParameterValue(i))
       IndexLookupJoin(
         item,
         projection(1, 0),
-        IndexScan(itemSubjectDateTitleIndex, firstPara, FixedLimit(50), true))
+        StopAfter(
+          FixedLimit(50),
+          IndexScan(itemSubjectDateTitleIndex, firstPara, FixedLimit(50), true))
       )
+    )
   def newProductWI(subject: String): QueryResult =
     exec(newProductPlan, new Utf8(subject))
 
@@ -94,7 +97,10 @@ def paraSelector(i : Int) = Array(ParameterValue(i))
     IndexLookupJoin( //(Name, I_TITLE, I_ID), null, ItemKey, ItemValue
       item,
       projection(0,2), //(Name, I_TITLE, I_ID), null
-      IndexScan(authorNameItemIndex, firstPara, FixedLimit(50), true)
+      StopAfter(
+        FixedLimit(50),
+        IndexScan(authorNameItemIndex, firstPara, FixedLimit(50), true)
+      )
     )
   def searchByAuthorWI(name : String) = exec(searchByAuthorPlan, new Utf8(name))
 
@@ -109,13 +115,16 @@ def paraSelector(i : Int) = Array(ParameterValue(i))
       author,
       projection(3,1),
       IndexLookupJoin( // (Token, Title, ID), NullRecord, (I_ID), ItemValue
-      item,
-      projection(0,2), // (Token, Title, ID), NullRecord
-      IndexScan(
-        itemTitleIndex, 
-        firstPara,
-        FixedLimit(50),
-        true
+        item,
+        projection(0,2), // (Token, Title, ID), NullRecord
+        StopAfter(
+          FixedLimit(50),
+          IndexScan(
+            itemTitleIndex, 
+            firstPara,
+            FixedLimit(50),
+            true
+          )
         )
       )
     )
@@ -128,15 +137,18 @@ def paraSelector(i : Int) = Array(ParameterValue(i))
    * order by I_TITLE
    */
   private lazy val searchBySubjectPlan =
-   IndexLookupJoin( // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue, AuthorKey, AuthorValue
-     author,
-     projection(3,1), // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue
-     IndexLookupJoin( // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue
-       item,
-       projection(1,0), // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID)
-       IndexScan(itemSubjectDateTitleIndex, firstPara, FixedLimit(50), true)
-     )
-   )
+    IndexLookupJoin( // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue, AuthorKey, AuthorValue
+      author,
+      projection(3,1), // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue
+      IndexLookupJoin( // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue
+        item,
+        projection(1,0), // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID)
+        StopAfter(
+          FixedLimit(50),
+          IndexScan(itemSubjectDateTitleIndex, firstPara, FixedLimit(50), true)
+        )
+      )
+    )
   //TODO: this is the exact same query as newProductWI...
   def searchBySubjectWI(subject : String) = exec(searchBySubjectPlan, new Utf8(subject))
 
@@ -226,11 +238,15 @@ def paraSelector(i : Int) = Array(ParameterValue(i))
   }
 
   private lazy val retrieveShoppingCartPlan =
-    IndexScan( // (C_UNAME, ...), (SCL_QTY, ...)
-      shoppingCartItem,
-      Array(ParameterValue(0)),
-      FixedLimit(100), // opt limit imposed
-      true)
+    StopAfter(
+      FixedLimit(100),
+      IndexScan( // (C_UNAME, ...), (SCL_QTY, ...)
+        shoppingCartItem,
+        Array(ParameterValue(0)),
+        FixedLimit(100), // opt limit imposed
+        true
+      )
+    )
   def retrieveShoppingCart(c_uname: String) = 
     exec(retrieveShoppingCartPlan, new Utf8(c_uname))
 
@@ -485,12 +501,7 @@ def paraSelector(i : Int) = Array(ParameterValue(i))
   def exec(plan: QueryPlan, args: Any*) = {
     val iterator = executor(plan, args:_*)
     iterator.open
-    iterator.toSeq
+    iterator.toList
   }
-
-  //def loadData(numEBs : Double, numItems : Int) = {
-  //  val loader = new TpcwLoader(this, numEBs, numItems)
-  //  loader.load()
-  //}
 
 }

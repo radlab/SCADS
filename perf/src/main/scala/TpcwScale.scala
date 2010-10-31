@@ -56,7 +56,7 @@ object TpcwScaleExperiment extends Experiment {
 
 case class LoadClient(var numClients: Int, 
                       var executorClass: String, 
-                      var iterations: Int = 5, 
+                      var iterations: Int = 3, 
                       var runLengthMin: Int = 5) extends AvroRecord with ReplicatedAvroClient {
 
   def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode) = {
@@ -121,8 +121,8 @@ case class LoadClient(var numClients: Int,
       coordination.registerAndAwait("iteration" + iteration, numClients)
     }
 
-    if(clientId == 0)
-      cluster.shutdown
+    //if(clientId == 0)
+    //  cluster.shutdown
 
     System.exit(0)
 

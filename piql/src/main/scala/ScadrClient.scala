@@ -39,7 +39,7 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
   private def exec(plan: QueryPlan, args: Any*) = {
     val iterator = executor(plan, args:_*)
     iterator.open
-    iterator.toSeq
+    iterator.toList
   }
 
   private lazy val findUserPlan = IndexLookup(users, Array(ParameterValue(0)))
