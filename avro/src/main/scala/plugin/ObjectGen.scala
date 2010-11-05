@@ -39,46 +39,81 @@ trait ObjectGen extends ScalaAvroPluginComponent
       val impl  = md.impl
       val clazz = md.symbol.moduleClass
 
-      val valSym = clazz.newValue(clazz.pos.focus, newTermName("schema "))
-      valSym setFlag (PRIVATE | LOCAL)
-      valSym setInfo schemaClass.tpe
-      clazz.info.decls enter valSym
+      def fieldNameAsVal(fieldName: String) = 
+        "%s ".format(fieldName)
 
-      val valDef = localTyper.typed {
-        VAL(valSym) === {
-          Apply(
-            Ident(newTermName("org")) DOT 
-              newTermName("apache")   DOT
-              newTermName("avro")     DOT
-              newTermName("Schema")   DOT
-              newTermName("parse"),
-            List(LIT(retrieveRecordSchema(companionClassOf(md.symbol)).get.toString)))
+      def fieldNameAsGetter(fieldName: String) =
+        fieldName
+
+      def newSchemaVal(fieldName: String, schema: String) = {
+        val valSym = clazz.newValue(clazz.pos.focus, newTermName(fieldNameAsVal(fieldName)))
+        valSym setFlag (PRIVATE | LOCAL)
+        valSym setInfo schemaClass.tpe
+        clazz.info.decls enter valSym
+
+        val valDef = localTyper.typed {
+          VAL(valSym) === {
+            Apply(
+              Ident(newTermName("org")) DOT 
+                newTermName("apache")   DOT
+                newTermName("avro")     DOT
+                newTermName("Schema")   DOT
+                newTermName("parse"),
+              List(LIT(schema)))
+          }
         }
+        (valSym, valDef)
       }
+
+      def newSchemaGetter(fieldName: String) = {
+        val getterSym = clazz.newMethod(clazz.pos.focus, newTermName(fieldNameAsGetter(fieldName)))
+        getterSym setFlag (METHOD | STABLE | ACCESSOR)
+        getterSym setInfo MethodType(getterSym.newSyntheticValueParams(Nil), schemaClass.tpe)
+        clazz.info.decls enter getterSym
+
+        val getDef = atOwner(clazz)(localTyper.typed {
+          DEF(getterSym) === { THIS(clazz) DOT newTermName(fieldNameAsVal(fieldName)) }
+        })
+        (getterSym, getDef)
+      }
+
+
+      val (valSym, valDef) = newSchemaVal("schema", retrieveRecordSchema(companionClassOf(md.symbol)).get.toString)
+
+      val (keyPairVal, valPairVal) = 
+        if (isMarkedPair(companionClassOf(md.symbol))) {
+          val (offset, keySchema, valueSchema) = classToKVSchema(companionClassOf(md.symbol))
+          (Some(newSchemaVal("keySchema", keySchema.toString)), Some(newSchemaVal("valueSchema", valueSchema.toString)))
+        } else 
+          (None, None)
 
       // !!! HACK !!!
       val owner0 = localTyper.context1.enclClass.owner
       localTyper.context1.enclClass.owner = clazz
 
-      val getterSym = clazz.newMethod(clazz.pos.focus, newTermName("schema"))
-      getterSym setFlag (METHOD | STABLE | ACCESSOR)
-      getterSym setInfo MethodType(getterSym.newSyntheticValueParams(Nil), schemaClass.tpe)
-      clazz.info.decls enter getterSym
+      val (getSym, getDef) = newSchemaGetter("schema")
 
-      val getDef = atOwner(clazz)(localTyper.typed {
-        DEF(getterSym) === { THIS(clazz) DOT newTermName("schema ") }
-      })
+      val (keyPairDef, valPairDef) =
+        if (isMarkedPair(companionClassOf(md.symbol))) 
+          (Some(newSchemaGetter("keySchema")), Some(newSchemaGetter("valueSchema")))
+        else 
+          (None, None)
 
       // !!! RESTORE HACK !!!
       localTyper.context1.enclClass.owner = owner0
 
-      val impl0 = treeCopy.Template(impl, impl.parents, impl.self, valDef :: getDef :: impl.body)
+      val mbrs = List(
+        keyPairDef.map(d => List(keyPairVal.get._2, d._2)).getOrElse(Nil),
+        valPairDef.map(d => List(valPairVal.get._2, d._2)).getOrElse(Nil),
+        valDef :: getDef :: impl.body).flatten
+
+      val impl0 = treeCopy.Template(impl, impl.parents, impl.self, mbrs)
       treeCopy.ModuleDef(md, md.mods, md.name, impl0)
     }
 
     override def transform(tree: Tree) : Tree = {
       val newTree = tree match {
-        case md @ ModuleDef(mods, name, impl) if (companionClassOf(md.symbol).tpe.parents.contains(avroRecordTrait.tpe)) =>
+        case md @ ModuleDef(mods, name, impl) if (isMarked(companionClassOf(md.symbol))) =>
 
           debug("Adding module to companionModule map")
           companionModuleMap += md.symbol.fullName -> md.symbol

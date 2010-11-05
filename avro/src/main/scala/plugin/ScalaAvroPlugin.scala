@@ -36,6 +36,16 @@ trait ScalaAvroPluginComponent extends PluginComponent {
   protected def isValDef(tree: Tree): Boolean = tree.isInstanceOf[ValDef] 
   protected def isVar(tree: Tree): Boolean = isVarSym(tree.symbol)
   protected def isVarSym(symbol: Symbol): Boolean = symbol.hasFlag(MUTABLE)
+  protected def isMarked(tree: Tree): Boolean = 
+    isMarked(tree.symbol)
+  protected def isMarked(sym: Symbol): Boolean = {
+    sym.tpe.parents.contains(avroRecordTrait.tpe) ||
+    sym.tpe.parents.contains(avroPairTrait.tpe)
+  }
+  protected def isMarkedPair(tree: Tree): Boolean = 
+    isMarkedPair(tree.symbol)
+  protected def isMarkedPair(sym: Symbol): Boolean =
+    sym.tpe.parents.contains(avroPairTrait.tpe)
 
   // TODO: the following values are lazy so that a NPE doesn't get thrown
   // upon instantiation
@@ -45,6 +55,7 @@ trait ScalaAvroPluginComponent extends PluginComponent {
 
   /** Avro Scala Plugin Traits */
   protected lazy val avroRecordTrait = definitions.getClass("edu.berkeley.cs.avro.marker.AvroRecord")
+  protected lazy val avroPairTrait = definitions.getClass("edu.berkeley.cs.avro.marker.AvroPair")
   protected lazy val avroUnionTrait = definitions.getClass("edu.berkeley.cs.avro.marker.AvroUnion")
 
   /** Avro Extra Primitive Types */
@@ -52,6 +63,7 @@ trait ScalaAvroPluginComponent extends PluginComponent {
   protected lazy val utf8Class = definitions.getClass("org.apache.avro.util.Utf8")
 
   /** Avro Internal Types */
+  protected lazy val GenericRecordClass = definitions.getClass("org.apache.avro.generic.GenericRecord")
   protected lazy val GenericArrayClass = definitions.getClass("org.apache.avro.generic.GenericArray")
   protected lazy val schemaClass = definitions.getClass("org.apache.avro.Schema")
   protected lazy val SpecificRecordIface = definitions.getClass("org.apache.avro.specific.SpecificRecord")
@@ -59,12 +71,16 @@ trait ScalaAvroPluginComponent extends PluginComponent {
   protected lazy val JMapClass = definitions.getClass("java.util.Map")
 
   /** Scala Avro Internal types */
+  protected lazy val AvroPairGenericRecordClass = 
+    definitions.getClass("edu.berkeley.cs.avro.runtime.AvroPairGenericRecord")
   protected lazy val ScalaSpecificRecord = definitions.getClass("edu.berkeley.cs.avro.runtime.ScalaSpecificRecord")
   protected lazy val AvroConversions = definitions.getClass("edu.berkeley.cs.avro.runtime.HasAvroConversions")
-  protected lazy val GenericArrayWrapperClass = definitions.getClass("edu.berkeley.cs.avro.runtime.GenericArrayWrapper")
 
   /** Takes a class symbol and maps to its associated Schema object */
   protected val classToSchema: Map[Symbol, Schema]
+
+  /** Takes a class symbol and maps to its tuple of key / value schema objects */
+  protected val classToKVSchema: Map[Symbol, (Int, Schema, Schema)]
 
   /** Takes a union trait and maps to all its extenders */
   protected val unionToExtenders: Map[Symbol, List[Symbol]]
@@ -89,8 +105,15 @@ trait ScalaAvroPluginComponent extends PluginComponent {
     classToSchema += name -> schema
   }
 
+  protected def addPairSchemas(name: Symbol, valueOffset: Int, keySchema: Schema, valueSchema: Schema) {
+    assert(keySchema.getType == Type.RECORD)
+    assert(valueSchema.getType == Type.RECORD)
+    classToKVSchema += name -> ((valueOffset, keySchema, valueSchema))
+  }
+
   protected def isRecord(sym: Symbol) = classToSchema.contains(sym)
 
+  // TODO: this method needs also a test that !(sym.tpe <:< AvroRecordTrait.tpe)
   protected def isExternalRecord(sym: Symbol) = sym.tpe <:< SpecificRecordIface.tpe
 
   protected def retrieveExternalRecordSchema(sym: Symbol): Schema = {
@@ -161,6 +184,7 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
   val description = "Support for auto generation of Avro Records"
   
   val classToSchema: Map[Symbol, Schema] = new HashMap[Symbol, Schema]
+  val classToKVSchema: Map[Symbol, (Int, Schema, Schema)] = new HashMap[Symbol, (Int, Schema, Schema)]
   val unionToExtenders: Map[Symbol, List[Symbol]] = new HashMap[Symbol, List[Symbol]]
   val unionToSchemas: Map[Symbol, Schema] = new HashMap[Symbol, Schema]
   val unitMap: Map[CompilationUnit, List[Symbol]] = new HashMap[CompilationUnit, List[Symbol]]
@@ -170,6 +194,7 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
   object extender extends Extender {
     val global : ScalaAvroPlugin.this.global.type = ScalaAvroPlugin.this.global
     val classToSchema = ScalaAvroPlugin.this.classToSchema
+    val classToKVSchema = ScalaAvroPlugin.this.classToKVSchema
     val unionToExtenders = ScalaAvroPlugin.this.unionToExtenders
     val unionToSchemas = ScalaAvroPlugin.this.unionToSchemas
     val unitMap = ScalaAvroPlugin.this.unitMap
@@ -180,6 +205,7 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
   object ctorRetype extends CtorRetype {
     val global : ScalaAvroPlugin.this.global.type = ScalaAvroPlugin.this.global
     val classToSchema = ScalaAvroPlugin.this.classToSchema
+    val classToKVSchema = ScalaAvroPlugin.this.classToKVSchema
     val unionToExtenders = ScalaAvroPlugin.this.unionToExtenders
     val unionToSchemas = ScalaAvroPlugin.this.unionToSchemas
     val unitMap = ScalaAvroPlugin.this.unitMap
@@ -190,6 +216,7 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
   object unionDiscover extends UnionDiscover {
     val global : ScalaAvroPlugin.this.global.type = ScalaAvroPlugin.this.global
     val classToSchema = ScalaAvroPlugin.this.classToSchema
+    val classToKVSchema = ScalaAvroPlugin.this.classToKVSchema
     val unionToExtenders = ScalaAvroPlugin.this.unionToExtenders
     val unionToSchemas = ScalaAvroPlugin.this.unionToSchemas
     val unitMap = ScalaAvroPlugin.this.unitMap
@@ -200,6 +227,7 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
   object unionClosure extends UnionClosure {
     val global : ScalaAvroPlugin.this.global.type = ScalaAvroPlugin.this.global
     val classToSchema = ScalaAvroPlugin.this.classToSchema
+    val classToKVSchema = ScalaAvroPlugin.this.classToKVSchema
     val unionToExtenders = ScalaAvroPlugin.this.unionToExtenders
     val unionToSchemas = ScalaAvroPlugin.this.unionToSchemas
     val unitMap = ScalaAvroPlugin.this.unitMap
@@ -210,6 +238,7 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
   object schemaCreate extends SchemaCreate {
     val global : ScalaAvroPlugin.this.global.type = ScalaAvroPlugin.this.global
     val classToSchema = ScalaAvroPlugin.this.classToSchema
+    val classToKVSchema = ScalaAvroPlugin.this.classToKVSchema
     val unionToExtenders = ScalaAvroPlugin.this.unionToExtenders
     val unionToSchemas = ScalaAvroPlugin.this.unionToSchemas
     val unitMap = ScalaAvroPlugin.this.unitMap
@@ -220,6 +249,7 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
   object schemaGen extends SchemaGen {
     val global : ScalaAvroPlugin.this.global.type = ScalaAvroPlugin.this.global
     val classToSchema = ScalaAvroPlugin.this.classToSchema
+    val classToKVSchema = ScalaAvroPlugin.this.classToKVSchema
     val unionToExtenders = ScalaAvroPlugin.this.unionToExtenders
     val unionToSchemas = ScalaAvroPlugin.this.unionToSchemas
     val unitMap = ScalaAvroPlugin.this.unitMap
@@ -230,6 +260,7 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
   object objectGen extends ObjectGen {
     val global : ScalaAvroPlugin.this.global.type = ScalaAvroPlugin.this.global
     val classToSchema = ScalaAvroPlugin.this.classToSchema
+    val classToKVSchema = ScalaAvroPlugin.this.classToKVSchema
     val unionToExtenders = ScalaAvroPlugin.this.unionToExtenders
     val unionToSchemas = ScalaAvroPlugin.this.unionToSchemas
     val unitMap = ScalaAvroPlugin.this.unitMap
@@ -240,6 +271,7 @@ class ScalaAvroPlugin(val global: Global) extends Plugin {
   object methodGen extends MethodGen {
     val global : ScalaAvroPlugin.this.global.type = ScalaAvroPlugin.this.global
     val classToSchema = ScalaAvroPlugin.this.classToSchema
+    val classToKVSchema = ScalaAvroPlugin.this.classToKVSchema
     val unionToExtenders = ScalaAvroPlugin.this.unionToExtenders
     val unionToSchemas = ScalaAvroPlugin.this.unionToSchemas
     val unitMap = ScalaAvroPlugin.this.unitMap

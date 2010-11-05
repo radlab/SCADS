@@ -4,7 +4,7 @@ package runtime
 import org.apache.avro.Schema
 import org.apache.avro.io.{BinaryEncoder, BinaryDecoder, DecoderFactory}
 import org.apache.avro.specific.{SpecificData, SpecificDatumReader, SpecificDatumWriter, SpecificRecord}
-import org.apache.avro.generic.{ GenericData, IndexedRecord }
+import org.apache.avro.generic.{ GenericRecord, GenericData, IndexedRecord }
 
 import collection.JavaConversions._
 import java.io._
@@ -61,4 +61,22 @@ trait ScalaSpecificRecord extends SpecificRecord {
 
   def fromGenericRecord(generic: GenericData.Record): this.type =
     ScalaSpecificRecordHelpers.fromGenericRecord(this, generic).asInstanceOf[this.type]
+}
+
+class AvroPairGenericRecord(pair: SpecificRecord, offset: Int, schema: Schema) 
+  extends GenericData.Record(schema) {
+  override def get(i: Int) = 
+    pair.get(i + offset)
+  override def put(i: Int, v: Any) =
+    pair.put(i + offset, v)
+  override def get(s: String) = schema.getField(s) match {
+    case null => 
+      throw new RuntimeException("No such field: " + s)
+    case field => get(field.pos)
+  }
+  override def put(s: String, v: Any) = schema.getField(s) match {
+    case null => 
+      throw new RuntimeException("No such field: " + s)
+    case field => put(field.pos, v)
+  }
 }

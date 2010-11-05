@@ -232,6 +232,56 @@ trait MethodGen extends ScalaAvroPluginComponent
       }
     }
 
+    private def generateKVVals(impl: Template, clazz: Symbol): List[Tree] = {
+
+      def fieldNameAsVal(fieldName: String) = 
+        "%s ".format(fieldName)
+
+      def fieldNameAsGetter(fieldName: String) =
+        fieldName
+
+      def newPairGenericRecord(fieldName: String, offset: Int, schemaTree: Tree): List[Tree] = {
+        val implSym = clazz.newMethod(clazz.pos.focus, newTermName(fieldNameAsGetter(fieldName)))
+        implSym setFlag (PROTECTED | METHOD)
+        implSym setInfo MethodType(implSym.newSyntheticValueParams(Nil), GenericRecordClass.tpe)
+        clazz.info.decls enter implSym
+
+        val implDef = localTyper.typed {
+          DEF(implSym) === { 
+            New(TypeTree(AvroPairGenericRecordClass.tpe), List(List(This(clazz), LIT(offset), schemaTree)))
+          }
+        }
+        
+        List(implDef)
+      }
+
+      def makeSchemaTree(fieldName: String, fallbackSchema: String): Tree = {
+        val innerTree: Tree =
+          if (clazz.owner.isClass) { 
+              if (clazz.toplevelClass == clazz) {
+                This(companionModuleOf(clazz).moduleClass) DOT newTermName(fieldNameAsGetter(fieldName))
+              } else {
+                This(clazz.outerClass) DOT newTermName(clazz.name.toString) DOT newTermName(fieldNameAsGetter(fieldName))
+              }
+          } else {
+            warning("Unable to optimize %s method for class %s".format(fieldName, clazz.fullName.toString))
+            Apply(
+              Ident(newTermName("org")) DOT 
+                newTermName("apache")   DOT
+                newTermName("avro")     DOT
+                newTermName("Schema")   DOT
+                newTermName("parse"),
+              List(LIT(fallbackSchema)))
+          }
+        innerTree
+      }
+
+      val (offset, keySchema, valueSchema) = classToKVSchema(clazz)
+
+      List(
+        newPairGenericRecord("keyImpl", 0, makeSchemaTree("keySchema", keySchema.toString)),
+        newPairGenericRecord("valueImpl", offset, makeSchemaTree("valueSchema", valueSchema.toString))).flatten
+    }
 
     override def transform(tree: Tree) : Tree = {
       val newTree = tree match {
@@ -244,7 +294,7 @@ trait MethodGen extends ScalaAvroPluginComponent
           val newMethod = List(generateGetUnionSchemaMethod(cd, schema))
           val newImpl = treeCopy.Template(impl, impl.parents, impl.self, newMethod ::: impl.body)
           treeCopy.ClassDef(cd, mods, name, tparams, newImpl)
-        case cd @ ClassDef(mods, name, tparams, impl) if (cd.symbol.tpe.parents.contains(avroRecordTrait.tpe)) =>
+        case cd @ ClassDef(mods, name, tparams, impl) if isMarked(cd) =>
           debug(retrieveRecordSchema(cd.symbol))
           debug(cd.symbol.fullName + "'s enclClass: " + cd.symbol.enclClass)
           debug("owner.enclClass: " + cd.symbol.owner.enclClass)
@@ -253,9 +303,10 @@ trait MethodGen extends ScalaAvroPluginComponent
 
           val instanceVars = for (member <- impl.body if isValDef(member)) yield { member.symbol }
           val newMethods = List(
-            generateGetMethod(impl, cd.symbol, instanceVars),
-            generateSetMethod(impl, cd.symbol, instanceVars),
-            generateGetSchemaMethod(cd))
+            if (isMarkedPair(cd)) generateKVVals(impl, cd.symbol) else Nil,
+            List(generateGetMethod(impl, cd.symbol, instanceVars)),
+            List(generateSetMethod(impl, cd.symbol, instanceVars)),
+            List(generateGetSchemaMethod(cd))).flatten
 
           val newImpl = treeCopy.Template(impl, impl.parents, impl.self, newMethods ::: impl.body)
           treeCopy.ClassDef(cd, mods, name, tparams, newImpl)

@@ -117,7 +117,7 @@ trait SchemaGen extends ScalaAvroPluginComponent
 
     override def transform(tree: Tree) : Tree = {
       val newTree = tree match {
-        case cd @ ClassDef(mods, name, tparams, impl) if (cd.symbol.tpe.parents.contains(avroRecordTrait.tpe)) =>
+        case cd @ ClassDef(mods, name, tparams, impl) if isMarked(cd) =>
 
           val instanceVars = for (member <- impl.body if isValDef(member)) yield { member.symbol }
 
@@ -135,8 +135,21 @@ trait SchemaGen extends ScalaAvroPluginComponent
                       createSchema(iVar.tpe),
                       "Auto-Generated Field",
                       null))
-          
+          // need to make a copy for the pairs, since we can't reuse field
+          // objects
+          val fields0 = instanceVars.map(iVar => 
+            new Field(iVar.name.toString.trim, 
+                      createSchema(iVar.tpe),
+                      "Auto-Generated Field",
+                      null))
+
           retrieveRecordSchema(cd.symbol).get.setFields(JArrays.asList(fields.toArray:_*))
+
+          if (isMarkedPair(cd)) {
+            val (valOffset, keyRec, valRec) = classToKVSchema(cd.symbol)
+            keyRec.setFields(JArrays.asList(fields0.take(valOffset).toArray:_*))
+            valRec.setFields(JArrays.asList(fields0.drop(valOffset).toArray:_*))
+          }
 
           cd
         case _ => tree

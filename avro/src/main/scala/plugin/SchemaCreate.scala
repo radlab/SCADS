@@ -25,14 +25,39 @@ trait SchemaCreate extends ScalaAvroPluginComponent {
   def newTraverser(): Traverser = new ForeachTreeTraverser(check)
 
   def check(tree: Tree): Unit = tree match {
-    case cd @ ClassDef(_, _, _, _) if (cd.symbol.tpe.parents.contains(avroRecordTrait.tpe)) =>
+    case cd @ ClassDef(_, _, _, _) if isMarked(cd) =>
       val sym = cd.symbol
       val namespace = 
         if (sym.owner.fullName == "<empty>") None // Issue #6 - handle default package classes
         else Some(sym.owner.fullName)
       debug("Adding schema for class %s, namespace %s".format(sym.fullName, namespace))
+      val DOC = "Auto-generated schema"
+      val clzName = sym.name.toString
       addRecordSchema(sym, 
-          Schema.createRecord(sym.name.toString, "Auto-generated schema", namespace.orNull, false))
+          Schema.createRecord(clzName, DOC, namespace.orNull, false))
+      if (isMarkedPair(cd)) {
+        val numKeyParams = {
+          val innerCtorTpe = cd.symbol.primaryConstructor.tpe
+          innerCtorTpe.resultType match {
+            case MethodType(outerParams, _) =>
+              innerCtorTpe.params.size + outerParams.size 
+            case _ => 
+              innerCtorTpe.params.size
+          }
+        }
+        addPairSchemas(sym,
+            numKeyParams,
+            Schema.createRecord(
+              clzName + "KeyType", 
+              DOC,
+              namespace.orNull,
+              false),
+            Schema.createRecord(
+              clzName + "ValueType",
+              DOC,
+              namespace.orNull,
+              false))
+      }
       debug("Registering class in companionClassMap")
       companionClassMap += sym.fullName -> sym
       debug("companionClassMap: " + companionClassMap) 

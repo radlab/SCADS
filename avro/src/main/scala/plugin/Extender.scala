@@ -28,7 +28,10 @@ trait Extender extends ScalaAvroPluginComponent
   def newTransformer(unit: CompilationUnit) = new ExtenderTransformer(unit)
 
   override def transformInfo(sym: Symbol, tpe: Type): Type = tpe match {
-    case ClassInfoType(parents, decls, clazz) if (!clazz.isPackageClass && clazz.tpe.parents.contains(avroRecordTrait.tpe)) =>
+    case ClassInfoType(parents, decls, clazz) 
+      if (!clazz.isPackageClass && 
+          (clazz.tpe.parents.contains(avroRecordTrait.tpe) ||
+           clazz.tpe.parents.contains(avroPairTrait.tpe))) =>
       // 1) warn if current parent is not java.lang.Object AND if it is not a
       // subtype of SpecificRecordBase
       val (car, cdr) = clazz.tpe.parents.splitAt(1)
@@ -51,9 +54,10 @@ trait Extender extends ScalaAvroPluginComponent
       ByteClass    -> LIT(0),
       CharClass    -> LIT(0))
 
+
+
     private def preTransform(tree: Tree): Tree = tree match {
-      case cd @ ClassDef(mods, name, tparams, impl) 
-        if (cd.symbol.tpe.parents.contains(avroRecordTrait.tpe)) =>
+      case cd @ ClassDef(mods, name, tparams, impl) if isMarked(cd) =>
 
         // check that this annotation is a case class
         if (!cd.hasFlag(Flags.CASE))
