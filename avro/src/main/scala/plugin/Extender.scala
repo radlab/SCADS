@@ -29,9 +29,7 @@ trait Extender extends ScalaAvroPluginComponent
 
   override def transformInfo(sym: Symbol, tpe: Type): Type = tpe match {
     case ClassInfoType(parents, decls, clazz) 
-      if (!clazz.isPackageClass && 
-          (clazz.tpe.parents.contains(avroRecordTrait.tpe) ||
-           clazz.tpe.parents.contains(avroPairTrait.tpe))) =>
+      if (!clazz.isPackageClass && isMarked(clazz)) =>
       // 1) warn if current parent is not java.lang.Object AND if it is not a
       // subtype of SpecificRecordBase
       val (car, cdr) = clazz.tpe.parents.splitAt(1)
