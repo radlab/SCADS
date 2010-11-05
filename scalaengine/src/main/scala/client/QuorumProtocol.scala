@@ -40,11 +40,13 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
 
   protected val logger = Logger()
 
+  // For debugging only
   def dumpDistribution: Unit = {
     serversForRange(None, None).foreach(r => {
       r.values.foreach(partition => {
         partition !? CountRangeRequest(r.startKey.map(serializeKey), r.endKey.map(serializeKey)) match {
           case CountRangeResponse(num) => logger.info("%s: %d", partition, num)
+          case _ => logger.warning("Invalid response from %s", partition)
         }
       })
     })
