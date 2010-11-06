@@ -52,7 +52,7 @@ abstract trait TracingExecutor extends QueryExecutor {
         planId,
         operation)
 
-      val success = pendingTraceMessages.offer(msg, 100, TimeUnit.MILLISECONDS)
+      val success = pendingTraceMessages.offer(msg, 0, TimeUnit.MILLISECONDS)
       if(!success)
         logger.warning("Failed to record trace message: %s", msg)
       success
