@@ -33,8 +33,6 @@ object TracingExample {
     logger.info("Running thoughtstream query 10 times")
     (1 to 10).foreach(i => client.thoughtstream("kcurtis", 10))
 
-    Thread.sleep(1000)
-
     //Flush trace messages to the file
     executor.flush()
 

@@ -14,11 +14,11 @@ case class QueryExecutionTrace(var timestamp: Long, var threadName: String, var 
 
 abstract trait TracingExecutor extends QueryExecutor {
   val traceFile: File
-  lazy val outputFile = AvroOutFile[QueryExecutionTrace](traceFile, CodecFactory.deflateCodec(5))
+  lazy protected val outputFile = AvroOutFile[QueryExecutionTrace](traceFile, CodecFactory.deflateCodec(5))
 
   /* A list of messages that will be written to disk async by a seperate thread */
-  val pendingTraceMessages = new ArrayBlockingQueue[QueryExecutionTrace](1024)
-  val ioThread = new Thread("QueryTraceWriter") {
+  protected val pendingTraceMessages = new ArrayBlockingQueue[QueryExecutionTrace](1024)
+  protected val ioThread = new Thread("QueryTraceWriter") {
     override def run(): Unit = {
       while(true) {
         outputFile.append(pendingTraceMessages.take)
@@ -40,7 +40,7 @@ abstract trait TracingExecutor extends QueryExecutor {
   }
 
 
-  class TracingIterator(child: QueryIterator, planId: Int) extends QueryIterator {
+  protected class TracingIterator(child: QueryIterator, planId: Int) extends QueryIterator {
     val name = "TracingIterator"
 
     /* Place a trace message on the queue of messages to be written to disk.  If space isn't available issue a warning */
