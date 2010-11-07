@@ -4,7 +4,6 @@ package piql
 
 import avro.runtime._
 import avro.marker._
-import org.apache.avro.file.CodecFactory
 
 import java.io.File
 import java.util.concurrent.{ArrayBlockingQueue, TimeUnit}
