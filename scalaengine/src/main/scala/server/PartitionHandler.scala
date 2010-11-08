@@ -16,6 +16,16 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
   protected val logger = Logger()
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
+	// state for maintaining workload stats
+	protected val statWindowTime = 20*1000 // ms, how long a window to maintain stats for
+	protected val clearStatWindowsTime = 60*1000 // ms, keep long to keep stats around, in all windows
+	protected var statWindows = (0 until clearStatWindowsTime/statWindowTime)
+		.map {_=>(new java.util.concurrent.atomic.AtomicInteger(),new java.util.concurrent.atomic.AtomicInteger())}.toList // (get,put) for each window
+	private var statsClearedTime = System.currentTimeMillis
+	private val getSamplingRate = 1.0
+	private val putSamplingRate = 1.0
+	private val samplerRandom = new java.util.Random
+	// end workload stats stuff
   protected def startup() { /* No-op */ }
   protected def shutdown() {
     partitionIdLock.delete()
@@ -82,6 +92,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
         case GetRequest(key) => {
           val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry)
           db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
+					if (samplerRandom.nextDouble <= getSamplingRate) incrementWorkloadStats(1,"get")
           reply(GetResponse(Option(dbeValue.getData())))
         }
         case PutRequest(key, value) => {
@@ -89,11 +100,14 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
             case Some(v) => db.put(null, new DatabaseEntry(key), new DatabaseEntry(v))
             case None => db.delete(null, new DatabaseEntry(key))
           }
+					if (samplerRandom.nextDouble <= putSamplingRate) incrementWorkloadStats(1,"put")
           reply(PutResponse())
         }
         case BulkPutRequest(records) => {
           val txn = db.getEnvironment.beginTransaction(null, null)
-          records.foreach(rec => db.put(txn, new DatabaseEntry(rec.key), new DatabaseEntry(rec.value.get)))
+					var reccount = 0
+          records.foreach(rec => { db.put(txn, new DatabaseEntry(rec.key), new DatabaseEntry(rec.value.get)); reccount+=1})
+					if (samplerRandom.nextDouble <= putSamplingRate) incrementWorkloadStats(reccount,"put")
           try {
             txn.commit()
             reply(BulkPutResponse())
@@ -109,7 +123,10 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           iterateOverRange(minKey, maxKey, limit, offset, ascending)((key, value, _) => {
             records += Record(key.getData, value.getData)
           })
-          reply(GetRangeResponse(records))
+					var reccount = 0
+					iterateOverRange(minKey, maxKey)((_,_,_) => reccount += 1)
+					if (samplerRandom.nextDouble <= getSamplingRate) incrementWorkloadStats(reccount,"get")
+          reply(GetRangeResponse(records.toList))
         }
         case BatchRequest(ranges) => {
           val results = new scala.collection.mutable.ListBuffer[GetRangeResponse]
@@ -119,7 +136,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
               iterateOverRange(minKey, maxKey, limit, offset, ascending)((key, value, _) => {
                 records += Record(key.getData, value.getData)
               })
-              results += GetRangeResponse(records)
+              results += GetRangeResponse(records.toList)
             }
             case _ => throw new RuntimeException("BatchRequests only implemented for GetRange")
           }
@@ -174,6 +191,9 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
         case GetResponsibilityRequest() => {
           reply(GetResponsibilityResponse(startKey, endKey))
         }
+				case GetWorkloadStats() => {
+					synchronized { reply(GetWorkloadStatsResponse(statWindows(1)._1.get, statWindows(1)._2.get, statsClearedTime)) }
+				}
         case _ => src.foreach(_ ! ProcessingException("Not Implemented", ""))
       }
     } else {
@@ -209,6 +229,23 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
       cursor.delete()
     })
   }
+	private def incrementWorkloadStats(num:Int, requestType:String) = {
+		// check if need to advance window and/or clear out old windows
+		synchronized {
+			if (System.currentTimeMillis > statsClearedTime+statWindowTime) {
+				logger.debug("last window gets: %d",statWindows.head._1.get)
+				statWindows = (new java.util.concurrent.atomic.AtomicInteger(),new java.util.concurrent.atomic.AtomicInteger()) +: statWindows.dropRight(1)
+				statsClearedTime = System.currentTimeMillis
+				logger.debug("cleared stats: %s",statsClearedTime.toString)
+			}
+		}
+		// increment count in current window
+		requestType match {
+			case "get" => statWindows.head._1.getAndAdd(num)
+			case "put" => statWindows.head._2.getAndAdd(num)
+			case _ => logger.error("Tried to increment stats count for invalid request type %s", requestType)
+		}
+	}
 
   /**
    * Low level method to iterate over a given range on the database. it is up
