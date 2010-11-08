@@ -66,6 +66,14 @@ class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) {
     return namespace
   }
 
+  def getNamespace(ns: String): GenericNamespace = {
+		val keySchema = Schema.parse(new String(root("namespaces")(ns)("keySchema").data))
+		val valueSchema = Schema.parse(new String(root("namespaces")(ns)("valueSchema").data))
+    val namespace = new GenericNamespace(ns, 5000, namespaces, keySchema, valueSchema)
+    namespace.load
+    return namespace
+  }
+
    def createNamespace(ns: String,
                     keySchema:
                     Schema,
