@@ -14,6 +14,31 @@ import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter}
 
 import edu.berkeley.cs.avro.runtime._
 
+class SimpleSerializer(schemas: Set[Schema]) {
+	
+	val schemaList = schemas.toList
+	val schemaResolvers = Map( schemaList.map(s => (s,ResolvingDecoder.resolve(s,s))):_*)
+	val newInstances = Map( schemaList.map(s => (s,new GenericData.Record(s))):_*)
+	val readers = Map( schemaList.map(s => (s,new GenericDatumReader[GenericData.Record](s)) ):_*)
+	val writers = Map( schemaList.map(s => (s,new GenericDatumWriter[GenericData.Record](s)) ):_*)
+	
+	val decoderFactory = (new DecoderFactory).configureDirectDecoder(true)
+	val bufferSize = 128
+	
+	def deserialize(s:Schema, value: Array[Byte]): org.apache.avro.generic.GenericData.Record = {
+    val dec = decoderFactory.createBinaryDecoder(value, null)
+    readers(s).read(newInstances(s), new ResolvingDecoder(schemaResolvers(s), dec))
+  }
+
+  def serialize(s:Schema, key: org.apache.avro.generic.GenericData.Record): Array[Byte] = {
+    val baos = new ByteArrayOutputStream(bufferSize)
+    val enc  = new BinaryEncoder(baos)
+    writers(s).write(key, enc)
+    baos.toByteArray
+  }
+
+}
+
 private[storage] trait AvroSerializing[KeyType <: IndexedRecord, ValueType <: IndexedRecord] 
   extends Namespace[KeyType, ValueType] {
 
@@ -199,7 +224,7 @@ class GenericNamespace(namespace: String,
                        val valueSchema: Schema)
                       (implicit cluster : ScadsCluster)
     extends QuorumProtocol[GenericData.Record, GenericData.Record](namespace, timeout, root)(cluster)
-    with    RoutingProtocol[GenericData.Record, GenericData.Record] 
+    with    WorkloadStatsProtocol/*RoutingProtocol*/[GenericData.Record, GenericData.Record] 
     with    SimpleMetaData[GenericData.Record, GenericData.Record]
     with    AvroSerializing[GenericData.Record, GenericData.Record] {
 
