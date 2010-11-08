@@ -5,6 +5,8 @@ import org.apache.avro.Schema
 import net.lag.logging.Logger
 
 import edu.berkeley.cs.scads.comm._
+import scala.collection.JavaConversions._
+import org.apache.avro.generic._
 
 import java.util.{ Arrays => JArrays }
 
@@ -26,6 +28,12 @@ class PartitionHandler(val db: Database, val acdb: Option[Database], val partiti
 	private val putSamplingRate = 1.0
 	private val samplerRandom = new java.util.Random
 	// end workload stats stuff
+
+	val acSchema = AclRec.schema
+	val prefixSchema = Schema.createRecord(keySchema.getFields.map(f => new Schema.Field(f.name, Schema.createUnion(f.schema :: Schema.create(Schema.Type.NULL) :: Nil), f.doc, f.defaultValue, f.order)))
+	private val serializer = new SimpleSerializer(Set(keySchema,prefixSchema,acSchema))
+	val prefixLength = 1
+
   protected def startup() { /* No-op */ }
   protected def shutdown() {
     partitionIdLock.delete()
@@ -93,6 +101,7 @@ class PartitionHandler(val db: Database, val acdb: Option[Database], val partiti
         case GetRequest(key) => {
           val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry)
           db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
+					//logger.info(acRights(key,"nick",List("students")).toString) // TODO: remove
 					if (samplerRandom.nextDouble <= getSamplingRate) incrementWorkloadStats(1,"get")
           reply(GetResponse(Option(dbeValue.getData())))
         }
@@ -102,8 +111,43 @@ class PartitionHandler(val db: Database, val acdb: Option[Database], val partiti
             case None => db.delete(null, new DatabaseEntry(key))
           }
 					if (samplerRandom.nextDouble <= putSamplingRate) incrementWorkloadStats(1,"put")
+					//val acvalue = serializer.serialize(acSchema, AclRec("beth", Map(("students"->2),("world"->1))).toGenericRecord) // TODO:  remove
+					//acdb.get.put(null, new DatabaseEntry(key), new DatabaseEntry(acvalue))													// TODO:	remove
           reply(PutResponse())
         }
+				case GetRequestACL(key, user, groups) => {
+					val (canRead,canWrite) = acRights(key,user,groups).getOrElse((true,true))
+					if (!canRead) reply(RequestFailureACL(key)) // if don't have read writes, return failure
+					else {
+          	val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry)
+          	db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
+						//logger.info(acRights(key,"nick",List("students")).toString) // TODO: remove
+						if (samplerRandom.nextDouble <= getSamplingRate) incrementWorkloadStats(1,"get")
+          	reply(GetResponse(Option(dbeValue.getData())))
+					}
+        }
+        case PutRequestACL(key, value, user, groups) => {
+					val (canRead,canWrite) = acRights(key,user,groups).getOrElse((true,true))
+					if (!canWrite) reply(RequestFailureACL(key)) // reply with failure response
+					else {
+	          value match {
+	            case Some(v) => db.put(null, new DatabaseEntry(key), new DatabaseEntry(v))
+	            case None => db.delete(null, new DatabaseEntry(key))
+	          }
+						if (samplerRandom.nextDouble <= putSamplingRate) incrementWorkloadStats(1,"put")
+						//val acvalue = serializer.serialize(acSchema, AclRec("beth", Map(("students"->2),("world"->1))).toGenericRecord) // TODO:  remove
+						//acdb.get.put(null, new DatabaseEntry(key), new DatabaseEntry(acvalue))													// TODO:	remove
+	          reply(PutResponse())
+					}
+        }
+				case PutACLRequest(user, key, prefix, acl) => {
+					if (canPutACL(key, user)) {
+						val acvalue = serializer.serialize(acSchema, AclRec(user, acl).toGenericRecord)
+						acdb.get.put(null, new DatabaseEntry(key), new DatabaseEntry(acvalue))
+						reply(PutACLRequestResponse(true))
+					}
+					else reply(PutACLRequestResponse(false))
+				}
         case BulkPutRequest(records) => {
           val txn = db.getEnvironment.beginTransaction(null, null)
 					var reccount = 0
@@ -246,6 +290,71 @@ class PartitionHandler(val db: Database, val acdb: Option[Database], val partiti
 			case "put" => statWindows.head._2.getAndAdd(num)
 			case _ => logger.error("Tried to increment stats count for invalid request type %s", requestType)
 		}
+	}
+	
+	/**
+	* TODO: do prefixes longer than 1
+	* check for full key first, then prefix of key (full key has precedence)
+	* AC entry = key-prefix --> owner, map(user/group --> Int)
+	* returns tuple indicating (read right, write right) or None if there's no relevant entry
+	*/
+	private def acRights(key: Array[Byte], user:String, groups:Seq[String]):Option[(Boolean,Boolean)] = {
+		// get prefix of key, need to deserialize and then serialize back
+		val prefixed = getPrefix(key)
+
+		// look up full key in AC database
+		var acSerializedValue = acLookup(key)
+		
+		// look up prefixed key in AC database
+		if (acSerializedValue == None) acSerializedValue = acLookup(prefixed)
+		
+		// if there's an entry, deserialize, and determine user's rights
+		if (acSerializedValue != None) {
+			try { 
+				val acDeserialized = (new AclRec).parse(acSerializedValue.get) 
+				if (acDeserialized.owner == user) Some((true,true))				// owner has full rights
+				else {
+					val entries = groups.map(g => acDeserialized.acl.get(g)) // Option[Int]
+					val reads = !entries.filter(e => {val perm = e.getOrElse(0); perm == 1 || perm == 3}).isEmpty
+					val writes = !entries.filter(e => {val perm = e.getOrElse(0); perm > 1}).isEmpty
+					Some((reads,writes))
+				}
+			} catch { case e => logger.warning("error: %s",e); None}
+		}
+		else None
+	}
+	
+	private def acLookup(key:Array[Byte]):Option[Array[Byte]] = {
+		val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry)
+    acdb.get.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
+    Option(dbeValue.getData())
+	}
+	
+	/**
+	* currently only gets first field as the prefix of the key
+	*/
+	private def getPrefix(key:Array[Byte]):Array[Byte] = {
+		val deserialized = serializer.deserialize(keySchema,key)
+		val prefixedDeserialized = new GenericData.Record(prefixSchema)
+		prefixedDeserialized.put(0, deserialized.get(0))
+		serializer.serialize(prefixSchema, prefixedDeserialized)
+	}
+	
+	/**
+	* assumes that if a key exists in the regular db, then there'll be an entry for that key
+	* in the ACL db. if don't assume this, then have to check if another user owns a key in the
+	* range that this ACL wants to be made on
+	*/
+	private def canPutACL(key:Array[Byte], user:String):Boolean = {
+		val prefixed = getPrefix(key)
+		var acSerializedValue = acLookup(key)
+		if (acSerializedValue == None) acSerializedValue = acLookup(prefixed)
+		if (acSerializedValue == None) true // if key or prefix doesn't exist, then ok
+		else {
+			val acDeserialized = (new AclRec).parse(acSerializedValue.get)
+			if (acDeserialized.owner == user) true // if user owns the entry, then ok
+			else false // someone else owns acl here
+		}	
 	}
 
   /**
