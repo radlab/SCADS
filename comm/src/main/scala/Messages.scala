@@ -29,6 +29,11 @@ case class GetResponse(var value: Option[Array[Byte]]) extends AvroRecord with K
 case class PutRequest(var key: Array[Byte], var value: Option[Array[Byte]]) extends AvroRecord with KeyValueStoreOperation
 case class PutResponse() extends AvroRecord with KeyValueStoreOperation
 
+case class GetRequestACL(var key: Array[Byte], var user:String, var groups: Seq[String]) extends AvroRecord with KeyValueStoreOperation
+case class PutRequestACL(var key: Array[Byte], var value: Option[Array[Byte]], var user:String, var groups: Seq[String]) extends AvroRecord with KeyValueStoreOperation
+case class RequestFailureACL(var key: Array[Byte]) extends AvroRecord with KeyValueStoreOperation
+
+
 case class BulkPutRequest(var records: Seq[PutRequest]) extends AvroRecord with KeyValueStoreOperation
 case class BulkPutResponse() extends AvroRecord with KeyValueStoreOperation
 
@@ -71,6 +76,9 @@ case class CopyDataResponse() extends AvroRecord with PartitionServiceOperation
 case class GetResponsibilityRequest() extends AvroRecord with PartitionServiceOperation
 case class GetResponsibilityResponse(var startKey: Option[Array[Byte]], var endKey: Option[Array[Byte]]) extends AvroRecord with PartitionServiceOperation
 
+case class PutACLRequest(var user:String, var key:Array[Byte], var prefix:Option[Int], var acl:Map[String,Int]) extends AvroRecord with PartitionServiceOperation
+case class PutACLRequestResponse(var success:Boolean) extends AvroRecord with PartitionServiceOperation
+
 /* Messages for the Remote Experiment Running Daemon. Located here due to limitations in MessageHandler */
 sealed trait ClassSource extends AvroUnion
 case class ServerSideJar(var path: String) extends AvroRecord with ClassSource
@@ -89,6 +97,7 @@ case class StringRec(var f1: String) extends AvroRecord
 case class StringRec2(var f1: String, var f2: String) extends AvroRecord
 case class StringRec3(var f1: String, var f2: String, var f3: String) extends AvroRecord
 case class CompIntStringRec(var intRec: IntRec, var stringRec: StringRec) extends AvroRecord
+case class AclRec(var owner: String, var acl: Map[String,Int]) extends AvroRecord // owner, group/user --> {0,3} where 0 no rights, 1 = read, 2 = write, 3 = read+write
 
 case class QuorumProtocolConfig(var readQuorum : Double, var writeQuorum : Double) extends AvroRecord
 
