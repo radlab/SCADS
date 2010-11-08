@@ -12,8 +12,8 @@ import java.util.{ Arrays => JArrays }
  * Handles a partition from [startKey, endKey). Refuses to service any
  * requests which fall out of this range, by returning a ProcessingException
  */
-class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, val startKey: Option[Array[Byte]], val endKey: Option[Array[Byte]], val nsRoot: ZooKeeperProxy#ZooKeeperNode, val keySchema: Schema) extends ServiceHandler[PartitionServiceOperation] with AvroComparator {
-  protected val logger = Logger()
+class PartitionHandler(val db: Database, val acdb: Option[Database], val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, val startKey: Option[Array[Byte]], val endKey: Option[Array[Byte]], val nsRoot: ZooKeeperProxy#ZooKeeperNode, val keySchema: Schema) extends ServiceHandler[PartitionServiceOperation] with AvroComparator {
+  protected val logger = Logger("partitionhandler")
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
 	// state for maintaining workload stats
@@ -30,6 +30,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
   protected def shutdown() {
     partitionIdLock.delete()
     db.close()
+		if (acdb != None) acdb.get.close()
   }
 
   override def toString = 
