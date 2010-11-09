@@ -3,10 +3,11 @@ package edu.berkeley.cs.scads.storage
 import org.apache.avro.generic.IndexedRecord
 import java.nio.ByteBuffer
 
-abstract trait SimpleMetaData[KeyType <: IndexedRecord, ValueType <: IndexedRecord] extends Namespace[KeyType, ValueType] {
+trait SimpleMetaData[KeyType <: IndexedRecord, ValueType <: IndexedRecord] {
+  this: Namespace[KeyType, ValueType] with AvroSerializing[KeyType, ValueType] => 
 
 
-  override protected def createRecord(value : ValueType) : Array[Byte] = {
+  protected def createRecord(value : ValueType) : Array[Byte] = {
     //val time = toByte(System.currentTimeMillis)
     //val clientID = toByte(cluster.clientID)
     val serValue = serializeValue(value)
@@ -17,7 +18,7 @@ abstract trait SimpleMetaData[KeyType <: IndexedRecord, ValueType <: IndexedReco
     buffer.array
   }
 
-  override protected def extractValueFromRecord(record: Option[Array[Byte]]): Option[ValueType] ={
+  protected def extractValueFromRecord(record: Option[Array[Byte]]): Option[ValueType] ={
     if(record.isEmpty){
       return None
     }
@@ -26,7 +27,7 @@ abstract trait SimpleMetaData[KeyType <: IndexedRecord, ValueType <: IndexedReco
     Some(deserializeValue(record.get.slice(16, record.get.length)))
   }
 
-  override protected def getMetaData(record : Option[Array[Byte]]) : String = {
+  protected def getMetaData(record : Option[Array[Byte]]) : String = {
 
     if(record.isDefined){
       val buffer = ByteBuffer.wrap(record.get)
@@ -36,7 +37,7 @@ abstract trait SimpleMetaData[KeyType <: IndexedRecord, ValueType <: IndexedReco
     }
   }
 
-  override protected def compareRecord(data1 : Option[Array[Byte]], data2 : Option[Array[Byte]]) : Int = {
+  protected def compareRecord(data1 : Option[Array[Byte]], data2 : Option[Array[Byte]]) : Int = {
     if(data1.isEmpty){
       if(data2.isEmpty){
         return 0
@@ -49,7 +50,7 @@ abstract trait SimpleMetaData[KeyType <: IndexedRecord, ValueType <: IndexedReco
     compareRecord(data1.get, data2.get)
   }
 
-  override protected def compareRecord(data1 : Array[Byte], data2 : Array[Byte]) : Int = {
+  protected def compareRecord(data1 : Array[Byte], data2 : Array[Byte]) : Int = {
     for(i <- 0 until 16){
       if(data1(i) == data2(i)) {   //Check common case first
       }else if((data1(i) < data2(i)) ^ ((data1(i) < 0) != (data2(i) < 0)) ){ //bitwise comparison for unsigned Bytes
@@ -60,37 +61,5 @@ abstract trait SimpleMetaData[KeyType <: IndexedRecord, ValueType <: IndexedReco
     }
     return 0
   }
-
-//
-//  private def toByte(data : Long) : Array[Byte] = {
-//    return new Array[Byte] (
-//        ((data >> 56) & 0xff).toByte,
-//        ((data >> 48) & 0xff).toByte,
-//        ((data >> 40) & 0xff).toByte,
-//        ((data >> 32) & 0xff).toByte,
-//        ((data >> 24) & 0xff).toByte,
-//        ((data >> 16) & 0xff).toByte,
-//        ((data >> 8) & 0xff).toByte,
-//        ((data >> 0) & 0xff).toByte
-//    )
-//  }
-//
-//  private def toLong(data : Array[Byte]) : Long = {
-//    require (data != null && data.length == 8)
-//    // ----------
-//    return (
-//            // (Below) convert to longs before shift because digits
-//            //         are lost with ints beyond the 32-bit limit
-//            (0xff & data(0)).toLong << 56  |
-//            (0xff & data(1)).toLong << 48  |
-//            (0xff & data(2)).toLong << 40  |
-//            (0xff & data(3)).toLong << 32  |
-//            (0xff & data(4)).toLong << 24  |
-//            (0xff & data(5)).toLong << 16  |
-//            (0xff & data(6)).toLong << 8   |
-//            (0xff & data(7)).toLong << 0
-//            )
-//  }
-
 
 }

@@ -7,15 +7,15 @@ import edu.berkeley.cs.scads.storage.routing._
 
 import org.apache.avro.Schema
 import Schema.Type
-import org.apache.avro.generic.{IndexedRecord, GenericData, GenericDatumReader, GenericDatumWriter}
+import org.apache.avro.generic.{IndexedRecord, GenericData, GenericRecord, GenericDatumReader, GenericDatumWriter}
 import org.apache.avro.io.{BinaryData, DecoderFactory, BinaryEncoder, BinaryDecoder, 
                            DatumReader, DatumWriter, ResolvingDecoder}
 import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter}
 
 import edu.berkeley.cs.avro.runtime._
 
-private[storage] trait AvroSerializing[KeyType <: IndexedRecord, ValueType <: IndexedRecord] 
-  extends Namespace[KeyType, ValueType] {
+trait AvroSerializing[KeyType <: IndexedRecord, ValueType <: IndexedRecord] {
+  this: Namespace[KeyType, ValueType] =>
 
   val keySchema: Schema
   val valueSchema: Schema
@@ -84,21 +84,21 @@ private[storage] trait AvroSerializing[KeyType <: IndexedRecord, ValueType <: In
     logger.debug("Schema ResolvingDecoders computed")
   }
 
-  override def load() {
-    super.load()
+  onLoad {
     validate()
   }
 
-  override def create(ranges: Seq[(Option[KeyType], Seq[StorageService])]) {
-    super.create(ranges)
-    validate()
+  onCreate {
+    ranges => {
+      validate()
+    }
   }
 
-  val keyReader: DatumReader[KeyType]
-  val valueReader: DatumReader[ValueType] 
+  protected val keyReader: DatumReader[KeyType]
+  protected val valueReader: DatumReader[ValueType] 
 
-  val keyWriter: DatumWriter[KeyType]
-  val valueWriter: DatumWriter[ValueType]
+  protected val keyWriter: DatumWriter[KeyType]
+  protected val valueWriter: DatumWriter[ValueType]
 
   protected val bufferSize = 128
 
@@ -150,11 +150,14 @@ private[storage] trait AvroSerializing[KeyType <: IndexedRecord, ValueType <: In
  * Implementation of Scads Namespace that returns ScalaSpecificRecords
  */
 class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord]
-    (namespace: String, timeout: Int, root: ZooKeeperProxy#ZooKeeperNode)
-    (implicit cluster: ScadsCluster, keyType: Manifest[KeyType], valueType: Manifest[ValueType])
-        extends QuorumProtocol[KeyType, ValueType](namespace, timeout, root)(cluster) 
+    (val namespace: String, 
+     val timeout: Int, 
+     val root: ZooKeeperProxy#ZooKeeperNode)
+    (implicit val cluster: ScadsCluster, keyType: Manifest[KeyType], valueType: Manifest[ValueType])
+        extends Namespace[KeyType, ValueType]
         with    RoutingProtocol[KeyType, ValueType] 
         with    SimpleMetaData[KeyType, ValueType]
+        with    QuorumProtocol[KeyType, ValueType]
         with    AvroSerializing[KeyType, ValueType] {
 
   protected val keyClass   = keyType.erasure.asInstanceOf[Class[KeyType]]
@@ -192,25 +195,26 @@ class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecif
   }
 }
 
-class GenericNamespace(namespace: String,
-                       timeout: Int,
-                       root: ZooKeeperProxy#ZooKeeperNode,
+class GenericNamespace(val namespace: String,
+                       val timeout: Int,
+                       val root: ZooKeeperProxy#ZooKeeperNode,
                        val keySchema: Schema,
                        val valueSchema: Schema)
-                      (implicit cluster : ScadsCluster)
-    extends QuorumProtocol[GenericData.Record, GenericData.Record](namespace, timeout, root)(cluster)
-    with    RoutingProtocol[GenericData.Record, GenericData.Record] 
-    with    SimpleMetaData[GenericData.Record, GenericData.Record]
-    with    AvroSerializing[GenericData.Record, GenericData.Record] {
+                      (implicit val cluster : ScadsCluster)
+    extends Namespace[GenericRecord, GenericRecord]
+    with    RoutingProtocol[GenericRecord, GenericRecord] 
+    with    SimpleMetaData[GenericRecord, GenericRecord]
+    with    QuorumProtocol[GenericRecord, GenericRecord]
+    with    AvroSerializing[GenericRecord, GenericRecord] {
 
-  val keyReader   = new GenericDatumReader[GenericData.Record](keySchema) {
+  val keyReader   = new GenericDatumReader[GenericRecord](keySchema) {
     def exposedNewRecord(old: AnyRef, schema: Schema): AnyRef = 
       newRecord(old, schema)
   }
-  val valueReader = new GenericDatumReader[GenericData.Record](valueSchema)
+  val valueReader = new GenericDatumReader[GenericRecord](valueSchema)
 
-  val keyWriter   = new GenericDatumWriter[GenericData.Record](keySchema)
-  val valueWriter = new GenericDatumWriter[GenericData.Record](valueSchema)
+  val keyWriter   = new GenericDatumWriter[GenericRecord](keySchema)
+  val valueWriter = new GenericDatumWriter[GenericRecord](valueSchema)
 
   def newKeyInstance = new GenericData.Record(keySchema)
   def newValueInstance = new GenericData.Record(valueSchema)

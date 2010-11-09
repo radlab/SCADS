@@ -3,6 +3,7 @@ package edu.berkeley.cs.scads.storage
 import scala.collection.JavaConversions._
 
 import edu.berkeley.cs.scads.comm._
+import routing._
 import org.apache.avro.generic.{GenericData, GenericRecord, IndexedRecord}
 import org.apache.avro.Schema
 import Schema.Type
@@ -19,26 +20,24 @@ import scala.concurrent.ManagedBlocker
 private[storage] object QuorumProtocol {
   val MinString = "" 
   val MaxString = new String(Array.fill[Byte](20)(127.asInstanceOf[Byte]))
+  val ZK_QUORUM_CONFIG = "quorumProtConfig"
+  val BufSize = 1024
+  val FutureCollSize = 1024
 }
 
 /**
  * Quorum Protocol
  * read and write quorum are defined as percentages (0< X <=1). The sum of read and write has to be greater than 1
  */
-abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
-(namespace: String,
- timeout: Int,
- root: ZooKeeperProxy#ZooKeeperNode)(implicit cluster: ScadsCluster)
-        extends Namespace[KeyType, ValueType](namespace, timeout, root)(cluster) with AvroComparator {
+trait QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord] extends AvroComparator {
+  this: Namespace[KeyType, ValueType] with RoutingProtocol[KeyType, ValueType]
+                                      with SimpleMetaData[KeyType, ValueType] 
+                                      with AvroSerializing[KeyType, ValueType] =>
   
   import QuorumProtocol._
 
   protected var readQuorum: Double = 0.001
-  protected var writeQuorum: Double = 1
-
-  protected val ZK_QUORUM_CONFIG = "quorumProtConfig"
-
-  protected val logger = Logger()
+  protected var writeQuorum: Double = 1.0
 
   // For debugging only
   def dumpDistribution: Unit = {
@@ -64,8 +63,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     zkConfig.get.data = config.toBytes
   }
 
-  override def load(): Unit = {
-    super.load()
+  onLoad {
     val zkConfig = nsRoot.get(ZK_QUORUM_CONFIG)
     assert(zkConfig.isDefined)
     val config = new QuorumProtocolConfig()
@@ -74,10 +72,11 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     writeQuorum = config.writeQuorum
   }
 
-  override def create(ranges: Seq[(Option[KeyType], Seq[StorageService])]) {
-    super.create(ranges)
-    val config = new QuorumProtocolConfig(readQuorum, writeQuorum)
-    nsRoot.createChild(ZK_QUORUM_CONFIG, config.toBytes, CreateMode.PERSISTENT)
+  onCreate { 
+    ranges => {
+      val config = new QuorumProtocolConfig(readQuorum, writeQuorum)
+      nsRoot.createChild(ZK_QUORUM_CONFIG, config.toBytes, CreateMode.PERSISTENT)
+    }
   }
 
   private def writeQuorumForKey(key: KeyType): (Seq[PartitionService], Int) = {
@@ -305,9 +304,6 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
   }
 
   def size(): Int = throw new RuntimeException("Unimplemented")
-
-  private final val BufSize = 1024
-  private final val FutureCollSize = 1024
 
   /**
    * Bulk put. Still obeys write quorums
