@@ -124,7 +124,7 @@ trait QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord] exten
     result.reverse
   }
 
-  def put[K <: KeyType, V <: ValueType](key: K, value: Option[V]): Unit = {
+  def put(key: KeyType, value: Option[ValueType]): Unit = {
     val (servers, quorum) = writeQuorumForKey(key)
     val putRequest = PutRequest(serializeKey(key), value.map(createRecord))
     val responses = serversForKey(key).map(_ !! putRequest)
@@ -153,7 +153,7 @@ trait QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord] exten
    * either returns successfully, or the default timeout expires. In the
    * latter case, a RuntimeException is thrown
    */
-  def get[K <: KeyType](key: K): Option[ValueType] = {
+  def get(key: KeyType): Option[ValueType] = {
     val (ftchs, serKey, quorum) = makeGetRequests(key)
     finishGetHandler(new GetHandler(serKey, ftchs), quorum).getOrElse(throw new RuntimeException("Could not complete get request - not enough servers responded"))
   }
@@ -175,7 +175,7 @@ trait QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord] exten
    *
    * NOTE: The returned future does not implement cancel
    */
-  def asyncGet[K <: KeyType](key: K): ScadsFuture[Option[ValueType]] = {
+  def asyncGet(key: KeyType): ScadsFuture[Option[ValueType]] = {
     val (ftchs, serKey, quorum) = makeGetRequests(key)
     new ComputationFuture[Option[ValueType]] {
       def compute(timeoutHint: Long, unit: TimeUnit) = 
