@@ -1,2 +1,0 @@
-#!/bin/bash
-java -cp target/scale-1.0-SNAPSHOT-jar-with-dependencies.jar org.apache.zookeeper.ZooKeeperMain -server $@
