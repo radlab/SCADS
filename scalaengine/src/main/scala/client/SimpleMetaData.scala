@@ -3,14 +3,17 @@ package edu.berkeley.cs.scads.storage
 import org.apache.avro.generic.IndexedRecord
 import java.nio.ByteBuffer
 
-trait SimpleMetaData[KeyType <: IndexedRecord, ValueType <: IndexedRecord] {
-  this: Namespace[KeyType, ValueType] with AvroSerializing[KeyType, ValueType] => 
+trait SimpleMetaData[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetType <: IndexedRecord] {
+  this: Namespace[KeyType, ValueType, RetType] with AvroSerializing[KeyType, ValueType, RetType] => 
 
-
+  // TODO: createRecord is not a very clear name- something like
+  // "wrapWithMetadata" would be more appropriate
   protected def createRecord(value : ValueType) : Array[Byte] = {
     //val time = toByte(System.currentTimeMillis)
     //val clientID = toByte(cluster.clientID)
     val serValue = serializeValue(value)
+
+    // TODO: varlen encoding?? saves ~1-2 bytes per record
     val buffer = ByteBuffer.allocate(serValue.length + 16)
     buffer.putLong(System.currentTimeMillis)
     buffer.putLong(cluster.clientID)
@@ -18,13 +21,11 @@ trait SimpleMetaData[KeyType <: IndexedRecord, ValueType <: IndexedRecord] {
     buffer.array
   }
 
-  protected def extractValueFromRecord(record: Option[Array[Byte]]): Option[ValueType] ={
-    if(record.isEmpty){
-      return None
-    }
-    if(record.get.length == 16)
-      return None
-    Some(deserializeValue(record.get.slice(16, record.get.length)))
+  protected def extractReturnTypeFromRecord(key: Array[Byte], record: Option[Array[Byte]]): Option[RetType] = record match {
+    case None => None
+    case Some(bytes) if bytes.length <= 16 => None
+    case Some(bytes) => 
+      Some(deserializeReturnType(key, bytes.slice(16, bytes.length)))
   }
 
   protected def getMetaData(record : Option[Array[Byte]]) : String = {

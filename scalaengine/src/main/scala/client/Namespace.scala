@@ -8,9 +8,10 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.IndexedRecord
 import org.apache.zookeeper.CreateMode
 
+import scala.collection.mutable.ListBuffer
 
-trait Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
-  extends KeyValueStore[KeyType, ValueType] {
+trait Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetType <: IndexedRecord]
+  extends KeyValueStore[KeyType, ValueType, RetType] {
 
   val namespace: String
   val timeout: Int
@@ -20,67 +21,44 @@ trait Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
   protected val logger: Logger = Logger()
   protected var nsRoot: ZooKeeperProxy#ZooKeeperNode = _
 
-  private var onLoadHandlers: List[() => Unit] = Nil
-  private var onCreateHandlers: List[Seq[(Option[KeyType], Seq[StorageService])] => Unit] = Nil
-  private var onDeleteHandlers: List[() => Unit] = Nil
+  private val onLoadHandlers: ListBuffer[() => Unit] = new ListBuffer[() => Unit]
+  private val onCreateHandlers: ListBuffer[Seq[(Option[KeyType], Seq[StorageService])] => Unit] = 
+    new ListBuffer[Seq[(Option[KeyType], Seq[StorageService])] => Unit]
+  private val onDeleteHandlers: ListBuffer[() => Unit] = new ListBuffer[() => Unit] 
 
   /**
    * Register an event handler to be invoked on creation
    */
   protected def onLoad(f: => Unit): Unit = {
-    onLoadHandlers ::= (() => f)
+    onLoadHandlers append (() => f)
   }
 
   /**
    * Register an event handler to be invoked on creation
    */
   protected def onCreate(f: Seq[(Option[KeyType], Seq[StorageService])] => Unit): Unit = {
-    onCreateHandlers ::= f
+    onCreateHandlers append f
   }
 
   /**
    * Register an event handler to be invoked on deletion
    */
   protected def onDelete(f: => Unit): Unit = {
-    onDeleteHandlers ::= (() => f)
+    onDeleteHandlers append (() => f)
   }
+
+  val keySchema: Schema
+  val valueSchema: Schema
 
   /**
    * Return the key schema of this namespace
    */
-  def getKeySchema() : Schema
+  def getKeySchema() : Schema = keySchema
 
   /**
    * Return the value schema of this namespace
    */
-  def getValueSchema() : Schema
-
-  //protected def createRecord(value : ValueType) : Array[Byte]
-  //protected def extractValueFromRecord(record: Option[Array[Byte]]): Option[ValueType]
-  //protected def getMetaData(record : Option[Array[Byte]]) : String
-  //protected def compareRecord(data1 : Option[Array[Byte]], data2 : Option[Array[Byte]]) : Int
-  //protected def compareRecord(data1 : Array[Byte], data2 : Array[Byte]) : Int
-
-
-  //protected def serializeKey(key: KeyType): Array[Byte]
-  //protected def serializeValue(value: ValueType): Array[Byte]
-  //protected def deserializeKey(key: Array[Byte]): KeyType
-  //protected def deserializeValue(value: Array[Byte]): ValueType
-
-  //protected def serversForKey(key: KeyType): Seq[PartitionService]
-
-  //protected def newKeyInstance: KeyType
-  //protected def newRecordInstance(schema: Schema): IndexedRecord
-
-  ///**
-  // * Returns a list of ranges where to find the data for the given range.
-  // *
-  // * For example, for the routing table [None -> (S1,S3); 100 -> (S2, S4), 150 -> (S6, S7)]
-  // * serversForRange(10,130) would return ((10, 100) -> (S1, S3); (100, 130) -> (S2, S4)) 
-  // */
-  //protected def serversForRange(startKey: Option[KeyType], endKey: Option[KeyType]): Seq[FullRange]
-
-  //case class FullRange(startKey: Option[KeyType], endKey: Option[KeyType], values : Seq[PartitionService])
+  def getValueSchema() : Schema = valueSchema
 
   /**
    * Returns the default replication Factor when initializing a new NS
@@ -125,6 +103,8 @@ trait Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
         throw new RuntimeException("Illegal namespace creation - range size hast to be > 0 and the first key has to be None")
       logger.debug("Created Namespace" + nsRoot )
       nsRoot = root.createChild(namespace, "".getBytes, CreateMode.PERSISTENT)
+      println("nsRoot: " + nsRoot)
+      println("getKeySchema: " + getKeySchema)
       nsRoot.createChild("keySchema", getKeySchema.toString.getBytes, CreateMode.PERSISTENT)
       nsRoot.createChild("valueSchema", getValueSchema.toString.getBytes, CreateMode.PERSISTENT)
     }

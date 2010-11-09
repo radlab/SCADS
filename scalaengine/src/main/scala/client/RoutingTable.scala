@@ -21,8 +21,8 @@ private[storage] object RoutingProtocol {
   val ZOOKEEPER_PARTITION_ID = "partitionid"
 }
 
-trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord] {
-  this: Namespace[KeyType, ValueType] with AvroSerializing[KeyType, ValueType] =>
+trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetType <: IndexedRecord] {
+  this: Namespace[KeyType, ValueType, RetType] with AvroSerializing[KeyType, ValueType, RetType] =>
 
   import RoutingProtocol._
 
@@ -180,9 +180,6 @@ trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord] {
     //Perform validate routing Table
     throw new RuntimeException("Not yet implemented")
   }
-
-
-
 
   def deletePartitions(partitionHandlers: Seq[PartitionService]): Unit = {
     for(partitionHandler <- partitionHandlers){

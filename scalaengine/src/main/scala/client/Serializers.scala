@@ -10,18 +10,79 @@ import Schema.Type
 import org.apache.avro.generic.{IndexedRecord, GenericData, GenericRecord, GenericDatumReader, GenericDatumWriter}
 import org.apache.avro.io.{BinaryData, DecoderFactory, BinaryEncoder, BinaryDecoder, 
                            DatumReader, DatumWriter, ResolvingDecoder}
-import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter}
+import org.apache.avro.specific.{SpecificRecord, SpecificDatumReader, SpecificDatumWriter}
 
+import edu.berkeley.cs.avro.marker.AvroPair
 import edu.berkeley.cs.avro.runtime._
 
-trait AvroSerializing[KeyType <: IndexedRecord, ValueType <: IndexedRecord] {
-  this: Namespace[KeyType, ValueType] =>
+abstract class AvroReaderWriter[T <: IndexedRecord] {
 
-  val keySchema: Schema
-  val valueSchema: Schema
+  trait ExposedDatumReader {
+    def exposedNewRecord(old: AnyRef, schema: Schema): AnyRef
+  }
 
-  def getKeySchema(): Schema = keySchema
-  def getValueSchema(): Schema = valueSchema
+  val reader: DatumReader[T] with ExposedDatumReader
+  val writer: DatumWriter[T]
+  val schema: Schema
+  val resolver: AnyRef
+
+  protected val bufferSize = 128
+
+  val decoderFactory: DecoderFactory = (new DecoderFactory).configureDirectDecoder(true)
+
+  def newInstance: T
+
+  def serialize(rec: T): Array[Byte] = {
+    val baos = new ByteArrayOutputStream(bufferSize)
+    val enc  = new BinaryEncoder(baos)
+    writer.write(rec, enc)
+    baos.toByteArray
+  }
+
+  def deserialize(bytes: Array[Byte]): T = {
+    val dec = decoderFactory.createBinaryDecoder(bytes, null)
+    reader.read(newInstance, new ResolvingDecoder(resolver, dec))
+  }
+
+  /** Given schema, return a new instance of a record which has the given
+   * schema */
+  def newRecordInstance(schema: Schema): IndexedRecord = {
+    reader.exposedNewRecord(null, schema).asInstanceOf[IndexedRecord]
+  }
+
+}
+
+abstract class AvroGenericReaderWriter(val schema: Schema) 
+  extends AvroReaderWriter[GenericRecord] {
+  assert(schema ne null)
+  val reader = new GenericDatumReader[GenericRecord](schema) with ExposedDatumReader {
+    def exposedNewRecord(old: AnyRef, schema: Schema): AnyRef = 
+      newRecord(old, schema)
+  }
+  val writer = new GenericDatumWriter[GenericRecord](schema)
+  def newInstance = new GenericData.Record(schema)
+}
+
+abstract class AvroSpecificReaderWriter[T <: SpecificRecord](implicit tpe: Manifest[T])
+  extends AvroReaderWriter[T] {
+  val recClz = tpe.erasure.asInstanceOf[Class[T]]
+  val schema = recClz.newInstance.getSchema 
+  val reader = new SpecificDatumReader[T](schema) with ExposedDatumReader {
+    def exposedNewRecord(old: AnyRef, schema: Schema): AnyRef = 
+      newRecord(old, schema)
+  }
+  val writer = new SpecificDatumWriter[T](schema)
+  def newInstance = recClz.newInstance
+}
+
+trait AvroSerializing[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetType <: IndexedRecord] {
+  this: Namespace[KeyType, ValueType, RetType] =>
+
+  val keyReaderWriter: AvroReaderWriter[KeyType]
+  val valueReaderWriter: AvroReaderWriter[ValueType]
+
+  val keySchema = keyReaderWriter.schema
+  val valueSchema = valueReaderWriter.schema
 
   // remoteKeySchema and remoteValueSchema should be lazy, since nsRoot cannot
   // be accessed until either load or create has been called
@@ -33,12 +94,12 @@ trait AvroSerializing[KeyType <: IndexedRecord, ValueType <: IndexedRecord] {
     Schema.parse(new String(nsRoot("valueSchema").data))
 
   // server is the writer, client is the reader
-  private lazy val keySchemaResolver =
-    ResolvingDecoder.resolve(remoteKeySchema, keySchema)
+  protected lazy val keySchemaResolver =
+    ResolvingDecoder.resolve(remoteKeySchema, getKeySchema)
 
   // server is the writer, client is the reader
-  private lazy val valueSchemaResolver =
-    ResolvingDecoder.resolve(remoteValueSchema, valueSchema)
+  protected lazy val valueSchemaResolver =
+    ResolvingDecoder.resolve(remoteValueSchema, getValueSchema)
 
   private def validate() {
     // check to see if remote schemas are *prefixes* of our schemas
@@ -69,11 +130,11 @@ trait AvroSerializing[KeyType <: IndexedRecord, ValueType <: IndexedRecord] {
       }
     }
 
-    if (!validatePrefix(remoteKeySchema, keySchema))
-      throw new RuntimeException("Server key schema %s is not a prefix of client key schema %s".format(remoteKeySchema, keySchema))
+    if (!validatePrefix(remoteKeySchema, getKeySchema))
+      throw new RuntimeException("Server key schema %s is not a prefix of client key schema %s".format(remoteKeySchema, getKeySchema))
 
-    if (!validatePrefix(remoteValueSchema, valueSchema))
-      throw new RuntimeException("Server value schema %s is not a prefix of client value schema %s".format(remoteValueSchema, valueSchema))
+    if (!validatePrefix(remoteValueSchema, getValueSchema))
+      throw new RuntimeException("Server value schema %s is not a prefix of client value schema %s".format(remoteValueSchema, getValueSchema))
 
     logger.debug("Prefix Validation Complete")
 
@@ -84,112 +145,107 @@ trait AvroSerializing[KeyType <: IndexedRecord, ValueType <: IndexedRecord] {
     logger.debug("Schema ResolvingDecoders computed")
   }
 
+  // TODO: be less eager about validation
   onLoad {
     validate()
   }
 
+  // TODO: be less eager about validation
   onCreate {
     ranges => {
       validate()
     }
   }
 
-  protected val keyReader: DatumReader[KeyType]
-  protected val valueReader: DatumReader[ValueType] 
+  // Key ops
+  protected def deserializeKey(key: Array[Byte]): KeyType =
+    keyReaderWriter.deserialize(key)
 
-  protected val keyWriter: DatumWriter[KeyType]
-  protected val valueWriter: DatumWriter[ValueType]
+  protected def serializeKey(key: KeyType): Array[Byte] =
+    keyReaderWriter.serialize(key)
 
-  protected val bufferSize = 128
+  // Value ops                                            
+  protected def deserializeValue(value: Array[Byte]): ValueType =
+    valueReaderWriter.deserialize(value)
 
-  /**
-   * Return a new key instance, or null to use the default
-   */
-  protected def newKeyInstance: KeyType
+  protected def serializeValue(value: ValueType): Array[Byte] =
+    valueReaderWriter.serialize(value)
 
-  /**
-   * Return a new value instance, or null to use the default
-   */
-  protected def newValueInstance: ValueType
+  // Ret ops
+  protected def deserializeReturnType(key: Array[Byte], value: Array[Byte]): RetType
 
-  /**
-   * Given a record schema, return a new instance of a record for that schema
-   * Very similiar to newRecord for Avro DatumReaders
-   */
-  protected def newRecordInstance(schema: Schema): IndexedRecord
+  def newRecordInstance(schema: Schema): IndexedRecord = 
+    keyReaderWriter.newRecordInstance(schema)
 
-  protected val decoderFactory = (new DecoderFactory).configureDirectDecoder(true)
+  def newKeyInstance: KeyType =
+    keyReaderWriter.newInstance
+}
 
-  protected def deserializeKey(key: Array[Byte]): KeyType = {
-    val dec = decoderFactory.createBinaryDecoder(key, null)
-    keyReader.read(newKeyInstance, new ResolvingDecoder(keySchemaResolver, dec))
+class PairNamespace[PairType <: AvroPair]
+  (val namespace: String, 
+   val timeout: Int, 
+   val root: ZooKeeperProxy#ZooKeeperNode)
+  (implicit val cluster: ScadsCluster, pairType: Manifest[PairType])
+    extends Namespace[GenericRecord, GenericRecord, PairType]
+    with    RoutingProtocol[GenericRecord, GenericRecord, PairType] 
+    with    SimpleMetaData[GenericRecord, GenericRecord, PairType]
+    with    QuorumProtocol[GenericRecord, GenericRecord, PairType]
+    with    AvroSerializing[GenericRecord, GenericRecord, PairType] {
+
+  lazy val pairClz = pairType.erasure.asInstanceOf[Class[PairType]]
+  lazy val (pairSchema, pairKeySchema, pairValueSchema) = {
+    val p = pairClz.newInstance
+    (p.getSchema, p.key.getSchema, p.value.getSchema)
   }
 
-  protected def deserializeValue(value: Array[Byte]): ValueType = {
-    val dec = decoderFactory.createBinaryDecoder(value, null)
-    valueReader.read(newValueInstance, new ResolvingDecoder(valueSchemaResolver, dec))
+  lazy val keyReaderWriter = new AvroGenericReaderWriter(pairKeySchema) {
+    lazy val resolver = keySchemaResolver
   }
 
-  protected def serializeKey(key: KeyType): Array[Byte] = {
-    val baos = new ByteArrayOutputStream(bufferSize)
-    val enc  = new BinaryEncoder(baos)
-    keyWriter.write(key, enc)
-    baos.toByteArray
+  lazy val valueReaderWriter = new AvroGenericReaderWriter(pairValueSchema) {
+    lazy val resolver = valueSchemaResolver
   }
 
-  protected def serializeValue(value: ValueType): Array[Byte] = {
-    val baos = new ByteArrayOutputStream(bufferSize)
-    val enc  = new BinaryEncoder(baos)
-    valueWriter.write(value, enc)
-    baos.toByteArray
+  lazy val pairReaderWriter = new AvroSpecificReaderWriter[PairType] {
+    lazy val resolver = ResolvingDecoder.resolve(pairSchema, pairSchema)
   }
 
+  protected def deserializeReturnType(key: Array[Byte], value: Array[Byte]) =
+    // TODO: rewrite not using ++ but explicit array allocation +
+    // System.arraycopy for efficiency
+    pairReaderWriter.deserialize(key ++ value)
 }
 
 /**
  * Implementation of Scads Namespace that returns ScalaSpecificRecords
+ * TODO: no reason to restrict to ScalaSpecificRecord...
  */
 class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord]
     (val namespace: String, 
      val timeout: Int, 
      val root: ZooKeeperProxy#ZooKeeperNode)
     (implicit val cluster: ScadsCluster, keyType: Manifest[KeyType], valueType: Manifest[ValueType])
-        extends Namespace[KeyType, ValueType]
-        with    RoutingProtocol[KeyType, ValueType] 
-        with    SimpleMetaData[KeyType, ValueType]
-        with    QuorumProtocol[KeyType, ValueType]
-        with    AvroSerializing[KeyType, ValueType] {
+        extends Namespace[KeyType, ValueType, ValueType]
+        with    RoutingProtocol[KeyType, ValueType, ValueType] 
+        with    SimpleMetaData[KeyType, ValueType, ValueType]
+        with    QuorumProtocol[KeyType, ValueType, ValueType]
+        with    AvroSerializing[KeyType, ValueType, ValueType] {
 
-  protected val keyClass   = keyType.erasure.asInstanceOf[Class[KeyType]]
-  protected val valueClass = valueType.erasure.asInstanceOf[Class[ValueType]]
-
-  val keySchema   = keyClass.newInstance.getSchema
-  val valueSchema = valueClass.newInstance.getSchema
-
-  val keyReader   = new SpecificDatumReader[KeyType](keySchema) {
-    def exposedNewRecord(old: AnyRef, schema: Schema): AnyRef = 
-      newRecord(old, schema)
+  lazy val keyReaderWriter = new AvroSpecificReaderWriter[KeyType] {
+    lazy val resolver = keySchemaResolver
   }
-  val valueReader = new SpecificDatumReader[ValueType](valueSchema)
 
-  val keyWriter   = new SpecificDatumWriter[KeyType](keySchema)
-  val valueWriter = new SpecificDatumWriter[ValueType](valueSchema)
-
-  def newKeyInstance =
-    keyClass.newInstance
-
-  def newValueInstance =
-    valueClass.newInstance
-
-  def newRecordInstance(schema: Schema) = {
-    assert(schema.getType == Type.RECORD)
-    keyReader.exposedNewRecord(null, schema).asInstanceOf[IndexedRecord]
+  lazy val valueReaderWriter = new AvroSpecificReaderWriter[ValueType] {
+    lazy val resolver = valueSchemaResolver
   }
+
+  protected def deserializeReturnType(key: Array[Byte], value: Array[Byte]) =
+    deserializeValue(value) 
   
   lazy val genericNamespace = createGenericVersion()
 
   private def createGenericVersion(): GenericNamespace = {
-    val genericNs = new GenericNamespace(namespace, timeout, root, keySchema, valueSchema)
+    val genericNs = new GenericNamespace(namespace, timeout, root, getKeySchema, getValueSchema)
     genericNs.load
     genericNs
   }
@@ -198,30 +254,23 @@ class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecif
 class GenericNamespace(val namespace: String,
                        val timeout: Int,
                        val root: ZooKeeperProxy#ZooKeeperNode,
-                       val keySchema: Schema,
-                       val valueSchema: Schema)
+                       override val keySchema: Schema,
+                       override val valueSchema: Schema)
                       (implicit val cluster : ScadsCluster)
-    extends Namespace[GenericRecord, GenericRecord]
-    with    RoutingProtocol[GenericRecord, GenericRecord] 
-    with    SimpleMetaData[GenericRecord, GenericRecord]
-    with    QuorumProtocol[GenericRecord, GenericRecord]
-    with    AvroSerializing[GenericRecord, GenericRecord] {
+    extends Namespace[GenericRecord, GenericRecord, GenericRecord]
+    with    RoutingProtocol[GenericRecord, GenericRecord, GenericRecord] 
+    with    SimpleMetaData[GenericRecord, GenericRecord, GenericRecord]
+    with    QuorumProtocol[GenericRecord, GenericRecord, GenericRecord]
+    with    AvroSerializing[GenericRecord, GenericRecord, GenericRecord] {
 
-  val keyReader   = new GenericDatumReader[GenericRecord](keySchema) {
-    def exposedNewRecord(old: AnyRef, schema: Schema): AnyRef = 
-      newRecord(old, schema)
-  }
-  val valueReader = new GenericDatumReader[GenericRecord](valueSchema)
-
-  val keyWriter   = new GenericDatumWriter[GenericRecord](keySchema)
-  val valueWriter = new GenericDatumWriter[GenericRecord](valueSchema)
-
-  def newKeyInstance = new GenericData.Record(keySchema)
-  def newValueInstance = new GenericData.Record(valueSchema)
-
-  def newRecordInstance(schema: Schema) = {
-    assert(schema.getType == Type.RECORD)
-    keyReader.exposedNewRecord(null, schema).asInstanceOf[IndexedRecord]
+  lazy val keyReaderWriter = new AvroGenericReaderWriter(keySchema) {
+    lazy val resolver = keySchemaResolver
   }
 
+  lazy val valueReaderWriter = new AvroGenericReaderWriter(valueSchema) {
+    lazy val resolver = valueSchemaResolver
+  }
+
+  protected def deserializeReturnType(key: Array[Byte], value: Array[Byte]) =
+    deserializeValue(value) 
 }
