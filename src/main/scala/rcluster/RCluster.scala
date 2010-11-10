@@ -57,27 +57,32 @@ class RClusterNode(num: Int) extends RemoteMachine with RunitManager {
 		}
 	}
 
-	override def upload(localFile: File, remoteDirectory: File): Unit = {
-		val cacheFile = new File("/work/marmbrus/cache", localFile.getName)
-		val remoteFile = new File(remoteDirectory, localFile.getName)
-		val md5Cache = Util.md5(localFile)
+  def cacheFile(localFile: File): File = {
+		val localMd5 = Util.md5(localFile)
+		val cacheFile = new File("/work/deploylib/cache", localMd5)
 
-		if(md5Cache == md5(cacheFile))
+		if(localMd5 == md5(cacheFile))
 			logger.debug("Not uploading " + localFile + " as the hashes match")
 		else
 			useConnection((c) => {
 				val scp = new SCPClient(c)
-        logger.info("Hashes don't match, uploading " + localFile + " to " + remoteDirectory)
-				scp.put(localFile.toString, "/work/marmbrus/cache")
+        logger.info("Hashes don't match, uploading %s to %s %s", localFile, cacheFile.getName, cacheFile.getParent)
+				scp.put(localFile.getCanonicalPath, cacheFile.getName, cacheFile.getParent, "0755")
         logger.debug("Upload of " + localFile + " complete")
 			})
+    cacheFile
+  }
 
-		if(md5Cache == md5(remoteFile))
+	override def upload(localFile: File, remoteDirectory: File): Unit = {
+  	val remoteFile = new File(remoteDirectory, localFile.getName)
+    val cacheFilePath = cacheFile(localFile)
+
+		if(cacheFilePath.getName == md5(remoteFile))
 			logger.debug("Not copying " + localFile + " from cache as it matches")
 		else {
-			executeCommand("cp " + cacheFile + " " + remoteFile) match {
+			executeCommand("cp " + cacheFilePath + " " + remoteFile) match {
 				case ExecuteResponse(Some(0), _, _) => logger.debug("Success")
-				case _ => logger.warning("Copy error")
+				case _ => logger.error("Copy error")
 			}
 		}
 	}
