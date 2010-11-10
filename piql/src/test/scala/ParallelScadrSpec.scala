@@ -10,22 +10,3 @@ import edu.berkeley.cs.scads.piql._
 class ParallelScadrSpec extends AbstractScadrSpec {
   lazy val client = new ScadrClient(TestScalaEngine.getTestCluster, new ParallelExecutor with DebugExecutor)
 }
-
-@RunWith(classOf[JUnitRunner])
-class BulkParallelScadrSpec extends AbstractScadrSpec {
-  lazy val client = new ScadrClient(TestScalaEngine.getTestCluster, new BulkParallelExecutor with DebugExecutor)
-}
-
-object ExecCache {
-  val executor = new ResartingParallelExecutor with DebugExecutor
-}
-
-@RunWith(classOf[JUnitRunner])
-class ResartingParallelExecutorSpec extends AbstractScadrSpec {
-  lazy val client = new ScadrClient(TestScalaEngine.getTestCluster, ExecCache.executor)
-}
-
-@RunWith(classOf[JUnitRunner])
-class ResartingParallelExecutor2Spec extends AbstractScadrSpec {
-  lazy val client = new ScadrClient(TestScalaEngine.getTestCluster, ExecCache.executor)
-}
