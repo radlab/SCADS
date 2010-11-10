@@ -40,7 +40,7 @@ object TpcwScaleExperiment extends Experiment {
   }
 
   /**
-   * Make a graph point using `size` servers, `size` clients, `size` loaders, 
+   * Make a graph point using `size` servers, `size` clients, `size` loaders,
    * `ceil(numEBs / size)` threads per client, and `numItems` items
    */
   def makeGraphPoint(size: Int, numEBs: Double, numItems: Int = 1000)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeper: ZooKeeperProxy#ZooKeeperNode) = {
@@ -54,9 +54,9 @@ object TpcwScaleExperiment extends Experiment {
 
 }
 
-case class LoadClient(var numClients: Int, 
-                      var executorClass: String, 
-                      var iterations: Int = 3, 
+case class LoadClient(var numClients: Int,
+                      var executorClass: String,
+                      var iterations: Int = 3,
                       var runLengthMin: Int = 5) extends AvroRecord with ReplicatedAvroClient {
 
   def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode) = {
@@ -110,9 +110,9 @@ case class LoadClient(var numClients: Int,
           }
         }
 
-        logger.info("Thread %d stats 50th: %dms, 90th: %dms, 99th: %dms, avg: %fms, stddev: %fms", 
+        logger.info("Thread %d stats 50th: %dms, 90th: %dms, 99th: %dms, avg: %fms, stddev: %fms",
             threadId, histogram.quantile(0.50), histogram.quantile(0.90), histogram.quantile(0.99), histogram.average, histogram.stddev)
-        (ResultKey(this, loaderConfig, clusterRoot.canonicalAddress, clientId, iteration, threadId), 
+        (ResultKey(this, loaderConfig, clusterRoot.canonicalAddress, clientId, iteration, threadId),
          ResultValue(endTime - iterationStartTime, histogram, skips))
       })
 
