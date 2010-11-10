@@ -17,6 +17,7 @@ abstract trait AvroClient extends IndexedRecord {
 
   def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode): Unit
 
+  @deprecated("Use DataLoadingAvroClient")
   def newCluster(numServers: Int, numLoaders: Int)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeper: ZooKeeperProxy#ZooKeeperNode): ScadsCluster = {
     val clusterRoot = newExperimentRoot
     val serverProcs = List.fill(numServers)(serverJvmProcess(clusterRoot.canonicalAddress))
@@ -29,7 +30,7 @@ abstract trait AvroClient extends IndexedRecord {
     def *(count: Int): Seq[JvmProcess] = Array.fill(count)(process)
   }
 
-  def newExperimentRoot(implicit zookeeper: ZooKeeperProxy#ZooKeeperNode) = 
+  def newExperimentRoot(implicit zookeeper: ZooKeeperProxy#ZooKeeperNode) =
     zookeeper.getOrCreate("scads/experiments").createChild("IntKeyScaleTest", mode = CreateMode.PERSISTENT_SEQUENTIAL)
 
   def toJvmProcess(clusterRoot: ZooKeeperProxy#ZooKeeperNode)(implicit classpath: Seq[ClassSource]): JvmProcess =
@@ -42,6 +43,19 @@ abstract trait AvroClient extends IndexedRecord {
       classpath,
       "edu.berkeley.cs.scads.storage.ScalaEngine",
       "--clusterAddress" :: clusterAddress :: Nil)
+}
+
+abstract trait DataLoadingAvroClient extends AvroClient {
+  var numServers: Int
+  var numLoaders: Int
+
+  def newCluster(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeper: ZooKeeperProxy#ZooKeeperNode): ScadsCluster = {
+    val clusterRoot = newExperimentRoot
+    val serverProcs = List.fill(numServers)(serverJvmProcess(clusterRoot.canonicalAddress))
+    val loaderProcs = List.fill(numLoaders)(toJvmProcess(clusterRoot))
+    scheduler.scheduleExperiment(serverProcs ++ loaderProcs)
+    new ScadsCluster(clusterRoot)
+  }
 }
 
 abstract trait ReplicatedAvroClient extends AvroClient {
