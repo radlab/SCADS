@@ -19,7 +19,7 @@ class RemoteExperimentScheduler extends ExperimentScheduler with MessageReceiver
   }
 }
 
-class ExperimentService(mesosMaster: String) extends LocalExperimentScheduler("ExperimentDaemon", mesosMaster) with ServiceHandler[ExperimentOperation] {
+class ExperimentService(mesosMaster: String, executor: String) extends LocalExperimentScheduler("ExperimentDaemon", mesosMaster, executor) with ServiceHandler[ExperimentOperation] {
   def startup: Unit = {
     RClusterZoo.root.getOrCreate("scads/experimentService").data = remoteHandle.toBytes
   }
@@ -34,6 +34,6 @@ class ExperimentService(mesosMaster: String) extends LocalExperimentScheduler("E
 object ExperimentDaemon extends optional.Application {
   def main(mesosMaster: Option[String]): Unit = {
     System.loadLibrary("mesos")
-    new ExperimentService(mesosMaster.getOrElse("1@" + java.net.InetAddress.getLocalHost.getHostName + ":5050"))
+    new ExperimentService(mesosMaster.getOrElse("1@" + java.net.InetAddress.getLocalHost.getHostName + ":5050"), "/usr/local/mesos/frameworks/deploylib/java_executor")
   }
 }

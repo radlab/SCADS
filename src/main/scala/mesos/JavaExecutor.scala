@@ -7,6 +7,7 @@ import java.net.URL
 import org.apache.commons.httpclient._
 import org.apache.commons.httpclient.methods._
 import net.lag.logging.Logger
+import net.lag.configgy.Configgy
 
 import ec2._
 import edu.berkeley.cs.avro.marker._
@@ -20,6 +21,13 @@ import scala.util.Random
 object JavaExecutor {
   def main(args: Array[String]): Unit = {
     System.loadLibrary("mesos")
+
+    if(args.size != 1) {
+      println("Usage: JavaExecutor <configFile>")
+      System.exit(1)
+    }
+
+    Configgy.configure(args(0))
     val driver = new MesosExecutorDriver(new JavaExecutor())
     driver.run()
   }
@@ -49,14 +57,15 @@ class StreamTailer(stream: InputStream, size: Int = 100) extends Runnable {
 }
 
 class JavaExecutor extends Executor {
+  val config = Configgy.config
   val logger = Logger()
   val httpClient = new HttpClient()
-  //HACK: remove after the mesos teams makes our work directory writable
-  val baseDir = new File("/mnt")
-  val jarCache = new File(baseDir, "jarCache")
 
-  if(!jarCache.exists)
-    jarCache.mkdir
+  val baseDir = new File(config("javaexecutor.workdir", "/tmp"))
+  if(!baseDir.exists) baseDir.mkdir()
+
+  val jarCache = new File(config("javaexecutor.jarcache", "/tmp/jarCache"))
+  if(!jarCache.exists) jarCache.mkdir
 
   /* Keep a handle to all tasks that are running so we can kill it if needed later */
   case class RunningTask(proc: Process, stdout: StreamTailer, stderr: StreamTailer)
@@ -100,11 +109,12 @@ class JavaExecutor extends Executor {
     logger.info("Delaying startup %dms to avoid overloading zookeeper", launchDelay)
     Thread.sleep(launchDelay)
 
-    logger.info("Starting task" + taskId)
-    val tempDir = File.createTempFile("deploylib", "mesosJavaExecutorWorkingDir", baseDir)
+
+    val tempDir = File.createTempFile("workdir", "", baseDir)
     tempDir.delete()
     tempDir.mkdir()
 
+    logger.info("Starting task" + taskId)
     val processDescription = JvmProcess(taskDesc.getArg())
     val classpath = loadClasspath(processDescription.classpath)
     logger.debug("Requested memory: " + taskDesc.getParams().get("mem"))

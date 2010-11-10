@@ -13,14 +13,15 @@ import scala.collection.JavaConversions._
 object LocalExperimentScheduler {
   System.loadLibrary("mesos")
 
-  def apply(name: String, mesosMaster: String = "1@" + java.net.InetAddress.getLocalHost.getHostAddress + ":5050") = new LocalExperimentScheduler(name, mesosMaster)
+  def apply(name: String, mesosMaster: String = "1@" + java.net.InetAddress.getLocalHost.getHostAddress + ":5050", executor: String = "/usr/local/mesos/frameworks/deploylib/java_executor") =
+    new LocalExperimentScheduler(name, mesosMaster, executor)
 }
 
 abstract trait ExperimentScheduler {
   def scheduleExperiment(processes: Seq[JvmProcess]): Unit
 }
 
-class LocalExperimentScheduler protected (name: String, mesosMaster: String) extends Scheduler with ExperimentScheduler{
+class LocalExperimentScheduler protected (name: String, mesosMaster: String, executor: String) extends Scheduler with ExperimentScheduler{
   val logger = Logger()
   var taskId = 0
   var driver = new MesosSchedulerDriver(this, mesosMaster)
@@ -39,7 +40,7 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String) ext
   }
 
   override def getFrameworkName(d: SchedulerDriver): String = "SCADS Service Framework: " + name
-  override def getExecutorInfo(d: SchedulerDriver): ExecutorInfo = new ExecutorInfo("/usr/local/mesos/frameworks/deploylib/java_executor", Array[Byte]())
+  override def getExecutorInfo(d: SchedulerDriver): ExecutorInfo = new ExecutorInfo(executor, Array[Byte]())
   override def registered(d: SchedulerDriver, fid: String): Unit = logger.info("Registered SCADS Framework.  Fid: " + fid)
 
   override def resourceOffer(d: SchedulerDriver, oid: String, offers: java.util.List[SlaveOffer]) = awaitingSiblings.synchronized {
