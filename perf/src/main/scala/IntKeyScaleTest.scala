@@ -13,7 +13,7 @@ import org.apache.zookeeper.CreateMode
 
 import java.io.File
 
-case class WriteClient(var cluster: String, var clientId: Int, var iteration: Int) extends AvroRecord
+case class WriteClient(var cluster: String, var clientId: Int) extends AvroRecord
 case class WritePerfResult(var numKeys: Int, var startTime: Long, var endTime: Long) extends AvroRecord
 
 case class ReadClient(var cluster: String, var clientId: Int, var threadId: Int, var iteration: Int) extends AvroRecord
@@ -25,35 +25,50 @@ object IntKeyScaleTest extends Experiment {
 
 }
 
-case class LoadClient(var clusterSize: Int, var numIterations: Int = 1, var recsPerServer: Int = 10, var readCount: Int = 10000, var readThreads : Int = 5) extends AvroClient with AvroRecord {
-
+case class DataLoader(var numServers: Int, var numLoaders: Int, var recsPerServer: Int = 10) extends DataLoadingAvroClient with AvroRecord {
   def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode): Unit = {
-    val coordination = clusterRoot.getOrCreate("coordination")
+    val coordination = clusterRoot.getOrCreate("coordination/loaders")
     val cluster = new ExperimentalScadsCluster(clusterRoot)
 
-    val clientId = coordination.registerAndAwait("clientsStart", clusterSize)
+    val clientId = coordination.registerAndAwait("clientsStart", numServers)
     if(clientId == 0) {
-      cluster.blockUntilReady(clusterSize)
+      cluster.blockUntilReady(numServers)
 
-      val keySplits = None +: (1 to (clusterSize - 1)).map(i => Some(IntRec(i * recsPerServer)))
+      val keySplits = None +: (1 until numServers).map(i => Some(IntRec(i * recsPerServer)))
       val partitions = keySplits zip cluster.getAvailableServers.map(List(_))
       logger.info("Cluster configured with the following partitions %s", partitions)
       cluster.createNamespace[IntRec, IntRec]("intkeytest", partitions)
     }
 
-    coordination.registerAndAwait("startWrite", clusterSize)
+    coordination.registerAndAwait("startWrite", numLoaders)
     val ns = cluster.getNamespace[IntRec, IntRec]("intkeytest")
     val startKey = clientId * recsPerServer
     val endKey = (clientId + 1) * recsPerServer
 
+    val startTime = System.currentTimeMillis
+    ns ++= (startKey to endKey).view.map(i => (IntRec(i), IntRec(i)))
+    IntKeyScaleTest.writeResults.put(WriteClient(clusterRoot.canonicalAddress, clientId), WritePerfResult(recsPerServer, startTime, System.currentTimeMillis))
+    coordination.registerAndAwait("endWrite", numLoaders)
+
+    if(clientId == 0)
+      clusterRoot.createChild("clusterReady", data=this.toJson.getBytes)
+  }
+}
+
+case class RandomGetterClient(var numClients: Int, var numIterations: Int, var readCount: Int = 10000, var readThreads : Int = 5) extends ReplicatedAvroClient with AvroRecord {
+
+  def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode): Unit = {
+    val coordination = clusterRoot.getOrCreate("coordination/clients")
+    val dataLoader = classOf[DataLoader].newInstance.parse(new String(clusterRoot.awaitChild("clusterReady").data))
+    val maxInt = dataLoader.numServers * dataLoader.recsPerServer
+
+    val cluster = new ScadsCluster(clusterRoot)
+    val ns = cluster.getNamespace[IntRec,IntRec]("intkeytest")
+
+    val clientId = coordination.registerAndAwait("clientsStart", numClients)
+
     for(iteration <- (1 to numIterations)) {
       logger.info("Begining Iteration %d", iteration)
-
-      val startTime = System.currentTimeMillis
-      ns ++= (startKey to endKey).view.map(i => (IntRec(i), IntRec(i)))
-      IntKeyScaleTest.writeResults.put(WriteClient(clusterRoot.canonicalAddress, clientId, iteration), WritePerfResult(recsPerServer, startTime, System.currentTimeMillis))
-
-      coordination.registerAndAwait("endWrite" + iteration, clusterSize)
 
       IntKeyScaleTest.readResults ++= (1 to readThreads).pmap(threadId => {
         val times = Histogram(1, 1000)
@@ -61,7 +76,7 @@ case class LoadClient(var clusterSize: Int, var numIterations: Int = 1, var recs
         (1 to readCount).foreach(i =>
           try {
             val startTime = System.currentTimeMillis
-            val randRec = scala.util.Random.nextInt(clusterSize * recsPerServer)
+            val randRec = scala.util.Random.nextInt(maxInt)
 
             if(ns.get(IntRec(randRec)).get.f1 == randRec) {
               val endTime = System.currentTimeMillis
@@ -75,7 +90,7 @@ case class LoadClient(var clusterSize: Int, var numIterations: Int = 1, var recs
         (ReadClient(clusterRoot.canonicalAddress, clientId, threadId, iteration), ReadPerfResult(startTime, System.currentTimeMillis, times))
       })
 
-      coordination.registerAndAwait("endRead" + iteration, clusterSize)
+      coordination.registerAndAwait("endRead" + iteration, numClients)
     }
 
     if(clientId == 0)
@@ -84,4 +99,3 @@ case class LoadClient(var clusterSize: Int, var numIterations: Int = 1, var recs
     System.exit(0)
   }
 }
-
