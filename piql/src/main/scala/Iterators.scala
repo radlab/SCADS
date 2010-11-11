@@ -2,12 +2,13 @@ package edu.berkeley.cs.scads.piql
 
 import net.lag.logging.Logger
 import org.apache.avro.util.Utf8
-import org.apache.avro.generic.{GenericData, IndexedRecord}
+import org.apache.avro.generic.GenericRecord
 
 import edu.berkeley.cs.scads.comm.ScadsFuture
 
 import java.{ util => ju }
 import scala.collection.mutable.Queue
+import scala.collection.mutable.ArrayBuffer
 
 case class Context(parameters: IndexedSeq[Any], state: Option[List[Any]])
 
@@ -15,55 +16,6 @@ abstract class QueryIterator extends Iterator[Tuple] {
   val name: String
   def open: Unit
   def close: Unit
-}
-
-/**
- * A PageResult is returned for a paginated query.
- *
- * Note: Assumes iterator has not been open yet 
- */
-class PageResult(private val iterator: QueryIterator, val elemsPerPage: Int) extends Iterator[QueryResult] {
-  assert(elemsPerPage > 0)
-
-  var limitReached = false
-  var curBuf: QueryResult = null
-
-  def open: Unit = {
-    iterator.open
-  }
-
-  def hasAnotherPage: Boolean = hasNext
-
-  def nextPage: QueryResult = next
-
-  def hasNext = {
-    if (curBuf ne null) true
-    else if (limitReached) false
-    else {
-      val builder = Seq.newBuilder[Tuple]
-      var cnt = 0
-      while (cnt < elemsPerPage && iterator.hasNext) {
-        builder += iterator.next
-        cnt += 1
-      }
-      if (cnt == 0) {
-        limitReached = true
-        //iterator.close
-        false
-      } else {
-        curBuf = builder.result
-        true
-      }
-    }
-  }
-
-  def next = {
-    if (!hasNext) // pages in the next page if one exists
-      throw new ju.NoSuchElementException("No results left")
-    val res = curBuf
-    curBuf = null
-    res
-  }
 }
 
 trait QueryExecutor {
@@ -78,7 +30,7 @@ trait QueryExecutor {
     case AttributeValue(recPos, fieldPos) => currentTuple(recPos).get(fieldPos)
   }
 
-  protected def bindKey(ns: Namespace, key: KeyGenerator, currentTuple: Tuple = null)(implicit ctx: Context): GenericData.Record = {
+  protected def bindKey(ns: Namespace, key: KeyGenerator, currentTuple: Tuple = null)(implicit ctx: Context): Key = {
     val boundKey = ns.newKeyInstance
     key.map(bindValue(_, currentTuple)).zipWithIndex.foreach {
       case (value: Any, idx: Int) => boundKey.put(idx, value)
@@ -97,7 +49,7 @@ trait QueryExecutor {
   }
 
   protected def evalPredicate(predicate: Predicate, tuple: Tuple)(implicit ctx: Context): Boolean = predicate match {
-    case Equality(v1, v2) => {
+    case EqualityPredicate(v1, v2) => {
       compareAny(bindValue(v1, tuple), bindValue(v2, tuple)) == 0
     }
   }
@@ -142,7 +94,7 @@ class SimpleExecutor extends QueryExecutor {
 
         def hasNext = result.isDefined
         def next = {
-          val tuple = Array(boundKey, result.getOrElse(throw new ju.NoSuchElementException("Next on empty iterator")))
+          val tuple = ArrayBuffer(boundKey, result.getOrElse(throw new ju.NoSuchElementException("Next on empty iterator")))
           result = None
           tuple
         }
@@ -186,7 +138,7 @@ class SimpleExecutor extends QueryExecutor {
             if (!hasNext)
               throw new ju.NoSuchElementException("Next on empty iterator")
 
-            val tuple = Array(result(pos)._1, result(pos)._2)
+            val tuple = ArrayBuffer(result(pos)._1, result(pos)._2)
             pos += 1
             tuple
           }
@@ -328,7 +280,7 @@ class SimpleExecutor extends QueryExecutor {
       }
     }
 
-    case Selection(predicate, child) => {
+    case LocalSelection(predicate, child) => {
       new QueryIterator {
         val name = "Selection"
         val childIterator = apply(child)
@@ -356,7 +308,7 @@ class SimpleExecutor extends QueryExecutor {
         }
       }
     }
-    case StopAfter(k, child) => {
+    case LocalStopAfter(k, child) => {
       new QueryIterator {
         val name = "StopAfter"
         val childIterator = apply(child)
@@ -398,7 +350,7 @@ class ParallelExecutor extends SimpleExecutor {
           ftch.flatMap(_.get).isDefined
 
         def next = {
-          val tuple = Array(boundKey, ftch.flatMap(_.get).getOrElse(throw new ju.NoSuchElementException("Empty iterator")))
+          val tuple = ArrayBuffer(boundKey, ftch.flatMap(_.get).getOrElse(throw new ju.NoSuchElementException("Empty iterator")))
           ftch = None
           tuple
         }
@@ -459,7 +411,7 @@ class ParallelExecutor extends SimpleExecutor {
             if (!hasNext)
               throw new ju.NoSuchElementException("Next on empty iterator")
 
-            val tuple = Array(result(pos)._1, result(pos)._2)
+            val tuple = ArrayBuffer(result(pos)._1, result(pos)._2)
             pos += 1
             tuple
           }
@@ -784,7 +736,7 @@ class ResartingParallelExecutor extends ParallelExecutor {
         var bufferPos: Array[Int] = null
         var nextTuple: Tuple = null
 
-        def augmentKeyWithState(state: Seq[Any], rec: GenericData.Record): GenericData.Record = {
+        def augmentKeyWithState(state: Seq[Any], rec: Record): Record = {
           val numFields = rec.getSchema.getFields.size
           (numFields - state.size until numFields).zip(state).foreach {case (i, f) =>  rec.put(i,f)}
           rec
@@ -940,7 +892,7 @@ class LazyExecutor extends SimpleExecutor {
           if (!hasNext)
             throw new ju.NoSuchElementException("Next on empty iterator")
           accessed = true
-          Array(boundKey, result.get)
+          ArrayBuffer(boundKey, result.get)
         }
       }
     }
@@ -986,7 +938,7 @@ class LazyExecutor extends SimpleExecutor {
           def next = {
             if (!hasNext)
               throw new ju.NoSuchElementException("Next on empty iterator")
-            val ret = Array(result._1, result._2)
+            val ret = ArrayBuffer(result._1, result._2)
             result = null
             ret
           }
