@@ -186,11 +186,11 @@ class PairNamespace[PairType <: AvroPair]
    val timeout: Int, 
    val root: ZooKeeperProxy#ZooKeeperNode)
   (implicit val cluster: ScadsCluster, pairType: Manifest[PairType])
-    extends Namespace[GenericRecord, GenericRecord, PairType]
-    with    RoutingProtocol[GenericRecord, GenericRecord, PairType] 
-    with    SimpleMetaData[GenericRecord, GenericRecord, PairType]
-    with    QuorumProtocol[GenericRecord, GenericRecord, PairType]
-    with    AvroSerializing[GenericRecord, GenericRecord, PairType] {
+    extends Namespace[IndexedRecord, IndexedRecord, PairType]
+    with    RoutingProtocol[IndexedRecord, IndexedRecord, PairType] 
+    with    SimpleMetaData[IndexedRecord, IndexedRecord, PairType]
+    with    QuorumProtocol[IndexedRecord, IndexedRecord, PairType]
+    with    AvroSerializing[IndexedRecord, IndexedRecord, PairType] {
 
   lazy val pairClz = pairType.erasure.asInstanceOf[Class[PairType]]
   lazy val (pairSchema, pairKeySchema, pairValueSchema) = {
@@ -200,11 +200,11 @@ class PairNamespace[PairType <: AvroPair]
 
   lazy val keyReaderWriter = new AvroGenericReaderWriter(pairKeySchema) {
     lazy val resolver = keySchemaResolver
-  }
+  }.asInstanceOf[AvroReaderWriter[org.apache.avro.generic.IndexedRecord]]
 
   lazy val valueReaderWriter = new AvroGenericReaderWriter(pairValueSchema) {
     lazy val resolver = valueSchemaResolver
-  }
+  }.asInstanceOf[AvroReaderWriter[org.apache.avro.generic.IndexedRecord]]
 
   lazy val pairReaderWriter = new AvroSpecificReaderWriter[PairType] {
     lazy val resolver = ResolvingDecoder.resolve(pairSchema, pairSchema)
