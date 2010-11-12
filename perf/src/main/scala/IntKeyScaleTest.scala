@@ -19,12 +19,6 @@ case class WritePerfResult(var numKeys: Int, var startTime: Long, var endTime: L
 case class ReadClient(var cluster: String, var clientId: Int, var threadId: Int, var iteration: Int) extends AvroRecord
 case class ReadPerfResult(var startTime: Long, var endTime: Long, var times: Histogram) extends AvroRecord
 
-object IntKeyScaleTest extends Experiment {
-  val writeResults = resultCluster.getNamespace[WriteClient, WritePerfResult]("writeResults")
-  val readResults = resultCluster.getNamespace[ReadClient, ReadPerfResult]("readResults")
-
-}
-
 case class DataLoader(var numServers: Int, var numLoaders: Int, var recsPerServer: Int = 10) extends DataLoadingAvroClient with AvroRecord {
   def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode): Unit = {
     val coordination = clusterRoot.getOrCreate("coordination/loaders")
@@ -38,16 +32,19 @@ case class DataLoader(var numServers: Int, var numLoaders: Int, var recsPerServe
       val partitions = keySplits zip cluster.getAvailableServers.map(List(_))
       logger.info("Cluster configured with the following partitions %s", partitions)
       cluster.createNamespace[IntRec, IntRec]("intkeytest", partitions)
+      cluster.getNamespace[WriteClient, WritePerfResult]("writeResults")
+      cluster.getNamespace[ReadClient, ReadPerfResult]("readResults")
     }
 
     coordination.registerAndAwait("startWrite", numLoaders)
+    val writeResults = cluster.getNamespace[WriteClient, WritePerfResult]("writeResults")
     val ns = cluster.getNamespace[IntRec, IntRec]("intkeytest")
     val startKey = clientId * recsPerServer
     val endKey = (clientId + 1) * recsPerServer
 
     val startTime = System.currentTimeMillis
     ns ++= (startKey to endKey).view.map(i => (IntRec(i), IntRec(i)))
-    IntKeyScaleTest.writeResults.put(WriteClient(clusterRoot.canonicalAddress, clientId), WritePerfResult(recsPerServer, startTime, System.currentTimeMillis))
+    writeResults.put(WriteClient(clusterRoot.canonicalAddress, clientId), WritePerfResult(recsPerServer, startTime, System.currentTimeMillis))
     coordination.registerAndAwait("endWrite", numLoaders)
 
     if(clientId == 0)
@@ -64,13 +61,14 @@ case class RandomGetterClient(var numClients: Int, var numIterations: Int, var r
 
     val cluster = new ScadsCluster(clusterRoot)
     val ns = cluster.getNamespace[IntRec,IntRec]("intkeytest")
+    val readResults = cluster.getNamespace[ReadClient, ReadPerfResult]("readResults")
 
     val clientId = coordination.registerAndAwait("clientsStart", numClients)
 
     for(iteration <- (1 to numIterations)) {
       logger.info("Begining Iteration %d", iteration)
 
-      IntKeyScaleTest.readResults ++= (1 to readThreads).pmap(threadId => {
+      readResults ++= (1 to readThreads).pmap(threadId => {
         val times = Histogram(1, 1000)
         val startTime = System.currentTimeMillis()
         (1 to readCount).foreach(i =>
