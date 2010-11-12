@@ -20,5 +20,5 @@ package object piql {
   implicit def toRichTuple(t: Tuple) = new RichTuple(t)
   
   //PIQL Scala Language Integration
-  implicit def namespaceToRelation(ns: Namespace) = Relation(ns)
+  implicit def namespaceToRelation[T <: AvroPair](ns: PairNamespace[T]) = Relation(ns.asInstanceOf[Namespace])
 }
