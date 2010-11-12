@@ -43,12 +43,16 @@ case class DataLoader(var numServers: Int, var numLoaders: Int, var recsPerServe
     val endKey = (clientId + 1) * recsPerServer
 
     val startTime = System.currentTimeMillis
+    logger.info("Starting bulk put")
     ns ++= (startKey to endKey).view.map(i => (IntRec(i), IntRec(i)))
+    logger.info("Bulk put complete")
     writeResults.put(WriteClient(clusterRoot.canonicalAddress, clientId), WritePerfResult(recsPerServer, startTime, System.currentTimeMillis))
     coordination.registerAndAwait("endWrite", numLoaders)
 
     if(clientId == 0)
       clusterRoot.createChild("clusterReady", data=this.toJson.getBytes)
+
+    System.exit(0)
   }
 }
 
@@ -90,9 +94,6 @@ case class RandomGetterClient(var numClients: Int, var numIterations: Int, var r
 
       coordination.registerAndAwait("endRead" + iteration, numClients)
     }
-
-    if(clientId == 0)
-      cluster.shutdown
 
     System.exit(0)
   }
