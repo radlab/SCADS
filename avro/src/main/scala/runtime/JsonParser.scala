@@ -10,14 +10,14 @@ import org.codehaus.jackson.{JsonFactory, JsonParser, JsonToken}
 
 import scala.collection.JavaConversions._
 
-import org.apache.log4j.Logger
+import net.lag.logging.Logger
 
 object JsonObject {
   val factory = new JsonFactory
 }
 
 class JsonObject(json: String) {
-  val logger = Logger.getLogger("scads.avro.jsonparser")
+  val logger = Logger()
 
   def toAvro[T <: IndexedRecord](implicit manifest: Manifest[T]): Option[T] = {
     val parser = JsonObject.factory.createJsonParser(json)
@@ -26,7 +26,7 @@ class JsonObject(json: String) {
     logger.debug("Parsing: " + json)
 
     if(parser.nextToken != JsonToken.START_OBJECT) {
-      logger.warn("Failed to parse JSON object: " + json + ". Expected START_OBJECT, found " + parser.getCurrentToken)
+      logger.warning("Failed to parse JSON object: " + json + ". Expected START_OBJECT, found " + parser.getCurrentToken)
       return None
     }
 
@@ -75,7 +75,7 @@ class JsonObject(json: String) {
       case JsonToken.VALUE_NULL         if(canBe(schema, Type.NULL)) => null
       case unexp => {
         val error = "Don't know how to populate field " + fieldname + ". Found: " + parser.getCurrentToken + ", Expected: " + schema
-        logger.warn(error)
+        logger.warning(error)
         throw new RuntimeException(error)
       }
     }
@@ -91,7 +91,7 @@ class JsonObject(json: String) {
       parser.nextToken
 
       if(field == null) {
-        logger.warn("Unexpected field: " + fieldname + " in " + schema)
+        logger.warning("Unexpected field: " + fieldname + " in " + schema)
         parser.nextToken
         return None
       } else  {
@@ -107,7 +107,7 @@ class JsonObject(json: String) {
     }
 
     if(missingFields.size > 0) {
-      logger.warn("Invalid record.  The following required fields are missing: " + missingFields)
+      logger.warning("Invalid record.  The following required fields are missing: " + missingFields)
       None
     }
     else
