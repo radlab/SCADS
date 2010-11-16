@@ -21,4 +21,14 @@ package object piql {
   
   //PIQL Scala Language Integration
   implicit def namespaceToRelation[T <: AvroPair](ns: PairNamespace[T]) = Relation(ns.asInstanceOf[Namespace])
+  implicit def toAttr(s: String) = new {
+    def a = UnboundAttributeValue(s)
+  }
+
+  implicit def toParameter(o: Double) = new {
+    def ? = ParameterValue(o.toInt)
+  }
+
+  implicit def toFixedValue(a: Any) = FixedValue(a)
+
 }
