@@ -19,18 +19,21 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
   class Piql(info: ProjectInfo) extends DefaultProject(info) with AvroCompilerPlugin
   class ScalaEngine(info: ProjectInfo) extends DefaultProject(info) with AvroCompilerPlugin{
     val bdb = "com.sleepycat" % "je" % "4.0.71"
-    val optional = "optional" % "optional" % "1.0"
+    val optional = "optional" %% "optional" % "0.1"
   }
   class Perf(info: ProjectInfo) extends DefaultProject(info) with AvroCompilerPlugin{
     val deploylib = "edu.berkeley.cs" % "deploy" % "2.1-SNAPSHOT"
+    val comm = "edu.berkeley.cs.scads" %% "communication" % "2.1.0-SNAPSHOT"
+    val storage = "edu.berkeley.cs.scads" %% "storage-engine" % "2.1.0-SNAPSHOT"
+    val piql = "edu.berkeley.cs.scads" %% "piql" % "2.1.0-SNAPSHOT"
   }
 
-  lazy val config      = project("config", "Config", new Config(_))
-  lazy val avro        = project("avro", "Avro Scala Compiler Plugin", new AvroPlugin(_))
-  lazy val comm        = project("comm", "Communication Manager", new Comm(_), config, avro)
-  lazy val scalaengine = project("scalaengine", "Storage Engine", new ScalaEngine(_), config, avro, comm)
-  lazy val piql        = project("piql", "PIQL Compiler and Execution Engine", new Piql(_), config, avro, comm, scalaengine)
-  lazy val perf        = project("perf", "Performance Tests", new Perf(_), config, avro, comm, scalaengine, piql)
+  lazy val config      = project("config", "config", new Config(_))
+  lazy val avro        = project("avro", "avro-plugin", new AvroPlugin(_))
+  lazy val comm        = project("comm", "communication", new Comm(_), config, avro)
+  lazy val scalaengine = project("scalaengine", "storage-engine", new ScalaEngine(_), config, avro, comm)
+  lazy val piql        = project("piql", "piql", new Piql(_), config, avro, comm, scalaengine)
+  lazy val perf        = project("perf", "performance", new Perf(_), config, avro, comm, scalaengine, piql)
 
   val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"
   override def managedStyle = ManagedStyle.Maven
@@ -50,6 +53,6 @@ trait AvroCompilerPlugin extends AutoCompilerPlugins {
      ScalaInstance(si.version, si.libraryJar, si.compilerJar, info.launcher, extra : _*)
 
 
-  val avroPlugin = compilerPlugin("edu.berkeley.cs.scads" %% "avro-scala-compiler-plugin" % "2.1.0-SNAPSHOT")
-  val pluginDepenency = "edu.berkeley.cs.scads" %% "avro-scala-compiler-plugin" % "2.1.0-SNAPSHOT"
+  val avroPlugin = compilerPlugin("edu.berkeley.cs.scads" %% "avro-plugin" % "2.1.0-SNAPSHOT")
+  val pluginDepenency = "edu.berkeley.cs.scads" %% "avro-plugin" % "2.1.0-SNAPSHOT"
 }
