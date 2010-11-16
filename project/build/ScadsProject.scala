@@ -4,8 +4,11 @@ import xsbt.ScalaInstance
 import java.io.File
 
 class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
+
   class Config(info: ProjectInfo) extends DefaultProject(info) {
     val configgy = "net.lag" % "configgy" % "2.0.0"
+    val scalaTest = "org.scalatest" % "scalatest" % "1.2"
+    val junit = "junit" % "junit" % "4.7"
   }
  class AvroPlugin(info: ProjectInfo) extends DefaultProject(info) {
     val avroJava = "org.apache.hadoop" % "avro" % "1.3.3"
@@ -21,7 +24,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
     val bdb = "com.sleepycat" % "je" % "4.0.71"
     val optional = "optional" %% "optional" % "0.1"
   }
-  class Perf(info: ProjectInfo) extends DefaultProject(info) with AvroCompilerPlugin{
+  class Perf(info: ProjectInfo) extends DefaultProject(info) with AvroCompilerPlugin {
     val deploylib = "edu.berkeley.cs" % "deploy" % "2.1-SNAPSHOT"
     val comm = "edu.berkeley.cs.scads" %% "communication" % "2.1.0-SNAPSHOT"
     val storage = "edu.berkeley.cs.scads" %% "storage-engine" % "2.1.0-SNAPSHOT"
