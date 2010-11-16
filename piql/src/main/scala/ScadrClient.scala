@@ -43,5 +43,25 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
     ret
   }
 
-  def findUser = users.where(UnboundAttributeValue("username") == ParameterValue(0))
+  implicit def toAttr(s: String) = new {
+    def a = UnboundAttributeValue(s)
+  }
+
+  implicit def toParameter(o: Double) = new {
+    def ? = ParameterValue(o.toInt)
+  }
+
+  implicit def toFixedValue(a: Any) = FixedValue(a)
+
+  def findUser = users.where("username".a === (0.?))
+  def thoughtstream = (
+    subscriptions
+      .where("owner".a === (0.?))
+      .where("approved".a === true)
+      .join(thoughts)
+      .where("thought.owner".a === "subscription.target".a)
+      .sort("timestamp" :: Nil, false)
+      .limit(10)
+  )
+
 }

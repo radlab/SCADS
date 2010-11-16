@@ -3,7 +3,7 @@ package edu.berkeley.cs.scads.piql
 import org.apache.avro.generic.{GenericData, IndexedRecord}
 
 abstract class Value {
-  def ==(value: Value) = EqualityPredicate(this, value)
+  def ===(value: Value) = EqualityPredicate(this, value)
 }
 case class FixedValue(v: Any) extends Value
 case class ParameterValue(ordinal: Int) extends Value
