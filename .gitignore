@@ -15,3 +15,7 @@ client/src/test/resources/test-classpath.properties
 .project
 .settings/
 classpath
+*~
+lib_managed/
+\#*\#
+.\#*
