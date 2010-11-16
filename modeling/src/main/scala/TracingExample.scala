@@ -31,7 +31,13 @@ object TracingExample {
   
     /* Run some queries */
     logger.info("Running thoughtstream query 10 times")
-    (1 to 10).foreach(i => client.thoughtstream("kcurtis", 10))
+    (1 to 10).foreach(i => {
+		// Query start message
+		executor.recordMessage(QueryStart("thoughtstream"))
+		client.thoughtstream("kcurtis", 10)
+		// Query end message
+		executor.recordMessage(QueryEnd("thoughtstream"))
+	})
 
     //Flush trace messages to the file
     executor.flush()
