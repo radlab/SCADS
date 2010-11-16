@@ -12,9 +12,9 @@ import avro.marker._
 import deploylib._
 import deploylib.mesos._
 
-case class TpcwLoaderClient(var numServers: Int, 
-                            var numLoaders: Int, 
-                            var numEBs: Double, 
+case class TpcwLoaderClient(var numServers: Int,
+                            var numLoaders: Int,
+                            var numEBs: Double,
                             var numItems: Int,
                             var replicationFactor: Int = 1) extends AvroClient with AvroRecord {
 
@@ -37,7 +37,7 @@ case class TpcwLoaderClient(var numServers: Int,
            authorNameItemIndex,
            xacts,
            country,
-           item, 
+           item,
            itemSubjectDateTitleIndex,
            orderline,
            order,

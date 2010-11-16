@@ -16,5 +16,8 @@ client/src/test/resources/test-classpath.properties
 .settings/
 setup.scala
 *~
-.ensime
 classpath
+*~
+lib_managed/
+\#*\#
+.\#*
