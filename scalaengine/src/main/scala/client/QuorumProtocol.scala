@@ -3,6 +3,7 @@ package edu.berkeley.cs.scads.storage
 import scala.collection.JavaConversions._
 
 import edu.berkeley.cs.scads.comm._
+import routing._
 import org.apache.avro.generic.{GenericData, GenericRecord, IndexedRecord}
 import org.apache.avro.Schema
 import Schema.Type
@@ -19,26 +20,25 @@ import scala.concurrent.ManagedBlocker
 private[storage] object QuorumProtocol {
   val MinString = "" 
   val MaxString = new String(Array.fill[Byte](20)(127.asInstanceOf[Byte]))
+  val ZK_QUORUM_CONFIG = "quorumProtConfig"
+  val BufSize = 1024
+  val FutureCollSize = 1024
 }
 
 /**
  * Quorum Protocol
  * read and write quorum are defined as percentages (0< X <=1). The sum of read and write has to be greater than 1
  */
-abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
-(namespace: String,
- timeout: Int,
- root: ZooKeeperProxy#ZooKeeperNode)(implicit cluster: ScadsCluster)
-        extends Namespace[KeyType, ValueType](namespace, timeout, root)(cluster) with AvroComparator {
+trait QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetType <: IndexedRecord] 
+  extends AvroComparator {
+  this: Namespace[KeyType, ValueType, RetType] with RoutingProtocol[KeyType, ValueType, RetType]
+                                               with SimpleMetaData[KeyType, ValueType, RetType] 
+                                               with AvroSerializing[KeyType, ValueType, RetType] =>
   
   import QuorumProtocol._
 
   protected var readQuorum: Double = 0.001
-  protected var writeQuorum: Double = 1
-
-  protected val ZK_QUORUM_CONFIG = "quorumProtConfig"
-
-  protected val logger = Logger()
+  protected var writeQuorum: Double = 1.0
 
   // For debugging only
   def dumpDistribution: Unit = {
@@ -64,8 +64,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     zkConfig.get.data = config.toBytes
   }
 
-  override def load(): Unit = {
-    super.load()
+  onLoad {
     val zkConfig = nsRoot.get(ZK_QUORUM_CONFIG)
     assert(zkConfig.isDefined)
     val config = new QuorumProtocolConfig()
@@ -74,10 +73,11 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     writeQuorum = config.writeQuorum
   }
 
-  override def create(ranges: Seq[(Option[KeyType], Seq[StorageService])]) {
-    super.create(ranges)
-    val config = new QuorumProtocolConfig(readQuorum, writeQuorum)
-    nsRoot.createChild(ZK_QUORUM_CONFIG, config.toBytes, CreateMode.PERSISTENT)
+  onCreate { 
+    ranges => {
+      val config = new QuorumProtocolConfig(readQuorum, writeQuorum)
+      nsRoot.createChild(ZK_QUORUM_CONFIG, config.toBytes, CreateMode.PERSISTENT)
+    }
   }
 
   private def writeQuorumForKey(key: KeyType): (Seq[PartitionService], Int) = {
@@ -95,28 +95,28 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
   /**
    * Returns all value versions for a given key. Does not perform read-repair.
    */
-  def getAllVersions[K <: KeyType](key: K): Seq[(PartitionService, Option[ValueType])] = {
+  def getAllVersions(key: KeyType): Seq[(PartitionService, Option[RetType])] = {
     val (partitions, quorum) = readQuorumForKey(key)
     val serKey = serializeKey(key)
     val getRequest = GetRequest(serKey)
 
     for (partition <- partitions) yield {
       val values = partition !? getRequest match {
-        case GetResponse(v) => extractValueFromRecord(v)
+        case GetResponse(v) => extractReturnTypeFromRecord(serKey, v)
         case u => throw new RuntimeException("Unexpected message during get.")
       }
       (partition, values) 
     }
  }
 
-  def getAllRangeVersions(startKey: Option[KeyType], endKey: Option[KeyType]): Seq[(PartitionService, Seq[(KeyType, ValueType)])] = {
+  def getAllRangeVersions(startKey: Option[KeyType], endKey: Option[KeyType]): Seq[(PartitionService, Seq[(KeyType, RetType)])] = {
     val ranges = serversForRange(startKey, endKey)
-    var result: Seq[(PartitionService, Seq[(KeyType, ValueType)])] = Nil
+    var result: Seq[(PartitionService, Seq[(KeyType, RetType)])] = Nil
     for(range <- ranges) {
       val rangeRequest = new GetRangeRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), None, None, true)
       for(partition <- range.values) {
         val values = partition !? rangeRequest  match {
-           case GetRangeResponse(v) => v.map(a => (deserializeKey(a.key), extractValueFromRecord(a.value).get))
+           case GetRangeResponse(v) => v.map(a => (deserializeKey(a.key), extractReturnTypeFromRecord(a.key, a.value).get))
            case _ => throw new RuntimeException("Unexpected Message")
         }
         result = (partition, values) +: result
@@ -125,7 +125,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     result.reverse
   }
 
-  def put[K <: KeyType, V <: ValueType](key: K, value: Option[V]): Unit = {
+  def put(key: KeyType, value: Option[ValueType]): Unit = {
     val (servers, quorum) = writeQuorumForKey(key)
     val putRequest = PutRequest(serializeKey(key), value.map(createRecord))
     val responses = serversForKey(key).map(_ !! putRequest)
@@ -139,13 +139,13 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     (servers.map(_ !! getRequest), serKey, quorum)
   }
 
-  @inline private def finishGetHandler(handler: GetHandler, quorum: Int): Option[Option[ValueType]] = {
+  @inline private def finishGetHandler(handler: GetHandler, quorum: Int): Option[Option[RetType]] = {
     val record = handler.vote(quorum)
     if (handler.failed) None
     else {
       // TODO: repair on failed case (above) still?
       ReadRepairer ! handler
-      Some(extractValueFromRecord(record))
+      Some(extractReturnTypeFromRecord(handler.key, record))
     }
   }
 
@@ -154,7 +154,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
    * either returns successfully, or the default timeout expires. In the
    * latter case, a RuntimeException is thrown
    */
-  def get[K <: KeyType](key: K): Option[ValueType] = {
+  def get(key: KeyType): Option[RetType] = {
     val (ftchs, serKey, quorum) = makeGetRequests(key)
     finishGetHandler(new GetHandler(serKey, ftchs), quorum).getOrElse(throw new RuntimeException("Could not complete get request - not enough servers responded"))
   }
@@ -176,9 +176,9 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
    *
    * NOTE: The returned future does not implement cancel
    */
-  def asyncGet[K <: KeyType](key: K): ScadsFuture[Option[ValueType]] = {
+  def asyncGet(key: KeyType): ScadsFuture[Option[RetType]] = {
     val (ftchs, serKey, quorum) = makeGetRequests(key)
-    new ComputationFuture[Option[ValueType]] {
+    new ComputationFuture[Option[RetType]] {
       def compute(timeoutHint: Long, unit: TimeUnit) = 
         finishGetHandler(new GetHandler(serKey, ftchs, unit.toMillis(timeoutHint)), quorum)
           .getOrElse(throw new RuntimeException("Could not complete get request - not enough servers responded"))
@@ -229,14 +229,14 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
    * already been sent out, and partitions are the available servers to pull
    * data from 
    */
-  private def finishGetRangeRequest(partitions: Seq[FullRange], ftchs: Seq[Seq[MessageFuture]], limit: Option[Int], offset: Option[Int], ascending: Boolean, timeout: Option[Long]): Seq[(KeyType, ValueType)] = {
+  private def finishGetRangeRequest(partitions: Seq[FullRange], ftchs: Seq[Seq[MessageFuture]], limit: Option[Int], offset: Option[Int], ascending: Boolean, timeout: Option[Long]): Seq[(KeyType, RetType)] = {
 
     def newRangeHandle(ftchs: Seq[MessageFuture]) = 
       timeout.map(t => new RangeHandle(ftchs, t)).getOrElse(new RangeHandle(ftchs))
 
     var handlers = ftchs.map(x => newRangeHandle(x)).toBuffer
 
-    var result = new ArrayBuffer[(KeyType, ValueType)]
+    var result = new ArrayBuffer[(KeyType, RetType)]
     var openRec: Long = if (limit.isDefined) limit.get else java.lang.Long.MAX_VALUE
     var servers = partitions
     var cur = 0
@@ -256,7 +256,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
         result.appendAll(records.flatMap(a =>
           if (openRec > 0) {
             openRec -= 1
-            val dValue = extractValueFromRecord(a.value)
+            val dValue = extractReturnTypeFromRecord(a.key, a.value)
             if (dValue.isDefined)
               List((deserializeKey(a.key), dValue.get))
             else
@@ -290,14 +290,14 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
   }
 
   //TODO Offset does not work if split over several partitions
-  def getRange(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true): Seq[(KeyType, ValueType)] = {
+  def getRange(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true): Seq[(KeyType, RetType)] = {
     val (ptr, ftchs) = startGetRangeRequest(startKeyPrefix, endKeyPrefix, limit, offset, ascending)
     finishGetRangeRequest(ptr, ftchs, limit, offset, ascending, None)
   }
 
-  def asyncGetRange(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true): ScadsFuture[Seq[(KeyType, ValueType)]] = {
+  def asyncGetRange(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true): ScadsFuture[Seq[(KeyType, RetType)]] = {
     val (ptr, ftchs) = startGetRangeRequest(startKeyPrefix, endKeyPrefix, limit, offset, ascending)
-    new ComputationFuture[Seq[(KeyType, ValueType)]] {
+    new ComputationFuture[Seq[(KeyType, RetType)]] {
       def compute(timeoutHint: Long, unit: TimeUnit) = 
         finishGetRangeRequest(ptr, ftchs, limit, offset, ascending, Some(unit.toMillis(timeoutHint)))
       def cancelComputation = error("NOT IMPLEMENTED")
@@ -305,9 +305,6 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
   }
 
   def size(): Int = throw new RuntimeException("Unimplemented")
-
-  private final val BufSize = 1024
-  private final val FutureCollSize = 1024
 
   /**
    * Bulk put. Still obeys write quorums

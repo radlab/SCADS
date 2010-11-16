@@ -3,6 +3,7 @@ package edu.berkeley.cs.scads.storage.routing
 
 import edu.berkeley.cs.scads.util.RangeTable
 import edu.berkeley.cs.scads.util.RangeType
+import edu.berkeley.cs.scads.storage.AvroSerializing
 
 import collection.mutable.HashMap
 import org.apache.avro.generic.IndexedRecord
@@ -14,49 +15,44 @@ import org.apache.zookeeper.CreateMode
 import edu.berkeley.cs.avro.marker.AvroRecord
 import edu.berkeley.cs.avro.runtime._
 import edu.berkeley.cs.scads.comm._
-/* TODO: Stack RepartitioningProtocol on Routing Table to build working implementation
-*  TODO: Change implementation to StartKey -> makes it more compliant to the rest
-* */
-//abstract trait RepartitioningProtocol[KeyType <: IndexedRecord] extends RoutingTable[KeyType] {
-//  override def splitPartition(splitPoint: KeyType): Seq[PartitionService] = throw new RuntimeException("Unimplemented")
-//
-//  override def mergePartitions(mergeKey: KeyType): Unit = throw new RuntimeException("Unimplemented")
-//
-//  override def replicatePartition(splitPoint: KeyType, storageHandler: StorageService): PartitionService = throw new RuntimeException("Unimplemented")
-//
-//  override def deleteReplica(splitPoint: KeyType, partitionHandler: PartitionService): Unit = throw new RuntimeException("Unimplemented")
-//}
 
-
-abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord] extends Namespace[KeyType, ValueType] {
-  var routingTable: RangeTable[KeyType, PartitionService] = null
+private[storage] object RoutingProtocol {
   val ZOOKEEPER_ROUTING_TABLE = "routingtable"
   val ZOOKEEPER_PARTITION_ID = "partitionid"
-  var partCtr: Long = 0 //TODO remove when storage service creates IDs
+}
+
+trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetType <: IndexedRecord] {
+  this: Namespace[KeyType, ValueType, RetType] with AvroSerializing[KeyType, ValueType, RetType] =>
+
+  import RoutingProtocol._
+
+  private var routingTable: RangeTable[KeyType, PartitionService] = null
+  private var partCtr: Long = 0 //TODO remove when storage service creates IDs
 
   /**
    *  Creates a new NS with the given servers
    *  The ranges has the form (startKey, servers). The first Key has to be None
    */
-  override def create(ranges: Seq[(Option[KeyType], Seq[StorageService])]) {
-    super.create(ranges)
-    var rTable: Array[RangeType[KeyType, PartitionService]] = new Array[RangeType[KeyType, PartitionService]](ranges.size)
-    var startKey: Option[KeyType] = None
-    var endKey: Option[KeyType] = None
-    var i = ranges.size - 1
-    nsRoot.createChild("partitions", "".getBytes, CreateMode.PERSISTENT)
-    for (range <- ranges.reverse) {
-      startKey = range._1
-      val handlers = createPartitions(startKey, endKey, range._2)
-      rTable(i) = new RangeType[KeyType, PartitionService](startKey, handlers)
-      endKey = startKey
-      i -= 1
+  onCreate {
+    ranges => {
+      var rTable: Array[RangeType[KeyType, PartitionService]] = new Array[RangeType[KeyType, PartitionService]](ranges.size)
+      var startKey: Option[KeyType] = None
+      var endKey: Option[KeyType] = None
+      var i = ranges.size - 1
+      nsRoot.createChild("partitions", "".getBytes, CreateMode.PERSISTENT)
+      for (range <- ranges.reverse) {
+        startKey = range._1
+        val handlers = createPartitions(startKey, endKey, range._2)
+        rTable(i) = new RangeType[KeyType, PartitionService](startKey, handlers)
+        endKey = startKey
+        i -= 1
+      }
+      createRoutingTable(rTable)
+      storeRoutingTable()
     }
-    createRoutingTable(rTable)
-    storeRoutingTable()
   }
 
-  override def delete() {
+  onDelete {
     val storageHandlers = routingTable.rTable.flatMap(_.values.map(_.storageService)).toSet
     storageHandlers foreach { handler => 
       handler !? DeleteNamespaceRequest(namespace) match {
@@ -69,11 +65,9 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
       }
     }
     routingTable = null
-    super.delete()
   }
 
-  override def load(): Unit = {
-    super.load()
+  onLoad {
     loadRoutingTable()
   }
 
@@ -81,6 +75,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     routingTable.valuesForKey(key)
   }
 
+  case class FullRange(startKey: Option[KeyType], endKey: Option[KeyType], values : Seq[PartitionService])
   def serversForRange(startKey: Option[KeyType], endKey: Option[KeyType]): Seq[FullRange] = {
     var ranges = routingTable.valuesForRange(startKey, endKey)
     val result = new  Array[FullRange](ranges.size)
@@ -185,9 +180,6 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     //Perform validate routing Table
     throw new RuntimeException("Not yet implemented")
   }
-
-
-
 
   def deletePartitions(partitionHandlers: Seq[PartitionService]): Unit = {
     for(partitionHandler <- partitionHandlers){

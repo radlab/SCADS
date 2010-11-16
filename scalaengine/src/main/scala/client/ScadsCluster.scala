@@ -11,7 +11,7 @@ import scala.actors._
 import scala.actors.Actor._
 import net.lag.logging.Logger
 import org.apache.avro.generic.GenericData.{Array => AvroArray}
-import org.apache.avro.generic.{GenericData, IndexedRecord, GenericDatumWriter}
+import org.apache.avro.generic.{GenericData, GenericRecord, IndexedRecord, GenericDatumWriter}
 import org.apache.avro.io.{BinaryData, BinaryEncoder}
 
 import scala.collection.mutable.HashMap
@@ -19,6 +19,7 @@ import java.util.Arrays
 import scala.concurrent.SyncVar
 
 import edu.berkeley.cs.avro.runtime._
+import edu.berkeley.cs.avro.marker.AvroPair
 import scala.util.Random
 
 /**
@@ -63,31 +64,44 @@ class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) {
                    valueSchema: Schema): GenericNamespace = {
     val namespace = new GenericNamespace(ns, 5000, namespaces, keySchema, valueSchema)
     namespace.loadOrCreate
-    return namespace
+    namespace
   }
 
-   def createNamespace(ns: String,
-                    keySchema:
-                    Schema,
-                    valueSchema: Schema,
-                    servers : Seq[(Option[GenericData.Record], Seq[StorageService])]): GenericNamespace = {
+  def createNamespace(ns: String,
+                      keySchema: Schema,
+                      valueSchema: Schema,
+                      servers : Seq[(Option[GenericRecord], Seq[StorageService])]): GenericNamespace = {
     val namespace = new GenericNamespace(ns, 5000, namespaces, keySchema, valueSchema)
     namespace.create(servers)
-    return namespace
-  }
-
+    namespace
+  } 
 
   def getNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String)
       (implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): SpecificNamespace[KeyType, ValueType] = {
     val namespace = new SpecificNamespace[KeyType, ValueType](ns, 5000, namespaces)
     namespace.loadOrCreate
-    return namespace
+    namespace
   }
 
   def createNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String, servers: Seq[(Option[KeyType], Seq[StorageService])])
       (implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): SpecificNamespace[KeyType, ValueType] = {
     val namespace = new SpecificNamespace[KeyType, ValueType](ns, 5000, namespaces)
     namespace.create(servers)
-    return namespace
+    namespace
   }
+
+  def getNamespace[PairType <: AvroPair](ns: String)
+    (implicit pairType: Manifest[PairType]): PairNamespace[PairType] = {
+    val namespace = new PairNamespace[PairType](ns, 5000, namespaces)
+    namespace.loadOrCreate
+    namespace
+  }
+
+  def createNamespace[PairType <: AvroPair](ns: String, servers: Seq[(Option[GenericRecord], Seq[StorageService])])
+      (implicit pairType: Manifest[PairType]): PairNamespace[PairType] = {
+    val namespace = new PairNamespace[PairType](ns, 5000, namespaces)
+    namespace.create(servers)
+    namespace
+  }
+
 }
