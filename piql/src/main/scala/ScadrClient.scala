@@ -50,7 +50,7 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
       .where("owner".a === (0.?))
       .where("approved".a === true)
       .join(thoughts)
-      .where("thought.owner".a === "subscription.target".a)
+      .where("thoughts.owner".a === "subscriptions.target".a)
       .sort("timestamp" :: Nil, false)
       .limit(10)
   )
