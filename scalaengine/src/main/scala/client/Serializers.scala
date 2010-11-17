@@ -44,6 +44,11 @@ abstract class AvroReaderWriter[T <: IndexedRecord] {
     reader.read(newInstance, new ResolvingDecoder(resolver, dec))
   }
 
+  def deserialize(stream: InputStream): T = {
+    val dec = decoderFactory.createBinaryDecoder(stream, null)
+    reader.read(newInstance, new ResolvingDecoder(resolver, dec))
+  }
+
   /** Given schema, return a new instance of a record which has the given
    * schema */
   def newRecordInstance(schema: Schema): IndexedRecord = {
@@ -219,9 +224,13 @@ class PairNamespace[PairType <: AvroPair]
   }
 
   @inline private def bytesToPair(key: Array[Byte], value: Array[Byte]): PairType = {
-    // TODO: rewrite not using ++ but explicit array allocation +
-    // System.arraycopy for efficiency
-    pairReaderWriter.deserialize(key ++ value)
+    // We could create an input stream here which concats key and value w/o
+    // copying, but that is probably more work than is worth, since
+    // System.arraycopy is alreay pretty optimized
+    val bytes = new Array[Byte](key.length + value.length)
+    System.arraycopy(key, 0, bytes, 0, key.length)
+    System.arraycopy(value, 0, bytes, key.length, value.length)
+    pairReaderWriter.deserialize(bytes)
   }
 
   protected def deserializeRecordType(key: Array[Byte], value: Array[Byte]) =
