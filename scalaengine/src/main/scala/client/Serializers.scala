@@ -75,8 +75,11 @@ abstract class AvroSpecificReaderWriter[T <: SpecificRecord](implicit tpe: Manif
   def newInstance = recClz.newInstance
 }
 
-trait AvroSerializing[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetType <: IndexedRecord] {
-  this: Namespace[KeyType, ValueType, RetType] =>
+trait AvroSerializing[KeyType <: IndexedRecord, 
+                      ValueType <: IndexedRecord, 
+                      RecordType <: IndexedRecord,
+                      RangeType] {
+  this: Namespace[KeyType, ValueType, RecordType, RangeType] =>
 
   val keyReaderWriter: AvroReaderWriter[KeyType]
   val valueReaderWriter: AvroReaderWriter[ValueType]
@@ -172,7 +175,12 @@ trait AvroSerializing[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetT
     valueReaderWriter.serialize(value)
 
   // Ret ops
-  protected def deserializeReturnType(key: Array[Byte], value: Array[Byte]): RetType
+  protected def deserializeRecordType(key: Array[Byte], value: Array[Byte]): RecordType
+  
+  // Range ops
+  protected def deserializeRangeType(key: Array[Byte], value: Array[Byte]): RangeType
+
+  protected def extractKeyValueFromRangeType(rangeType: RangeType): (KeyType, ValueType)
 
   def newRecordInstance(schema: Schema): IndexedRecord = 
     keyReaderWriter.newRecordInstance(schema)
@@ -186,11 +194,11 @@ class PairNamespace[PairType <: AvroPair]
    val timeout: Int, 
    val root: ZooKeeperProxy#ZooKeeperNode)
   (implicit val cluster: ScadsCluster, pairType: Manifest[PairType])
-    extends Namespace[GenericRecord, GenericRecord, PairType]
-    with    RoutingProtocol[GenericRecord, GenericRecord, PairType] 
-    with    SimpleMetaData[GenericRecord, GenericRecord, PairType]
-    with    QuorumProtocol[GenericRecord, GenericRecord, PairType]
-    with    AvroSerializing[GenericRecord, GenericRecord, PairType] {
+    extends Namespace[GenericRecord, GenericRecord, PairType, PairType]
+    with    RoutingProtocol[GenericRecord, GenericRecord, PairType, PairType] 
+    with    SimpleMetaData[GenericRecord, GenericRecord, PairType, PairType]
+    with    QuorumProtocol[GenericRecord, GenericRecord, PairType, PairType]
+    with    AvroSerializing[GenericRecord, GenericRecord, PairType, PairType] {
 
   lazy val pairClz = pairType.erasure.asInstanceOf[Class[PairType]]
   lazy val (pairSchema, pairKeySchema, pairValueSchema) = {
@@ -210,26 +218,37 @@ class PairNamespace[PairType <: AvroPair]
     lazy val resolver = ResolvingDecoder.resolve(pairSchema, pairSchema)
   }
 
-  protected def deserializeReturnType(key: Array[Byte], value: Array[Byte]) =
+  @inline private def bytesToPair(key: Array[Byte], value: Array[Byte]): PairType = {
     // TODO: rewrite not using ++ but explicit array allocation +
     // System.arraycopy for efficiency
     pairReaderWriter.deserialize(key ++ value)
+  }
+
+  protected def deserializeRecordType(key: Array[Byte], value: Array[Byte]) =
+    bytesToPair(key, value)
+
+  protected def deserializeRangeType(key: Array[Byte], value: Array[Byte]) = 
+    bytesToPair(key, value)
+
+  protected def extractKeyValueFromRangeType(rangeType: PairType) = 
+    (rangeType.key, rangeType.value)
 }
 
 /**
  * Implementation of Scads Namespace that returns ScalaSpecificRecords
- * TODO: no reason to restrict to ScalaSpecificRecord...
+ * TODO: no reason to restrict to ScalaSpecificRecord. We could make this for
+ * any SpecificRecords to be more general
  */
 class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord]
     (val namespace: String, 
      val timeout: Int, 
      val root: ZooKeeperProxy#ZooKeeperNode)
     (implicit val cluster: ScadsCluster, keyType: Manifest[KeyType], valueType: Manifest[ValueType])
-        extends Namespace[KeyType, ValueType, ValueType]
-        with    RoutingProtocol[KeyType, ValueType, ValueType] 
-        with    SimpleMetaData[KeyType, ValueType, ValueType]
-        with    QuorumProtocol[KeyType, ValueType, ValueType]
-        with    AvroSerializing[KeyType, ValueType, ValueType] {
+        extends Namespace[KeyType, ValueType, ValueType, (KeyType, ValueType)]
+        with    RoutingProtocol[KeyType, ValueType, ValueType, (KeyType, ValueType)] 
+        with    SimpleMetaData[KeyType, ValueType, ValueType, (KeyType, ValueType)]
+        with    QuorumProtocol[KeyType, ValueType, ValueType, (KeyType, ValueType)]
+        with    AvroSerializing[KeyType, ValueType, ValueType, (KeyType, ValueType)] {
 
   lazy val keyReaderWriter = new AvroSpecificReaderWriter[KeyType] {
     lazy val resolver = keySchemaResolver
@@ -239,8 +258,14 @@ class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecif
     lazy val resolver = valueSchemaResolver
   }
 
-  protected def deserializeReturnType(key: Array[Byte], value: Array[Byte]) =
+  protected def deserializeRecordType(key: Array[Byte], value: Array[Byte]) =
     deserializeValue(value) 
+
+  protected def deserializeRangeType(key: Array[Byte], value: Array[Byte]) =
+    (deserializeKey(key), deserializeValue(value))
+
+  protected def extractKeyValueFromRangeType(rangeType: (KeyType, ValueType)) = 
+    rangeType
   
   lazy val genericNamespace = createGenericVersion()
 
@@ -257,11 +282,11 @@ class GenericNamespace(val namespace: String,
                        override val keySchema: Schema,
                        override val valueSchema: Schema)
                       (implicit val cluster : ScadsCluster)
-    extends Namespace[GenericRecord, GenericRecord, GenericRecord]
-    with    RoutingProtocol[GenericRecord, GenericRecord, GenericRecord] 
-    with    SimpleMetaData[GenericRecord, GenericRecord, GenericRecord]
-    with    QuorumProtocol[GenericRecord, GenericRecord, GenericRecord]
-    with    AvroSerializing[GenericRecord, GenericRecord, GenericRecord] {
+    extends Namespace[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)]
+    with    RoutingProtocol[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)] 
+    with    SimpleMetaData[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)]
+    with    QuorumProtocol[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)]
+    with    AvroSerializing[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)] {
 
   lazy val keyReaderWriter = new AvroGenericReaderWriter(keySchema) {
     lazy val resolver = keySchemaResolver
@@ -271,6 +296,12 @@ class GenericNamespace(val namespace: String,
     lazy val resolver = valueSchemaResolver
   }
 
-  protected def deserializeReturnType(key: Array[Byte], value: Array[Byte]) =
+  protected def deserializeRecordType(key: Array[Byte], value: Array[Byte]) =
     deserializeValue(value) 
+
+  protected def deserializeRangeType(key: Array[Byte], value: Array[Byte]) =
+    (deserializeKey(key), deserializeValue(value))
+
+  protected def extractKeyValueFromRangeType(rangeType: (GenericRecord, GenericRecord)) = 
+    rangeType
 }

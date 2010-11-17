@@ -21,8 +21,11 @@ private[storage] object RoutingProtocol {
   val ZOOKEEPER_PARTITION_ID = "partitionid"
 }
 
-trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetType <: IndexedRecord] {
-  this: Namespace[KeyType, ValueType, RetType] with AvroSerializing[KeyType, ValueType, RetType] =>
+trait RoutingProtocol[KeyType <: IndexedRecord, 
+                      ValueType <: IndexedRecord, 
+                      RecordType <: IndexedRecord,
+                      RType] {
+  this: Namespace[KeyType, ValueType, RecordType, RType] with AvroSerializing[KeyType, ValueType, RecordType, RType] =>
 
   import RoutingProtocol._
 

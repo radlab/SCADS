@@ -10,8 +10,11 @@ import org.apache.zookeeper.CreateMode
 
 import scala.collection.mutable.ListBuffer
 
-trait Namespace[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetType <: IndexedRecord]
-  extends KeyValueStore[KeyType, ValueType, RetType] {
+trait Namespace[KeyType <: IndexedRecord, 
+                ValueType <: IndexedRecord, 
+                RecordType <: IndexedRecord,
+                RangeType]
+  extends KeyValueStore[KeyType, ValueType, RecordType, RangeType] {
 
   val namespace: String
   val timeout: Int
