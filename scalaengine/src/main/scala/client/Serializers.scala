@@ -203,7 +203,8 @@ class PairNamespace[PairType <: AvroPair]
     with    RoutingProtocol[GenericRecord, GenericRecord, PairType, PairType] 
     with    SimpleMetaData[GenericRecord, GenericRecord, PairType, PairType]
     with    QuorumProtocol[GenericRecord, GenericRecord, PairType, PairType]
-    with    AvroSerializing[GenericRecord, GenericRecord, PairType, PairType] {
+    with    AvroSerializing[GenericRecord, GenericRecord, PairType, PairType]
+    with    IndexManager[PairType] {
 
   lazy val pairClz = pairType.erasure.asInstanceOf[Class[PairType]]
   lazy val (pairSchema, pairKeySchema, pairValueSchema) = {
@@ -241,6 +242,37 @@ class PairNamespace[PairType <: AvroPair]
 
   protected def extractKeyValueFromRangeType(rangeType: PairType) = 
     (rangeType.key, rangeType.value)
+
+  /** Override put to do index maintainence. 
+   * TODO: we are not really doing this the optimal way. we need a way to
+   * track the stale values of key/value pairs, so that we only update indexes
+   * when necessary. Right now with this interface, we can only assume the
+   * worst and update indexes every time. Another option is to do a get(key)
+   * to see what updates need to be made, but then each put becomes much more
+   * expensive. I think the better solution is to add another field to
+   * AvroPair which is a GenericRecord, which contains the old data, and add
+   * put(pair) and delete(pair) which takes advantage of this old data for
+   * index maintainence.
+   * 
+   * TODO: there is a small issue when put(key, None) is called, and an index
+   * exists which cannot be built from the key alone. Should we issue a get
+   * request to figure out how to delete the index, or just leave it? Right
+   * now it just leaves it alone */
+  override def put(key: GenericRecord, value: Option[GenericRecord]): Unit = {
+    super.put(key, value)
+    indexCache.values.foreach { case (ns, mapping) =>
+      makeIndexFor(key, value, ns.keySchema, mapping).foreach(idx => ns.put(idx, value.map(v => dummyIndexValue)))
+    }
+  }
+
+  /** Override bulkLoadCallback to do index maintainence */
+  override protected def bulkLoadCallback(elems: Seq[PairType]): Unit = {
+    // TODO: use pforeach?
+    indexCache.values.foreach { case (ns, mapping) =>
+      ns ++= elems.map(e => (makeIndexFor(e, ns.keySchema, mapping), dummyIndexValue))
+    }
+  }
+
 }
 
 /**

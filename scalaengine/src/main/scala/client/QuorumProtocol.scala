@@ -306,6 +306,11 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
 
   def size(): Int = throw new RuntimeException("Unimplemented")
 
+  /** During a call to ++=, the elems seen from the input stream are blocked
+   * in BufSize chunks and passed to this method as a callback. The default
+   * behavior does nothing. */
+  protected def bulkLoadCallback(elems: Seq[RangeType]): Unit = {}
+
   /**
    * Bulk put. Still obeys write quorums
    */
@@ -319,6 +324,7 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
      */
     val serverBuffers = new HashMap[PartitionService, ArrayBuffer[PutRequest]]
     val outstandingFutureColls = new ArrayBuffer[FutureCollection]
+    val elemBuffer = new ArrayBuffer[RangeType]
 
     def averageBufferSize =
       serverBuffers.values.foldLeft(0)(_ + _.size) / serverBuffers.size.toDouble 
@@ -330,12 +336,19 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
       serverBuffers.clear() // clear buffers
     }
 
+    def flushElemBuffer() {
+      bulkLoadCallback(elemBuffer)
+      elemBuffer.clear()
+    }
+
     def blockFutureCollections() {
       outstandingFutureColls.foreach(coll => coll.blockFor(scala.math.ceil(coll.futures.size * writeQuorum).toInt))
       outstandingFutureColls.clear() // clear ftch colls
     }
 
     that.foreach { rangeEntry => 
+
+      elemBuffer += rangeEntry
 
       val (keyType, valueType) = extractKeyValueFromRangeType(rangeEntry)
 
@@ -356,6 +369,9 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
         // the network
         blockFutureCollections()
 
+      if (elemBuffer.size > BufSize) 
+        flushElemBuffer()
+
     }
 
     if (!serverBuffers.isEmpty) {
@@ -364,6 +380,9 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
       writeServerBuffers()
       blockFutureCollections()
     }
+
+    if (!elemBuffer.isEmpty)
+      flushElemBuffer()
   }
 
   /**

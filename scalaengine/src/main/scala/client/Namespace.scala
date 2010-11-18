@@ -104,10 +104,10 @@ trait Namespace[KeyType <: IndexedRecord,
         throw new RuntimeException("Illegal namespace creation. Namespace already exists")
       if( ranges.size == 0 || ranges.head._1 != None)
         throw new RuntimeException("Illegal namespace creation - range size hast to be > 0 and the first key has to be None")
-      logger.debug("Created Namespace" + nsRoot )
+      logger.debug("Creating nsRoot for namespace: " + namespace)
       nsRoot = root.createChild(namespace, "".getBytes, CreateMode.PERSISTENT)
-      println("nsRoot: " + nsRoot)
-      println("getKeySchema: " + getKeySchema)
+      //println("nsRoot: " + nsRoot)
+      //println("getKeySchema: " + getKeySchema)
       nsRoot.createChild("keySchema", getKeySchema.toString.getBytes, CreateMode.PERSISTENT)
       nsRoot.createChild("valueSchema", getValueSchema.toString.getBytes, CreateMode.PERSISTENT)
     }
