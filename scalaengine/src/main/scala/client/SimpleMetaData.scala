@@ -3,11 +3,13 @@ package edu.berkeley.cs.scads.storage
 import org.apache.avro.generic.IndexedRecord
 import java.nio.ByteBuffer
 
-trait SimpleMetaData[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetType <: IndexedRecord] {
-  this: Namespace[KeyType, ValueType, RetType] with AvroSerializing[KeyType, ValueType, RetType] => 
+trait SimpleMetaData[KeyType <: IndexedRecord, 
+                     ValueType <: IndexedRecord, 
+                     RecordType <: IndexedRecord,
+                     RangeType] {
+  this: Namespace[KeyType, ValueType, RecordType, RangeType] 
+        with AvroSerializing[KeyType, ValueType, RecordType, RangeType] => 
 
-  // TODO: createRecord is not a very clear name- something like
-  // "wrapWithMetadata" would be more appropriate
   protected def createRecord(value : ValueType) : Array[Byte] = {
     //val time = toByte(System.currentTimeMillis)
     //val clientID = toByte(cluster.clientID)
@@ -21,11 +23,18 @@ trait SimpleMetaData[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetTy
     buffer.array
   }
 
-  protected def extractReturnTypeFromRecord(key: Array[Byte], record: Option[Array[Byte]]): Option[RetType] = record match {
+  protected def extractRecordTypeFromRecord(key: Array[Byte], record: Option[Array[Byte]]): Option[RecordType] = record match {
     case None => None
     case Some(bytes) if bytes.length <= 16 => None
     case Some(bytes) => 
-      Some(deserializeReturnType(key, bytes.slice(16, bytes.length)))
+      Some(deserializeRecordType(key, bytes.slice(16, bytes.length))) // TODO: bytes.slice is probably slow, we should be more explicit with system.arraycopy
+  }
+
+  protected def extractRangeTypeFromRecord(key: Array[Byte], record: Option[Array[Byte]]): Option[RangeType] = record match { // TODO: don't copy and paste code from previous method?
+    case None => None
+    case Some(bytes) if bytes.length <= 16 => None
+    case Some(bytes) => 
+      Some(deserializeRangeType(key, bytes.slice(16, bytes.length)))
   }
 
   protected def getMetaData(record : Option[Array[Byte]]) : String = {

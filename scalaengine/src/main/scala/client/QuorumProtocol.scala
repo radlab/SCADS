@@ -29,11 +29,15 @@ private[storage] object QuorumProtocol {
  * Quorum Protocol
  * read and write quorum are defined as percentages (0< X <=1). The sum of read and write has to be greater than 1
  */
-trait QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetType <: IndexedRecord] 
+trait QuorumProtocol[KeyType <: IndexedRecord, 
+                     ValueType <: IndexedRecord, 
+                     RecordType <: IndexedRecord,
+                     RangeType] 
   extends AvroComparator {
-  this: Namespace[KeyType, ValueType, RetType] with RoutingProtocol[KeyType, ValueType, RetType]
-                                               with SimpleMetaData[KeyType, ValueType, RetType] 
-                                               with AvroSerializing[KeyType, ValueType, RetType] =>
+  this: Namespace[KeyType, ValueType, RecordType, RangeType] 
+        with RoutingProtocol[KeyType, ValueType, RecordType, RangeType]
+        with SimpleMetaData[KeyType, ValueType, RecordType, RangeType] 
+        with AvroSerializing[KeyType, ValueType, RecordType, RangeType] =>
   
   import QuorumProtocol._
 
@@ -95,28 +99,28 @@ trait QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetTy
   /**
    * Returns all value versions for a given key. Does not perform read-repair.
    */
-  def getAllVersions(key: KeyType): Seq[(PartitionService, Option[RetType])] = {
+  def getAllVersions(key: KeyType): Seq[(PartitionService, Option[RecordType])] = {
     val (partitions, quorum) = readQuorumForKey(key)
     val serKey = serializeKey(key)
     val getRequest = GetRequest(serKey)
 
     for (partition <- partitions) yield {
       val values = partition !? getRequest match {
-        case GetResponse(v) => extractReturnTypeFromRecord(serKey, v)
+        case GetResponse(v) => extractRecordTypeFromRecord(serKey, v)
         case u => throw new RuntimeException("Unexpected message during get.")
       }
       (partition, values) 
     }
  }
 
-  def getAllRangeVersions(startKey: Option[KeyType], endKey: Option[KeyType]): Seq[(PartitionService, Seq[(KeyType, RetType)])] = {
+  def getAllRangeVersions(startKey: Option[KeyType], endKey: Option[KeyType]): Seq[(PartitionService, Seq[RangeType])] = {
     val ranges = serversForRange(startKey, endKey)
-    var result: Seq[(PartitionService, Seq[(KeyType, RetType)])] = Nil
+    var result: Seq[(PartitionService, Seq[RangeType])] = Nil
     for(range <- ranges) {
       val rangeRequest = new GetRangeRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), None, None, true)
       for(partition <- range.values) {
         val values = partition !? rangeRequest  match {
-           case GetRangeResponse(v) => v.map(a => (deserializeKey(a.key), extractReturnTypeFromRecord(a.key, a.value).get))
+           case GetRangeResponse(v) => v.map(a => extractRangeTypeFromRecord(a.key, a.value).get)
            case _ => throw new RuntimeException("Unexpected Message")
         }
         result = (partition, values) +: result
@@ -139,13 +143,13 @@ trait QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetTy
     (servers.map(_ !! getRequest), serKey, quorum)
   }
 
-  @inline private def finishGetHandler(handler: GetHandler, quorum: Int): Option[Option[RetType]] = {
+  @inline private def finishGetHandler(handler: GetHandler, quorum: Int): Option[Option[RecordType]] = {
     val record = handler.vote(quorum)
     if (handler.failed) None
     else {
       // TODO: repair on failed case (above) still?
       ReadRepairer ! handler
-      Some(extractReturnTypeFromRecord(handler.key, record))
+      Some(extractRecordTypeFromRecord(handler.key, record))
     }
   }
 
@@ -154,7 +158,7 @@ trait QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetTy
    * either returns successfully, or the default timeout expires. In the
    * latter case, a RuntimeException is thrown
    */
-  def get(key: KeyType): Option[RetType] = {
+  def get(key: KeyType): Option[RecordType] = {
     val (ftchs, serKey, quorum) = makeGetRequests(key)
     finishGetHandler(new GetHandler(serKey, ftchs), quorum).getOrElse(throw new RuntimeException("Could not complete get request - not enough servers responded"))
   }
@@ -176,9 +180,9 @@ trait QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetTy
    *
    * NOTE: The returned future does not implement cancel
    */
-  def asyncGet(key: KeyType): ScadsFuture[Option[RetType]] = {
+  def asyncGet(key: KeyType): ScadsFuture[Option[RecordType]] = {
     val (ftchs, serKey, quorum) = makeGetRequests(key)
-    new ComputationFuture[Option[RetType]] {
+    new ComputationFuture[Option[RecordType]] {
       def compute(timeoutHint: Long, unit: TimeUnit) = 
         finishGetHandler(new GetHandler(serKey, ftchs, unit.toMillis(timeoutHint)), quorum)
           .getOrElse(throw new RuntimeException("Could not complete get request - not enough servers responded"))
@@ -229,14 +233,14 @@ trait QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetTy
    * already been sent out, and partitions are the available servers to pull
    * data from 
    */
-  private def finishGetRangeRequest(partitions: Seq[FullRange], ftchs: Seq[Seq[MessageFuture]], limit: Option[Int], offset: Option[Int], ascending: Boolean, timeout: Option[Long]): Seq[(KeyType, RetType)] = {
+  private def finishGetRangeRequest(partitions: Seq[FullRange], ftchs: Seq[Seq[MessageFuture]], limit: Option[Int], offset: Option[Int], ascending: Boolean, timeout: Option[Long]): Seq[RangeType] = {
 
     def newRangeHandle(ftchs: Seq[MessageFuture]) = 
       timeout.map(t => new RangeHandle(ftchs, t)).getOrElse(new RangeHandle(ftchs))
 
     var handlers = ftchs.map(x => newRangeHandle(x)).toBuffer
 
-    var result = new ArrayBuffer[(KeyType, RetType)]
+    var result = new ArrayBuffer[RangeType]
     var openRec: Long = if (limit.isDefined) limit.get else java.lang.Long.MAX_VALUE
     var servers = partitions
     var cur = 0
@@ -256,11 +260,7 @@ trait QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetTy
         result.appendAll(records.flatMap(a =>
           if (openRec > 0) {
             openRec -= 1
-            val dValue = extractReturnTypeFromRecord(a.key, a.value)
-            if (dValue.isDefined)
-              List((deserializeKey(a.key), dValue.get))
-            else
-              Nil
+            extractRangeTypeFromRecord(a.key, a.value).map(x => List(x)).getOrElse(Nil)
           } else
             Nil
           )
@@ -290,14 +290,14 @@ trait QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetTy
   }
 
   //TODO Offset does not work if split over several partitions
-  def getRange(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true): Seq[(KeyType, RetType)] = {
+  def getRange(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true): Seq[RangeType] = {
     val (ptr, ftchs) = startGetRangeRequest(startKeyPrefix, endKeyPrefix, limit, offset, ascending)
     finishGetRangeRequest(ptr, ftchs, limit, offset, ascending, None)
   }
 
-  def asyncGetRange(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true): ScadsFuture[Seq[(KeyType, RetType)]] = {
+  def asyncGetRange(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true): ScadsFuture[Seq[RangeType]] = {
     val (ptr, ftchs) = startGetRangeRequest(startKeyPrefix, endKeyPrefix, limit, offset, ascending)
-    new ComputationFuture[Seq[(KeyType, RetType)]] {
+    new ComputationFuture[Seq[RangeType]] {
       def compute(timeoutHint: Long, unit: TimeUnit) = 
         finishGetRangeRequest(ptr, ftchs, limit, offset, ascending, Some(unit.toMillis(timeoutHint)))
       def cancelComputation = error("NOT IMPLEMENTED")
@@ -306,10 +306,15 @@ trait QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetTy
 
   def size(): Int = throw new RuntimeException("Unimplemented")
 
+  /** During a call to ++=, the elems seen from the input stream are blocked
+   * in BufSize chunks and passed to this method as a callback. The default
+   * behavior does nothing. */
+  protected def bulkLoadCallback(elems: Seq[RangeType]): Unit = {}
+
   /**
    * Bulk put. Still obeys write quorums
    */
-  def ++=(that: Iterable[(KeyType, ValueType)]) {
+  def ++=(that: TraversableOnce[RangeType]) {
     /* Buffers KV tuples until the average buffer size for all the servers is
      * greater than BufSize. Then sends the request to the servers, while
      * repeating the buffering process for the next set of KV tuples. When the
@@ -319,6 +324,7 @@ trait QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetTy
      */
     val serverBuffers = new HashMap[PartitionService, ArrayBuffer[PutRequest]]
     val outstandingFutureColls = new ArrayBuffer[FutureCollection]
+    val elemBuffer = new ArrayBuffer[RangeType]
 
     def averageBufferSize =
       serverBuffers.values.foldLeft(0)(_ + _.size) / serverBuffers.size.toDouble 
@@ -330,15 +336,24 @@ trait QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetTy
       serverBuffers.clear() // clear buffers
     }
 
+    def flushElemBuffer() {
+      bulkLoadCallback(elemBuffer)
+      elemBuffer.clear()
+    }
+
     def blockFutureCollections() {
       outstandingFutureColls.foreach(coll => coll.blockFor(scala.math.ceil(coll.futures.size * writeQuorum).toInt))
       outstandingFutureColls.clear() // clear ftch colls
     }
 
-    that.foreach { kvEntry => 
+    that.foreach { rangeEntry => 
 
-      val (servers, quorum) = writeQuorumForKey(kvEntry._1)
-      val putRequest = PutRequest(serializeKey(kvEntry._1), Some(createRecord(kvEntry._2)))
+      elemBuffer += rangeEntry
+
+      val (keyType, valueType) = extractKeyValueFromRangeType(rangeEntry)
+
+      val (servers, quorum) = writeQuorumForKey(keyType)
+      val putRequest = PutRequest(serializeKey(keyType), Some(createRecord(valueType)))
 
       for (server <- servers) {
         val buf = serverBuffers.getOrElseUpdate(server, new ArrayBuffer[PutRequest])
@@ -354,6 +369,9 @@ trait QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetTy
         // the network
         blockFutureCollections()
 
+      if (elemBuffer.size > BufSize) 
+        flushElemBuffer()
+
     }
 
     if (!serverBuffers.isEmpty) {
@@ -362,6 +380,9 @@ trait QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord, RetTy
       writeServerBuffers()
       blockFutureCollections()
     }
+
+    if (!elemBuffer.isEmpty)
+      flushElemBuffer()
   }
 
   /**

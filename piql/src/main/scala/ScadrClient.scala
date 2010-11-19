@@ -41,6 +41,7 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
     val ret = iterator.toList
     iterator.close
     ret
+
   }
 
   def findUser = users.where("username".a === (0.?))

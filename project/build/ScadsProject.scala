@@ -25,7 +25,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
     val optional = "optional" %% "optional" % "0.1"
   }
   class Perf(info: ProjectInfo) extends DefaultProject(info) with AvroCompilerPlugin {
-    val deploylib = "edu.berkeley.cs" % "deploy" % "2.1-SNAPSHOT"
+    val deploylib = "edu.berkeley.cs" %% "deploylib" % "2.1.0-SNAPSHOT"
     val comm = "edu.berkeley.cs.scads" %% "communication" % "2.1.0-SNAPSHOT"
     val storage = "edu.berkeley.cs.scads" %% "storage-engine" % "2.1.0-SNAPSHOT"
     val piql = "edu.berkeley.cs.scads" %% "piql" % "2.1.0-SNAPSHOT"
