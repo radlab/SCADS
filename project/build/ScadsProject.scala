@@ -38,6 +38,10 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
   lazy val piql        = project("piql", "piql", new Piql(_), config, avro, comm, scalaengine)
   lazy val perf        = project("perf", "performance", new Perf(_), config, avro, comm, scalaengine, piql)
 
+  //PIQL Apps
+  class Scadr(info: ProjectInfo) extends DefaultProject(info) with AvroCompilerPlugin
+  lazy val scadr       = project("piql" / "scadr", "scadr", new Scadr(_), piql)
+
   val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"
   override def managedStyle = ManagedStyle.Maven
   val publishTo = "Radlab Snapshots" at "http://scads.knowsql.org/nexus/content/repositories/snapshots/"
