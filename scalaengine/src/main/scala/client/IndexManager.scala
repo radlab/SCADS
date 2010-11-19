@@ -2,10 +2,11 @@ package edu.berkeley.cs.scads.storage
 
 import org.apache.avro.Schema
 import org.apache.avro.generic.{ GenericData, GenericRecord }
-import org.apache.zookeeper.CreateMode
+import org.apache.zookeeper.{ CreateMode, WatchedEvent }
+import org.apache.zookeeper.Watcher.Event.EventType
 
-import scala.collection.mutable.{ Map => MutMap, Seq => MutSeq, _ }
 import scala.collection.JavaConversions._
+import scala.collection.immutable.HashMap
 
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.avro.marker.AvroPair
@@ -19,13 +20,22 @@ trait IndexManager[PairType <: AvroPair] {
 
   onLoad {
     indexCatalogue = nsRoot("indexes")
-    updateIndexNamespaceCache()
+    updateCache()
   }
 
   onCreate {
     ranges => {
-      indexCatalogue = nsRoot.createChild("indexes", Array.empty, CreateMode.PERSISTENT); 
+      indexCatalogue = nsRoot.createChild("indexes", Array.empty, CreateMode.PERSISTENT)
+      updateCache()
     }
+  }
+
+  private def updateCache(): Unit = {
+    val callback = (evt: WatchedEvent) => evt.getType match {
+      case EventType.NodeChildrenChanged => updateCache()
+      case _ => /* do nothing */
+    }
+    updateIndexNamespaceCache(indexCatalogue.watchChildren(callback))
   }
 
   // TODO: this is hacky for now, until we figure out if we actually want to
@@ -46,19 +56,20 @@ trait IndexManager[PairType <: AvroPair] {
   }
 
   /** In memory cache of (index namespaces, seq of field values (left is from
-   * key, right is from value)) */
-  protected val indexNamespacesCache = new HashMap[String, (GenericNamespace, Seq[Either[Int, Int]])]
+   * key, right is from value)). is a volatile immutable hash map so we don't
+   * have to do any synchronization when reading */
+  @volatile protected var indexNamespacesCache = new HashMap[String, (GenericNamespace, Seq[Either[Int, Int]])]
 
-  protected def updateIndexNamespaceCache(): Unit = {
+  protected def updateIndexNamespaceCache(indexNodes: Seq[ZooKeeperProxy#ZooKeeperNode]): Unit = {
     // update the cache. 
     // 1) namespaces in the cache which are not in indexCatalogue.children need to
     // be deleted from the cache
-    val indexCatalogueChildrenSet = indexCatalogue.children.map(_.name).toSet
-    indexNamespacesCache retain { case (k, _) => indexCatalogueChildrenSet.contains(k) } 
+    val indexCatalogueChildrenSet = indexNodes.map(_.name).toSet
+    indexNamespacesCache = indexNamespacesCache filter { case (k, _) => indexCatalogueChildrenSet.contains(k) } 
 
     // 2) elements which are in children but not in the cache need to be added
     // into the cache
-    indexNamespacesCache ++= indexCatalogue.children.filterNot(n => indexNamespacesCache.contains(n.name)).map(n => {
+    indexNamespacesCache ++= indexNodes.filterNot(n => indexNamespacesCache.contains(n.name)).map(n => {
       // TODO: is this functionality already located somewhere, to create a
       // generic namespace w/o passing in the key/value schemas
       val ks = Schema.parse(new String(root("%s/keySchema".format(toGlobalName(n.name))).data))
@@ -73,7 +84,7 @@ trait IndexManager[PairType <: AvroPair] {
   
   /** Get a list of indexes for this namespace */
   def listIndexes: Map[String, GenericNamespace] = {
-    updateIndexNamespaceCache()
+    updateCache()
     indexNamespacesCache.map { case (k, v) => (k, v._1) } toMap
   }
 
@@ -105,13 +116,14 @@ trait IndexManager[PairType <: AvroPair] {
     val indexKeySchema = Schema.createRecord(name + "Key", "", "", false)
     indexKeySchema.setFields(fields)
     
-    // add index catalogue entry
-    indexCatalogue.createChild(name, Array.empty, CreateMode.PERSISTENT)
-
     val indexNs = new GenericNamespace(toGlobalName(name), 5000, root, indexKeySchema, indexValueSchema)(cluster)
     // create the actual namespace with no partition strategy here 
     indexNs.create(List((None, cluster.getRandomServers(defaultReplicationFactor))))
     indexNamespacesCache += ((name -> (indexNs, generateFieldMapping(indexKeySchema))))
+
+    // add index catalogue entry- causes other clients to be notified if they
+    // are watching
+    indexCatalogue.createChild(name, Array.empty, CreateMode.PERSISTENT)
     indexNs
   }
 
@@ -133,14 +145,13 @@ trait IndexManager[PairType <: AvroPair] {
     rec
   }
 
-  protected def makeIndexFor(key: GenericRecord, value: Option[GenericRecord], indexKeySchema: Schema, mapping: Seq[Either[Int, Int]]): Option[GenericRecord] = {
+  protected def makeIndexFor(key: GenericRecord, value: GenericRecord, indexKeySchema: Schema, mapping: Seq[Either[Int, Int]]): GenericRecord = {
     val rec = new GenericData.Record(indexKeySchema)
-    mapping.zipWithIndex.foldLeft(Option(rec)) { case (optRec, (map, idx)) =>
-      optRec.flatMap(r => map match {
-        case Left(keyPos) => rec.put(idx, key.get(keyPos)); Some(rec)
-        case Right(valuePos) => value.map(v => { rec.put(idx, v.get(valuePos)); rec })
-      })
-    }
+    mapping.map(m => m match {
+      case Left(keyPos) => key.get(keyPos)
+      case Right(valuePos) => value.get(valuePos)
+    }).zipWithIndex.foreach { case (elem, idx) => rec.put(idx, elem) }
+    rec
   }
 
   // must put at least 1 field in the dummy value schema otherwise writes will

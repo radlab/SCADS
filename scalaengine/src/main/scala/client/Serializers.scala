@@ -244,28 +244,31 @@ class PairNamespace[PairType <: AvroPair]
     (rangeType.key, rangeType.value)
 
   /** Override put to do index maintainence. 
-   * TODO: we are not really doing this the optimal way. we need a way to
-   * track the stale values of key/value pairs, so that we only update indexes
-   * when necessary. Right now with this interface, we can only assume the
-   * worst and update indexes every time. Another option is to do a get(key)
-   * to see what updates need to be made, but then each put becomes much more
-   * expensive. I think the better solution is to add another field to
-   * AvroPair which is a GenericRecord, which contains the old data, and add
-   * put(pair) and delete(pair) which takes advantage of this old data for
-   * index maintainence.
-   * 
-   * TODO: there is a small issue when put(key, None) is called, and an index
-   * exists which cannot be built from the key alone. Should we issue a get
-   * request to figure out how to delete the index, or just leave it? Right
-   * now it just leaves it alone */
+   * Note that this issues a get request first, to determine how to update the
+   * index
+   */
   override def put(key: GenericRecord, value: Option[GenericRecord]): Unit = {
-    super.put(key, value)
+    val optOldValue = get(key)
     indexCache.values.foreach { case (ns, mapping) =>
-      makeIndexFor(key, value, ns.keySchema, mapping).foreach(idx => ns.put(idx, value.map(v => dummyIndexValue)))
+      val optOldIndex = optOldValue.map(oldValue => makeIndexFor(key, oldValue.value, ns.keySchema, mapping))
+      value match {
+        case None => // delete old index (if it exists)
+          optOldIndex.foreach(oldIndex => ns.put(oldIndex, None))
+        case Some(newValue) => // update index if necessary, deleting stale ones if necessary
+          val newIndex = makeIndexFor(key, newValue, ns.keySchema, mapping)
+          val optStaleValue = optOldIndex.flatMap(oldIndex => if (oldIndex != newIndex) Some(oldIndex) else None)
+          optStaleValue.foreach(staleValue => ns.put(staleValue, None))
+          if (optOldValue.isEmpty || optStaleValue.isDefined)
+            ns.put(newIndex, dummyIndexValue)
+      }
     }
+    // put the actual key/value pair AFTER index maintainence
+    super.put(key, value)
   }
 
-  /** Override bulkLoadCallback to do index maintainence */
+  /** Override bulkLoadCallback to do index maintainence. Note that ++= for
+   * PairNamespace assumes that all the records passed to it are new records,
+   * and thus makes no effort to delete old indexes. */
   override protected def bulkLoadCallback(elems: Seq[PairType]): Unit = {
     // TODO: use pforeach?
     indexCache.values.foreach { case (ns, mapping) =>
