@@ -94,3 +94,10 @@ case class QuorumProtocolConfig(var readQuorum : Double, var writeQuorum : Doubl
 case class KeyRange(var startKey: Option[Array[Byte]], var servers : Seq[PartitionService]) extends AvroRecord
 case class RoutingTableMessage(var partitions: Seq[KeyRange]) extends AvroRecord
 
+/* Schema for PIQL modeling */
+case class ExecutionTrace(var timestamp: Long, var thread: String, var event: TraceEvent) extends AvroRecord
+
+sealed trait TraceEvent extends AvroUnion
+case class QueryEvent(var queryName: String, var action: String) extends AvroRecord with TraceEvent
+case class IteratorEvent(var iteratorName: String, var planId: Int, var operation: String) extends AvroRecord with TraceEvent
+case class MessageEvent(var message: Message) extends AvroRecord with TraceEvent
