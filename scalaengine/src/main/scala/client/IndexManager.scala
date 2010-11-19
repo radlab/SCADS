@@ -124,6 +124,12 @@ trait IndexManager[PairType <: AvroPair] {
     // add index catalogue entry- causes other clients to be notified if they
     // are watching
     indexCatalogue.createChild(name, Array.empty, CreateMode.PERSISTENT)
+
+    // check if data exists already. if so, warn that indexes will NOT be
+    // created for existing records
+    if (!getRange(None, None, limit=Some(1)).isEmpty)
+      logger.warning("WARNING: Indexes will not be created for previous existing records!")
+
     indexNs
   }
 
