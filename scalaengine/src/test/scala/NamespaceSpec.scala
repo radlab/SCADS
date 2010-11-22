@@ -1,6 +1,6 @@
 package edu.berkeley.cs.scads.test
 
-import org.scalatest.Spec
+import org.scalatest.{ BeforeAndAfterAll, Spec }
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.matchers.ShouldMatchers
 
@@ -10,14 +10,22 @@ import edu.berkeley.cs.scads.storage._
 import edu.berkeley.cs.scads.comm._
 
 @RunWith(classOf[JUnitRunner])
-class NamespaceSpec extends Spec with ShouldMatchers {
+class NamespaceSpec extends Spec with ShouldMatchers with BeforeAndAfterAll {
 
   val storageHandlers = TestScalaEngine.getTestHandler(5)
-  val cluster = TestScalaEngine.getTestCluster()
+  val cluster = TestScalaEngine.getTestClusterWithoutAllocation()
+
+  override def afterAll(): Unit = {
+    storageHandlers foreach (_.stop)
+    assert(cluster.getAvailableServers.isEmpty, "NamespaceSpec did not clean up servers")
+  }
+
+  implicit def toStorageService(ra: RemoteActor): StorageService = 
+    StorageService(ra.host, ra.port, ra.id)
 
   describe("Namespace") {
     it("should properly delete namespaces") {
-      val servers = cluster.getRandomServers(5).toSeq
+      val servers = storageHandlers.map(sh => toStorageService(sh.remoteHandle)).toIndexedSeq
       val ns = cluster.createNamespace[IntRec, StringRec](
         "deletetest",
         Seq((None, List(servers(0))), // [-inf, 25)
@@ -38,6 +46,7 @@ class NamespaceSpec extends Spec with ShouldMatchers {
         case Some(k) => fail("Should not have retained data: %s".format(k))
       })
 
+      ns1.delete()
     }
   }
 

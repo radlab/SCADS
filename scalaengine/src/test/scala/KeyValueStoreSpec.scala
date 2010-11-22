@@ -2,7 +2,7 @@ package edu.berkeley.cs.scads.test
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.Spec
+import org.scalatest.{ BeforeAndAfterAll, Spec }
 import org.scalatest.matchers.ShouldMatchers
 
 import edu.berkeley.cs.scads.comm._
@@ -14,10 +14,15 @@ import org.apache.avro.util.Utf8
 import net.lag.logging.Logger
 
 @RunWith(classOf[JUnitRunner])
-class KeyValueStoreSpec extends Spec with ShouldMatchers {
+class KeyValueStoreSpec extends Spec with ShouldMatchers with BeforeAndAfterAll {
   val storageHandlers = TestScalaEngine.getTestHandler(5)
-  val cluster = TestScalaEngine.getTestCluster()
+  val cluster = TestScalaEngine.getTestClusterWithoutAllocation()
   val logger = Logger()
+
+  override def afterAll(): Unit = {
+    storageHandlers foreach (_.stop)
+    assert(cluster.getAvailableServers.isEmpty, "KeyValueStoreSpec did not clean up servers")
+  }
 
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
@@ -40,7 +45,7 @@ class KeyValueStoreSpec extends Spec with ShouldMatchers {
     }
 
     it("should delete data") {
-      val ns = cluster.getNamespace[IntRec, StringRec]("deletetest")
+      val ns = cluster.getNamespace[IntRec, StringRec]("kvstore_deletetest")
 
       /* Insert Integers 1-100 */
       (1 to 100).foreach(i => ns.put(IntRec(i), StringRec(i.toString)))

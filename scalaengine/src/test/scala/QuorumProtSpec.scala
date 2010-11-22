@@ -3,20 +3,28 @@ import edu.berkeley.cs.scads.storage.{ScadsCluster, SpecificNamespace, TestScala
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.matchers.ShouldMatchers
-import org.scalatest.{WordSpec, Spec}
+import org.scalatest.{ BeforeAndAfterAll, WordSpec }
 import edu.berkeley.cs.scads.comm._
 
 import java.util.concurrent.ConcurrentHashMap
 
 @RunWith(classOf[JUnitRunner])
-class QuorumProtSpec extends WordSpec with ShouldMatchers {
+class QuorumProtSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll {
 
   val storageHandlers = (1 to 10).map(_ => TestScalaEngine.getTestHandler)
-  val cluster = TestScalaEngine.getTestCluster()
+  val cluster = TestScalaEngine.getTestClusterWithoutAllocation()
   
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
-  val storageServers =  cluster.getAvailableServers
+  implicit def toStorageService(ra: RemoteActor): StorageService = 
+    StorageService(ra.host, ra.port, ra.id)
+
+  val storageServers = storageHandlers.map(sh => toStorageService(sh.remoteHandle)).toIndexedSeq
+
+  override def afterAll(): Unit = {
+    storageHandlers foreach (_.stop)
+    assert(cluster.getAvailableServers.isEmpty, "QuorumProtSpec did not clean up servers")
+  }
 
   def createNS(name : String, repFactor : Int, readQuorum : Double, writeQuorum : Double) : SpecificNamespace[IntRec, IntRec] = {
     require(repFactor <= 10)
@@ -42,22 +50,22 @@ class QuorumProtSpec extends WordSpec with ShouldMatchers {
     private val blockedSenders   = new ConcurrentHashMap[ActorId, Object]
     private val blockedReceivers = new ConcurrentHashMap[ActorId, Object]
 
-    def blockSenders(ra: List[RemoteActorProxy]) = ra foreach blockSender 
+    def blockSenders(ra: Seq[RemoteActorProxy]) = ra foreach blockSender 
     def blockSender(ra: RemoteActorProxy) {
       blockedSenders.put(ra.id, V)
     }
 
-    def unblockSenders(ra: List[RemoteActorProxy]) = ra foreach unblockSender 
+    def unblockSenders(ra: Seq[RemoteActorProxy]) = ra foreach unblockSender 
     def unblockSender(ra: RemoteActorProxy) {
       blockedSenders.remove(ra.id)
     }
 
-    def blockReceivers(ra: List[RemoteActorProxy]) = ra foreach blockReceiver 
+    def blockReceivers(ra: Seq[RemoteActorProxy]) = ra foreach blockReceiver 
     def blockReceiver(ra: RemoteActorProxy) {
       blockedReceivers.put(ra.id, V)
     }
 
-    def unblockReceivers(ra: List[RemoteActorProxy]) = ra foreach unblockReceiver 
+    def unblockReceivers(ra: Seq[RemoteActorProxy]) = ra foreach unblockReceiver 
     def unblockReceiver(ra: RemoteActorProxy) {
       blockedReceivers.remove(ra.id)
     }
