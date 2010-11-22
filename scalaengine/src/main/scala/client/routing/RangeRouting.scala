@@ -21,11 +21,11 @@ private[storage] object RoutingProtocol {
   val ZOOKEEPER_PARTITION_ID = "partitionid"
 }
 
-trait RoutingProtocol[KeyType <: IndexedRecord, 
-                      ValueType <: IndexedRecord, 
+trait RoutingProtocol[KeyType <: IndexedRecord,
+                      ValueType <: IndexedRecord,
                       RecordType <: IndexedRecord,
                       RType] {
-  this: Namespace[KeyType, ValueType, RecordType, RType] with AvroSerializing[KeyType, ValueType, RecordType, RType] =>
+  // this: Namespace[KeyType, ValueType, RecordType, RType] with AvroSerializing[KeyType, ValueType, RecordType, RType] =>
 
   import RoutingProtocol._
 
@@ -57,14 +57,14 @@ trait RoutingProtocol[KeyType <: IndexedRecord,
 
   onDelete {
     val storageHandlers = routingTable.rTable.flatMap(_.values.map(_.storageService)).toSet
-    storageHandlers foreach { handler => 
+    storageHandlers foreach { handler =>
       handler !? DeleteNamespaceRequest(namespace) match {
-        case DeleteNamespaceResponse() => 
+        case DeleteNamespaceResponse() =>
           logger.info("Successfully deleted namespace %s on StorageHandler %s", namespace, handler)
         case InvalidNamespace(_) =>
           logger.error("Got invalid namespace error for namespace %s on StorageService %s", namespace, handler)
         case e =>
-          logger.error("Unexpected message from DeleteNamespaceRequest: %s", e) 
+          logger.error("Unexpected message from DeleteNamespaceRequest: %s", e)
       }
     }
     routingTable = null
