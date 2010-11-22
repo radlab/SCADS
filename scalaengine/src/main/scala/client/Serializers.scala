@@ -200,7 +200,7 @@ class PairNamespace[PairType <: AvroPair]
    val root: ZooKeeperProxy#ZooKeeperNode)
   (implicit val cluster: ScadsCluster, pairType: Manifest[PairType])
     extends Namespace[GenericRecord, GenericRecord, PairType, PairType]
-    with    RoutingProtocol[GenericRecord, GenericRecord, PairType, PairType] 
+    with    RangeRouting[GenericRecord, GenericRecord, PairType, PairType] 
     with    SimpleMetaData[GenericRecord, GenericRecord, PairType, PairType]
     with    QuorumProtocol[GenericRecord, GenericRecord, PairType, PairType]
     with    AvroSerializing[GenericRecord, GenericRecord, PairType, PairType]
@@ -289,7 +289,7 @@ class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecif
      val root: ZooKeeperProxy#ZooKeeperNode)
     (implicit val cluster: ScadsCluster, keyType: Manifest[KeyType], valueType: Manifest[ValueType])
         extends Namespace[KeyType, ValueType, ValueType, (KeyType, ValueType)]
-        with    RoutingProtocol[KeyType, ValueType, ValueType, (KeyType, ValueType)] 
+        with    RangeRouting[KeyType, ValueType, ValueType, (KeyType, ValueType)] 
         with    SimpleMetaData[KeyType, ValueType, ValueType, (KeyType, ValueType)]
         with    QuorumProtocol[KeyType, ValueType, ValueType, (KeyType, ValueType)]
         with    AvroSerializing[KeyType, ValueType, ValueType, (KeyType, ValueType)] {
@@ -327,7 +327,7 @@ class GenericNamespace(val namespace: String,
                        override val valueSchema: Schema)
                       (implicit val cluster : ScadsCluster)
     extends Namespace[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)]
-    with    RoutingProtocol[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)] 
+    with    RangeRouting[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)] 
     with    SimpleMetaData[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)]
     with    QuorumProtocol[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)]
     with    AvroSerializing[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)] {
