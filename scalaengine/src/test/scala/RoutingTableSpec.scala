@@ -11,9 +11,8 @@ import edu.berkeley.cs.scads.storage._
 
 @RunWith(classOf[JUnitRunner])
 class RoutingTableSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll {
-  val storageNodes = TestScalaEngine.getTestHandler(10)
-  val client1 = TestScalaEngine.getTestClusterWithoutAllocation()
-  val storageServices = storageNodes.map(sh => toStorageService(sh.remoteHandle)).toList
+  val client1 = TestScalaEngine.newScadsCluster(10)
+  val storageServices = client1.managedServices.toList
 
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
@@ -27,8 +26,7 @@ class RoutingTableSpec extends WordSpec with ShouldMatchers with BeforeAndAfterA
     StorageService(ra.host, ra.port, ra.id)
 
   override def afterAll(): Unit = {
-    storageNodes foreach (_.stop)
-    assert(client1.getAvailableServers.isEmpty, "RoutingTableSpec did not clean up servers")
+    client1.shutdownCluster()
   }
 
   "A Routing Table" should {

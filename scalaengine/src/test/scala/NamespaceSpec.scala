@@ -12,20 +12,15 @@ import edu.berkeley.cs.scads.comm._
 @RunWith(classOf[JUnitRunner])
 class NamespaceSpec extends Spec with ShouldMatchers with BeforeAndAfterAll {
 
-  val storageHandlers = TestScalaEngine.getTestHandler(5)
-  val cluster = TestScalaEngine.getTestClusterWithoutAllocation()
+  val cluster = TestScalaEngine.newScadsCluster(5)
 
   override def afterAll(): Unit = {
-    storageHandlers foreach (_.stop)
-    assert(cluster.getAvailableServers.isEmpty, "NamespaceSpec did not clean up servers")
+    cluster.shutdownCluster()
   }
-
-  implicit def toStorageService(ra: RemoteActor): StorageService = 
-    StorageService(ra.host, ra.port, ra.id)
 
   describe("Namespace") {
     it("should properly delete namespaces") {
-      val servers = storageHandlers.map(sh => toStorageService(sh.remoteHandle)).toIndexedSeq
+      val servers = cluster.managedServices 
       val ns = cluster.createNamespace[IntRec, StringRec](
         "deletetest",
         Seq((None, List(servers(0))), // [-inf, 25)

@@ -11,19 +11,13 @@ import java.util.concurrent.ConcurrentHashMap
 @RunWith(classOf[JUnitRunner])
 class QuorumProtSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll {
 
-  val storageHandlers = (1 to 10).map(_ => TestScalaEngine.getTestHandler)
-  val cluster = TestScalaEngine.getTestClusterWithoutAllocation()
-  
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
-  implicit def toStorageService(ra: RemoteActor): StorageService = 
-    StorageService(ra.host, ra.port, ra.id)
-
-  val storageServers = storageHandlers.map(sh => toStorageService(sh.remoteHandle)).toIndexedSeq
+  val cluster = TestScalaEngine.newScadsCluster(10)
+  val storageServers = cluster.managedServices.toIndexedSeq
 
   override def afterAll(): Unit = {
-    storageHandlers foreach (_.stop)
-    assert(cluster.getAvailableServers.isEmpty, "QuorumProtSpec did not clean up servers")
+    cluster.shutdownCluster()
   }
 
   def createNS(name : String, repFactor : Int, readQuorum : Double, writeQuorum : Double) : SpecificNamespace[IntRec, IntRec] = {

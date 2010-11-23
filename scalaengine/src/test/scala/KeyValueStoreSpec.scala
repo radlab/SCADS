@@ -15,13 +15,11 @@ import net.lag.logging.Logger
 
 @RunWith(classOf[JUnitRunner])
 class KeyValueStoreSpec extends Spec with ShouldMatchers with BeforeAndAfterAll {
-  val storageHandlers = TestScalaEngine.getTestHandler(5)
-  val cluster = TestScalaEngine.getTestClusterWithoutAllocation()
+  val cluster = TestScalaEngine.newScadsCluster(5)
   val logger = Logger()
 
   override def afterAll(): Unit = {
-    storageHandlers foreach (_.stop)
-    assert(cluster.getAvailableServers.isEmpty, "KeyValueStoreSpec did not clean up servers")
+    cluster.shutdownCluster()
   }
 
   implicit def toOption[A](a: A): Option[A] = Option(a)

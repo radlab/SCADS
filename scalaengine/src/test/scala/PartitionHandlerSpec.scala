@@ -12,12 +12,14 @@ import edu.berkeley.cs.scads.storage._
 class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterAll {
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
+  val cluster = TestScalaEngine.newScadsCluster(0)
+
   override def afterAll(): Unit = {
-    assert(TestScalaEngine.getTestClusterWithoutAllocation.getAvailableServers.isEmpty, "PartitionHandlerSpec did not clean up servers")
+    cluster.shutdownCluster()
   }
 
   def withPartitionService(startKey: Option[IntRec] = None, endKey: Option[IntRec] = None)(f: PartitionService => Unit): Unit = {
-    val handler = TestScalaEngine.getTestHandler()
+    val handler = cluster.addNode()
     val root = handler.root
 
     root.getOrCreate("namespaces/partitiontestns/keySchema").data = IntRec.schema.toString.getBytes
@@ -30,7 +32,6 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterA
     }
 
     f(service)
-    handler.stop
   }
 
   describe("PatitionHandler") {
