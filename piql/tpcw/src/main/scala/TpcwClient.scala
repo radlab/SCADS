@@ -57,7 +57,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * order by I_PUB_DATE desc,I_TITLE
    */
   //TODO Still missing the like operator. Does the like really work here???
-  private lazy val newProductPlan = 
+  private lazy val newProductPlan =
     IndexLookupJoin(  //(itemSubjectDateTitleIndex, itemKey, itemKey, ItemValue, authorKey, authorValue)
       author,
       projection(3, 1), //(itemSubjectDateTitleIndex, itemKey, itemKey, ItemValue)
@@ -76,7 +76,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * SELECT DISTINCT * FROM ITEM,AUTHOR
    * WHERE AUTHOR.A_ID = ITEM.I_A_ID AND ITEM.I_ID = @BookID
    */
-  private lazy val productDetailPlan = 
+  private lazy val productDetailPlan =
     IndexLookupJoin( //(ItemKey, ItemValue, AuthorKey, AuthorValue)
       author,
       projection(1, 1), //(ItemKey, ItemValue)
@@ -120,7 +120,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
         StopAfter(
           FixedLimit(50),
           IndexScan(
-            itemTitleIndex, 
+            itemTitleIndex,
             firstPara,
             FixedLimit(50),
             true
@@ -158,13 +158,13 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * DECLARE @O_ID numeric(10) select @O_ID = max(O_ID)from ORDERS where
    * O_C_ID=@C_ID
 
-   * SELECT 
+   * SELECT
    *   C_FNAME,C_LNAME,C_EMAIL,C_PHONE,
    *   O_ID,O_DATE,O_SUBTOTAL,O_TAX,O_TOTAL,O_SHIP_TYPE,O_SHIP_DATE,
    *   O_BILL_ADDR,O_SHIP_ADDR,O_CC_TYPE,O_STATUS,
    *   ADDR_STREET1,ADDR_STREET2,ADDR_CITY,ADDR_STATE,ADDR_ZIP,CO_NAME
    * FROM CUSTOMER,ADDRESS,COUNTRY,ORDERS
-   * where       
+   * where
    *   O_ID=@O_ID and
    *   C_ID=@C_ID and
    *   O_BILL_ADDR=ADDR_ID AND
@@ -177,17 +177,17 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       Equality(AttributeValue(1, 0), ParameterValue(1)),
       IndexLookup(customer, paraSelector(0))  // CustomerName, (C_PASSWD, C_FNAME, C_LNAME,....)
     )
-  def orderDisplayCustomerWI(cName : String, cPassword : String) = 
+  def orderDisplayCustomerWI(cName : String, cPassword : String) =
     exec(orderDisplayCustomerPlan, new Utf8(cName), new Utf8(cPassword))
 
   private lazy val orderDisplayLastOrder =
-    IndexLookupJoin( // (C_UNAME, O_DATE, O_ID), NullRecord, (O_ID), (O_C_ID, O_DATE_Time, ...) 
+    IndexLookupJoin( // (C_UNAME, O_DATE, O_ID), NullRecord, (O_ID), (O_C_ID, O_DATE_Time, ...)
       order,
       Array(AttributeValue(0, 2)),
       StopAfter( // (C_UNAME, O_DATE, O_ID), NullRecord
         FixedLimit(1),
         IndexScan(
-          customerOrderIndex, 
+          customerOrderIndex,
           firstPara,
           FixedLimit(1),
           false
@@ -203,13 +203,13 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       Array(AttributeValue(1, 5)),
       IndexLookup(address, firstPara) // (ADDR_ID), (ADDR_STREET_1, ...)
     )
-  def orderDisplayGetAddressInfoWI(addr_id: String) = 
+  def orderDisplayGetAddressInfoWI(addr_id: String) =
     exec(orderDisplayGetAddressInfo, new Utf8(addr_id))
 
   private lazy val orderDisplayGetOrderLines =
-    IndexLookupJoin( // (OL_O_ID, OL_ID), (OL_I_ID, ...), (I_ID), (I_TITLE, ...) 
+    IndexLookupJoin( // (OL_O_ID, OL_ID), (OL_I_ID, ...), (I_ID), (I_TITLE, ...)
       item,
-      Array(AttributeValue(1, 0)), 
+      Array(AttributeValue(1, 0)),
       StopAfter( // (OL_O_ID, OL_ID), (OL_I_ID, ...)
         ParameterLimit(1, maxOrderLinesPerPage),
         IndexScan(
@@ -220,12 +220,12 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
         )
       )
     )
-  def orderDisplayGetOrderLinesWI(o_id: String, numOrderLinesPerPage: Int) = 
+  def orderDisplayGetOrderLinesWI(o_id: String, numOrderLinesPerPage: Int) =
     exec(orderDisplayGetOrderLines, new Utf8(o_id), numOrderLinesPerPage)
 
 
   def orderDisplayWI(c_uname: String, c_passwd: String, numOrderLinesPerPage: Int) = {
-    val cust = orderDisplayCustomerWI(c_uname, c_passwd) 
+    val cust = orderDisplayCustomerWI(c_uname, c_passwd)
     assert(!cust.isEmpty, "No user found with UNAME %s, PASSWD %s".format(c_uname, c_passwd))
     val lastOrder = orderDisplayLastOrderWI(c_uname)
     if (lastOrder.isEmpty) Seq.empty // no orders for this user
@@ -247,14 +247,14 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
         true
       )
     )
-  def retrieveShoppingCart(c_uname: String) = 
+  def retrieveShoppingCart(c_uname: String) =
     exec(retrieveShoppingCartPlan, new Utf8(c_uname))
 
   private lazy val retrieveItemPlan =
     IndexLookup(
       item,
       firstPara)
-  def retrieveItem(itemId: String) = 
+  def retrieveItem(itemId: String) =
     exec(retrieveItemPlan, new Utf8(itemId))
 
   /**
@@ -274,7 +274,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
         case None => // no action
       }
     }
-    val newCart = cart ++ itemsMap.map { case (k, v) => 
+    val newCart = cart ++ itemsMap.map { case (k, v) =>
       val item      = retrieveItem(k)
       val itemKey   = item(0)(0).toSpecificRecord[ItemKey]
       val itemValue = item(0)(1).toSpecificRecord[ItemValue]
@@ -300,14 +300,14 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * where C_ADDR_ID=ADDR_ID and ADDR_CO_ID=CO_ID and C_ID = @C_ID
    */
 
-  private def buyRequestCustomerWI(cName : String, cPassword : String) = 
+  private def buyRequestCustomerWI(cName : String, cPassword : String) =
     exec(orderDisplayCustomerPlan, new Utf8(cName), new Utf8(cPassword))
 
-  private lazy val buyRequestAddrCoPlan = 
+  private lazy val buyRequestAddrCoPlan =
     IndexLookupJoin( // (C_UNAME), (C_PASSWD, ...), (ADDR_ID), (ADDR_STREET1, ...), (CO_ID), (CO_NAME, ...)
-      country, 
+      country,
       Array(AttributeValue(3, 5)),
-      IndexLookupJoin( // (C_UNAME), (C_PASSWD, ...), (ADDR_ID), (ADDR_STREET1, ...)  
+      IndexLookupJoin( // (C_UNAME), (C_PASSWD, ...), (ADDR_ID), (ADDR_STREET1, ...)
         address,
         Array(AttributeValue(1, 3)),
         IndexLookup( // (C_UNAME), (C_PASSWD, ...)
@@ -320,9 +320,9 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     exec(buyRequestAddrCoPlan, new Utf8(c_uname))
 
   def buyRequestExistingWI(c_uname: String, c_passwd: String) = {
-    val cust = orderDisplayCustomerWI(c_uname, c_passwd) 
+    val cust = orderDisplayCustomerWI(c_uname, c_passwd)
     assert(!cust.isEmpty, "No user found with UNAME %s, PASSWD %s".format(c_uname, c_passwd))
-    buyRequestAddrCoWI(c_uname) 
+    buyRequestAddrCoWI(c_uname)
     val (k, v) = (cust(0)(0).toSpecificRecord[CustomerKey],
                   cust(0)(1).toSpecificRecord[CustomerValue])
     v.C_LOGIN = System.currentTimeMillis
@@ -390,8 +390,8 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   /**
    * Returns the order ID
    */
-  def buyConfirmWI(c_uname: String, 
-                   cc_type: String, 
+  def buyConfirmWI(c_uname: String,
+                   cc_type: String,
                    cc_number: Int,
                    cc_name: String,
                    cc_expiry: Long,
@@ -412,7 +412,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     val sc_ship_cost = 3.0 + (1.0 * cart.size.toDouble)
     val sc_total = sc_sub_total + sc_tax + sc_ship_cost
 
-    def newUUID = 
+    def newUUID =
       UUID.randomUUID.toString
 
     // make order
@@ -460,7 +460,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     // credit card (PGE) auth stuff ignored...
 
     // make cc txn
-    val ccXactsKey = CcXactsKey(orderKey.O_ID)  
+    val ccXactsKey = CcXactsKey(orderKey.O_ID)
     val ccXactsValue = CcXactsValue(
       cc_type,
       cc_number,
@@ -489,7 +489,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       shoppingCartItem.put(k, None) // delete
     }
 
-    logger.debug("finished buy confirmation of %d items", cart.size) 
+    logger.debug("finished buy confirmation of %d items", cart.size)
 
     orderKey.O_ID
   }

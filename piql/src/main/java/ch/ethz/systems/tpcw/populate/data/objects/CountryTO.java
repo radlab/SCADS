@@ -6,7 +6,7 @@ public class CountryTO extends AbstractTO {
 	private String co_name;
 	private double co_exchange;
 	private String co_currency;
-	
+
 	public int getCo_id() {
 		return co_id;
 	}
@@ -31,7 +31,7 @@ public class CountryTO extends AbstractTO {
 	public void setCo_currency(String co_currency) {
 		this.co_currency = co_currency;
 	}
-	
-	
-	
+
+
+
 }

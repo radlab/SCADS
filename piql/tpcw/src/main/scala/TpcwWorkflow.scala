@@ -41,24 +41,24 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
   }
 
   object SearchResultType extends Enumeration {
-    val ByAuthor, ByTitle, BySubject = Value 
+    val ByAuthor, ByTitle, BySubject = Value
   }
   val SearchTypes = Vector(SearchResultType.ByAuthor,
                            SearchResultType.ByTitle,
                            SearchResultType.BySubject)
-  def randomSearchType = 
+  def randomSearchType =
     SearchTypes(random.nextInt(SearchTypes.size))
 
   def flipCoin(prob: Double) =
-    random.nextDouble < prob 
+    random.nextDouble < prob
 
-  def shouldCreateNewUser = 
+  def shouldCreateNewUser =
     flipCoin(0.2)
 
   def newUserName =
     UUID.randomUUID.toString
 
-  def randomUser = 
+  def randomUser =
     loader.toCustomer(random.nextInt(loader.numCustomers) + 1)
 
   def randomSubject =
@@ -67,13 +67,13 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
   def randomItem =
     loader.toItem(random.nextInt(loader.numItems) + 1)
 
-  def randomAuthor = 
+  def randomAuthor =
     loader.toAuthor(random.nextInt(loader.numAuthors) + 1)
 
   def randomShipType =
     shipTypes(random.nextInt(shipTypes.length))
 
-  def randomCreditCardType = 
+  def randomCreditCardType =
     ccTypes(random.nextInt(ccTypes.length))
 
   private val actions = new HashMap[ActionType.ActionType, Action]
@@ -106,7 +106,7 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
 
   /**
    * Advances the TPC-W markov chain model one state transition. returns a
-   * tuple of the state that was JUST completed (not the state that was transitioned to), 
+   * tuple of the state that was JUST completed (not the state that was transitioned to),
    * and a boolean flag whether or not it was actually executed (false if punted)
    */
   def executeMix(): (ActionType.ActionType, Boolean) = {
@@ -116,7 +116,7 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
 
         // NOTE: technically this should be done in the customer reg
         // phase, but we're doing it here...
-        val (k, v) = 
+        val (k, v) =
           if (shouldCreateNewUser) {
             val (k0, v0) = loader.createCustomer(0)
             k0.C_UNAME = newUserName // use a random UUID for a username
@@ -138,7 +138,7 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
         val subject = randomSubject
         loader.client.newProductWI(subject)
       }
-      case Action(ActionType.ProductDetail, _) => 
+      case Action(ActionType.ProductDetail, _) =>
         logger.debug("ProductDetail")
         val item = randomItem
         loader.client.productDetailWI(item)
@@ -199,8 +199,8 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
         logger.debug("BuyConfirm")
 
         val cc_type = randomCreditCardType
-        val cc_number = Utils.getRandomNString(16) 
-        val cc_name = Utils.getRandomAString(14, 30) 
+        val cc_number = Utils.getRandomNString(16)
+        val cc_name = Utils.getRandomAString(14, 30)
         val cc_expiry = {
           import java.util.Calendar
           val cal = Utils.getCalendar
@@ -223,7 +223,7 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
       case Action(ActionType.AdminConfirm, _) =>
         logger.debug("AdminConfirm")
         // NO-OP! we pondered very deeply about whether or not to run this
-        // query, and then we said no :) 
+        // query, and then we said no :)
       case Action(ActionType.BestSeller, _) =>
         // NO-OP b/c this is another analytics query
       case Action(tpe, _) =>
@@ -236,7 +236,7 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
     assert(action.isDefined)
     val nextAction0 = nextAction
     nextAction = action.get._2
-    (nextAction0.action, !(nextAction0.action == ActionType.AdminConfirm || 
+    (nextAction0.action, !(nextAction0.action == ActionType.AdminConfirm ||
                            nextAction0.action == ActionType.BestSeller))
  }
 }

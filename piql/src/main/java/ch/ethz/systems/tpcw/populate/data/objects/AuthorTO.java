@@ -8,7 +8,7 @@ public class AuthorTO extends AbstractTO {
 	private String a_lname;
 	private long a_dob;
 	private String a_bio;
-	
+
 	public int getA_id() {
 		return a_id;
 	}
@@ -45,5 +45,5 @@ public class AuthorTO extends AbstractTO {
 	public void setA_bio(String a_bio) {
 		this.a_bio = a_bio;
 	}
-	
+
 }

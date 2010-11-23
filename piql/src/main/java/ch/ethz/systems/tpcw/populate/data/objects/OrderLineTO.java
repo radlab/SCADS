@@ -8,7 +8,7 @@ public class OrderLineTO extends AbstractTO {
 	private int ol_qty;
 	private double ol_discount;
 	private String ol_comments;
-	
+
 	public int getOl_id() {
 		return ol_id;
 	}

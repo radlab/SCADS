@@ -41,7 +41,7 @@ case class ItemSubjectDateTitleIndexKey(
 
 case class ItemTitleIndexKey(
         var Token : String,
-        var Title : String, 
+        var Title : String,
         var I_ID : String
         ) extends AvroRecord
 
@@ -144,6 +144,6 @@ case class ShoppingCartItemKey(
 case class ShoppingCartItemValue(
         var SCL_QTY : Int,
         var SCL_COST : Double,
-        var SCL_I_SRP : Double, 
+        var SCL_I_SRP : Double,
         var SCL_I_TITLE : String,
         var SCL_I_BACKING : String) extends AvroRecord
