@@ -18,12 +18,19 @@ trait HashRouting[KeyType <: IndexedRecord,
 
   onCreate{
     ranges : Seq[(Option[KeyType], Seq[StorageService])]  => {
-      setup(ranges.map(a => (a._1.map(createRoutingKey(_)) , a._2 )))
+      val values = ranges.map(a => (a._1.map(createRoutingKey(_)) , a._2 ))
+
+      val sortedVal = values.sortWith((e1: Tuple2[Option[IntRec], Seq[StorageService]], e2: Tuple2[Option[IntRec], Seq[StorageService]]) =>
+        if(e2._1.isEmpty) false
+        else if (e2._1.isEmpty) true
+        else e1._1.get.f1 < e2._1.get.f1
+        )
+
+      setup(sortedVal)
     }
   }
 
-
-  protected var fieldPositions: Seq[Int]
+  var routingFieldPos: Seq[Int]
 
 
   override protected def deserializeRoutingKey(data: Array[Byte]) : IntRec = {
@@ -33,7 +40,7 @@ trait HashRouting[KeyType <: IndexedRecord,
   }
 
   protected def createRoutingKey(key : KeyType) : IntRec = {
-    var hash = fieldPositions.map(key.get(_).hashCode).reduceLeft(_ + _)
+    var hash = routingFieldPos.map(key.get(_).hashCode).reduceLeft(_ + _)
     IntRec(hash)
   }
 

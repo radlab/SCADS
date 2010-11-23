@@ -10,16 +10,16 @@ import org.apache.zookeeper.CreateMode
 
 import scala.collection.mutable.ListBuffer
 
-trait Namespace[KeyType <: IndexedRecord, 
+abstract class Namespace[KeyType <: IndexedRecord,
                 ValueType <: IndexedRecord, 
                 RecordType <: IndexedRecord,
                 RangeType]
+    (val namespace: String,
+     val timeout: Int,
+     val root: ZooKeeperProxy#ZooKeeperNode)  (implicit val cluster : ScadsCluster)
   extends KeyValueStore[KeyType, ValueType, RecordType, RangeType] {
 
-  val namespace: String
-  val timeout: Int
-  val root: ZooKeeperProxy#ZooKeeperNode
-  val cluster: ScadsCluster
+
 
   protected val logger: Logger = Logger()
   protected var nsRoot: ZooKeeperProxy#ZooKeeperNode = _

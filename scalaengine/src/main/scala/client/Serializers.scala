@@ -195,11 +195,11 @@ trait AvroSerializing[KeyType <: IndexedRecord,
 }
 
 class PairNamespace[PairType <: AvroPair]
-  (val namespace: String, 
-   val timeout: Int, 
-   val root: ZooKeeperProxy#ZooKeeperNode)
-  (implicit val cluster: ScadsCluster, pairType: Manifest[PairType])
-    extends Namespace[GenericRecord, GenericRecord, PairType, PairType]
+  (namespace: String,
+   timeout: Int,
+   root: ZooKeeperProxy#ZooKeeperNode)
+  (implicit override val cluster: ScadsCluster, pairType: Manifest[PairType])
+    extends Namespace[GenericRecord, GenericRecord, PairType, PairType] (namespace, timeout, root)
     with    RangeRouting[GenericRecord, GenericRecord, PairType, PairType] 
     with    SimpleMetaData[GenericRecord, GenericRecord, PairType, PairType]
     with    QuorumProtocol[GenericRecord, GenericRecord, PairType, PairType]
@@ -278,23 +278,16 @@ class PairNamespace[PairType <: AvroPair]
 
 }
 
-/**
- * Implementation of Scads Namespace that returns ScalaSpecificRecords
- * TODO: no reason to restrict to ScalaSpecificRecord. We could make this for
- * any SpecificRecords to be more general
- */
-class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord]
-    (val namespace: String, 
-     val timeout: Int, 
-     val root: ZooKeeperProxy#ZooKeeperNode)
-    (implicit val cluster: ScadsCluster, keyType: Manifest[KeyType], valueType: Manifest[ValueType])
-        extends Namespace[KeyType, ValueType, ValueType, (KeyType, ValueType)]
-        with    RangeRouting[KeyType, ValueType, ValueType, (KeyType, ValueType)] 
-        with    SimpleMetaData[KeyType, ValueType, ValueType, (KeyType, ValueType)]
-        with    QuorumProtocol[KeyType, ValueType, ValueType, (KeyType, ValueType)]
-        with    AvroSerializing[KeyType, ValueType, ValueType, (KeyType, ValueType)] {
 
-  lazy val keyReaderWriter = new AvroSpecificReaderWriter[KeyType] {
+trait SpecificNamespaceTrait[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord] extends
+    AvroSerializing[KeyType, ValueType, ValueType, (KeyType, ValueType)]
+{
+ this: Namespace[KeyType, ValueType, ValueType, (KeyType, ValueType)] =>
+
+ implicit val keyType: Manifest[KeyType]
+ implicit val valueType: Manifest[ValueType]
+  
+ lazy val keyReaderWriter = new AvroSpecificReaderWriter[KeyType] {
     lazy val resolver = keySchemaResolver
   }
 
@@ -303,14 +296,14 @@ class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecif
   }
 
   protected def deserializeRecordType(key: Array[Byte], value: Array[Byte]) =
-    deserializeValue(value) 
+    deserializeValue(value)
 
   protected def deserializeRangeType(key: Array[Byte], value: Array[Byte]) =
     (deserializeKey(key), deserializeValue(value))
 
-  protected def extractKeyValueFromRangeType(rangeType: (KeyType, ValueType)) = 
+  protected def extractKeyValueFromRangeType(rangeType: (KeyType, ValueType)) =
     rangeType
-  
+
   lazy val genericNamespace = createGenericVersion()
 
   private def createGenericVersion(): GenericNamespace = {
@@ -320,13 +313,52 @@ class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecif
   }
 }
 
-class GenericNamespace(val namespace: String,
-                       val timeout: Int,
-                       val root: ZooKeeperProxy#ZooKeeperNode,
+/**
+ * Implementation of Scads Namespace that returns ScalaSpecificRecords
+ * TODO: no reason to restrict to ScalaSpecificRecord. We could make this for
+ * any SpecificRecords to be more general
+ */
+class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord]
+    (namespace: String,
+     timeout: Int,
+     root: ZooKeeperProxy#ZooKeeperNode)
+    (implicit  override  val cluster: ScadsCluster, override val keyType: Manifest[KeyType], override val valueType: Manifest[ValueType])
+        extends Namespace[KeyType, ValueType, ValueType, (KeyType, ValueType)] (namespace, timeout, root)
+        with    RangeRouting[KeyType, ValueType, ValueType, (KeyType, ValueType)]
+        with    SimpleMetaData[KeyType, ValueType, ValueType, (KeyType, ValueType)]
+        with    QuorumProtocol[KeyType, ValueType, ValueType, (KeyType, ValueType)]
+        with    SpecificNamespaceTrait[KeyType, ValueType] {
+
+
+}
+
+/**
+ * Implementation of Scads Namespace that returns ScalaSpecificRecords
+ * TODO: no reason to restrict to ScalaSpecificRecord. We could make this for
+ * any SpecificRecords to be more general
+ */
+class SpecificHashRoutingNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord]
+    (namespace: String,
+     timeout: Int,
+     root: ZooKeeperProxy#ZooKeeperNode,
+     override var routingFieldPos : Seq[Int])
+    (implicit  override  val cluster: ScadsCluster, override val keyType: Manifest[KeyType], override val valueType: Manifest[ValueType])
+        extends Namespace[KeyType, ValueType, ValueType, (KeyType, ValueType)] (namespace, timeout, root)
+        with    HashRouting[KeyType, ValueType, ValueType, (KeyType, ValueType)] 
+        with    SimpleMetaData[KeyType, ValueType, ValueType, (KeyType, ValueType)]
+        with    QuorumProtocol[KeyType, ValueType, ValueType, (KeyType, ValueType)]
+        with    SpecificNamespaceTrait[KeyType, ValueType] {
+
+}
+
+
+class GenericNamespace(namespace: String,
+                       timeout: Int,
+                       root: ZooKeeperProxy#ZooKeeperNode,
                        override val keySchema: Schema,
                        override val valueSchema: Schema)
-                      (implicit val cluster : ScadsCluster)
-    extends Namespace[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)]
+                      (implicit  override  val cluster : ScadsCluster)
+    extends Namespace[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)] (namespace, timeout, root)
     with    RangeRouting[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)] 
     with    SimpleMetaData[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)]
     with    QuorumProtocol[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)]

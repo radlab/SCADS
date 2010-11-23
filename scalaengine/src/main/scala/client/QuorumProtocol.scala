@@ -112,6 +112,7 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
       (partition, values) 
     }
  }
+  
 
   def getAllRangeVersions(startKey: Option[KeyType], endKey: Option[KeyType]): Seq[(PartitionService, Seq[RangeType])] = {
     val ranges = serversForRange(startKey, endKey)
