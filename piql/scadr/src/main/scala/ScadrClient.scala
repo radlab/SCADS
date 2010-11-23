@@ -1,7 +1,10 @@
-package edu.berkeley.cs.scads.piql
+package edu.berkeley.cs
+package scads
+package piql
+package scadr
 
-import edu.berkeley.cs.scads.storage._
-import edu.berkeley.cs.avro.marker._
+import storage._
+import avro.marker._
 
 import org.apache.avro.util._
 
@@ -19,10 +22,10 @@ case class Subscription(var owner: String, var target: String) extends AvroPair 
 }
 
 case class HashTag(var tag: String, var timestamp: Int, var owner: String) extends AvroPair
-case class UserTarget(var target: String, var owner: String) extends AvroPair
 
 class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscriptions: Int = 5000) {
   val maxResultsPerPage = 10
+  implicit val exec = executor
 
   // namespaces are declared to be lazy so as to allow for manual
   // createNamespace calls to happen first (and after instantiating this
@@ -33,18 +36,7 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
   lazy val subscriptions = cluster.getNamespace[Subscription]("subscriptions")
   lazy val tags = cluster.getNamespace[HashTag]("tags")
 
-  lazy val idxUsersTarget = cluster.getNamespace[UserTarget]("idxUsersTarget")
-
-  private def exec(plan: QueryPlan, args: Any*) = {
-    val iterator = executor(plan, args:_*)
-    iterator.open
-    val ret = iterator.toList
-    iterator.close
-    ret
-
-  }
-
-  def findUser = users.where("username".a === (0.?))
+  def findUser = users.where("username".a === (0.?)).toPiql
 
   def thoughtstream = (
     subscriptions
@@ -54,6 +46,6 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
       .where("thoughts.owner".a === "subscriptions.target".a)
       .sort("timestamp" :: Nil, false)
       .limit(10)
-  )
+  ).toPiql
 
 }

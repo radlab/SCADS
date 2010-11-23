@@ -5,7 +5,7 @@ import java.{ util => ju }
 /**
  * A PageResult is returned for a paginated query.
  *
- * Note: Assumes iterator has not been open yet 
+ * Note: Assumes iterator has not been open yet
  */
 class PageResult(private val iterator: QueryIterator, val elemsPerPage: Int) extends Iterator[QueryResult] {
   assert(elemsPerPage > 0)

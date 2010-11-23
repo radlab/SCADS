@@ -25,7 +25,7 @@ trait QueryExecutor {
   def apply(plan: QueryPlan)(implicit ctx: Context): QueryIterator
 
   protected def bindValue(value: Value, currentTuple: Tuple)(implicit ctx: Context): Any = value match {
-    case FixedValue(v) => v
+    case ConstantValue(v) => v
     case ParameterValue(o) => ctx.parameters(o)
     case AttributeValue(recPos, fieldPos) => currentTuple(recPos).get(fieldPos)
   }
@@ -94,7 +94,7 @@ class SimpleExecutor extends QueryExecutor {
 
         def hasNext = result.isDefined
         def next = {
-          val tuple = ArrayBuffer(boundKey, result.getOrElse(throw new ju.NoSuchElementException("Next on empty iterator")))
+          val tuple = ArrayBuffer(result.getOrElse(throw new ju.NoSuchElementException("Next on empty iterator")))
           result = None
           tuple
         }
@@ -120,12 +120,12 @@ class SimpleExecutor extends QueryExecutor {
               limitReached = true
           }
 
-          def open: Unit = doFetch() 
+          def open: Unit = doFetch()
 
           def close: Unit =
             result = Nil
 
-          def hasNext = 
+          def hasNext =
             if (pos < result.size) true
             else if (limitReached) false
             else {
@@ -240,24 +240,24 @@ class SimpleExecutor extends QueryExecutor {
         private def getNext: Unit = {
 
           // find the first available buffer
-          var minIdx = -1 
+          var minIdx = -1
           var idx = 0
           while (minIdx == -1 && idx < tupleBuffers.size) {
 
             // if this buffer has already been scanned over but we can still fetch from KV store
-            if (bufferPos(idx) == tupleBuffers(idx).size && !bufferLimitReached(idx)) { 
+            if (bufferPos(idx) == tupleBuffers(idx).size && !bufferLimitReached(idx)) {
               fillBuffer(idx) // do the fetch
             }
 
             // if there is a buffer with contents, then we've found the start
-            if (bufferPos(idx) < tupleBuffers(idx).size) { 
+            if (bufferPos(idx) < tupleBuffers(idx).size) {
               minIdx = idx
             }
             idx += 1
           }
 
           if (minIdx == -1) nextTuple = null
-          else { 
+          else {
             for(i <- ((minIdx + 1) to (tupleBuffers.size - 1))) {
               if (bufferPos(i) == tupleBuffers(i).size && !bufferLimitReached(i)) {
                 fillBuffer(i)
@@ -271,7 +271,7 @@ class SimpleExecutor extends QueryExecutor {
               }
             }
             nextTuple = tupleBuffers(minIdx)(bufferPos(minIdx))
-            bufferPos(minIdx) += 1 
+            bufferPos(minIdx) += 1
             // NO prefetching here if minIdx buffer becomes entirely scanned-
             // this is unlike ParallelIndexMergeJoin which does a prefetch for
             // this case
@@ -322,7 +322,7 @@ class SimpleExecutor extends QueryExecutor {
         def next = {taken += 1; childIterator.next}
       }
     }
-    
+
     case Union(chil1, child2, eqField)  =>{
       throw new RuntimeException("Not yet implemented")
     }
@@ -339,7 +339,7 @@ class ParallelExecutor extends SimpleExecutor {
       new QueryIterator {
         val name = "ParallelIndexLookup"
         val boundKey = bindKey(namespace, key)
-        var ftch: Option[ScadsFuture[Option[Record]]] = None 
+        var ftch: Option[ScadsFuture[Option[Record]]] = None
 
         def open: Unit =
           ftch = Some(namespace.asyncGet(boundKey))
@@ -386,14 +386,14 @@ class ParallelExecutor extends SimpleExecutor {
             ftchInvoked = true
           }
 
-          def open: Unit = doFetch() 
+          def open: Unit = doFetch()
 
           def close: Unit = {
             result = Nil
             ftch = null
           }
 
-          def hasNext = 
+          def hasNext =
             if (ftchInvoked) { // have we already blocked on ftch and stored the result in result?
               if (pos < result.size) true
               else if (limitReached) false
@@ -499,24 +499,24 @@ class ParallelExecutor extends SimpleExecutor {
         def hasNext = (nextTuple != null) || ({
 
           // find the first available buffer
-          var minIdx = -1 
+          var minIdx = -1
           var idx = 0
           while (minIdx == -1 && idx < tupleBuffers.size) {
 
             // if this buffer has already been scanned over but we can still fetch from KV store
-            if (bufferPos(idx) == tupleBuffers(idx).size && !bufferLimitReached(idx)) { 
+            if (bufferPos(idx) == tupleBuffers(idx).size && !bufferLimitReached(idx)) {
               fillBuffer(idx) // do the fetch
             }
 
             // if there is a buffer with contents, then we've found the start
-            if (bufferPos(idx) < tupleBuffers(idx).size) { 
+            if (bufferPos(idx) < tupleBuffers(idx).size) {
               minIdx = idx
             }
             idx += 1
           }
 
           if (minIdx == -1) false
-          else { 
+          else {
             for(i <- ((minIdx + 1) to (tupleBuffers.size - 1))) {
               if (bufferPos(i) == tupleBuffers(i).size && !bufferLimitReached(i)) {
                 fillBuffer(i)
@@ -530,7 +530,7 @@ class ParallelExecutor extends SimpleExecutor {
               }
             }
             nextTuple = tupleBuffers(minIdx)(bufferPos(minIdx))
-            bufferPos(minIdx) += 1 
+            bufferPos(minIdx) += 1
 
             // do another fetch if we reach the end of minIdx's buffer- this
             // is unlike SimpleIndexMergeJoin which does not do another fetch
@@ -589,7 +589,7 @@ class LazyExecutor extends SimpleExecutor {
     case IndexLookup(namespace, key) => {
       new QueryIterator {
         val name = "LazyIndexLookup"
-          
+
         private val boundKey = bindKey(namespace, key)
 
         private var accessed = false
@@ -617,7 +617,7 @@ class LazyExecutor extends SimpleExecutor {
 
           private val boundKeyPrefix = bindKey(namespace, keyPrefix)
 
-          private var result: Record = null 
+          private var result: Record = null
 
           private var offset = 0
           private var limitReached = false
@@ -643,7 +643,7 @@ class LazyExecutor extends SimpleExecutor {
             limitReached = true
           }
 
-          def hasNext = 
+          def hasNext =
             if (result ne null) true
             else if (!limitReached) {
               doFetch()
@@ -742,7 +742,7 @@ class LazyExecutor extends SimpleExecutor {
 
         def open {}
 
-        def close { 
+        def close {
           childIterator.close
           needsInit = false
         }
@@ -778,24 +778,24 @@ class LazyExecutor extends SimpleExecutor {
         private def getNext: Unit = {
 
           // find the first available buffer
-          var minIdx = -1 
+          var minIdx = -1
           var idx = 0
           while (minIdx == -1 && idx < tupleBuffers.size) {
 
             // if this buffer has already been scanned over but we can still fetch from KV store
-            if (bufferPos(idx) == tupleBuffers(idx).size && !bufferLimitReached(idx)) { 
+            if (bufferPos(idx) == tupleBuffers(idx).size && !bufferLimitReached(idx)) {
               fillBuffer(idx) // do the fetch
             }
 
             // if there is a buffer with contents, then we've found the start
-            if (bufferPos(idx) < tupleBuffers(idx).size) { 
+            if (bufferPos(idx) < tupleBuffers(idx).size) {
               minIdx = idx
             }
             idx += 1
           }
 
           if (minIdx == -1) nextTuple = null
-          else { 
+          else {
             for(i <- ((minIdx + 1) to (tupleBuffers.size - 1))) {
               if (bufferPos(i) == tupleBuffers(i).size && !bufferLimitReached(i)) {
                 fillBuffer(i)
@@ -809,7 +809,7 @@ class LazyExecutor extends SimpleExecutor {
               }
             }
             nextTuple = tupleBuffers(minIdx)(bufferPos(minIdx))
-            bufferPos(minIdx) += 1 
+            bufferPos(minIdx) += 1
             // NO prefetching here if minIdx buffer becomes entirely scanned-
             // this is unlike ParallelIndexMergeJoin which does a prefetch for
             // this case

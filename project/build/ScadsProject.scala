@@ -5,6 +5,10 @@ import java.io.File
 
 class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
 
+  abstract class ScadsSubProject(info: ProjectInfo) extends DefaultProject(info) with AvroCompilerPlugin {
+    override def fork = forkRun("-Xmx4G" :: Nil)
+  }
+
   class Config(info: ProjectInfo) extends DefaultProject(info) {
     val configgy = "net.lag" % "configgy" % "2.0.0"
     val scalaTest = "org.scalatest" % "scalatest" % "1.2"
@@ -14,21 +18,18 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
     val avroJava = "org.apache.hadoop" % "avro" % "1.3.3"
     val configgy = "net.lag" % "configgy" % "2.0.0"
   }
- class Comm(info: ProjectInfo) extends DefaultProject(info) with AvroCompilerPlugin {
+ class Comm(info: ProjectInfo) extends ScadsSubProject(info) {
     val netty = "org.jboss.netty" % "netty" % "3.2.1.Final"
     val zookeeper = "org.apache.hadoop.zookeeper" % "zookeeper" % "3.3.1"
     val log4j = "log4j" % "log4j" % "1.2.15"
   }
-  class Piql(info: ProjectInfo) extends DefaultProject(info) with AvroCompilerPlugin
-  class ScalaEngine(info: ProjectInfo) extends DefaultProject(info) with AvroCompilerPlugin{
+  class Piql(info: ProjectInfo) extends ScadsSubProject(info)
+  class ScalaEngine(info: ProjectInfo) extends ScadsSubProject(info){
     val bdb = "com.sleepycat" % "je" % "4.0.71"
     val optional = "optional" %% "optional" % "0.1"
   }
-  class Perf(info: ProjectInfo) extends DefaultProject(info) with AvroCompilerPlugin {
+  class Perf(info: ProjectInfo) extends ScadsSubProject(info) {
     val deploylib = "edu.berkeley.cs" %% "deploylib" % "2.1.0-SNAPSHOT"
-    val comm = "edu.berkeley.cs.scads" %% "communication" % "2.1.0-SNAPSHOT"
-    val storage = "edu.berkeley.cs.scads" %% "storage-engine" % "2.1.0-SNAPSHOT"
-    val piql = "edu.berkeley.cs.scads" %% "piql" % "2.1.0-SNAPSHOT"
   }
 
   lazy val config      = project("config", "config", new Config(_))
@@ -39,7 +40,8 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
   lazy val perf        = project("perf", "performance", new Perf(_), config, avro, comm, scalaengine, piql)
 
   //PIQL Apps
-  class Scadr(info: ProjectInfo) extends DefaultProject(info) with AvroCompilerPlugin
+  class Scadr(info: ProjectInfo) extends ScadsSubProject(info) {
+  }
   lazy val scadr       = project("piql" / "scadr", "scadr", new Scadr(_), piql)
 
   val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"

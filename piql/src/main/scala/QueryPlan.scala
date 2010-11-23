@@ -5,8 +5,13 @@ import org.apache.avro.generic.{GenericData, IndexedRecord}
 abstract class Value {
   def ===(value: Value) = EqualityPredicate(this, value)
 }
-case class FixedValue(v: Any) extends Value
-case class ParameterValue(ordinal: Int) extends Value
+
+/* Fixed Values.  i.e. Values that arent depended on a specific tuple */
+abstract class FixedValue extends Value
+case class ConstantValue(v: Any) extends FixedValue
+case class ParameterValue(ordinal: Int) extends FixedValue
+
+/* Attibute Values */
 case class AttributeValue(recordPosition: Int, fieldPosition: Int) extends Value
 case class UnboundAttributeValue(name: String) extends Value
 
@@ -29,4 +34,3 @@ case class LocalSort(sortFields: Seq[AttributeValue], ascending: Boolean, child:
 case class LocalStopAfter(count: Limit, child: QueryPlan) extends QueryPlan
 
 case class Union(child1 : QueryPlan, child2 : QueryPlan, eqField : AttributeValue) extends QueryPlan
-
