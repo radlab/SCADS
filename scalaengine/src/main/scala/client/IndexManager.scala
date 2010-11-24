@@ -11,13 +11,31 @@ import scala.collection.immutable.HashMap
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.avro.marker.AvroPair
 
+private[storage] object IndexManager {
+  // must put at least 1 field in the dummy value schema otherwise writes will
+  // never work
+  lazy val indexValueSchema = {
+    val schema = Schema.createRecord("DummyValue", "", "", false)
+    schema.setFields(Seq(new Schema.Field("b", Schema.create(Schema.Type.BOOLEAN), "", null)))
+    schema
+  }
+
+  // should really be a def since dummyIndexValue is mutable, but since
+  // IndexManager is private[storage] we'll just trust ourselves not to
+  lazy val dummyIndexValue = {
+    val rec = new GenericData.Record(indexValueSchema)
+    rec.put(0, false)
+    rec
+  }
+}
+
 /** An IndexManager is intended to provide index maintainence for AvroPair
  * namespaces. the methods below are not intended to be thread-safe */
 trait IndexManager[PairType <: AvroPair] {
   this: Namespace[_, _, _, _] =>
-  
-  type IndexNamespace = Namespace[IndexedRecord, IndexedRecord, IndexedRecord, Object]
 
+  import IndexManager._
+  
   protected var indexCatalogue: ZooKeeperProxy#ZooKeeperNode = _ 
 
   onLoad {
@@ -75,8 +93,7 @@ trait IndexManager[PairType <: AvroPair] {
       // TODO: is this functionality already located somewhere, to create a
       // generic namespace w/o passing in the key/value schemas
       val ks = Schema.parse(new String(root("%s/keySchema".format(toGlobalName(n.name))).data))
-      val vs = Schema.parse(new String(root("%s/valueSchema".format(toGlobalName(n.name))).data))
-      val ns = new GenericNamespace(toGlobalName(n.name), 5000, root, ks, vs)(cluster).asInstanceOf[IndexNamespace]
+      val ns = new IndexNamespace(toGlobalName(n.name), 5000, root, ks)(cluster)
       ns.load()
       (n.name, (ns, generateFieldMapping(ks)))
     })
@@ -118,10 +135,10 @@ trait IndexManager[PairType <: AvroPair] {
     val indexKeySchema = Schema.createRecord(name + "Key", "", "", false)
     indexKeySchema.setFields(fields)
     
-    val indexNs = new GenericNamespace(toGlobalName(name), 5000, root, indexKeySchema, indexValueSchema)(cluster)
+    val indexNs = new IndexNamespace(toGlobalName(name), 5000, root, indexKeySchema)(cluster)
     // create the actual namespace with no partition strategy here 
     indexNs.create(List((None, cluster.getRandomServers(defaultReplicationFactor))))
-    indexNamespacesCache += ((name, (indexNs.asInstanceOf[IndexNamespace], generateFieldMapping(indexKeySchema))))
+    indexNamespacesCache += ((name, (indexNs, generateFieldMapping(indexKeySchema))))
 
     // add index catalogue entry- causes other clients to be notified if they
     // are watching
@@ -132,7 +149,7 @@ trait IndexManager[PairType <: AvroPair] {
     if (!getRange(None, None, limit=Some(1)).isEmpty)
       logger.warning("WARNING: Indexes will not be created for previous existing records!")
 
-    indexNs.asInstanceOf[IndexNamespace]
+    indexNs  
   }
 
   protected def generateFieldMapping(indexKeySchema: Schema): Seq[Either[Int, Int]] = {
@@ -159,20 +176,6 @@ trait IndexManager[PairType <: AvroPair] {
       case Left(keyPos) => key.get(keyPos)
       case Right(valuePos) => value.get(valuePos)
     }).zipWithIndex.foreach { case (elem, idx) => rec.put(idx, elem) }
-    rec
-  }
-
-  // must put at least 1 field in the dummy value schema otherwise writes will
-  // never work
-  protected lazy val indexValueSchema = {
-    val schema = Schema.createRecord("DummyValue", "", "", false)
-    schema.setFields(Seq(new Schema.Field("b", Schema.create(Schema.Type.BOOLEAN), "", null)))
-    schema
-  }
-
-  protected lazy val dummyIndexValue = {
-    val rec = new GenericData.Record(indexValueSchema)
-    rec.put(0, false)
     rec
   }
 

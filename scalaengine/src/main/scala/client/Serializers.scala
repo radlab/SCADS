@@ -57,14 +57,23 @@ abstract class AvroReaderWriter[T <: IndexedRecord] {
 
 }
 
-abstract class AvroGenericReaderWriter(val schema: Schema) 
-  extends AvroReaderWriter[GenericRecord] {
+abstract class AvroGenericReaderWriterLike[T <: IndexedRecord](val schema: Schema) 
+  extends AvroReaderWriter[T] {
   assert(schema ne null)
-  val reader = new GenericDatumReader[GenericRecord](schema) with ExposedDatumReader {
+  val reader = new GenericDatumReader[T](schema) with ExposedDatumReader {
     def exposedNewRecord(old: AnyRef, schema: Schema): AnyRef = 
       newRecord(old, schema)
   }
-  val writer = new GenericDatumWriter[GenericRecord](schema)
+  val writer = new GenericDatumWriter[T](schema)
+}
+
+abstract class AvroGenericReaderWriter(_schema: Schema) 
+  extends AvroGenericReaderWriterLike[GenericRecord](_schema) {
+  def newInstance = new GenericData.Record(schema)
+}
+
+abstract class AvroIndexedReaderWriter(_schema: Schema) 
+  extends AvroGenericReaderWriterLike[IndexedRecord](_schema) {
   def newInstance = new GenericData.Record(schema)
 }
 
@@ -206,19 +215,21 @@ class PairNamespace[PairType <: AvroPair]
     with    AvroSerializing[IndexedRecord, IndexedRecord, PairType, PairType]
     with    IndexManager[PairType] {
 
+  import IndexManager._
+
   lazy val pairClz = pairType.erasure.asInstanceOf[Class[PairType]]
   lazy val (pairSchema, pairKeySchema, pairValueSchema) = {
     val p = pairClz.newInstance
     (p.getSchema, p.key.getSchema, p.value.getSchema)
   }
 
-  lazy val keyReaderWriter = new AvroGenericReaderWriter(pairKeySchema) {
+  lazy val keyReaderWriter = new AvroIndexedReaderWriter(pairKeySchema) {
     lazy val resolver = keySchemaResolver
-  }.asInstanceOf[AvroReaderWriter[IndexedRecord]]
+  }
 
-  lazy val valueReaderWriter = new AvroGenericReaderWriter(pairValueSchema) {
+  lazy val valueReaderWriter = new AvroIndexedReaderWriter(pairValueSchema) {
     lazy val resolver = valueSchemaResolver
-  }.asInstanceOf[AvroReaderWriter[IndexedRecord]]
+  }
 
   lazy val pairReaderWriter = new AvroSpecificReaderWriter[PairType] {
     lazy val resolver = ResolvingDecoder.resolve(pairSchema, pairSchema)
@@ -272,7 +283,7 @@ class PairNamespace[PairType <: AvroPair]
   override protected def bulkLoadCallback(elems: Seq[PairType]): Unit = {
     // TODO: use pforeach?
     indexCache.values.foreach { case (ns, mapping) =>
-      ns ++= elems.map(e => (makeIndexFor(e, ns.keySchema, mapping), dummyIndexValue))
+      ns ++= elems.map(e => makeIndexFor(e, ns.keySchema, mapping))
     }
   }
 
@@ -351,6 +362,37 @@ class SpecificHashRoutingNamespace[KeyType <: ScalaSpecificRecord, ValueType <: 
 
 }
 
+class IndexNamespace(namespace: String,
+                     timeout: Int,
+                     root: ZooKeeperProxy#ZooKeeperNode,
+		     keySchema: Schema)
+                    (implicit cluster: ScadsCluster)
+    extends Namespace[IndexedRecord, IndexedRecord, IndexedRecord, IndexedRecord](namespace, timeout, root)
+    with    RangeRouting[IndexedRecord, IndexedRecord, IndexedRecord, IndexedRecord] 
+    with    SimpleMetaData[IndexedRecord, IndexedRecord, IndexedRecord, IndexedRecord]
+    with    QuorumProtocol[IndexedRecord, IndexedRecord, IndexedRecord, IndexedRecord]
+    with    AvroSerializing[IndexedRecord, IndexedRecord, IndexedRecord, IndexedRecord] {
+
+  import IndexManager._
+
+  lazy val keyReaderWriter = new AvroIndexedReaderWriter(keySchema) {
+    lazy val resolver = keySchemaResolver
+  }
+
+  lazy val valueReaderWriter = new AvroIndexedReaderWriter(indexValueSchema) {
+    lazy val resolver = valueSchemaResolver
+  }
+
+  protected def deserializeRecordType(key: Array[Byte], value: Array[Byte]) =
+    deserializeValue(value) 
+
+  protected def deserializeRangeType(key: Array[Byte], value: Array[Byte]) =
+    deserializeKey(key)
+
+  protected def extractKeyValueFromRangeType(key: IndexedRecord) = 
+    (key, dummyIndexValue)
+
+}
 
 class GenericNamespace(namespace: String,
                        timeout: Int,
