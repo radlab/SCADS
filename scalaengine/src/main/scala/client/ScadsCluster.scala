@@ -103,6 +103,13 @@ class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) {
     namespace
   }
 
+  def createHashNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String, servers: Seq[(Option[KeyType], Seq[StorageService])], routingFieldPos : Seq[Int])
+      (implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): SpecificHashRoutingNamespace[KeyType, ValueType] = {
+    val namespace = new SpecificHashRoutingNamespace[KeyType, ValueType](ns, 5000, namespaces, routingFieldPos)
+    namespace.create(servers)
+    namespace
+  }
+
   def getNamespace[PairType <: AvroPair](ns: String)
     (implicit pairType: Manifest[PairType]): PairNamespace[PairType] = {
     val namespace = new PairNamespace[PairType](ns, 5000, namespaces)

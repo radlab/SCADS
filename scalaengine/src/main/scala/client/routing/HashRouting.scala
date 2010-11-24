@@ -22,7 +22,7 @@ trait HashRouting[KeyType <: IndexedRecord,
 
       val sortedVal = values.sortWith((e1: Tuple2[Option[IntRec], Seq[StorageService]], e2: Tuple2[Option[IntRec], Seq[StorageService]]) =>
         if(e2._1.isEmpty) false
-        else if (e2._1.isEmpty) true
+        else if (e1._1.isEmpty) true
         else e1._1.get.f1 < e2._1.get.f1
         )
 
