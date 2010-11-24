@@ -1,23 +1,18 @@
 package edu.berkeley.cs.scads.test
-import org.scalatest.WordSpec
 
-import org.junit.runner.RunWith
+import org.scalatest.{ BeforeAndAfterAll, WordSpec }
 import org.scalatest.junit.JUnitRunner
-
-import edu.berkeley.cs.scads.storage._
-
-import org.scalatest.WordSpec
 import org.scalatest.matchers.ShouldMatchers
 
+import org.junit.runner.RunWith
+
 import edu.berkeley.cs.scads.comm._
-import  edu.berkeley.cs.scads.storage._
+import edu.berkeley.cs.scads.storage._
 
 @RunWith(classOf[JUnitRunner])
-class RoutingTableSpec extends WordSpec with ShouldMatchers {
-  val storageNodes = TestScalaEngine.getTestHandler(10)
-  val client1 = new ScadsCluster(storageNodes.head.root)
-  val client2 = new ScadsCluster(storageNodes.head.root)
-  val storageServices =  client1.getAvailableServers
+class RoutingTableSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll {
+  val client1 = TestScalaEngine.newScadsCluster(10)
+  val storageServices = client1.managedServices.toList
 
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
@@ -27,7 +22,12 @@ class RoutingTableSpec extends WordSpec with ShouldMatchers {
 
   implicit def toIntFromIntRec(a : IntRec) : Int = a.f1
 
-  
+  implicit def toStorageService(ra: RemoteActor): StorageService = 
+    StorageService(ra.host, ra.port, ra.id)
+
+  override def afterAll(): Unit = {
+    client1.shutdownCluster()
+  }
 
   "A Routing Table" should {
 

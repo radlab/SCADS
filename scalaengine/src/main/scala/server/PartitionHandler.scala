@@ -29,9 +29,11 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
   /**
    * True iff a particular (non-null) key is bounded by [startKey, endKey)
    */
-  @inline private def isInRange(key: Array[Byte]) =
-    startKey.map(sk => compare(sk, key) <= 0).getOrElse(true) &&
-    endKey.map(ek => compare(ek, key) > 0).getOrElse(true)
+  @inline private def isInRange(key: Array[Byte]) = true //just for the moment because of the Hash partitioning
+  //TODO: I turned of the check, for the hash partitiong. Though, this is really dangerous and can cause hard to find bugs.
+  //We should make the starte aware of the routing, and fix it as soon as possible.
+  //  startKey.map(sk => compare(sk, key) <= 0).getOrElse(true) &&
+  //  endKey.map(ek => compare(ek, key) > 0).getOrElse(true)
 
   /**
    * True iff startKey <= key

@@ -112,6 +112,7 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
       (partition, values) 
     }
  }
+  
 
   def getAllRangeVersions(startKey: Option[KeyType], endKey: Option[KeyType]): Seq[(PartitionService, Seq[RangeType])] = {
     val ranges = serversForRange(startKey, endKey)
@@ -522,7 +523,7 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
             future.source.foreach(winners += _)
           }
         }
-        case _ => throw new RuntimeException("")
+        case m => throw new RuntimeException("Unknown message " + m)
       }
     }
 
@@ -553,7 +554,7 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
                 server !! PutRequest(key, Some(data))
               }
             }
-          case _ => throw new RuntimeException("Unknown message")
+          case m => throw new RuntimeException("Unknown message" + m)
         }
       }
     }
