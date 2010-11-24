@@ -1,4 +1,11 @@
-package edu.berkeley.cs.scads.test
+package edu.berkeley.cs
+package scads
+package piql
+package scadr
+
+import storage.TestScalaEngine
+import piql._
+import piql.test._
 
 import scala.collection.JavaConversions._
 
@@ -8,10 +15,6 @@ import org.scalatest.Spec
 import org.scalatest.matchers.{Matcher, MatchResult, ShouldMatchers}
 
 import org.apache.avro.generic.{GenericData, IndexedRecord}
-
-import edu.berkeley.cs.scads.storage.TestScalaEngine
-import edu.berkeley.cs.scads.piql._
-
 import scala.collection.mutable.{ ArrayBuffer, HashMap }
 
 abstract class AbstractScadrSpec extends Spec with ShouldMatchers with QueryResultMatchers {
