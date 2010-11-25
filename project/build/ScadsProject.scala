@@ -6,7 +6,8 @@ import java.io.File
 class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
 
   abstract class ScadsSubProject(info: ProjectInfo) extends DefaultProject(info) with AvroCompilerPlugin {
-    override def fork = forkRun("-Xmx4G" :: Nil)
+    override def fork = forkRun("-Xmx4G" ::
+				"-Djava.library.path=/usr/local/mesos/lib/java/" :: Nil)
 
     def packagedClasspath = {
       val libraryJars = (managedDependencyPath / "compile" ** "*.jar").getFiles
