@@ -7,6 +7,22 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
 
   abstract class ScadsSubProject(info: ProjectInfo) extends DefaultProject(info) with AvroCompilerPlugin {
     override def fork = forkRun("-Xmx4G" :: Nil)
+
+    def packagedClasspath = {
+      val libraryJars = (managedDependencyPath / "compile" ** "*.jar").getFiles
+      val scalaJars = mainDependencies.scalaJars.getFiles
+      val localDependencyJars = dependencies.map(_.asInstanceOf[BasicScalaProject]).map(_.jarPath.asFile)
+      val currentJar = jarPath.asFile :: Nil
+      (scalaJars ++ currentJar ++ localDependencyJars ++ libraryJars).map(_.getCanonicalPath)
+    }
+
+    lazy val writePackagedClasspath = task {
+      FileUtilities.write(
+	new File("classpath"),
+	packagedClasspath.mkString(":"),
+	log
+      )
+    } dependsOn(`package`) describedAs("Package classes and API docs.")
   }
 
   class Config(info: ProjectInfo) extends DefaultProject(info) {
