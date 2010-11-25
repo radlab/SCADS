@@ -13,6 +13,17 @@ import org.apache.zookeeper.CreateMode
 
 import java.io.File 
 
+object IntKeyScaleTest {
+  implicit val scheduler = LocalExperimentScheduler(System.getProperty("user.name") + " console", "1@mesos-master.millennium.berkeley.edu:5050", "/work/deploylib/java_executor")
+  implicit def classpath = Deploy.workClasspath
+  implicit val zookeeper = ZooKeeperNode("zk://zoo1.millennium.berkeley.edu/")
+
+  def main(args: Array[String]): Unit = {
+    val cluster = DataLoader(1,1).newCluster
+    RandomGetterClient(1, 1).schedule(cluster)
+  }
+}
+
 case class WriteClient(var cluster: String, var clientId: Int) extends AvroRecord
 case class WritePerfResult(var numKeys: Int, var startTime: Long, var endTime: Long) extends AvroRecord
 
