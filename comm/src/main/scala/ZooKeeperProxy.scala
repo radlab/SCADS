@@ -29,7 +29,7 @@ object ZooKeeperNode {
  *
  * Instances of ZooKeeperProxy and ZooKeeperNode are thread-safe 
  */
-class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watcher {
+class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watcher { // TODO: hack to avoid long delay
   self =>
   protected val logger = Logger()
 
