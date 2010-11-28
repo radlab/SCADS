@@ -150,7 +150,7 @@ abstract trait RoutingProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRec
     }
     storeAndPropagateRoutingTable()
     for((newPartition, oldPartition) <- result){
-      newPartition !? CopyDataRequest(oldPartition, false) match {
+      newPartition.!? ( CopyDataRequest(oldPartition, false), 3*60*1000/*timeout*/ ) match {
         case CopyDataResponse() => ()
         case _ => throw new RuntimeException("Unexpected Message")
       }
