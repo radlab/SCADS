@@ -199,7 +199,7 @@ class GenericNamespace(namespace: String,
                        val valueSchema: Schema)
                       (implicit cluster : ScadsCluster)
     extends QuorumProtocol[GenericData.Record, GenericData.Record](namespace, timeout, root)(cluster)
-    with    RoutingProtocol[GenericData.Record, GenericData.Record] 
+		with    WorkloadStatsProtocol/*RoutingProtocol*/[GenericData.Record, GenericData.Record]
     with    SimpleMetaData[GenericData.Record, GenericData.Record]
     with    AvroSerializing[GenericData.Record, GenericData.Record] {
 
