@@ -69,4 +69,17 @@ class OptimizerSpec extends Spec with ShouldMatchers {
 
     query.opt should equal(plan)
   }
+
+  it("local selection") {
+    val query = (
+      r2.where("f1".a === 0)
+	.limit(10)
+	.where("f2".a === 0)
+      )
+    val plan = LocalSelection(AttributeValue(0,1) === 0,
+	         IndexScan(r2, ConstantValue(0) :: Nil, FixedLimit(10), true)
+	       )
+
+    query.opt should equal(plan)
+  }
 }
