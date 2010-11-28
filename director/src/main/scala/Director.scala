@@ -15,28 +15,49 @@ object Director {
 	def nextRndDouble():Double = rnd.nextDouble()
 }
 
-case class Director(var numClients: Int, namespaceString:String) {
+case class Director(var numClients: Int, namespaceString:String, val scheduler:ScadsServerScheduler) {
 	val period = 20*1000
+	var runnerThread:Controller = null
 
-	class Controller() extends Runnable() {
-		
-		def run():Unit = {}
+	class Controller(policy:Policy, executor:ActionExecutor, stateHistory:StateHistory) extends Runnable() {
+		var running = true
+		def stop = running = false
+		def run():Unit = {
+			while (running) {
+				val latestState = stateHistory.getMostRecentState
+				policy.perform(if (latestState != null) ScadsState.refresh(stateHistory.namespace,latestState.workloadRaw,latestState.time) else null, executor)
+				Thread.sleep(period)
+			}
+		}
 	}
 	
 	def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode) = {
 		//val node = ZooKeeperNode(zookeepCanonical)
 		Director.cluster = new ScadsCluster(clusterRoot)
-		val namespace:GenericNamespace = Director.cluster.getNamespace(namespaceString)
+		var namespace:GenericNamespace = Director.cluster.getNamespace(namespaceString)
+		
+		// update start time for existing servers
+		val now = new java.util.Date().getTime
+		Director.cluster.getAvailableServers.foreach(s => if (Director.bootupTimes.getBootupTime(s) == None) Director.bootupTimes.setBootupTime(s,now) )
 
 		val predictor = SimpleHysteresis(0.9,0.1,0.0)
-		val policy = new BestFitPolicy(null,100,100,0.99,true,100,10*60*1000,predictor,true,true,1,1)
+		predictor.initialize
+		val policy = new BestFitPolicy(null,100,100,0.99,true,20*1000,10*1000,predictor,true,true,1,1)
 		val stateHistory = StateHistory(period,namespace,policy)
-		val executor = new TestGroupingExecutor(namespace)//new GroupingExecutor(namespace)
+		stateHistory.startUpdating
+		val executor = /*new TestGroupingExecutor(namespace)*/new GroupingExecutor(namespace,scheduler)
+		executor.start
 		
 		// when clients are ready to start, start everything
-		val coordination = clusterRoot.getOrCreate("coordination") // TODO
+		//val coordination = clusterRoot.getOrCreate("coordination") // TODO
+		Thread.sleep(10*1000)
+		runnerThread = new Controller(policy,executor,stateHistory)
+		(new Thread(runnerThread)).start
+		
 	}
-	
+	def stop = {
+		runnerThread.stop
+	}
 	
 
 }

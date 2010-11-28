@@ -124,5 +124,15 @@ class ClusterState(
 		)
 	}
 	
+	def serverWorkloadString:String = {
+		serversToPartitions.map(entry =>{
+			"server " + entry._1 + ":\n" + // server
+			entry._2.map(part => {
+				val key = partitionsToKeys(part)
+				"\t"+part.toString +": "+ key+": "+workloadRaw.rangeStats(key).toString
+			}).mkString("{","\n","}")
+		}).mkString("ClusterState-------\n","\n","\n----------")
+	}
+	
 	override def toString:String = {"ClusterState: TODO"}
 }

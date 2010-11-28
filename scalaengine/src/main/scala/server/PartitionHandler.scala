@@ -126,7 +126,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 					var reccount = 0
 					iterateOverRange(minKey, maxKey)((_,_,_) => reccount += 1)
 					if (samplerRandom.nextDouble <= getSamplingRate) incrementWorkloadStats(reccount,"get")
-          reply(GetRangeResponse(records.toList))
+          reply(GetRangeResponse(records))
         }
         case BatchRequest(ranges) => {
           val results = new scala.collection.mutable.ListBuffer[GetRangeResponse]
@@ -136,7 +136,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
               iterateOverRange(minKey, maxKey, limit, offset, ascending)((key, value, _) => {
                 records += Record(key.getData, value.getData)
               })
-              results += GetRangeResponse(records.toList)
+              results += GetRangeResponse(records)
             }
             case _ => throw new RuntimeException("BatchRequests only implemented for GetRange")
           }

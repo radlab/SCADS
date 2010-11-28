@@ -29,7 +29,7 @@ case class IntClient(var numServers: Int, var numClients: Int, namespace:String,
 	val history = new scala.collection.mutable.ListBuffer[(Histogram,Int)]()
 	var requestGenerator:SCADSRequestGenerator = null
 	val rnd = new java.util.Random()
-	val histogramPeriod = 10*1000 // ms
+	val histogramPeriod = 20*1000 // ms
 	var lastHistogramCleared = System.currentTimeMillis
 	val logger = Logger("IntClient")
 	

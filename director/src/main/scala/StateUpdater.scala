@@ -14,8 +14,10 @@ object ScadsState {
 		logger.debug("refreshing state at time %s",time.toString)
 		val workload = namespace.getWorkloadStats(time)
 		if (workload !=null) { // assemble ClusterState object
-			val workloadRaw = WorkloadHistogram( workload.map(wl => (wl._1,WorkloadFeatures(wl._2._1,wl._2._2,0))) )
+			var workloadRaw = WorkloadHistogram( workload.map(wl => (wl._1,WorkloadFeatures(wl._2._1,wl._2._2,0))) )
 			logger.debug("raw histogram:\n%s",workloadRaw.toString)
+			workloadRaw = workloadRaw * (1.0/(period.toDouble/1000.0)) // TODO: awkward conversion
+			logger.debug("raw histogram divided by period:\n%s",workloadRaw.toString)
 			val kToP = Map( namespace.partitions.rTable.map(entry => (entry.startKey -> Set(entry.values:_*))):_* )
 			
 			// construct the server->partitions and partition->key mappings
@@ -50,11 +52,43 @@ object ScadsState {
 		}
 		else null
 	}
+	def refresh(namespace:GenericNamespace, workloadRaw:WorkloadHistogram, time:Long):ClusterState = {
+		// construct the server->partitions and partition->key mappings
+		val kToP = Map( namespace.partitions.rTable.map(entry => (entry.startKey -> Set(entry.values:_*))):_* )
+		val sToP = new scala.collection.mutable.HashMap[StorageService,scala.collection.mutable.ListBuffer[PartitionService]]()
+		val pToK = new scala.collection.mutable.HashMap[PartitionService,Option[org.apache.avro.generic.GenericData.Record]]()
+		kToP.foreach(entry => // key -> set(partitions)
+			entry._2.foreach(partition =>{
+				pToK += (partition -> entry._1)
+				val serverparts = sToP.getOrElse(partition.storageService,new scala.collection.mutable.ListBuffer[PartitionService]())
+				serverparts += partition
+				sToP(partition.storageService) = serverparts
+			})
+		)
+		// attempt to get "empty" servers, i.e. have no partitions but registered with cluster
+		// TODO: don't use available servers?!
+		if (Director.cluster != null) {
+			val existingServers = Director.cluster.getAvailableServers(/*namespace.namespace*/)
+			logger.debug("existing servers: %d, servers with partitions: %d",existingServers.size,sToP.keySet.size)
+			val blankServers = existingServers.filter(s => !sToP.keySet.contains(s))
+			val now = new java.util.Date().getTime
+			blankServers.foreach(s => {
+				sToP(s) = new scala.collection.mutable.ListBuffer[PartitionService]()
+				if (Director.bootupTimes.getBootupTime(s) == None) Director.bootupTimes.setBootupTime(s,now)
+			})
+		} else logger.warning("Director cluster null, not getting empty servers")
+		
+		new ClusterState(
+			Map(sToP.toList.map(entry => (entry._1,Set(entry._2:_*))):_*),
+			kToP,
+			Map(pToK.toList.map(entry => (entry._1, entry._2)):_*),
+			workloadRaw,time)
+	}
 }
 
 case class StateHistory(
-	period:Long,
-	namespace:GenericNamespace,
+	period:Long, // right now this assumes it is the same as what is set in partition handler!
+	val namespace:GenericNamespace,
 	policy:Policy
 ) {
 	val logger = Logger("scadsstate")

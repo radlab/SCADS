@@ -35,6 +35,8 @@ abstract class Policy(
 	//val costFunction:FullCostFunction
 ){
 	protected val logger = Logger("policy")
+	protected var lastDecisionTime:Long = 0L
+	protected var clientRefreshTime = 30*1000L
 
 	protected def act(state:ClusterState, actionExecutor:ActionExecutor)
 
@@ -97,6 +99,8 @@ abstract class Policy(
 			// 				Policy.logger.debug("smoothed workload per server:\n"+workloadPerServer.toList.sort(_._1<_._1).map( p => p._1+" => "+p._2.toString ).mkString("\n"))
 			// 				Policy.logger.info("action executor status:\n"+actionExecutor.status)
 			// 				act(newState,actionExecutor)
+			if (state == null) { logger.warning("null state, not acting"); return }
+			//if (System.currentTimeMillis < (lastDecisionTime + clientRefreshTime)) { logger.warning("state hasn't propgated fully"); return }
 			logger.info("acting on state %s",new java.util.Date(state.time).toString)
 			val lag = (System.currentTimeMillis-state.time)/1000
 			logger.info("state is %s seconds behind",lag.toString)
@@ -144,7 +148,7 @@ class BestFitPolicy(
 	val nHotStandbys:Int,
 	val reads:Int	
 ) extends Policy(workloadPredictor) {
-	val performanceEstimator = ConstantThresholdPerformanceEstimator(8000,getSLA, putSLA, slaQuantile, reads)
+	val performanceEstimator = ConstantThresholdPerformanceEstimator(1000,getSLA, putSLA, slaQuantile, reads)
 	//val performanceEstimator = SimplePerformanceEstimator( performanceModel, getSLA, putSLA, slaQuantile, reads )
 	
 	var currentTime:Long = 0L
@@ -186,13 +190,15 @@ class BestFitPolicy(
 		
 		// do blocking execution
 		if (actionExecutor.allActionsCompleted) {
-			logger.debug("smoothed workload:\n%s",workloadPredictor.getPrediction.toString)
+			logger.info("smoothed workload:\n%s",workloadPredictor.getPrediction.toString)
+			logger.info(config.serverWorkloadString)
 			runPolicy( config, workloadPredictor.getPrediction, List[Action]() )
 			logger.debug("# actions for executor: %d",actions.size)
 			for (action <- actions) {
 				//action.computeNBytesToCopy(state)
 				actionExecutor.addAction(action)
 			}
+			if (!actions.isEmpty) lastDecisionTime = System.currentTimeMillis
 			lastIterationState = "act"
 		} else {
 			lastIterationState = "blocked"
@@ -300,6 +306,7 @@ class BestFitPolicy(
 			
 			if (serverRanges.size > 1 || serverRanges.toList.head != partition) {
 				hadToCleanServers = true
+				logger.debug("cleaning server %s",s)
 				
 				val emptyServer = getEmptyServer(REP_CLEAN)
 				if (emptyServer!=null) {
@@ -578,7 +585,7 @@ class BestFitPolicy(
 	}
 	
 	private def addAction(action:Action) {
-		logger.debug("ADD ACTION: %s",action)
+		logger.info("ADD ACTION: %s",action)
 		currentConfig = action.preview(currentConfig)
 		actions += action
 	}

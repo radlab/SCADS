@@ -125,7 +125,7 @@ class GroupingExecutor(namespace:GenericNamespace, val scheduler:ScadsServerSche
 			if (!add.isEmpty && scheduler != null) {
 				scheduler.addServers( add.map(a => a match{ case ad:AddServer => prefix+ad.fakeServer.host }) )
 				logger.debug("sleeping right now instead of waiting on child")
-				Thread.sleep(30*1000)
+				Thread.sleep(20*1000)
 				add.foreach{ a => a match { 
 					case ad:AddServer => { /*scheduler.cluster.root.awaitChild("availableServers/"+prefix+ad.fakeServer.host); */ad.setComplete }
 				} }
@@ -171,6 +171,11 @@ class TestGroupingExecutor(namespace:GenericNamespace) extends GroupingExecutor(
 			logger.debug("%d add server actions",add.size)
 			TestScalaEngine.getTestHandler(add.size)
 			add.foreach(a => a.setComplete)
+			
+			// only say remove actions are complete, since can't really kill them
+			val remove = getRemoveActions()
+			logger.debug("%d removal actions",delete.size)
+			remove.foreach(a => a.setComplete) 
 		}
 	}
 }

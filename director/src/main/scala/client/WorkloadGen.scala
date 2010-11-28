@@ -78,7 +78,7 @@ object WorkloadGenerators {
 		val durations = List.make(num_intervals,intervalDuration)
 		WorkloadDescription.create(wProf,durations,reqGenerators,0)
 	}
-}
+} // 3000 -> 14000 in one hour => 10 sec intervals, 360 intervals
 
 @serializable
 class MixVector(
