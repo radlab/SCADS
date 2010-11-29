@@ -27,7 +27,7 @@ class OptimizerSpec extends Spec with ShouldMatchers {
       val query = (
 	r2.where("f1".a === (0.?))
 	  .where("f2".a === (1.?)))
-      val plan = IndexLookup(r1, ParameterValue(0) :: ParameterValue(1) :: Nil)
+      val plan = IndexLookup(r2, ParameterValue(0) :: ParameterValue(1) :: Nil)
 
       query.opt should equal(plan)
     }
