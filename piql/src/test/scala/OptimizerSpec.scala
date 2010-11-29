@@ -3,23 +3,10 @@ package scads
 package piql
 package test
 
-import avro.marker._
-import storage.TestScalaEngine
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.Spec
 import org.scalatest.matchers.{Matcher, MatchResult, ShouldMatchers}
-
-case class R1(var f1: Int) extends AvroPair
-case class R2(var f1: Int, var f2: Int) extends AvroPair
-
-object Relations {
-  val cluster = TestScalaEngine.newScadsCluster()
-  //TODO: Fix variance of namespace to remove cast
-  val r1 = cluster.getNamespace[R1]("r1").asInstanceOf[Namespace]
-  val r2 = cluster.getNamespace[R2]("r2").asInstanceOf[Namespace]
-}
 
 class OptimizerSpec extends Spec with ShouldMatchers {
   import Relations._
