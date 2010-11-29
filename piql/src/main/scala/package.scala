@@ -13,7 +13,7 @@ package object piql {
   type Key = IndexedRecord
   type Record = IndexedRecord
   type Tuple = IndexedSeq[Record]
-  type TupleSchema = Seq[Schema]
+  type TupleSchema = Seq[Namespace]
 
   type QueryResult = Seq[Tuple]
 

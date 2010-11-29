@@ -16,15 +16,20 @@ object Optimizer {
     logger.info("Begining optimization of plan: %s", logicalPlan)
 
     logicalPlan match {
-      //TODO: Check to make sure we have the whole key in predicates
-      case GetOperation(ns, equalityPreds, None, None) =>
+      case IndexRange(equalityPreds, None, None, Relation(ns)) if (equalityPreds.size == ns.keySchema.getFields.size) =>
         OptimizedSubPlan(
           IndexLookup(ns, makeKeyGenerator(ns, equalityPreds)),
-          ns.keySchema :: Nil)
-      case GetOperation(ns, equalityPreds, Some(limit), None) =>
+          ns :: Nil)
+      case IndexRange(equalityPreds, Some(limit), None, Relation(ns)) =>
         OptimizedSubPlan(
           IndexScan(ns, makeKeyGenerator(ns, equalityPreds), limit, true),
-          ns.keySchema :: Nil)
+          ns :: Nil)
+      case IndexRange(equalityPreds, None, None, Join(child, Relation(ns))) if (equalityPreds.size == ns.keySchema.getFields.size) => {
+        val optChild = apply(child)
+        OptimizedSubPlan(
+          IndexLookupJoin(ns, makeKeyGenerator(ns, equalityPreds), optChild.physicalPlan),
+          optChild.schema :+ ns)
+      }
       case Selection(pred, child) => {
         val optChild = apply(child)
         val boundPred = bindPredicate(pred, optChild.schema)
@@ -37,10 +42,22 @@ object Optimizer {
     case EqualityPredicate(l, r) => EqualityPredicate(bindValue(l, schema), bindValue(r, schema))
   }
 
+  protected val qualifiedAttribute = """([^\.]+)\.([^\.]+)""".r
   protected def bindValue(value: Value, schema: TupleSchema): Value = value match {
+    case UnboundAttributeValue(qualifiedAttribute(relationName, attrName)) => {
+      logger.info("attempting to bind qualified attribute: %s.%s in %s", relationName, attrName, schema)
+      val relationNames = schema.map(_.namespace)
+      logger.info("selecting from relationName options: %s", relationNames)
+      val recordPosition = relationNames.findIndexOf(_ equals relationName)
+      val fieldPosition = schema(recordPosition).pairSchema.getFields.findIndexOf(_.name equals attrName)
+      AttributeValue(recordPosition, fieldPosition)
+    }
     case UnboundAttributeValue(name: String) => {
-      val recordPosition = schema.findIndexOf(_.getFields.map(_.name) contains name)
-      val fieldPosition = schema(recordPosition).getFields.findIndexOf(_.name equals name)
+      //TODO: Throw execption when ambiguious
+      logger.info("attempting to bind %s in %s", name, schema)
+      val recordSchemas = schema.map(_.pairSchema)
+      val recordPosition = recordSchemas.findIndexOf(_.getFields.map(_.name) contains name)
+      val fieldPosition = recordSchemas(recordPosition).getFields.findIndexOf(_.name equals name)
       AttributeValue(recordPosition, fieldPosition)
     }
     case otherValue => otherValue
@@ -63,8 +80,8 @@ object Optimizer {
    * Groups sets of logical operations that can be executed as a
    * single get operations against the key value store
    */
-  protected object GetOperation {
-    def unapply(logicalPlan: Queryable): Option[(Namespace, Seq[AttributeEquality], Option[Limit], Option[Ordering])] = {
+  protected object IndexRange {
+    def unapply(logicalPlan: Queryable): Option[(Seq[AttributeEquality], Option[Limit], Option[Ordering], Queryable)] = {
       var predicates: List[AttributeEquality] = Nil
       val (limit, planWithoutStop) = logicalPlan match {
         case StopAfter(count, child) => (Some(FixedLimit(count)), child)
@@ -80,12 +97,11 @@ object Optimizer {
       planWithoutStop.walkPlan {
         case Selection(EqualityPredicate(fv: FixedValue, a: UnboundAttributeValue), _) => predicates ::= AttributeEquality(a, fv)
         case Selection(EqualityPredicate(a: UnboundAttributeValue, fv: FixedValue), _) => predicates ::= AttributeEquality(a, fv)
-        case Relation(ns) => {
-          val getOp = (ns, predicates, limit, ordering)
-          logger.info("Matched GetOperation%s", getOp)
+        case otherOp => {
+          val getOp = (predicates, limit, ordering, otherOp)
+          logger.info("Matched IndexRange%s", getOp)
           return Some(getOp)
         }
-        case otherOp => return None
       }
       return None
     }
