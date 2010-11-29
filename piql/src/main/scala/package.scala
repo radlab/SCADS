@@ -1,6 +1,7 @@
 package edu.berkeley.cs
 package scads
 
+import org.apache.avro.Schema
 import org.apache.avro.generic.{IndexedRecord, GenericRecord}
 import avro.marker._
 import storage._
@@ -12,6 +13,8 @@ package object piql {
   type Key = IndexedRecord
   type Record = IndexedRecord
   type Tuple = IndexedSeq[Record]
+  type TupleSchema = Seq[Schema]
+
   type QueryResult = Seq[Tuple]
 
   //Query State Serailization
@@ -33,7 +36,7 @@ package object piql {
 
   implicit def toPiql(logicalPlan: Queryable)(implicit executor: QueryExecutor) = new {
     def toPiql = {
-      val physicalPlan = Optimizer(logicalPlan)
+      val physicalPlan = Optimizer(logicalPlan).physicalPlan
       (args: Seq[Any]) => {
 	val iterator = executor(physicalPlan, args:_*)
 	iterator.open

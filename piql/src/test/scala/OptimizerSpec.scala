@@ -12,7 +12,7 @@ class OptimizerSpec extends Spec with ShouldMatchers {
   import Relations._
 
   implicit def opt(logicalPlan: Queryable) = new {
-    def opt = Optimizer(logicalPlan)
+    def opt = Optimizer(logicalPlan).physicalPlan
   }
 
   describe("The PIQL Optimizer") {
