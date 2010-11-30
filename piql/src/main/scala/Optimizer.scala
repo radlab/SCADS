@@ -16,19 +16,24 @@ object Optimizer {
     logger.info("Begining optimization of plan: %s", logicalPlan)
 
     logicalPlan match {
-      case IndexRange(equalityPreds, None, None, Relation(ns)) if (equalityPreds.size == ns.keySchema.getFields.size) =>
+      case IndexRange(equalityPreds, None, None, Relation(ns)) if (equalityPreds.size == ns.keySchema.getFields.size) => {
+	val tupleSchema = ns :: Nil
         OptimizedSubPlan(
-          IndexLookup(ns, makeKeyGenerator(ns, equalityPreds)),
-          ns :: Nil)
-      case IndexRange(equalityPreds, Some(limit), None, Relation(ns)) =>
+          IndexLookup(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds)),
+          tupleSchema)
+      }
+      case IndexRange(equalityPreds, Some(limit), None, Relation(ns)) => {
+	val tupleSchema = ns :: Nil
         OptimizedSubPlan(
-          IndexScan(ns, makeKeyGenerator(ns, equalityPreds), limit, true),
+          IndexScan(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), limit, true),
           ns :: Nil)
+      }
       case IndexRange(equalityPreds, None, None, Join(child, Relation(ns))) if (equalityPreds.size == ns.keySchema.getFields.size) => {
         val optChild = apply(child)
+	val tupleSchema = optChild.schema :+ ns
         OptimizedSubPlan(
-          IndexLookupJoin(ns, makeKeyGenerator(ns, equalityPreds), optChild.physicalPlan),
-          optChild.schema :+ ns)
+          IndexLookupJoin(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), optChild.physicalPlan),
+          tupleSchema)
       }
       case Selection(pred, child) => {
         val optChild = apply(child)
@@ -67,14 +72,15 @@ object Optimizer {
    * Given a namespace and a set of attribute equality predicates return
    * at the keyGenerator
    */
-  protected def makeKeyGenerator(ns: Namespace, equalityPreds: Seq[AttributeEquality]): KeyGenerator = {
+  protected def makeKeyGenerator(ns: Namespace, schema: TupleSchema, equalityPreds: Seq[AttributeEquality]): KeyGenerator = {
     ns.keySchema.getFields.take(equalityPreds.size).map(f => {
-      logger.info("Looking for attribute %s", f.name)
-      equalityPreds.find(_.attribute.name equals f.name).getOrElse(throw new ImplementationLimitation("Invalid prefix")).value
+      logger.info("Looking for key generator value for field %s in %s", f.name, equalityPreds)
+      val value = equalityPreds.find(_.attributeName equals f.name).getOrElse(throw new ImplementationLimitation("Invalid prefix")).value
+      bindValue(value, schema)
     })
   }
 
-  case class AttributeEquality(attribute: UnboundAttributeValue, value: FixedValue)
+  case class AttributeEquality(attributeName: String, value: Value)
   case class Ordering(attributes: Seq[Value], ascending: Boolean)
   /**
    * Groups sets of logical operations that can be executed as a
@@ -82,7 +88,6 @@ object Optimizer {
    */
   protected object IndexRange {
     def unapply(logicalPlan: Queryable): Option[(Seq[AttributeEquality], Option[Limit], Option[Ordering], Queryable)] = {
-      var predicates: List[AttributeEquality] = Nil
       val (limit, planWithoutStop) = logicalPlan match {
         case StopAfter(count, child) => (Some(FixedLimit(count)), child)
         case otherOp => (None, otherOp)
@@ -93,17 +98,42 @@ object Optimizer {
         case otherOp => (None, otherOp)
       }
 
-      //TODO:More functional
-      planWithoutStop.walkPlan {
-        case Selection(EqualityPredicate(fv: FixedValue, a: UnboundAttributeValue), _) => predicates ::= AttributeEquality(a, fv)
-        case Selection(EqualityPredicate(a: UnboundAttributeValue, fv: FixedValue), _) => predicates ::= AttributeEquality(a, fv)
-        case otherOp => {
-          val getOp = (predicates, limit, ordering, otherOp)
-          logger.info("Matched IndexRange%s", getOp)
-          return Some(getOp)
+      val (predicates, planWithoutPredicates) = planWithoutStop.gatherUntil {
+        case Selection(pred, _) => pred
+      }
+
+      val basePlan = planWithoutPredicates.getOrElse {
+	logger.info("IndexRange match failed.  No base plan")
+	return None
+      }
+
+      val ns = basePlan match {
+        case Relation(ns) => ns
+        case Join(_, Relation(ns)) => ns
+	case otherOp => {
+	  logger.info("IndexRange match failed.  Invalid base plan: %s", otherOp)
+	  return None
+	}
+      }
+
+      val idxEqPreds = predicates.map {
+        case EqualityPredicate(v: Value, UnboundAttributeValue(qualifiedAttribute(relName, attrName))) if relName.equals(ns.namespace) && ns.keySchema.getFields.map(_.name).contains(attrName) =>
+          AttributeEquality(attrName, v)
+        case EqualityPredicate(UnboundAttributeValue(qualifiedAttribute(relName, attrName)), v: Value) if relName.equals(ns.namespace) && ns.keySchema.getFields.map(_.name).contains(attrName) =>
+          AttributeEquality(attrName, v)
+        case EqualityPredicate(v: Value, UnboundAttributeValue(attrName)) if ns.keySchema.getFields.map(_.name).contains(attrName) =>
+          AttributeEquality(attrName, v)
+        case EqualityPredicate(UnboundAttributeValue(attrName), v:Value) if ns.keySchema.getFields.map(_.name).contains(attrName) =>
+          AttributeEquality(attrName, v)
+        case otherPred => {
+          logger.info("IndexScan match failed.  Can't apply %s to index scan of %s.{%s}", otherPred, ns.namespace, ns.keySchema.getFields.map(_.name))
+          return None
         }
       }
-      return None
+
+      val getOp = (idxEqPreds, limit, ordering, basePlan)
+      logger.info("Matched IndexRange%s", getOp)
+      Some(getOp)
     }
   }
 }
