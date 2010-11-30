@@ -24,6 +24,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
     val log4j = "log4j" % "log4j" % "1.2.15"
   }
   class Piql(info: ProjectInfo) extends ScadsSubProject(info)
+  class Modeling(info: ProjectInfo) extends ScadsSubProject(info)
   class ScalaEngine(info: ProjectInfo) extends ScadsSubProject(info){
     val bdb = "com.sleepycat" % "je" % "4.0.71"
     val optional = "optional" %% "optional" % "0.1"
@@ -37,6 +38,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
   lazy val comm        = project("comm", "communication", new Comm(_), config, avro)
   lazy val scalaengine = project("scalaengine", "storage-engine", new ScalaEngine(_), config, avro, comm)
   lazy val piql        = project("piql", "piql", new Piql(_), config, avro, comm, scalaengine)
+  lazy val modeling    = project("modeling", "modeling", new Modeling(_), piql)
   lazy val perf        = project("perf", "performance", new Perf(_), config, avro, comm, scalaengine, piql)
 
   //PIQL Apps
