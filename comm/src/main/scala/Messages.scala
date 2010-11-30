@@ -101,6 +101,6 @@ case class RoutingTableMessage(var partitions: Seq[KeyRange]) extends AvroRecord
 case class ExecutionTrace(var timestamp: Long, var thread: String, var event: TraceEvent) extends AvroRecord
 
 sealed trait TraceEvent extends AvroUnion
-case class QueryEvent(var queryName: String, var action: String) extends AvroRecord with TraceEvent
-case class IteratorEvent(var iteratorName: String, var planId: Int, var operation: String) extends AvroRecord with TraceEvent
+case class QueryEvent(var queryName: String, var start: Boolean) extends AvroRecord with TraceEvent
+case class IteratorEvent(var iteratorName: String, var planId: Int, var operation: String, var start: Boolean) extends AvroRecord with TraceEvent
 case class MessageEvent(var message: Message) extends AvroRecord with TraceEvent

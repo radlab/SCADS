@@ -16,35 +16,37 @@ abstract trait TracingExecutor extends QueryExecutor {
     val name = "TracingIterator"
 
     /* Place a trace message on the queue of messages to be written to disk.  If space isn't available issue a warning */
-    protected def recordTrace(operation: String): Boolean = {
+    protected def recordTrace(operation: String, start: Boolean): Boolean = {
       sink.recordEvent(IteratorEvent(
         child.name,
         planId,
-        operation))
+        operation,
+	start))
     }
 
     def open = {
-      recordTrace("openStart")
+      recordTrace("open", true)
       child.open
-      recordTrace("openEnd")
+      recordTrace("open", false)
     }
 
     def close = {
-      recordTrace("close")
+      recordTrace("close", true)
       child.close
+      recordTrace("close", false)
     }
 
     def hasNext = {
-      recordTrace("hasNext")
+      recordTrace("hasNext", true)
       val childHasNext = child.hasNext
-      logger.debug("%s hasNext: %b", child.name ,childHasNext)
+      recordTrace("hasNext", false)
       childHasNext
     }
 
     def next = {
-      recordTrace("next")
+      recordTrace("next", true)
       val nextValue = child.next
-      logger.ifDebug {child.name + " next: " + nextValue.toList}
+      recordTrace("next", false)
       nextValue
     }
   }

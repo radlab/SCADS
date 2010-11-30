@@ -13,8 +13,12 @@ import net.lag.logging.Logger
 
 import java.io.File
 
-case class R1(var f1: Int) extends AvroPair
-case class R2(var f1: Int, var f2: Int) extends AvroPair
+case class R1(var f1: Int) extends AvroPair {
+  var v = 1 //HACK: Required due to storage engine bug
+}
+case class R2(var f1: Int, var f2: Int) extends AvroPair {
+  var v = 1 //HACK: Required due to storage engine bug
+}
 
 object TracingExample {
 
@@ -33,6 +37,7 @@ object TracingExample {
 
     /* get namespaces */
     val r1 = cluster.getNamespace[R1]("r1")
+    val r1a = cluster.getNamespace[R1]("r1a")
     val r2 = cluster.getNamespace[R2]("r2")
 
     /* create executor that records trace to fileSink */
@@ -57,24 +62,21 @@ object TracingExample {
     val getRangeQuery = r2.where("f1".a === 1)
 			  .limit(10).toPiql
 
-  
-    /* Run some queries */
-    (1 to 10).foreach(i => {
-      fileSink.recordEvent(QueryEvent("getQuery" + i, "start"))
-      println(getQuery(Nil))
-      fileSink.recordEvent(QueryEvent("getQuery" + i, "end"))
 
-      fileSink.recordEvent(QueryEvent("getRangeQuery" + i, "start"))
+    /* Run some queries */
+    (1 to 100000).foreach(i => {
+      fileSink.recordEvent(QueryEvent("getQuery" + i, true))
+      getQuery(Nil)
+      fileSink.recordEvent(QueryEvent("getQuery" + i, false))
+
+      fileSink.recordEvent(QueryEvent("getRangeQuery" + i, true))
       getRangeQuery(Nil)
-      fileSink.recordEvent(QueryEvent("getRangeQuery" + i, "end"))
+      fileSink.recordEvent(QueryEvent("getRangeQuery" + i, false))
     })
-    
+
     //Flush trace messages to the file
     fileSink.flush()
 
-    /* Read back in trace file */
-    val inFile = AvroInFile[ExecutionTrace](fileSink.traceFile)
-    inFile.foreach(println)
-    System.exit(0)}
-    
+    System.exit(0)
+  }
 }
