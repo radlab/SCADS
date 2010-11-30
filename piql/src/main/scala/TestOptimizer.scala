@@ -15,6 +15,7 @@ object Relations {
   //TODO: subout namespace so we don't need to invoke zookeeper etc.
   val r1 = cluster.getNamespace[R1]("r1").asInstanceOf[Namespace]
   val r2 = cluster.getNamespace[R2]("r2").asInstanceOf[Namespace]
+  val r2Prime = cluster.getNamespace[R2]("r2Prime").asInstanceOf[Namespace]
 }
 
 object TestOptimizer {

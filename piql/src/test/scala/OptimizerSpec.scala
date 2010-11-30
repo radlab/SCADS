@@ -69,4 +69,36 @@ class OptimizerSpec extends Spec with ShouldMatchers {
 
     query.opt should equal(plan)
   }
+
+  it("bounded index query") {
+    /*val query = (
+      r2.where("f2".a === 0)
+	.limit(10)
+    )
+
+    //Optimize query first so index is created
+    val optQuery = query.opt
+    val idx = r2.listIndexes("idxf2")
+
+    val plan = IndexScan(idx, ConstantValue(0) :: Nil, FixedLimit(10), true)
+
+    optQuery must equal(plan) */
+
+    pending
+  }
+
+  it("simple merge sort join") {
+    val query = (
+      r2.where("f1".a === 0)
+	.limit(5)
+	.join(r2Prime)
+	.where("r2.f2".a === "r2Prime.f1".a)
+	.sort("r2a.f2".a :: Nil)
+	.limit(10)
+    )
+    val plan = IndexMergeJoin(r2Prime, AttributeValue(0,1) :: Nil, AttributeValue(1,1) :: Nil, FixedLimit(10), true,
+	         IndexScan(r2, ConstantValue(0) :: Nil, FixedLimit(5), true))
+
+    query.opt should equal(plan)
+  }
 }
