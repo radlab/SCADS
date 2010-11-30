@@ -53,15 +53,15 @@ object TracingExample {
      * Write queries against relations and create optimized function using .toPiql
      * toPiql uses implicit executor defined above to run queries
      */
-    val getQuery = r1.where("f1".a === 0).toPiql
-    val getRangeQuery = r2.where("f1".a === 0)
+    val getQuery = r1.where("f1".a === 1).toPiql
+    val getRangeQuery = r2.where("f1".a === 1)
 			  .limit(10).toPiql
 
   
     /* Run some queries */
     (1 to 10).foreach(i => {
       fileSink.recordEvent(QueryEvent("getQuery" + i, "start"))
-      getQuery(Nil)
+      println(getQuery(Nil))
       fileSink.recordEvent(QueryEvent("getQuery" + i, "end"))
 
       fileSink.recordEvent(QueryEvent("getRangeQuery" + i, "start"))
