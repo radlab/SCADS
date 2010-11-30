@@ -1,8 +1,11 @@
-package edu.berkeley.cs.scads.piql
+package edu.berkeley.cs
+package scads
+package piql
+package scadr
 
-import edu.berkeley.cs.scads.comm._
-import edu.berkeley.cs.scads.storage._
-import edu.berkeley.cs.avro.marker._
+import comm._
+import storage._
+import avro.marker._
 
 import org.apache.avro.util._
 
@@ -13,26 +16,21 @@ import scala.collection.mutable.HashSet
 import net.lag.logging.Logger
 
 case class ScadrKeySplits(
-    usersKeySplits: Seq[(Option[UserKey], Seq[StorageService])],
-    thoughtsKeySplits: Seq[(Option[ThoughtKey], Seq[StorageService])],
-    subscriptionsKeySplits: Seq[(Option[SubscriptionKey], Seq[StorageService])],
-    tagsKeySplits: Seq[(Option[HashTagKey], Seq[StorageService])],
-    idxUsersTargetKeySplits: Seq[(Option[UserTarget], Seq[StorageService])])
+    usersKeySplits: Seq[(Option[User], Seq[StorageService])],
+    thoughtsKeySplits: Seq[(Option[Thought], Seq[StorageService])],
+    subscriptionsKeySplits: Seq[(Option[Subscription], Seq[StorageService])],
+    tagsKeySplits: Seq[(Option[HashTag], Seq[StorageService])]
+)
 
 /**
+ * Generate synthetic data for SCADr
  * Currently the loader assumes all nodes are equal and tries to distribute
  * evenly among the nodes with no preferences for any particular ones.
  */
-class ScadrLoader(val client: ScadrClient,
-                  val replicationFactor: Int,
-                  val numClients: Int, // number of clients to split the loading by
-                  val numUsers: Int = 100,
-                  val numThoughtsPerUser: Int = 10,
-                  val numSubscriptionsPerUser: Int = 10,
-                  val numTagsPerThought: Int = 5) {
-
-  require(client != null)
-  require(replicationFactor >= 1)
+class ScadrData(val numUsers: Int = 100,
+                val numThoughtsPerUser: Int = 10,
+                val numSubscriptionsPerUser: Int = 10,
+                val numTagsPerThought: Int = 5) {
   require(numUsers >= 0)
   require(numThoughtsPerUser >= 0)
   require(numSubscriptionsPerUser >= 0)
@@ -41,9 +39,7 @@ class ScadrLoader(val client: ScadrClient,
   val logger = Logger()
 
 
-  def createNamespaces() {
-    val splits = keySplits
-    logger.info("Creating namespaces with keysplits: %s", splits)
+  def createNamespaces(cluster: ScadrCluster, numServers: Int = 1, replicationFactor: Int = 1) {
     client.cluster.createNamespace[UserKey, UserValue]("users", splits.usersKeySplits)
     client.cluster.createNamespace[ThoughtKey, ThoughtValue]("thoughts", splits.thoughtsKeySplits)
     client.cluster.createNamespace[SubscriptionKey, SubscriptionValue]("subscriptions", splits.subscriptionsKeySplits)
@@ -71,12 +67,10 @@ class ScadrLoader(val client: ScadrClient,
       throw new RuntimeException("More clusters than users- don't know how to make key split")
 
     val usersPerNode = numUsers / clusterSize
-    val usersIdxs = None +: (1 until clusterSize).map(i => Some(i * usersPerNode + 1))
 
     val usersKeySplits = usersIdxs.map(_.map(idx => UserKey(toUser(idx))))
     val thoughtsKeySplits = usersIdxs.map(_.map(idx => ThoughtKey(toUser(idx), 0)))
     val subscriptionsKeySplits = usersIdxs.map(_.map(idx => SubscriptionKey(toUser(idx), "")))
-    val idxUsersTargetKeySplits = usersIdxs.map(_.map(idx => UserTarget(toUser(idx), "")))
 
     // assume uniform distribution of tags over 8 bit ascii - not really
     // ideal, but we can generate the data such that this is true
@@ -156,9 +150,6 @@ class ScadrLoader(val client: ScadrClient,
     val tagData: Seq[(HashTagKey, HashTagValue)] =
       thoughtData.flatMap(thought => randomStrings(thought._1.owner.hashCode, numTagsPerThought).map(tag => (HashTagKey(tag, thought._1.timestamp, thought._1.owner), HashTagValue(false))))
 
-    //val thoughtData: Seq[(ThoughtKey, ThoughtValue)] = userData.flatMap(user => (1 to numThoughtsPerUser).view.map(i => (ThoughtKey(user._1.username, i), ThoughtValue(user._1.username + " thinks " + i))))
-    //val subscriptionData: Seq[(SubscriptionKey, SubscriptionValue)] = userData.flatMap(user => randomInts(user._1.username.hashCode, numUsers, numSubscriptionsPerUser).view.map(u => (SubscriptionKey(user._1.username, userData(u)._1.username), SubscriptionValue(true))))
-
     ScadrData(userData, thoughtData, subscriptionData, tagData, idxUsersTargetData)
   }
 
@@ -176,5 +167,4 @@ class ScadrLoader(val client: ScadrClient,
     val startIdx = clientId * usersPerClient + 1 
     makeScadrData(startIdx, startIdx + usersPerClient)
   }
-
 }

@@ -1,7 +1,6 @@
 package edu.berkeley.cs.scads.comm
 
-import edu.berkeley.cs.avro.marker.AvroRecord
-import edu.berkeley.cs.avro.marker.AvroUnion
+import edu.berkeley.cs.avro.marker.{ AvroRecord, AvroUnion, AvroPair }
 
 /* Base message type for all scads messages */
 sealed trait MessageBody extends AvroUnion
@@ -86,6 +85,10 @@ case class StringRec(var f1: String) extends AvroRecord
 case class StringRec2(var f1: String, var f2: String) extends AvroRecord
 case class StringRec3(var f1: String, var f2: String, var f3: String) extends AvroRecord
 case class CompIntStringRec(var intRec: IntRec, var stringRec: StringRec) extends AvroRecord
+case class PairRec(var username: String) extends AvroPair {
+  var password: String = _
+  var hometown: String = _
+}
 
 case class QuorumProtocolConfig(var readQuorum : Double, var writeQuorum : Double) extends AvroRecord
 

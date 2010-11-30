@@ -2,12 +2,13 @@ package edu.berkeley.cs.scads.piql
 
 import net.lag.logging.Logger
 import org.apache.avro.util.Utf8
-import org.apache.avro.generic.{GenericData, IndexedRecord}
+import org.apache.avro.generic.IndexedRecord
 
 import edu.berkeley.cs.scads.comm.ScadsFuture
 
 import java.{ util => ju }
 import scala.collection.mutable.Queue
+import scala.collection.mutable.ArrayBuffer
 
 case class Context(parameters: IndexedSeq[Any], state: Option[List[Any]])
 
@@ -17,55 +18,6 @@ abstract class QueryIterator extends Iterator[Tuple] {
   def close: Unit
 }
 
-/**
- * A PageResult is returned for a paginated query.
- *
- * Note: Assumes iterator has not been open yet 
- */
-class PageResult(private val iterator: QueryIterator, val elemsPerPage: Int) extends Iterator[QueryResult] {
-  assert(elemsPerPage > 0)
-
-  var limitReached = false
-  var curBuf: QueryResult = null
-
-  def open: Unit = {
-    iterator.open
-  }
-
-  def hasAnotherPage: Boolean = hasNext
-
-  def nextPage: QueryResult = next
-
-  def hasNext = {
-    if (curBuf ne null) true
-    else if (limitReached) false
-    else {
-      val builder = Seq.newBuilder[Tuple]
-      var cnt = 0
-      while (cnt < elemsPerPage && iterator.hasNext) {
-        builder += iterator.next
-        cnt += 1
-      }
-      if (cnt == 0) {
-        limitReached = true
-        //iterator.close
-        false
-      } else {
-        curBuf = builder.result
-        true
-      }
-    }
-  }
-
-  def next = {
-    if (!hasNext) // pages in the next page if one exists
-      throw new ju.NoSuchElementException("No results left")
-    val res = curBuf
-    curBuf = null
-    res
-  }
-}
-
 trait QueryExecutor {
   protected val logger = Logger("edu.berkeley.cs.scads.piql.QueryExecutor")
 
@@ -73,12 +25,12 @@ trait QueryExecutor {
   def apply(plan: QueryPlan)(implicit ctx: Context): QueryIterator
 
   protected def bindValue(value: Value, currentTuple: Tuple)(implicit ctx: Context): Any = value match {
-    case FixedValue(v) => v
+    case ConstantValue(v) => v
     case ParameterValue(o) => ctx.parameters(o)
     case AttributeValue(recPos, fieldPos) => currentTuple(recPos).get(fieldPos)
   }
 
-  protected def bindKey(ns: Namespace, key: KeyGenerator, currentTuple: Tuple = null)(implicit ctx: Context): GenericData.Record = {
+  protected def bindKey(ns: Namespace, key: KeyGenerator, currentTuple: Tuple = null)(implicit ctx: Context): Key = {
     val boundKey = ns.newKeyInstance
     key.map(bindValue(_, currentTuple)).zipWithIndex.foreach {
       case (value: Any, idx: Int) => boundKey.put(idx, value)
@@ -97,7 +49,7 @@ trait QueryExecutor {
   }
 
   protected def evalPredicate(predicate: Predicate, tuple: Tuple)(implicit ctx: Context): Boolean = predicate match {
-    case Equality(v1, v2) => {
+    case EqualityPredicate(v1, v2) => {
       compareAny(bindValue(v1, tuple), bindValue(v2, tuple)) == 0
     }
   }
@@ -142,7 +94,7 @@ class SimpleExecutor extends QueryExecutor {
 
         def hasNext = result.isDefined
         def next = {
-          val tuple = Array(boundKey, result.getOrElse(throw new ju.NoSuchElementException("Next on empty iterator")))
+          val tuple = ArrayBuffer(result.getOrElse(throw new ju.NoSuchElementException("Next on empty iterator")))
           result = None
           tuple
         }
@@ -152,7 +104,7 @@ class SimpleExecutor extends QueryExecutor {
         new QueryIterator {
           val name = "SimpleIndexScan"
           val boundKeyPrefix = bindKey(namespace, keyPrefix)
-          var result: Seq[(Record, Record)] = Nil
+          var result: Seq[Record] = Nil
           var pos = 0
           var offset = 0
           var limitReached = false
@@ -168,12 +120,12 @@ class SimpleExecutor extends QueryExecutor {
               limitReached = true
           }
 
-          def open: Unit = doFetch() 
+          def open: Unit = doFetch()
 
           def close: Unit =
             result = Nil
 
-          def hasNext = 
+          def hasNext =
             if (pos < result.size) true
             else if (limitReached) false
             else {
@@ -186,7 +138,7 @@ class SimpleExecutor extends QueryExecutor {
             if (!hasNext)
               throw new ju.NoSuchElementException("Next on empty iterator")
 
-            val tuple = Array(result(pos)._1, result(pos)._2)
+            val tuple = ArrayBuffer(result(pos))
             pos += 1
             tuple
           }
@@ -249,7 +201,7 @@ class SimpleExecutor extends QueryExecutor {
             val records = namespace.getRange(boundKeyPrefix, boundKeyPrefix, limit=boundLimit, ascending=ascending)
             logger.debug("IndexMergeJoin Prefetch Using Key %s: %s", boundKeyPrefix, records)
 
-            val recIdxSeq = records.map(r => childValue ++ Array[Record](r._1, r._2)).toIndexedSeq
+            val recIdxSeq = records.map(r => childValue :+ r).toIndexedSeq
             (boundKeyPrefix, childValue, records.size, records.size < boundLimit, recIdxSeq)
           }).toSeq
 
@@ -278,7 +230,7 @@ class SimpleExecutor extends QueryExecutor {
           assert(!limitReached)
           val records = namespace.getRange(key, key, offset=offset, limit=boundLimit, ascending=ascending)
           logger.debug("IndexMergeJoin Prefetch Using Key %s: %s", key, records)
-          tupleBuffers(i) ++= records.map(r => tup ++ Array[Record](r._1, r._2)).toIndexedSeq
+          tupleBuffers(i) ++= records.map(r => tup :+ r).toIndexedSeq
           tupleData(i) = ((key, tup, offset + records.size, records.size < boundLimit))
         }
 
@@ -288,24 +240,24 @@ class SimpleExecutor extends QueryExecutor {
         private def getNext: Unit = {
 
           // find the first available buffer
-          var minIdx = -1 
+          var minIdx = -1
           var idx = 0
           while (minIdx == -1 && idx < tupleBuffers.size) {
 
             // if this buffer has already been scanned over but we can still fetch from KV store
-            if (bufferPos(idx) == tupleBuffers(idx).size && !bufferLimitReached(idx)) { 
+            if (bufferPos(idx) == tupleBuffers(idx).size && !bufferLimitReached(idx)) {
               fillBuffer(idx) // do the fetch
             }
 
             // if there is a buffer with contents, then we've found the start
-            if (bufferPos(idx) < tupleBuffers(idx).size) { 
+            if (bufferPos(idx) < tupleBuffers(idx).size) {
               minIdx = idx
             }
             idx += 1
           }
 
           if (minIdx == -1) nextTuple = null
-          else { 
+          else {
             for(i <- ((minIdx + 1) to (tupleBuffers.size - 1))) {
               if (bufferPos(i) == tupleBuffers(i).size && !bufferLimitReached(i)) {
                 fillBuffer(i)
@@ -319,7 +271,7 @@ class SimpleExecutor extends QueryExecutor {
               }
             }
             nextTuple = tupleBuffers(minIdx)(bufferPos(minIdx))
-            bufferPos(minIdx) += 1 
+            bufferPos(minIdx) += 1
             // NO prefetching here if minIdx buffer becomes entirely scanned-
             // this is unlike ParallelIndexMergeJoin which does a prefetch for
             // this case
@@ -328,7 +280,7 @@ class SimpleExecutor extends QueryExecutor {
       }
     }
 
-    case Selection(predicate, child) => {
+    case LocalSelection(predicate, child) => {
       new QueryIterator {
         val name = "Selection"
         val childIterator = apply(child)
@@ -356,7 +308,7 @@ class SimpleExecutor extends QueryExecutor {
         }
       }
     }
-    case StopAfter(k, child) => {
+    case LocalStopAfter(k, child) => {
       new QueryIterator {
         val name = "StopAfter"
         val childIterator = apply(child)
@@ -370,7 +322,7 @@ class SimpleExecutor extends QueryExecutor {
         def next = {taken += 1; childIterator.next}
       }
     }
-    
+
     case Union(chil1, child2, eqField)  =>{
       throw new RuntimeException("Not yet implemented")
     }
@@ -387,7 +339,7 @@ class ParallelExecutor extends SimpleExecutor {
       new QueryIterator {
         val name = "ParallelIndexLookup"
         val boundKey = bindKey(namespace, key)
-        var ftch: Option[ScadsFuture[Option[Record]]] = None 
+        var ftch: Option[ScadsFuture[Option[Record]]] = None
 
         def open: Unit =
           ftch = Some(namespace.asyncGet(boundKey))
@@ -398,7 +350,7 @@ class ParallelExecutor extends SimpleExecutor {
           ftch.flatMap(_.get).isDefined
 
         def next = {
-          val tuple = Array(boundKey, ftch.flatMap(_.get).getOrElse(throw new ju.NoSuchElementException("Empty iterator")))
+          val tuple = ArrayBuffer(boundKey, ftch.flatMap(_.get).getOrElse(throw new ju.NoSuchElementException("Empty iterator")))
           ftch = None
           tuple
         }
@@ -409,8 +361,8 @@ class ParallelExecutor extends SimpleExecutor {
           val name = "ParallelIndexScan"
           val boundKeyPrefix = bindKey(namespace, keyPrefix)
 
-          var result: Seq[(Record, Record)] = Nil
-          var ftch: ScadsFuture[Seq[(Record, Record)]] = _
+          var result: Seq[Record] = Nil
+          var ftch: ScadsFuture[Seq[Record]] = _
 
           var pos = 0
           var offset = 0
@@ -434,14 +386,14 @@ class ParallelExecutor extends SimpleExecutor {
             ftchInvoked = true
           }
 
-          def open: Unit = doFetch() 
+          def open: Unit = doFetch()
 
           def close: Unit = {
             result = Nil
             ftch = null
           }
 
-          def hasNext = 
+          def hasNext =
             if (ftchInvoked) { // have we already blocked on ftch and stored the result in result?
               if (pos < result.size) true
               else if (limitReached) false
@@ -459,7 +411,7 @@ class ParallelExecutor extends SimpleExecutor {
             if (!hasNext)
               throw new ju.NoSuchElementException("Next on empty iterator")
 
-            val tuple = Array(result(pos)._1, result(pos)._2)
+            val tuple = ArrayBuffer(result(pos))
             pos += 1
             tuple
           }
@@ -521,7 +473,7 @@ class ParallelExecutor extends SimpleExecutor {
         /**
          * (key, child tup, offset, limit reached?, outstanding ftch)
          */
-        var tupleData: Array[(Record, Tuple, Int, Boolean, ScadsFuture[Seq[(Record, Record)]])] = null
+        var tupleData: Array[(Key, Tuple, Int, Boolean, ScadsFuture[Seq[Record]])] = null
 
         var tupleBuffers: Array[IndexedSeq[Tuple]] = null
 
@@ -547,24 +499,24 @@ class ParallelExecutor extends SimpleExecutor {
         def hasNext = (nextTuple != null) || ({
 
           // find the first available buffer
-          var minIdx = -1 
+          var minIdx = -1
           var idx = 0
           while (minIdx == -1 && idx < tupleBuffers.size) {
 
             // if this buffer has already been scanned over but we can still fetch from KV store
-            if (bufferPos(idx) == tupleBuffers(idx).size && !bufferLimitReached(idx)) { 
+            if (bufferPos(idx) == tupleBuffers(idx).size && !bufferLimitReached(idx)) {
               fillBuffer(idx) // do the fetch
             }
 
             // if there is a buffer with contents, then we've found the start
-            if (bufferPos(idx) < tupleBuffers(idx).size) { 
+            if (bufferPos(idx) < tupleBuffers(idx).size) {
               minIdx = idx
             }
             idx += 1
           }
 
           if (minIdx == -1) false
-          else { 
+          else {
             for(i <- ((minIdx + 1) to (tupleBuffers.size - 1))) {
               if (bufferPos(i) == tupleBuffers(i).size && !bufferLimitReached(i)) {
                 fillBuffer(i)
@@ -578,7 +530,7 @@ class ParallelExecutor extends SimpleExecutor {
               }
             }
             nextTuple = tupleBuffers(minIdx)(bufferPos(minIdx))
-            bufferPos(minIdx) += 1 
+            bufferPos(minIdx) += 1
 
             // do another fetch if we reach the end of minIdx's buffer- this
             // is unlike SimpleIndexMergeJoin which does not do another fetch
@@ -601,7 +553,7 @@ class ParallelExecutor extends SimpleExecutor {
           logger.debug("IndexMergeJoin Prefetch Using Key %s: %s", key, records)
 
           // TODO: is it slow to ++= append to an IndexedSeq??
-          tupleBuffers(i) ++= records.map(r => tup ++ Array[Record](r._1, r._2)).toIndexedSeq
+          tupleBuffers(i) ++= records.map(tup :+ _).toIndexedSeq
 
           if (records.size < boundLimit) { // end of records in KV store
             tupleData(i) = ((null, null, -1, true, null)) // sentinel values
@@ -631,14 +583,13 @@ class ParallelExecutor extends SimpleExecutor {
   }
 }
 
-
 class LazyExecutor extends SimpleExecutor {
 
   override def apply(plan: QueryPlan)(implicit ctx: Context): QueryIterator = plan match {
     case IndexLookup(namespace, key) => {
       new QueryIterator {
         val name = "LazyIndexLookup"
-          
+
         private val boundKey = bindKey(namespace, key)
 
         private var accessed = false
@@ -656,7 +607,7 @@ class LazyExecutor extends SimpleExecutor {
           if (!hasNext)
             throw new ju.NoSuchElementException("Next on empty iterator")
           accessed = true
-          Array(boundKey, result.get)
+          ArrayBuffer(boundKey, result.get)
         }
       }
     }
@@ -666,7 +617,7 @@ class LazyExecutor extends SimpleExecutor {
 
           private val boundKeyPrefix = bindKey(namespace, keyPrefix)
 
-          private var result: (Record, Record) = null 
+          private var result: Record = null
 
           private var offset = 0
           private var limitReached = false
@@ -692,7 +643,7 @@ class LazyExecutor extends SimpleExecutor {
             limitReached = true
           }
 
-          def hasNext = 
+          def hasNext =
             if (result ne null) true
             else if (!limitReached) {
               doFetch()
@@ -702,7 +653,7 @@ class LazyExecutor extends SimpleExecutor {
           def next = {
             if (!hasNext)
               throw new ju.NoSuchElementException("Next on empty iterator")
-            val ret = Array(result._1, result._2)
+            val ret = ArrayBuffer(result)
             result = null
             ret
           }
@@ -777,7 +728,7 @@ class LazyExecutor extends SimpleExecutor {
             val records = namespace.getRange(boundKeyPrefix, boundKeyPrefix, limit=1, ascending=ascending)
             logger.debug("IndexMergeJoin Prefetch Using Key %s: %s", boundKeyPrefix, records)
 
-            val recIdxSeq = records.map(r => childValue ++ Array[Record](r._1, r._2)).toIndexedSeq
+            val recIdxSeq = records.map(childValue :+ _).toIndexedSeq
             (boundKeyPrefix, childValue, records.size, records.size < 1, recIdxSeq)
           }).toSeq
 
@@ -791,7 +742,7 @@ class LazyExecutor extends SimpleExecutor {
 
         def open {}
 
-        def close { 
+        def close {
           childIterator.close
           needsInit = false
         }
@@ -817,7 +768,7 @@ class LazyExecutor extends SimpleExecutor {
           assert(!limitReached)
           val records = namespace.getRange(key, key, offset=offset, limit=1, ascending=ascending)
           logger.debug("IndexMergeJoin Fetch Using Key %s: %s", key, records)
-          tupleBuffers(i) ++= records.map(r => tup ++ Array[Record](r._1, r._2)).toIndexedSeq
+          tupleBuffers(i) ++= records.map(tup :+ _).toIndexedSeq
           tupleData(i) = ((key, tup, offset + records.size, records.size < 1))
         }
 
@@ -827,24 +778,24 @@ class LazyExecutor extends SimpleExecutor {
         private def getNext: Unit = {
 
           // find the first available buffer
-          var minIdx = -1 
+          var minIdx = -1
           var idx = 0
           while (minIdx == -1 && idx < tupleBuffers.size) {
 
             // if this buffer has already been scanned over but we can still fetch from KV store
-            if (bufferPos(idx) == tupleBuffers(idx).size && !bufferLimitReached(idx)) { 
+            if (bufferPos(idx) == tupleBuffers(idx).size && !bufferLimitReached(idx)) {
               fillBuffer(idx) // do the fetch
             }
 
             // if there is a buffer with contents, then we've found the start
-            if (bufferPos(idx) < tupleBuffers(idx).size) { 
+            if (bufferPos(idx) < tupleBuffers(idx).size) {
               minIdx = idx
             }
             idx += 1
           }
 
           if (minIdx == -1) nextTuple = null
-          else { 
+          else {
             for(i <- ((minIdx + 1) to (tupleBuffers.size - 1))) {
               if (bufferPos(i) == tupleBuffers(i).size && !bufferLimitReached(i)) {
                 fillBuffer(i)
@@ -858,7 +809,7 @@ class LazyExecutor extends SimpleExecutor {
               }
             }
             nextTuple = tupleBuffers(minIdx)(bufferPos(minIdx))
-            bufferPos(minIdx) += 1 
+            bufferPos(minIdx) += 1
             // NO prefetching here if minIdx buffer becomes entirely scanned-
             // this is unlike ParallelIndexMergeJoin which does a prefetch for
             // this case

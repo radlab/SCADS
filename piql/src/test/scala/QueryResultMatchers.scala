@@ -1,4 +1,6 @@
-package edu.berkeley.cs.scads.test
+package edu.berkeley.cs.scads
+package piql
+package test
 
 import scala.collection.JavaConversions._
 

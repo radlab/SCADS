@@ -24,7 +24,7 @@ class TpcwLoader( val client : TpcwClient,
   require(numClients >= 1)
   require(numEBs > 0.0)
   require(numItems > 0)
-  
+
   /**
    * See clause 4.2.2 - items MUST be chosen from the following set
    */
@@ -43,16 +43,16 @@ class TpcwLoader( val client : TpcwClient,
 
   val rand = new scala.util.Random
 
-  private def uuid() : String = 
+  private def uuid() : String =
     UUID.randomUUID.toString
 
-  private def nameUuid(s: String) : String = 
+  private def nameUuid(s: String) : String =
     UUID.nameUUIDFromBytes(s.getBytes("UTF-8")).toString
 
   /**
    * Given a cluster size, create the hex splits, sorted in string lexicographical order
    */
-  private def hexSplit(clusterSize: Int) : Seq[Option[String]] = { 
+  private def hexSplit(clusterSize: Int) : Seq[Option[String]] = {
     var size = 16
     var levels = 1
     while (size < clusterSize) {
@@ -70,9 +70,9 @@ class TpcwLoader( val client : TpcwClient,
    * lexicographical order
    */
   private def utf8Split(clusterSize: Int) = {
-    var size = 256 
+    var size = 256
     while (size < clusterSize)
-      size = size * 256 
+      size = size * 256
 
     val numPerNode = size / clusterSize
     assert(numPerNode >= 1)
@@ -80,8 +80,8 @@ class TpcwLoader( val client : TpcwClient,
     // encodes i as a base 256 string. not super efficient
     def toKeyString(i: Int): String = i match {
       case 0 => ""
-      case _ => toKeyString(i / 256) + (i % 256).toChar 
-    }   
+      case _ => toKeyString(i / 256) + (i % 256).toChar
+    }
 
     None +: (1 until clusterSize).map(i => (toKeyString(i * numPerNode))).sorted.map(Some(_))
   }
@@ -92,7 +92,7 @@ class TpcwLoader( val client : TpcwClient,
    */
   private def printableCharSplit(clusterSize: Int) = {
     val (low, high) = (33, 126)
-    val numChars = high - low + 1 
+    val numChars = high - low + 1
     var size = numChars
     var levels = 1
     while (size < clusterSize) {
@@ -101,7 +101,7 @@ class TpcwLoader( val client : TpcwClient,
     }
     size *= numChars; levels += 1 // go up one more level than required to get finer granularity
 
-    def toKeyString(i: Int): String = 
+    def toKeyString(i: Int): String =
       if (i < numChars) (i + low).toChar.toString
       else toKeyString(i / numChars) + ((i % numChars) + low).toChar.toString
 
@@ -129,7 +129,7 @@ class TpcwLoader( val client : TpcwClient,
     None +: (1 until realSize).map(i => Some(i * numPerNode))
   }
 
-  def toCustomer(id: Int) = 
+  def toCustomer(id: Int) =
     nameUuid("cust%d".format(id))
 
   def toAuthor(id: Int) =
@@ -152,7 +152,7 @@ class TpcwLoader( val client : TpcwClient,
   def toAddress(id: Int) =
     nameUuid("address%d".format(id))
 
-  def toXact(id: Int) = 
+  def toXact(id: Int) =
     nameUuid("xact%d".format(id))
 
   def toItem(id: Int) =
@@ -176,10 +176,10 @@ class TpcwLoader( val client : TpcwClient,
       .map(_ => rand.nextInt(numItems) + 1)
       .map(i => createItemSubjectDateTitleIndex(createItem(i)))
       .sortWith { case ((ItemSubjectDateTitleIndexKey(x1, x2, _), _), (ItemSubjectDateTitleIndexKey(y1, y2, _), _)) =>
-        x1 < y1 || (x1 == y1 && x2 < y2) 
+        x1 < y1 || (x1 == y1 && x2 < y2)
       }.toIndexedSeq
 
-    val itemSubDateTitleIndexSplits = 
+    val itemSubDateTitleIndexSplits =
       None +: (1 until clusterSize).map(i => Some(itemSubjSamples(i * 1000)._1))
 
     logger.info("itemSubDateTitleIndexSplits: %s", itemSubDateTitleIndexSplits)
@@ -188,7 +188,7 @@ class TpcwLoader( val client : TpcwClient,
       .map(_ => rand.nextInt(numItems) + 1)
       .flatMap(i => createItemTitleIndex(createItem(i)))
       .sortWith { case ((ItemTitleIndexKey(x1, x2, _), _), (ItemTitleIndexKey(y1, y2, _), _)) =>
-        x1 < y1 || (x1 == y1 && x2 < y2) 
+        x1 < y1 || (x1 == y1 && x2 < y2)
       }.toIndexedSeq
 
     val stepSize = itemTitleSamples.size.toDouble / clusterSize.toDouble
@@ -224,7 +224,7 @@ class TpcwLoader( val client : TpcwClient,
       (itemSubDateTitleIndexSplits zip servers).map(x => (x._1, List(x._2))),
 
       // orderlines
-      hexSplits.map(x => (x._1.map(OrderLineKey(_, 0)), List(x._2))), 
+      hexSplits.map(x => (x._1.map(OrderLineKey(_, 0)), List(x._2))),
 
       // orders
       hexSplits.map(x => (x._1.map(OrdersKey(_)), List(x._2))),
@@ -282,7 +282,7 @@ class TpcwLoader( val client : TpcwClient,
       countries: Seq[(CountryKey, CountryValue)],
       customers: Seq[(CustomerKey, CustomerValue)],
       items: Seq[(ItemKey, ItemValue)],
-      orders: Seq[(OrdersKey, OrdersValue)], 
+      orders: Seq[(OrdersKey, OrdersValue)],
       orderlines: Seq[(OrderLineKey, OrderLineValue)],
 
       // secondary/inverted indicies
@@ -338,8 +338,8 @@ class TpcwLoader( val client : TpcwClient,
       }
     }
 
-    def newRange(upperBound: Int) = 
-      if (useViews) getSlice(upperBound).view 
+    def newRange(upperBound: Int) =
+      if (useViews) getSlice(upperBound).view
       else getSlice(upperBound)
 
     val addresses = newRange(numAddresses).map(createAddress(_))
@@ -357,8 +357,8 @@ class TpcwLoader( val client : TpcwClient,
 
     val authorNameItemIndexes = items.flatMap(createAuthorNameItemIndexes(_))
     val itemSubjectDateTitleIndexes = items.map(createItemSubjectDateTitleIndex(_))
-    val customerOrderIndexes = orders.map(createCustomerOrderIndex(_)) 
-    val itemTitleIndexes = items.flatMap(createItemTitleIndex(_)) 
+    val customerOrderIndexes = orders.map(createCustomerOrderIndex(_))
+    val itemTitleIndexes = items.flatMap(createItemTitleIndex(_))
 
     /** log what this client will be loading */
     logger.info("--- ClientId %d's Data Slice ---", clientId)
@@ -368,7 +368,7 @@ class TpcwLoader( val client : TpcwClient,
     logger.info("numOrders: %d", getSlice(numOrders).size)
     logger.info("numCountries: %d", getSlice(numCountries).size)
     logger.info("numItems: %d", getSlice(numItems).size)
-       
+
     TpcwData(
       addresses,
       authors,
@@ -376,7 +376,7 @@ class TpcwLoader( val client : TpcwClient,
       countries,
       customers,
       items,
-      orders, 
+      orders,
       orderlines,
 
       authorNameItemIndexes,
@@ -503,10 +503,10 @@ class TpcwLoader( val client : TpcwClient,
        to.getC_balance,
        to.getC_ytd_pmt,
        to.getC_birthday,
-       to.getC_data)        
+       to.getC_data)
     )
   }
-  
+
 
   def createOrder(id : Int) : (OrdersKey, OrdersValue) = {
     val obj = Generator.generateOrder(id, numCustomers, rand.nextInt(4) + 1)
@@ -536,10 +536,9 @@ class TpcwLoader( val client : TpcwClient,
       (OrderLineKey(toOrder(id), idx + 1),
        OrderLineValue(toItem(order.getOl_i_id),
          order.getOl_qty,
-         order.getOl_discount, 
+         order.getOl_discount,
          order.getOl_comments))
     }
   }
 
 }
-

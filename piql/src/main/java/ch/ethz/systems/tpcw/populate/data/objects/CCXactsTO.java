@@ -11,7 +11,7 @@ public class CCXactsTO extends AbstractTO {
 	private double cx_xact_amt;
 	private long cx_xact_date;
 	private int cx_co_id;
-	
+
 	public int getCx_o_id() {
 		return cx_o_id;
 	}
@@ -66,6 +66,6 @@ public class CCXactsTO extends AbstractTO {
 	public void setCx_co_id(int cx_co_id) {
 		this.cx_co_id = cx_co_id;
 	}
-		
-	
+
+
 }

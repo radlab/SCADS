@@ -9,7 +9,7 @@ public class AddressTO extends AbstractTO {
 	private String addr_city;
 	private String addr_zip;
 	private int addr_co_id;
-	
+
 	public int getAddr_id() {
 		return addr_id;
 	}
@@ -52,5 +52,5 @@ public class AddressTO extends AbstractTO {
 	public void setAddr_state(String addr_state) {
 		this.addr_state = addr_state;
 	}
-	
+
 }

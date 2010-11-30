@@ -19,7 +19,7 @@ public class CustomerTO extends AbstractTO {
 	private double c_ytd_pmt;
 	private long c_birthday;
 	private String c_data;
-	
+
 	public int getC_id() {
 		return c_id;
 	}
@@ -122,6 +122,6 @@ public class CustomerTO extends AbstractTO {
 	public void setC_data(String c_data) {
 		this.c_data = c_data;
 	}
-	
-	
+
+
 }

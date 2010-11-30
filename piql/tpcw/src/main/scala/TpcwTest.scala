@@ -18,7 +18,7 @@ class TpcwTest {
    val storageHandler = TestScalaEngine.getTestHandler(3)
    val cluster = new ScadsCluster(storageHandler.head.root)
    var client = new TpcwClient(cluster, new SimpleExecutor)
-  
+
   def run() = {
 
     //client.loadData(0.1, 100)
