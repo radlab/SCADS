@@ -36,16 +36,5 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
   lazy val subscriptions = cluster.getNamespace[Subscription]("subscriptions")
   lazy val tags = cluster.getNamespace[HashTag]("tags")
 
-  def findUser = users.where("username".a === (0.?)).toPiql
-
-  def thoughtstream = (
-    subscriptions
-      .where("owner".a === (0.?))
-      .where("approved".a === true)
-      .join(thoughts)
-      .where("thoughts.owner".a === "subscriptions.target".a)
-      .sort("timestamp" :: Nil, false)
-      .limit(10)
-  ).toPiql
-
+  val findUser = users.where("username".a === (0.?)).toPiql
 }
