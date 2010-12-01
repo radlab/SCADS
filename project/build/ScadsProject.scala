@@ -5,8 +5,12 @@ import java.io.File
 
 class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
 
-  abstract class ScadsSubProject(info: ProjectInfo) extends DefaultProject(info) with AvroCompilerPlugin {
+  abstract class ScadsSubProject(info: ProjectInfo) extends DefaultProject(info) with AvroCompilerPlugin with AssemblyBuilder {
     override def fork = forkRun("-Xmx4G" :: Nil)
+
+    //HACK
+    val bdb = "com.sleepycat" % "je" % "4.0.71"
+    val optional = "optional" %% "optional" % "0.1"
   }
 
   class Config(info: ProjectInfo) extends DefaultProject(info) {
@@ -25,8 +29,6 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
   }
   class Piql(info: ProjectInfo) extends ScadsSubProject(info)
   class ScalaEngine(info: ProjectInfo) extends ScadsSubProject(info){
-    val bdb = "com.sleepycat" % "je" % "4.0.71"
-    val optional = "optional" %% "optional" % "0.1"
   }
   class Perf(info: ProjectInfo) extends ScadsSubProject(info) {
     val deploylib = "edu.berkeley.cs" %% "deploylib" % "2.1.0-SNAPSHOT"
