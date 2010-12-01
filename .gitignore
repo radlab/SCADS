@@ -1,3 +1,5 @@
+assembly/
+project/boot/
 gen-*
 tags
 .DS_Store
