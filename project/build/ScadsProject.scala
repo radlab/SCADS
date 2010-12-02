@@ -5,12 +5,38 @@ import java.io.File
 
 class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
 
-  abstract class ScadsSubProject(info: ProjectInfo) extends DefaultProject(info) with AvroCompilerPlugin with AssemblyBuilder {
-    override def fork = forkRun("-Xmx4G" :: Nil)
+  abstract class ScadsSubProject(info: ProjectInfo) extends DefaultProject(info) with AvroCompilerPlugin {
+    override def fork = forkRun("-Xmx4G" ::
+				"-Djava.library.path=/usr/local/mesos/lib/java/" :: Nil)
+
+    def packagedClasspath = {
+      val libraryJars = (managedDependencyPath / "compile" ** "*.jar").getFiles
+      val scalaJars = mainDependencies.scalaJars.getFiles
+      val localDependencyJars = dependencies.map(_.asInstanceOf[BasicScalaProject]).map(_.jarPath.asFile)
+      val currentJar = jarPath.asFile :: Nil
+      (scalaJars ++ currentJar ++ localDependencyJars ++ libraryJars).map(_.getCanonicalPath)
+    }
+
+    //Also kind of a hack
+    lazy val writePackagedClasspath = task {
+      FileUtilities.write(
+	new File("classpath"),
+	packagedClasspath.mkString(":"),
+	log
+      )
+
+      FileUtilities.write(
+	new File("allJars"),
+	packagedClasspath.mkString("\n"),
+	log
+      )
+    } dependsOn(`package`) describedAs("Package classes and API docs.")
 
     //HACK
     val bdb = "com.sleepycat" % "je" % "4.0.71"
     val optional = "optional" %% "optional" % "0.1"
+    val zookeeper = "org.apache.hadoop.zookeeper" % "zookeeper" % "3.3.1"
+    val deploylib = "edu.berkeley.cs" %% "deploylib" % "2.1.0-SNAPSHOT"
   }
 
   class Config(info: ProjectInfo) extends DefaultProject(info) {
@@ -24,14 +50,12 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
   }
  class Comm(info: ProjectInfo) extends ScadsSubProject(info) {
     val netty = "org.jboss.netty" % "netty" % "3.2.1.Final"
-    val zookeeper = "org.apache.hadoop.zookeeper" % "zookeeper" % "3.3.1"
     val log4j = "log4j" % "log4j" % "1.2.15"
   }
   class Piql(info: ProjectInfo) extends ScadsSubProject(info)
   class ScalaEngine(info: ProjectInfo) extends ScadsSubProject(info){
   }
   class Perf(info: ProjectInfo) extends ScadsSubProject(info) {
-    val deploylib = "edu.berkeley.cs" %% "deploylib" % "2.1.0-SNAPSHOT"
   }
 
   lazy val config      = project("config", "config", new Config(_))

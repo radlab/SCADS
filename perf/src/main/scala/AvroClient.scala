@@ -76,6 +76,8 @@ object AvroClientMain {
       try {
         val clusterRoot = ZooKeeperNode(args(1))
         Class.forName(args(0)).newInstance.asInstanceOf[AvroClient].parse(args(2)).run(clusterRoot)
+	logger.info("Run method returned, terminating AvroClient")
+	System.exit(0)
       }
       catch {
         case error => {

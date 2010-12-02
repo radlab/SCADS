@@ -14,8 +14,6 @@ import java.io.File
 import net.lag.logging.Logger
 
 class ExperimentalScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) extends ScadsCluster(root) {
-  val logger = Logger()
-
   def blockUntilReady(clusterSize: Int): Unit = {
     while(getAvailableServers.size < clusterSize) {
       logger.info("Waiting for cluster to start " + cluster.getAvailableServers.size + " of " + clusterSize + " ready.")
