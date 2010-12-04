@@ -18,7 +18,7 @@ object LocalExperimentScheduler {
 }
 
 abstract trait ExperimentScheduler {
-  def scheduleExperiment(processes: Seq[JvmProcess]): Unit
+  def scheduleExperiment(processes: Seq[JvmTask]): Unit
 }
 
 class LocalExperimentScheduler protected (name: String, mesosMaster: String, executor: String) extends Scheduler with ExperimentScheduler{
@@ -26,16 +26,16 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String, exe
   var taskId = 0
   var driver = new MesosSchedulerDriver(this, mesosMaster)
 
-  case class Experiment(var processes: Seq[JvmProcess])
+  case class Experiment(var processes: Seq[JvmTask])
   var outstandingExperiments = new java.util.concurrent.ConcurrentLinkedQueue[Experiment]
-  var awaitingSiblings = List[JvmProcess]()
+  var awaitingSiblings = List[JvmTask]()
   var taskIds = List[Int]()
   var scheduledExperiments = List[List[Int]]()
 
   val driverThread = new Thread("ExperimentScheduler Mesos Driver Thread") { override def run(): Unit = driver.run() }
   driverThread.start()
 
-  def scheduleExperiment(processes: Seq[JvmProcess]): Unit = synchronized {
+  def scheduleExperiment(processes: Seq[JvmTask]): Unit = synchronized {
     outstandingExperiments.add(new Experiment(processes))
   }
 
@@ -52,7 +52,7 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String, exe
       scheduleNow.take(offers.size).foreach(proc => {
         val offer = offers.remove(0)
         val taskParams = Map(List("mem", "cpus").map(k => k -> offer.getParams.get(k)):_*)
-        val task = new TaskDescription(taskId, offer.getSlaveId, proc.mainclass, taskParams, proc.toBytes)
+        val task = new TaskDescription(taskId, offer.getSlaveId, proc.toString, taskParams, JvmTask(proc))
         logger.debug("Scheduling task %d: %s", taskId, proc)
         taskIds ::= taskId
         logger.debug("Assigning task %d to slave %s on %s", taskId, offer.getSlaveId, offer.getHost)
@@ -68,7 +68,7 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String, exe
         logger.info("Experiment Scheduled. Size: %d", awaitingSiblings.size)
         scheduledExperiments ::= taskIds
         taskIds = List[Int]()
-        awaitingSiblings = List[JvmProcess]()
+        awaitingSiblings = List[JvmTask]()
       }
       else {
         logger.info("Scheduled %d of %d processes", awaitingSiblings.size, awaitingSiblings.size + currentExperiment.processes.size)

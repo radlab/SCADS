@@ -10,7 +10,7 @@ class RemoteExperimentScheduler extends ExperimentScheduler with MessageReceiver
   val remoteService = RemoteActor("mesos-ec2", 9001, ActorNumber(0))
   implicit val returnAddress = MessageHandler.registerService(this)
 
-  def scheduleExperiment(processes: Seq[JvmProcess]): Unit = {
+  def scheduleExperiment(processes: Seq[JvmTask]): Unit = {
     remoteService ! RunExperiment(processes.toList)
   }
 
