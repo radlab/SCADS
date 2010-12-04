@@ -26,20 +26,20 @@ abstract trait AvroClient extends IndexedRecord {
     new ScadsCluster(clusterRoot)
   }
 
-  implicit def duplicate(process: JvmProcess) = new {
-    def *(count: Int): Seq[JvmProcess] = Array.fill(count)(process)
+  implicit def duplicate(process: JvmTask) = new {
+    def *(count: Int): Seq[JvmTask] = Array.fill(count)(process)
   }
 
   def newExperimentRoot(implicit zookeeper: ZooKeeperProxy#ZooKeeperNode) =
     zookeeper.getOrCreate("scads/experiments").createChild("IntKeyScaleTest", mode = CreateMode.PERSISTENT_SEQUENTIAL)
 
-  def toJvmProcess(clusterRoot: ZooKeeperProxy#ZooKeeperNode)(implicit classpath: Seq[ClassSource]): JvmProcess =
-    JvmProcess(classpath,
+  def toJvmProcess(clusterRoot: ZooKeeperProxy#ZooKeeperNode)(implicit classpath: Seq[ClassSource]): JvmMainTask =
+    JvmMainTask(classpath,
       "edu.berkeley.cs.scads.perf.AvroClientMain",
       this.getClass.getName :: clusterRoot.canonicalAddress :: this.toJson :: Nil)
 
   def serverJvmProcess(clusterAddress: String)(implicit classpath: Seq[ClassSource]) =
-    JvmProcess(
+    JvmMainTask(
       classpath,
       "edu.berkeley.cs.scads.storage.ScalaEngine",
       "--clusterAddress" :: clusterAddress :: Nil)
