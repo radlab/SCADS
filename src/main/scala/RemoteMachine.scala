@@ -39,9 +39,12 @@ abstract class RemoteMachine {
 
   private def findPrivateKey: File = {
     def defaultKeyFiles = {
+      val specifiedKey = System.getenv("DEPLOYLIB_SSHKEY")
       val rsa = new File(System.getProperty("user.home"), ".ssh/id_rsa")
       val dsa = new File(System.getProperty("user.home"), ".ssh/id_dsa")
-      if (rsa.exists) rsa
+
+      if (specifiedKey != null) new File(specifiedKey)
+      else if (rsa.exists) rsa
       else if (dsa.exists) dsa
       else throw new RuntimeException("No private key found")
     }
