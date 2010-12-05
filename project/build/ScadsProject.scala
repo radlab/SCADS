@@ -9,12 +9,18 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
     override def fork = forkRun("-Xmx4G" ::
 				"-Djava.library.path=/usr/local/mesos/lib/java/" :: Nil)
 
+    protected def getLocalJars(project: BasicScalaProject): Seq[File] = {
+      //HACK: Sbt seems to be missing some the transitive dependencies in lib_managed so we'll just go get them all ourself
+      val managedDependencies = (project.managedDependencyPath / "compile" ** "*.jar").getFiles
+      val localDependencies = project.dependencies.map(_.asInstanceOf[BasicScalaProject])
+       project.jarPath.asFile :: (localDependencies.flatMap(getLocalJars).toList ++ managedDependencies)
+    }
+
     def packagedClasspath = {
-      val libraryJars = (managedDependencyPath / "compile" ** "*.jar").getFiles
       val scalaJars = mainDependencies.scalaJars.getFiles
-      val localDependencyJars = dependencies.map(_.asInstanceOf[BasicScalaProject]).map(_.jarPath.asFile)
-      val currentJar = jarPath.asFile :: Nil
-      (scalaJars ++ currentJar ++ localDependencyJars ++ libraryJars).map(_.getCanonicalPath)
+
+val localJars = getLocalJars(this)
+      (scalaJars ++ localJars).map(_.getCanonicalPath)
     }
 
     //Also kind of a hack
@@ -43,7 +49,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
     val mesos = "edu.berkeley.cs.mesos" % "java" % "1.0"
     val communication = "edu.berkeley.cs.scads" %% "communication" % "2.1.0-SNAPSHOT"
     val configgy = "net.lag" % "configgy" % "2.0.0"
-    val staxApi = "javax.xml.stream" % "stax-api" % "1.0"
+     val staxApi = "javax.xml.stream" % "stax-api" % "1.0"
     val jaxbApi = "javax.xml.bind" % "jaxb-api" % "2.1"
     val json = "org.json" % "json" % "20090211"
     val ec2 = "com.amazonaws" % "ec2" % "20090404"
@@ -95,11 +101,11 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
 }
 
 trait AvroCompilerPlugin extends AutoCompilerPlugins {
-  override def getScalaInstance(version: String) = { 
+  override def getScalaInstance(version: String) = {
     val pluginJars = compileClasspath.filter(path => pluginDeps.contains(path.name)).getFiles.toSeq
-    withExtraJars(super.getScalaInstance(version), pluginJars) 
+    withExtraJars(super.getScalaInstance(version), pluginJars)
   }
-    
+
    private val pluginDeps = Set("avro-1.3.3.jar", "jackson-core-asl-1.4.2.jar", "jackson-mapper-asl-1.4.2.jar")
 
    private def withExtraJars(si: ScalaInstance, extra: Seq[File]) =
