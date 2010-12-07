@@ -55,7 +55,7 @@ case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Long]) extend
     sqrt(1.0 / (n - 1.0) * buckets.zipWithIndex.foldLeft(0.0) { case (acc, (num, idx)) => acc + num.toDouble * pow(idx.toDouble * bucketSize.toDouble - xbar, 2) })
   }
 
-	def view: NodeSeq =
+  def toHtml: NodeSeq =
 <script type="text/javascript">{"""
  $(document).ready(function() {
       var chart1 = new Highcharts.Chart({
