@@ -19,7 +19,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
     def packagedClasspath = {
       val scalaJars = mainDependencies.scalaJars.getFiles
 
-val localJars = getLocalJars(this)
+      val localJars = getLocalJars(this)
       (scalaJars ++ localJars).map(_.getCanonicalPath)
     }
 
@@ -45,11 +45,24 @@ val localJars = getLocalJars(this)
     val zookeeper = "org.apache.hadoop.zookeeper" % "zookeeper" % "3.3.1"
   }
 
+  class Repl(info: ProjectInfo) extends DefaultWebProject(info) with AvroCompilerPlugin
+  {
+    val snapshots = ScalaToolsSnapshots
+    val lift = "net.liftweb" %% "lift-mapper" % "2.2-SNAPSHOT" % "compile"
+    val jetty6 = "org.mortbay.jetty" % "jetty" % "6.1.25" % "test"
+    val h2 = "com.h2database" % "h2" % "1.2.121" % "runtime"
+    // alternately use derby
+    // val derby = "org.apache.derby" % "derby" % "10.2.2.0" % "runtime"
+    val servlet = "javax.servlet" % "servlet-api" % "2.5" % "provided"
+    val junit = "junit" % "junit" % "3.8.1" % "test"
+    val sl4jConfiggy = "com.notnoop.logging" % "slf4j-configgy" % "0.0.1"
+  }
+
   class DeployLib(info: ProjectInfo) extends ScadsSubProject(info) {
     val mesos = "edu.berkeley.cs.mesos" % "java" % "1.0"
     val communication = "edu.berkeley.cs.scads" %% "communication" % "2.1.0-SNAPSHOT"
     val configgy = "net.lag" % "configgy" % "2.0.0"
-     val staxApi = "javax.xml.stream" % "stax-api" % "1.0"
+    val staxApi = "javax.xml.stream" % "stax-api" % "1.0"
     val jaxbApi = "javax.xml.bind" % "jaxb-api" % "2.1"
     val json = "org.json" % "json" % "20090211"
     val ec2 = "com.amazonaws" % "ec2" % "20090404"
@@ -88,6 +101,8 @@ val localJars = getLocalJars(this)
   lazy val perf        = project("perf", "performance", new Perf(_), config, avro, comm, scalaengine, piql, deploylib)
 
   lazy val deploylib = project("deploylib", "deploylib", new DeployLib(_), comm)
+  lazy val repl      = project("repl", "repl", new Repl(_), perf)
+
 
   //PIQL Apps
   class Scadr(info: ProjectInfo) extends ScadsSubProject(info) {

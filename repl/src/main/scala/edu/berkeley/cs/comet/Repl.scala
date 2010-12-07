@@ -1,5 +1,5 @@
-package edu.berkeley.cs {
-package comet {
+package edu.berkeley.cs
+package comet
 
 import _root_.scala.actors.Actor
 import _root_.scala.xml.{Elem,NodeSeq,Text}
@@ -18,8 +18,6 @@ import _root_.net.liftweb.common.{Box,Empty,Full}
 import scala.xml.XML
 
 import scala.tools.nsc._
-import edu.berkeley.cs.scads.piql.parser._
-import edu.berkeley.cs.snippet.PiqlSpec
 
 object InitRepl
 case class ExecuteScala(scalaCmd: String)
@@ -37,16 +35,7 @@ class Repl extends CometActor {
   override def lowPriority = {
     case InitRepl => {
       interpreter = new Interpreter(settings, writer)
-     	interpreter.bind("repl", "net.liftweb.http.CometActor", this)
-      outputToConsole(<p>Attempting PIQL Compilation</p>)
-      PiqlSpec.get match {
-        case Full(spec) => {
-          val code = ScalaGen(spec)
-          val unpackaged = code.split("\n").drop(2).mkString("\n")
-          interpret(unpackaged)
-        }
-        case _ => outputToConsole(<p>No PIQL Spec Available for compilation</p>)
-      }
+      interpreter.bind("repl", "net.liftweb.http.CometActor", this)
       outputToConsole(<p>Ready...</p>)
     }
 		case DisplayNodeSeq(seq) => outputToConsole(seq)
@@ -80,4 +69,4 @@ class Repl extends CometActor {
     SHtml.ajaxText("", (cmd: String) => {this ! ExecuteScala(cmd); SetValueAndFocus("cmdline", "") }, ("id", "cmdline")) ++
     SHtml.a(() => {this ! InitRepl; SetHtml("history", <p>Initalizing REPL</p>)}, <span>Reset REPL</span>)
 	}
-}}}
+}
