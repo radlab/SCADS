@@ -106,12 +106,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
   private def makePartitionHandler(
       database: Database, namespace: String, partitionIdLock: ZooKeeperProxy#ZooKeeperNode,
       startKey: Option[Array[Byte]], endKey: Option[Array[Byte]]) =
-    new PartitionHandler(database, None, partitionIdLock, startKey, endKey, getNamespaceRoot(namespace), keySchemaFor(namespace))
-
-	private def makePartitionHandlerWithAC(
-      database: Database, acdatabase:Database, namespace: String, partitionIdLock: ZooKeeperProxy#ZooKeeperNode,
-      startKey: Option[Array[Byte]], endKey: Option[Array[Byte]]) =
-    new PartitionHandler(database, Some(acdatabase), partitionIdLock, startKey, endKey, getNamespaceRoot(namespace), keySchemaFor(namespace))
+    new PartitionHandler(database, partitionIdLock, startKey, endKey, getNamespaceRoot(namespace), keySchemaFor(namespace))
 
   /** Iterator scans the entire cursor and does not close it */
   private implicit def cursorToIterator(cursor: Cursor): Iterator[(DatabaseEntry, DatabaseEntry)]
@@ -180,9 +175,8 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
 
       /* Make partition handler */
       val db      = makeDatabase(request.namespace, keySchemaFor(request.namespace), None)
-			val acdb 		= makeDatabase(request.namespace+"_ac", keySchemaFor(request.namespace), None)
-      //val handler = makePartitionHandler(db, request.namespace, partitionIdLock, request.startKey, request.endKey)
-			val handler = makePartitionHandlerWithAC(db, acdb, request.namespace, partitionIdLock, request.startKey, request.endKey)
+      val handler = makePartitionHandler(db, request.namespace, partitionIdLock, request.startKey, request.endKey)
+			//val handler = makePartitionHandlerWithAC(db, acdb, request.namespace, partitionIdLock, request.startKey, request.endKey)
 
       /* Add to our list of open partitions */
       partitions.put(partitionId, handler)
@@ -276,7 +270,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
           val newDb = makeDatabase(namespace, keySchemaFor(namespace), Some(txn))
 
 					/* Open a DB for access control info */
-					val acDb = makeDatabase(namespace+"_ac", keySchemaFor(namespace), Some(txn))
+					//val acDb = makeDatabase(namespace+"_ac", keySchemaFor(namespace), Some(txn))
 
           /* Log to partition DB for recreation */
           partitionDb.put(txn, new DatabaseEntry(partitionId.getBytes), new DatabaseEntry(createRequest.toBytes))
@@ -285,8 +279,8 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
           txn.commit()
 
           /* Make partition handler from request */
-          //val handler = makePartitionHandler(newDb, namespace, partitionIdLock, startKey, endKey)
-					val handler = makePartitionHandlerWithAC(newDb, acDb, namespace, partitionIdLock, startKey, endKey)
+          val handler = makePartitionHandler(newDb, namespace, partitionIdLock, startKey, endKey)
+					//val handler = makePartitionHandlerWithAC(newDb, acDb, namespace, partitionIdLock, startKey, endKey)
 
           /* Add to our list of open partitions */
           val test = partitions.put(partitionId, handler)

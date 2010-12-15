@@ -5,6 +5,8 @@ import org.apache.avro.Schema
 import net.lag.logging.Logger
 
 import edu.berkeley.cs.scads.comm._
+import scala.collection.JavaConversions._
+import org.apache.avro.generic._
 
 import java.util.{ Arrays => JArrays }
 
@@ -13,7 +15,7 @@ import java.util.{ Arrays => JArrays }
  * requests which fall out of this range, by returning a ProcessingException
  */
 class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, val startKey: Option[Array[Byte]], val endKey: Option[Array[Byte]], val nsRoot: ZooKeeperProxy#ZooKeeperNode, val keySchema: Schema) extends ServiceHandler[PartitionServiceOperation] with AvroComparator {
-  protected val logger = Logger()
+  protected val logger = Logger("partitionhandler")
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
 	// state for maintaining workload stats
@@ -26,6 +28,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 	private val putSamplingRate = 1.0
 	private val samplerRandom = new java.util.Random
 	// end workload stats stuff
+
   protected def startup() { /* No-op */ }
   protected def shutdown() {
     partitionIdLock.delete()
