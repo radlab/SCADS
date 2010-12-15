@@ -131,6 +131,45 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     val responses = serversForKey(key).map(_ !! putRequest)
     responses.blockFor(quorum)
   }
+	def putWithACL[K <: KeyType, V <: ValueType](key: K, value: Option[V], user:String, groups:Seq[String]): Unit = {
+		val (servers, quorum) = writeQuorumForKey(key)
+		val testRequest = TestACLRequest(serializeKey(key), user, groups)
+		val testResponses = serversForKey(key).map(_ !! testRequest)
+		testResponses.blockFor(quorum)
+		
+		// there is still chance that ACL changes in time that we test the ACL and actually send the puts, however will still be fixed by read repair?
+		var canPut = 0
+		//val tempresponses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture]
+    //testResponses.foreach(_.forward(tempresponses))
+		testResponses.foreach(resp => resp.get match {
+			case m@TestACLRequestResponse(canRead, canWrite) => if (canRead) canPut += 1 
+			case _ => throw new RuntimeException("Expected test acl response")
+		})
+		
+		// if test responses are compatible, first schedule puts then schedule read repair
+		if (canPut >= quorum) {
+			val putRequest = PutRequestACL(serializeKey(key), value.map(createRecord), user, groups)
+			val responses = serversForKey(key).map(_ !! putRequest)
+	    responses.blockFor(quorum)
+			// TODO: schedule read repair
+		}
+	}
+	/*
+	putACL
+	get quorum, then send testACL requests
+	block for quorum
+	if capabible, then send put requests
+	*/
+
+  def putACLrecord[K <: KeyType](key: K, prefix:Int, user:String, acl:Map[String,Int]): Unit = {
+    val (servers, quorum) = writeQuorumForKey(key)
+    val putRequest = PutACLRequest(user,serializeKey(key), Some(prefix) ,acl,System.currentTimeMillis)
+    val responses = serversForKey(key).map(_ !! putRequest)
+    responses.blockFor(quorum)
+		/*
+		measure time between: blockFor(1); timestamp; blockFor(servers.size); timestamp
+		*/
+  }
 
   @inline private def makeGetRequests(key: KeyType) = {
     val (servers, quorum) = readQuorumForKey(key)
@@ -139,8 +178,26 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     (servers.map(_ !! getRequest), serKey, quorum)
   }
 
+  @inline private def makeGetRequestsACL(key: KeyType, user:String, groups:Seq[String]) = {
+    val (servers, quorum) = readQuorumForKey(key)
+		logger.info("have %d servers, quorum is %d", servers.size, quorum)
+    val serKey = serializeKey(key)
+    val getRequest = GetRequestACL(serKey, user, groups)
+    (servers.map(_ !! getRequest), serKey, quorum)
+  }
+
   @inline private def finishGetHandler(handler: GetHandler, quorum: Int): Option[Option[ValueType]] = {
     val record = handler.vote(quorum)
+    if (handler.failed) None
+    else {
+      // TODO: repair on failed case (above) still?
+      ReadRepairer ! handler
+      Some(extractValueFromRecord(record))
+    }
+  }
+
+  @inline private def finishGetHandlerACL(handler: GetHandler, quorum: Int): Option[Option[ValueType]] = {
+    val record = handler.voteWithACL(quorum)
     if (handler.failed) None
     else {
       // TODO: repair on failed case (above) still?
@@ -157,6 +214,11 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
   def get[K <: KeyType](key: K): Option[ValueType] = {
     val (ftchs, serKey, quorum) = makeGetRequests(key)
     finishGetHandler(new GetHandler(serKey, ftchs), quorum).getOrElse(throw new RuntimeException("Could not complete get request - not enough servers responded"))
+  }
+
+  def getWithACL[K <: KeyType](key: K, user:String, groups: Seq[String]): Option[ValueType] = {
+    val (ftchs, serKey, quorum) = makeGetRequestsACL(key, user, groups)
+    finishGetHandlerACL(new GetHandler(serKey, ftchs), quorum).getOrElse(throw new RuntimeException("Could not complete get request - not enough servers responded"))
   }
 
   /**
@@ -464,7 +526,11 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     futures.foreach(_.forward(responses))
     var losers: MutableList[RemoteActorProxy] = new MutableList
     var winners: MutableList[RemoteActorProxy] = new MutableList
+    var losersACL: MutableList[RemoteActorProxy] = new MutableList
+    var winnersACL: MutableList[RemoteActorProxy] = new MutableList
     var winnerValue: Option[Array[Byte]] = None
+		var winnerACLtime = 0L
+		var winnerACL = Map[String,Int]()
     var ctr = 0
     val startTime = System.currentTimeMillis
     var failed = false
@@ -475,10 +541,14 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
       (1 to quorum).foreach(_ => compareNext())
       return winnerValue
     }
+    def voteWithACL(quorum: Int): Option[Array[Byte]] = {
+      (1 to quorum).foreach(_ => compareNextACL())
+      return winnerValue
+    }
 
     def processRest() = {
       for (i <- 1 to futures.length - ctr) {
-        compareNext()
+        compareNextACL()
       }
     }
 
@@ -508,6 +578,47 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
       }
     }
 
+    private def compareNextACL(): Unit = {
+      ctr += 1
+      val time = startTime - System.currentTimeMillis + timeout
+      val future = responses.poll(if (time > 0) time else 0, TimeUnit.MILLISECONDS)
+      if (future == null) {
+        failed = true
+        return
+      }
+      future() match {
+        case m@GetResponseACL(v,acl,acltime) => {
+					logger.info("processing getresponse with time %d",acltime.get)
+					// determine winners and losers wrt acl time
+					if (winnerACLtime > acltime.getOrElse(0L)) future.source.foreach(losersACL += _)
+					else if (winnerACLtime < acltime.getOrElse(0L)) {
+						losersACL ++= winnersACL
+            winnersACL.clear
+            future.source.foreach(winnersACL += _)
+            winnerACLtime = acltime.getOrElse(0L)
+						winnerACL = acl
+						logger.info("winning acl time: %d",winnerACLtime)
+					}
+					else future.source.foreach(winnersACL += _)
+		
+					// determine winners and losers wrt value
+					// ACL losers are not allowed to hold winningValue, i.e. can't possess winning timestamp
+          val cmp = QuorumProtocol.this.compareRecord(winnerValue, v)
+          if (cmp > 0 || !losersACL.contains(future.source.get)) { // source is a loser if it's an ACL loser
+            future.source.foreach(losers += _)
+          } else if (cmp < 0) { 
+            losers ++= winners
+            winners.clear
+            future.source.foreach(winners += _)
+            winnerValue = v
+          }else{
+            future.source.foreach(winners += _)
+          }
+        }
+        case _ => throw new RuntimeException("Didn't get GetResponseACL response")
+      }
+    }
+
   }
 
   /**
@@ -524,6 +635,9 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
             managedBlock {
               handler.processRest()
             }
+						// put acl records if needed
+						for (server <- handler.losersACL)
+	             server !! PutACLRequest("beth", handler.key, Some(1),handler.winnerACL, handler.winnerACLtime)
             for (server <- handler.repairList)
               server !! PutRequest(handler.key, handler.winnerValue)
           case handler: RangeHandle =>
