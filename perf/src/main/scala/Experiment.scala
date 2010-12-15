@@ -27,20 +27,20 @@ abstract trait Experiment {
   lazy val zookeeper = new ZooKeeperProxy("mesos-ec2.knowsql.org:2181")
   lazy val resultCluster = new ScadsCluster(zookeeper.root.getOrCreate("scads/results"))
 
-  implicit def duplicate(process: JvmProcess) = new {
-    def *(count: Int): Seq[JvmProcess] = Array.fill(count)(process)
+  implicit def duplicate(process: JvmTask) = new {
+    def *(count: Int): Seq[JvmTask] = Array.fill(count)(process)
   }
 
   def newExperimentRoot(implicit zookeeper: ZooKeeperProxy#ZooKeeperNode)  = zookeeper.getOrCreate("scads/experiments").createChild("IntKeyScaleExperiment", mode = CreateMode.PERSISTENT_SEQUENTIAL)
 
   def serverJvmProcess(clusterAddress: String)(implicit classpath: Seq[ClassSource]) =
-    JvmProcess(
+    JvmMainTask(
       classpath,
       "edu.berkeley.cs.scads.storage.ScalaEngine",
       "--clusterAddress" :: clusterAddress :: Nil)
 
-  def clientJvmProcess(loadClient: AvroClient, clusterRoot: ZooKeeperProxy#ZooKeeperNode)(implicit classpath: Seq[ClassSource]): JvmProcess =
-    JvmProcess(classpath,
+  def clientJvmProcess(loadClient: AvroClient, clusterRoot: ZooKeeperProxy#ZooKeeperNode)(implicit classpath: Seq[ClassSource]): JvmMainTask =
+    JvmMainTask(classpath,
       "edu.berkeley.cs.scads.perf.AvroClientMain",
       loadClient.getClass.getName :: clusterRoot.canonicalAddress :: loadClient.toJson :: Nil)
 

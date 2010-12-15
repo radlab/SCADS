@@ -9,12 +9,18 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
     override def fork = forkRun("-Xmx4G" ::
 				"-Djava.library.path=/usr/local/mesos/lib/java/" :: Nil)
 
+    protected def getLocalJars(project: BasicScalaProject): Seq[File] = {
+      //HACK: Sbt seems to be missing some the transitive dependencies in lib_managed so we'll just go get them all ourself
+      val managedDependencies = (project.managedDependencyPath / "compile" ** "*.jar").getFiles
+      val localDependencies = project.dependencies.map(_.asInstanceOf[BasicScalaProject])
+       project.jarPath.asFile :: (localDependencies.flatMap(getLocalJars).toList ++ managedDependencies)
+    }
+
     def packagedClasspath = {
-      val libraryJars = (managedDependencyPath / "compile" ** "*.jar").getFiles
       val scalaJars = mainDependencies.scalaJars.getFiles
-      val localDependencyJars = dependencies.map(_.asInstanceOf[BasicScalaProject]).map(_.jarPath.asFile)
-      val currentJar = jarPath.asFile :: Nil
-      (scalaJars ++ currentJar ++ localDependencyJars ++ libraryJars).map(_.getCanonicalPath)
+
+      val localJars = getLocalJars(this)
+      (scalaJars ++ localJars).map(_.getCanonicalPath)
     }
 
     //Also kind of a hack
@@ -36,8 +42,36 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
     val bdb = "com.sleepycat" % "je" % "4.0.71"
     val optional = "optional" %% "optional" % "0.1"
     val zookeeper = "org.apache.hadoop.zookeeper" % "zookeeper" % "3.3.1"
-    val deploylib = "edu.berkeley.cs" %% "deploylib" % "2.1.0-SNAPSHOT"
   }
+
+  class Repl(info: ProjectInfo) extends DefaultWebProject(info) with AvroCompilerPlugin
+  {
+    val snapshots = ScalaToolsSnapshots
+    val lift = "net.liftweb" %% "lift-mapper" % "2.2-SNAPSHOT" % "compile"
+    val jetty6 = "org.mortbay.jetty" % "jetty" % "6.1.25" % "test"
+    val h2 = "com.h2database" % "h2" % "1.2.121" % "runtime"
+    // alternately use derby
+    // val derby = "org.apache.derby" % "derby" % "10.2.2.0" % "runtime"
+    val servlet = "javax.servlet" % "servlet-api" % "2.5" % "provided"
+    val junit = "junit" % "junit" % "3.8.1" % "test"
+    val sl4jConfiggy = "com.notnoop.logging" % "slf4j-configgy" % "0.0.1"
+  }
+
+  class DeployLib(info: ProjectInfo) extends ScadsSubProject(info) {
+    val mesos = "edu.berkeley.cs.mesos" % "java" % "1.0"
+    val communication = "edu.berkeley.cs.scads" %% "communication" % "2.1.0-SNAPSHOT"
+    val configgy = "net.lag" % "configgy" % "2.0.0"
+    val staxApi = "javax.xml.stream" % "stax-api" % "1.0"
+    val jaxbApi = "javax.xml.bind" % "jaxb-api" % "2.1"
+    val json = "org.json" % "json" % "20090211"
+    val ec2 = "com.amazonaws" % "ec2" % "20090404"
+    val ganymedSsh2 = "ch.ethz.ganymed" % "ganymed-ssh2" % "build210"
+    val commonsLoggingApi = "commons-logging" % "commons-logging-api" % "1.1"
+    val commonsHttpClient = "commons-httpclient" % "commons-httpclient" % "3.0.1"
+    val jets3t = "net.java.dev.jets3t" % "jets3t" % "0.7.1"
+    val jetty = "org.mortbay.jetty" % "jetty" % "6.1.6"
+  }
+
 
   class Config(info: ProjectInfo) extends DefaultProject(info) {
     val configgy = "net.lag" % "configgy" % "2.0.0"
@@ -63,7 +97,11 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
   lazy val comm        = project("comm", "communication", new Comm(_), config, avro)
   lazy val scalaengine = project("scalaengine", "storage-engine", new ScalaEngine(_), config, avro, comm)
   lazy val piql        = project("piql", "piql", new Piql(_), config, avro, comm, scalaengine)
-  lazy val perf        = project("perf", "performance", new Perf(_), config, avro, comm, scalaengine, piql)
+  lazy val perf        = project("perf", "performance", new Perf(_), config, avro, comm, scalaengine, piql, deploylib)
+
+  lazy val deploylib = project("deploylib", "deploylib", new DeployLib(_), comm)
+  lazy val repl      = project("repl", "repl", new Repl(_), perf)
+
 
   //PIQL Apps
   class Scadr(info: ProjectInfo) extends ScadsSubProject(info) {
@@ -77,11 +115,11 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
 }
 
 trait AvroCompilerPlugin extends AutoCompilerPlugins {
-  override def getScalaInstance(version: String) = { 
+  override def getScalaInstance(version: String) = {
     val pluginJars = compileClasspath.filter(path => pluginDeps.contains(path.name)).getFiles.toSeq
-    withExtraJars(super.getScalaInstance(version), pluginJars) 
+    withExtraJars(super.getScalaInstance(version), pluginJars)
   }
-    
+
    private val pluginDeps = Set("avro-1.3.3.jar", "jackson-core-asl-1.4.2.jar", "jackson-mapper-asl-1.4.2.jar")
 
    private def withExtraJars(si: ScalaInstance, extra: Seq[File]) =
