@@ -60,7 +60,7 @@ object directorTest {
 	}
 	def initTest():Unit ={
 		
-		Director.cluster = new ScadsCluster(TestScalaEngine.getTestHandler(/*1*/4).head.root)
+		Director.cluster = new ScadsCluster(TestScalaEngine.newScadsCluster(/*1*/4).root)
 		var storageServers = Director.cluster.getAvailableServers
 		// val ns = Director.cluster.createNamespace[IntRec, StringRec]("getputtest", List(
 		// (None, storageServers.slice(0,1)), 

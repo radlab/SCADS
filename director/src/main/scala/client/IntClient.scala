@@ -133,7 +133,7 @@ case class IntClient(var numServers: Int, var numClients: Int, namespace:String,
 		System.exit(0)
 	}
 	
-	private def getBulkLoadSlice(id:Int):Iterable[(org.apache.avro.generic.GenericData.Record, org.apache.avro.generic.GenericData.Record)] = {
+	private def getBulkLoadSlice(id:Int):Iterable[(org.apache.avro.generic.GenericRecord, org.apache.avro.generic.GenericRecord)] = {
 		val slicesize = scala.math.ceil(maxkey/numClients).toInt
 		val start = id * slicesize
 		val end = if (id >= numClients-1) maxkey else start + slicesize
@@ -168,7 +168,7 @@ case class IntClient(var numServers: Int, var numClients: Int, namespace:String,
 case class AsyncIntClient(s: Int, c: Int, ns:String,wl:String,k:Int,t:Int, sampling:Double) extends IntClient(s,c,ns,wl,k,t) {
 	
 	// (future,start timestamp)
-	val request_map = new java.util.concurrent.ArrayBlockingQueue[(ScadsFuture[Option[org.apache.avro.generic.GenericData.Record]],Long)](20000)
+	val request_map = new java.util.concurrent.ArrayBlockingQueue[(ScadsFuture[Option[org.apache.avro.generic.GenericRecord]],Long)](20000)
 	//val pool = new java.util.concurrent.ThreadPoolExecutor(3, 3, 1000, java.util.concurrent.TimeUnit.MILLISECONDS, request_map)
 	val pool = java.util.concurrent.Executors.newFixedThreadPool(2)
 	val rnd2 = new java.util.Random

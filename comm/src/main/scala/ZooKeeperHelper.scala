@@ -73,7 +73,7 @@ object ZooKeeperHelper {
     zooThread.start()
 
     val successPort = serverPort.get // blocks until server is ready
-    val proxy = new ZooKeeperProxy("localhost:" + successPort)
+    val proxy = new ZooKeeperProxy("localhost:" + successPort, timeout=500)
     assert(proxy.root("zookeeper") ne null)
     proxy
   }

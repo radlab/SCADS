@@ -4,10 +4,10 @@ import scala.collection.mutable.ListBuffer
 import edu.berkeley.cs.scads.comm._
 
 abstract class ScadsRequest {
-	def key:org.apache.avro.generic.GenericData.Record
+	def key:org.apache.avro.generic.GenericRecord
 }
-case class ScadsGet(val key:org.apache.avro.generic.GenericData.Record) extends ScadsRequest
-case class ScadsPut(val key:org.apache.avro.generic.GenericData.Record, val value:org.apache.avro.generic.GenericData.Record) extends ScadsRequest
+case class ScadsGet(val key:org.apache.avro.generic.GenericRecord) extends ScadsRequest
+case class ScadsPut(val key:org.apache.avro.generic.GenericRecord, val value:org.apache.avro.generic.GenericRecord) extends ScadsRequest
 
 @serializable
 case class WorkloadIntervalDescription(
@@ -201,7 +201,7 @@ case class WorkloadProfile(
 
 @serializable
 abstract class SCADSKeyGenerator() {
-	def generateKey(): org.apache.avro.generic.GenericData.Record
+	def generateKey(): org.apache.avro.generic.GenericRecord
 }
 
 /**
@@ -213,7 +213,7 @@ case class UniformKeyGenerator(
 	val minKey: Int,
 	val maxKey: Int
 ) extends SCADSKeyGenerator() {
-	override def generateKey(): org.apache.avro.generic.GenericData.Record = {
+	override def generateKey(): org.apache.avro.generic.GenericRecord = {
 		if (WorkloadDescription.rnd_thread.get == null) { 
 			val server = java.net.InetAddress.getLocalHost().getHostName
 			val thread_name = Thread.currentThread().getName()
@@ -232,7 +232,7 @@ abstract class SCADSRequestGenerator(val mix:MixVector) {
 case class FixedSCADSRequestGenerator(
 	override val mix: MixVector,
 	val keyGenerator: SCADSKeyGenerator
-	//val value:org.apache.avro.generic.GenericData.Record
+	//val value:org.apache.avro.generic.GenericRecord
 ) extends SCADSRequestGenerator(mix) {
 
 	def generateRequest(): ScadsRequest = {

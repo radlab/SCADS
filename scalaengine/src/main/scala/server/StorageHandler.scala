@@ -30,6 +30,8 @@ object StorageHandler {
 class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, val name:Option[String] = None) 
   extends ServiceHandler[StorageServiceOperation] {
 
+  @volatile private var serverNode: ZooKeeperProxy#ZooKeeperNode = _
+
   val counterId = StorageHandler.idGen.getAndIncrement()
 
   override def toString = 
@@ -138,7 +140,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
     /* Register with the zookeper as an available server */
     val availServs = root.getOrCreate("availableServers")
     logger.debug("Created StorageHandler" + remoteHandle.toString)
-    availServs.createChild(name.getOrElse(remoteHandle.toString), remoteHandle.toBytes, CreateMode.EPHEMERAL_SEQUENTIAL)
+    serverNode = availServs.createChild(name.getOrElse(remoteHandle.toString), remoteHandle.toBytes, CreateMode.EPHEMERAL_SEQUENTIAL)
 
     /* Reopen partitions */
     val cursor = partitionDb.openCursor(null, null)
@@ -221,7 +223,8 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
    *   Closes the bdb environment
    */
   protected def shutdown(): Unit = {
-    root("availableServers").deleteChild(remoteHandle.toString)
+    if (serverNode ne null) serverNode.delete()
+    else logger.warning("No server node for this storage handler %s", this)
     partitions.values.foreach(_.stop)
     partitions.clear()
     namespaces.clear()

@@ -17,6 +17,7 @@ abstract trait AvroClient extends IndexedRecord {
 
   def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode): Unit
 
+  @deprecated("Use DataLoadingAvroClient")
   def newCluster(numServers: Int, numLoaders: Int)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeper: ZooKeeperProxy#ZooKeeperNode): ScadsCluster = {
     val clusterRoot = newExperimentRoot
     val serverProcs = List.fill(numServers)(serverJvmProcess(clusterRoot.canonicalAddress))
@@ -25,23 +26,36 @@ abstract trait AvroClient extends IndexedRecord {
     new ScadsCluster(clusterRoot)
   }
 
-  implicit def duplicate(process: JvmProcess) = new {
-    def *(count: Int): Seq[JvmProcess] = Array.fill(count)(process)
+  implicit def duplicate(process: JvmTask) = new {
+    def *(count: Int): Seq[JvmTask] = Array.fill(count)(process)
   }
 
-  def newExperimentRoot(implicit zookeeper: ZooKeeperProxy#ZooKeeperNode) = 
+  def newExperimentRoot(implicit zookeeper: ZooKeeperProxy#ZooKeeperNode) =
     zookeeper.getOrCreate("scads/experiments").createChild("IntKeyScaleTest", mode = CreateMode.PERSISTENT_SEQUENTIAL)
 
-  def toJvmProcess(clusterRoot: ZooKeeperProxy#ZooKeeperNode)(implicit classpath: Seq[ClassSource]): JvmProcess =
-    JvmProcess(classpath,
+  def toJvmProcess(clusterRoot: ZooKeeperProxy#ZooKeeperNode)(implicit classpath: Seq[ClassSource]): JvmMainTask =
+    JvmMainTask(classpath,
       "edu.berkeley.cs.scads.perf.AvroClientMain",
       this.getClass.getName :: clusterRoot.canonicalAddress :: this.toJson :: Nil)
 
   def serverJvmProcess(clusterAddress: String)(implicit classpath: Seq[ClassSource]) =
-    JvmProcess(
+    JvmMainTask(
       classpath,
       "edu.berkeley.cs.scads.storage.ScalaEngine",
       "--clusterAddress" :: clusterAddress :: Nil)
+}
+
+abstract trait DataLoadingAvroClient extends AvroClient {
+  var numServers: Int
+  var numLoaders: Int
+
+  def newCluster(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeper: ZooKeeperProxy#ZooKeeperNode): ScadsCluster = {
+    val clusterRoot = newExperimentRoot
+    val serverProcs = List.fill(numServers)(serverJvmProcess(clusterRoot.canonicalAddress))
+    val loaderProcs = List.fill(numLoaders)(toJvmProcess(clusterRoot))
+    scheduler.scheduleExperiment(serverProcs ++ loaderProcs)
+    new ScadsCluster(clusterRoot)
+  }
 }
 
 abstract trait ReplicatedAvroClient extends AvroClient {
@@ -62,6 +76,8 @@ object AvroClientMain {
       try {
         val clusterRoot = ZooKeeperNode(args(1))
         Class.forName(args(0)).newInstance.asInstanceOf[AvroClient].parse(args(2)).run(clusterRoot)
+	logger.info("Run method returned, terminating AvroClient")
+	System.exit(0)
       }
       catch {
         case error => {

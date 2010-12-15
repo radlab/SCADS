@@ -10,7 +10,7 @@ import java.util.{LinkedList, Queue}
 /**
  * This is the base trait for any type of future in SCADS.
  */
-trait ScadsFuture[T] {
+trait ScadsFuture[+T] {
 
   /**
    * Cancels the current future

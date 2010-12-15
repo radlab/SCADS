@@ -112,8 +112,15 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watc
       Thread.sleep(timeout)
     }
 
-    @inline private def childrenMap: Map[String, ZooKeeperNode] =
-      conn.getChildren(path, false).map(path => {
+    @inline private implicit def funcToWatcher(f: WatchedEvent => Unit): Watcher = new Watcher {
+      def process(evt: WatchedEvent) { f(evt) }
+    }
+
+    @inline private def childrenMap = 
+      getChildrenMap(None) 
+
+    @inline private def getChildrenMap(watcher: Option[WatchedEvent => Unit]): Map[String, ZooKeeperNode] =
+      watcher.map(w => conn.getChildren(path, w)).getOrElse(conn.getChildren(path, false)).map(path => {
         val fullPath0 = fullPath(path)
         (path, getOrElseUpdateNode(fullPath0, new ZooKeeperNode(fullPath0)))
       }).toMap
@@ -190,17 +197,22 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watc
       apply(fullName)
     }
 
-		def onDataChange(func:() => Unit):Array[Byte] = {
-			val watcher = new Watcher {
-				def process(evt: WatchedEvent) {
-					evt.getType match {
+    def onDataChange(func:() => Unit):Array[Byte] = {
+      val watcher = new Watcher {
+	def process(evt: WatchedEvent) {
+	  evt.getType match {
             case EventType.NodeDataChanged => func()
             case e => logger.error("HOLY FUCK (now watch is unregistered): %s",e)
           }
-				}
-			}
-			conn.getData(path, watcher, new Stat)
-		}
+	}
+      }
+      conn.getData(path, watcher, new Stat)
+    }
+
+    /** Set a watcher on the children for this node. Note that, according to
+     * ZooKeeper semantics, a watcher is executed AT MOST once */
+    def watchChildren(f: WatchedEvent => Unit): List[ZooKeeperNode] =
+      getChildrenMap(Some(f)).map(_._2).toList
 
     def registerAndAwait(barrierName: String, count: Int): Int = {
       val node = getOrCreate(barrierName)

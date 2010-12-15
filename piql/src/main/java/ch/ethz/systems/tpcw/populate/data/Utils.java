@@ -4,10 +4,10 @@ import java.util.GregorianCalendar;
 import java.util.Random;
 
 public class Utils {
-	
+
 	private static Random rand = new Random();
 	private static GregorianCalendar cal = new GregorianCalendar();
-	
+
 	private static final String[] COUNTRIES = { "United States", "United Kingdom", "Canada",
 			"Germany", "France", "Japan", "Netherlands", "Italy",
 			"Switzerland", "Australia", "Algeria", "Argentina", "Armenia",
@@ -59,18 +59,18 @@ public class Utils {
 			"Dollars", "Koruna", "Rand", "Won", "Pesetas", "Dinar",
 			"Krona", "Dollars", "Baht", "Dollars", "Lira", "Bolivar",
 			"Kwacha" };
-	
+
 	private static final String[] SUBJECTS = { "ARTS", "BIOGRAPHIES", "BUSINESS", "CHILDREN",
 			"COMPUTERS", "COOKING", "HEALTH", "HISTORY", "HOME", "HUMOR",
 			"LITERATURE", "MYSTERY", "NON-FICTION", "PARENTING",
 			"POLITICS", "REFERENCE", "RELIGION", "ROMANCE", "SELF-HELP",
 			"SCIENCE-NATURE", "SCIENCE-FICTION", "SPORTS", "YOUTH",
 			"TRAVEL" };
-	
+
 	private static final String[] BACKINGS = { "HARDBACK", "PAPERBACK", "USED", "AUDIO",
 			"LIMITED-EDITION" };
 
-	
+
 	private static final String[] CREDITCARDS = { "VISA", "MASTERCARD", "DISCOVER", "AMEX",	"DINERS" };
 
 	private static final String[] SHIPTYPES = { "AIR", "UPS", "FEDEX", "SHIP", "COURIER", "MAIL" };
@@ -176,10 +176,10 @@ public class Utils {
 
 		return resultString;
 	}
-	
+
 	public static long getRandomDate(int year, int month) {
 		int day, maxday;
-	
+
 		maxday = 31;
 		if (month == 3 | month == 5 | month == 8 | month == 10)
 			maxday = 30;
@@ -188,12 +188,12 @@ public class Utils {
 
 		day = getRandomInt(1, maxday);
 		GregorianCalendar cal = new GregorianCalendar(year, month, day);
-		
+
 		return cal.getTime().getTime();
 	}
-	
+
 	public static GregorianCalendar getCalendar() {
-		return (GregorianCalendar) cal.clone();		
+		return (GregorianCalendar) cal.clone();
 	}
 
 	public static String[] getCountries() {

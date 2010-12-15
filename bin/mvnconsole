@@ -1,12 +1,13 @@
 #!/bin/bash
 
 CLASSPATH=target/classes:~/local/scala-2.8.0.final/lib/avro-1.3.3.jar:~/local/scala-2.8.0.final/lib/jackson-core-asl-1.4.2.jar:~/local/scala-2.8.0.final/lib/jackson-mapper-asl-1.4.2.jar:~/local/scala-2.8.0.final/lib/jline.jar:~/local/scala-2.8.0.final/lib/scala-compiler.jar:~/local/scala-2.8.0.final/lib/scala-dbc.jar:~/local/scala-2.8.0.final/lib/scala-library.jar:~/local/scala-2.8.0.final/lib/scala-swing.jar:~/local/scala-2.8.0.final/lib/scalap.jar:~/local/jrebel.jar:`cat classpath`
-JAVAAGENT=-javaagent:~/local/jrebel.jar 
+JAVAAGENT=-javaagent:~/local/jrebel.jar
+MESOSLIB=-Djava.library.path=/usr/local/mesos/lib/java
 
 if [ -f setup.scala ]
 then
-  exec java -Xmx6G -cp "$CLASSPATH" -noverify $JAVAAGENT scala.tools.nsc.MainGenericRunner -cp "$CLASSPATH" -i setup.scala 
+  exec java -Xmx6G $MESOSLIB -cp "$CLASSPATH" -noverify $JAVAAGENT scala.tools.nsc.MainGenericRunner -cp "$CLASSPATH" -i setup.scala 
 else
-  exec java -Xmx6G -cp $CLASSPATH -noverify $JAVAAGENT scala.tools.nsc.MainGenericRunner -cp $CLASSPATH
+  exec java -Xmx6G $MESOSLIB -cp $CLASSPATH -noverify $JAVAAGENT scala.tools.nsc.MainGenericRunner -cp $CLASSPATH
 fi
 

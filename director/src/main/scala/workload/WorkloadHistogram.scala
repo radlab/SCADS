@@ -77,11 +77,11 @@ case class WorkloadFeatures(
 */
 @serializable
 case class WorkloadHistogram (
-	val rangeStats: Map[Option[org.apache.avro.generic.GenericData.Record],WorkloadFeatures]
+	val rangeStats: Map[Option[org.apache.avro.generic.GenericRecord],WorkloadFeatures]
 ) extends Ordered[WorkloadHistogram] {
 	def divide(replicas:Int, allowed_puts:Double):WorkloadHistogram = {
 		new WorkloadHistogram(
-			Map[Option[org.apache.avro.generic.GenericData.Record],WorkloadFeatures](rangeStats.toList map {entry => (entry._1, entry._2.restrictAndSplit(replicas,allowed_puts,0.0)) } : _*)
+			Map[Option[org.apache.avro.generic.GenericRecord],WorkloadFeatures](rangeStats.toList map {entry => (entry._1, entry._2.restrictAndSplit(replicas,allowed_puts,0.0)) } : _*)
 		)
 	}
 	override def toString():String = rangeStats.toList.mkString("\n")
@@ -129,17 +129,17 @@ case class WorkloadHistogram (
 
 	def + (that:WorkloadHistogram):WorkloadHistogram = {
 		new WorkloadHistogram(
-			Map[Option[org.apache.avro.generic.GenericData.Record],WorkloadFeatures]( this.rangeStats.toList map {entry=>(entry._1, entry._2+that.rangeStats(entry._1))} : _*)
+			Map[Option[org.apache.avro.generic.GenericRecord],WorkloadFeatures]( this.rangeStats.toList map {entry=>(entry._1, entry._2+that.rangeStats(entry._1))} : _*)
 		)
 	}
 	def - (that:WorkloadHistogram):WorkloadHistogram = {
 		new WorkloadHistogram(
-			Map[Option[org.apache.avro.generic.GenericData.Record],WorkloadFeatures]( this.rangeStats.toList map {entry=>(entry._1, entry._2-that.rangeStats(entry._1))} : _*)
+			Map[Option[org.apache.avro.generic.GenericRecord],WorkloadFeatures]( this.rangeStats.toList map {entry=>(entry._1, entry._2-that.rangeStats(entry._1))} : _*)
 		)
 	}
 	def * (multiplier:Double):WorkloadHistogram = {
 		new WorkloadHistogram(
-			Map[Option[org.apache.avro.generic.GenericData.Record],WorkloadFeatures]( this.rangeStats.toList map {entry=>(entry._1, entry._2*multiplier)} : _*)
+			Map[Option[org.apache.avro.generic.GenericRecord],WorkloadFeatures]( this.rangeStats.toList map {entry=>(entry._1, entry._2*multiplier)} : _*)
 		)
 	}
 

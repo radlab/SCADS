@@ -1,99 +1,30 @@
 package edu.berkeley.cs.scads.storage
 
-import edu.berkeley.cs.scads.comm._
-import net.lag.logging.Logger
-import java.io.File
+import edu.berkeley.cs.scads.comm.ZooKeeperHelper
 
-import java.util.concurrent.ConcurrentHashMap
+import org.apache.zookeeper.CreateMode
 
 /**
- * Object that creates a local zookeeper / scads cluster for testing.
+ * Usage of TestScalaEngine has been simplified. Now TestScalaEngine 
+ * only exposes one method, which you use to get a fresh cluster. 
+ * See ManagedScadsCluster for usage.
  */
 object TestScalaEngine {
   lazy val zooKeeper = ZooKeeperHelper.getTestZooKeeper
-  lazy val defaultStorageHandler = getTestHandler()
-  protected val logger = Logger()
 
-  implicit def toOption[A](a: A) = Option(a)
-
-  /** Maps (cluster name, test node ID) -> Temp file for BDB env */
-  private val tempFileMap = new ConcurrentHashMap[(String, String), File]
-  
-  /** The default name for a test scads cluster */
-  private val testCluster = zooKeeper.root.getOrCreate("testScads")
-
-
-  private def makeScadsTempDir() = {
-    val tempDir = File.createTempFile("scads", "testdb")
-    /* This strange sequence of delete and mkdir is required so that BDB can
-     * acquire a lock file in the created temp directory */
-    tempDir.delete()
-    tempDir.mkdir()
-    tempDir
+  /** Main API of TestScalaEngine. Returns a new ManagedScadsCluster
+   * which is quasi-guaranteed to be backed by a unique zookeeper root node.
+   * The number of storage nodes which start in the ManagedScadsCluster is given
+   * by the numNodes parameter. The default is 1 */
+  def newScadsCluster(numNodes: Int = 1): ManagedScadsCluster = {
+    require(numNodes >= 0, "numNodes must be non-negative")
+    /** Cannot use EPHEMERAL* here since the zooRoot must be able
+     * to have children (ie namespaces, keySchema, etc), and 
+     * EPHEMERAL* nodes CANNOT have children */
+    val zooRoot = zooKeeper.root.createChild("scadsClient-%s".format(java.util.UUID.randomUUID.toString), Array.empty, CreateMode.PERSISTENT)
+    val cluster = new ManagedScadsCluster(zooRoot)
+    cluster ensureExactly numNodes
+    cluster
   }
 
-  /**
-   * Returns a ScadsCluster instance for the cluster `testScads` guaranteed to 
-   * contain at least one node.
-   * Creates a new StorageHandler
-   */
-  def getTestCluster(): ScadsCluster = {
-    val handler = getTestHandler()
-    new ScadsCluster(handler.root)
-  }
-
-
-  /**
-   * Create and return a fresh scala engine, guaranteed to use a BDB 
-   * environment backed by a temp directory never used before. 
-   * The root of the engine in ZooKeeper will be `testScads`. 
-   * The engine returned will be managed by the local running
-   * test ZooKeeper instance
-   *
-   * Thus, multiple invocations of this method will return new handlers which
-   * run in their own BDB environments, but will use the same ZooKeeper root,
-   * meaning they will be part of the same cluster named `testScads`
-   */
-  def getTestHandler(): StorageHandler = {
-    val tempDir = makeScadsTempDir()
-    ScalaEngine.main(testCluster.canonicalAddress, tempDir, None, false)
-  }
-
-  /**
-   * Create and return a new scala engine for the cluster `clusterId` which
-   * will share a BDB environment among all engines created by invoking this
-   * method with the same `clusterId` and `nodeId` arguments. Thus, invoking
-   * this method more than once with the same arguments only makes sense 
-   * if in between invocations, the returned StorageHandler instance of the 
-   * first invocation is properly shut down first. The use case for this
-   * method is to signal a shutdown/restart of a node in a particular cluster.
-   */
-  def getTestHandler(clusterId: String, nodeId: String): StorageHandler = {
-    require(clusterId ne null)
-    require(nodeId ne null)
-
-    val tempDir = makeScadsTempDir()
-    val tempDir0 = Option(tempFileMap.putIfAbsent((clusterId, nodeId), tempDir))
-    val zooAddress = zooKeeper.root.getOrCreate(clusterId)
-
-    ScalaEngine.main(zooAddress.canonicalAddress, tempDir0.orElse(Some(tempDir)), None, false)
-  }
-
-  /**
-   * Returns `count` new StorageHandler instances. The semantics for the new
-   * instance are those of invoking `getTestHandler` `count` times.
-   */
-  def getTestHandler(count: Int): List[StorageHandler] = (1 to count).map(_ => getTestHandler()).toList
-
-  // currently unused- delete?
-	private def rmDir(dir: java.io.File): Boolean = {
-		if (dir.isDirectory()) {
-			val children = dir.list();
-			children.foreach((child) => {
-				if (!rmDir(new java.io.File(dir,child)))
-					return false
-				})
-		}
-		dir.delete();
-	}
 }

@@ -297,7 +297,7 @@ class BestFitPolicy(
 	* replicate 'range' until we can handle its workload
 	* if necessary, range will be moved to an empty server from every server it's currently on
 	*/
-	def replicate( range:Option[org.apache.avro.generic.GenericData.Record] ) {
+	def replicate( range:Option[org.apache.avro.generic.GenericRecord] ) {
 		var hadToCleanServers = false
 		var serversWithRange = currentConfig.serversForKey( range )
 		for (s <- serversWithRange) { // move range to empty server from each server the range is currently on
@@ -406,7 +406,7 @@ class BestFitPolicy(
 				toList.
 				sort( workloadPerServer(_)>workloadPerServer(_) )
 		
-		var minRangeCouldntMove:Option[org.apache.avro.generic.GenericData.Record] = null // track the range with smallest workload that we couldn't move, avoid trying to move something larger
+		var minRangeCouldntMove:Option[org.apache.avro.generic.GenericRecord] = null // track the range with smallest workload that we couldn't move, avoid trying to move something larger
 		for (server <- mergeCandidates) {
 			// only keep pontential targets that have higher workload than 'server'
 			orderedPotentialTargets = orderedPotentialTargets.filter( workloadPerServer(_)>=workloadPerServer(server) )
@@ -425,7 +425,7 @@ class BestFitPolicy(
 		} // end for
 	}
 	
-	private def move( range:Option[org.apache.avro.generic.GenericData.Record], sourceServer:StorageService ):Boolean = {
+	private def move( range:Option[org.apache.avro.generic.GenericRecord], sourceServer:StorageService ):Boolean = {
 		logger.debug("move("+range+","+sourceServer+")")
 		
 		// can't handle this range on even on server
@@ -502,7 +502,7 @@ class BestFitPolicy(
 		}
 		
 	}
-	private def tryMoving( range:Option[org.apache.avro.generic.GenericData.Record], sourceServer:StorageService, orderedPotentialTargets:List[StorageService] ):Boolean = {
+	private def tryMoving( range:Option[org.apache.avro.generic.GenericRecord], sourceServer:StorageService, orderedPotentialTargets:List[StorageService] ):Boolean = {
 		logger.debug("  tryMoving(%s from %s)",range.toString,sourceServer.toString)
 		logger.debug("  orderedPotentialTargets = %s",orderedPotentialTargets.mkString(","))
 		// filter out potential targets that already have this range, or have too much data to consume this range

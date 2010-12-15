@@ -35,16 +35,16 @@ class ScadsServerScheduler protected (name: String, mesosMaster: String, zookeep
 	// JvmProcess(List(ServerSideJar("/mnt/director-2.1.0-SNAPSHOT-jar-with-dependencies.jar")),
 	// "edu.berkeley.cs.scads.storage.ScalaEngine","--clusterAddress" :: zookeeperCanonical :: Nil)
 
-  var serversToAdd = new java.util.concurrent.ConcurrentLinkedQueue[JvmProcess]()
+  var serversToAdd = new java.util.concurrent.ConcurrentLinkedQueue[JvmMainTask]()
   var taskIds = List[Int]() // pending tasks
   var scheduledServers = List[Int]() // list of taskids
 
   val driverThread = new Thread("ScadsServerScheduler Mesos Driver Thread") { override def run(): Unit = driver.run() }
   driverThread.start()
 
-	def serverProcess(name:Option[String]):JvmProcess = {
+	def serverProcess(name:Option[String]):JvmMainTask = {
 		val args = name match {case None => "--clusterAddress" :: zookeeperCanonical :: Nil; case Some(s) => "--clusterAddress" :: zookeeperCanonical :: "--name" :: s :: Nil}
-		JvmProcess(List(ServerSideJar("/mnt/director-2.1.0-SNAPSHOT-jar-with-dependencies.jar")),
+		JvmMainTask(List(ServerSideJar("/mnt/director-2.1.0-SNAPSHOT-jar-with-dependencies.jar")),
 		"edu.berkeley.cs.scads.storage.ScalaEngine",args)
 	}
 

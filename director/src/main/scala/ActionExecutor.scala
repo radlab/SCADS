@@ -169,7 +169,7 @@ class TestGroupingExecutor(namespace:GenericNamespace) extends GroupingExecutor(
 			//if have add actions, create another test handler
 			val add = getAddActions()
 			logger.debug("%d add server actions",add.size)
-			TestScalaEngine.getTestHandler(add.size)
+			TestScalaEngine.newScadsCluster(add.size)
 			add.foreach(a => a.setComplete)
 			
 			// only say remove actions are complete, since can't really kill them

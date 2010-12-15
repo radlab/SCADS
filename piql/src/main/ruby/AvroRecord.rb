@@ -19,7 +19,7 @@ class AvroRecord
       setter = true
       attrname = $1
       scalaMethod = (attrname + "_$eq").intern
-    end 
+    end
 
     part = nil
     if(!key.getSchema.getField(attrname).nil?)
@@ -34,7 +34,7 @@ class AvroRecord
      part.send(scalaMethod, args[0])
     else
      part.send(scalaMethod)
-    end 
+    end
   end
 end
 

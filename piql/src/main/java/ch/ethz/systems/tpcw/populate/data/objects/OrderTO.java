@@ -13,7 +13,7 @@ public class OrderTO extends AbstractTO {
 	private int o_bill_addr_id;
 	private int o_ship_addr_id;
 	private String o_status;
-	
+
 	public int getO_id() {
 		return o_id;
 	}
@@ -81,5 +81,5 @@ public class OrderTO extends AbstractTO {
 		this.o_status = o_status;
 	}
 
-	
+
 }

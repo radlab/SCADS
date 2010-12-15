@@ -1,7 +1,7 @@
 package ch.ethz.systems.tpcw.populate.data.objects;
 
 public class ItemTO extends AbstractTO {
-	
+
 	private int i_id;
 	private String i_title;
 	private int i_a_id;
@@ -24,7 +24,7 @@ public class ItemTO extends AbstractTO {
 	private int i_page;
 	private String i_backing;
 	private String i_dimensions;
-	
+
 	public int getI_id() {
 		return i_id;
 	}

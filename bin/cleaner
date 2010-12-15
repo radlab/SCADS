@@ -1,0 +1,9 @@
+#!/usr/bin/ruby
+
+(Dir["**/*.html"] + Dir["**/*.scads"] + Dir["**/*.scala"] + Dir["**/*.java"] + Dir["**/*.cpp"] + Dir["**/*.rb"] + Dir["**/*.h"] + Dir["**/*.xml"] + Dir["**/*.java"]+ Dir["**/*.avpr"]).each do |f|
+  lines = File.new(f, "r").read.split("\n")
+  of = File.new(f, "w")
+  lines.each do |line|
+    of.puts(line[/(^.*[^ \t])[ \t]*/, 1] || "")
+  end
+end

@@ -48,23 +48,23 @@ object ClusterState {
 
 class ClusterState(
 	val serversToPartitions:Map[StorageService,Set[PartitionService]], // server -> set(partition)
-	val keysToPartitions:Map[Option[org.apache.avro.generic.GenericData.Record], Set[PartitionService]], // startkey -> set(partition)
-	val partitionsToKeys:Map[PartitionService,Option[org.apache.avro.generic.GenericData.Record]], // partition -> startkey
+	val keysToPartitions:Map[Option[org.apache.avro.generic.GenericRecord], Set[PartitionService]], // startkey -> set(partition)
+	val partitionsToKeys:Map[PartitionService,Option[org.apache.avro.generic.GenericRecord]], // partition -> startkey
 	val workloadRaw:WorkloadHistogram,
 	val time:Long
 ) {
 	def servers:Set[StorageService] = Set( serversToPartitions.keys.toList :_* )
 
-	def partitionsOnServers(servers:List[StorageService]):Set[Option[org.apache.avro.generic.GenericData.Record]] = 
+	def partitionsOnServers(servers:List[StorageService]):Set[Option[org.apache.avro.generic.GenericRecord]] = 
 		Set(serversToPartitions.filter(s=>servers.contains(s._1)).values.toList.flatten(r=>r).map(r=>partitionsToKeys(r)):_*)
 
-	def partitionsWithMoreThanKReplicas(k:Int):Set[Option[org.apache.avro.generic.GenericData.Record]] =
+	def partitionsWithMoreThanKReplicas(k:Int):Set[Option[org.apache.avro.generic.GenericRecord]] =
 		Set(keysToPartitions.filter(entry => entry._2.size > k).keys.toList:_*)
 
-	def serversForKey(startkey:Option[org.apache.avro.generic.GenericData.Record]):Set[StorageService] = 
+	def serversForKey(startkey:Option[org.apache.avro.generic.GenericRecord]):Set[StorageService] = 
 		Set(serversToPartitions.filter(entry => entry._2.intersect(keysToPartitions(startkey)).size > 0).keys.toList:_*)
 	
-	def partitionOnServer(startkey:Option[org.apache.avro.generic.GenericData.Record], server:StorageService):PartitionService = {
+	def partitionOnServer(startkey:Option[org.apache.avro.generic.GenericRecord], server:StorageService):PartitionService = {
 		val result = serversToPartitions(server).intersect(keysToPartitions(startkey))
 		assert (result.size == 1)
 		result.toList.head

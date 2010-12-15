@@ -22,7 +22,7 @@ object ScadsState {
 			
 			// construct the server->partitions and partition->key mappings
 			val sToP = new scala.collection.mutable.HashMap[StorageService,scala.collection.mutable.ListBuffer[PartitionService]]()
-			val pToK = new scala.collection.mutable.HashMap[PartitionService,Option[org.apache.avro.generic.GenericData.Record]]()
+			val pToK = new scala.collection.mutable.HashMap[PartitionService,Option[org.apache.avro.generic.GenericRecord]]()
 			kToP.foreach(entry => // key -> set(partitions)
 				entry._2.foreach(partition =>{
 					pToK += (partition -> entry._1)
@@ -56,7 +56,7 @@ object ScadsState {
 		// construct the server->partitions and partition->key mappings
 		val kToP = Map( namespace.partitions.rTable.map(entry => (entry.startKey -> Set(entry.values:_*))):_* )
 		val sToP = new scala.collection.mutable.HashMap[StorageService,scala.collection.mutable.ListBuffer[PartitionService]]()
-		val pToK = new scala.collection.mutable.HashMap[PartitionService,Option[org.apache.avro.generic.GenericData.Record]]()
+		val pToK = new scala.collection.mutable.HashMap[PartitionService,Option[org.apache.avro.generic.GenericRecord]]()
 		kToP.foreach(entry => // key -> set(partitions)
 			entry._2.foreach(partition =>{
 				pToK += (partition -> entry._1)

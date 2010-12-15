@@ -14,7 +14,13 @@ import edu.berkeley.cs.avro.marker.AvroRecord
 import edu.berkeley.cs.avro.runtime._
 import edu.berkeley.cs.scads.comm._
 
-abstract trait WorkloadStatsProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord] extends RoutingProtocol[KeyType, ValueType] {
+abstract trait WorkloadStatsProtocol[KeyType <: IndexedRecord,
+				     ValueType <: IndexedRecord,
+				     RecordType <: IndexedRecord,
+				     RType] {
+
+	self: RangeRouting[KeyType, ValueType, RecordType, RType] =>
+
 	import net.lag.logging.Logger
 
 	protected def readQuorum:Double
