@@ -28,7 +28,7 @@ class Repl extends CometActor {
   settings.classpath.value = Thread.currentThread.getContextClassLoader.asInstanceOf[java.net.URLClassLoader].getURLs.toList.mkString(":")
   private val stream = new ByteArrayOutputStream
   private val writer = new PrintWriter(stream)
-  private var interpreter: Interpreter = null
+  var interpreter: Interpreter = null
 
   this ! InitRepl
 
@@ -47,7 +47,7 @@ import edu.berkeley.cs.scads.perf._
 val mesosExecutor = new File("../mesos/frameworks/deploylib/java_executor").getCanonicalPath
 implicit val scheduler = LocalExperimentScheduler("Local Console", "1@" + java.net.InetAddress.getLocalHost.getHostAddress + ":5050", mesosExecutor)
 implicit val classpath = System.getProperty("java.class.path").split(":").map(j => new File(j).getCanonicalPath).map(p => ServerSideJar(p)).toSeq
-implicit val zookeeper = ZooKeeperHelper.getTestZooKeeper().root
+//implicit val zookeeper = ZooKeeperHelper.getTestZooKeeper().root
 """
 
   override def lowPriority = {
@@ -88,7 +88,10 @@ implicit val zookeeper = ZooKeeperHelper.getTestZooKeeper().root
   def render: RenderOut = <span></span>
 
   override lazy val fixedRender: Box[NodeSeq] = {
+    val callback = SHtml.jsonCall(ValById("test"), v => {println(v); Noop})
+
     SHtml.ajaxText("", (cmd: String) => { this ! ExecuteScala(cmd); SetValueAndFocus("cmdline", "") }, ("id", "cmdline")) ++
+    <input type="text" id="test" onkeypress={callback._2}/> ++
       SHtml.a(() => { this ! InitRepl; SetHtml("history", <p>Initalizing REPL</p>) }, <span>Reset REPL</span>)
   }
 }
