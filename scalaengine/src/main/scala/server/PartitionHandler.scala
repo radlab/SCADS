@@ -116,18 +116,19 @@ class PartitionHandler(val db: Database, val acdb: Option[Database], val partiti
           reply(PutResponse())
         }
 				case GetRequestACL(key, user, groups) => {
-					val (canRead,canWrite) = acRights(key,user,groups).getOrElse((true,true))
+					val (canRead,canWrite, aclrec) = acRights(key,user,groups).getOrElse((true,true,null))
 					if (!canRead) reply(RequestFailureACL(key)) // if don't have read writes, return failure
 					else {
           	val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry)
           	db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
 						//logger.info(acRights(key,"nick",List("students")).toString) // TODO: remove
 						if (samplerRandom.nextDouble <= getSamplingRate) incrementWorkloadStats(1,"get")
-          	reply(GetResponse(Option(dbeValue.getData())))
+          	if (aclrec != null) reply(GetResponseACL(Option(dbeValue.getData()),aclrec.acl,Some(aclrec.time)))
+						else reply(GetResponseACL(Option(dbeValue.getData()),Map[String,Int](),None))
 					}
         }
         case PutRequestACL(key, value, user, groups) => {
-					val (canRead,canWrite) = acRights(key,user,groups).getOrElse((true,true))
+					val (canRead,canWrite,aclrec) = acRights(key,user,groups).getOrElse((true,true,None))
 					if (!canWrite) reply(RequestFailureACL(key)) // reply with failure response
 					else {
 	          value match {
@@ -140,13 +141,18 @@ class PartitionHandler(val db: Database, val acdb: Option[Database], val partiti
 	          reply(PutResponse())
 					}
         }
-				case PutACLRequest(user, key, prefix, acl) => {
-					if (canPutACL(key, user)) {
-						val acvalue = serializer.serialize(acSchema, AclRec(user, acl).toGenericRecord)
+				case PutACLRequest(user, key, prefix, acl, time) => {
+					if (canPutACL(key, user)) { // right now assume only one field is prefix
+						val acvalue = serializer.serialize(acSchema, AclRec(user, acl, time).toGenericRecord)
 						acdb.get.put(null, new DatabaseEntry(key), new DatabaseEntry(acvalue))
+						logger.info("putting acl %s at time %d",acl.mkString("\n"),time)
 						reply(PutACLRequestResponse(true))
 					}
 					else reply(PutACLRequestResponse(false))
+				}
+				case TestACLRequest(key, user, groups) => {
+					val (canRead,canWrite,aclrec) = acRights(key,user,groups).getOrElse((true,true,None))
+					reply(TestACLRequestResponse(canRead,canWrite))
 				}
         case BulkPutRequest(records) => {
           val txn = db.getEnvironment.beginTransaction(null, null)
@@ -298,7 +304,7 @@ class PartitionHandler(val db: Database, val acdb: Option[Database], val partiti
 	* AC entry = key-prefix --> owner, map(user/group --> Int)
 	* returns tuple indicating (read right, write right) or None if there's no relevant entry
 	*/
-	private def acRights(key: Array[Byte], user:String, groups:Seq[String]):Option[(Boolean,Boolean)] = {
+	private def acRights(key: Array[Byte], user:String, groups:Seq[String]):Option[(Boolean,Boolean,AclRec)] = {
 		// get prefix of key, need to deserialize and then serialize back
 		val prefixed = getPrefix(key)
 
@@ -312,12 +318,12 @@ class PartitionHandler(val db: Database, val acdb: Option[Database], val partiti
 		if (acSerializedValue != None) {
 			try { 
 				val acDeserialized = (new AclRec).parse(acSerializedValue.get) 
-				if (acDeserialized.owner == user) Some((true,true))				// owner has full rights
+				if (acDeserialized.owner == user) Some((true,true,acDeserialized))				// owner has full rights
 				else {
 					val entries = groups.map(g => acDeserialized.acl.get(g)) // Option[Int]
 					val reads = !entries.filter(e => {val perm = e.getOrElse(0); perm == 1 || perm == 3}).isEmpty
 					val writes = !entries.filter(e => {val perm = e.getOrElse(0); perm > 1}).isEmpty
-					Some((reads,writes))
+					Some((reads,writes,acDeserialized))
 				}
 			} catch { case e => logger.warning("error: %s",e); None}
 		}
