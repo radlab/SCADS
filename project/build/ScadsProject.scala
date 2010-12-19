@@ -44,6 +44,9 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
     val bdb = "com.sleepycat" % "je" % "4.0.71"
     val optional = "optional" %% "optional" % "0.1"
     val zookeeper = "org.apache.hadoop.zookeeper" % "zookeeper" % "3.3.1"
+
+    //So that the uberjar we build has a usable repl
+    val jline =   "jline" % "jline" % "0.9.93"
   }
 
   class Repl(info: ProjectInfo) extends DefaultWebProject(info) with AvroCompilerPlugin
