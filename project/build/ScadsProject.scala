@@ -17,8 +17,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
     }
 
     def packagedClasspath = {
-      val scalaJars = mainDependencies.scalaJars.getFiles
-
+      val scalaJars = mainDependencies.scalaJars.getFiles ++ buildCompilerJar.getFiles
       val localJars = getLocalJars(this)
       (scalaJars ++ localJars).map(_.getCanonicalPath)
     }
