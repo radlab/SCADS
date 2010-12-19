@@ -19,7 +19,10 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
     def packagedClasspath = {
       val scalaJars = mainDependencies.scalaJars.getFiles ++ buildCompilerJar.getFiles
       val localJars = getLocalJars(this)
-      (scalaJars ++ localJars).map(_.getCanonicalPath)
+      val allJars = scalaJars ++ localJars
+      //Drop duplicate jars
+      val filteredJars = Map(allJars.map(j => j.getName -> j).toSeq:_*)
+      filteredJars.values.map(_.getCanonicalPath)
     }
 
     //Also kind of a hack
