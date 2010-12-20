@@ -57,7 +57,8 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
   lazy val perf      = project("perf", "performance", new ScadsSubProject(_), config, avro, comm, scalaengine, piql, deploylib)
 
   /* PIQL Apps */
-  lazy val scadr       = project("piql" / "scadr", "scadr", new ScadsSubProject(_), piql)
+  lazy val scadr  = project("piql" / "scadr", "scadr", new ScadsSubProject(_), piql)
+  lazy val gradit = project("piql" / "gradit", "gradit", new ScadsSubProject(_), piql)
 
   /* Repository Configuration */
   val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"
