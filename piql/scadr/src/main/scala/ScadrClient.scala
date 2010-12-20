@@ -47,6 +47,9 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
       IndexScan(thoughts, Array(ParameterValue(0)), ParameterLimit(1, maxResultsPerPage), false))
   val myThoughts = (args: QueryArgs) => exec(myThoughtsPlan, args)
 
+  /**
+   * Which users are followed by a given user
+   */
   private lazy val usersFollowedByPlan =
     IndexLookupJoin(users, Array(AttributeValue(0, 1)),
       IndexScan(subscriptions, Array(ParameterValue(0)), ParameterLimit(1, maxResultsPerPage), true))
@@ -59,12 +62,6 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
    */
   def usersFollowedBy = (args: QueryArgs) => exec(usersFollowedByStopAfterPlan, args)
 
-  def usersFollowedByPaginate(username: String, count: Int): PageResult = {
-    val iterator = executor(usersFollowedByPlan, new Utf8(username), count)
-    val res = new PageResult(iterator, count)
-    res.open
-    res
-  }
 
   private lazy val usersFollowingPlan =
     LocalStopAfter(ParameterLimit(1, maxResultsPerPage),
@@ -76,32 +73,14 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
    */
   def usersFollowing = (args: QueryArgs) => exec(usersFollowingPlan, args)
 
-  private lazy val thoughtStreamPlan = // (sub_owner, sub_target), (sub_approved), (thought_owner, thought_timestamp), (thought_text)
-    IndexMergeJoin(thoughts, Array(AttributeValue(0, 1)), Array(AttributeValue(2, 1)), ParameterLimit(1, maxResultsPerPage), false,
-      LocalSelection(EqualityPredicate(ConstantValue(true), AttributeValue(1, 0)), // (owner, target), (approved)
+  private lazy val thoughtStreamPlan = // (sub_owner, sub_target, sub_approved), (thought_owner, thought_timestamp, thought_text)
+    IndexMergeJoin(thoughts, Array(AttributeValue(0, 1)), Array(AttributeValue(1, 1)), ParameterLimit(1, maxResultsPerPage), false,
+      LocalSelection(EqualityPredicate(ConstantValue(true), AttributeValue(0, 2)), // (owner, target), (approved)
         IndexScan(subscriptions, Array(ParameterValue(0)), FixedLimit(maxSubscriptions), true) // (owner, target), (approved)
-))
+    ))
 
   private lazy val thoughtStreamStopAfterPlan =
     LocalStopAfter(ParameterLimit(1, maxResultsPerPage), thoughtStreamPlan)
 
   def thoughtstream = (args: QueryArgs) => exec(thoughtStreamStopAfterPlan, args)
-
-  def thoughtstreamPaginate(username: String, count: Int): PageResult = {
-    val iterator = executor(thoughtStreamPlan, new Utf8(username), count)
-    val res = new PageResult(iterator, count)
-    res.open
-    res
-  }
-
-  /* SELECT thoughts.*
-     FROM thoughts
-       JOIN tags ON thoughts.owner = tags.owner AND thoughts.timestamp = tags.timestamp
-     WHERE tags.tag = [1: tag]
-     ORDER BY timestamp DESC */
-  private lazy val thoughsByHashTagPlan =
-    LocalStopAfter(ParameterLimit(1, maxResultsPerPage),
-      IndexLookupJoin(thoughts, Array(AttributeValue(0, 2), AttributeValue(0, 1)),
-        IndexScan(tags, Array(ParameterValue(0)), ParameterLimit(1, maxResultsPerPage), false)))
-  def thoughtsByHashTag = (args: QueryArgs) => exec(thoughsByHashTagPlan, args)
 }
