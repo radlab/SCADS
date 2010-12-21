@@ -39,29 +39,20 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
   /* Optimized queries */
   val findUser = users.where("username".a === (0.?)).toPiql
 
+  val myThoughts = (
+    thoughts.where("thoughts.owner".a === (0.?))
+	    .limit(maxResultsPerPage)
+  ).toPiql
+
+  val usersFollowedBy = (
+    subscriptions.where("subscriptions.owner".a === (0.?))
+	 .limit(maxResultsPerPage)
+	 .join(users)
+	 .where("subscriptions.target".a === "users.username".a)
+  ).toPiql
+
   /* Old hand coded plans */
   type QueryArgs = Seq[Any]
-
-  private lazy val myThoughtsPlan =
-    LocalStopAfter(ParameterLimit(1, maxResultsPerPage),
-      IndexScan(thoughts, Array(ParameterValue(0)), ParameterLimit(1, maxResultsPerPage), false))
-  val myThoughts = (args: QueryArgs) => exec(myThoughtsPlan, args)
-
-  /**
-   * Which users are followed by a given user
-   */
-  private lazy val usersFollowedByPlan =
-    IndexLookupJoin(users, Array(AttributeValue(0, 1)),
-      IndexScan(subscriptions, Array(ParameterValue(0)), ParameterLimit(1, maxResultsPerPage), true))
-
-  private lazy val usersFollowedByStopAfterPlan =
-    LocalStopAfter(ParameterLimit(1, maxResultsPerPage), usersFollowedByPlan)
-
-  /**
-   * Who am I following?
-   */
-  def usersFollowedBy = (args: QueryArgs) => exec(usersFollowedByStopAfterPlan, args)
-
 
   private lazy val usersFollowingPlan =
     LocalStopAfter(ParameterLimit(1, maxResultsPerPage),
