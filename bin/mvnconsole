@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CLASSPATH=`cat classpath`
+CLASSPATH=deploylib/src/main/resources/:`cat classpath`
 JAVAAGENT=-javaagent:~/local/jrebel.jar
 MESOSLIB=-Djava.library.path=/usr/local/mesos/lib/java
 
