@@ -3,6 +3,7 @@ package scads
 
 import org.apache.avro.Schema
 import org.apache.avro.generic.{IndexedRecord, GenericRecord}
+import org.apache.avro.util.Utf8
 import avro.marker._
 import storage._
 
@@ -34,16 +35,23 @@ package object piql {
 
   implicit def toConstantValue(a: Any) = ConstantValue(a)
 
+  class OptimizedQuery(val physicalPlan: QueryPlan, executor: QueryExecutor) {
+    def apply(args: Any*): QueryResult = {
+      val encodedArgs = args.map {
+	case s: String => new Utf8(s)
+	case o => o
+      }
+      val iterator = executor(physicalPlan, encodedArgs:_*)
+      iterator.open
+      val ret = iterator.toList
+      iterator.close
+      ret
+    }
+  }
+
   implicit def toPiql(logicalPlan: Queryable)(implicit executor: QueryExecutor) = new {
     def toPiql = {
-      val physicalPlan = Optimizer(logicalPlan).physicalPlan
-      (args: Seq[Any]) => {
-	val iterator = executor(physicalPlan, args:_*)
-	iterator.open
-	val ret = iterator.toList
-	iterator.close
-	ret
-      }
+      new OptimizedQuery(Optimizer(logicalPlan).physicalPlan, executor)
     }
   }
 

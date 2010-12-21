@@ -18,7 +18,7 @@ object TestScadr {
     context.wordLine = "this program is a test of PIQL"
     client.wordcontexts.put(context.key, context.value)
 
-    client.contextsForWord(List(0)).foreach(println)
+    client.contextsForWord(0).foreach(println)
 
     //Since we are running a test scads server we need to force exit or it will hang here.
     System.exit(0)
