@@ -7,7 +7,6 @@ import org.apache.avro.Schema
 import org.apache.avro.generic._
 
 abstract class GenericNamespace(
-    val name: String,
     val root: ZooKeeperProxy#ZooKeeperNode,
     val keySchema: Schema,
     val valueSchema: Schema)
@@ -20,7 +19,6 @@ abstract class GenericNamespace(
   with SimpleRecordMetadata
 
 abstract class GenericHashNamespace(
-    val name: String,
     val root: ZooKeeperProxy#ZooKeeperNode,
     val keySchema: Schema,
     val valueSchema: Schema)

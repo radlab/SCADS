@@ -3,22 +3,8 @@ package edu.berkeley.cs.scads.storage.newclient
 import edu.berkeley.cs.avro.marker._
 import edu.berkeley.cs.scads.comm._
 
-import org.apache.avro.Schema
+import org.apache.avro.Schema 
 import org.apache.avro.generic._
-
-trait Namespace extends NamespaceLike {
-
-  protected def onCreate(f: => Unit): Unit = error("onCreate")
-  protected def onOpen(f: => Unit): Unit = error("onOpen")
-  protected def onClose(f: => Unit): Unit = error("onClose")
-  protected def onDelete(f: => Unit): Unit = error("onDelete")
-
-  def create(): Unit = error("create")
-  def open(): Unit = error("open")
-  def close(): Unit = error("close")
-  def delete(): Unit = error("delete")
-
-}
 
 trait BaseKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
   extends KeyValueStoreLike[K, V, B]
@@ -26,13 +12,13 @@ trait BaseKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
   with Protocol {
 
   override def ++=(that: TraversableOnce[B]) = 
-    putKeys(that.toIterable.map(bulkToBytes))
+    putBulkBytes(that.toIterable.map(bulkToBytes))
 
   override def get(key: K): Option[V] =
-    getKey(keyToBytes(key)) map bytesToValue     
+    getBytes(keyToBytes(key)) map bytesToValue     
 
   override def put(key: K, value: V): Boolean =
-    putKey(keyToBytes(key), valueToBytes(value))
+    putBytes(keyToBytes(key), valueToBytes(value))
 
 }
 
@@ -94,9 +80,9 @@ trait QuorumProtocol
   with KeyRoutable
   with RecordMetadata {
 
-  override def getKey(key: Array[Byte]): Option[Array[Byte]] = error("getKey")
-  override def putKey(key: Array[Byte], value: Array[Byte]): Boolean = error("putKey")
-  override def putKeys(that: TraversableOnce[(Array[Byte], Array[Byte])]): Unit = error("putKeys")
+  override def getBytes(key: Array[Byte]): Option[Array[Byte]] = error("getKey")
+  override def putBytes(key: Array[Byte], value: Array[Byte]): Boolean = error("putKey")
+  override def putBulkBytes(that: TraversableOnce[(Array[Byte], Array[Byte])]): Unit = error("putKeys")
 
 }
 
@@ -113,7 +99,7 @@ trait QuorumRangeProtocol
 
 }
 
-trait DefaultKeyRoutable extends KeyRoutable with NamespaceLike {
+trait DefaultKeyRoutable extends KeyRoutable with Namespace {
   override def serversForKey(key: Array[Byte]): Seq[PartitionService] = error("serversForKey")
   override def onRoutingTableChanged(newTable: Array[Byte]): Unit = error("onRoutingTableChanged")
 }
@@ -122,8 +108,9 @@ trait DefaultKeyRangeRoutable extends DefaultKeyRoutable with KeyRangeRoutable {
   override def serversForKeyRange(start: Option[Array[Byte]], end: Option[Array[Byte]]): Seq[RangeDesc] = error("serversForKeyRange")
 }
 
-trait ZooKeeperGlobalMetadata extends GlobalMetadata with NamespaceLike with KeyRoutable {
+trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRoutable {
   val root: ZooKeeperProxy#ZooKeeperNode
+  def name: String = root.name
   override def remoteKeySchema: Schema = error("remoteKeySchema")
   override def remoteValueSchema: Schema = error("remoteValueSchema")
 }
