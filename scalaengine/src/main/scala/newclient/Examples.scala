@@ -12,7 +12,7 @@ abstract class GenericNamespace(
     val valueSchema: Schema)
   extends Namespace 
   with RangeKeyValueStore[GenericRecord, GenericRecord]
-  with AvroKeyValueSerializer[GenericRecord, GenericRecord]
+  with AvroGenericKeyValueSerializer
   with QuorumRangeProtocol
   with DefaultKeyRangeRoutable
   with ZooKeeperGlobalMetadata
@@ -24,7 +24,7 @@ abstract class GenericHashNamespace(
     val valueSchema: Schema)
   extends Namespace 
   with KeyValueStore[GenericRecord, GenericRecord]
-  with AvroKeyValueSerializer[GenericRecord, GenericRecord]
+  with AvroGenericKeyValueSerializer
   with QuorumProtocol
   with DefaultKeyRoutable
   with ZooKeeperGlobalMetadata

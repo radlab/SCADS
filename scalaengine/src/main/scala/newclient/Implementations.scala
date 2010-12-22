@@ -62,18 +62,7 @@ trait RecordStore[P <: AvroPair]
 trait IndexStore
   extends RangeKeyValueStore[IndexedRecord, IndexedRecord]
 
-trait AvroKeyValueSerializer[K <: IndexedRecord, V <: IndexedRecord] 
-  extends KeyValueSerializer[K, V] {
-  override def bytesToKey(bytes: Array[Byte]): K = error("bytesToKey")
-  override def bytesToValue(bytes: Array[Byte]): V = error("bytesToValue") 
-  override def bytesToBulk(k: Array[Byte], v: Array[Byte]) = error("bytesToBulk")
-  override def keyToBytes(key: K): Array[Byte] = error("keyToBytes")
-  override def valueToBytes(value: V): Array[Byte] = error("valueToBytes")
-  override def bulkToBytes(b: (K, V)) = error("bulkToBytes")
-}
 
-trait AvroPairSerializer[P <: AvroPair]
-  extends PairSerializer[P]
 
 trait QuorumProtocol 
   extends Protocol
