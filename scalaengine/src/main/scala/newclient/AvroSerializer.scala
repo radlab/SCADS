@@ -85,30 +85,42 @@ class AvroSpecificReaderWriter[T <: SpecificRecord](_remoteSchema: Option[Schema
   def newInstance = recClz.newInstance
 }
 
-trait AvroGenericKeyValueSerializer 
-  extends KeyValueSerializer[GenericRecord, GenericRecord] 
+trait AvroGenericKeyValueSerializerLike[T <: IndexedRecord]
+  extends KeyValueSerializer[T, T] 
   with GlobalMetadata {
 
-  private val keyReaderWriter = new AvroGenericReaderWriter(Some(remoteKeySchema), keySchema)
-  private val valueReaderWriter = new AvroGenericReaderWriter(Some(remoteValueSchema), valueSchema)
+  protected val keyReaderWriter: AvroGenericReaderWriterLike[T] 
+  protected val valueReaderWriter: AvroGenericReaderWriterLike[T]
 
-  override def bytesToKey(bytes: Array[Byte]): GenericRecord = 
+  override def bytesToKey(bytes: Array[Byte]): T = 
     keyReaderWriter.deserialize(bytes)
 
-  override def bytesToValue(bytes: Array[Byte]): GenericRecord =
+  override def bytesToValue(bytes: Array[Byte]): T =
     valueReaderWriter.deserialize(bytes)
 
-  override def bytesToBulk(k: Array[Byte], v: Array[Byte]): (GenericRecord, GenericRecord) =
+  override def bytesToBulk(k: Array[Byte], v: Array[Byte]): (T, T) =
     (bytesToKey(k), bytesToValue(v))
 
-  override def keyToBytes(key: GenericRecord): Array[Byte] =
+  override def keyToBytes(key: T): Array[Byte] =
     keyReaderWriter.serialize(key)
 
-  override def valueToBytes(value: GenericRecord): Array[Byte] = 
+  override def valueToBytes(value: T): Array[Byte] = 
     valueReaderWriter.serialize(value)
 
-  override def bulkToBytes(b: (GenericRecord, GenericRecord)): (Array[Byte], Array[Byte]) =
+  override def bulkToBytes(b: (T, T)): (Array[Byte], Array[Byte]) =
     (keyToBytes(b._1), valueToBytes(b._2))
+}
+
+trait AvroGenericKeyValueSerializer 
+  extends AvroGenericKeyValueSerializerLike[GenericRecord] {
+  protected val keyReaderWriter = new AvroGenericReaderWriter(Some(remoteKeySchema), keySchema)
+  protected val valueReaderWriter = new AvroGenericReaderWriter(Some(remoteValueSchema), valueSchema)
+}
+
+trait AvroIndexedKeyValueSerializer 
+  extends AvroGenericKeyValueSerializerLike[IndexedRecord] {
+  protected val keyReaderWriter = new AvroIndexedReaderWriter(Some(remoteKeySchema), keySchema)
+  protected val valueReaderWriter = new AvroIndexedReaderWriter(Some(remoteValueSchema), valueSchema)
 }
 
 trait AvroPairSerializer[P <: AvroPair]

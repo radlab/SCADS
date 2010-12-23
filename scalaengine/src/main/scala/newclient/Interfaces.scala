@@ -14,7 +14,7 @@ trait KeyValueStoreLike[KeyType <: IndexedRecord,
                         BulkPutType] 
   extends PersistentStore[BulkPutType] {
   def get(key: KeyType): Option[ValueType]
-  def put(key: KeyType, value: ValueType): Boolean
+  def put(key: KeyType, value: Option[ValueType]): Boolean
 }
 trait RangeKeyValueStoreLike[KeyType <: IndexedRecord,
                              ValueType <: IndexedRecord,
@@ -44,7 +44,7 @@ trait PairSerializer[PairType <: AvroPair]
 
 trait Protocol {
   def getBytes(key: Array[Byte]): Option[Array[Byte]]
-  def putBytes(key: Array[Byte], value: Array[Byte]): Boolean
+  def putBytes(key: Array[Byte], value: Option[Array[Byte]]): Boolean
   def putBulkBytes(that: TraversableOnce[(Array[Byte], Array[Byte])]): Unit
 }
 trait RangeProtocol extends Protocol {
@@ -79,6 +79,12 @@ trait GlobalMetadata {
 
   def remoteKeySchema: Schema
   def remoteValueSchema: Schema
+
+  /** The GlobalMetadata catalogue is implementation agnostic, but must
+   * support a simple persistent key/value configuration map (string -> byte array) */
+  def getMetadata(key: String): Option[Array[Byte]] 
+  def putMetadata(key: String, value: Array[Byte]): Unit 
+  def deleteMetadata(key: String): Unit
 }
 
 trait TypedGlobalMetadata[T <: IndexedRecord] extends GlobalMetadata {
@@ -89,5 +95,7 @@ trait TypedGlobalMetadata[T <: IndexedRecord] extends GlobalMetadata {
 trait RecordMetadata {
   def compareKey(x: Array[Byte], y: Array[Byte]): Int
   def hashKey(x: Array[Byte]): Int
-  def extractMetadataFromValue(value: Array[Byte]): Array[Byte]
+  /** Given a byte string which contains both value and metadata, extracts
+   * this information and returns a tuple of (metadata, value) */
+  def extractMetadataFromValue(value: Array[Byte]): (Array[Byte], Array[Byte])
 }

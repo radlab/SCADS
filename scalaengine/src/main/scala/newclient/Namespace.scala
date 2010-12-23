@@ -21,6 +21,8 @@ trait Namespace {
   protected def onClose(f: => Unit): Unit = closeHandler.registerCallback(f)
   protected def onDelete(f: => Unit): Unit = deleteHandler.registerCallback(f)
 
+  // TODO: what are the semantics for each? they should be specified clearly
+
   def create(): Unit = createHandler.execCallbacks()
   def open(): Unit = openHandler.execCallbacks()
   def close(): Unit = closeHandler.execCallbacks() 
