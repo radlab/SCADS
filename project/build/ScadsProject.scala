@@ -85,6 +85,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
 
   /* Shared subproject configuration */
   class ScadsSubProject(info: ProjectInfo) extends DefaultProject(info) with AvroCompilerPlugin {
+    override def compileOptions: List[CompileOption] = Optimize :: super.compileOptions
     override def fork = forkRun("-Xmx4G" ::
 				"-Djava.library.path=/usr/local/mesos/lib/java/" :: Nil)
 
