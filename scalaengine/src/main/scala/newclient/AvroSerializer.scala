@@ -109,6 +109,13 @@ trait AvroGenericKeyValueSerializerLike[T <: IndexedRecord]
 
   override def bulkToBytes(b: (T, T)): (Array[Byte], Array[Byte]) =
     (keyToBytes(b._1), valueToBytes(b._2))
+
+  override def newKeyInstance = keyReaderWriter.newInstance 
+
+  override def newRecordInstance(schema: Schema) = 
+    // can use either key or value R/W, it doesn't matter (they share the same
+    // global cache anyways)
+    keyReaderWriter.newRecordInstance(schema)
 }
 
 trait AvroGenericKeyValueSerializer 
@@ -157,4 +164,9 @@ trait AvroPairSerializer[P <: AvroPair]
 
   override def bulkToBytes(b: P): (Array[Byte], Array[Byte]) = 
     (keyToBytes(b.key), valueToBytes(b.value))
+
+  override def newKeyInstance = keyReaderWriter.newInstance
+
+  override def newRecordInstance(schema: Schema) =
+    keyReaderWriter.newRecordInstance(schema)
 }
