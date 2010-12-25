@@ -10,7 +10,7 @@ import java.util.{LinkedList, Queue}
 /**
  * This is the base trait for any type of future in SCADS.
  */
-trait ScadsFuture[+T] {
+trait ScadsFuture[+T] { self =>
 
   /**
    * Cancels the current future
@@ -36,6 +36,18 @@ trait ScadsFuture[+T] {
    * True iff the future has already been set
    */
   def isSet: Boolean
+
+  /**
+   * Return a new future which is backed by this future and maps the
+   * result according to the given function
+   */
+  def map[T1](f: T => T1): ScadsFuture[T1] = new ScadsFuture[T1] {
+    def cancel = self.cancel
+    def get = f(self.get)
+    def get(timeout: Long, unit: TimeUnit = TimeUnit.MILLISECONDS) =
+      self.get(timeout, unit) map f 
+    def isSet = self.isSet
+  }
 
 }
 

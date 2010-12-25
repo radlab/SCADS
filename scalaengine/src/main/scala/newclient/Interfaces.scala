@@ -11,10 +11,12 @@ trait PersistentStore[BulkPutType] {
 }
 trait KeyValueStoreLike[KeyType <: IndexedRecord, 
                         ValueType <: IndexedRecord,
-                        BulkPutType] 
+                        BulkPutType]
   extends PersistentStore[BulkPutType] {
   def get(key: KeyType): Option[ValueType]
   def put(key: KeyType, value: Option[ValueType]): Boolean
+
+  def asyncGet(key: KeyType): ScadsFuture[Option[ValueType]]
 }
 trait RangeKeyValueStoreLike[KeyType <: IndexedRecord,
                              ValueType <: IndexedRecord,
@@ -25,6 +27,12 @@ trait RangeKeyValueStoreLike[KeyType <: IndexedRecord,
                limit: Option[Int] = None, 
                offset: Option[Int] = None, 
                ascending: Boolean = true): Seq[RangeType]
+
+  def asyncGetRange(start: Option[KeyType], 
+                    end: Option[KeyType], 
+                    limit: Option[Int] = None, 
+                    offset: Option[Int] = None, 
+                    ascending: Boolean = true): ScadsFuture[Seq[RangeType]]
 }
 
 trait Serializer[KeyType <: IndexedRecord, ValueType <: IndexedRecord, BulkType] {
@@ -46,6 +54,8 @@ trait Protocol {
   def getBytes(key: Array[Byte]): Option[Array[Byte]]
   def putBytes(key: Array[Byte], value: Option[Array[Byte]]): Boolean
   def putBulkBytes(that: TraversableOnce[(Array[Byte], Array[Byte])]): Unit
+
+  def asyncGetBytes(key: Array[Byte]): ScadsFuture[Option[Array[Byte]]]
 }
 trait RangeProtocol extends Protocol {
   def getKeys(start: Option[Array[Byte]], 
@@ -53,6 +63,12 @@ trait RangeProtocol extends Protocol {
               limit: Option[Int], 
               offset: Option[Int], 
               ascending: Boolean): Seq[(Array[Byte], Array[Byte])]
+
+  def asyncGetKeys(start: Option[Array[Byte]], 
+                   end: Option[Array[Byte]], 
+                   limit: Option[Int], 
+                   offset: Option[Int], 
+                   ascending: Boolean): ScadsFuture[Seq[(Array[Byte], Array[Byte])]]
 }
 
 trait KeyRoutable {
@@ -95,6 +111,13 @@ trait TypedGlobalMetadata[T <: IndexedRecord] extends GlobalMetadata {
 trait RecordMetadata {
   def compareKey(x: Array[Byte], y: Array[Byte]): Int
   def hashKey(x: Array[Byte]): Int
+
+  /** Create a value w/ metadata prepended */
+  def createMetadata(rec: Array[Byte]): Array[Byte]
+
+  /** Compare 2 values based on metadata */
+  def compareMetadata(lhs: Array[Byte], rhs: Array[Byte]): Int
+
   /** Given a byte string which contains both value and metadata, extracts
    * this information and returns a tuple of (metadata, value) */
   def extractMetadataFromValue(value: Array[Byte]): (Array[Byte], Array[Byte])

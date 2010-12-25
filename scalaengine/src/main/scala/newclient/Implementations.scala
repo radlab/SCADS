@@ -25,5 +25,8 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
 trait SimpleRecordMetadata extends RecordMetadata {
   override def compareKey(x: Array[Byte], y: Array[Byte]): Int = error("compareKey")
   override def hashKey(x: Array[Byte]): Int = error("hashKey")
+
+  override def createMetadata(rec: Array[Byte]) = error("createMetadata")
+  override def compareMetadata(lhs: Array[Byte], rhs: Array[Byte]): Int = error("compareMetadata")
   override def extractMetadataFromValue(value: Array[Byte]): (Array[Byte], Array[Byte]) = error("extractMetadataFromValue")
 }

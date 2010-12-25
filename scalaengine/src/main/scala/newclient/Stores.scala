@@ -20,6 +20,8 @@ trait BaseKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
   override def put(key: K, value: Option[V]): Boolean =
     putBytes(keyToBytes(key), value.map(v => valueToBytes(v)))
 
+  override def asyncGet(key: K): ScadsFuture[Option[V]] =
+    asyncGetBytes(keyToBytes(key)).map(_.map(bytesToValue))
 }
 
 trait BaseRangeKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
@@ -35,6 +37,13 @@ trait BaseRangeKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
     getKeys(start.map(keyToBytes), end.map(keyToBytes), limit, offset, ascending).map { 
       case (k,v) => bytesToBulk(k, v) 
     }
+
+  override def asyncGetRange(start: Option[K],
+                             end: Option[K],
+                             limit: Option[Int],
+                             offset: Option[Int],
+                             ascending: Boolean) =
+    asyncGetKeys(start.map(keyToBytes), end.map(keyToBytes), limit, offset, ascending).map(_.map { case (k, v) => bytesToBulk(k, v) })
 }
 
 /** Hash partition */
