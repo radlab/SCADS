@@ -104,6 +104,7 @@ trait GlobalMetadata {
   def getMetadata(key: String): Option[Array[Byte]] 
   def putMetadata(key: String, value: Array[Byte]): Unit 
   def deleteMetadata(key: String): Unit
+  def waitUntilMetadataPropagated(): Unit
 }
 
 trait TypedGlobalMetadata[T <: IndexedRecord] extends GlobalMetadata {

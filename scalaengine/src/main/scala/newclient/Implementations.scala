@@ -6,15 +6,6 @@ import edu.berkeley.cs.scads.comm._
 import org.apache.avro.Schema 
 import org.apache.avro.generic._
 
-trait DefaultKeyRoutable extends KeyRoutable with Namespace {
-  override def serversForKey(key: Array[Byte]): Seq[PartitionService] = error("serversForKey")
-  override def onRoutingTableChanged(newTable: Array[Byte]): Unit = error("onRoutingTableChanged")
-}
-
-trait DefaultKeyRangeRoutable extends DefaultKeyRoutable with KeyRangeRoutable {
-  override def serversForKeyRange(start: Option[Array[Byte]], end: Option[Array[Byte]]): Seq[RangeDesc] = error("serversForKeyRange")
-}
-
 trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRoutable {
   val root: ZooKeeperProxy#ZooKeeperNode
   def name: String = root.name

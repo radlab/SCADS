@@ -1,7 +1,11 @@
 package edu.berkeley.cs.scads.storage.newclient
 
+import net.lag.logging._
+
 trait Namespace {
   def name: String
+
+  protected val logger = Logger()
 
   class CallbackHandler {
     @volatile private var _functions: List[() => Unit] = Nil
