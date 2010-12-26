@@ -93,6 +93,8 @@ trait KeyPartitionable {
 }
 
 trait GlobalMetadata {
+  def name: String
+
   def keySchema: Schema
   def valueSchema: Schema
 

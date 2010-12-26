@@ -1,9 +1,11 @@
 package edu.berkeley.cs.scads.storage.newclient
 
+import edu.berkeley.cs.scads.storage.ScadsCluster
 import net.lag.logging._
 
 trait Namespace {
   def name: String
+  def cluster: ScadsCluster
 
   protected val logger = Logger()
 
