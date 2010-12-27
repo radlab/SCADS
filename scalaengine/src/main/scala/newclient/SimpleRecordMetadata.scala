@@ -49,7 +49,7 @@ trait SimpleRecordMetadata extends RecordMetadata
     return 0
   }
 
-  override def extractMetadataFromValue(value: Array[Byte]): (Array[Byte], Array[Byte]) = {
+  override def extractMetadataAndRecordFromValue(value: Array[Byte]): (Array[Byte], Array[Byte]) = {
     // be explicit for performance reasons
     val rhs_len = value.length - 16
     val lhs = new Array[Byte](16)
@@ -57,6 +57,13 @@ trait SimpleRecordMetadata extends RecordMetadata
     System.arraycopy(value, 0, lhs, 0, 16)
     System.arraycopy(value, 16, rhs, 0, rhs_len)
     (lhs, rhs)
+  }
+
+  override def extractRecordFromValue(value: Array[Byte]): Array[Byte] = {
+    val rhs_len = value.length - 16
+    val rhs = new Array[Byte](rhs_len)
+    System.arraycopy(value, 16, rhs, 0, rhs_len)
+    rhs
   }
 
 }

@@ -13,10 +13,6 @@ import concurrent.ManagedBlocker
 import java.util.concurrent.TimeUnit
 
 private[storage] object QuorumProtocol {
-  // TODO: fix string hackery?
-  val MinString = "" 
-  val MaxString = new String(Array.fill[Byte](20)(127.asInstanceOf[Byte]))
-
   val ZK_QUORUM_CONFIG = "quorumProtConfig"
 
   val BufSize = 1024
@@ -77,7 +73,7 @@ trait QuorumProtocol
     else {
       // TODO: repair on failed case (above) still?
       ReadRepairer ! handler
-      Some(record.map(r => extractMetadataFromValue(r)._2))
+      Some(record.map(extractRecordFromValue))
     }
   }
 
@@ -167,7 +163,7 @@ trait QuorumProtocol
   }
 
   onClose {
-    // TODO: what to do here?
+    // TODO
   }
 
   onDelete {
@@ -204,11 +200,12 @@ trait QuorumProtocol
     val (partitions, quorum) = readQuorumForKey(key)
     val getRequest = GetRequest(key)
     // TODO: should probably scatter and gather here instead of process
-    // sequentially
+    // sequentially. however, since this is a debug method it does not really
+    // matter
     for (partition <- partitions) yield {
       val values = partition !? getRequest match {
         case GetResponse(optV) =>
-          optV.map(v => extractMetadataFromValue(v)._2)
+          optV.map(extractRecordFromValue)
         case u => throw new RuntimeException("Unexpected message during get.")
       }
       (partition, values) 

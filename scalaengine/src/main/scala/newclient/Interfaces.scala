@@ -126,5 +126,9 @@ trait RecordMetadata {
 
   /** Given a byte string which contains both value and metadata, extracts
    * this information and returns a tuple of (metadata, value) */
-  def extractMetadataFromValue(value: Array[Byte]): (Array[Byte], Array[Byte])
+  def extractMetadataAndRecordFromValue(value: Array[Byte]): (Array[Byte], Array[Byte])
+
+  /** strips out the metadata from the value. exists for performance
+   reasons (is NOT implemented as extractMetadataAndRecordFromValue(value)._2) */
+  def extractRecordFromValue(value: Array[Byte]): Array[Byte] 
 }

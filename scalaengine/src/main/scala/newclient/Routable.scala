@@ -26,6 +26,16 @@ trait DefaultKeyRoutableLike
 
   @volatile protected var routingTable: RangeTable[Array[Byte], PartitionService] = _
 
+  onCreate {
+    // TODO: assumes that create maps 1 random server to the entire key range
+    createRoutingTable(createPartitions(None, None, cluster.getRandomServers(1)))
+    storeRoutingTable()
+  }
+
+  onOpen {
+    loadRoutingTable()
+  }
+
   onDelete {
     val storageHandlers = routingTable.rTable.flatMap(_.values.map(_.storageService)).toSet
     storageHandlers foreach { handler =>
@@ -41,8 +51,8 @@ trait DefaultKeyRoutableLike
     routingTable = null
   }
 
-  onOpen {
-    loadRoutingTable()
+  onClose {
+    // TODO
   }
 
   override def serversForKey(key: Array[Byte]): Seq[PartitionService] = {
@@ -126,6 +136,99 @@ trait DefaultKeyRoutableLike
       ranges,
       routingKeyComp, 
       mergeCond)
+  }
+
+  private def createPartitions(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], servers: Seq[StorageService]): Seq[PartitionService] = {
+    for (server <- servers) yield {
+      server !? CreatePartitionRequest(name, startKey, endKey) match {
+        case CreatePartitionResponse(partitionActor) => partitionActor
+        case _ => throw new RuntimeException("Unexpected Message")
+      }
+    }
+  }
+
+  /** simply issues DeletePartitionRequests to the partition handlers, does
+   * not modify the routing table. use deletePartitions to properly delete a
+   * partition service */
+  private def deletePartitionServices(partitions: Seq[PartitionService]): Unit = {
+    for (partition <- partitions) {
+      partition.storageService !? DeletePartitionRequest(partition.partitionId) match {
+        case DeletePartitionResponse() => ()
+        case _ => throw new RuntimeException("Unexpected Message")
+      }
+    }
+  }
+
+  /** Keys are input as regular keys. the method will convert them to routing
+   * table keys */
+  override def splitPartition(splitKeys: Seq[Array[Byte]]): Unit = {
+    val routingSplitKeys = splitKeys.map(convertToRoutingKey)
+    val oldPartitions = for (splitPoint <- routingSplitKeys) yield {
+      require(!routingTable.isSplitKey(splitPoint)) //Otherwise it is already a split point
+      val bound = routingTable.lowerUpperBound(splitPoint)
+      val oldPartitions = bound.center.values
+      val storageServers = oldPartitions.map(_.storageService)
+      val leftPart = createPartitions(bound.center.startKey, Some(splitPoint), storageServers)
+      val rightPart = createPartitions(Some(splitPoint), bound.right.startKey, storageServers)
+      routingTable = routingTable.split(splitPoint, leftPart, rightPart)
+      oldPartitions
+    }
+
+    storeAndPropagateRoutingTable()
+    // TODO: should execute deletions in parallel, with ftchs
+    for (oldPartition <- oldPartitions)
+      deletePartitionServices(oldPartition)
+  }
+
+  override def mergePartition(mergeKeys: Seq[Array[Byte]]): Unit = {
+    val routingMergeKeys = mergeKeys.map(convertToRoutingKey)
+    val oldPartitions = for (mergeKey <- routingMergeKeys) yield {
+      require(routingTable.checkMergeCondition(mergeKey), "Either the key is not a split key, or the sets are different and can not be merged") //Otherwise we can not merge the partitions
+
+      val bound = routingTable.lowerUpperBound(mergeKey)
+      val leftPart = bound.left.values
+      val rightPart = bound.center.values //have to use center as this is the partition with the split key
+      val storageServers = leftPart.map(_.storageService)
+      val mergePartition = createPartitions(bound.left.startKey, bound.right.startKey, storageServers)
+
+      routingTable = routingTable.merge(mergeKey, mergePartition)
+      (leftPart, rightPart)
+    }
+
+    storeAndPropagateRoutingTable()
+
+    // TODO: same as for splitPartition, could do this in parallel 
+    for((leftPart, rightPart) <- oldPartitions){
+      deletePartitionServices(leftPart)
+      deletePartitionServices(rightPart)
+    }
+  }
+
+  override def deletePartitions(partitionHandlers: Seq[PartitionService]): Unit = {
+    for(partitionHandler <- partitionHandlers){
+      val (startKey, endKey) = getStartEndKey(partitionHandler) //Not really needed, just an additional check
+      routingTable = routingTable.removeValueFromRange(startKey, partitionHandler)
+    }
+    storeAndPropagateRoutingTable()
+    deletePartitionServices(partitionHandlers)
+  }
+
+  override def replicatePartitions(targets: Seq[(PartitionService, StorageService)]): Seq[PartitionService] = {
+    val result = for((partitionHandler, storageHandler) <- targets) yield {
+      val (startKey, endKey) = getStartEndKey(partitionHandler)
+      val newPartition = createPartitions(startKey, endKey, Seq(storageHandler)).head
+      routingTable = routingTable.addValueToRange(startKey, newPartition)
+      (newPartition, partitionHandler)
+    }
+    storeAndPropagateRoutingTable()
+    // TODO: once again, do this in parallel
+    for((newPartition, oldPartition) <- result){
+      newPartition !? CopyDataRequest(oldPartition, false) match {
+        case CopyDataResponse() => ()
+        case _ => throw new RuntimeException("Unexpected Message")
+      }
+    }
+    result.map(_._1)
   }
 
 }

@@ -26,6 +26,6 @@ abstract class GenericHashNamespace(
   with KeyValueStore[GenericRecord, GenericRecord]
   with AvroGenericKeyValueSerializer
   with QuorumProtocol
-  with DefaultKeyRoutable
+  with DefaultHashKeyRoutable
   with ZooKeeperGlobalMetadata
   with SimpleRecordMetadata
