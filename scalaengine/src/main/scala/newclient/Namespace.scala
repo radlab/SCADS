@@ -10,7 +10,7 @@ trait Namespace {
   protected val logger = Logger()
 
   class CallbackHandler {
-    @volatile private var _functions: List[() => Unit] = Nil
+    @volatile private var _functions: List[() => Unit] = Nil 
     def registerCallback(f: => Unit): Unit = {
       _functions ::= (() => f)
     }
@@ -21,6 +21,9 @@ trait Namespace {
   private val openHandler = new CallbackHandler
   private val closeHandler = new CallbackHandler
   private val deleteHandler = new CallbackHandler
+
+  // NOTE: the handlers get appended in reverse order (like a stack). this
+  // way, the callbacks for the dependencies run FIRST. 
 
   protected def onCreate(f: => Unit): Unit = createHandler.registerCallback(f) 
   protected def onOpen(f: => Unit): Unit = openHandler.registerCallback(f)

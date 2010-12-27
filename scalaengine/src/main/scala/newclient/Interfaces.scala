@@ -109,11 +109,6 @@ trait GlobalMetadata {
   def waitUntilMetadataPropagated(): Unit
 }
 
-trait TypedGlobalMetadata[T <: IndexedRecord] extends GlobalMetadata {
-  /** This is a necessary evil because traits cannot take implicit parameters */
-  implicit def getManifest: Manifest[T] 
-}
-
 trait RecordMetadata {
   def compareKey(x: Array[Byte], y: Array[Byte]): Int
   def hashKey(x: Array[Byte]): Int

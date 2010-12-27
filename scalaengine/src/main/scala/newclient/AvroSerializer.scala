@@ -53,7 +53,7 @@ abstract class AvroReaderWriter[T <: IndexedRecord](val remoteSchema: Option[Sch
 
 }
 
-abstract class AvroGenericReaderWriterLike[T <: IndexedRecord](_remoteSchema: Option[Schema], val schema: Schema) 
+class AvroGenericReaderWriter[T >: GenericRecord <: IndexedRecord](_remoteSchema: Option[Schema], val schema: Schema) 
   extends AvroReaderWriter[T](_remoteSchema) {
   require(schema ne null)
   val reader = new GenericDatumReader[T](schema) with ExposedDatumReader {
@@ -61,21 +61,12 @@ abstract class AvroGenericReaderWriterLike[T <: IndexedRecord](_remoteSchema: Op
       newRecord(old, schema)
   }
   val writer = new GenericDatumWriter[T](schema)
-}
-
-class AvroGenericReaderWriter(_remoteSchema: Option[Schema], _schema: Schema) 
-  extends AvroGenericReaderWriterLike[GenericRecord](_remoteSchema, _schema) {
-  def newInstance = new GenericData.Record(schema)
-}
-
-class AvroIndexedReaderWriter(_remoteSchema: Option[Schema], _schema: Schema) 
-  extends AvroGenericReaderWriterLike[IndexedRecord](_remoteSchema, _schema) {
   def newInstance = new GenericData.Record(schema)
 }
 
 class AvroSpecificReaderWriter[T <: SpecificRecord](_remoteSchema: Option[Schema])(implicit tpe: Manifest[T])
   extends AvroReaderWriter[T](_remoteSchema) {
-  val recClz = tpe.erasure.asInstanceOf[Class[T]]
+  @inline private def recClz = tpe.erasure.asInstanceOf[Class[T]]
   lazy val schema = recClz.newInstance.getSchema 
   val reader = new SpecificDatumReader[T](schema) with ExposedDatumReader {
     def exposedNewRecord(old: AnyRef, schema: Schema): AnyRef = 
@@ -85,29 +76,29 @@ class AvroSpecificReaderWriter[T <: SpecificRecord](_remoteSchema: Option[Schema
   def newInstance = recClz.newInstance
 }
 
-trait AvroGenericKeyValueSerializerLike[T <: IndexedRecord]
-  extends KeyValueSerializer[T, T] 
+trait AvroKeyValueSerializerLike[K <: IndexedRecord, V <: IndexedRecord]
+  extends KeyValueSerializer[K, V] 
   with GlobalMetadata {
 
-  protected val keyReaderWriter: AvroGenericReaderWriterLike[T] 
-  protected val valueReaderWriter: AvroGenericReaderWriterLike[T]
+  protected val keyReaderWriter: AvroReaderWriter[K] 
+  protected val valueReaderWriter: AvroReaderWriter[V]
 
-  override def bytesToKey(bytes: Array[Byte]): T = 
+  override def bytesToKey(bytes: Array[Byte]): K = 
     keyReaderWriter.deserialize(bytes)
 
-  override def bytesToValue(bytes: Array[Byte]): T =
+  override def bytesToValue(bytes: Array[Byte]): V =
     valueReaderWriter.deserialize(bytes)
 
-  override def bytesToBulk(k: Array[Byte], v: Array[Byte]): (T, T) =
+  override def bytesToBulk(k: Array[Byte], v: Array[Byte]): (K, V) =
     (bytesToKey(k), bytesToValue(v))
 
-  override def keyToBytes(key: T): Array[Byte] =
+  override def keyToBytes(key: K): Array[Byte] =
     keyReaderWriter.serialize(key)
 
-  override def valueToBytes(value: T): Array[Byte] = 
+  override def valueToBytes(value: V): Array[Byte] = 
     valueReaderWriter.serialize(value)
 
-  override def bulkToBytes(b: (T, T)): (Array[Byte], Array[Byte]) =
+  override def bulkToBytes(b: (K, V)): (Array[Byte], Array[Byte]) =
     (keyToBytes(b._1), valueToBytes(b._2))
 
   override def newKeyInstance = keyReaderWriter.newInstance 
@@ -119,23 +110,38 @@ trait AvroGenericKeyValueSerializerLike[T <: IndexedRecord]
 }
 
 trait AvroGenericKeyValueSerializer 
-  extends AvroGenericKeyValueSerializerLike[GenericRecord] {
-  protected val keyReaderWriter = new AvroGenericReaderWriter(Some(remoteKeySchema), keySchema)
-  protected val valueReaderWriter = new AvroGenericReaderWriter(Some(remoteValueSchema), valueSchema)
+  extends AvroKeyValueSerializerLike[GenericRecord, GenericRecord] {
+  protected lazy val keyReaderWriter = new AvroGenericReaderWriter[GenericRecord](Some(remoteKeySchema), keySchema)
+  protected lazy val valueReaderWriter = new AvroGenericReaderWriter[GenericRecord](Some(remoteValueSchema), valueSchema)
 }
 
 trait AvroIndexedKeyValueSerializer 
-  extends AvroGenericKeyValueSerializerLike[IndexedRecord] {
-  protected val keyReaderWriter = new AvroIndexedReaderWriter(Some(remoteKeySchema), keySchema)
-  protected val valueReaderWriter = new AvroIndexedReaderWriter(Some(remoteValueSchema), valueSchema)
+  extends AvroKeyValueSerializerLike[IndexedRecord, IndexedRecord] {
+  protected lazy val keyReaderWriter = new AvroGenericReaderWriter[IndexedRecord](Some(remoteKeySchema), keySchema)
+  protected lazy val valueReaderWriter = new AvroGenericReaderWriter[IndexedRecord](Some(remoteValueSchema), valueSchema)
+}
+
+trait AvroSpecificKeyValueSerializer[K <: SpecificRecord, V <: SpecificRecord]
+  extends AvroKeyValueSerializerLike[K, V] {
+  implicit protected def keyManifest: Manifest[K]
+  implicit protected def valueManifest: Manifest[V]
+  protected lazy val keyReaderWriter = new AvroSpecificReaderWriter[K](Some(remoteKeySchema))
+  protected lazy val valueReaderWriter = new AvroSpecificReaderWriter[V](Some(remoteValueSchema))
+  override lazy val keySchema = 
+    keyManifest.erasure.asInstanceOf[Class[K]].newInstance.getSchema
+
+  override lazy val valueSchema =
+    valueManifest.erasure.asInstanceOf[Class[V]].newInstance.getSchema
 }
 
 trait AvroPairSerializer[P <: AvroPair]
   extends PairSerializer[P]
-  with TypedGlobalMetadata[P] {
+  with GlobalMetadata {
 
-  private val keyReaderWriter = new AvroIndexedReaderWriter(Some(remoteKeySchema), keySchema)
-  private val valueReaderWriter = new AvroIndexedReaderWriter(Some(remoteValueSchema), valueSchema)
+  private lazy val keyReaderWriter = new AvroGenericReaderWriter[IndexedRecord](Some(remoteKeySchema), keySchema)
+  private lazy val valueReaderWriter = new AvroGenericReaderWriter[IndexedRecord](Some(remoteValueSchema), valueSchema)
+
+  implicit protected def pairManifest: Manifest[P]
 
   // TODO: need to recreate the pair schema from key/value schema
   private val pairReaderWriter = new AvroSpecificReaderWriter[P](None)
@@ -169,4 +175,10 @@ trait AvroPairSerializer[P <: AvroPair]
 
   override def newRecordInstance(schema: Schema) =
     keyReaderWriter.newRecordInstance(schema)
+
+  override lazy val keySchema = 
+    pairManifest.erasure.asInstanceOf[Class[P]].newInstance.key.getSchema
+
+  override lazy val valueSchema = 
+    pairManifest.erasure.asInstanceOf[Class[P]].newInstance.value.getSchema
 }

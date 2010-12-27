@@ -15,6 +15,7 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
 
   onCreate {
     logger.debug("Creating nsRoot for namespace: " + name)
+    println("ZooKeeperGlobalMetadata create")
     nsRoot = root.createChild(name, Array.empty, CreateMode.PERSISTENT)
     nsRoot.createChild("partitions", Array.empty, CreateMode.PERSISTENT)
     nsRoot.createChild("keySchema", keySchema.toString.getBytes, CreateMode.PERSISTENT)

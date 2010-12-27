@@ -104,9 +104,9 @@ trait KeyValueStore[K <: IndexedRecord, V <: IndexedRecord]
 trait RangeKeyValueStore[K <: IndexedRecord, V <: IndexedRecord]
   extends BaseRangeKeyValueStoreImpl[K, V, (K, V)]
   with KeyValueSerializer[K, V]
-  with Iterable[(K, V)] {
+  /* with Iterable[(K, V)] */ {
 
-  override def iterator: Iterator[(K, V)] = error("iterator")
+  //override def iterator: Iterator[(K, V)] = error("iterator")
 
 }
 

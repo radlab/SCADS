@@ -79,7 +79,7 @@ trait QuorumProtocol
 
   override def putBytes(key: Array[Byte], value: Option[Array[Byte]]): Boolean = {
     val (servers, quorum) = writeQuorumForKey(key)
-    val putRequest = PutRequest(key, value)
+    val putRequest = PutRequest(key, value.map(createMetadata))
     val responses = serversForKey(key).map(_ !! putRequest)
     responses.blockFor(quorum)
     true // TODO: do actual return...

@@ -27,6 +27,7 @@ trait DefaultKeyRoutableLike
   @volatile protected var routingTable: RangeTable[Array[Byte], PartitionService] = _
 
   onCreate {
+    println("DefaultKeyRoutableLike create")
     // TODO: assumes that create maps 1 random server to the entire key range
     createRoutingTable(createPartitions(None, None, cluster.getRandomServers(1)))
     storeRoutingTable()

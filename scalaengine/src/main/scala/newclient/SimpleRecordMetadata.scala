@@ -50,6 +50,7 @@ trait SimpleRecordMetadata extends RecordMetadata
   }
 
   override def extractMetadataAndRecordFromValue(value: Array[Byte]): (Array[Byte], Array[Byte]) = {
+    assert(value.length >= 16, "value array is too small to be valid")
     // be explicit for performance reasons
     val rhs_len = value.length - 16
     val lhs = new Array[Byte](16)
@@ -60,6 +61,7 @@ trait SimpleRecordMetadata extends RecordMetadata
   }
 
   override def extractRecordFromValue(value: Array[Byte]): Array[Byte] = {
+    assert(value.length >= 16, "value array is too small to be valid")
     val rhs_len = value.length - 16
     val rhs = new Array[Byte](rhs_len)
     System.arraycopy(value, 16, rhs, 0, rhs_len)
