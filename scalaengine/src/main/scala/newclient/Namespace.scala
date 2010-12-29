@@ -36,4 +36,8 @@ trait Namespace {
   def open(): Unit = openHandler.execCallbacks()
   def close(): Unit = closeHandler.execCallbacks() 
   def delete(): Unit = deleteHandler.execCallbacks()
+
+  override def toString = protToString
+  protected def protToString: String = 
+    "<Namespace: %s>".format(name)
 }

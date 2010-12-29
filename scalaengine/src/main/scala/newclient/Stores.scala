@@ -7,6 +7,7 @@ import org.apache.avro.Schema
 import org.apache.avro.generic._
 import org.apache.avro.util._
 
+import collection.mutable.Queue
 import collection.JavaConversions._
 
 trait BaseKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
@@ -20,7 +21,7 @@ trait BaseKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
   override def get(key: K): Option[V] =
     getBytes(keyToBytes(key)) map bytesToValue     
 
-  override def put(key: K, value: Option[V]): Boolean =
+  override def put(key: K, value: Option[V]): Unit =
     putBytes(keyToBytes(key), value.map(v => valueToBytes(v)))
 
   override def asyncGet(key: K): ScadsFuture[Option[V]] =
@@ -98,15 +99,49 @@ trait BaseRangeKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
 /** Hash partition */
 trait KeyValueStore[K <: IndexedRecord, V <: IndexedRecord]
   extends BaseKeyValueStoreImpl[K, V, (K, V)]
-  with KeyValueSerializer[K, V]
+  with KeyValueSerializer[K, V] {
+
+  def iterator: Iterator[(K, V)] = error("iterator")
+
+}
+
+private[storage] object RangeKeyValueStore {
+  val windowSize = 16
+}
 
 /** Range partition */
 trait RangeKeyValueStore[K <: IndexedRecord, V <: IndexedRecord]
   extends BaseRangeKeyValueStoreImpl[K, V, (K, V)]
-  with KeyValueSerializer[K, V]
-  /* with Iterable[(K, V)] */ {
+  with KeyValueSerializer[K, V] {
 
-  //override def iterator: Iterator[(K, V)] = error("iterator")
+  import RangeKeyValueStore._
+
+  def iterator: Iterator[(K, V)] = {
+    new Iterator[(K, V)] {
+      private var lastFetchKey: Option[Array[Byte]] = None
+      private var isDone = false
+      private val buf = new Queue[(Array[Byte], Array[Byte])]
+      override def hasNext = 
+        if (isDone) !buf.isEmpty 
+        else {
+          if (buf.isEmpty) {
+            // need to fetch and update buffer/isDone flag
+            val recs = getKeys(lastFetchKey, None, Some(windowSize), lastFetchKey.map(_ => 1).orElse(Some(0)), true) 
+            lastFetchKey = Some(recs.last._1)
+            if (recs.size < windowSize)
+              isDone = true
+            buf ++= recs
+            !buf.isEmpty
+          } else true // if buf is not empty then we have more
+        }
+      override def next = {
+        if (!hasNext)
+          throw new RuntimeException("next on empty iterator")
+        val (k, v) = buf.dequeue()
+        (bytesToKey(k), bytesToValue(v))
+      }
+    }
+  }
 
 }
 

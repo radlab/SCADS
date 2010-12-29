@@ -77,12 +77,11 @@ trait QuorumProtocol
     }
   }
 
-  override def putBytes(key: Array[Byte], value: Option[Array[Byte]]): Boolean = {
+  override def putBytes(key: Array[Byte], value: Option[Array[Byte]]): Unit = {
     val (servers, quorum) = writeQuorumForKey(key)
     val putRequest = PutRequest(key, value.map(createMetadata))
     val responses = serversForKey(key).map(_ !! putRequest)
     responses.blockFor(quorum)
-    true // TODO: do actual return...
   }
 
   override def putBulkBytes(that: TraversableOnce[(Array[Byte], Array[Byte])]): Unit = {
@@ -378,7 +377,7 @@ trait QuorumRangeProtocol
         result.appendAll(records.flatMap(rec =>
           if (openRec > 0) {
             openRec -= 1
-            rec.value.map(v => List((rec.key, v))).getOrElse(Nil)
+            rec.value.map(v => List((rec.key, extractRecordFromValue(v)))).getOrElse(Nil)
           } else
             Nil
           )

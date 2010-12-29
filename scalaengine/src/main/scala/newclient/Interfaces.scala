@@ -2,6 +2,7 @@ package edu.berkeley.cs.scads.storage.newclient
 
 import edu.berkeley.cs.avro.marker._
 import edu.berkeley.cs.scads.comm._
+import edu.berkeley.cs.scads.util._
 
 import org.apache.avro.Schema
 import org.apache.avro.generic._
@@ -14,7 +15,7 @@ trait KeyValueStoreLike[KeyType <: IndexedRecord,
                         BulkPutType]
   extends PersistentStore[BulkPutType] {
   def get(key: KeyType): Option[ValueType]
-  def put(key: KeyType, value: Option[ValueType]): Boolean
+  def put(key: KeyType, value: Option[ValueType]): Unit
 
   def asyncGet(key: KeyType): ScadsFuture[Option[ValueType]]
 }
@@ -55,7 +56,7 @@ trait PairSerializer[PairType <: AvroPair]
 
 trait Protocol {
   def getBytes(key: Array[Byte]): Option[Array[Byte]]
-  def putBytes(key: Array[Byte], value: Option[Array[Byte]]): Boolean
+  def putBytes(key: Array[Byte], value: Option[Array[Byte]]): Unit
   def putBulkBytes(that: TraversableOnce[(Array[Byte], Array[Byte])]): Unit
 
   def asyncGetBytes(key: Array[Byte]): ScadsFuture[Option[Array[Byte]]]
@@ -90,6 +91,7 @@ trait KeyPartitionable {
   def deletePartitions(partitionHandlers: Seq[PartitionService]): Unit
   /** For each target, replace the PartitionService on the StorageService */
   def replicatePartitions(targets: Seq[(PartitionService, StorageService)]): Seq[PartitionService]
+  def routingTable: RangeTable[Array[Byte], PartitionService]
 }
 
 trait GlobalMetadata {

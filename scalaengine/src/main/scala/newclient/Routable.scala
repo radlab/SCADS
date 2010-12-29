@@ -24,7 +24,9 @@ trait DefaultKeyRoutableLike
 
   import DefaultKeyRoutableLike._
 
-  @volatile protected var routingTable: RangeTable[Array[Byte], PartitionService] = _
+  @volatile protected var _routingTable: RangeTable[Array[Byte], PartitionService] = _
+
+  override def routingTable = _routingTable 
 
   onCreate {
     println("DefaultKeyRoutableLike create")
@@ -38,7 +40,7 @@ trait DefaultKeyRoutableLike
   }
 
   onDelete {
-    val storageHandlers = routingTable.rTable.flatMap(_.values.map(_.storageService)).toSet
+    val storageHandlers = _routingTable.rTable.flatMap(_.values.map(_.storageService)).toSet
     storageHandlers foreach { handler =>
       handler !? DeleteNamespaceRequest(name) match {
         case DeleteNamespaceResponse() =>
@@ -49,7 +51,7 @@ trait DefaultKeyRoutableLike
           logger.error("Unexpected message from DeleteNamespaceRequest: %s", e)
       }
     }
-    routingTable = null
+    _routingTable = null
   }
 
   onClose {
@@ -57,7 +59,7 @@ trait DefaultKeyRoutableLike
   }
 
   override def serversForKey(key: Array[Byte]): Seq[PartitionService] = {
-    routingTable.valuesForKey(convertToRoutingKey(key))
+    _routingTable.valuesForKey(convertToRoutingKey(key))
   }
 
   override def onRoutingTableChanged(newTable: Array[Byte]): Unit = error("onRoutingTableChanged")
@@ -68,7 +70,7 @@ trait DefaultKeyRoutableLike
 
   private def storeRoutingTable() = {
     assert(validateRoutingTable(), "Holy shit, we are about to store a crappy Routing Table.")
-    val ranges = routingTable.ranges.map(a => KeyRange(a.startKey, a.values))
+    val ranges = _routingTable.ranges.map(a => KeyRange(a.startKey, a.values))
     val rangeSeq = RoutingTableMessage(ranges)
     putMetadata(ZOOKEEPER_ROUTING_TABLE, rangeSeq.toBytes)
   }
@@ -84,11 +86,11 @@ trait DefaultKeyRoutableLike
    */
   def validateRoutingTable(): Boolean = {
     var endKey: Option[Array[Byte]] = None
-    for (range <- routingTable.ranges.reverse) {
+    for (range <- _routingTable.ranges.reverse) {
       for (partition <- range.values) {
         val keys = getStartEndKey(partition)
         if (!optArrayEq(keys._1, range.startKey) || !optArrayEq(keys._2, endKey)) {
-          assert(false, "The routing table is corrupted. Partition: " + partition + " with key [" + keys._1 + "," + keys._2 + "] != [" +  range.startKey + "," + endKey + "] from table:" + routingTable)
+          assert(false, "The routing table is corrupted. Partition: " + partition + " with key [" + keys._1 + "," + keys._2 + "] != [" +  range.startKey + "," + endKey + "] from table:" + _routingTable)
           return false
         }
       }
@@ -133,7 +135,7 @@ trait DefaultKeyRoutableLike
   }
 
   @inline private def createRoutingTable(ranges: Array[RangeType[Array[Byte], PartitionService]]): Unit = {
-    routingTable = new RangeTable[Array[Byte], PartitionService](
+    _routingTable = new RangeTable[Array[Byte], PartitionService](
       ranges,
       routingKeyComp, 
       mergeCond)
@@ -165,13 +167,13 @@ trait DefaultKeyRoutableLike
   override def splitPartition(splitKeys: Seq[Array[Byte]]): Unit = {
     val routingSplitKeys = splitKeys.map(convertToRoutingKey)
     val oldPartitions = for (splitPoint <- routingSplitKeys) yield {
-      require(!routingTable.isSplitKey(splitPoint)) //Otherwise it is already a split point
-      val bound = routingTable.lowerUpperBound(splitPoint)
+      require(!_routingTable.isSplitKey(splitPoint)) //Otherwise it is already a split point
+      val bound = _routingTable.lowerUpperBound(splitPoint)
       val oldPartitions = bound.center.values
       val storageServers = oldPartitions.map(_.storageService)
       val leftPart = createPartitions(bound.center.startKey, Some(splitPoint), storageServers)
       val rightPart = createPartitions(Some(splitPoint), bound.right.startKey, storageServers)
-      routingTable = routingTable.split(splitPoint, leftPart, rightPart)
+      _routingTable = _routingTable.split(splitPoint, leftPart, rightPart)
       oldPartitions
     }
 
@@ -184,15 +186,15 @@ trait DefaultKeyRoutableLike
   override def mergePartition(mergeKeys: Seq[Array[Byte]]): Unit = {
     val routingMergeKeys = mergeKeys.map(convertToRoutingKey)
     val oldPartitions = for (mergeKey <- routingMergeKeys) yield {
-      require(routingTable.checkMergeCondition(mergeKey), "Either the key is not a split key, or the sets are different and can not be merged") //Otherwise we can not merge the partitions
+      require(_routingTable.checkMergeCondition(mergeKey), "Either the key is not a split key, or the sets are different and can not be merged") //Otherwise we can not merge the partitions
 
-      val bound = routingTable.lowerUpperBound(mergeKey)
+      val bound = _routingTable.lowerUpperBound(mergeKey)
       val leftPart = bound.left.values
       val rightPart = bound.center.values //have to use center as this is the partition with the split key
       val storageServers = leftPart.map(_.storageService)
       val mergePartition = createPartitions(bound.left.startKey, bound.right.startKey, storageServers)
 
-      routingTable = routingTable.merge(mergeKey, mergePartition)
+      _routingTable = _routingTable.merge(mergeKey, mergePartition)
       (leftPart, rightPart)
     }
 
@@ -208,7 +210,7 @@ trait DefaultKeyRoutableLike
   override def deletePartitions(partitionHandlers: Seq[PartitionService]): Unit = {
     for(partitionHandler <- partitionHandlers){
       val (startKey, endKey) = getStartEndKey(partitionHandler) //Not really needed, just an additional check
-      routingTable = routingTable.removeValueFromRange(startKey, partitionHandler)
+      _routingTable = _routingTable.removeValueFromRange(startKey, partitionHandler)
     }
     storeAndPropagateRoutingTable()
     deletePartitionServices(partitionHandlers)
@@ -218,7 +220,7 @@ trait DefaultKeyRoutableLike
     val result = for((partitionHandler, storageHandler) <- targets) yield {
       val (startKey, endKey) = getStartEndKey(partitionHandler)
       val newPartition = createPartitions(startKey, endKey, Seq(storageHandler)).head
-      routingTable = routingTable.addValueToRange(startKey, newPartition)
+      _routingTable = _routingTable.addValueToRange(startKey, newPartition)
       (newPartition, partitionHandler)
     }
     storeAndPropagateRoutingTable()
@@ -278,7 +280,7 @@ trait DefaultKeyRangeRoutable extends DefaultKeyRoutable with KeyRangeRoutable {
   protected def convertFromRoutingKey(key: Array[Byte]): Array[Byte] = key
 
   override def serversForKeyRange(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]]): Seq[RangeDesc] = {
-    val ranges = routingTable.valuesForRange(startKey, endKey)
+    val ranges = _routingTable.valuesForRange(startKey, endKey)
     val result = new Array[RangeDesc](ranges.size)
     var sKey: Option[Array[Byte]] = None
     var eKey: Option[Array[Byte]] = endKey
