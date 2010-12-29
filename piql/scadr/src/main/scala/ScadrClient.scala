@@ -59,19 +59,23 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
       IndexLookupJoin(users, Array(AttributeValue(0, 1)),
         IndexScan(users, Array(ParameterValue(0)), ParameterLimit(1, maxResultsPerPage), true)))
 
+
+  val throughtstream = (
+    subscriptions.where("subscriptions.owner".a === (0.?))
+		 .limit(5000)
+		 .join(thoughts)
+		 .where("thoughts.owner".a === "subscriptions.target".a)
+		 .sort("thoughts.timestamp".a :: Nil, false)
+		 .limit(10)
+  )
+
   /**
    * Who is following ME?
    */
-  def usersFollowing = (args: QueryArgs) => exec(usersFollowingPlan, args)
-
-  private lazy val thoughtStreamPlan = // (sub_owner, sub_target, sub_approved), (thought_owner, thought_timestamp, thought_text)
-    IndexMergeJoin(thoughts, Array(AttributeValue(0, 1)), Array(AttributeValue(1, 1)), ParameterLimit(1, maxResultsPerPage), false,
-      LocalSelection(EqualityPredicate(ConstantValue(true), AttributeValue(0, 2)), // (owner, target), (approved)
-        IndexScan(subscriptions, Array(ParameterValue(0)), FixedLimit(maxSubscriptions), true) // (owner, target), (approved)
-    ))
-
-  private lazy val thoughtStreamStopAfterPlan =
-    LocalStopAfter(ParameterLimit(1, maxResultsPerPage), thoughtStreamPlan)
-
-  def thoughtstream = (args: QueryArgs) => exec(thoughtStreamStopAfterPlan, args)
+  lazy val usersFollowing = (
+    subscriptions.where("subscriptions.target".a === (0.?))
+		 .limit(1000)
+		 .join(users)
+		 .where("users.username".a === "subscriptions.owner".a)
+    ).toPiql
 }
