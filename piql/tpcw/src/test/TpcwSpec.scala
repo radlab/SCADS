@@ -8,5 +8,5 @@ import edu.berkeley.cs.scads.piql._
 
 @RunWith(classOf[JUnitRunner])
 class TpcwSpec extends AbstractTpcwSpec {
-  lazy val client = new TpcwClient(TestScalaEngine.getTestCluster, new SimpleExecutor with DebugExecutor) 
+  lazy val client = new TpcwClient(TestScalaEngine.getTestCluster, new SimpleExecutor with DebugExecutor)
 }
