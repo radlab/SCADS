@@ -5,6 +5,6 @@ package deploylib.ec2
  * It is used by the EC2Instance object and S3Cache.
  */
 abstract class AWSConnection {
-	protected val accessKeyId = System.getenv("AWS_ACCESS_KEY_ID")
+  protected val accessKeyId = System.getenv("AWS_ACCESS_KEY_ID")
   protected val secretAccessKey = System.getenv("AWS_SECRET_ACCESS_KEY")
 }
