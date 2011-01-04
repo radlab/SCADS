@@ -19,9 +19,14 @@ import scala.collection.JavaConversions._
 import scala.util.Random
 
 import org.mortbay.jetty.Connector;
-import org.mortbay.jetty.Server;
+import org.mortbay.jetty.{Server, Request};
 import org.mortbay.jetty.nio.SelectChannelConnector;
+import org.mortbay.jetty.servlet.Context;
+import org.mortbay.jetty.servlet.ServletHolder;
 import org.mortbay.jetty.webapp.WebAppContext;
+import org.mortbay.jetty.handler.{ContextHandler, StatisticsHandler}
+import org.mortbay.jetty.handler.AbstractHandler
+import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 
 object JavaExecutor {
   def main(args: Array[String]): Unit = {
@@ -58,19 +63,58 @@ class JavaExecutor extends Executor {
 
   class JettyApp(val warFile: File) extends RunningTask {
     val server = new Server()
-
     val connector = new SelectChannelConnector()
     connector.setPort(Integer.getInteger("jetty.port", 8080).intValue())
     server.setConnectors(Array[Connector](connector))
 
+    /* Create context for webapp and wrap it with stats handler */
+    val statsWebApp = new StatisticsHandler()
     val webapp = new WebAppContext()
     webapp.setContextPath("/")
     webapp.setWar(warFile.getCanonicalPath)
-    server.setHandler(webapp)
+    statsWebApp.addHandler(webapp)
+
+    @volatile var running = true
+    @volatile var requestsPerSec = 0.0
+    val statsThread = new Thread("StatsThread") {
+      var lastTime = System.currentTimeMillis()
+      var lastCount = 0
+      override def run(): Unit = {
+	while(running) {
+	  Thread.sleep(5000)
+	  val currentTime = System.currentTimeMillis()
+	  val currentCount = statsWebApp.getRequests()
+	  requestsPerSec = (currentCount - lastCount) / ((currentTime - lastTime) / 1000)
+	  logger.debug("Updating statistics at %d %d: %f", currentTime, currentCount, requestsPerSec)
+	  lastTime = currentTime
+	  lastCount = currentCount
+	}
+      }
+    }
+    statsThread.start()
+
+    /* Create a special context that reports /stats over http */
+    val statsHandler = new AbstractHandler() {
+      def handle(target: String, request: HttpServletRequest, response: HttpServletResponse, dispatch: Int): Unit = {
+	response.setContentType("text/html")
+        response.setStatus(HttpServletResponse.SC_OK)
+        response.getWriter().println(<ul><li>Requests/Sec: {requestsPerSec}</li><li>Requests Total: {statsWebApp.getRequests()}</li></ul>.toString)
+        request.asInstanceOf[Request].setHandled(true)
+      }
+    }
+    val statsContext = new ContextHandler()
+    statsContext.setContextPath("/stats")
+    statsContext.addHandler(statsHandler)
+
+    /* add both the webapp and the stats context to the running server */
+    server.setHandlers(Array(statsContext, statsWebApp))
 
     server.start()
 
-    def kill = server.stop()
+    def kill = {
+      running = false
+      server.stop()
+    }
   }
 
   class ForkedJvm(val taskId: Int, val heapSize: Int, val classpath: String, val mainClass: String, val args: Seq[String], val properties: Map[String, String], driver: ExecutorDriver) extends RunningTask with Runnable {
