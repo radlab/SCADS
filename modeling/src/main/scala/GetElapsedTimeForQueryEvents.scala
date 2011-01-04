@@ -26,6 +26,8 @@ object GetElapsedTimeForQueryEvents {
 
 		val eventMap = HashMap[String, String]()
 
+		println("timestamp,thread,type,id,elapsedTime")
+
 		for (line <- Source.fromFile(args(0)).getLines) {
 		  val lineEntries = line.split(",").toList
 
