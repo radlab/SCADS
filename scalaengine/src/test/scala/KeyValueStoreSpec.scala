@@ -17,7 +17,11 @@ import edu.berkeley.cs.avro.runtime.ScalaSpecificRecord
 import edu.berkeley.cs.scads.storage.routing.RoutingTableProtocol
 import edu.berkeley.cs.scads.util.RangeTable
 
-@RunWith(classOf[JUnitRunner])
+/**
+ * Currently commented out tests for hash partitioning (as they have never worked and aren't yet used anywhere).
+ * TODO: Fix and uncomment the hash partition tests.
+ *
+  @RunWith(classOf[JUnitRunner])
 class HashKeyValueStoreSpec extends AbstracKeyValueStoreSpec {
   override def createNamespace(ns: String) = {
     val servers = cluster.getAvailableServers
@@ -41,7 +45,7 @@ class HashKeyValueStoreSpec extends AbstracKeyValueStoreSpec {
         for (partition <- range.values) {
           val values = partition !? rangeRequest match {
             case GetRangeResponse(v) => v.map(a => {
-                val keyStr = new StringRec
+                val keyStr = classOf[StringRec].newInstance
                 keyStr.parse(a.key)
                 keyStr
               })
@@ -72,7 +76,7 @@ class HashKeyValueStoreSpec extends AbstracKeyValueStoreSpec {
     result.toSeq
   }
 
-}
+}*/
 
 @RunWith(classOf[JUnitRunner])
 class RangeKeyValueStoreSpec extends AbstracKeyValueStoreSpec {

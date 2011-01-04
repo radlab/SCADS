@@ -16,12 +16,11 @@ object Deploy extends ConfigurationActions {
   implicit def toFile(str: String) = new java.io.File(str)
 
   def classpath = System.getProperty("java.class.path").split(":")
-  def jarClasspath = ("target/perf-2.1.0-SNAPSHOT.jar" +: classpath).filter(_ endsWith "jar")
-  def s3Classpath = jarClasspath.map(f => S3CachedJar(S3Cache.getCacheUrl(new File(f)))).toSeq
+  def s3Classpath = classpath.map(f => S3CachedJar(S3Cache.getCacheUrl(new File(f)))).toSeq
   def codeS3Classpath = s3Classpath.map(j => """S3CachedJar("%s")""".format(j.url)).toList.toString
 
   def workClasspath = {
-    jarClasspath.map(jar => {
+    classpath.map(jar => {
       val cacheLocation = r2.cacheFile(jar)
       ServerSideJar(cacheLocation.getCanonicalPath)
     }).toSeq

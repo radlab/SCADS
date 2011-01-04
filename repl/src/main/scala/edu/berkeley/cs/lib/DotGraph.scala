@@ -6,14 +6,11 @@ import _root_.net.liftweb.util._
 import _root_.net.liftweb.common._
 import net.liftweb.http.provider.HTTPCookie
 
-import edu.berkeley.cs.snippet.PiqlGraphs
-import edu.berkeley.cs.scads.piql.GraphViz
-import edu.berkeley.cs.scads.piql.QueryPlan
 
 object DotGraph {
   def dispatchRules: LiftRules.DispatchPF = {
     case Req(List("dotgraph", graphId), "", GetRequest) =>
-      () => Full(getGraph(graphId))
+      () => null //TODO: Fix or delete this class
   }
 
   case class GraphPng(data: Array[Byte]) extends LiftResponse with HeaderDefaults {
@@ -24,7 +21,8 @@ object DotGraph {
     val proc = Runtime.getRuntime().exec("/usr/bin/dot -Tpng")
     val outstream = proc.getOutputStream()
 
-    outstream.write(PiqlGraphs.getGraph(graphId.toInt).getBytes)
+    //FIX: or delete
+    outstream.write(null)
     outstream.close()
 
     val instream = proc.getInputStream

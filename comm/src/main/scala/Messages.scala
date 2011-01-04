@@ -72,10 +72,12 @@ sealed trait ClassSource extends AvroUnion
 case class ServerSideJar(var path: String) extends AvroRecord with ClassSource
 case class S3CachedJar(var url: String) extends AvroRecord with ClassSource
 
-object JvmProcess {def apply(bytes: Array[Byte]) = classOf[JvmProcess].newInstance.parse(bytes)}
-case class JvmProcess(var classpath: Seq[ClassSource], var mainclass: String, var args: Seq[String], var props: Map[String, String] = Map.empty) extends AvroRecord
+sealed trait JvmTask extends AvroUnion
+case class JvmWebAppTask(var warFile: ClassSource) extends AvroRecord with JvmTask
+case class JvmMainTask(var classpath: Seq[ClassSource], var mainclass: String, var args: Seq[String], var props: Map[String, String] = Map.empty) extends AvroRecord with JvmTask
+
 sealed trait ExperimentOperation extends MessageBody
-case class RunExperiment(var processes: List[JvmProcess]) extends AvroRecord with ExperimentOperation
+case class RunExperiment(var processes: List[JvmTask]) extends AvroRecord with ExperimentOperation
 
 /* Test Record Types.  Note: they are here due to problems with the typer (i.e. generated methods aren't visable in the same compilation cycle */
 case class IntRec(var f1: Int) extends AvroRecord

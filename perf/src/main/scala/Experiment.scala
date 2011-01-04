@@ -14,8 +14,6 @@ import java.io.File
 import net.lag.logging.Logger
 
 class ExperimentalScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) extends ScadsCluster(root) {
-  val logger = Logger()
-
   def blockUntilReady(clusterSize: Int): Unit = {
     while(getAvailableServers.size < clusterSize) {
       logger.info("Waiting for cluster to start " + cluster.getAvailableServers.size + " of " + clusterSize + " ready.")
@@ -29,20 +27,20 @@ abstract trait Experiment {
   lazy val zookeeper = new ZooKeeperProxy("mesos-ec2.knowsql.org:2181")
   lazy val resultCluster = new ScadsCluster(zookeeper.root.getOrCreate("scads/results"))
 
-  implicit def duplicate(process: JvmProcess) = new {
-    def *(count: Int): Seq[JvmProcess] = Array.fill(count)(process)
+  implicit def duplicate(process: JvmTask) = new {
+    def *(count: Int): Seq[JvmTask] = Array.fill(count)(process)
   }
 
   def newExperimentRoot(implicit zookeeper: ZooKeeperProxy#ZooKeeperNode)  = zookeeper.getOrCreate("scads/experiments").createChild("IntKeyScaleExperiment", mode = CreateMode.PERSISTENT_SEQUENTIAL)
 
   def serverJvmProcess(clusterAddress: String)(implicit classpath: Seq[ClassSource]) =
-    JvmProcess(
+    JvmMainTask(
       classpath,
       "edu.berkeley.cs.scads.storage.ScalaEngine",
       "--clusterAddress" :: clusterAddress :: Nil)
 
-  def clientJvmProcess(loadClient: AvroClient, clusterRoot: ZooKeeperProxy#ZooKeeperNode)(implicit classpath: Seq[ClassSource]): JvmProcess =
-    JvmProcess(classpath,
+  def clientJvmProcess(loadClient: AvroClient, clusterRoot: ZooKeeperProxy#ZooKeeperNode)(implicit classpath: Seq[ClassSource]): JvmMainTask =
+    JvmMainTask(classpath,
       "edu.berkeley.cs.scads.perf.AvroClientMain",
       loadClient.getClass.getName :: clusterRoot.canonicalAddress :: loadClient.toJson :: Nil)
 
@@ -50,4 +48,10 @@ abstract trait Experiment {
     cluster.root("coordination").get("clients").foreach(_.deleteRecursive)
     scheduler.scheduleExperiment(clientJvmProcess(clientDesc, cluster.root) * clientDesc.numClients)
   }
+}
+
+trait ExperimentMain {
+  implicit val scheduler = LocalExperimentScheduler(System.getProperty("user.name") + " console", "1@mesos-master.millennium.berkeley.edu:5050", "/work/deploylib/java_executor")
+  implicit def classpath = Deploy.workClasspath
+  implicit val zookeeper = ZooKeeperNode("zk://zoo1.millennium.berkeley.edu/")
 }

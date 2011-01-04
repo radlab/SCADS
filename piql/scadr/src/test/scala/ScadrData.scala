@@ -18,19 +18,23 @@ import net.lag.logging.Logger
 case class ScadrKeySplits(
     usersKeySplits: Seq[(Option[User], Seq[StorageService])],
     thoughtsKeySplits: Seq[(Option[Thought], Seq[StorageService])],
-    subscriptionsKeySplits: Seq[(Option[Subscription], Seq[StorageService])],
-    tagsKeySplits: Seq[(Option[HashTag], Seq[StorageService])]
+    subscriptionsKeySplits: Seq[(Option[Subscription], Seq[StorageService])]
 )
 
 /**
- * Generate synthetic data for SCADr
  * Currently the loader assumes all nodes are equal and tries to distribute
  * evenly among the nodes with no preferences for any particular ones.
  */
-class ScadrData(val numUsers: Int = 100,
-                val numThoughtsPerUser: Int = 10,
-                val numSubscriptionsPerUser: Int = 10,
-                val numTagsPerThought: Int = 5) {
+class ScadrLoader(val client: ScadrClient,
+                  val replicationFactor: Int,
+                  val numClients: Int, // number of clients to split the loading by
+                  val numUsers: Int = 100,
+                  val numThoughtsPerUser: Int = 10,
+                  val numSubscriptionsPerUser: Int = 10,
+                  val numTagsPerThought: Int = 5) {
+
+  require(client != null)
+  require(replicationFactor >= 1)
   require(numUsers >= 0)
   require(numThoughtsPerUser >= 0)
   require(numSubscriptionsPerUser >= 0)
@@ -39,12 +43,13 @@ class ScadrData(val numUsers: Int = 100,
   val logger = Logger()
 
 
-  def createNamespaces(cluster: ScadrCluster, numServers: Int = 1, replicationFactor: Int = 1) {
-    client.cluster.createNamespace[UserKey, UserValue]("users", splits.usersKeySplits)
-    client.cluster.createNamespace[ThoughtKey, ThoughtValue]("thoughts", splits.thoughtsKeySplits)
-    client.cluster.createNamespace[SubscriptionKey, SubscriptionValue]("subscriptions", splits.subscriptionsKeySplits)
-    client.cluster.createNamespace[HashTagKey, HashTagValue]("tags", splits.tagsKeySplits)
-    client.cluster.createNamespace[UserTarget, NullRecord]("idxUsersTarget", splits.idxUsersTargetKeySplits)
+  def createNamespaces() {
+    val splits = keySplits
+    //TODO: Fix distribution
+    logger.info("Creating namespaces with keysplits: %s", splits)
+    client.cluster.getNamespace[User]("users") //splits.usersKeySplits)
+    client.cluster.getNamespace[Thought]("thoughts") //splits.thoughtsKeySplits)
+    client.cluster.getNamespace[Subscription]("subscriptions") //splits.subscriptionsKeySplits)
   }
 
   private def toUser(idx: Int) = "User%010d".format(idx)
@@ -67,10 +72,11 @@ class ScadrData(val numUsers: Int = 100,
       throw new RuntimeException("More clusters than users- don't know how to make key split")
 
     val usersPerNode = numUsers / clusterSize
+    val usersIdxs = None +: (1 until clusterSize).map(i => Some(i * usersPerNode + 1))
 
-    val usersKeySplits = usersIdxs.map(_.map(idx => UserKey(toUser(idx))))
-    val thoughtsKeySplits = usersIdxs.map(_.map(idx => ThoughtKey(toUser(idx), 0)))
-    val subscriptionsKeySplits = usersIdxs.map(_.map(idx => SubscriptionKey(toUser(idx), "")))
+    val usersKeySplits = usersIdxs.map(_.map(idx => User(toUser(idx))))
+    val thoughtsKeySplits = usersIdxs.map(_.map(idx => Thought(toUser(idx), 0)))
+    val subscriptionsKeySplits = usersIdxs.map(_.map(idx => Subscription(toUser(idx), "")))
 
     // assume uniform distribution of tags over 8 bit ascii - not really
     // ideal, but we can generate the data such that this is true
@@ -85,25 +91,21 @@ class ScadrData(val numUsers: Int = 100,
     // encodes i as a base 256 string. not super efficient
     def toKeyString(i: Int): String = i match {
       case 0 => ""
-      case _ => toKeyString(i / 256) + (i % 256).toChar 
+      case _ => toKeyString(i / 256) + (i % 256).toChar
     }
 
-    val tagsKeySplits = None +: (1 until clusterSize).map(i => Some(HashTagKey(toKeyString(i * numPerNode), 0, "")))
+
 
     val services = (0 until clusterSize).map(i => (0 until replicationFactor).map(j => servers((i + j) % clusterSize)))
 
     ScadrKeySplits(usersKeySplits zip services,
                    thoughtsKeySplits zip services,
-                   subscriptionsKeySplits zip services,
-                   tagsKeySplits zip services,
-                   idxUsersTargetKeySplits zip services)
+                   subscriptionsKeySplits zip services)
   }
 
-  case class ScadrData(userData: Seq[(UserKey, UserValue)],
-                       thoughtData: Seq[(ThoughtKey, ThoughtValue)],
-                       subscriptionData: Seq[(SubscriptionKey, SubscriptionValue)],
-                       tagData: Seq[(HashTagKey, HashTagValue)],
-                       idxUsersTargetData: Seq[(UserTarget, NullRecord)]) {
+  case class ScadrData(userData: Seq[User],
+                       thoughtData: Seq[Thought],
+                       subscriptionData: Seq[Subscription]) {
     def load() {
       logger.info("Loading users")
       client.users ++= userData
@@ -111,10 +113,6 @@ class ScadrData(val numUsers: Int = 100,
       client.thoughts ++= thoughtData
       logger.info("Loading subscriptions")
       client.subscriptions ++= subscriptionData
-      logger.info("Loading tags")
-      client.tags ++= tagData
-      logger.info("Loading usersidx")
-      client.idxUsersTarget ++= idxUsersTargetData
     }
   }
 
@@ -132,25 +130,34 @@ class ScadrData(val numUsers: Int = 100,
 
     // create lazy views on the data
 
-    def newUserIdView = 
+    def newUserIdView =
       (startUser until endUser).view
 
-    val userData: Seq[(UserKey, UserValue)] = 
-      newUserIdView.map(i => (UserKey(toUser(i)), UserValue("hometown" + (i % 10))))
+    val userData: Seq[User] =
+      newUserIdView.map(i => {
+	val u = User(toUser(i))
+	u.homeTown = "hometown" + (i % 10)
+	u
+      })
 
-    val thoughtData: Seq[(ThoughtKey, ThoughtValue)] = 
-      newUserIdView.flatMap(userId => (1 to numThoughtsPerUser).view.map(i => (ThoughtKey(toUser(userId), i), ThoughtValue(toUser(userId) + " thinks " + i))))
+    val thoughtData: Seq[Thought] =
+      newUserIdView.flatMap(userId =>
+	(1 to numThoughtsPerUser).view.map(i => {
+	  val t = Thought(toUser(userId), i)
+	  t.text = toUser(userId) + " thinks " + i
+	  t
+	})
+      )
 
-    val subscriptionData: Seq[(SubscriptionKey, SubscriptionValue)] = 
-      newUserIdView.flatMap(userId => randomInts(toUser(userId).hashCode, numUsers, numSubscriptionsPerUser).map(u => (SubscriptionKey(toUser(userId), toUser(u + 1)), SubscriptionValue(true))))
+    val subscriptionData: Seq[Subscription] = userData.flatMap(user =>
+      randomInts(user.username.hashCode, numUsers, numSubscriptionsPerUser).view.map(u => {
+	val s = Subscription(user.username, userData(u).username)
+	s.approved = true
+	s
+      })
+    )
 
-    val idxUsersTargetData: Seq[(UserTarget, NullRecord)] = 
-      subscriptionData.map(s => (UserTarget(s._1.target, s._1.owner), NullRecord(true)))
-
-    val tagData: Seq[(HashTagKey, HashTagValue)] =
-      thoughtData.flatMap(thought => randomStrings(thought._1.owner.hashCode, numTagsPerThought).map(tag => (HashTagKey(tag, thought._1.timestamp, thought._1.owner), HashTagValue(false))))
-
-    ScadrData(userData, thoughtData, subscriptionData, tagData, idxUsersTargetData)
+    ScadrData(userData, thoughtData, subscriptionData)
   }
 
   /**
@@ -164,7 +171,8 @@ class ScadrData(val numUsers: Int = 100,
       throw new RuntimeException("More clients than user keys - don't know how to partition load")
 
     val usersPerClient = numUsers / numClients
-    val startIdx = clientId * usersPerClient + 1 
+    val startIdx = clientId * usersPerClient + 1
     makeScadrData(startIdx, startIdx + usersPerClient)
   }
+
 }

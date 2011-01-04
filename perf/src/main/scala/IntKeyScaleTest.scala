@@ -13,11 +13,18 @@ import org.apache.zookeeper.CreateMode
 
 import java.io.File 
 
+object IntKeyScaleTest extends ExperimentMain {
+  def main(args: Array[String]): Unit = {
+    val cluster = DataLoader(1,1).newCluster
+    RandomLoadClient(1, 1).schedule(cluster)
+  }
+}
+
 case class WriteClient(var cluster: String, var clientId: Int) extends AvroRecord
 case class WritePerfResult(var numKeys: Int, var startTime: Long, var endTime: Long) extends AvroRecord
 
-case class ReadClient(var cluster: String, var clientId: Int, var threadId: Int, var iteration: Int) extends AvroRecord
-case class ReadPerfResult(var startTime: Long, var endTime: Long, var times: Histogram) extends AvroRecord
+case class LoadClient(var cluster: String, var clientId: Int, var threadId: Int, var iteration: Int) extends AvroRecord
+case class LoadPerfResult(var startTime: Long, var endTime: Long, var getTimes: Histogram, var putTimes: Histogram) extends AvroRecord
 
 case class DataLoader(var numServers: Int, var numLoaders: Int, var recsPerServer: Int = 10) extends DataLoadingAvroClient with AvroRecord {
   def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode): Unit = {
@@ -33,7 +40,7 @@ case class DataLoader(var numServers: Int, var numLoaders: Int, var recsPerServe
       logger.info("Cluster configured with the following partitions %s", partitions)
       cluster.createNamespace[IntRec, IntRec]("intkeytest", partitions)
       cluster.getNamespace[WriteClient, WritePerfResult]("writeResults")
-      cluster.getNamespace[ReadClient, ReadPerfResult]("readResults")
+      cluster.getNamespace[LoadClient, LoadPerfResult]("loadResults")
     }
 
     coordination.registerAndAwait("startWrite", numLoaders)
@@ -51,47 +58,53 @@ case class DataLoader(var numServers: Int, var numLoaders: Int, var recsPerServe
 
     if (clientId == 0)
       clusterRoot.createChild("clusterReady", data = this.toJson.getBytes)
-
-    System.exit(0)
   }
 }
 
-case class RandomGetterClient(var numClients: Int, var numIterations: Int, var readCount: Int = 10000, var readThreads: Int = 5) extends ReplicatedAvroClient with AvroRecord {
+case class RandomLoadClient(var numClients: Int, var numIterations: Int, var loadCount: Int = 10000, var loadThreads: Int = 5, var readPercentage: Double = 0.8) extends ReplicatedAvroClient with AvroRecord {
 
   def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode): Unit = {
+    require(0.0 <= readPercentage && readPercentage <= 1.0, "Read percentage needs to be between [0.0, 1.0]")
+
     val coordination = clusterRoot.getOrCreate("coordination/clients")
     val dataLoader = classOf[DataLoader].newInstance.parse(new String(clusterRoot.awaitChild("clusterReady").data))
     val maxInt = dataLoader.numServers * dataLoader.recsPerServer
 
     val cluster = new ScadsCluster(clusterRoot)
     val ns = cluster.getNamespace[IntRec, IntRec]("intkeytest")
-    val readResults = cluster.getNamespace[ReadClient, ReadPerfResult]("readResults")
+    val loadResults = cluster.getNamespace[LoadClient, LoadPerfResult]("loadResults")
 
     val clientId = coordination.registerAndAwait("clientsStart", numClients)
 
     for (iteration <- (1 to numIterations)) {
       logger.info("Begining Iteration %d", iteration)
 
-      readResults ++= (1 to readThreads).pmap(threadId => {
-        val times = Histogram(1, 1000)
+      loadResults ++= (1 to loadThreads).pmap(threadId => {
+        val getTimes = Histogram(1, 1000)
+        val putTimes = Histogram(1, 1000)
         val startTime = System.currentTimeMillis()
-        (1 to readCount).foreach(i =>
+        (1 to loadCount).foreach(i =>
           try {
             val startTime = System.currentTimeMillis
             val randRec = scala.util.Random.nextInt(maxInt)
+            val isRead = scala.util.Random.nextDouble() < readPercentage
 
-            if (ns.get(IntRec(randRec)).get.f1 == randRec) {
+            if (isRead) {
+              if (ns.get(IntRec(randRec)).get.f1 == randRec) {
+                val endTime = System.currentTimeMillis
+                getTimes.add(endTime - startTime)
+              } else
+                logger.warning("Failed Read")
+            } else {
+              ns.put(IntRec(randRec), IntRec(randRec))
               val endTime = System.currentTimeMillis
-              times.add(endTime - startTime)
-            } else
-              logger.warning("Failed Read")
-          } catch { case e => logger.debug("Exception during read %s", e) })
-        (ReadClient(clusterRoot.canonicalAddress, clientId, threadId, iteration), ReadPerfResult(startTime, System.currentTimeMillis, times))
+              putTimes.add(endTime - startTime)
+            }
+          } catch { case e => logger.debug("Exception during operation %s", e) })
+        (LoadClient(clusterRoot.canonicalAddress, clientId, threadId, iteration), LoadPerfResult(startTime, System.currentTimeMillis, getTimes, putTimes))
       })
 
       coordination.registerAndAwait("endRead" + iteration, numClients)
     }
-
-    System.exit(0)
   }
 }

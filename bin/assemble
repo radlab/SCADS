@@ -1,0 +1,13 @@
+#!/bin/bash
+
+echo "Clearing assembly directory"
+rm -rf assembly
+mkdir assembly
+cd assembly
+
+echo "Unpacking all jars"
+for i in `cat ../allJars`; do jar xvf $i; done
+cd ..
+
+echo "repackaging uberjar"
+jar cvf scads.jar -C assembly/ /
