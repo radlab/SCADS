@@ -62,16 +62,24 @@ object TracingExample {
     val getRangeQuery = r2.where("f1".a === 1)
 			  .limit(10).toPiql
 
+    val joinQuery = r2.where("f1".a === 1)
+		      .limit(10)
+		      .join(r1)
+		      .where("r1.f1".a === "r2.f2".a).toPiql
 
     /* Run some queries */
     (1 to 100000).foreach(i => {
       fileSink.recordEvent(QueryEvent("getQuery" + i, true))
-      getQuery(Nil)
+      getQuery()
       fileSink.recordEvent(QueryEvent("getQuery" + i, false))
 
       fileSink.recordEvent(QueryEvent("getRangeQuery" + i, true))
-      getRangeQuery(Nil)
+      getRangeQuery()
       fileSink.recordEvent(QueryEvent("getRangeQuery" + i, false))
+
+      fileSink.recordEvent(QueryEvent("joinQuery" + i, true))
+      joinQuery()
+      fileSink.recordEvent(QueryEvent("joinQuery" + i, false))
     })
 
     //Flush trace messages to the file
