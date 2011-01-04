@@ -22,7 +22,7 @@ case class ParameterLimit(ordinal: Int, max: Int) extends Limit
 trait Predicate
 case class EqualityPredicate(v1: Value, v2: Value) extends Predicate
 
-/* Query Plan Nodes */
+/* Physical Query Plan Nodes */
 abstract class QueryPlan
 case class IndexLookup(namespace: Namespace, key: KeyGenerator) extends QueryPlan
 case class IndexScan(namespace: Namespace, keyPrefix: KeyGenerator, limit: Limit, ascending: Boolean) extends QueryPlan

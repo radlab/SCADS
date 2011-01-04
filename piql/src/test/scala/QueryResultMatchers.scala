@@ -17,10 +17,7 @@ import edu.berkeley.cs.scads.piql._
 import scala.collection.mutable.{ ArrayBuffer, HashMap }
 
 trait QueryResultMatchers {
-  type Tuple = Array[GenericData.Record]
-  type QueryResult = Seq[Tuple]
-
-  class QueryResultMatcher[A <: IndexedRecord](right: Seq[Array[A]]) extends Matcher[QueryResult] {
+  class QueryResultMatcher[A <: IndexedRecord](right: QueryResult) extends Matcher[QueryResult] {
     def apply(left: QueryResult): MatchResult = {
       left.zip(right).foreach {
         case (leftTuple, rightTuple) => {
@@ -44,6 +41,5 @@ trait QueryResultMatchers {
     }
   }
 
-  def returnTuples[A <: IndexedRecord](right: Array[A]) = new QueryResultMatcher(List(right))
-  def returnTuples[A <: IndexedRecord](right: Seq[Array[A]]) = new QueryResultMatcher(right)
+  def returnTuples[A <: IndexedRecord](right: Seq[IndexedSeq[A]]) = new QueryResultMatcher(right)
 }

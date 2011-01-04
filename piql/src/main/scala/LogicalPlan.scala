@@ -8,13 +8,26 @@ trait Queryable {
   def limit(count: Int) = StopAfter(count, this)
   def sort(attributes: Seq[Value], ascending: Boolean = true) = Sort(attributes, ascending, this)
 
-  def walkPlan(f: Queryable => Unit): Unit = {
+  def walkPlan[A](f: Queryable => A): A = {
     this match {
       case in: InnerNode => {
 	f(this)
 	in.child.walkPlan(f)
       }
       case leaf => f(leaf)
+    }
+  }
+
+  def gatherUntil[A](f: PartialFunction[Queryable, A]): (Seq[A], Option[Queryable]) = {
+    if(f.isDefinedAt(this) == false)
+      return (Nil, Some(this))
+
+    this match {
+      case in: InnerNode => {
+	val childRes = in.child.gatherUntil(f)
+        (f(this) +: childRes._1, childRes._2)
+      }
+      case leaf => (f(leaf) :: Nil, None)
     }
   }
 }
