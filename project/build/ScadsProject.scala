@@ -28,7 +28,6 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
 
   lazy val deploylib = project("deploylib", "deploylib", new ScadsSubProject(_) {
     val mesos = "edu.berkeley.cs.mesos" % "java" % "1.0"
-    val communication = "edu.berkeley.cs.scads" %% "communication" % "2.1.0-SNAPSHOT"
     val configgy = "net.lag" % "configgy" % "2.0.0"
     val staxApi = "javax.xml.stream" % "stax-api" % "1.0"
     val jaxbApi = "javax.xml.bind" % "jaxb-api" % "2.1"
