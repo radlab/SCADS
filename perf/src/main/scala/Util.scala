@@ -12,39 +12,6 @@ import deploylib.rcluster._
 
 import java.io.File
 
-object Deploy extends ConfigurationActions {
-  implicit def toFile(str: String) = new java.io.File(str)
-
-  def classpath = System.getProperty("java.class.path").split(":")
-  def s3Classpath = classpath.map(f => S3CachedJar(S3Cache.getCacheUrl(new File(f)))).toSeq
-  def codeS3Classpath = s3Classpath.map(j => """S3CachedJar("%s")""".format(j.url)).toList.toString
-
-  def workClasspath = {
-    classpath.map(jar => {
-      val cacheLocation = r2.cacheFile(jar)
-      ServerSideJar(cacheLocation.getCanonicalPath)
-    }).toSeq
-  }
-
-  def deployJars: Unit = {
-    EC2Instance.activeInstances.pforeach(i => i.upload("target/perf-2.1.0-SNAPSHOT-jar-with-dependencies.jar", "/root"))
-    EC2Instance.activeInstances.pforeach(i => i.upload("target/perf-2.1.0-SNAPSHOT.jar", "/root"))
-    EC2Instance.activeInstances.pforeach(i => i.upload("setup.scala", "/root"))
-  }
-
-  def deployCurrentClassPath: Unit = {
-    val localSetupFile = Util.readFile("setup.scala")
-    val remoteFileLines = localSetupFile.split("\n") ++
-      ("implicit val classpath = %s".format(codeS3Classpath) ::
-       "implicit val scheduler = LocalExperimentScheduler(\"MasterConsole\")" ::
-       "implicit val zookeeper = ZooKeeperNode(\"zk://mesos-ec2.knowsql.org/\")" :: Nil)
-
-    MesosEC2.master.upload("target/perf-2.1.0-SNAPSHOT-jar-with-dependencies.jar", "/root")
-    MesosEC2.master.upload("target/perf-2.1.0-SNAPSHOT.jar", "/root")
-    createFile(MesosEC2.master, "/root/setup.scala", remoteFileLines.mkString("\n"), "644")
-  }
-}
-
 object Future {
 	def apply[A](f: => A): Future[A] = new Future(f)
 }
