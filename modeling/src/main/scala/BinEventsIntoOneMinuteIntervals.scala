@@ -28,8 +28,10 @@ object BinEventsIntoOneMinuteIntervals {
 		println("timestamp,thread,type,id,elapsedTime,minuteInterval")
 
 		for (line <- Source.fromFile(args(0)).getLines) {
-			// print line & its minute interval
-			println(line + "," + getMinuteInterval(line))
+			if (!line.contains("timestamp")) {
+				// print line & its minute interval
+				println(line + "," + getMinuteInterval(line))
+			}
 		}
 	}
 	
@@ -45,6 +47,7 @@ object BinEventsIntoOneMinuteIntervals {
 	
 	def setBaseTimestamp(line: String) = {
 	  baseTimestamp = getTimestampFromLine(line)
+		baseTimestampSet = true
 	}
 
 	def getTimestampFromLine(line: String): Long = {

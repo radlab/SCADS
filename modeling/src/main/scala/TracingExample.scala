@@ -29,9 +29,9 @@ object TracingExample {
       case 0 => TestScalaEngine.newScadsCluster()
       case 1 => new ScadsCluster(ZooKeeperNode(args(0)))
       case _ => {
-	println("Usage: [cluster address]")
-	System.exit(1)
-	return
+				println("Usage: [cluster address]")
+				System.exit(1)
+				return
       }
     }
 
