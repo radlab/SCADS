@@ -192,6 +192,11 @@ class ManagedScadsCluster(_root: ZooKeeperProxy#ZooKeeperNode) extends ScadsClus
     managedStorageNodes += handler
     handler
   }
+  def addNamedNode(name:String): StorageHandler = {
+    val handler = newStorageHandler(name)
+    managedStorageNodes += handler
+    handler
+  }
 
   @inline private def makeScadsTempDir() = {
     val tempDir = File.createTempFile("scads", "testdb")
@@ -202,7 +207,7 @@ class ManagedScadsCluster(_root: ZooKeeperProxy#ZooKeeperNode) extends ScadsClus
     tempDir
   }
 
-  @inline private def newStorageHandler(): StorageHandler = {
+  @inline private def newStorageHandler(name:Option[String] = None): StorageHandler = {
     val config = new EnvironmentConfig
     config.setConfigParam(EnvironmentConfig.LOG_MEM_ONLY, "true")
     config.setAllowCreate(true)
@@ -215,7 +220,7 @@ class ManagedScadsCluster(_root: ZooKeeperProxy#ZooKeeperNode) extends ScadsClus
     val dir = makeScadsTempDir()
     logger.info("Opening test BDB Environment: " + dir + ", " + config)
     val env = new Environment(dir, config)
-    new StorageHandler(env, root)
+    new StorageHandler(env, root, name)
   }
 
 }
