@@ -133,7 +133,7 @@ object EC2Instance extends AWSConnection {
  * A specific RemoteMachine used to control a single EC2Instance.
  * Instances of this class can be obtained by instanceId from the static method EC2Instance.getInstance
  */
-class EC2Instance protected (val instanceId: String) extends RemoteMachine with RunitManager {
+class EC2Instance protected (val instanceId: String) extends RemoteMachine with RunitManager with Taggable {
   lazy val hostname: String = getHostname()
   val username: String = "root"
   val rootDirectory: File = new File("/mnt/")
