@@ -80,15 +80,15 @@ class JavaExecutor extends Executor {
       var lastTime = System.currentTimeMillis()
       var lastCount = 0
       override def run(): Unit = {
-	while(running) {
-	  Thread.sleep(5000)
-	  val currentTime = System.currentTimeMillis()
-	  val currentCount = statsWebApp.getRequests()
-	  requestsPerSec = (currentCount - lastCount) / ((currentTime - lastTime) / 1000)
-	  logger.debug("Updating statistics at %d %d: %f", currentTime, currentCount, requestsPerSec)
-	  lastTime = currentTime
-	  lastCount = currentCount
-	}
+        while(running) {
+          Thread.sleep(5000)
+          val currentTime = System.currentTimeMillis()
+          val currentCount = statsWebApp.getRequests()
+          requestsPerSec = (currentCount - lastCount) / ((currentTime - lastTime) / 1000)
+          logger.debug("Updating statistics at %d %d: %f", currentTime, currentCount, requestsPerSec)
+          lastTime = currentTime
+          lastCount = currentCount
+        }
       }
     }
     statsThread.start()
@@ -96,9 +96,9 @@ class JavaExecutor extends Executor {
     /* Create a special context that reports /stats over http */
     val statsHandler = new AbstractHandler() {
       def handle(target: String, request: HttpServletRequest, response: HttpServletResponse, dispatch: Int): Unit = {
-	response.setContentType("text/html")
+        response.setContentType("text/html")
         response.setStatus(HttpServletResponse.SC_OK)
-        response.getWriter().println(<ul><li>Requests/Sec: {requestsPerSec}</li><li>Requests Total: {statsWebApp.getRequests()}</li></ul>.toString)
+        response.getWriter().println(<status><RequestRate>{requestsPerSec}</RequestRate><RequestsTotal>{statsWebApp.getRequests()}</RequestsTotal></status>.toString)
         request.asInstanceOf[Request].setHandled(true)
       }
     }
