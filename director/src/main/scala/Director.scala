@@ -33,7 +33,7 @@ case class Director(var numClients: Int, namespaceString:String, val scheduler:S
 	
 	def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode) = {
 		//val node = ZooKeeperNode(zookeepCanonical)
-		Director.cluster = new ScadsCluster(clusterRoot)
+		if (Director.cluster == null) Director.cluster = new ScadsCluster(clusterRoot)
 		var namespace:GenericNamespace = Director.cluster.getNamespace(namespaceString)
 		
 		// update start time for existing servers
