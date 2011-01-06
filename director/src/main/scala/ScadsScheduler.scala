@@ -42,9 +42,9 @@ class ScadsServerScheduler protected (name: String, mesosMaster: String, zookeep
   val driverThread = new Thread("ScadsServerScheduler Mesos Driver Thread") { override def run(): Unit = driver.run() }
   driverThread.start()
 
-	def serverProcess(name:Option[String]):JvmMainTask = {
-		val args = name match {case None => "--clusterAddress" :: zookeeperCanonical :: Nil; case Some(s) => "--clusterAddress" :: zookeeperCanonical :: "--name" :: s :: Nil}
-		JvmMainTask(List(ServerSideJar("/mnt/director-2.1.0-SNAPSHOT-jar-with-dependencies.jar")),
+	def serverProcess(name:Option[String]):JvmMainTask = { 
+		val args = name match {case None => "--clusterAddress" :: zookeeperCanonical :: Nil; case Some(s) => "--clusterAddress" :: zookeeperCanonical :: "--name" :: s :: "--dbDir" :: "/mnt/"+s :: Nil}
+		JvmMainTask(List(S3CachedJar("http://scads.s3.amazonaws.com/demo/storage.jar")),
 		"edu.berkeley.cs.scads.storage.ScalaEngine",args)
 	}
 
