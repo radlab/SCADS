@@ -10,6 +10,7 @@ object ScadsState {
 	* get updated workload stats and cluster state some time after specified time-period
 	* if there is no data for that time, return null
 	*/
+	@deprecated("use the other refresh method")
 	def refreshAtTime(namespace:GenericNamespace, time:Long,period:Long):ClusterState = {
 		logger.debug("refreshing state at time %s",time.toString)
 		val workload = namespace.getWorkloadStats(time)
@@ -68,7 +69,7 @@ object ScadsState {
 		// attempt to get "empty" servers, i.e. have no partitions but registered with cluster
 		// TODO: don't use available servers?!
 		if (Director.cluster != null) {
-			val existingServers = Director.cluster.getAvailableServers(/*namespace.namespace*/)
+			val existingServers = Director.cluster.getAvailableServers(namespace.namespace)
 			logger.debug("existing servers: %d, servers with partitions: %d",existingServers.size,sToP.keySet.size)
 			val blankServers = existingServers.filter(s => !sToP.keySet.contains(s))
 			val now = new java.util.Date().getTime
