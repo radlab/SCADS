@@ -4,6 +4,8 @@ import java.io.{ File, BufferedReader, InputStreamReader }
 import net.lag.logging.Logger
 import ch.ethz.ssh2.{ Connection, Session, ChannelCondition, SCPClient }
 
+import scala.collection.generic.SeqForwarder
+
 /**
  * Holds the results of the execution of a command on the remote machine.
  * @param status - the integer status code returned by the command if one was returned, otherwise None
@@ -14,6 +16,35 @@ case class ExecuteResponse(status: Option[Int], stdout: String, stderr: String)
 case class RemoteFile(name: String, owner: String, permissions: String, modDate: String, size: String)
 
 case class UnknownResponse(er: ExecuteResponse) extends Exception
+
+
+/**
+ * A trait that allows remote machine to maintain a list of 'tags' that are stored
+ * in a file in the user home directory on the remote machine.
+ */
+trait Taggable {
+  self: RemoteMachine =>
+
+  val tagFile = new File("~/.deploylib_tags")
+
+  object tags extends SeqForwarder[String] {
+    private def getTags: Seq[String] = {
+      self ! ("touch " + tagFile)
+      catFile(tagFile).split("\n").filterNot(_ equals "")
+    }
+
+    private def setTags(tags: Set[String]):Unit =
+      createFile(tagFile, tags.mkString("\n"))
+
+    def underlying = getTags
+
+    def +=(tag: String): Unit =
+      setTags(((getTags :+ tag).toSet))
+
+    def -=(tag: String): Unit =
+      setTags(getTags.filterNot(_ equals tag).toSet)
+  }
+}
 
 /**
  * Provides a framework for interacting (running commands, uploading/downloading files, etc) with a generic remote machine.
@@ -36,7 +67,7 @@ abstract class RemoteMachine {
    */
   val privateKey: File = findPrivateKey
 
-  private def findPrivateKey: File = {
+  protected def findPrivateKey: File = {
     def defaultKeyFiles = {
       val specifiedKey = System.getenv("DEPLOYLIB_SSHKEY")
       val rsa = new File(System.getProperty("user.home"), ".ssh/id_rsa")
