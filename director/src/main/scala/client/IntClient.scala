@@ -133,11 +133,12 @@ case class IntClient(var numServers: Int, var numClients: Int, namespace:String,
 		System.exit(0)
 	}
 	
-	private def getBulkLoadSlice(id:Int):Iterable[(org.apache.avro.generic.GenericRecord, org.apache.avro.generic.GenericRecord)] = {
+	private def getBulkLoadSlice(id:Int):Seq[(org.apache.avro.generic.GenericRecord, org.apache.avro.generic.GenericRecord)] = {
 		val slicesize = scala.math.ceil(maxkey/numClients).toInt
 		val start = id * slicesize
 		val end = if (id >= numClients-1) maxkey else start + slicesize
-		Set( (start until end).toList.map(i => (IntRec(i).toGenericRecord,StringRec(getValue(256)).toGenericRecord) ) :_*)
+		
+		(start until end).view.map(i => (IntRec(i).toGenericRecord,StringRec(getValue(256)).toGenericRecord) )
 	}
 	private def getValue(length:Int):String = "x" * length 
 	
