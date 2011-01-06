@@ -1,8 +1,13 @@
 #!/bin/bash
 
 CLASSPATH=deploylib/src/main/resources/:`cat classpath`
-JAVAAGENT=-javaagent:~/local/jrebel.jar
 MESOSLIB=-Djava.library.path=/usr/local/mesos/lib/java
+
+if [ -f ~/local/jrebel.jar ]
+then
+  JAVAAGENT=-javaagent:~/local/jrebel.jar
+fi
+
 
 if [ -f setup.scala ]
 then
