@@ -1,6 +1,6 @@
 package edu.berkeley.cs.scads.director
 
-import edu.berkeley.cs.scads.storage.GenericNamespace
+import edu.berkeley.cs.scads.storage.{GenericNamespace, ManagedScadsCluster}
 import edu.berkeley.cs.scads.comm._
 import net.lag.logging.Logger
 
@@ -124,10 +124,10 @@ class GroupingExecutor(namespace:GenericNamespace, val scheduler:ScadsServerSche
 			logger.debug("%d add server actions",add.size)
 			if (!add.isEmpty && scheduler != null) {
 				scheduler.addServers( add.map(a => a match{ case ad:AddServer => prefix+ad.fakeServer.host }) )
-				logger.debug("sleeping right now instead of waiting on child")
-				Thread.sleep(20*1000)
+				//logger.debug("sleeping right now instead of waiting on child")
+				//Thread.sleep(20*1000)
 				add.foreach{ a => a match { 
-					case ad:AddServer => { /*scheduler.cluster.root.awaitChild("availableServers/"+prefix+ad.fakeServer.host); */ad.setComplete }
+					case ad:AddServer => { scheduler.cluster.root.awaitChild("availableServers/"+prefix+ad.fakeServer.host); ad.setComplete }
 				} }
 			}
 			
@@ -144,7 +144,7 @@ class GroupingExecutor(namespace:GenericNamespace, val scheduler:ScadsServerSche
 }
 
 class TestGroupingExecutor(namespace:GenericNamespace) extends GroupingExecutor(namespace,null) {
-	import edu.berkeley.cs.scads.storage.TestScalaEngine
+	//import edu.berkeley.cs.scads.storage.TestScalaEngine
 	
 	override def execute() {
 		if (actions.filter(a => a match { 			// only run if all previous Replicate or Delete actions finished
@@ -169,8 +169,10 @@ class TestGroupingExecutor(namespace:GenericNamespace) extends GroupingExecutor(
 			//if have add actions, create another test handler
 			val add = getAddActions()
 			logger.debug("%d add server actions",add.size)
-			TestScalaEngine.newScadsCluster(add.size)
-			add.foreach(a => a.setComplete)
+			Director.cluster match { case m:ManagedScadsCluster => {
+				add.foreach(a => { val servername = a match { case ad:AddServer => ad.fakeServer.host; case _ => "NoName" }; m.addNamedNode(namespace.namespace + servername); a.setComplete})
+			}
+			case _ => logger.warning("can't add servers")}
 			
 			// only say remove actions are complete, since can't really kill them
 			val remove = getRemoveActions()
