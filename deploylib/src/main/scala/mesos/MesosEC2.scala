@@ -40,7 +40,21 @@ object MesosEC2 extends ConfigurationActions {
     restartSlaves
   }
 
-  def addSlaves(count: Int): Unit = {
+  def startMaster:EC2Instance = {
+    val ret = EC2Instance.runInstances(
+        "ami-5a26d733",
+        1,
+        1,
+        EC2Instance.keyName,
+        "m1.large",
+        "us-east-1b",
+        None).head
+    ret.tags += masterTag
+    restartMaster
+    ret
+  }
+
+  def addSlaves(count: Int): Seq[EC2Instance] = {
     val userData = try Some("url=" + clusterUrl) catch {
       case noMaster: java.util.NoSuchElementException =>
 	logger.warning("No master found. Starting without userdata")
@@ -48,13 +62,22 @@ object MesosEC2 extends ConfigurationActions {
     }
 
     EC2Instance.runInstances(
-      "ami-58798d31",
+      "ami-5a26d733",
       count,
       count,
       EC2Instance.keyName,
       "m1.large",
       "us-east-1b",
       userData)
+  }
+
+  def updateConf:Unit = {
+    val conf = ("work_dir=/mnt" ::
+      "log_dir=/mnt" ::
+      "switch_user=0" ::
+      "url="+clusterUrl :: Nil).mkString("\n")
+    val conffile = new File("/usr/local/mesos/conf/mesos.conf")
+    slaves.pforeach(_.createFile(conffile,conf))
   }
 
 }
