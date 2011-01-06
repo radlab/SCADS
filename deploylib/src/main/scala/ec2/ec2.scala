@@ -140,8 +140,11 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
   val runitBinaryPath: File = new File("/usr/bin")
   val javaCmd: File = new File("/usr/bin/java")
 
+  def fixHostname: Unit =
+    this ! ("hostname " + privateDnsName)
+
   def halt: Unit =
-    executeCommand("halt")
+    this ! "halt"
 
   def currentState: RunningInstance =
     EC2Instance.instanceData(instanceId)
