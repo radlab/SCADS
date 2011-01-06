@@ -67,7 +67,7 @@ abstract class RemoteMachine {
    */
   val privateKey: File = findPrivateKey
 
-  private def findPrivateKey: File = {
+  protected def findPrivateKey: File = {
     def defaultKeyFiles = {
       val specifiedKey = System.getenv("DEPLOYLIB_SSHKEY")
       val rsa = new File(System.getProperty("user.home"), ".ssh/id_rsa")
