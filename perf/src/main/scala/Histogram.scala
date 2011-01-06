@@ -80,4 +80,16 @@ case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Long]) extend
       });
    });"""}
 </script>
+
+	override def toString: String = {
+		getBucketCounts
+	}
+	
+	def getBucketEndpoints: String = {
+		(1 to buckets.length).map(i => {"'" + i * bucketSize +"'"}).mkString("[", ",", "]")
+	}
+	
+	def getBucketCounts: String = {
+		buckets.mkString(",")
+	}
 }

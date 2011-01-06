@@ -53,7 +53,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
   }, perf)
 
   lazy val piql      = project("piql", "piql", new ScadsSubProject(_), config, avro, comm, scalaengine)
-  lazy val modeling    = project("modeling", "modeling", new ScadsSubProject(_), piql)
+  lazy val modeling    = project("modeling", "modeling", new ScadsSubProject(_), piql, perf)
   lazy val perf      = project("perf", "performance", new ScadsSubProject(_), config, avro, comm, scalaengine, piql, deploylib)
 
   /* PIQL Apps */

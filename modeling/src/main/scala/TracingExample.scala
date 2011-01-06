@@ -68,7 +68,7 @@ object TracingExample {
 		      .where("r1.f1".a === "r2.f2".a).toPiql
 
     /* Run some queries */
-    (1 to 100000).foreach(i => {
+    (1 to 300000).foreach(i => {
       fileSink.recordEvent(QueryEvent("getQuery" + i, true))
       getQuery()
       fileSink.recordEvent(QueryEvent("getQuery" + i, false))

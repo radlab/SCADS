@@ -1,9 +1,6 @@
 #!/bin/bash
 
-if [ ! -f ./classpath ]
-then
-    echo "building classpath..."
-		mvn dependency:build-classpath | grep jar | grep -v WARNING >> ./classpath
-fi
+CLASSPATH=deploylib/src/main/resources/:`cat classpath`
+MESOSLIB=-Djava.library.path=/usr/local/mesos/lib/java
 
-java -cp target/classes:target/test-classes:`cat classpath` $@
+exec java -Xmx1G $MESOSLIB -cp "$CLASSPATH" $@
