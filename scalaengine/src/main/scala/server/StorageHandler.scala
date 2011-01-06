@@ -79,6 +79,28 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
   private lazy val partitionDb =
     makeDatabase("partitiondb", None, None)
 
+	/**
+	* Workload statistics thread periodically clears the stats from all partitions
+	*/
+	private val period = 20 // seconds
+	private val intervalsToSave = 3
+	private val archivedIntervals = new scala.collection.mutable.Queue[PartitionWorkloadStats]()
+	protected lazy val statsThread = new Thread(new StatsManager(period))
+	statsThread.start()
+	
+	class StatsManager(periodInSeconds:Int) extends Runnable {
+	  var running = true
+	  def run():Unit =
+	    while (running) {
+	      Thread.sleep(periodInSeconds*1000)
+	      logger.debug("starting stats clearing")
+	      partitions.foreach(p => archivedIntervals.enqueue(p._2.resetWorkloadStats))
+	      if (archivedIntervals.size > 3) archivedIntervals.dequeue
+	      logger.debug("finished stats clearing")
+	    }
+	  def stop() = running = false
+	}
+
   private def makeDatabase(databaseName: String, keySchema: Schema, txn: Option[Transaction]): Database =
     makeDatabase(databaseName, Some(new AvroBdbComparator(keySchema)), txn)
 
@@ -139,8 +161,8 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
   protected def startup(): Unit = {
     /* Register with the zookeper as an available server */
     val availServs = root.getOrCreate("availableServers")
-    logger.debug("Created StorageHandler" + remoteHandle.toString)
-    serverNode = availServs.createChild(name.getOrElse(remoteHandle.toString), remoteHandle.toBytes, CreateMode.EPHEMERAL_SEQUENTIAL)
+    logger.debug("Created StorageHandler" + name.getOrElse(remoteHandle.toString))
+    serverNode = availServs.createChild(name.getOrElse(remoteHandle.toString), remoteHandle.toBytes, if (!name.isEmpty) CreateMode.EPHEMERAL else CreateMode.EPHEMERAL_SEQUENTIAL)
 
     /* Reopen partitions */
     val cursor = partitionDb.openCursor(null, null)
@@ -188,7 +210,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
 
     }
     cursor.close()
-
+    
   }
 
   /**

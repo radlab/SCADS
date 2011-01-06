@@ -11,6 +11,11 @@ import org.apache.avro.generic._
 import java.util.{ Arrays => JArrays }
 
 /**
+* keep track of number of gets and puts
+*/
+case class PartitionWorkloadStats(var gets:Int, var puts:Int)
+
+/**
  * Handles a partition from [startKey, endKey). Refuses to service any
  * requests which fall out of this range, by returning a ProcessingException
  */
@@ -19,11 +24,14 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
 	// state for maintaining workload stats
+	protected var currentStats = PartitionWorkloadStats(0,0)
+	protected var completedStats = PartitionWorkloadStats(0,0)
+	private var statsClearedTime = System.currentTimeMillis
+	
 	protected val statWindowTime = 20*1000 // ms, how long a window to maintain stats for
 	protected val clearStatWindowsTime = 60*1000 // ms, keep long to keep stats around, in all windows
 	protected var statWindows = (0 until clearStatWindowsTime/statWindowTime)
 		.map {_=>(new java.util.concurrent.atomic.AtomicInteger(),new java.util.concurrent.atomic.AtomicInteger())}.toList // (get,put) for each window
-	private var statsClearedTime = System.currentTimeMillis
 	private val getSamplingRate = 1.0
 	private val putSamplingRate = 1.0
 	private val samplerRandom = new java.util.Random
@@ -97,7 +105,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
         case GetRequest(key) => {
           val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry)
           try { db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED) } catch { case e:com.sleepycat.je.LockTimeoutException => logger.warning("lock timeout during GetRequest") }
-					if (samplerRandom.nextDouble <= getSamplingRate) incrementWorkloadStats(1,"get")
+					if (samplerRandom.nextDouble <= getSamplingRate) incrementGetCount(1)
           reply(GetResponse(Option(dbeValue.getData())))
         }
         case PutRequest(key, value) => {
@@ -105,14 +113,14 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
             case Some(v) => db.put(null, new DatabaseEntry(key), new DatabaseEntry(v))
             case None => db.delete(null, new DatabaseEntry(key))
           }
-					if (samplerRandom.nextDouble <= putSamplingRate) incrementWorkloadStats(1,"put")
+					if (samplerRandom.nextDouble <= putSamplingRate) incrementPutCount(1)
           reply(PutResponse())
         }
         case BulkPutRequest(records) => {
           val txn = db.getEnvironment.beginTransaction(null, null)
 					var reccount = 0
           records.foreach(rec => { db.put(txn, new DatabaseEntry(rec.key), new DatabaseEntry(rec.value.get)); reccount+=1})
-					if (samplerRandom.nextDouble <= putSamplingRate) incrementWorkloadStats(reccount,"put")
+					if (samplerRandom.nextDouble <= putSamplingRate) incrementPutCount(reccount)
           try {
             txn.commit()
             reply(BulkPutResponse())
@@ -130,7 +138,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           })
 					var reccount = 0
 					iterateOverRange(minKey, maxKey)((_,_,_) => reccount += 1)
-					if (samplerRandom.nextDouble <= getSamplingRate) incrementWorkloadStats(reccount,"get")
+					if (samplerRandom.nextDouble <= getSamplingRate) incrementGetCount(reccount)
           reply(GetRangeResponse(records))
         }
         case BatchRequest(ranges) => {
@@ -197,7 +205,8 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           reply(GetResponsibilityResponse(startKey, endKey))
         }
 				case GetWorkloadStats() => {
-					synchronized { reply(GetWorkloadStatsResponse(statWindows(1)._1.get, statWindows(1)._2.get, statsClearedTime)) }
+					//synchronized { reply(GetWorkloadStatsResponse(statWindows(1)._1.get, statWindows(1)._2.get, statsClearedTime)) }
+					reply(GetWorkloadStatsResponse(completedStats.gets, completedStats.puts, statsClearedTime))
 				}
         case _ => src.foreach(_ ! ProcessingException("Not Implemented", ""))
       }
@@ -234,6 +243,22 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
       cursor.delete()
     })
   }
+
+  /**
+  * set the current stats as the last completed interval, used when stats are queried
+  * zero out the current stats to start a new interval
+  * return the old completed interval for archiving
+  */
+  def resetWorkloadStats():PartitionWorkloadStats = {
+    val ret = completedStats
+    completedStats = currentStats
+    statsClearedTime = System.currentTimeMillis()
+    currentStats = PartitionWorkloadStats(0,0)
+    ret
+  }
+  private def incrementGetCount(num:Int) = currentStats.gets += num
+  private def incrementPutCount(num:Int) = currentStats.puts += num
+  /*
 	private def incrementWorkloadStats(num:Int, requestType:String) = {
 		// check if need to advance window and/or clear out old windows
 		synchronized {
@@ -251,6 +276,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 			case _ => logger.error("Tried to increment stats count for invalid request type %s", requestType)
 		}
 	}
+	*/
 
   /**
    * Low level method to iterate over a given range on the database. it is up
