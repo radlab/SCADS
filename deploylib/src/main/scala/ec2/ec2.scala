@@ -139,6 +139,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
   val rootDirectory: File = new File("/mnt/")
   val runitBinaryPath: File = new File("/usr/bin")
   val javaCmd: File = new File("/usr/bin/java")
+  override val privateKey = if (System.getenv("AWS_KEY_PATH") != null) new File(System.getenv("AWS_KEY_PATH")) else super.findPrivateKey
 
   def fixHostname: Unit =
     this ! ("hostname " + privateDnsName)
