@@ -12,6 +12,10 @@ import scala.collection.immutable.HashMap
 import org.apache.commons.httpclient._
 import org.apache.commons.httpclient.methods._
 
+object WebAppScheduler {
+  System.loadLibrary("mesos")
+}
+
 /* serverCapacity is the number of requests per second that a single application server can handle */
 class WebAppScheduler protected (name: String, mesosMaster: String, executor: String, warFile: ClassSource, serverCapacity: Int) extends Scheduler {
   val logger = Logger()
