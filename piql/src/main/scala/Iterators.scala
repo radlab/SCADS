@@ -54,7 +54,7 @@ trait QueryExecutor {
     }
   }
 
-  protected def compareTuples(left: Tuple, right: Tuple, attributes: Seq[AttributeValue])(implicit ctx: Context): Int = {
+  protected def compareTuples(left: Tuple, right: Tuple, attributes: Seq[Value])(implicit ctx: Context): Int = {
     attributes.foreach(a => {
       val leftValue = bindValue(a, left)
       val rightValue = bindValue(a, right)

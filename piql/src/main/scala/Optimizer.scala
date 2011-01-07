@@ -35,6 +35,20 @@ object Optimizer {
           IndexLookupJoin(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), optChild.physicalPlan),
           tupleSchema)
       }
+      //TODO: Check to make sure the index has the desired ordering.
+      case IndexRange(equalityPreds, Some(limit), Some(Ordering(attrs, asc)), Join(child, Relation(ns))) => {
+	val optChild = apply(child)
+	val tupleSchema = optChild.schema :+ ns
+
+	OptimizedSubPlan(
+	  IndexMergeJoin(ns,
+			 makeKeyGenerator(ns, tupleSchema, equalityPreds),
+			 attrs.map(bindValue(_, tupleSchema)),
+			 limit,
+		         asc,
+			 optChild.physicalPlan),
+	  tupleSchema)
+      }
       case Selection(pred, child) => {
         val optChild = apply(child)
         val boundPred = bindPredicate(pred, optChild.schema)
@@ -98,7 +112,7 @@ object Optimizer {
         case otherOp => (None, otherOp)
       }
 
-      val (predicates, planWithoutPredicates) = planWithoutStop.gatherUntil {
+      val (predicates, planWithoutPredicates) = planWithoutSort.gatherUntil {
         case Selection(pred, _) => pred
       }
 
