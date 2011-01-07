@@ -220,7 +220,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     else {
       val url = S3Cache.getCacheUrl(localFile)
       logger.debug("Getting file from cache: " + url)
-      executeCommand("wget -O " + remoteFile + " " + url)
+      this ! ("wget -O " + remoteFile + " " + url)
     }
   }
 
