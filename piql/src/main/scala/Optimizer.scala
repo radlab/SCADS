@@ -28,6 +28,13 @@ object Optimizer {
           IndexScan(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), limit, true),
           ns :: Nil)
       }
+      //TODO: Check to make sure the index has the right ordering.
+      case IndexRange(equalityPreds, Some(limit), Some(Ordering(attrs, asc)), Relation(ns)) => {
+	val tupleSchema = ns :: Nil
+        OptimizedSubPlan(
+          IndexScan(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), limit, asc),
+          ns :: Nil)
+      }
       case IndexRange(equalityPreds, None, None, Join(child, Relation(ns))) if (equalityPreds.size == ns.keySchema.getFields.size) => {
         val optChild = apply(child)
 	val tupleSchema = optChild.schema :+ ns
@@ -41,12 +48,13 @@ object Optimizer {
 	val tupleSchema = optChild.schema :+ ns
 
 	OptimizedSubPlan(
-	  IndexMergeJoin(ns,
-			 makeKeyGenerator(ns, tupleSchema, equalityPreds),
-			 attrs.map(bindValue(_, tupleSchema)),
-			 limit,
-		         asc,
-			 optChild.physicalPlan),
+	  LocalStopAfter(limit,
+	    IndexMergeJoin(ns,
+	      makeKeyGenerator(ns, tupleSchema, equalityPreds),
+	      attrs.map(bindValue(_, tupleSchema)),
+	      limit,
+	      asc,
+	      optChild.physicalPlan)),
 	  tupleSchema)
       }
       case Selection(pred, child) => {
