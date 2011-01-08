@@ -42,7 +42,7 @@ case class Director(var numClients: Int, namespaceString:String, val scheduler:S
 
 		val predictor = SimpleHysteresis(0.9,0.1,0.0)
 		predictor.initialize
-		val policy = new BestFitPolicy(null,100,100,0.99,true,20*1000,10*1000,predictor,true,true,1,1)
+		val policy = if (System.getProperty("doEmpty","true").toBoolean) new EmptyPolicy(predictor) else new BestFitPolicy(null,100,100,0.99,true,20*1000,10*1000,predictor,true,true,1,1)
 		val stateHistory = StateHistory(period,namespace,policy)
 		stateHistory.startUpdating
 		val executor = /*new TestGroupingExecutor(namespace)*/new GroupingExecutor(namespace,scheduler)
