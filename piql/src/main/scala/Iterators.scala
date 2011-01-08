@@ -367,7 +367,7 @@ class ParallelExecutor extends SimpleExecutor {
           var pos = 0
           var offset = 0
           var limitReached = false
-          val boundLimit = bindLimit(limit)
+          val boundLimit = bindLimit(limit) + 1 // should get rid of 2nd getRange
           var ftchInvoked = false
 
           @inline private def doFetch() {
