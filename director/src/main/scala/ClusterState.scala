@@ -5,8 +5,17 @@ import edu.berkeley.cs.scads.comm.{PartitionService,StorageService}
 object ClusterState {
 	val pastServers = scala.collection.mutable.HashSet[String]()
 	val pastPartitions = scala.collection.mutable.HashSet[String]()
+	val nameSuffix = new java.util.concurrent.atomic.AtomicInteger()
 	
 	def getRandomServerNames(cfg:ClusterState,n:Int):List[StorageService] = {
+	  val newNames = (0 until n).toList.map(i=> "s"+ nameSuffix.getAndIncrement)
+	  newNames.map( name=> new StorageService(name,1,null))
+	}
+	def getRandomPartitionNames(cfg:ClusterState,n:Int):List[PartitionService] = {
+	  val newNames = (0 until n).toList.map(i=> "p"+ nameSuffix.getAndIncrement)
+	  newNames.map( name=> new PartitionService(name,0,null,null,null))
+	}
+	def getRandomServerNamesOld(cfg:ClusterState,n:Int):List[StorageService] = {
 		//val rnd = new java.util.Random(7)
 
 		val newNames = scala.collection.mutable.HashSet[String]()
@@ -26,7 +35,7 @@ object ClusterState {
 		}
 		newNames.map( name=> new StorageService(name,1,null)).toList
 	}
-	def getRandomPartitionNames(cfg:ClusterState,n:Int):List[PartitionService] = {
+	def getRandomPartitionNamesOld(cfg:ClusterState,n:Int):List[PartitionService] = {
 		val newNames = scala.collection.mutable.HashSet[String]()
 		var name = ""
 		for (i <- 1 to n) {
