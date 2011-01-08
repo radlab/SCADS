@@ -4,10 +4,14 @@ package scads
 import org.apache.avro.Schema
 import org.apache.avro.generic.{IndexedRecord, GenericRecord}
 import org.apache.avro.util.Utf8
+import net.lag.logging.Logger
+
 import avro.marker._
 import storage._
 
 package object piql {
+  protected val logger = Logger()
+
   type Namespace = edu.berkeley.cs.scads.storage.PairNamespace[AvroPair]
   type KeyGenerator = Seq[Value]
 
@@ -51,7 +55,9 @@ package object piql {
 
   implicit def toPiql(logicalPlan: Queryable)(implicit executor: QueryExecutor) = new {
     def toPiql = {
-      new OptimizedQuery(Optimizer(logicalPlan).physicalPlan, executor)
+      val physicalPlan = Optimizer(logicalPlan).physicalPlan
+      logger.info("Optimized piql query: %s", physicalPlan)
+      new OptimizedQuery(physicalPlan, executor)
     }
   }
 
