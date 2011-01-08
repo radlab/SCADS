@@ -120,7 +120,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           val txn = db.getEnvironment.beginTransaction(null, null)
 					var reccount = 0
           records.foreach(rec => { db.put(txn, new DatabaseEntry(rec.key), new DatabaseEntry(rec.value.get)); reccount+=1})
-					if (samplerRandom.nextDouble <= putSamplingRate) incrementPutCount(reccount)
+					/*if (samplerRandom.nextDouble <= putSamplingRate) incrementPutCount(reccount)*/
           try {
             txn.commit()
             reply(BulkPutResponse())
