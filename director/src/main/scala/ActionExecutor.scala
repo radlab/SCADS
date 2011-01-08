@@ -50,7 +50,9 @@ abstract class ActionExecutor(val execDelay:Long) extends Runnable {
 	// }
 	def getRunningActions:List[Action] = actions.filter(_.running)
 	def getAllActions:List[Action] = actions
+	def getUncompleteServerActions:List[Action] = actions.filter(a=> a match { case r:AddServer => r.ready || r.running; case r:RemoveServers => r.ready || r.running; case _ => false })
 	def allActionsCompleted():Boolean = if (actions.size==0) true else actions.forall(_.completed)
+	def allMovementActionsCompleted():Boolean = if (actions.size==0) true else actions.filter(a=> a match { case r:ReplicatePartition => true; case r:DeletePartition => true; case _ => false }).forall(_.completed)
 	def status:String = actions.map(a=> "%-10s".format("("+a.state+")") + "  " + a.toString).mkString("\n")
 
 	/*
@@ -170,6 +172,7 @@ class TestGroupingExecutor(namespace:GenericNamespace) extends GroupingExecutor(
 			val add = getAddActions()
 			logger.debug("%d add server actions",add.size)
 			Director.cluster match { case m:ManagedScadsCluster => {
+			  Thread.sleep(60*1000) // mimic real delay
 				add.foreach(a => { val servername = a match { case ad:AddServer => ad.fakeServer.host; case _ => "NoName" }; m.addNamedNode(namespace.namespace + servername); a.setComplete})
 			}
 			case _ => logger.warning("can't add servers")}

@@ -121,15 +121,12 @@ abstract class Policy(
 }
 
 class EmptyPolicy(
-	val test:Int,
 	override val workloadPredictor:WorkloadPrediction
 ) extends Policy(workloadPredictor) {
 	def act(config:ClusterState, actionExecutor:ActionExecutor) {
-		logger.debug("test=%s",test)
-		logger.debug("noop")
-		val smoothedWorkload = workloadPredictor.getPrediction
-		logger.debug("raw workload:\n%s",config.workloadRaw.toString)
-		logger.debug("smoothed workload:\n%s",smoothedWorkload.toString)
+		logger.debug("noop")		
+		logger.info("smoothed workload:\n%s",workloadPredictor.getPrediction.toString)
+		logger.info(config.serverWorkloadString)
 	}
 }
 
@@ -189,10 +186,10 @@ class BestFitPolicy(
 		currentTime = config.time
 		
 		// do blocking execution
-		if (actionExecutor.allActionsCompleted) {
+		if (actionExecutor.allMovementActionsCompleted/*allActionsCompleted*/) {
 			logger.info("smoothed workload:\n%s",workloadPredictor.getPrediction.toString)
 			logger.info(config.serverWorkloadString)
-			runPolicy( config, workloadPredictor.getPrediction, List[Action]() )
+			runPolicy( config, workloadPredictor.getPrediction, actionExecutor.getUncompleteServerActions/*List[Action]()*/ )
 			logger.debug("# actions for executor: %d",actions.size)
 			for (action <- actions) {
 				//action.computeNBytesToCopy(state)
@@ -224,7 +221,7 @@ class BestFitPolicy(
 		//actionOrdering = new scala.collection.mutable.HashMap[(String,String),Long]()
 		
 		// apply running actions to config?
-		//applyRunningActions(runningActions)
+		applyRunningActions(runningActions)
 		
 		// STEP 1: add/remove replicas
 		if (doReplication)
@@ -235,6 +232,23 @@ class BestFitPolicy(
 		
 		// STEP 3: add/remove servers
 		handleServerAllocation
+	}
+	
+	def applyRunningActions(serverActions:List[Action]):Unit = {
+		logger.debug("  number of actions to replay: %d",serverActions.size)
+
+		for (action <- serverActions) {
+			logger.debug("  applying "+action)
+			currentConfig = action.preview(currentConfig)
+
+			// update ghost servers
+			action match {
+				case a:AddServer => ghosts += a.fakeServer
+				case a:RemoveServers => ghosts :: a.servers
+				case _ =>
+			}
+		}
+		logger.debug("config after replaying running actions:\n%s",currentConfig.serverWorkloadString)
 	}
 	
 	/**
