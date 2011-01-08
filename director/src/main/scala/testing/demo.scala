@@ -20,25 +20,31 @@ object multiNSdirectorTest {
 	def init(zoopath:String, mesospath:String, numNamespaces:Int):Seq[GenericNamespace] = {
 		// connect to mesos and zookeeper
 		val node = ZooKeeperNode(zoopath)
+		ScadsServerScheduler
 		sched = ScadsServerScheduler("director",mesospath,node.canonicalAddress)
-		sched.addServers( (0 until numNamespaces).toList.map(i => "init"+i) )
+		sched.addServers( (0 until numNamespaces).toList.map(i => nsPrefix+i+"first") )
 		
 		// wait until have enough servers for one per namespace
 		Thread.sleep(10*1000)
 		Director.cluster = new ScadsCluster(node)
-		var storageServers = Director.cluster.getAvailableServers
-		while (storageServers.size < numNamespaces) {
+		while (Director.cluster.getAvailableServers.size < numNamespaces) {
 			Thread.sleep(3*1000)
 			Director.cluster = new ScadsCluster(node)
-			storageServers = Director.cluster.getAvailableServers
 		}
 		
 		// create each namespace, and put all partitions on one server
 		val slice = maxkey/partitionsPerNamespace
-		(0 until numNamespaces).toList.map( i => {
+		/*(0 until numNamespaces).toList.map( i => {
 			Director.cluster.createNamespace[IntRec, StringRec](nsPrefix+i, 
 				(None, storageServers.slice(i,i+1)) :: 
 				(1 until partitionsPerNamespace).toList.map(p => (Some(IntRec(p*slice)), storageServers.slice(i,i+1)))
+			).genericNamespace
+		})*/
+		(0 until numNamespaces).toList.map( i => {
+			var storageServers = Director.cluster.getAvailableServers(nsPrefix+i)
+			Director.cluster.createNamespace[IntRec, StringRec](nsPrefix+i, 
+				(None, storageServers.slice(0,1)) :: 
+				(1 until partitionsPerNamespace).toList.map(p => (Some(IntRec(p*slice)), storageServers.slice(0,1)))
 			).genericNamespace
 		})
 		
@@ -58,6 +64,14 @@ object multiNSdirectorTest {
 			).genericNamespace
 		})
 		
+	}
+	
+	def startExisting(zoopath:String, mesospath:String, namespaceStrings:List[String]):List[Director] = {
+	  System.setProperty("doEmpty","true")
+	  val node = ZooKeeperNode(zoopath)
+		ScadsServerScheduler
+		sched = ScadsServerScheduler("director",mesospath,node.canonicalAddress)
+		namespaceStrings.map(ns => Director(1,ns,sched))
 	}
 	
 	def start(namespaces:Seq[GenericNamespace], zoopath:String) = {
@@ -176,7 +190,7 @@ object runClient {
 	}
 	
 	def start2(namespaceString:String, zoopath:String, numclients:Int):Unit = {
-		val workload1 = WorkloadGenerators.linearWorkloadRates(1.0, 0.0,0, maxkey, 500, 1600, 20, 10*1000)
+		val workload1 = WorkloadGenerators.linearWorkloadRates(1.0, 0.0,0, maxkey, 500, 1600, 20, 30*1000)
 		val workload = new WorkloadDescription(workload1.thinkTimeMean,workload1.workload)// ++ workload1.workload.reverse)
 		
 		workload.serialize("/tmp/workload.ser")
