@@ -28,9 +28,9 @@ case class IndexLookup(namespace: Namespace, key: KeyGenerator) extends QueryPla
 case class IndexScan(namespace: Namespace, keyPrefix: KeyGenerator, limit: Limit, ascending: Boolean) extends QueryPlan
 case class IndexLookupJoin(namespace: Namespace, key: KeyGenerator, child: QueryPlan) extends QueryPlan
 case class IndexScanJoin(namespace: Namespace, keyPrefix: KeyGenerator, limit: Limit, ascending: Boolean, child: QueryPlan) extends QueryPlan
-case class IndexMergeJoin(namespace: Namespace, keyPrefix: KeyGenerator, sortFields: Seq[AttributeValue], limit: Limit, ascending: Boolean, child: QueryPlan) extends QueryPlan
+case class IndexMergeJoin(namespace: Namespace, keyPrefix: KeyGenerator, sortFields: Seq[Value], limit: Limit, ascending: Boolean, child: QueryPlan) extends QueryPlan
 case class LocalSelection(predicate: Predicate, child: QueryPlan) extends QueryPlan
-case class LocalSort(sortFields: Seq[AttributeValue], ascending: Boolean, child: QueryPlan) extends QueryPlan
+case class LocalSort(sortFields: Seq[Value], ascending: Boolean, child: QueryPlan) extends QueryPlan
 case class LocalStopAfter(count: Limit, child: QueryPlan) extends QueryPlan
 
 case class Union(child1 : QueryPlan, child2 : QueryPlan, eqField : AttributeValue) extends QueryPlan

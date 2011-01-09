@@ -40,21 +40,22 @@ object MesosEC2 extends ConfigurationActions {
     restartSlaves
   }
 
-  def startMaster:EC2Instance = {
+  val defaultZone = "us-east-1a"
+  def startMaster(zone: String = defaultZone):EC2Instance = {
     val ret = EC2Instance.runInstances(
         "ami-5a26d733",
         1,
         1,
         EC2Instance.keyName,
         "m1.large",
-        "us-east-1b",
+        zone,
         None).head
     ret.tags += masterTag
     restartMaster
     ret
   }
 
-  def addSlaves(count: Int): Seq[EC2Instance] = {
+  def addSlaves(count: Int, zone: String = defaultZone): Seq[EC2Instance] = {
     val userData = try Some("url=" + clusterUrl) catch {
       case noMaster: java.util.NoSuchElementException =>
 	logger.warning("No master found. Starting without userdata")
@@ -67,7 +68,7 @@ object MesosEC2 extends ConfigurationActions {
       count,
       EC2Instance.keyName,
       "m1.large",
-      "us-east-1b",
+      zone,
       userData)
   }
 
