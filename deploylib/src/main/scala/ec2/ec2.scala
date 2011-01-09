@@ -195,8 +195,13 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     val remoteJars = jars.map(_.getName).map(new File(jarDir, _))
     val s3Jars = jars.map(f => S3CachedJar(S3Cache.getCacheUrl(f))).toSeq
     val s3JarsCode = s3Jars.map(j => """S3CachedJar("%s")""".format(j.url)).toList.toString
+    val setup =  "import edu.berkeley.cs.scads.comm._" ::
+      "import deploylib.mesos._" ::
+      "implicit val classSource = " + s3JarsCode ::
+      "implicit val expScheduler = LocalExperimentScheduler(\"MasterConsole\", \"1@\" + java.net.InetAddress.getLocalHost.getHostName + \":5050\", \"/usr/local/mesos/frameworks/deploylib/java_executor\")" ::
+      "implicit val zooKeeper = ZooKeeperNode(\"zk://ec2-50-16-2-36.compute-1.amazonaws.com/\")" :: Nil
 
-    createFile(new File("/root/jars/classsource.scala"), "import edu.berkeley.cs.scads.comm._\nimplicit val classSource = " + s3JarsCode)
+    createFile(new File("/root/jars/classsource.scala"),setup.mkString("\n"))
 
     logger.info("Creating scripts")
     val headers = "#!/bin/bash" ::
