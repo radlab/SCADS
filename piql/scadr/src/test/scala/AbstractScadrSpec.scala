@@ -60,8 +60,8 @@ data.userData.foreach(u => client.findUser(u.username).head should equal(Vector(
 
     it("myThoughts") {
       data.userData.foreach(u => {
-        val answer = data.thoughtData.filter(_.owner equals u.username).map(t => Vector(t)).reverse.take(10)
-        client.myThoughts(u.username, 10) should returnTuples(answer)
+        val answer = data.thoughtData.filter(_.owner equals u.username).map(t => Vector(t)).reverse.take(10).toList
+        client.myThoughts(u.username, 10) should equal (answer)
       })
     }
 
@@ -69,7 +69,15 @@ data.userData.foreach(u => client.findUser(u.username).head should equal(Vector(
       data.userData.foreach(u => {
         val followers = client.usersFollowedBy(u.username, 10)
         val users = usersFollowedBy(u.username).take(10)
-        followers.map(x => Array(x(2), x(3))) should equal (users.map(x => Vector(x)))
+        followers.map(x => Vector(x(1))) should equal (users.map(x => Vector(x)))
+      })
+    }
+
+    it("thoughtstream") {
+      data.userData.foreach(u => {
+        val thoughts = client.thoughtstream(u.username, 10)
+        val answer = thoughtstream(u.username).take(10).toList
+        (thoughts.map(x => Vector(x(1)))) should equal(answer.map(t => Vector(t)))
       })
     }
 
@@ -102,16 +110,9 @@ data.userData.foreach(u => client.findUser(u.username).head should equal(Vector(
         val users0 = data.userData.filter({ case (k, v) => subs0.contains(k.username) }).sortBy(_.username).take(10)
         following.map(x => Array(x(2), x(3))) should equals (users0.map(x => Array(x, x)))
       })
-    }
-
-    it("thoughtstream") {
-      data.userData.foreach(u => {
-        val thoughts = client.thoughtstream(u.username, 10)
-        val answer = thoughtstream(u.username).take(10)
-        (thoughts.map(x => Array(x(2), x(3)))) should equal(answer.map(t => Array(t, t)))
-      })
       */
     }
+
 
     it("thoughtstreamPaginate") {
       pending
