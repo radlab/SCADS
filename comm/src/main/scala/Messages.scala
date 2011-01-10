@@ -43,6 +43,9 @@ case class CountRangeResponse(var count: Int) extends AvroRecord with KeyValueSt
 case class TestSetRequest(var key: Array[Byte], var value: Option[Array[Byte]], var expectedValue: Option[Array[Byte]]) extends AvroRecord with KeyValueStoreOperation
 case class TestSetResponse(var success: Boolean) extends AvroRecord with KeyValueStoreOperation
 
+case class GetWorkloadStats() extends AvroRecord with KeyValueStoreOperation
+case class GetWorkloadStatsResponse(var getCount:Int, var putCount:Int, var statsSince:Long) extends AvroRecord with KeyValueStoreOperation
+
 /* Storage Handler Operations */
 sealed trait StorageServiceOperation extends MessageBody
 case class CreatePartitionRequest(var namespace: String, var startKey: Option[Array[Byte]] = None, var endKey: Option[Array[Byte]] = None) extends AvroRecord with StorageServiceOperation

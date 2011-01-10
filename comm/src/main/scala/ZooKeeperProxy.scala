@@ -29,7 +29,7 @@ object ZooKeeperNode {
  *
  * Instances of ZooKeeperProxy and ZooKeeperNode are thread-safe 
  */
-class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watcher {
+class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watcher { // TODO: hack to avoid long delay
   self =>
   protected val logger = Logger()
 
@@ -195,6 +195,18 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watc
       }
 
       apply(fullName)
+    }
+
+    def onDataChange(func:() => Unit):Array[Byte] = {
+      val watcher = new Watcher {
+	def process(evt: WatchedEvent) {
+	  evt.getType match {
+            case EventType.NodeDataChanged => func()
+            case e => logger.error("HOLY FUCK (now watch is unregistered): %s",e)
+          }
+	}
+      }
+      conn.getData(path, watcher, new Stat)
     }
 
     /** Set a watcher on the children for this node. Note that, according to

@@ -54,9 +54,10 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
 
   lazy val piql      = project("piql", "piql", new ScadsSubProject(_), config, avro, comm, scalaengine)
   lazy val perf      = project("perf", "performance", new ScadsSubProject(_), config, avro, comm, scalaengine, piql, deploylib)
+  lazy val director    = project("director", "director", new ScadsSubProject(_), scalaengine, deploylib)
 
   /* PIQL Apps */
-  lazy val scadr  = project("piql" / "scadr", "scadr", new ScadsSubProject(_), piql)
+  lazy val scadr  = project("piql" / "scadr", "scadr", new ScadsSubProject(_), piql, director)
   lazy val gradit = project("piql" / "gradit", "gradit", new ScadsSubProject(_), piql)
 
   /* Repository Configuration */

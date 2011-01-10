@@ -71,6 +71,7 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
       }
       createRoutingTable(rTable)
       storeRoutingTable()
+      loadRoutingTable()
   }
 
   onDelete {
@@ -155,7 +156,7 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
     }
     storeAndPropagateRoutingTable()
     for((newPartition, oldPartition) <- result){
-      newPartition !? CopyDataRequest(oldPartition, false) match {
+      newPartition.!? ( CopyDataRequest(oldPartition, false), 3*60*1000/*timeout*/ ) match {
         case CopyDataResponse() => ()
         case _ => throw new RuntimeException("Unexpected Message")
       }
@@ -260,13 +261,10 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
     nsRoot.waitUntilPropagated()
   }
 
-  private def loadRoutingTable() = {
-    val zkNode = nsRoot.get(ZOOKEEPER_ROUTING_TABLE)
-    val rangeSeq = new RoutingTableMessage()
-    zkNode match {
-      case None => throw new RuntimeException("Can not load empty routing table")
-      case Some(a) => rangeSeq.parse(a.data)
-    }
+  private def loadRoutingTable():Unit = {
+		logger.debug("loading routing table")
+    val zkNode = nsRoot.get(ZOOKEEPER_ROUTING_TABLE).getOrElse(throw new RuntimeException("Can not load empty routing table"))
+    val rangeSeq = new RoutingTableMessage().parse(zkNode.onDataChange(loadRoutingTable))
     val partition = rangeSeq.partitions.map(a => new RangeType(a.startKey.map(deserializeRoutingKey(_)), a.servers))
     createRoutingTable(partition.toArray)
   }
