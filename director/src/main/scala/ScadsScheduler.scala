@@ -62,14 +62,14 @@ class ScadsServerScheduler protected (name: String, mesosMaster: String, zookeep
 		while(offers.size > 0 && serversToAdd.peek() != null) {
 		  val scheduleNow = (0 until offers.size).toList.map(_ => serversToAdd.poll).filter(_ != null)
 		  scheduleNow.foreach(proc => {
-			val offer = offers.remove(0)
-			val taskParams = Map(List("mem", "cpus").map(k => k -> offer.getParams.get(k)):_*)
-			val task = new TaskDescription(taskId, offer.getSlaveId, proc.mainclass, taskParams, proc.toBytes)
-			logger.debug("Scheduling task %d: %s", taskId, proc)
-			scheduledServers ::= taskId
-			logger.debug("Assigning task %d to slave %s on %s", taskId, offer.getSlaveId, offer.getHost)
-			taskId += 1
-			tasks.add(task)
+			  val offer = offers.remove(0)
+  			val taskParams = Map(List("mem", "cpus").map(k => k -> offer.getParams.get(k)):_*)
+  			val task = new TaskDescription(taskId, offer.getSlaveId, proc.mainclass, taskParams, JvmTask(proc))
+  			logger.debug("Scheduling task %d: %s", taskId, proc)
+  			scheduledServers ::= taskId
+  			logger.debug("Assigning task %d to slave %s on %s", taskId, offer.getSlaveId, offer.getHost)
+  			taskId += 1
+  			tasks.add(task)
 
 		  })
 		}
