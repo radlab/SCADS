@@ -11,10 +11,11 @@ object MesosEC2 extends ConfigurationActions {
   val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
 
   def updateDeploylib: Unit = {
-    val executorScript = Util.readFile(new File("src/main/resources/java_executor"))
+    val executorScript = Util.readFile(new File("deploylib/src/main/resources/java_executor"))
     slaves.pforeach(inst => {
       createDirectory(inst, rootDir)
-      uploadFile(inst, new File("target/deploy-2.1-SNAPSHOT-jar-with-dependencies.jar"), rootDir)
+      uploadFile(inst, new File("scads.jar"), rootDir)
+      uploadFile(inst, new File("deploylib/src/main/resources/config"), rootDir)
       createFile(inst, new File(rootDir, "java_executor"), executorScript, "755")
     })
   }
