@@ -54,7 +54,7 @@ trait QueryExecutor {
     }
   }
 
-  protected def compareTuples(left: Tuple, right: Tuple, attributes: Seq[AttributeValue])(implicit ctx: Context): Int = {
+  protected def compareTuples(left: Tuple, right: Tuple, attributes: Seq[Value])(implicit ctx: Context): Int = {
     attributes.foreach(a => {
       val leftValue = bindValue(a, left)
       val rightValue = bindValue(a, right)
@@ -167,7 +167,7 @@ class SimpleExecutor extends QueryExecutor {
             val value = namespace.get(boundKey)
 
             if(value.isDefined) {
-              nextTuple = childTuple ++ Array[Record](boundKey, value.get)    //TODO: Why does it return the boundKey???
+              nextTuple = childTuple ++ Array[Record](value.get)    //TODO: Why does it return the boundKey???
               return
             }
           }
@@ -350,7 +350,7 @@ class ParallelExecutor extends SimpleExecutor {
           ftch.flatMap(_.get).isDefined
 
         def next = {
-          val tuple = ArrayBuffer(boundKey, ftch.flatMap(_.get).getOrElse(throw new ju.NoSuchElementException("Empty iterator")))
+          val tuple = ArrayBuffer(ftch.flatMap(_.get).getOrElse(throw new ju.NoSuchElementException("Empty iterator")))
           ftch = None
           tuple
         }
@@ -434,7 +434,7 @@ class ParallelExecutor extends SimpleExecutor {
             val (childTuple, boundKey, ftch) = ftchs.dequeue()
             ftch.get match {
               case Some(recVal) =>
-                nextTuple = childTuple ++ Array[Record](boundKey, recVal)
+                nextTuple = childTuple ++ Array[Record](recVal)
                 found = true // done
               case None => // keep going
             }

@@ -93,7 +93,7 @@ class OptimizerSpec extends Spec with ShouldMatchers {
 	.limit(5)
 	.join(r2Prime)
 	.where("r2.f2".a === "r2Prime.f1".a)
-	.sort("r2a.f2".a :: Nil)
+	.sort("r2Prime.f2".a :: Nil)
 	.limit(10)
     )
     val plan = IndexMergeJoin(r2Prime, AttributeValue(0,1) :: Nil, AttributeValue(1,1) :: Nil, FixedLimit(10), true,

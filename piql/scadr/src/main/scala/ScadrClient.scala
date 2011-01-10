@@ -41,33 +41,26 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
 
   val myThoughts = (
     thoughts.where("thoughts.owner".a === (0.?))
+	    .sort("thoughts.timestamp".a :: Nil, false)
 	    .limit(maxResultsPerPage)
   ).toPiql
 
-  val usersFollowedBy = (
+  lazy val usersFollowedBy = (
     subscriptions.where("subscriptions.owner".a === (0.?))
 	 .limit(maxResultsPerPage)
 	 .join(users)
 	 .where("subscriptions.target".a === "users.username".a)
   ).toPiql
 
-  /* Old hand coded plans */
-  type QueryArgs = Seq[Any]
 
-  private lazy val usersFollowingPlan =
-    LocalStopAfter(ParameterLimit(1, maxResultsPerPage),
-      IndexLookupJoin(users, Array(AttributeValue(0, 1)),
-        IndexScan(users, Array(ParameterValue(0)), ParameterLimit(1, maxResultsPerPage), true)))
-
-
-  val throughtstream = (
+  val thoughtstream = (
     subscriptions.where("subscriptions.owner".a === (0.?))
 		 .limit(5000)
 		 .join(thoughts)
 		 .where("thoughts.owner".a === "subscriptions.target".a)
 		 .sort("thoughts.timestamp".a :: Nil, false)
 		 .limit(10)
-  )
+  ).toPiql
 
   /**
    * Who is following ME?

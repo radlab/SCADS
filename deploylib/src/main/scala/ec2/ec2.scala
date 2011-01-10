@@ -7,6 +7,7 @@ import com.amazonaws.ec2._
 import com.amazonaws.ec2.model._
 import net.lag.logging.Logger
 import java.io.File
+import edu.berkeley.cs.scads.comm._
 
 import scala.collection.JavaConversions._
 import scala.collection.immutable.TreeHashMap
@@ -133,15 +134,19 @@ object EC2Instance extends AWSConnection {
  * A specific RemoteMachine used to control a single EC2Instance.
  * Instances of this class can be obtained by instanceId from the static method EC2Instance.getInstance
  */
-class EC2Instance protected (val instanceId: String) extends RemoteMachine with RunitManager {
+class EC2Instance protected (val instanceId: String) extends RemoteMachine with RunitManager with Taggable {
   lazy val hostname: String = getHostname()
   val username: String = "root"
   val rootDirectory: File = new File("/mnt/")
   val runitBinaryPath: File = new File("/usr/bin")
   val javaCmd: File = new File("/usr/bin/java")
+  override val privateKey = if (System.getenv("AWS_KEY_PATH") != null) new File(System.getenv("AWS_KEY_PATH")) else super.findPrivateKey
+
+  def fixHostname: Unit =
+    this ! ("hostname " + privateDnsName)
 
   def halt: Unit =
-    executeCommand("halt")
+    this ! "halt"
 
   def currentState: RunningInstance =
     EC2Instance.instanceData(instanceId)
@@ -170,6 +175,48 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
   def getHostname(): String = {
     blockUntilRunning()
     publicDnsName
+  }
+
+  /**
+   * Upload all of the jars in the file ./allJars and create jrun/console scripts
+   * for working with them
+   * Note, this is mostly a hack to work around problems with mesos on EC2.
+   * TODO: Integrate w/ sbt
+   */
+  def pushJars: Unit = {
+    val jarDir = new File("/root/jars")
+    val jarFile = new File("allJars")
+    val jars = Util.readFile(jarFile).split("\n").map(new File(_))
+    this ! ("mkdir -p " + jarDir)
+    logger.info("Starting Jar upload")
+    jars.foreach(j => upload(j, jarDir))
+
+    logger.info("Creating classSource file")
+    val remoteJars = jars.map(_.getName).map(new File(jarDir, _))
+    val s3Jars = jars.map(f => S3CachedJar(S3Cache.getCacheUrl(f))).toSeq
+    val s3JarsCode = s3Jars.map(j => """S3CachedJar("%s")""".format(j.url)).toList.toString
+    val setup =  "import edu.berkeley.cs.scads.comm._" ::
+      "import deploylib.mesos._" ::
+      "implicit val classSource = " + s3JarsCode ::
+      "implicit val expScheduler = LocalExperimentScheduler(\"MasterConsole\", \"1@\" + java.net.InetAddress.getLocalHost.getHostName + \":5050\", \"/usr/local/mesos/frameworks/deploylib/java_executor\")" ::
+      "implicit val zooKeeper = ZooKeeperNode(\"zk://ec2-50-16-2-36.compute-1.amazonaws.com/\")" :: Nil
+
+    createFile(new File("/root/jars/classsource.scala"),setup.mkString("\n"))
+
+    logger.info("Creating scripts")
+    val headers = "#!/bin/bash" ::
+      "JAVA=/usr/bin/java" ::
+      "CLASSPATH=\"-cp " + remoteJars.mkString(":") + "\"" ::
+      "MESOS=-Djava.library.path=/usr/local/mesos/lib/java" :: Nil
+
+    /* Create shell scripts */
+    createFile(new File("/root/console"),
+      (headers :+ "$JAVA $CLASSPATH $MESOS scala.tools.nsc.MainGenericRunner $CLASSPATH -i jars/classsource.scala $@").mkString("\n"))
+    this ! "chmod 755 /root/console"
+
+    createFile(new File("/root/jrun"),
+      (headers :+ "$JAVA $CLASSPATH $MESOS $@").mkString("\n"))
+    this ! "chmod 755 /root/jrun"
   }
 
   /**
@@ -216,7 +263,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     else {
       val url = S3Cache.getCacheUrl(localFile)
       logger.debug("Getting file from cache: " + url)
-      executeCommand("wget -O " + remoteFile + " " + url)
+      this ! ("wget -O " + remoteFile + " " + url)
     }
   }
 

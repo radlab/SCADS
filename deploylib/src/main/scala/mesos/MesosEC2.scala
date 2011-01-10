@@ -9,63 +9,77 @@ import java.net.InetAddress
 
 object MesosEC2 extends ConfigurationActions {
   val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
-  val masterAddress = InetAddress.getByName("mesos-ec2.knowsql.org")
 
   def updateDeploylib: Unit = {
-    val executorScript = Util.readFile(new File("src/main/resources/java_executor"))
+    val executorScript = Util.readFile(new File("deploylib/src/main/resources/java_executor"))
     slaves.pforeach(inst => {
       createDirectory(inst, rootDir)
-      uploadFile(inst, new File("target/deploy-2.1-SNAPSHOT-jar-with-dependencies.jar"), rootDir)
+      uploadFile(inst, new File("scads.jar"), rootDir)
+      uploadFile(inst, new File("deploylib/src/main/resources/config"), rootDir)
       createFile(inst, new File(rootDir, "java_executor"), executorScript, "755")
     })
   }
 
-  //TODO: security groups would be better...
-  def slaves = EC2Instance.activeInstances.filterNot(i => masterAddress.getHostAddress equals InetAddress.getByName(i.publicDnsName).getHostAddress)
-  def master = EC2Instance.activeInstances.find(i => masterAddress.getHostAddress equals InetAddress.getByName(i.publicDnsName).getHostAddress).get
+  val masterTag = "mesosMaster"
+  def slaves = EC2Instance.activeInstances.pfilterNot(_.tags contains masterTag)
+  def master = EC2Instance.activeInstances.pfilter(_.tags contains masterTag).head
 
   def clusterUrl = "1@" + master.privateDnsName + ":5050"
-
-  def updateClusterUrl: Unit = {
-    val location = new File("/root/mesos-ec2/cluster-url")
-    master ! ("hostname " + master.privateDnsName)
-    createFile(master, location, clusterUrl, "644")
-  }
-
-  def updateMasterFile: Unit = {
-    val location = new File("/root/mesos-ec2/masters")
-    val contents = master.privateDnsName
-    createFile(master, location, contents, "644")
-  }
-
-  def updateSlavesFile: Unit = {
-    val location = new File("/root/mesos-ec2/slaves")
-    val contents = slaves.map(_.privateDnsName).mkString("\n")
-    createFile(master, location, contents, "644")
-  }
 
   def restartSlaves: Unit = {
     slaves.pforeach(_ ! "service mesos-slave stop")
     slaves.pforeach(_ ! "service mesos-slave start")
   }
 
-  def restart: Unit = {
-    updateSlavesFile
-    updateMasterFile
-    updateClusterUrl
-    master ! "/root/mesos-ec2/stop-mesos"
-    master ! "/root/mesos-ec2/start-mesos"
+  def restartMaster: Unit = {
+    master ! "service mesos-master stop"
+    master ! "service mesos-master start"
   }
 
-  def addSlaves(count: Int): Unit = {
+  def restart: Unit = {
+    restartMaster
+    restartSlaves
+  }
+
+  val defaultZone = "us-east-1a"
+  def startMaster(zone: String = defaultZone):EC2Instance = {
+    val ret = EC2Instance.runInstances(
+        "ami-5a26d733",
+        1,
+        1,
+        EC2Instance.keyName,
+        "m1.large",
+        zone,
+        None).head
+    ret.tags += masterTag
+    restartMaster
+    ret
+  }
+
+  def addSlaves(count: Int, zone: String = defaultZone): Seq[EC2Instance] = {
+    val userData = try Some("url=" + clusterUrl) catch {
+      case noMaster: java.util.NoSuchElementException =>
+	logger.warning("No master found. Starting without userdata")
+	None
+    }
+
     EC2Instance.runInstances(
-      "ami-58798d31",
+      "ami-5a26d733",
       count,
       count,
       EC2Instance.keyName,
       "m1.large",
-      "us-east-1b",
-      Some("url=" + clusterUrl))
+      zone,
+      userData)
+  }
+
+  def updateConf:Unit = {
+    val conf = ("work_dir=/mnt" ::
+      "log_dir=/mnt" ::
+      "switch_user=0" ::
+      "url="+clusterUrl :: Nil).mkString("\n")
+    val conffile = new File("/usr/local/mesos/conf/mesos.conf")
+    slaves.pforeach(_.createFile(conffile,conf))
   }
 
 }
