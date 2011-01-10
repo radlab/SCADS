@@ -6,6 +6,7 @@ import net.lag.logging.Logger
 object ScadrDirectorTest {
   org.apache.log4j.Logger.getRootLogger.setLevel(org.apache.log4j.Level.WARN)
   var sched:ScadsServerScheduler = null
+  val namespaces = List("user","thought","subscription")
 
   /**
   * Start a cluster with one storage engine per namespace using mesos slaves
@@ -16,7 +17,7 @@ object ScadrDirectorTest {
   	val node = ZooKeeperNode(zoopath)
   	ScadsServerScheduler
   	sched = ScadsServerScheduler("director",mesospath,node.canonicalAddress)
-  	sched.addServers( List("user","thought","subscription").map(ns => ns+"node0") )
+  	sched.addServers( namespaces.map(ns => ns+"node0") )
   	
   	// wait until have enough servers for one per namespace
 		Thread.sleep(10*1000)
@@ -26,7 +27,7 @@ object ScadrDirectorTest {
 			Director.cluster = new ScadsCluster(node)
 		}
 
-		List( ("user",classOf[edu.berkeley.cs.scads.piql.scadr.User].newInstance),("thought",classOf[edu.berkeley.cs.scads.piql.scadr.Thought].newInstance),("subscription",classOf[edu.berkeley.cs.scads.piql.scadr.Subscription].newInstance) ).map(entry => {
+		List( (namespaces(0),classOf[edu.berkeley.cs.scads.piql.scadr.User].newInstance),(namespaces(1),classOf[edu.berkeley.cs.scads.piql.scadr.Thought].newInstance),(namespaces(2),classOf[edu.berkeley.cs.scads.piql.scadr.Subscription].newInstance) ).map(entry => {
 		  Director.cluster.createNamespace(entry._1, entry._2.key.getSchema, entry._2.value.getSchema, List((None,Director.cluster.getAvailableServers(entry._1))))
 		})
 		
@@ -38,9 +39,9 @@ object ScadrDirectorTest {
   */
   def initTest():Seq[GenericNamespace] = {
     	Director.cluster = new ManagedScadsCluster(TestScalaEngine.newScadsCluster(0).root)
-  		List("user","thought","subscription").foreach(ns => Director.cluster match {case m:ManagedScadsCluster => m.addNamedNode(ns+"first") })
+  		namespaces.foreach(ns => Director.cluster match {case m:ManagedScadsCluster => m.addNamedNode(ns+"first") })
   		
-  		List( ("user",classOf[edu.berkeley.cs.scads.piql.scadr.User].newInstance),("thought",classOf[edu.berkeley.cs.scads.piql.scadr.Thought].newInstance),("subscription",classOf[edu.berkeley.cs.scads.piql.scadr.Subscription].newInstance) ).map(entry => {
+  		List( (namespaces(0),classOf[edu.berkeley.cs.scads.piql.scadr.User].newInstance),(namespaces(1),classOf[edu.berkeley.cs.scads.piql.scadr.Thought].newInstance),(namespaces(2),classOf[edu.berkeley.cs.scads.piql.scadr.Subscription].newInstance) ).map(entry => {
   		  Director.cluster.createNamespace(entry._1, entry._2.key.getSchema, entry._2.value.getSchema, List((None,Director.cluster.getAvailableServers(entry._1))))
   		})
   }
