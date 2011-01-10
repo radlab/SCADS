@@ -40,6 +40,11 @@ object TracingExample {
     val r1a = cluster.getNamespace[R1]("r1a")
     val r2 = cluster.getNamespace[R2]("r2")
 
+	  //val r2Prime = cluster.getNamespace[R2]("r2Prime").asInstanceOf[Namespace]
+		// is "asInstanceOf[Namespace]" necessary here?
+		val r2Prime = cluster.getNamespace[R2]("r2Prime")
+
+
     /* create executor that records trace to fileSink */
     val fileSink = new FileTraceSink(new File("piqltrace.avro"))
     implicit val executor = new ParallelExecutor with TracingExecutor {
@@ -53,6 +58,7 @@ object TracingExample {
     /* Bulk load some test data into the namespaces */
     r1 ++= (1 to 10).view.map(i => R1(i))
     r2 ++= (1 to 10).view.flatMap(i => (1 to 10).map(j => R2(i,j)))
+    r2Prime ++= (1 to 10).view.flatMap(i => (1 to 10).map(j => R2(i,j)))
 
     /**
      * Write queries against relations and create optimized function using .toPiql
@@ -66,20 +72,40 @@ object TracingExample {
 		      .limit(10)
 		      .join(r1)
 		      .where("r1.f1".a === "r2.f2".a).toPiql
+		
+		val mergeSortJoinQuery = r2.where("f1".a === 1)
+					.limit(5)
+					.join(r2Prime)
+					.where("r2.f2".a === "r2Prime.f1".a)
+					.sort("r2a.f2".a :: Nil)
+					.limit(10).toPiql
+				    
+		
 
     /* Run some queries */
-    (1 to 300000).foreach(i => {
+    //(1 to 300000).foreach(i => {
+		(1 to 10).foreach(i => {
+			/*
       fileSink.recordEvent(QueryEvent("getQuery" + i, true))
       getQuery()
       fileSink.recordEvent(QueryEvent("getQuery" + i, false))
+			*/
 
+			/*
       fileSink.recordEvent(QueryEvent("getRangeQuery" + i, true))
       getRangeQuery()
       fileSink.recordEvent(QueryEvent("getRangeQuery" + i, false))
+			*/
 
+			/*
       fileSink.recordEvent(QueryEvent("joinQuery" + i, true))
       joinQuery()
       fileSink.recordEvent(QueryEvent("joinQuery" + i, false))
+			*/
+			
+      fileSink.recordEvent(QueryEvent("mergeSortJoinQuery" + i, true))
+			mergeSortJoinQuery()
+      fileSink.recordEvent(QueryEvent("mergeSortJoinQuery" + i, false))
     })
 
     //Flush trace messages to the file
