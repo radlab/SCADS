@@ -77,11 +77,9 @@ object TracingExample {
 					.limit(5)
 					.join(r2Prime)
 					.where("r2.f2".a === "r2Prime.f1".a)
-					.sort("r2a.f2".a :: Nil)
+					.sort("r2Prime.f2".a :: Nil)
 					.limit(10).toPiql
 				    
-		
-
     /* Run some queries */
     //(1 to 300000).foreach(i => {
 		(1 to 10).foreach(i => {
