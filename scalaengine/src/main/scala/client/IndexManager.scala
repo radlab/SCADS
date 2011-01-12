@@ -39,7 +39,7 @@ trait IndexManager[PairType <: AvroPair] {
   protected var indexCatalogue: ZooKeeperProxy#ZooKeeperNode = _ 
 
   onLoad {
-    indexCatalogue = nsRoot("indexes")
+    indexCatalogue = nsRoot.getOrCreate("indexes")
     updateCache()
   }
 
