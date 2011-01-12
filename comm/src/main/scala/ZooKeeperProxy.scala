@@ -116,7 +116,7 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watc
       def process(evt: WatchedEvent) { f(evt) }
     }
 
-    @inline private def childrenMap = 
+    private def childrenMap =
       getChildrenMap(None) 
 
     @inline private def getChildrenMap(watcher: Option[WatchedEvent => Unit]): Map[String, ZooKeeperNode] =
