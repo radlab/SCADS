@@ -242,7 +242,7 @@ trait MethodGen extends ScalaAvroPluginComponent
 
       def newPairGenericRecord(fieldName: String, offset: Int, schemaTree: Tree): List[Tree] = {
         val implSym = clazz.newMethod(clazz.pos.focus, newTermName(fieldNameAsGetter(fieldName)))
-        implSym setFlag (PROTECTED | METHOD)
+        implSym setFlag (PROTECTED | METHOD | OVERRIDE)
         implSym setInfo MethodType(implSym.newSyntheticValueParams(Nil), GenericRecordClass.tpe)
         clazz.info.decls enter implSym
 
