@@ -607,7 +607,7 @@ class LazyExecutor extends SimpleExecutor {
           if (!hasNext)
             throw new ju.NoSuchElementException("Next on empty iterator")
           accessed = true
-          ArrayBuffer(boundKey, result.get)
+          ArrayBuffer(result.get)
         }
       }
     }
@@ -695,7 +695,7 @@ class LazyExecutor extends SimpleExecutor {
             val value = namespace.get(boundKey)
 
             if(value.isDefined) {
-              nextTuple = childTuple ++ Array[Record](boundKey, value.get)
+              nextTuple = childTuple ++ Array[Record](value.get)
               return
             }
           }
