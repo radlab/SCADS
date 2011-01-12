@@ -55,7 +55,7 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
 
   val thoughtstream = (
     subscriptions.where("subscriptions.owner".a === (0.?))
-		 .limit(5000)
+		 .dataLimit(5000)
 		 .join(thoughts)
 		 .where("thoughts.owner".a === "subscriptions.target".a)
 		 .sort("thoughts.timestamp".a :: Nil, false)
