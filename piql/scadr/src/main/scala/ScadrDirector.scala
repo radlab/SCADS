@@ -6,7 +6,7 @@ import net.lag.logging.Logger
 object ScadrDirectorTest {
   org.apache.log4j.Logger.getRootLogger.setLevel(org.apache.log4j.Level.WARN)
   var sched:ScadsServerScheduler = null
-  val namespaces = List("user","thought","subscription")
+  val namespaces = List("users","thoughts","subscriptions")
 
   /**
   * Start a cluster with one storage engine per namespace using mesos slaves
@@ -54,5 +54,9 @@ object ScadrDirectorTest {
 		val directors = namespaceStrings.map(ns => Director(1,ns,sched))
 		directors.foreach(_.run( ZooKeeperNode(zoopath) ))
 		directors
+	}
+	
+	def clearNamespaces():Unit = {
+	  Director.cluster.root("namespaces").deleteRecursive
 	}
 }
