@@ -44,7 +44,7 @@ class ScadsServerScheduler protected (name: String, mesosMaster: String, zookeep
 
 	def serverProcess(name:Option[String]):JvmMainTask = { 
 		val args = name match {case None => "--clusterAddress" :: zookeeperCanonical :: Nil; case Some(s) => "--clusterAddress" :: zookeeperCanonical :: "--name" :: s :: "--dbDir" :: "/mnt/"+s :: Nil}
-		JvmMainTask(List(S3CachedJar("http://scads.s3.amazonaws.com/demo/storage.jar")),
+		JvmMainTask(List(/*ServerSideJar("/mnt/storage.jar")*/S3CachedJar("http://s3.amazonaws.com/deploylibCache-trush/6984fcf1165f144b28be16b25af1a793")),
 		"edu.berkeley.cs.scads.storage.ScalaEngine",args)
 	}
 
