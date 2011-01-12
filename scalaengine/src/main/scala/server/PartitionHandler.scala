@@ -138,7 +138,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           })
 					var reccount = 0
 					iterateOverRange(minKey, maxKey)((_,_,_) => reccount += 1)
-					if (samplerRandom.nextDouble <= getSamplingRate) incrementGetCount(reccount)
+					if (samplerRandom.nextDouble <= getSamplingRate) incrementGetCount(1/*reccount*/)
           reply(GetRangeResponse(records))
         }
         case BatchRequest(ranges) => {
