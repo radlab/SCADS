@@ -63,50 +63,6 @@ object GetElapsedTimeForQueryEvents {
 		}
   }
 
-	def processQueryOrIteratorStartEvent(event:String):Tuple2[String, String] = {
-		(getEventId(event) -> getEventTimestamp(event))
-	}
-	
-	def processQueryOrIteratorEndEvent(event:String, eventMap:Map[String, String]) = {
-		val eventBeginning = eventMap(getEventId(event)).toLong
-		val eventElapsedTime = getEventTimestamp(event).toLong - eventBeginning
-		println(eventBeginning + "," + getEventThread(event) + "," + getEventType(event) + "," + getEventId(event) + "," + eventElapsedTime)
-	}
-	
-	def getEventId(event:String):String = {
-		event.split(",")(3)
-	}
-	
-	def getEventTimestamp(event:String):String = {
-		event.split(",")(0)
-	}
-	
-	def getEventThread(event:String):String = {
-		event.split(",")(1)
-	}
-	
-	def getEventType(event:String):String = {
-		event.split(",")(2)
-	}
-	
-	def processMessageStartEvent(event:String):Tuple2[String, String] = {
-		(getMessageEventId(event, "Request") -> getEventTimestamp(event))
-	}
-	
-	def processMessageEndEvent(event:String, eventMap:Map[String, String]) = {
-		val messageEventId = getMessageEventId(event, "Response")
-		val eventBeginning = eventMap(messageEventId).toLong
-		val eventElapsedTime = getEventTimestamp(event).toLong - eventBeginning
-		println(eventBeginning + "," + getEventThread(event) + "," + getEventType(event) + "," + messageEventId + "," + eventElapsedTime)
-	}
-	
-	def getMessageEventId(event:String, messageStatus:String):String = {
-		val eventEntries = event.split(",")
-		val messageType = getMessageType(eventEntries(3), messageStatus)
-		val messageTransitInfo = getMessageTransitInfo(eventEntries(4), eventEntries(5), messageStatus)
-		messageType + ":" + messageTransitInfo
-	}
-	
 	def messageNameWithTransitInfo(msg:Message):String = {
 		// get message name
 		val messageStatus = getMessageStatus(msg)
