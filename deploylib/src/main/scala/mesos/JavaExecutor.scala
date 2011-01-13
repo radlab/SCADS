@@ -66,6 +66,11 @@ class JavaExecutor extends Executor {
     val connector = new SelectChannelConnector()
     connector.setPort(Integer.getInteger("jetty.port", 8080).intValue())
     server.setConnectors(Array[Connector](connector))
+    val pool = new org.mortbay.thread.QueuedThreadPool
+    logger.warning("Setting max thread pool size")
+    pool.setMaxThreads(10)
+    server.setThreadPool(pool)
+    logger.warning("max pool size: %d",server.getThreadPool match {case p:org.mortbay.thread.QueuedThreadPool => p.getMaxThreads; case _ => -1})
 
     /* Create context for webapp and wrap it with stats handler */
     val statsWebApp = new StatisticsHandler()
