@@ -61,7 +61,7 @@ class JavaExecutor extends Executor {
     def kill: Unit
   }
 
-  class JettyApp(val warFile: File) extends RunningTask {
+  class JettyApp(val warFile: File, taskId: Int, driver: ExecutorDriver) extends RunningTask {
     val server = new Server()
     val connector = new SelectChannelConnector()
     connector.setPort(Integer.getInteger("jetty.port", 8080).intValue())
@@ -115,6 +115,7 @@ class JavaExecutor extends Executor {
     server.setHandlers(Array(statsContext, statsWebApp))
 
     server.start()
+    driver.sendStatusUpdate(new TaskStatus(taskId, TaskState.TASK_RUNNING, "".getBytes))
 
     def kill = {
       running = false
@@ -210,7 +211,7 @@ class JavaExecutor extends Executor {
     logger.info("Starting task" + taskId)
     val runningTask = JvmTask(taskDesc.getArg()) match {
       case JvmMainTask(classpath, mainclass, args, props) => new ForkedJvm(taskId, taskDesc.getParams().get("mem").toInt, loadClasspath(classpath), mainclass, args, props, d)
-      case JvmWebAppTask(warFile) => new JettyApp(resolveClassSource(warFile))
+      case JvmWebAppTask(warFile) => new JettyApp(resolveClassSource(warFile), taskId, d)
     }
 
     runningTasks += ((taskId, runningTask))
