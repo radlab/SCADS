@@ -45,7 +45,7 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watc
   @volatile protected var conn = newConenction()
 
   def newConenction(): ZooKeeper = {
-    logger.info("Opening Zookeeper Connection to %s with timeout %d", address, timeout)
+    logger.info("[%s] Opening Zookeeper Connection to %s with timeout %d",Thread.currentThread.getName, address, timeout)
     new ZooKeeper(address, timeout, this)
   }
 
@@ -261,9 +261,11 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watc
   def process(event: WatchedEvent): Unit = {
     if(event.getType == EventType.None)
       event.getState match {
-        case KeeperState.SyncConnected =>
-        case KeeperState.Expired | KeeperState.Disconnected => {
-          logger.warning("Connection to Zookeeper at %s Expired.  Attempting to reconnect", address)
+        case KeeperState.SyncConnected => logger.info("[%s] Connected to Zookeeper at %s",Thread.currentThread.getName,address)
+        case KeeperState.Disconnected => logger.warning("[%s] Connection to Zookeeper at %s Disconnected (%s).",Thread.currentThread.getName,address, event.getState.toString) 
+        case KeeperState.Expired => {
+          logger.warning("[%s] Connection to Zookeeper at %s Expired (%s).  Attempting to reconnect", Thread.currentThread.getName, address, event.getState.toString)
+          try { conn.close() } catch {case e => logger.error("couldn't close zoo connection: %s",e)}
           conn = newConenction()
         }
       }
