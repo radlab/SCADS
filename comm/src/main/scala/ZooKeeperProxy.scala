@@ -14,9 +14,17 @@ object RClusterZoo extends ZooKeeperProxy((1 to 3).map(i => "zoo%d.millennium.be
 
 object ZooKeeperNode {
   val uriRegEx = """zk://([^/]*)/(.*)""".r
+  val clientConnections = new scala.collection.mutable.HashMap[String,ZooKeeperProxy]()
+
+  def getConnection(uri:String):ZooKeeperProxy = {
+    synchronized {
+      clientConnections.getOrElseUpdate(uri,new ZooKeeperProxy(uri))
+    }
+  }
+
   def apply(uri: String): ZooKeeperProxy#ZooKeeperNode = uri match {
-    case uriRegEx(address, "") => new ZooKeeperProxy(address).root
-    case uriRegEx(address, path) => new ZooKeeperProxy(address).root.getOrCreate(path)
+    case uriRegEx(address, "") => getConnection(address).root
+    case uriRegEx(address, path) => getConnection(address).root.getOrCreate(path)
     case _ => throw new RuntimeException("Invalid ZooKeeper URI: " + uri)
   }
 }
