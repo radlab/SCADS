@@ -80,7 +80,8 @@ case class JvmWebAppTask(var warFile: ClassSource) extends AvroRecord with JvmTa
 case class JvmMainTask(var classpath: Seq[ClassSource], var mainclass: String, var args: Seq[String], var props: Map[String, String] = Map.empty) extends AvroRecord with JvmTask
 
 sealed trait ExperimentOperation extends MessageBody
-case class RunExperiment(var processes: List[JvmTask]) extends AvroRecord with ExperimentOperation
+case class RunExperimentRequest(var processes: List[JvmTask]) extends AvroRecord with ExperimentOperation
+case class RunExperimentResponse() extends AvroRecord with ExperimentOperation
 
 /* Test Record Types.  Note: they are here due to problems with the typer (i.e. generated methods aren't visable in the same compilation cycle */
 case class IntRec(var f1: Int) extends AvroRecord

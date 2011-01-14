@@ -11,7 +11,7 @@ class RemoteServiceScheduler extends ExperimentScheduler with MessageReceiver {
   implicit val returnAddress = MessageHandler.registerService(this)
 
   def scheduleExperiment(processes: Seq[JvmTask]): Unit = {
-    remoteService ! RunExperiment(processes.toList)
+    remoteService ! RunExperimentRequest(processes.toList)
   }
 
   def receiveMessage(src: Option[RemoteActorProxy], msg: MessageBody): Unit = {
@@ -24,6 +24,9 @@ class ServiceScheduler(mesosMaster: String, executor: String) extends LocalExper
   def shutdown: Unit = null
 
   def process(src: Option[RemoteActorProxy], msg: ExperimentOperation) = msg match {
-    case RunExperiment(processes) => scheduleExperiment(processes)
+    case RunExperimentRequest(processes) => {
+      scheduleExperiment(processes)
+      src.foreach(_ ! RunExperimentResponse())
+    }
   }
 }
