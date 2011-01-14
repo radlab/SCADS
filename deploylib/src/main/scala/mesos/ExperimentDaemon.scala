@@ -25,6 +25,7 @@ class ServiceScheduler(mesosMaster: String, executor: String) extends LocalExper
 
   def process(src: Option[RemoteActorProxy], msg: ExperimentOperation) = msg match {
     case RunExperimentRequest(processes) => {
+      logger.info("Processing Requst to run %s", processes)
       scheduleExperiment(processes)
       src.foreach(_ ! RunExperimentResponse())
     }
