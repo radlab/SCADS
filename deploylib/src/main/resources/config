@@ -1,0 +1,4 @@
+javaexecutor {
+  jarcache = "/mnt/"
+  workdir = "/mnt/"
+}

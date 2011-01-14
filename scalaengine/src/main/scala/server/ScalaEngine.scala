@@ -12,7 +12,7 @@ import net.lag.logging.Logger
  */
 object ScalaEngine extends optional.Application {
   private val logger = Logger()
-  def main(clusterAddress: Option[String], dbDir: Option[java.io.File], cachePercentage: Option[Int], verbose: Boolean) : StorageHandler = {
+  def main(clusterAddress: Option[String], dbDir: Option[java.io.File], cachePercentage: Option[Int], verbose: Boolean, name: Option[String] = None) : StorageHandler = {
     if(verbose)
       org.apache.log4j.BasicConfigurator.configure()
 
@@ -30,6 +30,6 @@ object ScalaEngine extends optional.Application {
 
     logger.info("Opening BDB Environment: " + dir + ", " + config)
     val env = new Environment(dir, config)
-    return new StorageHandler(env, zooRoot)
+    return new StorageHandler(env, zooRoot,name)
   }
 }

@@ -402,6 +402,7 @@ class GenericNamespace(namespace: String,
                       (implicit  override  val cluster : ScadsCluster)
     extends Namespace[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)] (namespace, timeout, root)
     with    RangeRouting[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)] 
+    with    WorkloadStatsProtocol[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)]
     with    SimpleMetaData[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)]
     with    QuorumProtocol[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)]
     with    AvroSerializing[GenericRecord, GenericRecord, GenericRecord, (GenericRecord, GenericRecord)] {

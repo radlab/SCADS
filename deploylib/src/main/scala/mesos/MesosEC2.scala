@@ -4,6 +4,8 @@ package mesos
 import ec2._
 import config._
 
+import edu.berkeley.cs.scads.comm._
+
 import java.io.File
 import java.net.InetAddress
 
@@ -73,7 +75,7 @@ object MesosEC2 extends ConfigurationActions {
       userData)
   }
 
-  def updateConf:Unit = {
+  def updateConf: Unit = {
     val conf = ("work_dir=/mnt" ::
       "log_dir=/mnt" ::
       "switch_user=0" ::
@@ -82,4 +84,17 @@ object MesosEC2 extends ConfigurationActions {
     slaves.pforeach(_.createFile(conffile,conf))
   }
 
+  def classSource: Seq[ClassSource] =
+    pushJars.map(_.getName)
+	    .map(S3Cache.hashToUrl)
+	    .map(new S3CachedJar(_))
+
+  //TODO: S3 Upload Only
+  def pushJars: Seq[String] = {
+    val jarFile = new File("allJars")
+    val jars = Util.readFile(jarFile).split("\n").map(new File(_))
+
+    logger.info("Starting Jar upload")
+    jars.map(S3Cache.getCacheUrl)
+  }
 }

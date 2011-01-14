@@ -61,11 +61,16 @@ class JavaExecutor extends Executor {
     def kill: Unit
   }
 
-  class JettyApp(val warFile: File) extends RunningTask {
+  class JettyApp(val taskId: Int, val warFile: File, driver: ExecutorDriver) extends RunningTask {
     val server = new Server()
     val connector = new SelectChannelConnector()
     connector.setPort(Integer.getInteger("jetty.port", 8080).intValue())
     server.setConnectors(Array[Connector](connector))
+    val pool = new org.mortbay.thread.QueuedThreadPool
+    logger.warning("Setting max thread pool size")
+    pool.setMaxThreads(10)
+    server.setThreadPool(pool)
+    logger.warning("max pool size: %d",server.getThreadPool match {case p:org.mortbay.thread.QueuedThreadPool => p.getMaxThreads; case _ => -1})
 
     /* Create context for webapp and wrap it with stats handler */
     val statsWebApp = new StatisticsHandler()
@@ -80,15 +85,15 @@ class JavaExecutor extends Executor {
       var lastTime = System.currentTimeMillis()
       var lastCount = 0
       override def run(): Unit = {
-	while(running) {
-	  Thread.sleep(5000)
-	  val currentTime = System.currentTimeMillis()
-	  val currentCount = statsWebApp.getRequests()
-	  requestsPerSec = (currentCount - lastCount) / ((currentTime - lastTime) / 1000)
-	  logger.debug("Updating statistics at %d %d: %f", currentTime, currentCount, requestsPerSec)
-	  lastTime = currentTime
-	  lastCount = currentCount
-	}
+        while(running) {
+          Thread.sleep(5000)
+          val currentTime = System.currentTimeMillis()
+          val currentCount = statsWebApp.getRequests()
+          requestsPerSec = (currentCount - lastCount) / ((currentTime - lastTime) / 1000)
+          logger.debug("Updating statistics at %d %d: %f", currentTime, currentCount, requestsPerSec)
+          lastTime = currentTime
+          lastCount = currentCount
+        }
       }
     }
     statsThread.start()
@@ -96,9 +101,9 @@ class JavaExecutor extends Executor {
     /* Create a special context that reports /stats over http */
     val statsHandler = new AbstractHandler() {
       def handle(target: String, request: HttpServletRequest, response: HttpServletResponse, dispatch: Int): Unit = {
-	response.setContentType("text/html")
+        response.setContentType("text/html")
         response.setStatus(HttpServletResponse.SC_OK)
-        response.getWriter().println(<ul><li>Requests/Sec: {requestsPerSec}</li><li>Requests Total: {statsWebApp.getRequests()}</li></ul>.toString)
+        response.getWriter().println(<status><RequestRate>{requestsPerSec}</RequestRate><RequestsTotal>{statsWebApp.getRequests()}</RequestsTotal></status>.toString)
         request.asInstanceOf[Request].setHandled(true)
       }
     }
@@ -111,6 +116,12 @@ class JavaExecutor extends Executor {
 
     server.start()
 
+    while(!server.isRunning()) {
+      logger.info("Waiting for server to report isRunning == true")
+      Thread.sleep(1000)
+    }
+    driver.sendStatusUpdate(new TaskStatus(taskId, TaskState.TASK_RUNNING, new Array[Byte](0)))
+
     def kill = {
       running = false
       server.stop()
@@ -118,7 +129,7 @@ class JavaExecutor extends Executor {
   }
 
   class ForkedJvm(val taskId: Int, val heapSize: Int, val classpath: String, val mainClass: String, val args: Seq[String], val properties: Map[String, String], driver: ExecutorDriver) extends RunningTask with Runnable {
-    val logger = Logger()
+     val logger = Logger()
     logger.debug("Requested memory: " + heapSize)
     val cmdLine = List[String]("/usr/bin/java",
       "-server",
@@ -126,6 +137,7 @@ class JavaExecutor extends Executor {
       "-Xms" + heapSize + "M",
       "-XX:+HeapDumpOnOutOfMemoryError",
       "-XX:+UseConcMarkSweepGC",
+      "-Djava.library.path=" + new File(System.getenv("MESOS_HOME"), "lib/java"),
       properties.map(kv => "-D%s=%s".format(kv._1, kv._2)).mkString(" "),
       "-cp", classpath,
       mainClass) ++ args
@@ -205,7 +217,7 @@ class JavaExecutor extends Executor {
     logger.info("Starting task" + taskId)
     val runningTask = JvmTask(taskDesc.getArg()) match {
       case JvmMainTask(classpath, mainclass, args, props) => new ForkedJvm(taskId, taskDesc.getParams().get("mem").toInt, loadClasspath(classpath), mainclass, args, props, d)
-      case JvmWebAppTask(warFile) => new JettyApp(resolveClassSource(warFile))
+      case JvmWebAppTask(warFile) => new JettyApp(taskId, resolveClassSource(warFile), d)
     }
 
     runningTasks += ((taskId, runningTask))

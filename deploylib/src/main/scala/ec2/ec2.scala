@@ -141,6 +141,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
   val runitBinaryPath: File = new File("/usr/bin")
   val javaCmd: File = new File("/usr/bin/java")
   override val privateKey = if (System.getenv("AWS_KEY_PATH") != null) new File(System.getenv("AWS_KEY_PATH")) else super.findPrivateKey
+  val fileCache: File = new File(rootDirectory, "deploylibFileCache")
 
   def fixHostname: Unit =
     this ! ("hostname " + privateDnsName)
@@ -184,15 +185,14 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
    * TODO: Integrate w/ sbt
    */
   def pushJars: Unit = {
-    val jarDir = new File("/root/jars")
     val jarFile = new File("allJars")
-    val jars = Util.readFile(jarFile).split("\n").map(new File(_))
-    this ! ("mkdir -p " + jarDir)
+    val (deploylibJar, otherJars) = Util.readFile(jarFile).split("\n").map(new File(_)).partition(_.getName contains "deploylib")
+    val jars = deploylibJar ++ otherJars
+
     logger.info("Starting Jar upload")
-    jars.foreach(j => upload(j, jarDir))
+    val cachedJars = jars.map(cacheFile)
 
     logger.info("Creating classSource file")
-    val remoteJars = jars.map(_.getName).map(new File(jarDir, _))
     val s3Jars = jars.map(f => S3CachedJar(S3Cache.getCacheUrl(f))).toSeq
     val s3JarsCode = s3Jars.map(j => """S3CachedJar("%s")""".format(j.url)).toList.toString
     val setup =  "import edu.berkeley.cs.scads.comm._" ::
@@ -206,7 +206,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     logger.info("Creating scripts")
     val headers = "#!/bin/bash" ::
       "JAVA=/usr/bin/java" ::
-      "CLASSPATH=\"-cp " + remoteJars.mkString(":") + "\"" ::
+      "CLASSPATH=\"-cp " + cachedJars.mkString(":") + "\"" ::
       "MESOS=-Djava.library.path=/usr/local/mesos/lib/java" :: Nil
 
     /* Create shell scripts */
@@ -265,6 +265,24 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
       logger.debug("Getting file from cache: " + url)
       this ! ("wget -O " + remoteFile + " " + url)
     }
+  }
+
+  /**
+   * Caches this file on the instance (keyed by the hash of the file contents)
+   */
+  def cacheFile(localFile: File): File = {
+    val url = new java.net.URL(S3Cache.getCacheUrl(localFile))
+    val hash = new File(url.getFile).getName
+
+    /* Make sure the file cache dir exists */
+    this ! "mkdir -p " + fileCache
+
+    /* If the file doesn't exist already... upload it */
+    if(! ls(fileCache).map(_.name).contains(hash)) {
+      this ! "wget -O %s %s".format(new File(fileCache, hash), url)
+    }
+
+    new File(fileCache, hash)
   }
 
   override def equals(other: Any): Boolean = other match {

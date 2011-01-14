@@ -9,5 +9,8 @@ echo "Unpacking all jars"
 for i in `cat ../allJars`; do jar xvf $i; done
 cd ..
 
+echo "replacing log4j properties"
+cp deploylib/src/main/resources/log4j.properties assembly/
+
 echo "repackaging uberjar"
 jar cvf scads.jar -C assembly/ /

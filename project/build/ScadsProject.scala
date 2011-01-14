@@ -38,6 +38,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
     val commonsHttpClient = "commons-httpclient" % "commons-httpclient" % "3.0.1"
     val jets3t = "net.java.dev.jets3t" % "jets3t" % "0.7.1"
     val jetty = "org.mortbay.jetty" % "jetty" % "6.1.6"
+    val mysql = "mysql" % "mysql-connector-java" % "5.1.12"
   }, comm)
 
   lazy val repl = project("repl", "repl", new DefaultWebProject(_) with AvroCompilerPlugin {
@@ -55,10 +56,13 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
   lazy val piql      = project("piql", "piql", new ScadsSubProject(_), config, avro, comm, scalaengine)
   lazy val modeling    = project("modeling", "modeling", new ScadsSubProject(_), piql, perf)
   lazy val perf      = project("perf", "performance", new ScadsSubProject(_), config, avro, comm, scalaengine, piql, deploylib)
+  lazy val director    = project("director", "director", new ScadsSubProject(_), scalaengine, deploylib)
 
   /* PIQL Apps */
-  lazy val scadr  = project("piql" / "scadr", "scadr", new ScadsSubProject(_), piql)
+  lazy val scadr  = project("piql" / "scadr", "scadr", new ScadsSubProject(_), piql, director)
   lazy val gradit = project("piql" / "gradit", "gradit", new ScadsSubProject(_), piql)
+
+  lazy val demo = project("demo", "demo", new ScadsSubProject(_), piql, director, deploylib)
 
   /* Repository Configuration */
   val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"

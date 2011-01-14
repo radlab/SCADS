@@ -5,16 +5,37 @@ import org.apache.avro.Schema
 import net.lag.logging.Logger
 
 import edu.berkeley.cs.scads.comm._
+import scala.collection.JavaConversions._
+import org.apache.avro.generic._
 
 import java.util.{ Arrays => JArrays }
+
+/**
+* keep track of number of gets and puts
+*/
+case class PartitionWorkloadStats(var gets:Int, var puts:Int)
 
 /**
  * Handles a partition from [startKey, endKey). Refuses to service any
  * requests which fall out of this range, by returning a ProcessingException
  */
 class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, val startKey: Option[Array[Byte]], val endKey: Option[Array[Byte]], val nsRoot: ZooKeeperProxy#ZooKeeperNode, val keySchema: Schema) extends ServiceHandler[PartitionServiceOperation] with AvroComparator {
-  protected val logger = Logger()
+  protected val logger = Logger("partitionhandler")
   implicit def toOption[A](a: A): Option[A] = Option(a)
+
+	// state for maintaining workload stats
+	protected var currentStats = PartitionWorkloadStats(0,0)
+	protected var completedStats = PartitionWorkloadStats(0,0)
+	private var statsClearedTime = System.currentTimeMillis
+	
+	protected val statWindowTime = 20*1000 // ms, how long a window to maintain stats for
+	protected val clearStatWindowsTime = 60*1000 // ms, keep long to keep stats around, in all windows
+	protected var statWindows = (0 until clearStatWindowsTime/statWindowTime)
+		.map {_=>(new java.util.concurrent.atomic.AtomicInteger(),new java.util.concurrent.atomic.AtomicInteger())}.toList // (get,put) for each window
+	private val getSamplingRate = 1.0
+	private val putSamplingRate = 1.0
+	private val samplerRandom = new java.util.Random
+	// end workload stats stuff
 
   protected def startup() { /* No-op */ }
   protected def shutdown() {
@@ -83,7 +104,8 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
       msg match {
         case GetRequest(key) => {
           val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry)
-          db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
+          try { db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED) } catch { case e:com.sleepycat.je.LockTimeoutException => logger.warning("lock timeout during GetRequest") }
+					if (samplerRandom.nextDouble <= getSamplingRate) incrementGetCount(1)
           reply(GetResponse(Option(dbeValue.getData())))
         }
         case PutRequest(key, value) => {
@@ -91,11 +113,14 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
             case Some(v) => db.put(null, new DatabaseEntry(key), new DatabaseEntry(v))
             case None => db.delete(null, new DatabaseEntry(key))
           }
+					if (samplerRandom.nextDouble <= putSamplingRate) incrementPutCount(1)
           reply(PutResponse())
         }
         case BulkPutRequest(records) => {
           val txn = db.getEnvironment.beginTransaction(null, null)
-          records.foreach(rec => db.put(txn, new DatabaseEntry(rec.key), new DatabaseEntry(rec.value.get)))
+					var reccount = 0
+          records.foreach(rec => { db.put(txn, new DatabaseEntry(rec.key), new DatabaseEntry(rec.value.get)); reccount+=1})
+					/*if (samplerRandom.nextDouble <= putSamplingRate) incrementPutCount(reccount)*/
           try {
             txn.commit()
             reply(BulkPutResponse())
@@ -111,6 +136,9 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           iterateOverRange(minKey, maxKey, limit, offset, ascending)((key, value, _) => {
             records += Record(key.getData, value.getData)
           })
+					var reccount = 0
+					iterateOverRange(minKey, maxKey)((_,_,_) => reccount += 1)
+					if (samplerRandom.nextDouble <= getSamplingRate) incrementGetCount(1/*reccount*/)
           reply(GetRangeResponse(records))
         }
         case BatchRequest(ranges) => {
@@ -176,6 +204,10 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
         case GetResponsibilityRequest() => {
           reply(GetResponsibilityResponse(startKey, endKey))
         }
+				case GetWorkloadStats() => {
+					//synchronized { reply(GetWorkloadStatsResponse(statWindows(1)._1.get, statWindows(1)._2.get, statsClearedTime)) }
+					reply(GetWorkloadStatsResponse(completedStats.gets, completedStats.puts, statsClearedTime))
+				}
         case _ => src.foreach(_ ! ProcessingException("Not Implemented", ""))
       }
     } else {
@@ -211,6 +243,40 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
       cursor.delete()
     })
   }
+
+  /**
+  * set the current stats as the last completed interval, used when stats are queried
+  * zero out the current stats to start a new interval
+  * return the old completed interval for archiving
+  */
+  def resetWorkloadStats():PartitionWorkloadStats = {
+    val ret = completedStats
+    completedStats = currentStats
+    statsClearedTime = System.currentTimeMillis()
+    currentStats = PartitionWorkloadStats(0,0)
+    ret
+  }
+  private def incrementGetCount(num:Int) = currentStats.gets += num
+  private def incrementPutCount(num:Int) = currentStats.puts += num
+  /*
+	private def incrementWorkloadStats(num:Int, requestType:String) = {
+		// check if need to advance window and/or clear out old windows
+		synchronized {
+			if (System.currentTimeMillis > statsClearedTime+statWindowTime) {
+				logger.debug("last window gets: %d",statWindows.head._1.get)
+				statWindows = (new java.util.concurrent.atomic.AtomicInteger(),new java.util.concurrent.atomic.AtomicInteger()) +: statWindows.dropRight(1)
+				statsClearedTime = System.currentTimeMillis
+				logger.debug("cleared stats: %s",statsClearedTime.toString)
+			}
+		}
+		// increment count in current window
+		requestType match {
+			case "get" => statWindows.head._1.getAndAdd(num)
+			case "put" => statWindows.head._2.getAndAdd(num)
+			case _ => logger.error("Tried to increment stats count for invalid request type %s", requestType)
+		}
+	}
+	*/
 
   /**
    * Low level method to iterate over a given range on the database. it is up
