@@ -2,6 +2,8 @@ package deploylib
 package mesos
 
 import java.net.URL
+import java.sql.{Connection, DriverManager, ResultSet};
+import java.util.Date
 
 import _root_.mesos._
 import edu.berkeley.cs.scads.comm._
@@ -17,12 +19,21 @@ object WebAppScheduler {
 }
 
 /* serverCapacity is the number of requests per second that a single application server can handle */
-class WebAppScheduler protected (name: String, mesosMaster: String, executor: String, warFile: ClassSource, serverCapacity: Int) extends Scheduler {
+class WebAppScheduler protected (name: String, mesosMaster: String, executor: String, warFile: ClassSource, serverCapacity: Int, enableMysqlLogging: Boolean) extends Scheduler {
   val logger = Logger()
   var driver = new MesosSchedulerDriver(this, mesosMaster)
   val driverThread = new Thread("ExperimentScheduler Mesos Driver Thread") { override def run(): Unit = driver.run() }
   driverThread.start()
 
+  //set up mysql connection for statistics
+  var statement:java.sql.Statement = null
+  if (enableMysqlLogging) {
+    classOf[com.mysql.jdbc.Driver]                                                                                                                                               
+    val conn = DriverManager.getConnection("jdbc:mysql://dev-mini-demosql.cwppbyvyquau.us-east-1.rds.amazonaws.com:3306/radlabmetrics?user=radlab_dev&password=randyAndDavelab") 
+    statement = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE)
+  }
+
+  var runMonitorThread = true
   var numToKill = 0
   var killTimer = 0
   @volatile var targetNumServers = 0
@@ -31,7 +42,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
   val monitorThread = new Thread("StatsThread") {
     val httpClient = new HttpClient()
     override def run() = {
-      while(true) {
+      while(runMonitorThread) {
         Thread.sleep(2000)
 
         // Calculate the average web server request rate
@@ -52,6 +63,12 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
 
         val aggregateReqRate = requestsPerSec.sum
         targetNumServers = math.max(minNumServers,math.ceil(aggregateReqRate / serverCapacity).toInt)
+        if (enableMysqlLogging) {
+          val now = new Date
+          val numResults = statement.executeUpdate("INSERT INTO appReqRate (timestamp, webAppID, aggRequestRate, targetNumServers) VALUES (%d, '%s', %f, %d)".format(now.getTime, name, aggregateReqRate, targetNumServers)) 
+          if (numResults != 1)
+            logger.warning("INSERT sql statment failed.")
+        }
         logger.info("aggregateReqRate is " + aggregateReqRate + ", targetNumServers is " + targetNumServers)
 
         // if necessary, kill backends
@@ -103,5 +120,9 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
     }
   }
 
-  def stopDriver = driver.stop
+  def kill = {
+    driver.stop
+    runMonitorThread = false
+  }
+ 
 }

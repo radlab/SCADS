@@ -38,6 +38,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
     val commonsHttpClient = "commons-httpclient" % "commons-httpclient" % "3.0.1"
     val jets3t = "net.java.dev.jets3t" % "jets3t" % "0.7.1"
     val jetty = "org.mortbay.jetty" % "jetty" % "6.1.6"
+    val mysql = "mysql" % "mysql-connector-java" % "5.1.12"
   }, comm)
 
   lazy val repl = project("repl", "repl", new DefaultWebProject(_) with AvroCompilerPlugin {
