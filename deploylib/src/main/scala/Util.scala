@@ -53,10 +53,34 @@ object Util {
       return System.getProperty("user.name")
   }
 
+
+  protected case class CachedMd5(timestamp: Long, md5: String)
+  protected val md5Cache = new scala.collection.mutable.HashMap[File, CachedMd5]
   /**
    * Calculates and returns the 32 character hex representation of the md5 hash of a local file.
    */
-  def md5(file: File): String = {
+  def md5(file: File): String = synchronized {
+    md5Cache.get(file) match {
+      case Some(CachedMd5(timestamp, md5)) => {
+	if(timestamp == file.lastModified)
+	  md5
+	else {
+	  logger.debug("Recalculating MD5 for changed file %s", file)
+	  val newMd5 = CachedMd5(file.lastModified, calcMd5(file))
+	  md5Cache += ((file, newMd5))
+	  newMd5.md5
+	}
+      }
+      case None => {
+	logger.debug("Recalculating MD5 for changed file %s", file)
+	val newMd5 = CachedMd5(file.lastModified, calcMd5(file))
+	md5Cache += ((file, newMd5))
+	newMd5.md5
+      }
+    }
+  }
+
+  protected def calcMd5(file: File): String = {
     val digest = MessageDigest.getInstance("MD5");
     val buffer = new Array[Byte](1024 * 1024)
     val is = new FileInputStream(file)
