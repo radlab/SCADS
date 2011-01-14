@@ -1,5 +1,6 @@
 package edu.berkeley.cs
 package radlab
+package demo
 
 import scads.comm._
 import deploylib.mesos._
@@ -10,8 +11,7 @@ object DemoConfig {
   def mesosMaster = new String(DemoZooKeeper.root("demo/mesosMaster").data)
 
   def serviceSchedulerNode = DemoZooKeeper.root.getOrCreate("demo/serviceScheduler")
-  //def serviceScheduler = classOf[RemoteActor].newInstance.parse(serviceSchedulerNode.data)
-  def serviceScheduler = RemoteActor("ec2-50-16-98-186.compute-1.amazonaws.com", 9000, ActorNumber(0))
+  def serviceScheduler = classOf[RemoteActor].newInstance.parse(serviceSchedulerNode.data)
 
   def scadrWar = "http://s3.amazonaws.com/deploylibCache-trush/b23b2004470821b434cb71cd6321f69c"
 
@@ -45,16 +45,5 @@ object WebAppScheduler extends optional.Application {
 }
 
 object Demo {
-  import DemoConfig._
 
-  def startScadr: Unit = {
-    serviceScheduler !? RunExperiment(
-      JvmMainTask(MesosEC2.classSource,
-		  "edu.berkeley.cs.radlab.WebAppScheduler",
-		  "--name" :: "SCADr" ::
-		  "--mesosMaster" :: MesosEC2.clusterUrl ::
-		  "--executor" :: javaExecutorPath ::
-		  "--warFile" :: scadrWar :: Nil) :: Nil
-    )
-  }
 }
