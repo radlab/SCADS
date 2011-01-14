@@ -61,6 +61,8 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
   lazy val scadr  = project("piql" / "scadr", "scadr", new ScadsSubProject(_), piql, director)
   lazy val gradit = project("piql" / "gradit", "gradit", new ScadsSubProject(_), piql)
 
+  lazy val demo = project("demo", "demo", new ScadsSubProject(_), piql, director, deploylib)
+
   /* Repository Configuration */
   val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"
   override def managedStyle = ManagedStyle.Maven
