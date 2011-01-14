@@ -145,7 +145,8 @@ class BestFitPolicy(
 	val nHotStandbys:Int,
 	val reads:Int	
 ) extends Policy(workloadPredictor) {
-	val performanceEstimator = ConstantThresholdPerformanceEstimator(1000,getSLA, putSLA, slaQuantile, reads)
+  val workloadThreshold = System.getProperty("workloadThreshold","1000").toInt
+	val performanceEstimator = ConstantThresholdPerformanceEstimator(workloadThreshold,getSLA, putSLA, slaQuantile, reads)
 	//val performanceEstimator = SimplePerformanceEstimator( performanceModel, getSLA, putSLA, slaQuantile, reads )
 	
 	var currentTime:Long = 0L
@@ -184,6 +185,7 @@ class BestFitPolicy(
 	def act(config:ClusterState, actionExecutor:ActionExecutor) {
 		// TODO: grab when this workload information is from
 		currentTime = config.time
+		logger.info("Running BestFitPolicy")
 		
 		// do blocking execution
 		if (actionExecutor.allMovementActionsCompleted/*allActionsCompleted*/) {
