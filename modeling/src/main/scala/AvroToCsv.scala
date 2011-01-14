@@ -29,6 +29,8 @@ object AvroToCsv {
       case ExecutionTrace(timestamp, threadId, QueryEvent(queryName, start)) => List(timestamp, threadId, "query", queryName, convertBooleanToStartOrEnd(start)).mkString(",")
       case ExecutionTrace(timestamp, threadId, IteratorEvent(iteratorName, plan, op, start)) => List(timestamp, threadId, "iterator", iteratorName + ":" + plan + ":" + op, convertBooleanToStartOrEnd(start)).mkString(",")
       case ExecutionTrace(timestamp, threadId, MessageEvent(msg)) => List(timestamp, threadId, "message", msg.body.getSchema.getName, "Src:" + msg.src.get, "Dest:" + msg.dest).mkString(",")
+			case ExecutionTrace(timestamp, threadId, WarmupEvent(warmupLengthInMinutes, start)) => List(timestamp, threadId, "warmup", warmupLengthInMinutes, convertBooleanToStartOrEnd(start)).mkString(",")
+			case ExecutionTrace(timestamp, threadId, ChangeRangeLengthEvent(currentRangeSize)) => List(timestamp, threadId, "changeRangeSize", currentRangeSize).mkString(",")
     }.foreach(println)
 
     System.exit(0)
