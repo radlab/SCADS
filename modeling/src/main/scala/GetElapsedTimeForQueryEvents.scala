@@ -18,6 +18,7 @@ import scala.collection.mutable._
 object GetElapsedTimeForQueryEvents {
   val logger = Logger()
 	val eventMap = HashMap[String, Long]()
+	var doneWithWarmup = false
 
   def main(args: Array[String]): Unit = {
 		if(args.size != 1) {
@@ -31,35 +32,47 @@ object GetElapsedTimeForQueryEvents {
 		println("timestamp,thread,type,id,elapsedTime")
 
 	  inFile.foreach {
+			case ExecutionTrace(_, _, WarmupEvent(_, start)) => {
+				if (!start) {
+					doneWithWarmup = true
+				}
+			}
 	    case ExecutionTrace(timestamp, threadId, QueryEvent(queryName, start)) => {
-				if (start)
-					eventMap += (queryName -> timestamp)
-				else {
-					val eventBeginning = eventMap(queryName)
-					val eventElapsedTime = timestamp - eventBeginning
-					println(List(eventBeginning, threadId, "query", queryName, eventElapsedTime).mkString(","))
+				if (doneWithWarmup) {
+					if (start)
+						eventMap += (queryName -> timestamp)
+					else {
+						val eventBeginning = eventMap(queryName)
+						val eventElapsedTime = timestamp - eventBeginning
+						println(List(eventBeginning, threadId, "query", queryName, eventElapsedTime).mkString(","))
+					}
 				}
 			}
       case ExecutionTrace(timestamp, threadId, IteratorEvent(iteratorName, plan, op, start)) => {
-				if (start)
-					eventMap += (iteratorName -> timestamp)
-				else {
-					val eventBeginning = eventMap(iteratorName)
-					val eventElapsedTime = timestamp - eventBeginning
-					println(List(eventBeginning, threadId, "iterator", iteratorName + ":" + plan + ":" + op, eventElapsedTime).mkString(","))
+				if (doneWithWarmup) {
+					if (start)
+						eventMap += (iteratorName -> timestamp)
+					else {
+						val eventBeginning = eventMap(iteratorName)
+						val eventElapsedTime = timestamp - eventBeginning
+						println(List(eventBeginning, threadId, "iterator", iteratorName + ":" + plan + ":" + op, eventElapsedTime).mkString(","))
+					}
 				}
 			}
       case ExecutionTrace(timestamp, threadId, MessageEvent(msg)) => {
 				//msg.body.getSchema.getName, "Src:" + msg.src.get, "Dest:" + msg.dest
-				val messageName = msg.body.getSchema.getName
-				if (messageName.contains("Request")) {
-					eventMap += (messageNameWithTransitInfo(msg) -> timestamp)
-				} else if (messageName.contains("Response")) {
-					val eventBeginning = eventMap(messageNameWithTransitInfo(msg))
-					val eventElapsedTime = timestamp - eventBeginning
-					println(List(eventBeginning, threadId, "message", messageNameWithTransitInfo(msg), eventElapsedTime).mkString(","))
+				if (doneWithWarmup) {
+					val messageName = msg.body.getSchema.getName
+					if (messageName.contains("Request")) {
+						eventMap += (messageNameWithTransitInfo(msg) -> timestamp)
+					} else if (messageName.contains("Response")) {
+						val eventBeginning = eventMap(messageNameWithTransitInfo(msg))
+						val eventElapsedTime = timestamp - eventBeginning
+						println(List(eventBeginning, threadId, "message", messageNameWithTransitInfo(msg), eventElapsedTime).mkString(","))
+					}
 				}
 			}
+			case _ =>
 		}
   }
 
