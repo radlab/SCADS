@@ -26,12 +26,14 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
   driverThread.start()
 
   //set up mysql connection for statistics
-  var statement:java.sql.Statement = null
+  val statement =
   if (enableMysqlLogging) {
-    classOf[com.mysql.jdbc.Driver]                                                                                                                                               
-    val conn = DriverManager.getConnection("jdbc:mysql://dev-mini-demosql.cwppbyvyquau.us-east-1.rds.amazonaws.com:3306/radlabmetrics?user=radlab_dev&password=randyAndDavelab") 
-    statement = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE)
+    classOf[com.mysql.jdbc.Driver]
+    val conn = DriverManager.getConnection("jdbc:mysql://dev-mini-demosql.cwppbyvyquau.us-east-1.rds.amazonaws.com:3306/radlabmetrics?user=radlab_dev&password=randyAndDavelab")
+    Some(conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE))
   }
+  else
+    None
 
   var runMonitorThread = true
   var numToKill = 0
@@ -65,8 +67,8 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
         targetNumServers = math.max(minNumServers,math.ceil(aggregateReqRate / serverCapacity).toInt)
         if (enableMysqlLogging) {
           val now = new Date
-          val numResults = statement.executeUpdate("INSERT INTO appReqRate (timestamp, webAppID, aggRequestRate, targetNumServers) VALUES (%d, '%s', %f, %d)".format(now.getTime, name, aggregateReqRate, targetNumServers)) 
-          if (numResults != 1)
+          val numResults = statement.map(_.executeUpdate("INSERT INTO appReqRate (timestamp, webAppID, aggRequestRate, targetNumServers) VALUES (%d, '%s', %f, %d)".format(now.getTime, name, aggregateReqRate, targetNumServers))) 
+          if (numResults.getOrElse(0) != 1)
             logger.warning("INSERT sql statment failed.")
         }
         logger.info("aggregateReqRate is " + aggregateReqRate + ", targetNumServers is " + targetNumServers)
