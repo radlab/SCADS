@@ -137,6 +137,7 @@ class JavaExecutor extends Executor {
       "-Xms" + heapSize + "M",
       "-XX:+HeapDumpOnOutOfMemoryError",
       "-XX:+UseConcMarkSweepGC",
+      "-Djava.library.path=" + new File(System.getenv("MESOS_HOME"), "lib/java"),
       properties.map(kv => "-D%s=%s".format(kv._1, kv._2)).mkString(" "),
       "-cp", classpath,
       mainClass) ++ args
