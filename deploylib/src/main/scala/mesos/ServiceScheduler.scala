@@ -53,9 +53,9 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String, exe
         val offer = offers.remove(0)
         val taskParams = Map(List("mem", "cpus").map(k => k -> offer.getParams.get(k)):_*)
         val task = new TaskDescription(taskId, offer.getSlaveId, proc.toString, taskParams, JvmTask(proc))
-        logger.debug("Scheduling task %d: %s", taskId, proc)
+        logger.info("Scheduling task %d: %s", taskId, proc)
         taskIds ::= taskId
-        logger.debug("Assigning task %d to slave %s on %s", taskId, offer.getSlaveId, offer.getHost)
+        logger.info("Assigning task %d to slave %s on %s", taskId, offer.getSlaveId, offer.getHost)
         taskId += 1
         tasks.add(task)
 
