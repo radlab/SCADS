@@ -141,6 +141,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
   val runitBinaryPath: File = new File("/usr/bin")
   val javaCmd: File = new File("/usr/bin/java")
   override val privateKey = if (System.getenv("AWS_KEY_PATH") != null) new File(System.getenv("AWS_KEY_PATH")) else super.findPrivateKey
+  val fileCache: File = new File(rootDirectory, "deploylibFileCache")
 
   def fixHostname: Unit =
     this ! ("hostname " + privateDnsName)
@@ -265,6 +266,24 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
       logger.debug("Getting file from cache: " + url)
       this ! ("wget -O " + remoteFile + " " + url)
     }
+  }
+
+  /**
+   * Caches this file on the instance (keyed by the hash of the file contents)
+   */
+  def cacheFile(localFile: File): File = {
+    val url = new java.net.URL(S3Cache.getCacheUrl(localFile))
+    val hash = new File(url.getFile).getName
+
+    /* Make sure the file cache dir exists */
+    this ! "mkdir -p " + fileCache
+
+    /* If the file doesn't exist already... upload it */
+    if(! ls(fileCache).map(_.name).contains(hash)) {
+      this ! "wget -O %s %s".format(new File(fileCache, hash), url)
+    }
+
+    new File(fileCache, hash)
   }
 
   override def equals(other: Any): Boolean = other match {
