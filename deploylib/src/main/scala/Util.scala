@@ -94,3 +94,20 @@ object Util {
     return ret.toString()
   }
 }
+
+object CachedValue {
+  def apply[A](f: => A) = new CachedValue(f)
+}
+
+class CachedValue[A](f: => A) {
+  private var cachedValue: Option[A] = None
+
+  def apply(): A = synchronized {
+    cachedValue.getOrElse {
+      cachedValue = Some(f)
+      cachedValue.get
+    }
+  }
+
+  def reset: Unit = cachedValue = None
+}
