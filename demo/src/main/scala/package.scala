@@ -10,12 +10,16 @@ package object demo {
     DemoConfig.serviceSchedulerNode.data = RemoteActor(MesosEC2.master.publicDnsName, 9000, ActorNumber(0)).toBytes
   }
 
+  def setMesosMaster: Unit = {
+    DemoZooKeeper.root.getOrCreate("demo/mesosMaster").data = MesosEC2.clusterUrl.getBytes
+  }
+
   def startScadr: Unit = {
     serviceScheduler !? RunExperimentRequest(
       JvmMainTask(MesosEC2.classSource,
-		  "edu.berkeley.cs.radlab.WebAppScheduler",
+		  "edu.berkeley.cs.radlab.demo.WebAppScheduler",
 		  "--name" :: "SCADr" ::
-		  "--mesosMaster" :: MesosEC2.clusterUrl ::
+		  "--mesosMaster" :: mesosMaster ::
 		  "--executor" :: javaExecutorPath ::
 		  "--warFile" :: scadrWar :: Nil) :: Nil
     )
