@@ -186,7 +186,8 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
    */
   def pushJars: Unit = {
     val jarFile = new File("allJars")
-    val jars = Util.readFile(jarFile).split("\n").map(new File(_))
+    val (deploylibJar, otherJars) = Util.readFile(jarFile).split("\n").map(new File(_)).partition(_.getName contains "deploylib")
+    val jars = deploylibJar ++ otherJars
 
     logger.info("Starting Jar upload")
     val cachedJars = jars.map(cacheFile)
