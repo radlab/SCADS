@@ -17,6 +17,8 @@ object S3Cache extends AWSConnection {
   val bucket = s3Service.createBucket(bucketName)
   val md5Cache = new scala.collection.mutable.HashMap[String, String]
 
+  def hashToUrl(fileMd5: String): String = "http://s3.amazonaws.com/" + bucketName + "/" + fileMd5
+
   def getCacheUrl(file: File): String = {
     val fileMd5 = Util.md5(file)
     synchronized {
@@ -35,8 +37,8 @@ object S3Cache extends AWSConnection {
 
             s3Service.putObject(bucket, obj)
           }
-          val url = "http://s3.amazonaws.com/" + bucketName + "/" + fileMd5
-          md5Cache.put(fileMd5, url)
+          val url = hashToUrl(fileMd5)
+	  md5Cache.put(fileMd5, url)
           url
         }
       }
