@@ -185,15 +185,13 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
    * TODO: Integrate w/ sbt
    */
   def pushJars: Unit = {
-    val jarDir = new File("/root/jars")
     val jarFile = new File("allJars")
     val jars = Util.readFile(jarFile).split("\n").map(new File(_))
-    this ! ("mkdir -p " + jarDir)
+
     logger.info("Starting Jar upload")
-    jars.foreach(j => upload(j, jarDir))
+    val cachedJars = jars.map(cacheFile)
 
     logger.info("Creating classSource file")
-    val remoteJars = jars.map(_.getName).map(new File(jarDir, _))
     val s3Jars = jars.map(f => S3CachedJar(S3Cache.getCacheUrl(f))).toSeq
     val s3JarsCode = s3Jars.map(j => """S3CachedJar("%s")""".format(j.url)).toList.toString
     val setup =  "import edu.berkeley.cs.scads.comm._" ::
@@ -207,7 +205,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     logger.info("Creating scripts")
     val headers = "#!/bin/bash" ::
       "JAVA=/usr/bin/java" ::
-      "CLASSPATH=\"-cp " + remoteJars.mkString(":") + "\"" ::
+      "CLASSPATH=\"-cp " + cachedJars.mkString(":") + "\"" ::
       "MESOS=-Djava.library.path=/usr/local/mesos/lib/java" :: Nil
 
     /* Create shell scripts */
