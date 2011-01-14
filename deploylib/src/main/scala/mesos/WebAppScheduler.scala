@@ -19,21 +19,17 @@ object WebAppScheduler {
 }
 
 /* serverCapacity is the number of requests per second that a single application server can handle */
-class WebAppScheduler protected (name: String, mesosMaster: String, executor: String, warFile: ClassSource, serverCapacity: Int, enableMysqlLogging: Boolean) extends Scheduler {
+class WebAppScheduler protected (name: String, mesosMaster: String, executor: String, warFile: ClassSource, serverCapacity: Int, statsServer: Option[String] = None) extends Scheduler {
   val logger = Logger()
   var driver = new MesosSchedulerDriver(this, mesosMaster)
   val driverThread = new Thread("ExperimentScheduler Mesos Driver Thread") { override def run(): Unit = driver.run() }
   driverThread.start()
 
   //set up mysql connection for statistics
-  val statement =
-  if (enableMysqlLogging) {
-    classOf[com.mysql.jdbc.Driver]
-    val conn = DriverManager.getConnection("jdbc:mysql://dev-mini-demosql.cwppbyvyquau.us-east-1.rds.amazonaws.com:3306/radlabmetrics?user=radlab_dev&password=randyAndDavelab")
+  val statement = statsServer.map(connString => {
+    val conn = DriverManager.getConnection(connString)
     Some(conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE))
-  }
-  else
-    None
+  })
 
   var runMonitorThread = true
   var numToKill = 0
@@ -65,12 +61,13 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
 
         val aggregateReqRate = requestsPerSec.sum
         targetNumServers = math.max(minNumServers,math.ceil(aggregateReqRate / serverCapacity).toInt)
-        if (enableMysqlLogging) {
+
+	statement.foreach(s => {
           val now = new Date
-          val numResults = statement.map(_.executeUpdate("INSERT INTO appReqRate (timestamp, webAppID, aggRequestRate, targetNumServers) VALUES (%d, '%s', %f, %d)".format(now.getTime, name, aggregateReqRate, targetNumServers))) 
+          val numResults = s.map(_.executeUpdate("INSERT INTO appReqRate (timestamp, webAppID, aggRequestRate, targetNumServers) VALUES (%d, '%s', %f, %d)".format(now.getTime, name, aggregateReqRate, targetNumServers)))
           if (numResults.getOrElse(0) != 1)
             logger.warning("INSERT sql statment failed.")
-        }
+        })
         logger.info("aggregateReqRate is " + aggregateReqRate + ", targetNumServers is " + targetNumServers)
 
         // if necessary, kill backends
@@ -126,5 +123,5 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
     driver.stop
     runMonitorThread = false
   }
- 
+
 }

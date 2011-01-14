@@ -84,7 +84,7 @@ object MesosEC2 extends ConfigurationActions {
     slaves.pforeach(_.createFile(conffile,conf))
   }
 
-  def classSource: Seq[ClassSource] = 
+  def classSource: Seq[ClassSource] =
     pushJars.map(_.getName)
 	    .map(S3Cache.hashToUrl)
 	    .map(new S3CachedJar(_))
@@ -93,7 +93,7 @@ object MesosEC2 extends ConfigurationActions {
     val jarFile = new File("allJars")
     val jars = Util.readFile(jarFile).split("\n").map(new File(_))
 
-    logger.info("Starting Jar upload")    
+    logger.info("Starting Jar upload")
     jars.map(master.cacheFile)
   }
 }

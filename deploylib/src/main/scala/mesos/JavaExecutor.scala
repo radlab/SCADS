@@ -115,10 +115,10 @@ class JavaExecutor extends Executor {
     server.setHandlers(Array(statsContext, statsWebApp))
 
     server.start()
-   
+
     while(!server.isRunning()) {
       logger.info("Waiting for server to report isRunning == true")
-      Thread.sleep(1000)      
+      Thread.sleep(1000)
     }
     driver.sendStatusUpdate(new TaskStatus(taskId, TaskState.TASK_RUNNING, new Array[Byte](0)))
 

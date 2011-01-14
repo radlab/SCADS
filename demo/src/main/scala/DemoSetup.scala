@@ -14,6 +14,9 @@ object DemoConfig {
   def serviceScheduler = RemoteActor("ec2-50-16-98-186.compute-1.amazonaws.com", 9000, ActorNumber(0))
 
   def scadrWar = "http://s3.amazonaws.com/deploylibCache-trush/b23b2004470821b434cb71cd6321f69c"
+
+  val jdbcDriver = classOf[com.mysql.jdbc.Driver]
+  val dashboardDb = "jdbc:mysql://dev-mini-demosql.cwppbyvyquau.us-east-1.rds.amazonaws.com:3306/radlabmetrics?user=radlab_dev&password=randyAndDavelab"
 }
 
 //TODO: Add other zookeeper
@@ -25,7 +28,7 @@ object ServiceSchedulerDaemon extends optional.Application {
   def main(mesosMaster: Option[String]): Unit = {
     System.loadLibrary("mesos")
     val scheduler = new ServiceScheduler(
-      mesosMaster.getOrElse(DemoConfig.localMesosMasterPid), 
+      mesosMaster.getOrElse(DemoConfig.localMesosMasterPid),
       javaExecutorPath
     )
     serviceSchedulerNode.data = scheduler.remoteHandle.toBytes
@@ -33,9 +36,11 @@ object ServiceSchedulerDaemon extends optional.Application {
 }
 
 object WebAppScheduler extends optional.Application {
+  import DemoConfig._
+
   def main(name: String, mesosMaster: String, executor: String, warFile: String): Unit = {
     System.loadLibrary("mesos")
-    new WebAppScheduler(name, mesosMaster, executor, S3CachedJar(warFile), 1)
+    new WebAppScheduler(name, mesosMaster, executor, S3CachedJar(warFile), 1, Some(dashboardDb))
   }
 }
 
@@ -50,6 +55,6 @@ object Demo {
 		  "--mesosMaster" :: MesosEC2.clusterUrl ::
 		  "--executor" :: javaExecutorPath ::
 		  "--warFile" :: scadrWar :: Nil) :: Nil
-    )		  
+    )
   }
 }
