@@ -89,11 +89,12 @@ object MesosEC2 extends ConfigurationActions {
 	    .map(S3Cache.hashToUrl)
 	    .map(new S3CachedJar(_))
 
-  def pushJars: Seq[File] = {
+  //TODO: S3 Upload Only
+  def pushJars: Seq[String] = {
     val jarFile = new File("allJars")
     val jars = Util.readFile(jarFile).split("\n").map(new File(_))
 
     logger.info("Starting Jar upload")
-    jars.map(master.cacheFile)
+    jars.map(S3Cache.getCacheUrl)
   }
 }
