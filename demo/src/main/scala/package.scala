@@ -21,13 +21,11 @@ package object demo {
   }
 
   def startScadr: Unit = {
-    serviceScheduler !? RunExperimentRequest(
-      JvmMainTask(MesosEC2.classSource,
-		  "edu.berkeley.cs.radlab.demo.WebAppScheduler",
-		  "--name" :: "SCADr" ::
-		  "--mesosMaster" :: mesosMaster ::
-		  "--executor" :: javaExecutorPath ::
-		  "--warFile" :: scadrWar :: Nil) :: Nil
-    )
+    val task = WebAppSchedulerTask(
+	"SCADr",
+	mesosMaster,
+	javaExecutorPath,
+	scadrWar).toJvmTask
+    serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 }

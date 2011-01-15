@@ -12,6 +12,7 @@ import net.lag.logging.Logger
 import org.apache.avro.generic.IndexedRecord
 import org.apache.zookeeper.CreateMode
 
+@deprecated("Use AvroTask Instead")
 abstract trait AvroClient extends IndexedRecord {
   val logger = Logger()
 

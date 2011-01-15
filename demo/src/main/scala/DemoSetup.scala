@@ -2,6 +2,9 @@ package edu.berkeley.cs
 package radlab
 package demo
 
+import avro.marker._
+import avro.runtime._
+
 import scads.comm._
 import deploylib.mesos._
 
@@ -17,6 +20,8 @@ object DemoConfig {
 
   val jdbcDriver = classOf[com.mysql.jdbc.Driver]
   val dashboardDb = "jdbc:mysql://dev-mini-demosql.cwppbyvyquau.us-east-1.rds.amazonaws.com:3306/radlabmetrics?user=radlab_dev&password=randyAndDavelab"
+
+  implicit def classSource = MesosEC2.classSource
 }
 
 //TODO: Add other zookeeper
@@ -35,15 +40,13 @@ object ServiceSchedulerDaemon extends optional.Application {
   }
 }
 
-object WebAppScheduler extends optional.Application {
+
+//TODO: Move to web app scheduler.
+case class WebAppSchedulerTask(var name: String, var mesosMaster: String, var executor: String, var warFile: String) extends AvroTask with AvroRecord {
   import DemoConfig._
 
-  def main(name: String, mesosMaster: String, executor: String, warFile: String): Unit = {
+  def run(): Unit = {
     System.loadLibrary("mesos")
     new WebAppScheduler(name, mesosMaster, executor, S3CachedJar(warFile), 1, Some(dashboardDb))
   }
-}
-
-object Demo {
-
 }
