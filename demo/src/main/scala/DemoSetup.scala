@@ -11,9 +11,15 @@ import deploylib.mesos._
 object DemoConfig {
   val javaExecutorPath = "/usr/local/mesos/frameworks/deploylib/java_executor"
   def localMesosMasterPid = "1@" + java.net.InetAddress.getLocalHost.getHostName + ":5050"
-  def mesosMaster = new String(DemoZooKeeper.root("demo/mesosMaster").data)
 
-  def serviceSchedulerNode = DemoZooKeeper.root.getOrCreate("demo/serviceScheduler")
+  //TODO: Add other ZooKeeper
+  val zooKeeperRoot = ZooKeeperNode("zk://ec2-50-16-2-36.compute-1.amazonaws.com,ec2-174-129-105-138.compute-1.amazonaws.com/demo")
+  def scadrRoot =  zooKeeperRoot.getOrCreate("apps/scadr")
+
+  val mesosMasterNode = zooKeeperRoot.getOrCreate("mesosMaster")
+  def mesosMaster = new String(mesosMasterNode.data)
+
+  def serviceSchedulerNode = zooKeeperRoot.getOrCreate("serviceScheduler")
   def serviceScheduler = classOf[RemoteActor].newInstance.parse(serviceSchedulerNode.data)
 
   def scadrWar = S3CachedJar("http://s3.amazonaws.com/deploylibCache-trush/b23b2004470821b434cb71cd6321f69c")
@@ -23,9 +29,6 @@ object DemoConfig {
 
   implicit def classSource = MesosEC2.classSource
 }
-
-//TODO: Add other zookeeper
-object DemoZooKeeper extends ZooKeeperProxy("ec2-50-16-2-36.compute-1.amazonaws.com,ec2-174-129-105-138.compute-1.amazonaws.com")
 
 object ServiceSchedulerDaemon extends optional.Application {
   import DemoConfig._
