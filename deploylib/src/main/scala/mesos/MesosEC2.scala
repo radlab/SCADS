@@ -98,8 +98,10 @@ object MesosEC2 extends ConfigurationActions {
   def pushJars: Seq[String] = {
     val jarFile = new File("allJars")
     val jars = Util.readFile(jarFile).split("\n").map(new File(_))
+    val (deploylib, otherJars) = jars.partition(_.getName contains "deploylib")
+    val sortedJars = deploylib ++ otherJars
 
     logger.info("Starting Jar upload")
-    jars.map(S3Cache.getCacheUrl)
+    sortedJars.map(S3Cache.getCacheUrl)
   }
 }
