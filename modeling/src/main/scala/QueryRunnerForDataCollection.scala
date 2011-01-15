@@ -53,40 +53,43 @@ object QueryRunnerForDataCollection {
 
     /* Bulk load some test data into the namespaces */
     ns ++= (1 to 10).view.flatMap(i => (1 to 10000).map(j => PrefixedNamespace(i,j)))
+		//ns ++= (1 to 10).view.flatMap(i => (1 to 20).map(j => PrefixedNamespace(i,j)))
 
     /**
      * Write queries against relations and create optimized function using .toPiql
      * toPiql uses implicit executor defined above to run queries
      */
-    val getRangeQuery = ns.where("f1".a === 1)
-			  .limit(10).toPiql
-			// change "10" to "0.?", then pass in limit when call getRangeQuery
+		val rangeSizes = List(10,50,100,500,1000)
+		//val rangeSizes = List(5,10,15)
+		val getRangeQueries = rangeSizes.map(currentRangeSize => ns.where("f1".a === 1).limit(currentRangeSize).toPiql)
 
 		// initialize window
 		beginningOfCurrentWindow = System.nanoTime
 				    
 		// warmup to avoid JITing effects
-		// can I omit the logging?
 		fileSink.recordEvent(WarmupEvent(windowLengthInMinutes, true))
 		while (withinWindow) {
 			(1 to 10).foreach(i => {
 	      fileSink.recordEvent(QueryEvent("getRangeQuery" + i, true))
-	      getRangeQuery()
+	      getRangeQueries(0)()
 	      fileSink.recordEvent(QueryEvent("getRangeQuery" + i, false))
+	
+				Thread.sleep(100)
 	    })
 		}
 		fileSink.recordEvent(WarmupEvent(windowLengthInMinutes, false))
 				
+
     /* Run some queries */
-		val rangeSizes = List(10,100,1000)
-		
-		rangeSizes.foreach(currentRangeSize => {
-			fileSink.recordEvent(ChangeRangeLengthEvent(currentRangeSize))
+		rangeSizes.indices.foreach(r => {
+			fileSink.recordEvent(ChangeRangeLengthEvent(rangeSizes(r)))
 			
-			(1 to 10).foreach(i => {
+			(1 to 1000).foreach(i => {
 	      fileSink.recordEvent(QueryEvent("getRangeQuery" + i, true))
-	      getRangeQuery()
+	      getRangeQueries(r)()
 	      fileSink.recordEvent(QueryEvent("getRangeQuery" + i, false))
+
+				Thread.sleep(100)
 	    })
 		})
 
