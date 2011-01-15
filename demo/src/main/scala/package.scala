@@ -42,4 +42,15 @@ package object demo {
     )
   }
 
+  def startRepTest: Unit = {
+    serviceScheduler !? RunExperimentRequest(
+      JvmMainTask(MesosEC2.classSource,
+		  "edu.berkeley.cs.radlab.demo.RepTestScheduler",
+		  "--name" :: "reptest" ::
+		  "--mesosMaster" :: mesosMaster ::
+		  "--executor" :: javaExecutorPath ::
+		  "--cp" :: MesosEC2.classSource.map(_.url).mkString(":") :: Nil) :: Nil
+    )
+  }
+
 }

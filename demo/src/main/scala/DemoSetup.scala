@@ -59,6 +59,24 @@ object IntKeyScaleScheduler extends optional.Application {
   }
 }
 
+object RepTestScheduler extends optional.Application {
+  import DemoConfig._
+
+  def main(name: String, mesosMaster: String, executor: String, cp: String): Unit = {
+    System.loadLibrary("mesos")
+    implicit val scheduler = LocalExperimentScheduler(name, mesosMaster, executor)
+    implicit val classpath = cp.split(":").map(S3CachedJar(_)).toSeq
+    implicit val zookeeper = DemoZooKeeper.root.getOrCreate("scads/perf") 
+
+    import scads.perf.reptest._
+    val cluster = DataLoader(1, 1000).newCluster
+    RepClient(3).schedule(cluster)
+
+    zookeeper.awaitChild("expFinished")
+    val loadResults = cluster.getNamespace[RepResultKey, RepResultValue]("repResults")
+    loadResults.getRange(None, None).foreach(println)
+  }
+}
 
 object Demo {
 
