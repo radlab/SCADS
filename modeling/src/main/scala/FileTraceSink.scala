@@ -19,7 +19,8 @@ class FileTraceSink(val traceFile: File) {
   protected val outputFile = AvroOutFile[ExecutionTrace](traceFile, CodecFactory.deflateCodec(5))
 
   /* A list of messages that will be written to disk async by a seperate thread */
-  protected val pendingTraceMessages = new ArrayBlockingQueue[ExecutionTrace](1024)
+  //protected val pendingTraceMessages = new ArrayBlockingQueue[ExecutionTrace](1024)
+	protected val pendingTraceMessages = new ArrayBlockingQueue[ExecutionTrace](16384)
   protected val ioThread = new Thread("QueryTraceWriter") {
     override def run(): Unit = {
       while(true) {
