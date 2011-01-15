@@ -86,12 +86,15 @@ object MesosEC2 extends ConfigurationActions {
     slaves.pforeach(_.createFile(conffile,conf))
   }
 
+  //TODO: Doesn't handle non s3 cached jars
   def classSource: Seq[ClassSource] =
-    pushJars.map(_.getName)
-	    .map(S3Cache.hashToUrl)
-	    .map(new S3CachedJar(_))
+    if(System.getProperty("classsource") == null)
+      pushJars.map(_.getName)
+	.map(S3Cache.hashToUrl)
+	.map(new S3CachedJar(_))
+    else
+      System.getProperty("classsource").split(":").map(S3CachedJar(_))
 
-  //TODO: S3 Upload Only
   def pushJars: Seq[String] = {
     val jarFile = new File("allJars")
     val jars = Util.readFile(jarFile).split("\n").map(new File(_))
