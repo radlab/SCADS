@@ -16,7 +16,7 @@ object DemoConfig {
   def serviceSchedulerNode = DemoZooKeeper.root.getOrCreate("demo/serviceScheduler")
   def serviceScheduler = classOf[RemoteActor].newInstance.parse(serviceSchedulerNode.data)
 
-  def scadrWar = "http://s3.amazonaws.com/deploylibCache-trush/b23b2004470821b434cb71cd6321f69c"
+  def scadrWar = S3CachedJar("http://s3.amazonaws.com/deploylibCache-trush/b23b2004470821b434cb71cd6321f69c")
 
   val jdbcDriver = classOf[com.mysql.jdbc.Driver]
   val dashboardDb = "jdbc:mysql://dev-mini-demosql.cwppbyvyquau.us-east-1.rds.amazonaws.com:3306/radlabmetrics?user=radlab_dev&password=randyAndDavelab"
