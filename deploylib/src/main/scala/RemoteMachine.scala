@@ -263,6 +263,22 @@ abstract class RemoteMachine {
   }
 
   /**
+   * Append to file on the remote machine with the given contents
+   * @param file - The desired path of the file. If the given path is relative, the file will be created in the rootDirectory
+   * @param contents - A string to be appended to the file
+   */
+  def appendFile(file: File, contents: String): Unit = {
+    useConnection((c) => {
+      val session = connection.openSession
+      session.execCommand("cat >> " + file)
+      session.getStdin().write(contents.getBytes)
+      session.getStdin().close()
+      session.close()
+    })
+  }
+
+
+  /**
    * Upload a file to the remote machine.  Before peforming the transfer check the md5hash of the local file and any existing file to ensure we don't waste bandwidth.
    */
   def upload(localFile: File, remoteDirectory: File): Unit = {
