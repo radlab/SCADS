@@ -23,3 +23,11 @@ classpath
 lib_managed/
 \#*\#
 .\#*
+allJars
+experiments/director/src/main/scala/querygen/pom.xml
+experiments/director/src/main/scala/querygen/src/main/scala/tester.scala
+experiments/director/src/main/scala/querygen/src/main/scala/workload.scala
+experiments/director/src/main/scala/querygen/workload.scala
+experiments/director/src/main/scala/querygen/workloadDescriptions.scala
+experiments/director/src/main/scala/querygen/workloadElements.scala
+scads.jar
