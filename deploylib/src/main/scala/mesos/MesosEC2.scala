@@ -86,7 +86,7 @@ object MesosEC2 extends ConfigurationActions {
     slaves.pforeach(_.createFile(conffile,conf))
   }
 
-  def classSource: Seq[ClassSource] =
+  def classSource: Seq[S3CachedJar] =
     pushJars.map(_.getName)
 	    .map(S3Cache.hashToUrl)
 	    .map(new S3CachedJar(_))

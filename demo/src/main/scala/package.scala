@@ -30,4 +30,16 @@ package object demo {
 		  "--warFile" :: scadrWar :: Nil) :: Nil
     )
   }
+
+  def startIntKeyTest: Unit = {
+    serviceScheduler !? RunExperimentRequest(
+      JvmMainTask(MesosEC2.classSource,
+		  "edu.berkeley.cs.radlab.demo.IntKeyScaleScheduler",
+		  "--name" :: "intkeyscaletest" ::
+		  "--mesosMaster" :: mesosMaster ::
+		  "--executor" :: javaExecutorPath ::
+		  "--cp" :: MesosEC2.classSource.map(_.url).mkString(":") :: Nil) :: Nil
+    )
+  }
+
 }

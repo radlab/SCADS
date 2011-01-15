@@ -44,6 +44,22 @@ object WebAppScheduler extends optional.Application {
   }
 }
 
+object IntKeyScaleScheduler extends optional.Application {
+  import DemoConfig._
+
+  def main(name: String, mesosMaster: String, executor: String, cp: String): Unit = {
+    System.loadLibrary("mesos")
+    implicit val scheduler = LocalExperimentScheduler(name, mesosMaster, executor)
+    implicit val classpath = cp.split(":").map(S3CachedJar(_)).toSeq
+    implicit val zookeeper = DemoZooKeeper.root.getOrCreate("scads/perf") 
+
+    import scads.perf.intkey._
+    val cluster = DataLoader(1,1).newCluster
+    RandomLoadClient(1, 1).schedule(cluster)
+  }
+}
+
+
 object Demo {
 
 }
