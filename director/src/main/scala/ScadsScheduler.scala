@@ -49,7 +49,7 @@ class ScadsServerScheduler protected (name: String, mesosMaster: String, zookeep
 	}
 
   def addServers(num:Int):Unit = synchronized { (0 until num).toList.foreach(s => serversToAdd.add(serverProcess(None))) }
-  def addServers(servers:List[String]):Unit = synchronized { servers.foreach(s => serversToAdd.add(serverProcess(Some(s)))) }
+  def addServers(servers:Iterable[String]):Unit = synchronized { servers.foreach(s => serversToAdd.add(serverProcess(Some(s)))) }
   def stopDriver = driver.stop
 
   override def getFrameworkName(d: SchedulerDriver): String = "SCADS Service Framework: " + name
