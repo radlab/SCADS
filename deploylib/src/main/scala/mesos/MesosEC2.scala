@@ -104,4 +104,21 @@ object MesosEC2 extends ConfigurationActions {
     logger.info("Starting Jar upload")
     sortedJars.map(S3Cache.getCacheUrl)
   }
+
+  /**
+   * Create a public key on the master if it doesn't exist
+   * Then add that to the authorized key file all of slaves
+   * TODO: Dedup keys
+   */
+  def authorizeMaster: Unit = {
+    val getKeyCommand = "cat /root/.ssh/id_rsa.pub"
+    val key = try (master !? getKeyCommand) catch {
+      case u: UnknownResponse => {
+	master ! "ssh-keygen -t rsa -f /root/.ssh/id_rsa -N \"\""
+	master !? getKeyCommand
+      }
+    }
+
+    slaves.pforeach(_.appendFile(new File("/root/.ssh/authorized_keys"), key))
+  }
 }
