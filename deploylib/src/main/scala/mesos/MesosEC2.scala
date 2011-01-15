@@ -24,7 +24,9 @@ object MesosEC2 extends ConfigurationActions {
 
   val masterTag = "mesosMaster"
   def slaves = EC2Instance.activeInstances.pfilterNot(_.tags contains masterTag)
-  def master = EC2Instance.activeInstances.pfilter(_.tags contains masterTag).head
+
+  def masterCache = CachedValue(EC2Instance.activeInstances.pfilter(_.tags contains masterTag).head)
+  def master = masterCache()
 
   def clusterUrl = "1@" + master.privateDnsName + ":5050"
 
