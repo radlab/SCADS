@@ -13,7 +13,7 @@ object Optimizer {
 
   case class OptimizedSubPlan(physicalPlan: QueryPlan, schema: TupleSchema)
   def apply(logicalPlan: Queryable): OptimizedSubPlan = {
-    logger.info("Begining optimization of plan: %s", logicalPlan)
+    logger.info("Optimizing subplan: %s", logicalPlan)
 
     logicalPlan match {
       case IndexRange(equalityPreds, None, None, Relation(ns)) if (equalityPreds.size == ns.keySchema.getFields.size) => {

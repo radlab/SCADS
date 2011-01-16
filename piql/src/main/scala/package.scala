@@ -55,6 +55,7 @@ package object piql {
 
   implicit def toPiql(logicalPlan: Queryable)(implicit executor: QueryExecutor) = new {
     def toPiql = {
+      logger.info("Begining Optimization of query %s", logicalPlan)
       val physicalPlan = Optimizer(logicalPlan).physicalPlan
       logger.info("Optimized piql query: %s", physicalPlan)
       new OptimizedQuery(physicalPlan, executor)
