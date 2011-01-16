@@ -5,6 +5,8 @@ import org.apache.avro.Schema
 import net.lag.logging.Logger
 
 import edu.berkeley.cs.scads.comm._
+import edu.berkeley.cs.scads.config._
+
 import scala.collection.JavaConversions._
 import org.apache.avro.generic._
 
@@ -21,6 +23,7 @@ case class PartitionWorkloadStats(var gets:Int, var puts:Int)
  */
 class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, val startKey: Option[Array[Byte]], val endKey: Option[Array[Byte]], val nsRoot: ZooKeeperProxy#ZooKeeperNode, val keySchema: Schema) extends ServiceHandler[PartitionServiceOperation] with AvroComparator {
   protected val logger = Logger("partitionhandler")
+  protected val config = Config.config
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
 	// state for maintaining workload stats
@@ -185,9 +188,18 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           val dbeKey = new DatabaseEntry
           val dbeValue = new DatabaseEntry
           logger.debug("Opening iterator for data copy")
-          val iter = new PartitionIterator(src, startKey, endKey)
 
-          logger.debug("Begining copy")
+          val recsPerMessage = config.getInt("scads.storage.copy.recsPerMessage", 8192)
+          val iter = 
+            if (config.getBool("scads.storage.copy.actorless", true)) {
+              logger.info("using ActorlessPartitionIterator with %d recsPerMessage".format(recsPerMessage))
+              new ActorlessPartitionIterator(src, startKey, endKey, recsPerMessage)
+            } else {
+              logger.info("using PartitionIterator with %d recsPerMessage".format(recsPerMessage))
+              new PartitionIterator(src, startKey, endKey, recsPerMessage)
+            }
+
+          logger.debug("Beginning copy")
           var numRec = 0
           iter.foreach(rec => {
             dbeKey.setData(rec.key)
@@ -205,9 +217,13 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
             if (numRec % 10000 == 0)
               logger.info("copied over %d records".format(numRec))
           })
-          logger.debug("Copy complete.  Begining commit")
+
+          logger.info("Finished copying %d records".format(numRec))
+
+          logger.debug("Beginning commit")
           txn.commit()
-          logger.debug("Comit complete")
+          logger.debug("Ending commit")
+
           reply(CopyDataResponse())
         }
         case GetResponsibilityRequest() => {
