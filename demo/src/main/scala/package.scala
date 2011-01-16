@@ -36,6 +36,17 @@ package object demo {
     serviceSchedulerNode.data = RemoteActor(MesosEC2.master.publicDnsName, 9000, ActorNumber(0)).toBytes
   }
 
+  def fixZookeeperServiceScheduler: Unit = {
+    // TODO: hardcoded for simplicity
+    DemoConfig.serviceSchedulerNode.data = RemoteActor("ec2-184-73-0-78.compute-1.amazonaws.com", 9000, ActorNumber(0)).toBytes
+  }
+
+  def safeUrl(cs: S3CachedJar, delim: String = "|"): String = {
+    if (cs.url.contains(delim)) 
+      throw new RuntimeException("delim cannot be used b/c of url: %s".format(cs.url))
+    cs.url
+  }
+
   def startScadr: Unit = {
     val task = WebAppSchedulerTask(
 	"SCADr",
@@ -72,18 +83,19 @@ package object demo {
 		  "--name" :: "intkeyscaletest" ::
 		  "--mesosMaster" :: mesosMaster ::
 		  "--executor" :: javaExecutorPath ::
-		  "--cp" :: MesosEC2.classSource.map(_.url).mkString(":") :: Nil) :: Nil
+		  "--cp" :: MesosEC2.classSource.map(safeUrl(_)).mkString("|") :: Nil) :: Nil
     )
   }
 
-  def startRepTest: Unit = {
+  def startRepTest(numKeys: Int): Unit = {
     serviceScheduler !? RunExperimentRequest(
       JvmMainTask(MesosEC2.classSource,
 		  "edu.berkeley.cs.radlab.demo.RepTestScheduler",
 		  "--name" :: "reptest" ::
 		  "--mesosMaster" :: mesosMaster ::
 		  "--executor" :: javaExecutorPath ::
-		  "--cp" :: MesosEC2.classSource.map(_.url).mkString(":") :: Nil) :: Nil
+		  "--cp" :: MesosEC2.classSource.map(safeUrl(_)).mkString("|") :: 
+      "--numKeys" :: numKeys.toString :: Nil) :: Nil
     )
   }
 

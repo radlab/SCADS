@@ -61,8 +61,8 @@ object IntKeyScaleScheduler extends optional.Application {
   def main(name: String, mesosMaster: String, executor: String, cp: String): Unit = {
     System.loadLibrary("mesos")
     implicit val scheduler = LocalExperimentScheduler(name, mesosMaster, executor)
-    implicit val classpath = cp.split(":").map(S3CachedJar(_)).toSeq
-    implicit val zookeeper = zooKeeperRoot.getOrCreate("scads/perf") 
+    implicit val classpath = cp.split("\\|").map(S3CachedJar(_)).toSeq
+    implicit val zookeeper = DemoZooKeeper.root.getOrCreate("scads/perf") 
 
     import scads.perf.intkey._
     val cluster = DataLoader(1,1).newCluster
@@ -73,18 +73,28 @@ object IntKeyScaleScheduler extends optional.Application {
 object RepTestScheduler extends optional.Application {
   import DemoConfig._
 
-  def main(name: String, mesosMaster: String, executor: String, cp: String): Unit = {
+  def main(name: String, mesosMaster: String, executor: String, cp: String, numKeys: Int): Unit = {
     System.loadLibrary("mesos")
     implicit val scheduler = LocalExperimentScheduler(name, mesosMaster, executor)
-    implicit val classpath = cp.split(":").map(S3CachedJar(_)).toSeq
-    implicit val zookeeper = zooKeeperRoot.getOrCreate("scads/perf") 
+    implicit val classpath = cp.split("\\|").map(S3CachedJar(_)).toSeq
+    implicit val zookeeper = DemoZooKeeper.root.getOrCreate("scads/perf") 
+
+    org.apache.log4j.Logger.getRootLogger.setLevel(org.apache.log4j.Level.INFO)
 
     import scads.perf.reptest._
-    val cluster = DataLoader(1, 1000).newCluster
+
+    val cluster = DataLoader(1, numKeys).newCluster
     RepClient(3).schedule(cluster)
 
-    zookeeper.awaitChild("expFinished")
+    cluster.root.awaitChild("expFinished")
+
+    println("--- Printing results for exp with %d keys ---".format(numKeys))
     val loadResults = cluster.getNamespace[RepResultKey, RepResultValue]("repResults")
-    loadResults.getRange(None, None).foreach(println)
+    println("iteration\telasped time (ms)")
+    loadResults.getRange(None, None).foreach { case (k, v) => 
+      println("%d\t%d".format(k.iteration, v.endTime - v.startTime))
+    }
+
+    //System.exit(0)
   }
 }
