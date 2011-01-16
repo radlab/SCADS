@@ -29,6 +29,8 @@ package object demo {
     MesosEC2.master.createFile(new java.io.File("/root/serviceScheduler"), "#!/bin/bash\n/root/jrun edu.berkeley.cs.radlab.demo.ServiceSchedulerDaemon >> /root/serviceScheduler.log 2>&1")
     MesosEC2.master ! "chmod 755 /root/serviceScheduler"
     MesosEC2.master ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/serviceScheduler.pid --exec /root/serviceScheduler"
+    //HACK
+    Thread.sleep(5000)
     serviceSchedulerNode.data = RemoteActor(MesosEC2.master.publicDnsName, 9000, ActorNumber(0)).toBytes
   }
 
