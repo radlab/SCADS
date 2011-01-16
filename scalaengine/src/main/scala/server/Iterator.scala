@@ -9,13 +9,11 @@ import net.lag.logging.Logger
 
 import edu.berkeley.cs.scads.comm._
 
-class ActorlessPartitionIterator(partitionService: PartitionService, minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], recsPerMessage: Int = 8192) extends Iterator[Record] {
+abstract class FutureBasedIterator(partitionService: PartitionService, minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], recsPerMessage: Int = 8192) extends Iterator[Record] {
   require(recsPerMessage > 0)
 
   private val recsPerMessageDiv2 = recsPerMessage / 2
 
-  private var lastRecvKey: Option[Array[Byte]] = None
-  private var lastSizeReturned = recsPerMessage
   private var isDone = false
 
   private var currentBuffer: IndexedSeq[Record] = Vector.empty
@@ -28,38 +26,78 @@ class ActorlessPartitionIterator(partitionService: PartitionService, minKey: Opt
       throw new UnsupportedOperationException("next on empty iterator")
     val res = currentBuffer(currentIdx)
     currentIdx += 1
-    if (currentIdx >= recsPerMessageDiv2 && (activeFuture eq null))
+    if (currentIdx >= recsPerMessageDiv2 && (activeFuture eq null) && canRequestMore)
       activeFuture = issueNextRequest()
     res
   }
 
-  @inline private def issueNextRequest(): MessageFuture = {
+  protected def issueNextRequest(): MessageFuture
+  protected def canRequestMore: Boolean
+  protected def getRecordsFromFuture(ftch: MessageFuture): IndexedSeq[Record]
+
+  def hasNext: Boolean =
+    if (isDone) false 
+    else if (currentIdx < currentBuffer.size) true
+    else if (activeFuture ne null) {
+      currentBuffer = getRecordsFromFuture(activeFuture)
+      currentIdx = 0
+      activeFuture = null
+      hasNext
+    } else if (canRequestMore) {
+      assert(activeFuture eq null)
+      activeFuture = issueNextRequest()
+      hasNext
+    } else {
+      isDone = true
+      false
+    }
+}
+
+class ActorlessPartitionIterator(partitionService: PartitionService, minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], recsPerMessage: Int = 8192) 
+  extends FutureBasedIterator(partitionService, minKey, maxKey, recsPerMessage) {
+
+  private var lastRecvKey: Option[Array[Byte]] = None
+  private var lastSizeReturned = recsPerMessage
+
+  protected def issueNextRequest(): MessageFuture = {
     // dispatch new request
     val req = 
       lastRecvKey.map(sk => GetRangeRequest(Some(sk), maxKey, limit=Some(recsPerMessage), offset=Some(1))).getOrElse(GetRangeRequest(minKey, maxKey, limit=Some(recsPerMessage)))
     partitionService !! req
   }
 
-  def hasNext: Boolean =
-    if (isDone) false 
-    else if (currentIdx < currentBuffer.size) true
-    else if (lastSizeReturned == recsPerMessage) {
-      if (activeFuture eq null) 
-        activeFuture = issueNextRequest()
-      currentBuffer = activeFuture.get(3 * 60 * 1000).getOrElse(throw new RuntimeException("GetRangeRequest timedout")) match {
-        case GetRangeResponse(recs) => recs.toIndexedSeq
-        case e => throw new RuntimeException("Invalid response to a GetRangeRequest: " + e)
-      }
+  protected def canRequestMore = lastSizeReturned == recsPerMessage
 
-      currentIdx = 0
-      lastSizeReturned = currentBuffer.size
-      lastRecvKey = Some(currentBuffer.last.key)
-      activeFuture = null
+  protected def getRecordsFromFuture(ftch: MessageFuture) =
+    ftch.get(3 * 60 * 1000).getOrElse(throw new RuntimeException("GetRangeRequest timedout")) match {
+      case GetRangeResponse(recs) => 
+        lastSizeReturned = recs.size
+        lastRecvKey = recs.lastOption.map(_.key) 
+        recs.toIndexedSeq
+      case e => throw new RuntimeException("Invalid response to a GetRangeRequest: " + e)
+    }
+}
 
-      hasNext
-    } else {
-      isDone = true
-      false
+class CursorBasedPartitionIterator(partitionService: PartitionService, minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], recsPerMessage: Int = 8192) 
+  extends FutureBasedIterator(partitionService, minKey, maxKey, recsPerMessage) {
+
+  private var cursorId: Option[Int] = None
+  private var isServerDone = false
+
+  protected def issueNextRequest(): MessageFuture = {
+    val rec = CursorScanRequest(cursorId, recsPerMessage)
+    partitionService !! rec
+  }
+
+  protected def canRequestMore = !isServerDone 
+  protected def getRecordsFromFuture(ftch: MessageFuture) =
+    ftch.get(3 * 60 * 1000).getOrElse(throw new RuntimeException("CursorScanRequest timedout")) match {
+      case CursorScanResponse(id, recs) =>
+        cursorId = id
+        isServerDone = id.isEmpty
+        assert(isServerDone || recs.size == recsPerMessage)
+        recs
+      case e => throw new RuntimeException("Invalid response to a CursorScanRequest: " + e)
     }
 }
 

@@ -8,9 +8,12 @@ import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.config._
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable.{ ArrayBuffer, ListBuffer }
 import org.apache.avro.generic._
 
 import java.util.{ Arrays => JArrays }
+import java.util.concurrent._
+import atomic._
 
 /**
 * keep track of number of gets and puts
@@ -24,6 +27,26 @@ case class PartitionWorkloadStats(var gets:Int, var puts:Int)
 class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, val startKey: Option[Array[Byte]], val endKey: Option[Array[Byte]], val nsRoot: ZooKeeperProxy#ZooKeeperNode, val keySchema: Schema) extends ServiceHandler[PartitionServiceOperation] with AvroComparator {
   protected val logger = Logger("partitionhandler")
   protected val config = Config.config
+
+  protected lazy val copyIteratorCtor = 
+    config.getString("scads.storage.copy.iteratorType").flatMap(tpe => tpe.toLowerCase match {
+      case "cursor" => Some((ps: PartitionService, minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]]) =>
+        new CursorBasedPartitionIterator(ps, minKey, maxKey, copyRecsPerMessage))
+      case "actorfree" => Some((ps: PartitionService, minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]]) =>
+        new ActorlessPartitionIterator(ps, minKey, maxKey, copyRecsPerMessage))
+      case "actorbased" => Some((ps: PartitionService, minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]]) =>
+        new PartitionIterator(ps, minKey, maxKey, copyRecsPerMessage))
+      case invalid => 
+        logger.info("copy iterator type %s is invalid", invalid)
+        None
+    }).getOrElse({
+        logger.info("Using standard ActorlessPartitionIterator")
+        (ps: PartitionService, minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]]) =>
+          new ActorlessPartitionIterator(ps, minKey, maxKey, copyRecsPerMessage)
+    })
+
+  protected lazy val copyRecsPerMessage = config.getInt("scads.storage.copy.recsPerMessage", 8192)
+
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
 	// state for maintaining workload stats
@@ -34,15 +57,24 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 	protected val statWindowTime = 20*1000 // ms, how long a window to maintain stats for
 	protected val clearStatWindowsTime = 60*1000 // ms, keep long to keep stats around, in all windows
 	protected var statWindows = (0 until clearStatWindowsTime/statWindowTime)
-		.map {_=>(new java.util.concurrent.atomic.AtomicInteger(),new java.util.concurrent.atomic.AtomicInteger())}.toList // (get,put) for each window
+		.map {_=>(new AtomicInteger,new AtomicInteger)}.toList // (get,put) for each window
 	private val getSamplingRate = 1.0
 	private val putSamplingRate = 1.0
 	private val samplerRandom = new java.util.Random
 	// end workload stats stuff
 
+  private val cursorIdGen = new AtomicInteger
+  private val openCursors = new ConcurrentHashMap[Int, (Cursor, Long, Transaction)]
+
   protected def startup() { /* No-op */ }
   protected def shutdown() {
     partitionIdLock.delete()
+    openCursors.values.foreach { 
+      case (cursor, _, txn) =>
+        cursor.close()
+        txn.commit()
+    }
+    openCursors.clear()
     db.close()
   }
 
@@ -180,6 +212,46 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
             reply(TestSetResponse(false))
           }
         }
+        // TODO: need to implement cursor timeouts
+        case CursorScanRequest(optCursorId, recsPerMessage) => {
+          if (recsPerMessage <= 0) {
+            reply(RequestRejected("Recs per message needs to be > 0: %d".format(recsPerMessage), msg))
+            return
+          }
+
+          //logger.info("CursorScanRequest: %s", msg)
+
+          val (cursorId, cursor, txn) = optCursorId.map(id => {
+            val v = Option(openCursors.get(id)).getOrElse({ 
+              reply(RequestRejected("Invalid cursor Id: %d".format(id), msg))
+              return 
+            })
+            (id, v._1, v._3)
+          }).getOrElse({
+            val id = cursorIdGen.getAndIncrement()
+            val txn = db.getEnvironment.beginTransaction(null, null)
+            val newCursor = db.openCursor(txn, CursorConfig.READ_UNCOMMITTED)
+            initCursor(newCursor)
+            openCursors.put(id, (newCursor, System.currentTimeMillis, txn))
+            logger.info("made new cursor with id %d, txn with id %d", id, txn.getId)
+            (id, newCursor, txn)
+          })
+
+          // update time for existing cursor IDs
+          cursorId.map(id => openCursors.put(id, (cursor, System.currentTimeMillis, txn)))
+
+          val (moreRecs, recs) = advanceCursor(cursor, recsPerMessage)
+          if (!moreRecs) { // done, close this cursor up
+            cursor.close()
+            txn.commit()
+            logger.info("closing cursor %d and commit txn %d", cursorId, txn.getId)
+            openCursors.remove(cursorId)
+          }
+
+          //logger.info("read %d recs, moreRecs = %s", recs.size, moreRecs)
+
+          reply(CursorScanResponse(if (moreRecs) Some(cursorId) else None, recs))
+        }
         case CopyDataRequest(src, overwrite) => {
           logger.info("Begin CopyDataRequest src = " + src + ", overwrite = " + overwrite)
 
@@ -189,15 +261,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           val dbeValue = new DatabaseEntry
           logger.debug("Opening iterator for data copy")
 
-          val recsPerMessage = config.getInt("scads.storage.copy.recsPerMessage", 8192)
-          val iter = 
-            if (config.getBool("scads.storage.copy.actorless", true)) {
-              logger.info("using ActorlessPartitionIterator with %d recsPerMessage".format(recsPerMessage))
-              new ActorlessPartitionIterator(src, startKey, endKey, recsPerMessage)
-            } else {
-              logger.info("using PartitionIterator with %d recsPerMessage".format(recsPerMessage))
-              new PartitionIterator(src, startKey, endKey, recsPerMessage)
-            }
+          val iter = copyIteratorCtor(src, startKey, endKey) 
 
           logger.debug("Beginning copy")
           var numRec = 0
@@ -215,7 +279,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 
             numRec += 1
             if (numRec % 10000 == 0)
-              logger.info("copied over %d records".format(numRec))
+              logger.info("copied %d records so far".format(numRec))
           })
 
           logger.info("Finished copying %d records".format(numRec))
@@ -302,6 +366,29 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 		}
 	}
 	*/
+
+  private def initCursor(cursor: Cursor) = {
+    val dbeKey = new DatabaseEntry
+    val dbeValue = new DatabaseEntry
+    cursor.getFirst(dbeKey, dbeValue, null)
+  }
+
+  /** returns (does the cursor still have more elements?, buffer) */
+  private def advanceCursor(cursor: Cursor, recsPerMessage: Int): (Boolean, IndexedSeq[Record]) = {
+    val dbeKey = new DatabaseEntry
+    val dbeValue = new DatabaseEntry
+    val buf = new ArrayBuffer[Record]
+    var stat = cursor.getCurrent(dbeKey, dbeValue, null)
+    var recs = 0
+    while (stat == OperationStatus.SUCCESS && recs < recsPerMessage) {
+      buf += Record(dbeKey.getData, dbeValue.getData)
+      recs += 1
+      stat = cursor.getNext(dbeKey, dbeValue, null)
+    }
+    val ret = (stat == OperationStatus.SUCCESS, buf.toIndexedSeq)
+    assert(!ret._1 || ret._2.size == recsPerMessage)
+    ret
+  }
 
   /**
    * Low level method to iterate over a given range on the database. it is up
