@@ -2,7 +2,7 @@ package deploylib
 package mesos
 
 import java.net.URL
-import java.sql.{Connection, DriverManager, ResultSet};
+import java.sql.{Connection, DriverManager, ResultSet, SQLException}
 import java.util.Date
 
 import _root_.mesos._
@@ -25,10 +25,15 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
   val driverThread = new Thread("ExperimentScheduler Mesos Driver Thread") { override def run(): Unit = driver.run() }
   driverThread.start()
 
-  //set up mysql connection for statistics
+   //set up mysql connection for statistics
   val statement = statsServer.map(connString => {
-    val conn = DriverManager.getConnection(connString)
-    Some(conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE))
+    try {
+      val conn = DriverManager.getConnection(connString)
+      Some(conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE))
+    } catch {
+      case e: SQLException => logger.warning("Connection to SQL Database failed with connection string %s.".format(connString))
+      None
+    }
   })
 
   var runMonitorThread = true
@@ -62,12 +67,18 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
         val aggregateReqRate = requestsPerSec.sum
         targetNumServers = math.max(minNumServers,math.ceil(aggregateReqRate / serverCapacity).toInt)
 
-	statement.foreach(s => {
+        statement.foreach(s => {
           val now = new Date
-          val numResults = s.map(_.executeUpdate("INSERT INTO appReqRate (timestamp, webAppID, aggRequestRate, targetNumServers) VALUES (%d, '%s', %f, %d)".format(now.getTime, name, aggregateReqRate, targetNumServers)))
-          if (numResults.getOrElse(0) != 1)
-            logger.warning("INSERT sql statment failed.")
+          val sqlInsertCmd = "INSERT INTO appReqRate (timestamp, webAppID, aggRequestRate, targetNumServers) VALUES (%d, '%s', %f, %d)".format(now.getTime, name, aggregateReqRate, targetNumServers)
+          try {
+            val numResults = s.map(_.executeUpdate(sqlInsertCmd))
+            if (numResults.getOrElse(0) != 1)
+              logger.warning("SQL INSERT statment failed.")
+          } catch {
+            case e: SQLException => logger.warning("SQL INSERT statement failed: %s.".format(sqlInsertCmd))
+          }
         })
+
         logger.info("aggregateReqRate is " + aggregateReqRate + ", targetNumServers is " + targetNumServers)
 
         // if necessary, kill backends
