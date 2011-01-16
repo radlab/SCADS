@@ -62,7 +62,7 @@ object IntKeyScaleScheduler extends optional.Application {
     System.loadLibrary("mesos")
     implicit val scheduler = LocalExperimentScheduler(name, mesosMaster, executor)
     implicit val classpath = cp.split("\\|").map(S3CachedJar(_)).toSeq
-    implicit val zookeeper = DemoZooKeeper.root.getOrCreate("scads/perf") 
+    implicit val zookeeper = zooKeeperRoot.getOrCreate("scads/perf") 
 
     import scads.perf.intkey._
     val cluster = DataLoader(1,1).newCluster
@@ -77,12 +77,9 @@ object RepTestScheduler extends optional.Application {
     System.loadLibrary("mesos")
     implicit val scheduler = LocalExperimentScheduler(name, mesosMaster, executor)
     implicit val classpath = cp.split("\\|").map(S3CachedJar(_)).toSeq
-    implicit val zookeeper = DemoZooKeeper.root.getOrCreate("scads/perf") 
-
-    org.apache.log4j.Logger.getRootLogger.setLevel(org.apache.log4j.Level.INFO)
+    implicit val zookeeper = zooKeeperRoot.getOrCreate("scads/perf") 
 
     import scads.perf.reptest._
-
     val cluster = DataLoader(1, numKeys).newCluster
     RepClient(3).schedule(cluster)
 
