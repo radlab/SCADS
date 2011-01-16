@@ -41,7 +41,8 @@ package object demo {
 	"SCADr",
 	mesosMaster,
 	javaExecutorPath,
-	scadrWar).toJvmTask
+	scadrWar,
+	Map("scadr.clusterAddress" -> scadrRoot.canonicalAddress)).toJvmTask
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 

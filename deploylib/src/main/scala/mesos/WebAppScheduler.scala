@@ -19,7 +19,7 @@ object WebAppScheduler {
 }
 
 /* serverCapacity is the number of requests per second that a single application server can handle */
-class WebAppScheduler protected (name: String, mesosMaster: String, executor: String, warFile: ClassSource, serverCapacity: Int, statsServer: Option[String] = None) extends Scheduler {
+class WebAppScheduler protected (name: String, mesosMaster: String, executor: String, warFile: ClassSource, properties: Map[String, String], serverCapacity: Int, statsServer: Option[String] = None) extends Scheduler {
   val logger = Logger()
   var driver = new MesosSchedulerDriver(this, mesosMaster)
   val driverThread = new Thread("ExperimentScheduler Mesos Driver Thread") { override def run(): Unit = driver.run() }
@@ -97,7 +97,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
   override def getExecutorInfo(d: SchedulerDriver): ExecutorInfo = new ExecutorInfo(executor, Array[Byte]())
   override def registered(d: SchedulerDriver, fid: String): Unit = logger.info("Registered Framework.  Fid: " + fid)
 
-  val webAppTask = JvmWebAppTask(warFile)
+  val webAppTask = JvmWebAppTask(warFile, properties)
   var numAppServers = 0
 
   override def resourceOffer(driver: SchedulerDriver, oid: String, offers: java.util.List[SlaveOffer]): Unit = {
