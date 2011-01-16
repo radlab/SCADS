@@ -1,6 +1,8 @@
 package edu.berkeley.cs
 package radlab
 
+import java.io.File
+
 package object demo {
   import DemoConfig._
   import scads.comm._
@@ -84,4 +86,9 @@ package object demo {
     )
   }
 
+  def authorizeUsers: Unit = {
+    val keys = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCfH8CkLrCIOxJAkFubG1ehQEdu1OfOUqaMxiTQ7g/X0fXclXRzqwoBFBL33t0FGVxkPVxolwAaZEQTIg6hkGZuzLlPiuq1ortkMx3wGxU9/YBr6JzSZb+kB1OEG/LOWiXH+i5IJbKptW+6B527niXCAgo8Idlf5PNBqcdI+CrvaX+oqQX6K2T5EDxoJVOtgRHbS/2YbtGhwknskyCcvOnOcwjcRUGawmVK7QYavyuO+//SOK+0sIjTSSwTAVceKbQl8XVlPL7IJHKE6/JwEF2+6+eMdflg9A8qAm3g0rE8qfUGdJLN1hpJNdP/UCP1v091h4C88lqqtwbekrS817ar stephentu@ibanez" :: Nil
+
+    keys.foreach(k => MesosEC2.master.appendFile(new File("/root/.ssh/authorized_keys"), k))
+  }
 }
