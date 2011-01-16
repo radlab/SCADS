@@ -190,14 +190,16 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           logger.debug("Begining copy")
           var numRec = 0
           iter.foreach(rec => {
-            dbeKey.setData(rec.key); dbeValue.setData(rec.value.get)
-            if(overwrite == true) {
-              db.put(txn, dbeKey, dbeValue)
-            }
-            else {
-              if(db.get(txn, dbeKey, dbeExistingValue, LockMode.READ_COMMITTED) != OperationStatus.SUCCESS)
-                db.put(txn, dbeKey, dbeValue)
-            }
+            dbeKey.setData(rec.key)
+            dbeValue.setData(rec.value.get)
+
+            if (overwrite) db.put(txn, dbeKey, dbeValue)
+            else db.putNoOverwrite(txn, dbeKey, dbeValue)
+              // NOTE: was previously the code below, but putNoOverwrite seems
+              // to give us the exact semantics we are looking for here (plus
+              // possibly more efficient than a get() followed by a put())
+              //if(db.get(txn, dbeKey, dbeExistingValue, LockMode.READ_COMMITTED) != OperationStatus.SUCCESS)
+              //  db.put(txn, dbeKey, dbeValue)
 
             numRec += 1
             if (numRec % 10000 == 0)
