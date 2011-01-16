@@ -178,6 +178,8 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           }
         }
         case CopyDataRequest(src, overwrite) => {
+          logger.info("Begin CopyDataRequest src = " + src + ", overwrite = " + overwrite)
+
           val txn = db.getEnvironment.beginTransaction(null, null)
           val dbeExistingValue = new DatabaseEntry
           val dbeKey = new DatabaseEntry
@@ -186,6 +188,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           val iter = new PartitionIterator(src, startKey, endKey)
 
           logger.debug("Begining copy")
+          var numRec = 0
           iter.foreach(rec => {
             dbeKey.setData(rec.key); dbeValue.setData(rec.value.get)
             if(overwrite == true) {
@@ -195,6 +198,10 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
               if(db.get(txn, dbeKey, dbeExistingValue, LockMode.READ_COMMITTED) != OperationStatus.SUCCESS)
                 db.put(txn, dbeKey, dbeValue)
             }
+
+            numRec += 1
+            if (numRec % 10000 == 0)
+              logger.info("copied over %d records".format(numRec))
           })
           logger.debug("Copy complete.  Begining commit")
           txn.commit()
