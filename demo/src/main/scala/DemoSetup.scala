@@ -50,7 +50,8 @@ case class WebAppSchedulerTask(var name: String, var mesosMaster: String, var ex
 
   def run(): Unit = {
     System.loadLibrary("mesos")
-    new WebAppScheduler(name, mesosMaster, executor, warFile, 1, Some(dashboardDb))
+    val scheduler = new WebAppScheduler(name, mesosMaster, executor, warFile, 1, Some(dashboardDb))
+    scheduler.monitorThread.join()
   }
 }
 
