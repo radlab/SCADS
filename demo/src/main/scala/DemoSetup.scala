@@ -45,12 +45,12 @@ object ServiceSchedulerDaemon extends optional.Application {
 
 
 //TODO: Move to web app scheduler.
-case class WebAppSchedulerTask(var name: String, var mesosMaster: String, var executor: String, var warFile: String) extends AvroTask with AvroRecord {
+case class WebAppSchedulerTask(var name: String, var mesosMaster: String, var executor: String, var warFile: S3CachedJar) extends AvroTask with AvroRecord {
   import DemoConfig._
 
   def run(): Unit = {
     System.loadLibrary("mesos")
-    new WebAppScheduler(name, mesosMaster, executor, S3CachedJar(warFile), 1, Some(dashboardDb))
+    new WebAppScheduler(name, mesosMaster, executor, warFile, 1, Some(dashboardDb))
   }
 }
 
