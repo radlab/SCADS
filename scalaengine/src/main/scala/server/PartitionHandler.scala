@@ -12,7 +12,7 @@ import scala.collection.mutable.ArrayBuffer
 import org.apache.avro.generic._
 
 import java.util.{ Arrays => JArrays }
-import java.util.concurrent._
+import java.util.concurrent.{ Future => JFuture, _ }
 import atomic._
 
 /**
@@ -63,16 +63,68 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 	private val samplerRandom = new java.util.Random
 	// end workload stats stuff
 
+  protected val cursorTimeout = 3 * 60 * 1000 // 3 minutes (in ms)
+
+  case class CursorContext(cursorId: Int, cursor: Cursor, txn: Transaction) {
+    private var lastActivity = System.currentTimeMillis
+    private var valid = true
+    def updateActivity(): Unit =
+      lastActivity = System.currentTimeMillis
+    def markInvalid(): Unit = 
+      valid = false
+    def isTimedout: Boolean = (lastActivity + cursorTimeout) - System.currentTimeMillis < 0
+    def isValid: Boolean = valid
+  }
+
   private val cursorIdGen = new AtomicInteger
-  private val openCursors = new ConcurrentHashMap[Int, (Cursor, Long, Transaction)]
+  private val openCursors = new ConcurrentHashMap[Int, CursorContext]
+  private val cursorTimeoutThread = Executors.newSingleThreadExecutor
+
+  protected object CursorTimeoutRunnable {
+    val runnable = new Runnable {
+      def run(): Unit = 
+        try {
+          while (true) {
+            Thread.sleep(cursorTimeout) // runs every 3 min
+            val toRemove = openCursors.values.flatMap {
+              case ctx @ CursorContext(id, cursor, txn) =>
+                ctx.synchronized {
+                  if (ctx.isValid) {
+                    if (ctx.isTimedout) {
+                      cursor.close()
+                      txn.commit()
+                      logger.info("Cursor %d closed and marked invalid by cleanup thread", id)
+                      ctx.markInvalid()
+                      List(id)
+                    } else Nil
+                  } else List(id)
+                }
+            }
+            toRemove.foreach(openCursors.remove(_))
+          }
+        } catch {
+          case e: InterruptedException =>
+            logger.info("Cursor timeout thread got signal to shutdown")
+        }
+    }
+    cursorTimeoutThread.execute(runnable)
+  }
 
   protected def startup() { /* No-op */ }
   protected def shutdown() {
+    // stop the cursor tasks
+    cursorTimeoutThread.shutdownNow()
     partitionIdLock.delete()
     openCursors.values.foreach { 
-      case (cursor, _, txn) =>
-        cursor.close()
-        txn.commit()
+      case ctx @ CursorContext(id, cursor, txn) =>
+        ctx.synchronized {
+          if (ctx.isValid) {
+            cursor.close()
+            txn.commit()
+            logger.info("Cursor %d closed and marked invalid by shutdown task", id)
+            ctx.markInvalid()
+          }
+        }
     }
     openCursors.clear()
     db.close()
@@ -217,42 +269,54 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
             reply(TestSetResponse(false))
           }
         }
-        // TODO: need to implement cursor timeouts
         case CursorScanRequest(optCursorId, recsPerMessage) => {
           if (recsPerMessage <= 0) {
             reply(RequestRejected("Recs per message needs to be > 0: %d".format(recsPerMessage), msg))
             return
           }
 
+          val dummy = CursorTimeoutRunnable.runnable // initialize it (lazily)
+
           //logger.info("CursorScanRequest: %s", msg)
 
-          val (cursorId, cursor, txn) = optCursorId.map(id => {
-            val v = Option(openCursors.get(id)).getOrElse({ 
+          val (cursorId, cursorCtx) = optCursorId.map(id => {
+            val ctx = Option(openCursors.get(id)).getOrElse({ 
               reply(RequestRejected("Invalid cursor Id: %d".format(id), msg))
               return 
             })
-            (id, v._1, v._3)
+            (id, ctx)
           }).getOrElse({
             val id = cursorIdGen.getAndIncrement()
             val txn = db.getEnvironment.beginTransaction(null, null)
             val newCursor = db.openCursor(txn, CursorConfig.READ_UNCOMMITTED)
             initCursor(newCursor)
-            openCursors.put(id, (newCursor, System.currentTimeMillis, txn))
+            val ctx = CursorContext(id, newCursor, txn)
+            openCursors.put(id, ctx)
             logger.info("made new cursor with id %d, txn with id %d", id, txn.getId)
-            (id, newCursor, txn)
+            (id, ctx)
           })
 
-          // update time for existing cursor IDs
-          cursorId.map(id => openCursors.put(id, (cursor, System.currentTimeMillis, txn)))
-
-          val (moreRecs, recs) = advanceCursor(cursor, recsPerMessage)
-          if (!moreRecs) { // done, close this cursor up
-            cursor.close()
-            txn.commit()
-            logger.info("closing cursor %d and commit txn %d", cursorId, txn.getId)
-            openCursors.remove(cursorId)
+          // lock the cursor context
+          val (moreRecs, recs) = cursorCtx.synchronized {
+            // check to see if the cursor is still valid
+            if (!cursorCtx.isValid) {
+              openCursors.remove(cursorId) // just to be sure 
+              reply(RequestRejected("Cursor ID: %d has already timedout".format(cursorId), msg))
+              return
+            }
+            cursorCtx.updateActivity() // set a new timeout
+            val cursor = cursorCtx.cursor
+            val txn = cursorCtx.txn
+            val (moreRecs, recs) = advanceCursor(cursor, recsPerMessage)
+            if (!moreRecs) { // done, close this cursor up
+              cursor.close()
+              txn.commit()
+              logger.info("closing cursor %d and commit txn %d", cursorId, txn.getId)
+              cursorCtx.markInvalid()
+              openCursors.remove(cursorId)
+            }
+            (moreRecs, recs)
           }
-
           //logger.info("read %d recs, moreRecs = %s", recs.size, moreRecs)
 
           reply(CursorScanResponse(if (moreRecs) Some(cursorId) else None, recs))
