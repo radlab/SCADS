@@ -8,7 +8,7 @@ import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.config._
 
 import scala.collection.JavaConversions._
-import scala.collection.mutable.{ ArrayBuffer, ListBuffer }
+import scala.collection.mutable.ArrayBuffer
 import org.apache.avro.generic._
 
 import java.util.{ Arrays => JArrays }
@@ -167,20 +167,25 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
         }
         case GetRangeRequest(minKey, maxKey, limit, offset, ascending) => {
           logger.debug("[%s] GetRangeRequest: [%s, %s)", this, JArrays.toString(minKey.orNull), JArrays.toString(maxKey.orNull))
-          val records = new scala.collection.mutable.ListBuffer[Record]
+          val records = new ArrayBuffer[Record]
+          limit.map(records.sizeHint(_))
           iterateOverRange(minKey, maxKey, limit, offset, ascending)((key, value, _) => {
             records += Record(key.getData, value.getData)
           })
-					var reccount = 0
-					iterateOverRange(minKey, maxKey)((_,_,_) => reccount += 1)
+          // reccount commented out b/c its not being used and it causes each
+          // GetRangeRequest to be a lot slower
+					//var reccount = 0
+					//iterateOverRange(minKey, maxKey)((_,_,_) => reccount += 1)
 					if (samplerRandom.nextDouble <= getSamplingRate) incrementGetCount(1/*reccount*/)
           reply(GetRangeResponse(records))
         }
         case BatchRequest(ranges) => {
-          val results = new scala.collection.mutable.ListBuffer[GetRangeResponse]
+          val results = new ArrayBuffer[GetRangeResponse]
+          results.sizeHint(ranges.size)
           ranges.foreach {
             case GetRangeRequest(minKey, maxKey, limit, offset, ascending) => {
-              val records = new scala.collection.mutable.ListBuffer[Record]
+              val records = new ArrayBuffer[Record]
+              limit.map(records.sizeHint(_))
               iterateOverRange(minKey, maxKey, limit, offset, ascending)((key, value, _) => {
                 records += Record(key.getData, value.getData)
               })
@@ -345,8 +350,8 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
     currentStats = PartitionWorkloadStats(0,0)
     ret
   }
-  private def incrementGetCount(num:Int) = currentStats.gets += num
-  private def incrementPutCount(num:Int) = currentStats.puts += num
+  @inline private def incrementGetCount(num:Int) = currentStats.gets += num
+  @inline private def incrementPutCount(num:Int) = currentStats.puts += num
   /*
 	private def incrementWorkloadStats(num:Int, requestType:String) = {
 		// check if need to advance window and/or clear out old windows
@@ -378,6 +383,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
     val dbeKey = new DatabaseEntry
     val dbeValue = new DatabaseEntry
     val buf = new ArrayBuffer[Record]
+    buf.sizeHint(recsPerMessage)
     var stat = cursor.getCurrent(dbeKey, dbeValue, null)
     var recs = 0
     while (stat == OperationStatus.SUCCESS && recs < recsPerMessage) {
