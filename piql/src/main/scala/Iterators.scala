@@ -74,8 +74,6 @@ trait QueryExecutor {
   }
 }
 
-
-
 class SimpleExecutor extends QueryExecutor {
 
   implicit def toOption[A](a: A): Option[A] = Option(a)
@@ -84,8 +82,8 @@ class SimpleExecutor extends QueryExecutor {
     case IndexLookup(namespace, key) => {
       new QueryIterator {
         val name = "SimpleIndexLookup"
-        val boundKey = bindKey(namespace, key)
-        var result: Option[Record] = None
+        private val boundKey = bindKey(namespace, key)
+        private var result: Option[Record] = None
 
         def open: Unit =
           result = namespace.get(boundKey)
@@ -103,12 +101,12 @@ class SimpleExecutor extends QueryExecutor {
     case IndexScan(namespace, keyPrefix, limit, ascending) => {
         new QueryIterator {
           val name = "SimpleIndexScan"
-          val boundKeyPrefix = bindKey(namespace, keyPrefix)
-          var result: Seq[Record] = Nil
-          var pos = 0
-          var offset = 0
-          var limitReached = false
-          val boundLimit = bindLimit(limit)
+          private val boundKeyPrefix = bindKey(namespace, keyPrefix)
+          private var result: Seq[Record] = Nil
+          private var pos = 0
+          private var offset = 0
+          private var limitReached = false
+          private val boundLimit = bindLimit(limit)
 
           @inline private def doFetch() {
             logger.debug("BoundKeyPrefix: %s", boundKeyPrefix)
@@ -147,8 +145,8 @@ class SimpleExecutor extends QueryExecutor {
     case IndexLookupJoin(namespace, key, child) => {
       new QueryIterator {
         val name = "SimpleIndexLookupJoin"
-        val childIterator = apply(child)
-        var nextTuple: Tuple = null
+        private val childIterator = apply(child)
+        private var nextTuple: Tuple = null
 
         def open = {childIterator.open; getNext}
         def close = childIterator.close
@@ -180,9 +178,8 @@ class SimpleExecutor extends QueryExecutor {
       // code is repeated
       new QueryIterator {
         val name = "SimpleIndexMergeJoin"
-        val childIterator = apply(child)
-
-        val boundLimit = bindLimit(limit)
+        private val childIterator = apply(child)
+        private val boundLimit = bindLimit(limit)
 
         /** (key, child tup, offset, limit reached?) */
         var tupleData: Array[(Record, Tuple, Int, Boolean)] = null
@@ -283,8 +280,8 @@ class SimpleExecutor extends QueryExecutor {
     case LocalSelection(predicate, child) => {
       new QueryIterator {
         val name = "Selection"
-        val childIterator = apply(child)
-        var nextTuple: Tuple = null
+        private val childIterator = apply(child)
+        private var nextTuple: Tuple = null
 
         def open = {childIterator.open; getNext}
         def close = childIterator.close
@@ -311,9 +308,9 @@ class SimpleExecutor extends QueryExecutor {
     case LocalStopAfter(k, child) => {
       new QueryIterator {
         val name = "StopAfter"
-        val childIterator = apply(child)
-        val limit = bindLimit(k)
-        var taken = 0
+        private val childIterator = apply(child)
+        private val limit = bindLimit(k)
+        private var taken = 0
 
         def open = {taken = 0; childIterator.open}
         def close = {childIterator.close}
@@ -338,8 +335,8 @@ class ParallelExecutor extends SimpleExecutor {
     case IndexLookup(namespace, key) => {
       new QueryIterator {
         val name = "ParallelIndexLookup"
-        val boundKey = bindKey(namespace, key)
-        var ftch: Option[ScadsFuture[Option[Record]]] = None
+        private val boundKey = bindKey(namespace, key)
+        private var ftch: Option[ScadsFuture[Option[Record]]] = None
 
         def open: Unit =
           ftch = Some(namespace.asyncGet(boundKey))
@@ -359,16 +356,16 @@ class ParallelExecutor extends SimpleExecutor {
     case IndexScan(namespace, keyPrefix, limit, ascending) => {
         new QueryIterator {
           val name = "ParallelIndexScan"
-          val boundKeyPrefix = bindKey(namespace, keyPrefix)
+          private val boundKeyPrefix = bindKey(namespace, keyPrefix)
 
-          var result: Seq[Record] = Nil
-          var ftch: ScadsFuture[Seq[Record]] = _
+          private var result: Seq[Record] = Nil
+          private var ftch: ScadsFuture[Seq[Record]] = _
 
-          var pos = 0
-          var offset = 0
-          var limitReached = false
-          val boundLimit = bindLimit(limit) + 1 // should get rid of 2nd getRange
-          var ftchInvoked = false
+          private var pos = 0
+          private var offset = 0
+          private var limitReached = false
+          private val boundLimit = bindLimit(limit) + 1 // should get rid of 2nd getRange
+          private var ftchInvoked = false
 
           @inline private def doFetch() {
             logger.debug("BoundKeyPrefix: %s", boundKeyPrefix)
@@ -420,10 +417,10 @@ class ParallelExecutor extends SimpleExecutor {
     case IndexLookupJoin(namespace, key, child) => {
       new QueryIterator {
         val name = "ParallelIndexLookupJoin"
-        val childIterator = apply(child)
-        var nextTuple: Tuple = null
-        val ftchs = new Queue[(Tuple, Record, ScadsFuture[Option[Record]])]
-        val windowSize = 10 // keep 10 outstanding ftchs at a time
+        private val childIterator = apply(child)
+        private var nextTuple: Tuple = null
+        private val ftchs = new Queue[(Tuple, Record, ScadsFuture[Option[Record]])]
+        private val windowSize = 10 // keep 10 outstanding ftchs at a time
 
         def open = {childIterator.open; fillFutures()}
         def close = childIterator.close
@@ -466,20 +463,16 @@ class ParallelExecutor extends SimpleExecutor {
     case IndexMergeJoin(namespace, keyPrefix, sortFields, limit, ascending, child) => {
       new QueryIterator {
         val name = "ParallelIndexMergeJoin"
-        val childIterator = apply(child)
-
-        val boundLimit = bindLimit(limit)
+        private val childIterator = apply(child)
+        private val boundLimit = bindLimit(limit)
 
         /**
          * (key, child tup, offset, limit reached?, outstanding ftch)
          */
-        var tupleData: Array[(Key, Tuple, Int, Boolean, ScadsFuture[Seq[Record]])] = null
-
-        var tupleBuffers: Array[IndexedSeq[Tuple]] = null
-
-        var bufferPos: Array[Int] = null
-
-        var nextTuple: Tuple = null
+        private var tupleData: Array[(Key, Tuple, Int, Boolean, ScadsFuture[Seq[Record]])] = null
+        private var tupleBuffers: Array[IndexedSeq[Tuple]] = null
+        private var bufferPos: Array[Int] = null
+        private var nextTuple: Tuple = null
 
         def open: Unit = {
           childIterator.open
