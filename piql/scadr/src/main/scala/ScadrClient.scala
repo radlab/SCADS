@@ -37,20 +37,20 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
   lazy val tags = cluster.getNamespace[HashTag]("tags").asInstanceOf[Namespace]
 
   /* Optimized queries */
-  val findUser = users.where("username".a === (0.?)).toPiql
+  val findUser = users.where("username".a === (0.?)).toPiql("findUser")
 
   val myThoughts = (
     thoughts.where("thoughts.owner".a === (0.?))
 	    .sort("thoughts.timestamp".a :: Nil, false)
 	    .limit(maxResultsPerPage)
-  ).toPiql
+  ).toPiql("myThoughts")
 
   lazy val usersFollowedBy = (
     subscriptions.where("subscriptions.owner".a === (0.?))
 	 .limit(maxResultsPerPage)
 	 .join(users)
 	 .where("subscriptions.target".a === "users.username".a)
-  ).toPiql
+  ).toPiql("usersFollowedBy")
 
 
   val thoughtstream = (
@@ -60,7 +60,7 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
 		 .where("thoughts.owner".a === "subscriptions.target".a)
 		 .sort("thoughts.timestamp".a :: Nil, false)
 		 .limit(10)
-  ).toPiql
+  ).toPiql("thoughtstream")
 
   /**
    * Who is following ME?
@@ -70,5 +70,5 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
 		 .limit(1000)
 		 .join(users)
 		 .where("users.username".a === "subscriptions.owner".a)
-    ).toPiql
+    ).toPiql("usersFollowing")
 }
