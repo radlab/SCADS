@@ -31,50 +31,63 @@ object GetElapsedTimeForQueryEvents {
 
 		println("timestamp,thread,type,id,elapsedTime")
 
-	  inFile.foreach {
-			case ExecutionTrace(_, _, WarmupEvent(_, start)) => {
-				if (!start) {
-					doneWithWarmup = true
-				}
+	  inFile.foreach {event => event match {
+				case ExecutionTrace(_, _, WarmupEvent(_, start)) => processWarmupEvent(event)
+		    case ExecutionTrace(timestamp, threadId, QueryEvent(queryName, start)) => processQueryEvent(event)
+	      case ExecutionTrace(timestamp, threadId, IteratorEvent(iteratorName, plan, op, start)) => processIteratorEvent(event)
+	      case ExecutionTrace(timestamp, threadId, MessageEvent(msg)) => processMessageEvent(event)
+				case _ =>
 			}
-	    case ExecutionTrace(timestamp, threadId, QueryEvent(queryName, start)) => {
-				if (doneWithWarmup) {
-					if (start)
-						eventMap += (queryName -> timestamp)
-					else {
-						val eventBeginning = eventMap(queryName)
-						val eventElapsedTime = timestamp - eventBeginning
-						println(List(eventBeginning, threadId, "query", queryName, eventElapsedTime).mkString(","))
-					}
-				}
-			}
-      case ExecutionTrace(timestamp, threadId, IteratorEvent(iteratorName, plan, op, start)) => {
-				if (doneWithWarmup) {
-					if (start)
-						eventMap += (iteratorName -> timestamp)
-					else {
-						val eventBeginning = eventMap(iteratorName)
-						val eventElapsedTime = timestamp - eventBeginning
-						println(List(eventBeginning, threadId, "iterator", iteratorName + ":" + plan + ":" + op, eventElapsedTime).mkString(","))
-					}
-				}
-			}
-      case ExecutionTrace(timestamp, threadId, MessageEvent(msg)) => {
-				//msg.body.getSchema.getName, "Src:" + msg.src.get, "Dest:" + msg.dest
-				if (doneWithWarmup) {
-					val messageName = msg.body.getSchema.getName
-					if (messageName.contains("Request")) {
-						eventMap += (messageNameWithTransitInfo(msg) -> timestamp)
-					} else if (messageName.contains("Response")) {
-						val eventBeginning = eventMap(messageNameWithTransitInfo(msg))
-						val eventElapsedTime = timestamp - eventBeginning
-						println(List(eventBeginning, threadId, "message", messageNameWithTransitInfo(msg), eventElapsedTime).mkString(","))
-					}
-				}
-			}
-			case _ =>
 		}
   }
+
+	def processWarmupEvent(event: ExecutionTrace) = {
+		val ExecutionTrace(_, _, WarmupEvent(_, start)) = event
+		if (!start) {
+			doneWithWarmup = true
+		}
+	}
+
+	def processQueryEvent(event: ExecutionTrace) = {
+		val ExecutionTrace(timestamp, threadId, QueryEvent(queryName, start)) = event
+		if (doneWithWarmup) {
+			if (start)
+				eventMap += (queryName -> timestamp)
+			else {
+				val eventBeginning = eventMap(queryName)
+				val eventElapsedTime = timestamp - eventBeginning
+				println(List(eventBeginning, threadId, "query", queryName, eventElapsedTime).mkString(","))
+			}
+		}
+	}
+	
+	def processIteratorEvent(event: ExecutionTrace) = {
+		val ExecutionTrace(timestamp, threadId, IteratorEvent(iteratorName, plan, op, start)) = event
+		if (doneWithWarmup) {
+			if (start)
+				eventMap += (iteratorName -> timestamp)
+			else {
+				val eventBeginning = eventMap(iteratorName)
+				val eventElapsedTime = timestamp - eventBeginning
+				println(List(eventBeginning, threadId, "iterator", iteratorName + ":" + plan + ":" + op, eventElapsedTime).mkString(","))
+			}
+		}
+	}
+
+	def processMessageEvent(event: ExecutionTrace) = {
+		val ExecutionTrace(timestamp, threadId, MessageEvent(msg)) = event
+		//msg.body.getSchema.getName, "Src:" + msg.src.get, "Dest:" + msg.dest
+		if (doneWithWarmup) {
+			val messageName = msg.body.getSchema.getName
+			if (messageName.contains("Request")) {
+				eventMap += (messageNameWithTransitInfo(msg) -> timestamp)
+			} else if (messageName.contains("Response")) {
+				val eventBeginning = eventMap(messageNameWithTransitInfo(msg))
+				val eventElapsedTime = timestamp - eventBeginning
+				println(List(eventBeginning, threadId, "message", messageNameWithTransitInfo(msg), eventElapsedTime).mkString(","))
+			}
+		}
+	}
 
 	def messageNameWithTransitInfo(msg:Message):String = {
 		// get message name
