@@ -21,7 +21,7 @@ case class ScadrDirectorTask(var clusterAddress: String, var mesosMaster: String
 		       "subscriptions" -> classOf[edu.berkeley.cs.scads.piql.scadr.Subscription])
     val clusterRoot = ZooKeeperNode(clusterAddress)
     val scheduler = ScadsServerScheduler("SCADr Storage Director",
-					 mesosMaster, 
+					 mesosMaster,
 					 clusterRoot.canonicalAddress)
     val cluster = new ExperimentalScadsCluster(clusterRoot)
 
@@ -29,7 +29,7 @@ case class ScadrDirectorTask(var clusterAddress: String, var mesosMaster: String
     scheduler.addServers(namespaces.keys.map(_ + "node0"))
     cluster.blockUntilReady(namespaces.size)
     Director.cluster = cluster
-    
+
     namespaces.foreach {
       case (name, entityType) => {
 	logger.info("Creating namespace %s", name)
@@ -41,16 +41,16 @@ case class ScadrDirectorTask(var clusterAddress: String, var mesosMaster: String
 	Director.cluster.createNamespace(name, keySchema, valueSchema, initialPartitions)
       }
     }
-    
+
     /* run the empty policy, which does nothing but observe workload stats */
     //TODO: make this an argument to director instead of global property
-    System.setProperty("doEmpty", "true") 
+    System.setProperty("doEmpty", "true")
 
     logger.info("Starting Directors")
     val directors = namespaces.keys.map(ns => Director(1, ns, scheduler))
     //TODO: maybe we should pass the zookeeper address upon creation
     directors.foreach(_.run(clusterRoot))
-    
+
     //TODO: Join with director threads instead of just sleeping forever
     directors.foreach(_.thread.join())
   }
