@@ -8,6 +8,9 @@ object ScadrDirectorTest {
   var sched: ScadsServerScheduler = null
   val namespaces = List("users", "thoughts", "subscriptions")
 
+  /* class source for starting storage nodes on mesos */
+  implicit def classsource = deploylib.mesos.MesosEC2.classSource
+
   /**
    * Start a cluster with one storage engine per namespace using mesos slaves
    * creates the scadr namespaces
