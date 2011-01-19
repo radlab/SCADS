@@ -31,3 +31,4 @@ experiments/director/src/main/scala/querygen/workload.scala
 experiments/director/src/main/scala/querygen/workloadDescriptions.scala
 experiments/director/src/main/scala/querygen/workloadElements.scala
 scads.jar
+piqltrace.avro
