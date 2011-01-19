@@ -116,8 +116,9 @@ trait ScalaAvroPluginComponent extends PluginComponent {
   // TODO: this method needs also a test that !(sym.tpe <:< AvroRecordTrait.tpe)
   protected def isExternalRecord(sym: Symbol) = sym.tpe <:< SpecificRecordIface.tpe
 
+  lazy val externalRecordClassLoader = new java.net.URLClassLoader(classPath.asURLs.toArray, this.getClass.getClassLoader)
   protected def retrieveExternalRecordSchema(sym: Symbol): Schema = {
-    val clazz = Class.forName(sym.fullName.toString).asInstanceOf[Class[SpecificRecord]]
+    val clazz = externalRecordClassLoader.loadClass(sym.fullName.toString).asInstanceOf[Class[SpecificRecord]]
     clazz.newInstance.getSchema
   }
 

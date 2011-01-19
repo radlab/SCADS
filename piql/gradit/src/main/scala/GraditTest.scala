@@ -13,7 +13,7 @@ object TestScadr {
     word.word = "test"
     word.definition = "to see if piql works"
     client.words.put(word.key, word.value)
-    
+
     val context = new WordContext(0, "TestBook", 1)
     context.wordLine = "this program is a test of PIQL"
     client.wordcontexts.put(context.key, context.value)

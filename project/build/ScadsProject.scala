@@ -24,7 +24,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
 
   lazy val scalaengine = project("scalaengine", "storage-engine", new ScadsSubProject(_) {
     val bdb = "com.sleepycat" % "je" % "4.0.71"
-  }, config, avro, comm)
+  }, config, avro, comm, deploylib)
 
   lazy val deploylib = project("deploylib", "deploylib", new ScadsSubProject(_) {
     val mesos = "edu.berkeley.cs.mesos" % "java" % "1.0"
@@ -62,7 +62,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
   lazy val scadr  = project("piql" / "scadr", "scadr", new ScadsSubProject(_), piql, director)
   lazy val gradit = project("piql" / "gradit", "gradit", new ScadsSubProject(_), piql)
 
-  lazy val demo = project("demo", "demo", new ScadsSubProject(_), piql, director, deploylib)
+  lazy val demo = project("demo", "demo", new ScadsSubProject(_), piql, director, deploylib, gradit, scadr, perf)
 
   /* Repository Configuration */
   val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"

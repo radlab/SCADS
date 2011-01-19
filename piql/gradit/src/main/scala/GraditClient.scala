@@ -3,18 +3,18 @@ package scads
 package piql
 package gradit
 
-import storage._
+import storage.ScadsCluster
 import avro.marker._
 
 import org.apache.avro.util._
 
-case class Word(var id: Int) extends AvroPair {
+case class Word(var wordid: Int) extends AvroPair {
   //assign PK int to do randomness, but need to provide int when loading in words
   var word: String = _
   var definition: String = _
 }
 
-case class WordList_Word(var wordlist: String, var word: Int) extends AvroPair {
+case class WordListWord(var wordlist: String, var word: Int) extends AvroPair {
     var v = 1
 }
 
@@ -52,28 +52,43 @@ class GraditClient(val cluster: ScadsCluster, executor: QueryExecutor) {
   // createNamespace calls to happen first (and after instantiating this
   // class)
 
-  lazy val words = cluster.getNamespace[Word]("words")
-  lazy val books = cluster.getNamespace[Book]("books")
-  lazy val wordcontexts = cluster.getNamespace[WordContext]("wordcontexts")
-  lazy val wordlists = cluster.getNamespace[WordList]("wordlists")
-  lazy val wordlist_word = cluster.getNamespace[WordList_Word]("wordlist_word")
+  lazy val words = cluster.getNamespace[Word]("words").asInstanceOf[Namespace]
+  lazy val books = cluster.getNamespace[Book]("books").asInstanceOf[Namespace]
+  lazy val wordcontexts = cluster.getNamespace[WordContext]("wordcontexts").asInstanceOf[Namespace]
+  lazy val wordlists = cluster.getNamespace[WordList]("wordlists").asInstanceOf[Namespace]
+  lazy val wordlistwords = cluster.getNamespace[WordListWord]("wordlistwords").asInstanceOf[Namespace]
 
 
-  //contextsForWord
+  // findWord
+  // Primary key lookup for word
+
+  val findWord = words.where("words.wordid".a === (0.?)).toPiql("findWord")
+
+  //findWordByWord
+  // Find a word by its actual string word (not wordid)
+
+  //val findWordByWord = words.where("words.word".a === (0.?)).toPiql
+
+  // findWordList
+  // Primary key lookup for wordlist
+
+  //val findWordList = wordlists.where("wordlists.name".a === (0.?)).toPiql
+
+  // contextsForWord
   // Finds all contexts for a particular word given
-  
+
     val contextsForWord = (
         wordcontexts
             .where("wordcontexts.word".a === (0.?))
             .limit(50)
-    ).toPiql
-  
-  //wordsFromWordlist
+    ).toPiql("contextsForWord")
+
+  // wordsFromWordlist
     val wordsFromWordList = (
-        wordlist_word
-            .where("wordlist_word.wordlist".a === (0.?))
+        wordlistwords
+            .where("wordlistwords.wordlist".a === (0.?))
             .limit(50)
             .join(words)
-            .where("words.id".a === "wordlist_word.word".a)
-    ).toPiql
+            .where("words.wordid".a === "wordlistwords.word".a)
+    ).toPiql("wordsFromWordList")
 }

@@ -1,11 +1,18 @@
-package edu.berkeley.cs.scads.storage
+package edu.berkeley.cs
+package scads
+package storage
 
 import com.sleepycat.je.Environment
 import com.sleepycat.je.EnvironmentConfig
 import com.sleepycat.je.jmx.JEMonitor
 
-import edu.berkeley.cs.scads.comm._
 import net.lag.logging.Logger
+import java.io.File
+
+import comm._
+import storage._
+import avro.marker._
+import deploylib.mesos._
 
 /**
  * Application for starting up a standalone scads storage engine
@@ -33,3 +40,28 @@ object ScalaEngine extends optional.Application {
     return new StorageHandler(env, zooRoot,name)
   }
 }
+
+/**
+ * Task for running scads storage engine on mesos
+ */
+case class ScalaEngineTask(var clusterAddress: String, var dbDir: Option[String] = None, var cachePercentage: Option[Int] = None, var name: Option[String] = None) extends AvroTask with AvroRecord {
+  def run(): Unit = {
+    val logger = Logger()
+    val config = new EnvironmentConfig()
+    config.setAllowCreate(true)
+    config.setTransactional(true)
+    config.setCachePercent(cachePercentage.getOrElse(80))
+
+    val dir = dbDir.map(new File(_)).getOrElse(new File("db"))
+    if(!dir.exists()) {
+      dir.mkdir
+    }
+
+    val zooRoot = ZooKeeperNode(clusterAddress)
+
+    logger.info("Opening BDB Environment: " + dir + ", " + config)
+    val env = new Environment(dir, config)
+    return new StorageHandler(env, zooRoot,name)
+  }
+}
+

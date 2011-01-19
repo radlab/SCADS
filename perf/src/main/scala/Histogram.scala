@@ -16,28 +16,37 @@ case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Long]) extend
     require(bucketSize == left.bucketSize)
     require(buckets.size == left.buckets.size)
 
-    Histogram(bucketSize, buckets.zip(left.buckets).map{ case (a,b) => a + b })
+    Histogram(bucketSize, buckets.zip(left.buckets).map { case (a, b) => a + b })
+  }
+
+  def reset(): Histogram = synchronized {
+    val oldHist = buckets
+    buckets = ArrayBuffer.fill(oldHist.size)(0L)
+    Histogram(bucketSize, oldHist)
   }
 
   def +=(value: Long) {
     add(value)
   }
 
-	def add(value: Long):Histogram = {
-		val bucket = (value / bucketSize).toInt
-		if(bucket >= buckets.length)
-			buckets(buckets.length - 1) += 1
-		else
-			buckets(bucket) +=1
+  def add(value: Long): Histogram = synchronized {
+    val bucket = (value / bucketSize).toInt
+    if (bucket >= buckets.length)
+      buckets(buckets.length - 1) += 1
+    else
+      buckets(bucket) += 1
 
-		this
-	}
+    this
+  }
 
   def totalRequests: Long = buckets.sum
 
   def quantile(fraction: Double): Int = {
     val cumulativeSum = buckets.scanLeft(0L)(_ + _).drop(1)
-    cumulativeSum.findIndexOf(_ >= totalRequests * fraction) * bucketSize
+    if(totalRequests > 0)
+      cumulativeSum.findIndexOf(_ >= totalRequests * fraction) * bucketSize
+    else
+      0
   }
 
   def average: Double = {
@@ -56,7 +65,9 @@ case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Long]) extend
   }
 
   def toHtml: NodeSeq =
-<script type="text/javascript">{"""
+    <script type="text/javascript">
+      {
+        """
  $(document).ready(function() {
       var chart1 = new Highcharts.Chart({
          chart: {
@@ -67,7 +78,7 @@ case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Long]) extend
             text: 'Histogram'
          },
          xAxis: {
-            categories: """ + (1 to buckets.length).map(i => {"'" + i * buckets.length +"'"}).mkString("[", ",", "]") + """
+            categories: """ + (1 to buckets.length).map(i => { "'" + i * buckets.length + "'" }).mkString("[", ",", "]") + """
          },
          yAxis: {
             title: {

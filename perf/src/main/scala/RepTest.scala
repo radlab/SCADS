@@ -42,9 +42,9 @@ case class DataLoader(var numLoaders: Int, var recsPerLoader: Int, var numServer
     val coordination = clusterRoot.getOrCreate("coordination/loaders")
     val cluster = new ExperimentalScadsCluster(clusterRoot)
 
-    val clientId = coordination.registerAndAwait("clientsStart", numServers)
+    val clientId = coordination.registerAndAwait("clientsStart", numLoaders)
     if (clientId == 0) {
-      cluster.blockUntilReady(1)
+      cluster.blockUntilReady(numServers)
       cluster.createNamespace[IntRec, IntRec]("repscaletest", List(None -> List(orderStorageServices(cluster.getAvailableServers).head)))
     }
 
@@ -77,10 +77,12 @@ case class RepClient(var numIterations: Int) extends ReplicatedAvroClient with A
     val ns = cluster.getNamespace[IntRec, IntRec]("repscaletest")
     val loadResults = cluster.getNamespace[RepResultKey, RepResultValue]("repResults")
 
+    val servers = orderStorageServices(cluster.getAvailableServers).toIndexedSeq
+
     for (iteration <- (1 to numIterations)) {
       logger.info("Begining Iteration %d", iteration)
 
-      val servers = orderStorageServices(cluster.getAvailableServers).toIndexedSeq
+      // next storage service to replicate to
       val storageService = servers(numIterations % servers.size)
 
       val oldPartitions = ns.partitions.ranges.flatMap(_.values).toIndexedSeq
@@ -96,6 +98,8 @@ case class RepClient(var numIterations: Int) extends ReplicatedAvroClient with A
       // storageService
       ns.deletePartitions(oldPartitions)
     }
+
+    clusterRoot.createChild("expFinished")
   }
 }
 
