@@ -31,13 +31,12 @@ object GetElapsedTimeForQueryEvents {
 
 		println("timestamp,thread,type,id,elapsedTime")
 
-	  inFile.foreach {event => event match {
-				case ExecutionTrace(_, _, WarmupEvent(_, start)) => processWarmupEvent(event)
-		    case ExecutionTrace(timestamp, threadId, QueryEvent(queryName, start)) => processQueryEvent(event)
-	      case ExecutionTrace(timestamp, threadId, IteratorEvent(iteratorName, plan, op, start)) => processIteratorEvent(event)
-	      case ExecutionTrace(timestamp, threadId, MessageEvent(msg)) => processMessageEvent(event)
+	  inFile.foreach {
+				case event @ ExecutionTrace(_, _, WarmupEvent(_, start)) => processWarmupEvent(event)
+		    case event @ ExecutionTrace(timestamp, threadId, QueryEvent(queryName, start)) => processQueryEvent(event)
+	      case event @ ExecutionTrace(timestamp, threadId, IteratorEvent(iteratorName, plan, op, start)) => processIteratorEvent(event)
+	      case event @ ExecutionTrace(timestamp, threadId, MessageEvent(msg)) => processMessageEvent(event)
 				case _ =>
-			}
 		}
   }
 
