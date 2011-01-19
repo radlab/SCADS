@@ -19,7 +19,7 @@ class RemoteServiceScheduler extends ExperimentScheduler with MessageReceiver {
   }
 }
 
-class ServiceScheduler(mesosMaster: String, executor: String) extends LocalExperimentScheduler("ExperimentDaemon", mesosMaster, executor) with ServiceHandler[ExperimentOperation] {
+class ServiceScheduler(mesosMaster: String, executor: String) extends LocalExperimentScheduler("Meta-Scheduler", mesosMaster, executor) with ServiceHandler[ExperimentOperation] {
   def startup: Unit = null
   def shutdown: Unit = null
 
@@ -28,6 +28,11 @@ class ServiceScheduler(mesosMaster: String, executor: String) extends LocalExper
       logger.info("Processing Requst to run %s", processes)
       scheduleExperiment(processes)
       src.foreach(_ ! RunExperimentResponse())
+    }
+    case KillTaskRequest(taskId) => {
+      logger.info("Killing task %d", taskId)
+      driver.killTask(taskId)
+      src.foreach(_ ! KillTaskResponse())
     }
   }
 }

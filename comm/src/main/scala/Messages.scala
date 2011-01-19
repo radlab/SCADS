@@ -86,6 +86,9 @@ sealed trait ExperimentOperation extends MessageBody
 case class RunExperimentRequest(var processes: List[JvmTask]) extends AvroRecord with ExperimentOperation
 case class RunExperimentResponse() extends AvroRecord with ExperimentOperation
 
+case class KillTaskRequest(var taskId: Int) extends AvroRecord with ExperimentOperation
+case class KillTaskResponse() extends AvroRecord with ExperimentOperation
+
 /* Test Record Types.  Note: they are here due to problems with the typer (i.e. generated methods aren't visable in the same compilation cycle */
 case class IntRec(var f1: Int) extends AvroRecord
 case class IntRec2(var f1: Int, var f2: Int) extends AvroRecord

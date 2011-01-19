@@ -65,6 +65,9 @@ package object demo {
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
+  def killTask(taskId: Int): Unit =
+    serviceScheduler !? KillTaskRequest(taskId)
+
   /**
    * WARNING: deletes all data from all scads cluster
    */
