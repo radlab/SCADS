@@ -93,7 +93,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
   }
   monitorThread.start()
 
-  override def getFrameworkName(d: SchedulerDriver): String = ": " + name
+  override def getFrameworkName(d: SchedulerDriver): String = "WebAppScheduler: " + name
   override def getExecutorInfo(d: SchedulerDriver): ExecutorInfo = new ExecutorInfo(executor, Array[Byte]())
   override def registered(d: SchedulerDriver, fid: String): Unit = logger.info("Registered Framework.  Fid: " + fid)
 
