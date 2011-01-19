@@ -18,25 +18,20 @@ case class PrefixedNamespace(var f1: Int, var f2: Int) extends AvroPair {
   var v = 1 //HACK: Required due to storage engine bug
 }
 
-object QueryRunnerForDataCollection {
+object QueryRunnerForDataCollection extends optional.Application {
   val logger = Logger()
-	val windowLengthInMinutes = 5
+	//var warmupLengthInMinutes = 0
 	var beginningOfCurrentWindow = 0.toLong
 
-  def main(args: Array[String]): Unit = {
+  //def main(args: Array[String]): Unit = {
+	def main(clusterAddress: Option[String], warmupLengthInMinutes: Option[Int] = 5)
+		def withinWarmup: Boolean = {
+			val currentTime = System.nanoTime
+			currentTime < beginningOfCurrentWindow + convertMinutesToNanoseconds(warmupLengthInMinutes)
+		}
+	
     /* Connect to scads cluster */
-    val cluster = args.size match {
-      case 0 => TestScalaEngine.newScadsCluster()
-      case 1 => {
-				println(args(0))
-				new ScadsCluster(ZooKeeperNode(args(0)))
-			}
-      case _ => {
-				println("Usage: [cluster address]")
-				System.exit(1)
-				return
-      }
-    }
+		val cluster = clusterAddress.map(p => ZooKeeperNode(p)).getOrElse(TestScalaEngine.newScadsCluster())
 
     /* get namespaces */
     val ns = cluster.getNamespace[PrefixedNamespace]("prefixedNamespace")
@@ -99,11 +94,6 @@ object QueryRunnerForDataCollection {
     System.exit(0)
   }
 
-	def withinWindow: Boolean = {
-		val currentTime = System.nanoTime
-		currentTime < beginningOfCurrentWindow + convertMinutesToNanoseconds(windowLengthInMinutes)
-	}
-	
 	def convertMinutesToNanoseconds(minutes: Int): Long = {
 		minutes.toLong * 60.toLong * 1000000000.toLong
 	}
