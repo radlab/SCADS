@@ -61,7 +61,11 @@ case class ScalaEngineTask(var clusterAddress: String, var dbDir: Option[String]
 
     logger.info("Opening BDB Environment: " + dir + ", " + config)
     val env = new Environment(dir, config)
-    return new StorageHandler(env, zooRoot,name)
+    val handler = new StorageHandler(env, zooRoot,name)
+
+    //HACK
+    while(true)
+      Thread.sleep(100000)
   }
 }
 
