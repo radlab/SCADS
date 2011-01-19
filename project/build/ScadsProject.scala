@@ -24,7 +24,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
 
   lazy val scalaengine = project("scalaengine", "storage-engine", new ScadsSubProject(_) {
     val bdb = "com.sleepycat" % "je" % "4.0.71"
-  }, config, avro, comm)
+  }, config, avro, comm, deploylib)
 
   lazy val deploylib = project("deploylib", "deploylib", new ScadsSubProject(_) {
     val mesos = "edu.berkeley.cs.mesos" % "java" % "1.0"
