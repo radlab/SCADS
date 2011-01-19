@@ -64,21 +64,21 @@ object TracingExample {
      * Write queries against relations and create optimized function using .toPiql
      * toPiql uses implicit executor defined above to run queries
      */
-    val getQuery = r1.where("f1".a === 1).toPiql
+    val getQuery = r1.where("f1".a === 1).toPiql("getQuery")
     val getRangeQuery = r2.where("f1".a === 1)
-			  .limit(10).toPiql
+			  .limit(10).toPiql("getRangeQuery")
 
     val joinQuery = r2.where("f1".a === 1)
 		      .limit(10)
 		      .join(r1)
-		      .where("r1.f1".a === "r2.f2".a).toPiql
+		      .where("r1.f1".a === "r2.f2".a).toPiql("joinQuery")
 		
 		val mergeSortJoinQuery = r2.where("f1".a === 1)
 					.limit(5)
 					.join(r2Prime)
 					.where("r2.f2".a === "r2Prime.f1".a)
 					.sort("r2Prime.f2".a :: Nil)
-					.limit(10).toPiql
+					.limit(10).toPiql("mergeSortJoinQuery")
 				    
     /* Run some queries */
     //(1 to 300000).foreach(i => {

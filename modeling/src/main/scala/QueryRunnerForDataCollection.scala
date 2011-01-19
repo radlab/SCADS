@@ -56,7 +56,7 @@ object QueryRunnerForDataCollection extends optional.Application {
      */
 		//val rangeSizes = List(10,50,100,500,1000)
 		val rangeSizes = List(5,10,15)
-		val getRangeQueries = rangeSizes.map(currentRangeSize => ns.where("f1".a === 1).limit(currentRangeSize).toPiql)
+		val getRangeQueries = rangeSizes.map(currentRangeSize => ns.where("f1".a === 1).limit(currentRangeSize).toPiql("getRangeQuery-rangeLength=" + currentRangeSize.toString))
 
 		// initialize window
 		beginningOfCurrentWindow = System.nanoTime
