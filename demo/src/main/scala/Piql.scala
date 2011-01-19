@@ -54,7 +54,7 @@ object DashboardReportingExecutor {
       f(currentConnection)
     } catch {
       case e: SQLException =>
-        logger.warning("Connection to SQL Database failed with connection string %s.".format(dashboardDb))
+        logger.warning(e, "Connection to SQL Database failed with connection string %s.".format(dashboardDb))
         cachedConnection = None
     }
   }
