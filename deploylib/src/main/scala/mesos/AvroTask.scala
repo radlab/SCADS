@@ -2,6 +2,7 @@ package deploylib
 package mesos
 
 import edu.berkeley.cs.scads.comm._
+import edu.berkeley.cs.avro.marker._
 import edu.berkeley.cs.avro.runtime._
 import org.apache.avro.io.JsonDecoder
 import org.apache.avro.specific.SpecificDatumReader
@@ -18,10 +19,18 @@ abstract trait AvroTask extends IndexedRecord {
     def *(count: Int): Seq[JvmTask] = Array.fill(count)(process)
   }
 
-  def toJvmTask(implicit classpath: Seq[ClassSource]): JvmMainTask =
-    JvmMainTask(classpath,
+  //TODO: Handle class sources other than s3 cached jar
+  def toJvmTask(implicit classSource: Seq[ClassSource]): JvmMainTask = {
+    val classSourceProperty = classSource.flatMap {
+      case s: ServerSideJar => { logger.warning("UNSUPPORTED: %s", s); Nil }
+      case S3CachedJar(url) => List(url)
+    }.mkString("|")
+
+    JvmMainTask(classSource,
       "deploylib.mesos.AvroTaskMain",
-      this.getClass.getName :: this.toJson :: Nil)
+      this.getClass.getName :: this.toJson :: Nil,
+      Map("deploylib.classSource" -> classSourceProperty))
+  }
 }
 
 object AvroTaskMain {

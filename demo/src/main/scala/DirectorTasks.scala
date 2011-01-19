@@ -13,7 +13,7 @@ import net.lag.logging.Logger
 
 
 case class ScadrDirectorTask(var clusterAddress: String, var mesosMaster: String) extends AvroTask with AvroRecord {
-
+  import DemoConfig._
 
   def run() = {
     val namespaces = Map("users" -> classOf[edu.berkeley.cs.scads.piql.scadr.User],

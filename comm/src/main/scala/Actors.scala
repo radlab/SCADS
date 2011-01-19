@@ -64,7 +64,7 @@ trait RemoteActorProxy {
 
   /**
    * Send a message asynchronously.
-   **/
+   */
   def !(body: MessageBody)(implicit sender: RemoteActorProxy): Unit = {
     MessageHandler.sendMessage(remoteNode, Message(Some(sender.id), id, None, body))
   }
