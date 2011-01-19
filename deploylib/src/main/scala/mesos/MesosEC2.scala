@@ -88,12 +88,12 @@ object MesosEC2 extends ConfigurationActions {
 
   //TODO: Doesn't handle non s3 cached jars
   def classSource: Seq[S3CachedJar] =
-    if(System.getProperty("classsource") == null)
+    if(System.getProperty("deploylib.classSource") == null)
       pushJars.map(_.getName)
 	.map(S3Cache.hashToUrl)
 	.map(new S3CachedJar(_))
     else
-      System.getProperty("classsource").split(":").map(S3CachedJar(_))
+      System.getProperty("deploylib.classSource").split("\\|").map(S3CachedJar(_))
 
   def pushJars: Seq[String] = {
     val jarFile = new File("allJars")
