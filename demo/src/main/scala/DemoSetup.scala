@@ -15,6 +15,7 @@ object DemoConfig {
   //TODO: Add other ZooKeeper
   val zooKeeperRoot = ZooKeeperNode("zk://ec2-50-16-2-36.compute-1.amazonaws.com,ec2-174-129-105-138.compute-1.amazonaws.com/demo")
   def scadrRoot =  zooKeeperRoot.getOrCreate("apps/scadr")
+	def traceRoot = zooKeeperRoot.getOrCreate("traceCollection")
 
   val mesosMasterNode = zooKeeperRoot.getOrCreate("mesosMaster")
   def mesosMaster = new String(mesosMasterNode.data)
