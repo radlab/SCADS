@@ -6,7 +6,9 @@ import java.io.File
 package object demo {
   import DemoConfig._
   import scads.comm._
+	import scads.storage._
   import deploylib.mesos._
+	import scads.piql.modeling._
 
   /**
    * Start a mesos master and make it the primary for the demo.
@@ -65,6 +67,24 @@ package object demo {
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
+	def startTraceCollector: Unit = {
+		println("reset traceRoot...")
+		//resetTracing
+		
+		println("starting trace collection...")
+		val storageEngineTask = ScalaEngineTask(
+			traceRoot.canonicalAddress
+		).toJvmTask // can do *5
+		val traceTask = TraceCollectorTask(
+			traceRoot.canonicalAddress,
+			0,
+			1
+		).toJvmTask
+		serviceScheduler !? RunExperimentRequest(storageEngineTask :: traceTask :: Nil)
+		
+		println("find trace at " + (new String(traceRoot.data)))
+	}
+
   /**
    * WARNING: deletes all data from all scads cluster
    */
@@ -75,6 +95,10 @@ package object demo {
 
     scadrRoot.deleteRecursive
   }
+
+	def resetTracing: Unit = {
+		traceRoot.deleteRecursive
+	}
 
   def startIntKeyTest: Unit = {
     serviceScheduler !? RunExperimentRequest(
