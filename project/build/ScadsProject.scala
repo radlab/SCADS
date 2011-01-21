@@ -54,7 +54,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
   }, perf)
 
   lazy val piql      = project("piql", "piql", new ScadsSubProject(_), config, avro, comm, scalaengine)
-  lazy val modeling    = project("modeling", "modeling", new ScadsSubProject(_), piql, perf)
+  lazy val modeling    = project("modeling", "modeling", new ScadsSubProject(_), piql, perf, deploylib)
   lazy val perf      = project("perf", "performance", new ScadsSubProject(_), config, avro, comm, scalaengine, piql, deploylib)
   lazy val director    = project("director", "director", new ScadsSubProject(_), scalaengine, deploylib)
 
@@ -62,7 +62,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
   lazy val scadr  = project("piql" / "scadr", "scadr", new ScadsSubProject(_), piql, director)
   lazy val gradit = project("piql" / "gradit", "gradit", new ScadsSubProject(_), piql)
 
-  lazy val demo = project("demo", "demo", new ScadsSubProject(_), piql, director, deploylib, gradit, scadr, perf)
+  lazy val demo = project("demo", "demo", new ScadsSubProject(_), piql, director, deploylib, gradit, scadr, perf, modeling)
 
   /* Repository Configuration */
   val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"
