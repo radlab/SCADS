@@ -1,4 +1,4 @@
 javaexecutor {
-  jarcache = "/mnt/"
+  jarcache = "/mnt/deploylibFileCache"
   workdir = "/mnt/"
 }
