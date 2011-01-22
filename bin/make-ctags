@@ -1,0 +1,5 @@
+#!/bin/sh
+CTAGS=/opt/local/bin/ctags
+BINDIR=`dirname $0`
+SCADSDIR=`dirname $BINDIR`
+$CTAGS -h ".scala" -R --exclude=*.js -f $SCADSDIR/tags $SCADSDIR 
