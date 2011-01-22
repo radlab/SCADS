@@ -95,7 +95,7 @@ case class TraceCollectorTask(var clusterAddress: String, var warmupLengthInMinu
 
 		// Write IP to ZooKeeper
 		clusterRoot.data = java.net.InetAddress.getLocalHost.getHostName.getBytes
-		
+		TraceS3Cache.uploadFile("/mnt/piqltrace.avro")
   }
 
 	def convertMinutesToNanoseconds(minutes: Int): Long = {
