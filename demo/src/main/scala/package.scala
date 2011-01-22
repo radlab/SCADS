@@ -82,7 +82,7 @@ package object demo {
 		).toJvmTask
 		serviceScheduler !? RunExperimentRequest(storageEngineTask :: traceTask :: Nil)
 		
-		println("find trace at " + (new String(traceRoot.data)))
+		//println("find trace at " + (new String(traceRoot.data)))	// confusing, b/c the current value is from the previous run
 	}
 
   /**
@@ -97,6 +97,7 @@ package object demo {
   }
 
 	def resetTracing: Unit = {
+		traceRoot.data = "".getBytes
 		traceRoot.deleteRecursive
 	}
 
