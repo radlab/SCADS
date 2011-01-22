@@ -229,7 +229,8 @@ public class Generator {
 
 		ccxacts.setCs_expiry(cal.getTime().getTime());
 		ccxacts.setCx_auth_id(Utils.getRandomAString(15));
-		ccxacts.setCx_co_id(Utils.getRandomInt(1, 92));
+		ccxa
+ts.setCx_co_id(Utils.getRandomInt(1, 92));
 
 		return ccxacts;
 	}

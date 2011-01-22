@@ -6,6 +6,7 @@ trait Queryable {
   def where(predicate: Predicate) = Selection(predicate, this)
   def join(inner: Queryable) = Join(this, inner)
   def limit(count: Int) = StopAfter(count, this)
+  def dataLimit(count: Int) = DataStopAfter(count, this)
   def sort(attributes: Seq[Value], ascending: Boolean = true) = Sort(attributes, ascending, this)
 
   def walkPlan[A](f: Queryable => A): A = {
@@ -38,7 +39,12 @@ abstract trait InnerNode {
 
 case class Selection(predicate: Predicate, child: Queryable) extends Queryable with InnerNode
 case class Sort(attributes: Seq[Value], ascending: Boolean, child: Queryable) extends Queryable with InnerNode
-case class StopAfter(count: Int, child: Queryable) extends Queryable with InnerNode
+
+trait StopOperator extends InnerNode {
+  val count: Int
+}
+case class StopAfter(count: Int, child: Queryable) extends Queryable with StopOperator
+case class DataStopAfter(count: Int, child: Queryable) extends Queryable with StopOperator
 
 case class Join(left: Queryable, right: Queryable) extends Queryable
 

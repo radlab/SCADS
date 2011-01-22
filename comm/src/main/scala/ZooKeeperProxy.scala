@@ -14,9 +14,17 @@ object RClusterZoo extends ZooKeeperProxy((1 to 3).map(i => "zoo%d.millennium.be
 
 object ZooKeeperNode {
   val uriRegEx = """zk://([^/]*)/(.*)""".r
+  val clientConnections = new scala.collection.mutable.HashMap[String,ZooKeeperProxy]()
+
+  def getConnection(uri:String):ZooKeeperProxy = {
+    synchronized {
+      clientConnections.getOrElseUpdate(uri,new ZooKeeperProxy(uri))
+    }
+  }
+
   def apply(uri: String): ZooKeeperProxy#ZooKeeperNode = uri match {
-    case uriRegEx(address, "") => new ZooKeeperProxy(address).root
-    case uriRegEx(address, path) => new ZooKeeperProxy(address).root.getOrCreate(path)
+    case uriRegEx(address, "") => getConnection(address).root
+    case uriRegEx(address, path) => getConnection(address).root.getOrCreate(path)
     case _ => throw new RuntimeException("Invalid ZooKeeper URI: " + uri)
   }
 }
@@ -37,7 +45,7 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watc
   @volatile protected var conn = newConenction()
 
   def newConenction(): ZooKeeper = {
-    logger.info("Opening Zookeeper Connection to %s with timeout %d", address, timeout)
+    logger.info("[%s] Opening Zookeeper Connection to %s with timeout %d",Thread.currentThread.getName, address, timeout)
     new ZooKeeper(address, timeout, this)
   }
 
@@ -116,7 +124,7 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watc
       def process(evt: WatchedEvent) { f(evt) }
     }
 
-    @inline private def childrenMap = 
+    private def childrenMap =
       getChildrenMap(None) 
 
     @inline private def getChildrenMap(watcher: Option[WatchedEvent => Unit]): Map[String, ZooKeeperNode] =
@@ -197,6 +205,18 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watc
       apply(fullName)
     }
 
+    def onDataChange(func:() => Unit):Array[Byte] = {
+      val watcher = new Watcher {
+	def process(evt: WatchedEvent) {
+	  evt.getType match {
+            case EventType.NodeDataChanged => func()
+            case e => logger.error("HOLY FUCK (now watch is unregistered): %s",e)
+          }
+	}
+      }
+      conn.getData(path, watcher, new Stat)
+    }
+
     /** Set a watcher on the children for this node. Note that, according to
      * ZooKeeper semantics, a watcher is executed AT MOST once */
     def watchChildren(f: WatchedEvent => Unit): List[ZooKeeperNode] =
@@ -241,9 +261,11 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watc
   def process(event: WatchedEvent): Unit = {
     if(event.getType == EventType.None)
       event.getState match {
-        case KeeperState.SyncConnected =>
-        case KeeperState.Expired | KeeperState.Disconnected => {
-          logger.warning("Connection to Zookeeper at %s Expired.  Attempting to reconnect", address)
+        case KeeperState.SyncConnected => logger.info("[%s] Connected to Zookeeper at %s",Thread.currentThread.getName,address)
+        case KeeperState.Disconnected => logger.warning("[%s] Connection to Zookeeper at %s Disconnected (%s).",Thread.currentThread.getName,address, event.getState.toString) 
+        case KeeperState.Expired => {
+          logger.warning("[%s] Connection to Zookeeper at %s Expired (%s).  Attempting to reconnect", Thread.currentThread.getName, address, event.getState.toString)
+          try { conn.close() } catch {case e => logger.error("couldn't close zoo connection: %s",e)}
           conn = newConenction()
         }
       }

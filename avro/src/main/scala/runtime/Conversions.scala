@@ -191,9 +191,9 @@ trait HasAvroConversions extends HasAvroPrimitiveConversions
 
   import BasicTransforms._
 
-  @inline def convert[A, B](s: Schema, a: A)(implicit trfm: A ==>> B): B = trfm(s, a)
+  def convert[A, B](s: Schema, a: A)(implicit trfm: A ==>> B): B = trfm(s, a)
 
-  @inline implicit def identity[A] =
+  implicit def identity[A] =
     IdentityTransform.asInstanceOf[==>>[A, A]]
 
 }

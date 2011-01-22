@@ -37,41 +37,38 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
   lazy val tags = cluster.getNamespace[HashTag]("tags").asInstanceOf[Namespace]
 
   /* Optimized queries */
-  val findUser = users.where("username".a === (0.?)).toPiql
+  val findUser = users.where("username".a === (0.?)).toPiql("findUser")
 
   val myThoughts = (
     thoughts.where("thoughts.owner".a === (0.?))
+	    .sort("thoughts.timestamp".a :: Nil, false)
 	    .limit(maxResultsPerPage)
-  ).toPiql
+  ).toPiql("myThoughts")
 
-  val usersFollowedBy = (
+  lazy val usersFollowedBy = (
     subscriptions.where("subscriptions.owner".a === (0.?))
 	 .limit(maxResultsPerPage)
 	 .join(users)
 	 .where("subscriptions.target".a === "users.username".a)
-  ).toPiql
+  ).toPiql("usersFollowedBy")
 
-  /* Old hand coded plans */
-  type QueryArgs = Seq[Any]
 
-  private lazy val usersFollowingPlan =
-    LocalStopAfter(ParameterLimit(1, maxResultsPerPage),
-      IndexLookupJoin(users, Array(AttributeValue(0, 1)),
-        IndexScan(users, Array(ParameterValue(0)), ParameterLimit(1, maxResultsPerPage), true)))
+  val thoughtstream = (
+    subscriptions.where("subscriptions.owner".a === (0.?))
+		 .dataLimit(5000)
+		 .join(thoughts)
+		 .where("thoughts.owner".a === "subscriptions.target".a)
+		 .sort("thoughts.timestamp".a :: Nil, false)
+		 .limit(10)
+  ).toPiql("thoughtstream")
 
   /**
    * Who is following ME?
    */
-  def usersFollowing = (args: QueryArgs) => exec(usersFollowingPlan, args)
-
-  private lazy val thoughtStreamPlan = // (sub_owner, sub_target, sub_approved), (thought_owner, thought_timestamp, thought_text)
-    IndexMergeJoin(thoughts, Array(AttributeValue(0, 1)), Array(AttributeValue(1, 1)), ParameterLimit(1, maxResultsPerPage), false,
-      LocalSelection(EqualityPredicate(ConstantValue(true), AttributeValue(0, 2)), // (owner, target), (approved)
-        IndexScan(subscriptions, Array(ParameterValue(0)), FixedLimit(maxSubscriptions), true) // (owner, target), (approved)
-    ))
-
-  private lazy val thoughtStreamStopAfterPlan =
-    LocalStopAfter(ParameterLimit(1, maxResultsPerPage), thoughtStreamPlan)
-
-  def thoughtstream = (args: QueryArgs) => exec(thoughtStreamStopAfterPlan, args)
+  lazy val usersFollowing = (
+    subscriptions.where("subscriptions.target".a === (0.?))
+		 .limit(1000)
+		 .join(users)
+		 .where("users.username".a === "subscriptions.owner".a)
+    ).toPiql("usersFollowing")
 }

@@ -4,10 +4,14 @@ package scads
 import org.apache.avro.Schema
 import org.apache.avro.generic.{IndexedRecord, GenericRecord}
 import org.apache.avro.util.Utf8
+import net.lag.logging.Logger
+
 import avro.marker._
 import storage._
 
 package object piql {
+  protected val logger = Logger()
+
   type Namespace = edu.berkeley.cs.scads.storage.PairNamespace[AvroPair]
   type KeyGenerator = Seq[Value]
 
@@ -35,7 +39,7 @@ package object piql {
 
   implicit def toConstantValue(a: Any) = ConstantValue(a)
 
-  class OptimizedQuery(val physicalPlan: QueryPlan, executor: QueryExecutor) {
+  class OptimizedQuery(val name: Option[String], val physicalPlan: QueryPlan, executor: QueryExecutor) {
     def apply(args: Any*): QueryResult = {
       val encodedArgs = args.map {
 	case s: String => new Utf8(s)
@@ -49,9 +53,14 @@ package object piql {
     }
   }
 
+  implicit def toOption[A](a: A) = Option(a)
+
   implicit def toPiql(logicalPlan: Queryable)(implicit executor: QueryExecutor) = new {
-    def toPiql = {
-      new OptimizedQuery(Optimizer(logicalPlan).physicalPlan, executor)
+    def toPiql(queryName: Option[String] = None) = {
+      logger.info("Begining Optimization of query %s", logicalPlan)
+      val physicalPlan = Optimizer(logicalPlan).physicalPlan
+      logger.info("Optimized piql query %s: %s", queryName, physicalPlan)
+      new OptimizedQuery(queryName, physicalPlan, executor)
     }
   }
 

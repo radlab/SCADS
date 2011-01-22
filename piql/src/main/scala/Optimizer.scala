@@ -13,7 +13,7 @@ object Optimizer {
 
   case class OptimizedSubPlan(physicalPlan: QueryPlan, schema: TupleSchema)
   def apply(logicalPlan: Queryable): OptimizedSubPlan = {
-    logger.info("Begining optimization of plan: %s", logicalPlan)
+    logger.info("Optimizing subplan: %s", logicalPlan)
 
     logicalPlan match {
       case IndexRange(equalityPreds, None, None, Relation(ns)) if (equalityPreds.size == ns.keySchema.getFields.size) => {
@@ -22,11 +22,25 @@ object Optimizer {
           IndexLookup(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds)),
           tupleSchema)
       }
-      case IndexRange(equalityPreds, Some(limit), None, Relation(ns)) => {
+      case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), None, Relation(ns)) => {
 	val tupleSchema = ns :: Nil
-        OptimizedSubPlan(
-          IndexScan(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), limit, true),
-          ns :: Nil)
+	val idxScanPlan = IndexScan(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), count, true)
+	val fullPlan = dataStop match {
+	  case true => idxScanPlan
+	  case false => LocalStopAfter(count, idxScanPlan)
+	}
+        OptimizedSubPlan(fullPlan, ns :: Nil)
+      }
+      //TODO: Check to make sure the index has the right ordering.
+      case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), Some(Ordering(attrs, asc)), Relation(ns)) => {
+	val tupleSchema = ns :: Nil
+	val idxScanPlan = IndexScan(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), count, asc)
+	val fullPlan = dataStop match {
+	  case true => idxScanPlan
+	  case false => LocalStopAfter(count, idxScanPlan)
+	}
+
+        OptimizedSubPlan(fullPlan, ns :: Nil)
       }
       case IndexRange(equalityPreds, None, None, Join(child, Relation(ns))) if (equalityPreds.size == ns.keySchema.getFields.size) => {
         val optChild = apply(child)
@@ -34,6 +48,25 @@ object Optimizer {
         OptimizedSubPlan(
           IndexLookupJoin(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), optChild.physicalPlan),
           tupleSchema)
+      }
+      //TODO: Check to make sure the index has the desired ordering.
+      case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), Some(Ordering(attrs, asc)), Join(child, Relation(ns))) => {
+	val optChild = apply(child)
+	val tupleSchema = optChild.schema :+ ns
+
+	val joinPlan = IndexMergeJoin(ns,
+	      makeKeyGenerator(ns, tupleSchema, equalityPreds),
+	      attrs.map(bindValue(_, tupleSchema)),
+	      count,
+	      asc,
+	      optChild.physicalPlan)
+
+	val fullPlan = dataStop match {
+	  case true => joinPlan
+	  case false => LocalStopAfter(count, joinPlan)
+	}
+	    
+      	OptimizedSubPlan(fullPlan, tupleSchema)
       }
       case Selection(pred, child) => {
         val optChild = apply(child)
@@ -82,14 +115,16 @@ object Optimizer {
 
   case class AttributeEquality(attributeName: String, value: Value)
   case class Ordering(attributes: Seq[Value], ascending: Boolean)
+  case class TupleLimit(count: Limit, data: Boolean)
   /**
    * Groups sets of logical operations that can be executed as a
    * single get operations against the key value store
    */
   protected object IndexRange {
-    def unapply(logicalPlan: Queryable): Option[(Seq[AttributeEquality], Option[Limit], Option[Ordering], Queryable)] = {
+    def unapply(logicalPlan: Queryable): Option[(Seq[AttributeEquality], Option[TupleLimit], Option[Ordering], Queryable)] = {
       val (limit, planWithoutStop) = logicalPlan match {
-        case StopAfter(count, child) => (Some(FixedLimit(count)), child)
+        case StopAfter(count, child) => (Some(TupleLimit(FixedLimit(count), false)), child)
+	case DataStopAfter(count, child) => (Some(TupleLimit(FixedLimit(count), true)), child)
         case otherOp => (None, otherOp)
       }
 
@@ -98,7 +133,7 @@ object Optimizer {
         case otherOp => (None, otherOp)
       }
 
-      val (predicates, planWithoutPredicates) = planWithoutStop.gatherUntil {
+      val (predicates, planWithoutPredicates) = planWithoutSort.gatherUntil {
         case Selection(pred, _) => pred
       }
 

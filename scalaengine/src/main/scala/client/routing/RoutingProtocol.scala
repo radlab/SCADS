@@ -1,9 +1,8 @@
 package edu.berkeley.cs.scads.storage.routing
 
 
-import edu.berkeley.cs.scads.util.RangeTable
-import edu.berkeley.cs.scads.util.RangeType
-import edu.berkeley.cs.scads.storage.AvroSerializing
+import edu.berkeley.cs.scads.util.{ RangeTable, RangeType }
+import edu.berkeley.cs.scads.storage.{ AvroSerializing, ParFuture }
 
 import collection.mutable.HashMap
 import org.apache.avro.generic.IndexedRecord
@@ -21,7 +20,7 @@ import edu.berkeley.cs.scads.comm._
 trait RoutingProtocol [KeyType <: IndexedRecord,
                       ValueType <: IndexedRecord,
                       RecordType <: IndexedRecord,
-                      RType] {
+                      RType] extends ParFuture {
   this: Namespace[KeyType, ValueType, RecordType, RType] with AvroSerializing[KeyType, ValueType, RecordType, RType] =>
 
   def serversForKey(key: KeyType): Seq[PartitionService]
@@ -71,19 +70,19 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
       }
       createRoutingTable(rTable)
       storeRoutingTable()
+      loadRoutingTable()
   }
 
   onDelete {
     val storageHandlers = routingTable.rTable.flatMap(_.values.map(_.storageService)).toSet
-    storageHandlers foreach { handler =>
-      handler !? DeleteNamespaceRequest(namespace) match {
-        case DeleteNamespaceResponse() =>
-          logger.info("Successfully deleted namespace %s on StorageHandler %s", namespace, handler)
-        case InvalidNamespace(_) =>
-          logger.error("Got invalid namespace error for namespace %s on StorageService %s", namespace, handler)
-        case e =>
-          logger.error("Unexpected message from DeleteNamespaceRequest: %s", e)
-      }
+    val delReq = DeleteNamespaceRequest(namespace)
+    waitFor(storageHandlers.toSeq.map(h => (h !! delReq, h))) {
+      case (DeleteNamespaceResponse(), handler) =>
+        logger.info("Successfully deleted namespace %s on StorageHandler %s", namespace, handler)
+      case (InvalidNamespace(_), handler) =>
+        logger.error("Got invalid namespace error for namespace %s on StorageService %s", namespace, handler)
+      case (e, _) =>
+        logger.error("Unexpected message from DeleteNamespaceRequest: %s", e)
     }
     routingTable = null
   }
@@ -154,13 +153,13 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
       (newPartition, partitionHandler)
     }
     storeAndPropagateRoutingTable()
-    for((newPartition, oldPartition) <- result){
-      newPartition !? CopyDataRequest(oldPartition, false) match {
-        case CopyDataResponse() => ()
-        case _ => throw new RuntimeException("Unexpected Message")
-      }
+    waitForAndThrowException(
+      result.map {
+        case (newPartition, oldPartition) => (newPartition !! CopyDataRequest(oldPartition, false), newPartition)
+      }, 3*60*1000) {
+      case (CopyDataResponse(), _) => () 
     }
-    return result.map(_._1)
+    result.map(_._1)
   }
 
   /**
@@ -227,22 +226,17 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
 
 
   private def deletePartitionService(partitions: Seq[PartitionService]): Unit = {
-    for (partition <- partitions) {
-      partition.storageService !? DeletePartitionRequest(partition.partitionId) match {
-        case DeletePartitionResponse() => ()
-        case _ => throw new RuntimeException("Unexpected Message")
-      }
+    waitForAndThrowException(partitions.map(partition => (partition.storageService !! DeletePartitionRequest(partition.partitionId), partition))) {
+      case (DeletePartitionResponse(), _) => ()
     }
   }
 
 
   private def createPartitions(startKey: Option[RoutingKeyType], endKey: Option[RoutingKeyType], servers: Seq[StorageService])
   : Seq[PartitionService] = {
-    for (server <- servers) yield {
-      server !? CreatePartitionRequest(namespace, startKey.map(serializeRoutingKey(_)), endKey.map(serializeRoutingKey(_))) match {
-        case CreatePartitionResponse(partitionActor) => partitionActor
-        case _ => throw new RuntimeException("Unexpected Message")
-      }
+    val createReq = CreatePartitionRequest(namespace, startKey.map(serializeRoutingKey(_)), endKey.map(serializeRoutingKey(_)))
+    waitForAndThrowException(servers.map(server => (server !! createReq, server))) {
+      case (CreatePartitionResponse(partitionActor), _) => partitionActor
     }
   }
 
@@ -260,13 +254,10 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
     nsRoot.waitUntilPropagated()
   }
 
-  private def loadRoutingTable() = {
-    val zkNode = nsRoot.get(ZOOKEEPER_ROUTING_TABLE)
-    val rangeSeq = new RoutingTableMessage()
-    zkNode match {
-      case None => throw new RuntimeException("Can not load empty routing table")
-      case Some(a) => rangeSeq.parse(a.data)
-    }
+  private def loadRoutingTable():Unit = {
+		logger.debug("loading routing table")
+    val zkNode = nsRoot.get(ZOOKEEPER_ROUTING_TABLE).getOrElse(throw new RuntimeException("Can not load empty routing table"))
+    val rangeSeq = new RoutingTableMessage().parse(zkNode.onDataChange(loadRoutingTable))
     val partition = rangeSeq.partitions.map(a => new RangeType(a.startKey.map(deserializeRoutingKey(_)), a.servers))
     createRoutingTable(partition.toArray)
   }

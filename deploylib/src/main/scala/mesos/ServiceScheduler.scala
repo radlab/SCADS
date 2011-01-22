@@ -52,10 +52,14 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String, exe
       scheduleNow.take(offers.size).foreach(proc => {
         val offer = offers.remove(0)
         val taskParams = Map(List("mem", "cpus").map(k => k -> offer.getParams.get(k)):_*)
-        val task = new TaskDescription(taskId, offer.getSlaveId, proc.toString, taskParams, JvmTask(proc))
-        logger.debug("Scheduling task %d: %s", taskId, proc)
+        val taskDesc = proc match {
+          case JvmMainTask(cp, mc, args, props) => mc + ": " + args
+          case o => o.toString
+        }
+        val task = new TaskDescription(taskId, offer.getSlaveId, taskDesc, taskParams, JvmTask(proc))
+        logger.info("Scheduling task %d: %s", taskId, proc)
         taskIds ::= taskId
-        logger.debug("Assigning task %d to slave %s on %s", taskId, offer.getSlaveId, offer.getHost)
+        logger.info("Assigning task %d to slave %s on %s", taskId, offer.getSlaveId, offer.getHost)
         taskId += 1
         tasks.add(task)
 

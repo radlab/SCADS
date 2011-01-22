@@ -33,7 +33,7 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
                      ValueType <: IndexedRecord, 
                      RecordType <: IndexedRecord,
                      RangeType] 
-  extends AvroComparator {
+  extends AvroComparator with ParFuture {
   this: Namespace[KeyType, ValueType, RecordType, RangeType] 
         with RoutingProtocol[KeyType, ValueType, RecordType, RangeType]
         with SimpleMetaData[KeyType, ValueType, RecordType, RangeType] 
@@ -104,30 +104,22 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
     val serKey = serializeKey(key)
     val getRequest = GetRequest(serKey)
 
-    for (partition <- partitions) yield {
-      val values = partition !? getRequest match {
-        case GetResponse(v) => extractRecordTypeFromRecord(serKey, v)
-        case u => throw new RuntimeException("Unexpected message during get.")
-      }
-      (partition, values) 
+    waitForAndThrowException(partitions.map(partition => (partition !! getRequest, partition))) { 
+      case (GetResponse(v), partition) => (partition, extractRecordTypeFromRecord(serKey, v))
     }
  }
   
 
   def getAllRangeVersions(startKey: Option[KeyType], endKey: Option[KeyType]): Seq[(PartitionService, Seq[RangeType])] = {
     val ranges = serversForRange(startKey, endKey)
-    var result: Seq[(PartitionService, Seq[RangeType])] = Nil
-    for(range <- ranges) {
-      val rangeRequest = new GetRangeRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), None, None, true)
-      for(partition <- range.values) {
-        val values = partition !? rangeRequest  match {
-           case GetRangeResponse(v) => v.map(a => extractRangeTypeFromRecord(a.key, a.value).get)
-           case _ => throw new RuntimeException("Unexpected Message")
-        }
-        result = (partition, values) +: result
-      }
+    waitForAndThrowException(
+      ranges.flatMap(range => {
+        val rangeReq = GetRangeRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), None, None, true)
+        range.values.map(partition => (partition !! rangeReq, partition))
+      })) {
+      case (GetRangeResponse(v), partition) => 
+        (partition, v.map(a => extractRangeTypeFromRecord(a.key, a.value).get))
     }
-    result.reverse
   }
 
   def put(key: KeyType, value: Option[ValueType]): Unit = {

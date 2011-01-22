@@ -19,9 +19,14 @@ import scala.collection.JavaConversions._
 import scala.util.Random
 
 import org.mortbay.jetty.Connector;
-import org.mortbay.jetty.Server;
+import org.mortbay.jetty.{Server, Request};
 import org.mortbay.jetty.nio.SelectChannelConnector;
+import org.mortbay.jetty.servlet.Context;
+import org.mortbay.jetty.servlet.ServletHolder;
 import org.mortbay.jetty.webapp.WebAppContext;
+import org.mortbay.jetty.handler.{ContextHandler, StatisticsHandler}
+import org.mortbay.jetty.handler.AbstractHandler
+import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 
 object JavaExecutor {
   def main(args: Array[String]): Unit = {
@@ -56,25 +61,78 @@ class JavaExecutor extends Executor {
     def kill: Unit
   }
 
-  class JettyApp(val warFile: File) extends RunningTask {
-    val server = new Server()
+  class JettyApp(val taskId: Int, val warFile: File, properties: Map[String, String], driver: ExecutorDriver) extends RunningTask {
+    /* Set the properies in the current JVM */
+    properties.foreach { case (k,v) => System.setProperty(k,v) }
 
+    val server = new Server()
     val connector = new SelectChannelConnector()
     connector.setPort(Integer.getInteger("jetty.port", 8080).intValue())
     server.setConnectors(Array[Connector](connector))
+    val pool = new org.mortbay.thread.QueuedThreadPool
+    logger.warning("Setting max thread pool size")
+    pool.setMaxThreads(10)
+    server.setThreadPool(pool)
+    logger.warning("max pool size: %d",server.getThreadPool match {case p:org.mortbay.thread.QueuedThreadPool => p.getMaxThreads; case _ => -1})
 
+    /* Create context for webapp and wrap it with stats handler */
+    val statsWebApp = new StatisticsHandler()
     val webapp = new WebAppContext()
     webapp.setContextPath("/")
     webapp.setWar(warFile.getCanonicalPath)
-    server.setHandler(webapp)
+    statsWebApp.addHandler(webapp)
+
+    @volatile var running = true
+    @volatile var requestsPerSec = 0.0
+    val statsThread = new Thread("StatsThread") {
+      var lastTime = System.currentTimeMillis()
+      var lastCount = 0
+      override def run(): Unit = {
+        while(running) {
+          Thread.sleep(5000)
+          val currentTime = System.currentTimeMillis()
+          val currentCount = statsWebApp.getRequests()
+          requestsPerSec = (currentCount - lastCount) / ((currentTime - lastTime) / 1000)
+          logger.debug("Updating statistics at %d %d: %f", currentTime, currentCount, requestsPerSec)
+          lastTime = currentTime
+          lastCount = currentCount
+        }
+      }
+    }
+    statsThread.start()
+
+    /* Create a special context that reports /stats over http */
+    val statsHandler = new AbstractHandler() {
+      def handle(target: String, request: HttpServletRequest, response: HttpServletResponse, dispatch: Int): Unit = {
+        response.setContentType("text/html")
+        response.setStatus(HttpServletResponse.SC_OK)
+        response.getWriter().println(<status><RequestRate>{requestsPerSec}</RequestRate><RequestsTotal>{statsWebApp.getRequests()}</RequestsTotal></status>.toString)
+        request.asInstanceOf[Request].setHandled(true)
+      }
+    }
+    val statsContext = new ContextHandler()
+    statsContext.setContextPath("/stats")
+    statsContext.addHandler(statsHandler)
+
+    /* add both the webapp and the stats context to the running server */
+    server.setHandlers(Array(statsContext, statsWebApp))
 
     server.start()
 
-    def kill = server.stop()
+    while(!server.isRunning()) {
+      logger.info("Waiting for server to report isRunning == true")
+      Thread.sleep(1000)
+    }
+    driver.sendStatusUpdate(new TaskStatus(taskId, TaskState.TASK_RUNNING, new Array[Byte](0)))
+
+    def kill = {
+      running = false
+      server.stop()
+    }
   }
 
   class ForkedJvm(val taskId: Int, val heapSize: Int, val classpath: String, val mainClass: String, val args: Seq[String], val properties: Map[String, String], driver: ExecutorDriver) extends RunningTask with Runnable {
-    val logger = Logger()
+     val logger = Logger()
     logger.debug("Requested memory: " + heapSize)
     val cmdLine = List[String]("/usr/bin/java",
       "-server",
@@ -82,6 +140,7 @@ class JavaExecutor extends Executor {
       "-Xms" + heapSize + "M",
       "-XX:+HeapDumpOnOutOfMemoryError",
       "-XX:+UseConcMarkSweepGC",
+      "-Djava.library.path=" + new File(System.getenv("MESOS_HOME"), "lib/java"),
       properties.map(kv => "-D%s=%s".format(kv._1, kv._2)).mkString(" "),
       "-cp", classpath,
       mainClass) ++ args
@@ -161,7 +220,7 @@ class JavaExecutor extends Executor {
     logger.info("Starting task" + taskId)
     val runningTask = JvmTask(taskDesc.getArg()) match {
       case JvmMainTask(classpath, mainclass, args, props) => new ForkedJvm(taskId, taskDesc.getParams().get("mem").toInt, loadClasspath(classpath), mainclass, args, props, d)
-      case JvmWebAppTask(warFile) => new JettyApp(resolveClassSource(warFile))
+      case JvmWebAppTask(warFile, properties) => new JettyApp(taskId, resolveClassSource(warFile), properties, d)
     }
 
     runningTasks += ((taskId, runningTask))

@@ -26,7 +26,7 @@ object TestOptimizer {
   def main(args: Array[String]): Unit = {
     implicit val executor = new SimpleExecutor
     r1 ++= (1 to 10).map(i => R1(i))
-    val query = r1.where("f1".a === 1).toPiql
+    val query = r1.where("f1".a === 1).toPiql()
 
     println(query(Nil))
 
