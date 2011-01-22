@@ -2,6 +2,7 @@ package edu.berkeley.cs.scads.storage.newclient
 
 import edu.berkeley.cs.avro.marker._
 import edu.berkeley.cs.scads.comm._
+import edu.berkeley.cs.scads.storage.ParFuture
 
 import org.apache.avro.Schema 
 import org.apache.avro.generic._
@@ -24,7 +25,8 @@ trait QuorumProtocol
   with Namespace
   with KeyRoutable
   with RecordMetadata
-  with GlobalMetadata {
+  with GlobalMetadata
+  with ParFuture {
 
   import QuorumProtocol._
 
@@ -198,16 +200,9 @@ trait QuorumProtocol
   def getAllVersions(key: Array[Byte]): Seq[(PartitionService, Option[Array[Byte]])] = {
     val (partitions, quorum) = readQuorumForKey(key)
     val getRequest = GetRequest(key)
-    // TODO: should probably scatter and gather here instead of process
-    // sequentially. however, since this is a debug method it does not really
-    // matter
-    for (partition <- partitions) yield {
-      val values = partition !? getRequest match {
-        case GetResponse(optV) =>
-          optV.map(extractRecordFromValue)
-        case u => throw new RuntimeException("Unexpected message during get.")
-      }
-      (partition, values) 
+
+    waitForAndThrowException(partitions.map(partition => (partition !! getRequest, partition))) { 
+      case (GetResponse(optV), partition) => (partition, optV.map(extractRecordFromValue))
     }
   }
 

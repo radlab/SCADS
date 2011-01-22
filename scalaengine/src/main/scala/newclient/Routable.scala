@@ -2,6 +2,7 @@ package edu.berkeley.cs.scads.storage.newclient
 
 import edu.berkeley.cs.scads._
 import comm._
+import storage.ParFuture
 import util._
 
 import java.nio._
@@ -20,7 +21,8 @@ trait DefaultKeyRoutableLike
   with KeyPartitionable
   with Namespace
   with GlobalMetadata
-  with RecordMetadata {
+  with RecordMetadata
+  with ParFuture {
 
   import DefaultKeyRoutableLike._
 
@@ -41,15 +43,14 @@ trait DefaultKeyRoutableLike
 
   onDelete {
     val storageHandlers = _routingTable.rTable.flatMap(_.values.map(_.storageService)).toSet
-    storageHandlers foreach { handler =>
-      handler !? DeleteNamespaceRequest(name) match {
-        case DeleteNamespaceResponse() =>
-          logger.info("Successfully deleted namespace %s on StorageHandler %s", name, handler)
-        case InvalidNamespace(_) =>
-          logger.error("Got invalid namespace error for namespace %s on StorageService %s", name, handler)
-        case e =>
-          logger.error("Unexpected message from DeleteNamespaceRequest: %s", e)
-      }
+    val delReq = DeleteNamespaceRequest(name)
+    waitFor(storageHandlers.toSeq.map(h => (h !! delReq, h))) {
+      case (DeleteNamespaceResponse(), handler) =>
+        logger.info("Successfully deleted namespace %s on StorageHandler %s", name, handler)
+      case (InvalidNamespace(_), handler) =>
+        logger.error("Got invalid namespace error for namespace %s on StorageService %s", name, handler)
+      case (e, _) =>
+        logger.error("Unexpected message from DeleteNamespaceRequest: %s", e)
     }
     _routingTable = null
   }
@@ -142,11 +143,9 @@ trait DefaultKeyRoutableLike
   }
 
   private def createPartitions(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], servers: Seq[StorageService]): Seq[PartitionService] = {
-    for (server <- servers) yield {
-      server !? CreatePartitionRequest(name, startKey, endKey) match {
-        case CreatePartitionResponse(partitionActor) => partitionActor
-        case _ => throw new RuntimeException("Unexpected Message")
-      }
+    val createReq = CreatePartitionRequest(name, startKey, endKey)
+    waitForAndThrowException(servers.map(server => (server !! createReq, server))) {
+      case (CreatePartitionResponse(partitionActor), _) => partitionActor
     }
   }
 
@@ -154,11 +153,8 @@ trait DefaultKeyRoutableLike
    * not modify the routing table. use deletePartitions to properly delete a
    * partition service */
   private def deletePartitionServices(partitions: Seq[PartitionService]): Unit = {
-    for (partition <- partitions) {
-      partition.storageService !? DeletePartitionRequest(partition.partitionId) match {
-        case DeletePartitionResponse() => ()
-        case _ => throw new RuntimeException("Unexpected Message")
-      }
+    waitForAndThrowException(partitions.map(partition => (partition.storageService !! DeletePartitionRequest(partition.partitionId), partition))) {
+      case (DeletePartitionResponse(), _) => ()
     }
   }
 
@@ -224,12 +220,11 @@ trait DefaultKeyRoutableLike
       (newPartition, partitionHandler)
     }
     storeAndPropagateRoutingTable()
-    // TODO: once again, do this in parallel
-    for((newPartition, oldPartition) <- result){
-      newPartition !? CopyDataRequest(oldPartition, false) match {
-        case CopyDataResponse() => ()
-        case _ => throw new RuntimeException("Unexpected Message")
-      }
+    waitForAndThrowException(
+      result.map {
+        case (newPartition, oldPartition) => (newPartition !! CopyDataRequest(oldPartition, false), newPartition)
+      }, 3*60*1000) {
+      case (CopyDataResponse(), _) => () 
     }
     result.map(_._1)
   }
