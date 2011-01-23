@@ -375,7 +375,7 @@ trait QuorumRangeProtocol
         result.appendAll(records.flatMap(rec =>
           if (openRec > 0) {
             openRec -= 1
-            rec.value.map(v => List((rec.key, extractRecordFromValue(v)))).getOrElse(Nil)
+            rec.value.map(v => (rec.key, extractRecordFromValue(v))).toList
           } else
             Nil
           )
