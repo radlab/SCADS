@@ -143,8 +143,8 @@ trait AvroPairSerializer[P <: AvroPair]
 
   implicit protected def pairManifest: Manifest[P]
 
-  // TODO: need to recreate the pair schema from key/value schema
-  private val pairReaderWriter = new AvroSpecificReaderWriter[P](None)
+  // TODO: need to recreate the pair schema from key/value schema, for schema validation
+  private lazy val pairReaderWriter = new AvroSpecificReaderWriter[P](None)
 
   override def bytesToKey(bytes: Array[Byte]): IndexedRecord = 
     keyReaderWriter.deserialize(bytes)
