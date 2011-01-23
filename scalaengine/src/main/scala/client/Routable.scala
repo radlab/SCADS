@@ -40,12 +40,14 @@ trait DefaultKeyRoutableLike
   }
 
   onOpen { isNew =>
+    logger.debug("DefaultKeyRoutableLike open():")
     if (isNew) doCreate()
     else loadRoutingTable()
     isNew
   }
 
   onDelete {
+    logger.debug("DefaultKeyRoutableLike delete():")
     val storageHandlers = _routingTable.rTable.flatMap(_.values.map(_.storageService)).toSet
     val delReq = DeleteNamespaceRequest(name)
     waitFor(storageHandlers.toSeq.map(h => (h !! delReq, h))) {

@@ -36,20 +36,23 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
     logger.debug("ZooKeeperGlobalMetadata open(): ")
 
     // TODO: this is definitely racy, but it's no worse than what we had
-    // before
-    root.get(name).map(_ => false).getOrElse {
+    // before. also this block of code is an abuse of side effects in map
+    // and getOrElse.
+    val ret = root.get(name).map(nrs => { nsRoot = nrs; false }).getOrElse {
       try {
         val newRoot = root.createChild(name, Array.empty, CreateMode.PERSISTENT)
         initRoot(newRoot)
-        newRoot
+        nsRoot = newRoot
         true
       } catch {
         case e: KeeperException if e.code == KeeperException.Code.NODEEXISTS => 
-          root(name)
+          nsRoot = root(name)
           false
         case e => throw e
       }
     }
+    assert(nsRoot ne null, "nsRoot should not be null after open")
+    ret
   }
 
   onDelete {
