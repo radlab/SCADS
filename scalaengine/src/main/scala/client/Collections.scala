@@ -1,4 +1,4 @@
-package edu.berkeley.cs.scads.storage.newclient
+package edu.berkeley.cs.scads.storage
 
 import org.apache.avro.generic._
 import collection.mutable._

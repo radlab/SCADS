@@ -1,4 +1,4 @@
-package edu.berkeley.cs.scads.storage.newclient
+package edu.berkeley.cs.scads.storage
 
 import edu.berkeley.cs.avro.marker._
 import edu.berkeley.cs.scads.comm._
@@ -77,20 +77,31 @@ trait RangeProtocol extends Protocol {
 
 trait KeyRoutable {
   def serversForKey(key: Array[Byte]): Seq[PartitionService]
-  def onRoutingTableChanged(newTable: Array[Byte]): Unit
+
+  protected def onRoutingTableChanged(newTable: Array[Byte]): Unit
+  protected def convertToRoutingKey(key: Array[Byte]): Array[Byte]
 }
 
 case class RangeDesc(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], servers: Seq[PartitionService])
 trait KeyRangeRoutable extends KeyRoutable {
   def serversForKeyRange(start: Option[Array[Byte]], end: Option[Array[Byte]]): Seq[RangeDesc]
+
+  protected def convertFromRoutingKey(key: Array[Byte]): Array[Byte]
 }
 
 trait KeyPartitionable {
   def splitPartition(splitKeys: Seq[Array[Byte]]): Unit
   def mergePartition(mergeKeys: Seq[Array[Byte]]): Unit
+
   def deletePartitions(partitionHandlers: Seq[PartitionService]): Unit
   /** For each target, replace the PartitionService on the StorageService */
   def replicatePartitions(targets: Seq[(PartitionService, StorageService)]): Seq[PartitionService]
+
+  /** sets the partition scheme to be exactly that which is represented by the input.
+   * any previously existing partitions are thrown away. it is required that
+   * length of (scheme) >= 1 and that the 1st split key is None */
+  def setPartitionScheme(scheme: Seq[(Option[Array[Byte]], Seq[StorageService])]): Unit
+
   def routingTable: RangeTable[Array[Byte], PartitionService]
 }
 
@@ -109,6 +120,10 @@ trait GlobalMetadata {
   def putMetadata(key: String, value: Array[Byte]): Unit 
   def deleteMetadata(key: String): Unit
   def waitUntilMetadataPropagated(): Unit
+}
+
+trait PairGlobalMetadata extends GlobalMetadata {
+  def pairSchema: Schema
 }
 
 trait RecordMetadata {

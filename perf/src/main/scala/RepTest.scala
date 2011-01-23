@@ -85,7 +85,7 @@ case class RepClient(var numIterations: Int) extends ReplicatedAvroClient with A
       // next storage service to replicate to
       val storageService = servers(numIterations % servers.size)
 
-      val oldPartitions = ns.partitions.ranges.flatMap(_.values).toIndexedSeq
+      val oldPartitions = ns.routingTable.ranges.flatMap(_.values).toIndexedSeq
 
       val startTime = System.currentTimeMillis
       // replicate all partitions to the next storage service

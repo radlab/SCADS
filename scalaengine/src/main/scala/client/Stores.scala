@@ -1,4 +1,4 @@
-package edu.berkeley.cs.scads.storage.newclient
+package edu.berkeley.cs.scads.storage
 
 import edu.berkeley.cs.avro.marker._
 import edu.berkeley.cs.scads.comm._

@@ -1,4 +1,4 @@
-package edu.berkeley.cs.scads.storage.newclient
+package edu.berkeley.cs.scads.storage
 
 import java.nio._
 

@@ -1,4 +1,4 @@
-package edu.berkeley.cs.scads.storage.newclient
+package edu.berkeley.cs.scads.storage
 
 import java.io._
 
@@ -136,7 +136,7 @@ trait AvroSpecificKeyValueSerializer[K <: SpecificRecord, V <: SpecificRecord]
 
 trait AvroPairSerializer[P <: AvroPair]
   extends PairSerializer[P]
-  with GlobalMetadata {
+  with PairGlobalMetadata {
 
   private lazy val keyReaderWriter = new AvroGenericReaderWriter[IndexedRecord](Some(remoteKeySchema), keySchema)
   private lazy val valueReaderWriter = new AvroGenericReaderWriter[IndexedRecord](Some(remoteValueSchema), valueSchema)
@@ -181,4 +181,7 @@ trait AvroPairSerializer[P <: AvroPair]
 
   override lazy val valueSchema = 
     pairManifest.erasure.asInstanceOf[Class[P]].newInstance.value.getSchema
+
+  override lazy val pairSchema = 
+    pairManifest.erasure.asInstanceOf[Class[P]].newInstance.getSchema
 }

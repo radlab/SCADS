@@ -1,8 +1,7 @@
-package edu.berkeley.cs.scads.storage.newclient
+package edu.berkeley.cs.scads.storage
 
 import edu.berkeley.cs.scads._
 import comm._
-import storage.ParFuture
 import util._
 
 import java.nio._
@@ -30,15 +29,20 @@ trait DefaultKeyRoutableLike
 
   override def routingTable = _routingTable 
 
-  onCreate {
-    println("DefaultKeyRoutableLike create")
-    // TODO: assumes that create maps 1 random server to the entire key range
+  private def doCreate(): Unit = {
     createRoutingTable(createPartitions(None, None, cluster.getRandomServers(1)))
     storeRoutingTable()
   }
 
-  onOpen {
-    loadRoutingTable()
+  onCreate {
+    logger.debug("DefaultKeyRoutableLike create():")
+    doCreate()
+  }
+
+  onOpen { isNew =>
+    if (isNew) doCreate()
+    else loadRoutingTable()
+    isNew
   }
 
   onDelete {
@@ -57,6 +61,7 @@ trait DefaultKeyRoutableLike
 
   onClose {
     // TODO
+    _routingTable = null
   }
 
   override def serversForKey(key: Array[Byte]): Seq[PartitionService] = {
@@ -64,8 +69,6 @@ trait DefaultKeyRoutableLike
   }
 
   override def onRoutingTableChanged(newTable: Array[Byte]): Unit = error("onRoutingTableChanged")
-
-  protected def convertToRoutingKey(key: Array[Byte]): Array[Byte]
 
   protected def routingKeyComp: (Array[Byte], Array[Byte]) => Int
 
@@ -125,6 +128,8 @@ trait DefaultKeyRoutableLike
       createRoutingTable(partition.toArray)
   }
 
+  /** create a routing table with the assumption that each PartitionService is going to handle
+   * (None -> None). note this assumption is NOT validated */
   @inline private def createRoutingTable(partitionHandlers: Seq[PartitionService]): Unit = {
     val arr = new Array[RangeType[Array[Byte], PartitionService]](1)
     arr(0) = new RangeType[Array[Byte], PartitionService](None, partitionHandlers)
@@ -229,6 +234,31 @@ trait DefaultKeyRoutableLike
     result.map(_._1)
   }
 
+  override def setPartitionScheme(scheme: Seq[(Option[Array[Byte]], Seq[StorageService])]): Unit = {
+    require(scheme.size >= 1, "Scheme must have at least 1 entry") 
+    require(scheme(0)._1 == None, "first entry in scheme must be None")
+
+    // capture old partition handles so we can delete them later
+    val oldServices = _routingTable.rTable.flatMap(_.values).toSet.toSeq // will the services ever have duplicates?
+
+    val rTable = new Array[RangeType[Array[Byte], PartitionService]](scheme.size)
+    var startKey: Option[Array[Byte]] = None
+    var endKey: Option[Array[Byte]] = None
+    var i = scheme.size - 1
+    for (range <- scheme.reverse) {
+      startKey = range._1
+      val handlers = createPartitions(startKey, endKey, range._2)
+      rTable(i) = new RangeType[Array[Byte], PartitionService](startKey, handlers)
+      endKey = startKey
+      i -= 1
+    }
+    createRoutingTable(rTable) // sets _routingTable
+    storeRoutingTable() // propogates via zookeeper
+
+    // now do cleanup on existing partitions
+    deletePartitionServices(oldServices)
+  }
+
 }
 
 trait DefaultKeyRoutable extends DefaultKeyRoutableLike {
@@ -279,14 +309,14 @@ trait DefaultKeyRangeRoutable extends DefaultKeyRoutable with KeyRangeRoutable {
     val result = new Array[RangeDesc](ranges.size)
     var sKey: Option[Array[Byte]] = None
     var eKey: Option[Array[Byte]] = endKey
-    // TODO: for loops are slow - replace w/ while
-    for (i <- ranges.size - 1 to 0 by -1){
-      if(i == 0)
-        sKey = startKey
-      else
-        sKey = ranges(i).startKey
+
+    var i = ranges.size - 1
+    while (i >= 0) {
+      if (i == 0) sKey = startKey
+      else sKey = ranges(i).startKey
       result(i) = new RangeDesc(sKey.map(convertFromRoutingKey), eKey.map(convertToRoutingKey), ranges(i).values)
       eKey = sKey
+      i -= 1
     }
     result.toSeq
   }
