@@ -29,6 +29,8 @@ object DemoConfig {
   val dashboardDb = "jdbc:mysql://dev-mini-demosql.cwppbyvyquau.us-east-1.rds.amazonaws.com:3306/radlabmetrics?user=radlab_dev&password=randyAndDavelab"
 
   implicit def classSource = MesosEC2.classSource
+
+  def toHtml: scala.xml.NodeSeq = <div>RADLab Demo Setup: <a href={"http://" + serviceScheduler.host + ":8080"}>Mesos Master</a></div>
 }
 
 object ServiceSchedulerDaemon extends optional.Application {
