@@ -49,12 +49,12 @@ package object demo {
 
   def startScadr: Unit = {
     val task = WebAppSchedulerTask(
-	"SCADr",
-	mesosMaster,
-	javaExecutorPath,
-	scadrWar,
-	scadrWebServerList.canonicalAddress,
-	Map("scadr.clusterAddress" -> scadrRoot.canonicalAddress)).toJvmTask
+      "SCADr",
+      mesosMaster,
+      javaExecutorPath,
+      scadrWar,
+      scadrWebServerList.canonicalAddress,
+    Map("scadr.clusterAddress" -> scadrRoot.canonicalAddress)).toJvmTask
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
@@ -83,22 +83,22 @@ package object demo {
   def startIntKeyTest: Unit = {
     serviceScheduler !? RunExperimentRequest(
       JvmMainTask(MesosEC2.classSource,
-		  "edu.berkeley.cs.radlab.demo.IntKeyScaleScheduler",
-		  "--name" :: "intkeyscaletest" ::
-		  "--mesosMaster" :: mesosMaster ::
-		  "--executor" :: javaExecutorPath ::
-		  "--cp" :: MesosEC2.classSource.map(safeUrl(_)).mkString("|") :: Nil) :: Nil
+                  "edu.berkeley.cs.radlab.demo.IntKeyScaleScheduler",
+                  "--name" :: "intkeyscaletest" ::
+                  "--mesosMaster" :: mesosMaster ::
+                  "--executor" :: javaExecutorPath ::
+                  "--cp" :: MesosEC2.classSource.map(safeUrl(_)).mkString("|") :: Nil) :: Nil
     )
   }
 
   def startRepTest(numKeys: Int): Unit = {
     serviceScheduler !? RunExperimentRequest(
       JvmMainTask(MesosEC2.classSource,
-		  "edu.berkeley.cs.radlab.demo.RepTestScheduler",
-		  "--name" :: "reptest" ::
-		  "--mesosMaster" :: mesosMaster ::
-		  "--executor" :: javaExecutorPath ::
-		  "--cp" :: MesosEC2.classSource.map(safeUrl(_)).mkString("|") :: 
+                  "edu.berkeley.cs.radlab.demo.RepTestScheduler",
+                  "--name" :: "reptest" ::
+                  "--mesosMaster" :: mesosMaster ::
+                  "--executor" :: javaExecutorPath ::
+                  "--cp" :: MesosEC2.classSource.map(safeUrl(_)).mkString("|") ::
       "--numKeys" :: numKeys.toString :: Nil) :: Nil
     )
   }

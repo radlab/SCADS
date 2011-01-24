@@ -53,7 +53,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
         val requestsPerSec = for(s <- servers.values) yield {
           val slaveUrl = "http://" + s + ":8080/stats"
           val method = new GetMethod(slaveUrl)
-          logger.info("Getting status from %s.", slaveUrl)
+          logger.debug("Getting status from %s.", slaveUrl)
           try {
             httpClient.executeMethod(method)
             val xml = scala.xml.XML.loadString(method.getResponseBodyAsString)
@@ -91,7 +91,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
             logger.info("Killing task on node " + victimHost)
             driver.killTask(victimID)
             logger.info("Removing webserver task " + victimID + " on host " + victimHost + " from hashmap of servers.")
-            servers -= victimID 
+            servers -= victimID
           }}
           updateZooWebServerList();
         }
