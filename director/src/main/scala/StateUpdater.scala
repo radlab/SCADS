@@ -2,10 +2,23 @@ package edu.berkeley.cs.scads.director
 
 import edu.berkeley.cs.scads.storage.{GenericNamespace,ScadsCluster}
 import edu.berkeley.cs.scads.comm.{PartitionService,StorageService}
+import java.sql.{Connection, DriverManager, ResultSet}
 import net.lag.logging.Logger
 
 object ScadsState {
 	val logger = Logger("scadsstate")
+
+	//set up mysql connection for statistics
+  val statement = try {
+    if (System.getProperty("doMysqlLogging","false").toBoolean) {
+      classOf[com.mysql.jdbc.Driver]
+      val conn = DriverManager.getConnection("jdbc:mysql://dev-mini-demosql.cwppbyvyquau.us-east-1.rds.amazonaws.com:3306/radlabmetrics?user=radlab_dev&password=randyAndDavelab")
+      Some(conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE))
+    }
+    else
+      None
+  } catch { case e => {logger.warning("couldn't create mysql connection for metrics db"); None}}
+
 	/*
 	* get updated workload stats and cluster state some time after specified time-period
 	* if there is no data for that time, return null
@@ -77,6 +90,15 @@ object ScadsState {
 				sToP(s) = new scala.collection.mutable.ListBuffer[PartitionService]()
 				if (Director.bootupTimes.getBootupTime(s) == None) Director.bootupTimes.setBootupTime(s,now)
 			})
+
+			// log about number of servers and requests/second for this namespace
+  		val totalWorkload = workloadRaw.totalRate
+  		if (totalWorkload > 0) {
+  		  val insertStatement = "INSERT INTO namespaceReqRate (timestamp, namespace, aggRequestRate, numServers) VALUES (%d, '%s', %f, %d)".format(time, namespace.namespace, totalWorkload, existingServers.size)
+  		  val numResults = try { statement.map(_.executeUpdate(insertStatement)) } catch { case e => None}
+        if (numResults.getOrElse(0) != 1)
+          logger.warning("INSERT sql statment failed: %s",insertStatement)
+  	  }
 		} else logger.warning("Director cluster null, not getting empty servers")
 		
 		new ClusterState(
