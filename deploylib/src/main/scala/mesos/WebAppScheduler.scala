@@ -19,7 +19,7 @@ object WebAppScheduler {
 }
 
 /* serverCapacity is the number of requests per second that a single application server can handle */
-class WebAppScheduler protected (name: String, mesosMaster: String, executor: String, warFile: ClassSource, properties: Map[String, String], serverCapacity: Int, statsServer: Option[String] = None) extends Scheduler {
+class WebAppScheduler protected (name: String, mesosMaster: String, executor: String, warFile: ClassSource, properties: Map[String, String], zkWebServerListRoot:String, serverCapacity: Int, statsServer: Option[String] = None) extends Scheduler {
   val logger = Logger()
   var driver = new MesosSchedulerDriver(this, mesosMaster)
   val driverThread = new Thread("ExperimentScheduler Mesos Driver Thread") { override def run(): Unit = driver.run() }
@@ -36,9 +36,10 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
     }
   })
 
+  val zkWebServerList = ZooKeeperNode(zkWebServerListRoot)
   var runMonitorThread = true
   var numToKill = 0
-  var killTimer = 0
+   var killTimer = 0
   @volatile var targetNumServers = 0
   var servers =  new HashMap[Int, String]()
   var minNumServers = 1
@@ -79,14 +80,20 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
           }
         })
 
-        logger.info("aggregateReqRate is " + aggregateReqRate + ", targetNumServers is " + targetNumServers)
+        logger.debug("aggregateReqRate is " + aggregateReqRate + ", targetNumServers is " + targetNumServers)
 
         // if necessary, kill backends
         val numToKill = servers.size - targetNumServers
         if (numToKill > 0) {
-          logger.info("Calling driver.kill() for %d backends.", numToKill)
-          val toKill = servers.keys.take(numToKill)
-          toKill.map(driver.killTask(_))
+          logger.info("Calling driver.kill() for %d webservers.", numToKill)
+          val toKill = servers.take(numToKill)
+          toKill.map{case (victimID, victimHost) =>  {
+            logger.info("Killing task on node " + victimHost)
+            driver.killTask(victimID)
+            logger.info("Removing webserver task " + victimID + " on host " + victimHost + " from hashmap of servers.")
+            servers -= victimID 
+          }}
+          updateZooWebServerList();
         }
       }
     }
@@ -108,8 +115,10 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
         val taskParams = Map(List("mem", "cpus").map(k => k -> offer.getParams.get(k)):_*)
 
         servers += ((numAppServers, offer.getHost()))
+        updateZooWebServerList();
+        var td = new TaskDescription(numAppServers, offer.getSlaveId, webAppTask.toString, taskParams, JvmTask(webAppTask)) :: Nil
         numAppServers += 1
-        new TaskDescription(numAppServers, offer.getSlaveId, webAppTask.toString, taskParams, JvmTask(webAppTask)) :: Nil
+        td
       }
       else
         Nil
@@ -128,6 +137,13 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
       logger.debug("Status Update: " + status.getTaskId + " " + status.getState)
       logger.ifDebug(new String(status.getData))
     }
+  }
+
+  def updateZooWebServerList() = {
+    // Build the list of servers
+    var serverList = servers.values.mkString("\n")
+    // Write the severList to the zookeeper node
+    zkWebServerList.data = serverList.getBytes
   }
 
   def kill = {

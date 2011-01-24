@@ -15,6 +15,7 @@ object DemoConfig {
   //TODO: Add other ZooKeeper
   val zooKeeperRoot = ZooKeeperNode("zk://ec2-50-16-2-36.compute-1.amazonaws.com,ec2-174-129-105-138.compute-1.amazonaws.com/demo")
   def scadrRoot =  zooKeeperRoot.getOrCreate("apps/scadr")
+  def scadrWebServerList = scadrRoot.getOrCreate("webServerList")
 
   val mesosMasterNode = zooKeeperRoot.getOrCreate("mesosMaster")
   def mesosMaster = new String(mesosMasterNode.data)
@@ -45,12 +46,12 @@ object ServiceSchedulerDaemon extends optional.Application {
 
 
 //TODO: Move to web app scheduler.
-case class WebAppSchedulerTask(var name: String, var mesosMaster: String, var executor: String, var warFile: S3CachedJar, var properties: Map[String, String]) extends AvroTask with AvroRecord {
+case class WebAppSchedulerTask(var name: String, var mesosMaster: String, var executor: String, var warFile: S3CachedJar, var zkWebServerListRoot: String, var properties: Map[String, String]) extends AvroTask with AvroRecord {
   import DemoConfig._
 
   def run(): Unit = {
     System.loadLibrary("mesos")
-    val scheduler = new WebAppScheduler(name, mesosMaster, executor, warFile, properties, 1, Some(dashboardDb))
+    val scheduler = new WebAppScheduler(name, mesosMaster, executor, warFile, properties, zkWebServerListRoot, 1, Some(dashboardDb))
     scheduler.monitorThread.join()
   }
 }
