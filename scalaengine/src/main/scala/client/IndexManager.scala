@@ -107,6 +107,16 @@ trait IndexManager[PairType <: AvroPair] {
     indexNamespacesCache.map { case (k, v) => (k, v._1) } toMap
   }
 
+  /** getOrCreate a secondary index over the given fields */
+  def getOrCreateIndex(fieldNames: Seq[String]): IndexNamespace = {
+    val idxName = fieldNames.mkString("(", ",", ")")
+
+    listIndexes.get(idxName) match {
+      case Some(idx) => idx
+      case None => createIndex(idxName, fieldNames)
+    }
+  }
+
   /** Create a new index over this pair type, with the given name. The fields
    * given MUST be (1) unique and (2) part of the key schema or the value
    * schema. The ordering of fields determines the layout of the index schema.
