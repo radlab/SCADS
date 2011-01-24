@@ -28,6 +28,8 @@ object DemoConfig {
   val jdbcDriver = classOf[com.mysql.jdbc.Driver]
   val dashboardDb = "jdbc:mysql://dev-mini-demosql.cwppbyvyquau.us-east-1.rds.amazonaws.com:3306/radlabmetrics?user=radlab_dev&password=randyAndDavelab"
 
+  val rainJars = S3CachedJar("http://s3.amazonaws.com/deploylibCache-rean/f7ed9eff2c056faa74b588c4c74bca54") ::
+                 S3CachedJar("http://s3.amazonaws.com/deploylibCache-rean/a77670227ed53176060809c7894484e8") :: Nil
   implicit def classSource = MesosEC2.classSource
 
   def toHtml: scala.xml.NodeSeq = <div>RADLab Demo Setup: <a href={"http://" + serviceScheduler.host + ":8080"}>Mesos Master</a></div>

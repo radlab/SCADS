@@ -66,6 +66,14 @@ package object demo {
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
+  def startScadrRain: Unit = {
+    serviceScheduler !? RunExperimentRequest(
+      JvmMainTask(rainJars,
+		  "radlab.rain.Benchmark",
+		  "rain.config.scadr.ramp.json" :: Nil) :: Nil
+    )
+  }
+
   def killTask(taskId: Int): Unit =
     serviceScheduler !? KillTaskRequest(taskId)
 
