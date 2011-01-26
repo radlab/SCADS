@@ -23,7 +23,6 @@ object ScadsState {
 	* get updated workload stats and cluster state some time after specified time-period
 	* if there is no data for that time, return null
 	*/
-	@deprecated("use the other refresh method")
 	def refreshAtTime(namespace:GenericNamespace, time:Long,period:Long):ClusterState = {
 		logger.debug("refreshing state at time %s",time.toString)
 		val workload = namespace.getWorkloadStats(time)
@@ -45,6 +44,11 @@ object ScadsState {
 					sToP(partition.storageService) = serverparts
 				})
 			)
+
+			if (workloadRaw.rangeStats.keySet.size != pToK.keySet.size) {
+  		  logger.warning("workload partitions != partitions->keys size (%d != %d)", workloadRaw.rangeStats.keySet.size, pToK.keySet.size)
+  		  return null
+  		}
 			// attempt to get "empty" servers, i.e. have no partitions but registered with cluster
 			// TODO: don't use available servers?!
 			if (Director.cluster != null) {
@@ -71,6 +75,7 @@ object ScadsState {
 		val kToP = Map( namespace.partitions.rTable.map(entry => (entry.startKey -> Set(entry.values:_*))):_* )
 		val sToP = new scala.collection.mutable.HashMap[StorageService,scala.collection.mutable.ListBuffer[PartitionService]]()
 		val pToK = new scala.collection.mutable.HashMap[PartitionService,Option[org.apache.avro.generic.GenericRecord]]()
+
 		kToP.foreach(entry => // key -> set(partitions)
 			entry._2.foreach(partition =>{
 				pToK += (partition -> entry._1)
@@ -79,6 +84,12 @@ object ScadsState {
 				sToP(partition.storageService) = serverparts
 			})
 		)
+
+		if (workloadRaw.rangeStats.keySet.size != pToK.keySet.size) {
+		  logger.warning("workload partitions != partitions->keys size (%d != %d)", workloadRaw.rangeStats.keySet.size, pToK.keySet.size)
+		  return null
+	  }
+
 		// attempt to get "empty" servers, i.e. have no partitions but registered with cluster
 		// TODO: don't use available servers?!
 		if (Director.cluster != null) {
