@@ -37,17 +37,19 @@ class OptimizerSpec extends Spec with ShouldMatchers {
     val query = (
       r2.where("f1".a === (0.?))
 	.limit(10))
-    val plan = IndexScan(r2,
-			 ParameterValue(0) :: Nil,
-			 FixedLimit(10),
-			 true)
+    val plan = LocalStopAfter(FixedLimit(10),
+		 IndexScan(r2,
+			   ParameterValue(0) :: Nil,
+			   FixedLimit(10),
+			   true))
+
     query.opt should equal(plan)
   }
 
   it("lookup join") {
     val query = (
       r2.where("f1".a === (0.?))
-	.limit(10)
+	.dataLimit(10)
 	.join(r1)
 	.where("r1.f1".a === "r2.f2".a))
     val plan = IndexLookupJoin(r1, AttributeValue(0, 1) :: Nil,
@@ -60,7 +62,7 @@ class OptimizerSpec extends Spec with ShouldMatchers {
   it("local selection") {
     val query = (
       r2.where("f1".a === 0)
-	.limit(10)
+	.dataLimit(10)
 	.where("f2".a === 0)
       )
     val plan = LocalSelection(AttributeValue(0,1) === 0,
@@ -80,7 +82,9 @@ class OptimizerSpec extends Spec with ShouldMatchers {
     val optQuery = query.opt
     val idx = r2.getOrCreateIndex("f2" :: Nil)
 
-    val plan = IndexScan(idx.asInstanceOf[Namespace], ConstantValue(0) :: Nil, FixedLimit(10), true)
+    val plan =
+      IndexLookupJoin(r2, AttributeValue(0,1) :: AttributeValue(0,0) :: Nil,
+	IndexScan(idx, ConstantValue(0) :: Nil, FixedLimit(10), true))
 
     optQuery should equal(plan)
   }
