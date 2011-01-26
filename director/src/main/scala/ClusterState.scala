@@ -62,6 +62,8 @@ class ClusterState(
 	val workloadRaw:WorkloadHistogram,
 	val time:Long
 ) {
+  assert(keysToPartitions.keys.sameElements(workloadRaw.rangeStats.keys), "cluster state must correct partitions as in the workload")
+  
 	def servers:Set[StorageService] = Set( serversToPartitions.keys.toList :_* )
 
 	def partitionsOnServers(servers:List[StorageService]):Set[Option[org.apache.avro.generic.GenericRecord]] = 
@@ -96,6 +98,12 @@ class ClusterState(
 		val kToP = keysToPartitions(key) -= part
 		val pToK = partitionsToKeys - part
 		new ClusterState(sToP,kToP,pToK,workloadRaw,time)
+	}
+	
+	def split(part:Option[org.apache.avro.generic.GenericRecord], numSplits:Int):ClusterState = {
+	  //val key = partitionsToKeys(part)
+		//val fakeparts = ClusterState.getRandomPartitionNames(this,numSplits)
+		clone
 	}
 	
 	def addServers(num:Int):(ClusterState,List[StorageService]) = {

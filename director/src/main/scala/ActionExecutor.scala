@@ -52,7 +52,7 @@ abstract class ActionExecutor(val execDelay:Long) extends Runnable {
 	def getAllActions:List[Action] = actions
 	def getUncompleteServerActions:List[Action] = actions.filter(a=> a match { case r:AddServer => r.ready || r.running; case r:RemoveServers => r.ready || r.running; case _ => false })
 	def allActionsCompleted():Boolean = if (actions.size==0) true else actions.forall(_.completed)
-	def allMovementActionsCompleted():Boolean = if (actions.size==0) true else actions.filter(a=> a match { case r:ReplicatePartition => true; case r:DeletePartition => true; case _ => false }).forall(_.completed)
+	def allMovementActionsCompleted():Boolean = if (actions.size==0) true else actions.filter(a=> a match { case r:ReplicatePartition => true; case r:DeletePartition => true; case r:SplitPartition => true; case _ => false }).forall(_.completed)
 	def status:String = actions.map(a=> "%-10s".format("("+a.state+")") + "  " + a.toString).mkString("\n")
 
 	/*
@@ -75,11 +75,14 @@ abstract class ActionExecutor(val execDelay:Long) extends Runnable {
 	def run() = {
 		while (running) {
 			try {
+			  logger.debug("executor to run")
 				execute()
 			} catch {
-				case e:Exception => logger.warning("EXCEPTION: %s",e.toString)
+				case e:Exception => logger.warning(e,"exception running director action")
 			}
+			logger.debug("executor %s sleeping for: %d ms", Thread.currentThread.getName, execDelay )
 			Thread.sleep(execDelay)
+			logger.debug("executor waking up")
 		}
 	}
 	def start() = executorThread.start
@@ -101,85 +104,155 @@ class GroupingExecutor(namespace:GenericNamespace, val scheduler:ScadsServerSche
 			case _ => false
 			}).isEmpty) {
 			// if have replicate actions, execute them, marking each action as started
-			val replicate = getReplicateActions()
-			logger.debug("%d replicate actions",replicate.size)
-			if (!replicate.isEmpty) namespace.replicatePartitions( replicate.map(a=> 
-				a match { case r:ReplicatePartition =>{ r.setStart; (r.partition, r.target) } }))
-			replicate.foreach(a => a.setComplete) // TODO: check for errors
+			doReplication()
 
 			// if have delete actions, execute them: assume this will run after completion of replication actions!
-			val delete = getDeleteActions()
-			logger.debug("%d delete actions",delete.size)
-			if (!delete.isEmpty) namespace.deletePartitions( delete.map(a=> 
-					a match { case d:DeletePartition =>{ d.setStart; d.partition } }))
-			delete.foreach(a => a.setComplete) // TODO: check for errors
+			doDeletion()
 		
 			// if have remove actions, turn off their storage services
-			val remove = getRemoveActions()
-			logger.debug("%d removal actions",delete.size)
-			if (!remove.isEmpty) delete.foreach(a => a match {  case r:RemoveServers => {r.setStart; r.servers.foreach( _ !! ShutdownStorageHandler()) }	})
-			remove.foreach(a => a.setComplete) // TODO: was above call blocking? does it matter?
+			doRemove()
 			
 			//if have add actions, scheulde them with mesos, then wait for their appearance in the cluster
-			val add = getAddActions()
-			val prefix = if (namespace == null) "" else namespace.namespace
-			logger.debug("%d add server actions",add.size)
-			if (!add.isEmpty && scheduler != null) {
-				scheduler.addServers( add.map(a => a match{ case ad:AddServer => prefix+ad.fakeServer.host }) )
-				//logger.debug("sleeping right now instead of waiting on child")
-				//Thread.sleep(20*1000)
-				add.foreach{ a => a match { 
-					case ad:AddServer => { scheduler.cluster.root.awaitChild("availableServers/"+prefix+ad.fakeServer.host); ad.setComplete }
-				} }
-			}
-			
+      doAdd()
 		}
 		
 	}
 	def getReplicateActions():List[Action] = actions.filter(a=> a match { case r:ReplicatePartition => r.ready; case _ => false } )
 	
+	def doReplication():Unit = {
+	  val replicate = getReplicateActions()
+		logger.debug("%d replicate actions",replicate.size)
+		if (!replicate.isEmpty) namespace.replicatePartitions( replicate.map(a=> 
+			a match { case r:ReplicatePartition =>{ r.setStart; (r.partition, r.target) } }))
+		replicate.foreach(a => a.setComplete) // TODO: check for errors 
+	}
+	
 	def getDeleteActions():List[Action] = actions.filter(a=> a match { case d:DeletePartition => d.ready; case _ => false } )
+	
+	def doDeletion():Unit = {
+	  val delete = getDeleteActions()
+		logger.debug("%d delete actions",delete.size)
+		if (!delete.isEmpty) namespace.deletePartitions( delete.map(a=> 
+				a match { case d:DeletePartition =>{ d.setStart; d.partition } }))
+		delete.foreach(a => a.setComplete) // TODO: check for errors
+	}
 	
 	def getRemoveActions():List[Action] = actions.filter(a=> a match { case r:RemoveServers => r.ready; case _ => false } )
 	
+	def doRemove():Unit = {
+	  val remove = getRemoveActions()
+		logger.debug("%d removal actions",remove.size)
+		if (!remove.isEmpty) remove.foreach(a => a match {  case r:RemoveServers => {r.setStart; r.servers.foreach( _ !! ShutdownStorageHandler()) }	})
+		remove.foreach(a => a.setComplete) // TODO: was above call blocking? does it matter?
+	}
+	
 	def getAddActions():List[Action] = actions.filter(a=> a match { case a:AddServer => a.ready; case _ => false } )
+	
+	def doAdd():Unit = {
+	  val add = getAddActions()
+		val prefix = if (namespace == null) "" else namespace.namespace
+		logger.debug("%d add server actions",add.size)
+		if (!add.isEmpty && scheduler != null) {
+			scheduler.addServers( add.map(a => a match{ case ad:AddServer => prefix+ad.fakeServer.host }) )
+			//logger.debug("sleeping right now instead of waiting on child")
+			//Thread.sleep(20*1000)
+			add.foreach{ a => a match { 
+				case ad:AddServer => { scheduler.cluster.root.awaitChild("availableServers/"+prefix+ad.fakeServer.host); ad.setComplete }
+			} }
+		}
+	}
 }
 
-class TestGroupingExecutor(namespace:GenericNamespace) extends GroupingExecutor(namespace,null) {
+class SplittingGroupingExecutor(namespace:GenericNamespace, splitMaps:java.util.concurrent.LinkedBlockingQueue[(Option[org.apache.avro.generic.GenericRecord],Seq[Option[org.apache.avro.generic.GenericRecord]])] = null, sched:ScadsServerScheduler = null) extends GroupingExecutor(namespace, sched) {
+  override def execute() = {
+    if (actions.filter(a => a match { 			// only run if all previous Replicate or Delete actions finished
+			case r:ReplicatePartition => r.running
+			case d:DeletePartition => d.running
+			case s:SplitPartition => s.running
+			case _ => false
+			}).isEmpty) {
+			  
+			// if have partitions to split, do all them
+			doSplit()  
+			  
+			// if have replicate actions, execute them, marking each action as started
+			doReplication()
+
+			// if have delete actions, execute them: assume this will run after completion of replication actions!
+			doDeletion()
+		
+			// if have remove actions, turn off their storage services
+			doRemove()
+			
+			//if have add actions, scheulde them with mesos, then wait for their appearance in the cluster
+      doAdd()
+		  
+		  logger.info("executor done acting")
+		}
+		else logger.info("executor can't run due to running actions")
+  }
+  
+  def getSplitActions():List[Action] = actions.filter(a=> a match { case r:SplitPartition => r.ready; case _ => false } )
+  
+  def doSplit():Unit = {
+    val splits = getSplitActions()
+    logger.debug("%d split actions", splits.size)
+    val splitMapTodo = new scala.collection.mutable.ListBuffer[(Option[org.apache.avro.generic.GenericRecord],Seq[Option[org.apache.avro.generic.GenericRecord]])]()
+    
+    
+    // get split keys for each partiton to split, and make a combined list of all splits to perform
+    if (!splits.isEmpty) namespace.splitPartition(
+      splits.map(a => a match { case split:SplitPartition => { split.setStart; val keys = namespace.getSplitKeys(split.partition, split.parts); splitMapTodo.append((split.partition,keys.map(Some(_))))/*splitMaps.put((split.partition,keys.map(Some(_))))*/; keys} }).flatten(a=>a)
+      )
+    splits.foreach(a => a.setComplete) // TODO: check for errors  
+    splitMapTodo.foreach(splitMaps.put(_))
+  } // end doSplit
+}
+
+class TestGroupingExecutor(namespace:GenericNamespace,s:java.util.concurrent.LinkedBlockingQueue[(Option[org.apache.avro.generic.GenericRecord],Seq[Option[org.apache.avro.generic.GenericRecord]])]) extends SplittingGroupingExecutor(namespace,s,null) {
 	//import edu.berkeley.cs.scads.storage.TestScalaEngine
 	
 	override def execute() {
 		if (actions.filter(a => a match { 			// only run if all previous Replicate or Delete actions finished
 			case r:ReplicatePartition => r.running
 			case d:DeletePartition => d.running
+			case s:SplitPartition => s.running
 			case _ => false
 			}).isEmpty) {
+			// if have partitions to split, do all them
+			doSplit()  
+			  
 			// if have replicate actions, execute them, marking each action as started
-			val replicate = getReplicateActions()
+			/*val replicate = getReplicateActions()
 			logger.debug("%d replicate actions",replicate.size)
 			if (!replicate.isEmpty) namespace.replicatePartitions( replicate.map(a=> 
 				a match { case r:ReplicatePartition =>{ r.setStart; (r.partition, r.target) } }))
 			replicate.foreach(a => a.setComplete) // TODO: check for errors
-
+      */
+      doReplication()
 			// if have delete actions, execute them: assume this will run after completion of replication actions!
-			val delete = getDeleteActions()
+			/*val delete = getDeleteActions()
 			logger.debug("%d delete actions",delete.size)
 			if (!delete.isEmpty) namespace.deletePartitions( delete.map(a=> 
 					a match { case d:DeletePartition =>{ d.setStart; d.partition } }))
 			delete.foreach(a => a.setComplete) // TODO: check for errors
+			*/
+			doDeletion()
 		
 			//if have add actions, create another test handler
 			val add = getAddActions()
 			logger.debug("%d add server actions",add.size)
-			Director.cluster match { case m:ManagedScadsCluster => {
-			  Thread.sleep(60*1000) // mimic real delay
-				add.foreach(a => { val servername = a match { case ad:AddServer => ad.fakeServer.host; case _ => "NoName" }; m.addNamedNode(namespace.namespace + servername); a.setComplete})
-			}
-			case _ => logger.warning("can't add servers")}
+			if (!add.isEmpty) {
+			  Director.cluster match { case m:ManagedScadsCluster => {
+  			  Thread.sleep(60*1000) // mimic real delay
+  				add.foreach(a => { val servername = a match { case ad:AddServer => ad.fakeServer.host; case _ => "NoName" }; m.addNamedNode(namespace.namespace + servername); a.setComplete})
+  			}
+  			case _ => logger.warning("can't add servers")}
+		  }
 			
 			// only say remove actions are complete, since can't really kill them
 			val remove = getRemoveActions()
-			logger.debug("%d removal actions",delete.size)
+			logger.debug("%d removal actions",remove.size)
 			remove.foreach(a => a.setComplete) 
 		}
 	}
