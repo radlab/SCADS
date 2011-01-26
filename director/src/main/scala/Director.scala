@@ -36,6 +36,7 @@ case class Director(var numClients: Int, namespaceString: String, val scheduler:
     //val node = ZooKeeperNode(zookeepCanonical)
     if (Director.cluster == null) Director.cluster = new ScadsCluster(clusterRoot)
     var namespace: GenericNamespace = Director.cluster.getNamespace(namespaceString)
+    val splitQueue = new java.util.concurrent.LinkedBlockingQueue[(Option[org.apache.avro.generic.GenericRecord],Seq[Option[org.apache.avro.generic.GenericRecord]])]()
 
     // update start time for existing servers
     val now = new java.util.Date().getTime
@@ -43,10 +44,10 @@ case class Director(var numClients: Int, namespaceString: String, val scheduler:
 
     val predictor = SimpleHysteresis(0.9, 0.1, 0.0)
     predictor.initialize
-    val policy = if (System.getProperty("doEmpty", "false").toBoolean) new EmptyPolicy(predictor) else new BestFitPolicy(null, 100, 100, 0.99, true, 20 * 1000, 10 * 1000, predictor, true, true, 1, 1)
+    val policy = if (System.getProperty("doEmpty", "false").toBoolean) new EmptyPolicy(predictor) else new BestFitPolicySplitting(null, 100, 100, 0.99, true, 20 * 1000, 10 * 1000, predictor, true, true, 1, 1, splitQueue)
     val stateHistory = StateHistory(period, namespace, policy)
     stateHistory.startUpdating
-    val executor = /*new TestGroupingExecutor(namespace)*/ new GroupingExecutor(namespace, scheduler)
+    val executor = /*new TestGroupingExecutor(namespace, splitQueue)*/new SplittingGroupingExecutor(namespace, splitQueue, scheduler)// new GroupingExecutor(namespace, scheduler)
     executor.start
 
     // when clients are ready to start, start everything
