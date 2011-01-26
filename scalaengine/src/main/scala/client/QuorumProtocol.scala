@@ -535,14 +535,17 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
             managedBlock {
               handler.processRest()
             }
-            for (server <- handler.repairList)
+            for (server <- handler.repairList) {
+              logger.debug("repairing key %s on server %s", handler.key, server)
               server !! PutRequest(handler.key, handler.winnerValue)
+            }
           case handler: RangeHandle =>
             managedBlock {
               handler.processRest()
             }
             for ((key, (data, servers)) <- handler.loosers) {
               for (server <- servers) {
+                logger.debug("repairing key %s on server %s (range handle)" , key, server)
                 server !! PutRequest(key, Some(data))
               }
             }
