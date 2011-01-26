@@ -15,23 +15,22 @@ import net.lag.logging.Logger
 import java.io.File
 import java.net._
 
-case class TraceCollectorTask(var clusterAddress: String, var warmupLengthInMinutes: Int = 5, var numStorageNodes: Int = 1) extends AvroTask with AvroRecord {
+case class TraceCollectorTask(
+	var clusterAddress: String, 
+	var baseCardinality: Int, 
+	var warmupLengthInMinutes: Int = 5, 
+	var numStorageNodes: Int = 1, 
+	var numQueriesPerCardinality: Int = 1000, 
+	var sleepDurationInMs: Int = 100
+) extends AvroTask with AvroRecord {
 	var beginningOfCurrentWindow = 0.toLong
 
 	def run(): Unit = {
 		println("made it to run function")
 		val clusterRoot = ZooKeeperNode(clusterAddress)
-
-		/* 
-    val scheduler = ScadsServerScheduler("Trace Collector",
-					 mesosMaster,
-					 clusterRoot.canonicalAddress)
-		*/
-
     val cluster = new ExperimentalScadsCluster(clusterRoot)
 
     logger.info("Adding servers to cluster for each namespace")
-    //scheduler.addServers((1 to numStorageNodes).map(i => "node" + i))	// can omit this too
     cluster.blockUntilReady(numStorageNodes)
 
     /* get namespaces */
