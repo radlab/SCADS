@@ -68,21 +68,15 @@ package object demo {
   }
 
 	def startTraceCollector: Unit = {
-		println("reset traceRoot...")
-		//resetTracing
-		
 		println("starting trace collection...")
 		val storageEngineTask = ScalaEngineTask(
 			traceRoot.canonicalAddress
 		).toJvmTask // can do *5
 		val traceTask = TraceCollectorTask(
 			traceRoot.canonicalAddress,
-			0,
-			1
+			10
 		).toJvmTask
 		serviceScheduler !? RunExperimentRequest(storageEngineTask :: traceTask :: Nil)
-		
-		//println("find trace at " + (new String(traceRoot.data)))	// confusing, b/c the current value is from the previous run
 	}
 
   /**
