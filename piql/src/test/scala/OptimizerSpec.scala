@@ -83,8 +83,9 @@ class OptimizerSpec extends Spec with ShouldMatchers {
     val idx = r2.getOrCreateIndex("f2" :: Nil)
 
     val plan =
-      IndexLookupJoin(r2, AttributeValue(0,1) :: AttributeValue(0,0) :: Nil,
-	IndexScan(idx, ConstantValue(0) :: Nil, FixedLimit(10), true))
+      LocalStopAfter(FixedLimit(10),
+        IndexLookupJoin(r2, AttributeValue(0,1) :: AttributeValue(0,0) :: Nil,
+	  IndexScan(idx, ConstantValue(0) :: Nil, FixedLimit(10), true)))
 
     optQuery should equal(plan)
   }

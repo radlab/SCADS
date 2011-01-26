@@ -17,7 +17,6 @@ object Optimizer {
     logger.info("Optimizing subplan: %s", logicalPlan)
 
     logicalPlan match {
-      //TODO: Check fields match key schema
       case IndexRange(equalityPreds, None, None, Relation(ns)) if (equalityPreds.size == ns.keySchema.getFields.size) &&
 								  isPrefix(equalityPreds, ns) => {
 	val tupleSchema = ns :: Nil
@@ -26,13 +25,35 @@ object Optimizer {
           tupleSchema)
       }
       case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), None, Relation(ns)) => {
-	val tupleSchema = ns :: Nil
-	val idxScanPlan = IndexScan(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), count, true)
-	val fullPlan = dataStop match {
-	  case true => idxScanPlan
-	  case false => LocalStopAfter(count, idxScanPlan)
+	if(isPrefix(equalityPreds, ns)) {
+	  logger.info("Using primary index for predicates: %s", equalityPreds)
+	  val tupleSchema = ns :: Nil
+	  val idxScanPlan = IndexScan(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), count, true)
+	  val fullPlan = dataStop match {
+	    case true => idxScanPlan
+	    case false => LocalStopAfter(count, idxScanPlan)
+	  }
+          OptimizedSubPlan(fullPlan, tupleSchema)
+	} else {
+	  logger.info("Using secondary index for predicates: %s", equalityPreds)
+
+	  //TODO: Fix type hack
+	  val idx = ns.asInstanceOf[IndexedNamespace].getOrCreateIndex(equalityPreds.map(_.attributeName))
+	  val tupleSchema = ns :: idx :: Nil
+	  val idxScanPlan = IndexScan(idx, makeKeyGenerator(idx, tupleSchema, equalityPreds), count, true)
+
+	  val keyFields = ns.keySchema.getFields
+	  val idxFields = getFields(idx)
+	  val keyGenerator = keyFields.map(kf => AttributeValue(0, idxFields.findIndexOf(_.name equals kf.name)))
+
+	  val derefedPlan = IndexLookupJoin(ns, keyGenerator, idxScanPlan)
+
+	  val fullPlan = dataStop match {
+	    case true => derefedPlan
+	    case false => LocalStopAfter(count, derefedPlan)
+	  }
+          OptimizedSubPlan(fullPlan, tupleSchema)
 	}
-        OptimizedSubPlan(fullPlan, ns :: Nil)
       }
       //TODO: Check to make sure the index has the right ordering.
       case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), Some(Ordering(attrs, asc)), Relation(ns)) => {
@@ -42,10 +63,10 @@ object Optimizer {
 	  case true => idxScanPlan
 	  case false => LocalStopAfter(count, idxScanPlan)
 	}
-
         OptimizedSubPlan(fullPlan, ns :: Nil)
       }
-      case IndexRange(equalityPreds, None, None, Join(child, Relation(ns))) if (equalityPreds.size == ns.keySchema.getFields.size) => {
+      case IndexRange(equalityPreds, None, None, Join(child, Relation(ns))) if (equalityPreds.size == ns.keySchema.getFields.size) &&
+									       isPrefix(equalityPreds, ns) => {
         val optChild = apply(child)
 	val tupleSchema = optChild.schema :+ ns
         OptimizedSubPlan(
@@ -94,7 +115,7 @@ object Optimizer {
    */
   protected def getFields(ns: Namespace): Seq[Field] = ns match {
     case idx: edu.berkeley.cs.scads.storage.IndexNamespace => idx.keySchema.getFields
-    case primaryNs => primaryNs.keySchema.getFields ++ primaryNs.valueSchema.getFields
+    case primaryNs => primaryNs.keySchema.getFields.toSeq ++ primaryNs.valueSchema.getFields
   }
 
   /**

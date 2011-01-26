@@ -18,6 +18,7 @@ package object piql {
     with edu.berkeley.cs.scads.storage.QuorumProtocol[IndexedRecord, IndexedRecord, IndexedRecord, IndexedRecord]
     with edu.berkeley.cs.scads.storage.AvroSerializing[IndexedRecord, IndexedRecord, IndexedRecord, IndexedRecord]
   )
+  type IndexedNamespace = edu.berkeley.cs.scads.storage.IndexManager[AvroPair]
 
   type KeyGenerator = Seq[Value]
 
