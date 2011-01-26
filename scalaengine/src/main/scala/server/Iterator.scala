@@ -69,7 +69,7 @@ class ActorlessPartitionIterator(partitionService: PartitionService, minKey: Opt
   protected def canRequestMore = lastSizeReturned == recsPerMessage
 
   protected def getRecordsFromFuture(ftch: MessageFuture) =
-    ftch.get(3 * 60 * 1000).getOrElse(throw new RuntimeException("GetRangeRequest timedout")) match {
+    ftch.get(10 * 60 * 1000).getOrElse(throw new RuntimeException("GetRangeRequest timedout")) match {
       case GetRangeResponse(recs) => 
         lastSizeReturned = recs.size
         lastRecvKey = recs.lastOption.map(_.key) 
