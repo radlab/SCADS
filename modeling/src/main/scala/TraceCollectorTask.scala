@@ -106,4 +106,17 @@ case class TraceCollectorTask(var clusterAddress: String, var warmupLengthInMinu
 		val currentTime = System.nanoTime
 		currentTime < beginningOfCurrentWindow + convertMinutesToNanoseconds(warmupLengthInMinutes)
 	}
+	
+	def getNumDataItems: Int = {
+		getMaxCardinality*10
+	}
+	
+	def getMaxCardinality: Int = {
+		getCardinalityList.sortWith(_ > _).head
+	}
+	
+	def getCardinalityList: List[Int] = {
+		((baseCardinality*0.5).toInt :: (baseCardinality*0.75).toInt :: baseCardinality :: baseCardinality*2 :: baseCardinality*10 :: Nil)
+	}
+	
 }
