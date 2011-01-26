@@ -191,7 +191,8 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
       msg match {
         case GetRequest(key) => {
           val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry)
-          try { db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED) } catch { case e:com.sleepycat.je.LockTimeoutException => logger.warning("lock timeout during GetRequest") }
+          //try { db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED) } catch { case e:com.sleepycat.je.LockTimeoutException => logger.warning("lock timeout during GetRequest") }
+          db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
 					if (samplerRandom.nextDouble <= getSamplingRate) incrementGetCount(1)
           reply(GetResponse(Option(dbeValue.getData())))
         }
