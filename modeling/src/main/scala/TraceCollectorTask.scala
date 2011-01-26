@@ -47,16 +47,14 @@ case class TraceCollectorTask(
     MessageHandler.registerListener(messageTracer)
 
     /* Bulk load some test data into the namespaces */
-    //ns ++= (1 to 10).view.flatMap(i => (1 to 10000).map(j => PrefixedNamespace(i,j)))
-		ns ++= (1 to 10).view.flatMap(i => (1 to 20).map(j => PrefixedNamespace(i,j)))
+		ns ++= (1 to 10).view.flatMap(i => (1 to getNumDataItems).map(j => PrefixedNamespace(i,j)))	 // might want to fix hard-coded 10 at some point
 
     /**
      * Write queries against relations and create optimized function using .toPiql
      * toPiql uses implicit executor defined above to run queries
      */
-		//val rangeSizes = List(10,50,100,500,1000)
-		val rangeSizes = List(5,10,15)
-		val getRangeQueries = rangeSizes.map(currentRangeSize => ns.where("f1".a === 1).limit(currentRangeSize).toPiql("getRangeQuery-rangeLength=" + currentRangeSize.toString))
+		val cardinalityList = getCardinalityList
+		val getRangeQueries = cardinalityList.map(currentCardinality => ns.where("f1".a === 1).limit(currentCardinality).toPiql("getRangeQuery-rangeLength=" + currentCardinality.toString))
 
 		// initialize window
 		beginningOfCurrentWindow = System.nanoTime
