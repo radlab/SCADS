@@ -70,7 +70,8 @@ package object demo {
     serviceScheduler !? RunExperimentRequest(
       JvmMainTask(rainJars,
 		  "radlab.rain.Benchmark",
-		  "rain.config.scadr.ramp.json" :: Nil) :: Nil
+		  "rain.config.scadr.ramp.json" ::
+		  scadrWebServerList.canonicalAddress :: Nil) :: Nil
     )
   }
 
