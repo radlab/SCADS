@@ -67,23 +67,22 @@ case class TraceCollectorTask(
 	      getRangeQueries(0)()
 	      fileSink.recordEvent(QueryEvent("getRangeQuery" + i, false))
 	
-				//Thread.sleep(100)
+				Thread.sleep(sleepDurationInMs)
 	    })
 		}
 		fileSink.recordEvent(WarmupEvent(warmupLengthInMinutes, false))
 				
 
     /* Run some queries */
-		rangeSizes.indices.foreach(r => {
-			fileSink.recordEvent(ChangeRangeLengthEvent(rangeSizes(r)))
+		cardinalityList.indices.foreach(r => {
+			fileSink.recordEvent(ChangeRangeLengthEvent(cardinalityList(r)))
 			
-			//(1 to 1000).foreach(i => {
-			(1 to 2).foreach(i => {
+			(1 to numQueriesPerCardinality).foreach(i => {
 	      fileSink.recordEvent(QueryEvent("getRangeQuery" + i, true))
 	      getRangeQueries(r)()
 	      fileSink.recordEvent(QueryEvent("getRangeQuery" + i, false))
 
-				//Thread.sleep(100)
+				Thread.sleep(sleepDurationInMs)
 	    })
 		})
 
