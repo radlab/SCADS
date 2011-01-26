@@ -65,21 +65,26 @@ case class TraceCollectorTask(
 		beginningOfCurrentWindow = System.nanoTime
 				    
 		// warmup to avoid JITing effects
+		println("beginning warmup...")
 		fileSink.recordEvent(WarmupEvent(warmupLengthInMinutes, true))
+		var queryCounter = 1
 		while (withinWarmup) {
-			(1 to 10).foreach(i => {
-	      fileSink.recordEvent(QueryEvent("getRangeQuery" + i, true))
-	      getRangeQueries(0)()
-	      fileSink.recordEvent(QueryEvent("getRangeQuery" + i, false))
+			cardinalityList.indices.foreach(i => {
+	      fileSink.recordEvent(QueryEvent("getRangeQuery" + queryCounter, true))
+	      getRangeQueries(i)()
+	      fileSink.recordEvent(QueryEvent("getRangeQuery" + queryCounter, false))
 	
 				Thread.sleep(sleepDurationInMs)
+				queryCounter += 1
 	    })
 		}
 		fileSink.recordEvent(WarmupEvent(warmupLengthInMinutes, false))
 				
 
     /* Run some queries */
+		println("beginning run...")
 		cardinalityList.indices.foreach(r => {
+			println("current cardinality = " + cardinalityList(r).toString)
 			fileSink.recordEvent(ChangeRangeLengthEvent(cardinalityList(r)))
 			
 			(1 to numQueriesPerCardinality).foreach(i => {
