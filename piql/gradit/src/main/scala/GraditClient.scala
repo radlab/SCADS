@@ -52,12 +52,11 @@ class GraditClient(val cluster: ScadsCluster, executor: QueryExecutor) {
   // createNamespace calls to happen first (and after instantiating this
   // class)
 
-  lazy val words = cluster.getNamespace[Word]("words").asInstanceOf[Namespace]
-  lazy val books = cluster.getNamespace[Book]("books").asInstanceOf[Namespace]
-  lazy val wordcontexts = cluster.getNamespace[WordContext]("wordcontexts").asInstanceOf[Namespace]
-  lazy val wordlists = cluster.getNamespace[WordList]("wordlists").asInstanceOf[Namespace]
-  lazy val wordlistwords = cluster.getNamespace[WordListWord]("wordlistwords").asInstanceOf[Namespace]
-
+  lazy val words = cluster.getNamespace[Word]("words")
+  lazy val books = cluster.getNamespace[Book]("books")
+  lazy val wordcontexts = cluster.getNamespace[WordContext]("wordcontexts")
+  lazy val wordlists = cluster.getNamespace[WordList]("wordlists")
+  lazy val wordlistwords = cluster.getNamespace[WordListWord]("wordlistwords")
 
   // findWord
   // Primary key lookup for word

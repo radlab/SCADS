@@ -31,10 +31,10 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
   // class)
 
   //HACK: typecast to namespace
-  lazy val users = cluster.getNamespace[User]("users").asInstanceOf[Namespace]
-  lazy val thoughts = cluster.getNamespace[Thought]("thoughts").asInstanceOf[Namespace]
-  lazy val subscriptions = cluster.getNamespace[Subscription]("subscriptions").asInstanceOf[Namespace]
-  lazy val tags = cluster.getNamespace[HashTag]("tags").asInstanceOf[Namespace]
+  lazy val users = cluster.getNamespace[User]("users")
+  lazy val thoughts = cluster.getNamespace[Thought]("thoughts")
+  lazy val subscriptions = cluster.getNamespace[Subscription]("subscriptions")
+  lazy val tags = cluster.getNamespace[HashTag]("tags")
 
   /* Optimized queries */
   val findUser = users.where("username".a === (0.?)).toPiql("findUser")
