@@ -14,10 +14,13 @@ object DashboardReportingExecutor {
   val logger = Logger()
   val responseTimeHist = Histogram(1, 1000)
   var lastReportTime = System.currentTimeMillis
+  val hostName = java.net.InetAddress.getLocalHost.getHostName()
 
   val thread = new Thread("Dashboard Stats Reporting") {
     override def run(): Unit = {
       while (true) {
+        Thread.sleep(30000)
+
         val oldHist = responseTimeHist.reset()
         val newReportTime = System.currentTimeMillis
 
@@ -25,7 +28,9 @@ object DashboardReportingExecutor {
         val reqRate = oldHist.totalRequests.toFloat / ((newReportTime - lastReportTime) / 1000)
 
         withConnection(conn => {
-          val sqlInsertCmd = "INSERT INTO piqlReqRate (timestamp, aggRequestRate) VALUES (%d, %d)".format(newReportTime, reqRate)
+          val sqlInsertCmd = "INSERT INTO piqlReqRate (timestamp, host, aggRequestRate) VALUES (%d, '%s', %f)".format(newReportTime, hostName, reqRate)
+	  logger.info("Recording PIQL stats with: %s", sqlInsertCmd)
+
           val statment = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE)
           if (statment.executeUpdate(sqlInsertCmd) != 1)
             logger.warning("Dashboard SQL statment failed: %s", sqlInsertCmd)
@@ -37,7 +42,6 @@ object DashboardReportingExecutor {
           logger.info("PIQL Request Rate: %f req/sec", reqRate)
         }
         lastReportTime = newReportTime
-        Thread.sleep(30000)
       }
     }
   }
@@ -54,7 +58,7 @@ object DashboardReportingExecutor {
       f(currentConnection)
     } catch {
       case e: SQLException =>
-        logger.warning(e, "Connection to SQL Database failed with connection string %s.".format(dashboardDb))
+        logger.warning(e, "Recording PIQL Stats to SQL Database failed")
         cachedConnection = None
     }
   }
