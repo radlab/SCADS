@@ -34,25 +34,30 @@ case class TraceCollectorTask(
     cluster.blockUntilReady(numStorageNodes)
 
     /* get namespaces */
+		println("getting namespace...")
     val ns = cluster.getNamespace[PrefixedNamespace]("prefixedNamespace")
 
     /* create executor that records trace to fileSink */
+		println("creating executor...")
     val fileSink = new FileTraceSink(new File("/mnt/piqltrace.avro"))
     implicit val executor = new ParallelExecutor with TracingExecutor {
       val sink = fileSink
     }
 
     /* Register a listener that will record all messages sent/recv to fileSink */
+		println("registering listener...")
     val messageTracer = new MessagePassingTracer(fileSink)
     MessageHandler.registerListener(messageTracer)
 
     /* Bulk load some test data into the namespaces */
+		println("loading data...")
 		ns ++= (1 to 10).view.flatMap(i => (1 to getNumDataItems).map(j => PrefixedNamespace(i,j)))	 // might want to fix hard-coded 10 at some point
 
     /**
      * Write queries against relations and create optimized function using .toPiql
      * toPiql uses implicit executor defined above to run queries
      */
+		println("creating queries...")
 		val cardinalityList = getCardinalityList
 		val getRangeQueries = cardinalityList.map(currentCardinality => ns.where("f1".a === 1).limit(currentCardinality).toPiql("getRangeQuery-rangeLength=" + currentCardinality.toString))
 
@@ -87,12 +92,14 @@ case class TraceCollectorTask(
 		})
 
     //Flush trace messages to the file
+		println("flusing messages to file...")
     fileSink.flush()
 
 		// Write IP to ZooKeeper
 		clusterRoot.data = java.net.InetAddress.getLocalHost.getHostName.getBytes
 		
 		// Upload file to S3
+		println("uploading data...")
 		TraceS3Cache.uploadFile("/mnt/piqltrace.avro")
 		
 		println("Finished with trace collection.")
