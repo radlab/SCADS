@@ -122,6 +122,30 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
     }
   }
 
+  def getSplitKeys(startkey: Option[KeyType], numSplits:Int):Seq[KeyType] = {
+    val partitions = serversForRange(startkey,startkey).head.values//serversForKey(startkey.map(_))
+
+    // determine end key for partition
+    val respResponses = partitions.map(_ !! GetResponsibilityRequest())
+    respResponses.blockFor(1) // only get response from one replica of the partition
+    val resp = respResponses.filter(_.isSet)
+    val endkey = resp.map(r => r.get match { case m@GetResponsibilityResponse(s,e) => e; case _ => None }).head
+
+    // determine number of records in this partition
+    val countRequest = CountRangeRequest(startkey.map(serializeKey(_)), endkey)
+    val countResponses = partitions.map(_ !! countRequest)
+    countResponses.blockFor(1) // only get response from one replica of the partition
+    val countResponse = countResponses.filter(_.isSet)
+    val count = countResponse.map(r => r.get match { case m@CountRangeResponse(count) => Some(count); case _ => None }).head
+
+    if (!count.isDefined) throw new RuntimeException("couldn't get partition count")
+    if (count.get < numSplits) throw new RuntimeException("partition count less than number of requests splits")
+
+    // get the split keys
+    val slice = scala.math.floor(count.get / numSplits.toDouble).toInt
+    (1 until numSplits).map(s => extractKeyValueFromRangeType(getRange(startkey, endkey.map(deserializeKey(_)),Some(1),Some(s*slice)).head)._1)
+  }
+
   def put(key: KeyType, value: Option[ValueType]): Unit = {
     val (servers, quorum) = writeQuorumForKey(key)
     val putRequest = PutRequest(serializeKey(key), value.map(createRecord))
