@@ -3,4 +3,4 @@
 CONFIG=`dirname $0`/config
 CLASSPATH='-cp `dirname $0`/scads.jar'
 
-exec /usr/bin/java -Djava.library.path=$MESOS_HOME/lib/java/ $CLASSPATH deploylib.mesos.JavaExecutor $CONFIG $@ 
+exec /usr/bin/java -Djava.library.path=$MESOS_HOME/lib/java/ $CLASSPATH deploylib.mesos.JavaExecutor $CONFIG $@

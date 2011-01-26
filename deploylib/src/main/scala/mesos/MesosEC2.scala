@@ -15,8 +15,6 @@ import java.net.InetAddress
 object MesosEC2 extends ConfigurationActions {
   val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
 
-
-
   def updateDeploylib: Unit = {
     slaves.pforeach(inst => {
       val executorScript = Util.readFile(new File("deploylib/src/main/resources/java_executor"))
