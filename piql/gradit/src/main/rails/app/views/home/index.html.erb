@@ -1,0 +1,16 @@
+<div id="home_contents">
+	<div id="logo"></div>
+	
+	<%= render :partial => "search/searchbox" %>
+	<% puts "home index"%>
+	<div id="play">
+		Or give yourself a quick vocab review? You can <%= link_to "create your own", new_wordlist_path %> or choose from some of our premade wordlists.
+		<br>
+		<% #for a in @wordlists 
+        %>
+			<%= #link_to a.name, {:controller=>:wordlists, :action=>:show, :name => a.name} 
+            %>
+		<% #end 
+        %>
+	</div>
+</div>

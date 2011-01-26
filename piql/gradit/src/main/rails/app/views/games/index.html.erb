@@ -1,0 +1,11 @@
+<h1>Games Dashboard</h1>
+<h2>Current Games</h2>
+<% for game in @games %>
+  <%= link_to "Game with wordlist [" + game.wordlist + "]", :action => "game_entry", :id => game.gameid %>
+<% end %>
+
+<h2>Create a new game</h2>
+<h3>Available wordlists</h3>
+<% for wordlist in @wordlists %>
+  <%= link_to wordlist.name, :action => "new_game", :id => 0, :wordlist => wordlist.name %>
+<% end %>

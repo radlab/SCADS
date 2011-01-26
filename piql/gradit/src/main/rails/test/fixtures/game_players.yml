@@ -1,0 +1,11 @@
+# Read about fixtures at http://ar.rubyonrails.org/classes/Fixtures.html
+
+one:
+  references: 
+  references: 
+  integer: 
+
+two:
+  references: 
+  references: 
+  integer: 

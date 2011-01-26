@@ -1,0 +1,19 @@
+<h1>Listing wordlists</h1>
+
+<table>
+  <tr>
+    <th>Title</th>
+  </tr>
+
+<% @wordlists.each do |wordlist| %>
+  <tr>
+    <td><%=h wordlist.name %></td>
+    <td><%= link_to 'Show', wordlist %></td>
+    <td><%= link_to "Play a game with this wordlist", {:controller=>:games, :action=>:new_game, :id=>wordlist.name} %></td>
+  </tr>
+<% end %>
+</table>
+
+<br />
+
+<%= link_to 'New wordlist', new_wordlist_path %>

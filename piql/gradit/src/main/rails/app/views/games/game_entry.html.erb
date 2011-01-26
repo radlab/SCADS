@@ -1,0 +1,26 @@
+<div id="ans_result">
+</div>
+<div id="player_panel">
+	Player Score: <span id="player_score"><%= @score %></span> | <a href="<%= @disp %>"> Next Word >> </a>
+</div>
+<div class="game_entry">
+	<% if @para %>
+		From <u><%= @para_book %></u> 
+	<br><br>
+	<div class="game_entry_question">
+		"..<%= @para %>.."
+	</div>
+	<br>
+	<div class="game_entry_mc">
+		A) <span id="mult_choice_<%= @mc_array[0] %>"><%= link_to @mc_array[0], :controller => :games, :action => :ans, :answer=>@mc_array[0], :id=>params[:id] %></span>
+		<br />
+		B) <span id="mult_choice_<%= @mc_array[1] %>"><%= link_to @mc_array[1], :controller => :games, :action => :ans, :answer=>@mc_array[1], :id=>params[:id] %></span>
+		<br />
+		C) <span id="mult_choice_<%= @mc_array[2] %>"><%= link_to @mc_array[2], :controller => :games, :action => :ans, :answer=>@mc_array[2], :id=>params[:id] %></span>
+		<br />
+		D) <span id="mult_choice_<%= @mc_array[3] %>"><%= link_to @mc_array[3],:controller => :games, :action => :ans, :answer=>@mc_array[3], :id=>params[:id] %></span>
+	</div>
+	<% else %>
+	Sorry, no context was found.
+	<% end %>
+</div>

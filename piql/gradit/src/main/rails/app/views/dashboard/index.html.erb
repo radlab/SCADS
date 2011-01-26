@@ -1,0 +1,15 @@
+<h1>Welcome, <%= current_user.login %></h1>
+<br>
+<% if @game_url %>
+	<%= link_to "Continue game", @game_url%>
+<% else %>
+<%= link_to "Play a game", wordlists_path%>
+<% end %>
+<h2>Game History</h2>
+<div id="game_history">
+	<% for game in @finished_games.reverse %>
+		<div class="finished_game">
+			You played wordlist "<%= game.wordlist.name%>", with a score of <%= @controller.your_game_player(game).score %>
+		</div>
+	<% end %>
+</div>
