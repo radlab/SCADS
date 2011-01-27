@@ -128,7 +128,7 @@ case class TraceCollectorTask(
 	}
 	
 	def getCardinalityList: List[Int] = {
-		((baseCardinality*0.5).toInt :: (baseCardinality*0.75).toInt :: baseCardinality :: baseCardinality*2 :: baseCardinality*10 :: Nil)
+		((baseCardinality*0.5).toInt :: (baseCardinality*0.75).toInt :: baseCardinality :: baseCardinality*2 :: baseCardinality*10 :: baseCardinality*100:: Nil)
 	}
 	
 }
