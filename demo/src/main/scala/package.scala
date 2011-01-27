@@ -71,8 +71,8 @@ package object demo {
       JvmMainTask(rainJars,
 		  "radlab.rain.Benchmark",
 		  "rain.config.scadr.ramp.json" ::
-		  scadrWebServerList.canonicalAddress :: Nil) :: Nil
-    )
+		  scadrWebServerList.canonicalAddress :: Nil,
+		  Map("dashboarddb" -> dashboardDb)) :: Nil)
   }
 
   def killTask(taskId: Int): Unit =
