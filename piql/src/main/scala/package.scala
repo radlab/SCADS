@@ -2,7 +2,7 @@ package edu.berkeley.cs
 package scads
 
 import org.apache.avro.Schema
-import org.apache.avro.generic.{IndexedRecord, GenericRecord}
+import org.apache.avro.generic.{ IndexedRecord, GenericRecord }
 import org.apache.avro.util.Utf8
 import net.lag.logging.Logger
 
@@ -12,7 +12,14 @@ import storage._
 package object piql {
   protected val logger = Logger()
 
-  type Namespace = edu.berkeley.cs.scads.storage.PairNamespace[AvroPair]
+  type Namespace = (edu.berkeley.cs.scads.storage.Namespace[IndexedRecord, IndexedRecord, IndexedRecord, IndexedRecord]
+    with edu.berkeley.cs.scads.storage.routing.RangeRouting[IndexedRecord, IndexedRecord, IndexedRecord, IndexedRecord]
+    with edu.berkeley.cs.scads.storage.SimpleMetaData[IndexedRecord, IndexedRecord, IndexedRecord, IndexedRecord]
+    with edu.berkeley.cs.scads.storage.QuorumProtocol[IndexedRecord, IndexedRecord, IndexedRecord, IndexedRecord]
+    with edu.berkeley.cs.scads.storage.AvroSerializing[IndexedRecord, IndexedRecord, IndexedRecord, IndexedRecord]
+  )
+  type IndexedNamespace = edu.berkeley.cs.scads.storage.IndexManager[AvroPair]
+
   type KeyGenerator = Seq[Value]
 
   type Key = IndexedRecord
@@ -26,6 +33,10 @@ package object piql {
   type CursorPosition = Seq[Any]
 
   implicit def toRichTuple(t: Tuple) = new RichTuple(t)
+
+  //TODO: Remove hack
+  //HACK: to deal with problem in namespace variance
+  implicit def pairToNamespace[T <: AvroPair](ns: PairNamespace[T]) = ns.asInstanceOf[Namespace]
 
   //PIQL Scala Language Integration
   implicit def namespaceToRelation[T <: AvroPair](ns: PairNamespace[T]) = Relation(ns.asInstanceOf[Namespace])
@@ -42,10 +53,10 @@ package object piql {
   class OptimizedQuery(val name: Option[String], val physicalPlan: QueryPlan, executor: QueryExecutor) {
     def apply(args: Any*): QueryResult = {
       val encodedArgs = args.map {
-	case s: String => new Utf8(s)
-	case o => o
+        case s: String => new Utf8(s)
+        case o => o
       }
-      val iterator = executor(physicalPlan, encodedArgs:_*)
+      val iterator = executor(physicalPlan, encodedArgs: _*)
       iterator.open
       val ret = iterator.toList
       iterator.close

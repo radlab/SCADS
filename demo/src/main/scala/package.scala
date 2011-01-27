@@ -6,9 +6,9 @@ import java.io.File
 package object demo {
   import DemoConfig._
   import scads.comm._
-	import scads.storage._
+  import scads.storage._
   import deploylib.mesos._
-	import scads.piql.modeling._
+  import scads.piql.modeling._
 
   /**
    * Start a mesos master and make it the primary for the demo.
@@ -44,40 +44,50 @@ package object demo {
   }
 
   def safeUrl(cs: S3CachedJar, delim: String = "|"): String = {
-    if (cs.url.contains(delim)) 
+    if (cs.url.contains(delim))
       throw new RuntimeException("delim cannot be used b/c of url: %s".format(cs.url))
     cs.url
   }
 
   def startScadr: Unit = {
     val task = WebAppSchedulerTask(
-	"SCADr",
-	mesosMaster,
-	javaExecutorPath,
-	scadrWar,
-	Map("scadr.clusterAddress" -> scadrRoot.canonicalAddress)).toJvmTask
+      "SCADr",
+      mesosMaster,
+      javaExecutorPath,
+      scadrWar,
+      scadrWebServerList.canonicalAddress,
+      Map("scadr.clusterAddress" -> scadrRoot.canonicalAddress)).toJvmTask
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
   def startScadrDirector: Unit = {
     val task = ScadrDirectorTask(
       scadrRoot.canonicalAddress,
-      mesosMaster
-    ).toJvmTask
+      mesosMaster).toJvmTask
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
-	def startTraceCollector: Unit = {
-		println("starting trace collection...")
-		val storageEngineTask = ScalaEngineTask(
-			traceRoot.canonicalAddress
-		).toJvmTask // can do *5
-		val traceTask = TraceCollectorTask(
-			traceRoot.canonicalAddress,
-			10
-		).toJvmTask
-		serviceScheduler !? RunExperimentRequest(storageEngineTask :: traceTask :: Nil)
-	}
+  def startTraceCollector: Unit = {
+    println("starting trace collection...")
+    val storageEngineTask = ScalaEngineTask(
+      traceRoot.canonicalAddress).toJvmTask // can do *5
+    val traceTask = TraceCollectorTask(
+      traceRoot.canonicalAddress,
+      10).toJvmTask
+    serviceScheduler !? RunExperimentRequest(storageEngineTask :: traceTask :: Nil)
+  }
+
+  def startScadrRain: Unit = {
+    serviceScheduler !? RunExperimentRequest(
+      JvmMainTask(rainJars,
+        "radlab.rain.Benchmark",
+        "rain.config.scadr.ramp.json" ::
+        scadrWebServerList.canonicalAddress :: Nil,
+        Map("dashboarddb" -> dashboardDb)) :: Nil)
+  }
+
+  def killTask(taskId: Int): Unit =
+    serviceScheduler !? KillTaskRequest(taskId)
 
   /**
    * WARNING: deletes all data from all scads cluster
@@ -90,39 +100,38 @@ package object demo {
     scadrRoot.deleteRecursive
   }
 
-	def resetTracing: Unit = {
-		traceRoot.data = "".getBytes
-		traceRoot.deleteRecursive
-	}
+  def resetTracing: Unit = {
+    traceRoot.data = "".getBytes
+    traceRoot.deleteRecursive
+  }
 
   def startIntKeyTest: Unit = {
     serviceScheduler !? RunExperimentRequest(
       JvmMainTask(MesosEC2.classSource,
-		  "edu.berkeley.cs.radlab.demo.IntKeyScaleScheduler",
-		  "--name" :: "intkeyscaletest" ::
-		  "--mesosMaster" :: mesosMaster ::
-		  "--executor" :: javaExecutorPath ::
-		  "--cp" :: MesosEC2.classSource.map(safeUrl(_)).mkString("|") :: Nil) :: Nil
-    )
+        "edu.berkeley.cs.radlab.demo.IntKeyScaleScheduler",
+        "--name" :: "intkeyscaletest" ::
+        "--mesosMaster" :: mesosMaster ::
+        "--executor" :: javaExecutorPath ::
+        "--cp" :: MesosEC2.classSource.map(safeUrl(_)).mkString("|") :: Nil) :: Nil)
   }
 
   def startRepTest(numKeys: Int): Unit = {
     serviceScheduler !? RunExperimentRequest(
       JvmMainTask(MesosEC2.classSource,
-		  "edu.berkeley.cs.radlab.demo.RepTestScheduler",
-		  "--name" :: "reptest" ::
-		  "--mesosMaster" :: mesosMaster ::
-		  "--executor" :: javaExecutorPath ::
-		  "--cp" :: MesosEC2.classSource.map(safeUrl(_)).mkString("|") :: 
-      "--numKeys" :: numKeys.toString :: Nil) :: Nil
-    )
+        "edu.berkeley.cs.radlab.demo.RepTestScheduler",
+        "--name" :: "reptest" ::
+        "--mesosMaster" :: mesosMaster ::
+        "--executor" :: javaExecutorPath ::
+        "--cp" :: MesosEC2.classSource.map(safeUrl(_)).mkString("|") ::
+        "--numKeys" :: numKeys.toString :: Nil) :: Nil)
   }
 
   def authorizeUsers: Unit = {
     val keys =
-      "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCfH8CkLrCIOxJAkFubG1ehQEdu1OfOUqaMxiTQ7g/X0fXclXRzqwoBFBL33t0FGVxkPVxolwAaZEQTIg6hkGZuzLlPiuq1ortkMx3wGxU9/YBr6JzSZb+kB1OEG/LOWiXH+i5IJbKptW+6B527niXCAgo8Idlf5PNBqcdI+CrvaX+oqQX6K2T5EDxoJVOtgRHbS/2YbtGhwknskyCcvOnOcwjcRUGawmVK7QYavyuO+//SOK+0sIjTSSwTAVceKbQl8XVlPL7IJHKE6/JwEF2+6+eMdflg9A8qAm3g0rE8qfUGdJLN1hpJNdP/UCP1v091h4C88lqqtwbekrS817ar stephentu@ibanez" :: 
-      "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAnOr61V36/yp1nGRfMZHxzFr1GUom/uQgQS5xdMQ3A56xqfWbhNpNTGQSOpKc3u1jfc77KouG8v0bPSssaiBIDIqVqVRWWACUg6j4xk5oN0lSm22LWJ0OnFvbPbsZlJOb9t+gIe2/yjlbJsyH5/mpIqJBTASOtXugYUIP3jIfA438ZiObpEYuL3kCiBDhEz4w6WbTaXr0K/bRxQoZFGJem+IH26bfeEP8Y12ygdgwh0EAKErv1bbULV7WC92F+5nSU1eGbvCKbhqxIUzxh7ZCRXdUyGcpDOfVL2MOUxNch3AKjE+Z5TVI8fv1md7ILK4dE95oJTUiWv9IUpAUEabM4Q== kristal.curtis@gmail.com" :: Nil
+      "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCfH8CkLrCIOxJAkFubG1ehQEdu1OfOUqaMxiTQ7g/X0fXclXRzqwoBFBL33t0FGVxkPVxolwAaZEQTIg6hkGZuzLlPiuq1ortkMx3wGxU9/YBr6JzSZb+kB1OEG/LOWiXH+i5IJbKptW+6B527niXCAgo8Idlf5PNBqcdI+CrvaX+oqQX6K2T5EDxoJVOtgRHbS/2YbtGhwknskyCcvOnOcwjcRUGawmVK7QYavyuO+//SOK+0sIjTSSwTAVceKbQl8XVlPL7IJHKE6/JwEF2+6+eMdflg9A8qAm3g0rE8qfUGdJLN1hpJNdP/UCP1v091h4C88lqqtwbekrS817ar stephentu@ibanez" ::
+        "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAnOr61V36/yp1nGRfMZHxzFr1GUom/uQgQS5xdMQ3A56xqfWbhNpNTGQSOpKc3u1jfc77KouG8v0bPSssaiBIDIqVqVRWWACUg6j4xk5oN0lSm22LWJ0OnFvbPbsZlJOb9t+gIe2/yjlbJsyH5/mpIqJBTASOtXugYUIP3jIfA438ZiObpEYuL3kCiBDhEz4w6WbTaXr0K/bRxQoZFGJem+IH26bfeEP8Y12ygdgwh0EAKErv1bbULV7WC92F+5nSU1eGbvCKbhqxIUzxh7ZCRXdUyGcpDOfVL2MOUxNch3AKjE+Z5TVI8fv1md7ILK4dE95oJTUiWv9IUpAUEabM4Q== kristal.curtis@gmail.com" ::
+        "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAqxXSYqw5Cshu9EvHCzRiu/1lSO6n6hqTmM7NwITK7Q5a0pn7Hg/ZzykuWpcrCDKjRadJlP+FrWWPdizEgOtgwmHs9LWrf0DrtLDNroRsgqyii/rD4+kAMgMP6PWxoRRUklo8Vqgt4TFwA/bDbKFHtyvnPGOxBiapnhrdWL5HKG1nIChrN2iLLq4ymnGd2N0pJW+Fwz8E/D4Mxk7poKSuyfyEcAynhAeLcCvx54t/p8JalahHHco+TGFEChp3gZ2c+Eov3KNZgtCGcQeIphVoRI5M+Li5adaVwD5Y3mmJ3yBBiS6rh4qN0QS9RecOH+oYcAOQWAm000q1UdfHfESKvQ== rean@eecs.berkeley.edu" :: Nil
 
-    keys.foreach(k => MesosEC2.master.appendFile(new File("/root/.ssh/authorized_keys"), k))
+    MesosEC2.master.appendFile(new File("/root/.ssh/authorized_keys"), keys.mkString("\n"))
   }
 }

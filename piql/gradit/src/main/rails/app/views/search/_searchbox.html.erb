@@ -1,0 +1,6 @@
+<div id="vocab_searchbox">
+	<% form_tag('/search', :method => "get") do %>
+		 <%= text_field_tag(:word, "Type in a vocabulary word!", {:size => 25, :class => "search_field", :onfocus => "this.value==this.defaultValue?this.value='':null"}) %>
+		  <%= submit_tag "", :class => "search_button" %>
+		<% end %>
+</div>

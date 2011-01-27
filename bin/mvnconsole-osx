@@ -1,0 +1,21 @@
+#!/bin/bash
+
+CLASSPATH=deploylib/src/main/resources/:`cat classpath`
+MESOSLIB=-Djava.library.path=/usr/local/mesos/lib/java
+
+if [ -f ~/local/jrebel.jar ]
+then
+  JAVAAGENT=-javaagent:~/local/jrebel.jar
+fi
+
+# Discover max memory
+MEMB=`sysctl -a hw | grep hw.memsize: | awk '{ print $2 }'`
+MEMMB=$((MEMB/1000000))
+
+if [ -f setup.scala ]
+then
+  exec java -Xmx${MEMMB}M $MESOSLIB -cp "$CLASSPATH" -noverify $JAVAAGENT scala.tools.nsc.MainGenericRunner -cp "$CLASSPATH" -i setup.scala 
+else
+  exec java -Xmx${MEMMB}M $MESOSLIB -cp $CLASSPATH -noverify $JAVAAGENT scala.tools.nsc.MainGenericRunner -cp $CLASSPATH
+fi
+

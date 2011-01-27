@@ -1,0 +1,24 @@
+<h1>Editing game</h1>
+
+<% form_for(@game) do |f| %>
+  <%= f.error_messages %>
+
+  <p>
+    <%= f.label :references %><br />
+    <%= f.text_field :references %>
+  </p>
+  <p>
+    <%= f.label :boolean %><br />
+    <%= f.text_field :boolean %>
+  </p>
+  <p>
+    <%= f.label :integer %><br />
+    <%= f.text_field :integer %>
+  </p>
+  <p>
+    <%= f.submit 'Update' %>
+  </p>
+<% end %>
+
+<%= link_to 'Show', @game %> |
+<%= link_to 'Back', games_path %>

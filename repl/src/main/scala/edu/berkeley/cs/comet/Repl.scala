@@ -14,6 +14,7 @@ import net.liftweb.http.js.jquery.JqJsCmds.AppendHtml
 import java.io._
 import Helpers._
 import _root_.net.liftweb.common.{ Box, Empty, Full }
+import net.lag.logging.Logger
 
 import scala.xml.XML
 
@@ -24,8 +25,14 @@ case class ExecuteScala(scalaCmd: String)
 case class DisplayNodeSeq(seq: NodeSeq)
 
 class Repl extends CometActor {
+  val logger = Logger()
   private val settings = new Settings
-  settings.classpath.value = Thread.currentThread.getContextClassLoader.asInstanceOf[java.net.URLClassLoader].getURLs.toList.mkString(":")
+  val contextJars = Thread.currentThread.getContextClassLoader.asInstanceOf[java.net.URLClassLoader].getURLs.toList
+  //HACK
+  val sbtJars = deploylib.Util.readFile(new File("allJars")).split("\n").map(new File(_))
+
+  settings.classpath.value = (sbtJars ++ contextJars).mkString(":")
+  logger.info("Using classpath: %s", settings.classpath.value)
   private val stream = new ByteArrayOutputStream
   private val writer = new PrintWriter(stream)
   var interpreter: Interpreter = null
@@ -42,18 +49,15 @@ import edu.berkeley.cs.scads.storage._
 import edu.berkeley.cs.scads.piql._
 import edu.berkeley.cs.avro.marker._
 import edu.berkeley.cs.avro.runtime._
+import edu.berkeley.cs.radlab.demo._
 import java.io.File
 import edu.berkeley.cs.scads.perf._
-val mesosExecutor = new File("../mesos/frameworks/deploylib/java_executor").getCanonicalPath
-implicit val scheduler = LocalExperimentScheduler("Local Console", "1@" + java.net.InetAddress.getLocalHost.getHostAddress + ":5050", mesosExecutor)
-implicit val classpath = System.getProperty("java.class.path").split(":").map(j => new File(j).getCanonicalPath).map(p => ServerSideJar(p)).toSeq
-//implicit val zookeeper = ZooKeeperHelper.getTestZooKeeper().root
 """
 
   override def lowPriority = {
     case InitRepl => {
       interpreter = new Interpreter(settings, writer)
-      interpreter.bind("repl", "net.liftweb.http.CometActor", this)
+      interpreter.bind("repl", "edu.berkeley.cs.comet.Repl", this)
       interpret("import edu.berkeley.cs.scads.lib.ReplHelpers._")
       interpret("implicit val replImplicit = repl")
 

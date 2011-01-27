@@ -7,6 +7,9 @@ import avro.runtime._
 
 import scads.comm._
 import deploylib.mesos._
+import deploylib.ec2._
+
+import java.io.File
 
 object DemoConfig {
   val javaExecutorPath = "/usr/local/mesos/frameworks/deploylib/java_executor"
@@ -15,7 +18,9 @@ object DemoConfig {
   //TODO: Add other ZooKeeper
   val zooKeeperRoot = ZooKeeperNode("zk://ec2-50-16-2-36.compute-1.amazonaws.com,ec2-174-129-105-138.compute-1.amazonaws.com/demo")
   def scadrRoot =  zooKeeperRoot.getOrCreate("apps/scadr")
-	def traceRoot = zooKeeperRoot.getOrCreate("traceCollection")
+  def scadrWebServerList = scadrRoot.getOrCreate("webServerList")
+
+  def traceRoot = zooKeeperRoot.getOrCreate("traceCollection")
 
   val mesosMasterNode = zooKeeperRoot.getOrCreate("mesosMaster")
   def mesosMaster = new String(mesosMasterNode.data)
@@ -28,7 +33,22 @@ object DemoConfig {
   val jdbcDriver = classOf[com.mysql.jdbc.Driver]
   val dashboardDb = "jdbc:mysql://dev-mini-demosql.cwppbyvyquau.us-east-1.rds.amazonaws.com:3306/radlabmetrics?user=radlab_dev&password=randyAndDavelab"
 
+  def rainJars = {
+    val rainLocation  = new File("../rain-workload-toolkit")
+    val rainJar = new File(rainLocation, "rain.jar")
+    val scadrJar = new File(rainLocation, "scadr.jar")
+
+    if(rainJar.exists && scadrJar.exists)
+      S3CachedJar(S3Cache.getCacheUrl(rainJar.getCanonicalPath)) ::
+      S3CachedJar(S3Cache.getCacheUrl(scadrJar.getCanonicalPath)) :: Nil
+    else
+      S3CachedJar("http://s3.amazonaws.com/deploylibCache-rean/f2f74da753d224836fedfd56c496c50a") ::
+      S3CachedJar("http://s3.amazonaws.com/deploylibCache-rean/3971dfa23416db1b74d47af9b9d3301d") :: Nil
+  }
+
   implicit def classSource = MesosEC2.classSource
+
+  def toHtml: scala.xml.NodeSeq = <div>RADLab Demo Setup: <a href={"http://" + serviceScheduler.host + ":8080"}>Mesos Master</a></div>
 }
 
 object ServiceSchedulerDaemon extends optional.Application {
@@ -46,12 +66,12 @@ object ServiceSchedulerDaemon extends optional.Application {
 
 
 //TODO: Move to web app scheduler.
-case class WebAppSchedulerTask(var name: String, var mesosMaster: String, var executor: String, var warFile: S3CachedJar, var properties: Map[String, String]) extends AvroTask with AvroRecord {
+case class WebAppSchedulerTask(var name: String, var mesosMaster: String, var executor: String, var warFile: S3CachedJar, var zkWebServerListRoot: String, var properties: Map[String, String]) extends AvroTask with AvroRecord {
   import DemoConfig._
 
   def run(): Unit = {
     System.loadLibrary("mesos")
-    val scheduler = new WebAppScheduler(name, mesosMaster, executor, warFile, properties, 1, Some(dashboardDb))
+    val scheduler = new WebAppScheduler(name, mesosMaster, executor, warFile, properties, zkWebServerListRoot, 1, Some(dashboardDb))
     scheduler.monitorThread.join()
   }
 }

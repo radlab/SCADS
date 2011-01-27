@@ -3,6 +3,7 @@ package scads
 package piql
 
 import org.apache.avro.Schema
+import org.apache.avro.Schema.Field
 import scala.collection.JavaConversions._
 import net.lag.logging.Logger
 
@@ -16,20 +17,43 @@ object Optimizer {
     logger.info("Optimizing subplan: %s", logicalPlan)
 
     logicalPlan match {
-      case IndexRange(equalityPreds, None, None, Relation(ns)) if (equalityPreds.size == ns.keySchema.getFields.size) => {
+      case IndexRange(equalityPreds, None, None, Relation(ns)) if (equalityPreds.size == ns.keySchema.getFields.size) &&
+								  isPrefix(equalityPreds, ns) => {
 	val tupleSchema = ns :: Nil
         OptimizedSubPlan(
           IndexLookup(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds)),
           tupleSchema)
       }
       case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), None, Relation(ns)) => {
-	val tupleSchema = ns :: Nil
-	val idxScanPlan = IndexScan(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), count, true)
-	val fullPlan = dataStop match {
-	  case true => idxScanPlan
-	  case false => LocalStopAfter(count, idxScanPlan)
+	if(isPrefix(equalityPreds, ns)) {
+	  logger.info("Using primary index for predicates: %s", equalityPreds)
+	  val tupleSchema = ns :: Nil
+	  val idxScanPlan = IndexScan(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), count, true)
+	  val fullPlan = dataStop match {
+	    case true => idxScanPlan
+	    case false => LocalStopAfter(count, idxScanPlan)
+	  }
+          OptimizedSubPlan(fullPlan, tupleSchema)
+	} else {
+	  logger.info("Using secondary index for predicates: %s", equalityPreds)
+
+	  //TODO: Fix type hack
+	  val idx = ns.asInstanceOf[IndexedNamespace].getOrCreateIndex(equalityPreds.map(_.attributeName))
+	  val tupleSchema = ns :: idx :: Nil
+	  val idxScanPlan = IndexScan(idx, makeKeyGenerator(idx, tupleSchema, equalityPreds), count, true)
+
+	  val keyFields = ns.keySchema.getFields
+	  val idxFields = getFields(idx)
+	  val keyGenerator = keyFields.map(kf => AttributeValue(0, idxFields.findIndexOf(_.name equals kf.name)))
+
+	  val derefedPlan = IndexLookupJoin(ns, keyGenerator, idxScanPlan)
+
+	  val fullPlan = dataStop match {
+	    case true => derefedPlan
+	    case false => LocalStopAfter(count, derefedPlan)
+	  }
+          OptimizedSubPlan(fullPlan, tupleSchema)
 	}
-        OptimizedSubPlan(fullPlan, ns :: Nil)
       }
       //TODO: Check to make sure the index has the right ordering.
       case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), Some(Ordering(attrs, asc)), Relation(ns)) => {
@@ -39,10 +63,10 @@ object Optimizer {
 	  case true => idxScanPlan
 	  case false => LocalStopAfter(count, idxScanPlan)
 	}
-
         OptimizedSubPlan(fullPlan, ns :: Nil)
       }
-      case IndexRange(equalityPreds, None, None, Join(child, Relation(ns))) if (equalityPreds.size == ns.keySchema.getFields.size) => {
+      case IndexRange(equalityPreds, None, None, Join(child, Relation(ns))) if (equalityPreds.size == ns.keySchema.getFields.size) &&
+									       isPrefix(equalityPreds, ns) => {
         val optChild = apply(child)
 	val tupleSchema = optChild.schema :+ ns
         OptimizedSubPlan(
@@ -65,7 +89,7 @@ object Optimizer {
 	  case true => joinPlan
 	  case false => LocalStopAfter(count, joinPlan)
 	}
-	    
+
       	OptimizedSubPlan(fullPlan, tupleSchema)
       }
       case Selection(pred, child) => {
@@ -76,6 +100,28 @@ object Optimizer {
     }
   }
 
+  /**
+   * Returns true only if the given equality predicates can be satisfied by a prefix scan
+   * over the given namespace
+   */
+  protected def isPrefix(equalityPredicates: Seq[AttributeEquality], ns: Namespace): Boolean = {
+    val attrNames = equalityPredicates.map(_.attributeName)
+    val primaryKeyAttrs = ns.keySchema.getFields.take(attrNames.size).map(_.name)
+    attrNames.map(primaryKeyAttrs.contains(_)).reduceLeft(_ && _)
+  }
+
+  /**
+   * Returns the key/value schemas concatenated
+   */
+  protected def getFields(ns: Namespace): Seq[Field] = ns match {
+    case idx: edu.berkeley.cs.scads.storage.IndexNamespace => idx.keySchema.getFields
+    case primaryNs => primaryNs.keySchema.getFields.toSeq ++ primaryNs.valueSchema.getFields
+  }
+
+  /**
+   * Given a list of predicates, replace all UnboundAttributeValues with Attribute values
+   * with the correct record/field positions
+   */
   protected def bindPredicate(predicate: Predicate, schema: TupleSchema): Predicate = predicate match {
     case EqualityPredicate(l, r) => EqualityPredicate(bindValue(l, schema), bindValue(r, schema))
   }
@@ -87,15 +133,15 @@ object Optimizer {
       val relationNames = schema.map(_.namespace)
       logger.info("selecting from relationName options: %s", relationNames)
       val recordPosition = relationNames.findIndexOf(_ equals relationName)
-      val fieldPosition = schema(recordPosition).pairSchema.getFields.findIndexOf(_.name equals attrName)
+      val fieldPosition = getFields(schema(recordPosition)).findIndexOf(_.name equals attrName)
       AttributeValue(recordPosition, fieldPosition)
     }
     case UnboundAttributeValue(name: String) => {
       //TODO: Throw execption when ambiguious
       logger.info("attempting to bind %s in %s", name, schema)
-      val recordSchemas = schema.map(_.pairSchema)
-      val recordPosition = recordSchemas.findIndexOf(_.getFields.map(_.name) contains name)
-      val fieldPosition = recordSchemas(recordPosition).getFields.findIndexOf(_.name equals name)
+      val recordSchemas = schema.map(getFields)
+      val recordPosition = recordSchemas.findIndexOf(_.map(_.name) contains name)
+      val fieldPosition = recordSchemas(recordPosition).findIndexOf(_.name equals name)
       AttributeValue(recordPosition, fieldPosition)
     }
     case otherValue => otherValue

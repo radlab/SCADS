@@ -15,9 +15,9 @@ object Relations {
   val cluster = TestScalaEngine.newScadsCluster()
   //TODO: Fix variance of namespace to remove cast
   //TODO: subout namespace so we don't need to invoke zookeeper etc.
-  val r1 = cluster.getNamespace[R1]("r1").asInstanceOf[Namespace]
-  val r2 = cluster.getNamespace[R2]("r2").asInstanceOf[Namespace]
-  val r2Prime = cluster.getNamespace[R2]("r2Prime").asInstanceOf[Namespace]
+  val r1 = cluster.getNamespace[R1]("r1")
+  val r2 = cluster.getNamespace[R2]("r2")
+  val r2Prime = cluster.getNamespace[R2]("r2Prime")
 }
 
 object TestOptimizer {

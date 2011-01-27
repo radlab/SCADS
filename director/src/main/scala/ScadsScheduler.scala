@@ -61,7 +61,7 @@ class ScadsServerScheduler protected (name: String, mesosMaster: String, zookeep
         val offer = offers.remove(0)
         val taskParams = Map(List("mem", "cpus").map(k => k -> offer.getParams.get(k)): _*)
         val task = new TaskDescription(taskId, offer.getSlaveId, proc.mainclass, taskParams, JvmTask(proc))
-        logger.info("Scheduling task %d: %s", taskId, proc)
+        logger.debug("Scheduling task %d: %s", taskId, proc)
         scheduledServers ::= taskId
         logger.info("Assigning task %d to slave %s on %s", taskId, offer.getSlaveId, offer.getHost)
         taskId += 1

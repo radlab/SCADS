@@ -1,0 +1,20 @@
+<h1>Editing word</h1>
+
+<% form_for(@word) do |f| %>
+  <%= f.error_messages %>
+
+  <p>
+    <%= f.label :word %><br />
+    <%= f.text_field :word %>
+  </p>
+  <p>
+    <%= f.label :definition %><br />
+    <%= f.text_field :definition %>
+  </p>
+  <p>
+    <%= f.submit 'Update' %>
+  </p>
+<% end %>
+
+<%= link_to 'Show', @word %> |
+<%= link_to 'Back', words_path %>

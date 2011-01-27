@@ -37,17 +37,19 @@ class OptimizerSpec extends Spec with ShouldMatchers {
     val query = (
       r2.where("f1".a === (0.?))
 	.limit(10))
-    val plan = IndexScan(r2,
-			 ParameterValue(0) :: Nil,
-			 FixedLimit(10),
-			 true)
+    val plan = LocalStopAfter(FixedLimit(10),
+		 IndexScan(r2,
+			   ParameterValue(0) :: Nil,
+			   FixedLimit(10),
+			   true))
+
     query.opt should equal(plan)
   }
 
   it("lookup join") {
     val query = (
       r2.where("f1".a === (0.?))
-	.limit(10)
+	.dataLimit(10)
 	.join(r1)
 	.where("r1.f1".a === "r2.f2".a))
     val plan = IndexLookupJoin(r1, AttributeValue(0, 1) :: Nil,
@@ -60,7 +62,7 @@ class OptimizerSpec extends Spec with ShouldMatchers {
   it("local selection") {
     val query = (
       r2.where("f1".a === 0)
-	.limit(10)
+	.dataLimit(10)
 	.where("f2".a === 0)
       )
     val plan = LocalSelection(AttributeValue(0,1) === 0,
@@ -71,33 +73,40 @@ class OptimizerSpec extends Spec with ShouldMatchers {
   }
 
   it("bounded index query") {
-    /*val query = (
+    val query = (
       r2.where("f2".a === 0)
 	.limit(10)
     )
 
     //Optimize query first so index is created
     val optQuery = query.opt
-    val idx = r2.listIndexes("idxf2")
+    val idx = r2.getOrCreateIndex("f2" :: Nil)
 
-    val plan = IndexScan(idx, ConstantValue(0) :: Nil, FixedLimit(10), true)
+    val plan =
+      LocalStopAfter(FixedLimit(10),
+        IndexLookupJoin(r2, AttributeValue(0,1) :: AttributeValue(0,0) :: Nil,
+	  IndexScan(idx, ConstantValue(0) :: Nil, FixedLimit(10), true)))
 
-    optQuery must equal(plan) */
-
-    pending
+    optQuery should equal(plan)
   }
 
   it("simple merge sort join") {
     val query = (
       r2.where("f1".a === 0)
-	.limit(5)
+	.dataLimit(5)
 	.join(r2Prime)
 	.where("r2.f2".a === "r2Prime.f1".a)
 	.sort("r2Prime.f2".a :: Nil)
 	.limit(10)
     )
-    val plan = IndexMergeJoin(r2Prime, AttributeValue(0,1) :: Nil, AttributeValue(1,1) :: Nil, FixedLimit(10), true,
-	         IndexScan(r2, ConstantValue(0) :: Nil, FixedLimit(5), true))
+    val plan =
+      LocalStopAfter(FixedLimit(10),
+        IndexMergeJoin(r2Prime,
+		       AttributeValue(0,1) :: Nil,
+		       AttributeValue(1,1) :: Nil,
+		       FixedLimit(10),
+		       true,
+          IndexScan(r2, ConstantValue(0) :: Nil, FixedLimit(5), true)))
 
     query.opt should equal(plan)
   }

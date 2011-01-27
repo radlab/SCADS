@@ -9,12 +9,21 @@ import edu.berkeley.cs.scads.comm._
 import java.io.File
 import java.net.InetAddress
 
+/**
+ * Functions to help maintain a mesos cluster on EC2.
+ */
 object MesosEC2 extends ConfigurationActions {
   val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
 
   def updateDeploylib: Unit = {
-    val executorScript = Util.readFile(new File("deploylib/src/main/resources/java_executor"))
     slaves.pforeach(inst => {
+      val executorScript = Util.readFile(new File("deploylib/src/main/resources/java_executor"))
+      .split("\n")
+      .map {
+	case s if(s contains "CLASSPATH=") => "CLASSPATH='-cp " + inst.pushJars.mkString(":") + "'"
+	case s => s
+      }.mkString("\n")
+
       createDirectory(inst, rootDir)
       uploadFile(inst, new File("scads.jar"), rootDir)
       uploadFile(inst, new File("deploylib/src/main/resources/config"), rootDir)
@@ -46,28 +55,32 @@ object MesosEC2 extends ConfigurationActions {
   }
 
   val defaultZone = "us-east-1a"
-  def startMaster(zone: String = defaultZone):EC2Instance = {
+  def startMaster(zone: String = defaultZone): EC2Instance = {
     val ret = EC2Instance.runInstances(
-        "ami-5a26d733",
-        1,
-        1,
-        EC2Instance.keyName,
-        "m1.large",
-        zone,
-        None).head
+      "ami-5a26d733",
+      1,
+      1,
+      EC2Instance.keyName,
+      "m1.large",
+      zone,
+      None).head
     ret.tags += masterTag
     restartMaster
     ret
   }
 
-  def addSlaves(count: Int, zone: String = defaultZone): Seq[EC2Instance] = {
-    val userData = try Some("url=" + clusterUrl) catch {
-      case noMaster: java.util.NoSuchElementException =>
-	logger.warning("No master found. Starting without userdata")
-	None
-    }
+  def addSlaves(count: Int, zone: String = defaultZone, updateDeploylibOnStart: Boolean = true): Seq[EC2Instance] = {
+    val userData =
+      if (updateDeploylibOnStart)
+        None
+      else
+        try Some("url=" + clusterUrl) catch {
+          case noMaster: java.util.NoSuchElementException =>
+            logger.warning("No master found. Starting without userdata")
+            None
+        }
 
-    EC2Instance.runInstances(
+    val instances = EC2Instance.runInstances(
       "ami-5a26d733",
       count,
       count,
@@ -75,23 +88,31 @@ object MesosEC2 extends ConfigurationActions {
       "m1.large",
       zone,
       userData)
+
+    if(updateDeploylibOnStart) {
+      updateDeploylib
+      updateConf
+      instances.pforeach(_ ! "service mesos-slave start")
+    }
+
+    instances
   }
 
   def updateConf: Unit = {
     val conf = ("work_dir=/mnt" ::
       "log_dir=/mnt" ::
       "switch_user=0" ::
-      "url="+clusterUrl :: Nil).mkString("\n")
+      "url=" + clusterUrl :: Nil).mkString("\n")
     val conffile = new File("/usr/local/mesos/conf/mesos.conf")
-    slaves.pforeach(_.createFile(conffile,conf))
+    slaves.pforeach(_.createFile(conffile, conf))
   }
 
   //TODO: Doesn't handle non s3 cached jars
   def classSource: Seq[S3CachedJar] =
-    if(System.getProperty("deploylib.classSource") == null)
+    if (System.getProperty("deploylib.classSource") == null)
       pushJars.map(_.getName)
-	.map(S3Cache.hashToUrl)
-	.map(new S3CachedJar(_))
+        .map(S3Cache.hashToUrl)
+        .map(new S3CachedJar(_))
     else
       System.getProperty("deploylib.classSource").split("\\|").map(S3CachedJar(_))
 
@@ -114,8 +135,8 @@ object MesosEC2 extends ConfigurationActions {
     val getKeyCommand = "cat /root/.ssh/id_rsa.pub"
     val key = try (master !? getKeyCommand) catch {
       case u: UnknownResponse => {
-	master ! "ssh-keygen -t rsa -f /root/.ssh/id_rsa -N \"\""
-	master !? getKeyCommand
+        master ! "ssh-keygen -t rsa -f /root/.ssh/id_rsa -N \"\""
+        master !? getKeyCommand
       }
     }
 
