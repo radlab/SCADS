@@ -2,7 +2,7 @@ $AVRO_LOADED = 0
 puts "************"
 puts "Loader beginning\n\n\n"
 
-require "lib/avro_record.rb"
+require File.join(RAILS_ROOT, "lib/avro_record.rb")
 
 words = [
     ["abscond", "to leave secretly and hide, often to avoid the law"], # 1

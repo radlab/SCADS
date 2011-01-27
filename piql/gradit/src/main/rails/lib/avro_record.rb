@@ -1,13 +1,17 @@
 if ($AVRO_LOADED == 0)
-    require File.join(RAILS_ROOT,'lib/piql/scads.jar')
+  allJarsFile = File.join(RAILS_ROOT, "../../../../../allJars")
+  puts("loading scads jars from " + allJarsFile)
 
-    import Java::EduBerkeleyCsScadsPiqlGradit::GraditClient
-    import Java::EduBerkeleyCsScadsPiql::SimpleExecutor
-    import Java::EduBerkeleyCsScadsStorage::TestScalaEngine
+  jars = File.read(allJarsFile).split("\n")
+  jars.each {|j| puts j ; require j}
+ 
+  import Java::EduBerkeleyCsScadsPiqlGradit::GraditClient
+  import Java::EduBerkeleyCsScadsPiql::SimpleExecutor
+  import Java::EduBerkeleyCsScadsStorage::TestScalaEngine
 
-    $CLIENT = GraditClient.new(TestScalaEngine.new_scads_cluster(1), SimpleExecutor.new)
-    
-    $AVRO_LOADED = 1
+  $CLIENT = GraditClient.new(TestScalaEngine.new_scads_cluster(1), SimpleExecutor.new)
+  
+  $AVRO_LOADED = 1
 end
 
 class Object
