@@ -232,6 +232,7 @@ class JavaExecutor extends Executor {
       case Some(runningTask) => {
         logger.info("Killing task %d", taskId)
         runningTask.kill
+	d.sendStatusUpdate(new TaskStatus(taskId, TaskState.TASK_KILLED, new Array[Byte](0)))
       }
       case None => logger.warning("Asked to kill nonexistant task %d", taskId)
     }
