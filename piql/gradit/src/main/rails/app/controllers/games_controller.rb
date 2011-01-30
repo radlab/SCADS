@@ -72,7 +72,7 @@ class GamesController < ApplicationController
   #Displaying/picking questions
   def game_entry
     game = Game.find(params[:id].to_i)
-  	word = game.currentword
+  	word = Word.find(game.currentword).word
   	#w = Word.find_by_word(word)
     w = Word.find(1) #HACK: fix me
   	
@@ -112,7 +112,7 @@ class GamesController < ApplicationController
     #words = wordlist.words 
     #currentword = words[rand(words.length)]
     currentword = Word.find(1) #FIXME: to above
-    game.changeWord(currentword.word)
+    game.changeWord(currentword.wordid)
 
     
     if(currentword) #If there is a word

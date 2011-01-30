@@ -17,7 +17,7 @@ class Game < AvroRecord
     g.gameid = id
     g.score = 0
     g.wordlist = wordlist
-    g.currentword = ""
+    g.currentword = 0
     g.save
     g.save #HACK: call everything twice for piql bug
     g
