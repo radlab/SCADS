@@ -20,7 +20,7 @@ object MesosEC2 extends ConfigurationActions {
       val executorScript = Util.readFile(new File("deploylib/src/main/resources/java_executor"))
       .split("\n")
       .map {
-	case s if(s contains "CLASSPATH=") => "CLASSPATH='-cp " + inst.pushJars.mkString(":") + "'"
+	case s if(s contains "CLASSPATH=") => "CLASSPATH='-cp /usr/local/mesos/lib/java/mesos.jar:" + inst.pushJars.mkString(":") + "'"
 	case s => s
       }.mkString("\n")
 
