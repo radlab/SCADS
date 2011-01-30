@@ -1,0 +1,45 @@
+<% if current_user -%>
+<div id="think"><%= render :partial => 'thoughts/think' %></div>
+<% end -%>
+
+<script type="text/javascript">
+$(document).ready(function() {
+  setInterval(function() {
+    $.get("<%= url_for user_thoughts_url(@user) %>/thoughts",
+          function(response) {
+            $("#thoughts").html(response);
+          });
+    $.get("<%= url_for user_thoughts_url(@user) %>/thoughtstream",
+          function(response) {
+            $("#thoughtstream").html(response);
+          });
+    }, 5000);
+});
+</script>
+
+<h1><%= @user.username %></h1>
+<div id="user-bar">
+  <ul>
+    <li>Hometown: <%= @user.home_town or "Not Set" %></li>
+  </ul>
+  <% if @can_subscribe -%>
+    <% form_for [current_user, Subscription.new] do |sub| %>
+      <%= sub.hidden_field :target, :value => @user.username %>
+      <%= sub.submit "Subscribe" %>
+    <% end %>
+  <% elsif current_user && current_user != @user -%>
+    <p>You are subscribed to <%=@user.username%></p>
+  <% end -%>
+</div>
+
+<h2>Thoughts</h2>
+<div id="thoughts">
+<%= render :partial => 'thoughts/index', :locals => {:thoughts => @thoughts} %>
+</div>
+
+<h2>Thoughtstream</h2>
+<div id="thoughtstream">
+<%= render :partial => 'thoughts/index', :locals => {:thoughts => @thoughtstream} %>
+</div>
+
+<p><a href="#" id="reload">Reload</a></p>

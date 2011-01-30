@@ -1,0 +1,14 @@
+<ul>
+<% thoughts.each do |thought| -%>
+  <li>
+    <% if current_user && thought.owner == current_user.username -%>
+      <p class="byline">Thought <%= thought.posted_at %> --</p>
+    <% else -%>
+      <p class="byline"><span class="user"><%= thought.owner %></span> thought <%= thought.posted_at %> --</p>
+    <% end -%>
+    <div class="thought-body">
+      <%= simple_format(thought.text) %>
+    </div>
+  </li>
+<% end -%>
+</ul>

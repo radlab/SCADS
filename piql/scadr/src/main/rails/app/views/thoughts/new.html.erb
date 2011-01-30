@@ -1,0 +1,13 @@
+<h1>New Thought</h1>
+
+<% form_for [@owner, @thought] do |f| %>
+<ul>
+  <li>
+    <%= f.label :text %><br />
+    <%= f.text_area :text %>
+  </li>
+  <li>
+    <%= f.submit %>
+  </li>
+</ul>
+<% end %>
