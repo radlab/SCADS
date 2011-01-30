@@ -152,7 +152,7 @@ class JavaExecutor extends Executor {
     val stderr = new StreamTailer(proc.getErrorStream())
     def output = List(cmdLine, this, "===stdout===", stdout.tail, "===stderr===", stderr.tail).mkString("\n").getBytes
     val taskThread = new Thread(this, "Task " + taskId + "Monitor")
-    taskThread.run()
+    taskThread.start()
 
     def run() = {
       driver.sendStatusUpdate(new TaskStatus(taskId, TaskState.TASK_RUNNING, output))
