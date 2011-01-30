@@ -92,7 +92,7 @@ class GamesController < ApplicationController
       @para = con.wordLine
       @para.gsub!(word, '___________') #underline the missing word    
       @mc = w.choices 
-      @mc_array = (@mc << word).sort_by{ rand }
+      @mc_array = (@mc << word).shuffle
     else #Find another word to use, no contexts
       wordlist = WordList.find(game.wordlist)
       words = wordlist.words
