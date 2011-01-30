@@ -39,7 +39,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
   val zkWebServerList = ZooKeeperNode(zkWebServerListRoot)
   var runMonitorThread = true
   var numToKill = 0
-   var killTimer = 0
+  var killTimer = 0
   @volatile var targetNumServers = 0
   var servers =  new HashMap[Int, String]()
   var minNumServers = 1
@@ -65,8 +65,11 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
           }
         }
 
+	logger.info("Current Workload: %s", requestsPerSec)
         val aggregateReqRate = requestsPerSec.sum
         targetNumServers = math.max(minNumServers,math.ceil(aggregateReqRate / serverCapacity).toInt)
+	logger.info("Current Aggregate Workload: %f, targetServers=%d", aggregateReqRate, targetNumServers)
+
 
         statement.foreach(s => {
           val now = new Date
