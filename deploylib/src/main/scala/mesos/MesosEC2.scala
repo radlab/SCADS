@@ -37,6 +37,10 @@ object MesosEC2 extends ConfigurationActions {
   def masterCache = CachedValue(EC2Instance.activeInstances.pfilter(_.tags contains masterTag).head)
   def master = masterCache()
 
+  def updateMesos =
+    MesosEC2.slaves.pforeach(s =>
+      MesosEC2.master ! "rsync -e 'ssh -o StrictHostKeyChecking=no' -av /usr/local/mesos root@%s:/usr/local/mesos".format(s.publicDnsName))
+
   def clusterUrl = "1@" + master.privateDnsName + ":5050"
 
   def restartSlaves: Unit = {
