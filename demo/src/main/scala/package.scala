@@ -8,6 +8,13 @@ package object demo {
   import scads.comm._
   import deploylib.mesos._
 
+  def runDemo: Unit = {
+    resetScads
+    startScadrDirector
+    startScadr
+    startScadrRain
+  }
+
   /**
    * Start a mesos master and make it the primary for the demo.
    * Only needs to be run by one person.
@@ -20,6 +27,10 @@ package object demo {
     MesosEC2.master.pushJars
     restartServiceScheduler
     mesosMasterNode.data = MesosEC2.clusterUrl.getBytes
+  }
+
+  def preloadWars: Unit = {
+    MesosEC2.slaves.pforeach(_.cacheFile(scadrWarFile))
   }
 
   /**
@@ -54,7 +65,7 @@ package object demo {
       javaExecutorPath,
       scadrWar,
       scadrWebServerList.canonicalAddress,
-    Map("scadr.clusterAddress" -> scadrRoot.canonicalAddress)).toJvmTask
+    Map("scads.clusterAddress" -> scadrRoot.canonicalAddress)).toJvmTask
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 

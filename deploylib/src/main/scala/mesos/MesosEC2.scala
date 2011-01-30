@@ -20,7 +20,7 @@ object MesosEC2 extends ConfigurationActions {
       val executorScript = Util.readFile(new File("deploylib/src/main/resources/java_executor"))
       .split("\n")
       .map {
-	case s if(s contains "CLASSPATH=") => "CLASSPATH='-cp " + inst.pushJars.mkString(":") + "'"
+	case s if(s contains "CLASSPATH=") => "CLASSPATH='-cp /usr/local/mesos/lib/java/mesos.jar:" + inst.pushJars.mkString(":") + "'"
 	case s => s
       }.mkString("\n")
 
@@ -36,6 +36,10 @@ object MesosEC2 extends ConfigurationActions {
 
   def masterCache = CachedValue(EC2Instance.activeInstances.pfilter(_.tags contains masterTag).head)
   def master = masterCache()
+
+  def updateMesos =
+    MesosEC2.slaves.pforeach(s =>
+      MesosEC2.master ! "rsync -e 'ssh -o StrictHostKeyChecking=no' -av /usr/local/mesos root@%s:/usr/local/mesos".format(s.publicDnsName))
 
   def clusterUrl = "1@" + master.privateDnsName + ":5050"
 

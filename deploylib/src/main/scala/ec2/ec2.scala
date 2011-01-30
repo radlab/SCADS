@@ -134,7 +134,7 @@ object EC2Instance extends AWSConnection {
  * A specific RemoteMachine used to control a single EC2Instance.
  * Instances of this class can be obtained by instanceId from the static method EC2Instance.getInstance
  */
-class EC2Instance protected (val instanceId: String) extends RemoteMachine with RunitManager with Taggable {
+class EC2Instance protected (val instanceId: String) extends RemoteMachine with RunitManager with Taggable with AWSConnection{
   lazy val hostname: String = getHostname()
   val username: String = "root"
   val rootDirectory: File = new File("/mnt/")
@@ -285,6 +285,28 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     }
 
     new File(fileCache, hash)
+  }
+
+  /**
+   * Creates a new AMI based on this image using ec2-bundle-vol and
+   * ec2-upload-bundle.
+   **/
+  def bundleNewAMI(bucketName: String): String = {
+    upload(ec2Cert, new File("/tmp"))
+    upload(ec2PrivateKey, new File("/tmp"))
+    this ! "rm -rf /tmp/image"
+    this ! "ec2-bundle-vol -c /tmp/%s -k /tmp/%s -u %s --arch %s".format(ec2Cert.getName, ec2PrivateKey.getName, userID, "x86_64")
+    this ! "ec2-upload-bundle -b %s -m %s -a %s -s %s".format(bucketName, "/tmp/image.manifest.xml", accessKeyId, secretAccessKey)
+    val registerRequest = new RegisterImageRequest(bucketName + "/image.manifest.xml")
+    val registerResponse = EC2Instance.client.registerImage(registerRequest)
+    val ami = registerResponse.getRegisterImageResult.getImageId
+    var req = new ModifyImageAttributeRequest()
+                 .withImageId(ami)
+                 .withOperationType("add")
+                 .withUserGroup("all")
+                 .withAttribute("launchPermission")
+    EC2Instance.client.modifyImageAttribute(req)
+    ami
   }
 
   override def equals(other: Any): Boolean = other match {
