@@ -114,24 +114,35 @@ class AvroRecord
         # instance = self.fetch
         
         tuple = []
+        
+        reg = /^(.*)Key$/
+        indexQuery = reg.match(rows.apply(0).schema.name) ? true : false
+        if indexQuery
+          sl = ScalaList.new
+          sl.push(rows.apply(1))
+          rows = sl.to_list #extract field from the index record
+        end
+        
         (0...rows.size).each do |row_index|
           row = rows.apply(row_index)
           schema = row.schema
           fields = schema.fields
           
           if schema.name != "UserKeyType" # TODO: Remove this once it's fixed
-            instance = schema.name.constantize.new
-            (0...fields.size).each do |field_index|
-              field = fields.get(field_index).name
-              value = row.send(field)
-              value = value.to_s if value.is_a?(Java::OrgApacheAvroUtil::Utf8)
-              instance.send(field.underscore+"=", value)
-            end
-            tuple.push(instance)
+              instance = schema.name.constantize.new
+              (0...fields.size).each do |field_index|
+                field = fields.get(field_index).name
+                value = row.send(field)
+                value = value.to_s if value.is_a?(Java::OrgApacheAvroUtil::Utf8)
+                instance.send(field.underscore+"=", value)
+              end
+              tuple.push(instance)
           end
         end
+
         
         results.push tuple
+
       end
       results
     else
