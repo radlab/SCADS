@@ -4,7 +4,7 @@ import Java::EduBerkeleyCsScadsPiql::SimpleExecutor
 import Java::EduBerkeleyCsScadsStorage::TestScalaEngine
 
 $PIQL_SCHEMA_PACKAGE = "EduBerkeleyCsScadsPiqlGradit"
-$CLIENT = GraditClient.new(TestScalaEngine.new_scads_cluster(1), SimpleExecutor.new)
+$CLIENT = GraditClient.new($SCADS_CLUSTER, $PIQL_EXECUTOR)
   
 
 puts "************"
