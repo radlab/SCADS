@@ -29,7 +29,7 @@ class WordList < AvroRecord
   end
   
   def words
-    self.wordsFromWordList(name)
+    WordList.wordsFromWordList(self.name).map {|w| w.first}
   end
   
 end

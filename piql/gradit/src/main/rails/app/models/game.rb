@@ -39,6 +39,10 @@ class Game < AvroRecord
     g
   end
   
+  def answer
+    Word.find(self.currentword)
+  end
+  
   def incrementScore(amount)
     self.score += amount
     self.save 

@@ -29,7 +29,7 @@ class Word < AvroRecord
     w
   end
   
-  def self.find_by_name(word)
+  def self.find_by_word(word)
     Word.findWordByWord(word).first.first
   end
   
