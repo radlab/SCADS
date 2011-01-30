@@ -12,7 +12,13 @@ object TestScadr {
     val word = new Word(0)
     word.word = "test"
     word.definition = "to see if piql works"
+    word.wordlist = "michaelslist"
     client.words.put(word.key, word.value)
+
+    val list = new WordList("michaelslist")
+    client.wordlists.put(list.key, list.value)
+
+    println("from list:" + client.wordsFromWordList("michaelslist"))
 
     val context = new WordContext(0, "TestBook", 1)
     context.wordLine = "this program is a test of PIQL"
