@@ -15,6 +15,10 @@ import net.lag.logging.Logger
 import java.io.File
 import java.net._
 
+import javax.mail._
+import javax.mail.internet._
+//import java.util._
+
 case class TraceCollectorTask(
 	var clusterAddress: String, 
 	var baseCardinality: Int, 
@@ -158,7 +162,39 @@ case class TraceCollectorTask(
 	}
 	
 	def getCardinalityList: List[Int] = {
-		((baseCardinality*0.5).toInt :: (baseCardinality*0.75).toInt :: baseCardinality :: baseCardinality*2 :: baseCardinality*10 :: baseCardinality*100:: Nil)
+		((baseCardinality*0.5).toInt :: (baseCardinality*0.75).toInt :: baseCardinality :: baseCardinality*2 :: baseCardinality*10 :: baseCardinality*100:: Nil).reverse
 	}
 	
+	// doesn't work
+	def sendMail(message:String) = {
+		val props = new java.util.Properties();
+		props.put("mail.smtp.host", "calmail.berkeley.edu")
+		props.put("mail.smtp.auth", "true")
+		
+		val auth = new SMTPAuthenticator
+		
+		val session = Session.getDefaultInstance(props, auth)
+		session.setDebug(false)
+		
+		val msg = new MimeMessage(session)
+		
+		val addressFrom = new InternetAddress("kristal.curtis@gmail.com")
+		msg.setFrom(addressFrom)
+		
+		val addressTo = new InternetAddress("kristal.curtis@gmail.com")
+		msg.setRecipients(javax.mail.Message.RecipientType.TO, "kristal.curtis@gmail.com")
+		
+		msg.setSubject("experiment finished at " + System.currentTimeMillis)
+		msg.setContent("please check data files", "text/plain")
+		Transport.send(msg)
+		
+	}
+	
+}
+
+// not currently used
+class SMTPAuthenticator extends javax.mail.Authenticator {
+	override def getPasswordAuthentication = {
+		new javax.mail.PasswordAuthentication("kcurtis", "***")
+	}
 }
