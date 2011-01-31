@@ -36,6 +36,10 @@ case class TraceCollectorTask(
     /* get namespaces */
 		println("getting namespace...")
     val ns = cluster.getNamespace[PrefixedNamespace]("prefixedNamespace")
+		/*
+    val r1 = cluster.getNamespace[R1]("r1")
+    val r2 = cluster.getNamespace[R2]("r2")
+		*/
 
     /* create executor that records trace to fileSink */
 		println("creating executor...")
@@ -52,6 +56,10 @@ case class TraceCollectorTask(
     /* Bulk load some test data into the namespaces */
 		println("loading data...")
 		ns ++= (1 to 10).view.flatMap(i => (1 to getNumDataItems).map(j => PrefixedNamespace(i,j)))	 // might want to fix hard-coded 10 at some point
+		/*
+		r1 ++= (1 to getNumDataItems).view.map(i => R1(i))
+    r2 ++= (1 to 10).view.flatMap(i => (1 to getNumDataItems).map(j => R2(i,j)))    
+		*/
 
     /**
      * Write queries against relations and create optimized function using .toPiql
@@ -59,7 +67,22 @@ case class TraceCollectorTask(
      */
 		println("creating queries...")
 		val cardinalityList = getCardinalityList
-		val getRangeQueries = cardinalityList.map(currentCardinality => ns.where("f1".a === 1).limit(currentCardinality).toPiql("getRangeQuery-rangeLength=" + currentCardinality.toString))
+		
+		val queries = cardinalityList.map(currentCardinality => 
+			ns.where("f1".a === 1)
+					.limit(currentCardinality)
+					.toPiql("getRangeQuery-rangeLength=" + currentCardinality.toString)
+		)
+		/*
+		val queries = cardinalityList.map(currentCardinality => 
+			r2.where("f1".a === 1)
+		      .limit(currentCardinality)
+		      .join(r1)
+		      .where("r1.f1".a === "r2.f2".a)
+					.toPiql("joinQuery-cardinality=" + currentCardinality.toString)
+		)
+		*/
+    
 
 		// initialize window
 		beginningOfCurrentWindow = System.nanoTime
@@ -69,10 +92,16 @@ case class TraceCollectorTask(
 		fileSink.recordEvent(WarmupEvent(warmupLengthInMinutes, true))
 		var queryCounter = 1
 		while (withinWarmup) {
-			cardinalityList.indices.foreach(i => {
-	      fileSink.recordEvent(QueryEvent("getRangeQuery" + queryCounter, true))
-	      getRangeQueries(i)()
-	      fileSink.recordEvent(QueryEvent("getRangeQuery" + queryCounter, false))
+			cardinalityList.indices.foreach(r => {
+				fileSink.recordEvent(ChangeCardinalityEvent(cardinalityList(r)))
+				
+	    	fileSink.recordEvent(QueryEvent("getRangeQuery" + queryCounter, true))
+				//fileSink.recordEvent(QueryEvent("joinQuery" + queryCounter, true))
+	      
+				queries(r)()
+	      
+				fileSink.recordEvent(QueryEvent("getRangeQuery" + queryCounter, false))
+				//fileSink.recordEvent(QueryEvent("joinQuery" + queryCounter, false))
 	
 				Thread.sleep(sleepDurationInMs)
 				queryCounter += 1
@@ -85,24 +114,25 @@ case class TraceCollectorTask(
 		println("beginning run...")
 		cardinalityList.indices.foreach(r => {
 			println("current cardinality = " + cardinalityList(r).toString)
-			fileSink.recordEvent(ChangeRangeLengthEvent(cardinalityList(r)))
+			fileSink.recordEvent(ChangeCardinalityEvent(cardinalityList(r)))
 			
 			(1 to numQueriesPerCardinality).foreach(i => {
 	      fileSink.recordEvent(QueryEvent("getRangeQuery" + i, true))
-	      getRangeQueries(r)()
+	      //fileSink.recordEvent(QueryEvent("joinQuery" + i, true))
+	
+	      queries(r)()
+	
 	      fileSink.recordEvent(QueryEvent("getRangeQuery" + i, false))
+	      //fileSink.recordEvent(QueryEvent("joinQuery" + i, false))
 
 				Thread.sleep(sleepDurationInMs)
 	    })
 		})
 
     //Flush trace messages to the file
-		println("flusing messages to file...")
+		println("flushing messages to file...")
     fileSink.flush()
 
-		// Write IP to ZooKeeper
-		clusterRoot.data = java.net.InetAddress.getLocalHost.getHostName.getBytes
-		
 		// Upload file to S3
 		println("uploading data...")
 		TraceS3Cache.uploadFile("/mnt/piqltrace.avro")
