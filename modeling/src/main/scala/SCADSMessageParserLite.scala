@@ -33,7 +33,7 @@ object SCADSMessageParserLite extends SCADSMessageParser {
 	  inFile.foreach {
 				case event @ ExecutionTrace(_, _, WarmupEvent(_, start)) => processWarmupEvent(event)
 		    case event @ ExecutionTrace(timestamp, threadId, QueryEvent(queryName, start)) => processQueryEvent(event)
-				case event @ ExecutionTrace(timestamp, threadId, ChangeRangeLengthEvent(numDataItems)) => processChangeRangeLengthEvent(event)
+				case event @ ExecutionTrace(timestamp, threadId, ChangeCardinalityEvent(numDataItems)) => processChangeCardinalityEvent(event)
 				case _ =>
 		}
   }

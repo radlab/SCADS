@@ -56,8 +56,8 @@ trait SCADSMessageParser {
 		}
 	}
 
-	def processChangeRangeLengthEvent(event: ExecutionTrace) = {
-		val ExecutionTrace(timestamp, threadId, ChangeRangeLengthEvent(numDataItems)) = event
+	def processChangeCardinalityEvent(event: ExecutionTrace) = {
+		val ExecutionTrace(timestamp, threadId, ChangeCardinalityEvent(numDataItems)) = event
 		rangeLength = numDataItems
 	}
 

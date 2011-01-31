@@ -77,7 +77,7 @@ object QueryRunnerForDataCollection extends optional.Application {
 
     /* Run some queries */
 		rangeSizes.indices.foreach(r => {
-			fileSink.recordEvent(ChangeRangeLengthEvent(rangeSizes(r)))
+			fileSink.recordEvent(ChangeCardinalityEvent(rangeSizes(r)))
 			
 			//(1 to 1000).foreach(i => {
 			(1 to 2).foreach(i => {
