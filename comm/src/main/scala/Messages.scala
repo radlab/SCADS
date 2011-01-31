@@ -118,7 +118,7 @@ case class IteratorEvent(var iteratorName: String, var planId: Int, var operatio
 case class MessageEvent(var message: Message) extends AvroRecord with TraceEvent
 
 // messages for varying query params - used during data collection to facilitate log parsing
-case class ChangeRangeLengthEvent(var numDataItems: Int) extends AvroRecord with TraceEvent
+case class ChangeCardinalityEvent(var numDataItems: Int) extends AvroRecord with TraceEvent
 case class WarmupEvent(var warmupLengthInMinutes: Int, var start: Boolean) extends AvroRecord with TraceEvent	// to avoid JIT effects on latency measurements
 
 
