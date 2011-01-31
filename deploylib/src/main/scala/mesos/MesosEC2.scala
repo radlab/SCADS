@@ -14,6 +14,7 @@ import java.net.InetAddress
  */
 object MesosEC2 extends ConfigurationActions {
   val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
+  val mesosAmi = "ami-8a38c8e3"
 
   def updateDeploylib: Unit = {
     slaves.pforeach(inst => {
@@ -61,7 +62,7 @@ object MesosEC2 extends ConfigurationActions {
   val defaultZone = "us-east-1a"
   def startMaster(zone: String = defaultZone): EC2Instance = {
     val ret = EC2Instance.runInstances(
-      "ami-5a26d733",
+      mesosAmi,
       1,
       1,
       EC2Instance.keyName,
@@ -85,7 +86,7 @@ object MesosEC2 extends ConfigurationActions {
         }
 
     val instances = EC2Instance.runInstances(
-      "ami-5a26d733",
+      mesosAmi,
       count,
       count,
       EC2Instance.keyName,
