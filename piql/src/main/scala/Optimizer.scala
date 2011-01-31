@@ -169,8 +169,8 @@ object Optimizer {
   protected object IndexRange {
     def unapply(logicalPlan: Queryable): Option[(Seq[AttributeEquality], Option[TupleLimit], Option[Ordering], Queryable)] = {
       val (limit, planWithoutStop) = logicalPlan match {
-        case StopAfter(count, child) => (Some(TupleLimit(FixedLimit(count), false)), child)
-	case DataStopAfter(count, child) => (Some(TupleLimit(FixedLimit(count), true)), child)
+        case StopAfter(count, child) => (Some(TupleLimit(count, false)), child)
+	case DataStopAfter(count, child) => (Some(TupleLimit(count, true)), child)
         case otherOp => (None, otherOp)
       }
 
