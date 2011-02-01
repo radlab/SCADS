@@ -26,7 +26,7 @@ object ScadsServerScheduler {
 class ScadsServerScheduler protected (name: String, mesosMaster: String, zookeeperCanonical: String)(implicit val classsource: Seq[ClassSource]) extends Scheduler {
   val logger = Logger("scheduler")
   var taskId = 0
-  var driver = new MesosSchedulerDriver(this, mesosMaster)
+  var driver = new MesosSchedulerDriver(this, mesosMaster/*,existing_framework_id*/)
   val cluster = new ScadsCluster(ZooKeeperNode(zookeeperCanonical))
 
   //   val serverJvmProcess = 
