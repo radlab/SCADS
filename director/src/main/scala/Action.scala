@@ -129,6 +129,14 @@ case class SplitPartition(val partition:Option[org.apache.avro.generic.GenericRe
   def participants:Set[StorageService] = Set() // TODO: get list of servers that this partition is on
 }
 
+case class MergePartition(val partition:Option[org.apache.avro.generic.GenericRecord], override val note:String)
+  extends Action("Merge("+partition.toString+")",note) {
+    
+  override def preview(config:ClusterState):ClusterState = config.merge(partition)
+
+  def participants:Set[StorageService] = Set() // TODO: get list of servers that this partition is on
+}
+
 @deprecated
 case class AddServers(nServers:Int,override val note:String) extends Action("AddServers("+nServers+")",note) {
 	var servers:List[StorageService] = null

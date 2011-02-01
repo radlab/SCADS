@@ -17,7 +17,8 @@ class BestFitPolicySplitting(
 	val doServerAllocation:Boolean,
 	val nHotStandbys:Int,
 	val reads:Int,
-	val splitQueue:java.util.concurrent.LinkedBlockingQueue[(Option[org.apache.avro.generic.GenericRecord],Seq[Option[org.apache.avro.generic.GenericRecord]])]
+	val splitQueue:java.util.concurrent.LinkedBlockingQueue[(Option[org.apache.avro.generic.GenericRecord],Seq[Option[org.apache.avro.generic.GenericRecord]])],
+	val mergeQueue:java.util.concurrent.LinkedBlockingQueue[(Seq[Option[org.apache.avro.generic.GenericRecord]],Option[org.apache.avro.generic.GenericRecord])]
 ) extends Policy(workloadPredictor) {
   
   val workloadThreshold = System.getProperty("workloadThreshold","1000").toInt
@@ -32,35 +33,58 @@ class BestFitPolicySplitting(
 	var actions:ListBuffer[Action] = null
 	var ghostActions:ListBuffer[Action] = null
 	var receivers:scala.collection.mutable.Set[StorageService] = null
+	var activePartitions:scala.collection.mutable.Set[Option[org.apache.avro.generic.GenericRecord]] = null
 	var partReplicas:scala.collection.mutable.Set[Option[org.apache.avro.generic.GenericRecord]] = null
 	var ghosts:scala.collection.mutable.Set[StorageService] = null
+	var ae:ActionExecutor = null
 	//var workload:WorkloadHistogram = null
   
-  override def periodicUpdate(state:ClusterState) = {
+  override def periodicUpdate(state:ClusterState):Unit = {
+    if (ae != null && ae.partitionChangesRunning) {
+      logger.warning("not running periodic update due to running splits/merges")
+      return
+    }
     // apply recently made split or merge changes to partitions
     if (workloadPredictor.getCurrentSmoothed != null) {
-      logger.debug("current smoothed workload:\n%s",workloadPredictor.getCurrentSmoothed.toString)
       var partitionStats = workloadPredictor.getCurrentSmoothed.rangeStats
-      while (splitQueue.peek != null) {
+      while (splitQueue.peek != null) { // apply splits
         val (split, newParts) = splitQueue.poll
-        val newPartWorkload = partitionStats(split) * (1.0/(newParts.size+1))
-        logger.debug("creating %d-way split in old smoothed partition %s", newParts.size+1, split.toString)
+        val newPartWorkload = partitionStats(split) * (1.0/(newParts.size+1)) * 1.1
+        logger.debug("histogram split: %s * %s * 1.1 = %s", partitionStats(split),  (1.0/(newParts.size+1)), newPartWorkload )
+        logger.debug("histogram: creating %d-way split in old smoothed partition %s", newParts.size+1, split)
         (newParts ++ List(split)).foreach(p => partitionStats = partitionStats(p) = newPartWorkload)
       }
-      workloadPredictor.addHistogram( state.workloadRaw, WorkloadHistogram(partitionStats), state.time )
-      logger.debug("prediction has %d keys", workloadPredictor.getCurrentSmoothed.rangeStats.keys.size)
+      while (mergeQueue.peek != null) { // apply merges
+        val (oldParts, newPart) = mergeQueue.poll
+        val newPartWorkload = oldParts.foldRight(WorkloadFeatures(0,0,0))((entry, total) => total + partitionStats(entry))
+        logger.debug("histogram: merging %s into %s with total workload %s", oldParts, newPart, newPartWorkload)
+        partitionStats = partitionStats -- oldParts
+        partitionStats = partitionStats(newPart) = newPartWorkload
+      }
+      if (state.workloadRaw.rangeStats.keys.size == partitionStats.keys.size) {
+        workloadPredictor.addHistogram( state.workloadRaw, WorkloadHistogram(partitionStats), state.time )
+        logger.debug("histogram prediction has %d keys", workloadPredictor.getCurrentSmoothed.rangeStats.keys.size)
+      }
+      else {
+        logger.warning("histogram keys don't matchup: %s\n%s", state.workloadRaw, partitionStats)
+      }
     } // end if
     else workloadPredictor.addHistogram( state.workloadRaw, state.time )
   }
   
-  def act(config:ClusterState, actionExecutor:ActionExecutor) = {
-    logger.info("Running BestFitPolicySplitting")
+  def act(config:ClusterState, actionExecutor:ActionExecutor):Unit = {
+    ae = actionExecutor
+    currentTime = config.time
+    logger.info("******** Running BestFitPolicySplitting: %s", actionExecutor.namespace.namespace)
     
     // do blocking execution
 		if (actionExecutor.allMovementActionsCompleted) {
 		  var prediction = workloadPredictor.getPrediction
-		  logger.debug("prediction has %d keys, config has %d", prediction.rangeStats.keys.size, config.workloadRaw.rangeStats.keys.size)
-      if (!prediction.rangeStats.keys.sameElements(config.workloadRaw.rangeStats.keys)) prediction = config.workloadRaw
+		  val predSize = prediction.rangeStats.keys.size
+		  val confSize = config.workloadRaw.rangeStats.keys.size
+		  logger.debug("prediction has %d keys, config has %d", predSize, confSize)
+		  //logger.debug("prediction has %s , config has %s", prediction.rangeStats.keys, config.workloadRaw.rangeStats.keys)
+      if (!(prediction.rangeStats.keySet -- config.workloadRaw.rangeStats.keySet).isEmpty || predSize != confSize) { logger.warning("not running policy due to histogram key difference"); return}//prediction = config.workloadRaw
       else logger.info("smoothed workload:\n%s",prediction.toString)
 			logger.info(config.serverWorkloadString)
 			runPolicy( config, /*workloadPredictor.getPrediction*/prediction, actionExecutor.getUncompleteServerActions )
@@ -92,7 +116,7 @@ class BestFitPolicySplitting(
 				case _ =>
 			}
 		}
-		logger.debug("config after replaying running actions:\n%s",currentConfig.serverWorkloadString)
+		//logger.debug("config after replaying running actions:\n%s",currentConfig.serverWorkloadString)
 		currentConfig
 	}
   
@@ -107,6 +131,7 @@ class BestFitPolicySplitting(
 		actions = new ListBuffer[Action]()
 		ghostActions = new ListBuffer[Action]()
 		receivers = scala.collection.mutable.Set[StorageService]()
+		activePartitions = scala.collection.mutable.Set[Option[org.apache.avro.generic.GenericRecord]]()
 		partReplicas = scala.collection.mutable.Set[Option[org.apache.avro.generic.GenericRecord]]()
 		ghosts = scala.collection.mutable.Set[StorageService]()
 		//serverReplicas = scala.collection.mutable.Set[StorageService]()
@@ -115,7 +140,7 @@ class BestFitPolicySplitting(
 		//actionOrdering = new scala.collection.mutable.HashMap[(String,String),Long]()
 		
 		// apply running actions to config?
-		var config = applyRunningActions(_runningActions, _config)
+		var config = applyRunningActions(_runningActions, _config) 
 		
 		// STEP 1: handle overloaded servers --------------------------
 		val violationsPerServer = performanceEstimator.perServerViolations(config,_workload,getSLA,putSLA,slaQuantile)
@@ -123,18 +148,28 @@ class BestFitPolicySplitting(
  		
  		// list of overloaded servers (sorted by workload, high to low)
 		val overloadedServers = violationsPerServer.filter( p => p._2 ).map( p => p._1 ).toList.sortWith( workloadPerServer(_)>workloadPerServer(_) )
+		val overloadedServerPartitions = config.partitionsOnServers(overloadedServers)
     config = handleOverloaded(config, _workload, overloadedServers)
     
     // STEP 2: try to reduce replication and coalesce existing servers, and merging partitions
     config = handleReplicaReduction(config,_workload)
+    val violationsPerServerBumped = performanceEstimator.perServerViolations(config,_workload * 1.2,getSLA,putSLA,slaQuantile)
+    //val borderlineServers = violationsPerServerBumped.filter( p => p._2 ).map( p => p._1 ).toList
+    //logger.debug("borderline servers: %s", borderlineServers)
+    //val borderlinePartitions = config.partitionsOnServers(borderlineServers)
     
 		// order merge candidates by increasing workload
 		workloadPerServer = PerformanceEstimator.estimateServerWorkloadReads(config,_workload,reads)
-		var mergeCandidates = (config.servers -- overloadedServers -- receivers -- ghosts).
+		var mergeCandidates = (config.servers -- overloadedServers/* -- borderlineServers*/ -- receivers -- ghosts).
 									toList.sort( workloadPerServer(_)<workloadPerServer(_) ) // TODO: is 'receivers' too broad a set to exclude?
-		config = handleUnderloaded(config,_workload, mergeCandidates)
+		config = handleUnderloaded(config,_workload * 1.2, mergeCandidates)
+		
+		// try merging partitions
+		handleMerging(config,overloadedServerPartitions/* ++ borderlinePartitions*/)
 		
 	// STEP 3: add/remove servers as necessary
+	val startedEmpty = _config.getEmptyServers // use original config
+	handleServerAllocation(config, startedEmpty)
 	}
 
   
@@ -232,6 +267,7 @@ class BestFitPolicySplitting(
         val tmpConfig = action.preview(currentState)
         if (!performanceEstimator.violationOnServers(tmpConfig, workload, serversWithRange) ) {
           currentState = addAction( action, currentState )
+          activePartitions += range
         //  serverReplicas -= server
           serversWithRange = currentState.serversForKey( range ) // get updated list of servers with this range
         } 
@@ -267,8 +303,8 @@ class BestFitPolicySplitting(
   			for (partition <- partitions) {
   				if (minRangeCouldntMove == null || workload.rangeStats(partition).compare(workload.rangeStats(minRangeCouldntMove)) < 0) {
   					logger.debug("  trying to move range "+partition+": "+workload.rangeStats(partition))
-  					val stateAfterMove = findMoveAction(server, currentState.partitionOnServer(partition,server), orderedPotentialTargets  - server, state, workload)//tryMoving(range,server,orderedPotentialTargets)
-  					if (stateAfterMove.isDefined) { currentState = stateAfterMove.get; successfulMove = true }
+  					val stateAfterMove = findMoveAction(server, currentState.partitionOnServer(partition,server), orderedPotentialTargets  - server, currentState, workload)//tryMoving(range,server,orderedPotentialTargets)
+  					if (stateAfterMove.isDefined) { currentState = stateAfterMove.get; logger.debug("updating state after merge move: %s",currentState); successfulMove = true; activePartitions += partition }
   					if (!successfulMove) minRangeCouldntMove = partition
   				}
   			} // end for on partitions
@@ -282,7 +318,55 @@ class BestFitPolicySplitting(
   * for each pair of partitions PsPe
   * case 1: PsPe are mergable and all servers involved are not overloaded. merge.
   */
-  def handleMerging() = {}
+  def handleMerging(state:ClusterState, offlimitsPartitions:Iterable[Option[org.apache.avro.generic.GenericRecord]]):ClusterState = {
+    var currentState = state
+    // don't qualify: bin is on overloaded server, bin is being copied, bins aren't contiguous on all servers
+    logger.debug("partitions from overloaded servers: %s", offlimitsPartitions)
+    val eligiblePartitions = currentState.keysToPartitions.keySet -- activePartitions -- offlimitsPartitions
+    logger.debug("eligible partitions %s", eligiblePartitions)
+    eligiblePartitions.foreach(_.map(part => if (ae.namespace.isMergable(part)) { logger.debug("mergable: %s", part); currentState = addAction(MergePartition(Some(part), MERGE_COALESCE), currentState)}))
+    currentState
+  }
+  
+  def handleServerAllocation(state:ClusterState, startingEmpty:Set[StorageService]):ClusterState = {
+    var currentState = state
+		// count the number of empty servers in the 'currentConfig'
+		// (this is the number we'll have after all actions execute, including ghosts)
+		val nEmptyServers = currentState.getEmptyServers.size
+		logger.debug("**** SERVER ALLOCATION stage ")
+		logger.debug("** checking the size of hot-standby pool (will have "+nEmptyServers+" empty servers, want "+nHotStandbys+")")
+		
+		if (nEmptyServers < nHotStandbys) { // need to add more servers
+			logger.debug("  adding %d hot-standby servers",(nHotStandbys - nEmptyServers))
+			//addAction( AddServers(nHotStandbys - nEmptyServers,"server_allocation") )
+			(nEmptyServers until nHotStandbys).toList.foreach(s=> currentState = addAction(AddServer(ClusterState.getRandomServerNames(currentState,1).head,"server_allocation"), currentState) )
+		} 
+		else if (nEmptyServers > nHotStandbys) { // can remove some servers, but need to make sure no action is using them
+			// get servers that participate in any of the actions and ghost actions
+			val participants = Set( (actions.toList ++ ghostActions.toList).map(a => a.participants).flatten(p => p) :_*)//Set( List.flatten( (runningActions++actions.toList++ghostActions.toList).map(a => a.participants.toList) ).removeDuplicates :_* )
+			logger.debug("  trying to remove some hot-standbys")
+			logger.debug("  can't remove: "+participants.mkString(","))
+			
+			// candidates for removing = empty servers at the beginning?? - servers that participate in any actions
+			val candidates = startingEmpty -- participants
+			logger.debug("  removal candidates: "+candidates.mkString(","))
+			val serverRemoveCandidates = candidates.toList.take( nEmptyServers-nHotStandbys )
+			val serversToRemove = new scala.collection.mutable.ListBuffer[StorageService]()
+			for(s <- serverRemoveCandidates) {
+				try {
+					val bootupTime = Director.bootupTimes.getBootupTime(s).get
+					val timeLeft = machineInterval - (currentTime-bootupTime)%machineInterval
+					if (timeLeft < serverRemoveTime) {
+						logger.debug("  server %s has %d seconds left. REMOVING",s,(timeLeft/1000))
+						serversToRemove += s
+					} else
+						logger.debug("  server %s has %d seconds left. WAITING",s,(timeLeft/1000))
+				} catch { case e => logger.warning("Couldn't get boot up time for %s: %s",s.toString,e.toString)}
+			}
+			if (serversToRemove.size > 0) currentState = addAction( RemoveServers( serversToRemove.toList, SERVER_REMOVE ), currentState )
+		} // end else if
+		currentState
+	}
   
   private def findMoveAction(server:StorageService, partService:PartitionService, orderedPotentialTargets:Seq[StorageService], state:ClusterState, workload:WorkloadHistogram):Option[ClusterState] = {
     var currentState = state
@@ -313,7 +397,7 @@ class BestFitPolicySplitting(
 		if (!performanceEstimator.violationOnServer(tmpConfig,workload,target)) Some(List(replicateAction,deleteAction))
 		else None
   }
-  private def tryMerging(part:PartitionService,sourceServer:StorageService, target:StorageService, config:ClusterState, workload:WorkloadHistogram):(Boolean,List[Action]) = (false,List[Action]())
+  //private def tryMerging(part:PartitionService,sourceServer:StorageService, target:StorageService, config:ClusterState, workload:WorkloadHistogram):(Boolean,List[Action]) = (false,List[Action]())
   
   private def trySplitting(part:Option[org.apache.avro.generic.GenericRecord], config:ClusterState):Option[List[Action]] = {
     var currentConfig = config
@@ -325,14 +409,13 @@ class BestFitPolicySplitting(
     val canSplit = if (maxParts >= splitFactor) { logger.warning("Can't split since hit max split"); false} else true // TODO: check partition size as well
     
     if (canSplit) {// schedule the split action and an addserver if needed
-      val splitAction = SplitPartition(part,splitFactor,MOVE_OVERLOAD)
+      val splitAction = SplitPartition(part,splitFactor - maxParts + 1, MOVE_OVERLOAD)
       val (emptyServer, addServerAction) = getEmptyServer(MOVE_OVERLOAD,currentConfig)
       if (addServerAction.isDefined) { ghosts += emptyServer; currentConfig = addGhostAction(addServerAction.get,currentConfig); Some(List(splitAction,addServerAction.get)) }
       else Some(List(splitAction))
       //Some(List(, AddServer(ClusterState.getRandomServerNames(config,1).head,MOVE_OVERLOAD)))
     }
     else None
-    // TODO: why again are we adding a server here? can't we just use an empty one?
   }
   
   private def tryReplicating(part:PartitionService,sourceServer:StorageService, startingReplicas:Int, orderedPotentialTargets:Seq[StorageService], config:ClusterState, workload:WorkloadHistogram):Option[List[Action]] = {

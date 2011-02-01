@@ -5,6 +5,7 @@ import edu.berkeley.cs.scads.storage.{ GenericNamespace, ScadsCluster }
 import net.lag.logging.Logger
 
 object Director {
+  Logger("policy").setLevel(java.util.logging.Level.FINEST)
   private val rnd = new java.util.Random(7)
   val basedir = "/tmp"
   val bootupTimes = new BootupTimes()
@@ -37,6 +38,8 @@ case class Director(var numClients: Int, namespaceString: String, val scheduler:
     if (Director.cluster == null) Director.cluster = new ScadsCluster(clusterRoot)
     var namespace: GenericNamespace = Director.cluster.getNamespace(namespaceString)
     val splitQueue = new java.util.concurrent.LinkedBlockingQueue[(Option[org.apache.avro.generic.GenericRecord],Seq[Option[org.apache.avro.generic.GenericRecord]])]()
+    val mergeQueue = new java.util.concurrent.LinkedBlockingQueue[(Seq[Option[org.apache.avro.generic.GenericRecord]],Option[org.apache.avro.generic.GenericRecord])]()
+    
 
     // update start time for existing servers
     val now = new java.util.Date().getTime
@@ -44,10 +47,10 @@ case class Director(var numClients: Int, namespaceString: String, val scheduler:
 
     val predictor = SimpleHysteresis(0.9, 0.1, 0.0)
     predictor.initialize
-    val policy = if (System.getProperty("doEmpty", "false").toBoolean) new EmptyPolicy(predictor) else new BestFitPolicySplitting(null, 100, 100, 0.99, true, 20 * 1000, 10 * 1000, predictor, true, true, 1, 1, splitQueue)
+    val policy = if (System.getProperty("doEmpty", "false").toBoolean) new EmptyPolicy(predictor) else new BestFitPolicySplitting(null, 100, 100, 0.99, true, 20 * 1000, 10 * 1000, predictor, true, true, 1, 1, splitQueue, mergeQueue)
     val stateHistory = StateHistory(period, namespace, policy)
     stateHistory.startUpdating
-    val executor = /*new TestGroupingExecutor(namespace, splitQueue)*/new SplittingGroupingExecutor(namespace, splitQueue, scheduler)// new GroupingExecutor(namespace, scheduler)
+    val executor = new TestGroupingExecutor(namespace, splitQueue, mergeQueue)//new SplittingGroupingExecutor(namespace, splitQueue, scheduler)// new GroupingExecutor(namespace, scheduler)
     executor.start
 
     // when clients are ready to start, start everything
