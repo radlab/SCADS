@@ -61,13 +61,14 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
     val hadoop = "org.apache.hadoop" % "hadoop-core" % "0.20.2"
     val features = "org.chris" %% "features" % "1.0"
     val colt = "cern" % "colt" % "1.2.0"
-  })
+    val scalaj_collection = "org.scalaj" %% "scalaj-collection" % "1.0"
+  }, deploylib, avro, perf)
 
   /* PIQL Apps */
   lazy val scadr  = project("piql" / "scadr", "scadr", new ScadsSubProject(_), piql, director)
   lazy val gradit = project("piql" / "gradit", "gradit", new ScadsSubProject(_), piql)
 
-  lazy val demo = project("demo", "demo", new ScadsSubProject(_), piql, director, deploylib, gradit, scadr, perf)
+  lazy val demo = project("demo", "demo", new ScadsSubProject(_), piql, director, deploylib, gradit, scadr, perf, twitter)
 
   /* Repository Configuration */
   val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"
