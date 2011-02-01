@@ -26,7 +26,6 @@ object MesosEC2 extends ConfigurationActions {
       }.mkString("\n")
 
       createDirectory(inst, rootDir)
-      uploadFile(inst, new File("scads.jar"), rootDir)
       uploadFile(inst, new File("deploylib/src/main/resources/config"), rootDir)
       createFile(inst, new File(rootDir, "java_executor"), executorScript, "755")
     })
