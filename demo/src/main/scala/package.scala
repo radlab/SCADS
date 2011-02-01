@@ -6,6 +6,9 @@ import java.io.File
 package object demo {
   import DemoConfig._
   import scads.comm._
+  import scads.perf._
+  import scads.storage._
+  import twitterspam._
   import deploylib.mesos._
 
   def runDemo: Unit = {
@@ -126,6 +129,20 @@ package object demo {
                   "--cp" :: MesosEC2.classSource.map(safeUrl(_)).mkString("|") ::
       "--numKeys" :: numKeys.toString :: Nil) :: Nil
     )
+  }
+
+  def loadTwitterSpam(): Unit = {
+    val clusterRoot = zooKeeperRoot.getOrCreate("twitterSpam")
+    clusterRoot.children.foreach(_.deleteRecursive)
+    val cluster = new ExperimentalScadsCluster(clusterRoot)
+
+    serviceScheduler !? RunExperimentRequest(
+      ScalaEngineTask(clusterRoot.canonicalAddress).toJvmTask :: Nil)
+
+    cluster.blockUntilReady(1)
+
+    serviceScheduler !? RunExperimentRequest(
+      LoadJsonToScadsTask("http://cs.berkeley.edu/~marmbrus/tmp/labeledTweets.avro", clusterRoot.canonicalAddress).toJvmTask :: Nil)
   }
 
   def authorizeUsers: Unit = {

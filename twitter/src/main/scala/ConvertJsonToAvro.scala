@@ -18,7 +18,7 @@ case class TwitterSpamRecord(var year: Int, var month: Int, var day: Int, var ho
   var features: collection.Map[String, Double] = _
 }
 
-object Test {
+object TestLocal {
   val fileUrl = "http://cs.berkeley.edu/~marmbrus/tmp/labeledTweets.avro"
   def main(args: Array[String]): Unit = LoadJsonToScadsTask(fileUrl, TestScalaEngine.newScadsCluster().root.canonicalAddress).run
 
