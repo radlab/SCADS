@@ -25,7 +25,7 @@ package object demo {
     }
 
     MesosEC2.master.pushJars
-    restartServiceScheduler
+    restartMasterProcs
     mesosMasterNode.data = MesosEC2.clusterUrl.getBytes
   }
 
@@ -34,13 +34,18 @@ package object demo {
   }
 
   /**
-   * Restart the service meta-scheduler on the mesos master.
-   * Note this should only be run by the cluster owner, and it will kill all running jobs.
+   * Restart the service meta-scheduler/mesos utilization reporter on the mesos master.
+   * Note this should only be run by the cluster owner, and it will kill all running java procs on the master.
    */
-  def restartServiceScheduler: Unit = {
+  def restartMasterProcs: Unit = {
     MesosEC2.master.executeCommand("killall java")
     MesosEC2.master.createFile(new java.io.File("/root/serviceScheduler"), "#!/bin/bash\n/root/jrun edu.berkeley.cs.radlab.demo.ServiceSchedulerDaemon >> /root/serviceScheduler.log 2>&1")
+    MesosEC2.master.createFile(new java.io.File("/root/utilizationReporter"), "#!/bin/bash\ntail -F /tmp/mesos-shares | /root/jrun edu.berkeley.cs.radlab.demo.MesosClusterShareReporter '" + dashboardDb + "' >> /root/utilizationReporter.log 2>&1")
+
     MesosEC2.master ! "chmod 755 /root/serviceScheduler"
+    MesosEC2.master ! "chmod 755 /root/utilizationReporter"
+
+    MesosEC2.master ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/utilizationReporter.pid --exec /root/utilizationReporter"
     MesosEC2.master ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/serviceScheduler.pid --exec /root/serviceScheduler"
     //HACK
     Thread.sleep(5000)
