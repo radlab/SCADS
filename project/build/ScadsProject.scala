@@ -57,6 +57,12 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
   lazy val perf      = project("perf", "performance", new ScadsSubProject(_), config, avro, comm, scalaengine, piql, deploylib)
   lazy val director    = project("director", "director", new ScadsSubProject(_), scalaengine, deploylib)
 
+  lazy val twitter = project("twitter", "twitter", new ScadsSubProject(_) {
+    val hadoop = "org.apache.hadoop" % "hadoop-core" % "0.20.2"
+    val features = "org.chris" %% "features" % "1.0"
+    val colt = "cern" % "colt" % "1.2.0"
+  })
+
   /* PIQL Apps */
   lazy val scadr  = project("piql" / "scadr", "scadr", new ScadsSubProject(_), piql, director)
   lazy val gradit = project("piql" / "gradit", "gradit", new ScadsSubProject(_), piql)
