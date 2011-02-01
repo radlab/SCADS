@@ -1,3 +1,6 @@
+package edu.berkeley.cs
+package twitterspam
+
 import scala.collection.JavaConversions._
 import scala.collection.mutable.HashMap
 import org.chris.features.ParseFiles

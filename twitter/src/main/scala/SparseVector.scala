@@ -1,3 +1,6 @@
+package edu.berkeley.cs
+package twitterspam
+
 import scala.collection.JavaConversions._
 import java.io.{Externalizable, ObjectInput, ObjectOutput, ObjectInputStream, ObjectOutputStream, IOException}
 import cern.colt.map.OpenIntDoubleHashMap

@@ -1,3 +1,6 @@
+package edu.berkeley.cs
+package twitterspam
+
 import org.apache.hadoop.io.LongWritable
 import org.apache.hadoop.io.Text
 import org.apache.hadoop.mapred.FileInputFormat
