@@ -13,6 +13,7 @@ abstract class ActionExecutor(val execDelay:Long) extends Runnable {
 	protected val logger = Logger("executor")
 	var running = false
 	val executorThread = new Thread(this, "ActionExecutor")
+	def namespace:GenericNamespace
 	
 	initialize
 
@@ -52,7 +53,8 @@ abstract class ActionExecutor(val execDelay:Long) extends Runnable {
 	def getAllActions:List[Action] = actions
 	def getUncompleteServerActions:List[Action] = actions.filter(a=> a match { case r:AddServer => r.ready || r.running; case r:RemoveServers => r.ready || r.running; case _ => false })
 	def allActionsCompleted():Boolean = if (actions.size==0) true else actions.forall(_.completed)
-	def allMovementActionsCompleted():Boolean = if (actions.size==0) true else actions.filter(a=> a match { case r:ReplicatePartition => true; case r:DeletePartition => true; case r:SplitPartition => true; case _ => false }).forall(_.completed)
+	def allMovementActionsCompleted():Boolean = if (actions.size==0) true else actions.filter(a=> a match { case r:ReplicatePartition => true; case r:DeletePartition => true; case r:SplitPartition => true; case r:MergePartition => true; case _ => false }).forall(_.completed)
+	def partitionChangesRunning():Boolean = if (actions.size==0) false else !actions.filter(a=> a match { case r:SplitPartition => r.running; case r:MergePartition => r.running; case _ => false }).isEmpty
 	def status:String = actions.map(a=> "%-10s".format("("+a.state+")") + "  " + a.toString).mkString("\n")
 
 	/*
@@ -96,7 +98,7 @@ abstract class ActionExecutor(val execDelay:Long) extends Runnable {
 * Replication precedes Deletion precedes Removal
 * TODO: where in order whould add/remove servers be run?
 */
-class GroupingExecutor(namespace:GenericNamespace, val scheduler:ScadsServerScheduler = null, override val execDelay:Long = 1000) extends ActionExecutor(execDelay) {
+class GroupingExecutor(val namespace:GenericNamespace, val scheduler:ScadsServerScheduler = null, override val execDelay:Long = 1000) extends ActionExecutor(execDelay) {
 	def execute() = {
 		if (actions.filter(a => a match { 			// only run if all previous Replicate or Delete actions finished
 			case r:ReplicatePartition => r.running
@@ -163,18 +165,20 @@ class GroupingExecutor(namespace:GenericNamespace, val scheduler:ScadsServerSche
 	}
 }
 
-class SplittingGroupingExecutor(namespace:GenericNamespace, splitMaps:java.util.concurrent.LinkedBlockingQueue[(Option[org.apache.avro.generic.GenericRecord],Seq[Option[org.apache.avro.generic.GenericRecord]])] = null, sched:ScadsServerScheduler = null) extends GroupingExecutor(namespace, sched) {
+class SplittingGroupingExecutor(namespace:GenericNamespace, splitMaps:java.util.concurrent.LinkedBlockingQueue[(Option[org.apache.avro.generic.GenericRecord],Seq[Option[org.apache.avro.generic.GenericRecord]])] = null, mergeMaps:java.util.concurrent.LinkedBlockingQueue[(Seq[Option[org.apache.avro.generic.GenericRecord]],Option[org.apache.avro.generic.GenericRecord])] = null,sched:ScadsServerScheduler = null) extends GroupingExecutor(namespace, sched) {
   override def execute() = {
     if (actions.filter(a => a match { 			// only run if all previous Replicate or Delete actions finished
 			case r:ReplicatePartition => r.running
 			case d:DeletePartition => d.running
 			case s:SplitPartition => s.running
+			case m:MergePartition => m.running
 			case _ => false
 			}).isEmpty) {
 			  
 			// if have partitions to split, do all them
-			doSplit()  
-			  
+			doSplit()
+			doMerge()
+
 			// if have replicate actions, execute them, marking each action as started
 			doReplication()
 
@@ -207,9 +211,25 @@ class SplittingGroupingExecutor(namespace:GenericNamespace, splitMaps:java.util.
     splits.foreach(a => a.setComplete) // TODO: check for errors  
     splitMapTodo.foreach(splitMaps.put(_))
   } // end doSplit
+  
+  def getMergeActions():List[Action] = actions.filter(a=> a match { case r:MergePartition => r.ready; case _ => false } )
+  
+  def doMerge():Unit = {
+    val merges = getMergeActions()
+    logger.debug("%d merge actions", merges.size)
+    //val mergeMapTodo = new scala.collection.mutable.ListBuffer[(Seq[Option[org.apache.avro.generic.GenericRecord]],Option[org.apache.avro.generic.GenericRecord])]()
+    
+    if (!merges.isEmpty) { val mergeBounds = namespace.mergePartitions(
+      merges.map(a => a match { case merge:MergePartition => { merge.setStart; /*val keys = namespace.getMergeKeys(merge.partition); mergeMapTodo.append((Seq(keys._1, merge.partition), keys._1));*/ merge.partition.get } })
+      )
+     mergeBounds.foreach(e => mergeMaps.put( (Seq(e._1, e._2), e._1) )) 
+    }
+    merges.foreach(a => a.setComplete)
+    //mergeMapTodo.foreach(mergeMaps.put(_))
+  }
 }
 
-class TestGroupingExecutor(namespace:GenericNamespace,s:java.util.concurrent.LinkedBlockingQueue[(Option[org.apache.avro.generic.GenericRecord],Seq[Option[org.apache.avro.generic.GenericRecord]])]) extends SplittingGroupingExecutor(namespace,s,null) {
+class TestGroupingExecutor(namespace:GenericNamespace,s:java.util.concurrent.LinkedBlockingQueue[(Option[org.apache.avro.generic.GenericRecord],Seq[Option[org.apache.avro.generic.GenericRecord]])], m:java.util.concurrent.LinkedBlockingQueue[(Seq[Option[org.apache.avro.generic.GenericRecord]],Option[org.apache.avro.generic.GenericRecord])]) extends SplittingGroupingExecutor(namespace,s,m,null) {
 	//import edu.berkeley.cs.scads.storage.TestScalaEngine
 	
 	override def execute() {
@@ -217,10 +237,12 @@ class TestGroupingExecutor(namespace:GenericNamespace,s:java.util.concurrent.Lin
 			case r:ReplicatePartition => r.running
 			case d:DeletePartition => d.running
 			case s:SplitPartition => s.running
+			case m:MergePartition => m.running
 			case _ => false
 			}).isEmpty) {
 			// if have partitions to split, do all them
-			doSplit()  
+			doSplit()
+			doMerge()
 			  
 			// if have replicate actions, execute them, marking each action as started
 			/*val replicate = getReplicateActions()
