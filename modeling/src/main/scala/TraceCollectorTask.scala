@@ -102,7 +102,9 @@ case class TraceCollectorTask(
 	    	fileSink.recordEvent(QueryEvent("getRangeQuery" + queryCounter, true))
 				//fileSink.recordEvent(QueryEvent("joinQuery" + queryCounter, true))
 	      
-				queries(r)()
+				val resLengthWarmup = queries(r)().length
+				if (resLengthWarmup != cardinalityList(r))
+					throw new RuntimeException("expected cardinality: " + cardinalityList(r).toString + ", got: " + resLengthWarmup.toString)
 	      
 				fileSink.recordEvent(QueryEvent("getRangeQuery" + queryCounter, false))
 				//fileSink.recordEvent(QueryEvent("joinQuery" + queryCounter, false))
@@ -124,7 +126,9 @@ case class TraceCollectorTask(
 	      fileSink.recordEvent(QueryEvent("getRangeQuery" + i, true))
 	      //fileSink.recordEvent(QueryEvent("joinQuery" + i, true))
 	
-	      queries(r)()
+				val resLength = queries(r)().length
+				if (resLength != cardinalityList(r))
+					throw new RuntimeException("expected cardinality: " + cardinalityList(r).toString + ", got: " + resLength.toString)
 	
 	      fileSink.recordEvent(QueryEvent("getRangeQuery" + i, false))
 	      //fileSink.recordEvent(QueryEvent("joinQuery" + i, false))
