@@ -45,7 +45,9 @@ abstract class Policy(
 	val REP_ADD = "rep_add"
 	val REP_REDUCE = "rep_reduce"
 	val MOVE_OVERLOAD = "move_overload"
+	val SPLIT_OVERLOAD = "split_overload"
 	val MOVE_COALESCE = "move_coalesce"
+	val MERGE_COALESCE = "merge_coalesce"
 	val SERVER_REMOVE = "server_remove"
 
 	protected def act(state:ClusterState, actionExecutor:ActionExecutor)
