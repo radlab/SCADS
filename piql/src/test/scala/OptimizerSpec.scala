@@ -33,7 +33,7 @@ class OptimizerSpec extends Spec with ShouldMatchers {
     }
   }
 
-  it("bounded index scan") {
+  it("bounded primary index scan") {
     val query = (
       r2.where("f1".a === (0.?))
 	.limit(10))
@@ -41,6 +41,19 @@ class OptimizerSpec extends Spec with ShouldMatchers {
 		 IndexScan(r2,
 			   ParameterValue(0) :: Nil,
 			   FixedLimit(10),
+			   true))
+
+    query.opt should equal(plan)
+  }
+
+  it("bounded primary index scan attr limit") {
+    val query = (
+      r2.where("f1".a === (0.?))
+	.limit(1.?, 10))
+    val plan = LocalStopAfter(ParameterLimit(1, 10),
+		 IndexScan(r2,
+			   ParameterValue(0) :: Nil,
+			   ParameterLimit(1, 10),
 			   true))
 
     query.opt should equal(plan)

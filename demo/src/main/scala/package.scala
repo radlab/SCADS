@@ -6,9 +6,22 @@ import java.io.File
 package object demo {
   import DemoConfig._
   import scads.comm._
+<<<<<<< HEAD
   import scads.storage._
+=======
+  import scads.perf._
+  import scads.storage._
+  import twitterspam._
+>>>>>>> origin/demo
   import deploylib.mesos._
   import scads.piql.modeling._
+
+  def runDemo: Unit = {
+    resetScads
+    startScadrDirector
+    startScadr
+    startScadrRain
+  }
 
   /**
    * Start a mesos master and make it the primary for the demo.
@@ -20,18 +33,27 @@ package object demo {
     }
 
     MesosEC2.master.pushJars
-    restartServiceScheduler
+    restartMasterProcs
     mesosMasterNode.data = MesosEC2.clusterUrl.getBytes
   }
 
+  def preloadWars: Unit = {
+    MesosEC2.slaves.pforeach(_.cacheFile(scadrWarFile))
+  }
+
   /**
-   * Restart the service meta-scheduler on the mesos master.
-   * Note this should only be run by the cluster owner, and it will kill all running jobs.
+   * Restart the service meta-scheduler/mesos utilization reporter on the mesos master.
+   * Note this should only be run by the cluster owner, and it will kill all running java procs on the master.
    */
-  def restartServiceScheduler: Unit = {
+  def restartMasterProcs: Unit = {
     MesosEC2.master.executeCommand("killall java")
     MesosEC2.master.createFile(new java.io.File("/root/serviceScheduler"), "#!/bin/bash\n/root/jrun edu.berkeley.cs.radlab.demo.ServiceSchedulerDaemon >> /root/serviceScheduler.log 2>&1")
+    MesosEC2.master.createFile(new java.io.File("/root/utilizationReporter"), "#!/bin/bash\ntail -F /tmp/mesos-shares | /root/jrun edu.berkeley.cs.radlab.demo.MesosClusterShareReporter '" + dashboardDb + "' >> /root/utilizationReporter.log 2>&1")
+
     MesosEC2.master ! "chmod 755 /root/serviceScheduler"
+    MesosEC2.master ! "chmod 755 /root/utilizationReporter"
+
+    MesosEC2.master ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/utilizationReporter.pid --exec /root/utilizationReporter"
     MesosEC2.master ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/serviceScheduler.pid --exec /root/serviceScheduler"
     //HACK
     Thread.sleep(5000)
@@ -56,7 +78,11 @@ package object demo {
       javaExecutorPath,
       scadrWar,
       scadrWebServerList.canonicalAddress,
+<<<<<<< HEAD
       Map("scadr.clusterAddress" -> scadrRoot.canonicalAddress)).toJvmTask
+=======
+    Map("scads.clusterAddress" -> scadrRoot.canonicalAddress)).toJvmTask
+>>>>>>> origin/demo
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
@@ -124,6 +150,20 @@ package object demo {
         "--executor" :: javaExecutorPath ::
         "--cp" :: MesosEC2.classSource.map(safeUrl(_)).mkString("|") ::
         "--numKeys" :: numKeys.toString :: Nil) :: Nil)
+  }
+
+  def loadTwitterSpam(): Unit = {
+    val clusterRoot = zooKeeperRoot.getOrCreate("twitterSpam")
+    clusterRoot.children.foreach(_.deleteRecursive)
+    val cluster = new ExperimentalScadsCluster(clusterRoot)
+
+    serviceScheduler !? RunExperimentRequest(
+      ScalaEngineTask(clusterRoot.canonicalAddress).toJvmTask :: Nil)
+
+    cluster.blockUntilReady(1)
+
+    serviceScheduler !? RunExperimentRequest(
+      LoadJsonToScadsTask("http://cs.berkeley.edu/~marmbrus/tmp/labeledTweets.avro", clusterRoot.canonicalAddress).toJvmTask :: Nil)
   }
 
   def authorizeUsers: Unit = {

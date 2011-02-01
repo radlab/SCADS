@@ -1,8 +1,14 @@
-$AVRO_LOADED = 0
+# -*- coding: raw-text -*-
+import Java::EduBerkeleyCsScadsPiqlGradit::GraditClient
+import Java::EduBerkeleyCsScadsPiql::SimpleExecutor
+import Java::EduBerkeleyCsScadsStorage::TestScalaEngine
+
+$PIQL_SCHEMA_PACKAGE = "EduBerkeleyCsScadsPiqlGradit"
+$CLIENT = GraditClient.new($SCADS_CLUSTER, $PIQL_EXECUTOR)
+  
+
 puts "************"
 puts "Loader beginning\n\n\n"
-
-require "lib/avro_record.rb"
 
 words = [
     ["abscond", "to leave secretly and hide, often to avoid the law"], # 1

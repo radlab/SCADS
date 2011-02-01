@@ -1,0 +1,7 @@
+<h1>Users Index</h1>
+
+<ul>
+<% @users.each do |user| -%>
+  <li><%= link_to user.username, :action => :show, :id => user.username %></li>
+<% end -%>
+</ul>

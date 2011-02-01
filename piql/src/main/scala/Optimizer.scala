@@ -169,8 +169,8 @@ object Optimizer {
   protected object IndexRange {
     def unapply(logicalPlan: Queryable): Option[(Seq[AttributeEquality], Option[TupleLimit], Option[Ordering], Queryable)] = {
       val (limit, planWithoutStop) = logicalPlan match {
-        case StopAfter(count, child) => (Some(TupleLimit(FixedLimit(count), false)), child)
-	case DataStopAfter(count, child) => (Some(TupleLimit(FixedLimit(count), true)), child)
+        case StopAfter(count, child) => (Some(TupleLimit(count, false)), child)
+	case DataStopAfter(count, child) => (Some(TupleLimit(count, true)), child)
         case otherOp => (None, otherOp)
       }
 
@@ -197,14 +197,16 @@ object Optimizer {
 	}
       }
 
+      val fields = getFields(ns)
+
       val idxEqPreds = predicates.map {
-        case EqualityPredicate(v: Value, UnboundAttributeValue(qualifiedAttribute(relName, attrName))) if relName.equals(ns.namespace) && ns.keySchema.getFields.map(_.name).contains(attrName) =>
+        case EqualityPredicate(v: Value, UnboundAttributeValue(qualifiedAttribute(relName, attrName))) if relName.equals(ns.namespace) && fields.map(_.name).contains(attrName) =>
           AttributeEquality(attrName, v)
-        case EqualityPredicate(UnboundAttributeValue(qualifiedAttribute(relName, attrName)), v: Value) if relName.equals(ns.namespace) && ns.keySchema.getFields.map(_.name).contains(attrName) =>
+        case EqualityPredicate(UnboundAttributeValue(qualifiedAttribute(relName, attrName)), v: Value) if relName.equals(ns.namespace) && fields.map(_.name).contains(attrName) =>
           AttributeEquality(attrName, v)
-        case EqualityPredicate(v: Value, UnboundAttributeValue(attrName)) if ns.keySchema.getFields.map(_.name).contains(attrName) =>
+        case EqualityPredicate(v: Value, UnboundAttributeValue(attrName)) if fields.map(_.name).contains(attrName) =>
           AttributeEquality(attrName, v)
-        case EqualityPredicate(UnboundAttributeValue(attrName), v:Value) if ns.keySchema.getFields.map(_.name).contains(attrName) =>
+        case EqualityPredicate(UnboundAttributeValue(attrName), v:Value) if fields.map(_.name).contains(attrName) =>
           AttributeEquality(attrName, v)
         case otherPred => {
           logger.info("IndexScan match failed.  Can't apply %s to index scan of %s.{%s}", otherPred, ns.namespace, ns.keySchema.getFields.map(_.name))

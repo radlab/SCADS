@@ -14,18 +14,18 @@ import java.net.InetAddress
  */
 object MesosEC2 extends ConfigurationActions {
   val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
+  val mesosAmi = "ami-8a38c8e3"
 
   def updateDeploylib: Unit = {
     slaves.pforeach(inst => {
       val executorScript = Util.readFile(new File("deploylib/src/main/resources/java_executor"))
       .split("\n")
       .map {
-	case s if(s contains "CLASSPATH=") => "CLASSPATH='-cp " + inst.pushJars.mkString(":") + "'"
+	case s if(s contains "CLASSPATH=") => "CLASSPATH='-cp /usr/local/mesos/lib/java/mesos.jar:" + inst.pushJars.mkString(":") + "'"
 	case s => s
       }.mkString("\n")
 
       createDirectory(inst, rootDir)
-      uploadFile(inst, new File("scads.jar"), rootDir)
       uploadFile(inst, new File("deploylib/src/main/resources/config"), rootDir)
       createFile(inst, new File(rootDir, "java_executor"), executorScript, "755")
     })
@@ -36,6 +36,10 @@ object MesosEC2 extends ConfigurationActions {
 
   def masterCache = CachedValue(EC2Instance.activeInstances.pfilter(_.tags contains masterTag).head)
   def master = masterCache()
+
+  def updateMesos =
+    MesosEC2.slaves.pforeach(s =>
+      MesosEC2.master ! "rsync -e 'ssh -o StrictHostKeyChecking=no' -av /usr/local/mesos root@%s:/usr/local/mesos".format(s.publicDnsName))
 
   def clusterUrl = "1@" + master.privateDnsName + ":5050"
 
@@ -57,7 +61,7 @@ object MesosEC2 extends ConfigurationActions {
   val defaultZone = "us-east-1a"
   def startMaster(zone: String = defaultZone): EC2Instance = {
     val ret = EC2Instance.runInstances(
-      "ami-5a26d733",
+      mesosAmi,
       1,
       1,
       EC2Instance.keyName,
@@ -81,7 +85,7 @@ object MesosEC2 extends ConfigurationActions {
         }
 
     val instances = EC2Instance.runInstances(
-      "ami-5a26d733",
+      mesosAmi,
       count,
       count,
       EC2Instance.keyName,

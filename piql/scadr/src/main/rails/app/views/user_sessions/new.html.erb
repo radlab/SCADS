@@ -1,0 +1,14 @@
+<div id='login-box'>
+	<h1>Login</h1>
+
+	<% form_for @user_session, :url => user_session_path do |f| %>
+	  <%= f.label :username %><br />
+	  <%= f.text_field :username %><br />
+	  <%= f.label :password %><br />
+	  <%= password_field_tag :password %><br />
+	  <br />
+	  <%= f.submit "Login" %>
+	<% end %>
+
+	<p><%= link_to "Create New User", new_user_path %></p>
+</div>

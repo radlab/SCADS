@@ -5,8 +5,9 @@ package piql
 trait Queryable {
   def where(predicate: Predicate) = Selection(predicate, this)
   def join(inner: Queryable) = Join(this, inner)
-  def limit(count: Int) = StopAfter(count, this)
-  def dataLimit(count: Int) = DataStopAfter(count, this)
+  def limit(count: Int) = StopAfter(FixedLimit(count), this)
+  def limit(parameter: ParameterValue, max: Int) = StopAfter(ParameterLimit(parameter.ordinal, max), this)
+  def dataLimit(count: Int) = DataStopAfter(FixedLimit(count), this)
   def sort(attributes: Seq[Value], ascending: Boolean = true) = Sort(attributes, ascending, this)
 
   def walkPlan[A](f: Queryable => A): A = {
@@ -41,10 +42,10 @@ case class Selection(predicate: Predicate, child: Queryable) extends Queryable w
 case class Sort(attributes: Seq[Value], ascending: Boolean, child: Queryable) extends Queryable with InnerNode
 
 trait StopOperator extends InnerNode {
-  val count: Int
+  val count: Limit
 }
-case class StopAfter(count: Int, child: Queryable) extends Queryable with StopOperator
-case class DataStopAfter(count: Int, child: Queryable) extends Queryable with StopOperator
+case class StopAfter(count: Limit, child: Queryable) extends Queryable with StopOperator
+case class DataStopAfter(count: Limit, child: Queryable) extends Queryable with StopOperator
 
 case class Join(left: Queryable, right: Queryable) extends Queryable
 

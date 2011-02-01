@@ -32,7 +32,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
     val staxApi = "javax.xml.stream" % "stax-api" % "1.0"
     val jaxbApi = "javax.xml.bind" % "jaxb-api" % "2.1"
     val json = "org.json" % "json" % "20090211"
-    val ec2 = "com.amazonaws" % "ec2" % "20090404"
+    val awsSdk = "com.amazonaws" % "aws-java-sdk" % "1.1.5"
     val ganymedSsh2 = "ch.ethz.ganymed" % "ganymed-ssh2" % "build210"
     val commonsLoggingApi = "commons-logging" % "commons-logging-api" % "1.1"
     val commonsHttpClient = "commons-httpclient" % "commons-httpclient" % "3.0.1"
@@ -62,11 +62,18 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
   lazy val perf      = project("perf", "performance", new ScadsSubProject(_), config, avro, comm, scalaengine, piql, deploylib)
   lazy val director    = project("director", "director", new ScadsSubProject(_), scalaengine, deploylib)
 
+  lazy val twitter = project("twitter", "twitter", new ScadsSubProject(_) {
+    val hadoop = "org.apache.hadoop" % "hadoop-core" % "0.20.2"
+    val features = "org.chris" %% "features" % "1.0"
+    val colt = "cern" % "colt" % "1.2.0"
+    val scalaj_collection = "org.scalaj" %% "scalaj-collection" % "1.0"
+  }, deploylib, avro, perf)
+
   /* PIQL Apps */
   lazy val scadr  = project("piql" / "scadr", "scadr", new ScadsSubProject(_), piql, director)
   lazy val gradit = project("piql" / "gradit", "gradit", new ScadsSubProject(_), piql)
 
-  lazy val demo = project("demo", "demo", new ScadsSubProject(_), piql, director, deploylib, gradit, scadr, perf, modeling)
+  lazy val demo = project("demo", "demo", new ScadsSubProject(_), piql, director, deploylib, gradit, scadr, perf, twitter, modeling)
 
   /* Repository Configuration */
   val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"
@@ -116,15 +123,15 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
     //Also kind of a hack
     lazy val writePackagedClasspath = task {
       FileUtilities.write(
-	new File("classpath"),
-	packagedClasspath.mkString(":"),
-	log
+				new File("classpath"),
+				packagedClasspath.mkString(":"),
+				log
       )
 
       FileUtilities.write(
-	new File("allJars"),
-	packagedClasspath.mkString("\n"),
-	log
+				new File("allJars"),
+				packagedClasspath.mkString("\n"),
+				log
       )
     } dependsOn(`package`) describedAs("Package classes and API docs.")
 
