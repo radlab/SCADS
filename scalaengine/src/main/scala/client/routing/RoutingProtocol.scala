@@ -114,9 +114,10 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
       deletePartitionService(oldPartition)
   }
 
-  def mergePartitions(mergeKeys: Seq[RoutingKeyType]): Unit = {
+  def mergePartitions(mergeKeys: Seq[RoutingKeyType]): Seq[(Option[RoutingKeyType],Option[RoutingKeyType])] = {
+    val mergeBounds = new scala.collection.mutable.ListBuffer[(Option[RoutingKeyType],Option[RoutingKeyType])]()
     val oldPartitions = for(mergeKey <- mergeKeys) yield {
-      require(routingTable.checkMergeCondition(mergeKey), "Either the key is not a split key, or the sets are different and can not be merged") //Otherwise we can not merge the partitions
+      require(isMergable(mergeKey), "Either the key is not a split key, or the sets are different and can not be merged") //Otherwise we can not merge the partitions
 
       val bound = routingTable.lowerUpperBound(mergeKey)
       val leftPart = bound.left.values
@@ -125,6 +126,7 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
       val mergePartition = createPartitions(bound.left.startKey, bound.right.startKey, storageServers)
 
       routingTable = routingTable.merge(mergeKey, mergePartition)
+      mergeBounds.append((bound.left.startKey,mergeKey))
       (leftPart, rightPart)
     }
 
@@ -134,8 +136,17 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
       deletePartitionService(leftPart)
       deletePartitionService(rightPart)
     }
+    mergeBounds.toList
   }
 
+  def isMergable(mergeKey:RoutingKeyType):Boolean = {
+    routingTable.checkMergeCondition(mergeKey)
+  }
+
+  def getMergeKeys(mergeKey:Option[RoutingKeyType]):(Option[RoutingKeyType],Option[RoutingKeyType]) = {
+    val bound = routingTable.lowerUpperBound(mergeKey)
+    (bound.left.startKey, bound.right.startKey)
+  }
 
   protected def deserializeRoutingKey(key: Array[Byte]) : RoutingKeyType ;
 
