@@ -44,8 +44,9 @@ object DemoConfig {
 
   def rainJars = {
     val rainLocation  = new File("../rain-workload-toolkit")
+    val workLoadDir = new File(rainLocation, "workloads")
     val rainJar = new File(rainLocation, "rain.jar")
-    val scadrJar = new File(rainLocation, "scadr.jar")
+    val scadrJar = new File(workLoadDir, "scadr.jar")
 
     if(rainJar.exists && scadrJar.exists)
       S3CachedJar(S3Cache.getCacheUrl(rainJar.getCanonicalPath)) ::
