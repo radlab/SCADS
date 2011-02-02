@@ -15,9 +15,15 @@ import net.lag.logging.Logger
 import java.io.File
 import java.net._
 
+import com.amazonaws.services.sns._
+import com.amazonaws.auth._
+import com.amazonaws.services.sns.model._
+
+/*
 import javax.mail._
 import javax.mail.internet._
 //import java.util._
+*/
 
 case class TraceCollectorTask(
 	var clusterAddress: String, 
@@ -28,8 +34,11 @@ case class TraceCollectorTask(
 	var sleepDurationInMs: Int = 100
 ) extends AvroTask with AvroRecord {
 	var beginningOfCurrentWindow = 0.toLong
+	var snsClient = createAmazonSNSClient
 
 	def run(): Unit = {
+		// Create SNSClient & subscribe myself
+		
 		println("made it to run function")
 		val clusterRoot = ZooKeeperNode(clusterAddress)
     val cluster = new ExperimentalScadsCluster(clusterRoot)
@@ -145,6 +154,9 @@ case class TraceCollectorTask(
 		println("uploading data...")
 		TraceS3Cache.uploadFile("/mnt/piqltrace.avro")
 		
+		// Publish to SNSClient
+		publishToTopic(topicArn, "experiment completed", "")
+		
 		println("Finished with trace collection.")
   }
 
@@ -168,37 +180,22 @@ case class TraceCollectorTask(
 	def getCardinalityList: List[Int] = {
 		((baseCardinality*0.5).toInt :: (baseCardinality*0.75).toInt :: baseCardinality :: baseCardinality*2 :: baseCardinality*10 :: baseCardinality*100:: Nil).reverse
 	}
-	
-	// doesn't work
-	def sendMail(message:String) = {
-		val props = new java.util.Properties();
-		props.put("mail.smtp.host", "calmail.berkeley.edu")
-		props.put("mail.smtp.auth", "true")
-		
-		val auth = new SMTPAuthenticator
-		
-		val session = Session.getDefaultInstance(props, auth)
-		session.setDebug(false)
-		
-		val msg = new MimeMessage(session)
-		
-		val addressFrom = new InternetAddress("kristal.curtis@gmail.com")
-		msg.setFrom(addressFrom)
-		
-		val addressTo = new InternetAddress("kristal.curtis@gmail.com")
-		msg.setRecipients(javax.mail.Message.RecipientType.TO, "kristal.curtis@gmail.com")
-		
-		msg.setSubject("experiment finished at " + System.currentTimeMillis)
-		msg.setContent("please check data files", "text/plain")
-		Transport.send(msg)
-		
+
+	def createAmazonSNSClient:AmazonSNSClient = {
+		return new AmazonSNSClient(new BasicAWSCredentials("AKIAILGVHXBVDZKFJZQQ", "VdB4xNttSvG8DOeF90XQI4jqg6EOi6L00nt0Lq3n"))
 	}
 	
-}
-
-// not currently used
-class SMTPAuthenticator extends javax.mail.Authenticator {
-	override def getPasswordAuthentication = {
-		new javax.mail.PasswordAuthentication("kcurtis", "***")
+	// ARN = Amazon Resource Name
+	def createTopicAndReturnTopicArn(topicText: String):String = {
+		val res = snsClient.createTopic(new CreateTopicRequest(topicText))
+		res.getTopicArn
+	}
+	
+	def subscribeViaEmail(topicArn: String, emailAddress: String) = {
+		snsClient.subscribe(new SubscribeRequest(topicArn, "email", emailAddress))
+	}
+	
+	def publishToTopic(topicArn: String, message: String, subject: String) = {
+		snsClient.publish(new PublishRequest(topicArn, message, subject))
 	}
 }
