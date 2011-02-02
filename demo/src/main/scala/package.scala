@@ -92,6 +92,7 @@ package object demo {
       traceRoot.canonicalAddress).toJvmTask // can do *5
     val traceTask = TraceCollectorTask(
       traceRoot.canonicalAddress,
+			"getRangeQuery",
       10).toJvmTask
     serviceScheduler !? RunExperimentRequest(storageEngineTask :: traceTask :: Nil)
   }
