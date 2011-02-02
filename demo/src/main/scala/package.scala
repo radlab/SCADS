@@ -144,14 +144,14 @@ package object demo {
   }
 
   def loadTwitterSpam(): Unit = {
+    val numServers = 16
     val clusterRoot = zooKeeperRoot.getOrCreate("twitterSpam")
     clusterRoot.children.foreach(_.deleteRecursive)
     val cluster = new ExperimentalScadsCluster(clusterRoot)
 
     serviceScheduler !? RunExperimentRequest(
-      ScalaEngineTask(clusterRoot.canonicalAddress).toJvmTask :: Nil)
-
-    cluster.blockUntilReady(1)
+      List.fill(numServers)(ScalaEngineTask(clusterRoot.canonicalAddress).toJvmTask))
+    cluster.blockUntilReady(numServers)
 
     serviceScheduler !? RunExperimentRequest(
       LoadJsonToScadsTask("http://cs.berkeley.edu/~marmbrus/tmp/labeledTweets.avro", clusterRoot.canonicalAddress).toJvmTask :: Nil)
