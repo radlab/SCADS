@@ -14,14 +14,14 @@ import org.jets3t.service.acl.AccessControlList
 
 object TraceS3Cache extends AWSConnection {
 
-  protected val credentials = new AWSCredentials(accessKeyId, secretAccessKey) // your credentials here
+  protected val credentials = new AWSCredentials("AKIAILGVHXBVDZKFJZQQ", "VdB4xNttSvG8DOeF90XQI4jqg6EOi6L00nt0Lq3n") // your credentials here
   val s3Service = new RestS3Service(credentials)
-  val bucketName = "mybucket" // make this your bucket name
+  val bucketName = "piql-modeling" // make this your bucket name
   val bucket = s3Service.createBucket(bucketName)
 
   def uploadFile(file: File) {
     val obj = new S3Object(file)
-    obj.setKey("myfile") // specify filename somewhere
+    obj.setKey(file.getName() + "-" + System.currentTimeMillis()) // specify filename somewhere
     obj.setAcl(AccessControlList.REST_CANNED_PUBLIC_READ)
     s3Service.putObject(bucket, obj)
   }

@@ -155,7 +155,7 @@ case class TraceCollectorTask(
 		TraceS3Cache.uploadFile("/mnt/piqltrace.avro")
 		
 		// Publish to SNSClient
-		publishToTopic(topicArn, "experiment completed", "")
+		publishToTopic(topicArn, "", "experiment completed at " + System.)
 		
 		println("Finished with trace collection.")
   }
