@@ -35,20 +35,21 @@ case class RunParams(
 		((baseCardinality*0.5).toInt :: (baseCardinality*0.75).toInt :: baseCardinality :: baseCardinality*2 :: baseCardinality*10 :: baseCardinality*100:: Nil)
 	}
 
+  // should get rid of this
 	def getExperimentDescription: String = {
-		"experiment had the following params:\n" + getExperimentParamString
+		"experiment had the following params:\n" + toString
 	}
 	
-	// rename as toString
-	def getExperimentParamString: String = {
+	override def toString: String = {
 		List(
-			"clusterAddress: " + clusterAddress.toString,
-			"queryType: " + queryType.toString,
-			"baseCardinality: " + baseCardinality.toString,
-			"warmupLengthInMinutes: " + warmupLengthInMinutes.toString,
-			"numStorageNodes: " + numStorageNodes.toString,
-			"numQueriesPerCardinality: " + numQueriesPerCardinality.toString,
-			"sleepDurationInMs: " + sleepDurationInMs.toString
+  		"experiment had the following params:",
+			"  clusterAddress: " + clusterAddress.toString,
+			"  queryType: " + queryType.toString,
+			"  baseCardinality: " + baseCardinality.toString,
+			"  warmupLengthInMinutes: " + warmupLengthInMinutes.toString,
+			"  numStorageNodes: " + numStorageNodes.toString,
+			"  numQueriesPerCardinality: " + numQueriesPerCardinality.toString,
+			"  sleepDurationInMs: " + sleepDurationInMs.toString
 		).mkString("\n")
 	}
 	
