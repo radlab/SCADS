@@ -23,13 +23,7 @@ import com.amazonaws.auth._
 import com.amazonaws.services.sns.model._
 
 case class TraceCollectorTask(
-  var clusterAddress: String, 
-  var queryType: String,
-  var baseCardinality: Int, 
-  var warmupLengthInMinutes: Int = 5, 
-  var numStorageNodes: Int = 1, 
-  var numQueriesPerCardinality: Int = 1000, 
-  var sleepDurationInMs: Int = 100
+  var params: RunParams
 ) extends AvroTask with AvroRecord {
   import TraceCollectorTask._
 
@@ -38,11 +32,11 @@ case class TraceCollectorTask(
   
   def run(): Unit = {
     println("made it to run function")
-    val clusterRoot = ZooKeeperNode(clusterAddress)
+    val clusterRoot = ZooKeeperNode(params.clusterAddress)
     val cluster = new ExperimentalScadsCluster(clusterRoot)
 
     logger.info("Adding servers to cluster for each namespace")
-    cluster.blockUntilReady(numStorageNodes)
+    cluster.blockUntilReady(params.numStorageNodes)
 
     /* get namespaces */
     println("getting namespace...")
@@ -66,7 +60,7 @@ case class TraceCollectorTask(
 
     /* Bulk load some test data into the namespaces */
     println("loading data...")
-    ns ++= (1 to 10).view.flatMap(i => (1 to getNumDataItems).map(j => PrefixedNamespace(i,j)))   // might want to fix hard-coded 10 at some point
+    ns ++= (1 to 10).view.flatMap(i => (1 to params.getNumDataItems).map(j => PrefixedNamespace(i,j)))   // might want to fix hard-coded 10 at some point
     /*
     r1 ++= (1 to getNumDataItems).view.map(i => R1(i))
     r2 ++= (1 to 10).view.flatMap(i => (1 to getNumDataItems).map(j => R2(i,j)))    
@@ -77,7 +71,7 @@ case class TraceCollectorTask(
      * toPiql uses implicit executor defined above to run queries
      */
     println("creating queries...")
-    val cardinalityList = getCardinalityList
+    val cardinalityList = params.getCardinalityList
     
     val queries = cardinalityList.map(currentCardinality => 
       ns.where("f1".a === 1)
@@ -100,7 +94,7 @@ case class TraceCollectorTask(
             
     // warmup to avoid JITing effects
     println("beginning warmup...")
-    fileSink.recordEvent(WarmupEvent(warmupLengthInMinutes, true))
+    fileSink.recordEvent(WarmupEvent(params.warmupLengthInMinutes, true))
     var queryCounter = 1
     while (withinWarmup) {
       cardinalityList.indices.foreach(r => {
@@ -116,11 +110,11 @@ case class TraceCollectorTask(
         fileSink.recordEvent(QueryEvent("getRangeQuery" + queryCounter, false))
         //fileSink.recordEvent(QueryEvent("joinQuery" + queryCounter, false))
   
-        Thread.sleep(sleepDurationInMs)
+        Thread.sleep(params.sleepDurationInMs)
         queryCounter += 1
       })
     }
-    fileSink.recordEvent(WarmupEvent(warmupLengthInMinutes, false))
+    fileSink.recordEvent(WarmupEvent(params.warmupLengthInMinutes, false))
         
 
     /* Run some queries */
@@ -129,7 +123,7 @@ case class TraceCollectorTask(
       println("current cardinality = " + cardinalityList(r).toString)
       fileSink.recordEvent(ChangeCardinalityEvent(cardinalityList(r)))
       
-      (1 to numQueriesPerCardinality).foreach(i => {
+      (1 to params.numQueriesPerCardinality).foreach(i => {
         fileSink.recordEvent(QueryEvent("getRangeQuery" + i, true))
         //fileSink.recordEvent(QueryEvent("joinQuery" + i, true))
   
@@ -140,7 +134,7 @@ case class TraceCollectorTask(
         fileSink.recordEvent(QueryEvent("getRangeQuery" + i, false))
         //fileSink.recordEvent(QueryEvent("joinQuery" + i, false))
 
-        Thread.sleep(sleepDurationInMs)
+        Thread.sleep(params.sleepDurationInMs)
       })
     })
 
@@ -153,13 +147,13 @@ case class TraceCollectorTask(
     TraceS3Cache.uploadFile("/mnt/piqltrace.avro")
     
     // Publish to SNSClient
-    snsClient.publishToTopic(topicArn, getExperimentDescription, "experiment completed at " + System.currentTimeMillis())
+    snsClient.publishToTopic(topicArn, params.toString, "experiment completed at " + System.currentTimeMillis())
     
     println("Finished with trace collection.")
   }
 
   def setupNamespacesAndCreateQuery(cluster: ExperimentalScadsCluster)(implicit executor: QueryExecutor):OptimizedQuery = {
-    val query = queryType match {
+    val query = params.queryType match {
       case "getQuery" => 
         val r1 = cluster.getNamespace[R1]("r1")
         r1 ++= (1 to 10).view.map(i => R1(i))
@@ -167,19 +161,19 @@ case class TraceCollectorTask(
         r1.where("f1".a === 1).toPiql("getQuery")
       case "getRangeQuery" =>
         val r2 = cluster.getNamespace[R2]("r2")
-        r2 ++= (1 to 10).view.flatMap(i => (1 to getNumDataItems).map(j => R2(i,j)))    
+        r2 ++= (1 to 10).view.flatMap(i => (1 to params.getNumDataItems).map(j => R2(i,j)))    
 
         r2.where("f1".a === 1)
-            .limit(0.?, getMaxCardinality)
+            .limit(0.?, params.getMaxCardinality)
             .toPiql("getRangeQuery")      
       case "lookupJoinQuery" =>
         val r1 = cluster.getNamespace[R1]("r1")
         val r2 = cluster.getNamespace[R2]("r2")
-        r1 ++= (1 to getNumDataItems).view.map(i => R1(i))
-        r2 ++= (1 to 10).view.flatMap(i => (1 to getNumDataItems).map(j => R2(i,j)))    
+        r1 ++= (1 to params.getNumDataItems).view.map(i => R1(i))
+        r2 ++= (1 to 10).view.flatMap(i => (1 to params.getNumDataItems).map(j => R2(i,j)))    
         
         r2.where("f1".a === 1)
-            .limit(0.?, getMaxCardinality)
+            .limit(0.?, params.getMaxCardinality)
             .join(r1)
             .where("r1.f1".a === "r2.f2".a)
             .toPiql("joinQuery")
@@ -189,8 +183,8 @@ case class TraceCollectorTask(
         val r2Prime = cluster.getNamespace[R2]("r2Prime")
   
         r1 ++= (1 to 10).view.map(i => R1(i))
-        r2 ++= (1 to 10).view.flatMap(i => (1 to getNumDataItems).map(j => R2(i,j)))    
-        r2Prime ++= (1 to 10).view.flatMap(i => (1 to getNumDataItems).map(j => R2(i,j)))    
+        r2 ++= (1 to 10).view.flatMap(i => (1 to params.getNumDataItems).map(j => R2(i,j)))    
+        r2Prime ++= (1 to 10).view.flatMap(i => (1 to params.getNumDataItems).map(j => R2(i,j)))    
         
         // what to do about these 2 limits?
         r2.where("f1".a === 1)
@@ -210,39 +204,12 @@ case class TraceCollectorTask(
 
   def withinWarmup: Boolean = {
     val currentTime = System.nanoTime
-    currentTime < beginningOfCurrentWindow + convertMinutesToNanoseconds(warmupLengthInMinutes)
-  }
-  
-  def getNumDataItems: Int = {
-    getMaxCardinality*10
-  }
-  
-  def getMaxCardinality: Int = {
-    getCardinalityList.sortWith(_ > _).head
-  }
-  
-  def getCardinalityList: List[Int] = {
-    ((baseCardinality*0.5).toInt :: (baseCardinality*0.75).toInt :: baseCardinality :: baseCardinality*2 :: baseCardinality*10 :: baseCardinality*100:: Nil)
-  }
-
-  def getExperimentDescription: String = {
-    "experiment had the following params:\n" + getExperimentParamString
-  }
-  
-  def getExperimentParamString: String = {
-    List(
-      "clusterAddress: " + clusterAddress.toString,
-      "queryType: " + queryType.toString,
-      "baseCardinality: " + baseCardinality.toString,
-      "warmupLengthInMinutes: " + warmupLengthInMinutes.toString,
-      "numStorageNodes: " + numStorageNodes.toString,
-      "numQueriesPerCardinality: " + numQueriesPerCardinality.toString,
-      "sleepDurationInMs: " + sleepDurationInMs.toString
-    ).mkString("\n")
+    currentTime < beginningOfCurrentWindow + convertMinutesToNanoseconds(params.warmupLengthInMinutes)
   }
 }
 
 object TraceCollectorTask {
+  // for email notifications
   val snsClient = new SimpleAmazonSNSClient
   val topicArn = snsClient.createOrRetrieveTopicAndReturnTopicArn("experimentCompletion")
   snsClient.subscribeViaEmail(topicArn, "kristal.curtis@gmail.com")
