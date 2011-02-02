@@ -13,7 +13,7 @@ import deploylib.mesos._
 import org.apache.avro.file.CodecFactory
 
 case class LabeledTweet(var path: String, var label: Int) extends AvroRecord
-case class TwitterSpamRecord(var year: Int, var month: Int, var day: Int, var hour: Int, var hash: String, var logType: String) extends AvroPair {
+case class TwitterSpamRecord(var hash: String, var year: Int, var month: Int, var day: Int, var hour: Int, var logType: String) extends AvroPair {
   var label: Int = _
   var features: collection.Map[String, Double] = _
 }
@@ -36,14 +36,19 @@ case class LoadJsonToScadsTask(var fileListUrl: String, var clusterAddress: Stri
       val vec = ParseData.parseData(json, Array("skip_kestrel", "skip_email", "skip_individual_ips", "skip_tweet"))
 
       val PathRegEx(year, month, day, hour, hash, logType) = f.path
-      val rec = new TwitterSpamRecord(year.toInt, month.toInt, day.toInt, hour.toInt, hash, logType)
+      val rec = new TwitterSpamRecord(hash, year.toInt, month.toInt, day.toInt, hour.toInt, logType)
       rec.label = f.label
       val features = vec.elements.asScala
       rec.features = features
       rec
     })
+    val servers = cluster.getAvailableServers.map(_ :: Nil)
+    val splitPoints = ((1 to 9).map(_.toString) ++ List("a", "b", "c", "d", "e", "f"))
+    val splits = None +: splitPoints.map(p => {
+      new TwitterSpamRecord(p, 0,0,0,0,"").key
+    }).map(Option.apply)
+    val ns = cluster.createNamespace[TwitterSpamRecord]("twitterSpamRecords", splits.zip(servers))
 
-    val ns = cluster.getNamespace[TwitterSpamRecord]("twitterSpamRecords")
     ns ++= spamRecords
   }
 }

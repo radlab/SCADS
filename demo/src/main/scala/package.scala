@@ -34,6 +34,7 @@ package object demo {
 
   def preloadWars: Unit = {
     MesosEC2.slaves.pforeach(_.cacheFile(scadrWarFile))
+    MesosEC2.slaves.pforeach(_.cacheFile(graditWarFile))
   }
 
   /**
@@ -74,6 +75,17 @@ package object demo {
       scadrWar,
       scadrWebServerList.canonicalAddress,
     Map("scads.clusterAddress" -> scadrRoot.canonicalAddress)).toJvmTask
+    serviceScheduler !? RunExperimentRequest(task :: Nil)
+  }
+
+  def startGradit: Unit = {
+    val task = WebAppSchedulerTask(
+      "gRADit",
+      mesosMaster,
+      javaExecutorPath,
+      graditWar,
+      graditWebServerList.canonicalAddress,
+    Map("scads.clusterAddress" -> graditRoot.canonicalAddress)).toJvmTask
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
@@ -132,14 +144,14 @@ package object demo {
   }
 
   def loadTwitterSpam(): Unit = {
+    val numServers = 16
     val clusterRoot = zooKeeperRoot.getOrCreate("twitterSpam")
     clusterRoot.children.foreach(_.deleteRecursive)
     val cluster = new ExperimentalScadsCluster(clusterRoot)
 
     serviceScheduler !? RunExperimentRequest(
-      ScalaEngineTask(clusterRoot.canonicalAddress).toJvmTask :: Nil)
-
-    cluster.blockUntilReady(1)
+      List.fill(numServers)(ScalaEngineTask(clusterRoot.canonicalAddress).toJvmTask))
+    cluster.blockUntilReady(numServers)
 
     serviceScheduler !? RunExperimentRequest(
       LoadJsonToScadsTask("http://cs.berkeley.edu/~marmbrus/tmp/labeledTweets.avro", clusterRoot.canonicalAddress).toJvmTask :: Nil)
