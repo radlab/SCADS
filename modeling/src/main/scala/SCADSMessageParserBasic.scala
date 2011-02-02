@@ -41,6 +41,7 @@ object SCADSMessageParserBasic extends SCADSMessageParser {
 		    case event @ ExecutionTrace(timestamp, threadId, QueryEvent(queryName, start)) => processQueryEvent(event)
 	      case event @ ExecutionTrace(timestamp, threadId, IteratorEvent(iteratorName, plan, op, start)) => processIteratorEvent(event)
 	      case event @ ExecutionTrace(timestamp, threadId, MessageEvent(msg)) => processMessageEvent(event)
+				case event @ ExecutionTrace(timestamp, threadId, ChangeCardinalityEvent(numDataItems)) => processChangeCardinalityEvent(event)
 				case _ =>
 		}
   }
