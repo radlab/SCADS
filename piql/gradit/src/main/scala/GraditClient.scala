@@ -28,9 +28,17 @@ case class Book(var title: String) extends AvroPair {
 }
 
 case class Game(var gameid: Int) extends AvroPair {
-    var score: Int = 0
     var wordlist: String = _
     var currentword: Int = _
+}
+
+case class GamePlayer(var login: String, var gameid: Int) extends AvroPair{
+    var score: Int = 0
+}
+
+case class User(var login: String) extends AvroPair {
+    var password: String = _
+    var name: String = _
 }
 
 //call WORDcontext
@@ -63,6 +71,22 @@ class GraditClient(val cluster: ScadsCluster, executor: QueryExecutor) {
   lazy val wordcontexts = cluster.getNamespace[WordContext]("wordcontexts")
   lazy val wordlists = cluster.getNamespace[WordList]("wordlists")
   lazy val games = cluster.getNamespace[Game]("games")
+  lazy val gameplayers = cluster.getNamespace[GamePlayer]("gameplayers")
+  lazy val users = cluster.getNamespace[User]("users")
+  
+  // findUser
+  // Primary key lookup for user
+  
+  var findUser = users.where("users.login".a === (0.?)).toPiql("findUser")
+  
+  // findGamePlayer
+  // Primary key lookup for gameplayers
+  
+  var findGamePlayer = (
+      gameplayers
+        .where("gameplayers.gameid".a === (0.?))
+        .where("gameplayers.login".a === (1.?))
+  ).toPiql("findGamePlayer")
   
   // findWord
   // Primary key lookup for word

@@ -15,7 +15,6 @@ class Game < AvroRecord
     end
     g = Game.new
     g.gameid = id
-    g.score = 0
     g.wordlist = wordlist
     g.currentword = 0
     g.save
@@ -41,12 +40,6 @@ class Game < AvroRecord
   
   def answer
     Word.find(self.currentword)
-  end
-  
-  def incrementScore(amount)
-    self.score += amount
-    self.save 
-    self.save #HACK: call everything twice for piql bug
   end
   
   def changeWord(word)
