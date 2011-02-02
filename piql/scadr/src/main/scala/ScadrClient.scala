@@ -10,6 +10,7 @@ import org.apache.avro.util._
 
 case class User(var username: String) extends AvroPair {
   var homeTown: String = _
+  var password: String = _
 }
 
 case class Thought(var owner: String, var timestamp: Int) extends AvroPair {
