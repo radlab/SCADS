@@ -34,6 +34,7 @@ package object demo {
 
   def preloadWars: Unit = {
     MesosEC2.slaves.pforeach(_.cacheFile(scadrWarFile))
+    MesosEC2.slaves.pforeach(_.cacheFile(graditWarFile))
   }
 
   /**
@@ -74,6 +75,17 @@ package object demo {
       scadrWar,
       scadrWebServerList.canonicalAddress,
     Map("scads.clusterAddress" -> scadrRoot.canonicalAddress)).toJvmTask
+    serviceScheduler !? RunExperimentRequest(task :: Nil)
+  }
+
+  def startGradit: Unit = {
+    val task = WebAppSchedulerTask(
+      "gRADit",
+      mesosMaster,
+      javaExecutorPath,
+      graditWar,
+      graditWebServerList.canonicalAddress,
+    Map("scads.clusterAddress" -> graditRoot.canonicalAddress)).toJvmTask
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
