@@ -15,6 +15,7 @@ import edu.berkeley.cs.avro.marker.AvroRecord
 import edu.berkeley.cs.avro.runtime._
 import edu.berkeley.cs.scads.comm._
 
+import java.util.concurrent.TimeUnit
 
 
 trait RoutingProtocol [KeyType <: IndexedRecord,
@@ -46,6 +47,8 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
 
   import RoutingTableProtocol._
 
+
+  protected var attemps : Int = 3
 
 
   protected var routingTable: RangeTable[RoutingKeyType, PartitionService] = null
@@ -164,13 +167,16 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
       (newPartition, partitionHandler)
     }
     storeAndPropagateRoutingTable()
-    waitForAndThrowException(
-      result.map {
-        case (newPartition, oldPartition) => (newPartition !! CopyDataRequest(oldPartition, false), newPartition)
-      }, 3*60*1000) {
-      case (CopyDataResponse(), _) => () 
+
+    waitForAndRetry(
+        result.map {
+        case (newPartition, oldPartition) => (newPartition, CopyDataRequest(oldPartition, false))
+      }, 3*60*1000){
+      case CopyDataResponse() => ()
     }
+
     result.map(_._1)
+
   }
 
   /**
@@ -237,17 +243,18 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
 
 
   private def deletePartitionService(partitions: Seq[PartitionService]): Unit = {
-    waitForAndThrowException(partitions.map(partition => (partition.storageService !! DeletePartitionRequest(partition.partitionId), partition))) {
-      case (DeletePartitionResponse(), _) => ()
+    waitForAndRetry(partitions.map(p => (p, DeletePartitionRequest(p.partitionId)))){
+      case DeletePartitionResponse() => ()
     }
+
   }
 
 
   private def createPartitions(startKey: Option[RoutingKeyType], endKey: Option[RoutingKeyType], servers: Seq[StorageService])
   : Seq[PartitionService] = {
     val createReq = CreatePartitionRequest(namespace, startKey.map(serializeRoutingKey(_)), endKey.map(serializeRoutingKey(_)))
-    waitForAndThrowException(servers.map(server => (server !! createReq, server))) {
-      case (CreatePartitionResponse(partitionActor), _) => partitionActor
+    waitForAndRetry(servers.map((_, createReq))){
+       case CreatePartitionResponse(partitionActor) => partitionActor
     }
   }
 
@@ -291,6 +298,37 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
         a.corresponds(b)((v1, v2) => v1.storageService equals v2.storageService)
       })
   }
+
+
+  def waitForAndRetry[T]( messages: Seq[(RemoteActorProxy,MessageBody)], routingTimeout : Int = 5000, attempts : Int = 3) (f: PartialFunction[MessageBody, T]): Seq[T] = {
+
+    var futures : Seq[( MessageFuture, ((RemoteActorProxy,MessageBody), Int))] = messages.map(message => (message._1 !! message._2, (message, attempts)))
+
+    var triedEverything = false
+    while(!triedEverything)  {
+      triedEverything = true
+      val futuresTmp =
+        for(future <- futures) yield {
+          //var rFuture = future
+          if(future._1.get(routingTimeout, TimeUnit.MILLISECONDS).isEmpty){
+            if(future._2._2 > 0) {
+              triedEverything = false
+              logger.debug("Trying to resend message %s in %s attempts", future._2._1._2, attempts - future._2._2)
+              (future._2._1._1 !! future._2._1._2, (future._2._1, future._2._2 - 1))
+            }else{
+              logger.error("%s attempts to send the message failed. Message: %s", attempts, future._2._1._2)
+              throw new RuntimeException("TIMEOUT")
+            }
+          }else{
+            future
+          }
+      }
+      futures = futuresTmp
+    }
+
+    futures.map(ftch => f.lift(ftch._1()).getOrElse(throw new RuntimeException("Unexpected message during get")))
+  }
+
 
 
 
