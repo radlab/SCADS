@@ -6,13 +6,10 @@ import java.io.File
 package object demo {
   import DemoConfig._
   import scads.comm._
-<<<<<<< HEAD
   import scads.storage._
-=======
   import scads.perf._
   import scads.storage._
   import twitterspam._
->>>>>>> origin/demo
   import deploylib.mesos._
   import scads.piql.modeling._
 
@@ -78,11 +75,7 @@ package object demo {
       javaExecutorPath,
       scadrWar,
       scadrWebServerList.canonicalAddress,
-<<<<<<< HEAD
-      Map("scadr.clusterAddress" -> scadrRoot.canonicalAddress)).toJvmTask
-=======
-    Map("scads.clusterAddress" -> scadrRoot.canonicalAddress)).toJvmTask
->>>>>>> origin/demo
+    	Map("scads.clusterAddress" -> scadrRoot.canonicalAddress)).toJvmTask
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
