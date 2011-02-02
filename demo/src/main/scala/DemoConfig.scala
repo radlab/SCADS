@@ -20,9 +20,10 @@ object DemoConfig {
   def localMesosMasterPid = "1@" + java.net.InetAddress.getLocalHost.getHostName + ":5050"
 
   //TODO: Add other ZooKeeper
-  val zooKeeperRoot = ZooKeeperNode("zk://ec2-50-16-2-36.compute-1.amazonaws.com,ec2-174-129-105-138.compute-1.amazonaws.com/demo")
+  val zooKeeperRoot = ZooKeeperNode("zk://ec2-50-16-2-36.compute-1.amazonaws.com,ec2-174-129-105-138.compute-1.amazonaws.com/home/kcurtis")
   def scadrRoot =  zooKeeperRoot.getOrCreate("apps/scadr")
   def scadrWebServerList = scadrRoot.getOrCreate("webServerList")
+  def traceRoot = zooKeeperRoot.getOrCreate("traceCollection")
 
   val mesosMasterNode = zooKeeperRoot.getOrCreate("mesosMaster")
   def mesosMaster = new String(mesosMasterNode.data)
