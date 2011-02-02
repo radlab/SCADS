@@ -75,7 +75,7 @@ package object demo {
       javaExecutorPath,
       scadrWar,
       scadrWebServerList.canonicalAddress,
-    	Map("scads.clusterAddress" -> scadrRoot.canonicalAddress)).toJvmTask
+      Map("scads.clusterAddress" -> scadrRoot.canonicalAddress)).toJvmTask
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
@@ -91,9 +91,11 @@ package object demo {
     val storageEngineTask = ScalaEngineTask(
       traceRoot.canonicalAddress).toJvmTask // can do *5
     val traceTask = TraceCollectorTask(
-      traceRoot.canonicalAddress,
-			"getRangeQuery",
-      10).toJvmTask
+      RunParams(traceRoot.canonicalAddress,
+      "getRangeQuery",
+      10)
+    ).toJvmTask
+    
     serviceScheduler !? RunExperimentRequest(storageEngineTask :: traceTask :: Nil)
   }
 
