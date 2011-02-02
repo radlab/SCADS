@@ -15,30 +15,28 @@ import net.lag.logging.Logger
 import java.io.File
 import java.net._
 
+import scala.collection.JavaConversions._
+import scala.collection.mutable._
+
 import com.amazonaws.services.sns._
 import com.amazonaws.auth._
 import com.amazonaws.services.sns.model._
 
-/*
-import javax.mail._
-import javax.mail.internet._
-//import java.util._
-*/
-
 case class TraceCollectorTask(
 	var clusterAddress: String, 
+	var queryType: String,
 	var baseCardinality: Int, 
 	var warmupLengthInMinutes: Int = 5, 
 	var numStorageNodes: Int = 1, 
 	var numQueriesPerCardinality: Int = 1000, 
 	var sleepDurationInMs: Int = 100
 ) extends AvroTask with AvroRecord {
-	var beginningOfCurrentWindow = 0.toLong
-	var snsClient = createAmazonSNSClient
+	import TraceCollectorTask._
 
+	var beginningOfCurrentWindow = 0.toLong
+	var lowerBound = 10
+	
 	def run(): Unit = {
-		// Create SNSClient & subscribe myself
-		
 		println("made it to run function")
 		val clusterRoot = ZooKeeperNode(clusterAddress)
     val cluster = new ExperimentalScadsCluster(clusterRoot)
@@ -178,9 +176,35 @@ case class TraceCollectorTask(
 	}
 	
 	def getCardinalityList: List[Int] = {
-		((baseCardinality*0.5).toInt :: (baseCardinality*0.75).toInt :: baseCardinality :: baseCardinality*2 :: baseCardinality*10 :: baseCardinality*100:: Nil).reverse
+		((baseCardinality*0.5).toInt :: (baseCardinality*0.75).toInt :: baseCardinality :: baseCardinality*2 :: baseCardinality*10 :: baseCardinality*100:: Nil)
 	}
 
+	def getExperimentDescription: String = {
+		"experiment had the following params:\n" + getExperimentParamString
+	}
+	
+	def getExperimentParamString: String = {
+		List(
+			"clusterAddress: " + clusterAddress.toString,
+			"queryType: " + queryType.toString,
+			"baseCardinality: " + baseCardinality.toString,
+			"warmupLengthInMinutes: " + warmupLengthInMinutes.toString,
+			"numStorageNodes: " + numStorageNodes.toString,
+			"numQueriesPerCardinality: " + numQueriesPerCardinality.toString,
+			"sleepDurationInMs: " + sleepDurationInMs.toString
+		).mkString("\n")
+	}
+}
+
+object TraceCollectorTask {
+	val snsClient = new SimpleAmazonSNSClient
+	val topicArn = snsClient.createOrRetrieveTopicAndReturnTopicArn("experimentCompletion")
+	snsClient.subscribeViaEmail(topicArn, "kristal.curtis@gmail.com")
+}
+
+class SimpleAmazonSNSClient {
+	val snsClient = createAmazonSNSClient
+	
 	def createAmazonSNSClient:AmazonSNSClient = {
 		return new AmazonSNSClient(new BasicAWSCredentials("AKIAILGVHXBVDZKFJZQQ", "VdB4xNttSvG8DOeF90XQI4jqg6EOi6L00nt0Lq3n"))
 	}
@@ -191,6 +215,20 @@ case class TraceCollectorTask(
 		res.getTopicArn
 	}
 	
+	def createOrRetrieveTopicAndReturnTopicArn(topicText: String):String = {
+		val topics:Buffer[Topic] = snsClient.listTopics.getTopics
+		val topicsList:List[Topic] = topics.toList
+		val matchingTopics:List[Topic] = topicsList.filter(t => t.getTopicArn.contains(topicText))
+		val topicArn = matchingTopics.length match {
+			case 0 => createTopicAndReturnTopicArn(topicText)
+			case 1 => matchingTopics.head.getTopicArn
+			case 2 => 
+				throw new TopicException
+				matchingTopics.head.getTopicArn
+		}
+		topicArn
+	}
+	
 	def subscribeViaEmail(topicArn: String, emailAddress: String) = {
 		snsClient.subscribe(new SubscribeRequest(topicArn, "email", emailAddress))
 	}
@@ -199,3 +237,5 @@ case class TraceCollectorTask(
 		snsClient.publish(new PublishRequest(topicArn, message, subject))
 	}
 }
+
+case class TopicException() extends Exception
