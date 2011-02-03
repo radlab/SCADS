@@ -106,7 +106,8 @@ object MesosEC2 extends ConfigurationActions {
     val conf = ("work_dir=/mnt" ::
       "log_dir=/mnt" ::
       "switch_user=0" ::
-      "url=" + clusterUrl :: Nil).mkString("\n")
+      "url=" + clusterUrl ::
+      "shares_interval=30" :: Nil).mkString("\n")
     val conffile = new File("/usr/local/mesos/conf/mesos.conf")
     slaves.pforeach(_.createFile(conffile, conf))
   }
