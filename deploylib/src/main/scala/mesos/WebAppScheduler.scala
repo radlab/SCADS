@@ -19,7 +19,9 @@ object WebAppScheduler {
 }
 
 /* serverCapacity is the number of requests per second that a single application server can handle */
-class WebAppScheduler protected (name: String, mesosMaster: String, executor: String, warFile: ClassSource, properties: Map[String, String], zkWebServerListRoot:String, serverCapacity: Int, statsServer: Option[String] = None) extends Scheduler {
+class WebAppScheduler protected (name: String, mesosMaster: String, executor: String, warFile: ClassSource, properties: Map[String, String], zkWebServerListRoot:String, serverCapacity: Int, var minServers: Int, statsServer: Option[String] = None) extends Scheduler {
+  scheduler => 
+
   val logger = Logger()
   var driver = new MesosSchedulerDriver(this, mesosMaster)
   val driverThread = new Thread("ExperimentScheduler Mesos Driver Thread") { override def run(): Unit = driver.run() }
@@ -35,25 +37,24 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
     }
   })
 
+  val port = 8080
   val zkWebServerList = ZooKeeperNode(zkWebServerListRoot)
   var runMonitorThread = true
   var numToKill = 0
   var killTimer = 0
-  @volatile var targetNumServers = 0.0
+  @volatile var targetNumServers: Double = minServers
   val monitorThreadPeriod = 1000 * 10 // Recalculate targetNumServers every 10 seconds
   val numServersHistoryWeight = 0.95 // Smooth task killing by weighing in history. Must be >=0.0 and <1.0.
   var servers =  new HashMap[Int, String]()
   var pendingServers =  new HashMap[Int, String]()
-  var minNumServers = 1
   val monitorThread = new Thread("StatsThread") {
-    val httpClient = new HttpClient()
+    private val httpClient = new HttpClient()
     override def run() = {
       while(runMonitorThread) {
-        Thread.sleep(monitorThreadPeriod)
-
         // Calculate the average web server request rate
+	logger.info("Beginging collection of workload statistics")
         val requestsPerSec = for(s <- servers.values) yield {
-          val slaveUrl = "http://" + s + ":8080/stats"
+          val slaveUrl = "http://%s:%d/stats/".format(s, port)
           val method = new GetMethod(slaveUrl)
           logger.debug("Getting status from %s.", slaveUrl)
           try {
@@ -67,16 +68,16 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
           }
         }
 
-        logger.debug("Current Workload: %s", requestsPerSec)
+        logger.info("Current Workload: %s", requestsPerSec)
         val aggregateReqRate = requestsPerSec.sum
-        targetNumServers = math.max(minNumServers, numServersHistoryWeight * targetNumServers + (1.0 - numServersHistoryWeight) * math.ceil(aggregateReqRate / serverCapacity))
-        logger.debug("Current Aggregate Workload: %f, targetServers=%d", aggregateReqRate, targetNumServers)
+        targetNumServers = math.max(minServers, numServersHistoryWeight * targetNumServers + (1.0 - numServersHistoryWeight) * math.ceil(aggregateReqRate / serverCapacity))
+        logger.info("Current Aggregate Workload: %f, targetServers=%d", aggregateReqRate, targetNumServers)
 
-
+	//TODO: Error Handling
         statement.foreach(s => {
           val now = new Date
           val sqlInsertCmd = "INSERT INTO appReqRate (timestamp, webAppID, aggRequestRate, targetNumServers)" +
-                             "VALUES (%d, '%s', %f, %d)".format(now.getTime, name, aggregateReqRate, targetNumServers)
+                             "VALUES (%d, '%s', %f, %d)".format(now.getTime, name, aggregateReqRate, targetNumServers.toInt)
           try {
             val numResults = s.map(_.executeUpdate(sqlInsertCmd))
             if (numResults.getOrElse(0) != 1)
@@ -101,6 +102,8 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
           }}
           updateZooWebServerList();
         }
+	
+	Thread.sleep(monitorThreadPeriod)
       }
     }
   }
@@ -131,19 +134,23 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
           pendingServers -= taskId
           exitThread = true
         } else {
-          val appUrl = "http://" + serverHostname + "/"
+          val appUrl = "http://%s:%d/".format(serverHostname, port)
           val method = new GetMethod(appUrl)
-          logger.debug("Sending a priming HTTP request to %s.", appUrl)
+          logger.info("Sending a priming HTTP request to %s.", appUrl)
           try {
             val status = httpClient.executeMethod(method)
             if (status == 200) {
-              servers += taskId -> serverHostname
-              pendingServers -= taskId
+	      logger.info("Server %s contacted successfully", appUrl)
+	      scheduler.synchronized {
+		servers += taskId -> serverHostname
+		pendingServers -= taskId
+	      }
+              updateZooWebServerList()
               exitThread = true
             }
           } catch {
             case e =>
-              logger.debug("priming GET request to %s failed.", appUrl)
+              logger.info("priming GET request to %s failed.", appUrl)
               0.0
           }
         }
@@ -166,10 +173,11 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
       if(servers.size + pendingServers.size < targetNumServers) {
         val taskParams = Map(List("mem", "cpus").map(k => k -> offer.getParams.get(k)):_*)
 
-        pendingServers += taskIdCounter -> offer.getHost
+	scheduler.synchronized {
+          pendingServers += taskIdCounter -> offer.getHost
+	}
         new Thread(new WebAppPrimerThread(taskIdCounter,offer.getHost)).start()
 
-        updateZooWebServerList();
         var td = new TaskDescription(taskIdCounter, offer.getSlaveId, webAppTask.toString, taskParams, JvmTask(webAppTask)) :: Nil
         taskIdCounter += 1
         td
@@ -195,6 +203,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
 
   def updateZooWebServerList() = {
     var serverList = servers.values.mkString("\n")
+    logger.debug("Updating zookeeper list of webservers to %s", serverList)
     zkWebServerList.data = serverList.getBytes
   }
 
