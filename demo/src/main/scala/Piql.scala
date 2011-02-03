@@ -28,7 +28,7 @@ object DashboardReportingExecutor {
         val reqRate = oldHist.totalRequests.toFloat / ((newReportTime - lastReportTime) / 1000)
 
         withConnection(conn => {
-          val sqlInsertCmd = "INSERT INTO piqlReqRate (timestamp, host, aggRequestRate) VALUES (%d, '%s', %f)".format(newReportTime, hostName, reqRate)
+          val sqlInsertCmd = "INSERT INTO piqlReqRate (timestamp, host, aggRequestRate) VALUES (%d, '%s', %f, %f)".format(newReportTime, hostName, reqRate, respTime)
 	  logger.info("Recording PIQL stats with: %s", sqlInsertCmd)
 
           val statment = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE)
