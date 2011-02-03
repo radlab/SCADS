@@ -12,7 +12,7 @@ class UserSessionsController < ApplicationController
       
       redirect_to :controller => :users, :action => :show, :id => @user_session.username
     else
-      flash[:error] = "Failed to log in."
+      flash[:error] = "Failed to log in: Username or password was invalid."
       render :action => :new
     end
   end

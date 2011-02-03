@@ -1,8 +1,10 @@
 class UserSession
   attr_accessor :username
+  attr_accessor :password
 
   def initialize(params={})
     @username = params[:username]
+    @password = params[:password]
   end
 
   def new_record?
@@ -16,7 +18,7 @@ class UserSession
   end
 
   def valid?
-    not user.nil?
+    !user.nil? && !password.nil? && user.password == Digest::MD5.hexdigest(password)
   end
 
   def save

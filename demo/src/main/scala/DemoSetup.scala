@@ -29,7 +29,16 @@ case class WebAppSchedulerTask(var name: String, var mesosMaster: String, var ex
 
   def run(): Unit = {
     System.loadLibrary("mesos")
-    val scheduler = new WebAppScheduler(name, mesosMaster, executor, warFile, properties, zkWebServerListRoot, 1, Some(dashboardDb))
+    val scheduler = new WebAppScheduler(
+      name,
+      mesosMaster,
+      executor,
+      warFile,
+      properties,
+      zkWebServerListRoot,
+      serverCapacity=50, /*req/sec*/
+      minServers=5,
+      statsServer=dashboardDb)
     scheduler.monitorThread.join()
   }
 }

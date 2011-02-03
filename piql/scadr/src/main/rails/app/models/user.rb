@@ -37,4 +37,8 @@ class User < AvroRecord
   def <=>(other)
     self.username <=> other.username if other.is_a?(User)
   end
+  
+  def errors
+    @errors ||= []
+  end
 end

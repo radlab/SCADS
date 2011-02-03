@@ -21,8 +21,6 @@ object DemoConfig {
 
   //TODO: Add other ZooKeeper
   val zooKeeperRoot = ZooKeeperNode("zk://ec2-50-16-2-36.compute-1.amazonaws.com,ec2-174-129-105-138.compute-1.amazonaws.com/demo")
-  def scadrRoot =  zooKeeperRoot.getOrCreate("apps/scadr")
-  def scadrWebServerList = scadrRoot.getOrCreate("webServerList")
 
   val mesosMasterNode = zooKeeperRoot.getOrCreate("mesosMaster")
   def mesosMaster = new String(mesosMasterNode.data)
@@ -30,6 +28,9 @@ object DemoConfig {
   def serviceSchedulerNode = zooKeeperRoot.getOrCreate("serviceScheduler")
   def serviceScheduler = classOf[RemoteActor].newInstance.parse(serviceSchedulerNode.data)
 
+  /* SCADr */
+  def scadrRoot =  zooKeeperRoot.getOrCreate("apps/scadr")
+  def scadrWebServerList = scadrRoot.getOrCreate("webServerList")
   val scadrWarFile = new File("piql/scadr/src/main/rails/rails.war")
   def scadrWar =
     if(scadrWarFile.exists)
@@ -37,6 +38,18 @@ object DemoConfig {
     else {
       logger.info("Using cached scadr war file.")
       S3CachedJar("http://s3.amazonaws.com/deploylibCache-andyk/cf4795cea32f45694ab018ebdf069a39")
+    }
+
+  /* gRADit */
+  def graditRoot =  zooKeeperRoot.getOrCreate("apps/gradit")
+  def graditWebServerList = graditRoot.getOrCreate("webServerList")
+  val graditWarFile = new File("piql/gradit/src/main/rails/rails.war")
+  def graditWar =
+    if(graditWarFile.exists)
+      S3CachedJar(S3Cache.getCacheUrl(graditWarFile))
+    else {
+      logger.info("Using cached gradit war file.")
+      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/10f952ebab7aea6a4f98ec09859dd3b1")
     }
 
   val jdbcDriver = classOf[com.mysql.jdbc.Driver]

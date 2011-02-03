@@ -1,19 +1,39 @@
 <h1>Join SCADr</h1>
 
 <% form_for @user do |f| %>
-  <p>
-    <%= f.label :username %>
-    <%= f.text_field :username %>
-  </p>
-  <p>
-    <%= f.label :home_town %>
-    <%= f.text_field :home_town %>
-  </p>
-    <%= f.label :password %>
-    <%= password_field_tag :password %>
-    <%= f.label :confirm_password %>
-    <%= password_field_tag :confirm_password %>
-  <p>
-    <%= f.submit %>
-  </p>
+  
+  <fieldset class="structured-form">
+
+    <%- if @user.errors.present? -%>
+    <ul class="errors">
+    <%- @user.errors.each do |error| -%>
+      <li><%= "#{error[0].to_s} #{error[1].to_s}" %></li>
+    <%- end -%>
+    </ul>
+    <%- end -%>
+
+    <ul>
+      <li>
+        <%= f.label :username %>
+        <%= f.text_field :username %>
+      </li>
+      <li>
+        <%= f.label :home_town %>
+        <%= f.text_field :home_town %>
+      </li>
+      <li>
+        <%= f.label :password %>
+        <%= f.password_field :password %>
+      </li>
+      <li>
+        <%= f.label :confirm_password %>
+        <%= password_field_tag :confirm_password %>
+      </li>
+    </ul>
+    <ul>
+      <li>
+      <%= f.submit %>
+      </li>
+    </ul>
+  </fieldset>
 <% end %>

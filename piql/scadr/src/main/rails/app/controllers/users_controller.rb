@@ -11,11 +11,22 @@ class UsersController < ApplicationController
     @user = User.new(params[:user])
     # FIXME: Why do I need to do this?
     @user.username = params[:user][:username]
-    if @user.save
-      flash[:notice] = "Your account \"#{@user.username}\" has been created!"
-      redirect_to root_path
-    else
+    
+    if params[:user][:password] != params[:confirm_password]
+      @user.errors.push [:password, "does not match"]
       render :action => :new
+    elsif @user.password.blank?
+      @user.errors.push [:password, "cannot be blank"]
+      render :action => :new
+    else
+      @user.password = Digest::MD5.hexdigest(params[:user][:password])
+      if @user.save
+        flash[:notice] = "Your account \"#{@user.username}\" has been created!"
+        redirect_to root_path
+      else
+        @user.password = params[:user][:password]
+        render :action => :new
+      end
     end
   end
 
