@@ -3,6 +3,7 @@ class GamesController < ApplicationController
   # GET /games
   # GET /games.xml
   def index
+    @current_user = current_user
     #Note: .all does not yet work
     @games = Game.all
     @wordlists = WordList.all
@@ -18,11 +19,15 @@ class GamesController < ApplicationController
  
   #Check if the answer was correct
   def ans
+    @current_user = current_user
     puts "Inside ANS"
     game = Game.find(params[:id].to_i)
     #Find currentword in the game and answer chosen  
     choice = params[:answer]
     answer = game.answer
+    
+    user = User.find(current_user)
+  	gp = GamePlayer.find(game.gameid, user.login)
 
     puts "@@@@AND THE ANSWER IS@@@@@@@@"
     if choice == answer.word #If correct answer
@@ -38,7 +43,7 @@ class GamesController < ApplicationController
       game.changeWord(nextWord.wordid)
       
       #Raise score
-      game.incrementScore(10)
+      gp.incrementScore(10)
       
       flash[:notice] = "Correct!"
       redirect_to(:controller=> :games, :action=> :game_entry, :id => game.gameid)
@@ -55,7 +60,7 @@ class GamesController < ApplicationController
       puts "INCORRECT"
       
       #Lower score 
-      game.incrementScore(-5)
+      gp.incrementScore(-5)
      
       flash[:notice] = "Oops, that's wrong"
       redirect_to(:controller=> :games, :action=> :game_entry, :id => game.gameid)
@@ -71,28 +76,36 @@ class GamesController < ApplicationController
   
   #Displaying/picking questions
   def game_entry
-    game = Game.find(params[:id].to_i)
-  	word = Word.find(game.currentword).word
-  	w = Word.find_by_word(word)
+    @current_user = current_user
+    puts "CURRUSER"
     
-  	
-  	@score = game.score
+    game = Game.find(params[:id].to_i)
+    puts @current_user
+    user = User.find("guest") #FIXME
+    puts user.login
+    puts game.gameid
+    puts user
+    
+  	word = Word.find(game.currentword)
+    
+  	gp = GamePlayer.find(game.gameid, user.login)
+  	@score = gp.score
   
     puts "***"
-    puts word
+    puts word.word
     
     #Get a random context for the word
     @para = false
-    contexts = w.contexts #get context
+    contexts = word.contexts #get context
     con = contexts.sort_by{ rand }.first
 
   	if(con)
   	  #Initialize paragraph, multiple choice settings
   	  @para_book = con.book;
       @para = con.wordLine
-      @para.gsub!(word, '___________') #underline the missing word    
-      @mc = w.choices 
-      @mc_array = (@mc << word).shuffle
+      @para.gsub!(word.word, '___________') #underline the missing word    
+      @mc = word.choices 
+      @mc_array = (@mc << word.word).shuffle
     else #Find another word to use, no contexts
       wordlist = WordList.find(game.wordlist)
       words = wordlist.words
@@ -112,12 +125,15 @@ class GamesController < ApplicationController
   def new_game
     wordlist = WordList.find(params[:wordlist])
     game = Game.createNew(wordlist.name)
+    user = User.find(current_user)
+    puts user.login
+    
+    gp = GamePlayer.createNew(game.gameid, user.login)
     
     words = wordlist.words 
     currentword = words[rand(words.length)]
     #currentword = Word.find(1) #FIXME: to above
     game.changeWord(currentword.wordid)
-
     
     if(currentword) #If there is a word
       #Save the currentword in the session or something?

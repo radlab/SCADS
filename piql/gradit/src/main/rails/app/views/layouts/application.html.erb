@@ -16,8 +16,8 @@
 	        <div id="logo">
 	          <%= link_to image_tag('/images/gradit_inside_logo.png'), :controller => :home%>
 	          <div id="user-bar">
-	            <% if current_user %>
-	              Welcome, <%= current_user %>
+	            <% if @current_user %>
+	              Welcome, <%= @current_user %>
 	            <% end %>
 	          </div>
 	        </div>

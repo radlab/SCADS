@@ -7,4 +7,10 @@ class ApplicationController < ActionController::Base
 
   # Scrub sensitive parameters from your log
   # filter_parameter_logging :password
+  
+  def current_user
+    return session[:user] if session[:user]
+    return User.guest_user.login
+  end
+  
 end

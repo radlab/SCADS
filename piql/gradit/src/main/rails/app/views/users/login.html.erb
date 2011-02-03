@@ -1,0 +1,15 @@
+<h1>Log in</h1>
+
+<% form_tag :action => 'login' do -%>
+  <p>
+    <%= label_tag 'login' %>
+    <%= text_field_tag :login %>
+  </p>
+  
+  <p>
+    <%= label_tag 'password' %>
+    <%= password_field_tag :password %>
+  </p>
+  
+  <p><%= submit_tag 'Sign up' %></p>
+<% end -%>
