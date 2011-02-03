@@ -20,7 +20,7 @@ object WebAppScheduler {
 
 /* serverCapacity is the number of requests per second that a single application server can handle */
 class WebAppScheduler protected (name: String, mesosMaster: String, executor: String, warFile: ClassSource, properties: Map[String, String], zkWebServerListRoot:String, serverCapacity: Int, var minServers: Int, statsServer: Option[String] = None) extends Scheduler {
-  scheduler => 
+  scheduler =>
 
   val logger = Logger()
   var driver = new MesosSchedulerDriver(this, mesosMaster)
@@ -71,7 +71,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
         logger.info("Current Workload: %s", requestsPerSec)
         val aggregateReqRate = requestsPerSec.sum
         targetNumServers = math.max(minServers, numServersHistoryWeight * targetNumServers + (1.0 - numServersHistoryWeight) * math.ceil(aggregateReqRate / serverCapacity))
-        logger.info("Current Aggregate Workload: %f, targetServers=%d", aggregateReqRate, targetNumServers)
+        logger.info("Current Aggregate Workload: %f req/sec, targetServers=%f", aggregateReqRate, targetNumServers)
 
 	//TODO: Error Handling
         statement.foreach(s => {
