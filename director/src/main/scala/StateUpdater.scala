@@ -7,6 +7,7 @@ import net.lag.logging.Logger
 
 object ScadsState {
 	val logger = Logger("scadsstate")
+	System.setProperty("doMysqlLogging","true")
 
 	//set up mysql connection for statistics
   val statement = try {
