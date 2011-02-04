@@ -292,9 +292,12 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
    * ec2-upload-bundle.
    **/
   def bundleNewAMI(bucketName: String): String = {
+    //TODO(andyk): Verify that the bucketname isn't already used or this will
+    //             fail when we get to ec2-upload-bundle anyway.
     upload(ec2Cert, new File("/tmp"))
     upload(ec2PrivateKey, new File("/tmp"))
     this ! "rm -rf /tmp/image"
+    this.executeCommand("mv ~/.tags /tmp/mesos-ec2-tags")
     this ! "ec2-bundle-vol -c /tmp/%s -k /tmp/%s -u %s --arch %s".format(ec2Cert.getName, ec2PrivateKey.getName, userID, "x86_64")
     this ! "ec2-upload-bundle -b %s -m %s -a %s -s %s".format(bucketName, "/tmp/image.manifest.xml", accessKeyId, secretAccessKey)
     val registerRequest = new RegisterImageRequest(bucketName + "/image.manifest.xml")
@@ -306,6 +309,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
                  .withUserGroup("all")
                  .withAttribute("launchPermission")
     EC2Instance.client.modifyImageAttribute(req)
+    this.executeCommand("mv /tmp/mesos-ec2-tags ~/.tags")
     ami
   }
 
