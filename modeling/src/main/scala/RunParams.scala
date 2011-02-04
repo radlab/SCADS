@@ -20,9 +20,9 @@ case class RunParams(
 	var warmupLengthInMinutes: Int = 5, 
 	var numStorageNodes: Int = 1, 
 	var numQueriesPerCardinality: Int = 1000, 
-	var sleepDurationInMs: Int = 100
+	var sleepDurationInMs: Int = 100,
+	var dataLowerBound: Int = 10
 ) extends AvroRecord {
-	
 	def getNumDataItems: Int = {
 		getMaxCardinality*10
 	}
@@ -52,5 +52,4 @@ case class RunParams(
 			"  sleepDurationInMs: " + sleepDurationInMs.toString
 		).mkString("\n")
 	}
-	
 }
