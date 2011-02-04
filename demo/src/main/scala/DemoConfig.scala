@@ -40,7 +40,7 @@ object DemoConfig {
       S3CachedJar(S3Cache.getCacheUrl(scadrWarFile))
     else {
       logger.info("Using cached scadr war file.")
-      S3CachedJar("http://s3.amazonaws.com/deploylibCache-andyk/cf4795cea32f45694ab018ebdf069a39")
+      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/46d3d1d661936d37b8ff1712482ff860")
     }
 
   /* gRADit */
