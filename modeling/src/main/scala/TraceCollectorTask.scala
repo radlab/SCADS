@@ -28,7 +28,6 @@ case class TraceCollectorTask(
   import TraceCollectorTask._
 
   var beginningOfCurrentWindow = 0.toLong
-  var lowerBound = 10
   
   def run(): Unit = {
     println("made it to run function")
@@ -37,14 +36,6 @@ case class TraceCollectorTask(
 
     logger.info("Adding servers to cluster for each namespace")
     cluster.blockUntilReady(params.numStorageNodes)
-
-    /* get namespaces */
-    println("getting namespace...")
-    val ns = cluster.getNamespace[PrefixedNamespace]("prefixedNamespace")
-    /*
-    val r1 = cluster.getNamespace[R1]("r1")
-    val r2 = cluster.getNamespace[R2]("r2")
-    */
 
     /* create executor that records trace to fileSink */
     println("creating executor...")
@@ -58,86 +49,55 @@ case class TraceCollectorTask(
     val messageTracer = new MessagePassingTracer(fileSink)
     MessageHandler.registerListener(messageTracer)
 
+    /* Get namespaces */
     /* Bulk load some test data into the namespaces */
-    println("loading data...")
-    ns ++= (1 to 10).view.flatMap(i => (1 to params.getNumDataItems).map(j => PrefixedNamespace(i,j)))   // might want to fix hard-coded 10 at some point
-    /*
-    r1 ++= (1 to getNumDataItems).view.map(i => R1(i))
-    r2 ++= (1 to 10).view.flatMap(i => (1 to getNumDataItems).map(j => R2(i,j)))    
-    */
-
     /**
      * Write queries against relations and create optimized function using .toPiql
      * toPiql uses implicit executor defined above to run queries
      */
-    println("creating queries...")
-    val cardinalityList = params.getCardinalityList
-    
-    val queries = cardinalityList.map(currentCardinality => 
-      ns.where("f1".a === 1)
-          .limit(currentCardinality)
-          .toPiql("getRangeQuery-rangeLength=" + currentCardinality.toString)
-    )
-    /*
-    val queries = cardinalityList.map(currentCardinality => 
-      r2.where("f1".a === 1)
-          .limit(currentCardinality)
-          .join(r1)
-          .where("r1.f1".a === "r2.f2".a)
-          .toPiql("joinQuery-cardinality=" + currentCardinality.toString)
-    )
-    */
-    
+    val queryRunner = new GenericQuerySpecRunner(params)
+    queryRunner.setupNamespacesAndCreateQuery(cluster)
 
     // initialize window
     beginningOfCurrentWindow = System.nanoTime
             
     // warmup to avoid JITing effects
+    // TODO:  move this to a function
     println("beginning warmup...")
     fileSink.recordEvent(WarmupEvent(params.warmupLengthInMinutes, true))
     var queryCounter = 1
+    val cardinalityList = params.getCardinalityList
+    
     while (withinWarmup) {
-      cardinalityList.indices.foreach(r => {
-        fileSink.recordEvent(ChangeCardinalityEvent(cardinalityList(r)))
-        
-        fileSink.recordEvent(QueryEvent("getRangeQuery" + queryCounter, true))
-        //fileSink.recordEvent(QueryEvent("joinQuery" + queryCounter, true))
-        
-        val resLengthWarmup = queries(r)().length
-        if (resLengthWarmup != cardinalityList(r))
-          throw new RuntimeException("expected cardinality: " + cardinalityList(r).toString + ", got: " + resLengthWarmup.toString)
-        
-        fileSink.recordEvent(QueryEvent("getRangeQuery" + queryCounter, false))
-        //fileSink.recordEvent(QueryEvent("joinQuery" + queryCounter, false))
-  
-        Thread.sleep(params.sleepDurationInMs)
-        queryCounter += 1
-      })
+      fileSink.recordEvent(QueryEvent(params.queryType + queryCounter, true))
+
+      queryRunner.callQuery(cardinalityList.head)
+
+      fileSink.recordEvent(QueryEvent(params.queryType + queryCounter, false))
+      Thread.sleep(params.sleepDurationInMs)
+      queryCounter += 1
     }
     fileSink.recordEvent(WarmupEvent(params.warmupLengthInMinutes, false))
         
 
     /* Run some queries */
+    // TODO:  move this to a function
     println("beginning run...")
     cardinalityList.indices.foreach(r => {
       println("current cardinality = " + cardinalityList(r).toString)
       fileSink.recordEvent(ChangeCardinalityEvent(cardinalityList(r)))
       
       (1 to params.numQueriesPerCardinality).foreach(i => {
-        fileSink.recordEvent(QueryEvent("getRangeQuery" + i, true))
-        //fileSink.recordEvent(QueryEvent("joinQuery" + i, true))
-  
-        val resLength = queries(r)().length
-        if (resLength != cardinalityList(r))
-          throw new RuntimeException("expected cardinality: " + cardinalityList(r).toString + ", got: " + resLength.toString)
-  
-        fileSink.recordEvent(QueryEvent("getRangeQuery" + i, false))
-        //fileSink.recordEvent(QueryEvent("joinQuery" + i, false))
+        fileSink.recordEvent(QueryEvent(params.queryType + i, true))
 
+        queryRunner.callQuery(cardinalityList(r))
+
+        fileSink.recordEvent(QueryEvent(params.queryType + i, false))
         Thread.sleep(params.sleepDurationInMs)
       })
     })
 
+    // TODO:  put all of this cleanup in a function
     //Flush trace messages to the file
     println("flushing messages to file...")
     fileSink.flush()
@@ -150,52 +110,6 @@ case class TraceCollectorTask(
     snsClient.publishToTopic(topicArn, params.toString, "experiment completed at " + System.currentTimeMillis())
     
     println("Finished with trace collection.")
-  }
-
-  def setupNamespacesAndCreateQuery(cluster: ExperimentalScadsCluster)(implicit executor: QueryExecutor):OptimizedQuery = {
-    val query = params.queryType match {
-      case "getQuery" => 
-        val r1 = cluster.getNamespace[R1]("r1")
-        r1 ++= (1 to 10).view.map(i => R1(i))
-
-        r1.where("f1".a === 1).toPiql("getQuery")
-      case "getRangeQuery" =>
-        val r2 = cluster.getNamespace[R2]("r2")
-        r2 ++= (1 to 10).view.flatMap(i => (1 to params.getNumDataItems).map(j => R2(i,j)))    
-
-        r2.where("f1".a === 1)
-            .limit(0.?, params.getMaxCardinality)
-            .toPiql("getRangeQuery")      
-      case "lookupJoinQuery" =>
-        val r1 = cluster.getNamespace[R1]("r1")
-        val r2 = cluster.getNamespace[R2]("r2")
-        r1 ++= (1 to params.getNumDataItems).view.map(i => R1(i))
-        r2 ++= (1 to 10).view.flatMap(i => (1 to params.getNumDataItems).map(j => R2(i,j)))    
-        
-        r2.where("f1".a === 1)
-            .limit(0.?, params.getMaxCardinality)
-            .join(r1)
-            .where("r1.f1".a === "r2.f2".a)
-            .toPiql("joinQuery")
-      case "mergeSortJoinQuery" =>
-        val r1 = cluster.getNamespace[R1]("r1")
-        val r2 = cluster.getNamespace[R2]("r2")
-        val r2Prime = cluster.getNamespace[R2]("r2Prime")
-  
-        r1 ++= (1 to 10).view.map(i => R1(i))
-        r2 ++= (1 to 10).view.flatMap(i => (1 to params.getNumDataItems).map(j => R2(i,j)))    
-        r2Prime ++= (1 to 10).view.flatMap(i => (1 to params.getNumDataItems).map(j => R2(i,j)))    
-        
-        // what to do about these 2 limits?
-        r2.where("f1".a === 1)
-              .limit(5)
-              .join(r2Prime)
-              .where("r2.f2".a === "r2Prime.f1".a)
-              .sort("r2Prime.f2".a :: Nil)
-              .limit(10)
-              .toPiql("mergeSortJoinQuery")
-    }
-    query
   }
   
   def convertMinutesToNanoseconds(minutes: Int): Long = {
