@@ -13,7 +13,8 @@ package object demo {
 
   def runDemo: Unit = {
     resetScads
-    startScadrDirector
+    startScadrCluster()
+    startScadrDirector()
     startScadr
     startScadrRain
   }
@@ -22,9 +23,9 @@ package object demo {
    * Start a mesos master and make it the primary for the demo.
    * Only needs to be run by one person.
    */
-  def setupMesosMaster: Unit = {
+  def setupMesosMaster(zone:String = "us-east-1a"): Unit = {
     try MesosEC2.master catch {
-      case _ => MesosEC2.startMaster()
+      case _ => MesosEC2.startMaster(zone)
     }
 
     MesosEC2.master.pushJars
@@ -34,6 +35,7 @@ package object demo {
 
   def preloadWars: Unit = {
     MesosEC2.slaves.pforeach(_.cacheFile(scadrWarFile))
+    MesosEC2.slaves.pforeach(_.cacheFile(graditWarFile))
   }
 
   /**
@@ -77,9 +79,27 @@ package object demo {
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
-  def startScadrDirector: Unit = {
+  def startGradit: Unit = {
+    val task = WebAppSchedulerTask(
+      "gRADit",
+      mesosMaster,
+      javaExecutorPath,
+      graditWar,
+      graditWebServerList.canonicalAddress,
+    Map("scads.clusterAddress" -> graditRoot.canonicalAddress)).toJvmTask
+    serviceScheduler !? RunExperimentRequest(task :: Nil)
+  }
+
+  def startScadrCluster(add:Option[String] = None): Unit = {
+    val clusterAddress = add.getOrElse(scadrRoot.canonicalAddress)
+    val task = InitScadrClusterTask(clusterAddress).toJvmTask
+    serviceScheduler !? RunExperimentRequest(task :: Nil)
+  }
+
+  def startScadrDirector(add:Option[String] = None): Unit = {
+    val clusterAddress = add.getOrElse(scadrRoot.canonicalAddress)
     val task = ScadrDirectorTask(
-      scadrRoot.canonicalAddress,
+      clusterAddress,
       mesosMaster
     ).toJvmTask
     serviceScheduler !? RunExperimentRequest(task :: Nil)
@@ -89,7 +109,7 @@ package object demo {
     serviceScheduler !? RunExperimentRequest(
       JvmMainTask(rainJars,
 		  "radlab.rain.Benchmark",
-		  "rain.config.scadr.ramp.json" ::
+		  "rain.config.scadr.flat.json" ::
 		  scadrWebServerList.canonicalAddress :: Nil,
 		  Map("dashboarddb" -> dashboardDb)) :: Nil)
   }
@@ -132,14 +152,14 @@ package object demo {
   }
 
   def loadTwitterSpam(): Unit = {
+    val numServers = 16
     val clusterRoot = zooKeeperRoot.getOrCreate("twitterSpam")
     clusterRoot.children.foreach(_.deleteRecursive)
     val cluster = new ExperimentalScadsCluster(clusterRoot)
 
     serviceScheduler !? RunExperimentRequest(
-      ScalaEngineTask(clusterRoot.canonicalAddress).toJvmTask :: Nil)
-
-    cluster.blockUntilReady(1)
+      List.fill(numServers)(ScalaEngineTask(clusterRoot.canonicalAddress).toJvmTask))
+    cluster.blockUntilReady(numServers)
 
     serviceScheduler !? RunExperimentRequest(
       LoadJsonToScadsTask("http://cs.berkeley.edu/~marmbrus/tmp/labeledTweets.avro", clusterRoot.canonicalAddress).toJvmTask :: Nil)
