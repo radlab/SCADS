@@ -1,6 +1,6 @@
 package edu.berkeley.cs.scads.director
 
-import edu.berkeley.cs.scads.comm.{ PartitionService, StorageService, ZooKeeperProxy, ZooKeeperNode }
+import edu.berkeley.cs.scads.comm.{ PartitionService, StorageService, ZooKeeperProxy, ZooKeeperNode, RemoteActorProxy }
 import edu.berkeley.cs.scads.storage.{ GenericNamespace, ScadsCluster }
 import net.lag.logging.Logger
 
@@ -16,7 +16,7 @@ object Director {
   def nextRndDouble(): Double = rnd.nextDouble()
 }
 
-case class Director(var numClients: Int, namespaceString: String, val scheduler: ScadsServerScheduler) {
+case class Director(var numClients: Int, namespaceString: String, val scheduler: RemoteActorProxy) {
   val period = 20 * 1000
   var controller: Controller = null
   var thread: Thread = null
@@ -50,7 +50,7 @@ case class Director(var numClients: Int, namespaceString: String, val scheduler:
     val policy = if (System.getProperty("doEmpty", "false").toBoolean) new EmptyPolicy(predictor) else new BestFitPolicySplitting(null, 100, 100, 0.99, true, 20 * 1000, 10 * 1000, predictor, true, true, 1, 1, splitQueue, mergeQueue)
     val stateHistory = StateHistory(period, namespace, policy)
     stateHistory.startUpdating
-    val executor = new TestGroupingExecutor(namespace, splitQueue, mergeQueue)//new SplittingGroupingExecutor(namespace, splitQueue, scheduler)// new GroupingExecutor(namespace, scheduler)
+    val executor = /*new TestGroupingExecutor(namespace, splitQueue, mergeQueue)*/new SplittingGroupingExecutor(namespace, splitQueue, mergeQueue, scheduler)// new GroupingExecutor(namespace, scheduler)
     executor.start
 
     // when clients are ready to start, start everything

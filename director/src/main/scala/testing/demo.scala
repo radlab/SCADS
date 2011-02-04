@@ -9,10 +9,10 @@ import net.lag.logging.Logger
  */
 object multiNSdirectorTest {
   org.apache.log4j.Logger.getRootLogger.setLevel(org.apache.log4j.Level.WARN)
-  val partitionsPerNamespace = 10
+  val partitionsPerNamespace = 1
   var maxkey = System.getProperty("maxkey", "10000").toInt
   val nsPrefix = "directortest"
-  var sched: ScadsServerScheduler = null
+  var sched: RemoteActorProxy = null
   
   /* class source for starting storage nodes on mesos */
   implicit def classSource = deploylib.mesos.MesosEC2.classSource
@@ -20,7 +20,7 @@ object multiNSdirectorTest {
   /**
    * connect to zookeep, create cluster, set up namespaces with all partitions on one server
    */
-  def init(zoopath: String, mesospath: String, numNamespaces: Int): Seq[GenericNamespace] = {
+  /*def init(zoopath: String, mesospath: String, numNamespaces: Int): Seq[GenericNamespace] = {
     // connect to mesos and zookeeper
     val node = ZooKeeperNode(zoopath)
     ScadsServerScheduler
@@ -37,12 +37,12 @@ object multiNSdirectorTest {
 
     // create each namespace, and put all partitions on one server
     val slice = maxkey / partitionsPerNamespace
-    /*(0 until numNamespaces).toList.map( i => {
+    (0 until numNamespaces).toList.map( i => {
 			Director.cluster.createNamespace[IntRec, StringRec](nsPrefix+i, 
 				(None, storageServers.slice(i,i+1)) :: 
 				(1 until partitionsPerNamespace).toList.map(p => (Some(IntRec(p*slice)), storageServers.slice(i,i+1)))
 			).genericNamespace
-		})*/
+		})
     (0 until numNamespaces).toList.map(i => {
       var storageServers = Director.cluster.getAvailableServers(nsPrefix + i)
       Director.cluster.createNamespace[IntRec, StringRec](nsPrefix + i,
@@ -50,7 +50,7 @@ object multiNSdirectorTest {
     })
 
   }
-
+*/
   def initTest(numNamespaces: Int): Seq[GenericNamespace] = {
     Director.cluster = new ManagedScadsCluster(TestScalaEngine.newScadsCluster(0).root)
     (0 until numNamespaces).foreach(i => Director.cluster match { case m: ManagedScadsCluster => m.addNamedNode(nsPrefix + i + "first") })
@@ -64,7 +64,7 @@ object multiNSdirectorTest {
     })
 
   }
-
+/*
   def startExisting(zoopath: String, mesospath: String, namespaceStrings: List[String]): List[Director] = {
     System.setProperty("doEmpty", "true")
     val node = ZooKeeperNode(zoopath)
@@ -72,7 +72,7 @@ object multiNSdirectorTest {
     sched = ScadsServerScheduler("director", mesospath, node.canonicalAddress)
     namespaceStrings.map(ns => Director(1, ns, sched))
   }
-
+*/
   def start(namespaces: Seq[GenericNamespace], zoopath: String) = {
     val directors = (0 until namespaces.size).toList.map(i => Director(1, nsPrefix + i, sched))
     directors.foreach(_.run(ZooKeeperNode(zoopath)))
@@ -164,12 +164,6 @@ object directorTest {
       (Some(IntRec(15000)), storageServers.slice(3, 4))))
 
   }
-  def start(zoopath: String): Unit = {
-    //Logger("policy").setLevel(java.util.logging.Level.FINEST)
-    val namespaceString = "getputtest"
-    val director = Director(1, namespaceString, sched)
-    director.run(ZooKeeperNode(zoopath))
-  }
 }
 
 object runClient {
@@ -199,7 +193,7 @@ object runClient {
   }
 
   def startflat(namespaceString: String, zoopath: String, numclients: Int, totalflat: Int): Unit = {
-    val workload = WorkloadGenerators.flatWorkloadRates(1.0, 0, 0, maxkey, totalflat, 3) // run for 3 min
+    val workload = WorkloadGenerators.flatWorkloadRates(1.0, 0, 0, maxkey, totalflat, 5) // run for x min
     workload.serialize("/tmp/workload.ser")
 
     val client = AsyncIntClient(1, numclients, namespaceString, "/tmp/workload.ser", maxkey, 2, 0.1)
