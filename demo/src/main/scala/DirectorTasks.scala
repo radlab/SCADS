@@ -35,7 +35,7 @@ case class ScadrDirectorTask(var clusterAddress: String, var mesosMaster: String
 
     //logger.info("Adding servers to cluster for each namespace")
     //scheduler.addServers(namespaces.keys.map(_ + "node0"))
-    //cluster.blockUntilReady(namespaces.size)
+    cluster.blockUntilReady(namespaces.size)
     Director.cluster = cluster
 
   //     namespaces.foreach {
