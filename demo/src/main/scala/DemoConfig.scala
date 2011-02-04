@@ -81,12 +81,12 @@ object DemoConfig {
   protected def toServerList(node: ZooKeeperProxy#ZooKeeperNode) = {
     val servers = new String(scadrWebServerList.data).split("\n")
     servers.zipWithIndex.map {
-      case (s: String, i: Int) => <a href={"http://%s:8080/".format(s)}>{i}</a>
+      case (s: String, i: Int) => <a href={"http://%s:8080/".format(s)} target="_blank">{i}</a>
     }
   }
 
   def toHtml: scala.xml.NodeSeq = {
-    <div>RADLab Demo Setup: <a href={"http://" + serviceScheduler.host + ":8080"}>Mesos Master</a><br/> 
+    <div>RADLab Demo Setup: <a href={"http://" + serviceScheduler.host + ":8080"} target="_blank">Mesos Master</a><br/> 
       Scadr Servers: {toServerList(scadrWebServerList)}
     </div>
   }
