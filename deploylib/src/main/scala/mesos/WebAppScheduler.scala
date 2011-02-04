@@ -74,7 +74,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
         val aggregateReqRate = requestsPerSec.sum
         smoothedWorkload = smoothedWorkload + (aggregateReqRate - smoothedWorkload) * workloadWeight // newsmooth = oldsmooth + (newraw - oldsmooth)*alpha
         targetNumServers = math.max(minServers, math.ceil(smoothedWorkload / serverCapacity).toInt)
-        logger.info("Current Aggregate Workload: %f req/sec (%f smoothed), targetServers=%f", aggregateReqRate, smoothedWorkload, targetNumServers)
+        logger.info("Current Aggregate Workload: %f req/sec (%f smoothed), targetServers=%d", aggregateReqRate, smoothedWorkload, targetNumServers)
 
 	//TODO: Error Handling
         statement.foreach(s => {
