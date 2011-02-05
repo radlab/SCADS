@@ -1,15 +1,15 @@
 require 'spec_helper'
 
-describe BookLine do
+describe WordContext do
   before(:each) do
     @valid_attributes = {
-      :id => 1,
-      :line => "value for line",
-      :source => 
+      :string => ,
+      :text => ,
+      :text => 
     }
   end
 
   it "should create a new instance given valid attributes" do
-    BookLine.create!(@valid_attributes)
+    Context.create!(@valid_attributes)
   end
 end

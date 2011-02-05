@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe SearchController do
+describe UsersController do
 
 
 end

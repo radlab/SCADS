@@ -1,20 +1,19 @@
 require 'spec_helper'
 
-describe "/words/index.html.erb" do
-  include WordsHelper
+describe "/games/index.html.erb" do
 
   before(:each) do
-    assigns[:words] = [
-      stub_model(Word,
+    assigns[:wordlists] = [
+      stub_model(Wordlist,
         :string => 
       ),
-      stub_model(Word,
+      stub_model(Wordlist,
         :string => 
       )
     ]
   end
 
-  it "renders a list of words" do
+  it "renders a list of wordlists" do
     render
     response.should have_tag("tr>td", .to_s, 2)
   end

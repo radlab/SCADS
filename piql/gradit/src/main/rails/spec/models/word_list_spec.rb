@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe Wordlist do
+describe WordList do
   before(:each) do
     @valid_attributes = {
       :string => 
