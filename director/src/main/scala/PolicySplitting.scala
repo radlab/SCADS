@@ -378,12 +378,13 @@ class BestFitPolicySplitting(
     }
   
     if (targetServer.isDefined) { // successfully have a target server for the partition
+      logger.debug("target for move: %s", targetServer.get)
       receivers += targetServer.get
       if (!ghosts.contains(targetServer.get)) movableActions.get.foreach(a=> currentState = addAction(a,currentState))
       else movableActions.get.foreach(a=> currentState = addGhostAction(a,currentState))
       Some(currentState)
     }
-    else None
+    else { logger.debug("couldn't find target for move") ;None}
   }
   
   private def tryMoving(part:PartitionService,sourceServer:StorageService, target:StorageService, config:ClusterState, workload:WorkloadHistogram):Option[List[Action]] = {
@@ -426,6 +427,7 @@ class BestFitPolicySplitting(
     
     for (target <- orderedPotentialTargets) {
       if (!done && nReplicas < MAX_R) {
+        logger.debug("trying more than %d relicas", nReplicas)
         val replicateAction = ReplicatePartition(part,sourceServer,target,MOVE_OVERLOAD)
     		var tmpConfig = replicateAction.preview(currentConfig)
         if (!performanceEstimator.violationOnServer(tmpConfig,workload,target)) { // ok for target to move there	
@@ -444,11 +446,13 @@ class BestFitPolicySplitting(
     }
     // if don't have enough replicas still, start adding more servers
     while (!done && nReplicas < MAX_R) {
+      logger.debug("trying more than %d relicas on new servers", nReplicas)
       val (emptyServer, addServerAction) = getEmptyServer(REP_ADD,currentConfig)
       if (addServerAction.isDefined) { ghosts += emptyServer; currentConfig = addGhostAction(addServerAction.get,currentConfig); repActions += addServerAction.get }
       val replicateAction = ReplicatePartition(part,sourceServer,emptyServer,REP_ADD)
       currentConfig = replicateAction.preview(currentConfig)
       repActions += replicateAction
+      nReplicas += 1
       if (!performanceEstimator.violationOnServer(currentConfig,workload,sourceServer)) done = true
     }
     if (!done) logger.warning("didn't have enough servers to create replicas")

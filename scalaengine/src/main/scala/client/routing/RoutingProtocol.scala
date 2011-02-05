@@ -288,7 +288,7 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
     routingTable = new RangeTable[RoutingKeyType, PartitionService](ranges,
       (a: RoutingKeyType, b: RoutingKeyType) => a.compare(b),
       (a: Seq[PartitionService], b: Seq[PartitionService]) => {
-        a.corresponds(b)((v1, v2) => v1.storageService.id == v2.storageService.id)
+        a.corresponds(b)((v1, v2) => v1.storageService equals v2.storageService)
       })
   }
 

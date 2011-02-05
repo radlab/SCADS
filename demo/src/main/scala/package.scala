@@ -13,7 +13,8 @@ package object demo {
 
   def runDemo: Unit = {
     resetScads
-    startScadrDirector
+    startScadrCluster()
+    startScadrDirector()
     startScadr
     startScadrRain
   }
@@ -22,9 +23,9 @@ package object demo {
    * Start a mesos master and make it the primary for the demo.
    * Only needs to be run by one person.
    */
-  def setupMesosMaster: Unit = {
+  def setupMesosMaster(zone:String = "us-east-1a"): Unit = {
     try MesosEC2.master catch {
-      case _ => MesosEC2.startMaster()
+      case _ => MesosEC2.startMaster(zone)
     }
 
     MesosEC2.master.pushJars
@@ -89,9 +90,16 @@ package object demo {
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
-  def startScadrDirector: Unit = {
+  def startScadrCluster(add:Option[String] = None): Unit = {
+    val clusterAddress = add.getOrElse(scadrRoot.canonicalAddress)
+    val task = InitScadrClusterTask(clusterAddress).toJvmTask
+    serviceScheduler !? RunExperimentRequest(task :: Nil)
+  }
+
+  def startScadrDirector(add:Option[String] = None): Unit = {
+    val clusterAddress = add.getOrElse(scadrRoot.canonicalAddress)
     val task = ScadrDirectorTask(
-      scadrRoot.canonicalAddress,
+      clusterAddress,
       mesosMaster
     ).toJvmTask
     serviceScheduler !? RunExperimentRequest(task :: Nil)
@@ -101,7 +109,7 @@ package object demo {
     serviceScheduler !? RunExperimentRequest(
       JvmMainTask(rainJars,
 		  "radlab.rain.Benchmark",
-		  "rain.config.scadr.ramp.json" ::
+		  "rain.config.scadr.flat.json" ::
 		  scadrWebServerList.canonicalAddress :: Nil,
 		  Map("dashboarddb" -> dashboardDb)) :: Nil)
   }

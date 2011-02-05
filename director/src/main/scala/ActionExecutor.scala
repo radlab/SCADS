@@ -1,7 +1,10 @@
-package edu.berkeley.cs.scads.director
+package edu.berkeley.cs
+package scads
+package director
 
-import edu.berkeley.cs.scads.storage.{GenericNamespace, ManagedScadsCluster}
-import edu.berkeley.cs.scads.comm._
+import storage.{GenericNamespace, ManagedScadsCluster, ScalaEngineTask}
+import comm._
+import deploylib.mesos._
 import net.lag.logging.Logger
 
 /**
@@ -98,7 +101,7 @@ abstract class ActionExecutor(val execDelay:Long) extends Runnable {
 * Replication precedes Deletion precedes Removal
 * TODO: where in order whould add/remove servers be run?
 */
-class GroupingExecutor(val namespace:GenericNamespace, val scheduler:ScadsServerScheduler = null, override val execDelay:Long = 1000) extends ActionExecutor(execDelay) {
+class GroupingExecutor(val namespace:GenericNamespace, val scheduler:RemoteActorProxy = null, override val execDelay:Long = 1000) extends ActionExecutor(execDelay) {
 	def execute() = {
 		if (actions.filter(a => a match { 			// only run if all previous Replicate or Delete actions finished
 			case r:ReplicatePartition => r.running
@@ -155,17 +158,25 @@ class GroupingExecutor(val namespace:GenericNamespace, val scheduler:ScadsServer
 		val prefix = if (namespace == null) "" else namespace.namespace
 		logger.debug("%d add server actions",add.size)
 		if (!add.isEmpty && scheduler != null) {
-			scheduler.addServers( add.map(a => a match{ case ad:AddServer => prefix+ad.fakeServer.host }) )
+			//scheduler.addServers( add.map(a => a match{ case ad:AddServer => prefix+ad.fakeServer.host }) )
+			scheduler !? RunExperimentRequest(add.map(a => a match{ case ad:AddServer => serverProcess(prefix+ad.fakeServer.host) }) )
 			//logger.debug("sleeping right now instead of waiting on child")
 			//Thread.sleep(20*1000)
 			add.foreach{ a => a match { 
-				case ad:AddServer => { scheduler.cluster.root.awaitChild("availableServers/"+prefix+ad.fakeServer.host); ad.setComplete }
+				case ad:AddServer => { ad.setStart; /*namespace*/Director.cluster.root.awaitChild("availableServers/"+prefix+ad.fakeServer.host); logger.info("server %s should be available",prefix+ad.fakeServer.host); ad.setComplete } // TODO: stop waiting eventually
 			} }
 		}
 	}
+	
+	//HACK
+	implicit val classSource = MesosEC2.classSource
+	private def serverProcess(name: String): JvmMainTask =
+    ScalaEngineTask(clusterAddress = /*namespace*/Director.cluster.root.canonicalAddress,
+		    name = Option(name)).toJvmTask
+	
 }
 
-class SplittingGroupingExecutor(namespace:GenericNamespace, splitMaps:java.util.concurrent.LinkedBlockingQueue[(Option[org.apache.avro.generic.GenericRecord],Seq[Option[org.apache.avro.generic.GenericRecord]])] = null, mergeMaps:java.util.concurrent.LinkedBlockingQueue[(Seq[Option[org.apache.avro.generic.GenericRecord]],Option[org.apache.avro.generic.GenericRecord])] = null,sched:ScadsServerScheduler = null) extends GroupingExecutor(namespace, sched) {
+class SplittingGroupingExecutor(namespace:GenericNamespace, splitMaps:java.util.concurrent.LinkedBlockingQueue[(Option[org.apache.avro.generic.GenericRecord],Seq[Option[org.apache.avro.generic.GenericRecord]])] = null, mergeMaps:java.util.concurrent.LinkedBlockingQueue[(Seq[Option[org.apache.avro.generic.GenericRecord]],Option[org.apache.avro.generic.GenericRecord])] = null,sched:RemoteActorProxy = null) extends GroupingExecutor(namespace, sched) {
   override def execute() = {
     if (actions.filter(a => a match { 			// only run if all previous Replicate or Delete actions finished
 			case r:ReplicatePartition => r.running
@@ -191,9 +202,9 @@ class SplittingGroupingExecutor(namespace:GenericNamespace, splitMaps:java.util.
 			//if have add actions, scheulde them with mesos, then wait for their appearance in the cluster
       doAdd()
 		  
-		  logger.info("executor done acting")
+		  logger.debug("executor done acting")
 		}
-		else logger.info("executor can't run due to running actions")
+		else logger.debug("executor can't run due to running actions")
   }
   
   def getSplitActions():List[Action] = actions.filter(a=> a match { case r:SplitPartition => r.ready; case _ => false } )

@@ -42,9 +42,11 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
   var runMonitorThread = true
   var numToKill = 0
   var killTimer = 0
-  @volatile var targetNumServers: Double = minServers
+  @volatile var targetNumServers: Int = minServers
   val monitorThreadPeriod = 1000 * 10 // Recalculate targetNumServers every 10 seconds
-  val numServersHistoryWeight = 0.95 // Smooth task killing by weighing in history. Must be >=0.0 and <1.0.
+  //val numServersHistoryWeight = 0.95 // Smooth task killing by weighing in history. Must be >=0.0 and <1.0.
+  val workloadWeight = 0.9 //Smooth task killing by weighing in history. Must be >=0.0 and <1.0.
+  var smoothedWorkload = 0.0 // the smoothed version of the aggregate workload
   var servers =  new HashMap[Int, String]()
   var pendingServers =  new HashMap[Int, String]()
   val monitorThread = new Thread("StatsThread") {
@@ -70,8 +72,9 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
 
         logger.info("Current Workload: %s", requestsPerSec)
         val aggregateReqRate = requestsPerSec.sum
-        targetNumServers = math.max(minServers, numServersHistoryWeight * targetNumServers + (1.0 - numServersHistoryWeight) * math.ceil(aggregateReqRate / serverCapacity))
-        logger.info("Current Aggregate Workload: %f req/sec, targetServers=%f", aggregateReqRate, targetNumServers)
+        smoothedWorkload = smoothedWorkload + (aggregateReqRate - smoothedWorkload) * workloadWeight // newsmooth = oldsmooth + (newraw - oldsmooth)*alpha
+        targetNumServers = math.max(minServers, math.ceil(smoothedWorkload / serverCapacity).toInt)
+        logger.info("Current Aggregate Workload: %f req/sec (%f smoothed), targetServers=%d", aggregateReqRate, smoothedWorkload, targetNumServers)
 
 	//TODO: Error Handling
         statement.foreach(s => {

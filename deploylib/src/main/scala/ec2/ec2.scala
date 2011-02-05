@@ -3,8 +3,10 @@ package deploylib.ec2
 import deploylib._
 import deploylib.runit._
 
-import com.amazonaws.ec2._
-import com.amazonaws.ec2.model._
+import com.amazonaws.ClientConfiguration
+import com.amazonaws.auth.BasicAWSCredentials
+import com.amazonaws.services.ec2._
+import com.amazonaws.services.ec2.model._
 import net.lag.logging.Logger
 import java.io.File
 import edu.berkeley.cs.scads.comm._
@@ -22,14 +24,10 @@ object EC2Instance extends AWSConnection {
   protected val logger = Logger()
 
   var keyName = System.getenv("AWS_KEY_NAME")
-
-  private val config = new AmazonEC2Config()
-
-  if (System.getenv("EC2_URL") != null)
-    config.setServiceURL(System.getenv("EC2_URL"))
-
-  protected val client = new AmazonEC2Client(accessKeyId, secretAccessKey, config)
-  var instanceData: Map[String, RunningInstance] = Map[String, RunningInstance]()
+  private val config = new ClientConfiguration()
+  private val credentials = new BasicAWSCredentials(accessKeyId, secretAccessKey)
+  protected val client = new AmazonEC2Client(credentials, config)
+  var instanceData: Map[String, Instance] = Map[String, Instance]()
   protected val instances = new scala.collection.mutable.HashMap[String, EC2Instance]
   protected var lastUpdate = 0L
 
@@ -42,9 +40,9 @@ object EC2Instance extends AWSConnection {
       if (System.currentTimeMillis() - lastUpdate < 10000)
         logger.debug("Skipping ec2 update since it was done less than 10 seconds ago")
       else {
-        val result = client.describeInstances(new DescribeInstancesRequest()).getDescribeInstancesResult()
-        instanceData = Map(result.getReservation.flatMap((r) => {
-          r.getRunningInstance.map((i) => {
+        val result = client.describeInstances(new DescribeInstancesRequest())
+        instanceData = Map(result.getReservations.flatMap((r) => {
+          r.getInstances.map((i) => {
             (i.getInstanceId, i)
           })
         }): _*)
@@ -100,27 +98,19 @@ object EC2Instance extends AWSConnection {
    */
   def runInstances(imageId: String, min: Int, max: Int, keyName: String, instanceType: String, location: String, userData: Option[String] = None): Seq[EC2Instance] = {
     val encoder = new sun.misc.BASE64Encoder
-    val request = new RunInstancesRequest(
-      imageId, // imageID
-      min, // minCount
-      max, // maxCount
-      keyName, // keyName
-      null, // securityGroup
-      userData.map(s => encoder.encode(s.getBytes)).orNull, // userData
-      instanceType, // instanceType
-      new Placement(location), // placement
-      null, // kernelId
-      null, // ramdiskId
-      null, // blockDeviceMapping
-      null) // monitoring
+    val request = new RunInstancesRequest(imageId, min, max)
+      .withKeyName(keyName)
+      .withUserData(userData.map(s => encoder.encode(s.getBytes)).orNull)
+      .withInstanceType(instanceType)
+      .withPlacement(new Placement(location))
 
-    val result = client.runInstances(request).getRunInstancesResult()
+    val result = client.runInstances(request)
 
     synchronized {
-      instanceData ++= result.getReservation().getRunningInstance().map(ri => (ri.getInstanceId, ri))
+      instanceData ++= result.getReservation().getInstances().map(ri => (ri.getInstanceId, ri))
     }
 
-    val retInstances = result.getReservation().getRunningInstance().map(ri => getInstance(ri.getInstanceId))
+    val retInstances = result.getReservation().getInstances().map(ri => getInstance(ri.getInstanceId))
 
     retInstances.foreach(r => {
       r.blockUntilRunning
@@ -149,7 +139,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
   def halt: Unit =
     this ! "halt"
 
-  def currentState: RunningInstance =
+  def currentState: Instance =
     EC2Instance.instanceData(instanceId)
 
   def imageId: String =
@@ -171,11 +161,21 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     currentState.getPlacement().getAvailabilityZone()
 
   def instanceState: String =
-    EC2Instance.instanceData(instanceId).getInstanceState.getName()
+    EC2Instance.instanceData(instanceId).getState.getName()
 
   def getHostname(): String = {
     blockUntilRunning()
     publicDnsName
+  }
+
+  def enableMonitoring(): Unit = {
+    val req = new MonitorInstancesRequest(instanceId :: Nil)
+    EC2Instance.client.monitorInstances(req)
+  }
+
+  def disableMonitoring(): Unit = {
+    val req = new UnmonitorInstancesRequest(instanceId :: Nil)
+    EC2Instance.client.unmonitorInstances(req)
   }
 
   /**
@@ -290,22 +290,26 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
   /**
    * Creates a new AMI based on this image using ec2-bundle-vol and
    * ec2-upload-bundle.
-   **/
+   */
   def bundleNewAMI(bucketName: String): String = {
+    //TODO(andyk): Verify that the bucketname isn't already used or this will
+    //             fail when we get to ec2-upload-bundle anyway.
     upload(ec2Cert, new File("/tmp"))
     upload(ec2PrivateKey, new File("/tmp"))
     this ! "rm -rf /tmp/image"
+    this.executeCommand("mv ~/.tags /tmp/mesos-ec2-tags")
     this ! "ec2-bundle-vol -c /tmp/%s -k /tmp/%s -u %s --arch %s".format(ec2Cert.getName, ec2PrivateKey.getName, userID, "x86_64")
     this ! "ec2-upload-bundle -b %s -m %s -a %s -s %s".format(bucketName, "/tmp/image.manifest.xml", accessKeyId, secretAccessKey)
     val registerRequest = new RegisterImageRequest(bucketName + "/image.manifest.xml")
     val registerResponse = EC2Instance.client.registerImage(registerRequest)
-    val ami = registerResponse.getRegisterImageResult.getImageId
+    val ami = registerResponse.getImageId
     var req = new ModifyImageAttributeRequest()
                  .withImageId(ami)
                  .withOperationType("add")
-                 .withUserGroup("all")
+                 .withUserGroups("all" :: Nil)
                  .withAttribute("launchPermission")
     EC2Instance.client.modifyImageAttribute(req)
+    this.executeCommand("mv /tmp/mesos-ec2-tags ~/.tags")
     ami
   }
 

@@ -11,40 +11,48 @@ import scads.perf._
 
 import net.lag.logging.Logger
 
+case class InitScadrClusterTask(var clusterAddress:String) extends AvroTask with AvroRecord {
+  import DemoConfig._
+
+  def run() = {
+    DemoConfig.initScadrCluster(clusterAddress)
+    System.exit(0)
+  }
+}
 
 case class ScadrDirectorTask(var clusterAddress: String, var mesosMaster: String) extends AvroTask with AvroRecord {
   import DemoConfig._
 
   def run() = {
     val namespaces = Map("users" -> classOf[edu.berkeley.cs.scads.piql.scadr.User],
-		       "thoughts" -> classOf[edu.berkeley.cs.scads.piql.scadr.Thought],
-		       "subscriptions" -> classOf[edu.berkeley.cs.scads.piql.scadr.Subscription])
+              "thoughts" -> classOf[edu.berkeley.cs.scads.piql.scadr.Thought],
+               "subscriptions" -> classOf[edu.berkeley.cs.scads.piql.scadr.Subscription])
     val clusterRoot = ZooKeeperNode(clusterAddress)
-    val scheduler = ScadsServerScheduler("SCADr Storage Director",
+    val scheduler = /*ScadsServerScheduler("SCADr Storage Director",
 					 mesosMaster,
-					 clusterRoot.canonicalAddress)
+					 clusterRoot.canonicalAddress)*/DemoConfig.serviceScheduler
     val cluster = new ExperimentalScadsCluster(clusterRoot)
 
-    logger.info("Adding servers to cluster for each namespace")
-    scheduler.addServers(namespaces.keys.map(_ + "node0"))
+    //logger.info("Adding servers to cluster for each namespace")
+    //scheduler.addServers(namespaces.keys.map(_ + "node0"))
     cluster.blockUntilReady(namespaces.size)
     Director.cluster = cluster
 
-    namespaces.foreach {
-      case (name, entityType) => {
-	logger.info("Creating namespace %s", name)
-	val entity = entityType.newInstance
-	val keySchema = entity.key.getSchema
-	val valueSchema = entity.value.getSchema
-	val initialPartitions = (None, cluster.getAvailableServers(name)) :: Nil
-
-	Director.cluster.createNamespace(name, keySchema, valueSchema, initialPartitions)
-      }
-    }
+  //     namespaces.foreach {
+  //       case (name, entityType) => {
+  // logger.info("Creating namespace %s", name)
+  // val entity = entityType.newInstance
+  // val keySchema = entity.key.getSchema
+  // val valueSchema = entity.value.getSchema
+  // val initialPartitions = (None, cluster.getAvailableServers(name)) :: Nil
+  // 
+  // Director.cluster.createNamespace(name, keySchema, valueSchema, initialPartitions)
+  //       }
+  //     }
 
     /* run the empty policy, which does nothing but observe workload stats */
     //TODO: make this an argument to director instead of global property
-    System.setProperty("doEmpty", "true")
+    //System.setProperty("doEmpty", "true")
 
     logger.info("Starting Directors")
     val directors = namespaces.keys.map(ns => Director(1, ns, scheduler))
