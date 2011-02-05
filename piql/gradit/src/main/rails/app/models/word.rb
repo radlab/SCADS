@@ -30,7 +30,12 @@ class Word < AvroRecord
   end
   
   def self.find_by_word(word)
-    Word.findWordByWord(word).first.first
+    w = Word.findWordByWord(word)
+    if !w.empty?
+        return w.first.first
+    else
+        return nil
+    end
   end
   
   #Returns a random word
@@ -67,4 +72,22 @@ class Word < AvroRecord
     wc
   end
 
+  #contexts method only gives one (first) context?  allContexts gives all contexts
+  #each result is given as an array, that is:
+  #word.allContexts will give
+  #   [<#WordContext> <#WordContext> ] etc.
+  
+  def allContexts
+    begin #HACK: rescue exception
+      WordContext.contextsForWord(java.lang.Integer.new(self.wordid))
+    rescue Exception => e
+      puts "exception was thrown"
+      puts e
+    end
+    wc = WordContext.contextsForWord(java.lang.Integer.new(self.wordid)) #HACK: call everything twice for piql bug
+    puts "***JUST CALLED WORD.CONTEXTS***"
+    puts wc
+    wc = wc.map { |c| c.first }
+    wc
+  end
 end

@@ -1,8 +1,15 @@
 class SearchController < ApplicationController
   def context
-    currentword = Word.findWordByWord(params[:word]).first.first
-    @contexts = currentword.contexts
-    @contexts_size = @contexts.size
+    puts "myword"
+    currentword = Word.find_by_word(params[:word])
+    if currentword != nil
+        @contexts = currentword.allContexts
+        @contexts_size = @contexts.size
+    else
+        @contexts = nil
+        @contexts_size = 0
+    end
+
     
   end
   
