@@ -168,6 +168,16 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     publicDnsName
   }
 
+  def enableMonitoring(): Unit = {
+    val req = new MonitorInstancesRequest(instanceId :: Nil)
+    EC2Instance.client.monitorInstances(req)
+  }
+
+  def disableMonitoring(): Unit = {
+    val req = new UnmonitorInstancesRequest(instanceId :: Nil)
+    EC2Instance.client.unmonitorInstances(req)
+  }
+
   /**
    * Upload all of the jars in the file ./allJars and create jrun/console scripts
    * for working with them
