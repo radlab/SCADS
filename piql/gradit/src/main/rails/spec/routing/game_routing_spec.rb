@@ -3,31 +3,20 @@ require 'spec_helper'
 describe GamesController do
   describe "routing" do
     it "recognizes and generates #index" do
-      { :get => "/wordlists" }.should route_to(:controller => "wordlists", :action => "index")
+      { :get => "/games" }.should route_to(:controller => "games", :action => "index")
     end
 
-    it "recognizes and generates #new" do
-      { :get => "/wordlists/new" }.should route_to(:controller => "wordlists", :action => "new")
+    it "recognizes new_game" do
+      { :get => "/games/new_game/0?wordlist=wordlist" }.should route_to(:controller => "games", :action => "new_game", :id => 0, :wordlist => "wordlist")
     end
 
-    it "recognizes and generates #show" do
-      { :get => "/wordlists/1" }.should route_to(:controller => "wordlists", :action => "show", :id => "1")
+    it "recognizes game_entry" do
+      { :get => "/games/game_entry/1" }.should route_to(:controller => "games", :action => "game_entry", :id => "1")
     end
 
-    it "recognizes and generates #edit" do
-      { :get => "/wordlists/1/edit" }.should route_to(:controller => "wordlists", :action => "edit", :id => "1")
+    it "recognizes ans" do
+      { :get => "/games/ans/1?answer=vex" }.should route_to(:controller => "games", :action => "ans", :id => "1", :answer => "vex")
     end
 
-    it "recognizes and generates #create" do
-      { :post => "/wordlists" }.should route_to(:controller => "wordlists", :action => "create") 
-    end
-
-    it "recognizes and generates #update" do
-      { :put => "/wordlists/1" }.should route_to(:controller => "wordlists", :action => "update", :id => "1") 
-    end
-
-    it "recognizes and generates #destroy" do
-      { :delete => "/wordlists/1" }.should route_to(:controller => "wordlists", :action => "destroy", :id => "1") 
-    end
   end
 end
