@@ -7,7 +7,7 @@ describe GamesController do
     end
 
     it "recognizes new_game" do
-      { :get => "/games/new_game/0?wordlist=wordlist" }.should route_to(:controller => "games", :action => "new_game", :id => 0, :wordlist => "wordlist")
+      { :get => "/games/new_game/0?wordlist=wordlist" }.should route_to(:controller => "games", :action => "new_game", :id => "0", :wordlist => "wordlist")
     end
 
     it "recognizes game_entry" do

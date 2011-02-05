@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe Game do
   before(:each) do
-    @w = Wordlist.createNew("wordlist")
+    @w = WordList.createNew("wordlist")
   end
 
   it "should create a new instance given valid attributes" do
@@ -27,7 +27,7 @@ describe Game do
   it "should run changeWord correctly" do
     g = Game.createNew("wordlist")
     
-    g.changeword(18)
+    g.changeWord(18)
     g.currentword.should == 18
   end
   

@@ -15,7 +15,7 @@ describe User do
   it "should validate uniqueness of usernames" do
   end
   
-  it "should store passwords in an appropriate hash format which can later be recovered accurately"
+  it "should store passwords in an appropriate hash format which can later be recovered accurately" do
   end
   
   it "should be able to find User by PK" do

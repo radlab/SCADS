@@ -1,2 +1,2 @@
-class WordListWord
-end
+#class WordListWord
+#end
