@@ -1,7 +1,5 @@
 class UsersController < ApplicationController
-
-  # def index
-  # end
+  before_filter :check_valid_user, :only => [:show]
 
   def new
     @user = User.new
@@ -31,9 +29,6 @@ class UsersController < ApplicationController
   end
 
   def show
-    raw_users = User.find_user(params[:id])
-    raw_users.present? ? @user = raw_users.first.first : @user = nil
-    
     raw_thoughts = @user.my_thoughts(10)
     @thoughts = raw_thoughts.collect{ |t| t.first }
     
@@ -56,4 +51,13 @@ class UsersController < ApplicationController
       end
     end
   end
+  
+  private
+    def check_valid_user
+      @user = User.find(params[:id])
+      if @user.blank?
+        flash[:notice] = "The user #{params[:id].to_s} does not exist."
+        redirect_to root_path
+      end
+    end
 end

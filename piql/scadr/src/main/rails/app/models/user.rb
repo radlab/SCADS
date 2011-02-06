@@ -14,6 +14,11 @@ class User < AvroRecord
   # has_many :incoming_subscriptions, :class_name => "Subscription", :foreign_key => :target
   # has_many :subscribers, :through => :incoming_subscriptions
 
+  def self.find(id)
+    raw_users = User.find_user(id)
+    raw_users.present? ? @user = raw_users.first.first : @user = nil
+  end
+
   def to_param
     username
   end
