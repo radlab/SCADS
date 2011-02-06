@@ -57,6 +57,13 @@ class AvroRecord
     end
   end
   
+  # Mainly for RSpec
+  def self.create!(opts={})
+    obj = new(opts)
+    obj.save
+    return obj
+  end
+  
   def self.fetch(opts={})
     record = self.new(opts)
     record.set_stale

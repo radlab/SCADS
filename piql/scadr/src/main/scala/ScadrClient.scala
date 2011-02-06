@@ -36,6 +36,8 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
   lazy val thoughts = cluster.getNamespace[Thought]("thoughts")
   lazy val subscriptions = cluster.getNamespace[Subscription]("subscriptions")
   lazy val tags = cluster.getNamespace[HashTag]("tags")
+  // Additional way to access tags, to match AvroRecord's conventions:
+  lazy val hashtags = cluster.getNamespace[HashTag]("hashtags")
 
   /* Optimized queries */
   val findUser = users.where("username".a === (0.?)).toPiql("findUser")
