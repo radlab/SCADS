@@ -22,12 +22,12 @@
         <%= f.text_field :home_town %>
       </li>
       <li>
-        <%= f.label :password %>
-        <%= f.password_field :password %>
+        <%= f.label :plain_password, 'Password' %>
+        <%= f.password_field :plain_password %>
       </li>
       <li>
         <%= f.label :confirm_password %>
-        <%= password_field_tag :confirm_password %>
+        <%= f.password_field :confirm_password %>
       </li>
     </ul>
     <ul>
