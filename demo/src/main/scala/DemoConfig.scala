@@ -119,4 +119,31 @@ object DemoConfig {
       }
     }
   }
+
+  def initGraditCluster(clusterAddress:String):Unit = {
+    val clusterRoot = ZooKeeperNode(clusterAddress)
+    val cluster = new ExperimentalScadsCluster(clusterRoot)
+
+    logger.info("Adding servers to cluster for each namespace")
+    val namespaces = Map("words" -> classOf[edu.berkeley.cs.scads.piql.gradit.Word],
+  	       "books" -> classOf[edu.berkeley.cs.scads.piql.gradit.Book],
+  	       "wordcontexts" -> classOf[edu.berkeley.cs.scads.piql.gradit.WordContext],
+  	       "wordlists" -> classOf[edu.berkeley.cs.scads.piql.gradit.WordList],
+  	       "games" -> classOf[edu.berkeley.cs.scads.piql.gradit.Game],
+  	       "gameplayers" -> classOf[edu.berkeley.cs.scads.piql.gradit.GamePlayer],
+  	       "users" -> classOf[edu.berkeley.cs.scads.piql.gradit.User])
+    serviceScheduler !? RunExperimentRequest(namespaces.keys.toList.map(key => ScalaEngineTask(clusterAddress = cluster.root.canonicalAddress, name = Option(key + "node0")).toJvmTask ))
+
+    cluster.blockUntilReady(namespaces.size)
+    logger.info("Creating the namespaces")
+    namespaces.foreach {
+      case (name, entityType) => {
+	      logger.info("Creating namespace %s", name)
+	      val entity = entityType.newInstance
+	      val (keySchema, valueSchema) = (entity.key.getSchema, entity.value.getSchema)
+	      val initialPartitions = (None, cluster.getAvailableServers(name)) :: Nil
+	      cluster.createNamespace(name, keySchema, valueSchema, initialPartitions)
+      }
+    }
+  }
 }

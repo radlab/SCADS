@@ -96,9 +96,24 @@ package object demo {
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
+  def startGraditCluster(add:Option[String] = None): Unit = {
+    val clusterAddress = add.getOrElse(graditRoot.canonicalAddress)
+    val task = InitGraditClusterTask(clusterAddress).toJvmTask
+    serviceScheduler !? RunExperimentRequest(task :: Nil)
+  }
+
   def startScadrDirector(add:Option[String] = None): Unit = {
     val clusterAddress = add.getOrElse(scadrRoot.canonicalAddress)
     val task = ScadrDirectorTask(
+      clusterAddress,
+      mesosMaster
+    ).toJvmTask
+    serviceScheduler !? RunExperimentRequest(task :: Nil)
+  }
+
+  def startGraditDirector(add:Option[String] = None): Unit = {
+    val clusterAddress = add.getOrElse(graditRoot.canonicalAddress)
+    val task = GraditDirectorTask(
       clusterAddress,
       mesosMaster
     ).toJvmTask

@@ -20,6 +20,15 @@ case class InitScadrClusterTask(var clusterAddress:String) extends AvroTask with
   }
 }
 
+case class InitGraditClusterTask(var clusterAddress:String) extends AvroTask with AvroRecord {
+  import DemoConfig._
+
+  def run() = {
+    DemoConfig.initGraditCluster(clusterAddress)
+    System.exit(0)
+  }
+}
+
 case class ScadrDirectorTask(var clusterAddress: String, var mesosMaster: String) extends AvroTask with AvroRecord {
   import DemoConfig._
 
@@ -55,6 +64,34 @@ case class ScadrDirectorTask(var clusterAddress: String, var mesosMaster: String
     //System.setProperty("doEmpty", "true")
 
     logger.info("Starting Directors")
+    val directors = namespaces.keys.map(ns => Director(1, ns, scheduler))
+    //TODO: maybe we should pass the zookeeper address upon creation
+    directors.foreach(_.run(clusterRoot))
+
+    //TODO: Join with director threads instead of just sleeping forever
+    directors.foreach(_.thread.join())
+  }
+}
+
+case class GraditDirectorTask(var clusterAddress: String, var mesosMaster: String) extends AvroTask with AvroRecord {
+  import DemoConfig._
+
+  def run() = {
+    val namespaces = Map("words" -> classOf[edu.berkeley.cs.scads.piql.gradit.Word],
+           "books" -> classOf[edu.berkeley.cs.scads.piql.gradit.Book],
+           "wordcontexts" -> classOf[edu.berkeley.cs.scads.piql.gradit.WordContext],
+           "wordlists" -> classOf[edu.berkeley.cs.scads.piql.gradit.WordList],
+           "games" -> classOf[edu.berkeley.cs.scads.piql.gradit.Game],
+           "gameplayers" -> classOf[edu.berkeley.cs.scads.piql.gradit.GamePlayer],
+           "users" -> classOf[edu.berkeley.cs.scads.piql.gradit.User])
+    val clusterRoot = ZooKeeperNode(clusterAddress)
+    val scheduler = DemoConfig.serviceScheduler
+    val cluster = new ExperimentalScadsCluster(clusterRoot)
+
+    cluster.blockUntilReady(namespaces.size)
+    Director.cluster = cluster
+
+    logger.info("Starting Gradit Directors")
     val directors = namespaces.keys.map(ns => Director(1, ns, scheduler))
     //TODO: maybe we should pass the zookeeper address upon creation
     directors.foreach(_.run(clusterRoot))
