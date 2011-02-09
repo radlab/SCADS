@@ -54,7 +54,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
   }, demo)
 
   lazy val piql      = project("piql", "piql", new ScadsSubProject(_), config, avro, comm, scalaengine)
-  lazy val modeling    = project("modeling", "modeling", new ScadsSubProject(_), piql, perf, deploylib)
+  lazy val modeling    = project("modeling", "modeling", new ScadsSubProject(_), piql, perf, deploylib, scadr)
   lazy val perf      = project("perf", "performance", new ScadsSubProject(_), config, avro, comm, scalaengine, piql, deploylib)
   lazy val director    = project("director", "director", new ScadsSubProject(_), scalaengine, deploylib)
 
