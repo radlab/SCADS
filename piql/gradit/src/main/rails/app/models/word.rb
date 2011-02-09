@@ -55,7 +55,7 @@ class Word < AvroRecord
     words = words.shuffle
     words = words.select {|w| w.wordid != self.wordid}
     
-    words[0..3].map {|w| w.word}
+    words[0..2].map {|w| w.word}
   end 
   
   def contexts
