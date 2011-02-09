@@ -124,7 +124,7 @@ package object demo {
     serviceScheduler !? RunExperimentRequest(
       JvmMainTask(rainJars,
 		  "radlab.rain.Benchmark",
-		  "rain.config.scadr.flat.json" ::
+		  "rain.config.scadr.ramp.json" ::
 		  scadrWebServerList.canonicalAddress :: Nil,
 		  Map("dashboarddb" -> dashboardDb)) :: Nil)
   }
