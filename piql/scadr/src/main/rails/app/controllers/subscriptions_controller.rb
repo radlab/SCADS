@@ -1,14 +1,22 @@
 class SubscriptionsController < ApplicationController
   def create
-    @subscription = Subscription.new
-    @subscription.owner = current_user.username
-    @subscription.target = params[:subscription][:target]
-    if @subscription.save
-      flash[:notice] = "Subscribed to #{@subscription.target}"
-      redirect_to :controller => :users, :action => :show, :id => @subscription.target
+    target_username = params[:subscription][:target]
+ 
+    if current_user.nil?
+      render :text => "current user doesn't exist"
+    elsif User.find(target_username).nil?
+      render :text => "target user doesn't exist: #{target_username}"
     else
-      flash[:error] = "Could not subscribe"
-      redirect_to current_user
+      @subscription = Subscription.new
+      @subscription.owner = current_user.username
+      @subscription.target = target_username
+      if @subscription.save
+        flash[:notice] = "Subscribed to #{@subscription.target}"
+        redirect_to :controller => :users, :action => :show, :id => @subscription.target
+      else
+        flash[:error] = "Could not subscribe"
+        redirect_to current_user
+      end
     end
   end
 
