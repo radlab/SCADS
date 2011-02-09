@@ -49,4 +49,20 @@ describe User do
   it "should clear the database when tests complete" do
     User.find("Kamina").should be_nil
   end
+  
+  describe "when finding thoughts" do
+    it "should return a list of its own thoughts" do
+      user = User.create!(@valid_attributes)
+      thought = Thought.create!(:owner => user.username, :timestamp => Time.now.to_i, :text => "asdf")
+      user.my_thoughts(1).should include(thought)
+    end
+    
+    it "should return a list of its thoughtstream" do
+      user = User.create!(@valid_attributes)
+      user2 = User.create!(@valid_attributes.merge(:username => "Karl"))
+      subscription = Subscription.create!(:owner => user.username, :target => user2.username, :approved => true)
+      thought = Thought.create!(:owner => user2.username, :timestamp => Time.now.to_i, :text => "asdf")
+      user.thoughtstream(1).should include(thought)
+    end
+  end
 end

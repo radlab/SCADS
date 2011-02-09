@@ -45,12 +45,17 @@ class User < AvroRecord
     Subscription.users_following(username, count)
   end
 
+  # Returns an array of the second item in the thoughts tuple
+  # (the actual thought)
   def my_thoughts(count)
-    Thought.my_thoughts(username, count)
+    Thought.my_thoughts(username, count).collect{ |t| t.first }
   end
 
+  # Returns an array of the second item in the thoughtstream tuple
+  # (the actual thought)
   def thoughtstream(count)
-    Thought.thoughtstream(username, count)
+    # Thought.thoughtstream(username, count).collect{ |ts| ts[1] }
+    Thought.thoughtstream(username, count).collect{ |ts| ts[1] }
   end
   
   def <=>(other)
