@@ -52,7 +52,7 @@ object DemoConfig {
       S3CachedJar(S3Cache.getCacheUrl(graditWarFile))
     else {
       logger.info("Using cached gradit war file.")
-      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/10f952ebab7aea6a4f98ec09859dd3b1")
+      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/0123d062aa39fa3198bb33afe198ebda")
     }
 
   val jdbcDriver = classOf[com.mysql.jdbc.Driver]
