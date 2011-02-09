@@ -110,7 +110,7 @@ class GamesController < ApplicationController
       @mc_array = (@mc << word.word).shuffle
     else #Find another word to use, no contexts
       wordlist = WordList.find(game.wordlist)
-      words = wordlist.words
+      words = wordlist.words.sort_by { rand }
       
       for word in words
         if !word.contexts.empty?
