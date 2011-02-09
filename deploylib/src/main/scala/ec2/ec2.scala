@@ -3,8 +3,6 @@ package deploylib.ec2
 import deploylib._
 import deploylib.runit._
 
-import com.amazonaws.ClientConfiguration
-import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.ec2._
 import com.amazonaws.services.ec2.model._
 import net.lag.logging.Logger
@@ -24,9 +22,7 @@ object EC2Instance extends AWSConnection {
   protected val logger = Logger()
 
   var keyName = System.getenv("AWS_KEY_NAME")
-  private val config = new ClientConfiguration()
-  private val credentials = new BasicAWSCredentials(accessKeyId, secretAccessKey)
-  protected val client = new AmazonEC2Client(credentials, config)
+  val client = new AmazonEC2Client(credentials, config)
   var instanceData: Map[String, Instance] = Map[String, Instance]()
   protected val instances = new scala.collection.mutable.HashMap[String, EC2Instance]
   protected var lastUpdate = 0L

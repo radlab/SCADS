@@ -5,13 +5,13 @@ import java.io.File
 import net.lag.logging.Logger
 import org.jets3t.service.model.S3Object
 import org.jets3t.service.impl.rest.httpclient.RestS3Service
-import org.jets3t.service.security.AWSCredentials
+import org.jets3t.service.security.{AWSCredentials => S3Credentials}
 import org.jets3t.service.acl.AccessControlList
 
 object S3Cache extends AWSConnection {
   protected val logger = Logger()
-  protected val credentials = new AWSCredentials(accessKeyId, secretAccessKey)
-  val s3Service = new RestS3Service(credentials)
+  protected val s3Credentials = new S3Credentials(accessKeyId, secretAccessKey)
+  val s3Service = new RestS3Service(s3Credentials)
   val bucketName =
     Config.getString("deploylib.aws.s3_cache_bucket", "deploylibCache-" + System.getProperty("user.name"))
   val bucket = s3Service.createBucket(bucketName)
