@@ -7,7 +7,7 @@ ActionController::Routing::Routes.draw do |map|
 
   map.logout '/logout', :controller => 'users', :action => 'logout'
   map.login '/login', :controller => 'users', :action => 'login'
-  map.signup '/register', :controller => 'users', :action => 'new'
+  map.register '/register', :controller => 'users', :action => 'new'
   
   map.search '/search', :controller => 'search', :action => 'context'
 

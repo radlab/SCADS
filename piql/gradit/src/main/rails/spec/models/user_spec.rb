@@ -17,7 +17,7 @@ describe User do
     User.createNew("", "", "What's This").should == nil
     
     # Should not be nil
-    User.createNew("missingattributes", "notmissingpassword", "").should_not == nil
+    User.createNew("missingattributes", "notmissingpassword", "Allen").should_not == nil
   end
   
   it "should validate uniqueness of usernames" do

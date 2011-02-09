@@ -2,6 +2,11 @@ class User < AvroRecord
   require 'digest/md5'
   
   def self.createNew(login, password, name)
+    
+    if !login or !password or !name or login == "" or password == "" or name == ""
+      return nil
+    end
+    
     #Check if username is already taken
     u = User.find(login)
     

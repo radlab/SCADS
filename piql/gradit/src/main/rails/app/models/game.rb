@@ -4,8 +4,7 @@ class Game < AvroRecord
   
   def self.all
     game = nil
-    return ([] << game) if game = Game.find(1)
-    return []
+    return [] #FIXME
   end
   
   def self.createNew(wordlist)

@@ -3,26 +3,22 @@ class UsersController < ApplicationController
   end
   
   def create
-    if params[:login] != "" and params[:password] != ""
-      puts params[:login] + " " + params[:password] + "" + params[:name]
-      u = User.createNew(params[:login], params[:password], params[:name])
-      
-      if u == nil #Username is already taken
-        flash[:notice] = "That username is already taken!"
-        render 'users/new'
-        return
-      end
-      
-      puts "**CREATED USER**"
-      puts u.login
-      
-      session[:user] = params[:login]
-      flash[:notice] = "Successfully created user."
-      redirect_to :controller => :games
+    u = User.createNew(params[:login], params[:password], params[:name])
+    
+    if u == nil #Username is already taken
+      flash[:notice] = "There was a problem with your registration."
+      render 'users/new'
       return
     end
     
-    render 'users/new'
+    puts "**CREATED USER**"
+    puts u.login
+    
+    session[:user] = params[:login]
+    flash[:notice] = "Successfully created user."
+    redirect_to :controller => :games
+    return
+
   end
   
   def login
