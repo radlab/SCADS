@@ -136,11 +136,12 @@ package object demo {
    * WARNING: deletes all data from all scads cluster
    */
   def resetScads: Unit = {
-    val namespaces = "users" :: "thoughts" :: "subscriptions" :: Nil
-    val delCmd = "rm -rf " + namespaces.map(ns => "/mnt/" + ns + "*").mkString(" ")
-    MesosEC2.slaves.pforeach(_ ! delCmd)
+    // val namespaces = "users" :: "thoughts" :: "subscriptions" :: Nil
+    // val delCmd = "rm -rf " + namespaces.map(ns => "/mnt/" + ns + "*").mkString(" ")
+    // MesosEC2.slaves.pforeach(_ ! delCmd)
 
     scadrRoot.deleteRecursive
+    graditRoot.deleteRecursive
   }
 
   def startIntKeyTest: Unit = {
