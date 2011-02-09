@@ -103,11 +103,13 @@ case class TraceCollectorTask(
     fileSink.flush()
 
     // Upload file to S3
+    val currentTimeString = System.currentTimeMillis().toString
+    
     println("uploading data...")
-    TraceS3Cache.uploadFile("/mnt/piqltrace.avro")
+    TraceS3Cache.uploadFile("/mnt/piqltrace.avro", currentTimeString)
     
     // Publish to SNSClient
-    snsClient.publishToTopic(topicArn, params.toString, "experiment completed at " + System.currentTimeMillis())
+    snsClient.publishToTopic(topicArn, params.toString, "experiment completed at " + currentTimeString)
     
     println("Finished with trace collection.")
   }
