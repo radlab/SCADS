@@ -19,9 +19,9 @@ object TraceS3Cache extends AWSConnection {
   val bucketName = "piql-modeling" // make this your bucket name
   val bucket = s3Service.createBucket(bucketName)
 
-  def uploadFile(file: File) {
+  def uploadFile(file: File, suffix: String = "") {
     val obj = new S3Object(file)
-    obj.setKey(file.getName() + "-" + System.currentTimeMillis()) // specify filename somewhere
+    obj.setKey(file.getName() + "-" + suffix)
     obj.setAcl(AccessControlList.REST_CANNED_PUBLIC_READ)
     s3Service.putObject(bucket, obj)
   }
