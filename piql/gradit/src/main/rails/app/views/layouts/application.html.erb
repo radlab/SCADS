@@ -18,6 +18,8 @@
 	          <div id="user-bar">
 	            <% if @current_user %>
 	              Welcome, <%= @current_user %>
+	            <% else %>
+	              <%= link_to "Log in", login_path %>
 	            <% end %>
 	          </div>
 	        </div>

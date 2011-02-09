@@ -13,7 +13,7 @@ class ApplicationController < ActionController::Base
   
   def current_user
     return session[:user] if session[:user]
-    return User.guest_user.login
+    #return User.guest_user.login
   end
   
 end

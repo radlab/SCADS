@@ -6,6 +6,12 @@ class UsersController < ApplicationController
     if params[:login] != "" and params[:password] != ""
       puts params[:login] + " " + params[:password] + "" + params[:name]
       u = User.createNew(params[:login], params[:password], params[:name])
+      
+      if u == nil #Username is already taken
+        flash[:notice] = "That username is already taken!"
+        render 'users/new'
+      end
+      
       puts "**CREATED USER**"
       puts u.login
       
@@ -29,8 +35,11 @@ class UsersController < ApplicationController
     puts "**USER LOGGING IN**"
     puts u.login
     
-    if u and u.password == pass #Successful login
+    success = User.login(user, pass)
+    
+    if success
       session[:user] = u
+      flash[:notice] = "You've been successfully logged in, " + u.to_s + "!"
       redirect_to :controller => :games
     else #Unsuccessful login
       flash[:notice] = "Unsuccessful login."
