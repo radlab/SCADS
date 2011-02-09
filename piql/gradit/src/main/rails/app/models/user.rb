@@ -46,14 +46,19 @@ class User < AvroRecord
   end
   
   def self.login(login, password)
-    u = User.find(user)
+    u = User.find(login)
     puts "**USER LOGGING IN**"
-    puts u.login
+    puts u
+    
+    if u 
+      puts u.password
+      puts Digest::MD5.hexdigest(password)
+    end
     
     if u and u.password == Digest::MD5.hexdigest(password) #Successful login
-      return true
+      return u
     end
-    return false
+    return nil
   end
     
 end

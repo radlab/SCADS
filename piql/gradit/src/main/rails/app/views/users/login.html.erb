@@ -1,6 +1,6 @@
 <h1>Log in</h1>
 
-<% form_tag :action => 'login' do -%>
+<% form_tag :action => 'login_action' do -%>
   <p>
     <%= label_tag 'login' %>
     <%= text_field_tag :login %>
@@ -11,5 +11,5 @@
     <%= password_field_tag :password %>
   </p>
   
-  <p><%= submit_tag 'Sign up' %></p>
+  <p><%= submit_tag 'Log in' %></p>
 <% end -%>

@@ -28,15 +28,13 @@ class UsersController < ApplicationController
     user = params[:login]
     pass = params[:password]
     
-    u = User.find(user)
-    puts "**USER LOGGING IN**"
-    puts u.login
+    puts "are you logging in?"
     
-    success = User.login(user, pass)
-    
-    if success
-      session[:user] = u
-      flash[:notice] = "You've been successfully logged in, " + u.to_s + "!"
+    u = User.login(user, pass)
+
+    if u != nil
+      session[:user] = u.login
+      flash[:notice] = "You've been successfully logged in, " + u.login + "!"
       redirect_to :controller => :games
     else #Unsuccessful login
       flash[:notice] = "Unsuccessful login."
