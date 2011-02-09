@@ -18,6 +18,7 @@ import java.io.File
 
 object DemoConfig {
   protected val logger = Logger()
+  val zone = "us-east-1a"
   
   val javaExecutorPath = "/usr/local/mesos/frameworks/deploylib/java_executor"
   def localMesosMasterPid = "1@" + java.net.InetAddress.getLocalHost.getHostName + ":5050"
@@ -52,7 +53,7 @@ object DemoConfig {
       S3CachedJar(S3Cache.getCacheUrl(graditWarFile))
     else {
       logger.info("Using cached gradit war file.")
-      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/10f952ebab7aea6a4f98ec09859dd3b1")
+      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/0123d062aa39fa3198bb33afe198ebda")
     }
 
   val jdbcDriver = classOf[com.mysql.jdbc.Driver]
@@ -113,6 +114,33 @@ object DemoConfig {
 	      logger.info("Creating namespace %s", name)
 	      val entity = entityType.newInstance
 	      val (keySchema, valueSchema) = (entity.key.getSchema, entity.value.getSchema) //entity match {case e:AvroPair => (e.key.getSchema, e.value.getSchema) }
+	      val initialPartitions = (None, cluster.getAvailableServers(name)) :: Nil
+	      cluster.createNamespace(name, keySchema, valueSchema, initialPartitions)
+      }
+    }
+  }
+
+  def initGraditCluster(clusterAddress:String):Unit = {
+    val clusterRoot = ZooKeeperNode(clusterAddress)
+    val cluster = new ExperimentalScadsCluster(clusterRoot)
+
+    logger.info("Adding servers to cluster for each namespace")
+    val namespaces = Map("words" -> classOf[edu.berkeley.cs.scads.piql.gradit.Word],
+  	       "books" -> classOf[edu.berkeley.cs.scads.piql.gradit.Book],
+  	       "wordcontexts" -> classOf[edu.berkeley.cs.scads.piql.gradit.WordContext],
+  	       "wordlists" -> classOf[edu.berkeley.cs.scads.piql.gradit.WordList],
+  	       "games" -> classOf[edu.berkeley.cs.scads.piql.gradit.Game],
+  	       "gameplayers" -> classOf[edu.berkeley.cs.scads.piql.gradit.GamePlayer],
+  	       "users" -> classOf[edu.berkeley.cs.scads.piql.gradit.User])
+    serviceScheduler !? RunExperimentRequest(namespaces.keys.toList.map(key => ScalaEngineTask(clusterAddress = cluster.root.canonicalAddress, name = Option(key + "node0")).toJvmTask ))
+
+    cluster.blockUntilReady(namespaces.size)
+    logger.info("Creating the namespaces")
+    namespaces.foreach {
+      case (name, entityType) => {
+	      logger.info("Creating namespace %s", name)
+	      val entity = entityType.newInstance
+	      val (keySchema, valueSchema) = (entity.key.getSchema, entity.value.getSchema)
 	      val initialPartitions = (None, cluster.getAvailableServers(name)) :: Nil
 	      cluster.createNamespace(name, keySchema, valueSchema, initialPartitions)
       }

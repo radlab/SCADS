@@ -15,6 +15,8 @@ import org.apache.avro._
 import io._
 import specific._
 
+import net.lag.logging.Logger
+
 class AvroSpecificEncoder[M <: SpecificRecord](implicit m: Manifest[M])
   extends OneToOneEncoder {
 
@@ -23,6 +25,8 @@ class AvroSpecificEncoder[M <: SpecificRecord](implicit m: Manifest[M])
   private val msgWriter = 
     new SpecificDatumWriter[M](msgClass.newInstance.getSchema)
   
+  private val logger = Logger()
+
   override def encode(ctx: ChannelHandlerContext, chan: Channel, msg: AnyRef) = msg match {
     case s: SpecificRecord =>
       val os  = new ExposingByteArrayOutputStream(512)
@@ -31,7 +35,7 @@ class AvroSpecificEncoder[M <: SpecificRecord](implicit m: Manifest[M])
       msgWriter.write(msg.asInstanceOf[M], enc)
       ChannelBuffers.wrappedBuffer(os.getUnderlying, 0, os.size)
     case _ => 
-      /** TODO: log a message */
+      logger.warning("Failed to encode message of unsupported type: %s", msg)
       msg
   }
 

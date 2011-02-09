@@ -1,6 +1,5 @@
 class Thought < AvroRecord
-  set_primary_keys :owner, :timestamp
-
+  include Comparable
   # NOTE:
   # This is what thoughtstream actually returns:
   # [Subscription, Thought]
@@ -18,5 +17,9 @@ class Thought < AvroRecord
     else
       post_time.strftime("on %A, %B %d")
     end
+  end
+  
+  def <=>(other)
+    self.timestamp <=> other.timestamp if other.is_a?(Thought)
   end
 end

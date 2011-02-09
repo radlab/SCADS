@@ -23,7 +23,7 @@ package object demo {
    * Start a mesos master and make it the primary for the demo.
    * Only needs to be run by one person.
    */
-  def setupMesosMaster(zone:String = "us-east-1a"): Unit = {
+  def setupMesosMaster(zone:String = zone): Unit = {
     try MesosEC2.master catch {
       case _ => MesosEC2.startMaster(zone)
     }
@@ -96,9 +96,24 @@ package object demo {
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
+  def startGraditCluster(add:Option[String] = None): Unit = {
+    val clusterAddress = add.getOrElse(graditRoot.canonicalAddress)
+    val task = InitGraditClusterTask(clusterAddress).toJvmTask
+    serviceScheduler !? RunExperimentRequest(task :: Nil)
+  }
+
   def startScadrDirector(add:Option[String] = None): Unit = {
     val clusterAddress = add.getOrElse(scadrRoot.canonicalAddress)
     val task = ScadrDirectorTask(
+      clusterAddress,
+      mesosMaster
+    ).toJvmTask
+    serviceScheduler !? RunExperimentRequest(task :: Nil)
+  }
+
+  def startGraditDirector(add:Option[String] = None): Unit = {
+    val clusterAddress = add.getOrElse(graditRoot.canonicalAddress)
+    val task = GraditDirectorTask(
       clusterAddress,
       mesosMaster
     ).toJvmTask
@@ -109,7 +124,7 @@ package object demo {
     serviceScheduler !? RunExperimentRequest(
       JvmMainTask(rainJars,
 		  "radlab.rain.Benchmark",
-		  "rain.config.scadr.flat.json" ::
+		  "rain.config.scadr.ramp.json" ::
 		  scadrWebServerList.canonicalAddress :: Nil,
 		  Map("dashboarddb" -> dashboardDb)) :: Nil)
   }
@@ -121,11 +136,12 @@ package object demo {
    * WARNING: deletes all data from all scads cluster
    */
   def resetScads: Unit = {
-    val namespaces = "users" :: "thoughts" :: "subscriptions" :: Nil
-    val delCmd = "rm -rf " + namespaces.map(ns => "/mnt/" + ns + "*").mkString(" ")
-    MesosEC2.slaves.pforeach(_ ! delCmd)
+    // val namespaces = "users" :: "thoughts" :: "subscriptions" :: Nil
+    // val delCmd = "rm -rf " + namespaces.map(ns => "/mnt/" + ns + "*").mkString(" ")
+    // MesosEC2.slaves.pforeach(_ ! delCmd)
 
     scadrRoot.deleteRecursive
+    graditRoot.deleteRecursive
   }
 
   def startIntKeyTest: Unit = {

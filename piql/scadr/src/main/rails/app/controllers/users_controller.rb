@@ -17,13 +17,8 @@ class UsersController < ApplicationController
   end
 
   def show
-    raw_thoughts = @user.my_thoughts(10)
-    @thoughts = raw_thoughts.collect{ |t| t.first }
-    
-    raw_thoughtstream = @user.thoughtstream(10)
-    # Remember that this comes in the form of (subscription, thought)
-    # TODO: Currently no worky
-    @thoughtstream = raw_thoughtstream.collect{ |ts| ts[1] }
+    @thoughts = @user.my_thoughts(10)
+    @thoughtstream = @user.thoughtstream(10)
     
     @can_subscribe = current_user && current_user != @user
     
