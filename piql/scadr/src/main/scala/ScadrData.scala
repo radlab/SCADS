@@ -14,11 +14,12 @@ import edu.berkeley.cs.scads.piql.DataGenerator._
 import scala.collection.mutable.HashSet
 
 import net.lag.logging.Logger
+import org.apache.avro.generic.GenericRecord
 
 case class ScadrKeySplits(
-    usersKeySplits: Seq[(Option[User], Seq[StorageService])],
-    thoughtsKeySplits: Seq[(Option[Thought], Seq[StorageService])],
-    subscriptionsKeySplits: Seq[(Option[Subscription], Seq[StorageService])]
+    usersKeySplits: Seq[(Option[GenericRecord], Seq[StorageService])],
+    thoughtsKeySplits: Seq[(Option[GenericRecord], Seq[StorageService])],
+    subscriptionsKeySplits: Seq[(Option[GenericRecord], Seq[StorageService])]
 )
 
 /**
@@ -47,9 +48,9 @@ class ScadrLoader(val client: ScadrClient,
     val splits = keySplits
     //TODO: Fix distribution
     logger.info("Creating namespaces with keysplits: %s", splits)
-    client.cluster.getNamespace[User]("users") //splits.usersKeySplits)
-    client.cluster.getNamespace[Thought]("thoughts") //splits.thoughtsKeySplits)
-    client.cluster.getNamespace[Subscription]("subscriptions") //splits.subscriptionsKeySplits)
+    client.cluster.createNamespace[User]("users", splits.usersKeySplits)
+    client.cluster.createNamespace[Thought]("thoughts", splits.thoughtsKeySplits)
+    client.cluster.createNamespace[Subscription]("subscriptions", splits.subscriptionsKeySplits)
   }
 
   private def toUser(idx: Int) = "User%010d".format(idx)
@@ -74,9 +75,9 @@ class ScadrLoader(val client: ScadrClient,
     val usersPerNode = numUsers / clusterSize
     val usersIdxs = None +: (1 until clusterSize).map(i => Some(i * usersPerNode + 1))
 
-    val usersKeySplits = usersIdxs.map(_.map(idx => User(toUser(idx))))
-    val thoughtsKeySplits = usersIdxs.map(_.map(idx => Thought(toUser(idx), 0)))
-    val subscriptionsKeySplits = usersIdxs.map(_.map(idx => Subscription(toUser(idx), "")))
+    val usersKeySplits = usersIdxs.map(_.map(idx => User(toUser(idx)))).map(_.map(_.key))
+    val thoughtsKeySplits = usersIdxs.map(_.map(idx => Thought(toUser(idx), 0))).map(_.map(_.key))
+    val subscriptionsKeySplits = usersIdxs.map(_.map(idx => Subscription(toUser(idx), ""))).map(_.map(_.key))
 
     // assume uniform distribution of tags over 8 bit ascii - not really
     // ideal, but we can generate the data such that this is true
@@ -135,25 +136,25 @@ class ScadrLoader(val client: ScadrClient,
 
     val userData: Seq[User] =
       newUserIdView.map(i => {
-	val u = User(toUser(i))
-	u.homeTown = "hometown" + (i % 10)
-	u
+  val u = User(toUser(i))
+  u.homeTown = "hometown" + (i % 10)
+  u
       })
 
     val thoughtData: Seq[Thought] =
       newUserIdView.flatMap(userId =>
-	(1 to numThoughtsPerUser).view.map(i => {
-	  val t = Thought(toUser(userId), i)
-	  t.text = toUser(userId) + " thinks " + i
-	  t
-	})
+  (1 to numThoughtsPerUser).view.map(i => {
+    val t = Thought(toUser(userId), i)
+    t.text = toUser(userId) + " thinks " + i
+    t
+  })
       )
 
     val subscriptionData: Seq[Subscription] = userData.flatMap(user =>
       randomInts(user.username.hashCode, numUsers, numSubscriptionsPerUser).view.map(u => {
-	val s = Subscription(user.username, userData(u).username)
-	s.approved = true
-	s
+  val s = Subscription(user.username, userData(u).username)
+  s.approved = true
+  s
       })
     )
 
