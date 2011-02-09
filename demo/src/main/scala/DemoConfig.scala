@@ -18,6 +18,7 @@ import java.io.File
 
 object DemoConfig {
   protected val logger = Logger()
+  val zone = "us-east-1a"
   
   val javaExecutorPath = "/usr/local/mesos/frameworks/deploylib/java_executor"
   def localMesosMasterPid = "1@" + java.net.InetAddress.getLocalHost.getHostName + ":5050"

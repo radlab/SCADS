@@ -23,7 +23,7 @@ package object demo {
    * Start a mesos master and make it the primary for the demo.
    * Only needs to be run by one person.
    */
-  def setupMesosMaster(zone:String = "us-east-1a"): Unit = {
+  def setupMesosMaster(zone:String = zone): Unit = {
     try MesosEC2.master catch {
       case _ => MesosEC2.startMaster(zone)
     }
