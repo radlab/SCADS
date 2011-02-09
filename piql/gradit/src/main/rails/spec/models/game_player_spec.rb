@@ -1,7 +1,7 @@
 require 'spec_helper'
 
 describe GamePlayer do
-  before(:each) do
+  before(:all) do
     @g = Game.createNew("wordlist")
     @u = User.createNew("user", "pass", "User Name")
     @gp = GamePlayer.createNew(@g.gameid, @u.login)

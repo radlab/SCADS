@@ -13,7 +13,7 @@ describe User do
     
     # Should be nil
     User.createNew("", "thisisapassword", "My Name").should == nil
-    User.createNew("myuser", "thisisanotherpassword", "Another Name").should == nil
+    User.createNew("myuser", "", "Another Name").should == nil
     User.createNew("", "", "What's This").should == nil
     
     # Should not be nil

@@ -1,5 +1,7 @@
 class GamesController < ApplicationController
   
+  before_filter :login_required, :except => [:index]
+  
   # GET /games
   # GET /games.xml
   def index
@@ -81,7 +83,7 @@ class GamesController < ApplicationController
     
     game = Game.find(params[:id].to_i)
     puts @current_user
-    user = User.find("guest") #FIXME
+    user = User.find(@current_user) #FIXME
     puts user.login
     puts game.gameid
     puts user

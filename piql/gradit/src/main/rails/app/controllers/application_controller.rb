@@ -16,4 +16,13 @@ class ApplicationController < ActionController::Base
     #return User.guest_user.login
   end
   
+  def login_required
+    if current_user == nil
+        flash[:notice] = "You must be logged in to play a game."
+        redirect_to :controller => :games
+        return false
+    end
+    return true
+  end
+  
 end

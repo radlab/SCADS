@@ -28,12 +28,12 @@ describe Word do
   it "should be able to generate multiple choices from its wordlist" do
     WordList.createNew("word_spec_wl")
     
-    nw = Word.createNew(1001, "wordspec1", "word spec one", "word_spec_wl")
-    Word.createNew(1002, "wordspec2", "word spec two", "word_spec_wl")
-    Word.createNew(1003, "wordspec3", "word spec three", "word_spec_wl")
-    Word.createNew(1004, "wordspec4", "word spec four", "word_spec_wl")
-    Word.createNew(1005, "wordspec5", "word spec five", "word_spec_wl")
+    nw = Word.createNew(2001, "wordspec1", "word spec one", "word_spec_wl")
+    Word.createNew(2002, "wordspec2", "word spec two", "word_spec_wl")
+    Word.createNew(2003, "wordspec3", "word spec three", "word_spec_wl")
+    Word.createNew(2004, "wordspec4", "word spec four", "word_spec_wl")
+    Word.createNew(2005, "wordspec5", "word spec five", "word_spec_wl")
     
-    nw.choices.size.should == 3
+    nw.choices.size.should == 4
   end
 end

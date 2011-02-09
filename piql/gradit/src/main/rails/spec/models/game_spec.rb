@@ -18,7 +18,7 @@ describe Game do
   
   it "should be able to find a Game by PK" do
     g = Game.createNew("wordlist")
-    Game.find(g.gameid).should == g
+    Game.find(g.gameid).gameid.should == g.gameid
   end
   
   it "should correctly find all Games (with a cardinality limit)" do
@@ -36,7 +36,7 @@ describe Game do
     w = Word.createNew(1, "vex", "definition", "wordlist")
     
     g.currentword = w.wordid
-    g.answer.should == w
+    g.answer.wordid.should == w.wordid
   end
   
 end
