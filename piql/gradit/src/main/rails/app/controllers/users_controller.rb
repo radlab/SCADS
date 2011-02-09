@@ -10,6 +10,7 @@ class UsersController < ApplicationController
       if u == nil #Username is already taken
         flash[:notice] = "That username is already taken!"
         render 'users/new'
+        return
       end
       
       puts "**CREATED USER**"
