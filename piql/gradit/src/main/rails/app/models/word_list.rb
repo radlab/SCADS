@@ -5,6 +5,12 @@ class WordList < AvroRecord
   end
   
   def self.createNew(name)
+    
+    return nil if !name or name == "" #Check to make sure fields are there
+    #Check if name is already taken
+    w = WordList.find(name)
+    return nil if w
+    
     w = WordList.new
     w.name = name
     w.save

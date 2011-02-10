@@ -114,6 +114,10 @@ class GraditClient(val cluster: ScadsCluster, executor: QueryExecutor) {
   
   val findWordList = wordlists.where("wordlists.name".a === (0.?)).toPiql("findWordList")
   
+  // findWordListsByUser
+  
+  //TODO
+  
   // findGame
   // Primary key lookup for game
   

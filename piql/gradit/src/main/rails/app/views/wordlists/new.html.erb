@@ -1,0 +1,10 @@
+<h1>Create a New Wordlist</h1>
+
+<% form_tag :action => 'create' do -%>
+  <p>
+    <%= label_tag 'name' %>
+    <%= text_field_tag :name %>
+  </p>
+
+  <p><%= submit_tag 'Create' %></p>
+<% end -%>

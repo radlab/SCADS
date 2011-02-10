@@ -5,26 +5,27 @@ class User < AvroRecord
     return [] #FIXME
     return User.findGamesByUser(login)
   end
+  
+  def wordlists 
+    return [] #FIXME
+    return User.findWordListsByUser(login)
+  end
   def self.createNew(login, password, name)
     
-    if !login or !password or !name or login == "" or password == "" or name == ""
-      return nil
-    end
+    return nil if !login or !password or !name or login == "" or password == "" or name == ""
     
     #Check if username is already taken
     u = User.find(login)
+    return nil if u
     
-    if u == nil #Username isn't taken yet, OK
-      u = User.new
-      u.login = login
-      u.password = Digest::MD5.hexdigest(password);
-      u.name = name
-      u.save
-      u.save #HACK: call everything twice for piql bug
-      return u
-    else
-      return nil
-    end
+    u = User.new
+    u.login = login
+    u.password = Digest::MD5.hexdigest(password);
+    u.name = name
+    u.save
+    u.save #HACK: call everything twice for piql bug
+    return u
+
   end
 
   def self.find(login)
