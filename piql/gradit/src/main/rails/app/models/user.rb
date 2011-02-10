@@ -1,6 +1,10 @@
 class User < AvroRecord
   require 'digest/md5'
   
+  def games
+    return [] #FIXME
+    return User.findGamesByUser(login)
+  end
   def self.createNew(login, password, name)
     
     if !login or !password or !name or login == "" or password == "" or name == ""

@@ -14,11 +14,11 @@ case class Word(var wordid: Int) extends AvroPair {
   var definition: String = _
   var wordlist: String = _
 }
-/*
+
 case class WordListWord(var wordlist: String, var word: Int) extends AvroPair {
     var v = 1
 }
-*/
+
 case class WordList(var name: String) extends AvroPair {
     var v = 1
 }
@@ -30,6 +30,7 @@ case class Book(var title: String) extends AvroPair {
 case class Game(var gameid: Int) extends AvroPair {
     var wordlist: String = _
     var currentword: Int = _
+    var done: Int = _
 }
 
 case class GamePlayer(var login: String, var gameid: Int) extends AvroPair{
@@ -70,6 +71,7 @@ class GraditClient(val cluster: ScadsCluster, executor: QueryExecutor) {
   lazy val books = cluster.getNamespace[Book]("books")
   lazy val wordcontexts = cluster.getNamespace[WordContext]("wordcontexts")
   lazy val wordlists = cluster.getNamespace[WordList]("wordlists")
+  lazy val wordlistwords = cluster.getNamespace[WordListWord]("wordlistwords")
   lazy val games = cluster.getNamespace[Game]("games")
   lazy val gameplayers = cluster.getNamespace[GamePlayer]("gameplayers")
   lazy val users = cluster.getNamespace[User]("users")
@@ -87,6 +89,11 @@ class GraditClient(val cluster: ScadsCluster, executor: QueryExecutor) {
         .where("gameplayers.gameid".a === (0.?))
         .where("gameplayers.login".a === (1.?))
   ).toPiql("findGamePlayer")
+  
+  // allWords
+  // Find allWords (with cardinality constraint)
+  
+  //TODO
   
   // findWord
   // Primary key lookup for word
@@ -110,8 +117,25 @@ class GraditClient(val cluster: ScadsCluster, executor: QueryExecutor) {
   // findGame
   // Primary key lookup for game
   
-  
   val findGame = games.where("games.gameid".a === (0.?)).toPiql("findGame")
+  
+  // findGameUser
+  // Return the user of a game (join through GamePlayer)
+  
+  //TODO 
+  
+  //findGamesByUser
+  // Return all games a user has
+  
+  //TODO
+  
+  /*val findGamesByUser = (
+      games
+          .where("wordlistwords.wordlist".a === (0.?))
+          .limit(50)
+          .join(words)
+          .where("words.wordids".a === "wordlistwords.word".a)
+  ).toPiql("findGamesByUser")*/
   
   // contextsForWord
   // Finds all contexts for a particular word given
@@ -123,15 +147,15 @@ class GraditClient(val cluster: ScadsCluster, executor: QueryExecutor) {
     ).toPiql("contextsForWord")
   
   // wordsFromWordlist
-  /*
-    val wordsFromWordList = (
+  
+    val wordsFromWordListJoin = (
         wordlistwords
             .where("wordlistwords.wordlist".a === (0.?))
             .limit(50)
             .join(words)
-            .where("words.wordids".a === "wordlistwords.word".a)
-    ).toPiql
-    */
+            .where("words.wordid".a === "wordlistwords.word".a)
+    ).toPiql("wordsFromWordListJoin")
+    
     val wordsFromWordList = (
         words
             .where("words.wordlist".a === (0.?))

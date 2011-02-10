@@ -58,7 +58,8 @@ class Game < AvroRecord
   end
   
   def user(user)
-    return user
+    return user #FIXME
+    return Game.findGameUser(gameid)
   end
     
 end
