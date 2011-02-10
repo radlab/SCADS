@@ -36,7 +36,7 @@ private[storage] object RoutingTableProtocol {
   val ZOOKEEPER_ROUTING_TABLE = "routingtable"
   val ZOOKEEPER_PARTITION_ID = "partitionid"
 }
-     
+
 trait RoutingTableProtocol[KeyType <: IndexedRecord,
                       ValueType <: IndexedRecord,
                       RecordType <: IndexedRecord,
@@ -243,7 +243,7 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
 
 
   private def deletePartitionService(partitions: Seq[PartitionService]): Unit = {
-    waitForAndRetry(partitions.map(p => (p, DeletePartitionRequest(p.partitionId)))){
+    waitForAndRetry(partitions.map(p => (p.storageService, DeletePartitionRequest(p.partitionId)))){
       case DeletePartitionResponse() => ()
     }
 
@@ -326,10 +326,8 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
       futures = futuresTmp
     }
 
-    futures.map(ftch => f.lift(ftch._1()).getOrElse(throw new RuntimeException("Unexpected message during get")))
+    /* Make sure all messages can be handled by the given partial function */
+    futures.map(_._1()).filterNot(f.isDefinedAt).foreach(msg => throw new RuntimeException("Received unexepected message: %s".format(msg)))
+    futures.map(future => f(future._1()))
   }
-
-
-
-
 }
