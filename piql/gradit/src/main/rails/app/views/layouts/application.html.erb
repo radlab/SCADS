@@ -5,31 +5,29 @@
   <head>
     <meta http-equiv="content-type" content="text/html;charset=UTF-8" />
     <title>Wordlists: <%= controller.action_name %></title>
-    <%= javascript_include_tag :defaults %>
     <%= stylesheet_link_tag 'style' %>
-    <%= javascript_include_tag :defaults %>
+    <link href='http://fonts.googleapis.com/css?family=Puritan|Cuprum' rel='stylesheet' type='text/css'>
   </head>
   <body>	
-    <div id='everything'>
-      <div id="banner_top">
-	      <div id="header_wrapper">
-	        <div id="logo">
-	          <%= link_to image_tag('/images/gradit_inside_logo.png'), :controller => :home%>
-	          <div id="user-bar">
-	            <% if @current_user %>
-	              Welcome, <%= @current_user %> <%= link_to "[Log Out]", logout_path %>
-	            <% else %>
-	              <%= link_to "[Log in]", login_path %>
-	              <%= link_to "[Register]", register_path %>
-	            <% end %>
-	          </div>
-	        </div>
+    <div id='container'>
+      
+	    <div id="header">
+          <%= link_to "", {:controller => :home}, :id => "logo" %>
+          <div id="user-bar">
+            <% if @current_user %>
+              Welcome, <%= @current_user %> <%= link_to "[Log Out]", logout_path %>
+            <% else %>
+              <%= link_to "[Log in]", login_path %>
+              <%= link_to "[Register]", register_path %>
+            <% end %>
         </div>
+        <div class="clear"></div>
+      </div>
 		  <div id="content">
 		    <span id="notice"><%= flash[:notice] %></span>
 		    <%= yield %>
 		  </div>
-      </div>
+      
     </div>
   </div>
 	</body>

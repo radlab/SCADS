@@ -1,16 +1,6 @@
-<div id="home_contents">
-	<div id="logo"></div>
+<div id="home-contents">
+	<div id="logo-home"></div>
 	
-	<%= render :partial => "search/searchbox" %>
-	<% puts "home index"%>
-	<div id="play">
-		Click <%= link_to "here", games_path %> to play a vocabulary game.
-		<br>
-		<% #for a in @wordlists 
-        %>
-			<%= #link_to a.name, {:controller=>:wordlists, :action=>:show, :name => a.name} 
-            %>
-		<% #end 
-        %>
-	</div>
+	<%= link_to "Play a Game", games_path, :class=> "button", :id => "play-game-button" %>
+	
 </div>
