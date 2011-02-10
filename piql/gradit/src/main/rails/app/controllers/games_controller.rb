@@ -1,6 +1,7 @@
 class GamesController < ApplicationController
   
   before_filter :login_required, :except => [:index]
+  before_filter :valid_game?, :only => [:game_entry, :ans]
   
   # GET /games
   # GET /games.xml
@@ -126,9 +127,14 @@ class GamesController < ApplicationController
 
   def new_game
     wordlist = WordList.find(params[:wordlist])
+    
+    if wordlist == nil
+      flash[:notice] = "That wordlist doesn't exist."
+      redirect_to :games
+    end
+    
     game = Game.createNew(wordlist.name)
     user = User.find(current_user)
-    puts user.login
     
     gp = GamePlayer.createNew(game.gameid, user.login)
     
@@ -144,5 +150,14 @@ class GamesController < ApplicationController
     end
     flash[:notice] = "Wordlist has no words!"
     redirect_to :back
+  end
+  
+  private
+  
+  def valid_game?
+    if !Game.valid_game?(params[:id], current_user)
+      flash[:notice] = "Sorry, that game isn't valid."
+      redirect_to :games
+    end
   end
 end

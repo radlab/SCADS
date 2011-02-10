@@ -37,6 +37,16 @@ class Game < AvroRecord
     g
   end
   
+  def self.valid_game?(gameid, user)
+    g = Game.find(gameid)
+    
+    if g and g.user(user) == user #Game exists and it's your game
+      return true
+    end
+    
+    return false
+  end
+  
   def answer
     Word.find(self.currentword)
   end
@@ -45,6 +55,10 @@ class Game < AvroRecord
     self.currentword = word
     self.save
     self.save #HACK: call everything twice for piql bug
+  end
+  
+  def user(user)
+    return user
   end
     
 end

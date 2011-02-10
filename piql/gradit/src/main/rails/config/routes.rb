@@ -1,9 +1,5 @@
 ActionController::Routing::Routes.draw do |map|
-  map.resources :multiple_choices
-  map.resources :games
-  map.resources :wordlists
-  map.resources :words
-  map.resources :books
+  map.games '/games', :controller => 'games'
 
   map.logout '/logout', :controller => 'users', :action => 'logout'
   map.login '/login', :controller => 'users', :action => 'login'
