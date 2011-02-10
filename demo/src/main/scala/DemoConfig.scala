@@ -119,6 +119,8 @@ object DemoConfig {
 	      cluster.createNamespace(name, keySchema, valueSchema, initialPartitions)
       }
     }
+    startScadrDirector()
+    startScadr
   }
 
   def initGraditCluster(clusterAddress:String):Unit = {
@@ -146,5 +148,7 @@ object DemoConfig {
 	      cluster.createNamespace(name, keySchema, valueSchema, initialPartitions)
       }
     }
+    startGraditDirector()
+    startGradit
   }
 }

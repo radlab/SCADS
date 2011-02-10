@@ -14,11 +14,7 @@ package object demo {
   def runDemo: Unit = {
     resetScads
     startScadrCluster()
-    startScadrDirector()
-    startScadr
     startGraditCluster()
-    startGraditDirector()
-    startGradit
   }
 
   def updateLoadBalancers: Unit = {
