@@ -60,6 +60,8 @@ class MessageFuture extends Future[MessageBody]  with MessageReceiver {
 
   def apply() = message.get
 
+
+  //The actual sender of a message
   def source =  sender.get
 
   var respondFunctions: List[MessageBody => Unit] = Nil

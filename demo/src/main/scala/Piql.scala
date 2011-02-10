@@ -18,6 +18,7 @@ object DashboardReportingExecutor {
 
   val thread = new Thread("Dashboard Stats Reporting") {
     override def run(): Unit = {
+      logger.info("Starting dashboard reporting thread")
       while (true) {
         Thread.sleep(30000)
 
@@ -28,7 +29,7 @@ object DashboardReportingExecutor {
         val reqRate = oldHist.totalRequests.toFloat / ((newReportTime - lastReportTime) / 1000)
 
         withConnection(conn => {
-          val sqlInsertCmd = "INSERT INTO piqlReqRate (timestamp, host, aggRequestRate) VALUES (%d, '%s', %f, %f)".format(newReportTime, hostName, reqRate, respTime)
+          val sqlInsertCmd = "INSERT INTO piqlReqRate (timestamp, host, aggRequestRate, respTime99th) VALUES (%d, '%s', %f, %d)".format(newReportTime, hostName, reqRate, respTime)
 	  logger.info("Recording PIQL stats with: %s", sqlInsertCmd)
 
           val statment = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE)
@@ -37,7 +38,6 @@ object DashboardReportingExecutor {
         })
 
         if (oldHist.totalRequests > 0) {
-
           logger.info("PIQL 99%%tile response time: %dms", respTime)
           logger.info("PIQL Request Rate: %f req/sec", reqRate)
         }
@@ -68,6 +68,7 @@ object DashboardReportingExecutor {
  * Records the elapsed time between open and close and reports it to the dashboard.
  */
 class DashboardReportingExecutor extends QueryExecutor {
+  logger.info("Starting Dashboard Reporting Executor")
   val delegate = new ParallelExecutor
 
   def apply(plan: QueryPlan)(implicit ctx: Context): QueryIterator =

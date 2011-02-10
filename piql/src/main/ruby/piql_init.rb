@@ -18,11 +18,14 @@ import Java::EduBerkeleyCsRadlabDemo::DashboardReportingExecutor
 
 puts "Setting up executor and scads cluster client"
 if(java.lang.System.getProperty("scads.clusterAddress").nil?)
+  puts "Using test scala engine"
   $PIQL_EXECUTOR = SimpleExecutor.new
   $SCADS_CLUSTER = TestScalaEngine.newScadsCluster(1)
 else
+  cluster_address = java.lang.System.getProperty("scads.clusterAddress")
+  puts "using scads cluster at: " + cluster_address 
   $PIQL_EXECUTOR = DashboardReportingExecutor.new
-  $CLUSTER_ROOT = ZooKeeperNode.apply(java.lang.System.getProperty("scads.clusterAddress"))
+  $CLUSTER_ROOT = ZooKeeperNode.apply(cluster_address)
   $SCADS_CLUSTER = ScadsCluster.new($CLUSTER_ROOT)
 end
 

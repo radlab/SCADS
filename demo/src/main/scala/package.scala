@@ -16,7 +16,14 @@ package object demo {
     startScadrCluster()
     startScadrDirector()
     startScadr
-    startScadrRain
+    startGraditCluster()
+    startGraditDirector()
+    startGradit
+  }
+
+  def updateLoadBalancers: Unit = {
+    LoadBalancer.update("scadr", scadrWebServerList)
+    LoadBalancer.update("gradit", graditWebServerList)
   }
 
   /**

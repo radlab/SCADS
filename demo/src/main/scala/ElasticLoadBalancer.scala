@@ -24,7 +24,7 @@ object LoadBalancer extends AWSConnection {
     response.getDNSName()
   }
 
-  def updateLoadBalancer(name: String, servers: ZooKeeperProxy#ZooKeeperNode): Unit = {
+  def update(name: String, servers: ZooKeeperProxy#ZooKeeperNode): Unit = {
     val internalAddresses = new String(servers.data).split("\n")
     val activeInstances = internalAddresses.flatMap(addr => EC2Instance.activeInstances.find(_.privateDnsName equals addr)).map(_.instanceId)
     logger.info("Currently active instances for app %s: %s", name, activeInstances.mkString(","))
