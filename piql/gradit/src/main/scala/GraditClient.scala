@@ -20,7 +20,7 @@ case class WordListWord(var wordlist: String, var word: Int) extends AvroPair {
 }
 
 case class WordList(var name: String) extends AvroPair {
-    var v = 1
+    var login: String = _
 }
 
 case class Book(var title: String) extends AvroPair {
@@ -29,6 +29,7 @@ case class Book(var title: String) extends AvroPair {
 
 case class Game(var gameid: Int) extends AvroPair {
     var wordlist: String = _
+    var words: String = _
     var currentword: Int = _
     var done: Int = _
 }
@@ -93,7 +94,10 @@ class GraditClient(val cluster: ScadsCluster, executor: QueryExecutor) {
   // allWords
   // Find allWords (with cardinality constraint)
   
-  //TODO
+  /*var allWords = (
+       words
+         .limit(50)
+  ).toPiql("allWords")*/
   
   // findWord
   // Primary key lookup for word
@@ -116,30 +120,38 @@ class GraditClient(val cluster: ScadsCluster, executor: QueryExecutor) {
   
   // findWordListsByUser
   
-  //TODO
+  val findWordListsByUser = (
+      wordlists
+          .where("wordlists.login".a === (0.?))
+          .limit(50)
+  ).toPiql("findWordListsByUser")
   
   // findGame
   // Primary key lookup for game
   
   val findGame = games.where("games.gameid".a === (0.?)).toPiql("findGame")
   
-  // findGameUser
-  // Return the user of a game (join through GamePlayer)
+  // findGameUsers
+  // Return the users of a game (join through GamePlayer)
   
-  //TODO 
+  val findGameUsers = (
+      gameplayers
+          .where("gameplayers.gameid".a === (0.?))
+          .limit(50)
+          .join(users)
+          .where("users.login".a === "gameplayers.login".a)
+  ).toPiql("findGameUsers")
   
   //findGamesByUser
   // Return all games a user has
   
-  //TODO
-  
-  /*val findGamesByUser = (
-      games
-          .where("wordlistwords.wordlist".a === (0.?))
+  val findGamesByUser = (
+      gameplayers
+          .where("gameplayers.login".a === (0.?))
           .limit(50)
-          .join(words)
-          .where("words.wordids".a === "wordlistwords.word".a)
-  ).toPiql("findGamesByUser")*/
+          .join(games)
+          .where("gameplayers.gameid".a === "games.gameid".a)
+  ).toPiql("findGamesByUser")
   
   // contextsForWord
   // Finds all contexts for a particular word given

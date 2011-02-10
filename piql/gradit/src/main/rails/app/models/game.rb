@@ -15,9 +15,13 @@ class Game < AvroRecord
     g = Game.new
     g.gameid = id
     g.wordlist = wordlist
+    g.words = ""
     g.currentword = 0
+    g.done = 0
     g.save
     g.save #HACK: call everything twice for piql bug
+    
+    puts "CREATED NEW GAME"
     g
   end
 
@@ -51,15 +55,24 @@ class Game < AvroRecord
     Word.find(self.currentword)
   end
   
-  def changeWord(word)
-    self.currentword = word
+  #Chooses and saves the next word for the game
+  def changeWord
+    puts "CHANGING WORD"
+    w = WordList.find(wordlist)
+    words = w.words
+    word = words[rand(words.length)]
+    
+    self.currentword = word.wordid
     self.save
-    self.save #HACK: call everything twice for piql bug
+    saved = self.save #HACK: call everything twice for piql bug
+    
+    return word
   end
   
   def user(user)
     return user #FIXME
     return Game.findGameUser(gameid)
   end
+
     
 end

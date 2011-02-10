@@ -1,12 +1,16 @@
 class GamePlayer < AvroRecord
   
   def self.createNew(gameid, login)
+    
+    puts "GOING TO CREATE"
     gp = GamePlayer.new
     gp.gameid = gameid
     gp.login = login
     gp.score = 0
     gp.save
     gp.save #HACK: call everything twice for piql bug
+    
+    puts "CREATED NEW GAME PLAYER"
     gp
   end
 

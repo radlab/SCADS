@@ -10,6 +10,7 @@ class User < AvroRecord
     return [] #FIXME
     return User.findWordListsByUser(login)
   end
+  
   def self.createNew(login, password, name)
     
     return nil if !login or !password or !name or login == "" or password == "" or name == ""

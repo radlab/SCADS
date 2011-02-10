@@ -89,8 +89,15 @@ contexts.each { |c|
 
 # TODO: MORE CONTEXTS
 
+puts "\n\nAdding admin user...\n"
+if User.createNew("admin", "admin", "Gradit Admin")
+  puts "Success."
+else
+    puts ">>>>> FAILURE : Failed adding wordlist. <<<<<"
+end
+
 puts "\n\nAdding wordlist(s)...\n"
-if WordList.createNew("wordlist")
+if WordList.createNew("wordlist", "admin")
   puts "Success."
 else
     puts ">>>>> FAILURE : Failed adding wordlist. <<<<<"

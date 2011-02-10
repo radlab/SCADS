@@ -10,11 +10,6 @@ class GamesController < ApplicationController
     #Note: .all does not yet work
     @games = Game.all
     @wordlists = WordList.all
-
-    respond_to do |format|
-      format.html # index.html.erb
-      format.xml  { render :xml => @games }
-    end
   end
 
   # GET /games/1
@@ -35,15 +30,9 @@ class GamesController < ApplicationController
     puts "@@@@AND THE ANSWER IS@@@@@@@@"
     if choice == answer.word #If correct answer
       puts "CORRECT"
-      #Pick a new "current" word from the wordlist **NEED TO OPTIMIZE THIS**
-      wordlist = WordList.find(game.wordlist)
-
-      #words = wordlist.words 
-      words = wordlist.words
       
-      #Pick a random word next
-      nextWord = words[rand(words.length())]
-      game.changeWord(nextWord.wordid)
+      #Pick a new "current" word from the wordlist **NEED TO OPTIMIZE THIS**
+      game.changeWord
       
       #Raise score
       gp.incrementScore(10)
@@ -65,7 +54,8 @@ class GamesController < ApplicationController
       #Lower score 
       gp.incrementScore(-5)
      
-      flash[:notice] = "Oops, that's wrong"
+      w = Word.find_by_word(choice)
+      flash[:notice] = "Oops, that's wrong. The definition of " + choice + " is " + w.definition
       redirect_to(:controller=> :games, :action=> :game_entry, :id => game.gameid)
       #AJAX update page to reflect changes in score, let user know they are incorrect
       #render :update do |page|
@@ -137,12 +127,9 @@ class GamesController < ApplicationController
     user = User.find(current_user)
     
     gp = GamePlayer.createNew(game.gameid, user.login)
-    
-    words = wordlist.words 
-    currentword = words[rand(words.length)]
-    #currentword = Word.find(1) #FIXME: to above
-    game.changeWord(currentword.wordid)
-    
+
+    currentword = game.changeWord
+
     if(currentword) #If there is a word
       #Save the currentword in the session or something?
       redirect_to(:controller=> :games, :action=> :game_entry, :id => game.gameid)

@@ -1,10 +1,10 @@
 class WordList < AvroRecord
   
   def self.all
-    return [self.find("wordlist")]
+    return [self.find("wordlist")] #FIXME
   end
   
-  def self.createNew(name)
+  def self.createNew(name, user)
     
     return nil if !name or name == "" #Check to make sure fields are there
     #Check if name is already taken
@@ -13,6 +13,7 @@ class WordList < AvroRecord
     
     w = WordList.new
     w.name = name
+    w.login = user
     w.save
     w.save #HACK: call everything twice for piql bug
     w
