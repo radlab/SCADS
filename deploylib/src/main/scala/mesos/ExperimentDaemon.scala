@@ -25,11 +25,7 @@ class ServiceScheduler(mesosMaster: String, executor: String) extends LocalExper
 
   def process(src: Option[RemoteActorProxy], msg: ExperimentOperation) = msg match {
     case RunExperimentRequest(processes) => {
-      val processDescription = processes.map{
-        case j:JvmMainTask => j.mainclass + " " + j.args
-        case j:JvmWebAppTask => j.warFile
-      }
-      logger.info("Processing Requst to run %s", processDescription.mkString(","))
+      logger.info("Processing Requst to run %s", processes.map(taskDescription).mkString(","))
       scheduleExperiment(processes)
       src.foreach(_ ! RunExperimentResponse())
     }

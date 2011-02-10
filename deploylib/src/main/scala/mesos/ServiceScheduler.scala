@@ -43,6 +43,11 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String, exe
   override def getExecutorInfo(d: SchedulerDriver): ExecutorInfo = new ExecutorInfo(executor, Array[Byte]())
   override def registered(d: SchedulerDriver, fid: String): Unit = logger.info("Registered SCADS Framework.  Fid: " + fid)
 
+  protected def taskDescription(task: JvmTask): String = task match {
+    case j:JvmMainTask => j.mainclass + " " + j.args
+    case j:JvmWebAppTask => j.warFile.toString
+  }
+
   override def resourceOffer(d: SchedulerDriver, oid: String, offers: java.util.List[SlaveOffer]) = awaitingSiblings.synchronized {
     val tasks = new java.util.LinkedList[TaskDescription]
 
@@ -52,12 +57,9 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String, exe
       scheduleNow.take(offers.size).foreach(proc => {
         val offer = offers.remove(0)
         val taskParams = Map(List("mem", "cpus").map(k => k -> offer.getParams.get(k)):_*)
-        val taskDesc = proc match {
-          case JvmMainTask(cp, mc, args, props) => mc + ": " + args
-          case o => o.toString
-        }
+	val taskDesc = taskDescription(proc)
         val task = new TaskDescription(taskId, offer.getSlaveId, taskDesc, taskParams, JvmTask(proc))
-        logger.info("Scheduling task %d: %s", taskId, proc)
+        logger.info("Scheduling task %d: %s", taskId, taskDesc)
         taskIds ::= taskId
         logger.info("Assigning task %d to slave %s on %s", taskId, offer.getSlaveId, offer.getHost)
         taskId += 1
