@@ -261,7 +261,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     else {
       val url = S3Cache.getCacheUrl(localFile)
       logger.debug("Getting file from cache: " + url)
-      this ! ("wget -O " + remoteFile + " " + url)
+      this ! ("wget --quiet -O " + remoteFile + " " + url)
     }
   }
 
@@ -277,7 +277,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
 
     /* If the file doesn't exist already... upload it */
     if(! ls(fileCache).map(_.name).contains(hash)) {
-      this ! "wget -O %s %s".format(new File(fileCache, hash), url)
+      this ! "wget --quiet -O %s %s".format(new File(fileCache, hash), url)
     }
 
     new File(fileCache, hash)
