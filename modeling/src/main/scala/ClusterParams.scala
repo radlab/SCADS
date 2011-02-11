@@ -46,6 +46,7 @@ case class ScadrClusterParams(
 	var baseCardinality: Int,
 	var numStorageNodes: Int,
 	var dataLowerBound: Int = 10,
+	var numPerPage: Int = 10,
 	var numUsers: Int = 100000,
 	var numThoughtsPerUser: Int = 100,
 	var numSubscriptionsPerUser: Int = 100

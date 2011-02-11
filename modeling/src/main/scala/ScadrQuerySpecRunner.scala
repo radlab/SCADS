@@ -51,11 +51,11 @@ abstract class ScadrQuerySpecRunner(val params: RunParams)(implicit executor: Qu
         		  .join(client.thoughts)
         		  .where("thoughts.owner".a === "subscriptions.target".a)
         		  .sort("thoughts.timestamp".a :: Nil, false)
-        		  .limit(2.?, p.dataLowerBound)
+        		  .limit(2.?, p.numPerPage)
               ).toPiql("thoughtstream")
           case "usersFollowing" =>  
             (client.subscriptions.where("subscriptions.target".a === (0.?))
-            	.limit(1.?, p.numSubscriptionsPerUser)  // this is fine for a start, but might want to change this, b/c this is how many people are following the current user
+            	.limit(1.?, p.numPerPage)
             	.join(client.users)
             	.where("users.username".a === "subscriptions.owner".a)
               ).toPiql("usersFollowing")
