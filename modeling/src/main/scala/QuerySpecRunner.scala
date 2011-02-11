@@ -31,7 +31,10 @@ abstract class QuerySpecRunner {
 	
 	def getExpectedResultLength(currentCardinality:Int):Int
 	
-	def checkResultLength(actualResultLength:Int, expectedResultLength:Int)
+	def checkResultLength(actualResultLength:Int, expectedResultLength:Int) = {
+	  if (actualResultLength != expectedResultLength)
+      throw new RuntimeException("expected cardinality: " + expectedResultLength.toString + ", got: " + actualResultLength.toString)
+	}
 }
 
 class GenericQuerySpecRunner(val params: RunParams)(implicit executor: QueryExecutor) extends QuerySpecRunner {
@@ -39,48 +42,54 @@ class GenericQuerySpecRunner(val params: RunParams)(implicit executor: QueryExec
   var query:OptimizedQuery = null
   
   override def setupNamespacesAndCreateQuery(cluster: ExperimentalScadsCluster) = {
-    query = queryType match {
-      case "getQuery" => 
-        val r1 = cluster.getNamespace[R1]("r1")
-        r1 ++= (1 to params.dataLowerBound).view.map(i => R1(i))
+    params.clusterParams match {
+      case p:GenericClusterParams => {
+        query = queryType match {
+          case "getQuery" => 
+            val r1 = cluster.getNamespace[R1]("r1")
+            r1 ++= (1 to p.dataLowerBound).view.map(i => R1(i))  // params.clusterParams.* is a hack
 
-        r1.where("f1".a === 1).toPiql("getQuery")
-      case "getRangeQuery" =>
-        val r2 = cluster.getNamespace[R2]("r2")
-        r2 ++= (1 to params.dataLowerBound).view.flatMap(i => (1 to params.getNumDataItems).map(j => R2(i,j)))    
+            r1.where("f1".a === 1).toPiql("getQuery")
+          case "getRangeQuery" =>
+            val r2 = cluster.getNamespace[R2]("r2")
+            r2 ++= (1 to p.dataLowerBound).view.flatMap(i => (1 to p.getNumDataItems).map(j => R2(i,j)))    
 
-        r2.where("f1".a === 1)
-            .limit(0.?, params.getMaxCardinality)
-            .toPiql("getRangeQuery")      
-      case "lookupJoinQuery" =>
-        val r1 = cluster.getNamespace[R1]("r1")
-        val r2 = cluster.getNamespace[R2]("r2")
-        r1 ++= (1 to params.getNumDataItems).view.map(i => R1(i))
-        r2 ++= (1 to params.dataLowerBound).view.flatMap(i => (1 to params.getNumDataItems).map(j => R2(i,j)))    
-        
-        r2.where("f1".a === 1)
-            .limit(0.?, params.getMaxCardinality)
-            .join(r1)
-            .where("r1.f1".a === "r2.f2".a)
-            .toPiql("joinQuery")
-      case "mergeSortJoinQuery" =>
-        val r1 = cluster.getNamespace[R1]("r1")
-        val r2 = cluster.getNamespace[R2]("r2")
-        val r2Prime = cluster.getNamespace[R2]("r2Prime")
-  
-        r1 ++= (1 to params.dataLowerBound).view.map(i => R1(i))
-        r2 ++= (1 to params.dataLowerBound).view.flatMap(i => (1 to params.getNumDataItems).map(j => R2(i,j)))    
-        r2Prime ++= (1 to params.dataLowerBound).view.flatMap(i => (1 to params.getNumDataItems).map(j => R2(i,j)))    
-        
-        // what to do about these 2 limits?
-        r2.where("f1".a === 1)
-              .limit(5)
-              .join(r2Prime)
-              .where("r2.f2".a === "r2Prime.f1".a)
-              .sort("r2Prime.f2".a :: Nil)
-              .limit(10)
-              .toPiql("mergeSortJoinQuery")
+            r2.where("f1".a === 1)
+                .limit(0.?, p.getMaxCardinality)
+                .toPiql("getRangeQuery")      
+          case "lookupJoinQuery" =>
+            val r1 = cluster.getNamespace[R1]("r1")
+            val r2 = cluster.getNamespace[R2]("r2")
+            r1 ++= (1 to p.getNumDataItems).view.map(i => R1(i))
+            r2 ++= (1 to p.dataLowerBound).view.flatMap(i => (1 to p.getNumDataItems).map(j => R2(i,j)))    
+
+            r2.where("f1".a === 1)
+                .limit(0.?, p.getMaxCardinality)
+                .join(r1)
+                .where("r1.f1".a === "r2.f2".a)
+                .toPiql("joinQuery")
+          case "mergeSortJoinQuery" =>
+            val r1 = cluster.getNamespace[R1]("r1")
+            val r2 = cluster.getNamespace[R2]("r2")
+            val r2Prime = cluster.getNamespace[R2]("r2Prime")
+
+            r1 ++= (1 to p.dataLowerBound).view.map(i => R1(i))
+            r2 ++= (1 to p.dataLowerBound).view.flatMap(i => (1 to p.getNumDataItems).map(j => R2(i,j)))    
+            r2Prime ++= (1 to p.dataLowerBound).view.flatMap(i => (1 to p.getNumDataItems).map(j => R2(i,j)))    
+
+            // what to do about these 2 limits?
+            r2.where("f1".a === 1)
+                  .limit(5)
+                  .join(r2Prime)
+                  .where("r2.f2".a === "r2Prime.f1".a)
+                  .sort("r2Prime.f2".a :: Nil)
+                  .limit(10)
+                  .toPiql("mergeSortJoinQuery")
+        }
+      }
+      case _ => println("must provide cluster params of type GenericClusterParams")
     }
+
   }
   
   override def callQuery(cardinality: Int) = {
@@ -101,7 +110,7 @@ class GenericQuerySpecRunner(val params: RunParams)(implicit executor: QueryExec
 	    case "getQuery" => List(1)
 	    case "getRangeQuery" => List(currentCardinality)
 	    case "lookupJoinQuery" => List(currentCardinality)
-	    case "mergeSortJoinQuery" => List(currentCardinality, params.dataLowerBound)
+	    case "mergeSortJoinQuery" => List(currentCardinality, params.clusterParams.dataLowerBound)
 	  }
 	  limitList
   }
@@ -111,13 +120,9 @@ class GenericQuerySpecRunner(val params: RunParams)(implicit executor: QueryExec
 	    case "getQuery" => 1
 	    case "getRangeQuery" => currentCardinality
 	    case "lookupJoinQuery" => currentCardinality
-	    case "mergeSortJoinQuery" => params.dataLowerBound
+	    case "mergeSortJoinQuery" => params.clusterParams.dataLowerBound
 	  }
 	  expectedResultLength
 	}
 	
-	override def checkResultLength(actualResultLength:Int, expectedResultLength:Int) = {
-	  if (actualResultLength != expectedResultLength)
-      throw new RuntimeException("expected cardinality: " + expectedResultLength.toString + ", got: " + actualResultLength.toString)
-	}
 }
