@@ -60,12 +60,17 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
   lazy val perf      = project("perf", "performance", new ScadsSubProject(_) with IdeaProject, config, avro, comm, scalaengine, piql, deploylib)
   lazy val director    = project("director", "director", new ScadsSubProject(_) with IdeaProject, scalaengine, deploylib)
 
+  lazy val spamFeatures = project("twitter" / "spamfeatures", "spamfeatures", new ScadsSubProject(_) {
+    val jaxrs = "org.codehaus.jackson" % "jackson-jaxrs" % "1.4.2"
+    val coreasl = "org.codehaus.jackson" % "jackson-core-asl" % "1.4.2"
+    val mapper = "org.codehaus.jackson" % "jackson-mapper-asl" % "1.4.2"
+    val specs = "org.scala-tools.testing" % "specs_2.8.0"  % "1.6.5"
+  })
   lazy val twitter = project("twitter", "twitter", new ScadsSubProject(_) {
     val hadoop = "org.apache.hadoop" % "hadoop-core" % "0.20.2"
-    val features = "org.chris" %% "features" % "1.0"
     val colt = "cern" % "colt" % "1.2.0"
     val scalaj_collection = "org.scalaj" %% "scalaj-collection" % "1.0"
-  }, deploylib, avro, perf)
+  }, deploylib, avro, perf, spamFeatures)
 
   /* PIQL Apps */
   lazy val scadr  = project("piql" / "scadr", "scadr", new ScadsSubProject(_) with IdeaProject, piql, director)
