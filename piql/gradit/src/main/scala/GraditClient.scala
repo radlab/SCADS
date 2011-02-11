@@ -134,13 +134,28 @@ class GraditClient(val cluster: ScadsCluster, executor: QueryExecutor) {
   // findGameUsers
   // Return the users of a game (join through GamePlayer)
   
-  val findGameUsers = (
+  val findGameUsers = new OptimizedQuery("findGameUsers",
+    IndexLookupJoin(users,
+		    List(AttributeValue(1,0)),
+      LocalStopAfter(FixedLimit(50),
+	IndexLookupJoin(gameplayers,
+			List(AttributeValue(0,1),
+				    AttributeValue(0,0)),
+	  IndexScan(gameplayers.getOrCreateIndex("gameid" :: Nil),
+		    List(ParameterValue(0)),
+		    FixedLimit(50),
+		    true)))),
+     executor)
+
+
+    /* TODO: FIX optimizer
       gameplayers
           .where("gameplayers.gameid".a === (0.?))
           .limit(50)
           .join(users)
-          .where("users.login".a === "gameplayers.login".a)
+          .where("gameplayers.login".a === "users.login".a)
   ).toPiql("findGameUsers")
+  */
   
   //findGamesByUser
   // Return all games a user has
