@@ -31,8 +31,10 @@ object SCADSMessageParserBasic extends SCADSMessageParser {
 	      System.exit(1)
     }
 
-	  val traceFile = new File(args(0))
-	  val inFile = AvroInFile[ExecutionTrace](traceFile)
+	  //val traceFile = new File(args(0))
+	  //val inFile = AvroInFile[ExecutionTrace](traceFile)
+	  val traceFileUrl = args(0)
+	  val inFile = AvroHttpFile[ExecutionTrace](traceFileUrl)
 
 		println(headerRow)
 

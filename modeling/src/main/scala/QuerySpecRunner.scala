@@ -106,23 +106,33 @@ class GenericQuerySpecRunner(val params: RunParams)(implicit executor: QueryExec
   }
   
   override def getLimitList(currentCardinality:Int):List[Int] = {
-    val limitList = queryType match {
-	    case "getQuery" => List(1)
-	    case "getRangeQuery" => List(currentCardinality)
-	    case "lookupJoinQuery" => List(currentCardinality)
-	    case "mergeSortJoinQuery" => List(currentCardinality, params.clusterParams.dataLowerBound)
-	  }
+    val limitList = params.clusterParams match {
+      case p:GenericClusterParams => {
+        queryType match {
+    	    case "getQuery" => List(1)
+    	    case "getRangeQuery" => List(currentCardinality)
+    	    case "lookupJoinQuery" => List(currentCardinality)
+    	    case "mergeSortJoinQuery" => List(currentCardinality, p.dataLowerBound)
+    	  }
+      }
+      case _ => Nil
+    }
+        
 	  limitList
   }
 	
 	override def getExpectedResultLength(currentCardinality:Int):Int = {
-	  val expectedResultLength = queryType match {
-	    case "getQuery" => 1
-	    case "getRangeQuery" => currentCardinality
-	    case "lookupJoinQuery" => currentCardinality
-	    case "mergeSortJoinQuery" => params.clusterParams.dataLowerBound
+	  val expectedResultLength = params.clusterParams match {
+	    case p:GenericClusterParams => {
+    	  queryType match {
+    	    case "getQuery" => 1
+    	    case "getRangeQuery" => currentCardinality
+    	    case "lookupJoinQuery" => currentCardinality
+    	    case "mergeSortJoinQuery" => p.dataLowerBound
+    	  }
+	    }
+	    case _ => 0
 	  }
 	  expectedResultLength
 	}
-	
 }

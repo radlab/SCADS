@@ -31,7 +31,7 @@ case class RunParams(
   		"experiment had the following params:",
 			"  clusterAddress: " + clusterParams.clusterAddress.toString,
 			"  queryType: " + queryType.toString,
-			"  baseCardinality: " + clusterParams.baseCardinality.toString,
+			//"  baseCardinality: " + clusterParams.baseCardinality.toString,
 			"  warmupLengthInMinutes: " + warmupLengthInMinutes.toString,
 			"  numStorageNodes: " + clusterParams.numStorageNodes.toString,
 			"  numQueriesPerCardinality: " + numQueriesPerCardinality.toString,

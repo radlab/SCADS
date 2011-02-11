@@ -18,14 +18,10 @@ import java.net._
 import scala.collection.JavaConversions._
 import scala.collection.mutable._
 
-import com.amazonaws.services.sns._
-import com.amazonaws.auth._
-import com.amazonaws.services.sns.model._
-
-case class TraceCollectorTask(
+case class ScadrTraceCollectorTask(
   var params: RunParams
 ) extends AvroTask with AvroRecord {
-  import TraceCollectorTask._
+  import ScadrTraceCollectorTask._
 
   var beginningOfCurrentWindow = 0.toLong
   
@@ -51,14 +47,8 @@ case class TraceCollectorTask(
     val messageTracer = new MessagePassingTracer(fileSink)
     MessageHandler.registerListener(messageTracer)
 
-    /* Get namespaces */
-    /* Bulk load some test data into the namespaces */
-    /**
-     * Write queries against relations and create optimized function using .toPiql
-     * toPiql uses implicit executor defined above to run queries
-     */
     // TODO:  make this work for either generic or scadr
-    val queryRunner = new GenericQuerySpecRunner(params)
+    val queryRunner = new ScadrQuerySpecRunner(params)
     queryRunner.setupNamespacesAndCreateQuery(cluster)
 
     // initialize window
@@ -69,7 +59,7 @@ case class TraceCollectorTask(
     println("beginning warmup...")
     fileSink.recordEvent(WarmupEvent(params.warmupLengthInMinutes, true))
     var queryCounter = 1
-    val cardinalityList = params.clusterParams.getCardinalityList(None)
+    val cardinalityList = params.clusterParams.getCardinalityList(params.queryType)
     
     while (withinWarmup) {
       fileSink.recordEvent(QueryEvent(params.queryType + queryCounter, true))
@@ -91,11 +81,11 @@ case class TraceCollectorTask(
       fileSink.recordEvent(ChangeCardinalityEvent(cardinalityList(r)))
       
       (1 to params.numQueriesPerCardinality).foreach(i => {
-        fileSink.recordEvent(QueryEvent(params.queryType + i, true))
+        fileSink.recordEvent(QueryEvent(params.queryType + i + "-" + cardinalityList(r), true))
 
         queryRunner.callQuery(cardinalityList(r))
 
-        fileSink.recordEvent(QueryEvent(params.queryType + i, false))
+        fileSink.recordEvent(QueryEvent(params.queryType + i + "-" + cardinalityList(r), false))
         Thread.sleep(params.sleepDurationInMs)
       })
     })
@@ -127,7 +117,7 @@ case class TraceCollectorTask(
   }
 }
 
-object TraceCollectorTask {
+object ScadrTraceCollectorTask {
   // for email notifications
   val snsClient = new SimpleAmazonSNSClient
   val topicArn = snsClient.createOrRetrieveTopicAndReturnTopicArn("experimentCompletion")

@@ -53,9 +53,12 @@ case class ScadrDataLoaderTask(
     println("subscription data size: " + scadrData.subscriptionData.size)
     scadrData.load
 
+    /*
+    // code to test whether load worked - should hang
     println("users:  " + scadrClient.users.getRange(None, None).size)
     println("thoughts:  " + scadrClient.thoughts.getRange(None, None).size)
     println("subscriptions:  " + scadrClient.subscriptions.getRange(None, None).size)
+    */
     println("done!")
   }
 }

@@ -23,7 +23,7 @@ import com.amazonaws.services.sns._
 import com.amazonaws.auth._
 import com.amazonaws.services.sns.model._
 
-abstract class ScadrQuerySpecRunner(val params: RunParams)(implicit executor: QueryExecutor) extends QuerySpecRunner {
+class ScadrQuerySpecRunner(val params: RunParams)(implicit executor: QueryExecutor) extends QuerySpecRunner {
   val queryType = params.queryType
   var query:OptimizedQuery = null
   var client:ScadrClient = null
@@ -32,12 +32,14 @@ abstract class ScadrQuerySpecRunner(val params: RunParams)(implicit executor: Qu
   override def setupNamespacesAndCreateQuery(cluster: ExperimentalScadsCluster) = {
     params.clusterParams match {
       case p:ScadrClusterParams => {
+        client = new ScadrClient(cluster, executor, p.numSubscriptionsPerUser)
+
         query = queryType match {
           case "findUser" => client.users.where("username".a === (0.?)).toPiql("findUser")
           case "myThoughts" =>
             (client.thoughts.where("thoughts.owner".a === (0.?))
         	    .sort("thoughts.timestamp".a :: Nil, false)
-        	    .limit(1.?, p.numThoughtsPerUser)
+        	    .limit(1.?, p.numPerPage)
               ).toPiql("myThoughts")
           case "usersFollowedBy" =>
             (client.subscriptions.where("subscriptions.owner".a === (0.?))
@@ -45,7 +47,7 @@ abstract class ScadrQuerySpecRunner(val params: RunParams)(implicit executor: Qu
         	    .join(client.users)
         	    .where("subscriptions.target".a === "users.username".a)
               ).toPiql("usersFollowedBy")
-          case "thoughtstream" =>
+          case "thoughtstream" =>   // how to vary both of these?
             (client.subscriptions.where("subscriptions.owner".a === (0.?))
         		  .limit(1.?, p.numSubscriptionsPerUser)
         		  .join(client.thoughts)
@@ -68,31 +70,50 @@ abstract class ScadrQuerySpecRunner(val params: RunParams)(implicit executor: Qu
   }
   
   def callQuery(cardinality: Int) = {
-    val resultLength = queryType match {
-      case "findUser" => query(getRandomUsername).length
-      case "myThoughts" => query(getRandomUsername, cardinality).length
-      case "usersFollowedBy" => query(getRandomUsername, cardinality).length
-      case "thoughtstream" => query(getRandomUsername, cardinality, params.clusterParams.dataLowerBound).length
-      case "usersFollowing" => query(getRandomUsername, cardinality).length
-    }
+    params.clusterParams match {
+      case p:ScadrClusterParams => {
+        val resultLength = queryType match {
+          case "findUser" => query(getRandomUsername).length
+          case "myThoughts" => query(getRandomUsername, cardinality).length
+          case "usersFollowedBy" => query(getRandomUsername, cardinality).length
+          case "thoughtstream" => query(getRandomUsername, cardinality, p.numPerPage).length
+          case "usersFollowing" => query(getRandomUsername, cardinality).length
+        }
     
-    checkResultLength(resultLength, getExpectedResultLength(cardinality))
+        checkResultLength(resultLength, getExpectedResultLength(cardinality))
+      }
+      case _ =>
+    }
   }
   
   def getRandomUsername:String = {
-    ""
+    def toUser(idx: Int) = "User%010d".format(idx)
+
+    val username = params.clusterParams match {
+      case p:ScadrClusterParams => {
+        toUser(scala.util.Random.nextInt(p.numUsers) + 1) // must be + 1 since users are indexed starting from 1
+      }
+      case _ => println("problem with types")
+        ""
+    }
+    username
   }
   
   def getLimitList(currentCardinality:Int):List[Int] = Nil
 	
 	def getExpectedResultLength(currentCardinality:Int):Int = {
-	  val expectedResultLength = queryType match {
-	    case "findUser" => 1
-	    case "myThoughts" => currentCardinality
-	    case "usersFollowedBy" => currentCardinality
-	    case "thoughtstream" => params.clusterParams.dataLowerBound
-	    case "usersFollowing" => currentCardinality
-	  }
+	  val expectedResultLength = params.clusterParams match {
+	    case p:ScadrClusterParams => {
+    	  queryType match {
+    	    case "findUser" => 1
+    	    case "myThoughts" => currentCardinality
+    	    case "usersFollowedBy" => currentCardinality
+    	    case "thoughtstream" => p.numPerPage
+    	    case "usersFollowing" => currentCardinality
+    	  }
+	    }
+	    case _ => 0
+    }
 	  expectedResultLength
 	}
 }
