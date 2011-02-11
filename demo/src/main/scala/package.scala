@@ -172,16 +172,15 @@ package object demo {
 
   def loadTwitterSpam(): Unit = {
     val numServers = 16
-    val clusterRoot = zooKeeperRoot.getOrCreate("twitterSpam")
-    clusterRoot.children.foreach(_.deleteRecursive)
-    val cluster = new ExperimentalScadsCluster(clusterRoot)
+    twitterSpamRoot.children.foreach(_.deleteRecursive)
+    val cluster = new ExperimentalScadsCluster(twitterSpamRoot)
 
     serviceScheduler !? RunExperimentRequest(
-      List.fill(numServers)(ScalaEngineTask(clusterRoot.canonicalAddress).toJvmTask))
+      List.fill(numServers)(ScalaEngineTask(twitterSpamRoot.canonicalAddress).toJvmTask))
     cluster.blockUntilReady(numServers)
 
     serviceScheduler !? RunExperimentRequest(
-      LoadJsonToScadsTask("http://cs.berkeley.edu/~marmbrus/tmp/labeledTweets.avro", clusterRoot.canonicalAddress).toJvmTask :: Nil)
+      LoadJsonToScadsTask("http://cs.berkeley.edu/~marmbrus/tmp/labeledTweets.avro", twitterSpamRoot.canonicalAddress).toJvmTask :: Nil)
   }
 
   def authorizeUsers: Unit = {

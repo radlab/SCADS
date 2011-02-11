@@ -21,6 +21,8 @@ object DemoConfig {
   val zone = "us-east-1a"
   val appServerCapacity = 10 /* req/sec */
   
+  def twitterSpamRoot = zooKeeperRoot.getOrCreate("twitterSpam")
+
   val javaExecutorPath = "/usr/local/mesos/frameworks/deploylib/java_executor"
   def localMesosMasterPid = "1@" + java.net.InetAddress.getLocalHost.getHostName + ":5050"
 
