@@ -58,6 +58,13 @@ object MesosEC2 extends ConfigurationActions {
     restartSlaves
   }
 
+  def updateSlavesFile: Unit = {
+    val location = new File("/root/mesos-ec2/slaves")
+    val contents = slaves.map(_.privateDnsName).mkString("\n")
+    master.mkdir("/root/mesos-ec2")
+    createFile(master, location, contents, "644")
+  }
+
   val defaultZone = "us-east-1a"
   def startMaster(zone: String = defaultZone): EC2Instance = {
     val ret = EC2Instance.runInstances(
