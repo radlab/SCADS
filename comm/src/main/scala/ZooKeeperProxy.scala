@@ -210,7 +210,7 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watc
 	def process(evt: WatchedEvent) {
 	  evt.getType match {
             case EventType.NodeDataChanged => func()
-            case e => logger.error("HOLY FUCK (now watch is unregistered): %s",e)
+            case e => logger.error("Watch onDataChange is unregistered): %s",e)
           }
 	}
       }
