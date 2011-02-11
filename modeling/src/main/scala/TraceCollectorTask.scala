@@ -31,11 +31,11 @@ case class TraceCollectorTask(
   
   def run(): Unit = {
     println("made it to run function")
-    val clusterRoot = ZooKeeperNode(params.clusterAddress)
+    val clusterRoot = ZooKeeperNode(params.clusterParams.clusterAddress)
     val cluster = new ExperimentalScadsCluster(clusterRoot)
 
     logger.info("Adding servers to cluster for each namespace")
-    cluster.blockUntilReady(params.numStorageNodes)
+    cluster.blockUntilReady(params.clusterParams.numStorageNodes)
 
     /* create executor that records trace to fileSink */
     println("creating executor...")
@@ -66,7 +66,7 @@ case class TraceCollectorTask(
     println("beginning warmup...")
     fileSink.recordEvent(WarmupEvent(params.warmupLengthInMinutes, true))
     var queryCounter = 1
-    val cardinalityList = params.getCardinalityList
+    val cardinalityList = params.clusterParams.getCardinalityList
     
     while (withinWarmup) {
       fileSink.recordEvent(QueryEvent(params.queryType + queryCounter, true))
