@@ -91,9 +91,15 @@ package object demo {
     val storageEngineTask = ScalaEngineTask(
       traceRoot.canonicalAddress).toJvmTask // can do *5
     val traceTask = TraceCollectorTask(
-      RunParams(traceRoot.canonicalAddress,
-      "getRangeQuery",
-      10)
+      RunParams(
+        GenericClusterParams(
+          traceRoot.canonicalAddress,
+          10,
+          1,
+          10
+        ),
+        "getRangeQuery"
+      )
     ).toJvmTask
     
     serviceScheduler !? RunExperimentRequest(storageEngineTask :: traceTask :: Nil)
@@ -102,10 +108,19 @@ package object demo {
   def startScadrDataLoad(numStorageNodes: Int): Unit = {
     //val storageEngineTask = ScalaEngineTask(traceRoot.canonicalAddress).toJvmTask
     val storageEngines = Array.fill(numStorageNodes)(ScalaEngineTask(traceRoot.canonicalAddress).toJvmTask)
+    /*
     val dataLoadTask = ScadrDataLoaderTask(
       RunParams(traceRoot.canonicalAddress,
       "myThoughts",
       10)
+    ).toJvmTask
+    */
+    var dataLoadTask = ScadrDataLoaderTask(
+      ScadrClusterParams(
+        traceRoot.canonicalAddress,
+        100,
+        5
+      )
     ).toJvmTask
 
     serviceScheduler !? RunExperimentRequest(storageEngines.toList :+ dataLoadTask)
