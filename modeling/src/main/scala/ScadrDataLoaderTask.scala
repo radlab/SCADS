@@ -24,7 +24,7 @@ import com.amazonaws.auth._
 import com.amazonaws.services.sns.model._
 
 case class ScadrDataLoaderTask(
-  var params: RunParams
+  var params: ScadrClusterParams
 ) extends AvroTask with AvroRecord {
   def run(): Unit = {
     /* setting up cluster */
@@ -41,10 +41,10 @@ case class ScadrDataLoaderTask(
       scadrClient, //val client: ScadrClient,
       1, //val replicationFactor: Int,
       1, //val numClients: Int, // number of clients to split the loading by
-      100000, //val numUsers: Int = 100,
-      100, //val numThoughtsPerUser: Int = 10,
-      100, //val numSubscriptionsPerUser: Int = 10,
-      5 //val numTagsPerThought: Int = 5)
+      params.numUsers, //val numUsers: Int = 100,
+      params.numThoughtsPerUser, //val numThoughtsPerUser: Int = 10,
+      params.numSubscriptionsPerUser, //val numSubscriptionsPerUser: Int = 10,
+      5 //val numTagsPerThought: Int = 5) // I don't think this is implemented
     )
     scadrLoader.createNamespaces
     val scadrData = scadrLoader.getData(0)  // check sizes
@@ -52,7 +52,7 @@ case class ScadrDataLoaderTask(
     println("thought data size: " + scadrData.thoughtData.size)
     println("subscription data size: " + scadrData.subscriptionData.size)
     scadrData.load
-    
+
     println("users:  " + scadrClient.users.getRange(None, None).size)
     println("thoughts:  " + scadrClient.thoughts.getRange(None, None).size)
     println("subscriptions:  " + scadrClient.subscriptions.getRange(None, None).size)
