@@ -42,7 +42,7 @@ object DemoConfig {
       S3CachedJar(S3Cache.getCacheUrl(scadrWarFile))
     else {
       logger.info("Using cached scadr war file.")
-      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/0bd044bf312f253bcf3121dab2e9edae")
+      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/3a7c8abd9da8ba27e4bd822135179a6b")
     }
 
   /* gRADit */
@@ -54,7 +54,7 @@ object DemoConfig {
       S3CachedJar(S3Cache.getCacheUrl(graditWarFile))
     else {
       logger.info("Using cached gradit war file.")
-      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/0123d062aa39fa3198bb33afe198ebda")
+      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/5a65ddddab94db7bfa7cdf5e9914c47c")
     }
 
   val jdbcDriver = classOf[com.mysql.jdbc.Driver]
