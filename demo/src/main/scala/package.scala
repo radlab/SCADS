@@ -104,6 +104,21 @@ package object demo {
     
     serviceScheduler !? RunExperimentRequest(storageEngineTask :: traceTask :: Nil)
   }
+  
+  def startScadrTraceCollector: Unit = {
+    val traceTask = ScadrTraceCollectorTask(
+      RunParams(
+        ScadrClusterParams(
+          traceRoot.canonicalAddress,
+          10,
+          5
+        ),
+        "myThoughts"
+      )
+    ).toJvmTask
+    
+    serviceScheduler !? RunExperimentRequest(traceTask :: Nil)
+  }
 
   def startScadrDataLoad(numStorageNodes: Int): Unit = {
     //val storageEngineTask = ScalaEngineTask(traceRoot.canonicalAddress).toJvmTask

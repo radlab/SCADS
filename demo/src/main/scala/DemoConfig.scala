@@ -6,6 +6,7 @@ import avro.marker._
 import avro.runtime._
 
 import scads.comm._
+import scads.piql.modeling._
 import deploylib.mesos._
 import deploylib.ec2._
 
@@ -23,8 +24,18 @@ object DemoConfig {
   val zooKeeperRoot = ZooKeeperNode("zk://ec2-50-16-2-36.compute-1.amazonaws.com,ec2-174-129-105-138.compute-1.amazonaws.com/home/kcurtis")
   def scadrRoot =  zooKeeperRoot.getOrCreate("apps/scadr")
   def scadrWebServerList = scadrRoot.getOrCreate("webServerList")
+  
+  // for trace collection
   def traceRoot = zooKeeperRoot.getOrCreate("traceCollection")
-
+  def scadrClusterParams = ScadrClusterParams(
+    traceRoot.canonicalAddress, // cluster address
+    5,                          // num storage nodes
+    100000,                     // num users
+    10000,                      // num thoughts per user
+    10000,                      // num subscriptions per user
+    10000                       // num per page
+  )
+  
   val mesosMasterNode = zooKeeperRoot.getOrCreate("mesosMaster")
   def mesosMaster = new String(mesosMasterNode.data)
 
