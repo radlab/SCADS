@@ -63,7 +63,9 @@ class ClusterState(
 	val workloadRaw:WorkloadHistogram,
 	val time:Long
 ) {
-  assert(keysToPartitions.keys.sameElements(workloadRaw.rangeStats.keys), "cluster state must have same partitions as in the workload")
+  //val wlKeys = workloadRaw.rangeStats.keySet
+  keysToPartitions.keys.foreach(key => assert(workloadRaw.rangeStats.contains(key), "cluster state workload doesn't contain "+key))
+  //assert(keysToPartitions.keys.sameElements(workloadRaw.rangeStats.keys), "cluster state must have same partitions as in the workload")
   
 	def servers:Set[StorageService] = Set( serversToPartitions.keys.toList :_* )
 
