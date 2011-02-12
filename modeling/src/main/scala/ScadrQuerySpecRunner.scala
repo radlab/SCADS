@@ -47,7 +47,7 @@ class ScadrQuerySpecRunner(val params: RunParams)(implicit executor: QueryExecut
         	    .join(client.users)
         	    .where("subscriptions.target".a === "users.username".a)
               ).toPiql("usersFollowedBy")
-          case "thoughtstream" =>   // how to vary both of these?
+          case "thoughtstream" =>   // how to vary both of these?  just focus on numSubscriptionsPerUser
             (client.subscriptions.where("subscriptions.owner".a === (0.?))
         		  .limit(1.?, p.numSubscriptionsPerUser)
         		  .join(client.thoughts)
