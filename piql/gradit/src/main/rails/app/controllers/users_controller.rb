@@ -27,7 +27,7 @@ class UsersController < ApplicationController
     
     session[:user] = params[:login]
     flash[:notice] = "Successfully created user."
-    redirect_to :controller => :games
+    redirect_to dashboard_path
     return
 
   end
@@ -56,7 +56,7 @@ class UsersController < ApplicationController
     session[:user] = nil
     
     flash[:notice] = "You've been logged out."
-    redirect_to :controller => :games
+    redirect_to :controller => :home 
   end
   
 end

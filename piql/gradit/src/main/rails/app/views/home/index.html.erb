@@ -1,8 +1,25 @@
 <div id="home-contents">
 	<div id="logo-home"></div>
 	
-	<%= link_to "Play a Game", games_path, :class=> "button", :id => "play-game-button" %>
-	
+    <div id="login-home">
+        <% if flash[:notice] %>
+            <div id="notice"><%= flash[:notice] %></div>
+        <% end %>
+	    <% form_tag :controller => 'users', :action => 'login_action' do %>
+        <p>
+            <%= label_tag :login %>
+            <%= text_field_tag :login %>
+        </p>
+
+        <p>
+            <%= label_tag :password %>
+            <%= password_field_tag :password %>
+        </p>
+
+        <p><%= submit_tag 'Play a Game', :id => 'home-login-button', :class=> "button" %></p>
+        <% end %>
+        <%= link_to "Don't have an account? Register!", register_path %>
+	</div>
 	<div id="info">
 	  <div class="section">
 	    <span>

@@ -23,23 +23,53 @@ img { border: none; }
     clear:both;
 }
 
-a.button{
-    font-family: "Cuprum", helvetica, arial, sans-serif;
-    text-decoration: none;
-    text-transform: uppercase;
-    font-size: 1.5em;
-    opacity: .7;
+
+label{
+    display: inline-block;
+    width: 6em;
 }
 
-a.button:hover{
-    opacity: 1;
+input{
+    border: 0px;
+    background: white;
+    padding: 2px;
+    border-radius: 3px;
+    outline: none;
+    font-size: 1.3em;
 }
 
+input[type=submit]{
+    font-size: 1.1em;
+    background: #666;
+    color: white;
+    padding: 5px;
+    cursor: pointer;
+}
+
+input[type=submit]:hover{
+    background: #ffa916;
+}
 /*Home*/
 #home-contents{
-    padding-top: 5%;
+    padding-top: 2%;
 }
 
+#login-home{
+    width: 300px;
+    margin: auto;
+    padding: 1em;
+}
+
+#login-home label{
+    color: #ccc;
+    font-size: 1.5em;
+    font-family: "Cuprum", helvetica, arial;
+    text-transform: uppercase;
+}
+
+#login-home #notice{
+    width: 90%;
+}
 #logo-home{
 	margin: auto;
 	width: 300px;
@@ -47,25 +77,34 @@ a.button:hover{
 	background: url('/images/gradit_logo.png') no-repeat;
 }
 
-a#play-game-button{
+#home-login-button{
+    border: 0px;
     margin: auto;
+    width: 100%;
     display: block;
-    width: 250px;
     text-align: center;
     background: -webkit-gradient(linear, 0% 0%, 0% 100%, from(#F7F7F7), to(#E3E3E3));
     padding: 7px;
     padding-bottom: 3px;
     color: #aaa;
     border-radius: 5px;
+    font-family: "Cuprum", helvetica, arial, sans-serif;
+    text-decoration: none;
+    text-transform: uppercase;
+    font-size: 1.5em;
+    opacity: .7;
 }
 
-a#play-game-button:hover{
+#home-login-button:hover{
+    opacity: 1;
+}
+#home-login-button:hover{
     color: #ec9a26; 
 }
 
 div#info{
     width: 80%;
-    margin: 5em auto;
+    margin: 2em auto;
 }
 
 div.section{
