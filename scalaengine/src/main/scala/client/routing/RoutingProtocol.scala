@@ -160,6 +160,7 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
    * Replicates a partition to the given storageHandler.
    */
   def replicatePartitions(targets : Seq[(PartitionService, StorageService)]): Seq[PartitionService] = {
+    val oldRoutingTable = routingTable
     val result = for((partitionHandler, storageHandler) <- targets) yield {
       val (startKey, endKey) = getStartEndKey(partitionHandler)
       val newPartition = createPartitions(startKey, endKey, Seq(storageHandler)).head
@@ -167,13 +168,19 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
       (newPartition, partitionHandler)
     }
     storeAndPropagateRoutingTable()
-
-    waitForAndRetry(
-        result.map {
-        case (newPartition, oldPartition) => (newPartition, CopyDataRequest(oldPartition, false))
-      }, 3*60*1000){
-      case CopyDataResponse() => ()
-    }
+    try {
+      waitForAndRetry(
+          result.map {
+          case (newPartition, oldPartition) => (newPartition, CopyDataRequest(oldPartition, false))
+        }, 3*60*1000){
+        case CopyDataResponse() => ()
+      }
+    } catch { case e:RuntimeException => {
+      routingTable = oldRoutingTable
+      logger.warning("propagting old routing table since replicates didn't succeed")
+      storeAndPropagateRoutingTable()
+      throw new RuntimeException("Couldn't replicate partitions, reverted to old routing table")
+    }}
 
     result.map(_._1)
 
