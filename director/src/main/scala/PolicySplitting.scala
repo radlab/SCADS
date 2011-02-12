@@ -87,7 +87,7 @@ class BestFitPolicySplitting(
       if (!(prediction.rangeStats.keySet -- config.workloadRaw.rangeStats.keySet).isEmpty || predSize != confSize) { logger.warning("not running policy due to histogram key difference"); return}//prediction = config.workloadRaw
       else logger.info("smoothed workload:\n%s",prediction.toString)
 			logger.info(config.serverWorkloadString)
-			runPolicy( config, /*workloadPredictor.getPrediction*/prediction, actionExecutor.getUncompleteServerActions )
+			runPolicy( config, /*workloadPredictor.getPrediction*/prediction, actionExecutor.getUncompleteServerActions.toList )
 			logger.debug("# actions for executor: %d",actions.size)
 			for (action <- actions) {
 				//action.computeNBytesToCopy(state)

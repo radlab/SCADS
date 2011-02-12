@@ -12,7 +12,7 @@ import net.lag.logging.Logger
 */
 abstract class ActionExecutor(val execDelay:Long) extends Runnable {
 	// TODO: turn this into ListBuffer so action manipulation is more efficient
-	var actions = List[Action]()
+	val actions = new scala.collection.mutable.SynchronizedQueue[Action]()//List[Action]()
 	protected val logger = Logger("executor")
 	var running = false
 	val executorThread = new Thread(this, "ActionExecutor")
@@ -26,7 +26,7 @@ abstract class ActionExecutor(val execDelay:Long) extends Runnable {
 		// 			Action.nKeysScheduled += action.nKeysToCopy
 		// 		}
 		
-		actions = actions ::: List(action)
+		actions += action//actions = actions ::: List(action)
 		logger.info("adding action: "+action)
 	}
 	/**
@@ -52,9 +52,9 @@ abstract class ActionExecutor(val execDelay:Long) extends Runnable {
 	// 
 	// 	canceled
 	// }
-	def getRunningActions:List[Action] = actions.filter(_.running)
-	def getAllActions:List[Action] = actions
-	def getUncompleteServerActions:List[Action] = actions.filter(a=> a match { case r:AddServer => r.ready || r.running; case r:RemoveServers => r.ready || r.running; case _ => false })
+	def getRunningActions:Seq[Action] = actions.filter(_.running)
+	def getAllActions:Seq[Action] = actions
+	def getUncompleteServerActions:Seq[Action] = actions.filter(a=> a match { case r:AddServer => r.ready || r.running; case r:RemoveServers => r.ready || r.running; case _ => false })
 	def allActionsCompleted():Boolean = if (actions.size==0) true else actions.forall(a => a.completed || a.cancelled)
 	def allMovementActionsCompleted():Boolean = if (actions.size==0) true else actions.filter(a=> a match { case r:ReplicatePartition => true; case r:DeletePartition => true; case r:SplitPartition => true; case r:MergePartition => true; case _ => false }).forall(a => a.completed || a.cancelled)
 	def partitionChangesRunning():Boolean = if (actions.size==0) false else !actions.filter(a=> a match { case r:SplitPartition => r.running; case r:MergePartition => r.running; case _ => false }).isEmpty
@@ -82,13 +82,14 @@ abstract class ActionExecutor(val execDelay:Long) extends Runnable {
 			try {
 			  logger.debug("executor to run")
 				execute()
+				actions.dequeueAll(a => a.cancelled || a.completed)
 			} catch {
 				case e:Exception => {
 				  logger.warning(e,"exception running director action, cancelling actions")
 				  
 			  }
 			}
-			logger.debug("executor %s sleeping for: %d ms", Thread.currentThread.getName, execDelay )
+			//logger.debug("executor %s sleeping for: %d ms", Thread.currentThread.getName, execDelay )
 			Thread.sleep(execDelay)
 			logger.debug("executor waking up")
 		}
@@ -125,7 +126,7 @@ class GroupingExecutor(val namespace:GenericNamespace, val scheduler:RemoteActor
 		}
 		
 	}
-	def getReplicateActions():List[Action] = actions.filter(a=> a match { case r:ReplicatePartition => r.ready; case _ => false } )
+	def getReplicateActions():Seq[Action] = actions.filter(a=> a match { case r:ReplicatePartition => r.ready; case _ => false } )
 	
 	def doReplication():Unit = {
 	  val replicate = getReplicateActions()
@@ -141,19 +142,20 @@ class GroupingExecutor(val namespace:GenericNamespace, val scheduler:RemoteActor
 		}}
 	}
 	
-	def getDeleteActions():List[Action] = actions.filter(a=> a match { case d:DeletePartition => d.ready; case _ => false } )
+	def getDeleteActions():Seq[Action] = actions.filter(a=> a match { case d:DeletePartition => d.ready; case _ => false } )
 	
 	def doDeletion():Unit = {
 	  val deleteTotal = getDeleteActions()
-		logger.debug("%d delete actions",deleteTotal.size)
+		//logger.debug("%d delete actions",deleteTotal.size)
 		val delete = deleteTotal.filter(_.parentsCompleted)
+		deleteTotal.diff(delete).foreach(a => a.cancel)
 		if (delete.size != deleteTotal.size) logger.warning("not doing all scheduled deletes since some had their replicates fail")
 		if (!delete.isEmpty) namespace.deletePartitions( delete.map(a=> 
 				a match { case d:DeletePartition =>{ d.setStart; d.partition } }))
 		delete.foreach(a => a.setComplete) // TODO: check for errors
 	}
 	
-	def getRemoveActions():List[Action] = actions.filter(a=> a match { case r:RemoveServers => r.ready; case _ => false } )
+	def getRemoveActions():Seq[Action] = actions.filter(a=> a match { case r:RemoveServers => r.ready; case _ => false } )
 	
 	def doRemove():Unit = {
 	  val remove = getRemoveActions()
@@ -162,7 +164,7 @@ class GroupingExecutor(val namespace:GenericNamespace, val scheduler:RemoteActor
 		remove.foreach(a => a.setComplete) // TODO: was above call blocking? does it matter?
 	}
 	
-	def getAddActions():List[Action] = actions.filter(a=> a match { case a:AddServer => a.ready; case _ => false } )
+	def getAddActions():Seq[Action] = actions.filter(a=> a match { case a:AddServer => a.ready; case _ => false } )
 	
 	def doAdd():Unit = {
 	  val add = getAddActions()
@@ -170,7 +172,7 @@ class GroupingExecutor(val namespace:GenericNamespace, val scheduler:RemoteActor
 		logger.debug("%d add server actions",add.size)
 		if (!add.isEmpty && scheduler != null) {
 			//scheduler.addServers( add.map(a => a match{ case ad:AddServer => prefix+ad.fakeServer.host }) )
-			scheduler !? RunExperimentRequest(add.map(a => a match{ case ad:AddServer => serverProcess(prefix+ad.fakeServer.host) }) )
+			scheduler !? RunExperimentRequest(add.toList.map(a => a match{ case ad:AddServer => serverProcess(prefix+ad.fakeServer.host) }) )
 			//logger.debug("sleeping right now instead of waiting on child")
 			//Thread.sleep(20*1000)
 			add.foreach{ a => a match { 
@@ -218,7 +220,7 @@ class SplittingGroupingExecutor(namespace:GenericNamespace, splitMaps:java.util.
 		else logger.debug("executor can't run due to running actions")
   }
   
-  def getSplitActions():List[Action] = actions.filter(a=> a match { case r:SplitPartition => r.ready; case _ => false } )
+  def getSplitActions():Seq[Action] = actions.filter(a=> a match { case r:SplitPartition => r.ready; case _ => false } )
   
   def doSplit():Unit = {
     val splits = getSplitActions()
@@ -233,10 +235,10 @@ class SplittingGroupingExecutor(namespace:GenericNamespace, splitMaps:java.util.
         )
       splits.foreach(a => a.setComplete) // TODO: check for errors  
       splitMapTodo.foreach(splitMaps.put(_))
-    } catch { case e:Exception => { logger.warning("splits failed, cancelling"); splits.foreach(a => a.cancel)}}
+    } catch { case e:Exception => { logger.warning(e,"splits failed, cancelling"); splits.foreach(a => a.cancel)}}
   } // end doSplit
   
-  def getMergeActions():List[Action] = actions.filter(a=> a match { case r:MergePartition => r.ready; case _ => false } )
+  def getMergeActions():Seq[Action] = actions.filter(a=> a match { case r:MergePartition => r.ready; case _ => false } )
   
   def doMerge():Unit = {
     val merges = getMergeActions()
