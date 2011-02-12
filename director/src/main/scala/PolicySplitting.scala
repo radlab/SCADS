@@ -410,7 +410,7 @@ class BestFitPolicySplitting(
     val canSplit = true//if (maxParts >= splitFactor) { logger.warning("Can't split since hit max split"); false} else true // TODO: check partition size as well
     
     if (canSplit) {// schedule the split action and an addserver if needed
-      val splitAction = SplitPartition(part,/*splitFactor - maxParts + 1*/maxParts, MOVE_OVERLOAD)
+      val splitAction = SplitPartition(part,/*splitFactor - maxParts + 1*/splitFactor, MOVE_OVERLOAD)
       val (emptyServer, addServerAction) = getEmptyServer(MOVE_OVERLOAD,currentConfig)
       if (addServerAction.isDefined) { ghosts += emptyServer; currentConfig = addGhostAction(addServerAction.get,currentConfig); Some(List(splitAction,addServerAction.get)) }
       else Some(List(splitAction))
