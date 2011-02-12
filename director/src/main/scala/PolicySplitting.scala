@@ -448,10 +448,10 @@ class BestFitPolicySplitting(
     while (!done && nReplicas < MAX_R) {
       logger.debug("trying more than %d relicas on new servers", nReplicas)
       val (emptyServer, addServerAction) = getEmptyServer(REP_ADD,currentConfig)
-      if (addServerAction.isDefined) { ghosts += emptyServer; currentConfig = addGhostAction(addServerAction.get,currentConfig); repActions += addServerAction.get }
       val replicateAction = ReplicatePartition(part,sourceServer,emptyServer,REP_ADD)
+      if (addServerAction.isDefined) { ghosts += emptyServer; currentConfig = addGhostAction(addServerAction.get,currentConfig); repActions += addServerAction.get }
+      else repActions += replicateAction
       currentConfig = replicateAction.preview(currentConfig)
-      repActions += replicateAction
       nReplicas += 1
       if (!performanceEstimator.violationOnServer(currentConfig,workload,sourceServer)) done = true
     }
