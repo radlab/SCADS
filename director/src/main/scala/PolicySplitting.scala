@@ -222,7 +222,7 @@ class BestFitPolicySplitting(
       // try moving the partitions to one of the targets  
       // as iterate through potential servers, check if one is mergeable as well
       val partService = currentState.partitionOnServer(partition,server)
-      val stateAfterMove = findMoveAction(server,partService, orderedPotentialTargets, currentState, workload)
+      val stateAfterMove = findMoveAction(server,partService, orderedPotentialTargets, currentState, workload, MOVE_OVERLOAD)
       if (stateAfterMove.isDefined) currentState = stateAfterMove.get
       else { // there's no server that can take partition, try splitting or replicating
         val splitActions = trySplitting(partition,currentState)
@@ -303,7 +303,7 @@ class BestFitPolicySplitting(
   			for (partition <- partitions) {
   				if (minRangeCouldntMove == null || workload.rangeStats(partition).compare(workload.rangeStats(minRangeCouldntMove)) < 0) {
   					logger.debug("  trying to move range "+partition+": "+workload.rangeStats(partition))
-  					val stateAfterMove = findMoveAction(server, currentState.partitionOnServer(partition,server), orderedPotentialTargets  - server, currentState, workload)//tryMoving(range,server,orderedPotentialTargets)
+  					val stateAfterMove = findMoveAction(server, currentState.partitionOnServer(partition,server), orderedPotentialTargets  - server, currentState, workload, MOVE_COALESCE)//tryMoving(range,server,orderedPotentialTargets)
   					if (stateAfterMove.isDefined) { currentState = stateAfterMove.get; logger.debug("updating state after merge move: %s",currentState); successfulMove = true; activePartitions += partition }
   					if (!successfulMove) minRangeCouldntMove = partition
   				}
@@ -368,12 +368,12 @@ class BestFitPolicySplitting(
 		currentState
 	}
   
-  private def findMoveAction(server:StorageService, partService:PartitionService, orderedPotentialTargets:Seq[StorageService], state:ClusterState, workload:WorkloadHistogram):Option[ClusterState] = {
+  private def findMoveAction(server:StorageService, partService:PartitionService, orderedPotentialTargets:Seq[StorageService], state:ClusterState, workload:WorkloadHistogram, note:String):Option[ClusterState] = {
     var currentState = state
     var movableActions:Option[List[Action]] = None
     var targetServer:Option[StorageService] = None
     for (target <- orderedPotentialTargets) {
-      if (!movableActions.isDefined) { movableActions = tryMoving(partService,server,target,currentState,workload); if (movableActions.isDefined) targetServer=Some(target) }
+      if (!movableActions.isDefined) { movableActions = tryMoving(partService,server,target,currentState,workload,note); if (movableActions.isDefined) targetServer=Some(target) }
       //TODO if (!mergableActions.isDefined) mergableActions = tryMerging(partService,server,target,currentState,workload)
     }
   
@@ -387,10 +387,11 @@ class BestFitPolicySplitting(
     else { logger.debug("couldn't find target for move") ;None}
   }
   
-  private def tryMoving(part:PartitionService,sourceServer:StorageService, target:StorageService, config:ClusterState, workload:WorkloadHistogram):Option[List[Action]] = {
+  private def tryMoving(part:PartitionService,sourceServer:StorageService, target:StorageService, config:ClusterState, workload:WorkloadHistogram, note:String):Option[List[Action]] = {
     // try moving 'range' to 'target' and create new config
-		val replicateAction = ReplicatePartition(part,sourceServer,target,MOVE_OVERLOAD)
-		val deleteAction = DeletePartition(part,sourceServer,MOVE_OVERLOAD)
+		val replicateAction = ReplicatePartition(part,sourceServer,target,note)
+		val deleteAction = DeletePartition(part,sourceServer,note)
+		deleteAction.addParent(replicateAction)
 		var tmpConfig = replicateAction.preview(config)
 		tmpConfig = deleteAction.preview(tmpConfig)
 		
