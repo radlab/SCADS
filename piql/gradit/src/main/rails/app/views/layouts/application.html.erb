@@ -15,7 +15,7 @@
           <%= link_to "", {:controller => :home}, :id => "logo" %>
           <div id="user-bar">
             <% if @current_user %>
-              Welcome, <%= @current_user %> <%= link_to "[Log Out]", logout_path %>
+              Welcome, <%= @current_user %> <%= link_to "[Dashboard]", dashboard_path %> <%= link_to "[Log Out]", logout_path %>
             <% else %>
               <%= link_to "[Log in]", login_path %>
               <%= link_to "[Register]", register_path %>
