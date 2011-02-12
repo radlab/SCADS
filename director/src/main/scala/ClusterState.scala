@@ -8,11 +8,11 @@ object ClusterState {
 	val nameSuffix = new java.util.concurrent.atomic.AtomicInteger()
 	
 	def getRandomServerNames(cfg:ClusterState,n:Int):List[StorageService] = {
-	  val newNames = (0 until n).toList.map(i=> "s"+ nameSuffix.getAndIncrement)
+	  val newNames = (0 until n).toList.map(i=> "s"+ java.util.UUID.randomUUID.toString/*nameSuffix.getAndIncrement*/)
 	  newNames.map( name=> new StorageService(name,1,null))
 	}
 	def getRandomPartitionNames(cfg:ClusterState,n:Int):List[PartitionService] = {
-	  val newNames = (0 until n).toList.map(i=> "p"+ nameSuffix.getAndIncrement)
+	  val newNames = (0 until n).toList.map(i=> "p"+ java.util.UUID.randomUUID.toString/*nameSuffix.getAndIncrement*/)
 	  newNames.map( name=> new PartitionService(name,0,null,null,null))
 	}
 	def getRandomServerNamesOld(cfg:ClusterState,n:Int):List[StorageService] = {
