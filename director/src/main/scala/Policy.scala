@@ -136,6 +136,7 @@ class EmptyPolicy(
 	override val workloadPredictor:WorkloadPrediction
 ) extends Policy(workloadPredictor) {
 	def act(config:ClusterState, actionExecutor:ActionExecutor) {
+	  logger.info("******** Running EmptyPolicy: %s", actionExecutor.namespace.namespace)
 		logger.debug("noop")		
 		logger.info("smoothed workload:\n%s",workloadPredictor.getPrediction.toString)
 		logger.info(config.serverWorkloadString)
@@ -193,7 +194,7 @@ class BestFitPolicy(
 		if (actionExecutor.allMovementActionsCompleted/*allActionsCompleted*/) {
 			logger.info("smoothed workload:\n%s",workloadPredictor.getPrediction.toString)
 			logger.info(config.serverWorkloadString)
-			runPolicy( config, workloadPredictor.getPrediction, actionExecutor.getUncompleteServerActions/*List[Action]()*/ )
+			runPolicy( config, workloadPredictor.getPrediction, actionExecutor.getUncompleteServerActions.toList/*List[Action]()*/ )
 			logger.debug("# actions for executor: %d",actions.size)
 			for (action <- actions) {
 				//action.computeNBytesToCopy(state)
