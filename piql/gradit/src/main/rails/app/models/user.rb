@@ -2,13 +2,23 @@ class User < AvroRecord
   require 'digest/md5'
   
   def games
-    return [] #FIXME
-    return User.findGamesByUser(login)
+    puts "FINDING GAMES"
+    games = User.findGamesByUser(login)
+    
+    puts games.to_s
+    return games if games.empty?
+    games = games.map {|g| g[1]} 
+    puts games.to_s
+    return games
   end
   
   def wordlists 
-    return [] #FIXME
-    return User.findWordListsByUser(login)
+    puts "LOOKING FOR WORDLISTS"
+    wordlists = User.findWordListsByUser(login) 
+    
+    return wordlists if wordlists.empty?
+    puts wordlists 
+    return wordlists.map {|w| w.first}
   end
   
   def self.createNew(login, password, name)

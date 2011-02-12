@@ -1,0 +1,17 @@
+<h1>Your Dashboard</h1>
+
+<h2>Current Games</h2>
+<h3>Unfinished Games</h3>
+<% for game in @unfinished_games %>
+  <%= link_to "Game with wordlist [" + game.wordlist + "]", :controller => :games, :action => "game_entry", :id => game.gameid %>
+<% end %>
+<h3>Finished Games</h3>
+<% for game in @finished_games %>
+  Game with wordlist [ + <%= game.wordlist %> ], Score = <%= GamePlayer.find(game.gameid, current_user).score%>
+<% end %>
+
+<h2>Create a new game</h2>
+<h3>Available wordlists</h3>
+<% for wordlist in @wordlists %>
+  <%= link_to wordlist.name, :controller => :games, :action => "new_game", :id => 0, :wordlist => wordlist.name %>
+<% end %>

@@ -44,7 +44,7 @@ class Game < AvroRecord
   def self.valid_game?(gameid, user)
     g = Game.find(gameid)
     
-    if g and g.user(user) == user #Game exists and it's your game
+    if g and g.users.include? user #Game exists and it's your game
       return true
     end
     
@@ -69,9 +69,8 @@ class Game < AvroRecord
     return word
   end
   
-  def user(user)
-    return user #FIXME
-    return Game.findGameUser(gameid)
+  def users
+    return Game.findGameUsers(java.lang.Integer.new(gameid)).map {|u| u.first}.map {|u| u.login}
   end
 
     

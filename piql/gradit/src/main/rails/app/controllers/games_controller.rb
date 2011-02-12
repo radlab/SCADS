@@ -127,7 +127,6 @@ class GamesController < ApplicationController
     user = User.find(current_user)
     
     gp = GamePlayer.createNew(game.gameid, user.login)
-
     currentword = game.changeWord
 
     if(currentword) #If there is a word
