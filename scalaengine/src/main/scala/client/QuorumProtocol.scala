@@ -143,7 +143,10 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
 
     // get the split keys
     val slice = scala.math.floor(count.get / numSplits.toDouble).toInt
-    (1 until numSplits).map(s => extractKeyValueFromRangeType(getRange(startkey, endkey.map(deserializeKey(_)),Some(1),Some(s*slice)).head)._1)
+    (1 until numSplits).map(s => {
+      val splitRecord = getRange(startkey, endkey, Some(1), Some(s*slice)).head
+      extractKeyValueFromRangeType(splitRecord)._1
+    })
   }
 
   def put(key: KeyType, value: Option[ValueType]): Unit = {
@@ -555,15 +558,15 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
     def act() {
       loop {
         react {
-          case handler: GetHandler =>
+          case handler: GetHandler => /* TODO: Configurable Read Repair
             managedBlock {
               handler.processRest()
             }
             for (server <- handler.repairList) {
               logger.debug("repairing key %s on server %s", handler.key, server)
               server !! PutRequest(handler.key, handler.winnerValue)
-            }
-          case handler: RangeHandle =>
+            }*/
+          case handler: RangeHandle => /* TODO: Configurable Read Repair
             managedBlock {
               handler.processRest()
             }
@@ -572,7 +575,7 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
                 logger.debug("repairing key %s on server %s (range handle)" , key, server)
                 server !! PutRequest(key, Some(data))
               }
-            }
+            }*/
           case m => throw new RuntimeException("Unknown message" + m)
         }
       }
