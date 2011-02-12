@@ -408,6 +408,7 @@ class BestFitPolicySplitting(
     serversWithPart.foreach(s => { val numParts = currentConfig.serversToPartitions(s).size; if (numParts > maxParts) maxParts = numParts })
     
     val canSplit = true//if (maxParts >= splitFactor) { logger.warning("Can't split since hit max split"); false} else true // TODO: check partition size as well
+    logger.debug("split candidate %s has a single key %s?", part, config.partitionsToSingleKey(part))
     
     if (canSplit) {// schedule the split action and an addserver if needed
       val splitAction = SplitPartition(part,/*splitFactor - maxParts + 1*/splitFactor, MOVE_OVERLOAD)
