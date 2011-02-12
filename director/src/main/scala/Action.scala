@@ -29,6 +29,7 @@ abstract class Action(
 	var successful = false
 	def state():ActionState = _state
 	def completed():Boolean = state()==ActionState.Completed
+	def cancelled():Boolean = state()==ActionState.Cancelled
 	def running():Boolean = state()==ActionState.Running
 	def ready():Boolean = state()==ActionState.Ready
 

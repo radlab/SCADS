@@ -55,8 +55,8 @@ abstract class ActionExecutor(val execDelay:Long) extends Runnable {
 	def getRunningActions:List[Action] = actions.filter(_.running)
 	def getAllActions:List[Action] = actions
 	def getUncompleteServerActions:List[Action] = actions.filter(a=> a match { case r:AddServer => r.ready || r.running; case r:RemoveServers => r.ready || r.running; case _ => false })
-	def allActionsCompleted():Boolean = if (actions.size==0) true else actions.forall(_.completed)
-	def allMovementActionsCompleted():Boolean = if (actions.size==0) true else actions.filter(a=> a match { case r:ReplicatePartition => true; case r:DeletePartition => true; case r:SplitPartition => true; case r:MergePartition => true; case _ => false }).forall(_.completed)
+	def allActionsCompleted():Boolean = if (actions.size==0) true else actions.forall(a => a.completed || a.cancelled)
+	def allMovementActionsCompleted():Boolean = if (actions.size==0) true else actions.filter(a=> a match { case r:ReplicatePartition => true; case r:DeletePartition => true; case r:SplitPartition => true; case r:MergePartition => true; case _ => false }).forall(a => a.completed || a.cancelled)
 	def partitionChangesRunning():Boolean = if (actions.size==0) false else !actions.filter(a=> a match { case r:SplitPartition => r.running; case r:MergePartition => r.running; case _ => false }).isEmpty
 	def status:String = actions.map(a=> "%-10s".format("("+a.state+")") + "  " + a.toString).mkString("\n")
 
@@ -126,17 +126,25 @@ class GroupingExecutor(val namespace:GenericNamespace, val scheduler:RemoteActor
 	
 	def doReplication():Unit = {
 	  val replicate = getReplicateActions()
-		logger.debug("%d replicate actions",replicate.size)
-		if (!replicate.isEmpty) namespace.replicatePartitions( replicate.map(a=> 
-			a match { case r:ReplicatePartition =>{ r.setStart; (r.partition, r.target) } }))
-		replicate.foreach(a => a.setComplete) // TODO: check for errors 
+	  try {
+  		logger.debug("%d replicate actions",replicate.size)
+  		if (!replicate.isEmpty) namespace.replicatePartitions( replicate.map(a=> 
+  			a match { case r:ReplicatePartition =>{ r.setStart; (r.partition, r.target) } }))
+  		replicate.foreach(a => a.setComplete)
+  		
+  	} catch { case e:RuntimeException => {
+		  logger.warning("replicate failed, so need to cancel them")
+		  replicate.foreach(a => a.cancel)
+		}}
 	}
 	
 	def getDeleteActions():List[Action] = actions.filter(a=> a match { case d:DeletePartition => d.ready; case _ => false } )
 	
 	def doDeletion():Unit = {
-	  val delete = getDeleteActions()
-		logger.debug("%d delete actions",delete.size)
+	  val deleteTotal = getDeleteActions()
+		logger.debug("%d delete actions",deleteTotal.size)
+		val delete = deleteTotal.filter(_.parentsCompleted)
+		if (delete.size != deleteTotal.size) logger.warning("not doing all scheduled deletes since some had their replicates fail")
 		if (!delete.isEmpty) namespace.deletePartitions( delete.map(a=> 
 				a match { case d:DeletePartition =>{ d.setStart; d.partition } }))
 		delete.foreach(a => a.setComplete) // TODO: check for errors
