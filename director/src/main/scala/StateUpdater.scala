@@ -37,14 +37,16 @@ object ScadsState {
 			// construct the server->partitions and partition->key mappings
 			val sToP = new scala.collection.mutable.HashMap[StorageService,scala.collection.mutable.ListBuffer[PartitionService]]()
 			val pToK = new scala.collection.mutable.HashMap[PartitionService,Option[org.apache.avro.generic.GenericRecord]]()
-			kToP.foreach(entry => // key -> set(partitions)
+			val pToSingle = new scala.collection.mutable.HashMap[Option[org.apache.avro.generic.GenericRecord],Boolean]()
+			kToP.foreach(entry => {// key -> set(partitions)
+			  pToSingle(entry._1) = namespace.isPartitionSingleKey(entry._1)
 				entry._2.foreach(partition =>{
 					pToK += (partition -> entry._1)
 					val serverparts = sToP.getOrElse(partition.storageService,new scala.collection.mutable.ListBuffer[PartitionService]())
 					serverparts += partition
 					sToP(partition.storageService) = serverparts
 				})
-			)
+			})
 
 			if (workloadRaw.rangeStats.keySet.size != pToK.keySet.size) {
   		  logger.warning("workload partitions != partitions->keys size (%d != %d)", workloadRaw.rangeStats.keySet.size, pToK.keySet.size)
@@ -67,6 +69,7 @@ object ScadsState {
 				Map(sToP.toList.map(entry => (entry._1,Set(entry._2:_*))):_*),
 				kToP,
 				Map(pToK.toList.map(entry => (entry._1, entry._2)):_*),
+				Map(pToSingle.toList.map(entry => (entry._1, entry._2)):_*),
 				workloadRaw,time)
 		}
 		else null
@@ -76,15 +79,17 @@ object ScadsState {
 		val kToP = Map( namespace.partitions.rTable.map(entry => (entry.startKey -> Set(entry.values:_*))):_* )
 		val sToP = new scala.collection.mutable.HashMap[StorageService,scala.collection.mutable.ListBuffer[PartitionService]]()
 		val pToK = new scala.collection.mutable.HashMap[PartitionService,Option[org.apache.avro.generic.GenericRecord]]()
+		val pToSingle = new scala.collection.mutable.HashMap[Option[org.apache.avro.generic.GenericRecord],Boolean]()
 
-		kToP.foreach(entry => // key -> set(partitions)
+		kToP.foreach(entry => {// key -> set(partitions)
 			entry._2.foreach(partition =>{
+			  pToSingle(entry._1) = namespace.isPartitionSingleKey(entry._1)
 				pToK += (partition -> entry._1)
 				val serverparts = sToP.getOrElse(partition.storageService,new scala.collection.mutable.ListBuffer[PartitionService]())
 				serverparts += partition
 				sToP(partition.storageService) = serverparts
 			})
-		)
+		})
 
 		if (workloadRaw.rangeStats.keySet.size != pToK.keySet.size) {
 		  logger.warning("workload partitions != partitions->keys size (%d != %d)", workloadRaw.rangeStats.keySet.size, pToK.keySet.size)
@@ -117,6 +122,7 @@ object ScadsState {
 			Map(sToP.toList.map(entry => (entry._1,Set(entry._2:_*))):_*),
 			kToP,
 			Map(pToK.toList.map(entry => (entry._1, entry._2)):_*),
+			Map(pToSingle.toList.map(entry => (entry._1, entry._2)):_*),
 			workloadRaw,time)
 	}
 }

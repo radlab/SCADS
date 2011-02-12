@@ -144,6 +144,22 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
       extractKeyValueFromRangeType(splitRecord)._1
     })
   }
+  
+  /**
+	* for each logical partition, return boolean indicating if that partition has only one key
+	*/
+	def isPartitionSingleKey(startkey: Option[KeyType]):Boolean = {
+	  /*val ranges = serversForRange(None,None)
+	  val requests = for (fullrange <- ranges) yield {
+			(fullrange.startKey,fullrange.endKey, fullrange.values, getRange(fullrange.startKey,fullrange.endKey,Some(2),Some(0)) )
+		}*/
+		val activePartition = serversForRange(startkey, None).head
+    val partitions = activePartition.values
+    val endkey = activePartition.endKey
+
+    val result = getRange(startkey,endkey,Some(2),Some(0))
+    result.size == 1
+	}
 
   def put(key: KeyType, value: Option[ValueType]): Unit = {
     val (servers, quorum) = writeQuorumForKey(key)
