@@ -1,5 +1,8 @@
 allJarsFile = File.join(RAILS_ROOT, "../../../../../allJars")
 
+require 'jruby'
+JRuby.objectspace=false
+
 if(File::exists?(allJarsFile))
   puts "Loading local PIQL Jars"
   jars = File.read(allJarsFile).split("\n")
