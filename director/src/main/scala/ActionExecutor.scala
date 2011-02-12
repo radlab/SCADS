@@ -83,7 +83,10 @@ abstract class ActionExecutor(val execDelay:Long) extends Runnable {
 			  logger.debug("executor to run")
 				execute()
 			} catch {
-				case e:Exception => logger.warning(e,"exception running director action")
+				case e:Exception => {
+				  logger.warning(e,"exception running director action, cancelling actions")
+				  
+			  }
 			}
 			logger.debug("executor %s sleeping for: %d ms", Thread.currentThread.getName, execDelay )
 			Thread.sleep(execDelay)
@@ -224,11 +227,13 @@ class SplittingGroupingExecutor(namespace:GenericNamespace, splitMaps:java.util.
     
     
     // get split keys for each partiton to split, and make a combined list of all splits to perform
-    if (!splits.isEmpty) namespace.splitPartition(
-      splits.map(a => a match { case split:SplitPartition => { split.setStart; val keys = namespace.getSplitKeys(split.partition, split.parts); splitMapTodo.append((split.partition,keys.map(Some(_))))/*splitMaps.put((split.partition,keys.map(Some(_))))*/; keys} }).flatten(a=>a)
-      )
-    splits.foreach(a => a.setComplete) // TODO: check for errors  
-    splitMapTodo.foreach(splitMaps.put(_))
+    try {
+      if (!splits.isEmpty) namespace.splitPartition(
+        splits.map(a => a match { case split:SplitPartition => { split.setStart; val keys = namespace.getSplitKeys(split.partition, split.parts); splitMapTodo.append((split.partition,keys.map(Some(_))))/*splitMaps.put((split.partition,keys.map(Some(_))))*/; keys} }).flatten(a=>a)
+        )
+      splits.foreach(a => a.setComplete) // TODO: check for errors  
+      splitMapTodo.foreach(splitMaps.put(_))
+    } catch { case e:Exception => { logger.warning("splits failed, cancelling"); splits.foreach(a => a.cancel)}}
   } // end doSplit
   
   def getMergeActions():List[Action] = actions.filter(a=> a match { case r:MergePartition => r.ready; case _ => false } )
@@ -238,12 +243,14 @@ class SplittingGroupingExecutor(namespace:GenericNamespace, splitMaps:java.util.
     logger.debug("%d merge actions", merges.size)
     //val mergeMapTodo = new scala.collection.mutable.ListBuffer[(Seq[Option[org.apache.avro.generic.GenericRecord]],Option[org.apache.avro.generic.GenericRecord])]()
     
-    if (!merges.isEmpty) { val mergeBounds = namespace.mergePartitions(
-      merges.map(a => a match { case merge:MergePartition => { merge.setStart; /*val keys = namespace.getMergeKeys(merge.partition); mergeMapTodo.append((Seq(keys._1, merge.partition), keys._1));*/ merge.partition.get } })
-      )
-     mergeBounds.foreach(e => mergeMaps.put( (Seq(e._1, e._2), e._1) )) 
-    }
-    merges.foreach(a => a.setComplete)
+    try {
+      if (!merges.isEmpty) { val mergeBounds = namespace.mergePartitions(
+        merges.map(a => a match { case merge:MergePartition => { merge.setStart; /*val keys = namespace.getMergeKeys(merge.partition); mergeMapTodo.append((Seq(keys._1, merge.partition), keys._1));*/ merge.partition.get } })
+        )
+       mergeBounds.foreach(e => mergeMaps.put( (Seq(e._1, e._2), e._1) )) 
+      }
+      merges.foreach(a => a.setComplete)
+    } catch { case e:Exception => { logger.warning("merges failed, cancelling"); merges.foreach(a => a.cancel)}}
     //mergeMapTodo.foreach(mergeMaps.put(_))
   }
 }
