@@ -24,3 +24,6 @@
 <% for wordlist in @wordlists %>
   <%= link_to wordlist.name, :controller => :games, :action => "new_game", :id => 0, :wordlist => wordlist.name %>
 <% end %>
+
+<h2>Leaderboard</h2>
+<%= render :partial => "leaderboard" %>

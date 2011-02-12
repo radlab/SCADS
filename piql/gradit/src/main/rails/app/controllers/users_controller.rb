@@ -2,9 +2,6 @@ class UsersController < ApplicationController
   
   before_filter :login_required, :only => [:dashboard]
   
-  def index
-  end
-  
   def new
   end
   
@@ -16,6 +13,7 @@ class UsersController < ApplicationController
     @unfinished_games = games.select {|g| g.done == 0}  
     @finished_games = games.select {|g| g.done == 1}  
     @wordlists = User.find(current_user).wordlists
+    @leaderboard = User.get_leaderboard
   end
   
   def create

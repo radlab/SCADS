@@ -192,4 +192,11 @@ class GraditClient(val cluster: ScadsCluster, executor: QueryExecutor) {
             .where("words.wordlist".a === (0.?))
             .limit(50)
     ).toPiql("wordsFromWordList")
+   
+   val leaderboard = new OptimizedQuery("leaderboard",
+       IndexLookupJoin(gameplayers,
+                   AttributeValue(0, 1) :: AttributeValue(0,2) :: Nil,
+                         LocalStopAfter(FixedLimit(10),
+                             IndexScan(gameplayers.getOrCreateIndex("score" :: Nil), Nil, FixedLimit(10), false))),
+                                  executor)
 }

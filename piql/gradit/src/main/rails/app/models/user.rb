@@ -76,5 +76,9 @@ class User < AvroRecord
     end
     return nil
   end
+   
+  def self.get_leaderboard
+    return User.leaderboard.map {|gp| gp.first}
+  end
     
 end

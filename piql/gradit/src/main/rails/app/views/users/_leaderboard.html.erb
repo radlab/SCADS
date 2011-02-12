@@ -1,0 +1,7 @@
+<ul>
+<% for user in @leaderboard %>
+    <li>
+        <%= user.login %>: <%= user.score %>
+    </li>
+<% end %>
+</ul>
