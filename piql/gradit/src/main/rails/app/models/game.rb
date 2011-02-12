@@ -12,25 +12,16 @@ class Game < AvroRecord
     g.wordlist = wordlist
     
     words = WordList.find(wordlist).words.sort_by{rand}.map {|w| w.wordid }.join(",")
-    puts words
     
     g.words = words
     g.currentword = 0
     g.done = 0
     g.save
-    g.save #HACK: call everything twice for piql bug
     
-    puts "CREATED NEW GAME"
-    g
+    return g
   end
 
   def self.find(id)
-    begin #HACK: rescue exception
-      Game.findGame(java.lang.Integer.new(id)) #HACK: call everything twice for piql bug
-    rescue Exception => e
-      puts "exception was thrown"
-      puts e
-    end
     g = Game.findGame(java.lang.Integer.new(id))
     puts "***JUST RAN PK QUERY ON GAME***"
     puts g
@@ -68,7 +59,6 @@ class Game < AvroRecord
     self.words = words_list.join(",")
     self.currentword = wordid
     self.save
-    saved = self.save #HACK: call everything twice for piql bug
     
     return Word.find(wordid)
   end

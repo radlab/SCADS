@@ -9,17 +9,10 @@ class Word < AvroRecord
     w.definition = definition
     w.wordlist = wordlist
     w.save
-    w.save #HACK: call everything twice for piql bug
     w
   end
 
   def self.find(id)
-    begin #HACK: rescue exception
-      Word.findWord(java.lang.Integer.new(id)) #HACK: call everything twice for piql bug
-    rescue Exception => e
-      puts "exception was thrown"
-      puts e
-    end
     w = Word.findWord(java.lang.Integer.new(id))
     puts "***JUST RAN PK QUERY ON WORD***"
     puts w
@@ -47,10 +40,6 @@ class Word < AvroRecord
   
   #Returns an array of 3 other multiple choice options
   def choices
-    #return ["hello", "goodbye", "yay"] #FIXME
-    #Randomly pick 3 other words that are not the same as the current word
-    #FIXME: 1..20 should be the number of words we have
-    
     words = WordList.find(self.wordlist).words
     words = words.shuffle
     words = words.select {|w| w.wordid != self.wordid}
@@ -59,15 +48,7 @@ class Word < AvroRecord
   end 
   
   def contexts
-    begin #HACK: rescue exception
-      WordContext.contextsForWord(java.lang.Integer.new(self.wordid))
-    rescue Exception => e
-      puts "exception was thrown"
-      puts e
-    end
-    wc = WordContext.contextsForWord(java.lang.Integer.new(self.wordid)) #HACK: call everything twice for piql bug
-    puts "***JUST CALLED WORD.CONTEXTS***"
-    puts wc
+    wc = WordContext.contextsForWord(java.lang.Integer.new(self.wordid)) 
     wc = wc.first unless wc == nil || wc.empty?
     wc
   end
@@ -78,15 +59,7 @@ class Word < AvroRecord
   #   [<#WordContext> <#WordContext> ] etc.
   
   def getContext
-    begin #HACK: rescue exception
-      WordContext.contextsForWord(java.lang.Integer.new(self.wordid))
-    rescue Exception => e
-      puts "exception was thrown"
-      puts e
-    end
-    wc = WordContext.contextsForWord(java.lang.Integer.new(self.wordid)) #HACK: call everything twice for piql bug
-    puts "***JUST CALLED WORD.CONTEXTS***"
-    puts wc
+    wc = WordContext.contextsForWord(java.lang.Integer.new(self.wordid)) 
     wc = wc.map { |c| c.first }
     return nil if wc.empty?
     return wc.sort_by {rand}.first
