@@ -2,11 +2,6 @@ class Game < AvroRecord
   
   #Find word by wordid
   
-  def self.all
-    game = nil
-    return [] #FIXME
-  end
-  
   def self.createNew(wordlist)
     id = 1
     while self.find(id) != nil
@@ -15,7 +10,11 @@ class Game < AvroRecord
     g = Game.new
     g.gameid = id
     g.wordlist = wordlist
-    g.words = ""
+    
+    words = WordList.find(wordlist).words.sort_by{rand}.map {|w| w.wordid }.join(",")
+    puts words
+    
+    g.words = words
     g.currentword = 0
     g.done = 0
     g.save
@@ -55,18 +54,27 @@ class Game < AvroRecord
     Word.find(self.currentword)
   end
   
+  def hasNextWord
+    words_list = self.words.split(",")
+    return false if words_list.empty?
+    return true
+  end
+
   #Chooses and saves the next word for the game
   def changeWord
     puts "CHANGING WORD"
-    w = WordList.find(wordlist)
-    words = w.words
-    word = words[rand(words.length)]
-    
-    self.currentword = word.wordid
+    words_list = self.words.split(",")
+    puts words_list.to_s
+    wordid = words_list[0].to_i
+    puts wordid.to_s
+    words_list = words_list.slice(1..words_list.length - 1)  
+    puts words_list.to_s
+    self.words = words_list.join(",")
+    self.currentword = wordid
     self.save
     saved = self.save #HACK: call everything twice for piql bug
     
-    return word
+    return Word.find(wordid)
   end
   
   def users

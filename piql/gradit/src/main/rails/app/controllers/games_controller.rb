@@ -8,7 +8,7 @@ class GamesController < ApplicationController
   def index
     @current_user = current_user
     #Note: .all does not yet work
-    @games = Game.all
+    @games = []
     @wordlists = WordList.all
   end
 
@@ -31,11 +31,17 @@ class GamesController < ApplicationController
     if choice == answer.word #If correct answer
       puts "CORRECT"
       
-      #Pick a new "current" word from the wordlist **NEED TO OPTIMIZE THIS**
-      game.changeWord
-      
       #Raise score
       gp.incrementScore(10)
+      #Pick a new "current" word from the wordlist **NEED TO OPTIMIZE THIS**
+      if game.hasNextWord
+        game.changeWord
+      else #No more words in the game
+        game.quit
+        flash[:notice] = "You've finished the game! Your score was " + gp.score.to_s + "."
+        redirect_to dashboard_path
+        return
+      end
       
       flash[:notice] = "Correct!"
       redirect_to(:controller=> :games, :action=> :game_entry, :id => game.gameid)
@@ -89,10 +95,11 @@ class GamesController < ApplicationController
     
     #Get a random context for the word
     @para = false
-    contexts = word.contexts #get context
-    con = contexts.sort_by{ rand }.first
+    con = word.getContext #get context
+    puts "GETTING CONTEXT"
+    puts con
 
-  	if(con)
+  	if con != nil
   	  #Initialize paragraph, multiple choice settings
   	  @para_book = con.book;
       @para = con.wordLine
@@ -100,19 +107,15 @@ class GamesController < ApplicationController
       @mc = word.choices 
       @mc_array = (@mc << word.word).shuffle
     else #Find another word to use, no contexts
-      wordlist = WordList.find(game.wordlist)
-      words = wordlist.words.sort_by { rand }
-      
-      for word in words
-        if !word.contexts.empty?
-          game.changeWord
-          redirect_to(:controller=> :games, :action=> :game_entry, :id => game.gameid)
-          return
-        end
+      if game.hasNextWord
+        game.changeWord
+        redirect_to :controller => :games, :action => :game_entry, :id => game.gameid
+      else
+        game.quit
+        flash[:notice] = "You've finished the game! Your score was " + @score.to_s + "."
+        redirect_to dashboard_path
       end
     end    
-    nexturl = url_for :controller => :games, :action => :game_entry, :id => game.gameid
-    @disp = nexturl
   end
 
   def new_game

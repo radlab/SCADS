@@ -77,7 +77,7 @@ class Word < AvroRecord
   #word.allContexts will give
   #   [<#WordContext> <#WordContext> ] etc.
   
-  def allContexts
+  def getContext
     begin #HACK: rescue exception
       WordContext.contextsForWord(java.lang.Integer.new(self.wordid))
     rescue Exception => e
@@ -88,6 +88,7 @@ class Word < AvroRecord
     puts "***JUST CALLED WORD.CONTEXTS***"
     puts wc
     wc = wc.map { |c| c.first }
-    wc
+    return nil if wc.empty?
+    return wc.sort_by {rand}.first
   end
 end
