@@ -15,9 +15,6 @@ class WordlistsController < ApplicationController
       return
     end
     
-    puts "**CREATED WORDLIST**"
-    puts w.name
-    
     flash[:notice] = "Successfully created wordlist."
     redirect_to dashboard_path       
     return

@@ -9,10 +9,9 @@ class UsersController < ApplicationController
     @current_user = current_user
 
     games = User.find(current_user).games
-    puts games
     @unfinished_games = games.select {|g| g.done == 0}  
     @finished_games = games.select {|g| g.done == 1}  
-    @wordlists = User.find(current_user).wordlists
+    @wordlists = User.find(current_user).wordlists #TODO: OPTIMIZE
     @leaderboard = User.get_leaderboard
   end
   

@@ -3,17 +3,11 @@ class GamesController < ApplicationController
   before_filter :login_required, :except => [:index]
   before_filter :valid_game?, :only => [:game_entry, :ans]
   
-  # GET /games
-  # GET /games.xml
-  def index
+  def index #TODO: Remove
     @current_user = current_user
-    #Note: .all does not yet work
     @games = []
     @wordlists = WordList.all
   end
-
-  # GET /games/1
-  # GET /games/1.xml
  
   #Check if the answer was correct
   def ans
@@ -23,16 +17,12 @@ class GamesController < ApplicationController
     choice = params[:answer]
     answer = game.answer
     
-    user = User.find(current_user)
-  	gp = GamePlayer.find(game.gameid, user.login)
+  	gp = GamePlayer.find(game.gameid, current_user)
 
-    puts "@@@@AND THE ANSWER IS@@@@@@@@"
     if choice == answer.word #If correct answer
-      puts "CORRECT"
-      
       #Raise score
       gp.incrementScore(10)
-      #Pick a new "current" word from the wordlist **NEED TO OPTIMIZE THIS**
+      #Pick a new "current" word from the wordlist 
       if game.hasNextWord
         game.changeWord
       else #No more words in the game
@@ -45,8 +35,6 @@ class GamesController < ApplicationController
       flash[:correct] = "Correct! (+10 points)"
       redirect_to(:controller=> :games, :action=> :game_entry, :id => game.gameid)
     else #Incorrect answer
-      puts "INCORRECT"
-      
       #Lower score 
       gp.incrementScore(-5)
      
@@ -61,10 +49,7 @@ class GamesController < ApplicationController
     @current_user = current_user
     
     game = Game.find(params[:id].to_i)
-    puts @current_user
-    
   	word = Word.find(game.currentword)
-    
   	gp = GamePlayer.find(game.gameid, current_user)
   	@score = gp.score
   
@@ -101,7 +86,6 @@ class GamesController < ApplicationController
     end
     
     game = Game.createNew(wordlist.name)
-    
     gp = GamePlayer.createNew(game.gameid, current_user)
 
     if(game.hasNextWord) #If there is a word

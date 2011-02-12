@@ -14,12 +14,10 @@ class ApplicationController < ActionController::Base
   def current_user
     return session[:user] if session[:user]
     return nil
-    #return User.guest_user.login
+    #return User.guest_user.login #TODO: Add guest access back in
   end
   
   def login_required
-    puts "LOGIN IS REQUIRED"
-    puts current_user
     if current_user == nil
         flash[:notice] = "You must be logged in to play a game."
         redirect_to :controller => :games
