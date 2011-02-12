@@ -44,6 +44,7 @@ case class GenericClusterParams(
 case class ScadrClusterParams(
   var clusterAddress: String,
 	var numStorageNodes: Int,
+	var numLoadClients: Int,
 	var numPerPage: Int = 10,
 	var numUsers: Int = 100000,
 	var numThoughtsPerUser: Int = 100,
