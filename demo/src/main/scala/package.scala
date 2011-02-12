@@ -120,9 +120,9 @@ package object demo {
     serviceScheduler !? RunExperimentRequest(traceTask :: Nil)
   }
 
-  def startScadrDataLoad(numStorageNodes: Int): Unit = {
+  def startScadrDataLoad: Unit = {
     //val storageEngineTask = ScalaEngineTask(traceRoot.canonicalAddress).toJvmTask
-    val storageEngines = Array.fill(numStorageNodes)(ScalaEngineTask(traceRoot.canonicalAddress).toJvmTask)
+    val storageEngines = Array.fill(scadrClusterParams.numStorageNodes)(ScalaEngineTask(traceRoot.canonicalAddress).toJvmTask)
     /*
     val dataLoadTask = ScadrDataLoaderTask(
       RunParams(traceRoot.canonicalAddress,
@@ -130,6 +130,10 @@ package object demo {
       10)
     ).toJvmTask
     */
+    
+    val dataLoadTasks = Array.fill(scadrClusterParams.numLoadClients)(ScadrDataLoaderTask(scadrClusterParams).toJvmTask)
+    
+    /*
     var dataLoadTask = ScadrDataLoaderTask(
       ScadrClusterParams(
         traceRoot.canonicalAddress,
@@ -137,8 +141,10 @@ package object demo {
         5
       )
     ).toJvmTask
+    */
 
-    serviceScheduler !? RunExperimentRequest(storageEngines.toList :+ dataLoadTask)
+    //serviceScheduler !? RunExperimentRequest(storageEngines.toList :+ dataLoadTask)
+    serviceScheduler !? RunExperimentRequest(storageEngines.toList ::: dataLoadTasks.toList)
   }
 
   def startScadrRain: Unit = {
