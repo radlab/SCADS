@@ -51,7 +51,7 @@ class UsersController < ApplicationController
     if u != nil
       session[:user] = u.login
       flash[:notice] = "You've been successfully logged in, " + u.login + "!"
-      redirect_to :controller => :games
+      redirect_to dashboard_path 
     else #Unsuccessful login
       flash[:notice] = "Unsuccessful login."
       redirect_to "/login"

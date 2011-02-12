@@ -73,5 +73,9 @@ class Game < AvroRecord
     return Game.findGameUsers(java.lang.Integer.new(gameid)).map {|u| u.first}.map {|u| u.login}
   end
 
+  def quit
+    self.done = 1
+    self.save  
+  end
     
 end

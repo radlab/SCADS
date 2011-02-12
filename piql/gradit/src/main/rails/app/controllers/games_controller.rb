@@ -105,7 +105,7 @@ class GamesController < ApplicationController
       
       for word in words
         if !word.contexts.empty?
-          game.changeWord(word.wordid)
+          game.changeWord
           redirect_to(:controller=> :games, :action=> :game_entry, :id => game.gameid)
           return
         end
@@ -137,6 +137,12 @@ class GamesController < ApplicationController
     flash[:notice] = "Wordlist has no words!"
     redirect_to :back
   end
+
+  def quit_game
+    Game.find(params[:id]).quit
+    redirect_to dashboard_path
+  end
+
   
   private
   

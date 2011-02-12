@@ -4,7 +4,8 @@ ActionController::Routing::Routes.draw do |map|
   map.logout '/logout', :controller => 'users', :action => 'logout'
   map.login '/login', :controller => 'users', :action => 'login'
   map.register '/register', :controller => 'users', :action => 'new'
-  
+  map.dashboard '/dashboard', :controller => 'users', :action => 'dashboard'
+
   map.search '/search', :controller => 'search', :action => 'context'
 
   # The priority is based upon order of creation: first created -> highest priority.
