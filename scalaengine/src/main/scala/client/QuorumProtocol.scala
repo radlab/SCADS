@@ -123,16 +123,12 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
   }
 
   def getSplitKeys(startkey: Option[KeyType], numSplits:Int):Seq[KeyType] = {
-    val partitions = serversForRange(startkey,startkey).head.values//serversForKey(startkey.map(_))
+    val activePartition = serversForRange(startkey, None).head
+    val partitions = activePartition.values
 
-    // determine end key for partition
-    val respResponses = partitions.map(_ !! GetResponsibilityRequest())
-    respResponses.blockFor(1) // only get response from one replica of the partition
-    val resp = respResponses.filter(_.isSet)
-    val endkey = resp.map(r => r.get match { case m@GetResponsibilityResponse(s,e) => e; case _ => None }).head
-
+    val endkey = activePartition.endKey
     // determine number of records in this partition
-    val countRequest = CountRangeRequest(startkey.map(serializeKey(_)), endkey)
+    val countRequest = CountRangeRequest(startkey.map(serializeKey(_)), endkey.map(serializeKey))
     val countResponses = partitions.map(_ !! countRequest)
     countResponses.blockFor(1) // only get response from one replica of the partition
     val countResponse = countResponses.filter(_.isSet)
