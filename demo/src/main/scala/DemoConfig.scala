@@ -30,6 +30,7 @@ object DemoConfig {
   def scadrClusterParams = ScadrClusterParams(
     traceRoot.canonicalAddress, // cluster address
     5,                          // num storage nodes
+    5,                          // num load clients
     100000,                     // num users
     10000,                      // num thoughts per user
     10000,                      // num subscriptions per user
