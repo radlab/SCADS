@@ -122,7 +122,6 @@ object DemoConfig {
       }
     }
     startScadrDirector()
-    startScadr
   }
 
   def initGraditCluster(clusterAddress:String):Unit = {
@@ -151,6 +150,5 @@ object DemoConfig {
       }
     }
     startGraditDirector()
-    startGradit
   }
 }
