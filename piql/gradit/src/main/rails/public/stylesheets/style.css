@@ -70,11 +70,14 @@ div#info{
 
 div.section{
     float:left;
-    padding-right: 1em;
-    width: 31%;
+    width: 33.3%;
     color: #ccc;
 }
 
+div.section span{
+    display: block;
+    padding: 1em;
+}
 div.section h2{
     color: #ec9a26;
     text-align: center;
