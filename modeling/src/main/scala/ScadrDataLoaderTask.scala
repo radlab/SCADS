@@ -33,24 +33,36 @@ case class ScadrDataLoaderTask(
     val cluster = new ExperimentalScadsCluster(clusterRoot)
     cluster.blockUntilReady(params.numStorageNodes)
 
-    /* load data */
-    println("loading data...")
+    println("setting up scadr client and scadr loader...")
     val scadrClient = new ScadrClient(cluster, new SimpleExecutor)
     //val scadrLoader = new ScadrLoader(scadrClient, 1, 1)
     val scadrLoader = new ScadrLoader(
-      scadrClient, //val client: ScadrClient,
-      1, //val replicationFactor: Int,
-      1, //val numClients: Int, // number of clients to split the loading by
-      params.numUsers, //val numUsers: Int = 100,
-      params.numThoughtsPerUser, //val numThoughtsPerUser: Int = 10,
-      params.numSubscriptionsPerUser, //val numSubscriptionsPerUser: Int = 10,
-      5 //val numTagsPerThought: Int = 5) // I don't think this is implemented
+      scadrClient,                      //val client: ScadrClient,
+      1,                                //val replicationFactor: Int,
+      params.numLoadClients,            //val numClients: Int, // number of clients to split the loading by
+      params.numUsers,                  //val numUsers: Int = 100,
+      params.numThoughtsPerUser,        //val numThoughtsPerUser: Int = 10,
+      params.numSubscriptionsPerUser,   //val numSubscriptionsPerUser: Int = 10,
+      5                                 //val numTagsPerThought: Int = 5) // I don't think this is implemented
     )
-    scadrLoader.createNamespaces
-    val scadrData = scadrLoader.getData(0)  // check sizes
+
+    // wait for each client to start up
+    // get clientId
+    // client 0 creates the namespaces
+    val coordination = clusterRoot.getOrCreate("coordination")
+    val clientId = coordination.registerAndAwait("clientStart", params.numLoadClients)
+    if (clientId == 0)
+      scadrLoader.createNamespaces
+    
+    // wait until the namespaces have been created
+    coordination.registerAndAwait("startBulkLoad", params.numLoadClients)
+    val scadrData = scadrLoader.getData(clientId)
+    
+    /*
     println("user data size: " + scadrData.userData.size)
     println("thought data size: " + scadrData.thoughtData.size)
     println("subscription data size: " + scadrData.subscriptionData.size)
+    */
     scadrData.load
 
     /*
