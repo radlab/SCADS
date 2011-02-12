@@ -24,7 +24,9 @@
         <div class="clear"></div>
       </div>
 		  <div id="content">
-		    <span id="notice"><%= flash[:notice] %></span>
+            <% if flash[:notice] %>
+                <div id="notice"><%= flash[:notice] %></div>
+            <% end %>
 		    <%= yield %>
 		  </div>
       

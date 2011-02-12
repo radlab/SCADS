@@ -25,9 +25,6 @@ class UsersController < ApplicationController
       return
     end
     
-    puts "**CREATED USER**"
-    puts u.login
-    
     session[:user] = params[:login]
     flash[:notice] = "Successfully created user."
     redirect_to :controller => :games
@@ -41,8 +38,6 @@ class UsersController < ApplicationController
   def login_action
     user = params[:login]
     pass = params[:password]
-    
-    puts "are you logging in?"
     
     u = User.login(user, pass)
 

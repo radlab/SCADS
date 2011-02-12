@@ -21,9 +21,13 @@
 
 <h2>Create a new game</h2>
 <h3>Available wordlists</h3>
+<ul>
 <% for wordlist in @wordlists %>
+  <li>
   <%= link_to wordlist.name, :controller => :games, :action => "new_game", :id => 0, :wordlist => wordlist.name %>
+  </li>
 <% end %>
+</ul>
 
 <h2>Leaderboard</h2>
 <%= render :partial => "leaderboard" %>

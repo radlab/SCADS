@@ -1,6 +1,5 @@
 class WordlistsController < ApplicationController
-  # GET /wordlists
-  # GET /wordlists.xml
+  before_filter :login_required
   def index
   end
 
@@ -8,7 +7,7 @@ class WordlistsController < ApplicationController
   end
   
   def create
-    w = WordList.createNew(params[:name])
+    w = WordList.createNew(params[:name], current_user)
     
     if w == nil #Wordlist name is already taken
       flash[:notice] = "Please choose a unique wordlist name."
@@ -20,7 +19,7 @@ class WordlistsController < ApplicationController
     puts w.name
     
     flash[:notice] = "Successfully created wordlist."
-    redirect_to :controller => :games
+    redirect_to dashboard_path       
     return
 
   end

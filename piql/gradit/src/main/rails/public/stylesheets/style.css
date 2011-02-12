@@ -143,6 +143,18 @@ div.section h2{
 	font-size: 1.2em;
 }
 
+#notice{
+    margin: auto;
+    width: 50%;
+    text-align: center;
+    font-size: 1.2em;
+    background: #fff9bc;
+    border: 1px #c4a54a solid;
+    color: #c4a54a;
+    padding: 5px;
+    border-radius: 3px;
+}
+
 #correct{
     background: #d4f7b2;
     border: 1px #5fbf00 solid;

@@ -62,13 +62,9 @@ class Game < AvroRecord
 
   #Chooses and saves the next word for the game
   def changeWord
-    puts "CHANGING WORD"
     words_list = self.words.split(",")
-    puts words_list.to_s
     wordid = words_list[0].to_i
-    puts wordid.to_s
     words_list = words_list.slice(1..words_list.length - 1)  
-    puts words_list.to_s
     self.words = words_list.join(",")
     self.currentword = wordid
     self.save
