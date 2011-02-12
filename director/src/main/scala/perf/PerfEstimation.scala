@@ -29,7 +29,7 @@ case class SimplePerformanceEstimator(
 	
 	def violationOnServer( config:ClusterState, workload:WorkloadHistogram, server:StorageService ):Boolean = {
 		val workloadPerServer = PerformanceEstimator.estimateServerWorkloadReads(config,workload,reads)
-		logger.warning("    checking violation on "+server+" workload per server:\n"+workloadPerServer.toList.sort(_._1<_._1).map( p => p._1+" => "+p._2.toString ).mkString("\n"))
+		logger.debug("    checking violation on "+server+" workload per server:\n"+workloadPerServer.toList.sort(_._1<_._1).map( p => p._1+" => "+p._2.toString ).mkString("\n"))
 
 		val violationsPerServer = perServerViolations(config,workload,getSLA,putSLA,slaQuantile)
 		//logger.debug("looking for viol on %s:\n%s",server.toString,violationsPerServer.mkString(","))
