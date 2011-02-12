@@ -43,7 +43,7 @@ class GamesController < ApplicationController
         return
       end
       
-      flash[:notice] = "Correct!"
+      flash[:correct] = "Correct! (+10 points)"
       redirect_to(:controller=> :games, :action=> :game_entry, :id => game.gameid)
       #AJAX update page to reflect changes in score, let the user know they are correct
       #render :update do |page|
@@ -61,7 +61,7 @@ class GamesController < ApplicationController
       gp.incrementScore(-5)
      
       w = Word.find_by_word(choice)
-      flash[:notice] = "Oops, that's wrong. The definition of " + choice + " is " + w.definition
+      flash[:incorrect] = "Oops, that's wrong. (<b>" + choice + "</b> means " + w.definition + ")"
       redirect_to(:controller=> :games, :action=> :game_entry, :id => game.gameid)
       #AJAX update page to reflect changes in score, let user know they are incorrect
       #render :update do |page|

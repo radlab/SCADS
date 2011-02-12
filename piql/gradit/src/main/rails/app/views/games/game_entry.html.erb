@@ -1,7 +1,12 @@
-<div id="ans_result">
-</div>
 <div id="player_panel">
 	Player Score: <span id="player_score"><%= @score %></span> | <%= link_to "Quit Game", :controller => :games, :action => :quit_game, :id => params[:id] %> 
+</div>
+<div id="ans_result">
+    <% if flash[:correct] %>
+        <div id="correct"><%=flash[:correct]%></div>
+    <% elsif flash[:incorrect]  %>
+        <div id="incorrect"><%=flash[:incorrect]%></div> 
+    <% end %>
 </div>
 <div class="game_entry">
 	<% if @para %>

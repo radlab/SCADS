@@ -127,27 +127,6 @@ div.section h2{
 	font-size: 20px;
 }
 
-#wrapper{
-	position: relative;
-	margin:auto;
-	top: -35px;
-	width: 950px;
-}
-#trans_back{
-	background: #fff;
-	opacity: .6;
-	width: 950px;
-	min-height: 300px;
-}
-
-#content_holder{
-	position: absolute;
-	top: 10px;
-	left: 10px;
-	width: 930px;
-	min-height: 300px;
-	background: #fff;
-}
 
 #content{
 	padding: 30px;
@@ -155,8 +134,26 @@ div.section h2{
 
 /*Game Entry*/
 #ans_result{
+    margin: auto;
+    width: 50%;
 	text-align: center;
-	font-size: 20px;
+	font-size: 1.2em;
+}
+
+#correct{
+    background: #d4f7b2;
+    border: 1px #5fbf00 solid;
+    color: #5fbf00; 
+    padding: 5px;
+    border-radius: 3px;
+}
+
+#incorrect{
+    background: #fccccc;
+    border: 1px #ff5656 solid;
+    color: #ff5656;
+    padding: 5px;
+    border-radius: 3px;
 }
 
 #player_panel{
