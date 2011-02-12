@@ -5,7 +5,7 @@ import edu.berkeley.cs.scads.storage.{ GenericNamespace, ScadsCluster }
 import net.lag.logging.Logger
 
 object Director {
-  Logger("policy").setLevel(java.util.logging.Level.FINEST)
+  //Logger("policy").setLevel(java.util.logging.Level.FINEST)
   private val rnd = new java.util.Random(7)
   val basedir = "/tmp"
   val bootupTimes = new BootupTimes()
