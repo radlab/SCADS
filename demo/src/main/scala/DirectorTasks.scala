@@ -68,7 +68,6 @@ case class ScadrDirectorTask(var clusterAddress: String, var mesosMaster: String
     //TODO: maybe we should pass the zookeeper address upon creation
     directors.foreach(_.run(clusterRoot))
 
-    //TODO: Join with director threads instead of just sleeping forever
     directors.foreach(_.thread.join())
   }
 }
@@ -96,7 +95,6 @@ case class GraditDirectorTask(var clusterAddress: String, var mesosMaster: Strin
     //TODO: maybe we should pass the zookeeper address upon creation
     directors.foreach(_.run(clusterRoot))
 
-    //TODO: Join with director threads instead of just sleeping forever
     directors.foreach(_.thread.join())
   }
 }
