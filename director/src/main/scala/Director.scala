@@ -57,7 +57,7 @@ case class Director(var numClients: Int, namespaceString: String, val scheduler:
     //val coordination = clusterRoot.getOrCreate("coordination") // TODO
     Thread.sleep(10 * 1000)
     controller = new Controller(policy, executor, stateHistory)
-    thread = new Thread(controller)
+    thread = new Thread(controller, "Controller:"+namespace.namespace)
     thread.start
 
   }

@@ -143,7 +143,7 @@ case class StateHistory(
 	
 	def startUpdating {
 		val updater = StateUpdater()
-		updaterThread = new Thread(updater)
+		updaterThread = new Thread(updater,"StateUpdater:"+namespace.namespace)
 		updaterThread.start
 	}
 

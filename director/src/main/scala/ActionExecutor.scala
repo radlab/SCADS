@@ -15,8 +15,8 @@ abstract class ActionExecutor(val execDelay:Long) extends Runnable {
 	val actions = new scala.collection.mutable.SynchronizedQueue[Action]()//List[Action]()
 	protected val logger = Logger("executor")
 	var running = false
-	val executorThread = new Thread(this, "ActionExecutor")
 	def namespace:GenericNamespace
+	val executorThread = new Thread(this, "ActionExecutor:"+namespace.namespace)
 	
 	initialize
 
