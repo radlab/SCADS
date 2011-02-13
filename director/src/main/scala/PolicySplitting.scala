@@ -353,7 +353,8 @@ class BestFitPolicySplitting(
 			val serverRemoveCandidates = candidates.toList.take( nEmptyServers-nHotStandbys )
 			val serversToRemove = new scala.collection.mutable.ListBuffer[StorageService]()
 			for(s <- serverRemoveCandidates) {
-				try {
+			  serversToRemove += s
+				/*try {
 					val bootupTime = Director.bootupTimes.getBootupTime(s).get
 					val timeLeft = machineInterval - (currentTime-bootupTime)%machineInterval
 					if (timeLeft < serverRemoveTime) {
@@ -362,6 +363,7 @@ class BestFitPolicySplitting(
 					} else
 						logger.debug("  server %s has %d seconds left. WAITING",s,(timeLeft/1000))
 				} catch { case e => logger.warning("Couldn't get boot up time for %s: %s",s.toString,e.toString)}
+				*/
 			}
 			if (serversToRemove.size > 0) currentState = addAction( RemoveServers( serversToRemove.toList, SERVER_REMOVE ), currentState )
 		} // end else if
