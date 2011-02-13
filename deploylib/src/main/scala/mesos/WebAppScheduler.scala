@@ -42,7 +42,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
     listeners ::= func
   }
 
-  def handleAction(action: String): Unit = listeners.foreach(_(action))
+  def recordAction(action: String): Unit = listeners.foreach(_(action))
 
   val port = 8080
   val zkWebServerList = ZooKeeperNode(zkWebServerListRoot)
@@ -50,20 +50,32 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
   var numToKill = 0
   var killTimer = 0
   @volatile var targetNumServers: Int = minServers
-  val monitorThreadPeriod = 1000 * 30 // Recalculate targetNumServers every 10 seconds
-  val rampUpWorkloadWeight = 0.9 //Smooth adding webapp servers by weighing in history. Must be >=0.0 and <1.0.
-  val rampDownWorkloadWeight = 0.01 //Smooth killing webapp servers by weighing in history. Must be >=0.0 and <1.0.
-  var smoothedWorkload = 0.0 // the smoothed version of the aggregate workload
+  var smoothedWorkload = 0.0 // The smoothed version of the aggregate workload
   var servers =  new HashMap[Int, String]()
   var pendingServers =  new HashMap[Int, String]()
-  val monitorThread = new Thread("StatsThread") {
+  var unresponsiveServers = new HashMap[Int, Int]()
+
+  /**
+   * Periodically query all of the webapp servers currently thought
+   * to be alive (i.e. in the servers HashMap), calculate the aggregate
+   * request rate to the application, and then derive the target number
+   * of webapp servers necessary to satisfy that request rate. Kill some
+   * webapp server mesos tasks if the app is currently over provisioned.
+   * If more are needed, they will be acquired by resourceOffer().
+   *
+   * @param period - frequency with which targetNumServers recalculated
+   * @param unresponsiveRequestLimit - Wait to kill a webapp server until you have failed to retrieve its request rate this many times.
+   * @param rampUpWorkloadWeight - Smooth adding webapp servers by weighing in history. Must be geq 0.0 and lt 1.0.
+   * @param rampDownWorkloadWeight - Smooth killing webapp servers by weighing in history. Must be geq 0.0 and lt 1.0.
+   */
+  class monitorThread(period: Int = 1000 * 30, unresponsiveRequestLimit: Int = 10, rampUpWorkloadWeight: Double = 0.9, rampDownWorkloadWeight: Double = 0.01) extends Runnable {
     private val httpClient = new HttpClient()
     override def run() = {
       while(runMonitorThread) {
         // Calculate the average web server request rate
         logger.info("Beginging collection of workload statistics")
-        val requestsPerSec = for(s <- servers.values) yield {
-          val slaveUrl = "http://%s:%d/stats/".format(s, port)
+        val requestsPerSec = for((taskID, slaveHostname) <- servers) yield {
+          val slaveUrl = "http://%s:%d/stats/".format(slaveHostname, port)
           val method = new GetMethod(slaveUrl)
           logger.debug("Getting status from %s.", slaveUrl)
           try {
@@ -73,6 +85,12 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
           } catch {
             case e =>
               logger.warning("Couldn't get RequestRate from %s.", slaveUrl)
+              unresponsiveServers.put(taskID, unresponsiveServers(taskID) + 1)
+              if (unresponsiveServers(taskID) > unresponsiveRequestLimit) {
+                driver.killTask(taskID)
+                servers -= taskID
+              }
+              recordAction("Webapp Director killed an unresponsive webapp server of %s's. Weakness will not be tolerated!".format(name))
               0.0
           }
         }
@@ -106,23 +124,28 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
         // if necessary, kill backends
         val numToKill = servers.size - targetNumServers.ceil.toInt
         if (numToKill > 0) {
-          logger.info("Calling driver.kill() for %d webservers.", numToKill)
-          val toKill = servers.take(numToKill)
-          toKill.map{case (victimID, victimHost) =>  {
-            logger.info("Killing task on node " + victimHost)
-            driver.killTask(victimID)
-            logger.info("Removing webserver task " + victimID + " on host " + victimHost + " from hashmap of servers.")
-            handleAction("Webapp Director killed a webapp server for %s.".format(name))
-            servers -= victimID
-          }}
-          updateZooWebServerList();
+          killTasks(numToKill)
         }
 	
-        Thread.sleep(monitorThreadPeriod)
+        Thread.sleep(period)
       }
     }
   }
-  monitorThread.start()
+
+  def killTasks(numServers: Int) = {
+    logger.info("Calling driver.kill() for %d webservers.", numToKill)
+    val toKill = servers.take(numToKill)
+    toKill.map{case (victimID, victimHost) =>  {
+      logger.info("Killing task %d on node %s.", victimID, victimHost)
+      driver.killTask(victimID)
+      logger.info("Removing webserver task " + victimID + " on host " + victimHost + " from hashmap of servers.")
+      recordAction("Webapp Director killed an unecessary webapp server of %s's. Inefficiencies will not be tolerated!".format(name))
+      servers -= victimID
+    }}
+    updateZooWebServerList();
+  }
+
+  new Thread(new monitorThread()).start()
   driverThread.start()
 
   /**
@@ -130,10 +153,10 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
    * with a status 200 or until a timeout. If the timeout is reached, kills
    * the mesos task so that it doesn't become a zombie task.
    * 
-   * @taskId - the mesos taskId associated with this web app server.
-   * @serverHostname - the hostname of the web app server that was started.
-   * @sleepPeriod - how often, in ms, to check for a successful server response. Default is 10 seconds.
-   * @timeout - how long, in ms, to spend checking for an http 200 status response before giving up and killing the mesos task associated with the server. Default is 5 minutes.
+   * @param taskId - the mesos taskId associated with this web app server.
+   * @param serverHostname - the hostname of the web app server that was started.
+   * @param sleepPeriod - how often, in ms, to check for a successful server response. Default is 10 seconds.
+   * @param timeout - how long, in ms, to spend checking for an http 200 status response before giving up and killing the mesos task associated with the server. Default is 5 minutes.
    */
   class WebAppPrimerThread(taskId: Int, serverHostname: String, numSuccessRequired: Int = 100, sleepPeriod: Int = 10*1000, timeout: Int = 5*60*1000) extends Runnable {
     val httpClient = new HttpClient()
@@ -149,7 +172,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
           logger.warning("The webserver on host %s never came up, killing the mesos task associated with it now.", serverHostname)
           driver.killTask(taskId)
           pendingServers -= taskId
-          handleAction("The webserver for app %s on host %s never responded, so the Webapp director killed it.".format(name))
+          recordAction("The webserver for app %s killed webapp server task on host %s because it never responded, it was weak and deserved to be killed.".format(name))
           exitThread = true
         } else {
           val appUrl = "http://%s:%d/".format(serverHostname, port)
@@ -169,7 +192,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
                     pendingServers -= taskId
                   }
                   updateZooWebServerList()
-                  handleAction("Webapp Director added a webapp server for %s.".format(name))
+                  recordAction("Webapp Director added a webapp server for %s. Good luck young server!".format(name))
                 }
               }
             } catch {
