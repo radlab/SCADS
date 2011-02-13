@@ -172,12 +172,15 @@ class GroupingExecutor(val namespace:GenericNamespace, val scheduler:RemoteActor
 		logger.debug("%d add server actions",add.size)
 		if (!add.isEmpty && scheduler != null) {
 			//scheduler.addServers( add.map(a => a match{ case ad:AddServer => prefix+ad.fakeServer.host }) )
-			scheduler !? RunExperimentRequest(add.toList.map(a => a match{ case ad:AddServer => serverProcess(prefix+ad.fakeServer.host) }) )
+			add.foreach {
+			  case ad:AddServer => scheduler !? RunExperimentRequest(serverProcess(prefix+ad.fakeServer.host) :: Nil)
+			}
+			//scheduler !? RunExperimentRequest(add.toList.map(a => a match{ case ad:AddServer => serverProcess(prefix+ad.fakeServer.host) }) )
 			//logger.debug("sleeping right now instead of waiting on child")
 			//Thread.sleep(20*1000)
-			add.foreach{ a => a match { 
-				case ad:AddServer => { ad.setStart; /*namespace*/Director.cluster.root.awaitChild("availableServers/"+prefix+ad.fakeServer.host); logger.info("server %s should be available",prefix+ad.fakeServer.host); ad.setComplete } // TODO: stop waiting eventually
-			} }
+			add.foreach{
+				case ad:AddServer => { ad.setStart; /*namespace*/Director.cluster.root.awaitChild("availableServers/"+prefix+ad.fakeServer.host,Some(5*60*1000)); logger.info("server %s should be available",prefix+ad.fakeServer.host); ad.setComplete } // TODO: stop waiting eventually
+			}
 		}
 	}
 	
