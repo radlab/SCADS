@@ -43,9 +43,9 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
   var numToKill = 0
   var killTimer = 0
   @volatile var targetNumServers: Int = minServers
-  val monitorThreadPeriod = 1000 * 10 // Recalculate targetNumServers every 10 seconds
+  val monitorThreadPeriod = 1000 * 30 // Recalculate targetNumServers every 10 seconds
   val rampUpWorkloadWeight = 0.9 //Smooth adding webapp servers by weighing in history. Must be >=0.0 and <1.0.
-  val rampDownWorkloadWeight = 0.1 //Smooth killing webapp servers by weighing in history. Must be >=0.0 and <1.0.
+  val rampDownWorkloadWeight = 0.01 //Smooth killing webapp servers by weighing in history. Must be >=0.0 and <1.0.
   var smoothedWorkload = 0.0 // the smoothed version of the aggregate workload
   var servers =  new HashMap[Int, String]()
   var pendingServers =  new HashMap[Int, String]()
