@@ -88,7 +88,7 @@ class BestFitPolicySplitting(
       else logger.info("smoothed workload:\n%s",prediction.toString)
 			logger.info(config.serverWorkloadString)
 			runPolicy( config, /*workloadPredictor.getPrediction*/prediction, actionExecutor.getUncompleteServerActions.toList )
-			logger.debug("# actions for executor: %d",actions.size)
+			logger.info("# actions for executor: %d",actions.size)
 			for (action <- actions) {
 				//action.computeNBytesToCopy(state)
 				actionExecutor.addAction(action)
@@ -97,7 +97,8 @@ class BestFitPolicySplitting(
 			lastIterationState = "act"
 		} else {
 			lastIterationState = "blocked"
-			logger.info("blocked on action completion: %s", actions.mkString(","))
+			logger.info("blocked on action completion (showing running actions): %s", actionExecutor.getRunningActions.map(a=> a.actionShortName +": "+a.state))
+			logger.info("incomplete server actions: %s", actionExecutor.getUncompleteServerActions.map(a=> a.actionShortName +": "+a.state))
 		}
   }
   
