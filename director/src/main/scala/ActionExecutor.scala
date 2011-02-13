@@ -27,7 +27,7 @@ abstract class ActionExecutor(val execDelay:Long) extends Runnable {
 		// 		}
 		
 		actions += action//actions = actions ::: List(action)
-		logger.info("adding action: "+action)
+		logger.debug("adding action: "+action)
 	}
 	/**
 	* remove any actions that aren't running (remove completed and ready)
