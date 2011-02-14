@@ -145,7 +145,8 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
     updateZooWebServerList();
   }
 
-  new Thread(new monitorThread()).start()
+  val monitoringThread = new Thread(new monitorThread(), "WebAppScheduler Monitoring Thread")
+  monitoringThread.start()
   driverThread.start()
 
   /**

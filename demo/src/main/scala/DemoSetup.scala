@@ -39,7 +39,7 @@ case class WebAppSchedulerTask(var name: String, var mesosMaster: String, var ex
       serverCapacity=appServerCapacity, /*req/sec*/
       minServers=5,
       statsServer=dashboardDb)
-    scheduler.monitorThread.join()
+    scheduler.monitoringThread.join()
   }
 }
 
