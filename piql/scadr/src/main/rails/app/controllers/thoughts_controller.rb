@@ -8,6 +8,7 @@ class ThoughtsController < ApplicationController
     @thought = Thought.new params[:thought]
     @thought.owner = current_user.username
     @thought.timestamp = Time.now.to_i
+    @thought.text = helpers.sanitize(@thought.text)
     if @thought.save
       flash[:notice] = "New thought created."
       redirect_to user_path(current_user)

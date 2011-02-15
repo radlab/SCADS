@@ -7,6 +7,8 @@ class UsersController < ApplicationController
 
   def create
     @user = User.new(params[:user])
+    @user.username = helpers.strip_tags(@user.username)
+    @user.home_town = helpers.strip_tags(@user.home_town)
     
     if @user.save
       flash[:notice] = "Your account \"#{@user.username}\" has been created!"

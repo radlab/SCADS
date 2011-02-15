@@ -25,4 +25,13 @@ class ApplicationController < ActionController::Base
     def logged_in?
       return current_user_session.present? && current_user.present?
     end
+    
+    def helpers
+      Helper.instance
+    end
+  
+    class Helper
+      include Singleton
+      include ActionView::Helpers
+    end
 end
