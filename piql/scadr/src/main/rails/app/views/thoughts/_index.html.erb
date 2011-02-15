@@ -2,7 +2,7 @@
   <ul class="thoughts">
   <% thoughts.each do |thought| -%>
     <li>
-      <p class="byline"><%= thought.owner %> (<%= thought.posted_at %>)</p>
+      <p class="byline"><%= link_to thought.owner, user_path(thought.owner) %> (<%= thought.posted_at %>)</p>
       <div class="thought-body">
         <%= simple_format(thought.text) %>
       </div>
