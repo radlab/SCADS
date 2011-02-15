@@ -27,11 +27,12 @@ class UsersController < ApplicationController
   def show
     @thoughts = @user.my_thoughts(10)
     @thoughtstream = @user.thoughtstream(10)
+    @followed = @user.users_followed(10)
     
     @can_subscribe = current_user && current_user != @user
     
     if @can_subscribe
-      # Subscriptions come in this form: (subscription, userkeytype, user)
+      # Subscriptions come in this form: (subscription, user)
       raw_subscriptions = current_user.following(10)
       raw_subscriptions.each do |raw_sub|
         sub = raw_sub.first

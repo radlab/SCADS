@@ -44,6 +44,11 @@ class User < AvroRecord
   def followers(count)
     Subscription.users_following(username, count)
   end
+  
+  def users_followed(count)
+    # [subscription, user]
+    Subscription.users_followed_by(username, count).collect{ |raw| raw[1] }
+  end
 
   # Returns an array of the second item in the thoughts tuple
   # (the actual thought)

@@ -40,3 +40,16 @@ $(document).ready(function() {
   <%= render :partial => 'thoughts/index', :locals => {:thoughts => @thoughtstream} %>
 </div>
 <% end %>
+
+<h2>Followed Users</h2>
+<div id="followed">
+<%- if @followed.present? -%>
+  <ul>
+  <% @followed.each do |user| %>
+    <li><%= link_to user.username, user_path(user) %></li>
+  <% end %>
+  </ul>
+<%- else -%>
+  <p>No users being followed.</p>
+<%- end -%>
+</div>
