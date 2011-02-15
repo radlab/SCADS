@@ -10,7 +10,13 @@ class UsersController < ApplicationController
     
     if @user.save
       flash[:notice] = "Your account \"#{@user.username}\" has been created!"
-      redirect_to root_path
+      @user_session = UserSession.new(:username => params[:user][:username], :password => params[:user][:plain_password])
+      if @user_session.save
+        session[:username] = @user_session.username
+        redirect_to :controller => :users, :action => :show, :id => @user_session.username
+      else
+        redirect_to root_path
+      end
     else
       render :action => :new
     end

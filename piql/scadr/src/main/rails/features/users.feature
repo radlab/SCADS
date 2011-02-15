@@ -11,9 +11,11 @@ Feature: Users
     And I fill in "Password" with "asdf"
     And I fill in "Confirm password" with "asdf"
     And I press "Submit"
-    Then I should be on the home page
+    Then I should be on Karl's user page
     And I should see /Your account "Karl" has been created!/
     
+    When I follow "Log Out"
+    Then I should be on the home page
     When I fill in "Username" with "Karl"
     And I fill in "Password" with "asdf"
     And I press "Login"
