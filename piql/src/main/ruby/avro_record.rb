@@ -135,7 +135,8 @@ class AvroRecord
 
         reg = /^(.*)Key$/
         indexQuery = reg.match(rows.apply(0).schema.name) ? true : false
-        if indexQuery
+        joinQuery = rows.apply(0).schema.name == "WordListWord" ? true : false
+        if indexQuery or joinQuery
           sl = ScalaList.new
           sl.push(rows.apply(1))
           rows = sl.to_list #extract field from the index record

@@ -30,8 +30,8 @@ class WordList < AvroRecord
   
   def words
     wlw = WordList.wordsFromWordListJoin(self.name).map {|w| w.first}
-    words = wlw.map {|w| Word.find(w.word)}
-    return words
+    #words = wlw.map {|w| Word.find(w.word)}
+    return wlw  
   end
   
 end
