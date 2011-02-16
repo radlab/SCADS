@@ -42,7 +42,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
     listeners ::= func
   }
 
-  def recordAction(action: String): Unit = listeners.foreach(_(action))
+  protected def recordAction(action: String): Unit = listeners.foreach(_(action))
 
   val port = 8080
   val zkWebServerList = ZooKeeperNode(zkWebServerListRoot)
@@ -68,7 +68,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
    * @param rampUpWorkloadWeight - Smooth adding webapp servers by weighing in history. Must be geq 0.0 and lt 1.0.
    * @param rampDownWorkloadWeight - Smooth killing webapp servers by weighing in history. Must be geq 0.0 and lt 1.0.
    */
-  class monitorThread(period: Int = 1000 * 30, unresponsiveRequestLimit: Int = 10, rampUpWorkloadWeight: Double = 0.9, rampDownWorkloadWeight: Double = 0.01) extends Runnable {
+  class monitorThread(period: Int = 1000 * 30, unresponsiveRequestLimit: Int = 3, rampUpWorkloadWeight: Double = 0.9, rampDownWorkloadWeight: Double = 0.01) extends Runnable {
     private val httpClient = new HttpClient()
     override def run() = {
       while(runMonitorThread) {
@@ -81,16 +81,17 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
           try {
             httpClient.executeMethod(method)
             val xml = scala.xml.XML.loadString(method.getResponseBodyAsString)
+	    unresponsiveServers -= taskID
             (xml \ "RequestRate").text.toFloat
           } catch {
             case e =>
-              logger.warning("Couldn't get RequestRate from %s.", slaveUrl)
-              unresponsiveServers.put(taskID, unresponsiveServers(taskID) + 1)
+              unresponsiveServers += taskID -> (unresponsiveServers.get(taskID).getOrElse(0) + 1)
+	      logger.warning("Couldn't get RequestRate from %s for %d iterations..", slaveUrl, unresponsiveServers(taskID))
               if (unresponsiveServers(taskID) > unresponsiveRequestLimit) {
                 driver.killTask(taskID)
                 servers -= taskID
+		recordAction("Webapp Director killed an unresponsive webapp server of %s's. Weakness will not be tolerated!".format(name))
               }
-              recordAction("Webapp Director killed an unresponsive webapp server of %s's. Weakness will not be tolerated!".format(name))
               0.0
           }
         }
@@ -109,13 +110,13 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
         statement.foreach(s => {
           val now = new Date
           val sqlInsertCmd = "INSERT INTO appReqRate (timestamp, webAppID, aggRequestRate, targetNumServers, actualNumServers)" +
-                             "VALUES (%d, '%s', %f, %d)".format(now.getTime, name, aggregateReqRate, targetNumServers.toInt, servers.size)
+                             "VALUES (%d, '%s', %f, %d, %d)".format(now.getTime, name, aggregateReqRate, targetNumServers.toInt, servers.size)
           try {
             val numResults = s.map(_.executeUpdate(sqlInsertCmd))
             if (numResults.getOrElse(0) != 1)
               logger.warning("SQL INSERT statment failed.")
           } catch {
-            case e: SQLException => logger.warning("SQL INSERT statement failed: %s.".format(sqlInsertCmd))
+            case e: SQLException => logger.warning(e, "SQL INSERT statement failed: %s.".format(sqlInsertCmd))
           }
         })
 
@@ -215,15 +216,16 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
   override def resourceOffer(driver: SchedulerDriver, oid: String, offers: java.util.List[SlaveOffer]): Unit = {
 
     val tasks = offers.flatMap(offer => {
-      logger.info("In resourceOffer, taskIdCounter is " + taskIdCounter + ", targetNumServers is " + targetNumServers)
-      logger.info("servers.size is %d.", servers.size)
-      logger.info("pendingServers.size is %d.", pendingServers.size)
+      logger.debug("In resourceOffer, taskIdCounter is " + taskIdCounter + ", targetNumServers is " + targetNumServers)
+      logger.debug("servers.size is %d.", servers.size)
+      logger.debug("pendingServers.size is %d.", pendingServers.size)
       if(servers.size + pendingServers.size < targetNumServers) {
         val taskParams = Map(List("mem", "cpus").map(k => k -> offer.getParams.get(k)):_*)
 
         scheduler.synchronized {
           pendingServers += taskIdCounter -> offer.getHost
         }
+	logger.info("adding server %s as task %d", offer.getHost, taskIdCounter)
         new Thread(new WebAppPrimerThread(taskIdCounter,offer.getHost)).start()
 
         var td = new TaskDescription(taskIdCounter, offer.getSlaveId, webAppTask.toString, taskParams, JvmTask(webAppTask)) :: Nil
