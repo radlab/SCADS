@@ -152,7 +152,8 @@ class ScadrLoader(val client: ScadrClient,
 
     val subscriptionData: Seq[Subscription] = userData.flatMap(user =>
       randomInts(user.username.hashCode, numUsers, numSubscriptionsPerUser).view.map(u => {
-  val s = Subscription(user.username, userData(u).username)
+  //val s = Subscription(user.username, userData(u).username)
+  val s = Subscription(user.username, "User%010d".format(u))
   s.approved = true
   s
       })
