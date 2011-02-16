@@ -21,7 +21,7 @@ trait SCADSMessageParser {
 	var doneWithWarmup = false
 	var rangeLength = 0
   	
-	def headerRow:String = "timestamp,thread,type,id,elapsedTime,cardinality"
+	def headerRow = "timestamp,thread,type,id,elapsedTime,cardinality"
 
 	def processWarmupEvent(event: ExecutionTrace) = {
 		val ExecutionTrace(_, _, WarmupEvent(_, start)) = event
