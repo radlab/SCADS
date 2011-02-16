@@ -22,12 +22,12 @@ class ThoughtsController < ApplicationController
   end
   
   def thoughtstream
-    @user = User.find_user(params[:user_id])
+    @user = User.find(params[:user_id])
     @thoughtstream = @user.thoughtstream(10)
   end
   
   def thoughts
-    @user = User.find_user(params[:user_id])
+    @user = User.find(params[:user_id])
     @thoughts = @user.my_thoughts(10)
   end
 end
