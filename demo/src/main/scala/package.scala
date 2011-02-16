@@ -31,7 +31,7 @@ package object demo {
       case _ => MesosEC2.startMasters(zone, numMasters)
     }
 
-    MesosEC2.firstMaster.pushJars // Use both
+    MesosEC2.masters.pforeach(_.pushJars)
     restartMasterProcs
     mesosMasterNode.data = MesosEC2.clusterUrl.getBytes
   }
@@ -46,15 +46,20 @@ package object demo {
    * Note this should only be run by the cluster owner, and it will kill all running java procs on the master.
    */
   def restartMasterProcs: Unit = {
-    MesosEC2.firstMaster.executeCommand("killall java")
+    MesosEC2.masters.pforeach(_.executeCommand("killall java"))
+
+    // Start service scheduler on only the first master
     MesosEC2.firstMaster.createFile(new java.io.File("/root/serviceScheduler"), "#!/bin/bash\n/root/jrun edu.berkeley.cs.radlab.demo.ServiceSchedulerDaemon --mesosMaster " + MesosEC2.clusterUrl + " >> /root/serviceScheduler.log 2>&1")
-    MesosEC2.firstMaster.createFile(new java.io.File("/root/utilizationReporter"), "#!/bin/bash\ntail -F /tmp/mesos-shares | /root/jrun edu.berkeley.cs.radlab.demo.MesosClusterShareReporter '" + dashboardDb + "' >> /root/utilizationReporter.log 2>&1")
-
     MesosEC2.firstMaster ! "chmod 755 /root/serviceScheduler"
-    MesosEC2.firstMaster ! "chmod 755 /root/utilizationReporter"
-
-    MesosEC2.firstMaster ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/utilizationReporter.pid --exec /root/utilizationReporter"
     MesosEC2.firstMaster ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/serviceScheduler.pid --exec /root/serviceScheduler"
+
+    // Start utilization reporter on all masters (so we can get stats after a failover)
+    MesosEC2.masters.pforeach { master =>
+      master.createFile(new java.io.File("/root/utilizationReporter"), "#!/bin/bash\ntail -F /tmp/mesos-shares | /root/jrun edu.berkeley.cs.radlab.demo.MesosClusterShareReporter '" + dashboardDb + "' >> /root/utilizationReporter.log 2>&1")
+      master ! "chmod 755 /root/utilizationReporter"
+      master ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/utilizationReporter.pid --exec /root/utilizationReporter"
+    }
+
     //HACK
     Thread.sleep(5000)
     serviceSchedulerNode.data = RemoteActor(MesosEC2.firstMaster.publicDnsName, 9000, ActorNumber(0)).toBytes
