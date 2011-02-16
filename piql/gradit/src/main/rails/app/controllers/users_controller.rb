@@ -11,7 +11,7 @@ class UsersController < ApplicationController
     games = User.find(current_user).games
     @unfinished_games = games.select {|g| g.done == 0}  
     @finished_games = games.select {|g| g.done == 1}  
-    @wordlists = User.find(current_user).wordlists #TODO: OPTIMIZE
+    @wordlists = User.find("admin").wordlists.concat User.find(current_user).wordlists #TODO: OPTIMIZE
     @leaderboard = User.get_leaderboard
   end
   
