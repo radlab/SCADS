@@ -19,14 +19,19 @@ $(document).ready(function() {
 
 <h1><%= @user.username %> <% if @user.home_town %><span class="hometown">(<%= @user.home_town %>)</span><% end %></h1>
 <div id="user-bar">
-  <% if @can_subscribe -%>
-    <% form_for [current_user, Subscription.new] do |sub| %>
-      <%= sub.hidden_field :target, :value => @user.username %>
-      <%= sub.submit "Subscribe" %>
-    <% end %>
-  <% elsif current_user && current_user != @user -%>
-    <div id="subscribed"><span>Subscribed!</span></div>
-  <% end -%>
+  <%- if current_user && current_user != @user -%>
+    <%- if @subscription.nil? -%>
+      <% form_for [current_user, Subscription.new] do |sub| %>
+        <%= sub.hidden_field :target, :value => @user.username %>
+        <%= sub.submit "Subscribe" %>
+      <% end %>
+    <%- else -%>
+      <div id="subscribed">
+        <span>Subscribed!</span>
+        <%= link_to "Unsubscribe", user_subscription_path(current_user, @subscription), :method => :delete %>
+      </div>
+    <%- end -%>
+  <%- end -%>
 </div>
 
 <h2>Thoughts</h2>
