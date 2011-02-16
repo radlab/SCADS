@@ -1,25 +1,33 @@
 <div id="home-contents">
 	<div id="logo-home"></div>
-	
-    <div id="login-home">
-        <% if flash[:notice] %>
-            <div id="notice"><%= flash[:notice] %></div>
-        <% end %>
-	    <% form_tag :controller => 'users', :action => 'login_action' do %>
-        <p>
-            <%= label_tag :login %>
-            <%= text_field_tag :login %>
-        </p>
-
-        <p>
-            <%= label_tag :password %>
-            <%= password_field_tag :password %>
-        </p>
-
-        <p><%= submit_tag 'Play a Game', :id => 'home-login-button', :class=> "button" %></p>
-        <% end %>
-        <%= link_to "Don't have an account? Register!", register_path %>
-	</div>
+    <% if !@current_user %>	
+        <div id="login-home">
+            <% if flash[:notice] %>
+                <div id="notice"><%= flash[:notice] %></div>
+            <% end %>
+    	    <% form_tag :controller => 'users', :action => 'login_action' do %>
+            <p>
+                <%= label_tag :login %>
+                <%= text_field_tag :login %>
+            </p>
+    
+            <p>
+                <%= label_tag :password %>
+                <%= password_field_tag :password %>
+            </p>
+    
+            <p><%= submit_tag 'Play a Game', :id => 'home-login-button', :class=> "button" %></p>
+            <% end %>
+            <%= link_to "Don't have an account? Register!", register_path %>
+    	</div>
+    <% else %>
+        <div id="login-home">
+            <label style="width: 100%; text-align: center;">Welcome back, <%= @current_user %>!</label>
+            <div style="width: 95%">
+                <%= link_to "Go to your Dashboard", dashboard_path, :id => "home-login-button"%>
+            </div>
+        </div>
+    <% end %>
 	<div id="info">
 	  <div class="section">
 	    <span>
