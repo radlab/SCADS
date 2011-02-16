@@ -63,7 +63,7 @@ class GamesController < ApplicationController
   	  @para_book = con.book;
       @para = con.wordLine
       @para.gsub!(word.word, '___________') #underline the missing word    
-      @mc = word.choices 
+      @mc = game.choices(word.word) 
       @mc_array = (@mc << word.word).shuffle
     else #Find another word to use, no contexts
       if game.hasNextWord
