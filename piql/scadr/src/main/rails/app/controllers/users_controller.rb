@@ -1,6 +1,10 @@
 class UsersController < ApplicationController
   before_filter :check_valid_user, :only => [:show]
 
+  def index
+    @users = $EXAMPLE_USERS
+  end
+
   def new
     @user = User.new
   end
