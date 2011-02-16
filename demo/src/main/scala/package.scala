@@ -120,6 +120,17 @@ package object demo {
     serviceScheduler !? RunExperimentRequest(traceTask :: Nil)
   }
 
+  def startThoughtstreamTraceCollector: Unit = {
+    val traceTask = ThoughtstreamTraceCollectorTask(
+      RunParams(
+        scadrClusterParams,
+        "thoughtstream"
+      )
+    ).toJvmTask
+    
+    serviceScheduler !? RunExperimentRequest(traceTask :: Nil)
+  }
+
   def startScadrDataLoad: Unit = {
     //val storageEngineTask = ScalaEngineTask(traceRoot.canonicalAddress).toJvmTask
     val storageEngines = Array.fill(scadrClusterParams.numStorageNodes)(ScalaEngineTask(traceRoot.canonicalAddress).toJvmTask)
