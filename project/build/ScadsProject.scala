@@ -104,7 +104,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
   /* Shared subproject configuration */
   class ScadsSubProject(info: ProjectInfo) extends DefaultProject(info) with AvroCompilerPlugin {
     override def compileOptions: List[CompileOption] = Optimize :: super.compileOptions
-    override def fork = forkRun("-Xmx4G" ::
+    override def fork = forkRun("-Xmx1G" ::
 				"-Djava.library.path=/usr/local/mesos/lib/java/" :: Nil)
 
     protected def getLocalJars(project: BasicScalaProject): Seq[File] = {
