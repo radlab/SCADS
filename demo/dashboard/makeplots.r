@@ -26,6 +26,40 @@ mostRecentPt <- function(tableName) {
 mostRecent = max(mostRecentPt("appReqRate"),mostRecentPt("namespaceReqRate"), mostRecentPt("piqlReqRate"), mostRecentPt("rainStats"))
 print(paste("Most recent time is",mostRecent))
 
+###### Rain stats
+if(RAIN_STATS) {
+	for(period in PERIODS) {
+		startT = (mostRecent - 1000* 60 * period -1) #- 60*1000*2
+	
+		series <- dbGetQuery(con, paste("select timestamp,totalResponseTime,operationsSuccessful,actionsSuccessful from rainStats where timestamp > ",startT," order by timestamp DESC ",sep=''))
+
+		if (nrow(series) > 0) {
+			reqRatePlotFile=paste("rainReqRate-",period,".png",sep='')
+			png(file=reqRatePlotFile, bg="transparent")
+		
+			times <- as.POSIXct( (series[TRUE,1]/1000 - TZShift), origin="1970-01-01")
+		
+			respTime <- series[TRUE,2]
+			opVec = respTime/series[TRUE,3]
+	#		actVec = respTime/series[TRUE,4]
+	#		allPts = c(opVec,actVec)
+	#		yrange <- range(allPts[ !is.nan(allPts)])
+			yrange <- range(opVec[ !is.nan(opVec)])
+			yrange[1] = 0
+			print(paste("have",length(opVec),"data points for RAIN; series length was ",length(series[[1]])))
+			plot(times, opVec , ylab="avg time (ms)", xlab="time", col="red",  xaxt="n", type="o", main="",ylim=yrange,cex.lab=1.2)
+			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
+			mtext("RAIN avg response time",side=3,cex=1.4,line=2)
+
+			par(new=F)
+		
+		#	legend( x="topleft", inset=0.05, c("operations", "Actions"), cex=1.0, col=c("red","blue"), bg="white", pch=21:22, lty=1:2)
+			legend( x="topleft", inset=0.05, "operations", cex=1.2, col="red", bg="white", pch=21:22, lty=1:2)
+			dev.off()
+		}
+	}
+}
+
 ############# Web App stats
 if(WEBAPP_STATS) {
 	for(period in PERIODS) {
@@ -39,10 +73,12 @@ if(WEBAPP_STATS) {
 		
 			times <- as.POSIXct( (series[TRUE,1]/1000 - TZShift), origin="1970-01-01")
 			par(oma=c(1,1,1,2))
-			plot(times, series[TRUE,2], xlab="", ylab="requests per second", col="red",  xaxt="n", type="o", main="",col.lab="red",cex.lab=1.2)
+			
+			yrange = c(0, 1.2*max(series[TRUE,2]))
+			plot(times, series[TRUE,2], xlab="", ylab="requests per second", col="red",  xaxt="n", type="o", main="",col.lab="red",cex.lab=1.2, ylim=yrange)
 			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
 		
-			yrange = c(0, 1.2*max(series[TRUE,3]))
+			yrange = c(0, ceiling(1.2*max(series[TRUE,3])))
 			par(new=T)
 			plot(times, series[TRUE,3] , col="blue",axes=F,xlab="",ylab="",type="o",ylim=yrange)
 		
@@ -56,8 +92,32 @@ if(WEBAPP_STATS) {
 		}
 	}
 } #end webapp stats
-############# SCADS stats
 
+############# PIQL stats
+if(PIQL_STATS) {
+	for(period in PERIODS) {
+		startT = (mostRecent - 1000* 60 * period -1)
+	
+		series <- dbGetQuery(con, paste("select timestamp,aggRequestRate from piqlReqRate where timestamp > ",startT," order by timestamp DESC ",sep=''))
+		
+		if (nrow(series) > 0) {
+			reqRatePlotFile=paste("piqlReqRate-",period,".png",sep='')
+			png(file=reqRatePlotFile, bg="transparent")
+			POINTS = dim(series)[1]  #truncate points to size actually returned
+			times <- as.POSIXct( (series[1:POINTS,1]/1000 - TZShift), origin="1970-01-01")
+		
+			yrange = c(0,1.2*max(series[1:POINTS,2]))
+			plot(times, series[1:POINTS,2], ylab="requests per second", xlab="time", col="red",  xaxt="n", type="o", main="",cex.lab=1.2, ylim=yrange)
+			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
+			mtext("PIQL request rate",side=3,cex=1.4,line=2)
+
+			legend( x="topleft", inset=0.05, c("Request rate","Server count"), cex=1.0, col=c("red","blue"), bg="white", pch=21:22, lty=1:2)
+			dev.off()
+		}
+	}
+}
+
+############# SCADS stats
 if(SCADS_STATS) {
 	for(period in PERIODS) {
 		startT = (mostRecent - 1000* 60 * period -1)
@@ -136,60 +196,3 @@ if(SCADS_STATS) {
 	}
 }
 
-############# PIQL stats
-
-if(PIQL_STATS) {
-	for(period in PERIODS) {
-		startT = (mostRecent - 1000* 60 * period -1)
-	
-		series <- dbGetQuery(con, paste("select timestamp,aggRequestRate from piqlReqRate where timestamp > ",startT," order by timestamp DESC ",sep=''))
-		
-		if (nrow(series) > 0) {
-			reqRatePlotFile=paste("piqlReqRate-",period,".png",sep='')
-			png(file=reqRatePlotFile, bg="transparent")
-			POINTS = dim(series)[1]  #truncate points to size actually returned
-			times <- as.POSIXct( (series[1:POINTS,1]/1000 - TZShift), origin="1970-01-01")
-		
-			plot(times, series[1:POINTS,2], ylab="requests per second", xlab="time", col="red",  xaxt="n", type="o", main="",cex.lab=1.2)
-			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
-			mtext("PIQL request rate",side=3,cex=1.4,line=2)
-
-			legend( x="topleft", inset=0.05, c("Request rate","Server count"), cex=1.0, col=c("red","blue"), bg="white", pch=21:22, lty=1:2)
-			dev.off()
-		}
-	}
-}
-###### Rain stats
-
-if(RAIN_STATS) {
-	for(period in PERIODS) {
-		startT = (mostRecent - 1000* 60 * period -1) #- 60*1000*2
-	
-		series <- dbGetQuery(con, paste("select timestamp,totalResponseTime,operationsSuccessful,actionsSuccessful from rainStats where timestamp > ",startT," order by timestamp DESC ",sep=''))
-
-		if (nrow(series) > 0) {
-			reqRatePlotFile=paste("rainReqRate-",period,".png",sep='')
-			png(file=reqRatePlotFile, bg="transparent")
-		
-			times <- as.POSIXct( (series[TRUE,1]/1000 - TZShift), origin="1970-01-01")
-		
-			respTime <- series[TRUE,2]
-			opVec = respTime/series[TRUE,3]
-	#		actVec = respTime/series[TRUE,4]
-	#		allPts = c(opVec,actVec)
-	#		yrange <- range(allPts[ !is.nan(allPts)])
-			yrange <- range(opVec[ !is.nan(opVec)])
-			yrange[1] = 0
-			print(paste("have",length(opVec),"data points for RAIN; series length was ",length(series[[1]])))
-			plot(times, opVec , ylab="avg time (ms)", xlab="time", col="red",  xaxt="n", type="o", main="",ylim=yrange,cex.lab=1.2)
-			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
-			mtext("RAIN avg response time",side=3,cex=1.4,line=2)
-
-			par(new=F)
-		
-		#	legend( x="topleft", inset=0.05, c("operations", "Actions"), cex=1.0, col=c("red","blue"), bg="white", pch=21:22, lty=1:2)
-			legend( x="topleft", inset=0.05, "operations", cex=1.2, col="red", bg="white", pch=21:22, lty=1:2)
-			dev.off()
-		}
-	}
-}
