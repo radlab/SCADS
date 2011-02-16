@@ -1,0 +1,86 @@
+<html>
+<head>
+<!--<META HTTP-EQUIV="REFRESH" CONTENT="30"/> -->
+<title>Dashboard</title>
+
+<script type="text/javascript"> 
+function toggle(theDiv) { 
+toggleDivsOff();
+document.getElementById(theDiv).style.display = "block"; 
+} 
+
+function toggleDivsOff() {
+document.getElementById("10min").style.display = "none"; 
+document.getElementById("60min").style.display = "none"; 
+document.getElementById("300min").style.display = "none"; 
+}
+
+function start() {
+toggleDivsOff();
+document.getElementById("10min").style.display = "block"; 
+}
+
+window.onload=start
+</script> 
+
+</head>
+<body>
+
+
+
+<input type="radio" name="toggledivs" onclick="toggle('10min');" />Last 10 minutes<br /> 
+<input type="radio" name="toggledivs" onclick="toggle('60min');" />Last 60 minutes<br /> 
+<input type="radio" name="toggledivs" onclick="toggle('300min');" />Last 5 hours<br /> 
+
+
+<br /><br /> 
+<h2 align="center">Web and storage stats</h2>
+
+<div id="10min">
+<p>10 minute stats</p>
+
+<img src="rainReqRate-10.png"/>
+<img src="appReqRate-10.png"/>
+<img src="piqlReqRate-10.png"/>
+<img src="piql99thPercentile-10.png"/>
+<img src="scadsReqRate-10.png"/>
+<img src="scadsMachineAlloc-10.png"/>
+<br/>
+<hr/>
+<h2 align="center">Mesos Stats</h2>
+<img src="mesosCPUAbsShares10.png"/>
+<img src="mesosMemAbsShares10.png"/>
+</div> 
+
+<div id="60min">
+<p>60 minute stats</p>
+<img src="rainReqRate-60.png"/>
+<img src="appReqRate-60.png"/>
+<img src="piqlReqRate-60.png"/>
+<img src="piql99thPercentile-60.png"/>
+<img src="scadsReqRate-60.png"/>
+<img src="scadsMachineAlloc-60.png"/>
+<br/>
+<hr/>
+<h2 align="center">Mesos Stats</h2>
+<img src="mesosCPUAbsShares60.png"/>
+<img src="mesosMemAbsShares60.png"/>
+</div> 
+
+<div id="300min">
+<p>5-hour stats</p>
+<img src="rainReqRate-300.png"/>
+<img src="piqlReqRate-300.png"/>
+<img src="piql99thPercentile-300.png"/>
+<img src="appReqRate-300.png"/>
+<img src="scadsReqRate-300.png"/>
+<img src="scadsMachineAlloc-300.png"/>
+<br/>
+<hr/>
+<h2 align="center">Mesos Stats</h2>
+<img src="mesosCPUAbsShares300.png"/>
+<img src="mesosMemAbsShares300.png"/>
+</div> 
+
+</body>
+</html>

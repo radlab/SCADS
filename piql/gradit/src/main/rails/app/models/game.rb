@@ -45,11 +45,23 @@ class Game < AvroRecord
     Word.find(self.currentword)
   end
   
+  def numWordsLeft
+    return self.words.split(",").size
+  end
   def hasNextWord
     words_list = self.words.split(",")
     return false if words_list.empty?
     return true
   end
+  
+  def choices(word)
+    words = WordList.find(self.wordlist).words
+    words = words.shuffle
+    words = words.select {|w| w.word != word}
+
+    words[0..2].map {|w| w.word}
+  end
+
 
   #Chooses and saves the next word for the game
   def changeWord

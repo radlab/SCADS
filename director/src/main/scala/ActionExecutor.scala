@@ -179,7 +179,7 @@ class GroupingExecutor(val namespace:GenericNamespace, val scheduler:RemoteActor
 			//logger.debug("sleeping right now instead of waiting on child")
 			//Thread.sleep(20*1000)
 			add.foreach{
-				case ad:AddServer => { ad.setStart; /*namespace*/Director.cluster.root.awaitChild("availableServers/"+prefix+ad.fakeServer.host,Some(5*60*1000)); logger.info("server %s should be available",prefix+ad.fakeServer.host); ad.setComplete } // TODO: stop waiting eventually
+				case ad:AddServer => { ad.setStart; /*namespace*/Director.cluster.root.awaitChild("availableServers/"+prefix+ad.fakeServer.host,timeout = 5*60*1000); logger.info("server %s should be available",prefix+ad.fakeServer.host); ad.setComplete } // TODO: stop waiting eventually
 			}
 		}
 	}

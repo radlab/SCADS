@@ -21,6 +21,9 @@ class SubscriptionsController < ApplicationController
   end
 
   def destroy
+    @subscription = Subscription.find(current_user.username, params[:id])
     @subscription.destroy
+    flash[:notice] = "Unsubscribed from #{params[:id]}"
+    redirect_to user_path(params[:id])
   end
 end
