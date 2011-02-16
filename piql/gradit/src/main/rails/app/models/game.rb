@@ -45,6 +45,9 @@ class Game < AvroRecord
     Word.find(self.currentword)
   end
   
+  def numWordsLeft
+    return self.words.split(",").size
+  end
   def hasNextWord
     words_list = self.words.split(",")
     return false if words_list.empty?

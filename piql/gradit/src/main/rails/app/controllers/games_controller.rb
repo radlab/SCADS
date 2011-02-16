@@ -52,7 +52,8 @@ class GamesController < ApplicationController
   	word = Word.find(game.currentword)
   	gp = GamePlayer.find(game.gameid, current_user)
   	@score = gp.score
-  
+    @wordsLeft = game.numWordsLeft
+
     #Get a random context for the word
     @para = false
     con = word.getContext #get context
