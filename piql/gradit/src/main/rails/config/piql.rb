@@ -5,8 +5,8 @@ import Java::EduBerkeleyCsScadsStorage::TestScalaEngine
 
 $PIQL_SCHEMA_PACKAGE = "EduBerkeleyCsScadsPiqlGradit"
 $CLIENT = GraditClient.new($SCADS_CLUSTER, $PIQL_EXECUTOR)
-  
 
+=begin
 puts "************"
 puts "Loader beginning\n\n\n"
 
@@ -105,3 +105,4 @@ end
 
 puts "\n\n\nLoader finished"
 puts "************"
+=end
