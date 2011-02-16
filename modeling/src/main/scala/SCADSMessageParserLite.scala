@@ -48,10 +48,6 @@ object SCADSMessageParserLite extends SCADSMessageParser {
   }
 }
 
-
-
-
-//TODO: Move into avro package
 object AvroHttpFile {
   def apply[RecordType <: ScalaSpecificRecord](url: String)(implicit schema: TypedSchema[RecordType]) = {
     val httpClient = new HttpClient
