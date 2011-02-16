@@ -12,7 +12,7 @@ import com.amazonaws.auth.BasicAWSCredentials
 trait AWSConnection {
   protected val accessKeyId = System.getenv("AWS_ACCESS_KEY_ID")
   protected val secretAccessKey = System.getenv("AWS_SECRET_ACCESS_KEY")
-  protected val ec2PrivateKey = new File(System.getenv("EC2_PRIVATE_KEY"))
+  protected def ec2PrivateKey = new File(System.getenv("EC2_PRIVATE_KEY"))
   protected def ec2Cert = new File(System.getenv("EC2_CERT"))
   protected def userID = new File(System.getenv("AWS_USER_ID"))
 

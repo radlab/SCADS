@@ -38,7 +38,7 @@ object EC2Instance extends AWSConnection {
       else {
         val result = client.describeInstances(new DescribeInstancesRequest())
         instanceData = Map(result.getReservations.flatMap((r) => {
-          r.getInstances.map((i) => {
+          r.getInstances.filter(i => i.getKeyName == keyName).map((i) => {
             (i.getInstanceId, i)
           })
         }): _*)

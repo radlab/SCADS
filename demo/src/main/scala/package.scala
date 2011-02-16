@@ -26,12 +26,12 @@ package object demo {
    * Start a mesos master and make it the primary for the demo.
    * Only needs to be run by one person.
    */
-  def setupMesosMaster(zone:String = zone): Unit = {
-    try MesosEC2.master catch {
-      case _ => MesosEC2.startMaster(zone)
+  def setupMesosMaster(zone:String = zone, numMasters: Int = 1): Unit = {
+    try MesosEC2.masters catch {
+      case _ => MesosEC2.startMasters(zone, numMasters)
     }
 
-    MesosEC2.master.pushJars
+    MesosEC2.firstMaster.pushJars // Use both
     restartMasterProcs
     mesosMasterNode.data = MesosEC2.clusterUrl.getBytes
   }
@@ -46,18 +46,18 @@ package object demo {
    * Note this should only be run by the cluster owner, and it will kill all running java procs on the master.
    */
   def restartMasterProcs: Unit = {
-    MesosEC2.master.executeCommand("killall java")
-    MesosEC2.master.createFile(new java.io.File("/root/serviceScheduler"), "#!/bin/bash\n/root/jrun edu.berkeley.cs.radlab.demo.ServiceSchedulerDaemon >> /root/serviceScheduler.log 2>&1")
-    MesosEC2.master.createFile(new java.io.File("/root/utilizationReporter"), "#!/bin/bash\ntail -F /tmp/mesos-shares | /root/jrun edu.berkeley.cs.radlab.demo.MesosClusterShareReporter '" + dashboardDb + "' >> /root/utilizationReporter.log 2>&1")
+    MesosEC2.firstMaster.executeCommand("killall java")
+    MesosEC2.firstMaster.createFile(new java.io.File("/root/serviceScheduler"), "#!/bin/bash\n/root/jrun edu.berkeley.cs.radlab.demo.ServiceSchedulerDaemon --mesosMaster " + MesosEC2.clusterUrl + " >> /root/serviceScheduler.log 2>&1")
+    MesosEC2.firstMaster.createFile(new java.io.File("/root/utilizationReporter"), "#!/bin/bash\ntail -F /tmp/mesos-shares | /root/jrun edu.berkeley.cs.radlab.demo.MesosClusterShareReporter '" + dashboardDb + "' >> /root/utilizationReporter.log 2>&1")
 
-    MesosEC2.master ! "chmod 755 /root/serviceScheduler"
-    MesosEC2.master ! "chmod 755 /root/utilizationReporter"
+    MesosEC2.firstMaster ! "chmod 755 /root/serviceScheduler"
+    MesosEC2.firstMaster ! "chmod 755 /root/utilizationReporter"
 
-    MesosEC2.master ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/utilizationReporter.pid --exec /root/utilizationReporter"
-    MesosEC2.master ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/serviceScheduler.pid --exec /root/serviceScheduler"
+    MesosEC2.firstMaster ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/utilizationReporter.pid --exec /root/utilizationReporter"
+    MesosEC2.firstMaster ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/serviceScheduler.pid --exec /root/serviceScheduler"
     //HACK
     Thread.sleep(5000)
-    serviceSchedulerNode.data = RemoteActor(MesosEC2.master.publicDnsName, 9000, ActorNumber(0)).toBytes
+    serviceSchedulerNode.data = RemoteActor(MesosEC2.firstMaster.publicDnsName, 9000, ActorNumber(0)).toBytes
   }
 
   def fixZookeeperServiceScheduler: Unit = {
@@ -190,6 +190,6 @@ package object demo {
       "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAqxXSYqw5Cshu9EvHCzRiu/1lSO6n6hqTmM7NwITK7Q5a0pn7Hg/ZzykuWpcrCDKjRadJlP+FrWWPdizEgOtgwmHs9LWrf0DrtLDNroRsgqyii/rD4+kAMgMP6PWxoRRUklo8Vqgt4TFwA/bDbKFHtyvnPGOxBiapnhrdWL5HKG1nIChrN2iLLq4ymnGd2N0pJW+Fwz8E/D4Mxk7poKSuyfyEcAynhAeLcCvx54t/p8JalahHHco+TGFEChp3gZ2c+Eov3KNZgtCGcQeIphVoRI5M+Li5adaVwD5Y3mmJ3yBBiS6rh4qN0QS9RecOH+oYcAOQWAm000q1UdfHfESKvQ== rean@eecs.berkeley.edu" :: 
       "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAIEA4HH/XGUrla7FpONvVvHZAQ5XtY5hfZq3YuIICholyKfarp4O/sCT0EFjyO97IQILgM7HjDooGJKpexYL61JmnOWReRamsRCP1FKFiM03KofLpBvxllO8QbalSnjLfV9oVqTFDkwnRHQVbaN83FND2dIkEntyaX3U//8cIi3mFJ8= jtma@ironic.ucsd.edu" :: Nil
 
-    MesosEC2.master.appendFile(new File("/root/.ssh/authorized_keys"), keys.mkString("\n"))
+    MesosEC2.masters.pforeach(_.appendFile(new File("/root/.ssh/authorized_keys"), keys.mkString("\n")))
   }
 }

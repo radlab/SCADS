@@ -15,7 +15,7 @@ object ServiceSchedulerDaemon extends optional.Application {
   def main(mesosMaster: Option[String]): Unit = {
     System.loadLibrary("mesos")
     val scheduler = new ServiceScheduler(
-      mesosMaster.getOrElse(DemoConfig.localMesosMasterPid),
+      mesosMaster.getOrElse(MesosEC2.clusterUrl),
       javaExecutorPath
     )
     serviceSchedulerNode.data = scheduler.remoteHandle.toBytes
