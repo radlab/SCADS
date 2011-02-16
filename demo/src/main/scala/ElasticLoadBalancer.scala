@@ -17,18 +17,21 @@ object LoadBalancer extends AWSConnection {
   val logger = Logger()
   val client = new AmazonElasticLoadBalancingClient(credentials)
 
-  def createLoadBalancer(name: String): String  = {
-    val listeners = new Listener("HTTP", 80, 8080) :: Nil
+  def createLoadBalancer(name: String, protocol: String = "HTTP"): String  = {
+    val listeners = new Listener(protocol, 80, 8080) :: Nil
     val request = new CreateLoadBalancerRequest(name, listeners, zone :: Nil)
     val response = client.createLoadBalancer(request)
     response.getDNSName()
   }
 
-  def update(name: String, servers: ZooKeeperProxy#ZooKeeperNode): Unit = {
-    val internalAddresses = new String(servers.data).split("\n")
+  def update(name: String, serverList: ZooKeeperProxy#ZooKeeperNode): Unit = {
+    val internalAddresses = new String(serverList.data).split("\n")
     val activeInstances = internalAddresses.flatMap(addr => EC2Instance.activeInstances.find(_.privateDnsName equals addr)).map(_.instanceId)
-    logger.info("Currently active instances for app %s: %s", name, activeInstances.mkString(","))
+    update(name, activeInstances)
+  }
 
+  def update(name: String, activeInstances: Seq[String]): Unit = {
+    logger.info("Currently active instances for app %s: %s", name, activeInstances.mkString(","))
     val getCurrentInstancesResponse = client.describeLoadBalancers(new DescribeLoadBalancersRequest(name :: Nil))
     val currentInstances = getCurrentInstancesResponse.getLoadBalancerDescriptions.head.getInstances.map(_.getInstanceId)
     val toRegister = activeInstances.filterNot(currentInstances.contains)
