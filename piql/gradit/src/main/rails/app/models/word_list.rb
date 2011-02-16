@@ -29,7 +29,9 @@ class WordList < AvroRecord
   end
   
   def words
-    WordList.wordsFromWordList(self.name).map {|w| w.first}
+    wlw = WordList.wordsFromWordListJoin(self.name).map {|w| w.first}
+    words = wlw.map {|w| Word.find(w.word)}
+    return words
   end
   
 end
