@@ -95,9 +95,9 @@ class GraditClient(val cluster: ScadsCluster, executor: QueryExecutor) {
   // Find allWords (with cardinality constraint)
   
   /*var allWords = (
-words
-.limit(50)
-).toPiql("allWords")*/
+       words
+         .limit(50)
+  ).toPiql("allWords")*/
   
   // findWord
   // Primary key lookup for word
@@ -136,26 +136,26 @@ words
   
   val findGameUsers = new OptimizedQuery("findGameUsers",
     IndexLookupJoin(users,
-List(AttributeValue(1,0)),
+		    List(AttributeValue(1,0)),
       LocalStopAfter(FixedLimit(50),
-IndexLookupJoin(gameplayers,
-List(AttributeValue(0,1),
-AttributeValue(0,0)),
-IndexScan(gameplayers.getOrCreateIndex("gameid" :: Nil),
-List(ParameterValue(0)),
-FixedLimit(50),
-true)))),
+	IndexLookupJoin(gameplayers,
+			List(AttributeValue(0,1),
+				    AttributeValue(0,0)),
+	  IndexScan(gameplayers.getOrCreateIndex("gameid" :: Nil),
+		    List(ParameterValue(0)),
+		    FixedLimit(50),
+		    true)))),
      executor)
 
 
     /* TODO: FIX optimizer
-gameplayers
-.where("gameplayers.gameid".a === (0.?))
-.limit(50)
-.join(users)
-.where("gameplayers.login".a === "users.login".a)
-).toPiql("findGameUsers")
-*/
+      gameplayers
+          .where("gameplayers.gameid".a === (0.?))
+          .limit(50)
+          .join(users)
+          .where("gameplayers.login".a === "users.login".a)
+  ).toPiql("findGameUsers")
+  */
   
   //findGamesByUser
   // Return all games a user has
