@@ -44,6 +44,13 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
   protected var readQuorum: Double = 0.001
   protected var writeQuorum: Double = 1.0
 
+  def iterateOverRange(startKey: Option[KeyType], endKey: Option[KeyType]): Iterator[RangeType] = {
+    val partitions = serversForRange(startKey, endKey)
+    partitions.map(p => new ActorlessPartitionIterator(p.values.head, p.startKey.map(serializeKey), p.endKey.map(serializeKey)))
+	      .foldLeft(Iterator.empty.asInstanceOf[Iterator[Record]])(_ ++ _)
+	      .map(rec => deserializeRangeType(rec.key, rec.value.get))
+  }
+
   // For debugging only
   def dumpDistribution: Unit = {
     serversForRange(None, None).foreach(r => {
