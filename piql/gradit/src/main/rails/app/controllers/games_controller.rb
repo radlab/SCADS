@@ -61,7 +61,7 @@ class GamesController < ApplicationController
   	  #Initialize paragraph, multiple choice settings
   	  @para_book = con.book;
       @para = con.wordLine
-      @para.gsub!(word.word, '___________') #underline the missing word    
+      @para.gsub!(/\b#{word.word}\b/i, '___________') #underline the missing word    
       @mc = word.choices 
       @mc_array = (@mc << word.word).shuffle
     else #Find another word to use, no contexts
