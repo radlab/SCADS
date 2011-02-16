@@ -1,5 +1,5 @@
 <div id="player_panel">
-	Player Score: <span id="player_score"><%= @score %></span> | <%= link_to "Quit Game", :controller => :games, :action => :quit_game, :id => params[:id] %> 
+	Player Score: <span id="player_score"><%= @score %></span> | <%= link_to "Quit Game", :controller => :games, :action => :quit_game, :id => params[:id] %> | Number of words left: <%= @wordsLeft %>
 </div>
 <div id="ans_result">
     <% if flash[:correct] %>
