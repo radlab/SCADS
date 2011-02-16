@@ -121,4 +121,4 @@ case class MessageEvent(var message: Message) extends AvroRecord with TraceEvent
 case class ChangeCardinalityEvent(var numDataItems: Int) extends AvroRecord with TraceEvent
 case class WarmupEvent(var warmupLengthInMinutes: Int, var start: Boolean) extends AvroRecord with TraceEvent	// to avoid JIT effects on latency measurements
 
-
+case class ChangeNamedCardinalityEvent(var nameOfCardinality: String, var numDataItems: Int) extends AvroRecord with TraceEvent
