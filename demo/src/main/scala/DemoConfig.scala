@@ -31,12 +31,12 @@ object DemoConfig {
     traceRoot.canonicalAddress, // cluster address
     5,                          // num storage nodes
     5,                          // num load clients
-    100000,                     // num users
-    10000,                      // num thoughts per user
-    10000,                      // num subscriptions per user
-    10000                       // num per page
+    100,                        // num per page
+    10000,                      // num users
+    100,                        // num thoughts per user
+    1000                        // num subscriptions per user
   )
-  
+
   val mesosMasterNode = zooKeeperRoot.getOrCreate("mesosMaster")
   def mesosMaster = new String(mesosMasterNode.data)
 
