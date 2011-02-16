@@ -85,6 +85,17 @@ class ScadrQuerySpecRunner(val params: RunParams)(implicit executor: QueryExecut
       case _ =>
     }
   }
+
+  def callThoughtstream(numSubscriptionsPerUser:Int, numPerPage:Int) = {
+    queryType match {
+      case "thoughtstream" => {
+        val resultLength = query(getRandomUsername, numSubscriptionsPerUser, numPerPage).length
+        if (resultLength != numPerPage)
+          throw new RuntimeException("expected cardinality: " + numPerPage.toString + ", got: " + resultLength.toString)
+      }
+      case _ => println("query is of type " + queryType + ", so you can't call thoughtstream")
+    }
+  }
   
   def getRandomUsername:String = {
     def toUser(idx: Int) = "User%010d".format(idx)
