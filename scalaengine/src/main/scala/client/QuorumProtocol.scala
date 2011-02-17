@@ -48,7 +48,7 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
     val partitions = serversForRange(startKey, endKey)
     partitions.map(p => new ActorlessPartitionIterator(p.values.head, p.startKey.map(serializeKey), p.endKey.map(serializeKey)))
 	      .foldLeft(Iterator.empty.asInstanceOf[Iterator[Record]])(_ ++ _)
-	      .map(rec => deserializeRangeType(rec.key, rec.value.get))
+	      .map(rec => extractRangeTypeFromRecord(rec.key, rec.value).get)
   }
 
   // For debugging only
