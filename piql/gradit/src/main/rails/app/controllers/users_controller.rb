@@ -7,12 +7,38 @@ class UsersController < ApplicationController
   
   def dashboard
     @current_user = current_user
-
-    games = User.find(current_user).games
+    user = User.find(current_user)
+    games = user.games
     @unfinished_games = games.select {|g| g.done == 0}  
     @finished_games = games.select {|g| g.done == 1}  
-    @wordlists = User.find("admin").wordlists.concat User.find(current_user).wordlists #TODO: OPTIMIZE
+    @wordlists = User.find("admin").wordlists.concat user.wordlists #TODO: OPTIMIZE
     @leaderboard = User.get_leaderboard
+    
+    challenges = user.challenges
+    @finished_challenges = challenges.select {|c| c.done == 1}
+    challenges = challenges.select {|c| c.done == 0}
+
+    #Challenges that you still have to do
+    @unfinished_challenges = []
+
+    for ch in challenges
+        if ch.user1 == current_user
+            @unfinished_challenges << ch if Game.find(ch.game1).done == 0
+        else
+            @unfinished_challenges << ch if Game.find(ch.game2).done == 0
+        end
+    end
+
+    #Waiting for the other person
+    @pending_challenges = []
+     
+    for ch in challenges
+        if ch.user1 == current_user
+            @pending_challenges << ch if Game.find(ch.game2).done == 0 and Game.find(ch.game1).done == 1
+        else
+            @pending_challenges << ch if Game.find(ch.game1).done == 0 and Game.find(ch.game2).done == 1
+        end
+    end
   end
   
   def create

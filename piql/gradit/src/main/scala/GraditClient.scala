@@ -32,6 +32,7 @@ case class Game(var gameid: Int) extends AvroPair {
     var words: String = _
     var currentword: Int = _
     var done: Int = _
+    var challenge: Int = _
 }
 
 case class GamePlayer(var login: String, var gameid: Int) extends AvroPair{
@@ -60,6 +61,14 @@ var after: String = _
 }
 */
 
+case class Challenge(var timestamp: String, var user1: String, var user2: String) extends AvroPair {
+    var score1: Int = _
+    var score2: Int = _
+    var done: Int = _
+    var game1: Int = _
+    var game2: Int = _
+}
+
 class GraditClient(val cluster: ScadsCluster, executor: QueryExecutor) {
   implicit val exec = executor
   val maxResultsPerPage = 10
@@ -76,6 +85,7 @@ class GraditClient(val cluster: ScadsCluster, executor: QueryExecutor) {
   lazy val games = cluster.getNamespace[Game]("games")
   lazy val gameplayers = cluster.getNamespace[GamePlayer]("gameplayers")
   lazy val users = cluster.getNamespace[User]("users")
+  lazy val challenges = cluster.getNamespace[Challenge]("challenges")
   
   // findUser
   // Primary key lookup for user
@@ -113,6 +123,35 @@ class GraditClient(val cluster: ScadsCluster, executor: QueryExecutor) {
             .limit(1)
   ).toPiql("findWordByWord")
   
+  //findChallengesByUser1
+
+  val findChallengesByUser1 = (
+        challenges
+            .where("challenges.user1".a === (0.?))
+            .limit(50)
+  ).toPiql("findChallengesByUser1")
+
+  //findChallengeByPlayer2
+  val findChallengesByUser2 = (
+        challenges
+            .where("challenges.user2".a === (0.?))
+            .limit(50)
+  ).toPiql("findChallengesByUser2")
+  
+  //findChallengesByGame1
+  val findChallengesByGame1 = (
+        challenges
+            .where("challenges.game1".a === (0.?))
+            .limit(1)
+  ).toPiql("findChallengesByGame1")
+ 
+  //findChallengesByGame2
+  val findChallengesByGame2 = (
+        challenges
+            .where("challenges.game2".a === (0.?))
+            .limit(1)
+  ).toPiql("findChallengesByGame2")
+
   // findWordList
   // Primary key lookup for wordlist
   
