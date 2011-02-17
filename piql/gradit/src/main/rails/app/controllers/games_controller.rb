@@ -106,6 +106,10 @@ class GamesController < ApplicationController
   
   def challenge
     @user = params[:id]
+    if @user == current_user or User.find(@user) == nil #Trying to challenge yourself
+        flash[:notice] = "Oops, you can't play a game with that user!"
+        redirect_to dashboard_path
+    end
     @wordlists = User.find("admin").wordlists
   end
 
