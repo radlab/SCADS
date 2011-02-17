@@ -80,14 +80,14 @@ class Game < AvroRecord
     return Game.findGameUsers(java.lang.Integer.new(gameid)).map {|u| u.first}.map {|u| u.login}
   end
 
-  def challenge
+  def find_challenge
     return nil if self.challenge == 0  
-    challenge =  Game.findChallengesByGame1(self.gameid).concat Game.findChallengesByGame2(self.gameid)
+    challenge = Game.findChallengesByGame1(java.lang.Integer.new(self.gameid)).concat Game.findChallengesByGame2(java.lang.Integer.new(self.gameid))
     return challenge.map {|c| c.first}.first
   end
   
   def check_challenge
-    challenge = self.challenge
+    challenge = self.find_challenge
     if challenge != nil
         #Check other one
         if challenge.game1 == self.gameid

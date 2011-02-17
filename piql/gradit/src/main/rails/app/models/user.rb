@@ -5,7 +5,6 @@ class User < AvroRecord
     games = User.findGamesByUser(login)
     return games if games.empty?
     games = games.map {|g| g[1]}
-    puts games
     #games = games.select {|g| g.challenge == 0} 
     #puts games
     return games
@@ -18,10 +17,7 @@ class User < AvroRecord
   end
 
   def challenges
-    puts "GETTING C"
     challenges = User.findChallengesByUser1(self.login).concat User.findChallengesByUser2(self.login)
-    puts "CHALLENGES"
-    puts challenges
     return challenges if challenges.empty?
     return challenges.map {|c| c.first}
   end

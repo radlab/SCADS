@@ -24,7 +24,7 @@
 <ul>
 <% for ch in @unfinished_challenges %>
     <li>
-        Challenge between <%= ch.user1 %> and <%= ch.user2 %>
+        Challenge between <%= ch.user1 %> and <%= ch.user2 %>: <%= link_to "[Play now]", :controller => :games, :action => "game_entry", :id => (ch.user1 == @current_user ? ch.game1 : ch.game2) %>
     </li>
 <% end %>
 </ul>
