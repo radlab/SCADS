@@ -40,6 +40,7 @@ case class LoadJsonToScadsTask(var fileListUrl: String, var clusterAddress: Stri
       rec.label = f.label
       val features = vec.elements.asScala
       rec.features = features
+      println("Record has " + features.size + " features")
       rec
     })
     val servers = cluster.getAvailableServers.map(_ :: Nil)
@@ -50,6 +51,7 @@ case class LoadJsonToScadsTask(var fileListUrl: String, var clusterAddress: Stri
     val ns = cluster.createNamespace[TwitterSpamRecord]("twitterSpamRecords", splits.zip(servers))
 
     ns ++= spamRecords
+    clusterRoot.createChild("DataLoaded")
   }
 }
 
