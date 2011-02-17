@@ -14,4 +14,15 @@ class Challenge < AvroRecord
     c.save
     c
   end
+
+  def winner
+    return nil if self.done == 0
+    if score1 > score2 
+        return user1
+    elsif score1 < score2
+        return user2
+    else
+        return "No one"
+    end
+  end
 end

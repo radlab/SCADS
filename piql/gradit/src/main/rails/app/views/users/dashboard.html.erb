@@ -40,7 +40,7 @@
 <ul>
 <% for ch in @finished_challenges %>
     <li>
-        Challenge between <%= ch.user1 %> and <%= ch.user2 %>
+        Challenge between <%= ch.user1 %> (<%= ch.score1 %> points) and <%= ch.user2 %> (<%= ch.score2 %> points). <%= ch.winner %> won! 
     </li>
 <% end %>
 </ul>

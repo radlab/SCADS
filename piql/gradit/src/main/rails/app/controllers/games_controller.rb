@@ -55,6 +55,7 @@ class GamesController < ApplicationController
     #Get a random context for the word
     @para = false
     con = word.getContext #get context
+    puts "two"
   	if con != nil
   	  #Initialize paragraph, multiple choice settings
   	  @para_book = con.book;
@@ -128,8 +129,9 @@ class GamesController < ApplicationController
     
     challenge = Challenge.createNew(user1, user2, game1.gameid, game2.gameid)
 
-    if(game1.hasNextWord) #If there is a word
+    if(game1.hasNextWord and game2.hasNextWord) #If there is a word
       currentword = game1.changeWord
+      game2.changeWord
       redirect_to(:controller=> :games, :action=> :game_entry, :id => game1.gameid)
       return
     end
