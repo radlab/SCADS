@@ -47,24 +47,25 @@ class GamesController < ApplicationController
   #Displaying/picking questions
   def game_entry
     @current_user = current_user
-    
     game = Game.find(params[:id].to_i)
   	word = Word.find(game.currentword)
   	gp = GamePlayer.find(game.gameid, current_user)
   	@score = gp.score
     @wordsLeft = game.numWordsLeft
-
     #Get a random context for the word
     @para = false
     con = word.getContext #get context
-
+    puts "two"
   	if con != nil
   	  #Initialize paragraph, multiple choice settings
   	  @para_book = con.book;
       @para = con.wordLine
       @para.gsub!(/\b#{word.word}\b/i, '___________') #underline the missing word    
-      @mc = word.choices 
+      puts "hi"
+      @mc = game.choices(word.word)
+
       @mc_array = (@mc << word.word).shuffle
+      puts "six"
     else #Find another word to use, no contexts
       if game.hasNextWord
         game.changeWord
@@ -102,8 +103,45 @@ class GamesController < ApplicationController
     Game.find(params[:id]).quit
     redirect_to dashboard_path
   end
-
   
+  def challenge
+    @user = params[:id]
+    if @user == current_user or User.find(@user) == nil #Trying to challenge yourself
+        flash[:notice] = "Oops, you can't play a game with that user!"
+        redirect_to dashboard_path
+    end
+    @wordlists = User.find("admin").wordlists
+  end
+
+  def challenge_user
+    user2 = params[:user]
+    user1 = current_user
+    
+    wordlist = WordList.find(params[:wordlist])
+
+    if wordlist == nil or wordlist.words.empty?
+      flash[:notice] = "That wordlist is invalid (doesn't exist or has no words)"
+      redirect_to dashboard_path
+      return
+    end
+    
+    game1 = Game.createNew(wordlist.name, 1)
+    game2 = Game.createNew(wordlist.name, 1)
+
+    gp1 = GamePlayer.createNew(game1.gameid, user1)
+    gp2 = GamePlayer.createNew(game2.gameid, user2)
+    
+    challenge = Challenge.createNew(user1, user2, game1.gameid, game2.gameid)
+
+    if(game1.hasNextWord and game2.hasNextWord) #If there is a word
+      currentword = game1.changeWord
+      game2.changeWord
+      redirect_to(:controller=> :games, :action=> :game_entry, :id => game1.gameid)
+      return
+    end
+    flash[:notice] = "Wordlist has no words!"
+    redirect_to :back
+  end
   private
   
   def valid_game?

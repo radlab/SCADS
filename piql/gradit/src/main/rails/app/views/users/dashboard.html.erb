@@ -1,6 +1,6 @@
 <h1>Your Dashboard</h1>
 
-<h2>Current Games</h2>
+<h2>Your Current Games</h2>
 <h3>Unfinished Games</h3>
 <ul>
 <% for game in @unfinished_games %>
@@ -19,6 +19,31 @@
 <% end %>
 </ul>
 
+<h2>Challenges</h2>
+<h3>Unfinished Challenges</h3>
+<ul>
+<% for ch in @unfinished_challenges %>
+    <li>
+        Challenge between <%= ch.user1 %> and <%= ch.user2 %>: <%= link_to "[Play now]", :controller => :games, :action => "game_entry", :id => (ch.user1 == @current_user ? ch.game1 : ch.game2) %>
+    </li>
+<% end %>
+</ul>
+<h3>Pending Challenges</h3>
+<ul>
+<% for ch in @pending_challenges %>
+    <li>
+        Challenge between <%= ch.user1 %> and <%= ch.user2 %>
+    </li>
+<% end %>
+</ul>
+<h3>Finished Challenges</h3>
+<ul>
+<% for ch in @finished_challenges %>
+    <li>
+        Challenge between <%= ch.user1 %> (<%= ch.score1 %> points) and <%= ch.user2 %> (<%= ch.score2 %> points). <%= ch.winner %> won! 
+    </li>
+<% end %>
+</ul>
 <h2>Create a new game</h2>
 <h3>Available wordlists</h3>
 <ul>
