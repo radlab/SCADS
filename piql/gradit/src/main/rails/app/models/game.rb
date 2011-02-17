@@ -91,8 +91,12 @@ class Game < AvroRecord
     if challenge != nil
         #Check other one
         if challenge.game1 == self.gameid
+            gp = GamePlayer.find(self.gameid, challenge.user1)
+            challenge.score1 = gp.score
             challenge.done = 1 if Game.find(challenge.game2).done == 1
         else
+            gp = GamePlayer.find(self.gameid, challenge.user2)
+            challenge.score2 = gp.score
             challenge.done = 1 if Game.find(challenge.game1).done == 1
         end
         challenge.save
