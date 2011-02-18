@@ -26,6 +26,14 @@ package object demo {
     LoadBalancer.update("mesos", MesosEC2.master.instanceId :: Nil)
   }
 
+  def setupLocalScheduler = {
+    System.loadLibrary("mesos")
+    zooKeeperRoot = ZooKeeperHelper.getTestZooKeeper().root.getOrCreate("demo")
+    val localScheduler = new ServiceScheduler(localMesosMasterPid, new File("deploylib/src/main/resources/java_executor.local").getCanonicalPath())
+    serviceSchedulerNode.data = localScheduler.remoteHandle.toBytes
+    localScheduler
+  }
+
   /**
    * Start a mesos master and make it the primary for the demo.
    * Only needs to be run by one person.
