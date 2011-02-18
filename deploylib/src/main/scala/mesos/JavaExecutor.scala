@@ -71,7 +71,7 @@ class JavaExecutor extends Executor {
     server.setConnectors(Array[Connector](connector))
     val pool = new org.mortbay.thread.QueuedThreadPool
     logger.warning("Setting max thread pool size")
-    pool.setMaxThreads(10)
+    pool.setMaxThreads(5)
     server.setThreadPool(pool)
     logger.warning("max pool size: %d",server.getThreadPool match {case p:org.mortbay.thread.QueuedThreadPool => p.getMaxThreads; case _ => -1})
 
@@ -84,7 +84,11 @@ class JavaExecutor extends Executor {
 
     @volatile var running = true
     @volatile var requestsPerSec = 0.0
+    @volatile var cpuUtilization = 0.0
     val statsThread = new Thread("StatsThread") {
+      val javaSysMon = new com.jezhumble.javasysmon.JavaSysMon
+
+      var lastUsage = javaSysMon.cpuTimes()
       var lastTime = System.currentTimeMillis()
       var lastCount = 0
       override def run(): Unit = {
@@ -92,6 +96,11 @@ class JavaExecutor extends Executor {
           Thread.sleep(30000)
           val currentTime = System.currentTimeMillis()
           val currentCount = statsWebApp.getRequests()
+	  val cpuTimes = javaSysMon.cpuTimes()
+
+	  cpuUtilization = cpuTimes.getCpuUsage(lastUsage)
+	  lastUsage = cpuTimes
+
           requestsPerSec = (currentCount - lastCount) / ((currentTime - lastTime) / 1000)
           logger.debug("Updating statistics at %d %d: %f", currentTime, currentCount, requestsPerSec)
           lastTime = currentTime
@@ -104,9 +113,18 @@ class JavaExecutor extends Executor {
     /* Create a special context that reports /stats over http */
     val statsHandler = new AbstractHandler() {
       def handle(target: String, request: HttpServletRequest, response: HttpServletResponse, dispatch: Int): Unit = {
+
         response.setContentType("text/html")
         response.setStatus(HttpServletResponse.SC_OK)
-        response.getWriter().println(<status><RequestRate>{requestsPerSec}</RequestRate><RequestsTotal>{statsWebApp.getRequests()}</RequestsTotal></status>.toString)
+
+	val statsXml = 
+	  <status>
+	    <CpuUtilization>{cpuUtilization}</CpuUtilization>
+	    <RequestRate>{requestsPerSec}</RequestRate>
+	    <RequestsTotal>{statsWebApp.getRequests()}</RequestsTotal>
+	  </status>
+
+        response.getWriter().println(statsXml.toString)
         request.asInstanceOf[Request].setHandled(true)
       }
     }
