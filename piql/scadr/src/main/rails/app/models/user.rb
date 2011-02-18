@@ -19,6 +19,7 @@ class User < AvroRecord
     if self.errors.present?
       false
     else
+      require 'digest'
       self.password = Digest::MD5.hexdigest(plain_password)
       true
     end

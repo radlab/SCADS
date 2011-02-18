@@ -32,12 +32,17 @@ class Word < AvroRecord
   end
   
   #Returns a random word
-  def self.randomWord
+  def self.randomWords
     #Pick a random number from the words available
-     random = 1 #FIXME
-    Word.findWord(java.lang.Integer.new(random)).first.first
+     random = rand($NUM_WORDS - 25) #FIXME
+     words = []
+     for i in (random..random+25)
+        words << Word.find(i)
+     end
+     words.select {|w| w != nil}
   end
-  
+
+=begin
   #Returns an array of 3 other multiple choice options
   def choices
     words = WordList.find(self.wordlist).words
@@ -46,7 +51,7 @@ class Word < AvroRecord
     
     words[0..2].map {|w| w.word}
   end 
-  
+=end  
   def contexts
     wc = WordContext.contextsForWord(java.lang.Integer.new(self.wordid)) 
     wc = wc.first unless wc == nil || wc.empty?

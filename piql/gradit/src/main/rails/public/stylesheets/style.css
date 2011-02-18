@@ -32,6 +32,7 @@ label{
 input{
     border: 0px;
     background: white;
+    border: 1px #ccc solid;
     padding: 2px;
     border-radius: 3px;
     outline: none;
@@ -65,6 +66,10 @@ input[type=submit]:hover{
     font-size: 1.5em;
     font-family: "Cuprum", helvetica, arial;
     text-transform: uppercase;
+}
+
+#login-home input{
+    border: 0px;
 }
 
 #login-home #notice{

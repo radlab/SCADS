@@ -2,7 +2,7 @@ class Game < AvroRecord
   
   #Find word by wordid
   
-  def self.createNew(wordlist)
+  def self.createNew(wordlist, challenge=0)
     id = 1
     while self.find(id) != nil
       id = id + 1
@@ -16,6 +16,7 @@ class Game < AvroRecord
     g.words = words
     g.currentword = 0
     g.done = 0
+    g.challenge = challenge
     g.save
     
     return g
@@ -45,11 +46,23 @@ class Game < AvroRecord
     Word.find(self.currentword)
   end
   
+  def numWordsLeft
+    return self.words.split(",").size
+  end
   def hasNextWord
     words_list = self.words.split(",")
     return false if words_list.empty?
     return true
   end
+  
+  def choices(word)
+    words = WordList.find(self.wordlist).words
+    words = words.shuffle
+    words = words.select {|w| w.word != word}
+
+    words[0..2].map {|w| w.word}
+  end
+
 
   #Chooses and saves the next word for the game
   def changeWord
@@ -67,9 +80,34 @@ class Game < AvroRecord
     return Game.findGameUsers(java.lang.Integer.new(gameid)).map {|u| u.first}.map {|u| u.login}
   end
 
+  def find_challenge
+    return nil if self.challenge == 0  
+    challenge = Game.findChallengesByGame1(java.lang.Integer.new(self.gameid)).concat Game.findChallengesByGame2(java.lang.Integer.new(self.gameid))
+    return challenge.map {|c| c.first}.first
+  end
+  
+  def check_challenge
+    challenge = self.find_challenge
+    if challenge != nil
+        #Check other one
+        if challenge.game1 == self.gameid
+            gp = GamePlayer.find(self.gameid, challenge.user1)
+            challenge.score1 = gp.score
+            challenge.done = 1 if Game.find(challenge.game2).done == 1
+        else
+            gp = GamePlayer.find(self.gameid, challenge.user2)
+            challenge.score2 = gp.score
+            challenge.done = 1 if Game.find(challenge.game1).done == 1
+        end
+        challenge.save
+    end
+    
+  end
+
   def quit
     self.done = 1
     self.save  
+    check_challenge
   end
     
 end

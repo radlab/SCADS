@@ -191,18 +191,16 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     logger.info("Creating classSource file")
     val s3Jars = jars.map(f => S3CachedJar(S3Cache.getCacheUrl(f))).toSeq
     val s3JarsCode = s3Jars.map(j => """S3CachedJar("%s")""".format(j.url)).toList.toString
-    val setup =  "import edu.berkeley.cs.scads.comm._" ::
-      "import deploylib.mesos._" ::
-      "implicit val classSource = " + s3JarsCode ::
-      "implicit val expScheduler = LocalExperimentScheduler(\"MasterConsole\", \"1@\" + java.net.InetAddress.getLocalHost.getHostName + \":5050\", \"/usr/local/mesos/frameworks/deploylib/java_executor\")" ::
-      "implicit val zooKeeper = ZooKeeperNode(\"zk://ec2-50-16-2-36.compute-1.amazonaws.com/\")" :: Nil
 
-    createFile(new File("/root/jars/classsource.scala"),setup.mkString("\n"))
+    cachedJars.foreach(j => this ! "ln -s -f %s %s.jar".format(j,j))
+    val classpath =  cachedJars.map(_ + ".jar").mkString(":")
+    createFile(new File("/root/classpath"), classpath)
+
 
     logger.info("Creating scripts")
     val headers = "#!/bin/bash" ::
       "JAVA=/usr/bin/java" ::
-      "CLASSPATH=\"-cp " + cachedJars.mkString(":") + "\"" ::
+      "CLASSPATH=\"-cp " + classpath + "\"" ::
       "MESOS=-Djava.library.path=/usr/local/mesos/lib/java" :: Nil
 
     /* Create shell scripts */

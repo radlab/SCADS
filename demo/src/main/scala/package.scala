@@ -17,9 +17,13 @@ package object demo {
     startGraditCluster()
   }
 
+  /**
+   * Needs to be run from Michael's AWS account
+   */
   def updateLoadBalancers: Unit = {
     LoadBalancer.update("scadr", scadrWebServerList)
     LoadBalancer.update("gradit", graditWebServerList)
+    LoadBalancer.update("mesos", MesosEC2.master.instanceId :: Nil)
   }
 
   /**
@@ -63,11 +67,6 @@ package object demo {
     //HACK
     Thread.sleep(5000)
     serviceSchedulerNode.data = RemoteActor(MesosEC2.firstMaster.publicDnsName, 9000, ActorNumber(0)).toBytes
-  }
-
-  def fixZookeeperServiceScheduler: Unit = {
-    // TODO: hardcoded for simplicity
-    DemoConfig.serviceSchedulerNode.data = RemoteActor("ec2-184-73-0-78.compute-1.amazonaws.com", 9000, ActorNumber(0)).toBytes
   }
 
   def safeUrl(cs: S3CachedJar, delim: String = "|"): String = {

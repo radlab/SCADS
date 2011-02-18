@@ -74,4 +74,9 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
 		 .join(users)
 		 .where("users.username".a === "subscriptions.owner".a)
     ).toPiql("usersFollowing")
+  
+  val findSubscription = (
+    subscriptions.where("subscriptions.owner".a === (0.?))
+     .where("subscriptions.target".a === (1.?))
+    ).toPiql("findSubscription")
 }

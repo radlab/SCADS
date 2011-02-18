@@ -1,0 +1,11 @@
+<h1>Challenge a friend to a game</h1>
+
+<p>Challenging: <%= @user %></p>
+<p>
+Pick a wordlist to start playing:
+<ul>
+    <% for wordlist in @wordlists %>
+        <li><%= link_to wordlist.name, :action => :challenge_user, :user => @user, :wordlist => wordlist.name %></li>
+    <% end %>
+</ul>
+</p>

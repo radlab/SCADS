@@ -11,7 +11,7 @@ class String
     base = self.camelize
     base.slice(0,1).downcase + base.slice(1,base.size)
   end
-  
+
   # Convert String to Utf8
   def pickle
     Java::OrgApacheAvroUtil.Utf8.new(self)
@@ -23,11 +23,11 @@ class ScalaList
   def initialize
     @list_buffer = Java::ScalaCollectionMutable::ListBuffer.new
   end
-  
+
   def push(item)
     @list_buffer.append{ |foo| foo.apply item.pickle }
   end
-  
+
   def to_list
     @list_buffer
   end
@@ -51,19 +51,18 @@ class AvroRecord
     rescue NameError => e
       raise e, "#{e.message} -- does #{self.class} exist in the schema?"
     end
-    
+
     opts.each_pair do |col, val|
       self.send("#{col}=".to_sym, val)
     end
   end
-  
-  # Mainly for RSpec
+
   def self.create!(opts={})
     obj = new(opts)
     obj.save
     return obj
   end
-  
+
   def self.fetch(opts={})
     record = self.new(opts)
     record.set_stale
@@ -74,16 +73,28 @@ class AvroRecord
   def valid?
     true
   end
-  
+
   def new_record?
     @is_new_record
   end
 
-  # TODO
+  # Create record
   def save
     begin
       $CLIENT.send(self.class.to_s.downcase.pluralize).put(avro_pair.key, avro_pair.value)
       @is_new_record = false
+      true
+    rescue NativeException => e
+      puts "exception was thrown"
+      puts e
+      false
+    end
+  end
+
+  # Delete record
+  def destroy
+    begin
+      $CLIENT.send(self.class.to_s.downcase.pluralize).put(avro_pair.key, nil)
       true
     rescue NativeException => e
       puts "exception was thrown"
@@ -106,7 +117,7 @@ class AvroRecord
     if $CLIENT.respond_to?(method_id)
       sl = ScalaList.new
       arguments.each { |arg| sl.push(arg) }
-    
+
       begin
         raw_results = $CLIENT.send(method_id).apply { sl.to_list }
       rescue Exception => e
@@ -115,26 +126,27 @@ class AvroRecord
         raw_results = []
       end
       results = []
-      
+
       while results.size < raw_results.size do
         rows = raw_results.apply(results.size)
         # instance = self.fetch
-        
+
         tuple = []
-        
+
         reg = /^(.*)Key$/
         indexQuery = reg.match(rows.apply(0).schema.name) ? true : false
-        if indexQuery
+        joinQuery = rows.apply(0).schema.name == "WordListWord" ? true : false
+        if indexQuery or joinQuery
           sl = ScalaList.new
           sl.push(rows.apply(1))
           rows = sl.to_list #extract field from the index record
         end
-        
+
         (0...rows.size).each do |row_index|
           row = rows.apply(row_index)
           schema = row.schema
           fields = schema.fields
-          
+
           if schema.name != "UserKeyType" # TODO: Remove this once it's fixed
               instance = schema.name.constantize.new
               (0...fields.size).each do |field_index|
@@ -147,7 +159,7 @@ class AvroRecord
           end
         end
 
-        
+
         results.push tuple
 
       end
@@ -173,18 +185,16 @@ class AvroRecord
     method_id.to_s =~ /^(\w+)(=)?/
     column_name = $1.carmelize
     method_name = $2 ? (column_name + "_$eq") : column_name
-    # Key
+
+    # Key/Value
     if avro_pair.schema.get_field(column_name)
-      avro_pair.send(method_name, *arguments, &block)
-    # Value
-    elsif avro_value.schema.get_field(column_name)
       avro_pair.send(method_name, *arguments, &block)
     # Default
     else
       super
     end
   end
-  
+
   def set_stale
     @is_new_record = false
   end

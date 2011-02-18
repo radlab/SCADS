@@ -1,6 +1,10 @@
 class UsersController < ApplicationController
   before_filter :check_valid_user, :only => [:show]
 
+  def index
+    @users = $EXAMPLE_USERS
+  end
+
   def new
     @user = User.new
   end
@@ -29,18 +33,10 @@ class UsersController < ApplicationController
     @thoughtstream = @user.thoughtstream(10)
     @followed = @user.users_followed(10)
     
-    @can_subscribe = current_user && current_user != @user
-    
-    if @can_subscribe
-      # Subscriptions come in this form: (subscription, user)
-      raw_subscriptions = current_user.following(10)
-      raw_subscriptions.each do |raw_sub|
-        sub = raw_sub.first
-        if sub.target == @user.username
-          @can_subscribe = false
-          break
-        end
-      end
+    if current_user && current_user != @user
+      @subscription = Subscription.find(current_user.username, @user.username)
+    else
+      @subscription = nil
     end
   end
   

@@ -124,6 +124,10 @@ object DemoConfig {
   }
 
   def initGraditCluster(clusterAddress:String):Unit = {
+    import edu.berkeley.cs.scads.piql.SimpleExecutor
+    import edu.berkeley.cs.scads.piql.gradit._
+    import edu.berkeley.cs.twitterspam.AvroHttpFile
+
     val clusterRoot = ZooKeeperNode(clusterAddress)
     val cluster = new ExperimentalScadsCluster(clusterRoot)
 
@@ -148,6 +152,14 @@ object DemoConfig {
 	      cluster.createNamespace(name, keySchema, valueSchema, initialPartitions)
       }
     }
+    val client = new GraditClient(cluster, new SimpleExecutor)
+    client.wordlists ++= AvroHttpFile[WordList]("http://gradit.s3.amazonaws.com/wordlists.avro")
+    client.wordlistwords ++= AvroHttpFile[WordListWord]("http://gradit.s3.amazonaws.com/wordlistwords.avro")
+    client.words ++= AvroHttpFile[Word]("http://gradit.s3.amazonaws.com/words.avro")
+    client.wordcontexts ++= AvroHttpFile[WordContext]("http://gradit.s3.amazonaws.com/wordcontexts.avro")
+    client.users ++= AvroHttpFile[User]("http://gradit.s3.amazonaws.com/users.avro")
+
+
     startGraditDirector()
   }
 }

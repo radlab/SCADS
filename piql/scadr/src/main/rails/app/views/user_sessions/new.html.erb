@@ -1,14 +1,21 @@
-<div id='login-box'>
-	<h1>Login</h1>
+<div id="login-box">
+	<h2>Login</h2>
 
 	<% form_for @user_session, :url => user_session_path do |f| %>
-	  <%= f.label :username %><br />
-	  <%= f.text_field :username %><br />
-	  <%= f.label :password %><br />
-	  <%= f.password_field :password %><br />
-	  <br />
-	  <%= f.submit "Login" %>
+	<fieldset>
+	<ul>
+	  <li><%= f.label :username %><%= f.text_field :username %></li>
+	  <li><%= f.label :password %><%= f.password_field :password %></li>
+	  <li><%= f.submit "Login" %></li>
+	</ul>
+	</fieldset>
 	<% end %>
 
 	<p><%= link_to "Create New User", new_user_path %></p>
 </div>
+
+<h1 id="home">Welcome!</h1>
+<p>SCADr is a clone of the <a href="http://twitter.com">Twitter</a> web service. Post your thoughts online, and follow other users' thoughts to stay in-the-know!</p>
+<p>SCADr runs on RAD Lab infrastructure. It is built using <a href="http://rubyonrails.org">Ruby on Rails</a> modified to work with PIQL.</p>
+
+<div class="clear"></div>

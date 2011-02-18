@@ -1,7 +1,7 @@
 <ul>
 <% for user in @leaderboard %>
     <li>
-        <%= user.login %>: <%= user.score %>
+        <%= user.login %>: <%= user.score %> <%= link_to "[Challenge " + user.login + "]", :controller => :games, :action => :challenge, :id => user.login %> 
     </li>
 <% end %>
 </ul>

@@ -4,7 +4,9 @@ class User < AvroRecord
   def games
     games = User.findGamesByUser(login)
     return games if games.empty?
-    games = games.map {|g| g[1]} 
+    games = games.map {|g| g[1]}
+    #games = games.select {|g| g.challenge == 0} 
+    #puts games
     return games
   end
   
@@ -13,6 +15,13 @@ class User < AvroRecord
     return wordlists if wordlists.empty?
     return wordlists.map {|w| w.first}
   end
+
+  def challenges
+    challenges = User.findChallengesByUser1(self.login).concat User.findChallengesByUser2(self.login)
+    return challenges if challenges.empty?
+    return challenges.map {|c| c.first}
+  end
+    
   
   def self.createNew(login, password, name)
     return nil if !login or !password or !name or login == "" or password == "" or name == ""
