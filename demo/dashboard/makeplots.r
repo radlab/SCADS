@@ -220,3 +220,4 @@ if(SCADS_STATS) {
 	}
 }
 
+dbDisconnect(con)

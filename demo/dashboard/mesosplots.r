@@ -180,3 +180,5 @@ frameworkNames = frameworkNamesL[[1]]
 	dev.off()
 
 }   #end loop over periods
+
+dbDisconnect(con)
