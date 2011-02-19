@@ -1,16 +1,58 @@
-<div id="home_contents">
-	<div id="logo"></div>
-	
-	<%= render :partial => "search/searchbox" %>
-	<% puts "home index"%>
-	<div id="play">
-		Or give yourself a quick vocab review? You can <%= link_to "create your own", new_wordlist_path %> or choose from some of our premade wordlists.
-		<br>
-		<% #for a in @wordlists 
-        %>
-			<%= #link_to a.name, {:controller=>:wordlists, :action=>:show, :name => a.name} 
-            %>
-		<% #end 
-        %>
+<div id="home-contents">
+	<div id="logo-home"></div>
+    <% if !@current_user %>	
+        <div id="login-home">
+            <% if flash[:notice] %>
+                <div id="notice"><%= flash[:notice] %></div>
+            <% end %>
+    	    <% form_tag :controller => 'users', :action => 'login_action' do %>
+            <p>
+                <%= label_tag :login %>
+                <%= text_field_tag :login %>
+            </p>
+    
+            <p>
+                <%= label_tag :password %>
+                <%= password_field_tag :password %>
+            </p>
+    
+            <p><%= submit_tag 'Play a Game', :id => 'home-login-button', :class=> "button" %></p>
+            <% end %>
+            <%= link_to "Don't have an account? Register!", register_path %>
+    	</div>
+    <% else %>
+        <div id="login-home">
+            <label style="width: 100%; text-align: center;">Welcome back, <%= @current_user %>!</label>
+            <div style="width: 95%">
+                <%= link_to "Go to your Dashboard", dashboard_path, :id => "home-login-button"%>
+            </div>
+        </div>
+    <% end %>
+	<div id="info">
+	  <div class="section">
+	    <span>
+        <h2>What is gradit?</h2>
+	    Gradit is a vocabulary learning service/game that helps you effectively learn vocabulary in context from sources you're actually interested in.
+      
+      Wanna know how we started out?
+	    </span>
+      </div>
+	  <div class="section">
+        <span>
+	    <h2>How do I play?</h2>
+	    You can choose to either create your own wordlist, or use one of the community pre-defined ones. Click the large "Play" button above!
+        </span>
+	  </div>
+	  <div class="section">
+        <span>
+	    <h2>What's in it for me?</h2>
+	    You'll ace your SAT or GRE! Gradit gives you vocabulary in context from source you're interested in, so you're bound to learn better than from any traditional vocabulary method.
+	    
+	    Don't believe us? Check out our testimonials.
+        </span>
+	  </div>
+	  <div class="clear"></div>
 	</div>
+	
+	
 </div>

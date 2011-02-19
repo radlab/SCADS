@@ -89,7 +89,7 @@ class JavaExecutor extends Executor {
       var lastCount = 0
       override def run(): Unit = {
         while(running) {
-          Thread.sleep(5000)
+          Thread.sleep(30000)
           val currentTime = System.currentTimeMillis()
           val currentCount = statsWebApp.getRequests()
           requestsPerSec = (currentCount - lastCount) / ((currentTime - lastTime) / 1000)
@@ -137,7 +137,7 @@ class JavaExecutor extends Executor {
     val cmdLine = List[String]("/usr/bin/java",
       "-server",
       "-Xmx" + heapSize + "M",
-      "-Xms" + heapSize + "M",
+      //HACK to deal with mesos lying about available memory "-Xms" + heapSize + "M",
       "-XX:+HeapDumpOnOutOfMemoryError",
       "-XX:+UseConcMarkSweepGC",
       "-Djava.library.path=" + new File(System.getenv("MESOS_HOME"), "lib/java"),

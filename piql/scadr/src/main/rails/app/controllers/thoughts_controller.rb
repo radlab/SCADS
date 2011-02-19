@@ -1,7 +1,6 @@
 class ThoughtsController < ApplicationController
   def new
-    query = User.find_user(params[:user_id])
-    @owner = query.present? ? query.first.first : nil
+    @owner = User.find_user(params[:user_id])
     @thought = Thought.new
   end
 
@@ -9,6 +8,7 @@ class ThoughtsController < ApplicationController
     @thought = Thought.new params[:thought]
     @thought.owner = current_user.username
     @thought.timestamp = Time.now.to_i
+    @thought.text = helpers.sanitize(@thought.text)
     if @thought.save
       flash[:notice] = "New thought created."
       redirect_to user_path(current_user)
@@ -22,26 +22,12 @@ class ThoughtsController < ApplicationController
   end
   
   def thoughtstream
-    raw_users = User.find_user(params[:user_id])
-    raw_users.present? ? @user = raw_users.first.first : @user = nil
-
-    raw_thoughtstream = @user.thoughtstream(10)
-    # Remember that this comes in the form of (subscription, thought)
-    # TODO: Currently no worky
-    @thoughtstream = raw_thoughtstream.collect{ |ts| ts[1] }
+    @user = User.find(params[:user_id])
+    @thoughtstream = @user.thoughtstream(10)
   end
   
   def thoughts
-    raw_users = User.find_user(params[:user_id])
-    raw_users.present? ? @user = raw_users.first.first : @user = nil
-
-    raw_thoughts = @user.my_thoughts(10)
-    @thoughts = raw_thoughts.collect{ |t| t.first }
+    @user = User.find(params[:user_id])
+    @thoughts = @user.my_thoughts(10)
   end
-
-  # def show
-  #   @owner = User.find_user(params[:user_id])
-  #   @thought = Thought.find_thought(params[:user_id], params[:id])
-  # end
-
 end

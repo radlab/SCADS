@@ -15,6 +15,7 @@ import edu.berkeley.cs.avro.marker.AvroRecord
 import edu.berkeley.cs.avro.runtime._
 import edu.berkeley.cs.scads.comm._
 
+import java.util.concurrent.TimeUnit
 
 
 trait RoutingProtocol [KeyType <: IndexedRecord,
@@ -35,7 +36,7 @@ private[storage] object RoutingTableProtocol {
   val ZOOKEEPER_ROUTING_TABLE = "routingtable"
   val ZOOKEEPER_PARTITION_ID = "partitionid"
 }
-     
+
 trait RoutingTableProtocol[KeyType <: IndexedRecord,
                       ValueType <: IndexedRecord,
                       RecordType <: IndexedRecord,
@@ -46,6 +47,8 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
 
   import RoutingTableProtocol._
 
+
+  protected var attemps : Int = 3
 
 
   protected var routingTable: RangeTable[RoutingKeyType, PartitionService] = null
@@ -114,9 +117,10 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
       deletePartitionService(oldPartition)
   }
 
-  def mergePartitions(mergeKeys: Seq[RoutingKeyType]): Unit = {
+  def mergePartitions(mergeKeys: Seq[RoutingKeyType]): Seq[(Option[RoutingKeyType],Option[RoutingKeyType])] = {
+    val mergeBounds = new scala.collection.mutable.ListBuffer[(Option[RoutingKeyType],Option[RoutingKeyType])]()
     val oldPartitions = for(mergeKey <- mergeKeys) yield {
-      require(routingTable.checkMergeCondition(mergeKey), "Either the key is not a split key, or the sets are different and can not be merged") //Otherwise we can not merge the partitions
+      require(isMergable(mergeKey), "Either the key is not a split key, or the sets are different and can not be merged") //Otherwise we can not merge the partitions
 
       val bound = routingTable.lowerUpperBound(mergeKey)
       val leftPart = bound.left.values
@@ -125,6 +129,7 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
       val mergePartition = createPartitions(bound.left.startKey, bound.right.startKey, storageServers)
 
       routingTable = routingTable.merge(mergeKey, mergePartition)
+      mergeBounds.append((bound.left.startKey,mergeKey))
       (leftPart, rightPart)
     }
 
@@ -134,8 +139,17 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
       deletePartitionService(leftPart)
       deletePartitionService(rightPart)
     }
+    mergeBounds.toList
   }
 
+  def isMergable(mergeKey:RoutingKeyType):Boolean = {
+    routingTable.checkMergeCondition(mergeKey)
+  }
+
+  def getMergeKeys(mergeKey:Option[RoutingKeyType]):(Option[RoutingKeyType],Option[RoutingKeyType]) = {
+    val bound = routingTable.lowerUpperBound(mergeKey)
+    (bound.left.startKey, bound.right.startKey)
+  }
 
   protected def deserializeRoutingKey(key: Array[Byte]) : RoutingKeyType ;
 
@@ -146,6 +160,7 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
    * Replicates a partition to the given storageHandler.
    */
   def replicatePartitions(targets : Seq[(PartitionService, StorageService)]): Seq[PartitionService] = {
+    val oldRoutingTable = routingTable
     val result = for((partitionHandler, storageHandler) <- targets) yield {
       val (startKey, endKey) = getStartEndKey(partitionHandler)
       val newPartition = createPartitions(startKey, endKey, Seq(storageHandler)).head
@@ -153,13 +168,22 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
       (newPartition, partitionHandler)
     }
     storeAndPropagateRoutingTable()
-    waitForAndThrowException(
-      result.map {
-        case (newPartition, oldPartition) => (newPartition !! CopyDataRequest(oldPartition, false), newPartition)
-      }, 3*60*1000) {
-      case (CopyDataResponse(), _) => () 
-    }
+    try {
+      waitForAndRetry(
+          result.map {
+          case (newPartition, oldPartition) => (newPartition, CopyDataRequest(oldPartition, false))
+        }, 3*60*1000){
+        case CopyDataResponse() => ()
+      }
+    } catch { case e:RuntimeException => {
+      routingTable = oldRoutingTable
+      logger.warning("propagting old routing table since replicates didn't succeed")
+      storeAndPropagateRoutingTable()
+      throw new RuntimeException("Couldn't replicate partitions, reverted to old routing table")
+    }}
+
     result.map(_._1)
+
   }
 
   /**
@@ -226,17 +250,18 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
 
 
   private def deletePartitionService(partitions: Seq[PartitionService]): Unit = {
-    waitForAndThrowException(partitions.map(partition => (partition.storageService !! DeletePartitionRequest(partition.partitionId), partition))) {
-      case (DeletePartitionResponse(), _) => ()
+    waitForAndRetry(partitions.map(p => (p.storageService, DeletePartitionRequest(p.partitionId)))){
+      case DeletePartitionResponse() => ()
     }
+
   }
 
 
   private def createPartitions(startKey: Option[RoutingKeyType], endKey: Option[RoutingKeyType], servers: Seq[StorageService])
   : Seq[PartitionService] = {
     val createReq = CreatePartitionRequest(namespace, startKey.map(serializeRoutingKey(_)), endKey.map(serializeRoutingKey(_)))
-    waitForAndThrowException(servers.map(server => (server !! createReq, server))) {
-      case (CreatePartitionResponse(partitionActor), _) => partitionActor
+    waitForAndRetry(servers.map((_, createReq))){
+       case CreatePartitionResponse(partitionActor) => partitionActor
     }
   }
 
@@ -277,10 +302,39 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
     routingTable = new RangeTable[RoutingKeyType, PartitionService](ranges,
       (a: RoutingKeyType, b: RoutingKeyType) => a.compare(b),
       (a: Seq[PartitionService], b: Seq[PartitionService]) => {
-        a.corresponds(b)((v1, v2) => v1.storageService.id == v2.storageService.id)
+        a.corresponds(b)((v1, v2) => v1.storageService equals v2.storageService)
       })
   }
 
 
+  def waitForAndRetry[T]( messages: Seq[(RemoteActorProxy,MessageBody)], routingTimeout : Int = 5000, attempts : Int = 3) (f: PartialFunction[MessageBody, T]): Seq[T] = {
 
+    var futures : Seq[( MessageFuture, ((RemoteActorProxy,MessageBody), Int))] = messages.map(message => (message._1 !! message._2, (message, attempts)))
+
+    var triedEverything = false
+    while(!triedEverything)  {
+      triedEverything = true
+      val futuresTmp =
+        for(future <- futures) yield {
+          //var rFuture = future
+          if(future._1.get(routingTimeout, TimeUnit.MILLISECONDS).isEmpty){
+            if(future._2._2 > 0) {
+              triedEverything = false
+              logger.debug("Trying to resend message %s in %s attempts", future._2._1._2, attempts - future._2._2)
+              (future._2._1._1 !! future._2._1._2, (future._2._1, future._2._2 - 1))
+            }else{
+              logger.error("%s attempts to send the message failed. Message: %s", attempts, future._2._1._2)
+              throw new RuntimeException("TIMEOUT")
+            }
+          }else{
+            future
+          }
+      }
+      futures = futuresTmp
+    }
+
+    /* Make sure all messages can be handled by the given partial function */
+    futures.map(_._1()).filterNot(f.isDefinedAt).foreach(msg => throw new RuntimeException("Received unexepected message: %s".format(msg)))
+    futures.map(future => f(future._1()))
+  }
 }

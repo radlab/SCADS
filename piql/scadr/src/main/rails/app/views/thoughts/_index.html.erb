@@ -1,14 +1,14 @@
-<ul>
-<% thoughts.each do |thought| -%>
-  <li>
-    <% if current_user && thought.owner == current_user.username -%>
-      <p class="byline">Thought <%= thought.posted_at %> --</p>
-    <% else -%>
-      <p class="byline"><span class="user"><%= thought.owner %></span> thought <%= thought.posted_at %> --</p>
-    <% end -%>
-    <div class="thought-body">
-      <%= simple_format(thought.text) %>
-    </div>
-  </li>
-<% end -%>
-</ul>
+<%- if thoughts.present? -%>
+  <ul class="thoughts">
+  <% thoughts.each do |thought| -%>
+    <li>
+      <p class="byline"><%= link_to thought.owner, user_path(thought.owner) %> (<%= thought.posted_at %>)</p>
+      <div class="thought-body">
+        <%= simple_format(thought.text) %>
+      </div>
+    </li>
+  <% end -%>
+  </ul>
+<%- else -%>
+  <p class="thoughtless">No thoughts.</p>
+<%- end -%>

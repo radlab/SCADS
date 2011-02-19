@@ -1,10 +1,11 @@
 package edu.berkeley.cs.scads.director
 
-import edu.berkeley.cs.scads.comm.{ PartitionService, StorageService, ZooKeeperProxy, ZooKeeperNode }
+import edu.berkeley.cs.scads.comm.{ PartitionService, StorageService, ZooKeeperProxy, ZooKeeperNode, RemoteActorProxy }
 import edu.berkeley.cs.scads.storage.{ GenericNamespace, ScadsCluster }
 import net.lag.logging.Logger
 
 object Director {
+  //Logger("policy").setLevel(java.util.logging.Level.FINEST)
   private val rnd = new java.util.Random(7)
   val basedir = "/tmp"
   val bootupTimes = new BootupTimes()
@@ -15,7 +16,7 @@ object Director {
   def nextRndDouble(): Double = rnd.nextDouble()
 }
 
-case class Director(var numClients: Int, namespaceString: String, val scheduler: ScadsServerScheduler) {
+case class Director(var numClients: Int, namespaceString: String, val scheduler: RemoteActorProxy) {
   val period = 20 * 1000
   var controller: Controller = null
   var thread: Thread = null
@@ -36,6 +37,9 @@ case class Director(var numClients: Int, namespaceString: String, val scheduler:
     //val node = ZooKeeperNode(zookeepCanonical)
     if (Director.cluster == null) Director.cluster = new ScadsCluster(clusterRoot)
     var namespace: GenericNamespace = Director.cluster.getNamespace(namespaceString)
+    val splitQueue = new java.util.concurrent.LinkedBlockingQueue[(Option[org.apache.avro.generic.GenericRecord],Seq[Option[org.apache.avro.generic.GenericRecord]])]()
+    val mergeQueue = new java.util.concurrent.LinkedBlockingQueue[(Seq[Option[org.apache.avro.generic.GenericRecord]],Option[org.apache.avro.generic.GenericRecord])]()
+    
 
     // update start time for existing servers
     val now = new java.util.Date().getTime
@@ -43,17 +47,17 @@ case class Director(var numClients: Int, namespaceString: String, val scheduler:
 
     val predictor = SimpleHysteresis(0.9, 0.1, 0.0)
     predictor.initialize
-    val policy = if (System.getProperty("doEmpty", "true").toBoolean) new EmptyPolicy(predictor) else new BestFitPolicy(null, 100, 100, 0.99, true, 20 * 1000, 10 * 1000, predictor, true, true, 1, 1)
+    val policy = if (System.getProperty("doEmpty", "false").toBoolean) new EmptyPolicy(predictor) else new BestFitPolicySplitting(null, 100, 100, 0.99, true, 20 * 1000, 10 * 1000, predictor, true, true, 1, 1, splitQueue, mergeQueue)
     val stateHistory = StateHistory(period, namespace, policy)
     stateHistory.startUpdating
-    val executor = /*new TestGroupingExecutor(namespace)*/ new GroupingExecutor(namespace, scheduler)
+    val executor = /*new TestGroupingExecutor(namespace, splitQueue, mergeQueue)*/new SplittingGroupingExecutor(namespace, splitQueue, mergeQueue, scheduler)// new GroupingExecutor(namespace, scheduler)
     executor.start
 
     // when clients are ready to start, start everything
     //val coordination = clusterRoot.getOrCreate("coordination") // TODO
     Thread.sleep(10 * 1000)
     controller = new Controller(policy, executor, stateHistory)
-    thread = new Thread(controller)
+    thread = new Thread(controller, "Controller:"+namespace.namespace)
     thread.start
 
   }

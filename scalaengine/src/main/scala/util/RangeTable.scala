@@ -211,10 +211,10 @@ class RangeTable[KeyType, ValueType](
 
   private def checkMergeCondition(bpos: Int): Boolean = {
     if (bpos < 0 || bpos == rTable.length){
-      logger.info("[%s] Merge Condition failed - key is not a split key".format(this))
+      logger.debug("[%s] Merge Condition failed - key is not a split key".format(this))
       return false
     }else if (!mergeCondition(rTable(bpos - 1).values, rTable(bpos).values)){
-      logger.info("[%s] Merge Condition failed - sets are not equal. $s != $s", this, rTable(bpos - 1), rTable(bpos) )   
+      logger.debug("[%s] Merge Condition failed - sets are not equal. $s != $s", this, rTable(bpos - 1), rTable(bpos) )
       return false
     }else
       return true

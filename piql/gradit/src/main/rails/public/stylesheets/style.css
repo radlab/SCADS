@@ -1,76 +1,179 @@
 html, body { 
 	margin: auto;
 	height: 100%;
-	background: #ffffff url('/images/bg_fade.png');
-	background-repeat: repeat-x;
-	background-position: top;
-	color: #333; 
-	
-	font-family: "Trebuchet MS", arial, helvetica, sans-serif;
+	background: #ffffff url('/images/gradit_bg.png') repeat;
+	color: #555a5f; 
+	font-family: "Puritan", helvetica, arial, sans-serif;
   	font-size:   13px;
 	
 }
 
-a { color: #000; }
-a:visited { color: #666; }
-a:hover { color: #FF7F24; } 
+body{
+    padding-top: 2%;
+}
+
+a { color: #ccc; }
+a:hover { color: #ec9a26; } 
 
 img { border: none; }
 
 /*Global*/
 
+.clear{
+    clear:both;
+}
+
+
+label{
+    display: inline-block;
+    width: 6em;
+}
+
+input{
+    border: 0px;
+    background: white;
+    border: 1px #ccc solid;
+    padding: 2px;
+    border-radius: 3px;
+    outline: none;
+    font-size: 1.3em;
+}
+
+input[type=submit]{
+    font-size: 1.1em;
+    background: #666;
+    color: white;
+    padding: 5px;
+    cursor: pointer;
+}
+
+input[type=submit]:hover{
+    background: #ffa916;
+}
+/*Home*/
+#home-contents{
+    padding-top: 2%;
+}
+
+#login-home{
+    width: 300px;
+    margin: auto;
+    padding: 1em;
+}
+
+#login-home label{
+    color: #ccc;
+    font-size: 1.5em;
+    font-family: "Cuprum", helvetica, arial;
+    text-transform: uppercase;
+}
+
+#login-home input{
+    border: 0px;
+}
+
+#login-home #notice{
+    width: 90%;
+}
+#logo-home{
+	margin: auto;
+	width: 300px;
+	height: 146px;
+	background: url('/images/gradit_logo.png') no-repeat;
+}
+
+#home-login-button{
+    border: 0px;
+    margin: auto;
+    width: 100%;
+    display: block;
+    text-align: center;
+    background: -webkit-gradient(linear, 0% 0%, 0% 100%, from(#F7F7F7), to(#E3E3E3));
+    padding: 7px;
+    padding-bottom: 3px;
+    color: #aaa;
+    border-radius: 5px;
+    font-family: "Cuprum", helvetica, arial, sans-serif;
+    text-decoration: none;
+    text-transform: uppercase;
+    font-size: 1.5em;
+    opacity: .7;
+}
+
+#home-login-button:hover{
+    opacity: 1;
+}
+#home-login-button:hover{
+    color: #ec9a26; 
+}
+
+div#info{
+    width: 80%;
+    margin: 2em auto;
+}
+
+div.section{
+    float:left;
+    width: 33.3%;
+    color: #ccc;
+}
+
+div.section span{
+    display: block;
+    padding: 1em;
+}
+div.section h2{
+    color: #ec9a26;
+    text-align: center;
+    font-family: "Cuprum", helvetica, arial;
+    text-transform: uppercase;
+    font-weight: normal;
+}
+
+
+
+/*Game pages*/
+
+#header{
+    margin: auto;
+    width: 80%;
+    position: relative;
+}
+
+#header #logo{
+    float: left;
+    display: block;
+    width: 200px;
+    height: 97px;
+    background: url("/images/gradit_logo_sm.png");
+}
+
+#header #user-bar{
+    float: right;
+    color: white;
+    height: 100%;
+}
+
+#content{
+    margin: auto;
+    width: 80%;
+    background: -webkit-gradient(linear, 0% 0%, 0% 100%, from(#FEFEFE), to(#F7F7F7));
+    background: url("/images/gradit_bg_white.png") repeat;
+    padding: 7px;
+    padding-bottom: 3px;
+    border-radius: 5px;
+}
+
+#content a{
+    color: #555a5f;
+}
+
+#content a:hover { color: #ec9a26; } 
+
 .game_entry_mc{
 	font-size: 20px;
 }
 
-#banner_top{
-	background: red url('/images/gradit_header.png'); 
-	background-repeat: repeat-x;
-	width: 100%;
-	height: 125px;
-}
-
-#header_wrapper{
-	position: relative;
-	top: 25px;
-	width: 950px;
-	height: 100px;
-	margin: auto;
-}
-
-#logo{
-	float: left;
-	width: 114px;
-	height: 46px;
-	/*background: url('/images/gradit_inside_logo.png') no-repeat;*/
-}
-
-#user_bar{
-	color: #fff;
-	float: right;
-}
-
-#wrapper{
-	position: relative;
-	margin:auto;
-	top: -35px;
-	width: 950px;
-}
-#trans_back{
-	background: #fff;
-	opacity: .6;
-	width: 950px;
-	min-height: 300px;
-}
-
-#content_holder{
-	position: absolute;
-	top: 10px;
-	left: 10px;
-	width: 930px;
-	min-height: 300px;
-	background: #fff;
-}
 
 #content{
 	padding: 30px;
@@ -78,8 +181,38 @@ img { border: none; }
 
 /*Game Entry*/
 #ans_result{
+    margin: auto;
+    width: 50%;
 	text-align: center;
-	font-size: 20px;
+	font-size: 1.2em;
+}
+
+#notice{
+    margin: auto;
+    width: 50%;
+    text-align: center;
+    font-size: 1.2em;
+    background: #fff9bc;
+    border: 1px #c4a54a solid;
+    color: #c4a54a;
+    padding: 5px;
+    border-radius: 3px;
+}
+
+#correct{
+    background: #d4f7b2;
+    border: 1px #5fbf00 solid;
+    color: #5fbf00; 
+    padding: 5px;
+    border-radius: 3px;
+}
+
+#incorrect{
+    background: #fccccc;
+    border: 1px #ff5656 solid;
+    color: #ff5656;
+    padding: 5px;
+    border-radius: 3px;
 }
 
 #player_panel{
@@ -88,7 +221,6 @@ img { border: none; }
 }
 
 .game_entry{
-	background: #ffffcc;
 	padding: 10px;
 	margin: 20px;
 }
@@ -100,71 +232,3 @@ img { border: none; }
 .mult_choice{
 	font-size: 18px;
 }
-
-/*Layout - Context */
-
-.context_wrapper_title{
-	font-weight: bold;
-}
-
-.context_wrapper{
-	padding: 5px;
-	margin: 10px;
-	background: #ffffcc;
-	vertical-align: top;
-}
-
-.search_field {
-	height:26px;
-	margin-right: 0px;
-	padding: 0px;
-	font-size: 18px;
-}
-.search_button {
-	position: relative;
-	display: inline;
-	top: -23px;
-	padding: 0px;
-    border: none;
-    width: 61px;
-    height: 63px;
-    background: url('/images/search_button.png') no-repeat top left;
-}
-
-/*Error Styling*/
-.fieldWithErrors {
-  padding: 2px;
-  background-color: red;
-  display: table;
-}
-
-#errorExplanation {
-  width: 400px;
-  border: 2px solid red;
-  padding: 7px;
-  padding-bottom: 12px;
-  margin-bottom: 20px;
-  background-color: #f0f0f0;
-}
-
-#errorExplanation h2 {
-  text-align: left;
-  font-weight: bold;
-  padding: 5px 5px 5px 15px;
-  font-size: 12px;
-  margin: -7px;
-  background-color: #c00;
-  color: #fff;
-}
-
-#errorExplanation p {
-  color: #333;
-  margin-bottom: 0;
-  padding: 5px;
-}
-
-#errorExplanation ul li {
-  font-size: 12px;
-  list-style: square;
-}
-

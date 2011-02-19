@@ -44,6 +44,13 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
   protected var readQuorum: Double = 0.001
   protected var writeQuorum: Double = 1.0
 
+  def iterateOverRange(startKey: Option[KeyType], endKey: Option[KeyType]): Iterator[RangeType] = {
+    val partitions = serversForRange(startKey, endKey)
+    partitions.map(p => new ActorlessPartitionIterator(p.values.head, p.startKey.map(serializeKey), p.endKey.map(serializeKey)))
+	      .foldLeft(Iterator.empty.asInstanceOf[Iterator[Record]])(_ ++ _)
+	      .map(rec => extractRangeTypeFromRecord(rec.key, rec.value).get)
+  }
+
   // For debugging only
   def dumpDistribution: Unit = {
     serversForRange(None, None).foreach(r => {
@@ -121,6 +128,45 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
         (partition, v.map(a => extractRangeTypeFromRecord(a.key, a.value).get))
     }
   }
+
+  def getSplitKeys(startkey: Option[KeyType], numSplits:Int):Seq[KeyType] = {
+    val activePartition = serversForRange(startkey, None).head
+    val partitions = activePartition.values
+
+    val endkey = activePartition.endKey
+    // determine number of records in this partition
+    val countRequest = CountRangeRequest(startkey.map(serializeKey(_)), endkey.map(serializeKey))
+    val countResponses = partitions.map(_ !! countRequest)
+    countResponses.blockFor(1) // only get response from one replica of the partition
+    val countResponse = countResponses.filter(_.isSet)
+    val count = countResponse.map(r => r.get match { case m@CountRangeResponse(count) => Some(count); case _ => None }).head
+
+    if (!count.isDefined) throw new RuntimeException("couldn't get partition count")
+    if (count.get < numSplits) throw new RuntimeException("partition count less than number of requests splits")
+
+    // get the split keys
+    val slice = scala.math.floor(count.get / numSplits.toDouble).toInt
+    (1 until numSplits).map(s => {
+      val splitRecord = getRange(startkey, endkey, Some(1), Some(s*slice)).head
+      extractKeyValueFromRangeType(splitRecord)._1
+    })
+  }
+  
+  /**
+	* for each logical partition, return boolean indicating if that partition has only one key
+	*/
+	def isPartitionSingleKey(startkey: Option[KeyType]):Boolean = {
+	  /*val ranges = serversForRange(None,None)
+	  val requests = for (fullrange <- ranges) yield {
+			(fullrange.startKey,fullrange.endKey, fullrange.values, getRange(fullrange.startKey,fullrange.endKey,Some(2),Some(0)) )
+		}*/
+		val activePartition = serversForRange(startkey, None).head
+    val partitions = activePartition.values
+    val endkey = activePartition.endKey
+
+    val result = getRange(startkey,endkey,Some(2),Some(0))
+    result.size == 1
+	}
 
   def put(key: KeyType, value: Option[ValueType]): Unit = {
     val (servers, quorum) = writeQuorumForKey(key)
@@ -531,21 +577,24 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
     def act() {
       loop {
         react {
-          case handler: GetHandler =>
+          case handler: GetHandler => /* TODO: Configurable Read Repair
             managedBlock {
               handler.processRest()
             }
-            for (server <- handler.repairList)
+            for (server <- handler.repairList) {
+              logger.debug("repairing key %s on server %s", handler.key, server)
               server !! PutRequest(handler.key, handler.winnerValue)
-          case handler: RangeHandle =>
+            }*/
+          case handler: RangeHandle => /* TODO: Configurable Read Repair
             managedBlock {
               handler.processRest()
             }
             for ((key, (data, servers)) <- handler.loosers) {
               for (server <- servers) {
+                logger.debug("repairing key %s on server %s (range handle)" , key, server)
                 server !! PutRequest(key, Some(data))
               }
-            }
+            }*/
           case m => throw new RuntimeException("Unknown message" + m)
         }
       }

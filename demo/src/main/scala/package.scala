@@ -15,18 +15,26 @@ package object demo {
 
   def runDemo: Unit = {
     resetScads
-    startScadrDirector
-    startScadr
-    startScadrRain
+    startScadrCluster()
+    startGraditCluster()
+  }
+
+  /**
+   * Needs to be run from Michael's AWS account
+   */
+  def updateLoadBalancers: Unit = {
+    LoadBalancer.update("scadr", scadrWebServerList)
+    LoadBalancer.update("gradit", graditWebServerList)
+    LoadBalancer.update("mesos", MesosEC2.master.instanceId :: Nil)
   }
 
   /**
    * Start a mesos master and make it the primary for the demo.
    * Only needs to be run by one person.
    */
-  def setupMesosMaster: Unit = {
+  def setupMesosMaster(zone:String = zone): Unit = {
     try MesosEC2.master catch {
-      case _ => MesosEC2.startMaster()
+      case _ => MesosEC2.startMaster(zone)
     }
 
     MesosEC2.master.pushJars
@@ -36,6 +44,7 @@ package object demo {
 
   def preloadWars: Unit = {
     MesosEC2.slaves.pforeach(_.cacheFile(scadrWarFile))
+    MesosEC2.slaves.pforeach(_.cacheFile(graditWarFile))
   }
 
   /**
@@ -57,11 +66,6 @@ package object demo {
     serviceSchedulerNode.data = RemoteActor(MesosEC2.master.publicDnsName, 9000, ActorNumber(0)).toBytes
   }
 
-  def fixZookeeperServiceScheduler: Unit = {
-    // TODO: hardcoded for simplicity
-    DemoConfig.serviceSchedulerNode.data = RemoteActor("ec2-184-73-0-78.compute-1.amazonaws.com", 9000, ActorNumber(0)).toBytes
-  }
-
   def safeUrl(cs: S3CachedJar, delim: String = "|"): String = {
     if (cs.url.contains(delim))
       throw new RuntimeException("delim cannot be used b/c of url: %s".format(cs.url))
@@ -79,10 +83,44 @@ package object demo {
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
-  def startScadrDirector: Unit = {
+  def startGradit: Unit = {
+    val task = WebAppSchedulerTask(
+      "gRADit",
+      mesosMaster,
+      javaExecutorPath,
+      graditWar,
+      graditWebServerList.canonicalAddress,
+    Map("scads.clusterAddress" -> graditRoot.canonicalAddress)).toJvmTask
+    serviceScheduler !? RunExperimentRequest(task :: Nil)
+  }
+
+  def startScadrCluster(add:Option[String] = None): Unit = {
+    val clusterAddress = add.getOrElse(scadrRoot.canonicalAddress)
+    val task = InitScadrClusterTask(clusterAddress).toJvmTask
+    serviceScheduler !? RunExperimentRequest(task :: Nil)
+  }
+
+  def startGraditCluster(add:Option[String] = None): Unit = {
+    val clusterAddress = add.getOrElse(graditRoot.canonicalAddress)
+    val task = InitGraditClusterTask(clusterAddress).toJvmTask
+    serviceScheduler !? RunExperimentRequest(task :: Nil)
+  }
+
+  def startScadrDirector(add:Option[String] = None): Unit = {
+    val clusterAddress = add.getOrElse(scadrRoot.canonicalAddress)
     val task = ScadrDirectorTask(
-      scadrRoot.canonicalAddress,
-      mesosMaster).toJvmTask
+      clusterAddress,
+      mesosMaster
+    ).toJvmTask
+    serviceScheduler !? RunExperimentRequest(task :: Nil)
+  }
+
+  def startGraditDirector(add:Option[String] = None): Unit = {
+    val clusterAddress = add.getOrElse(graditRoot.canonicalAddress)
+    val task = GraditDirectorTask(
+      clusterAddress,
+      mesosMaster
+    ).toJvmTask
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
@@ -174,11 +212,12 @@ package object demo {
    * WARNING: deletes all data from all scads cluster
    */
   def resetScads: Unit = {
-    val namespaces = "users" :: "thoughts" :: "subscriptions" :: Nil
-    val delCmd = "rm -rf " + namespaces.map(ns => "/mnt/" + ns + "*").mkString(" ")
-    MesosEC2.slaves.pforeach(_ ! delCmd)
+    // val namespaces = "users" :: "thoughts" :: "subscriptions" :: Nil
+    // val delCmd = "rm -rf " + namespaces.map(ns => "/mnt/" + ns + "*").mkString(" ")
+    // MesosEC2.slaves.pforeach(_ ! delCmd)
 
     scadrRoot.deleteRecursive
+    graditRoot.deleteRecursive
   }
 
   def resetTracing: Unit = {
@@ -208,24 +247,24 @@ package object demo {
   }
 
   def loadTwitterSpam(): Unit = {
-    val clusterRoot = zooKeeperRoot.getOrCreate("twitterSpam")
-    clusterRoot.children.foreach(_.deleteRecursive)
-    val cluster = new ExperimentalScadsCluster(clusterRoot)
+    val numServers = 16
+    twitterSpamRoot.children.foreach(_.deleteRecursive)
+    val cluster = new ExperimentalScadsCluster(twitterSpamRoot)
 
     serviceScheduler !? RunExperimentRequest(
-      ScalaEngineTask(clusterRoot.canonicalAddress).toJvmTask :: Nil)
-
-    cluster.blockUntilReady(1)
+      List.fill(numServers)(ScalaEngineTask(twitterSpamRoot.canonicalAddress).toJvmTask))
+    cluster.blockUntilReady(numServers)
 
     serviceScheduler !? RunExperimentRequest(
-      LoadJsonToScadsTask("http://cs.berkeley.edu/~marmbrus/tmp/labeledTweets.avro", clusterRoot.canonicalAddress).toJvmTask :: Nil)
+      LoadJsonToScadsTask("http://cs.berkeley.edu/~marmbrus/tmp/labeledTweets.avro", twitterSpamRoot.canonicalAddress).toJvmTask :: Nil)
   }
 
   def authorizeUsers: Unit = {
     val keys =
-      "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCfH8CkLrCIOxJAkFubG1ehQEdu1OfOUqaMxiTQ7g/X0fXclXRzqwoBFBL33t0FGVxkPVxolwAaZEQTIg6hkGZuzLlPiuq1ortkMx3wGxU9/YBr6JzSZb+kB1OEG/LOWiXH+i5IJbKptW+6B527niXCAgo8Idlf5PNBqcdI+CrvaX+oqQX6K2T5EDxoJVOtgRHbS/2YbtGhwknskyCcvOnOcwjcRUGawmVK7QYavyuO+//SOK+0sIjTSSwTAVceKbQl8XVlPL7IJHKE6/JwEF2+6+eMdflg9A8qAm3g0rE8qfUGdJLN1hpJNdP/UCP1v091h4C88lqqtwbekrS817ar stephentu@ibanez" ::
-        "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAnOr61V36/yp1nGRfMZHxzFr1GUom/uQgQS5xdMQ3A56xqfWbhNpNTGQSOpKc3u1jfc77KouG8v0bPSssaiBIDIqVqVRWWACUg6j4xk5oN0lSm22LWJ0OnFvbPbsZlJOb9t+gIe2/yjlbJsyH5/mpIqJBTASOtXugYUIP3jIfA438ZiObpEYuL3kCiBDhEz4w6WbTaXr0K/bRxQoZFGJem+IH26bfeEP8Y12ygdgwh0EAKErv1bbULV7WC92F+5nSU1eGbvCKbhqxIUzxh7ZCRXdUyGcpDOfVL2MOUxNch3AKjE+Z5TVI8fv1md7ILK4dE95oJTUiWv9IUpAUEabM4Q== kristal.curtis@gmail.com" ::
-        "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAqxXSYqw5Cshu9EvHCzRiu/1lSO6n6hqTmM7NwITK7Q5a0pn7Hg/ZzykuWpcrCDKjRadJlP+FrWWPdizEgOtgwmHs9LWrf0DrtLDNroRsgqyii/rD4+kAMgMP6PWxoRRUklo8Vqgt4TFwA/bDbKFHtyvnPGOxBiapnhrdWL5HKG1nIChrN2iLLq4ymnGd2N0pJW+Fwz8E/D4Mxk7poKSuyfyEcAynhAeLcCvx54t/p8JalahHHco+TGFEChp3gZ2c+Eov3KNZgtCGcQeIphVoRI5M+Li5adaVwD5Y3mmJ3yBBiS6rh4qN0QS9RecOH+oYcAOQWAm000q1UdfHfESKvQ== rean@eecs.berkeley.edu" :: Nil
+      "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCfH8CkLrCIOxJAkFubG1ehQEdu1OfOUqaMxiTQ7g/X0fXclXRzqwoBFBL33t0FGVxkPVxolwAaZEQTIg6hkGZuzLlPiuq1ortkMx3wGxU9/YBr6JzSZb+kB1OEG/LOWiXH+i5IJbKptW+6B527niXCAgo8Idlf5PNBqcdI+CrvaX+oqQX6K2T5EDxoJVOtgRHbS/2YbtGhwknskyCcvOnOcwjcRUGawmVK7QYavyuO+//SOK+0sIjTSSwTAVceKbQl8XVlPL7IJHKE6/JwEF2+6+eMdflg9A8qAm3g0rE8qfUGdJLN1hpJNdP/UCP1v091h4C88lqqtwbekrS817ar stephentu@ibanez" :: 
+      "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAnOr61V36/yp1nGRfMZHxzFr1GUom/uQgQS5xdMQ3A56xqfWbhNpNTGQSOpKc3u1jfc77KouG8v0bPSssaiBIDIqVqVRWWACUg6j4xk5oN0lSm22LWJ0OnFvbPbsZlJOb9t+gIe2/yjlbJsyH5/mpIqJBTASOtXugYUIP3jIfA438ZiObpEYuL3kCiBDhEz4w6WbTaXr0K/bRxQoZFGJem+IH26bfeEP8Y12ygdgwh0EAKErv1bbULV7WC92F+5nSU1eGbvCKbhqxIUzxh7ZCRXdUyGcpDOfVL2MOUxNch3AKjE+Z5TVI8fv1md7ILK4dE95oJTUiWv9IUpAUEabM4Q== kristal.curtis@gmail.com" ::
+      "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAqxXSYqw5Cshu9EvHCzRiu/1lSO6n6hqTmM7NwITK7Q5a0pn7Hg/ZzykuWpcrCDKjRadJlP+FrWWPdizEgOtgwmHs9LWrf0DrtLDNroRsgqyii/rD4+kAMgMP6PWxoRRUklo8Vqgt4TFwA/bDbKFHtyvnPGOxBiapnhrdWL5HKG1nIChrN2iLLq4ymnGd2N0pJW+Fwz8E/D4Mxk7poKSuyfyEcAynhAeLcCvx54t/p8JalahHHco+TGFEChp3gZ2c+Eov3KNZgtCGcQeIphVoRI5M+Li5adaVwD5Y3mmJ3yBBiS6rh4qN0QS9RecOH+oYcAOQWAm000q1UdfHfESKvQ== rean@eecs.berkeley.edu" :: 
+      "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAIEA4HH/XGUrla7FpONvVvHZAQ5XtY5hfZq3YuIICholyKfarp4O/sCT0EFjyO97IQILgM7HjDooGJKpexYL61JmnOWReRamsRCP1FKFiM03KofLpBvxllO8QbalSnjLfV9oVqTFDkwnRHQVbaN83FND2dIkEntyaX3U//8cIi3mFJ8= jtma@ironic.ucsd.edu" :: Nil
 
     MesosEC2.master.appendFile(new File("/root/.ssh/authorized_keys"), keys.mkString("\n"))
   }

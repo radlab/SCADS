@@ -10,6 +10,7 @@ import org.apache.avro.util._
 
 case class User(var username: String) extends AvroPair {
   var homeTown: String = _
+  var password: String = _
 }
 
 case class Thought(var owner: String, var timestamp: Int) extends AvroPair {
@@ -35,6 +36,8 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
   lazy val thoughts = cluster.getNamespace[Thought]("thoughts")
   lazy val subscriptions = cluster.getNamespace[Subscription]("subscriptions")
   lazy val tags = cluster.getNamespace[HashTag]("tags")
+  // Additional way to access tags, to match AvroRecord's conventions:
+  lazy val hashtags = cluster.getNamespace[HashTag]("hashtags")
 
   /* Optimized queries */
   lazy val findUser = users.where("username".a === (0.?)).toPiql("findUser")
@@ -55,7 +58,7 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
 
   lazy val thoughtstream = (
     subscriptions.where("subscriptions.owner".a === (0.?))
-		 .dataLimit(5000)
+		 .limit(5000)
 		 .join(thoughts)
 		 .where("thoughts.owner".a === "subscriptions.target".a)
 		 .sort("thoughts.timestamp".a :: Nil, false)
@@ -71,4 +74,9 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
 		 .join(users)
 		 .where("users.username".a === "subscriptions.owner".a)
     ).toPiql("usersFollowing")
+  
+  val findSubscription = (
+    subscriptions.where("subscriptions.owner".a === (0.?))
+     .where("subscriptions.target".a === (1.?))
+    ).toPiql("findSubscription")
 }

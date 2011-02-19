@@ -29,6 +29,7 @@ abstract class Action(
 	var successful = false
 	def state():ActionState = _state
 	def completed():Boolean = state()==ActionState.Completed
+	def cancelled():Boolean = state()==ActionState.Cancelled
 	def running():Boolean = state()==ActionState.Running
 	def ready():Boolean = state()==ActionState.Ready
 
@@ -119,6 +120,22 @@ case class DeletePartition(val partition:PartitionService, val source:StorageSer
 	override def preview(config:ClusterState):ClusterState = config.delete(partition,source)
 	
 	def participants:Set[StorageService] = Set(source)	
+}
+
+case class SplitPartition(val partition:Option[org.apache.avro.generic.GenericRecord], val parts:Int, override val note:String)
+  extends Action("Split("+partition.toString+") into "+parts+"parts ",note) {
+    
+  override def preview(config:ClusterState):ClusterState = config.split(partition, parts)
+
+  def participants:Set[StorageService] = Set() // TODO: get list of servers that this partition is on
+}
+
+case class MergePartition(val partition:Option[org.apache.avro.generic.GenericRecord], override val note:String)
+  extends Action("Merge("+partition.toString+")",note) {
+    
+  override def preview(config:ClusterState):ClusterState = config.merge(partition)
+
+  def participants:Set[StorageService] = Set() // TODO: get list of servers that this partition is on
 }
 
 @deprecated

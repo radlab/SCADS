@@ -1,9 +1,13 @@
 <%= render :partial => "searchbox" %>
 <div id="searchword">
-	Your context query <b><%= @query %></b> returned <%= @contexts_size %> results. <%= link_to "Play a game that includes this vocabulary word?", wordlists_path %>
+	Your context query <b><%= @query %></b> returned <%= @contexts_size %> results. 
 </div>
 <div id="contexts">
-	<% for c in @contexts%>
-		<%= render :partial => "context", :locals => {:c => c} %>
-	<% end %>
+    <% if @contexts_size > 0 %>
+        <% for c in @contexts%>
+            <%= render :partial => "context", :locals => {:c => c} %>
+        <% end %>
+    <% else %>
+        We couldn't find any results for your query.
+    <% end %>
 </div>

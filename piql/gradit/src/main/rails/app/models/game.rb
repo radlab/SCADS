@@ -2,34 +2,27 @@ class Game < AvroRecord
   
   #Find word by wordid
   
-  def self.all
-    game = nil
-    return ([] << game) if game = Game.find(1)
-    return []
-  end
-  
-  def self.createNew(wordlist)
+  def self.createNew(wordlist, challenge=0)
     id = 1
     while self.find(id) != nil
       id = id + 1
     end
     g = Game.new
     g.gameid = id
-    g.score = 0
     g.wordlist = wordlist
+    
+    words = WordList.find(wordlist).words.sort_by{rand}.map {|w| w.wordid }.join(",")
+    
+    g.words = words
     g.currentword = 0
+    g.done = 0
+    g.challenge = challenge
     g.save
-    g.save #HACK: call everything twice for piql bug
-    g
+    
+    return g
   end
 
   def self.find(id)
-    begin #HACK: rescue exception
-      Game.findGame(java.lang.Integer.new(id)) #HACK: call everything twice for piql bug
-    rescue Exception => e
-      puts "exception was thrown"
-      puts e
-    end
     g = Game.findGame(java.lang.Integer.new(id))
     puts "***JUST RAN PK QUERY ON GAME***"
     puts g
@@ -39,20 +32,82 @@ class Game < AvroRecord
     g
   end
   
+  def self.valid_game?(gameid, user)
+    g = Game.find(gameid)
+    
+    if g and g.users.include? user #Game exists and it's your game
+      return true
+    end
+    
+    return false
+  end
+  
   def answer
     Word.find(self.currentword)
   end
   
-  def incrementScore(amount)
-    self.score += amount
-    self.save 
-    self.save #HACK: call everything twice for piql bug
+  def numWordsLeft
+    return self.words.split(",").size
+  end
+  def hasNextWord
+    words_list = self.words.split(",")
+    return false if words_list.empty?
+    return true
   end
   
-  def changeWord(word)
-    self.currentword = word
+  def choices(word)
+    words = WordList.find(self.wordlist).words
+    words = words.shuffle
+    words = words.select {|w| w.word != word}
+
+    words[0..2].map {|w| w.word}
+  end
+
+
+  #Chooses and saves the next word for the game
+  def changeWord
+    words_list = self.words.split(",")
+    wordid = words_list[0].to_i
+    words_list = words_list.slice(1..words_list.length - 1)  
+    self.words = words_list.join(",")
+    self.currentword = wordid
     self.save
-    self.save #HACK: call everything twice for piql bug
+    
+    return Word.find(wordid)
+  end
+  
+  def users
+    return Game.findGameUsers(java.lang.Integer.new(gameid)).map {|u| u.first}.map {|u| u.login}
+  end
+
+  def find_challenge
+    return nil if self.challenge == 0  
+    challenge = Game.findChallengesByGame1(java.lang.Integer.new(self.gameid)).concat Game.findChallengesByGame2(java.lang.Integer.new(self.gameid))
+    return challenge.map {|c| c.first}.first
+  end
+  
+  def check_challenge
+    challenge = self.find_challenge
+    if challenge != nil
+        #Check other one
+        if challenge.game1 == self.gameid
+            gp = GamePlayer.find(self.gameid, challenge.user1)
+            challenge.score1 = gp.score
+            challenge.done = 1 if Game.find(challenge.game2).done == 1
+        else
+            gp = GamePlayer.find(self.gameid, challenge.user2)
+            challenge.score2 = gp.score
+            challenge.done = 1 if Game.find(challenge.game1).done == 1
+        end
+        challenge.save
+    end
+    
+  end
+
+  def quit
+    self.done = 1
+    self.save  
+    check_challenge
   end
     
 end

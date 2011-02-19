@@ -7,7 +7,6 @@ class WordContext < AvroRecord
     wc.linenum = linenum
     wc.wordLine = wordline
     wc.save
-    wc.save #HACK: call everything twice for piql bug
     wc
   end
 end

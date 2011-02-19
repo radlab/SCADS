@@ -3,7 +3,9 @@
 
 class ApplicationController < ActionController::Base
   helper :all # include all helpers, all the time
-  protect_from_forgery # See ActionController::RequestForgeryProtection for details
+  #protect_from_forgery # See ActionController::RequestForgeryProtection for details
+  #turn off forgery protection so rain works
+  self.allow_forgery_protection = false
 
   # Scrub sensitive parameters from your log
   # filter_parameter_logging :password
@@ -18,5 +20,18 @@ class ApplicationController < ActionController::Base
     def current_user
       return @current_user if defined?(@current_user)
       @current_user = current_user_session && current_user_session.user
+    end
+    
+    def logged_in?
+      return current_user_session.present? && current_user.present?
+    end
+    
+    def helpers
+      Helper.instance
+    end
+  
+    class Helper
+      include Singleton
+      include ActionView::Helpers
     end
 end

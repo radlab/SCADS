@@ -2,15 +2,28 @@ package edu.berkeley.cs.scads.director
 
 import edu.berkeley.cs.scads.storage.{GenericNamespace,ScadsCluster}
 import edu.berkeley.cs.scads.comm.{PartitionService,StorageService}
+import java.sql.{Connection, DriverManager, ResultSet}
 import net.lag.logging.Logger
 
 object ScadsState {
 	val logger = Logger("scadsstate")
+	System.setProperty("doMysqlLogging","true")
+
+	//set up mysql connection for statistics
+  val statement = try {
+    if (System.getProperty("doMysqlLogging","false").toBoolean) {
+      classOf[com.mysql.jdbc.Driver]
+      val conn = DriverManager.getConnection("jdbc:mysql://dev-mini-demosql.cwppbyvyquau.us-east-1.rds.amazonaws.com:3306/radlabmetrics?user=radlab_dev&password=randyAndDavelab")
+      Some(conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE))
+    }
+    else
+      None
+  } catch { case e => {logger.warning("couldn't create mysql connection for metrics db"); None}}
+
 	/*
 	* get updated workload stats and cluster state some time after specified time-period
 	* if there is no data for that time, return null
 	*/
-	@deprecated("use the other refresh method")
 	def refreshAtTime(namespace:GenericNamespace, time:Long,period:Long):ClusterState = {
 		logger.debug("refreshing state at time %s",time.toString)
 		val workload = namespace.getWorkloadStats(time)
@@ -24,14 +37,21 @@ object ScadsState {
 			// construct the server->partitions and partition->key mappings
 			val sToP = new scala.collection.mutable.HashMap[StorageService,scala.collection.mutable.ListBuffer[PartitionService]]()
 			val pToK = new scala.collection.mutable.HashMap[PartitionService,Option[org.apache.avro.generic.GenericRecord]]()
-			kToP.foreach(entry => // key -> set(partitions)
+			val pToSingle = new scala.collection.mutable.HashMap[Option[org.apache.avro.generic.GenericRecord],Boolean]()
+			kToP.foreach(entry => {// key -> set(partitions)
+			  pToSingle(entry._1) = namespace.isPartitionSingleKey(entry._1)
 				entry._2.foreach(partition =>{
 					pToK += (partition -> entry._1)
 					val serverparts = sToP.getOrElse(partition.storageService,new scala.collection.mutable.ListBuffer[PartitionService]())
 					serverparts += partition
 					sToP(partition.storageService) = serverparts
 				})
-			)
+			})
+
+			if (workloadRaw.rangeStats.keySet.size != pToK.keySet.size) {
+  		  logger.warning("workload partitions != partitions->keys size (%d != %d)", workloadRaw.rangeStats.keySet.size, pToK.keySet.size)
+  		  return null
+  		}
 			// attempt to get "empty" servers, i.e. have no partitions but registered with cluster
 			// TODO: don't use available servers?!
 			if (Director.cluster != null) {
@@ -49,6 +69,7 @@ object ScadsState {
 				Map(sToP.toList.map(entry => (entry._1,Set(entry._2:_*))):_*),
 				kToP,
 				Map(pToK.toList.map(entry => (entry._1, entry._2)):_*),
+				Map(pToSingle.toList.map(entry => (entry._1, entry._2)):_*),
 				workloadRaw,time)
 		}
 		else null
@@ -58,14 +79,23 @@ object ScadsState {
 		val kToP = Map( namespace.partitions.rTable.map(entry => (entry.startKey -> Set(entry.values:_*))):_* )
 		val sToP = new scala.collection.mutable.HashMap[StorageService,scala.collection.mutable.ListBuffer[PartitionService]]()
 		val pToK = new scala.collection.mutable.HashMap[PartitionService,Option[org.apache.avro.generic.GenericRecord]]()
-		kToP.foreach(entry => // key -> set(partitions)
+		val pToSingle = new scala.collection.mutable.HashMap[Option[org.apache.avro.generic.GenericRecord],Boolean]()
+
+		kToP.foreach(entry => {// key -> set(partitions)
 			entry._2.foreach(partition =>{
+			  pToSingle(entry._1) = namespace.isPartitionSingleKey(entry._1)
 				pToK += (partition -> entry._1)
 				val serverparts = sToP.getOrElse(partition.storageService,new scala.collection.mutable.ListBuffer[PartitionService]())
 				serverparts += partition
 				sToP(partition.storageService) = serverparts
 			})
-		)
+		})
+
+		if (workloadRaw.rangeStats.keySet.size != pToK.keySet.size) {
+		  logger.warning("workload partitions != partitions->keys size (%d != %d)", workloadRaw.rangeStats.keySet.size, pToK.keySet.size)
+		  return null
+	  }
+
 		// attempt to get "empty" servers, i.e. have no partitions but registered with cluster
 		// TODO: don't use available servers?!
 		if (Director.cluster != null) {
@@ -77,12 +107,22 @@ object ScadsState {
 				sToP(s) = new scala.collection.mutable.ListBuffer[PartitionService]()
 				if (Director.bootupTimes.getBootupTime(s) == None) Director.bootupTimes.setBootupTime(s,now)
 			})
+
+			// log about number of servers and requests/second for this namespace
+  		val totalWorkload = workloadRaw.totalRate
+  		if (totalWorkload > 0) {
+  		  val insertStatement = "INSERT INTO namespaceReqRate (timestamp, namespace, aggRequestRate, numServers) VALUES (%d, '%s', %f, %d)".format(time, namespace.namespace, totalWorkload, existingServers.size)
+  		  val numResults = try { statement.map(_.executeUpdate(insertStatement)) } catch { case e => None}
+        if (numResults.getOrElse(0) != 1)
+          logger.warning("INSERT sql statment failed: %s",insertStatement)
+  	  }
 		} else logger.warning("Director cluster null, not getting empty servers")
 		
 		new ClusterState(
 			Map(sToP.toList.map(entry => (entry._1,Set(entry._2:_*))):_*),
 			kToP,
 			Map(pToK.toList.map(entry => (entry._1, entry._2)):_*),
+			Map(pToSingle.toList.map(entry => (entry._1, entry._2)):_*),
 			workloadRaw,time)
 	}
 }
@@ -103,7 +143,7 @@ case class StateHistory(
 	
 	def startUpdating {
 		val updater = StateUpdater()
-		updaterThread = new Thread(updater)
+		updaterThread = new Thread(updater,"StateUpdater:"+namespace.namespace)
 		updaterThread.start
 	}
 

@@ -153,7 +153,7 @@ case class IntClient(var numServers: Int, var numClients: Int, namespace:String,
 			val request = requestGenerator.generateRequest
 			request match {
 				case r:ScadsGet => clientns.get(r.key)
-				case r:ScadsPut => clientns.put(r.key, r.value)
+				case r:ScadsPut => logger.warning("trying a put")/*clientns.put(r.key, r.value)*/
 				case _ => logger.warning("wtf request type")
 			}
 			totalreqs.getAndIncrement
@@ -210,13 +210,14 @@ case class AsyncIntClient(s: Int, c: Int, ns:String,wl:String,k:Int,t:Int, sampl
 			val request = requestGenerator.generateRequest
 			request match {
 				case r:ScadsGet => { request_map.put(clientns.asyncGet(r.key),System.currentTimeMillis); pool.execute(new RequestLog()) }
-				case r:ScadsPut => {
+				case r:ScadsPut => logger.warning("trying to do a put")
+				/*{
 					val put = new ComputationFuture[Unit] {
 			      def compute(timeoutHint: Long, unit: java.util.concurrent.TimeUnit) = clientns.put(r.key, r.value)
 			      def cancelComputation = error("NOT IMPLEMENTED")
 			    }
 					put.get(1,java.util.concurrent.TimeUnit.MILLISECONDS)
-				}
+				}*/
 				case _ => logger.warning("wtf request type")
 			}
 			totalreqs.getAndIncrement

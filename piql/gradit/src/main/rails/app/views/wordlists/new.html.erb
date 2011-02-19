@@ -1,19 +1,10 @@
-<h1>New wordlist</h1>
+<h1>Create a New Wordlist</h1>
 
-<% form_for(@wordlist) do |f| %>
-  <%= f.error_messages %>
+<% form_tag :action => 'create' do -%>
+  <p>
+    <%= label_tag 'name' %>
+    <%= text_field_tag :name %>
+  </p>
 
-  <p>
-    <%= f.label :name %><br />
-    <%= f.text_field :name %>
-  </p>
-  <p>
-    <%= f.label :description %><br />
-    <%= f.text_field :description %>
-  </p>
-  <p>
-    <%= f.submit 'Create' %>
-  </p>
-<% end %>
-
-<%= link_to 'Back', wordlists_path %>
+  <p><%= submit_tag 'Create' %></p>
+<% end -%>

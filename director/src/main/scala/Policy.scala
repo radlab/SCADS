@@ -37,6 +37,18 @@ abstract class Policy(
 	protected val logger = Logger("policy")
 	protected var lastDecisionTime:Long = 0L
 	protected var clientRefreshTime = 30*1000L
+	protected var currentTime:Long = 0L
+	protected var lastIterationState = ""
+	
+	// action notes
+	val REP_CLEAN = "rep_clean"
+	val REP_ADD = "rep_add"
+	val REP_REDUCE = "rep_reduce"
+	val MOVE_OVERLOAD = "move_overload"
+	val SPLIT_OVERLOAD = "split_overload"
+	val MOVE_COALESCE = "move_coalesce"
+	val MERGE_COALESCE = "merge_coalesce"
+	val SERVER_REMOVE = "server_remove"
 
 	protected def act(state:ClusterState, actionExecutor:ActionExecutor)
 
@@ -124,6 +136,7 @@ class EmptyPolicy(
 	override val workloadPredictor:WorkloadPrediction
 ) extends Policy(workloadPredictor) {
 	def act(config:ClusterState, actionExecutor:ActionExecutor) {
+	  logger.info("******** Running EmptyPolicy: %s", actionExecutor.namespace.namespace)
 		logger.debug("noop")		
 		logger.info("smoothed workload:\n%s",workloadPredictor.getPrediction.toString)
 		logger.info(config.serverWorkloadString)
@@ -149,8 +162,6 @@ class BestFitPolicy(
 	val performanceEstimator = ConstantThresholdPerformanceEstimator(workloadThreshold,getSLA, putSLA, slaQuantile, reads)
 	//val performanceEstimator = SimplePerformanceEstimator( performanceModel, getSLA, putSLA, slaQuantile, reads )
 	
-	var currentTime:Long = 0L
-	var lastIterationState = ""
 	var startingConfig:ClusterState = null
 	//var startingState:SCADSState = null
 
@@ -171,14 +182,6 @@ class BestFitPolicy(
 
 	val MIN_R = reads
 	val MAX_R = 10
-
-	// action notes
-	val REP_CLEAN = "rep_clean"
-	val REP_ADD = "rep_add"
-	val REP_REDUCE = "rep_reduce"
-	val MOVE_OVERLOAD = "move_overload"
-	val MOVE_COALESCE = "move_coalesce"
-	val SERVER_REMOVE = "server_remove"
 	
 	val maxKeysPerServer = 1000000
 	
@@ -191,7 +194,7 @@ class BestFitPolicy(
 		if (actionExecutor.allMovementActionsCompleted/*allActionsCompleted*/) {
 			logger.info("smoothed workload:\n%s",workloadPredictor.getPrediction.toString)
 			logger.info(config.serverWorkloadString)
-			runPolicy( config, workloadPredictor.getPrediction, actionExecutor.getUncompleteServerActions/*List[Action]()*/ )
+			runPolicy( config, workloadPredictor.getPrediction, actionExecutor.getUncompleteServerActions.toList/*List[Action]()*/ )
 			logger.debug("# actions for executor: %d",actions.size)
 			for (action <- actions) {
 				//action.computeNBytesToCopy(state)

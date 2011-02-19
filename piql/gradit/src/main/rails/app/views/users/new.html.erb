@@ -1,20 +1,21 @@
 <h1>Sign up as a new user</h1>
-<% @user.password = @user.password_confirmation = nil %>
 
-<%= error_messages_for :user %>
-<% form_for :user, :url => users_path do |f| -%>
-<p><%= label_tag 'login' %><br/>
-<%= f.text_field :login %></p>
+<% form_tag :action => 'create' do -%>
+  <p>
+    <%= label_tag 'login' %>
+    <%= text_field_tag :login %>
+  </p>
+  
+  <p>
+    <%= label_tag 'password' %>
+    <%= password_field_tag :password %>
+  </p>
 
-<p><%= label_tag 'email' %><br/>
-<%= f.text_field :email %></p>
+  <p>
+    <%= label_tag 'name' %>
+    <%= text_field_tag :name %>
+  </p>
 
-<p><%= label_tag 'password' %><br/>
-<%= f.password_field :password %></p>
-
-<p><%= label_tag 'password_confirmation', 'Confirm Password' %><br/>
-<%= f.password_field :password_confirmation %></p>
-
-<p><%= submit_tag 'Sign up' %></p>
+  
+  <p><%= submit_tag 'Sign up' %></p>
 <% end -%>
-<%= fb_login_button('window.location = "/users/link_user_accounts";')%>

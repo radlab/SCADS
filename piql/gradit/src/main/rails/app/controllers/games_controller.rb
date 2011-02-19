@@ -1,130 +1,153 @@
 class GamesController < ApplicationController
   
-  # GET /games
-  # GET /games.xml
-  def index
-    #Note: .all does not yet work
-    @games = Game.all
+  before_filter :login_required, :except => [:index]
+  before_filter :valid_game?, :only => [:game_entry, :ans]
+  
+  def index #TODO: Remove
+    @current_user = current_user
+    @games = []
     @wordlists = WordList.all
-
-    respond_to do |format|
-      format.html # index.html.erb
-      format.xml  { render :xml => @games }
-    end
   end
-
-  # GET /games/1
-  # GET /games/1.xml
  
   #Check if the answer was correct
   def ans
-    puts "Inside ANS"
+    @current_user = current_user
     game = Game.find(params[:id].to_i)
     #Find currentword in the game and answer chosen  
     choice = params[:answer]
     answer = game.answer
+    
+  	gp = GamePlayer.find(game.gameid, current_user)
 
-    puts "@@@@AND THE ANSWER IS@@@@@@@@"
     if choice == answer.word #If correct answer
-      puts "CORRECT"
-      #Pick a new "current" word from the wordlist **NEED TO OPTIMIZE THIS**
-      wordlist = WordList.find(game.wordlist)
-
-      #words = wordlist.words 
-      words = wordlist.words
-      
-      #Pick a random word next
-      nextWord = words[rand(words.length())]
-      game.changeWord(nextWord.wordid)
-      
       #Raise score
-      game.incrementScore(10)
+      gp.incrementScore(10)
+      #Pick a new "current" word from the wordlist 
+      if game.hasNextWord
+        game.changeWord
+      else #No more words in the game
+        game.quit
+        flash[:notice] = "You've finished the game! Your score was " + gp.score.to_s + "."
+        redirect_to dashboard_path
+        return
+      end
       
-      flash[:notice] = "Correct!"
+      flash[:correct] = "Correct! (+10 points)"
       redirect_to(:controller=> :games, :action=> :game_entry, :id => game.gameid)
-      #AJAX update page to reflect changes in score, let the user know they are correct
-      #render :update do |page|
-    	#  page[:ans_result].replace_html "Correct! Press next." #**NEED TO HAVE THIS REDIRECT, BUT IT DOESN'T WORK**
-     	#  page[:player_score].replace_html "#{score}"
-     	#  page[:player_score].highlight
-     	#
-      #  page["mult_choice_#{choice}"].replace_html "<b>#{choice} (definition: #{answer.definition})</b>"
-      #end
-      
     else #Incorrect answer
-      puts "INCORRECT"
-      
       #Lower score 
-      game.incrementScore(-5)
+      gp.incrementScore(-5)
      
-      flash[:notice] = "Oops, that's wrong"
+      w = Word.find_by_word(choice)
+      flash[:incorrect] = "Oops, that's wrong. (<b>" + choice + "</b> means " + w.definition + ")"
       redirect_to(:controller=> :games, :action=> :game_entry, :id => game.gameid)
-      #AJAX update page to reflect changes in score, let user know they are incorrect
-      #render :update do |page|
-      #  page[:ans_result].replace_html "Wrong, try again!"
-	    #  page[:player_score].replace_html "#{score}"
-      #  page[:player_score].highlight
-      #  page["mult_choice_#{choice}"].replace_html "#{choice} (definition: #{answer.definition})"
-      #end
     end
   end
   
   #Displaying/picking questions
   def game_entry
+    @current_user = current_user
     game = Game.find(params[:id].to_i)
-  	word = Word.find(game.currentword).word
-  	w = Word.find_by_word(word)
-    
-  	
-  	@score = game.score
-  
-    puts "***"
-    puts word
-    
+  	word = Word.find(game.currentword)
+  	gp = GamePlayer.find(game.gameid, current_user)
+  	@score = gp.score
+    @wordsLeft = game.numWordsLeft
     #Get a random context for the word
     @para = false
-    contexts = w.contexts #get context
-    con = contexts.sort_by{ rand }.first
-
-  	if(con)
+    con = word.getContext #get context
+    puts "two"
+  	if con != nil
   	  #Initialize paragraph, multiple choice settings
   	  @para_book = con.book;
       @para = con.wordLine
-      @para.gsub!(word, '___________') #underline the missing word    
-      @mc = w.choices 
-      @mc_array = (@mc << word).shuffle
+      @para.gsub!(/\b#{word.word}\b/i, '___________') #underline the missing word    
+      puts "hi"
+      @mc = game.choices(word.word)
+
+      @mc_array = (@mc << word.word).shuffle
+      puts "six"
     else #Find another word to use, no contexts
-      wordlist = WordList.find(game.wordlist)
-      words = wordlist.words
-      
-      for word in words
-        if !word.contexts.empty?
-          game.changeWord(word.wordid)
-          redirect_to(:controller=> :games, :action=> :game_entry, :id => game.gameid)
-          return
-        end
+      if game.hasNextWord
+        game.changeWord
+        redirect_to :controller => :games, :action => :game_entry, :id => game.gameid
+      else
+        game.quit
+        flash[:notice] = "You've finished the game! Your score was " + @score.to_s + "."
+        redirect_to dashboard_path
       end
     end    
-    nexturl = url_for :controller => :games, :action => :game_entry, :id => game.gameid
-    @disp = nexturl
   end
 
   def new_game
     wordlist = WordList.find(params[:wordlist])
+    
+    if wordlist == nil or wordlist.words.empty?
+      flash[:notice] = "That wordlist is invalid (doesn't exist or has no words)"
+      redirect_to dashboard_path
+      return
+    end
+    
     game = Game.createNew(wordlist.name)
-    
-    words = wordlist.words 
-    currentword = words[rand(words.length)]
-    #currentword = Word.find(1) #FIXME: to above
-    game.changeWord(currentword.wordid)
+    gp = GamePlayer.createNew(game.gameid, current_user)
 
-    
-    if(currentword) #If there is a word
-      #Save the currentword in the session or something?
+    if(game.hasNextWord) #If there is a word
+      currentword = game.changeWord
       redirect_to(:controller=> :games, :action=> :game_entry, :id => game.gameid)
       return
     end
     flash[:notice] = "Wordlist has no words!"
     redirect_to :back
+  end
+
+  def quit_game
+    Game.find(params[:id]).quit
+    redirect_to dashboard_path
+  end
+  
+  def challenge
+    @user = params[:id]
+    if @user == current_user or User.find(@user) == nil #Trying to challenge yourself
+        flash[:notice] = "Oops, you can't play a game with that user!"
+        redirect_to dashboard_path
+    end
+    @wordlists = User.find("admin").wordlists
+  end
+
+  def challenge_user
+    user2 = params[:user]
+    user1 = current_user
+    
+    wordlist = WordList.find(params[:wordlist])
+
+    if wordlist == nil or wordlist.words.empty?
+      flash[:notice] = "That wordlist is invalid (doesn't exist or has no words)"
+      redirect_to dashboard_path
+      return
+    end
+    
+    game1 = Game.createNew(wordlist.name, 1)
+    game2 = Game.createNew(wordlist.name, 1)
+
+    gp1 = GamePlayer.createNew(game1.gameid, user1)
+    gp2 = GamePlayer.createNew(game2.gameid, user2)
+    
+    challenge = Challenge.createNew(user1, user2, game1.gameid, game2.gameid)
+
+    if(game1.hasNextWord and game2.hasNextWord) #If there is a word
+      currentword = game1.changeWord
+      game2.changeWord
+      redirect_to(:controller=> :games, :action=> :game_entry, :id => game1.gameid)
+      return
+    end
+    flash[:notice] = "Wordlist has no words!"
+    redirect_to :back
+  end
+  private
+  
+  def valid_game?
+    if !Game.valid_game?(params[:id], current_user)
+      flash[:notice] = "Sorry, that game isn't valid."
+      redirect_to :games
+    end
   end
 end

@@ -13,6 +13,8 @@ import org.apache.avro._
 import io._
 import specific._
 
+import net.lag.logging.Logger
+
 class AvroSpecificDecoder[M <: SpecificRecord](implicit m: Manifest[M])
   extends OneToOneDecoder {
 
@@ -24,6 +26,8 @@ class AvroSpecificDecoder[M <: SpecificRecord](implicit m: Manifest[M])
   private val decoderFactory = new DecoderFactory
   decoderFactory.configureDirectDecoder(true)
 
+  private val logger = Logger()
+
   override def decode(ctx: ChannelHandlerContext, chan: Channel, msg: AnyRef) = msg match {
     case cbuf: ChannelBuffer =>
       val is  = new ChannelBufferInputStream(cbuf)
@@ -31,7 +35,7 @@ class AvroSpecificDecoder[M <: SpecificRecord](implicit m: Manifest[M])
       val msg = msgClass.newInstance
       msgReader.read(msg, dec)
     case _ => 
-      /** TODO: log a message */
+      logger.warning("Failed to decode message of unsuported type: %s", msg)
       msg
   }
 

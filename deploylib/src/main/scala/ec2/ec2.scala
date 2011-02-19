@@ -3,8 +3,6 @@ package deploylib.ec2
 import deploylib._
 import deploylib.runit._
 
-import com.amazonaws.ClientConfiguration
-import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.ec2._
 import com.amazonaws.services.ec2.model._
 import net.lag.logging.Logger
@@ -24,9 +22,7 @@ object EC2Instance extends AWSConnection {
   protected val logger = Logger()
 
   var keyName = System.getenv("AWS_KEY_NAME")
-  private val config = new ClientConfiguration()
-  private val credentials = new BasicAWSCredentials(accessKeyId, secretAccessKey)
-  protected val client = new AmazonEC2Client(credentials, config)
+  val client = new AmazonEC2Client(credentials, config)
   var instanceData: Map[String, Instance] = Map[String, Instance]()
   protected val instances = new scala.collection.mutable.HashMap[String, EC2Instance]
   protected var lastUpdate = 0L
@@ -168,6 +164,16 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     publicDnsName
   }
 
+  def enableMonitoring(): Unit = {
+    val req = new MonitorInstancesRequest(instanceId :: Nil)
+    EC2Instance.client.monitorInstances(req)
+  }
+
+  def disableMonitoring(): Unit = {
+    val req = new UnmonitorInstancesRequest(instanceId :: Nil)
+    EC2Instance.client.unmonitorInstances(req)
+  }
+
   /**
    * Upload all of the jars in the file ./allJars and create jrun/console scripts
    * for working with them
@@ -255,7 +261,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     else {
       val url = S3Cache.getCacheUrl(localFile)
       logger.debug("Getting file from cache: " + url)
-      this ! ("wget -O " + remoteFile + " " + url)
+      this ! ("wget --quiet -O " + remoteFile + " " + url)
     }
   }
 
@@ -271,7 +277,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
 
     /* If the file doesn't exist already... upload it */
     if(! ls(fileCache).map(_.name).contains(hash)) {
-      this ! "wget -O %s %s".format(new File(fileCache, hash), url)
+      this ! "wget --quiet -O %s %s".format(new File(fileCache, hash), url)
     }
 
     new File(fileCache, hash)
@@ -282,9 +288,12 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
    * ec2-upload-bundle.
    */
   def bundleNewAMI(bucketName: String): String = {
+    //TODO(andyk): Verify that the bucketname isn't already used or this will
+    //             fail when we get to ec2-upload-bundle anyway.
     upload(ec2Cert, new File("/tmp"))
     upload(ec2PrivateKey, new File("/tmp"))
     this ! "rm -rf /tmp/image"
+    this.executeCommand("mv ~/.tags /tmp/mesos-ec2-tags")
     this ! "ec2-bundle-vol -c /tmp/%s -k /tmp/%s -u %s --arch %s".format(ec2Cert.getName, ec2PrivateKey.getName, userID, "x86_64")
     this ! "ec2-upload-bundle -b %s -m %s -a %s -s %s".format(bucketName, "/tmp/image.manifest.xml", accessKeyId, secretAccessKey)
     val registerRequest = new RegisterImageRequest(bucketName + "/image.manifest.xml")
@@ -296,6 +305,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
                  .withUserGroups("all" :: Nil)
                  .withAttribute("launchPermission")
     EC2Instance.client.modifyImageAttribute(req)
+    this.executeCommand("mv /tmp/mesos-ec2-tags ~/.tags")
     ami
   }
 

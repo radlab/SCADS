@@ -3,30 +3,33 @@ import xsbt.ScalaInstance
 
 import java.io.File
 
-class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
+
+
+
+class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProject {
   /* SCADS Subprojects */
-  lazy val config = project("config", "config", new DefaultProject(_) {
+  lazy val config = project("config", "config", new DefaultProject(_) with IdeaProject {
     val configgy = "net.lag" % "configgy" % "2.0.0"
     val scalaTest = "org.scalatest" % "scalatest" % "1.2"
     val junit = "junit" % "junit" % "4.7"
-  })
+  } )
 
-  lazy val avro = project("avro", "avro-plugin", new DefaultProject(_) {
+  lazy val avro = project("avro", "avro-plugin", new DefaultProject(_) with IdeaProject {
     val avroJava = "org.apache.hadoop" % "avro" % "1.3.3"
     val configgy = "net.lag" % "configgy" % "2.0.0"
-  })
+  } )
 
-  lazy val comm = project("comm", "communication", new ScadsSubProject(_) {
+  lazy val comm = project("comm", "communication", new ScadsSubProject(_) with IdeaProject {
     val netty = "org.jboss.netty" % "netty" % "3.2.1.Final"
     val log4j = "log4j" % "log4j" % "1.2.15"
     val zookeeper = "org.apache.hadoop.zookeeper" % "zookeeper" % "3.3.1"
   }, config, avro)
 
-  lazy val scalaengine = project("scalaengine", "storage-engine", new ScadsSubProject(_) {
+  lazy val scalaengine = project("scalaengine", "storage-engine", new ScadsSubProject(_) with IdeaProject {
     val bdb = "com.sleepycat" % "je" % "4.0.71"
   }, config, avro, comm, deploylib)
 
-  lazy val deploylib = project("deploylib", "deploylib", new ScadsSubProject(_) {
+  lazy val deploylib = project("deploylib", "deploylib", new ScadsSubProject(_) with IdeaProject {
     val mesos = "edu.berkeley.cs.mesos" % "java" % "1.0"
     val configgy = "net.lag" % "configgy" % "2.0.0"
     val staxApi = "javax.xml.stream" % "stax-api" % "1.0"
@@ -41,7 +44,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
     val mysql = "mysql" % "mysql-connector-java" % "5.1.12"
   }, comm)
 
-  lazy val repl = project("repl", "repl", new DefaultWebProject(_) with AvroCompilerPlugin {
+  lazy val repl = project("repl", "repl", new DefaultWebProject(_) with AvroCompilerPlugin with IdeaProject  {
     val snapshots = ScalaToolsSnapshots
     val lift = "net.liftweb" %% "lift-mapper" % "2.2-SNAPSHOT" % "compile"
     val jetty6 = "org.mortbay.jetty" % "jetty" % "6.1.25" % "test"
@@ -53,21 +56,26 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) {
     val sl4jConfiggy = "com.notnoop.logging" % "slf4j-configgy" % "0.0.1"
   }, demo)
 
-  lazy val piql      = project("piql", "piql", new ScadsSubProject(_), config, avro, comm, scalaengine)
   lazy val modeling    = project("modeling", "modeling", new ScadsSubProject(_), piql, perf, deploylib, scadr)
-  lazy val perf      = project("perf", "performance", new ScadsSubProject(_), config, avro, comm, scalaengine, piql, deploylib)
-  lazy val director    = project("director", "director", new ScadsSubProject(_), scalaengine, deploylib)
+  lazy val piql      = project("piql", "piql", new ScadsSubProject(_) with IdeaProject, config, avro, comm, scalaengine)
+  lazy val perf      = project("perf", "performance", new ScadsSubProject(_) with IdeaProject, config, avro, comm, scalaengine, piql, deploylib)
+  lazy val director    = project("director", "director", new ScadsSubProject(_) with IdeaProject, scalaengine, deploylib)
 
+  lazy val spamFeatures = project("twitter" / "spamfeatures", "spamfeatures", new ScadsSubProject(_) {
+    val jaxrs = "org.codehaus.jackson" % "jackson-jaxrs" % "1.4.2"
+    val coreasl = "org.codehaus.jackson" % "jackson-core-asl" % "1.4.2"
+    val mapper = "org.codehaus.jackson" % "jackson-mapper-asl" % "1.4.2"
+    val specs = "org.scala-tools.testing" % "specs_2.8.0"  % "1.6.5"
+  })
   lazy val twitter = project("twitter", "twitter", new ScadsSubProject(_) {
     val hadoop = "org.apache.hadoop" % "hadoop-core" % "0.20.2"
-    val features = "org.chris" %% "features" % "1.0"
     val colt = "cern" % "colt" % "1.2.0"
     val scalaj_collection = "org.scalaj" %% "scalaj-collection" % "1.0"
-  }, deploylib, avro, perf)
+  }, deploylib, avro, perf, spamFeatures)
 
   /* PIQL Apps */
-  lazy val scadr  = project("piql" / "scadr", "scadr", new ScadsSubProject(_), piql, director)
-  lazy val gradit = project("piql" / "gradit", "gradit", new ScadsSubProject(_), piql)
+  lazy val scadr  = project("piql" / "scadr", "scadr", new ScadsSubProject(_) with IdeaProject, piql, director)
+  lazy val gradit = project("piql" / "gradit", "gradit", new ScadsSubProject(_) with IdeaProject, piql)
 
   lazy val demo = project("demo", "demo", new ScadsSubProject(_), piql, director, deploylib, gradit, scadr, perf, twitter, modeling)
 

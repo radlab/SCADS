@@ -11,16 +11,16 @@
 library(RMySQL)
 con <- dbConnect(MySQL(), dbname = "radlabmetrics" , user="radlab_dev", password="randyAndDavelab", host="dev-mini-demosql.cwppbyvyquau.us-east-1.rds.amazonaws.com")
 
-TZShift = 8*3600  #PST = GMT - 8 hours
-PERIODS = c(10, 60, 300)  #minutes
+TZShift = 8*3600	#PST = GMT - 8 hours
+PERIODS = c(10, 60, 300)	#minutes
 WEBAPP_STATS = TRUE
 SCADS_STATS = TRUE
 PIQL_STATS = TRUE
 RAIN_STATS = TRUE
 
 mostRecentPt <- function(tableName) {
-  val <- dbGetQuery(con,paste("select timestamp from ",tableName," order by timestamp DESC limit 1", sep=''))
-  val[[1]]
+	val <- dbGetQuery(con,paste("select timestamp from ",tableName," order by timestamp DESC limit 1", sep=''))
+	val[[1]]
 }
 
 mostRecent = max(mostRecentPt("appReqRate"),mostRecentPt("namespaceReqRate"), mostRecentPt("piqlReqRate"), mostRecentPt("rainStats"))
@@ -47,7 +47,7 @@ if(RAIN_STATS) {
 			yrange <- range(opVec[ !is.nan(opVec)])
 			yrange[1] = 0
 			print(paste("have",length(opVec),"data points for RAIN; series length was ",length(series[[1]])))
-			plot(times, opVec , ylab="avg time (ms)", xlab="time", col="red",  xaxt="n", type="o", main="",ylim=yrange,cex.lab=1.2)
+			plot(times, opVec , ylab="avg time (ms)", xlab="time", col="red", xaxt="n", type="o", main="",ylim=yrange,cex.lab=1.2)
 			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
 			mtext("RAIN avg response time",side=3,cex=1.4,line=2)
 
@@ -75,7 +75,7 @@ if(WEBAPP_STATS) {
 			par(oma=c(1,1,1,2))
 			
 			yrange = c(0, 1.2*max(series[TRUE,2]))
-			plot(times, series[TRUE,2], xlab="", ylab="requests per second", col="red",  xaxt="n", type="o", main="",col.lab="red",cex.lab=1.2, ylim=yrange)
+			plot(times, series[TRUE,2], xlab="", ylab="requests per second", col="red",	 xaxt="n", type="o", main="",col.lab="red",cex.lab=1.2, ylim=yrange)
 			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
 		
 			yrange = c(0, ceiling(1.2*max(series[TRUE,3])))
@@ -98,22 +98,44 @@ if(PIQL_STATS) {
 	for(period in PERIODS) {
 		startT = (mostRecent - 1000* 60 * period -1)
 	
-		series <- dbGetQuery(con, paste("select timestamp,aggRequestRate from piqlReqRate where timestamp > ",startT," order by timestamp DESC ",sep=''))
+		series <- dbGetQuery(con, paste("select timestamp, sum(aggRequestRate) from piqlReqRate where timestamp > ",startT," group by timestamp order by timestamp DESC",sep=''))
 		
-		if (nrow(series) > 0) {
-			reqRatePlotFile=paste("piqlReqRate-",period,".png",sep='')
-			png(file=reqRatePlotFile, bg="transparent")
-			POINTS = dim(series)[1]  #truncate points to size actually returned
-			times <- as.POSIXct( (series[1:POINTS,1]/1000 - TZShift), origin="1970-01-01")
-		
-			yrange = c(0,1.2*max(series[1:POINTS,2]))
-			plot(times, series[1:POINTS,2], ylab="requests per second", xlab="time", col="red",  xaxt="n", type="o", main="",cex.lab=1.2, ylim=yrange)
-			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
-			mtext("PIQL request rate",side=3,cex=1.4,line=2)
+		if (nrow(series) == 0)
+			continue
 
-			legend( x="topleft", inset=0.05, c("Request rate","Server count"), cex=1.0, col=c("red","blue"), bg="white", pch=21:22, lty=1:2)
-			dev.off()
-		}
+		times <- as.POSIXct( (series[TRUE,1]/1000 - TZShift), origin="1970-01-01")
+		
+
+		png(file=paste("piqlReqRate-",period,".png",sep=''), bg="transparent")
+	
+		yrange = c(0,1.2*max(series[TRUE,2]))
+		plot(times, series[TRUE,2], ylab="requests per second", xlab="time", col="red",	 xaxt="n", type="o", main="",cex.lab=1.2, ylim=yrange)
+		axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
+		mtext("PIQL request rate",side=3,cex=1.4,line=2)
+
+		dev.off()
+		
+		
+		png(file=paste("piql99thPercentile-",period,".png",sep=''), bg="transparent")
+		series <- dbGetQuery(con, paste("select timestamp,respTime99th from piqlReqRate where timestamp > ",startT," order by timestamp DESC",sep=''))
+		yrange = c(0,1.2*max(series[TRUE,2]))
+		distinctTime <- unique(series[TRUE,1])
+		medians = rep(0,length(distinctTime))
+		for(i in 1:length(distinctTime)) {
+		  thisTimeSubset = series[ series[TRUE,1] == distinctTime[i]  ,2]
+		  medians[i] = median(thisTimeSubset)
+		  }
+		multiTimes <- as.POSIXct( (series[TRUE,1]/1000 - TZShift), origin="1970-01-01")
+    distinctTimes <- as.POSIXct( (distinctTime/1000 - TZShift), origin="1970-01-01")
+		plot(multiTimes, series[TRUE,2], ylab="99th percentile latency (ms)", xlab="time", col="red",	 xaxt="n", type="p", main="",cex.lab=1.2, ylim=yrange)
+		par(new=T)
+		plot(distinctTimes, medians, col="blue",axes=F,xlab="",ylab="",type="o",ylim=yrange)
+
+		axis.POSIXct(1, distinctTimes, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
+		mtext("PIQL 99th Percentiles by servers",side=3,cex=1.4,line=2)
+		legend( x="topleft", inset=0.01, c("Per-server","Median-of-servers"), cex=1.0, col=c("red","blue"), bg="white", pch=21:22, lty=1:2)
+
+		dev.off()		
 	}
 }
 
@@ -182,7 +204,7 @@ if(SCADS_STATS) {
 			par(new=T)
 			
 			if (nrow(series) > 0) {
-				plot(times, series[TRUE,3], ylab="", xlab="", col=i,  xaxt="n", type="o", main="",ylim=yrange,cex=1.2)
+				plot(times, series[TRUE,3], ylab="", xlab="", col=i, xaxt="n", type="o", main="",ylim=yrange,cex=1.2)
 			}
 		}
 		axis.POSIXct(1, axTimes, format="%Y-%m-%d %H:%M:%S", labels = TRUE)

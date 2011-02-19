@@ -2,57 +2,59 @@ html, body {
   height: 100%;
   margin: 0;
   padding: 0;
-  font-family: Helvetica;
+  font-family: Helvetica, Arial, sans-serif;
   background: #ddd;
 }
 
-#wrapper{
+#wrapper {
   width: 800px;
   margin: 0 auto;
   background: white;
   min-height: 100%;
   height: auto !important;
   height: 100%;
-  margin: 0 auto -50px;
+  margin: 0 auto -40px;
 }
 
-#footer{
-  background: #ccc;
+#footer {
+  background: #fff;
   width: 800px;
   margin: 0 auto;
+  border-top: 1px dotted #333;
 }
 
-#footer-content{
-  line-height: 50px;
-  padding: 0 1em;
+#footer-content {
+  line-height: 39px;
+  padding: 0 20px;
 }
 
-h1, h2{
-  font-family: "Nobile";
+h1, h2 {
+  font-family: Nobile, Arial, sans-serif;
 }
 
 /* HEADER */
 #header {
   margin: 0;
   padding: 0 10px;
-  border-top: 5px solid #ddd;
-  border-bottom: 5px solid #ddd;
+  background: #333;
+  color: #fff;
 }
 #header h1 {
-  font-family: 'Lobster', serif;
+  font-family: Orbitron, sans-serif;
+  font-size: 2em;
   margin: 0;
   padding: 0 10px;
   text-transform: lowercase;
 }
 
-#header h1 a{
-  font-size: 2em;
-  color: #05B8CC;
+#header a {
   text-decoration: none;
+  /* color: #05B8CC; */
+  color: #fff;
 }
 
-#header h1 a:hover{
-  color: #8EE5EE;
+#header h1 a:hover {
+  color: #8ee5ee;
 }
 
 #header ul {
@@ -65,7 +67,7 @@ h1, h2{
 /* FLASH */
 
 #flash{
-  text-align:center;
+  text-align: center;
 }
 .notice, .error {
   display: inline-block;
@@ -87,14 +89,51 @@ h1, h2{
 }
 
 /* Login Page */
-#login-box{
-  margin: auto; 
-  width: 400px;
+#login-box {
+  margin: 10px 0 10px 10px;
+  width: 300px;
   padding: 1em;
   border-radius: 10px;
   -moz-border-radius: 10px;
   background: #eee;
   border: 1px solid #ccc;
+  float: right;
+}
+#login-box h2 {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+#login-box form {
+  width: auto;
+  margin: 1em 0 0;
+}
+#login-box form fieldset {
+  padding: 0;
+  border: 0;
+  margin: 0;
+}
+#login-box form ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+#login-box form li {
+  margin: 0;
+  padding: 0;
+}
+#login-box form label {
+  display: inline-block;
+  width: 100px; 
+}
+#login-box form input {
+  width: 180px;
+}
+#login-box form input[type='submit'] {
+  width: auto;
+  padding: 10px 20px;
+  margin: 10px 0;
+  margin-left: 99px;
 }
 
 /* BODY */
@@ -104,7 +143,9 @@ h1, h2{
 }
 #body h1 {
   margin: 0;
-  clear: both;
+}
+h1#home {
+  padding-top: 20px;
 }
 h2 {
   border-top: 1px dotted #000;
@@ -114,8 +155,8 @@ h2 {
   font-weight: bold;
 }
 .byline {
-  font-style: italic;
-  margin-bottom: 0;
+  font-weight: bold;
+  margin-bottom: .5em;
 }
 .thought-body {
 }
@@ -123,22 +164,105 @@ h2 {
   margin-top: 0;
 }
 #think {
-  clear: both;
-  border-bottom: 1px dotted #000;
-  padding: 0 0 1em;
+  padding: 0;
 }
-form {
-  width: 700px;
-  margin: 0 auto;
+#think form {
+  margin: 0;
 }
 #think textarea {
-  width: 630px;
-  height: 40px;
+  width: 430px;
+  height: 35px;
   padding: 5px;
   margin-right: 5px;
   float: left;
 }
 #think input {
-  width: 50px;
-  height: 50px;
+  width: 60px;
+  height: 45px;
+}
+
+.structured-form {
+  width: 450px;
+  padding: 25px;
+  margin: 20px auto;
+}
+.structured-form ul {
+  list-style: none;
+  padding: 0;
+}
+.structured-form ul.errors {
+  list-style: disc;
+  background: #fcc;
+  border: 1px solid #900;
+  padding: 10px 20px 10px 40px;
+  margin-top: 0;
+}
+.structured-form label {
+  display: inline-block;
+  width: 150px;
+}
+.structured-form input {
+  width: 250px;
+}
+.structured-form input[type='submit'] {
+  margin-left: 153px;
+  padding: 5px;
+  width: 200px;
+}
+.hometown {
+  font-size: 50%;
+}
+#subscribed span {
+  border: 1px solid #090;
+  background: #cfc;
+  color: #090;
+  display: inline;
+  padding: 5px;
+}
+#subscribed {
+  margin: 10px 0;
+}
+
+ul.thoughts {
+  list-style: none;
+  padding: 0;
+}
+ul.thoughts li {
+  border: 1px solid #666;
+  background: #ddd;
+  margin: 5px;
+  padding: 0 10px;
+  display: block;
+}
+.thoughtless {
+  margin-left: 15px;
+}
+.clear {
+  clear: both;
+}
+
+.mainbox {
+  float: left;
+  width: 520px;
+  padding-right: 10px;
+}
+.sidebox {
+  float: left;
+  width: 219px;
+  border-width: 0 0 1px 1px;
+  border-color: #ccc;
+  border-style: solid;
+  background: #eee;
+  padding: 10px;
+  padding-right: 0;
+}
+.sidebox h2 {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  font-size: 1.4em;
+}
+.sidebox ul {
+  list-style: none;
+  padding: 0 10px;
 }
