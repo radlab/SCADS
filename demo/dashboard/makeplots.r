@@ -145,7 +145,7 @@ if(PIQL_STATS) {
     distinctTimes <- as.POSIXct( (distinctTime/1000 - TZShift), origin="1970-01-01")
 		plot(multiTimes, series[TRUE,2], ylab="99th percentile latency (ms)", xlab="time", col="red",	 xaxt="n", type="p", main="",cex.lab=1.2, ylim=yrange)
 		par(new=T)
-		plot(distinctTimes, medians, col="blue",axes=F,xlab="",ylab="",type="o",ylim=yrange)
+		plot(distinctTimes, medians, col="blue",axes=F,xlab="",ylab="",type="o",ylim=c(0,1000))
 
 		axis.POSIXct(1, distinctTimes, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
 		mtext("PIQL 99th Percentiles by servers",side=3,cex=1.4,line=2)
