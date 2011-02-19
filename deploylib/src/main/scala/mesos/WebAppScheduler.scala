@@ -174,7 +174,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
           logger.warning("The webserver on host %s never came up, killing the mesos task associated with it now.", serverHostname)
           driver.killTask(taskId)
           pendingServers -= taskId
-          recordAction("The webserver for app %s killed webapp server task on host %s because it never responded, it was weak and deserved to be killed.".format(name))
+          recordAction("The webserver for app %s killed webapp server task on host %s because it never responded, it was weak and deserved to be killed.".format(name, taskId))
           exitThread = true
         } else {
           val appUrl = "http://%s:%d/".format(serverHostname, port)
