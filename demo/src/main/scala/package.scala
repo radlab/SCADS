@@ -23,7 +23,7 @@ package object demo {
   def updateLoadBalancers: Unit = {
     LoadBalancer.update("scadr", scadrWebServerList)
     LoadBalancer.update("gradit", graditWebServerList)
-    LoadBalancer.update("mesos", MesosEC2.master.instanceId :: Nil)
+    LoadBalancer.update("mesos", MesosEC2.firstMaster.instanceId :: Nil)
   }
 
   /**
@@ -31,8 +31,8 @@ package object demo {
    * Only needs to be run by one person.
    */
   def setupMesosMaster(zone:String = zone, numMasters: Int = 1): Unit = {
-    try MesosEC2.masters catch {
-      case _ => MesosEC2.startMasters(zone, numMasters)
+    if(MesosEC2.masters.size < numMasters) {
+      MesosEC2.startMasters(zone, numMasters - MesosEC2.masters.size)
     }
 
     MesosEC2.masters.pforeach(_.pushJars)
