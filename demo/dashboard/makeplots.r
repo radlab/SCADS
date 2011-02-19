@@ -75,7 +75,7 @@ if(WEBAPP_STATS) {
 			par(oma=c(1,1,1,2))
 			
 			yrange = c(0, 1.2*max(series[TRUE,2]))
-			plot(times, series[TRUE,2], xlab="", ylab="requests per second", col="red",	 xaxt="n", type="o", main="",col.lab="red",cex.lab=1.2, ylim=yrange)
+			plot(times, series[TRUE,2], xlab="", ylab="requests per second", col="red", xaxt="n", type="o", main="",col.lab="red",cex.lab=1.2, ylim=yrange)
 			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
 		
 			yrange = c(0, ceiling(1.2*max(series[TRUE,3])))
@@ -90,6 +90,22 @@ if(WEBAPP_STATS) {
 			legend( x="topleft", inset=0.05, c("Request rate","Target server count"), cex=1.0, col=c("red","blue"), bg="white", pch=21:22, lty=1:2)
 			dev.off()
 		}
+		
+		cpuSeries = dbGetQuery(con,paste("select timestamp,averageUtilization from appReqRate where webAppID = 'SCADr' and timestamp > ",startT," order by timestamp DESC ",sep=''))
+		if (nrow(cpuSeries) > 0) {
+			cpuPlotFile=paste("averageCpuUtilization-",period,".png",sep='')
+			png(file= cpuPlotFile, bg="transparent")
+		
+			times <- as.POSIXct( (cpuSeries[TRUE,1]/1000 - TZShift), origin="1970-01-01")
+			par(oma=c(1,1,1,2))
+			
+			yrange = c(0, 1.2*max(cpuSeries[TRUE,2], na.rm=TRUE))
+			plot(times, cpuSeries[TRUE,2], xlab="", ylab="Average CPU utilization", col="red", xaxt="n", type="o", main="",cex.lab=1.2, ylim=yrange)
+			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
+			mtext("time", side=1,line=3,cex=1.2)
+			mtext("Web-server average CPU allocation",side=3,cex=1.4,line=2)
+		}
+
 	}
 } #end webapp stats
 
