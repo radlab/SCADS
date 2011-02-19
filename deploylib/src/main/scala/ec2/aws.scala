@@ -14,7 +14,7 @@ trait AWSConnection {
   protected val secretAccessKey = System.getenv("AWS_SECRET_ACCESS_KEY")
   protected def ec2PrivateKey = new File(System.getenv("EC2_PRIVATE_KEY"))
   protected def ec2Cert = new File(System.getenv("EC2_CERT"))
-  protected def userID = new File(System.getenv("AWS_USER_ID"))
+  protected def userID = System.getenv("AWS_USER_ID")
 
   protected val config = new ClientConfiguration()
   protected val credentials = new BasicAWSCredentials(accessKeyId, secretAccessKey)
