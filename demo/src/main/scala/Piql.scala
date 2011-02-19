@@ -17,6 +17,8 @@ object DashboardReportingExecutor {
   val hostName = java.net.InetAddress.getLocalHost.getHostName()
 
   val thread = new Thread("Dashboard Stats Reporting") {
+    var reports = 0
+
     override def run(): Unit = {
       logger.info("Starting dashboard reporting thread")
       while (true) {
@@ -29,14 +31,17 @@ object DashboardReportingExecutor {
         val respTime = oldHist.quantile(0.90)
         val reqRate = oldHist.totalRequests.toFloat / ((newReportTime - lastReportTime) / 1000)
 
-        withConnection(conn => {
-          val sqlInsertCmd = "INSERT INTO piqlReqRate (timestamp, host, aggRequestRate, respTime99th) VALUES (%d, '%s', %f, %d)".format(roundedTime, hostName, reqRate, respTime)
-	  logger.info("Recording PIQL stats with: %s", sqlInsertCmd)
+	/* Don't report for the first few intervals */
+	if(reports > 4)
+          withConnection(conn => {
+            val sqlInsertCmd = "INSERT INTO piqlReqRate (timestamp, host, aggRequestRate, respTime99th) VALUES (%d, '%s', %f, %d)".format(roundedTime, hostName, reqRate, respTime)
+	    logger.info("Recording PIQL stats with: %s", sqlInsertCmd)
 
-          val statment = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE)
-          if (statment.executeUpdate(sqlInsertCmd) != 1)
-            logger.warning("Dashboard SQL statment failed: %s", sqlInsertCmd)
-        })
+            val statment = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE)
+            if (statment.executeUpdate(sqlInsertCmd) != 1)
+              logger.warning("Dashboard SQL statment failed: %s", sqlInsertCmd)
+          })
+	reports += 1
 
         if (oldHist.totalRequests > 0) {
           logger.info("PIQL 99%%tile response time: %dms", respTime)
