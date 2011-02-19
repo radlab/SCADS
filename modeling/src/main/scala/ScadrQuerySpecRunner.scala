@@ -61,6 +61,16 @@ class ScadrQuerySpecRunner(val params: RunParams)(implicit executor: QueryExecut
             	.join(client.users)
             	.where("users.username".a === "subscriptions.owner".a)
               ).toPiql("usersFollowing")
+          case "localUserThoughtstream" =>
+            new OptimizedQuery("localuserThoughtstream",
+                  LocalStopAfter(ParameterLimit(2,100),
+                    IndexMergeJoin(thoughts,
+            		       AttributeValue(0,0) :: Nil,
+            		       AttributeValue(1,1) :: Nil,
+            		       ParameterLimit(2,100),
+            		       false,
+                       LocalUserOperator())),
+               executor)  // has to be LocalUserExecutor
         }
         query
       }
@@ -94,6 +104,22 @@ class ScadrQuerySpecRunner(val params: RunParams)(implicit executor: QueryExecut
           throw new RuntimeException("expected cardinality: " + numPerPage.toString + ", got: " + resultLength.toString)
       }
       case _ => println("query is of type " + queryType + ", so you can't call thoughtstream")
+    }
+  }
+  
+  def callLocalUserThoughtstream(numSubscriptionsPerUser:Int, numPerPage:Int) = {
+    params.clusterParams match {
+      case p:ScadrClusterParams => {
+        queryType match {
+          case "localUserThoughtstream" => {
+            val resultLength = query(numSubscriptionsPerUser, p.numUsers, numPerPage).length
+            if (resultLength != numPerPage)
+              throw new RuntimeException("expected cardinality: " + numPerPage.toString + ", got: " + resultLength.toString)
+          }
+          case _ => println("query is of type " + queryType + ", so you can't call thoughtstream")
+        }
+      }
+      case _ => println("problem with types")
     }
   }
   
