@@ -134,7 +134,7 @@ if(PIQL_STATS) {
 		
 		png(file=paste("piql99thPercentile-",period,".png",sep=''), bg="transparent")
 		series <- dbGetQuery(con, paste("select timestamp,respTime99th from piqlReqRate where timestamp > ",startT," order by timestamp DESC",sep=''))
-		yrange = c(0,1.2*max(series[TRUE,2]))
+		yrange = c(0,1000)
 		distinctTime <- unique(series[TRUE,1])
 		medians = rep(0,length(distinctTime))
 		for(i in 1:length(distinctTime)) {
@@ -145,7 +145,7 @@ if(PIQL_STATS) {
     distinctTimes <- as.POSIXct( (distinctTime/1000 - TZShift), origin="1970-01-01")
 		plot(multiTimes, series[TRUE,2], ylab="99th percentile latency (ms)", xlab="time", col="red",	 xaxt="n", type="p", main="",cex.lab=1.2, ylim=yrange)
 		par(new=T)
-		plot(distinctTimes, medians, col="blue",axes=F,xlab="",ylab="",type="o",ylim=c(0,1000))
+		plot(distinctTimes, medians, col="blue",axes=F,xlab="",ylab="",type="o",ylim=yrange)
 
 		axis.POSIXct(1, distinctTimes, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
 		mtext("PIQL 99th Percentiles by servers",side=3,cex=1.4,line=2)
