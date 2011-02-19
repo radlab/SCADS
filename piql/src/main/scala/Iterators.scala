@@ -551,9 +551,9 @@ class ParallelExecutor extends SimpleExecutor {
           if (records.size < boundLimit) { // end of records in KV store
             tupleData(i) = ((null, null, -1, true, null)) // sentinel values
           } else { // still can ask for more records
-            val newOffset = records.size + offset
-            val newFtch = namespace.asyncGetRange(key, key, offset=newOffset, limit=boundLimit, ascending=ascending)
-            tupleData(i) = ((key, tup, newOffset, limitReached, newFtch))
+            //val newOffset = records.size + offset
+            //val newFtch = namespace.asyncGetRange(key, key, offset=newOffset, limit=boundLimit, ascending=ascending)
+            //tupleData(i) = ((key, tup, newOffset, limitReached, newFtch))
           }
         }
 
