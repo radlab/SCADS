@@ -11,6 +11,8 @@ package object demo {
   import twitterspam._
   import deploylib.mesos._
 
+  val logger = net.lag.logging.Logger()
+
   def runDemo: Unit = {
     resetScads
     startScadrCluster()
@@ -38,6 +40,26 @@ package object demo {
     MesosEC2.masters.pforeach(_.pushJars)
     restartMasterProcs
     mesosMasterNode.data = MesosEC2.clusterUrl.getBytes
+  }
+
+  val pidIpRegEx = """\d+@([^:]+):\d+""".r
+  def failOverMesosMaster: Unit = {
+    val currentPid = new String(zooKeeperRoot
+				.proxy
+				.root.children
+				.find(_.name contains "mesos").get("mesos")
+				.children.sortWith(_.name < _.name).head.data)
+    val currentIp =  currentPid match {
+      case pidIpRegEx(internalIp) => internalIp
+      case _ => throw new RuntimeException("Unable to locate ip address of current mesos master")
+    }
+
+    val currentMaster = MesosEC2.masters
+			.find(_ !? "hostname -i" contains currentIp)
+			.getOrElse(throw new RuntimeException("Master not found in list of active masters"))
+
+    logger.info("Restarting master on: %s", currentMaster.publicDnsName)
+    currentMaster ! "service mesos-master restart"
   }
 
   def preloadWars: Unit = {
