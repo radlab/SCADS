@@ -64,13 +64,16 @@ class ScadrQuerySpecRunner(val params: RunParams)(implicit executor: QueryExecut
           case "localUserThoughtstream" =>
             new OptimizedQuery("localuserThoughtstream",
                   LocalStopAfter(ParameterLimit(2,100),
-                    IndexMergeJoin(thoughts,
+                    IndexMergeJoin(client.thoughts,
             		       AttributeValue(0,0) :: Nil,
             		       AttributeValue(1,1) :: Nil,
             		       ParameterLimit(2,100),
             		       false,
                        LocalUserOperator())),
-               executor)  // has to be LocalUserExecutor
+                       executor)  // has to be LocalUserExecutor
+          case "mySubscriptions" =>
+            (client.subscriptions.where("subscriptions.owner".a === (0.?))
+      		    .limit(1.?, p.numSubscriptionsPerUser)).toPiql("mySubscriptions")
         }
         query
       }
@@ -88,6 +91,7 @@ class ScadrQuerySpecRunner(val params: RunParams)(implicit executor: QueryExecut
           case "usersFollowedBy" => query(getRandomUsername, cardinality).length
           case "thoughtstream" => query(getRandomUsername, cardinality, p.numPerPage).length
           case "usersFollowing" => query(getRandomUsername, cardinality).length
+          case "mySubscriptions" => query(getRandomUsername, cardinality).length
         }
     
         checkResultLength(resultLength, getExpectedResultLength(cardinality))
@@ -97,13 +101,23 @@ class ScadrQuerySpecRunner(val params: RunParams)(implicit executor: QueryExecut
   }
 
   def callThoughtstream(numSubscriptionsPerUser:Int, numPerPage:Int) = {
-    queryType match {
-      case "thoughtstream" => {
-        val resultLength = query(getRandomUsername, numSubscriptionsPerUser, numPerPage).length
-        if (resultLength != numPerPage)
-          throw new RuntimeException("expected cardinality: " + numPerPage.toString + ", got: " + resultLength.toString)
+    params.clusterParams match {
+      case p:ScadrClusterParams => {
+        queryType match {
+          case "thoughtstream" => {
+            val resultLength = query(getRandomUsername, numSubscriptionsPerUser, numPerPage).length
+            if (resultLength != numPerPage)
+              throw new RuntimeException("expected cardinality: " + numPerPage.toString + ", got: " + resultLength.toString)
+          }
+          case "localUserThoughtstream" => {
+            val resultLength = query(numSubscriptionsPerUser, p.numUsers, numPerPage).length
+            if (resultLength != numPerPage)
+              throw new RuntimeException("expected cardinality: " + numPerPage.toString + ", got: " + resultLength.toString)
+          }
+          case _ => println("query is of type " + queryType + ", so you can't call thoughtstream")
+        }
       }
-      case _ => println("query is of type " + queryType + ", so you can't call thoughtstream")
+      case _ => println("problem with types")
     }
   }
   
