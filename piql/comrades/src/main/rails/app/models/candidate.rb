@@ -1,0 +1,3 @@
+class Candidate < AvroRecord
+
+end

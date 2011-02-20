@@ -1,0 +1,3 @@
+class Interview < AvroRecord
+
+end
