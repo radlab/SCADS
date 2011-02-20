@@ -66,11 +66,13 @@ object DemoConfig {
     val workLoadDir = new File(rainLocation, "workloads")
     val rainJar = new File(rainLocation, "rain.jar")
     val scadrJar = new File(workLoadDir, "scadr.jar")
+    val graditJar = new File(workLoadDir, "gradit.jar")
 
-    if(rainJar.exists && scadrJar.exists) {
+    if(rainJar.exists && scadrJar.exists && graditJar.exists) {
       logger.info("Using local jars")
       S3CachedJar(S3Cache.getCacheUrl(rainJar.getCanonicalPath)) ::
-      S3CachedJar(S3Cache.getCacheUrl(scadrJar.getCanonicalPath)) :: Nil
+      S3CachedJar(S3Cache.getCacheUrl(scadrJar.getCanonicalPath)) :: 
+      S3CachedJar(S3Cache.getCacheUrl(graditJar.getCanonicalPath)) :: Nil
     }
     else {
       logger.info("Using cached S3 jars")

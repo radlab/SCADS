@@ -136,6 +136,15 @@ package object demo {
 		  Map("dashboarddb" -> dashboardDb)) :: Nil)
   }
 
+  def startGraditRain: Unit = {
+    serviceScheduler !? RunExperimentRequest(
+      JvmMainTask(rainJars,
+		  "radlab.rain.Benchmark",
+		  "rain.config.gradit.ramp.json" ::
+		  graditWebServerList.canonicalAddress :: Nil,
+		  Map("dashboarddb" -> dashboardDb)) :: Nil)
+  }
+
   def killTask(taskId: Int): Unit =
     serviceScheduler !? KillTaskRequest(taskId)
 
