@@ -121,7 +121,7 @@ object EC2Instance extends AWSConnection {
  * A specific RemoteMachine used to control a single EC2Instance.
  * Instances of this class can be obtained by instanceId from the static method EC2Instance.getInstance
  */
-class EC2Instance protected (val instanceId: String) extends RemoteMachine with RunitManager with Taggable with AWSConnection{
+class EC2Instance protected (val instanceId: String) extends RemoteMachine with RunitManager with AWSConnection{
   lazy val hostname: String = getHostname()
   val username: String = "root"
   val rootDirectory: File = new File("/mnt/")
@@ -129,6 +129,26 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
   val javaCmd: File = new File("/usr/bin/java")
   override val privateKey = if (System.getenv("AWS_KEY_PATH") != null) new File(System.getenv("AWS_KEY_PATH")) else super.findPrivateKey
   val fileCache: File = new File(rootDirectory, "deploylibFileCache")
+
+  object tags extends collection.generic.SeqForwarder[TagDescription] {
+    def underlying = getTags
+
+    //TODO: specify filters
+    //TODO: cache tags with instance state?
+    protected def getTags =
+      EC2Instance.client.describeTags().getTags()
+		 .filter(_.getResourceType equals "instance")
+		 .filter(_.getResourceId equals instanceId)
+
+    def +=(key: String, value: String = ""): Unit =
+      EC2Instance.client.createTags(
+	new CreateTagsRequest(instanceId :: Nil,
+			      new Tag(key, value) :: Nil))
+
+    def -=(key: String, value: String = ""): Unit =
+      EC2Instance.client.deleteTags(
+	new DeleteTagsRequest(instanceId :: Nil).withTags(new Tag(key, value)))
+  }
 
   def fixHostname: Unit =
     this ! ("hostname " + privateDnsName)

@@ -8,6 +8,8 @@ import edu.berkeley.cs.scads.comm._
 
 import java.io.File
 import java.net.InetAddress
+import collection.JavaConversions._
+import com.amazonaws.services.ec2.model._
 
 /**
  * Functions to help maintain a mesos cluster on EC2.
@@ -31,11 +33,19 @@ object MesosEC2 extends ConfigurationActions {
     })
   }
 
-  val masterTag = "mesosMaster"
-  def slaves = EC2Instance.activeInstances.pfilterNot(_.tags contains masterTag)
+  def slaves = {
+    val masterIds = masters.map(_.instanceId)
+    EC2Instance.activeInstances.filterNot(i => masterIds.contains(i.instanceId))
+  }
 
-  def mastersCache = CachedValue(EC2Instance.activeInstances.pfilter(_.tags contains masterTag))
-  def masters = mastersCache()
+  def masters = {
+    EC2Instance.client.describeTags().getTags()
+      .filter(_.getResourceType equals "instance")
+      .filter(_.getKey equals "mesos")
+      .filter(_.getValue equals "master")
+      .map(t => EC2Instance.getInstance(t.getResourceId))
+  }
+
   def firstMaster = masters.head
 
   def updateMesos =
@@ -86,8 +96,13 @@ object MesosEC2 extends ConfigurationActions {
       "m1.large",
       zone,
       None)
-    ret.pforeach(_.tags += masterTag)
-    updateConf
+
+    ret.foreach(inst =>
+    EC2Instance.client.createTags(
+      new CreateTagsRequest(inst.instanceId :: Nil,
+			    new Tag("mesos", "master") :: Nil)))
+
+    updateConf(ret)
     restartMasters
     ret
   }
