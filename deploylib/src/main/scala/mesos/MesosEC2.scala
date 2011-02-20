@@ -16,8 +16,8 @@ object MesosEC2 extends ConfigurationActions {
   val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
   val mesosAmi = "ami-8a38c8e3"
 
-  def updateDeploylib: Unit = {
-    slaves.pforeach(inst => {
+  def updateDeploylib(instances: Seq[EC2Instance] = slaves): Unit = {
+    instances.pforeach(inst => {
       val executorScript = Util.readFile(new File("deploylib/src/main/resources/java_executor"))
       .split("\n")
       .map {
@@ -113,23 +113,22 @@ object MesosEC2 extends ConfigurationActions {
       userData)
 
     if(updateDeploylibOnStart) {
-      updateDeploylib
-      updateConf
+      updateDeploylib(instances)
+      updateConf(instances)
       instances.pforeach(_ ! "service mesos-slave start")
     }
 
     instances
   }
 
-  def updateConf: Unit = {
+  def updateConf(instances: Seq[EC2Instance] = (slaves ++ masters)): Unit = {
     val conf = ("work_dir=/mnt" ::
       "log_dir=/mnt" ::
       "switch_user=0" ::
       "url=" + clusterUrl ::
       "shares_interval=30" :: Nil).mkString("\n")
     val conffile = new File("/usr/local/mesos/conf/mesos.conf")
-    masters.pforeach(_.createFile(conffile, conf))
-    slaves.pforeach(_.createFile(conffile, conf))
+    instances.pforeach(_.createFile(conffile, conf))
   }
 
   //TODO: Doesn't handle non s3 cached jars
