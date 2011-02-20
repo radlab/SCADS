@@ -7,6 +7,7 @@ import com.amazonaws.services.ec2._
 import com.amazonaws.services.ec2.model._
 import net.lag.logging.Logger
 import java.io.File
+import java.net.URL
 import edu.berkeley.cs.scads.comm._
 
 import scala.collection.JavaConversions._
@@ -186,24 +187,17 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     val jars = deploylibJar ++ otherJars
 
     logger.info("Starting Jar upload")
-    val cachedJars = jars.map(cacheFile)
-
-    logger.info("Creating classSource file")
-    val s3Jars = jars.map(f => S3CachedJar(S3Cache.getCacheUrl(f))).toSeq
-    val s3JarsCode = s3Jars.map(j => """S3CachedJar("%s")""".format(j.url)).toList.toString
-
+    val cachedJars = cacheFiles(jars)
     cachedJars.foreach(j => this ! "ln -s -f %s %s.jar".format(j,j))
     val classpath =  cachedJars.map(_ + ".jar").mkString(":")
-    createFile(new File("/root/classpath"), classpath)
-
 
     logger.info("Creating scripts")
+    createFile(new File("/root/classpath"), classpath)
     val headers = "#!/bin/bash" ::
       "JAVA=/usr/bin/java" ::
       "CLASSPATH=\"-cp " + classpath + "\"" ::
       "MESOS=-Djava.library.path=/usr/local/mesos/lib/java" :: Nil
 
-    /* Create shell scripts */
     createFile(new File("/root/console"),
       (headers :+ "$JAVA $CLASSPATH $MESOS scala.tools.nsc.MainGenericRunner $CLASSPATH -i jars/classsource.scala $@").mkString("\n"))
     this ! "chmod 755 /root/console"
@@ -266,19 +260,23 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
   /**
    * Caches this file on the instance (keyed by the hash of the file contents)
    */
-  def cacheFile(localFile: File): File = {
-    val url = new java.net.URL(S3Cache.getCacheUrl(localFile))
-    val hash = new File(url.getFile).getName
+  def cacheFiles(localFiles: Seq[File]): Seq[File] = {
+    def getHashFromUrl(url: URL): String = new File(url.getFile).getName
+    val urls = localFiles.map(f => new java.net.URL(S3Cache.getCacheUrl(f)))
 
     /* Make sure the file cache dir exists */
     this ! "mkdir -p " + fileCache
 
-    /* If the file doesn't exist already... upload it */
-    if(! ls(fileCache).map(_.name).contains(hash)) {
+    val currentCachedFiles = ls(fileCache).map(_.name)
+    val toUpload = urls.filterNot(u => currentCachedFiles.contains(getHashFromUrl(u)))
+    logger.info("Updating %d files on %s", toUpload.size, publicDnsName)
+
+    for(url <- toUpload) {
+      val hash = getHashFromUrl(url)
       this ! "wget --quiet -O %s %s".format(new File(fileCache, hash), url)
     }
 
-    new File(fileCache, hash)
+    urls.map(u => new File(fileCache, new File(u.getFile).getName))
   }
 
   /**

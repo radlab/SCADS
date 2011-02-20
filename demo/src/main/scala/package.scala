@@ -41,8 +41,7 @@ package object demo {
   }
 
   def preloadWars: Unit = {
-    MesosEC2.slaves.pforeach(_.cacheFile(scadrWarFile))
-    MesosEC2.slaves.pforeach(_.cacheFile(graditWarFile))
+    MesosEC2.slaves.pforeach(_.cacheFiles(scadrWarFile :: graditWarFile :: Nil))
   }
 
   /**
