@@ -138,6 +138,7 @@ class ScadrLoader(val client: ScadrClient,
       newUserIdView.map(i => {
   val u = User(toUser(i))
   u.homeTown = "hometown" + (i % 10)
+  u.password = "secret"
   u
       })
 
