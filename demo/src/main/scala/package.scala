@@ -32,9 +32,12 @@ package object demo {
    * Start a mesos master and make it the primary for the demo.
    * Only needs to be run by one person.
    */
-  def setupMesosMaster(zone:String = zone, numMasters: Int = 1): Unit = {
+  def setupMesosMaster(zone:String = zone, numMasters: Int = 1, mesosAmi: Option[String] = None): Unit = {
     if(MesosEC2.masters.size < numMasters) {
-      MesosEC2.startMasters(zone, numMasters - MesosEC2.masters.size)
+      mesosAmi match {
+        case Some(ami) => MesosEC2.startMasters(zone, numMasters - MesosEC2.masters.size, ami)
+        case None =>  MesosEC2.startMasters(zone, numMasters - MesosEC2.masters.size)
+      }
     }
 
     MesosEC2.masters.pforeach(_.pushJars)

@@ -308,20 +308,37 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     //             fail when we get to ec2-upload-bundle anyway.
     upload(ec2Cert, new File("/tmp"))
     upload(ec2PrivateKey, new File("/tmp"))
-    this ! "rm -rf /tmp/image"
-    this.executeCommand("mv ~/.tags /tmp/mesos-ec2-tags")
+
+    logger.info("Removing /tmp/image, if it exists.")
+    this.executeCommand("rm -rf /tmp/image")
+
+    logger.info("Shutting down mesos-master.")
+    this executeCommand("pkill mesos-master")
+
+    logger.info("Temporarily moving deploylib tagFile %s to /tmp.".format(tagFile))
+    this.executeCommand("mv %s /tmp/mesos-ec2-tags123".format(tagFile))
+
+    logger.info("Running ec2-bundle-vol.")
     this ! "ec2-bundle-vol -c /tmp/%s -k /tmp/%s -u %s --arch %s".format(ec2Cert.getName, ec2PrivateKey.getName, userID, "x86_64")
+
+    logger.info("Running ec2-upload-bundle.")
     this ! "ec2-upload-bundle -b %s -m %s -a %s -s %s".format(bucketName, "/tmp/image.manifest.xml", accessKeyId, secretAccessKey)
+
+    logger.info("Registering the new image with Amazon to be assigned an AMI ID#.")
     val registerRequest = new RegisterImageRequest(bucketName + "/image.manifest.xml")
     val registerResponse = EC2Instance.client.registerImage(registerRequest)
     val ami = registerResponse.getImageId
+
+    logger.info("Changing the permissions on the new AMI to public")
     var req = new ModifyImageAttributeRequest()
                  .withImageId(ami)
                  .withOperationType("add")
                  .withUserGroups("all" :: Nil)
                  .withAttribute("launchPermission")
     EC2Instance.client.modifyImageAttribute(req)
-    this.executeCommand("mv /tmp/mesos-ec2-tags ~/.tags")
+
+    logger.info("Putting the deploylib tag file back, if it exists.")
+    this.executeCommand("mv /tmp/mesos-ec2-tags123 %s".format(tagFile))
     ami
   }
 

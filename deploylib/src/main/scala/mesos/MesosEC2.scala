@@ -88,9 +88,9 @@ object MesosEC2 extends ConfigurationActions {
   }
 
   val defaultZone = "us-east-1a"
-  def startMasters(zone: String = defaultZone, count: Int = 1): Seq[EC2Instance] = {
+  def startMasters(zone: String = defaultZone, count: Int = 1, ami: String = mesosAmi): Seq[EC2Instance] = {
     val ret = EC2Instance.runInstances(
-      mesosAmi,
+      ami,
       count,
       count,
       EC2Instance.keyName,
@@ -108,7 +108,7 @@ object MesosEC2 extends ConfigurationActions {
     ret
   }
 
-  def addSlaves(count: Int, zone: String = defaultZone, updateDeploylibOnStart: Boolean = true): Seq[EC2Instance] = {
+  def addSlaves(count: Int, zone: String = defaultZone, ami: String = mesosAmi, updateDeploylibOnStart: Boolean = true): Seq[EC2Instance] = {
     val userData =
       if (updateDeploylibOnStart)
         None
@@ -120,7 +120,7 @@ object MesosEC2 extends ConfigurationActions {
         }
 
     val instances = EC2Instance.runInstances(
-      mesosAmi,
+      ami,
       count,
       count,
       EC2Instance.keyName,
