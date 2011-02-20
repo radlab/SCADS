@@ -146,12 +146,8 @@ package object demo {
   def startScadrTraceCollector: Unit = {
     val traceTask = ScadrTraceCollectorTask(
       RunParams(
-        ScadrClusterParams(
-          traceRoot.canonicalAddress,
-          10,
-          5
-        ),
-        "myThoughts"
+        scadrClusterParams,
+        "mySubscriptions"
       )
     ).toJvmTask
     
@@ -163,6 +159,17 @@ package object demo {
       RunParams(
         scadrClusterParams,
         "thoughtstream"
+      )
+    ).toJvmTask
+    
+    serviceScheduler !? RunExperimentRequest(traceTask :: Nil)
+  }
+
+  def startLocalUserThoughtstreamTraceCollector: Unit = {
+    val traceTask = ThoughtstreamTraceCollectorTask(
+      RunParams(
+        scadrClusterParams,
+        "localUserThoughtstream"
       )
     ).toJvmTask
     
