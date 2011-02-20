@@ -64,11 +64,12 @@ if(RAIN_STATS) {
 if(WEBAPP_STATS) {
 	for(period in PERIODS) {
 
+		# plot web server load, allocation data for SCADr
 		startT = (mostRecent - 1000* 60 * period -1)
 		series <- dbGetQuery(con,paste("select timestamp,aggRequestRate,targetNumServers from appReqRate where webAppID = 'SCADr' and timestamp > ",startT," order by timestamp DESC ",sep=''))
 		
 		if (nrow(series) > 0) {
-			reqRatePlotFile=paste("appReqRate-",period,".png",sep='')
+			reqRatePlotFile=paste("scadrReqRate-",period,".png",sep='')
 			png(file=reqRatePlotFile, bg="transparent")
 		
 			times <- as.POSIXct( (series[TRUE,1]/1000 - TZShift), origin="1970-01-01")
@@ -85,14 +86,45 @@ if(WEBAPP_STATS) {
 			axis(side=4, at=yrange,cex=1.2)
 			mtext("servers",side=4,col="blue",line=1,cex=1.2)
 			mtext("time", side=1,line=3,cex=1.2)
-			mtext("Web-server load and allocation",side=3,cex=1.4,line=2)
+			mtext("Web server load and allocation for SCADr",side=3,cex=1.4,line=2)
 
 			legend( x="topleft", inset=0.05, c("Request rate","Target server count"), cex=1.0, col=c("red","blue"), bg="white", pch=21:22, lty=1:2)
 			dev.off()
 		}
+
+
+		# plot web server load, allocation data for gRADit
+		startT = (mostRecent - 1000* 60 * period -1)
+		series <- dbGetQuery(con,paste("select timestamp,aggRequestRate,targetNumServers from appReqRate where webAppID = 'gRADit' and timestamp > ",startT," order by timestamp DESC ",sep=''))
 		
+		if (nrow(series) > 0) {
+			reqRatePlotFile=paste("graditReqRate-",period,".png",sep='')
+			png(file=reqRatePlotFile, bg="transparent")
+		
+			times <- as.POSIXct( (series[TRUE,1]/1000 - TZShift), origin="1970-01-01")
+			par(oma=c(1,1,1,2))
+			
+			yrange = c(0, 1.2*max(series[TRUE,2]))
+			plot(times, series[TRUE,2], xlab="", ylab="requests per second", col="red", xaxt="n", type="o", main="",col.lab="red",cex.lab=1.2, ylim=yrange)
+			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
+		
+			yrange = c(0, ceiling(1.2*max(series[TRUE,3])))
+			par(new=T)
+			plot(times, series[TRUE,3] , col="blue",axes=F,xlab="",ylab="",type="o",ylim=yrange)
+		
+			axis(side=4, at=yrange,cex=1.2)
+			mtext("servers",side=4,col="blue",line=1,cex=1.2)
+			mtext("time", side=1,line=3,cex=1.2)
+			mtext("Web server load and allocation for gRADit",side=3,cex=1.4,line=2)
+
+			legend( x="topleft", inset=0.05, c("Request rate","Target server count"), cex=1.0, col=c("red","blue"), bg="white", pch=21:22, lty=1:2)
+			dev.off()
+		}
+
+		
+		# plot avg CPU utilization 
 		cpuSeries = dbGetQuery(con,paste("select timestamp,averageUtilization from appReqRate where webAppID = 'SCADr' and timestamp > ",startT," order by timestamp DESC ",sep=''))
-		if (nrow(cpuSeries) > 0) {
+		if (nrow(cpuSeries) > 0)) {
 			cpuPlotFile=paste("averageCpuUtilization-",period,".png",sep='')
 			png(file= cpuPlotFile, bg="transparent")
 		
@@ -101,11 +133,13 @@ if(WEBAPP_STATS) {
 			
 			yrange = c(0, 1.2*max(cpuSeries[TRUE,2], na.rm=TRUE))
 			plot(times, cpuSeries[TRUE,2], xlab="", ylab="Average CPU utilization", col="red", xaxt="n", type="o", main="",cex.lab=1.2, ylim=yrange)
+			
+						
+			
 			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
 			mtext("time", side=1,line=3,cex=1.2)
 			mtext("Web-server average CPU allocation",side=3,cex=1.4,line=2)
 		}
-
 	}
 } #end webapp stats
 
