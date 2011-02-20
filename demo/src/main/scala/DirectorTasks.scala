@@ -82,16 +82,19 @@ case class GraditDirectorTask(var clusterAddress: String, var mesosMaster: Strin
            "wordlists" -> classOf[edu.berkeley.cs.scads.piql.gradit.WordList],
            "games" -> classOf[edu.berkeley.cs.scads.piql.gradit.Game],
            "gameplayers" -> classOf[edu.berkeley.cs.scads.piql.gradit.GamePlayer],
-           "users" -> classOf[edu.berkeley.cs.scads.piql.gradit.User])
+           "users" -> classOf[edu.berkeley.cs.scads.piql.gradit.User],
+           "challenges" -> classOf[edu.berkeley.cs.scads.piql.gradit.Challenge])
     val clusterRoot = ZooKeeperNode(clusterAddress)
     val scheduler = DemoConfig.serviceScheduler
     val cluster = new ExperimentalScadsCluster(clusterRoot)
+    val indexes = List("challenges_(user2)", "gameplayers_(score)", "gameplayers_(gameid)", "challenges_(user1)", "wordlists_(login)", "words_(wordlist)", "challenges_(game2)", "words_(word)", "challenges_(game1)")
 
-    cluster.blockUntilReady(namespaces.size)
+    cluster.blockUntilReady(namespaces.size + indexes.size)
     Director.cluster = cluster
 
     logger.info("Starting Gradit Directors")
-    val directors = namespaces.keys.map(ns => Director(1, ns, scheduler))
+    val directors = (namespaces.keys ++ indexes).map(ns => Director(1, ns, scheduler))
+
     //TODO: maybe we should pass the zookeeper address upon creation
     directors.foreach(_.run(clusterRoot))
 
