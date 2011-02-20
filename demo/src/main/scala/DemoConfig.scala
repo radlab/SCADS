@@ -8,11 +8,8 @@ import avro.runtime._
 import scads.perf.ExperimentalScadsCluster
 
 import scads.comm._
-<<<<<<< HEAD
 import scads.piql.modeling._
-=======
 import scads.storage.ScalaEngineTask
->>>>>>> origin/demo
 import deploylib.mesos._
 import deploylib.ec2._
 
@@ -33,8 +30,8 @@ object DemoConfig {
   //TODO: Add other ZooKeeper
   //val zooKeeperRoot = ZooKeeperNode("zk://ec2-50-16-2-36.compute-1.amazonaws.com,ec2-174-129-105-138.compute-1.amazonaws.com/demo")
   val zooKeeperRoot = ZooKeeperNode("zk://ec2-50-16-2-36.compute-1.amazonaws.com,ec2-174-129-105-138.compute-1.amazonaws.com/home/kcurtis")
-  def scadrRoot =  zooKeeperRoot.getOrCreate("apps/scadr")
-  def scadrWebServerList = scadrRoot.getOrCreate("webServerList")
+  //def scadrRoot =  zooKeeperRoot.getOrCreate("apps/scadr")
+  //def scadrWebServerList = scadrRoot.getOrCreate("webServerList")
   
   // for trace collection
   def traceRoot = zooKeeperRoot.getOrCreate("traceCollection")
