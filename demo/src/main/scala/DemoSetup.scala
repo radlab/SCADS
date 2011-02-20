@@ -52,7 +52,7 @@ object IntKeyScaleScheduler extends optional.Application {
     System.loadLibrary("mesos")
     implicit val scheduler = LocalExperimentScheduler(name, mesosMaster, executor)
     implicit val classpath = cp.split("\\|").map(S3CachedJar(_)).toSeq
-    implicit val zookeeper = zooKeeperRoot.getOrCreate("scads/perf") 
+    implicit val zookeeper = zooKeeperRoot.getOrCreate("scads/perf")
 
     import scads.perf.intkey._
     val cluster = DataLoader(1,1).newCluster
@@ -67,7 +67,7 @@ object RepTestScheduler extends optional.Application {
     System.loadLibrary("mesos")
     implicit val scheduler = LocalExperimentScheduler(name, mesosMaster, executor)
     implicit val classpath = cp.split("\\|").map(S3CachedJar(_)).toSeq
-    implicit val zookeeper = zooKeeperRoot.getOrCreate("scads/perf") 
+    implicit val zookeeper = zooKeeperRoot.getOrCreate("scads/perf")
 
     import scads.perf.reptest._
     val cluster = DataLoader(1, numKeys).newCluster
@@ -78,7 +78,7 @@ object RepTestScheduler extends optional.Application {
     println("--- Printing results for exp with %d keys ---".format(numKeys))
     val loadResults = cluster.getNamespace[RepResultKey, RepResultValue]("repResults")
     println("iteration\telasped time (ms)")
-    loadResults.getRange(None, None).foreach { case (k, v) => 
+    loadResults.getRange(None, None).foreach { case (k, v) =>
       println("%d\t%d".format(k.iteration, v.endTime - v.startTime))
     }
 

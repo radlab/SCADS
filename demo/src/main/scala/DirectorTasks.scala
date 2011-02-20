@@ -54,7 +54,7 @@ case class ScadrDirectorTask(var clusterAddress: String, var mesosMaster: String
   // val keySchema = entity.key.getSchema
   // val valueSchema = entity.value.getSchema
   // val initialPartitions = (None, cluster.getAvailableServers(name)) :: Nil
-  // 
+  //
   // Director.cluster.createNamespace(name, keySchema, valueSchema, initialPartitions)
   //       }
   //     }

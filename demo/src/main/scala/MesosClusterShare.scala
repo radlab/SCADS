@@ -22,7 +22,7 @@ object MesosClusterShareReporter {
     println("Connected to database!")
 
     val stmt = conn.prepareStatement("""
-      insert into mesosStats 
+      insert into mesosStats
         (timestamp, frameworkId, frameworkName, cpus, gbRam,
          cpuShare, memShare, domShare)
       values (?, ?, ?, ?, ?, ?, ?, ?)
