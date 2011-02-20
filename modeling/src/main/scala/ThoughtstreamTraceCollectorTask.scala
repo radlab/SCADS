@@ -35,7 +35,8 @@ case class ThoughtstreamTraceCollectorTask(
     /* create executor that records trace to fileSink */
     println("creating executor...")
     val fileSink = new FileTraceSink(new File("/mnt/piqltrace.avro"))
-    implicit val executor = new ParallelExecutor with TracingExecutor {
+    //implicit val executor = new ParallelExecutor with TracingExecutor {
+    implicit val executor = new LocalUserExecutor with TracingExecutor {
       val sink = fileSink
     }
 
@@ -52,8 +53,10 @@ case class ThoughtstreamTraceCollectorTask(
     beginningOfCurrentWindow = System.nanoTime
             
     // set up thoughtstream-specific run params
-    val numSubscriptionsPerUserList = List(100,500,1000)
+    val numSubscriptionsPerUserList = List(100,250,500)
     val numPerPageList = List(10,20,30,40,50)
+    //val numSubscriptionsPerUserList = List(100)
+    //val numPerPageList = List(10)
     
     // warmup to avoid JITing effects
     // TODO:  move this to a function
@@ -86,11 +89,11 @@ case class ThoughtstreamTraceCollectorTask(
         fileSink.recordEvent(ChangeNamedCardinalityEvent("numPerPage", numPerPage))
         
         (1 to params.numQueriesPerCardinality).foreach(i => {
-          fileSink.recordEvent(QueryEvent("thoughtstream" + i + "-" + numSubs + "-" + numPerPage, true))
+          fileSink.recordEvent(QueryEvent(params.queryType + i + "-" + numSubs + "-" + numPerPage, true))
 
           queryRunner.callThoughtstream(numSubs, numPerPage)
 
-          fileSink.recordEvent(QueryEvent("thoughtstream" + i + "-" + numSubs + "-" + numPerPage, false))
+          fileSink.recordEvent(QueryEvent(params.queryType + i + "-" + numSubs + "-" + numPerPage, false))
           Thread.sleep(params.sleepDurationInMs)
         })
       })
