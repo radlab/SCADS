@@ -28,10 +28,10 @@ class ComradesClient(val cluster: ScadsCluster, executor: QueryExecutor) {
   implicit val exec = executor
   val maxResultsPerPage = 10
 
-  lazy val candidates = cluster.getNamespace[Candidate]("candidates")
-  lazy val interviews = cluster.getNamespace[Interview]("interviews")
+  val candidates = cluster.getNamespace[Candidate]("candidates")
+  val interviews = cluster.getNamespace[Interview]("interviews")
 
-  val findWaiting = (
+  val findWaiting = /* MICHAEL OPTIMIZER (
     interviews
       .where("interviews.researchArea".a === (0.?))
       .where("interviews.interviewedAt".a === 0)
@@ -39,9 +39,19 @@ class ComradesClient(val cluster: ScadsCluster, executor: QueryExecutor) {
       .limit(maxResultsPerPage)
       .join(candidates)
       .where("interviews.candidate".a === "candidates.email".a)
-    ).toPiql("findWaiting")
+    ).toPiql("findWaiting") */
 
-  val findTopRated = (
+    new OptimizedQuery("findWaiting",
+      IndexLookupJoin(candidates,
+		      AttributeValue(0, 3) :: Nil,
+	LocalStopAfter(FixedLimit(maxResultsPerPage),
+	  IndexScan(interviews.getOrCreateIndex("researchArea" :: "interviewedAt" :: "createdAt" :: Nil),
+		    ParameterValue(0) :: ConstantValue(0) :: Nil,
+		    FixedLimit(maxResultsPerPage),
+		    true))),
+      executor)
+
+  val findTopRated = /* MICHAEL OPTIMIZER (
     interviews
       .where("interviews.researchArea".a === (0.?))
       .where("interviews.score".a === 5)
@@ -50,14 +60,28 @@ class ComradesClient(val cluster: ScadsCluster, executor: QueryExecutor) {
       .limit(maxResultsPerPage)
       .join(candidates)
       .where("interviews.candidate".a === "candidates.email".a)
-    ).toPiql("findWaiting")
+    ).toPiql("findTopRated") */
 
-  val findCandidateDetails = (
+    new OptimizedQuery("findTopRated",
+      IndexLookupJoin(candidates,
+		      AttributeValue(0, 4) :: Nil,
+	LocalStopAfter(FixedLimit(maxResultsPerPage),
+          IndexScan(interviews.getOrCreateIndex("researchArea" :: "score" :: "status" :: "interviewedAt" :: Nil),
+		    ParameterValue(0) :: ConstantValue(5) :: ConstantValue("INTERVIEWED") :: Nil,
+		    FixedLimit(maxResultsPerPage),
+		    false))),
+      executor)
+
+  val findCandidate = (
     candidates
       .where("candidates.email".a === (0.?))
-      .join(interviews)
-      .where("interviews.candidate".a === "candidates.email".a)
-    ).toPiql("findCandidate")
+    ).toPiql("findCandidateDetails")
+
+  val findInterviewsForCandidate = (
+    interviews.where("interviews.candidate".a === (0.?))
+	      .limit(maxResultsPerPage)
+	      .toPiql("findInterviewsForCandidate")
+  )
 
   val findCandidatesByName = (
     candidates
