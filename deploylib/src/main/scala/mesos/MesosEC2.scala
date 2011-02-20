@@ -39,6 +39,7 @@ object MesosEC2 extends ConfigurationActions {
   }
 
   def masters = {
+    EC2Instance.update()
     EC2Instance.client.describeTags().getTags()
       .filter(_.getResourceType equals "instance")
       .filter(_.getKey equals "mesos")
