@@ -15,11 +15,13 @@ case class Candidate(var email: String) extends AvroPair {
   var researchArea: String = _
 }
 
-case class Interview(var candidate: String, var time: Int) extends AvroPair {
+case class Interview(var candidate: String, var createdAt: Int) extends AvroPair {
+  var interviewedAt: Int = _
   var status: String = _
   var score: Int = _
-  var comments: Int = _
+  var comments: String = _
   var interviewer: String = _
+  var researchArea: String = _
 }
 
 class ComradesClient(val cluster: ScadsCluster, executor: QueryExecutor) {
@@ -29,25 +31,37 @@ class ComradesClient(val cluster: ScadsCluster, executor: QueryExecutor) {
   lazy val candidates = cluster.getNamespace[Candidate]("candidates")
   lazy val interviews = cluster.getNamespace[Interview]("interviews")
 
-  val findByStatus = (
-    interviews.where("interviews.status".a === (0.?))
-      .sort("interviews.time".a :: Nil, false)
+  val findWaiting = (
+    interviews
+      .where("interviews.researchArea".a === (0.?))
+      .where("interviews.interviewedAt".a === 0)
+      .sort("interviews.createdAt".a :: Nil, true)
       .limit(maxResultsPerPage)
       .join(candidates)
       .where("interviews.candidate".a === "candidates.email".a)
-    ).toPiql("findByStatus")
+    ).toPiql("findWaiting")
 
-  val findRecent = (
-    interviews.sort("interviews.time".a :: Nil, false)
+  val findTopRated = (
+    interviews
+      .where("interviews.researchArea".a === (0.?))
+      .where("interviews.score".a === 5)
+      .where("interviews.status".a === "INTERVIEWED")
+      .sort("interviews.interviewedAt".a :: Nil, false)
       .limit(maxResultsPerPage)
       .join(candidates)
       .where("interviews.candidate".a === "candidates.email".a)
-    ).toPiql("findRecent")
+    ).toPiql("findWaiting")
 
-  val findCandidate = candidates.where("candidates.email".a === (0.?)).toPiql("findCandidate")
+  val findCandidateDetails = (
+    candidates
+      .where("candidates.email".a === (0.?))
+      .join(interviews)
+      .where("interviews.candidate".a === "candidates.email".a)
+    ).toPiql("findCandidate")
 
   val findCandidatesByName = (
-    candidates.where("candidates.name".a === (0.?))
+    candidates
+      .where("candidates.name".a === (0.?))
       .limit(maxResultsPerPage)
     ).toPiql("findCandidatesByName")
 }
