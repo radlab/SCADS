@@ -2,6 +2,14 @@ class Candidate < AvroRecord
   def to_param
     email
   end
+  
+  def self.human_name
+    "Candidate"
+  end
+  
+  def id
+    email
+  end
 
   def self.find(email)
     candidate = Candidate.find_candidate(email)

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>COMRADES</title>
+    <%= stylesheet_link_tag "base", :media => "screen, print" %>
+    <%= formtastic_stylesheet_link_tag %>
+    <%= javascript_include_tag :defaults %>
+    <!--[if lt IE 9]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  </head>
+  <body>
+    <header class="page">
+      <h1>COMRADES</h1>
+      <nav>
+        <ul>
+          <li><%= link_to "Dashboard", root_path %></li>
+          <li><%= link_to "Add Candidate", new_candidate_path %></li>
+        </ul>
+      </nav>
+      <div class="clear" />
+    </header>
+    <section class="page">
+      <%= yield %>
+    </section>
+  </body>
+</html>
