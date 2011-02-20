@@ -28,30 +28,9 @@ import org.apache.avro.file.DataFileStream
  
 // case class ChangeNamedCardinalityEvent(var nameOfCardinality: String, var numDataItems: Int) extends AvroRecord with TraceEvent
 
-object ThoughtstreamMessageParser extends SCADSMessageParser {
+abstract class ThoughtstreamMessageParser extends SCADSMessageParser {
   var numSubscriptions = 0
   var numPerPage = 0
-  
-  def main(args: Array[String]): Unit = {
-		if(args.size != 1) {
-	      println("Usage: ThoughtstreamMessageParser <url>")
-	      System.exit(1)
-    }
-
-	  //val traceFile = new File(args(0))
-	  //val inFile = AvroInFile[ExecutionTrace](traceFile)
-	  val traceFileUrl = args(0)
-	  val inFile = AvroHttpFile[ExecutionTrace](traceFileUrl)
-
-		println("timestamp,thread,type,id,elapsedTime,numSubscriptions,numPerPage")
-
-	  inFile.foreach {
-				case event @ ExecutionTrace(_, _, WarmupEvent(_, start)) => processWarmupEvent(event)
-		    case event @ ExecutionTrace(timestamp, threadId, QueryEvent(queryName, start)) => processQueryEvent(event)
-				case event @ ExecutionTrace(timestamp, threadId, ChangeNamedCardinalityEvent(name, numDataItems)) => processChangeNamedCardinalityEvent(event)
-				case _ =>
-		}
-  }
   
   def processChangeNamedCardinalityEvent(event: ExecutionTrace) = {
 		val ExecutionTrace(timestamp, threadId, ChangeNamedCardinalityEvent(name, numDataItems)) = event
@@ -71,6 +50,33 @@ object ThoughtstreamMessageParser extends SCADSMessageParser {
 				val eventBeginning = eventMap(queryName)
 				val eventElapsedTime = timestamp - eventBeginning
 				println(List(eventBeginning, threadId, "query", queryName, eventElapsedTime, numSubscriptions, numPerPage).mkString(","))
+			}
+		}
+	}
+	
+	override def processIteratorEvent(event: ExecutionTrace) = {
+		val ExecutionTrace(timestamp, threadId, IteratorEvent(iteratorName, plan, op, start)) = event
+		if (doneWithWarmup) {
+			if (start)
+				eventMap += (iteratorName -> timestamp)
+			else {
+				val eventBeginning = eventMap(iteratorName)
+				val eventElapsedTime = timestamp - eventBeginning
+				println(List(eventBeginning, threadId, "iterator", iteratorName + ":" + plan + ":" + op, eventElapsedTime, numSubscriptions, numPerPage).mkString(","))
+			}
+		}
+	}
+
+	override def processMessageEvent(event: ExecutionTrace) = {
+		val ExecutionTrace(timestamp, threadId, MessageEvent(msg)) = event
+		if (doneWithWarmup) {
+			val messageName = msg.body.getSchema.getName
+			if (messageName.contains("Request")) {
+				eventMap += (messageNameWithTransitInfo(msg) -> timestamp)
+			} else if (messageName.contains("Response")) {
+				val eventBeginning = eventMap(messageNameWithTransitInfo(msg))
+				val eventElapsedTime = timestamp - eventBeginning
+				println(List(eventBeginning, threadId, "message", messageNameWithTransitInfo(msg), eventElapsedTime, numSubscriptions, numPerPage).mkString(","))
 			}
 		}
 	}
