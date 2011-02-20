@@ -1,0 +1,15 @@
+<h2>Pending Candidates</h2>
+<ul>
+<% @waiting.each do |candid| %>
+  <li><%= link_to candid.name, candidate_path(candid) %></li>
+<% end %>
+</ul>
+
+<h2>Top-Rated Candidates</h2>
+<ul>
+<% @top_rated.each do |candid| %>
+  <li><%= link_to candid.name, candidate_path(candid) %></li>
+<% end %>
+</ul>
+
+<p><%= link_to "New Candidate", new_candidate_path %></p>

@@ -1,0 +1,18 @@
+<h2>Add a Candidate</h2>
+
+<% form_for @candidate do |f| %>
+  <fieldset>
+    <ul>
+      <li><%= f.label :email %><%= f.text_field :email %></li>
+      <li><%= f.label :name %><%= f.text_field :name %></li>
+      <li><%= f.label :school %><%= f.text_field :school %></li>
+      <li><%= f.label :gpa %><%= f.text_field :gpa %></li>
+      <li><%= f.label :research_area %><%= f.text_field :research_area %></li>
+    </ul>
+  </fieldset>
+  <fieldset>
+    <ul>
+      <li><%= f.label :submit %><%= f.submit %></li>
+    </ul>
+  </fieldset>
+<% end %>
