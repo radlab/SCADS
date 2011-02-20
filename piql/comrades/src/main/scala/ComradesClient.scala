@@ -79,9 +79,14 @@ class ComradesClient(val cluster: ScadsCluster, executor: QueryExecutor) {
 
   val findInterviewsForCandidate = (
     interviews.where("interviews.candidate".a === (0.?))
-	      .limit(maxResultsPerPage)
-	      .toPiql("findInterviewsForCandidate")
+        .limit(maxResultsPerPage)
+        .toPiql("findInterviewsForCandidate")
   )
+
+  val findInterview = (
+    interviews.where("interviews.candidate".a === (0.?))
+      .where("interviews.createdAt".a === (1.?))
+    ).toPiql("findInterview")
 
   val findCandidatesByName = (
     candidates

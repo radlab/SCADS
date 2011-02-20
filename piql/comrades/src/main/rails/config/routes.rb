@@ -1,6 +1,7 @@
 ActionController::Routing::Routes.draw do |map|
-  map.resources :candidates, :requirements => { :id => /.+/ }
-  map.resources :interviews
+  map.resources :candidates, :requirements => { :id => /[^\/]+/ } do |candidates|
+    candidates.resources :interviews
+  end
   map.root :controller => :candidates, :action => :index
 
   # The priority is based upon order of creation: first created -> highest priority.
