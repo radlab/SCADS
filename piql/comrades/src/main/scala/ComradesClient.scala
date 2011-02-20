@@ -67,7 +67,7 @@ class ComradesClient(val cluster: ScadsCluster, executor: QueryExecutor) {
 		      AttributeValue(0, 4) :: Nil,
 	LocalStopAfter(FixedLimit(maxResultsPerPage),
           IndexScan(interviews.getOrCreateIndex("researchArea" :: "score" :: "status" :: "interviewedAt" :: Nil),
-		    ParameterValue(0) :: ConstantValue(5) :: ConstantValue("INTERVIEWED") :: Nil,
+		    ParameterValue(0) :: ConstantValue(5) :: ConstantValue(new org.apache.avro.util.Utf8("INTERVIEWED")) :: Nil,
 		    FixedLimit(maxResultsPerPage),
 		    false))),
       executor)
