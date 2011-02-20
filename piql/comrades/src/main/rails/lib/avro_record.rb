@@ -147,7 +147,7 @@ class AvroRecord
           schema = row.schema
           fields = schema.fields
 
-          if schema.name != "UserKeyType" # TODO: Remove this once it's fixed
+          if defined?(schema.name.constantize)
               instance = schema.name.constantize.new
               (0...fields.size).each do |field_index|
                 field = fields.get(field_index).name
