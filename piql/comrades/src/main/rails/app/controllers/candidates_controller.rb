@@ -1,7 +1,9 @@
 class CandidatesController < ApplicationController
   def index
-    @waiting = Candidate.waiting("systems")
-    @top_rated = Candidate.top_rated("systems")
+    @research_area = params[:research_area]
+    @research_area ||= "systems"
+    @waiting = Candidate.waiting(@research_area)
+    @top_rated = Candidate.top_rated(@research_area)
   end
   
   def show

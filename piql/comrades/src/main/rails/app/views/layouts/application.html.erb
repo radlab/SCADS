@@ -14,12 +14,14 @@
       <nav>
         <ul>
           <li><%= link_to "Dashboard", root_path %></li>
-          <li><%= link_to "Add Candidate", new_candidate_path %></li>
+          <li><%= link_to "Register Candidate", new_candidate_path %></li>
         </ul>
       </nav>
       <div class="clear" />
     </header>
     <section class="page">
+      <% if flash[:notice] %><div class="flash notice"><%= flash[:notice] %></div><% end %>
+      <% if flash[:error] %><div class="flash error"><%= flash[:error] %></div><% end %>
       <%= yield %>
     </section>
   </body>

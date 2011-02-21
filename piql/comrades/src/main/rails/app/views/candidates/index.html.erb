@@ -1,15 +1,38 @@
+<% form_tag root_path, :method => :get do %>
+<%= label_tag :research_area, "Select Research Field:" %>
+<%= select_tag :research_area, options_for_select(["systems", "networking", "databases", "theory", "hci", "architecture"], @research_area) %>
+<%= submit_tag "Show", :name => nil %>
+<% end %>
+
+
+<div class="columns">
+<div class="column">
 <h2>Pending Candidates</h2>
+<% if @waiting.present? %>
 <ul>
 <% @waiting.each do |candid| %>
   <li><%= link_to candid.name, candidate_path(candid) %></li>
 <% end %>
 </ul>
+<% else %>
+<p>No applicable candidates.</p>
+<% end %>
+</div>
 
+<div class="column">
 <h2>Top-Rated Candidates</h2>
+<% if @top_rated.present? %>
 <ul>
 <% @top_rated.each do |candid| %>
   <li><%= link_to candid.name, candidate_path(candid) %></li>
 <% end %>
 </ul>
+<% else %>
+<p>No applicable candidates.</p>
+<% end %>
+</div>
 
-<p><%= link_to "New Candidate", new_candidate_path %></p>
+<div class="clear" />
+</div>
+
+<p><%= link_to "Register Candidate", new_candidate_path %></p>

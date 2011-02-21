@@ -6,7 +6,7 @@
     <%= form.input :name %>
     <%= form.input :school %>
     <%= form.input :gpa, :label => "GPA" %>
-    <%= form.input :research_area, :label => "Research Area" %>
+    <%= form.input :research_area, :label => "Research Area", :collection => ["systems", "networking", "databases", "theory", "hci", "architecture"], :include_blank => false %>
   <% end %>
   <% form.buttons do %>
     <%= form.commit_button %>

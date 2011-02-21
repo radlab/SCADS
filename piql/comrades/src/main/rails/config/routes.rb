@@ -1,6 +1,6 @@
 ActionController::Routing::Routes.draw do |map|
   map.resources :candidates do |candidate|
-    candidate.resources :interviews
+    candidate.resources :interviews, :member => { :decide => :put }
   end
   map.root :controller => :candidates, :action => :index
 

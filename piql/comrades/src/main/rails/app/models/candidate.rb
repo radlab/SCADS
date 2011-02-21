@@ -1,4 +1,6 @@
 class Candidate < AvroRecord
+  attr_accessor :new_record
+
   def self.human_name
     "Candidate"
   end
@@ -29,7 +31,17 @@ class Candidate < AvroRecord
   end
 
   def to_param
-    Candidate.escape(email)
+    email.present? ? Candidate.escape(email) : nil
+  end
+  
+  def initialize(params={})
+    super(params)
+    new_record = true
+  end
+  
+  def new_record?
+    new_record ||= true
+    new_record
   end
 
   def id

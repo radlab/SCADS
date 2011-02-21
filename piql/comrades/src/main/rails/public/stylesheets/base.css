@@ -53,6 +53,20 @@ section.page {
 div.clear {
   clear: both;
 }
+div.flash {
+  border-width: 1px;
+  border-style: solid;
+  padding: 4px;
+  margin-bottom: 1em;
+}
+div.flash.error {
+  border-color: #900;
+  background: #fcc;
+}
+div.flash.notice {
+  border-color: #099;
+  background: #cff;
+}
 
 table {
   border: 1px solid #000;
@@ -62,4 +76,14 @@ th, td {
   border: 1px solid #000;
   padding: 4px;
   text-align: left;
+}
+div.offer-buttons form {
+  display: inline-block;
+}
+div.column {
+  float: left;
+  width: 50%;
+}
+div.columns {
+  clear: both;
 }
