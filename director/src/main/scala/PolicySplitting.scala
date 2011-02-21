@@ -411,8 +411,8 @@ class BestFitPolicySplitting(
     var maxParts = 0
     serversWithPart.foreach(s => { val numParts = currentConfig.serversToPartitions(s).size; if (numParts > maxParts) maxParts = numParts })
     
-    val canSplit = true//if (maxParts >= splitFactor) { logger.warning("Can't split since hit max split"); false} else true // TODO: check partition size as well
-    logger.debug("split candidate %s has a single key %s?", part, config.partitionsToSingleKey(part))
+    val canSplit = !config.partitionsToKeyLimit(part)//true//if (maxParts >= splitFactor) { logger.warning("Can't split since hit max split"); false} else true // TODO: check partition size as well
+    logger.debug("split candidate %s has a minimum key size %s?", part, config.partitionsToKeyLimit(part))
     
     if (canSplit) {// schedule the split action and an addserver if needed
       val splitAction = SplitPartition(part,/*splitFactor - maxParts + 1*/splitFactor, MOVE_OVERLOAD)
@@ -421,7 +421,7 @@ class BestFitPolicySplitting(
       else Some(List(splitAction))
       //Some(List(, AddServer(ClusterState.getRandomServerNames(config,1).head,MOVE_OVERLOAD)))
     }
-    else None
+    else { logger.info("can't split %s because hit minimum size", part); None}
   }
   
   private def tryReplicating(part:PartitionService,sourceServer:StorageService, startingReplicas:Int, orderedPotentialTargets:Seq[StorageService], config:ClusterState, workload:WorkloadHistogram):Option[List[Action]] = {
@@ -432,7 +432,7 @@ class BestFitPolicySplitting(
     
     for (target <- orderedPotentialTargets) {
       if (!done && nReplicas < MAX_R) {
-        logger.debug("trying more than %d relicas", nReplicas)
+        logger.info("trying more than %d relicas for %s", nReplicas, part)
         val replicateAction = ReplicatePartition(part,sourceServer,target,MOVE_OVERLOAD)
     		var tmpConfig = replicateAction.preview(currentConfig)
         if (!performanceEstimator.violationOnServer(tmpConfig,workload,target)) { // ok for target to move there	
