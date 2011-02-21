@@ -17,6 +17,7 @@ abstract class ActionExecutor(val execDelay:Long) extends Runnable {
 	var running = false
 	def namespace:GenericNamespace
 	val executorThread = new Thread(this, "ActionExecutor:"+namespace.namespace)
+	var listeners: List[String => Unit] = Nil
 	
 	initialize
 
@@ -96,6 +97,11 @@ abstract class ActionExecutor(val execDelay:Long) extends Runnable {
 	}
 	def start() = executorThread.start
 	def stop() = { running=false }
+	
+	def reportAction(action:String):Unit = try { listeners.foreach(_(action)) } catch { case e:Exception => logger.warning("couldn't report action")}
+	def registerListener(func: String => Unit): Unit = {
+    listeners ::= func
+  }
 
 }
 
@@ -132,6 +138,7 @@ class GroupingExecutor(val namespace:GenericNamespace, val scheduler:RemoteActor
 	  val replicate = getReplicateActions()
 	  try {
   		logger.debug("%d replicate actions",replicate.size)
+  		reportAction("Executing "+replicate.size+" replications for namespace "+namespace.namespace)
   		if (!replicate.isEmpty) namespace.replicatePartitions( replicate.map(a=> 
   			a match { case r:ReplicatePartition =>{ r.setStart; (r.partition, r.target) } }))
   		replicate.foreach(a => a.setComplete)
@@ -149,6 +156,7 @@ class GroupingExecutor(val namespace:GenericNamespace, val scheduler:RemoteActor
 		//logger.debug("%d delete actions",deleteTotal.size)
 		val delete = deleteTotal.filter(_.parentsCompleted)
 		deleteTotal.diff(delete).foreach(a => a.cancel)
+		reportAction("Executing "+delete.size+" deletions for namespace "+ namespace.namespace)
 		if (delete.size != deleteTotal.size) logger.warning("not doing all scheduled deletes since some had their replicates fail")
 		if (!delete.isEmpty) namespace.deletePartitions( delete.map(a=> 
 				a match { case d:DeletePartition =>{ d.setStart; d.partition } }))
@@ -160,6 +168,7 @@ class GroupingExecutor(val namespace:GenericNamespace, val scheduler:RemoteActor
 	def doRemove():Unit = {
 	  val remove = getRemoveActions()
 		logger.debug("%d removal actions",remove.size)
+		reportAction("Removing "+remove.size+" servers for namespace "+ namespace.namespace)
 		if (!remove.isEmpty) remove.foreach(a => a match {  case r:RemoveServers => {r.setStart; r.servers.foreach( _ !! ShutdownStorageHandler()) }	})
 		remove.foreach(a => a.setComplete) // TODO: was above call blocking? does it matter?
 	}
@@ -170,6 +179,7 @@ class GroupingExecutor(val namespace:GenericNamespace, val scheduler:RemoteActor
 	  val add = getAddActions()
 		val prefix = if (namespace == null) "" else namespace.namespace
 		logger.debug("%d add server actions",add.size)
+		reportAction("Adding "+add.size+" servers for namespace "+ namespace.namespace)
 		if (!add.isEmpty && scheduler != null) {
 			//scheduler.addServers( add.map(a => a match{ case ad:AddServer => prefix+ad.fakeServer.host }) )
 			add.foreach {

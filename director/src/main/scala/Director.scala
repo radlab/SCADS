@@ -20,6 +20,7 @@ case class Director(var numClients: Int, namespaceString: String, val scheduler:
   val period = 20 * 1000
   var controller: Controller = null
   var thread: Thread = null
+  val listeners = new collection.mutable.ArrayBuffer[String => Unit]()
 
   class Controller(policy: Policy, executor: ActionExecutor, stateHistory: StateHistory) extends Runnable() {
     @volatile var running = true
@@ -51,6 +52,7 @@ case class Director(var numClients: Int, namespaceString: String, val scheduler:
     val stateHistory = StateHistory(period, namespace, policy)
     stateHistory.startUpdating
     val executor = /*new TestGroupingExecutor(namespace, splitQueue, mergeQueue)*/new SplittingGroupingExecutor(namespace, splitQueue, mergeQueue, scheduler)// new GroupingExecutor(namespace, scheduler)
+    listeners.foreach(executor.registerListener(_))
     executor.start
 
     // when clients are ready to start, start everything
@@ -65,6 +67,9 @@ case class Director(var numClients: Int, namespaceString: String, val scheduler:
     controller.stop
   }
 
+  def registerActionListener(func: String => Unit): Unit = {
+    listeners.append(func)
+  }
 }
 
 // instantiate with zookeeper info

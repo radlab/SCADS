@@ -95,6 +95,7 @@ case class GraditDirectorTask(var clusterAddress: String, var mesosMaster: Strin
     logger.info("Starting Gradit Directors")
     val directors = (namespaces.keys ++ indexes).map(ns => Director(1, ns, scheduler))
 
+    directors.foreach(_.registerActionListener(DemoScadr.post))
     //TODO: maybe we should pass the zookeeper address upon creation
     directors.foreach(_.run(clusterRoot))
 
