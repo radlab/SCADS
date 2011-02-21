@@ -45,6 +45,7 @@ object MesosEC2 extends ConfigurationActions {
       .filter(_.getKey equals "mesos")
       .filter(_.getValue equals "master")
       .map(t => EC2Instance.getInstance(t.getResourceId))
+      .filter(_.instanceState equals "running")
   }
 
   def firstMaster = masters.head
@@ -98,10 +99,7 @@ object MesosEC2 extends ConfigurationActions {
       zone,
       None)
 
-    ret.foreach(inst =>
-    EC2Instance.client.createTags(
-      new CreateTagsRequest(inst.instanceId :: Nil,
-			    new Tag("mesos", "master") :: Nil)))
+    ret.foreach(_.tags += ("mesos", "master"))
 
     updateConf(ret)
     restartMasters
