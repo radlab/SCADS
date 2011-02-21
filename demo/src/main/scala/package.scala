@@ -121,6 +121,17 @@ package object demo {
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
+  def startComrades: Unit = {
+    val task = WebAppSchedulerTask(
+      "comRADes",
+      mesosMaster,
+      javaExecutorPath,
+      comradesWar,
+      comradesWebServerList.canonicalAddress,
+    Map("scads.clusterAddress" -> comradesRoot.canonicalAddress)).toJvmTask
+    serviceScheduler !? RunExperimentRequest(task :: Nil)
+  }
+
   def startScadrCluster(add:Option[String] = None): Unit = {
     val clusterAddress = add.getOrElse(scadrRoot.canonicalAddress)
     val task = InitScadrClusterTask(clusterAddress).toJvmTask

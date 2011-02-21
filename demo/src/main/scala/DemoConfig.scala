@@ -59,6 +59,18 @@ object DemoConfig {
       S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/5a65ddddab94db7bfa7cdf5e9914c47c")
     }
 
+  /* comRADes */
+  def comradesRoot =  zooKeeperRoot.getOrCreate("apps/comrades")
+  def comradesWebServerList = comradesRoot.getOrCreate("webServerList")
+  val comradesWarFile = new File("piql/comrades/src/main/rails/rails.war")
+  def comradesWar =
+    if(comradesWarFile.exists)
+      S3CachedJar(S3Cache.getCacheUrl(comradesWarFile))
+    else {
+      logger.info("Using cached comrades war file.")
+      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/ab396cd6bc6c25e3496590c73ff816f4")
+    }
+
   val jdbcDriver = classOf[com.mysql.jdbc.Driver]
   val dashboardDb = "jdbc:mysql://dev-mini-demosql.cwppbyvyquau.us-east-1.rds.amazonaws.com:3306/radlabmetrics?user=radlab_dev&password=randyAndDavelab"
 
