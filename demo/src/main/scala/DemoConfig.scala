@@ -95,7 +95,6 @@ object DemoConfig {
       Scadr Servers: {toServerList(scadrWebServerList)}
     </div>
   }
-  
 
   /**
   e.g val namespaces = Map("users" -> classOf[edu.berkeley.cs.scads.piql.scadr.User],
@@ -105,7 +104,6 @@ object DemoConfig {
   def initScadrCluster(clusterAddress:String):Unit = {
     val clusterRoot = ZooKeeperNode(clusterAddress)
     val cluster = new ExperimentalScadsCluster(clusterRoot)
-    
 
     logger.info("Adding servers to cluster for each namespace")
     val namespaces = Map("users" -> classOf[edu.berkeley.cs.scads.piql.scadr.User],
