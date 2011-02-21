@@ -138,7 +138,7 @@ class GroupingExecutor(val namespace:GenericNamespace, val scheduler:RemoteActor
 	  val replicate = getReplicateActions()
 	  try {
   		logger.debug("%d replicate actions",replicate.size)
-  		reportAction("Executing "+replicate.size+" replications for namespace "+namespace.namespace)
+  		if (!replicate.isEmpty) reportAction("Executing "+replicate.size+" replications for namespace "+namespace.namespace)
   		if (!replicate.isEmpty) namespace.replicatePartitions( replicate.map(a=> 
   			a match { case r:ReplicatePartition =>{ r.setStart; (r.partition, r.target) } }))
   		replicate.foreach(a => a.setComplete)
@@ -156,7 +156,7 @@ class GroupingExecutor(val namespace:GenericNamespace, val scheduler:RemoteActor
 		//logger.debug("%d delete actions",deleteTotal.size)
 		val delete = deleteTotal.filter(_.parentsCompleted)
 		deleteTotal.diff(delete).foreach(a => a.cancel)
-		reportAction("Executing "+delete.size+" deletions for namespace "+ namespace.namespace)
+		if (!delete.isEmpty) reportAction("Executing "+delete.size+" deletions for namespace "+ namespace.namespace)
 		if (delete.size != deleteTotal.size) logger.warning("not doing all scheduled deletes since some had their replicates fail")
 		if (!delete.isEmpty) namespace.deletePartitions( delete.map(a=> 
 				a match { case d:DeletePartition =>{ d.setStart; d.partition } }))
@@ -168,7 +168,7 @@ class GroupingExecutor(val namespace:GenericNamespace, val scheduler:RemoteActor
 	def doRemove():Unit = {
 	  val remove = getRemoveActions()
 		logger.debug("%d removal actions",remove.size)
-		reportAction("Removing "+remove.size+" servers for namespace "+ namespace.namespace)
+		if (!remove.isEmpty) reportAction("Removing "+remove.size+" servers for namespace "+ namespace.namespace)
 		if (!remove.isEmpty) remove.foreach(a => a match {  case r:RemoveServers => {r.setStart; r.servers.foreach( _ !! ShutdownStorageHandler()) }	})
 		remove.foreach(a => a.setComplete) // TODO: was above call blocking? does it matter?
 	}
@@ -179,7 +179,7 @@ class GroupingExecutor(val namespace:GenericNamespace, val scheduler:RemoteActor
 	  val add = getAddActions()
 		val prefix = if (namespace == null) "" else namespace.namespace
 		logger.debug("%d add server actions",add.size)
-		reportAction("Adding "+add.size+" servers for namespace "+ namespace.namespace)
+		if (!add.isEmpty) reportAction("Adding "+add.size+" servers for namespace "+ namespace.namespace)
 		if (!add.isEmpty && scheduler != null) {
 			//scheduler.addServers( add.map(a => a match{ case ad:AddServer => prefix+ad.fakeServer.host }) )
 			add.foreach {
@@ -242,6 +242,7 @@ class SplittingGroupingExecutor(namespace:GenericNamespace, splitMaps:java.util.
     
     
     // get split keys for each partiton to split, and make a combined list of all splits to perform
+    if (!splits.isEmpty) reportAction("Executing "+splits.size+" splits for namespace "+ namespace.namespace)
     try {
       if (!splits.isEmpty) namespace.splitPartition(
         splits.map(a => a match { case split:SplitPartition => { split.setStart; val keys = namespace.getSplitKeys(split.partition, split.parts); splitMapTodo.append((split.partition,keys.map(Some(_))))/*splitMaps.put((split.partition,keys.map(Some(_))))*/; keys} }).flatten(a=>a)
@@ -257,6 +258,7 @@ class SplittingGroupingExecutor(namespace:GenericNamespace, splitMaps:java.util.
     val merges = getMergeActions()
     logger.debug("%d merge actions", merges.size)
     //val mergeMapTodo = new scala.collection.mutable.ListBuffer[(Seq[Option[org.apache.avro.generic.GenericRecord]],Option[org.apache.avro.generic.GenericRecord])]()
+    if (!merges.isEmpty) reportAction("Executing "+merges.size+" merges for namespace "+ namespace.namespace)
     
     try {
       if (!merges.isEmpty) { val mergeBounds = namespace.mergePartitions(
