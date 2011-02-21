@@ -13,6 +13,7 @@ import scala.collection.immutable.HashMap
 
 import org.apache.commons.httpclient._
 import org.apache.commons.httpclient.methods._
+import org.apache.commons.httpclient.params._
 
 object WebAppScheduler {
   System.loadLibrary("mesos")
@@ -77,7 +78,9 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
 		      rampDownUtilizationWeight: Double = 0.01,
 		      utilizationThreshold: Double = 0.40
 		     ) extends Runnable {
-    private val httpClient = new HttpClient()
+    private val params = new HttpClientParams()
+    params.setSoTimeout(5000)
+    private val httpClient = new HttpClient(params)
     override def run() = {
       while(runMonitorThread) {
         // Calculate the average web server request rate
