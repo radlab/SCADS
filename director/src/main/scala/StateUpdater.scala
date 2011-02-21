@@ -7,6 +7,7 @@ import net.lag.logging.Logger
 
 object ScadsState {
 	val logger = Logger("scadsstate")
+	val keySizeToReplicate = 10
 	System.setProperty("doMysqlLogging","true")
 
 	//set up mysql connection for statistics
@@ -39,7 +40,7 @@ object ScadsState {
 			val pToK = new scala.collection.mutable.HashMap[PartitionService,Option[org.apache.avro.generic.GenericRecord]]()
 			val pToSingle = new scala.collection.mutable.HashMap[Option[org.apache.avro.generic.GenericRecord],Boolean]()
 			kToP.foreach(entry => {// key -> set(partitions)
-			  pToSingle(entry._1) = namespace.isPartitionSingleKey(entry._1)
+			  pToSingle(entry._1) = namespace.isPartitionKeySize(entry._1, keySizeToReplicate)
 				entry._2.foreach(partition =>{
 					pToK += (partition -> entry._1)
 					val serverparts = sToP.getOrElse(partition.storageService,new scala.collection.mutable.ListBuffer[PartitionService]())
@@ -48,8 +49,8 @@ object ScadsState {
 				})
 			})
 
-			if (workloadRaw.rangeStats.keySet.size != pToK.keySet.size) {
-  		  logger.warning("workload partitions != partitions->keys size (%d != %d)", workloadRaw.rangeStats.keySet.size, pToK.keySet.size)
+			if (workloadRaw.rangeStats.keySet.size != kToP.keySet.size) {
+  		  logger.warning("[%s] workload partitions != keys->partitions size (%d != %d)", namespace.namespace,workloadRaw.rangeStats.keySet.size, pToK.keySet.size)
   		  return null
   		}
 			// attempt to get "empty" servers, i.e. have no partitions but registered with cluster
@@ -83,7 +84,7 @@ object ScadsState {
 
 		kToP.foreach(entry => {// key -> set(partitions)
 			entry._2.foreach(partition =>{
-			  pToSingle(entry._1) = namespace.isPartitionSingleKey(entry._1)
+			  pToSingle(entry._1) = namespace.isPartitionKeySize(entry._1, keySizeToReplicate)
 				pToK += (partition -> entry._1)
 				val serverparts = sToP.getOrElse(partition.storageService,new scala.collection.mutable.ListBuffer[PartitionService]())
 				serverparts += partition
@@ -91,8 +92,8 @@ object ScadsState {
 			})
 		})
 
-		if (workloadRaw.rangeStats.keySet.size != pToK.keySet.size) {
-		  logger.warning("workload partitions != partitions->keys size (%d != %d)", workloadRaw.rangeStats.keySet.size, pToK.keySet.size)
+		if (workloadRaw.rangeStats.keySet.size != kToP.keySet.size) {
+		  logger.warning("[%s] workload partitions != keys->partitions size (%d != %d)", namespace.namespace, workloadRaw.rangeStats.keySet.size, pToK.keySet.size)
 		  return null
 	  }
 

@@ -172,9 +172,10 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
   }
   
   /**
-	* for each logical partition, return boolean indicating if that partition has only one key
+	* for each logical partition, return boolean indicating if that partition is non-empty but has <= the specified number of keys
+	* note that this uses a getRange(), so could be potentially expensive for large numKeys
 	*/
-	def isPartitionSingleKey(startkey: Option[KeyType]):Boolean = {
+	def isPartitionKeySize(startkey: Option[KeyType], numKeys:Int):Boolean = {
 	  /*val ranges = serversForRange(None,None)
 	  val requests = for (fullrange <- ranges) yield {
 			(fullrange.startKey,fullrange.endKey, fullrange.values, getRange(fullrange.startKey,fullrange.endKey,Some(2),Some(0)) )
@@ -183,8 +184,9 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
     val partitions = activePartition.values
     val endkey = activePartition.endKey
 
-    val result = getRange(startkey,endkey,Some(2),Some(0))
-    result.size == 1
+    val result = getRange(startkey,endkey,Some(numKeys+1),Some(0))
+    val size = result.size
+    size > 0 && size <= numKeys
 	}
 
   def put(key: KeyType, value: Option[ValueType]): Unit = {
