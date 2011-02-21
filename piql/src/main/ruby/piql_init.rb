@@ -1,17 +1,16 @@
-allJarsFile = File.join(RAILS_ROOT, "../../../../../allJars")
+$ALLJARS = File.join(RAILS_ROOT, "../../../../../allJars")
 
 require 'jruby'
 JRuby.objectspace=false
 
-if(File::exists?(allJarsFile))
+if(File::exists?($ALLJARS))
   puts "Loading local PIQL Jars"
-  jars = File.read(allJarsFile).split("\n")
+  jars = File.read($ALLJARS).split("\n")
   jars.each {|j| require j}
   puts "PIQL Jars Loaded"
 else
   puts "allJars file not found.  using provided piql libraries"
 end
-
 
 import Java::EduBerkeleyCsScadsPiql::SimpleExecutor
 import Java::EduBerkeleyCsScadsStorage::TestScalaEngine
