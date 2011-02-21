@@ -144,6 +144,12 @@ package object demo {
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
+  def startComradesCluster(add:Option[String] = None): Unit = {
+    val clusterAddress = add.getOrElse(comradesRoot.canonicalAddress)
+    val task = InitComradesClusterTask(clusterAddress).toJvmTask
+    serviceScheduler !? RunExperimentRequest(task :: Nil)
+  }
+
   def startScadrDirector(add:Option[String] = None): Unit = {
     val clusterAddress = add.getOrElse(scadrRoot.canonicalAddress)
     val task = ScadrDirectorTask(
@@ -156,6 +162,15 @@ package object demo {
   def startGraditDirector(add:Option[String] = None): Unit = {
     val clusterAddress = add.getOrElse(graditRoot.canonicalAddress)
     val task = GraditDirectorTask(
+      clusterAddress,
+      mesosMaster
+    ).toJvmTask
+    serviceScheduler !? RunExperimentRequest(task :: Nil)
+  }
+
+  def startComradesDirector(add:Option[String] = None): Unit = {
+    val clusterAddress = add.getOrElse(comradesRoot.canonicalAddress)
+    val task = ComradesDirectorTask(
       clusterAddress,
       mesosMaster
     ).toJvmTask

@@ -208,4 +208,51 @@ object DemoConfig {
     client.wordcontexts ++= AvroHttpFile[WordContext]("http://gradit.s3.amazonaws.com/wordcontexts.avro")
     client.users ++= AvroHttpFile[User]("http://gradit.s3.amazonaws.com/users.avro")
   }
+
+  def initComradesCluster(clusterAddress:String):Unit = {
+    import edu.berkeley.cs.scads.piql.SimpleExecutor
+    import edu.berkeley.cs.scads.piql.comrades._
+
+    val clusterRoot = ZooKeeperNode(clusterAddress)
+    val cluster = new ExperimentalScadsCluster(clusterRoot)
+
+    val dummyValueSchema = """{"type":"record","name":"DummyValue","namespace":"","fields":[{"name":"b","type":"boolean"}]}"""
+    val indexNamespaceTuples = List( // tuples of (keySchemaString, valueSchemaString, nameString)
+      ("""{"type":"record","name":"(name)Key","namespace":"","fields":[{"name":"name","type":"string"},{"name":"email","type":"string"}]}""", dummyValueSchema, "candidates_(name)"),
+      ("""{"type":"record","name":"(researchArea,interviewedAt,createdAt)Key","namespace":"","fields":[{"name":"researchArea","type":"string"},{"name":"interviewedAt","type":"long"},{"name":"createdAt","type":"long"},{"name":"candidate","type":"string"}]}""", dummyValueSchema, "interviews_(researchArea,interviewedAt,createdAt)"),
+      ("""{"type":"record","name":"(researchArea,score,status,interviewedAt)Key","namespace":"","fields":[{"name":"researchArea","type":"string"},{"name":"score","type":"int"},{"name":"status","type":"string"},{"name":"interviewedAt","type":"long"},{"name":"candidate","type":"string"},{"name":"createdAt","type":"long"}]}""", dummyValueSchema, "interviews_(researchArea,score,status,interviewedAt)")
+ )
+
+    logger.info("Adding servers to cluster for each namespace")
+    val namespaces = Map("candidates" -> classOf[edu.berkeley.cs.scads.piql.comrades.Candidate],
+           "interviews" -> classOf[edu.berkeley.cs.scads.piql.comrades.Interview])
+    serviceScheduler !? RunExperimentRequest(namespaces.keys.toList.map(key => ScalaEngineTask(clusterAddress = cluster.root.canonicalAddress, name = Option(key + "!node0")).toJvmTask ))
+    serviceScheduler !? RunExperimentRequest(indexNamespaceTuples.map(entry => ScalaEngineTask(clusterAddress = cluster.root.canonicalAddress, name = Option(entry._3 + "!node0")).toJvmTask ))
+
+    cluster.blockUntilReady(namespaces.size + indexNamespaceTuples.size)
+    logger.info("Creating the namespaces")
+    namespaces.foreach {
+      case (name, entityType) => {
+	      logger.info("Creating namespace %s", name)
+	      val entity = entityType.newInstance
+	      val (keySchema, valueSchema) = (entity.key.getSchema, entity.value.getSchema)
+	      val initialPartitions = (None, cluster.getAvailableServers(name)) :: Nil
+	      cluster.createNamespace(name, keySchema, valueSchema, initialPartitions)
+      }
+    }
+    logger.info("Creating the index namespaces")
+    indexNamespaceTuples.foreach {
+      case (keyStr, valStr, name) => {
+        logger.info("Creating namespace %s", name)
+        val (keySchema, valueSchema) = (org.apache.avro.Schema.parse(keyStr), org.apache.avro.Schema.parse(valStr))
+        assert(cluster.getAvailableServers(name).size == 1, "Namespace "+name+" has wrong number of partitions")
+        val initialPartitions = (None, cluster.getAvailableServers(name)) :: Nil
+        cluster.createNamespace(name, keySchema, valueSchema, initialPartitions)
+        val originNsAndIndexName = name.split("_")
+        cluster.root("namespaces")(originNsAndIndexName.head).getOrCreate("indexes").createChild(originNsAndIndexName(1), Array.empty, org.apache.zookeeper.CreateMode.PERSISTENT)
+      }
+    }
+
+    startComradesDirector()
+  }
 }
