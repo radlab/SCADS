@@ -315,9 +315,6 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     logger.info("Shutting down mesos-master.")
     this executeCommand("pkill mesos-master")
 
-    logger.info("Temporarily moving deploylib tagFile %s to /tmp.".format(tagFile))
-    this.executeCommand("mv %s /tmp/mesos-ec2-tags123".format(tagFile))
-
     logger.info("Running ec2-bundle-vol.")
     this ! "ec2-bundle-vol -c /tmp/%s -k /tmp/%s -u %s --arch %s".format(ec2Cert.getName, ec2PrivateKey.getName, userID, "x86_64")
 
@@ -337,8 +334,6 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
                  .withAttribute("launchPermission")
     EC2Instance.client.modifyImageAttribute(req)
 
-    logger.info("Putting the deploylib tag file back, if it exists.")
-    this.executeCommand("mv /tmp/mesos-ec2-tags123 %s".format(tagFile))
     ami
   }
 
