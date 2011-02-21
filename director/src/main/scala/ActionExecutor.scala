@@ -86,7 +86,7 @@ abstract class ActionExecutor(val execDelay:Long) extends Runnable {
 				actions.dequeueAll(a => a.cancelled || a.completed)
 			} catch {
 				case e:Exception => {
-				  logger.warning(e,"exception running director action, cancelling actions")
+				  logger.warning(e,"exception running director action")
 				  
 			  }
 			}
@@ -143,8 +143,8 @@ class GroupingExecutor(val namespace:GenericNamespace, val scheduler:RemoteActor
   			a match { case r:ReplicatePartition =>{ r.setStart; (r.partition, r.target) } }))
   		replicate.foreach(a => a.setComplete)
   		
-  	} catch { case e:RuntimeException => {
-		  logger.warning("replicate failed, so need to cancel them")
+  	} catch { case e:Exception => {
+		  logger.warning(e,"replicate failed, so need to cancel them")
 		  replicate.foreach(a => a.cancel)
 		}}
 	}
