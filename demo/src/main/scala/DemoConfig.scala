@@ -11,6 +11,7 @@ import scads.comm._
 import scads.storage.ScalaEngineTask
 import deploylib.mesos._
 import deploylib.ec2._
+import twitterspam.AvroHttpFile
 
 import net.lag.logging.Logger
 
@@ -125,10 +126,9 @@ object DemoConfig {
     startScadrDirector()
   }
 
+  import edu.berkeley.cs.scads.piql.gradit._
   def initGraditCluster(clusterAddress:String):Unit = {
     import edu.berkeley.cs.scads.piql.SimpleExecutor
-    import edu.berkeley.cs.scads.piql.gradit._
-    import edu.berkeley.cs.twitterspam.AvroHttpFile
 
     val clusterRoot = ZooKeeperNode(clusterAddress)
     val cluster = new ExperimentalScadsCluster(clusterRoot)
@@ -184,14 +184,16 @@ object DemoConfig {
     }
 
     logger.info("Populating gRADit with data")
-    val client = new GraditClient(cluster, new SimpleExecutor)
+    loadGraditData(new GraditClient(cluster, new SimpleExecutor))
+
+    startGraditDirector()
+  }
+
+  def loadGraditData(client: GraditClient): Unit = {
     client.wordlists ++= AvroHttpFile[WordList]("http://gradit.s3.amazonaws.com/wordlists.avro")
     client.wordlistwords ++= AvroHttpFile[WordListWord]("http://gradit.s3.amazonaws.com/wordlistwords.avro")
     client.words ++= AvroHttpFile[Word]("http://gradit.s3.amazonaws.com/words.avro")
     client.wordcontexts ++= AvroHttpFile[WordContext]("http://gradit.s3.amazonaws.com/wordcontexts.avro")
     client.users ++= AvroHttpFile[User]("http://gradit.s3.amazonaws.com/users.avro")
-
-
-    startGraditDirector()
   }
 }
