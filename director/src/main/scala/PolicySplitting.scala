@@ -190,7 +190,7 @@ class BestFitPolicySplitting(
     logger.debug("overloaded servers: %s", servers.mkString(","))
     
     servers.foreach(server => { // TODO: are these sorted by workload?
-      currentState = fixOverloadedServer(state,workload,server)
+      currentState = fixOverloadedServer(currentState,workload,server)
       
     }) // end loop on overloaded servers
     currentState
