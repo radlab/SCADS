@@ -66,8 +66,8 @@ case class ScadrDirectorTask(var clusterAddress: String, var mesosMaster: String
     logger.info("Starting Directors")
     val directors = namespaces.keys.map(ns => Director(1, ns, scheduler))
     //TODO: maybe we should pass the zookeeper address upon creation
+    directors.foreach(_.registerActionListener(DemoScadr.post))
     directors.foreach(_.run(clusterRoot))
-
     directors.foreach(_.thread.join())
   }
 }
