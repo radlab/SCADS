@@ -8,11 +8,11 @@ object ClusterState {
 	val nameSuffix = new java.util.concurrent.atomic.AtomicInteger()
 	
 	def getRandomServerNames(cfg:ClusterState,n:Int):List[StorageService] = {
-	  val newNames = (0 until n).toList.map(i=> "s"+ java.util.UUID.randomUUID.toString/*nameSuffix.getAndIncrement*/)
+	  val newNames = (0 until n).toList.map(i=> "!s"+ java.util.UUID.randomUUID.toString/*nameSuffix.getAndIncrement*/)
 	  newNames.map( name=> new StorageService(name,1,null))
 	}
 	def getRandomPartitionNames(cfg:ClusterState,n:Int):List[PartitionService] = {
-	  val newNames = (0 until n).toList.map(i=> "p"+ java.util.UUID.randomUUID.toString/*nameSuffix.getAndIncrement*/)
+	  val newNames = (0 until n).toList.map(i=> "!p"+ java.util.UUID.randomUUID.toString/*nameSuffix.getAndIncrement*/)
 	  newNames.map( name=> new PartitionService(name,0,null,null,null))
 	}
 	def getRandomServerNamesOld(cfg:ClusterState,n:Int):List[StorageService] = {
@@ -59,7 +59,7 @@ class ClusterState(
 	val serversToPartitions:Map[StorageService,Set[PartitionService]], // server -> set(partition)
 	val keysToPartitions:Map[Option[org.apache.avro.generic.GenericRecord], Set[PartitionService]], // startkey -> set(partition)
 	val partitionsToKeys:Map[PartitionService,Option[org.apache.avro.generic.GenericRecord]], // partition -> startkey
-	val partitionsToSingleKey:Map[Option[org.apache.avro.generic.GenericRecord],Boolean], // startkey -> isSingleKey
+	val partitionsToKeyLimit:Map[Option[org.apache.avro.generic.GenericRecord],Boolean], // startkey -> isKeySizeLimit (currently size set in ScadsState)
 	val workloadRaw:WorkloadHistogram,
 	val time:Long
 ) {
@@ -95,7 +95,7 @@ class ClusterState(
 		val sToP = serversToPartitions(server) += fakepart
 		val kToP = keysToPartitions(key) += fakepart
 		val pToK = partitionsToKeys + (fakepart -> key)
-		new ClusterState(sToP,kToP,pToK,partitionsToSingleKey,workloadRaw,time)
+		new ClusterState(sToP,kToP,pToK,partitionsToKeyLimit,workloadRaw,time)
 	}
 	
 	def delete(part:PartitionService, server:StorageService):ClusterState = {
@@ -103,7 +103,7 @@ class ClusterState(
 		val sToP = serversToPartitions(server) -= part
 		val kToP = keysToPartitions(key) -= part
 		val pToK = partitionsToKeys - part
-		new ClusterState(sToP,kToP,pToK,partitionsToSingleKey,workloadRaw,time)
+		new ClusterState(sToP,kToP,pToK,partitionsToKeyLimit,workloadRaw,time)
 	}
 	
 	def split(part:Option[org.apache.avro.generic.GenericRecord], numSplits:Int):ClusterState = {
@@ -123,7 +123,7 @@ class ClusterState(
 		(new ClusterState(sToP,
 			Map(keysToPartitions.toList.map( p=> (p._1,p._2) ):_*),
 			Map(partitionsToKeys.toList.map( p=> (p._1,p._2) ):_*),
-			partitionsToSingleKey,workloadRaw,time), newservers)
+			partitionsToKeyLimit,workloadRaw,time), newservers)
 	}
 	
 	def addServer(newserver:StorageService):ClusterState = {
@@ -131,7 +131,7 @@ class ClusterState(
 		new ClusterState(sToP,
 			Map(keysToPartitions.toList.map( p=> (p._1,p._2) ):_*),
 			Map(partitionsToKeys.toList.map( p=> (p._1,p._2) ):_*),
-			partitionsToSingleKey,workloadRaw,time)
+			partitionsToKeyLimit,workloadRaw,time)
 	}
 	
 	def removeServers(servers:List[StorageService]):ClusterState = {
@@ -139,7 +139,7 @@ class ClusterState(
 		new ClusterState(serversToPartitions -- servers,
 			Map(keysToPartitions.toList.map( p=> (p._1,p._2) ):_*),
 			Map(partitionsToKeys.toList.map( p=> (p._1,p._2) ):_*) ,
-			partitionsToSingleKey,workloadRaw,time)
+			partitionsToKeyLimit,workloadRaw,time)
 	}
 	
 	// TODO: meaningless as immutable?
@@ -148,7 +148,7 @@ class ClusterState(
 			Map(serversToPartitions.toList.map( p=> (p._1,p._2) ):_*),
 			Map(keysToPartitions.toList.map( p=> (p._1,p._2) ):_*),
 			Map(partitionsToKeys.toList.map( p=> (p._1,p._2) ):_*) ,
-			partitionsToSingleKey,workloadRaw,time
+			partitionsToKeyLimit,workloadRaw,time
 		)
 	}
 	

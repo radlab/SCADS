@@ -16,10 +16,13 @@ object Director {
   def nextRndDouble(): Double = rnd.nextDouble()
 }
 
-case class Director(var numClients: Int, namespaceString: String, val scheduler: RemoteActorProxy) {
+case class Director(var numClients: Int, namespaceString: String, val scheduler: RemoteActorProxy, val appName:String = "NoName") {
+  val logger = Logger("director: "+namespaceString)
   val period = 20 * 1000
   var controller: Controller = null
   var thread: Thread = null
+  val listeners = new collection.mutable.ArrayBuffer[String => Unit]()
+  ScadsState.appName = appName
 
   class Controller(policy: Policy, executor: ActionExecutor, stateHistory: StateHistory) extends Runnable() {
     @volatile var running = true
@@ -51,11 +54,12 @@ case class Director(var numClients: Int, namespaceString: String, val scheduler:
     val stateHistory = StateHistory(period, namespace, policy)
     stateHistory.startUpdating
     val executor = /*new TestGroupingExecutor(namespace, splitQueue, mergeQueue)*/new SplittingGroupingExecutor(namespace, splitQueue, mergeQueue, scheduler)// new GroupingExecutor(namespace, scheduler)
+    listeners.foreach(executor.registerListener(_))
     executor.start
 
     // when clients are ready to start, start everything
     //val coordination = clusterRoot.getOrCreate("coordination") // TODO
-    Thread.sleep(10 * 1000)
+    //Thread.sleep(10 * 1000)
     controller = new Controller(policy, executor, stateHistory)
     thread = new Thread(controller, "Controller:"+namespace.namespace)
     thread.start
@@ -65,6 +69,9 @@ case class Director(var numClients: Int, namespaceString: String, val scheduler:
     controller.stop
   }
 
+  def registerActionListener(func: String => Unit): Unit = {
+    listeners.append(func)
+  }
 }
 
 // instantiate with zookeeper info

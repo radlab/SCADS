@@ -31,10 +31,41 @@ if(RAIN_STATS) {
 	for(period in PERIODS) {
 		startT = (mostRecent - 1000* 60 * period -1) #- 60*1000*2
 	
-		series <- dbGetQuery(con, paste("select timestamp,totalResponseTime,operationsSuccessful,actionsSuccessful from rainStats where timestamp > ",startT," order by timestamp DESC ",sep=''))
+	
+		# get RAIN stats for scadr
+		series <- dbGetQuery(con, paste("select timestamp,totalResponseTime,operationsSuccessful,actionsSuccessful from rainStats where trackName = 'scadr-000' and timestamp > ",startT," order by timestamp DESC ",sep=''))
 
 		if (nrow(series) > 0) {
-			reqRatePlotFile=paste("rainReqRate-",period,".png",sep='')
+			reqRatePlotFile=paste("scadrRainReqRate-",period,".png",sep='')
+			png(file=reqRatePlotFile, bg="transparent")
+		
+			times <- as.POSIXct( (series[TRUE,1]/1000 - TZShift), origin="1970-01-01")
+		
+			respTime <- series[TRUE,2]
+			opVec = respTime/series[TRUE,3]
+	#		actVec = respTime/series[TRUE,4]
+	#		allPts = c(opVec,actVec)
+	#		yrange <- range(allPts[ !is.nan(allPts)])
+			yrange <- range(opVec[ !is.nan(opVec)])
+			yrange[1] = 0
+			print(paste("have",length(opVec),"data points for RAIN; series length was ",length(series[[1]])))
+			plot(times, opVec , ylab="avg time (ms)", xlab="time", col="red", xaxt="n", type="o", main="",ylim=yrange,cex.lab=1.2)
+			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
+			mtext("RAIN avg response time for SCADr",side=3,cex=1.4,line=2)
+
+			par(new=F)
+		
+		#	legend( x="topleft", inset=0.05, c("operations", "Actions"), cex=1.0, col=c("red","blue"), bg="white", pch=21:22, lty=1:2)
+			legend( x="topleft", inset=0.05, "operations", cex=1.2, col="red", bg="white", pch=21:22, lty=1:2)
+			dev.off()
+		}
+		
+		
+		# get RAIN stats for gradit
+				series <- dbGetQuery(con, paste("select timestamp,totalResponseTime,operationsSuccessful,actionsSuccessful from rainStats where trackName = 'gradit-000' and timestamp > ",startT," order by timestamp DESC ",sep=''))
+
+		if (nrow(series) > 0) {
+			reqRatePlotFile=paste("graditRainReqRate-",period,".png",sep='')
 			png(file=reqRatePlotFile, bg="transparent")
 		
 			times <- as.POSIXct( (series[TRUE,1]/1000 - TZShift), origin="1970-01-01")
@@ -49,7 +80,7 @@ if(RAIN_STATS) {
 			print(paste("have",length(opVec),"data points for RAIN; series length was ",length(series[[1]])))
 			plot(times, opVec , ylab="avg time (ms)", xlab="time", col="red",	 xaxt="n", type="o", main="",ylim=yrange,cex.lab=1.2)
 			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
-			mtext("RAIN avg response time",side=3,cex=1.4,line=2)
+			mtext("RAIN avg response time for gRADit",side=3,cex=1.4,line=2)
 
 			par(new=F)
 		
@@ -57,6 +88,7 @@ if(RAIN_STATS) {
 			legend( x="topleft", inset=0.05, "operations", cex=1.2, col="red", bg="white", pch=21:22, lty=1:2)
 			dev.off()
 		}
+
 	}
 }
 
@@ -64,18 +96,19 @@ if(RAIN_STATS) {
 if(WEBAPP_STATS) {
 	for(period in PERIODS) {
 
+		# plot web server load, allocation data for SCADr
 		startT = (mostRecent - 1000* 60 * period -1)
 		series <- dbGetQuery(con,paste("select timestamp,aggRequestRate,targetNumServers from appReqRate where webAppID = 'SCADr' and timestamp > ",startT," order by timestamp DESC ",sep=''))
 		
 		if (nrow(series) > 0) {
-			reqRatePlotFile=paste("appReqRate-",period,".png",sep='')
+			reqRatePlotFile=paste("scadrReqRate-",period,".png",sep='')
 			png(file=reqRatePlotFile, bg="transparent")
 		
 			times <- as.POSIXct( (series[TRUE,1]/1000 - TZShift), origin="1970-01-01")
 			par(oma=c(1,1,1,2))
 			
 			yrange = c(0, 1.2*max(series[TRUE,2]))
-			plot(times, series[TRUE,2], xlab="", ylab="requests per second", col="red",	 xaxt="n", type="o", main="",col.lab="red",cex.lab=1.2, ylim=yrange)
+			plot(times, series[TRUE,2], xlab="", ylab="requests per second", col="red", xaxt="n", type="o", main="",col.lab="red",cex.lab=1.2, ylim=yrange)
 			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
 		
 			yrange = c(0, ceiling(1.2*max(series[TRUE,3])))
@@ -85,11 +118,77 @@ if(WEBAPP_STATS) {
 			axis(side=4, at=yrange,cex=1.2)
 			mtext("servers",side=4,col="blue",line=1,cex=1.2)
 			mtext("time", side=1,line=3,cex=1.2)
-			mtext("Web-server load and allocation",side=3,cex=1.4,line=2)
+			mtext("Web server load and allocation for SCADr",side=3,cex=1.4,line=2)
 
-			legend( x="topleft", inset=0.05, c("Request rate","Target server count"), cex=1.0, col=c("red","blue"), bg="white", pch=21:22, lty=1:2)
+			legend( x="topleft", inset=0.05, c("Request rate","Server count"), cex=1.0, col=c("red","blue"), bg="white", pch=21:22, lty=1:2)
 			dev.off()
 		}
+
+
+		# plot web server load, allocation data for gRADit
+		startT = (mostRecent - 1000* 60 * period -1)
+		series <- dbGetQuery(con,paste("select timestamp,aggRequestRate,targetNumServers from appReqRate where webAppID = 'gRADit' and timestamp > ",startT," order by timestamp DESC ",sep=''))
+		
+		if (nrow(series) > 0) {
+			reqRatePlotFile=paste("graditReqRate-",period,".png",sep='')
+			png(file=reqRatePlotFile, bg="transparent")
+		
+			times <- as.POSIXct( (series[TRUE,1]/1000 - TZShift), origin="1970-01-01")
+			par(oma=c(1,1,1,2))
+			
+			yrange = c(0, 1.2*max(series[TRUE,2]))
+			plot(times, series[TRUE,2], xlab="", ylab="requests per second", col="red", xaxt="n", type="o", main="",col.lab="red",cex.lab=1.2, ylim=yrange)
+			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
+		
+			yrange = c(0, ceiling(1.2*max(series[TRUE,3])))
+			par(new=T)
+			plot(times, series[TRUE,3] , col="blue",axes=F,xlab="",ylab="",type="o",ylim=yrange)
+		
+			axis(side=4, at=yrange,cex=1.2)
+			mtext("servers",side=4,col="blue",line=1,cex=1.2)
+			mtext("time", side=1,line=3,cex=1.2)
+			mtext("Web server load and allocation for gRADit",side=3,cex=1.4,line=2)
+
+			legend( x="topleft", inset=0.05, c("Request rate","Server count"), cex=1.0, col=c("red","blue"), bg="white", pch=21:22, lty=1:2)
+			dev.off()
+		}
+
+		
+		# plot avg CPU utilization for SCADr
+		cpuSeries = dbGetQuery(con,paste("select timestamp,averageUtilization from appReqRate where webAppID = 'SCADr' and timestamp > ",startT," order by timestamp DESC ",sep=''))
+		if (nrow(cpuSeries) > 0) {
+			cpuPlotFile=paste("scadrAverageCpuUtilization-",period,".png",sep='')
+			png(file= cpuPlotFile, bg="transparent")
+		
+			times <- as.POSIXct( (cpuSeries[TRUE,1]/1000 - TZShift), origin="1970-01-01")
+			par(oma=c(1,1,1,2))
+			
+			yrange = c(0, 1.2*max(cpuSeries[TRUE,2], na.rm=TRUE))
+			plot(times, cpuSeries[TRUE,2], xlab="", ylab="Average CPU utilization", col="red", xaxt="n", type="o", main="",cex.lab=1.2, ylim=yrange)
+			
+			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
+			mtext("time", side=1,line=3,cex=1.2)
+			mtext("Web server average CPU allocation for SCADr",side=3,cex=1.4,line=2)
+		}
+
+
+		# plot avg CPU utilization for gRADit
+		cpuSeries = dbGetQuery(con,paste("select timestamp,averageUtilization from appReqRate where webAppID = 'gRADit' and timestamp > ",startT," order by timestamp DESC ",sep=''))
+		if (nrow(cpuSeries) > 0) {
+			cpuPlotFile=paste("graditAverageCpuUtilization-",period,".png",sep='')
+			png(file= cpuPlotFile, bg="transparent")
+		
+			times <- as.POSIXct( (cpuSeries[TRUE,1]/1000 - TZShift), origin="1970-01-01")
+			par(oma=c(1,1,1,2))
+			
+			yrange = c(0, 1.2*max(cpuSeries[TRUE,2], na.rm=TRUE))
+			plot(times, cpuSeries[TRUE,2], xlab="", ylab="Average CPU utilization", col="red", xaxt="n", type="o", main="",cex.lab=1.2, ylim=yrange)
+			
+			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
+			mtext("time", side=1,line=3,cex=1.2)
+			mtext("Web server average CPU allocation for gRADit",side=3,cex=1.4,line=2)
+		}
+
 	}
 } #end webapp stats
 
@@ -118,7 +217,7 @@ if(PIQL_STATS) {
 		
 		png(file=paste("piql99thPercentile-",period,".png",sep=''), bg="transparent")
 		series <- dbGetQuery(con, paste("select timestamp,respTime99th from piqlReqRate where timestamp > ",startT," order by timestamp DESC",sep=''))
-		yrange = c(0,1.2*max(series[TRUE,2]))
+		yrange = c(0,1000)
 		distinctTime <- unique(series[TRUE,1])
 		medians = rep(0,length(distinctTime))
 		for(i in 1:length(distinctTime)) {

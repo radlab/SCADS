@@ -29,6 +29,15 @@ case class InitGraditClusterTask(var clusterAddress:String) extends AvroTask wit
   }
 }
 
+case class InitComradesClusterTask(var clusterAddress:String) extends AvroTask with AvroRecord {
+  import DemoConfig._
+
+  def run() = {
+    DemoConfig.initComradesCluster(clusterAddress)
+    System.exit(0)
+  }
+}
+
 case class ScadrDirectorTask(var clusterAddress: String, var mesosMaster: String) extends AvroTask with AvroRecord {
   import DemoConfig._
 
@@ -54,7 +63,7 @@ case class ScadrDirectorTask(var clusterAddress: String, var mesosMaster: String
   // val keySchema = entity.key.getSchema
   // val valueSchema = entity.value.getSchema
   // val initialPartitions = (None, cluster.getAvailableServers(name)) :: Nil
-  // 
+  //
   // Director.cluster.createNamespace(name, keySchema, valueSchema, initialPartitions)
   //       }
   //     }
@@ -64,10 +73,10 @@ case class ScadrDirectorTask(var clusterAddress: String, var mesosMaster: String
     //System.setProperty("doEmpty", "true")
 
     logger.info("Starting Directors")
-    val directors = namespaces.keys.map(ns => Director(1, ns, scheduler))
+    val directors = namespaces.keys.map(ns => Director(1, ns, scheduler,"SCADr"))
     //TODO: maybe we should pass the zookeeper address upon creation
+    directors.foreach(_.registerActionListener(DemoScadr.post))
     directors.foreach(_.run(clusterRoot))
-
     directors.foreach(_.thread.join())
   }
 }
@@ -82,16 +91,45 @@ case class GraditDirectorTask(var clusterAddress: String, var mesosMaster: Strin
            "wordlists" -> classOf[edu.berkeley.cs.scads.piql.gradit.WordList],
            "games" -> classOf[edu.berkeley.cs.scads.piql.gradit.Game],
            "gameplayers" -> classOf[edu.berkeley.cs.scads.piql.gradit.GamePlayer],
-           "users" -> classOf[edu.berkeley.cs.scads.piql.gradit.User])
+           "users" -> classOf[edu.berkeley.cs.scads.piql.gradit.User],
+           "challenges" -> classOf[edu.berkeley.cs.scads.piql.gradit.Challenge])
     val clusterRoot = ZooKeeperNode(clusterAddress)
     val scheduler = DemoConfig.serviceScheduler
     val cluster = new ExperimentalScadsCluster(clusterRoot)
+    val indexes = List("challenges_(user2)", "gameplayers_(score)", "gameplayers_(gameid)", "challenges_(user1)", "wordlists_(login)", "words_(wordlist)", "challenges_(game2)", "words_(word)", "challenges_(game1)")
 
-    cluster.blockUntilReady(namespaces.size)
+    cluster.blockUntilReady(namespaces.size + indexes.size)
     Director.cluster = cluster
 
     logger.info("Starting Gradit Directors")
-    val directors = namespaces.keys.map(ns => Director(1, ns, scheduler))
+    val directors = (namespaces.keys ++ indexes).map(ns => Director(1, ns, scheduler,"gRADit"))
+
+    directors.foreach(_.registerActionListener(DemoScadr.post))
+    //TODO: maybe we should pass the zookeeper address upon creation
+    directors.foreach(_.run(clusterRoot))
+
+    directors.foreach(_.thread.join())
+  }
+}
+
+case class ComradesDirectorTask(var clusterAddress: String, var mesosMaster: String) extends AvroTask with AvroRecord {
+  import DemoConfig._
+
+  def run() = {
+    val namespaces = Map("candidates" -> classOf[edu.berkeley.cs.scads.piql.comrades.Candidate],
+           "interviews" -> classOf[edu.berkeley.cs.scads.piql.comrades.Interview])
+    val clusterRoot = ZooKeeperNode(clusterAddress)
+    val scheduler = DemoConfig.serviceScheduler
+    val cluster = new ExperimentalScadsCluster(clusterRoot)
+    val indexes = List("candidates_(name)", "interviews_(researchArea,interviewedAt,createdAt)", "interviews_(researchArea,score,status,interviewedAt)")
+
+    cluster.blockUntilReady(namespaces.size + indexes.size)
+    Director.cluster = cluster
+
+    logger.info("Starting comRADes Directors")
+    val directors = (namespaces.keys ++ indexes).map(ns => Director(1, ns, scheduler,"comRADes"))
+
+    directors.foreach(_.registerActionListener(DemoScadr.post))
     //TODO: maybe we should pass the zookeeper address upon creation
     directors.foreach(_.run(clusterRoot))
 
