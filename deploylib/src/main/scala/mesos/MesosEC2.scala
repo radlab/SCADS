@@ -16,7 +16,7 @@ import com.amazonaws.services.ec2.model._
  */
 object MesosEC2 extends ConfigurationActions {
   val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
-  val mesosAmi = "ami-8a38c8e3"
+  val mesosAmi = "ami-44ce3d2d"
 
   def updateDeploylib(instances: Seq[EC2Instance] = slaves): Unit = {
     instances.pforeach(inst => {
