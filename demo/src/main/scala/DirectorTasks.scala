@@ -73,7 +73,7 @@ case class ScadrDirectorTask(var clusterAddress: String, var mesosMaster: String
     //System.setProperty("doEmpty", "true")
 
     logger.info("Starting Directors")
-    val directors = namespaces.keys.map(ns => Director(1, ns, scheduler))
+    val directors = namespaces.keys.map(ns => Director(1, ns, scheduler,"SCADr"))
     //TODO: maybe we should pass the zookeeper address upon creation
     directors.foreach(_.registerActionListener(DemoScadr.post))
     directors.foreach(_.run(clusterRoot))
@@ -102,7 +102,7 @@ case class GraditDirectorTask(var clusterAddress: String, var mesosMaster: Strin
     Director.cluster = cluster
 
     logger.info("Starting Gradit Directors")
-    val directors = (namespaces.keys ++ indexes).map(ns => Director(1, ns, scheduler))
+    val directors = (namespaces.keys ++ indexes).map(ns => Director(1, ns, scheduler,"gRADit"))
 
     directors.foreach(_.registerActionListener(DemoScadr.post))
     //TODO: maybe we should pass the zookeeper address upon creation
@@ -127,7 +127,7 @@ case class ComradesDirectorTask(var clusterAddress: String, var mesosMaster: Str
     Director.cluster = cluster
 
     logger.info("Starting comRADes Directors")
-    val directors = (namespaces.keys ++ indexes).map(ns => Director(1, ns, scheduler))
+    val directors = (namespaces.keys ++ indexes).map(ns => Director(1, ns, scheduler,"comRADes"))
 
     directors.foreach(_.registerActionListener(DemoScadr.post))
     //TODO: maybe we should pass the zookeeper address upon creation

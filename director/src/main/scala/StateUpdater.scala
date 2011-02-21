@@ -9,6 +9,7 @@ object ScadsState {
 	val logger = Logger("scadsstate")
 	val keySizeToReplicate = 10
 	System.setProperty("doMysqlLogging","true")
+	var appName = "NoName"
 
 	//set up mysql connection for statistics
   val statement = try {
@@ -112,7 +113,7 @@ object ScadsState {
 			// log about number of servers and requests/second for this namespace
   		val totalWorkload = workloadRaw.totalRate
   		if (totalWorkload > 0) {
-  		  val insertStatement = "INSERT INTO namespaceReqRate (timestamp, namespace, aggRequestRate, numServers) VALUES (%d, '%s', %f, %d)".format(time, namespace.namespace, totalWorkload, existingServers.size)
+  		  val insertStatement = "INSERT INTO namespaceReqRate (timestamp, appName, namespace, aggRequestRate, numServers) VALUES (%d, '%s','%s', %f, %d)".format(time, appName, namespace.namespace, totalWorkload, existingServers.size)
   		  val numResults = try { statement.map(_.executeUpdate(insertStatement)) } catch { case e => None}
         if (numResults.getOrElse(0) != 1)
           logger.warning("INSERT sql statment failed: %s",insertStatement)

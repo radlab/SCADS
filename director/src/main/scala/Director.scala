@@ -16,11 +16,13 @@ object Director {
   def nextRndDouble(): Double = rnd.nextDouble()
 }
 
-case class Director(var numClients: Int, namespaceString: String, val scheduler: RemoteActorProxy) {
+case class Director(var numClients: Int, namespaceString: String, val scheduler: RemoteActorProxy, val appName:String = "NoName") {
+  val logger = Logger("director: "+namespaceString)
   val period = 20 * 1000
   var controller: Controller = null
   var thread: Thread = null
   val listeners = new collection.mutable.ArrayBuffer[String => Unit]()
+  ScadsState.appName = appName
 
   class Controller(policy: Policy, executor: ActionExecutor, stateHistory: StateHistory) extends Runnable() {
     @volatile var running = true
