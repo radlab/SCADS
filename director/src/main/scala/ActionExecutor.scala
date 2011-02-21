@@ -144,7 +144,7 @@ class GroupingExecutor(val namespace:GenericNamespace, val scheduler:RemoteActor
   		replicate.foreach(a => a.setComplete)
   		
   	} catch { case e:Exception => {
-		  logger.warning(e,"replicate failed, so need to cancel them")
+		  logger.warning(e,"replicate failed, so need to cancel them: %s", replicate)
 		  replicate.foreach(a => a.cancel)
 		}}
 	}
