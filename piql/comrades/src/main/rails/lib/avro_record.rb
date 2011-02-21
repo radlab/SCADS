@@ -123,6 +123,7 @@ class AvroRecord
       rescue Exception => e
         puts "exception was thrown"
         puts e
+        puts "#{method_id} -- #{arguments}"
         raw_results = []
       end
       results = []

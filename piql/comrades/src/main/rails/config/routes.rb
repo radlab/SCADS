@@ -1,6 +1,6 @@
 ActionController::Routing::Routes.draw do |map|
-  map.resources :candidates, :requirements => { :id => /[^\/]+/ } do |candidates|
-    candidates.resources :interviews
+  map.resources :candidates do |candidate|
+    candidate.resources :interviews
   end
   map.root :controller => :candidates, :action => :index
 

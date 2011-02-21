@@ -6,3 +6,31 @@
   <li>Research Area: <%= @candidate.research_area %></li>
   <li>GPA: <%= @candidate.gpa %></li>
 </ul>
+
+<h3>Interviews</h3>
+<table>
+  <tr>
+    <th>Status</th>
+    <th>Requested</th>
+    <th>Scheduled</th>
+    <th>Interviewed By</th>
+    <th>Score</th>
+    <th>Details</th>
+  </tr>
+  <% @interviews.each do |iview| %>
+  <tr>
+    <td><%= iview.status %></td>
+    <td><%= Time.at(iview.created_at) %></td>
+    <td>
+      <%- if iview.interviewed_at == 0 -%>
+        <%= link_to "Schedule Now", edit_candidate_interview_path(@candidate, iview) %>
+      <%- else -%>
+        <%= Time.at(iview.interviewed_at) %>
+      <%- end -%>
+    </td>
+    <td><%= iview.interviewer %></td>
+    <td><%= iview.score %></td>
+    <td><%= link_to "Details", candidate_interview_path(@candidate, iview) %></td>
+  </tr>
+  <% end %>
+</table>

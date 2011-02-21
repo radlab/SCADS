@@ -1,9 +1,14 @@
 class InterviewsController < ApplicationController
-  def edit
-    @candidate = Candidate.find(params[:candidate_id])
-    @interview = Interview.find(params[:candidate_id], params[:id])
+  def show
+    @candidate = Candidate.find(Candidate.unescape(params[:candidate_id]))
+    @interview = Interview.find(@candidate.email, params[:id].to_i)
   end
-  
+
+  def edit
+    @candidate = Candidate.find(Candidate.unescape(params[:candidate_id]))
+    @interview = Interview.find(@candidate.email, params[:id].to_i)
+  end
+
   def update
   end
 end

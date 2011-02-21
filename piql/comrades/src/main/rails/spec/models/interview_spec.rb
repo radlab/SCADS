@@ -22,12 +22,20 @@ describe Interview do
     }
   end
 
-  it "should be able to access a candidate's interviews" do
+  it "should be able to find interviews" do
     iv = Interview.new(@valid_attributes)
     iv.save.should be_true
     interviews = Interview.find_interviews_for_candidate(iv.candidate)
     interviews.should_not be_blank
     interviews.first.first.status.should == "PENDING"
+  end
+  
+  it "should be able to find interviews for a candidate" do
+    iv = Interview.new(@valid_attributes)
+    iv.save.should be_true
+    interviews = @candidate.interviews
+    interviews.should_not be_blank
+    interviews.first.status.should == "PENDING"
   end
   
   it "should be able to return candidates that need interviews" do

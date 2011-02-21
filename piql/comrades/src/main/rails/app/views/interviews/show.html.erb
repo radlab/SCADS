@@ -1,0 +1,25 @@
+<h2>Interview Details</h2>
+
+<h3>Candidate Details</h3>
+<ul>
+  <li>Name: <%= @candidate.name %></li>
+  <li>Email: <%= @candidate.email %></li>
+  <li>School: <%= @candidate.school %></li>
+  <li>Research Area: <%= @candidate.research_area %></li>
+  <li>GPA: <%= @candidate.gpa %></li>
+</ul>
+
+<ul>
+  <li>Status: <%= @interview.status %></li>
+  <li>Requested: <%= Time.at(@interview.created_at) %></li>
+  <li>Scheduled: 
+    <%- if @interview.interviewed_at == 0 -%>
+      <%= link_to "Schedule Now", edit_candidate_interview_path(@candidate, @interview) %>
+    <%- else -%>
+      <%= Time.at(@interview.interviewed_at) %>
+    <%- end -%>
+  </li>
+  <li>Interviewer: <%= @interview.interviewer %></li>
+  <li>Score: <%= @interview.score %></li>
+  <li>Comments: <%= simple_format(@interview.comments) %>
+</ul>

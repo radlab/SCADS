@@ -1,0 +1,13 @@
+<h2>Interviewing Candidate: <%=h @candidate.name %></h2>
+
+<% semantic_form_for [@candidate, @interview] do |form| %>
+  <% form.inputs do %>
+    <%= form.input :interviewed_at %>
+    <%= form.input :interviewer %>
+    <%= form.input :comments %>
+    <%= form.input :score %>
+  <% end %>
+  <% form.buttons do %>
+    <%= form.commit_button %>
+  <% end %>
+<% end %>

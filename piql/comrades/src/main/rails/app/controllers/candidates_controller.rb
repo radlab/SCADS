@@ -5,7 +5,8 @@ class CandidatesController < ApplicationController
   end
   
   def show
-    @candidate = Candidate.find(params[:id])
+    @candidate = Candidate.find(Candidate.unescape(params[:id]))
+    @interviews = @candidate.interviews
   end
   
   def new
@@ -21,9 +22,9 @@ class CandidatesController < ApplicationController
         :created_at => Time.now.to_i,
         :interviewed_at => 0,
         :status => "PENDING",
-        :score => nil,
-        :comments => nil,
-        :interviewer => nil,
+        :score => 0,
+        :comments => "",
+        :interviewer => "",
         :research_area => @candidate.research_area
         })
       if @interview.save

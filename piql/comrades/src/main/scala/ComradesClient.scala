@@ -15,8 +15,8 @@ case class Candidate(var email: String) extends AvroPair {
   var researchArea: String = _
 }
 
-case class Interview(var candidate: String, var createdAt: Int) extends AvroPair {
-  var interviewedAt: Int = _
+case class Interview(var candidate: String, var createdAt: Long) extends AvroPair {
+  var interviewedAt: Long = _
   var status: String = _
   var score: Int = _
   var comments: String = _
@@ -46,7 +46,7 @@ class ComradesClient(val cluster: ScadsCluster, executor: QueryExecutor) {
 		      AttributeValue(0, 3) :: Nil,
 	LocalStopAfter(FixedLimit(maxResultsPerPage),
 	  IndexScan(interviews.getOrCreateIndex("researchArea" :: "interviewedAt" :: "createdAt" :: Nil),
-		    ParameterValue(0) :: ConstantValue(0) :: Nil,
+		    ParameterValue(0) :: ConstantValue(new java.lang.Long(0)) :: Nil,
 		    FixedLimit(maxResultsPerPage),
 		    true))),
       executor)
