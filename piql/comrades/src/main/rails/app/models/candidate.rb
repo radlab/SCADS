@@ -43,6 +43,19 @@ class Candidate < AvroRecord
     new_record ||= true
     new_record
   end
+  
+  def valid?
+    errors = []
+    [:email, :name, :school, :gpa, :research_area].each do |field|
+      if self.send(field).blank?
+        errors.push [field, "cannot be blank"]
+      end
+    end
+    if self.gpa <= 0 or self.gpa > 4.0
+      errors.push [:gpa, "must be valid"]
+    end
+    return errors.blank?
+  end
 
   def id
     email

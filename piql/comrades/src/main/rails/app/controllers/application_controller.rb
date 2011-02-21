@@ -8,4 +8,14 @@ class ApplicationController < ActionController::Base
 
   # Scrub sensitive parameters from your log
   # filter_parameter_logging :password
+  
+  private
+    def helpers
+      Helper.instance
+    end
+
+    class Helper
+      include Singleton
+      include ActionView::Helpers
+    end
 end

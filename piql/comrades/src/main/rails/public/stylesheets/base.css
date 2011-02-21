@@ -87,3 +87,16 @@ div.column {
 div.columns {
   clear: both;
 }
+ul.profile {
+  list-style: none;
+  padding: 0;
+}
+ul.profile li span {
+  display: inline-block;
+  font-weight: bold;
+  width: 110px;
+  padding-right: 10px;
+}
+ul.profile li {
+  line-height: 1.5em;
+}
