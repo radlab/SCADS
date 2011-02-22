@@ -1,6 +1,7 @@
 package edu.berkeley.cs.scads.director
 
 import edu.berkeley.cs.scads.comm.{PartitionService,StorageService}
+import net.lag.logging.Logger
 
 object ClusterState {
 	val pastServers = scala.collection.mutable.HashSet[String]()
@@ -63,6 +64,7 @@ class ClusterState(
 	val workloadRaw:WorkloadHistogram,
 	val time:Long
 ) {
+  val logger = Logger("clusterstate")
   //val wlKeys = workloadRaw.rangeStats.keySet
   keysToPartitions.keys.foreach(key => assert(workloadRaw.rangeStats.contains(key), "cluster state workload doesn't contain "+key))
   //assert(keysToPartitions.keys.sameElements(workloadRaw.rangeStats.keys), "cluster state must have same partitions as in the workload")
@@ -83,7 +85,7 @@ class ClusterState(
 	
 	def partitionOnServer(startkey:Option[org.apache.avro.generic.GenericRecord], server:StorageService):PartitionService = {
 		val result = serversToPartitions(server).intersect(keysToPartitions(startkey))
-		assert (result.size == 1)
+		if (result.size == 1) logger.warning("have multiple partitions (%s) for same key (%s) on server %s",result,startkey,server)
 		result.toList.head
 	}
 	

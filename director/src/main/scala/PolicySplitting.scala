@@ -163,12 +163,13 @@ class BestFitPolicySplitting(
     
 		// order merge candidates by increasing workload
 		workloadPerServer = PerformanceEstimator.estimateServerWorkloadReads(config,_workload,reads)
-		var mergeCandidates = (config.servers -- overloadedServers/* -- borderlineServers*/ -- senders -- receivers -- ghosts).
+		var mergeCandidates = (config.servers -- overloadedServers/* -- borderlineServers*/ -- receivers -- ghosts).
 									toList.sort( workloadPerServer(_)<workloadPerServer(_) ) // TODO: is 'receivers' too broad a set to exclude?
 		config = handleUnderloaded(config,_workload * 1.2, mergeCandidates)
 		
 		// try merging partitions
-		handleMerging(config,overloadedServerPartitions/* ++ borderlinePartitions*/)
+		logger.info("can't merge partitions on these senders: %s", senders)
+		handleMerging(config,overloadedServerPartitions/* ++ borderlinePartitions*/ ++ config.partitionsOnServers(senders.toList))
 		
 	// STEP 3: add/remove servers as necessary
 	val startedEmpty = _config.getEmptyServers // use original config
@@ -306,11 +307,20 @@ class BestFitPolicySplitting(
   			for (partition <- partitions) {
   				if (minRangeCouldntMove == null || workload.rangeStats(partition).compare(workload.rangeStats(minRangeCouldntMove)) < 0) {
   					logger.debug("  trying to move range "+partition+": "+workload.rangeStats(partition))
-  					val stateAfterMove = findMoveAction(server, currentState.partitionOnServer(partition,server), orderedPotentialTargets  - server, currentState, workload, MOVE_COALESCE)//tryMoving(range,server,orderedPotentialTargets)
+  					val stateAfterMove = findMoveAction(server, currentState.partitionOnServer(partition,server), orderedPotentialTargets  - server -- currentState.serversForKey(partition).toList, currentState, workload, MOVE_COALESCE)//tryMoving(range,server,orderedPotentialTargets)
   					if (stateAfterMove.isDefined) { currentState = stateAfterMove.get; logger.debug("updating state after merge move: %s",currentState); successfulMove = true; activePartitions += partition }
   					if (!successfulMove) minRangeCouldntMove = partition
   				}
   			} // end for on partitions
+  			if (!successfulMove && !partitions.isEmpty) {
+  			  val toSplit = partitions.head
+  			  if (!currentState.partitionsToKeyLimit(toSplit)) {
+  			    logger.info("couldn't move any partitions on %s, so splitting partition %s", server, toSplit)
+  			    val splitAction = SplitPartition(toSplit,splitFactor, MOVE_COALESCE)
+  			    currentState = addAction(splitAction,currentState)
+  			    activePartitions += toSplit
+			    }
+  			}
 		  }
 		} // end for on servers
     
