@@ -41,7 +41,7 @@ object ScadsState {
 			val pToK = new scala.collection.mutable.HashMap[PartitionService,Option[org.apache.avro.generic.GenericRecord]]()
 			val pToSingle = new scala.collection.mutable.HashMap[Option[org.apache.avro.generic.GenericRecord],Boolean]()
 			kToP.foreach(entry => {// key -> set(partitions)
-			  pToSingle(entry._1) = namespace.isPartitionKeySize(entry._1, keySizeToReplicate)
+			  pToSingle(entry._1) = try { namespace.isPartitionKeySize(entry._1, keySizeToReplicate) } catch { case e:Exception => { logger.warning(e,"couldn't chcek if partition is at key limit %s", entry._1) ;false}}
 				entry._2.foreach(partition =>{
 					pToK += (partition -> entry._1)
 					val serverparts = sToP.getOrElse(partition.storageService,new scala.collection.mutable.ListBuffer[PartitionService]())
@@ -85,7 +85,7 @@ object ScadsState {
 
 		kToP.foreach(entry => {// key -> set(partitions)
 			entry._2.foreach(partition =>{
-			  pToSingle(entry._1) = namespace.isPartitionKeySize(entry._1, keySizeToReplicate)
+			  pToSingle(entry._1) = try { namespace.isPartitionKeySize(entry._1, keySizeToReplicate) } catch { case e:Exception => { logger.warning(e,"couldn't chcek if partition is at key limit %s", entry._1) ;false}}
 				pToK += (partition -> entry._1)
 				val serverparts = sToP.getOrElse(partition.storageService,new scala.collection.mutable.ListBuffer[PartitionService]())
 				serverparts += partition
