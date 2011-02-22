@@ -33,6 +33,7 @@ class BestFitPolicySplitting(
 	var actions:ListBuffer[Action] = null
 	var ghostActions:ListBuffer[Action] = null
 	var receivers:scala.collection.mutable.Set[StorageService] = null
+	var senders:scala.collection.mutable.Set[StorageService] = null
 	var activePartitions:scala.collection.mutable.Set[Option[org.apache.avro.generic.GenericRecord]] = null
 	var partReplicas:scala.collection.mutable.Set[Option[org.apache.avro.generic.GenericRecord]] = null
 	var ghosts:scala.collection.mutable.Set[StorageService] = null
@@ -132,6 +133,7 @@ class BestFitPolicySplitting(
 		actions = new ListBuffer[Action]()
 		ghostActions = new ListBuffer[Action]()
 		receivers = scala.collection.mutable.Set[StorageService]()
+		senders = scala.collection.mutable.Set[StorageService]()
 		activePartitions = scala.collection.mutable.Set[Option[org.apache.avro.generic.GenericRecord]]()
 		partReplicas = scala.collection.mutable.Set[Option[org.apache.avro.generic.GenericRecord]]()
 		ghosts = scala.collection.mutable.Set[StorageService]()
@@ -161,7 +163,7 @@ class BestFitPolicySplitting(
     
 		// order merge candidates by increasing workload
 		workloadPerServer = PerformanceEstimator.estimateServerWorkloadReads(config,_workload,reads)
-		var mergeCandidates = (config.servers -- overloadedServers/* -- borderlineServers*/ -- receivers -- ghosts).
+		var mergeCandidates = (config.servers -- overloadedServers/* -- borderlineServers*/ -- senders -- receivers -- ghosts).
 									toList.sort( workloadPerServer(_)<workloadPerServer(_) ) // TODO: is 'receivers' too broad a set to exclude?
 		config = handleUnderloaded(config,_workload * 1.2, mergeCandidates)
 		
@@ -383,6 +385,7 @@ class BestFitPolicySplitting(
     if (targetServer.isDefined) { // successfully have a target server for the partition
       logger.debug("target for move: %s", targetServer.get)
       receivers += targetServer.get
+      senders += server
       if (!ghosts.contains(targetServer.get)) movableActions.get.foreach(a=> currentState = addAction(a,currentState))
       else movableActions.get.foreach(a=> currentState = addGhostAction(a,currentState))
       Some(currentState)
