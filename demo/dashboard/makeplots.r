@@ -13,10 +13,10 @@ con <- dbConnect(MySQL(), dbname = "radlabmetrics" , user="radlab_dev", password
 
 TZShift = 8*3600	#PST = GMT - 8 hours
 PERIODS = c(10, 60, 300)	#minutes
-WEBAPP_STATS = FALSE
+WEBAPP_STATS = TRUE
 SCADS_STATS = TRUE
-PIQL_STATS = FALSE
-RAIN_STATS = FALSE
+PIQL_STATS = TRUE
+RAIN_STATS = TRUE
 
 mostRecentPt <- function(tableName) {
 	val <- dbGetQuery(con,paste("select timestamp from ",tableName," order by timestamp DESC limit 1", sep=''))
