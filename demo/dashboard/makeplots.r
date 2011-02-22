@@ -13,9 +13,9 @@ con <- dbConnect(MySQL(), dbname = "radlabmetrics" , user="radlab_dev", password
 
 TZShift = 8*3600	#PST = GMT - 8 hours
 PERIODS = c(10, 60, 300)	#minutes
-WEBAPP_STATS = TRUE
-SCADS_STATS = TRUE
-PIQL_STATS = TRUE
+WEBAPP_STATS = FALSE
+SCADS_STATS = FALSE
+PIQL_STATS = FALSE
 RAIN_STATS = TRUE
 
 mostRecentPt <- function(tableName) {
@@ -28,67 +28,41 @@ print(paste("Most recent time is",mostRecent))
 
 ###### Rain stats
 if(RAIN_STATS) {
+
 	for(period in PERIODS) {
-		startT = (mostRecent - 1000* 60 * period -1) #- 60*1000*2
-	
-	
-		# get RAIN stats for scadr
-		series <- dbGetQuery(con, paste("select timestamp,totalResponseTime,operationsSuccessful,actionsSuccessful from rainStats where trackName = 'scadr-000' and timestamp > ",startT," order by timestamp DESC ",sep=''))
+		startT <- (mostRecent - 1000* 60 * period -1) 
+		tracknamesL <- dbGetQuery(con, paste("select DISTINCT trackName from rainStats where timestamp > ",startT," order by trackName",sep=''))
+		tracknames = tracknamesL[[1]]
 
-		if (nrow(series) > 0) {
-			reqRatePlotFile=paste("scadrRainReqRate-",period,".png",sep='')
-			png(file=reqRatePlotFile, bg="transparent")
+		appNum = 0
+		reqRatePlotFile=paste("rainReqRate-",period,".png",sep='')
+		png(file=reqRatePlotFile, bg="transparent")
+		allTimesRaw = dbGetQuery(con, paste("select DISTINCT timestamp from rainStats where timestamp > ",startT," order by timestamp",sep=''))
+		allTimesPosix = as.POSIXct( ( allTimesRaw[TRUE,1]/1000 - TZShift), origin="1970-01-01")
+		maxYTuple = dbGetQuery(con, paste("select totalResponseTime,operationsSuccessful from rainStats where timestamp > ",startT," order by totalResponseTime/operationsSuccessful DESC limit 1",sep=''))
+		maxY = maxYTuple[[1]]/maxYTuple[[2]]
+		yrange <- c(0,maxY * 1.2) 
+
+		for(trackname in tracknames) {
+			appNum = appNum+1
+			series <- dbGetQuery(con, paste("select timestamp,totalResponseTime,operationsSuccessful,actionsSuccessful from rainStats where trackName = '",trackname,"' and timestamp > ",startT," order by timestamp ",sep=''))
+			if (nrow(series) == 0)
+				continue;
 		
 			times <- as.POSIXct( (series[TRUE,1]/1000 - TZShift), origin="1970-01-01")
 		
 			respTime <- series[TRUE,2]
 			opVec = respTime/series[TRUE,3]
-	#		actVec = respTime/series[TRUE,4]
-	#		allPts = c(opVec,actVec)
-	#		yrange <- range(allPts[ !is.nan(allPts)])
-			yrange <- range(opVec[ !is.nan(opVec)])
-			yrange[1] = 0
 			print(paste("have",length(opVec),"data points for RAIN; series length was ",length(series[[1]])))
-			plot(times, opVec , ylab="avg time (ms)", xlab="time", col="red", xaxt="n", type="o", main="",ylim=yrange,cex.lab=1.2)
-			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
-			mtext("RAIN avg response time for SCADr",side=3,cex=1.4,line=2)
-
-			par(new=F)
-		
-		#	legend( x="topleft", inset=0.05, c("operations", "Actions"), cex=1.0, col=c("red","blue"), bg="white", pch=21:22, lty=1:2)
-			legend( x="topleft", inset=0.05, "operations", cex=1.2, col="red", bg="white", pch=21:22, lty=1:2)
-			dev.off()
+			par(new=T)
+			plot(times, opVec , ylab="avg time (ms)", xlab="time", col=appNum, xaxt="n", type="o", main="",ylim=yrange,cex.lab=1.2)
 		}
-		
-		
-		# get RAIN stats for gradit
-				series <- dbGetQuery(con, paste("select timestamp,totalResponseTime,operationsSuccessful,actionsSuccessful from rainStats where trackName = 'gradit-000' and timestamp > ",startT," order by timestamp DESC ",sep=''))
+		axis.POSIXct(1, allTimesPosix, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
+		mtext("RAIN avg response time for SCADr",side=3,cex=1.4,line=2)
 
-		if (nrow(series) > 0) {
-			reqRatePlotFile=paste("graditRainReqRate-",period,".png",sep='')
-			png(file=reqRatePlotFile, bg="transparent")
+		legend( x="topleft", inset=0.05, as.character(tracknames), cex=1.2, col=1:appNum, bg="white", pch=21:22, lty=1:2)
+		dev.off()
 		
-			times <- as.POSIXct( (series[TRUE,1]/1000 - TZShift), origin="1970-01-01")
-		
-			respTime <- series[TRUE,2]
-			opVec = respTime/series[TRUE,3]
-	#		actVec = respTime/series[TRUE,4]
-	#		allPts = c(opVec,actVec)
-	#		yrange <- range(allPts[ !is.nan(allPts)])
-			yrange <- range(opVec[ !is.nan(opVec)])
-			yrange[1] = 0
-			print(paste("have",length(opVec),"data points for RAIN; series length was ",length(series[[1]])))
-			plot(times, opVec , ylab="avg time (ms)", xlab="time", col="red",	 xaxt="n", type="o", main="",ylim=yrange,cex.lab=1.2)
-			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
-			mtext("RAIN avg response time for gRADit",side=3,cex=1.4,line=2)
-
-			par(new=F)
-		
-		# legend( x="topleft", inset=0.05, c("operations", "Actions"), cex=1.0, col=c("red","blue"), bg="white", pch=21:22, lty=1:2)
-			legend( x="topleft", inset=0.05, "operations", cex=1.2, col="red", bg="white", pch=21:22, lty=1:2)
-			dev.off()
-		}
-
 	}
 }
 
@@ -221,11 +195,11 @@ if(PIQL_STATS) {
 		distinctTime <- unique(series[TRUE,1])
 		medians = rep(0,length(distinctTime))
 		for(i in 1:length(distinctTime)) {
-		  thisTimeSubset = series[ series[TRUE,1] == distinctTime[i]  ,2]
-		  medians[i] = median(thisTimeSubset)
-		  }
+			thisTimeSubset = series[ series[TRUE,1] == distinctTime[i]	,2]
+			medians[i] = median(thisTimeSubset)
+			}
 		multiTimes <- as.POSIXct( (series[TRUE,1]/1000 - TZShift), origin="1970-01-01")
-    distinctTimes <- as.POSIXct( (distinctTime/1000 - TZShift), origin="1970-01-01")
+		distinctTimes <- as.POSIXct( (distinctTime/1000 - TZShift), origin="1970-01-01")
 		plot(multiTimes, series[TRUE,2], ylab="99th percentile latency (ms)", xlab="time", col="red",	 xaxt="n", type="p", main="",cex.lab=1.2, ylim=yrange)
 		par(new=T)
 		plot(distinctTimes, medians, col="blue",axes=F,xlab="",ylab="",type="o",ylim=yrange)
