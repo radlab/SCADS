@@ -1,0 +1,8 @@
+<% show_name ||= false %>
+<ul class="profile">
+  <%- if show_name %><li><span>Name:</span><%= candidate.name %></li><% end -%>
+  <li><span>Email:</span><%= candidate.email %></li>
+  <li><span>School:</span><%= candidate.school %></li>
+  <li><span>GPA:</span><%= candidate.gpa %></li>
+  <li><span>Research Area:</span><%= candidate.research_area %></li>
+</ul>

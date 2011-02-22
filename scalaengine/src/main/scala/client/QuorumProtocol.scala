@@ -42,7 +42,7 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
   
   import QuorumProtocol._
 
-  protected var lostMessageTolerance = 1;
+  protected var lostMessageTolerance = 0;
 
   protected var readQuorum: Double = 0.001
   protected var writeQuorum: Double = 1.0

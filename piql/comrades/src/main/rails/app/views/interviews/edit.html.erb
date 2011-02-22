@@ -1,13 +1,6 @@
 <h2>Interviewing Candidate: <%=h @candidate.name %></h2>
 
-<h3>Candidate Profile</h3>
-<ul>
-  <li>Name: <%= @candidate.name %></li>
-  <li>Email: <%= @candidate.email %></li>
-  <li>School: <%= @candidate.school %></li>
-  <li>Research Area: <%= @candidate.research_area %></li>
-  <li>GPA: <%= @candidate.gpa %></li>
-</ul>
+<%= render :partial => 'candidates/show', :locals => { :candidate => @candidate } %>
 
 <% semantic_form_for [@candidate, @interview] do |form| %>
   <% form.inputs do %>

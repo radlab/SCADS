@@ -17,6 +17,7 @@ class InterviewsController < ApplicationController
     params[:interview][:score] = params[:interview][:score].to_i
     
     params[:interview].each do |key, value|
+      value = helpers.strip_tags(value) if value.respond_to?(:empty?)
       @interview.send "#{key.to_s}=".to_sym, value
     end
 
@@ -31,14 +32,14 @@ class InterviewsController < ApplicationController
       @interview.interviewed_at = Time.now.to_i
       @interview.status = "INTERVIEWED"
       if @interview.save
-        flash[:notice] = "Candidate interviewed"
+        flash[:notice] = "Candidate interviewed."
         redirect_to candidate_interview_path(@candidate, @interview)
       else
-        flash[:error] = "Failed to update interview"
+        flash[:error] = "Failed to update interview."
         render :action => :edit
       end
     else
-      flash[:error] = "Please fill out all fields"
+      flash[:error] = "Please fill out all fields with valid inputs."
       render :action => :edit
     end
   end

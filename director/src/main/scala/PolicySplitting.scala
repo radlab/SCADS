@@ -33,6 +33,7 @@ class BestFitPolicySplitting(
 	var actions:ListBuffer[Action] = null
 	var ghostActions:ListBuffer[Action] = null
 	var receivers:scala.collection.mutable.Set[StorageService] = null
+	var senders:scala.collection.mutable.Set[StorageService] = null
 	var activePartitions:scala.collection.mutable.Set[Option[org.apache.avro.generic.GenericRecord]] = null
 	var partReplicas:scala.collection.mutable.Set[Option[org.apache.avro.generic.GenericRecord]] = null
 	var ghosts:scala.collection.mutable.Set[StorageService] = null
@@ -132,6 +133,7 @@ class BestFitPolicySplitting(
 		actions = new ListBuffer[Action]()
 		ghostActions = new ListBuffer[Action]()
 		receivers = scala.collection.mutable.Set[StorageService]()
+		senders = scala.collection.mutable.Set[StorageService]()
 		activePartitions = scala.collection.mutable.Set[Option[org.apache.avro.generic.GenericRecord]]()
 		partReplicas = scala.collection.mutable.Set[Option[org.apache.avro.generic.GenericRecord]]()
 		ghosts = scala.collection.mutable.Set[StorageService]()
@@ -161,7 +163,7 @@ class BestFitPolicySplitting(
     
 		// order merge candidates by increasing workload
 		workloadPerServer = PerformanceEstimator.estimateServerWorkloadReads(config,_workload,reads)
-		var mergeCandidates = (config.servers -- overloadedServers/* -- borderlineServers*/ -- receivers -- ghosts).
+		var mergeCandidates = (config.servers -- overloadedServers/* -- borderlineServers*/ -- senders -- receivers -- ghosts).
 									toList.sort( workloadPerServer(_)<workloadPerServer(_) ) // TODO: is 'receivers' too broad a set to exclude?
 		config = handleUnderloaded(config,_workload * 1.2, mergeCandidates)
 		
@@ -383,6 +385,7 @@ class BestFitPolicySplitting(
     if (targetServer.isDefined) { // successfully have a target server for the partition
       logger.debug("target for move: %s", targetServer.get)
       receivers += targetServer.get
+      senders += server
       if (!ghosts.contains(targetServer.get)) movableActions.get.foreach(a=> currentState = addAction(a,currentState))
       else movableActions.get.foreach(a=> currentState = addGhostAction(a,currentState))
       Some(currentState)
@@ -432,16 +435,18 @@ class BestFitPolicySplitting(
     
     for (target <- orderedPotentialTargets) {
       if (!done && nReplicas < MAX_R) {
-        logger.info("trying more than %d relicas for %s", nReplicas, part)
+        logger.info("trying more than %d relicas for %s (trying target %s)", nReplicas, part, target)
         val replicateAction = ReplicatePartition(part,sourceServer,target,MOVE_OVERLOAD)
     		var tmpConfig = replicateAction.preview(currentConfig)
         if (!performanceEstimator.violationOnServer(tmpConfig,workload,target)) { // ok for target to move there	
       		receivers += target
       		nReplicas += 1
       		if (ghosts.contains(target)) {
+      		  logger.info("ghost replicate to target %s", target)
       		  currentConfig = addGhostAction(replicateAction,currentConfig)
       		}
       		else {
+      		  logger.info("replicate to target %s", target)
       		  currentConfig = tmpConfig
       		  repActions += replicateAction
       		}
@@ -451,7 +456,7 @@ class BestFitPolicySplitting(
     }
     // if don't have enough replicas still, start adding more servers
     while (!done && nReplicas < MAX_R) {
-      logger.debug("trying more than %d relicas on new servers", nReplicas)
+      logger.info("trying more than %d replicas on new servers", nReplicas)
       val (emptyServer, addServerAction) = getEmptyServer(REP_ADD,currentConfig)
       val replicateAction = ReplicatePartition(part,sourceServer,emptyServer,REP_ADD)
       if (addServerAction.isDefined) { ghosts += emptyServer; currentConfig = addGhostAction(addServerAction.get,currentConfig); repActions += addServerAction.get }

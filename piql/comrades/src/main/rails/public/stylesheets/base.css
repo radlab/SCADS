@@ -10,12 +10,15 @@ header.page {
   display: block;
 }
 header.page h1 {
+  margin: 20px 20px;
+  padding: 0;
+}
+header.page h1 a {
+  display: block;
   text-indent: -9999px;
   background: #1d348a url('../images/logo.png') top left no-repeat;
-  height: 100px;
+  height: 62px;
   width: 389px;
-  margin: 0 20px;
-  padding: 0;
 }
 header.page nav ul {
   list-style: none;
@@ -86,4 +89,17 @@ div.column {
 }
 div.columns {
   clear: both;
+}
+ul.profile {
+  list-style: none;
+  padding: 0;
+}
+ul.profile li span {
+  display: inline-block;
+  font-weight: bold;
+  width: 110px;
+  padding-right: 10px;
+}
+ul.profile li {
+  line-height: 1.5em;
 }
