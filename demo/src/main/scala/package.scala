@@ -13,6 +13,8 @@ package object demo {
 
   val logger = net.lag.logging.Logger()
 
+  lazy val twitterSpamData = new ScadsCluster(twitterSpamRoot).getNamespace[TwitterSpamRecord]("twitterSpamRecords")
+
   def runDemo: Unit = {
     resetScads
     startScadrCluster()
