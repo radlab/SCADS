@@ -163,12 +163,13 @@ class BestFitPolicySplitting(
     
 		// order merge candidates by increasing workload
 		workloadPerServer = PerformanceEstimator.estimateServerWorkloadReads(config,_workload,reads)
-		var mergeCandidates = (config.servers -- overloadedServers/* -- borderlineServers*/ -- senders -- receivers -- ghosts).
+		var mergeCandidates = (config.servers -- overloadedServers/* -- borderlineServers*/ -- receivers -- ghosts).
 									toList.sort( workloadPerServer(_)<workloadPerServer(_) ) // TODO: is 'receivers' too broad a set to exclude?
 		config = handleUnderloaded(config,_workload * 1.2, mergeCandidates)
 		
 		// try merging partitions
-		handleMerging(config,overloadedServerPartitions/* ++ borderlinePartitions*/)
+		logger.info("can't merge partitions on these senders: %s", senders)
+		handleMerging(config,overloadedServerPartitions/* ++ borderlinePartitions*/ ++ config.partitionsOnServers(senders.toList))
 		
 	// STEP 3: add/remove servers as necessary
 	val startedEmpty = _config.getEmptyServers // use original config
