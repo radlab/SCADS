@@ -135,6 +135,12 @@ object DemoConfig {
 	      cluster.createNamespace(name, keySchema, valueSchema, initialPartitions)
       }
     }
+    
+    import scads.piql.scadr._
+    val client = new ScadrClient(cluster, new scads.piql.SimpleExecutor)
+    logger.info("begining bulk load of users")
+    client.users ++= AvroHttpFile[User]("https://scadr.s3.amazonaws.com/users.avro")
+
     startScadrDirector()
   }
 
