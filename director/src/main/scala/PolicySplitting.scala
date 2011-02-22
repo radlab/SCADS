@@ -435,16 +435,18 @@ class BestFitPolicySplitting(
     
     for (target <- orderedPotentialTargets) {
       if (!done && nReplicas < MAX_R) {
-        logger.info("trying more than %d relicas for %s", nReplicas, part)
+        logger.info("trying more than %d relicas for %s (trying target %s)", nReplicas, part, target)
         val replicateAction = ReplicatePartition(part,sourceServer,target,MOVE_OVERLOAD)
     		var tmpConfig = replicateAction.preview(currentConfig)
         if (!performanceEstimator.violationOnServer(tmpConfig,workload,target)) { // ok for target to move there	
       		receivers += target
       		nReplicas += 1
       		if (ghosts.contains(target)) {
+      		  logger.info("ghost replicate to target %s", target)
       		  currentConfig = addGhostAction(replicateAction,currentConfig)
       		}
       		else {
+      		  logger.info("replicate to target %s", target)
       		  currentConfig = tmpConfig
       		  repActions += replicateAction
       		}
@@ -454,7 +456,7 @@ class BestFitPolicySplitting(
     }
     // if don't have enough replicas still, start adding more servers
     while (!done && nReplicas < MAX_R) {
-      logger.debug("trying more than %d relicas on new servers", nReplicas)
+      logger.info("trying more than %d replicas on new servers", nReplicas)
       val (emptyServer, addServerAction) = getEmptyServer(REP_ADD,currentConfig)
       val replicateAction = ReplicatePartition(part,sourceServer,emptyServer,REP_ADD)
       if (addServerAction.isDefined) { ghosts += emptyServer; currentConfig = addGhostAction(addServerAction.get,currentConfig); repActions += addServerAction.get }
