@@ -106,7 +106,8 @@ package object demo {
       javaExecutorPath,
       scadrWar,
       scadrWebServerList.canonicalAddress,
-    Map("scads.clusterAddress" -> scadrRoot.canonicalAddress)).toJvmTask
+    Map("scads.clusterAddress" -> scadrRoot.canonicalAddress,
+	"demo.appname" -> "scadr")).toJvmTask
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
@@ -117,7 +118,8 @@ package object demo {
       javaExecutorPath,
       graditWar,
       graditWebServerList.canonicalAddress,
-    Map("scads.clusterAddress" -> graditRoot.canonicalAddress)).toJvmTask
+    Map("scads.clusterAddress" -> graditRoot.canonicalAddress,
+	"demo.appname" -> "gradit")).toJvmTask
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
@@ -128,7 +130,8 @@ package object demo {
       javaExecutorPath,
       comradesWar,
       comradesWebServerList.canonicalAddress,
-    Map("scads.clusterAddress" -> comradesRoot.canonicalAddress)).toJvmTask
+    Map("scads.clusterAddress" -> comradesRoot.canonicalAddress,
+        "demo.appname" -> "comrades")).toJvmTask
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 

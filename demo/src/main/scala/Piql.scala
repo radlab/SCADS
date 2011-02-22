@@ -18,6 +18,7 @@ object DashboardReportingExecutor {
 
   val thread = new Thread("Dashboard Stats Reporting") {
     var reports = 0
+    val appname = Option(System.getProperty("demo.appname")).getOrElse("Unnamed")
 
     override def run(): Unit = {
       logger.info("Starting dashboard reporting thread")
@@ -28,13 +29,14 @@ object DashboardReportingExecutor {
         val newReportTime = System.currentTimeMillis
 	val roundedTime = newReportTime / 30000 * 30000
 
-        val respTime = oldHist.quantile(0.90)
+	val respTime90 = oldHist.quantile(0.90)
+        val respTime99 = oldHist.quantile(0.99)
         val reqRate = oldHist.totalRequests.toFloat / ((newReportTime - lastReportTime) / 1000)
 
 	/* Don't report for the first few intervals */
 	if(reports > 4)
           withConnection(conn => {
-            val sqlInsertCmd = "INSERT INTO piqlReqRate (timestamp, host, aggRequestRate, respTime99th) VALUES (%d, '%s', %f, %d)".format(roundedTime, hostName, reqRate, respTime)
+            val sqlInsertCmd = "INSERT INTO piqlReqRate (timestamp, appname, host, aggRequestRate, respTime90th, respTime99th) VALUES (%d, '%s', '%s', %f, %d, %d)".format(roundedTime, appname, hostName, reqRate, respTime90, respTime99)
 	    logger.info("Recording PIQL stats with: %s", sqlInsertCmd)
 
             val statment = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE)
@@ -44,7 +46,7 @@ object DashboardReportingExecutor {
 	reports += 1
 
         if (oldHist.totalRequests > 0) {
-          logger.info("PIQL 99%%tile response time: %dms", respTime)
+          logger.info("PIQL 99%%tile response time: %dms", respTime99)
           logger.info("PIQL Request Rate: %f req/sec", reqRate)
         }
         lastReportTime = newReportTime
