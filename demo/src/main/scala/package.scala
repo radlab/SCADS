@@ -25,6 +25,7 @@ package object demo {
   def updateLoadBalancers: Unit = {
     LoadBalancer.update("scadr", scadrWebServerList)
     LoadBalancer.update("gradit", graditWebServerList)
+    LoadBalancer.update("comrades", comradesWebServerList)
     LoadBalancer.update("mesos", MesosEC2.firstMaster.instanceId :: Nil)
   }
 
@@ -211,6 +212,7 @@ package object demo {
 
     scadrRoot.deleteRecursive
     graditRoot.deleteRecursive
+    comradesRoot.deleteRecursive
   }
 
   def startIntKeyTest: Unit = {
