@@ -153,7 +153,7 @@ frameworkNames = frameworkNamesL[[1]]
 		}
 	
 		axis.POSIXct(1, axTimes, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
-		mtext("Mesos cpu allocations [cores]",side=3,cex=1.4,line=2)
+		mtext("Cumulative Mesos cpu allocations [cores]",side=3,cex=1.4,line=2)
 		mtext("Cores",side=2,cex=1.2,line=2.5)
 	
 		legend( x="topleft", inset=0.01, as.character(frameworkNames), cex=1.0, col=1:i, bg="white", pch=21:22, lty=1:i)
@@ -191,7 +191,7 @@ frameworkNames = frameworkNamesL[[1]]
 
 		axis.POSIXct(1, axTimes, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
 		legend( x="topleft", inset=0.01, as.character(frameworkNames), cex=1.0, col=1:i, bg="white", pch=21:22, lty=1:i)
-		mtext("Mesos memory allocations [GB]",side=3,cex=1.4,line=2)
+		mtext("Cumulative Mesos memory allocations [GB]",side=3,cex=1.4,line=2)
 		mtext("Mem allocation (GB)",side=2,cex=1.2,line=2.5)
 		legend( x="topleft", inset=0.01, as.character(frameworkNames), cex=1.0, col=1:i, bg="white", pch=21:22, lty=1:i)
 		dev.off()
