@@ -312,6 +312,15 @@ class BestFitPolicySplitting(
   					if (!successfulMove) minRangeCouldntMove = partition
   				}
   			} // end for on partitions
+  			if (!successfulMove && !partitions.isEmpty) {
+  			  val toSplit = partitions.head
+  			  if (!currentState.partitionsToKeyLimit(toSplit)) {
+  			    logger.info("couldn't move any partitions on %s, so splitting partition %s", server, toSplit)
+  			    val splitAction = SplitPartition(toSplit,splitFactor, MOVE_COALESCE)
+  			    currentState = addAction(splitAction,currentState)
+  			    activePartitions += toSplit
+			    }
+  			}
 		  }
 		} // end for on servers
     
