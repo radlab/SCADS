@@ -62,7 +62,7 @@ if(RAIN_STATS) {
 			plot(times, opVec , ylab="avg time (ms)", xlab="time", col=appNum, xaxt="n", type="o", main="",ylim=yrange,cex.lab=1.2)
 		}
 		axis.POSIXct(1, allTimesPosix, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
-		mtext("RAIN avg response time for SCADr",side=3,cex=1.4,line=2)
+		mtext("RAIN avg response times",side=3,cex=1.4,line=2)
 
 		legend( x="topleft", inset=0.05, as.character(tracknames), cex=1.2, col=1:appNum, bg="white", pch=21:22, lty=1:2)
 		dev.off()
