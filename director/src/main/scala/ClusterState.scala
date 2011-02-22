@@ -85,7 +85,7 @@ class ClusterState(
 	
 	def partitionOnServer(startkey:Option[org.apache.avro.generic.GenericRecord], server:StorageService):PartitionService = {
 		val result = serversToPartitions(server).intersect(keysToPartitions(startkey))
-		if (result.size == 1) logger.warning("have multiple partitions (%s) for same key (%s) on server %s",result,startkey,server)
+		if (result.size > 1) logger.warning("have multiple partitions (%s) for same key (%s) on server %s",result,startkey,server)
 		result.toList.head
 	}
 	
