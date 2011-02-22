@@ -307,7 +307,7 @@ class BestFitPolicySplitting(
   			for (partition <- partitions) {
   				if (minRangeCouldntMove == null || workload.rangeStats(partition).compare(workload.rangeStats(minRangeCouldntMove)) < 0) {
   					logger.debug("  trying to move range "+partition+": "+workload.rangeStats(partition))
-  					val stateAfterMove = findMoveAction(server, currentState.partitionOnServer(partition,server), orderedPotentialTargets  - server, currentState, workload, MOVE_COALESCE)//tryMoving(range,server,orderedPotentialTargets)
+  					val stateAfterMove = findMoveAction(server, currentState.partitionOnServer(partition,server), orderedPotentialTargets  - server -- currentState.serversForKey(partition).toList, currentState, workload, MOVE_COALESCE)//tryMoving(range,server,orderedPotentialTargets)
   					if (stateAfterMove.isDefined) { currentState = stateAfterMove.get; logger.debug("updating state after merge move: %s",currentState); successfulMove = true; activePartitions += partition }
   					if (!successfulMove) minRangeCouldntMove = partition
   				}
