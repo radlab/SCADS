@@ -7,6 +7,7 @@ package object demo {
   import DemoConfig._
   import scads.comm._
   import scads.perf._
+  import scads.piql._
   import scads.storage._
   import twitterspam._
   import deploylib.mesos._
@@ -14,6 +15,11 @@ package object demo {
   val logger = net.lag.logging.Logger()
 
   lazy val twitterSpamData = new ScadsCluster(twitterSpamRoot).getNamespace[TwitterSpamRecord]("twitterSpamRecords")
+
+  protected val executor = new ParallelExecutor
+  lazy val scadrClient = new scadr.ScadrClient(new ScadsCluster(scadrRoot), executor)
+  lazy val graditClient = new gradit.GraditClient(new ScadsCluster(graditRoot), executor)
+  lazy val comradesClient = new comrades.ComradesClient(new ScadsCluster(comradesRoot), executor)
 
   def runDemo: Unit = {
     resetScads
