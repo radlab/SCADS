@@ -337,7 +337,11 @@ class BestFitPolicySplitting(
     logger.debug("partitions from overloaded servers: %s", offlimitsPartitions)
     val eligiblePartitions = currentState.keysToPartitions.keySet -- activePartitions -- offlimitsPartitions
     logger.debug("eligible partitions %s", eligiblePartitions)
-    eligiblePartitions.foreach(_.map(part => if (ae.namespace.isMergable(part)) { logger.debug("mergable: %s", part); currentState = addAction(MergePartition(Some(part), MERGE_COALESCE), currentState)}))
+    var targetNumMerges = eligiblePartitions.size - ((currentState.serversToPartitions.keys.size -  currentState.getEmptyServers.size) * 5)
+    if (targetNumMerges < 0) return currentState
+    logger.info("have %d eligible partitions for merging, gonna try %d merges", eligiblePartitions.size, targetNumMerges)
+    
+    eligiblePartitions.foreach(_.map(part => if (targetNumMerges > 0 && ae.namespace.isMergable(part)) { logger.debug("mergable: %s", part); targetNumMerges -= 1; currentState = addAction(MergePartition(Some(part), MERGE_COALESCE), currentState)}))
     currentState
   }
   
