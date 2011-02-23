@@ -75,7 +75,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
 		      rampUpWorkloadWeight: Double = 0.9,
 		      rampDownWorkloadWeight: Double = 0.01,
 		      rampUpUtilizationWeight: Double = 0.9,
-		      rampDownUtilizationWeight: Double = 0.1,
+		      rampDownUtilizationWeight: Double = 0.05,
 		      utilizationThreshold: Double = 0.40
 		     ) extends Runnable {
     private val params = new HttpClientParams()
