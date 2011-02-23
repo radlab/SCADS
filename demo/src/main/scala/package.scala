@@ -193,7 +193,7 @@ package object demo {
     serviceScheduler !? RunExperimentRequest(
       JvmMainTask(rainJars,
 		  "radlab.rain.Benchmark",
-		  "rain.config.scadr.ramp.json" ::
+		  "rain.config.scadr.demo.json" ::
 		  scadrWebServerList.canonicalAddress :: Nil,
 		  Map("dashboarddb" -> dashboardDb)) :: Nil)
   }
@@ -211,7 +211,7 @@ package object demo {
     serviceScheduler !? RunExperimentRequest(
       JvmMainTask(rainJars,
 		  "radlab.rain.Benchmark",
-		  "rain.config.comrades.ramp.json" ::
+		  "rain.config.comrades.demo.json" ::
 		  comradesWebServerList.canonicalAddress :: Nil,
 		  Map("dashboarddb" -> dashboardDb)) :: Nil)
   }
