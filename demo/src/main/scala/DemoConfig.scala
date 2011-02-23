@@ -40,10 +40,25 @@ object DemoConfig {
     45,                         // num storage nodes
     45,                         // num load clients
     100,                        // num per page
-    100000,                     // num users
+    1000000,                    // num users
     100,                        // num thoughts per user
     1000                        // num subscriptions per user
   )
+
+  def thoughtstreamRunParams = RunParams(
+    scadrClusterParams,
+    "thoughtstream",
+    "thoughtstream-Wednesday",
+    10                          // # trace collectors
+  )
+
+  def localUserThoughtstreamRunParams = RunParams(
+    scadrClusterParams,
+    "localUserThoughtstream",
+    "localUserThoughtstream-Wednesday",
+    10                          // # trace collectors
+  )
+
 
   val mesosMasterNode = zooKeeperRoot.getOrCreate("mesosMaster")
   def mesosMaster = new String(mesosMasterNode.data)
