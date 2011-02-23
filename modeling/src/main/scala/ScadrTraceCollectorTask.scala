@@ -59,7 +59,8 @@ case class ScadrTraceCollectorTask(
     println("beginning warmup...")
     fileSink.recordEvent(WarmupEvent(params.warmupLengthInMinutes, true))
     var queryCounter = 1
-    val cardinalityList = params.clusterParams.getCardinalityList(params.queryType)
+    //val cardinalityList = params.clusterParams.getCardinalityList(params.queryType)
+    val cardinalityList = List(100,250,500) // numSubscriptions
     
     while (withinWarmup) {
       fileSink.recordEvent(QueryEvent(params.queryType + queryCounter, true))
