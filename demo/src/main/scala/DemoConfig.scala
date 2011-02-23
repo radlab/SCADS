@@ -116,6 +116,7 @@ object DemoConfig {
 	       "thoughts" -> classOf[edu.berkeley.cs.scads.piql.scadr.Thought],
 	       "subscriptions" -> classOf[edu.berkeley.cs.scads.piql.scadr.Subscription])
   */
+  import scads.piql.scadr._
   def initScadrCluster(clusterAddress:String):Unit = {
     val clusterRoot = ZooKeeperNode(clusterAddress)
     val cluster = new ExperimentalScadsCluster(clusterRoot)
@@ -138,12 +139,14 @@ object DemoConfig {
       }
     }
     
-    import scads.piql.scadr._
     val client = new ScadrClient(cluster, new scads.piql.SimpleExecutor)
-    logger.info("begining bulk load of users")
-    client.users ++= AvroHttpFile[User]("https://scadr.s3.amazonaws.com/users.avro")
-
+    loadScadrData(client)
     startScadrDirector()
+  }
+
+  def loadScadrData(client: ScadrClient): Unit = {
+    logger.info("begining bulk load of users")
+    client.users ++= AvroHttpFile[scads.piql.scadr.User]("https://scadr.s3.amazonaws.com/users.avro")
   }
 
   import edu.berkeley.cs.scads.piql.gradit._
@@ -214,7 +217,7 @@ object DemoConfig {
     client.wordlistwords ++= AvroHttpFile[WordListWord]("http://gradit.s3.amazonaws.com/wordlistwords.avro")
     client.words ++= AvroHttpFile[Word]("http://gradit.s3.amazonaws.com/words.avro")
     client.wordcontexts ++= AvroHttpFile[WordContext]("http://gradit.s3.amazonaws.com/wordcontexts.avro")
-    client.users ++= AvroHttpFile[User]("http://gradit.s3.amazonaws.com/users.avro")
+    client.users ++= AvroHttpFile[scads.piql.gradit.User]("http://gradit.s3.amazonaws.com/users.avro")
   }
 
   def initComradesCluster(clusterAddress:String):Unit = {
