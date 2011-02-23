@@ -18,6 +18,20 @@ $(document).ready(function() {
        return false;
     }
   });
+  
+  followList = $('#followed ul');
+  toHide = followList.children('li:gt(4)', this).hide();
+  if (toHide.size() > 0) {
+    moreLink = $('<p/>').html(
+      $('<a/>').attr('href','#').text('Show '+toHide.size()+' more...')
+        .click(function(e) {
+          toHide.show();
+          moreLink.remove();
+          e.preventDefault();
+        })
+    );
+    followList.after(moreLink);
+  }
 });
 </script>
 
