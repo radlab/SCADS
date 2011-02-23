@@ -16,6 +16,8 @@ import net.lag.logging.Logger
 case class RunParams(
   var clusterParams: ClusterParams,
 	var queryType: String,
+	var binPrefix: String = "",
+	var numTraceCollectors: Int = 1,
 	var warmupLengthInMinutes: Int = 5, 
 	var numQueriesPerCardinality: Int = 1000, 
 	var sleepDurationInMs: Int = 100
