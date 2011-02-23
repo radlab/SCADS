@@ -44,7 +44,7 @@ object DemoConfig {
       S3CachedJar(S3Cache.getCacheUrl(scadrWarFile))
     else {
       logger.info("Using cached scadr war file.")
-      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/3a7c8abd9da8ba27e4bd822135179a6b")
+      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/663d9b11d94b18e44b9247c498012f34")
     }
 
   /* gRADit */
@@ -80,12 +80,14 @@ object DemoConfig {
     val rainJar = new File(rainLocation, "rain.jar")
     val scadrJar = new File(workLoadDir, "scadr.jar")
     val graditJar = new File(workLoadDir, "gradit.jar")
+    val comradesJar = new File(workLoadDir, "comrades.jar")
 
-    if(rainJar.exists && scadrJar.exists && graditJar.exists) {
+    if(rainJar.exists && scadrJar.exists && graditJar.exists && comradesJar.exists) {
       logger.info("Using local jars")
       S3CachedJar(S3Cache.getCacheUrl(rainJar.getCanonicalPath)) ::
       S3CachedJar(S3Cache.getCacheUrl(scadrJar.getCanonicalPath)) :: 
-      S3CachedJar(S3Cache.getCacheUrl(graditJar.getCanonicalPath)) :: Nil
+      S3CachedJar(S3Cache.getCacheUrl(graditJar.getCanonicalPath)) ::
+      S3CachedJar(S3Cache.getCacheUrl(comradesJar.getCanonicalPath)) :: Nil
     }
     else {
       logger.info("Using cached S3 jars")

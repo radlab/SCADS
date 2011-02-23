@@ -201,6 +201,15 @@ package object demo {
 		  Map("dashboarddb" -> dashboardDb)) :: Nil)
   }
 
+  def startComradesRain: Unit = {
+    serviceScheduler !? RunExperimentRequest(
+      JvmMainTask(rainJars,
+		  "radlab.rain.Benchmark",
+		  "rain.config.comrades.ramp.json" ::
+		  comradesWebServerList.canonicalAddress :: Nil,
+		  Map("dashboarddb" -> dashboardDb)) :: Nil)
+  }
+
   def killTask(taskId: Int): Unit =
     serviceScheduler !? KillTaskRequest(taskId)
 
