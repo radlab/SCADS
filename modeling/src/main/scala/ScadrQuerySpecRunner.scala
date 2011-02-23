@@ -121,6 +121,7 @@ class ScadrQuerySpecRunner(val params: RunParams)(implicit executor: QueryExecut
     }
   }
   
+  // unnecessary; "callThoughtstream" now handles both
   def callLocalUserThoughtstream(numSubscriptionsPerUser:Int, numPerPage:Int) = {
     params.clusterParams match {
       case p:ScadrClusterParams => {
@@ -161,6 +162,7 @@ class ScadrQuerySpecRunner(val params: RunParams)(implicit executor: QueryExecut
     	    case "usersFollowedBy" => currentCardinality
     	    case "thoughtstream" => p.numPerPage
     	    case "usersFollowing" => currentCardinality
+    	    case "mySubscriptions" => currentCardinality
     	  }
 	    }
 	    case _ => 0
