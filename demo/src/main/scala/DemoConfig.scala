@@ -37,10 +37,10 @@ object DemoConfig {
   def traceRoot = zooKeeperRoot.getOrCreate("traceCollection")
   def scadrClusterParams = ScadrClusterParams(
     traceRoot.canonicalAddress, // cluster address
-    5,                          // num storage nodes
-    5,                          // num load clients
+    45,                         // num storage nodes
+    45,                         // num load clients
     100,                        // num per page
-    10000,                      // num users
+    100000,                     // num users
     100,                        // num thoughts per user
     1000                        // num subscriptions per user
   )
