@@ -32,6 +32,12 @@ case class ThoughtstreamTraceCollectorTask(
     val cluster = new ExperimentalScadsCluster(clusterRoot)
     cluster.blockUntilReady(params.clusterParams.numStorageNodes)
 
+    // set up subscription to notifications
+    val coordination = clusterRoot.getOrCreate("coordination")
+    val clientId = coordination.registerAndAwait("traceCollectorStart", params.numTraceCollectors)
+    if (clientId == 0)
+      snsClient.subscribeViaEmail(topicArn, "kristal.curtis@gmail.com")
+
     /* create executor that records trace to fileSink */
     println("creating executor...")
     val fileSink = new FileTraceSink(new File("/mnt/piqltrace.avro"))
@@ -74,10 +80,14 @@ case class ThoughtstreamTraceCollectorTask(
       queryCounter += 1
     }
     fileSink.recordEvent(WarmupEvent(params.warmupLengthInMinutes, false))
-        
 
+
+    // wait for each trace collector to start up
+    coordination.registerAndAwait("doneWithWarmup", params.numTraceCollectors)
+    Thread.sleep(5000)  // just to make sure all warmup queries are finished
+  
+        
     /* Run some queries */
-    // TODO:  move this to a function
     println("beginning run...")
     
     numSubscriptionsPerUserList.foreach(numSubs => {
@@ -99,19 +109,20 @@ case class ThoughtstreamTraceCollectorTask(
       })
     })
     
-    // TODO:  put all of this cleanup in a function
     //Flush trace messages to the file
     println("flushing messages to file...")
     fileSink.flush()
 
     // Upload file to S3
-    val currentTimeString = System.currentTimeMillis().toString
-    
     println("uploading data...")
-    TraceS3Cache.uploadFile("/mnt/piqltrace.avro", currentTimeString)
+    TraceS3Cache.uploadFile("/mnt/piqltrace.avro", params.binPrefix, "client" + clientId)
     
     // Publish to SNSClient
-    snsClient.publishToTopic(topicArn, params.toString, "experiment completed at " + currentTimeString)
+    val currentTimeString = System.currentTimeMillis().toString
+    
+    coordination.registerAndAwait("doneWithRun", params.numTraceCollectors)
+    if (clientId == 0)
+      snsClient.publishToTopic(topicArn, "client " + clientId + "\n" + params.toString, "experiment completed:" + params.binPrefix)
     
     println("Finished with trace collection.")
   }
@@ -130,6 +141,5 @@ object ThoughtstreamTraceCollectorTask {
   // for email notifications
   val snsClient = new SimpleAmazonSNSClient
   val topicArn = snsClient.createOrRetrieveTopicAndReturnTopicArn("experimentCompletion")
-  snsClient.subscribeViaEmail(topicArn, "kristal.curtis@gmail.com")
 }
 
