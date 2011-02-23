@@ -91,8 +91,10 @@ object DemoConfig {
     }
     else {
       logger.info("Using cached S3 jars")
-      S3CachedJar("http://s3.amazonaws.com/deploylibCache-rean/f2f74da753d224836fedfd56c496c50a") ::
-      S3CachedJar("http://s3.amazonaws.com/deploylibCache-rean/3971dfa23416db1b74d47af9b9d3301d") :: Nil
+      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/dd499e4dde53f37c0a9491fe383c2842") ::
+      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/58b536c7e443b93a35484c4312811e62") :: 
+      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/4ed8535db8fcf537f963496527729078") ::
+      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/72b41df016a8370df19c2c708307d3eb") :: Nil
     }
   }
 
