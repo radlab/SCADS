@@ -177,29 +177,9 @@ package object demo {
   }
 
   def startScadrDataLoad: Unit = {
-    //val storageEngineTask = ScalaEngineTask(traceRoot.canonicalAddress).toJvmTask
     val storageEngines = Array.fill(scadrClusterParams.numStorageNodes)(ScalaEngineTask(traceRoot.canonicalAddress).toJvmTask)
-    /*
-    val dataLoadTask = ScadrDataLoaderTask(
-      RunParams(traceRoot.canonicalAddress,
-      "myThoughts",
-      10)
-    ).toJvmTask
-    */
-    
     val dataLoadTasks = Array.fill(scadrClusterParams.numLoadClients)(ScadrDataLoaderTask(scadrClusterParams).toJvmTask)
-    
-    /*
-    var dataLoadTask = ScadrDataLoaderTask(
-      ScadrClusterParams(
-        traceRoot.canonicalAddress,
-        100,
-        5
-      )
-    ).toJvmTask
-    */
 
-    //serviceScheduler !? RunExperimentRequest(storageEngines.toList :+ dataLoadTask)
     serviceScheduler !? RunExperimentRequest(storageEngines.toList ::: dataLoadTasks.toList)
   }
 
