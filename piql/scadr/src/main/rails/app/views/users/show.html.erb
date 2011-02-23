@@ -58,7 +58,7 @@ $(document).ready(function() {
 </div>
 
 <div class="sidebox">
-<h2>Following...</h2>
+<h2>Following</h2>
 <div id="followed">
 <%- if @followed.present? -%>
   <ul>
@@ -67,9 +67,17 @@ $(document).ready(function() {
   <% end %>
   </ul>
 <%- else -%>
-  <p>No users being followed.</p>
+  <p>Not following any users.</p>
 <%- end -%>
 </div>
+
+<%- if current_user && current_user == @user -%>
+<h2>Who to follow</h2>
+<div id="recommended">
+<%= render :partial => 'index', :locals => { :usernames => @recommended } %>
+</div>
+<%- end -%>
+
 </div>
 
 <div class="clear"></div>

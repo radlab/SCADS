@@ -1,7 +1,5 @@
-<h1>Recommended Users</h1>
-
 <ul>
-<% @user_list.each do |username| -%>
+<% usernames.each do |username| -%>
   <li><%= link_to username, :action => :show, :id => username %></li>
 <% end -%>
 </ul>
