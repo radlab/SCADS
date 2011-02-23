@@ -168,7 +168,7 @@ class BestFitPolicySplitting(
 		config = handleUnderloaded(config,_workload * 1.2, mergeCandidates)
 		
 		// try merging partitions
-		logger.info("can't merge partitions on these senders: %s", senders)
+		if (!senders.isEmpty) logger.info("can't merge partitions on these senders: %s", senders)
 		handleMerging(config,overloadedServerPartitions/* ++ borderlinePartitions*/ ++ config.partitionsOnServers(senders.toList))
 		
 	// STEP 3: add/remove servers as necessary
@@ -446,7 +446,7 @@ class BestFitPolicySplitting(
     for (target <- orderedPotentialTargets) {
       if (!done && nReplicas < MAX_R) {
         logger.info("trying more than %d relicas for %s (trying target %s)", nReplicas, part, target)
-        val replicateAction = ReplicatePartition(part,sourceServer,target,MOVE_OVERLOAD)
+        val replicateAction = ReplicatePartition(part,sourceServer,target,REP_ADD)
     		var tmpConfig = replicateAction.preview(currentConfig)
         if (!performanceEstimator.violationOnServer(tmpConfig,workload,target)) { // ok for target to move there	
       		receivers += target
