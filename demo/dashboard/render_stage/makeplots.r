@@ -72,65 +72,41 @@ if(RAIN_STATS) {
 
 ############# Web App stats
 if(WEBAPP_STATS) {
+		appIDs = c("SCADr","gRADit","comRADes")
+
 	for(period in PERIODS) {
+	
+	
 
-		# plot web server load, allocation data for SCADr
-		startT = (mostRecent - 1000* 60 * period -1)
-		series <- dbGetQuery(con,paste("select timestamp,aggRequestRate,targetNumServers from appReqRate where webAppID = 'SCADr' and timestamp > ",startT," order by timestamp DESC ",sep=''))
-		
-		if (nrow(series) > 0) {
-			reqRatePlotFile=paste("scadrReqRate-",period,".png",sep='')
-			png(file=reqRatePlotFile, bg="transparent")
-		
-			times <- as.POSIXct( (series[TRUE,1]/1000 - TZShift), origin="1970-01-01")
-			par(oma=c(1,1,1,2))
+		# plot web server load, allocation data for each app
+		for(appID in appIDs) {		
+			startT = (mostRecent - 1000* 60 * period -1)
+			series <- dbGetQuery(con,paste("select timestamp,aggRequestRate,targetNumServers from appReqRate where webAppID = '",appID,"' and timestamp > ",startT," order by timestamp DESC ",sep=''))
 			
-			yrange = c(0, 1.2*max(series[TRUE,2]))
-			plot(times, series[TRUE,2], xlab="", ylab="requests per second", col="red", xaxt="n", type="o", main="",col.lab="red",cex.lab=1.2, ylim=yrange)
-			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
-		
-			yrange = c(0, ceiling(1.2*max(series[TRUE,3])))
-			par(new=T)
-			plot(times, series[TRUE,3] , col="blue",axes=F,xlab="",ylab="",type="o",ylim=yrange)
-		
-			axis(side=4, at=yrange,cex=1.2)
-			mtext("servers",side=4,col="blue",line=1,cex=1.2)
-			mtext("time", side=1,line=3,cex=1.2)
-			mtext("Web server load and allocation for SCADr",side=3,cex=1.4,line=2)
-
-			legend( x="topleft", inset=0.05, c("Request rate","Server count"), cex=1.0, col=c("red","blue"), bg="white", pch=21:22, lty=1:2)
-			dev.off()
-		}
-
-
-		# plot web server load, allocation data for gRADit
-		startT = (mostRecent - 1000* 60 * period -1)
-		series <- dbGetQuery(con,paste("select timestamp,aggRequestRate,targetNumServers from appReqRate where webAppID = 'gRADit' and timestamp > ",startT," order by timestamp DESC ",sep=''))
-		
-		if (nrow(series) > 0) {
-			reqRatePlotFile=paste("graditReqRate-",period,".png",sep='')
-			png(file=reqRatePlotFile, bg="transparent")
-		
-			times <- as.POSIXct( (series[TRUE,1]/1000 - TZShift), origin="1970-01-01")
-			par(oma=c(1,1,1,2))
+			if (nrow(series) > 0) {
+				reqRatePlotFile=paste(tolower(appID),"ReqRate-",period,".png",sep='')
+				png(file=reqRatePlotFile, bg="transparent")
 			
-			yrange = c(0, 1.2*max(series[TRUE,2]))
-			plot(times, series[TRUE,2], xlab="", ylab="requests per second", col="red", xaxt="n", type="o", main="",col.lab="red",cex.lab=1.2, ylim=yrange)
-			axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
-		
-			yrange = c(0, ceiling(1.2*max(series[TRUE,3])))
-			par(new=T)
-			plot(times, series[TRUE,3] , col="blue",axes=F,xlab="",ylab="",type="o",ylim=yrange)
-		
-			axis(side=4, at=yrange,cex=1.2)
-			mtext("servers",side=4,col="blue",line=1,cex=1.2)
-			mtext("time", side=1,line=3,cex=1.2)
-			mtext("Web server load and allocation for gRADit",side=3,cex=1.4,line=2)
-
-			legend( x="topleft", inset=0.05, c("Request rate","Server count"), cex=1.0, col=c("red","blue"), bg="white", pch=21:22, lty=1:2)
-			dev.off()
+				times <- as.POSIXct( (series[TRUE,1]/1000 - TZShift), origin="1970-01-01")
+				par(oma=c(1,1,1,2))
+				
+				yrange = c(0, 1.2*max(series[TRUE,2]))
+				plot(times, series[TRUE,2], xlab="", ylab="requests per second", col="red", xaxt="n", type="o", main="",col.lab="red",cex.lab=1.2, ylim=yrange)
+				axis.POSIXct(1, times, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
+			
+				yrange = c(0, ceiling(1.2*max(series[TRUE,3])))
+				par(new=T)
+				plot(times, series[TRUE,3] , col="blue",axes=F,xlab="",ylab="",type="o",ylim=yrange)
+			
+				axis(side=4, at=yrange,cex=1.2)
+				mtext("servers",side=4,col="blue",line=1,cex=1.2)
+				mtext("time", side=1,line=3,cex=1.2)
+				mtext("Web server load and allocation for SCADr",side=3,cex=1.4,line=2)
+	
+				legend( x="topleft", inset=0.05, c("Request rate","Server count"), cex=1.0, col=c("red","blue"), bg="white", pch=21:22, lty=1:2)
+				dev.off()
+			}
 		}
-
 		
 		# plot avg CPU utilizations
 		allTimesRaw = dbGetQuery(con, paste("select DISTINCT timestamp from appReqRate where timestamp > ",startT," order by timestamp",sep=''))
@@ -139,7 +115,6 @@ if(WEBAPP_STATS) {
 		maxYTuple = dbGetQuery(con, paste("select averageUtilization from appReqRate where timestamp > ",startT," order by averageUtilization DESC limit 1",sep=''))
 		yrange <- c(0,maxYTuple[[1]] * 1.2) 
 
-		appIDs = c("SCADr","gRADit","comRADes")
 		cpuPlotFile=paste("averageCpuUtilization-",period,".png",sep='')
 		png(file= cpuPlotFile, bg="transparent")
 		appNum = 0
