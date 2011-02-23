@@ -26,56 +26,75 @@ window.onload=start
 </head>
 <body>
 
-
+<div id="header" align="center">
+<h1>RAD Lab Demo Dashboard</h1>
+<img src="http://www.cs.berkeley.edu/~kcurtis/demo_dashboard/images.jpeg" height=100 width=200/>
+<br/>
 
 <input type="radio" name="toggledivs" onclick="toggle('10min');" />Last 10 minutes<br /> 
 <input type="radio" name="toggledivs" onclick="toggle('60min');" />Last 60 minutes<br /> 
 <input type="radio" name="toggledivs" onclick="toggle('300min');" />Last 5 hours<br /> 
+</div>
 
-
-<br /><br /> 
-<h2 align="center">Web-tier stats</h2>
 
 <div id="10min">
 <p>10 minute stats</p>
-
-
+<hr/>
+<h2 align="center">Rain Stats</h2>
+<p align="center">Rain is a workload generator.  We display the average request latency as measured at the Rain node for each of the apps.</p>
 <img src="rainReqRate-10.png"/>
+<hr/>
+<h2 align="center">Web Tier Stats</h2>
+<p align="center">These graphs report the aggregate request rate measured at each app's web servers.  The web app director scales the number of web servers dedicated to each app in response to the average CPU utilization.</p>
 <img src="scadrReqRate-10.png"/>
 <img src="graditReqRate-10.png"/>
+<img src="comradesReqRate-10.png"/>
 <img src="averageCpuUtilization-10.png">
 <br/>
 <hr/>
-<h2 align="center">PIQL+SCADS Stats</h2>
-
+<h2 align="center">PIQL Stats</h2>
+<p align="center">PIQL is a library running on the app servers.  Each app server reports its 99th percentile query latency.</p>
 <img src="piqlReqRate-10.png"/>
 <img src="piql99thPercentile-10.png"/>
+<hr/>
+<h2 align="center">SCADS Stats</h2>
+<p align="center">SCADS is an incrementally scalable key-value store.  Each namespace has its own set of SCADS nodes.  The SCADS director scales each namespace's SCADS cluster in response to the workload of the storage nodes.</p>
 <img src="scadsReqRate-SCADr-10.png"/>
 <img src="scadsMachineAlloc-SCADr-10.png"/>
-
 <img src="scadsReqRate-gRADit-10.png"/>
 <img src="scadsMachineAlloc-gRADit-10.png"/>
-
 <img src="scadsReqRate-comRADes-10.png"/>
 <img src="scadsMachineAlloc-comRADes-10.png"/>
 <br/>
 <hr/>
 <h2 align="center">Mesos Stats</h2>
+<p align="center">Mesos allows multiple frameworks to share a cluster.  Interactive and analytics workloads can coexist on our cluster, which changes size over time.</p>
 <img src="mesosCPUAbsSharesStacked10.png"/>
 <img src="mesosMemAbsSharesStacked10.png"/>
 </div> 
 
 <div id="60min">
 <p>60 minute stats</p>
+<hr/>
+<h2 align="center">Rain Stats</h2>
+<p align="center">Rain is a workload generator.  We display the average request latency as measured at the Rain node for each of the apps.</p>
 <img src="rainReqRate-60.png"/>
+<hr/>
+<h2 align="center">Web Tier Stats</h2>
+<p align="center">These graphs report the aggregate request rate measured at each app's web servers.  The web app director scales the number of web servers dedicated to each app in response to the average CPU utilization.</p>
 <img src="scadrReqRate-60.png"/>
 <img src="graditReqRate-60.png"/>
+<img src="comradesReqRate-60.png"/>
 <img src="averageCpuUtilization-60.png">
 <br/>
 <hr/>
-<h2 align="center">PIQL+SCADS Stats</h2>
+<h2 align="center">PIQL Stats</h2>
+<p align="center">PIQL is a library running on the app servers.  Each app server reports its 99th percentile query latency.</p>
 <img src="piqlReqRate-60.png"/>
 <img src="piql99thPercentile-60.png"/>
+<hr/>
+<h2 align="center">SCADS Stats</h2>
+<p align="center">SCADS is an incrementally scalable key-value store.  Each namespace has its own set of SCADS nodes.  The SCADS director scales each namespace's SCADS cluster in response to the workload of the storage nodes.</p>
 <img src="scadsReqRate-SCADr-60.png"/>
 <img src="scadsMachineAlloc-SCADr-60.png"/>
 <img src="scadsReqRate-gRADit-60.png"/>
@@ -85,31 +104,43 @@ window.onload=start
 <br/>
 <hr/>
 <h2 align="center">Mesos Stats</h2>
+<p align="center">Mesos allows multiple frameworks to share a cluster.  Interactive and analytics workloads can coexist on our cluster, which changes size over time.</p>
 <img src="mesosCPUAbsSharesStacked60.png"/>
 <img src="mesosMemAbsSharesStacked60.png"/>
 </div> 
 
 <div id="300min">
-<p>5-hour stats</p>
+<p>300 minute stats</p>
+<hr/>
+<h2 align="center">Rain Stats</h2>
+<p align="center">Rain is a workload generator.  We display the average request latency as measured at the Rain node for each of the apps.</p>
 <img src="rainReqRate-300.png"/>
+<hr/>
+<h2 align="center">Web Tier Stats</h2>
+<p align="center">These graphs report the aggregate request rate measured at each app's web servers.  The web app director scales the number of web servers dedicated to each app in response to the average CPU utilization.</p>
 <img src="scadrReqRate-300.png"/>
 <img src="graditReqRate-300.png"/>
+<img src="comradesReqRate-300.png"/>
 <img src="averageCpuUtilization-300.png">
 <br/>
 <hr/>
-<h2 align="center">PIQL+SCADS Stats</h2>
+<h2 align="center">PIQL Stats</h2>
+<p align="center">PIQL is a library running on the app servers.  Each app server reports its 99th percentile query latency.</p>
 <img src="piqlReqRate-300.png"/>
 <img src="piql99thPercentile-300.png"/>
+<hr/>
+<h2 align="center">SCADS Stats</h2>
+<p align="center">SCADS is an incrementally scalable key-value store.  Each namespace has its own set of SCADS nodes.  The SCADS director scales each namespace's SCADS cluster in response to the workload of the storage nodes.</p>
 <img src="scadsReqRate-SCADr-300.png"/>
 <img src="scadsMachineAlloc-SCADr-300.png"/>
 <img src="scadsReqRate-gRADit-300.png"/>
 <img src="scadsMachineAlloc-gRADit-300.png"/>
 <img src="scadsReqRate-comRADes-300.png"/>
 <img src="scadsMachineAlloc-comRADes-300.png"/>
-
 <br/>
 <hr/>
 <h2 align="center">Mesos Stats</h2>
+<p align="center">Mesos allows multiple frameworks to share a cluster.  Interactive and analytics workloads can coexist on our cluster, which changes size over time.</p>
 <img src="mesosCPUAbsSharesStacked300.png"/>
 <img src="mesosMemAbsSharesStacked300.png"/>
 </div> 
