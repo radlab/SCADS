@@ -12,8 +12,10 @@ mostRecentPt <- function(tableName) {
   val <- dbGetQuery(con,paste("select timestamp from ",tableName," order by timestamp DESC limit 1", sep=''))
   val[[1]]
 }
-
+#expects input sorted by DECREASING timestamp
 mergeIn <- function(fullK, partK, fullV, partV) {
+	print(paste("entering mergeIn, max vals are",max(fullV),"and", max(partV)))
+
 	j = 1
 	print(paste("merging fullK,fullV of lengths",length(fullK), length(fullV), "with partK,partV of lengths", length(partK), length(partV)))
 #invariant:  partK[j] <= fullK[i], elements up to fullK[i] have been merged
@@ -21,16 +23,17 @@ mergeIn <- function(fullK, partK, fullV, partV) {
 #	  print(paste("i =",i,"j=",j, "fullK[i]=",fullK[i],"partK[j]=",partK[j]))
 		if(j > length(partK))
 		  break
-		while(partK[j] > (fullK[i]) && j <= i) {
+		while(partK[j] > (fullK[i]) && j <= i) {  #loop
 			j = j+1
 		}
 #		if(j > i)
 #		  print(paste("WARN: j got ahead of i in mergeIn; i =",i,"j=",j))
-		if(partK[j] == fullK[i]) {
+		if(j <= length(partK) && partK[j] == fullK[i]) {  #keys match so add in
 			fullV[i] = fullV[i] + partV[j]
 			j = j+1
 		}
 	}
+	print(paste("returning from mergeIn, max val is",max(fullV)))
 	fullV
 }
 
@@ -52,8 +55,8 @@ frameworkNames = frameworkNamesL[[1]]
 	tsBase = mostRecent - 1000* 60 * period -1
 	rawAXTime <- dbGetQuery(con, paste("select DISTINCT timestamp from mesosStats where timestamp > ",
 	       tsBase," order by timestamp DESC",sep=''))
-
-	axTimes = as.POSIXct( ( rawAXTime[TRUE,1]/1000 - TZShift), origin="1970-01-01")
+	rawAXTime = rawAXTime[TRUE,1]
+	axTimes = as.POSIXct( ( rawAXTime/1000 - TZShift), origin="1970-01-01")
 	dataByFramework = vector("list", dim(frameworkNamesL)[1])
 	times = vector("list", dim(frameworkNamesL)[1])
 	i = 1
@@ -61,62 +64,16 @@ frameworkNames = frameworkNamesL[[1]]
 		print(paste("querying for data from framework",framework," with id=",i))
 		datForFramework <- dbGetQuery(con, paste("select timestamp,CPUs,GBRam,CPUShare,memShare,domShare from mesosStats where frameworkName = '",framework,"' and timestamp > ", tsBase," order by timestamp DESC",sep=''))
 		POINTS = dim(datForFramework)[1]
-		dataByFramework[[i]] = datForFramework
 		if(POINTS > 0) {
-			times[[i]] = as.POSIXct( ( (dataByFramework[[i]])[1:POINTS,1]/1000 - TZShift), origin="1970-01-01")
+			dataByFramework[[i]] = datForFramework
+			times[[i]] = (dataByFramework[[i]])[TRUE,1]
 		}
 		i = i+1
 	}
 	print("done querying")
 	###End mesos preliminaries
 	if(plotRelShares) {
-		reqRatePlotFile=paste("mesosCPUShares",period,".png",sep='')
-		png(file=reqRatePlotFile, bg="transparent")
-		
-		#par(new=T)
-		yrange<-c(0,1.2)
-		i =0
-		runningTotalVec = rep(0,length(axTimes))
-		for(framework in frameworkNames) {
-			i = i +1
-			POINTS = dim(dataByFramework[[i]])[1]
-			print(paste("plotting CPU share for",framework, "with",POINTS,"points"))
-			if(POINTS == 0) {
-				next;
-			}
-			
-			par(new=T)
-			runningTotalVec = mergeIn(axTimes, times[[i]],runningTotalVec, dataByFramework[[i]][1:POINTS,4])
-			plot(axTimes, runningTotalVec, ylab="CPU share [cumulative]", xlab="time", col=i,  xaxt="n", type="b", main="Mesos CPU shares",ylim=yrange,cex=1.2)
-		}
-		axis.POSIXct(1, axTimes, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
-		
-		legend( x="topleft", inset=0.05, as.character(frameworkNames), cex=1.0, col=1:i, bg="white", pch=21:22, lty=1:i)
-		
-		dev.off()
-		reqRatePlotFile=paste("mesosMemShares",period,".png",sep='')
-		png(file=reqRatePlotFile, bg="transparent")
-		
-		
-		yrange<-c(0,1.2)
-		i =0
-		runningTotalVec = rep(0,length(axTimes))
-		for(framework in frameworkNames) {
-			i = i +1
-			POINTS = dim(dataByFramework[[i]])[1]
-			print(paste("plotting mem share for",framework, "with",POINTS,"points"))
-			if(POINTS == 0) {
-				 next;
-			}
-			
-			par(new=T)
-			runningTotalVec = mergeIn(axTimes, times[[i]],runningTotalVec, dataByFramework[[i]][1:POINTS,5])
-			plot(axTimes, runningTotalVec, ylab="Mem share [cumulative]", xlab="time", col=i,  xaxt="n", type="o", main="Mesos memory shares",ylim=yrange,cex.lab=1.2)
-		}
-		axis.POSIXct(1, axTimes, format="%Y-%m-%d %H:%M:%S", labels = TRUE)
-		
-		legend( x="topleft", inset=0.05, as.character(frameworkNames), cex=1.0, col=1:i, bg="white", pch=21:22, lty=1:i)
-		dev.off()
+
 	}  #end plot rel shares
 	
 	
@@ -124,7 +81,7 @@ frameworkNames = frameworkNamesL[[1]]
 		#######CPU shares [absolute+stacked]
 		reqRatePlotFile=paste("mesosCPUAbsSharesStacked",period,".png",sep='')
 		png(file=reqRatePlotFile, bg="transparent")
-		runningTotalVec = rep(0,length(axTimes))
+		runningTotalVec = rep(0,length(rawAXTime))
 
 		print("finding total")
 		i = 0
@@ -133,22 +90,22 @@ frameworkNames = frameworkNamesL[[1]]
 			if(dim(dataByFramework[[i]])[1] == 0)
 				continue
 				
-			runningTotalVec = mergeIn(axTimes, times[[i]],runningTotalVec, dataByFramework[[i]][1:POINTS,2])
+			runningTotalVec = mergeIn(rawAXTime, times[[i]],runningTotalVec, (dataByFramework[[i]])[TRUE,2])
 		}
-		print("done computing total")
+		print(paste("done computing total CPU share; max was",max(runningTotalVec)))
 		yrange= c(0,  max(runningTotalVec))
 		
-		runningTotalVec = rep(0,length(axTimes))
+		runningTotalVec = rep(0,length(rawAXTime))
 		i =0
 		for(framework in frameworkNames) {
 			i = i +1
 			POINTS = dim(dataByFramework[[i]])[1]
 			print(paste("plotting CPU share for",framework, "with",POINTS,"points"))
 			if(POINTS == 0) {
-				next;
+				continue
 			}
 			par(new=T)
-			runningTotalVec = mergeIn(axTimes, times[[i]],runningTotalVec, dataByFramework[[i]][1:POINTS,2])
+			runningTotalVec = mergeIn(rawAXTime, times[[i]],runningTotalVec, dataByFramework[[i]][TRUE,2])
 			plot(axTimes, runningTotalVec, ylab="", xlab="time", col=i,  xaxt="n", type="b", main="",ylim=yrange,cex=1.2)
 		}
 	
@@ -163,29 +120,29 @@ frameworkNames = frameworkNamesL[[1]]
 		reqRatePlotFile=paste("mesosMemAbsSharesStacked",period,".png",sep='')
 		png(file=reqRatePlotFile, bg="transparent")
 
-
+		runningTotalVec = rep(0,length(rawAXTime))
 		i = 0
 		for(framework in frameworkNames) {
 			i = i+1
 			if(dim(dataByFramework[[i]])[1] == 0)
 				continue
 				
-			runningTotalVec = mergeIn(axTimes, times[[i]],runningTotalVec, dataByFramework[[i]][1:POINTS,3])
+			runningTotalVec = mergeIn(rawAXTime, times[[i]],runningTotalVec, dataByFramework[[i]][TRUE,3])
 		}
-		print("done computing total")
+		print("done computing total mem share")
 		yrange= c(0,  max(runningTotalVec))
 		
-		runningTotalVec = rep(0,length(axTimes))
+		runningTotalVec = rep(0,length(rawAXTime))
 		i =0
 		for(framework in frameworkNames) {
 			i = i +1
 			POINTS = dim(dataByFramework[[i]])[1]
 			print(paste("plotting Mem share for",framework, "with",POINTS,"points"))
 			if(POINTS == 0) {
-				next;
+				continue
 			}
 			par(new=T)
-			runningTotalVec = mergeIn(axTimes, times[[i]],runningTotalVec, dataByFramework[[i]][1:POINTS,3])
+			runningTotalVec = mergeIn(rawAXTime, times[[i]],runningTotalVec, dataByFramework[[i]][TRUE,3])
 			plot(axTimes, runningTotalVec, ylab="", xlab="time", col=i,  xaxt="n", type="b", main="",ylim=yrange,cex=1.2)
 		}
 
