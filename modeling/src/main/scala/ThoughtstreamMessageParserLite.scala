@@ -22,7 +22,7 @@ import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter}
 import org.apache.avro.file.DataFileStream
 
 
-class ThoughtstreamMessageParserLite extends ThoughtstreamMessageParser {
+object ThoughtstreamMessageParserLite extends ThoughtstreamMessageParser {
   def main(args: Array[String]): Unit = {
   	if(args.size != 1) {
         println("Usage: ThoughtstreamMessageParserLite <url>")
