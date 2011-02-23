@@ -2,9 +2,15 @@
 import Java::EduBerkeleyCsScadsPiqlGradit::GraditClient
 import Java::EduBerkeleyCsScadsPiql::SimpleExecutor
 import Java::EduBerkeleyCsScadsStorage::TestScalaEngine
+import Java::EduBerkeleyCsRadlabDemo::DemoConfig
 
 $PIQL_SCHEMA_PACKAGE = "EduBerkeleyCsScadsPiqlGradit"
 $CLIENT = GraditClient.new($SCADS_CLUSTER, $PIQL_EXECUTOR)
+
+if(File::exists?($ALLJARS))
+  puts "local cluster detected. bulk loading data"
+  DemoConfig.loadGraditData($CLIENT)
+end
 
 =begin
 puts "************"

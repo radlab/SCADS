@@ -1,0 +1,105 @@
+html, body {
+  background: #1d348a;
+  color: #fff;
+  margin: 0;
+  padding: 0;
+  font-family: Arial, Helvetica, sans-seif;
+  font-size: 12px;
+}
+header.page {
+  display: block;
+}
+header.page h1 {
+  margin: 20px 20px;
+  padding: 0;
+}
+header.page h1 a {
+  display: block;
+  text-indent: -9999px;
+  background: #1d348a url('../images/logo.png') top left no-repeat;
+  height: 62px;
+  width: 389px;
+}
+header.page nav ul {
+  list-style: none;
+  margin: 0 20px 0;
+  padding: 0 0 0 1px;
+}
+header.page nav li {
+  background: #fff;
+  color: #333;
+  margin: 0 0 0 -1px;
+  border: 1px solid #000;
+  border-bottom-width: 0;
+  display: block;
+  float: left;
+}
+header.page nav a:link, header.page nav a:visited {
+  text-decoration: underline;
+  background: #fff;
+  color: #000;
+  display: block;
+  padding: 5px 10px;
+}
+header.page nav a:hover {
+  background: #ccf;
+}
+section.page {
+  display: block;
+  max-width: 900px;
+  margin: 0 20px 20px;
+  padding: 20px;
+  border: 1px solid #000;
+  background: #fff;
+  color: #333;
+}
+div.clear {
+  clear: both;
+}
+div.flash {
+  border-width: 1px;
+  border-style: solid;
+  padding: 4px;
+  margin-bottom: 1em;
+}
+div.flash.error {
+  border-color: #900;
+  background: #fcc;
+}
+div.flash.notice {
+  border-color: #099;
+  background: #cff;
+}
+
+table {
+  border: 1px solid #000;
+  border-collapse: collapse;
+}
+th, td {
+  border: 1px solid #000;
+  padding: 4px;
+  text-align: left;
+}
+div.offer-buttons form {
+  display: inline-block;
+}
+div.column {
+  float: left;
+  width: 50%;
+}
+div.columns {
+  clear: both;
+}
+ul.profile {
+  list-style: none;
+  padding: 0;
+}
+ul.profile li span {
+  display: inline-block;
+  font-weight: bold;
+  width: 110px;
+  padding-right: 10px;
+}
+ul.profile li {
+  line-height: 1.5em;
+}

@@ -3,9 +3,6 @@ import xsbt.ScalaInstance
 
 import java.io.File
 
-
-
-
 class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProject {
   /* SCADS Subprojects */
   lazy val config = project("config", "config", new DefaultProject(_) with IdeaProject {
@@ -42,6 +39,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
     val jets3t = "net.java.dev.jets3t" % "jets3t" % "0.7.1"
     val jetty = "org.mortbay.jetty" % "jetty" % "6.1.6"
     val mysql = "mysql" % "mysql-connector-java" % "5.1.12"
+    val javaSysMon = "github.jezhumble" % "javasysmon" % "1.0"
   }, comm)
 
   lazy val repl = project("repl", "repl", new DefaultWebProject(_) with AvroCompilerPlugin with IdeaProject  {
@@ -76,8 +74,9 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
   /* PIQL Apps */
   lazy val scadr  = project("piql" / "scadr", "scadr", new ScadsSubProject(_) with IdeaProject, piql, director)
   lazy val gradit = project("piql" / "gradit", "gradit", new ScadsSubProject(_) with IdeaProject, piql)
+  lazy val comrades = project("piql" / "comrades", "comrades", new ScadsSubProject(_) with IdeaProject, piql)
 
-  lazy val demo = project("demo", "demo", new ScadsSubProject(_), piql, director, deploylib, gradit, scadr, perf, twitter, modeling)
+  lazy val demo = project("demo", "demo", new ScadsSubProject(_), piql, director, deploylib, gradit, scadr, perf, twitter, comrades, modeling)
 
   /* Repository Configuration */
   val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"

@@ -7,6 +7,7 @@ import com.amazonaws.services.ec2._
 import com.amazonaws.services.ec2.model._
 import net.lag.logging.Logger
 import java.io.File
+import java.net.URL
 import edu.berkeley.cs.scads.comm._
 
 import scala.collection.JavaConversions._
@@ -38,7 +39,7 @@ object EC2Instance extends AWSConnection {
       else {
         val result = client.describeInstances(new DescribeInstancesRequest())
         instanceData = Map(result.getReservations.flatMap((r) => {
-          r.getInstances.map((i) => {
+          r.getInstances.filter(i => i.getKeyName == keyName).map((i) => {
             (i.getInstanceId, i)
           })
         }): _*)
@@ -120,7 +121,7 @@ object EC2Instance extends AWSConnection {
  * A specific RemoteMachine used to control a single EC2Instance.
  * Instances of this class can be obtained by instanceId from the static method EC2Instance.getInstance
  */
-class EC2Instance protected (val instanceId: String) extends RemoteMachine with RunitManager with Taggable with AWSConnection{
+class EC2Instance protected (val instanceId: String) extends RemoteMachine with RunitManager with AWSConnection{
   lazy val hostname: String = getHostname()
   val username: String = "root"
   val rootDirectory: File = new File("/mnt/")
@@ -128,6 +129,26 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
   val javaCmd: File = new File("/usr/bin/java")
   override val privateKey = if (System.getenv("AWS_KEY_PATH") != null) new File(System.getenv("AWS_KEY_PATH")) else super.findPrivateKey
   val fileCache: File = new File(rootDirectory, "deploylibFileCache")
+
+  object tags extends collection.generic.SeqForwarder[TagDescription] {
+    def underlying = getTags
+
+    //TODO: specify filters
+    //TODO: cache tags with instance state?
+    protected def getTags =
+      EC2Instance.client.describeTags().getTags()
+		 .filter(_.getResourceType equals "instance")
+		 .filter(_.getResourceId equals instanceId)
+
+    def +=(key: String, value: String = ""): Unit =
+      EC2Instance.client.createTags(
+	new CreateTagsRequest(instanceId :: Nil,
+			      new Tag(key, value) :: Nil))
+
+    def -=(key: String, value: String = ""): Unit =
+      EC2Instance.client.deleteTags(
+	new DeleteTagsRequest(instanceId :: Nil).withTags(new Tag(key, value)))
+  }
 
   def fixHostname: Unit =
     this ! ("hostname " + privateDnsName)
@@ -186,26 +207,17 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     val jars = deploylibJar ++ otherJars
 
     logger.info("Starting Jar upload")
-    val cachedJars = jars.map(cacheFile)
-
-    logger.info("Creating classSource file")
-    val s3Jars = jars.map(f => S3CachedJar(S3Cache.getCacheUrl(f))).toSeq
-    val s3JarsCode = s3Jars.map(j => """S3CachedJar("%s")""".format(j.url)).toList.toString
-    val setup =  "import edu.berkeley.cs.scads.comm._" ::
-      "import deploylib.mesos._" ::
-      "implicit val classSource = " + s3JarsCode ::
-      "implicit val expScheduler = LocalExperimentScheduler(\"MasterConsole\", \"1@\" + java.net.InetAddress.getLocalHost.getHostName + \":5050\", \"/usr/local/mesos/frameworks/deploylib/java_executor\")" ::
-      "implicit val zooKeeper = ZooKeeperNode(\"zk://ec2-50-16-2-36.compute-1.amazonaws.com/\")" :: Nil
-
-    createFile(new File("/root/jars/classsource.scala"),setup.mkString("\n"))
+    val cachedJars = cacheFiles(jars)
+    cachedJars.foreach(j => this ! "ln -s -f %s %s.jar".format(j,j))
+    val classpath =  cachedJars.map(_ + ".jar").mkString(":")
 
     logger.info("Creating scripts")
+    createFile(new File("/root/classpath"), classpath)
     val headers = "#!/bin/bash" ::
       "JAVA=/usr/bin/java" ::
-      "CLASSPATH=\"-cp " + cachedJars.mkString(":") + "\"" ::
+      "CLASSPATH=\"-cp " + classpath + "\"" ::
       "MESOS=-Djava.library.path=/usr/local/mesos/lib/java" :: Nil
 
-    /* Create shell scripts */
     createFile(new File("/root/console"),
       (headers :+ "$JAVA $CLASSPATH $MESOS scala.tools.nsc.MainGenericRunner $CLASSPATH -i jars/classsource.scala $@").mkString("\n"))
     this ! "chmod 755 /root/console"
@@ -268,19 +280,23 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
   /**
    * Caches this file on the instance (keyed by the hash of the file contents)
    */
-  def cacheFile(localFile: File): File = {
-    val url = new java.net.URL(S3Cache.getCacheUrl(localFile))
-    val hash = new File(url.getFile).getName
+  def cacheFiles(localFiles: Seq[File]): Seq[File] = {
+    def getHashFromUrl(url: URL): String = new File(url.getFile).getName
+    val urls = localFiles.map(f => new java.net.URL(S3Cache.getCacheUrl(f)))
 
     /* Make sure the file cache dir exists */
     this ! "mkdir -p " + fileCache
 
-    /* If the file doesn't exist already... upload it */
-    if(! ls(fileCache).map(_.name).contains(hash)) {
+    val currentCachedFiles = ls(fileCache).map(_.name)
+    val toUpload = urls.filterNot(u => currentCachedFiles.contains(getHashFromUrl(u)))
+    logger.info("Updating %d files on %s", toUpload.size, publicDnsName)
+
+    for(url <- toUpload) {
+      val hash = getHashFromUrl(url)
       this ! "wget --quiet -O %s %s".format(new File(fileCache, hash), url)
     }
 
-    new File(fileCache, hash)
+    urls.map(u => new File(fileCache, new File(u.getFile).getName))
   }
 
   /**
@@ -292,20 +308,32 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     //             fail when we get to ec2-upload-bundle anyway.
     upload(ec2Cert, new File("/tmp"))
     upload(ec2PrivateKey, new File("/tmp"))
-    this ! "rm -rf /tmp/image"
-    this.executeCommand("mv ~/.tags /tmp/mesos-ec2-tags")
+
+    logger.info("Removing /tmp/image, if it exists.")
+    this.executeCommand("rm -rf /tmp/image")
+
+    logger.info("Shutting down mesos-master.")
+    this executeCommand("pkill mesos-master")
+
+    logger.info("Running ec2-bundle-vol.")
     this ! "ec2-bundle-vol -c /tmp/%s -k /tmp/%s -u %s --arch %s".format(ec2Cert.getName, ec2PrivateKey.getName, userID, "x86_64")
+
+    logger.info("Running ec2-upload-bundle.")
     this ! "ec2-upload-bundle -b %s -m %s -a %s -s %s".format(bucketName, "/tmp/image.manifest.xml", accessKeyId, secretAccessKey)
+
+    logger.info("Registering the new image with Amazon to be assigned an AMI ID#.")
     val registerRequest = new RegisterImageRequest(bucketName + "/image.manifest.xml")
     val registerResponse = EC2Instance.client.registerImage(registerRequest)
     val ami = registerResponse.getImageId
+
+    logger.info("Changing the permissions on the new AMI to public")
     var req = new ModifyImageAttributeRequest()
                  .withImageId(ami)
                  .withOperationType("add")
                  .withUserGroups("all" :: Nil)
                  .withAttribute("launchPermission")
     EC2Instance.client.modifyImageAttribute(req)
-    this.executeCommand("mv /tmp/mesos-ec2-tags ~/.tags")
+
     ami
   }
 

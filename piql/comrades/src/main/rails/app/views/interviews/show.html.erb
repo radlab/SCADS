@@ -1,0 +1,34 @@
+<h2>Interview Summary</h2>
+
+<h3>Candidate Profile</h3>
+<%= render :partial => 'candidates/show', :locals => { :candidate => @candidate, :show_name => true } %>
+
+<h3>Interview Details</h3>
+<ul class="profile">
+  <li><span>Status:</span><%= @interview.status %></li>
+  <li><span>Requested:</span><%= Time.at(@interview.created_at) %></li>
+  <li><span>Scheduled:</span><%--%>
+    <%- if @interview.interviewed_at == 0 -%><%= link_to "Schedule Now", edit_candidate_interview_path(@candidate, @interview) -%>
+    <%- else -%><%= Time.at(@interview.interviewed_at) -%>
+    <%- end -%>
+  </li>
+  <li><span>Interviewer:</span><%= @interview.interviewer %></li>
+  <li><span>Score:</span><%= @interview.score %></li>
+  <li><span>Comments:</span><%= simple_format(@interview.comments) %></li>
+</ul>
+
+<% if @interview.status == "INTERVIEWED" %>
+<div class="offer-buttons">
+<% form_for @interview, :url => decide_candidate_interview_path(@candidate, @interview), :html => { :method => :put } do |form| %>
+<%= form.hidden_field :decision, :value => "OFFER" %>
+<%= form.submit "Offer" %>
+<% end %>
+
+<% form_for @interview, :url => decide_candidate_interview_path(@candidate, @interview), :html => { :method => :put } do |form| %>
+<%= form.hidden_field :decision, :value => "REJECT" %>
+<%= form.submit "Reject" %>
+<% end %>
+</div>
+<% end %>
+
+<p><%= link_to "&larr; Return to Candidate", candidate_path(@candidate) %></p>

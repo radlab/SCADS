@@ -67,7 +67,7 @@ abstract class NettyChannelManager[S <: SpecificRecord, R <: SpecificRecord](
 
   class NettyBaseHandler extends SimpleChannelHandler {
     override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) {
-      log.error("Handler caught exception", e.getCause)
+      log.error("Handler caught exception: %s", e.getCause)
       e.getChannel.close()
       ctx.sendUpstream(e)
     }

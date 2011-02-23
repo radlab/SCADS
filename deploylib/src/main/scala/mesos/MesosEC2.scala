@@ -8,16 +8,18 @@ import edu.berkeley.cs.scads.comm._
 
 import java.io.File
 import java.net.InetAddress
+import collection.JavaConversions._
+import com.amazonaws.services.ec2.model._
 
 /**
  * Functions to help maintain a mesos cluster on EC2.
  */
 object MesosEC2 extends ConfigurationActions {
   val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
-  val mesosAmi = "ami-8a38c8e3"
+  val mesosAmi = "ami-44ce3d2d"
 
-  def updateDeploylib: Unit = {
-    slaves.pforeach(inst => {
+  def updateDeploylib(instances: Seq[EC2Instance] = slaves): Unit = {
+    instances.pforeach(inst => {
       val executorScript = Util.readFile(new File("deploylib/src/main/resources/java_executor"))
       .split("\n")
       .map {
@@ -31,56 +33,80 @@ object MesosEC2 extends ConfigurationActions {
     })
   }
 
-  val masterTag = "mesosMaster"
-  def slaves = EC2Instance.activeInstances.pfilterNot(_.tags contains masterTag)
+  def slaves = {
+    val masterIds = masters.map(_.instanceId)
+    EC2Instance.activeInstances.filterNot(i => masterIds.contains(i.instanceId))
+  }
 
-  def masterCache = CachedValue(EC2Instance.activeInstances.pfilter(_.tags contains masterTag).head)
-  def master = masterCache()
+  def masters = {
+    EC2Instance.update()
+    EC2Instance.client.describeTags().getTags()
+      .filter(_.getResourceType equals "instance")
+      .filter(_.getKey equals "mesos")
+      .filter(_.getValue equals "master")
+      .map(t => EC2Instance.getInstance(t.getResourceId))
+      .filter(_.instanceState equals "running")
+  }
+
+  def firstMaster = masters.head
 
   def updateMesos =
     MesosEC2.slaves.pforeach(s =>
-      MesosEC2.master ! "rsync -e 'ssh -o StrictHostKeyChecking=no' -av /usr/local/mesos root@%s:/usr/local/mesos".format(s.publicDnsName))
+      MesosEC2.firstMaster ! "rsync -e 'ssh -o StrictHostKeyChecking=no' -av /usr/local/mesos root@%s:/usr/local/mesos".format(s.publicDnsName))
 
-  def clusterUrl = "1@" + master.privateDnsName + ":5050"
+  def clusterUrl: String = {
+    val masters = MesosEC2.masters
+    if (masters.size == 1)
+      "1@" + firstMaster.privateDnsName + ":5050"
+    else
+      "zoo://ec2-50-16-2-36.compute-1.amazonaws.com:2181/mesos,ec2-174-129-105-138.compute-1.amazonaws.com:2181/mesos"
+  }
 
   def restartSlaves: Unit = {
     slaves.pforeach(_ ! "service mesos-slave stop")
     slaves.pforeach(_ ! "service mesos-slave start")
   }
 
-  def restartMaster: Unit = {
-    master ! "service mesos-master stop"
-    master ! "service mesos-master start"
+  def restartMasters: Unit = {
+    masters.foreach { master =>
+      master ! "service mesos-master stop"
+      master ! "service mesos-master start"
+    }
   }
 
   def restart: Unit = {
-    restartMaster
+    restartMasters
     restartSlaves
   }
 
   def updateSlavesFile: Unit = {
     val location = new File("/root/mesos-ec2/slaves")
     val contents = slaves.map(_.privateDnsName).mkString("\n")
-    master.mkdir("/root/mesos-ec2")
-    createFile(master, location, contents, "644")
+    masters.pforeach { master => 
+      master.mkdir("/root/mesos-ec2")
+      createFile(master, location, contents, "644")
+    }
   }
 
   val defaultZone = "us-east-1a"
-  def startMaster(zone: String = defaultZone): EC2Instance = {
+  def startMasters(zone: String = defaultZone, count: Int = 1, ami: String = mesosAmi): Seq[EC2Instance] = {
     val ret = EC2Instance.runInstances(
-      mesosAmi,
-      1,
-      1,
+      ami,
+      count,
+      count,
       EC2Instance.keyName,
       "m1.large",
       zone,
-      None).head
-    ret.tags += masterTag
-    restartMaster
+      None)
+
+    ret.foreach(_.tags += ("mesos", "master"))
+
+    updateConf(ret)
+    restartMasters
     ret
   }
 
-  def addSlaves(count: Int, zone: String = defaultZone, updateDeploylibOnStart: Boolean = true): Seq[EC2Instance] = {
+  def addSlaves(count: Int, zone: String = defaultZone, ami: String = mesosAmi, updateDeploylibOnStart: Boolean = true): Seq[EC2Instance] = {
     val userData =
       if (updateDeploylibOnStart)
         None
@@ -92,7 +118,7 @@ object MesosEC2 extends ConfigurationActions {
         }
 
     val instances = EC2Instance.runInstances(
-      mesosAmi,
+      ami,
       count,
       count,
       EC2Instance.keyName,
@@ -101,22 +127,22 @@ object MesosEC2 extends ConfigurationActions {
       userData)
 
     if(updateDeploylibOnStart) {
-      updateDeploylib
-      updateConf
+      updateDeploylib(instances)
+      updateConf(instances)
       instances.pforeach(_ ! "service mesos-slave start")
     }
 
     instances
   }
 
-  def updateConf: Unit = {
+  def updateConf(instances: Seq[EC2Instance] = (slaves ++ masters)): Unit = {
     val conf = ("work_dir=/mnt" ::
       "log_dir=/mnt" ::
       "switch_user=0" ::
       "url=" + clusterUrl ::
       "shares_interval=30" :: Nil).mkString("\n")
     val conffile = new File("/usr/local/mesos/conf/mesos.conf")
-    slaves.pforeach(_.createFile(conffile, conf))
+    instances.pforeach(_.createFile(conffile, conf))
   }
 
   //TODO: Doesn't handle non s3 cached jars
@@ -145,10 +171,10 @@ object MesosEC2 extends ConfigurationActions {
    */
   def authorizeMaster: Unit = {
     val getKeyCommand = "cat /root/.ssh/id_rsa.pub"
-    val key = try (master !? getKeyCommand) catch {
+    val key = try (firstMaster !? getKeyCommand) catch {
       case u: UnknownResponse => {
-        master ! "ssh-keygen -t rsa -f /root/.ssh/id_rsa -N \"\""
-        master !? getKeyCommand
+        firstMaster ! "ssh-keygen -t rsa -f /root/.ssh/id_rsa -N \"\""
+        firstMaster !? getKeyCommand
       }
     }
 

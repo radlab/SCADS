@@ -239,12 +239,13 @@ trait RoutingTableProtocol[KeyType <: IndexedRecord,
   private def getStartEndKey(partitionHandler: PartitionService): (Option[RoutingKeyType], Option[RoutingKeyType]) = {
     // This request could be avoided if we would store the ranges in the partitionHandler.
     // However replication is not on the critical path and so expensive anyway that it does not matter
-
-    val keys = partitionHandler !? GetResponsibilityRequest() match {
-      case GetResponsibilityResponse(s, e) => (s.map(deserializeRoutingKey(_)), e.map(deserializeRoutingKey(_)))
-      case _ => throw new RuntimeException("Unexpected Message")
-    }
-    return keys
+    try {
+      val keys = partitionHandler !? GetResponsibilityRequest() match {
+        case GetResponsibilityResponse(s, e) => (s.map(deserializeRoutingKey(_)), e.map(deserializeRoutingKey(_)))
+        case _ => throw new RuntimeException("Unexpected Message")
+      }
+      return keys
+    } catch {case e:Exception => { logger.warning(e,"issue with GetResponsibilityRequest to %s. rethrowing exception",partitionHandler); throw e }}
   }
 
 

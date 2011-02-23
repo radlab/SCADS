@@ -16,7 +16,7 @@ import net.lag.logging.Logger
  * Helper object for spinning up a local zookeeper instance.  Used primarily for testing.
  */
 object ZooKeeperHelper {
-	private val logger = Logger()
+  private val logger = Logger()
 
   private val currentPort = new AtomicInteger(2000) // start at port 2000
 

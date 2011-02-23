@@ -9,7 +9,7 @@ import net.lag.logging.Logger
 
 import edu.berkeley.cs.scads.comm._
 
-abstract class FutureBasedIterator(partitionService: PartitionService, minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], recsPerMessage: Int = 8192) extends Iterator[Record] {
+abstract class FutureBasedIterator(partitionService: PartitionService, minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], recsPerMessage: Int = 1024) extends Iterator[Record] {
   require(recsPerMessage > 0)
 
   private val recsPerMessageDiv2 = recsPerMessage / 2
@@ -53,7 +53,7 @@ abstract class FutureBasedIterator(partitionService: PartitionService, minKey: O
     }
 }
 
-class ActorlessPartitionIterator(partitionService: PartitionService, minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], recsPerMessage: Int = 8192) 
+class ActorlessPartitionIterator(partitionService: PartitionService, minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], recsPerMessage: Int = 1024) 
   extends FutureBasedIterator(partitionService, minKey, maxKey, recsPerMessage) {
 
   private var lastRecvKey: Option[Array[Byte]] = None

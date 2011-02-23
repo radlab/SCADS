@@ -7,7 +7,9 @@ import net.lag.logging.Logger
 
 object ScadsState {
 	val logger = Logger("scadsstate")
+	val keySizeToReplicate = 10
 	System.setProperty("doMysqlLogging","true")
+	var appName = "NoName"
 
 	//set up mysql connection for statistics
   val statement = try {
@@ -39,7 +41,7 @@ object ScadsState {
 			val pToK = new scala.collection.mutable.HashMap[PartitionService,Option[org.apache.avro.generic.GenericRecord]]()
 			val pToSingle = new scala.collection.mutable.HashMap[Option[org.apache.avro.generic.GenericRecord],Boolean]()
 			kToP.foreach(entry => {// key -> set(partitions)
-			  pToSingle(entry._1) = namespace.isPartitionSingleKey(entry._1)
+			  pToSingle(entry._1) = try { namespace.isPartitionKeySize(entry._1, keySizeToReplicate) } catch { case e:Exception => { logger.warning(e,"couldn't chcek if partition is at key limit %s", entry._1) ;false}}
 				entry._2.foreach(partition =>{
 					pToK += (partition -> entry._1)
 					val serverparts = sToP.getOrElse(partition.storageService,new scala.collection.mutable.ListBuffer[PartitionService]())
@@ -48,8 +50,8 @@ object ScadsState {
 				})
 			})
 
-			if (workloadRaw.rangeStats.keySet.size != pToK.keySet.size) {
-  		  logger.warning("workload partitions != partitions->keys size (%d != %d)", workloadRaw.rangeStats.keySet.size, pToK.keySet.size)
+			if (workloadRaw.rangeStats.keySet.size != kToP.keySet.size) {
+  		  logger.warning("[%s] workload partitions != keys->partitions size (%d != %d)", namespace.namespace,workloadRaw.rangeStats.keySet.size, pToK.keySet.size)
   		  return null
   		}
 			// attempt to get "empty" servers, i.e. have no partitions but registered with cluster
@@ -83,7 +85,7 @@ object ScadsState {
 
 		kToP.foreach(entry => {// key -> set(partitions)
 			entry._2.foreach(partition =>{
-			  pToSingle(entry._1) = namespace.isPartitionSingleKey(entry._1)
+			  pToSingle(entry._1) = try { namespace.isPartitionKeySize(entry._1, keySizeToReplicate) } catch { case e:Exception => { logger.warning(e,"couldn't chcek if partition is at key limit %s", entry._1) ;false}}
 				pToK += (partition -> entry._1)
 				val serverparts = sToP.getOrElse(partition.storageService,new scala.collection.mutable.ListBuffer[PartitionService]())
 				serverparts += partition
@@ -91,8 +93,8 @@ object ScadsState {
 			})
 		})
 
-		if (workloadRaw.rangeStats.keySet.size != pToK.keySet.size) {
-		  logger.warning("workload partitions != partitions->keys size (%d != %d)", workloadRaw.rangeStats.keySet.size, pToK.keySet.size)
+		if (workloadRaw.rangeStats.keySet.size != kToP.keySet.size) {
+		  logger.warning("[%s] workload partitions != keys->partitions size (%d != %d)", namespace.namespace, workloadRaw.rangeStats.keySet.size, pToK.keySet.size)
 		  return null
 	  }
 
@@ -111,7 +113,7 @@ object ScadsState {
 			// log about number of servers and requests/second for this namespace
   		val totalWorkload = workloadRaw.totalRate
   		if (totalWorkload > 0) {
-  		  val insertStatement = "INSERT INTO namespaceReqRate (timestamp, namespace, aggRequestRate, numServers) VALUES (%d, '%s', %f, %d)".format(time, namespace.namespace, totalWorkload, existingServers.size)
+  		  val insertStatement = "INSERT INTO namespaceReqRate (timestamp, appName, namespace, aggRequestRate, numServers) VALUES (%d, '%s','%s', %f, %d)".format(time, appName, namespace.namespace, totalWorkload, existingServers.size)
   		  val numResults = try { statement.map(_.executeUpdate(insertStatement)) } catch { case e => None}
         if (numResults.getOrElse(0) != 1)
           logger.warning("INSERT sql statment failed: %s",insertStatement)

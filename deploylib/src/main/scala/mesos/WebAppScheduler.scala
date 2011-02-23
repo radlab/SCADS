@@ -13,6 +13,7 @@ import scala.collection.immutable.HashMap
 
 import org.apache.commons.httpclient._
 import org.apache.commons.httpclient.methods._
+import org.apache.commons.httpclient.params._
 
 object WebAppScheduler {
   System.loadLibrary("mesos")
@@ -51,6 +52,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
   var killTimer = 0
   @volatile var targetNumServers: Int = minServers
   var smoothedWorkload = 0.0 // The smoothed version of the aggregate workload
+  var smoothedUtilization = 0.0
   var servers =  new HashMap[Int, String]()
   var pendingServers =  new HashMap[Int, String]()
   var unresponsiveServers = new HashMap[Int, Int]()
@@ -68,13 +70,22 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
    * @param rampUpWorkloadWeight - Smooth adding webapp servers by weighing in history. Must be geq 0.0 and lt 1.0.
    * @param rampDownWorkloadWeight - Smooth killing webapp servers by weighing in history. Must be geq 0.0 and lt 1.0.
    */
-  class monitorThread(period: Int = 1000 * 30, unresponsiveRequestLimit: Int = 3, rampUpWorkloadWeight: Double = 0.9, rampDownWorkloadWeight: Double = 0.01) extends Runnable {
-    private val httpClient = new HttpClient()
+  class monitorThread(period: Int = 1000 * 30,
+		      unresponsiveRequestLimit: Int = 3,
+		      rampUpWorkloadWeight: Double = 0.9,
+		      rampDownWorkloadWeight: Double = 0.01,
+		      rampUpUtilizationWeight: Double = 0.9,
+		      rampDownUtilizationWeight: Double = 0.01,
+		      utilizationThreshold: Double = 0.40
+		     ) extends Runnable {
+    private val params = new HttpClientParams()
+    params.setSoTimeout(5000)
+    private val httpClient = new HttpClient(params)
     override def run() = {
       while(runMonitorThread) {
         // Calculate the average web server request rate
         logger.info("Beginging collection of workload statistics")
-        val requestsPerSec = for((taskID, slaveHostname) <- servers) yield {
+        val stats = for((taskID, slaveHostname) <- servers.toSeq) yield {
           val slaveUrl = "http://%s:%d/stats/".format(slaveHostname, port)
           val method = new GetMethod(slaveUrl)
           logger.debug("Getting status from %s.", slaveUrl)
@@ -82,7 +93,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
             httpClient.executeMethod(method)
             val xml = scala.xml.XML.loadString(method.getResponseBodyAsString)
 	    unresponsiveServers -= taskID
-            (xml \ "RequestRate").text.toFloat
+            ((xml \ "RequestRate").text.toDouble, (xml \ "CpuUtilization").text.toDouble)
           } catch {
             case e =>
               unresponsiveServers += taskID -> (unresponsiveServers.get(taskID).getOrElse(0) + 1)
@@ -92,25 +103,38 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
                 servers -= taskID
 		recordAction("Webapp Director killed an unresponsive webapp server of %s's. Weakness will not be tolerated!".format(name))
               }
-              0.0
+              (0.0, 0.0)
           }
         }
 
-        logger.info("Current Workload: %s", requestsPerSec)
-        val aggregateReqRate = requestsPerSec.sum
+        logger.info("Current Workload: %s", stats)
+        val aggregateReqRate = stats.map(_._1).sum
+	val totalUtilization = stats.map(_._2).sum
+	val averageUtilization = totalUtilization / servers.size
+
+	/*
         if (aggregateReqRate > smoothedWorkload) { // ramping up
-          smoothedWorkload = smoothedWorkload + (aggregateReqRate - smoothedWorkload) * rampUpWorkloadWeight // newsmooth = oldsmooth + (newraw - oldsmooth)*alpha
+          smoothedWorkload = smoothedWorkload + (aggregateReqRate - smoothedWorkload) * rampUpWorkloadWeight
         } else { // ramping down
-          smoothedWorkload = smoothedWorkload + (aggregateReqRate - smoothedWorkload) * rampDownWorkloadWeight // newsmooth = oldsmooth + (newraw - oldsmooth)*alpha
+          smoothedWorkload = smoothedWorkload + (aggregateReqRate - smoothedWorkload) * rampDownWorkloadWeight
         }
         targetNumServers = math.max(minServers, math.ceil(smoothedWorkload / serverCapacity).toInt)
+	*/
+
+	if(totalUtilization > smoothedUtilization) {
+	  smoothedUtilization = smoothedUtilization + (totalUtilization - smoothedUtilization) * rampUpUtilizationWeight
+        } else { // ramping down
+          smoothedUtilization = smoothedUtilization + (totalUtilization - smoothedUtilization) * rampDownUtilizationWeight
+	}
+	targetNumServers = math.max(minServers, math.ceil(smoothedUtilization / utilizationThreshold).toInt)
+
         logger.info("Current Aggregate Workload: %f req/sec (%f smoothed), targetServers=%d", aggregateReqRate, smoothedWorkload, targetNumServers)
 
         //TODO: Error Handling
         statement.foreach(s => {
           val now = new Date
-          val sqlInsertCmd = "INSERT INTO appReqRate (timestamp, webAppID, aggRequestRate, targetNumServers, actualNumServers)" +
-                             "VALUES (%d, '%s', %f, %d, %d)".format(now.getTime, name, aggregateReqRate, targetNumServers.toInt, servers.size)
+          val sqlInsertCmd = "INSERT INTO appReqRate (timestamp, webAppID, aggRequestRate, targetNumServers, actualNumServers, averageUtilization)" +
+                             "VALUES (%d, '%s', %f, %d, %d, %f)".format(now.getTime, name, aggregateReqRate, targetNumServers.toInt, servers.size, averageUtilization)
           try {
             val numResults = s.map(_.executeUpdate(sqlInsertCmd))
             if (numResults.getOrElse(0) != 1)
@@ -174,7 +198,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
           logger.warning("The webserver on host %s never came up, killing the mesos task associated with it now.", serverHostname)
           driver.killTask(taskId)
           pendingServers -= taskId
-          recordAction("The webserver for app %s killed webapp server task on host %s because it never responded, it was weak and deserved to be killed.".format(name))
+          recordAction("The webserver for app %s killed webapp server task on host %s because it never responded, it was weak and deserved to be killed.".format(name, taskId))
           exitThread = true
         } else {
           val appUrl = "http://%s:%d/".format(serverHostname, port)

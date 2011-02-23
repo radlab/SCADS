@@ -13,7 +13,6 @@ import scala.collection.generic.SeqForwarder
  * @param stderr - a string with all of the data that was output on STDERR by the command
  */
 case class ExecuteResponse(status: Option[Int], stdout: String, stderr: String)
-case class RemoteFile(name: String, owner: String, permissions: String, modDate: String, size: String)
 
 case class UnknownResponse(er: ExecuteResponse) extends Exception
 
@@ -428,11 +427,12 @@ abstract class RemoteMachine {
     executeCommand("killall tail")
   }
 
+  case class RemoteFile(name: String, owner: String, permissions: String, modDate: String, size: String)
   def ls(dir: File): Seq[RemoteFile] = {
     executeCommand("ls -lh " + dir) match {
       case ExecuteResponse(Some(0), data, "") => {
         data.split("\n").drop(1).map(l => {
-          val parts = l.split(" ")
+          val parts = l.split(" ").flatMap { case "" => Nil; case x => Some(x) }
           RemoteFile(parts(7), parts(2), parts(0), parts(5) + parts(6), parts(4))
         })
       }

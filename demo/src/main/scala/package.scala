@@ -13,6 +13,10 @@ package object demo {
   import deploylib.mesos._
   import scads.piql.modeling._
 
+  val logger = net.lag.logging.Logger()
+
+  lazy val twitterSpamData = new ScadsCluster(twitterSpamRoot).getNamespace[TwitterSpamRecord]("twitterSpamRecords")
+
   def runDemo: Unit = {
     resetScads
     startScadrCluster()
@@ -25,26 +29,49 @@ package object demo {
   def updateLoadBalancers: Unit = {
     LoadBalancer.update("scadr", scadrWebServerList)
     LoadBalancer.update("gradit", graditWebServerList)
-    LoadBalancer.update("mesos", MesosEC2.master.instanceId :: Nil)
+    LoadBalancer.update("comrades", comradesWebServerList)
+    LoadBalancer.update("mesos", MesosEC2.firstMaster.instanceId :: Nil)
   }
 
   /**
    * Start a mesos master and make it the primary for the demo.
    * Only needs to be run by one person.
    */
-  def setupMesosMaster(zone:String = zone): Unit = {
-    try MesosEC2.master catch {
-      case _ => MesosEC2.startMaster(zone)
+  def setupMesosMaster(zone:String = zone, numMasters: Int = 1, mesosAmi: Option[String] = None): Unit = {
+    if(MesosEC2.masters.size < numMasters) {
+      mesosAmi match {
+        case Some(ami) => MesosEC2.startMasters(zone, numMasters - MesosEC2.masters.size, ami)
+        case None =>  MesosEC2.startMasters(zone, numMasters - MesosEC2.masters.size)
+      }
     }
 
-    MesosEC2.master.pushJars
+    MesosEC2.masters.pforeach(_.pushJars)
     restartMasterProcs
     mesosMasterNode.data = MesosEC2.clusterUrl.getBytes
   }
 
+  val pidIpRegEx = """\d+@([^:]+):\d+""".r
+  def failOverMesosMaster: Unit = {
+    val currentPid = new String(zooKeeperRoot
+				.proxy
+				.root.children
+				.find(_.name contains "mesos").get("mesos")
+				.children.sortWith(_.name < _.name).head.data)
+    val currentIp =  currentPid match {
+      case pidIpRegEx(internalIp) => internalIp
+      case _ => throw new RuntimeException("Unable to locate ip address of current mesos master")
+    }
+
+    val currentMaster = MesosEC2.masters
+			.find(_ !? "hostname -i" contains currentIp)
+			.getOrElse(throw new RuntimeException("Master not found in list of active masters"))
+
+    logger.info("Restarting master on: %s", currentMaster.publicDnsName)
+    currentMaster ! "service mesos-master restart"
+  }
+
   def preloadWars: Unit = {
-    MesosEC2.slaves.pforeach(_.cacheFile(scadrWarFile))
-    MesosEC2.slaves.pforeach(_.cacheFile(graditWarFile))
+    MesosEC2.slaves.pforeach(_.cacheFiles(scadrWarFile :: graditWarFile :: Nil))
   }
 
   /**
@@ -52,18 +79,23 @@ package object demo {
    * Note this should only be run by the cluster owner, and it will kill all running java procs on the master.
    */
   def restartMasterProcs: Unit = {
-    MesosEC2.master.executeCommand("killall java")
-    MesosEC2.master.createFile(new java.io.File("/root/serviceScheduler"), "#!/bin/bash\n/root/jrun edu.berkeley.cs.radlab.demo.ServiceSchedulerDaemon >> /root/serviceScheduler.log 2>&1")
-    MesosEC2.master.createFile(new java.io.File("/root/utilizationReporter"), "#!/bin/bash\ntail -F /tmp/mesos-shares | /root/jrun edu.berkeley.cs.radlab.demo.MesosClusterShareReporter '" + dashboardDb + "' >> /root/utilizationReporter.log 2>&1")
+    MesosEC2.masters.pforeach(_.executeCommand("killall java"))
 
-    MesosEC2.master ! "chmod 755 /root/serviceScheduler"
-    MesosEC2.master ! "chmod 755 /root/utilizationReporter"
+    // Start service scheduler on only the first master
+    MesosEC2.firstMaster.createFile(new java.io.File("/root/serviceScheduler"), "#!/bin/bash\n/root/jrun edu.berkeley.cs.radlab.demo.ServiceSchedulerDaemon --mesosMaster " + MesosEC2.clusterUrl + " >> /root/serviceScheduler.log 2>&1")
+    MesosEC2.firstMaster ! "chmod 755 /root/serviceScheduler"
+    MesosEC2.firstMaster ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/serviceScheduler.pid --exec /root/serviceScheduler"
 
-    MesosEC2.master ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/utilizationReporter.pid --exec /root/utilizationReporter"
-    MesosEC2.master ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/serviceScheduler.pid --exec /root/serviceScheduler"
+    // Start utilization reporter on all masters (so we can get stats after a failover)
+    MesosEC2.masters.pforeach { master =>
+      master.createFile(new java.io.File("/root/utilizationReporter"), "#!/bin/bash\ntail -F /tmp/mesos-shares | /root/jrun edu.berkeley.cs.radlab.demo.MesosClusterShareReporter '" + dashboardDb + "' >> /root/utilizationReporter.log 2>&1")
+      master ! "chmod 755 /root/utilizationReporter"
+      master ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/utilizationReporter.pid --exec /root/utilizationReporter"
+    }
+
     //HACK
     Thread.sleep(5000)
-    serviceSchedulerNode.data = RemoteActor(MesosEC2.master.publicDnsName, 9000, ActorNumber(0)).toBytes
+    serviceSchedulerNode.data = RemoteActor(MesosEC2.firstMaster.publicDnsName, 9000, ActorNumber(0)).toBytes
   }
 
   def safeUrl(cs: S3CachedJar, delim: String = "|"): String = {
@@ -79,7 +111,8 @@ package object demo {
       javaExecutorPath,
       scadrWar,
       scadrWebServerList.canonicalAddress,
-      Map("scads.clusterAddress" -> scadrRoot.canonicalAddress)).toJvmTask
+      Map("scads.clusterAddress" -> scadrRoot.canonicalAddress,
+	      "demo.appname" -> "scadr")).toJvmTask
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
@@ -90,7 +123,20 @@ package object demo {
       javaExecutorPath,
       graditWar,
       graditWebServerList.canonicalAddress,
-    Map("scads.clusterAddress" -> graditRoot.canonicalAddress)).toJvmTask
+    Map("scads.clusterAddress" -> graditRoot.canonicalAddress,
+	"demo.appname" -> "gradit")).toJvmTask
+    serviceScheduler !? RunExperimentRequest(task :: Nil)
+  }
+
+  def startComrades: Unit = {
+    val task = WebAppSchedulerTask(
+      "comRADes",
+      mesosMaster,
+      javaExecutorPath,
+      comradesWar,
+      comradesWebServerList.canonicalAddress,
+    Map("scads.clusterAddress" -> comradesRoot.canonicalAddress,
+        "demo.appname" -> "comrades")).toJvmTask
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
@@ -103,6 +149,12 @@ package object demo {
   def startGraditCluster(add:Option[String] = None): Unit = {
     val clusterAddress = add.getOrElse(graditRoot.canonicalAddress)
     val task = InitGraditClusterTask(clusterAddress).toJvmTask
+    serviceScheduler !? RunExperimentRequest(task :: Nil)
+  }
+
+  def startComradesCluster(add:Option[String] = None): Unit = {
+    val clusterAddress = add.getOrElse(comradesRoot.canonicalAddress)
+    val task = InitComradesClusterTask(clusterAddress).toJvmTask
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
@@ -155,23 +207,25 @@ package object demo {
   }
 
   def startThoughtstreamTraceCollector: Unit = {
-    val traceTask = ThoughtstreamTraceCollectorTask(
-      RunParams(
-        scadrClusterParams,
-        "thoughtstream"
-      )
-    ).toJvmTask
+    val traceTasks = Array.fill(thoughtstreamRunParams.numTraceCollectors)(ThoughtstreamTraceCollectorTask(thoughtstreamRunParams).toJvmTask)
+    
+    serviceScheduler !? RunExperimentRequest(traceTasks.toList)
+  }
+
+  def startOneThoughtstreamTraceCollector: Unit = {
+    val traceTask = ThoughtstreamTraceCollectorTask(thoughtstreamRunParams).toJvmTask
     
     serviceScheduler !? RunExperimentRequest(traceTask :: Nil)
   }
 
   def startLocalUserThoughtstreamTraceCollector: Unit = {
-    val traceTask = ThoughtstreamTraceCollectorTask(
-      RunParams(
-        scadrClusterParams,
-        "localUserThoughtstream"
-      )
-    ).toJvmTask
+    val traceTasks = Array.fill(localUserThoughtstreamRunParams.numTraceCollectors)(ThoughtstreamTraceCollectorTask(localUserThoughtstreamRunParams).toJvmTask)
+    
+    serviceScheduler !? RunExperimentRequest(traceTasks.toList)
+  }
+
+  def startOneLocalUserThoughtstreamTraceCollector: Unit = {
+    val traceTask = ThoughtstreamTraceCollectorTask(localUserThoughtstreamRunParams).toJvmTask
     
     serviceScheduler !? RunExperimentRequest(traceTask :: Nil)
   }
@@ -181,6 +235,15 @@ package object demo {
     val dataLoadTasks = Array.fill(scadrClusterParams.numLoadClients)(ScadrDataLoaderTask(scadrClusterParams).toJvmTask)
 
     serviceScheduler !? RunExperimentRequest(storageEngines.toList ::: dataLoadTasks.toList)
+}
+
+  def startComradesDirector(add:Option[String] = None): Unit = {
+    val clusterAddress = add.getOrElse(comradesRoot.canonicalAddress)
+    val task = ComradesDirectorTask(
+      clusterAddress,
+      mesosMaster
+    ).toJvmTask
+    serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
   def startScadrRain: Unit = {
@@ -190,6 +253,15 @@ package object demo {
         "rain.config.scadr.ramp.json" ::
         scadrWebServerList.canonicalAddress :: Nil,
         Map("dashboarddb" -> dashboardDb)) :: Nil)
+  }
+
+  def startGraditRain: Unit = {
+    serviceScheduler !? RunExperimentRequest(
+      JvmMainTask(rainJars,
+		  "radlab.rain.Benchmark",
+		  "rain.config.gradit.ramp.json" ::
+		  graditWebServerList.canonicalAddress :: Nil,
+		  Map("dashboarddb" -> dashboardDb)) :: Nil)
   }
 
   def killTask(taskId: Int): Unit =
@@ -205,6 +277,7 @@ package object demo {
 
     scadrRoot.deleteRecursive
     graditRoot.deleteRecursive
+    comradesRoot.deleteRecursive
   }
 
   def resetTracing: Unit = {
@@ -248,11 +321,11 @@ package object demo {
 
   def authorizeUsers: Unit = {
     val keys =
-      "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCfH8CkLrCIOxJAkFubG1ehQEdu1OfOUqaMxiTQ7g/X0fXclXRzqwoBFBL33t0FGVxkPVxolwAaZEQTIg6hkGZuzLlPiuq1ortkMx3wGxU9/YBr6JzSZb+kB1OEG/LOWiXH+i5IJbKptW+6B527niXCAgo8Idlf5PNBqcdI+CrvaX+oqQX6K2T5EDxoJVOtgRHbS/2YbtGhwknskyCcvOnOcwjcRUGawmVK7QYavyuO+//SOK+0sIjTSSwTAVceKbQl8XVlPL7IJHKE6/JwEF2+6+eMdflg9A8qAm3g0rE8qfUGdJLN1hpJNdP/UCP1v091h4C88lqqtwbekrS817ar stephentu@ibanez" :: 
+      "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCfH8CkLrCIOxJAkFubG1ehQEdu1OfOUqaMxiTQ7g/X0fXclXRzqwoBFBL33t0FGVxkPVxolwAaZEQTIg6hkGZuzLlPiuq1ortkMx3wGxU9/YBr6JzSZb+kB1OEG/LOWiXH+i5IJbKptW+6B527niXCAgo8Idlf5PNBqcdI+CrvaX+oqQX6K2T5EDxoJVOtgRHbS/2YbtGhwknskyCcvOnOcwjcRUGawmVK7QYavyuO+//SOK+0sIjTSSwTAVceKbQl8XVlPL7IJHKE6/JwEF2+6+eMdflg9A8qAm3g0rE8qfUGdJLN1hpJNdP/UCP1v091h4C88lqqtwbekrS817ar stephentu@ibanez" ::
       "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAnOr61V36/yp1nGRfMZHxzFr1GUom/uQgQS5xdMQ3A56xqfWbhNpNTGQSOpKc3u1jfc77KouG8v0bPSssaiBIDIqVqVRWWACUg6j4xk5oN0lSm22LWJ0OnFvbPbsZlJOb9t+gIe2/yjlbJsyH5/mpIqJBTASOtXugYUIP3jIfA438ZiObpEYuL3kCiBDhEz4w6WbTaXr0K/bRxQoZFGJem+IH26bfeEP8Y12ygdgwh0EAKErv1bbULV7WC92F+5nSU1eGbvCKbhqxIUzxh7ZCRXdUyGcpDOfVL2MOUxNch3AKjE+Z5TVI8fv1md7ILK4dE95oJTUiWv9IUpAUEabM4Q== kristal.curtis@gmail.com" ::
-      "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAqxXSYqw5Cshu9EvHCzRiu/1lSO6n6hqTmM7NwITK7Q5a0pn7Hg/ZzykuWpcrCDKjRadJlP+FrWWPdizEgOtgwmHs9LWrf0DrtLDNroRsgqyii/rD4+kAMgMP6PWxoRRUklo8Vqgt4TFwA/bDbKFHtyvnPGOxBiapnhrdWL5HKG1nIChrN2iLLq4ymnGd2N0pJW+Fwz8E/D4Mxk7poKSuyfyEcAynhAeLcCvx54t/p8JalahHHco+TGFEChp3gZ2c+Eov3KNZgtCGcQeIphVoRI5M+Li5adaVwD5Y3mmJ3yBBiS6rh4qN0QS9RecOH+oYcAOQWAm000q1UdfHfESKvQ== rean@eecs.berkeley.edu" :: 
+      "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAqxXSYqw5Cshu9EvHCzRiu/1lSO6n6hqTmM7NwITK7Q5a0pn7Hg/ZzykuWpcrCDKjRadJlP+FrWWPdizEgOtgwmHs9LWrf0DrtLDNroRsgqyii/rD4+kAMgMP6PWxoRRUklo8Vqgt4TFwA/bDbKFHtyvnPGOxBiapnhrdWL5HKG1nIChrN2iLLq4ymnGd2N0pJW+Fwz8E/D4Mxk7poKSuyfyEcAynhAeLcCvx54t/p8JalahHHco+TGFEChp3gZ2c+Eov3KNZgtCGcQeIphVoRI5M+Li5adaVwD5Y3mmJ3yBBiS6rh4qN0QS9RecOH+oYcAOQWAm000q1UdfHfESKvQ== rean@eecs.berkeley.edu" ::
       "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAIEA4HH/XGUrla7FpONvVvHZAQ5XtY5hfZq3YuIICholyKfarp4O/sCT0EFjyO97IQILgM7HjDooGJKpexYL61JmnOWReRamsRCP1FKFiM03KofLpBvxllO8QbalSnjLfV9oVqTFDkwnRHQVbaN83FND2dIkEntyaX3U//8cIi3mFJ8= jtma@ironic.ucsd.edu" :: Nil
 
-    MesosEC2.master.appendFile(new File("/root/.ssh/authorized_keys"), keys.mkString("\n"))
+    MesosEC2.masters.pforeach(_.appendFile(new File("/root/.ssh/authorized_keys"), keys.mkString("\n")))
   }
 }

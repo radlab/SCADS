@@ -1,6 +1,7 @@
 package edu.berkeley.cs.scads.director
 
 import edu.berkeley.cs.scads.comm.{PartitionService,StorageService}
+import net.lag.logging.Logger
 
 object ClusterState {
 	val pastServers = scala.collection.mutable.HashSet[String]()
@@ -8,11 +9,11 @@ object ClusterState {
 	val nameSuffix = new java.util.concurrent.atomic.AtomicInteger()
 	
 	def getRandomServerNames(cfg:ClusterState,n:Int):List[StorageService] = {
-	  val newNames = (0 until n).toList.map(i=> "s"+ java.util.UUID.randomUUID.toString/*nameSuffix.getAndIncrement*/)
+	  val newNames = (0 until n).toList.map(i=> "!s"+ java.util.UUID.randomUUID.toString/*nameSuffix.getAndIncrement*/)
 	  newNames.map( name=> new StorageService(name,1,null))
 	}
 	def getRandomPartitionNames(cfg:ClusterState,n:Int):List[PartitionService] = {
-	  val newNames = (0 until n).toList.map(i=> "p"+ java.util.UUID.randomUUID.toString/*nameSuffix.getAndIncrement*/)
+	  val newNames = (0 until n).toList.map(i=> "!p"+ java.util.UUID.randomUUID.toString/*nameSuffix.getAndIncrement*/)
 	  newNames.map( name=> new PartitionService(name,0,null,null,null))
 	}
 	def getRandomServerNamesOld(cfg:ClusterState,n:Int):List[StorageService] = {
@@ -59,10 +60,11 @@ class ClusterState(
 	val serversToPartitions:Map[StorageService,Set[PartitionService]], // server -> set(partition)
 	val keysToPartitions:Map[Option[org.apache.avro.generic.GenericRecord], Set[PartitionService]], // startkey -> set(partition)
 	val partitionsToKeys:Map[PartitionService,Option[org.apache.avro.generic.GenericRecord]], // partition -> startkey
-	val partitionsToSingleKey:Map[Option[org.apache.avro.generic.GenericRecord],Boolean], // startkey -> isSingleKey
+	val partitionsToKeyLimit:Map[Option[org.apache.avro.generic.GenericRecord],Boolean], // startkey -> isKeySizeLimit (currently size set in ScadsState)
 	val workloadRaw:WorkloadHistogram,
 	val time:Long
 ) {
+  val logger = Logger("clusterstate")
   //val wlKeys = workloadRaw.rangeStats.keySet
   keysToPartitions.keys.foreach(key => assert(workloadRaw.rangeStats.contains(key), "cluster state workload doesn't contain "+key))
   //assert(keysToPartitions.keys.sameElements(workloadRaw.rangeStats.keys), "cluster state must have same partitions as in the workload")
@@ -83,7 +85,7 @@ class ClusterState(
 	
 	def partitionOnServer(startkey:Option[org.apache.avro.generic.GenericRecord], server:StorageService):PartitionService = {
 		val result = serversToPartitions(server).intersect(keysToPartitions(startkey))
-		assert (result.size == 1)
+		if (result.size > 1) logger.warning("have multiple partitions (%s) for same key (%s) on server %s",result,startkey,server)
 		result.toList.head
 	}
 	
@@ -95,7 +97,7 @@ class ClusterState(
 		val sToP = serversToPartitions(server) += fakepart
 		val kToP = keysToPartitions(key) += fakepart
 		val pToK = partitionsToKeys + (fakepart -> key)
-		new ClusterState(sToP,kToP,pToK,partitionsToSingleKey,workloadRaw,time)
+		new ClusterState(sToP,kToP,pToK,partitionsToKeyLimit,workloadRaw,time)
 	}
 	
 	def delete(part:PartitionService, server:StorageService):ClusterState = {
@@ -103,7 +105,7 @@ class ClusterState(
 		val sToP = serversToPartitions(server) -= part
 		val kToP = keysToPartitions(key) -= part
 		val pToK = partitionsToKeys - part
-		new ClusterState(sToP,kToP,pToK,partitionsToSingleKey,workloadRaw,time)
+		new ClusterState(sToP,kToP,pToK,partitionsToKeyLimit,workloadRaw,time)
 	}
 	
 	def split(part:Option[org.apache.avro.generic.GenericRecord], numSplits:Int):ClusterState = {
@@ -123,7 +125,7 @@ class ClusterState(
 		(new ClusterState(sToP,
 			Map(keysToPartitions.toList.map( p=> (p._1,p._2) ):_*),
 			Map(partitionsToKeys.toList.map( p=> (p._1,p._2) ):_*),
-			partitionsToSingleKey,workloadRaw,time), newservers)
+			partitionsToKeyLimit,workloadRaw,time), newservers)
 	}
 	
 	def addServer(newserver:StorageService):ClusterState = {
@@ -131,7 +133,7 @@ class ClusterState(
 		new ClusterState(sToP,
 			Map(keysToPartitions.toList.map( p=> (p._1,p._2) ):_*),
 			Map(partitionsToKeys.toList.map( p=> (p._1,p._2) ):_*),
-			partitionsToSingleKey,workloadRaw,time)
+			partitionsToKeyLimit,workloadRaw,time)
 	}
 	
 	def removeServers(servers:List[StorageService]):ClusterState = {
@@ -139,7 +141,7 @@ class ClusterState(
 		new ClusterState(serversToPartitions -- servers,
 			Map(keysToPartitions.toList.map( p=> (p._1,p._2) ):_*),
 			Map(partitionsToKeys.toList.map( p=> (p._1,p._2) ):_*) ,
-			partitionsToSingleKey,workloadRaw,time)
+			partitionsToKeyLimit,workloadRaw,time)
 	}
 	
 	// TODO: meaningless as immutable?
@@ -148,7 +150,7 @@ class ClusterState(
 			Map(serversToPartitions.toList.map( p=> (p._1,p._2) ):_*),
 			Map(keysToPartitions.toList.map( p=> (p._1,p._2) ):_*),
 			Map(partitionsToKeys.toList.map( p=> (p._1,p._2) ):_*) ,
-			partitionsToSingleKey,workloadRaw,time
+			partitionsToKeyLimit,workloadRaw,time
 		)
 	}
 	

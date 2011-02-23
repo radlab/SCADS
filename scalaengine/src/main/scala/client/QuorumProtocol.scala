@@ -13,9 +13,10 @@ import org.apache.zookeeper.CreateMode
 import java.nio.ByteBuffer
 import actors.Actor
 import java.util.concurrent.TimeUnit
-import collection.mutable.{ArrayBuffer, MutableList, HashMap}
 import java.util.Arrays
 import scala.concurrent.ManagedBlocker
+import collection.mutable.{HashSet, ArrayBuffer, MutableList, HashMap}
+import scala.util.Random
 
 private[storage] object QuorumProtocol {
   val MinString = "" 
@@ -41,6 +42,8 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
   
   import QuorumProtocol._
 
+  protected var lostMessageTolerance = 0;
+
   protected var readQuorum: Double = 0.001
   protected var writeQuorum: Double = 1.0
 
@@ -61,6 +64,11 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
         }
       })
     })
+  }
+
+  def setLostMessageTolerance(lostMessageTolerance : Int) = {
+    require (lostMessageTolerance > 0)
+    this.lostMessageTolerance = lostMessageTolerance
   }
 
   def setReadWriteQuorum(readQuorum: Double, writeQuorum: Double) = {
@@ -93,15 +101,26 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
 
   private def writeQuorumForKey(key: KeyType): (Seq[PartitionService], Int) = {
     val servers = serversForKey(key)
-    (servers, scala.math.ceil(servers.size * writeQuorum).toInt)
+    val wQuorum = scala.math.ceil(servers.size * writeQuorum).toInt
+    if(wQuorum + lostMessageTolerance < servers.size){
+      (scala.util.Random.shuffle(servers).take(wQuorum + lostMessageTolerance), wQuorum)
+    }else{
+      (servers, wQuorum)
+    }
   }
 
   private def readQuorum(nbServers: Int): Int = scala.math.ceil(nbServers * readQuorum).toInt
 
   private def readQuorumForKey(key: KeyType): (Seq[PartitionService], Int) = {
     val servers = serversForKey(key)
-    (servers, readQuorum(servers.size))
+    val rQuorum = readQuorum(servers.size)
+    if(rQuorum + lostMessageTolerance < servers.size){
+      (scala.util.Random.shuffle(servers).take(rQuorum + lostMessageTolerance), rQuorum)
+    }else{
+      (servers, rQuorum)
+    }
   }
+
 
   /**
    * Returns all value versions for a given key. Does not perform read-repair.
@@ -153,9 +172,10 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
   }
   
   /**
-	* for each logical partition, return boolean indicating if that partition has only one key
+	* for each logical partition, return boolean indicating if that partition is non-empty but has <= the specified number of keys
+	* note that this uses a getRange(), so could be potentially expensive for large numKeys
 	*/
-	def isPartitionSingleKey(startkey: Option[KeyType]):Boolean = {
+	def isPartitionKeySize(startkey: Option[KeyType], numKeys:Int):Boolean = {
 	  /*val ranges = serversForRange(None,None)
 	  val requests = for (fullrange <- ranges) yield {
 			(fullrange.startKey,fullrange.endKey, fullrange.values, getRange(fullrange.startKey,fullrange.endKey,Some(2),Some(0)) )
@@ -164,8 +184,9 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
     val partitions = activePartition.values
     val endkey = activePartition.endKey
 
-    val result = getRange(startkey,endkey,Some(2),Some(0))
-    result.size == 1
+    val result = getRange(startkey,endkey,Some(numKeys+1),Some(0))
+    val size = result.size
+    size > 0 && size <= numKeys
 	}
 
   def put(key: KeyType, value: Option[ValueType]): Unit = {
