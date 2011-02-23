@@ -53,8 +53,8 @@ case class ThoughtstreamTraceCollectorTask(
     beginningOfCurrentWindow = System.nanoTime
             
     // set up thoughtstream-specific run params
-    val numSubscriptionsPerUserList = List(100,250,500)
-    val numPerPageList = List(10,20,30,40,50)
+    val numSubscriptionsPerUserList = List(100,300,500)
+    val numPerPageList = List(10,30,50)
     //val numSubscriptionsPerUserList = List(100)
     //val numPerPageList = List(10)
     
