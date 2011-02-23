@@ -101,7 +101,7 @@ if(WEBAPP_STATS) {
 				axis(side=4, at=yrange,cex=1.2)
 				mtext("servers",side=4,col="blue",line=1,cex=1.2)
 				mtext("time", side=1,line=3,cex=1.2)
-				mtext("Web server load and allocation for SCADr",side=3,cex=1.4,line=2)
+				mtext(paste("Web server load and allocation for"appID),side=3,cex=1.4,line=2)
 	
 				legend( x="topleft", inset=0.05, c("Request rate","Server count"), cex=1.0, col=c("red","blue"), bg="white", pch=21:22, lty=1:2)
 				dev.off()
