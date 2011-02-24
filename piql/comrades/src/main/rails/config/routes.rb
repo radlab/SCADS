@@ -2,6 +2,7 @@ ActionController::Routing::Routes.draw do |map|
   map.resources :candidates do |candidate|
     candidate.resources :interviews, :member => { :decide => :put }
   end
+  map.about '/about', :controller => :about, :action => :show
   map.root :controller => :candidates, :action => :index
 
   # The priority is based upon order of creation: first created -> highest priority.
