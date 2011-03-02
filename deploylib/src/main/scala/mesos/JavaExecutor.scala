@@ -185,7 +185,11 @@ class JavaExecutor extends Executor {
       deleteRecursive(tempDir)
       logger.info("Done cleaning up after Task %d", taskId)
     }
-    def kill = proc.destroy()
+
+    def kill = {
+      logger.info("Killing Task %d", taskId)
+      proc.destroy()
+    }
   }
 
   def resolveClassSource(classSource: ClassSource): File = classSource match {
