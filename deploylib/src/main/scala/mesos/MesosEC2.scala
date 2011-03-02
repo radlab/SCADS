@@ -136,13 +136,17 @@ object MesosEC2 extends ConfigurationActions {
   }
 
   def updateConf(instances: Seq[EC2Instance] = (slaves ++ masters)): Unit = {
-    val conf = ("work_dir=/mnt" ::
+    val baseConf = ("work_dir=/mnt" ::
       "log_dir=/mnt" ::
       "switch_user=0" ::
-      "url=" + clusterUrl ::
-      "shares_interval=30" :: Nil).mkString("\n")
+      "shares_interval=30" :: Nil)
+
+    val mastersConf = baseConf.mkString("\n")
+    val slavesConf = (baseConf :+ ("url=" + clusterUrl)).mkString("\n")
     val conffile = new File("/usr/local/mesos/conf/mesos.conf")
-    instances.pforeach(_.createFile(conffile, conf))
+
+    slaves.pforeach(_.createFile(conffile, slavesConf))
+    masters.pforeach(_.createFile(conffile, mastersConf))
   }
 
   //TODO: Doesn't handle non s3 cached jars
