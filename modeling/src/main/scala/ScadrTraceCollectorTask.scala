@@ -26,24 +26,26 @@ case class ScadrTraceCollectorTask(
   var beginningOfCurrentWindow = 0.toLong
   
   def run(): Unit = {
-    println("made it to run function")
+    val logger = Logger()
+
+    logger.info("made it to run function")
     
     /* set up cluster */
     val clusterRoot = ZooKeeperNode(params.clusterParams.clusterAddress)
     val cluster = new ExperimentalScadsCluster(clusterRoot)
 
-    println("Adding servers...")
+    logger.info("Adding servers...")
     cluster.blockUntilReady(params.clusterParams.numStorageNodes)
 
     /* create executor that records trace to fileSink */
-    println("creating executor...")
+    logger.info("creating executor...")
     val fileSink = new FileTraceSink(new File("/mnt/piqltrace.avro"))
     implicit val executor = new ParallelExecutor with TracingExecutor {
       val sink = fileSink
     }
 
     /* Register a listener that will record all messages sent/recv to fileSink */
-    println("registering listener...")
+    logger.info("registering listener...")
     val messageTracer = new MessagePassingTracer(fileSink)
     MessageHandler.registerListener(messageTracer)
 
@@ -56,7 +58,7 @@ case class ScadrTraceCollectorTask(
             
     // warmup to avoid JITing effects
     // TODO:  move this to a function
-    println("beginning warmup...")
+    logger.info("beginning warmup...")
     fileSink.recordEvent(WarmupEvent(params.warmupLengthInMinutes, true))
     var queryCounter = 1
     //val cardinalityList = params.clusterParams.getCardinalityList(params.queryType)
@@ -76,9 +78,9 @@ case class ScadrTraceCollectorTask(
 
     /* Run some queries */
     // TODO:  move this to a function
-    println("beginning run...")
+    logger.info("beginning run...")
     cardinalityList.indices.foreach(r => {
-      println("current cardinality = " + cardinalityList(r).toString)
+      logger.info("current cardinality = " + cardinalityList(r).toString)
       fileSink.recordEvent(ChangeCardinalityEvent(cardinalityList(r)))
       
       (1 to params.numQueriesPerCardinality).foreach(i => {
@@ -93,19 +95,19 @@ case class ScadrTraceCollectorTask(
 
     // TODO:  put all of this cleanup in a function
     //Flush trace messages to the file
-    println("flushing messages to file...")
+    logger.info("flushing messages to file...")
     fileSink.flush()
 
     // Upload file to S3
     val currentTimeString = System.currentTimeMillis().toString
     
-    println("uploading data...")
+    logger.info("uploading data...")
     TraceS3Cache.uploadFile("/mnt/piqltrace.avro", currentTimeString)
     
     // Publish to SNSClient
     snsClient.publishToTopic(topicArn, params.toString, "experiment completed at " + currentTimeString)
     
-    println("Finished with trace collection.")
+    logger.info("Finished with trace collection.")
   }
   
   def convertMinutesToNanoseconds(minutes: Int): Long = {
