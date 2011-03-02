@@ -115,7 +115,7 @@ case class ThoughtstreamTraceCollectorTask(
 
     // Upload file to S3
     println("uploading data...")
-    TraceS3Cache.uploadFile("/mnt/piqltrace.avro", params.binPrefix + "client" + clientId)
+    TraceS3Cache.uploadFile("/mnt/piqltrace.avro", params.binPrefix, "client" + clientId)
     
     // Publish to SNSClient
     val currentTimeString = System.currentTimeMillis().toString
