@@ -1,9 +1,15 @@
 import Java::EduBerkeleyCsScadsPiqlScadr::ScadrClient
 import Java::EduBerkeleyCsScadsPiql::SimpleExecutor
 import Java::EduBerkeleyCsScadsStorage::TestScalaEngine
+import Java::EduBerkeleyCsRadlabDemo::DemoConfig
 
 $PIQL_SCHEMA_PACKAGE = "EduBerkeleyCsScadsPiqlScadr"
 $CLIENT = ScadrClient.new($SCADS_CLUSTER, $PIQL_EXECUTOR, 10)
+
+if(File::exists?($ALLJARS))
+  puts "local cluster detected loading sample data"
+  DemoConfig.loadScadrData($CLIENT)
+end
 
 puts "Loading example users"
 $EXAMPLE_USERS = []

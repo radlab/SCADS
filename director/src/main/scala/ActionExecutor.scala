@@ -153,14 +153,18 @@ class GroupingExecutor(val namespace:GenericNamespace, val scheduler:RemoteActor
 	
 	def doDeletion():Unit = {
 	  val deleteTotal = getDeleteActions()
-		//logger.debug("%d delete actions",deleteTotal.size)
-		val delete = deleteTotal.filter(_.parentsCompleted)
-		deleteTotal.diff(delete).foreach(a => a.cancel)
-		if (!delete.isEmpty) reportAction("Executing "+delete.size+" deletions for namespace "+ namespace.namespace)
-		if (delete.size != deleteTotal.size) logger.warning("not doing all scheduled deletes since some had their replicates fail")
-		if (!delete.isEmpty) namespace.deletePartitions( delete.map(a=> 
-				a match { case d:DeletePartition =>{ d.setStart; d.partition } }))
-		delete.foreach(a => a.setComplete) // TODO: check for errors
+	  val delete = deleteTotal.filter(_.parentsCompleted)
+	  try {
+  		deleteTotal.diff(delete).foreach(a => a.cancel)
+  		if (!delete.isEmpty) reportAction("Executing "+delete.size+" deletions for namespace "+ namespace.namespace)
+  		if (delete.size != deleteTotal.size) logger.warning("not doing all scheduled deletes since some had their replicates fail")
+  		if (!delete.isEmpty) namespace.deletePartitions( delete.map( a=>
+  				a match { case d:DeletePartition =>{ d.setStart; d.partition } }))
+  		delete.foreach(a => a.setComplete)
+		} catch { case e:Exception => {
+		  logger.warning(e,"delete failed, so need to cancel them: %s", delete)
+		  delete.foreach(a => a.cancel)
+		}}
 	}
 	
 	def getRemoveActions():Seq[Action] = actions.filter(a=> a match { case r:RemoveServers => r.ready; case _ => false } )
@@ -196,7 +200,7 @@ class GroupingExecutor(val namespace:GenericNamespace, val scheduler:RemoteActor
 				    Director.cluster.root.awaitChild("availableServers/"+serverName,timeout = 5*60*1000)
 				    logger.info("server %s should be available",serverName)
 				    ad.setComplete
-			    } catch { case e:FutureTimeoutException => { logger.warning(e,"AddServer timeout: %s",serverName); ad.cancel}}
+			    } catch { case e:FutureTimeoutException => { logger.warning(e,"AddServer timeout: %s, cancelling",serverName); ad.cancel}}
 			  }
 			}
 		}

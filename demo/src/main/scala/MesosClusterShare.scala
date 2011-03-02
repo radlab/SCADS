@@ -22,22 +22,23 @@ object MesosClusterShareReporter {
     println("Connected to database!")
 
     val stmt = conn.prepareStatement("""
-      insert into mesosStats
-        (timestamp, frameworkId, frameworkName, cpus, gbRam,
-         cpuShare, memShare, domShare)
-      values (?, ?, ?, ?, ?, ?, ?, ?)
-      """)
+				     insert into mesosStats
+				     (timestamp, frameworkId, frameworkName, cpus, gbRam,
+				     cpuShare, memShare, domShare)
+				     values (?, ?, ?, ?, ?, ?, ?, ?)
+				     """)
 
     val in = new BufferedReader(new InputStreamReader(System.in))
     while (true) {
-      val line = in.readLine()
-      if (line == null) {
-        println("EOF reached, exiting")
-        System.exit(0)
-      }
-      line.trim.split('\t') match {
-        case Array(time, fid, name, cpus, mem, cpuShare, memShare, domShare) =>
-          stmt.setString(1, time)
+      try {
+	val line = in.readLine()
+	if (line == null) {
+          println("EOF reached, exiting")
+          System.exit(0)
+	}
+	line.trim.split('\t') match {
+          case Array(time, fid, name, cpus, mem, cpuShare, memShare, domShare) =>
+            stmt.setString(1, time)
           stmt.setString(2, fid)
           stmt.setString(3, name)
           stmt.setInt(4, cpus.toInt)
@@ -46,8 +47,11 @@ object MesosClusterShareReporter {
           stmt.setDouble(7, memShare.toDouble)
           stmt.setDouble(8, domShare.toDouble)
           stmt.executeUpdate()
-        case _ =>
-          System.err.println("Malformed line: " + line)
+          case _ =>
+            System.err.println("Malformed line: " + line)
+	}
+      } catch {
+	case e => System.err.println("Exeception: " + e)
       }
     }
   }

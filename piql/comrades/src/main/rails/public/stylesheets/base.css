@@ -8,6 +8,8 @@ html, body {
 }
 header.page {
   display: block;
+  max-width: 960px;
+  margin-right: 20px;
 }
 header.page h1 {
   margin: 20px 20px;
@@ -19,6 +21,14 @@ header.page h1 a {
   background: #1d348a url('../images/logo.png') top left no-repeat;
   height: 62px;
   width: 389px;
+}
+header.page #about-link {
+  float: right;
+  font-size: 1.2em;
+}
+header.page #about-link a {
+  background: transparent;
+  color: #fff;
 }
 header.page nav ul {
   list-style: none;

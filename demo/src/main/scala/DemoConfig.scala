@@ -75,7 +75,7 @@ object DemoConfig {
       S3CachedJar(S3Cache.getCacheUrl(scadrWarFile))
     else {
       logger.info("Using cached scadr war file.")
-      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/3a7c8abd9da8ba27e4bd822135179a6b")
+      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/6aee7edba14f6e7ff3ac7a06df5c0af3")
     }
 
   /* gRADit */
@@ -87,7 +87,7 @@ object DemoConfig {
       S3CachedJar(S3Cache.getCacheUrl(graditWarFile))
     else {
       logger.info("Using cached gradit war file.")
-      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/5a65ddddab94db7bfa7cdf5e9914c47c")
+      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/42da0f99f97880d743e39b12b2aac207")
     }
 
   /* comRADes */
@@ -99,7 +99,7 @@ object DemoConfig {
       S3CachedJar(S3Cache.getCacheUrl(comradesWarFile))
     else {
       logger.info("Using cached comrades war file.")
-      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/ab396cd6bc6c25e3496590c73ff816f4")
+      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/3146d09ae4dd992ad21cb76edbaf04e0")
     }
 
   val jdbcDriver = classOf[com.mysql.jdbc.Driver]
@@ -111,17 +111,21 @@ object DemoConfig {
     val rainJar = new File(rainLocation, "rain.jar")
     val scadrJar = new File(workLoadDir, "scadr.jar")
     val graditJar = new File(workLoadDir, "gradit.jar")
+    val comradesJar = new File(workLoadDir, "comrades.jar")
 
-    if(rainJar.exists && scadrJar.exists && graditJar.exists) {
+    if(rainJar.exists && scadrJar.exists && graditJar.exists && comradesJar.exists) {
       logger.info("Using local jars")
       S3CachedJar(S3Cache.getCacheUrl(rainJar.getCanonicalPath)) ::
       S3CachedJar(S3Cache.getCacheUrl(scadrJar.getCanonicalPath)) :: 
-      S3CachedJar(S3Cache.getCacheUrl(graditJar.getCanonicalPath)) :: Nil
+      S3CachedJar(S3Cache.getCacheUrl(graditJar.getCanonicalPath)) ::
+      S3CachedJar(S3Cache.getCacheUrl(comradesJar.getCanonicalPath)) :: Nil
     }
     else {
       logger.info("Using cached S3 jars")
-      S3CachedJar("http://s3.amazonaws.com/deploylibCache-rean/f2f74da753d224836fedfd56c496c50a") ::
-      S3CachedJar("http://s3.amazonaws.com/deploylibCache-rean/3971dfa23416db1b74d47af9b9d3301d") :: Nil
+      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/dd499e4dde53f37c0a9491fe383c2842") ::
+      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/58b536c7e443b93a35484c4312811e62") :: 
+      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/4ed8535db8fcf537f963496527729078") ::
+      S3CachedJar("http://s3.amazonaws.com/deploylibCache-marmbrus/72b41df016a8370df19c2c708307d3eb") :: Nil
     }
   }
 
@@ -145,6 +149,7 @@ object DemoConfig {
 	       "thoughts" -> classOf[edu.berkeley.cs.scads.piql.scadr.Thought],
 	       "subscriptions" -> classOf[edu.berkeley.cs.scads.piql.scadr.Subscription])
   */
+  import scads.piql.scadr._
   def initScadrCluster(clusterAddress:String):Unit = {
     val clusterRoot = ZooKeeperNode(clusterAddress)
     val cluster = new ExperimentalScadsCluster(clusterRoot)
@@ -167,12 +172,14 @@ object DemoConfig {
       }
     }
     
-    import scads.piql.scadr._
     val client = new ScadrClient(cluster, new scads.piql.SimpleExecutor)
-    logger.info("begining bulk load of users")
-    client.users ++= AvroHttpFile[User]("https://scadr.s3.amazonaws.com/users.avro")
-
+    loadScadrData(client)
     startScadrDirector()
+  }
+
+  def loadScadrData(client: ScadrClient): Unit = {
+    logger.info("begining bulk load of users")
+    client.users ++= AvroHttpFile[scads.piql.scadr.User]("https://scadr.s3.amazonaws.com/users.avro")
   }
 
   import edu.berkeley.cs.scads.piql.gradit._
@@ -243,7 +250,7 @@ object DemoConfig {
     client.wordlistwords ++= AvroHttpFile[WordListWord]("http://gradit.s3.amazonaws.com/wordlistwords.avro")
     client.words ++= AvroHttpFile[Word]("http://gradit.s3.amazonaws.com/words.avro")
     client.wordcontexts ++= AvroHttpFile[WordContext]("http://gradit.s3.amazonaws.com/wordcontexts.avro")
-    client.users ++= AvroHttpFile[User]("http://gradit.s3.amazonaws.com/users.avro")
+    client.users ++= AvroHttpFile[scads.piql.gradit.User]("http://gradit.s3.amazonaws.com/users.avro")
   }
 
   def initComradesCluster(clusterAddress:String):Unit = {

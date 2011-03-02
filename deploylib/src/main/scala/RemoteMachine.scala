@@ -456,5 +456,28 @@ abstract class RemoteMachine {
     }
   }
 
+  case class RemoteProcess(user: String, pid: Int, cpu: Float, mem: Float, vsz:Int, rss: Int, tty: String, stat: String, start: String, time: String, command: String)
+  /**
+   * lists the processes running on the remote machine.
+   * Expects:
+   * USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+   * root         1  0.0  0.0  23708  1952 ?        Ss   01:00   0:00 /sbin/init
+   */
+  def ps: Seq[RemoteProcess] =
+    (this !? "ps aux").split("\n").drop(1)
+		      .map(_.split("\\s+"))
+		      .map(rp => RemoteProcess(rp(0),
+					       rp(1).toInt,
+					       rp(2).toFloat,
+					       rp(3).toFloat,
+					       rp(4).toInt,
+					       rp(5).toInt,
+					       rp(6),
+					       rp(7),
+					       rp(8),
+					       rp(9),
+					       rp(10)))
+  
+
   override def toString(): String = "<RemoteMachine " + username + "@" + hostname + ">"
 }
