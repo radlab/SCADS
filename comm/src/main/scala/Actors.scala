@@ -72,7 +72,7 @@ trait RemoteActorProxy {
   /**
    * Send a message and synchronously wait for a response.
    */
-  def !?(body: MessageBody, timeout: Int = 5000): MessageBody = {
+  def !?(body: MessageBody, timeout: Int = 10 * 1000): MessageBody = {
       val future = new MessageFuture
       this.!(body)(future.remoteActor)
       future.get(timeout) match {
