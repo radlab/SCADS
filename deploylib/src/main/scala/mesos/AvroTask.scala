@@ -1,6 +1,8 @@
 package deploylib
 package mesos
 
+import ec2._
+
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.avro.marker._
 import edu.berkeley.cs.avro.runtime._
@@ -29,7 +31,9 @@ abstract trait AvroTask extends IndexedRecord {
     JvmMainTask(classSource,
       "deploylib.mesos.AvroTaskMain",
       this.getClass.getName :: this.toJson :: Nil,
-      Map("deploylib.classSource" -> classSourceProperty))
+      Map("deploylib.classSource" -> classSourceProperty),
+      Map("AWS_ACCESS_KEY_ID" -> System.getenv("AWS_ACCESS_KEY_ID"),
+	  "AWS_SECRET_ACCESS_KEY" -> System.getenv("AWS_SECRET_ACCESS_KEY")))
   }
 }
 
