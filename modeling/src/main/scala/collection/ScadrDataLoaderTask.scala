@@ -4,6 +4,7 @@ package piql
 package modeling
 
 import deploylib.mesos._
+import deploylib.ec2._
 import comm._
 import storage._
 import piql._
@@ -57,20 +58,13 @@ case class ScadrDataLoaderTask(
     // wait until the namespaces have been created
     coordination.registerAndAwait("startBulkLoad", params.numLoadClients)
     val scadrData = scadrLoader.getData(clientId)
-    
-    /*
-    println("user data size: " + scadrData.userData.size)
-    println("thought data size: " + scadrData.thoughtData.size)
-    println("subscription data size: " + scadrData.subscriptionData.size)
-    */
-    scadrData.load
 
-    /*
-    // code to test whether load worked - should hang
-    println("users:  " + scadrClient.users.getRange(None, None).size)
-    println("thoughts:  " + scadrClient.thoughts.getRange(None, None).size)
-    println("subscriptions:  " + scadrClient.subscriptions.getRange(None, None).size)
-    */
-    println("done!")
+    logger.info("Begining bulk load of data")
+    scadrData.load
+    logger.info("Bulkloading complete.  Waiting for other loaders to finish")
+
+    coordination.registerAndAwait("bulkLoadComplete", params.numLoadClients)
+    if(clientId == 0)
+      ExperimentNotification.completions.publish("SCADr Data Load Complete", this.toJson)
   }
 }
