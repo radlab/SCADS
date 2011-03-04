@@ -449,7 +449,7 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
    * Tests the range for conflicts and marks all violations for future resolution.
    * This class is optimized for none/few violations.
    */
-  class RangeHandle(val futures: Seq[MessageFuture], val timeout: Long = 100000) {
+  class RangeHandle(val futures: Seq[MessageFuture], val timeout: Long = 10 * 1000) {
     val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture]
     futures.foreach(_.forward(responses))
     var loosers = new HashMap[Array[Byte], (Array[Byte], List[RemoteActorProxy])]
