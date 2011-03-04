@@ -4,6 +4,7 @@ package piql
 package modeling
 
 import deploylib.mesos._
+import deploylib.ec2._
 import comm._
 import storage._
 import piql._
@@ -25,7 +26,6 @@ import com.amazonaws.services.sns.model._
 case class TraceCollectorTask(
   var params: RunParams
 ) extends AvroTask with AvroRecord {
-  import TraceCollectorTask._
 
   var beginningOfCurrentWindow = 0.toLong
   
@@ -112,7 +112,7 @@ case class TraceCollectorTask(
     TraceS3Cache.uploadFile("/mnt/piqltrace.avro", currentTimeString)
     
     // Publish to SNSClient
-    snsClient.publishToTopic(topicArn, params.toString, "experiment completed at " + currentTimeString)
+    ExperimentNotification.completions.publish("experiment completed at " + currentTimeString, params.toString)
     
     println("Finished with trace collection.")
   }
@@ -126,11 +126,3 @@ case class TraceCollectorTask(
     currentTime < beginningOfCurrentWindow + convertMinutesToNanoseconds(params.warmupLengthInMinutes)
   }
 }
-
-object TraceCollectorTask {
-  // for email notifications
-  val snsClient = new SimpleAmazonSNSClient
-  val topicArn = snsClient.createOrRetrieveTopicAndReturnTopicArn("experimentCompletion")
-  snsClient.subscribeViaEmail(topicArn, "kristal.curtis@gmail.com")
-}
-

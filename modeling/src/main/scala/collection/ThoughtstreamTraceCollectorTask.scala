@@ -4,6 +4,7 @@ package piql
 package modeling
 
 import deploylib.mesos._
+import deploylib.ec2._
 import comm._
 import storage._
 import piql._
@@ -21,8 +22,6 @@ import scala.collection.mutable._
 case class ThoughtstreamTraceCollectorTask(
   var params: RunParams
 ) extends AvroTask with AvroRecord {
-  import ThoughtstreamTraceCollectorTask._
-
   var beginningOfCurrentWindow = 0.toLong
   
   def run(): Unit = {
@@ -35,8 +34,6 @@ case class ThoughtstreamTraceCollectorTask(
     // set up subscription to notifications
     val coordination = clusterRoot.getOrCreate("coordination")
     val clientId = coordination.registerAndAwait("traceCollectorStart", params.numTraceCollectors)
-    if (clientId == 0)
-      snsClient.subscribeViaEmail(topicArn, "kristal.curtis@gmail.com")
 
     /* create executor that records trace to fileSink */
     println("creating executor...")
@@ -122,7 +119,7 @@ case class ThoughtstreamTraceCollectorTask(
     
     coordination.registerAndAwait("doneWithRun", params.numTraceCollectors)
     if (clientId == 0)
-      snsClient.publishToTopic(topicArn, "client " + clientId + "\n" + params.toString, "experiment completed:" + params.binPrefix)
+      ExperimentNotification.completions.publish("experiment completed:" + params.binPrefix, "client " + clientId + "\n" + params.toString)
     
     println("Finished with trace collection.")
   }
@@ -136,10 +133,3 @@ case class ThoughtstreamTraceCollectorTask(
     currentTime < beginningOfCurrentWindow + convertMinutesToNanoseconds(params.warmupLengthInMinutes)
   }
 }
-
-object ThoughtstreamTraceCollectorTask {
-  // for email notifications
-  val snsClient = new SimpleAmazonSNSClient
-  val topicArn = snsClient.createOrRetrieveTopicAndReturnTopicArn("experimentCompletion")
-}
-
