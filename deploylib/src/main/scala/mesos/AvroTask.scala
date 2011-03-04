@@ -17,9 +17,7 @@ abstract trait AvroTask extends IndexedRecord {
 
   def run(): Unit
 
-  implicit def duplicate(process: JvmTask) = new {
-    def *(count: Int): Seq[JvmTask] = Array.fill(count)(process)
-  }
+  def *(count: Int) = Vector.fill(count)(this).toSeq
 
   //TODO: Handle class sources other than s3 cached jar
   def toJvmTask(implicit classSource: Seq[ClassSource]): JvmMainTask = {
