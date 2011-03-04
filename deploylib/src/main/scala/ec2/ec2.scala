@@ -108,11 +108,6 @@ object EC2Instance extends AWSConnection {
     }
 
     val retInstances = result.getReservation().getInstances().map(ri => getInstance(ri.getInstanceId))
-
-    retInstances.foreach(r => {
-      r.blockUntilRunning
-
-    })
     return retInstances
   }
 }
@@ -206,7 +201,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     val (deploylibJar, otherJars) = Util.readFile(jarFile).split("\n").map(new File(_)).partition(_.getName contains "deploylib")
     val jars = deploylibJar ++ otherJars
 
-    logger.info("Starting Jar upload")
+    logger.debug("Starting Jar upload")
     val cachedJars = cacheFiles(jars)
     cachedJars.foreach(j => this ! "ln -s -f %s %s.jar".format(j,j))
     val classpath =  cachedJars.map(_ + ".jar").mkString(":")

@@ -82,7 +82,7 @@ object MesosEC2 extends ConfigurationActions {
   def updateSlavesFile: Unit = {
     val location = new File("/root/mesos-ec2/slaves")
     val contents = slaves.map(_.privateDnsName).mkString("\n")
-    masters.pforeach { master => 
+    masters.pforeach { master =>
       master.mkdir("/root/mesos-ec2")
       createFile(master, location, contents, "644")
     }
@@ -99,9 +99,12 @@ object MesosEC2 extends ConfigurationActions {
       zone,
       None)
 
-    ret.foreach(_.tags += ("mesos", "master"))
+    ret.pforeach(i => {
+      i.tags += ("mesos", "master")
+      i.blockUntilRunning
+      updateConf(i :: Nil)
+    })
 
-    updateConf(ret)
     restartMasters
     ret
   }
@@ -127,9 +130,12 @@ object MesosEC2 extends ConfigurationActions {
       userData)
 
     if(updateDeploylibOnStart) {
-      updateDeploylib(instances)
-      updateConf(instances)
-      instances.pforeach(_ ! "service mesos-slave start")
+      instances.pforeach(i => {
+	i.blockUntilRunning
+	updateDeploylib(i :: Nil)
+	updateConf(i :: Nil)
+	i ! "service mesos-slave start"
+      })
     }
 
     instances
