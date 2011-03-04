@@ -441,6 +441,7 @@ abstract class RemoteMachine {
   }
 
   case class RemoteJavaProcess(pid: Int, main: String) {
+    val remoteMachine = self
     def stack = self !? ("jstack " + pid)
   }
 
