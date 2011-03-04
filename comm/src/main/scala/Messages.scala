@@ -80,7 +80,7 @@ case class S3CachedJar(var url: String) extends AvroRecord with ClassSource
 
 sealed trait JvmTask extends AvroUnion
 case class JvmWebAppTask(var warFile: ClassSource, var properties: Map[String, String]) extends AvroRecord with JvmTask
-case class JvmMainTask(var classpath: Seq[ClassSource], var mainclass: String, var args: Seq[String], var props: Map[String, String] = Map.empty) extends AvroRecord with JvmTask
+case class JvmMainTask(var classpath: Seq[ClassSource], var mainclass: String, var args: Seq[String], var props: Map[String, String] = Map.empty, var env: Map[String, String] = Map.empty) extends AvroRecord with JvmTask
 
 sealed trait ExperimentOperation extends MessageBody
 case class RunExperimentRequest(var processes: Seq[JvmTask]) extends AvroRecord with ExperimentOperation

@@ -149,7 +149,7 @@ class JavaExecutor extends Executor {
     }
   }
 
-  class ForkedJvm(val taskId: Int, val heapSize: Int, val classpath: String, val mainClass: String, val args: Seq[String], val properties: Map[String, String], driver: ExecutorDriver) extends RunningTask with Runnable {
+  class ForkedJvm(val taskId: Int, val heapSize: Int, val classpath: String, val mainClass: String, val args: Seq[String], val properties: Map[String, String], env: Map[String, String], driver: ExecutorDriver) extends RunningTask with Runnable {
      val logger = Logger()
     logger.debug("Requested memory: " + heapSize)
     val cmdLine = List[String]("/usr/bin/java",
@@ -165,11 +165,13 @@ class JavaExecutor extends Executor {
 
     logger.info("Execing: " + cmdLine.mkString(" "))
     val tempDir = newTempDir()
-    val proc = Runtime.getRuntime().exec(cmdLine.filter(_.size != 0).toArray, Array[String](), tempDir)
+    val envp = env.map { case (key, value) => "%s=%s".format(key, value) }.toArray
+    val proc = Runtime.getRuntime().exec(cmdLine.filter(_.size != 0).toArray, envp, tempDir)
     val stdout = new StreamTailer(proc.getInputStream())
     val stderr = new StreamTailer(proc.getErrorStream())
     def output = List(cmdLine, this, "===stdout===", stdout.tail, "===stderr===", stderr.tail).mkString("\n").getBytes
     val taskThread = new Thread(this, "Task " + taskId + "Monitor")
+    @volatile var taskKilled = false
     taskThread.start()
 
     def run() = {
@@ -180,7 +182,8 @@ class JavaExecutor extends Executor {
         case 0 => TaskState.TASK_FINISHED
         case _ => TaskState.TASK_FAILED
       }
-      driver.sendStatusUpdate(new TaskStatus(taskId, finalTaskState, output))
+      if(!taskKilled)
+	driver.sendStatusUpdate(new TaskStatus(taskId, finalTaskState, output))
       logger.info("Cleaning up working directory %s for %d", tempDir, taskId)
       deleteRecursive(tempDir)
       logger.info("Done cleaning up after Task %d", taskId)
@@ -188,6 +191,7 @@ class JavaExecutor extends Executor {
 
     def kill = {
       logger.info("Killing Task %d", taskId)
+      taskKilled = true
       proc.destroy()
     }
   }
@@ -241,7 +245,14 @@ class JavaExecutor extends Executor {
 
     logger.info("Starting task" + taskId)
     val runningTask = JvmTask(taskDesc.getArg()) match {
-      case JvmMainTask(classpath, mainclass, args, props) => new ForkedJvm(taskId, taskDesc.getParams().get("mem").toInt, loadClasspath(classpath), mainclass, args, props, d)
+      case JvmMainTask(classpath, mainclass, args, props, env) => 
+	new ForkedJvm(taskId,
+		      taskDesc.getParams().get("mem").toInt,
+		      loadClasspath(classpath),
+		      mainclass,
+		      args,
+		      props,
+		      env, d)
       case JvmWebAppTask(warFile, properties) => new JettyApp(taskId, resolveClassSource(warFile), properties, d)
     }
 
