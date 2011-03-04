@@ -83,7 +83,7 @@ case class JvmWebAppTask(var warFile: ClassSource, var properties: Map[String, S
 case class JvmMainTask(var classpath: Seq[ClassSource], var mainclass: String, var args: Seq[String], var props: Map[String, String] = Map.empty) extends AvroRecord with JvmTask
 
 sealed trait ExperimentOperation extends MessageBody
-case class RunExperimentRequest(var processes: List[JvmTask]) extends AvroRecord with ExperimentOperation
+case class RunExperimentRequest(var processes: Seq[JvmTask]) extends AvroRecord with ExperimentOperation
 case class RunExperimentResponse() extends AvroRecord with ExperimentOperation
 
 case class KillTaskRequest(var taskId: Int) extends AvroRecord with ExperimentOperation
