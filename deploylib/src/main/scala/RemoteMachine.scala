@@ -478,7 +478,7 @@ abstract class RemoteMachine {
 					       rp(8),
 					       rp(9),
 					       rp(10)))
-  
+
 
   override def toString(): String = "<RemoteMachine " + username + "@" + hostname + ">"
 }

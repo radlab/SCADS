@@ -151,7 +151,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
         if (numToKill > 0) {
           killTasks(numToKill)
         }
-	
+
         Thread.sleep(period)
       }
     }
@@ -178,7 +178,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
    * Periodically sends an http GET request to a server until it responds
    * with a status 200 or until a timeout. If the timeout is reached, kills
    * the mesos task so that it doesn't become a zombie task.
-   * 
+   *
    * @param taskId - the mesos taskId associated with this web app server.
    * @param serverHostname - the hostname of the web app server that was started.
    * @param sleepPeriod - how often, in ms, to check for a successful server response. Default is 10 seconds.

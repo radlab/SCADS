@@ -117,7 +117,7 @@ class JavaExecutor extends Executor {
         response.setContentType("text/html")
         response.setStatus(HttpServletResponse.SC_OK)
 
-	val statsXml = 
+	val statsXml =
 	  <status>
 	    <CpuUtilization>{cpuUtilization}</CpuUtilization>
 	    <RequestRate>{requestsPerSec}</RequestRate>
@@ -245,7 +245,7 @@ class JavaExecutor extends Executor {
 
     logger.info("Starting task" + taskId)
     val runningTask = JvmTask(taskDesc.getArg()) match {
-      case JvmMainTask(classpath, mainclass, args, props, env) => 
+      case JvmMainTask(classpath, mainclass, args, props, env) =>
 	new ForkedJvm(taskId,
 		      taskDesc.getParams().get("mem").toInt,
 		      loadClasspath(classpath),
