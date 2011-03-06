@@ -237,10 +237,14 @@ package object demo {
   }
 
   def startScadrDataLoad: Unit = {
-    val storageEngines = Vector.fill(scadrClusterParams.numStorageNodes)(ScalaEngineTask(traceRoot.canonicalAddress).toJvmTask)
-    val dataLoadTasks = Vector.fill(scadrClusterParams.numLoadClients)(ScadrDataLoaderTask(scadrClusterParams).toJvmTask)
+    val engineTask = ScalaEngineTask(traceRoot.canonicalAddress).toJvmTask
+    val loaderTask = ScadrDataLoaderTask(scadrClusterParams).toJvmTask
 
-    serviceScheduler !? RunExperimentRequest(storageEngines ++ dataLoadTasks)
+    val storageEngines = Vector.fill(scadrClusterParams.numStorageNodes)(engineTask)
+    val dataLoadTasks = Vector.fill(scadrClusterParams.numLoadClients)(loaderTask)
+
+    serviceScheduler !? (RunExperimentRequest(storageEngines), 30 * 1000)
+    serviceScheduler !? (RunExperimentRequest(dataLoadTasks), 30 * 1000)
 }
 
   def startComradesDirector(add:Option[String] = None): Unit = {
