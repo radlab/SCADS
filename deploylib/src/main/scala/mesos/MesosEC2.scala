@@ -170,7 +170,7 @@ object MesosEC2 extends ConfigurationActions {
     val (deploylib, otherJars) = jars.partition(_.getName contains "deploylib")
     val sortedJars = deploylib ++ otherJars
 
-    logger.info("Starting Jar upload")
+    logger.debug("Starting Jar upload")
     sortedJars.map(S3Cache.getCacheUrl)
   }
 
