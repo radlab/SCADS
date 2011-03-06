@@ -401,6 +401,8 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
       elemBuffer.clear()
     }
 
+    //TODO: Resend messages if we don't receive a quorum before some timeout
+    //TODO: I'm pretty sure the quorum checking logic here is broken
     def blockFutureCollections() {
       outstandingFutureColls.foreach(coll => coll.blockFor(scala.math.ceil(coll.futures.size * writeQuorum).toInt))
       outstandingFutureColls.clear() // clear ftch colls
@@ -431,7 +433,6 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
 
       if (elemBuffer.size > BufSize) 
         flushElemBuffer()
-
     }
 
     if (!serverBuffers.isEmpty) {
@@ -475,8 +476,9 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
 
     private def processNext(): Unit = {
       ctr += 1
-      val time = startTime - System.currentTimeMillis + timeout
-      val future = responses.poll(if (time > 0) time else 1, TimeUnit.MILLISECONDS)
+      //TODO: actually count down here until the timeout
+      //val time = startTime - System.currentTimeMillis + timeout
+      val future = responses.poll(10*1000, TimeUnit.MILLISECONDS)
       if (future == null) {
         failed = true
         return
