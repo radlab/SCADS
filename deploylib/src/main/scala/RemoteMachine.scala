@@ -119,35 +119,28 @@ abstract class RemoteMachine {
   /**
    * Provide an ssh connection to the server.  If one is not already available or has been disconnected, create one.
    */
-  protected def useConnection[ReturnType](func: (Connection) => ReturnType): ReturnType = {
-    if (connection == null) {
-      connection = new Connection(hostname)
-      logger.info("Connecting to " + hostname)
-      connection.connect()
-      logger.info("Authenticating with username " + username + " privateKey " + privateKey)
-      connection.authenticateWithPublicKey(username, privateKey, "")
+  protected def useConnection[ReturnType](func: (Connection) => ReturnType, numTries: Int = 5): ReturnType = {
+    def onFailure(e: Exception) = {
+      logger.warning("connection to " + hostname + " failed")
+      if(numTries <= 1)
+	throw new RuntimeException("Number of tries exceeded" + e)
+      useConnection(func, numTries - 1)
     }
+
     try {
+      if (connection == null) synchronized {
+	if(connection == null) {
+	  connection = new Connection(hostname)
+	  logger.info("Connecting to " + hostname)
+	  connection.connect()
+	  logger.info("Authenticating with username " + username + " privateKey " + privateKey)
+	  connection.authenticateWithPublicKey(username, privateKey, "")
+	}
+      }
       func(connection)
     } catch {
-      case ioe: java.io.IOException => {
-        logger.warning("connection to " + hostname + " failed")
-        connection = new Connection(hostname)
-        logger.info("Connecting to " + hostname)
-        connection.connect()
-        logger.info("Authenticating with username " + username + " privateKey " + privateKey)
-        connection.authenticateWithPublicKey(username, privateKey, "")
-        func(connection)
-      }
-      case e: java.net.SocketException => {
-        logger.warning("connection to " + hostname + " failed")
-        connection = new Connection(hostname)
-        logger.info("Connecting to " + hostname)
-        connection.connect()
-        logger.info("Authenticating with username " + username + " privateKey " + privateKey)
-        connection.authenticateWithPublicKey(username, privateKey, "")
-        func(connection)
-      }
+      case e: java.io.IOException => onFailure(e)
+      case e: java.net.SocketException => onFailure(e)
     }
   }
 
