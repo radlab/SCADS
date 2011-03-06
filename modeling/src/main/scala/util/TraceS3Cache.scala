@@ -21,7 +21,7 @@ object TraceS3Cache extends AWSConnection {
 
   def uploadFile(file: File, prefix: String = "", suffix: String = "") {
     val obj = new S3Object(file)
-    obj.setKey(prefix + "/" + file.getName() + "-" + suffix)
+    obj.setKey(prefix + "/" + file.getName() + "-" + suffix + "-" + System.currentTimeMillis)
     obj.setAcl(AccessControlList.REST_CANNED_PUBLIC_READ)
     s3Service.putObject(bucket, obj)
   }
