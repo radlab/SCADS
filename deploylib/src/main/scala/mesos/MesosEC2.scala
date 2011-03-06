@@ -130,11 +130,13 @@ object MesosEC2 extends ConfigurationActions {
       userData)
 
     if(updateDeploylibOnStart) {
-      instances.pforeach(i => {
+      instances.pforeach(i => try {
 	i.blockUntilRunning
 	updateDeploylib(i :: Nil)
 	updateConf(i :: Nil)
-	i ! "service mesos-slave start"
+	i ! "service mesos-slave restart"
+      } catch {
+	case e => logger.error(e, "Failed to start slave on instance %s:%s", i.instanceId, i.publicDnsName)
       })
     }
 
@@ -147,7 +149,11 @@ object MesosEC2 extends ConfigurationActions {
       "switch_user=0" ::
       "shares_interval=30" :: Nil)
 
-    val mastersConf = baseConf.mkString("\n")
+    val mastersConf =
+      if(masters.size == 1)
+	baseConf.mkString("\n")
+      else
+	(baseConf :+ ("url=" + clusterUrl)).mkString("\n")
     val slavesConf = (baseConf :+ ("url=" + clusterUrl)).mkString("\n")
     val conffile = new File("/usr/local/mesos/conf/mesos.conf")
 
