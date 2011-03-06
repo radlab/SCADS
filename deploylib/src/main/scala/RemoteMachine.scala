@@ -442,8 +442,9 @@ abstract class RemoteMachine {
     val javaProcessRegEx = """(\d+) (\S+)""".r
     executeCommand("jps") match {
       case ExecuteResponse(Some(0), out, "") => {
-        out.split("\n").map {
-          case javaProcessRegEx(pid, main) => new RemoteJavaProcess(pid.toInt, main)
+        out.split("\n").flatMap {
+	  case javaProcessRegEx(pid, "jps") => None
+          case javaProcessRegEx(pid, main) => Some(new RemoteJavaProcess(pid.toInt, main))
         }
       }
       case er => throw new UnknownResponse(er)
