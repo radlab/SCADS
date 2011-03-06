@@ -25,8 +25,10 @@ case class ThoughtstreamTraceCollectorTask(
   var beginningOfCurrentWindow = 0.toLong
   
   def run(): Unit = {
+    val logger = net.lag.logging.Logger()
+
     /* set up cluster */
-    println("setting up cluster...")
+    logger.info("setting up cluster...")
     val clusterRoot = ZooKeeperNode(params.clusterParams.clusterAddress)
     val cluster = new ExperimentalScadsCluster(clusterRoot)
     cluster.blockUntilReady(params.clusterParams.numStorageNodes)
@@ -36,7 +38,7 @@ case class ThoughtstreamTraceCollectorTask(
     val clientId = coordination.registerAndAwait("traceCollectorStart", params.numTraceCollectors)
 
     /* create executor that records trace to fileSink */
-    println("creating executor...")
+    logger.info("creating executor...")
     val fileSink = new FileTraceSink(new File("/mnt/piqltrace.avro"))
     //implicit val executor = new ParallelExecutor with TracingExecutor {
     implicit val executor = new LocalUserExecutor with TracingExecutor {
@@ -44,7 +46,7 @@ case class ThoughtstreamTraceCollectorTask(
     }
 
     /* Register a listener that will record all messages sent/recv to fileSink */
-    println("registering listener...")
+    logger.info("registering listener...")
     val messageTracer = new MessagePassingTracer(fileSink)
     MessageHandler.registerListener(messageTracer)
 
@@ -63,11 +65,11 @@ case class ThoughtstreamTraceCollectorTask(
     
     // warmup to avoid JITing effects
     // TODO:  move this to a function
-    println("beginning warmup...")
+    logger.info("beginning warmup...")
     fileSink.recordEvent(WarmupEvent(params.warmupLengthInMinutes, true))
     var queryCounter = 1
     
-    while (withinWarmup) {
+    while (withinWarmup) try {
       fileSink.recordEvent(QueryEvent(params.queryType + queryCounter, true))
 
       queryRunner.callThoughtstream(numSubscriptionsPerUserList.head, numPerPageList.head)
@@ -75,6 +77,8 @@ case class ThoughtstreamTraceCollectorTask(
       fileSink.recordEvent(QueryEvent(params.queryType + queryCounter, false))
       Thread.sleep(params.sleepDurationInMs)
       queryCounter += 1
+    } catch {
+      case e => logger.error(e, "Query Execution Failed")
     }
     fileSink.recordEvent(WarmupEvent(params.warmupLengthInMinutes, false))
 
@@ -85,33 +89,35 @@ case class ThoughtstreamTraceCollectorTask(
   
         
     /* Run some queries */
-    println("beginning run...")
+    logger.info("beginning run...")
     
     numSubscriptionsPerUserList.foreach(numSubs => {
       fileSink.recordEvent(ChangeNamedCardinalityEvent("numSubscriptions", numSubs))
-      println("numSubscriptions = " + numSubs)
+      logger.info("numSubscriptions = " + numSubs)
 
       numPerPageList.foreach(numPerPage => {
-        println("numPerPage = " + numPerPage)
+        logger.info("numPerPage = " + numPerPage)
         fileSink.recordEvent(ChangeNamedCardinalityEvent("numPerPage", numPerPage))
         
         (1 to params.numQueriesPerCardinality).foreach(i => {
-          fileSink.recordEvent(QueryEvent(params.queryType + i + "-" + numSubs + "-" + numPerPage, true))
-
-          queryRunner.callThoughtstream(numSubs, numPerPage)
-
-          fileSink.recordEvent(QueryEvent(params.queryType + i + "-" + numSubs + "-" + numPerPage, false))
+	  try {
+            fileSink.recordEvent(QueryEvent(params.queryType + i + "-" + numSubs + "-" + numPerPage, true))
+            queryRunner.callThoughtstream(numSubs, numPerPage)
+            fileSink.recordEvent(QueryEvent(params.queryType + i + "-" + numSubs + "-" + numPerPage, false))
+	  } catch {
+	    case e => logger.error(e, "Query execution failed")
+	  }
           Thread.sleep(params.sleepDurationInMs)
         })
       })
     })
     
     //Flush trace messages to the file
-    println("flushing messages to file...")
+    logger.info("flushing messages to file...")
     fileSink.flush()
 
     // Upload file to S3
-    println("uploading data...")
+    logger.info("uploading data...")
     TraceS3Cache.uploadFile("/mnt/piqltrace.avro", params.binPrefix, "client" + clientId)
     
     // Publish to SNSClient
@@ -121,7 +127,7 @@ case class ThoughtstreamTraceCollectorTask(
     if (clientId == 0)
       ExperimentNotification.completions.publish("experiment completed:" + params.binPrefix, "client " + clientId + "\n" + params.toString)
     
-    println("Finished with trace collection.")
+    logger.info("Finished with trace collection.")
   }
   
   def convertMinutesToNanoseconds(minutes: Int): Long = {
