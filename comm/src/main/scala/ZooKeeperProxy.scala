@@ -225,6 +225,8 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watc
     def registerAndAwait(barrierName: String, count: Int): Int = {
       val node = getOrCreate(barrierName)
       val seqNum = node.createChild("client", mode = CreateMode.EPHEMERAL_SEQUENTIAL).sequenceNumber
+
+      require(seqNum < count)
       node.awaitChild("client", Some(count - 1))
       seqNum
     }
