@@ -184,7 +184,7 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watc
     def sequenceNumber: Int =
       name.drop(name.length - 10).toInt
 
-    def awaitChild(name: String, seqNumber: Option[Int] = None, timeout: Long = 24*60*60*1000, unit: TimeUnit = TimeUnit.MILLISECONDS): ZooKeeperProxy#ZooKeeperNode = {
+    def awaitChild(name: String, seqNumber: Option[Int] = None, timeout: Long = 15*60*1000, unit: TimeUnit = TimeUnit.MILLISECONDS): ZooKeeperProxy#ZooKeeperNode = {
       val fullName = seqNumber.map(s => "%s%010d".format(name, s)).getOrElse(name)
       val childPath = fullPath(fullName)
       val blocker = new BlockingFuture[Unit] 
