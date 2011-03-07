@@ -44,6 +44,8 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watc
   // must be volatile because it's set from watcher thread
   @volatile protected var conn = newConenction()
 
+  def servers: Seq[String] = address.split(",")
+
   def newConenction(): ZooKeeper = {
     logger.info("[%s] Opening Zookeeper Connection to %s with timeout %d",Thread.currentThread.getName, address, timeout)
     new ZooKeeper(address, timeout, this)
