@@ -11,12 +11,30 @@ import java.net.InetAddress
 import collection.JavaConversions._
 import com.amazonaws.services.ec2.model._
 
+object ServiceSchedulerDaemon extends optional.Application {
+  val javaExecutorPath = "/usr/local/mesos/frameworks/deploylib/java_executor"
+
+  def main(mesosMaster: String, zooKeeperAddress: String): Unit = {
+    System.loadLibrary("mesos")
+    val scheduler = new ServiceScheduler(
+      mesosMaster,
+      javaExecutorPath
+    )
+    val serviceSchedulerNode = ZooKeeperNode(zooKeeperAddress)
+    serviceSchedulerNode.data = scheduler.remoteHandle.toBytes
+  }
+}
+
 /**
  * Functions to help maintain a mesos cluster on EC2.
  */
-object MesosEC2 extends ConfigurationActions {
+class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends ConfigurationActions {
   val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
   val mesosAmi = "ami-44ce3d2d"
+  val zone = "us-east-1a"
+
+  def serviceSchedulerNode = zooKeeperRoot.getOrCreate("serviceScheduler")
+  def serviceScheduler = classOf[RemoteActor].newInstance.parse(serviceSchedulerNode.data)
 
   def updateDeploylib(instances: Seq[EC2Instance] = slaves): Unit = {
     instances.pforeach(inst => {
@@ -31,6 +49,37 @@ object MesosEC2 extends ConfigurationActions {
       uploadFile(inst, new File("deploylib/src/main/resources/config"), rootDir)
       createFile(inst, new File(rootDir, "java_executor"), executorScript, "755")
     })
+  }
+
+  def setupMesosMaster(zone:String = zone, numMasters: Int = 1, mesosAmi: Option[String] = None): Unit = {
+    if(masters.size < numMasters) {
+      mesosAmi match {
+        case Some(ami) => startMasters(zone, numMasters - masters.size, ami)
+        case None => startMasters(zone, numMasters - masters.size)
+      }
+    }
+
+    masters.pforeach(_.pushJars)
+    restartServiceScheduler
+  }
+
+  def restartServiceScheduler: Unit = {
+    masters.pforeach(_.executeCommand("killall java"))
+    val serviceSchedulerScript = (
+      "#!/bin/bash\n" +
+      "/root/jrun deploylib.mesos.ServiceSchedulerDaemon " +
+      "--mesosMaster " + clusterUrl + " " +
+      "--zooKeeperAddress " + serviceSchedulerNode.canonicalAddress +
+      " >> /root/serviceScheduler.log 2>&1")
+
+    // Start service scheduler on only the first master
+    firstMaster.createFile(new java.io.File("/root/serviceScheduler"), serviceSchedulerScript)
+    firstMaster ! "chmod 755 /root/serviceScheduler"
+    firstMaster ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/serviceScheduler.pid --exec /root/serviceScheduler"
+
+    //HACK
+    Thread.sleep(5000)
+    serviceSchedulerNode.data = RemoteActor(firstMaster.publicDnsName, 9000, ActorNumber(0)).toBytes
   }
 
   def slaves = {
@@ -51,16 +100,11 @@ object MesosEC2 extends ConfigurationActions {
   def firstMaster = masters.head
 
   def updateMesos =
-    MesosEC2.slaves.pforeach(s =>
-      MesosEC2.firstMaster ! "rsync -e 'ssh -o StrictHostKeyChecking=no' -av /usr/local/mesos root@%s:/usr/local/mesos".format(s.publicDnsName))
+    slaves.pforeach(s =>
+      firstMaster ! "rsync -e 'ssh -o StrictHostKeyChecking=no' -av /usr/local/mesos root@%s:/usr/local/mesos".format(s.publicDnsName))
 
-  def clusterUrl: String = {
-    val masters = MesosEC2.masters
-    if (masters.size == 1)
-      "1@" + firstMaster.privateDnsName + ":5050"
-    else
+  def clusterUrl: String =
       "zoo://ec2-50-16-2-36.compute-1.amazonaws.com:2181/mesos,ec2-174-129-105-138.compute-1.amazonaws.com:2181/mesos"
-  }
 
   def restartSlaves: Unit = {
     slaves.pforeach(_ ! "service mesos-slave stop")

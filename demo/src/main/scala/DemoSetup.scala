@@ -9,8 +9,6 @@ import scads.comm._
 import deploylib.mesos._
 import deploylib.ec2._
 
-import java.io.File
-
 object ServiceSchedulerDaemon extends optional.Application {
   import DemoConfig._
 

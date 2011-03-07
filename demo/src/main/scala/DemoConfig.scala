@@ -8,7 +8,6 @@ import avro.runtime._
 import scads.perf.ExperimentalScadsCluster
 
 import scads.comm._
-import scads.piql.modeling._
 import scads.storage.ScalaEngineTask
 import deploylib.mesos._
 import deploylib.ec2._
@@ -28,37 +27,7 @@ object DemoConfig {
   val javaExecutorPath = "/usr/local/mesos/frameworks/deploylib/java_executor"
 
   //TODO: Add other ZooKeeper
-  //val zooKeeperRoot = ZooKeeperNode("zk://ec2-50-16-2-36.compute-1.amazonaws.com,ec2-174-129-105-138.compute-1.amazonaws.com/demo")
-  val zooKeeperRoot = ZooKeeperNode("zk://ec2-50-16-2-36.compute-1.amazonaws.com,ec2-174-129-105-138.compute-1.amazonaws.com/home/kcurtis")
-  //def scadrRoot =  zooKeeperRoot.getOrCreate("apps/scadr")
-  //def scadrWebServerList = scadrRoot.getOrCreate("webServerList")
-  
-  // for trace collection
-  def traceRoot = zooKeeperRoot.getOrCreate("traceCollection")
-  def scadrClusterParams = ScadrClusterParams(
-    traceRoot.canonicalAddress, // cluster address
-    45,                         // num storage nodes
-    45,                         // num load clients
-    100,                        // num per page
-    1000000,                    // num users
-    100,                        // num thoughts per user
-    1000                        // num subscriptions per user
-  )
-
-  def thoughtstreamRunParams = RunParams(
-    scadrClusterParams,
-    "thoughtstream",
-    "thoughtstream-Wednesday",
-    10                          // # trace collectors
-  )
-
-  def localUserThoughtstreamRunParams = RunParams(
-    scadrClusterParams,
-    "localUserThoughtstream",
-    "localUserThoughtstream-Wednesday",
-    10                          // # trace collectors
-  )
-
+  val zooKeeperRoot = ZooKeeperNode("zk://ec2-50-16-2-36.compute-1.amazonaws.com,ec2-174-129-105-138.compute-1.amazonaws.com/demo")
 
   val mesosMasterNode = zooKeeperRoot.getOrCreate("mesosMaster")
   def mesosMaster = new String(mesosMasterNode.data)

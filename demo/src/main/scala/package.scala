@@ -6,13 +6,11 @@ import java.io.File
 package object demo {
   import DemoConfig._
   import scads.comm._
-  import scads.storage._
   import scads.perf._
   import scads.piql._
   import scads.storage._
   import twitterspam._
   import deploylib.mesos._
-  import scads.piql.modeling._
 
   val logger = net.lag.logging.Logger()
 
@@ -117,8 +115,8 @@ package object demo {
       javaExecutorPath,
       scadrWar,
       scadrWebServerList.canonicalAddress,
-      Map("scads.clusterAddress" -> scadrRoot.canonicalAddress,
-	      "demo.appname" -> "scadr")).toJvmTask
+    Map("scads.clusterAddress" -> scadrRoot.canonicalAddress,
+	"demo.appname" -> "scadr")).toJvmTask
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
@@ -182,71 +180,6 @@ package object demo {
     serviceScheduler !? RunExperimentRequest(task :: Nil)
   }
 
-  def startTraceCollector: Unit = {
-    println("starting trace collection...")
-    val storageEngineTask = ScalaEngineTask(
-      traceRoot.canonicalAddress).toJvmTask // can do *5
-    val traceTask = TraceCollectorTask(
-      RunParams(
-        GenericClusterParams(
-          traceRoot.canonicalAddress,
-          10,
-          1,
-          10
-        ),
-        "getRangeQuery"
-      )
-    ).toJvmTask
-    
-    serviceScheduler !? RunExperimentRequest(storageEngineTask :: traceTask :: Nil)
-  }
-  
-  def startScadrTraceCollector: Unit = {
-    val traceTask = ScadrTraceCollectorTask(
-      RunParams(
-        scadrClusterParams,
-        "mySubscriptions"
-      )
-    ).toJvmTask
-    
-    serviceScheduler !? RunExperimentRequest(traceTask :: Nil)
-  }
-
-  def startThoughtstreamTraceCollector: Unit = {
-    val traceTasks = Array.fill(thoughtstreamRunParams.numTraceCollectors)(ThoughtstreamTraceCollectorTask(thoughtstreamRunParams).toJvmTask)
-    
-    serviceScheduler !? RunExperimentRequest(traceTasks.toList)
-  }
-
-  def startOneThoughtstreamTraceCollector: Unit = {
-    val traceTask = ThoughtstreamTraceCollectorTask(thoughtstreamRunParams).toJvmTask
-    
-    serviceScheduler !? RunExperimentRequest(traceTask :: Nil)
-  }
-
-  def startLocalUserThoughtstreamTraceCollector: Unit = {
-    val traceTasks = Array.fill(localUserThoughtstreamRunParams.numTraceCollectors)(ThoughtstreamTraceCollectorTask(localUserThoughtstreamRunParams).toJvmTask)
-    
-    serviceScheduler !? RunExperimentRequest(traceTasks.toList)
-  }
-
-  def startOneLocalUserThoughtstreamTraceCollector: Unit = {
-    val traceTask = ThoughtstreamTraceCollectorTask(localUserThoughtstreamRunParams).toJvmTask
-    
-    serviceScheduler !? RunExperimentRequest(traceTask :: Nil)
-  }
-
-  def startScadrDataLoad: Unit = {
-    val engineTask = ScalaEngineTask(traceRoot.canonicalAddress).toJvmTask
-    val loaderTask = ScadrDataLoaderTask(scadrClusterParams).toJvmTask
-
-    val storageEngines = Vector.fill(scadrClusterParams.numStorageNodes)(engineTask)
-    val dataLoadTasks = Vector.fill(scadrClusterParams.numLoadClients)(loaderTask)
-
-    serviceScheduler !? (RunExperimentRequest(storageEngines), 30 * 1000)
-    serviceScheduler !? (RunExperimentRequest(dataLoadTasks), 30 * 1000)
-}
-
   def startComradesDirector(add:Option[String] = None): Unit = {
     val clusterAddress = add.getOrElse(comradesRoot.canonicalAddress)
     val task = ComradesDirectorTask(
@@ -259,10 +192,10 @@ package object demo {
   def startScadrRain: Unit = {
     serviceScheduler !? RunExperimentRequest(
       JvmMainTask(rainJars,
-        "radlab.rain.Benchmark",
-        "rain.config.scadr.ramp.json" ::
-        scadrWebServerList.canonicalAddress :: Nil,
-        Map("dashboarddb" -> dashboardDb)) :: Nil)
+		  "radlab.rain.Benchmark",
+		  "rain.config.scadr.demo.json" ::
+		  scadrWebServerList.canonicalAddress :: Nil,
+		  Map("dashboarddb" -> dashboardDb)) :: Nil)
   }
 
   def startGraditRain: Unit = {
@@ -299,30 +232,27 @@ package object demo {
     comradesRoot.deleteRecursive
   }
 
-  def resetTracing: Unit = {
-    traceRoot.data = "".getBytes
-    traceRoot.deleteRecursive
-  }
-
   def startIntKeyTest: Unit = {
     serviceScheduler !? RunExperimentRequest(
       JvmMainTask(MesosEC2.classSource,
-        "edu.berkeley.cs.radlab.demo.IntKeyScaleScheduler",
-        "--name" :: "intkeyscaletest" ::
-        "--mesosMaster" :: mesosMaster ::
-        "--executor" :: javaExecutorPath ::
-        "--cp" :: MesosEC2.classSource.map(safeUrl(_)).mkString("|") :: Nil) :: Nil)
+                  "edu.berkeley.cs.radlab.demo.IntKeyScaleScheduler",
+                  "--name" :: "intkeyscaletest" ::
+                  "--mesosMaster" :: mesosMaster ::
+                  "--executor" :: javaExecutorPath ::
+                  "--cp" :: MesosEC2.classSource.map(safeUrl(_)).mkString("|") :: Nil) :: Nil
+    )
   }
 
   def startRepTest(numKeys: Int): Unit = {
     serviceScheduler !? RunExperimentRequest(
       JvmMainTask(MesosEC2.classSource,
-        "edu.berkeley.cs.radlab.demo.RepTestScheduler",
-        "--name" :: "reptest" ::
-        "--mesosMaster" :: mesosMaster ::
-        "--executor" :: javaExecutorPath ::
-        "--cp" :: MesosEC2.classSource.map(safeUrl(_)).mkString("|") ::
-        "--numKeys" :: numKeys.toString :: Nil) :: Nil)
+                  "edu.berkeley.cs.radlab.demo.RepTestScheduler",
+                  "--name" :: "reptest" ::
+                  "--mesosMaster" :: mesosMaster ::
+                  "--executor" :: javaExecutorPath ::
+                  "--cp" :: MesosEC2.classSource.map(safeUrl(_)).mkString("|") ::
+      "--numKeys" :: numKeys.toString :: Nil) :: Nil
+    )
   }
 
   def loadTwitterSpam(): Unit = {
