@@ -51,7 +51,7 @@ object AvroTaskMain {
         System.exit(0)
       } catch {
         case error => {
-	  val message = (error.toString :+ error.getStackTrace).mkString("\n")
+	  val message = (error.toString +: error.getStackTrace).mkString("\n")
 	  ExperimentNotification.failures.publish("ExperimentFailure: %s".format(args(0)), message)
           logger.fatal(error, "Exeception in Main Thread.  Killing process.")
           System.exit(-1)
