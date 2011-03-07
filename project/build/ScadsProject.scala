@@ -42,6 +42,10 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
     val javaSysMon = "github.jezhumble" % "javasysmon" % "1.0"
   }, comm)
 
+  lazy val optional = project("optional", "optional", new DefaultProject(_) {
+    val paranamer = "com.thoughtworks.paranamer" % "paranamer" % "2.0"
+  })
+
   lazy val repl = project("repl", "repl", new DefaultWebProject(_) with AvroCompilerPlugin with IdeaProject  {
     val snapshots = ScalaToolsSnapshots
     val lift = "net.liftweb" %% "lift-mapper" % "2.2-SNAPSHOT" % "compile"
