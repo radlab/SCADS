@@ -40,7 +40,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
     val jetty = "org.mortbay.jetty" % "jetty" % "6.1.6"
     val mysql = "mysql" % "mysql-connector-java" % "5.1.12"
     val javaSysMon = "github.jezhumble" % "javasysmon" % "1.0"
-  }, comm)
+  }, comm, optional)
 
   lazy val optional = project("optional", "optional", new DefaultProject(_) {
     val paranamer = "com.thoughtworks.paranamer" % "paranamer" % "2.0"
@@ -76,7 +76,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
   }, deploylib, avro, perf, spamFeatures)
 
   /* PIQL Apps */
-  lazy val scadr  = project("piql" / "scadr", "scadr", new ScadsSubProject(_) with IdeaProject, piql, director)
+  lazy val scadr  = project("piql" / "scadr", "scadr", new ScadsSubProject(_) with IdeaProject, piql)
   lazy val gradit = project("piql" / "gradit", "gradit", new ScadsSubProject(_) with IdeaProject, piql)
   lazy val comrades = project("piql" / "comrades", "comrades", new ScadsSubProject(_) with IdeaProject, piql)
 
@@ -141,9 +141,6 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
 				log
       )
     } dependsOn(`package`) describedAs("Package classes and API docs.")
-
-    //HACK
-    val optional = "optional" %% "optional" % "0.1"
 
     //So that the uberjar we build has a usable repl
     val jline =   "jline" % "jline" % "0.9.93"
