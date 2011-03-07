@@ -104,7 +104,7 @@ class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends Configura
       firstMaster ! "rsync -e 'ssh -o StrictHostKeyChecking=no' -av /usr/local/mesos root@%s:/usr/local/mesos".format(s.publicDnsName))
 
   def clusterUrl: String =
-      "zoo://ec2-50-16-2-36.compute-1.amazonaws.com:2181/mesos,ec2-174-129-105-138.compute-1.amazonaws.com:2181/mesos"
+    "zoo://" + zooKeeperRoot.proxy.servers.map(_ + ":2181/mesos").mkString(",")
 
   def restartSlaves: Unit = {
     slaves.pforeach(_ ! "service mesos-slave stop")
