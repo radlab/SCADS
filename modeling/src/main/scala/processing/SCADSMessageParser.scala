@@ -16,7 +16,6 @@ import scala.io.Source
 import scala.collection.mutable._
 
 trait SCADSMessageParser {
-	val logger = Logger()
 	val eventMap = HashMap[String, Long]()
 	var doneWithWarmup = false
 	var rangeLength = 0
