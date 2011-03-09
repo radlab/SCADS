@@ -23,10 +23,8 @@ import org.apache.avro.file.DataFileStream
 
 
 /*
- *	Handles info for thoughtstream queries.  Necessary because of new event type, ""
+ *	Handles info for thoughtstream queries.  Necessary because of new event type
  */
- 
-// case class ChangeNamedCardinalityEvent(var nameOfCardinality: String, var numDataItems: Int) extends AvroRecord with TraceEvent
 
 abstract class ThoughtstreamMessageParser extends SCADSMessageParser {
   var numSubscriptions = 0
