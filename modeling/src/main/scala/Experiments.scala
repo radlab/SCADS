@@ -5,15 +5,11 @@ package modeling
 
 import comm._
 import storage._
-import deploylib.ec2._
 import deploylib.mesos._
 
 object Experiments {
-  ExperimentNotification.completions.subscribeViaEmail("kristal.curtis@gmail.com")
-
-  //val zooKeeperRoot = ZooKeeperNode("zk://ec2-50-16-2-36.compute-1.amazonaws.com,ec2-174-129-105-138.compute-1.amazonaws.com/")
-  val zooKeeperRoot = ZooKeeperNode("zk://zoo1.millennium.berkeley.edu,zoo2.millennium.berkeley.edu,zoo3.millennium.berkeley.edu/")
-  val cluster = new Cluster(zooKeeperRoot.getOrCreate("home").getOrCreate(System.getProperty("user.name")))
+  val zooKeeperRoot = ZooKeeperNode("zk://zoo.knowsql.org/").getOrCreate("home").getOrCreate(System.getProperty("user.name"))
+  val cluster = new Cluster(zooKeeperRoot)
 
   implicit def classSource = cluster.classSource
   def serviceScheduler = cluster.serviceScheduler
@@ -87,16 +83,5 @@ object Experiments {
 
     serviceScheduler !? (RunExperimentRequest(storageEngines), 30 * 1000)
     serviceScheduler !? (RunExperimentRequest(dataLoadTasks), 30 * 1000)
-  }
-  
-  def startThoughtstreamEventCounterTask: Unit = {
-    val counterTasks = Array.fill(thoughtstreamRunParams.numTraceCollectors)(
-      ThoughtstreamEventCounterTask(
-        traceRoot.canonicalAddress,
-        "http://piql-modeling-marmbrus.s3.amazonaws.com/thoughtstream-michael/piqltrace.avro-client",
-        thoughtstreamRunParams.numTraceCollectors
-    ).toJvmTask)
-    
-    serviceScheduler !? RunExperimentRequest(counterTasks)
   }
 }
