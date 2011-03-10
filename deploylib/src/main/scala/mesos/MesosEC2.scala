@@ -60,6 +60,8 @@ class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends Configura
     }
 
     masters.pforeach(_.pushJars)
+    updateConf(masters)
+    restartMasters
     restartServiceScheduler
   }
 
@@ -83,8 +85,13 @@ class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends Configura
   }
 
   def slaves = {
-    val masterIds = masters.map(_.instanceId)
-    EC2Instance.activeInstances.filterNot(i => masterIds.contains(i.instanceId))
+    EC2Instance.update()
+    EC2Instance.client.describeTags().getTags()
+      .filter(_.getResourceType equals "instance")
+      .filter(_.getKey equals "mesos")
+      .filter(_.getValue equals "slave")
+      .map(t => EC2Instance.getInstance(t.getResourceId))
+      .filter(_.instanceState equals "running")
   }
 
   def masters = {
@@ -104,7 +111,7 @@ class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends Configura
       firstMaster ! "rsync -e 'ssh -o StrictHostKeyChecking=no' -av /usr/local/mesos root@%s:/usr/local/mesos".format(s.publicDnsName))
 
   def clusterUrl: String =
-    "zoo://" + zooKeeperRoot.proxy.servers.map(_ + ":2181/mesos").mkString(",")
+    "zoo://" + zooKeeperRoot.proxy.servers.map(_ + ":2181").mkString(",") + zooKeeperRoot.getOrCreate("mesos").path
 
   def restartSlaves: Unit = {
     slaves.pforeach(_ ! "service mesos-slave stop")
@@ -175,6 +182,7 @@ class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends Configura
 
     if(updateDeploylibOnStart) {
       instances.pforeach(i => try {
+	i.tags += ("mesos", "slave")
 	i.blockUntilRunning
 	updateDeploylib(i :: Nil)
 	updateConf(i :: Nil)
@@ -192,17 +200,10 @@ class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends Configura
       "log_dir=/mnt" ::
       "switch_user=0" ::
       "shares_interval=30" :: Nil)
-
-    val mastersConf =
-      if(masters.size == 1)
-	baseConf.mkString("\n")
-      else
-	(baseConf :+ ("url=" + clusterUrl)).mkString("\n")
-    val slavesConf = (baseConf :+ ("url=" + clusterUrl)).mkString("\n")
+    val conf = (baseConf :+ ("url=" + clusterUrl)).mkString("\n")
     val conffile = new File("/usr/local/mesos/conf/mesos.conf")
 
-    slaves.pforeach(_.createFile(conffile, slavesConf))
-    masters.pforeach(_.createFile(conffile, mastersConf))
+    instances.pforeach(_.createFile(conffile, conf))
   }
 
   //TODO: Doesn't handle non s3 cached jars
