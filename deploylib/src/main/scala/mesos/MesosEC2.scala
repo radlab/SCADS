@@ -36,6 +36,8 @@ class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends Configura
   def serviceSchedulerNode = zooKeeperRoot.getOrCreate("serviceScheduler")
   def serviceScheduler = classOf[RemoteActor].newInstance.parse(serviceSchedulerNode.data)
 
+  def stopAllInstances = (masters ++ slaves).pforeach(_.halt)
+
   def updateDeploylib(instances: Seq[EC2Instance] = slaves): Unit = {
     instances.pforeach(inst => {
       val executorScript = Util.readFile(new File("deploylib/src/main/resources/java_executor"))
