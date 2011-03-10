@@ -24,13 +24,13 @@ trait QueryExecutor {
   def apply(plan: QueryPlan, args: Any*): QueryIterator = apply(plan)(Context(args.toIndexedSeq, None))
   def apply(plan: QueryPlan)(implicit ctx: Context): QueryIterator
 
-  protected def bindValue(value: Value, currentTuple: Tuple)(implicit ctx: Context): Any = value match {
+  @inline final protected def bindValue(value: Value, currentTuple: Tuple)(implicit ctx: Context): Any = value match {
     case ConstantValue(v) => v
     case ParameterValue(o) => ctx.parameters(o)
     case AttributeValue(recPos, fieldPos) => currentTuple(recPos).get(fieldPos)
   }
 
-  protected def bindKey(ns: Namespace, key: KeyGenerator, currentTuple: Tuple = null)(implicit ctx: Context): Key = {
+  @inline final protected def bindKey(ns: Namespace, key: KeyGenerator, currentTuple: Tuple = null)(implicit ctx: Context): Key = {
     val boundKey = new GenericData.Record(ns.keySchema)
 
     key.map(bindValue(_, currentTuple)).zipWithIndex.foreach {
@@ -39,7 +39,7 @@ trait QueryExecutor {
     boundKey
   }
 
-  protected def bindLimit(limit: Limit)(implicit ctx: Context): Int = limit match {
+  @inline final protected def bindLimit(limit: Limit)(implicit ctx: Context): Int = limit match {
     case FixedLimit(l) => l
     case ParameterLimit(lim, max) => {
       val limitValue = ctx.parameters(lim).asInstanceOf[Int]
@@ -49,13 +49,13 @@ trait QueryExecutor {
     }
   }
 
-  protected def evalPredicate(predicate: Predicate, tuple: Tuple)(implicit ctx: Context): Boolean = predicate match {
+  @inline final protected def evalPredicate(predicate: Predicate, tuple: Tuple)(implicit ctx: Context): Boolean = predicate match {
     case EqualityPredicate(v1, v2) => {
       compareAny(bindValue(v1, tuple), bindValue(v2, tuple)) == 0
     }
   }
 
-  protected def compareTuples(left: Tuple, right: Tuple, attributes: Seq[Value])(implicit ctx: Context): Int = {
+  @inline final protected def compareTuples(left: Tuple, right: Tuple, attributes: Seq[Value])(implicit ctx: Context): Int = {
     attributes.foreach(a => {
       val leftValue = bindValue(a, left)
       val rightValue = bindValue(a, right)
@@ -66,7 +66,7 @@ trait QueryExecutor {
     return 0
   }
 
-  protected def compareAny(left: Any, right: Any): Int = (left, right) match {
+  @inline final protected def compareAny(left: Any, right: Any): Int = (left, right) match {
     case (l: Integer, r: Integer) => l.intValue - r.intValue
     case (l: Utf8, r: Utf8) => l.toString compare r.toString
     case (true, true) => 0
