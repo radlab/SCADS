@@ -49,19 +49,19 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
-	// state for maintaining workload stats
-	protected var currentStats = PartitionWorkloadStats(0,0)
-	protected var completedStats = PartitionWorkloadStats(0,0)
-	private var statsClearedTime = System.currentTimeMillis
-	
-	protected val statWindowTime = 20*1000 // ms, how long a window to maintain stats for
-	protected val clearStatWindowsTime = 60*1000 // ms, keep long to keep stats around, in all windows
-	protected var statWindows = (0 until clearStatWindowsTime/statWindowTime)
-		.map {_=>(new AtomicInteger,new AtomicInteger)}.toList // (get,put) for each window
-	private val getSamplingRate = 1.0
-	private val putSamplingRate = 1.0
-	private val samplerRandom = new java.util.Random
-	// end workload stats stuff
+  // state for maintaining workload stats
+  protected var currentStats = PartitionWorkloadStats(0,0)
+  protected var completedStats = PartitionWorkloadStats(0,0)
+  private var statsClearedTime = System.currentTimeMillis
+  
+  protected val statWindowTime = 20*1000 // ms, how long a window to maintain stats for
+  protected val clearStatWindowsTime = 60*1000 // ms, keep long to keep stats around, in all windows
+  protected var statWindows = (0 until clearStatWindowsTime/statWindowTime)
+    .map {_=>(new AtomicInteger,new AtomicInteger)}.toList // (get,put) for each window
+  private val getSamplingRate = 1.0
+  private val putSamplingRate = 1.0
+  private val samplerRandom = new java.util.Random
+  // end workload stats stuff
 
   protected val cursorTimeout = 3 * 60 * 1000 // 3 minutes (in ms)
 
