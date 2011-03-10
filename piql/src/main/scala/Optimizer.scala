@@ -112,11 +112,10 @@ object Optimizer {
 
   /**
    * Returns the key/value schemas concatenated
+   * TODO: push into storage client
    */
-  protected def getFields(ns: Namespace): Seq[Field] = ns match {
-    case idx: edu.berkeley.cs.scads.storage.IndexNamespace => idx.keySchema.getFields
-    case primaryNs => primaryNs.keySchema.getFields.toSeq ++ primaryNs.valueSchema.getFields
-  }
+  protected def getFields(ns: Namespace): Seq[Field] =
+    ns.keySchema.getFields.toSeq ++ ns.valueSchema.getFields
 
   /**
    * Given a list of predicates, replace all UnboundAttributeValues with Attribute values

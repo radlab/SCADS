@@ -2,7 +2,7 @@ package edu.berkeley.cs.scads.piql
 
 import net.lag.logging.Logger
 import org.apache.avro.util.Utf8
-import org.apache.avro.generic.IndexedRecord
+import org.apache.avro.generic._
 
 import edu.berkeley.cs.scads.comm.ScadsFuture
 
@@ -31,7 +31,8 @@ trait QueryExecutor {
   }
 
   protected def bindKey(ns: Namespace, key: KeyGenerator, currentTuple: Tuple = null)(implicit ctx: Context): Key = {
-    val boundKey = ns.newKeyInstance
+    val boundKey = new GenericData.Record(ns.keySchema)
+
     key.map(bindValue(_, currentTuple)).zipWithIndex.foreach {
       case (value: Any, idx: Int) => boundKey.put(idx, value)
     }

@@ -1,242 +1,37 @@
 package edu.berkeley.cs.scads.storage
 
-import scala.collection.JavaConversions._
-
+import edu.berkeley.cs.avro.marker._
 import edu.berkeley.cs.scads.comm._
-import routing._
-import org.apache.avro.generic.{GenericData, GenericRecord, IndexedRecord}
-import org.apache.avro.Schema
-import Schema.Type
-import org.apache.avro.util.Utf8
-import net.lag.logging.Logger
-import org.apache.zookeeper.CreateMode
-import java.nio.ByteBuffer
+
+import org.apache.avro.Schema 
+import org.apache.avro.generic._
+
 import actors.Actor
+import collection.mutable.{ Seq => MutSeq, _ }
+import concurrent.ManagedBlocker
+
 import java.util.concurrent.TimeUnit
-import java.util.Arrays
-import scala.concurrent.ManagedBlocker
-import collection.mutable.{HashSet, ArrayBuffer, MutableList, HashMap}
-import scala.util.Random
 
 private[storage] object QuorumProtocol {
-  val MinString = "" 
-  val MaxString = new String(Array.fill[Byte](20)(127.asInstanceOf[Byte]))
   val ZK_QUORUM_CONFIG = "quorumProtConfig"
+
   val BufSize = 1024
   val FutureCollSize = 1024
 }
 
-/**
- * Quorum Protocol
- * read and write quorum are defined as percentages (0< X <=1). The sum of read and write has to be greater than 1
- */
-trait QuorumProtocol[KeyType <: IndexedRecord, 
-                     ValueType <: IndexedRecord, 
-                     RecordType <: IndexedRecord,
-                     RangeType] 
-  extends AvroComparator with ParFuture {
-  this: Namespace[KeyType, ValueType, RecordType, RangeType] 
-        with RoutingProtocol[KeyType, ValueType, RecordType, RangeType]
-        with SimpleMetaData[KeyType, ValueType, RecordType, RangeType] 
-        with AvroSerializing[KeyType, ValueType, RecordType, RangeType] =>
-  
+trait QuorumProtocol 
+  extends Protocol
+  with Namespace
+  with KeyRoutable
+  with RecordMetadata
+  with GlobalMetadata
+  with ParFuture {
+
   import QuorumProtocol._
 
-  protected var lostMessageTolerance = 0;
-
-  protected var readQuorum: Double = 0.001
-  protected var writeQuorum: Double = 1.0
-
-  def iterateOverRange(startKey: Option[KeyType], endKey: Option[KeyType]): Iterator[RangeType] = {
-    val partitions = serversForRange(startKey, endKey)
-    partitions.map(p => new ActorlessPartitionIterator(p.values.head, p.startKey.map(serializeKey), p.endKey.map(serializeKey)))
-	      .foldLeft(Iterator.empty.asInstanceOf[Iterator[Record]])(_ ++ _)
-	      .map(rec => extractRangeTypeFromRecord(rec.key, rec.value).get)
-  }
-
-  // For debugging only
-  def dumpDistribution: Unit = {
-    val futures = serversForRange(None, None).flatMap(r =>
-      r.values.map(p => p !! CountRangeRequest(r.startKey.map(serializeKey), r.endKey.map(serializeKey))))
-
-    futures.foreach(f => 
-      f() match {
-        case CountRangeResponse(num) => logger.info("%s: %d", f.source, num)
-        case _ => logger.warning("Invalid response from %s", f.source)
-      }
-    )
-  }
-
-  def dumpWorkload: Unit = {
-    def futures = serversForRange(None,None).map(r =>
-      (r.startKey, r.values.map(p => (p, p !! GetWorkloadStats()))))
-
-    futures.foreach {
-      case (startKey, replicas) => {
-	logger.info("==%s==", startKey)
-	replicas.map(f => (f._1, f._2())).foreach {
-	  case (hander, GetWorkloadStatsResponse(getCount, putCount, _)) => logger.info("%s: %d gets, %d puts", getCount, putCount)
-	  case m => logger.warning("Invalid message received for workload stats %s", m)
-	}
-      }
-    }
-  }
-
-  def setLostMessageTolerance(lostMessageTolerance : Int) = {
-    require (lostMessageTolerance > 0)
-    this.lostMessageTolerance = lostMessageTolerance
-  }
-
-  def setReadWriteQuorum(readQuorum: Double, writeQuorum: Double) = {
-    require(0 < readQuorum && readQuorum <= 1, "Read quorum has to be in the range 0 < RQ <= 1 but was " + readQuorum)
-    require(0 < writeQuorum && writeQuorum <= 1, "Write quorum has to be in the range 0 < WQ <= 1 but was " + writeQuorum)
-    require((writeQuorum + readQuorum) >= 1, "Read + write quorum has to be >= 1 but was " + (readQuorum + writeQuorum))
-    this.readQuorum = readQuorum
-    this.writeQuorum = writeQuorum
-    val config = new QuorumProtocolConfig(readQuorum, writeQuorum)
-    val zkConfig = nsRoot.get(ZK_QUORUM_CONFIG)
-    assert(zkConfig.isDefined)
-    zkConfig.get.data = config.toBytes
-  }
-
-  onLoad {
-    val zkConfig = nsRoot.get(ZK_QUORUM_CONFIG)
-    assert(zkConfig.isDefined)
-    val config = new QuorumProtocolConfig()
-    config.parse(zkConfig.get.data)
-    readQuorum = config.readQuorum
-    writeQuorum = config.writeQuorum
-  }
-
-  onCreate { 
-    ranges => {
-      val config = new QuorumProtocolConfig(readQuorum, writeQuorum)
-      nsRoot.createChild(ZK_QUORUM_CONFIG, config.toBytes, CreateMode.PERSISTENT)
-    }
-  }
-
-  private def writeQuorumForKey(key: KeyType): (Seq[PartitionService], Int) = {
-    val servers = serversForKey(key)
-    val wQuorum = scala.math.ceil(servers.size * writeQuorum).toInt
-    if(wQuorum + lostMessageTolerance < servers.size){
-      (scala.util.Random.shuffle(servers).take(wQuorum + lostMessageTolerance), wQuorum)
-    }else{
-      (servers, wQuorum)
-    }
-  }
-
-  private def readQuorum(nbServers: Int): Int = scala.math.ceil(nbServers * readQuorum).toInt
-
-  private def readQuorumForKey(key: KeyType): (Seq[PartitionService], Int) = {
-    val servers = serversForKey(key)
-    val rQuorum = readQuorum(servers.size)
-    if(rQuorum + lostMessageTolerance < servers.size){
-      (scala.util.Random.shuffle(servers).take(rQuorum + lostMessageTolerance), rQuorum)
-    }else{
-      (servers, rQuorum)
-    }
-  }
-
-
-  /**
-   * Returns all value versions for a given key. Does not perform read-repair.
-   */
-  def getAllVersions(key: KeyType): Seq[(PartitionService, Option[RecordType])] = {
-    val (partitions, quorum) = readQuorumForKey(key)
-    val serKey = serializeKey(key)
-    val getRequest = GetRequest(serKey)
-
-    waitForAndThrowException(partitions.map(partition => (partition !! getRequest, partition))) { 
-      case (GetResponse(v), partition) => (partition, extractRecordTypeFromRecord(serKey, v))
-    }
- }
-  
-
-  def getAllRangeVersions(startKey: Option[KeyType], endKey: Option[KeyType]): Seq[(PartitionService, Seq[RangeType])] = {
-    val ranges = serversForRange(startKey, endKey)
-    waitForAndThrowException(
-      ranges.flatMap(range => {
-        val rangeReq = GetRangeRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), None, None, true)
-        range.values.map(partition => (partition !! rangeReq, partition))
-      })) {
-      case (GetRangeResponse(v), partition) => 
-        (partition, v.map(a => extractRangeTypeFromRecord(a.key, a.value).get))
-    }
-  }
-
-  def getSplitKeys(startkey: Option[KeyType], numSplits:Int):Seq[KeyType] = {
-    val activePartition = serversForRange(startkey, None).head
-    val partitions = activePartition.values
-
-    val endkey = activePartition.endKey
-    // determine number of records in this partition
-    val countRequest = CountRangeRequest(startkey.map(serializeKey(_)), endkey.map(serializeKey))
-    val countResponses = partitions.map(_ !! countRequest)
-    countResponses.blockFor(1) // only get response from one replica of the partition
-    val countResponse = countResponses.filter(_.isSet)
-    val count = countResponse.map(r => r.get match { case m@CountRangeResponse(count) => Some(count); case _ => None }).head
-
-    if (!count.isDefined) throw new RuntimeException("couldn't get partition count")
-    if (count.get < numSplits) throw new RuntimeException("partition count less than number of requests splits")
-
-    // get the split keys
-    val slice = scala.math.floor(count.get / numSplits.toDouble).toInt
-    (1 until numSplits).map(s => {
-      val splitRecord = getRange(startkey, endkey, Some(1), Some(s*slice)).head
-      extractKeyValueFromRangeType(splitRecord)._1
-    })
-  }
-  
-  /**
-	* for each logical partition, return boolean indicating if that partition is non-empty but has <= the specified number of keys
-	* note that this uses a getRange(), so could be potentially expensive for large numKeys
-	*/
-	def isPartitionKeySize(startkey: Option[KeyType], numKeys:Int):Boolean = {
-	  /*val ranges = serversForRange(None,None)
-	  val requests = for (fullrange <- ranges) yield {
-			(fullrange.startKey,fullrange.endKey, fullrange.values, getRange(fullrange.startKey,fullrange.endKey,Some(2),Some(0)) )
-		}*/
-		val activePartition = serversForRange(startkey, None).head
-    val partitions = activePartition.values
-    val endkey = activePartition.endKey
-
-    val result = getRange(startkey,endkey,Some(numKeys+1),Some(0))
-    val size = result.size
-    size > 0 && size <= numKeys
-	}
-
-  def put(key: KeyType, value: Option[ValueType]): Unit = {
-    val (servers, quorum) = writeQuorumForKey(key)
-    val putRequest = PutRequest(serializeKey(key), value.map(createRecord))
-    val responses = serversForKey(key).map(_ !! putRequest)
-    responses.blockFor(quorum)
-  }
-
-  @inline private def makeGetRequests(key: KeyType) = {
-    val (servers, quorum) = readQuorumForKey(key)
-    val serKey = serializeKey(key)
-    val getRequest = GetRequest(serKey)
-    (servers.map(_ !! getRequest), serKey, quorum)
-  }
-
-  @inline private def finishGetHandler(handler: GetHandler, quorum: Int): Option[Option[RecordType]] = {
-    val record = handler.vote(quorum)
-    if (handler.failed) None
-    else {
-      // TODO: repair on failed case (above) still?
-      ReadRepairer ! handler
-      Some(extractRecordTypeFromRecord(handler.key, record))
-    }
-  }
-
-  /**
-   * Issues a get request and blocks the current thread until the get request
-   * either returns successfully, or the default timeout expires. In the
-   * latter case, a RuntimeException is thrown
-   */
-  def get(key: KeyType): Option[RecordType] = {
-    val (ftchs, serKey, quorum) = makeGetRequests(key)
-    finishGetHandler(new GetHandler(serKey, ftchs), quorum).getOrElse(throw new RuntimeException("Could not complete get request - not enough servers responded"))
+  override def getBytes(key: Array[Byte]): Option[Array[Byte]] = {
+    val (ftchs, quorum) = makeGetRequests(key)
+    finishGetHandler(new GetHandler(key, ftchs), quorum).getOrElse(throw new RuntimeException("Could not complete get request - not enough servers responded"))
   }
 
   /**
@@ -256,141 +51,41 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
    *
    * NOTE: The returned future does not implement cancel
    */
-  def asyncGet(key: KeyType): ScadsFuture[Option[RecordType]] = {
-    val (ftchs, serKey, quorum) = makeGetRequests(key)
-    new ComputationFuture[Option[RecordType]] {
+  override def asyncGetBytes(key: Array[Byte]): ScadsFuture[Option[Array[Byte]]] = {
+    val (ftchs, quorum) = makeGetRequests(key)
+    new ComputationFuture[Option[Array[Byte]]] {
       def compute(timeoutHint: Long, unit: TimeUnit) = 
-        finishGetHandler(new GetHandler(serKey, ftchs, unit.toMillis(timeoutHint)), quorum)
+        finishGetHandler(new GetHandler(key, ftchs, unit.toMillis(timeoutHint)), quorum)
           .getOrElse(throw new RuntimeException("Could not complete get request - not enough servers responded"))
       def cancelComputation = error("NOT IMPLEMENTED")
     }
   }
 
-  protected def minVal(fieldType: Type, fieldSchema: Schema): Any = fieldType match {
-    case Type.BOOLEAN => false
-    case Type.DOUBLE => java.lang.Double.MIN_VALUE
-    case Type.FLOAT => java.lang.Float.MIN_VALUE
-    case Type.INT => java.lang.Integer.MIN_VALUE
-    case Type.LONG => java.lang.Long.MIN_VALUE
-    case Type.STRING => new Utf8(MinString)
-    case Type.RECORD =>
-      fillOutKey(newRecordInstance(fieldSchema), () => newRecordInstance(fieldSchema))(minVal _)
-    case unsupportedType =>
-      throw new RuntimeException("Invalid key type in partial key getRange. " + unsupportedType + " not supported for inquality queries.")
+  @inline private def makeGetRequests(key: Array[Byte]) = {
+    val (servers, quorum) = readQuorumForKey(key)
+    val getRequest = GetRequest(key)
+    // (ftch, quorum)
+    (servers.map(_ !! getRequest), quorum)
   }
 
-  protected def maxVal(fieldType: Type, fieldSchema: Schema): Any = fieldType match {
-    case Type.BOOLEAN => true
-    case Type.DOUBLE => java.lang.Double.MAX_VALUE
-    case Type.FLOAT => java.lang.Float.MAX_VALUE
-    case Type.INT => java.lang.Integer.MAX_VALUE
-    case Type.LONG => java.lang.Long.MAX_VALUE
-    case Type.STRING => new Utf8(MaxString) 
-    case Type.RECORD => 
-      fillOutKey(newRecordInstance(fieldSchema), () => newRecordInstance(fieldSchema))(maxVal _)
-    case unsupportedType =>
-      throw new RuntimeException("Invalid key type in partial key getRange. " + unsupportedType + " not supported for inquality queries.")
-  }
-
-  protected def fillOutKey[R <: IndexedRecord](keyPrefix: R, keyFactory: () => R)(fillFunc: (Type, Schema) => Any): R = {
-    val filledRec = keyFactory()
-
-    keyPrefix.getSchema.getFields.foreach(field => {
-      if(keyPrefix.get(field.pos) == null)
-       filledRec.put(field.pos, fillFunc(field.schema.getType, field.schema))
-      else
-       filledRec.put(field.pos, keyPrefix.get(field.pos))
-    })
-    filledRec
-  }
-
-  /**
-   * Finish a get range request. Ftchs are the GetRangeRequests which have
-   * already been sent out, and partitions are the available servers to pull
-   * data from 
-   */
-  private def finishGetRangeRequest(partitions: Seq[FullRange], ftchs: Seq[Seq[MessageFuture]], limit: Option[Int], offset: Option[Int], ascending: Boolean, timeout: Option[Long]): Seq[RangeType] = {
-
-    def newRangeHandle(ftchs: Seq[MessageFuture]) = 
-      timeout.map(t => new RangeHandle(ftchs, t)).getOrElse(new RangeHandle(ftchs))
-
-    var handlers = ftchs.map(x => newRangeHandle(x)).toBuffer
-
-    var result = new ArrayBuffer[RangeType]
-    var openRec: Long = if (limit.isDefined) limit.get else java.lang.Long.MAX_VALUE
-    var servers = partitions
-    var cur = 0
-    for (handler <- handlers) {
-      if (openRec > 0) {
-        val records = handler.vote(readQuorum(handler.futures.size))
-        if (handler.failed)
-          throw new RuntimeException("Not enough servers responded. We need to throw better exceptions for that case")
-        //if we do not get enough records, we request more, before we process the current batch
-        if (records.length <= openRec && !servers.isEmpty) {
-          val range = servers.head
-          val newLimit = if(limit.isDefined) Some(openRec.toInt) else None
-          val rangeRequest = new GetRangeRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), newLimit, offset, ascending)
-          handlers.append(newRangeHandle(range.values.map(_ !! rangeRequest)))
-          servers = servers.tail
-        }
-        result.appendAll(records.flatMap(a =>
-          if (openRec > 0) {
-            openRec -= 1
-            extractRangeTypeFromRecord(a.key, a.value).map(x => List(x)).getOrElse(Nil)
-          } else
-            Nil
-          )
-        )
-      }
-    }
-    handlers.foreach(ReadRepairer ! _)
-    result
-  }
-
-  private def startGetRangeRequest(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int], offset: Option[Int], ascending: Boolean): (Seq[FullRange], Seq[Seq[MessageFuture]]) = {
-    val startKey = startKeyPrefix.map(prefix => fillOutKey(prefix, newKeyInstance _)(minVal))
-    val endKey = endKeyPrefix.map(prefix => fillOutKey(prefix, newKeyInstance _)(maxVal))
-    val partitions = if (ascending) serversForRange(startKey, endKey) else serversForRange(startKey, endKey).reverse
-
-    limit match {
-      case Some(_) => /* if limit is defined, then only send a req to the first server. return a pointer to the tail of the first partition */
-        val range = partitions.head
-        val rangeRequest = new GetRangeRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), limit, offset, ascending)
-        (partitions.tail, Seq(range.values.map(_ !! rangeRequest)))
-      case None => /* if no limit is defined, then we'll have to send a request to every server. the pointer should be nil since no servers left */
-        (Nil, partitions.map(range => {
-          val rangeRequest = new GetRangeRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), limit, offset, ascending)
-          range.values.map(_ !! rangeRequest)
-        }).toSeq)
+  @inline private def finishGetHandler(handler: GetHandler, quorum: Int): Option[Option[Array[Byte]]] = {
+    val record = handler.vote(quorum)
+    if (handler.failed) None
+    else {
+      // TODO: repair on failed case (above) still?
+      ReadRepairer ! handler
+      Some(record.map(extractRecordFromValue))
     }
   }
 
-  //TODO Offset does not work if split over several partitions
-  def getRange(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true): Seq[RangeType] = {
-    val (ptr, ftchs) = startGetRangeRequest(startKeyPrefix, endKeyPrefix, limit, offset, ascending)
-    finishGetRangeRequest(ptr, ftchs, limit, offset, ascending, None)
+  override def putBytes(key: Array[Byte], value: Option[Array[Byte]]): Unit = {
+    val (servers, quorum) = writeQuorumForKey(key)
+    val putRequest = PutRequest(key, value.map(createMetadata))
+    val responses = serversForKey(key).map(_ !! putRequest)
+    responses.blockFor(quorum)
   }
 
-  def asyncGetRange(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true): ScadsFuture[Seq[RangeType]] = {
-    val (ptr, ftchs) = startGetRangeRequest(startKeyPrefix, endKeyPrefix, limit, offset, ascending)
-    new ComputationFuture[Seq[RangeType]] {
-      def compute(timeoutHint: Long, unit: TimeUnit) = 
-        finishGetRangeRequest(ptr, ftchs, limit, offset, ascending, Some(unit.toMillis(timeoutHint)))
-      def cancelComputation = error("NOT IMPLEMENTED")
-    }
-  }
-
-  def size(): Int = throw new RuntimeException("Unimplemented")
-
-  /** During a call to ++=, the elems seen from the input stream are blocked
-   * in BufSize chunks and passed to this method as a callback. The default
-   * behavior does nothing. */
-  protected def bulkLoadCallback(elems: Seq[RangeType]): Unit = {}
-
-  /**
-   * Bulk put. Still obeys write quorums
-   */
-  def ++=(that: TraversableOnce[RangeType]) {
+  override def putBulkBytes(that: TraversableOnce[(Array[Byte], Array[Byte])]): Unit = {
     /* Buffers KV tuples until the average buffer size for all the servers is
      * greater than BufSize. Then sends the request to the servers, while
      * repeating the buffering process for the next set of KV tuples. When the
@@ -400,7 +95,6 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
      */
     val serverBuffers = new HashMap[PartitionService, ArrayBuffer[PutRequest]]
     val outstandingFutureColls = new ArrayBuffer[FutureCollection]
-    val elemBuffer = new ArrayBuffer[RangeType]
 
     def averageBufferSize =
       serverBuffers.values.foldLeft(0)(_ + _.size) / serverBuffers.size.toDouble 
@@ -412,26 +106,15 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
       serverBuffers.clear() // clear buffers
     }
 
-    def flushElemBuffer() {
-      bulkLoadCallback(elemBuffer)
-      elemBuffer.clear()
-    }
-
-    //TODO: Resend messages if we don't receive a quorum before some timeout
-    //TODO: I'm pretty sure the quorum checking logic here is broken
     def blockFutureCollections() {
       outstandingFutureColls.foreach(coll => coll.blockFor(scala.math.ceil(coll.futures.size * writeQuorum).toInt))
       outstandingFutureColls.clear() // clear ftch colls
     }
 
-    that.foreach { rangeEntry => 
+    that.foreach { case (key, value) => 
 
-      elemBuffer += rangeEntry
-
-      val (keyType, valueType) = extractKeyValueFromRangeType(rangeEntry)
-
-      val (servers, quorum) = writeQuorumForKey(keyType)
-      val putRequest = PutRequest(serializeKey(keyType), Some(createRecord(valueType)))
+      val (servers, quorum) = writeQuorumForKey(key)
+      val putRequest = PutRequest(key, Some(createMetadata(value)))
 
       for (server <- servers) {
         val buf = serverBuffers.getOrElseUpdate(server, new ArrayBuffer[PutRequest])
@@ -446,9 +129,6 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
         // time to block on collections (via quorum) so that we don't congest
         // the network
         blockFutureCollections()
-
-      if (elemBuffer.size > BufSize) 
-        flushElemBuffer()
     }
 
     if (!serverBuffers.isEmpty) {
@@ -457,111 +137,85 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
       writeServerBuffers()
       blockFutureCollections()
     }
+  }
 
-    if (!elemBuffer.isEmpty)
-      flushElemBuffer()
+  private var readQuorum: Double = 0.001
+  private var writeQuorum: Double = 1.0
+
+  /** Initialization callbacks */
+
+  private def doCreate(): Unit = {
+    val config = new QuorumProtocolConfig(readQuorum, writeQuorum)
+    putMetadata(ZK_QUORUM_CONFIG, config.toBytes)
+  }
+
+  onCreate {
+    doCreate()
+  }
+
+  onOpen { isNew =>
+    if (isNew) doCreate()
+    else getMetadata(ZK_QUORUM_CONFIG) match {
+      case Some(bytes) => 
+        val config = new QuorumProtocolConfig
+        config.parse(bytes)
+        readQuorum  = config.readQuorum
+        writeQuorum = config.writeQuorum
+      case None => throw new RuntimeException("could not find quorum protocol")
+    }
+    isNew
+  }
+
+  onClose {
+    // no-op 
+  }
+
+  onDelete {
+    deleteMetadata(ZK_QUORUM_CONFIG)
+  }
+
+  /** NOT thread-safe to set */
+  def setReadWriteQuorum(readQuorum: Double, writeQuorum: Double): Unit = {
+    require(0 < readQuorum && readQuorum <= 1, "Read quorum has to be in the range 0 < RQ <= 1 but was " + readQuorum)
+    require(0 < writeQuorum && writeQuorum <= 1, "Write quorum has to be in the range 0 < WQ <= 1 but was " + writeQuorum)
+    require((writeQuorum + readQuorum) >= 1, "Read + write quorum has to be >= 1 but was " + (readQuorum + writeQuorum))
+    this.readQuorum = readQuorum
+    this.writeQuorum = writeQuorum
+    val config = new QuorumProtocolConfig(readQuorum, writeQuorum)
+    putMetadata(ZK_QUORUM_CONFIG, config.toBytes)
+  }
+
+  protected def writeQuorumForKey(key: Array[Byte]): (Seq[PartitionService], Int) = {
+    val servers = serversForKey(key)
+    (servers, scala.math.ceil(servers.size * writeQuorum).toInt)
+  }
+
+  protected def readQuorum(nbServers: Int): Int = scala.math.ceil(nbServers * readQuorum).toInt
+
+  protected def readQuorumForKey(key: Array[Byte]): (Seq[PartitionService], Int) = {
+    val servers = serversForKey(key)
+    (servers, readQuorum(servers.size))
   }
 
   /**
-   * Tests the range for conflicts and marks all violations for future resolution.
-   * This class is optimized for none/few violations.
+   * Returns all value versions for a given key. Does not perform read-repair.
    */
-  class RangeHandle(val futures: Seq[MessageFuture], val timeout: Long = 10 * 1000) {
-    val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture]
-    futures.foreach(_.forward(responses))
-    var loosers = new HashMap[Array[Byte], (Array[Byte], List[RemoteActorProxy])]
-    var winners = new ArrayBuffer[Record]
-    var baseServer: RemoteActorProxy = null //The whole comparison is based on the first response
-    var winnerExceptions = new HashMap[Array[Byte], RemoteActorProxy]()
-    val startTime = System.currentTimeMillis
-    var failed = false
-    var ctr = 0
+  def getAllVersions(key: Array[Byte]): Seq[(PartitionService, Option[Array[Byte]])] = {
+    val (partitions, quorum) = readQuorumForKey(key)
+    val getRequest = GetRequest(key)
 
-
-    def vote(quorum: Int): ArrayBuffer[Record] = {
-      (1 to quorum).foreach(_ => processNext())
-      return winners
+    waitForAndThrowException(partitions.map(partition => (partition !! getRequest, partition))) { 
+      case (GetResponse(optV), partition) => (partition, optV.map(extractRecordFromValue))
     }
-
-    def processRest() = {
-      for (i <- 1 to futures.length - ctr) {
-        processNext()
-      }
-    }
-
-
-    private def processNext(): Unit = {
-      ctr += 1
-      //TODO: actually count down here until the timeout
-      //val time = startTime - System.currentTimeMillis + timeout
-      val future = responses.poll(10*1000, TimeUnit.MILLISECONDS)
-      if (future == null) {
-        failed = true
-        return
-      }
-      val result = future() match {
-        case GetRangeResponse(v) => v
-        case m => throw new RuntimeException("Unexpected Message (was expecting GetRangeResponse): " + m)
-      }
-
-
-      if (winners.isEmpty) {
-        //println("first result " + result.map(a => QuorumProtocol.this.deserializeKey(a.key)))
-        winners.insertAll(0, result)
-        baseServer = future.source.get
-      } else {
-        merge(result, future.source.get)
-      }
-    }
-
-    private def merge(newRecords: Seq[Record], newServer: RemoteActorProxy): Unit = {
-      var recordPtr = newRecords
-      var i = 0
-      while (i < winners.length && !recordPtr.isEmpty) {
-        val winnerKey = winners(i).key
-        val newKey = recordPtr.head.key
-        assert(winners(i).value.isDefined) //should always be defined if we get data back, otherwise delete might not work
-        val winnerValue = winners(i).value.get
-        assert(recordPtr.head.value.isDefined)
-        val newValue = recordPtr.head.value.get
-        compare(winnerKey, newKey) match {
-          case -1 =>
-            i += 1
-          case 0 => {
-            QuorumProtocol.this.compareRecord(winnerValue, newValue) match {
-              case -1 => {
-                val outdatedServer = winnerExceptions.getOrElse(winnerKey, baseServer)
-                loosers += winnerKey -> (newValue, outdatedServer :: loosers.getOrElse(winnerKey, (null, Nil))._2)
-                winnerExceptions += winnerKey -> newServer
-                winners.update(i, recordPtr.head)
-              }
-              case 1 => {
-                loosers += winnerKey -> (winnerValue, newServer :: loosers.getOrElse(winnerKey, (null, Nil))._2)
-              }
-              case 0 => ()
-            }
-            recordPtr = recordPtr.tail
-            i += 1
-          }
-          case 1 => {
-            winners.insert(i, recordPtr.head)
-            i += 1 //because of the insert
-            winnerExceptions += newKey -> newServer
-            recordPtr = recordPtr.tail
-          }
-        }
-      }
-    }
-
   }
 
   class GetHandler(val key: Array[Byte], val futures: Seq[MessageFuture], val timeout: Long = 5000) {
-    val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture]
+    private val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture]
     futures.foreach(_.forward(responses))
-    var losers: MutableList[RemoteActorProxy] = new MutableList
-    var winners: MutableList[RemoteActorProxy] = new MutableList
+    val losers = new ArrayBuffer[RemoteActorProxy] 
+    val winners = new ArrayBuffer[RemoteActorProxy]
     var winnerValue: Option[Array[Byte]] = None
-    var ctr = 0
+    private var ctr = 0
     val startTime = System.currentTimeMillis
     var failed = false
 
@@ -587,8 +241,8 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
         return
       }
       future() match {
-        case m@GetResponse(v) => {
-          val cmp = QuorumProtocol.this.compareRecord(winnerValue, v)
+        case GetResponse(v) => {
+          val cmp = optCompareMetadata(winnerValue, v)
           if (cmp > 0) {
             future.source.foreach(losers += _)
           } else if (cmp < 0) {
@@ -606,38 +260,45 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
 
   }
 
+  protected def optCompareMetadata(optLhs: Option[Array[Byte]], optRhs: Option[Array[Byte]]): Int = (optLhs, optRhs) match {
+    case (None, None) => 0
+    case (None, Some(_)) => -1
+    case (Some(_), None) => 1
+    case (Some(lhs), Some(rhs)) => compareMetadata(lhs, rhs)
+  }
+
+  protected def readRepairPF: PartialFunction[Any, Unit] = _rrpf 
+
+  private val _rrpf: PartialFunction[Any, Unit] = {
+    case handler: GetHandler =>
+      readRepairManagedBlock {
+        handler.processRest()
+      }
+      for (server <- handler.repairList)
+        server !! PutRequest(handler.key, handler.winnerValue)
+  }
+
   /**
    * ReadRepairer actor - calls to processRest() run in a managed blocker, so that
    * the ForkJoinPool does not starve
+   * TODO: Consider replacing this read repair actor with just a standard
+   * thread pool
    */
-  object ReadRepairer extends ManagedBlockingActor {
+  object ReadRepairer extends Actor {
     start() /* Auto start */
     
     def act() {
       loop {
         react {
-          case handler: GetHandler => /* TODO: Configurable Read Repair
-            managedBlock {
-              handler.processRest()
-            }
-            for (server <- handler.repairList) {
-              logger.debug("repairing key %s on server %s", handler.key, server)
-              server !! PutRequest(handler.key, handler.winnerValue)
-            }*/
-          case handler: RangeHandle => /* TODO: Configurable Read Repair
-            managedBlock {
-              handler.processRest()
-            }
-            for ((key, (data, servers)) <- handler.loosers) {
-              for (server <- servers) {
-                logger.debug("repairing key %s on server %s (range handle)" , key, server)
-                server !! PutRequest(key, Some(data))
-              }
-            }*/
-          case m => throw new RuntimeException("Unknown message" + m)
+          case m => 
+            if (readRepairPF.isDefinedAt(m)) readRepairPF.apply(m)
+            else throw new RuntimeException("Unknown message" + m)
         }
       }
     }
+
+    /** expose the scheduler for blocks */
+    private[storage] def getScheduler = scheduler
   }
 
   /**
@@ -654,13 +315,203 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
     def isReleasable = completed
   }
 
-  /**
-   * Actor which makes it easier to invoke managedBlock
-   */
-  trait ManagedBlockingActor extends Actor {
-    protected def managedBlock(f: => Unit) {
-      scheduler.managedBlock(new DefaultManagedBlocker(() => f))
+  protected def readRepairManagedBlock(f: => Unit) {
+    ReadRepairer.getScheduler.managedBlock(new DefaultManagedBlocker(() => f))
+  }
+
+}
+
+trait QuorumRangeProtocol 
+  extends RangeProtocol
+  with QuorumProtocol
+  with KeyRangeRoutable {
+
+  /** assumes start/end key prepopulated w/ sentinel min/max values */
+  private def startGetRangeRequest(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], limit: Option[Int], offset: Option[Int], ascending: Boolean): (Seq[RangeDesc], Seq[Seq[MessageFuture]]) = {
+    val partitions = if (ascending) serversForKeyRange(startKey, endKey) else serversForKeyRange(startKey, endKey).reverse
+
+    limit match {
+      case Some(_) => /* if limit is defined, then only send a req to the first server. return a pointer to the tail of the first partition */
+        val range = partitions.head
+        val rangeRequest = new GetRangeRequest(range.startKey, range.endKey, limit, offset, ascending)
+        (partitions.tail, Seq(range.servers.map(_ !! rangeRequest)))
+      case None => /* if no limit is defined, then we'll have to send a request to every server. the pointer should be nil since no servers left */
+        (Nil, partitions.map(range => {
+          val rangeRequest = new GetRangeRequest(range.startKey, range.endKey, limit, offset, ascending)
+          range.servers.map(_ !! rangeRequest)
+        }).toSeq)
     }
   }
 
+  /**
+   * Finish a get range request. Ftchs are the GetRangeRequests which have
+   * already been sent out, and partitions are the available servers to pull
+   * data from 
+   */
+  private def finishGetRangeRequest(partitions: Seq[RangeDesc], ftchs: Seq[Seq[MessageFuture]], limit: Option[Int], offset: Option[Int], ascending: Boolean, timeout: Option[Long]): Seq[(Array[Byte], Array[Byte])] = {
+
+    def newRangeHandle(ftchs: Seq[MessageFuture]) = 
+      timeout.map(t => new RangeHandle(ftchs, t)).getOrElse(new RangeHandle(ftchs))
+
+    var handlers = ftchs.map(x => newRangeHandle(x)).toBuffer
+
+    var result = new ArrayBuffer[(Array[Byte], Array[Byte])]
+    var openRec = limit.map(_.toLong).getOrElse(java.lang.Long.MAX_VALUE)
+    var servers = partitions
+    var cur = 0
+    for (handler <- handlers) {
+      if (openRec > 0) {
+        val records = handler.vote(readQuorum(handler.futures.size))
+        if (handler.failed)
+          throw new RuntimeException("Not enough servers responded. We need to throw better exceptions for that case")
+        //if we do not get enough records, we request more, before we process the current batch
+        if (records.length <= openRec && !servers.isEmpty) {
+          val range = servers.head
+          val newLimit = if(limit.isDefined) Some(openRec.toInt) else None
+          val rangeRequest = new GetRangeRequest(range.startKey, range.endKey, newLimit, offset, ascending)
+          handlers.append(newRangeHandle(range.servers.map(_ !! rangeRequest)))
+          servers = servers.tail
+        }
+        result.appendAll(records.flatMap(rec =>
+          if (openRec > 0) {
+            openRec -= 1
+            rec.value.map(v => (rec.key, extractRecordFromValue(v))).toList
+          } else
+            Nil
+          )
+        )
+      }
+    }
+    handlers.foreach(ReadRepairer ! _)
+    result
+  }
+
+  override def getKeys(start: Option[Array[Byte]], 
+                       end: Option[Array[Byte]], 
+                       limit: Option[Int], 
+                       offset: Option[Int], 
+                       ascending: Boolean): Seq[(Array[Byte], Array[Byte])] = {
+    val (ptr, ftchs) = startGetRangeRequest(start, end, limit, offset, ascending)
+    finishGetRangeRequest(ptr, ftchs, limit, offset, ascending, None)
+  }
+
+  override def asyncGetKeys(start: Option[Array[Byte]], end: Option[Array[Byte]], limit: Option[Int], offset: Option[Int], ascending: Boolean): ScadsFuture[Seq[(Array[Byte], Array[Byte])]] = {
+    val (ptr, ftchs) = startGetRangeRequest(start, end, limit, offset, ascending)
+    new ComputationFuture[Seq[(Array[Byte], Array[Byte])]] {
+      def compute(timeoutHint: Long, unit: TimeUnit) = 
+        finishGetRangeRequest(ptr, ftchs, limit, offset, ascending, Some(unit.toMillis(timeoutHint)))
+      def cancelComputation = error("NOT IMPLEMENTED")
+    }
+  }
+
+  override protected def readRepairPF = _rrpf 
+
+  private val _rrpf: PartialFunction[Any, Unit] = {
+    val pf: PartialFunction[Any, Unit] = {
+      case handler: RangeHandle =>
+        readRepairManagedBlock {
+          handler.processRest()
+        }
+        for ((key, (data, servers)) <- handler.loosers) {
+          for (server <- servers) {
+            server !! PutRequest(key, Some(data))
+          }
+        }
+    }
+    pf.orElse(super.readRepairPF)
+  }
+
+  /**
+   * Tests the range for conflicts and marks all violations for future resolution.
+   * This class is optimized for none/few violations.
+   */
+  class RangeHandle(val futures: Seq[MessageFuture], val timeout: Long = 100000) {
+    val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture]
+    futures.foreach(_.forward(responses))
+
+    // TODO: hashing on byte array like this is no good. this should be redone
+    val loosers = new HashMap[Array[Byte], (Array[Byte], List[RemoteActorProxy])]
+    val winners = new ArrayBuffer[Record]
+
+    var baseServer: RemoteActorProxy = null //The whole comparison is based on the first response
+
+    val winnerExceptions = new HashMap[Array[Byte], RemoteActorProxy]
+
+    val startTime = System.currentTimeMillis
+    var failed = false
+    private var ctr = 0
+
+    def vote(quorum: Int): ArrayBuffer[Record] = {
+      (1 to quorum).foreach(_ => processNext())
+      return winners
+    }
+
+    def processRest() = {
+      for (i <- 1 to futures.length - ctr) {
+        processNext()
+      }
+    }
+
+    private def processNext(): Unit = {
+      ctr += 1
+      val time = startTime - System.currentTimeMillis + timeout
+      val future = responses.poll(if (time > 0) time else 1, TimeUnit.MILLISECONDS)
+      if (future == null) {
+        failed = true
+        return
+      }
+      val result = future() match {
+        case GetRangeResponse(v) => v
+        case m => throw new RuntimeException("Unexpected Message (was expecting GetRangeResponse): " + m)
+      }
+
+      if (winners.isEmpty) {
+        //println("first result " + result.map(a => QuorumProtocol.this.deserializeKey(a.key)))
+        winners.insertAll(0, result)
+        baseServer = future.source.get
+      } else {
+        merge(result, future.source.get)
+      }
+    }
+
+    private def merge(newRecords: Seq[Record], newServer: RemoteActorProxy): Unit = {
+      var recordPtr = newRecords
+      var i = 0
+      while (i < winners.length && !recordPtr.isEmpty) {
+        val winnerKey = winners(i).key
+        val newKey = recordPtr.head.key
+        assert(winners(i).value.isDefined) //should always be defined if we get data back, otherwise delete might not work
+        val winnerValue = winners(i).value.get
+        assert(recordPtr.head.value.isDefined)
+        val newValue = recordPtr.head.value.get
+        compareKey(winnerKey, newKey) match {
+          case -1 =>
+            i += 1
+          case 0 => {
+            compareMetadata(winnerValue, newValue) match {
+              case -1 => {
+                val outdatedServer = winnerExceptions.getOrElse(winnerKey, baseServer)
+                loosers += winnerKey -> (newValue, outdatedServer :: loosers.getOrElse(winnerKey, (null, Nil))._2)
+                winnerExceptions += winnerKey -> newServer
+                winners.update(i, recordPtr.head)
+              }
+              case 1 => {
+                loosers += winnerKey -> (winnerValue, newServer :: loosers.getOrElse(winnerKey, (null, Nil))._2)
+              }
+              case 0 => ()
+            }
+            recordPtr = recordPtr.tail
+            i += 1
+          }
+          case 1 => {
+            winners.insert(i, recordPtr.head)
+            i += 1 //because of the insert
+            winnerExceptions += newKey -> newServer
+            recordPtr = recordPtr.tail
+          }
+        }
+      }
+    }
+
+  }
 }

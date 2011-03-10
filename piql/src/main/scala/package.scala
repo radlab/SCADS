@@ -12,13 +12,8 @@ import storage._
 package object piql {
   protected val logger = Logger()
 
-  type Namespace = (edu.berkeley.cs.scads.storage.Namespace[IndexedRecord, IndexedRecord, IndexedRecord, IndexedRecord]
-    with edu.berkeley.cs.scads.storage.routing.RangeRouting[IndexedRecord, IndexedRecord, IndexedRecord, IndexedRecord]
-    with edu.berkeley.cs.scads.storage.SimpleMetaData[IndexedRecord, IndexedRecord, IndexedRecord, IndexedRecord]
-    with edu.berkeley.cs.scads.storage.QuorumProtocol[IndexedRecord, IndexedRecord, IndexedRecord, IndexedRecord]
-    with edu.berkeley.cs.scads.storage.AvroSerializing[IndexedRecord, IndexedRecord, IndexedRecord, IndexedRecord]
-  )
-  type IndexedNamespace = edu.berkeley.cs.scads.storage.IndexManager[AvroPair]
+  type Namespace = storage.Namespace with RangeKeyValueStoreLike[IndexedRecord, IndexedRecord, IndexedRecord] with GlobalMetadata
+  type IndexedNamespace = storage.Namespace with RecordStore[AvroPair] with GlobalMetadata with IndexManager
 
   type KeyGenerator = Seq[Value]
 

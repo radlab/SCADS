@@ -34,7 +34,7 @@ object ScadsState {
 			logger.debug("raw histogram:\n%s",workloadRaw.toString)
 			workloadRaw = workloadRaw * (1.0/(period.toDouble/1000.0)) // TODO: awkward conversion
 			logger.debug("raw histogram divided by period:\n%s",workloadRaw.toString)
-			val kToP = Map( namespace.partitions.rTable.map(entry => (entry.startKey -> Set(entry.values:_*))):_* )
+			val kToP = Map( namespace.typedRoutingTable.rTable.map(entry => (entry.startKey -> Set(entry.values:_*))):_* )
 			
 			// construct the server->partitions and partition->key mappings
 			val sToP = new scala.collection.mutable.HashMap[StorageService,scala.collection.mutable.ListBuffer[PartitionService]]()
@@ -78,7 +78,7 @@ object ScadsState {
 	}
 	def refresh(namespace:GenericNamespace, workloadRaw:WorkloadHistogram, time:Long):ClusterState = {
 		// construct the server->partitions and partition->key mappings
-		val kToP = Map( namespace.partitions.rTable.map(entry => (entry.startKey -> Set(entry.values:_*))):_* )
+		val kToP = Map( namespace.typedRoutingTable.rTable.map(entry => (entry.startKey -> Set(entry.values:_*))):_* )
 		val sToP = new scala.collection.mutable.HashMap[StorageService,scala.collection.mutable.ListBuffer[PartitionService]]()
 		val pToK = new scala.collection.mutable.HashMap[PartitionService,Option[org.apache.avro.generic.GenericRecord]]()
 		val pToSingle = new scala.collection.mutable.HashMap[Option[org.apache.avro.generic.GenericRecord],Boolean]()

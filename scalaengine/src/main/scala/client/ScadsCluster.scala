@@ -2,29 +2,25 @@ package edu.berkeley.cs.scads.storage
 
 import edu.berkeley.cs.scads.comm._
 
-import org.apache.avro.Schema
+import org.apache.avro._
+import generic._
+import specific._
 
-import org.apache.zookeeper.CreateMode
+import org.apache.zookeeper.{ Environment => _, _ }
 
-import org.apache.avro.util.Utf8
-import scala.actors._
-import scala.actors.Actor._
 import net.lag.logging.Logger
-import org.apache.avro.generic.GenericData.{Array => AvroArray}
-import org.apache.avro.generic.{GenericData, GenericRecord, IndexedRecord, GenericDatumWriter}
-import org.apache.avro.io.{BinaryData, BinaryEncoder}
-
-import scala.collection.mutable.{ ArrayBuffer, HashMap }
-import java.util.Arrays
-import java.io.File
-import scala.concurrent.SyncVar
 
 import edu.berkeley.cs.avro.runtime._
-import edu.berkeley.cs.avro.marker.AvroPair
-import scala.util.Random
+import edu.berkeley.cs.avro.marker._
 
-import com.sleepycat.je.{ Environment, EnvironmentConfig }
+import scala.util.Random
+import collection.mutable.ArrayBuffer
+
+import java.io._
 import java.lang.{ Integer => JInteger }
+
+import com.sleepycat.je._
+
 
 /**
  * Class for creating/accessing/managing namespaces for a set of scads storage nodes with a given zookeeper root.
@@ -32,7 +28,7 @@ import java.lang.{ Integer => JInteger }
  * TODO: Add ability to delete namespaces
  * TODO: Move parition management code into namespace
  */
-class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) {
+class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) { self =>
   val namespaces = root.getOrCreate("namespaces")
   val clients = root.getOrCreate("clients")
   val randomGen = new Random(0)
@@ -74,67 +70,83 @@ class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) {
   def getNamespace(ns: String,
                    keySchema: Schema,
                    valueSchema: Schema): GenericNamespace = {
-    val namespace = new GenericNamespace(ns, 5000, namespaces, keySchema, valueSchema)
-    namespace.loadOrCreate
+    //val namespace = new GenericNamespace(ns, 5000, namespaces, keySchema, valueSchema)
+    //namespace.loadOrCreate
+    //namespace
+
+    val namespace = new GenericNamespace(ns, self, namespaces, keySchema, valueSchema)
+    namespace.open()
     namespace
   }
 
   def getNamespace(ns: String): GenericNamespace = {
-		val keySchema = Schema.parse(new String(root("namespaces")(ns)("keySchema").data))
-		val valueSchema = Schema.parse(new String(root("namespaces")(ns)("valueSchema").data))
-    val namespace = new GenericNamespace(ns, 5000, namespaces, keySchema, valueSchema)
-    namespace.load
-    return namespace
+		val keySchema = Schema.parse(new String(namespaces(ns)("keySchema").data))
+		val valueSchema = Schema.parse(new String(namespaces(ns)("valueSchema").data))
+    //val namespace = new GenericNamespace(ns, 5000, namespaces, keySchema, valueSchema)
+    //namespace.load
+    //return namespace
+
+    getNamespace(ns, keySchema, valueSchema)
   }
 
   def createNamespace(ns: String,
                       keySchema: Schema,
                       valueSchema: Schema,
                       servers : Seq[(Option[GenericRecord], Seq[StorageService])]): GenericNamespace = {
-    val namespace = new GenericNamespace(ns, 5000, namespaces, keySchema, valueSchema)
-    namespace.create(servers)
+    //val namespace = new GenericNamespace(ns, 5000, namespaces, keySchema, valueSchema)
+    //namespace.create(servers)
+    //namespace
+
+    val namespace = new GenericNamespace(ns, self, namespaces, keySchema, valueSchema)
+    namespace.create()
+    namespace.setPartitionScheme(servers.map {
+      // TODO: provide methods in the namespaces which understand the typed version 
+      // so we don't have to use toBytes. for now, it is not that important b/c createNamespace 
+      // is not called repeatedly
+      case (optRec, seq) => (optRec.map(_.toBytes), seq)
+    })
     namespace
   }
 
-  def getHashNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String, routingFieldPos : Seq[Int])
-      (implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): SpecificHashRoutingNamespace[KeyType, ValueType] = {
-    val namespace = new SpecificHashRoutingNamespace[KeyType, ValueType](ns, 5000, namespaces, routingFieldPos)
-    namespace.loadOrCreate
+  // currently unused
+  //def getHashNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String, routingFieldPos : Seq[Int])
+  //    (implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): SpecificHashRoutingNamespace[KeyType, ValueType] = {
+  //  val namespace = new SpecificHashRoutingNamespace[KeyType, ValueType](ns, 5000, namespaces, routingFieldPos)
+  //  namespace.loadOrCreate
+  //  namespace
+  //}
+
+  def getNamespace[KeyType <: SpecificRecord : Manifest, ValueType <: SpecificRecord : Manifest](ns: String): SpecificNamespace[KeyType, ValueType] = {
+    val namespace = new SpecificNamespace[KeyType, ValueType](ns, self, namespaces)
+    namespace.open()
     namespace
   }
 
-  def getNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String)
-      (implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): SpecificNamespace[KeyType, ValueType] = {
-    val namespace = new SpecificNamespace[KeyType, ValueType](ns, 5000, namespaces)
-    namespace.loadOrCreate
+  def createNamespace[KeyType <: SpecificRecord : Manifest, ValueType <: SpecificRecord : Manifest](ns: String, servers: Seq[(Option[KeyType], Seq[StorageService])]): SpecificNamespace[KeyType, ValueType] = {
+    val namespace = new SpecificNamespace[KeyType, ValueType](ns, self, namespaces)
+    namespace.create()
+    namespace.setPartitionScheme(servers.map { case (optRec, seq) => (optRec.map(_.toBytes), seq) })
     namespace
   }
 
-  def createNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String, servers: Seq[(Option[KeyType], Seq[StorageService])])
-      (implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): SpecificNamespace[KeyType, ValueType] = {
-    val namespace = new SpecificNamespace[KeyType, ValueType](ns, 5000, namespaces)
-    namespace.create(servers)
+  // TODO: will fix later
+  //def createHashNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String, servers: Seq[(Option[KeyType], Seq[StorageService])], routingFieldPos : Seq[Int])
+  //    (implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): SpecificHashRoutingNamespace[KeyType, ValueType] = {
+  //  val namespace = new SpecificHashRoutingNamespace[KeyType, ValueType](ns, 5000, namespaces, routingFieldPos)
+  //  namespace.create(servers)
+  //  namespace
+  //}
+
+  def getNamespace[PairType <: AvroPair : Manifest](ns: String): PairNamespace[PairType] = {
+    val namespace = new PairNamespace[PairType](ns, self, namespaces)
+    namespace.open()
     namespace
   }
 
-  def createHashNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord](ns: String, servers: Seq[(Option[KeyType], Seq[StorageService])], routingFieldPos : Seq[Int])
-      (implicit keyType: scala.reflect.Manifest[KeyType], valueType: scala.reflect.Manifest[ValueType]): SpecificHashRoutingNamespace[KeyType, ValueType] = {
-    val namespace = new SpecificHashRoutingNamespace[KeyType, ValueType](ns, 5000, namespaces, routingFieldPos)
-    namespace.create(servers)
-    namespace
-  }
-
-  def getNamespace[PairType <: AvroPair](ns: String)
-    (implicit pairType: Manifest[PairType]): PairNamespace[PairType] = {
-    val namespace = new PairNamespace[PairType](ns, 5000, namespaces)
-    namespace.loadOrCreate
-    namespace
-  }
-
-  def createNamespace[PairType <: AvroPair](ns: String, servers: Seq[(Option[GenericRecord], Seq[StorageService])])
-      (implicit pairType: Manifest[PairType]): PairNamespace[PairType] = {
-    val namespace = new PairNamespace[PairType](ns, 5000, namespaces)
-    namespace.create(servers)
+  def createNamespace[PairType <: AvroPair : Manifest](ns: String, servers: Seq[(Option[GenericRecord], Seq[StorageService])]): PairNamespace[PairType] = {
+    val namespace = new PairNamespace[PairType](ns, self, namespaces)
+    namespace.create()
+    namespace.setPartitionScheme(servers.map { case (optRec, seq) => (optRec.map(_.toBytes), seq) })
     namespace
   }
 

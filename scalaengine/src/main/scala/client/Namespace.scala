@@ -1,138 +1,59 @@
 package edu.berkeley.cs.scads.storage
 
-import edu.berkeley.cs.scads.comm._
-import edu.berkeley.cs.scads.storage.routing._
+import net.lag.logging._
 
-import net.lag.logging.Logger
-import org.apache.avro.Schema
-import org.apache.avro.generic.IndexedRecord
-import org.apache.zookeeper.CreateMode
+trait Namespace {
+  def name: String
+  def cluster: ScadsCluster
 
-import scala.collection.mutable.ListBuffer
+  /** Alias for name */
+  def namespace: String = name
 
-abstract class Namespace[KeyType <: IndexedRecord,
-                ValueType <: IndexedRecord, 
-                RecordType <: IndexedRecord,
-                RangeType]
-    (val namespace: String,
-     val timeout: Int,
-     val root: ZooKeeperProxy#ZooKeeperNode)  (implicit val cluster : ScadsCluster)
-  extends KeyValueStore[KeyType, ValueType, RecordType, RangeType] {
+  protected val logger = Logger()
 
-
-
-  protected val logger: Logger = Logger()
-  protected var nsRoot: ZooKeeperProxy#ZooKeeperNode = _
-
-  private val onLoadHandlers: ListBuffer[() => Unit] = new ListBuffer[() => Unit]
-  private val onCreateHandlers: ListBuffer[Seq[(Option[KeyType], Seq[StorageService])] => Unit] = 
-    new ListBuffer[Seq[(Option[KeyType], Seq[StorageService])] => Unit]
-  private val onDeleteHandlers: ListBuffer[() => Unit] = new ListBuffer[() => Unit] 
-
-  /**
-   * Register an event handler to be invoked on creation
-   */
-  protected def onLoad(f: => Unit): Unit = {
-    onLoadHandlers append (() => f)
+  trait Execable {
+    def execCallbacks(): Unit
   }
 
-  /**
-   * Register an event handler to be invoked on creation
-   */
-  protected def onCreate(f: Seq[(Option[KeyType], Seq[StorageService])] => Unit): Unit = {
-    onCreateHandlers append f
-  }
-
-  /**
-   * Register an event handler to be invoked on deletion
-   */
-  protected def onDelete(f: => Unit): Unit = {
-    onDeleteHandlers append (() => f)
-  }
-
-  val keySchema: Schema
-  val valueSchema: Schema
-
-  /**
-   * Return the key schema of this namespace
-   */
-  def getKeySchema() : Schema = keySchema
-
-  /**
-   * Return the value schema of this namespace
-   */
-  def getValueSchema() : Schema = valueSchema
-
-  /**
-   * Returns the default replication Factor when initializing a new NS
-   */
-  protected def defaultReplicationFactor(): Int = 1
-
-  def doesNamespaceExist(): Boolean = !root.get(namespace).isEmpty
-
-  /** 
-   * Loads the namespace configuration. If it does not exists, it creates a
-   * new one with the min replication factor on randomly selected
-   * storagehandlers
-   */
-  def loadOrCreate() : Unit = {
-    if(doesNamespaceExist){
-      load()
-    }else{
-      var randServers = cluster.getRandomServers(defaultReplicationFactor)
-      val startKey : Option[KeyType] = None
-      create(List((startKey, randServers)))
+  class CallbackHandler extends Execable {
+    @volatile private var _functions: List[() => Unit] = Nil 
+    def registerCallback(f: => Unit): Unit = {
+      _functions ::= (() => f)
     }
+    def execCallbacks(): Unit = _functions.foreach(f => f())
   }
 
-  onLoad {
-    val node = root.get(namespace)
-    require(node.isDefined)
-    nsRoot = node.get
-  }
+  trait PassableCallbackHandler[A] extends Execable {
+    def unit: A
 
-  /**
-   * Loads and initializes the protocol for an existing namespace
-   */
-  def load(): Unit = {
-    onLoadHandlers.foreach(f => f())
-  }
-
-  onCreate { 
-    ranges => {
-      if(!root.get(namespace).isEmpty)
-        throw new RuntimeException("Illegal namespace creation. Namespace already exists")
-      if( ranges.size == 0 || ranges.head._1 != None)
-        throw new RuntimeException("Illegal namespace creation - range size hast to be > 0 and the first key has to be None")
-      logger.debug("Creating nsRoot for namespace: " + namespace)
-      nsRoot = root.createChild(namespace, "".getBytes, CreateMode.PERSISTENT)
-      //println("nsRoot: " + nsRoot)
-      //println("getKeySchema: " + getKeySchema)
-      nsRoot.createChild("keySchema", getKeySchema.toString.getBytes, CreateMode.PERSISTENT)
-      nsRoot.createChild("valueSchema", getValueSchema.toString.getBytes, CreateMode.PERSISTENT)
+    @volatile private var _functions: List[A => A] = Nil 
+    def registerCallback(f: A => A): Unit = {
+      _functions ::= f
     }
+    def execCallbacks(): Unit = _functions.foldLeft(unit) { case (cur, f) => f(cur) }
   }
 
-  /**
-   *  Creates a new NS with the given servers
-   *  The ranges has the form (startKey, servers). The first Key has to be None
-   */
-  def create(ranges: Seq[(Option[KeyType], Seq[StorageService])]): Unit = {
-    onCreateHandlers.foreach(f => f(ranges))
-  }
+  private val createHandler = new CallbackHandler
+  private val openHandler = new PassableCallbackHandler[Boolean] { val unit = false }
+  private val closeHandler = new CallbackHandler
+  private val deleteHandler = new CallbackHandler
 
-  onDelete {
-    logger.info("Deleting zookeeper metadata for namespace %s", namespace)
-    nsRoot.deleteRecursive
-    nsRoot = null
-  }
+  // NOTE: the handlers get appended in reverse order (like a stack). this
+  // way, the callbacks for the dependencies run FIRST. 
 
-  /**
-   * Deletes the entire namespace, along with any associated metadata. After
-   * calling delete, this namespace instance is no longer usable
-   */
-  def delete(): Unit = {
-    onDeleteHandlers.foreach(f => f())
-  }
+  protected def onCreate(f: => Unit): Unit = createHandler.registerCallback(f) 
+  protected def onOpen(f: Boolean => Boolean): Unit = openHandler.registerCallback(f)
+  protected def onClose(f: => Unit): Unit = closeHandler.registerCallback(f)
+  protected def onDelete(f: => Unit): Unit = deleteHandler.registerCallback(f)
 
+  // TODO: what are the semantics for each? they should be specified clearly
+
+  def create(): Unit = createHandler.execCallbacks()
+  def open(): Unit = openHandler.execCallbacks()
+  def close(): Unit = closeHandler.execCallbacks() 
+  def delete(): Unit = deleteHandler.execCallbacks()
+
+  override def toString = protToString
+  protected def protToString: String = 
+    "<Namespace: %s>".format(name)
 }

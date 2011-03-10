@@ -11,7 +11,20 @@ import scala.collection.immutable.HashMap
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.avro.marker.AvroPair
 
+/** An IndexManager is intended to provide index maintainence for AvroPair
+ * namespaces. the methods below are not intended to be thread-safe */
+trait IndexManager {
+  type IndexNamespace = Namespace 
+    with RangeKeyValueStoreLike[IndexedRecord, IndexedRecord, IndexedRecord]
+    with GlobalMetadata
+
+  def getOrCreateIndex(fields: Seq[String]): IndexNamespace =
+    throw new RuntimeException("TODO: Not Implemented")
+}
+
 private[storage] object IndexManager {
+
+  /* TODO: Fix me
   // must put at least 1 field in the dummy value schema otherwise writes will
   // never work
   lazy val indexValueSchema = {
@@ -28,12 +41,12 @@ private[storage] object IndexManager {
     rec
   }
 }
+*/
 
-/** An IndexManager is intended to provide index maintainence for AvroPair
- * namespaces. the methods below are not intended to be thread-safe */
-trait IndexManager[PairType <: AvroPair] {
-  this: Namespace[_, _, _, _] =>
 
+
+							 
+/*
   import IndexManager._
   
   protected var indexCatalogue: ZooKeeperProxy#ZooKeeperNode = _ 
@@ -195,5 +208,5 @@ trait IndexManager[PairType <: AvroPair] {
     indexNamespacesCache -= name
     indexCatalogue(name).delete()
   }
-
+  */
 }
