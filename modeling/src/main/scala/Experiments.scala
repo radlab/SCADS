@@ -8,12 +8,19 @@ import storage._
 import deploylib.mesos._
 
 object Experiments {
-  val zooKeeperRoot = ZooKeeperNode("zk://zoo.knowsql.org/").getOrCreate("home").getOrCreate(System.getProperty("user.name"))
+  val zooKeeperRoot = ZooKeeperNode("zk://zoo.knowsql.org/").getOrCreate("home").getOrCreate(System.getenv("USER"))
   val cluster = new Cluster(zooKeeperRoot)
 
   implicit def classSource = cluster.classSource
   def serviceScheduler = cluster.serviceScheduler
   def traceRoot = zooKeeperRoot.getOrCreate("traceCollection")
+
+  lazy val scadsCluster = new ScadsCluster(traceRoot)
+  lazy val scadrClient = new scadr.ScadrClient(scadsCluster, new ParallelExecutor)
+
+  def laggards = cluster.slaves.pflatMap(_.jps).filter(_.main equals "AvroTaskMain").pfilterNot(_.stack contains "ScalaEngineTask").pfilterNot(_.stack contains "awaitChild")
+
+  def killTask(id: Int): Unit = cluster.serviceScheduler !? KillTaskRequest(id)
 
   def scadrClusterParams = ScadrClusterParams(
     traceRoot.canonicalAddress, // cluster address
