@@ -56,14 +56,30 @@ trait QuorumProtocol[KeyType <: IndexedRecord,
 
   // For debugging only
   def dumpDistribution: Unit = {
-    serversForRange(None, None).foreach(r => {
-      r.values.foreach(partition => {
-        partition !? CountRangeRequest(r.startKey.map(serializeKey), r.endKey.map(serializeKey)) match {
-          case CountRangeResponse(num) => logger.info("%s: %d", partition, num)
-          case _ => logger.warning("Invalid response from %s", partition)
-        }
-      })
-    })
+    val futures = serversForRange(None, None).flatMap(r =>
+      r.values.map(p => p !! CountRangeRequest(r.startKey.map(serializeKey), r.endKey.map(serializeKey))))
+
+    futures.foreach(f => 
+      f() match {
+        case CountRangeResponse(num) => logger.info("%s: %d", f.source, num)
+        case _ => logger.warning("Invalid response from %s", f.source)
+      }
+    )
+  }
+
+  def dumpWorkload: Unit = {
+    def futures = serversForRange(None,None).map(r =>
+      (r.startKey, r.values.map(p => (p, p !! GetWorkloadStats()))))
+
+    futures.foreach {
+      case (startKey, replicas) => {
+	logger.info("==%s==", startKey)
+	replicas.map(f => (f._1, f._2())).foreach {
+	  case (hander, GetWorkloadStatsResponse(getCount, putCount, _)) => logger.info("%s: %d gets, %d puts", getCount, putCount)
+	  case m => logger.warning("Invalid message received for workload stats %s", m)
+	}
+      }
+    }
   }
 
   def setLostMessageTolerance(lostMessageTolerance : Int) = {
