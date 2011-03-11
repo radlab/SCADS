@@ -137,7 +137,8 @@ class PairNamespace[Pair <: AvroPair : Manifest](
   with QuorumRangeProtocol
   with DefaultKeyRangeRoutable
   with ZooKeeperGlobalMetadata
-  with SimpleRecordMetadata {
+  with SimpleRecordMetadata 
+  with DebuggingClient {
   
   override protected val pairManifest = manifest[Pair]
 
