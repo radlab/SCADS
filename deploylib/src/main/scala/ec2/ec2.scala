@@ -237,7 +237,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     var connected = false
     while (!connected) {
       try {
-	logger.info("Checking ssh connectivity to %s", publicDnsName)
+	logger.info("Checking ssh connectivity to %s: %s", instanceId, publicDnsName)
         val s = new java.net.Socket(publicDnsName, 22)
         connected = true
       } catch {
