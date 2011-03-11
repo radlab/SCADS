@@ -11,6 +11,20 @@ object Experiments {
   val zooKeeperRoot = ZooKeeperNode("zk://zoo.knowsql.org/").getOrCreate("home").getOrCreate(System.getenv("USER"))
   val cluster = new Cluster(zooKeeperRoot)
 
+  object results extends deploylib.ec2.AWSConnection {
+    import collection.JavaConversions._
+    import com.amazonaws.services.s3._
+    import model._
+
+    val client = new AmazonS3Client(credentials)
+
+    def listFiles(bucket: String, prefix: String) = {
+      client.listObjects((new ListObjectsRequest).withBucketName(bucket)
+						 .withPrefix(prefix))
+	    .getObjectSummaries.map(_.getKey)
+    }
+  }
+
   implicit def classSource = cluster.classSource
   def serviceScheduler = cluster.serviceScheduler
   def traceRoot = zooKeeperRoot.getOrCreate("traceCollection")
