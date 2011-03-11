@@ -17,6 +17,13 @@ object Experiments {
 
   lazy val scadsCluster = new ScadsCluster(traceRoot)
   lazy val scadrClient = new scadr.ScadrClient(scadsCluster, new ParallelExecutor)
+  lazy val testScadrClient = {
+    val cluster = TestScalaEngine.newScadsCluster()
+    val client = new scadr.ScadrClient(cluster, new ParallelExecutor)
+    val loader = new scadr.ScadrLoader(client, 1, 1)
+    loader.getData(0).load
+    client
+  }
 
   def laggards = cluster.slaves.pflatMap(_.jps).filter(_.main equals "AvroTaskMain").pfilterNot(_.stack contains "ScalaEngineTask").pfilterNot(_.stack contains "awaitChild")
 
