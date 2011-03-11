@@ -141,6 +141,7 @@ abstract class RemoteMachine {
     } catch {
       case e: java.io.IOException => onFailure(e)
       case e: java.net.SocketException => onFailure(e)
+      case e: java.lang.IllegalStateException => onFailure(e)
     }
   }
 
