@@ -15,8 +15,9 @@ import java.util.concurrent.TimeUnit
 private[storage] object QuorumProtocol {
   val ZK_QUORUM_CONFIG = "quorumProtConfig"
 
-  val BufSize = 1024
-  val FutureCollSize = 1024
+  val BulkPutBufSize = 1024
+  val BulkPutMaxOutstanding = 64
+  val BulkPutTimeout = 60 * 1000
 }
 
 trait QuorumProtocol 
@@ -85,58 +86,79 @@ trait QuorumProtocol
     responses.blockFor(quorum)
   }
 
+  /* Buffers KV tuples until the average buffer size for all the servers is
+   * greater than BufSize. Then sends the request to the servers, while
+   * repeating the buffering process for the next set of KV tuples. When the
+   * tuple stream runs out, or when the outstanding future collection grows
+   * above a certain threshold, blocks on each of the returned
+   * future collections.
+   *
+   * Note: the current implementation is Write All
+   */
   override def putBulkBytes(that: TraversableOnce[(Array[Byte], Array[Byte])]): Unit = {
-    /* Buffers KV tuples until the average buffer size for all the servers is
-     * greater than BufSize. Then sends the request to the servers, while
-     * repeating the buffering process for the next set of KV tuples. When the
-     * tuple stream runs out, or when the outstanding future collection grows
-     * above a certain threshold, blocks (via quorum) on each of the returned
-     * future collections.
-     */
     val serverBuffers = new HashMap[PartitionService, ArrayBuffer[PutRequest]]
-    val outstandingFutureColls = new ArrayBuffer[FutureCollection]
+    
+    case class OutstandingPut(timestamp: Long, server: PartitionService, sendBuffer: ArrayBuffer[PutRequest], future: MessageFuture, tries: Int = 0)
+    val outstandingPuts = new collection.mutable.Queue[OutstandingPut]
 
-    def averageBufferSize =
-      serverBuffers.values.foldLeft(0)(_ + _.size) / serverBuffers.size.toDouble 
+    /* send the request and append it to the list of outstanding requests */
+    @inline def sendBuffer(server: PartitionService, sendBuffer: ArrayBuffer[PutRequest], tries: Int = 0): Unit = {
+      if(tries > 5)
+	throw new RuntimeException("Retries exceeded for server %s".format(server))
 
-    def writeServerBuffers() {
-      outstandingFutureColls += new FutureCollection(serverBuffers.map { tup => 
-        tup._1 !! BulkPutRequest(tup._2.toSeq)
-      }.toSeq)
-      serverBuffers.clear() // clear buffers
+      outstandingPuts enqueue OutstandingPut(
+	System.currentTimeMillis,
+	server,
+	sendBuffer,
+	server !! BulkPutRequest(sendBuffer),
+	tries)
+      serverBuffers -= server
     }
 
-    def blockFutureCollections() {
-      outstandingFutureColls.foreach(coll => coll.blockFor(scala.math.ceil(coll.futures.size * writeQuorum).toInt))
-      outstandingFutureColls.clear() // clear ftch colls
+    /* wait up to timeout for the oldest request to return if it doesn't resend it*/
+    @inline def processNextOutstandingRequest: Unit = {
+      val oldestRequest = outstandingPuts.dequeue
+      val remainingTime = BulkPutTimeout - (System.currentTimeMillis - oldestRequest.timestamp)
+      require(remainingTime < BulkPutTimeout)
+
+      oldestRequest.future.get(if(remainingTime > 0) remainingTime else 1) match {
+	case Some(BulkPutResponse()) =>
+	case Some(otherMsg) => {
+	  logger.warning("Received unexpected message for bulk put to %s: %s. Resending", oldestRequest.server, otherMsg)
+	  sendBuffer(oldestRequest.server, oldestRequest.sendBuffer, oldestRequest.tries + 1)
+	}
+	case None => {
+	  logger.warning("Bulkput to %s timed out. Resending.")
+	  sendBuffer(oldestRequest.server, oldestRequest.sendBuffer, oldestRequest.tries + 1)
+	}
+      }
     }
 
     that.foreach { case (key, value) => 
-
       val (servers, quorum) = writeQuorumForKey(key)
       val putRequest = PutRequest(key, Some(createMetadata(value)))
 
       for (server <- servers) {
-        val buf = serverBuffers.getOrElseUpdate(server, new ArrayBuffer[PutRequest])
+        val buf = serverBuffers.getOrElseUpdate(server, new ArrayBuffer[PutRequest](BulkPutBufSize))
         buf += putRequest
+	
+	/* send the buffer when its full */
+	if(buf.size >= BulkPutBufSize)
+	  sendBuffer(server, buf)
       }
 
-      if (averageBufferSize >= BufSize.toDouble)
-        // time to flush server buffers
-        writeServerBuffers()
-
-      if (outstandingFutureColls.size > FutureCollSize)
-        // time to block on collections (via quorum) so that we don't congest
-        // the network
-        blockFutureCollections()
+      if(outstandingPuts.size >= BulkPutMaxOutstanding)
+	processNextOutstandingRequest
     }
 
-    if (!serverBuffers.isEmpty) {
-      // outstanding keys since last flush - since we've reached the end of
-      // the iterable collection, we must write and block now
-      writeServerBuffers()
-      blockFutureCollections()
+    /* flush any remaining send buffers */
+    serverBuffers.foreach {
+      case (server, buffer) => sendBuffer(server, buffer)
     }
+    
+    /* block until we receive responses for all sent requests */
+    while(outstandingPuts.size > 0)
+      processNextOutstandingRequest
   }
 
   private var readQuorum: Double = 0.001
