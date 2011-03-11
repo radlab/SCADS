@@ -86,7 +86,7 @@ class MessageFuture extends Future[MessageBody]  with MessageReceiver {
 
   def get(): MessageBody = message.get
 
-  def get(timeout: Int): Option[MessageBody] =
+  def get(timeout: Long): Option[MessageBody] =
     get(timeout, TimeUnit.MILLISECONDS)
 
   def get(timeout: Long, unit: TimeUnit): Option[MessageBody] = 
