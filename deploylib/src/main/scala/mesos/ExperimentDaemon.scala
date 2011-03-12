@@ -1,17 +1,15 @@
 package deploylib
 package mesos
 
-import edu.berkeley.cs.scads.comm._
+import edu.berkeley.cs._
+import scads.comm._
+import avro.marker._
 
 import net.lag.logging.Logger
 
-class RemoteServiceScheduler extends ExperimentScheduler with MessageReceiver {
-  val logger = Logger()
-  val remoteService = RemoteActor("mesos-ec2", 9001, ActorNumber(0))
-  implicit val returnAddress = MessageHandler.registerService(this)
-
+case class RemoteServiceScheduler(var host: String, var port: Int, var id: ActorId) extends AvroRecord with ExperimentScheduler with RemoteActorProxy {
   def scheduleExperiment(processes: Seq[JvmTask]): Unit = {
-    remoteService ! RunExperimentRequest(processes.toList)
+    this !? (RunExperimentRequest(processes.toList), 60 * 1000)
   }
 
   def receiveMessage(src: Option[RemoteActorProxy], msg: MessageBody): Unit = {
