@@ -8,7 +8,7 @@ import storage._
 import deploylib.mesos._
 
 object Experiments {
-  val zooKeeperRoot = ZooKeeperNode("zk://zoo.knowsql.org/").getOrCreate("home").getOrCreate(System.getenv("USER"))
+  implicit var zooKeeperRoot = ZooKeeperNode("zk://zoo.knowsql.org/").getOrCreate("home").getOrCreate(System.getenv("USER"))
   val cluster = new Cluster(zooKeeperRoot)
 
   object results extends deploylib.ec2.AWSConnection {
@@ -26,7 +26,7 @@ object Experiments {
   }
 
   implicit def classSource = cluster.classSource
-  def serviceScheduler = cluster.serviceScheduler
+  implicit def serviceScheduler = cluster.serviceScheduler
   def traceRoot = zooKeeperRoot.getOrCreate("traceCollection")
 
   lazy val scadsCluster = new ScadsCluster(traceRoot)

@@ -13,13 +13,6 @@ import org.apache.zookeeper.CreateMode
 
 import java.io.File 
 
-object RepTest extends ExperimentMain {
-  def main(args: Array[String]): Unit = {
-    val cluster = DataLoader(1, 1000).newCluster
-    RepClient(3).schedule(cluster)
-  }
-}
-
 case class RepResultKey(var cluster: String, var iteration: Int) extends AvroRecord
 case class RepResultValue(var startTime: Long, var endTime: Long) extends AvroRecord
 
@@ -32,13 +25,16 @@ trait StorageServiceSorter {
   }
 }
 
-case class DataLoader(var numLoaders: Int, var recsPerLoader: Int, var numServers: Int = 2) extends DataLoadingAvroClient with AvroRecord with StorageServiceSorter {
+case class DataLoader(var numLoaders: Int, var recsPerLoader: Int, var numServers: Int = 2) extends DataLoadingTask with AvroRecord with StorageServiceSorter {
 
-  def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode): Unit = {
+  var clusterAddress: String = _
+
+  def run(): Unit = {
     require(numLoaders >= 1, "need >= 1 data loader")
     require(recsPerLoader > 0, "need > 0 recs per loader")
     require(numServers >= 1, "need >= 1 server")
     
+    val clusterRoot = ZooKeeperNode(clusterAddress)
     val coordination = clusterRoot.getOrCreate("coordination/loaders")
     val cluster = new ExperimentalScadsCluster(clusterRoot)
 
@@ -64,13 +60,18 @@ case class DataLoader(var numLoaders: Int, var recsPerLoader: Int, var numServer
   }
 }
 
-case class RepClient(var numIterations: Int) extends ReplicatedAvroClient with AvroRecord with StorageServiceSorter {
+case class RepClient(var numIterations: Int, var clusterAddress: String) extends ReplicatedExperimentTask with AvroRecord with StorageServiceSorter {
 
   /** For now, only a single rep client runs and issues replication calls */ 
   var numClients = 1
+  var experimentAddress: String = _
 
-  def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode): Unit = {
+  protected lazy val test = 1
 
+  def run(): Unit = {
+
+    val clusterRoot = ZooKeeperNode(clusterAddress)
+    val experimentRoot = ZooKeeperNode(experimentAddress)
     val dataLoader = classOf[DataLoader].newInstance.parse(new String(clusterRoot.awaitChild("clusterReady").data))
 
     val cluster = new ScadsCluster(clusterRoot)

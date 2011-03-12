@@ -13,21 +13,17 @@ import org.apache.zookeeper.CreateMode
 
 import java.io.File 
 
-object IntKeyScaleTest extends ExperimentMain {
-  def main(args: Array[String]): Unit = {
-    val cluster = DataLoader(1,1).newCluster
-    RandomLoadClient(1, 1).schedule(cluster)
-  }
-}
-
 case class WriteClient(var cluster: String, var clientId: Int) extends AvroRecord
 case class WritePerfResult(var numKeys: Int, var startTime: Long, var endTime: Long) extends AvroRecord
 
 case class LoadClient(var cluster: String, var clientId: Int, var threadId: Int, var iteration: Int) extends AvroRecord
 case class LoadPerfResult(var startTime: Long, var endTime: Long, var getTimes: Histogram, var putTimes: Histogram) extends AvroRecord
 
-case class DataLoader(var numServers: Int, var numLoaders: Int, var recsPerServer: Int = 10) extends DataLoadingAvroClient with AvroRecord {
-  def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode): Unit = {
+case class DataLoader(var numServers: Int, var numLoaders: Int, var recsPerServer: Int = 10) extends DataLoadingTask with AvroRecord {
+  var clusterAddress: String = _
+
+  def run(): Unit = {
+    val clusterRoot = ZooKeeperNode(clusterAddress)
     val coordination = clusterRoot.getOrCreate("coordination/loaders")
     val cluster = new ExperimentalScadsCluster(clusterRoot)
 
@@ -61,12 +57,23 @@ case class DataLoader(var numServers: Int, var numLoaders: Int, var recsPerServe
   }
 }
 
-case class RandomLoadClient(var numClients: Int, var numIterations: Int, var loadCount: Int = 10000, var loadThreads: Int = 5, var readPercentage: Double = 0.8) extends ReplicatedAvroClient with AvroRecord {
+case class RandomLoadClient(
+  var numClients: Int,
+  var numIterations: Int,
+  var clusterAddress: String,
+  var loadCount: Int = 10000,
+  var loadThreads: Int = 5,
+  var readPercentage: Double = 0.8) extends ReplicatedExperimentTask with AvroRecord {
 
-  def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode): Unit = {
+  var experimentAddress: String = _
+
+  def run(): Unit = {
     require(0.0 <= readPercentage && readPercentage <= 1.0, "Read percentage needs to be between [0.0, 1.0]")
 
-    val coordination = clusterRoot.getOrCreate("coordination/clients")
+    val clusterRoot = ZooKeeperNode(clusterAddress)
+    val experimentRoot = ZooKeeperNode(experimentAddress)
+    val coordination = experimentRoot.getOrCreate("coordination")
+
     val dataLoader = classOf[DataLoader].newInstance.parse(new String(clusterRoot.awaitChild("clusterReady").data))
     val maxInt = dataLoader.numServers * dataLoader.recsPerServer
 

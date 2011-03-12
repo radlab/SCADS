@@ -34,7 +34,7 @@ class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends Configura
   val zone = "us-east-1a"
 
   def serviceSchedulerNode = zooKeeperRoot.getOrCreate("serviceScheduler")
-  def serviceScheduler = classOf[RemoteActor].newInstance.parse(serviceSchedulerNode.data)
+  def serviceScheduler = classOf[RemoteServiceScheduler].newInstance.parse(serviceSchedulerNode.data)
 
   def stopAllInstances = (masters ++ slaves).pforeach(_.halt)
 
