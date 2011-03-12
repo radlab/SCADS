@@ -116,10 +116,19 @@ trait ScalaAvroPluginComponent extends PluginComponent {
   // TODO: this method needs also a test that !(sym.tpe <:< AvroRecordTrait.tpe)
   protected def isExternalRecord(sym: Symbol) = sym.tpe <:< SpecificRecordIface.tpe
 
+  protected def isExternalUnion(sym: Symbol) = sym.tpe <:< avroUnionTrait.tpe
+
   lazy val externalRecordClassLoader = new java.net.URLClassLoader(classPath.asURLs.toArray, this.getClass.getClassLoader)
   protected def retrieveExternalRecordSchema(sym: Symbol): Schema = {
     val clazz = externalRecordClassLoader.loadClass(sym.fullName.toString).asInstanceOf[Class[SpecificRecord]]
     clazz.newInstance.getSchema
+  }
+
+  protected def retrieveExternalUnionSchema(sym: Symbol): Schema = {
+    val clazz = externalRecordClassLoader.loadClass(sym.fullName.toString)
+    val objClazz = externalRecordClassLoader.loadClass(sym.fullName.toString + "$class")
+    objClazz.getMethod("getSchema", clazz)
+	 .invoke(null, null).asInstanceOf[Schema]
   }
 
   protected def retrieveUnionRecords(name: Symbol): List[Symbol] = unionToExtenders.get(name) match {
