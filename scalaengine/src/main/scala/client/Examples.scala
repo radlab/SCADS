@@ -138,6 +138,7 @@ class PairNamespace[Pair <: AvroPair : Manifest](
   with DefaultKeyRangeRoutable
   with ZooKeeperGlobalMetadata
   with SimpleRecordMetadata 
+  with IndexManager
   with DebuggingClient {
   
   override protected val pairManifest = manifest[Pair]
