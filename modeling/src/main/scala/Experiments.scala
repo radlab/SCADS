@@ -5,6 +5,7 @@ package modeling
 
 import comm._
 import storage._
+import perf._
 import deploylib.mesos._
 
 object Experiments {
@@ -31,11 +32,11 @@ object Experiments {
   def traceRoot = zooKeeperRoot.getOrCreate("traceCollection")
 
   lazy val scadsCluster = new ScadsCluster(traceRoot)
-  lazy val scadrClient = new scadr.ScadrClient(scadsCluster, new ParallelExecutor)
+  lazy val scadrClient = new piql.scadr.ScadrClient(scadsCluster, new ParallelExecutor)
   lazy val testScadrClient = {
     val cluster = TestScalaEngine.newScadsCluster()
-    val client = new scadr.ScadrClient(cluster, new ParallelExecutor)
-    val loader = new scadr.ScadrLoader(client, 1, 1)
+    val client = new piql.scadr.ScadrClient(cluster, new ParallelExecutor)
+    val loader = new piql.scadr.ScadrLoader(client, 1, 1)
     loader.getData(0).load
     client
   }
@@ -129,15 +130,40 @@ object Experiments {
 		  resultsCluster)
     }
 
-    def dataSizeResults = results.getRange(None, None)
-				 .filter(_.iteration != 1)
-				 .groupBy(_.loaderConfig.usersPerServer)
-				 .map {
-				   case (users, results) => 
-				     (users, results.map(_.times).reduceLeft(_+_).quantile(.99))
-				 }
+    def dataSizeResults = 
+      new ScatterPlot(results.getRange(None, None)
+			     .filter(_.iteration != 1)
+			     .filter(_.clientConfig.threads == 10)
+			     .groupBy(_.loaderConfig.usersPerServer)
+			     .map {
+			       case (users, results) => 
+				 (users, results.map(_.times)
+						.reduceLeft(_+_)
+						.quantile(.99))
+			     }.toSeq,
+		      title="Users/Server vs. Response Time",
+		      xaxis="Users per server",
+		      yaxis="99th Percentile Response Time",
+		      xunit="users/server",
+		      yunit="milliseconds")
 
-    def dataSizes(sizes: Seq[Int] = (2 to 20 by 2).map(_ * 10000)) = {
+    def threadCountResults =
+      new ScatterPlot(results.getRange(None, None)
+			     .filter(_.iteration != 1)
+			     .groupBy(_.clientConfig.threads)
+			     .map {
+			       case (users, results) => 
+				 (users, results.map(_.times)
+						.reduceLeft(_+_)
+						.quantile(.99))
+			     }.toSeq,
+		     title="ThreadCount vs. Responsetime",
+		     xaxis="Number of threads per application server",
+		     yaxis="99th Percentile ResponseTime",
+		     xunit="threads",
+		     yunit="milliseconds")
+
+    def runDataSizes(sizes: Seq[Int] = (2 to 20 by 2).map(_ * 10000)) = {
       sizes.map(numUsers =>
 	QueryRunnerTask(5, 
 			"edu.berkeley.cs.scads.piql.ParallelExecutor",
@@ -146,6 +172,18 @@ object Experiments {
 			runLengthMin=2,
 			threads=10)
 		.schedule(ScadrLoaderTask(5, 5, usersPerServer=numUsers).newCluster,
+		  resultsCluster))
+    }
+
+    def runThreads(numThreads: Seq[Int] = (10 to 100 by 10)) = {
+      numThreads.map(numThreads =>
+	QueryRunnerTask(5, 
+			"edu.berkeley.cs.scads.piql.ParallelExecutor",
+			0.01,
+			iterations=2,
+			runLengthMin=2,
+			threads=numThreads)
+		.schedule(ScadrLoaderTask(5, 5).newCluster,
 		  resultsCluster))
     }
   }
