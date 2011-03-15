@@ -58,7 +58,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
     val servlet = "javax.servlet" % "servlet-api" % "2.5" % "provided"
     val junit = "junit" % "junit" % "3.8.1" % "test"
     val sl4jConfiggy = "com.notnoop.logging" % "slf4j-configgy" % "0.0.1"
-  }, demo)
+  }, modeling)
 
   lazy val modeling    = project("modeling", "modeling", new ScadsSubProject(_), piql, perf, deploylib, scadr)
   lazy val piql      = project("piql", "piql", new ScadsSubProject(_) with IdeaProject, config, avro, comm, scalaengine)
