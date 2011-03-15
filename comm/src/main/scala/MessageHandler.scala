@@ -9,6 +9,10 @@ import net.lag.logging.Logger
 
 import edu.berkeley.cs.scads.config._
 
+import org.apache.commons.httpclient._
+import org.apache.commons.httpclient.methods._
+import org.apache.commons.httpclient.params._
+
 /**
  * The message handler for all scads communication.  It maintains a list of all active services
  * in a given JVM and multiplexes the underlying network connections.  Services should be
@@ -22,7 +26,15 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
   private val curActorId      = new AtomicLong
   private val serviceRegistry = new ConcurrentHashMap[ActorId, MessageReceiver]
 
-  private val hostname = java.net.InetAddress.getLocalHost.getCanonicalHostName()
+  private val hostname = 
+    if(System.getProperty("scads.comm.externalip") == null)
+      java.net.InetAddress.getLocalHost.getCanonicalHostName()
+    else {
+      val httpClient = new HttpClient()
+      val getMethod = new GetMethod("http://instance-data.ec2.internal/latest/meta-data/public-hostname")
+      httpClient.executeMethod(getMethod)
+      getMethod.getResponseBodyAsString
+    }
 
   private val listeners = new CopyOnWriteArrayList[MessageHandlerListener[Message, Message]]
 
