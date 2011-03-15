@@ -32,13 +32,18 @@ abstract trait DataLoadingTask extends AvroTask {
 
 abstract trait ReplicatedExperimentTask extends AvroTask {
   var numClients: Int
+  var resultClusterAddress: String
+  var clusterAddress: String
   var experimentAddress: String
 
-  def schedule(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeperRoot: ZooKeeperProxy#ZooKeeperNode): Unit = {
+  def schedule(cluster: ScadsCluster, resultCluster: ScadsCluster)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeperRoot: ZooKeeperProxy#ZooKeeperNode): this.type = {
     val experimentRoot = zookeeperRoot.getOrCreate("experiments").createChild("experiment", mode = CreateMode.PERSISTENT_SEQUENTIAL)
     experimentAddress = experimentRoot.canonicalAddress
+    clusterAddress = cluster.root.canonicalAddress
+    resultClusterAddress = resultCluster.root.canonicalAddress
 
     val task = this.toJvmTask
     scheduler.scheduleExperiment(Array.fill(numClients)(task))
+    this
   }
 }

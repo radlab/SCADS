@@ -39,10 +39,10 @@ object AvroTaskMain {
   val logger = Logger()
 
   def main(args: Array[String]): Unit = {
-    if (args.size == 2)
+    if (args.size == 2) {
+      val taskClass = Class.forName(args(0))
+      val task = taskClass.newInstance.asInstanceOf[AvroTask]
       try {
-        val taskClass = Class.forName(args(0))
-        val task = taskClass.newInstance.asInstanceOf[AvroTask]
         val reader = new SpecificDatumReader[AvroTask](task.getSchema)
         val decoder = new JsonDecoder(task.getSchema, args(1))
 
@@ -51,12 +51,16 @@ object AvroTaskMain {
         System.exit(0)
       } catch {
         case error => {
-	  val message = (error.toString +: error.getStackTrace).mkString("\n")
+	  val message = (java.net.InetAddress.getLocalHost.getHostName +:
+			 task.toJson +: 
+			 error.toString +: 
+			 error.getStackTrace).mkString("\n")
 	  ExperimentNotification.failures.publish("ExperimentFailure: %s".format(args(0)), message)
           logger.fatal(error, "Exeception in Main Thread.  Killing process.")
           System.exit(-1)
         }
       }
+    }
     else {
       println("Usage: " + this.getClass.getName + "<class name> <json encoded avro client description>")
       System.exit(-1)
