@@ -10,6 +10,7 @@ import deploylib.mesos._
 object Experiments {
   implicit var zooKeeperRoot = ZooKeeperNode("zk://zoo.knowsql.org/").getOrCreate("home").getOrCreate(System.getenv("USER"))
   val cluster = new Cluster(zooKeeperRoot)
+  val resultsCluster = new ScadsCluster(zooKeeperRoot.getOrCreate("results"))
 
   object results extends deploylib.ec2.AWSConnection {
     import collection.JavaConversions._
@@ -56,14 +57,14 @@ object Experiments {
   def thoughtstreamRunParams = RunParams(
     scadrClusterParams,
     "thoughtstream",
-    "thoughtstream-michael",
+    "thoughtstream-newclient",
     50                          // # trace collectors
   )
 
   def localUserThoughtstreamRunParams = RunParams(
     scadrClusterParams,
     "localUserThoughtstream",
-    "localUserThoughtstream-michael",
+    "localUserThoughtstream-newclient",
     50                          // # trace collectors
   )
 
@@ -111,5 +112,41 @@ object Experiments {
 
     serviceScheduler !? (RunExperimentRequest(storageEngines), 30 * 1000)
     serviceScheduler !? (RunExperimentRequest(dataLoadTasks), 30 * 1000)
+  }
+
+  object ScadrScaleExperiment {
+    import perf.scadr._
+    import scale._
+
+    val results = resultsCluster.getNamespace[perf.scadr.scale.Result]("scadrScaleResults")
+
+    def makeScaleGraphPoint(size: Int) = { 
+      QueryRunnerTask(size, 
+		      "edu.berkeley.cs.scads.piql.ParallelExecutor",
+		      0.01,
+		      threads=10)
+	.schedule(ScadrLoaderTask(size, size, 10).newCluster,
+		  resultsCluster)
+    }
+
+    def dataSizeResults = results.getRange(None, None)
+				 .filter(_.iteration != 1)
+				 .groupBy(_.loaderConfig.usersPerServer)
+				 .map {
+				   case (users, results) => 
+				     (users, results.map(_.times).reduceLeft(_+_).quantile(.99))
+				 }
+
+    def dataSizes(sizes: Seq[Int] = (2 to 20 by 2).map(_ * 10000)) = {
+      sizes.map(numUsers =>
+	QueryRunnerTask(5, 
+			"edu.berkeley.cs.scads.piql.ParallelExecutor",
+			0.01,
+			iterations=2,
+			runLengthMin=2,
+			threads=10)
+		.schedule(ScadrLoaderTask(5, 5, usersPerServer=numUsers).newCluster,
+		  resultsCluster))
+    }
   }
 }

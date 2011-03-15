@@ -20,7 +20,9 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
     val netty = "org.jboss.netty" % "netty" % "3.2.1.Final"
     val log4j = "log4j" % "log4j" % "1.2.15"
     val zookeeper = "org.apache.hadoop.zookeeper" % "zookeeper" % "3.3.1"
+    val commonsHttpClient = "commons-httpclient" % "commons-httpclient" % "3.0.1"
   }, config, avro)
+
 
   lazy val scalaengine = project("scalaengine", "storage-engine", new ScadsSubProject(_) with IdeaProject {
     val bdb = "com.sleepycat" % "je" % "4.0.71"
@@ -60,7 +62,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
 
   lazy val modeling    = project("modeling", "modeling", new ScadsSubProject(_), piql, perf, deploylib, scadr)
   lazy val piql      = project("piql", "piql", new ScadsSubProject(_) with IdeaProject, config, avro, comm, scalaengine)
-  lazy val perf      = project("perf", "performance", new ScadsSubProject(_) with IdeaProject, config, avro, comm, scalaengine, piql, deploylib)
+  lazy val perf      = project("perf", "performance", new ScadsSubProject(_) with IdeaProject, config, avro, comm, scalaengine, piql, deploylib, scadr)
   lazy val director    = project("director", "director", new ScadsSubProject(_) with IdeaProject, scalaengine, deploylib)
 
   lazy val spamFeatures = project("twitter" / "spamfeatures", "spamfeatures", new ScadsSubProject(_) {

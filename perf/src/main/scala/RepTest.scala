@@ -65,11 +65,11 @@ case class RepClient(var numIterations: Int, var clusterAddress: String) extends
   /** For now, only a single rep client runs and issues replication calls */ 
   var numClients = 1
   var experimentAddress: String = _
+  var resultClusterAddress: String = _
 
   protected lazy val test = 1
 
   def run(): Unit = {
-
     val clusterRoot = ZooKeeperNode(clusterAddress)
     val experimentRoot = ZooKeeperNode(experimentAddress)
     val dataLoader = classOf[DataLoader].newInstance.parse(new String(clusterRoot.awaitChild("clusterReady").data))
@@ -77,7 +77,6 @@ case class RepClient(var numIterations: Int, var clusterAddress: String) extends
     val cluster = new ScadsCluster(clusterRoot)
     val ns = cluster.getNamespace[IntRec, IntRec]("repscaletest")
     val loadResults = cluster.getNamespace[RepResultKey, RepResultValue]("repResults")
-
     val servers = orderStorageServices(cluster.getAvailableServers).toIndexedSeq
 
     for (iteration <- (1 to numIterations)) {

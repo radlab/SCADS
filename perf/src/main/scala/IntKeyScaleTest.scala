@@ -64,7 +64,7 @@ case class RandomLoadClient(
   var loadCount: Int = 10000,
   var loadThreads: Int = 5,
   var readPercentage: Double = 0.8) extends ReplicatedExperimentTask with AvroRecord {
-
+  var resultClusterAddress: String = _
   var experimentAddress: String = _
 
   def run(): Unit = {
@@ -112,6 +112,7 @@ case class RandomLoadClient(
       })
 
       coordination.registerAndAwait("endRead" + iteration, numClients)
+
     }
   }
 }
