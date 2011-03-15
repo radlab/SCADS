@@ -93,7 +93,7 @@ trait QuorumProtocol
    * above a certain threshold, blocks on each of the returned
    * future collections.
    *
-   * Note: the current implementation is Write All
+   * Note: the current implementation is Write All not quorum based.
    */
   override def putBulkBytes(that: TraversableOnce[(Array[Byte], Array[Byte])]): Unit = {
     val serverBuffers = new HashMap[PartitionService, ArrayBuffer[PutRequest]]
@@ -119,9 +119,14 @@ trait QuorumProtocol
     @inline def processNextOutstandingRequest: Unit = {
       val oldestRequest = outstandingPuts.dequeue
       val remainingTime = BulkPutTimeout - (System.currentTimeMillis - oldestRequest.timestamp)
-      require(remainingTime < BulkPutTimeout)
+      val timeout = if(remainingTime < 0)
+		      1
+		    else if(remainingTime > BulkPutTimeout) /* handle ec2 timeskips */
+		      BulkPutTimeout
+		    else
+		      remainingTime
 
-      oldestRequest.future.get(if(remainingTime > 0) remainingTime else 1) match {
+      oldestRequest.future.get(remainingTime) match {
 	case Some(BulkPutResponse()) =>
 	case Some(otherMsg) => {
 	  logger.warning("Received unexpected message for bulk put to %s: %s. Resending", oldestRequest.server, otherMsg)
