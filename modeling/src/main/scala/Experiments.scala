@@ -34,12 +34,13 @@ object Experiments {
   def traceRoot = zooKeeperRoot.getOrCreate("traceCollection")
 
   def watchServiceScheduler = cluster.firstMaster.watch("/root/serviceScheduler.log")
+  def debug(pkg: String) = net.lag.logging.Logger(pkg).setLevel(java.util.logging.Level.FINEST)
 
   lazy val scadsCluster = new ScadsCluster(traceRoot)
   lazy val scadrClient = new piql.scadr.ScadrClient(scadsCluster, new ParallelExecutor)
   lazy val testScadrClient = {
     val cluster = TestScalaEngine.newScadsCluster()
-    val client = new piql.scadr.ScadrClient(cluster, new ParallelExecutor)
+    val client = new piql.scadr.ScadrClient(cluster, new ParallelExecutor with DebugExecutor)
     val loader = new piql.scadr.ScadrLoader(client, 1, 1)
     loader.getData(0).load
     client
