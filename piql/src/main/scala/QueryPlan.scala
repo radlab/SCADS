@@ -24,11 +24,14 @@ case class EqualityPredicate(v1: Value, v2: Value) extends Predicate
 
 /* Physical Query Plan Nodes */
 abstract class QueryPlan
+abstract class RemotePlan extends QueryPlan { val namespace: Namespace }
+
 case class IndexLookup(namespace: Namespace, key: KeyGenerator) extends QueryPlan
-case class IndexScan(namespace: Namespace, keyPrefix: KeyGenerator, limit: Limit, ascending: Boolean) extends QueryPlan
-case class IndexLookupJoin(namespace: Namespace, key: KeyGenerator, child: QueryPlan) extends QueryPlan
-case class IndexScanJoin(namespace: Namespace, keyPrefix: KeyGenerator, limit: Limit, ascending: Boolean, child: QueryPlan) extends QueryPlan
-case class IndexMergeJoin(namespace: Namespace, keyPrefix: KeyGenerator, sortFields: Seq[Value], limit: Limit, ascending: Boolean, child: QueryPlan) extends QueryPlan
+
+case class IndexScan(namespace: Namespace, keyPrefix: KeyGenerator, limit: Limit, ascending: Boolean) extends RemotePlan
+case class IndexLookupJoin(namespace: Namespace, key: KeyGenerator, child: QueryPlan) extends RemotePlan
+case class IndexScanJoin(namespace: Namespace, keyPrefix: KeyGenerator, limit: Limit, ascending: Boolean, child: QueryPlan) extends RemotePlan
+case class IndexMergeJoin(namespace: Namespace, keyPrefix: KeyGenerator, sortFields: Seq[Value], limit: Limit, ascending: Boolean, child: QueryPlan) extends RemotePlan
 
 case class LocalSelection(predicate: Predicate, child: QueryPlan) extends QueryPlan
 case class LocalSort(sortFields: Seq[Value], ascending: Boolean, child: QueryPlan) extends QueryPlan

@@ -32,15 +32,15 @@ object Optimizer {
     logger.info("Optimizing subplan: %s", logicalPlan)
 
     logicalPlan match {
-      case IndexRange(equalityPreds, None, None, Relation(ns)) if (equalityPreds.size == ns.keySchema.getFields.size) &&
-								  isPrefix(equalityPreds, ns) => {
+      case IndexRange(equalityPreds, None, None, Relation(ns)) if ((equalityPreds.size == ns.keySchema.getFields.size) &&
+								  isPrefix(equalityPreds.map(_.attributeName), ns)) => {
 	val tupleSchema = ns :: Nil
         OptimizedSubPlan(
           IndexLookup(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds)),
           tupleSchema)
       }
       case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), None, Relation(ns)) => {
-	if(isPrefix(equalityPreds, ns)) {
+	if(isPrefix(equalityPreds.map(_.attributeName), ns)) {
 	  logger.info("Using primary index for predicates: %s", equalityPreds)
 	  val tupleSchema = ns :: Nil
 	  val idxScanPlan = IndexScan(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), count, true)
@@ -56,12 +56,7 @@ object Optimizer {
 	  val idx = ns.asInstanceOf[IndexedNamespace].getOrCreateIndex(equalityPreds.map(_.attributeName))
 	  val tupleSchema = ns :: idx :: Nil
 	  val idxScanPlan = IndexScan(idx, makeKeyGenerator(idx, tupleSchema, equalityPreds), count, true)
-
-	  val keyFields = ns.keySchema.getFields
-	  val idxFields = getFields(idx)
-	  val keyGenerator = keyFields.map(kf => AttributeValue(0, idxFields.findIndexOf(_.name equals kf.name)))
-
-	  val derefedPlan = IndexLookupJoin(ns, keyGenerator, idxScanPlan)
+	  val derefedPlan = derefPlan(ns, idxScanPlan)
 
 	  val fullPlan = dataStop match {
 	    case true => derefedPlan
@@ -70,41 +65,70 @@ object Optimizer {
           OptimizedSubPlan(fullPlan, tupleSchema)
 	}
       }
-      //TODO: Check to make sure the index has the right ordering.
       case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), Some(Ordering(attrs, asc)), Relation(ns)) => {
-	val tupleSchema = ns :: Nil
-	val idxScanPlan = IndexScan(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), count, asc)
+	val prefixAttrs = equalityPreds.map(_.attributeName) ++ attrs
+	val (idxScanPlan, tupleSchema) =
+	  if(isPrefix(prefixAttrs, ns)) {
+	    val tupleSchema = ns :: Nil
+	    (IndexScan(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), count, asc), tupleSchema)
+	  }
+	  else {
+	    val idx = ns.asInstanceOf[IndexedNamespace].getOrCreateIndex(prefixAttrs)
+	    val tupleSchema = ns :: idx :: Nil
+	    (derefPlan(ns,
+		       IndexScan(idx,
+				 makeKeyGenerator(idx, tupleSchema, equalityPreds),
+				 count,
+				 asc)),
+	     tupleSchema)
+	  }
+
 	val fullPlan = dataStop match {
 	  case true => idxScanPlan
 	  case false => LocalStopAfter(count, idxScanPlan)
 	}
-        OptimizedSubPlan(fullPlan, ns :: Nil)
+        OptimizedSubPlan(fullPlan, tupleSchema)
       }
       case IndexRange(equalityPreds, None, None, Join(child, Relation(ns))) if (equalityPreds.size == ns.keySchema.getFields.size) &&
-									       isPrefix(equalityPreds, ns) => {
+									       isPrefix(equalityPreds.map(_.attributeName), ns) => {
         val optChild = apply(child)
 	val tupleSchema = optChild.schema :+ ns
         OptimizedSubPlan(
           IndexLookupJoin(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), optChild.physicalPlan),
           tupleSchema)
       }
-      //TODO: Check to make sure the index has the desired ordering.
       case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), Some(Ordering(attrs, asc)), Join(child, Relation(ns))) => {
+	val prefixAttrs = equalityPreds.map(_.attributeName) ++ attrs
 	val optChild = apply(child)
-	val tupleSchema = optChild.schema :+ ns
 
-	val joinPlan = IndexMergeJoin(ns,
-	      makeKeyGenerator(ns, tupleSchema, equalityPreds),
-	      attrs.map(bindValue(_, tupleSchema)),
-	      count,
-	      asc,
-	      optChild.physicalPlan)
+	val (joinPlan, tupleSchema) = 
+	  if(isPrefix(prefixAttrs, ns)) {
+	    val tupleSchema = optChild.schema :+ ns
+	    
+	    (IndexMergeJoin(ns,
+			    makeKeyGenerator(ns, tupleSchema, equalityPreds),
+			    attrs.map(bindValue(_, tupleSchema)),
+			    count,
+			    asc,
+			    optChild.physicalPlan),
+	     tupleSchema)
+	  } else {
+	    val idx = ns.asInstanceOf[IndexedNamespace].getOrCreateIndex(prefixAttrs)
+	    val tupleSchema = ns :: idx :: Nil
+	  
+	    val idxJoinPlan = IndexScanJoin(idx,
+					    makeKeyGenerator(idx, tupleSchema, equalityPreds),
+					    count,
+					    asc,
+					    optChild.physicalPlan)
+	    (derefPlan(ns, idxJoinPlan), tupleSchema)
+	  }
 
 	val fullPlan = dataStop match {
 	  case true => joinPlan
 	  case false => LocalStopAfter(count, joinPlan)
 	}
-
+	
       	OptimizedSubPlan(fullPlan, tupleSchema)
       }
       case Selection(pred, child) => {
@@ -115,12 +139,18 @@ object Optimizer {
     }
   }
 
+  protected def derefPlan(ns: Namespace, idxPlan: RemotePlan): QueryPlan = {
+    val keyFields = ns.keySchema.getFields
+    val idxFields = getFields(idxPlan.namespace)
+    val keyGenerator = keyFields.map(kf => AttributeValue(0, idxFields.findIndexOf(_.name equals kf.name)))
+    IndexLookupJoin(ns, keyGenerator, idxPlan)
+  }
+
   /**
    * Returns true only if the given equality predicates can be satisfied by a prefix scan
    * over the given namespace
    */
-  protected def isPrefix(equalityPredicates: Seq[AttributeEquality], ns: Namespace): Boolean = {
-    val attrNames = equalityPredicates.map(_.attributeName)
+  protected def isPrefix(attrNames: Seq[String], ns: Namespace): Boolean = {
     val primaryKeyAttrs = ns.keySchema.getFields.take(attrNames.size).map(_.name)
     attrNames.map(primaryKeyAttrs.contains(_)).reduceLeft(_ && _)
   }
@@ -174,7 +204,7 @@ object Optimizer {
   }
 
   case class AttributeEquality(attributeName: String, value: Value)
-  case class Ordering(attributes: Seq[Value], ascending: Boolean)
+  case class Ordering(attributeNames: Seq[String], ascending: Boolean)
   case class TupleLimit(count: Limit, data: Boolean)
   /**
    * Groups sets of logical operations that can be executed as a
@@ -188,8 +218,16 @@ object Optimizer {
         case otherOp => (None, otherOp)
       }
 
+      //TODO: check to make sure these are fields in the base relation
       val (ordering, planWithoutSort) = planWithoutStop match {
-        case Sort(attrs, asc, child) => (Some(Ordering(attrs, asc)), child)
+        case Sort(attrs, asc, child) if(attrs.map(_.isInstanceOf[UnboundAttributeValue])
+					     .reduceLeft(_ && _)) => {
+	  val attrNames = attrs.map {
+	    case UnboundAttributeValue(qualifiedAttribute(relName, attrName)) => attrName
+	    case UnboundAttributeValue(attrName) => attrName
+	  }
+	  (Some(Ordering(attrNames, asc)), child)
+	}
         case otherOp => (None, otherOp)
       }
 
