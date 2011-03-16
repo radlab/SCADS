@@ -145,11 +145,8 @@ trait RangeKeyValueStore[K <: IndexedRecord, V <: IndexedRecord]
 
 }
 
-/** avro pair */
-trait RecordStore[P <: AvroPair]
-  extends BaseRangeKeyValueStoreImpl[IndexedRecord, IndexedRecord, P]
-  with PairSerializer[P]
-
-/** indexes */
-trait IndexStore
-  extends RangeKeyValueStore[IndexedRecord, IndexedRecord]
+trait RecordStore[RecType <: IndexedRecord] 
+  extends BaseRangeKeyValueStoreImpl[IndexedRecord, IndexedRecord, RecType] {
+    def asyncGetRecord(key: IndexedRecord): ScadsFuture[Option[RecType]]
+    def getRecord(key: IndexedRecord): Option[RecType]
+}

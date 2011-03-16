@@ -11,7 +11,8 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
   val root: ZooKeeperProxy#ZooKeeperNode
   val name: String
 
-  @volatile private var nsRoot: ZooKeeperProxy#ZooKeeperNode = _
+  @volatile protected var nsRoot: ZooKeeperProxy#ZooKeeperNode = _
+  logger.info("ZooKeeperGlobalMetadata Constructor: %s", namespace)
 
   private def initRoot(node: ZooKeeperProxy#ZooKeeperNode): Unit = {
     node.createChild("partitions", Array.empty, CreateMode.PERSISTENT)

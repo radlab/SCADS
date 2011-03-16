@@ -131,16 +131,25 @@ class PairNamespace[Pair <: AvroPair : Manifest](
     val name: String,
     val cluster: ScadsCluster,
     val root: ZooKeeperProxy#ZooKeeperNode)
-  extends Namespace 
-  with RecordStore[Pair]
-  with AvroPairSerializer[Pair]
-  with QuorumRangeProtocol
+  extends Namespace
+  with SimpleRecordMetadata
+  with ZooKeeperGlobalMetadata 
   with DefaultKeyRangeRoutable
-  with ZooKeeperGlobalMetadata
-  with SimpleRecordMetadata 
-  with IndexManager
+  with QuorumRangeProtocol
+  with AvroPairSerializer[Pair]
+  with RecordStore[Pair]
+  with IndexManager[Pair]
   with DebuggingClient {
   
   override protected val pairManifest = manifest[Pair]
 
+  def asyncGetRecord(key: IndexedRecord): ScadsFuture[Option[Pair]] = {
+    val keyBytes = keyToBytes(key)
+    asyncGetBytes(keyBytes) map (_.map(bytesToBulk(keyBytes, _)))
+  }
+
+  def getRecord(key: IndexedRecord): Option[Pair] = {
+    val keyBytes = keyToBytes(key)
+    getBytes(keyBytes).map(bytesToBulk(keyBytes, _))
+  }
 }

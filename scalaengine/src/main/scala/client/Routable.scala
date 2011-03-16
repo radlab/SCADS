@@ -24,6 +24,7 @@ trait DefaultKeyRoutableLike
   with ParFuture {
 
   import DefaultKeyRoutableLike._
+  logger.info("DefaultKeyRoutableLike Constructor: %s", namespace)
 
   @volatile protected var _routingTable: RangeTable[Array[Byte], PartitionService] = _
 

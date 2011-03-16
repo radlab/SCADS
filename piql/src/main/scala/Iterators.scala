@@ -87,7 +87,7 @@ class SimpleExecutor extends QueryExecutor {
         private var result: Option[Record] = None
 
         def open: Unit =
-          result = namespace.get(boundKey)
+          result = namespace.getRecord(boundKey)
         def close: Unit =
           result = None
 
@@ -163,7 +163,7 @@ class SimpleExecutor extends QueryExecutor {
           while(childIterator.hasNext) {
             val childTuple = childIterator.next
             val boundKey = bindKey(namespace, key, childTuple)
-            val value = namespace.get(boundKey)
+            val value = namespace.getRecord(boundKey)
 
             if(value.isDefined) {
               nextTuple = childTuple ++ Array[Record](value.get)    //TODO: Why does it return the boundKey???
@@ -349,7 +349,7 @@ class ParallelExecutor extends SimpleExecutor {
         private var ftch: Option[ScadsFuture[Option[Record]]] = None
 
         def open: Unit =
-          ftch = Some(namespace.asyncGet(boundKey))
+          ftch = Some(namespace.asyncGetRecord(boundKey))
         def close: Unit =
           ftch = None
 
@@ -464,7 +464,7 @@ class ParallelExecutor extends SimpleExecutor {
           while (childIterator.hasNext && ftchs.size < windowSize) {
             val childTuple = childIterator.next
             val boundKey = bindKey(namespace, key, childTuple)
-            val valueFtch = namespace.asyncGet(boundKey)
+            val valueFtch = namespace.asyncGetRecord(boundKey)
             ftchs += ((childTuple, boundKey, valueFtch))
           }
         }
@@ -596,7 +596,7 @@ class LazyExecutor extends SimpleExecutor {
         private val boundKey = bindKey(namespace, key)
 
         private var accessed = false
-        private lazy val result = namespace.get(boundKey)
+        private lazy val result = namespace.getRecord(boundKey)
 
         def open {}
         def close { accessed = true }
@@ -695,7 +695,7 @@ class LazyExecutor extends SimpleExecutor {
           while(childIterator.hasNext) {
             val childTuple = childIterator.next
             val boundKey = bindKey(namespace, key, childTuple)
-            val value = namespace.get(boundKey)
+            val value = namespace.getRecord(boundKey)
 
             if(value.isDefined) {
               nextTuple = childTuple ++ Array[Record](value.get)

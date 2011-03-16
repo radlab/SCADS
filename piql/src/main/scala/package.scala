@@ -12,8 +12,8 @@ import storage._
 package object piql {
   protected val logger = Logger()
 
-  type Namespace = storage.Namespace with RangeKeyValueStoreLike[IndexedRecord, IndexedRecord, IndexedRecord] with GlobalMetadata
-  type IndexedNamespace = storage.Namespace with RecordStore[AvroPair] with GlobalMetadata with IndexManager
+  type Namespace = storage.Namespace with RecordStore[IndexedRecord] with GlobalMetadata
+  type IndexedNamespace = storage.Namespace with RecordStore[AvroPair] with GlobalMetadata with IndexManager[AvroPair]
 
   type KeyGenerator = Seq[Value]
 

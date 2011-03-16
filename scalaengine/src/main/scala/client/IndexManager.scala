@@ -11,56 +11,108 @@ import scala.collection.immutable.HashMap
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.avro.marker.AvroPair
 
-/** An IndexManager is intended to provide index maintainence for AvroPair
- * namespaces. the methods below are not intended to be thread-safe */
-trait IndexManager {
-  type IndexNamespace = Namespace 
-    with RangeKeyValueStoreLike[IndexedRecord, IndexedRecord, IndexedRecord]
-    with GlobalMetadata
-
-  def getOrCreateIndex(fields: Seq[String]): IndexNamespace =
-    throw new RuntimeException("TODO: Not Implemented")
-}
-
 private[storage] object IndexManager {
-
-  /* TODO: Fix me
-  // must put at least 1 field in the dummy value schema otherwise writes will
-  // never work
-  lazy val indexValueSchema = {
+  val indexValueSchema = {
     val schema = Schema.createRecord("DummyValue", "", "", false)
     schema.setFields(Seq(new Schema.Field("b", Schema.create(Schema.Type.BOOLEAN), "", null)))
     schema
   }
 
-  // should really be a def since dummyIndexValue is mutable, but since
-  // IndexManager is private[storage] we'll just trust ourselves not to
-  lazy val dummyIndexValue = {
+  val dummyIndexValue = {
     val rec = new GenericData.Record(indexValueSchema)
     rec.put(0, false)
     rec
   }
+
+  val valueReaderWriter = new AvroGenericReaderWriter[IndexedRecord](None, indexValueSchema)
+  val dummyIndexValueBytes = valueReaderWriter.serialize(dummyIndexValue)
 }
-*/
 
+class IndexNamespace(
+    val name: String,
+    val cluster: ScadsCluster,
+    val root: ZooKeeperProxy#ZooKeeperNode,
+    val keySchema: Schema)
+  extends Namespace 
+  with SimpleRecordMetadata 
+  with ZooKeeperGlobalMetadata
+  with QuorumRangeProtocol
+  with DefaultKeyRangeRoutable
+  with RecordStore[IndexedRecord]
+{ 
+  import IndexManager._
 
+  private lazy val keyReaderWriter = new AvroGenericReaderWriter[IndexedRecord](Some(remoteKeySchema), keySchema)
+  
+  override def bytesToKey(bytes: Array[Byte]): IndexedRecord = 
+    keyReaderWriter.deserialize(bytes)
+  
+  override def bytesToValue(bytes: Array[Byte]): IndexedRecord =
+    dummyIndexValue
+  
+  override def bytesToBulk(key: Array[Byte], value: Array[Byte]) =
+    keyReaderWriter.deserialize(key)
+  
+  override def keyToBytes(key: IndexedRecord): Array[Byte] =
+    keyReaderWriter.serialize(key)
 
-							 
-/*
+  override def valueToBytes(value: IndexedRecord): Array[Byte] = 
+    dummyIndexValueBytes
+
+  override def bulkToBytes(b: IndexedRecord): (Array[Byte], Array[Byte]) = 
+    (keyToBytes(b), dummyIndexValueBytes)
+
+  override def newKeyInstance = keyReaderWriter.newInstance
+
+  override def newRecordInstance(schema: Schema) =
+    keyReaderWriter.newRecordInstance(schema)
+
+  override lazy val valueSchema = indexValueSchema
+
+  def asyncGetRecord(key: IndexedRecord) = asyncGet(key)
+  def getRecord(key: IndexedRecord) = get(key)
+}
+
+/** An IndexManager is intended to provide index maintainence for AvroPair
+ * namespaces. the methods below are not intended to be thread-safe */
+trait IndexManager[Pair <: AvroPair] extends Namespace 
+	  with RangeKeyValueStoreLike[IndexedRecord, IndexedRecord, Pair]
+	  with ZooKeeperGlobalMetadata {
   import IndexManager._
   
-  protected var indexCatalogue: ZooKeeperProxy#ZooKeeperNode = _ 
+  protected var indexCatalogue: ZooKeeperProxy#ZooKeeperNode = _
+  logger.info("IndexManger Constructor: %s", namespace)
 
-  onLoad {
+  onOpen {isNew =>
+    logger.debug("Opening index catalog for namespace %s", namespace)
     indexCatalogue = nsRoot.getOrCreate("indexes")
     updateCache()
+    isNew
   }
 
   onCreate {
-    ranges => {
-      indexCatalogue = nsRoot.createChild("indexes", Array.empty, CreateMode.PERSISTENT)
-      updateCache()
+    logger.debug("Creating index catalog for namespace %s", namespace)
+    indexCatalogue = nsRoot.createChild("indexes", Array.empty, CreateMode.PERSISTENT)
+    updateCache()
+  }
+
+  override abstract def put(key: IndexedRecord, value: Option[IndexedRecord]): Unit = {
+    val optOldValue = get(key)
+    indexCache.values.foreach { case (ns, mapping) =>
+      val optOldIndex = optOldValue.map(oldValue => makeIndexFor(key, oldValue, ns.keySchema, mapping))
+      value match {
+        case None => // delete old index (if it exists)
+          optOldIndex.foreach(oldIndex => ns.put(oldIndex, None))
+        case Some(newValue) => // update index if necessary, deleting stale ones if necessary
+          val newIndex = makeIndexFor(key, newValue, ns.keySchema, mapping)
+          val optStaleValue = optOldIndex.flatMap(oldIndex => if (oldIndex != newIndex) Some(oldIndex) else None)
+          optStaleValue.foreach(staleValue => ns.put(staleValue, None))
+          if (optOldValue.isEmpty || optStaleValue.isDefined)
+            ns.put(newIndex, Some(dummyIndexValue))
+      }
     }
+    // put the actual key/value pair AFTER index maintainence
+    super.put(key, value)
   }
 
   private def updateCache(): Unit = {
@@ -106,8 +158,8 @@ private[storage] object IndexManager {
       // TODO: is this functionality already located somewhere, to create a
       // generic namespace w/o passing in the key/value schemas
       val ks = Schema.parse(new String(root("%s/keySchema".format(toGlobalName(n.name))).data))
-      val ns = new IndexNamespace(toGlobalName(n.name), 5000, root, ks)(cluster)
-      ns.load()
+      val ns = new IndexNamespace(toGlobalName(n.name), cluster, root, ks)
+      ns.open()
       (n.name, (ns, generateFieldMapping(ks)))
     })
   }
@@ -158,9 +210,9 @@ private[storage] object IndexManager {
     val indexKeySchema = Schema.createRecord(name + "Key", "", "", false)
     indexKeySchema.setFields(fields)
     
-    val indexNs = new IndexNamespace(toGlobalName(name), 5000, root, indexKeySchema)(cluster)
+    val indexNs = new IndexNamespace(toGlobalName(name), cluster, root, indexKeySchema)
     // create the actual namespace with no partition strategy here 
-    indexNs.create(List((None, cluster.getRandomServers(defaultReplicationFactor))))
+    indexNs.create
     indexNamespacesCache += ((name, (indexNs, generateFieldMapping(indexKeySchema))))
 
     // add index catalogue entry- causes other clients to be notified if they
@@ -184,15 +236,6 @@ private[storage] object IndexManager {
     }).toSeq
   }
 
-  protected def makeIndexFor(pair: PairType, indexKeySchema: Schema, mapping: Seq[Either[Int, Int]]): IndexedRecord = {
-    val rec = new GenericData.Record(indexKeySchema)
-    mapping.map(m => m match {
-      case Left(keyPos) => pair.key.get(keyPos)
-      case Right(valuePos) => pair.value.get(valuePos)
-    }).zipWithIndex.foreach { case (elem, idx) => rec.put(idx, elem) }
-    rec
-  }
-
   protected def makeIndexFor(key: IndexedRecord, value: IndexedRecord, indexKeySchema: Schema, mapping: Seq[Either[Int, Int]]): IndexedRecord = {
     val rec = new GenericData.Record(indexKeySchema)
     mapping.map(m => m match {
@@ -208,5 +251,4 @@ private[storage] object IndexManager {
     indexNamespacesCache -= name
     indexCatalogue(name).delete()
   }
-  */
 }
