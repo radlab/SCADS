@@ -75,8 +75,10 @@ class IndexNamespace(
 
 /** An IndexManager is intended to provide index maintainence for AvroPair
  * namespaces. the methods below are not intended to be thread-safe */
-trait IndexManager[Pair <: AvroPair] extends Namespace 
-	  with RangeKeyValueStoreLike[IndexedRecord, IndexedRecord, Pair]
+trait IndexManager[BulkType <: AvroPair] extends Namespace 
+	  with Protocol
+	  with RangeKeyValueStoreLike[IndexedRecord, IndexedRecord, BulkType]
+	  with Serializer[IndexedRecord, IndexedRecord, BulkType]
 	  with ZooKeeperGlobalMetadata {
   import IndexManager._
   
@@ -113,6 +115,20 @@ trait IndexManager[Pair <: AvroPair] extends Namespace
     }
     // put the actual key/value pair AFTER index maintainence
     super.put(key, value)
+  }
+
+  override def ++=(that: TraversableOnce[BulkType]): Unit = {
+    logger.info("Putting index entries")
+    that.foreach { pair => {
+      putBulkBytes(keyToBytes(pair.key), valueToBytes(pair.value))
+
+      indexCache.values.map { case (ns, mapping) =>
+	ns.putBulkBytes(ns.keyToBytes(makeIndexFor(pair.key, pair.value, ns.keySchema, mapping)), dummyIndexValueBytes)
+      }.toList
+    }}
+
+    flushBulkBytes
+    indexCache.values.foreach(_._1.flushBulkBytes)
   }
 
   private def updateCache(): Unit = {

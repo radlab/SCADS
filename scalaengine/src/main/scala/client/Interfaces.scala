@@ -57,7 +57,10 @@ trait PairSerializer[PairType <: AvroPair]
 trait Protocol {
   def getBytes(key: Array[Byte]): Option[Array[Byte]]
   def putBytes(key: Array[Byte], value: Option[Array[Byte]]): Unit
-  def putBulkBytes(that: TraversableOnce[(Array[Byte], Array[Byte])]): Unit
+
+  /* TODO: Thread safety? */
+  def flushBulkBytes(): Unit
+  def putBulkBytes(key: Array[Byte], value: Array[Byte]): Unit
 
   def asyncGetBytes(key: Array[Byte]): ScadsFuture[Option[Array[Byte]]]
 }

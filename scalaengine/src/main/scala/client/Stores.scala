@@ -15,8 +15,10 @@ trait BaseKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
   with Serializer[K, V, B]
   with Protocol {
 
-  override def ++=(that: TraversableOnce[B]) = 
-    putBulkBytes(that.toIterable.map(bulkToBytes))
+  override def ++=(that: TraversableOnce[B]) = {
+    that.toIterable.map(bulkToBytes).foreach(b => putBulkBytes(b._1, b._2))
+    flushBulkBytes
+  }
 
   override def get(key: K): Option[V] =
     getBytes(keyToBytes(key)) map bytesToValue     
