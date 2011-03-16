@@ -35,23 +35,23 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor) {
   // class)
 
   //HACK: typecast to namespace
-  lazy val users = cluster.getNamespace[User]("users")
-  lazy val thoughts = cluster.getNamespace[Thought]("thoughts")
-  lazy val subscriptions = cluster.getNamespace[Subscription]("subscriptions")
-  lazy val tags = cluster.getNamespace[HashTag]("tags")
+  val users = cluster.getNamespace[User]("users")
+  val thoughts = cluster.getNamespace[Thought]("thoughts")
+  val subscriptions = cluster.getNamespace[Subscription]("subscriptions")
+  val tags = cluster.getNamespace[HashTag]("tags")
   // Additional way to access tags, to match AvroRecord's conventions:
-  lazy val hashtags = cluster.getNamespace[HashTag]("hashtags")
+  val hashtags = cluster.getNamespace[HashTag]("hashtags")
 
   /* Optimized queries */
-  lazy val findUser = users.where("username".a === (0.?)).toPiql("findUser")
+  val findUser = users.where("username".a === (0.?)).toPiql("findUser")
 
-  lazy val myThoughts = (
+  val myThoughts = (
     thoughts.where("thoughts.owner".a === (0.?))
 	    .sort("thoughts.timestamp".a :: Nil, false)
 	    .limit(1.?, maxResultsPerPage)
   ).toPiql("myThoughts")
 
-  lazy val usersFollowedBy = (
+  val usersFollowedBy = (
     subscriptions.where("subscriptions.owner".a === (0.?))
 	 .limit(1.?, maxResultsPerPage)
 	 .join(users)
@@ -59,7 +59,7 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor) {
   ).toPiql("usersFollowedBy")
 
 
-  lazy val thoughtstream = (
+  val thoughtstream = (
     subscriptions.where("subscriptions.owner".a === (0.?))
 		 .limit(1.?, maxSubscriptions)
 		 .join(thoughts)
@@ -68,17 +68,22 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor) {
 		 .limit(2.?, maxResultsPerPage)
   ).toPiql("thoughtstream")
 
+  val usersInTown =
+    users.where("homeTown".a === (0.?))
+	 .limit(10)
+	 .toPiql("usersInTown")
+
   /**
    * Who is following ME?
    */
-  lazy val usersFollowing = (
+  val usersFollowing = (
     subscriptions.where("subscriptions.target".a === (0.?))
 		 .limit(1.?, maxResultsPerPage)
 		 .join(users)
 		 .where("users.username".a === "subscriptions.owner".a)
     ).toPiql("usersFollowing")
   
-  lazy val findSubscription = (
+  val findSubscription = (
     subscriptions.where("subscriptions.owner".a === (0.?))
 		 .where("subscriptions.target".a === (1.?))
     ).toPiql("findSubscription")
