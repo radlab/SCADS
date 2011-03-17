@@ -7,6 +7,8 @@ import comm._
 import storage._
 import perf._
 import deploylib.mesos._
+import piql.scadr._
+import perf.scadr._
 
 object Experiments {
   implicit var zooKeeperRoot = ZooKeeperNode("zk://zoo.knowsql.org/").getOrCreate("home").getOrCreate(System.getenv("USER"))
@@ -31,6 +33,8 @@ object Experiments {
   implicit def serviceScheduler = cluster.serviceScheduler
   def traceRoot = zooKeeperRoot.getOrCreate("traceCollection")
 
+  def watchServiceScheduler = cluster.firstMaster.watch("/root/serviceScheduler.log")
+
   lazy val scadsCluster = new ScadsCluster(traceRoot)
   lazy val scadrClient = new piql.scadr.ScadrClient(scadsCluster, new ParallelExecutor)
   lazy val testScadrClient = {
@@ -44,6 +48,16 @@ object Experiments {
   def laggards = cluster.slaves.pflatMap(_.jps).filter(_.main equals "AvroTaskMain").pfilterNot(_.stack contains "ScalaEngineTask").pfilterNot(_.stack contains "awaitChild")
 
   def killTask(id: Int): Unit = cluster.serviceScheduler !? KillTaskRequest(id)
+
+  object QueryRunner {
+    val results = resultsCluster.getNamespace[Result]("queryRunnerResults")
+
+    def testQueryRunner = {
+      QueryRunnerTask(5,"edu.berkeley.cs.scads.piql.modeling.ScadrQueryProvider", iterations=1, iterationLengthMin=1)
+	.schedule(ScadrLoaderTask(5, 5, 10).newCluster,
+		  resultsCluster)
+    }
+  }
 
   def scadrClusterParams = ScadrClusterParams(
     traceRoot.canonicalAddress, // cluster address
@@ -69,41 +83,6 @@ object Experiments {
     50                          // # trace collectors
   )
 
-  def startScadrTraceCollector: Unit = {
-    val traceTask = ScadrTraceCollectorTask(
-      RunParams(
-        scadrClusterParams,
-        "mySubscriptions"
-      )
-    ).toJvmTask
-    
-    serviceScheduler !? RunExperimentRequest(traceTask :: Nil)
-  }
-
-  def startThoughtstreamTraceCollector: Unit = {
-    val traceTasks = Array.fill(thoughtstreamRunParams.numTraceCollectors)(ThoughtstreamTraceCollectorTask(thoughtstreamRunParams).toJvmTask)
-    
-    serviceScheduler !? RunExperimentRequest(traceTasks.toList)
-  }
-
-  def startOneThoughtstreamTraceCollector: Unit = {
-    val traceTask = ThoughtstreamTraceCollectorTask(thoughtstreamRunParams).toJvmTask
-    
-    serviceScheduler !? RunExperimentRequest(traceTask :: Nil)
-  }
-
-  def startLocalUserThoughtstreamTraceCollector: Unit = {
-    val traceTasks = Array.fill(localUserThoughtstreamRunParams.numTraceCollectors)(ThoughtstreamTraceCollectorTask(localUserThoughtstreamRunParams).toJvmTask)
-    
-    serviceScheduler !? RunExperimentRequest(traceTasks.toList)
-  }
-
-  def startOneLocalUserThoughtstreamTraceCollector: Unit = {
-    val traceTask = ThoughtstreamTraceCollectorTask(localUserThoughtstreamRunParams).toJvmTask
-    
-    serviceScheduler !? RunExperimentRequest(traceTask :: Nil)
-  }
-
   def startScadrDataLoad: Unit = {
     val engineTask = ScalaEngineTask(traceRoot.canonicalAddress).toJvmTask
     val loaderTask = ScadrDataLoaderTask(scadrClusterParams).toJvmTask
@@ -114,6 +93,8 @@ object Experiments {
     serviceScheduler !? (RunExperimentRequest(storageEngines), 30 * 1000)
     serviceScheduler !? (RunExperimentRequest(dataLoadTasks), 30 * 1000)
   }
+
+
 
   object ScadrScaleExperiment {
     import perf.scadr._
@@ -187,4 +168,22 @@ object Experiments {
 		  resultsCluster))
     }
   }
+}
+
+class ScadrQueryProvider extends QueryProvider {
+  def getQueryList(cluster: ScadsCluster, executor: QueryExecutor): IndexedSeq[QuerySpec] = {
+    val scadrClient = new ScadrClient(cluster, executor)
+    val clusterConfig = cluster.root.awaitChild("clusterReady")
+    val loaderConfig = classOf[ScadrLoaderTask].newInstance.parse(clusterConfig.data)
+
+    Vector(QuerySpec(scadrClient.myThoughts, 
+		     Vector(new ScadrUserGenerator(loaderConfig.numServers * loaderConfig.usersPerServer), 
+			    CardinalityList(Vector(10, 100)))))
+  }
+}
+
+
+class ScadrUserGenerator(numUsers: Int) extends ParameterGenerator {
+  private final def toUser(idx: Int) = "User%010d".format(idx)
+  final def getValue = toUser(scala.util.Random.nextInt(numUsers) + 1) // must be + 1 since users are indexed startin g from 1
 }
