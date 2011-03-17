@@ -325,8 +325,8 @@ abstract class RemoteMachine {
     }
   }
 
-  def tail(remoteFile: File): String = {
-    executeCommand("tail -n 20 " + remoteFile) match {
+  def tail(remoteFile: File, numLines: Int = 20): String = {
+    executeCommand("tail -n %d ".format(numLines) + remoteFile) match {
       case ExecuteResponse(Some(0), logTail, "") => logTail
       case e: ExecuteResponse => {
         logger.fatal("Unexpected response while tailing log: " + e)
