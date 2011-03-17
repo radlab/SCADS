@@ -24,7 +24,7 @@ case class Subscription(var owner: String, var target: String) extends AvroPair 
 case class HashTag(var tag: String, var timestamp: Int, var owner: String) extends AvroPair
 
 class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscriptions: Int = 100) {
-  val maxResultsPerPage = 10
+  val maxResultsPerPage = 10000
   implicit val exec = executor
 
   // namespaces are declared to be lazy so as to allow for manual
@@ -45,7 +45,7 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
   lazy val myThoughts = (
     thoughts.where("thoughts.owner".a === (0.?))
 	    .sort("thoughts.timestamp".a :: Nil, false)
-	    .limit(maxResultsPerPage)
+	    .limit((1.?), maxResultsPerPage)
   ).toPiql("myThoughts")
 
   lazy val usersFollowedBy = (
