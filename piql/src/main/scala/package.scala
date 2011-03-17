@@ -45,20 +45,6 @@ package object piql {
 
   implicit def toConstantValue(a: Any) = ConstantValue(a)
 
-  class OptimizedQuery(val name: Option[String], val physicalPlan: QueryPlan, executor: QueryExecutor) {
-    def apply(args: Any*): QueryResult = {
-      val encodedArgs = args.map {
-        case s: String => new Utf8(s)
-        case o => o
-      }
-      val iterator = executor(physicalPlan, encodedArgs: _*)
-      iterator.open
-      val ret = iterator.toList
-      iterator.close
-      ret
-    }
-  }
-
   implicit def toOption[A](a: A) = Option(a)
 
   implicit def toPiql(logicalPlan: Queryable)(implicit executor: QueryExecutor) = new {

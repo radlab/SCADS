@@ -4,10 +4,25 @@ package piql
 
 import org.apache.avro.Schema
 import org.apache.avro.Schema.Field
+import org.apache.avro.util.Utf8
 import scala.collection.JavaConversions._
 import net.lag.logging.Logger
 
 case class ImplementationLimitation(desc: String) extends Exception
+
+class OptimizedQuery(val name: Option[String], val physicalPlan: QueryPlan, executor: QueryExecutor) {
+  def apply(args: Any*): QueryResult = {
+    val encodedArgs = args.map {
+      case s: String => new Utf8(s)
+      case o => o
+    }
+    val iterator = executor(physicalPlan, encodedArgs: _*)
+    iterator.open
+    val ret = iterator.toList
+    iterator.close
+    ret
+  }
+}
 
 object Optimizer {
   val logger = Logger()
