@@ -320,7 +320,16 @@ class SimpleExecutor extends QueryExecutor {
         def next = {taken += 1; childIterator.next}
       }
     }
-
+    case LocalIterator(ordinal) => {
+      new QueryIterator {
+	val name = "LocalIterator"
+	private var delegate: Iterator[Tuple] = null
+	def open: Unit = delegate = ctx.parameters(ordinal).asInstanceOf[Seq[Tuple]].toIterator
+	def close: Unit = delegate = null
+	def hasNext = delegate.hasNext
+	def next = delegate.next
+      }
+    }
     case Union(chil1, child2, eqField)  =>{
       throw new RuntimeException("Not yet implemented")
     }
