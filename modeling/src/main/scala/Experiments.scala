@@ -52,49 +52,24 @@ object Experiments {
   object QueryRunner {
     val results = resultsCluster.getNamespace[Result]("queryRunnerResults")
 
-    def testQueryRunner = {
-      QueryRunnerTask(5,"edu.berkeley.cs.scads.piql.modeling.ScadrQueryProvider", iterations=1, iterationLengthMin=1)
-	.schedule(ScadrLoaderTask(5, 5, 10).newCluster,
+    def benchmarkScadr = {
+      QueryRunnerTask(50,
+		      "edu.berkeley.cs.scads.piql.modeling.ScadrQueryProvider",
+		      iterations=30,
+		      iterationLengthMin=10,
+		      traceIterators=false,
+		      traceMessages=false,
+		      traceQueries=false)
+	.schedule(ScadrLoaderTask(numServers=50,
+				  numLoaders=50,
+				  followingCardinality=500,
+				  replicationFactor=1,
+				  usersPerServer=20000,
+				  thoughtsPerUser=100
+				 ).newCluster,
 		  resultsCluster)
     }
   }
-
-  def scadrClusterParams = ScadrClusterParams(
-    traceRoot.canonicalAddress, // cluster address
-    50,                         // num storage nodes
-    50,                         // num load clients
-    100,                        // num per page
-    1000000,                    // num users
-    100,                        // num thoughts per user
-    1000                        // num subscriptions per user
-  )
-
-  def thoughtstreamRunParams = RunParams(
-    scadrClusterParams,
-    "thoughtstream",
-    "thoughtstream-newclient",
-    50                          // # trace collectors
-  )
-
-  def localUserThoughtstreamRunParams = RunParams(
-    scadrClusterParams,
-    "localUserThoughtstream",
-    "localUserThoughtstream-newclient",
-    50                          // # trace collectors
-  )
-
-  def startScadrDataLoad: Unit = {
-    val engineTask = ScalaEngineTask(traceRoot.canonicalAddress).toJvmTask
-    val loaderTask = ScadrDataLoaderTask(scadrClusterParams).toJvmTask
-
-    val storageEngines = Vector.fill(scadrClusterParams.numStorageNodes)(engineTask)
-    val dataLoadTasks = Vector.fill(scadrClusterParams.numLoadClients)(loaderTask)
-
-    serviceScheduler !? (RunExperimentRequest(storageEngines), 30 * 1000)
-    serviceScheduler !? (RunExperimentRequest(dataLoadTasks), 30 * 1000)
-  }
-
-
 
   object ScadrScaleExperiment {
     import perf.scadr._
@@ -168,22 +143,4 @@ object Experiments {
 		  resultsCluster))
     }
   }
-}
-
-class ScadrQueryProvider extends QueryProvider {
-  def getQueryList(cluster: ScadsCluster, executor: QueryExecutor): IndexedSeq[QuerySpec] = {
-    val scadrClient = new ScadrClient(cluster, executor)
-    val clusterConfig = cluster.root.awaitChild("clusterReady")
-    val loaderConfig = classOf[ScadrLoaderTask].newInstance.parse(clusterConfig.data)
-
-    Vector(QuerySpec(scadrClient.myThoughts, 
-		     Vector(new ScadrUserGenerator(loaderConfig.numServers * loaderConfig.usersPerServer), 
-			    CardinalityList(Vector(10, 100)))))
-  }
-}
-
-
-class ScadrUserGenerator(numUsers: Int) extends ParameterGenerator {
-  private final def toUser(idx: Int) = "User%010d".format(idx)
-  final def getValue = toUser(scala.util.Random.nextInt(numUsers) + 1) // must be + 1 since users are indexed startin g from 1
 }

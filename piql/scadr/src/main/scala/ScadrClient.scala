@@ -23,7 +23,10 @@ case class Subscription(var owner: String, var target: String) extends AvroPair 
 
 case class HashTag(var tag: String, var timestamp: Int, var owner: String) extends AvroPair
 
-class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscriptions: Int = 100) {
+
+//100to500 subscriptions 10to50perpage
+class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor) {
+  val maxSubscriptions = 10000
   val maxResultsPerPage = 10000
   implicit val exec = executor
 
@@ -45,12 +48,12 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
   lazy val myThoughts = (
     thoughts.where("thoughts.owner".a === (0.?))
 	    .sort("thoughts.timestamp".a :: Nil, false)
-	    .limit((1.?), maxResultsPerPage)
+	    .limit(1.?, maxResultsPerPage)
   ).toPiql("myThoughts")
 
   lazy val usersFollowedBy = (
     subscriptions.where("subscriptions.owner".a === (0.?))
-	 .limit(maxResultsPerPage)
+	 .limit(1.?, maxResultsPerPage)
 	 .join(users)
 	 .where("subscriptions.target".a === "users.username".a)
   ).toPiql("usersFollowedBy")
@@ -58,11 +61,11 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
 
   lazy val thoughtstream = (
     subscriptions.where("subscriptions.owner".a === (0.?))
-		 .limit(maxSubscriptions)
+		 .limit(1.?, maxSubscriptions)
 		 .join(thoughts)
 		 .where("thoughts.owner".a === "subscriptions.target".a)
 		 .sort("thoughts.timestamp".a :: Nil, false)
-		 .limit(10)
+		 .limit(2.?, maxResultsPerPage)
   ).toPiql("thoughtstream")
 
   /**
@@ -70,13 +73,13 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
    */
   lazy val usersFollowing = (
     subscriptions.where("subscriptions.target".a === (0.?))
-		 .limit(100)
+		 .limit(1.?, maxResultsPerPage)
 		 .join(users)
 		 .where("users.username".a === "subscriptions.owner".a)
     ).toPiql("usersFollowing")
   
   lazy val findSubscription = (
     subscriptions.where("subscriptions.owner".a === (0.?))
-     .where("subscriptions.target".a === (1.?))
+		 .where("subscriptions.target".a === (1.?))
     ).toPiql("findSubscription")
 }
