@@ -16,8 +16,8 @@ case class ScadrUserGenerator(numUsers: Int) extends ParameterGenerator {
 
 class ScadrQueryProvider extends QueryProvider {
   def getQueryList(cluster: ScadsCluster, executor: QueryExecutor): IndexedSeq[QuerySpec] = {
-    val scadrClient = new ScadrClient(cluster, executor)
     val clusterConfig = cluster.root.awaitChild("clusterReady")
+    val scadrClient = new ScadrClient(cluster, executor)
     val loaderConfig = classOf[ScadrLoaderTask].newInstance.parse(clusterConfig.data)
     val randomUser = ScadrUserGenerator(loaderConfig.numServers *
 					loaderConfig.usersPerServer)
