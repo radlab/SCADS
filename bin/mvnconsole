@@ -2,6 +2,7 @@
 
 CLASSPATH=deploylib/src/main/resources/:`cat classpath`
 MESOSLIB=-Djava.library.path=/usr/local/mesos/lib/java
+OPTS='-XX:PermSize=512M'
 
 if [ -f ~/local/jrebel.jar ]
 then
@@ -11,8 +12,8 @@ fi
 
 if [ -f setup.scala ]
 then
-  exec java -Xmx6G $MESOSLIB -cp "$CLASSPATH" -noverify $JAVAAGENT scala.tools.nsc.MainGenericRunner -cp "$CLASSPATH" -i setup.scala 
+  exec java $OPTS -Xmx6G $MESOSLIB -cp "$CLASSPATH" -noverify $JAVAAGENT scala.tools.nsc.MainGenericRunner -cp "$CLASSPATH" -i setup.scala 
 else
-  exec java -Xmx6G $MESOSLIB -cp $CLASSPATH -noverify $JAVAAGENT scala.tools.nsc.MainGenericRunner -cp $CLASSPATH
+  exec java $OPTS -Xmx6G $MESOSLIB -cp $CLASSPATH -noverify $JAVAAGENT scala.tools.nsc.MainGenericRunner -cp $CLASSPATH
 fi
 

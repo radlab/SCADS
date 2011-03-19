@@ -129,11 +129,19 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
       filteredJars.values.map(_.getCanonicalPath)
     }
 
+    def filteredClasspath = {
+      val fullClasspath = runClasspath.getFiles ++ mainDependencies.scalaJars.getFiles ++ buildCompilerJar.getFiles
+      val classFiles = fullClasspath.filter(_.toString contains "classes").toList
+      val deps = fullClasspath.toSeq.filter(f => !(f.toString contains "classes"))
+      val filteredDeps = Map(deps.map(j => j.getName -> j):_*).values.map(_.getCanonicalPath).toList
+      classFiles ++ filteredDeps
+    }
+
     //Also kind of a hack
     lazy val writePackagedClasspath = task {
       FileUtilities.write(
 				new File("classpath"),
-				packagedClasspath.mkString(":"),
+				(filteredClasspath).mkString(":"),
 				log
       )
 
