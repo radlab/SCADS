@@ -53,7 +53,23 @@ object Experiments {
   object QueryRunner {
     val results = resultsCluster.getNamespace[Result]("queryRunnerResults")
 
-    def benchmarkScadr = {
+    def newScadrCluster = ScadrLoaderTask(numServers=50,
+				  numLoaders=50,
+				  followingCardinality=500,
+				  replicationFactor=1,
+				  usersPerServer=20000,
+				  thoughtsPerUser=100
+				 ).newCluster
+
+    def newTestScadrCluster = ScadrLoaderTask(numServers=10,
+				  numLoaders=10,
+				  followingCardinality=500,
+				  replicationFactor=1,
+				  usersPerServer=100,
+				  thoughtsPerUser=100
+				 ).newTestCluster(10)
+
+    def benchmarkScadr(cluster: ScadsCluster = newScadrCluster) = {
       QueryRunnerTask(50,
 		      "edu.berkeley.cs.scads.piql.modeling.ScadrQueryProvider",
 		      iterations=30,
@@ -61,13 +77,7 @@ object Experiments {
 		      traceIterators=false,
 		      traceMessages=false,
 		      traceQueries=false)
-	.schedule(ScadrLoaderTask(numServers=50,
-				  numLoaders=50,
-				  followingCardinality=500,
-				  replicationFactor=1,
-				  usersPerServer=20000,
-				  thoughtsPerUser=100
-				 ).newCluster,
+	.schedule(cluster,
 		  resultsCluster)
     }
   }
