@@ -228,12 +228,12 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
     
     val indexNs = new IndexNamespace(toGlobalName(name), cluster, root, indexKeySchema)
     // create the actual namespace with no partition strategy here 
-    indexNs.create
+    indexNs.open
     indexNamespacesCache += ((name, (indexNs, generateFieldMapping(indexKeySchema))))
 
     // add index catalogue entry- causes other clients to be notified if they
     // are watching
-    indexCatalogue.createChild(name, Array.empty, CreateMode.PERSISTENT)
+    indexCatalogue.getOrCreate(name)
 
     // check if data exists already. if so, warn that indexes will NOT be
     // created for existing records
