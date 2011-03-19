@@ -39,6 +39,7 @@ class IndexNamespace(
   with QuorumRangeProtocol
   with DefaultKeyRangeRoutable
   with RecordStore[IndexedRecord]
+  with DebuggingClient
 { 
   import IndexManager._
 
