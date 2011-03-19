@@ -18,6 +18,14 @@ abstract trait DataLoadingTask extends AvroTask {
 
   var clusterAddress: String 
 
+  def newTestCluster(storageEngines: Int = 1): ScadsCluster = {
+    val cluster = TestScalaEngine.newScadsCluster(storageEngines)
+    clusterAddress = cluster.root.canonicalAddress
+    val threads = (1 to numLoaders).map(i => new Thread(this, "TestDataLoadingTask " + i))
+    threads.foreach(_.start)
+    cluster
+  }
+
   def newCluster(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeperRoot: ZooKeeperProxy#ZooKeeperNode): ScadsCluster = {
     val clusterRoot = zookeeperRoot.getOrCreate("scads").createChild("experimentCluster", mode = CreateMode.PERSISTENT_SEQUENTIAL)
     clusterAddress = clusterRoot.canonicalAddress
