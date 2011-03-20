@@ -125,7 +125,7 @@ case class QueryRunnerTask(var numClients: Int,
 	    responseTimes.get(queryDesc) += (endTime - startTime)
 	    queryCounter += 1
 	  } catch {
-	    case e => logger.warning(e, "Query failed")
+	    case e => logger.warning(e, "Query %s failed", querySpec.query.name)
 	      failedQueryCounter.incrementAndGet
 	  }
 	}
