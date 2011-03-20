@@ -38,7 +38,7 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
     nsRoot = root.getOrCreate(name)
     
     /* Check to see if the cluster metadata has been created, otherwise create it */
-    val isNew = if(!nsRoot.get("initalized").isDefined) {
+    val isNew = if(!nsRoot.get("initialized").isDefined) {
       try {
 	/* Grab a lock so we know we are the only ones creating the namespace */
 	val createLock = nsRoot.createChild("createLock", mode=CreateMode.EPHEMERAL)
@@ -80,11 +80,20 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
   override lazy val remoteValueSchema: Schema =
     Schema.parse(new String(nsRoot("valueSchema").data))
 
-  override def getMetadata(key: String): Option[Array[Byte]] = 
-    nsRoot.get(key).map(_.data)
+  override def watchMetadata(key: String, func: () => Unit): Array[Byte] = {
+    logger.info("Watching metadata %s for %s", key, namespace) 
+    nsRoot(key).onDataChange(func)
+  }
 
-  override def putMetadata(key: String, value: Array[Byte]): Unit =
+  override def getMetadata(key: String): Option[Array[Byte]] = {
+    logger.info("Updating metadata %s for namespace %s", key, namespace)
+    nsRoot.get(key).map(_.data)
+  }
+
+  override def putMetadata(key: String, value: Array[Byte]): Unit = {
+    logger.info("Setting metadata %s in namespace %s", key, namespace)
     nsRoot.getOrCreate(key).data = value
+  }
 
   override def deleteMetadata(key: String): Unit =
     nsRoot.deleteChild(key)
