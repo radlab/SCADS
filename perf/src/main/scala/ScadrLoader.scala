@@ -21,13 +21,14 @@ case class ScadrLoaderTask(var numServers: Int,
 			   var usersPerServer: Int = 10000,
 			   var thoughtsPerUser: Int = 100) extends DataLoadingTask with AvroRecord {
   var clusterAddress: String = _
-
+  
   def run(): Unit = {
     val clusterRoot = ZooKeeperNode(clusterAddress)
     val coordination = clusterRoot.getOrCreate("coordination/loaders")
     val cluster = new ExperimentalScadsCluster(clusterRoot)
-    val scadrClient = new ScadrClient(cluster, new SimpleExecutor)
-    val loader = new ScadrLoader(scadrClient,
+    cluster.blockUntilReady(numServers)
+
+    val loader = new ScadrLoader(
       replicationFactor = replicationFactor,
       numClients = numLoaders,
       numUsers = numServers * usersPerServer / replicationFactor,
@@ -36,10 +37,11 @@ case class ScadrLoaderTask(var numServers: Int,
       numTagsPerThought = 5)
 
     val clientId = coordination.registerAndAwait("clientStart", numLoaders)
+    val scadrClient = new ScadrClient(cluster, new SimpleExecutor)
     if(clientId == 0) {
       logger.info("Awaiting scads cluster startup")
       cluster.blockUntilReady(numServers)
-      loader.createNamespaces
+      loader.createNamespaces(cluster)
       scadrClient.users.setReadWriteQuorum(0.33, 0.67)
       scadrClient.thoughts.setReadWriteQuorum(0.33, 0.67)
       scadrClient.subscriptions.setReadWriteQuorum(0.33, 0.67)

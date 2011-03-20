@@ -17,24 +17,22 @@ import net.lag.logging.Logger
 import org.apache.avro.generic.GenericRecord
 
 case class ScadrKeySplits(
-    usersKeySplits: Seq[(Option[GenericRecord], Seq[StorageService])],
-    thoughtsKeySplits: Seq[(Option[GenericRecord], Seq[StorageService])],
-    subscriptionsKeySplits: Seq[(Option[GenericRecord], Seq[StorageService])]
+    usersKeySplits: Seq[Option[GenericRecord]],
+    thoughtsKeySplits: Seq[Option[GenericRecord]],
+    subscriptionsKeySplits: Seq[Option[GenericRecord]]
 )
 
 /**
  * Currently the loader assumes all nodes are equal and tries to distribute
  * evenly among the nodes with no preferences for any particular ones.
  */
-class ScadrLoader(val client: ScadrClient,
-                  val replicationFactor: Int,
+class ScadrLoader(val replicationFactor: Int,
                   val numClients: Int, // number of clients to split the loading by
                   val numUsers: Int = 100,
                   val numThoughtsPerUser: Int = 10,
                   val numSubscriptionsPerUser: Int = 10,
                   val numTagsPerThought: Int = 5) {
 
-  require(client != null)
   require(replicationFactor >= 1)
   require(numUsers >= 0)
   require(numThoughtsPerUser >= 0)
@@ -44,13 +42,19 @@ class ScadrLoader(val client: ScadrClient,
   val logger = Logger()
 
 
-  def createNamespaces() {
-    val splits = keySplits
-    //TODO: Fix distribution
+  protected def createNamespace(namespace: PairNamespace[AvroPair], keySplits: Seq[Option[GenericRecord]]): Unit = {
+    val services = namespace.cluster.getAvailableServers.grouped(replicationFactor).toSeq
+    val partitionScheme = keySplits.map(_.map(namespace.keyToBytes)).zip(services)
+    namespace.setPartitionScheme(partitionScheme)
+  }
+
+
+  def createNamespaces(cluster: ScadsCluster) {
+    val splits = keySplits(cluster.getAvailableServers.size)
     logger.info("Creating namespaces with keysplits: %s", splits)
-    client.cluster.createNamespace[User]("users", splits.usersKeySplits)
-    client.cluster.createNamespace[Thought]("thoughts", splits.thoughtsKeySplits)
-    client.cluster.createNamespace[Subscription]("subscriptions", splits.subscriptionsKeySplits)
+    createNamespace(cluster.getNamespace[User]("users").asInstanceOf[PairNamespace[AvroPair]], splits.usersKeySplits)
+    createNamespace(cluster.getNamespace[Thought]("thoughts").asInstanceOf[PairNamespace[AvroPair]], splits.thoughtsKeySplits)
+    createNamespace(cluster.getNamespace[Subscription]("subscriptions").asInstanceOf[PairNamespace[AvroPair]], splits.subscriptionsKeySplits)
   }
 
   private def toUser(idx: Int) = "User%010d".format(idx)
@@ -63,10 +67,7 @@ class ScadrLoader(val client: ScadrClient,
    *
    * We assume uniform distribution over subscriptions
    */
-  def keySplits: ScadrKeySplits = {
-    val servers = client.cluster.getAvailableServers
-    val clusterSize = servers.size
-
+  def keySplits(clusterSize: Int): ScadrKeySplits = {
     // TODO: not sure what to do here - should we just have some nodes
     // duplicate user key ranges?
     if (clusterSize > numUsers)
@@ -95,19 +96,15 @@ class ScadrLoader(val client: ScadrClient,
       case _ => toKeyString(i / 256) + (i % 256).toChar
     }
 
-
-
-    val services = (0 until clusterSize).map(i => (0 until replicationFactor).map(j => servers((i + j) % clusterSize)))
-
-    ScadrKeySplits(usersKeySplits zip services,
-                   thoughtsKeySplits zip services,
-                   subscriptionsKeySplits zip services)
+    ScadrKeySplits(usersKeySplits,
+                   thoughtsKeySplits,
+                   subscriptionsKeySplits)
   }
 
   case class ScadrData(userData: Seq[User],
                        thoughtData: Seq[Thought],
                        subscriptionData: Seq[Subscription]) {
-    def load() {
+    def load(client: ScadrClient) {
       logger.info("Loading users")
       client.users ++= userData
       logger.info("Loading thoughts")
