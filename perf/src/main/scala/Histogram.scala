@@ -103,4 +103,36 @@ case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Long]) extend
 	def getBucketCounts: String = {
 		buckets.mkString(",")
 	}
+	
+	def sameLength(that: Histogram): Boolean = {
+	  this.buckets.lengthCompare(that.buckets.length) == 0
+	}
+	
+
+	// TODO: write function to decrease the resolution from M to N
+	// NOTE: M must be divisible by N (eg, 1000, 100)
+	
+	
+	var defaultBucketSize = 1
+	var defaultBucketCount = 1000
+
+  // confirmed that result is same as that from http://www.ece.unm.edu/signals/signals/Discrete_Convolution/discrete_convolution.html
+	def convolveWith(that: Histogram): Histogram = {
+	  assert(this.buckets.length == defaultBucketCount, "this must have " + defaultBucketCount + " buckets")
+	  assert(that.buckets.length == defaultBucketCount, "that must have " + defaultBucketCount + " buckets")
+	  
+	  val result = Histogram(defaultBucketSize, defaultBucketCount)
+	  
+	  (0 to defaultBucketCount-1).foreach(i => {
+	    var integralOfOverlap = 0L
+
+      (0 to i).foreach(j => {
+        integralOfOverlap += this.buckets(i-j) * that.buckets(j)
+      })
+
+      result.buckets(i) = integralOfOverlap
+	  })
+	  
+	  result
+	}
 }
