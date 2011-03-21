@@ -11,15 +11,15 @@ import comm._
 import deploylib._
 
 import java.io.File
+import scala.util.Random
 import collection.JavaConversions._
 
 abstract class ParameterGenerator {
-  def getValue: Any
+  def getValue(rand: Random): Any
 }
 
 case class CardinalityList(values: IndexedSeq[Int]) extends ParameterGenerator {
-  val rand = new scala.util.Random
-  def getValue = values(rand.nextInt(values.size))
+  def getValue(rand: Random) = values(rand.nextInt(values.size))
 }
 
 case class QuerySpec(query: OptimizedQuery, paramGenerators: Seq[ParameterGenerator])
@@ -84,23 +84,24 @@ case class QueryRunnerTask(var numClients: Int,
 
     val querySpecs = Class.forName(queryProvider).newInstance.asInstanceOf[QueryProvider].getQueryList(cluster, executor)
 
+    coordination.registerAndAwait("startQueryRunning", numClients)
     for(iteration <- (1 to iterations)) {
-      coordination.registerAndAwait("startIteration" + iteration, numClients)
+      //coordination.registerAndAwait("startIteration" + iteration, numClients)
       val responseTimes = new java.util.concurrent.ConcurrentHashMap[QueryDescription, Histogram]
 
       val failedQueryCounter = new java.util.concurrent.atomic.AtomicInteger(0)
 
       logger.info("Beginning iteration %d", iteration)
       (1 to threads).pmap(threadId => {
+	val seed = java.net.InetAddress.getLocalHost.getHostName + System.currentTimeMillis + threadId
+	val rand = new Random(seed.hashCode)
 	val runTime = iterationLengthMin * 60 * 1000L
 	val iterationStartTime = getTime
-	val rand = new scala.util.Random
 	var queryCounter = 0
-
 
 	while(getTime - iterationStartTime < runTime) {
 	  val querySpec = querySpecs(rand.nextInt(querySpecs.size))
-	  val params = querySpec.paramGenerators.map(_.getValue)
+	  val params = querySpec.paramGenerators.map(_.getValue(rand))
 	  val paramsDesc = params.zip(querySpec.paramGenerators).flatMap {
 	    case (i:Int, c:CardinalityList) => Some(i)
 	    case _ => None
