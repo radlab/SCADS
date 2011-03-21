@@ -55,7 +55,7 @@ val initSeq = deploylib.Util.readFile(new java.io.File("setup.scala"))
     }
     case DisplayNodeSeq(seq) => outputToConsole(seq)
     case ExecuteScala(cmd) => {
-      outputToConsole(<p>{ cmd }</p>)
+      outputToConsole(<p>> { cmd }</p>)
       interpret(cmd)
     }
   }
