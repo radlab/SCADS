@@ -73,7 +73,7 @@ class ScadrLoader(val replicationFactor: Int,
     if (clusterSize > numUsers)
       throw new RuntimeException("More clusters than users- don't know how to make key split")
 
-    val usersPerNode = numUsers / clusterSize
+    val usersPerNode = numUsers / (clusterSize / replicationFactor)
     val usersIdxs = None +: (1 until clusterSize).map(i => Some(i * usersPerNode + 1))
 
     val usersKeySplits = usersIdxs.map(_.map(idx => User(toUser(idx)))).map(_.map(_.key))
