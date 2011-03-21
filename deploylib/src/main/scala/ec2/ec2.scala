@@ -235,7 +235,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
       EC2Instance.update()
     }
 
-    var connected = false
+ /*   var connected = false
     while (!connected) {
       try {
 	logger.info("Checking ssh connectivity to %s: %s", instanceId, publicDnsName)
@@ -247,7 +247,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
         }
       }
       Thread.sleep(5000)
-    }
+    } */
   }
 
   /**
