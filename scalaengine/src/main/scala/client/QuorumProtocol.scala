@@ -154,7 +154,7 @@ trait QuorumProtocol
 	else
 	  remainingTime
 
-      oldestRequest.future.get(remainingTime) match {
+      oldestRequest.future.get(timeout) match {
 	case Some(BulkPutResponse()) => null
 	case Some(otherMsg) => {
 	  logger.warning("Received unexpected message for bulk put to %s: %s. Resending", oldestRequest.server, otherMsg)
