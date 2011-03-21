@@ -22,6 +22,16 @@ case class ScadrLoaderTask(var numServers: Int,
 			   var thoughtsPerUser: Int = 100) extends DataLoadingTask with AvroRecord {
   var clusterAddress: String = _
   
+  protected def retry[ReturnType](tries: Int = 5)(func: => ReturnType): ReturnType = {
+    try func catch {
+      case e if(tries > 0) => {
+	logger.warning(e, "Exception caught, trying %d more times", tries)
+	retry(tries - 1)(func)
+      }
+    }
+  }
+
+
   def run(): Unit = {
     val clusterRoot = ZooKeeperNode(clusterAddress)
     val coordination = clusterRoot.getOrCreate("coordination/loaders")
@@ -41,11 +51,13 @@ case class ScadrLoaderTask(var numServers: Int,
     if(clientId == 0) {
       logger.info("Awaiting scads cluster startup")
       cluster.blockUntilReady(numServers)
-      loader.createNamespaces(cluster)
-      scadrClient.users.setReadWriteQuorum(0.33, 0.67)
-      scadrClient.thoughts.setReadWriteQuorum(0.33, 0.67)
-      scadrClient.subscriptions.setReadWriteQuorum(0.33, 0.67)
-      scadrClient.tags.setReadWriteQuorum(0.33, 0.67)
+      retry() {
+	loader.createNamespaces(cluster)
+	scadrClient.users.setReadWriteQuorum(0.33, 0.67)
+	scadrClient.thoughts.setReadWriteQuorum(0.33, 0.67)
+	scadrClient.subscriptions.setReadWriteQuorum(0.33, 0.67)
+	scadrClient.tags.setReadWriteQuorum(0.33, 0.67)
+      }
     }
 
     coordination.registerAndAwait("startBulkLoad", numLoaders)
