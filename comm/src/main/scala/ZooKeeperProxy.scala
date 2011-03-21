@@ -104,33 +104,38 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watc
     def apply(rpath: String): ZooKeeperNode = 
       get(rpath).getOrElse(throw new RuntimeException("Zookeeper node doesn't exist: " + fullPath(rpath)))
 
-    def get(rpath: String, tries: Int = 5): Option[ZooKeeperNode] =
-      try rpath.split("/").foldLeft(Option(this))((n,p) => n.flatMap(_.childrenMap.get(p)))
-      catch {
-	case e: org.apache.zookeeper.KeeperException.SessionExpiredException => {
-	      logger.warning("Zookeeper seesion expired, retrying")
-	      if(tries == 0) throw e
-	      Thread.sleep(1000)
-	      get(rpath, tries - 1)
+    protected def retry[A](retries: Int)(f: => A): A = {
+      @inline def tryAgain(e: Exception) =
+	if(retries == 0)
+	  throw e
+	else {
+	  logger.error("Zookeeper connection invalid.  Waiting to try again %s", e)
+	  Thread.sleep(1000)
+	  retry(retries - 1)(f)
 	}
+
+      try f catch {
+	case e: org.apache.zookeeper.KeeperException.ConnectionLossException => tryAgain(e)
+	case e: org.apache.zookeeper.KeeperException.SessionExpiredException => tryAgain(e)
       }
+    } 
+
+    def get(rpath: String, tries: Int = 5): Option[ZooKeeperNode] = retry(tries) {
+      rpath.split("/").foldLeft(Option(this))((n,p) => n.flatMap(_.childrenMap.get(p)))
+    }
+    
 
     // TODO: let getOrCreate take creation parameters (data/mode)?
-    def getOrCreate(rpath: String, tries: Int = 5): ZooKeeperNode =
+    def getOrCreate(rpath: String, tries: Int = 5): ZooKeeperNode = retry(tries) {
       rpath.split("/").foldLeft(this)((n,p) => {
         val fullPath0 = n.fullPath(p)
-        n.childrenMap.get(p).getOrElse(
-          try getOrElseUpdateNode(fullPath0, newNode(fullPath0)) catch {
-            case e: org.apache.zookeeper.KeeperException.NodeExistsException => n.childrenMap.get(p).get
-	    case e: org.apache.zookeeper.KeeperException.SessionExpiredException => {
-	      logger.warning("Zookeeper seesion expired, retrying")
-	      if(tries == 0) throw e
-	      Thread.sleep(1000)
-	      getOrCreate(rpath, tries - 1)
-	    }
-          }
-        )
+        try n.childrenMap.get(p).getOrElse(getOrElseUpdateNode(fullPath0, newNode(fullPath0)))
+	catch {
+	  case e: org.apache.zookeeper.KeeperException.NodeExistsException =>
+	    n.childrenMap.get(p).get
+	}
       })
+    }
 
     def waitUntilPropagated() {
       Thread.sleep(timeout)
