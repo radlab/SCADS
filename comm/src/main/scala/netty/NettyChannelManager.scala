@@ -67,8 +67,11 @@ abstract class NettyChannelManager[S <: SpecificRecord, R <: SpecificRecord](
 
   class NettyBaseHandler extends SimpleChannelHandler {
     override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) {
-      log.error("Handler caught exception: %s", e.getCause)
-      e.getChannel.close()
+      val chan = e.getChannel
+      log.error("Handler caught exception on channel %s: %s, closing and removing %s from connection pool", chan, e.getCause, chan.getRemoteAddress)
+      if (chan.getRemoteAddress ne null)
+        nodeToConnections.put(chan.getRemoteAddress.asInstanceOf[InetSocketAddress], chan)
+      chan.close()
       ctx.sendUpstream(e)
     }
   }
@@ -112,7 +115,7 @@ abstract class NettyChannelManager[S <: SpecificRecord, R <: SpecificRecord](
   class NettyClientHandler extends NettyChannelHandler {
     override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
       val chan = e.getChannel
-      log.info("Channel closed: %s".format(chan))
+      log.info("Channel closed: %s, removing from connection pool".format(chan))
       if (chan.getRemoteAddress ne null)
         nodeToConnections.remove(chan.getRemoteAddress.asInstanceOf[InetSocketAddress])
       ctx.sendUpstream(e)
