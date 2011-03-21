@@ -9,6 +9,8 @@ import perf._
 import deploylib.mesos._
 import piql.scadr._
 import perf.scadr._
+import avro.marker._
+import avro.runtime._
 
 object Experiments {
   implicit var zooKeeperRoot = ZooKeeperNode("zk://zoo.knowsql.org/").getOrCreate("home").getOrCreate(System.getenv("USER"))
@@ -35,14 +37,20 @@ object Experiments {
 
   def watchServiceScheduler = cluster.firstMaster.watch("/root/serviceScheduler.log")
   def debug(pkg: String) = net.lag.logging.Logger(pkg).setLevel(java.util.logging.Level.FINEST)
+  def scadrClient(expId: Int) = 
+    new ScadrClient(
+      new ScadsCluster(
+	ZooKeeperNode("zk://zoo.knowsql.org/home/marmbrus/scads/experimentCluster%010d".format(expId
+))),
+      new ParallelExecutor)
 
   lazy val scadsCluster = new ScadsCluster(traceRoot)
   lazy val scadrClient = new piql.scadr.ScadrClient(scadsCluster, new ParallelExecutor)
   lazy val testScadrClient = {
     val cluster = TestScalaEngine.newScadsCluster()
     val client = new piql.scadr.ScadrClient(cluster, new ParallelExecutor with DebugExecutor)
-    val loader = new piql.scadr.ScadrLoader(client, 1, 1)
-    loader.getData(0).load
+    val loader = new piql.scadr.ScadrLoader(1, 1)
+    loader.getData(0).load(client)
     client
   }
 
@@ -52,33 +60,63 @@ object Experiments {
 
   object QueryRunner {
     val results = resultsCluster.getNamespace[Result]("queryRunnerResults")
+    def downloadResults: Unit = {
+      val outfile = AvroOutFile[Result]("QueryRunnerResults.avro")
+      results.iterateOverRange(None, None).foreach(outfile.append)
+      outfile.close
+    }
 
-    def newScadrCluster = ScadrLoaderTask(numServers=50,
-				  numLoaders=50,
-				  followingCardinality=500,
-				  replicationFactor=1,
-				  usersPerServer=20000,
-				  thoughtsPerUser=100
-				 ).newCluster
+    def allResults = AvroInFile[Result]("QueryRunnerResults.avro")
+    def goodResults = allResults.filter(_.failedQueries < 200)
+				.filterNot(_.iteration == 1)
+				.filter(_.clientConfig.iterationLengthMin == 10)
+				.filter(_.clientConfig.numClients == 50)
 
-    def newTestScadrCluster = ScadrLoaderTask(numServers=10,
+    def queryTypeQuantile(results: Seq[Result] = goodResults.toSeq, quantile: Double = 0.90) =
+      results.groupBy(_.queryDesc).map {
+	case (queryDesc, results) => (queryDesc, results.map(_.responseTimes)
+							.reduceLeft(_ + _)
+							.map(_.quantile(quantile)))
+      }
+
+    def thoughtstreamGraph =
+      queryTypeQuantile().filter(_._1.queryName == "thoughtstream")
+			 
+
+    def defaultScadr = ScadrLoaderTask(numServers=50,
+				       numLoaders=50,
+				       followingCardinality=500,
+				       replicationFactor=1,
+				       usersPerServer=20000,
+				       thoughtsPerUser=100
+				     )
+
+    def testScadrCluster = ScadrLoaderTask(numServers=10,
 				  numLoaders=10,
-				  followingCardinality=500,
+				  followingCardinality=100,
 				  replicationFactor=1,
 				  usersPerServer=100,
 				  thoughtsPerUser=100
-				 ).newTestCluster(10)
-
-    def benchmarkScadr(cluster: ScadsCluster = newScadrCluster) = {
+				 )
+    val defaultRunner = 
       QueryRunnerTask(50,
 		      "edu.berkeley.cs.scads.piql.modeling.ScadrQueryProvider",
 		      iterations=30,
 		      iterationLengthMin=10,
+		      threads=2,
 		      traceIterators=false,
 		      traceMessages=false,
 		      traceQueries=false)
-	.schedule(cluster,
-		  resultsCluster)
+
+    def testReplicationEffect: Unit = {
+      val rep = defaultScadr.copy(replicationFactor=2).newCluster
+      val noRep = defaultScadr.newCluster
+      benchmarkScadr(rep)
+      benchmarkScadr(noRep)
+    }
+
+    def benchmarkScadr(cluster: ScadsCluster = defaultScadr.newCluster) = {
+      defaultRunner.schedule(cluster,resultsCluster)
     }
   }
 
