@@ -113,11 +113,12 @@ case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Long]) extend
 	// NOTE: M must be divisible by N (eg, 1000, 100)
 	
 	
-	var defaultBucketSize = 1
-	var defaultBucketCount = 1000
 
-  // confirmed that result is same as that from http://www.ece.unm.edu/signals/signals/Discrete_Convolution/discrete_convolution.html
+
+  /* confirmed that result is same as that from http://www.ece.unm.edu/signals/signals/Discrete_Convolution/discrete_convolution.html */
 	def convolveWith(that: Histogram): Histogram = {
+	  var defaultBucketSize = 1
+	  var defaultBucketCount = 1000
 	  assert(this.buckets.length == defaultBucketCount, "this must have " + defaultBucketCount + " buckets")
 	  assert(that.buckets.length == defaultBucketCount, "that must have " + defaultBucketCount + " buckets")
 	  
