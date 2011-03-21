@@ -15,7 +15,7 @@ trait ParFuture {
    * the result of the future is applied to f, and the results are collected
    * and returned.
    */
-  def waitFor[Data, T](ftchs: Seq[(MessageFuture, Data)], timeout: Long = 5000)(f: PartialFunction[(MessageBody, Data), T]): Seq[Either[Throwable, T]] = {
+  def waitFor[Data, T](ftchs: Seq[(MessageFuture, Data)], timeout: Long = 15000)(f: PartialFunction[(MessageBody, Data), T]): Seq[Either[Throwable, T]] = {
     def trapException(elem: (MessageFuture, Data)): Either[Throwable, (MessageBody, Data)] = 
       try {
         elem._1
@@ -32,7 +32,7 @@ trait ParFuture {
   }
 
 
-  def waitForAndThrowException[Data, T](ftchs: Seq[(MessageFuture, Data)], timeout: Long = 5000)(f: PartialFunction[(MessageBody, Data), T]): Seq[T] = 
+  def waitForAndThrowException[Data, T](ftchs: Seq[(MessageFuture, Data)], timeout: Long = 15000)(f: PartialFunction[(MessageBody, Data), T]): Seq[T] = 
     waitFor(ftchs)(f).map {
       case Left(ex) => throw ex
       case Right(t) => t
