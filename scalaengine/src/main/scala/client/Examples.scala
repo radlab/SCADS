@@ -139,7 +139,8 @@ class PairNamespace[Pair <: AvroPair : Manifest](
   with AvroPairSerializer[Pair]
   with RecordStore[Pair]
   with IndexManager[Pair]
-  with DebuggingClient {
+  with DebuggingClient 
+  with NamespaceIterator[Pair] {
   
   override protected val pairManifest = manifest[Pair]
 
