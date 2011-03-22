@@ -145,7 +145,7 @@ case class QueryRunnerTask(var numClients: Int,
 	result.iteration = iteration
 	result.clientConfig = this
 	result.responseTimes = e.getValue
-	result.failedQueries = failedQueries.get(e.getKey).get
+	result.failedQueries = Option(failedQueries.get(e.getKey)).map(_.get).getOrElse(0)
 	result
       })
     }
