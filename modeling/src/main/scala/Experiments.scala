@@ -83,6 +83,22 @@ object Experiments {
       queryTypeQuantile().filter(_._1.queryName == "thoughtstream")
 			 
 
+		def quantileCsv(queryName: String) = {
+		  val quantiles = queryTypeQuantile().filter(_._1.queryName == queryName)
+		  
+		  quantiles.map(i => {
+		    var line:List[String] = Nil
+		    line = i._1.queryName :: line
+		    
+		    (1 to i._1.parameters.length).foreach(j =>
+		      line = i._1.parameters(j-1).toString :: line
+		    )
+		    
+		    line = i._2.get.toString :: line
+		    println(line.reverse.mkString(","))
+		  })
+		}
+		
     def defaultScadr = ScadrLoaderTask(numServers=50,
 				       numLoaders=50,
 				       followingCardinality=500,
