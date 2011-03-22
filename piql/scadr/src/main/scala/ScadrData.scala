@@ -73,6 +73,7 @@ class ScadrLoader(val replicationFactor: Int,
     if (clusterSize > numUsers)
       throw new RuntimeException("More clusters than users- don't know how to make key split")
 
+    require(clusterSize % replicationFactor == 0, "numServers must be divisible by by replicationFactor")
     val usersPerNode = numUsers / (clusterSize / replicationFactor)
     val usersIdxs = None +: (1 until clusterSize).map(i => Some(i * usersPerNode + 1))
 
