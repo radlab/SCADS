@@ -556,7 +556,7 @@ class ParallelExecutor extends SimpleExecutor {
           logger.debug("IndexMergeJoin Prefetch Using Key %s: %s", key, records)
 
           // TODO: is it slow to ++= append to an IndexedSeq??
-          tupleBuffers(i) ++= records.map(tup :+ _).toIndexedSeq
+          tupleBuffers(i) ++= records.map(tup :+ _)
 
           if (records.size < boundLimit) { // end of records in KV store
             tupleData(i) = ((null, null, -1, true, null)) // sentinel values
