@@ -81,8 +81,7 @@ object Experiments {
 
     def thoughtstreamGraph =
       queryTypeQuantile().filter(_._1.queryName == "thoughtstream")
-			 
-
+    
 		def quantileCsv(queryName: String) = {
 		  val quantiles = queryTypeQuantile().filter(_._1.queryName == queryName)
 		  
@@ -97,6 +96,21 @@ object Experiments {
 		    line = i._2.get.toString :: line
 		    println(line.reverse.mkString(","))
 		  })
+		}
+		
+		def thoughtstreamQuantileCsv = {
+		  println("queryName,numSubscriptions,numPerPage,latency")
+		  quantileCsv("thoughtstream")
+		}
+		
+		def myThoughtsQuantileCsv = {
+		  println("queryName,numPerPage,latency")
+		  quantileCsv("myThoughts")
+		}
+
+		def usersFollowedByQuantileCsv = {
+		  println("queryName,numSubscriptions,latency")
+		  quantileCsv("usersFollowedBy")
 		}
 		
     def defaultScadr = ScadrLoaderTask(numServers=50,
