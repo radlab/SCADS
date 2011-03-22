@@ -11,29 +11,12 @@ import net.lag.logging.Logger
 import scala.util.Random
 import scala.collection.mutable.ArrayBuffer
 
+//move to scadr data
 abstract trait UserGenerator {
   val numUsers: Int
 
   protected final def toUserName(idx: Int) = "User%010d".format(idx)
   protected final def randomUserName(rand: Random) = toUserName(rand.nextInt(numUsers) + 1)
-}
-
-case class ScadrUserGenerator(numUsers: Int) extends ParameterGenerator with UserGenerator{
-  // must be + 1 since users are indexed startin g from 1
-  final def getValue(rand: Random) = (randomUserName(rand), None)
-}
-
-case class ScadrUserListGenerator(numUsers: Int, cardinalityList: IndexedSeq[Int]) extends ParameterGenerator with UserGenerator {
-  protected final def randSubscription(rand: Random) = {
-    val s = new Subscription(randomUserName(rand), randomUserName(rand))
-    s.approved = true
-    s
-  }
-
-  final def getValue(rand: Random) = {
-    val numTuples = cardinalityList(rand.nextInt(cardinalityList.size))
-    (ArrayBuffer.fill(numTuples)(ArrayBuffer(randSubscription(rand))), Some(numTuples))
-  }
 }
 
 class ScadrQueryProvider extends QueryProvider {
@@ -47,12 +30,11 @@ class ScadrQueryProvider extends QueryProvider {
     val maxUser = (loaderConfig.numServers / loaderConfig.replicationFactor) * loaderConfig.usersPerServer
     logger.info("Initalizing ScadrQueryProvider with %d users", maxUser)
 
-    val randomUser = ScadrUserGenerator(maxUser)
+    val randomUser = RandomUser(maxUser)
     val perPage = CardinalityList(10 to 50 by 5 toIndexedSeq)
     val numSubscriptions = CardinalityList(100 to 500 by 50 toIndexedSeq)
 
-    val localUserList = ScadrUserListGenerator(maxUser, perPage.values)
-    val localSubscriptionList = ScadrUserListGenerator(maxUser, numSubscriptions.values)
+    val localSubscriptionList = RandomSubscriptionList(maxUser, numSubscriptions.values)
 
     val indexLookupQuery = new OptimizedQuery("scadrIndexLookupJoinBenchmark",
 					      IndexLookupJoin(
@@ -83,9 +65,39 @@ class ScadrQueryProvider extends QueryProvider {
     QuerySpec(scadrClient.findUser, randomUser :: Nil) ::
     QuerySpec(scadrClient.myThoughts, randomUser :: perPage :: Nil) ::
     QuerySpec(scadrClient.usersFollowedBy, randomUser :: perPage :: Nil) ::
-    QuerySpec(scadrClient.thoughtstream, randomUser :: numSubscriptions :: perPage :: Nil)::
+    QuerySpec(scadrClient.thoughtstream,
+	      RandomUserWithSubscriptionCardinality(maxUser,
+						    loaderConfig.followingCardinality,
+						    numSubscriptions.values) :: perPage :: Nil)::
 //    QuerySpec(scadrClient.usersFollowing, randomUser :: perPage :: Nil) ::
     QuerySpec(scadrClient.findSubscription, randomUser :: randomUser :: Nil) :: Nil toIndexedSeq
+  }
+
+  //todo objects?
+  case class RandomUser(numUsers: Int) extends ParameterGenerator with UserGenerator {
+    // must be + 1 since users are indexed startin g from 1
+    final def getValue(rand: Random) = (randomUserName(rand), None)
+  }
+
+  case class RandomUserWithSubscriptionCardinality(numUsers: Int, maxCardinality: Int, cardinalityList: IndexedSeq[Int]) extends ParameterGenerator with UserGenerator {
+    final def getValue(rand: Random) = {
+      val cardinality = cardinalityList(rand.nextInt(cardinalityList.size))
+      val userId = scala.util.Random.nextInt(numUsers) / maxCardinality * maxCardinality + cardinality
+      (toUserName(userId), Some(cardinality))
+    }
+  }
+
+  case class RandomSubscriptionList(numUsers: Int, cardinalityList: IndexedSeq[Int]) extends ParameterGenerator with UserGenerator {
+    protected final def randSubscription(rand: Random) = {
+      val s = new Subscription(randomUserName(rand), randomUserName(rand))
+      s.approved = true
+      s
+    }
+
+    final def getValue(rand: Random) = {
+      val numTuples = cardinalityList(rand.nextInt(cardinalityList.size))
+      (ArrayBuffer.fill(numTuples)(ArrayBuffer(randSubscription(rand))), Some(numTuples))
+    }
   }
 }
 
