@@ -6,6 +6,7 @@ package modeling
 import comm._
 import storage._
 import perf._
+import deploylib.ec2._
 import deploylib.mesos._
 import piql.scadr._
 import perf.scadr._
@@ -54,7 +55,9 @@ object Experiments {
     client
   }
 
-  def laggards = cluster.slaves.pflatMap(_.jps).filter(_.main equals "AvroTaskMain").pfilterNot(_.stack contains "ScalaEngineTask").pfilterNot(_.stack contains "awaitChild")
+  def clients = cluster.slaves.pflatMap(_.jps).filter(_.main equals "AvroTaskMain").pfilterNot(_.stack contains "ScalaEngineTask")
+  def laggards = clients.pfilterNot(_.stack contains "awaitChild")
+  def tagClients = clients.map(_.remoteMachine.asInstanceOf[EC2Instance]).foreach(_.tags += ("task", "client"))
 
   def killTask(id: Int): Unit = cluster.serviceScheduler !? KillTaskRequest(id)
 
