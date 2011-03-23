@@ -108,6 +108,19 @@ object Experiments {
                                                         .map(_.quantile(quantile))
                                                         .foldLeft(Histogram(1,1000))(_ add _))
       }
+
+    def queryTypeQuantileAllHistogramsMedian(results: Seq[Result] = goodResults.toSeq, quantile: Double = 0.90) = {
+      queryTypeQuantileAllHistograms(results, quantile).map {
+        case (queryDesc, hist) => (queryDesc, hist.median)
+      }
+    }
+    
+    def queryTypeQuantileAllHistogramsStddev(results: Seq[Result] = goodResults.toSeq, quantile: Double = 0.90) = {
+      queryTypeQuantileAllHistograms(results, quantile).map {
+        case (queryDesc, hist) => (queryDesc, hist.stddev)
+      }
+    }
+
     def thoughtstreamGraph =
       queryTypeQuantile().filter(_._1.queryName == "thoughtstream")
     
