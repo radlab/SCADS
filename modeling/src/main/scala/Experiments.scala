@@ -101,6 +101,13 @@ object Experiments {
 						  .reduceLeft(_ + _)
 						  .map(_.stddev))
       }
+      
+    def queryTypeQuantileAllHistograms(results: Seq[Result] = goodResults.toSeq, quantile: Double = 0.90) = 
+      results.groupBy(_.queryDesc).map {
+        case (queryDesc, results) => (queryDesc, results.map(_.responseTimes)
+                                                        .map(_.quantile(quantile))
+                                                        .foldLeft(Histogram(1,1000))(_ add _))
+      }
     def thoughtstreamGraph =
       queryTypeQuantile().filter(_._1.queryName == "thoughtstream")
     
