@@ -129,6 +129,11 @@ object Experiments {
       dataCsv(quantiles)
 		}
 		
+		def stddevCsv(results: Seq[Result] = goodResults.toSeq, queryName: String) = {
+		  val stddev = queryTypeStddev(results).filter(_._1.queryName == queryName)
+		  dataCsv(stddev)
+		}
+		
 		def dataCsv(data:Map[QueryDescription, Any]) = {
 		  data.map(i => {
 		    var line:List[String] = Nil
