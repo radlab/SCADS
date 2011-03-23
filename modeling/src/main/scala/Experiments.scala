@@ -95,6 +95,12 @@ object Experiments {
 							.map(_.quantile(quantile)))
       }
 
+    def queryTypeStddev(results: Seq[Result] = goodResults.toSeq) = 
+      results.groupBy(_.queryDesc).map {
+        case (queryDesc, results) => (queryDesc, results.map(_.responseTimes)
+						  .reduceLeft(_ + _)
+						  .map(_.stddev))
+      }
     def thoughtstreamGraph =
       queryTypeQuantile().filter(_._1.queryName == "thoughtstream")
     
