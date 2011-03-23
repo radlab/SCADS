@@ -74,6 +74,7 @@ object Experiments {
       results.foreach(set += _.queryDesc.queryName)
       set
     }
+    
     def allResults = AvroInFile[Result]("QueryRunnerResults.avro")
     
     def experimentResults = allResults.filter(_.clientConfig.experimentAddress contains "experiment0000000164")
@@ -89,7 +90,7 @@ object Experiments {
 
     def queryTypeQuantile(results: Seq[Result] = goodResults.toSeq, quantile: Double = 0.90) =
       results.groupBy(_.queryDesc).map {
-	case (queryDesc, results) => (queryDesc, results.map(_.responseTimes)
+	      case (queryDesc, results) => (queryDesc, results.map(_.responseTimes)
 							.reduceLeft(_ + _)
 							.map(_.quantile(quantile)))
       }
