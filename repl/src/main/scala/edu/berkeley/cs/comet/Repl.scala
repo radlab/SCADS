@@ -77,7 +77,7 @@ val initSeq = deploylib.Util.readFile(new java.io.File("setup.scala"))
   }
 
   private def outputToConsole(text: NodeSeq): Unit = {
-    partialUpdate(AppendHtml("history", text))
+    partialUpdate(CmdPair(AppendHtml("history", text), JsRaw("""var objDiv = document.getElementById("history"); objDiv.scrollTop = objDiv.scrollHeight;""")))
   }
 
   def render: RenderOut = <span></span>
