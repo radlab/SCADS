@@ -59,6 +59,8 @@ object Experiments {
   def killTask(id: Int): Unit = cluster.serviceScheduler !? KillTaskRequest(id)
 
   object QueryRunner {
+    import scala.collection.mutable.HashSet
+    
     val results = resultsCluster.getNamespace[Result]("queryRunnerResults")
     def downloadResults: Unit = {
       val outfile = AvroOutFile[Result]("QueryRunnerResults.avro")
@@ -66,6 +68,12 @@ object Experiments {
       outfile.close
     }
 
+    // get all of the querytypes in this results set
+    def queryTypes(results: Seq[Result] = goodResults.toSeq):HashSet[String] = {
+      val set = new HashSet[String]()
+      results.foreach(set += _.queryDesc.queryName)
+      set
+    }
     def allResults = AvroInFile[Result]("QueryRunnerResults.avro")
     def goodResults = allResults.filter(_.failedQueries < 200)
 				.filterNot(_.iteration == 1)
