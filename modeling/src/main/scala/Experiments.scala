@@ -147,19 +147,19 @@ object Experiments {
 		  })
 		}
 		
-		def thoughtstreamQuantileCsv = {
-		  println("queryName,numSubscriptions,numPerPage,latency")
-		  quantileCsv("thoughtstream")
+		def thoughtstreamQuantileCsv(results: Seq[Result] = goodResults.toSeq, quantile: Double = 0.90) = {
+		  println("queryName,numSubs,numPerPage,latency")
+		  quantileCsv(results, quantile, "thoughtstream")
 		}
 		
-		def myThoughtsQuantileCsv = {
+		def myThoughtsQuantileCsv(results: Seq[Result] = goodResults.toSeq, quantile: Double = 0.90) = {
 		  println("queryName,numPerPage,latency")
-		  quantileCsv("myThoughts")
+		  quantileCsv(results, quantile, "myThoughts")
 		}
 
-		def usersFollowedByQuantileCsv = {
-		  println("queryName,numSubscriptions,latency")
-		  quantileCsv("usersFollowedBy")
+		def usersFollowedByQuantileCsv(results: Seq[Result] = goodResults.toSeq, quantile: Double = 0.90) = {
+		  println("queryName,numSubs,latency")
+		  quantileCsv(results, quantile, "usersFollowedBy")
 		}
 		
     def defaultScadr = ScadrLoaderTask(numServers=50,
