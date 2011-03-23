@@ -53,7 +53,7 @@ val initSeq = deploylib.Util.readFile(new java.io.File("setup.scala"))
 
       outputToConsole(<p>Ready...</p>)
     }
-    case DisplayNodeSeq(seq) => outputToConsole(seq)
+    case DisplayNodeSeq(seq) => outputToConsole(seq)  // called when you want to do ".view"
     case ExecuteScala(cmd) => {
       outputToConsole(<p>> { cmd }</p>)
       interpret(cmd)
@@ -82,8 +82,8 @@ val initSeq = deploylib.Util.readFile(new java.io.File("setup.scala"))
   override lazy val fixedRender: Box[NodeSeq] = {
     val callback = SHtml.jsonCall(ValById("test"), v => {println(v); Noop})
 
-    SHtml.ajaxText("", (cmd: String) => { this ! ExecuteScala(cmd); SetValueAndFocus("cmdline", "") }, ("id", "cmdline")) ++
-    <input type="text" id="test" onkeypress={callback._2}/> ++
+    SHtml.ajaxText("", (cmd: String) => { this ! ExecuteScala(cmd); SetValueAndFocus("cmdline", "") }, ("id", "cmdline")) ++  // makes regular cmd box
+    <input type="text" id="test" onkeypress={callback._2}/> ++    // makes fancy cmd box
       SHtml.a(() => { this ! InitRepl; SetHtml("history", <p>Initalizing REPL</p>) }, <span>Reset REPL</span>)
   }
 }

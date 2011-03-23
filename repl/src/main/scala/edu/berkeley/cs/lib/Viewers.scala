@@ -5,7 +5,7 @@ import _root_.scala.xml.{Elem,NodeSeq,Text}
 import edu.berkeley.cs.comet._
 
 object ReplHelpers {
-  type Viewable = {def toHtml: NodeSeq}
+  type Viewable = {def toHtml: NodeSeq} // duck typing
   implicit def toViewable(obj: Viewable)(implicit repl: net.liftweb.http.CometActor) = new {
     def view: Unit = repl ! DisplayNodeSeq(obj.toHtml)
   }
