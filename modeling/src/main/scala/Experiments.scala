@@ -124,10 +124,11 @@ object Experiments {
     def thoughtstreamGraph =
       queryTypeQuantile().filter(_._1.queryName == "thoughtstream")
     
-		def quantileCsv(queryName: String) = {
-		  val quantiles = queryTypeQuantile().filter(_._1.queryName == queryName)
-		  
-		  quantiles.map(i => {
+		def quantileCsv(results: Seq[Result] = goodResults.toSeq, quantile: Double = 0.90, queryName: String) = {
+		  val quantiles = queryTypeQuantile(results, quantile).filter(_._1.queryName == queryName)
+      dataCsv(quantiles)
+		}
+		
 		def dataCsv(data:Map[QueryDescription, Any]) = {
 		  data.map(i => {
 		    var line:List[String] = Nil
