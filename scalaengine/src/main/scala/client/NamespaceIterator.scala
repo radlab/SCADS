@@ -12,9 +12,8 @@ trait NamespaceIterator[BulkType] {
     with Serializer[IndexedRecord, IndexedRecord, BulkType] =>
 
   def iterateOverRange(startKey: Option[IndexedRecord], endKey: Option[IndexedRecord]): Iterator[BulkType] = {
-    val (keyBytes, valueBytes) = (startKey.map(keyToBytes), endKey.map(valueToBytes))
-    val partitions = serversForKeyRange(keyBytes, valueBytes)
-    partitions.map(p => new ActorlessPartitionIterator(p.servers.head, keyBytes, valueBytes))
+    val partitions = serversForKeyRange(startKey.map(keyToBytes), endKey.map(keyToBytes))
+    partitions.map(p => new ActorlessPartitionIterator(p.servers.head, p.startKey, p.endKey))
 	      .foldLeft(Iterator.empty.asInstanceOf[Iterator[Record]])(_ ++ _)
 	      .map(r => bytesToBulk(r.key, extractRecordFromValue(r.value.get)))
   }

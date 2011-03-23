@@ -12,14 +12,19 @@ import deploylib._
 
 import java.io.File
 import scala.util.Random
+import java.util.concurrent._
+import java.util.concurrent.atomic._
 import collection.JavaConversions._
 
 abstract class ParameterGenerator {
-  def getValue(rand: Random): Any
+  def getValue(rand: Random): (Any, Option[Int])
 }
 
 case class CardinalityList(values: IndexedSeq[Int]) extends ParameterGenerator {
-  def getValue(rand: Random) = values(rand.nextInt(values.size))
+  def getValue(rand: Random) = {
+    val cardinality = values(rand.nextInt(values.size))
+    (cardinality, Some(cardinality))
+  }
 }
 
 case class QuerySpec(query: OptimizedQuery, paramGenerators: Seq[ParameterGenerator])
@@ -87,9 +92,8 @@ case class QueryRunnerTask(var numClients: Int,
     coordination.registerAndAwait("startQueryRunning", numClients)
     for(iteration <- (1 to iterations)) {
       //coordination.registerAndAwait("startIteration" + iteration, numClients)
-      val responseTimes = new java.util.concurrent.ConcurrentHashMap[QueryDescription, Histogram]
-
-      val failedQueryCounter = new java.util.concurrent.atomic.AtomicInteger(0)
+      val responseTimes = new ConcurrentHashMap[QueryDescription, Histogram]
+      val failedQueries = new ConcurrentHashMap[QueryDescription, AtomicInteger]
 
       logger.info("Beginning iteration %d", iteration)
       (1 to threads).pmap(threadId => {
@@ -102,10 +106,8 @@ case class QueryRunnerTask(var numClients: Int,
 	while(getTime - iterationStartTime < runTime) {
 	  val querySpec = querySpecs(rand.nextInt(querySpecs.size))
 	  val params = querySpec.paramGenerators.map(_.getValue(rand))
-	  val paramsDesc = params.zip(querySpec.paramGenerators).flatMap {
-	    case (i:Int, c:CardinalityList) => Some(i)
-	    case _ => None
-	  }
+	  val runParams = params.map(_._1)
+	  val paramsDesc = params.flatMap(_._2)
 	  val queryDesc = QueryDescription(querySpec.query.name.getOrElse("unnamed"), paramsDesc)
 
 	  if(traceQueries)
@@ -113,7 +115,7 @@ case class QueryRunnerTask(var numClients: Int,
 
 	  val startTime = getTime
 	  try {
-	    querySpec.query.apply(params: _*)
+	    querySpec.query.apply(runParams: _*)
 	    val endTime = getTime
 
 	    if(traceQueries)
@@ -126,8 +128,11 @@ case class QueryRunnerTask(var numClients: Int,
 	    responseTimes.get(queryDesc) += (endTime - startTime)
 	    queryCounter += 1
 	  } catch {
-	    case e => logger.warning(e, "Query %s failed", querySpec.query.name)
-	      failedQueryCounter.incrementAndGet
+	    case e =>
+	      logger.warning(e, "Query %s failed", querySpec.query.name)
+	      if(!failedQueries.contains(queryDesc))
+		failedQueries.putIfAbsent(queryDesc, new AtomicInteger)
+	      failedQueries.get(queryDesc).incrementAndGet
 	  }
 	}
 	
@@ -140,7 +145,7 @@ case class QueryRunnerTask(var numClients: Int,
 	result.iteration = iteration
 	result.clientConfig = this
 	result.responseTimes = e.getValue
-	result.failedQueries = failedQueryCounter.get
+	result.failedQueries = Option(failedQueries.get(e.getKey)).map(_.get).getOrElse(0)
 	result
       })
     }

@@ -59,11 +59,11 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor = new Paral
 
   val thoughtstream = (
     subscriptions.where("subscriptions.owner".a === (0.?))
-		 .limit(1.?, maxSubscriptions)
+		 .dataLimit(maxSubscriptions)
 		 .join(thoughts)
 		 .where("thoughts.owner".a === "subscriptions.target".a)
 		 .sort("thoughts.timestamp".a :: Nil, false)
-		 .limit(2.?, maxResultsPerPage)
+		 .limit(1.?, maxResultsPerPage)
   ).toPiql("thoughtstream")
 
   //HACK

@@ -57,8 +57,8 @@ class ScadrLoader(val replicationFactor: Int,
     createNamespace(cluster.getNamespace[Subscription]("subscriptions").asInstanceOf[PairNamespace[AvroPair]], splits.subscriptionsKeySplits)
   }
 
-  private def toUser(idx: Int) = "User%010d".format(idx)
-  def randomUser = toUser(scala.util.Random.nextInt(numUsers) + 1) // must be + 1 since users are indexed starting from 1
+  private def toUsername(idx: Int) = "User%010d".format(idx)
+  def randomUser = toUsername(scala.util.Random.nextInt(numUsers) + 1) // must be + 1 since users are indexed starting from 1
 
   /**
    * Get the key splits based on the num* parameters and the scads cluster.
@@ -73,12 +73,13 @@ class ScadrLoader(val replicationFactor: Int,
     if (clusterSize > numUsers)
       throw new RuntimeException("More clusters than users- don't know how to make key split")
 
+    require(clusterSize % replicationFactor == 0, "numServers must be divisible by by replicationFactor")
     val usersPerNode = numUsers / (clusterSize / replicationFactor)
     val usersIdxs = None +: (1 until clusterSize).map(i => Some(i * usersPerNode + 1))
 
-    val usersKeySplits = usersIdxs.map(_.map(idx => User(toUser(idx)))).map(_.map(_.key))
-    val thoughtsKeySplits = usersIdxs.map(_.map(idx => Thought(toUser(idx), 0))).map(_.map(_.key))
-    val subscriptionsKeySplits = usersIdxs.map(_.map(idx => Subscription(toUser(idx), ""))).map(_.map(_.key))
+    val usersKeySplits = usersIdxs.map(_.map(idx => User(toUsername(idx)))).map(_.map(_.key))
+    val thoughtsKeySplits = usersIdxs.map(_.map(idx => Thought(toUsername(idx), 0))).map(_.map(_.key))
+    val subscriptionsKeySplits = usersIdxs.map(_.map(idx => Subscription(toUsername(idx), ""))).map(_.map(_.key))
 
     // assume uniform distribution of tags over 8 bit ascii - not really
     // ideal, but we can generate the data such that this is true
@@ -131,29 +132,29 @@ class ScadrLoader(val replicationFactor: Int,
     def newUserIdView =
       (startUser until endUser).view
 
+    def toUser(id: Int): User = {
+      val u = User(toUsername(id))
+      u.homeTown = "hometown" + (id % 10)
+      u.password = "secret"
+      u
+    }
+
     val userData: Seq[User] =
-      newUserIdView.map(i => {
-  val u = User(toUser(i))
-  u.homeTown = "hometown" + (i % 10)
-  u.password = "secret"
-  u
-      })
+      newUserIdView.map(toUser)
 
     val thoughtData: Seq[Thought] =
       newUserIdView.flatMap(userId =>
-  (1 to numThoughtsPerUser).view.map(i => {
-    val t = Thought(toUser(userId), i)
-    t.text = toUser(userId) + " thinks " + i
-    t
-  })
-      )
+	(1 to numThoughtsPerUser).view.map(i => {
+	  val t = Thought(toUsername(userId), i)
+	  t.text = toUsername(userId) + " thinks " + i
+	  t
+	}))
 
-    val subscriptionData: Seq[Subscription] = userData.flatMap(user =>
-      randomInts(user.username.hashCode, numUsers, numSubscriptionsPerUser).view.map(u => {
-  //val s = Subscription(user.username, userData(u).username)
-  val s = Subscription(user.username, "User%010d".format(u))
-  s.approved = true
-  s
+    val subscriptionData: Seq[Subscription] = newUserIdView.flatMap(userId =>
+      randomInts(toUsername(userId).hashCode, numUsers, userId % numSubscriptionsPerUser).view.map(u => {
+	val s = Subscription(toUsername(userId), "User%010d".format(u))
+	s.approved = true
+	s
       })
     )
 

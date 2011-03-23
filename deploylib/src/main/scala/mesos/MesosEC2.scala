@@ -31,7 +31,7 @@ object ServiceSchedulerDaemon extends optional.Application {
 class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends ConfigurationActions {
   val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
   val mesosAmi = "ami-44ce3d2d"
-  val zone = "us-east-1a"
+  val zone = "us-east-1b"
 
   def serviceSchedulerNode = zooKeeperRoot.getOrCreate("serviceScheduler")
   def serviceScheduler = classOf[RemoteServiceScheduler].newInstance.parse(serviceSchedulerNode.data)
