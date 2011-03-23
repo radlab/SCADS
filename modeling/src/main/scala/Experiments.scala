@@ -128,6 +128,8 @@ object Experiments {
 		  val quantiles = queryTypeQuantile().filter(_._1.queryName == queryName)
 		  
 		  quantiles.map(i => {
+		def dataCsv(data:Map[QueryDescription, Any]) = {
+		  data.map(i => {
 		    var line:List[String] = Nil
 		    line = i._1.queryName :: line
 		    
@@ -135,7 +137,12 @@ object Experiments {
 		      line = i._1.parameters(j-1).toString :: line
 		    )
 		    
-		    line = i._2.get.toString :: line
+		    val num = i._2 match {
+		      case a: Option[Any] => a.get
+		      case b: Any => b
+		      case _ =>
+		    }
+		    line = num.toString :: line
 		    println(line.reverse.mkString(","))
 		  })
 		}
