@@ -75,6 +75,13 @@ object Experiments {
       set
     }
     def allResults = AvroInFile[Result]("QueryRunnerResults.avro")
+    
+    def experimentResults = allResults.filter(_.clientConfig.experimentAddress contains "experiment0000000164")
+    
+    def goodExperimentResults = experimentResults.filter(_.failedQueries < 200)
+				.filterNot(_.iteration == 1)
+				.filter(_.clientConfig.iterationLengthMin == 10)
+    
     def goodResults = allResults.filter(_.failedQueries < 200)
 				.filterNot(_.iteration == 1)
 				.filter(_.clientConfig.iterationLengthMin == 10)
