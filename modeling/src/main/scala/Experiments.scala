@@ -82,6 +82,8 @@ object Experiments {
     
     def experimentResults = allResults.filter(_.clientConfig.experimentAddress contains "experiment0000000164")
     
+    def genericBenchmarkResults = allResults.filter(_.clientConfig.clusterAddress == "zk://zoo.knowsql.org/home/marmbrus/scads/experimentCluster0000000157")
+    
     def goodExperimentResults = experimentResults.filter(_.failedQueries < 200)
 				.filterNot(_.iteration == 1)
 				.filter(_.clientConfig.iterationLengthMin == 10)
@@ -111,6 +113,13 @@ object Experiments {
                                                         .map(_.quantile(quantile))
                                                         .foldLeft(Histogram(1,1000))(_ add _))
       }
+
+    // in progress
+    def queryTypePerIterationHistograms(results: Seq[Result]) = {
+      results.groupBy(result => (result.queryDesc, result.iteration)).map {
+        case (prefix, resultValues) => (prefix, resultValues.map(_.responseTimes).reduceLeft(_ + _))
+      }
+    }
 
     def queryTypeQuantileAllHistogramsMedian(results: Seq[Result] = goodResults.toSeq, quantile: Double = 0.90) = {
       queryTypeQuantileAllHistograms(results, quantile).map {
