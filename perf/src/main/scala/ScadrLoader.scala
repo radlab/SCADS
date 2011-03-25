@@ -21,16 +21,6 @@ case class ScadrLoaderTask(var numServers: Int,
 			   var usersPerServer: Int = 10000,
 			   var thoughtsPerUser: Int = 100) extends DataLoadingTask with AvroRecord {
   var clusterAddress: String = _
-  
-  protected def retry[ReturnType](tries: Int = 5)(func: => ReturnType): ReturnType = {
-    try func catch {
-      case e if(tries > 0) => {
-	logger.warning(e, "Exception caught, trying %d more times", tries)
-	retry(tries - 1)(func)
-      }
-    }
-  }
-
 
   def run(): Unit = {
     val clusterRoot = ZooKeeperNode(clusterAddress)

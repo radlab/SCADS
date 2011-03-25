@@ -12,7 +12,18 @@ import net.lag.logging.Logger
 import org.apache.avro.generic.IndexedRecord
 import org.apache.zookeeper.CreateMode
 
-abstract trait DataLoadingTask extends AvroTask {
+trait ExperimentTask extends AvroTask {
+  protected def retry[ReturnType](tries: Int = 5)(func: => ReturnType): ReturnType = {
+    try func catch {
+      case e if(tries > 0) => {
+	logger.warning(e, "Exception caught, trying %d more times", tries)
+	retry(tries - 1)(func)
+      }
+    }
+  }
+}
+
+abstract trait DataLoadingTask extends ExperimentTask {
   var numServers: Int
   var numLoaders: Int
 
@@ -38,7 +49,7 @@ abstract trait DataLoadingTask extends AvroTask {
   }
 }
 
-abstract trait ReplicatedExperimentTask extends AvroTask {
+abstract trait ReplicatedExperimentTask extends ExperimentTask {
   var numClients: Int
   var resultClusterAddress: String
   var clusterAddress: String
