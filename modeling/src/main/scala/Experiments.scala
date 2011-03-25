@@ -190,7 +190,7 @@ object Experiments {
       val clust40 = genericCluster.copy(dataSize=40).newCluster
 
       genericBenchmark(clust30)
-      genericBenchmark(clust30)
+      genericBenchmark(clust40)
     }
 
     def genericBenchmark(cluster: ScadsCluster = genericCluster.newCluster) =
