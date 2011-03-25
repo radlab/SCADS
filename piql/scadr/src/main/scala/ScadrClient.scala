@@ -23,9 +23,7 @@ case class Subscription(var owner: String, var target: String) extends AvroPair 
 
 case class HashTag(var tag: String, var timestamp: Int, var owner: String) extends AvroPair
 
-
-//100to500 subscriptions 10to50perpage
-class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor) {
+class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor = new ParallelExecutor) {
   val maxSubscriptions = 10000
   val maxResultsPerPage = 10000
   implicit val exec = executor
@@ -61,14 +59,15 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor) {
 
   val thoughtstream = (
     subscriptions.where("subscriptions.owner".a === (0.?))
-		 .limit(1.?, maxSubscriptions)
+		 .dataLimit(maxSubscriptions)
 		 .join(thoughts)
 		 .where("thoughts.owner".a === "subscriptions.target".a)
 		 .sort("thoughts.timestamp".a :: Nil, false)
-		 .limit(2.?, maxResultsPerPage)
+		 .limit(1.?, maxResultsPerPage)
   ).toPiql("thoughtstream")
 
-  val usersInTown =
+  //HACK
+  lazy val usersInTown =
     users.where("homeTown".a === (0.?))
 	 .limit(10)
 	 .toPiql("usersInTown")
@@ -76,7 +75,7 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor) {
   /**
    * Who is following ME?
    */
-  val usersFollowing = (
+  lazy val usersFollowing = (
     subscriptions.where("subscriptions.target".a === (0.?))
 		 .limit(1.?, maxResultsPerPage)
 		 .join(users)

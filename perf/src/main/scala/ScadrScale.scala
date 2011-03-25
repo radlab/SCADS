@@ -55,7 +55,7 @@ case class QueryRunnerTask(var numClients: Int,
     val loaderConfig = classOf[ScadrLoaderTask].newInstance.parse(clusterConfig.data)
 
     //TODO: Seperate ScadrData and ScadrLoader, move this to a function
-    val loader = new ScadrLoader(scadrClient,
+    val loader = new ScadrLoader(
       replicationFactor = loaderConfig.replicationFactor,
       numClients = loaderConfig.numLoaders,
       numUsers = loaderConfig.numServers * 10000 / loaderConfig.replicationFactor,

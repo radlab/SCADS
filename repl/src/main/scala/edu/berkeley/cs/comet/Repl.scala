@@ -5,9 +5,9 @@ import _root_.scala.actors.Actor
 import _root_.scala.xml.{ Elem, NodeSeq, Text }
 import _root_.net.liftweb.http.{ ListenerManager, CometActor, CometListener, SHtml }
 
-import _root_.net.liftweb.util.Helpers
-import net.liftweb.http.SHtml
-import net.liftweb.http.RenderOut
+import net.liftweb.util._
+import net.liftweb.http._
+import net.liftweb.http.js._
 import net.liftweb.http.js.JsCmds._
 import net.liftweb.http.js.JE._
 import net.liftweb.http.js.jquery.JqJsCmds.AppendHtml
@@ -15,6 +15,8 @@ import java.io._
 import Helpers._
 import _root_.net.liftweb.common.{ Box, Empty, Full }
 import net.lag.logging.Logger
+import net.liftweb.util.BindPlus._
+
 
 import scala.xml.XML
 
@@ -25,6 +27,7 @@ case class ExecuteScala(scalaCmd: String)
 case class DisplayNodeSeq(seq: NodeSeq)
 
 class Repl extends CometActor {
+  self =>
   val logger = Logger()
   private val settings = new Settings
   val contextJars = Thread.currentThread.getContextClassLoader.asInstanceOf[java.net.URLClassLoader].getURLs.toList
@@ -55,7 +58,7 @@ val initSeq = deploylib.Util.readFile(new java.io.File("setup.scala"))
     }
     case DisplayNodeSeq(seq) => outputToConsole(seq)
     case ExecuteScala(cmd) => {
-      outputToConsole(<p>{ cmd }</p>)
+      outputToConsole(<p>> { cmd }</p>)
       interpret(cmd)
     }
   }
@@ -79,11 +82,25 @@ val initSeq = deploylib.Util.readFile(new java.io.File("setup.scala"))
 
   def render: RenderOut = <span></span>
 
-  override lazy val fixedRender: Box[NodeSeq] = {
-    val callback = SHtml.jsonCall(ValById("test"), v => {println(v); Noop})
+  val cmdLineHandler = new JsonHandler {
+    def apply(in : Any) : JsCmd = in match {
+      case JsonCmd("interpret", _, cmd: String, _) => {
+	self ! ExecuteScala(cmd)
+	Noop
+      }
+      case x => Noop
+    }
+  }
 
-    SHtml.ajaxText("", (cmd: String) => { this ! ExecuteScala(cmd); SetValueAndFocus("cmdline", "") }, ("id", "cmdline")) ++
-    <input type="text" id="test" onkeypress={callback._2}/> ++
-      SHtml.a(() => { this ! InitRepl; SetHtml("history", <p>Initalizing REPL</p>) }, <span>Reset REPL</span>)
+  override lazy val fixedRender: Box[NodeSeq] = {
+    Script(cmdLineHandler.jsCmd) ++
+    //HACK
+    Script(JsRaw("""$('#cmdline').cmd({
+      prompt: 'scala>',
+      width: '100%',
+      commands: function(command) {""" +
+        cmdLineHandler.call("interpret", JsRaw("command")).toJsCmd +
+     """}});""")
+    )
   }
 }

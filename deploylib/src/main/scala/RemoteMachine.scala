@@ -121,9 +121,11 @@ abstract class RemoteMachine {
    */
   protected def useConnection[ReturnType](func: (Connection) => ReturnType, numTries: Int = 5): ReturnType = {
     def onFailure(e: Exception) = {
-      logger.warning("connection to " + hostname + " failed")
+      connection = null
+      logger.warning("Connection to " + hostname + " failed: %s", e)
       if(numTries <= 1)
 	throw new RuntimeException("Number of tries exceeded" + e)
+      Thread.sleep(10 * 1000)
       useConnection(func, numTries - 1)
     }
 

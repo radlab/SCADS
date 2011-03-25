@@ -12,7 +12,7 @@ import org.apache.avro.generic.IndexedRecord
 
 import net.lag.logging.Logger
 
-abstract trait AvroTask extends IndexedRecord {
+abstract trait AvroTask extends IndexedRecord with Runnable {
   val logger = Logger()
 
   def run(): Unit

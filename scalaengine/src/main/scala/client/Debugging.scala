@@ -38,7 +38,7 @@ trait DebuggingClient {
 
     futures.foreach {
       case (startKey, replicas) => {
-	logger.info("==%s==", startKey)
+	logger.info("==%s==", startKey.map(bytesToKey))
 	replicas.map(f => (f._1, f._2())).foreach {
 	  case (hander, GetWorkloadStatsResponse(getCount, putCount, _)) => logger.info("%s: %d gets, %d puts", hander, getCount, putCount)
 	  case m => logger.warning("Invalid message received for workload stats %s", m)

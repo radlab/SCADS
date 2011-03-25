@@ -30,5 +30,6 @@ class Boot {
 
     LiftRules.setSiteMap(SiteMap(entries:_*))
     LiftRules.dispatch.prepend(DotGraph.dispatchRules)
+    LiftRules.useXhtmlMimeType = false
   }
 }

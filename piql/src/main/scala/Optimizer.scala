@@ -107,7 +107,7 @@ object Optimizer {
 	    
 	    (IndexMergeJoin(ns,
 			    makeKeyGenerator(ns, tupleSchema, equalityPreds),
-			    attrs.map(bindValue(_, tupleSchema)),
+			    attrs.map(a => bindValue(UnboundAttributeValue(a), tupleSchema)),
 			    count,
 			    asc,
 			    optChild.physicalPlan),

@@ -119,6 +119,7 @@ trait GlobalMetadata {
 
   /** The GlobalMetadata catalogue is implementation agnostic, but must
    * support a simple persistent key/value configuration map (string -> byte array) */
+  def watchMetadata(key: String, func: () => Unit): Array[Byte]
   def getMetadata(key: String): Option[Array[Byte]] 
   def putMetadata(key: String, value: Array[Byte]): Unit 
   def deleteMetadata(key: String): Unit

@@ -12,7 +12,7 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
   val name: String
 
   @volatile protected var nsRoot: ZooKeeperProxy#ZooKeeperNode = _
-  logger.info("ZooKeeperGlobalMetadata Constructor: %s", namespace)
+  logger.debug("ZooKeeperGlobalMetadata Constructor: %s", namespace)
 
   private def initRoot(node: ZooKeeperProxy#ZooKeeperNode): Unit = {
     node.createChild("partitions", Array.empty, CreateMode.PERSISTENT)
@@ -27,33 +27,40 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
 
     val newRoot = root.createChild(name, Array.empty, CreateMode.PERSISTENT)
     initRoot(newRoot)
-
     nsRoot = newRoot
+    nsRoot.createChild("initialized")//TODO: we really aren't done yet!
   }
 
   // if NS exists, uses that data, otherwise creates a new one
-  // false ret indicates a NS previously existed, true indicates it did not
+  // TODO: make allow create a parameter
   onOpen { _ =>
     logger.debug("ZooKeeperGlobalMetadata open(): ")
-
-    // TODO: this is definitely racy, but it's no worse than what we had
-    // before. also this block of code is an abuse of side effects in map
-    // and getOrElse.
-    val ret = root.get(name).map(nrs => { nsRoot = nrs; false }).getOrElse {
+    nsRoot = root.getOrCreate(name)
+    
+    /* Check to see if the cluster metadata has been created, otherwise create it */
+    val isNew = if(!nsRoot.get("initialized").isDefined) {
       try {
-        val newRoot = root.createChild(name, Array.empty, CreateMode.PERSISTENT)
-        initRoot(newRoot)
-        nsRoot = newRoot
-        true
+	/* Grab a lock so we know we are the only ones creating the namespace */
+	val createLock = nsRoot.createChild("createLock", mode=CreateMode.EPHEMERAL)
+	create()
+	nsRoot.createChild("initialized")
+	createLock.delete
+	false
       } catch {
-        case e: KeeperException if e.code == KeeperException.Code.NODEEXISTS => 
-          nsRoot = root(name)
-          false
-        case e => throw e
+	/* Someone else has the create lock, so we should wait until they finish */
+	case e: KeeperException if e.code == KeeperException.Code.NODEEXISTS => {
+	  nsRoot.awaitChild("initialized")
+	  false
+	}
       }
     }
+    else {
+      nsRoot.awaitChild("initialized")
+      false
+    }
+
     assert(nsRoot ne null, "nsRoot should not be null after open")
-    ret
+    isNew
   }
 
   onDelete {
@@ -73,11 +80,20 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
   override lazy val remoteValueSchema: Schema =
     Schema.parse(new String(nsRoot("valueSchema").data))
 
-  override def getMetadata(key: String): Option[Array[Byte]] = 
-    nsRoot.get(key).map(_.data)
+  override def watchMetadata(key: String, func: () => Unit): Array[Byte] = {
+    logger.info("Watching metadata %s for %s", key, namespace) 
+    nsRoot(key).onDataChange(func)
+  }
 
-  override def putMetadata(key: String, value: Array[Byte]): Unit =
+  override def getMetadata(key: String): Option[Array[Byte]] = {
+    logger.info("Updating metadata %s for namespace %s", key, namespace)
+    nsRoot.get(key).map(_.data)
+  }
+
+  override def putMetadata(key: String, value: Array[Byte]): Unit = {
+    logger.info("Setting metadata %s in namespace %s", key, namespace)
     nsRoot.getOrCreate(key).data = value
+  }
 
   override def deleteMetadata(key: String): Unit =
     nsRoot.deleteChild(key)

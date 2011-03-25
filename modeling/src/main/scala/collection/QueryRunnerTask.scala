@@ -11,15 +11,20 @@ import comm._
 import deploylib._
 
 import java.io.File
+import scala.util.Random
+import java.util.concurrent._
+import java.util.concurrent.atomic._
 import collection.JavaConversions._
 
 abstract class ParameterGenerator {
-  def getValue: Any
+  def getValue(rand: Random): (Any, Option[Int])
 }
 
 case class CardinalityList(values: IndexedSeq[Int]) extends ParameterGenerator {
-  val rand = new scala.util.Random
-  def getValue = values(rand.nextInt(values.size))
+  def getValue(rand: Random) = {
+    val cardinality = values(rand.nextInt(values.size))
+    (cardinality, Some(cardinality))
+  }
 }
 
 case class QuerySpec(query: OptimizedQuery, paramGenerators: Seq[ParameterGenerator])
@@ -66,7 +71,8 @@ case class QueryRunnerTask(var numClients: Int,
     clusterRoot.awaitChild("clusterReady")
     val cluster = new ScadsCluster(clusterRoot)
 
-    val traceSink = new FileTraceSink(new File("/mnt/piqltrace.avro"))
+    val traceFile = new File("piqltrace.avro")
+    val traceSink = new FileTraceSink(traceFile)
 
     val executor =
       if(traceIterators)
@@ -84,27 +90,25 @@ case class QueryRunnerTask(var numClients: Int,
 
     val querySpecs = Class.forName(queryProvider).newInstance.asInstanceOf[QueryProvider].getQueryList(cluster, executor)
 
+    coordination.registerAndAwait("startQueryRunning", numClients)
     for(iteration <- (1 to iterations)) {
-      coordination.registerAndAwait("startIteration" + iteration, numClients)
-      val responseTimes = new java.util.concurrent.ConcurrentHashMap[QueryDescription, Histogram]
-
-      val failedQueryCounter = new java.util.concurrent.atomic.AtomicInteger(0)
+      //coordination.registerAndAwait("startIteration" + iteration, numClients)
+      val responseTimes = new ConcurrentHashMap[QueryDescription, Histogram]
+      val failedQueries = new ConcurrentHashMap[QueryDescription, AtomicInteger]
 
       logger.info("Beginning iteration %d", iteration)
       (1 to threads).pmap(threadId => {
+	val seed = java.net.InetAddress.getLocalHost.getHostName + System.currentTimeMillis + threadId
+	val rand = new Random(seed.hashCode)
 	val runTime = iterationLengthMin * 60 * 1000L
 	val iterationStartTime = getTime
-	val rand = new scala.util.Random
 	var queryCounter = 0
-
 
 	while(getTime - iterationStartTime < runTime) {
 	  val querySpec = querySpecs(rand.nextInt(querySpecs.size))
-	  val params = querySpec.paramGenerators.map(_.getValue)
-	  val paramsDesc = params.zip(querySpec.paramGenerators).flatMap {
-	    case (i:Int, c:CardinalityList) => Some(i)
-	    case _ => None
-	  }
+	  val params = querySpec.paramGenerators.map(_.getValue(rand))
+	  val runParams = params.map(_._1)
+	  val paramsDesc = params.flatMap(_._2)
 	  val queryDesc = QueryDescription(querySpec.query.name.getOrElse("unnamed"), paramsDesc)
 
 	  if(traceQueries)
@@ -112,7 +116,7 @@ case class QueryRunnerTask(var numClients: Int,
 
 	  val startTime = getTime
 	  try {
-	    querySpec.query.apply(params: _*)
+	    querySpec.query.apply(runParams: _*)
 	    val endTime = getTime
 
 	    if(traceQueries)
@@ -125,8 +129,11 @@ case class QueryRunnerTask(var numClients: Int,
 	    responseTimes.get(queryDesc) += (endTime - startTime)
 	    queryCounter += 1
 	  } catch {
-	    case e => logger.warning(e, "Query failed")
-	      failedQueryCounter.incrementAndGet
+	    case e =>
+	      logger.warning(e, "Query %s failed", querySpec.query.name)
+	      if(!failedQueries.contains(queryDesc))
+		failedQueries.putIfAbsent(queryDesc, new AtomicInteger)
+	      failedQueries.get(queryDesc).incrementAndGet
 	  }
 	}
 	
@@ -139,7 +146,7 @@ case class QueryRunnerTask(var numClients: Int,
 	result.iteration = iteration
 	result.clientConfig = this
 	result.responseTimes = e.getValue
-	result.failedQueries = failedQueryCounter.get
+	result.failedQueries = Option(failedQueries.get(e.getKey)).map(_.get).getOrElse(0)
 	result
       })
     }
@@ -147,7 +154,7 @@ case class QueryRunnerTask(var numClients: Int,
     //Upload traces to S3
     if (traceQueries || traceIterators || traceMessages) {
       traceSink.flush()
-      TraceS3Cache.uploadFile(new File("/mnt/piqltrace.avro"), List(queryProvider, threads, iterations*iterationLengthMin, experimentRoot.name).mkString("/"), "client" + clientId)
+      TraceS3Cache.uploadFile(traceFile, List(queryProvider, threads, iterations*iterationLengthMin, experimentRoot.name).mkString("/"), "client" + clientId)
     }
   }
 

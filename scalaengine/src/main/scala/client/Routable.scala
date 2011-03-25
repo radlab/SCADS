@@ -122,13 +122,11 @@ trait DefaultKeyRoutableLike
     return keys
   }
 
-  private def loadRoutingTable() = getMetadata(ZOOKEEPER_ROUTING_TABLE) match {
-    case None => throw new RuntimeException("Can not load empty routing table")
-    case Some(data) => 
-      val rangeSeq = new RoutingTableMessage
-      rangeSeq.parse(data)
-      val partition = rangeSeq.partitions.map(a => new RangeType(a.startKey, a.servers))
-      createRoutingTable(partition.toArray)
+  private def loadRoutingTable(): Unit = {
+    val rangeSeq = new RoutingTableMessage
+    rangeSeq.parse(watchMetadata(ZOOKEEPER_ROUTING_TABLE, loadRoutingTable))
+    val partition = rangeSeq.partitions.map(a => new RangeType(a.startKey, a.servers))
+    createRoutingTable(partition.toArray)
   }
 
   /** create a routing table with the assumption that each PartitionService is going to handle
@@ -255,6 +253,7 @@ trait DefaultKeyRoutableLike
       endKey = startKey
       i -= 1
     }
+    logger.info("Setting new routing table: %s", rTable.toSeq)
     createRoutingTable(rTable) // sets _routingTable
     storeRoutingTable() // propogates via zookeeper
 
