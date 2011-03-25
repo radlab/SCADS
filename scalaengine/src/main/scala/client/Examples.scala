@@ -150,6 +150,7 @@ class PairNamespace[Pair <: AvroPair : Manifest](
 
   def getRecord(key: IndexedRecord): Option[Pair] = {
     val keyBytes = keyToBytes(key)
+
     getBytes(keyBytes).map(bytesToBulk(keyBytes, _))
   }
 }

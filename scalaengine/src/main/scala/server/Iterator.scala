@@ -132,6 +132,7 @@ class PartitionIterator(partitionService: PartitionService, minKey: Option[Array
     var outstandingRecordSets = 0
     var done = false
 
+
     loop {
       if(!done && outstandingRecordSets < bufferSize) {
         partitionService.!(GetRangeRequest(currentKey, maxKey, limit=Some(recsPerMessage)))

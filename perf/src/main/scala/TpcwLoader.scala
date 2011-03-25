@@ -8,6 +8,8 @@ import piql._
 import storage._
 import avro.runtime._
 import avro.marker._
+import edu.berkeley.cs.scads.piql.tpcw._
+
 
 import deploylib._
 import deploylib.mesos._
@@ -35,18 +37,14 @@ case class TpcwLoaderClient(var numServers: Int,
       cluster.blockUntilReady(numServers)
       loader.createNamespaces
       import tpcwClient._
-      List(address,
-           author,
-           authorNameItemIndex,
+      List(addresses,
+           authors,
            xacts,
-           country,
-           item, 
-           itemSubjectDateTitleIndex,
-           orderline,
-           order,
-           customerOrderIndex,
-           itemTitleIndex,
-           shoppingCartItem) foreach { ns => ns.setReadWriteQuorum(0.33, 0.67) }
+           countries,
+           items,
+           orderLines,
+           orders,
+           shoppingCartItems) foreach { ns => ns.setReadWriteQuorum(0.33, 0.67) }
     }
 
     coordination.registerAndAwait("startBulkLoad", numLoaders)
@@ -54,30 +52,30 @@ case class TpcwLoaderClient(var numServers: Int,
     val data = loader.getData(clientId)
 
     logger.info("Loading addresses")
-    tpcwClient.address ++= data.addresses
+    tpcwClient.addresses ++= data.addresses
     logger.info("Loading authors")
-    tpcwClient.author ++= data.authors
+    tpcwClient.authors ++= data.authors
     logger.info("Loading xacts")
     tpcwClient.xacts ++= data.xacts
     logger.info("Loading countries")
-    tpcwClient.country ++= data.countries
+    tpcwClient.countries ++= data.countries
     logger.info("Loading customers")
-    tpcwClient.customer ++= data.customers
+    tpcwClient.customers ++= data.customers
     logger.info("Loading items")
-    tpcwClient.item ++= data.items
+    tpcwClient.items ++= data.items
     logger.info("Loading orders")
-    tpcwClient.order ++= data.orders
+    tpcwClient.orders ++= data.orders
     logger.info("Loading orderlines")
-    tpcwClient.orderline ++= data.orderlines
-
-    logger.info("Loading author name indexes")
-    tpcwClient.authorNameItemIndex ++= data.authorNameItemIndexes
-    logger.info("Loading item subject date indexes")
-    tpcwClient.itemSubjectDateTitleIndex ++= data.itemSubjectDateTitleIndexes
-    logger.info("Loading customer order indexes")
-    tpcwClient.customerOrderIndex ++= data.customerOrderIndexes
-    logger.info("Loading item title indexes")
-    tpcwClient.itemTitleIndex ++= data.itemTitleIndexes
+    tpcwClient.orderLines ++= data.orderlines
+//
+//    logger.info("Loading author name indexes")
+//    tpcwClient.authorNameItemIndex ++= data.authorNameItemIndexes
+//    logger.info("Loading item subject date indexes")
+//    tpcwClient.itemSubjectDateTitleIndex ++= data.itemSubjectDateTitleIndexes
+//    logger.info("Loading customer order indexes")
+//    tpcwClient.customerOrderIndex ++= data.customerOrderIndexes
+//    logger.info("Loading item title indexes")
+//    tpcwClient.itemTitleIndex ++= data.itemTitleIndexes
 
     logger.info("Bulk loading complete")
     coordination.registerAndAwait("loadingComplete", numLoaders)
