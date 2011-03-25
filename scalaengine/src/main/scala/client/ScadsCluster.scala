@@ -135,10 +135,10 @@ class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) { self =>
     namespace
   }
 
-  def createNamespace[PairType <: AvroPair : Manifest](ns: String, servers: Seq[(Option[GenericRecord], Seq[StorageService])]): PairNamespace[PairType] = {
+  def createNamespace[PairType <: AvroPair : Manifest](ns: String, servers: Seq[(Option[IndexedRecord], Seq[StorageService])]): PairNamespace[PairType] = {
     val namespace = new PairNamespace[PairType](ns, self, namespaces)
     namespace.create()
-    namespace.setPartitionScheme(servers.map { case (optRec, seq) => (optRec.map(_.toBytes), seq) })
+    namespace.setPartitionScheme(servers.map { case (optRec, seq) => (optRec.map(namespace.keyToBytes), seq) })
     namespace
   }
 
