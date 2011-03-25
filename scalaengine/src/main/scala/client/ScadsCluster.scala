@@ -168,6 +168,13 @@ class ManagedScadsCluster(_root: ZooKeeperProxy#ZooKeeperNode) extends ScadsClus
     managedStorageNodes.clear()
   }
 
+  def blockUntilReady(clusterSize: Int): Unit = {
+    while(getAvailableServers.size < clusterSize) {
+      logger.info("Waiting for cluster to start " + cluster.getAvailableServers.size + " of " + clusterSize + " ready.")
+      Thread.sleep(1000)
+    }
+  }
+
   /** Ensure that this cluster is managing at least num nodes. Nodes are added
    * as necessary, but nodes will not be removed.*/
   def ensureCapacity(num: Int): Unit = {
