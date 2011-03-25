@@ -9,10 +9,13 @@ import storage._
 import avro.runtime._
 import avro.marker._
 import edu.berkeley.cs.scads.piql.tpcw._
-
+import edu.berkeley.cs.scads.comm.ZooKeeperNode
 
 import deploylib._
 import deploylib.mesos._
+import org.apache.zookeeper.CreateMode
+import edu.berkeley.cs.scads.comm.ZooKeeperHelper
+
 
 case class TpcwLoaderClient(var numServers: Int, 
                             var numLoaders: Int, 
@@ -23,7 +26,7 @@ case class TpcwLoaderClient(var numServers: Int,
   var clusterAddress: String = _
 
   def run() = {
-    val clusterRoot = ZooKeeperNode(clusterAddress)
+    var clusterRoot = ZooKeeperNode(clusterAddress)
     val coordination = clusterRoot.getOrCreate("coordination/loaders")
     val cluster = new ExperimentalScadsCluster(clusterRoot)
     val tpcwClient = new TpcwClient(cluster, new SimpleExecutor)
@@ -83,7 +86,6 @@ case class TpcwLoaderClient(var numServers: Int,
     if(clientId == 0)
       clusterRoot.createChild("clusterReady", data=this.toBytes)
 
-    System.exit(0)
   }
 
 }
