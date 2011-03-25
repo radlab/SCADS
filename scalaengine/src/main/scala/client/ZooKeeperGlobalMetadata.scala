@@ -27,8 +27,8 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
 
     val newRoot = root.createChild(name, Array.empty, CreateMode.PERSISTENT)
     initRoot(newRoot)
-
     nsRoot = newRoot
+    nsRoot.createChild("initialized")//TODO: we really aren't done yet!
   }
 
   // if NS exists, uses that data, otherwise creates a new one
