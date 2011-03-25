@@ -210,7 +210,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   val orderDisplayGetLastOrder =
     orders
       .where("O_C_UNAME".a === (0.?))
-      .sort("O_DATE".a :: Nil, false)
+      .sort("O_DATE_Time".a :: Nil, false)
       .limit(1)
       .join(addresses)
       .where("ADDR_ID".a === "O_BILL_ADDR_ID".a)
@@ -226,7 +226,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     orderLines.where("OL_O_ID".a === (0.?))
       .limit((1.?), maxOrderLinesPerPage)
       .join(items)
-      .where("OL_I_ID".a === "I_ID")
+      .where("OL_I_ID".a === "I_ID".a)
       .toPiql("orderDisplayGetOrderLines")
 
 

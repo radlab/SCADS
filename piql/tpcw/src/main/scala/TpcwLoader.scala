@@ -280,9 +280,10 @@ class TpcwLoader( val client : TpcwClient,
 
 
   def createNamespaces() = {
+    println("Create Addresses")
     val splits  = keySplits
     val address = client.cluster.createNamespace[Address]("addresses", splits.address)
-
+    println("Create Authors")
     val author = client.cluster.createNamespace[Author]("authors", splits.author)
     val authorFNameIdx = author.getOrCreateIndex("A_FNAME" :: Nil)
     //authorFNameIdx.setPartitionScheme(splits.authorname_item_index.map { case (optRec, seq) => (optRec.map(author.keyToBytes(_)), seq) } )
@@ -293,7 +294,7 @@ class TpcwLoader( val client : TpcwClient,
     val xacts =  client.cluster.createNamespace[CcXact]("xacts", splits.xacts)
 
     val country = client.cluster.createNamespace[Country]("countries", splits.country)
-
+    println("Create Customers")
     val customer = client.cluster.createNamespace[Customer]("customers", splits.customer)
 
     val item =  client.cluster.createNamespace[Item]("items", splits.item)
