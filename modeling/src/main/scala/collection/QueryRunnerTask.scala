@@ -71,7 +71,8 @@ case class QueryRunnerTask(var numClients: Int,
     clusterRoot.awaitChild("clusterReady")
     val cluster = new ScadsCluster(clusterRoot)
 
-    val traceSink = new FileTraceSink(new File("/mnt/piqltrace.avro"))
+    val traceFile = new File("piqltrace.avro")
+    val traceSink = new FileTraceSink(traceFile)
 
     val executor =
       if(traceIterators)
@@ -153,7 +154,7 @@ case class QueryRunnerTask(var numClients: Int,
     //Upload traces to S3
     if (traceQueries || traceIterators || traceMessages) {
       traceSink.flush()
-      TraceS3Cache.uploadFile(new File("/mnt/piqltrace.avro"), List(queryProvider, threads, iterations*iterationLengthMin, experimentRoot.name).mkString("/"), "client" + clientId)
+      TraceS3Cache.uploadFile(traceFile, List(queryProvider, threads, iterations*iterationLengthMin, experimentRoot.name).mkString("/"), "client" + clientId)
     }
   }
 
