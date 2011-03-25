@@ -38,12 +38,12 @@ object Experiments {
 
   def watchServiceScheduler = cluster.firstMaster.watch("/root/serviceScheduler.log")
   def debug(pkg: String) = net.lag.logging.Logger(pkg).setLevel(java.util.logging.Level.FINEST)
+  def expCluster(expId: Int) = 
+    new ScadsCluster(
+      ZooKeeperNode("zk://zoo.knowsql.org/home/marmbrus/scads/experimentCluster%010d".format(expId)))
+
   def scadrClient(expId: Int) = 
-    new ScadrClient(
-      new ScadsCluster(
-	ZooKeeperNode("zk://zoo.knowsql.org/home/marmbrus/scads/experimentCluster%010d".format(expId
-))),
-      new ParallelExecutor)
+    new ScadrClient(expCluster(expId), new ParallelExecutor)
 
   lazy val scadsCluster = new ScadsCluster(traceRoot)
   lazy val scadrClient = new piql.scadr.ScadrClient(scadsCluster, new ParallelExecutor)
@@ -148,9 +148,56 @@ object Experiments {
       benchmarkScadr(noRep)
     }
 
-    def benchmarkScadr(cluster: ScadsCluster = defaultScadr.newCluster) = {
-      defaultRunner.schedule(cluster,resultsCluster)
+    def testGenericRunner: Unit = {
+      val cluster = GenericRelationLoaderTask(4,2,2,10,1,500).newTestCluster
+      val runner = QueryRunnerTask(1,
+		      "edu.berkeley.cs.scads.piql.modeling.GenericQueryProvider",
+		      iterations=10,
+		      iterationLengthMin=1,
+		      threads=2,
+		      traceIterators=false,
+		      traceMessages=false,
+		      traceQueries=false)
+      runner.clusterAddress = cluster.root.canonicalAddress
+      runner.experimentAddress = cluster.root.canonicalAddress
+      runner.resultClusterAddress = cluster.root.canonicalAddress
+      while(cluster.getAvailableServers.size < 1) Thread.sleep(100)
+      val thread = new Thread(runner)
+      thread.start
     }
+
+    def genericCluster = 
+      GenericRelationLoaderTask(
+	numServers=10,
+	numLoaders=10,
+	replicationFactor=2,
+	tuplesPerServer=10000,
+	dataSize=10,
+	maxCardinality=500)
+    
+    def defaultGenericRunner =
+       QueryRunnerTask(numClients=10,
+		      "edu.berkeley.cs.scads.piql.modeling.GenericQueryProvider",
+		      iterations=30,
+		      iterationLengthMin=10,
+		      threads=2,
+		      traceIterators=false,
+		      traceMessages=false,
+		      traceQueries=false)
+
+    def scadrGenericBenchmark = {
+      val clust30 = genericCluster.copy(dataSize=30).newCluster
+      val clust40 = genericCluster.copy(dataSize=40).newCluster
+
+      genericBenchmark(clust30)
+      genericBenchmark(clust30)
+    }
+
+    def genericBenchmark(cluster: ScadsCluster = genericCluster.newCluster) =
+      defaultGenericRunner.schedule(cluster, resultsCluster)
+
+    def benchmarkScadr(cluster: ScadsCluster = defaultScadr.newCluster) =
+      defaultRunner.schedule(cluster,resultsCluster)
   }
 
   object ScadrScaleExperiment {
@@ -186,12 +233,12 @@ object Experiments {
 		      yunit="milliseconds")
 
     def threadCountResults =
-      new ScatterPlot(results.getRange(None, None)
-			     .filter(_.iteration != 1)
+      new ScatterPlot(results.iterateOverRange(None, None)
+			     .filter(_.iteration != 1).toSeq
 			     .groupBy(_.clientConfig.threads)
 			     .map {
-			       case (users, results) => 
-				 (users, results.map(_.times)
+			       case (threads, results) => 
+				 (threads, results.map(_.times)
 						.reduceLeft(_+_)
 						.quantile(.99))
 			     }.toSeq,
