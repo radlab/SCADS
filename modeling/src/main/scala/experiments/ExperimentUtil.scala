@@ -31,12 +31,6 @@ object ExperimentUtil {
 			.filter(_.clientConfig.iterationLengthMin == 10)
 			.filter(_.clientConfig.numClients == 50)
 
-  def experimentResults = allResults.filter(_.clientConfig.experimentAddress contains "experiment0000000164")
-  
-  def goodExperimentResults = experimentResults.filter(_.failedQueries < 200)
-			.filterNot(_.iteration == 1)
-			.filter(_.clientConfig.iterationLengthMin == 10)
-  
   // get all of the querytypes in this results set
   def queryTypes(results: Seq[Result] = goodResults.toSeq):HashSet[String] = {
     val set = new HashSet[String]()
