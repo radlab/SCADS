@@ -116,10 +116,10 @@ object Experiments {
 		  quantileCsv("usersFollowedBy")
 		}
 		
-    def defaultScadr = ScadrLoaderTask(numServers=50,
-				       numLoaders=50,
+    def defaultScadr = ScadrLoaderTask(numServers=10,
+				       numLoaders=10,
 				       followingCardinality=500,
-				       replicationFactor=1,
+				       replicationFactor=2,
 				       usersPerServer=20000,
 				       thoughtsPerUser=100
 				     )
@@ -127,12 +127,12 @@ object Experiments {
     def testScadrCluster = ScadrLoaderTask(numServers=10,
 				  numLoaders=10,
 				  followingCardinality=100,
-				  replicationFactor=1,
+				  replicationFactor=2,
 				  usersPerServer=100,
 				  thoughtsPerUser=100
 				 )
     val defaultRunner = 
-      QueryRunnerTask(50,
+      QueryRunnerTask(10,
 		      "edu.berkeley.cs.scads.piql.modeling.ScadrQueryProvider",
 		      iterations=30,
 		      iterationLengthMin=10,
@@ -188,9 +188,11 @@ object Experiments {
     def scadrGenericBenchmark = {
       val clust30 = genericCluster.copy(dataSize=30).newCluster
       val clust40 = genericCluster.copy(dataSize=40).newCluster
+      val scadrCluster = defaultScadr.newCluster
 
       genericBenchmark(clust30)
       genericBenchmark(clust40)
+      benchmarkScadr(scadrCluster)
     }
 
     def genericBenchmark(cluster: ScadsCluster = genericCluster.newCluster) =
