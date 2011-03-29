@@ -81,7 +81,9 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
     Schema.parse(new String(nsRoot("valueSchema").data))
 
   override def watchMetadata(key: String, func: () => Unit): Array[Byte] = {
+    nsRoot.awaitChild(key) //HACK until we figure out the race conditions in startup
     logger.info("Watching metadata %s for %s", key, namespace) 
+
     nsRoot(key).onDataChange(func)
   }
 
