@@ -14,7 +14,9 @@ import ch.ethz.systems.tpcw.populate.data.Generator
 import java.util.UUID
 import ch.ethz.systems.tpcw.populate.data.objects._
 import collection.mutable.{ArrayBuffer, HashMap}
-import org.apache.avro.generic.GenericRecord
+import org.apache.avro.generic.IndexedRecord
+import edu.berkeley.cs.avro.runtime._
+import org.apache.avro.util.Utf8
 
 
 class TpcwLoader( val client : TpcwClient,
@@ -165,15 +167,10 @@ class TpcwLoader( val client : TpcwClient,
   def toOrder(id: Int) =
     nameUuid("order%d".format(id))
 
-  def keySplits: TpcwKeySplits = {
-    val allServerSplitKey = List[(Option[GenericRecord], Seq[StorageService])]((None, client.cluster.getAvailableServers)  )
+  def simpleKeySplits :  TpcwTableSplits = {
+    val allServerSplitKey = List[(Option[IndexedRecord], Seq[StorageService])]((None, client.cluster.getAvailableServers)  )
 
-
-    TpcwKeySplits(allServerSplitKey,
-      allServerSplitKey,
-      allServerSplitKey,
-      allServerSplitKey,
-      allServerSplitKey,
+    TpcwTableSplits(allServerSplitKey,
       allServerSplitKey,
       allServerSplitKey,
       allServerSplitKey,
@@ -182,101 +179,162 @@ class TpcwLoader( val client : TpcwClient,
       allServerSplitKey,
       allServerSplitKey,
       allServerSplitKey)
-
-//
-//    val servers = client.cluster.getAvailableServers
-//    val clusterSize = servers.size
-//
-//    val hexSplits = hexSplit(clusterSize) zip servers
-//    val printableCharSplits = printableCharSplit(clusterSize) zip servers
-//
-//    // use sampling to create splits for ItemSubjectDateTitleIndexKey
-//    // use 1000x the number of available servers as the number of samples to
-//    // take
-//
-//    val itemSubjSamples = (1 to 1000 * clusterSize)
-//      .map(_ => rand.nextInt(numItems) + 1)
-//      .map(i => createItemSubjectDateTitleIndex(createItem(i)))
-//      .sortWith { case ((ItemSubjectDateTitleIndexKey(x1, x2, _), _), (ItemSubjectDateTitleIndexKey(y1, y2, _), _)) =>
-//        x1 < y1 || (x1 == y1 && x2 < y2)
-//      }.toIndexedSeq
-//
-//    val itemSubDateTitleIndexSplits =
-//      None +: (1 until clusterSize).map(i => Some(itemSubjSamples(i * 1000)._1))
-//
-//    logger.info("itemSubDateTitleIndexSplits: %s", itemSubDateTitleIndexSplits)
-//
-//    val itemTitleSamples = (1 to 1000 * clusterSize)
-//      .map(_ => rand.nextInt(numItems) + 1)
-//      .flatMap(i => createItemTitleIndex(createItem(i)))
-//      .sortWith { case ((ItemTitleIndexKey(x1, x2, _), _), (ItemTitleIndexKey(y1, y2, _), _)) =>
-//        x1 < y1 || (x1 == y1 && x2 < y2)
-//      }.toIndexedSeq
-//
-//    val stepSize = itemTitleSamples.size.toDouble / clusterSize.toDouble
-//    assert(stepSize > 0.0)
-//
-//    val itemTitleIndexSplits =
-//      None +: (1 until clusterSize).map(i => Some(itemTitleSamples((i.toDouble * stepSize).toInt)._1))
-//
-//    // assume no replication factor
-//    TpcwKeySplits(
-//      // addresses
-//      hexSplits.map(x => (x._1.map(AddressKey(_)), List(x._2))),
-//
-//      // authors
-//      hexSplits.map(x => (x._1.map(AuthorKey(_)), List(x._2))),
-//
-//      // authorname_item_indexes
-//      hexSplits.map(x => (x._1.map(AuthorNameItemIndexKey(_, "", "")), List(x._2))),
-//
-//      // xacts
-//      hexSplits.map(x => (x._1.map(CcXactsKey(_)), List(x._2))),
-//
-//      // countries
-//      (rangeSplit(numCountries, clusterSize) zip servers).map(x => (x._1.map(CountryKey(_)), List(x._2))),
-//
-//      // customers
-//      hexSplits.map(x => (x._1.map(CustomerKey(_)), List(x._2))),
-//
-//      // items
-//      hexSplits.map(x => (x._1.map(ItemKey(_)), List(x._2))),
-//
-//      // item_subject_date_title_indexes
-//      (itemSubDateTitleIndexSplits zip servers).map(x => (x._1, List(x._2))),
-//
-//      // orderlines
-//      hexSplits.map(x => (x._1.map(OrderLineKey(_, 0)), List(x._2))),
-//
-//      // orders
-//      hexSplits.map(x => (x._1.map(OrdersKey(_)), List(x._2))),
-//
-//      // customer_indexes
-//      hexSplits.map(x => (x._1.map(CustomerOrderIndex(_, 0, "")), List(x._2))),
-//
-//      // title_indexes
-//      (itemTitleIndexSplits zip servers).map(x => (x._1, List(x._2))),
-//
-//      // shopping_carts
-//      hexSplits.map(x => (x._1.map(ShoppingCartItemKey(_, "")), List(x._2)))
-//    )
   }
 
-  case class TpcwKeySplits(
-    address: Seq[(Option[GenericRecord], Seq[StorageService])],
-    author: Seq[(Option[GenericRecord], Seq[StorageService])],
-    authorname_item_index: Seq[(Option[GenericRecord], Seq[StorageService])],
-    xacts: Seq[(Option[GenericRecord], Seq[StorageService])],
-    country: Seq[(Option[GenericRecord], Seq[StorageService])],
-    customer: Seq[(Option[GenericRecord], Seq[StorageService])],
-    item: Seq[(Option[GenericRecord], Seq[StorageService])],
-    item_subject_date_title_index: Seq[(Option[GenericRecord], Seq[StorageService])],
-    orderline: Seq[(Option[GenericRecord], Seq[StorageService])],
-    orders: Seq[(Option[GenericRecord], Seq[StorageService])],
-    customer_index: Seq[(Option[GenericRecord], Seq[StorageService])],
-    title_index : Seq[(Option[GenericRecord], Seq[StorageService])],
-    shopping_cart : Seq[(Option[GenericRecord], Seq[StorageService])]
+
+
+
+  def keySplits: TpcwTableSplits = {
+
+    val servers = client.cluster.getAvailableServers
+    val clusterSize = servers.size
+
+    val hexSplits = hexSplit(clusterSize) zip servers
+    val printableCharSplits = printableCharSplit(clusterSize) zip servers
+
+    // assume no replication factor
+    TpcwTableSplits(
+      // addresses
+      hexSplits.map(x => (x._1.map(Address(_).key), List(x._2))),
+
+      // authors
+      hexSplits.map(x => (x._1.map(Author(_).key), List(x._2))),
+
+      // xacts
+      hexSplits.map(x => (x._1.map(CcXact(_).key), List(x._2))),
+
+      // countries
+      (rangeSplit(numCountries, clusterSize) zip servers).map(x => (x._1.map(Country(_).key), List(x._2))),
+
+      // customers
+      hexSplits.map(x => (x._1.map(Customer(_).key), List(x._2))),
+
+      // items
+      hexSplits.map(x => (x._1.map(Item(_).key), List(x._2))),
+
+      // orderlines
+      hexSplits.map(x => (x._1.map(OrderLine(_, 0).key), List(x._2))),
+
+      // orders
+      hexSplits.map(x => (x._1.map(Order(_).key), List(x._2))),
+
+      // shopping_carts
+      hexSplits.map(x => (x._1.map(ShoppingCartItem(_, "").key), List(x._2)))
+
     )
+  }
+
+  case class TpcwTableSplits(
+    address: Seq[(Option[IndexedRecord], Seq[StorageService])],
+    author: Seq[(Option[IndexedRecord], Seq[StorageService])],
+    xacts: Seq[(Option[IndexedRecord], Seq[StorageService])],
+    country: Seq[(Option[IndexedRecord], Seq[StorageService])],
+    customer: Seq[(Option[IndexedRecord], Seq[StorageService])],
+    item: Seq[(Option[IndexedRecord], Seq[StorageService])],
+    orderline: Seq[(Option[IndexedRecord], Seq[StorageService])],
+    orders: Seq[(Option[IndexedRecord], Seq[StorageService])],
+    shopping_cart : Seq[(Option[IndexedRecord], Seq[StorageService])]
+  )
+
+
+  def indexSplits(authorFNameIdx : IndexNamespace, itemSubDateTitleIdx : IndexNamespace, itemTitleIdx : IndexNamespace, custOrderIdx : IndexNamespace) : TpcwIndexSplits = {
+     // use sampling to create splits for ItemSubjectDateTitleIndexKey
+    // use 1000x the number of available servers as the number of samples to
+    // take
+    val servers = client.cluster.getAvailableServers
+    val clusterSize = servers.size
+    val hexSplits = hexSplit(clusterSize) zip servers
+
+    val itemSubjSamples = (1 to 1000 * clusterSize)
+      .map(_ => rand.nextInt(numItems) + 1)
+      .map(i => createItemSubjectDateTitleIndex(itemSubDateTitleIdx, createItem(i)))
+      .sortWith { case (a : IndexedRecord, b : IndexedRecord) => a < b
+      }.toIndexedSeq
+
+    val itemSubDateTitleIndexSplits =
+      None +: (1 until clusterSize).map(i => Some(itemSubjSamples(i * 1000)))
+
+    logger.info("itemSubDateTitleIndexSplits: %s", itemSubDateTitleIndexSplits)
+
+    val itemTitleSamples = (1 to 1000 * clusterSize)
+      .map(_ => rand.nextInt(numItems) + 1)
+      .flatMap(i => createItemTitleIndex(itemTitleIdx, createItem(i)))
+      .sortWith {  case (a : IndexedRecord, b : IndexedRecord) => a < b
+      }.toIndexedSeq
+
+    val stepSize = itemTitleSamples.size.toDouble / clusterSize.toDouble
+      assert(stepSize > 0.0)
+
+    val itemTitleIndexSplits =
+      None +: (1 until clusterSize).map(i => Some(itemTitleSamples((i.toDouble * stepSize).toInt)))
+
+    TpcwIndexSplits(
+      // authorname_item_indexes
+      hexSplits.map(x => (x._1.map(createString2Split(authorFNameIdx, _)), List(x._2))),
+      // item_subject_date_title_indexes
+      (itemSubDateTitleIndexSplits zip servers).map(x => (x._1, List(x._2))),
+      // customer_indexes
+      hexSplits.map(x => (x._1.map(createCustOrderIndexes(custOrderIdx, _)), List(x._2))),
+      // title_indexes
+      (itemTitleIndexSplits zip servers).map(x => (x._1, List(x._2)))
+    )
+
+  }
+
+  case class TpcwIndexSplits(
+    authorname_item_index: Seq[(Option[IndexedRecord], Seq[StorageService])],
+    item_subject_date_title_index: Seq[(Option[IndexedRecord], Seq[StorageService])],
+    customer_index: Seq[(Option[IndexedRecord], Seq[StorageService])],
+    title_index : Seq[(Option[IndexedRecord], Seq[StorageService])]
+  )
+
+  def createString2Split(idx : IndexNamespace,  split : String) : IndexedRecord = {
+    var key = idx.newKeyInstance
+    key.put(0, new Utf8(split))
+    key.put(1, new Utf8(""))
+    key
+  }
+
+  def createCustOrderIndexes(idx : IndexNamespace,  split : String) : IndexedRecord = {
+    var key = idx.newKeyInstance
+    key.put(0, new Utf8(split))
+    key.put(1, 0L)
+    key.put(2, new Utf8(""))
+    key
+  }
+
+  def createAuthorNameItemIndexes(idx : IndexNamespace, item: Item) : Seq[IndexedRecord] = {
+    var key1 = idx.newKeyInstance
+    key1.put(0, new Utf8(toAuthorFname(item.A_ID) ))
+    key1.put(1, new Utf8(item.I_TITLE) )
+    key1.put(2, new Utf8(item.I_ID ) )
+    var key2 = idx.newKeyInstance
+    key2.put(0, new Utf8(toAuthorLname(item.A_ID) ))
+    key2.put(1, new Utf8(item.I_TITLE ))
+    key2.put(2, new Utf8(item.I_ID ))
+    Seq( key1, key2)
+  }
+
+  def createItemSubjectDateTitleIndex(idx : IndexNamespace, item: Item) : IndexedRecord  = {
+    var key = idx.newKeyInstance
+    key.put(0, new Utf8(item.I_SUBJECT ))
+    key.put(1, item.I_PUB_DATE )
+    key.put(2, new Utf8(item.I_TITLE ))
+    key.put(3, new Utf8(item.I_ID ) )
+    key
+  }
+
+  def createItemTitleIndex(idx : IndexNamespace, item: Item) : Seq[IndexedRecord] = {
+    var key = idx.newKeyInstance
+
+    item.I_TITLE.split("\\s+").map(token => {
+      var key = idx.newKeyInstance
+      key.put(0, new Utf8(token.toLowerCase ))
+      //key.put(1, item.I_TITLE )
+      key.put(1, new Utf8(item.I_ID) )
+      key
+    })
+  }
 
 
   def createNamespaces() = {
@@ -285,31 +343,34 @@ class TpcwLoader( val client : TpcwClient,
     val address = client.cluster.createNamespace[Address]("addresses", splits.address)
     println("Create Authors")
     val author = client.cluster.createNamespace[Author]("authors", splits.author)
-    val authorFNameIdx = author.getOrCreateIndex("A_FNAME" :: Nil)
-    //authorFNameIdx.setPartitionScheme(splits.authorname_item_index.map { case (optRec, seq) => (optRec.map(author.keyToBytes(_)), seq) } )
-
-    val authorLNameIdx = author.getOrCreateIndex("A_LNAME" :: Nil)
-    //authorFNameIdx.setPartitionScheme(splits.authorname_item_index.map { case (optRec, seq) => (optRec.map(author.keyToBytes(_)), seq) } )
-
     val xacts =  client.cluster.createNamespace[CcXact]("xacts", splits.xacts)
-
     val country = client.cluster.createNamespace[Country]("countries", splits.country)
     println("Create Customers")
     val customer = client.cluster.createNamespace[Customer]("customers", splits.customer)
-
     val item =  client.cluster.createNamespace[Item]("items", splits.item)
-    val itemSubDateTitleIdx =  item.getOrCreateIndex("I_SUBJECT" :: "I_PUB_DATE" :: "I_TITLE" :: Nil)
-    //itemSubDateTitleIdx.setPartitionScheme(splits.item_subject_date_title_index.map { case (optRec, seq) => (optRec.map(item.keyToBytes(_)), seq) } )
-    val itemTitleIdx =   item.getOrCreateIndex("I_TITLE" :: Nil)
-    //itemTitleIdx.setPartitionScheme(splits.title_index.map { case (optRec, seq) => (optRec.map(item.keyToBytes(_.toBytes)), seq) } )
-
     val orderline =   client.cluster.createNamespace[OrderLine]("orderLines", splits.orderline)
-
     val order =  client.cluster.createNamespace[Order]("orders", splits.orders)
-    val custOrderIdx = order.getOrCreateIndex( "O_C_UNAME" :: "O_DATE_Time" :: Nil)
-    //custOrderIcx.setPartitionScheme(splits.customer_index.map { case (optRec, seq) => (optRec.map(_.toBytes), seq) } )
-
     val cart = client.cluster.createNamespace[ShoppingCartItem]("shoppingCartItems", splits.shopping_cart)
+
+
+    // Indexes
+
+    val authorFNameIdx = author.getOrCreateIndex("A_FNAME" :: Nil)
+
+    //val authorLNameIdx = author.getOrCreateIndex("A_LNAME" :: Nil)
+    //authorLNameIdx.setPartitionScheme(splits.authorname_item_index.map { case (optRec, seq) => (optRec.map(author.keyToBytes(_)), seq) } )
+    val itemSubDateTitleIdx =  item.getOrCreateIndex("I_SUBJECT" :: "I_PUB_DATE" :: "I_TITLE" :: Nil)
+    //
+    val itemTitleIdx =   item.getOrCreateIndex("I_TITLE" :: Nil)
+    //
+    val custOrderIdx = order.getOrCreateIndex( "O_C_UNAME" :: "O_DATE_Time" :: Nil)
+
+    val idxSplits = indexSplits(authorFNameIdx, itemSubDateTitleIdx, itemTitleIdx, custOrderIdx)
+
+    authorFNameIdx.setPartitionScheme(idxSplits.authorname_item_index.map { case (optRec, seq) => (optRec.map(authorFNameIdx.keyToBytes(_)), seq) } )
+    itemSubDateTitleIdx.setPartitionScheme(idxSplits.item_subject_date_title_index.map { case (optRec, seq) => (optRec.map(itemSubDateTitleIdx.keyToBytes(_)), seq) } )
+    itemTitleIdx.setPartitionScheme(idxSplits.title_index.map { case (optRec, seq) => (optRec.map(itemTitleIdx.keyToBytes(_)), seq) } )
+    custOrderIdx.setPartitionScheme(idxSplits.customer_index.map { case (optRec, seq) => (optRec.map(custOrderIdx.keyToBytes(_)), seq) } )
   }
 
   case class TpcwData(
@@ -465,21 +526,7 @@ class TpcwLoader( val client : TpcwClient,
     item
   }
 
-//  def createAuthorNameItemIndexes(item: (ItemKey, ItemValue)) : Seq[(AuthorNameItemIndexKey, NullRecord)] = {
-//    Seq(
-//      (AuthorNameItemIndexKey(toAuthorFname(item._2.A_ID), item._2.I_TITLE, item._1.I_ID), NullRecord(true)),
-//      (AuthorNameItemIndexKey(toAuthorLname(item._2.A_ID), item._2.I_TITLE, item._1.I_ID), NullRecord(true)))
-//  }
 
-//  def createItemSubjectDateTitleIndex(item: (ItemKey, ItemValue)) : (ItemSubjectDateTitleIndexKey, ItemKey) = {
-//    (ItemSubjectDateTitleIndexKey(item._2.I_SUBJECT, item._2.I_PUB_DATE, item._2.I_TITLE), item._1.copy())
-//  }
-
-//  def createItemTitleIndex(item: (ItemKey, ItemValue)) : Seq[(ItemTitleIndexKey, NullRecord)] = {
-//    item._2.I_TITLE.split("\\s+").map(token => {
-//      (ItemTitleIndexKey(token.toLowerCase, item._2.I_TITLE, item._1.I_ID), NullRecord(true))
-//    })
-//  }
 
   def createCountry(countryId : Int) : Country = {
     val to = Generator.generateCountry(countryId).asInstanceOf[CountryTO]
