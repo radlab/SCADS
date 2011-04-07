@@ -34,6 +34,7 @@ class Repl extends CometActor {
   //HACK
   val sbtJars = deploylib.Util.readFile(new File("allJars")).split("\n").map(new File(_))
 
+//  settings.usejavacp.value = true
   settings.classpath.value = (sbtJars ++ contextJars).mkString(":")
   logger.info("Using classpath: %s", settings.classpath.value)
   private val stream = new ByteArrayOutputStream
@@ -80,7 +81,19 @@ val initSeq = deploylib.Util.readFile(new java.io.File("setup.scala"))
     partialUpdate(CmdPair(AppendHtml("history", text), JsRaw("""var objDiv = document.getElementById("history"); objDiv.scrollTop = objDiv.scrollHeight;""")))
   }
 
-  def render: RenderOut = <span></span>
+  def render: RenderOut = 
+    Script(cmdLineHandler.jsCmd) ++
+    //HACK
+    Script(JsRaw("""var cmdline =$('#cmdline').cmd({
+      prompt: 'scala>',
+      width: '100%',
+      commands: function(command) {""" +
+        cmdLineHandler.call("interpret", JsRaw("command")).toJsCmd +
+     """}});""")
+    ) ++ <br/> ++ <h2>> ScratchPad</h2> ++
+    <button onClick={cmdLineHandler.call("interpret", JsRaw("document.getElementById(\"scratchpad\").value.substring(document.getElementById(\"scratchpad\").selectionStart, document.getElementById(\"scratchpad\").selectionEnd)")).toJsCmd}>execute</button> ++
+    <textarea id="scratchpad" onClick="cmdline.disable()">
+    </textarea>
 
   val cmdLineHandler = new JsonHandler {
     def apply(in : Any) : JsCmd = in match {
@@ -92,15 +105,5 @@ val initSeq = deploylib.Util.readFile(new java.io.File("setup.scala"))
     }
   }
 
-  override lazy val fixedRender: Box[NodeSeq] = {
-    Script(cmdLineHandler.jsCmd) ++
-    //HACK
-    Script(JsRaw("""$('#cmdline').cmd({
-      prompt: 'scala>',
-      width: '100%',
-      commands: function(command) {""" +
-        cmdLineHandler.call("interpret", JsRaw("command")).toJsCmd +
-     """}});""")
-    )
-  }
+  override lazy val fixedRender: Box[NodeSeq] = None
 }
