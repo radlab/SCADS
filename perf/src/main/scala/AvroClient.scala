@@ -29,6 +29,8 @@ abstract trait DataLoadingTask extends ExperimentTask {
 
   var clusterAddress: String 
 
+  lazy val clusterRoot = ZooKeeperNode(clusterAddress)
+
   def newTestCluster(): ScadsCluster = {
     val cluster = TestScalaEngine.newScadsCluster(numServers)
     clusterAddress = cluster.root.canonicalAddress

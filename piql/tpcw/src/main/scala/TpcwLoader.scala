@@ -41,10 +41,10 @@ class TpcwLoader( val client : TpcwClient,
 
   /** Cardinalities defined by clause 4.3 */
 
-	val numCustomers : Int = (numEBs * 2880).intValue
-	val numAddresses : Int = 2 * numCustomers
-	val numAuthors : Int = (.25 * numItems).intValue
-	val numOrders : Int = (.9 * numCustomers).intValue
+  val numCustomers : Int = (numEBs * 2880).intValue
+  val numAddresses : Int = 2 * numCustomers
+  val numAuthors : Int = (.25 * numItems).intValue
+  val numOrders : Int = (.9 * numCustomers).intValue
   val numCountries : Int = 92
 
   val rand = new scala.util.Random
