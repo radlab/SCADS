@@ -49,6 +49,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
   })
 
   lazy val repl = project("repl", "repl", new DefaultWebProject(_) with AvroCompilerPlugin with IdeaProject  {
+    override def scanDirectories = Nil
     val snapshots = ScalaToolsSnapshots
     val lift = "net.liftweb" %% "lift-mapper" % "2.2-SNAPSHOT" % "compile"
     val jetty6 = "org.mortbay.jetty" % "jetty" % "6.1.25" % "test"
