@@ -25,6 +25,7 @@ object TestScalaEngine {
     val cluster = new ManagedScadsCluster(zooRoot)
     cluster ensureExactly numNodes
     cluster
+
   }
 
 }

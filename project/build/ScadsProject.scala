@@ -63,7 +63,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
 
   lazy val modeling    = project("modeling", "modeling", new ScadsSubProject(_), piql, perf, deploylib, scadr)
   lazy val piql      = project("piql", "piql", new ScadsSubProject(_) with IdeaProject, config, avro, comm, scalaengine)
-  lazy val perf      = project("perf", "performance", new ScadsSubProject(_) with IdeaProject, config, avro, comm, scalaengine, piql, deploylib, scadr)
+  lazy val perf      = project("perf", "performance", new ScadsSubProject(_) with IdeaProject, config, avro, comm, scalaengine, piql, deploylib, scadr, tpcw)
   lazy val director    = project("director", "director", new ScadsSubProject(_) with IdeaProject, scalaengine, deploylib)
 
   lazy val spamFeatures = project("twitter" / "spamfeatures", "spamfeatures", new ScadsSubProject(_) {
@@ -80,6 +80,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
 
   /* PIQL Apps */
   lazy val scadr  = project("piql" / "scadr", "scadr", new ScadsSubProject(_) with IdeaProject, piql)
+  lazy val tpcw  = project("piql" / "tpcw", "tpcw", new ScadsSubProject(_) with IdeaProject, piql)
   lazy val gradit = project("piql" / "gradit", "gradit", new ScadsSubProject(_) with IdeaProject, piql)
   lazy val comrades = project("piql" / "comrades", "comrades", new ScadsSubProject(_) with IdeaProject, piql)
 
