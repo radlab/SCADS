@@ -273,7 +273,7 @@ trait HasTraversableConversions {
     def apply(s: Schema, a: GenericArray[FromElem]) = {
       import scala.collection.JavaConversions._
       val res = 
-        if (trfm.isIdentity || trfm.isBox) asIterator(a.iterator.asInstanceOf[JIterator[ToElem]])
+        if (trfm.isIdentity || trfm.isBox) asScalaIterator(a.iterator.asInstanceOf[JIterator[ToElem]])
         else a.iterator.map(trfm.curried(s.getElementType))
       val builder = bf.newBuilder
       builder ++= res

@@ -15,7 +15,7 @@ import org.apache.avro.specific.SpecificRecord
 class RichIndexedRecord[T <: IndexedRecord](val rec: T) {
   lazy val reader = new GenericDatumReader[T](rec.getSchema())
 
-  @inline def toJson: String = {
+  final def toJson: String = {
     val outBuffer = new ByteArrayOutputStream
     val encoder = new JsonEncoder(rec.getSchema(), outBuffer)
     val writer = new GenericDatumWriter[IndexedRecord](rec.getSchema())
@@ -24,7 +24,7 @@ class RichIndexedRecord[T <: IndexedRecord](val rec: T) {
     new String(outBuffer.toByteArray)
   }
 
-  @inline def toBytes: Array[Byte] = {
+  final def toBytes: Array[Byte] = {
     val outBuffer = new ByteArrayOutputStream
     val encoder = new BinaryEncoder(outBuffer)
     val writer = new GenericDatumWriter[IndexedRecord](rec.getSchema())
@@ -32,17 +32,17 @@ class RichIndexedRecord[T <: IndexedRecord](val rec: T) {
     outBuffer.toByteArray
   }
 
-  @inline def parse(data: String): T = {
+  final def parse(data: String): T = {
     val decoder = new JsonDecoder(rec.getSchema, data)
     reader.read(rec, decoder)
   }
 
-  @inline def parse(data: Array[Byte]): T = {
+  final def parse(data: Array[Byte]): T = {
     val decoder = DecoderFactory.defaultFactory().createBinaryDecoder(data, null)
     reader.read(rec, decoder)
   }
 
-  @inline def toGenericRecord: GenericData.Record = {
+  final def toGenericRecord: GenericData.Record = {
     val genRec = new GenericData.Record(rec.getSchema())
     rec.getSchema().getFields.foreach(f => genRec.put(f.pos, rec.get(f.pos) match {
       case r: IndexedRecord => r.toGenericRecord
@@ -51,16 +51,16 @@ class RichIndexedRecord[T <: IndexedRecord](val rec: T) {
     genRec
   }
 
-  def toSpecificRecord[SR <: SpecificRecord](implicit m: Manifest[SR]): SR = {
+  final def toSpecificRecord[SR <: SpecificRecord](implicit m: Manifest[SR]): SR = {
     val specific = m.erasure.newInstance.asInstanceOf[SR]
     ScalaSpecificRecordHelpers.fromGenericRecord(specific, rec)
     specific
   }
 
-  def compare(lhs: T): Int = GenericData.get.compare(rec, lhs, rec.getSchema())
-  def >(lhs: T): Boolean = compare(lhs) > 0
-  def <(lhs: T): Boolean = compare(lhs) < 0
-  def >=(lhs: T): Boolean = compare(lhs) >= 0
-  def <=(lhs: T): Boolean = compare(lhs) <= 0
-  def ==(lhs: T): Boolean = compare(lhs) == 0
+  @inline final def compare(lhs: T): Int = GenericData.get.compare(rec, lhs, rec.getSchema())
+  final def >(lhs: T): Boolean = compare(lhs) > 0
+  final def <(lhs: T): Boolean = compare(lhs) < 0
+  final def >=(lhs: T): Boolean = compare(lhs) >= 0
+  final def <=(lhs: T): Boolean = compare(lhs) <= 0
+  final def ==(lhs: T): Boolean = compare(lhs) == 0
 }
