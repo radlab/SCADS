@@ -156,19 +156,15 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watc
 
     def children: List[ZooKeeperNode] =
       childrenMap.map(_._2).toList
-    @deprecated("to be removed - use children instead")
-    def cachedChildren: Iterable[ZooKeeperNode] = children
-
-    def data: Array[Byte] = getData(false)
-    @deprecated("to be removed - use data instead")
-    def cachedData: Array[Byte] = data 
 
     def data_=(d: Array[Byte]) {
       conn.setData(path, d, -1)
     }
 
+    def data: Array[Byte] = getData(false)
+
     def createChild(name: String, data: Array[Byte] = Array.empty, mode: CreateMode = CreateMode.PERSISTENT): ZooKeeperNode =
-      getOrElseUpdateNode(fullPath(name), newNode(fullPath(name), data, mode))
+      newNode(fullPath(name), data, mode)
 
     @inline private def safeDelete(path: String): Boolean = {
       try {
