@@ -22,7 +22,8 @@ import org.apache.avro.util.Utf8
 class TpcwLoader( val client : TpcwClient,
                   val numClients: Int, // Number of LOADING clients
                   val numEBs : Double,
-                  val numItems : Int ) {
+                  val numItems : Int,
+                  val replicationFactor: Int ) {
 
   private val logger = Logger("edu.berkeley.cs.scads.piql.TpcwLoader")
 
@@ -167,73 +168,52 @@ class TpcwLoader( val client : TpcwClient,
   def toOrder(id: Int) =
     nameUuid("order%d".format(id))
 
-  def simpleKeySplits :  TpcwTableSplits = {
-    val allServerSplitKey = List[(Option[IndexedRecord], Seq[StorageService])]((None, client.cluster.getAvailableServers)  )
 
-    TpcwTableSplits(allServerSplitKey,
-      allServerSplitKey,
-      allServerSplitKey,
-      allServerSplitKey,
-      allServerSplitKey,
-      allServerSplitKey,
-      allServerSplitKey,
-      allServerSplitKey,
-      allServerSplitKey)
-  }
-
-
-
-
-  def keySplits: TpcwTableSplits = {
-
-    val servers = client.cluster.getAvailableServers
-    val clusterSize = servers.size
-
-    val hexSplits = hexSplit(clusterSize) zip servers
-    val printableCharSplits = printableCharSplit(clusterSize) zip servers
+  def keySplits(clusterSize: Int): TpcwTableSplits = {
+    val hexSplits = hexSplit(clusterSize)
+    val printableCharSplits = printableCharSplit(clusterSize)
 
     // assume no replication factor
     TpcwTableSplits(
       // addresses
-      hexSplits.map(x => (x._1.map(Address(_).key), List(x._2))),
+      hexSplits.map(_.map(Address(_).key)),
 
       // authors
-      hexSplits.map(x => (x._1.map(Author(_).key), List(x._2))),
+      hexSplits.map(_.map(Author(_).key)),
 
       // xacts
-      hexSplits.map(x => (x._1.map(CcXact(_).key), List(x._2))),
+      hexSplits.map(_.map(CcXact(_).key)),
 
       // countries
-      (rangeSplit(numCountries, clusterSize) zip servers).map(x => (x._1.map(Country(_).key), List(x._2))),
+      (rangeSplit(numCountries, clusterSize)).map(_.map(Country(_).key)),
 
       // customers
-      hexSplits.map(x => (x._1.map(Customer(_).key), List(x._2))),
+      hexSplits.map(_.map(Customer(_).key)),
 
       // items
-      hexSplits.map(x => (x._1.map(Item(_).key), List(x._2))),
+      hexSplits.map(_.map(Item(_).key)),
 
       // orderlines
-      hexSplits.map(x => (x._1.map(OrderLine(_, 0).key), List(x._2))),
+      hexSplits.map(_.map(OrderLine(_, 0).key)),
 
       // orders
-      hexSplits.map(x => (x._1.map(Order(_).key), List(x._2))),
+      hexSplits.map(_.map(Order(_).key)),
 
       // shopping_carts
-      hexSplits.map(x => (x._1.map(ShoppingCartItem(_, "").key), List(x._2)))
-
+      hexSplits.map(_.map(ShoppingCartItem(_, "").key))
     )
   }
 
   case class TpcwTableSplits(
-    address: Seq[(Option[IndexedRecord], Seq[StorageService])],
-    author: Seq[(Option[IndexedRecord], Seq[StorageService])],
-    xacts: Seq[(Option[IndexedRecord], Seq[StorageService])],
-    country: Seq[(Option[IndexedRecord], Seq[StorageService])],
-    customer: Seq[(Option[IndexedRecord], Seq[StorageService])],
-    item: Seq[(Option[IndexedRecord], Seq[StorageService])],
-    orderline: Seq[(Option[IndexedRecord], Seq[StorageService])],
-    orders: Seq[(Option[IndexedRecord], Seq[StorageService])],
-    shopping_cart : Seq[(Option[IndexedRecord], Seq[StorageService])]
+    address: Seq[Option[IndexedRecord]],
+    author: Seq[Option[IndexedRecord]],
+    xacts: Seq[Option[IndexedRecord]],
+    country: Seq[Option[IndexedRecord]],
+    customer: Seq[Option[IndexedRecord]],
+    item: Seq[Option[IndexedRecord]],
+    orderline: Seq[Option[IndexedRecord]],
+    orders: Seq[Option[IndexedRecord]],
+    shopping_cart : Seq[Option[IndexedRecord]]
   )
 
 
@@ -336,41 +316,38 @@ class TpcwLoader( val client : TpcwClient,
     })
   }
 
+  //HACK: this should be in the namespace somewhere
+  protected def createNamespace(namespace: PairNamespace[AvroPair], keySplits: Seq[Option[IndexedRecord]]): Unit = {
+    val services = namespace.cluster.getAvailableServers.grouped(replicationFactor).toSeq
+    val partitionScheme = keySplits.map(_.map(namespace.keyToBytes)).zip(services)
+    namespace.setPartitionScheme(partitionScheme)
+  }
 
-  def createNamespaces() = {
-    println("Create Addresses")
-    val splits  = keySplits
-    val address = client.cluster.createNamespace[Address]("addresses", splits.address)
-    println("Create Authors")
-    val author = client.cluster.createNamespace[Author]("authors", splits.author)
-    val xacts =  client.cluster.createNamespace[CcXact]("xacts", splits.xacts)
-    val country = client.cluster.createNamespace[Country]("countries", splits.country)
-    println("Create Customers")
-    val customer = client.cluster.createNamespace[Customer]("customers", splits.customer)
-    val item =  client.cluster.createNamespace[Item]("items", splits.item)
-    val orderline =   client.cluster.createNamespace[OrderLine]("orderLines", splits.orderline)
-    val order =  client.cluster.createNamespace[Order]("orders", splits.orders)
-    val cart = client.cluster.createNamespace[ShoppingCartItem]("shoppingCartItems", splits.shopping_cart)
+  def createNamespaces(cluster: ScadsCluster) = {
+    implicit def toGenericNs[A <: AvroPair](a: PairNamespace[A]) = a.asInstanceOf[PairNamespace[AvroPair]] //HACK: fix variance
+    logger.info("Create Addresses")
+
+    val servers = cluster.getAvailableServers
+    val splits  = keySplits(servers.size)
+    val replicaGroups = servers.grouped(replicationFactor).toSeq
+
+    createNamespace(client.addresses, splits.address)
+    createNamespace(client.authors, splits.author)
+    createNamespace(client.xacts, splits.xacts)
+    createNamespace(client.countries, splits.country)
+    createNamespace(client.customers, splits.customer)
+    createNamespace(client.items, splits.item)
+    createNamespace(client.orderLines, splits.orderline)
+    createNamespace(client.orders, splits.orders)
+    createNamespace(client.shoppingCartItems, splits.shopping_cart)
 
 
     // Indexes
-
-    val authorFNameIdx = author.getOrCreateIndex("A_FNAME" :: Nil)
-
-    //val authorLNameIdx = author.getOrCreateIndex("A_LNAME" :: Nil)
-    //authorLNameIdx.setPartitionScheme(splits.authorname_item_index.map { case (optRec, seq) => (optRec.map(author.keyToBytes(_)), seq) } )
-    val itemSubDateTitleIdx =  item.getOrCreateIndex("I_SUBJECT" :: "I_PUB_DATE" :: "I_TITLE" :: Nil)
-    //
-    val itemTitleIdx =   item.getOrCreateIndex("I_TITLE" :: Nil)
-    //
-    val custOrderIdx = order.getOrCreateIndex( "O_C_UNAME" :: "O_DATE_Time" :: Nil)
-
-    val idxSplits = indexSplits(authorFNameIdx, itemSubDateTitleIdx, itemTitleIdx, custOrderIdx)
-
-    authorFNameIdx.setPartitionScheme(idxSplits.authorname_item_index.map { case (optRec, seq) => (optRec.map(authorFNameIdx.keyToBytes(_)), seq) } )
-    itemSubDateTitleIdx.setPartitionScheme(idxSplits.item_subject_date_title_index.map { case (optRec, seq) => (optRec.map(itemSubDateTitleIdx.keyToBytes(_)), seq) } )
-    itemTitleIdx.setPartitionScheme(idxSplits.title_index.map { case (optRec, seq) => (optRec.map(itemTitleIdx.keyToBytes(_)), seq) } )
-    custOrderIdx.setPartitionScheme(idxSplits.customer_index.map { case (optRec, seq) => (optRec.map(custOrderIdx.keyToBytes(_)), seq) } )
+//    val idxSplits = indexSplits(authorFNameIdx, itemSubDateTitleIdx, itemTitleIdx, custOrderIdx)
+//    createNamespace(client.authors.getOrCreateIndex("A_FNAME" :: Nil), idxSplits.authorname_item_index)
+//    createNamespace(client.items.getOrCreateIndex("I_SUBJECT" :: "I_PUB_DATE" :: "I_TITLE" :: Nil), idxSplits.item_subject_date_title_index)
+//    createNamespace(client.items.getOrCreateIndex("I_TITLE" :: Nil), idxSplits.title_index)
+//    createNamespace(client.orders.getOrCreateIndex( "O_C_UNAME" :: "O_DATE_Time" :: Nil), idxSplits.customer_index)
   }
 
   case class TpcwData(

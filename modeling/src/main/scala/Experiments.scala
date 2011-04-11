@@ -45,13 +45,8 @@ object Experiments {
   def scadrClient(expId: Int) = 
     new ScadrClient(expCluster(expId), new ParallelExecutor)
 
-  lazy val testTpcwCluster = {
-    val cluster = TestScalaEngine.newScadsCluster(4)
-    val client = new piql.tpcw.TpcwClient(cluster, new ParallelExecutor with DebugExecutor)
-    val loader = new piql.tpcw.TpcwLoader(client, 1, 10, 100)
-    loader.getData(0).load()
-    client
-  }
+  lazy val testTpcwClient =
+    new piql.tpcw.TpcwClient(new piql.tpcw.TpcwLoaderTask(4,2,10,1000,2).newTestCluster, new ParallelExecutor)
 
   lazy val scadsCluster = new ScadsCluster(traceRoot)
   lazy val scadrClient = new piql.scadr.ScadrClient(scadsCluster, new ParallelExecutor)

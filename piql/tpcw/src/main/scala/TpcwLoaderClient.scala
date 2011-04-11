@@ -17,22 +17,24 @@ case class TpcwLoaderTask(var numServers: Int,
                           var numLoaders: Int,
                           var numEBs: Double,
                           var numItems: Int,
-                          var replicationFactor: Int = 1) extends DataLoadingTask with AvroRecord {
+                          var replicationFactor: Int = 2) extends DataLoadingTask with AvroRecord {
   var clusterAddress: String = _
   
   def run() = {
     val coordination = clusterRoot.getOrCreate("coordination/loaders")
     val cluster = new ExperimentalScadsCluster(clusterRoot)
+
     val tpcwClient = new TpcwClient(cluster, new SimpleExecutor)
     val loader = new TpcwLoader(tpcwClient,
       numClients = numLoaders,
       numEBs = numEBs,
-      numItems = numItems)
+      numItems = numItems,
+      replicationFactor = replicationFactor)
     val clientId = coordination.registerAndAwait("clientStart", numLoaders)
     if (clientId == 0) {
       logger.info("Awaiting scads cluster startup")
       cluster.blockUntilReady(numServers)
-      loader.createNamespaces
+      loader.createNamespaces(cluster)
       import tpcwClient._
       List(addresses,
            authors,
@@ -54,8 +56,5 @@ case class TpcwLoaderTask(var numServers: Int,
 
     if(clientId == 0)
       clusterRoot.createChild("clusterReady", data=this.toBytes)
-
-    System.exit(0)
   }
-
 }
