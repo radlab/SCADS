@@ -34,18 +34,20 @@ trait Namespace {
   }
 
   private val createHandler = new CallbackHandler
+  private val createFinishedHandler = new CallbackHandler
   private val openHandler = new PassableCallbackHandler[Boolean] { val unit = false }
   private val closeHandler = new CallbackHandler
   private val deleteHandler = new CallbackHandler 
 
-  protected def onCreate(f: => Unit): Unit = createHandler.registerCallback(f) 
+  protected def onCreate(f: => Unit): Unit = createHandler.registerCallback(f)
+  protected def onCreateFinished(f: => Unit): Unit = createFinishedHandler.registerCallback(f)
   protected def onOpen(f: Boolean => Boolean): Unit = openHandler.registerCallback(f)
   protected def onClose(f: => Unit): Unit = closeHandler.registerCallback(f)
   protected def onDelete(f: => Unit): Unit = deleteHandler.registerCallback(f)
 
   // TODO: what are the semantics for each? they should be specified clearly
 
-  def create(): Unit = createHandler.execCallbacks()
+  def create(): Unit = {createHandler.execCallbacks(); createFinishedHandler.execCallbacks()}
   def open(): Unit = openHandler.execCallbacks()
   def close(): Unit = closeHandler.execCallbacks() 
   def delete(): Unit = deleteHandler.execCallbacks()

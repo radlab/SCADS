@@ -117,55 +117,54 @@ trait QuorumProtocol
     serverBuffers.foreach {
       case (server, buffer) => sendBuffer(server, buffer)
     }
-    
+
     /* block until we receive responses for all sent requests */
-    while(outstandingPuts.size > 0)
+    while (outstandingPuts.size > 0)
       processNextOutstandingRequest
   }
 
   val serverBuffers = new HashMap[PartitionService, ArrayBuffer[PutRequest]]
-
   case class OutstandingPut(timestamp: Long, server: PartitionService, sendBuffer: ArrayBuffer[PutRequest], future: MessageFuture, tries: Int = 0)
   val outstandingPuts = new collection.mutable.Queue[OutstandingPut]
 
-    /* send the request and append it to the list of outstanding requests */
-    @inline def sendBuffer(server: PartitionService, sendBuffer: ArrayBuffer[PutRequest], tries: Int = 0): Unit = {
-      if(tries > 5)
-	throw new RuntimeException("Retries exceeded for server %s".format(server))
-      
-      outstandingPuts enqueue OutstandingPut(
-	System.currentTimeMillis,
-	server,
-	sendBuffer,
-	server !! BulkPutRequest(sendBuffer),
-	tries)
-      serverBuffers -= server
-    }
+  /* send the request and append it to the list of outstanding requests */
+  @inline private def sendBuffer(server: PartitionService, sendBuffer: ArrayBuffer[PutRequest], tries: Int = 0): Unit = {
+    if (tries > 5)
+      throw new RuntimeException("Retries exceeded for server %s".format(server))
 
-    /* wait up to timeout for the oldest request to return if it doesn't resend it*/
-    @inline def processNextOutstandingRequest: Unit = {
-      val oldestRequest = outstandingPuts.dequeue
-      val remainingTime = BulkPutTimeout - (System.currentTimeMillis - oldestRequest.timestamp)
-      val timeout =
-	if(remainingTime < 0)
-	  1
-	else if(remainingTime > BulkPutTimeout) /* handle ec2 timeskips */
-	  BulkPutTimeout
-	else
-	  remainingTime
+    outstandingPuts enqueue OutstandingPut(
+      System.currentTimeMillis,
+      server,
+      sendBuffer,
+      server !! BulkPutRequest(sendBuffer),
+      tries)
+    serverBuffers -= server
+  }
 
-      oldestRequest.future.get(timeout) match {
-	case Some(BulkPutResponse()) => null
-	case Some(otherMsg) => {
-	  logger.warning("Received unexpected message for bulk put to %s: %s. Resending", oldestRequest.server, otherMsg)
-	  sendBuffer(oldestRequest.server, oldestRequest.sendBuffer, oldestRequest.tries + 1)
-	}
-	case None => {
-	  logger.warning("Bulkput to %s timed out. Resending.", oldestRequest.server)
-	  sendBuffer(oldestRequest.server, oldestRequest.sendBuffer, oldestRequest.tries + 1)
-	}
-      }
+  /* wait up to timeout for the oldest request to return if it doesn't resend it*/
+  @inline private def processNextOutstandingRequest: Unit = {
+    val oldestRequest = outstandingPuts.dequeue
+    val remainingTime = BulkPutTimeout - (System.currentTimeMillis - oldestRequest.timestamp)
+    val timeout =
+    if(remainingTime < 0)
+      1
+    else if(remainingTime > BulkPutTimeout) /* handle ec2 timeskips */
+      BulkPutTimeout
+    else
+      remainingTime
+
+        oldestRequest.future.get(timeout) match {
+    case Some(BulkPutResponse()) => null
+    case Some(otherMsg) => {
+      logger.warning("Received unexpected message for bulk put to %s: %s. Resending", oldestRequest.server, otherMsg)
+      sendBuffer(oldestRequest.server, oldestRequest.sendBuffer, oldestRequest.tries + 1)
     }
+    case None => {
+      logger.warning("Bulkput to %s timed out. Resending.", oldestRequest.server)
+      sendBuffer(oldestRequest.server, oldestRequest.sendBuffer, oldestRequest.tries + 1)
+    }
+    }
+  }
 
 
 

@@ -15,7 +15,7 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
   logger.debug("ZooKeeperGlobalMetadata Constructor: %s", namespace)
 
   private def initRoot(node: ZooKeeperProxy#ZooKeeperNode): Unit = {
-    node.createChild("partitions", Array.empty, CreateMode.PERSISTENT)
+    node.getOrCreate("partitions")
     node.createChild("keySchema", keySchema.toString.getBytes, CreateMode.PERSISTENT)
     node.createChild("valueSchema", valueSchema.toString.getBytes, CreateMode.PERSISTENT)
   }
@@ -25,10 +25,17 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
     logger.debug("ZooKeeperGlobalMetadata create(): ")
     logger.debug("Creating nsRoot for namespace: " + name)
 
-    val newRoot = root.createChild(name, Array.empty, CreateMode.PERSISTENT)
-    initRoot(newRoot)
-    nsRoot = newRoot
-    nsRoot.createChild("initialized")//TODO: we really aren't done yet!
+    nsRoot = root.getOrCreate(name)
+    /* Grab a lock so we are the only one creating the namespace */
+    val createLock = nsRoot.createChild("createLock", mode=CreateMode.EPHEMERAL)
+    logger.info("Aquired create lock for %s: %s", name, createLock.canonicalAddress)
+    initRoot(nsRoot)
+  }
+
+  onCreateFinished {
+    logger.info("Creation of ns %s completed", name)
+    nsRoot.createChild("initialized")
+    nsRoot("createLock").delete()
   }
 
   // if NS exists, uses that data, otherwise creates a new one
@@ -40,18 +47,15 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
     /* Check to see if the cluster metadata has been created, otherwise create it */
     val isNew = if(!nsRoot.get("initialized").isDefined) {
       try {
-	/* Grab a lock so we know we are the only ones creating the namespace */
-	val createLock = nsRoot.createChild("createLock", mode=CreateMode.EPHEMERAL)
-	create()
-	nsRoot.createChild("initialized")
-	createLock.delete
-	false
+        create()
+        false
       } catch {
-	/* Someone else has the create lock, so we should wait until they finish */
-	case e: KeeperException if e.code == KeeperException.Code.NODEEXISTS => {
-	  nsRoot.awaitChild("initialized")
-	  false
-	}
+        /* Someone else has the create lock, so we should wait until they finish */
+        case e: KeeperException if e.code == KeeperException.Code.NODEEXISTS => {
+          logger.info("Failed to grab create lock. Waiting for creation for finish.")
+          nsRoot.awaitChild("initialized")
+          false
+        }
       }
     }
     else {
@@ -81,9 +85,7 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
     Schema.parse(new String(nsRoot("valueSchema").data))
 
   override def watchMetadata(key: String, func: () => Unit): Array[Byte] = {
-    nsRoot.awaitChild(key) //HACK until we figure out the race conditions in startup
-    logger.info("Watching metadata %s for %s", key, namespace) 
-
+    logger.info("Watching metadata %s for %s", key, namespace)
     nsRoot(key).onDataChange(func)
   }
 
