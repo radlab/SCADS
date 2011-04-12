@@ -2,6 +2,8 @@ package edu.berkeley.cs
 package scads
 package piql
 
+import storage._
+
 import org.apache.avro.Schema
 import org.apache.avro.Schema.Field
 import org.apache.avro.util.Utf8
@@ -53,7 +55,7 @@ object Optimizer {
 	  logger.info("Using secondary index for predicates: %s", equalityPreds)
 
 	  //TODO: Fix type hack
-	  val idx = ns.asInstanceOf[IndexedNamespace].getOrCreateIndex(equalityPreds.map(_.attributeName))
+	  val idx = ns.asInstanceOf[IndexedNamespace].getOrCreateIndex(equalityPreds.map(p => AttributeIndex(p.attributeName)))
 	  val tupleSchema = ns :: idx :: Nil
 	  val idxScanPlan = IndexScan(idx, makeKeyGenerator(idx, tupleSchema, equalityPreds), count, true)
 	  val derefedPlan = derefPlan(ns, idxScanPlan)
@@ -73,7 +75,7 @@ object Optimizer {
 	    (IndexScan(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), count, asc), tupleSchema)
 	  }
 	  else {
-	    val idx = ns.asInstanceOf[IndexedNamespace].getOrCreateIndex(prefixAttrs)
+	    val idx = ns.asInstanceOf[IndexedNamespace].getOrCreateIndex(prefixAttrs.map(p => AttributeIndex(p)))
 	    val tupleSchema = ns :: idx :: Nil
 	    (derefPlan(ns,
 		       IndexScan(idx,
@@ -113,7 +115,7 @@ object Optimizer {
 			    optChild.physicalPlan),
 	     tupleSchema)
 	  } else {
-	    val idx = ns.asInstanceOf[IndexedNamespace].getOrCreateIndex(prefixAttrs)
+	    val idx = ns.asInstanceOf[IndexedNamespace].getOrCreateIndex(prefixAttrs.map(p => AttributeIndex(p)))
 	    val tupleSchema = ns :: idx :: Nil
 	  
 	    val idxJoinPlan = IndexScanJoin(idx,

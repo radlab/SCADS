@@ -9,7 +9,8 @@ import scala.collection.JavaConversions._
 import scala.collection.immutable.HashMap
 
 import edu.berkeley.cs.scads.comm._
-import edu.berkeley.cs.avro.marker.AvroPair
+import edu.berkeley.cs.avro.marker._
+import org.apache.avro.util.Utf8
 
 private[storage] object IndexManager {
   val indexValueSchema = {
@@ -27,6 +28,13 @@ private[storage] object IndexManager {
   val valueReaderWriter = new AvroGenericReaderWriter[IndexedRecord](None, indexValueSchema)
   val dummyIndexValueBytes = valueReaderWriter.serialize(dummyIndexValue)
 }
+
+sealed trait IndexType extends AvroUnion
+case class AttributeIndex(var fieldName: String) extends AvroRecord with IndexType
+case class TokenIndex(var fieldNames: Seq[String]) extends AvroRecord with IndexType
+
+case class IndexDefinition(var fields: Seq[IndexType]) extends AvroRecord
+
 
 class IndexNamespace(
     val name: String,
@@ -86,6 +94,13 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
   protected var indexCatalogue: ZooKeeperProxy#ZooKeeperNode = _
   logger.info("IndexManger Constructor: %s", namespace)
 
+  /**
+   * In memory cache of (index namespaces, seq of field values (left is from
+   * key, right is from value)). is a volatile immutable hash map so we don't
+   * have to do any synchronization when reading
+   */
+  @volatile protected var indexNamespacesCache = new HashMap[String, (IndexNamespace, IndexDefinition)]
+
   onOpen {isNew =>
     logger.debug("Opening index catalog for namespace %s", namespace)
     indexCatalogue = nsRoot.getOrCreate("indexes")
@@ -102,16 +117,19 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
   override abstract def put(key: IndexedRecord, value: Option[IndexedRecord]): Unit = {
     val optOldValue = get(key)
     indexCache.values.foreach { case (ns, mapping) =>
-      val optOldIndex = optOldValue.map(oldValue => makeIndexFor(key, oldValue, ns.keySchema, mapping))
+      val oldIndexValues = optOldValue.map(oldValue => makeIndexFor(key, oldValue, ns.keySchema, mapping)).getOrElse(Nil)
+
       value match {
         case None => // delete old index (if it exists)
-          optOldIndex.foreach(oldIndex => ns.put(oldIndex, None))
-        case Some(newValue) => // update index if necessary, deleting stale ones if necessary
-          val newIndex = makeIndexFor(key, newValue, ns.keySchema, mapping)
-          val optStaleValue = optOldIndex.flatMap(oldIndex => if (oldIndex != newIndex) Some(oldIndex) else None)
-          optStaleValue.foreach(staleValue => ns.put(staleValue, None))
-          if (optOldValue.isEmpty || optStaleValue.isDefined)
-            ns.put(newIndex, Some(dummyIndexValue))
+          oldIndexValues.foreach(oldIndex => ns.put(oldIndex, None))
+        case Some(newValue) => {// update index if necessary, deleting stale ones if necessary
+          val newIndexValues = makeIndexFor(key, newValue, ns.keySchema, mapping)
+          val toDelete = oldIndexValues diff newIndexValues
+          val toAdd = newIndexValues diff oldIndexValues
+
+          toAdd.foreach(ns.put(_, Some(dummyIndexValue)))
+          toDelete.foreach(ns.put(_, None))
+        }
       }
     }
     // put the actual key/value pair AFTER index maintainence
@@ -123,9 +141,11 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
     that.foreach { pair => {
       putBulkBytes(keyToBytes(pair.key), valueToBytes(pair.value))
 
-      indexCache.values.map { case (ns, mapping) =>
-	ns.putBulkBytes(ns.keyToBytes(makeIndexFor(pair.key, pair.value, ns.keySchema, mapping)), dummyIndexValueBytes)
-      }.toList
+      indexCache.values.foreach { case (ns, mapping) =>
+	      makeIndexFor(pair.key, pair.value, ns.keySchema, mapping)
+          .map(ns.keyToBytes)
+          .foreach(ns.putBulkBytes(_, dummyIndexValueBytes))
+      }
     }}
 
     flushBulkBytes
@@ -146,7 +166,6 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
   // hardcoded with the assumption of a single global namespace, the actual
   // name of an index's namespace will be prefixed with the name of this
   // namespace followed by an underscroll
-
   protected def fromGlobalName(fullName: String): String = {
     assert(fullName.startsWith(namespace + "_"))
     fullName.substring((namespace + "_").length)
@@ -156,11 +175,6 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
     assert(!indexName.startsWith(namespace + "_"))
     "%s_%s".format(namespace, indexName)
   }
-
-  /** In memory cache of (index namespaces, seq of field values (left is from
-   * key, right is from value)). is a volatile immutable hash map so we don't
-   * have to do any synchronization when reading */
-  @volatile protected var indexNamespacesCache = new HashMap[String, (IndexNamespace, Seq[Either[Int, Int]])]
 
   protected def updateIndexNamespaceCache(indexNodes: Seq[ZooKeeperProxy#ZooKeeperNode]): Unit = {
     // update the cache. 
@@ -172,12 +186,11 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
     // 2) elements which are in children but not in the cache need to be added
     // into the cache
     indexNamespacesCache ++= indexNodes.filterNot(n => indexNamespacesCache.contains(n.name)).map(n => {
-      // TODO: is this functionality already located somewhere, to create a
-      // generic namespace w/o passing in the key/value schemas
       val ks = Schema.parse(new String(root("%s/keySchema".format(toGlobalName(n.name))).data))
       val ns = new IndexNamespace(toGlobalName(n.name), cluster, root, ks)
       ns.open()
-      (n.name, (ns, generateFieldMapping(ks)))
+
+      (n.name, (ns, classOf[IndexDefinition].newInstance.parse(ns.getMetadata("indexDef").getOrElse(throw new RuntimeException("Invalid index definition")))))
     })
   }
 
@@ -190,12 +203,12 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
   }
 
   /** getOrCreate a secondary index over the given fields */
-  def getOrCreateIndex(fieldNames: Seq[String]): IndexNamespace = {
-    val idxName = fieldNames.mkString("(", ",", ")")
+  def getOrCreateIndex(fields: Seq[IndexType]): IndexNamespace = {
+    val idxName = fields.mkString("(", ",", ")")
 
     listIndexes.get(idxName) match {
       case Some(idx) => idx
-      case None => createIndex(idxName, fieldNames)
+      case None => createIndex(idxName, fields)
     }
   }
 
@@ -207,30 +220,36 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
    * each index can uniquely identity a pair object). Additionally, the name
    * must also be unique
    */
-  def createIndex(name: String, fieldNames: Seq[String]): IndexNamespace = {
-    // duplicate name check
-    val fieldNameSet = fieldNames.toSet
-    if (fieldNameSet.size != fieldNames.size)
-      throw new IllegalArgumentException("Duplicate field names found")
+  def createIndex(name: String, fields: Seq[IndexType]): IndexNamespace = {
+    val prefixFields = fields.map {
+      case AttributeIndex(fieldName) => {
+        val (l, r) = (keySchema.getField(fieldName), valueSchema.getField(fieldName))
+        val origField =
+          if (l ne null) l
+          else if (r ne null) r
+          else throw new IllegalArgumentException("Invalid field name: " + fieldName)
+        new Schema.Field(origField.name, origField.schema, "", null)
+      }
+      case TokenIndex(fieldNames) => {
+        fieldNames.foreach(fieldName => {
+          val field = Option(valueSchema.getField(fieldName)).getOrElse(throw new IllegalArgumentException("Invalid field name: " + fieldNames))
+          if(field.schema.getType != Schema.Type.STRING)
+            throw new IllegalArgumentException("Can't build token index over field %s of type %s.".format(fieldNames, field.schema))
+        })
+        new Schema.Field(fieldNames.mkString("|"), Schema.create(Schema.Type.STRING), "", null)
+      }
+    }
 
-    // valid field name check
-    val prefixFields = fieldNames.map(name => {
-      val (l, r) = (keySchema.getField(name), valueSchema.getField(name))
-      if (l ne null) l
-      else if (r ne null) r
-      else throw new IllegalArgumentException("Invalid field name: " + name)
-    })
-
-    // construct the index key schema
-    val suffixFields = keySchema.getFields.toSeq.filterNot(f => fieldNameSet.contains(f.name))
-    val fields = (prefixFields ++ suffixFields).map(f => new Schema.Field(f.name, f.schema, f.doc, f.defaultValue, f.order)) // need to make clones b/c you cannot reuse field objects when constructing schemas
+    val attrFieldNames = fields.collect {case AttributeIndex(f) => f}
+    val suffixFields = keySchema.getFields.filterNot(attrFieldNames.contains(_)).map(f => new Schema.Field(f.name, f.schema, "", null))
     val indexKeySchema = Schema.createRecord(name + "Key", "", "", false)
-    indexKeySchema.setFields(fields)
-    
+    indexKeySchema.setFields(prefixFields ++ suffixFields)
+
+
     val indexNs = new IndexNamespace(toGlobalName(name), cluster, root, indexKeySchema)
     // create the actual namespace with no partition strategy here 
     indexNs.open
-    indexNamespacesCache += ((name, (indexNs, generateFieldMapping(indexKeySchema))))
+    indexNamespacesCache += ((name, (indexNs, IndexDefinition(fields ++ suffixFields.map(f => AttributeIndex(f.name))))))
 
     // add index catalogue entry- causes other clients to be notified if they
     // are watching
@@ -244,22 +263,35 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
     indexNs  
   }
 
-  protected def generateFieldMapping(indexKeySchema: Schema): Seq[Either[Int, Int]] = {
-    indexKeySchema.getFields.map(f => {
-      val (l, r) = (keySchema.getField(f.name), valueSchema.getField(f.name))
-      if (l ne null) Left(l.pos)
-      else if (r ne null) Right(r.pos)
-      else throw new IllegalArgumentException("invalid key schema given: " + indexKeySchema)
-    }).toSeq
-  }
+  protected def makeIndexFor(key: IndexedRecord, value: IndexedRecord, indexKeySchema: Schema, mapping: IndexDefinition): Seq[IndexedRecord] = {
+    @inline def getValue(fieldName: String): Any = {
+      val idx = key.getSchema.getField(fieldName)
+      if(idx != null)
+        key.get(idx.pos)
+      else
+        value.get(value.getSchema.getField(fieldName).pos)
+    }
 
-  protected def makeIndexFor(key: IndexedRecord, value: IndexedRecord, indexKeySchema: Schema, mapping: Seq[Either[Int, Int]]): IndexedRecord = {
-    val rec = new GenericData.Record(indexKeySchema)
-    mapping.map(m => m match {
-      case Left(keyPos) => key.get(keyPos)
-      case Right(valuePos) => value.get(valuePos)
-    }).zipWithIndex.foreach { case (elem, idx) => rec.put(idx, elem) }
-    rec
+    def buildRecords(pos: Int, records: Seq[GenericData.Record]): Seq[GenericData.Record] = {
+      if(pos == mapping.fields.size)
+        return records
+
+      val values = mapping.fields(pos) match {
+        case AttributeIndex(fieldName) => getValue(fieldName) :: Nil
+        case TokenIndex(fieldNames) => fieldNames.flatMap(getValue(_).asInstanceOf[Utf8].toString.split(" ")).map(new Utf8(_)).distinct
+      }
+
+      val newRecs = values.flatMap(v => {
+        records.map(r => {
+          val rec = new GenericData.Record(indexKeySchema)
+          (0 to pos).foreach(i => rec.put(i, r.get(0)))
+          rec.put(pos, v)
+          rec
+        })
+      })
+      buildRecords(pos + 1, newRecs)
+    }
+    buildRecords(0, new GenericData.Record(indexKeySchema) :: Nil)
   }
 
   /** Delete a pre-existing index. The index named must already exist */
