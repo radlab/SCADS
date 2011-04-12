@@ -1,5 +1,6 @@
 package edu.berkeley.cs.scads.storage
 
+import edu.berkeley.cs.avro.runtime._
 import edu.berkeley.cs.avro.marker._
 import edu.berkeley.cs.scads.comm._
 
@@ -147,21 +148,43 @@ trait RangeKeyValueStore[K <: IndexedRecord, V <: IndexedRecord]
 
 }
 
-trait RecordStore[RecType <: IndexedRecord] 
-  extends GlobalMetadata
+trait RecordStore[RecType <: IndexedRecord] extends Namespace
+  with KeyPartitionable
+  with GlobalMetadata
   with BaseRangeKeyValueStoreImpl[IndexedRecord, IndexedRecord, RecType] {
-    def asyncGetRecord(key: IndexedRecord): ScadsFuture[Option[RecType]]
-    def getRecord(key: IndexedRecord): Option[RecType]
 
-    def lookupRecord(fields: Any*): Option[RecType] = {
-      val rec = new GenericData.Record(keySchema)
-      fields.map {
-        case s: String => new Utf8(s)
-        case o => o
-      }.zipWithIndex.foreach {
-        case (v, idx) => rec.put(idx, v)
-      }
+  def asyncGetRecord(key: IndexedRecord): ScadsFuture[Option[RecType]]
+  def getRecord(key: IndexedRecord): Option[RecType]
 
-      getRecord(rec)
+  def lookupRecord(fields: Any*): Option[RecType] = {
+    val rec = new GenericData.Record(keySchema)
+    fields.map {
+      case s: String => new Utf8(s)
+      case o => o
+    }.zipWithIndex.foreach {
+      case (v, idx) => rec.put(idx, v)
     }
+
+    getRecord(rec)
+  }
+
+  /**
+   * Reads the first 1000 * clustersize / replication factor keys from the sequence and
+   * repartitions the cluster so the data is distributed evenly.  Note the data in the
+   * sequence must be randomly distributed for this to work.
+   */
+  def repartition(data: Seq[IndexedRecord], replicationFactor: Int): Unit = {
+    val servers = cluster.getAvailableServers
+    val samplesPerServer = 1000
+    val numSamples = servers.size * samplesPerServer / replicationFactor
+
+    val samples = data.take(numSamples).sortWith(_ < _).toSeq
+    val splits = None +: samples.grouped(samplesPerServer).map(_.head).map(Some(_)).drop(1).toList
+    logger.info("Sampled Key Splits for %s: %s", namespace, splits)
+    val byteSplits = splits.map(_.map(keyToBytes))
+    val partitions = byteSplits zip servers.grouped(replicationFactor).toList
+    logger.info("Sampled Partition Scheme for %s: %s", namespace , partitions)
+
+    setPartitionScheme(partitions)
+  }
 }
