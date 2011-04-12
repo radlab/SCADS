@@ -209,7 +209,7 @@ class ManagedScadsCluster(_root: ZooKeeperProxy#ZooKeeperNode) extends ScadsClus
     handler
   }
 
-  @inline private def makeScadsTempDir() = {
+  private def makeScadsTempDir() = {
     val tempDir = File.createTempFile("scads", "testdb")
     /* This strange sequence of delete and mkdir is required so that BDB can
      * acquire a lock file in the created temp directory */
@@ -218,7 +218,7 @@ class ManagedScadsCluster(_root: ZooKeeperProxy#ZooKeeperNode) extends ScadsClus
     tempDir
   }
 
-  @inline private def newStorageHandler(name:Option[String] = None): StorageHandler = {
+  private def newStorageHandler(name:Option[String] = None): StorageHandler = {
     val config = new EnvironmentConfig
     config.setConfigParam(EnvironmentConfig.LOG_MEM_ONLY, "true")
     config.setAllowCreate(true)
