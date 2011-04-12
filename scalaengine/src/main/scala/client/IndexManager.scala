@@ -284,14 +284,16 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
       val newRecs = values.flatMap(v => {
         records.map(r => {
           val rec = new GenericData.Record(indexKeySchema)
-          (0 to pos).foreach(i => rec.put(i, r.get(0)))
+          (0 to pos).foreach(i => rec.put(i, r.get(i)))
           rec.put(pos, v)
           rec
         })
       })
       buildRecords(pos + 1, newRecs)
     }
-    buildRecords(0, new GenericData.Record(indexKeySchema) :: Nil)
+    val idxRecords = buildRecords(0, new GenericData.Record(indexKeySchema) :: Nil)
+    logger.debug("Generated Index Entries for %s, %s: %s", key, value, idxRecords)
+    idxRecords
   }
 
   /** Delete a pre-existing index. The index named must already exist */
