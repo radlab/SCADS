@@ -148,7 +148,20 @@ trait RangeKeyValueStore[K <: IndexedRecord, V <: IndexedRecord]
 }
 
 trait RecordStore[RecType <: IndexedRecord] 
-  extends BaseRangeKeyValueStoreImpl[IndexedRecord, IndexedRecord, RecType] {
+  extends GlobalMetadata
+  with BaseRangeKeyValueStoreImpl[IndexedRecord, IndexedRecord, RecType] {
     def asyncGetRecord(key: IndexedRecord): ScadsFuture[Option[RecType]]
     def getRecord(key: IndexedRecord): Option[RecType]
+
+    def lookupRecord(fields: Any*): Option[RecType] = {
+      val rec = new GenericData.Record(keySchema)
+      fields.map {
+        case s: String => new Utf8(s)
+        case o => o
+      }.zipWithIndex.foreach {
+        case (v, idx) => rec.put(idx, v)
+      }
+
+      getRecord(rec)
+    }
 }
