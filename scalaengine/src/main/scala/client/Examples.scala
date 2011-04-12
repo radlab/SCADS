@@ -154,4 +154,12 @@ class PairNamespace[Pair <: AvroPair : Manifest](
 
     getBytes(keyBytes).map(bytesToBulk(keyBytes, _))
   }
+
+  def put(pairRec: Pair): Unit = {
+    put(pairRec.key, Some(pairRec.value))
+  }
+
+  def delete(pairRec: Pair): Unit = {
+    put(pairRec.key, None)
+  }
 }
