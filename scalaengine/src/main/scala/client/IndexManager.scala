@@ -88,7 +88,8 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
 	  with Protocol
 	  with RangeKeyValueStoreLike[IndexedRecord, IndexedRecord, BulkType]
 	  with Serializer[IndexedRecord, IndexedRecord, BulkType]
-	  with ZooKeeperGlobalMetadata {
+	  with ZooKeeperGlobalMetadata
+    with RecordStore[BulkType] {
   import IndexManager._
   
   protected var indexCatalogue: ZooKeeperProxy#ZooKeeperNode = _
@@ -112,6 +113,14 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
     logger.debug("Creating index catalog for namespace %s", namespace)
     indexCatalogue = nsRoot.createChild("indexes", Array.empty, CreateMode.PERSISTENT)
     updateCache()
+  }
+
+  override abstract def repartition(data: Seq[BulkType], replicationFactor: Int): Unit = {
+    indexCache.values.foreach {
+      case (ns, mapping) =>
+        ns.repartition(data.flatMap(d => makeIndexFor(d.key, d.value, ns.keySchema, mapping)), replicationFactor)
+    }
+    super.repartition(data, replicationFactor)
   }
 
   override abstract def put(key: IndexedRecord, value: Option[IndexedRecord]): Unit = {

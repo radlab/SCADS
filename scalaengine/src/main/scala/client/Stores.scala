@@ -173,7 +173,7 @@ trait RecordStore[RecType <: IndexedRecord] extends Namespace
    * repartitions the cluster so the data is distributed evenly.  Note the data in the
    * sequence must be randomly distributed for this to work.
    */
-  def repartition(data: Seq[IndexedRecord], replicationFactor: Int): Unit = {
+  def repartition(data: Seq[RecType], replicationFactor: Int): Unit = {
     val servers = cluster.getAvailableServers
     val samplesPerServer = 1000
     require(servers.size % replicationFactor == 0, "num servers must divide evenly by replication factor")
