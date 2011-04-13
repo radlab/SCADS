@@ -19,16 +19,11 @@ import edu.berkeley.cs.avro.runtime._
 import org.apache.avro.util.Utf8
 
 
-class TpcwLoader( val client : TpcwClient,
-                  val numClients: Int, // Number of LOADING clients
-                  val numEBs : Double,
-                  val numItems : Int,
-                  val replicationFactor: Int ) {
+class TpcwLoader(val numEBs : Double,
+                 val numItems : Int,
+                 val replicationFactor: Int ) {
+  private val logger = Logger()
 
-  private val logger = Logger("edu.berkeley.cs.scads.piql.TpcwLoader")
-
-  require(client != null)
-  require(numClients >= 1)
   require(numEBs > 0.0)
   require(numItems > 0)
 
@@ -41,14 +36,68 @@ class TpcwLoader( val client : TpcwClient,
     logger.warning("%d is NOT a valid number of items for a TPC-W benchmark", numItems)
 
   /** Cardinalities defined by clause 4.3 */
-
   val numCustomers : Int = (numEBs * 2880).intValue
   val numAddresses : Int = 2 * numCustomers
   val numAuthors : Int = (.25 * numItems).intValue
   val numOrders : Int = (.9 * numCustomers).intValue
   val numCountries : Int = 92
 
-  val rand = new scala.util.Random
+  protected val rand = new scala.util.Random
+
+  trait NamespaceData {
+    type Pair <: AvroPair
+    protected val ns: PairNamespace[Pair]
+
+    protected def sampleData: Seq[Pair]
+    protected def dataSlice(clientId: Int, numClients: Int): Seq[Pair]
+
+    def repartition: Unit =
+      ns.repartition(sampleData, replicationFactor)
+
+    def load(clientId: Int = 0, numLoaders: Int = 1): Unit =
+      ns ++=  dataSlice(clientId, numLoaders)
+
+        /** assuming [1, upperBound], returns the slice of data for this clientId */
+    protected def getSlice(clientId: Int, numClients: Int, upperBound: Int) = {
+      require(upperBound >= 1)
+      val numPerClient = upperBound / numClients
+      if (numPerClient == 0) { // this is the case where there are more clients than elements to slice
+        if (clientId >= upperBound) Seq.empty
+        else (clientId + 1 to clientId + 1)
+      } else {
+        val start = clientId * numPerClient + 1
+        if (clientId == numClients - 1) (start to upperBound)
+        else (start until (start + numPerClient))
+      }
+    }
+  }
+
+  case class RandomData[A <: AvroPair](ns: PairNamespace[A], generator: Int => A, numRecords: Int) extends NamespaceData {
+    type Pair = A
+    def sampleData = (1 to numRecords).view.map(generator)
+    def dataSlice(clientId: Int, numClients: Int) = getSlice(clientId, numClients, numRecords).view.map(generator)
+  }
+
+  case class FlattenedRandomData[A <: AvroPair](ns: PairNamespace[A], generator: Int => Seq[A], numRecords: Int) extends NamespaceData {
+    type Pair = A
+    def sampleData = (1 to numRecords).view.flatMap(generator)
+    def dataSlice(clientId: Int, numClients: Int) = getSlice(clientId, numClients, numRecords).view.flatMap(generator)
+  }
+
+  //TODO: Partition shopping cart
+  def namespaces(client: TpcwClient): Seq[NamespaceData] =
+    List[NamespaceData](
+      RandomData(client.addresses, createAddress(_), numCustomers),
+      RandomData(client.authors, createAuthor(_), numAuthors),
+      RandomData(client.xacts, createXacts(_), numOrders),
+      RandomData(client.countries, createCountry(_), numCountries),
+      RandomData(client.customers, createCustomer(_), numCustomers),
+      RandomData(client.items, createItem(_), numItems),
+      FlattenedRandomData(client.orderLines, createOrderline(_), numOrders),
+      RandomData(client.orders, createOrder(_), numOrders))
+
+  def createNamespaces(client: TpcwClient) =
+    namespaces(client).foreach(_.repartition)
 
   private def uuid() : String =
     UUID.randomUUID.toString
@@ -168,226 +217,9 @@ class TpcwLoader( val client : TpcwClient,
   def toOrder(id: Int) =
     nameUuid("order%d".format(id))
 
-
-  def keySplits(clusterSize: Int): TpcwTableSplits = {
-    val hexSplits = hexSplit(clusterSize)
-    val printableCharSplits = printableCharSplit(clusterSize)
-
-    // assume no replication factor
-    TpcwTableSplits(
-      // addresses
-      hexSplits.map(_.map(Address(_).key)),
-
-      // authors
-      hexSplits.map(_.map(Author(_).key)),
-
-      // xacts
-      hexSplits.map(_.map(CcXact(_).key)),
-
-      // countries
-      (rangeSplit(numCountries, clusterSize)).map(_.map(Country(_).key)),
-
-      // customers
-      hexSplits.map(_.map(Customer(_).key)),
-
-      // items
-      hexSplits.map(_.map(Item(_).key)),
-
-      // orderlines
-      hexSplits.map(_.map(OrderLine(_, 0).key)),
-
-      // orders
-      hexSplits.map(_.map(Order(_).key)),
-
-      // shopping_carts
-      hexSplits.map(_.map(ShoppingCartItem(_, "").key))
-    )
-  }
-
-  case class TpcwTableSplits(
-    address: Seq[Option[IndexedRecord]],
-    author: Seq[Option[IndexedRecord]],
-    xacts: Seq[Option[IndexedRecord]],
-    country: Seq[Option[IndexedRecord]],
-    customer: Seq[Option[IndexedRecord]],
-    item: Seq[Option[IndexedRecord]],
-    orderline: Seq[Option[IndexedRecord]],
-    orders: Seq[Option[IndexedRecord]],
-    shopping_cart : Seq[Option[IndexedRecord]]
-  )
-
-
-  def indexSplits(authorFNameIdx : IndexNamespace, itemSubDateTitleIdx : IndexNamespace, itemTitleIdx : IndexNamespace, custOrderIdx : IndexNamespace) : TpcwIndexSplits = {
-     // use sampling to create splits for ItemSubjectDateTitleIndexKey
-    // use 1000x the number of available servers as the number of samples to
-    // take
-    val servers = client.cluster.getAvailableServers
-    val clusterSize = servers.size
-    val hexSplits = hexSplit(clusterSize) zip servers
-
-    val itemSubjSamples = (1 to 1000 * clusterSize)
-      .map(_ => rand.nextInt(numItems) + 1)
-      .map(i => createItemSubjectDateTitleIndex(itemSubDateTitleIdx, createItem(i)))
-      .sortWith { case (a : IndexedRecord, b : IndexedRecord) => a < b
-      }.toIndexedSeq
-
-    val itemSubDateTitleIndexSplits =
-      None +: (1 until clusterSize).map(i => Some(itemSubjSamples(i * 1000)))
-
-    logger.info("itemSubDateTitleIndexSplits: %s", itemSubDateTitleIndexSplits)
-
-    val itemTitleSamples = (1 to 1000 * clusterSize)
-      .map(_ => rand.nextInt(numItems) + 1)
-      .flatMap(i => createItemTitleIndex(itemTitleIdx, createItem(i)))
-      .sortWith {  case (a : IndexedRecord, b : IndexedRecord) => a < b
-      }.toIndexedSeq
-
-    val stepSize = itemTitleSamples.size.toDouble / clusterSize.toDouble
-      assert(stepSize > 0.0)
-
-    val itemTitleIndexSplits =
-      None +: (1 until clusterSize).map(i => Some(itemTitleSamples((i.toDouble * stepSize).toInt)))
-
-    TpcwIndexSplits(
-      // authorname_item_indexes
-      hexSplits.map(x => (x._1.map(createString2Split(authorFNameIdx, _)), List(x._2))),
-      // item_subject_date_title_indexes
-      (itemSubDateTitleIndexSplits zip servers).map(x => (x._1, List(x._2))),
-      // customer_indexes
-      hexSplits.map(x => (x._1.map(createCustOrderIndexes(custOrderIdx, _)), List(x._2))),
-      // title_indexes
-      (itemTitleIndexSplits zip servers).map(x => (x._1, List(x._2)))
-    )
-
-  }
-
-  case class TpcwIndexSplits(
-    authorname_item_index: Seq[(Option[IndexedRecord], Seq[StorageService])],
-    item_subject_date_title_index: Seq[(Option[IndexedRecord], Seq[StorageService])],
-    customer_index: Seq[(Option[IndexedRecord], Seq[StorageService])],
-    title_index : Seq[(Option[IndexedRecord], Seq[StorageService])]
-  )
-
-  def createString2Split(idx : IndexNamespace,  split : String) : IndexedRecord = {
-    var key = idx.newKeyInstance
-    key.put(0, new Utf8(split))
-    key.put(1, new Utf8(""))
-    key
-  }
-
-  def createCustOrderIndexes(idx : IndexNamespace,  split : String) : IndexedRecord = {
-    var key = idx.newKeyInstance
-    key.put(0, new Utf8(split))
-    key.put(1, 0L)
-    key.put(2, new Utf8(""))
-    key
-  }
-
-  def createAuthorNameItemIndexes(idx : IndexNamespace, item: Item) : Seq[IndexedRecord] = {
-    var key1 = idx.newKeyInstance
-    key1.put(0, new Utf8(toAuthorFname(item.A_ID) ))
-    key1.put(1, new Utf8(item.I_TITLE) )
-    key1.put(2, new Utf8(item.I_ID ) )
-    var key2 = idx.newKeyInstance
-    key2.put(0, new Utf8(toAuthorLname(item.A_ID) ))
-    key2.put(1, new Utf8(item.I_TITLE ))
-    key2.put(2, new Utf8(item.I_ID ))
-    Seq( key1, key2)
-  }
-
-  def createItemSubjectDateTitleIndex(idx : IndexNamespace, item: Item) : IndexedRecord  = {
-    var key = idx.newKeyInstance
-    key.put(0, new Utf8(item.I_SUBJECT ))
-    key.put(1, item.I_PUB_DATE )
-    key.put(2, new Utf8(item.I_TITLE ))
-    key.put(3, new Utf8(item.I_ID ) )
-    key
-  }
-
-  def createItemTitleIndex(idx : IndexNamespace, item: Item) : Seq[IndexedRecord] = {
-    var key = idx.newKeyInstance
-
-    item.I_TITLE.split("\\s+").map(token => {
-      var key = idx.newKeyInstance
-      key.put(0, new Utf8(token.toLowerCase ))
-      //key.put(1, item.I_TITLE )
-      key.put(1, new Utf8(item.I_ID) )
-      key
-    })
-  }
-
-  //HACK: this should be in the namespace somewhere
-  protected def createNamespace(namespace: PairNamespace[AvroPair], keySplits: Seq[Option[IndexedRecord]]): Unit = {
-    val services = namespace.cluster.getAvailableServers.grouped(replicationFactor).toSeq
-    val partitionScheme = keySplits.map(_.map(namespace.keyToBytes)).zip(services)
-    namespace.setPartitionScheme(partitionScheme)
-  }
-
-  def createNamespaces(cluster: ScadsCluster) = {
-    implicit def toGenericNs[A <: AvroPair](a: PairNamespace[A]) = a.asInstanceOf[PairNamespace[AvroPair]] //HACK: fix variance
-    logger.info("Create Addresses")
-
-    val servers = cluster.getAvailableServers
-    val splits  = keySplits(servers.size)
-    val replicaGroups = servers.grouped(replicationFactor).toSeq
-
-    createNamespace(client.addresses, splits.address)
-    createNamespace(client.authors, splits.author)
-    createNamespace(client.xacts, splits.xacts)
-    createNamespace(client.countries, splits.country)
-    createNamespace(client.customers, splits.customer)
-    createNamespace(client.items, splits.item)
-    createNamespace(client.orderLines, splits.orderline)
-    createNamespace(client.orders, splits.orders)
-    createNamespace(client.shoppingCartItems, splits.shopping_cart)
-
-
-    // Indexes
-//    val idxSplits = indexSplits(authorFNameIdx, itemSubDateTitleIdx, itemTitleIdx, custOrderIdx)
-//    createNamespace(client.authors.getOrCreateIndex("A_FNAME" :: Nil), idxSplits.authorname_item_index)
-//    createNamespace(client.items.getOrCreateIndex("I_SUBJECT" :: "I_PUB_DATE" :: "I_TITLE" :: Nil), idxSplits.item_subject_date_title_index)
-//    createNamespace(client.items.getOrCreateIndex("I_TITLE" :: Nil), idxSplits.title_index)
-//    createNamespace(client.orders.getOrCreateIndex( "O_C_UNAME" :: "O_DATE_Time" :: Nil), idxSplits.customer_index)
-  }
-
-  case class TpcwData(
-      // main objects
-      addresses: Seq[Address],
-      authors: Seq[Author],
-      xacts: Seq[CcXact],
-      countries: Seq[Country],
-      customers: Seq[Customer],
-      items: Seq[Item],
-      orders: Seq[Order],
-      orderlines: Seq[OrderLine]
-
-      // secondary/inverted indicies
-      //authorNameItemIndexes: Seq[(AuthorNameItemIndexKey, NullRecord)],
-      //itemSubjectDateTitleIndexes: Seq[(ItemSubjectDateTitleIndexKey, ItemKey)],
-      //customerOrderIndexes: Seq[(CustomerOrderIndex, NullRecord)],
-      //itemTitleIndexes: Seq[(ItemTitleIndexKey, NullRecord)]
-    ) {
-
-    def load() = {
-      client.addresses ++= addresses
-      client.authors ++= authors
-      client.xacts ++= xacts
-      client.countries ++= countries
-      client.customers ++= customers
-      client.items ++= items
-      client.orders ++= orders
-      client.orderLines ++= orderlines
-
-      //client.authorNameItemIndex ++= authorNameItemIndexes
-      //client.itemSubjectDateTitleIndex ++= itemSubjectDateTitleIndexes
-      //client.customerOrderIndex ++= customerOrderIndexes
-      //client.itemTitleIndex ++= itemTitleIndexes
-    }
-  }
-
   /**
    * Assumes clientId is indexed by 0
-   */
+
   def getData(clientId: Int, useViews: Boolean = true) : TpcwData = {
     require(0 <= clientId && clientId < numClients, "Invalid client id")
 
@@ -460,6 +292,7 @@ class TpcwLoader( val client : TpcwClient,
       //itemTitleIndexes
       )
   }
+  */
 
   def createItem(itemId : Int) : Item = {
     val to = Generator.generateItem(itemId, numItems).asInstanceOf[ItemTO]
