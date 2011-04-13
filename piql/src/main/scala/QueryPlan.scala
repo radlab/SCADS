@@ -4,6 +4,7 @@ import org.apache.avro.generic.{GenericData, IndexedRecord}
 
 abstract class Value {
   def ===(value: Value) = EqualityPredicate(this, value)
+  def like(value: Value) = LikePredicate(this, value)
 }
 
 /* Fixed Values.  i.e. Values that arent depended on a specific tuple */
@@ -21,6 +22,7 @@ case class ParameterLimit(ordinal: Int, max: Int) extends Limit
 
 trait Predicate
 case class EqualityPredicate(v1: Value, v2: Value) extends Predicate
+case class LikePredicate(v1: Value, v2: Value) extends Predicate
 
 /* Physical Query Plan Nodes */
 abstract class QueryPlan
