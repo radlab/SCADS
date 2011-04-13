@@ -140,4 +140,70 @@ case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Long]) extend
 	  
 	  result
 	}
+	
+	def histToCDF() : Histogram = {
+	  var defaultBucketSize = 1
+	  var defaultBucketCount = 10
+	  val intermResult = Histogram(defaultBucketSize, defaultBucketCount)
+	  var bucketTot : Double = 0
+	  var prob : Double = 0
+	  
+	  assert(this.buckets.length == defaultBucketCount, "histogram must have " + defaultBucketCount + " buckets")
+	  
+	  /*Convert histogram to probability histogram*/
+	  var max = defaultBucketCount-1
+	  
+	  (0 to max).foreach(i => {
+	    bucketTot = (this.buckets(i)).toDouble
+	    //System.out.println("Total in bucket "+ bucketTot)
+	    //System.out.println("TotalRequests "+ this.totalRequests)
+	    prob = (bucketTot/((this.totalRequests).toDouble))*100
+	    //System.out.println("Prob value " + prob)
+	    intermResult.buckets(i) = prob.toLong
+	  })
+
+	  /*Using probability histogram, create CDF*/
+	  val cdfResult = Histogram(defaultBucketSize, defaultBucketCount)
+	  var totSum : Long = 0
+	  (0 to max).foreach(i=> {
+	    totSum = 0
+	    (0 to i).foreach(j=> {
+	      totSum = intermResult.buckets(j) + totSum
+	    })
+	    cdfResult.buckets(i) = totSum
+	  })
+	 
+	  cdfResult
+	}
+	
+  def collapseHist(newBucketCount : Int): Histogram = {
+    var defaultBucketSize = 1
+    var originalHistLength = this.buckets.length    
+    var total = 0L
+    
+    assert(this.buckets.length%newBucketCount == 0, "The original bucket count (" +this.buckets.length+") must be divisible by the new bucket count.")
+    val collapseAmt = originalHistLength/newBucketCount
+    System.out.println("Collapse value is: " + collapseAmt)
+
+    val collapsedHistogram = Histogram(defaultBucketSize, newBucketCount)
+    var max = newBucketCount-1
+    var collapsedHistogramIndex = 0
+    var origIndex = 0
+    var collapseVal = collapseAmt
+
+    while(collapsedHistogramIndex <= max)
+    {
+    	while (origIndex < collapseVal)
+    	{
+    		total = this.buckets(origIndex)+total
+    		origIndex = origIndex+1
+    	}
+    	collapsedHistogram.buckets(collapsedHistogramIndex) = total
+    	collapseVal = collapseVal + collapseAmt
+    	total = 0
+    	collapsedHistogramIndex = collapsedHistogramIndex + 1
+    }
+        
+    collapsedHistogram
+  }
 }
