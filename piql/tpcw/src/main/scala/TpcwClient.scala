@@ -45,31 +45,30 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * where C_UNAME=@C_UNAME
    */
   val homeWI = customers.where("C_UNAME".a === (0.?))
-		        .toPiql("homeWI")
+		                    .toPiql("homeWI")
 
   /**
    * New Products web interaction
    * 
-   * select top 50 I_ID,I_TITLE,A_FNAME,A_LNAME from ITEM , AUTHOR
-   * where A_ID = I_A_ID AND I_SUBJECT LIKE @CategoryID
+   * select top 50 I_ID,I_TITLE,A_FNAME,A_LNAME
+   * from ITEM , AUTHOR
+   * where A_ID = I_A_ID AND
+   *       I_SUBJECT LIKE @CategoryID
    * order by I_PUB_DATE desc,I_TITLE
-  //TODO Still missing the like operator. Does the like really work here???
-  private lazy val newProductPlan =
-    IndexLookupJoin(  //(itemSubjectDateTitleIndex, itemKey, itemKey, ItemValue, authorKey, authorValue)
-      author,
-      projection(3, 1), //(itemSubjectDateTitleIndex, itemKey, itemKey, ItemValue)
-      IndexLookupJoin(
-        item,
-        projection(1, 0),
-        StopAfter(
-          FixedLimit(50),
-          IndexScan(itemSubjectDateTitleIndex, firstPara, FixedLimit(50), true))
-      )
+   */
+  val newProductWI =
+    new OptimizedQuery(
+      "newProductWI",
+      LocalStopAfter(
+        ParameterLimit(1,50),
+        IndexScan(
+          items.getOrCreateIndex(TokenIndex("I_SUBJECT" :: Nil) :: AttributeIndex("I_PUB_DATE") :: Nil),
+          (0.?) :: Nil,
+          ParameterLimit(1, 50),
+          false)
+      ),
+      executor
     )
-
-  def newProductWI(subject: String): QueryResult =
-    exec(newProductPlan, new Utf8(subject))
-    */
 
   /**
    * Best Sellers web interactio
