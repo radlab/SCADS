@@ -46,7 +46,7 @@ object Experiments {
     new ScadrClient(expCluster(expId), new ParallelExecutor)
 
   lazy val testTpcwClient =
-    new piql.tpcw.TpcwClient(new piql.tpcw.TpcwLoaderTask(4,2,10,1000,2).newTestCluster, new ParallelExecutor)
+    new piql.tpcw.TpcwClient(new piql.tpcw.TpcwLoaderTask(4,2,10,1000,2).newTestCluster, new ParallelExecutor with DebugExecutor)
 
   lazy val scadsCluster = new ScadsCluster(traceRoot)
   lazy val scadrClient = new piql.scadr.ScadrClient(scadsCluster, new ParallelExecutor)
@@ -66,6 +66,7 @@ object Experiments {
 
   object QueryRunner {
     val results = resultsCluster.getNamespace[Result]("queryRunnerResults")
+
     def downloadResults: Unit = {
       val outfile = AvroOutFile[Result]("QueryRunnerResults.avro")
       results.iterateOverRange(None, None).foreach(outfile.append)
@@ -73,38 +74,39 @@ object Experiments {
     }
 
     def allResults = AvroInFile[Result]("QueryRunnerResults.avro")
+
     def goodResults = allResults.filter(_.failedQueries < 200)
-				.filterNot(_.iteration == 1)
-				.filter(_.clientConfig.iterationLengthMin == 10)
-				.filter(_.clientConfig.numClients == 50)
+      .filterNot(_.iteration == 1)
+      .filter(_.clientConfig.iterationLengthMin == 10)
+      .filter(_.clientConfig.numClients == 50)
 
     def queryTypeQuantile(results: Seq[Result] = goodResults.toSeq, quantile: Double = 0.90) =
       results.groupBy(_.queryDesc).map {
-	case (queryDesc, results) => (queryDesc, results.map(_.responseTimes)
-							.reduceLeft(_ + _)
-							.map(_.quantile(quantile)))
+        case (queryDesc, results) => (queryDesc, results.map(_.responseTimes)
+          .reduceLeft(_ + _)
+          .map(_.quantile(quantile)))
       }
 
     def thoughtstreamGraph =
       queryTypeQuantile().filter(_._1.queryName == "thoughtstream")
-    
-		def quantileCsv(queryName: String) = {
-		  val quantiles = queryTypeQuantile().filter(_._1.queryName == queryName)
-		  
-		  quantiles.map(i => {
-		    var line:List[String] = Nil
-		    line = i._1.queryName :: line
-		    
-		    (1 to i._1.parameters.length).foreach(j =>
-		      line = i._1.parameters(j-1).toString :: line
-		    )
-		    
-		    line = i._2.get.toString :: line
-		    println(line.reverse.mkString(","))
-		  })
-		}
-		
-		def thoughtstreamQuantileCsv = {
+
+    def quantileCsv(queryName: String) = {
+      val quantiles = queryTypeQuantile().filter(_._1.queryName == queryName)
+
+      quantiles.map(i => {
+        var line: List[String] = Nil
+        line = i._1.queryName :: line
+
+        (1 to i._1.parameters.length).foreach(j =>
+          line = i._1.parameters(j - 1).toString :: line
+        )
+
+        line = i._2.get.toString :: line
+        println(line.reverse.mkString(","))
+      })
+    }
+
+    def thoughtstreamQuantileCsv = {
 		  println("queryName,numSubscriptions,numPerPage,latency")
 		  quantileCsv("thoughtstream")
 		}

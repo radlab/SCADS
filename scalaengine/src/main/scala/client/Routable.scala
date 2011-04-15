@@ -180,7 +180,7 @@ trait DefaultKeyRoutableLike
     }
 
     storeAndPropagateRoutingTable()
-    // TODO: should execute deletions in parallel, with ftchs
+    // TODO: should execute deletions in parallel, with futures
     for (oldPartition <- oldPartitions)
       deletePartitionServices(oldPartition)
   }

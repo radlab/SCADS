@@ -102,13 +102,13 @@ trait QuorumProtocol
     for (server <- servers) {
       val buf = serverBuffers.getOrElseUpdate(server, new ArrayBuffer[PutRequest](BulkPutBufSize))
       buf += putRequest
-	
+
       /* send the buffer when its full */
-      if(buf.size >= BulkPutBufSize)
-	sendBuffer(server, buf)
+      if (buf.size >= BulkPutBufSize)
+        sendBuffer(server, buf)
     }
-    
-    if(outstandingPuts.size >= BulkPutMaxOutstanding)
+
+    if (outstandingPuts.size >= BulkPutMaxOutstanding)
       processNextOutstandingRequest
   }
 
@@ -123,9 +123,11 @@ trait QuorumProtocol
       processNextOutstandingRequest
   }
 
-  val serverBuffers = new HashMap[PartitionService, ArrayBuffer[PutRequest]]
-  case class OutstandingPut(timestamp: Long, server: PartitionService, sendBuffer: ArrayBuffer[PutRequest], future: MessageFuture, tries: Int = 0)
-  val outstandingPuts = new collection.mutable.Queue[OutstandingPut]
+  protected val serverBuffers = new HashMap[PartitionService, ArrayBuffer[PutRequest]]
+
+  protected case class OutstandingPut(timestamp: Long, server: PartitionService, sendBuffer: ArrayBuffer[PutRequest], future: MessageFuture, tries: Int = 0)
+
+  protected val outstandingPuts = new collection.mutable.Queue[OutstandingPut]
 
   /* send the request and append it to the list of outstanding requests */
   @inline private def sendBuffer(server: PartitionService, sendBuffer: ArrayBuffer[PutRequest], tries: Int = 0): Unit = {
@@ -146,26 +148,25 @@ trait QuorumProtocol
     val oldestRequest = outstandingPuts.dequeue
     val remainingTime = BulkPutTimeout - (System.currentTimeMillis - oldestRequest.timestamp)
     val timeout =
-    if(remainingTime < 0)
-      1
-    else if(remainingTime > BulkPutTimeout) /* handle ec2 timeskips */
-      BulkPutTimeout
-    else
-      remainingTime
+      if (remainingTime < 0)
+        1
+      else if (remainingTime > BulkPutTimeout) /* handle ec2 timeskips */
+        BulkPutTimeout
+      else
+        remainingTime
 
-        oldestRequest.future.get(timeout) match {
-    case Some(BulkPutResponse()) => null
-    case Some(otherMsg) => {
-      logger.warning("Received unexpected message for bulk put to %s: %s. Resending", oldestRequest.server, otherMsg)
-      sendBuffer(oldestRequest.server, oldestRequest.sendBuffer, oldestRequest.tries + 1)
-    }
-    case None => {
-      logger.warning("Bulkput to %s timed out. Resending.", oldestRequest.server)
-      sendBuffer(oldestRequest.server, oldestRequest.sendBuffer, oldestRequest.tries + 1)
-    }
+    oldestRequest.future.get(timeout) match {
+      case Some(BulkPutResponse()) => null
+      case Some(otherMsg) => {
+        logger.warning("Received unexpected message for bulk put to %s: %s. Resending", oldestRequest.server, otherMsg)
+        sendBuffer(oldestRequest.server, oldestRequest.sendBuffer, oldestRequest.tries + 1)
+      }
+      case None => {
+        logger.warning("Bulkput to %s timed out. Resending.", oldestRequest.server)
+        sendBuffer(oldestRequest.server, oldestRequest.sendBuffer, oldestRequest.tries + 1)
+      }
     }
   }
-
 
 
   private var readQuorum: Double = 0.001
