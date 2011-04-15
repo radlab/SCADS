@@ -27,6 +27,8 @@ private[storage] object IndexManager {
 
   val valueReaderWriter = new AvroGenericReaderWriter[IndexedRecord](None, indexValueSchema)
   val dummyIndexValueBytes = valueReaderWriter.serialize(dummyIndexValue)
+
+  private val indexDefinition = "indexDef"
 }
 
 sealed trait IndexType extends AvroUnion
@@ -91,7 +93,7 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
 	  with ZooKeeperGlobalMetadata
     with RecordStore[BulkType] {
   import IndexManager._
-  
+
   protected var indexCatalogue: ZooKeeperProxy#ZooKeeperNode = _
   logger.info("IndexManger Constructor: %s", namespace)
 
@@ -199,7 +201,7 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
       val ns = new IndexNamespace(toGlobalName(n.name), cluster, root, ks)
       ns.open()
 
-      (n.name, (ns, classOf[IndexDefinition].newInstance.parse(ns.getMetadata("indexDef").getOrElse(throw new RuntimeException("Invalid index definition")))))
+      (n.name, (ns, classOf[IndexDefinition].newInstance.parse(ns.getMetadata(indexDefinition).getOrElse(throw new RuntimeException("Invalid index definition in ns: " + namespace + ", " + n.name)))))
     })
   }
 
@@ -258,7 +260,9 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
     val indexNs = new IndexNamespace(toGlobalName(name), cluster, root, indexKeySchema)
     // create the actual namespace with no partition strategy here 
     indexNs.open
-    indexNamespacesCache += ((name, (indexNs, IndexDefinition(fields ++ suffixFields.map(f => AttributeIndex(f.name))))))
+    val idxDef = IndexDefinition(fields ++ suffixFields.map(f => AttributeIndex(f.name)))
+    indexNamespacesCache += ((name, (indexNs, idxDef)))
+    indexNs.putMetadata(indexDefinition, idxDef.toBytes)
 
     // add index catalogue entry- causes other clients to be notified if they
     // are watching
