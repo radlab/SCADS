@@ -36,6 +36,7 @@ abstract trait DataLoadingTask extends ExperimentTask {
     clusterAddress = cluster.root.canonicalAddress
     val threads = (1 to numLoaders).map(i => new Thread(this, "TestDataLoadingTask " + i))
     threads.foreach(_.start)
+    cluster.root.awaitChild("clusterReady")
     cluster
   }
 
