@@ -247,7 +247,7 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
           if(field.schema.getType != Schema.Type.STRING)
             throw new IllegalArgumentException("Can't build token index over field %s of type %s.".format(fieldNames, field.schema))
         })
-        new Schema.Field(fieldNames.mkString("|"), Schema.create(Schema.Type.STRING), "", null)
+        new Schema.Field("Token:" + fieldNames.mkString("|"), Schema.create(Schema.Type.STRING), "", null)
       }
     }
 
