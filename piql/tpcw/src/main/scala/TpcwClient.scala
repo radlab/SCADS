@@ -59,14 +59,19 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   val newProductWI =
     new OptimizedQuery(
       "newProductWI",
-      LocalStopAfter(
-        ParameterLimit(1,50),
-        IndexScan(
-          items.getOrCreateIndex(TokenIndex("I_SUBJECT" :: Nil) :: AttributeIndex("I_PUB_DATE") :: Nil),
-          (0.?) :: Nil,
-          ParameterLimit(1, 50),
-          false)
-      ),
+      IndexLookupJoin(
+        authors,
+        AttributeValue(1,2) :: Nil,
+        IndexLookupJoin(
+          items,
+          AttributeValue(0,2) :: Nil,
+          LocalStopAfter(
+            ParameterLimit(1,50),
+            IndexScan(
+              items.getOrCreateIndex(TokenIndex("I_SUBJECT" :: Nil) :: AttributeIndex("I_PUB_DATE") :: Nil),
+              (0.?) :: Nil,
+              ParameterLimit(1, 50),
+              false)))),
       executor
     )
 
@@ -109,46 +114,57 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * WHERE I_A_ID = A_ID
    * AND ( A_LNAME LIKE '% ' + @Author + '%' OR A_LNAME LIKE @Author + '%' )
    * order by I_TITLE
-  //TODO: Alternatively, no limit just pagination!!!
-  private lazy val searchByAuthorPlan =
-    IndexLookupJoin( //(Name, I_TITLE, I_ID), null, ItemKey, ItemValue
-      item,
-      projection(0,2), //(Name, I_TITLE, I_ID), null
-      StopAfter(
-        FixedLimit(50),
-        IndexScan(authorNameItemIndex, firstPara, FixedLimit(50), true)
-      )
-    )
-  def searchByAuthorWI(name : String) = exec(searchByAuthorPlan, new Utf8(name))
   */
+
+  val searchByAuthorWI =
+    new OptimizedQuery(
+      "searchByAuthorWI",
+      LocalStopAfter(
+        ParameterLimit(1,50),
+        IndexMergeJoin(
+          items.getOrCreateIndex(AttributeIndex("A_ID") :: AttributeIndex("I_TITLE") :: Nil),
+          AttributeValue(0,1) :: Nil,
+          AttributeValue(2,1) :: Nil,
+          ParameterLimit(1,50),
+          true,
+          IndexLookupJoin(
+            authors,
+            AttributeValue(0,1) :: Nil,
+            LocalStopAfter(
+              FixedLimit(50),
+                IndexScan(
+                  authors.getOrCreateIndex(TokenIndex("A_FNAME" :: "A_LNAME" :: Nil) :: Nil),
+                  (0.?) :: Nil,
+                  FixedLimit(50),
+                  true
+              ))))),
+      executor)
 
   /**
    * Search Result web interaction (by Title)
    * 
-   * SELECT TOP 50 I_TITLE, I_ID, A_FNAME, A_LNAME FROM ITEM, AUTHOR
+   * SELECT TOP 50 I_TITLE, I_ID, A_FNAME, A_LNAME
+   * FROM ITEM, AUTHOR
    * WHERE I_A_ID = A_ID
    * AND ( I_TITLE LIKE '% ' + @Title + '%' OR I_TITLE LIKE @Title + '%' )
    * order by I_TITLE
-  private lazy val searchByTitlePlan =
-    IndexLookupJoin( // (Token, Title, ID), NullRecord, (I_ID), ItemValue, AuthorKey, AuthorValue
-      author,
-      projection(3,1),
-      IndexLookupJoin( // (Token, Title, ID), NullRecord, (I_ID), ItemValue
-        item,
-        projection(0,2), // (Token, Title, ID), NullRecord
-        StopAfter(
-          FixedLimit(50),
+   */
+
+  val searchByTitleWI =
+    new OptimizedQuery(
+      "searchByTitleWI",
+      IndexLookupJoin(
+        authors,
+        AttributeValue(0, 2) :: Nil,
+        LocalStopAfter(
+          ParameterLimit(1,50),
           IndexScan(
-            itemTitleIndex,
-            firstPara,
-            FixedLimit(50),
-            true
-          )
-        )
-      )
+            items.getOrCreateIndex(TokenIndex("I_TITLE" :: Nil) :: AttributeIndex("I_TITLE") :: AttributeIndex("A_ID") :: Nil),
+            (0.?) :: Nil,
+            ParameterLimit(1, 50),
+            true))),
+      executor
     )
-  def searchByTitleWI(titleToken : String) = exec(searchByTitlePlan, new Utf8(titleToken.toLowerCase))
-  */
  
 
   /**
@@ -158,22 +174,8 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * FROM ITEM, AUTHOR
    * WHERE I_A_ID = A_ID AND I_SUBJECT LIKE @CategoryID
    * order by I_TITLE
-    private lazy val searchBySubjectPlan =
-    IndexLookupJoin( // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue, AuthorKey, AuthorValue
-      author,
-      projection(3,1), // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue
-      IndexLookupJoin( // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID), (I_ID), ItemValue
-        item,
-        projection(1,0), // (I_SUBJECT, I_PUB_DATE, I_TITLE),(I_ID)
-        StopAfter(
-          FixedLimit(50),
-          IndexScan(itemSubjectDateTitleIndex, firstPara, FixedLimit(50), true)
-        )
-      )
-    )
-  //TODO: this is the exact same query as newProductWI...
-  def searchBySubjectWI(subject : String) = exec(searchBySubjectPlan, new Utf8(subject))
-  */
+   */
+  val searchBySubjectWI = newProductWI
 
   /**
    * Order Display web interaction
@@ -231,7 +233,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
 
   def orderDisplayWI(c_uname: String, c_passwd: String, numOrderLinesPerPage: Int) = {
     val cust = orderDisplayGetCustomer(c_uname).head.head.asInstanceOf[Customer]
-    assert(cust.C_PASSWD == c_passwd, "Passwords don't match")
+    //assert(cust.C_PASSWD == c_passwd, "Passwords don't match")
 
     val lastOrderDetails = orderDisplayGetLastOrder(c_uname).headOption
     val lastOrder = lastOrderDetails.map(_.apply(0).asInstanceOf[Order])
@@ -254,6 +256,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     )
   def retrieveShoppingCart(c_uname: String) =
     exec(retrieveShoppingCartPlan, new Utf8(c_uname))
+
 
   private lazy val retrieveItemPlan =
     IndexLookup(
