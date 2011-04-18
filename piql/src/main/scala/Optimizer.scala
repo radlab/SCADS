@@ -57,7 +57,7 @@ object Optimizer {
 
           //TODO: Fix type hack
           val idx = ns.asInstanceOf[IndexedNamespace].getOrCreateIndex(equalityPreds.map(p => AttributeIndex(p.attributeName)))
-          val tupleSchema = ns :: idx :: Nil
+          val tupleSchema = idx :: ns :: Nil
           val idxScanPlan = IndexScan(idx, makeKeyGenerator(idx, tupleSchema, equalityPreds), count, true)
           val derefedPlan = derefPlan(ns, idxScanPlan)
 
@@ -77,7 +77,7 @@ object Optimizer {
           }
           else {
             val idx = ns.asInstanceOf[IndexedNamespace].getOrCreateIndex(prefixAttrs.map(p => AttributeIndex(p)))
-            val tupleSchema = ns :: idx :: Nil
+            val tupleSchema = idx :: ns :: Nil
             (derefPlan(ns,
               IndexScan(idx,
                 makeKeyGenerator(idx, tupleSchema, equalityPreds),
@@ -117,7 +117,7 @@ object Optimizer {
               tupleSchema)
           } else {
             val idx = ns.asInstanceOf[IndexedNamespace].getOrCreateIndex(prefixAttrs.map(p => AttributeIndex(p)))
-            val tupleSchema = ns :: idx :: Nil
+            val tupleSchema = idx :: ns :: Nil
 
             val idxJoinPlan = IndexScanJoin(idx,
               makeKeyGenerator(idx, tupleSchema, equalityPreds),
