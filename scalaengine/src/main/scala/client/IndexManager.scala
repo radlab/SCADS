@@ -291,7 +291,7 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
 
       val values = mapping.fields(pos) match {
         case AttributeIndex(fieldName) => getValue(fieldName) :: Nil
-        case TokenIndex(fieldNames) => fieldNames.flatMap(getValue(_).asInstanceOf[Utf8].toString.split(" ")).map(new Utf8(_)).distinct
+        case TokenIndex(fieldNames) => fieldNames.flatMap(getValue(_).asInstanceOf[Utf8].toString.split(" ")).filterNot(_.size == 0).map(new Utf8(_)).distinct
       }
 
       val newRecs = values.flatMap(v => {
