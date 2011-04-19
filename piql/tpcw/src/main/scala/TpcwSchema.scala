@@ -10,7 +10,7 @@ import org.apache.avro.util._
 
 case class Item(var I_ID: String) extends AvroPair {
   var I_TITLE: String = _
-  var A_ID: String = _
+  var I_A_ID: String = _
   var I_PUB_DATE: Long = _
   var I_PUBLISHER: String = _
   var I_SUBJECT: String = _

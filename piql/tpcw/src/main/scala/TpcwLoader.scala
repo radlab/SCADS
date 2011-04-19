@@ -20,8 +20,7 @@ import org.apache.avro.util.Utf8
 
 
 class TpcwLoader(val numEBs : Double,
-                 val numItems : Int,
-                 val replicationFactor: Int ) {
+                 val numItems : Int) {
   private val logger = Logger()
 
   require(numEBs > 0.0)
@@ -51,7 +50,7 @@ class TpcwLoader(val numEBs : Double,
     protected def sampleData: Seq[Pair]
     protected def dataSlice(clientId: Int, numClients: Int): Seq[Pair]
 
-    def repartition: Unit =
+    def repartition(replicationFactor: Int): Unit =
       ns.repartition(sampleData, replicationFactor)
 
     def load(clientId: Int = 0, numLoaders: Int = 1): Unit =
@@ -96,8 +95,8 @@ class TpcwLoader(val numEBs : Double,
       FlattenedRandomData(client.orderLines, createOrderline(_), numOrders),
       RandomData(client.orders, createOrder(_), numOrders))
 
-  def createNamespaces(client: TpcwClient) =
-    namespaces(client).foreach(_.repartition)
+  def createNamespaces(client: TpcwClient, replicationFactor: Int) =
+    namespaces(client).foreach(_.repartition(replicationFactor))
 
   private def uuid() : String =
     UUID.randomUUID.toString
@@ -236,7 +235,7 @@ class TpcwLoader(val numEBs : Double,
 
     var item = Item(toItem(itemId))
     item.I_TITLE = to.getI_title
-    item.A_ID = toAuthor(to.getI_a_id)
+    item.I_A_ID = toAuthor(to.getI_a_id)
     item.I_PUB_DATE = to.getI_pub_date
     item.I_PUBLISHER = to.getI_publisher
     item.I_SUBJECT = to.getI_subject
@@ -258,8 +257,6 @@ class TpcwLoader(val numEBs : Double,
     item.I_DIMENSION = to.getI_dimensions
     item
   }
-
-
 
   def createCountry(countryId : Int) : Country = {
     val to = Generator.generateCountry(countryId).asInstanceOf[CountryTO]

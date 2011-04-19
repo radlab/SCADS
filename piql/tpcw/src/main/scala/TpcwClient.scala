@@ -100,9 +100,10 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * SELECT DISTINCT * FROM ITEM,AUTHOR
    * WHERE AUTHOR.A_ID = ITEM.I_A_ID AND ITEM.I_ID = @BookID
    */
-  val productDetailWI = items.where("I_ID".a === (0.?))
+  val productDetailWI =
+      items.where("I_ID".a === (0.?))
 			     .join(authors)
-			     .where("A_ID".a === "I_A_ID")
+			     .where("A_ID".a === "I_A_ID".a)
 			     .toPiql("productDetailWI")
   
 
@@ -122,7 +123,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       LocalStopAfter(
         ParameterLimit(1,50),
         IndexMergeJoin(
-          items.getOrCreateIndex(AttributeIndex("A_ID") :: AttributeIndex("I_TITLE") :: Nil),
+          items.getOrCreateIndex(AttributeIndex("I_A_ID") :: AttributeIndex("I_TITLE") :: Nil),
           AttributeValue(0,1) :: Nil,
           AttributeValue(2,1) :: Nil,
           ParameterLimit(1,50),
@@ -159,7 +160,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
         LocalStopAfter(
           ParameterLimit(1,50),
           IndexScan(
-            items.getOrCreateIndex(TokenIndex("I_TITLE" :: Nil) :: AttributeIndex("I_TITLE") :: AttributeIndex("A_ID") :: Nil),
+            items.getOrCreateIndex(TokenIndex("I_TITLE" :: Nil) :: AttributeIndex("I_TITLE") :: AttributeIndex("I_A_ID") :: Nil),
             (0.?) :: Nil,
             ParameterLimit(1, 50),
             true))),

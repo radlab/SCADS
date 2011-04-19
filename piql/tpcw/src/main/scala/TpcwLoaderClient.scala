@@ -27,14 +27,13 @@ case class TpcwLoaderTask(var numServers: Int,
     val tpcwClient = new TpcwClient(cluster, new SimpleExecutor)
     val loader = new TpcwLoader(
       numEBs = numEBs,
-      numItems = numItems,
-      replicationFactor = replicationFactor)
+      numItems = numItems)
 
     val clientId = coordination.registerAndAwait("clientStart", numLoaders)
     if (clientId == 0) {
       logger.info("Awaiting scads cluster startup")
       cluster.blockUntilReady(numServers)
-      loader.createNamespaces(tpcwClient)
+      loader.createNamespaces(tpcwClient, replicationFactor)
       import tpcwClient._
       List(addresses,
            authors,
