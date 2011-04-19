@@ -49,6 +49,10 @@ case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Long]) extend
       0
   }
 
+  def median: Int = {
+    quantile(0.5)
+  }
+
   def average: Double = {
     val n = totalRequests.toDouble
     buckets.zipWithIndex.foldLeft(0.0) { case (acc, (num, idx)) => acc + num.toDouble * idx.toDouble * bucketSize.toDouble / n }

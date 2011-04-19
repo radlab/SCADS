@@ -57,7 +57,7 @@ val initSeq = deploylib.Util.readFile(new java.io.File("setup.scala"))
 
       outputToConsole(<p>Ready...</p>)
     }
-    case DisplayNodeSeq(seq) => outputToConsole(seq)
+    case DisplayNodeSeq(seq) => outputToConsole(seq)  // called when you want to do ".view"
     case ExecuteScala(cmd) => {
       outputToConsole(<p>> { cmd }</p>)
       interpret(cmd)
@@ -103,6 +103,7 @@ val initSeq = deploylib.Util.readFile(new java.io.File("setup.scala"))
       }
       case x => Noop
     }
+
   }
 
   override lazy val fixedRender: Box[NodeSeq] = None

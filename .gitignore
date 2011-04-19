@@ -32,3 +32,6 @@ experiments/director/src/main/scala/querygen/workloadDescriptions.scala
 experiments/director/src/main/scala/querygen/workloadElements.scala
 scads.jar
 piqltrace.avro
+QueryRunnerResults.avro
+QueryRunnerResults.avro.old
+QueryRunnerResults.avro.old2
