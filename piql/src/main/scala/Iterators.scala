@@ -24,10 +24,13 @@ trait QueryExecutor {
   def apply(plan: QueryPlan, args: Any*): QueryIterator = apply(plan)(Context(args.toIndexedSeq, None))
   def apply(plan: QueryPlan)(implicit ctx: Context): QueryIterator
 
-  final protected def bindValue(value: Value, currentTuple: Tuple)(implicit ctx: Context): Any = value match {
-    case ConstantValue(v) => v
-    case ParameterValue(o) => ctx.parameters(o)
-    case AttributeValue(recPos, fieldPos) => currentTuple(recPos).get(fieldPos)
+  final protected def bindValue(value: Value, currentTuple: Tuple)(implicit ctx: Context): Any = {
+    logger.debug("BoundValue: %s %s %s", value, currentTuple, ctx)
+    value match {
+      case ConstantValue(v) => v
+      case ParameterValue(o) => ctx.parameters(o)
+      case AttributeValue(recPos, fieldPos) => currentTuple(recPos).get(fieldPos)
+    }
   }
 
   final protected def bindKey(ns: Namespace, key: KeyGenerator, currentTuple: Tuple = null)(implicit ctx: Context): Key = {
@@ -36,6 +39,7 @@ trait QueryExecutor {
     key.map(bindValue(_, currentTuple)).zipWithIndex.foreach {
       case (value: Any, idx: Int) => boundKey.put(idx, value)
     }
+    logger.debug("Bound Key: %s", boundKey)
     boundKey
   }
 
