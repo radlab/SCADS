@@ -211,10 +211,19 @@ object Experiments {
         traceMessages=false,
         traceQueries=false)
 
+    val defaultTpcwRunner =
+      QueryRunnerTask(10,
+		      "edu.berkeley.cs.scads.piql.modeling.TpcwQueryProvider",
+		      iterations=5*6,
+		      iterationLengthMin=10,
+		      threads=15,
+		      traceIterators=false,
+		      traceMessages=false,
+		      traceQueries=false)
+
     def tpcwBenchmark = {
       val cluster = tpcwCluster.newCluster
-
-
+      defaultTpcwRunner.schedule(cluster, resultsCluster)
     }
 
     def testTpcwRunner: Unit = {
