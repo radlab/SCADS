@@ -173,12 +173,12 @@ object Experiments {
 
     def genericCluster = 
       GenericRelationLoaderTask(
-	numServers=10,
-	numLoaders=10,
-	replicationFactor=2,
-	tuplesPerServer=10000,
-	dataSize=10,
-	maxCardinality=500)
+	      numServers=10,
+	      numLoaders=10,
+	      replicationFactor=2,
+	      tuplesPerServer=10000,
+	      dataSize=10,
+	      maxCardinality=500)
     
     def defaultGenericRunner =
        QueryRunnerTask(numClients=10,
@@ -198,6 +198,41 @@ object Experiments {
       genericBenchmark(clust30)
       genericBenchmark(clust40)
       benchmarkScadr(scadrCluster)
+    }
+
+    val tpcwCluster = tpcw.TpcwLoaderTask(10, 10, numEBs=100, numItems=10000, 2)
+    val tpcwRunner =
+      QueryRunnerTask(numClients=10,
+        "edu.berkeley.cs.scads.piql.modeling.TpcwQueryProvider",
+        iterations=30,
+        iterationLengthMin=10,
+        threads=2,
+        traceIterators=false,
+        traceMessages=false,
+        traceQueries=false)
+
+    def tpcwBenchmark = {
+      val cluster = tpcwCluster.newCluster
+
+
+    }
+
+    def testTpcwRunner: Unit = {
+      val cluster = tpcw.TpcwLoaderTask(2, 2, 10, 1000, 2).newTestCluster
+      val runner = QueryRunnerTask(1,
+		      "edu.berkeley.cs.scads.piql.modeling.TpcwQueryProvider",
+		      iterations=10,
+		      iterationLengthMin=1,
+		      threads=2,
+		      traceIterators=false,
+		      traceMessages=false,
+		      traceQueries=false)
+      runner.clusterAddress = cluster.root.canonicalAddress
+      runner.experimentAddress = cluster.root.canonicalAddress
+      runner.resultClusterAddress = cluster.root.canonicalAddress
+      while(cluster.getAvailableServers.size < 1) Thread.sleep(100)
+      val thread = new Thread(runner)
+      thread.start
     }
 
     def genericBenchmark(cluster: ScadsCluster = genericCluster.newCluster) =
