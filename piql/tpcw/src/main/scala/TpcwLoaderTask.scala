@@ -23,6 +23,7 @@ case class TpcwLoaderTask(var numServers: Int,
   def run() = {
     val coordination = clusterRoot.getOrCreate("coordination/loaders")
     val cluster = new ExperimentalScadsCluster(clusterRoot)
+    cluster.blockUntilReady(numServers)
 
     val tpcwClient = new TpcwClient(cluster, new SimpleExecutor)
     val loader = new TpcwLoader(
