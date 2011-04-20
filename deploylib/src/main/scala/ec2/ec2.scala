@@ -132,17 +132,18 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     //TODO: cache tags with instance state?
     protected def getTags =
       EC2Instance.client.describeTags().getTags()
-		 .filter(_.getResourceType equals "instance")
-		 .filter(_.getResourceId equals instanceId)
+        .filter(_.getResourceType equals "instance")
+        .filter(_.getResourceId equals instanceId)
 
-    def +=(key: String, value: String = ""): Unit =
+    def +=(key: String, value: String = ""): Unit = Util.retry(5) {
       EC2Instance.client.createTags(
-	new CreateTagsRequest(instanceId :: Nil,
-			      new Tag(key, value) :: Nil))
+        new CreateTagsRequest(instanceId :: Nil,
+          new Tag(key, value) :: Nil))
+    }
 
     def -=(key: String, value: String = ""): Unit =
       EC2Instance.client.deleteTags(
-	new DeleteTagsRequest(instanceId :: Nil).withTags(new Tag(key, value)))
+        new DeleteTagsRequest(instanceId :: Nil).withTags(new Tag(key, value)))
   }
 
   def fixHostname: Unit =

@@ -34,6 +34,7 @@ object Util {
       } catch {
         case ce: java.net.ConnectException => logAndStore(ce)
         case rt: RetryableException => logAndStore(rt)
+        case aws: com.amazonaws.AmazonClientException => logAndStore(aws)
       }
     }
     throw lastException
