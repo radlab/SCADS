@@ -15,11 +15,11 @@ import deploylib.mesos._
 import deploylib.ec2._
 
 case class ScadrLoaderTask(var numServers: Int,
-			   var numLoaders: Int,
-			   var followingCardinality: Int = 10,
-			   var replicationFactor: Int = 1,
-			   var usersPerServer: Int = 10000,
-			   var thoughtsPerUser: Int = 100) extends DataLoadingTask with AvroRecord {
+                           var numLoaders: Int,
+                           var followingCardinality: Int = 10,
+                           var replicationFactor: Int = 1,
+                           var usersPerServer: Int = 10000,
+                           var thoughtsPerUser: Int = 100) extends DataLoadingTask with AvroRecord {
   var clusterAddress: String = _
 
   def run(): Unit = {
@@ -37,16 +37,16 @@ case class ScadrLoaderTask(var numServers: Int,
       numTagsPerThought = 5)
 
     val clientId = coordination.registerAndAwait("clientStart", numLoaders)
-    if(clientId == 0) {
+    if (clientId == 0) {
       logger.info("Awaiting scads cluster startup")
       cluster.blockUntilReady(numServers)
       retry() {
-	loader.createNamespaces(cluster)
-	val scadrClient = new ScadrClient(cluster, new SimpleExecutor)
-	scadrClient.users.setReadWriteQuorum(0.33, 0.67)
-	scadrClient.thoughts.setReadWriteQuorum(0.33, 0.67)
-	scadrClient.subscriptions.setReadWriteQuorum(0.33, 0.67)
-	scadrClient.tags.setReadWriteQuorum(0.33, 0.67)
+        loader.createNamespaces(cluster)
+        val scadrClient = new ScadrClient(cluster, new SimpleExecutor)
+        scadrClient.users.setReadWriteQuorum(0.33, 0.67)
+        scadrClient.thoughts.setReadWriteQuorum(0.33, 0.67)
+        scadrClient.subscriptions.setReadWriteQuorum(0.33, 0.67)
+        scadrClient.tags.setReadWriteQuorum(0.33, 0.67)
       }
     }
 
@@ -65,8 +65,8 @@ case class ScadrLoaderTask(var numServers: Int,
     logger.info("Bulk loading complete")
     coordination.registerAndAwait("loadingComplete", numLoaders)
 
-    if(clientId == 0) {
-      clusterRoot.createChild("clusterReady", data=this.toBytes)
+    if (clientId == 0) {
+      clusterRoot.createChild("clusterReady", data = this.toBytes)
       ExperimentNotification.completions.publish("ScadrLoad Complete", this.toJson)
     }
 
