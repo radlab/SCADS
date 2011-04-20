@@ -8,3 +8,5 @@ import edu.berkeley.cs.scads.piql.modeling.Experiments._
 import edu.berkeley.cs._
 import deploylib.mesos._
 import deploylib.ec2._
+import QueryRunner._
+import ModelingExperiments._
