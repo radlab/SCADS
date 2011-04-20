@@ -18,20 +18,6 @@ object Experiments {
   val cluster = new Cluster(zooKeeperRoot)
   val resultsCluster = new ScadsCluster(zooKeeperRoot.getOrCreate("results"))
 
-  object results extends deploylib.ec2.AWSConnection {
-    import collection.JavaConversions._
-    import com.amazonaws.services.s3._
-    import model._
-
-    val client = new AmazonS3Client(credentials)
-
-    def listFiles(bucket: String, prefix: String) = {
-      client.listObjects((new ListObjectsRequest).withBucketName(bucket)
-						 .withPrefix(prefix))
-	    .getObjectSummaries.map(_.getKey)
-    }
-  }
-
   implicit def classSource = cluster.classSource
   implicit def serviceScheduler = cluster.serviceScheduler
   def traceRoot = zooKeeperRoot.getOrCreate("traceCollection")
@@ -216,7 +202,7 @@ object Experiments {
 		      "edu.berkeley.cs.scads.piql.modeling.TpcwQueryProvider",
 		      iterations=5*6,
 		      iterationLengthMin=10,
-		      threads=15,
+		      threads=20,
 		      traceIterators=false,
 		      traceMessages=false,
 		      traceQueries=false)
@@ -258,7 +244,7 @@ object Experiments {
     val results = resultsCluster.getNamespace[perf.scadr.scale.Result]("scadrScaleResults")
 
     def makeScaleGraphPoint(size: Int) = { 
-      QueryRunnerTask(size, 
+      ScadrScaleTask(size,
 		      "edu.berkeley.cs.scads.piql.ParallelExecutor",
 		      0.01,
 		      threads=10)
@@ -266,22 +252,23 @@ object Experiments {
 		  resultsCluster)
     }
 
-    def dataSizeResults = 
-      new ScatterPlot(results.getRange(None, None)
-			     .filter(_.iteration != 1)
-			     .filter(_.clientConfig.threads == 10)
-			     .groupBy(_.loaderConfig.usersPerServer)
-			     .map {
-			       case (users, results) => 
-				 (users, results.map(_.times)
-						.reduceLeft(_+_)
-						.quantile(.99))
-			     }.toSeq,
-		      title="Users/Server vs. Response Time",
-		      xaxis="Users per server",
-		      yaxis="99th Percentile Response Time",
-		      xunit="users/server",
-		      yunit="milliseconds")
+    def dataSizeResults =
+      new ScatterPlot(
+        results.getRange(None, None)
+          .filter(_.iteration != 1)
+          .filter(_.clientConfig.threads == 20)
+          .groupBy(e => (e.loaderConfig.usersPerServer, e.clusterAddress)).toSeq
+          .map {
+          case ((users,_), results) =>
+            (users, results.map(_.times)
+              .reduceLeft(_ + _)
+              .quantile(.99))
+        }.toSeq,
+        title = "Users/Server vs. Response Time",
+        xaxis = "Users per server",
+        yaxis = "99th Percentile Response Time",
+        xunit = "users/server",
+        yunit = "milliseconds")
 
     def threadCountResults =
       new ScatterPlot(results.iterateOverRange(None, None)
@@ -290,37 +277,77 @@ object Experiments {
 			     .map {
 			       case (threads, results) => 
 				 (threads, results.map(_.times)
-						.reduceLeft(_+_)
-						.quantile(.99))
-			     }.toSeq,
-		     title="ThreadCount vs. Responsetime",
-		     xaxis="Number of threads per application server",
-		     yaxis="99th Percentile ResponseTime",
-		     xunit="threads",
-		     yunit="milliseconds")
+           .reduceLeft(_ + _)
+           .quantile(.99))
+      }.toSeq,
+        title = "ThreadCount vs. Responsetime",
+        xaxis = "Number of threads per application server",
+        yaxis = "99th Percentile ResponseTime",
+        xunit = "threads",
+        yunit = "milliseconds")
 
     def runDataSizes(sizes: Seq[Int] = (2 to 20 by 2).map(_ * 10000)) = {
       sizes.map(numUsers =>
-	QueryRunnerTask(5, 
-			"edu.berkeley.cs.scads.piql.ParallelExecutor",
-			0.01,
-			iterations=2,
-			runLengthMin=2,
-			threads=10)
-		.schedule(ScadrLoaderTask(5, 5, usersPerServer=numUsers).newCluster,
-		  resultsCluster))
+        ScadrScaleTask(10,
+          "edu.berkeley.cs.scads.piql.ParallelExecutor",
+          0.01,
+          iterations = 2,
+          runLengthMin = 2,
+          threads = 20)
+          .schedule(ScadrLoaderTask(10, 10, usersPerServer=numUsers, replicationFactor=1, followingCardinality=10).newCluster,
+          resultsCluster))
     }
 
     def runThreads(numThreads: Seq[Int] = (10 to 100 by 10)) = {
       numThreads.map(numThreads =>
-	QueryRunnerTask(5, 
-			"edu.berkeley.cs.scads.piql.ParallelExecutor",
-			0.01,
-			iterations=2,
-			runLengthMin=2,
-			threads=numThreads)
-		.schedule(ScadrLoaderTask(5, 5).newCluster,
-		  resultsCluster))
+        ScadrScaleTask(10,
+          "edu.berkeley.cs.scads.piql.ParallelExecutor",
+          0.01,
+          iterations = 2,
+          runLengthMin = 2,
+          threads = numThreads)
+          .schedule(ScadrLoaderTask(10, 10, replicationFactor=2, followingCardinality=10).newCluster,
+          resultsCluster))
+    }
+
+    def runScaleTest(numServers: Int, executor: String) = {
+      val cluster = ScadrLoaderTask(numServers, numServers, replicationFactor=2, followingCardinality=10, usersPerServer = 40000).newCluster
+
+      ScadrScaleTask(
+        10,
+        executor,
+        0.01,
+        iterations = 4,
+        runLengthMin = 5,
+        threads = 20
+      ).schedule(cluster, resultsCluster)
+    }
+
+    def findSweetSpot: Unit = {
+      val storageNodes = 10
+      val usersPerServer = 60000
+
+      List(1, 5, 10).foreach(numClients => {
+        List(10, 20, 30).foreach(numThreads => {
+          List(1, 2).foreach(replication => {
+            ScadrScaleTask(
+              numClients,
+              "edu.berkeley.cs.scads.piql.ParallelExecutor",
+              0.01,
+              iterations = 3,
+              runLengthMin = 3,
+              threads = numThreads)
+              .schedule(
+              ScadrLoaderTask(
+                numServers = 10,
+                numLoaders = 10,
+                usersPerServer = usersPerServer,
+                replicationFactor = replication,
+                followingCardinality = 10).newCluster,
+              resultsCluster)
+          })
+        })
+      })
     }
   }
 }
