@@ -323,6 +323,23 @@ object Experiments {
       ).schedule(cluster, resultsCluster)
     }
 
+    def sweetSpotResults =
+      new ScatterPlot(
+        results.iterateOverRange(None, None).toSeq
+          .groupBy(r => (r.clientConfig.experimentAddress, r.iteration)).toSeq
+          .map {
+          case (resultId, perThreadData) => {
+            val aggregateTimes = perThreadData.map(_.times).reduceLeft(_ + _)
+            (aggregateTimes.totalRequests.toInt, aggregateTimes.quantile(0.99))
+          }
+        },
+        title = "TotalReuqests vs. 99thth percentile responsetime",
+        xaxis = "total Scadr Requests ",
+        yaxis = "99th Percentile ResponseTime",
+        xunit = "requests",
+        yunit = "milliseconds")
+
+
     def findSweetSpot: Unit = {
       val storageNodes = 10
       val usersPerServer = 60000
