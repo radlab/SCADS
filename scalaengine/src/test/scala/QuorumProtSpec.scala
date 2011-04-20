@@ -35,7 +35,7 @@ class QuorumProtSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll
   }
 
   def getAllVersions(ns : SpecificNamespace[IntRec, IntRec], key : Int) : Seq[Int] = {
-    ns.getAllVersions(IntRec(key)).map(_._2.get.f1)
+    ns.getAllVersions(ns.keyToBytes(IntRec(key))).map(v => ns.bytesToValue(v._2.get).f1)
   }
 
   private final val V = new Object /* Dummy Key */
