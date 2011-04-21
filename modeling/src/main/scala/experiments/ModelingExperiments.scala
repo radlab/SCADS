@@ -63,6 +63,122 @@ object ModelingExperiments {
     
     val scadrIndexScanHist = histogramsScadr(scadrIndexScanBenchmark)
     val scadrIndexMergeJoinHist = histogramsScadr(scadrIndexMergeJoinBenchmark)
+    
+    val stddev = queryTypeStddev(goodExperimentResults.toSeq)
+    
+    def thoughtstreamPrediction = {
+      println("numSubs, numPerPage, actual, predicted, difference, actualStddev")
+      (100 to 500 by 50).foreach(numSubs => {
+        (10 to 50 by 5).foreach(numPerPage => {
+          val thoughtstream = QueryDescription("thoughtstream", List(numSubs, numPerPage))
+          val thoughtstreamHist = histogramsScadr(thoughtstream)
+          val scadrIndexScanHist = histogramsScadr(QueryDescription("scadrIndexScanBenchmark", List(numSubs)))
+          val scadrIndexMergeJoinHist = histogramsScadr(QueryDescription("scadrIndexMergeJoinBenchmark", List(numSubs, numPerPage)))
+          
+          val predictedHist = scadrIndexScanHist convolveWith scadrIndexMergeJoinHist
+          
+          val actualStddev = stddev(thoughtstream)
+          
+          println(List(numSubs, numPerPage, thoughtstreamHist.quantile(0.99), predictedHist.quantile(0.99), predictedHist.quantile(0.99) - thoughtstreamHist.quantile(0.99), actualStddev.get).mkString(","))
+        })
+      })
+    }
+    
+    // per-interval prediction
+    def getNumIntervalsForGivenQueryDesc(givenQueryDesc: QueryDescription): Int = {
+      val perIterationHistograms = queryTypePerIterationHistograms(goodExperimentResults.toSeq)
+      
+      val queryDescriptionsWithIterationNums = perIterationHistograms.keySet
+      
+      var max = 0
+      
+      queryDescriptionsWithIterationNums.map { 
+        case(queryDesc, i) => 
+          if (queryDesc == givenQueryDesc && i > max) 
+            max = i 
+      }
+      
+      max
+    }
+    
+    def getThoughtstreamDistributionPredictionForGivenCardinality(numSubs: Int, numPerPage: Int) = {
+      val thoughtstream = QueryDescription("thoughtstream", List(numSubs, numPerPage))
+      val scadrIndexScan = QueryDescription("scadrIndexScanBenchmark", List(numSubs))
+      val scadrIndexMergeJoin = QueryDescription("scadrIndexMergeJoinBenchmark", List(numSubs, numPerPage))
+
+      val numIntervals = getNumIntervalsForGivenQueryDesc(thoughtstream)
+      
+      val perIterationHistograms = queryTypePerIterationHistograms(goodExperimentResults.toSeq)
+      
+      println("interval, actual99th, predicted99th")
+      // skip first interval
+      (2 to numIntervals).foreach(i => {
+        val actualHist = perIterationHistograms((thoughtstream, i))
+        
+        val scadrIndexScanHist = perIterationHistograms((scadrIndexScan, i))
+        val scadrIndexMergeJoinHist = perIterationHistograms((scadrIndexMergeJoin, i))
+        
+        val predictedHist = scadrIndexScanHist convolveWith scadrIndexMergeJoinHist
+        
+        println(List(i, actualHist.quantile(0.99), predictedHist.quantile(0.99)).mkString(","))
+      })
+    }
+    
+    def getThoughtstreamDistributionPredictionSummary(summaryType: String = "median", metaQuantile: Double = 0.5) = {
+      println("numSubs, numPerPage, actualSummary, predictedSummary, difference, actualStddev, predictedStddev")
+      (100 to 500 by 50).foreach(numSubs => {
+        (10 to 50 by 5).foreach(numPerPage => {
+          val (actual, predicted) = getActualAndPredictedHistogramsForGivenCardinality(numSubs, numPerPage, 0.99)
+
+          var actualSummary = 0.0
+          var predictedSummary = 0.0
+          
+          summaryType match {
+            case "median" => {
+              actualSummary = actual.median
+              predictedSummary = predicted.median
+            }
+            case "mean" => {
+              actualSummary = actual.average
+              predictedSummary = predicted.average
+            }
+            case "quantile" => {
+              actualSummary = actual.quantile(metaQuantile)
+              predictedSummary = predicted.quantile(metaQuantile)
+            }
+          }
+
+          println(List(numSubs, numPerPage, actualSummary, predictedSummary, predictedSummary - actualSummary, actual.stddev, predicted.stddev).mkString(","))
+        })
+      })
+    }
+    
+    val perIterationHistograms = queryTypePerIterationHistograms(goodExperimentResults.toSeq)
+    
+    // want function that will give you a tuple with the actual, predicted histograms of the desired quantile (eg, 99th) for the given cardinality
+    def getActualAndPredictedHistogramsForGivenCardinality(numSubs: Int, numPerPage: Int, quantile: Double = 0.99):(Histogram, Histogram) = {
+      val thoughtstream = QueryDescription("thoughtstream", List(numSubs, numPerPage))
+      val scadrIndexScan = QueryDescription("scadrIndexScanBenchmark", List(numSubs))
+      val scadrIndexMergeJoin = QueryDescription("scadrIndexMergeJoinBenchmark", List(numSubs, numPerPage))
+      val numIntervals = 30//getNumIntervalsForGivenQueryDesc(thoughtstream)
+
+      val actualQuantileHist = Histogram(1,1000)
+      val predictedQuantileHist = Histogram(1,1000)
+
+      (2 to numIntervals).foreach(i => {
+        val actualHist = perIterationHistograms((thoughtstream, i))
+        
+        val scadrIndexScanHist = perIterationHistograms((scadrIndexScan, i))
+        val scadrIndexMergeJoinHist = perIterationHistograms((scadrIndexMergeJoin, i))
+        
+        val predictedHist = scadrIndexScanHist convolveWith scadrIndexMergeJoinHist
+
+        actualQuantileHist += actualHist.quantile(quantile)
+        predictedQuantileHist += predictedHist.quantile(quantile)
+      })
+      
+      (actualQuantileHist, predictedQuantileHist)
+    }
   }
   
   object TpcwData {
