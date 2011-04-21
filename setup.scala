@@ -9,4 +9,5 @@ import edu.berkeley.cs._
 import deploylib.mesos._
 import deploylib.ec2._
 import QueryRunner._
+import ExperimentUtil._
 import ModelingExperiments._
