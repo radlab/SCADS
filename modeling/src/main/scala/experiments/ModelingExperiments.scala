@@ -26,6 +26,8 @@ object ModelingExperiments {
 
     val thoughtstream = QueryDescription("thoughtstream", List(100,50))
     val thoughtstreamHist = histogramsScadr(thoughtstream)
+    
+    val usersFollowedBy = QueryDescription("usersFollowedBy", List(100))  // need to re-benchmark this with (100 to 500 by 50) instead of (10 to 50 by 5)
   }
 
   object ModelThoughtstreamWithGenericBenchmarks {
