@@ -46,6 +46,15 @@ object ModelingExperiments {
     val indexMergeJoinHist = histograms40(indexMergeJoinBenchmark)
   }
   
+  object ModelUsersFollowedByWithScadrBenchmarks {
+    import ScadrData._
+    
+    val scadrIndexScanBenchmark = QueryDescription("scadrIndexScanBenchmark", List(100))
+    val scadrIndexLookupJoinBenchmark = QueryDescription("scadrIndexLookupJoinBenchmark", List(100))
+    
+    val predictedHist = histogramsScadr(scadrIndexScanBenchmark) convolveWith histogramsScadr(scadrIndexLookupJoinBenchmark)
+  }
+  
   object ModelThoughtstreamWithScadrBenchmarks {
     import ScadrData._
 
