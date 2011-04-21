@@ -12,20 +12,19 @@ import specific._
 import java.util.Comparator
 
 // TODO: change Manifest to ClassManifest
-
 class GenericNamespace(
     val name: String,
     val cluster: ScadsCluster,
     val root: ZooKeeperProxy#ZooKeeperNode,
     val keySchema: Schema,
     val valueSchema: Schema)
-  extends Namespace 
-  with RangeKeyValueStore[GenericRecord, GenericRecord]
-  with AvroGenericKeyValueSerializer
-  with QuorumRangeProtocol
-  with DefaultKeyRangeRoutable
+  extends Namespace
+    with SimpleRecordMetadata
   with ZooKeeperGlobalMetadata
-  with SimpleRecordMetadata {
+  with DefaultKeyRangeRoutable
+  with QuorumRangeProtocol
+  with AvroGenericKeyValueSerializer
+  with RangeKeyValueStore[GenericRecord, GenericRecord] {
 
   /** this is a HACK for now, to handle integration with the director */
   def typedRoutingTable: RangeTable[GenericRecord, PartitionService] = {
@@ -80,25 +79,25 @@ class GenericHashNamespace(
     val root: ZooKeeperProxy#ZooKeeperNode,
     val keySchema: Schema,
     val valueSchema: Schema)
-  extends Namespace 
-  with KeyValueStore[GenericRecord, GenericRecord]
-  with AvroGenericKeyValueSerializer
-  with QuorumProtocol
-  with DefaultHashKeyRoutable
-  with ZooKeeperGlobalMetadata
+  extends Namespace
   with SimpleRecordMetadata
+  with ZooKeeperGlobalMetadata
+  with DefaultHashKeyRoutable
+  with QuorumProtocol
+  with AvroGenericKeyValueSerializer
+  with KeyValueStore[GenericRecord, GenericRecord]
 
 class SpecificNamespace[Key <: SpecificRecord : Manifest, Value <: SpecificRecord : Manifest](
     val name: String,
     val cluster: ScadsCluster,
     val root: ZooKeeperProxy#ZooKeeperNode)
-  extends Namespace 
-  with RangeKeyValueStore[Key, Value]
-  with AvroSpecificKeyValueSerializer[Key, Value]
-  with QuorumRangeProtocol
-  with DefaultKeyRangeRoutable
+  extends Namespace
+  with SimpleRecordMetadata
   with ZooKeeperGlobalMetadata
-  with SimpleRecordMetadata {
+  with DefaultKeyRangeRoutable
+  with QuorumRangeProtocol
+  with AvroSpecificKeyValueSerializer[Key, Value]
+  with RangeKeyValueStore[Key, Value] {
 
   override protected val keyManifest = manifest[Key]
   override protected val valueManifest = manifest[Value] 
@@ -114,13 +113,13 @@ class SpecificHashNamespace[Key <: SpecificRecord : Manifest, Value <: SpecificR
     val name: String,
     val cluster: ScadsCluster,
     val root: ZooKeeperProxy#ZooKeeperNode)
-  extends Namespace 
-  with KeyValueStore[Key, Value]
-  with AvroSpecificKeyValueSerializer[Key, Value]
-  with QuorumProtocol
-  with DefaultHashKeyRoutable
+  extends Namespace
+  with SimpleRecordMetadata
   with ZooKeeperGlobalMetadata
-  with SimpleRecordMetadata {
+  with DefaultHashKeyRoutable
+  with QuorumProtocol
+  with AvroSpecificKeyValueSerializer[Key, Value]
+  with KeyValueStore[Key, Value] {
 
   override protected val keyManifest = manifest[Key]
   override protected val valueManifest = manifest[Value] 
