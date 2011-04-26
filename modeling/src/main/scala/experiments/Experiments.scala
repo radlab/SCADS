@@ -310,22 +310,61 @@ object Experiments {
           resultsCluster))
     }
 
+    def scaleResults = {
+      results.iterateOverRange(None, None)
+        .filter(_.loaderConfig.replicationFactor == 2)
+        .filter(_.loaderConfig.usersPerServer == 60000)
+        .filter(_.clientConfig.iterations == 4)
+        .filter(_.clientConfig.threads == 10)
+        .filter(_.clientConfig.runLengthMin == 5)
+        .filter(_.iteration != 1).toSeq
+        .groupBy(r => (r.clientConfig.clusterAddress, r.iteration))
+        .map {
+        case ((exp, iter), results) =>
+          val aggHist = results.map(_.times).reduceLeft(_ + _)
+          val loaderConfig = results.head.loaderConfig
+          val clientConfig = results.head.clientConfig
+          (loaderConfig.numServers, clientConfig.numClients, clientConfig.executorClass, iter, aggHist.totalRequests, aggHist.quantile(0.90), aggHist.quantile(0.99))
+      }
+    }
+
+
+
     def runScaleTest(numServers: Int, executor: String) = {
-      val cluster = ScadrLoaderTask(numServers, numServers, replicationFactor=2, followingCardinality=10, usersPerServer = 40000).newCluster
+      val cluster = ScadrLoaderTask(numServers, numServers/2, replicationFactor=2, followingCardinality=10, usersPerServer = 60000).newCluster
 
       ScadrScaleTask(
-        10,
+        numServers/2,
         executor,
         0.01,
         iterations = 4,
         runLengthMin = 5,
-        threads = 20
+        threads = 10
       ).schedule(cluster, resultsCluster)
     }
 
-    def sweetSpotResults =
+    def sweetSpotResults = {
+      results.iterateOverRange(None, None)
+        .filter(_.loaderConfig.numServers == 10)
+        .filter(_.loaderConfig.usersPerServer == 60000)
+        .filter(_.clientConfig.iterations == 3).toSeq
+        .groupBy(r => (r.clientConfig.experimentAddress, r.iteration)).toSeq
+        .map {
+        case (resultId, perThreadData) => {
+          val aggregateTimes = perThreadData.map(_.times).reduceLeft(_ + _)
+          val clientConfig = perThreadData.head.clientConfig
+          val loaderConfig = perThreadData.head.loaderConfig
+          (clientConfig.numClients, clientConfig.threads, loaderConfig.replicationFactor, aggregateTimes.totalRequests.toInt, aggregateTimes.quantile(0.90), aggregateTimes.quantile(0.99), aggregateTimes.stddev)
+        }
+      }
+    }
+
+    def sweetSpotGraph =
       new ScatterPlot(
-        results.iterateOverRange(None, None).toSeq
+        results.iterateOverRange(None, None)
+          .filter(_.loaderConfig.numServers == 10)
+          .filter(_.loaderConfig.usersPerServer == 60000)
+          .filter(_.clientConfig.iterations == 3).toSeq
           .groupBy(r => (r.clientConfig.experimentAddress, r.iteration)).toSeq
           .map {
           case (resultId, perThreadData) => {
