@@ -237,6 +237,19 @@ object Experiments {
       defaultRunner.schedule(cluster,resultsCluster)
   }
 
+  object TpcwScaleExperiment {
+    import piql.tpcw._
+    import scale._
+
+    val results = resultsCluster.getNamespace[piql.tpcw.scale.Result]("tpcwScaleResults")
+
+    val test =
+      TpcwWorkflowTask(
+        numClients=1,
+        executorClass="edu.berkeley.cs.scads.piql.ParallelExecutor"
+      ).testLocally(TpcwLoaderTask(2,2,10, 1000).newTestCluster)
+  }
+
   object ScadrScaleExperiment {
     import perf.scadr._
     import scale._

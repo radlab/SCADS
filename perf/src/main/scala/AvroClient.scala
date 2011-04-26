@@ -63,6 +63,17 @@ abstract trait ReplicatedExperimentTask extends ExperimentTask {
   protected lazy val cluster = new ScadsCluster(clusterRoot)
   protected lazy val resultCluster = new ScadsCluster(ZooKeeperNode(resultClusterAddress))
 
+  def testLocally(cluster: ScadsCluster) = {
+    val experimentRoot = cluster.root.getOrCreate("experiments").createChild("experiment", mode = CreateMode.PERSISTENT_SEQUENTIAL)
+    experimentAddress = experimentRoot.canonicalAddress
+    clusterAddress = cluster.root.canonicalAddress
+    resultClusterAddress = cluster.root.canonicalAddress
+
+    val threads = (1 to numClients).map(_ => new Thread(this))
+    threads.foreach(_.start)
+    threads
+  }
+
   def schedule(cluster: ScadsCluster, resultCluster: ScadsCluster)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeperRoot: ZooKeeperProxy#ZooKeeperNode): this.type = {
     val experimentRoot = zookeeperRoot.getOrCreate("experiments").createChild("experiment", mode = CreateMode.PERSISTENT_SEQUENTIAL)
     experimentAddress = experimentRoot.canonicalAddress
