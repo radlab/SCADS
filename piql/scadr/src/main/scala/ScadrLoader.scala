@@ -69,6 +69,5 @@ case class ScadrLoaderTask(var numServers: Int,
       clusterRoot.createChild("clusterReady", data = this.toBytes)
       ExperimentNotification.completions.publish("ScadrLoad Complete", this.toJson)
     }
-
   }
 }
