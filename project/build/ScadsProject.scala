@@ -65,6 +65,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
   lazy val piql      = project("piql", "piql", new ScadsSubProject(_) with IdeaProject, config, avro, comm, scalaengine)
   lazy val perf      = project("perf", "performance", new ScadsSubProject(_) with IdeaProject, config, avro, comm, scalaengine, piql, deploylib)
   lazy val director    = project("director", "director", new ScadsSubProject(_) with IdeaProject, scalaengine, deploylib)
+  lazy val axer = project("axer","axer", new ScadsSubProject(_) with IdeaProject, avro)
 
   lazy val spamFeatures = project("twitter" / "spamfeatures", "spamfeatures", new ScadsSubProject(_) {
     val jaxrs = "org.codehaus.jackson" % "jackson-jaxrs" % "1.4.2"
