@@ -24,6 +24,10 @@ object EC2Instance extends AWSConnection {
 
   var keyName = System.getenv("AWS_KEY_NAME")
   val client = new AmazonEC2Client(credentials, config)
+  if(System.getenv("EC2_URL") != null)
+    client.setEndpoint(System.getenv("EC2_URL"))
+
+
   var instanceData: Map[String, Instance] = Map[String, Instance]()
   protected val instances = new scala.collection.mutable.HashMap[String, EC2Instance]
   protected var lastUpdate = 0L
@@ -308,7 +312,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     upload(ec2PrivateKey, new File("/tmp"))
 
     logger.info("Removing /tmp/image, if it exists.")
-    this.executeCommand("rm -rf /tmp/image")
+    this.executeCommand("rm -rf /tmp/image*")
 
     logger.info("Shutting down mesos-master.")
     this executeCommand("pkill mesos-master")
