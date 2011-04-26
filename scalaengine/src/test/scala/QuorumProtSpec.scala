@@ -6,10 +6,12 @@ import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.{ BeforeAndAfterAll, WordSpec }
 import edu.berkeley.cs.scads.comm._
 
+import net.lag.logging.Logger
 import java.util.concurrent.ConcurrentHashMap
 
 @RunWith(classOf[JUnitRunner])
 class QuorumProtSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll {
+  protected val logger = Logger()
 
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
@@ -22,7 +24,8 @@ class QuorumProtSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll
 
   def createNS(name : String, repFactor : Int, readQuorum : Double, writeQuorum : Double) : SpecificNamespace[IntRec, IntRec] = {
     require(repFactor <= 10)
-    val namespace = cluster.createNamespace[IntRec, IntRec](name, List((None,storageServers.slice(0, repFactor) )))
+    val namespace = cluster.getNamespace[IntRec, IntRec](name)
+    namespace.setPartitionScheme(List((None,storageServers.slice(0, repFactor))))
     namespace.setReadWriteQuorum(readQuorum, writeQuorum)
     return namespace
   }
@@ -67,8 +70,15 @@ class QuorumProtSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll
     def handleEvent(evt: MessageHandlerEvent[Message, Message]) = evt match {
       case MessagePending(remote, Left(msg)) =>
         msg.src.map(id => if (blockedSenders.containsKey(id)) DropMessage else RelayMessage).getOrElse(RelayMessage)
-      case MessagePending(remote, Right(msg)) =>
-        if (blockedReceivers.containsKey(msg.dest)) DropMessage else RelayMessage
+      case MessagePending(remote, Right(msg)) => {
+        if (blockedReceivers.containsKey(msg.dest)) {
+          logger.info("Dropping Message: %s", evt)
+          DropMessage
+        }
+        else {
+          RelayMessage
+        }
+      }
     }
   }
 
@@ -82,7 +92,7 @@ class QuorumProtSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll
 
   "A Quorum Protocol" should {
 
-    "respond after the read quorum" in {
+    "respond after the write quorum" in {
       withBlocker { blocker =>
         val ns = createNS("quorum3:2:2_read",3, 0.6, 0.6)
         val blockedPartitions = getPartitions(storageServers.head)
@@ -93,14 +103,37 @@ class QuorumProtSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll
       }
     }
 
-    "respond after the write quorum" in {
+
+    "respond after the read quorum for get" in {
       withBlocker { blocker =>
         val ns = createNS("quorum3:2:2_write",3, 0.6, 0.6)
         val blockedPartitions = getPartitions(storageServers.head)
         ns.put(IntRec(1), IntRec(2))
         blocker.blockReceivers(blockedPartitions)
+        val startTime = System.currentTimeMillis
         ns.get(IntRec(1)).get.f1 should equal (2)
+        val endTime = System.currentTimeMillis
         blocker.unblockReceivers(blockedPartitions)
+
+        (endTime - startTime) should be <= (500L)
+      }
+    }
+
+    "respond after the read quorum for getRange" in {
+      withBlocker { blocker =>
+        val ns = createNS("quorum3:2:2_write",3, 0.6, 0.6)
+        val blockedPartitions = getPartitions(storageServers.head)
+        ns.put(IntRec(1), IntRec(2))
+        ns.put(IntRec(2), IntRec(3))
+
+
+        blocker.blockReceivers(blockedPartitions)
+        val startTime = System.currentTimeMillis
+        ns.getRange(None, None).size should equal (2)
+        val endTime = System.currentTimeMillis
+        blocker.unblockReceivers(blockedPartitions)
+
+        (endTime - startTime) should be <= (500L)
       }
     }
 
