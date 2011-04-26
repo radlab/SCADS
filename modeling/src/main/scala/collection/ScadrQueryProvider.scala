@@ -62,6 +62,7 @@ class ScadrQueryProvider extends QueryProvider {
     QuerySpec(indexLookupQuery, localSubscriptionList :: Nil) ::
     QuerySpec(indexMergeQuery, localSubscriptionList :: perPage :: Nil) ::
     QuerySpec(indexScanQuery, randomUser :: numSubscriptions :: Nil) ::
+    QuerySpec(indexScanQuery, randomUser :: perPage :: Nil) ::
     QuerySpec(scadrClient.findUser, randomUser :: Nil) ::
     QuerySpec(scadrClient.myThoughts, randomUser :: perPage :: Nil) ::
     QuerySpec(scadrClient.usersFollowedBy, randomUser :: perPage :: Nil) ::
