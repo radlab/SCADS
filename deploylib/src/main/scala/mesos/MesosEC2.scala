@@ -30,8 +30,13 @@ object ServiceSchedulerDaemon extends optional.Application {
  */
 class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends ConfigurationActions {
   val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
-  val mesosAmi = "ami-44ce3d2d"
-  val zone = "us-east-1b"
+  /* East Coast */
+  //val mesosAmi = "ami-44ce3d2d"
+  //val defaultZone = "us-east-1b"
+
+  /* West Coast */
+  val mesosAmi = "ami-2b6b386e"
+  val defaultZone = "us-west-1a"
 
   def serviceSchedulerNode = zooKeeperRoot.getOrCreate("serviceScheduler")
   def serviceScheduler = classOf[RemoteServiceScheduler].newInstance.parse(serviceSchedulerNode.data)
@@ -53,7 +58,7 @@ class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends Configura
     })
   }
 
-  def setupMesosMaster(zone:String = zone, numMasters: Int = 1, mesosAmi: Option[String] = None): Unit = {
+  def setupMesosMaster(zone:String = defaultZone, numMasters: Int = 1, mesosAmi: Option[String] = None): Unit = {
     if(masters.size < numMasters) {
       mesosAmi match {
         case Some(ami) => startMasters(zone, numMasters - masters.size, ami)
@@ -141,7 +146,6 @@ class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends Configura
     }
   }
 
-  val defaultZone = "us-east-1a"
   def startMasters(zone: String = defaultZone, count: Int = 1, ami: String = mesosAmi): Seq[EC2Instance] = {
     val ret = EC2Instance.runInstances(
       ami,
