@@ -125,7 +125,7 @@ abstract class RemoteMachine {
       logger.warning("Connection to " + hostname + " failed: %s", e)
       if(numTries <= 1)
 	throw new RuntimeException("Number of tries exceeded" + e)
-      Thread.sleep(10 * 1000)
+      Thread.sleep(30 * 1000)
       useConnection(func, numTries - 1)
     }
 
