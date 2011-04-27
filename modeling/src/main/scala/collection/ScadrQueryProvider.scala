@@ -36,30 +36,30 @@ class ScadrQueryProvider extends QueryProvider {
 
     val localSubscriptionList = RandomSubscriptionList(maxUser, numSubscriptions.values)
 
-    val indexLookupQuery = new OptimizedQuery("scadrIndexLookupJoinBenchmark",
+    val indexLookupJoinQuery = new OptimizedQuery("scadrIndexLookupJoinBenchmark",
 					      IndexLookupJoin(
-						scadrClient.users,
-						AttributeValue(0,1) :: Nil,
-						LocalIterator(0)),
+						      scadrClient.users,
+						      AttributeValue(0,1) :: Nil,
+						      LocalIterator(0)),
 					      executor)
 
     val indexMergeQuery = new OptimizedQuery("scadrIndexMergeJoinBenchmark",
 					     LocalStopAfter(
 					       ParameterLimit(1, 10000),
 					       IndexMergeJoin(
-						 scadrClient.thoughts,
-						 AttributeValue(0,1) :: Nil,
-						 AttributeValue(1,1) :: Nil,
-						 ParameterLimit(1, 10000),
-						 false,
-						 LocalIterator(0))),
+						       scadrClient.thoughts,
+						       AttributeValue(0,1) :: Nil,
+						       AttributeValue(1,1) :: Nil,
+						       ParameterLimit(1, 10000),
+						       false,
+						       LocalIterator(0))),
 					     executor)
 
     val indexScanQuery = scadrClient.subscriptions.where("owner".a === (0.?))
 						  .limit(1.?, 10000)
 						  .toPiql("scadrIndexScanBenchmark")
 
-    QuerySpec(indexLookupQuery, localSubscriptionList :: Nil) ::
+    QuerySpec(indexLookupJoinQuery, localSubscriptionList :: Nil) ::
     QuerySpec(indexMergeQuery, localSubscriptionList :: perPage :: Nil) ::
     QuerySpec(indexScanQuery, randomUser :: numSubscriptions :: Nil) ::
     QuerySpec(indexScanQuery, randomUser :: perPage :: Nil) ::
