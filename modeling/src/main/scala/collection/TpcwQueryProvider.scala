@@ -49,6 +49,36 @@ class RandomOrder(tpcwData: TpcwLoader) extends ParameterGenerator {
   }
 }
 
+class RandomItemList(tpcwData: TpcwLoader, cardinalities: IndexedSeq[Int]) extends ParameterGenerator {
+  final def getValue(rand: Random) = {
+    val cardinality = cardinalities(rand.nextInt(cardinalities.size))
+    (ArrayBuffer.fill(cardinality)(ArrayBuffer(StringRec(tpcwData.toItem(rand.nextInt(tpcwData.numItems) + 1)))), Some(cardinality))
+  }
+}
+
+class RandomAuthorList(tpcwData: TpcwLoader, cardinalities: IndexedSeq[Int]) extends ParameterGenerator {
+  final def getValue(rand: Random) = {
+    val cardinality = cardinalities(rand.nextInt(cardinalities.size))
+    (ArrayBuffer.fill(cardinality)(ArrayBuffer(StringRec(tpcwData.toAuthor(rand.nextInt(tpcwData.numAuthors) + 1)))), Some(cardinality))
+  }
+}
+
+// returns a single country ID, but must be in a list since it'll be used by LocalIterator
+class RandomCountryIdList(tpcwData: TpcwLoader) extends ParameterGenerator {
+  import ch.ethz.systems.tpcw.populate.data._
+
+  final def getValue(rand: Random) = {
+    (ArrayBuffer(ArrayBuffer(IntRec(rand.nextInt(Utils.COUNTRIES.size) + 1))), None)
+  }
+}
+
+// returns a single address, but must be in a list since it'll be used by LocalIterator
+class RandomAddressList(tpcwData: TpcwLoader) extends ParameterGenerator {
+  final def getValue(rand: Random) = {
+    (ArrayBuffer(ArrayBuffer(StringRec(tpcwData.toAddress(rand.nextInt(tpcwData.numAddresses) + 1)))), None)
+  }
+}
+
 class TpcwQueryProvider extends QueryProvider {
   val logger = Logger()
 
