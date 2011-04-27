@@ -24,6 +24,7 @@ case class Result(var clientConfig: TpcwWorkflowTask,
                   var threadId: Int) extends AvroPair {
   var totalElaspedTime: Long = _ /* in ms */
   var times: Histogram = null
+  var skips: Int = _
   var failures: Int = _
 }
 
@@ -64,14 +65,14 @@ case class TpcwWorkflowTask(var numClients: Int,
         val iterationStartTime = getTime
         var endTime = iterationStartTime
         var skips = 0
-        var failures = 0 // unused...
+        var failures = 0
 
         val workflow = new TpcwWorkflow(tpcwClient, loader)
 
         while(endTime - iterationStartTime < runTime) {
           val startTime = getTime
           try {
-            val (axn, wasExecuted) = workflow.executeMix()
+            val wasExecuted = workflow.executeMix()
             endTime = getTime
             val elapsedTime = endTime - startTime
             if (wasExecuted) { // we actually ran the query
@@ -81,7 +82,7 @@ case class TpcwWorkflowTask(var numClients: Int,
           } catch {
             case e => {
               logger.warning(e, "Execepting generating page")
-              skips += 1
+              failures += 1
             }
           }
         }
@@ -91,7 +92,8 @@ case class TpcwWorkflowTask(var numClients: Int,
         val res = Result(this, loaderConfig, clusterRoot.canonicalAddress, clientId, iteration, threadId)
         res.totalElaspedTime =  endTime - iterationStartTime
         res.times = histogram
-        res.failures = skips
+        res.failures = failures
+        res.skips = skips
 
         res
       })

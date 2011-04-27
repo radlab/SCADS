@@ -108,11 +108,9 @@ case class Address(var ADDR_ID: String) extends AvroPair {
 /**
  * A shopping cart item is keyed on a (C_UNAME, SCL_I_ID). this means a single
  * user can only have one active shopping cart at a time
+ *
+ * Note: This is slightly different than the SHOPPING_ID specified by the spec
  */
-case class ShoppingCartItem(var C_UNAME: String, var SCL_I_ID: String) extends AvroPair {
+case class ShoppingCartItem(var SCL_C_UNAME: String, var SCL_I_ID: String) extends AvroPair {
   var SCL_QTY: Int = _
-  var SCL_COST: Double = _
-  var SCL_I_SRP: Double = _
-  var SCL_I_TITLE: String = _
-  var SCL_I_BACKING: String = _
 }

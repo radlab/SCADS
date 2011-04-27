@@ -21,6 +21,8 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
 
   private val random = randomSeed.map(new Random(_)).getOrElse(new Random)
 
+  val perPage = 50
+
   /** All possible subjects */
   val subjects = Utils.getSubjects
 
@@ -79,10 +81,8 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
   private val actions = new HashMap[ActionType.ActionType, Action]
   ActionType.values.foreach(a => actions += a -> new Action(a, Nil))
 
-  //actions(ActionType.AdminConfirm).nextActions = List((8348, actions(ActionType.Home)))
-  //actions(ActionType.Home).nextActions = List ( (5000, actions(ActionType.Home)), (9999, actions(ActionType.NewProduct)))
-  //actions(ActionType.NewProduct).nextActions = List ( (9999, actions(ActionType.Home)))
-  //println("nb of actions " + actions.size)
+  val unsupportedActions = ActionType.values.filterNot(executeAction.isDefinedAt(_))
+  logger.warning("The following TPCW actions are not implemented: %s", unsupportedActions)
 
   // The MarkovChain from TPC-W: Thresholds for the "Ordering Interval"
   actions(ActionType.AdminConfirm).nextActions = List ( (8348, actions(ActionType.Home)), (9999, actions(ActionType.SearchRequest)))
@@ -100,17 +100,11 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
   actions(ActionType.SearchResult).nextActions = List ( (486, actions(ActionType.Home)), (7817, actions(ActionType.ProductDetail)), (9998, actions(ActionType.SearchRequest)), (9999, actions(ActionType.ShoppingCart)))
   actions(ActionType.ShoppingCart).nextActions = List ( (9499, actions(ActionType.CustomerReg)), (9918, actions(ActionType.Home)), (9999, actions(ActionType.ShoppingCart)))
 
-  private var nextAction = actions(ActionType.Home) // HOME is start state
+  private var nextAction = ActionType.Home // HOME is start state
   private var currentUser: Customer = _
 
-  /**
-   * Advances the TPC-W markov chain model one state transition. returns a
-   * tuple of the state that was JUST completed (not the state that was transitioned to),
-   * and a boolean flag whether or not it was actually executed (false if punted)
-   */
-  def executeMix(): (ActionType.ActionType, Boolean) = {
-    nextAction match {
-      case Action(ActionType.Home, _) => {
+  def executeAction: PartialFunction[ActionType.Value, Unit] = {
+      case ActionType.Home => {
         logger.debug("Home")
 
         // NOTE: technically this should be done in the customer reg
@@ -128,28 +122,22 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
             userData(0)(0).toSpecificRecord[Customer]
           }
       }
-      case Action(ActionType.NewProduct, _) => {
+      case ActionType.NewProduct => {
         logger.debug("NewProduct")
         val subject = randomSubject
-        client.newProductWI(subject)
+        client.newProductWI(subject, perPage)
       }
-      case Action(ActionType.ProductDetail, _) =>
+      case ActionType.ProductDetail =>
         logger.debug("ProductDetail")
         val item = randomItem
         client.productDetailWI(item)
-      case Action(ActionType.OrderDisplay, _) =>
+
+      case ActionType.OrderDisplay =>
         logger.debug("OrderDisplay")
         assert(currentUser != null)
         client.orderDisplayWI(currentUser.C_UNAME, currentUser.C_PASSWD, 100)
-      case Action(ActionType.OrderInquiry, _) =>
-        logger.debug("OrderInquiry")
-        // NO-OP, since this action is mostly concerned w/ presenting a user
-        // w/ a cuform...
-      case Action(ActionType.SearchRequest, _) =>
-        logger.debug("SearchRequest")
-        // NO-OP, since this action is mostly concerned w/ presenting a user
-        // w/ a form...
-      case Action(ActionType.SearchResult, _) =>
+
+      case ActionType.SearchResult =>
         logger.debug("SearchResult")
         // pick a random search type
         randomSearchType match {
@@ -160,37 +148,38 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
               case true => data.toAuthorLname(author)
             }
             logger.debug("Search by author name %s", name)
-            client.searchByAuthorWI(name)
+            client.searchByAuthorWI(name, perPage)
           case SearchResultType.ByTitle =>
-            // for now, just pick a random string...
-            // TODO: this really should be fixed- we should
-            // seed the random gen used to create random strings,
-            // so we actually have a hope of matching a title.
-            val title = Utils.getRandomAString(14, 60)
+            /* Pick a random token from a random title */
+            val titleParts = data.createItem(random.nextInt(data.numItems)).I_TITLE.split(" ")
+            val title = titleParts(random.nextInt(titleParts.size))
             logger.debug("Search by title %s", title)
-            client.searchByTitleWI(title)
+            client.searchByTitleWI(title, perPage)
           case SearchResultType.BySubject =>
             val subject = randomSubject
             logger.debug("Search by subject %s", subject)
-            client.searchBySubjectWI(subject)
+            client.searchBySubjectWI(subject, perPage)
         }
-      case Action(ActionType.ShoppingCart, _) =>
+      case ActionType.ShoppingCart =>
         logger.debug("ShoppingCart")
         assert(currentUser != null, "Current user should not be null")
-        // generate, for a random user, 1 to 10 items to add to shopping cart.
-        // each item will be added from 1 to 5 times
-        val items = (1 to random.nextInt(10) + 1).map(_ => (randomItem, random.nextInt(5) + 1))
-        assert(false) //TODO: client.shoppingCartWI(currentUser.C_UNAME, items)
-      case Action(ActionType.CustomerReg, _) =>
-        logger.debug("CustomerReg")
-        //TODO: when do we actually add new customers?
 
-      case Action(ActionType.BuyRequest, _) =>
+        /**
+         * This is a simplification of the actual shopping cart WI where
+         * instead of being based on the previous action we just always
+         * select some random items to update in the shopping cart.
+         *
+         * We believe processsing time >= tpcwspec processing time
+         */
+
+        val items = (1 to random.nextInt(10) + 1).map(_ => (randomItem, random.nextInt(10) - 5))
+        client.shoppingCartWI(currentUser.C_UNAME, items)
+      case ActionType.BuyRequest =>
         logger.debug("BuyRequest")
         // for now always assuming existing user
-        assert(false) //TODO: client.buyRequestExistingWI(currentUser.C_UNAME, currentUserValue.C_PASSWD)
+        client.buyRequestExistingCustomerWI(currentUser.C_UNAME)
 
-      case Action(ActionType.BuyConfirm, _) =>
+      case ActionType.BuyConfirm =>
         logger.debug("BuyConfirm")
 
         val cc_type = randomCreditCardType
@@ -204,34 +193,39 @@ class TpcwWorkflow(val client: TpcwClient, val data: TpcwLoader, val randomSeed:
         }
         val shipping = randomShipType
 
-        assert(false) /* TODO: client.buyConfirmWI(
+        client.buyConfirmWI(
           currentUser.C_UNAME,
           cc_type,
           cc_number,
           cc_name,
           cc_expiry,
-          shipping) */
-      case Action(ActionType.AdminRequest, _) =>
+          shipping)
+      case ActionType.AdminRequest =>
         logger.debug("AdminRequest")
         val item = randomItem
-        assert(false) //TOOD: client.adminRequestWI(item)
-      case Action(ActionType.AdminConfirm, _) =>
-        logger.debug("AdminConfirm")
-        // NO-OP! we pondered very deeply about whether or not to run this
-        // query, and then we said no :)
-      case Action(ActionType.BestSeller, _) =>
-        // NO-OP b/c this is another analytics query
-      case Action(tpe, _) =>
-        logger.error("Not supported: " + tpe)
+        client.adminRequestWI(item)
     }
-    println("Not updated yet - nothing will be done")
-    val rnd = random.nextInt(9999)
 
-    val action = nextAction.nextActions.find(rnd < _._1)
-    assert(action.isDefined)
-    val nextAction0 = nextAction
-    nextAction = action.get._2
-    (nextAction0.action, !(nextAction0.action == ActionType.AdminConfirm ||
-                           nextAction0.action == ActionType.BestSeller))
- }
+  /**
+   * Advances the TPC-W markov chain model one state transition.
+   * returns true if the action was run and false if it was skipped due to PIQL Limitations
+   */
+  def executeMix(): Boolean = {
+    val executed =
+      if(executeAction.isDefinedAt(nextAction)) {
+        logger.debug("Executing Action: %s", nextAction)
+        executeAction(nextAction)
+        true
+      }
+      else {
+        logger.debug("Skipping undefined action: %s", nextAction)
+        false
+      }
+
+    val rnd = random.nextInt(9999)
+    val lastAction = nextAction
+    nextAction = actions(lastAction).nextActions.find(rnd < _._1).get._2.action
+
+    executed
+  }
 }

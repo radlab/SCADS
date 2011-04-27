@@ -237,70 +237,59 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     //assert(cust.C_PASSWD == c_passwd, "Passwords don't match")
 
     val lastOrderDetails = orderDisplayGetLastOrder(c_uname).headOption
-    val lastOrder = lastOrderDetails.map(_.apply(0).asInstanceOf[Order])
+    val lastOrder = lastOrderDetails.map(_.apply(1).asInstanceOf[Order])
     val lines = lastOrder.map(o => orderDisplayGetOrderLines(o.O_ID, numOrderLinesPerPage))
 
     (cust, lastOrder, lines)
   }
 
   /**
-   * 
-  private lazy val retrieveShoppingCartPlan =
-    StopAfter(
-      FixedLimit(100),
-      IndexScan( // (C_UNAME, ...), (SCL_QTY, ...)
-        shoppingCartItem,
-        Array(ParameterValue(0)),
-        FixedLimit(100), // opt limit imposed
-        true
-      )
-    )
-  def retrieveShoppingCart(c_uname: String) =
-    exec(retrieveShoppingCartPlan, new Utf8(c_uname))
+   * Shopping Cart Interations
+   *
+   * Add to cart
+   * Insert into SHOPPING_CART values(@Session,0,@BookID,1, @Title,@SRP,@COST,@Backing,GetDate())
+   *
+   * Refresh Display
+   * Update SHOPPING_CART set SC_QTY=@QTY where SC_ID=@UserID and SC_I_ID=@BookID
+   * Delete from SHOPPING_CART where SC_ID=@UserID and SC_I_ID=@BookID
+   */
 
-
-  private lazy val retrieveItemPlan =
-    IndexLookup(
-      item,
-      firstPara)
-  def retrieveItem(itemId: String) =
-    exec(retrieveItemPlan, new Utf8(itemId))
-    *
-  */
+  val retrieveShoppingCart =
+    shoppingCartItems.where("SCL_C_UNAME".a === (0.?))
+                     .limit(1000)
+                     .join(items)
+                     .where("SCL_I_ID".a === "I_ID".a)
+                     .toPiql()
 
   /**
    * This is a very simplified shopping cart WI.
    * Given a c_uname, items will be added to the cart, or the
    * quantity will be updated. this is not really conformant to the TPC-W
-   * benchmark spec
-  def shoppingCartWI(c_uname: String, items: Seq[(String, Int)]) = {
-    val cart = retrieveShoppingCart(c_uname) map { case Array(k, v) =>
-      (k.toSpecificRecord[ShoppingCartItemKey], v.toSpecificRecord[ShoppingCartItemValue])
+   * benchmark spec */
+
+   def shoppingCartWI(c_uname: String, newItems: Seq[(String, Int)]) = {
+    val cart = retrieveShoppingCart(c_uname).map(_.head.asInstanceOf[ShoppingCartItem])
+    val currentItems = cart.map(c => (c.SCL_I_ID, c.SCL_QTY))
+
+    val updatedItems = (currentItems ++ newItems).groupBy(_._1).map {
+      case (id, qtys) => (id, qtys.map(_._2).sum)
     }
-    val itemsMap = MMap(items:_*)
-    cart.foreach { case (k, v) =>
-      itemsMap.remove(k.SCL_I_ID) match {
-        case Some(qty) => v.SCL_QTY = qty
-        case None => // no action
+
+    updatedItems.foreach(i => {
+      val scl = new ShoppingCartItem(c_uname, i._1)
+      if(i._2 > 0) {
+        scl.SCL_QTY = i._2
+        shoppingCartItems.put(scl)
       }
-    }
-    val newCart = cart ++ itemsMap.map { case (k, v) =>
-      val item      = retrieveItem(k)
-      val itemKey   = item(0)(0).toSpecificRecord[ItemKey]
-      val itemValue = item(0)(1).toSpecificRecord[ItemValue]
-
-      val title   = itemValue.I_TITLE
-      val cost    = itemValue.I_COST
-      val srp     = itemValue.I_SRP
-      val backing = itemValue.I_BACKING
-
-      (ShoppingCartItemKey(c_uname, k), ShoppingCartItemValue(v, cost, srp, title, backing))
-    }
-    shoppingCartItem ++= newCart
+      else {
+        shoppingCartItems.delete(scl)
+      }
+    })
   }
-  */
 
   /**
+   * Buy Request web interaction (Existing Customer)
+   *
    * select C_ID from CUSTOMER where C_UNAME=@C_UNAME and
    * C_PASSWD=@C_PASSWD
 
@@ -309,40 +298,18 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    * ADDR_STREET2,ADDR_CITY,ADDR_STATE,ADDR_ZIP,CO_NAME
    * FROM CUSTOMER,ADDRESS,COUNTRY
    * where C_ADDR_ID=ADDR_ID and ADDR_CO_ID=CO_ID and C_ID = @C_ID
+   */
 
-  private def buyRequestCustomerWI(cName : String, cPassword : String) =
-    exec(orderDisplayCustomerPlan, new Utf8(cName), new Utf8(cPassword))
-
-  private lazy val buyRequestAddrCoPlan =
-    IndexLookupJoin( // (C_UNAME), (C_PASSWD, ...), (ADDR_ID), (ADDR_STREET1, ...), (CO_ID), (CO_NAME, ...)
-      country,
-      Array(AttributeValue(3, 5)),
-      IndexLookupJoin( // (C_UNAME), (C_PASSWD, ...), (ADDR_ID), (ADDR_STREET1, ...)
-        address,
-        Array(AttributeValue(1, 3)),
-        IndexLookup( // (C_UNAME), (C_PASSWD, ...)
-          customer,
-          firstPara
-        )
-      )
-    )
-  private def buyRequestAddrCoWI(c_uname: String) =
-    exec(buyRequestAddrCoPlan, new Utf8(c_uname))
-
-  def buyRequestExistingWI(c_uname: String, c_passwd: String) = {
-    val cust = orderDisplayCustomerWI(c_uname, c_passwd)
-    assert(!cust.isEmpty, "No user found with UNAME %s, PASSWD %s".format(c_uname, c_passwd))
-    buyRequestAddrCoWI(c_uname)
-    val (k, v) = (cust(0)(0).toSpecificRecord[CustomerKey],
-                  cust(0)(1).toSpecificRecord[CustomerValue])
-    v.C_LOGIN = System.currentTimeMillis
-    v.C_EXPIRATION = v.C_LOGIN + (2L * 3600000L) // +2 hrs in millis
-    customer.put(k, v) // save
-  }
-  */
+  val buyRequestExistingCustomerWI =
+    customers.where("C_UNAME".a === (0.?))
+             .join(addresses)
+             .where("C_ADDR_ID".a === "ADDR_ID".a)
+             .join(countries)
+             .where("ADDR_CO_ID".a === "CO_ID".a)
+             .toPiql("buyRequestExistingCustomerWI")
 
   /**
-   * -- BEGIN WALL OF SQL --
+   * Buy Confirm Web Interation
    * DECLARE @CO_ID numeric(4)
    * DECLARE @ADDR_ID numeric(10)
    *
@@ -396,27 +363,22 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
    *
    * Insert into CC_XACTS
    * values(@O_ID,@O_CC_TYPE,@O_CC_EXP,@O_CC_AUTH,@O_TOTAL,getdate(),@CO_ID)
-
-  /**
-   * Returns the order ID
    */
+
+  //TODO: Async put?
   def buyConfirmWI(c_uname: String,
                    cc_type: String,
                    cc_number: Int,
                    cc_name: String,
                    cc_expiry: Long,
                    shipping: String): String = {
-    val (userKey, userValue) = homeWI(c_uname) map { case Array(k, v) =>
-      (k.toSpecificRecord[CustomerKey], v.toSpecificRecord[CustomerValue])
-    } head
-    val cart = retrieveShoppingCart(c_uname) map { case Array(k, v) =>
-      (k.toSpecificRecord[ShoppingCartItemKey], v.toSpecificRecord[ShoppingCartItemValue])
-    }
+    val customer = homeWI(c_uname).head.head.asInstanceOf[Customer]
+    val cart = retrieveShoppingCart(c_uname).map(sl => (sl(0).asInstanceOf[ShoppingCartItem], sl(1).asInstanceOf[Item]))
 
     // calculate costs
-    val sc_sub_total = (cart.foldLeft(0.0) { case (acc, (k, v)) =>
-      acc + v.SCL_COST * v.SCL_QTY.toDouble
-    }) * (1.0 - userValue.C_DISCOUNT)
+    val sc_sub_total = cart.map {
+      case (scl, itm) => itm.I_COST * scl.SCL_QTY
+    }.sum * (1.0 - customer.C_DISCOUNT)
 
     val sc_tax = sc_sub_total * 0.0825
     val sc_ship_cost = 3.0 + (1.0 * cart.size.toDouble)
@@ -426,87 +388,66 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
       UUID.randomUUID.toString
 
     // make order
-    val orderKey = OrdersKey(newUUID)
-    val orderValue = OrdersValue(
-      c_uname,
-      System.currentTimeMillis,
-      sc_sub_total,
-      sc_tax,
-      sc_total,
-      shipping,
-      System.currentTimeMillis + (scala.util.Random.nextInt(7) + 1).toLong * 86400L, // [1..7] days later
-      userValue.C_ADDR_ID,
-      userValue.C_ADDR_ID,
-      "PENDING")
-
-    // make order secondary indexes
-    val customerOrderIndexKey = CustomerOrderIndex(c_uname, orderValue.O_DATE_Time, orderKey.O_ID)
+    val order = Order(newUUID)
+    order.O_C_UNAME = c_uname
+    order.O_DATE_Time = System.currentTimeMillis
+    order.O_SUB_TOTAL = sc_sub_total
+    order.O_TAX = sc_tax
+    order.O_TOTAL = sc_total
+    order.O_SHIP_TYPE = shipping
+    order.O_SHIP_DATE = System.currentTimeMillis + (scala.util.Random.nextInt(7) + 1).toLong * 86400L // [1..7] days later
+    order.O_BILL_ADDR_ID = customer.C_ADDR_ID
+    order.O_SHIP_ADDR_ID = customer.C_ADDR_ID
+    order.O_STATUS = "PENDING"
+    orders.put(order)
 
     // make order lines
-    val orderLines = cart.zipWithIndex.map { case ((k, v), idx) =>
-      (OrderLineKey(orderKey.O_ID, idx + 1),
-       OrderLineValue(
-         k.SCL_I_ID,
-         v.SCL_QTY,
-         userValue.C_DISCOUNT,
-         Utils.getRandomAString(20, 100)))
+    cart.zipWithIndex.foreach {
+      case ((scl, itm), idx) =>
+        val ol = new OrderLine(order.O_ID, idx + 1)
+        ol.OL_I_ID = itm.I_ID
+        ol.OL_QTY = scl.SCL_QTY
+        ol.OL_DISCOUNT = customer.C_DISCOUNT
+        ol.OL_COMMENT = Utils.getRandomAString(20, 100)
+        orderLines.put(ol)
     }
 
     // make item stocks updates
-    val items = cart map { case (k, v) =>
-      val (itemKey, itemValue) = retrieveItem(k.SCL_I_ID) map { case Array(k0, v0) =>
-        (k0.toSpecificRecord[ItemKey], v0.toSpecificRecord[ItemValue])
-      } head
-
-      // update conditions given in clause 2.7.3.3
-      if (itemValue.I_STOCK - v.SCL_QTY >= 10)
-        itemValue.I_STOCK -= v.SCL_QTY
+    cart.foreach {
+      case (scl, itm) =>
+      if (itm.I_STOCK - scl.SCL_QTY >= 10)
+        itm.I_STOCK = itm.I_STOCK - scl.SCL_QTY
       else
-        itemValue.I_STOCK = scala.math.min(0, (itemValue.I_STOCK - v.SCL_QTY) + 21) // ... uhh, what happens if this goes negative??? that's why i put the min condition there (it's not given in the spec)
+        itm.I_STOCK = scala.math.min(0, (itm.I_STOCK - scl.SCL_QTY) + 21) // ... uhh, what happens if this goes negative??? that's why i put the min condition there (it's not given in the spec)
 
-      (itemKey, itemValue)
+      items.put(itm)
     }
 
     // credit card (PGE) auth stuff ignored...
 
     // make cc txn
-    val ccXactsKey = CcXactsKey(orderKey.O_ID)
-    val ccXactsValue = CcXactsValue(
-      cc_type,
-      cc_number,
-      cc_name,
-      cc_expiry,
-      Utils.getRandomAString(15),
-      sc_total,
-      System.currentTimeMillis,
-      Utils.getRandomInt(1, 92))
-
-
-    // do the actual updates. first do the writes. NOTE that in the TPC-W spec
-    // this is (obviously) supposed to be atomic, but we're not gonna do that
-    // (eventual consistency FTW)
-    order.put(orderKey, Some(orderValue))
-    customerOrderIndex.put(customerOrderIndexKey, Some(NullRecord(true)))
-    orderline ++= orderLines
-    item ++= items
-    xacts.put(ccXactsKey, Some(ccXactsValue))
+    val ccXact = CcXact(order.O_ID)
+    ccXact.CX_TYPE = cc_type
+    ccXact.CX_NUM = cc_number
+    ccXact.CX_NAME = cc_name
+    ccXact.CX_EXPIRY = cc_expiry
+    ccXact.CX_AUTH_ID = Utils.getRandomAString(15)
+    ccXact.CX_XACT_AMT = sc_total
+    ccXact.CX_XACT_DATE = System.currentTimeMillis
+    ccXact.CX_CO_ID = Utils.getRandomInt(1, 92)
 
     // clear shopping cart. unfortunately BulkPut does not support deletion,
     // so we do this inefficiently by looping. if our numbers are not good we
     // could try to make this more efficient, but since max cart size is 100,
     // this shouldn't be THAT bad
-    cart foreach { case (k, _) =>
-      shoppingCartItem.put(k, None) // delete
+    cart foreach { case (scl, _) =>
+      shoppingCartItems.delete(scl)
     }
 
     logger.debug("finished buy confirmation of %d items", cart.size)
 
-    orderKey.O_ID
+    order.O_ID
   }
-  */
 
-  /** Identical query to productDetailWI
-  def adminRequestWI(bookId: String) =
-    productDetailWI(bookId)
-    */
+  val adminRequestWI = productDetailWI
 }
