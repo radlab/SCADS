@@ -8,7 +8,7 @@ public class Utils {
 	private static Random rand = new Random();
 	private static GregorianCalendar cal = new GregorianCalendar();
 
-    static final String[] COUNTRIES = { "United States", "United Kingdom", "Canada",
+  public static final String[] COUNTRIES = { "United States", "United Kingdom", "Canada",
 			"Germany", "France", "Japan", "Netherlands", "Italy",
 			"Switzerland", "Australia", "Algeria", "Argentina", "Armenia",
 			"Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangla Desh",
