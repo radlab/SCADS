@@ -278,19 +278,31 @@ class TpcwQueryProvider extends QueryProvider {
 		)
     
     // queries
+    QuerySpec(tpcwClient.buyRequestExistingCustomerWI, randomCustomer :: Nil) :: // indexLookupJoinCountries, indexLookupJoinAddresses, indexLookupCustomers
     QuerySpec(tpcwClient.homeWI, randomCustomer :: Nil) ::  // indexLookupCustomers
     QuerySpec(tpcwClient.newProductWI, RandomCategory :: perPage :: Nil) :: // indexLookupJoinAuthors, indexLookupJoinItems, indexScanItemsIdx
-    QuerySpec(tpcwClient.productDetailWI, randomItem :: Nil) :: // indexLookupJoinAuthors, indexLookupItems
-    QuerySpec(tpcwClient.searchByAuthorWI, randomAuthorName :: perPage :: Nil) :: // indexMergeJoinItemsIdx, indexLookupJoinAuthors, indexScanAuthorsIdx
-    QuerySpec(tpcwClient.searchByTitleWI, randomTitle :: perPage :: Nil) :: // indexLookupJoinAuthors, indexScanItemsIdx
     QuerySpec(tpcwClient.orderDisplayGetCustomer, randomCustomer :: Nil) :: // indexLookupCustomers
     QuerySpec(tpcwClient.orderDisplayGetLastOrder, randomCustomer :: Nil) ::  // indexLookupJoinCountries, indexLookupJoinAddresses, (repeat both), indexLookupJoinOrders, indexScanOrdersIdx
     QuerySpec(tpcwClient.orderDisplayGetOrderLines, randomOrder :: perPage :: Nil) :: // indexLookupJoinItems, indexScanOrderLines
+    QuerySpec(tpcwClient.productDetailWI, randomItem :: Nil) :: // indexLookupJoinAuthors, indexLookupItems
+    QuerySpec(tpcwClient.retrieveShoppingCart, randomCustomer :: Nil) :: // indexLookupJoinItems, indexScanShoppingCartItems
+    QuerySpec(tpcwClient.searchByAuthorWI, randomAuthorName :: perPage :: Nil) :: // indexMergeJoinItemsIdx, indexLookupJoinAuthors, indexScanAuthorsIdx
+    QuerySpec(tpcwClient.searchByTitleWI, randomTitle :: perPage :: Nil) :: // indexLookupJoinAuthors, indexScanItemsIdx
     // iterators
+    QuerySpec(indexLookupCustomers, randomCustomer :: Nil) ::
+    QuerySpec(indexLookupItems, randomItem :: Nil) ::
+    QuerySpec(indexScanAuthorsIdx, randomAuthorName :: perPage :: Nil) ::
     QuerySpec(indexScanItemsIdx, RandomCategory :: perPage :: Nil) ::
+    QuerySpec(indexScanOrderLines, randomOrder :: perPage :: Nil) ::
+    QuerySpec(indexScanOrdersIdx, randomCustomer :: Nil) ::
     QuerySpec(indexScanOrdersIdxSingleItem, randomCustomer :: Nil) ::
+    QuerySpec(indexScanShoppingCartItems, randomCustomer :: perPage :: Nil) ::
+    QuerySpec(indexLookupJoinAddresses, randomAddressList :: Nil) ::
+    QuerySpec(indexLookupJoinAuthors, randomAuthorList :: Nil) ::
+    QuerySpec(indexLookupJoinCountries, randomCountryIdList :: Nil) ::
     QuerySpec(indexLookupJoinItems, randomItemList :: Nil) ::
-    // add other indexLookupJoin queries too
+    QuerySpec(indexLookupJoinOrders, randomOrderList :: Nil) ::
+    QuerySpec(indexMergeJoinItemsIdx, randomAuthorList :: perPage :: Nil) ::
     Nil toIndexedSeq
   }
 }
