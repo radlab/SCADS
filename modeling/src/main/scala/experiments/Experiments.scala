@@ -50,6 +50,19 @@ object Experiments {
 
   def killTask(id: Int): Unit = cluster.serviceScheduler !? KillTaskRequest(id)
 
+  implicit def productSeqToExcel(lines: Seq[Product]) = new {
+    import java.io._
+    def toExcel: Unit = {
+      val file = File.createTempFile("scadsOut", ".csv")
+      val writer = new FileWriter(file)
+
+      lines.map(_.productIterator.mkString(",") + "\n").foreach(writer.write)
+      writer.close
+
+      Runtime.getRuntime.exec(Array("/usr/bin/open", file.getCanonicalPath))
+    }
+  }
+
   object QueryRunner {
     val results = resultsCluster.getNamespace[Result]("queryRunnerResults")
 
