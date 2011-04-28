@@ -45,6 +45,12 @@ class RandomAuthorName(tpcwData: TpcwLoader) extends ParameterGenerator {
   }
 }
 
+class RandomAuthorId(tpcwData: TpcwLoader) extends ParameterGenerator {
+  final def getValue(rand: Random) = {
+    (tpcwData.toAuthor(rand.nextInt(tpcwData.numAuthors) + 1), None)
+  }
+}
+
 class RandomOrder(tpcwData: TpcwLoader) extends ParameterGenerator {
   final def getValue(rand: Random) = {
     (tpcwData.toOrder(rand.nextInt(tpcwData.numOrders) + 1), None)
@@ -81,6 +87,12 @@ class RandomAddressList(tpcwData: TpcwLoader) extends ParameterGenerator {
   }
 }
 
+class RandomOrderList(tpcwData: TpcwLoader) extends ParameterGenerator {
+  final def getValue(rand: Random) = {
+    (ArrayBuffer(ArrayBuffer(StringRec(tpcwData.toOrder(rand.nextInt(tpcwData.numOrders) + 1)))), None)
+  }
+}
+
 class TpcwQueryProvider extends QueryProvider {
   val logger = Logger()
 
@@ -94,17 +106,21 @@ class TpcwQueryProvider extends QueryProvider {
     val randomTitle = new RandomTitle(tpcwData)
     val randomItem = new RandomItem(tpcwData)
     val randomAuthorName = new RandomAuthorName(tpcwData)
+    val randomAuthorId = new RandomAuthorId(tpcwData)
     val randomOrder = new RandomOrder(tpcwData)
     val perPage = CardinalityList(10 to 100 by 10 toIndexedSeq)
     val randomItemList = new RandomItemList(tpcwData, perPage.values)
-
+    val randomAuthorList = new RandomAuthorList(tpcwData, perPage.values)
+    val randomCountryIdList = new RandomCountryIdList(tpcwData)
+    val randomAddressList = new RandomAddressList(tpcwData)
+    val randomOrderList = new RandomOrderList(tpcwData)
 
     // iterator definitions
     val indexLookupCustomers = new OptimizedQuery(
       "indexLookupCustomers",
       IndexLookup(
         tpcwClient.customers,
-        AttributeValue(0,0) :: Nil
+        (0.?) :: Nil
       ),
       executor
     )
@@ -113,76 +129,99 @@ class TpcwQueryProvider extends QueryProvider {
       "indexLookupItems",
       IndexLookup(
         tpcwClient.items,
-        AttributeValue(0,0) :: Nil
+        (0.?) :: Nil
       ),
       executor
     )
 
+    val indexScanAuthorsIdx = new OptimizedQuery(
+      "indexScanAuthorsIdx",
+      LocalStopAfter(
+        ParameterLimit(1,50),
+        IndexScan(
+          tpcwClient.authors.getOrCreateIndex(TokenIndex("A_FNAME" :: "A_LNAME" :: Nil) :: Nil),
+          (0.?) :: Nil,
+          ParameterLimit(1, 50),
+          true
+        )),
+      executor
+    )
+    
     val indexScanItemsIdx = new OptimizedQuery(
       "indexScanItemsIdx", 
-      IndexScan(
-        tpcwClient.items.getOrCreateIndex(TokenIndex("I_SUBJECT" :: Nil) :: AttributeIndex("I_PUB_DATE") :: Nil),
-        (0.?) :: Nil,
-        ParameterLimit(1, 500),
-        false
-      ),
+      LocalStopAfter(
+        ParameterLimit(1,50),
+        IndexScan(
+          tpcwClient.items.getOrCreateIndex(TokenIndex("I_SUBJECT" :: Nil) :: AttributeIndex("I_PUB_DATE") :: Nil),
+          (0.?) :: Nil, // 1st param
+          ParameterLimit(1, 500), // 2nd param
+          false
+      )),
       executor
     )
 
+    val indexScanOrderLines = new OptimizedQuery(
+      "indexScanOrderLines",
+      LocalStopAfter(
+        ParameterLimit(1,50),
+        IndexScan(
+          tpcwClient.orderLines,
+          (0.?) :: Nil,
+          ParameterLimit(1, 50),
+          false
+        )),
+      executor
+    )
+    
     val indexScanOrdersIdx = new OptimizedQuery(
       "indexScanOrdersIdx",
-      IndexScan(
-        tpcwClient.orders.getOrCreateIndex(AttributeIndex("O_C_UNAME") :: AttributeIndex("O_DATE_Time") :: Nil),
-        (0.?) :: Nil,
-        ParameterLimit(1,500),
-        false
-      ),
+      LocalStopAfter(
+        FixedLimit(1),
+        IndexScan(
+          tpcwClient.orders.getOrCreateIndex(AttributeIndex("O_C_UNAME") :: AttributeIndex("O_DATE_Time") :: Nil),
+          (0.?) :: Nil,
+          FixedLimit(1),
+          false
+      )),
       executor
     )
 
     val indexScanOrdersIdxSingleItem = new OptimizedQuery(
       "indexScanOrdersIdxSingleItem", 
-      IndexScan(
-        tpcwClient.orders.getOrCreateIndex(AttributeIndex("O_C_UNAME") :: AttributeIndex("O_DATE_Time") :: Nil),
-        (0.?) :: Nil,
+      LocalStopAfter(
         FixedLimit(1),
-        false
-      ),
+        IndexScan(
+          tpcwClient.orders.getOrCreateIndex(AttributeIndex("O_C_UNAME") :: AttributeIndex("O_DATE_Time") :: Nil),
+          (0.?) :: Nil,
+          FixedLimit(1),
+          false
+        )),
       executor
     )
     
-    val indexScanAuthorsIdx = new OptimizedQuery(
-      "indexScanAuthorsIdx",
-      IndexScan(
-        tpcwClient.authors.getOrCreateIndex(TokenIndex("A_FNAME" :: "A_LNAME" :: Nil) :: Nil),
-        (0.?) :: Nil,
-        ParameterLimit(1, 50),
-        true
-      ),
+    val indexScanShoppingCartItems = new OptimizedQuery(
+      "indexScanShoppingCartItems",
+      LocalStopAfter(
+        ParameterLimit(1,50),
+        IndexScan(
+          tpcwClient.shoppingCartItems,
+          (0.?) :: Nil,
+          ParameterLimit(1, 50),
+          false
+        )),
       executor
     )
     
-    val indexScanOrderLines = new OptimizedQuery(
-      "indexScanOrderLines",
-      IndexScan(
-        tpcwClient.orderLines,
-        (0.?) :: Nil,
-        ParameterLimit(1, 50),
-        false // don't know if this is right
-      ),
-      executor
-    )
-    
-    val indexLookupJoinItems = new OptimizedQuery(
-      "indexLookupJoinItems",
+    val indexLookupJoinAddresses = new OptimizedQuery(
+      "indexLookupJoinCountries",
       IndexLookupJoin(
-        tpcwClient.items,
-        AttributeValue(0,0) :: Nil,  // first record, first field
-        LocalIterator(0)             // which param in query are you passing this to
+        tpcwClient.addresses,
+        AttributeValue(0,0) :: Nil,
+        LocalIterator(0)
       ),
       executor
     )
-    
+
     val indexLookupJoinAuthors = new OptimizedQuery(
       "indexLookupJoinAuthors",
       IndexLookupJoin(
@@ -203,16 +242,16 @@ class TpcwQueryProvider extends QueryProvider {
       executor
     )
     
-    val indexLookupJoinAddresses = new OptimizedQuery(
-      "indexLookupJoinCountries",
+    val indexLookupJoinItems = new OptimizedQuery(
+      "indexLookupJoinItems",
       IndexLookupJoin(
-        tpcwClient.addresses,
-        AttributeValue(0,0) :: Nil,
-        LocalIterator(0)
+        tpcwClient.items,
+        AttributeValue(0,0) :: Nil,  // first record, first field
+        LocalIterator(0)             // which param in query are you passing this to
       ),
       executor
     )
-
+    
     val indexLookupJoinOrders = new OptimizedQuery(
       "indexLookupJoinOrders",
       IndexLookupJoin(
@@ -225,12 +264,12 @@ class TpcwQueryProvider extends QueryProvider {
     
     val indexMergeJoinItemsIdx = new OptimizedQuery(
       "indexMergeJoinItemsIdx",
-			LocalStopAfter( // should I be putting these into the above queries?
+			LocalStopAfter(
 				ParameterLimit(1, 500),
 				IndexMergeJoin(
-          tpcwClient.items.getOrCreateIndex(TokenIndex("I_SUBJECT" :: Nil) :: AttributeIndex("I_PUB_DATE") :: Nil),
-					AttributeValue(0,1) :: Nil, // 1st record, 2nd field -- don't know if this is right
-					AttributeValue(1,1) :: Nil, // 2nd record, 2nd field -- don't know if this is right
+          tpcwClient.items.getOrCreateIndex(AttributeIndex("I_A_ID") :: AttributeIndex("I_TITLE") :: Nil),
+					AttributeValue(0,0) :: Nil,
+					AttributeValue(1,1) :: Nil,
 					ParameterLimit(1, 500),
 					false,
 					LocalIterator(0))
