@@ -30,15 +30,15 @@ object ServiceSchedulerDaemon extends optional.Application {
  */
 class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends ConfigurationActions {
   val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
-  /* East Coast */
-  //val mesosAmi = "ami-44ce3d2d"
-  //val defaultZone = "us-east-1b"
 
-  /* West Coast */
-  val mesosAmi = "ami-2b6b386e"
-  val defaultZone = "us-west-1a"
+  val mesosAmi =
+    if (EC2Instance.endpoint contains "west") "ami-2b6b386e" else "ami-44ce3d2d"
+
+  val defaultZone =
+    if (EC2Instance.endpoint contains "west") "us-west-1a" else "us-east-1b"
 
   def serviceSchedulerNode = zooKeeperRoot.getOrCreate("serviceScheduler")
+
   def serviceScheduler = classOf[RemoteServiceScheduler].newInstance.parse(serviceSchedulerNode.data)
 
   def stopAllInstances = (masters ++ slaves).pforeach(_.halt)

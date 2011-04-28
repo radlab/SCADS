@@ -24,8 +24,8 @@ object EC2Instance extends AWSConnection {
 
   var keyName = System.getenv("AWS_KEY_NAME")
   val client = new AmazonEC2Client(credentials, config)
-  if(System.getenv("EC2_URL") != null)
-    client.setEndpoint(System.getenv("EC2_URL"))
+  val endpoint = Option(System.getenv("EC2_URL")).getOrElse("https://ec2.us-east-1.amazonaws.com")
+  client.setEndpoint(endpoint)
 
 
   var instanceData: Map[String, Instance] = Map[String, Instance]()
