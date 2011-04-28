@@ -46,10 +46,10 @@ class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends Configura
   def updateDeploylib(instances: Seq[EC2Instance] = slaves): Unit = {
     instances.pforeach(inst => {
       val executorScript = Util.readFile(new File("deploylib/src/main/resources/java_executor"))
-      .split("\n")
-      .map {
-	case s if(s contains "CLASSPATH=") => "CLASSPATH='-cp /usr/local/mesos/lib/java/mesos.jar:" + inst.pushJars.mkString(":") + "'"
-	case s => s
+        .split("\n")
+        .map {
+        case s if (s contains "CLASSPATH=") => "CLASSPATH='-cp /usr/local/mesos/lib/java/mesos.jar:" + inst.pushJars.mkString(":") + "'"
+        case s => s
       }.mkString("\n")
 
       createDirectory(inst, rootDir)
@@ -58,8 +58,8 @@ class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends Configura
     })
   }
 
-  def setupMesosMaster(zone:String = defaultZone, numMasters: Int = 1, mesosAmi: Option[String] = None): Unit = {
-    if(masters.size < numMasters) {
+  def setupMesosMaster(zone: String = defaultZone, numMasters: Int = 1, mesosAmi: Option[String] = None): Unit = {
+    if (masters.size < numMasters) {
       mesosAmi match {
         case Some(ami) => startMasters(zone, numMasters - masters.size, ami)
         case None => startMasters(zone, numMasters - masters.size)
@@ -76,10 +76,10 @@ class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends Configura
     masters.pforeach(_.executeCommand("killall java"))
     val serviceSchedulerScript = (
       "#!/bin/bash\n" +
-      "/root/jrun deploylib.mesos.ServiceSchedulerDaemon " +
-      "--mesosMaster " + clusterUrl + " " +
-      "--zooKeeperAddress " + serviceSchedulerNode.canonicalAddress +
-      " >> /root/serviceScheduler.log 2>&1")
+        "/root/jrun deploylib.mesos.ServiceSchedulerDaemon " +
+        "--mesosMaster " + clusterUrl + " " +
+        "--zooKeeperAddress " + serviceSchedulerNode.canonicalAddress +
+        " >> /root/serviceScheduler.log 2>&1")
 
     // Start service scheduler on only the first master
     firstMaster.createFile(new java.io.File("/root/serviceScheduler"), serviceSchedulerScript)
@@ -126,9 +126,10 @@ class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends Configura
   }
 
   def restartMasters: Unit = {
-    masters.foreach { master =>
-      master ! "service mesos-master stop"
-      master ! "service mesos-master start"
+    masters.foreach {
+      master =>
+        master ! "service mesos-master stop"
+        master ! "service mesos-master start"
     }
   }
 
@@ -140,9 +141,10 @@ class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends Configura
   def updateSlavesFile: Unit = {
     val location = new File("/root/mesos-ec2/slaves")
     val contents = slaves.map(_.privateDnsName).mkString("\n")
-    masters.pforeach { master =>
-      master.mkdir("/root/mesos-ec2")
-      createFile(master, location, contents, "644")
+    masters.pforeach {
+      master =>
+        master.mkdir("/root/mesos-ec2")
+        createFile(master, location, contents, "644")
     }
   }
 
@@ -186,15 +188,15 @@ class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends Configura
       zone,
       userData)
 
-    if(updateDeploylibOnStart) {
+    if (updateDeploylibOnStart) {
       instances.pforeach(i => try {
-	i.tags += ("mesos", "slave")
-	i.blockUntilRunning
-	updateDeploylib(i :: Nil)
-	updateConf(i :: Nil)
-	i ! "service mesos-slave restart"
+        i.tags += ("mesos", "slave")
+        i.blockUntilRunning
+        updateDeploylib(i :: Nil)
+        updateConf(i :: Nil)
+        i ! "service mesos-slave restart"
       } catch {
-	case e => logger.error(e, "Failed to start slave on instance %s:%s", i.instanceId, i.publicDnsName)
+        case e => logger.error(e, "Failed to start slave on instance %s:%s", i.instanceId, i.publicDnsName)
       })
     }
 
