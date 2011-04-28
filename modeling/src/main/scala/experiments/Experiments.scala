@@ -350,11 +350,9 @@ object Experiments {
           val aggHist = results.map(_.times).reduceLeft(_ + _)
           val loaderConfig = results.head.loaderConfig
           val clientConfig = results.head.clientConfig
-          (loaderConfig.numServers, clientConfig.numClients, clientConfig.executorClass, iter, aggHist.totalRequests, aggHist.quantile(0.90), aggHist.quantile(0.99))
-      }
+          (loaderConfig.numServers, aggHist.totalRequests, aggHist.quantile(0.99), clientConfig.numClients, clientConfig.executorClass, iter, aggHist.quantile(0.90))
+      }.toSeq
     }
-
-
 
     def runScaleTest(numServers: Int, executor: String) = {
       val cluster = ScadrLoaderTask(numServers, numServers/2, replicationFactor=2, followingCardinality=10, usersPerServer = 60000).newCluster
