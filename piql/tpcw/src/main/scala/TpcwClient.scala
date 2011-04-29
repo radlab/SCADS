@@ -399,28 +399,28 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     order.O_BILL_ADDR_ID = customer.C_ADDR_ID
     order.O_SHIP_ADDR_ID = customer.C_ADDR_ID
     order.O_STATUS = "PENDING"
-    orders.put(order)
+    val orderPut = orders.asyncPut(order.key, order.value)
 
     // make order lines
-    cart.zipWithIndex.foreach {
+    val orderLinePuts = cart.zipWithIndex.map {
       case ((scl, itm), idx) =>
         val ol = new OrderLine(order.O_ID, idx + 1)
         ol.OL_I_ID = itm.I_ID
         ol.OL_QTY = scl.SCL_QTY
         ol.OL_DISCOUNT = customer.C_DISCOUNT
         ol.OL_COMMENT = Utils.getRandomAString(20, 100)
-        orderLines.put(ol)
+        orderLines.asyncPut(ol.key, ol.value)
     }
 
     // make item stocks updates
-    cart.foreach {
+    val stockUpdatePuts = cart.map {
       case (scl, itm) =>
       if (itm.I_STOCK - scl.SCL_QTY >= 10)
         itm.I_STOCK = itm.I_STOCK - scl.SCL_QTY
       else
         itm.I_STOCK = scala.math.min(0, (itm.I_STOCK - scl.SCL_QTY) + 21) // ... uhh, what happens if this goes negative??? that's why i put the min condition there (it's not given in the spec)
 
-      items.put(itm)
+      items.asyncPut(itm.key, itm.value)
     }
 
     // credit card (PGE) auth stuff ignored...
@@ -440,9 +440,12 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
     // so we do this inefficiently by looping. if our numbers are not good we
     // could try to make this more efficient, but since max cart size is 100,
     // this shouldn't be THAT bad
-    cart foreach { case (scl, _) =>
-      shoppingCartItems.delete(scl)
+    val clearCartPuts = cart map { case (scl, _) =>
+      shoppingCartItems.asyncPut(scl.key, None)
     }
+
+    /* Block until puts complete */
+    (orderLinePuts ++ stockUpdatePuts ++ clearCartPuts :+ orderPut).foreach(_())
 
     logger.debug("finished buy confirmation of %d items", cart.size)
 
