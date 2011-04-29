@@ -32,6 +32,9 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   val orders = cluster.getNamespace[Order]("orders")
   val shoppingCartItems = cluster.getNamespace[ShoppingCartItem]("shoppingCartItems")
 
+  val namespaces = List(addresses, authors, xacts, countries, customers, items, orderLines, orders, shoppingCartItems)
+  def allNamespaces = namespaces.flatMap(ns => ns +: ns.listIndexes.map(_._2).toSeq)
+
   // cardinality constraints
   // TODO: we need to place these in various queries
   val maxOrderLinesPerPage = 100
