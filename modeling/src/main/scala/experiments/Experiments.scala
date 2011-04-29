@@ -256,6 +256,26 @@ object Experiments {
 
     val results = resultsCluster.getNamespace[piql.tpcw.scale.Result]("tpcwScaleResults")
 
+    def scaleResults = {
+      results.iterateOverRange(None, None)
+        .filter(_.loaderConfig.replicationFactor == 2)
+        .filter(_.clientConfig.iterations == 4)
+        .filter(_.clientConfig.numThreads == 10)
+        .filter(_.clientConfig.runLengthMin == 5)
+        .filter(_.iteration != 1).toSeq
+        .groupBy(r => (r.clientConfig.clusterAddress, r.iteration))
+        .map {
+        case ((exp, iter), results) =>
+          val aggHist = results.map(_.times).reduceLeft(_ + _)
+          val skips = results.map(_.skips).sum
+          val failures = results.map(_.failures).sum
+          val loaderConfig = results.head.loaderConfig
+          val clientConfig = results.head.clientConfig
+          (loaderConfig.numServers, aggHist.totalRequests, aggHist.quantile(0.99), clientConfig.numClients, clientConfig.executorClass, iter, aggHist.quantile(0.90), skips, failures, results.size)
+      }.toSeq
+    }
+
+
     def test =
       TpcwWorkflowTask(
         numClients=1,
