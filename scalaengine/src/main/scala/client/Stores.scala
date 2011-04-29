@@ -27,6 +27,9 @@ trait BaseKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
   override def put(key: K, value: Option[V]): Unit =
     putBytes(keyToBytes(key), value.map(v => valueToBytes(v)))
 
+  override def asyncPut(key: K, value: Option[V]): ScadsFuture[Unit] =
+    asyncPutBytes(keyToBytes(key), value.map(valueToBytes))
+
   override def asyncGet(key: K): ScadsFuture[Option[V]] =
     asyncGetBytes(keyToBytes(key)).map(_.map(bytesToValue))
 }

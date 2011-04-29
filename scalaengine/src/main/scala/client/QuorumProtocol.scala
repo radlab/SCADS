@@ -20,7 +20,7 @@ private[storage] object QuorumProtocol {
   val BulkPutTimeout = 60 * 1000
 }
 
-trait QuorumProtocol 
+trait QuorumProtocol
   extends Protocol
   with Namespace
   with KeyRoutable
@@ -76,6 +76,20 @@ trait QuorumProtocol
       // TODO: repair on failed case (above) still?
       ReadRepairer ! handler
       Some(record.map(extractRecordFromValue))
+    }
+  }
+
+  override def asyncPutBytes(key: Array[Byte], value: Option[Array[Byte]]): ScadsFuture[Unit] = {
+    val (servers, quorum) = writeQuorumForKey(key)
+    val putRequest = PutRequest(key, value.map(createMetadata))
+    val responses = serversForKey(key).map(_ !! putRequest)
+
+    new ComputationFuture[Unit] {
+      def compute(timeoutHint: Long, unit: TimeUnit) = {
+        responses.blockFor(quorum)
+      }
+
+      def cancelComputation = error("NOT IMPLEMENTED")
     }
   }
 
