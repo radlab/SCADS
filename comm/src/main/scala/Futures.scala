@@ -124,6 +124,10 @@ class FutureCollection(val futures: Seq[MessageFuture]) {
   futures.foreach(_.forward(responses))
 
   def blockFor(count: Int): Seq[MessageFuture] = (1 to count).map(_ => responses.take())
+
+  def blockFor(count: Int, timeout: Long, unit: TimeUnit): Seq[MessageFuture] = {
+    (1 to count).map(_ => Option(responses.poll(timeout, unit)).getOrElse(throw new RuntimeException("TIMEOUT")))
+  }
 }
 
 class FutureTimeoutException extends RuntimeException
