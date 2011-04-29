@@ -25,15 +25,11 @@ case class TpcwLoaderTask(var numServers: Int,
     val cluster = new ExperimentalScadsCluster(clusterRoot)
     cluster.blockUntilReady(numServers)
 
-    val tpcwClient = new TpcwClient(cluster, new SimpleExecutor)
-    val loader = new TpcwLoader(
-      numEBs = numEBs,
-      numItems = numItems)
-
-    val clientId = coordination.registerAndAwait("clientStart", numLoaders)
-    if (clientId == 0) {
+    val clientId = coordination.registerAndAwait("clientStart", numLoaders, timeout=60*1000)
+    if (clientId == 0) retry(5) {
       logger.info("Awaiting scads cluster startup")
       cluster.blockUntilReady(numServers)
+      val tpcwClient = new TpcwClient(cluster, new SimpleExecutor)
       loader.createNamespaces(tpcwClient, replicationFactor)
       import tpcwClient._
       List(addresses,
@@ -45,6 +41,11 @@ case class TpcwLoaderTask(var numServers: Int,
            orders,
            shoppingCartItems) foreach { ns => ns.setReadWriteQuorum(0.33, 0.67) }
     }
+
+    val tpcwClient = new TpcwClient(cluster, new SimpleExecutor)
+    val loader = new TpcwLoader(
+      numEBs = numEBs,
+      numItems = numItems)
 
     coordination.registerAndAwait("startBulkLoad", numLoaders)
     logger.info("Begining bulk loading of data")
