@@ -529,7 +529,7 @@ trait QuorumRangeProtocol
         assert(recordPtr.head.value.isDefined)
         val newValue = recordPtr.head.value.get
         compareKey(winnerKey, newKey) match {
-          case -1 =>
+          case cmp if cmp < 0 =>
             i += 1
           case 0 => {
             compareMetadata(winnerValue, newValue) match {
@@ -547,7 +547,7 @@ trait QuorumRangeProtocol
             recordPtr = recordPtr.tail
             i += 1
           }
-          case 1 => {
+          case cmp if cmp > 0 => {
             winners.insert(i, recordPtr.head)
             i += 1 //because of the insert
             winnerExceptions += newKey -> newServer
