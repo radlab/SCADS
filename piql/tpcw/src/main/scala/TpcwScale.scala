@@ -12,6 +12,7 @@ import avro.marker._
 
 import deploylib._
 import deploylib.mesos._
+import deploylib.ec2._
 
 import scala.util.Random
 import scala.collection.{ mutable => mu }
@@ -99,6 +100,7 @@ case class TpcwWorkflowTask(var numClients: Int,
       coordination.registerAndAwait("iteration" + iteration, numClients)
     }
 
+    ExperimentNotification.completions.publish("TPCW Scale Complete", this.toJson)
     if(clientId == 0)
       cluster.shutdown
 
