@@ -263,14 +263,16 @@ object Experiments {
       ).testLocally(TpcwLoaderTask(2,2,10, 1000).newTestCluster)
 
     def runScaleTest(numServers: Int, executor: String) = {
-      val cluster = TpcwLoaderTask(numServers, numServers/2, replicationFactor=2, numEBs = 150 * numServers/2, numItems = 10000).newCluster
+      val (scadsTasks, cluster) = TpcwLoaderTask(numServers, numServers/2, replicationFactor=2, numEBs = 150 * numServers/2, numItems = 10000).delayedCluster
 
-      TpcwWorkflowTask(
+      val tpcwTasks = TpcwWorkflowTask(
         numServers/2,
         executor,
         iterations = 4,
         runLengthMin = 5
-      ).schedule(cluster, resultsCluster)
+      ).delayedSchedule(cluster, resultsCluster)
+
+      serviceScheduler.scheduleExperiment(scadsTasks ++ tpcwTasks)
     }
   }
 
