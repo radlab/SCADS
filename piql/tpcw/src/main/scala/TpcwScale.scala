@@ -40,7 +40,7 @@ case class TpcwWorkflowTask(var numClients: Int,
 
   def run(): Unit = {
 
-    val clientId = coordination.registerAndAwait("clientStart", numClients)
+    val clientId = coordination.registerAndAwait("clientStart", numClients, timeout=60*1000)
 
     logger.info("Waiting for cluster to be ready")
     val clusterConfig = clusterRoot.awaitChild("clusterReady")
@@ -99,8 +99,8 @@ case class TpcwWorkflowTask(var numClients: Int,
       coordination.registerAndAwait("iteration" + iteration, numClients)
     }
 
-    //if(clientId == 0)
-    //  cluster.shutdown
+    if(clientId == 0)
+      cluster.shutdown
 
     System.exit(0)
 
