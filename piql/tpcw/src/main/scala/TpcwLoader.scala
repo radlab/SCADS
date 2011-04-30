@@ -71,6 +71,10 @@ class TpcwLoader(val numEBs : Double,
     }
   }
 
+  trait NoLoad extends NamespaceData {
+    override def dataSlice(clientId: Int, numClients: Int) = Nil
+  }
+
   case class RandomData[A <: AvroPair](ns: PairNamespace[A], generator: Int => A, numRecords: Int) extends NamespaceData {
     type Pair = A
     def sampleData = (1 to numRecords).view.map(generator)
@@ -93,7 +97,8 @@ class TpcwLoader(val numEBs : Double,
       RandomData(client.customers, createCustomer(_), numCustomers),
       RandomData(client.items, createItem(_), numItems),
       FlattenedRandomData(client.orderLines, createOrderline(_), numOrders),
-      RandomData(client.orders, createOrder(_), numOrders))
+      RandomData(client.orders, createOrder(_), numOrders),
+      new RandomData(client.shoppingCartItems, i => ShoppingCartItem(toCustomer(i), ""), numCustomers) with NoLoad)
 
   def createNamespaces(client: TpcwClient, replicationFactor: Int) =
     namespaces(client).foreach(_.repartition(replicationFactor))

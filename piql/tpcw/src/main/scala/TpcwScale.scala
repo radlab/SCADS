@@ -12,6 +12,7 @@ import avro.marker._
 
 import deploylib._
 import deploylib.mesos._
+import deploylib.ec2._
 
 import scala.util.Random
 import scala.collection.{ mutable => mu }
@@ -30,6 +31,7 @@ case class Result(var clientConfig: TpcwWorkflowTask,
 
 case class TpcwWorkflowTask(var numClients: Int,
                             var executorClass: String,
+                            var numThreads: Int = 10,
                             var iterations: Int = 3,
                             var runLengthMin: Int = 5) extends AvroRecord with ReplicatedExperimentTask {
 
@@ -39,7 +41,7 @@ case class TpcwWorkflowTask(var numClients: Int,
 
   def run(): Unit = {
 
-    val clientId = coordination.registerAndAwait("clientStart", numClients)
+    val clientId = coordination.registerAndAwait("clientStart", numClients, timeout=60*1000)
 
     logger.info("Waiting for cluster to be ready")
     val clusterConfig = clusterRoot.awaitChild("clusterReady")
@@ -49,16 +51,13 @@ case class TpcwWorkflowTask(var numClients: Int,
     val executor = Class.forName(executorClass).newInstance.asInstanceOf[QueryExecutor]
     val tpcwClient = new TpcwClient(cluster, executor)
 
-    val threads = scala.math.ceil(loaderConfig.numEBs / numClients.toDouble).toInt
-    logger.info("client going to use %d threads (1 EB per thread)", threads)
-
     val loader = new TpcwLoader(
       numEBs = loaderConfig.numEBs,
       numItems = loaderConfig.numItems)
 
     for(iteration <- (1 to iterations)) {
       logger.info("Begining iteration %d", iteration)
-      results ++= (1 to threads).pmap(threadId => {
+      results ++= (1 to numThreads).pmap(threadId => {
         def getTime = System.nanoTime / 1000000
         val histogram = Histogram(1, 5000)
         val runTime = runLengthMin * 60 * 1000L
@@ -101,8 +100,9 @@ case class TpcwWorkflowTask(var numClients: Int,
       coordination.registerAndAwait("iteration" + iteration, numClients)
     }
 
-    //if(clientId == 0)
-    //  cluster.shutdown
+    ExperimentNotification.completions.publish("TPCW Scale Complete", this.toJson)
+    if(clientId == 0)
+      cluster.shutdown
 
     System.exit(0)
 

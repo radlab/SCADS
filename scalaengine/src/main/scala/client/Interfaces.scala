@@ -16,6 +16,7 @@ trait KeyValueStoreLike[KeyType <: IndexedRecord,
   extends PersistentStore[BulkPutType] {
   def get(key: KeyType): Option[ValueType]
   def put(key: KeyType, value: Option[ValueType]): Unit
+  def asyncPut(key: KeyType, value: Option[ValueType]): ScadsFuture[Unit]
 
   def asyncGet(key: KeyType): ScadsFuture[Option[ValueType]]
 }
@@ -57,6 +58,7 @@ trait PairSerializer[PairType <: AvroPair]
 trait Protocol {
   def getBytes(key: Array[Byte]): Option[Array[Byte]]
   def putBytes(key: Array[Byte], value: Option[Array[Byte]]): Unit
+  def asyncPutBytes(key: Array[Byte], value: Option[Array[Byte]]): ScadsFuture[Unit]
 
   /* TODO: Thread safety? */
   def flushBulkBytes(): Unit

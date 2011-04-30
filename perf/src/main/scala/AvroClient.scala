@@ -41,14 +41,18 @@ abstract trait DataLoadingTask extends ExperimentTask {
   }
 
   def newCluster(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeperRoot: ZooKeeperProxy#ZooKeeperNode): ScadsCluster = {
+    val (tasks, cluster) = delayedCluster
+    scheduler.scheduleExperiment(tasks)
+    cluster
+  }
+
+  def delayedCluster(implicit classpath: Seq[ClassSource], zookeeperRoot: ZooKeeperProxy#ZooKeeperNode): (Seq[JvmTask], ScadsCluster) = {
     val clusterRoot = zookeeperRoot.getOrCreate("scads").createChild("experimentCluster", mode = CreateMode.PERSISTENT_SEQUENTIAL)
     clusterAddress = clusterRoot.canonicalAddress
     val serverProcs = List.fill(numServers)(ScalaEngineTask(clusterAddress=clusterRoot.canonicalAddress).toJvmTask)
     val loaderProcs = List.fill(numLoaders)(this.toJvmTask)
 
-    scheduler.scheduleExperiment(serverProcs ++ loaderProcs)
-
-    new ScadsCluster(clusterRoot)
+    (serverProcs ++ loaderProcs, new ScadsCluster(clusterRoot))
   }
 }
 
@@ -74,14 +78,18 @@ abstract trait ReplicatedExperimentTask extends ExperimentTask {
     threads
   }
 
-  def schedule(cluster: ScadsCluster, resultCluster: ScadsCluster)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeperRoot: ZooKeeperProxy#ZooKeeperNode): this.type = {
+  def delayedSchedule(cluster: ScadsCluster, resultCluster: ScadsCluster)(implicit classpath: Seq[ClassSource], zookeeperRoot: ZooKeeperProxy#ZooKeeperNode): Seq[JvmTask] = {
     val experimentRoot = zookeeperRoot.getOrCreate("experiments").createChild("experiment", mode = CreateMode.PERSISTENT_SEQUENTIAL)
     experimentAddress = experimentRoot.canonicalAddress
     clusterAddress = cluster.root.canonicalAddress
     resultClusterAddress = resultCluster.root.canonicalAddress
 
     val task = this.toJvmTask
-    scheduler.scheduleExperiment(Array.fill(numClients)(task))
+    Array.fill(numClients)(task)
+  }
+
+  def schedule(cluster: ScadsCluster, resultCluster: ScadsCluster)(implicit classpath: Seq[ClassSource], scheduler: ExperimentScheduler, zookeeperRoot: ZooKeeperProxy#ZooKeeperNode): this.type = {
+    scheduler.scheduleExperiment(delayedSchedule(cluster, resultCluster))
     this
   }
 }
