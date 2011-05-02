@@ -16,7 +16,7 @@ import avro.runtime._
 object Experiments {
   var resultZooKeeper = ZooKeeperNode("zk://zoo.knowsql.org/").getOrCreate("home").getOrCreate(System.getenv("USER"))
   val cluster = new Cluster()
-  implicit var zooKeeperRoot = cluster.zooKeeperRoot
+  implicit def zooKeeperRoot = cluster.zooKeeperRoot
   val resultsCluster = new ScadsCluster(resultZooKeeper.getOrCreate("results"))
 
   implicit def classSource = cluster.classSource
