@@ -244,7 +244,7 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watc
       val seqNum = node.createChild("client", mode = CreateMode.EPHEMERAL_SEQUENTIAL).sequenceNumber
 
       require(seqNum < count)
-      node.awaitChild("client", Some(count - 1))
+      node.awaitChild("client", Some(count - 1), timeout=timeout, unit=unit)
       seqNum
     }
 
