@@ -69,10 +69,13 @@ abstract class NettyChannelManager[S <: SpecificRecord, R <: SpecificRecord](
   class NettyBaseHandler extends SimpleChannelHandler {
     override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) {
       val chan = e.getChannel
-      log.error("Handler caught exception on channel %s: %s, closing and removing %s from connection pool", chan, e.getCause, chan.getRemoteAddress)
 
-      if (chan.getRemoteAddress ne null)
-        nodeToConnections.put(chan.getRemoteAddress.asInstanceOf[InetSocketAddress], chan)
+      log.warning("Exception in channel handler %s: %s", chan, e)
+      nodeToConnections.entrySet.filter(_.getValue.getId == chan.getId).foreach(addr => {
+        log.info("Removing channel %s to %s from connection pool".format(chan, addr.getKey))
+        nodeToConnections.remove(addr.getKey)
+      })
+
       chan.close()
       ctx.sendUpstream(e)
     }
@@ -89,10 +92,10 @@ abstract class NettyChannelManager[S <: SpecificRecord, R <: SpecificRecord](
   class NettyServerParentHandler extends NettyBaseHandler {
     override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
       val chan = e.getChannel
-      val addr = nodeToConnections.entrySet.filter(_.getValue.getId == chan.getId).head.getKey
-
-      log.info("Channel closed: %s, removing %s from connection pool".format(chan, addr))
-      nodeToConnections.remove(addr)
+      nodeToConnections.entrySet.filter(_.getValue.getId == chan.getId).foreach(addr => {
+        log.info("Channel closed: %s, removing %s from connection pool".format(chan, addr.getKey))
+        nodeToConnections.remove(addr.getKey)
+      })
 
       ctx.sendUpstream(e)
     }
@@ -109,10 +112,10 @@ abstract class NettyChannelManager[S <: SpecificRecord, R <: SpecificRecord](
 
     override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
       val chan = e.getChannel
-      val addr = nodeToConnections.entrySet.filter(_.getValue.getId == chan.getId).head.getKey
-
-      log.info("Channel closed: %s, removing %s from connection pool".format(chan, addr))
-      nodeToConnections.remove(addr)
+      nodeToConnections.entrySet.filter(_.getValue.getId == chan.getId).foreach(addr => {
+        log.info("Channel closed: %s, removing %s from connection pool".format(chan, addr.getKey))
+        nodeToConnections.remove(addr.getKey)
+      })
 
       ctx.sendUpstream(e)
     }
@@ -121,11 +124,10 @@ abstract class NettyChannelManager[S <: SpecificRecord, R <: SpecificRecord](
   class NettyClientHandler extends NettyChannelHandler {
     override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
       val chan = e.getChannel
-      val addr = nodeToConnections.entrySet.filter(_.getValue.getId == chan.getId).head.getKey
-
-      log.info("Channel closed: %s, removing %s from connection pool".format(chan, addr))
-      nodeToConnections.remove(addr)
-      chan.close()
+      nodeToConnections.entrySet.filter(_.getValue.getId == chan.getId).foreach(addr => {
+        log.info("Channel closed: %s, removing %s from connection pool".format(chan, addr.getKey))
+        nodeToConnections.remove(addr.getKey)
+      })
 
       ctx.sendUpstream(e)
     }
