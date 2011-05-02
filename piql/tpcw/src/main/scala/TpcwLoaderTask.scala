@@ -29,7 +29,7 @@ case class TpcwLoaderTask(var numServers: Int,
       numEBs = numEBs,
       numItems = numItems)
 
-    val clientId = coordination.registerAndAwait("clientStart", numLoaders, timeout=60*1000)
+    val clientId = coordination.registerAndAwait("clientStart", numLoaders, timeout=60*60*1000)
     if (clientId == 0) retry(5) {
       logger.info("Awaiting scads cluster startup")
       cluster.blockUntilReady(numServers)

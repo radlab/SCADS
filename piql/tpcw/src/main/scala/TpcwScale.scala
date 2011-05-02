@@ -41,7 +41,7 @@ case class TpcwWorkflowTask(var numClients: Int,
 
   def run(): Unit = {
 
-    val clientId = coordination.registerAndAwait("clientStart", numClients, timeout=60*1000)
+    val clientId = coordination.registerAndAwait("clientStart", numClients, timeout=60*60*1000)
 
     logger.info("Waiting for cluster to be ready")
     val clusterConfig = clusterRoot.awaitChild("clusterReady")

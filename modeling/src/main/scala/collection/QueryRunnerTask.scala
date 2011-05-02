@@ -66,7 +66,7 @@ case class QueryRunnerTask(var numClients: Int,
 
     val experimentRoot = ZooKeeperNode(experimentAddress)
     val coordination = experimentRoot.getOrCreate("coordination/clients")
-    val clientId = coordination.registerAndAwait("clientStart", numClients, timeout=60*1000)
+    val clientId = coordination.registerAndAwait("clientStart", numClients, timeout=60*60*1000)
 
     val clusterRoot = ZooKeeperNode(clusterAddress)
     clusterRoot.awaitChild("clusterReady")
