@@ -213,7 +213,7 @@ class TpcwQueryProvider extends QueryProvider {
     )
     
     val indexLookupJoinAddresses = new OptimizedQuery(
-      "indexLookupJoinCountries",
+      "indexLookupJoinAddresses", // was formerly mislabeled
       IndexLookupJoin(
         tpcwClient.addresses,
         AttributeValue(0,0) :: Nil,
