@@ -42,6 +42,15 @@ object ExperimentUtil {
     results.groupBy(_.queryDesc).map { case(queryDesc, res) => println(queryDesc) }
   }
   
+  def queryDescriptionsGivenQueryName(results: Seq[Result], givenQueryName: String) = {
+    results.groupBy(_.queryDesc).map {                   
+      case (q @ QueryDescription(queryName, _, _), res) => 
+        if (queryName == givenQueryName)
+          println(q)
+      case _ =>                                                                 
+    }
+  }
+  
   def queryTypeQuantile(results: Seq[Result] = goodResults.toSeq, quantile: Double = 0.90) =
     results.groupBy(_.queryDesc).map {
       case (queryDesc, results) => (queryDesc, results.map(_.responseTimes)
