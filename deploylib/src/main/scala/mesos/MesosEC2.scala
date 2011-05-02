@@ -67,7 +67,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     }
 
     masters.pforeach(_.pushJars)
-    updateConf(masters)
+    updateMasterConf
     restartMasters
     restartServiceScheduler
   }
