@@ -499,7 +499,7 @@ trait QuorumRangeProtocol
     private def processNext(): Unit = {
       ctr += 1
       val time = startTime - System.currentTimeMillis + timeout
-      val future = responses.poll(if (time > 0) time else 1, TimeUnit.MILLISECONDS)
+      val future = responses.poll(timeout, TimeUnit.MILLISECONDS)
       if (future == null) {
         failed = true
         return

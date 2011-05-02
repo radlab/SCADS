@@ -47,10 +47,10 @@ case class ScadrScaleTask(var numClients: Int,
     val coordination = clusterRoot.getOrCreate("coordination/clients")
     val cluster = new ScadsCluster(clusterRoot)
     var executor = Class.forName(executorClass).newInstance.asInstanceOf[QueryExecutor]
-    val clientId = coordination.registerAndAwait("clientStart", numClients)
+    val clientId = coordination.registerAndAwait("clientStart", numClients, timeout=60 * 60 * 1000)
 
     logger.info("Waiting for cluster to be ready")
-    val clusterConfig = clusterRoot.awaitChild("clusterReady")
+    val clusterConfig = clusterRoot.awaitChild("clusterReady", timeout=60*60*1000)
     val loaderConfig = classOf[ScadrLoaderTask].newInstance.parse(clusterConfig.data)
     val scadrClient = new ScadrClient(cluster, executor)
 

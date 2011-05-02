@@ -14,9 +14,10 @@ import avro.marker._
 import avro.runtime._
 
 object Experiments {
-  implicit var zooKeeperRoot = ZooKeeperNode("zk://zoo.knowsql.org/").getOrCreate("home").getOrCreate(System.getenv("USER"))
-  val cluster = new Cluster(zooKeeperRoot)
-  val resultsCluster = new ScadsCluster(zooKeeperRoot.getOrCreate("results"))
+  var resultZooKeeper = ZooKeeperNode("zk://zoo.knowsql.org/").getOrCreate("home").getOrCreate(System.getenv("USER"))
+  val cluster = new Cluster()
+  implicit def zooKeeperRoot = cluster.zooKeeperRoot
+  val resultsCluster = new ScadsCluster(resultZooKeeper.getOrCreate("results"))
 
   implicit def classSource = cluster.classSource
   implicit def serviceScheduler = cluster.serviceScheduler
@@ -390,16 +391,18 @@ object Experiments {
     }
 
     def runScaleTest(numServers: Int, executor: String) = {
-      val cluster = ScadrLoaderTask(numServers, numServers/2, replicationFactor=2, followingCardinality=10, usersPerServer = 60000).newCluster
+      val (engineTasks, cluster) = ScadrLoaderTask(numServers, numServers/2, replicationFactor=2, followingCardinality=10, usersPerServer = 60000).delayedCluster
 
-      ScadrScaleTask(
+      val workloadTasks = ScadrScaleTask(
         numServers/2,
         executor,
         0.01,
         iterations = 4,
         runLengthMin = 5,
         threads = 10
-      ).schedule(cluster, resultsCluster)
+      ).delayedSchedule(cluster, resultsCluster)
+
+      serviceScheduler.scheduleExperiment(engineTasks ++ workloadTasks)
     }
 
     def sweetSpotResults = {

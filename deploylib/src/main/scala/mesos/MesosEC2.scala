@@ -28,7 +28,7 @@ object ServiceSchedulerDaemon extends optional.Application {
 /**
  * Functions to help maintain a mesos cluster on EC2.
  */
-class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends ConfigurationActions {
+class Cluster(useFT: Boolean = false) extends ConfigurationActions {
   val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
 
   val mesosAmi =
@@ -111,6 +111,66 @@ class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends Configura
       .filter(_.instanceState equals "running")
   }
 
+  def zooKeepers = {
+    EC2Instance.update()
+    EC2Instance.client.describeTags().getTags()
+      .filter(_.getResourceType equals "instance")
+      .filter(_.getKey equals "mesos")
+      .filter(_.getValue equals "zoo")
+      .map(t => EC2Instance.getInstance(t.getResourceId))
+      .filter(_.instanceState equals "running")
+  }
+
+  def zooKeeperAddress = "zk://%s/".format(zooKeepers.map(_.publicDnsName + ":2181").mkString(","))
+  def zooKeeperRoot = ZooKeeperNode(zooKeeperAddress)
+
+  def setupZooKeeper: Unit = {
+    val missingServers = 3 - zooKeepers.size
+
+    if(missingServers > 0) {
+    val ret = EC2Instance.runInstances(
+      mesosAmi,
+      missingServers,
+      missingServers,
+      EC2Instance.keyName,
+      "m1.large",
+      defaultZone,
+      None)
+
+      ret.foreach(_.blockUntilRunning)
+      ret.foreach(_.tags += ("mesos", "zoo"))
+    }
+
+    val servers = zooKeepers.zipWithIndex
+
+    val cnf =
+      (servers.map {case (server, id: Int) => "server.%d=%s:3181:3182".format(id + 1, server.privateDnsName)} ++
+      ("dataDir=/mnt/zookeeper" ::
+      "clientPort=2181" ::
+      "tickTime=1000" ::
+      "initLimit=60"::
+      "syncLimit=30" :: Nil )).mkString("\n")
+
+    val startScript =
+      ("#!/bin/bash" ::
+      "/root/jrun org.apache.zookeeper.server.quorum.QuorumPeerMain /mnt/zookeeper.cnf" :: Nil).mkString("\n")
+
+    servers.pforeach {
+      case (server, id: Int) =>
+        server.createFile(new File("/mnt/zookeeper.cnf"), cnf)
+        server.createFile(new File("/mnt/zookeeper/myid"), (id + 1).toString)
+        server.createFile(new File("/mnt/startZookeeper"), startScript)
+        server ! "chmod 755 /mnt/startZookeeper"
+
+        server.pushJars
+        server.executeCommand("killall java")
+        server ! "mkdir -p /mnt/zookeeper"
+        server ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/zookeeper.pid --exec /mnt/startZookeeper"
+    }
+
+    println(cnf)
+  }
+
   def firstMaster = masters.head
 
   def updateMesos =
@@ -118,7 +178,10 @@ class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends Configura
       firstMaster ! "rsync -e 'ssh -o StrictHostKeyChecking=no' -av /usr/local/mesos root@%s:/usr/local/mesos".format(s.publicDnsName))
 
   def clusterUrl: String =
-    "zoo://" + zooKeeperRoot.proxy.servers.map(_ + ":2181").mkString(",") + zooKeeperRoot.getOrCreate("mesos").path
+    if(useFT)
+      "zoo://" + zooKeeperRoot.proxy.servers.mkString(",") + zooKeeperRoot.getOrCreate("mesos").path
+    else
+      "1@" + firstMaster.publicDnsName + ":5050"
 
   def restartSlaves: Unit = {
     slaves.pforeach(_ ! "service mesos-slave stop")
@@ -203,15 +266,25 @@ class Cluster(val zooKeeperRoot: ZooKeeperProxy#ZooKeeperNode) extends Configura
     instances
   }
 
-  def updateConf(instances: Seq[EC2Instance] = (slaves ++ masters)): Unit = {
-    val baseConf = ("work_dir=/mnt" ::
+  val baseConf = ("work_dir=/mnt" ::
       "log_dir=/mnt" ::
       "switch_user=0" ::
       "shares_interval=30" :: Nil)
-    val conf = (baseConf :+ ("url=" + clusterUrl)).mkString("\n")
-    val conffile = new File("/usr/local/mesos/conf/mesos.conf")
+  def slaveConf = (baseConf :+ ("url=" + clusterUrl)).mkString("\n")
+  val conffile = new File("/usr/local/mesos/conf/mesos.conf")
 
-    instances.pforeach(_.createFile(conffile, conf))
+  def updateConf(instances: Seq[EC2Instance] = slaves): Unit = {
+    instances.pforeach(_.createFile(conffile, slaveConf))
+  }
+
+  def updateMasterConf: Unit = {
+    val masterConf =
+      if(useFT)
+        slaveConf
+      else
+        baseConf.mkString("\n")
+
+    masters.pforeach(_.createFile(conffile, masterConf))
   }
 
   //TODO: Doesn't handle non s3 cached jars

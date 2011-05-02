@@ -178,7 +178,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     currentState.getPlacement().getAvailabilityZone()
 
   def instanceState: String =
-    EC2Instance.instanceData(instanceId).getState.getName()
+    EC2Instance.instanceData.get(instanceId).map(_.getState.getName()).getOrElse("unknown")
 
   def getHostname(): String = {
     blockUntilRunning()
