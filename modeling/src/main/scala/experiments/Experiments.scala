@@ -390,16 +390,18 @@ object Experiments {
     }
 
     def runScaleTest(numServers: Int, executor: String) = {
-      val cluster = ScadrLoaderTask(numServers, numServers/2, replicationFactor=2, followingCardinality=10, usersPerServer = 60000).newCluster
+      val (engineTasks, cluster) = ScadrLoaderTask(numServers, numServers/2, replicationFactor=2, followingCardinality=10, usersPerServer = 60000).delayedCluster
 
-      ScadrScaleTask(
+      val workloadTasks = ScadrScaleTask(
         numServers/2,
         executor,
         0.01,
         iterations = 4,
         runLengthMin = 5,
         threads = 10
-      ).schedule(cluster, resultsCluster)
+      ).delayedSchedule(cluster, resultsCluster)
+
+      serviceScheduler.scheduleExperiment(engineTasks ++ workloadTasks)
     }
 
     def sweetSpotResults = {
