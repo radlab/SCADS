@@ -21,6 +21,7 @@ trait DebuggingClient {
 
   // For debugging only
   def dumpDistribution: Unit = {
+    logger.info("\nKey Distribution for %s", namespace)
     val futures = serversForKeyRange(None, None).flatMap(r =>
       r.servers.map(p => p !! CountRangeRequest(r.startKey, r.endKey)))
 
