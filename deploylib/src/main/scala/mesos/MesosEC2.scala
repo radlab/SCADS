@@ -157,6 +157,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
 
     servers.pforeach {
       case (server, id: Int) =>
+        server ! "mkdir -p /mnt/zookeeper"
         server.createFile(new File("/mnt/zookeeper.cnf"), cnf)
         server.createFile(new File("/mnt/zookeeper/myid"), (id + 1).toString)
         server.createFile(new File("/mnt/startZookeeper"), startScript)
@@ -164,7 +165,6 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
 
         server.pushJars
         server.executeCommand("killall java")
-        server ! "mkdir -p /mnt/zookeeper"
         server ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/zookeeper.pid --exec /mnt/startZookeeper"
     }
 
