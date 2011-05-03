@@ -31,6 +31,15 @@ trait DebuggingClient {
         case _ => logger.warning("Invalid response from %s", f.source)
       }
     )
+
+    val counts = futures.map(f =>
+      f() match {
+        case CountRangeResponse(num) => num
+        case _ => 0
+      }
+    )
+
+    logger.info("Max Skew: %d, %f", counts.max - counts.min, (counts.max - counts.min).toFloat / counts.max)
   }
 
   def dumpWorkload: Unit = {
