@@ -303,15 +303,6 @@ object Experiments {
 
     val results = resultsCluster.getNamespace[perf.scadr.scale.Result]("scadrScaleResults")
 
-    def makeScaleGraphPoint(size: Int) = { 
-      ScadrScaleTask(size,
-		      "edu.berkeley.cs.scads.piql.ParallelExecutor",
-		      0.01,
-		      threads=10)
-	.schedule(ScadrLoaderTask(size, size, 10).newCluster,
-		  resultsCluster)
-    }
-
     def dataSizeResults =
       new ScatterPlot(
         results.getRange(None, None)
@@ -402,6 +393,20 @@ object Experiments {
       ).delayedSchedule(cluster, resultsCluster)
 
       serviceScheduler.scheduleExperiment(engineTasks ++ workloadTasks)
+    }
+
+    def test = {
+      val cluster = ScadrLoaderTask(10, 10, replicationFactor = 2, followingCardinality = 10, usersPerServer = 1000).newTestCluster
+      ScadrScaleTask(
+        5,
+        "edu.berkeley.cs.scads.piql.ParallelExecutor",
+        0.01,
+        iterations = 1,
+        runLengthMin = 5,
+        threads=10
+      ).testLocally(cluster)
+
+      new ScadrClient(cluster, new ParallelExecutor with DebugExecutor)
     }
 
     def sweetSpotResults = {
