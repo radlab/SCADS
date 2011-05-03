@@ -46,7 +46,6 @@ case class ScadrLoaderTask(var numServers: Int,
         scadrClient.users.setReadWriteQuorum(0.33, 0.67)
         scadrClient.thoughts.setReadWriteQuorum(0.33, 0.67)
         scadrClient.subscriptions.setReadWriteQuorum(0.33, 0.67)
-        scadrClient.tags.setReadWriteQuorum(0.33, 0.67)
       }
     }
 
