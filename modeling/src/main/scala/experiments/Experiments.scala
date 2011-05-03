@@ -303,6 +303,12 @@ object Experiments {
 
     val results = resultsCluster.getNamespace[perf.scadr.scale.Result]("scadrScaleResults")
 
+    def backup: Unit = {
+      val outfile = AvroOutFile[perf.scadr.scale.Result]("scadrScale." + System.currentTimeMillis + ".avro")
+      results.iterateOverRange(None,None).foreach(outfile.append)
+      outfile.close
+    }
+
     def dataSizeResults =
       new ScatterPlot(
         results.getRange(None, None)
