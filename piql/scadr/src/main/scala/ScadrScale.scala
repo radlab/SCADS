@@ -59,7 +59,7 @@ case class ScadrScaleTask(var numClients: Int,
     val loader = new ScadrLoader(
       replicationFactor = loaderConfig.replicationFactor,
       numClients = loaderConfig.numLoaders,
-      numUsers = loaderConfig.numServers * 10000 / loaderConfig.replicationFactor,
+      numUsers = loaderConfig.numServers * loaderConfig.usersPerServer / loaderConfig.replicationFactor,
       numThoughtsPerUser = 100,
       numSubscriptionsPerUser = loaderConfig.followingCardinality,
       numTagsPerThought = 5)
