@@ -41,7 +41,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
 
   def serviceScheduler = classOf[RemoteServiceScheduler].newInstance.parse(serviceSchedulerNode.data)
 
-  def stopAllInstances = (masters ++ slaves).pforeach(_.halt)
+  def stopAllInstances = (masters ++ slaves ++ zooKeepers).pforeach(_.halt)
 
   def updateDeploylib(instances: Seq[EC2Instance] = slaves): Unit = {
     instances.pforeach(inst => {
