@@ -45,8 +45,8 @@ trait DebuggingClient {
   def dumpWorkload: Unit = {
     val partitions = serversForKeyRange(None, None)
     logger.info("\nStats for namespace %s: %d partitions", namespace, partitions.size)
-    val futures = partitions.map(r =>
-      (r.startKey, r.servers.map(p => (p, p !! GetWorkloadStats()))))
+    val futures = partitions.map(p =>
+      (p.startKey, p.servers.map(s => (s, s !! GetWorkloadStats()))))
 
 
     futures.foreach {
