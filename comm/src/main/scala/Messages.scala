@@ -51,6 +51,10 @@ case class TestSetResponse(var success: Boolean) extends AvroRecord with KeyValu
 case class GetWorkloadStats() extends AvroRecord with KeyValueStoreOperation
 case class GetWorkloadStatsResponse(var getCount:Int, var putCount:Int, var statsSince:Long) extends AvroRecord with KeyValueStoreOperation
 
+case class AggFilter(var field:String, var codename:String, var code:Array[Byte]) extends AvroRecord
+case class AggFilters(var target:Array[Byte], var filters:Seq[AggFilter]) extends AvroRecord
+case class AggRequest(var groups: Seq[String], var filters:Option[AggFilters]) extends AvroRecord with KeyValueStoreOperation
+
 /* Storage Handler Operations */
 sealed trait StorageServiceOperation extends MessageBody
 case class CreatePartitionRequest(var namespace: String, var startKey: Option[Array[Byte]] = None, var endKey: Option[Array[Byte]] = None) extends AvroRecord with StorageServiceOperation

@@ -119,6 +119,13 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
     Schema.parse(keySchema)
   }
 
+  private def schemasFor(namespace: String) = {
+    val nsRoot = getNamespaceRoot(namespace)
+    val keySchema = new String(nsRoot("keySchema").data)
+    val valueSchema = new String(nsRoot("valueSchema").data)
+    (Schema.parse(keySchema),Schema.parse(valueSchema))
+  }
+
   /** 
    * Preconditions:
    *   (1) namespace is a valid namespace in zookeeper
@@ -127,8 +134,10 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
    */
   private def makePartitionHandler(
       database: Database, namespace: String, partitionIdLock: ZooKeeperProxy#ZooKeeperNode,
-      startKey: Option[Array[Byte]], endKey: Option[Array[Byte]]) =
-    new PartitionHandler(database, partitionIdLock, startKey, endKey, getNamespaceRoot(namespace), keySchemaFor(namespace))
+      startKey: Option[Array[Byte]], endKey: Option[Array[Byte]]) = {
+    val schemas = schemasFor(namespace)
+    new PartitionHandler(database, partitionIdLock, startKey, endKey, getNamespaceRoot(namespace), schemas._1, schemas._2)
+  }
 
   /** Iterator scans the entire cursor and does not close it */
   private implicit def cursorToIterator(cursor: Cursor): Iterator[(DatabaseEntry, DatabaseEntry)]

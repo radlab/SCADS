@@ -6,6 +6,7 @@ import net.lag.logging.Logger
 
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.config._
+import edu.berkeley.cs.scads.util.AnalyticsUtils
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
@@ -13,6 +14,7 @@ import org.apache.avro.generic._
 
 import java.util.{ Arrays => JArrays }
 import java.util.concurrent.{ Future => JFuture, _ }
+import java.lang.reflect.Method
 import atomic._
 
 /**
@@ -24,7 +26,7 @@ case class PartitionWorkloadStats(var gets:Int, var puts:Int)
  * Handles a partition from [startKey, endKey). Refuses to service any
  * requests which fall out of this range, by returning a ProcessingException
  */
-class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, val startKey: Option[Array[Byte]], val endKey: Option[Array[Byte]], val nsRoot: ZooKeeperProxy#ZooKeeperNode, val keySchema: Schema) extends ServiceHandler[PartitionServiceOperation] with AvroComparator {
+class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, val startKey: Option[Array[Byte]], val endKey: Option[Array[Byte]], val nsRoot: ZooKeeperProxy#ZooKeeperNode, val keySchema: Schema, valueSchema: Schema) extends ServiceHandler[PartitionServiceOperation] with AvroComparator {
   protected val logger = Logger("partitionhandler")
   protected val config = Config.config
 
@@ -367,6 +369,42 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 					//synchronized { reply(GetWorkloadStatsResponse(statWindows(1)._1.get, statWindows(1)._2.get, statsClearedTime)) }
 					reply(GetWorkloadStatsResponse(completedStats.gets, completedStats.puts, statsClearedTime))
 				}
+        case AggRequest(groups,filters) => {
+          val (filterSchema:Schema, filterRec:GenericData.Record, filterMethods:Seq[(String,Any,Method)]) = 
+            filters match {
+              case Some(fs) => {
+                val fieldNames = fs.filters map(_.field)
+                val filterSchema = AnalyticsUtils.getFilterSchema(valueSchema,fieldNames)
+                val filterRec = AnalyticsUtils.getFilterRecord(filterSchema,fs.target)
+                (filterSchema,filterRec,
+                 fs.filters map(f => {
+                   val fclass = AnalyticsUtils.deserializeCode(f.codename,f.code)
+                   fclass match {
+                     case cl:Class[_] => {
+                       val o = cl.newInstance
+                       val method = cl.getMethod("doPred",classOf[Comparable[Object]],classOf[Comparable[Object]])
+                       (f.field,o,method)
+                     }
+                   }
+                 })
+               )
+              }
+              case None => (null,null,null)
+            }
+
+          var extractFRec:GenericData.Record = null
+
+          iterateOverRange(None,None)((key, value, _) => {
+            var b = true
+            filterMethods.foreach(fm => { // note: fm_.1 = field name, fm._2 = invoke object fm._3 = method
+              if (b) { // once b is false just ignore the rest
+                extractFRec = AnalyticsUtils.extractFilterFields(valueSchema,filterSchema,value.getData,extractFRec)
+                val nb = fm._3.invoke(fm._2,extractFRec.get(fm._1),filterRec.get(fm._1))
+                b = b && nb
+              }
+            })
+          })
+        }
         case _ => src.foreach(_ ! ProcessingException("Not Implemented", ""))
       }
     } else {
