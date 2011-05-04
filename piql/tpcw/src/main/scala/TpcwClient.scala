@@ -5,6 +5,7 @@ package tpcw
 
 import net.lag.logging.Logger
 
+import scads.comm._
 import scads.storage._
 import avro.marker._
 import avro.runtime._
@@ -34,6 +35,20 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
 
   val namespaces = List(addresses, authors, xacts, countries, customers, items, orderLines, orders, shoppingCartItems)
   def allNamespaces = namespaces.flatMap(ns => ns +: ns.listIndexes.map(_._2).toSeq)
+
+
+  //TODO: Move to scadr cluster
+  def workloadDistribution = {
+    val partitions = allNamespaces.flatMap(_.serversForKeyRange(None, None))
+    val workloads = partitions.flatMap(p => p.servers.map(s => (s.host, s !! GetWorkloadStats())))
+                              .map {case (h, f) => (h, f())}
+                              .map {case (h, GetWorkloadStatsResponse(w1, w2, _)) => (h, w1+w2); case (h, _) => throw new RuntimeException("Invalid response from: " + h)}
+                              .groupBy(_._1).toSeq
+
+    workloads.map {
+      case (h, w) => (h, w.map(_._2).sum)
+    }
+  }
 
   // cardinality constraints
   // TODO: we need to place these in various queries
