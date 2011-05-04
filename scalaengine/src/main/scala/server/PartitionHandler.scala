@@ -399,7 +399,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
             filterMethods.foreach(fm => { // note: fm_.1 = field name, fm._2 = invoke object fm._3 = method
               if (b) { // once b is false just ignore the rest
                 extractFRec = AnalyticsUtils.extractFilterFields(valueSchema,filterSchema,value.getData,extractFRec)
-                val nb = fm._3.invoke(fm._2,extractFRec.get(fm._1),filterRec.get(fm._1))
+                val nb = fm._3.invoke(fm._2,extractFRec.get(fm._1),filterRec.get(fm._1)).asInstanceOf[Boolean]
                 b = b && nb
               }
             })
