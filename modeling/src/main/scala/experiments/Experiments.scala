@@ -33,7 +33,7 @@ object Experiments {
     new ScadrClient(expCluster(expId), new ParallelExecutor)
 
   lazy val testTpcwClient =
-    new piql.tpcw.TpcwClient(new piql.tpcw.TpcwLoaderTask(4,2,10,1000,2).newTestCluster, new ParallelExecutor with DebugExecutor)
+    new piql.tpcw.TpcwClient(new piql.tpcw.TpcwLoaderTask(10,5,10,10000,2).newTestCluster, new ParallelExecutor with DebugExecutor)
 
   lazy val scadsCluster = new ScadsCluster(traceRoot)
   lazy val scadrClient = new piql.scadr.ScadrClient(scadsCluster, new ParallelExecutor)
@@ -200,7 +200,7 @@ object Experiments {
       benchmarkScadr(scadrCluster)
     }
 
-    val tpcwCluster = tpcw.TpcwLoaderTask(10, 10, numEBs=100, numItems=10000, 2)
+    val tpcwCluster = tpcw.TpcwLoaderTask(10, 10, numEBs=100, numItems=100000, 2)
     val tpcwRunner =
       QueryRunnerTask(numClients=10,
         "edu.berkeley.cs.scads.piql.modeling.TpcwQueryProvider",
@@ -277,11 +277,16 @@ object Experiments {
     }
 
 
-    def test =
+    def test = {
+      val cluster = TpcwLoaderTask(2,2,10, 1000).newTestCluster
+
       TpcwWorkflowTask(
         numClients=1,
         executorClass="edu.berkeley.cs.scads.piql.ParallelExecutor"
-      ).testLocally(TpcwLoaderTask(2,2,10, 1000).newTestCluster)
+      ).testLocally(cluster)
+
+      cluster
+    }
 
     def runScaleTest(numServers: Int, executor: String) = {
       val (scadsTasks, cluster) = TpcwLoaderTask(numServers, numServers/2, replicationFactor=2, numEBs = 150 * numServers/2, numItems = 10000).delayedCluster
