@@ -8,8 +8,9 @@ import io._
 import specific._
 
 trait SimpleRecordMetadata extends RecordMetadata 
-  with GlobalMetadata
-  with Namespace {
+  with GlobalMetadata {
+
+  val cluster: ScadsCluster
 
   override def compareKey(x: Array[Byte], y: Array[Byte]): Int = 
     BinaryData.compare(x, 0, y, 0, keySchema)
@@ -67,5 +68,4 @@ trait SimpleRecordMetadata extends RecordMetadata
     System.arraycopy(value, 16, rhs, 0, rhs_len)
     rhs
   }
-
 }
