@@ -45,10 +45,9 @@ case class TpcwLoaderTask(var numServers: Int,
            orders,
            shoppingCartItems) foreach { ns => ns.setReadWriteQuorum(0.33, 0.67) }
     }
+    coordination.registerAndAwait("namespacesReady", numLoaders)
 
     val tpcwClient = new TpcwClient(cluster, new SimpleExecutor)
-
-
     coordination.registerAndAwait("startBulkLoad", numLoaders)
     logger.info("Begining bulk loading of data")
     loader.namespaces(tpcwClient).foreach(_.load(clientId, numLoaders))
