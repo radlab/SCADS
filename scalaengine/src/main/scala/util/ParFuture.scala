@@ -17,7 +17,7 @@ trait ParFuture {
    */
   def waitFor[Data, T](futures: Seq[(MessageFuture, Data)], timeout: Long = 15000)
                       (f: PartialFunction[(MessageBody, Data), T]): Seq[Either[Throwable, T]] = {
-    def trapException(elem: (MessageFuture, Data)): Either[Throwable, (MessageBody, Data)] = 
+    def trapException(elem: (MessageFuture, Data)): Either[Throwable, (MessageBody, Data)] =
       try {
         elem._1
           .get(timeout, TimeUnit.MILLISECONDS)
@@ -28,8 +28,8 @@ trait ParFuture {
       }
     futures.map(ftch =>
       trapException(ftch).fold(
-        ex => Left(ex), 
-        msg => f.lift(msg).map(Right(_)).getOrElse(Left(new RuntimeException("Unexpected message during get")))))
+        ex => Left(ex),
+        msg => f.lift(msg).map(Right(_)).getOrElse(Left(new RuntimeException("Unexpected message received: " + msg)))))
   }
 
 
