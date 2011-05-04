@@ -8,6 +8,7 @@ import org.apache.avro.generic.IndexedRecord
 trait DebuggingClient {
   self: Namespace
     with KeyRangeRoutable
+    with ParFuture
     with Serializer[IndexedRecord, IndexedRecord, _] =>
 
   /*
@@ -73,5 +74,24 @@ trait DebuggingClient {
       }
 
     logger.info("getDiff: %d, putDiff: %d\n", values.map(_._1).max - values.map(_._1).min, values.map(_._2).max - values.map(_._2).min)
+  }
+
+  //HACK
+  def rebalance: Unit = {
+    val partitions = serversForKeyRange(None, None)
+    val distribution = waitForAndThrowException(partitions.flatMap(p => p.servers.map(s => (s !! CountRangeRequest(p.startKey, p.endKey), (s, p.startKey.map(bytesToKey), p.endKey.map(bytesToKey)))))) {
+      case (CountRangeResponse(c), p) => (c, p) }
+    logger.debug("==distribution==")
+    distribution.foreach(logger.debug("%s: %s", namespace, _))
+
+    val workload = waitForAndThrowException(partitions.flatMap(p => p.servers.map(s => (s !! GetWorkloadStats(), (s, p.startKey.map(bytesToKey), p.endKey.map(bytesToKey)))))) {
+      case (GetWorkloadStatsResponse(gets, puts, _), p) => (gets, puts, p) }
+    logger.debug("==workload==")
+    workload.foreach(logger.debug("%s: %s", namespace, _))
+
+    val counts = distribution.map(_._1)
+    val total = counts.sum
+    val desiredKeysPerServer = total / partitions.size
+    logger.debug("%s: desiredKeysPerServer: %d", namespace, desiredKeysPerServer)
   }
 }
