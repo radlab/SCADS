@@ -257,6 +257,20 @@ object Experiments {
 
     val results = resultsCluster.getNamespace[piql.tpcw.scale.Result]("tpcwScaleResults")
 
+    import org.apache.avro.generic._
+    import org.apache.avro.file.{DataFileReader, DataFileWriter, CodecFactory}
+    import java.io.File
+
+    implicit def avroIterWriter[RecordType <: GenericContainer](iter: Iterator[RecordType]) = new {
+      def toAvroFile(file: File, codec: Option[CodecFactory] = None)(implicit schema: TypedSchema[RecordType]) = {
+        val outfile = AvroOutFile[RecordType](file, codec)
+        iter.foreach(outfile.append)
+        outfile.close
+      }
+    }
+
+    def backup = results.iterateOverRange(None,None).toAvroFile(new java.io.File("tpcwScale." + System.currentTimeMillis + ".avro"))
+
     def scaleResults = {
       results.iterateOverRange(None, None)
         .filter(_.loaderConfig.replicationFactor == 2)
