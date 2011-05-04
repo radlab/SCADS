@@ -178,7 +178,7 @@ trait RecordStore[RecType <: IndexedRecord] extends Namespace
    */
   def repartition(data: Seq[RecType], replicationFactor: Int): Unit = {
     val servers = cluster.getAvailableServers
-    val samplesPerServer = 1000
+    val samplesPerServer = 10000
     require(servers.size % replicationFactor == 0, "num servers must divide evenly by replication factor")
     val numPartitions = servers.size / replicationFactor
     val numSamples = samplesPerServer * numPartitions
