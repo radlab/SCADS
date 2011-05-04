@@ -154,7 +154,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
     this ! ("hostname " + privateDnsName)
 
   def halt: Unit =
-    this ! "halt"
+    EC2Instance.client.terminateInstances(new TerminateInstancesRequest(instanceId :: Nil))
 
   def currentState: Instance =
     EC2Instance.instanceData(instanceId)

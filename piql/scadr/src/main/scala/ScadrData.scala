@@ -17,10 +17,10 @@ import net.lag.logging.Logger
 import org.apache.avro.generic.GenericRecord
 
 case class ScadrKeySplits(
-    usersKeySplits: Seq[Option[GenericRecord]],
-    thoughtsKeySplits: Seq[Option[GenericRecord]],
-    subscriptionsKeySplits: Seq[Option[GenericRecord]]
-)
+                           usersKeySplits: Seq[Option[GenericRecord]],
+                           thoughtsKeySplits: Seq[Option[GenericRecord]],
+                           subscriptionsKeySplits: Seq[Option[GenericRecord]]
+                           )
 
 /**
  * Currently the loader assumes all nodes are equal and tries to distribute
@@ -41,7 +41,7 @@ class ScadrLoader(val replicationFactor: Int,
 
   val logger = Logger()
 
-
+  //TODO: Unify this with the (much cleaner) tpcw code
   protected def createNamespace(namespace: PairNamespace[AvroPair], keySplits: Seq[Option[GenericRecord]]): Unit = {
     val services = namespace.cluster.getAvailableServers.grouped(replicationFactor).toSeq
     val partitionScheme = keySplits.map(_.map(namespace.keyToBytes)).zip(services)
@@ -54,11 +54,22 @@ class ScadrLoader(val replicationFactor: Int,
     logger.info("Creating namespaces with keysplits: %s", splits)
     createNamespace(cluster.getNamespace[User]("users").asInstanceOf[PairNamespace[AvroPair]], splits.usersKeySplits)
     createNamespace(cluster.getNamespace[Thought]("thoughts").asInstanceOf[PairNamespace[AvroPair]], splits.thoughtsKeySplits)
-    createNamespace(cluster.getNamespace[Subscription]("subscriptions").asInstanceOf[PairNamespace[AvroPair]], splits.subscriptionsKeySplits)
+
+    val subscriptions = cluster.getNamespace[Subscription]("subscriptions").asInstanceOf[PairNamespace[AvroPair]]
+    createNamespace(subscriptions, splits.subscriptionsKeySplits)
+
+    //HACK
+    val subIdx = subscriptions.getOrCreateIndex(AttributeIndex("target") :: Nil)
+    val services = subIdx.cluster.getAvailableServers.grouped(replicationFactor).toSeq
+    val partitionScheme = splits.subscriptionsKeySplits.map(_.map(subIdx.keyToBytes)).zip(services)
+    subIdx.setPartitionScheme(partitionScheme)
   }
 
   private def toUsername(idx: Int) = "User%010d".format(idx)
-  def randomUser = toUsername(scala.util.Random.nextInt(numUsers) + 1) // must be + 1 since users are indexed starting from 1
+
+  def randomUser = toUsername(scala.util.Random.nextInt(numUsers) + 1)
+
+  // must be + 1 since users are indexed starting from 1
 
   /**
    * Get the key splits based on the num* parameters and the scads cluster.
@@ -98,8 +109,8 @@ class ScadrLoader(val replicationFactor: Int,
     }
 
     ScadrKeySplits(usersKeySplits,
-                   thoughtsKeySplits,
-                   subscriptionsKeySplits)
+      thoughtsKeySplits,
+      subscriptionsKeySplits)
   }
 
   case class ScadrData(userData: Seq[User],
@@ -144,17 +155,17 @@ class ScadrLoader(val replicationFactor: Int,
 
     val thoughtData: Seq[Thought] =
       newUserIdView.flatMap(userId =>
-	(1 to numThoughtsPerUser).view.map(i => {
-	  val t = Thought(toUsername(userId), i)
-	  t.text = toUsername(userId) + " thinks " + i
-	  t
-	}))
+        (1 to numThoughtsPerUser).view.map(i => {
+          val t = Thought(toUsername(userId), i)
+          t.text = toUsername(userId) + " thinks " + i
+          t
+        }))
 
     val subscriptionData: Seq[Subscription] = newUserIdView.flatMap(userId =>
       randomInts(toUsername(userId).hashCode, numUsers, userId % numSubscriptionsPerUser).view.map(u => {
-	val s = Subscription(toUsername(userId), "User%010d".format(u))
-	s.approved = true
-	s
+        val s = Subscription(toUsername(userId), "User%010d".format(u))
+        s.approved = true
+        s
       })
     )
 

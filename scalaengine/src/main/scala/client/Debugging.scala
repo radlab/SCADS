@@ -8,6 +8,7 @@ import org.apache.avro.generic.IndexedRecord
 trait DebuggingClient {
   self: Namespace
     with KeyRangeRoutable
+    with ParFuture
     with Serializer[IndexedRecord, IndexedRecord, _] =>
 
   /*
@@ -21,6 +22,7 @@ trait DebuggingClient {
 
   // For debugging only
   def dumpDistribution: Unit = {
+    logger.info("\nKey Distribution for %s", namespace)
     val futures = serversForKeyRange(None, None).flatMap(r =>
       r.servers.map(p => p !! CountRangeRequest(r.startKey, r.endKey)))
 
@@ -30,13 +32,22 @@ trait DebuggingClient {
         case _ => logger.warning("Invalid response from %s", f.source)
       }
     )
+
+    val counts = futures.map(f =>
+      f() match {
+        case CountRangeResponse(num) => num
+        case _ => 0
+      }
+    )
+
+    logger.info("Max Skew: %d, %f", counts.max - counts.min, (counts.max - counts.min).toFloat / counts.max)
   }
 
   def dumpWorkload: Unit = {
     val partitions = serversForKeyRange(None, None)
     logger.info("\nStats for namespace %s: %d partitions", namespace, partitions.size)
-    val futures = partitions.map(r =>
-      (r.startKey, r.servers.map(p => (p, p !! GetWorkloadStats()))))
+    val futures = partitions.map(p =>
+      (p.startKey, p.servers.map(s => (s, s !! GetWorkloadStats()))))
 
 
     futures.foreach {
@@ -63,5 +74,24 @@ trait DebuggingClient {
       }
 
     logger.info("getDiff: %d, putDiff: %d\n", values.map(_._1).max - values.map(_._1).min, values.map(_._2).max - values.map(_._2).min)
+  }
+
+  //HACK
+  def rebalance: Unit = {
+    val partitions = serversForKeyRange(None, None)
+    val distribution = waitForAndThrowException(partitions.flatMap(p => p.servers.map(s => (s !! CountRangeRequest(p.startKey, p.endKey), (s, p.startKey.map(bytesToKey), p.endKey.map(bytesToKey)))))) {
+      case (CountRangeResponse(c), p) => (c, p) }
+    logger.debug("==distribution==")
+    distribution.foreach(logger.debug("%s: %s", namespace, _))
+
+    val workload = waitForAndThrowException(partitions.flatMap(p => p.servers.map(s => (s !! GetWorkloadStats(), (s, p.startKey.map(bytesToKey), p.endKey.map(bytesToKey)))))) {
+      case (GetWorkloadStatsResponse(gets, puts, _), p) => (gets, puts, p) }
+    logger.debug("==workload==")
+    workload.foreach(logger.debug("%s: %s", namespace, _))
+
+    val counts = distribution.map(_._1)
+    val total = counts.sum
+    val desiredKeysPerServer = total / partitions.size
+    logger.debug("%s: desiredKeysPerServer: %d", namespace, desiredKeysPerServer)
   }
 }

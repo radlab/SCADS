@@ -21,8 +21,6 @@ case class Subscription(var owner: String, var target: String) extends AvroPair 
   var approved: Boolean = _
 }
 
-case class HashTag(var tag: String, var timestamp: Int, var owner: String) extends AvroPair
-
 class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor = new ParallelExecutor) {
   val maxSubscriptions = 10000
   val maxResultsPerPage = 10000
@@ -36,9 +34,9 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor = new Paral
   val users = cluster.getNamespace[User]("users")
   val thoughts = cluster.getNamespace[Thought]("thoughts")
   val subscriptions = cluster.getNamespace[Subscription]("subscriptions")
-  val tags = cluster.getNamespace[HashTag]("tags")
-  // Additional way to access tags, to match AvroRecord's conventions:
-  val hashtags = cluster.getNamespace[HashTag]("hashtags")
+
+  val namespaces = List(users, thoughts, subscriptions)
+  val allNamespaces = namespaces.flatMap(ns => ns :: ns.listIndexes.map(_._2).toList)
 
   /* Optimized queries */
   val findUser = users.where("username".a === (0.?)).toPiql("findUser")
@@ -66,16 +64,10 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor = new Paral
 		 .limit(1.?, maxResultsPerPage)
   ).toPiql("thoughtstream")
 
-  //HACK
-  lazy val usersInTown =
-    users.where("homeTown".a === (0.?))
-	 .limit(10)
-	 .toPiql("usersInTown")
-
   /**
    * Who is following ME?
    */
-  lazy val usersFollowing = (
+  val usersFollowing = (
     subscriptions.where("subscriptions.target".a === (0.?))
 		 .limit(1.?, maxResultsPerPage)
 		 .join(users)

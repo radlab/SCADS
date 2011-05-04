@@ -33,7 +33,7 @@ object Experiments {
     new ScadrClient(expCluster(expId), new ParallelExecutor)
 
   lazy val testTpcwClient =
-    new piql.tpcw.TpcwClient(new piql.tpcw.TpcwLoaderTask(4,2,10,1000,2).newTestCluster, new ParallelExecutor with DebugExecutor)
+    new piql.tpcw.TpcwClient(new piql.tpcw.TpcwLoaderTask(10,5,10,10000,2).newTestCluster, new ParallelExecutor with DebugExecutor)
 
   lazy val scadsCluster = new ScadsCluster(traceRoot)
   lazy val scadrClient = new piql.scadr.ScadrClient(scadsCluster, new ParallelExecutor)
@@ -258,6 +258,20 @@ object Experiments {
 
     val results = resultsCluster.getNamespace[piql.tpcw.scale.Result]("tpcwScaleResults")
 
+    import org.apache.avro.generic._
+    import org.apache.avro.file.{DataFileReader, DataFileWriter, CodecFactory}
+    import java.io.File
+
+    implicit def avroIterWriter[RecordType <: GenericContainer](iter: Iterator[RecordType]) = new {
+      def toAvroFile(file: File, codec: Option[CodecFactory] = None)(implicit schema: TypedSchema[RecordType]) = {
+        val outfile = AvroOutFile[RecordType](file, codec)
+        iter.foreach(outfile.append)
+        outfile.close
+      }
+    }
+
+    def backup = results.iterateOverRange(None,None).toAvroFile(new java.io.File("tpcwScale." + System.currentTimeMillis + ".avro"))
+
     def scaleResults = {
       results.iterateOverRange(None, None)
         .filter(_.loaderConfig.replicationFactor == 2)
@@ -278,11 +292,16 @@ object Experiments {
     }
 
 
-    def test =
+    def test = {
+      val cluster = TpcwLoaderTask(2,2,10, 1000).newTestCluster
+
       TpcwWorkflowTask(
         numClients=1,
         executorClass="edu.berkeley.cs.scads.piql.ParallelExecutor"
-      ).testLocally(TpcwLoaderTask(2,2,10, 1000).newTestCluster)
+      ).testLocally(cluster)
+
+      cluster
+    }
 
     def runScaleTest(numServers: Int, executor: String) = {
       val (scadsTasks, cluster) = TpcwLoaderTask(numServers, numServers/2, replicationFactor=2, numEBs = 150 * numServers/2, numItems = 10000).delayedCluster
@@ -304,13 +323,10 @@ object Experiments {
 
     val results = resultsCluster.getNamespace[perf.scadr.scale.Result]("scadrScaleResults")
 
-    def makeScaleGraphPoint(size: Int) = { 
-      ScadrScaleTask(size,
-		      "edu.berkeley.cs.scads.piql.ParallelExecutor",
-		      0.01,
-		      threads=10)
-	.schedule(ScadrLoaderTask(size, size, 10).newCluster,
-		  resultsCluster)
+    def backup: Unit = {
+      val outfile = AvroOutFile[perf.scadr.scale.Result]("scadrScale." + System.currentTimeMillis + ".avro")
+      results.iterateOverRange(None,None).foreach(outfile.append)
+      outfile.close
     }
 
     def dataSizeResults =
@@ -403,6 +419,20 @@ object Experiments {
       ).delayedSchedule(cluster, resultsCluster)
 
       serviceScheduler.scheduleExperiment(engineTasks ++ workloadTasks)
+    }
+
+    def test = {
+      val cluster = ScadrLoaderTask(10, 10, replicationFactor = 2, followingCardinality = 10, usersPerServer = 1000).newTestCluster
+      ScadrScaleTask(
+        5,
+        "edu.berkeley.cs.scads.piql.ParallelExecutor",
+        0.01,
+        iterations = 1,
+        runLengthMin = 5,
+        threads=10
+      ).testLocally(cluster)
+
+      new ScadrClient(cluster, new ParallelExecutor with DebugExecutor)
     }
 
     def sweetSpotResults = {

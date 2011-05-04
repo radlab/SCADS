@@ -100,11 +100,9 @@ case class TpcwWorkflowTask(var numClients: Int,
       coordination.registerAndAwait("iteration" + iteration, numClients)
     }
 
-    ExperimentNotification.completions.publish("TPCW Scale Complete", this.toJson)
-    if(clientId == 0)
+    if(clientId == 0) {
+      ExperimentNotification.completions.publish("TPCW Scale Complete", this.toJson)
       cluster.shutdown
-
-    System.exit(0)
-
+    }
   }
 }

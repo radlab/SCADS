@@ -252,7 +252,7 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
     }
 
     val attrFieldNames = fields.collect {case AttributeIndex(f) => f}
-    val suffixFields = keySchema.getFields.filterNot(attrFieldNames.contains(_)).map(f => new Schema.Field(f.name, f.schema, "", null))
+    val suffixFields = keySchema.getFields.filterNot(f => attrFieldNames.contains(f.name)).map(f => new Schema.Field(f.name, f.schema, "", null))
     val indexKeySchema = Schema.createRecord(name + "Key", "", "", false)
     indexKeySchema.setFields(prefixFields ++ suffixFields)
 
