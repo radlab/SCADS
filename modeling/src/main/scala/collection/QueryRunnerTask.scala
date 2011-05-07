@@ -69,7 +69,7 @@ case class QueryRunnerTask(var numClients: Int,
     val clientId = coordination.registerAndAwait("clientStart", numClients, timeout=60*60*1000)
 
     val clusterRoot = ZooKeeperNode(clusterAddress)
-    clusterRoot.awaitChild("clusterReady")
+    clusterRoot.awaitChild("clusterReady", timeout=60*60*1000)
     val cluster = new ScadsCluster(clusterRoot)
 
     val traceFile = new File("piqltrace.avro")
