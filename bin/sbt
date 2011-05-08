@@ -1,0 +1,3 @@
+JAVAREBEL=-javaagent:~/local/jrebel.jar 
+
+java $JAVAREBEL -noverify -XX:ReservedCodeCacheSize=64M -noverify -Djava.library.path=/usr/local/mesos/lib/java -Xmx7G -XX:MaxPermSize=3G -XX:+UseParallelGC -jar `dirname $0`/sbt-launch-0.9.5-SNAPSHOT.jar "$@"
