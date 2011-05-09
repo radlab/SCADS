@@ -5,7 +5,11 @@ import java.net.URL
 import java.sql.{Connection, DriverManager, ResultSet, SQLException}
 import java.util.Date
 
-import _root_.mesos._
+import org.apache.mesos._
+import org.apache.mesos.Protos._
+import com.google.protobuf.ByteString
+
+
 import edu.berkeley.cs.scads.comm._
 import net.lag.logging.Logger
 import scala.collection.JavaConversions._
@@ -20,15 +24,17 @@ object WebAppScheduler {
 }
 
 /* serverCapacity is the number of requests per second that a single application server can handle */
-class WebAppScheduler protected (name: String, mesosMaster: String, executor: String, warFile: ClassSource, properties: Map[String, String], zkWebServerListRoot:String, serverCapacity: Int, var minServers: Int, statsServer: Option[String] = None) extends Scheduler {
+class WebAppScheduler protected(name: String, mesosMaster: String, executor: String, warFile: ClassSource, properties: Map[String, String], zkWebServerListRoot: String, serverCapacity: Int, var minServers: Int, statsServer: Option[String] = None) extends Scheduler {
   scheduler =>
 
   val logger = Logger()
   var listeners: List[String => Unit] = Nil
   var driver = new MesosSchedulerDriver(this, mesosMaster)
-  val driverThread = new Thread("ExperimentScheduler Mesos Driver Thread") { override def run(): Unit = driver.run() }
+  val driverThread = new Thread("ExperimentScheduler Mesos Driver Thread") {
+    override def run(): Unit = driver.run()
+  }
 
-   //set up mysql connection for statistics
+  //set up mysql connection for statistics
   val statement = statsServer.map(connString => {
     try {
       val conn = DriverManager.getConnection(connString)
@@ -51,11 +57,12 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
   var numToKill = 0
   var killTimer = 0
   @volatile var targetNumServers: Int = minServers
-  var smoothedWorkload = 0.0 // The smoothed version of the aggregate workload
+  var smoothedWorkload = 0.0
+  // The smoothed version of the aggregate workload
   var smoothedUtilization = 0.0
-  var servers =  new HashMap[Int, String]()
-  var pendingServers =  new HashMap[Int, String]()
-  var unresponsiveServers = new HashMap[Int, Int]()
+  var servers = new HashMap[TaskID, String]()
+  var pendingServers = new HashMap[TaskID, String]()
+  var unresponsiveServers = new HashMap[TaskID, Int]()
 
   /**
    * Periodically query all of the webapp servers currently thought
@@ -71,37 +78,38 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
    * @param rampDownWorkloadWeight - Smooth killing webapp servers by weighing in history. Must be geq 0.0 and lt 1.0.
    */
   class monitorThread(period: Int = 1000 * 30,
-		      unresponsiveRequestLimit: Int = 3,
-		      rampUpWorkloadWeight: Double = 0.9,
-		      rampDownWorkloadWeight: Double = 0.01,
-		      rampUpUtilizationWeight: Double = 0.9,
-		      rampDownUtilizationWeight: Double = 0.05,
-		      utilizationThreshold: Double = 0.40
-		     ) extends Runnable {
+                      unresponsiveRequestLimit: Int = 3,
+                      rampUpWorkloadWeight: Double = 0.9,
+                      rampDownWorkloadWeight: Double = 0.01,
+                      rampUpUtilizationWeight: Double = 0.9,
+                      rampDownUtilizationWeight: Double = 0.05,
+                      utilizationThreshold: Double = 0.40
+                       ) extends Runnable {
     private val params = new HttpClientParams()
     params.setSoTimeout(5000)
     private val httpClient = new HttpClient(params)
+
     override def run() = {
-      while(runMonitorThread) {
+      while (runMonitorThread) {
         // Calculate the average web server request rate
         logger.info("Beginging collection of workload statistics")
-        val stats = for((taskID, slaveHostname) <- servers.toSeq) yield {
+        val stats = for ((taskID, slaveHostname) <- servers.toSeq) yield {
           val slaveUrl = "http://%s:%d/stats/".format(slaveHostname, port)
           val method = new GetMethod(slaveUrl)
           logger.debug("Getting status from %s.", slaveUrl)
           try {
             httpClient.executeMethod(method)
             val xml = scala.xml.XML.loadString(method.getResponseBodyAsString)
-	    unresponsiveServers -= taskID
+            unresponsiveServers -= taskID
             ((xml \ "RequestRate").text.toDouble, (xml \ "CpuUtilization").text.toDouble)
           } catch {
             case e =>
               unresponsiveServers += taskID -> (unresponsiveServers.get(taskID).getOrElse(0) + 1)
-	      logger.warning("Couldn't get RequestRate from %s for %d iterations..", slaveUrl, unresponsiveServers(taskID))
+              logger.warning("Couldn't get RequestRate from %s for %d iterations..", slaveUrl, unresponsiveServers(taskID))
               if (unresponsiveServers(taskID) > unresponsiveRequestLimit) {
                 driver.killTask(taskID)
                 servers -= taskID
-		recordAction("Webapp Director killed an unresponsive webapp server of %s's. Weakness will not be tolerated!".format(name))
+                recordAction("Webapp Director killed an unresponsive webapp server of %s's. Weakness will not be tolerated!".format(name))
               }
               (0.0, 0.0)
           }
@@ -109,24 +117,25 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
 
         logger.info("Current Workload: %s", stats)
         val aggregateReqRate = stats.map(_._1).sum
-	val totalUtilization = stats.map(_._2).sum
-	val averageUtilization = totalUtilization / servers.size
+        val totalUtilization = stats.map(_._2).sum
+        val averageUtilization = totalUtilization / servers.size
 
-	/*
-        if (aggregateReqRate > smoothedWorkload) { // ramping up
-          smoothedWorkload = smoothedWorkload + (aggregateReqRate - smoothedWorkload) * rampUpWorkloadWeight
-        } else { // ramping down
-          smoothedWorkload = smoothedWorkload + (aggregateReqRate - smoothedWorkload) * rampDownWorkloadWeight
-        }
-        targetNumServers = math.max(minServers, math.ceil(smoothedWorkload / serverCapacity).toInt)
-	*/
+        /*
+          if (aggregateReqRate > smoothedWorkload) { // ramping up
+            smoothedWorkload = smoothedWorkload + (aggregateReqRate - smoothedWorkload) * rampUpWorkloadWeight
+          } else { // ramping down
+            smoothedWorkload = smoothedWorkload + (aggregateReqRate - smoothedWorkload) * rampDownWorkloadWeight
+          }
+          targetNumServers = math.max(minServers, math.ceil(smoothedWorkload / serverCapacity).toInt)
+    */
 
-	if(totalUtilization > smoothedUtilization) {
-	  smoothedUtilization = smoothedUtilization + (totalUtilization - smoothedUtilization) * rampUpUtilizationWeight
-        } else { // ramping down
+        if (totalUtilization > smoothedUtilization) {
+          smoothedUtilization = smoothedUtilization + (totalUtilization - smoothedUtilization) * rampUpUtilizationWeight
+        } else {
+          // ramping down
           smoothedUtilization = smoothedUtilization + (totalUtilization - smoothedUtilization) * rampDownUtilizationWeight
-	}
-	targetNumServers = math.max(minServers, math.ceil(smoothedUtilization / utilizationThreshold).toInt)
+        }
+        targetNumServers = math.max(minServers, math.ceil(smoothedUtilization / utilizationThreshold).toInt)
 
         logger.info("Current Aggregate Workload: %f req/sec (%f smoothed), targetServers=%d", aggregateReqRate, smoothedWorkload, targetNumServers)
 
@@ -134,7 +143,7 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
         statement.foreach(s => {
           val now = new Date
           val sqlInsertCmd = "INSERT INTO appReqRate (timestamp, webAppID, aggRequestRate, targetNumServers, actualNumServers, averageUtilization)" +
-                             "VALUES (%d, '%s', %f, %d, %d, %f)".format(now.getTime, name, aggregateReqRate, targetNumServers.toInt, servers.size, averageUtilization)
+            "VALUES (%d, '%s', %f, %d, %d, %f)".format(now.getTime, name, aggregateReqRate, targetNumServers.toInt, servers.size, averageUtilization)
           try {
             val numResults = s.map(_.executeUpdate(sqlInsertCmd))
             if (numResults.getOrElse(0) != 1)
@@ -160,13 +169,15 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
   def killTasks(numServers: Int) = {
     logger.info("Calling driver.kill() for %d webservers.", numToKill)
     val toKill = servers.take(numToKill)
-    toKill.map{case (victimID, victimHost) =>  {
-      logger.info("Killing task %d on node %s.", victimID, victimHost)
-      driver.killTask(victimID)
-      logger.info("Removing webserver task " + victimID + " on host " + victimHost + " from hashmap of servers.")
-      recordAction("Webapp Director killed an unecessary webapp server of %s's. Inefficiencies will not be tolerated!".format(name))
-      servers -= victimID
-    }}
+    toKill.map {
+      case (victimID, victimHost) => {
+        logger.info("Killing task %d on node %s.", victimID, victimHost)
+        driver.killTask(victimID)
+        logger.info("Removing webserver task " + victimID + " on host " + victimHost + " from hashmap of servers.")
+        recordAction("Webapp Director killed an unecessary webapp server of %s's. Inefficiencies will not be tolerated!".format(name))
+        servers -= victimID
+      }
+    }
     updateZooWebServerList();
   }
 
@@ -184,14 +195,15 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
    * @param sleepPeriod - how often, in ms, to check for a successful server response. Default is 10 seconds.
    * @param timeout - how long, in ms, to spend checking for an http 200 status response before giving up and killing the mesos task associated with the server. Default is 5 minutes.
    */
-  class WebAppPrimerThread(taskId: Int, serverHostname: String, numSuccessRequired: Int = 100, sleepPeriod: Int = 10*1000, timeout: Int = 5*60*1000) extends Runnable {
+  class WebAppPrimerThread(taskId: TaskID, serverHostname: String, numSuccessRequired: Int = 100, sleepPeriod: Int = 10 * 1000, timeout: Int = 5 * 60 * 1000) extends Runnable {
     val httpClient = new HttpClient()
+
     override def run() = {
       var timeoutCountdown = timeout
       var numSuccesses = 0
       var serverIsUp = false
       var exitThread = false
-      while(!exitThread) {
+      while (!exitThread) {
         Thread.sleep(sleepPeriod)
         timeoutCountdown -= sleepPeriod
         if (timeoutCountdown <= 0) {
@@ -230,48 +242,58 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
       }
     }
   }
+
   override def getFrameworkName(d: SchedulerDriver): String = "WebAppScheduler: " + name
-  override def getExecutorInfo(d: SchedulerDriver): ExecutorInfo = new ExecutorInfo(executor, Array[Byte]())
-  override def registered(d: SchedulerDriver, fid: String): Unit = logger.info("Registered Framework.  Fid: " + fid)
+
+  override def getExecutorInfo(d: SchedulerDriver): ExecutorInfo = ExecutorInfo.newBuilder.setUri(executor).build()
+
+  override def registered(d: SchedulerDriver, fid: FrameworkID): Unit = logger.info("Registered Framework.  Fid: " + fid)
 
   val webAppTask = JvmWebAppTask(warFile, properties)
   var taskIdCounter = 0
 
-  override def resourceOffer(driver: SchedulerDriver, oid: String, offers: java.util.List[SlaveOffer]): Unit = {
+  override def resourceOffer(driver: SchedulerDriver, oid: OfferID, offers: java.util.List[SlaveOffer]): Unit = {
 
     val tasks = offers.flatMap(offer => {
       logger.debug("In resourceOffer, taskIdCounter is " + taskIdCounter + ", targetNumServers is " + targetNumServers)
       logger.debug("servers.size is %d.", servers.size)
       logger.debug("pendingServers.size is %d.", pendingServers.size)
-      if(servers.size + pendingServers.size < targetNumServers) {
-        val taskParams = Map(List("mem", "cpus").map(k => k -> offer.getParams.get(k)):_*)
+      if (servers.size + pendingServers.size < targetNumServers) {
+        logger.info("adding server %s as task %d", offer.getHostname, taskIdCounter)
+        val newTaskId = TaskID.newBuilder.setValue(taskIdCounter.toString).build()
+        taskIdCounter += 1
 
         scheduler.synchronized {
-          pendingServers += taskIdCounter -> offer.getHost
+          pendingServers += newTaskId -> offer.getHostname
         }
-	logger.info("adding server %s as task %d", offer.getHost, taskIdCounter)
-        new Thread(new WebAppPrimerThread(taskIdCounter,offer.getHost)).start()
 
-        var td = new TaskDescription(taskIdCounter, offer.getSlaveId, webAppTask.toString, taskParams, JvmTask(webAppTask)) :: Nil
-        taskIdCounter += 1
+        new Thread(new WebAppPrimerThread(newTaskId, offer.getHostname)).start()
+
+        var td = TaskDescription.newBuilder
+                                .setTaskId(newTaskId)
+                                .setSlaveId(offer.getSlaveId)
+                                .setName(webAppTask.toString)
+                                .addAllResources(offer.getResourcesList)
+                                .setData(ByteString.copyFrom(JvmTask(webAppTask)))
+                                .build() :: Nil
         td
       }
       else
         Nil
     })
 
-    driver.replyToOffer(oid, tasks, Map[String,String]())
+    driver.replyToOffer(oid, tasks, Map[String, String]())
   }
 
 
   override def statusUpdate(d: SchedulerDriver, status: TaskStatus): Unit = {
-    if(status.getState == TaskState.TASK_FAILED || status.getState == TaskState.TASK_LOST || status.getState == TaskState.TASK_KILLED) {
+    if (status.getState == TaskState.TASK_FAILED || status.getState == TaskState.TASK_LOST || status.getState == TaskState.TASK_KILLED) {
       logger.warning("Status Update for Task %d: %s", status.getTaskId, status.getState)
       //TODO: restarted failed app servers
     }
     else {
       logger.debug("Status Update: " + status.getTaskId + " " + status.getState)
-      logger.ifDebug(new String(status.getData))
+      logger.ifDebug(new String(status.getData.toByteArray))
     }
   }
 
@@ -286,4 +308,8 @@ class WebAppScheduler protected (name: String, mesosMaster: String, executor: St
     runMonitorThread = false
   }
 
+  override def error(driver: SchedulerDriver, code: Int, message: String): Unit = logger.fatal("MESOS ERROR %d: %s", code, message)
+  override def slaveLost(driver: SchedulerDriver, slaveId: SlaveID): Unit = logger.fatal("SLAVE LOST: %s", slaveId)
+  override def frameworkMessage(driver: SchedulerDriver, slaveId: SlaveID, executor: ExecutorID, data: Array[Byte]): Unit = logger.info("FW Message: %s %s %s", slaveId, executor, new String(data))
+  override def offerRescinded(driver: SchedulerDriver, oid: OfferID): Unit = logger.fatal("Offer Rescinded: %s", oid)
 }

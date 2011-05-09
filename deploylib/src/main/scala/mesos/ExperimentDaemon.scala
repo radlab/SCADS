@@ -5,6 +5,8 @@ import edu.berkeley.cs._
 import scads.comm._
 import avro.marker._
 
+import org.apache.mesos.Protos._
+
 import net.lag.logging.Logger
 
 case class RemoteServiceScheduler(var host: String, var port: Int, var id: ActorId) extends AvroRecord with ExperimentScheduler with RemoteActorProxy {
@@ -36,7 +38,7 @@ class ServiceScheduler(mesosMaster: String, executor: String) extends LocalExper
     }
     case KillTaskRequest(taskId) => {
       logger.info("Killing task %d", taskId)
-      driver.killTask(taskId)
+      driver.killTask(TaskID.newBuilder.setValue(taskId).build())
       src.foreach(_ ! KillTaskResponse())
     }
   }
