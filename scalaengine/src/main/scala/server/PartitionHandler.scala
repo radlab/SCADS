@@ -17,6 +17,8 @@ import java.util.concurrent.{ Future => JFuture, _ }
 import java.lang.reflect.Method
 import atomic._
 
+import edu.berkeley.cs.avro.runtime.ScalaSpecificRecord
+
 /**
 * keep track of number of gets and puts
 */
@@ -369,7 +371,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 					//synchronized { reply(GetWorkloadStatsResponse(statWindows(1)._1.get, statWindows(1)._2.get, statsClearedTime)) }
 					reply(GetWorkloadStatsResponse(completedStats.gets, completedStats.puts, statsClearedTime))
 				}
-        case AggRequest(groups,filters) => {
+        case AggRequest(groups,keyType,valType,filters,aggs) => {
           val (filterSchema:Schema, filterRec:GenericData.Record, filterMethods:Seq[(String,Any,Method)]) = 
             filters match {
               case Some(fs) => {
@@ -394,6 +396,60 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 
           var extractFRec:GenericData.Record = null
 
+          val compAgg =
+            aggs.map(aggOp => {
+              (
+                AnalyticsUtils.deserializeCode(aggOp.initerName,aggOp.initerBytes) match {
+                  case initerClass:Class[_] => {
+                    (initerClass.newInstance,initerClass.getMethod("apply"))
+                  }
+                },
+                
+                AnalyticsUtils.deserializeCode(aggOp.codename,aggOp.code) match {
+                  case methodClass:Class[_] => {
+                    val meth = 
+                      methodClass.getMethods.find((m:Method) => {m.getName.indexOf("doAgg") >= 0}) match {
+                        case Some(m) => m
+                        case None => {
+                          src.foreach(_ ! ProcessingException("aggError", "Passed aggregate class has no doAgg method"))
+                          return
+                        }
+                      }
+                    (methodClass.newInstance,meth)
+                  }
+                }
+              )
+            })
+
+          val aggInits = compAgg.map(_._1)
+          val aggMethods = compAgg.map(_._2)
+          val remKey = Class.forName(keyType).newInstance().asInstanceOf[ScalaSpecificRecord]
+          val remVal = Class.forName(valType).newInstance().asInstanceOf[ScalaSpecificRecord]
+          
+          val groupSchemas = groups.map(valueSchema.getField(_).schema)
+          val groupInts = groups.map(valueSchema.getField(_).pos)
+
+          var groupMap:Map[CharSequence, scala.collection.mutable.ArraySeq[Object]] = null
+          var groupBytesMap:Map[CharSequence, Array[Byte]] = null
+          var groupKey:CharSequence = null
+
+          var aggVals:Seq[Object] = null
+          if (groups.size() == 0) { // no groups, so let's init values now
+            aggVals = aggInits.map(ai => {
+              ai._2.invoke(ai._1)
+            })
+          }
+          else {
+            groupMap = new scala.collection.immutable.HashMap[CharSequence,scala.collection.mutable.ArraySeq[Object]]
+            groupBytesMap = new scala.collection.immutable.HashMap[CharSequence, Array[Byte]]
+          }
+
+          var curAggVal =
+            if (groups.size() == 0)
+              scala.collection.mutable.ArraySeq(aggVals:_*)
+            else
+              null
+
           iterateOverRange(None,None)((key, value, _) => {
             var b = true
             filterMethods.foreach(fm => { // note: fm_.1 = field name, fm._2 = invoke object fm._3 = method
@@ -403,7 +459,43 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
                 b = b && nb
               }
             })
+            if (b) {  // record passes filters
+              val valBytes = value.getData
+              remVal.parse(new java.io. ByteArrayInputStream(valBytes,16,(valBytes.length-16)))
+              val keyBytes = key.getData
+              remKey.parse(keyBytes)
+
+              if (groups.size() != 0) {
+                groupKey = AnalyticsUtils.getGroupKey(groupInts,remVal)
+                curAggVal = groupMap.get(groupKey) match {
+                  case Some(thing) => thing
+                  case None => { // this is a new group, so init the starting values for the agg
+                    groupBytesMap += ((groupKey,AnalyticsUtils.getGroupBytes(groupInts,groupSchemas,remVal)))
+                    scala.collection.mutable.ArraySeq(
+                      aggInits.map(ai => {
+                        ai._2.invoke(ai._1)
+                      }):_*
+                    )
+                  }
+                }
+              }
+              aggMethods.view.zipWithIndex foreach(aggMethod => {
+                curAggVal(aggMethod._2) = aggMethod._1._2.invoke(aggMethod._1._1,curAggVal(aggMethod._2),remKey,remVal)
+              })
+              if (groups.size() != 0)
+                groupMap += ((groupKey,curAggVal))
+            }
           })
+
+          val rep = AggReply(
+            if (groups.size() == 0) {
+              List(GroupedAgg(None,curAggVal.map(_.asInstanceOf[ScalaSpecificRecord].toBytes)))
+            } else {
+              groupMap.map(kv => {
+                GroupedAgg(groupBytesMap(kv._1),kv._2.map(_.asInstanceOf[ScalaSpecificRecord].toBytes))
+              }).toSeq
+            })
+          reply(rep)
         }
         case _ => src.foreach(_ ! ProcessingException("Not Implemented", ""))
       }

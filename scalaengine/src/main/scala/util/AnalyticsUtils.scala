@@ -1,20 +1,27 @@
 package edu.berkeley.cs.scads.util
 
 import org.apache.avro.Schema
-import org.apache.avro.generic.{GenericData,GenericDatumReader}
-import org.apache.avro.io.{BinaryDecoder,DecoderFactory}
+import org.apache.avro.generic.{GenericData,GenericDatumReader,GenericDatumWriter,IndexedRecord}
+import org.apache.avro.io.{BinaryEncoder,BinaryDecoder,DecoderFactory}
 
 import java.io.ByteArrayInputStream
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable.StringBuilder
 import scala.tools.nsc.interpreter.AbstractFileClassLoader
 import scala.tools.nsc.io.AbstractFile
 
 object AnalyticsUtils {
 
-  val decoderFactory = new DecoderFactory()
+  val decoderFactory = new DecoderFactory
   val decoder:BinaryDecoder = null
-  val reader = new GenericDatumReader[GenericData.Record]()
+  val reader = new GenericDatumReader[GenericData.Record]
+  val writer = new GenericDatumWriter[Object]
+  var encoder:BinaryEncoder = null
+
+  val groupBuilder = new StringBuilder
+
+  private val shippedLoader = new ShippedClassLoader
   
   def getFilterSchema(original:Schema,
                       fields:Seq[String]):Schema = {
@@ -53,9 +60,30 @@ object AnalyticsUtils {
     reader.read(reuse,dec)
   }
 
+  /* Groups should be int positions of groups to pull out. */
+  def getGroupKey(groups:Seq[Int], rec:IndexedRecord):CharSequence = {
+    groupBuilder.clear
+    groups.foreach(group => {groupBuilder.append(rec.get(group))})
+    groupBuilder
+  }
+
+  // this is gross and slow
+  def getGroupBytes(groups:Seq[Int], groupSchemas:Seq[Schema], rec:IndexedRecord):Array[Byte] = {
+    val out = new java.io.ByteArrayOutputStream(128)
+    if (encoder == null)
+      encoder = new BinaryEncoder(out)
+    else
+      encoder.init(out)
+    groups.view.zipWithIndex foreach(ge => {
+      writer.setSchema(groupSchemas(ge._2))
+      writer.write(rec.get(ge._1),encoder)
+    })
+    out.toByteArray
+  }
+
 
   /* get array of bytes which is the compiled version of cl */
-  def getFunctionCode(cl:AnyRef):Array[Byte] = {
+  def getClassBytes(cl:AnyRef):Array[Byte] = {
     val ldr = cl.getClass.getClassLoader
     ldr match {
       case afcl:AbstractFileClassLoader => {
@@ -96,10 +124,10 @@ object AnalyticsUtils {
     }
   }
 
-  private class ShippedClassLoader(ba:Array[Byte],targetClass:String) extends ClassLoader {
+  private class ShippedClassLoader(var bytes:Array[Byte] = null,var targetClass:String = null) extends ClassLoader {
     override def findClass(name:String):Class[_] = {
-      if (name.equals(targetClass))
-        defineClass(name, ba, 0, ba.length)
+      if (name.equals(targetClass)) 
+        defineClass(name, bytes, 0, bytes.length)
       else 
         Class.forName(name)
     }
@@ -107,8 +135,9 @@ object AnalyticsUtils {
 
   def deserializeCode(name:String, ba:Array[Byte]):Any = {
     try {
-      val loader = new ShippedClassLoader(ba,name)
-      Class.forName(name,false,loader)
+      shippedLoader.bytes = ba
+      shippedLoader.targetClass = name
+      Class.forName(name,false,shippedLoader)
     } catch {
       case ex:java.io.IOException => {
         ex.printStackTrace

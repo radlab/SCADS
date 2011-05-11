@@ -130,7 +130,9 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
    * Preconditions:
    *   (1) namespace is a valid namespace in zookeeper
    *   (2) keySchema is already set in the namespace/keySchema file
-   *       in ZooKeeper 
+   *       in ZooKeeper
+   *   (3) valueSchema is already set in the namespace/valueSchema file
+   *       in ZooKeeper
    */
   private def makePartitionHandler(
       database: Database, namespace: String, partitionIdLock: ZooKeeperProxy#ZooKeeperNode,
