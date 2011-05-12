@@ -10,9 +10,12 @@ case class MultiTestRec(var f1:Int, var f2:Int, var f3:Int) extends AvroRecord
 
 case class BasicAggContainer(var curcount:Int, var curval:Int) extends AvroRecord
 
-class := {
-  def doPred(value:Comparable[Object], target:Comparable[Object]):Boolean = {
-    (value.compareTo(target) == 0)
+class := extends Filter[MultiTestRec] {
+
+  var target:MultiTestRec = null
+
+  def applyFilter(rec:MultiTestRec):Boolean = {
+    rec.get(field) == target.get(field)
   }
 }
 
@@ -49,9 +52,10 @@ object ExampleAgg {
 
     val aggOp = AggOp(initerName,initerBytes, aggName, aggBytes, false)
 
+    val trec = MultiTestRec(0,2,0)
     val fm = new :=
-    val filts = AggFilters(Array[Byte](4),List[AggFilter](AggFilter("f2",fm.getClass.getName,AnalyticsUtils.getClassBytes(fm))))
+    fm.init(1,trec)
     
-    ns.applyAggregate(List[String]("f1"),classOf[IntRec2].getName,classOf[MultiTestRec].getName,Option(filts),List[AggOp](aggOp),new BasicAggContainer(0,0))
+    ns.applyAggregate(List[String]("f1"),classOf[IntRec2].getName,classOf[MultiTestRec].getName,List(fm),List[AggOp](aggOp),new BasicAggContainer(0,0))
   }
 }

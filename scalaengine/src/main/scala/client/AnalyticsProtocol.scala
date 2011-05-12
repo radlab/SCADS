@@ -3,6 +3,7 @@ package edu.berkeley.cs.scads.storage
 import edu.berkeley.cs.avro.runtime.ScalaSpecificRecord
 import edu.berkeley.cs.avro.marker._
 import edu.berkeley.cs.scads.comm._
+import  edu.berkeley.cs.scads.util._
 
 import org.apache.avro.Schema 
 import org.apache.avro.generic._
@@ -18,13 +19,16 @@ trait AnalyticsProtocol
   extends QuorumProtocol 
   with KeyRangeRoutable {
    
-  def applyAggregate(groups:Seq[String],
-                     keyType:String,
-                     valType:String,
-                     filters:Option[AggFilters],
-                     aggs:Seq[AggOp],
-                     remType:ScalaSpecificRecord): Unit = {
-    println(valueSchema)
+  def applyAggregate[T <: ScalaSpecificRecord]
+    (groups:Seq[String],
+     keyType:String,
+     valType:String,
+     filtFuncs:Seq[Filter[T]],
+     aggs:Seq[AggOp],
+     remType:ScalaSpecificRecord): Unit = {
+    val filters = filtFuncs.map(func => {
+      AggFilter(func.field,func.target.toBytes,func.getClass.getName,AnalyticsUtils.getClassBytes(func))
+    })
     val aggRequest = AggRequest(groups,keyType, valType, filters,aggs)
     val partitions = serversForKeyRange(None,None)
     val responses = partitions.map(_.servers.map(_ !! aggRequest))

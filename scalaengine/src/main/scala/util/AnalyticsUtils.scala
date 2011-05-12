@@ -4,12 +4,24 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData,GenericDatumReader,GenericDatumWriter,IndexedRecord}
 import org.apache.avro.io.{BinaryEncoder,BinaryDecoder,DecoderFactory}
 
+import edu.berkeley.cs.avro.runtime.ScalaSpecificRecord
+
 import java.io.ByteArrayInputStream
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.StringBuilder
 import scala.tools.nsc.interpreter.AbstractFileClassLoader
 import scala.tools.nsc.io.AbstractFile
+
+trait Filter[R <: ScalaSpecificRecord] {
+  var field:Int = -1
+  var target:R
+  def init(f:Int,t:R):Unit = {
+    field = f
+    target = t
+  }
+  def applyFilter(r:R):Boolean
+}
 
 object AnalyticsUtils {
 

@@ -6,7 +6,7 @@ import net.lag.logging.Logger
 
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.config._
-import edu.berkeley.cs.scads.util.AnalyticsUtils
+import edu.berkeley.cs.scads.util._
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
@@ -372,29 +372,21 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 					reply(GetWorkloadStatsResponse(completedStats.gets, completedStats.puts, statsClearedTime))
 				}
         case AggRequest(groups,keyType,valType,filters,aggs) => {
-          val (filterSchema:Schema, filterRec:GenericData.Record, filterMethods:Seq[(String,Any,Method)]) = 
-            filters match {
-              case Some(fs) => {
-                val fieldNames = fs.filters map(_.field)
-                val filterSchema = AnalyticsUtils.getFilterSchema(valueSchema,fieldNames)
-                val filterRec = AnalyticsUtils.getFilterRecord(filterSchema,fs.target)
-                (filterSchema,filterRec,
-                 fs.filters map(f => {
-                   val fclass = AnalyticsUtils.deserializeCode(f.codename,f.code)
-                   fclass match {
-                     case cl:Class[_] => {
-                       val o = cl.newInstance
-                       val method = cl.getMethod("doPred",classOf[Comparable[Object]],classOf[Comparable[Object]])
-                       (f.field,o,method)
-                     }
-                   }
-                 })
-               )
-              }
-              case None => (null,null,null)
-            }
 
-          var extractFRec:GenericData.Record = null
+
+          val filterFunctions = filters.map(f => {
+            val fclass = AnalyticsUtils.deserializeCode(f.codename,f.code)
+            fclass match {
+              case cl:Class[_] => {
+                val fc = cl.newInstance.asInstanceOf[Filter[ScalaSpecificRecord]]
+                val filtVal = Class.forName(valType).newInstance().asInstanceOf[ScalaSpecificRecord]
+                filtVal.parse(f.target)
+                fc.init(f.field,filtVal)
+                fc
+              }
+            }          
+          })
+          var filterPassed = true
 
           val compAgg =
             aggs.map(aggOp => {
@@ -421,10 +413,11 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
               )
             })
 
-          val aggInits = compAgg.map(_._1)
-          val aggMethods = compAgg.map(_._2)
           val remKey = Class.forName(keyType).newInstance().asInstanceOf[ScalaSpecificRecord]
           val remVal = Class.forName(valType).newInstance().asInstanceOf[ScalaSpecificRecord]
+
+          val aggInits = compAgg.map(_._1)
+          val aggMethods = compAgg.map(_._2)
           
           val groupSchemas = groups.map(valueSchema.getField(_).schema)
           val groupInts = groups.map(valueSchema.getField(_).pos)
@@ -451,20 +444,19 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
               null
 
           iterateOverRange(None,None)((key, value, _) => {
-            var b = true
-            filterMethods.foreach(fm => { // note: fm_.1 = field name, fm._2 = invoke object fm._3 = method
-              if (b) { // once b is false just ignore the rest
-                extractFRec = AnalyticsUtils.extractFilterFields(valueSchema,filterSchema,value.getData,extractFRec)
-                val nb = fm._3.invoke(fm._2,extractFRec.get(fm._1),filterRec.get(fm._1)).asInstanceOf[Boolean]
-                b = b && nb
+            // TODO: Use lazy values here
+            val valBytes = value.getData
+            remVal.parse(new java.io. ByteArrayInputStream(valBytes,16,(valBytes.length-16)))
+            val keyBytes = key.getData
+            remKey.parse(keyBytes)
+
+            filterPassed = true
+            filterFunctions.foreach(ff => { 
+              if (filterPassed) { // once one failed just ignore the rest
+                filterPassed = ff.applyFilter(remVal)
               }
             })
-            if (b) {  // record passes filters
-              val valBytes = value.getData
-              remVal.parse(new java.io. ByteArrayInputStream(valBytes,16,(valBytes.length-16)))
-              val keyBytes = key.getData
-              remKey.parse(keyBytes)
-
+            if (filterPassed) {  // record passes filters
               if (groups.size() != 0) {
                 groupKey = AnalyticsUtils.getGroupKey(groupInts,remVal)
                 curAggVal = groupMap.get(groupKey) match {
