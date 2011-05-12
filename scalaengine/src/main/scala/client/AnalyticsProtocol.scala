@@ -24,12 +24,15 @@ trait AnalyticsProtocol
      keyType:String,
      valType:String,
      filtFuncs:Seq[Filter[T]],
-     aggs:Seq[AggOp],
+     aggClasses:Seq[Aggregate[_,_,_]],
      remType:ScalaSpecificRecord): Unit = {
     val filters = filtFuncs.map(func => {
       AggFilter(func.field,func.target.toBytes,func.getClass.getName,AnalyticsUtils.getClassBytes(func))
     })
-    val aggRequest = AggRequest(groups,keyType, valType, filters,aggs)
+    val aggs = aggClasses.map(ac => {
+      AggOp(ac.getClass.getName,AnalyticsUtils.getClassBytes(ac),false)
+    })
+    val aggRequest = AggRequest(groups,keyType, valType,filters,aggs)
     val partitions = serversForKeyRange(None,None)
     val responses = partitions.map(_.servers.map(_ !! aggRequest))
     new AggHandler(responses,remType)

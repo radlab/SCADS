@@ -19,8 +19,13 @@ class := extends Filter[MultiTestRec] {
   }
 }
 
-class CompAvg {
-  def doAgg(ag:BasicAggContainer, key:IntRec2, value: MultiTestRec):BasicAggContainer = {
+class CompAvg extends Aggregate[BasicAggContainer,IntRec2,MultiTestRec] {
+
+  def init():BasicAggContainer = {
+    BasicAggContainer(0,0)
+  }
+
+  def applyAggregate(ag:BasicAggContainer, key:IntRec2, value: MultiTestRec):BasicAggContainer = {
     ag.curcount += 1
     ag.curval = ag.curval + ((value.f1 - ag.curval) / ag.curcount)
     ag
@@ -41,21 +46,18 @@ object ExampleAgg {
     ns.put(IntRec2(1), MultiTestRec(1,2,3))
     ns.put(IntRec2(2), MultiTestRec(2,2,2))
     ns.put(IntRec2(3), MultiTestRec(0,2,0))
-    println("Received Record:" + ns.get(IntRec2(1)))
-
-    val initer = ()=>{BasicAggContainer(0,0)}
-    val initerBytes = AnalyticsUtils.getClassBytes(initer)
-    val initerName = initer.getClass.getName
-
-    val aggName = classOf[CompAvg].getName
-    val aggBytes = AnalyticsUtils.getClassBytes(new CompAvg)
-
-    val aggOp = AggOp(initerName,initerBytes, aggName, aggBytes, false)
 
     val trec = MultiTestRec(0,2,0)
     val fm = new :=
     fm.init(1,trec)
+
+    val agg = new CompAvg
     
-    ns.applyAggregate(List[String]("f1"),classOf[IntRec2].getName,classOf[MultiTestRec].getName,List(fm),List[AggOp](aggOp),new BasicAggContainer(0,0))
+    ns.applyAggregate(List[String]("f1"),
+                      classOf[IntRec2].getName,
+                      classOf[MultiTestRec].getName,
+                      List(fm),
+                      List(agg),
+                      new BasicAggContainer(0,0))
   }
 }

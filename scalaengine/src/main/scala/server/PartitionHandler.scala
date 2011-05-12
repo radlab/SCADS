@@ -388,52 +388,32 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           })
           var filterPassed = true
 
-          val compAgg =
+          val aggregates =
             aggs.map(aggOp => {
-              (
-                AnalyticsUtils.deserializeCode(aggOp.initerName,aggOp.initerBytes) match {
-                  case initerClass:Class[_] => {
-                    (initerClass.newInstance,initerClass.getMethod("apply"))
-                  }
-                },
-                
-                AnalyticsUtils.deserializeCode(aggOp.codename,aggOp.code) match {
-                  case methodClass:Class[_] => {
-                    val meth = 
-                      methodClass.getMethods.find((m:Method) => {m.getName.indexOf("doAgg") >= 0}) match {
-                        case Some(m) => m
-                        case None => {
-                          src.foreach(_ ! ProcessingException("aggError", "Passed aggregate class has no doAgg method"))
-                          return
-                        }
-                      }
-                    (methodClass.newInstance,meth)
-                  }
+              AnalyticsUtils.deserializeCode(aggOp.codename,aggOp.code) match {
+                case methodClass:Class[_] => {
+                  methodClass.newInstance.asInstanceOf[Aggregate[ScalaSpecificRecord,ScalaSpecificRecord,ScalaSpecificRecord]]
                 }
-              )
+              }
             })
+            
 
           val remKey = Class.forName(keyType).newInstance().asInstanceOf[ScalaSpecificRecord]
           val remVal = Class.forName(valType).newInstance().asInstanceOf[ScalaSpecificRecord]
-
-          val aggInits = compAgg.map(_._1)
-          val aggMethods = compAgg.map(_._2)
           
           val groupSchemas = groups.map(valueSchema.getField(_).schema)
           val groupInts = groups.map(valueSchema.getField(_).pos)
 
-          var groupMap:Map[CharSequence, scala.collection.mutable.ArraySeq[Object]] = null
+          var groupMap:Map[CharSequence, scala.collection.mutable.ArraySeq[ScalaSpecificRecord]] = null
           var groupBytesMap:Map[CharSequence, Array[Byte]] = null
           var groupKey:CharSequence = null
 
-          var aggVals:Seq[Object] = null
+          var aggVals:Seq[ScalaSpecificRecord] = null
           if (groups.size() == 0) { // no groups, so let's init values now
-            aggVals = aggInits.map(ai => {
-              ai._2.invoke(ai._1)
-            })
+            aggVals = aggregates.map(_.init())
           }
           else {
-            groupMap = new scala.collection.immutable.HashMap[CharSequence,scala.collection.mutable.ArraySeq[Object]]
+            groupMap = new scala.collection.immutable.HashMap[CharSequence,scala.collection.mutable.ArraySeq[ScalaSpecificRecord]]
             groupBytesMap = new scala.collection.immutable.HashMap[CharSequence, Array[Byte]]
           }
 
@@ -463,16 +443,12 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
                   case Some(thing) => thing
                   case None => { // this is a new group, so init the starting values for the agg
                     groupBytesMap += ((groupKey,AnalyticsUtils.getGroupBytes(groupInts,groupSchemas,remVal)))
-                    scala.collection.mutable.ArraySeq(
-                      aggInits.map(ai => {
-                        ai._2.invoke(ai._1)
-                      }):_*
-                    )
+                    scala.collection.mutable.ArraySeq(aggregates.map(_.init()):_*)
                   }
                 }
               }
-              aggMethods.view.zipWithIndex foreach(aggMethod => {
-                curAggVal(aggMethod._2) = aggMethod._1._2.invoke(aggMethod._1._1,curAggVal(aggMethod._2),remKey,remVal)
+              aggregates.view.zipWithIndex foreach(aggregate => {
+                curAggVal(aggregate._2) = aggregate._1.applyAggregate(curAggVal(aggregate._2),remKey,remVal)
               })
               if (groups.size() != 0)
                 groupMap += ((groupKey,curAggVal))

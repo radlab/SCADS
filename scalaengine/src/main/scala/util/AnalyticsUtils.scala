@@ -23,6 +23,13 @@ trait Filter[R <: ScalaSpecificRecord] {
   def applyFilter(r:R):Boolean
 }
 
+trait Aggregate[TransType <: ScalaSpecificRecord,
+                KeyType <: ScalaSpecificRecord,
+                ValueType <: ScalaSpecificRecord] {
+  def init():TransType
+  def applyAggregate(a:TransType,k:KeyType,v:ValueType):TransType
+}
+
 object AnalyticsUtils {
 
   val decoderFactory = new DecoderFactory
