@@ -12,6 +12,7 @@ import piql.scadr._
 import perf.scadr._
 import avro.marker._
 import avro.runtime._
+import collection.TraversableOnce
 
 object Experiments {
   var resultZooKeeper = ZooKeeperNode("zk://zoo.knowsql.org/").getOrCreate("home").getOrCreate(System.getenv("USER"))
@@ -45,7 +46,7 @@ object Experiments {
     client
   }
 
-  def clients = cluster.slaves.pflatMap(_.jps).filter(_.main equals "AvroTaskMain").pfilterNot(_.stack contains "ScalaEngineTask")
+  def clients = cluster.slaves.pflatMap(_.jps).filter(_.main equals "AvroTaskMain").filterNot(_.stack contains "ScalaEngineTask")
   def laggards = clients.pfilterNot(_.stack contains "awaitChild")
   def tagClients = clients.map(_.remoteMachine.asInstanceOf[EC2Instance]).foreach(_.tags += ("task", "client"))
 
@@ -254,8 +255,9 @@ object Experiments {
   object TpcwScaleExperiment {
     import piql.tpcw._
     import scale._
+    type Result = piql.tpcw.scale.Result
 
-    val results = resultsCluster.getNamespace[piql.tpcw.scale.Result]("tpcwScaleResults")
+    val results = resultsCluster.getNamespace[Result]("tpcwScaleResults")
 
     import org.apache.avro.generic._
     import org.apache.avro.file.{DataFileReader, DataFileWriter, CodecFactory}
@@ -271,8 +273,8 @@ object Experiments {
 
     def backup = results.iterateOverRange(None,None).toAvroFile(new java.io.File("tpcwScale." + System.currentTimeMillis + ".avro"))
 
-    def scaleResults = {
-      results.iterateOverRange(None, None)
+    def scaleResultsIter(dataPoints: Seq[Result] = results.iterateOverRange(None, None).toSeq) = {
+      dataPoints
         .filter(_.loaderConfig.replicationFactor == 2)
         .filter(_.clientConfig.iterations == 4)
         .filter(_.clientConfig.numThreads == 10)
@@ -286,7 +288,27 @@ object Experiments {
           val failures = results.map(_.failures).sum
           val loaderConfig = results.head.loaderConfig
           val clientConfig = results.head.clientConfig
-          (loaderConfig.numServers, aggHist.totalRequests, aggHist.quantile(0.99), clientConfig.numClients, clientConfig.executorClass, iter, aggHist.quantile(0.90), skips, failures, results.size)
+          (loaderConfig.numServers, aggHist.totalRequests, aggHist.quantile(0.99), aggHist.stddev, clientConfig.numClients, clientConfig.executorClass, iter, aggHist.quantile(0.90), skips, failures, results.size, exp)
+      }.toSeq
+    }
+
+    def scaleResults(dataPoints: Seq[Result] = results.iterateOverRange(None, None).toSeq) = {
+      dataPoints
+        .filter(_.loaderConfig.replicationFactor == 2)
+        .filter(_.clientConfig.iterations == 4)
+        .filter(_.clientConfig.numThreads == 10)
+        .filter(_.clientConfig.runLengthMin == 5)
+        .filter(r => r.loaderConfig.numServers / 2 == r.clientConfig.numClients)
+        .filter(_.iteration != 1).toSeq
+        .groupBy(r => r.loaderConfig.numServers)
+        .map {
+        case (numServers, results) =>
+          val aggHist = results.map(_.times).reduceLeft(_ + _)
+          val skips = results.map(_.skips).sum
+          val failures = results.map(_.failures).sum
+          val loaderConfig = results.head.loaderConfig
+          val clientConfig = results.head.clientConfig
+          (loaderConfig.numServers, aggHist.totalRequests, aggHist.quantile(0.99), aggHist.stddev, clientConfig.numClients, clientConfig.executorClass, aggHist.quantile(0.90), skips, failures, results.size)
       }.toSeq
     }
 
@@ -319,8 +341,9 @@ object Experiments {
   object ScadrScaleExperiment {
     import perf.scadr._
     import scale._
+    type Result = perf.scadr.scale.Result
 
-    val results = resultsCluster.getNamespace[perf.scadr.scale.Result]("scadrScaleResults")
+    val results = resultsCluster.getNamespace[Result]("scadrScaleResults")
 
     def backup: Unit = {
       val outfile = AvroOutFile[perf.scadr.scale.Result]("scadrScale." + System.currentTimeMillis + ".avro")
@@ -386,8 +409,8 @@ object Experiments {
           resultsCluster))
     }
 
-    def scaleResults = {
-      results.iterateOverRange(None, None)
+    def scaleResults(dataPoints: Seq[Result] = results.iterateOverRange(None, None)) = {
+      dataPoints
         .filter(_.loaderConfig.replicationFactor == 2)
         .filter(_.loaderConfig.usersPerServer == 60000)
         .filter(_.clientConfig.iterations == 4)
