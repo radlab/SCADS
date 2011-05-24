@@ -201,7 +201,8 @@ object Experiments {
       benchmarkScadr(scadrCluster)
     }
 
-    val tpcwCluster = tpcw.TpcwLoaderTask(10, 10, numEBs=100, numItems=100000, 2)
+    val numClients = 5
+    val tpcwCluster = tpcw.TpcwLoaderTask(10, numClients, numEBs=150*numClients, numItems=10000, 2)
     val tpcwRunner =
       QueryRunnerTask(numClients=10,
         "edu.berkeley.cs.scads.piql.modeling.TpcwQueryProvider",
@@ -213,11 +214,11 @@ object Experiments {
         traceQueries=false)
 
     val defaultTpcwRunner =
-      QueryRunnerTask(10,
+      QueryRunnerTask(numClients,
 		      "edu.berkeley.cs.scads.piql.modeling.TpcwQueryProvider",
 		      iterations=5*6,
 		      iterationLengthMin=10,
-		      threads=20,
+		      threads=10,
 		      traceIterators=false,
 		      traceMessages=false,
 		      traceQueries=false)

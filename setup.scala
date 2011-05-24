@@ -11,4 +11,7 @@ import deploylib.mesos._
 import deploylib.ec2._
 import QueryRunner._
 import ExperimentUtil._
+import TpcwModeling._
+import TpcwData._
+import ModelOrderDisplayGetLastOrder._
 //import ModelingExperiments._
