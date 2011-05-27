@@ -109,8 +109,10 @@ class TpcwQueryProvider extends QueryProvider {
     val randomAuthorId = new RandomAuthorId(tpcwData)
     val randomOrder = new RandomOrder(tpcwData)
     val perPage = CardinalityList(10 to 100 by 10 toIndexedSeq)
+    val perPageForIndexScanItemsIdx = CardinalityList(9 +: (10 to 100 by 10 toIndexedSeq)) // extra ints added for searchByTitleWI
     val randomItemList = new RandomItemList(tpcwData, perPage.values)
-    val randomAuthorList = new RandomAuthorList(tpcwData, perPage.values)
+    val randomItemListForIndexLookupJoinItems = new RandomItemList(tpcwData, 3 +: perPage.values) // extra ints added for orderDisplayGetOrderLines
+    val randomAuthorList = new RandomAuthorList(tpcwData, List(1, 9).toIndexedSeq ++ perPage.values) // extra ints added for productDetailWI, searchByTitleWI, searchByAuthorWI
     val randomCountryIdList = new RandomCountryIdList(tpcwData)
     val randomAddressList = new RandomAddressList(tpcwData)
     val randomOrderList = new RandomOrderList(tpcwData)
@@ -292,7 +294,7 @@ class TpcwQueryProvider extends QueryProvider {
     QuerySpec(indexLookupCustomers, randomCustomer :: Nil) ::
     QuerySpec(indexLookupItems, randomItem :: Nil) ::
     QuerySpec(indexScanAuthorsIdx, randomAuthorName :: perPage :: Nil) ::
-    QuerySpec(indexScanItemsIdx, RandomCategory :: perPage :: Nil) ::
+    QuerySpec(indexScanItemsIdx, RandomCategory :: perPageForIndexScanItemsIdx :: Nil) ::
     QuerySpec(indexScanOrderLines, randomOrder :: perPage :: Nil) ::
     QuerySpec(indexScanOrdersIdx, randomCustomer :: Nil) ::
     QuerySpec(indexScanOrdersIdxSingleItem, randomCustomer :: Nil) ::
@@ -300,7 +302,7 @@ class TpcwQueryProvider extends QueryProvider {
     QuerySpec(indexLookupJoinAddresses, randomAddressList :: Nil) ::
     QuerySpec(indexLookupJoinAuthors, randomAuthorList :: Nil) ::
     QuerySpec(indexLookupJoinCountries, randomCountryIdList :: Nil) ::
-    QuerySpec(indexLookupJoinItems, randomItemList :: Nil) ::
+    QuerySpec(indexLookupJoinItems, randomItemListForIndexLookupJoinItems :: Nil) ::
     QuerySpec(indexLookupJoinOrders, randomOrderList :: Nil) ::
     QuerySpec(indexMergeJoinItemsIdx, randomAuthorList :: perPage :: Nil) ::
     Nil toIndexedSeq
