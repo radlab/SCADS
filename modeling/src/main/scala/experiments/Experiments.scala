@@ -410,7 +410,7 @@ object Experiments {
           resultsCluster))
     }
 
-    def scaleResults(dataPoints: Seq[Result] = results.iterateOverRange(None, None)) = {
+    def scaleResultsIter(dataPoints: Seq[Result] = results.iterateOverRange(None, None).toSeq) = {
       dataPoints
         .filter(_.loaderConfig.replicationFactor == 2)
         .filter(_.loaderConfig.usersPerServer == 60000)
@@ -426,6 +426,26 @@ object Experiments {
           val loaderConfig = results.head.loaderConfig
           val clientConfig = results.head.clientConfig
           (loaderConfig.numServers, aggHist.totalRequests, aggHist.quantile(0.99), clientConfig.numClients, clientConfig.executorClass, iter, aggHist.quantile(0.90), skips, results.size)
+      }.toSeq
+    }
+
+    def scaleResults(dataPoints: Seq[Result] = results.iterateOverRange(None, None).toSeq) = {
+      dataPoints
+        .filter(_.loaderConfig.replicationFactor == 2)
+        .filter(_.loaderConfig.usersPerServer == 60000)
+        .filter(_.clientConfig.iterations == 4)
+        .filter(_.clientConfig.threads == 10)
+        .filter(_.clientConfig.runLengthMin == 5)
+        .filter(_.iteration != 1).toSeq
+        .groupBy(r => r.loaderConfig.numServers)
+        .map {
+        case (numServers, results) =>
+          val aggHist = results.map(_.times).reduceLeft(_ + _)
+          val skips = results.map(_.skips).sum
+          val loaderConfig = results.head.loaderConfig
+          val clientConfig = results.head.clientConfig
+
+          (loaderConfig.numServers, aggHist.totalRequests, aggHist.quantile(0.99), aggHist.stddev, clientConfig.numClients, clientConfig.executorClass, aggHist.quantile(0.90), skips, results.size)
       }.toSeq
     }
 
