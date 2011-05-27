@@ -465,12 +465,16 @@ class ParallelExecutor extends SimpleExecutor {
         }
 
         private def fillFutures() {
-          while (childIterator.hasNext && ftchs.size < windowSize) {
+          //HACK: ignore window size
+          while (childIterator.hasNext) {
             val childTuple = childIterator.next
             val boundKey = bindKey(namespace, key, childTuple)
             val valueFtch = namespace.asyncGetRecord(boundKey)
             ftchs += ((childTuple, boundKey, valueFtch))
           }
+
+          //HACK: block until futures are done
+          ftchs.foreach(_._3())
         }
       }
     }

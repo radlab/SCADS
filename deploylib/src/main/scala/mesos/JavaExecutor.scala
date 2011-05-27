@@ -182,8 +182,8 @@ class JavaExecutor extends Executor {
         case 0 => TaskState.TASK_FINISHED
         case _ => TaskState.TASK_FAILED
       }
-      if(!taskKilled)
-	driver.sendStatusUpdate(new TaskStatus(taskId, finalTaskState, output))
+      if (!taskKilled)
+        driver.sendStatusUpdate(new TaskStatus(taskId, finalTaskState, output))
       logger.info("Cleaning up working directory %s for %d", tempDir, taskId)
       deleteRecursive(tempDir)
       logger.info("Done cleaning up after Task %d", taskId)
@@ -246,13 +246,13 @@ class JavaExecutor extends Executor {
     logger.info("Starting task" + taskId)
     val runningTask = JvmTask(taskDesc.getArg()) match {
       case JvmMainTask(classpath, mainclass, args, props, env) =>
-	new ForkedJvm(taskId,
-		      taskDesc.getParams().get("mem").toInt,
-		      loadClasspath(classpath),
-		      mainclass,
-		      args,
-		      props,
-		      env, d)
+        new ForkedJvm(taskId,
+          taskDesc.getParams().get("mem").toInt,
+          loadClasspath(classpath),
+          mainclass,
+          args,
+          props,
+          env, d)
       case JvmWebAppTask(warFile, properties) => new JettyApp(taskId, resolveClassSource(warFile), properties, d)
     }
 
@@ -265,7 +265,7 @@ class JavaExecutor extends Executor {
       case Some(runningTask) => {
         logger.info("Killing task %d", taskId)
         runningTask.kill
-	d.sendStatusUpdate(new TaskStatus(taskId, TaskState.TASK_KILLED, new Array[Byte](0)))
+        d.sendStatusUpdate(new TaskStatus(taskId, TaskState.TASK_KILLED, new Array[Byte](0)))
       }
       case None => logger.warning("Asked to kill nonexistant task %d", taskId)
     }
