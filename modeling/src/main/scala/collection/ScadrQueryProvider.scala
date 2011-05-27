@@ -31,19 +31,56 @@ class ScadrQueryProvider extends QueryProvider {
     logger.info("Initalizing ScadrQueryProvider with %d users", maxUser)
 
     val randomUser = RandomUser(maxUser)
-    val perPage = CardinalityList(10 to 50 by 5 toIndexedSeq)
-    val numSubscriptions = CardinalityList(100 to 500 by 50 toIndexedSeq)
+    val perPage = CardinalityList(10 to 100 by 10 toIndexedSeq)
+    val numSubscriptions = CardinalityList(50 to 500 by 50 toIndexedSeq)
 
     val localSubscriptionList = RandomSubscriptionList(maxUser, numSubscriptions.values)
 
-    val indexLookupJoinQuery = new OptimizedQuery("scadrIndexLookupJoinBenchmark",
+    // index lookup
+    /*
+    val findSubscription = (
+      subscriptions.where("subscriptions.owner".a === (0.?))
+  		 .where("subscriptions.target".a === (1.?))
+      ).toPiql("findSubscription")
+    */
+    val indexLookupSubscriptions = new OptimizedQuery(
+      "indexLookupSubscriptions",
+      IndexLookup(
+        scadrClient.subscriptions,
+        (0.?) :: Nil
+      ),
+      executor
+    )
+    
+    val indexLookupUsers = new OptimizedQuery(
+      "indexLookupUsers",
+      IndexLookup(
+        scadrClient.users,
+        (0.?) :: Nil
+      ),
+      executor
+    )
+    
+    // index scan
+    val indexScanSubscriptions = scadrClient.subscriptions.where("owner".a === (0.?))
+						  .limit(1.?, 10000)
+						  .toPiql("indexScanSubscriptions")
+
+    val indexScanThoughts = scadrClient.thoughts.where("owner".a === (0.?))
+						  .limit(1.?, 10000)
+						  .toPiql("indexScanThoughts")
+
+
+    // index lookup join
+    val indexLookupJoinUsers = new OptimizedQuery("indexLookupJoinUsers",
 					      IndexLookupJoin(
 						      scadrClient.users,
 						      AttributeValue(0,1) :: Nil,
 						      LocalIterator(0)),
 					      executor)
 
-    val indexMergeQuery = new OptimizedQuery("scadrIndexMergeJoinBenchmark",
+    // index merge join
+    val indexMergeJoinThoughts = new OptimizedQuery("indexMergeJoinThoughts",
 					     LocalStopAfter(
 					       ParameterLimit(1, 10000),
 					       IndexMergeJoin(
@@ -55,23 +92,29 @@ class ScadrQueryProvider extends QueryProvider {
 						       LocalIterator(0))),
 					     executor)
 
-    val indexScanQuery = scadrClient.subscriptions.where("owner".a === (0.?))
-						  .limit(1.?, 10000)
-						  .toPiql("scadrIndexScanBenchmark")
-
+    /*
     QuerySpec(indexLookupJoinQuery, localSubscriptionList :: Nil) ::
     QuerySpec(indexMergeQuery, localSubscriptionList :: perPage :: Nil) ::
     QuerySpec(indexScanQuery, randomUser :: numSubscriptions :: Nil) ::
     QuerySpec(indexScanQuery, randomUser :: perPage :: Nil) ::
+    */
+    // iterators
+    //QuerySpec(indexLookupSubscriptions, randomUser :: randomUser :: Nil) :: // findSubscription
+    QuerySpec(indexLookupUsers, randomUser :: Nil) :: // findUser
+    QuerySpec(indexScanSubscriptions, randomUser :: perPage :: Nil) :: // usersFollowedBy, thoughtstream
+    QuerySpec(indexScanThoughts, randomUser :: perPage :: Nil) :: // myThoughts
+    QuerySpec(indexLookupJoinUsers, localSubscriptionList :: Nil) :: // usersFollowedBy
+    QuerySpec(indexMergeJoinThoughts, localSubscriptionList :: perPage :: Nil) :: // thoughtstream
+    // queries
+    //QuerySpec(scadrClient.findSubscription, randomUser :: randomUser :: Nil) :: // MA says:  don't include
     QuerySpec(scadrClient.findUser, randomUser :: Nil) ::
     QuerySpec(scadrClient.myThoughts, randomUser :: perPage :: Nil) ::
-    QuerySpec(scadrClient.usersFollowedBy, randomUser :: perPage :: Nil) ::
     QuerySpec(scadrClient.thoughtstream,
 	      RandomUserWithSubscriptionCardinality(maxUser,
 						    loaderConfig.followingCardinality,
-						    numSubscriptions.values) :: perPage :: Nil)::
-//    QuerySpec(scadrClient.usersFollowing, randomUser :: perPage :: Nil) ::
-    QuerySpec(scadrClient.findSubscription, randomUser :: randomUser :: Nil) :: Nil toIndexedSeq
+						    numSubscriptions.values) :: perPage :: Nil) ::
+    QuerySpec(scadrClient.usersFollowedBy, randomUser :: perPage :: Nil) :: Nil toIndexedSeq
+    //QuerySpec(scadrClient.usersFollowing, randomUser :: perPage :: Nil) :: // commented out by MA b/c doesn't work
   }
 
   //todo objects?
