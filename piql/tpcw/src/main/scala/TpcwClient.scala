@@ -277,7 +277,7 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
                      .limit(1000)
                      .join(items)
                      .where("SCL_I_ID".a === "I_ID".a)
-                     .toPiql()
+                     .toPiql("retrieveShoppingCart")
 
   /**
    * This is a very simplified shopping cart WI.
