@@ -70,11 +70,15 @@ object TpcwModeling {
 
   object TpcwData {
     //val clusterAddress = "zk://zoo.knowsql.org/home/kcurtis/scads/experimentCluster0000000008"
-    val clusterAddress = "zk://ec2-75-101-230-218.compute-1.amazonaws.com:2181,ec2-50-19-23-28.compute-1.amazonaws.com:2181,ec2-67-202-16-139.compute-1.amazonaws.com:2181/scads/experimentCluster0000000000"
+    //val clusterAddress = "zk://ec2-75-101-230-218.compute-1.amazonaws.com:2181,ec2-50-19-23-28.compute-1.amazonaws.com:2181,ec2-67-202-16-139.compute-1.amazonaws.com:2181/scads/experimentCluster0000000000"
+    //val clusterAddress = "zk://ec2-50-16-25-212.compute-1.amazonaws.com:2181,ec2-67-202-10-38.compute-1.amazonaws.com:2181,ec2-174-129-128-67.compute-1.amazonaws.com:2181/scads/experimentCluster0000000000"
+    //val clusterAddress = "zk://ec2-50-19-140-43.compute-1.amazonaws.com:2181,ec2-72-44-35-240.compute-1.amazonaws.com:2181,ec2-50-17-68-210.compute-1.amazonaws.com:2181/scads/experimentCluster0000000000"
+    val clusterAddress = "zk://ec2-174-129-157-147.compute-1.amazonaws.com:2181,ec2-50-17-12-53.compute-1.amazonaws.com:2181,ec2-184-72-171-124.compute-1.amazonaws.com:2181/scads/experimentCluster0000000000"
+
     def experimentResults = allResults.filter(_.clientConfig.clusterAddress == clusterAddress)
     
-    def goodExperimentResults = experimentResults.filterNot(_.iteration == 1)
-    
+    def goodExperimentResults = experimentResults.filter(res => res.iteration > 1 && res.iteration <= 50)
+        
     val histogramsTpcw = queryTypeHistogram(goodExperimentResults.toSeq)
     
     val perIterationHistograms = queryTypePerIterationHistograms(goodExperimentResults.toSeq)
@@ -222,24 +226,58 @@ object TpcwModeling {
     
     val actual99th = newProductWIHist.quantile(0.99)
     val predicted99th = quantile(predictHist, 0.99)
+    
+    def predictOneInterval(i: Int, desiredQuantile: Double): Int = {
+      val indexScanItemsIdxHist = perIterationHistograms((indexScanItemsIdx, i)).buckets.map(BigInt(_))
+      val indexLookupJoinItemsHist = perIterationHistograms((indexLookupJoinItems, i)).buckets.map(BigInt(_))
+      val indexLookupJoinAuthorsHist = perIterationHistograms((indexLookupJoinAuthors, i)).buckets.map(BigInt(_))
+      
+      val res1 = convolve(indexScanItemsIdxHist, indexLookupJoinItemsHist)
+      val res2 = convolve(res1, indexLookupJoinAuthorsHist)
+      res2
+
+      quantile(res2, desiredQuantile)
+    }
+    
+    def getPerIntervalPrediction(quantile: Double = 0.99):(Histogram, Histogram) = {
+      val numIntervals = 30
+      
+      val actualQuantileHist = Histogram(1,1000)
+      val predictedQuantileHist = Histogram(1,1000)
+      
+      println("interval, actualQuantile, predictedQuantile")
+      
+      (2 to numIntervals).foreach(i => {
+        val actualHist = perIterationHistograms((newProductWI, i))
+        val actualQuantile = actualHist.quantile(quantile)
+        actualQuantileHist += actualQuantile
+        
+        val predictedQuantile = predictOneInterval(i, quantile)
+        predictedQuantileHist += predictedQuantile
+        
+        println(List(i, actualQuantile, predictedQuantile).mkString(","))
+      })
+      
+      (actualQuantileHist, predictedQuantileHist)
+    }
+    
   }
   
-  // for some reason, I don't have data on this
-  // will have to figure this out later
   object ModelOrderDisplayGetCustomer {
     import TpcwData._
     import Util._
     
-    /*
-    val orderDisplayGetLastCustomer = QueryDescription("orderDisplayGetLastCustomer")
-    val orderDisplayGetLastCustomerHist = histogramsTpcw(orderDisplayGetLastCustomer)
+    val orderDisplayGetCustomer = QueryDescription("orderDisplayGetCustomer", List(), 1)
+    val orderDisplayGetCustomerHist = histogramsTpcw(orderDisplayGetCustomer)
     
     //scala> testTpcwClient.orderDisplayGetCustomer.physicalPlan
     //res11: edu.berkeley.cs.scads.piql.QueryPlan = IndexLookup(<Namespace: customers>,ArrayBuffer(ParameterValue(0)))
     
     val indexLookupCustomers = QueryDescription("indexLookupCustomers", List(), 1)
-    val indexLookupCustomersHist = histogramsTpcw(indexLookupCustomers).buckets.map(BigInt(_))
-    */
+    val indexLookupCustomersHist = histogramsTpcw(indexLookupCustomers)
+    
+    val actual99th = orderDisplayGetCustomerHist.quantile(0.99)
+    val predicted99th = indexLookupCustomersHist.quantile(0.99)
   }
   
   object ModelOrderDisplayGetLastOrder {
@@ -336,7 +374,7 @@ object TpcwModeling {
     val indexScanOrderLines = QueryDescription("indexScanOrderLines", List(10), 3)
     val indexScanOrderLinesHist = histogramsTpcw(indexScanOrderLines).buckets.map(BigInt(_))
     
-    val indexLookupJoinItems = QueryDescription("indexLookupJoinItems", List(10), 10)
+    val indexLookupJoinItems = QueryDescription("indexLookupJoinItems", List(3), 3)
     val indexLookupJoinItemsHist = histogramsTpcw(indexLookupJoinItems).buckets.map(BigInt(_))
     
     def predictHist = {
@@ -392,7 +430,7 @@ object TpcwModeling {
     val indexLookupItems = QueryDescription("indexLookupItems", List(), 1)
     val indexLookupItemsHist = histogramsTpcw(indexLookupItems).buckets.map(BigInt(_))
     
-    val indexLookupJoinAuthors = QueryDescription("indexLookupJoinAuthors", List(10), 10) // need to fix -- should be List(1), 1 (requires more benchmarking)
+    val indexLookupJoinAuthors = QueryDescription("indexLookupJoinAuthors", List(1), 1)
     val indexLookupJoinAuthorsHist = histogramsTpcw(indexLookupJoinAuthors).buckets.map(BigInt(_))
     
     def predictHist = {
@@ -435,9 +473,22 @@ object TpcwModeling {
 
   // for some reason, I don't have data on this
   // will have to figure this out later
+  // probably b/c in TpcwClient, there was no query name passed to toPiql
+  // right now, only have a query description where shopping cart is empty b/c shopping cart is never getting populated
+  // for now, postpone this
   object ModelRetrieveShoppingCart {
     import TpcwData._
     import Util._
+    
+    val retrieveShoppingCart = QueryDescription("unnamed", List(), 0) // "unnamed" b/c of bug in TpcwClient; 0 b/c not getting populated
+    val retrieveShoppingCartHist = histogramsTpcw(retrieveShoppingCart)
+    
+    //scala> testTpcwClient.retrieveShoppingCart.physicalPlan
+    //res33: edu.berkeley.cs.scads.piql.QueryPlan = IndexLookupJoin(<Namespace: items>,ArrayBuffer(AttributeValue(0,1)),
+    //                                              LocalStopAfter(FixedLimit(1000),
+    //                                              IndexScan(<Namespace: shoppingCartItems>,ArrayBuffer(ParameterValue(0)),FixedLimit(1000),true)))
+    
+    
   }
 
   object ModelSearchByAuthorWI {
@@ -456,11 +507,11 @@ object TpcwModeling {
     // I don't think we have the right benchmarks collected here.
     // I think we need the following:
     
-    val indexScanAuthorsIdx = QueryDescription("indexScanAuthorsIdx", List(10), 1)  // not sure if the requested cardinality matters
+    val indexScanAuthorsIdx = QueryDescription("indexScanAuthorsIdx", List(10), 1)  // i have this benchmark already
     
-    val indexLookupJoinAuthors = QueryDescription("indexLookupJoinAuthors", List(), 1)
+    val indexLookupJoinAuthors = QueryDescription("indexLookupJoinAuthors", List(1), 1) // i NEED this
     
-    val indexMergeJoinItemsIdx = QueryDescription("indexMergeJoinItemsIdx", List(1, 10), 10)  // not sure about the params
+    val indexMergeJoinItemsIdx = QueryDescription("indexMergeJoinItemsIdx", List(1, 10), 10) // i NEED this
   }
   
   object ModelSearchByTitleWI {
@@ -474,10 +525,10 @@ object TpcwModeling {
     //res26: edu.berkeley.cs.scads.piql.QueryPlan = IndexLookupJoin(<Namespace: authors>,List(AttributeValue(0,2)),LocalStopAfter(ParameterLimit(1,50),
     //                                              IndexScan(<Namespace: items_({"fieldNames": ["I_TITLE"]},{"fieldName": "I_TITLE"},{"fieldName": "I_A_ID"})>,List(ParameterValue(0)),ParameterLimit(1,50),true)))
     
-    val indexScanItemsIdx = QueryDescription("indexScanItemsIdx", List(10), 10)
+    val indexScanItemsIdx = QueryDescription("indexScanItemsIdx", List(9), 9)
     val indexScanItemsIdxHist = histogramsTpcw(indexScanItemsIdx).buckets.map(BigInt(_))
     
-    val indexLookupJoinAuthors = QueryDescription("indexLookupJoinAuthors", List(10), 10)
+    val indexLookupJoinAuthors = QueryDescription("indexLookupJoinAuthors", List(9), 9)
     val indexLookupJoinAuthorsHist = histogramsTpcw(indexLookupJoinAuthors).buckets.map(BigInt(_))
     
     def predictHist = {
