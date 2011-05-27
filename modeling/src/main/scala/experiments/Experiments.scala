@@ -122,7 +122,7 @@ object Experiments {
 		}
 		
     def defaultScadr = ScadrLoaderTask(numServers=10,
-				       numLoaders=10,
+				       numLoaders=5,
 				       followingCardinality=500,
 				       replicationFactor=2,
 				       usersPerServer=20000,
@@ -137,11 +137,11 @@ object Experiments {
 				  thoughtsPerUser=100
 				 )
     val defaultRunner = 
-      QueryRunnerTask(10,
+      QueryRunnerTask(5,
 		      "edu.berkeley.cs.scads.piql.modeling.ScadrQueryProvider",
-		      iterations=30,
+		      iterations=10*6,
 		      iterationLengthMin=10,
-		      threads=2,
+		      threads=10,
 		      traceIterators=false,
 		      traceMessages=false,
 		      traceQueries=false)
@@ -215,7 +215,7 @@ object Experiments {
     val defaultTpcwRunner =
       QueryRunnerTask(numClients,
 		      "edu.berkeley.cs.scads.piql.modeling.TpcwQueryProvider",
-		      iterations=5*6,
+		      iterations=10*6,
 		      iterationLengthMin=10,
 		      threads=10,
 		      traceIterators=false,
