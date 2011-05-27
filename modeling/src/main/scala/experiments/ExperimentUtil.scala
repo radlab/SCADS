@@ -31,6 +31,11 @@ object ExperimentUtil {
 			.filter(_.clientConfig.iterationLengthMin == 10)
 			.filter(_.clientConfig.numClients == 50)
 
+  def getPerIterationCompletionSummary(results: Seq[Result]) =
+    results.groupBy(result => (result.hostname, result.iteration)).map {
+      case (prefix, resultValues) => (prefix, resultValues.map(_.responseTimes).reduceLeft(_ + _).totalRequests)
+    }
+           
   // get all of the querytypes in this results set
   def queryTypes(results: Seq[Result] = goodResults.toSeq):HashSet[String] = {
     val set = new HashSet[String]()
