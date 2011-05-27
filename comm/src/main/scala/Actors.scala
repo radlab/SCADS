@@ -37,13 +37,16 @@ case class PartitionService(var host: String, var port: Int, var id: ActorId, va
 
 case class TimeoutException(msg: MessageBody) extends Exception
 
-/* This is a placeholder until stephen's remote actor handles are available */
+object RemoteActorProxy {
+  val logger = Logger()
+}
+
 trait RemoteActorProxy {
   var host: String
   var port: Int
   var id: ActorId
 
-  val logger = Logger()
+  import RemoteActorProxy._
 
   def remoteNode = RemoteNode(host, port)
 
