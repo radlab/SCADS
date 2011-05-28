@@ -26,6 +26,9 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
   private val curActorId      = new AtomicLong
   private val serviceRegistry = new ConcurrentHashMap[ActorId, MessageReceiver]
 
+  //HACK: to check for leaks
+  def registrySize = serviceRegistry.size()
+
   private val hostname = 
     if(System.getProperty("scads.comm.externalip") == null)
       java.net.InetAddress.getLocalHost.getCanonicalHostName()
