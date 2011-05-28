@@ -20,6 +20,20 @@ private[storage] object QuorumProtocol {
   val BulkPutTimeout = 60 * 1000
 }
 
+class TimeoutCounter(timeout: Long) {
+  val startTime = System.currentTimeMillis()
+
+  def remaining: Long = {
+    val remainingTime = timeout - (System.currentTimeMillis - startTime)
+    if (remainingTime < 0)
+      1
+    else if (remainingTime > timeout) /* handle ec2 timeskips */
+      timeout
+    else
+      remainingTime
+  }
+}
+
 trait QuorumProtocol
   extends Protocol
   with Namespace
@@ -260,7 +274,7 @@ trait QuorumProtocol
     val winners = new ArrayBuffer[RemoteActorProxy]
     var winnerValue: Option[Array[Byte]] = None
     private var ctr = 0
-    val startTime = System.currentTimeMillis
+    val timeoutCounter = new TimeoutCounter(timeout)
     var failed = false
 
     def repairList() = losers
@@ -278,8 +292,7 @@ trait QuorumProtocol
 
     private def compareNext(): Unit = {
       ctr += 1
-      val time = startTime - System.currentTimeMillis + timeout
-      val future = responses.poll(if (time > 0) time else 0, TimeUnit.MILLISECONDS)
+      val future = responses.poll(timeoutCounter.remaining, TimeUnit.MILLISECONDS)
       if (future == null) {
         failed = true
         return
@@ -456,7 +469,7 @@ trait QuorumRangeProtocol
         readRepairManagedBlock {
           handler.processRest()
         }
-        for ((key, (data, servers)) <- handler.loosers) {
+        for ((key, (data, servers)) <- handler.losers) {
           for (server <- servers) {
             server !! PutRequest(key, Some(data))
           }
@@ -470,11 +483,12 @@ trait QuorumRangeProtocol
    * This class is optimized for none/few violations.
    */
   class RangeHandle(val futures: Seq[MessageFuture], val timeout: Long = 100000) {
+    val timeoutCounter = new TimeoutCounter(timeout)
     val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture]
     futures.foreach(_.forward(responses))
 
     // TODO: hashing on byte array like this is no good. this should be redone
-    val loosers = new HashMap[Array[Byte], (Array[Byte], List[RemoteActorProxy])]
+    val losers = new HashMap[Array[Byte], (Array[Byte], List[RemoteActorProxy])]
     val winners = new ArrayBuffer[Record]
 
     var baseServer: RemoteActorProxy = null //The whole comparison is based on the first response
@@ -498,8 +512,7 @@ trait QuorumRangeProtocol
 
     private def processNext(): Unit = {
       ctr += 1
-      val time = startTime - System.currentTimeMillis + timeout
-      val future = responses.poll(timeout, TimeUnit.MILLISECONDS)
+      val future = responses.poll(timeoutCounter.remaining, TimeUnit.MILLISECONDS)
       if (future == null) {
         failed = true
         return
@@ -535,12 +548,12 @@ trait QuorumRangeProtocol
             compareMetadata(winnerValue, newValue) match {
               case -1 => {
                 val outdatedServer = winnerExceptions.getOrElse(winnerKey, baseServer)
-                loosers += winnerKey -> (newValue, outdatedServer :: loosers.getOrElse(winnerKey, (null, Nil))._2)
+                losers += winnerKey -> (newValue, outdatedServer :: losers.getOrElse(winnerKey, (null, Nil))._2)
                 winnerExceptions += winnerKey -> newServer
                 winners.update(i, recordPtr.head)
               }
               case 1 => {
-                loosers += winnerKey -> (winnerValue, newServer :: loosers.getOrElse(winnerKey, (null, Nil))._2)
+                losers += winnerKey -> (winnerValue, newServer :: losers.getOrElse(winnerKey, (null, Nil))._2)
               }
               case 0 => ()
             }
