@@ -251,6 +251,9 @@ object Experiments {
 
     def benchmarkScadr(cluster: ScadsCluster = defaultScadr.newCluster) =
       defaultRunner.schedule(cluster,resultsCluster)
+      
+    def rocBenchmarkScadr(cluster: ScadsCluster = defaultScadr.newCluster) = 
+      (1 to 100).foreach(_ => defaultRunner.copy(iterations=2).schedule(cluster,resultsCluster))
   }
 
   object TpcwScaleExperiment {
