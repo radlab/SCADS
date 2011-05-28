@@ -184,8 +184,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       "1@" + firstMaster.publicDnsName + ":5050"
 
   def restartSlaves: Unit = {
-    slaves.pforeach(_ ! "service mesos-slave stop")
-    slaves.pforeach(_ ! "service mesos-slave start")
+    slaves.pforeach(i => {i ! "service mesos-slave stop"; i ! "service mesos-slave start"})
   }
 
   def restartMasters: Unit = {
