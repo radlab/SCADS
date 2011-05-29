@@ -142,7 +142,7 @@ object Experiments {
 		      "edu.berkeley.cs.scads.piql.modeling.ScadrQueryProvider",
 		      iterations=10*6,
 		      iterationLengthMin=10,
-		      threads=10,
+		      threads=5,
 		      traceIterators=false,
 		      traceMessages=false,
 		      traceQueries=false)
