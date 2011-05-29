@@ -7,7 +7,6 @@ import net.lag.logging.Logger
 import java.util.concurrent.{ LinkedBlockingQueue, TimeUnit }
 import java.util.{LinkedList, Queue}
 import java.lang.ref.WeakReference
-import javax.management.remote.rmi._RMIConnection_Stub
 
 /**
  * This is the base trait for any type of future in SCADS.
@@ -56,34 +55,30 @@ trait ScadsFuture[+T] { self =>
 object FutureReference {
   val logger = Logger()
 
-  protected def staleMessages = new scala.ref.ReferenceQueue[MessageFuture]()
+  val staleMessages = new java.lang.ref.ReferenceQueue[MessageFuture]()
   val cleanupThread = new Thread("Failed Message Cleanup") {
     override def run(): Unit = {
       while(true) {
-        staleMessages.poll.foreach(futureRef =>
-          futureRef.get.foreach(future => {
-            logger.info("Unregistering garbage collected future %s", future.remoteActor)
-            MessageHandler.unregisterActor(future.remoteActor)
-          }))
+        val futureRef = staleMessages.remove
+        logger.debug("Removing gced future from message regsistry.")
+        MessageHandler.unregisterActor(futureRef.asInstanceOf[FutureReference].remoteActor)
       }
     }
   }
   cleanupThread.start()
+
+
 }
 
-class FutureReference extends MessageReceiver {
-  var futureRef: scala.ref.WeakReference[MessageFuture] = null
-
-  /* Don't call me twice!... or not at all! */
-  def setup: MessageFuture = {
-    val remoteActor = MessageHandler.registerService(this)
-    val future = new MessageFuture(remoteActor)
-    futureRef = new scala.ref.WeakReference(future, FutureReference.staleMessages)
-    future
-  }
+class FutureReference(future: MessageFuture) extends java.lang.ref.WeakReference(future, FutureReference.staleMessages) with MessageReceiver {
+  val remoteActor = MessageHandler.registerService(this)
 
   def receiveMessage(src: Option[RemoteActorProxy], msg: MessageBody): Unit = synchronized {
-    futureRef.get.foreach(_.receiveMessage(src, msg))
+    val future = get()
+    if(future != null)
+      future.receiveMessage(src, msg)
+    else
+      FutureReference.logger.info("Message for garbage collected future received: %s", src)
   }
 }
 
@@ -91,10 +86,12 @@ object MessageFuture {
   implicit def toFutureCollection(futures: Seq[MessageFuture]): FutureCollection = new FutureCollection(futures)
 }
 
-class MessageFuture(val remoteActor: RemoteActorProxy) extends Future[MessageBody] {
+class MessageFuture extends Future[MessageBody] {
   protected[comm] val sender = new SyncVar[Option[RemoteActorProxy]]
   protected val message = new SyncVar[MessageBody]
   protected var forwardList: List[Queue[MessageFuture]] = List()
+
+  def remoteActor = (new FutureReference(this)).remoteActor
 
   /* Note: doesn't really implement interface correctly */
   def inputChannel = new InputChannel[MessageBody] {

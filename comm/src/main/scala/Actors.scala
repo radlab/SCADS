@@ -76,7 +76,7 @@ trait RemoteActorProxy {
    * Send a message and synchronously wait for a response.
    */
   def !?(body: MessageBody, timeout: Int = 10 * 1000): MessageBody = {
-      val future = (new FutureReference).setup
+      val future = new MessageFuture
       this.!(body)(future.remoteActor)
       future.get(timeout) match {
         case Some(exp: RemoteException) => throw new RuntimeException(exp.toString)
@@ -92,7 +92,7 @@ trait RemoteActorProxy {
    * Sends a message and returns a future for the response.
    */
   def !!(body: MessageBody): MessageFuture = {
-    val future = (new FutureReference).setup
+    val future = new MessageFuture
     this.!(body)(future.remoteActor)
     future
   }
@@ -103,7 +103,7 @@ trait RemoteActorProxy {
    * Collects messages for bulk-send
    */
   def !!!(body : MessageBody) : MessageFuture = {
-    val future = (new FutureReference).setup
+    val future = new MessageFuture
     synchronized{
       msgSet ::= Tuple2(body, future)
     }
