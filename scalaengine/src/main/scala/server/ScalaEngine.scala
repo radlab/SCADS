@@ -50,7 +50,7 @@ case class ScalaEngineTask(var clusterAddress: String, var dbDir: Option[String]
     val config = new EnvironmentConfig()
     config.setAllowCreate(true)
     config.setTransactional(true)
-    config.setCachePercent(cachePercentage.getOrElse(80))
+    config.setCachePercent(cachePercentage.getOrElse(60))
 
     val dir = dbDir.map(new File(_)).getOrElse(new File("db"))
     if(!dir.exists()) {
