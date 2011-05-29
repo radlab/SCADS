@@ -88,7 +88,7 @@ trait QuorumProtocol
     if (handler.failed) None
     else {
       // TODO: repair on failed case (above) still?
-      ReadRepairer ! handler
+      //ReadRepairer ! handler
       Some(record.map(extractRecordFromValue))
     }
   }
@@ -347,9 +347,9 @@ trait QuorumProtocol
     def act() {
       loop {
         react {
-          case m => 
-            if (readRepairPF.isDefinedAt(m)) readRepairPF.apply(m)
-            else throw new RuntimeException("Unknown message" + m)
+          case m => null //HACK: read repair broken!
+            //if (readRepairPF.isDefinedAt(m)) readRepairPF.apply(m)
+            //else throw new RuntimeException("Unknown message" + m)
         }
       }
     }
@@ -439,7 +439,7 @@ trait QuorumRangeProtocol
         )
       }
     }
-    handlers.foreach(ReadRepairer ! _)
+    //handlers.foreach(ReadRepairer ! _)
     result
   }
 
