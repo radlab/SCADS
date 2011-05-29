@@ -24,11 +24,7 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
 
   private val curActorId      = new AtomicLong
   private val serviceRegistry = new ConcurrentHashMap[ActorId, MessageReceiver]
-
-  //HACK: to check for leaks
-  //TODO: replace with weak references
   def registrySize = serviceRegistry.size()
-  def reset() = serviceRegistry.clear()
 
   private val hostname = 
     if(System.getProperty("scads.comm.externalip") == null)
