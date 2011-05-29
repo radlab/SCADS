@@ -157,6 +157,7 @@ class JavaExecutor extends Executor {
       "-Xmx" + heapSize + "M",
       //HACK to deal with mesos lying about available memory "-Xms" + heapSize + "M",
       "-XX:+HeapDumpOnOutOfMemoryError",
+      "-verbosegc",
       "-XX:+UseConcMarkSweepGC",
       "-Djava.library.path=" + new File(System.getenv("MESOS_HOME"), "lib/java"),
       properties.map(kv => "-D%s=%s".format(kv._1, kv._2)).mkString(" "),

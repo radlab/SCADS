@@ -15,6 +15,7 @@ import org.apache.avro.io.{
 import org.apache.avro.specific.{ SpecificRecord, SpecificDatumReader, SpecificDatumWriter }
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.avro.runtime._
+import net.lag.logging.Logger
 
 object JvmTask {
   val schema = TypedSchemas.schemaOf[JvmTask]
@@ -36,6 +37,7 @@ object JvmTask {
 }
 
 class StreamTailer(stream: InputStream, size: Int = 100) extends Runnable {
+  val logger = Logger()
   val reader = new BufferedReader(new InputStreamReader(stream))
   val thread = new Thread(this, "StreamEchoer")
   var lines = new Array[String](size)
@@ -45,7 +47,7 @@ class StreamTailer(stream: InputStream, size: Int = 100) extends Runnable {
   def run() = {
     var line = reader.readLine()
     while (line != null) {
-      println(line)
+      if(line startsWith "[GC " ) logger.debug(line) else println(line)
       lines(pos) = line
       pos = (pos + 1) % size
       line = reader.readLine()
