@@ -160,7 +160,7 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
       service.receiveMessage(msg.src.map(RemoteActor(src.hostname, src.port, _)), msg.body)
     }
     else
-      logger.critical("Got message from %s for an unknown service: %s", src, msg.dest)
+      logger.debug("Got message from %s for an unknown service: %s", src, msg.dest)
   }
 
   /** Immediately start listener on instantiation */ 
