@@ -98,7 +98,10 @@ case class QueryRunnerTask(var numClients: Int,
       val failedQueries = new ConcurrentHashMap[QueryDescription, AtomicInteger]
 
       logger.info("Beginning iteration %d", iteration)
-      logger.info("Registered Actor Count: %d", MessageHandler.registrySize)
+      if(MessageHandler.registrySize > 0) {
+        logger.warning("Registered Actor Count: %d. Reseting", MessageHandler.registrySize)
+        MessageHandler.reset()
+      }
       (1 to threads).pmap(threadId => {
 	      val seed = java.net.InetAddress.getLocalHost.getHostName + System.currentTimeMillis + threadId
 	      val rand = new Random(seed.hashCode)
