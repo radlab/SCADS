@@ -6,6 +6,8 @@ import net.lag.logging.Logger
 
 import java.util.concurrent.{ LinkedBlockingQueue, TimeUnit }
 import java.util.{LinkedList, Queue}
+import java.lang.ref.WeakReference
+import javax.management.remote.rmi._RMIConnection_Stub
 
 /**
  * This is the base trait for any type of future in SCADS.
@@ -51,12 +53,45 @@ trait ScadsFuture[+T] { self =>
 
 }
 
+object FutureReference {
+  val logger = Logger()
+
+  protected def staleMessages = new scala.ref.ReferenceQueue[MessageFuture]()
+  val cleanupThread = new Thread("Failed Message Cleanup") {
+    override def run(): Unit = {
+      while(true) {
+        staleMessages.poll.foreach(futureRef =>
+          futureRef.get.foreach(future => {
+            logger.info("Unregistering garbage collected future %s", future.remoteActor)
+            MessageHandler.unregisterActor(future.remoteActor)
+          }))
+      }
+    }
+  }
+  cleanupThread.start()
+}
+
+class FutureReference extends MessageReceiver {
+  var futureRef: scala.ref.WeakReference[MessageFuture] = null
+
+  /* Don't call me twice!... or not at all! */
+  def setup: MessageFuture = {
+    val remoteActor = MessageHandler.registerService(this)
+    val future = new MessageFuture(remoteActor)
+    futureRef = new scala.ref.WeakReference(future, FutureReference.staleMessages)
+    future
+  }
+
+  def receiveMessage(src: Option[RemoteActorProxy], msg: MessageBody): Unit = synchronized {
+    futureRef.get.foreach(_.receiveMessage(src, msg))
+  }
+}
+
 object MessageFuture {
   implicit def toFutureCollection(futures: Seq[MessageFuture]): FutureCollection = new FutureCollection(futures)
 }
 
-class MessageFuture extends Future[MessageBody]  with MessageReceiver {
-  protected[comm] val remoteActor = MessageHandler.registerService(this)
+class MessageFuture(val remoteActor: RemoteActorProxy) extends Future[MessageBody] {
   protected[comm] val sender = new SyncVar[Option[RemoteActorProxy]]
   protected val message = new SyncVar[MessageBody]
   protected var forwardList: List[Queue[MessageFuture]] = List()
