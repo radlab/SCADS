@@ -108,8 +108,8 @@ class TpcwQueryProvider extends QueryProvider {
     val randomAuthorName = new RandomAuthorName(tpcwData)
     val randomAuthorId = new RandomAuthorId(tpcwData)
     val randomOrder = new RandomOrder(tpcwData)
-    val perPage = CardinalityList(10 to 100 by 10 toIndexedSeq)
-    val perPageForIndexScanItemsIdx = CardinalityList(9 +: (10 to 100 by 10 toIndexedSeq)) // extra ints added for searchByTitleWI
+    val perPage = CardinalityList(List(10,50).toIndexedSeq)//CardinalityList(10 to 100 by 10 toIndexedSeq)
+    val perPageForIndexScanItemsIdx = CardinalityList(List(9,10,50).toIndexedSeq) //CardinalityList(9 +: (10 to 100 by 10 toIndexedSeq)) // extra ints added for searchByTitleWI
     val randomItemList = new RandomItemList(tpcwData, perPage.values)
     val randomItemListForIndexLookupJoinItems = new RandomItemList(tpcwData, 3 +: perPage.values) // extra ints added for orderDisplayGetOrderLines
     val randomAuthorList = new RandomAuthorList(tpcwData, List(1, 9).toIndexedSeq ++ perPage.values) // extra ints added for productDetailWI, searchByTitleWI, searchByAuthorWI
