@@ -61,6 +61,12 @@ object ExperimentUtil {
   def queryDescriptions(results: Seq[Result]) = {
     results.groupBy(_.queryDesc).map { case(queryDesc, res) => println(queryDesc) }
   }
+
+  def clusterAddresses(results: Seq[Result]) = {
+    val set = new HashSet[String]()
+    results.foreach(set += _.clientConfig.clusterAddress)
+    set
+  }
   
   def queryDescriptionsGivenQueryName(results: Seq[Result], givenQueryName: String) = {
     results.groupBy(_.queryDesc).map {                   
