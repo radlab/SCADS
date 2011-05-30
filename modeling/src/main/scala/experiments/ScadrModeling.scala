@@ -17,17 +17,18 @@ import scala.collection.mutable.ArrayBuffer
 
 object ScadrModeling {
   object ScadrData {
-    val clusterAddress = "zk://ec2-174-129-157-147.compute-1.amazonaws.com:2181,ec2-50-17-12-53.compute-1.amazonaws.com:2181,ec2-184-72-171-124.compute-1.amazonaws.com:2181/scads/experimentCluster0000000005" // 5.27.11, ~12p
+    val clusterAddress = "zk://ec2-174-129-157-147.compute-1.amazonaws.com:2181,ec2-50-17-12-53.compute-1.amazonaws.com:2181,ec2-184-72-171-124.compute-1.amazonaws.com:2181/scads/experimentCluster0000000015"
 
     def experimentResults = allResults.filter(_.clientConfig.clusterAddress == clusterAddress)
     
-    def goodExperimentResults = experimentResults.filterNot(_.iteration == 1)
+    def goodExperimentResults = experimentResults.filter(_.iteration == 2)//filterNot(_.iteration == 1)
     
     val histogramsScadr = queryTypeHistogram(goodExperimentResults.toSeq)
     
     val perIterationHistograms = queryTypePerIterationHistograms(goodExperimentResults.toSeq)
   }
   
+  /*
   object ModelFindSubscription {
     import ScadrData._
     
@@ -39,6 +40,7 @@ object ScadrModeling {
     
     val indexLookupSubscriptions = QueryDescription("indexLookupSubscriptions", List(), 1)
   }
+  */
   
   object ModelFindUser {
     import ScadrData._
