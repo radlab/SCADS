@@ -27,7 +27,9 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
   private val serviceRegistry = new ConcurrentHashMap[ActorId, MessageReceiver]
 
   //HACK: to check for leaks
+  //TODO: replace with weak references
   def registrySize = serviceRegistry.size()
+  def reset() = serviceRegistry.clear()
 
   private val hostname = 
     if(System.getProperty("scads.comm.externalip") == null)
@@ -158,7 +160,7 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
       service.receiveMessage(msg.src.map(RemoteActor(src.hostname, src.port, _)), msg.body)
     }
     else
-      logger.critical("Got message for an unknown service: " + msg.dest)
+      logger.critical("Got message from %s for an unknown service: %s", src, msg.dest)
   }
 
   /** Immediately start listener on instantiation */ 

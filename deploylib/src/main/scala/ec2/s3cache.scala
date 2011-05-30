@@ -13,7 +13,7 @@ object S3Cache extends AWSConnection {
   protected val s3Credentials = new S3Credentials(accessKeyId, secretAccessKey)
   val s3Service = new RestS3Service(s3Credentials)
   val bucketName =
-    Config.getString("deploylib.aws.s3_cache_bucket", "deploylibCache-" + System.getProperty("user.name"))
+    Config.getString("deploylib.aws.s3_cache_bucket", "deploylibCache-" + System.getenv("USER"))
   val bucket = s3Service.createBucket(bucketName)
   val md5Cache = new scala.collection.mutable.HashMap[String, String]
 
