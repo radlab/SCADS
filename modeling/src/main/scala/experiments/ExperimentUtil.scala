@@ -26,6 +26,21 @@ object ExperimentUtil {
   
   def allResults = AvroInFile[Result]("QueryRunnerResults.avro")
   
+  def experimentResultsByClusterAddress(clusterAddress: String) = allResults.filter(_.clientConfig.clusterAddress == clusterAddress)
+  
+  def getNumIntervalsForGivenQueryDesc(results: Seq[Result], givenQueryDesc: QueryDescription): Int = {
+    val perIterationHistograms = queryTypePerIterationHistograms(results)
+    val queryDescriptionsWithIterationNums = perIterationHistograms.keySet
+    var max = 0
+    
+    queryDescriptionsWithIterationNums.map { 
+      case(queryDesc, i) => 
+        if (queryDesc == givenQueryDesc && i > max) 
+          max = i 
+    }
+    max
+  }  
+  
   def goodResults = allResults.filter(_.failedQueries < 200)
 			.filterNot(_.iteration == 1)
 			.filter(_.clientConfig.iterationLengthMin == 10)
