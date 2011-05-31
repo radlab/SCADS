@@ -46,11 +46,39 @@ object ExperimentUtil {
 			.filter(_.clientConfig.iterationLengthMin == 10)
 			.filter(_.clientConfig.numClients == 50)
 
-  def getPerIterationCompletionSummary(results: Seq[Result]) =
+  def getPerIterationCompletionSummaryByHostname(results: Seq[Result]) = 
     results.groupBy(result => (result.hostname, result.iteration)).map {
       case (prefix, resultValues) => (prefix, resultValues.map(_.responseTimes).reduceLeft(_ + _).totalRequests)
     }
+
+  def getPerIterationCompletionSummary(results: Seq[Result]) = {
+    val completionSummary = new Array[Long](100)
+    results.groupBy(_.iteration).map {
+      case (iteration, resultValues) => completionSummary(iteration) = resultValues.map(_.responseTimes).reduceLeft(_ + _).totalRequests
+    }
+    completionSummary
+  }
            
+  def getPerIterationTimeoutSummary(results: Seq[Result]) = {
+    val timeoutSummary = new Array[Long](100)
+    results.groupBy(_.iteration).map {
+      case (iteration, resultValues) => timeoutSummary(iteration) = resultValues.map(_.responseTimes).reduceLeft(_ + _).buckets(999)//(iteration, resultValues.map(_.responseTimes).reduceLeft(_ + _).buckets(999))
+    }
+    timeoutSummary
+  }
+  
+  def getPerIterationTimeoutSummaryAsFraction(results: Seq[Result]) = {
+    val timeoutSummary = new Array[Long](100)
+    results.groupBy(_.iteration).map {
+      case (iteration, resultValues) => {
+        val numTimeouts = resultValues.map(_.responseTimes).reduceLeft(_ + _).buckets(999)
+        val numRequests = resultValues.map(_.responseTimes).reduceLeft(_ + _).totalRequests
+        timeoutSummary(iteration) = numTimeouts/numRequests // need to fix -- long division doesn't work for fractions
+      }
+    }
+    timeoutSummary
+  }
+
   // get all of the querytypes in this results set
   def queryTypes(results: Seq[Result] = goodResults.toSeq):HashSet[String] = {
     val set = new HashSet[String]()
