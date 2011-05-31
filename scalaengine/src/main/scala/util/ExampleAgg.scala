@@ -21,7 +21,7 @@ class := extends Filter[MultiTestRec] {
   }
 }
 
-class AvgRemote extends RemoteAggregate[BasicAggContainer, ScalaSpecificRecord, ScalaSpecificRecord] {
+class AvgRemote extends RemoteAggregate[BasicAggContainer, ScalaSpecificRecord, MultiTestRec] {
 
   def init(): BasicAggContainer = {
     BasicAggContainer(0, 0)
