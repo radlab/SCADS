@@ -17,17 +17,56 @@ import scala.collection.mutable.ArrayBuffer
 
 object ScadrModeling {
   object ScadrData {
-    val clusterAddress = "zk://ec2-50-17-12-53.compute-1.amazonaws.com:2181,ec2-184-72-171-124.compute-1.amazonaws.com:2181,ec2-174-129-157-147.compute-1.amazonaws.com:2181/scads/experimentCluster0000000063"
-    
+    /*
+    val clusterAddress1 = "zk://ec2-50-17-12-53.compute-1.amazonaws.com:2181,ec2-184-72-171-124.compute-1.amazonaws.com:2181,ec2-174-129-157-147.compute-1.amazonaws.com:2181/scads/experimentCluster0000000063"
+    val clusterAddress2 = "zk://ec2-50-17-12-53.compute-1.amazonaws.com:2181,ec2-184-72-171-124.compute-1.amazonaws.com:2181,ec2-174-129-157-147.compute-1.amazonaws.com:2181/scads/experimentCluster0000000067"
+    val clusterAddress3 = "zk://ec2-50-17-12-53.compute-1.amazonaws.com:2181,ec2-184-72-171-124.compute-1.amazonaws.com:2181,ec2-174-129-157-147.compute-1.amazonaws.com:2181/scads/experimentCluster0000000069"
 
-    def experimentResults = allResults.filter(_.clientConfig.clusterAddress == clusterAddress)
+    def experimentResults1 = allResults.filter(_.clientConfig.clusterAddress == clusterAddress1)
+    def experimentResults2 = allResults.filter(_.clientConfig.clusterAddress == clusterAddress2)
+    def experimentResults3 = allResults.filter(_.clientConfig.clusterAddress == clusterAddress3)
     
-    val numIntervals = 14
-    def goodExperimentResults = experimentResults.filter(r => r.iteration > 1 && r.iteration <= numIntervals)
+    val numIntervals1 = 6
+    def goodExperimentResults1 = experimentResults1.filter(r => r.iteration > 1 && r.iteration <= numIntervals1)
+
+    val numIntervals2 = 10
+    def goodExperimentResults2 = experimentResults2.filter(r => r.iteration > 1 && r.iteration <= numIntervals2).map(r => {
+        r.iteration += numIntervals1 - 1
+        r 
+      })
+
+    val numIntervals3 = 20
+    def goodExperimentResults3 = experimentResults3.filter(r => r.iteration > 1 && r.iteration <= numIntervals3).map(r => {
+        r.iteration += numIntervals1 + numIntervals2 - 2
+        r
+      })
     
-    val histogramsScadr = queryTypeHistogram(goodExperimentResults.toSeq)
+    // combine goodExperimentResults1-3
+    val numIntervals = numIntervals1 + numIntervals2 + numIntervals3 - 2
+    def goodExperimentResults = goodExperimentResults1.toSeq ++ goodExperimentResults2.toSeq ++ goodExperimentResults3.toSeq
+    */
     
-    val perIterationHistograms = queryTypePerIterationHistograms(goodExperimentResults.toSeq)
+    // data from evening of 5.30.11
+    val clusterAddress1 = "zk://ec2-50-17-12-53.compute-1.amazonaws.com:2181,ec2-184-72-171-124.compute-1.amazonaws.com:2181,ec2-174-129-157-147.compute-1.amazonaws.com:2181/scads/experimentCluster0000000071"
+    val clusterAddress2 = "zk://ec2-50-17-12-53.compute-1.amazonaws.com:2181,ec2-184-72-171-124.compute-1.amazonaws.com:2181,ec2-174-129-157-147.compute-1.amazonaws.com:2181/scads/experimentCluster0000000072"
+
+    def experimentResults1 = allResults.filter(_.clientConfig.clusterAddress == clusterAddress1)
+    def experimentResults2 = allResults.filter(_.clientConfig.clusterAddress == clusterAddress2)
+    
+    val numIntervals1 = 21
+    def goodExperimentResults1 = experimentResults1.filter(r => r.iteration > 1 && r.iteration <= numIntervals1)
+    
+    val numIntervals2 = 16
+    def goodExperimentResults2 = experimentResults2.filter(r => r.iteration > 1 && r.iteration <= numIntervals2).map(r => {
+      r.iteration += numIntervals1 - 1
+      r
+    })
+    
+    val numIntervals = numIntervals1 + numIntervals2 - 1
+    def goodExperimentResults = goodExperimentResults1.toSeq ++ goodExperimentResults2.toSeq
+    
+    val histogramsScadr = queryTypeHistogram(goodExperimentResults)
+    val perIterationHistograms = queryTypePerIterationHistograms(goodExperimentResults)
   }
   
   /*
@@ -88,14 +127,14 @@ object ScadrModeling {
   object ModelMyThoughts {
     import ScadrData._
     
-    val myThoughts = QueryDescription("myThoughts", List(50), 50) // TODO:  choose cardinality here
+    val myThoughts = QueryDescription("myThoughts", List(10), 10) // TODO:  choose cardinality here
     val myThoughtsHist = histogramsScadr(myThoughts)
     
     //scala> res1.myThoughts.physicalPlan
     //res3: edu.berkeley.cs.scads.piql.QueryPlan = LocalStopAfter(ParameterLimit(1,10000),
     //                                             IndexScan(<Namespace: thoughts>,ArrayBuffer(ParameterValue(0)),ParameterLimit(1,10000),false))
     
-    val indexScanThoughts = QueryDescription("indexScanThoughts", List(50), 50) // TODO:  make this match cardinality for myThoughts
+    val indexScanThoughts = QueryDescription("indexScanThoughts", List(10), 10) // TODO:  make this match cardinality for myThoughts
     val indexScanThoughtsHist = histogramsScadr(myThoughts)
     
     val actual99th = myThoughtsHist.quantile(0.99)
@@ -105,7 +144,7 @@ object ScadrModeling {
       val indexScanThoughtsHist = perIterationHistograms((indexScanThoughts, i))
       indexScanThoughtsHist.quantile(desiredQuantile)
     }
-
+    
     def getPerIntervalPrediction(quantile: Double = 0.99):(Histogram, Histogram) = {
       val actualQuantileHist = Histogram(1,1000)
       val predictedQuantileHist = Histogram(1,1000)
@@ -131,7 +170,7 @@ object ScadrModeling {
     import ScadrData._
     import TpcwModeling.Util._
     
-    val thoughtstream = QueryDescription("thoughtstream", List(100, 50), 50)
+    val thoughtstream = QueryDescription("thoughtstream", List(50, 10), 10)
     val thoughtstreamHist = histogramsScadr(thoughtstream)
     
     //scala> res1.thoughtstream.physicalPlan  
@@ -139,10 +178,10 @@ object ScadrModeling {
     //                                             IndexMergeJoin(<Namespace: thoughts>,ArrayBuffer(AttributeValue(0,1)),List(AttributeValue(1,1)),ParameterLimit(1,10000),false,
     //                                             IndexScan(<Namespace: subscriptions>,ArrayBuffer(ParameterValue(0)),FixedLimit(10000),true)))
     
-    val indexMergeJoinThoughts = QueryDescription("indexMergeJoinThoughts", List(100, 50), 50)
+    val indexMergeJoinThoughts = QueryDescription("indexMergeJoinThoughts", List(50, 10), 10)
     val indexMergeJoinThoughtsHist = histogramsScadr(indexMergeJoinThoughts).buckets.map(BigInt(_))
     
-    val indexScanSubscriptions = QueryDescription("indexScanSubscriptions", List(100), 100)
+    val indexScanSubscriptions = QueryDescription("indexScanSubscriptions", List(50), 50)
     val indexScanSubscriptionsHist = histogramsScadr(indexScanSubscriptions).buckets.map(BigInt(_))
     
     def predictHist = {
@@ -188,7 +227,7 @@ object ScadrModeling {
     import ScadrData._
     import TpcwModeling.Util._
     
-    val usersFollowedBy = QueryDescription("usersFollowedBy", List(50), 50) // TODO:  choose cardinality here
+    val usersFollowedBy = QueryDescription("usersFollowedBy", List(10), 10) // TODO:  choose cardinality here
     val usersFollowedByHist = histogramsScadr(usersFollowedBy)
     
     //scala> res1.usersFollowedBy.physicalPlan
@@ -196,10 +235,10 @@ object ScadrModeling {
     //                                             LocalStopAfter(ParameterLimit(1,10000),
     //                                             IndexScan(<Namespace: subscriptions>,ArrayBuffer(ParameterValue(0)),ParameterLimit(1,10000),true)))
     
-    val indexLookupJoinUsers = QueryDescription("indexLookupJoinUsers", List(50), 50)
+    val indexLookupJoinUsers = QueryDescription("indexLookupJoinUsers", List(10), 10)
     val indexLookupJoinUsersHist = histogramsScadr(indexLookupJoinUsers).buckets.map(BigInt(_))
     
-    val indexScanSubscriptions = QueryDescription("indexScanSubscriptions", List(50), 50)
+    val indexScanSubscriptions = QueryDescription("indexScanSubscriptions", List(10), 10)
     val indexScanSubscriptionsHist = histogramsScadr(indexScanSubscriptions).buckets.map(BigInt(_))
     
     def predictHist = {
