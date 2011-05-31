@@ -28,14 +28,6 @@ trait Filter[R <: ScalaSpecificRecord] {
   def applyFilter(r:R):Boolean
 }
 
-trait Aggregate[TransType <: ScalaSpecificRecord,
-                KeyType <: ScalaSpecificRecord,
-                ValueType <: ScalaSpecificRecord,
-                ResultType <: Any] {
-  val remoteAggregate:RemoteAggregate[TransType,KeyType,ValueType]
-  val localAggregate:LocalAggregate[TransType,ResultType]
-}
-
 // this is a class right now as we need the type parameter
 abstract class LocalAggregate[TransType <: ScalaSpecificRecord,
                               ResultType <: Any](implicit transType:scala.reflect.Manifest[TransType]) {
@@ -86,10 +78,6 @@ trait RemoteAggregate[TransType <: ScalaSpecificRecord,
                 ValueType <: ScalaSpecificRecord] {
   def init():TransType
   def applyAggregate(a:TransType,k:KeyType,v:ValueType):TransType
-
-  def replyInstance()(implicit t:scala.reflect.Manifest[ValueType]):ValueType = {
-    t.erasure.newInstance().asInstanceOf[ValueType]
-  }
 }
 
 object AnalyticsUtils {

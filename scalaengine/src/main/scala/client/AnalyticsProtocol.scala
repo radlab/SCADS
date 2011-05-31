@@ -25,12 +25,12 @@ trait AnalyticsProtocol
      keyType:String,
      valType:String,
      filtFuncs:Seq[Filter[_]],
-     aggClasses:Seq[Aggregate[_,_,_,_]]):Seq[(GenericData.Record,Seq[_])] = {
+     aggClasses:Seq[(LocalAggregate[_,_],RemoteAggregate[_,_,_])]):Seq[(GenericData.Record,Seq[_])] = {
       val filters = filtFuncs.map(func => {
         AggFilter(func.field,func.targetBytes,func.getClass.getName,AnalyticsUtils.getClassBytes(func))
       })
       val aggs = aggClasses.map(ac => {
-        AggOp(ac.remoteAggregate.getClass.getName,AnalyticsUtils.getClassBytes(ac.remoteAggregate),false)
+        AggOp(ac._2.getClass.getName,AnalyticsUtils.getClassBytes(ac._2),false)
       })
       val aggRequest = AggRequest(groups,keyType, valType,filters,aggs)
       val partitions = serversForKeyRange(None,None)
@@ -42,7 +42,7 @@ trait AnalyticsProtocol
         })
       })
       val groupSchema = AnalyticsUtils.getSubSchema(groups,valueSchema)
-      val handler = new AggHandler(responses,partitionMap,partitions.size,aggClasses.zipWithIndex,groupSchema,partitions.size)
+      val handler = new AggHandler(responses,partitionMap,partitions.size,aggClasses.map(_._1).zipWithIndex,groupSchema,partitions.size)
       handler.getReplies()
       handler.finish()
     }
@@ -52,7 +52,7 @@ trait AnalyticsProtocol
     (val futures:Seq[Seq[MessageFuture]],
      val partitionMap:HashMap[String,String],
      val numParts:Int,
-     val aggs:Seq[(Aggregate[_,_,_,_],Int)],
+     val aggs:Seq[(LocalAggregate[_,_],Int)],
      val groupSchema:Schema,
      val numRanges:Int,
      val timeout:Long = 5000) {
@@ -97,19 +97,19 @@ trait AnalyticsProtocol
             }
             try {
               aggs foreach (ap => {
-                ap._1.localAggregate.addForGroup(groupRec,result.groupVals(ap._2))
+                ap._1.addForGroup(groupRec,result.groupVals(ap._2))
               })
             } catch {
               case e:Exception => {e.printStackTrace()}
             }
           })
         })
-        val grps = aggs(0)._1.localAggregate.groups // all aggs have same groups
+        val grps = aggs(0)._1.groups // all aggs have same groups
         if (grps.size == 0) { // not grouping
           List(
             (null,
              aggs.map(ap => {
-               ap._1.localAggregate.finishForGroup(null)
+               ap._1.finishForGroup(null)
              })
            )
           )
@@ -118,7 +118,7 @@ trait AnalyticsProtocol
             ( 
               group,
               aggs.map (ap => {
-                ap._1.localAggregate.finishForGroup(group)
+                ap._1.finishForGroup(group)
               }) 
             )
           }).toSeq

@@ -21,35 +21,31 @@ class := extends Filter[MultiTestRec] {
   }
 }
 
-object CompAvg extends Aggregate[BasicAggContainer, ScalaSpecificRecord, MultiTestRec, Float] {
-  class Remote extends RemoteAggregate[BasicAggContainer, ScalaSpecificRecord, MultiTestRec] {
-    def init(): BasicAggContainer = {
-      BasicAggContainer(0, 0)
-    }
+class AvgRemote extends RemoteAggregate[BasicAggContainer, ScalaSpecificRecord, ScalaSpecificRecord] {
 
-    def applyAggregate(ag: BasicAggContainer, key: ScalaSpecificRecord, value: MultiTestRec): BasicAggContainer = {
-      ag.curcount += 1
-      ag.curval = ag.curval + ((value.f1 - ag.curval) / ag.curcount)
-      ag
-    }
+  def init(): BasicAggContainer = {
+    BasicAggContainer(0, 0)
   }
 
-  class Local extends LocalAggregate[BasicAggContainer, Float] {
-    def init(): BasicAggContainer = {
-      BasicAggContainer(0, 0)
-    }
-    def foldFunction(cur: BasicAggContainer, next: BasicAggContainer): BasicAggContainer = {
-      cur.curcount += next.curcount
-      cur.curval = cur.curval + (next.curval * next.curcount)
-      cur
-    }
-    def finalize(f: BasicAggContainer): Float = {
-      f.curval.asInstanceOf[Float] / f.curcount
-    }
+  def applyAggregate(ag: BasicAggContainer, key: ScalaSpecificRecord, value: MultiTestRec): BasicAggContainer = {
+    ag.curcount += 1
+    ag.curval = ag.curval + ((value.f1 - ag.curval) / ag.curcount)
+    ag
   }
+}
 
-  val remoteAggregate = new Remote
-  val localAggregate = new Local
+class AvgLocal extends LocalAggregate[BasicAggContainer, Float] {
+  def init(): BasicAggContainer = {
+    BasicAggContainer(0, 0)
+  }
+  def foldFunction(cur: BasicAggContainer, next: BasicAggContainer): BasicAggContainer = {
+    cur.curcount += next.curcount
+    cur.curval = cur.curval + (next.curval * next.curcount)
+    cur
+  }
+  def finalize(f: BasicAggContainer): Float = {
+    f.curval.asInstanceOf[Float] / f.curcount
+  }
 }
 
 object ExampleAgg {
@@ -78,7 +74,7 @@ object ExampleAgg {
                                 classOf[IntRec2].getName,
                                 classOf[MultiTestRec].getName,
                                 List(),
-                                List(CompAvg))
+                                List((new AvgLocal,new AvgRemote)))
     println(agg)
   }
 }
