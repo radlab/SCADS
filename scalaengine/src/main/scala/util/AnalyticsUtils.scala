@@ -13,9 +13,14 @@ import scala.collection.mutable.StringBuilder
 import scala.tools.nsc.interpreter.AbstractFileClassLoader
 import scala.tools.nsc.io.AbstractFile
 
+import scala.collection.mutable.{ArrayBuilder,HashMap}
+
 trait Filter[R <: ScalaSpecificRecord] {
   var field:Int = -1
   var target:R
+  
+  def targetBytes:Array[Byte] = target.toBytes
+
   def init(f:Int,t:R):Unit = {
     field = f
     target = t
@@ -25,9 +30,66 @@ trait Filter[R <: ScalaSpecificRecord] {
 
 trait Aggregate[TransType <: ScalaSpecificRecord,
                 KeyType <: ScalaSpecificRecord,
+                ValueType <: ScalaSpecificRecord,
+                ResultType <: Any] {
+  val remoteAggregate:RemoteAggregate[TransType,KeyType,ValueType]
+  val localAggregate:LocalAggregate[TransType,ResultType]
+}
+
+// this is a class right now as we need the type parameter
+abstract class LocalAggregate[TransType <: ScalaSpecificRecord,
+                              ResultType <: Any](implicit transType:scala.reflect.Manifest[TransType]) {
+  def init():TransType
+  def foldFunction(cur:TransType,next:TransType):TransType
+  def finalize(a:TransType):ResultType
+
+  private var curBuilder:ArrayBuilder[TransType] = null
+  private val replyMap = new HashMap[GenericData.Record,ArrayBuilder[TransType]]
+  def addForGroup(group:GenericData.Record,ar:Array[Byte]) {
+    curBuilder = 
+      if (group == null) { // not grouping
+        if (curBuilder == null) 
+          new ArrayBuilder.ofRef[TransType]()
+        else
+          curBuilder
+      } else {
+        replyMap.get(group) match {
+          case Some(thing) => thing
+          case None => new ArrayBuilder.ofRef[TransType]()
+        }
+      }
+    val x = transType.erasure.newInstance().asInstanceOf[TransType]
+    x.parse(ar)
+    curBuilder += x
+    if (group != null)
+      replyMap += ((group,curBuilder))
+  }
+
+  def finishForGroup(group:GenericData.Record):ResultType = {
+    val vls = 
+      if (group == null)
+        curBuilder
+      else
+        replyMap(group)
+    finalize(vls.result.foldLeft(init())(foldFunction))
+  }
+
+  def replyInstance():TransType = {
+    transType.erasure.newInstance().asInstanceOf[TransType]
+  }
+
+  def groups():Iterable[GenericData.Record] = replyMap.keys
+}
+
+trait RemoteAggregate[TransType <: ScalaSpecificRecord,
+                KeyType <: ScalaSpecificRecord,
                 ValueType <: ScalaSpecificRecord] {
   def init():TransType
   def applyAggregate(a:TransType,k:KeyType,v:ValueType):TransType
+
+  def replyInstance()(implicit t:scala.reflect.Manifest[ValueType]):ValueType = {
+    t.erasure.newInstance().asInstanceOf[ValueType]
+  }
 }
 
 object AnalyticsUtils {
@@ -42,8 +104,8 @@ object AnalyticsUtils {
 
   private val shippedLoader = new ShippedClassLoader
   
-  def getFilterSchema(original:Schema,
-                      fields:Seq[String]):Schema = {
+  def getSubSchema(fields:Seq[String],
+                   original:Schema):Schema = {
     val rec = Schema.createRecord(original.getName,
                                   original.getDoc,
                                   original.getNamespace,
@@ -60,8 +122,8 @@ object AnalyticsUtils {
     rec
   }
 
-  def getFilterRecord(filterSchema:Schema,
-                      bytes:Array[Byte]):GenericData.Record = {
+  def getRecord(filterSchema:Schema,
+                bytes:Array[Byte]):GenericData.Record = {
     val dec = decoderFactory.createBinaryDecoder(new ByteArrayInputStream(bytes),decoder)
     reader.setSchema(filterSchema)
     reader.setExpected(filterSchema)
@@ -83,7 +145,7 @@ object AnalyticsUtils {
   def getGroupKey(groups:Seq[Int], rec:IndexedRecord):CharSequence = {
     groupBuilder.clear
     groups.foreach(group => {groupBuilder.append(rec.get(group))})
-    groupBuilder
+    groupBuilder.toString
   }
 
   // this is gross and slow

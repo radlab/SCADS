@@ -392,7 +392,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
             aggs.map(aggOp => {
               AnalyticsUtils.deserializeCode(aggOp.codename,aggOp.code) match {
                 case methodClass:Class[_] => {
-                  methodClass.newInstance.asInstanceOf[Aggregate[ScalaSpecificRecord,ScalaSpecificRecord,ScalaSpecificRecord]]
+                  methodClass.newInstance.asInstanceOf[RemoteAggregate[ScalaSpecificRecord,ScalaSpecificRecord,ScalaSpecificRecord]]
                 }
               }
             })
