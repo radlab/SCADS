@@ -31,8 +31,8 @@ class ScadrQueryProvider extends QueryProvider {
     logger.info("Initalizing ScadrQueryProvider with %d users", maxUser)
 
     val randomUser = RandomUser(maxUser)
-    val perPage = CardinalityList(List(50,100).toIndexedSeq) //CardinalityList(10 to 100 by 10 toIndexedSeq) // TODO:  just do 50 & 100
-    val numSubscriptions = CardinalityList(List(50,100).toIndexedSeq) //CardinalityList(50 to 500 by 50 toIndexedSeq) // TODO:  just do 50 & 100
+    val perPage = CardinalityList(10 to 50 by 10 toIndexedSeq)
+    val numSubscriptions = CardinalityList(10 to 50 by 10 toIndexedSeq)
 
     val localSubscriptionList = RandomSubscriptionList(maxUser, numSubscriptions.values)
 
