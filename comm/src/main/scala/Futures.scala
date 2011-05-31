@@ -78,7 +78,7 @@ class FutureReference(future: MessageFuture) extends java.lang.ref.WeakReference
     if(future != null)
       future.receiveMessage(src, msg)
     else
-      FutureReference.logger.info("Message for garbage collected future received: %s", src)
+      FutureReference.logger.debug("Message for garbage collected future received: %s", src)
   }
 }
 
