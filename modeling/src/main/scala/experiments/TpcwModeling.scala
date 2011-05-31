@@ -17,6 +17,13 @@ import scala.collection.mutable.ArrayBuffer
 
 object TpcwModeling {
   object Util {
+    def printPerIterationPredictionSummary(summary:(Histogram, Histogram)) = {
+      val actualHist = summary._1
+      val predictedHist = summary._2
+      println(List("Actual:", "average=", actualHist.average, "median=", actualHist.median, "stddev=", actualHist.stddev, "max=", actualHist.quantile(0.99)).mkString(", "))
+      println(List("Predicted:", "average=", predictedHist.average, "median=", predictedHist.median, "stddev=", predictedHist.stddev, "max=", predictedHist.quantile(0.99)).mkString(", "))
+    }
+
   	def convolve(hist1: ArrayBuffer[BigInt], hist2: ArrayBuffer[BigInt]): ArrayBuffer[BigInt] = {
   	  var defaultBucketCount = 1000
 
@@ -75,11 +82,12 @@ object TpcwModeling {
     //val clusterAddress = "zk://ec2-50-19-140-43.compute-1.amazonaws.com:2181,ec2-72-44-35-240.compute-1.amazonaws.com:2181,ec2-50-17-68-210.compute-1.amazonaws.com:2181/scads/experimentCluster0000000000"
     //val clusterAddress = "zk://ec2-174-129-157-147.compute-1.amazonaws.com:2181,ec2-50-17-12-53.compute-1.amazonaws.com:2181,ec2-184-72-171-124.compute-1.amazonaws.com:2181/scads/experimentCluster0000000000" // 5.26.11, afternoon
     //val clusterAddress = "zk://ec2-174-129-157-147.compute-1.amazonaws.com:2181,ec2-50-17-12-53.compute-1.amazonaws.com:2181,ec2-184-72-171-124.compute-1.amazonaws.com:2181/scads/experimentCluster0000000007" // 5.27.11, 3p (blocking)
-    val clusterAddress = "zk://ec2-174-129-157-147.compute-1.amazonaws.com:2181,ec2-50-17-12-53.compute-1.amazonaws.com:2181,ec2-184-72-171-124.compute-1.amazonaws.com:2181/scads/experimentCluster0000000027"
+    //val clusterAddress = "zk://ec2-174-129-157-147.compute-1.amazonaws.com:2181,ec2-50-17-12-53.compute-1.amazonaws.com:2181,ec2-184-72-171-124.compute-1.amazonaws.com:2181/scads/experimentCluster0000000027"
+    val clusterAddress = "zk://ec2-50-17-12-53.compute-1.amazonaws.com:2181,ec2-184-72-171-124.compute-1.amazonaws.com:2181,ec2-174-129-157-147.compute-1.amazonaws.com:2181/scads/experimentCluster0000000065"
 
     def experimentResults = allResults.filter(_.clientConfig.clusterAddress == clusterAddress)
     
-    val numIntervals = 16
+    val numIntervals = 35
     def goodExperimentResults = experimentResults.filter(res => res.iteration > 1 && res.iteration <= numIntervals)
         
     val histogramsTpcw = queryTypeHistogram(goodExperimentResults.toSeq)
@@ -608,7 +616,7 @@ object TpcwModeling {
     import TpcwData._
     import Util._
     
-    val searchByTitleWI = QueryDescription("searchByTitleWI", List(10), 9)  // want to make requested, result cardinalities match
+    val searchByTitleWI = QueryDescription("searchByTitleWI", List(10), 7/*9*/)  // want to make requested, result cardinalities match
     val searchByTitleWIHist = histogramsTpcw(searchByTitleWI)
     
     //scala> testTpcwClient.searchByTitleWI.physicalPlan
