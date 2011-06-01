@@ -375,26 +375,15 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 
 
           val filterFunctions = filters.map(f => {
-            val fclass = AnalyticsUtils.deserializeCode(f.codename,f.code)
-            fclass match {
-              case cl:Class[_] => {
-                val fc = cl.newInstance.asInstanceOf[Filter[ScalaSpecificRecord]]
-                val filtVal = Class.forName(valType).newInstance().asInstanceOf[ScalaSpecificRecord]
-                filtVal.parse(f.target)
-                fc.init(f.field,filtVal)
-                fc
-              }
-            }          
+            val ois = new java.io.ObjectInputStream(new java.io.ByteArrayInputStream(f.obj))
+              ois.readObject.asInstanceOf[Filter[ScalaSpecificRecord]]
           })
           var filterPassed = true
 
           val aggregates =
             aggs.map(aggOp => {
-              AnalyticsUtils.deserializeCode(aggOp.codename,aggOp.code) match {
-                case methodClass:Class[_] => {
-                  methodClass.newInstance.asInstanceOf[RemoteAggregate[ScalaSpecificRecord,ScalaSpecificRecord,ScalaSpecificRecord]]
-                }
-              }
+              val ois = new java.io.ObjectInputStream(new java.io.ByteArrayInputStream(aggOp.obj))
+              ois.readObject.asInstanceOf[RemoteAggregate[ScalaSpecificRecord,ScalaSpecificRecord,ScalaSpecificRecord]]
             })
             
 

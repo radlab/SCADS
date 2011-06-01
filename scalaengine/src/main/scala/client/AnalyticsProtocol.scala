@@ -15,6 +15,7 @@ import collection.mutable.{ Seq => MutSeq, _ }
 import concurrent.ManagedBlocker
 
 import java.util.concurrent.TimeUnit
+import java.io.{ByteArrayOutputStream,ObjectOutputStream}
 
 trait AnalyticsProtocol
   extends QuorumProtocol 
@@ -27,10 +28,16 @@ trait AnalyticsProtocol
      filtFuncs:Seq[Filter[_]],
      aggClasses:Seq[(LocalAggregate[_,_],RemoteAggregate[_,_,_])]):Seq[(GenericData.Record,Seq[_])] = {
       val filters = filtFuncs.map(func => {
-        AggFilter(func.field,func.targetBytes,func.getClass.getName,AnalyticsUtils.getClassBytes(func))
+        val baos = new ByteArrayOutputStream
+        val oos = new ObjectOutputStream(baos)
+        oos.writeObject(func)
+        AggFilter(baos.toByteArray)
       })
       val aggs = aggClasses.map(ac => {
-        AggOp(ac._2.getClass.getName,AnalyticsUtils.getClassBytes(ac._2),false)
+        val baos = new ByteArrayOutputStream
+        val oos = new ObjectOutputStream(baos)
+        oos.writeObject(ac._2)
+        AggOp(ac._2.getClass.getName,AnalyticsUtils.getClassBytes(ac._2),baos.toByteArray,false)
       })
       val aggRequest = AggRequest(groups,keyType, valType,filters,aggs)
       val partitions = serversForKeyRange(None,None)

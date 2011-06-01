@@ -51,8 +51,8 @@ case class TestSetResponse(var success: Boolean) extends AvroRecord with KeyValu
 case class GetWorkloadStats() extends AvroRecord with KeyValueStoreOperation
 case class GetWorkloadStatsResponse(var getCount:Int, var putCount:Int, var statsSince:Long) extends AvroRecord with KeyValueStoreOperation
 
-case class AggFilter(var field:Int, var target:Array[Byte], var codename:String, var code:Array[Byte]) extends AvroRecord
-case class AggOp(var codename:String, var code:Array[Byte], var raw:Boolean) extends AvroRecord
+case class AggFilter(var obj:Array[Byte]) extends AvroRecord
+case class AggOp(var codename:String, var code:Array[Byte], var obj:Array[Byte], var raw:Boolean) extends AvroRecord
 case class AggRequest(var groups: Seq[String], var keyType:String, var valueType:String, var filters:Seq[AggFilter], var aggs:Seq[AggOp]) extends AvroRecord with KeyValueStoreOperation
 case class GroupedAgg(var group:Option[Array[Byte]], var groupVals:Seq[Array[Byte]]) extends AvroRecord
 case class AggReply(var results:Seq[GroupedAgg]) extends AvroRecord with KeyValueStoreOperation
