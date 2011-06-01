@@ -111,7 +111,7 @@ trait QuorumProtocol
     val (servers, quorum) = writeQuorumForKey(key)
     val putRequest = PutRequest(key, value.map(createMetadata))
     val responses = serversForKey(key).map(_ !! putRequest)
-    responses.blockFor(quorum)
+    responses.blockFor(quorum, 500, TimeUnit.MILLISECONDS)
   }
 
   /* Buffers KV tuples until the average buffer size for all the servers is
