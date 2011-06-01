@@ -453,7 +453,7 @@ object Experiments {
     }
 
     def runScaleTest(numServers: Int, executor: String) = {
-      val (engineTasks, cluster) = ScadrLoaderTask(numServers, numServers/2, replicationFactor=2, followingCardinality=10, usersPerServer = 60000).delayedCluster
+      val (engineTasks, cluster) = ScadrLoaderTask(numServers, numServers/2, replicationFactor=2, followingCardinality=50, usersPerServer = 60000).delayedCluster
 
       val workloadTasks = ScadrScaleTask(
         numServers/2,
