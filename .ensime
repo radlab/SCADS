@@ -1,0 +1,30 @@
+;; SCADS .ensime file
+
+;; NB: Unfortunatly, adding in the "config" project as a dep of
+;; anything will cause the analyzer to crash (at least on my
+;; machine). This has something to do with "config" being the thing to
+;; include scalatest.  This means your error checker won't be able to
+;; find scalatest and will complain about any files that include it.
+;; If you figure out a way to fix this, please let me (nick) know.
+
+(:project-package "SCADS"
+ :use-sbt t
+ :sbt-subprojects (
+    (:name "config" :deps ())
+    (:name "avro" :deps ())
+    (:name "axer" :deps ("avro"))
+    (:name "comm" :deps ("config" "avro"))
+    (:name "scalaengine" :deps ("avro" "comm" "deploylib"))
+    (:name "deploylib" :deps ("comm" "optional"))
+    (:name "optional" :deps ())
+    (:name "director" :deps("scalaengine"))
+    (:name "piql" :deps ("avro" "comm" "scalaengine"))
+    (:name "perf" :deps ("avro" "comm" "scalaengine" "piql" "deploylib"))
+    (:name "tcpw" :deps ("piql" "perf"))
+    (:name "modeling" :deps ("piql" "perf" "deploylib" "scadr" "tpcw"))
+    (:name "repl" :deps ("modeling"))
+    (:name "scadr" :deps ("piql" "perf"))
+    (:name "gradit" :deps ("piql"))
+    (:name "comrades" :deps ("piql"))
+  )
+)
