@@ -96,6 +96,7 @@ class SpecificNamespace[Key <: SpecificRecord : Manifest, Value <: SpecificRecor
   with ZooKeeperGlobalMetadata
   with DefaultKeyRangeRoutable
   with QuorumRangeProtocol
+  with AnalyticsProtocol
   with AvroSpecificKeyValueSerializer[Key, Value]
   with RangeKeyValueStore[Key, Value] {
 
