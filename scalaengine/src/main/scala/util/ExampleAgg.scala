@@ -19,6 +19,7 @@ object ExampleAgg {
     ns.put(IntRec2(2), MultiTestRec(2, 2, 2))
     ns.put(IntRec2(3), MultiTestRec(3, 2, 0))
     ns.put(IntRec2(4), MultiTestRec(13, 3, 0))
+    ns.put(IntRec2(5), MultiTestRec(11, 3, 0))
 
     val agg = ns.applyAggregate(List[String]("f2"),
                                 classOf[IntRec2].getName,
@@ -26,5 +27,18 @@ object ExampleAgg {
                                 List(new :>("f3",0)),
                                 List((new AvgLocal,new AvgRemote("f1"))))
     println(agg)
+
+
+    val aggm = ns.applyAggregate(List[String]("f2"),
+                                 classOf[IntRec2].getName,
+                                 classOf[MultiTestRec].getName,
+                                 List(),
+                                 List(
+                                   (new MaxLocal,new MaxRemote("f1")),
+                                   (new MinLocal,new MinRemote("f1")),
+                                   (new SumLocal,new SumRemote("f1"))
+                                 )
+                               )
+    println(aggm)
   }
 }

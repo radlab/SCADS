@@ -69,6 +69,14 @@ abstract class LocalAggregate[TransType <: ScalaSpecificRecord,
 trait RemoteAggregate[TransType <: ScalaSpecificRecord,
                 KeyType <: ScalaSpecificRecord,
                 ValueType <: ScalaSpecificRecord] {
+  protected def toDouble(v:Any):Double = {
+    v match {
+      case x:java.lang.Integer => x.doubleValue
+      case x:java.lang.Long => x.doubleValue
+      case x:java.lang.Float => x.doubleValue
+      case x:java.lang.Double => x.doubleValue
+    }
+  }
   def init():TransType
   def applyAggregate(a:TransType,k:KeyType,v:ValueType):TransType
 }
