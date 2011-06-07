@@ -12,6 +12,8 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
 import org.apache.avro.generic._
 
+import scala.util.control.Breaks
+
 import java.util.{ Arrays => JArrays }
 import java.util.concurrent.{ Future => JFuture, _ }
 import java.lang.reflect.Method
@@ -133,6 +135,8 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
     openCursors.clear()
     db.close()
   }
+
+  private val iterateRangeBreakable = new Breaks
 
   override def toString = 
     "<PartitionHandler namespace: %s, keyRange: [%s, %s)>".format(
@@ -412,6 +416,8 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
             else
               null
 
+          var stop = false
+
           iterateOverRange(None,None)((key, value, _) => {
             // TODO: Use lazy values here
             val valBytes = value.getData
@@ -436,11 +442,15 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
                   }
                 }
               }
+              stop = true
               aggregates.view.zipWithIndex foreach(aggregate => {
                 curAggVal(aggregate._2) = aggregate._1.applyAggregate(curAggVal(aggregate._2),remKey,remVal)
+                stop &= aggregate._1.stop
               })
               if (groups.size() != 0)
                 groupMap += ((groupKey,curAggVal))
+              if (stop)
+                iterateRangeBreakable.break
             }
           })
 
@@ -600,12 +610,14 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 
       if (status == OperationStatus.SUCCESS)
         status = cur.getCurrent(dbeKey, dbeValue, null)
-      while(status == OperationStatus.SUCCESS &&
-            limit.map(_ > returnedCount).getOrElse(true) &&
-            maxKey.map(mk => compare(dbeKey.getData, mk) < 0 /* Exclude maxKey from range */).getOrElse(true)) {
-        func(dbeKey, dbeValue, cur)
-        returnedCount += 1
-        status = cur.getNext(dbeKey, dbeValue, null)
+      iterateRangeBreakable.breakable { // used to allow func to break out early
+        while(status == OperationStatus.SUCCESS &&
+              limit.map(_ > returnedCount).getOrElse(true) &&
+              maxKey.map(mk => compare(dbeKey.getData, mk) < 0 /* Exclude maxKey from range */).getOrElse(true)) {
+                func(dbeKey, dbeValue, cur)
+                returnedCount += 1
+                status = cur.getNext(dbeKey, dbeValue, null)
+              }
       }
     }
     else {
@@ -616,12 +628,14 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 
       if (status == OperationStatus.SUCCESS)
         status = cur.getCurrent(dbeKey, dbeValue, null)
-      while(status == OperationStatus.SUCCESS &&
-            limit.map(_ > returnedCount).getOrElse(true) &&
-            minKey.map(compare(_, dbeKey.getData) <= 0).getOrElse(true)) {
-        func(dbeKey, dbeValue,cur)
-        returnedCount += 1
-        status = cur.getPrev(dbeKey, dbeValue, null)
+      iterateRangeBreakable.breakable { // used to allow func to break out early
+        while(status == OperationStatus.SUCCESS &&
+              limit.map(_ > returnedCount).getOrElse(true) &&
+              minKey.map(compare(_, dbeKey.getData) <= 0).getOrElse(true)) {
+                func(dbeKey, dbeValue,cur)
+                returnedCount += 1
+                status = cur.getPrev(dbeKey, dbeValue, null)
+              }
       }
     }
     cur.close()
