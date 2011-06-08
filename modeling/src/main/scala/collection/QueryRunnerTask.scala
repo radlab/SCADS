@@ -66,10 +66,10 @@ case class QueryRunnerTask(var numClients: Int,
 
     val experimentRoot = ZooKeeperNode(experimentAddress)
     val coordination = experimentRoot.getOrCreate("coordination/clients")
-    val clientId = coordination.registerAndAwait("clientStart", numClients, timeout=60*60*1000)
+    val clientId = coordination.registerAndAwait("clientStart", numClients, timeout=24*60*60*1000)  // 1 day
 
     val clusterRoot = ZooKeeperNode(clusterAddress)
-    clusterRoot.awaitChild("clusterReady")
+    clusterRoot.awaitChild("clusterReady", timeout=24*60*60*1000) // 1 day
     val cluster = new ScadsCluster(clusterRoot)
 
     val traceFile = new File("piqltrace.avro")
@@ -97,6 +97,8 @@ case class QueryRunnerTask(var numClients: Int,
       val responseTimes = new ConcurrentHashMap[QueryDescription, Histogram]
       val failedQueries = new ConcurrentHashMap[QueryDescription, AtomicInteger]
 
+      logger.warning("Registered Actor Count: %d", MessageHandler.registrySize)
+      logger.warning("Late messages %d", MessageHandler.invalidMessageCount.getAndSet(0))
       logger.info("Beginning iteration %d", iteration)
       (1 to threads).pmap(threadId => {
 	      val seed = java.net.InetAddress.getLocalHost.getHostName + System.currentTimeMillis + threadId

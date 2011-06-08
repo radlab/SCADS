@@ -12,6 +12,7 @@ import piql.scadr._
 import perf.scadr._
 import avro.marker._
 import avro.runtime._
+import collection.TraversableOnce
 
 object Experiments {
   var resultZooKeeper = ZooKeeperNode("zk://zoo.knowsql.org/").getOrCreate("home").getOrCreate(System.getenv("USER"))
@@ -45,11 +46,11 @@ object Experiments {
     client
   }
 
-  def clients = cluster.slaves.pflatMap(_.jps).filter(_.main equals "AvroTaskMain").pfilterNot(_.stack contains "ScalaEngineTask")
+  def clients = cluster.slaves.pflatMap(_.jps).filter(_.main equals "AvroTaskMain").filterNot(_.stack contains "ScalaEngineTask")
   def laggards = clients.pfilterNot(_.stack contains "awaitChild")
   def tagClients = clients.map(_.remoteMachine.asInstanceOf[EC2Instance]).foreach(_.tags += ("task", "client"))
 
-  def killTask(id: Int): Unit = cluster.serviceScheduler !? KillTaskRequest(id)
+  def killTask(id: String): Unit = cluster.serviceScheduler !? KillTaskRequest(id)
 
   implicit def productSeqToExcel(lines: Seq[Product]) = new {
     import java.io._
@@ -122,7 +123,7 @@ object Experiments {
 		}
 		
     def defaultScadr = ScadrLoaderTask(numServers=10,
-				       numLoaders=10,
+				       numLoaders=5,
 				       followingCardinality=500,
 				       replicationFactor=2,
 				       usersPerServer=20000,
@@ -137,11 +138,11 @@ object Experiments {
 				  thoughtsPerUser=100
 				 )
     val defaultRunner = 
-      QueryRunnerTask(10,
+      QueryRunnerTask(5,
 		      "edu.berkeley.cs.scads.piql.modeling.ScadrQueryProvider",
-		      iterations=30,
+		      iterations=10*6,
 		      iterationLengthMin=10,
-		      threads=2,
+		      threads=5,
 		      traceIterators=false,
 		      traceMessages=false,
 		      traceQueries=false)
@@ -200,7 +201,8 @@ object Experiments {
       benchmarkScadr(scadrCluster)
     }
 
-    val tpcwCluster = tpcw.TpcwLoaderTask(10, 10, numEBs=100, numItems=100000, 2)
+    val numClients = 5
+    val tpcwCluster = tpcw.TpcwLoaderTask(10, numClients, numEBs=150*numClients, numItems=10000, 2)
     val tpcwRunner =
       QueryRunnerTask(numClients=10,
         "edu.berkeley.cs.scads.piql.modeling.TpcwQueryProvider",
@@ -212,11 +214,11 @@ object Experiments {
         traceQueries=false)
 
     val defaultTpcwRunner =
-      QueryRunnerTask(10,
+      QueryRunnerTask(numClients,
 		      "edu.berkeley.cs.scads.piql.modeling.TpcwQueryProvider",
-		      iterations=5*6,
+		      iterations=10*6,
 		      iterationLengthMin=10,
-		      threads=20,
+		      threads=10,
 		      traceIterators=false,
 		      traceMessages=false,
 		      traceQueries=false)
@@ -224,6 +226,11 @@ object Experiments {
     def tpcwBenchmark = {
       val cluster = tpcwCluster.newCluster
       defaultTpcwRunner.schedule(cluster, resultsCluster)
+    }
+
+    def rocTpcwBenchmark = {
+      val cluster = tpcwCluster.newCluster
+      (1 to 100).foreach(_ => defaultTpcwRunner.copy(iterations=5).schedule(cluster,resultsCluster))
     }
 
     def testTpcwRunner: Unit = {
@@ -249,13 +256,17 @@ object Experiments {
 
     def benchmarkScadr(cluster: ScadsCluster = defaultScadr.newCluster) =
       defaultRunner.schedule(cluster,resultsCluster)
+      
+    def rocBenchmarkScadr(cluster: ScadsCluster = defaultScadr.newCluster) = 
+      (1 to 100).foreach(_ => defaultRunner.copy(iterations=2).schedule(cluster,resultsCluster))
   }
 
   object TpcwScaleExperiment {
     import piql.tpcw._
     import scale._
+    type Result = piql.tpcw.scale.Result
 
-    val results = resultsCluster.getNamespace[piql.tpcw.scale.Result]("tpcwScaleResults")
+    val results = resultsCluster.getNamespace[Result]("tpcwScaleResults")
 
     import org.apache.avro.generic._
     import org.apache.avro.file.{DataFileReader, DataFileWriter, CodecFactory}
@@ -271,8 +282,8 @@ object Experiments {
 
     def backup = results.iterateOverRange(None,None).toAvroFile(new java.io.File("tpcwScale." + System.currentTimeMillis + ".avro"))
 
-    def scaleResults = {
-      results.iterateOverRange(None, None)
+    def scaleResultsIter(dataPoints: Seq[Result] = results.iterateOverRange(None, None).toSeq) = {
+      dataPoints
         .filter(_.loaderConfig.replicationFactor == 2)
         .filter(_.clientConfig.iterations == 4)
         .filter(_.clientConfig.numThreads == 10)
@@ -286,7 +297,27 @@ object Experiments {
           val failures = results.map(_.failures).sum
           val loaderConfig = results.head.loaderConfig
           val clientConfig = results.head.clientConfig
-          (loaderConfig.numServers, aggHist.totalRequests, aggHist.quantile(0.99), clientConfig.numClients, clientConfig.executorClass, iter, aggHist.quantile(0.90), skips, failures, results.size)
+          (loaderConfig.numServers, aggHist.totalRequests, aggHist.quantile(0.99), aggHist.stddev, clientConfig.numClients, clientConfig.executorClass, iter, aggHist.quantile(0.90), skips, failures, results.size, exp)
+      }.toSeq
+    }
+
+    def scaleResults(dataPoints: Seq[Result] = results.iterateOverRange(None, None).toSeq) = {
+      dataPoints
+        .filter(_.loaderConfig.replicationFactor == 2)
+        .filter(_.clientConfig.iterations == 4)
+        .filter(_.clientConfig.numThreads == 10)
+        .filter(_.clientConfig.runLengthMin == 5)
+        .filter(r => r.loaderConfig.numServers / 2 == r.clientConfig.numClients)
+        .filter(_.iteration != 1).toSeq
+        .groupBy(r => r.loaderConfig.numServers)
+        .map {
+        case (numServers, results) =>
+          val aggHist = results.map(_.times).reduceLeft(_ + _)
+          val skips = results.map(_.skips).sum
+          val failures = results.map(_.failures).sum
+          val loaderConfig = results.head.loaderConfig
+          val clientConfig = results.head.clientConfig
+          (loaderConfig.numServers, aggHist.totalRequests, aggHist.quantile(0.99), aggHist.stddev, clientConfig.numClients, clientConfig.executorClass, aggHist.quantile(0.90), skips, failures, results.size)
       }.toSeq
     }
 
@@ -319,8 +350,9 @@ object Experiments {
   object ScadrScaleExperiment {
     import perf.scadr._
     import scale._
+    type Result = perf.scadr.scale.Result
 
-    val results = resultsCluster.getNamespace[perf.scadr.scale.Result]("scadrScaleResults")
+    val results = resultsCluster.getNamespace[Result]("scadrScaleResults")
 
     def backup: Unit = {
       val outfile = AvroOutFile[perf.scadr.scale.Result]("scadrScale." + System.currentTimeMillis + ".avro")
@@ -386,8 +418,8 @@ object Experiments {
           resultsCluster))
     }
 
-    def scaleResults = {
-      results.iterateOverRange(None, None)
+    def scaleResultsIter(dataPoints: Seq[Result] = results.iterateOverRange(None, None).toSeq) = {
+      dataPoints
         .filter(_.loaderConfig.replicationFactor == 2)
         .filter(_.loaderConfig.usersPerServer == 60000)
         .filter(_.clientConfig.iterations == 4)
@@ -405,8 +437,28 @@ object Experiments {
       }.toSeq
     }
 
+    def scaleResults(dataPoints: Seq[Result] = results.iterateOverRange(None, None).toSeq) = {
+      dataPoints
+        .filter(_.loaderConfig.replicationFactor == 2)
+        .filter(_.loaderConfig.usersPerServer == 60000)
+        .filter(_.clientConfig.iterations == 4)
+        .filter(_.clientConfig.threads == 10)
+        .filter(_.clientConfig.runLengthMin == 5)
+        .filter(_.iteration != 1).toSeq
+        .groupBy(r => r.loaderConfig.numServers)
+        .map {
+        case (numServers, results) =>
+          val aggHist = results.map(_.times).reduceLeft(_ + _)
+          val skips = results.map(_.skips).sum
+          val loaderConfig = results.head.loaderConfig
+          val clientConfig = results.head.clientConfig
+
+          (loaderConfig.numServers, aggHist.totalRequests, aggHist.quantile(0.99), aggHist.stddev, clientConfig.numClients, clientConfig.executorClass, aggHist.quantile(0.90), skips, results.size)
+      }.toSeq
+    }
+
     def runScaleTest(numServers: Int, executor: String) = {
-      val (engineTasks, cluster) = ScadrLoaderTask(numServers, numServers/2, replicationFactor=2, followingCardinality=10, usersPerServer = 60000).delayedCluster
+      val (engineTasks, cluster) = ScadrLoaderTask(numServers, numServers/2, replicationFactor=2, followingCardinality=50, usersPerServer = 60000).delayedCluster
 
       val workloadTasks = ScadrScaleTask(
         numServers/2,

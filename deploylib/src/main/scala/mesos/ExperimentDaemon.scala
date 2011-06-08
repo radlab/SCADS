@@ -13,10 +13,6 @@ case class RemoteServiceScheduler(var host: String, var port: Int, var id: Actor
   def scheduleExperiment(processes: Seq[JvmTask]): Unit = {
     this !? (RunExperimentRequest(processes.toList), 60 * 1000)
   }
-
-  def receiveMessage(src: Option[RemoteActorProxy], msg: MessageBody): Unit = {
-    logger.info("Received %s from %s", msg, src)
-  }
 }
 
 class ServiceScheduler(mesosMaster: String, executor: String) extends LocalExperimentScheduler("Meta-Scheduler", mesosMaster, executor) with ServiceHandler[ExperimentOperation] {

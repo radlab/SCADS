@@ -180,10 +180,4 @@ object ModelingExperiments {
       (actualQuantileHist, predictedQuantileHist)
     }
   }
-  
-  object TpcwData {
-    def experimentResults = allResults.filter(_.clientConfig.clusterAddress == "zk://zoo.knowsql.org/home/marmbrus/scads/experimentCluster0000000191").filterNot(_.iteration == 1)
-    
-    val tpcwQueryTypes = queryTypes(experimentResults.toSeq)
-  }
 }
