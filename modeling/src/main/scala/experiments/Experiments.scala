@@ -228,6 +228,11 @@ object Experiments {
       defaultTpcwRunner.schedule(cluster, resultsCluster)
     }
 
+    def rocTpcwBenchmark = {
+      val cluster = tpcwCluster.newCluster
+      (1 to 100).foreach(_ => defaultTpcwRunner.copy(iterations=5).schedule(cluster,resultsCluster))
+    }
+
     def testTpcwRunner: Unit = {
       val cluster = tpcw.TpcwLoaderTask(2, 2, 10, 1000, 2).newTestCluster
       val runner = QueryRunnerTask(1,

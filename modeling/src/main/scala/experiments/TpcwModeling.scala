@@ -17,6 +17,13 @@ import scala.collection.mutable.ArrayBuffer
 
 object TpcwModeling {
   object Util {
+    def printPerIterationPredictionSummary(summary:(Histogram, Histogram)) = {
+      val actualHist = summary._1
+      val predictedHist = summary._2
+      println(List("Actual:", "average=", actualHist.average, "median=", actualHist.median, "stddev=", actualHist.stddev, "max=", actualHist.quantile(0.99)).mkString(", "))
+      println(List("Predicted:", "average=", predictedHist.average, "median=", predictedHist.median, "stddev=", predictedHist.stddev, "max=", predictedHist.quantile(0.99)).mkString(", "))
+    }
+
   	def convolve(hist1: ArrayBuffer[BigInt], hist2: ArrayBuffer[BigInt]): ArrayBuffer[BigInt] = {
   	  var defaultBucketCount = 1000
 
@@ -73,12 +80,15 @@ object TpcwModeling {
     //val clusterAddress = "zk://ec2-75-101-230-218.compute-1.amazonaws.com:2181,ec2-50-19-23-28.compute-1.amazonaws.com:2181,ec2-67-202-16-139.compute-1.amazonaws.com:2181/scads/experimentCluster0000000000"
     //val clusterAddress = "zk://ec2-50-16-25-212.compute-1.amazonaws.com:2181,ec2-67-202-10-38.compute-1.amazonaws.com:2181,ec2-174-129-128-67.compute-1.amazonaws.com:2181/scads/experimentCluster0000000000"
     //val clusterAddress = "zk://ec2-50-19-140-43.compute-1.amazonaws.com:2181,ec2-72-44-35-240.compute-1.amazonaws.com:2181,ec2-50-17-68-210.compute-1.amazonaws.com:2181/scads/experimentCluster0000000000"
-    //val clusterAddress = "zk://ec2-174-129-157-147.compute-1.amazonaws.com:2181,ec2-50-17-12-53.compute-1.amazonaws.com:2181,ec2-184-72-171-124.compute-1.amazonaws.com:2181/scads/experimentCluster0000000000"
-    val clusterAddress = "zk://ec2-174-129-157-147.compute-1.amazonaws.com:2181,ec2-50-17-12-53.compute-1.amazonaws.com:2181,ec2-184-72-171-124.compute-1.amazonaws.com:2181/scads/experimentCluster0000000007" // 5.27.11, 3p
+    //val clusterAddress = "zk://ec2-174-129-157-147.compute-1.amazonaws.com:2181,ec2-50-17-12-53.compute-1.amazonaws.com:2181,ec2-184-72-171-124.compute-1.amazonaws.com:2181/scads/experimentCluster0000000000" // 5.26.11, afternoon
+    //val clusterAddress = "zk://ec2-174-129-157-147.compute-1.amazonaws.com:2181,ec2-50-17-12-53.compute-1.amazonaws.com:2181,ec2-184-72-171-124.compute-1.amazonaws.com:2181/scads/experimentCluster0000000007" // 5.27.11, 3p (blocking)
+    //val clusterAddress = "zk://ec2-174-129-157-147.compute-1.amazonaws.com:2181,ec2-50-17-12-53.compute-1.amazonaws.com:2181,ec2-184-72-171-124.compute-1.amazonaws.com:2181/scads/experimentCluster0000000027"
+    val clusterAddress = "zk://ec2-50-17-12-53.compute-1.amazonaws.com:2181,ec2-184-72-171-124.compute-1.amazonaws.com:2181,ec2-174-129-157-147.compute-1.amazonaws.com:2181/scads/experimentCluster0000000065"
 
     def experimentResults = allResults.filter(_.clientConfig.clusterAddress == clusterAddress)
     
-    def goodExperimentResults = experimentResults.filter(res => res.iteration > 1 && res.iteration <= 50)
+    val numIntervals = 35
+    def goodExperimentResults = experimentResults.filter(res => res.iteration > 1 && res.iteration <= numIntervals)
         
     val histogramsTpcw = queryTypeHistogram(goodExperimentResults.toSeq)
     
@@ -127,7 +137,7 @@ object TpcwModeling {
     }
     
     def getPerIntervalPrediction(quantile: Double = 0.99):(Histogram, Histogram) = {
-      val numIntervals = 30
+      //val numIntervals = 30
       
       val actualQuantileHist = Histogram(1,1000)
       val predictedQuantileHist = Histogram(1,1000)
@@ -172,7 +182,7 @@ object TpcwModeling {
     }
     
     def getPerIntervalPrediction(quantile: Double = 0.99):(Histogram, Histogram) = {
-      val numIntervals = 30
+      //val numIntervals = 30
       
       val actualQuantileHist = Histogram(1,1000)
       val predictedQuantileHist = Histogram(1,1000)
@@ -241,7 +251,7 @@ object TpcwModeling {
     }
     
     def getPerIntervalPrediction(quantile: Double = 0.99):(Histogram, Histogram) = {
-      val numIntervals = 30
+      //val numIntervals = 30
       
       val actualQuantileHist = Histogram(1,1000)
       val predictedQuantileHist = Histogram(1,1000)
@@ -279,6 +289,33 @@ object TpcwModeling {
     
     val actual99th = orderDisplayGetCustomerHist.quantile(0.99)
     val predicted99th = indexLookupCustomersHist.quantile(0.99)
+    
+    def predictOneInterval(i: Int, desiredQuantile: Double): Int = {
+      val indexLookupCustomersHist = perIterationHistograms((indexLookupCustomers, i))
+
+      indexLookupCustomersHist.quantile(desiredQuantile)
+    }
+        
+    def getPerIntervalPrediction(quantile: Double = 0.99):(Histogram, Histogram) = {
+      val actualQuantileHist = Histogram(1,1000)
+      val predictedQuantileHist = Histogram(1,1000)
+
+      println("interval, actualQuantile, predictedQuantile")
+
+      (2 to numIntervals).foreach(i => {
+        val actualHist = perIterationHistograms((orderDisplayGetCustomer, i))
+        val actualQuantile = actualHist.quantile(quantile)
+        actualQuantileHist += actualQuantile
+
+        val predictedQuantile = predictOneInterval(i, quantile)
+        predictedQuantileHist += predictedQuantile
+        
+        println(List(i, actualQuantile, predictedQuantile).mkString(","))
+      })
+
+      (actualQuantileHist, predictedQuantileHist)
+    }
+    
   }
   
   object ModelOrderDisplayGetLastOrder {
@@ -311,6 +348,19 @@ object TpcwModeling {
             
     import Util._
 
+    /*
+    def predictHistBySampling = {
+      val numSamples = orderDisplayGetLastOrderHist.totalRequests
+      
+      val predictedHist = Histogram(1,1000)
+      
+      (1 to numSamples).foreach(i => {
+        val latencySample = 0
+        latencySample += 
+      })
+    }
+    */
+
     def predictHist = {
       val res1 = convolve(indexScanOrdersIdxHist, indexLookupJoinOrdersHist)
       val res2 = convolve(res1, indexLookupJoinAddressesHist)
@@ -336,7 +386,7 @@ object TpcwModeling {
     }
         
     def getPerIntervalPrediction(quantile: Double = 0.99):(Histogram, Histogram) = {
-      val numIntervals = 30
+      //val numIntervals = 50
 
       val actualQuantileHist = Histogram(1,1000)
       val predictedQuantileHist = Histogram(1,1000)
@@ -395,7 +445,7 @@ object TpcwModeling {
     }
     
     def getPerIntervalPrediction(quantile: Double = 0.99):(Histogram, Histogram) = {
-      val numIntervals = 30
+      //val numIntervals = 30
       
       val actualQuantileHist = Histogram(1,1000)
       val predictedQuantileHist = Histogram(1,1000)
@@ -449,7 +499,7 @@ object TpcwModeling {
     }
         
     def getPerIntervalPrediction(quantile: Double = 0.99):(Histogram, Histogram) = {
-      val numIntervals = 30
+      //val numIntervals = 30
 
       val actualQuantileHist = Histogram(1,1000)
       val predictedQuantileHist = Histogram(1,1000)
@@ -509,17 +559,64 @@ object TpcwModeling {
     // I think we need the following:
     
     val indexScanAuthorsIdx = QueryDescription("indexScanAuthorsIdx", List(10), 1)  // i have this benchmark already
+    val indexScanAuthorsIdxHist = histogramsTpcw(indexScanAuthorsIdx).buckets.map(BigInt(_))
     
     val indexLookupJoinAuthors = QueryDescription("indexLookupJoinAuthors", List(1), 1) // i NEED this
+    val indexLookupJoinAuthorsHist = histogramsTpcw(indexLookupJoinAuthors).buckets.map(BigInt(_))
     
     val indexMergeJoinItemsIdx = QueryDescription("indexMergeJoinItemsIdx", List(1, 10), 10) // i NEED this
+    val indexMergeJoinItemsIdxHist = histogramsTpcw(indexMergeJoinItemsIdx).buckets.map(BigInt(_))
+    
+    def predictHist = {
+      val res1 = convolve(indexScanAuthorsIdxHist, indexLookupJoinAuthorsHist)
+      val res2 = convolve(res1, indexMergeJoinItemsIdxHist)
+      res2
+    }
+    
+    val actual99th = searchByAuthorWIHist.quantile(0.99)
+    val predicted99th = quantile(predictHist, 0.99)
+    
+    def predictOneInterval(i: Int, desiredQuantile: Double): Int = {
+      val indexScanAuthorsIdxHist = perIterationHistograms((indexScanAuthorsIdx, i)).buckets.map(BigInt(_))
+      val indexLookupJoinAuthorsHist = perIterationHistograms((indexLookupJoinAuthors, i)).buckets.map(BigInt(_))
+      val indexMergeJoinItemsIdxHist = perIterationHistograms((indexMergeJoinItemsIdx, i)).buckets.map(BigInt(_))
+
+      val res1 = convolve(indexScanAuthorsIdxHist, indexLookupJoinAuthorsHist)
+      val res2 = convolve(res1, indexMergeJoinItemsIdxHist)
+      res2
+
+      quantile(res2, desiredQuantile)
+    }
+
+     def getPerIntervalPrediction(quantile: Double = 0.99):(Histogram, Histogram) = {
+       //val numIntervals = 30
+
+       val actualQuantileHist = Histogram(1,1000)
+       val predictedQuantileHist = Histogram(1,1000)
+
+       println("interval, actualQuantile, predictedQuantile")
+
+       (2 to numIntervals).foreach(i => {
+         val actualHist = perIterationHistograms((searchByAuthorWI, i))
+         val actualQuantile = actualHist.quantile(quantile)
+         actualQuantileHist += actualQuantile
+
+         val predictedQuantile = predictOneInterval(i, quantile)
+         predictedQuantileHist += predictedQuantile
+
+         println(List(i, actualQuantile, predictedQuantile).mkString(","))
+       })
+
+       (actualQuantileHist, predictedQuantileHist)
+     }
+    
   }
   
   object ModelSearchByTitleWI {
     import TpcwData._
     import Util._
     
-    val searchByTitleWI = QueryDescription("searchByTitleWI", List(10), 9)  // want to make requested, result cardinalities match
+    val searchByTitleWI = QueryDescription("searchByTitleWI", List(10), 7/*9*/)  // want to make requested, result cardinalities match
     val searchByTitleWIHist = histogramsTpcw(searchByTitleWI)
     
     //scala> testTpcwClient.searchByTitleWI.physicalPlan
@@ -540,14 +637,14 @@ object TpcwModeling {
     val predicted99th = quantile(predictHist, 0.99)
     
     def predictOneInterval(i: Int, desiredQuantile: Double): Int = {
-      val indexScanItemsIdxHist = perIterationHistograms((indexScanItemsIdx, 1)).buckets.map(BigInt(_))
-      val indexLookupJoinAuthorsHist = perIterationHistograms((indexLookupJoinAuthors, 1)).buckets.map(BigInt(_))
+      val indexScanItemsIdxHist = perIterationHistograms((indexScanItemsIdx, i)).buckets.map(BigInt(_))
+      val indexLookupJoinAuthorsHist = perIterationHistograms((indexLookupJoinAuthors, i)).buckets.map(BigInt(_))
 
        quantile(convolve(indexScanItemsIdxHist, indexLookupJoinAuthorsHist), desiredQuantile)
      }
 
      def getPerIntervalPrediction(quantile: Double = 0.99):(Histogram, Histogram) = {
-       val numIntervals = 30
+       //val numIntervals = 30
 
        val actualQuantileHist = Histogram(1,1000)
        val predictedQuantileHist = Histogram(1,1000)
