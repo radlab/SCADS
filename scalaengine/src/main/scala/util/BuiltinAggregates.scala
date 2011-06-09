@@ -133,3 +133,70 @@ class SumLocal extends LocalAggregate[ValueAggContainer, Double] {
     f.curval
   }
 }
+
+
+
+
+// average over limited number of records
+// if hard is true, EXACTLY limit records will be averaged, 
+// otherwise, AT LEAST limit records will be averaged
+class SampleAvgRemote(field:String,limit:Int,hard:Boolean=false) extends RemoteAggregate[CountAggContainer, ScalaSpecificRecord, ScalaSpecificRecord] {
+  var pos = -1 // will be updated first time we see a record
+
+  def init(): CountAggContainer = {
+    CountAggContainer(0, 0)
+  }
+
+  /* -- some internal private vars for maintaining error counts -- */
+  // for welford's variance
+  var Mk:Double = 0.0
+  var Mkp:Double = 0.0
+  var Sk:Double = 0.0
+  var Skp:Double = 0.0
+
+  var welvar:Double = 0.0
+  var stderr:Double = 0.0
+
+  def applyAggregate(ag: CountAggContainer, key: ScalaSpecificRecord, value: ScalaSpecificRecord): CountAggContainer = {
+    ag.curcount += 1
+    if (ag.curcount > limit) {
+      stop = true
+      if (hard) return ag
+    }
+    if (pos < 0) {
+      pos = value.getSchema.getField(field).pos
+      Mk = toDouble(value.get(pos))
+      Mkp = Mk
+      Skp = 0.0
+    } else {
+      // compute sample variance and mean using welford's method 
+      val x = toDouble(value.get(pos))
+      Mk = Mkp + (x - Mkp)/ag.curcount;
+      Sk = Skp + (x - Mkp)*(x - Mk);
+    
+      Mkp = Mk
+      Skp = Sk
+
+      if (ag.curcount > 1) {
+        welvar =  Sk/(ag.curcount - 1)
+        stderr = welvar / scala.math.sqrt(ag.curcount)
+      }
+    }
+    ag.curval = Mk
+    ag
+  }
+}
+
+class SampleAvgLocal extends LocalAggregate[CountAggContainer, Double] {
+  def init(): CountAggContainer = {
+    CountAggContainer(0, 0)
+  }
+  def foldFunction(cur: CountAggContainer, next: CountAggContainer): CountAggContainer = {
+    cur.curcount += next.curcount
+    cur.curval = cur.curval + (next.curval * next.curcount)
+    cur
+  }
+  def finalize(f: CountAggContainer): Double = {
+    f.curval / f.curcount
+  }
+}

@@ -5,8 +5,6 @@ import edu.berkeley.cs.avro.marker.AvroRecord
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.util._
 
-import edu.berkeley.cs.avro.runtime.ScalaSpecificRecord
-
 case class IntRec2(var x: Int) extends AvroRecord
 case class MultiTestRec(var f1: Int, var f2: Int, var f3: Int) extends AvroRecord
 
@@ -28,6 +26,8 @@ object ExampleAgg {
                                 List((new AvgLocal,new AvgRemote("f1"))))
     println(agg)
 
+    ns.put(IntRec2(6), MultiTestRec(15, 3, 0))
+
 
     val aggm = ns.applyAggregate(List[String]("f2"),
                                  classOf[IntRec2].getName,
@@ -40,5 +40,17 @@ object ExampleAgg {
                                  )
                                )
     println(aggm)
+
+    val aggl = ns.applyAggregate(List[String](),
+                                 classOf[IntRec2].getName,
+                                 classOf[MultiTestRec].getName,
+                                 List(),
+                                 List(
+                                   (new SampleAvgLocal,new SampleAvgRemote("f1",2,true)),
+                                   (new SampleAvgLocal,new SampleAvgRemote("f1",2)),
+                                   (new SampleAvgLocal,new SampleAvgRemote("f1",3))
+                                 )
+                               )
+    println(aggl)
   }
 }
