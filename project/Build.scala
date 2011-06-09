@@ -1,3 +1,123 @@
+
+
+import sbt._
+
+import Keys._
+
+// Shell prompt which show the current project, git branch and build version
+
+
+object Resolvers {
+
+  val sunrepo    = "Sun Maven2 Repo" at "http://download.java.net/maven/2"
+  val sunrepoGF  = "Sun GF Maven2 Repo" at "http://download.java.net/maven/glassfish"
+  val oraclerepo = "Oracle Maven2 Repo" at "http://download.oracle.com/maven"
+
+  val oracleResolvers = Seq (sunrepo, sunrepoGF, oraclerepo)
+
+}
+
+object Dependencies {
+  /* Config */
+    val configgy = "net.lag" % "configgy" % "2.0.0"
+    val scalaTest = "org.scalatest" % "scalatest" % "1.2"
+    val junit = "junit" % "junit" % "4.7"
+
+  /* Avro */
+    val avroJava = "org.apache.hadoop" % "avro" % "1.3.3"
+
+  /* Comm */
+    val netty = "org.jboss.netty" % "netty" % "3.2.1.Final"
+    val log4j = "log4j" % "log4j" % "1.2.15"
+    val zookeeper = "org.apache.hadoop.zookeeper" % "zookeeper" % "3.3.1"
+
+  /* Scala Engine */
+    val bdb = "com.sleepycat" % "je" % "4.0.71"
+
+
+  /* deploy lib */
+    val mesos = "edu.berkeley.cs.mesos" % "java" % "1.0"
+    val staxApi = "javax.xml.stream" % "stax-api" % "1.0"
+    val jaxbApi = "javax.xml.bind" % "jaxb-api" % "2.1"
+    val json = "org.json" % "json" % "20090211"
+    val awsSdk = "com.amazonaws" % "aws-java-sdk" % "1.1.5"
+    val ganymedSsh2 = "ch.ethz.ganymed" % "ganymed-ssh2" % "build210"
+    val commonsLoggingApi = "commons-logging" % "commons-logging-api" % "1.1"
+    val commonsHttpClient = "commons-httpclient" % "commons-httpclient" % "3.0.1"
+    val jets3t = "net.java.dev.jets3t" % "jets3t" % "0.7.1"
+    val jetty = "org.mortbay.jetty" % "jetty" % "6.1.6"
+    val mysql = "mysql" % "mysql-connector-java" % "5.1.12"
+    val javaSysMon = "github.jezhumble" % "javasysmon" % "1.0"
+
+  /* repl */
+    val lift = "net.liftweb" %% "lift-mapper" % "2.2-SNAPSHOT" % "compile"
+    val jetty6 = "org.mortbay.jetty" % "jetty" % "6.1.25" % "test"
+    val h2 = "com.h2database" % "h2" % "1.2.121" % "runtime"
+    // alternately use derby
+    // val derby = "org.apache.derby" % "derby" % "10.2.2.0" % "runtime"
+    val servlet = "javax.servlet" % "servlet-api" % "2.5" % "provided"
+    val sl4jConfiggy = "com.notnoop.logging" % "slf4j-configgy" % "0.0.1"
+}
+
+
+object ScadsBuild extends Build {
+  val buildVersion      = "2.1-SNAPSHOT"
+  val buildSettings = Defaults.defaultSettings ++ Seq (organization := "edu.berkeley.cs",
+						       scalaVersion := "2.8.1",
+						       version      := buildVersion,
+						       shellPrompt  := ShellPrompt.buildShellPrompt)
+
+  import Resolvers._
+  import Dependencies._
+
+  val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"
+
+  lazy val scads = Project("scads", file("."), settings=buildSettings) aggregate (config)
+  lazy val config = Project("config", file("config"), settings=buildSettings ++ Seq(libraryDependencies := Seq(configgy)))
+
+object ShellPrompt {
+
+  object devnull extends ProcessLogger {
+    def info (s: => String) {}
+    def error (s: => String) { }
+    def buffer[T] (f: => T): T = f
+  }
+
+  val current = """\*\s+(\w+)""".r
+
+  def gitBranches = ("git branch --no-color" lines_! devnull mkString)
+
+  val buildShellPrompt = {
+    (state: State) => {
+      val currBranch = current findFirstMatchIn gitBranches map (_ group(1)) getOrElse "-"
+      val currProject = Project.extract (state).currentProject.id
+      "%s:%s:%s> ".format (currProject, currBranch, buildVersion)
+    }
+  }
+}
+
+/*
+  lazy val cdap2 = Project ("cdap2", file ("."), settings = buildSettings) aggregate (common, server, compact, pricing, pricing_service)
+
+
+  lazy val common = Project ("common", file ("cdap2-common"),
+			     settings = buildSettings ++ Seq (libraryDependencies := commonDeps))
+
+  lazy val server = Project ("server", file ("cdap2-server"),
+			     settings = buildSettings ++ Seq (resolvers := oracleResolvers,
+							      libraryDependencies := serverDeps)) dependsOn (common)
+
+  lazy val pricing = Project ("pricing", file ("cdap2-pricing"),
+			      settings = buildSettings ++ Seq (libraryDependencies := pricingDeps)) dependsOn (common, compact, server)
+
+  lazy val pricing_service = Project ("pricing-service", file ("cdap2-pricing-service"),
+				      settings = buildSettings) dependsOn (pricing, server)
+
+  lazy val compact = Project ("compact", file ("compact-hashmap"), settings = buildSettings)
+*/
+}
+
+/*
 import sbt._
 import xsbt.ScalaInstance
 
@@ -158,111 +278,4 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
     val jline =   "jline" % "jline" % "0.9.93"
   }
 }
-
-
-import sbt._
-
-import Keys._
-
-object BuildSettings {
-  val buildOrganization = "odp"
-  val buildScalaVersion = "2.9.0-1"
-  val buildVersion      = "2.0.29"
-
-  val buildSettings = Defaults.defaultSettings ++ Seq (organization := buildOrganization,
-						       scalaVersion := buildScalaVersion,
-						       version      := buildVersion,
-						       shellPrompt  := ShellPrompt.buildShellPrompt)
-
-}
-
-// Shell prompt which show the current project, git branch and build version
-object ShellPrompt {
-
-  object devnull extends ProcessLogger {
-    def info (s: => String) {}
-    def error (s: => String) { }
-    def buffer[T] (f: => T): T = f
-  }
-
-  val current = """\*\s+(\w+)""".r
-
-  def gitBranches = ("git branch --no-color" lines_! devnull mkString)
-
-  val buildShellPrompt = {
-    (state: State) => {
-      val currBranch = current findFirstMatchIn gitBranches map (_ group(1)) getOrElse "-"
-      val currProject = Project.extract (state).currentProject.id
-      "%s:%s:%s> ".format (currProject, currBranch, BuildSettings.buildVersion)
-    }
-  }
-
-}
-
-object Resolvers {
-
-  val sunrepo    = "Sun Maven2 Repo" at "http://download.java.net/maven/2"
-  val sunrepoGF  = "Sun GF Maven2 Repo" at "http://download.java.net/maven/glassfish"
-  val oraclerepo = "Oracle Maven2 Repo" at "http://download.oracle.com/maven"
-
-  val oracleResolvers = Seq (sunrepo, sunrepoGF, oraclerepo)
-
-}
-
-object Dependencies {
-
-  val logbackVersion	= "0.9.16"
-  val grizzlyVersion	= "1.9.19"
-
-  val logbackcore	= "ch.qos.logback" % "logback-core"     % logbackVersion
-  val logbackclassic	= "ch.qos.logback" % "logback-classic"  % logbackVersion
-
-  val jacksonjson	= "org.codehaus.jackson" % "jackson-core-lgpl" % "1.7.2"
-
-  val grizzlyframwork	= "com.sun.grizzly" % "grizzly-framework"  % grizzlyVersion
-  val grizzlyhttp	= "com.sun.grizzly" % "grizzly-http"       % grizzlyVersion
-  val grizzlyrcm	= "com.sun.grizzly" % "grizzly-rcm"        % grizzlyVersion
-  val grizzlyutils	= "com.sun.grizzly" % "grizzly-utils"      % grizzlyVersion
-  val grizzlyportunif	= "com.sun.grizzly" % "grizzly-portunif"   % grizzlyVersion
-
-  val sleepycat		= "com.sleepycat" % "je" % "4.0.92"
-
-  val apachenet		= "commons-net"   % "commons-net"   % "2.0"
-  val apachecodec	= "commons-codec" % "commons-codec" % "1.4"
-
-  val scalatest		= "org.scalatest" % "scalatest_2.9.0" % "1.4.1" % "test"
-}
-
-
-object CDAP2Build extends Build {
-
-  import Resolvers._
-  import Dependencies._
-  import BuildSettings._
-
-  // Sub-project specific dependencies
-  val commonDeps = Seq (logbackcore, logbackclassic, jacksonjson, scalatest)
-
-  val serverDeps = Seq (grizzlyframwork, grizzlyhttp, grizzlyrcm, grizzlyutils, grizzlyportunif, sleepycat, scalatest)
-
-  val pricingDeps = Seq (apachenet, apachecodec, scalatest)
-
-  lazy val cdap2 = Project ("cdap2", file ("."), settings = buildSettings) aggregate (common, server, compact, pricing, pricing_service)
-
-
-  lazy val common = Project ("common", file ("cdap2-common"),
-			     settings = buildSettings ++ Seq (libraryDependencies := commonDeps))
-
-  lazy val server = Project ("server", file ("cdap2-server"),
-			     settings = buildSettings ++ Seq (resolvers := oracleResolvers,
-							      libraryDependencies := serverDeps)) dependsOn (common)
-
-  lazy val pricing = Project ("pricing", file ("cdap2-pricing"),
-			      settings = buildSettings ++ Seq (libraryDependencies := pricingDeps)) dependsOn (common, compact, server)
-
-  lazy val pricing_service = Project ("pricing-service", file ("cdap2-pricing-service"),
-				      settings = buildSettings) dependsOn (pricing, server)
-
-  lazy val compact = Project ("compact", file ("compact-hashmap"), settings = buildSettings)
-
-}
+*/
