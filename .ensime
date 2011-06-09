@@ -19,6 +19,7 @@
     (:name "optional" :deps ())
     (:name "director" :deps("scalaengine"))
     (:name "piql" :deps ("avro" "comm" "scalaengine"))
+    (:name "matheon" :deps ("avro" "comm" "scalaengine"))
     (:name "perf" :deps ("avro" "comm" "scalaengine" "piql" "deploylib"))
     (:name "tcpw" :deps ("piql" "perf"))
     (:name "modeling" :deps ("piql" "perf" "deploylib" "scadr" "tpcw"))
