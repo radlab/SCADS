@@ -1,7 +1,6 @@
 package edu.berkeley.cs.scads.comm
 
 import net.lag.logging.Logger
-import org.apache.log4j.BasicConfigurator
 
 object EchoActor extends MessageReceiver {
   implicit val remoteActor = MessageHandler.registerService(this)
@@ -13,7 +12,6 @@ object EchoActor extends MessageReceiver {
   }
 
   def main(args: Array[String]): Unit = {
-    BasicConfigurator.configure()
     logger.info("EchoActor running at: " + remoteActor)
   }
 }
