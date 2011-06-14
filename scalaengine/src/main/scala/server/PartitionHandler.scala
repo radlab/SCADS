@@ -17,6 +17,7 @@ import scala.util.control.Breaks
 import java.util.{ Arrays => JArrays }
 import java.util.concurrent.{ Future => JFuture, _ }
 import java.lang.reflect.Method
+import java.io.{BufferedReader,ObjectInputStream,InputStreamReader,ByteArrayInputStream}
 import atomic._
 
 import edu.berkeley.cs.avro.runtime.ScalaSpecificRecord
@@ -25,6 +26,14 @@ import edu.berkeley.cs.avro.runtime.ScalaSpecificRecord
 * keep track of number of gets and puts
 */
 case class PartitionWorkloadStats(var gets:Int, var puts:Int)
+
+
+// Used for bulk puts of urls
+@serializable
+trait RecParser {
+  def setLocation(location:String):Unit = {} 
+  def parseLine(line:String):(Array[Byte],Array[Byte])
+}
 
 /**
  * Handles a partition from [startKey, endKey). Refuses to service any
@@ -211,6 +220,31 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           }
 					if (samplerRandom.nextDouble <= putSamplingRate) incrementPutCount(1)
           reply(PutResponse())
+        }
+        case BulkUrlPutReqest(parserBytes, locations) => {
+          val ois = new ObjectInputStream(new ByteArrayInputStream(parserBytes))
+          val parser = ois.readObject.asInstanceOf[RecParser]
+          val txn = db.getEnvironment.beginTransaction(null,null)
+          var l:String = null
+          locations foreach(location => {
+            parser.setLocation(location)
+            val url = new java.net.URL(location)
+            val reader = new BufferedReader(new InputStreamReader(url.openStream))
+            l = reader.readLine
+            while (l != null) {
+              val kv = parser.parseLine(l)
+              db.put(txn, new DatabaseEntry(kv._1), new DatabaseEntry(kv._2))
+              l = reader.readLine
+            }
+          })
+          try {
+            txn.commit()
+            reply(BulkPutResponse())
+          } catch {
+            case e: Exception =>
+              logger.error(e, "Could not commit BulkUrlPutRequest")
+              reply(ProcessingException(e.getMessage, e.getStackTrace.mkString("\n")))
+          }
         }
         case BulkPutRequest(records) => {
           val txn = db.getEnvironment.beginTransaction(null, null)
@@ -421,7 +455,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           iterateOverRange(None,None)((key, value, _) => {
             // TODO: Use lazy values here
             val valBytes = value.getData
-            remVal.parse(new java.io. ByteArrayInputStream(valBytes,16,(valBytes.length-16)))
+            remVal.parse(new java.io.ByteArrayInputStream(valBytes,16,(valBytes.length-16)))
             val keyBytes = key.getData
             remKey.parse(keyBytes)
 

@@ -4,21 +4,23 @@ import edu.berkeley.cs.avro.marker.AvroRecord
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.util._
 
+case class MatheonKey(var fileId:Int, var readingId:Int) extends AvroRecord
+
 // container class for matheon data
-case class MReading(var mass:Double, var count:Int) extends AvroRecord
+case class MReading(var fileId:Int, var mass:Double, var count:Float) extends AvroRecord
 
 // Here we define the custom aggregate that will pick peaks
 
 // container class, holds the peaks we've found and some running data
-case class PeakContainer(var lastZero:Double,var maxHeight:Int,var peaks:Seq[Double]) extends AvroRecord
+case class PeakContainer(var lastZero:Double,var maxHeight:Float,var peaks:Seq[Double]) extends AvroRecord
 
-class PeaksRemote(min_peak_width:Double,min_peak_height:Int) extends RemoteAggregate[PeakContainer, IntRec, MReading] {
+class PeaksRemote(min_peak_width:Double,min_peak_height:Float) extends RemoteAggregate[PeakContainer, MatheonKey, MReading] {
 
   def init():PeakContainer = {
     PeakContainer(-1.0,0,List[Double]())
   }
 
-  def applyAggregate(pc:PeakContainer, key:IntRec, reading:MReading):PeakContainer = {
+  def applyAggregate(pc:PeakContainer, key:MatheonKey, reading:MReading):PeakContainer = {
     if (reading.count == 0) {
       if (pc.lastZero > 0) {
         val width = reading.mass - pc.lastZero 

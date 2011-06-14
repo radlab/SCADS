@@ -30,6 +30,7 @@ case class GetResponse(var value: Option[Array[Byte]]) extends AvroRecord with K
 case class PutRequest(var key: Array[Byte], var value: Option[Array[Byte]]) extends AvroRecord with KeyValueStoreOperation
 case class PutResponse() extends AvroRecord with KeyValueStoreOperation
 
+case class BulkUrlPutReqest(var parser:Array[Byte], var locations:Seq[String]) extends AvroRecord with KeyValueStoreOperation
 case class BulkPutRequest(var records: Seq[PutRequest]) extends AvroRecord with KeyValueStoreOperation
 case class BulkPutResponse() extends AvroRecord with KeyValueStoreOperation
 

@@ -7,41 +7,79 @@ import scala.collection.mutable.ArrayBuilder
 
 import java.io.{BufferedReader,FileReader}
 
+class MatheonParser extends RecParser {
+
+  private var fileId = 0
+  private var k = 0
+
+  override
+  def setLocation(location:String) {
+    val usidx = location.indexOf('_')
+    fileId = Integer.parseInt(location.substring(usidx+1,location.indexOf('.',usidx)))
+    println("Location: "+location+" (fileId: "+fileId+")")
+    k = 0
+  }
+
+  def parseLine(line:String):(Array[Byte],Array[Byte]) = {
+    val sp = line.indexOf(' ')
+    val mass = java.lang.Double.parseDouble(line.substring(0,sp))
+    val cnt = java.lang.Float.parseFloat(line.substring(sp+1))
+    val mrb = MReading(fileId,mass,cnt).toBytes
+
+    val buffer = java.nio.ByteBuffer.allocate(mrb.length + 16)
+    buffer.putLong(System.currentTimeMillis)
+    buffer.putLong(0)
+    buffer.put(mrb)
+    
+    val ret = (MatheonKey(fileId,k).toBytes, buffer.array)
+    k+=1
+    ret
+  }
+}
+
 
 object MatheonFromFile {
   
   def main(args:Array[String]) {
     val cluster = TestScalaEngine.newScadsCluster()
-    val ns = cluster.getNamespace[IntRec, MReading]("matheonNs")
+    val ns = cluster.getNamespace[MatheonKey, MReading]("matheonNs")
 
-    println("Parsing data from: "+args(0))
+    /*
+    var puts = new ArrayBuilder.ofRef[(MatheonKey,MReading)]()
 
-    var k = 0
-    val br = new BufferedReader(new FileReader(args(0)))
-    var l = br.readLine
-    
-    var puts = new ArrayBuilder.ofRef[(IntRec,MReading)]()
+    args foreach(arg => {
 
-    while (l != null) {
-      val sp = l.indexOf(' ')
-      val mass = java.lang.Double.parseDouble(l.substring(0,sp))
-      val cnt = Integer.parseInt(l.substring(sp+1))
-      puts += ((IntRec(k), MReading(mass,cnt)))
-      l = br.readLine
-      k+=1
-    }
+      println("Parsing data from: "+arg+" (id: "+fileId+")")
 
-    
+      var k = 0
+      val br = new BufferedReader(new FileReader(arg))
+      var l = br.readLine
+
+      while (l != null) {
+
+      }
+    })
+
     println("Loading data...")
     ns ++= puts.result
     println("data loaded")
+    */
+
+    println("Starting bulk load")
+    ns.putBulkLocations(new MatheonParser, args.map("file://"+_),
+                        None,None)
+    println("Done")
 
 
-    val peaks = ns.applyAggregate(List[String](),
-                                  classOf[IntRec].getName,
+    val st = System.nanoTime
+    val peaks = ns.applyAggregate(List[String]("fileId"),
+                                  classOf[MatheonKey].getName,
                                   classOf[MReading].getName,
                                   List(),
                                   List((new PeaksLocal,new PeaksRemote(3.0,500))))
+    val et = System.nanoTime
+    val t = et-st
+    println("Time: "+(t)+ " ("+(t/1000000)+" milliseconds)")
     println(peaks)
   }
 }
