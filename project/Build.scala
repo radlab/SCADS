@@ -1,23 +1,26 @@
-
-
 import sbt._
-
 import Keys._
 
-// Shell prompt which show the current project, git branch and build version
+object ScadsBuild extends Build {
+  val buildVersion      = "2.1-SNAPSHOT"
+  val defaultScalaVersion = "2.8.1"
+  val buildSettings = Defaults.defaultSettings ++ Seq (organization := "edu.berkeley.cs",
+						       scalaVersion := defaultScalaVersion,
+						       version      := buildVersion,
+						       shellPrompt  := ShellPrompt.buildShellPrompt,
+							   resolvers    := Seq(radlabRepo),
+							   autoCompilerPlugins := true)
+							
+  val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"
+
+  lazy val scads = Project("scads", file("."), settings=buildSettings) aggregate (config, avroPlugin, comm)
+  lazy val config = Project("config", file("config"), settings=buildSettings ++ Seq(libraryDependencies := Seq(configgy)))
+  lazy val avroPlugin = Project("avro-plugin", file("avro"), settings=buildSettings ++ Seq(libraryDependencies := Seq(avroJava, scalaCompiler, configgy)))
+  lazy val comm = Project("communication", file("comm"), settings=buildSettings ++ Seq(libraryDependencies := Seq(netty, zookeeper, commonsHttpClient, log4j, scalaTest, junit, avroPluginDep))) dependsOn(config)
 
 
-object Resolvers {
-
-  val sunrepo    = "Sun Maven2 Repo" at "http://download.java.net/maven/2"
-  val sunrepoGF  = "Sun GF Maven2 Repo" at "http://download.java.net/maven/glassfish"
-  val oraclerepo = "Oracle Maven2 Repo" at "http://download.oracle.com/maven"
-
-  val oracleResolvers = Seq (sunrepo, sunrepoGF, oraclerepo)
-
-}
-
-object Dependencies {
+	val avroPluginDep = "edu.berkeley.cs" %% "avro-plugin" % buildVersion
+	
   /* Config */
     val configgy = "net.lag" % "configgy" % "2.0.0"
     val scalaTest = "org.scalatest" % "scalatest" % "1.2"
@@ -25,6 +28,7 @@ object Dependencies {
 
   /* Avro */
     val avroJava = "org.apache.hadoop" % "avro" % "1.3.3"
+	val scalaCompiler = "org.scala-lang" % "scala-compiler" % defaultScalaVersion
 
   /* Comm */
     val netty = "org.jboss.netty" % "netty" % "3.2.1.Final"
@@ -33,7 +37,6 @@ object Dependencies {
 
   /* Scala Engine */
     val bdb = "com.sleepycat" % "je" % "4.0.71"
-
 
   /* deploy lib */
     val mesos = "edu.berkeley.cs.mesos" % "java" % "1.0"
@@ -59,22 +62,6 @@ object Dependencies {
     val sl4jConfiggy = "com.notnoop.logging" % "slf4j-configgy" % "0.0.1"
 }
 
-
-object ScadsBuild extends Build {
-  val buildVersion      = "2.1-SNAPSHOT"
-  val buildSettings = Defaults.defaultSettings ++ Seq (organization := "edu.berkeley.cs",
-						       scalaVersion := "2.8.1",
-						       version      := buildVersion,
-						       shellPrompt  := ShellPrompt.buildShellPrompt)
-
-  import Resolvers._
-  import Dependencies._
-
-  val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"
-
-  lazy val scads = Project("scads", file("."), settings=buildSettings) aggregate (config)
-  lazy val config = Project("config", file("config"), settings=buildSettings ++ Seq(libraryDependencies := Seq(configgy)))
-
 object ShellPrompt {
 
   object devnull extends ProcessLogger {
@@ -91,10 +78,9 @@ object ShellPrompt {
     (state: State) => {
       val currBranch = current findFirstMatchIn gitBranches map (_ group(1)) getOrElse "-"
       val currProject = Project.extract (state).currentProject.id
-      "%s:%s:%s> ".format (currProject, currBranch, buildVersion)
+      "%s:%s> ".format (currProject, currBranch)
     }
   }
-}
 
 /*
   lazy val cdap2 = Project ("cdap2", file ("."), settings = buildSettings) aggregate (common, server, compact, pricing, pricing_service)
