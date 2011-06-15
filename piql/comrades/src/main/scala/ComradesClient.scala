@@ -3,7 +3,7 @@ package scads
 package piql
 package comrades
 
-import storage.ScadsCluster
+import storage._
 import avro.marker._
 
 import org.apache.avro.util._
@@ -45,7 +45,7 @@ class ComradesClient(val cluster: ScadsCluster, executor: QueryExecutor) {
       IndexLookupJoin(candidates,
 		      AttributeValue(0, 3) :: Nil,
 	LocalStopAfter(FixedLimit(maxResultsPerPage),
-	  IndexScan(interviews.getOrCreateIndex("researchArea" :: "interviewedAt" :: "createdAt" :: Nil),
+	  IndexScan(interviews.getOrCreateIndex(AttributeIndex("researchArea") :: AttributeIndex("interviewedAt") :: AttributeIndex("createdAt") :: Nil),
 		    ParameterValue(0) :: ConstantValue(new java.lang.Long(0)) :: Nil,
 		    FixedLimit(maxResultsPerPage),
 		    true))),
@@ -66,7 +66,7 @@ class ComradesClient(val cluster: ScadsCluster, executor: QueryExecutor) {
       IndexLookupJoin(candidates,
 		      AttributeValue(0, 4) :: Nil,
 	LocalStopAfter(FixedLimit(maxResultsPerPage),
-          IndexScan(interviews.getOrCreateIndex("researchArea" :: "score" :: "status" :: "interviewedAt" :: Nil),
+          IndexScan(interviews.getOrCreateIndex(AttributeIndex("researchArea") :: AttributeIndex("score") :: AttributeIndex("status") :: AttributeIndex("interviewedAt") :: Nil),
 		    ParameterValue(0) :: ConstantValue(5) :: ConstantValue(new org.apache.avro.util.Utf8("INTERVIEWED")) :: Nil,
 		    FixedLimit(maxResultsPerPage),
 		    false))),

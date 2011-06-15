@@ -3,7 +3,7 @@ package scads
 package piql
 package gradit
 
-import storage.ScadsCluster
+import storage._
 import avro.marker._
 
 import org.apache.avro.util._
@@ -180,7 +180,7 @@ class GraditClient(val cluster: ScadsCluster, executor: QueryExecutor) {
 	IndexLookupJoin(gameplayers,
 			List(AttributeValue(0,1),
 				    AttributeValue(0,0)),
-	  IndexScan(gameplayers.getOrCreateIndex("gameid" :: Nil),
+	  IndexScan(gameplayers.getOrCreateIndex(AttributeIndex("gameid") :: Nil),
 		    List(ParameterValue(0)),
 		    FixedLimit(50),
 		    true)))),
@@ -236,6 +236,6 @@ class GraditClient(val cluster: ScadsCluster, executor: QueryExecutor) {
        IndexLookupJoin(gameplayers,
                    AttributeValue(0, 1) :: AttributeValue(0,2) :: Nil,
                          LocalStopAfter(FixedLimit(10),
-                             IndexScan(gameplayers.getOrCreateIndex("score" :: Nil), Nil, FixedLimit(10), false))),
+                             IndexScan(gameplayers.getOrCreateIndex(AttributeIndex("score") :: Nil), Nil, FixedLimit(10), false))),
                                   executor)
 }
