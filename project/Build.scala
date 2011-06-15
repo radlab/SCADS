@@ -9,6 +9,7 @@ object ScadsBuild extends Build {
 						       version      := buildVersion,
 						       shellPrompt  := ShellPrompt.buildShellPrompt,
 							   resolvers    := Seq(radlabRepo),
+							   
 							   autoCompilerPlugins := true)
 							
   val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"
@@ -16,19 +17,21 @@ object ScadsBuild extends Build {
   lazy val scads = Project("scads", file("."), settings=buildSettings) aggregate (config, avroPlugin, comm)
   lazy val config = Project("config", file("config"), settings=buildSettings ++ Seq(libraryDependencies := Seq(configgy)))
   lazy val avroPlugin = Project("avro-plugin", file("avro"), settings=buildSettings ++ Seq(libraryDependencies := Seq(avroJava, scalaCompiler, configgy)))
-  lazy val comm = Project("communication", file("comm"), settings=buildSettings ++ Seq(libraryDependencies := Seq(netty, zookeeper, commonsHttpClient, log4j, scalaTest, junit, avroPluginDep))) dependsOn(config)
-
-
-	val avroPluginDep = "edu.berkeley.cs" %% "avro-plugin" % buildVersion
+  lazy val comm = Project("communication", file("comm"), settings=buildSettings ++ Seq(libraryDependencies := Seq(netty, zookeeper, commonsHttpClient, log4j, scalaTest, junit, avroJavaPlugin, avroPluginDep, avroPluginCompile))) dependsOn(config)
+  
+  val avroPluginDep = "edu.berkeley.cs" %% "avro-plugin" % buildVersion % "plugin"
+  val avroPluginCompile = "edu.berkeley.cs" %% "avro-plugin" % buildVersion
 	
   /* Config */
-    val configgy = "net.lag" % "configgy" % "2.0.0"
-    val scalaTest = "org.scalatest" % "scalatest" % "1.2"
-    val junit = "junit" % "junit" % "4.7"
+  val configgy = "net.lag" % "configgy" % "2.0.0"
+  val scalaTest = "org.scalatest" % "scalatest" % "1.2"
+  val junit = "junit" % "junit" % "4.7"
 
   /* Avro */
-    val avroJava = "org.apache.hadoop" % "avro" % "1.3.3"
-	val scalaCompiler = "org.scala-lang" % "scala-compiler" % defaultScalaVersion
+  val avroJava = "org.apache.hadoop" % "avro" % "1.3.3"
+  val avroJavaPlugin = "org.apache.hadoop" % "avro" % "1.3.3" % "plugin"
+  val scalaCompiler = "org.scala-lang" % "scala-compiler" % defaultScalaVersion
+
 
   /* Comm */
     val netty = "org.jboss.netty" % "netty" % "3.2.1.Final"
