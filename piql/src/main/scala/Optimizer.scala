@@ -9,8 +9,13 @@ import org.apache.avro.Schema.Field
 import org.apache.avro.util.Utf8
 import scala.collection.JavaConversions._
 import net.lag.logging.Logger
+import piql.{QueryPlan, FixedLimit}
 
 case class ImplementationLimitation(desc: String) extends Exception
+
+object OptimizedQuery {
+  val physicalPlans = new java.util.concurrent.ConcurrentHashMap[Int, QueryPlan]()
+}
 
 class OptimizedQuery(val name: Option[String], val physicalPlan: QueryPlan, executor: QueryExecutor) {
   def apply(args: Any*): QueryResult = {
@@ -24,10 +29,15 @@ class OptimizedQuery(val name: Option[String], val physicalPlan: QueryPlan, exec
     iterator.close
     ret
   }
+
+  def toHtml: xml.NodeSeq = {
+    <b>{physicalPlan}</b>
+  }
 }
 
 object Optimizer {
   val logger = Logger()
+  val defaultFetchSize = 10
 
   case class OptimizedSubPlan(physicalPlan: QueryPlan, schema: TupleSchema)
 
@@ -68,12 +78,17 @@ object Optimizer {
           OptimizedSubPlan(fullPlan, tupleSchema)
         }
       }
-      case IndexRange(equalityPreds, Some(TupleLimit(count, dataStop)), Some(Ordering(attrs, asc)), Relation(ns)) => {
+      case IndexRange(equalityPreds, bound, Some(Ordering(attrs, asc)), Relation(ns)) => {
+        val limitHint = bound.map(_.count).getOrElse {
+            logger.warning("UnboundedPlan %s: %s", ns, logicalPlan)
+            FixedLimit(defaultFetchSize)
+        }
+        val isDataStop = bound.map(_.isDataStop).getOrElse(true)
         val prefixAttrs = equalityPreds.map(_.attributeName) ++ attrs
         val (idxScanPlan, tupleSchema) =
           if (isPrefix(prefixAttrs, ns)) {
             val tupleSchema = ns :: Nil
-            (IndexScan(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), count, asc), tupleSchema)
+            (IndexScan(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), limitHint, asc), tupleSchema)
           }
           else {
             val idx = ns.asInstanceOf[IndexedNamespace].getOrCreateIndex(prefixAttrs.map(p => AttributeIndex(p)))
@@ -81,14 +96,14 @@ object Optimizer {
             (derefPlan(ns,
               IndexScan(idx,
                 makeKeyGenerator(idx, tupleSchema, equalityPreds),
-                count,
+                limitHint,
                 asc)),
               tupleSchema)
           }
 
-        val fullPlan = dataStop match {
+        val fullPlan = isDataStop match {
           case true => idxScanPlan
-          case false => LocalStopAfter(count, idxScanPlan)
+          case false => LocalStopAfter(limitHint, idxScanPlan)
         }
         OptimizedSubPlan(fullPlan, tupleSchema)
       }
@@ -211,7 +226,7 @@ object Optimizer {
 
   case class Ordering(attributeNames: Seq[String], ascending: Boolean)
 
-  case class TupleLimit(count: Limit, data: Boolean)
+  case class TupleLimit(count: Limit, isDataStop: Boolean)
 
   /**
    * Groups sets of logical operations that can be executed as a

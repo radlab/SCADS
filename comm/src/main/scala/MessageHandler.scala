@@ -1,8 +1,6 @@
 package edu.berkeley.cs.scads.comm
 
 import java.util.concurrent.{ ConcurrentHashMap, CopyOnWriteArrayList, Executors, TimeUnit }
-import java.util.concurrent.atomic.AtomicLong
-
 import scala.actors._
 
 import net.lag.logging.Logger
@@ -12,6 +10,7 @@ import edu.berkeley.cs.scads.config._
 import org.apache.commons.httpclient._
 import org.apache.commons.httpclient.methods._
 import org.apache.commons.httpclient.params._
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * The message handler for all scads communication.  It maintains a list of all active services
@@ -25,6 +24,7 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
 
   private val curActorId      = new AtomicLong
   private val serviceRegistry = new ConcurrentHashMap[ActorId, MessageReceiver]
+  def registrySize = serviceRegistry.size()
 
   private val hostname = 
     if(System.getProperty("scads.comm.externalip") == null)
@@ -146,6 +146,7 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
     }
   }
 
+  val invalidMessageCount = new java.util.concurrent.atomic.AtomicLong
   private def doReceiveMessage0(src: RemoteNode, msg: Message) {
     val service = serviceRegistry.get(msg.dest)
 
@@ -154,8 +155,10 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
     if(service != null) {
       service.receiveMessage(msg.src.map(RemoteActor(src.hostname, src.port, _)), msg.body)
     }
-    else
-      logger.critical("Got message for an unknown service: " + msg.dest)
+    else {
+      logger.debug("Got message from %s for an unknown service: %s", src, msg.dest)
+      invalidMessageCount.incrementAndGet()
+    }
   }
 
   /** Immediately start listener on instantiation */ 

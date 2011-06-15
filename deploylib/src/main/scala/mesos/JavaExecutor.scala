@@ -157,7 +157,9 @@ class JavaExecutor extends Executor {
       "-Xmx" + heapSize + "M",
       //HACK to deal with mesos lying about available memory "-Xms" + heapSize + "M",
       "-XX:+HeapDumpOnOutOfMemoryError",
+      "-verbosegc",
       "-XX:+UseConcMarkSweepGC",
+      "-XX:MaxGCPauseMillis=200",
       "-Djava.library.path=" + new File(System.getenv("MESOS_HOME"), "lib/java"),
       properties.map(kv => "-D%s=%s".format(kv._1, kv._2)).mkString(" "),
       "-cp", classpath,
@@ -178,12 +180,21 @@ class JavaExecutor extends Executor {
       driver.sendStatusUpdate(new TaskStatus(taskId, TaskState.TASK_RUNNING, output))
 
       val result = proc.waitFor()
+      logger.info("TASK %d exitied with code %d", taskId, result)
+
+
       val finalTaskState = result match {
         case 0 => TaskState.TASK_FINISHED
         case _ => TaskState.TASK_FAILED
       }
-      if(!taskKilled)
-	driver.sendStatusUpdate(new TaskStatus(taskId, finalTaskState, output))
+      if (!taskKilled)
+        driver.sendStatusUpdate(new TaskStatus(taskId, finalTaskState, output))
+
+      if(stdout.tail contains "A fatal error has been detected by the Java Runtime Environment") {
+        logger.fatal("SIGSEGV from forked JVM.  Killing node.")
+        Runtime.getRuntime.exec("/sbin/halt")
+      }
+
       logger.info("Cleaning up working directory %s for %d", tempDir, taskId)
       deleteRecursive(tempDir)
       logger.info("Done cleaning up after Task %d", taskId)
@@ -246,13 +257,13 @@ class JavaExecutor extends Executor {
     logger.info("Starting task" + taskId)
     val runningTask = JvmTask(taskDesc.getArg()) match {
       case JvmMainTask(classpath, mainclass, args, props, env) =>
-	new ForkedJvm(taskId,
-		      taskDesc.getParams().get("mem").toInt,
-		      loadClasspath(classpath),
-		      mainclass,
-		      args,
-		      props,
-		      env, d)
+        new ForkedJvm(taskId,
+          taskDesc.getParams().get("mem").toInt,
+          loadClasspath(classpath),
+          mainclass,
+          args,
+          props,
+          env, d)
       case JvmWebAppTask(warFile, properties) => new JettyApp(taskId, resolveClassSource(warFile), properties, d)
     }
 
@@ -265,7 +276,7 @@ class JavaExecutor extends Executor {
       case Some(runningTask) => {
         logger.info("Killing task %d", taskId)
         runningTask.kill
-	d.sendStatusUpdate(new TaskStatus(taskId, TaskState.TASK_KILLED, new Array[Byte](0)))
+        d.sendStatusUpdate(new TaskStatus(taskId, TaskState.TASK_KILLED, new Array[Byte](0)))
       }
       case None => logger.warning("Asked to kill nonexistant task %d", taskId)
     }
