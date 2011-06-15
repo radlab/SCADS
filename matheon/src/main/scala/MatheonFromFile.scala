@@ -44,42 +44,23 @@ object MatheonFromFile {
     val cluster = TestScalaEngine.newScadsCluster()
     val ns = cluster.getNamespace[MatheonKey, MReading]("matheonNs")
 
-    /*
-    var puts = new ArrayBuilder.ofRef[(MatheonKey,MReading)]()
-
-    args foreach(arg => {
-
-      println("Parsing data from: "+arg+" (id: "+fileId+")")
-
-      var k = 0
-      val br = new BufferedReader(new FileReader(arg))
-      var l = br.readLine
-
-      while (l != null) {
-
-      }
-    })
-
-    println("Loading data...")
-    ns ++= puts.result
-    println("data loaded")
-    */
-
     println("Starting bulk load")
     ns.putBulkLocations(new MatheonParser, args.map("file://"+_),
                         None,None)
     println("Done")
 
 
-    val st = System.nanoTime
-    val peaks = ns.applyAggregate(List[String]("fileId"),
+    for (i <- 1 to 4) {
+      val st = System.nanoTime
+      val peaks = ns.applyAggregate(List[String]("fileId"),
                                   classOf[MatheonKey].getName,
                                   classOf[MReading].getName,
                                   List(),
                                   List((new PeaksLocal,new PeaksRemote(3.0,500))))
-    val et = System.nanoTime
-    val t = et-st
-    println("Time: "+(t)+ " ("+(t/1000000)+" milliseconds)")
-    println(peaks)
+      val et = System.nanoTime
+      val t = et-st
+      println("Time: "+(t)+ " ("+(t/1000000)+" milliseconds)")
+      println(peaks)
+    }
   }
 }
