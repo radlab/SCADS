@@ -44,9 +44,6 @@ abstract class BlockingChannelManager[S <: SpecificRecord, R <: SpecificRecord](
   private val msgWriter = 
     new SpecificDatumWriter[S](msgSendClass.newInstance.getSchema)
 
-  private val decoderFactory = new DecoderFactory
-  decoderFactory.configureDirectDecoder(true)
-
   // Thread pools
 
   /** Thread pool for ServerSockets */
@@ -81,8 +78,9 @@ abstract class BlockingChannelManager[S <: SpecificRecord, R <: SpecificRecord](
 
   private def doSendMessage(dest: RemoteNode, msg: S, flush: Boolean) {
     val os      = new PreallocByteArrayOutputStream(4, 512)
-    val encoder = new BinaryEncoder(os)
+    val encoder = EncoderFactory.get().binaryEncoder(os,null)
     msgWriter.write(msg, encoder)
+    encoder.flush
 
     val conn = getConnectionFor(dest)
     conn.send(os.underlyingBuffer, os.numPreAllocBytes, os.effectiveSize, flush)
@@ -253,7 +251,7 @@ abstract class BlockingChannelManager[S <: SpecificRecord, R <: SpecificRecord](
             } else {
               val bytes = new Array[Byte](len)
               dataInputStream.readFully(bytes)
-              val inStream = decoderFactory.createBinaryDecoder(bytes, null) 
+              val inStream = DecoderFactory.get().directBinaryDecoder(new ByteArrayInputStream(bytes), null) 
               val msg = msgRecvClass.newInstance
               msgReader.read(msg, inStream)
               receiveMessage(remoteNode, msg)

@@ -2,7 +2,7 @@ package edu.berkeley.cs.scads.util
 
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData,GenericDatumReader,GenericDatumWriter,IndexedRecord}
-import org.apache.avro.io.{BinaryEncoder,BinaryDecoder,DecoderFactory}
+import org.apache.avro.io.{DecoderFactory,EncoderFactory}
 
 import edu.berkeley.cs.avro.runtime.ScalaSpecificRecord
 
@@ -84,11 +84,8 @@ trait RemoteAggregate[TransType <: ScalaSpecificRecord,
 
 object AnalyticsUtils {
 
-  val decoderFactory = new DecoderFactory
-  val decoder:BinaryDecoder = null
   val reader = new GenericDatumReader[GenericData.Record]
   val writer = new GenericDatumWriter[Object]
-  var encoder:BinaryEncoder = null
 
   val groupBuilder = new StringBuilder
 
@@ -112,12 +109,25 @@ object AnalyticsUtils {
     rec
   }
 
+  // this is gross and slow
+  def getGroupBytes(groups:Seq[Int], groupSchemas:Seq[Schema], rec:IndexedRecord):Array[Byte] = {
+    val out = new java.io.ByteArrayOutputStream(128)
+    val encoder = EncoderFactory.get().binaryEncoder(out,null)
+    groups.view.zipWithIndex foreach(ge => {
+      writer.setSchema(groupSchemas(ge._2))
+      writer.write(rec.get(ge._1),encoder)
+    })
+    encoder.flush
+    out.toByteArray
+  }
+
+
   def getRecord(filterSchema:Schema,
                 bytes:Array[Byte]):GenericData.Record = {
-    val dec = decoderFactory.createBinaryDecoder(new ByteArrayInputStream(bytes),decoder)
+    val inStream = DecoderFactory.get().binaryDecoder(bytes, null) 
     reader.setSchema(filterSchema)
     reader.setExpected(filterSchema)
-    reader.read(null,dec)
+    reader.read(null,inStream)
   }
 
   def extractFilterFields(originalSchema:Schema,
@@ -125,7 +135,7 @@ object AnalyticsUtils {
                           bytes:Array[Byte],
                           reuse:GenericData.Record):GenericData.Record = {
     // NB: We offset by 16 here to skip the metadata.  Will need to change if metadata format changes
-    val dec = decoderFactory.createBinaryDecoder(new ByteArrayInputStream(bytes,16,(bytes.length-16)),decoder)
+    val dec = DecoderFactory.get().binaryDecoder(new ByteArrayInputStream(bytes,16,(bytes.length-16)),null)
     reader.setSchema(originalSchema)
     reader.setExpected(filterSchema)
     reader.read(reuse,dec)
@@ -137,21 +147,6 @@ object AnalyticsUtils {
     groups.foreach(group => {groupBuilder.append(rec.get(group))})
     groupBuilder.toString
   }
-
-  // this is gross and slow
-  def getGroupBytes(groups:Seq[Int], groupSchemas:Seq[Schema], rec:IndexedRecord):Array[Byte] = {
-    val out = new java.io.ByteArrayOutputStream(128)
-    if (encoder == null)
-      encoder = new BinaryEncoder(out)
-    else
-      encoder.init(out)
-    groups.view.zipWithIndex foreach(ge => {
-      writer.setSchema(groupSchemas(ge._2))
-      writer.write(rec.get(ge._1),encoder)
-    })
-    out.toByteArray
-  }
-
 
   /* get array of bytes which is the compiled version of cl */
   def getClassBytes(cl:AnyRef):Array[Byte] = {

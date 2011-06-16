@@ -6,7 +6,7 @@ import ec2._
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.avro.marker._
 import edu.berkeley.cs.avro.runtime._
-import org.apache.avro.io.JsonDecoder
+import org.apache.avro.io.{DecoderFactory}
 import org.apache.avro.specific.SpecificDatumReader
 import org.apache.avro.generic.IndexedRecord
 
@@ -44,7 +44,7 @@ object AvroTaskMain {
       val task = taskClass.newInstance.asInstanceOf[AvroTask]
       try {
         val reader = new SpecificDatumReader[AvroTask](task.getSchema)
-        val decoder = new JsonDecoder(task.getSchema, args(1))
+        val decoder = DecoderFactory.get().jsonDecoder(task.getSchema, args(1))
 
         reader.read(task, decoder).run()
         logger.info("Run method returned, terminating AvroClient")

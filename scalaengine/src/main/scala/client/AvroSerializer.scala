@@ -20,29 +20,27 @@ abstract class AvroReaderWriter[T <: IndexedRecord](val remoteSchema: Option[Sch
   protected val writer: DatumWriter[T]
 
   def schema: Schema
-  private val resolver = remoteSchema.map(rs => ResolvingDecoder.resolve(rs, schema))
 
   protected val bufferSize = 128
-
-  private val decoderFactory: DecoderFactory = (new DecoderFactory).configureDirectDecoder(true)
 
   def newInstance: T
 
   def serialize(rec: T): Array[Byte] = {
     val baos = new ByteArrayOutputStream(bufferSize)
-    val enc  = new BinaryEncoder(baos)
+    val enc  = EncoderFactory.get().binaryEncoder(baos,null)
     writer.write(rec, enc)
+    enc.flush
     baos.toByteArray
   }
 
   def deserialize(bytes: Array[Byte]): T = {
-    val dec = decoderFactory.createBinaryDecoder(bytes, null)
-    reader.read(newInstance, resolver.map(rs => new ResolvingDecoder(rs, dec)).getOrElse(dec))
+    val dec = DecoderFactory.get().directBinaryDecoder(new ByteArrayInputStream(bytes), null)
+    reader.read(newInstance, dec)
   }
 
   def deserialize(stream: InputStream): T = {
-    val dec = decoderFactory.createBinaryDecoder(stream, null)
-    reader.read(newInstance, resolver.map(rs => new ResolvingDecoder(rs, dec)).getOrElse(dec))
+    val dec = DecoderFactory.get().directBinaryDecoder(stream, null)
+    reader.read(newInstance, dec)
   }
 
   /** Given schema, return a new instance of a record which has the given

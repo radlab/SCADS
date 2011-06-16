@@ -2,7 +2,7 @@ package edu.berkeley.cs.avro
 package runtime
 
 import org.apache.avro.Schema
-import org.apache.avro.io.{BinaryEncoder, BinaryDecoder, DecoderFactory}
+import org.apache.avro.io.{BinaryEncoder, BinaryDecoder, EncoderFactory, DecoderFactory}
 import org.apache.avro.specific.{SpecificData, SpecificDatumReader, SpecificDatumWriter, SpecificRecord}
 import org.apache.avro.generic.{ GenericRecord, GenericData, IndexedRecord }
 
@@ -26,7 +26,6 @@ private[runtime] object ScalaSpecificRecordHelpers {
 
 trait ScalaSpecificRecord extends SpecificRecord {
 
-  private final lazy val __decoderFactory__ = (new DecoderFactory).configureDirectDecoder(true)
   private final lazy val __writer__ = new SpecificDatumWriter[this.type](getSchema)
   private final lazy val __reader__ = new SpecificDatumReader[this.type](getSchema) {
     override def newRecord(old: AnyRef, schema: Schema) =
@@ -44,8 +43,9 @@ trait ScalaSpecificRecord extends SpecificRecord {
   }
 
   def toBytes(outputStream: OutputStream) {
-    val enc = new BinaryEncoder(outputStream)
+    val enc = EncoderFactory.get().binaryEncoder(outputStream,null)
     __writer__.write(this, enc)
+    enc.flush()
   }
 
   def parse(data: Array[Byte]): this.type = {
@@ -54,7 +54,7 @@ trait ScalaSpecificRecord extends SpecificRecord {
   }
 
   def parse(inputStream: InputStream): this.type = {
-    val dec = __decoderFactory__.createBinaryDecoder(inputStream, null) // new decoder
+    val dec = DecoderFactory.get().directBinaryDecoder(inputStream, null)
     __reader__.read(this, dec)
     this
   }
