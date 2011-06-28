@@ -88,7 +88,7 @@ trait QuorumProtocol
     if (handler.failed) None
     else {
       // TODO: repair on failed case (above) still?
-      //ReadRepairer ! handler
+      ReadRepairer ! handler
       Some(record.map(extractRecordFromValue))
     }
   }
@@ -439,7 +439,7 @@ trait QuorumRangeProtocol
         )
       }
     }
-    //handlers.foreach(ReadRepairer ! _)
+    handlers.foreach(ReadRepairer ! _)
     result
   }
 
@@ -571,4 +571,24 @@ trait QuorumRangeProtocol
     }
 
   }
+ 
+  /*
+   * NB: We trust the caller here that the records produced from the given locations will
+   * all have keys in between firstKey and lastKey.  Therefore we just check that
+   * firstKey<->lastKey only covers one partition
+   */
+  override def putBulkLocations(parser:RecParser,locations:Array[String],
+                                firstKey:Option[Array[Byte]],lastKey:Option[Array[Byte]]) {
+    val partitions = serversForKeyRange(firstKey, lastKey)
+    if (partitions.length > 1)
+      error("Can't bulk put locations over more than one partition")
+    else {
+      val baos = new java.io.ByteArrayOutputStream
+      val oos = new java.io.ObjectOutputStream(baos)
+      oos.writeObject(parser)
+      val responses = partitions(0).servers.map(_ !! BulkUrlPutReqest(baos.toByteArray,locations))
+      responses.blockFor(partitions(0).servers.length)
+    }
+  }
+
 }

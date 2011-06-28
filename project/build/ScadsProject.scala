@@ -7,12 +7,14 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
   /* SCADS Subprojects */
   lazy val config = project("config", "config", new DefaultProject(_) with IdeaProject {
     val configgy = "net.lag" % "configgy" % "2.0.0"
-    val scalaTest = "org.scalatest" % "scalatest" % "1.2"
+    val scalatest = "org.scalatest" % "scalatest" % "1.2"
     val junit = "junit" % "junit" % "4.7"
   } )
 
+
   lazy val avro = project("avro", "avro-plugin", new DefaultProject(_) with IdeaProject {
-    val avroJava = "org.apache.hadoop" % "avro" % "1.3.3"
+    val avroJava = "org.apache.avro" % "avro" % "1.5.1"
+    val avroIpc = "org.apache.avro" % "avro-ipc" % "1.5.1"
     val configgy = "net.lag" % "configgy" % "2.0.0"
   } )
 
@@ -67,6 +69,8 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
   lazy val piql      = project("piql", "piql", new ScadsSubProject(_) with IdeaProject, config, avro, comm, scalaengine)
   lazy val perf      = project("perf", "performance", new ScadsSubProject(_) with IdeaProject, config, avro, comm, scalaengine, piql, deploylib)
   lazy val director    = project("director", "director", new ScadsSubProject(_) with IdeaProject, scalaengine, deploylib)
+  lazy val axer = project("axer","axer", new ScadsSubProject(_) with IdeaProject, avro)
+  lazy val matheon = project("matheon","matheon", new ScadsSubProject(_) with IdeaProject, config, avro, comm, scalaengine)
 
   lazy val spamFeatures = project("twitter" / "spamfeatures", "spamfeatures", new ScadsSubProject(_) {
     val jaxrs = "org.codehaus.jackson" % "jackson-jaxrs" % "1.4.2"
@@ -101,7 +105,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
       withExtraJars(super.getScalaInstance(version), pluginJars)
     }
 
-    private val pluginDeps = Set("avro-1.3.3.jar", "jackson-core-asl-1.4.2.jar", "jackson-mapper-asl-1.4.2.jar")
+    private val pluginDeps = Set("avro-1.5.1.jar", "jackson-core-asl-1.7.3.jar", "jackson-mapper-asl-1.7.3.jar")
 
     private def withExtraJars(si: ScalaInstance, extra: Seq[File]) =
       ScalaInstance(si.version, si.libraryJar, si.compilerJar, info.launcher, extra : _*)

@@ -296,8 +296,28 @@ trait HasTraversableConversions {
         new GenericArray[ToElem] {
           import scala.collection.JavaConversions._
           def add(elem: ToElem) = error("ADD NOT SUPPORTED - ARRAY IS IMMUTABLE")
+          def add(index:Int, elem:ToElem) = error("add NOT SUPPORTED")
           def clear = error("CLEAR NOT SUPPORTED - ARRAY IS IMMUTABLE")
           def peek = error("PEEK NOT SUPPORTED")
+          def reverse = error("REVERSE NOT SUPPORTED")
+          def subList(fromIndex:Int,toIndex:Int) = error("subList NOT SUPPORTED")
+          def listIterator(index:Int) = error("listIterator NOT SUPPORTED") 
+          def listIterator = error("listIterator NOT SUPPORTED") 
+          def lastIndexOf(o:Object) = error("lastIndexOf NOT SUPPORTED") 
+          def indexOf(o:Object) = error("indexOf NOT SUPPORTED")
+          def remove(index:Int) = error("remove NOT SUPPORTED")
+          def set(index:Int, elem:ToElem) = error("set NOT SUPPORTED")
+          def get(index:Int) = error("get NOT SUPPORTED")
+          def retainAll(c:java.util.Collection[_]) = error("retainAll NOT SUPPORTED")
+          def removeAll(c:java.util.Collection[_]) = error("removeAll NOT SUPPORTED")
+          def addAll(index:Int, c:java.util.Collection[_ <: ToElem]) = error("addAll NOT SUPPORTED") 
+          def addAll(c:java.util.Collection[_ <: ToElem]) = error("addAll NOT SUPPORTED")
+          def containsAll(c:java.util.Collection[_]) = error("containsAll NOT SUPPORTED")
+          def remove(o:Object) = error("remove NOT SUPPORTED")
+          def contains(o:Object) = error("contains NOT SUPPORTED")
+          def toArray[ToElem](t:Array[ToElem with Object]) = error("toArray NOT SUPPORTED")
+          def toArray = error("toArray NOT SUPPORTED")
+          def isEmpty = res.isEmpty
           def size = res.size
           def iterator = 
             if (res.isInstanceOf[Iterable[_]]) // Iterable provides more efficient implementations of iterators

@@ -73,9 +73,6 @@ class TypedSchema[T](impl: Schema) extends Schema(impl.getType) {
   override def toJson(names: Names, gen: JsonGenerator) =
     impl.toJson(names, gen)
 
-  override def writeProps(gen: JsonGenerator) = 
-    impl.writeProps(gen)
-
   override def fieldsToJson(names: Names, gen: JsonGenerator) = 
     impl.fieldsToJson(names, gen)
 
