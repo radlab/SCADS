@@ -12,3 +12,5 @@ def debug = Logger("deploylib").setLevel(java.util.logging.Level.FINEST)
 def stopAllInstances: Unit = {
   EC2Instance.activeInstances.pforeach(_.halt)
 }
+
+val cluster = new Cluster()
