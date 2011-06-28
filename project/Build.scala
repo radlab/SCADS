@@ -21,6 +21,11 @@ object ScadsBuild extends Build {
   
   val avroPluginDep = "edu.berkeley.cs" %% "avro-plugin" % buildVersion % "plugin"
   val avroPluginCompile = "edu.berkeley.cs" %% "avro-plugin" % buildVersion
+
+	def scalaAvroInstanceSetting = (appConfiguration, scalaVersion, scalaHome){ (app, version, home) =>
+		val provider = app.provider.scalaProvider		
+		new ScalaInstance(version, provider.loader, provider.libraryJar, provider.compilerJar, (provider.jars.toSet - provider.libraryJar - provider.compilerJar).toSeq)
+	}
 	
   /* Config */
   val configgy = "net.lag" % "configgy" % "2.0.0"
