@@ -79,7 +79,6 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
   lazy val twitter = project("twitter", "twitter", new ScadsSubProject(_) {
     val hadoop = "org.apache.hadoop" % "hadoop-core" % "0.20.2"
     val colt = "cern" % "colt" % "1.2.0"
-    val scalaj_collection = "org.scalaj" %% "scalaj-collection" % "1.0"
   }, deploylib, avro, perf, spamFeatures)
 
   /* PIQL Apps */

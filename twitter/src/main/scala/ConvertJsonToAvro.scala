@@ -1,8 +1,6 @@
 package edu.berkeley.cs
 package twitterspam
 
-import scalaj.collection.Imports._
-
 import avro.marker._
 import avro.runtime._
 import scads.storage._
@@ -38,9 +36,8 @@ case class LoadJsonToScadsTask(var fileListUrl: String, var clusterAddress: Stri
       val PathRegEx(year, month, day, hour, hash, logType) = f.path
       val rec = new TwitterSpamRecord(hash, year.toInt, month.toInt, day.toInt, hour.toInt, logType)
       rec.label = f.label
-      val features = vec.elements.asScala
-      rec.features = features
-      println("Record has " + features.size + " features")
+//TODO:      val features = vec.elements.asScala
+//      rec.features = features
       rec
     })
     val servers = cluster.getAvailableServers.map(_ :: Nil)
@@ -55,10 +52,6 @@ case class LoadJsonToScadsTask(var fileListUrl: String, var clusterAddress: Stri
   }
 }
 
-
-/**
- * Helper function to encode the file_list_fold_X
- */
 object EncodeTweetLabels {
   def main(args: Array[String]): Unit = {
     val avroFile = AvroOutFile[LabeledTweet]("labeledTweets.avro", CodecFactory.deflateCodec(9))
@@ -72,3 +65,4 @@ object EncodeTweetLabels {
     avroFile.close
   }
 }
+
