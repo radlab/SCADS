@@ -31,7 +31,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
   }, config, avro, comm, deploylib)
 
   lazy val deploylib = project("deploylib", "deploylib", new ScadsSubProject(_) with IdeaProject {
-    val mesos = "org.apache" % "mesos" % "1.0"
+    val mesos = "org.apache" % "mesos" % "1.1"
     val protoBuff = "com.google.protobuf" % "protobuf-java" % "2.3.0"
 
     val configgy = "net.lag" % "configgy" % "2.0.0"

@@ -154,7 +154,6 @@ class JavaExecutor extends Executor {
     driver.sendStatusUpdate(
       TaskStatus.newBuilder()
                 .setTaskId(taskDesc.getTaskId)
-                .setSlaveId(taskDesc.getSlaveId)
                 .setState(TaskState.TASK_RUNNING)
                 .build())
     def kill = {
@@ -194,7 +193,6 @@ class JavaExecutor extends Executor {
       driver.sendStatusUpdate(
         TaskStatus.newBuilder()
           .setTaskId(taskDesc.getTaskId)
-          .setSlaveId(taskDesc.getSlaveId)
           .setState(TaskState.TASK_RUNNING)
           .setData(ByteString.copyFrom(output))
           .build())
@@ -210,7 +208,6 @@ class JavaExecutor extends Executor {
         driver.sendStatusUpdate(
           TaskStatus.newBuilder()
             .setTaskId(taskDesc.getTaskId)
-            .setSlaveId(taskDesc.getSlaveId)
             .setState(finalTaskState)
             .setData(ByteString.copyFrom(output))
             .build())
@@ -276,7 +273,6 @@ class JavaExecutor extends Executor {
       TaskStatus.newBuilder()
         .setTaskId(taskDesc.getTaskId)
         .setState(TaskState.TASK_STARTING)
-        .setSlaveId(taskDesc.getSlaveId)
         .build())
 
     val launchDelay = Random.nextInt(10 * 1000)
