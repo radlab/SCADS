@@ -96,7 +96,10 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String, exe
   }
 
   override def statusUpdate(d: SchedulerDriver, status: TaskStatus): Unit = {
-    if(status.getState == TaskState.TASK_FAILED) {
+	if(status == null) {
+      logger.warning("Null status.")
+	}
+    else if(status.getState == TaskState.TASK_FAILED) {
       logger.warning("Status Update for Task %d: %s", status.getTaskId, status.getState)
       logger.ifWarning(new String(status.getData.toByteArray))
 
