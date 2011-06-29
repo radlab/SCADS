@@ -14,3 +14,5 @@ def stopAllInstances: Unit = {
 }
 
 val cluster = new Cluster()
+implicit def classSource = cluster.classSource
+implicit def serviceScheduler = cluster.serviceScheduler
