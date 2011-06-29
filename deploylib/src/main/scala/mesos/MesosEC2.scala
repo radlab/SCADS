@@ -76,7 +76,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     masters.pforeach(_.executeCommand("killall java"))
     val serviceSchedulerScript = (
       "#!/bin/bash\n" +
-        "/root/jrun deploylib.mesos.ServiceSchedulerDaemon " +
+        "/root/jrun -Dscads.comm.externalip=true deploylib.mesos.ServiceSchedulerDaemon " +
         "--mesosMaster " + clusterUrl + " " +
         "--zooKeeperAddress " + serviceSchedulerNode.canonicalAddress +
         " >> /root/serviceScheduler.log 2>&1")
@@ -85,10 +85,6 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     firstMaster.createFile(new java.io.File("/root/serviceScheduler"), serviceSchedulerScript)
     firstMaster ! "chmod 755 /root/serviceScheduler"
     firstMaster ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/serviceScheduler.pid --exec /root/serviceScheduler"
-
-    //HACK
-    Thread.sleep(5000)
-    serviceSchedulerNode.data = RemoteActor(firstMaster.publicDnsName, 9000, ActorNumber(0)).toBytes
   }
 
   def slaves = {
