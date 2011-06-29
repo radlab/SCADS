@@ -43,7 +43,8 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String, exe
   }
 
   override def getFrameworkName(d: SchedulerDriver): String = "SCADS Service Framework: " + name
-  override def getExecutorInfo(d: SchedulerDriver): ExecutorInfo = ExecutorInfo.newBuilder().setUri(executor).build()
+  val executorId = ExecutorID.newBuilder().setValue("javaExecutor")
+  override def getExecutorInfo(d: SchedulerDriver): ExecutorInfo = ExecutorInfo.newBuilder().setUri(executor).setExecutorId(executorId).build()
   override def registered(d: SchedulerDriver, fid: FrameworkID): Unit = logger.info("Registered SCADS Framework.  Fid: " + fid)
 
   protected def taskDescription(task: JvmTask): String = task match {
