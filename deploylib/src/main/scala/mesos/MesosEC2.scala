@@ -44,7 +44,9 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
 
   def stopAllInstances = (masters ++ slaves ++ zooKeepers).pforeach(_.halt)
 
-  def setup() = (Future {setupMesosMaster()} :: Future {setupZooKeeper()} :: Nil).map(_())
+  def setup(numSlaves: Int = 1) = (Future {setupMesosMaster()} ::
+                                   Future {setupZooKeeper()} ::
+                                   Future {if(slaves.size < numSlaves) addSlaves(numSlaves - slaves.size)} :: Nil).map(_())
 	
   def updateDeploylib(instances: Seq[EC2Instance] = slaves): Unit = {
     instances.pforeach(inst => {
@@ -76,6 +78,8 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
   }
 
   def restartServiceScheduler: Unit = {
+	masters.foreach(_.blockUntilRunning)
+	zooKeepers.foreach(_.blockUntilRunning)
     masters.pforeach(_.executeCommand("killall java"))
     val serviceSchedulerScript = (
       "#!/bin/bash\n" +
@@ -136,8 +140,8 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       defaultZone,
       None)
 
-      ret.foreach(_.blockUntilRunning)
       ret.foreach(_.tags += ("mesos", "zoo"))
+      ret.foreach(_.blockUntilRunning)
     }
 
     val servers = zooKeepers.zipWithIndex
@@ -234,7 +238,10 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       if (updateDeploylibOnStart)
         None
       else
-        try Some("url=" + clusterUrl) catch {
+        try {
+	      masters.foreach(_.blockUntilRunning)
+          Some("url=" + clusterUrl) 
+		} catch {
           case noMaster: java.util.NoSuchElementException =>
             logger.warning("No master found. Starting without userdata")
             None
@@ -248,10 +255,11 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       "m1.large",
       zone,
       userData)
+	instances.foreach(_.tags += ("mesos", "slave"))
 
     if (updateDeploylibOnStart) {
+	  masters.foreach(_.blockUntilRunning)
       instances.pforeach(i => try {
-        i.tags += ("mesos", "slave")
         i.blockUntilRunning
         updateDeploylib(i :: Nil)
         updateConf(i :: Nil)
