@@ -32,7 +32,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
   val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
 
   val mesosAmi =
-    if (EC2Instance.endpoint contains "west") "ami-2b6b386e" else "ami-44ce3d2d"
+    if (EC2Instance.endpoint contains "west") "ami-2b6b386e" else "ami-5af60d33"
 
   val defaultZone =
     if (EC2Instance.endpoint contains "west") "us-west-1a" else "us-east-1b"
