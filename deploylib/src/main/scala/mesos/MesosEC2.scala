@@ -40,9 +40,12 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
   def serviceSchedulerNode = zooKeeperRoot.getOrCreate("serviceScheduler")
 
   def serviceScheduler = classOf[RemoteServiceScheduler].newInstance.parse(serviceSchedulerNode.data)
+  def serviceSchedulerLog = firstMaster.catFile("/root/serviceScheduler.log")
 
   def stopAllInstances = (masters ++ slaves ++ zooKeepers).pforeach(_.halt)
 
+  def setup() = (Future {setupMesosMaster()} :: Future {setupZooKeeper()} :: Nil).map(_())
+	
   def updateDeploylib(instances: Seq[EC2Instance] = slaves): Unit = {
     instances.pforeach(inst => {
       val executorScript = Util.readFile(new File("deploylib/src/main/resources/java_executor"))
@@ -120,7 +123,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
   def zooKeeperAddress = "zk://%s/".format(zooKeepers.map(_.publicDnsName + ":2181").mkString(","))
   def zooKeeperRoot = ZooKeeperNode(zooKeeperAddress)
 
-  def setupZooKeeper: Unit = {
+  def setupZooKeeper(): Unit = {
     val missingServers = 3 - zooKeepers.size
 
     if(missingServers > 0) {
