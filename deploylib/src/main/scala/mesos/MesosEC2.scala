@@ -40,9 +40,14 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
   def serviceSchedulerNode = zooKeeperRoot.getOrCreate("serviceScheduler")
 
   def serviceScheduler = classOf[RemoteServiceScheduler].newInstance.parse(serviceSchedulerNode.data)
+  def serviceSchedulerLog = firstMaster.catFile("/root/serviceScheduler.log")
 
   def stopAllInstances = (masters ++ slaves ++ zooKeepers).pforeach(_.halt)
 
+  def setup(numSlaves: Int = 1) = (Future {setupMesosMaster()} ::
+                                   Future {setupZooKeeper()} ::
+                                   Future {if(slaves.size < numSlaves) addSlaves(numSlaves - slaves.size)} :: Nil).map(_())
+	
   def updateDeploylib(instances: Seq[EC2Instance] = slaves): Unit = {
     instances.pforeach(inst => {
       val executorScript = Util.readFile(new File("deploylib/src/main/resources/java_executor"))
@@ -66,6 +71,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       }
     }
 
+	masters.foreach(_.blockUntilRunning)
     masters.pforeach(_.pushJars)
     updateMasterConf
     restartMasters
@@ -73,10 +79,11 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
   }
 
   def restartServiceScheduler: Unit = {
+	zooKeepers.foreach(_.blockUntilRunning)
     masters.pforeach(_.executeCommand("killall java"))
     val serviceSchedulerScript = (
       "#!/bin/bash\n" +
-        "/root/jrun deploylib.mesos.ServiceSchedulerDaemon " +
+        "/root/jrun -Dscads.comm.externalip=true deploylib.mesos.ServiceSchedulerDaemon " +
         "--mesosMaster " + clusterUrl + " " +
         "--zooKeeperAddress " + serviceSchedulerNode.canonicalAddress +
         " >> /root/serviceScheduler.log 2>&1")
@@ -85,10 +92,6 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     firstMaster.createFile(new java.io.File("/root/serviceScheduler"), serviceSchedulerScript)
     firstMaster ! "chmod 755 /root/serviceScheduler"
     firstMaster ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/serviceScheduler.pid --exec /root/serviceScheduler"
-
-    //HACK
-    Thread.sleep(5000)
-    serviceSchedulerNode.data = RemoteActor(firstMaster.publicDnsName, 9000, ActorNumber(0)).toBytes
   }
 
   def slaves = {
@@ -98,7 +101,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       .filter(_.getKey equals "mesos")
       .filter(_.getValue equals "slave")
       .map(t => EC2Instance.getInstance(t.getResourceId))
-      .filter(_.instanceState equals "running")
+      .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
   }
 
   def masters = {
@@ -108,7 +111,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       .filter(_.getKey equals "mesos")
       .filter(_.getValue equals "master")
       .map(t => EC2Instance.getInstance(t.getResourceId))
-      .filter(_.instanceState equals "running")
+      .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
   }
 
   def zooKeepers = {
@@ -118,13 +121,13 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       .filter(_.getKey equals "mesos")
       .filter(_.getValue equals "zoo")
       .map(t => EC2Instance.getInstance(t.getResourceId))
-      .filter(_.instanceState equals "running")
+      .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
   }
 
   def zooKeeperAddress = "zk://%s/".format(zooKeepers.map(_.publicDnsName + ":2181").mkString(","))
   def zooKeeperRoot = ZooKeeperNode(zooKeeperAddress)
 
-  def setupZooKeeper: Unit = {
+  def setupZooKeeper(): Unit = {
     val missingServers = 3 - zooKeepers.size
 
     if(missingServers > 0) {
@@ -137,8 +140,8 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       defaultZone,
       None)
 
-      ret.foreach(_.blockUntilRunning)
       ret.foreach(_.tags += ("mesos", "zoo"))
+      ret.foreach(_.blockUntilRunning)
     }
 
     val servers = zooKeepers.zipWithIndex
@@ -181,7 +184,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     if(useFT)
       "zoo://" + zooKeeperRoot.proxy.servers.mkString(",") + zooKeeperRoot.getOrCreate("mesos").path
     else
-      "1@" + firstMaster.publicDnsName + ":5050"
+      "master@" + firstMaster.publicDnsName + ":5050"
 
   def restartSlaves: Unit = {
     slaves.pforeach(i => {i ! "service mesos-slave stop"; i ! "service mesos-slave start"})
@@ -235,7 +238,10 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       if (updateDeploylibOnStart)
         None
       else
-        try Some("url=" + clusterUrl) catch {
+        try {
+	      masters.foreach(_.blockUntilRunning)
+          Some("url=" + clusterUrl) 
+		} catch {
           case noMaster: java.util.NoSuchElementException =>
             logger.warning("No master found. Starting without userdata")
             None
@@ -249,10 +255,11 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       "m1.large",
       zone,
       userData)
+	instances.foreach(_.tags += ("mesos", "slave"))
 
     if (updateDeploylibOnStart) {
+	  masters.foreach(_.blockUntilRunning)
       instances.pforeach(i => try {
-        i.tags += ("mesos", "slave")
         i.blockUntilRunning
         updateDeploylib(i :: Nil)
         updateConf(i :: Nil)
