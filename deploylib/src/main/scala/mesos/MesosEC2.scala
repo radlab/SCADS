@@ -71,6 +71,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       }
     }
 
+	masters.foreach(_.blockUntilRunning)
     masters.pforeach(_.pushJars)
     updateMasterConf
     restartMasters
@@ -78,7 +79,6 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
   }
 
   def restartServiceScheduler: Unit = {
-	masters.foreach(_.blockUntilRunning)
 	zooKeepers.foreach(_.blockUntilRunning)
     masters.pforeach(_.executeCommand("killall java"))
     val serviceSchedulerScript = (
@@ -101,7 +101,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       .filter(_.getKey equals "mesos")
       .filter(_.getValue equals "slave")
       .map(t => EC2Instance.getInstance(t.getResourceId))
-      .filter(_.instanceState equals "running")
+      .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
   }
 
   def masters = {
@@ -111,7 +111,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       .filter(_.getKey equals "mesos")
       .filter(_.getValue equals "master")
       .map(t => EC2Instance.getInstance(t.getResourceId))
-      .filter(_.instanceState equals "running")
+      .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
   }
 
   def zooKeepers = {
@@ -121,7 +121,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       .filter(_.getKey equals "mesos")
       .filter(_.getValue equals "zoo")
       .map(t => EC2Instance.getInstance(t.getResourceId))
-      .filter(_.instanceState equals "running")
+      .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
   }
 
   def zooKeeperAddress = "zk://%s/".format(zooKeepers.map(_.publicDnsName + ":2181").mkString(","))
