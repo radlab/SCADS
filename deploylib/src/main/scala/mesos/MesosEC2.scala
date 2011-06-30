@@ -259,6 +259,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
 
     if (updateDeploylibOnStart) {
 	  masters.foreach(_.blockUntilRunning)
+	  firstMaster.blockTillPortOpen(5050)
       instances.pforeach(i => try {
         i.blockUntilRunning
         updateDeploylib(i :: Nil)
