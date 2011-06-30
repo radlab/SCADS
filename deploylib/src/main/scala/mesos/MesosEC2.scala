@@ -184,7 +184,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     if(useFT)
       "zoo://" + zooKeeperRoot.proxy.servers.mkString(",") + zooKeeperRoot.getOrCreate("mesos").path
     else
-      "master@" + firstMaster.publicDnsName + ":5050"
+      "1@" + firstMaster.publicDnsName + ":5050"
 
   def restartSlaves: Unit = {
     slaves.pforeach(i => {i ! "service mesos-slave stop"; i ! "service mesos-slave start"})
