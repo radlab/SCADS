@@ -259,7 +259,7 @@ class BdbStorageManager(val db: Database,
       l = reader.readLine
       while (l != null) {
         val kv = parser.parseLine(l)
-        db.put(txn, new DatabaseEntry(kv._1), new DatabaseEntry(kv._2))
+        db.put(txn, new DatabaseEntry(kv._1.asInstanceOf[Array[Byte]]), new DatabaseEntry(kv._2.asInstanceOf[Array[Byte]]))
         l = reader.readLine
       }
     })

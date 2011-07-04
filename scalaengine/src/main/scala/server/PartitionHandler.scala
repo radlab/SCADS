@@ -12,7 +12,7 @@ case class PartitionWorkloadStats(var gets:Int, var puts:Int)
 @serializable
 trait RecParser {
   def setLocation(location:String):Unit = {} 
-  def parseLine(line:String):(Array[Byte],Array[Byte])
+  def parseLine(line:String):(AnyRef,AnyRef)
 }
 
 class RequestRejectedException(e:String) extends Exception(e)
