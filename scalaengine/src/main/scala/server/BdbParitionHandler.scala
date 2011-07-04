@@ -251,16 +251,14 @@ class BdbStorageManager(val db: Database,
 
   def bulkUrlPut(parser:RecParser, locations:Seq[String]):Unit = {
     val txn = db.getEnvironment.beginTransaction(null,null)
-    var l:String = null
     locations foreach(location => {
       parser.setLocation(location)
       val url = new java.net.URL(location)
-      val reader = new BufferedReader(new InputStreamReader(url.openStream))
-      l = reader.readLine
-      while (l != null) {
-        val kv = parser.parseLine(l)
+      parser.setInput(url.openStream)
+      var kv = parser.getNext()
+      while (kv != null) {
         db.put(txn, new DatabaseEntry(kv._1.asInstanceOf[Array[Byte]]), new DatabaseEntry(kv._2.asInstanceOf[Array[Byte]]))
-        l = reader.readLine
+        kv = parser.getNext()
       }
     })
     txn.commit() // exception here will get caught above

@@ -5,12 +5,12 @@ import edu.berkeley.cs.scads.comm._
 
 import scala.collection.mutable.ArrayBuilder
 
-import java.io.{BufferedReader,FileReader}
+import java.io.{BufferedReader,FileReader,InputStream,InputStreamReader}
 
 class MatheonParser extends RecParser {
-
   private var fileId = 0
   private var k = 0
+  private var reader:BufferedReader = null
 
   override
   def setLocation(location:String) {
@@ -20,7 +20,16 @@ class MatheonParser extends RecParser {
     k = 0
   }
 
-  def parseLine(line:String):(Array[Byte],Array[Byte]) = {
+  def setInput(in:InputStream):Unit = {
+    if (reader != null)
+      reader.close()
+    reader = new BufferedReader(new InputStreamReader(in))
+  }
+
+  def getNext():(Array[Byte],Array[Byte]) = {
+    val line = reader.readLine()
+    if (line == null)
+      return null
     val sp = line.indexOf(' ')
     val mass = java.lang.Double.parseDouble(line.substring(0,sp))
     val cnt = java.lang.Float.parseFloat(line.substring(sp+1))

@@ -3,16 +3,17 @@ package edu.berkeley.cs.scads.storage
 import edu.berkeley.cs.scads.comm._
 import net.lag.logging.Logger
 import scala.collection.mutable.ArrayBuffer
-import java.io.{BufferedReader,ObjectInputStream,InputStreamReader,ByteArrayInputStream}
+import java.io.{BufferedReader,ObjectInputStream,InputStream,InputStreamReader,ByteArrayInputStream}
 
 // keep track of number of gets and puts
 case class PartitionWorkloadStats(var gets:Int, var puts:Int)
 
 // Used for bulk puts of urls
 @serializable
-trait RecParser {
-  def setLocation(location:String):Unit = {} 
-  def parseLine(line:String):(AnyRef,AnyRef)
+abstract trait RecParser {
+  def setLocation(location:String):Unit = {}
+  def setInput(in:InputStream):Unit
+  def getNext():(AnyRef,AnyRef)
 }
 
 class RequestRejectedException(e:String) extends Exception(e)
