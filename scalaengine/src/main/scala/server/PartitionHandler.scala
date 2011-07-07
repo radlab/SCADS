@@ -109,7 +109,11 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Parti
       }
     } catch {
       case r:RequestRejectedException => reply(RequestRejected(r.getMessage(),msg))
-      case e:Exception => reply(ProcessingException(e.getMessage, e.getStackTrace.mkString("\n")))
+      case e:Exception => {
+        logger.info("Exception processing request")
+        e.printStackTrace()
+        reply(ProcessingException(e.getMessage, e.getStackTrace.mkString("\n")))
+      }
     }
   }
   

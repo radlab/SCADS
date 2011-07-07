@@ -4,20 +4,20 @@ import edu.berkeley.cs.avro.marker.AvroRecord
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.util._
 
-case class MatheonKey(var fileId:Int, var readingId:Int) extends AvroRecord
+case class MatheonKey(var readingId:Int) extends AvroRecord
 
 // container class for matheon data
-case class MReading(var fileId:Int, var mass:Double, var count:Float) extends AvroRecord
+case class MReading(var fileId:Int, var mass:Float, var count:Float) extends AvroRecord
 
 // Here we define the custom aggregate that will pick peaks
 
 // container class, holds the peaks we've found and some running data
-case class PeakContainer(var lastZero:Double,var maxHeight:Float,var peaks:Seq[Double]) extends AvroRecord
+case class PeakContainer(var lastZero:Float,var maxHeight:Float,var peaks:Seq[Float]) extends AvroRecord
 
-class PeaksRemote(min_peak_width:Double,min_peak_height:Float) extends RemoteAggregate[PeakContainer, MatheonKey, MReading] {
+class PeaksRemote(min_peak_width:Float,min_peak_height:Float) extends RemoteAggregate[PeakContainer, MatheonKey, MReading] {
 
   def init():PeakContainer = {
-    PeakContainer(-1.0,0,List[Double]())
+    PeakContainer(-1.0f,0,List[Float]())
   }
 
   def applyAggregate(pc:PeakContainer, key:MatheonKey, reading:MReading):PeakContainer = {
@@ -38,15 +38,15 @@ class PeaksRemote(min_peak_width:Double,min_peak_height:Float) extends RemoteAgg
   }
 }
 
-class PeaksLocal extends LocalAggregate[PeakContainer, Seq[Double]] {
+class PeaksLocal extends LocalAggregate[PeakContainer, Seq[Float]] {
   def init():PeakContainer = {
-    PeakContainer(-1.0,0,List[Double]())
+    PeakContainer(-1.0f,0,List[Float]())
   }
   def foldFunction(cur:PeakContainer, next: PeakContainer): PeakContainer = {
     cur.peaks = cur.peaks ++ next.peaks
     cur
   }
-  def finalize(pc:PeakContainer):Seq[Double] = {
+  def finalize(pc:PeakContainer):Seq[Float] = {
     pc.peaks
   }
 }

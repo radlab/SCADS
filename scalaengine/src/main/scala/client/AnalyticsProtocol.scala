@@ -62,7 +62,7 @@ trait AnalyticsProtocol
      val aggs:Seq[(LocalAggregate[_,_],Int)],
      val groupSchema:Schema,
      val numRanges:Int,
-     val timeout:Long = 5000) {
+     val timeout:Long = 50000) {
 
       private val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture]
       private val partitionReplies = new HashMap[String,AggReply]
