@@ -186,11 +186,11 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     else
       "master@" + firstMaster.publicDnsName + ":5050"
 
-  def restartSlaves: Unit = {
+  def restartSlaves(): Unit = {
     slaves.pforeach(i => {i ! "service mesos-slave stop"; i ! "service mesos-slave start"})
   }
 
-  def restartMasters: Unit = {
+  def restartMasters(): Unit = {
     masters.foreach {
       master =>
         master ! "service mesos-master stop"
@@ -198,7 +198,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     }
   }
 
-  def restart: Unit = {
+  def restart(): Unit = {
     restartMasters
     restartSlaves
   }
