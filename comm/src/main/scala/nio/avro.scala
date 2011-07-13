@@ -73,8 +73,9 @@ extends AvroChannelManager[SendMsgType, RecvMsgType] with ChannelHandler {
   override def sendMessageBulk(dest: RemoteNode, msg: SendMsgType): Unit = {
     val channel = getChannel(dest)
     val buffer = new ByteArrayOutputStream(128)
-    val encoder = new BinaryEncoder(buffer)
+    val encoder = EncoderFactory.get().binaryEncoder(buffer,null)
     msgWriter.write(msg, encoder)
+    encoder.flush
     endpoint.sendBulk(channel, ByteBuffer.wrap(buffer.toByteArray), true)
 
   }
@@ -82,8 +83,9 @@ extends AvroChannelManager[SendMsgType, RecvMsgType] with ChannelHandler {
   override def sendMessage(dest: RemoteNode, msg: SendMsgType):Unit = {
     val channel = getChannel(dest)
     val buffer = new ByteArrayOutputStream(128)
-    val encoder = new BinaryEncoder(buffer)
+    val encoder = EncoderFactory.get().binaryEncoder(buffer,null)
     msgWriter.write(msg, encoder)
+    encoder.flush
     endpoint.send(channel, ByteBuffer.wrap(buffer.toByteArray), null, true)
   }
 
@@ -111,12 +113,10 @@ extends AvroChannelManager[SendMsgType, RecvMsgType] with ChannelHandler {
     logger.info("Listener started on port: %d", port)
   }
 
-  private val decoderFactory = new DecoderFactory
-
   override def processData(socket: SocketChannel, data: Array[Byte], count: Int) = {
     //TODO: consider using direct binary decoders, since there's no reason to
     //buffer (saves a copy of the data)
-    val inStream = decoderFactory.createBinaryDecoder(data, null) 
+    val inStream = DecoderFactory.get().binaryDecoder(data, null) 
     val msg = msgRecvClass.newInstance
     msgReader.read(msg, inStream)
     receiveMessage(socketAddrReverseMap.get(socket), msg)

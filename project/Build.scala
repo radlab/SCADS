@@ -33,10 +33,9 @@ object ScadsBuild extends Build {
   val junit = "junit" % "junit" % "4.7"
 
   /* Avro */
-  val avroJava = "org.apache.hadoop" % "avro" % "1.3.3"
-  val avroJavaPlugin = "org.apache.hadoop" % "avro" % "1.3.3" % "plugin"
+  val avroJava = "org.apache.avro" % "avro" % "1.5.1"
+  val avroIpc = "org.apache.avro" % "avro-ipc" % "1.5.1"
   val scalaCompiler = "org.scala-lang" % "scala-compiler" % defaultScalaVersion
-
 
   /* Comm */
     val netty = "org.jboss.netty" % "netty" % "3.2.1.Final"
@@ -197,6 +196,8 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
   lazy val tpcw  = project("piql" / "tpcw", "tpcw", new ScadsSubProject(_) with IdeaProject, piql, perf)
   lazy val gradit = project("piql" / "gradit", "gradit", new ScadsSubProject(_) with IdeaProject, piql)
   lazy val comrades = project("piql" / "comrades", "comrades", new ScadsSubProject(_) with IdeaProject, piql)
+  lazy val axer = project("axer","axer", new ScadsSubProject(_) with IdeaProject, avro)
+  lazy val matheon = project("matheon","matheon", new ScadsSubProject(_) with IdeaProject, config, avro, comm, scalaengine)
 
   lazy val demo = project("demo", "demo", new ScadsSubProject(_), piql, director, deploylib, gradit, scadr, perf, twitter, comrades, modeling)
 

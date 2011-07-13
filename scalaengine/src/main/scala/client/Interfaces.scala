@@ -78,6 +78,11 @@ trait RangeProtocol extends Protocol {
                    limit: Option[Int], 
                    offset: Option[Int], 
                    ascending: Boolean): ScadsFuture[Seq[(Array[Byte], Array[Byte])]]
+
+  def putBulkLocations(parser:RecParser,
+                       locations:Array[String],
+                       firstKey:Option[Array[Byte]],
+                       lastKey:Option[Array[Byte]])
 }
 
 trait KeyRoutable {

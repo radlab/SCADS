@@ -6,25 +6,40 @@ import net.lag.logging.Logger
 
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.config._
+import edu.berkeley.cs.scads.util._
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
 import org.apache.avro.generic._
 
+import scala.util.control.Breaks
+
 import java.util.{ Arrays => JArrays }
 import java.util.concurrent.{ Future => JFuture, _ }
+import java.lang.reflect.Method
+import java.io.{BufferedReader,ObjectInputStream,InputStreamReader,ByteArrayInputStream}
 import atomic._
+
+import edu.berkeley.cs.avro.runtime.ScalaSpecificRecord
 
 /**
 * keep track of number of gets and puts
 */
 case class PartitionWorkloadStats(var gets:Int, var puts:Int)
 
+
+// Used for bulk puts of urls
+@serializable
+trait RecParser {
+  def setLocation(location:String):Unit = {} 
+  def parseLine(line:String):(Array[Byte],Array[Byte])
+}
+
 /**
  * Handles a partition from [startKey, endKey). Refuses to service any
  * requests which fall out of this range, by returning a ProcessingException
  */
-class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, val startKey: Option[Array[Byte]], val endKey: Option[Array[Byte]], val nsRoot: ZooKeeperProxy#ZooKeeperNode, val keySchema: Schema) extends ServiceHandler[PartitionServiceOperation] with AvroComparator {
+class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, val startKey: Option[Array[Byte]], val endKey: Option[Array[Byte]], val nsRoot: ZooKeeperProxy#ZooKeeperNode, val keySchema: Schema, valueSchema: Schema) extends ServiceHandler[PartitionServiceOperation] with AvroComparator {
   protected val logger = Logger("partitionhandler")
   protected val config = Config.config
 
@@ -130,6 +145,8 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
     db.close()
   }
 
+  private val iterateRangeBreakable = new Breaks
+
   override def toString = 
     "<PartitionHandler namespace: %s, keyRange: [%s, %s)>".format(
       partitionIdLock.name, JArrays.toString(startKey.orNull), JArrays.toString(endKey.orNull))
@@ -203,6 +220,31 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           }
 					if (samplerRandom.nextDouble <= putSamplingRate) incrementPutCount(1)
           reply(PutResponse())
+        }
+        case BulkUrlPutReqest(parserBytes, locations) => {
+          val ois = new ObjectInputStream(new ByteArrayInputStream(parserBytes))
+          val parser = ois.readObject.asInstanceOf[RecParser]
+          val txn = db.getEnvironment.beginTransaction(null,null)
+          var l:String = null
+          locations foreach(location => {
+            parser.setLocation(location)
+            val url = new java.net.URL(location)
+            val reader = new BufferedReader(new InputStreamReader(url.openStream))
+            l = reader.readLine
+            while (l != null) {
+              val kv = parser.parseLine(l)
+              db.put(txn, new DatabaseEntry(kv._1), new DatabaseEntry(kv._2))
+              l = reader.readLine
+            }
+          })
+          try {
+            txn.commit()
+            reply(BulkPutResponse())
+          } catch {
+            case e: Exception =>
+              logger.error(e, "Could not commit BulkUrlPutRequest")
+              reply(ProcessingException(e.getMessage, e.getStackTrace.mkString("\n")))
+          }
         }
         case BulkPutRequest(records) => {
           val txn = db.getEnvironment.beginTransaction(null, null)
@@ -367,6 +409,95 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 					//synchronized { reply(GetWorkloadStatsResponse(statWindows(1)._1.get, statWindows(1)._2.get, statsClearedTime)) }
 					reply(GetWorkloadStatsResponse(completedStats.gets, completedStats.puts, statsClearedTime))
 				}
+        case AggRequest(groups,keyType,valType,filters,aggs) => {
+
+
+          val filterFunctions = filters.map(f => {
+            val ois = new java.io.ObjectInputStream(new java.io.ByteArrayInputStream(f.obj))
+              ois.readObject.asInstanceOf[Filter[ScalaSpecificRecord]]
+          })
+          var filterPassed = true
+
+          val aggregates =
+            aggs.map(aggOp => {
+              val ois = new java.io.ObjectInputStream(new java.io.ByteArrayInputStream(aggOp.obj))
+              ois.readObject.asInstanceOf[RemoteAggregate[ScalaSpecificRecord,ScalaSpecificRecord,ScalaSpecificRecord]]
+            })
+            
+
+          val remKey = Class.forName(keyType).newInstance().asInstanceOf[ScalaSpecificRecord]
+          val remVal = Class.forName(valType).newInstance().asInstanceOf[ScalaSpecificRecord]
+          
+          val groupSchemas = groups.map(valueSchema.getField(_).schema)
+          val groupInts = groups.map(valueSchema.getField(_).pos)
+
+          var groupMap:Map[CharSequence, scala.collection.mutable.ArraySeq[ScalaSpecificRecord]] = null
+          var groupBytesMap:Map[CharSequence, Array[Byte]] = null
+          var groupKey:CharSequence = null
+
+          var aggVals:Seq[ScalaSpecificRecord] = null
+          if (groups.size() == 0) { // no groups, so let's init values now
+            aggVals = aggregates.map(_.init())
+          }
+          else {
+            groupMap = new scala.collection.immutable.HashMap[CharSequence,scala.collection.mutable.ArraySeq[ScalaSpecificRecord]]
+            groupBytesMap = new scala.collection.immutable.HashMap[CharSequence, Array[Byte]]
+          }
+
+          var curAggVal =
+            if (groups.size() == 0)
+              scala.collection.mutable.ArraySeq(aggVals:_*)
+            else
+              null
+
+          var stop = false
+
+          iterateOverRange(None,None)((key, value, _) => {
+            // TODO: Use lazy values here
+            val valBytes = value.getData
+            remVal.parse(new java.io.ByteArrayInputStream(valBytes,16,(valBytes.length-16)))
+            val keyBytes = key.getData
+            remKey.parse(keyBytes)
+
+            filterPassed = true
+            filterFunctions.foreach(ff => { 
+              if (filterPassed) { // once one failed just ignore the rest
+                filterPassed = ff.applyFilter(remVal)
+              }
+            })
+            if (filterPassed) {  // record passes filters
+              if (groups.size() != 0) {
+                groupKey = AnalyticsUtils.getGroupKey(groupInts,remVal)
+                curAggVal = groupMap.get(groupKey) match {
+                  case Some(thing) => thing
+                  case None => { // this is a new group, so init the starting values for the agg
+                    groupBytesMap += ((groupKey,AnalyticsUtils.getGroupBytes(groupInts,groupSchemas,remVal)))
+                    scala.collection.mutable.ArraySeq(aggregates.map(_.init()):_*)
+                  }
+                }
+              }
+              stop = true
+              aggregates.view.zipWithIndex foreach(aggregate => {
+                curAggVal(aggregate._2) = aggregate._1.applyAggregate(curAggVal(aggregate._2),remKey,remVal)
+                stop &= aggregate._1.stop
+              })
+              if (groups.size() != 0)
+                groupMap += ((groupKey,curAggVal))
+              if (stop)
+                iterateRangeBreakable.break
+            }
+          })
+
+          val rep = AggReply(
+            if (groups.size() == 0) {
+              List(GroupedAgg(None,curAggVal.map(_.asInstanceOf[ScalaSpecificRecord].toBytes)))
+            } else {
+              groupMap.map(kv => {
+                GroupedAgg(groupBytesMap(kv._1),kv._2.map(_.asInstanceOf[ScalaSpecificRecord].toBytes))
+              }).toSeq
+            })
+          reply(rep)
+        }
         case _ => src.foreach(_ ! ProcessingException("Not Implemented", ""))
       }
     } else {
@@ -513,12 +644,14 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 
       if (status == OperationStatus.SUCCESS)
         status = cur.getCurrent(dbeKey, dbeValue, null)
-      while(status == OperationStatus.SUCCESS &&
-            limit.map(_ > returnedCount).getOrElse(true) &&
-            maxKey.map(mk => compare(dbeKey.getData, mk) < 0 /* Exclude maxKey from range */).getOrElse(true)) {
-        func(dbeKey, dbeValue, cur)
-        returnedCount += 1
-        status = cur.getNext(dbeKey, dbeValue, null)
+      iterateRangeBreakable.breakable { // used to allow func to break out early
+        while(status == OperationStatus.SUCCESS &&
+              limit.map(_ > returnedCount).getOrElse(true) &&
+              maxKey.map(mk => compare(dbeKey.getData, mk) < 0 /* Exclude maxKey from range */).getOrElse(true)) {
+                func(dbeKey, dbeValue, cur)
+                returnedCount += 1
+                status = cur.getNext(dbeKey, dbeValue, null)
+              }
       }
     }
     else {
@@ -529,12 +662,14 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
 
       if (status == OperationStatus.SUCCESS)
         status = cur.getCurrent(dbeKey, dbeValue, null)
-      while(status == OperationStatus.SUCCESS &&
-            limit.map(_ > returnedCount).getOrElse(true) &&
-            minKey.map(compare(_, dbeKey.getData) <= 0).getOrElse(true)) {
-        func(dbeKey, dbeValue,cur)
-        returnedCount += 1
-        status = cur.getPrev(dbeKey, dbeValue, null)
+      iterateRangeBreakable.breakable { // used to allow func to break out early
+        while(status == OperationStatus.SUCCESS &&
+              limit.map(_ > returnedCount).getOrElse(true) &&
+              minKey.map(compare(_, dbeKey.getData) <= 0).getOrElse(true)) {
+                func(dbeKey, dbeValue,cur)
+                returnedCount += 1
+                status = cur.getPrev(dbeKey, dbeValue, null)
+              }
       }
     }
     cur.close()

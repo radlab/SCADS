@@ -6,6 +6,7 @@ import org.apache.avro.generic.{ IndexedRecord, GenericData, GenericRecord, Gene
 import org.apache.avro.io.{
   BinaryData,
   DecoderFactory,
+  EncoderFactory,
   BinaryEncoder,
   BinaryDecoder,
   DatumReader,
@@ -19,19 +20,19 @@ import net.lag.logging.Logger
 
 object JvmTask {
   val schema = TypedSchemas.schemaOf[JvmTask]
-  val decoderFactory: DecoderFactory = (new DecoderFactory).configureDirectDecoder(true)
   val reader = new SpecificDatumReader[JvmTask](schema)
   val writer = new SpecificDatumWriter[JvmTask](schema)
 
   def apply(bytes: Array[Byte]): JvmTask = {
-    val dec = decoderFactory.createBinaryDecoder(bytes, null)
+    val dec = DecoderFactory.get().directBinaryDecoder(new java.io.ByteArrayInputStream(bytes), null)
     reader.read(null, dec)
   }
 
   def apply(task: JvmTask): Array[Byte] = {
     val out = new ByteArrayOutputStream(1024)
-    val binEncoder  = new BinaryEncoder(out)
+    val binEncoder  = EncoderFactory.get().binaryEncoder(out,null)
     writer.write(task, binEncoder)
+    binEncoder.flush
     out.toByteArray
   }
 }

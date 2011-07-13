@@ -5,7 +5,7 @@ import java.io.ByteArrayOutputStream
 
 import scala.collection.JavaConversions._
 
-import org.apache.avro.io.{BinaryDecoder, BinaryEncoder, DecoderFactory, JsonDecoder, JsonEncoder}
+import org.apache.avro.io.{BinaryDecoder, BinaryEncoder, EncoderFactory, DecoderFactory, JsonDecoder, JsonEncoder}
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, IndexedRecord}
 import org.apache.avro.specific.SpecificRecord
 
@@ -17,7 +17,7 @@ class RichIndexedRecord[T <: IndexedRecord](val rec: T) {
 
   final def toJson: String = {
     val outBuffer = new ByteArrayOutputStream
-    val encoder = new JsonEncoder(rec.getSchema(), outBuffer)
+    val encoder = EncoderFactory.get().jsonEncoder(rec.getSchema(),outBuffer)
     val writer = new GenericDatumWriter[IndexedRecord](rec.getSchema())
     writer.write(rec, encoder)
     encoder.flush()
@@ -26,19 +26,20 @@ class RichIndexedRecord[T <: IndexedRecord](val rec: T) {
 
   final def toBytes: Array[Byte] = {
     val outBuffer = new ByteArrayOutputStream
-    val encoder = new BinaryEncoder(outBuffer)
+    val encoder = EncoderFactory.get().binaryEncoder(outBuffer,null)
     val writer = new GenericDatumWriter[IndexedRecord](rec.getSchema())
     writer.write(rec, encoder)
+    encoder.flush
     outBuffer.toByteArray
   }
 
   final def parse(data: String): T = {
-    val decoder = new JsonDecoder(rec.getSchema, data)
+    val decoder = DecoderFactory.get().jsonDecoder(rec.getSchema(),data)
     reader.read(rec, decoder)
   }
 
   final def parse(data: Array[Byte]): T = {
-    val decoder = DecoderFactory.defaultFactory().createBinaryDecoder(data, null)
+    val decoder = DecoderFactory.get().binaryDecoder(data, null)
     reader.read(rec, decoder)
   }
 
