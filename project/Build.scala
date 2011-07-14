@@ -2,7 +2,7 @@ import sbt._
 import Keys._
 
 object ScadsBuild extends Build {
-  val buildVersion      = "2.1-SNAPSHOT"
+  val buildVersion      = "2.1.2-SNAPSHOT"
   val defaultScalaVersion = "2.8.1"
   val buildSettings = Defaults.defaultSettings ++ Seq (organization := "edu.berkeley.cs",
 						       scalaVersion := defaultScalaVersion,
@@ -15,9 +15,9 @@ object ScadsBuild extends Build {
   val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"
 
   lazy val scads = Project("scads", file("."), settings=buildSettings) aggregate (config, avroPlugin, comm)
+  lazy val avroPlugin = Project("avro-plugin", file("avro"), settings=buildSettings ++ Seq(libraryDependencies := Seq(avroJava, avroIpc, scalaCompiler, configgy)))
   lazy val config = Project("config", file("config"), settings=buildSettings ++ Seq(libraryDependencies := Seq(configgy)))
-  lazy val avroPlugin = Project("avro-plugin", file("avro"), settings=buildSettings ++ Seq(libraryDependencies := Seq(avroJava, scalaCompiler, configgy)))
-  lazy val comm = Project("communication", file("comm"), settings=buildSettings ++ Seq(libraryDependencies := Seq(netty, zookeeper, commonsHttpClient, log4j, scalaTest, junit, avroJavaPlugin, avroPluginDep, avroPluginCompile))) dependsOn(config)
+  lazy val comm = Project("communication", file("comm"), settings=buildSettings ++ Seq(libraryDependencies := Seq(netty, zookeeper, commonsHttpClient, log4j, scalaTest, junit, avroPluginDep, avroPluginCompile))) dependsOn(config)
   
   val avroPluginDep = "edu.berkeley.cs" %% "avro-plugin" % buildVersion % "plugin"
   val avroPluginCompile = "edu.berkeley.cs" %% "avro-plugin" % buildVersion

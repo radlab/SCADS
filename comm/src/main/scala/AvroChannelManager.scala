@@ -5,7 +5,6 @@ import java.nio.channels._
 import java.net.InetSocketAddress
 
 import org.apache.avro.io._
-import org.apache.avro.ipc._
 import org.apache.avro.specific._
 
 case class RemoteNode(hostname:String, port: Int) {
