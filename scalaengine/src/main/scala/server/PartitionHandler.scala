@@ -27,6 +27,10 @@ import edu.berkeley.cs.avro.runtime.ScalaSpecificRecord
 */
 case class PartitionWorkloadStats(var gets:Int, var puts:Int)
 
+@serializable
+case class TxStatusEntry(var status: Int, var keys: List[PutRequest]) {
+}
+
 
 // Used for bulk puts of urls
 @serializable
@@ -40,7 +44,7 @@ trait RecParser {
  * requests which fall out of this range, by returning a ProcessingException
  */
 class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, val startKey: Option[Array[Byte]], val endKey: Option[Array[Byte]], val nsRoot: ZooKeeperProxy#ZooKeeperNode, val keySchema: Schema, valueSchema: Schema) extends ServiceHandler[PartitionServiceOperation] with AvroComparator {
-  protected val logger = Logger("partitionhandler")
+  protected lazy val logger = Logger("partitionhandler")
   protected val config = Config.config
 
   protected lazy val copyIteratorCtor = 
@@ -125,7 +129,22 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
     cursorTimeoutThread.execute(runnable)
   }
 
-  protected def startup() { /* No-op */ }
+  private lazy val txStatusDB = makeDatabase("txstatusdb")
+  private lazy val preparedKeysDB = makeDatabase("preparedkeysdb")
+
+  private def makeDatabase(dbName: String) = {
+    val dbConfig = new DatabaseConfig
+    dbConfig.setAllowCreate(true)
+    dbConfig.setTransactional(true)
+    // TODO: create these with a different environment?
+    db.getEnvironment.openDatabase(null, dbName, dbConfig)
+  }
+
+  protected def startup() {
+    logger.info("txstatusdb count: " + txStatusDB.count)
+    logger.info("preparedkeysdb count: " + preparedKeysDB.count)
+    // TODO: crash recovery
+  }
   protected def shutdown() {
     // stop the cursor tasks
     cursorTimeoutThread.shutdownNow()
@@ -143,6 +162,8 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
     }
     openCursors.clear()
     db.close()
+    txStatusDB.close()
+    preparedKeysDB.close()
   }
 
   private val iterateRangeBreakable = new Breaks
@@ -259,6 +280,113 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
               logger.error(e, "Could not commit BulkPutRequest")
               reply(ProcessingException(e.getMessage, e.getStackTrace.mkString("\n")))
           }
+        }
+        case PrepareRequest(tid, bid, records) => {
+          // Simple prepare phase for blocking 2pc
+          println("prepare: " + tid + " " + bid)
+          val xid = new ScadsXid(tid, bid)
+          val xidEntry = new DatabaseEntry(xid.serialized)
+          val txStatus = new TxStatusEntry(0, records.toList)
+
+          val baos = new java.io.ByteArrayOutputStream
+          val oos = new java.io.ObjectOutputStream(baos)
+          oos.writeObject(txStatus)
+          val txStatusEntry = new DatabaseEntry(baos.toByteArray)
+
+          val txn = db.getEnvironment.beginTransaction(null, null)
+          var success = true
+          try {
+            success = success && (OperationStatus.SUCCESS ==
+                      txStatusDB.putNoOverwrite(txn, xidEntry, txStatusEntry))
+            records.foreach(rec => {
+              if (success) {
+                success = success && (OperationStatus.SUCCESS ==
+                          preparedKeysDB.putNoOverwrite(txn,
+                              new DatabaseEntry(rec.key),
+                              new DatabaseEntry(rec.value.get)))
+              }
+            })
+            if (success) {
+              txn.commit()
+              reply(PrepareResponse(true))
+            } else {
+              txn.abort()
+              reply(PrepareResponse(false))
+            }
+          } catch {
+            case e: Exception => println("error in prepare")
+            txn.abort()
+            reply(PrepareResponse(false))
+          }
+        }
+        case CommitRequest(tid, bid, commit) => {
+          // Simple commit phase for blocking 2pc
+          println("commit: " + tid + " " + bid)
+          val xid = new ScadsXid(tid, bid)
+          val xidEntry = new DatabaseEntry(xid.serialized)
+          var entryValue = new DatabaseEntry
+
+          txStatusDB.get(null, xidEntry, entryValue, LockMode.READ_COMMITTED)
+          val txStatus = if (entryValue.getData() != null) {
+            try {
+              val bais = new java.io.ByteArrayInputStream(entryValue.getData)
+              val ois = new java.io.ObjectInputStream(bais)
+              ois.readObject().asInstanceOf[TxStatusEntry]
+            } catch {
+              case e: Exception => println("error")
+              null
+            }
+          } else {
+            // TODO: send full write set along with commit
+            null
+          }
+
+          if (txStatus == null || txStatus.status != 0) {
+            reply(CommitResponse(false))
+            return
+          }
+
+          if (commit) {
+            txStatus.status = 1
+          } else {
+            txStatus.status = 2
+          }
+
+          val baos = new java.io.ByteArrayOutputStream
+          val oos = new java.io.ObjectOutputStream(baos)
+          oos.writeObject(txStatus)
+          val keyList = new DatabaseEntry(baos.toByteArray)
+          // Persist the commit message
+          txStatusDB.put(null, xidEntry, keyList)
+
+          // Represents end of commit
+          txStatus.status += 2
+
+          val txn = db.getEnvironment.beginTransaction(null, null)
+          try {
+            txStatus.keys.foreach(rec => {
+              val recKey = new DatabaseEntry(rec.key)
+              if (commit) {
+                rec.value match {
+                  case Some(v) => db.put(txn, recKey, new DatabaseEntry(v))
+                  case None => db.delete(txn, recKey)
+                }
+              }
+              preparedKeysDB.delete(txn, recKey)
+            })
+            baos.reset()
+            oos.writeObject(txStatus)
+            txStatusDB.put(txn, xidEntry, new DatabaseEntry(baos.toByteArray))
+            txn.commit()
+            reply(CommitResponse(commit))
+          } catch {
+            case m: Exception => println("error")
+            txn.abort()
+            reply(CommitResponse(false))
+          }
+
+          println("txstatus " + txStatusDB.count)
+          println("prep " + preparedKeysDB.count)
         }
         case GetRangeRequest(minKey, maxKey, limit, offset, ascending) => {
           logger.debug("[%s] GetRangeRequest: [%s, %s)", this, JArrays.toString(minKey.orNull), JArrays.toString(maxKey.orNull))

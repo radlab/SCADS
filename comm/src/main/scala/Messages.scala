@@ -58,6 +58,17 @@ case class AggRequest(var groups: Seq[String], var keyType:String, var valueType
 case class GroupedAgg(var group:Option[Array[Byte]], var groupVals:Seq[Array[Byte]]) extends AvroRecord
 case class AggReply(var results:Seq[GroupedAgg]) extends AvroRecord with KeyValueStoreOperation
 
+/* Transaction KVStore Metadata */
+case class VersionMaster(var version: Long, var ballot: Long, var master: String) extends AvroRecord
+case class TxRecordMetadata(var version: Long, var masters: Seq[VersionMaster]) extends AvroRecord
+case class TxRecord(var metadata: TxRecordMetadata, var rec: Option[Array[Byte]]) extends AvroRecord
+
+/* Transaction KVStore Operations */
+case class PrepareRequest(var tid: Long, var bid: Long, var updates: Seq[PutRequest]) extends AvroRecord with KeyValueStoreOperation
+case class PrepareResponse(var success: Boolean) extends AvroRecord with KeyValueStoreOperation
+case class CommitRequest(var tid: Long, var bid: Long, var commit: Boolean) extends AvroRecord with KeyValueStoreOperation
+case class CommitResponse(var success: Boolean) extends AvroRecord with KeyValueStoreOperation
+
 /* Storage Handler Operations */
 sealed trait StorageServiceOperation extends MessageBody
 case class CreatePartitionRequest(var namespace: String, var startKey: Option[Array[Byte]] = None, var endKey: Option[Array[Byte]] = None) extends AvroRecord with StorageServiceOperation
