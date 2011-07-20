@@ -71,15 +71,19 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       }
     }
 
-	masters.foreach(_.blockUntilRunning)
+    masters.foreach(_.blockUntilRunning)
     masters.pforeach(_.pushJars)
     updateMasterConf
+
+    zooKeepers.foreach(_.blockUntilRunning)
+    zooKeepers.foreach(_.blockTillPortOpen(2181))
+
     restartMasters
     restartServiceScheduler
   }
 
   def restartServiceScheduler: Unit = {
-	zooKeepers.foreach(_.blockUntilRunning)
+    zooKeepers.foreach(_.blockUntilRunning)
     masters.pforeach(_.executeCommand("killall java"))
     val serviceSchedulerScript = (
       "#!/bin/bash\n" +
@@ -258,8 +262,12 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
 	instances.foreach(_.tags += ("mesos", "slave"))
 
     if (updateDeploylibOnStart) {
-	  masters.foreach(_.blockUntilRunning)
-	  firstMaster.blockTillPortOpen(5050)
+
+      //Hack to avoid race condition where there are no masters yet because they haven't been tagged.
+      instances.head.blockUntilRunning
+      masters.foreach(_.blockUntilRunning)
+      firstMaster.blockTillPortOpen(5050)
+
       instances.pforeach(i => try {
         i.blockUntilRunning
         updateDeploylib(i :: Nil)
