@@ -15,10 +15,10 @@ import avro.runtime._
 import collection.TraversableOnce
 
 object Experiments {
-  var resultZooKeeper = ZooKeeperNode("zk://zoo.knowsql.org/").getOrCreate("home").getOrCreate(System.getenv("USER"))
+  var resultClusterAddress = ZooKeeperNode("zk://zoo1.millennium.berkeley.edu,zoo2.millennium.berkeley.edu,zoo3.millennium.berkeley.edu/home/marmbrus/vldb12")
   val cluster = new Cluster()
   implicit def zooKeeperRoot = cluster.zooKeeperRoot
-  val resultsCluster = new ScadsCluster(resultZooKeeper.getOrCreate("results"))
+  val resultsCluster = new ScadsCluster(resultClusterAddress)
 
   implicit def classSource = cluster.classSource
   implicit def serviceScheduler = cluster.serviceScheduler
