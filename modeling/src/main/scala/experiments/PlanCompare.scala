@@ -51,16 +51,18 @@ object PlanCompare {
   def allResults = results.iterateOverRange(None,None)
   def goodResults = allResults
 
-  def graphPoints = goodResults.map(r => (r.point * r.config.scaleStep, r.responseTimes.quantile(0.99))).toSeq
+  def graphPoints = goodResults.map(r => (r.point * r.config.scaleStep, r.responseTimes.quantile(0.99), r.query)).toSeq
+
+  def backupData = allResults.toAvroFile("planCompare" + System.currentTimeMillis + ".avro")
 
 }
    
 case class PlanCompareTask(var clusterAddress: String,
 			   var resultClusterAddress: String,
 			   var replicationFactor: Int = 2,
-			   var iterations: Int = 5,
-			   var points: Int = 10,
-			   var scaleStep: Int = 1,
+			   var iterations: Int = 10,
+			   var points: Int = 25,
+			   var scaleStep: Int = 2,
 			   var runLengthMin: Int = 1) extends AvroTask with AvroRecord {
 
 
@@ -107,8 +109,17 @@ case class PlanCompareTask(var clusterAddress: String,
     (1 to iterations).foreach(iteration => {
       logger.info("Begining iteration %d", iteration)
       /* clear namespaces by reseting partition scheme */
+      subscriptions.delete()
+      subscriptions.open()
+      idxTargetSubscriptions.delete()
+      subscriptions.getOrCreateIndex(AttributeIndex("target") :: Nil)
+      idxTargetSubscriptions.open()
+
       subscriptions.setPartitionScheme(partitions)
       idxTargetSubscriptions.setPartitionScheme(partitions)
+
+      assert(subscriptions.getRange(None, None, limit=1).size == 0)
+      assert(idxTargetSubscriptions.getRange(None, None, limit=1).size == 0)
 
       (1 to points).foreach(point => {
 	/* bulkload more subscriptions */
@@ -129,7 +140,8 @@ case class PlanCompareTask(var clusterAddress: String,
 	  var iterStartTime = currentTime
 	  while(iterStartTime - startTime < runLengthMin * 60 * 1000) {
 	    val username = toUser(rand.nextInt(maxUser))
-	    query(username)
+	    val answer = query(username)
+	    assert(answer.size == 50)
 	    var endTime = currentTime
 	    responseTimes.add(endTime - iterStartTime)
 	    iterStartTime = endTime
