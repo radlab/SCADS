@@ -229,7 +229,7 @@ trait QuorumProtocol
   }
 
   onDelete {
-    deleteMetadata(ZK_QUORUM_CONFIG)
+    //deleteMetadata(ZK_QUORUM_CONFIG)
   }
 
   /** NOT thread-safe to set */
