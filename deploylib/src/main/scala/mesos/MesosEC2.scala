@@ -205,6 +205,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
   def restart(): Unit = {
     restartMasters
     restartSlaves
+    restartServiceScheduler
   }
 
   def updateSlavesFile: Unit = {
@@ -262,7 +263,6 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
 	instances.foreach(_.tags += ("mesos", "slave"))
 
     if (updateDeploylibOnStart) {
-
       //Hack to avoid race condition where there are no masters yet because they haven't been tagged.
       instances.head.blockUntilRunning
       masters.foreach(_.blockUntilRunning)
