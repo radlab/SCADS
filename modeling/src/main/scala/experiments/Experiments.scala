@@ -14,6 +14,10 @@ import avro.marker._
 import avro.runtime._
 import collection.TraversableOnce
 
+ import org.apache.avro.generic._
+ import org.apache.avro.file.{DataFileReader, DataFileWriter, CodecFactory}
+ import java.io.File
+
 object Experiments {
   var resultClusterAddress = ZooKeeperNode("zk://zoo1.millennium.berkeley.edu,zoo2.millennium.berkeley.edu,zoo3.millennium.berkeley.edu/home/marmbrus/vldb12")
   val cluster = new Cluster()
@@ -64,6 +68,14 @@ object Experiments {
       Runtime.getRuntime.exec(Array("/usr/bin/open", file.getCanonicalPath))
     }
   }
+
+  implicit def avroIterWriter[RecordType <: GenericContainer](iter: Iterator[RecordType]) = new {
+     def toAvroFile(file: File, codec: Option[CodecFactory] = None)(implicit schema: TypedSchema[RecordType]) = {
+       val outfile = AvroOutFile[RecordType](file, codec)
+       iter.foreach(outfile.append)
+       outfile.close
+      }
+    }
 
   object QueryRunner {
     val results = resultsCluster.getNamespace[Result]("queryRunnerResults")
@@ -267,18 +279,6 @@ object Experiments {
     type Result = piql.tpcw.scale.Result
 
     val results = resultsCluster.getNamespace[Result]("tpcwScaleResults")
-
-    import org.apache.avro.generic._
-    import org.apache.avro.file.{DataFileReader, DataFileWriter, CodecFactory}
-    import java.io.File
-
-    implicit def avroIterWriter[RecordType <: GenericContainer](iter: Iterator[RecordType]) = new {
-      def toAvroFile(file: File, codec: Option[CodecFactory] = None)(implicit schema: TypedSchema[RecordType]) = {
-        val outfile = AvroOutFile[RecordType](file, codec)
-        iter.foreach(outfile.append)
-        outfile.close
-      }
-    }
 
     def backup = results.iterateOverRange(None,None).toAvroFile(new java.io.File("tpcwScale." + System.currentTimeMillis + ".avro"))
 
