@@ -206,7 +206,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     restartMasters
     restartSlaves
     restartServiceScheduler
-    slaves.pforeach(_ ! "killall java")
+    slaves.pforeach(_.executeCommand("killall java"))
   }
 
   def updateSlavesFile: Unit = {
