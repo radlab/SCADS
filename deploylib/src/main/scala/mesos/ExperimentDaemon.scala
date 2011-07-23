@@ -33,7 +33,7 @@ class ServiceScheduler(mesosMaster: String, executor: String) extends LocalExper
       src.foreach(_ ! RunExperimentResponse())
     }
     case KillTaskRequest(taskId) => {
-      logger.info("Killing task %d", taskId)
+      logger.info("Killing task %s", taskId)
       driver.killTask(TaskID.newBuilder.setValue(taskId).build())
       src.foreach(_ ! KillTaskResponse())
     }
