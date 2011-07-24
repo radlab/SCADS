@@ -51,7 +51,10 @@ object PlanCompare {
   def allResults = results.iterateOverRange(None,None)
   def goodResults = allResults
 
-  def graphPoints = goodResults.map(r => (r.point * r.config.scaleStep, r.responseTimes.quantile(0.99), r.query)).toSeq
+  def graphPoints(quantile: Double = 0.99) = goodResults.toSeq
+    .groupBy(r => (r.query, r.point * r.config.scaleStep)).toSeq
+    .map { case ((query, size), data) => (query, size, data.map(_.responseTimes).reduceLeft(_ + _).quantile(quantile)) }
+    .sortBy(r => (r._1, r._2))
 
   def backupData = allResults.toAvroFile("planCompare" + System.currentTimeMillis + ".avro")
 
