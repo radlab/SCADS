@@ -8,9 +8,15 @@ object ScadsBuild extends Build {
 						       scalaVersion := defaultScalaVersion,
 						       version      := buildVersion,
 						       shellPrompt  := ShellPrompt.buildShellPrompt,
-							   resolvers    := Seq(radlabRepo),
-							   
-							   autoCompilerPlugins := true)
+						       resolvers    := Seq(radlabRepo),
+						       autoCompilerPlugins := true,
+  publishTo <<= (version) { version: String =>
+    val nexus = "http://scads.knowsql.org/nexus/content/repositories/"
+    if (version.trim.endsWith("SNAPSHOT")) Some("snapshots" at nexus+"snapshots/") 
+    else                                   Some("releases" at nexus+"releases/")
+  },
+  credentials += Credentials(Path.userHome / ".ivy2" / "credentials"))
+  
 							
   val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"
 
@@ -22,10 +28,10 @@ object ScadsBuild extends Build {
   val avroPluginDep = "edu.berkeley.cs" %% "avro-plugin" % buildVersion % "plugin"
   val avroPluginCompile = "edu.berkeley.cs" %% "avro-plugin" % buildVersion
 
-	def scalaAvroInstanceSetting = (appConfiguration, scalaVersion, scalaHome){ (app, version, home) =>
-		val provider = app.provider.scalaProvider		
-		new ScalaInstance(version, provider.loader, provider.libraryJar, provider.compilerJar, (provider.jars.toSet - provider.libraryJar - provider.compilerJar).toSeq)
-	}
+  def scalaAvroInstanceSetting = (appConfiguration, scalaVersion, scalaHome){ (app, version, home) =>
+    val provider = app.provider.scalaProvider		
+    new ScalaInstance(version, provider.loader, provider.libraryJar, provider.compilerJar, (provider.jars.toSet - provider.libraryJar - provider.compilerJar).toSeq)
+  }
 	
   /* Config */
   val configgy = "net.lag" % "configgy" % "2.0.0"
