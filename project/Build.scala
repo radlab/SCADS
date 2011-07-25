@@ -4,24 +4,25 @@ import Keys._
 object ScadsBuild extends Build {
   val buildVersion      = "2.1.2-SNAPSHOT"
   val defaultScalaVersion = "2.8.1"
-  val buildSettings = Defaults.defaultSettings ++ Seq (organization := "edu.berkeley.cs",
-						       scalaVersion := defaultScalaVersion,
-						       version      := buildVersion,
-						       shellPrompt  := ShellPrompt.buildShellPrompt,
-						       resolvers    := Seq(radlabRepo),
-						       autoCompilerPlugins := true,
-  publishTo <<= (version) { version: String =>
-    val nexus = "http://scads.knowsql.org/nexus/content/repositories/"
-    if (version.trim.endsWith("SNAPSHOT")) Some("snapshots" at nexus+"snapshots/") 
-    else                                   Some("releases" at nexus+"releases/")
-  },
-  credentials += Credentials(Path.userHome / ".ivy2" / "credentials"),
-  scalaInstance <<= (appConfiguration, scalaVersion, scalaHome) { 
-    (app, version, home) =>
-      val provider = app.provider.scalaProvider
-      //val avroDeps = deps.configuration("compile").get.modules.filter(_.module equals avroJava).flatMap(_.artifacts)
-      new ScalaInstance(version, provider.loader, provider.libraryJar, provider.compilerJar, (provider.jars.toSet - provider.libraryJar - provider.compilerJar).toSeq)
-  })
+  val buildSettings = Defaults.defaultSettings ++ Seq (
+    organization := "edu.berkeley.cs",
+    scalaVersion := defaultScalaVersion,
+    version      := buildVersion,
+    shellPrompt  := ShellPrompt.buildShellPrompt,
+    resolvers    := Seq(radlabRepo),
+    autoCompilerPlugins := true,
+    publishTo <<= (version) { version: String =>
+      val nexus = "http://scads.knowsql.org/nexus/content/repositories/"
+      if (version.trim.endsWith("SNAPSHOT")) Some("snapshots" at nexus+"snapshots/") 
+      else                                   Some("releases" at nexus+"releases/")
+    },
+    credentials += Credentials(Path.userHome / ".ivy2" / "credentials"),
+    scalaInstance <<= (appConfiguration, scalaVersion, scalaHome) { 
+      (app, version, home) =>
+        val provider = app.provider.scalaProvider
+        //val avroDeps = deps.configuration("compile").get.modules.filter(_.module equals avroJava).flatMap(_.artifacts)
+        new ScalaInstance(version, provider.loader, provider.libraryJar, provider.compilerJar, (provider.jars.toSet - provider.libraryJar - provider.compilerJar).toSeq)
+    })
 
 							
   val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"
