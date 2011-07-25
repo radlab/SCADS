@@ -14,6 +14,7 @@ import org.apache.zookeeper.CreateMode
 import edu.berkeley.cs.scads.piql.scadr.Subscription
 
 case class PlanCompareResult(var hostname: String,
+			     var timestamp: Long,
 			     var iteration: Int,
 			     var point: Int,
 			     var query: String,
@@ -58,15 +59,20 @@ object PlanCompare {
 
   def backupData = allResults.toAvroFile("planCompare" + System.currentTimeMillis + ".avro")
 
+  def queryCounts = allResults.toSeq
+    .groupBy(r => (r.point, r.query)).toSeq
+    .map(r => (r._1._1, r._1._2 , r._2.map(_.responseTimes.totalRequests).sum))
+    .sortBy(r => r._1)
+    
 }
    
 case class PlanCompareTask(var clusterAddress: String,
 			   var resultClusterAddress: String,
 			   var replicationFactor: Int = 2,
 			   var iterations: Int = 10,
-			   var points: Int = 25,
-			   var scaleStep: Int = 2,
-			   var runLengthMin: Int = 1) extends AvroTask with AvroRecord {
+			   var points: Int = 20,
+			   var scaleStep: Int = 5,
+			   var numExecutions: Int = 10000) extends AvroTask with AvroRecord {
 
 
   def run(): Unit = {
@@ -137,23 +143,27 @@ case class PlanCompareTask(var clusterAddress: String,
 
 	/* measure response time for each query given the current state of the db */
 	results ++=  queries.map(query => {
-	  logger.info("Running %s for %d minutes", query.name, runLengthMin)
-	  val startTime = currentTime
+	  logger.info("Running %s %d times", query.name, numExecutions)
 	  val responseTimes = Histogram(1,1000)
-	  var iterStartTime = currentTime
-	  while(iterStartTime - startTime < runLengthMin * 60 * 1000) {
+
+	  (1 to numExecutions).foreach(i => {
 	    val username = toUser(rand.nextInt(maxUser))
+
+	    val startTime = currentTime
 	    val answer = query(username)
 	    assert(answer.size == 50)
 	    var endTime = currentTime
-	    responseTimes.add(endTime - iterStartTime)
-	    iterStartTime = endTime
-	  }
-	  val result = PlanCompareResult(java.net.InetAddress.getLocalHost.getHostName,
-			    iteration,
-			    point,
-			    query.name.getOrElse("unnamed"),
-			    this)
+
+	    responseTimes.add(endTime - startTime)
+	  })
+
+	  val result = PlanCompareResult(
+	    java.net.InetAddress.getLocalHost.getHostName,
+	    System.currentTimeMillis,
+	    iteration,
+	    point,
+	    query.name.getOrElse("unnamed"),
+	    this)
 	  result.responseTimes = responseTimes
 	  result
 	})	
