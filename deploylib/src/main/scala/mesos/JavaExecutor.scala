@@ -198,7 +198,7 @@ class JavaExecutor extends Executor {
           .build())
 
       val result = proc.waitFor()
-      logger.info("TASK %d exitied with code %d", taskDesc.getTaskId, result)
+      logger.info("TASK %s exitied with code %d", taskDesc.getTaskId, result)
 
       val finalTaskState = result match {
         case 0 => TaskState.TASK_FINISHED
@@ -217,13 +217,13 @@ class JavaExecutor extends Executor {
         Runtime.getRuntime.exec("/sbin/halt")
       }
 
-      logger.info("Cleaning up working directory %s for %d", tempDir, taskDesc.getTaskId)
+      logger.info("Cleaning up working directory %s for %s", tempDir, taskDesc.getTaskId)
       deleteRecursive(tempDir)
-      logger.info("Done cleaning up after Task %d", taskDesc.getTaskId)
+      logger.info("Done cleaning up after Task %s", taskDesc.getTaskId)
     }
 
     def kill = {
-      logger.info("Killing Task %d", taskDesc.getTaskId)
+      logger.info("Killing Task %s", taskDesc.getTaskId)
       taskKilled = true
       proc.destroy()
     }
@@ -293,20 +293,20 @@ class JavaExecutor extends Executor {
     }
 
     runningTasks += ((taskDesc.getTaskId.getValue, runningTask))
-    logger.info("Task %d started", taskDesc.getTaskId)
+    logger.info("Task %s started", taskDesc.getTaskId)
   }
 
   override def killTask(d: ExecutorDriver, taskId: TaskID): Unit = {
     runningTasks.get(taskId.getValue) match {
       case Some(runningTask) => {
-        logger.info("Killing task %d", taskId)
+        logger.info("Killing task %s", taskId)
         runningTask.kill
         d.sendStatusUpdate(
           TaskStatus.newBuilder()
                     .setTaskId(taskId)
                     .build())
       }
-      case None => logger.warning("Asked to kill nonexistant task %d", taskId)
+      case None => logger.warning("Asked to kill nonexistant task %s", taskId)
     }
 
   }
