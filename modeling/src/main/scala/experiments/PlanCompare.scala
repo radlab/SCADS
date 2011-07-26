@@ -69,7 +69,7 @@ object PlanCompare {
 case class PlanCompareTask(var clusterAddress: String,
 			   var resultClusterAddress: String,
 			   var replicationFactor: Int = 2,
-			   var iterations: Int = 10,
+			   var iterations: Int = 200,
 			   var points: Int = 15,
 			   var scaleStep: Int = 10,
 			   var numExecutions: Int = 1000) extends AvroTask with AvroRecord {
