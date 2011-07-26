@@ -70,9 +70,9 @@ case class PlanCompareTask(var clusterAddress: String,
 			   var resultClusterAddress: String,
 			   var replicationFactor: Int = 2,
 			   var iterations: Int = 10,
-			   var points: Int = 20,
-			   var scaleStep: Int = 5,
-			   var numExecutions: Int = 10000) extends AvroTask with AvroRecord {
+			   var points: Int = 15,
+			   var scaleStep: Int = 10,
+			   var numExecutions: Int = 1000) extends AvroTask with AvroRecord {
 
 
   def run(): Unit = {
@@ -98,7 +98,7 @@ case class PlanCompareTask(var clusterAddress: String,
 	"NaiveFollowing",
 	   LocalStopAfter(limit,
 	     LocalSelection(EqualityPredicate(AttributeValue(0,1), ParameterValue(0)),
-	       IndexScan(subscriptions, Nil, limit, true))),
+	       IndexScan(subscriptions, Nil, FixedLimit(1000), true))),
         executor)
    
     val piqlQuery =
@@ -132,30 +132,46 @@ case class PlanCompareTask(var clusterAddress: String,
 
       (1 to points).foreach(point => {
 	/* bulkload more subscriptions */
-	val minUser = (point - 1) * scaleStep
+	val minUser = (point - 1) * scaleStep + 1
 	val maxUser = point * scaleStep
 	logger.info("Measuring with %d users", maxUser)
+
+	logger.info("Loading data for users %d to %d", minUser, maxUser)
 	val newUsers = (minUser to maxUser).view
 	val followers = (1 to 50).view
 	val data = newUsers.flatMap(target => 
 	            followers.map(owner => Subscription(toUser(owner), toUser(target))))
 	subscriptions ++= data
 
+	logger.info("Data size: %d, Index Size: %d", subscriptions.iterateOverRange(None,None).size, idxTargetSubscriptions.iterateOverRange(None,None).size)
+
+	if(iteration == 1 && point == 1) {
+	  logger.info("Begining warmup")
+	  val startTime = currentTime
+	  while(currentTime - startTime < 3 * 60 * 1000) {
+	    queries.foreach(q => q(toUser(1)))
+	  }
+	}
+
 	/* measure response time for each query given the current state of the db */
 	results ++=  queries.map(query => {
 	  logger.info("Running %s %d times", query.name, numExecutions)
 	  val responseTimes = Histogram(1,1000)
 
+	  val startMessages = MessageHandler.futureCount
 	  (1 to numExecutions).foreach(i => {
-	    val username = toUser(rand.nextInt(maxUser))
+	    val username = toUser(rand.nextInt(maxUser) + 1)
 
 	    val startTime = currentTime
 	    val answer = query(username)
+	    logger.debug("Query Result: %s", answer)
 	    assert(answer.size == 50)
 	    var endTime = currentTime
 
 	    responseTimes.add(endTime - startTime)
 	  })
+	  val endMessages = MessageHandler.futureCount
+	  logger.info("Messages sent: %d", endMessages - startMessages)
 
 	  val result = PlanCompareResult(
 	    java.net.InetAddress.getLocalHost.getHostName,
