@@ -36,7 +36,7 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor = new Paral
   val subscriptions = cluster.getNamespace[Subscription]("subscriptions")
 
   val namespaces = List(users, thoughts, subscriptions)
-  val allNamespaces = namespaces.flatMap(ns => ns :: ns.listIndexes.map(_._2).toList)
+  //val allNamespaces = namespaces.flatMap(ns => ns :: ns.listIndexes.map(_._2).toList)
 
   /* Optimized queries */
   val findUser = users.where("username".a === (0.?)).toPiql("findUser")

@@ -34,12 +34,12 @@ class TpcwClient(val cluster: ScadsCluster, val executor: QueryExecutor) {
   val shoppingCartItems = cluster.getNamespace[ShoppingCartItem]("shoppingCartItems")
 
   val namespaces = List(addresses, authors, xacts, countries, customers, items, orderLines, orders, shoppingCartItems)
-  def allNamespaces = namespaces.flatMap(ns => ns +: ns.listIndexes.map(_._2).toSeq)
+  //def allNamespaces = namespaces.flatMap(ns => ns +: ns.listIndexes.map(_._2).toSeq)
 
 
   //TODO: Move to scadr cluster
   def workloadDistribution = {
-    val partitions = allNamespaces.flatMap(_.serversForKeyRange(None, None))
+    val partitions = namespaces.flatMap(_.serversForKeyRange(None, None))
     val workloads = partitions.flatMap(p => p.servers.map(s => (s.host, s !! GetWorkloadStats())))
                               .map {case (h, f) => (h, f())}
                               .map {case (h, GetWorkloadStatsResponse(w1, w2, _)) => (h, w1+w2); case (h, _) => throw new RuntimeException("Invalid response from: " + h)}
