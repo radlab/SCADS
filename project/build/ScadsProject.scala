@@ -135,7 +135,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
     }
 
     def filteredClasspath = {
-      val fullClasspath = runClasspath.getFiles ++ mainDependencies.scalaJars.getFiles ++ buildCompilerJar.getFiles
+      val fullClasspath = runClasspath.getFiles ++ mainDependencies.scalaJars.getFiles ++ buildCompilerJar.getFiles ++ testClasspath.getFiles
       val classFiles = fullClasspath.filter(_.toString contains "classes").toList
       val deps = fullClasspath.toSeq.filter(f => !(f.toString contains "classes"))
       val filteredDeps = Map(deps.map(j => j.getName -> j):_*).values.map(_.getCanonicalPath).toList
