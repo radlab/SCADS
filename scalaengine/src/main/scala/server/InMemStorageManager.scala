@@ -187,7 +187,7 @@ class InMemStorageManager
     val groupSchemas = groups.map(valueSchema.getField(_).schema)
     val groupInts = groups.map(valueSchema.getField(_).pos)
     
-    var groupMap:Map[CharSequence, scala.collection.mutable.ArraySeq[ScalaSpecificRecord]] = null
+    var groupMap:scala.collection.mutable.HashMap[CharSequence, scala.collection.mutable.ArraySeq[ScalaSpecificRecord]] = null
     var groupBytesMap:Map[CharSequence, Array[Byte]] = null
     var groupKey:CharSequence = null
     
@@ -196,7 +196,7 @@ class InMemStorageManager
       aggVals = aggregates.map(_.init())
     }
     else {
-      groupMap = new scala.collection.immutable.HashMap[CharSequence,scala.collection.mutable.ArraySeq[ScalaSpecificRecord]]
+      groupMap = new scala.collection.mutable.HashMap[CharSequence,scala.collection.mutable.ArraySeq[ScalaSpecificRecord]]
       groupBytesMap = new scala.collection.immutable.HashMap[CharSequence, Array[Byte]]
     }
     
