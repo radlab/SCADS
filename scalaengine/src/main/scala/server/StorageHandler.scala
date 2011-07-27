@@ -141,9 +141,9 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
     new PartitionHandler(new BdbStorageManager(database, partitionIdLock, startKey, endKey, getNamespaceRoot(namespace), schemas._1, schemas._2))
   }
 
-  private def makeInMemPartitionHandler[KeyType <: ScalaSpecificRecord,ValueType <: ScalaSpecificRecord]
+  private def makeInMemPartitionHandler
     (namespace:String,partitionIdLock:ZooKeeperProxy#ZooKeeperNode,
-     startKey:Option[Array[Byte]], endKey:Option[Array[Byte]], valueType:String)(implicit valueManifest:Manifest[ValueType]) = {
+     startKey:Option[Array[Byte]], endKey:Option[Array[Byte]], valueType:String) = {
     val schemas = schemasFor(namespace)
     new PartitionHandler(new InMemStorageManager(partitionIdLock, startKey, endKey, getNamespaceRoot(namespace),schemas._1, schemas._2,valueType))
   }
@@ -280,7 +280,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
     def reply(msg: MessageBody) = src.foreach(_ ! msg)
 
     msg match {
-      case createRequest @ CreatePartitionRequest(namespace, valueType, startKey, endKey) => {
+      case createRequest @ CreatePartitionRequest(namespace, partitionType, valueType, startKey, endKey) => {
         logger.info("[%s] CreatePartitionRequest for namespace %s, [%s, %s)", this, namespace, JArrays.toString(startKey.orNull), JArrays.toString(endKey.orNull))
 
         /* Grab root to namespace from ZooKeeper */
@@ -304,34 +304,39 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
         // TODO: cleanup if fails
         val handler = ctx.synchronized {
           val handler =
-          if (true) {
-            /* Start a new transaction to atomically add an entry into the partition DB */
-            val txn = env.beginTransaction(null, null)
-            partitionDb.put(txn, new DatabaseEntry(partitionId.getBytes), new DatabaseEntry(createRequest.toBytes))
-            txn.commit()
-            makeInMemPartitionHandler(namespace,partitionIdLock, startKey, endKey, valueType)
+            partitionType match {
+              case "inmemory" => {
+                /* Start a new transaction to atomically add an entry into the partition DB */
+                val txn = env.beginTransaction(null, null)
+                partitionDb.put(txn, new DatabaseEntry(partitionId.getBytes), new DatabaseEntry(createRequest.toBytes))
+                txn.commit()
+                makeInMemPartitionHandler(namespace,partitionIdLock, startKey, endKey, 
+                                          valueType.getOrElse(throw new RuntimeException("Can't create InMemoryPartition without a valueType")))
             
-          } else {
-            /* Start a new transaction to atomically make both the namespace DB,
-             * and add an entry into the partition DB */
-            val txn = env.beginTransaction(null, null)
+              }
+              case "bdb" => {
+                /* Start a new transaction to atomically make both the namespace DB,
+                 * and add an entry into the partition DB */
+                val txn = env.beginTransaction(null, null)
 
-            /* Open the namespace DB */
-            val newDb = makeDatabase(namespace, keySchemaFor(namespace), Some(txn))
-
-	    /* Open a DB for access control info */
-	    //val acDb = makeDatabase(namespace+"_ac", keySchemaFor(namespace), Some(txn))
-
-            /* Log to partition DB for recreation */
-            partitionDb.put(txn, new DatabaseEntry(partitionId.getBytes), new DatabaseEntry(createRequest.toBytes))
-
-            /* for now, let errors propogate up to the exception handler */
-            txn.commit()
-
-            /* Make partition handler from request */
-            makeBdbPartitionHandler(newDb, namespace, partitionIdLock, startKey, endKey)
-	    //val handler = makePartitionHandlerWithAC(newDb, acDb, namespace, partitionIdLock, startKey, endKey)
-          }
+                /* Open the namespace DB */
+                val newDb = makeDatabase(namespace, keySchemaFor(namespace), Some(txn))
+                
+	        /* Open a DB for access control info */
+	        //val acDb = makeDatabase(namespace+"_ac", keySchemaFor(namespace), Some(txn))
+                
+                /* Log to partition DB for recreation */
+                partitionDb.put(txn, new DatabaseEntry(partitionId.getBytes), new DatabaseEntry(createRequest.toBytes))
+                
+                /* for now, let errors propogate up to the exception handler */
+                txn.commit()
+                
+                /* Make partition handler from request */
+                makeBdbPartitionHandler(newDb, namespace, partitionIdLock, startKey, endKey)
+	        //val handler = makePartitionHandlerWithAC(newDb, acDb, namespace, partitionIdLock, startKey, endKey)
+              }
+              case _ => throw new RuntimeException("Invalid partition type specified in create partition request: "+partitionType)
+            }
           /* Add to our list of open partitions */
           val test = partitions.put(partitionId, handler)
           assert(test eq null, "Partition ID was not unique: %s".format(partitionId))
