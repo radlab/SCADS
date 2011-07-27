@@ -19,9 +19,9 @@ class MatheonParser(inMem:Boolean = false) extends RecParser {
     val usidx = location.indexOf('_')
     fileId = Integer.parseInt(location.substring(usidx+1,location.indexOf('.',usidx)))
     println("Location: "+location+" (fileId: "+fileId+") "+ "(files so far: "+fcnt+")")
-    println("Heapsize: "+(Runtime.getRuntime().totalMemory()/1000000))
-    println("Free: "+(Runtime.getRuntime().freeMemory()/1000000))
-    println("Estimated size so far: "+((50*rcnt)/1000000))
+    //println("Heapsize: "+(Runtime.getRuntime().totalMemory()/1000000))
+    //println("Free: "+(Runtime.getRuntime().freeMemory()/1000000))
+    //println("Estimated size so far: "+((50*rcnt)/1000000))
     //k = 0
     fcnt += 1
   }
@@ -67,26 +67,66 @@ object MatheonFromFile {
     val ns = cluster.getNamespace[MatheonKey, MReading]("matheonNs")
 
     println("Starting bulk load of "+args.size+" files")
-    val st = System.nanoTime
-    ns.putBulkLocations(new MatheonParser(true), args.map("file://"+_),
+    var st = System.nanoTime
+    ns.putBulkLocations(new MatheonParser(false), args.map("file://"+_),
                         None,None)
-    val et = System.nanoTime
+    var et = System.nanoTime
     println("Done")
-    val t = et-st
-    println("Load Time: "+(t)+ " ("+(t/1000000)+" milliseconds)")
+    var t = et-st
+    println("Load Time: "+(t)+ " ("+(t/1000000)+" milliseconds)\n[enter to continue]")
+    System.in.read()
+    
+    st = System.nanoTime
+    val peaks = ns.applyAggregate(List[String]("fileId"),
+                                  classOf[MatheonKey].getName,
+                                  classOf[MReading].getName,
+                                  List(),
+                                  List((new DetPeaksLocal,new DetPeaksRemote(1.0f))))
+    et = System.nanoTime
+    t = et-st
+    println("Time: "+(t)+ " ("+(t/1000000)+" milliseconds)")
+    println(peaks)
 
-
+    /*
     for (i <- 1 to 4) {
       val st = System.nanoTime
       val peaks = ns.applyAggregate(List[String]("fileId"),
                                   classOf[MatheonKey].getName,
                                   classOf[MReading].getName,
                                   List(),
-                                  List((new PeaksLocal,new PeaksRemote(3.0f,500))))
+                                  List((new ZeroPeaksLocal,new ZeroPeaksRemote(3.0f,500))))
       val et = System.nanoTime
       val t = et-st
       println("Time: "+(t)+ " ("+(t/1000000)+" milliseconds)")
       println(peaks)
     }
+    */
+    
+    /*
+    for (i <- 1 to 1) {
+      val st = System.nanoTime
+      val peaks = ns.applyAggregate(List[String]("fileId"),
+                                    classOf[MatheonKey].getName,
+                                    classOf[MReading].getName,
+                                    List(),
+                                    List((new DetPeaksLocal,new DetPeaksRemote(1.0f))))
+      val et = System.nanoTime
+      val t = et-st
+      println("Time: "+(t)+ " ("+(t/1000000)+" milliseconds)")
+      val lsts = peaks(0)._2
+      try {
+        val mass = lsts(0).asInstanceOf[scala.Tuple2[_,_]]._1.asInstanceOf[Seq[Float]]
+        val cnts = lsts(0).asInstanceOf[scala.Tuple2[_,_]]._2.asInstanceOf[Seq[Float]]
+        val zipped = mass.zip(cnts)
+        
+        zipped.foreach(z => {
+          println(z._1+","+z._2)
+        })
+        
+      } catch{
+        case e:Exception => e.printStackTrace
+      }
+    }
+    */
   }
 }
