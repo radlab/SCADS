@@ -39,9 +39,14 @@ object ScadsBuild extends Build {
   lazy val avroPlugin = Project("avro-plugin", file("avro"), settings=buildSettings ++ Seq(libraryDependencies := Seq(avroJava, avroIpc, scalaCompiler, configgy)))
   lazy val config = Project("config", file("config"), settings=buildSettings ++ Seq(libraryDependencies := Seq(configgy)))
   lazy val comm = Project("communication", file("comm"), settings=buildSettings ++ Seq(libraryDependencies := Seq(netty, zookeeper, commonsHttpClient, log4j, scalaTest, junit, avroPluginDep, avroPluginCompile))) dependsOn(config)
-  
+  lazy val optional = Project("optional", file("optional"), settings=buildSettings ++ Seq(libraryDependencies := Seq(paranamer)))
+  lazy val deploylib = Project("deploylib", file("deploylib"), settings=buildSettings ++ Seq(libraryDependencies := Seq(mesos, staxApi, jaxbApi, json, awsSdk, ganymedSsh2, commonsLoggingApi, commonsHttpClient, jets3t, jetty, mysql, javaSysMon, avroPluginDep, avroPluginCompile))) dependsOn(comm, optional)
+
   val avroPluginDep = "edu.berkeley.cs" %% "avro-plugin" % buildVersion % "plugin"
   val avroPluginCompile = "edu.berkeley.cs" %% "avro-plugin" % buildVersion
+
+
+    val paranamer = "com.thoughtworks.paranamer" % "paranamer" % "2.0"
 
   /* Config */
   val configgy = "net.lag" % "configgy" % "2.0.0"
