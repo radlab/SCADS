@@ -10,21 +10,29 @@ object ScadsBuild extends Build {
     version      := buildVersion,
     shellPrompt  := ShellPrompt.buildShellPrompt,
     resolvers    := Seq(radlabRepo),
-    autoCompilerPlugins := true,
     publishTo <<= (version) { version: String =>
       val nexus = "http://scads.knowsql.org/nexus/content/repositories/"
       if (version.trim.endsWith("SNAPSHOT")) Some("snapshots" at nexus+"snapshots/") 
       else                                   Some("releases" at nexus+"releases/")
     },
-    credentials += Credentials(Path.userHome / ".ivy2" / "credentials"),
+    credentials += Credentials(Path.userHome / ".ivy2" / "credentials"),    ivyConfigurations += Configurations.CompilerPlugin,
+    /* HACK work around due to bugs in sbt compiler plugin handling code 
+    autoCompilerPlugins := true,
     scalaInstance <<= (appConfiguration, scalaVersion, scalaHome) { 
       (app, version, home) =>
         val provider = app.provider.scalaProvider
         //val avroDeps = deps.configuration("compile").get.modules.filter(_.module equals avroJava).flatMap(_.artifacts)
         new ScalaInstance(version, provider.loader, provider.libraryJar, provider.compilerJar, (provider.jars.toSet - provider.libraryJar - provider.compilerJar).toSeq)
+    }) */
+
+    scalacOptions in Compile <++= update map { report =>
+      val pluginClasspath = report matching configurationFilter(Configurations.CompilerPlugin.name)
+      pluginClasspath.map("-Xplugin:" + _.getAbsolutePath).toSeq
     })
 
-							
+   
+  addCompilerPlugin(avroPluginDep)
+						
   val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"
 
   lazy val scads = Project("scads", file("."), settings=buildSettings) aggregate (config, avroPlugin, comm)
