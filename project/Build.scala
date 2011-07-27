@@ -41,12 +41,16 @@ object ScadsBuild extends Build {
   lazy val comm = Project("communication", file("comm"), settings=buildSettings ++ Seq(libraryDependencies := Seq(netty, zookeeper, commonsHttpClient, log4j, scalaTest, junit, avroPluginDep, avroPluginCompile))) dependsOn(config)
   lazy val optional = Project("optional", file("optional"), settings=buildSettings ++ Seq(libraryDependencies := Seq(paranamer)))
   lazy val deploylib = Project("deploylib", file("deploylib"), settings=buildSettings ++ Seq(libraryDependencies := Seq(mesos, staxApi, jaxbApi, json, awsSdk, ganymedSsh2, commonsLoggingApi, commonsHttpClient, jets3t, jetty, mysql, javaSysMon, avroPluginDep, avroPluginCompile))) dependsOn(comm, optional)
+  lazy val scalaEngine = Project("scala-engine", file("scalaengine"), settings=buildSettings ++ Seq(libraryDependencies := Seq(bdb, avroPluginDep, avroPluginCompile))) dependsOn(config, avroPlugin, comm, deploylib)
 
-  val avroPluginDep = "edu.berkeley.cs" %% "avro-plugin" % buildVersion % "plugin"
-  val avroPluginCompile = "edu.berkeley.cs" %% "avro-plugin" % buildVersion
+  lazy val modeling = Project("modeling", file("modeling"), settings=buildSettings) dependsOn(piql, perf, deploylib, scadr, tpcw)
+  lazy val piql = Project("piql", file("piql"), settings=buildSettings) dependsOn(config, avroPlugin, comm, scalaEngine)
+  lazy val perf = Project("perf", file("perf"), settings=buildSettings) dependsOn(config, avroPlugin, comm, scalaEngine, deploylib)
+  lazy val scadr = Project("scadr", file("piql/scadr"), settings=buildSettings) dependsOn(piql, perf)
+  lazy val tpcw = Project("tpcw", file("piql/tpcw"), settings=buildSettings) dependsOn(piql, perf)
+  lazy val axer = Project("axer", file("axer"), settings=buildSettings) dependsOn(avroPlugin)
+  lazy val matheron = Project("matheron", file("matheron"), settings=buildSettings) dependsOn(config, avroPlugin, comm, scalaEngine)
 
-
-    val paranamer = "com.thoughtworks.paranamer" % "paranamer" % "2.0"
 
   /* Config */
   val configgy = "net.lag" % "configgy" % "2.0.0"
@@ -57,37 +61,40 @@ object ScadsBuild extends Build {
   val avroJava = "org.apache.avro" % "avro" % "1.5.1"
   val avroIpc = "org.apache.avro" % "avro-ipc" % "1.5.1"
   val scalaCompiler = "org.scala-lang" % "scala-compiler" % defaultScalaVersion
+  val avroPluginDep = "edu.berkeley.cs" %% "avro-plugin" % buildVersion % "plugin"
+  val avroPluginCompile = "edu.berkeley.cs" %% "avro-plugin" % buildVersion
+  val paranamer = "com.thoughtworks.paranamer" % "paranamer" % "2.0"
 
   /* Comm */
-    val netty = "org.jboss.netty" % "netty" % "3.2.1.Final"
-    val log4j = "log4j" % "log4j" % "1.2.15"
-    val zookeeper = "org.apache.hadoop.zookeeper" % "zookeeper" % "3.3.1"
+  val netty = "org.jboss.netty" % "netty" % "3.2.1.Final"
+  val log4j = "log4j" % "log4j" % "1.2.15"
+  val zookeeper = "org.apache.hadoop.zookeeper" % "zookeeper" % "3.3.1"
 
   /* Scala Engine */
-    val bdb = "com.sleepycat" % "je" % "4.0.71"
+  val bdb = "com.sleepycat" % "je" % "4.0.71"
 
   /* deploy lib */
-    val mesos = "edu.berkeley.cs.mesos" % "java" % "1.0"
-    val staxApi = "javax.xml.stream" % "stax-api" % "1.0"
-    val jaxbApi = "javax.xml.bind" % "jaxb-api" % "2.1"
-    val json = "org.json" % "json" % "20090211"
-    val awsSdk = "com.amazonaws" % "aws-java-sdk" % "1.1.5"
-    val ganymedSsh2 = "ch.ethz.ganymed" % "ganymed-ssh2" % "build210"
-    val commonsLoggingApi = "commons-logging" % "commons-logging-api" % "1.1"
-    val commonsHttpClient = "commons-httpclient" % "commons-httpclient" % "3.0.1"
-    val jets3t = "net.java.dev.jets3t" % "jets3t" % "0.7.1"
-    val jetty = "org.mortbay.jetty" % "jetty" % "6.1.6"
-    val mysql = "mysql" % "mysql-connector-java" % "5.1.12"
-    val javaSysMon = "github.jezhumble" % "javasysmon" % "1.0"
+  val mesos = "edu.berkeley.cs.mesos" % "java" % "1.0"
+  val staxApi = "javax.xml.stream" % "stax-api" % "1.0"
+  val jaxbApi = "javax.xml.bind" % "jaxb-api" % "2.1"
+  val json = "org.json" % "json" % "20090211"
+  val awsSdk = "com.amazonaws" % "aws-java-sdk" % "1.1.5"
+  val ganymedSsh2 = "ch.ethz.ganymed" % "ganymed-ssh2" % "build210"
+  val commonsLoggingApi = "commons-logging" % "commons-logging-api" % "1.1"
+  val commonsHttpClient = "commons-httpclient" % "commons-httpclient" % "3.0.1"
+  val jets3t = "net.java.dev.jets3t" % "jets3t" % "0.7.1"
+  val jetty = "org.mortbay.jetty" % "jetty" % "6.1.6"
+  val mysql = "mysql" % "mysql-connector-java" % "5.1.12"
+  val javaSysMon = "github.jezhumble" % "javasysmon" % "1.0"
 
   /* repl */
-    val lift = "net.liftweb" %% "lift-mapper" % "2.2-SNAPSHOT" % "compile"
-    val jetty6 = "org.mortbay.jetty" % "jetty" % "6.1.25" % "test"
-    val h2 = "com.h2database" % "h2" % "1.2.121" % "runtime"
-    // alternately use derby
-    // val derby = "org.apache.derby" % "derby" % "10.2.2.0" % "runtime"
-    val servlet = "javax.servlet" % "servlet-api" % "2.5" % "provided"
-    val sl4jConfiggy = "com.notnoop.logging" % "slf4j-configgy" % "0.0.1"
+  val lift = "net.liftweb" %% "lift-mapper" % "2.2-SNAPSHOT" % "compile"
+  val jetty6 = "org.mortbay.jetty" % "jetty" % "6.1.25" % "test"
+  val h2 = "com.h2database" % "h2" % "1.2.121" % "runtime"
+  // alternately use derby
+  // val derby = "org.apache.derby" % "derby" % "10.2.2.0" % "runtime"
+  val servlet = "javax.servlet" % "servlet-api" % "2.5" % "provided"
+  val sl4jConfiggy = "com.notnoop.logging" % "slf4j-configgy" % "0.0.1"
 }
 
 object ShellPrompt {
