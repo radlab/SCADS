@@ -3,7 +3,7 @@ import Keys._
 
 object ScadsBuild extends Build {
   val buildVersion      = "2.1.2-SNAPSHOT"
-  val defaultScalaVersion = "2.8.1.final"
+  val defaultScalaVersion = "2.8.1"
   val buildSettings = Defaults.defaultSettings ++ Seq (
     organization := "edu.berkeley.cs",
     scalaVersion := defaultScalaVersion,
