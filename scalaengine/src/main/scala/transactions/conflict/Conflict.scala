@@ -175,7 +175,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
   override def getDecision(xid: ScadsXid) = {
     txStatus.get(null, xid) match {
-      case None => Status.Commit
+      case None => Status.Unknown
       case Some(status) => status.status
     }
   }
