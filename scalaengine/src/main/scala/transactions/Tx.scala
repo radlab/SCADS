@@ -5,8 +5,6 @@ import edu.berkeley.cs.scads.comm._
 import net.lag.logging.Logger
 
 import java.lang.Thread
-import javax.transaction.xa._
-import java.nio.ByteBuffer
 import java.util.Calendar
 
 object TxStatus extends Enumeration {
@@ -14,25 +12,6 @@ object TxStatus extends Enumeration {
   val SUCCESS, FAILURE = Value
 }
 import TxStatus._
-
-class ScadsXid(val tid: Long, val bid: Long) extends Xid {
-  def getBranchQualifier(): Array[Byte] = {
-    ByteBuffer.allocate(64).putLong(bid).array
-  }
-
-  def getFormatId(): Int = {
-    0
-  }
-
-  def getGlobalTransactionId(): Array[Byte] = {
-    ByteBuffer.allocate(64).putLong(tid).array
-  }
-
-  def serialized(): Array[Byte] = {
-    // Long is 8 bytes
-    ByteBuffer.allocate(16).putLong(tid).putLong(bid).array
-  }
-}
 
 // TODO: This is a proof of concept for testing.
 //       There should probably be a new trait for each tx protocol 
@@ -76,7 +55,8 @@ class Tx(timeout: Int)(mainFn: => Unit) {
   }
 
   private lazy val tid = Calendar.getInstance().getTimeInMillis()
-  private var commit2 = true
+  private var commitTest = true
+
   def PrepareTest() {
     var count = 0
 
@@ -84,7 +64,8 @@ class Tx(timeout: Int)(mainFn: => Unit) {
       val servers = t._1
       val key = t._2
       val value = t._3
-      val putRequest = PrepareRequest(tid, count, List(PutRequest(key, value)))
+      val putRequest = PrepareRequest(ScadsXid(tid, count),
+                                      List(VersionUpdate(key, value.get)))
       count += 1
       (servers.map(_ !! putRequest), servers.length)
     })
@@ -97,11 +78,8 @@ class Tx(timeout: Int)(mainFn: => Unit) {
       res
     })
 
-    val commit = !results.map(x => !x.contains(false)).contains(false)
-    println("commit: " + commit)
-
-  
-    commit2 = commit
+    commitTest = !results.map(x => !x.contains(false)).contains(false)
+    println("commitTest: " + commitTest)
   }
 
   def CommitTest() {
@@ -110,52 +88,18 @@ class Tx(timeout: Int)(mainFn: => Unit) {
       val servers = t._1
       val key = t._2
       val value = t._3
-      val commitRequest = CommitRequest(tid, count, commit2)
+      val commitRequest = CommitRequest(ScadsXid(tid, count),
+                                        List(VersionUpdate(key, value.get)),
+                                        commitTest)
       count += 1
       (servers.map(_ !! commitRequest), servers.length)
     })
     commitResponses.foreach(x => x._1.blockFor(x._2))
   }
-
-
 
   // just blocking 2pc
   def RunProtocol() {
-    val tid = Calendar.getInstance().getTimeInMillis()
-    var count = 0
-
-    val responses = updateList.updateList.readOnly.map(t => {
-      val servers = t._1
-      val key = t._2
-      val value = t._3
-      val putRequest = PrepareRequest(tid, count, List(PutRequest(key, value)))
-      count += 1
-      (servers.map(_ !! putRequest), servers.length)
-    })
-
-    val results = responses.map(x => {
-      val res = x._1.blockFor(x._2).map(f => f() match {
-        case PrepareResponse(success) => success
-        case m => false
-      })
-      res
-    })
-
-    val commit = !results.map(x => !x.contains(false)).contains(false)
-    println("commit: " + commit)
-
-    count = 0
-    val commitResponses = updateList.updateList.readOnly.map(t => {
-      val servers = t._1
-      val key = t._2
-      val value = t._3
-      val commitRequest = CommitRequest(tid, count, commit)
-      count += 1
-      (servers.map(_ !! commitRequest), servers.length)
-    })
-    commitResponses.foreach(x => x._1.blockFor(x._2))
-
+    PrepareTest()
+    CommitTest()
   }
-
 }
-

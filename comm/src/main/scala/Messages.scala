@@ -3,6 +3,7 @@ package scads
 package comm
 
 import avro.marker.{ AvroRecord, AvroUnion, AvroPair }
+import java.nio.ByteBuffer
 
 /* Base message type for all scads messages */
 sealed trait MessageBody extends AvroUnion
@@ -61,13 +62,41 @@ case class AggReply(var results:Seq[GroupedAgg]) extends AvroRecord with KeyValu
 /* Transaction KVStore Metadata */
 case class VersionMaster(var version: Long, var ballot: Long, var master: String) extends AvroRecord
 case class TxRecordMetadata(var version: Long, var masters: Seq[VersionMaster]) extends AvroRecord
+// The rec is the avro serialized value type.  If None, the record is deleted.
 case class TxRecord(var metadata: TxRecordMetadata, var rec: Option[Array[Byte]]) extends AvroRecord
 
+/* Transaction KVStore Updates */
+// key is the avro serialized key type
+sealed trait RecordUpdate extends AvroUnion {
+  var key: Array[Byte]
+}
+case class LogicalUpdate(var key: Array[Byte], var operation: String, var delta: String) extends AvroRecord with RecordUpdate
+// The newValue is the avro serialized TxRecord type
+sealed trait PhysicalUpdate extends RecordUpdate {
+  var key: Array[Byte]
+  var newValue: Array[Byte]
+}
+// The new metadata (including the record version) is embedded in newValue
+// Update will check that the new version is the next version after the
+// stored version.
+case class VersionUpdate(var key: Array[Byte], var newValue: Array[Byte]) extends AvroRecord with PhysicalUpdate
+case class ValueUpdate(var key: Array[Byte], var oldValue: Array[Byte], var newValue: Array[Byte]) extends AvroRecord with PhysicalUpdate
+
+case class ScadsXid(var tid: Long, var bid: Long) extends AvroRecord {
+  def serialized(): Array[Byte] = {
+    // Long is 8 bytes
+    ByteBuffer.allocate(16).putLong(tid).putLong(bid).array
+  }
+}
+
 /* Transaction KVStore Operations */
-case class PrepareRequest(var tid: Long, var bid: Long, var updates: Seq[PutRequest]) extends AvroRecord with KeyValueStoreOperation
-case class PrepareResponse(var success: Boolean) extends AvroRecord with KeyValueStoreOperation
-case class CommitRequest(var tid: Long, var bid: Long, var commit: Boolean) extends AvroRecord with KeyValueStoreOperation
-case class CommitResponse(var success: Boolean) extends AvroRecord with KeyValueStoreOperation
+sealed trait TxProtocol2pc extends KeyValueStoreOperation
+case class PrepareRequest(var xid: ScadsXid, var updates: Seq[RecordUpdate]) extends AvroRecord with TxProtocol2pc
+//case class PrepareRequest(var xid: ScadsXid, var updates: Seq[PutRequest]) extends AvroRecord with TxProtocol2pc
+case class PrepareResponse(var success: Boolean) extends AvroRecord with TxProtocol2pc
+case class CommitRequest(var xid: ScadsXid, var updates: Seq[RecordUpdate], var commit: Boolean) extends AvroRecord with TxProtocol2pc
+//case class CommitRequest(var xid: ScadsXid, var commit: Boolean) extends AvroRecord with TxProtocol2pc
+case class CommitResponse(var success: Boolean) extends AvroRecord with TxProtocol2pc
 
 /* Storage Handler Operations */
 sealed trait StorageServiceOperation extends MessageBody
