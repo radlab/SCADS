@@ -5,6 +5,8 @@ import edu.berkeley.cs.avro.marker._
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.util._
 
+import collection.mutable.ArrayBuffer
+
 import org.apache.avro._
 import generic._
 import io._
@@ -66,8 +68,66 @@ trait Transactions[K <: SpecificRecord, V <: SpecificRecord]
 
   // TODO: will need the getBytes() to get metadata, similar to putBytes()
   //       re-implement a quorum protocol?
+  override def getBytes(key: Array[Byte]): Option[Array[Byte]] = {
+    val servers = serversForKey(key)
+    val getRequest = GetRequest(key)
+    val responses = servers.map(_ !! getRequest)
+    val handler = new GetHandlerTmp(key, responses)
+    val record = handler.vote(1)
+    if (handler.failed) {
+      None
+    } else {
+      record.map(extractRecordFromValue)
+    }
+  }
+
   // TODO: does get range need to collect ALL metatdata as well?
-  //       could potentially be a very large list...
+  //       could potentially be a very large list, and complicates code.
+
+
+  // This is just modified from the quorum protocol...
+  class GetHandlerTmp(val key: Array[Byte], val futures: Seq[MessageFuture], val timeout: Long = 5000) {
+    private val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture]
+    futures.foreach(_.forward(responses))
+    var winnerValue: Option[Array[Byte]] = None
+    private var ctr = 0
+    val timeoutCounter = new TimeoutCounter(timeout)
+    var failed = false
+
+    def vote(quorum: Int): Option[Array[Byte]] = {
+      (1 to quorum).foreach(_ => compareNext())
+      return winnerValue
+    }
+
+    private def compareNext(): Unit = {
+      ctr += 1
+      val future = responses.poll(timeoutCounter.remaining, TimeUnit.MILLISECONDS)
+      if (future == null) {
+        failed = true
+        return
+      }
+      future() match {
+        case GetResponse(v) => {
+          val cmp = optCompareMetadataTmp(winnerValue, v)
+          if (cmp > 0) {
+          } else if (cmp < 0) {
+            winnerValue = v
+          }else {
+          }
+        }
+        case m => throw new RuntimeException("Unknown message " + m)
+      }
+    }
+  }
+
+  // This is just modified from the quorum protocol...
+  protected def optCompareMetadataTmp(optLhs: Option[Array[Byte]], optRhs: Option[Array[Byte]]): Int = (optLhs, optRhs) match {
+    case (None, None) => 0
+    case (None, Some(_)) => -1
+    case (Some(_), None) => 1
+    case (Some(lhs), Some(rhs)) => compareMetadata(lhs, rhs)
+  }
+
 }
 
 class TxRecordReaderWriter {
@@ -85,23 +145,6 @@ class TxRecordReaderWriter {
 trait TransactionRecordMetadata extends SimpleRecordMetadata {
 
   private val recordReaderWriter = new TxRecordReaderWriter
-
-  override def compareKey(x: Array[Byte], y: Array[Byte]): Int = 
-    BinaryData.compare(x, 0, y, 0, keySchema)
- 
-  override def hashKey(x: Array[Byte]): Int = {
-    // TODO: use some more awesome hash function
-
-    // same hash function as java String for now
-    var hash = 0
-    var idx = 0
-    val len = x.length
-    while (idx < len) {
-      hash = 31 * hash + x(idx)
-      idx += 1
-    }
-    hash
-  }
 
   override def createMetadata(rec: Array[Byte]): Array[Byte] = {
     recordToBytes(Some(rec), None)
