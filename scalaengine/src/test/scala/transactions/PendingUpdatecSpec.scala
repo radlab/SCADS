@@ -114,19 +114,19 @@ with BeforeAndAfterEach {
                      name: String) {
 
     "do nothing with no updates" in {
-      val (db, p) = emptyDB(dbFactory, factory, name + "-A")
+      val (db, p) = emptyDB(dbFactory, factory, name)
       db.get(null, keyBuilder.toBytes(KeyRec(1, "1"))) should be (None)
     }
 
     "accept new inserts for non-existing keys" in {
-      val (db, p) = emptyDB(dbFactory, factory, name + "-B")
+      val (db, p) = emptyDB(dbFactory, factory, name)
       val numKeys = 10
       val updates = insertVersionUpdates(numKeys)
       p.accept(ScadsXid(1, 1), updates) should be (true)
     }
 
     "not read uncommitted (but accepted) inserts" in {
-      val (db, p) = emptyDB(dbFactory, factory, name + "-C")
+      val (db, p) = emptyDB(dbFactory, factory, name)
       val numKeys = 10
       val updates = insertVersionUpdates(numKeys)
       p.accept(ScadsXid(1, 1), updates) should be (true)
@@ -137,7 +137,7 @@ with BeforeAndAfterEach {
 
     "read committed inserts" in {
       val numKeys = 10
-      val (db, p) = withKeysDB(dbFactory, factory, name + "-D", numKeys)
+      val (db, p) = withKeysDB(dbFactory, factory, name, numKeys)
       0 until numKeys foreach (i => {
         val k = KeyRec(i, i.toString)
         val m = TxRecordMetadata(0, List())
@@ -150,7 +150,7 @@ with BeforeAndAfterEach {
 
     "not read accepted then aborted inserts" in {
       val numKeys = 10
-      val (db, p) = emptyDB(dbFactory, factory, name + "-E")
+      val (db, p) = emptyDB(dbFactory, factory, name)
       val updates = insertVersionUpdates(numKeys)
       p.accept(ScadsXid(1, 1), updates) should be (true)
       p.abort(ScadsXid(1, 1))
@@ -159,9 +159,9 @@ with BeforeAndAfterEach {
       })
     }
 
-    "detect conflicts for pending VERSION updates" in {
+    "detect conflicts for pending updates (VERSION)" in {
       val numKeys = 10
-      val (db, p) = emptyDB(dbFactory, factory, name + "-E")
+      val (db, p) = emptyDB(dbFactory, factory, name)
       val updates = insertVersionUpdates(numKeys)
       p.accept(ScadsXid(1, 1), updates) should be (true)
 
@@ -184,7 +184,7 @@ with BeforeAndAfterEach {
 
     "accept new inserts for non-conflicting keys" in {
       val numKeys = 10
-      val (db, p) = emptyDB(dbFactory, factory, name + "-E")
+      val (db, p) = emptyDB(dbFactory, factory, name)
       val updates = insertVersionUpdates(numKeys)
       p.accept(ScadsXid(1, 1), updates) should be (true)
 
@@ -193,20 +193,38 @@ with BeforeAndAfterEach {
       p.accept(ScadsXid(4, 4), updatesMixed) should be (true)
     }
 
-    "return commit for committed VERSION updates" in {
-      val (db, p) = withKeysDB(dbFactory, factory, name + "-G", 10)
+    "detect conflicts for committed updates (VERSION)" in {
+      val numKeys = 10
+      val (db, p) = withKeysDB(dbFactory, factory, name, numKeys)
+
+      // Wrong version (should be 1)
+      val update = singleVersionUpdate(0, 0, 0 /* version */)
+      p.accept(ScadsXid(2, 2), update) should be (false)
+    }
+
+    "accept new updates with the correct version (VERSION)" in {
+      val numKeys = 10
+      val (db, p) = withKeysDB(dbFactory, factory, name, numKeys)
+
+      // Correct version (should be 1)
+      val update = singleVersionUpdate(0, 0, 1 /* version */)
+      p.accept(ScadsXid(2, 2), update) should be (true)
+    }
+
+    "return commit for committed updates (VERSION)" in {
+      val (db, p) = withKeysDB(dbFactory, factory, name, 10)
       p.getDecision(ScadsXid(1, 1)) should be (Status.Commit)
     }
 
-    "return accept for accepted VERSION updates" in {
-      val (db, p) = emptyDB(dbFactory, factory, name + "-H")
+    "return accept for accepted updates (VERSION)" in {
+      val (db, p) = emptyDB(dbFactory, factory, name)
       val updates = insertVersionUpdates(10)
       p.accept(ScadsXid(1, 1), updates) should be (true)
       p.getDecision(ScadsXid(1, 1)) should be (Status.Accept)
     }
 
-    "return reject for rejected VERSION updates" in {
-      val (db, p) = emptyDB(dbFactory, factory, name + "-H")
+    "return reject for rejected updates (VERSION)" in {
+      val (db, p) = emptyDB(dbFactory, factory, name)
       val updates = insertVersionUpdates(10)
       p.accept(ScadsXid(1, 1), updates) should be (true)
 
@@ -216,16 +234,16 @@ with BeforeAndAfterEach {
       p.getDecision(ScadsXid(2, 2)) should be (Status.Reject)
     }
 
-    "return abort for aborted VERSION updates" in {
-      val (db, p) = emptyDB(dbFactory, factory, name + "-I")
+    "return abort for aborted updates (VERSION)" in {
+      val (db, p) = emptyDB(dbFactory, factory, name)
       val updates = insertVersionUpdates(10)
       p.accept(ScadsXid(1, 1), updates) should be (true)
       p.abort(ScadsXid(1, 1))
       p.getDecision(ScadsXid(1, 1)) should be (Status.Abort)
     }
 
-    "return unknown for unknown VERSION updates" in {
-      val (db, p) = emptyDB(dbFactory, factory, name + "-J")
+    "return unknown for unknown updates (VERSION)" in {
+      val (db, p) = emptyDB(dbFactory, factory, name)
       p.getDecision(ScadsXid(1, 1)) should be (Status.Unknown)
     }
 
