@@ -20,13 +20,14 @@ import java.nio._
 
 // This works with SpecificNamespace
 trait Transactions[K <: SpecificRecord, V <: SpecificRecord]
-  extends RangeKeyValueStore[K, V]
-  with KeyRoutable
-  with TransactionRecordMetadata {
+extends RangeKeyValueStore[K, V]
+with KeyRoutable
+with TransactionRecordMetadata {
+
   override def put(key: K, value: Option[V]): Unit = {
     putBytes(keyToBytes(key), value.map(v => valueToBytes(v)))
-  
-}
+  }
+
   override def get(key: K): Option[V] = {
     getBytes(keyToBytes(key)).map(b =>
       // Don't return a record which was deleted
