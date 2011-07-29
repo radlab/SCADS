@@ -149,39 +149,9 @@ with BeforeAndAfterEach {
       db.get(null, keyBuilder.toBytes(KeyRec(1, "1"))) should be (None)
     }
 
-    "accept new inserts for non-existing keys (VERSION)" in {
-      val (db, p) = emptyDB(dbFactory, factory, name)
-      val numKeys = 10
-      val updates = insertVersionUpdates(numKeys)
-      p.accept(ScadsXid(1, 1), updates) should be (true)
-    }
-
-    "accept new inserts for non-existing keys (VALUE)" in {
-      val (db, p) = emptyDB(dbFactory, factory, name)
-      val numKeys = 10
-      val updates = insertValueUpdates(numKeys)
-      p.accept(ScadsXid(1, 1), updates) should be (true)
-    }
-
-    "not read uncommitted (but accepted) inserts (VERSION)" in {
-      val (db, p) = emptyDB(dbFactory, factory, name)
-      val numKeys = 10
-      val updates = insertVersionUpdates(numKeys)
-      p.accept(ScadsXid(1, 1), updates) should be (true)
-      0 until numKeys foreach (i => {
-        db.get(null, keyBuilder.toBytes(KeyRec(i, i.toString))) should be (None)
-      })
-    }
-
-    "not read uncommitted (but accepted) inserts (VALUE)" in {
-      val (db, p) = emptyDB(dbFactory, factory, name)
-      val numKeys = 10
-      val updates = insertValueUpdates(numKeys)
-      p.accept(ScadsXid(1, 1), updates) should be (true)
-      0 until numKeys foreach (i => {
-        db.get(null, keyBuilder.toBytes(KeyRec(i, i.toString))) should be (None)
-      })
-    }
+    /* *********************************************************************
+     * *************************** Reading Values **************************
+     * ********************************************************************* */
 
     "read committed inserts (VERSION)" in {
       val numKeys = 10
@@ -261,6 +231,26 @@ with BeforeAndAfterEach {
       valueBuilder.fromBytes(b2.get)._2 should be (Some(v2))
     }
 
+    "not read uncommitted (but accepted) inserts (VERSION)" in {
+      val (db, p) = emptyDB(dbFactory, factory, name)
+      val numKeys = 10
+      val updates = insertVersionUpdates(numKeys)
+      p.accept(ScadsXid(1, 1), updates) should be (true)
+      0 until numKeys foreach (i => {
+        db.get(null, keyBuilder.toBytes(KeyRec(i, i.toString))) should be (None)
+      })
+    }
+
+    "not read uncommitted (but accepted) inserts (VALUE)" in {
+      val (db, p) = emptyDB(dbFactory, factory, name)
+      val numKeys = 10
+      val updates = insertValueUpdates(numKeys)
+      p.accept(ScadsXid(1, 1), updates) should be (true)
+      0 until numKeys foreach (i => {
+        db.get(null, keyBuilder.toBytes(KeyRec(i, i.toString))) should be (None)
+      })
+    }
+
     "not read accepted then aborted inserts (VERSION)" in {
       val numKeys = 10
       val (db, p) = emptyDB(dbFactory, factory, name)
@@ -281,6 +271,24 @@ with BeforeAndAfterEach {
       0 until numKeys foreach (i => {
         db.get(null, keyBuilder.toBytes(KeyRec(i, i.toString))) should be (None)
       })
+    }
+
+    /* *********************************************************************
+     * ************************** Accepting Values *************************
+     * ********************************************************************* */
+
+    "accept new inserts for non-existing keys (VERSION)" in {
+      val (db, p) = emptyDB(dbFactory, factory, name)
+      val numKeys = 10
+      val updates = insertVersionUpdates(numKeys)
+      p.accept(ScadsXid(1, 1), updates) should be (true)
+    }
+
+    "accept new inserts for non-existing keys (VALUE)" in {
+      val (db, p) = emptyDB(dbFactory, factory, name)
+      val numKeys = 10
+      val updates = insertValueUpdates(numKeys)
+      p.accept(ScadsXid(1, 1), updates) should be (true)
     }
 
     "accept new inserts for non-conflicting keys (VERSION)" in {
@@ -336,6 +344,10 @@ with BeforeAndAfterEach {
       val update2 = singleValueUpdate(0, 2, 1)
       p.accept(ScadsXid(3, 3), update2) should be (true)
     }
+
+    /* *********************************************************************
+     * ************************* Conflict Detection ************************
+     * ********************************************************************* */
 
     "detect conflicts for pending updates (VERSION)" in {
       val numKeys = 10
@@ -400,6 +412,10 @@ with BeforeAndAfterEach {
       val update = singleValueUpdate(0, 0, 100)
       p.accept(ScadsXid(2, 2), update) should be (false)
     }
+
+    /* *********************************************************************
+     * ************************** getDecision ******************************
+     * ********************************************************************* */
 
     "return commit for committed updates (VERSION)" in {
       val (db, p) = withVersionKeysDB(dbFactory, factory, name, 10)
