@@ -122,6 +122,12 @@ class ScadsCluster(val root: ZooKeeperProxy#ZooKeeperNode) { self =>
     namespace
   }
 
+  def getInMemoryNamespace[KeyType <: SpecificRecord : Manifest, ValueType <: SpecificRecord : Manifest](ns: String): SpecificInMemoryNamespace[KeyType, ValueType] = {
+    val namespace = new SpecificInMemoryNamespace[KeyType, ValueType](ns, self, namespaces)
+    namespace.open()
+    namespace
+  }
+
   def createNamespace[KeyType <: SpecificRecord : Manifest, ValueType <: SpecificRecord : Manifest](ns: String, servers: Seq[(Option[KeyType], Seq[StorageService])]): SpecificNamespace[KeyType, ValueType] = {
     val namespace = new SpecificNamespace[KeyType, ValueType](ns, self, namespaces)
     namespace.create()
