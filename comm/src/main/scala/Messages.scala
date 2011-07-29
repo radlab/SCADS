@@ -80,7 +80,9 @@ sealed trait PhysicalUpdate extends RecordUpdate {
 // Update will check that the new version is the next version after the
 // stored version.
 case class VersionUpdate(var key: Array[Byte], var newValue: Array[Byte]) extends AvroRecord with PhysicalUpdate
-case class ValueUpdate(var key: Array[Byte], var oldValue: Array[Byte], var newValue: Array[Byte]) extends AvroRecord with PhysicalUpdate
+// Update will check that the oldValue matches the stored value.  If oldValue
+// is None, it means there was no record, and the update is an insert.
+case class ValueUpdate(var key: Array[Byte], var oldValue: Option[Array[Byte]], var newValue: Array[Byte]) extends AvroRecord with PhysicalUpdate
 
 case class ScadsXid(var tid: Long, var bid: Long) extends AvroRecord {
   def serialized(): Array[Byte] = {

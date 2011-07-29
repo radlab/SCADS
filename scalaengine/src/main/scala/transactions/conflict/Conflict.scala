@@ -9,6 +9,7 @@ import actors.threadpool.ThreadPoolExecutor.AbortPolicy
 import scala.collection.mutable.ArrayBuffer
 
 import java.util.concurrent.ConcurrentHashMap
+import java.util.Arrays
 
 // TODO: Make thread-safe.  It might already be, by using TxDB
 
@@ -87,7 +88,32 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
         if (success) {
           r match {
             case LogicalUpdate(key, op, delta) => {}
-            case ValueUpdate(key, oldValue, newValue) => {}
+            case ValueUpdate(key, oldValue, newValue) => {
+              val newRec = recReaderWriter.fromBytes(newValue)
+              val correctOldValue = (oldValue, db.get(txn, key)) match {
+                case (Some(old), Some(v)) => {
+                  // Record found in db, compare with the old version
+                  val dbRec = recReaderWriter.fromBytes(v)
+                  val oldRec = recReaderWriter.fromBytes(old)
+
+                  // Set the correct next version for the update.
+                  newRec.metadata.version = dbRec.metadata.version + 1
+
+                  // TODO: Don't compare versions, but compare the list of
+                  //       masters?
+                  (oldRec.rec, dbRec.rec) match {
+                    case (Some(a), Some(b)) => Arrays.equals(a, b)
+                    case (None, None) => true
+                    case (_, _) => false
+                  }
+                }
+                case (None, None) => true
+                case (_, _) => false
+              }
+              val noConflict =
+                pendingKeys.putNoOverwrite(pendingTxn, key, newRec.metadata)
+              success = success && correctOldValue && noConflict
+            }
             case VersionUpdate(key, newValue) => {
               val newRec = recReaderWriter.fromBytes(newValue)
               val correctVersion = db.get(txn, key) match {
@@ -96,7 +122,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
                   val dbRec = recReaderWriter.fromBytes(v)
                   (newRec.metadata.version == dbRec.metadata.version + 1)
                 }
-                case _ => true
+                case None => true
               }
               val noConflict =
                 pendingKeys.putNoOverwrite(pendingTxn, key, newRec.metadata)
@@ -132,7 +158,10 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       updates.foreach(r => {
         r match {
           case LogicalUpdate(key, op, delta) => {}
-          case ValueUpdate(key, oldValue, newValue) => {}
+          case ValueUpdate(key, oldValue, newValue) => {
+            db.put(txn, key, newValue)
+            pendingKeys.delete(pendingTxn, key)
+          }
           case VersionUpdate(key, newValue) => {
             db.put(txn, key, newValue)
             pendingKeys.delete(pendingTxn, key)
@@ -161,7 +190,9 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
         status.updates foreach(r => {
           r match {
             case LogicalUpdate(key, op, delta) => {}
-            case ValueUpdate(key, oldValue, newValue) => {}
+            case ValueUpdate(key, oldValue, newValue) => {
+              pendingKeys.delete(null, key)
+            }
             case VersionUpdate(key, newValue) => {
               pendingKeys.delete(null, key)
             }
