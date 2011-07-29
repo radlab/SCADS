@@ -413,6 +413,29 @@ with BeforeAndAfterEach {
       p.accept(ScadsXid(2, 2), update) should be (false)
     }
 
+    "detect conflicts for mixed physical pending updates (VERSION + VALUE)" in {
+      val numKeys = 10
+      val (db, p) = withVersionKeysDB(dbFactory, factory, name, numKeys)
+
+      val update1 = singleVersionUpdate(0, 1, 1)
+      p.accept(ScadsXid(2, 2), update1) should be (true)
+
+      // Conflict, because of the same key.
+      val update2 = singleValueUpdate(0, 2, 0)
+      p.accept(ScadsXid(3, 3), update2) should be (false)
+
+      // commit the first tx.
+      p.commit(ScadsXid(2, 2), update1) should be (true)
+
+      // This time this should succeed.
+      val update3 = singleValueUpdate(0, 2, 1)
+      p.accept(ScadsXid(3, 3), update3) should be (true)
+
+      // Conflict, because of the same key
+      val update4 = singleVersionUpdate(0, 3, 2)
+      p.accept(ScadsXid(4, 4), update4) should be (false)
+    }
+
     /* *********************************************************************
      * ************************** getDecision ******************************
      * ********************************************************************* */
