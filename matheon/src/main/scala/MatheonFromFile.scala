@@ -64,11 +64,11 @@ object MatheonFromFile {
   
   def main(args:Array[String]) {
     val cluster = TestScalaEngine.newScadsCluster()
-    val ns = cluster.getNamespace[MatheonKey, MReading]("matheonNs")
+    val ns = cluster.getInMemoryNamespace[MatheonKey, MReading]("matheonNs")
 
     println("Starting bulk load of "+args.size+" files")
     var st = System.nanoTime
-    ns.putBulkLocations(new MatheonParser(false), args.map("file://"+_),
+    ns.putBulkLocations(new MatheonParser(true), args.map("file://"+_),
                         None,None)
     var et = System.nanoTime
     println("Done")
@@ -85,7 +85,7 @@ object MatheonFromFile {
     et = System.nanoTime
     t = et-st
     println("Time: "+(t)+ " ("+(t/1000000)+" milliseconds)")
-    println(peaks)
+    //println(peaks)
 
     /*
     for (i <- 1 to 4) {
