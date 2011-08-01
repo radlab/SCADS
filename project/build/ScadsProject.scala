@@ -21,13 +21,13 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
   lazy val comm = project("comm", "communication", new ScadsSubProject(_) with IdeaProject {
     val netty = "org.jboss.netty" % "netty" % "3.2.1.Final"
     val log4j = "log4j" % "log4j" % "1.2.15"
-    val zookeeper = "org.apache.hadoop.zookeeper" % "zookeeper" % "3.3.1"
+    val zookeeper = "org.apache.zookeeper" % "zookeeper" % "3.3.1"
     val commonsHttpClient = "commons-httpclient" % "commons-httpclient" % "3.0.1"
   }, config, avro)
 
 
   lazy val scalaengine = project("scalaengine", "storage-engine", new ScadsSubProject(_) with IdeaProject {
-    val bdb = "com.sleepycat" % "je" % "4.0.71"
+    val bdb = "com.sleepycat" % "je" % "4.1.10"
   }, config, avro, comm, deploylib)
 
   lazy val deploylib = project("deploylib", "deploylib", new ScadsSubProject(_) with IdeaProject {
@@ -43,7 +43,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
     val jets3t = "net.java.dev.jets3t" % "jets3t" % "0.7.1"
     val jetty = "org.mortbay.jetty" % "jetty" % "6.1.6"
     val mysql = "mysql" % "mysql-connector-java" % "5.1.12"
-    val javaSysMon = "github.jezhumble" % "javasysmon" % "1.0"
+    val javaSysMon = "github.jezhumble" % "javasysmon" % "0.3.3"
   }, comm, optional)
 
   lazy val optional = project("optional", "optional", new DefaultProject(_) {
