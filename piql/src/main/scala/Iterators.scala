@@ -58,6 +58,12 @@ trait QueryExecutor {
     case EqualityPredicate(v1, v2) => {
       compareAny(bindValue(v1, tuple), bindValue(v2, tuple)) == 0
     }
+    case InPredicate(v1, v2) => {
+      val valueList = bindValue(v2, tuple).asInstanceOf[Seq[Any]]
+      val boundValue = bindValue(v1, tuple)
+      valueList.foreach(v => if(compareAny(v,boundValue) == 0) return true)
+      return false
+    }
   }
 
   final protected def compareTuples(left: Tuple, right: Tuple, attributes: Seq[Value])(implicit ctx: Context): Int = {
