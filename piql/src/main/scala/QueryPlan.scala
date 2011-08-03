@@ -40,7 +40,7 @@ case class LocalSort(sortFields: Seq[Value], ascending: Boolean, child: QueryPla
 case class LocalStopAfter(count: Limit, child: QueryPlan) extends QueryPlan
 
 /* Testing iterator that simply emits tuples from an iterator that is passed to the query as a parameter */
-case class LocalIterator(parameterOrdinal: Int) extends QueryPlan
+case class LocalIterator(parameterOrdinal: Int, wrap: Boolean = false) extends QueryPlan
 
 
 case class Union(child1 : QueryPlan, child2 : QueryPlan, eqField : AttributeValue) extends QueryPlan

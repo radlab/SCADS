@@ -1,10 +1,11 @@
-package edu.berkeley.cs.scads.piql
+package edu.berkeley.cs.scads
+package piql
 
 import net.lag.logging.Logger
 import org.apache.avro.util.Utf8
 import org.apache.avro.generic._
 
-import edu.berkeley.cs.scads.comm.ScadsFuture
+import comm.{ScadsFuture, StringRec}
 
 import java.{ util => ju }
 import scala.collection.mutable.Queue
@@ -326,11 +327,17 @@ class SimpleExecutor extends QueryExecutor {
         def next = {taken += 1; childIterator.next}
       }
     }
-    case LocalIterator(ordinal) => {
+    case LocalIterator(ordinal, wrap) => {
       new QueryIterator {
 	val name = "LocalIterator"
 	private var delegate: Iterator[Tuple] = null
-	def open: Unit = delegate = ctx.parameters(ordinal).asInstanceOf[Seq[Tuple]].toIterator
+	def open: Unit = {
+	  delegate = 
+	    if(wrap) //This is kinda gross... I'm sorry.
+	      ctx.parameters(ordinal).asInstanceOf[Seq[Any]].map(i => Vector(StringRec(i.asInstanceOf[String]))).toIterator
+	    else
+	      ctx.parameters(ordinal).asInstanceOf[Seq[Tuple]].toIterator
+	}
 	def close: Unit = delegate = null
 	def hasNext = delegate.hasNext
 	def next = delegate.next
