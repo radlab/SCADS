@@ -73,6 +73,8 @@ trait QueryExecutor {
   final protected def compareAny(left: Any, right: Any): Int = (left, right) match {
     case (l: Integer, r: Integer) => l.intValue - r.intValue
     case (l: Utf8, r: Utf8) => l.toString compare r.toString
+    case (l: String, r: Utf8) => l compare r.toString
+    case (l: Utf8, r: String) => l.toString compare r
     case (true, true) => 0
     case (false, true) => -1
     case (true, false) => 1
