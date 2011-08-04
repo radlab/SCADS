@@ -43,12 +43,14 @@ object PlanCompare {
     serviceScheduler.scheduleExperiment(compareTask :: Nil)
   }
 
-  def testLocal =
+  def testLocal = {
+    val testCluster = TestScalaEngine.newScadsCluster(2).root.canonicalAddress
     PlanCompareTask(
-      clusterAddress = TestScalaEngine.newScadsCluster(2).root.canonicalAddress,
-      resultClusterAddress = resultClusterAddress.canonicalAddress,
+      clusterAddress = testCluster,
+      resultClusterAddress = testCluster,
       warmupTimeMin = 0
     ).run()
+  }
 
   val results = resultsCluster.getNamespace[PlanCompareResult]("planCompareResults")
   def allResults = results.iterateOverRange(None,None)
