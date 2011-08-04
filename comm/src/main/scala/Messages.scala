@@ -65,6 +65,18 @@ case class TxRecordMetadata(var version: Long, var masters: Seq[VersionMaster]) 
 // The rec is the avro serialized value type.  If None, the record is deleted.
 case class TxRecord(var metadata: TxRecordMetadata, var rec: Option[Array[Byte]]) extends AvroRecord
 
+
+// The new metadata (including the record version) is embedded in newValue
+// Update will check that the new version is the next version after the
+// stored version.
+case class VersionUpdate(var key: Array[Byte], var newValue: Array[Byte]) extends AvroRecord with PhysicalUpdate
+// Update will check that the oldValue matches the stored value.  If oldValue
+// is None, it means there was no record, and the update is an insert.
+case class ValueUpdate(var key: Array[Byte], var oldValue: Option[Array[Byte]], var newValue: Array[Byte]) extends AvroRecord with PhysicalUpdate
+
+
+
+
 /* Transaction KVStore Updates */
 // key is the avro serialized key type
 sealed trait RecordUpdate extends AvroUnion {
@@ -76,20 +88,46 @@ sealed trait PhysicalUpdate extends RecordUpdate {
   var key: Array[Byte]
   var newValue: Array[Byte]
 }
-// The new metadata (including the record version) is embedded in newValue
-// Update will check that the new version is the next version after the
-// stored version.
-case class VersionUpdate(var key: Array[Byte], var newValue: Array[Byte]) extends AvroRecord with PhysicalUpdate
-// Update will check that the oldValue matches the stored value.  If oldValue
-// is None, it means there was no record, and the update is an insert.
-case class ValueUpdate(var key: Array[Byte], var oldValue: Option[Array[Byte]], var newValue: Array[Byte]) extends AvroRecord with PhysicalUpdate
 
+/* Transaction MDCC Paxos */
 case class ScadsXid(var tid: Long, var bid: Long) extends AvroRecord {
   def serialized(): Array[Byte] = {
     // Long is 8 bytes
     ByteBuffer.allocate(16).putLong(tid).putLong(bid).array
   }
 }
+
+
+case class Transaction(var xid : ScadsXid, var updates :  Seq[RecordUpdate])  extends AvroRecord
+
+
+/* Transaction MDCC Paxos */
+sealed trait MDCCProtocol extends KeyValueStoreOperation
+
+case class MDCCBallot(var round : Long, var vote : Int, var server : StorageService, var fast : Boolean) extends AvroRecord
+case class MDCCBallotRange(var startRound : Long, var endRound : Option[Long], var vote : Int, var server : StorageService, var fast : Boolean) extends AvroRecord
+
+case class CStructCommand(var xid:ScadsXid, var command : RecordUpdate, var pending: Boolean) extends AvroRecord with MessageBody
+
+case class CStruct(var value: Option[Array[Byte]], var commands : Seq[CStructCommand]) extends AvroRecord with MessageBody
+
+case class MDCCRecord(var value: CStruct, var metaData : Seq[MDCCBallotRange]) extends AvroRecord with MessageBody
+
+case class Propose(var trx: Transaction) extends AvroRecord with MDCCProtocol
+
+case class Phase1a(var key: Array[Byte], var ballot :  MDCCBallotRange) extends AvroRecord with MDCCProtocol
+
+case class Phase1b(var ballot :  MDCCBallot, var value : CStruct) extends AvroRecord with MDCCProtocol
+
+case class Phase2a(var key: Array[Byte], var ballot :  MDCCBallot, var value : CStruct) extends AvroRecord with MDCCProtocol
+
+//case class Phase2aClassic(var key: Array[Byte], var ballot :  MDCCBallot, var command : RecordUpdate) extends AvroRecord with MDCCProtocol
+
+case class Phase2bClassic(var ballot :  MDCCBallot, var value : CStruct) extends AvroRecord with MDCCProtocol
+
+case class Phase2bFast(var ballot :  MDCCBallot, var value : CStruct) extends AvroRecord with MDCCProtocol
+
+
 
 /* Transaction KVStore Operations */
 sealed trait TxProtocol2pc extends KeyValueStoreOperation
