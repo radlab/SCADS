@@ -73,7 +73,14 @@ object PlanCompare {
     .sortBy(r => r._1)
     
 }
-   
+
+/**
+ * Mesos task to compare the response time of different physical plans for
+ * the following SCADr query:
+ * 
+ * SELECT * FROM Subscriptions
+ * WHERE owner = <activeUser> AND target IN [1]
+ */
 case class PlanCompareTask(var clusterAddress: String,
 			   var resultClusterAddress: String,
 			   var replicationFactor: Int = 2,
@@ -105,11 +112,6 @@ case class PlanCompareTask(var clusterAddress: String,
     val activeUser = toUser(0)
     val executor = new ParallelExecutor() with DebugExecutor
 
-    /**
-     * Two query plans for:
-     * SELECT * FROM Subscriptions
-     * WHERE owner = <activeUser> AND target IN [1]
-     */ 
     val naiveQuery =
       new OptimizedQuery(
 	"NaiveFollowing",
