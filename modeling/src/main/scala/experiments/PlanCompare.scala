@@ -56,7 +56,11 @@ object PlanCompare {
 
   def graphPoints(quantile: Double = 0.99) = goodResults.toSeq
     .groupBy(r => (r.query, r.point * r.config.stepSize)).toSeq
-    .map { case ((query, size), data) => (query, size, data.map(_.responseTimes).reduceLeft(_ + _).quantile(quantile)) }
+    .map { 
+      case ((query, size), data) =>
+	val aggHist = data.map(_.responseTimes).reduceLeft(_ + _)
+	(query, size, aggHist.quantile(quantile), aggHist.totalRequests, data.map(_.messagesSent).sum) 
+    }
     .sortBy(r => (r._1, r._2))
 
   def backupData = allResults.toAvroFile("planCompare" + System.currentTimeMillis + ".avro")
