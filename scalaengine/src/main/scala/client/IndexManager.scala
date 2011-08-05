@@ -32,8 +32,16 @@ private[storage] object IndexManager {
 }
 
 sealed trait IndexType extends AvroUnion
-case class AttributeIndex(var fieldName: String) extends AvroRecord with IndexType
-case class TokenIndex(var fieldNames: Seq[String]) extends AvroRecord with IndexType
+case class AttributeIndex(var fieldName: String) extends AvroRecord with IndexType {
+  override def toString():String = {
+    "AttributeIndexOn"+fieldName
+  }
+}
+case class TokenIndex(var fieldNames: Seq[String]) extends AvroRecord with IndexType {
+  override def toString():String = {
+    "TokenIndexOn"+fieldNames.mkString
+  }
+}
 
 case class IndexDefinition(var fields: Seq[IndexType]) extends AvroRecord
 
@@ -215,7 +223,7 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
 
   /** getOrCreate a secondary index over the given fields */
   def getOrCreateIndex(fields: Seq[IndexType]): IndexNamespace = {
-    val idxName = fields.mkString("(", ",", ")")
+    val idxName = fields.mkString
 
     listIndexes.get(idxName) match {
       case Some(idx) => idx
@@ -247,7 +255,7 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
           if(field.schema.getType != Schema.Type.STRING)
             throw new IllegalArgumentException("Can't build token index over field %s of type %s.".format(fieldNames, field.schema))
         })
-        new Schema.Field("Token:" + fieldNames.mkString("|"), Schema.create(Schema.Type.STRING), "", null)
+        new Schema.Field("Token" + fieldNames.mkString, Schema.create(Schema.Type.STRING), "", null)
       }
     }
 
