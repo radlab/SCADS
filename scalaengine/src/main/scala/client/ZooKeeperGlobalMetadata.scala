@@ -99,8 +99,10 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
     nsRoot.getOrCreate(key).data = value
   }
 
-  override def deleteMetadata(key: String): Unit =
-    nsRoot.deleteChild(key)
+  override def deleteMetadata(key: String): Unit = {
+    if (nsRoot != null) // might be null if we already destroyed the whole partition
+      nsRoot.deleteChild(key)
+  }
 
   override def waitUntilMetadataPropagated(): Unit =
     nsRoot.waitUntilPropagated()
