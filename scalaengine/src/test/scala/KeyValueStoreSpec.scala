@@ -14,7 +14,6 @@ import org.apache.avro.util.Utf8
 import net.lag.logging.Logger
 import collection.mutable.HashSet
 import edu.berkeley.cs.avro.runtime.ScalaSpecificRecord
-import edu.berkeley.cs.scads.storage.routing.RoutingTableProtocol
 import edu.berkeley.cs.scads.util.RangeTable
 
 /**
@@ -296,9 +295,7 @@ abstract class AbstracKeyValueStoreSpec extends Spec with ShouldMatchers with Be
   }
 
   def createNamespace(ns: String)
-  : KeyValueStore[StringRec, StringRec, StringRec, (StringRec, StringRec)]
-          with QuorumProtocol[StringRec, StringRec, StringRec, (StringRec, StringRec)]
-          with SpecificNamespaceTrait[StringRec, StringRec]
+  : SpecificNamespace[StringRec,StringRec]
 
   val rand = new scala.util.Random(123456789)
 
@@ -389,8 +386,8 @@ abstract class AbstracKeyValueStoreSpec extends Spec with ShouldMatchers with Be
     it("should return all versions") {
       val ns = createNamespace("allversions")
       ns.put(keys(1), StringRec("string1"))
-      val values = ns.getAllVersions(keys(1)).map(_._2.get.f1)
-      values should contain("string1")
+      val values = ns.getAllVersions(keys(1).toBytes).map(r => ns.bytesToValue(r._2.get).f1)
+      values should contain ("string1")
     }
 
     it("should implement test/set") {pending}
