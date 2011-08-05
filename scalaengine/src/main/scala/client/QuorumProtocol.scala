@@ -347,9 +347,9 @@ trait QuorumProtocol
     def act() {
       loop {
         react {
-          case m => null //HACK: read repair broken!
-            //if (readRepairPF.isDefinedAt(m)) readRepairPF.apply(m)
-            //else throw new RuntimeException("Unknown message" + m)
+          case m =>
+            if (readRepairPF.isDefinedAt(m)) readRepairPF.apply(m)
+            else throw new RuntimeException("Unknown message" + m)
         }
       }
     }
