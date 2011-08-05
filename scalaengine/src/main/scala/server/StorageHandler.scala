@@ -406,13 +406,13 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
                 val thisPartition = bdbManager
                 var thisSlice = Slice(thisPartition.startKey, thisPartition.endKey)
                 ctx.partitions.foreach { t =>
-                  t._2 match {
+                  t._2.manager match {
                     case thatPartition:BdbStorageManager => {                   
                       val thatSlice = Slice(thatPartition.startKey, thatPartition.endKey)
                       thisSlice = thisSlice.remove(thatSlice) /* Remove (from deletion) slice which cannot be deleted */
                     }
                     case _ =>
-                      logger.warning("Can't properly garbage collect when namespace mixes Bdb and other partitions")
+                      logger.warning("Can't properly garbage collect when namespace mixes Bdb and other partitions: "+t._2)
                   }
                 }
                 thisSlice.foreach((startKey, endKey) => {
