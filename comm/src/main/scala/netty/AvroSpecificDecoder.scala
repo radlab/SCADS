@@ -21,26 +21,33 @@ import net.lag.logging.Logger
  */
 class CustomLoaderSpecificData(loader: ClassLoader) extends SpecificData {
   import org.apache.avro.Schema.Type._
+
+  protected val logger = Logger()
   
   private val classCache = new java.util.concurrent.ConcurrentHashMap[String, Class[_]]
   
   val NO_CLASS = new Object(){}.getClass();
 
-  override def getClass(schema: Schema): Class[_] = schema.getType match {
-    case FIXED | RECORD | ENUM =>
-      val name = schema.getFullName();
-      if (name == null) return null
-      var c = classCache.get(name)
-      if (c == null) {
-        try {
-          c = loader.loadClass(getClassName(schema))
-        } catch {
-          case e: ClassNotFoundException => c = NO_CLASS
+  override def getClass(schema: Schema): Class[_] = {
+    logger.info("Locating class %s", schema)
+    schema.getType match {
+      case FIXED | RECORD | ENUM =>
+	val name = schema.getFullName();
+        if (name == null) return null
+        var c = classCache.get(name)
+        if (c == null) {
+          try {
+            c = loader.loadClass(getClassName(schema))
+          } catch {
+            case e: ClassNotFoundException =>
+	      logger.warning("Failed to locate class %s", name)
+	      c = NO_CLASS
+          }
+          classCache.put(name, c)
         }
-        classCache.put(name, c)
-      }
-      return if(c == NO_CLASS) null else c
-    case _ => super.getClass(schema)
+        return if(c == NO_CLASS) null else c
+      case _ => super.getClass(schema)
+    }
   }
 }
 
@@ -50,9 +57,12 @@ class AvroSpecificDecoder[M <: SpecificRecord](implicit m: Manifest[M])
   private val msgClass = m.erasure.asInstanceOf[Class[M]]
 
   private val schema = msgClass.newInstance.getSchema
-  private val msgReader = 
-    new SpecificDatumReader[M](schema)
-//Not working yet    new SpecificDatumReader[M](schema, schema, new CustomLoaderSpecificData(msgClass.getClassLoader))
+
+  private val msgReader = {
+    val constructor = classOf[SpecificDatumReader[M]].getDeclaredConstructor(classOf[org.apache.avro.Schema], classOf[org.apache.avro.Schema], classOf[org.apache.avro.specific.SpecificData])
+    constructor.setAccessible(true)
+    constructor.newInstance(schema, schema, new CustomLoaderSpecificData(msgClass.getClassLoader))
+  }
 
   private val logger = Logger()
 
