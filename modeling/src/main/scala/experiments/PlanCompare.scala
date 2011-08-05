@@ -56,12 +56,13 @@ object PlanCompare {
   def allResults = results.iterateOverRange(None,None)
   def goodResults = allResults
 
-  def graphPoints(quantile: Double = 0.99) = goodResults.toSeq
+  def graphPoints(quantile: Double = 0.99, maxItems: Int = 200) = goodResults.toSeq
     .groupBy(r => (r.query, r.point * r.config.stepSize)).toSeq
     .map { 
       case ((query, size), data) =>
-	val aggHist = data.map(_.responseTimes).reduceLeft(_ + _)
-	(query, size, aggHist.quantile(quantile), aggHist.totalRequests, data.map(_.messagesSent).sum) 
+	val truncData = data.take(200)
+	val aggHist = truncData.map(_.responseTimes).reduceLeft(_ + _)
+	(query, size, aggHist.quantile(quantile), aggHist.totalRequests, truncData.map(_.messagesSent).sum, truncData.size) 
     }
     .sortBy(r => (r._1, r._2))
 
