@@ -77,7 +77,7 @@ with BeforeAndAfterEach {
   private def insertVersionUpdates(numKeys: Int) = {
     0 until numKeys map (i => {
       val k = KeyRec(i, i.toString)
-      val m = TxRecordMetadata(0, List())
+      val m = MDCCMetadata(0, List())
       val v = ValueRec(i.toString, i)
       VersionUpdate(keyBuilder.toBytes(k), valueBuilder.toBytes(m, v))
     })
@@ -85,7 +85,7 @@ with BeforeAndAfterEach {
   // Returns single Version update list
   private def singleVersionUpdate(key: Int, value: Int, version: Long) = {
     val k = KeyRec(key, key.toString)
-    val m = TxRecordMetadata(version, List())
+    val m = MDCCMetadata(version, List())
     val v = ValueRec(value.toString, value)
     List(VersionUpdate(keyBuilder.toBytes(k), valueBuilder.toBytes(m, v)))
   }
@@ -93,7 +93,7 @@ with BeforeAndAfterEach {
   private def insertValueUpdates(numKeys: Int) = {
     0 until numKeys map (i => {
       val k = KeyRec(i, i.toString)
-      val m = TxRecordMetadata(0, List())
+      val m = MDCCMetadata(0, List())
       val v = ValueRec(i.toString, i)
       ValueUpdate(keyBuilder.toBytes(k), None, valueBuilder.toBytes(m, v))
     })
@@ -102,7 +102,7 @@ with BeforeAndAfterEach {
   private def singleValueUpdate(key: Int, value: Int, oldValue: Option[Int]) = {
     val k = KeyRec(key, key.toString)
     // The version is not compared with ValueUpdate
-    val m = TxRecordMetadata(0, List())
+    val m = MDCCMetadata(0, List())
     val v = ValueRec(value.toString, value)
     val oldV = oldValue.map(i => ValueRec(i.toString, i))
     List(ValueUpdate(keyBuilder.toBytes(k),
@@ -158,7 +158,7 @@ with BeforeAndAfterEach {
       val (db, p) = withVersionKeysDB(dbFactory, factory, name, numKeys)
       0 until numKeys foreach (i => {
         val k = KeyRec(i, i.toString)
-        val m = TxRecordMetadata(0, List())
+        val m = MDCCMetadata(0, List())
         val v = ValueRec(i.toString, i)
         val b = db.get(null, keyBuilder.toBytes(k))
         b should not be (None)
@@ -171,7 +171,7 @@ with BeforeAndAfterEach {
       val (db, p) = withValueKeysDB(dbFactory, factory, name, numKeys)
       0 until numKeys foreach (i => {
         val k = KeyRec(i, i.toString)
-        val m = TxRecordMetadata(0, List())
+        val m = MDCCMetadata(0, List())
         val v = ValueRec(i.toString, i)
         val b = db.get(null, keyBuilder.toBytes(k))
         b should not be (None)
@@ -188,7 +188,7 @@ with BeforeAndAfterEach {
       p.commit(ScadsXid(2, 2), update) should be (true)
 
       val k = KeyRec(0, "0")
-      val m = TxRecordMetadata(1, List())
+      val m = MDCCMetadata(1, List())
       val v = ValueRec("1", 1)
       val b = db.get(null, keyBuilder.toBytes(k))
       b should not be (None)
@@ -198,7 +198,7 @@ with BeforeAndAfterEach {
       p.accept(ScadsXid(3, 3), update2) should be (true)
       p.commit(ScadsXid(3, 3), update2) should be (true)
 
-      val m2 = TxRecordMetadata(2, List())
+      val m2 = MDCCMetadata(2, List())
       val v2 = ValueRec("2", 2)
       val b2 = db.get(null, keyBuilder.toBytes(k))
       b2 should not be (None)

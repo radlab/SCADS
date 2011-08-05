@@ -24,6 +24,11 @@ extends RangeKeyValueStore[K, V]
 with KeyRoutable
 with TransactionRecordMetadata {
 
+  def putLogical(key: K, value: V): Unit = {
+    val schema = value.getSchema.toString
+    putBytesLogical(keyToBytes(key), schema, valueToBytes(value))
+  }
+
   override def put(key: K, value: Option[V]): Unit = {
     putBytes(keyToBytes(key), value.map(v => valueToBytes(v)))
   }
@@ -62,7 +67,25 @@ with TransactionRecordMetadata {
         responses.blockFor(servers.length, 500, TimeUnit.MILLISECONDS)
       }
       case Some(updateList) => {
-        updateList.append(servers, key, Some(recordToBytes(value, None)))
+        updateList.appendVersionUpdate(servers, key, recordToBytes(value, None))
+      }
+    }
+  }
+
+  def putBytesLogical(key: Array[Byte],
+                      schema: String,
+                      value: Array[Byte]): Unit = {
+    val servers = serversForKey(key)
+    ThreadLocalStorage.updateList.value match {
+      case None => {
+        // TODO: what does it mean to do puts outside of a tx?
+        //       for now, do nothing...
+        throw new RuntimeException("")
+      }
+      case Some(updateList) => {
+        updateList.appendLogicalUpdate(servers, key,
+                                       schema,
+                                       recordToBytes(Some(value), None))
       }
     }
   }
@@ -131,43 +154,37 @@ with TransactionRecordMetadata {
 
 }
 
-class TxRecordReaderWriter {
-  private val recordReaderWriter = new AvroSpecificReaderWriter[TxRecord](None)
+class MDCCRecordReaderWriter {
+  private val recordReaderWriter = new AvroSpecificReaderWriter[MDCCRecord](None)
 
-  def toBytes(txRec: TxRecord): Array[Byte] = {
+  def toBytes(txRec: MDCCRecord): Array[Byte] = {
     recordReaderWriter.serialize(txRec)
   }
 
-  def fromBytes(bytes: Array[Byte]): TxRecord = {
+  def fromBytes(bytes: Array[Byte]): MDCCRecord = {
     recordReaderWriter.deserialize(bytes)
   }
 }
 
 trait TransactionRecordMetadata extends SimpleRecordMetadata {
 
-  private val recordReaderWriter = new TxRecordReaderWriter
+  private val recordReaderWriter = new MDCCRecordReaderWriter
 
   override def createMetadata(rec: Array[Byte]): Array[Byte] = {
     recordToBytes(Some(rec), None)
   }
 
-  def recordToBytes(rec: Option[Array[Byte]], metadata: Option[TxRecordMetadata]): Array[Byte] = {
-    val newMetadata = metadata match {
-      case None => {
-        // TODO: No metadata for this record, create a dummy one, for now
-        TxRecordMetadata(0, List[VersionMaster]())
-      }
-      case Some(m) => m
-    }
-    recordReaderWriter.toBytes(TxRecord(newMetadata, rec))
+  def recordToBytes(rec: Option[Array[Byte]], metadata: Option[MDCCMetadata]): Array[Byte] = {
+    val newMetadata = metadata.getOrElse(MDCCMetadata(0, List()))
+    recordReaderWriter.toBytes(MDCCRecord(rec, newMetadata))
   }
 
   override def compareMetadata(lhs: Array[Byte], rhs: Array[Byte]): Int = {
     val txRecL = recordReaderWriter.fromBytes(lhs)
     val txRecR = recordReaderWriter.fromBytes(rhs)
-    if (txRecL.metadata.version < txRecR.metadata.version)
+    if (txRecL.metadata.currentRound < txRecR.metadata.currentRound)
       return -1
-    else if (txRecL.metadata.version > txRecR.metadata.version)
+    else if (txRecL.metadata.currentRound > txRecR.metadata.currentRound)
       return 1
     else
       return 0
@@ -180,10 +197,10 @@ trait TransactionRecordMetadata extends SimpleRecordMetadata {
 
   override def extractRecordFromValue(value: Array[Byte]): Array[Byte] = {
     val txRec = recordReaderWriter.fromBytes(value)
-    txRec.rec match {
+    txRec.value match {
       // Deleted records have zero length byte arrays
       case None => new Array[Byte](0)
-      case Some(r) => r
+      case Some(v) => v
     }
   }
 }

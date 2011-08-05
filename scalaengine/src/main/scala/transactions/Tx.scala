@@ -62,10 +62,9 @@ class Tx(timeout: Int)(mainFn: => Unit) {
 
     val responses = updateList.updateList.readOnly.map(t => {
       val servers = t._1
-      val key = t._2
-      val value = t._3
+      val recordUpdate = t._2
       val putRequest = PrepareRequest(ScadsXid(tid, count),
-                                      List(VersionUpdate(key, value.get)))
+                                      List(recordUpdate))
       count += 1
       (servers.map(_ !! putRequest), servers.length)
     })
@@ -86,10 +85,9 @@ class Tx(timeout: Int)(mainFn: => Unit) {
     var count = 0
     val commitResponses = updateList.updateList.readOnly.map(t => {
       val servers = t._1
-      val key = t._2
-      val value = t._3
+      val recordUpdate = t._2
       val commitRequest = CommitRequest(ScadsXid(tid, count),
-                                        List(VersionUpdate(key, value.get)),
+                                        List(recordUpdate),
                                         commitTest)
       count += 1
       (servers.map(_ !! commitRequest), servers.length)

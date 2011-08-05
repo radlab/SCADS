@@ -11,15 +11,15 @@ import edu.berkeley.cs.scads.storage.transactions._
 import edu.berkeley.cs.scads.storage.transactions.conflict._
 
 class ValueBuilder[T <: SpecificRecord](implicit m: Manifest[T]) {
-  private val txRecBuilder = new TxRecordReaderWriter
+  private val mdccRecBuilder = new MDCCRecordReaderWriter
   private val recBuilder = new KeyBuilder[T]
-  def toBytes(metadata: TxRecordMetadata, rec: T): Array[Byte] = {
-    txRecBuilder.toBytes(TxRecord(metadata, recBuilder.toBytes(rec)))
+  def toBytes(metadata: MDCCMetadata, rec: T): Array[Byte] = {
+    mdccRecBuilder.toBytes(MDCCRecord(recBuilder.toBytes(rec), metadata))
   }
 
-  def fromBytes(b: Array[Byte]): (TxRecordMetadata, Option[T]) = {
-    val txRec = txRecBuilder.fromBytes(b)
-    (txRec.metadata, txRec.rec.map(recBuilder.fromBytes _))
+  def fromBytes(b: Array[Byte]): (MDCCMetadata, Option[T]) = {
+    val mdccRec = mdccRecBuilder.fromBytes(b)
+    (mdccRec.metadata, mdccRec.value.map(recBuilder.fromBytes _))
   }
 }
 

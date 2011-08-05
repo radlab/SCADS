@@ -2,7 +2,7 @@ package edu.berkeley.cs.scads.storage.transactions.conflict
 
 import edu.berkeley.cs.scads.comm._
 
-import edu.berkeley.cs.scads.storage.TxRecordReaderWriter
+import edu.berkeley.cs.scads.storage.MDCCRecordReaderWriter
 import edu.berkeley.cs.scads.storage.transactions._
 
 import actors.threadpool.ThreadPoolExecutor.AbortPolicy
@@ -12,8 +12,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.Arrays
 
 // TODO: Make thread-safe.  It might already be, by using TxDB
-
-case class CommandSequence()
 
 object Status extends Enumeration {
   type Status = Value
@@ -30,7 +28,7 @@ trait PendingUpdates extends DBRecords {
   // NoOp property
   // Is only allowed to accept, if the operation will be successful, even
   // if all outstanding Cmd might be NullOps
-  // TODO: should allow sequences of mixed update types (logical, physical)
+  // TODO: return all cstructs of all keys, or None
   def accept(xid: ScadsXid, updates: Seq[RecordUpdate]): Boolean
 
   // Value is chosen (reflected in the db) and confirms trx state.
@@ -40,7 +38,7 @@ trait PendingUpdates extends DBRecords {
 
   def getDecision(xid: ScadsXid): Status.Status
 
-  def getCmdSeq(): CommandSequence
+  def getCStruct(key: Array[Byte]): Option[CStruct]
 
   def startup() = {}
 
@@ -52,9 +50,9 @@ abstract class IntegrityConstraintChecker {
 }
 
 abstract class ConflictResolver {
-  def getLUB(sequences: Array[CommandSequence]): CommandSequence
+  def getLUB(sequences: Array[CStruct]): CStruct
 
-  def getGLB(sequences: Array[CommandSequence]): CommandSequence
+  def getGLB(sequences: Array[CStruct]): CStruct
 }
 
 // Status of a transaction.  Stores all the updates in the transaction.
@@ -71,10 +69,10 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
   // For physical update conflict detection
   private val pendingKeys =
-    factory.getNewDB[Array[Byte], TxRecordMetadata](db.getName + ".pendingkeys")
+    factory.getNewDB[Array[Byte], RecordUpdate](db.getName + ".pendingkeys")
 
-  // (de)serialize TxRecords from the db
-  private val recReaderWriter = new TxRecordReaderWriter
+  // (de)serialize MDCCRecords from the db
+  private val recReaderWriter = new MDCCRecordReaderWriter
 
   override def accept(xid: ScadsXid, updates: Seq[RecordUpdate]) = {
     var success = true
@@ -87,7 +85,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       updates.foreach(r => {
         if (success) {
           r match {
-            case LogicalUpdate(key, op, delta) => {}
+            case LogicalUpdate(key, schema, delta) => {}
             case ValueUpdate(key, oldValue, newValue) => {
               val newRec = recReaderWriter.fromBytes(newValue)
               val correctOldValue = (oldValue, db.get(txn, key)) match {
@@ -96,12 +94,12 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
                   val dbRec = recReaderWriter.fromBytes(v)
                   val oldRec = recReaderWriter.fromBytes(old)
 
-                  // Set the correct next version for the update.
-                  newRec.metadata.version = dbRec.metadata.version + 1
+                  // Set the correct next round for the update.
+                  newRec.metadata.currentRound = dbRec.metadata.currentRound + 1
 
                   // TODO: Don't compare versions, but compare the list of
                   //       masters?
-                  (oldRec.rec, dbRec.rec) match {
+                  (oldRec.value, dbRec.value) match {
                     case (Some(a), Some(b)) => Arrays.equals(a, b)
                     case (None, None) => true
                     case (_, _) => false
@@ -111,21 +109,21 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
                 case (_, _) => false
               }
               val noConflict =
-                pendingKeys.putNoOverwrite(pendingTxn, key, newRec.metadata)
+                pendingKeys.putNoOverwrite(pendingTxn, key, r)
               success = success && correctOldValue && noConflict
             }
             case VersionUpdate(key, newValue) => {
               val newRec = recReaderWriter.fromBytes(newValue)
               val correctVersion = db.get(txn, key) match {
                 case Some(v) => {
-                  // Record found in db, verify the new version
+                  // Record found in db, verify the new round number
                   val dbRec = recReaderWriter.fromBytes(v)
-                  (newRec.metadata.version == dbRec.metadata.version + 1)
+                  (newRec.metadata.currentRound == dbRec.metadata.currentRound + 1)
                 }
                 case None => true
               }
               val noConflict =
-                pendingKeys.putNoOverwrite(pendingTxn, key, newRec.metadata)
+                pendingKeys.putNoOverwrite(pendingTxn, key, r)
               success = success && correctVersion && noConflict
             }
           }
@@ -157,7 +155,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     try {
       updates.foreach(r => {
         r match {
-          case LogicalUpdate(key, op, delta) => {}
+          case LogicalUpdate(key, schema, delta) => {}
           case ValueUpdate(key, oldValue, newValue) => {
             db.put(txn, key, newValue)
             pendingKeys.delete(pendingTxn, key)
@@ -189,7 +187,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       case Some(status) => {
         status.updates foreach(r => {
           r match {
-            case LogicalUpdate(key, op, delta) => {}
+            case LogicalUpdate(key, schema, delta) => {}
             case ValueUpdate(key, oldValue, newValue) => {
               pendingKeys.delete(null, key)
             }
@@ -211,8 +209,8 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     }
   }
 
-  override def getCmdSeq() = {
-    new CommandSequence
+  override def getCStruct(key: Array[Byte]) = {
+    None
   }
 
   override def shutdown() = {
