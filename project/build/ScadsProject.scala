@@ -13,8 +13,8 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
 
 
   lazy val avro = project("avro", "avro-plugin", new DefaultProject(_) with IdeaProject {
-    val avroJava = "org.apache.avro" % "avro" % "1.5.1"
-    val avroIpc = "org.apache.avro" % "avro-ipc" % "1.5.1"
+    val avroJava = "org.apache.avro" % "avro" % "1.5.2-SNAPSHOT"
+    val avroIpc = "org.apache.avro" % "avro-ipc" % "1.5.2-SNAPSHOT"
     val configgy = "net.lag" % "configgy" % "2.0.0"
   } )
 
@@ -93,6 +93,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
   val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"
   override def managedStyle = ManagedStyle.Maven
   val publishTo = "Radlab Snapshots" at "http://scads.knowsql.org/nexus/content/repositories/snapshots/"
+  val mavenLocal = "Local Maven Repository" at "file://"+Path.userHome+"/.m2/repository"
   Credentials(Path.userHome / ".ivy2" / ".credentials", log)
 
   /* Avro Plugin Configuration */
@@ -102,7 +103,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
       withExtraJars(super.getScalaInstance(version), pluginJars)
     }
 
-    private val pluginDeps = Set("avro-1.5.1.jar", "jackson-core-asl-1.7.3.jar", "jackson-mapper-asl-1.7.3.jar")
+    private val pluginDeps = Set("avro-1.5.2-SNAPSHOT.jar", "jackson-core-asl-1.7.3.jar", "jackson-mapper-asl-1.7.3.jar")
 
     private def withExtraJars(si: ScalaInstance, extra: Seq[File]) =
       ScalaInstance(si.version, si.libraryJar, si.compilerJar, info.launcher, extra : _*)
