@@ -14,6 +14,7 @@ import codec.oneone._
 import org.apache.avro._
 import io._
 import specific._
+import avro.runtime._
 
 import net.lag.logging.Logger
 
@@ -25,6 +26,7 @@ class AvroSpecificDecoder[M <: SpecificRecord](implicit m: Manifest[M])
   private val schema = msgClass.newInstance.getSchema
 
   private val msgReader = new SpecificDatumReader[M](schema, schema, new CustomLoaderSpecificData(msgClass.getClassLoader))
+
   private val logger = Logger()
 
   override def decode(ctx: ChannelHandlerContext, chan: Channel, msg: AnyRef) = msg match {
@@ -37,5 +39,4 @@ class AvroSpecificDecoder[M <: SpecificRecord](implicit m: Manifest[M])
       logger.warning("Failed to decode message of unsuported type: %s", msg)
       msg
   }
-
 }
