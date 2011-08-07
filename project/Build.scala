@@ -45,13 +45,13 @@ object ScadsBuild extends Build {
   lazy val matheron = Project("matheron", file("matheron"), settings=buildSettings) dependsOn(config, avroPlugin, comm, scalaEngine)
 
   /* Config */
-  val configDeps = Seq(scalaTest, junit, configgy)
+  def configDeps = Seq(scalaTest, junit, configgy) //Note: must be a def to avoid null pointer exception
   val configgy = "net.lag" % "configgy" % "2.0.0"
   val scalaTest = "org.scalatest" % "scalatest" % "1.2"
   val junit = "junit" % "junit" % "4.7"
 
   /* Avro */
-  val avroPluginDeps = Seq(avroJava, avroIpc, scalaCompiler, configgy)
+  def avroPluginDeps = Seq(avroJava, avroIpc, scalaCompiler, configgy)
   val avroJava = "org.apache.avro" % "avro" % "1.5.1"
   val avroIpc = "org.apache.avro" % "avro-ipc" % "1.5.1"
   val scalaCompiler = "org.scala-lang" % "scala-compiler" % defaultScalaVersion
@@ -60,17 +60,18 @@ object ScadsBuild extends Build {
   val paranamer = "com.thoughtworks.paranamer" % "paranamer" % "2.0"
 
   /* Comm */
-  val commDeps = Seq(netty, zookeeper, commonsHttpClient, log4j, scalaTest, junit, avroPluginDep, avroPluginCompile)
+  def commDeps = Seq(netty, zookeeper, commonsHttpClient, log4j, scalaTest, junit, avroPluginDep, avroPluginCompile)
   val netty = "org.jboss.netty" % "netty" % "3.2.1.Final"
   val log4j = "log4j" % "log4j" % "1.2.15"
-  val zookeeper = "org.apache.hadoop.zookeeper" % "zookeeper" % "3.3.1"
+  val zookeeper = "org.apache.zookeeper" % "zookeeper" % "3.3.1"
+
 
   /* Scala Engine */
-  val scalaEngineDeps = Seq(bdb, avroPluginDep, avroPluginCompile)
+  def scalaEngineDeps = Seq(bdb, avroPluginDep, avroPluginCompile)
   val bdb = "com.sleepycat" % "je" % "4.0.71"
 
   /* deploy lib */
-  val deploylibDeps = Seq(mesos, staxApi, jaxbApi, json, awsSdk, ganymedSsh2, commonsLoggingApi, commonsHttpClient, jets3t, jetty, mysql, javaSysMon, avroPluginDep, avroPluginCompile)
+  def deploylibDeps = Seq(mesos, staxApi, jaxbApi, json, awsSdk, ganymedSsh2, commonsLoggingApi, commonsHttpClient, jets3t, jetty, mysql, javaSysMon, avroPluginDep, avroPluginCompile)
   val mesos = "edu.berkeley.cs.mesos" % "java" % "1.0"
   val staxApi = "javax.xml.stream" % "stax-api" % "1.0"
   val jaxbApi = "javax.xml.bind" % "jaxb-api" % "2.1"
@@ -82,7 +83,8 @@ object ScadsBuild extends Build {
   val jets3t = "net.java.dev.jets3t" % "jets3t" % "0.7.1"
   val jetty = "org.mortbay.jetty" % "jetty" % "6.1.6"
   val mysql = "mysql" % "mysql-connector-java" % "5.1.12"
-  val javaSysMon = "github.jezhumble" % "javasysmon" % "1.0"
+  val javaSysMon = "github.jezhumble" % "javasysmon" % "0.3.3"
+
 
   /* repl */
   val lift = "net.liftweb" %% "lift-mapper" % "2.2-SNAPSHOT" % "compile"
