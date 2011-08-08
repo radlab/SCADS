@@ -63,9 +63,11 @@ case class AggReply(var results:Seq[GroupedAgg]) extends AvroRecord with KeyValu
 case class MDCCBallot(var round: Long, var vote: Int, var server: StorageService, var fast: Boolean) extends AvroRecord
 case class MDCCBallotRange(var startRound: Long, var endRound: Option[Long], var vote: Int, var server: StorageService, var fast: Boolean) extends AvroRecord
 case class MDCCMetadata(var currentRound: Long, var ballots: Seq[MDCCBallotRange]) extends AvroRecord
+// TODO: Does this also need a 'committed' flag in addition to 'pending'?
 case class CStructCommand(var xid: ScadsXid, var command: RecordUpdate, var pending: Boolean) extends AvroRecord
 // TODO: Does 'value' need to be an MDCCRecord?
 case class CStruct(var value: Option[Array[Byte]], var commands: Seq[CStructCommand]) extends AvroRecord
+// TODO: For now, split out the cstructs from the actual record.
 // The value is the serialized version of the namespace's value type.
 case class MDCCRecord(var value: Option[Array[Byte]], var metadata: MDCCMetadata) extends AvroRecord with MessageBody
 

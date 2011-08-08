@@ -53,6 +53,10 @@ abstract class ConflictResolver {
   def getLUB(sequences: Array[CStruct]): CStruct
 
   def getGLB(sequences: Array[CStruct]): CStruct
+
+  def isCompatible(commands: Seq[CStructCommand],
+                   dbValue: Option[MDCCRecord],
+                   newUpdate: RecordUpdate): Boolean
 }
 
 // Status of a transaction.  Stores all the updates in the transaction.
@@ -63,69 +67,46 @@ case class TxStatusEntry(var status: Status.Status,
 class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
                                override val factory: TxDBFactory) extends PendingUpdates {
 
-  // Transaction state info. Maps txid -> txstatus/decision
+  // Transaction state info. Maps txid -> txstatus/decision.
   private val txStatus =
     factory.getNewDB[ScadsXid, TxStatusEntry](db.getName + ".txstatus")
+  // CStructs per key.
+  private val pendingCStructs =
+    factory.getNewDB[Array[Byte], ArrayBuffer[CStructCommand]](db.getName + ".pendingcstructs")
 
-  // For physical update conflict detection
-  private val pendingKeys =
-    factory.getNewDB[Array[Byte], RecordUpdate](db.getName + ".pendingkeys")
-
-  // (de)serialize MDCCRecords from the db
+  // (de)serialize MDCCRecords from the db.
   private val recReaderWriter = new MDCCRecordReaderWriter
+
+  // Detects conflicts for new updates.
+  private val conflictResolver = new SimpleConflictResolver(recReaderWriter)
 
   override def accept(xid: ScadsXid, updates: Seq[RecordUpdate]) = {
     var success = true
     val txn = db.txStart()
-
-    // TODO: This is just for physical updates.  This should only be done if
-    //       there are any physical updates.
-    val pendingTxn = pendingKeys.txStart()
+    val pendingCommandsTxn = pendingCStructs.txStart()
     try {
       updates.foreach(r => {
         if (success) {
-          r match {
-            case LogicalUpdate(key, schema, delta) => {}
-            case ValueUpdate(key, oldValue, newValue) => {
-              val newRec = recReaderWriter.fromBytes(newValue)
-              val correctOldValue = (oldValue, db.get(txn, key)) match {
-                case (Some(old), Some(v)) => {
-                  // Record found in db, compare with the old version
-                  val dbRec = recReaderWriter.fromBytes(v)
-                  val oldRec = recReaderWriter.fromBytes(old)
-
-                  // Set the correct next round for the update.
-                  newRec.metadata.currentRound = dbRec.metadata.currentRound + 1
-
-                  // TODO: Don't compare versions, but compare the list of
-                  //       masters?
-                  (oldRec.value, dbRec.value) match {
-                    case (Some(a), Some(b)) => Arrays.equals(a, b)
-                    case (None, None) => true
-                    case (_, _) => false
-                  }
-                }
-                case (None, None) => true
-                case (_, _) => false
-              }
-              val noConflict =
-                pendingKeys.putNoOverwrite(pendingTxn, key, r)
-              success = success && correctOldValue && noConflict
+          val storedMDCCRec:Option[MDCCRecord] =
+            db.get(txn, r.key).map(recReaderWriter.fromBytes(_))
+          val storedRecValue:Option[Array[Byte]] =
+            storedMDCCRec match {
+              case Some(v) => v.value
+              case None => None
             }
-            case VersionUpdate(key, newValue) => {
-              val newRec = recReaderWriter.fromBytes(newValue)
-              val correctVersion = db.get(txn, key) match {
-                case Some(v) => {
-                  // Record found in db, verify the new round number
-                  val dbRec = recReaderWriter.fromBytes(v)
-                  (newRec.metadata.currentRound == dbRec.metadata.currentRound + 1)
-                }
-                case None => true
-              }
-              val noConflict =
-                pendingKeys.putNoOverwrite(pendingTxn, key, r)
-              success = success && correctVersion && noConflict
-            }
+
+          val commands = pendingCStructs.get(pendingCommandsTxn, r.key) match {
+            case None => new ArrayBuffer[CStructCommand]
+            case Some(c) => c
+          }
+
+          // Add the updates to the pending list, if compatible.
+          if (conflictResolver.isCompatible(commands, storedMDCCRec, r)) {
+            // No conflict
+            commands.append(CStructCommand(xid, r, true))
+            pendingCStructs.put(pendingCommandsTxn, r.key, commands)
+          } else {
+            success = false
           }
         }
       })
@@ -135,12 +116,12 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     }
     if (success) {
       db.txCommit(txn)
-      pendingKeys.txCommit(pendingTxn);
+      pendingCStructs.txCommit(pendingCommandsTxn)
       // TODO: Handle the case when the commit arrives before the prepare.
       txStatus.putNoOverwrite(null, xid, TxStatusEntry(Status.Accept, updates))
     } else {
       db.txAbort(txn)
-      pendingKeys.txAbort(pendingTxn);
+      pendingCStructs.txAbort(pendingCommandsTxn)
       // TODO: Handle the case when the commit arrives before the prepare.
       txStatus.putNoOverwrite(null, xid, TxStatusEntry(Status.Reject, updates))
     }
@@ -151,27 +132,47 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     // TODO: Handle out of order commits to same records.
     var success = true
     val txn = db.txStart()
-    val pendingTxn = pendingKeys.txStart()
+    val pendingCommandsTxn = pendingCStructs.txStart()
     try {
       updates.foreach(r => {
         r match {
           case LogicalUpdate(key, schema, delta) => {}
           case ValueUpdate(key, oldValue, newValue) => {
             db.put(txn, key, newValue)
-            pendingKeys.delete(pendingTxn, key)
           }
           case VersionUpdate(key, newValue) => {
             db.put(txn, key, newValue)
-            pendingKeys.delete(pendingTxn, key)
           }
         }
+
+        // Commit the updates in the pending list.
+        val commands = pendingCStructs.get(pendingCommandsTxn, r.key) match {
+          case None => {
+            val c = new ArrayBuffer[CStructCommand]
+            c.append(CStructCommand(xid, r, false))
+            c
+          }
+          case Some(c) => {
+            // TODO: For now, linear search for xid.  Hash for performance?
+            val index = c.indexWhere(x => x.xid == xid)
+            if (index == -1) {
+              // Update does not exist.
+              c.append(CStructCommand(xid, r, false))
+            } else {
+              // Mark the update committed.
+              c.update(index, CStructCommand(xid, r, false))
+            }
+            c
+          }
+        }
+        pendingCStructs.put(pendingCommandsTxn, r.key, commands)
       })
       db.txCommit(txn)
-      pendingKeys.txCommit(pendingTxn)
+      pendingCStructs.txCommit(pendingCommandsTxn)
     } catch {
       case e: Exception => {}
       db.txAbort(txn)
-      pendingKeys.txAbort(pendingTxn)
+      pendingCStructs.txAbort(pendingCommandsTxn)
       success = false
     }
 
@@ -180,25 +181,36 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   }
 
   override def abort(xid: ScadsXid) = {
-    txStatus.get(null, xid) match {
-      case None => {
-        txStatus.put(null, xid, TxStatusEntry(Status.Abort, List[RecordUpdate]()))
-      }
-      case Some(status) => {
-        status.updates foreach(r => {
-          r match {
-            case LogicalUpdate(key, schema, delta) => {}
-            case ValueUpdate(key, oldValue, newValue) => {
-              pendingKeys.delete(null, key)
+    val pendingCommandsTxn = pendingCStructs.txStart()
+    try {
+      txStatus.get(null, xid) match {
+        case None => {
+          txStatus.put(null, xid, TxStatusEntry(Status.Abort, List[RecordUpdate]()))
+        }
+        case Some(status) => {
+          status.updates foreach(r => {
+            // Remove the updates in the pending list.
+            val commands = pendingCStructs.get(pendingCommandsTxn, r.key) match {
+              case None => new ArrayBuffer[CStructCommand]
+              case Some(c) => {
+                // TODO: For now, linear search for xid.  Hash for performance?
+                val index = c.indexWhere(x => x.xid == xid)
+                if (index != -1) {
+                  // Remove the update committed.
+                  c.remove(index)
+                }
+                c
+              }
             }
-            case VersionUpdate(key, newValue) => {
-              pendingKeys.delete(null, key)
-            }
-          }
-          
-        })
-        txStatus.put(null, xid, TxStatusEntry(Status.Abort, status.updates))
+            pendingCStructs.put(pendingCommandsTxn, r.key, commands)
+          })
+          txStatus.put(null, xid, TxStatusEntry(Status.Abort, status.updates))
+        }
       }
+      pendingCStructs.txCommit(pendingCommandsTxn)
+    } catch {
+      case e: Exception => {}
+      pendingCStructs.txAbort(pendingCommandsTxn)
     }
   }
 
@@ -215,6 +227,68 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
   override def shutdown() = {
     txStatus.shutdown()
-    pendingKeys.shutdown()
+    pendingCStructs.shutdown()
   }
+}
+
+class SimpleConflictResolver(val recReaderWriter: MDCCRecordReaderWriter) {
+  def getLUB(sequences: Array[CStruct]): CStruct = {
+    null
+  }
+
+  def getGLB(sequences: Array[CStruct]): CStruct = {
+    null
+  }
+
+  def isCompatible(commands: Seq[CStructCommand],
+                   dbValue: Option[MDCCRecord],
+                   newUpdate: RecordUpdate): Boolean = {
+    newUpdate match {
+      case LogicalUpdate(key, schema, delta) => {
+        false
+      }
+      case ValueUpdate(key, oldValue, newValue) => {
+        // Value updates conflict with all pending updates
+        if (commands.indexWhere(x => x.pending) == -1) {
+          // No pending commands.
+          val newRec = recReaderWriter.fromBytes(newValue)
+          (oldValue, dbValue) match {
+            case (Some(old), Some(dbRec)) => {
+
+              // Record found in db, compare with the old version
+              val oldRec = recReaderWriter.fromBytes(old)
+
+              // TODO: Don't compare versions, but compare the list of
+              //       masters?
+              (oldRec.value, dbRec.value) match {
+                case (Some(a), Some(b)) => Arrays.equals(a, b)
+                case (None, None) => true
+                case (_, _) => false
+              }
+            }
+            case (None, None) => true
+            case (_, _) => false
+          }
+        } else {
+          // There exists a pending command.  Value update is not compatible.
+          false
+        }
+      }
+      case VersionUpdate(key, newValue) => {
+        // Version updates conflict with all pending updates
+        if (commands.indexWhere(x => x.pending) == -1) {
+          // No pending commands.
+          val newRec = recReaderWriter.fromBytes(newValue)
+          dbValue match {
+            case Some(v) =>
+              (newRec.metadata.currentRound == v.metadata.currentRound + 1)
+            case None => true
+          }
+        } else {
+          // There exists a pending command.  Version update is not compatible.
+          false
+        }
+      }
+    }
+  } // isCompatible
 }
