@@ -10,6 +10,8 @@ import generic._
 import io._
 import specific._
 
+import edu.berkeley.cs.scads.util.SchemaCompare
+
 abstract class AvroReaderWriter[T <: IndexedRecord](val remoteSchema: Option[Schema]) {
 
   trait ExposedDatumReader {
@@ -20,6 +22,14 @@ abstract class AvroReaderWriter[T <: IndexedRecord](val remoteSchema: Option[Sch
   protected val writer: DatumWriter[T]
 
   def schema: Schema
+
+  remoteSchema match {
+    case None => {} // What to do here
+    case Some(rs) => if (!SchemaCompare.typesEqual(schema,rs)) throw new RuntimeException("Local and remote schemas do not have the same types")
+    // NB: test checks for the string in the message above, so change the test if you change the message
+  }
+
+
 
   protected val bufferSize = 128
 
