@@ -21,7 +21,7 @@ import edu.berkeley.cs.scads.util.RangeTable
  * TODO: Fix and uncomment the hash partition tests.
  *
   @RunWith(classOf[JUnitRunner])
-class HashKeyValueStoreSpec extends AbstracKeyValueStoreSpec {
+class HashKeyValueStoreSpec extends AbstractKeyValueStoreSpec {
   override def createNamespace(ns: String) = {
     val servers = cluster.getAvailableServers
     cluster.createHashNamespace[StringRec, StringRec](ns,
@@ -78,7 +78,7 @@ class HashKeyValueStoreSpec extends AbstracKeyValueStoreSpec {
 }*/
 
 @RunWith(classOf[JUnitRunner])
-class RangeKeyValueStoreSpec extends AbstracKeyValueStoreSpec {
+class RangeKeyValueStoreSpec extends AbstractKeyValueStoreSpec {
   override def createNamespace(ns: String) = {
     cluster.getNamespace[StringRec, StringRec](ns)
   }
@@ -286,7 +286,7 @@ class RangeKeyValueStoreSpec extends AbstracKeyValueStoreSpec {
 }
 
 
-abstract class AbstracKeyValueStoreSpec extends Spec with ShouldMatchers with BeforeAndAfterAll {
+class AbstractKeyValueStoreSpec extends Spec with ShouldMatchers with BeforeAndAfterAll {
   val cluster = TestScalaEngine.newScadsCluster(5)
   val logger = Logger()
 
@@ -294,8 +294,9 @@ abstract class AbstracKeyValueStoreSpec extends Spec with ShouldMatchers with Be
     cluster.shutdownCluster()
   }
 
-  def createNamespace(ns: String)
-  : SpecificNamespace[StringRec,StringRec]
+  def createNamespace(ns: String):SpecificNamespace[StringRec,StringRec] = {
+    cluster.getNamespace[StringRec,StringRec](ns)
+  }
 
   val rand = new scala.util.Random(123456789)
 
@@ -393,7 +394,7 @@ abstract class AbstracKeyValueStoreSpec extends Spec with ShouldMatchers with Be
     it("should implement test/set") {pending}
 
 
-    it("should handle prefix schema resolution automatically") {
+    it("should error when schema do not match") {
       import scala.collection.JavaConversions._
 
       import org.apache.avro.{generic, Schema}
@@ -416,6 +417,11 @@ abstract class AbstracKeyValueStoreSpec extends Spec with ShouldMatchers with Be
       // load the cluster once with an "old" version (1 field)
       val oldNs = cluster.getNamespace("prefixSchemaRes", oldSchema, oldSchema)
 
+      // need to call put since serializer is lazy and isn't constructed until needed
+      val r = new GenericData.Record(oldSchema)
+      r.put(0,0)
+      oldNs.put(r,r)
+
       // now, load the cluster with a "new" version (2 fields)
       val newNs = cluster.getNamespace("prefixSchemaRes", newSchema, newSchema)
 
@@ -426,9 +432,11 @@ abstract class AbstracKeyValueStoreSpec extends Spec with ShouldMatchers with Be
         rec
       }
 
-      for (i <- 1 to 10) {
-        newNs.put(newIntRec(i, Some(i)), newIntRec(i, Some(i)))
-        newNs.get(newIntRec(i, Some(i))) should equal(Some(newIntRec(i, None)))
+      try {
+        newNs.put(newIntRec(1, Some(1)), newIntRec(1, Some(1)))
+        fail()
+      } catch {
+        case e:RuntimeException => assert(e.getMessage.equals("Local and remote schemas do not have the same types"))
       }
 
     }
