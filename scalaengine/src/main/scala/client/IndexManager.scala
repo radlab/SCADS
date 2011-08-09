@@ -49,6 +49,8 @@ class IndexNamespace(
   with QuorumRangeProtocol
   with DefaultKeyRangeRoutable
   with RecordStore[IndexedRecord]
+  with Serializer[IndexedRecord, IndexedRecord, IndexedRecord]
+  with NamespaceIterator[IndexedRecord]
   with DebuggingClient
 { 
   import IndexManager._
@@ -215,7 +217,11 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
 
   /** getOrCreate a secondary index over the given fields */
   def getOrCreateIndex(fields: Seq[IndexType]): IndexNamespace = {
-    val idxName = fields.mkString("(", ",", ")")
+    //TODO: This encoding is certainly not robust enough to handle all possible field names
+    val idxName = fields.map {
+      case AttributeIndex(field) => field
+      case TokenIndex(fields) => "t" + fields.mkString("t")
+    }.mkString("0")
 
     listIndexes.get(idxName) match {
       case Some(idx) => idx
@@ -247,7 +253,7 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
           if(field.schema.getType != Schema.Type.STRING)
             throw new IllegalArgumentException("Can't build token index over field %s of type %s.".format(fieldNames, field.schema))
         })
-        new Schema.Field("Token:" + fieldNames.mkString("|"), Schema.create(Schema.Type.STRING), "", null)
+        new Schema.Field("Token" + fieldNames.mkString("0"), Schema.create(Schema.Type.STRING), "", null)
       }
     }
 

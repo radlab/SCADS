@@ -14,11 +14,15 @@ import avro.marker._
 import avro.runtime._
 import collection.TraversableOnce
 
+ import org.apache.avro.generic._
+ import org.apache.avro.file.{DataFileReader, DataFileWriter, CodecFactory}
+ import java.io.File
+
 object Experiments {
-  var resultZooKeeper = ZooKeeperNode("zk://zoo.knowsql.org/").getOrCreate("home").getOrCreate(System.getenv("USER"))
+  var resultClusterAddress = ZooKeeperNode("zk://zoo1.millennium.berkeley.edu,zoo2.millennium.berkeley.edu,zoo3.millennium.berkeley.edu/home/marmbrus/vldb12")
   val cluster = new Cluster()
   implicit def zooKeeperRoot = cluster.zooKeeperRoot
-  val resultsCluster = new ScadsCluster(resultZooKeeper.getOrCreate("results"))
+  val resultsCluster = new ScadsCluster(resultClusterAddress)
 
   implicit def classSource = cluster.classSource
   implicit def serviceScheduler = cluster.serviceScheduler
@@ -50,7 +54,7 @@ object Experiments {
   def laggards = clients.pfilterNot(_.stack contains "awaitChild")
   def tagClients = clients.map(_.remoteMachine.asInstanceOf[EC2Instance]).foreach(_.tags += ("task", "client"))
 
-  def killTask(id: Int): Unit = cluster.serviceScheduler !? KillTaskRequest(id)
+  def killTask(id: String): Unit = cluster.serviceScheduler !? KillTaskRequest(id)
 
   implicit def productSeqToExcel(lines: Seq[Product]) = new {
     import java.io._
@@ -64,6 +68,14 @@ object Experiments {
       Runtime.getRuntime.exec(Array("/usr/bin/open", file.getCanonicalPath))
     }
   }
+
+  implicit def avroIterWriter[RecordType <: GenericContainer](iter: Iterator[RecordType]) = new {
+     def toAvroFile(file: File, codec: Option[CodecFactory] = None)(implicit schema: TypedSchema[RecordType]) = {
+       val outfile = AvroOutFile[RecordType](file, codec)
+       iter.foreach(outfile.append)
+       outfile.close
+      }
+    }
 
   object QueryRunner {
     val results = resultsCluster.getNamespace[Result]("queryRunnerResults")
@@ -267,18 +279,6 @@ object Experiments {
     type Result = piql.tpcw.scale.Result
 
     val results = resultsCluster.getNamespace[Result]("tpcwScaleResults")
-
-    import org.apache.avro.generic._
-    import org.apache.avro.file.{DataFileReader, DataFileWriter, CodecFactory}
-    import java.io.File
-
-    implicit def avroIterWriter[RecordType <: GenericContainer](iter: Iterator[RecordType]) = new {
-      def toAvroFile(file: File, codec: Option[CodecFactory] = None)(implicit schema: TypedSchema[RecordType]) = {
-        val outfile = AvroOutFile[RecordType](file, codec)
-        iter.foreach(outfile.append)
-        outfile.close
-      }
-    }
 
     def backup = results.iterateOverRange(None,None).toAvroFile(new java.io.File("tpcwScale." + System.currentTimeMillis + ".avro"))
 

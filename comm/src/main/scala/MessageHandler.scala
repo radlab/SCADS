@@ -25,6 +25,7 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
   private val curActorId      = new AtomicLong
   private val serviceRegistry = new ConcurrentHashMap[ActorId, MessageReceiver]
   def registrySize = serviceRegistry.size()
+  def futureCount = curActorId.get()
 
   private val hostname = 
     if(System.getProperty("scads.comm.externalip") == null)

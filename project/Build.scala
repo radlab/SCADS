@@ -71,8 +71,9 @@ object ScadsBuild extends Build {
   val bdb = "com.sleepycat" % "je" % "4.0.71"
 
   /* deploy lib */
-  def deploylibDeps = Seq(mesos, staxApi, jaxbApi, json, awsSdk, ganymedSsh2, commonsLoggingApi, commonsHttpClient, jets3t, jetty, mysql, javaSysMon, avroPluginDep, avroPluginCompile)
-  val mesos = "edu.berkeley.cs.mesos" % "java" % "1.0"
+  def deploylibDeps = Seq(mesos, protoBuff, staxApi, jaxbApi, json, awsSdk, ganymedSsh2, commonsLoggingApi, commonsHttpClient, jets3t, jetty, mysql, javaSysMon, avroPluginDep, avroPluginCompile)
+  val mesos = "org.apache" % "mesos" % "1.1"
+  val protoBuff = "com.google.protobuf" % "protobuf-java" % "2.3.0"
   val staxApi = "javax.xml.stream" % "stax-api" % "1.0"
   val jaxbApi = "javax.xml.bind" % "jaxb-api" % "2.1"
   val json = "org.json" % "json" % "20090211"

@@ -32,7 +32,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
   val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
 
   val mesosAmi =
-    if (EC2Instance.endpoint contains "west") "ami-2b6b386e" else "ami-44ce3d2d"
+    if (EC2Instance.endpoint contains "west") "ami-2b6b386e" else "ami-5af60d33"
 
   val defaultZone =
     if (EC2Instance.endpoint contains "west") "us-west-1a" else "us-east-1b"
@@ -71,15 +71,20 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       }
     }
 
-	masters.foreach(_.blockUntilRunning)
+    masters.foreach(_.blockUntilRunning)
     masters.pforeach(_.pushJars)
     updateMasterConf
+
+    zooKeepers.foreach(_.blockUntilRunning)
+    zooKeepers.foreach(_.blockTillPortOpen(2181))
+
     restartMasters
     restartServiceScheduler
   }
 
   def restartServiceScheduler: Unit = {
-	zooKeepers.foreach(_.blockUntilRunning)
+
+    zooKeepers.foreach(_.blockUntilRunning)
     masters.pforeach(_.executeCommand("killall java"))
     val serviceSchedulerScript = (
       "#!/bin/bash\n" +
@@ -148,7 +153,8 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
 
     val cnf =
       (servers.map {case (server, id: Int) => "server.%d=%s:3181:3182".format(id + 1, server.privateDnsName)} ++
-      ("dataDir=/mnt/zookeeper" ::
+      ("webui_port=8080" ::
+      "dataDir=/mnt/zookeeper" ::
       "clientPort=2181" ::
       "tickTime=1000" ::
       "initLimit=60"::
@@ -184,13 +190,13 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     if(useFT)
       "zoo://" + zooKeeperRoot.proxy.servers.mkString(",") + zooKeeperRoot.getOrCreate("mesos").path
     else
-      "1@" + firstMaster.publicDnsName + ":5050"
+      "master@" + firstMaster.publicDnsName + ":5050"
 
-  def restartSlaves: Unit = {
+  def restartSlaves(): Unit = {
     slaves.pforeach(i => {i ! "service mesos-slave stop"; i ! "service mesos-slave start"})
   }
 
-  def restartMasters: Unit = {
+  def restartMasters(): Unit = {
     masters.foreach {
       master =>
         master ! "service mesos-master stop"
@@ -198,9 +204,11 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     }
   }
 
-  def restart: Unit = {
+  def restart(): Unit = {
     restartMasters
     restartSlaves
+    restartServiceScheduler
+    slaves.pforeach(_.executeCommand("killall java"))
   }
 
   def updateSlavesFile: Unit = {
@@ -258,8 +266,11 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
 	instances.foreach(_.tags += ("mesos", "slave"))
 
     if (updateDeploylibOnStart) {
-	  masters.foreach(_.blockUntilRunning)
-	  firstMaster.blockTillPortOpen(5050)
+      //Hack to avoid race condition where there are no masters yet because they haven't been tagged.
+      instances.head.blockUntilRunning
+      masters.foreach(_.blockUntilRunning)
+      firstMaster.blockTillPortOpen(5050)
+
       instances.pforeach(i => try {
         i.blockUntilRunning
         updateDeploylib(i :: Nil)
