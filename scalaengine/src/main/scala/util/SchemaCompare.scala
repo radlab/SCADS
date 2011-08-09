@@ -10,7 +10,10 @@ object SchemaCompare {
     else {
       s1.getType match {
         case Schema.Type.RECORD => {
-          s1.getFields.zip(s2.getFields) foreach(fields => {
+          val f1 = s1.getFields
+          val f2 = s2.getFields
+          if (f1.length != f2.length) return false
+          f1.zip(f2) foreach(fields => {
             if (!typesEqual(fields._1.schema,fields._2.schema))
               return false
           })

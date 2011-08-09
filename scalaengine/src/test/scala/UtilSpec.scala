@@ -19,6 +19,13 @@ class SchemaCompareSpec extends Spec {
     """
   )
 
+  val s15 = Schema.parse(
+    """
+    { "type": "record", "name": "aaa", "fields": [
+      {"name":"fefee", "type":"int"}] }
+    """
+  )
+
   val s2 = Schema.parse(
     """
     { "type": "record", "name": "xxx", "fields": [
@@ -77,6 +84,11 @@ class SchemaCompareSpec extends Spec {
   describe("SchemaCompare") {
     it("should say two simple schemas are equal") {
       assert(SchemaCompare.typesEqual(s1,s2))
+    }
+
+    it("should say schema that is prefix of another are not equals") {
+      assert(!SchemaCompare.typesEqual(s1,s15))
+      assert(!SchemaCompare.typesEqual(s15,s1))
     }
 
     it("should say two different simple schema are not equal") {
