@@ -11,6 +11,14 @@ import scala.collection.mutable.ArrayBuffer
 import java.util.concurrent.ConcurrentHashMap
 import java.util.Arrays
 
+import scala.collection.mutable.Buffer
+import scala.collection.JavaConversions._
+
+import java.io._
+import org.apache.avro._
+import org.apache.avro.io.{BinaryData, DecoderFactory, BinaryEncoder, BinaryDecoder, EncoderFactory}
+import org.apache.avro.specific.{SpecificDatumWriter, SpecificDatumReader, SpecificRecordBase, SpecificRecord}
+
 // TODO: Make thread-safe.  It might already be, by using TxDB
 
 object Status extends Enumeration {
@@ -135,8 +143,21 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     val pendingCommandsTxn = pendingCStructs.txStart()
     try {
       updates.foreach(r => {
+        // TODO: These updates overwrite the metadata.  Probably have to
+        //       selectively update only the value part of the record.
         r match {
-          case LogicalUpdate(key, schema, delta) => {}
+          case LogicalUpdate(key, schema, delta) => {
+            db.get(txn, key) match {
+              case None => db.put(txn, key, delta)
+              case Some(recBytes) => {
+                val deltaRec = recReaderWriter.fromBytes(delta)
+                val dbRec = recReaderWriter.fromBytes(recBytes)
+                val newBytes = LogicalRecordUpdater.applyDeltaBytes(schema, dbRec.value, deltaRec.value)
+                val newRec = recReaderWriter.toBytes(MDCCRecord(Some(newBytes), dbRec.metadata))
+                db.put(txn, key, newRec)
+              }
+            }
+          }
           case ValueUpdate(key, oldValue, newValue) => {
             db.put(txn, key, newValue)
           }
@@ -245,7 +266,8 @@ class SimpleConflictResolver(val recReaderWriter: MDCCRecordReaderWriter) {
                    newUpdate: RecordUpdate): Boolean = {
     newUpdate match {
       case LogicalUpdate(key, schema, delta) => {
-        false
+        // TODO: do IC
+        true
       }
       case ValueUpdate(key, oldValue, newValue) => {
         // Value updates conflict with all pending updates
@@ -291,4 +313,90 @@ class SimpleConflictResolver(val recReaderWriter: MDCCRecordReaderWriter) {
       }
     }
   } // isCompatible
+}
+
+object LogicalRecordUpdater {
+  // base is the (optional) byte array of the serialized AvroRecord.
+  // deltal is the (optional) byte array of the serialized delta AvroRecord.
+  // An byte array of the serialized resulting record is returned.
+  def applyDeltaBytes(schema: String, baseBytes: Option[Array[Byte]], deltaBytes: Option[Array[Byte]]): Array[Byte] = {
+    if (deltaBytes.isEmpty) {
+      throw new RuntimeException("Delta records should always exist.")
+    }
+    baseBytes match {
+      case None => deltaBytes.get
+      case Some(avroBytes) => {
+        val s = Schema.parse(schema)
+        val reader = new SpecificDatumReader[SpecificRecord](s)
+        val avro = reader.read(null, DecoderFactory.get().directBinaryDecoder(new ByteArrayInputStream(avroBytes), null)).asInstanceOf[SpecificRecord]
+        val avroDelta = reader.read(null, DecoderFactory.get().directBinaryDecoder(new ByteArrayInputStream(deltaBytes.get), null)).asInstanceOf[SpecificRecord]
+        val avroNew = applyDeltaRecord(avro, avroDelta)
+        val writer = new SpecificDatumWriter[SpecificRecord](s)
+        val out = new java.io.ByteArrayOutputStream(128)
+        val encoder = EncoderFactory.get().binaryEncoder(out, null)
+        writer.write(avroNew, encoder)
+        encoder.flush
+        out.toByteArray
+      }
+    }
+  }
+
+  private def applyDeltaRecord(base: SpecificRecord, delta: SpecificRecord): SpecificRecord = {
+    val schema = delta.getSchema
+    val fields: Buffer[org.apache.avro.Schema.Field] = schema.getFields
+
+    fields.foreach(field => {
+      val fieldDelta = delta.get(field.pos)
+      val baseField = base.get(field.pos)
+      val newField: AnyRef = (baseField, fieldDelta) match {
+        case (x: java.lang.Integer, y: java.lang.Integer) => {
+          if (y == 0) {
+            null
+          } else {
+            new java.lang.Integer(x.intValue + y.intValue)
+          }
+        }
+        case (x: String, y: String) => {
+          if (y.length == 0) {
+            null
+          } else {
+            y
+          }
+        }
+        case (x: org.apache.avro.util.Utf8, y: org.apache.avro.util.Utf8) => {
+          if (y.length == 0) {
+            null
+          } else {
+            y
+          }
+        }
+        case (x: java.lang.Long, y: java.lang.Long) => {
+          if (y == 0) {
+            null
+          } else {
+            new java.lang.Long(x.longValue + y.longValue)
+          }
+        }
+        case (x: java.lang.Float, y: java.lang.Float) => {
+          if (y == 0) {
+            null
+          } else {
+            new java.lang.Float(x.floatValue + y.floatValue)
+          }
+        }
+        case (x: java.lang.Double, y: java.lang.Double) => {
+          if (y == 0) {
+            null
+          } else {
+            new java.lang.Double(x.doubleValue + y.doubleValue)
+          }
+        }
+        case (_, _) => null
+      }
+      if (newField != null) {
+        base.put(field.pos, newField)
+      }
+    })
+    base
+  }
 }

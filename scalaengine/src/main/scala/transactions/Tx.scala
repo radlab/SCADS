@@ -41,6 +41,7 @@ class Tx(timeout: Int)(mainFn: => Unit) {
   }
 
   def Execute() {
+    updateList = new UpdateList
     ThreadLocalStorage.updateList.withValue(Some(updateList)) {
       mainFn
     }
@@ -49,6 +50,7 @@ class Tx(timeout: Int)(mainFn: => Unit) {
 
 
   def ExecuteMain() {
+    updateList = new UpdateList
     ThreadLocalStorage.updateList.withValue(Some(updateList)) {
       mainFn
     }

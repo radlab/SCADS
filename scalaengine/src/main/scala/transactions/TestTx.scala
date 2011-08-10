@@ -6,7 +6,8 @@ import edu.berkeley.cs.avro.marker.AvroRecord
 import scala.actors.Actor._
 
 case class KeyRec(var x: Int) extends AvroRecord
-case class ValueRec(var s: String) extends AvroRecord
+case class ValueRec(var s: String, var i: Int, var a: Long,
+                    var b: Float, var c: Double) extends AvroRecord
 
 class TestTx {
   def run() {
@@ -15,13 +16,14 @@ class TestTx {
     val ns = new SpecificNamespace[KeyRec, ValueRec]("testns", cluster, cluster.namespaces) with Transactions[KeyRec, ValueRec]
     ns.open()
 
-    ns.put(KeyRec(1), ValueRec("A"))
-    ns.put(KeyRec(2), ValueRec("B"))
-    ns.put(KeyRec(3), ValueRec("C"))
-    ns.put(KeyRec(4), ValueRec("D"))
+    ns.put(KeyRec(1), ValueRec("A", 1, 1, 1.0.floatValue, 1.0))
+    ns.put(KeyRec(2), ValueRec("B", 1, 1, 1.0.floatValue, 1.0))
+    ns.put(KeyRec(3), ValueRec("C", 1, 1, 1.0.floatValue, 1.0))
+    ns.put(KeyRec(4), ValueRec("D", 1, 1, 1.0.floatValue, 1.0))
 
     val tx1 = new Tx(100) ({
-      List.range(5, 5 + 4).foreach(x => ns.put(KeyRec(x), ValueRec("G")))
+      List.range(5, 5 + 4).foreach(x => ns.put(KeyRec(x),
+                                               ValueRec("G", 1, 1, 1.0.floatValue, 1.0)))
     }).Accept(0.90) {
     }.Commit( success => {
     })
@@ -30,7 +32,8 @@ class TestTx {
     ns.getRange(None, None).foreach(x => println(x))
 
     val tx2 = new Tx(100) ({
-      List.range(9, 9 + 4).foreach(x => ns.put(KeyRec(x), ValueRec("H")))
+      List.range(9, 9 + 4).foreach(x => ns.put(KeyRec(x),
+                                               ValueRec("H", 1, 1, 1.0.floatValue, 1.0)))
     }).Accept(0.90) {
     }.Commit( success => {
     })
@@ -39,7 +42,8 @@ class TestTx {
     ns.getRange(None, None).foreach(x => println(x))
 
     val tx3 = new Tx(100) ({
-      List.range(7, 7 + 4).foreach(x => ns.put(KeyRec(x), ValueRec("I")))
+      List.range(7, 7 + 4).foreach(x => ns.put(KeyRec(x),
+                                               ValueRec("I", 1, 1, 1.0.floatValue, 1.0)))
     }).Accept(0.90) {
     }.Commit( success => {
     })
@@ -76,6 +80,20 @@ class TestTx {
     println("    get 1")
     println(ns.get(KeyRec(1)))
     println("    get range")
+    ns.getRange(None, None).foreach(x => println(x))
+
+    // Logical updates
+    println("logical updates")
+    val tx5 = new Tx(100) ({
+      ns.putLogical(KeyRec(12), ValueRec("", 2, 3, 2.1.floatValue, 0.2))
+    }).Accept(0.90) {
+    }.Commit( success => {
+    })
+    tx5.Execute()
+    tx5.Execute()
+    tx5.Execute()
+    tx5.Execute()
+    tx5.Execute()
     ns.getRange(None, None).foreach(x => println(x))
   }
 }
