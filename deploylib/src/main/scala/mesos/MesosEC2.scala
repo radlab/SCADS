@@ -287,17 +287,21 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       "log_dir=/mnt" ::
       "switch_user=0" ::
       "shares_interval=30" :: Nil)
-  def slaveConf = (baseConf :+ ("url=" + clusterUrl)).mkString("\n")
+
+  def confWithUrl = ("url=" + clusterUrl) :: baseConf
+  def slaveConf(instance: EC2Instance) = (("mem=" + (instance.free.total - 1024)) ::
+					  confWithUrl).mkString("\n")
+
   val conffile = new File("/usr/local/mesos/conf/mesos.conf")
 
   def updateConf(instances: Seq[EC2Instance] = slaves): Unit = {
-    instances.pforeach(_.createFile(conffile, slaveConf))
+    instances.pforeach(i => i.createFile(conffile, slaveConf(i)))
   }
 
   def updateMasterConf: Unit = {
     val masterConf =
       if(useFT)
-        slaveConf
+        confWithUrl.mkString("\n")
       else
         baseConf.mkString("\n")
 
