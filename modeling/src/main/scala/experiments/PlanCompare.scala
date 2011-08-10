@@ -111,7 +111,7 @@ case class PlanCompareTask(var clusterAddress: String,
     val limit = FixedLimit(numFollowers)
     val fetchLimit = FixedLimit(fetchSize)
     val activeUser = toUser(0)
-    val executor = new ParallelExecutor() with DebugExecutor
+    val executor = new ParallelExecutor()
 
     val naiveQuery =
       new OptimizedQuery(
