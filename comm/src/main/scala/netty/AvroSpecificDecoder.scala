@@ -25,7 +25,7 @@ class AvroSpecificDecoder[M <: SpecificRecord](implicit m: Manifest[M])
 
   private val schema = msgClass.newInstance.getSchema
 
-  private val msgReader = new SpecificDatumReader[M](schema, schema, new CustomLoaderSpecificData(msgClass.getClassLoader))
+  private val msgReader = new SpecificDatumReader[M](schema, schema, new SpecificData(msgClass.getClassLoader))
 
   private val logger = Logger()
 
