@@ -477,5 +477,23 @@ abstract class RemoteMachine {
 					       rp(10)))
 
 
+
+
+  /**
+   * returns the result of the command free.
+   * 
+   * Parsed as:
+   * total       used       free     shared    buffers     cached
+   * Mem:       7864548    4332752    3531796          0      78112    2640248
+   */
+  case class FreeStats(total: Int, used: Int, free: Int, shared: Int, buffers: Int, cached: Int)
+  val freeResponse = """.*Mem:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+).*""".r
+  def free = (this !? "free -m").split("\n").flatMap {
+    case freeResponse(total, used, freeMem, shared, buffers, cached) =>
+      FreeStats(total.toInt, used.toInt, freeMem.toInt, shared.toInt, buffers.toInt, cached.toInt) :: Nil
+    case _ => Nil
+  }.head
+    
+
   override def toString(): String = "<RemoteMachine " + username + "@" + hostname + ">"
 }
