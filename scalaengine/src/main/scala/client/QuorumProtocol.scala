@@ -591,4 +591,19 @@ trait QuorumRangeProtocol
     }
   }
 
+  /**
+   * Get all value versions for a range of keys.  Does not perform read-repair.
+   */
+  def getAllRangeVersions(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]]): Seq[(PartitionService, Seq[(Array[Byte],Option[Array[Byte]])])] = {
+    val partitions = serversForKeyRange(startKey, endKey)
+    waitForAndThrowException(
+      partitions.flatMap(range => {
+        val rangeReq = GetRangeRequest(range.startKey, range.endKey, None, None, true)
+        range.servers.map(partition => (partition !! rangeReq, partition)) 
+      }) 
+    ) {    
+      case (GetRangeResponse(recs), partition) => (partition, recs.map(r=>(r.key,r.value)))
+    }
+  }
+
 }
