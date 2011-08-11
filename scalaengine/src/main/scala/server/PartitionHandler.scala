@@ -280,7 +280,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
         }
         case PrepareRequest(xid, updates) => {
           // println("prepare2: " + xid.tid + " " + xid.bid)
-          val success = pendingUpdates.accept(xid, updates)
+          val success = pendingUpdates.accept(xid, updates).isDefined
           reply(PrepareResponse(success))
         }
         case CommitRequest(xid, updates, commit) => {

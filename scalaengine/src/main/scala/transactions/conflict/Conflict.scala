@@ -36,8 +36,9 @@ trait PendingUpdates extends DBRecords {
   // NoOp property
   // Is only allowed to accept, if the operation will be successful, even
   // if all outstanding Cmd might be NullOps
-  // TODO: return all cstructs of all keys, or None
-  def accept(xid: ScadsXid, updates: Seq[RecordUpdate]): Boolean
+  // If accepted, returns all the cstructs for all the keys.  Otherwise, None
+  // is returned.
+  def accept(xid: ScadsXid, updates: Seq[RecordUpdate]): Option[Seq[(Array[Byte], CStruct)]]
 
   // Value is chosen (reflected in the db) and confirms trx state.
   def commit(xid: ScadsXid, updates: Seq[RecordUpdate]): Boolean
@@ -92,12 +93,13 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     var success = true
     val txn = db.txStart()
     val pendingCommandsTxn = pendingCStructs.txStart()
+    var cstructs: Seq[(Array[Byte], CStruct)] = null
     try {
-      updates.foreach(r => {
+      cstructs = updates.map(r => {
         if (success) {
-          val storedMDCCRec:Option[MDCCRecord] =
+          val storedMDCCRec: Option[MDCCRecord] =
             db.get(txn, r.key).map(recReaderWriter.fromBytes(_))
-          val storedRecValue:Option[Array[Byte]] =
+          val storedRecValue: Option[Array[Byte]] =
             storedMDCCRec match {
               case Some(v) => v.value
               case None => None
@@ -116,6 +118,9 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
           } else {
             success = false
           }
+          (r.key, CStruct(storedRecValue, commands))
+        } else {
+          (null, null)
         }
       })
     } catch {
@@ -132,8 +137,9 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       pendingCStructs.txAbort(pendingCommandsTxn)
       // TODO: Handle the case when the commit arrives before the prepare.
       txStatus.putNoOverwrite(null, xid, TxStatusEntry(Status.Reject, updates))
+      cstructs = null
     }
-    success
+    Option(cstructs)
   }
 
   override def commit(xid: ScadsXid, updates: Seq[RecordUpdate]) = {
