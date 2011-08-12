@@ -3,4 +3,4 @@
 CLASSPATH=deploylib/src/main/resources/:`cat classpath`
 MESOSLIB=-Djava.library.path=/usr/local/mesos/lib/java
 
-exec java -Xmx1G $MESOSLIB -cp "$CLASSPATH" $@
+exec java -Xmx4G $MESOSLIB -cp "$CLASSPATH" $@
