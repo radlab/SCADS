@@ -75,8 +75,9 @@ class AvroGenericReaderWriter[T >: GenericRecord <: IndexedRecord](_remoteSchema
 class AvroSpecificReaderWriter[T <: SpecificRecord](_remoteSchema: Option[Schema])(implicit tpe: Manifest[T])
   extends AvroReaderWriter[T](_remoteSchema) {
   @inline private def recClz = tpe.erasure.asInstanceOf[Class[T]]
-  lazy val schema = recClz.newInstance.getSchema 
-  val reader = new SpecificDatumReader[T](schema) with ExposedDatumReader {
+  lazy val schema = recClz.newInstance.getSchema
+  val specificData = new SpecificData(this.getClass.getClassLoader)
+  val reader = new SpecificDatumReader[T](schema, schema, specificData) with ExposedDatumReader {
     def exposedNewRecord(old: AnyRef, schema: Schema): AnyRef = 
       newRecord(old, schema)
   }
