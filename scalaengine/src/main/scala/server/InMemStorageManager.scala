@@ -2,7 +2,7 @@ package edu.berkeley.cs.scads.storage
 
 import edu.berkeley.cs.avro.runtime.ScalaSpecificRecord
 import java.nio.ByteBuffer
-import java.io.{ObjectOutputStream,ObjectInputStream,Serializable,ByteArrayOutputStream}
+import java.io.{ObjectOutputStream,ObjectInputStream,Serializable,ByteArrayOutputStream,ByteArrayInputStream}
 import java.util.{Comparator, TreeMap, Arrays => JArrays}
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks
@@ -79,10 +79,10 @@ class InMemStorageManager
     value match {
       case Some(v) => {
         val rec = valueClass.newInstance.asInstanceOf[ScalaSpecificRecord]
-        rec.parse(v)
+        rec.parse(new ByteArrayInputStream(v,16,(v.length-16)))
         map.put(key,rec)
       }
-      case None => map.remove(key)
+      case None => map.remove(bytes2eqarray(key))
     }
   }
 
@@ -128,7 +128,7 @@ class InMemStorageManager
       val recval = rec.value.get
       if (recval != null) {
         val nrec = valueClass.newInstance.asInstanceOf[ScalaSpecificRecord]
-        nrec.parse(recval)
+        nrec.parse(new ByteArrayInputStream(recval,16,(recval.length-16)))
         map.put(rec.key,nrec)
       } else
         map.remove(rec.key)
