@@ -136,24 +136,19 @@ class InMemStorageManager
   }
 
   def getRange(minKey:Option[Array[Byte]], maxKey:Option[Array[Byte]], limit:Option[Int], offset:Option[Int], ascending:Boolean):Seq[Record] = {
-    throw new RuntimeException("InMemStorageManager does not support ranges")
+    val records = new ArrayBuffer[Record]
+    limit.foreach(records.sizeHint(_))
+    iterateVals(minKey map bytes2eqarray, maxKey map bytes2eqarray, limit, offset, ascending)((key, value) => {
+      records += Record(key.bytes,Option(MetaDizer.metadize(value)))
+    })
+    records
   }
   def getBatch(ranges:Seq[MessageBody]):ArrayBuffer[GetRangeResponse]  = {
     throw new RuntimeException("InMemStorageManager does not support ranges")
   }
   def countRange(minKey:Option[Array[Byte]], maxKey:Option[Array[Byte]]):Int  = {
     var count = 0
-    minKey match {
-      case Some(b) => throw new RuntimeException("InMemStorageManager can only count entire key set")
-      case None => {
-        maxKey match {
-          case Some(b) => throw new RuntimeException("InMemStorageManager can only count entire key set")
-          case None => {
-            iterateVals((_) => count += 1)
-          }
-        }
-      }
-    }
+    iterateVals(minKey map bytes2eqarray,maxKey map bytes2eqarray)((k,v) => count += 1)
     count
   }
   def getResponsibility():(Option[Array[Byte]],Option[Array[Byte]]) = (startKey, endKey)
@@ -208,7 +203,7 @@ class InMemStorageManager
 
     var stop = false
 
-    iterateVals((remVal) => {
+    iterateVals(None,None)((remKey,remVal) => {
       filterPassed = true
       filterFunctions.foreach(ff => { 
         if (filterPassed) { // once one failed just ignore the rest
@@ -248,11 +243,36 @@ class InMemStorageManager
   }
 
 
-  private def iterateVals(func:(ScalaSpecificRecord)=>Unit):Unit = {
-    val it = map.values.iterator
+  private def iterateVals(minKey: Option[EQArray],
+                          maxKey: Option[EQArray],
+                          limit: Option[Int] = None,
+                          offset: Option[Int] = None,
+                          ascending: Boolean = true)
+  (func:(EQArray,ScalaSpecificRecord)=>Unit):Unit = {
+    val eMap = (minKey,maxKey) match {
+      case (None, None) => map
+      case (None, Some(endKey)) => map.headMap(endKey,false)
+      case (Some(startKey), None) => map.tailMap(startKey,true)
+      case (Some(startKey), Some(endKey)) => map.subMap(startKey,true,endKey,false)
+    }
+
+    val it = 
+      if (ascending)
+        eMap.entrySet.iterator
+      else
+        eMap.descendingMap.entrySet.iterator
+    var toSkip = offset.getOrElse(0)
+    var lim = limit.getOrElse(-1)
     iterateValsBreakable.breakable { // used to allow func to break out early
-      while(it.hasNext) 
-        func(it.next)
+      while(it.hasNext) {
+        if (lim == 0) return
+        lim -= 1
+        val mapEntry = it.next
+        if (toSkip > 0) 
+          toSkip -=1
+        else
+          func(mapEntry.getKey,mapEntry.getValue)
+      }
     }
   }
 
