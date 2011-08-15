@@ -38,10 +38,10 @@ private case class EQCmp(keySchema:Schema) extends Comparator[EQArray] with Seri
  * We should really add a way to say that a partition isn't storing metadata though.
  */
 object MetaDizer {
-  private val stream:ByteArrayOutputStream = new ByteArrayOutputStream()
   private val dummyMD = new Array[Byte](16)
   def metadize(rec:ScalaSpecificRecord):Array[Byte]  = {
-    stream.reset
+    // need stream in here to be thread safe
+    val stream:ByteArrayOutputStream = new ByteArrayOutputStream()
     stream.write(dummyMD)
     rec.toBytes(stream)
     stream.toByteArray
