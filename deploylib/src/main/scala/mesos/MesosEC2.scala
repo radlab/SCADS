@@ -152,12 +152,11 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
 
     val cnf =
       (servers.map {case (server, id: Int) => "server.%d=%s:3181:3182".format(id + 1, server.privateDnsName)} ++
-      ("webui_port=8080" ::
-      "dataDir=/mnt/zookeeper" ::
-      "clientPort=2181" ::
-      "tickTime=1000" ::
-      "initLimit=60"::
-      "syncLimit=30" :: Nil )).mkString("\n")
+      ("dataDir=/mnt/zookeeper" ::
+       "clientPort=2181" ::
+       "tickTime=1000" ::
+       "initLimit=60"::
+       "syncLimit=30" :: Nil )).mkString("\n")
 
     val startScript =
       ("#!/bin/bash" ::
@@ -283,12 +282,14 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     instances
   }
 
-  val baseConf = ("work_dir=/mnt" ::
+  val baseConf = (
+      "webui_port=8080" ::
+      "work_dir=/mnt" ::
       "log_dir=/mnt" ::
       "switch_user=0" ::
       "shares_interval=30" :: Nil)
 
-  def confWithUrl = ("url=" + clusterUrl) :: baseConf
+  def confWithUrl = ("master=" + clusterUrl) :: baseConf
   def slaveConf(instance: EC2Instance) = (("mem=" + (instance.free.total - 1024)) ::
 					  confWithUrl).mkString("\n")
 
