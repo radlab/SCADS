@@ -7,18 +7,28 @@ import scala.collection.mutable.ArrayBuilder
 
 import java.io.{BufferedReader,FileReader,InputStream,InputStreamReader}
 
-class MatheonParser(inMem:Boolean = false) extends RecParser {
+class MatheonParser(clientID:Int, inMem:Boolean = false) extends RecParser {
   private var fileId = 0
   private var k = scala.Int.MinValue
   private var reader:BufferedReader = null
   private var rcnt = 0
   private var fcnt = 0
 
+  private var metadata:Array[Byte] = null
+
   override
   def setLocation(location:String) {
     val usidx = location.indexOf('_')
     fileId = Integer.parseInt(location.substring(usidx+1,location.indexOf('.',usidx)))
     println("Location: "+location+" (fileId: "+fileId+") "+ "(files so far: "+fcnt+")")
+
+    if (inMem) {
+      val buffer = java.nio.ByteBuffer.allocate(16)
+      buffer.putLong(System.currentTimeMillis)
+      buffer.putLong(clientID)
+      metadata = buffer.array
+    }
+
     //println("Heapsize: "+(Runtime.getRuntime().totalMemory()/1000000))
     //println("Free: "+(Runtime.getRuntime().freeMemory()/1000000))
     //println("Estimated size so far: "+((50*rcnt)/1000000))
@@ -42,7 +52,7 @@ class MatheonParser(inMem:Boolean = false) extends RecParser {
     val mr = MReading(fileId,mass,cnt)
 
     if (inMem) {
-      val ret = (MatheonKey(k).toBytes, mr)
+      val ret = (MatheonKey(k).toBytes, (metadata,mr))
       k+=1
       rcnt+=1
       ret
@@ -50,7 +60,7 @@ class MatheonParser(inMem:Boolean = false) extends RecParser {
       val mrb = mr.toBytes
       val buffer = java.nio.ByteBuffer.allocate(mrb.length + 16)
       buffer.putLong(System.currentTimeMillis)
-      buffer.putLong(0)
+      buffer.putLong(clientID)
       buffer.put(mrb)
       
       val ret = (MatheonKey(k).toBytes, buffer.array)
@@ -68,7 +78,7 @@ object MatheonFromFile {
 
     println("Starting bulk load of "+args.size+" files")
     var st = System.nanoTime
-    ns.putBulkLocations(new MatheonParser(true), args.map("file://"+_),
+    ns.putBulkLocations(new MatheonParser(cluster.clientID,true), args.map("file://"+_),
                         None,None)
     var et = System.nanoTime
     println("Done")
