@@ -34,20 +34,7 @@ private case class EQCmp(keySchema:Schema) extends Comparator[EQArray] with Seri
   private def readObjectNoData() = {}
 }
 
-/* (fairly) efficiently add 0ed metadata to a ScalaSpecificRecord.
- * We should really add a way to say that a partition isn't storing metadata though.
- */
-object MetaDizer {
-  private val dummyMD = new Array[Byte](16)
-  def metadize(rec:ScalaSpecificRecord):Array[Byte]  = {
-    // need stream in here to be thread safe
-    val stream:ByteArrayOutputStream = new ByteArrayOutputStream()
-    stream.write(dummyMD)
-    rec.toBytes(stream)
-    stream.toByteArray
-  }
-  
-}
+
 
 class InMemStorageManager
   (val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, 
@@ -62,14 +49,23 @@ class InMemStorageManager
   private implicit def bytes2eqarray(bytes:Array[Byte]):EQArray = new EQArray(bytes)
   private val iterateValsBreakable = new Breaks
   private val valueClass = Class.forName(valueType)
+  
+  private val map = new TreeMap[EQArray,(Array[Byte],ScalaSpecificRecord)](new EQCmp(keySchema).asInstanceOf[Comparator[EQArray]])
 
-  private val map = new TreeMap[EQArray,ScalaSpecificRecord](new EQCmp(keySchema).asInstanceOf[Comparator[EQArray]])
+  // this method puts a scala record and some metadata together into a byte array
+  private def toBytes(vals:(Array[Byte], ScalaSpecificRecord)): Array[Byte] = {
+    val bytes = vals._2.toBytes
+    val result = java.util.Arrays.copyOf(vals._1, vals._1.length + bytes.length);
+    System.arraycopy(bytes, 0, result, vals._1.length, bytes.length);
+    result
+  }
+  
 
   def get(key:Array[Byte]):Option[Array[Byte]] = {
-    // can't reply on implicit here because .get just takes an Object
+    // can't rely on implicit here because .get just takes an Object
     val v = map.get(bytes2eqarray(key))
     if (v != null) {
-      return Option(MetaDizer.metadize(v))
+      return Option(toBytes(v))
     }
     else
       return Option(null)
@@ -80,7 +76,7 @@ class InMemStorageManager
       case Some(v) => {
         val rec = valueClass.newInstance.asInstanceOf[ScalaSpecificRecord]
         rec.parse(getRecordInputStreamFromValue(v))
-        map.put(key,rec)
+        map.put(key,(extractMetadataFromValue(v),rec))
       }
       case None => map.remove(bytes2eqarray(key))
     }
@@ -91,7 +87,7 @@ class InMemStorageManager
       val existing = map.get(bytes2eqarray(key))
       val exbytes = 
         if (existing != null)
-          MetaDizer.metadize(existing)
+          toBytes(existing)
         else
           null
       if(JArrays.equals(expectedValue.orNull, exbytes)) {
@@ -99,7 +95,7 @@ class InMemStorageManager
           case Some(v) => {
             val rec = valueClass.newInstance.asInstanceOf[ScalaSpecificRecord]
             rec.parse(getRecordInputStreamFromValue(v))
-            map.put(key,rec)
+            map.put(key,(extractMetadataFromValue(v),rec))
           }
           case None => map.remove(key)
         }
@@ -117,7 +113,8 @@ class InMemStorageManager
       parser.setInput(url.openStream)
       var kv = parser.getNext()
       while (kv != null) {
-        map.put(kv._1.asInstanceOf[Array[Byte]], kv._2.asInstanceOf[ScalaSpecificRecord])
+        val mv = kv._2.asInstanceOf[(Array[Byte],ScalaSpecificRecord)]
+        map.put(kv._1.asInstanceOf[Array[Byte]], mv)
         kv = parser.getNext()
       }
     })
@@ -129,7 +126,7 @@ class InMemStorageManager
       if (recval != null) {
         val nrec = valueClass.newInstance.asInstanceOf[ScalaSpecificRecord]
         nrec.parse(getRecordInputStreamFromValue(recval))
-        map.put(rec.key,nrec)
+        map.put(rec.key,(extractMetadataFromValue(recval),nrec))
       } else
         map.remove(rec.key)
     })
@@ -139,7 +136,7 @@ class InMemStorageManager
     val records = new ArrayBuffer[Record]
     limit.foreach(records.sizeHint(_))
     iterateVals(minKey map bytes2eqarray, maxKey map bytes2eqarray, limit, offset, ascending)((key, value) => {
-      records += Record(key.bytes,Option(MetaDizer.metadize(value)))
+      records += Record(key.bytes,Option(toBytes(value)))
     })
     records
   }
@@ -203,7 +200,8 @@ class InMemStorageManager
 
     var stop = false
 
-    iterateVals(None,None)((remKey,remVal) => {
+    iterateVals(None,None)((remKey,mdplusval) => {
+      val remVal = mdplusval._2
       filterPassed = true
       filterFunctions.foreach(ff => { 
         if (filterPassed) { // once one failed just ignore the rest
@@ -248,7 +246,7 @@ class InMemStorageManager
                           limit: Option[Int] = None,
                           offset: Option[Int] = None,
                           ascending: Boolean = true)
-  (func:(EQArray,ScalaSpecificRecord)=>Unit):Unit = {
+  (func:(EQArray,(Array[Byte],ScalaSpecificRecord))=>Unit):Unit = {
     val eMap = (minKey,maxKey) match {
       case (None, None) => map
       case (None, Some(endKey)) => map.headMap(endKey,false)
