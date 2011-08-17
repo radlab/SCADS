@@ -57,7 +57,7 @@ class InMemStorageManager
    val keySchema: Schema, 
    valueSchema: Schema,
    valueType:String)
-  extends StorageManager with AvroComparator
+  extends StorageManager with AvroComparator with SimpleRecordMetadataExtractor
 {
   private implicit def bytes2eqarray(bytes:Array[Byte]):EQArray = new EQArray(bytes)
   private val iterateValsBreakable = new Breaks
@@ -79,7 +79,7 @@ class InMemStorageManager
     value match {
       case Some(v) => {
         val rec = valueClass.newInstance.asInstanceOf[ScalaSpecificRecord]
-        rec.parse(new ByteArrayInputStream(v,16,(v.length-16)))
+        rec.parse(getRecordInputStreamFromValue(v))
         map.put(key,rec)
       }
       case None => map.remove(bytes2eqarray(key))
@@ -98,7 +98,7 @@ class InMemStorageManager
         value match {
           case Some(v) => {
             val rec = valueClass.newInstance.asInstanceOf[ScalaSpecificRecord]
-            rec.parse(v)
+            rec.parse(getRecordInputStreamFromValue(v))
             map.put(key,rec)
           }
           case None => map.remove(key)
@@ -128,7 +128,7 @@ class InMemStorageManager
       val recval = rec.value.get
       if (recval != null) {
         val nrec = valueClass.newInstance.asInstanceOf[ScalaSpecificRecord]
-        nrec.parse(new ByteArrayInputStream(recval,16,(recval.length-16)))
+        nrec.parse(getRecordInputStreamFromValue(recval))
         map.put(rec.key,nrec)
       } else
         map.remove(rec.key)
