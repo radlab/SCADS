@@ -4,6 +4,7 @@ import edu.berkeley.cs.scads.comm._
 import net.lag.logging.Logger
 import scala.collection.mutable.ArrayBuffer
 import java.io.{BufferedReader,ObjectInputStream,InputStream,InputStreamReader,ByteArrayInputStream}
+import java.util.concurrent.atomic.AtomicInteger
 
 // keep track of number of gets and puts
 case class PartitionWorkloadStats(var gets:Int, var puts:Int)
@@ -35,14 +36,12 @@ abstract trait StorageManager {
   def countRange(minKey:Option[Array[Byte]], maxKey:Option[Array[Byte]]):Int
   def copyData(src:PartitionService, overwrite:Boolean)
   def getResponsibility():(Option[Array[Byte]],Option[Array[Byte]])
-  def getWorkloadStats():(PartitionWorkloadStats,Long)
   //def deleteRange(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], txn: Option[Transaction])
   def applyAggregate(groups:Seq[String],
                      keyType:String,
                      valType:String,
                      filters:Seq[AggFilter],
                      aggregates:Seq[AggOp]):Seq[GroupedAgg]
-  def resetWorkloadStats():PartitionWorkloadStats
   def startup():Unit
   def shutdown():Unit
 }
@@ -54,16 +53,48 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Parti
 
   protected def startup():Unit = manager.startup()
   protected def shutdown():Unit = manager.shutdown()
-  def resetWorkloadStats():PartitionWorkloadStats = manager.resetWorkloadStats()
+
+
+  // workload stats code
+  protected var currentStats = PartitionWorkloadStats(0,0)
+  protected var completedStats = PartitionWorkloadStats(0,0)
+  private var statsClearedTime = System.currentTimeMillis
+  protected val statWindowTime = 20*1000 // ms, how long a window to maintain stats for
+  protected val clearStatWindowsTime = 60*1000 // ms, keep long to keep stats around, in all windows
+  protected var statWindows = (0 until clearStatWindowsTime/statWindowTime)
+    .map {_=>(new AtomicInteger,new AtomicInteger)}.toList // (get,put) for each window
+  private val getSamplingRate = 1.0
+  private val putSamplingRate = 1.0
+  private val samplerRandom = new java.util.Random
+
+  def getWorkloadStats():(PartitionWorkloadStats,Long) = (completedStats,statsClearedTime)
+  /**
+  * set the current stats as the last completed interval, used when stats are queried
+  * zero out the current stats to start a new interval
+  * return the old completed interval for archiving
+  */
+  def resetWorkloadStats():PartitionWorkloadStats = {
+    val ret = completedStats
+    completedStats = currentStats
+    statsClearedTime = System.currentTimeMillis()
+    currentStats = PartitionWorkloadStats(0,0)
+    ret
+  }
+  @inline private def incrementGetCount(num:Int) = currentStats.gets += num
+  @inline private def incrementPutCount(num:Int) = currentStats.puts += num
+  // end workload stats stuff
 
   protected def process(src: Option[RemoteActorProxy], msg: PartitionServiceOperation): Unit = {
     def reply(msg: MessageBody) = src.foreach(_ ! msg)
     try {
       msg match {
-        case GetRequest(key) => 
+        case GetRequest(key) => {
+          if (samplerRandom.nextDouble <= getSamplingRate) incrementGetCount(1)
           reply(GetResponse(manager.get(key)))
+        }
         case PutRequest(key,value) => {
           manager.put(key,value)
+          if (samplerRandom.nextDouble <= putSamplingRate) incrementPutCount(1)
           reply(PutResponse())
         }
         case BulkUrlPutReqest(parserBytes, locations) => {
@@ -74,10 +105,13 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Parti
         }
         case BulkPutRequest(records) => {
           manager.bulkPut(records)
+          /*if (samplerRandom.nextDouble <= putSamplingRate) incrementPutCount(reccount)*/
           reply(BulkPutResponse())
         }
-        case GetRangeRequest(minKey, maxKey, limit, offset, ascending) => 
+        case GetRangeRequest(minKey, maxKey, limit, offset, ascending) => {
+          if (samplerRandom.nextDouble <= getSamplingRate) incrementGetCount(1/*reccount*/)
           reply(GetRangeResponse(manager.getRange(minKey,maxKey,limit,offset,ascending)))
+        }
         case BatchRequest(ranges) =>
           reply(BatchResponse(manager.getBatch(ranges)))
         case CountRangeRequest(minKey,maxKey) => reply(CountRangeResponse(manager.countRange(minKey,maxKey)))
@@ -100,7 +134,7 @@ case class PartitionHandler(manager:StorageManager) extends ServiceHandler[Parti
           reply(GetResponsibilityResponse(resp._1,resp._2))
         }
 	case GetWorkloadStats() => {
-          val (stats,clearedTime) = manager.getWorkloadStats()
+          val (stats,clearedTime) = getWorkloadStats()
 	  reply(GetWorkloadStatsResponse(stats.gets, stats.puts, clearedTime))
         }
         case AggRequest(groups,keyType,valType,filters,aggs) => 

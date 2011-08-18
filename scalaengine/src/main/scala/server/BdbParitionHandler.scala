@@ -60,20 +60,6 @@ class BdbStorageManager(val db: Database,
 
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
-  // state for maintaining workload stats
-  protected var currentStats = PartitionWorkloadStats(0,0)
-  protected var completedStats = PartitionWorkloadStats(0,0)
-  private var statsClearedTime = System.currentTimeMillis
-  
-  protected val statWindowTime = 20*1000 // ms, how long a window to maintain stats for
-  protected val clearStatWindowsTime = 60*1000 // ms, keep long to keep stats around, in all windows
-  protected var statWindows = (0 until clearStatWindowsTime/statWindowTime)
-    .map {_=>(new AtomicInteger,new AtomicInteger)}.toList // (get,put) for each window
-  private val getSamplingRate = 1.0
-  private val putSamplingRate = 1.0
-  private val samplerRandom = new java.util.Random
-  // end workload stats stuff
-
   protected val cursorTimeout = 3 * 60 * 1000 // 3 minutes (in ms)
 
   case class CursorContext(cursorId: Int, cursor: Cursor, txn: Transaction) {
@@ -218,7 +204,6 @@ class BdbStorageManager(val db: Database,
      val (dbeKey, dbeValue) = (new DatabaseEntry(key), new DatabaseEntry)
      //try { db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED) } catch { case e:com.sleepycat.je.LockTimeoutException => logger.warning("lock timeout during GetRequest") }
      db.get(null, dbeKey, dbeValue, LockMode.READ_COMMITTED)
-     if (samplerRandom.nextDouble <= getSamplingRate) incrementGetCount(1)
      Option(dbeValue.getData())
    }
 
@@ -228,7 +213,6 @@ class BdbStorageManager(val db: Database,
       case Some(v) => db.put(null, new DatabaseEntry(key), new DatabaseEntry(v))
       case None => db.delete(null, new DatabaseEntry(key))
     }
-    if (samplerRandom.nextDouble <= putSamplingRate) incrementPutCount(1)
   }
 
   def testAndSet(key:Array[Byte], value:Option[Array[Byte]], expectedValue:Option[Array[Byte]]):Boolean = {
@@ -268,7 +252,6 @@ class BdbStorageManager(val db: Database,
     val txn = db.getEnvironment.beginTransaction(null, null)
     var reccount = 0
     records.foreach(rec => { db.put(txn, new DatabaseEntry(rec.key), new DatabaseEntry(rec.value.get)); reccount+=1})
-    /*if (samplerRandom.nextDouble <= putSamplingRate) incrementPutCount(reccount)*/
     txn.commit()  // exception here will get caught above
   }
 
@@ -283,7 +266,6 @@ class BdbStorageManager(val db: Database,
     // GetRangeRequest to be a lot slower
     //var reccount = 0
     //iterateOverRange(minKey, maxKey)((_,_,_) => reccount += 1)
-    if (samplerRandom.nextDouble <= getSamplingRate) incrementGetCount(1/*reccount*/)
     records
   }
 
@@ -348,7 +330,6 @@ class BdbStorageManager(val db: Database,
   }
                          
   def getResponsibility():(Option[Array[Byte]],Option[Array[Byte]]) = (startKey, endKey)
-  def getWorkloadStats():(PartitionWorkloadStats,Long) = (completedStats,statsClearedTime)
 
   def applyAggregate(groups:Seq[String],
                      keyType:String,
@@ -505,20 +486,6 @@ class BdbStorageManager(val db: Database,
     })
   }
 
-  /**
-  * set the current stats as the last completed interval, used when stats are queried
-  * zero out the current stats to start a new interval
-  * return the old completed interval for archiving
-  */
-  def resetWorkloadStats():PartitionWorkloadStats = {
-    val ret = completedStats
-    completedStats = currentStats
-    statsClearedTime = System.currentTimeMillis()
-    currentStats = PartitionWorkloadStats(0,0)
-    ret
-  }
-  @inline private def incrementGetCount(num:Int) = currentStats.gets += num
-  @inline private def incrementPutCount(num:Int) = currentStats.puts += num
   /*
 	private def incrementWorkloadStats(num:Int, requestType:String) = {
 		// check if need to advance window and/or clear out old windows

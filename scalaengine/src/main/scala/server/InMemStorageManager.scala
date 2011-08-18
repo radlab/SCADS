@@ -274,17 +274,6 @@ class InMemStorageManager
     }
   }
 
-  protected var currentStats = PartitionWorkloadStats(0,0)
-  protected var completedStats = PartitionWorkloadStats(0,0)
-  private var statsClearedTime = System.currentTimeMillis
-  def getWorkloadStats():(PartitionWorkloadStats,Long) = (completedStats,statsClearedTime)
-  def resetWorkloadStats():PartitionWorkloadStats = {
-    val ret = completedStats
-    completedStats = currentStats
-    statsClearedTime = System.currentTimeMillis()
-    currentStats = PartitionWorkloadStats(0,0)
-    ret
-  }
   def startup():Unit = {}
   def shutdown():Unit = {}
 
