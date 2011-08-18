@@ -65,17 +65,19 @@ class TestTx {
     // Delete something
     println("delete 1")
 
-    ns.put(KeyRec(1), None)
+//    ns.put(KeyRec(1), None)
 
-    // // read set is not gathered yet, so inserts work for now.
-    // val tx4 = new Tx(100) ({
-    //   ns.put(KeyRec(1), None)
-    // }).Accept(0.90) {
-    // }.Commit( success => {
-    // })
-    // tx4.ExecuteMain()
-    // tx4.PrepareTest()
-    // tx4.CommitTest()
+    // read set is not gathered yet, so inserts work for now.
+    val tx4 = new Tx(100) ({
+      // need to read your writes...
+      ns.get(KeyRec(1))
+      ns.put(KeyRec(1), None)
+    }).Accept(0.90) {
+    }.Commit( success => {
+    })
+    tx4.ExecuteMain()
+    tx4.PrepareTest()
+    tx4.CommitTest()
 
     println("    get 1")
     println(ns.get(KeyRec(1)))

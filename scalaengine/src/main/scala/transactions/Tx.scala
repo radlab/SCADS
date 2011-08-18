@@ -13,6 +13,8 @@ object TxStatus extends Enumeration {
 }
 import TxStatus._
 
+sealed case class RecordUpdateInfo(servers: Seq[PartitionService], update: RecordUpdate)
+
 // TODO: This is a proof of concept for testing.
 //       There should probably be a new trait for each tx protocol 
 //       (pnuts, mdcc, 2pc, ...)
@@ -24,6 +26,7 @@ class Tx(timeout: Int)(mainFn: => Unit) {
   var commitFn = (status: TxStatus) => {}
 
   var updateList = new UpdateList
+  var readList = new ReadList
 
   def Unknown(f: => Unit) = {
     unknownFn = f _
@@ -42,8 +45,11 @@ class Tx(timeout: Int)(mainFn: => Unit) {
 
   def Execute() {
     updateList = new UpdateList
+    readList = new ReadList
     ThreadLocalStorage.updateList.withValue(Some(updateList)) {
-      mainFn
+      ThreadLocalStorage.txReadList.withValue(Some(readList)) {
+        mainFn
+      }
     }
     RunProtocol()
   }
@@ -52,7 +58,9 @@ class Tx(timeout: Int)(mainFn: => Unit) {
   def ExecuteMain() {
     updateList = new UpdateList
     ThreadLocalStorage.updateList.withValue(Some(updateList)) {
-      mainFn
+      ThreadLocalStorage.txReadList.withValue(Some(readList)) {
+        mainFn
+      }
     }
   }
 
@@ -62,9 +70,9 @@ class Tx(timeout: Int)(mainFn: => Unit) {
   def PrepareTest() {
     var count = 0
 
-    val responses = updateList.updateList.readOnly.map(t => {
-      val servers = t._1
-      val recordUpdate = t._2
+    val responses = transformUpdateList(updateList, readList).map(t => {
+      val servers = t.servers
+      val recordUpdate = t.update
       val putRequest = PrepareRequest(ScadsXid(tid, count),
                                       List(recordUpdate))
       count += 1
@@ -85,9 +93,9 @@ class Tx(timeout: Int)(mainFn: => Unit) {
 
   def CommitTest() {
     var count = 0
-    val commitResponses = updateList.updateList.readOnly.map(t => {
-      val servers = t._1
-      val recordUpdate = t._2
+    val commitResponses = transformUpdateList(updateList, readList).map(t => {
+      val servers = t.servers
+      val recordUpdate = t.update
       val commitRequest = CommitRequest(ScadsXid(tid, count),
                                         List(recordUpdate),
                                         commitTest)
@@ -101,5 +109,30 @@ class Tx(timeout: Int)(mainFn: => Unit) {
   def RunProtocol() {
     PrepareTest()
     CommitTest()
+  }
+
+  private def transformUpdateList(updateList: UpdateList, readList: ReadList): Seq[RecordUpdateInfo] = {
+    updateList.getUpdateList.map(update => {
+      update match {
+        case VersionUpdateInfo(servers, key, value) => {
+          val md = readList.getRecord(key).map(r =>
+            MDCCMetadata(r.metadata.currentRound + 1, r.metadata.ballots))
+          val newBytes = MDCCRecordUtil.toBytes(value, md)
+          RecordUpdateInfo(servers, VersionUpdate(key, newBytes))
+        }
+        case ValueUpdateInfo(servers, key, value) => {
+          val md = readList.getRecord(key).map(r =>
+            MDCCMetadata(r.metadata.currentRound, r.metadata.ballots))
+          val newBytes = MDCCRecordUtil.toBytes(value, md)
+          RecordUpdateInfo(servers, ValueUpdate(key, None, newBytes))
+        }
+        case LogicalUpdateInfo(servers, key, schema, value) => {
+          val md = readList.getRecord(key).map(r =>
+            MDCCMetadata(r.metadata.currentRound, r.metadata.ballots))
+          val newBytes = MDCCRecordUtil.toBytes(value, md)
+          RecordUpdateInfo(servers, LogicalUpdate(key, schema, newBytes))
+        }
+      }
+    })
   }
 }

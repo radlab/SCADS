@@ -2,7 +2,7 @@ package edu.berkeley.cs.scads.storage.transactions.conflict
 
 import edu.berkeley.cs.scads.comm._
 
-import edu.berkeley.cs.scads.storage.MDCCRecordReaderWriter
+import edu.berkeley.cs.scads.storage.MDCCRecordUtil
 import edu.berkeley.cs.scads.storage.transactions._
 
 import actors.threadpool.ThreadPoolExecutor.AbortPolicy
@@ -83,11 +83,8 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   private val pendingCStructs =
     factory.getNewDB[Array[Byte], ArrayBuffer[CStructCommand]](db.getName + ".pendingcstructs")
 
-  // (de)serialize MDCCRecords from the db.
-  private val recReaderWriter = new MDCCRecordReaderWriter
-
   // Detects conflicts for new updates.
-  private val conflictResolver = new SimpleConflictResolver(recReaderWriter)
+  private val conflictResolver = new SimpleConflictResolver
 
   override def accept(xid: ScadsXid, updates: Seq[RecordUpdate]) = {
     var success = true
@@ -98,7 +95,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
       cstructs = updates.map(r => {
         if (success) {
           val storedMDCCRec: Option[MDCCRecord] =
-            db.get(txn, r.key).map(recReaderWriter.fromBytes(_))
+            db.get(txn, r.key).map(MDCCRecordUtil.fromBytes(_))
           val storedRecValue: Option[Array[Byte]] =
             storedMDCCRec match {
               case Some(v) => v.value
@@ -156,10 +153,10 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
             db.get(txn, key) match {
               case None => db.put(txn, key, delta)
               case Some(recBytes) => {
-                val deltaRec = recReaderWriter.fromBytes(delta)
-                val dbRec = recReaderWriter.fromBytes(recBytes)
+                val deltaRec = MDCCRecordUtil.fromBytes(delta)
+                val dbRec = MDCCRecordUtil.fromBytes(recBytes)
                 val newBytes = LogicalRecordUpdater.applyDeltaBytes(schema, dbRec.value, deltaRec.value)
-                val newRec = recReaderWriter.toBytes(MDCCRecord(Some(newBytes), dbRec.metadata))
+                val newRec = MDCCRecordUtil.toBytes(MDCCRecord(Some(newBytes), dbRec.metadata))
                 db.put(txn, key, newRec)
               }
             }
@@ -258,7 +255,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   }
 }
 
-class SimpleConflictResolver(val recReaderWriter: MDCCRecordReaderWriter) {
+class SimpleConflictResolver() {
   def getLUB(sequences: Array[CStruct]): CStruct = {
     null
   }
@@ -279,12 +276,12 @@ class SimpleConflictResolver(val recReaderWriter: MDCCRecordReaderWriter) {
         // Value updates conflict with all pending updates
         if (commands.indexWhere(x => x.pending) == -1) {
           // No pending commands.
-          val newRec = recReaderWriter.fromBytes(newValue)
+          val newRec = MDCCRecordUtil.fromBytes(newValue)
           (oldValue, dbValue) match {
             case (Some(old), Some(dbRec)) => {
 
               // Record found in db, compare with the old version
-              val oldRec = recReaderWriter.fromBytes(old)
+              val oldRec = MDCCRecordUtil.fromBytes(old)
 
               // TODO: Don't compare versions, but compare the list of
               //       masters?
@@ -306,7 +303,7 @@ class SimpleConflictResolver(val recReaderWriter: MDCCRecordReaderWriter) {
         // Version updates conflict with all pending updates
         if (commands.indexWhere(x => x.pending) == -1) {
           // No pending commands.
-          val newRec = recReaderWriter.fromBytes(newValue)
+          val newRec = MDCCRecordUtil.fromBytes(newValue)
           dbValue match {
             case Some(v) =>
               (newRec.metadata.currentRound == v.metadata.currentRound + 1)

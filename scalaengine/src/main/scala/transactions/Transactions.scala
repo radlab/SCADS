@@ -62,12 +62,13 @@ with TransactionRecordMetadata {
       case None => {
         // TODO: what does it mean to do puts outside of a tx?
         //       for now, just writes to all servers
-        val putRequest = PutRequest(key, Some(recordToBytes(value, None)))
+        val putRequest = PutRequest(key,
+                                    Some(MDCCRecordUtil.toBytes(value, None)))
         val responses = servers.map(_ !! putRequest)
         responses.blockFor(servers.length, 500, TimeUnit.MILLISECONDS)
       }
       case Some(updateList) => {
-        updateList.appendVersionUpdate(servers, key, recordToBytes(value, None))
+        updateList.appendVersionUpdate(servers, key, value)
       }
     }
   }
@@ -83,9 +84,7 @@ with TransactionRecordMetadata {
         throw new RuntimeException("")
       }
       case Some(updateList) => {
-        updateList.appendLogicalUpdate(servers, key,
-                                       schema,
-                                       recordToBytes(Some(value), None))
+        updateList.appendLogicalUpdate(servers, key, schema, Some(value))
       }
     }
   }
@@ -97,11 +96,19 @@ with TransactionRecordMetadata {
     val getRequest = GetRequest(key)
     val responses = servers.map(_ !! getRequest)
     val handler = new GetHandlerTmp(key, responses)
-    val record = handler.vote(1)
+    val record = handler.vote(servers.length)
     if (handler.failed) {
       None
     } else {
-      record.map(extractRecordFromValue)
+      record match {
+        case None => None
+        case Some(bytes) => {
+          val mdccRec = MDCCRecordUtil.fromBytes(bytes)
+          ThreadLocalStorage.txReadList.value.map(readList =>
+            readList.addRecord(key, mdccRec))
+          mdccRec.value
+        }
+      }
     }
   }
 
@@ -154,34 +161,30 @@ with TransactionRecordMetadata {
 
 }
 
-class MDCCRecordReaderWriter {
+object MDCCRecordUtil {
   private val recordReaderWriter = new AvroSpecificReaderWriter[MDCCRecord](None)
 
-  def toBytes(txRec: MDCCRecord): Array[Byte] = {
-    recordReaderWriter.serialize(txRec)
+  def toBytes(rec: MDCCRecord): Array[Byte] = {
+    recordReaderWriter.serialize(rec)
+  }
+
+  def toBytes(rec: Option[Array[Byte]], metadata: Option[MDCCMetadata]): Array[Byte] = {
+    recordReaderWriter.serialize(MDCCRecord(rec, metadata.getOrElse(MDCCMetadata(0, List()))))
   }
 
   def fromBytes(bytes: Array[Byte]): MDCCRecord = {
     recordReaderWriter.deserialize(bytes)
-  }
+  }  
 }
 
 trait TransactionRecordMetadata extends SimpleRecordMetadata {
-
-  private val recordReaderWriter = new MDCCRecordReaderWriter
-
   override def createMetadata(rec: Array[Byte]): Array[Byte] = {
-    recordToBytes(Some(rec), None)
-  }
-
-  def recordToBytes(rec: Option[Array[Byte]], metadata: Option[MDCCMetadata]): Array[Byte] = {
-    val newMetadata = metadata.getOrElse(MDCCMetadata(0, List()))
-    recordReaderWriter.toBytes(MDCCRecord(rec, newMetadata))
+    MDCCRecordUtil.toBytes(Some(rec), None)
   }
 
   override def compareMetadata(lhs: Array[Byte], rhs: Array[Byte]): Int = {
-    val txRecL = recordReaderWriter.fromBytes(lhs)
-    val txRecR = recordReaderWriter.fromBytes(rhs)
+    val txRecL = MDCCRecordUtil.fromBytes(lhs)
+    val txRecR = MDCCRecordUtil.fromBytes(rhs)
     if (txRecL.metadata.currentRound < txRecR.metadata.currentRound)
       return -1
     else if (txRecL.metadata.currentRound > txRecR.metadata.currentRound)
@@ -196,7 +199,7 @@ trait TransactionRecordMetadata extends SimpleRecordMetadata {
   }
 
   override def extractRecordFromValue(value: Array[Byte]): Array[Byte] = {
-    val txRec = recordReaderWriter.fromBytes(value)
+    val txRec = MDCCRecordUtil.fromBytes(value)
     txRec.value match {
       // Deleted records have zero length byte arrays
       case None => new Array[Byte](0)
