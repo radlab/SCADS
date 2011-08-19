@@ -5,7 +5,7 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Spec}
 import org.scalatest.matchers.ShouldMatchers
 
-import edu.berkeley.cs.scads.util._
+import edu.berkeley.cs.avro.runtime.SchemaCompare
 import org.apache.avro.Schema
 
 @RunWith(classOf[JUnitRunner])

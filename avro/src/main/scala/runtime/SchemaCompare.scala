@@ -1,4 +1,5 @@
-package edu.berkeley.cs.scads.util
+package edu.berkeley.cs.avro
+package runtime
 
 import org.apache.avro.Schema
 import collection.JavaConversions._
