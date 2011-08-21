@@ -131,8 +131,8 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
   def zooKeeperAddress = "zk://%s/".format(zooKeepers.map(_.publicDnsName + ":2181").mkString(","))
   def zooKeeperRoot = ZooKeeperNode(zooKeeperAddress)
 
-  def setupZooKeeper(): Unit = {
-    val missingServers = 3 - zooKeepers.size
+  def setupZooKeeper(numServers: Int = 1): Unit = {
+    val missingServers = numServers - zooKeepers.size
 
     if(missingServers > 0) {
     val ret = EC2Instance.runInstances(
@@ -150,13 +150,15 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
 
     val servers = zooKeepers.zipWithIndex
 
+    val serverList = servers.map {case (server, id: Int) => "server.%d=%s:3181:3182".format(id + 1, server.privateDnsName)}.toList
+
     val cnf =
-      (servers.map {case (server, id: Int) => "server.%d=%s:3181:3182".format(id + 1, server.privateDnsName)} ++
       ("dataDir=/mnt/zookeeper" ::
        "clientPort=2181" ::
        "tickTime=1000" ::
        "initLimit=60"::
-       "syncLimit=30" :: Nil )).mkString("\n")
+       "syncLimit=30" :: 
+       (if(servers.size > 1) serverList else Nil)).mkString("\n")
 
     val startScript =
       ("#!/bin/bash" ::
