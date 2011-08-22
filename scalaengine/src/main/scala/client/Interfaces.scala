@@ -90,8 +90,6 @@ trait KeyRoutable {
 
   // type of partition this routable talks to
   def partitionType:String
-  // optional string representing the class of the value
-  def valueType:Option[String] = None
 
   protected def onRoutingTableChanged(newTable: Array[Byte]): Unit
   protected def convertToRoutingKey(key: Array[Byte]): Array[Byte]
@@ -125,6 +123,8 @@ trait GlobalMetadata {
 
   def keySchema: Schema
   def valueSchema: Schema
+
+  def valueClass: String
 
   def remoteKeySchema: Schema
   def remoteValueSchema: Schema

@@ -119,11 +119,12 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
     Schema.parse(keySchema)
   }
 
-  private def schemasFor(namespace: String) = {
+  private def schemasAndValueClassFor(namespace: String) = {
     val nsRoot = getNamespaceRoot(namespace)
     val keySchema = new String(nsRoot("keySchema").data)
     val valueSchema = new String(nsRoot("valueSchema").data)
-    (Schema.parse(keySchema),Schema.parse(valueSchema))
+    val valueClass = new String(nsRoot("valueClass").data)
+    (Schema.parse(keySchema),Schema.parse(valueSchema),valueClass)
   }
 
   /** 
@@ -137,15 +138,15 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
   private def makeBdbPartitionHandler(
       database: Database, namespace: String, partitionIdLock: ZooKeeperProxy#ZooKeeperNode,
       startKey: Option[Array[Byte]], endKey: Option[Array[Byte]]) = {
-    val schemas = schemasFor(namespace)
-    new PartitionHandler(new BdbStorageManager(database, partitionIdLock, startKey, endKey, getNamespaceRoot(namespace), schemas._1, schemas._2))
+    val schemasvc = schemasAndValueClassFor(namespace)
+    new PartitionHandler(new BdbStorageManager(database, partitionIdLock, startKey, endKey, getNamespaceRoot(namespace), schemasvc._1, schemasvc._2))
   }
 
   private def makeInMemPartitionHandler
     (namespace:String,partitionIdLock:ZooKeeperProxy#ZooKeeperNode,
-     startKey:Option[Array[Byte]], endKey:Option[Array[Byte]], valueType:String) = {
-    val schemas = schemasFor(namespace)
-    new PartitionHandler(new InMemStorageManager(partitionIdLock, startKey, endKey, getNamespaceRoot(namespace),schemas._1, schemas._2,valueType))
+     startKey:Option[Array[Byte]], endKey:Option[Array[Byte]]) = {
+    val schemasvc = schemasAndValueClassFor(namespace)
+    new PartitionHandler(new InMemStorageManager(partitionIdLock, startKey, endKey, getNamespaceRoot(namespace),schemasvc._1, schemasvc._2, schemasvc._3))
   }
                                         
 
@@ -280,7 +281,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
     def reply(msg: MessageBody) = src.foreach(_ ! msg)
 
     msg match {
-      case createRequest @ CreatePartitionRequest(namespace, partitionType, valueType, startKey, endKey) => {
+      case createRequest @ CreatePartitionRequest(namespace, partitionType, startKey, endKey) => {
         logger.info("[%s] CreatePartitionRequest for namespace %s, [%s, %s)", this, namespace, JArrays.toString(startKey.orNull), JArrays.toString(endKey.orNull))
 
         /* Grab root to namespace from ZooKeeper */
@@ -310,9 +311,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
                 val txn = env.beginTransaction(null, null)
                 partitionDb.put(txn, new DatabaseEntry(partitionId.getBytes), new DatabaseEntry(createRequest.toBytes))
                 txn.commit()
-                makeInMemPartitionHandler(namespace,partitionIdLock, startKey, endKey, 
-                                          valueType.getOrElse(throw new RuntimeException("Can't create InMemoryPartition without a valueType")))
-            
+                makeInMemPartitionHandler(namespace,partitionIdLock, startKey, endKey)
               }
               case "bdb" => {
                 /* Start a new transaction to atomically make both the namespace DB,

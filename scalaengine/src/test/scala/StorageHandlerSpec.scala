@@ -38,7 +38,7 @@ class StorageHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterAll
   describe("StorageHandler") {
     it("should create partitions") {
       withHandler { handler =>
-        handler.remoteHandle !? CreatePartitionRequest("testns", "bdb",None, None, None) match {
+        handler.remoteHandle !? CreatePartitionRequest("testns", "bdb", None, None) match {
           case CreatePartitionResponse(newPart) => newPart
           case u => fail("Unexpected message: " + u)
         }
@@ -48,7 +48,7 @@ class StorageHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterAll
     it("should delete partitions") {
       withHandler { handler =>
         val remoteHandler = handler.remoteHandle
-        val partId = remoteHandler !? CreatePartitionRequest("testns", "bdb", None, None, None) match {
+        val partId = remoteHandler !? CreatePartitionRequest("testns", "bdb", None, None) match {
           case CreatePartitionResponse(service) => service.partitionId
           case u => fail("Unexpected msg:" + u)
         }
@@ -64,7 +64,7 @@ class StorageHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterAll
       withHandler { handler =>
         val remoteHandler = handler.remoteHandle
         def createPartition(lower: Option[Int], upper: Option[Int]): PartitionService = {
-          remoteHandler !? CreatePartitionRequest("testgc", "bdb", None, lower.map(l => IntRec(l).toBytes), upper.map(u => IntRec(u).toBytes)) match {
+          remoteHandler !? CreatePartitionRequest("testgc", "bdb", lower.map(l => IntRec(l).toBytes), upper.map(u => IntRec(u).toBytes)) match {
             case CreatePartitionResponse(service) => service
             case u => fail("Unexpected msg:" + u)
           }

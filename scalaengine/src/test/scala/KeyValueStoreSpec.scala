@@ -297,8 +297,8 @@ class AbstractKeyValueStoreSpec extends Spec with ShouldMatchers with BeforeAndA
     cluster.getNamespace[KType,VType](ns)
   }
 
-  def createNamespace(ns:String, s1:Schema, s2:Schema) =
-    cluster.getNamespace(ns,s1,s2)
+  def createNamespace(ns:String, s1:Schema, s2:Schema, vc:String) =
+    cluster.getNamespace(ns,s1,s2,vc)
 
   val rand = new scala.util.Random(123456789)
 
@@ -410,16 +410,17 @@ class AbstractKeyValueStoreSpec extends Spec with ShouldMatchers with BeforeAndA
       newSchema.setFields(Seq(new Field("f1", Schema.create(Type.INT), "", null),
         new Field("f2", Schema.createUnion(Seq(Schema.create(Type.NULL), Schema.create(Type.INT))), "", NullNode.instance)))
 
+      val r = new GenericData.Record(oldSchema)
+
       // load the cluster once with an "old" version (1 field)
-      val oldNs = createNamespace("prefixSchemaRes", oldSchema, oldSchema)
+      val oldNs = createNamespace("prefixSchemaRes", oldSchema, oldSchema,r.getClass.getName)
 
       // need to call put since serializer is lazy and isn't constructed until needed
-      val r = new GenericData.Record(oldSchema)
       r.put(0,0)
       oldNs.put(r,r)
 
       // now, load the cluster with a "new" version (2 fields)
-      val newNs = createNamespace("prefixSchemaRes", newSchema, newSchema)
+      val newNs = createNamespace("prefixSchemaRes", newSchema, newSchema,r.getClass.getName)
 
       def newIntRec(f1: Int, f2: Option[Int]) = {
         val rec = new GenericData.Record(newSchema)
