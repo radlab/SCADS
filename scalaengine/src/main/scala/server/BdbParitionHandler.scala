@@ -486,26 +486,6 @@ class BdbStorageManager(val db: Database,
     })
   }
 
-  /*
-	private def incrementWorkloadStats(num:Int, requestType:String) = {
-		// check if need to advance window and/or clear out old windows
-		synchronized {
-			if (System.currentTimeMillis > statsClearedTime+statWindowTime) {
-				logger.debug("last window gets: %d",statWindows.head._1.get)
-				statWindows = (new java.util.concurrent.atomic.AtomicInteger(),new java.util.concurrent.atomic.AtomicInteger()) +: statWindows.dropRight(1)
-				statsClearedTime = System.currentTimeMillis
-				logger.debug("cleared stats: %s",statsClearedTime.toString)
-			}
-		}
-		// increment count in current window
-		requestType match {
-			case "get" => statWindows.head._1.getAndAdd(num)
-			case "put" => statWindows.head._2.getAndAdd(num)
-			case _ => logger.error("Tried to increment stats count for invalid request type %s", requestType)
-		}
-	}
-	*/
-
   private def initCursor(cursor: Cursor) = {
     val dbeKey = new DatabaseEntry
     val dbeValue = new DatabaseEntry
