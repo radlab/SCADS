@@ -10,7 +10,7 @@ import generic._
 import io._
 import specific._
 
-import edu.berkeley.cs.scads.util.SchemaCompare
+import edu.berkeley.cs.avro.runtime.SchemaCompare
 
 abstract class AvroReaderWriter[T <: IndexedRecord](val remoteSchema: Option[Schema]) {
 
