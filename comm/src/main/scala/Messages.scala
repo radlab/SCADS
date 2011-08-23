@@ -76,7 +76,7 @@ case class MDCCRecord(var value: Option[Array[Byte]], var metadata: MDCCMetadata
 sealed trait RecordUpdate extends AvroUnion {
   var key: Array[Byte]
 }
-case class LogicalUpdate(var key: Array[Byte], var schema: String, var delta: Array[Byte]) extends AvroRecord with RecordUpdate
+case class LogicalUpdate(var key: Array[Byte], var delta: Array[Byte]) extends AvroRecord with RecordUpdate
 // The newValue is the avro serialized TxRecord type
 sealed trait PhysicalUpdate extends RecordUpdate {
   var key: Array[Byte]

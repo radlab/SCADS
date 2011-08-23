@@ -136,8 +136,8 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
     new BDBTxDB[Array[Byte], Array[Byte]](db)
        with ByteArrayKeySerializer[Array[Byte]]
        with ByteArrayValueSerializer[Array[Byte]],
-    new BDBTxDBFactory(db.getEnvironment))
-//    new MapTxDBFactory)
+    new BDBTxDBFactory(db.getEnvironment),
+    keySchema, valueSchema)
 
   protected def startup() {
     // TODO: crash recovery

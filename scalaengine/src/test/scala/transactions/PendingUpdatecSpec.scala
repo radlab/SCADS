@@ -39,6 +39,9 @@ with BeforeAndAfterEach {
   private val keyBuilder = new KeyBuilder[KeyRec]
   private val valueBuilder = new ValueBuilder[ValueRec]
 
+  private val keySchema = KeyRec(1,"1").getSchema
+  private val valueSchema = ValueRec("1", 1).getSchema
+
   private def makeScadsTempDir(name: String) = {
     val tempDir = File.createTempFile(name + "-scads.test", "testdb")
     /* This strange sequence of delete and mkdir is required so that BDB can
@@ -115,13 +118,13 @@ with BeforeAndAfterEach {
                       name: String) = {
     val (dbF, f) = openFactory(dbFactory, factory, name)
     val db = dbF.getNewDB[Array[Byte], Array[Byte]](name)
-    (db, new PendingUpdatesController(db, f))
+    (db, new PendingUpdatesController(db, f, keySchema, valueSchema))
   }
   private def withVersionKeysDB(dbFactory: FactoryType, factory: FactoryType,
                                 name: String, numKeys: Int) = {
     val (dbF, f) = openFactory(dbFactory, factory, name)
     val db = dbF.getNewDB[Array[Byte], Array[Byte]](name)
-    val p = new PendingUpdatesController(db, f)
+    val p = new PendingUpdatesController(db, f, keySchema, valueSchema)
 
     val updates = insertVersionUpdates(numKeys)
     p.accept(ScadsXid(1, 1), updates).isDefined should be (true)
@@ -132,7 +135,7 @@ with BeforeAndAfterEach {
                               name: String, numKeys: Int) = {
     val (dbF, f) = openFactory(dbFactory, factory, name)
     val db = dbF.getNewDB[Array[Byte], Array[Byte]](name)
-    val p = new PendingUpdatesController(db, f)
+    val p = new PendingUpdatesController(db, f, keySchema, valueSchema)
 
     val updates = insertValueUpdates(numKeys)
     p.accept(ScadsXid(1, 1), updates).isDefined should be (true)

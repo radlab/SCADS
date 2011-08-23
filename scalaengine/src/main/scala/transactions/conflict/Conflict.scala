@@ -18,6 +18,7 @@ import java.io._
 import org.apache.avro._
 import org.apache.avro.io.{BinaryData, DecoderFactory, BinaryEncoder, BinaryDecoder, EncoderFactory}
 import org.apache.avro.specific.{SpecificDatumWriter, SpecificDatumReader, SpecificRecordBase, SpecificRecord}
+import org.apache.avro.Schema
 
 // TODO: Make thread-safe.  It might already be, by using TxDB
 
@@ -74,7 +75,9 @@ case class TxStatusEntry(var status: Status.Status,
                          var updates: Seq[RecordUpdate])
 
 class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
-                               override val factory: TxDBFactory) extends PendingUpdates {
+                               override val factory: TxDBFactory,
+                               val keySchema: Schema,
+                               val valueSchema: Schema) extends PendingUpdates {
 
   // Transaction state info. Maps txid -> txstatus/decision.
   private val txStatus =
@@ -84,7 +87,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     factory.getNewDB[Array[Byte], ArrayBuffer[CStructCommand]](db.getName + ".pendingcstructs")
 
   // Detects conflicts for new updates.
-  private val conflictResolver = new SimpleConflictResolver
+  private val conflictResolver = new SimpleConflictResolver(keySchema, valueSchema)
 
   override def accept(xid: ScadsXid, updates: Seq[RecordUpdate]) = {
     var success = true
@@ -149,13 +152,13 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
         // TODO: These updates overwrite the metadata.  Probably have to
         //       selectively update only the value part of the record.
         r match {
-          case LogicalUpdate(key, schema, delta) => {
+          case LogicalUpdate(key, delta) => {
             db.get(txn, key) match {
               case None => db.put(txn, key, delta)
               case Some(recBytes) => {
                 val deltaRec = MDCCRecordUtil.fromBytes(delta)
                 val dbRec = MDCCRecordUtil.fromBytes(recBytes)
-                val newBytes = LogicalRecordUpdater.applyDeltaBytes(schema, dbRec.value, deltaRec.value)
+                val newBytes = LogicalRecordUpdater.applyDeltaBytes(valueSchema, dbRec.value, deltaRec.value)
                 val newRec = MDCCRecordUtil.toBytes(MDCCRecord(Some(newBytes), dbRec.metadata))
                 db.put(txn, key, newRec)
               }
@@ -255,7 +258,7 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   }
 }
 
-class SimpleConflictResolver() {
+class SimpleConflictResolver(val keySchema: Schema, val valueSchema: Schema) {
   def getLUB(sequences: Array[CStruct]): CStruct = {
     null
   }
@@ -268,7 +271,7 @@ class SimpleConflictResolver() {
                    dbValue: Option[MDCCRecord],
                    newUpdate: RecordUpdate): Boolean = {
     newUpdate match {
-      case LogicalUpdate(key, schema, delta) => {
+      case LogicalUpdate(key, delta) => {
         // TODO: do IC
         true
       }
@@ -322,19 +325,18 @@ object LogicalRecordUpdater {
   // base is the (optional) byte array of the serialized AvroRecord.
   // deltal is the (optional) byte array of the serialized delta AvroRecord.
   // An byte array of the serialized resulting record is returned.
-  def applyDeltaBytes(schema: String, baseBytes: Option[Array[Byte]], deltaBytes: Option[Array[Byte]]): Array[Byte] = {
+  def applyDeltaBytes(schema: Schema, baseBytes: Option[Array[Byte]], deltaBytes: Option[Array[Byte]]): Array[Byte] = {
     if (deltaBytes.isEmpty) {
       throw new RuntimeException("Delta records should always exist.")
     }
     baseBytes match {
       case None => deltaBytes.get
       case Some(avroBytes) => {
-        val s = Schema.parse(schema)
-        val reader = new SpecificDatumReader[SpecificRecord](s)
+        val reader = new SpecificDatumReader[SpecificRecord](schema)
         val avro = reader.read(null, DecoderFactory.get().directBinaryDecoder(new ByteArrayInputStream(avroBytes), null)).asInstanceOf[SpecificRecord]
         val avroDelta = reader.read(null, DecoderFactory.get().directBinaryDecoder(new ByteArrayInputStream(deltaBytes.get), null)).asInstanceOf[SpecificRecord]
         val avroNew = applyDeltaRecord(avro, avroDelta)
-        val writer = new SpecificDatumWriter[SpecificRecord](s)
+        val writer = new SpecificDatumWriter[SpecificRecord](schema)
         val out = new java.io.ByteArrayOutputStream(128)
         val encoder = EncoderFactory.get().binaryEncoder(out, null)
         writer.write(avroNew, encoder)

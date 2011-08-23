@@ -15,7 +15,6 @@ case class ValueUpdateInfo(servers: Seq[PartitionService],
                            rec: Option[Array[Byte]]) extends UpdateInfo
 case class LogicalUpdateInfo(servers: Seq[PartitionService],
                              key: Array[Byte],
-                             schema: String,
                              rec: Option[Array[Byte]]) extends UpdateInfo
 
 // TODO: Worry about thread safety?
@@ -30,9 +29,8 @@ class UpdateList {
 
   def appendLogicalUpdate(servers: Seq[PartitionService],
                           key: Array[Byte],
-                          schema: String,
                           rec: Option[Array[Byte]]) = {
-    updateList.append(LogicalUpdateInfo(servers, key, schema, rec))
+    updateList.append(LogicalUpdateInfo(servers, key, rec))
   }
 
   def getUpdateList() = {

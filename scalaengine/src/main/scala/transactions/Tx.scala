@@ -126,11 +126,11 @@ class Tx(timeout: Int)(mainFn: => Unit) {
           val newBytes = MDCCRecordUtil.toBytes(value, md)
           RecordUpdateInfo(servers, ValueUpdate(key, None, newBytes))
         }
-        case LogicalUpdateInfo(servers, key, schema, value) => {
+        case LogicalUpdateInfo(servers, key, value) => {
           val md = readList.getRecord(key).map(r =>
             MDCCMetadata(r.metadata.currentRound, r.metadata.ballots))
           val newBytes = MDCCRecordUtil.toBytes(value, md)
-          RecordUpdateInfo(servers, LogicalUpdate(key, schema, newBytes))
+          RecordUpdateInfo(servers, LogicalUpdate(key, newBytes))
         }
       }
     })

@@ -25,8 +25,7 @@ with KeyRoutable
 with TransactionRecordMetadata {
 
   def putLogical(key: K, value: V): Unit = {
-    val schema = value.getSchema.toString
-    putBytesLogical(keyToBytes(key), schema, valueToBytes(value))
+    putBytesLogical(keyToBytes(key), valueToBytes(value))
   }
 
   override def put(key: K, value: Option[V]): Unit = {
@@ -74,7 +73,6 @@ with TransactionRecordMetadata {
   }
 
   def putBytesLogical(key: Array[Byte],
-                      schema: String,
                       value: Array[Byte]): Unit = {
     val servers = serversForKey(key)
     ThreadLocalStorage.updateList.value match {
@@ -84,7 +82,7 @@ with TransactionRecordMetadata {
         throw new RuntimeException("")
       }
       case Some(updateList) => {
-        updateList.appendLogicalUpdate(servers, key, schema, Some(value))
+        updateList.appendLogicalUpdate(servers, key, Some(value))
       }
     }
   }
