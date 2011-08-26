@@ -88,6 +88,9 @@ trait RangeProtocol extends Protocol {
 trait KeyRoutable {
   def serversForKey(key: Array[Byte]): Seq[PartitionService]
 
+  // type of partition this routable talks to
+  def partitionType:String
+
   protected def onRoutingTableChanged(newTable: Array[Byte]): Unit
   protected def convertToRoutingKey(key: Array[Byte]): Array[Byte]
 }
@@ -120,6 +123,8 @@ trait GlobalMetadata {
 
   def keySchema: Schema
   def valueSchema: Schema
+
+  def valueClass: String
 
   def remoteKeySchema: Schema
   def remoteValueSchema: Schema

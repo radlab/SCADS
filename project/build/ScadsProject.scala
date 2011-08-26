@@ -15,8 +15,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
   lazy val avro = project("avro", "avro-plugin", new DefaultProject(_) with IdeaProject {
     val avroJava = "org.apache.avro" % "avro" % "1.5.1"
     val avroIpc = "org.apache.avro" % "avro-ipc" % "1.5.1"
-    val configgy = "net.lag" % "configgy" % "2.0.0"
-  } )
+  }, config)
 
   lazy val comm = project("comm", "communication", new ScadsSubProject(_) with IdeaProject {
     val netty = "org.jboss.netty" % "netty" % "3.2.1.Final"

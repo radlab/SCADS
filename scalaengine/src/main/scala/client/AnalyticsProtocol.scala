@@ -62,17 +62,22 @@ trait AnalyticsProtocol
      val aggs:Seq[(LocalAggregate[_,_],Int)],
      val groupSchema:Schema,
      val numRanges:Int,
-     val timeout:Long = 5000) {
+     val timeout:Long = 60000) {
 
       private val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture]
       private val partitionReplies = new HashMap[String,AggReply]
+      private val timeoutCounter = new TimeoutCounter(timeout)
       
       def getReplies():Unit = {
         futures.foreach(_.foreach(_.forward(responses)))
         val startTime = System.currentTimeMillis
         
         while (partitionReplies.size < numParts) {
-          val future = responses.poll(timeout,TimeUnit.MILLISECONDS)
+          val future = 
+            if (timeout > 0)
+              responses.poll(timeoutCounter.remaining,TimeUnit.MILLISECONDS)
+            else
+              responses.take()
           if (future == null) 
             logger.info("FAILED")
           else {

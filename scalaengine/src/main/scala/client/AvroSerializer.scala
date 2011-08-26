@@ -10,7 +10,7 @@ import generic._
 import io._
 import specific._
 
-import edu.berkeley.cs.scads.util.SchemaCompare
+import edu.berkeley.cs.avro.runtime.SchemaCompare
 
 abstract class AvroReaderWriter[T <: IndexedRecord](val remoteSchema: Option[Schema]) {
 
@@ -140,6 +140,9 @@ trait AvroSpecificKeyValueSerializer[K <: SpecificRecord, V <: SpecificRecord]
 
   override lazy val valueSchema =
     valueManifest.erasure.asInstanceOf[Class[V]].newInstance.getSchema
+
+  override lazy val valueClass =
+    valueManifest.erasure.asInstanceOf[Class[V]].getName
 }
 
 trait AvroPairSerializer[P <: AvroPair]
@@ -189,6 +192,9 @@ trait AvroPairSerializer[P <: AvroPair]
 
   override lazy val valueSchema = 
     pairManifest.erasure.asInstanceOf[Class[P]].newInstance.value.getSchema
+
+  override lazy val valueClass =
+    pairManifest.erasure.asInstanceOf[Class[P]].getName
 
   override lazy val pairSchema = 
     pairManifest.erasure.asInstanceOf[Class[P]].newInstance.getSchema

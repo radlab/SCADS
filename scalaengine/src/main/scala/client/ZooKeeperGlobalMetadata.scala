@@ -18,6 +18,7 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
     node.getOrCreate("partitions")
     node.createChild("keySchema", keySchema.toString.getBytes, CreateMode.PERSISTENT)
     node.createChild("valueSchema", valueSchema.toString.getBytes, CreateMode.PERSISTENT)
+    node.createChild("valueClass", valueClass.getBytes, CreateMode.PERSISTENT)
   }
 
   // NS must NOT exist or exception is thrown
