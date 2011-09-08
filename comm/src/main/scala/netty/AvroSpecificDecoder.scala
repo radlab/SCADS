@@ -1,4 +1,6 @@
-package edu.berkeley.cs.scads.comm
+package edu.berkeley.cs
+package scads
+package comm
 package netty
 
 import org.jboss.netty._
@@ -12,6 +14,7 @@ import codec.oneone._
 import org.apache.avro._
 import io._
 import specific._
+import avro.runtime._
 
 import net.lag.logging.Logger
 
@@ -20,8 +23,9 @@ class AvroSpecificDecoder[M <: SpecificRecord](implicit m: Manifest[M])
 
   private val msgClass = m.erasure.asInstanceOf[Class[M]]
 
-  private val msgReader = 
-    new SpecificDatumReader[M](msgClass.newInstance.getSchema)
+  private val schema = msgClass.newInstance.getSchema
+
+  private val msgReader = new SpecificDatumReader[M](schema, schema, new SpecificData(msgClass.getClassLoader))
 
   private val logger = Logger()
 
@@ -35,5 +39,4 @@ class AvroSpecificDecoder[M <: SpecificRecord](implicit m: Manifest[M])
       logger.warning("Failed to decode message of unsuported type: %s", msg)
       msg
   }
-
 }
