@@ -7,7 +7,7 @@ class ScadsProject(info: ProjectInfo) extends ParentProject(info) with IdeaProje
   /* SCADS Subprojects */
   lazy val config = project("config", "config", new DefaultProject(_) with IdeaProject {
     val configgy = "net.lag" % "configgy" % "2.0.0"
-    val scalatest = "org.scalatest" % "scalatest" % "1.2"
+    val scalatest = "org.scalatest" %% "scalatest" % "1.6.1"
     val junit = "junit" % "junit" % "4.7"
   } )
 
