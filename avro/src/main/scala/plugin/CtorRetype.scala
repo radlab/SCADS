@@ -41,7 +41,7 @@ trait CtorRetype  extends ScalaAvroPluginComponent
           debug("removing synthetic methods for: " + currentClass.fullName)
           val newBody = impl.body.filterNot { 
             case d @ DefDef(_, _, _, _, _, _) => 
-              d.symbol.hasFlag(SYNTHETICMETH) && 
+              d.symbol.hasFlag(SYNTHETIC) && 
               (d.symbol.name == nme.toString_ || d.symbol.name == nme.hashCode_)
             case _ => false
           }
