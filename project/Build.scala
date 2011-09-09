@@ -26,27 +26,36 @@ object ScadsBuild extends Build {
 
   addCompilerPlugin(avroPluginDep)
 				
+  /* Artifact Repositories */
   val localMaven = "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository"		
   val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"
 
+  /* Aggregator Project */
   lazy val scads = Project("scads", file("."), settings=buildSettings) aggregate (config, avroPlugin, comm, deploylib, scalaEngine, piql, scadr, tpcw, modeling)
 
+  /* Avro Scala Compiler Plugin */
   lazy val avroPlugin = Project("avro-plugin", file("avro"), settings=buildSettings ++ Seq(libraryDependencies := avroPluginDeps))
+
+  /* SCADS Core Projects */
   lazy val config = Project("config", file("config"), settings=buildSettings ++ Seq(libraryDependencies := configDeps))
   lazy val comm = Project("communication", file("comm"), settings=buildSettings ++ Seq(libraryDependencies := commDeps)) dependsOn(config)
   lazy val optional = Project("optional", file("optional"), settings=buildSettings ++ Seq(libraryDependencies := Seq(paranamer)))
   lazy val deploylib = Project("deploylib", file("deploylib"), settings=buildSettings ++ Seq(libraryDependencies := deploylibDeps)) dependsOn(comm, optional)
   lazy val scalaEngine = Project("scala-engine", file("scalaengine"), settings=buildSettings ++ Seq(libraryDependencies := scalaEngineDeps)) dependsOn(config, comm, deploylib)
-
-  lazy val modeling = Project("modeling", file("modeling"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(piql, perf, deploylib, scadr, tpcw)
   lazy val piql = Project("piql", file("piql"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(config, comm, scalaEngine)
   lazy val perf = Project("perf", file("perf"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(config, comm, scalaEngine, deploylib)
+
+  /* Other projects and experiments */
+  lazy val modeling = Project("modeling", file("modeling"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(piql, perf, deploylib, scadr, tpcw)
   lazy val scadr = Project("scadr", file("piql/scadr"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(piql % "compile;test->test", perf)
   lazy val tpcw = Project("tpcw", file("piql/tpcw"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(piql, perf)
   lazy val axer = Project("axer", file("axer"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin))
   lazy val matheron = Project("matheron", file("matheron"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(config, comm, scalaEngine)
 
-  /* Config */
+  /**
+   * Dependencies
+   */
+
   def configDeps = configgy +: testDeps //Note: must be a def to avoid null pointer exception
   val configgy = "net.lag" % "configgy" % "2.0.0"
 
@@ -54,7 +63,6 @@ object ScadsBuild extends Build {
   val scalaTest = "org.scalatest" %% "scalatest" % "1.6.1"
   val junit = "junit" % "junit" % "4.7"
 
-  /* Avro */
   def avroPluginDeps = Seq(avroJava, avroIpc, scalaCompiler, configgy) ++ testDeps
   val avroJava = "org.apache.avro" % "avro" % "1.5.2-SNAPSHOT"
   val avroIpc = "org.apache.avro" % "avro-ipc" % "1.5.2-SNAPSHOT"
@@ -65,18 +73,14 @@ object ScadsBuild extends Build {
 
   def useAvroPlugin = Seq(avroPluginDep, avroPluginCompile)
 
-  /* Comm */
   def commDeps = Seq(netty, zookeeper, commonsHttpClient, log4j, avroPluginDep, avroPluginCompile) ++ testDeps
   val netty = "org.jboss.netty" % "netty" % "3.2.1.Final"
   val log4j = "log4j" % "log4j" % "1.2.15"
   val zookeeper = "org.apache.zookeeper" % "zookeeper" % "3.3.1"
 
-
-  /* Scala Engine */
   def scalaEngineDeps = Seq(bdb, avroPluginDep, avroPluginCompile) ++ testDeps
   val bdb = "com.sleepycat" % "je" % "4.0.71"
 
-  /* deploy lib */
   def deploylibDeps = Seq(mesos, protoBuff, staxApi, jaxbApi, json, awsSdk, ganymedSsh2, commonsLoggingApi, commonsHttpClient, jets3t, jetty, mysql, javaSysMon, avroPluginDep, avroPluginCompile)
   val mesos = "org.apache" % "mesos" % "1.1"
   val protoBuff = "com.google.protobuf" % "protobuf-java" % "2.3.0"
@@ -93,16 +97,16 @@ object ScadsBuild extends Build {
   val javaSysMon = "github.jezhumble" % "javasysmon" % "0.3.3"
 
 
-  /* repl */
+  def repl(lift, jetty6, h2, servlet, sl4jConfiggy)
   val lift = "net.liftweb" %% "lift-mapper" % "2.2-SNAPSHOT" % "compile"
   val jetty6 = "org.mortbay.jetty" % "jetty" % "6.1.25" % "test"
-  val h2 = "com.h2database" % "h2" % "1.2.121" % "runtime"
-  // alternately use derby
-  // val derby = "org.apache.derby" % "derby" % "10.2.2.0" % "runtime"
   val servlet = "javax.servlet" % "servlet-api" % "2.5" % "provided"
   val sl4jConfiggy = "com.notnoop.logging" % "slf4j-configgy" % "0.0.1"
 }
 
+/**
+ * Mixin to create prompt of the form [current project]:[current git branch]>
+ */
 object ShellPrompt {
 
   object devnull extends ProcessLogger {
