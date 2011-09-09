@@ -6,7 +6,6 @@ import org.scalatest.{BeforeAndAfterAll, Spec}
 import org.scalatest.matchers.ShouldMatchers
 
 import edu.berkeley.cs.scads.comm._
-import edu.berkeley.cs.scads.comm.Conversions._
 import edu.berkeley.cs.scads.storage._
 import edu.berkeley.cs.avro.marker.AvroRecord
 import org.apache.avro.generic._
