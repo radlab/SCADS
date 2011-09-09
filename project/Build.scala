@@ -10,6 +10,7 @@ object ScadsBuild extends Build {
     version      := buildVersion,
     shellPrompt  := ShellPrompt.buildShellPrompt,
     resolvers    := Seq(radlabRepo, localMaven),
+    parallelExecution in Test := false,
     publishTo <<= (version) { version: String =>
       val nexus = "http://scads.knowsql.org/nexus/content/repositories/"
       if (version.trim.endsWith("SNAPSHOT")) Some("snapshots" at nexus+"snapshots/") 
