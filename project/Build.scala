@@ -18,12 +18,10 @@ object ScadsBuild extends Build {
     },
     credentials += Credentials(Path.userHome / ".ivy2" / "credentials"),    ivyConfigurations += Configurations.CompilerPlugin,
     /* HACK work around due to bugs in sbt compiler plugin handling code */
-    scalacOptions in Compile <++= update map { report =>
+    scalacOptions <++= update map { report =>
       val pluginClasspath = report matching configurationFilter(Configurations.CompilerPlugin.name)
       pluginClasspath.map("-Xplugin:" + _.getAbsolutePath).toSeq
     })
-
-   
 
   addCompilerPlugin(avroPluginDep)
 				
