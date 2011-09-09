@@ -1,3 +1,3 @@
 JAVAREBEL=-javaagent:~/local/jrebel.jar 
 
-java $JAVAREBEL -XX:MaxGCPauseMillis=1000 -XX:+UseConcMarkSweepGC -noverify -XX:ReservedCodeCacheSize=64M -noverify -Djava.library.path=/usr/local/mesos/lib/java -Xss2M -Xmx7G -XX:MaxPermSize=3G -jar `dirname $0`/sbt-launch-0.11.0-SNAPSHOT.jar "$@"
+SCADS_CONFIG=config/test.conf java $JAVAREBEL -XX:MaxGCPauseMillis=1000 -XX:+UseConcMarkSweepGC -noverify -XX:ReservedCodeCacheSize=64M -noverify -Djava.library.path=/usr/local/mesos/lib/java -Xss2M -Xmx7G -XX:MaxPermSize=3G -jar `dirname $0`/sbt-launch-0.11.0-SNAPSHOT.jar "$@"
