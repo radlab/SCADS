@@ -5,8 +5,6 @@ import edu.berkeley.cs.avro.marker._
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.util._
 
-import scala.tools.nsc.Interpreter._
-
 import org.apache.avro.Schema 
 import org.apache.avro.generic._
 

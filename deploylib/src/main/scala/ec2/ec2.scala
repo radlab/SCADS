@@ -11,7 +11,7 @@ import java.net.URL
 import edu.berkeley.cs.scads.comm._
 
 import scala.collection.JavaConversions._
-import scala.collection.immutable.TreeHashMap
+import scala.collection.immutable.TreeMap
 
 /**
  * Provides static methds for interacting with instances running on amazons EC2.
