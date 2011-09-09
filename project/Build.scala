@@ -16,7 +16,8 @@ object ScadsBuild extends Build {
       if (version.trim.endsWith("SNAPSHOT")) Some("snapshots" at nexus+"snapshots/") 
       else                                   Some("releases" at nexus+"releases/")
     },
-    credentials += Credentials(Path.userHome / ".ivy2" / "credentials"),    ivyConfigurations += Configurations.CompilerPlugin,
+    credentials += Credentials(Path.userHome / ".ivy2" / "credentials"),
+    ivyConfigurations += Configurations.CompilerPlugin,
     /* HACK work around due to bugs in sbt compiler plugin handling code */
     scalacOptions <++= update map { report =>
       val pluginClasspath = report matching configurationFilter(Configurations.CompilerPlugin.name)
