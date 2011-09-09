@@ -40,7 +40,7 @@ object ScadsBuild extends Build {
   lazy val modeling = Project("modeling", file("modeling"), settings=buildSettings) dependsOn(piql, perf, deploylib, scadr, tpcw)
   lazy val piql = Project("piql", file("piql"), settings=buildSettings) dependsOn(config, avroPlugin, comm, scalaEngine)
   lazy val perf = Project("perf", file("perf"), settings=buildSettings) dependsOn(config, avroPlugin, comm, scalaEngine, deploylib)
-  lazy val scadr = Project("scadr", file("piql/scadr"), settings=buildSettings) dependsOn(piql, perf)
+  lazy val scadr = Project("scadr", file("piql/scadr"), settings=buildSettings) dependsOn(piql % "compile;test->test", perf)
   lazy val tpcw = Project("tpcw", file("piql/tpcw"), settings=buildSettings) dependsOn(piql, perf)
   lazy val axer = Project("axer", file("axer"), settings=buildSettings) dependsOn(avroPlugin)
   lazy val matheron = Project("matheron", file("matheron"), settings=buildSettings) dependsOn(config, avroPlugin, comm, scalaEngine)
