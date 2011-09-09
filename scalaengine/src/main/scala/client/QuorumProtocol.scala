@@ -347,9 +347,9 @@ trait QuorumProtocol
     def act() {
       loop {
         react {
-          case m => null //HACK: read repair broken!
-            //if (readRepairPF.isDefinedAt(m)) readRepairPF.apply(m)
-            //else throw new RuntimeException("Unknown message" + m)
+          case m =>
+            if (readRepairPF.isDefinedAt(m)) readRepairPF.apply(m)
+            else throw new RuntimeException("Unknown message" + m)
         }
       }
     }
@@ -588,6 +588,21 @@ trait QuorumRangeProtocol
       oos.writeObject(parser)
       val responses = partitions(0).servers.map(_ !! BulkUrlPutReqest(baos.toByteArray,locations))
       responses.blockFor(partitions(0).servers.length)
+    }
+  }
+
+  /**
+   * Get all value versions for a range of keys.  Does not perform read-repair.
+   */
+  def getAllRangeVersions(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]]): Seq[(PartitionService, Seq[(Array[Byte],Option[Array[Byte]])])] = {
+    val partitions = serversForKeyRange(startKey, endKey)
+    waitForAndThrowException(
+      partitions.flatMap(range => {
+        val rangeReq = GetRangeRequest(range.startKey, range.endKey, None, None, true)
+        range.servers.map(partition => (partition !! rangeReq, partition)) 
+      }) 
+    ) {    
+      case (GetRangeResponse(recs), partition) => (partition, recs.map(r=>(r.key,r.value)))
     }
   }
 

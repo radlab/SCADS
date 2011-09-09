@@ -3,13 +3,13 @@ import Keys._
 
 object ScadsBuild extends Build {
   val buildVersion      = "2.1.2-SNAPSHOT"
-  val defaultScalaVersion = "2.8.1"
+  val defaultScalaVersion = "2.9.1"
   val buildSettings = Defaults.defaultSettings ++ Seq (
     organization := "edu.berkeley.cs",
     scalaVersion := defaultScalaVersion,
     version      := buildVersion,
     shellPrompt  := ShellPrompt.buildShellPrompt,
-    resolvers    := Seq(radlabRepo),
+    resolvers    := Seq(radlabRepo, localMaven),
     publishTo <<= (version) { version: String =>
       val nexus = "http://scads.knowsql.org/nexus/content/repositories/"
       if (version.trim.endsWith("SNAPSHOT")) Some("snapshots" at nexus+"snapshots/") 
@@ -23,8 +23,10 @@ object ScadsBuild extends Build {
     })
 
    
+
   addCompilerPlugin(avroPluginDep)
-						
+				
+  val localMaven = "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/.m2/repository"		
   val radlabRepo = "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"
 
   lazy val scads = Project("scads", file("."), settings=buildSettings) aggregate (config, avroPlugin, comm, deploylib, scalaEngine, piql, scadr, tpcw, modeling)
@@ -47,13 +49,13 @@ object ScadsBuild extends Build {
   /* Config */
   def configDeps = Seq(scalaTest, junit, configgy) //Note: must be a def to avoid null pointer exception
   val configgy = "net.lag" % "configgy" % "2.0.0"
-  val scalaTest = "org.scalatest" % "scalatest" % "1.2"
+  val scalaTest = "org.scalatest" %% "scalatest" % "1.6.1"
   val junit = "junit" % "junit" % "4.7"
 
   /* Avro */
   def avroPluginDeps = Seq(avroJava, avroIpc, scalaCompiler, configgy)
-  val avroJava = "org.apache.avro" % "avro" % "1.5.1"
-  val avroIpc = "org.apache.avro" % "avro-ipc" % "1.5.1"
+  val avroJava = "org.apache.avro" % "avro" % "1.5.2-SNAPSHOT"
+  val avroIpc = "org.apache.avro" % "avro-ipc" % "1.5.2-SNAPSHOT"
   val scalaCompiler = "org.scala-lang" % "scala-compiler" % defaultScalaVersion
   val avroPluginDep = "edu.berkeley.cs" %% "avro-plugin" % buildVersion % "plugin"
   val avroPluginCompile = "edu.berkeley.cs" %% "avro-plugin" % buildVersion

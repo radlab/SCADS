@@ -173,7 +173,7 @@ class BlockingFuture[T] extends ScadsFuture[T] {
   private var done          = false
   private var elem: T       = _
 
-  def cancel() { error("UNIMPLEMENTED") }
+  def cancel() { sys.error("UNIMPLEMENTED") }
 
   def isSet: Boolean = synchronized { done }
 

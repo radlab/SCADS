@@ -10,19 +10,20 @@ import edu.berkeley.cs.scads.comm.Conversions._
 import edu.berkeley.cs.scads.storage._
 import edu.berkeley.cs.avro.marker.AvroRecord
 import org.apache.avro.generic._
+import org.apache.avro.Schema
 import org.apache.avro.util.Utf8
 import net.lag.logging.Logger
 import collection.mutable.HashSet
 import edu.berkeley.cs.avro.runtime.ScalaSpecificRecord
-import edu.berkeley.cs.scads.storage.routing.RoutingTableProtocol
 import edu.berkeley.cs.scads.util.RangeTable
+
 
 /**
  * Currently commented out tests for hash partitioning (as they have never worked and aren't yet used anywhere).
  * TODO: Fix and uncomment the hash partition tests.
  *
   @RunWith(classOf[JUnitRunner])
-class HashKeyValueStoreSpec extends AbstracKeyValueStoreSpec {
+class HashKeyValueStoreSpec extends AbstractKeyValueStoreSpec {
   override def createNamespace(ns: String) = {
     val servers = cluster.getAvailableServers
     cluster.createHashNamespace[StringRec, StringRec](ns,
@@ -79,40 +80,37 @@ class HashKeyValueStoreSpec extends AbstracKeyValueStoreSpec {
 }*/
 
 @RunWith(classOf[JUnitRunner])
-class RangeKeyValueStoreSpec extends AbstracKeyValueStoreSpec {
-  override def createNamespace(ns: String) = {
-    cluster.getNamespace[StringRec, StringRec](ns)
-  }
+class RangeKeyValueStoreSpec extends AbstractKeyValueStoreSpec {
 
   describe("getRange Method") {
     it("should have bulkGetRange") {
-      //val ns = createNamespace[IntRec, IntRec]("bulkrangetest")
+      val ns = createNamespace[IntRec, IntRec]("bulkrangetest")
 
-      ///* Insert Integers 1-100 */
-      //(1 to 100).foreach(i => ns.put(IntRec(i),IntRec(i)))
+      /* Insert Integers 1-100 */
+      (1 to 100).foreach(i => ns.put(IntRec(i),IntRec(i)))
 
-      //val queriesAnswers =
-      //  ((null, null), (1 to 100)) ::
-      //  ((null, IntRec(50)), (1 until 50)) ::
-      //  ((IntRec(50), null), (50 to 100)) ::
-      //  ((IntRec(10), IntRec(90)), (10 until 90)) ::
-      //  ((IntRec(-10), null), (1 to 100)) ::
-      //  ((null, IntRec(110)), (1 to 100)) ::
-      //  ((IntRec(-10), IntRec(110)), (1 to 100)) :: Nil
+      val queriesAnswers =
+       ((null, null), (1 to 100)) ::
+       ((null, IntRec(50)), (1 until 50)) ::
+       ((IntRec(50), null), (50 to 100)) ::
+       ((IntRec(10), IntRec(90)), (10 until 90)) ::
+       ((IntRec(-10), null), (1 to 100)) ::
+       ((null, IntRec(110)), (1 to 100)) ::
+       ((IntRec(-10), IntRec(110)), (1 to 100)) :: Nil
 
-      //val futures = ns.asyncGetRange(queriesAnswers.map(_._1).map(q => (Option(q._1), Option(q._2))))
-      //  futures.zip(queriesAnswers.map(_._2)).foreach {
-      //  case (future, correctAnswer) => future().map(_._1.f1) should equal(correctAnswer)
-      //}
-
-      pending
+      val futures = queriesAnswers.map(_._1) map(q => {
+        ns.asyncGetRange(Option(q._1),Option(q._2),None,None,true)
+      })
+      futures.zip(queriesAnswers.map(_._2)).foreach {
+        case (future, correctAnswer) => future().map(_._1.f1) should equal(correctAnswer)
+      }
     }
 
 
     it("should correctly return a count of records") {pending}
 
     it("should suport prefixKeys") {
-      val ns = cluster.getNamespace[IntRec3, IntRec]("prefixrange")
+      val ns = createNamespace[IntRec3, IntRec]("prefixrange")
       val data = for (i <- 1 to 10; j <- 1 to 10; k <- 1 to 10)
       yield (IntRec3(i, k, j), IntRec(1))
 
@@ -140,7 +138,7 @@ class RangeKeyValueStoreSpec extends AbstracKeyValueStoreSpec {
     }
 
     it("should suport prefixKeys with strings") {
-      val ns = cluster.getNamespace[StringRec3, IntRec]("prefixrangestring")
+      val ns = createNamespace[StringRec3, IntRec]("prefixrangestring")
       def toString(i: Int) = "%04d".format(i)
       def toUtf8(i: Int) = new Utf8("%04d".format(i))
       val data = for (i <- 1 to 10; j <- 1 to 10; k <- 1 to 10)
@@ -171,7 +169,7 @@ class RangeKeyValueStoreSpec extends AbstracKeyValueStoreSpec {
 
     it("should support composite primary keys") {
       /* simple get/puts */
-      val ns = cluster.getNamespace[CompIntStringRec, IntRec]("compkeytest")
+      val ns = createNamespace[CompIntStringRec, IntRec]("compkeytest")
 
       val data = for (i <- 1 to 10; c <- 'a' to 'c')
       yield (CompIntStringRec(IntRec(i), StringRec(c.toString)), IntRec(1))
@@ -189,7 +187,7 @@ class RangeKeyValueStoreSpec extends AbstracKeyValueStoreSpec {
     }
 
     it("should correctly return ranges") {
-      val ns = cluster.getNamespace[IntRec, IntRec]("rangetest")
+      val ns = createNamespace[IntRec, IntRec]("rangetest")
 
       /* Insert Integers 1-100 */
       (1 to 100).foreach(i => ns.put(IntRec(i), IntRec(i)))
@@ -205,7 +203,7 @@ class RangeKeyValueStoreSpec extends AbstracKeyValueStoreSpec {
     }
 
     it("should correctly return ranges obeying the limit") {
-      val ns = cluster.getNamespace[IntRec, IntRec]("rangetestlimit")
+      val ns = createNamespace[IntRec, IntRec]("rangetestlimit")
 
       /* Insert Integers 1-100 */
       (1 to 100).foreach(i => ns.put(IntRec(i), IntRec(i)))
@@ -221,7 +219,7 @@ class RangeKeyValueStoreSpec extends AbstracKeyValueStoreSpec {
     }
 
     it("should correctly return ranges backwards") {
-      val ns = cluster.getNamespace[IntRec, IntRec]("rangetestbackwards")
+      val ns = createNamespace[IntRec, IntRec]("rangetestbackwards")
 
       /* Insert Integers 1-100 */
       (1 to 100).foreach(i => ns.put(IntRec(i), IntRec(i)))
@@ -238,7 +236,7 @@ class RangeKeyValueStoreSpec extends AbstracKeyValueStoreSpec {
     }
 
     it("should correctly return ranges backwards with limit") {
-      val ns = cluster.getNamespace[IntRec, IntRec]("rangetestlimitbackwards")
+      val ns = createNamespace[IntRec, IntRec]("rangetestlimitbackwards")
       /* Insert Integers 1-100 */
       (1 to 100).foreach(i => ns.put(IntRec(i), IntRec(i)))
 
@@ -255,7 +253,7 @@ class RangeKeyValueStoreSpec extends AbstracKeyValueStoreSpec {
 
     it("should implement asyncGetRange") {
 
-      val ns = cluster.getNamespace[IntRec, IntRec]("asyncgetrangetest")
+      val ns = createNamespace[IntRec, IntRec]("asyncgetrangetest")
 
       /* Insert Integers 1-100 */
       (1 to 100).foreach(i => ns.put(IntRec(i), IntRec(i)))
@@ -272,7 +270,7 @@ class RangeKeyValueStoreSpec extends AbstracKeyValueStoreSpec {
     }
 
     it("should delete data with range check") {
-      val ns = cluster.getNamespace[IntRec, StringRec]("kvstore_deletetest_range")
+      val ns = createNamespace[IntRec, StringRec]("kvstore_deletetest_range")
 
       /* Insert Integers 1-100 */
       (1 to 100).foreach(i => ns.put(IntRec(i), StringRec(i.toString)))
@@ -287,7 +285,7 @@ class RangeKeyValueStoreSpec extends AbstracKeyValueStoreSpec {
 }
 
 
-abstract class AbstracKeyValueStoreSpec extends Spec with ShouldMatchers with BeforeAndAfterAll {
+class AbstractKeyValueStoreSpec extends Spec with ShouldMatchers with BeforeAndAfterAll {
   val cluster = TestScalaEngine.newScadsCluster(5)
   val logger = Logger()
 
@@ -295,10 +293,12 @@ abstract class AbstracKeyValueStoreSpec extends Spec with ShouldMatchers with Be
     cluster.shutdownCluster()
   }
 
-  def createNamespace(ns: String)
-  : KeyValueStore[StringRec, StringRec, StringRec, (StringRec, StringRec)]
-          with QuorumProtocol[StringRec, StringRec, StringRec, (StringRec, StringRec)]
-          with SpecificNamespaceTrait[StringRec, StringRec]
+  def createNamespace[KType <: ScalaSpecificRecord : Manifest,VType <: ScalaSpecificRecord : Manifest](ns: String):SpecificNamespace[KType,VType] = {
+    cluster.getNamespace[KType,VType](ns)
+  }
+
+  def createNamespace(ns:String, s1:Schema, s2:Schema, vc:String) =
+    cluster.getNamespace(ns,s1,s2,vc)
 
   val rand = new scala.util.Random(123456789)
 
@@ -341,14 +341,14 @@ abstract class AbstracKeyValueStoreSpec extends Spec with ShouldMatchers with Be
 
   describe("SCADS Namespace") {
     it("should implement get/put") {
-      val ns = createNamespace("getputtest")
+      val ns = createNamespace[StringRec,StringRec]("getputtest")
 
       (1 to 100).foreach(i => ns.put(keys(i), StringRec(i.toString)))
       (1 to 100).foreach(i => ns.get(keys(i)) should equal(Some(StringRec(i.toString))))
     }
 
     it("should block the quorum for a put") {
-      val ns = createNamespace("quorumtest")
+      val ns = createNamespace[StringRec,StringRec]("quorumtest")
       for (i <- 0 to 100) {
         ns.put(keys(1), StringRec("string1"))
         ns.get(keys(1)) should equal(Some(StringRec("string1")))
@@ -358,7 +358,7 @@ abstract class AbstracKeyValueStoreSpec extends Spec with ShouldMatchers with Be
     }
 
     it("should delete data") {
-      val ns = createNamespace("kvstore_deletetest")
+      val ns = createNamespace[StringRec,StringRec]("kvstore_deletetest")
 
       /* Insert Integers 1-100 */
       (1 to 100).foreach(i => ns.put(keys(i), StringRec(i.toString)))
@@ -369,7 +369,7 @@ abstract class AbstracKeyValueStoreSpec extends Spec with ShouldMatchers with Be
     }
 
     it("should implement asyncGet") {
-      val ns = createNamespace("asyncgettest")
+      val ns = createNamespace[StringRec,StringRec]("asyncgettest")
 
       val recs = (1 to 500).map(i => (keys(i), StringRec((3 * i).toString)))
       ns ++= recs
@@ -382,25 +382,19 @@ abstract class AbstracKeyValueStoreSpec extends Spec with ShouldMatchers with Be
       }
     }
 
-
-
-
-
     it("should return all versions") {
-      val ns = createNamespace("allversions")
+      val ns = createNamespace[StringRec,StringRec]("allversions")
       ns.put(keys(1), StringRec("string1"))
-      val values = ns.getAllVersions(keys(1)).map(_._2.get.f1)
-      values should contain("string1")
+      val values = ns.getAllVersions(keys(1).toBytes).map(r => ns.bytesToValue(r._2.get).f1)
+      values should contain ("string1")
     }
 
     it("should implement test/set") {pending}
 
 
-    it("should handle prefix schema resolution automatically") {
+    it("should error when schema do not match") {
       import scala.collection.JavaConversions._
 
-      import org.apache.avro.{generic, Schema}
-      import generic._
       import Schema._
 
       import org.codehaus.jackson.node.NullNode
@@ -416,11 +410,17 @@ abstract class AbstracKeyValueStoreSpec extends Spec with ShouldMatchers with Be
       newSchema.setFields(Seq(new Field("f1", Schema.create(Type.INT), "", null),
         new Field("f2", Schema.createUnion(Seq(Schema.create(Type.NULL), Schema.create(Type.INT))), "", NullNode.instance)))
 
+      val r = new GenericData.Record(oldSchema)
+
       // load the cluster once with an "old" version (1 field)
-      val oldNs = cluster.getNamespace("prefixSchemaRes", oldSchema, oldSchema)
+      val oldNs = createNamespace("prefixSchemaRes", oldSchema, oldSchema,r.getClass.getName)
+
+      // need to call put since serializer is lazy and isn't constructed until needed
+      r.put(0,0)
+      oldNs.put(r,r)
 
       // now, load the cluster with a "new" version (2 fields)
-      val newNs = cluster.getNamespace("prefixSchemaRes", newSchema, newSchema)
+      val newNs = createNamespace("prefixSchemaRes", newSchema, newSchema,r.getClass.getName)
 
       def newIntRec(f1: Int, f2: Option[Int]) = {
         val rec = new GenericData.Record(newSchema)
@@ -429,9 +429,11 @@ abstract class AbstracKeyValueStoreSpec extends Spec with ShouldMatchers with Be
         rec
       }
 
-      for (i <- 1 to 10) {
-        newNs.put(newIntRec(i, Some(i)), newIntRec(i, Some(i)))
-        newNs.get(newIntRec(i, Some(i))) should equal(Some(newIntRec(i, None)))
+      try {
+        newNs.put(newIntRec(1, Some(1)), newIntRec(1, Some(1)))
+        fail()
+      } catch {
+        case e:RuntimeException => assert(e.getMessage.equals("Local and remote schemas do not have the same types"))
       }
 
     }
@@ -443,7 +445,7 @@ abstract class AbstracKeyValueStoreSpec extends Spec with ShouldMatchers with Be
 
     it("should efficently bulk load from iterator using ++=") {
 
-      val ns = createNamespace("pluspluseqtest")
+      val ns = createNamespace[StringRec,StringRec]("pluspluseqtest")
 
       val recs = (1 to 300).map(i => (keys(i), StringRec(i.toString)))
       ns ++= recs

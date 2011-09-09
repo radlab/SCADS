@@ -18,6 +18,7 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
     node.getOrCreate("partitions")
     node.createChild("keySchema", keySchema.toString.getBytes, CreateMode.PERSISTENT)
     node.createChild("valueSchema", valueSchema.toString.getBytes, CreateMode.PERSISTENT)
+    node.createChild("valueClass", valueClass.getBytes, CreateMode.PERSISTENT)
   }
 
   // NS must NOT exist or exception is thrown
@@ -53,13 +54,13 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
         /* Someone else has the create lock, so we should wait until they finish */
         case e: KeeperException if e.code == KeeperException.Code.NODEEXISTS => {
           logger.info("Failed to grab create lock. Waiting for creation for finish.")
-          nsRoot.awaitChild("initialized")
+          nsRoot.awaitChild("initialized", timeout=5 * 1000)
           false
         }
       }
     }
     else {
-      nsRoot.awaitChild("initialized")
+      nsRoot.awaitChild("initialized", timeout=5* 1000)
       false
     }
 
@@ -99,8 +100,10 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
     nsRoot.getOrCreate(key).data = value
   }
 
-  override def deleteMetadata(key: String): Unit =
-    nsRoot.deleteChild(key)
+  override def deleteMetadata(key: String): Unit = {
+    if (nsRoot != null) // might be null if we already destroyed the whole partition
+      nsRoot.deleteChild(key)
+  }
 
   override def waitUntilMetadataPropagated(): Unit =
     nsRoot.waitUntilPropagated()

@@ -1,5 +1,6 @@
 package edu.berkeley.cs.scads.storage
 
+import java.io.ByteArrayInputStream
 import java.nio._
 
 import org.apache.avro._ 
@@ -7,7 +8,41 @@ import generic._
 import io._
 import specific._
 
-trait SimpleRecordMetadata extends RecordMetadata 
+trait SimpleRecordMetadataExtractor {
+  def extractMetadataAndRecordFromValue(value: Array[Byte]): (Array[Byte], Array[Byte]) = {
+    assert(value.length >= 16, "value array is too small to be valid")
+    // be explicit for performance reasons
+    val rhs_len = value.length - 16
+    val lhs = new Array[Byte](16)
+    val rhs = new Array[Byte](rhs_len)
+    System.arraycopy(value, 0, lhs, 0, 16)
+    System.arraycopy(value, 16, rhs, 0, rhs_len)
+    (lhs, rhs)
+  }
+
+  def extractRecordFromValue(value: Array[Byte]): Array[Byte] = {
+    assert(value.length >= 16, "value array is too small to be valid")
+    val rhs_len = value.length - 16
+    val rhs = new Array[Byte](rhs_len)
+    System.arraycopy(value, 16, rhs, 0, rhs_len)
+    rhs
+  }
+
+  def extractMetadataFromValue(value: Array[Byte]): Array[Byte] = {
+    assert(value.length >= 16, "value array is too small to be valid")
+    val mdarray = new Array[Byte](16)
+    System.arraycopy(value, 0, mdarray, 0, 16)
+    mdarray
+  }
+
+  def getRecordInputStreamFromValue(value: Array[Byte]): ByteArrayInputStream = {
+    assert(value.length >= 16, "value array is too small to be valid")
+    new ByteArrayInputStream(value,16,(value.length-16))
+  }
+}
+
+trait SimpleRecordMetadata extends RecordMetadata
+  with SimpleRecordMetadataExtractor
   with GlobalMetadata {
 
   val cluster: ScadsCluster
@@ -50,22 +85,4 @@ trait SimpleRecordMetadata extends RecordMetadata
     return 0
   }
 
-  override def extractMetadataAndRecordFromValue(value: Array[Byte]): (Array[Byte], Array[Byte]) = {
-    assert(value.length >= 16, "value array is too small to be valid")
-    // be explicit for performance reasons
-    val rhs_len = value.length - 16
-    val lhs = new Array[Byte](16)
-    val rhs = new Array[Byte](rhs_len)
-    System.arraycopy(value, 0, lhs, 0, 16)
-    System.arraycopy(value, 16, rhs, 0, rhs_len)
-    (lhs, rhs)
-  }
-
-  override def extractRecordFromValue(value: Array[Byte]): Array[Byte] = {
-    assert(value.length >= 16, "value array is too small to be valid")
-    val rhs_len = value.length - 16
-    val rhs = new Array[Byte](rhs_len)
-    System.arraycopy(value, 16, rhs, 0, rhs_len)
-    rhs
-  }
 }

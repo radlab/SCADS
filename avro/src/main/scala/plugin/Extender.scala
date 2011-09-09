@@ -58,7 +58,7 @@ trait Extender extends ScalaAvroPluginComponent
       case cd @ ClassDef(mods, name, tparams, impl) if isMarked(cd) =>
 
         // check that this annotation is a case class
-        if (!cd.hasFlag(Flags.CASE))
+        if (!mods.hasFlag(Flags.CASE))
           throw new NonCaseClassException(name.toString)
 
         // todo: for case objects, throw exception

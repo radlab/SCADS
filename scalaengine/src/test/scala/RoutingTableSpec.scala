@@ -31,25 +31,13 @@ class RoutingTableSpec extends WordSpec with ShouldMatchers with BeforeAndAfterA
 
   "A Routing Table" should {
 
-    "route requests" in {
-      val ns : SpecificNamespace[IntRec, IntRec] = client1.createNamespace[IntRec, IntRec]("routingtest", List(
-            (None,storageServices.slice(0,3)),
-            (50,storageServices.slice(3,6)),
-            (100 ,storageServices.slice(6,9))))
-      (1 to 150 by 5).foreach(i => ns.put(IntRec(i), IntRec(i)))
-      ns.getRange(None, None).map(_._1.f1) should equal (1 to 150 by 5)
-      val ranges = ns.getAllRangeVersions(None, None).map(_._1.storageService)
-      for( (orig, received) <- storageServices.zip(ranges))
-        orig  should equal (received)
-    }
-
     "add servers" in {
       val ns : SpecificNamespace[IntRec, IntRec] = client1.createNamespace[IntRec, IntRec]("addservertest", List(
             (None,storageServices.slice(0,3)),
             (50,storageServices.slice(4,7)),
             (100 ,storageServices.slice(7,10))))
       (1 to 150 by 5).foreach(i => ns.put(IntRec(i), IntRec(i)))
-      val partitionToClone = ns.partitions.ranges(1).values(0)
+      val partitionToClone = ns.routingTable.ranges(1).values(0)
       ns.replicatePartitions(List((partitionToClone, storageServices(3))))
       ns.getRange(None, None).map(_._1.f1) should equal (1 to 150 by 5)
       val ranges = ns.getAllRangeVersions(None, None).map(_._1.storageService)
@@ -63,7 +51,7 @@ class RoutingTableSpec extends WordSpec with ShouldMatchers with BeforeAndAfterA
             (50,storageServices.slice(3,7)),
             (100 ,storageServices.slice(7,10))))
       (1 to 150 by 5).foreach(i => ns.put(IntRec(i), IntRec(i)))
-      val partitionToDelete = ns.partitions.ranges(1).values(0)
+      val partitionToDelete = ns.routingTable.ranges(1).values(0)
       println("Going to delete partition: %s".format(partitionToDelete))
       ns.deletePartitions(List(partitionToDelete))
       println("DONE deleting partition")
@@ -75,7 +63,6 @@ class RoutingTableSpec extends WordSpec with ShouldMatchers with BeforeAndAfterA
       val storageServ = storageServices.slice(0, 3) ::: storageServices.slice(4, 10)
       for( (orig, received) <- storageServ.zip(ranges))
         orig  should equal (received)
-      
     }
 
     "split partitions" in {
@@ -83,7 +70,7 @@ class RoutingTableSpec extends WordSpec with ShouldMatchers with BeforeAndAfterA
             (None,storageServices.slice(0,3)),
             (100 ,storageServices.slice(3,6))))
        (1 to 150 by 5).foreach(i => ns.put(IntRec(i), IntRec(i)))
-       ns.splitPartition(List(50, 150))
+       ns.splitPartition(List(IntRec(50).toBytes, IntRec(150).toBytes))
        ns.getRange(None, None).map(_._1.f1) should equal (1 to 150 by 5)
        val ranges = ns.getAllRangeVersions(None, None).map(_._1.storageService)
        ranges should have size (12)
@@ -96,16 +83,16 @@ class RoutingTableSpec extends WordSpec with ShouldMatchers with BeforeAndAfterA
             (100 ,storageServices.slice(3,6)),
             (150 ,storageServices.slice(3,6))))
        (1 to 150 by 5).foreach(i => ns.put(IntRec(i), IntRec(i)))
-       //println("Before routing table " + ns.routingTable)
-       println("Before all range versions" + ns.getAllRangeVersions(None, None))
-       Thread.sleep(1000) 
-       ns.mergePartitions(List(IntRec(50), IntRec(150)))
-       Thread.sleep(1000)
-       //println("After Routing table " + ns.routingTable)
-       println("After all range versions " + ns.getAllRangeVersions(None, None))
-       ns.getRange(None, None).map(_._1.f1) should equal (1 to 150 by 5)
-       val ranges = ns.getAllRangeVersions(None, None).map(_._1.storageService)
-       ranges should have size (6)
+      //println("Before routing table " + ns.routingTable)
+      println("Before all range versions" + ns.getAllRangeVersions(None, None))
+      Thread.sleep(1000) 
+      ns.mergePartition(List(IntRec(50).toBytes, IntRec(150).toBytes))
+      Thread.sleep(1000)
+      //println("After Routing table " + ns.routingTable)
+      println("After all range versions " + ns.getAllRangeVersions(None, None))
+      ns.getRange(None, None).map(_._1.f1) should equal (1 to 150 by 5)
+      val ranges = ns.getAllRangeVersions(None, None).map(_._1.storageService)
+      ranges should have size (6)
     }
 
   }
