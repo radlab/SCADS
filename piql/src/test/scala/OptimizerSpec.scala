@@ -7,6 +7,7 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.Spec
 import org.scalatest.matchers.{Matcher, MatchResult, ShouldMatchers}
+import storage._
 
 class OptimizerSpec extends Spec with ShouldMatchers {
   import Relations._
