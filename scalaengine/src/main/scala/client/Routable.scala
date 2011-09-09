@@ -71,7 +71,7 @@ trait DefaultKeyRoutableLike
     _routingTable.valuesForKey(convertToRoutingKey(key))
   }
 
-  override def onRoutingTableChanged(newTable: Array[Byte]): Unit = error("onRoutingTableChanged")
+  override def onRoutingTableChanged(newTable: Array[Byte]): Unit = sys.error("onRoutingTableChanged")
 
   protected def routingKeyComp: (Array[Byte], Array[Byte]) => Int
 

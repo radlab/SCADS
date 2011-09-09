@@ -72,7 +72,7 @@ trait QuorumProtocol
       def compute(timeoutHint: Long, unit: TimeUnit) = 
         finishGetHandler(new GetHandler(key, ftchs, unit.toMillis(timeoutHint)), quorum)
           .getOrElse(throw new RuntimeException("Could not complete get request - not enough servers responded"))
-      def cancelComputation = error("NOT IMPLEMENTED")
+      def cancelComputation = sys.error("NOT IMPLEMENTED")
     }
   }
 
@@ -103,7 +103,7 @@ trait QuorumProtocol
         responses.blockFor(quorum)
       }
 
-      def cancelComputation = error("NOT IMPLEMENTED")
+      def cancelComputation = sys.error("NOT IMPLEMENTED")
     }
   }
 
@@ -457,7 +457,7 @@ trait QuorumRangeProtocol
     new ComputationFuture[Seq[(Array[Byte], Array[Byte])]] {
       def compute(timeoutHint: Long, unit: TimeUnit) = 
         finishGetRangeRequest(ptr, ftchs, limit, offset, ascending, Some(unit.toMillis(timeoutHint)))
-      def cancelComputation = error("NOT IMPLEMENTED")
+      def cancelComputation = sys.error("NOT IMPLEMENTED")
     }
   }
 
@@ -581,7 +581,7 @@ trait QuorumRangeProtocol
                                 firstKey:Option[Array[Byte]],lastKey:Option[Array[Byte]]) {
     val partitions = serversForKeyRange(firstKey, lastKey)
     if (partitions.length > 1)
-      error("Can't bulk put locations over more than one partition")
+      sys.error("Can't bulk put locations over more than one partition")
     else {
       val baos = new java.io.ByteArrayOutputStream
       val oos = new java.io.ObjectOutputStream(baos)

@@ -48,7 +48,7 @@ object TpcwModeling {
   	  val quantileAsInt = (quantile * 100).toInt  // convert to percentage; still receive input as percentage to maintain consistency with Histogram's version
       val cumulativeSum = hist.scanLeft(BigInt(0))(_ + _).drop(1)
       if(hist.sum > 0)
-        cumulativeSum.findIndexOf(_ >= hist.sum * BigInt(quantileAsInt)/BigInt(100)) * bucketSize
+        cumulativeSum.indexWhere(_ >= hist.sum * BigInt(quantileAsInt)/BigInt(100)) * bucketSize
       else
         0
     }

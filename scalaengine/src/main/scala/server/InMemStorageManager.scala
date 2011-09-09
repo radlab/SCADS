@@ -11,13 +11,12 @@ import edu.berkeley.cs.scads.util._
 import org.apache.avro.Schema
 import net.lag.logging.Logger
 
-@serializable
-private case class EQArray(bytes:Array[Byte])  {
+private case class EQArray(bytes:Array[Byte]) extends Serializable {
   override def equals(other:Any):Boolean = JArrays.equals(bytes,other.asInstanceOf[EQArray].bytes)
   override def hashCode():Int = JArrays.hashCode(bytes)
 }
-@serializable
-private case class EQCmp(keySchema:Schema) extends Comparator[EQArray] with Serializable{
+
+private case class EQCmp(keySchema:Schema) extends Comparator[EQArray] with Serializable {
   override def compare(o1:EQArray, o2:EQArray):Int = {
     org.apache.avro.io.BinaryData.compare(o1.bytes, 0, o2.bytes, 0, keySchema)
   }

@@ -10,8 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger
 case class PartitionWorkloadStats(var gets:Int, var puts:Int)
 
 // Used for bulk puts of urls
-@serializable
-abstract trait RecParser {
+abstract trait RecParser extends Serializable {
   def setLocation(location:String):Unit = {}
   def setInput(in:InputStream):Unit
   def getNext():(AnyRef,AnyRef)

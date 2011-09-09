@@ -107,7 +107,7 @@ trait KeyValueStore[K <: IndexedRecord, V <: IndexedRecord]
   extends BaseKeyValueStoreImpl[K, V, (K, V)]
   with KeyValueSerializer[K, V] {
 
-  def iterator: Iterator[(K, V)] = error("iterator")
+  def iterator: Iterator[(K, V)] = sys.error("iterator")
 
 }
 

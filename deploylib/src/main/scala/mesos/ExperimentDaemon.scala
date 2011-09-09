@@ -37,5 +37,6 @@ class ServiceScheduler(mesosMaster: String, executor: String) extends LocalExper
       driver.killTask(TaskID.newBuilder.setValue(taskId).build())
       src.foreach(_ ! KillTaskResponse())
     }
+    case otherMsg => logger.error("Received unexpected message: %s", otherMsg)
   }
 }

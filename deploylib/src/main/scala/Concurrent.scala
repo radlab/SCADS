@@ -67,10 +67,6 @@ class Future[A](f: => A) {
  * Parallel version of seq that run the command for each item in its own thread
  */
 class ParallelSeq[A](seq: List[A]) {
-
-  @deprecated("use apmap")
-  def spmap[B](f: (A) => B): List[Future[B]] = apmap(f)
-
   /* Async pmap.  Returns a list of futures instead of blocking */
   def apmap[B](f: (A) => B): List[Future[B]] = {
     seq.map(v => new Future(f(v)))

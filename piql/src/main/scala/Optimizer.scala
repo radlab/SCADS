@@ -9,7 +9,6 @@ import org.apache.avro.Schema.Field
 import org.apache.avro.util.Utf8
 import scala.collection.JavaConversions._
 import net.lag.logging.Logger
-import piql.{QueryPlan, FixedLimit}
 
 case class ImplementationLimitation(desc: String) extends Exception
 
@@ -160,7 +159,7 @@ object Optimizer {
   protected def derefPlan(ns: Namespace, idxPlan: RemotePlan): QueryPlan = {
     val keyFields = ns.keySchema.getFields
     val idxFields = getFields(idxPlan.namespace)
-    val keyGenerator = keyFields.map(kf => AttributeValue(0, idxFields.findIndexOf(_.name equals kf.name)))
+    val keyGenerator = keyFields.map(kf => AttributeValue(0, idxFields.indexWhere(_.name equals kf.name)))
     IndexLookupJoin(ns, keyGenerator, idxPlan)
   }
 
@@ -195,16 +194,16 @@ object Optimizer {
       logger.info("attempting to bind qualified attribute: %s.%s in %s", relationName, attrName, schema)
       val relationNames = schema.map(_.namespace)
       logger.info("selecting from relationName options: %s", relationNames)
-      val recordPosition = relationNames.findIndexOf(_ equals relationName)
-      val fieldPosition = getFields(schema(recordPosition)).findIndexOf(_.name equals attrName)
+      val recordPosition = relationNames.indexWhere(_ equals relationName)
+      val fieldPosition = getFields(schema(recordPosition)).indexWhere(_.name equals attrName)
       AttributeValue(recordPosition, fieldPosition)
     }
     case UnboundAttributeValue(name: String) => {
       //TODO: Throw execption when ambiguious
       logger.info("attempting to bind %s in %s", name, schema)
       val recordSchemas = schema.map(getFields)
-      val recordPosition = recordSchemas.findIndexOf(_.map(_.name) contains name)
-      val fieldPosition = recordSchemas(recordPosition).findIndexOf(_.name equals name)
+      val recordPosition = recordSchemas.indexWhere(_.map(_.name) contains name)
+      val fieldPosition = recordSchemas(recordPosition).indexWhere(_.name equals name)
       AttributeValue(recordPosition, fieldPosition)
     }
     case otherValue => otherValue
