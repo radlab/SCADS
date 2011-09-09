@@ -21,8 +21,8 @@ object ScadsBuild extends Build {
     /* HACK work around due to bugs in sbt compiler plugin handling code */
     scalacOptions <++= update map { report =>
       val pluginClasspath = report matching configurationFilter(Configurations.CompilerPlugin.name)
-      pluginClasspath.map("-Xplugin:" + _.getAbsolutePath).toSeq
-    })
+      pluginClasspath.map("-Xplugin:" + _.getAbsolutePath).toSeq :+ "-deprecation" :+ "-unchecked"
+  })
 
   addCompilerPlugin(avroPluginDep)
 				
