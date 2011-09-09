@@ -55,6 +55,8 @@ class IndexNamespace(
 { 
   import IndexManager._
 
+  val valueClass = classOf[IndexedRecord].getName
+
   private lazy val keyReaderWriter = new AvroGenericReaderWriter[IndexedRecord](Some(remoteKeySchema), keySchema)
   
   override def bytesToKey(bytes: Array[Byte]): IndexedRecord = 
