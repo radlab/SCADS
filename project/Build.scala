@@ -35,15 +35,15 @@ object ScadsBuild extends Build {
   lazy val comm = Project("communication", file("comm"), settings=buildSettings ++ Seq(libraryDependencies := commDeps)) dependsOn(config)
   lazy val optional = Project("optional", file("optional"), settings=buildSettings ++ Seq(libraryDependencies := Seq(paranamer)))
   lazy val deploylib = Project("deploylib", file("deploylib"), settings=buildSettings ++ Seq(libraryDependencies := deploylibDeps)) dependsOn(comm, optional)
-  lazy val scalaEngine = Project("scala-engine", file("scalaengine"), settings=buildSettings ++ Seq(libraryDependencies := scalaEngineDeps)) dependsOn(config, avroPlugin, comm, deploylib)
+  lazy val scalaEngine = Project("scala-engine", file("scalaengine"), settings=buildSettings ++ Seq(libraryDependencies := scalaEngineDeps)) dependsOn(config, comm, deploylib)
 
-  lazy val modeling = Project("modeling", file("modeling"), settings=buildSettings) dependsOn(piql, perf, deploylib, scadr, tpcw)
-  lazy val piql = Project("piql", file("piql"), settings=buildSettings) dependsOn(config, avroPlugin, comm, scalaEngine)
-  lazy val perf = Project("perf", file("perf"), settings=buildSettings) dependsOn(config, avroPlugin, comm, scalaEngine, deploylib)
-  lazy val scadr = Project("scadr", file("piql/scadr"), settings=buildSettings) dependsOn(piql % "compile;test->test", perf)
-  lazy val tpcw = Project("tpcw", file("piql/tpcw"), settings=buildSettings) dependsOn(piql, perf)
-  lazy val axer = Project("axer", file("axer"), settings=buildSettings) dependsOn(avroPlugin)
-  lazy val matheron = Project("matheron", file("matheron"), settings=buildSettings) dependsOn(config, avroPlugin, comm, scalaEngine)
+  lazy val modeling = Project("modeling", file("modeling"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(piql, perf, deploylib, scadr, tpcw)
+  lazy val piql = Project("piql", file("piql"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(config, comm, scalaEngine)
+  lazy val perf = Project("perf", file("perf"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(config, comm, scalaEngine, deploylib)
+  lazy val scadr = Project("scadr", file("piql/scadr"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(piql % "compile;test->test", perf)
+  lazy val tpcw = Project("tpcw", file("piql/tpcw"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(piql, perf)
+  lazy val axer = Project("axer", file("axer"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin))
+  lazy val matheron = Project("matheron", file("matheron"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(config, comm, scalaEngine)
 
   /* Config */
   def configDeps = configgy +: testDeps //Note: must be a def to avoid null pointer exception
@@ -61,6 +61,8 @@ object ScadsBuild extends Build {
   val avroPluginDep = "edu.berkeley.cs" %% "avro-plugin" % buildVersion % "plugin"
   val avroPluginCompile = "edu.berkeley.cs" %% "avro-plugin" % buildVersion
   val paranamer = "com.thoughtworks.paranamer" % "paranamer" % "2.0"
+
+  def useAvroPlugin = Seq(avroPluginDep, avroPluginCompile)
 
   /* Comm */
   def commDeps = Seq(netty, zookeeper, commonsHttpClient, log4j, avroPluginDep, avroPluginCompile) ++ testDeps
