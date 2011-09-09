@@ -47,13 +47,15 @@ object ScadsBuild extends Build {
   lazy val matheron = Project("matheron", file("matheron"), settings=buildSettings) dependsOn(config, avroPlugin, comm, scalaEngine)
 
   /* Config */
-  def configDeps = Seq(scalaTest, junit, configgy) //Note: must be a def to avoid null pointer exception
+  def configDeps = configgy +: testDeps //Note: must be a def to avoid null pointer exception
   val configgy = "net.lag" % "configgy" % "2.0.0"
+
+  def testDeps = Seq(scalaTest, junit)
   val scalaTest = "org.scalatest" %% "scalatest" % "1.6.1"
   val junit = "junit" % "junit" % "4.7"
 
   /* Avro */
-  def avroPluginDeps = Seq(avroJava, avroIpc, scalaCompiler, configgy)
+  def avroPluginDeps = Seq(avroJava, avroIpc, scalaCompiler, configgy) ++ testDeps
   val avroJava = "org.apache.avro" % "avro" % "1.5.2-SNAPSHOT"
   val avroIpc = "org.apache.avro" % "avro-ipc" % "1.5.2-SNAPSHOT"
   val scalaCompiler = "org.scala-lang" % "scala-compiler" % defaultScalaVersion
@@ -62,14 +64,14 @@ object ScadsBuild extends Build {
   val paranamer = "com.thoughtworks.paranamer" % "paranamer" % "2.0"
 
   /* Comm */
-  def commDeps = Seq(netty, zookeeper, commonsHttpClient, log4j, scalaTest, junit, avroPluginDep, avroPluginCompile)
+  def commDeps = Seq(netty, zookeeper, commonsHttpClient, log4j, avroPluginDep, avroPluginCompile) ++ testDeps
   val netty = "org.jboss.netty" % "netty" % "3.2.1.Final"
   val log4j = "log4j" % "log4j" % "1.2.15"
   val zookeeper = "org.apache.zookeeper" % "zookeeper" % "3.3.1"
 
 
   /* Scala Engine */
-  def scalaEngineDeps = Seq(bdb, avroPluginDep, avroPluginCompile)
+  def scalaEngineDeps = Seq(bdb, avroPluginDep, avroPluginCompile) ++ testDeps
   val bdb = "com.sleepycat" % "je" % "4.0.71"
 
   /* deploy lib */
@@ -109,7 +111,7 @@ object ShellPrompt {
 
   val current = """\*\s+(\w+)""".r
 
-  def gitBranches = ("git branch --no-color" lines_! devnull mkString)
+  def gitBranches = ("/opt/local/bin/git branch --no-color" lines_! devnull mkString)
 
   val buildShellPrompt = {
     (state: State) => {
