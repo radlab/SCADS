@@ -14,7 +14,18 @@ case class ParameterValue(ordinal: Int) extends FixedValue
 
 /* Attibute Values */
 case class AttributeValue(recordPosition: Int, fieldPosition: Int) extends Value
-case class UnboundAttributeValue(name: String) extends Value
+case class UnboundAttributeValue(name: String) extends Value {
+  protected val qualifiedAttribute = """([^\.]+)\.([^\.]+)""".r
+  def relationName: Option[String] = name match {
+    case qualifiedAttribute(r,f) => Some(r)
+    case _ => None
+  }
+  
+  def unqualifiedName: String  = name match {
+    case qualifiedAttribute(r,f) => f
+    case _ => name
+  }
+}
 
 abstract class Limit
 case class FixedLimit(count: Int) extends Limit
