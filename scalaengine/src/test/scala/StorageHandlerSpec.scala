@@ -22,10 +22,13 @@ class StorageHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterAll
     val root = handler.root
     root.getOrCreate("namespaces/testns/keySchema").data = IntRec.schema.toString.getBytes
     root.getOrCreate("namespaces/testns/valueSchema").data = IntRec.schema.toString.getBytes
+    root.getOrCreate("namespaces/testns/valueClass").data = classOf[IntRec].getName.getBytes
     root.getOrCreate("namespaces/testns/partitions")
+
 
     root.getOrCreate("namespaces/testgc/keySchema").data = IntRec.schema.toString.getBytes
     root.getOrCreate("namespaces/testgc/valueSchema").data = IntRec.schema.toString.getBytes
+    root.getOrCreate("namespaces/testgc/valueClass").data = classOf[IntRec].getName.getBytes
     root.getOrCreate("namespaces/testgc/partitions")
   }
 
