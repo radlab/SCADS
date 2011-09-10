@@ -21,7 +21,7 @@ object ZooKeeperHelper {
   private val currentPort = new AtomicInteger(2000) // start at port 2000
 
   //HACK because zookeper is anoyingly noisy in the logs
-  org.apache.log4j.Logger.getRootLogger.setLevel(org.apache.log4j.Level.INFO)
+  org.apache.log4j.Logger.getRootLogger.setLevel(org.apache.log4j.Level.WARN)
 
   /**
    * Create a local zookeeper instance in JVM and return a ZooKeeperProxy for it.  

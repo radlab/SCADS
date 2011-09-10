@@ -8,9 +8,11 @@ import org.junit.runner.RunWith
 
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.storage._
+import net.lag.logging.Logger
 
 @RunWith(classOf[JUnitRunner])
 class RoutingTableSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll {
+  protected val logger = Logger()
   val client1 = TestScalaEngine.newScadsCluster(10)
   val storageServices = client1.managedServices.toList
 
@@ -52,9 +54,9 @@ class RoutingTableSpec extends WordSpec with ShouldMatchers with BeforeAndAfterA
             (100 ,storageServices.slice(7,10))))
       (1 to 150 by 5).foreach(i => ns.put(IntRec(i), IntRec(i)))
       val partitionToDelete = ns.routingTable.ranges(1).values(0)
-      println("Going to delete partition: %s".format(partitionToDelete))
+      logger.debug("Going to delete partition: %s".format(partitionToDelete))
       ns.deletePartitions(List(partitionToDelete))
-      println("DONE deleting partition")
+      logger.debug("DONE deleting partition")
       ns.getRange(None, None).map(_._1.f1) should equal (1 to 150 by 5)
       for(x <- (1 to 150 by 5)){
         ns.get(IntRec(x)).getOrElse(IntRec(-1)).f1 should equal (x)
@@ -83,13 +85,13 @@ class RoutingTableSpec extends WordSpec with ShouldMatchers with BeforeAndAfterA
             (100 ,storageServices.slice(3,6)),
             (150 ,storageServices.slice(3,6))))
        (1 to 150 by 5).foreach(i => ns.put(IntRec(i), IntRec(i)))
-      //println("Before routing table " + ns.routingTable)
-      println("Before all range versions" + ns.getAllRangeVersions(None, None))
+      //logger.debug("Before routing table " + ns.routingTable)
+      logger.debug("Before all range versions" + ns.getAllRangeVersions(None, None))
       Thread.sleep(1000) 
       ns.mergePartition(List(IntRec(50).toBytes, IntRec(150).toBytes))
       Thread.sleep(1000)
-      //println("After Routing table " + ns.routingTable)
-      println("After all range versions " + ns.getAllRangeVersions(None, None))
+      //logger.debug("After Routing table " + ns.routingTable)
+      logger.debug("After all range versions " + ns.getAllRangeVersions(None, None))
       ns.getRange(None, None).map(_._1.f1) should equal (1 to 150 by 5)
       val ranges = ns.getAllRangeVersions(None, None).map(_._1.storageService)
       ranges should have size (6)
