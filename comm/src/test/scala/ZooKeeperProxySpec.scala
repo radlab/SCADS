@@ -11,8 +11,9 @@ import edu.berkeley.cs.scads.comm._
 
 @RunWith(classOf[JUnitRunner])
 class ZookeeperProxySpec extends Spec with ShouldMatchers {
+  //Try to make two seperate connections to zookeeper
   val zk1 = ZooKeeperHelper.getTestZooKeeper()
-  val zk2 = new ZooKeeperProxy(zk1.address)
+  val zk2 = new ZooKeeperProxy(zk1.proxy.address).root(zk1.path.drop(1))
 
   def spawn(f: => Unit) = new Thread {
     start()
@@ -21,33 +22,33 @@ class ZookeeperProxySpec extends Spec with ShouldMatchers {
 
   describe("The zookeeper proxy") {
     it("should create nodes") {
-      zk1.root.createChild("createTest")
-      zk2.root("createTest")
+      zk1.createChild("createTest")
+      zk2("createTest")
     }
 
     it("should create nodes relativly") {
-      zk1.root.createChild("level1").createChild("level2")
-      zk2.root("level1/level2")
+      zk1.createChild("level1").createChild("level2")
+      zk2("level1/level2")
 
-      zk1.root("level1").createChild("anotherLevel2")
-      zk2.root("level1/anotherLevel2")
+      zk1("level1").createChild("anotherLevel2")
+      zk2("level1/anotherLevel2")
     }
 
     it("should get or create paths") {
-      val newNode = zk1.root.getOrCreate("path1/path2/path3")
-      newNode.path should equal("/path1/path2/path3")
+      val newNode = zk1.getOrCreate("path1/path2/path3")
+      newNode.path should endWith("path1/path2/path3")
 
-      zk2.root("path1/path2/path3")
+      zk2("path1/path2/path3")
     }
 
     it("should delete nodes") {
-      val newNode = zk1.root.createChild("test")
-      zk1.root.children should contain(newNode)
-      zk1.root("test")
+      val newNode = zk1.createChild("test")
+      zk1.children should contain(newNode)
+      zk1("test")
 
       newNode.delete
-      zk1.root.children should not contain(newNode)
-      zk1.root.get("test") should equal(None)
+      zk1.children should not contain(newNode)
+      zk1.get("test") should equal(None)
     }
 
     it("should awaitChild properly") {
@@ -56,20 +57,20 @@ class ZookeeperProxySpec extends Spec with ShouldMatchers {
 
       // wait thread
       spawn {
-        zk1.root.awaitChild("testAwaitChild")
+        zk1.awaitChild("testAwaitChild")
         barrierA.countDown()
-        assert(zk1.root("testAwaitChild") != null)
+        assert(zk1("testAwaitChild") != null)
       }
 
       Thread.sleep(3000) // try to give the wait thread a chance to block
-      zk2.root.createChild("testAwaitChild")
+      zk2.createChild("testAwaitChild")
       barrierA.await()
 
 
     }
 		it("should do onDataChange properly") {
 			var changed = new scala.concurrent.SyncVar[Int]
-			val newNode = zk1.root.createChild("changingNode")
+			val newNode = zk1.createChild("changingNode")
 			newNode.onDataChange( ()=> { changed.set(1)})
 			newNode.data = "hi!".getBytes
 			changed.get(1000).isDefined should equal(true)

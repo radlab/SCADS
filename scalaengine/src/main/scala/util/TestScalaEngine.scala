@@ -21,7 +21,7 @@ object TestScalaEngine {
     /** Cannot use EPHEMERAL* here since the zooRoot must be able
      * to have children (ie namespaces, keySchema, etc), and 
      * EPHEMERAL* nodes CANNOT have children */
-    val zooRoot = zooKeeper.root.createChild("scadsClient-%s".format(java.util.UUID.randomUUID.toString), Array.empty, CreateMode.PERSISTENT)
+    val zooRoot = zooKeeper.createChild("scadsClient-%s".format(java.util.UUID.randomUUID.toString), Array.empty, CreateMode.PERSISTENT)
     val cluster = new ManagedScadsCluster(zooRoot)
     cluster ensureExactly numNodes
     cluster
