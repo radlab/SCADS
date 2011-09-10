@@ -97,7 +97,7 @@ object ScadsBuild extends Build {
   val javaSysMon = "github.jezhumble" % "javasysmon" % "0.3.3"
 
 
-  def repl(lift, jetty6, h2, servlet, sl4jConfiggy)
+  def replDeps = Seq(lift, jetty6, servlet, sl4jConfiggy)
   val lift = "net.liftweb" %% "lift-mapper" % "2.2-SNAPSHOT" % "compile"
   val jetty6 = "org.mortbay.jetty" % "jetty" % "6.1.25" % "test"
   val servlet = "javax.servlet" % "servlet-api" % "2.5" % "provided"
@@ -108,7 +108,6 @@ object ScadsBuild extends Build {
  * Mixin to create prompt of the form [current project]:[current git branch]>
  */
 object ShellPrompt {
-
   object devnull extends ProcessLogger {
     def info (s: => String) {}
     def error (s: => String) { }
