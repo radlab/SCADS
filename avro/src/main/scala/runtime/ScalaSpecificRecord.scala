@@ -27,14 +27,7 @@ private[runtime] object ScalaSpecificRecordHelpers {
 trait ScalaSpecificRecord extends SpecificRecord {
 
   private final lazy val __writer__ = new SpecificDatumWriter[this.type](getSchema)
-  private final lazy val __reader__ = new SpecificDatumReader[this.type](getSchema, getSchema, new SpecificData(getClass.getClassLoader)) {
-    override def newRecord(old: AnyRef, schema: Schema) =
-      if (old ne null) old // a bit of a hack (no checking for class instance equality)
-                           // but for normal usages, old should always be an
-                           // appropriate instance (since our records are
-                           // typesafe)
-      else super.newRecord(old, schema)
-  }
+  private final lazy val __reader__ = new SpecificDatumReader[this.type](getSchema, getSchema, new SpecificData(getClass.getClassLoader))
 
   def toBytes: Array[Byte] = {
     val out = new ByteArrayOutputStream(128)
