@@ -10,8 +10,9 @@ import org.apache.avro.Schema
 
 @RunWith(classOf[JUnitRunner])
 class SchemaCompareSpec extends Spec {
+  def parser = new Schema.Parser()
   
-  val s1 = Schema.parse(
+  val s1 = parser.parse(
     """
     { "type": "record", "name": "aaa", "fields": [
       {"name":"fefee", "type":"int"},
@@ -19,14 +20,14 @@ class SchemaCompareSpec extends Spec {
     """
   )
 
-  val s15 = Schema.parse(
+  val s15 = parser.parse(
     """
     { "type": "record", "name": "aaa", "fields": [
       {"name":"fefee", "type":"int"}] }
     """
   )
 
-  val s2 = Schema.parse(
+  val s2 = parser.parse(
     """
     { "type": "record", "name": "xxx", "fields": [
       {"name":"ifee", "type":"int"},
@@ -34,7 +35,7 @@ class SchemaCompareSpec extends Spec {
     """
   )
 
-  val s3 = Schema.parse(
+  val s3 = parser.parse(
     """
     { "type": "record", "name": "xxx", "fields": [
       {"name":"ifee", "type":"int"},
@@ -42,7 +43,7 @@ class SchemaCompareSpec extends Spec {
     """
   )
     
-  val s4 = Schema.parse(
+  val s4 = parser.parse(
     """{"type": "record", "name": "efwefew", "fields": [
       {"name":"id", "type":"int"},
       {"name":"f", "type":{"type":"record", "name":"rec", "fields": [
@@ -55,7 +56,7 @@ class SchemaCompareSpec extends Spec {
       {"name":"okefew", "type":"bytes"}]}"""
   )
 
-  val s5 = Schema.parse(
+  val s5 = parser.parse(
     """{"type": "record", "name": "cwefewre", "fields": [
       {"name":"iwefew", "type":"int"},
       {"name":"ffewf", "type":{"type":"record", "name":"ffrec", "fields": [
@@ -68,7 +69,7 @@ class SchemaCompareSpec extends Spec {
       {"name":"okefddew", "type":"bytes"}]}"""
   )
 
-  val s6 = Schema.parse(
+  val s6 = parser.parse(
     """{"type": "record", "name": "cwefewre", "fields": [
       {"name":"iwefew", "type":"int"},
       {"name":"ffewf", "type":{"type":"record", "name":"ffrec", "fields": [

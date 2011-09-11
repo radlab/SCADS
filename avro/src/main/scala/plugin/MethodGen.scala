@@ -200,11 +200,13 @@ trait MethodGen extends ScalaAvroPluginComponent
           // at least cache the invocations)
           warning("Unable to optimize getSchema method for class %s".format(clazz.fullName.toString))
           Apply(
-            Ident(newTermName("org")) DOT 
-              newTermName("apache")   DOT
-              newTermName("avro")     DOT
-              newTermName("Schema")   DOT
-              newTermName("parse"),
+            Ident(newTermName("edu")) DOT 
+                newTermName("berkeley")   DOT
+                newTermName("cs")     DOT
+                newTermName("avro")   DOT
+		newTermName("runtime")   DOT
+		newTermName("ScalaSpecificRecord")   DOT
+                newTermName("parse"),
             List(LIT(retrieveRecordSchema(clazz).get.toString)))
         }
       localTyper.typed {
@@ -222,11 +224,13 @@ trait MethodGen extends ScalaAvroPluginComponent
       localTyper.typed {
         DEF(newSym) === { 
           Apply(
-            Ident(newTermName("org")) DOT 
-              newTermName("apache")   DOT
-              newTermName("avro")     DOT
-              newTermName("Schema")   DOT
-              newTermName("parse"),
+            Ident(newTermName("edu")) DOT 
+                newTermName("berkeley")   DOT
+                newTermName("cs")     DOT
+                newTermName("avro")   DOT
+		newTermName("runtime")   DOT
+		newTermName("ScalaSpecificRecord")   DOT
+                newTermName("parse"),
             List(LIT(unionSchema.toString)))
         }
       }
@@ -266,10 +270,12 @@ trait MethodGen extends ScalaAvroPluginComponent
           } else {
             warning("Unable to optimize %s method for class %s".format(fieldName, clazz.fullName.toString))
             Apply(
-              Ident(newTermName("org")) DOT 
-                newTermName("apache")   DOT
-                newTermName("avro")     DOT
-                newTermName("Schema")   DOT
+              Ident(newTermName("edu")) DOT 
+                newTermName("berkeley")   DOT
+                newTermName("cs")     DOT
+                newTermName("avro")   DOT
+		newTermName("runtime")   DOT
+		newTermName("ScalaSpecificRecord")   DOT
                 newTermName("parse"),
               List(LIT(fallbackSchema)))
           }

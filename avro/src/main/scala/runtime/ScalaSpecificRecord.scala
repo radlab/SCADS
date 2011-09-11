@@ -24,6 +24,13 @@ private[runtime] object ScalaSpecificRecordHelpers {
   }
 }
 
+object ScalaSpecificRecord {
+  val parser = new Schema.Parser()
+
+  //HACK: to deal with multiple compilations phases with same global object in sbt
+  def parse(schema: String): Schema = new Schema.Parser().parse(schema)
+}
+
 trait ScalaSpecificRecord extends SpecificRecord {
 
   private final lazy val __writer__ = new SpecificDatumWriter[this.type](getSchema)
