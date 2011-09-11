@@ -40,7 +40,7 @@ object ScadsBuild extends Build {
   lazy val config = Project("config", file("config"), settings=buildSettings ++ Seq(libraryDependencies := configDeps))
   lazy val comm = Project("communication", file("comm"), settings=buildSettings ++ Seq(libraryDependencies := commDeps)) dependsOn(config)
   lazy val optional = Project("optional", file("optional"), settings=buildSettings ++ Seq(libraryDependencies := Seq(paranamer)))
-  lazy val deploylib = Project("deploylib", file("deploylib"), settings=buildSettings ++ Seq(libraryDependencies := deploylibDeps)) dependsOn(comm, optional)
+  lazy val deploylib = Project("deploylib", file("deploylib"), settings=buildSettings ++ DeployConsole.deploySettings ++ Seq(libraryDependencies := deploylibDeps)) dependsOn(comm, optional)
   lazy val scalaEngine = Project("scala-engine", file("scalaengine"), settings=buildSettings ++ Seq(libraryDependencies := scalaEngineDeps)) dependsOn(config, comm, deploylib)
   lazy val piql = Project("piql", file("piql"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(config, comm, scalaEngine)
   lazy val perf = Project("perf", file("perf"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(config, comm, scalaEngine, deploylib)
@@ -125,4 +125,24 @@ object ShellPrompt {
       "%s:%s> ".format (currProject, currBranch)
     }
   }
+}
+
+object DeployConsole {
+  import Classpaths._
+  import sbt.Project.Initialize
+
+  val packageDependencies = TaskKey[Seq[java.io.File]]("package-dependencies", "get package deps")
+
+  def findPackageDeps: Initialize[Task[Seq[java.io.File]]] =
+    (thisProjectRef, thisProject, settings) flatMap {
+      (projectRef: ProjectRef, project: ResolvedProject, data: Settings[Scope]) => {
+	println(getConfigurations(projectRef, data))
+	Seq((Keys.`package` in (projectRef, ConfigKey("runtime"))).get(data).get).join
+      }
+    }
+
+
+  val deploySettings = Seq(
+    packageDependencies <<= findPackageDeps
+  )
 }
