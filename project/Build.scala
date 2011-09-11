@@ -179,7 +179,7 @@ object ShellPrompt {
 
   val current = """\*\s+(\w+)""".r
 
-  def gitBranches = ("/opt/local/bin/git branch --no-color" lines_! devnull mkString)
+  def gitBranches = ("git branch --no-color" lines_! devnull mkString)
 
   val buildShellPrompt = {
     (state: State) => {
