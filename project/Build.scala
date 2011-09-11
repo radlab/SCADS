@@ -150,6 +150,11 @@ object DeployConsole {
 
   val deploySettings = Seq(
     packageDependencies <<= findPackageDeps,
-    deployConsole <<= packageDependencies map { (deps: Seq[java.io.File]) => {println(deps)} }
+    deployConsole <<= (packageDependencies, fullClasspath in Runtime) map { 
+      (deps: Seq[java.io.File], cp: Classpath) => {
+	val allJars = deps ++ cp.files.filter(_.getName endsWith "jar")
+	println(allJars)
+      }
+    }
   )
 }
