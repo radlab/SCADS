@@ -214,7 +214,6 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
       "CLASSPATH=\"-cp " + classpath + "\"" ::
       "MESOS=-Djava.library.path=/usr/local/mesos/lib/java" :: Nil
 
-    createFile(new File("/root/setup.scala"), Util.readFile(new File("setup.scala")))
     createFile(new File("/root/console"),
       (headers :+ "$JAVA $CLASSPATH $MESOS scala.tools.nsc.MainGenericRunner $CLASSPATH -i jars/classsource.scala $@").mkString("\n"))
     this ! "chmod 755 /root/console"

@@ -173,7 +173,7 @@ class JavaExecutor extends Executor {
       "-verbosegc",
       "-XX:+UseConcMarkSweepGC",
       "-XX:MaxGCPauseMillis=200",
-      "-Djava.library.path=" + new File(System.getenv("MESOS_HOME"), "lib/java"),
+      "-Djava.library.path=" + new File("/usr/local/mesos/lib/java"),
       properties.map(kv => "-D%s=%s".format(kv._1, kv._2)).mkString(" "),
       "-cp", classpath,
       mainClass) ++ args

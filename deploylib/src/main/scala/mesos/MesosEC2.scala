@@ -47,7 +47,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
   def serviceScheduler = classOf[RemoteServiceScheduler].newInstance.parse(serviceSchedulerNode.data)
   def serviceSchedulerLog = firstMaster.catFile("/root/serviceScheduler.log")
 
-  def stopAllInstances = (masters ++ slaves ++ zooKeepers).pforeach(_.halt)
+  def stopAllInstances() = (masters ++ slaves ++ zooKeepers).pforeach(_.halt)
 
   def setup(numSlaves: Int = 1) = (Future {setupMesosMaster()} ::
                                    Future {setupZooKeeper()} ::
