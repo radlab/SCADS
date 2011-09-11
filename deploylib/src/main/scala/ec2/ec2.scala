@@ -201,11 +201,7 @@ class EC2Instance protected (val instanceId: String) extends RemoteMachine with 
    * Note, this is mostly a hack to work around problems with mesos on EC2.
    * TODO: Integrate w/ sbt
    */
-  def pushJars: Seq[File] = {
-    val jarFile = new File("allJars")
-    val (deploylibJar, otherJars) = Util.readFile(jarFile).split("\n").map(new File(_)).partition(_.getName contains "deploylib")
-    val jars = deploylibJar ++ otherJars
-
+  def pushJars(jars: Seq[File]) = {
     logger.debug("Starting Jar upload")
     val cachedJars = cacheFiles(jars)
     cachedJars.foreach(j => this ! "ln -s -f %s %s.jar".format(j,j))

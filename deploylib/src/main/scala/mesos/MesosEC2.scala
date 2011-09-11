@@ -25,6 +25,11 @@ object ServiceSchedulerDaemon extends optional.Application {
   }
 }
 
+object MesosCluster {
+  //HACK
+  var jarFiles: Seq[java.io.File] = _
+}
+
 /**
  * Functions to help maintain a mesos cluster on EC2.
  */
@@ -53,7 +58,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       val executorScript = Util.readFile(new File("deploylib/src/main/resources/java_executor"))
         .split("\n")
         .map {
-        case s if (s contains "CLASSPATH=") => "CLASSPATH='-cp /usr/local/mesos/lib/java/mesos.jar:" + inst.pushJars.mkString(":") + "'"
+        case s if (s contains "CLASSPATH=") => "CLASSPATH='-cp /usr/local/mesos/lib/java/mesos.jar:" + inst.pushJars(MesosCluster.jarFiles).mkString(":") + "'"
         case s => s
       }.mkString("\n")
 
@@ -72,7 +77,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     }
 
     masters.foreach(_.blockUntilRunning)
-    masters.pforeach(_.pushJars)
+    masters.pforeach(_.pushJars(MesosCluster.jarFiles))
     updateMasterConf
 
     zooKeepers.foreach(_.blockUntilRunning)
@@ -172,7 +177,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
         server.createFile(new File("/mnt/startZookeeper"), startScript)
         server ! "chmod 755 /mnt/startZookeeper"
 
-        server.pushJars
+        server.pushJars(MesosCluster.jarFiles)
         server.executeCommand("killall java")
         server ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/zookeeper.pid --exec /mnt/startZookeeper"
     }
@@ -314,9 +319,9 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     else
       System.getProperty("deploylib.classSource").split("\\|").map(S3CachedJar(_))
 
+  //TODO fix me.
   def pushJars: Seq[String] = {
-    val jarFile = new File("allJars")
-    val jars = Util.readFile(jarFile).split("\n").map(new File(_))
+    val jars = MesosCluster.jarFiles
     val (deploylib, otherJars) = jars.partition(_.getName contains "deploylib")
     val sortedJars = deploylib ++ otherJars
 

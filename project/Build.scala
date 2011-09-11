@@ -156,9 +156,8 @@ object DeployConsole extends BuildCommon {
 	val cmds = Seq(
 	  "import deploylib._",
 	  "import deploylib.ec2._",
-	  "import edu.berkeley.cs.scads.comm._",
 	  "val allJars = " + allJars.map(f => "new java.io.File(\"%s\")".format(f.getCanonicalPath)).mkString("Seq(", ",", ")"),
-	  "implicit def classSource: Seq[S3CachedJar] = allJars.map(f => S3CachedJar(f.getCanonicalPath))"
+	  "deploylib.mesos.MesosCluster.jarFiles = allJars"
 	).mkString("\n")
 
 	(new Console(cs.scalac))(Build.data(cp), options, cmds, s.log).foreach(msg => error(msg))
