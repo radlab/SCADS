@@ -79,13 +79,12 @@ class IndexNamespace(
 
   override def newKeyInstance = keyReaderWriter.newInstance
 
-  override def newRecordInstance(schema: Schema) =
-    keyReaderWriter.newRecordInstance(schema)
-
   override lazy val valueSchema = indexValueSchema
 
   def asyncGetRecord(key: IndexedRecord) = asyncGet(key)
   def getRecord(key: IndexedRecord) = get(key)
+
+  def newRecord(schema: Schema) = keyReaderWriter.newRecord(schema)
 }
 
 /** An IndexManager is intended to provide index maintainence for AvroPair

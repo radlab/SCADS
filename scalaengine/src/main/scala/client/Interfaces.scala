@@ -45,7 +45,7 @@ trait Serializer[KeyType <: IndexedRecord, ValueType <: IndexedRecord, BulkType]
   def valueToBytes(value: ValueType): Array[Byte]
   def bulkToBytes(b: BulkType): (Array[Byte], Array[Byte])
 
-  def newRecordInstance(schema: Schema): IndexedRecord
+  def newRecord(schema: Schema): IndexedRecord
   def newKeyInstance: KeyType
 }
 
