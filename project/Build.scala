@@ -24,6 +24,8 @@ object ScadsBuild extends Build {
       pluginClasspath.map("-Xplugin:" + _.getAbsolutePath).toSeq :+ "-deprecation" :+ "-unchecked"
   })
 
+  val deploySettings = buildSettings ++ DeployConsole.deploySettings
+
   addCompilerPlugin(avroPluginDep)
 				
   /* Artifact Repositories */
@@ -40,17 +42,17 @@ object ScadsBuild extends Build {
   lazy val config = Project("config", file("config"), settings=buildSettings ++ Seq(libraryDependencies := configDeps))
   lazy val comm = Project("communication", file("comm"), settings=buildSettings ++ Seq(libraryDependencies := commDeps)) dependsOn(config)
   lazy val optional = Project("optional", file("optional"), settings=buildSettings ++ Seq(libraryDependencies := Seq(paranamer)))
-  lazy val deploylib = Project("deploylib", file("deploylib"), settings=buildSettings ++ DeployConsole.deploySettings ++ Seq(libraryDependencies := deploylibDeps)) dependsOn(comm, optional)
-  lazy val scalaEngine = Project("scala-engine", file("scalaengine"), settings=buildSettings ++ Seq(libraryDependencies := scalaEngineDeps)) dependsOn(config, comm, deploylib)
-  lazy val piql = Project("piql", file("piql"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(config, comm, scalaEngine)
-  lazy val perf = Project("perf", file("perf"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(config, comm, scalaEngine, deploylib)
+  lazy val deploylib = Project("deploylib", file("deploylib"), settings=deploySettings ++ Seq(libraryDependencies := deploylibDeps)) dependsOn(comm, optional)
+  lazy val scalaEngine = Project("scala-engine", file("scalaengine"), settings=deploySettings ++ Seq(libraryDependencies := scalaEngineDeps)) dependsOn(config, comm, deploylib)
+  lazy val piql = Project("piql", file("piql"), settings=deploySettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(config, comm, scalaEngine)
+  lazy val perf = Project("perf", file("perf"), settings=deploySettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(config, comm, scalaEngine, deploylib)
 
   /* Other projects and experiments */
-  lazy val modeling = Project("modeling", file("modeling"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(piql, perf, deploylib, scadr, tpcw)
-  lazy val scadr = Project("scadr", file("piql/scadr"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(piql % "compile;test->test", perf)
-  lazy val tpcw = Project("tpcw", file("piql/tpcw"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(piql, perf)
-  lazy val axer = Project("axer", file("axer"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin))
-  lazy val matheron = Project("matheron", file("matheron"), settings=buildSettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(config, comm, scalaEngine)
+  lazy val modeling = Project("modeling", file("modeling"), settings=deploySettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(piql, perf, deploylib, scadr, tpcw)
+  lazy val scadr = Project("scadr", file("piql/scadr"), settings=deploySettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(piql % "compile;test->test", perf)
+  lazy val tpcw = Project("tpcw", file("piql/tpcw"), settings=deploySettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(piql, perf)
+  lazy val axer = Project("axer", file("axer"), settings=deploySettings ++ Seq(libraryDependencies := useAvroPlugin))
+  lazy val matheron = Project("matheron", file("matheron"), settings=deploySettings ++ Seq(libraryDependencies := useAvroPlugin)) dependsOn(config, comm, scalaEngine)
 
   /**
    * Dependencies
@@ -132,17 +134,22 @@ object DeployConsole {
   import sbt.Project.Initialize
 
   val packageDependencies = TaskKey[Seq[java.io.File]]("package-dependencies", "get package deps")
+  val deployConsole = TaskKey[Unit]("deploy-console", "scala console for deploying to EC2")
 
   def findPackageDeps: Initialize[Task[Seq[java.io.File]]] =
     (thisProjectRef, thisProject, settings) flatMap {
       (projectRef: ProjectRef, project: ResolvedProject, data: Settings[Scope]) => {
-	println(getConfigurations(projectRef, data))
-	Seq((Keys.`package` in (projectRef, ConfigKey("runtime"))).get(data).get).join
+	def visit(p: ProjectRef): Seq[Task[java.io.File]]  = {
+	  val depProject = thisProject in p get data getOrElse error("Invalid project: " + p)
+	  val jarFile = (Keys.`package` in (p, ConfigKey("runtime"))).get(data).get
+	  jarFile +: depProject.dependencies.map { case ResolvedClasspathDependency(dep, confMapping) => dep }.flatMap(visit).toList
+	}
+	visit(projectRef).join.map(_.toSet.toSeq)
       }
     }
 
-
   val deploySettings = Seq(
-    packageDependencies <<= findPackageDeps
+    packageDependencies <<= findPackageDeps,
+    deployConsole <<= packageDependencies map { (deps: Seq[java.io.File]) => {println(deps)} }
   )
 }
