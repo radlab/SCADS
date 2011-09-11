@@ -129,12 +129,13 @@ object ShellPrompt {
   }
 }
 
-object DeployConsole {
+object DeployConsole extends BuildCommon {
   import Classpaths._
   import sbt.Project.Initialize
 
   val packageDependencies = TaskKey[Seq[java.io.File]]("package-dependencies", "get package deps")
   val deployConsole = TaskKey[Unit]("deploy-console", "scala console for deploying to EC2")
+  val oldConsole = TaskKey[Unit]("old-console", "testing standard console")
 
   def findPackageDeps: Initialize[Task[Seq[java.io.File]]] =
     (thisProjectRef, thisProject, settings) flatMap {
@@ -150,11 +151,25 @@ object DeployConsole {
 
   val deploySettings = Seq(
     packageDependencies <<= findPackageDeps,
-    deployConsole <<= (packageDependencies, fullClasspath in Runtime) map { 
-      (deps: Seq[java.io.File], cp: Classpath) => {
+    deployConsole <<= (packageDependencies, fullClasspath in Runtime, compilers in console, scalacOptions in Runtime, streams) map { 
+      (deps: Seq[java.io.File], cp: Classpath, cs, options, s) => {
 	val allJars = deps ++ cp.files.filter(_.getName endsWith "jar")
-	println(allJars)
+	allJars.foreach(println)
+	val jarScala = allJars.map(f => "new java.io.File(\"%s\")".format(f.getCanonicalPath)).mkString("Seq(", ",", ")")
+	val cmd = "val x = " + jarScala + "\n"
+	
+	(new Console(cs.scalac))(Build.data(cp), options, "println(1)", s.log).foreach(msg => error(msg))
+	println()
       }
-    }
+    },
+    oldConsole <<= (compilers in console, fullClasspath in Runtime, scalacOptions in console, initialCommands in console, streams) map {
+      (cs, cp, options, initCommands, s) => {
+	println(initCommands)
+	println("starting console")
+	(new Console(cs.scalac))(Build.data(cp), options, initCommands, s.log).foreach(msg => error(msg))
+	println("exiting console")
+        println()
+      }
+    }	
   )
 }
