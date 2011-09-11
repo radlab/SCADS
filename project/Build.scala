@@ -83,7 +83,7 @@ object ScadsBuild extends Build {
   /* Other projects and experiments */
   lazy val modeling = Project(
     "modeling", 
-    file("modeling"), 
+    file("experiments/modeling"), 
     settings=deploySettings ++ Seq(
       libraryDependencies := useAvroPlugin,
       initialCommands in console := (
