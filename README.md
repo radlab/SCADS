@@ -8,7 +8,7 @@ SCADS Core
 ----------
 * [config](https://github.com/radlab/SCADS/wiki/SCADS-Config) - Configuration file parsing.
 * [avro-plugin](https://github.com/radlab/SCADS/wiki/Avro-Plugin) - A scala compiler plugin allowing case classes to be efficiently serialized using [Avro](http://avro.apache.org/) encoding.
-* deploylib - A parallel ssh library for deploying jvm based experiments on remote servers and EC2.
+* [deploylib](https://github.com/radlab/SCADS/wiki/Deploylib) - A parallel ssh library for deploying jvm based experiments on remote servers and EC2.
 * communication - [Netty](http://www.jboss.org/netty) based message passing of Avro encoded messages.  Scala library for using [Apache ZooKeeper](http://zookeeper.apache.org/).
 * scala-engine - K/V storage optionally using [BDB](http://www.oracle.com/technetwork/database/berkeleydb/overview/index.html) for persistance.
 * piql - The performance insightful query lanaguage and scale-independent relational optimizer.
@@ -39,11 +39,11 @@ SCADS is built using [SBT](https://github.com/harrah/xsbt).  The SBT launcher is
 
 SBT commands can be invoked from the command line.  For example to clean and build jar files for the entire scads project you would run the following command:
 
-    ~/scads$ sbt clean package
+    scads/$ sbt clean package
 
 You can also execute commands on specific sub projects by specifying `<subproject>/<command>`.  For example:
 
-    ~/scads$ sbt piql/compile
+    scads/$ sbt piql/compile
 
 Additionally if you are going to be running several commands you can use sbt from an interactive console, which amortizes the cost of starting the JVM and JITing sbt and the scala compiler.  For example:
 
@@ -70,3 +70,23 @@ Useful Command Reference
 * `test` - run the testcases for the current subproject and all its dependencies
 * `test-only [test case]` - run the specified testcase or only the testcases who's source has changed since tests were last run
 * `update` - download all managed dependencies jars, note in contrast to maven this must be run explicitly.  This only needs to be run once unless dependencies have been added to the project.
+
+Deploy Console
+--------------
+Running `deploy-console` in SBT brings up a scala console containg the deploylib environment for the current project.  The deploylib environment contains all jar files nessesary for running the current project on a remote machine.  For example, to run [the experiment comparing two plans for the PIQL intersection query](https://github.com/radlab/SCADS/blob/sbt09/experiments/modeling/src/main/scala/experiments/PlanCompare.scala) on EC2:
+
+    scads/$ sbt modeling/deploy-console
+    [info] Loading project definition from /Users/marmbrus/Workspace/radlab/scads/project
+    [info] Set current project to scads (in build file:/Users/marmbrus/Workspace/radlab/scads/)
+    import deploylib._
+    import deploylib.ec2._
+    allJars: Seq[java.io.File] = List(/Users/marmbrus/Workspace/radlab/scads/piql/scadr/target/scala-2.9.1/scadr_2.9.1-2.1.2-SNAPSHOT.jar...
+    Welcome to Scala version 2.9.1.final (Java HotSpot(TM) 64-Bit Server VM, Java 1.6.0_24).
+    Type in expressions to have them evaluated.
+    Type :help for more information.
+
+    scala> import edu.berkeley.cs.scads.piql.modeling.Experiments._
+    scala> import edu.berkeley.cs.scads.piql.modeling.PlanCompare._
+    scala> cluster.setup(numSlaves = 3)
+    scala> run
+    
