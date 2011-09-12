@@ -1,4 +1,4 @@
-SCADS (Scalable Consistency Adjustable Data Storage) is a research prototype distributed storage system used in the [RAD Lab](http://radlab.cs.berkeley.edu/) and the [AMP Lab](https://amplab.cs.berkeley.edu/) at [UC Berkeley](http://berkeley.edu/). The goals of the system were first describe in [our vision paper from CIDR2009](http://radlab.cs.berkeley.edu/publication/185)
+SCADS (Scalable Consistency Adjustable Data Storage) is a research prototype distributed storage system used in the [RAD Lab](http://radlab.cs.berkeley.edu/) and the [AMP Lab](https://amplab.cs.berkeley.edu/) at [UC Berkeley](http://berkeley.edu/). The goals of the system were first described in [our vision paper from CIDR2009](http://radlab.cs.berkeley.edu/publication/185)
 
 SCADS Sub-projects
 =================
@@ -27,7 +27,7 @@ Deprecated Projects
 The following sub-projects are no longer actively maintained:
 
 * [demo](https://github.com/radlab/SCADS/wiki/Demo) - The [RAD Lab final demo](http://radlab.cs.berkeley.edu/media-news/345) used SCADS along with other projects from the RAD Lab to scale web applications written by novice developers over a weekend to hundreds of servers on Amazon EC2.
-* director - The director ensures SLO compliance for storage operations by using machine learning models to dynamically re-provision a scads storage cluster based on current and projected workload.  More details can be found in the paper from [FAST2011](http://radlab.cs.berkeley.edu/publication/185).
+* director - The director ensures SLO compliance for storage operations by using machine learning models to dynamically re-provision a scads storage cluster based on current and projected workload.  More details can be found in the paper from [FAST2011](http://www.eecs.berkeley.edu/~franklin/Papers/fast11director.pdf).
 
 Third Party Components
 ----------------------
