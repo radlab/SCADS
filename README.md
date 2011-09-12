@@ -31,13 +31,13 @@ The following sub-projects are no longer actively maintained:
 
 Third Party Components
 ----------------------
-* optional - The optional command line parsing library from paulp(https://github.com/paulp/optional) with added support for default arguments.
+* optional - The optional command line parsing library from [paulp](https://github.com/paulp/optional) with added support for default arguments.
 
 Building
 ========
 SCADS is built using [SBT](https://github.com/harrah/xsbt).  The SBT launcher is included in the distribution (bin/sbt) and is responsible for downloading all other required jars (scala library/compiler and dependencies).
 
-SBT commands can be invoked from the command line.  For example to clean and build jar file for the entire scads project you would run the following command:
+SBT commands can be invoked from the command line.  For example to clean and build jar files for the entire scads project you would run the following command:
 
     ~/scads$ sbt clean package
 
