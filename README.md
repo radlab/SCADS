@@ -11,7 +11,7 @@ SCADS Core
 * [deploylib](https://github.com/radlab/SCADS/wiki/Deploylib) - A parallel ssh library for deploying jvm based experiments on remote servers and EC2.
 * communication - [Netty](http://www.jboss.org/netty) based message passing of Avro encoded messages.  Scala library for using [Apache ZooKeeper](http://zookeeper.apache.org/).
 * scala-engine - K/V storage optionally using [BDB](http://www.oracle.com/technetwork/database/berkeleydb/overview/index.html) for persistance.
-* piql - The performance insightful query lanaguage and scale-independent relational optimizer.
+* [piql](https://github.com/radlab/SCADS/wiki/PIQL) - The performance insightful query lanaguage and scale-independent relational optimizer.
 * perf - A library of helpers for writing scads performance tests using deploylib.
 
 Other Experiments
