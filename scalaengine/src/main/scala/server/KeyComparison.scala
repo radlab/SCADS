@@ -36,5 +36,5 @@ trait AvroComparator extends Comparator[Array[Byte]]  {
 class AvroBdbComparator(val json: String) extends AvroComparator with Serializable {
   def this(schema: Schema) = this(schema.toString)
   @transient
-  lazy val keySchema = Schema.parse(json)
+  lazy val keySchema = new Schema.Parser().parse(json)
 }

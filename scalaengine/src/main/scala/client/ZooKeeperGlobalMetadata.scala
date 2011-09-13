@@ -81,9 +81,9 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
   }
 
   override lazy val remoteKeySchema: Schema =
-    Schema.parse(new String(nsRoot("keySchema").data))
+    new Schema.Parser().parse(new String(nsRoot("keySchema").data))
   override lazy val remoteValueSchema: Schema =
-    Schema.parse(new String(nsRoot("valueSchema").data))
+    new Schema.Parser().parse(new String(nsRoot("valueSchema").data))
 
   override def watchMetadata(key: String, func: () => Unit): Array[Byte] = {
     logger.info("Watching metadata %s for %s", key, namespace)

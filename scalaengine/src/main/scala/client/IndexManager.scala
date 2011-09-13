@@ -200,7 +200,7 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
     // 2) elements which are in children but not in the cache need to be added
     // into the cache
     indexNamespacesCache ++= indexNodes.filterNot(n => indexNamespacesCache.contains(n.name)).map(n => {
-      val ks = Schema.parse(new String(root("%s/keySchema".format(toGlobalName(n.name))).data))
+      val ks = new Schema.Parser().parse(new String(root("%s/keySchema".format(toGlobalName(n.name))).data))
       val ns = new IndexNamespace(toGlobalName(n.name), cluster, root, ks)
       ns.open()
 

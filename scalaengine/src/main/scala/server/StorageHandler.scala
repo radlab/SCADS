@@ -116,7 +116,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
   private def keySchemaFor(namespace: String) = {
     val nsRoot = getNamespaceRoot(namespace)
     val keySchema = new String(nsRoot("keySchema").data)
-    Schema.parse(keySchema)
+    new Schema.Parser().parse(keySchema)
   }
 
   private def schemasAndValueClassFor(namespace: String) = {
@@ -124,7 +124,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
     val keySchema = new String(nsRoot("keySchema").data)
     val valueSchema = new String(nsRoot("valueSchema").data)
     val valueClass = new String(nsRoot("valueClass").data)
-    (Schema.parse(keySchema),Schema.parse(valueSchema),valueClass)
+    (new Schema.Parser().parse(keySchema),new Schema.Parser().parse(valueSchema),valueClass)
   }
 
   /** 
