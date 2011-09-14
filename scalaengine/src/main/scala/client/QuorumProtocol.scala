@@ -88,7 +88,7 @@ trait QuorumProtocol
     if (handler.failed) None
     else {
       // TODO: repair on failed case (above) still?
-      ReadRepairer ! handler
+      //ReadRepairer ! handler
       Some(record.map(extractRecordFromValue))
     }
   }
@@ -439,7 +439,7 @@ trait QuorumRangeProtocol
         )
       }
     }
-    handlers.foreach(ReadRepairer ! _)
+    //handlers.foreach(ReadRepairer ! _)
     result
   }
 
