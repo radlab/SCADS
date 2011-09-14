@@ -33,4 +33,17 @@ trait ExperimentBase {
     cluster.serviceScheduler.scheduleExperiment(serverProcs)
     new ScadsCluster(clusterRoot)
   }
+
+  implicit def productSeqToExcel(lines: Seq[Product]) = new {
+    import java.io._
+    def toExcel: Unit = {
+      val file = File.createTempFile("scadsOut", ".csv")
+      val writer = new FileWriter(file)
+
+      lines.map(_.productIterator.mkString(",") + "\n").foreach(writer.write)
+      writer.close
+
+      Runtime.getRuntime.exec(Array("/usr/bin/open", file.getCanonicalPath))
+    }
+  }
 }
