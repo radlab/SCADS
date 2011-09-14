@@ -40,14 +40,16 @@ object Experiment extends ExperimentBase {
       .map {
 	case ((recs, threads), results) =>
 	  val aggHist = results.map(_.responseTimes).reduceLeft(_ + _)
-	  (recs, threads, aggHist.quantile(0.50), aggHist.totalRequests, aggHist.negative)
+	  (recs, threads, aggHist.quantile(0.50), aggHist.totalRequests, aggHist.negative, results.size)
       }
   }
 
     def main(args: Array[String]): Unit = {
-      val cluster = TestScalaEngine.newScadsCluster(2)
-      val task = new Task(cluster.root.canonicalAddress,
-			  cluster.root.canonicalAddress).run()
+ //     val cluster = TestScalaEngine.newScadsCluster(2)
+ //     val task = new Task(cluster.root.canonicalAddress,
+//			  cluster.root.canonicalAddress).run()
+
+      graphPoints.toSeq.sortBy(r => (r._2, r._1)).foreach(println)
     }
 		   
 }
@@ -57,7 +59,7 @@ case class Task(var clusterAddress: String,
 		var replicationFactor: Int = 2,
 		var iterations: Int = 20,
 		var getCount: Int = 100000,
-		var recordCounts: Seq[Int] = (1 to 9).map(math.pow(10, _)).map(_.toInt),
+		var recordCounts: Seq[Int] = (10000000 to 100000000 by 5000000).toSeq, //(1 to 9).map(math.pow(10, _)).map(_.toInt),
 		var threadCounts: Seq[Int] = Seq(1, 5))
      extends AvroTask with AvroRecord {
 
