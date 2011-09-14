@@ -100,11 +100,11 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String, exe
       logger.warning("Null status.")
 	}
     else if(status.getState == TaskState.TASK_FAILED) {
-      logger.warning("Status Update for Task %d: %s", status.getTaskId, status.getState)
+      logger.warning("Status Update for Task %s: %s", status.getTaskId, status.getState)
       logger.ifWarning(new String(status.getData.toByteArray))
 
       val siblings = scheduledExperiments.find(_ contains status.getTaskId).getOrElse {
-        logger.debug("Failed to locate siblings for task %d, can't kill stranded processes", status.getTaskId)
+        logger.debug("Failed to locate siblings for task %s, can't kill stranded processes", status.getTaskId)
         return
       }
       siblings.foreach(d.killTask)
@@ -112,7 +112,7 @@ class LocalExperimentScheduler protected (name: String, mesosMaster: String, exe
       scheduledExperiments = scheduledExperiments.filterNot(_ equals siblings)
     }
     else {
-      logger.debug("Status Update: " + status.getTaskId + " " + status.getState)
+      logger.debug("Status Update for task %s: %s", status.getTaskId, status.getState)
       logger.ifDebug(new String(status.getData.toByteArray))
     }
   }
