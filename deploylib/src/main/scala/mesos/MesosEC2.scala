@@ -352,4 +352,14 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
 
     slaves.pforeach(_.appendFile(new File("/root/.ssh/authorized_keys"), key))
   }
+
+  //HACK to work around still broken webui
+  def tailSlaveLogs: Unit = {
+    val workDir = new File("/mnt/work")
+    slaves.pmap(s => {
+      val currentSlaveDir = new File(workDir, s.ls(workDir).sortBy(_.modDate).last.name)
+      val currentFrameworkDir = new File(currentSlaveDir, s.ls(currentSlaveDir).head.name)
+      (s, new File(currentFrameworkDir, "0/stdout"))
+    }).foreach {case (s,l) => println(s.tail(l))}
+  }
 }
