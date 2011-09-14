@@ -77,7 +77,13 @@ object ScadsBuild extends Build {
   lazy val perf = Project(
     "perf",
     file("perf"),
-    settings=deploySettings ++ Seq(libraryDependencies := useAvroPlugin)
+    settings=deploySettings ++ Seq(
+      libraryDependencies := useAvroPlugin,
+      initialCommands := ("import edu.berkeley.cs._\n" + 
+			"import edu.berkeley.cs.avro._\n" + 
+			"import edu.berkeley.cs.scads.comm._\n" +
+			"import edu.berkeley.cs.scads.storage._\n" +
+			"import edu.berkeley.cs.scads.perf._"))
   ) dependsOn(config, comm, scalaEngine, deploylib)
 
   /* Other projects and experiments */
@@ -217,8 +223,13 @@ object DeployConsole extends BuildCommon {
 	val cmds = Seq(
 	  "import deploylib._",
 	  "import deploylib.ec2._",
+	  "import deploylib.mesos._",
 	  "val allJars = " + allJars.map(f => "new java.io.File(\"%s\")".format(f.getCanonicalPath)).mkString("Seq(", ",", ")"),
-	  "deploylib.mesos.MesosCluster.jarFiles = allJars"
+	  "deploylib.mesos.MesosCluster.jarFiles = allJars",
+	  "implicit val cluster = new Cluster()",
+	  "implicit def zooKeeperRoot = cluster.zooKeeperRoot",
+	  "implicit def classSource = cluster.classSource",
+	  "implicit def serviceScheduler = cluster.serviceScheduler"
 	).mkString("\n") + "\n" + initCmds
 
 	(new Console(cs.scalac))(Build.data(cp), options, cmds, s.log).foreach(msg => error(msg))
