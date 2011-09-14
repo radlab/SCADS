@@ -53,7 +53,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
                                    Future {setupZooKeeper()} ::
                                    Future {if(slaves.size < numSlaves) addSlaves(numSlaves - slaves.size)} :: Nil).map(_())
 	
-  def updateDeploylib(instances: Seq[EC2Instance] = slaves): Unit = {
+  def updateDeploylib(instances: Seq[EC2Instance] = (slaves ++ masters)): Unit = {
     instances.pforeach(inst => {
       val executorScript = Util.readFile(new File("deploylib/src/main/resources/java_executor"))
         .split("\n")
