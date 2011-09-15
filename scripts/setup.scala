@@ -7,3 +7,5 @@ import edu.berkeley.cs.scads.piql.tpcw._
 import edu.berkeley.cs._
 import deploylib.mesos._
 import deploylib.ec2._
+
+def debug(pkg: String) = net.lag.logging.Logger(pkg).setLevel(java.util.logging.Level.FINEST)

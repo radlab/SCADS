@@ -7,6 +7,7 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.Spec
 import org.scalatest.matchers.{Matcher, MatchResult, ShouldMatchers}
+import storage._
 
 class OptimizerSpec extends Spec with ShouldMatchers {
   import Relations._
@@ -93,7 +94,7 @@ class OptimizerSpec extends Spec with ShouldMatchers {
 
     //Optimize query first so index is created
     val optQuery = query.opt
-    val idx = r2.getOrCreateIndex("f2" :: Nil)
+    val idx = r2.getOrCreateIndex(AttributeIndex("f2") :: Nil)
 
     val plan =
       LocalStopAfter(FixedLimit(10),

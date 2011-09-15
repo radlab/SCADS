@@ -81,15 +81,14 @@ abstract trait ServiceHandler[MessageType <: MessageBody] extends MessageReceive
 
   /* Request handler class to be executed on this StorageHandlers threadpool */
   class Request(src: Option[RemoteActorProxy], req: MessageBody) extends Runnable {
-    def run():Unit = req match {
+    def run():Unit = (req: @unchecked) match {
       case op: MessageType =>
         try { startupGuard.await(); process(src, op) } catch {
           case e: Throwable => {
             /* Get the stack trace */
             val stackTrace = e.getStackTrace().mkString("\n")
             /* Log and report the error */
-            logger.error("Exception processing storage request: " + e)
-            logger.error(stackTrace)
+            logger.warning(e, "Exception processing storage request")
             src.foreach(_ ! ProcessingException(e.toString, stackTrace))
           }
         }
@@ -105,8 +104,7 @@ abstract trait ServiceHandler[MessageType <: MessageBody] extends MessageReceive
         /* Get the stack trace */
         var stackTrace = e.getStackTrace().mkString("\n")
         /* Log and report the error */
-        logger.error("Exception enquing storage request for execution: " + e)
-        logger.error(stackTrace)
+        logger.warning(e, "Exception enquing storage request for execution")
         src.foreach(_ ! ProcessingException(e.toString(), stackTrace))
       }
     }

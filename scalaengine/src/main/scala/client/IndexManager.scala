@@ -49,9 +49,13 @@ class IndexNamespace(
   with QuorumRangeProtocol
   with DefaultKeyRangeRoutable
   with RecordStore[IndexedRecord]
+  with Serializer[IndexedRecord, IndexedRecord, IndexedRecord]
+  with NamespaceIterator[IndexedRecord]
   with DebuggingClient
 { 
   import IndexManager._
+
+  val valueClass = classOf[IndexedRecord].getName
 
   private lazy val keyReaderWriter = new AvroGenericReaderWriter[IndexedRecord](Some(remoteKeySchema), keySchema)
   
@@ -75,13 +79,12 @@ class IndexNamespace(
 
   override def newKeyInstance = keyReaderWriter.newInstance
 
-  override def newRecordInstance(schema: Schema) =
-    keyReaderWriter.newRecordInstance(schema)
-
   override lazy val valueSchema = indexValueSchema
 
   def asyncGetRecord(key: IndexedRecord) = asyncGet(key)
   def getRecord(key: IndexedRecord) = get(key)
+
+  def newRecord(schema: Schema) = keyReaderWriter.newRecord(schema)
 }
 
 /** An IndexManager is intended to provide index maintainence for AvroPair
@@ -197,7 +200,7 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
     // 2) elements which are in children but not in the cache need to be added
     // into the cache
     indexNamespacesCache ++= indexNodes.filterNot(n => indexNamespacesCache.contains(n.name)).map(n => {
-      val ks = Schema.parse(new String(root("%s/keySchema".format(toGlobalName(n.name))).data))
+      val ks = new Schema.Parser().parse(new String(root("%s/keySchema".format(toGlobalName(n.name))).data))
       val ns = new IndexNamespace(toGlobalName(n.name), cluster, root, ks)
       ns.open()
 
@@ -215,7 +218,11 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
 
   /** getOrCreate a secondary index over the given fields */
   def getOrCreateIndex(fields: Seq[IndexType]): IndexNamespace = {
-    val idxName = fields.mkString("(", ",", ")")
+    //TODO: This encoding is certainly not robust enough to handle all possible field names
+    val idxName = fields.map {
+      case AttributeIndex(field) => field
+      case TokenIndex(fields) => "t" + fields.mkString("t")
+    }.mkString("0")
 
     listIndexes.get(idxName) match {
       case Some(idx) => idx
@@ -247,7 +254,7 @@ trait IndexManager[BulkType <: AvroPair] extends Namespace
           if(field.schema.getType != Schema.Type.STRING)
             throw new IllegalArgumentException("Can't build token index over field %s of type %s.".format(fieldNames, field.schema))
         })
-        new Schema.Field("Token:" + fieldNames.mkString("|"), Schema.create(Schema.Type.STRING), "", null)
+        new Schema.Field("Token" + fieldNames.mkString("0"), Schema.create(Schema.Type.STRING), "", null)
       }
     }
 

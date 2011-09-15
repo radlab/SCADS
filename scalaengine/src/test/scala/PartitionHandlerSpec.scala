@@ -24,9 +24,10 @@ class PartitionHandlerSpec extends Spec with ShouldMatchers with BeforeAndAfterA
 
     root.getOrCreate("namespaces/partitiontestns/keySchema").data = IntRec.schema.toString.getBytes
     root.getOrCreate("namespaces/partitiontestns/valueSchema").data = IntRec.schema.toString.getBytes
+    root.getOrCreate("namespaces/partitiontestns/valueClass").data = classOf[IntRec].getName.getBytes
     root.getOrCreate("namespaces/partitiontestns/partitions")
 
-    val service = (handler.remoteHandle !? CreatePartitionRequest("partitiontestns", startKey.map(_.toBytes), endKey.map(_.toBytes))) match {
+    val service = (handler.remoteHandle !? CreatePartitionRequest("partitiontestns", "bdb",startKey.map(_.toBytes), endKey.map(_.toBytes))) match {
       case CreatePartitionResponse(newPartService) => newPartService
       case _ => fail("Couldn't get partition handler")
     }

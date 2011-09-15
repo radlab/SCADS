@@ -71,7 +71,7 @@ trait DefaultKeyRoutableLike
     _routingTable.valuesForKey(convertToRoutingKey(key))
   }
 
-  override def onRoutingTableChanged(newTable: Array[Byte]): Unit = error("onRoutingTableChanged")
+  override def onRoutingTableChanged(newTable: Array[Byte]): Unit = sys.error("onRoutingTableChanged")
 
   protected def routingKeyComp: (Array[Byte], Array[Byte]) => Int
 
@@ -149,7 +149,7 @@ trait DefaultKeyRoutableLike
   }
 
   private def createPartitions(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], servers: Seq[StorageService]): Seq[PartitionService] = {
-    val createReq = CreatePartitionRequest(name, startKey, endKey)
+    val createReq = CreatePartitionRequest(name, partitionType, startKey, endKey)
     waitForAndThrowException(servers.map(server => (server !! createReq, server))) {
       case (CreatePartitionResponse(partitionActor), _) => partitionActor
     }

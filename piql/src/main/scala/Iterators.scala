@@ -1,10 +1,11 @@
-package edu.berkeley.cs.scads.piql
+package edu.berkeley.cs.scads
+package piql
 
 import net.lag.logging.Logger
 import org.apache.avro.util.Utf8
 import org.apache.avro.generic._
 
-import edu.berkeley.cs.scads.comm.ScadsFuture
+import comm.{ScadsFuture, StringRec}
 
 import java.{ util => ju }
 import scala.collection.mutable.Queue
@@ -57,6 +58,12 @@ trait QueryExecutor {
     case EqualityPredicate(v1, v2) => {
       compareAny(bindValue(v1, tuple), bindValue(v2, tuple)) == 0
     }
+    case InPredicate(v1, v2) => {
+      val valueList = bindValue(v2, tuple).asInstanceOf[Seq[Any]]
+      val boundValue = bindValue(v1, tuple)
+      valueList.foreach(v => if(compareAny(v,boundValue) == 0) return true)
+      return false
+    }
   }
 
   final protected def compareTuples(left: Tuple, right: Tuple, attributes: Seq[Value])(implicit ctx: Context): Int = {
@@ -73,6 +80,8 @@ trait QueryExecutor {
   final protected def compareAny(left: Any, right: Any): Int = (left, right) match {
     case (l: Integer, r: Integer) => l.intValue - r.intValue
     case (l: Utf8, r: Utf8) => l.toString compare r.toString
+    case (l: String, r: Utf8) => l compare r.toString
+    case (l: Utf8, r: String) => l.toString compare r
     case (true, true) => 0
     case (false, true) => -1
     case (true, false) => 1
@@ -324,11 +333,17 @@ class SimpleExecutor extends QueryExecutor {
         def next = {taken += 1; childIterator.next}
       }
     }
-    case LocalIterator(ordinal) => {
+    case LocalIterator(ordinal, wrap) => {
       new QueryIterator {
 	val name = "LocalIterator"
 	private var delegate: Iterator[Tuple] = null
-	def open: Unit = delegate = ctx.parameters(ordinal).asInstanceOf[Seq[Tuple]].toIterator
+	def open: Unit = {
+	  delegate = 
+	    if(wrap) //This is kinda gross... I'm sorry.
+	      ctx.parameters(ordinal).asInstanceOf[Seq[Any]].map(i => Vector(StringRec(i.asInstanceOf[String]))).toIterator
+	    else
+	      ctx.parameters(ordinal).asInstanceOf[Seq[Tuple]].toIterator
+	}
 	def close: Unit = delegate = null
 	def hasNext = delegate.hasNext
 	def next = delegate.next

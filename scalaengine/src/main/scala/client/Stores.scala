@@ -55,7 +55,7 @@ trait BaseRangeKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
     case Type.LONG => java.lang.Long.MIN_VALUE
     case Type.STRING => new Utf8(MinString)
     case Type.RECORD =>
-      fillOutKey(newRecordInstance(fieldSchema), () => newRecordInstance(fieldSchema))(minVal _)
+      fillOutKey(newRecord(fieldSchema), () => newRecord(fieldSchema))(minVal _)
     case unsupportedType =>
       throw new RuntimeException("Invalid key type in partial key getRange. " + unsupportedType + " not supported for inquality queries.")
   }
@@ -68,7 +68,7 @@ trait BaseRangeKeyValueStoreImpl[K <: IndexedRecord, V <: IndexedRecord, B]
     case Type.LONG => java.lang.Long.MAX_VALUE
     case Type.STRING => new Utf8(MaxString) 
     case Type.RECORD => 
-      fillOutKey(newRecordInstance(fieldSchema), () => newRecordInstance(fieldSchema))(maxVal _)
+      fillOutKey(newRecord(fieldSchema), () => newRecord(fieldSchema))(maxVal _)
     case unsupportedType =>
       throw new RuntimeException("Invalid key type in partial key getRange. " + unsupportedType + " not supported for inquality queries.")
   }
@@ -107,7 +107,7 @@ trait KeyValueStore[K <: IndexedRecord, V <: IndexedRecord]
   extends BaseKeyValueStoreImpl[K, V, (K, V)]
   with KeyValueSerializer[K, V] {
 
-  def iterator: Iterator[(K, V)] = error("iterator")
+  def iterator: Iterator[(K, V)] = sys.error("iterator")
 
 }
 

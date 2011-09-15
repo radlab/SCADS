@@ -54,10 +54,12 @@ trait ObjectGen extends ScalaAvroPluginComponent
         val valDef = localTyper.typed {
           VAL(valSym) === {
             Apply(
-              Ident(newTermName("org")) DOT 
-                newTermName("apache")   DOT
-                newTermName("avro")     DOT
-                newTermName("Schema")   DOT
+            Ident(newTermName("edu")) DOT 
+                newTermName("berkeley")   DOT
+                newTermName("cs")     DOT
+                newTermName("avro")   DOT
+		newTermName("runtime")   DOT
+		newTermName("ScalaSpecificRecord")   DOT
                 newTermName("parse"),
               List(LIT(schema)))
           }

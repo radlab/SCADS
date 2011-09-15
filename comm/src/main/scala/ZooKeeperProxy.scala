@@ -39,6 +39,7 @@ object ZooKeeperNode {
  */
 class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watcher {
   self =>
+  require(address ne null)
   protected val logger = Logger()
 
   // must be volatile because it's set from watcher thread

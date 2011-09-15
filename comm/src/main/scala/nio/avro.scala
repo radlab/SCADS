@@ -11,7 +11,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
 
 import org.apache.avro.io._
-import org.apache.avro.ipc._
 import org.apache.avro.specific._
 import net.lag.logging.Logger
 

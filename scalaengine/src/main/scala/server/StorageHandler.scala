@@ -116,14 +116,15 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
   private def keySchemaFor(namespace: String) = {
     val nsRoot = getNamespaceRoot(namespace)
     val keySchema = new String(nsRoot("keySchema").data)
-    Schema.parse(keySchema)
+    new Schema.Parser().parse(keySchema)
   }
 
-  private def schemasFor(namespace: String) = {
+  private def schemasAndValueClassFor(namespace: String) = {
     val nsRoot = getNamespaceRoot(namespace)
     val keySchema = new String(nsRoot("keySchema").data)
     val valueSchema = new String(nsRoot("valueSchema").data)
-    (Schema.parse(keySchema),Schema.parse(valueSchema))
+    val valueClass = new String(nsRoot("valueClass").data)
+    (new Schema.Parser().parse(keySchema),new Schema.Parser().parse(valueSchema),valueClass)
   }
 
   /** 
@@ -134,12 +135,20 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
    *   (3) valueSchema is already set in the namespace/valueSchema file
    *       in ZooKeeper
    */
-  private def makePartitionHandler(
+  private def makeBdbPartitionHandler(
       database: Database, namespace: String, partitionIdLock: ZooKeeperProxy#ZooKeeperNode,
       startKey: Option[Array[Byte]], endKey: Option[Array[Byte]]) = {
-    val schemas = schemasFor(namespace)
-    new PartitionHandler(database, partitionIdLock, startKey, endKey, getNamespaceRoot(namespace), schemas._1, schemas._2)
+    val schemasvc = schemasAndValueClassFor(namespace)
+    new PartitionHandler(new BdbStorageManager(database, partitionIdLock, startKey, endKey, getNamespaceRoot(namespace), schemasvc._1, schemasvc._2))
   }
+
+  private def makeInMemPartitionHandler
+    (namespace:String,partitionIdLock:ZooKeeperProxy#ZooKeeperNode,
+     startKey:Option[Array[Byte]], endKey:Option[Array[Byte]]) = {
+    val schemasvc = schemasAndValueClassFor(namespace)
+    new PartitionHandler(new InMemStorageManager(partitionIdLock, startKey, endKey, getNamespaceRoot(namespace),schemasvc._1, schemasvc._2, schemasvc._3))
+  }
+                                        
 
   /** Iterator scans the entire cursor and does not close it */
   private implicit def cursorToIterator(cursor: Cursor): Iterator[(DatabaseEntry, DatabaseEntry)]
@@ -208,7 +217,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
 
       /* Make partition handler */
       val db      = makeDatabase(request.namespace, keySchemaFor(request.namespace), None)
-      val handler = makePartitionHandler(db, request.namespace, partitionIdLock, request.startKey, request.endKey)
+      val handler = makeBdbPartitionHandler(db, request.namespace, partitionIdLock, request.startKey, request.endKey)
 			//val handler = makePartitionHandlerWithAC(db, acdb, request.namespace, partitionIdLock, request.startKey, request.endKey)
 
       /* Add to our list of open partitions */
@@ -272,7 +281,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
     def reply(msg: MessageBody) = src.foreach(_ ! msg)
 
     msg match {
-      case createRequest @ CreatePartitionRequest(namespace, startKey, endKey) => {
+      case createRequest @ CreatePartitionRequest(namespace, partitionType, startKey, endKey) => {
         logger.info("[%s] CreatePartitionRequest for namespace %s, [%s, %s)", this, namespace, JArrays.toString(startKey.orNull), JArrays.toString(endKey.orNull))
 
         /* Grab root to namespace from ZooKeeper */
@@ -295,105 +304,130 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
          * lock the namespace in memory. */
         // TODO: cleanup if fails
         val handler = ctx.synchronized {
+          val handler =
+            partitionType match {
+              case "inmemory" => {
+                /* Start a new transaction to atomically add an entry into the partition DB */
+                val txn = env.beginTransaction(null, null)
+                partitionDb.put(txn, new DatabaseEntry(partitionId.getBytes), new DatabaseEntry(createRequest.toBytes))
+                txn.commit()
+                makeInMemPartitionHandler(namespace,partitionIdLock, startKey, endKey)
+              }
+              case "bdb" => {
+                /* Start a new transaction to atomically make both the namespace DB,
+                 * and add an entry into the partition DB */
+                val txn = env.beginTransaction(null, null)
 
-          /* Start a new transaction to atomically make both the namespace DB,
-          * and add an entry into the partition DB */
-          val txn = env.beginTransaction(null, null)
-
-          /* Open the namespace DB */
-          val newDb = makeDatabase(namespace, keySchemaFor(namespace), Some(txn))
-
-					/* Open a DB for access control info */
-					//val acDb = makeDatabase(namespace+"_ac", keySchemaFor(namespace), Some(txn))
-
-          /* Log to partition DB for recreation */
-          partitionDb.put(txn, new DatabaseEntry(partitionId.getBytes), new DatabaseEntry(createRequest.toBytes))
-
-          /* for now, let errors propogate up to the exception handler */
-          txn.commit()
-
-          /* Make partition handler from request */
-          val handler = makePartitionHandler(newDb, namespace, partitionIdLock, startKey, endKey)
-					//val handler = makePartitionHandlerWithAC(newDb, acDb, namespace, partitionIdLock, startKey, endKey)
-
+                /* Open the namespace DB */
+                val newDb = makeDatabase(namespace, keySchemaFor(namespace), Some(txn))
+                
+	        /* Open a DB for access control info */
+	        //val acDb = makeDatabase(namespace+"_ac", keySchemaFor(namespace), Some(txn))
+                
+                /* Log to partition DB for recreation */
+                partitionDb.put(txn, new DatabaseEntry(partitionId.getBytes), new DatabaseEntry(createRequest.toBytes))
+                
+                /* for now, let errors propogate up to the exception handler */
+                txn.commit()
+                
+                /* Make partition handler from request */
+                makeBdbPartitionHandler(newDb, namespace, partitionIdLock, startKey, endKey)
+	        //val handler = makePartitionHandlerWithAC(newDb, acDb, namespace, partitionIdLock, startKey, endKey)
+              }
+              case _ => throw new RuntimeException("Invalid partition type specified in create partition request: "+partitionType)
+            }
           /* Add to our list of open partitions */
           val test = partitions.put(partitionId, handler)
           assert(test eq null, "Partition ID was not unique: %s".format(partitionId))
-
+          
           /* On success, add this partitionId to the ctx set */
           val succ = ctx.partitions.add((partitionId, handler))
           assert(succ, "Handler not successfully added to partitions")
-
+          
           logger.info("[%s] %d active partitions after insertion on this StorageHandler".format(this, ctx.partitions.size))
 
           handler
         }
 
         logger.info("Partition %s in namespace %s created".format(partitionId, namespace))
-        reply(CreatePartitionResponse( handler.remoteHandle.toPartitionService(partitionId, remoteHandle.toStorageService)) )
+        reply(CreatePartitionResponse( handler.remoteHandle.toPartitionService(partitionId, remoteHandle.toStorageService)))
       }
       case DeletePartitionRequest(partitionId) => {
         logger.info("Deleting partition " + partitionId)
 
         /* Get the handler and shut it down */
         val handler = Option(partitions.remove(partitionId)) getOrElse {reply(InvalidPartition(partitionId)); return}
-
-        val dbName = handler.db.getDatabaseName /* dbName is namespace */
-        val dbEnv  = handler.db.getEnvironment
-
-        //logger.info("Unregistering handler from MessageHandler for partition %s in namespace %s".format(partitionId, dbName))
         handler.stopListening
 
-        logger.info("[%s] Deleting partition [%s, %s) for namespace %s", this, JArrays.toString(handler.startKey.orNull), JArrays.toString(handler.endKey.orNull), dbName)
+        handler.manager match {
+          case bdbManager:BdbStorageManager => {
+            val dbName = bdbManager.db.getDatabaseName /* dbName is namespace */
+            val dbEnv  = bdbManager.db.getEnvironment
 
-        val ctx = getContextForNamespace(dbName) getOrElse {
-          /**
-           * Race condition - a request to delete a namespace is going on
-           * right now- this error can actually be safely ignored since this
-           * partition will be deleted (in response to the namespace deletion
-           * request)
-           */
-          reply(RequestRejected("Partition will be removed by a delete namespace request currently in progress", msg)); return
-        }
+            //logger.info("Unregistering handler from MessageHandler for partition %s in namespace %s".format(partitionId, dbName))
 
-        ctx.synchronized {
-          val succ = ctx.partitions.remove((partitionId, handler))
-          assert(succ, "Handler not successfully removed from partitions")
+            logger.info("[%s] Deleting partition [%s, %s) for namespace %s", this, JArrays.toString(bdbManager.startKey.orNull), JArrays.toString(bdbManager.endKey.orNull), dbName)
 
-          /* Delete from partitionDB, and (possibly) delete the database in a
-          * single transaction */
-          val txn = env.beginTransaction(null, null)
-
-          /* Remove from bdb map */
-          partitionDb.delete(txn, new DatabaseEntry(partitionId.getBytes))
-
-          if (ctx.partitions.isEmpty) {
-            /* Remove database from environment- this removes all the data
-            * associated with the database */
-            logger.info("[%s] Deleting database %s for namespace %s".format(this, dbName, dbName))
-            handler.db.close() /* Close underlying DB */
-            dbEnv.removeDatabase(txn, dbName)
-          } else {
-            logger.info("[%s] Garbage collecting inaccessible keys, since %d partitions in namespace %s remain", this, ctx.partitions.size, dbName)
-
-            implicit def orderedByteArrayView(thiz: Array[Byte]) = new Ordered[Array[Byte]] {
-              def compare(that: Array[Byte]) = ctx.comparator.compare(thiz, that) 
+            val ctx = getContextForNamespace(dbName) getOrElse {
+              /**
+               * Race condition - a request to delete a namespace is going on
+               * right now- this error can actually be safely ignored since this
+               * partition will be deleted (in response to the namespace deletion
+               * request)
+               */
+              reply(RequestRejected("Partition will be removed by a delete namespace request currently in progress", msg)); return
             }
 
-            val thisPartition = handler
-            var thisSlice = Slice(thisPartition.startKey, thisPartition.endKey)
-            ctx.partitions.foreach { t =>
-              val thatPartition = t._2
-              val thatSlice = Slice(thatPartition.startKey, thatPartition.endKey)
-              thisSlice = thisSlice.remove(thatSlice) /* Remove (from deletion) slice which cannot be deleted */
+            ctx.synchronized {
+              val succ = ctx.partitions.remove((partitionId, handler))
+              assert(succ, "Handler not successfully removed from partitions")
+
+              /* Delete from partitionDB, and (possibly) delete the database in a
+               * single transaction */
+              val txn = env.beginTransaction(null, null)
+
+              /* Remove from bdb map */
+              partitionDb.delete(txn, new DatabaseEntry(partitionId.getBytes))
+
+              if (ctx.partitions.isEmpty) {
+                /* Remove database from environment- this removes all the data
+                 * associated with the database */
+                logger.info("[%s] Deleting database %s for namespace %s".format(this, dbName, dbName))
+                bdbManager.db.close() /* Close underlying DB */
+                dbEnv.removeDatabase(txn, dbName)
+              } else {
+                logger.info("[%s] Garbage collecting inaccessible keys, since %d partitions in namespace %s remain", this, ctx.partitions.size, dbName)
+
+                implicit def orderedByteArrayView(thiz: Array[Byte]) = new Ordered[Array[Byte]] {
+                  def compare(that: Array[Byte]) = ctx.comparator.compare(thiz, that) 
+                }
+
+                val thisPartition = bdbManager
+                var thisSlice = Slice(thisPartition.startKey, thisPartition.endKey)
+                ctx.partitions.foreach { t =>
+                  t._2.manager match {
+                    case thatPartition:BdbStorageManager => {                   
+                      val thatSlice = Slice(thatPartition.startKey, thatPartition.endKey)
+                      thisSlice = thisSlice.remove(thatSlice) /* Remove (from deletion) slice which cannot be deleted */
+                    }
+                    case _ =>
+                      logger.warning("Can't properly garbage collect when namespace mixes Bdb and other partitions: "+t._2)
+                  }
+                }
+                thisSlice.foreach((startKey, endKey) => {
+                  logger.info("++ [%s] Deleting range: [%s, %s)", this, JArrays.toString(startKey.orNull), JArrays.toString(endKey.orNull))
+                  bdbManager.deleteRange(startKey, endKey, txn)
+                })
+              }
+
+              txn.commit()
             }
-            thisSlice.foreach((startKey, endKey) => {
-              logger.info("++ [%s] Deleting range: [%s, %s)", this, JArrays.toString(startKey.orNull), JArrays.toString(endKey.orNull))
-              handler.deleteRange(startKey, endKey, txn)
-            })
           }
-
-          txn.commit()
+          case _ => {
+            handler.stop
+            reply(RequestRejected("Unknown StorageManager type.  Cannot delete partition", msg))
+            return
+          }
         }
 
         handler.stop

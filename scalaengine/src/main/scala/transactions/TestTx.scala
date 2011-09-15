@@ -85,7 +85,7 @@ class TestTx {
     ns.getRange(None, None).foreach(x => println(x))
 
     // Logical updates
-    println("logical updates")
+    println("running some logical updates")
     val tx5 = new Tx(100) ({
       ns.putLogical(KeyRec(12), ValueRec("", 2, 3, 2.1.floatValue, 0.2))
     }).Accept(0.90) {

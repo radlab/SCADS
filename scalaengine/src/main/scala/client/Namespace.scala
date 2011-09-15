@@ -9,6 +9,10 @@ trait Namespace {
   /** Alias for name */
   def namespace: String = name
 
+  /** Default to building bdb namespaces.  Subclasses can override this
+   ** for other types if they want */
+  def partitionType: String = "bdb"
+
   protected val logger = Logger()
 
   trait Execable {

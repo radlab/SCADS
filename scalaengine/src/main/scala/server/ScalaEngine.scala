@@ -33,7 +33,7 @@ object ScalaEngine extends optional.Application {
       dir.mkdir
     }
 
-    val zooRoot = clusterAddress.map(p => ZooKeeperNode(p)).getOrElse(ZooKeeperHelper.getTestZooKeeper.root.getOrCreate("scads"))
+    val zooRoot = clusterAddress.map(p => ZooKeeperNode(p)).getOrElse(ZooKeeperHelper.getTestZooKeeper.getOrCreate("scads"))
 
     logger.info("Opening BDB Environment: " + dir + ", " + config)
     val env = new Environment(dir, config)

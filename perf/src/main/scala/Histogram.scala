@@ -44,7 +44,7 @@ case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Long]) extend
   def quantile(fraction: Double): Int = {
     val cumulativeSum = buckets.scanLeft(0L)(_ + _).drop(1)
     if(totalRequests > 0)
-      cumulativeSum.findIndexOf(_ >= totalRequests * fraction) * bucketSize
+      cumulativeSum.indexWhere(_ >= totalRequests * fraction) * bucketSize
     else
       0
   }

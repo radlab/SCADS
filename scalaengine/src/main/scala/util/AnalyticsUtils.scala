@@ -15,8 +15,8 @@ import scala.tools.nsc.io.AbstractFile
 
 import scala.collection.mutable.{ArrayBuilder,HashMap}
 
-@serializable
-trait Filter[R <: ScalaSpecificRecord] {
+
+trait Filter[R <: ScalaSpecificRecord] extends Serializable {
   def applyFilter(r:R):Boolean
 }
 
@@ -65,10 +65,9 @@ abstract class LocalAggregate[TransType <: ScalaSpecificRecord,
   def groups():Iterable[GenericData.Record] = replyMap.keys
 }
 
-@serializable
 trait RemoteAggregate[TransType <: ScalaSpecificRecord,
                 KeyType <: ScalaSpecificRecord,
-                ValueType <: ScalaSpecificRecord] {
+                ValueType <: ScalaSpecificRecord] extends Serializable{
   var stop:Boolean = false
   protected def toDouble(v:Any):Double = {
     v match {

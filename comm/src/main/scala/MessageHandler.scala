@@ -25,6 +25,7 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
   private val curActorId      = new AtomicLong
   private val serviceRegistry = new ConcurrentHashMap[ActorId, MessageReceiver]
   def registrySize = serviceRegistry.size()
+  def futureCount = curActorId.get()
 
   private val hostname = 
     if(System.getProperty("scads.comm.externalip") == null)
@@ -169,13 +170,13 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
     var port = config.getInt("scads.comm.listen", 9000)
     var numTries = 0
     var found    = false
-    while (!found && numTries < 50) {
+    while (!found && numTries < 500) {
       try {
         startListener(port)
         found = true
       } catch {
         case ex: Exception => 
-          logger.critical("Could not listen on port %d, trying %d".format(port, port + 1))
+          logger.warning("Could not listen on port %d, trying %d".format(port, port + 1))
           port += 1
       } finally { numTries += 1 }
     }

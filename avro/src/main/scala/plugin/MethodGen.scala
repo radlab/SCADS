@@ -90,7 +90,7 @@ trait MethodGen extends ScalaAvroPluginComponent
 
     private def generateGetMethod(templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
       val newSym = clazz.newMethod(clazz.pos.focus, newTermName("get"))
-      newSym setFlag SYNTHETICMETH | OVERRIDE 
+      newSym setFlag SYNTHETIC | OVERRIDE 
       newSym setInfo MethodType(newSym.newSyntheticValueParams(List(/*Boxed*/ IntClass.tpe)), /*Any*/ObjectClass.tpe)
       clazz.info.decls enter newSym 
 
@@ -131,7 +131,7 @@ trait MethodGen extends ScalaAvroPluginComponent
 
     private def generateSetMethod(templ: Template, clazz: Symbol, instanceVars: List[Symbol]) = {
       val newSym = clazz.newMethod(clazz.pos.focus, newTermName("put"))
-      newSym setFlag SYNTHETICMETH | OVERRIDE
+      newSym setFlag SYNTHETIC | OVERRIDE
       newSym setInfo MethodType(newSym.newSyntheticValueParams(List(IntClass.tpe, AnyClass.tpe)), UnitClass.tpe)
       clazz.info.decls enter newSym 
 
@@ -176,7 +176,7 @@ trait MethodGen extends ScalaAvroPluginComponent
     private def generateGetSchemaMethod(clazzTree: ClassDef): Tree = {
       val clazz = clazzTree.symbol
       val newSym = clazz.newMethod(clazz.pos.focus, newTermName("getSchema"))
-      newSym setFlag SYNTHETICMETH | OVERRIDE
+      newSym setFlag SYNTHETIC | OVERRIDE
       newSym setInfo MethodType(newSym.newSyntheticValueParams(Nil), schemaClass.tpe)
       clazz.info.decls enter newSym 
       //println("localTyper.context1.enclClass: " + localTyper.context1.enclClass)
@@ -200,11 +200,13 @@ trait MethodGen extends ScalaAvroPluginComponent
           // at least cache the invocations)
           warning("Unable to optimize getSchema method for class %s".format(clazz.fullName.toString))
           Apply(
-            Ident(newTermName("org")) DOT 
-              newTermName("apache")   DOT
-              newTermName("avro")     DOT
-              newTermName("Schema")   DOT
-              newTermName("parse"),
+            Ident(newTermName("edu")) DOT 
+                newTermName("berkeley")   DOT
+                newTermName("cs")     DOT
+                newTermName("avro")   DOT
+		newTermName("runtime")   DOT
+		newTermName("ScalaSpecificRecord")   DOT
+                newTermName("parse"),
             List(LIT(retrieveRecordSchema(clazz).get.toString)))
         }
       localTyper.typed {
@@ -215,18 +217,20 @@ trait MethodGen extends ScalaAvroPluginComponent
     private def generateGetUnionSchemaMethod(clazzTree: ClassDef, unionSchema: Schema): Tree = {
       val clazz = clazzTree.symbol
       val newSym = clazz.newMethod(clazz.pos.focus, newTermName("getSchema"))
-      newSym setFlag SYNTHETICMETH | OVERRIDE
+      newSym setFlag SYNTHETIC | OVERRIDE
       newSym setInfo MethodType(newSym.newSyntheticValueParams(Nil), schemaClass.tpe)
       clazz.info.decls enter newSym 
 
       localTyper.typed {
         DEF(newSym) === { 
           Apply(
-            Ident(newTermName("org")) DOT 
-              newTermName("apache")   DOT
-              newTermName("avro")     DOT
-              newTermName("Schema")   DOT
-              newTermName("parse"),
+            Ident(newTermName("edu")) DOT 
+                newTermName("berkeley")   DOT
+                newTermName("cs")     DOT
+                newTermName("avro")   DOT
+		newTermName("runtime")   DOT
+		newTermName("ScalaSpecificRecord")   DOT
+                newTermName("parse"),
             List(LIT(unionSchema.toString)))
         }
       }
@@ -266,10 +270,12 @@ trait MethodGen extends ScalaAvroPluginComponent
           } else {
             warning("Unable to optimize %s method for class %s".format(fieldName, clazz.fullName.toString))
             Apply(
-              Ident(newTermName("org")) DOT 
-                newTermName("apache")   DOT
-                newTermName("avro")     DOT
-                newTermName("Schema")   DOT
+              Ident(newTermName("edu")) DOT 
+                newTermName("berkeley")   DOT
+                newTermName("cs")     DOT
+                newTermName("avro")   DOT
+		newTermName("runtime")   DOT
+		newTermName("ScalaSpecificRecord")   DOT
                 newTermName("parse"),
               List(LIT(fallbackSchema)))
           }

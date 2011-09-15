@@ -4,8 +4,10 @@ import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.concurrent.SyncVar
+import edu.berkeley.cs.scads.config._
 
 import org.apache.zookeeper.server._
+import org.apache.zookeeper.CreateMode
 import persistence._
 
 import java.net.InetSocketAddress
@@ -18,17 +20,21 @@ import net.lag.logging.Logger
 object ZooKeeperHelper {
   private val logger = Logger()
 
-  private val currentPort = new AtomicInteger(2000) // start at port 2000
+  private val currentPort = new AtomicInteger(Config.config.getInt("scads.test.zkport", 2000)) // start at port 2000
 
   //HACK because zookeper is anoyingly noisy in the logs
-  org.apache.log4j.Logger.getRootLogger.setLevel(org.apache.log4j.Level.INFO)
+  org.apache.log4j.Logger.getRootLogger.setLevel(org.apache.log4j.Level.WARN)
+
+  lazy val testZooKeeper = createTestZooKeeper()
+
+  def getTestZooKeeper() = testZooKeeper.root.createChild("testZooKeeper", mode=CreateMode.PERSISTENT_SEQUENTIAL)
 
   /**
    * Create a local zookeeper instance in JVM and return a ZooKeeperProxy for it.  
    * Intended for testing purposes only. Is thread safe. Each separate
    * invocation of getTestZooKeeper creates a NEW zookeeper instance
    */
-  def getTestZooKeeper(): ZooKeeperProxy = {
+   protected def createTestZooKeeper(): ZooKeeperProxy = {
     val workingDir = File.createTempFile("scads", "zookeeper")
     workingDir.delete()
     workingDir.mkdir()

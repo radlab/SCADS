@@ -4,23 +4,25 @@ import edu.berkeley.cs.avro.marker.AvroRecord
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.util._
 
-case class MatheonKey(var fileId:Int, var readingId:Int) extends AvroRecord
+case class MatheonKey(var readingId:Int) extends AvroRecord
 
 // container class for matheon data
-case class MReading(var fileId:Int, var mass:Double, var count:Float) extends AvroRecord
+case class MReading(var fileId:Int, var mass:Float, var count:Float) extends AvroRecord
 
-// Here we define the custom aggregate that will pick peaks
+// Here we define the custom aggregates that will pick peaks
 
+// First, a simple, find the point between two zeros
 // container class, holds the peaks we've found and some running data
-case class PeakContainer(var lastZero:Double,var maxHeight:Float,var peaks:Seq[Double]) extends AvroRecord
+case class ZeroPeakContainter(var lastZero:Float,var maxHeight:Float,var peaks:Seq[Float]) extends AvroRecord
 
-class PeaksRemote(min_peak_width:Double,min_peak_height:Float) extends RemoteAggregate[PeakContainer, MatheonKey, MReading] {
+// function to execute remotly
+class ZeroPeaksRemote(min_peak_width:Float,min_peak_height:Float) extends RemoteAggregate[ZeroPeakContainter, MatheonKey, MReading] {
 
-  def init():PeakContainer = {
-    PeakContainer(-1.0,0,List[Double]())
+  def init():ZeroPeakContainter = {
+    ZeroPeakContainter(-1.0f,0,List[Float]())
   }
 
-  def applyAggregate(pc:PeakContainer, key:MatheonKey, reading:MReading):PeakContainer = {
+  def applyAggregate(pc:ZeroPeakContainter, key:MatheonKey, reading:MReading):ZeroPeakContainter = {
     if (reading.count == 0) {
       if (pc.lastZero > 0) {
         val width = reading.mass - pc.lastZero 
@@ -38,15 +40,70 @@ class PeaksRemote(min_peak_width:Double,min_peak_height:Float) extends RemoteAgg
   }
 }
 
-class PeaksLocal extends LocalAggregate[PeakContainer, Seq[Double]] {
-  def init():PeakContainer = {
-    PeakContainer(-1.0,0,List[Double]())
+// function to execute locally
+class ZeroPeaksLocal extends LocalAggregate[ZeroPeakContainter, Seq[Float]] {
+  def init():ZeroPeakContainter = {
+    ZeroPeakContainter(-1.0f,0,List[Float]())
   }
-  def foldFunction(cur:PeakContainer, next: PeakContainer): PeakContainer = {
+  def foldFunction(cur:ZeroPeakContainter, next: ZeroPeakContainter): ZeroPeakContainter = {
     cur.peaks = cur.peaks ++ next.peaks
     cur
   }
-  def finalize(pc:PeakContainer):Seq[Double] = {
+  def finalize(pc:ZeroPeakContainter):Seq[Float] = {
     pc.peaks
+  }
+}
+
+
+
+// next, a more complex picker that looks at the values around it to determine if it's a local peak
+// container class for running values
+
+case class DetPeakContainer(var minVal:Float, var maxVal:Float, var maxMass:Float, var lookMax:Boolean, var peakMass:Seq[Float], var peakCount:Seq[Float]) extends AvroRecord
+
+//remote agg
+class DetPeaksRemote(delta:Float) extends RemoteAggregate[DetPeakContainer, MatheonKey, MReading] {
+  def init():DetPeakContainer = {
+    DetPeakContainer(Float.MaxValue,Float.MinValue,0.0f,true,List[Float](),List[Float]())
+  }
+
+  def applyAggregate(pc:DetPeakContainer, key:MatheonKey, reading:MReading):DetPeakContainer = {
+    if (reading.count > pc.maxVal) {
+      pc.maxVal = reading.count
+      pc.maxMass = reading.mass
+    }
+
+    if (reading.count < pc.minVal) 
+      pc.minVal = reading.count
+
+    if (pc.lookMax) {
+      if (reading.count < (pc.maxVal - delta)) {
+        pc.peakMass = pc.peakMass :+ (pc.maxMass)
+        pc.peakCount = pc.peakCount :+ (pc.maxVal)
+        pc.minVal = reading.count
+        pc.lookMax = false
+      }
+    }
+    else if (reading.count > pc.minVal+delta) {
+      pc.maxVal = reading.count
+      pc.maxMass = reading.mass
+      pc.lookMax = true
+    }
+    pc
+  }
+}
+
+// function to execute locally
+class DetPeaksLocal extends LocalAggregate[DetPeakContainer, (Seq[Float],Seq[Float])] {
+  def init():DetPeakContainer = {
+    DetPeakContainer(Float.MaxValue,Float.MinValue,0.0f,true,List[Float](),List[Float]())
+  }
+  def foldFunction(cur:DetPeakContainer, next: DetPeakContainer): DetPeakContainer = {
+    cur.peakMass = cur.peakMass ++ next.peakMass
+    cur.peakCount = cur.peakCount ++ next.peakCount
+    cur
+  }
+  def finalize(pc:DetPeakContainer):(Seq[Float],Seq[Float]) = {
+    (pc.peakMass,pc.peakCount)
   }
 }

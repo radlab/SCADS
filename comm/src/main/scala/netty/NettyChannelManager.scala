@@ -70,7 +70,10 @@ abstract class NettyChannelManager[S <: SpecificRecord, R <: SpecificRecord](
     override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) {
       val chan = e.getChannel
 
-      log.warning("Exception in channel handler %s: %s", chan, e)
+      e.getCause match {
+	case exp: java.net.BindException =>
+	case exp => log.warning(exp, "Exception in channel handler %s: %s", chan, e)
+      }
       nodeToConnections.entrySet.filter(_.getValue.getId == chan.getId).foreach(addr => {
         log.info("Removing channel %s to %s from connection pool".format(chan, addr.getKey))
         nodeToConnections.remove(addr.getKey)

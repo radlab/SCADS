@@ -10,16 +10,20 @@ import generic._
 import io._
 import specific._
 
+import edu.berkeley.cs.avro.runtime.SchemaCompare
+
 abstract class AvroReaderWriter[T <: IndexedRecord](val remoteSchema: Option[Schema]) {
 
-  trait ExposedDatumReader {
-    def exposedNewRecord(old: AnyRef, schema: Schema): AnyRef
-  }
-
-  protected val reader: DatumReader[T] with ExposedDatumReader
+  protected val reader: DatumReader[T]
   protected val writer: DatumWriter[T]
 
   def schema: Schema
+
+  remoteSchema match {
+    case None => {} // What to do here
+    case Some(rs) => if (!SchemaCompare.typesEqual(schema,rs)) throw new RuntimeException("Local and remote schemas do not have the same types")
+    // NB: test checks for the string in the message above, so change the test if you change the message
+  }
 
   protected val bufferSize = 128
 
@@ -43,21 +47,14 @@ abstract class AvroReaderWriter[T <: IndexedRecord](val remoteSchema: Option[Sch
     reader.read(newInstance, dec)
   }
 
-  /** Given schema, return a new instance of a record which has the given
-   * schema */
-  def newRecordInstance(schema: Schema): IndexedRecord = {
-    reader.exposedNewRecord(null, schema).asInstanceOf[IndexedRecord]
-  }
-
+  def newRecord(schema: Schema): IndexedRecord =
+    new GenericData.Record(schema)
 }
 
 class AvroGenericReaderWriter[T >: GenericRecord <: IndexedRecord](_remoteSchema: Option[Schema], val schema: Schema) 
   extends AvroReaderWriter[T](_remoteSchema) {
   require(schema ne null)
-  val reader = new GenericDatumReader[T](schema) with ExposedDatumReader {
-    def exposedNewRecord(old: AnyRef, schema: Schema): AnyRef = 
-      newRecord(old, schema)
-  }
+  val reader = new GenericDatumReader[T](schema)
   val writer = new GenericDatumWriter[T](schema)
   def newInstance = new GenericData.Record(schema)
 }
@@ -65,13 +62,19 @@ class AvroGenericReaderWriter[T >: GenericRecord <: IndexedRecord](_remoteSchema
 class AvroSpecificReaderWriter[T <: SpecificRecord](_remoteSchema: Option[Schema])(implicit tpe: Manifest[T])
   extends AvroReaderWriter[T](_remoteSchema) {
   @inline private def recClz = tpe.erasure.asInstanceOf[Class[T]]
-  lazy val schema = recClz.newInstance.getSchema 
-  val reader = new SpecificDatumReader[T](schema) with ExposedDatumReader {
-    def exposedNewRecord(old: AnyRef, schema: Schema): AnyRef = 
-      newRecord(old, schema)
-  }
+  lazy val schema = recClz.newInstance.getSchema
+  val specificData = new SpecificData(this.getClass.getClassLoader)
+  val reader = new SpecificDatumReader[T](schema, schema, specificData)
   val writer = new SpecificDatumWriter[T](schema)
   def newInstance = recClz.newInstance
+
+  override def newRecord(schema: Schema): IndexedRecord = {
+    val c = specificData.getClass(schema)
+    if(c == null)
+      new GenericData.Record(schema)
+    else
+      c.newInstance.asInstanceOf[IndexedRecord]
+  }
 }
 
 trait AvroKeyValueSerializerLike[K <: IndexedRecord, V <: IndexedRecord]
@@ -99,12 +102,9 @@ trait AvroKeyValueSerializerLike[K <: IndexedRecord, V <: IndexedRecord]
   override def bulkToBytes(b: (K, V)): (Array[Byte], Array[Byte]) =
     (keyToBytes(b._1), valueToBytes(b._2))
 
-  override def newKeyInstance = keyReaderWriter.newInstance 
-
-  override def newRecordInstance(schema: Schema) = 
-    // can use either key or value R/W, it doesn't matter (they share the same
-    // global cache anyways)
-    keyReaderWriter.newRecordInstance(schema)
+  override def newKeyInstance = keyReaderWriter.newInstance
+  
+  def newRecord(schema: Schema) = keyReaderWriter.newRecord(schema)
 }
 
 trait AvroGenericKeyValueSerializer 
@@ -130,6 +130,9 @@ trait AvroSpecificKeyValueSerializer[K <: SpecificRecord, V <: SpecificRecord]
 
   override lazy val valueSchema =
     valueManifest.erasure.asInstanceOf[Class[V]].newInstance.getSchema
+
+  override lazy val valueClass =
+    valueManifest.erasure.asInstanceOf[Class[V]].getName
 }
 
 trait AvroPairSerializer[P <: AvroPair]
@@ -171,15 +174,17 @@ trait AvroPairSerializer[P <: AvroPair]
 
   override def newKeyInstance = keyReaderWriter.newInstance
 
-  override def newRecordInstance(schema: Schema) =
-    keyReaderWriter.newRecordInstance(schema)
-
   override lazy val keySchema = 
     pairManifest.erasure.asInstanceOf[Class[P]].newInstance.key.getSchema
 
   override lazy val valueSchema = 
     pairManifest.erasure.asInstanceOf[Class[P]].newInstance.value.getSchema
 
+  override lazy val valueClass =
+    pairManifest.erasure.asInstanceOf[Class[P]].getName
+
   override lazy val pairSchema = 
     pairManifest.erasure.asInstanceOf[Class[P]].newInstance.getSchema
+
+  def newRecord(schema: Schema) = keyReaderWriter.newRecord(schema)
 }

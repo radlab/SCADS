@@ -12,7 +12,11 @@ import ec2._
 import edu.berkeley.cs.avro.marker._
 import edu.berkeley.cs.scads.comm._
 
-import _root_.mesos._
+import org.apache.mesos._
+import org.apache.mesos.Protos._
+import com.google.protobuf.ByteString
+
+
 import java.io.{ File, InputStream, BufferedReader, InputStreamReader, FileOutputStream }
 
 import scala.collection.JavaConversions._
@@ -55,13 +59,13 @@ class JavaExecutor extends Executor {
   if (!jarCache.exists) jarCache.mkdir
 
   /* Keep a handle to all tasks that are running so we can kill it if needed later */
-  val runningTasks = new scala.collection.mutable.HashMap[Int, RunningTask]
+  val runningTasks = new scala.collection.mutable.HashMap[String, RunningTask]
 
   abstract class RunningTask {
     def kill: Unit
   }
 
-  class JettyApp(val taskId: Int, val warFile: File, properties: Map[String, String], driver: ExecutorDriver) extends RunningTask {
+  class JettyApp(val taskDesc: TaskDescription, val warFile: File, properties: Map[String, String], driver: ExecutorDriver) extends RunningTask {
     /* Set the properies in the current JVM */
     properties.foreach { case (k,v) => System.setProperty(k,v) }
 
@@ -117,12 +121,18 @@ class JavaExecutor extends Executor {
         response.setContentType("text/html")
         response.setStatus(HttpServletResponse.SC_OK)
 
-	val statsXml =
-	  <status>
-	    <CpuUtilization>{cpuUtilization}</CpuUtilization>
-	    <RequestRate>{requestsPerSec}</RequestRate>
-	    <RequestsTotal>{statsWebApp.getRequests()}</RequestsTotal>
-	  </status>
+        val statsXml =
+          <status>
+            <CpuUtilization>
+              {cpuUtilization}
+            </CpuUtilization>
+            <RequestRate>
+              {requestsPerSec}
+            </RequestRate>
+            <RequestsTotal>
+              {statsWebApp.getRequests()}
+            </RequestsTotal>
+          </status>
 
         response.getWriter().println(statsXml.toString)
         request.asInstanceOf[Request].setHandled(true)
@@ -141,15 +151,18 @@ class JavaExecutor extends Executor {
       logger.info("Waiting for server to report isRunning == true")
       Thread.sleep(1000)
     }
-    driver.sendStatusUpdate(new TaskStatus(taskId, TaskState.TASK_RUNNING, new Array[Byte](0)))
-
+    driver.sendStatusUpdate(
+      TaskStatus.newBuilder()
+                .setTaskId(taskDesc.getTaskId)
+                .setState(TaskState.TASK_RUNNING)
+                .build())
     def kill = {
       running = false
       server.stop()
     }
   }
 
-  class ForkedJvm(val taskId: Int, val heapSize: Int, val classpath: String, val mainClass: String, val args: Seq[String], val properties: Map[String, String], env: Map[String, String], driver: ExecutorDriver) extends RunningTask with Runnable {
+  class ForkedJvm(val taskDesc: TaskDescription, val heapSize: Int, val classpath: String, val mainClass: String, val args: Seq[String], val properties: Map[String, String], env: Map[String, String], driver: ExecutorDriver) extends RunningTask with Runnable {
      val logger = Logger()
     logger.debug("Requested memory: " + heapSize)
     val cmdLine = List[String]("/usr/bin/java",
@@ -160,7 +173,7 @@ class JavaExecutor extends Executor {
       "-verbosegc",
       "-XX:+UseConcMarkSweepGC",
       "-XX:MaxGCPauseMillis=200",
-      "-Djava.library.path=" + new File(System.getenv("MESOS_HOME"), "lib/java"),
+      "-Djava.library.path=" + new File("/usr/local/mesos/lib/java"),
       properties.map(kv => "-D%s=%s".format(kv._1, kv._2)).mkString(" "),
       "-cp", classpath,
       mainClass) ++ args
@@ -172,36 +185,45 @@ class JavaExecutor extends Executor {
     val stdout = new StreamTailer(proc.getInputStream())
     val stderr = new StreamTailer(proc.getErrorStream())
     def output = List(cmdLine, this, "===stdout===", stdout.tail, "===stderr===", stderr.tail).mkString("\n").getBytes
-    val taskThread = new Thread(this, "Task " + taskId + "Monitor")
+    val taskThread = new Thread(this, "Task " + taskDesc.getTaskId + "Monitor")
     @volatile var taskKilled = false
     taskThread.start()
 
     def run() = {
-      driver.sendStatusUpdate(new TaskStatus(taskId, TaskState.TASK_RUNNING, output))
+      driver.sendStatusUpdate(
+        TaskStatus.newBuilder()
+          .setTaskId(taskDesc.getTaskId)
+          .setState(TaskState.TASK_RUNNING)
+          .setData(ByteString.copyFrom(output))
+          .build())
 
       val result = proc.waitFor()
-      logger.info("TASK %d exitied with code %d", taskId, result)
-
+      logger.info("TASK %s exitied with code %d", taskDesc.getTaskId, result)
 
       val finalTaskState = result match {
         case 0 => TaskState.TASK_FINISHED
         case _ => TaskState.TASK_FAILED
       }
       if (!taskKilled)
-        driver.sendStatusUpdate(new TaskStatus(taskId, finalTaskState, output))
+        driver.sendStatusUpdate(
+          TaskStatus.newBuilder()
+            .setTaskId(taskDesc.getTaskId)
+            .setState(finalTaskState)
+            .setData(ByteString.copyFrom(output))
+            .build())
 
       if(stdout.tail contains "A fatal error has been detected by the Java Runtime Environment") {
         logger.fatal("SIGSEGV from forked JVM.  Killing node.")
         Runtime.getRuntime.exec("/sbin/halt")
       }
 
-      logger.info("Cleaning up working directory %s for %d", tempDir, taskId)
+      logger.info("Cleaning up working directory %s for %s", tempDir, taskDesc.getTaskId)
       deleteRecursive(tempDir)
-      logger.info("Done cleaning up after Task %d", taskId)
+      logger.info("Done cleaning up after Task %s", taskDesc.getTaskId)
     }
 
     def kill = {
-      logger.info("Killing Task %d", taskId)
+      logger.info("Killing Task %s", taskDesc.getTaskId)
       taskKilled = true
       proc.destroy()
     }
@@ -247,41 +269,52 @@ class JavaExecutor extends Executor {
   }
 
   override def launchTask(d: ExecutorDriver, taskDesc: TaskDescription): Unit = {
-    val taskId = taskDesc.getTaskId //Note: use this because you can't hold on to taskDesc after this function exits.
-    d.sendStatusUpdate(new TaskStatus(taskId, TaskState.TASK_STARTING, new Array[Byte](0)))
+    d.sendStatusUpdate(
+      TaskStatus.newBuilder()
+        .setTaskId(taskDesc.getTaskId)
+        .setState(TaskState.TASK_STARTING)
+        .build())
 
     val launchDelay = Random.nextInt(10 * 1000)
     logger.info("Delaying startup %dms to avoid overloading zookeeper", launchDelay)
     Thread.sleep(launchDelay)
 
-    logger.info("Starting task" + taskId)
-    val runningTask = JvmTask(taskDesc.getArg()) match {
+    logger.info("Starting task" + taskDesc.getTaskId)
+    val runningTask = JvmTask(taskDesc.getData().toByteArray) match {
       case JvmMainTask(classpath, mainclass, args, props, env) =>
-        new ForkedJvm(taskId,
-          taskDesc.getParams().get("mem").toInt,
+        new ForkedJvm(taskDesc,
+          taskDesc.getResourcesList.find(_.getName == "mem").map(_.getScalar.getValue).getOrElse(throw new RuntimeException("No memory specified in mesos task!")).toInt,
           loadClasspath(classpath),
           mainclass,
           args,
           props,
           env, d)
-      case JvmWebAppTask(warFile, properties) => new JettyApp(taskId, resolveClassSource(warFile), properties, d)
+      case JvmWebAppTask(warFile, properties) => new JettyApp(taskDesc, resolveClassSource(warFile), properties, d)
     }
 
-    runningTasks += ((taskId, runningTask))
-    logger.info("Task %d started", taskId)
+    runningTasks += ((taskDesc.getTaskId.getValue, runningTask))
+    logger.info("Task %s started", taskDesc.getTaskId)
   }
 
-  override def killTask(d: ExecutorDriver, taskId: Int): Unit = {
-    runningTasks.get(taskId) match {
+  override def killTask(d: ExecutorDriver, taskId: TaskID): Unit = {
+    runningTasks.get(taskId.getValue) match {
       case Some(runningTask) => {
-        logger.info("Killing task %d", taskId)
+        logger.info("Killing task %s", taskId)
         runningTask.kill
-        d.sendStatusUpdate(new TaskStatus(taskId, TaskState.TASK_KILLED, new Array[Byte](0)))
+        d.sendStatusUpdate(
+          TaskStatus.newBuilder()
+                    .setTaskId(taskId)
+                    .build())
       }
-      case None => logger.warning("Asked to kill nonexistant task %d", taskId)
+      case None => logger.warning("Asked to kill nonexistant task %s", taskId)
     }
 
   }
+
+  override def error(driver: ExecutorDriver, code: Int, msg: String): Unit = logger.fatal("MESOS ERROR %d: %s", code, msg)
+  override def shutdown(driver: ExecutorDriver): Unit = logger.info("Executor shutting down")
+  override def frameworkMessage(driver: ExecutorDriver, data: Array[Byte]): Unit = logger.info("Received FW Message: %s", data)
+  override def init(driver:ExecutorDriver, args: ExecutorArgs): Unit = logger.info("Executor Init: %s", args)
 
   protected def deleteRecursive(f: File): Unit = {
     if (f.isDirectory)

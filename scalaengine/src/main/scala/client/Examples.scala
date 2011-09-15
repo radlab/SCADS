@@ -17,7 +17,8 @@ class GenericNamespace(
     val cluster: ScadsCluster,
     val root: ZooKeeperProxy#ZooKeeperNode,
     val keySchema: Schema,
-    val valueSchema: Schema)
+    val valueSchema: Schema,
+    val valueClass: String)
   extends Namespace
     with SimpleRecordMetadata
   with ZooKeeperGlobalMetadata
@@ -78,7 +79,8 @@ class GenericHashNamespace(
     val cluster: ScadsCluster,
     val root: ZooKeeperProxy#ZooKeeperNode,
     val keySchema: Schema,
-    val valueSchema: Schema)
+    val valueSchema: Schema,
+    val valueClass: String)
   extends Namespace
   with SimpleRecordMetadata
   with ZooKeeperGlobalMetadata
@@ -104,10 +106,21 @@ class SpecificNamespace[Key <: SpecificRecord : Manifest, Value <: SpecificRecor
   override protected val valueManifest = manifest[Value] 
 
   lazy val genericNamespace: GenericNamespace = {
-    val generic = new GenericNamespace(name, cluster, root, keySchema, valueSchema)
+    val generic = new GenericNamespace(name, cluster, root, keySchema, valueSchema, valueClass)
     generic.open()
     generic
   }
+}
+
+class SpecificInMemoryNamespace[Key <: SpecificRecord : Manifest, Value <: SpecificRecord : Manifest](
+    val imname: String,
+    val imcluster: ScadsCluster,
+    val imroot: ZooKeeperProxy#ZooKeeperNode) extends SpecificNamespace[Key,Value](imname,imcluster,imroot) {
+
+  override protected val keyManifest = manifest[Key]
+  override protected val valueManifest = manifest[Value] 
+
+  override def partitionType:String = "inmemory"
 }
 
 class SpecificHashNamespace[Key <: SpecificRecord : Manifest, Value <: SpecificRecord : Manifest](

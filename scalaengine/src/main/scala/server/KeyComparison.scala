@@ -33,9 +33,8 @@ trait AvroComparator extends Comparator[Array[Byte]]  {
  * The json string has to be stored since schemas are not serializable, which
  * is a requirement of Comparators for BDB
  */
-@serializable
-class AvroBdbComparator(val json: String) extends AvroComparator {
+class AvroBdbComparator(val json: String) extends AvroComparator with Serializable {
   def this(schema: Schema) = this(schema.toString)
   @transient
-  lazy val keySchema = Schema.parse(json)
+  lazy val keySchema = new Schema.Parser().parse(json)
 }

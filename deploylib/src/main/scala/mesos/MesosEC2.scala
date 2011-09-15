@@ -25,6 +25,11 @@ object ServiceSchedulerDaemon extends optional.Application {
   }
 }
 
+object MesosCluster {
+  //HACK
+  var jarFiles: Seq[java.io.File] = _
+}
+
 /**
  * Functions to help maintain a mesos cluster on EC2.
  */
@@ -32,7 +37,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
   val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
 
   val mesosAmi =
-    if (EC2Instance.endpoint contains "west") "ami-2b6b386e" else "ami-44ce3d2d"
+    if (EC2Instance.endpoint contains "west") "ami-2b6b386e" else "ami-5af60d33"
 
   val defaultZone =
     if (EC2Instance.endpoint contains "west") "us-west-1a" else "us-east-1b"
@@ -42,7 +47,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
   def serviceScheduler = classOf[RemoteServiceScheduler].newInstance.parse(serviceSchedulerNode.data)
   def serviceSchedulerLog = firstMaster.catFile("/root/serviceScheduler.log")
 
-  def stopAllInstances = (masters ++ slaves ++ zooKeepers).pforeach(_.halt)
+  def stopAllInstances() = (masters ++ slaves ++ zooKeepers).pforeach(_.halt)
 
   def setup(numSlaves: Int = 1) = (Future {setupMesosMaster()} ::
                                    Future {setupZooKeeper()} ::
@@ -53,7 +58,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       val executorScript = Util.readFile(new File("deploylib/src/main/resources/java_executor"))
         .split("\n")
         .map {
-        case s if (s contains "CLASSPATH=") => "CLASSPATH='-cp /usr/local/mesos/lib/java/mesos.jar:" + inst.pushJars.mkString(":") + "'"
+        case s if (s contains "CLASSPATH=") => "CLASSPATH='-cp /usr/local/mesos/lib/java/mesos.jar:" + inst.pushJars(MesosCluster.jarFiles).mkString(":") + "'"
         case s => s
       }.mkString("\n")
 
@@ -71,15 +76,20 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       }
     }
 
-	masters.foreach(_.blockUntilRunning)
-    masters.pforeach(_.pushJars)
+    masters.foreach(_.blockUntilRunning)
+    masters.pforeach(_.pushJars(MesosCluster.jarFiles))
     updateMasterConf
+
+    zooKeepers.foreach(_.blockUntilRunning)
+    zooKeepers.foreach(_.blockTillPortOpen(2181))
+
     restartMasters
     restartServiceScheduler
   }
 
   def restartServiceScheduler: Unit = {
-	zooKeepers.foreach(_.blockUntilRunning)
+
+    zooKeepers.foreach(_.blockUntilRunning)
     masters.pforeach(_.executeCommand("killall java"))
     val serviceSchedulerScript = (
       "#!/bin/bash\n" +
@@ -148,7 +158,8 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
 
     val cnf =
       (servers.map {case (server, id: Int) => "server.%d=%s:3181:3182".format(id + 1, server.privateDnsName)} ++
-      ("dataDir=/mnt/zookeeper" ::
+      ("webui_port=8080" ::
+      "dataDir=/mnt/zookeeper" ::
       "clientPort=2181" ::
       "tickTime=1000" ::
       "initLimit=60"::
@@ -166,7 +177,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
         server.createFile(new File("/mnt/startZookeeper"), startScript)
         server ! "chmod 755 /mnt/startZookeeper"
 
-        server.pushJars
+        server.pushJars(MesosCluster.jarFiles)
         server.executeCommand("killall java")
         server ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/zookeeper.pid --exec /mnt/startZookeeper"
     }
@@ -184,13 +195,13 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     if(useFT)
       "zoo://" + zooKeeperRoot.proxy.servers.mkString(",") + zooKeeperRoot.getOrCreate("mesos").path
     else
-      "1@" + firstMaster.publicDnsName + ":5050"
+      "master@" + firstMaster.publicDnsName + ":5050"
 
-  def restartSlaves: Unit = {
+  def restartSlaves(): Unit = {
     slaves.pforeach(i => {i ! "service mesos-slave stop"; i ! "service mesos-slave start"})
   }
 
-  def restartMasters: Unit = {
+  def restartMasters(): Unit = {
     masters.foreach {
       master =>
         master ! "service mesos-master stop"
@@ -198,9 +209,11 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     }
   }
 
-  def restart: Unit = {
+  def restart(): Unit = {
     restartMasters
     restartSlaves
+    restartServiceScheduler
+    slaves.pforeach(_.executeCommand("killall java"))
   }
 
   def updateSlavesFile: Unit = {
@@ -258,8 +271,11 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
 	instances.foreach(_.tags += ("mesos", "slave"))
 
     if (updateDeploylibOnStart) {
-	  masters.foreach(_.blockUntilRunning)
-	  firstMaster.blockTillPortOpen(5050)
+      //Hack to avoid race condition where there are no masters yet because they haven't been tagged.
+      instances.head.blockUntilRunning
+      masters.foreach(_.blockUntilRunning)
+      firstMaster.blockTillPortOpen(5050)
+
       instances.pforeach(i => try {
         i.blockUntilRunning
         updateDeploylib(i :: Nil)
@@ -303,9 +319,9 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     else
       System.getProperty("deploylib.classSource").split("\\|").map(S3CachedJar(_))
 
+  //TODO fix me.
   def pushJars: Seq[String] = {
-    val jarFile = new File("allJars")
-    val jars = Util.readFile(jarFile).split("\n").map(new File(_))
+    val jars = MesosCluster.jarFiles
     val (deploylib, otherJars) = jars.partition(_.getName contains "deploylib")
     val sortedJars = deploylib ++ otherJars
 

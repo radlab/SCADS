@@ -72,7 +72,7 @@ trait QuorumProtocol
       def compute(timeoutHint: Long, unit: TimeUnit) = 
         finishGetHandler(new GetHandler(key, ftchs, unit.toMillis(timeoutHint)), quorum)
           .getOrElse(throw new RuntimeException("Could not complete get request - not enough servers responded"))
-      def cancelComputation = error("NOT IMPLEMENTED")
+      def cancelComputation = sys.error("NOT IMPLEMENTED")
     }
   }
 
@@ -103,7 +103,7 @@ trait QuorumProtocol
         responses.blockFor(quorum)
       }
 
-      def cancelComputation = error("NOT IMPLEMENTED")
+      def cancelComputation = sys.error("NOT IMPLEMENTED")
     }
   }
 
@@ -229,7 +229,7 @@ trait QuorumProtocol
   }
 
   onDelete {
-    deleteMetadata(ZK_QUORUM_CONFIG)
+    //deleteMetadata(ZK_QUORUM_CONFIG)
   }
 
   /** NOT thread-safe to set */
@@ -347,9 +347,9 @@ trait QuorumProtocol
     def act() {
       loop {
         react {
-          case m => null //HACK: read repair broken!
-            //if (readRepairPF.isDefinedAt(m)) readRepairPF.apply(m)
-            //else throw new RuntimeException("Unknown message" + m)
+          case m =>
+            if (readRepairPF.isDefinedAt(m)) readRepairPF.apply(m)
+            else throw new RuntimeException("Unknown message" + m)
         }
       }
     }
@@ -457,7 +457,7 @@ trait QuorumRangeProtocol
     new ComputationFuture[Seq[(Array[Byte], Array[Byte])]] {
       def compute(timeoutHint: Long, unit: TimeUnit) = 
         finishGetRangeRequest(ptr, ftchs, limit, offset, ascending, Some(unit.toMillis(timeoutHint)))
-      def cancelComputation = error("NOT IMPLEMENTED")
+      def cancelComputation = sys.error("NOT IMPLEMENTED")
     }
   }
 
@@ -581,13 +581,28 @@ trait QuorumRangeProtocol
                                 firstKey:Option[Array[Byte]],lastKey:Option[Array[Byte]]) {
     val partitions = serversForKeyRange(firstKey, lastKey)
     if (partitions.length > 1)
-      error("Can't bulk put locations over more than one partition")
+      sys.error("Can't bulk put locations over more than one partition")
     else {
       val baos = new java.io.ByteArrayOutputStream
       val oos = new java.io.ObjectOutputStream(baos)
       oos.writeObject(parser)
       val responses = partitions(0).servers.map(_ !! BulkUrlPutReqest(baos.toByteArray,locations))
       responses.blockFor(partitions(0).servers.length)
+    }
+  }
+
+  /**
+   * Get all value versions for a range of keys.  Does not perform read-repair.
+   */
+  def getAllRangeVersions(startKey: Option[Array[Byte]], endKey: Option[Array[Byte]]): Seq[(PartitionService, Seq[(Array[Byte],Option[Array[Byte]])])] = {
+    val partitions = serversForKeyRange(startKey, endKey)
+    waitForAndThrowException(
+      partitions.flatMap(range => {
+        val rangeReq = GetRangeRequest(range.startKey, range.endKey, None, None, true)
+        range.servers.map(partition => (partition !! rangeReq, partition)) 
+      }) 
+    ) {    
+      case (GetRangeResponse(recs), partition) => (partition, recs.map(r=>(r.key,r.value)))
     }
   }
 
