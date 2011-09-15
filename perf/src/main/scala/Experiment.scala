@@ -26,14 +26,6 @@ trait ExperimentBase {
   var resultClusterAddress = Config.config.getString("scads.perf.resultZooKeeperAddress").getOrElse(sys.error("need to specify scads.perf.resultZooKeeperAddress")) + "home/" + System.getenv("USER") + "/deploylib/"
   val resultCluster = new ScadsCluster(ZooKeeperNode(resultClusterAddress))
 
-  def newScadsCluster(size: Int)(implicit cluster: Cluster, classSource: Seq[ClassSource]): ScadsCluster = {
-    val clusterRoot = cluster.zooKeeperRoot.getOrCreate("scads").createChild("experimentCluster", mode = CreateMode.PERSISTENT_SEQUENTIAL)
-    val serverProcs = Array.fill(size)(ScalaEngineTask(clusterAddress=clusterRoot.canonicalAddress).toJvmTask)
-
-    cluster.serviceScheduler.scheduleExperiment(serverProcs)
-    new ScadsCluster(clusterRoot)
-  }
-
   implicit def productSeqToExcel(lines: Seq[Product]) = new {
     import java.io._
     def toExcel: Unit = {
@@ -45,5 +37,15 @@ trait ExperimentBase {
 
       Runtime.getRuntime.exec(Array("/usr/bin/open", file.getCanonicalPath))
     }
+  }
+}
+
+trait TaskBase {
+  def newScadsCluster(size: Int)(implicit cluster: Cluster, classSource: Seq[ClassSource]): ScadsCluster = {
+    val clusterRoot = cluster.zooKeeperRoot.getOrCreate("scads").createChild("experimentCluster", mode = CreateMode.PERSISTENT_SEQUENTIAL)
+    val serverProcs = Array.fill(size)(ScalaEngineTask(clusterAddress=clusterRoot.canonicalAddress).toJvmTask)
+
+    cluster.serviceScheduler.scheduleExperiment(serverProcs)
+    new ScadsCluster(clusterRoot)
   }
 }

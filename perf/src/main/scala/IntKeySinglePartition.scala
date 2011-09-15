@@ -26,18 +26,15 @@ case class Result(var hostname: String,
 }
 
 object Experiment extends ExperimentBase {
-  def run(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {
-    val scadsCluster = newScadsCluster(2)
-    val task = Task(scadsCluster.root.canonicalAddress,
-	 resultClusterAddress).toJvmTask
-    cluster.serviceScheduler.scheduleExperiment(task :: Nil)
+  def storageTippingPoint(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {
+    val done = graphPoints.groupBy(_._1).filter(_._2.size >= 2).map(_._1).toSet
+    Task(recordCounts = (1 to 9).map(math.pow(10, _).toInt).filterNot(done.contains)).schedule(resultClusterAddress)
   }
 
-  def restart(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]) = {
+  def reset(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]) = {
     results.delete()
     results.open()
     cluster.restart
-    run
   } 
 
   lazy val results = resultCluster.getNamespace[Result]("singleNodeResult")
@@ -49,7 +46,7 @@ object Experiment extends ExperimentBase {
       .map {
 	case ((recs, threads), results) =>
 	  val aggHist = results.map(_.responseTimes).reduceLeft(_ + _)
-	  (recs, threads, aggHist.quantile(0.50), aggHist.totalRequests, aggHist.negative, results.size)
+	  (recs, threads, aggHist.quantile(0.50), aggHist.quantile(0.99), aggHist.totalRequests, aggHist.negative, results.size)
       }
   }
 
@@ -66,15 +63,24 @@ case class Record(var f1: Int) extends AvroPair {
   var f2: String  = ""
 }
 
-case class Task(var clusterAddress: String,
-		var resultClusterAddress: String,
-		var replicationFactor: Int = 2,
+case class Task(var replicationFactor: Int = 2,
 		var iterations: Int = 20,
 		var getCount: Int = 100000,
 		var dataSizes: Seq[Int] = Seq(0),
-		var recordCounts: Seq[Int] = (1 to 9).map(math.pow(10, _)).map(_.toInt),
+		var recordCounts: Seq[Int] = Seq(1024*10),
 		var threadCounts: Seq[Int] = Seq(1, 5))
-     extends AvroTask with AvroRecord {
+     extends AvroTask with AvroRecord with TaskBase {
+  
+  var resultClusterAddress: String = _
+  var clusterAddress: String = _
+
+  def schedule(resultClusterAddress: String)(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {
+    val scadsCluster = newScadsCluster(2)
+    clusterAddress = scadsCluster.root.canonicalAddress
+    this.resultClusterAddress = resultClusterAddress
+    val task = this.toJvmTask
+    cluster.serviceScheduler.scheduleExperiment(task :: Nil)
+  }
 
   def run(): Unit = {
     val logger = Logger()
