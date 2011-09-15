@@ -15,9 +15,11 @@ import net.lag.logging.Logger
 case class Result(var hostname: String,
 		  var timestamp: Long,
 		  var iteration: Int,
+		  var dataSize: Int,
 		  var recordCount: Int,
 		  var threadCount: Int) extends AvroPair {
-
+  var lastCount: Int = _
+  var loadTimeMs: Long = _
   var runTimeMs: Long =  _
   var responseTimes: Histogram = null
   var failures: Int = _
@@ -30,6 +32,13 @@ object Experiment extends ExperimentBase {
 	 resultClusterAddress).toJvmTask
     cluster.serviceScheduler.scheduleExperiment(task :: Nil)
   }
+
+  def restart(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]) = {
+    results.delete()
+    results.open()
+    cluster.restart
+    run
+  } 
 
   lazy val results = resultCluster.getNamespace[Result]("singleNodeResult")
   def goodResults = results.iterateOverRange(None,None)
@@ -50,8 +59,11 @@ object Experiment extends ExperimentBase {
 //			  cluster.root.canonicalAddress).run()
 
       graphPoints.toSeq.sortBy(r => (r._2, r._1)).foreach(println)
-    }
-		   
+    }	   
+}
+
+case class Record(var f1: Int) extends AvroPair {
+  var f2: String  = ""
 }
 
 case class Task(var clusterAddress: String,
@@ -59,7 +71,8 @@ case class Task(var clusterAddress: String,
 		var replicationFactor: Int = 2,
 		var iterations: Int = 20,
 		var getCount: Int = 100000,
-		var recordCounts: Seq[Int] = (10000000 to 100000000 by 5000000).toSeq, //(1 to 9).map(math.pow(10, _)).map(_.toInt),
+		var dataSizes: Seq[Int] = Seq(0),
+		var recordCounts: Seq[Int] = (1 to 9).map(math.pow(10, _)).map(_.toInt),
 		var threadCounts: Seq[Int] = Seq(1, 5))
      extends AvroTask with AvroRecord {
 
@@ -77,52 +90,59 @@ case class Task(var clusterAddress: String,
      */
     logger.info("Creating partitions")
     val partitions = (None, cluster.getAvailableServers.take(replicationFactor)) :: Nil
-    val ns = cluster.createNamespace[IntRec, IntRec](this.getClass.getName, partitions)
+    val ns = cluster.createNamespace[Record](this.getClass.getName, partitions)
 
     val hostname = java.net.InetAddress.getLocalHost.getHostName
     (1 to iterations).foreach(iteration => {
-      ns.setPartitionScheme(partitions)
-      require(ns.getRange(None, None, limit=Some(10)).size == 0, "Namespace not empty")
-      (0 +: recordCounts).sliding(2).foreach { case lastCount :: currentCount :: Nil =>
-	logger.info("loading data from %d to %d", lastCount, currentCount)
-	require(lastCount < currentCount, "record count must me monotonicaly increasing")
-	ns ++= (lastCount to currentCount).view.map(i => (IntRec(i), IntRec(i)))  
-	threadCounts.foreach( threadCount => {
-	  logger.info("Begining test: iteration %d, %d records, %d threads", iteration, currentCount, threadCount)
-	  def currentTime = System.nanoTime / 1000
+      dataSizes.foreach {case dataSize => 
+        ns.setPartitionScheme(partitions)
+        require(ns.getRange(None, None, limit=Some(10)).size == 0, "Namespace not empty")
+        (0 +: recordCounts).sliding(2).foreach { case lastCount :: currentCount :: Nil =>
+          logger.info("loading data from %d to %d", lastCount, currentCount)
+          require(lastCount < currentCount, "record count must me monotonicaly increasing")
+          val data = "*" * dataSize
+	  val loadStart = System.currentTimeMillis
+          ns ++= (lastCount to currentCount).view.map(i => {val r = Record(i); r.f2 = data; r})  
+	  val loadEnd = System.currentTimeMillis
+	  threadCounts.foreach( threadCount => {
+	    logger.info("Begining test: iteration %d, %d records, %d threads", iteration, currentCount, threadCount)
+	    def currentTime = System.nanoTime / 1000
 
-	  val failures = new java.util.concurrent.atomic.AtomicInteger()
-	  val startTime = System.currentTimeMillis
-	  val histograms = (0 until threadCount).pmap(i => {
-	    val rand = new scala.util.Random
-	    val histogram = Histogram(100,1000)
-	    var i = getCount
-	    var lastTime = currentTime
-	    while(i > 0) {
-	      i -= 1
-	      try {
-		ns.get(IntRec(rand.nextInt(currentCount)))
-		val endTime = currentTime
-		val respTime = endTime - lastTime
-		logger.debug("Get response time: %d", respTime)
-		histogram.add(respTime)
-		lastTime = endTime 
+   	    val failures = new java.util.concurrent.atomic.AtomicInteger()
+	    val startTime = System.currentTimeMillis
+	    val histograms = (0 until threadCount).pmap(i => {
+	      val rand = new scala.util.Random
+	      val histogram = Histogram(10,5000)
+	      var i = getCount
+	      var lastTime = currentTime
+	      while(i > 0) {
+	        i -= 1
+	        try {
+		  ns.get(Record(rand.nextInt(currentCount)))
+		  val endTime = currentTime
+		  val respTime = endTime - lastTime
+		  logger.debug("Get response time: %d", respTime)
+		  histogram.add(respTime)
+		  lastTime = endTime 
+	        }
+	        catch {
+		  case e => 
+		    failures.getAndAdd(1)
+		    lastTime = currentTime
+	        }
 	      }
-	      catch {
-		case e => 
-		  failures.getAndAdd(1)
-		  lastTime = currentTime
-	      }
-	    }
-	    histogram
+	      histogram
+	    })
+	    val result = Result(hostname, System.currentTimeMillis, iteration, dataSize, currentCount, threadCount)
+	    result.lastCount = lastCount
+	    result.loadTimeMs = loadEnd - loadStart
+	    result.runTimeMs = System.currentTimeMillis - startTime
+	    result.responseTimes = histograms.reduceLeft(_ + _)
+	    result.failures = failures.get()
+	    results.put(result)
 	  })
-	  val result = Result(hostname, System.currentTimeMillis, iteration, currentCount, threadCount)
-	  result.runTimeMs = currentTime - startTime
-	  result.responseTimes = histograms.reduceLeft(_ + _)
-	  result.failures = failures.get()
-	  results.put(result)
-	})
+        }
       }
-    })					  
+    })			    					  
   }
 }
