@@ -10,7 +10,7 @@ import actors.Actor
 import collection.mutable.{ Seq => MutSeq, _ }
 import concurrent.ManagedBlocker
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent._
 
 private[storage] object QuorumProtocol {
   val ZK_QUORUM_CONFIG = "quorumProtConfig"
@@ -18,6 +18,24 @@ private[storage] object QuorumProtocol {
   val BulkPutBufSize = 1024
   val BulkPutMaxOutstanding = 64
   val BulkPutTimeout = 60 * 1000
+
+  //TODO: there is probably a better way to do this...
+  val awaitingReadRepair = new ArrayBlockingQueue[RequestHandler](1024)
+  val readRepairThread = new Thread("Read Repair") {
+    override def run(): Unit = {
+      while(true) {
+	awaitingReadRepair.take.finish()
+      }
+    }
+  }
+  readRepairThread.setDaemon(true)
+  readRepairThread.start()
+
+  def flushReadRepair: Unit = {
+    while(awaitingReadRepair.size > 0) {
+      Thread.sleep(100)
+    }
+  }
 }
 
 class TimeoutCounter(timeout: Long) {
@@ -32,6 +50,10 @@ class TimeoutCounter(timeout: Long) {
     else
       remainingTime
   }
+}
+
+trait RequestHandler {
+  def finish(): Unit
 }
 
 trait QuorumProtocol
@@ -87,8 +109,7 @@ trait QuorumProtocol
     val record = handler.vote(quorum)
     if (handler.failed) None
     else {
-      // TODO: repair on failed case (above) still?
-      //ReadRepairer ! handler
+      QuorumProtocol.awaitingReadRepair.offer(handler)
       Some(record.map(extractRecordFromValue))
     }
   }
@@ -267,7 +288,7 @@ trait QuorumProtocol
     }
   }
 
-  class GetHandler(val key: Array[Byte], val futures: Seq[MessageFuture], val timeout: Long = 5000) {
+  class GetHandler(val key: Array[Byte], val futures: Seq[MessageFuture], val timeout: Long = 5000) extends RequestHandler{
     private val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture]
     futures.foreach(_.forward(responses))
     val losers = new ArrayBuffer[RemoteActorProxy] 
@@ -315,6 +336,11 @@ trait QuorumProtocol
       }
     }
 
+    def finish(): Unit = {
+      processRest()
+      for (server <- repairList)
+        server !! PutRequest(key, winnerValue)
+    }
   }
 
   protected def optCompareMetadata(optLhs: Option[Array[Byte]], optRhs: Option[Array[Byte]]): Int = (optLhs, optRhs) match {
@@ -323,59 +349,6 @@ trait QuorumProtocol
     case (Some(_), None) => 1
     case (Some(lhs), Some(rhs)) => compareMetadata(lhs, rhs)
   }
-
-  protected def readRepairPF: PartialFunction[Any, Unit] = _rrpf 
-
-  private val _rrpf: PartialFunction[Any, Unit] = {
-    case handler: GetHandler =>
-      readRepairManagedBlock {
-        handler.processRest()
-      }
-      for (server <- handler.repairList)
-        server !! PutRequest(handler.key, handler.winnerValue)
-  }
-
-  /**
-   * ReadRepairer actor - calls to processRest() run in a managed blocker, so that
-   * the ForkJoinPool does not starve
-   * TODO: Consider replacing this read repair actor with just a standard
-   * thread pool
-   */
-  object ReadRepairer extends Actor {
-    start() /* Auto start */
-    
-    def act() {
-      loop {
-        react {
-          case m =>
-            if (readRepairPF.isDefinedAt(m)) readRepairPF.apply(m)
-            else throw new RuntimeException("Unknown message" + m)
-        }
-      }
-    }
-
-    /** expose the scheduler for blocks */
-    private[storage] def getScheduler = scheduler
-  }
-
-  /**
-   * Default ManagedBlocker for a function which has no means to query
-   * progress
-   */
-  class DefaultManagedBlocker(f: () => Unit) extends ManagedBlocker {
-    private var completed = false
-    def block() = {
-      f()
-      completed = true
-      true
-    }
-    def isReleasable = completed
-  }
-
-  protected def readRepairManagedBlock(f: => Unit) {
-    ReadRepairer.getScheduler.managedBlock(new DefaultManagedBlocker(() => f))
-  }
-
 }
 
 trait QuorumRangeProtocol 
@@ -439,7 +412,7 @@ trait QuorumRangeProtocol
         )
       }
     }
-    //handlers.foreach(ReadRepairer ! _)
+    handlers.foreach(QuorumProtocol.awaitingReadRepair.offer)
     result
   }
 
@@ -461,28 +434,11 @@ trait QuorumRangeProtocol
     }
   }
 
-  override protected def readRepairPF = _rrpf 
-
-  private val _rrpf: PartialFunction[Any, Unit] = {
-    val pf: PartialFunction[Any, Unit] = {
-      case handler: RangeHandle =>
-        readRepairManagedBlock {
-          handler.processRest()
-        }
-        for ((key, (data, servers)) <- handler.losers) {
-          for (server <- servers) {
-            server !! PutRequest(key, Some(data))
-          }
-        }
-    }
-    pf.orElse(super.readRepairPF)
-  }
-
   /**
    * Tests the range for conflicts and marks all violations for future resolution.
    * This class is optimized for none/few violations.
    */
-  class RangeHandle(val futures: Seq[MessageFuture], val timeout: Long = 100000) {
+  class RangeHandle(val futures: Seq[MessageFuture], val timeout: Long = 10 * 1000) extends RequestHandler {
     val timeoutCounter = new TimeoutCounter(timeout)
     val responses = new java.util.concurrent.LinkedBlockingQueue[MessageFuture]
     futures.foreach(_.forward(responses))
@@ -512,7 +468,7 @@ trait QuorumRangeProtocol
 
     private def processNext(): Unit = {
       ctr += 1
-      val future = responses.poll(timeoutCounter.remaining, TimeUnit.MILLISECONDS)
+       val future = responses.poll(timeoutCounter.remaining, TimeUnit.MILLISECONDS)
       if (future == null) {
         failed = true
         return
@@ -570,6 +526,14 @@ trait QuorumRangeProtocol
       }
     }
 
+    def finish(): Unit = {
+      processRest()
+      for ((key, (data, servers)) <- losers) {
+        for (server <- servers) {
+          server !! PutRequest(key, Some(data))
+        }
+      }
+    }
   }
  
   /*
