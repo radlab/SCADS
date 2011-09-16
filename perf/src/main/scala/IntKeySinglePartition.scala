@@ -31,6 +31,14 @@ object Experiment extends ExperimentBase {
     Task(recordCounts = (1 to 9).map(math.pow(10, _).toInt).filterNot(done.contains)).schedule(resultClusterAddress)
   }
 
+  def zoomIn(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {
+    Task(recordCounts = (40000000 to 100000000 by 5000000)).schedule(resultClusterAddress)
+  }
+
+  def biggerRecs(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]): Unit = {
+    Task(recordCounts = (1 to 9).map(math.pow(10, _).toInt), dataSizes = Seq(64)).schedule(resultClusterAddress)
+  }
+
   def reset(implicit cluster: deploylib.mesos.Cluster, classSource: Seq[ClassSource]) = {
     results.delete()
     results.open()
