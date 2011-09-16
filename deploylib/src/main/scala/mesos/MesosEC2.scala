@@ -360,6 +360,6 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
       val currentSlaveDir = new File(workDir, s.ls(workDir).sortBy(_.modDate).last.name)
       val currentFrameworkDir = new File(currentSlaveDir, s.ls(currentSlaveDir).head.name)
       (s, new File(currentFrameworkDir, "0/stdout"))
-    }).foreach {case (s,l) => println(s.catFile(l))}
+    }).foreach {case (s,l) => s.watch(l)}
   }
 }
