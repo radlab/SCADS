@@ -72,7 +72,19 @@ object PlanCompare {
     .groupBy(r => (r.point, r.query)).toSeq
     .map(r => (r._1._1, r._1._2 , r._2.map(_.responseTimes.totalRequests).sum))
     .sortBy(r => r._1)
-    
+
+  def ladyGaga = {
+    val scadsCluster = newScadsCluster(2)
+    val compareTask = PlanCompareTask(
+      clusterAddress = scadsCluster.root.canonicalAddress,
+      resultClusterAddress = resultClusterAddress.canonicalAddress,
+      iterations=1,
+      points=1,
+      stepSize=12463286, //# of followers on August 9th, 2011 10:35PM
+      numExecutions=20
+    ).toJvmTask
+    serviceScheduler.scheduleExperiment(compareTask :: Nil)
+  }
 }
 
 /**
@@ -111,7 +123,7 @@ case class PlanCompareTask(var clusterAddress: String,
     val limit = FixedLimit(numFollowers)
     val fetchLimit = FixedLimit(fetchSize)
     val activeUser = toUser(0)
-    val executor = new ParallelExecutor() with DebugExecutor
+    val executor = new ParallelExecutor()
 
     val naiveQuery =
       new OptimizedQuery(
