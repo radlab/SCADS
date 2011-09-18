@@ -90,6 +90,23 @@ case class VersionUpdate(var key: Array[Byte], var newValue: Array[Byte]) extend
 // is None, it means there was no record, and the update is an insert.
 case class ValueUpdate(var key: Array[Byte], var oldValue: Option[Array[Byte]], var newValue: Array[Byte]) extends AvroRecord with PhysicalUpdate
 
+// Simple integrity constraints
+// TODO: Could not get hierarchical traits to work.
+//       Also, why did making changes to this file become so unstable?  I am
+//       forced to clean for every change (even just a comment change).
+sealed trait FieldRestriction extends AvroUnion
+case class FieldRestrictionGT(var value: Double)
+     extends AvroRecord with FieldRestriction
+case class FieldRestrictionGE(var value: Double)
+     extends AvroRecord with FieldRestriction
+case class FieldRestrictionLT(var value: Double)
+     extends AvroRecord with FieldRestriction
+case class FieldRestrictionLE(var value: Double)
+     extends AvroRecord with FieldRestriction
+case class FieldIC(var fieldPos: Int, var lower: Option[FieldRestriction],
+                   var upper: Option[FieldRestriction]) extends AvroRecord
+case class FieldICList(var ics: Seq[FieldIC]) extends AvroRecord
+
 /* Transaction MDCC Paxos */
 case class ScadsXid(var tid: Long, var bid: Long) extends AvroRecord {
   def serialized(): Array[Byte] = {

@@ -14,11 +14,14 @@ trait ZooKeeperGlobalMetadata extends GlobalMetadata with Namespace with KeyRout
   @volatile var nsRoot: ZooKeeperProxy#ZooKeeperNode = _
   logger.debug("ZooKeeperGlobalMetadata Constructor: %s", namespace)
 
+  def initRootAdditional(node: ZooKeeperProxy#ZooKeeperNode): Unit = {}
+
   private def initRoot(node: ZooKeeperProxy#ZooKeeperNode): Unit = {
     node.getOrCreate("partitions")
     node.createChild("keySchema", keySchema.toString.getBytes, CreateMode.PERSISTENT)
     node.createChild("valueSchema", valueSchema.toString.getBytes, CreateMode.PERSISTENT)
     node.createChild("valueClass", valueClass.getBytes, CreateMode.PERSISTENT)
+    initRootAdditional(node)
   }
 
   // NS must NOT exist or exception is thrown

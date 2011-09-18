@@ -118,7 +118,12 @@ class BdbStorageManager(val db: Database,
   def startup() {
     // TODO: crash recovery
     pendingUpdates.startup()
+
+    val icBytes = nsRoot("valueICs").data
+    val reader = new AvroSpecificReaderWriter[FieldICList](None)
+    pendingUpdates.setICs(reader.deserialize(icBytes))
   }
+
   def shutdown() {
     // stop the cursor tasks
     cursorTimeoutThread.shutdownNow()

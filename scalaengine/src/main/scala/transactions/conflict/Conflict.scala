@@ -53,10 +53,8 @@ trait PendingUpdates extends DBRecords {
   def startup() = {}
 
   def shutdown() = {}
-}
 
-abstract class IntegrityConstraintChecker {
-  def check(key: String, newValue: String): Boolean
+  def setICs(ics: FieldICList)
 }
 
 abstract class ConflictResolver {
@@ -70,9 +68,8 @@ abstract class ConflictResolver {
 }
 
 // Status of a transaction.  Stores all the updates in the transaction.
-@serializable
 case class TxStatusEntry(var status: Status.Status,
-                         var updates: Seq[RecordUpdate])
+                         var updates: Seq[RecordUpdate]) extends Serializable
 
 class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
                                override val factory: TxDBFactory,
@@ -88,6 +85,13 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
 
   // Detects conflicts for new updates.
   private val conflictResolver = new SimpleConflictResolver(keySchema, valueSchema)
+
+  private var valueICs: FieldICList = null
+
+  def setICs(ics: FieldICList) = {
+    valueICs = ics
+    println("ics: " + valueICs)
+  }
 
   override def accept(xid: ScadsXid, updates: Seq[RecordUpdate]) = {
     var success = true
@@ -324,7 +328,7 @@ class SimpleConflictResolver(val keySchema: Schema, val valueSchema: Schema) {
 object LogicalRecordUpdater {
   // base is the (optional) byte array of the serialized AvroRecord.
   // deltal is the (optional) byte array of the serialized delta AvroRecord.
-  // An byte array of the serialized resulting record is returned.
+  // A byte array of the serialized resulting record is returned.
   def applyDeltaBytes(schema: Schema, baseBytes: Option[Array[Byte]], deltaBytes: Option[Array[Byte]]): Array[Byte] = {
     if (deltaBytes.isEmpty) {
       throw new RuntimeException("Delta records should always exist.")
@@ -403,5 +407,43 @@ object LogicalRecordUpdater {
       }
     })
     base
+  }
+}
+
+object ICChecker {
+  private def convertFieldToDouble(f: Any): Double = {
+    f match {
+      case x: java.lang.Integer => x.doubleValue
+      case x: String => 0
+      case x: org.apache.avro.util.Utf8 => 0
+      case x: java.lang.Long => x.doubleValue
+      case x: java.lang.Float => x.doubleValue
+      case x: java.lang.Double => x
+      case _ => 0
+    }
+  }
+
+  def check(rec: SpecificRecord, ics: FieldICList): Boolean = {
+    var valid = true
+    ics.ics.foreach(ic => {
+      if (valid) {
+        val doubleField = convertFieldToDouble(rec.get(ic.fieldPos))
+
+        val lowerValid = ic.lower match {
+          case None => true
+          case Some(FieldRestrictionGT(x)) => doubleField > x
+          case Some(FieldRestrictionGE(x)) => doubleField >= x
+          case _ => false
+        }
+
+        valid = lowerValid && (ic.upper match {
+          case None => true
+          case Some(FieldRestrictionLT(x)) => doubleField < x
+          case Some(FieldRestrictionLE(x)) => doubleField <= x
+          case _ => false
+        })
+      }
+    })
+    valid
   }
 }

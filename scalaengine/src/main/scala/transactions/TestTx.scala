@@ -5,9 +5,26 @@ import edu.berkeley.cs.avro.marker.AvroRecord
 
 import scala.actors.Actor._
 
+import edu.berkeley.cs.scads.storage.FieldAnnotations._
+
+import java.lang.annotation.Documented
+import annotation.target.field
+
 case class KeyRec(var x: Int) extends AvroRecord
-case class ValueRec(var s: String, var i: Int, var a: Long,
-                    var b: Float, var c: Double) extends AvroRecord
+
+case class ValueRec(var s: String,
+                    @FieldGT(1)
+                    @FieldGE(2)
+                    @FieldLT(3)
+                    @FieldLE(4)
+                    var i: Int,
+                    @FieldGT(1)
+                    @FieldGE(1)
+                    @FieldLT(4)
+                    @FieldLE(4)
+                    var a: Long,
+                    var b: Float,
+                    var c: Double) extends AvroRecord
 
 class TestTx {
   def run() {
@@ -67,7 +84,6 @@ class TestTx {
 
 //    ns.put(KeyRec(1), None)
 
-    // read set is not gathered yet, so inserts work for now.
     val tx4 = new Tx(100) ({
       // need to read your writes...
       ns.get(KeyRec(1))
