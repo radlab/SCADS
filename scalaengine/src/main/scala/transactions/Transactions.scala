@@ -19,7 +19,6 @@ import org.apache.zookeeper._
 import java.util.concurrent.TimeUnit
 import java.nio._
 
-
 // This works with SpecificNamespace
 trait Transactions[K <: SpecificRecord, V <: SpecificRecord]
 extends RangeKeyValueStore[K, V]
@@ -28,6 +27,9 @@ with ZooKeeperGlobalMetadata
 with TransactionRecordMetadata {
 
   implicit protected def valueManifest: Manifest[V]
+
+  // TODO: Don't know why implicit manifest did not work.
+  val protocolType: TxProtocol = TxProtocol2pc()
 
   // r is the new restriction, and l is the (optionally) existing restriction.
   // r is a lower restriction (GT or GE).
@@ -125,10 +127,22 @@ with TransactionRecordMetadata {
 
   def putLogical(key: K, value: V): Unit = {
     putBytesLogical(keyToBytes(key), valueToBytes(value))
+    ThreadLocalStorage.protocolMap.value match {
+      case Some(protocolMap) => {
+        protocolMap.addNamespaceProtocol(name, protocolType)
+      }
+      case _ =>
+    }
   }
 
   override def put(key: K, value: Option[V]): Unit = {
     putBytes(keyToBytes(key), value.map(v => valueToBytes(v)))
+    ThreadLocalStorage.protocolMap.value match {
+      case Some(protocolMap) => {
+        protocolMap.addNamespaceProtocol(name, protocolType)
+      }
+      case _ =>
+    }
   }
 
   override def get(key: K): Option[V] = {

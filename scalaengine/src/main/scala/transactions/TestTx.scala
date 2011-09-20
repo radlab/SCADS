@@ -30,7 +30,9 @@ class TestTx {
   def run() {
     val cluster = TestScalaEngine.newScadsCluster()
 
-    val ns = new SpecificNamespace[KeyRec, ValueRec]("testns", cluster, cluster.namespaces) with Transactions[KeyRec, ValueRec]
+    val ns = new SpecificNamespace[KeyRec, ValueRec]("testns", cluster, cluster.namespaces) with Transactions[KeyRec, ValueRec] {
+      override val protocolType = TxProtocol2pc()
+    }
     ns.open()
 
     ns.put(KeyRec(1), ValueRec("A", 1, 1, 1.0.floatValue, 1.0))
@@ -44,9 +46,7 @@ class TestTx {
     }).Accept(0.90) {
     }.Commit( success => {
     })
-    tx1.ExecuteMain()
-    tx1.PrepareTest()
-    ns.getRange(None, None).foreach(x => println(x))
+    tx1.Execute()
 
     val tx2 = new Tx(100) ({
       List.range(9, 9 + 4).foreach(x => ns.put(KeyRec(x),
@@ -54,9 +54,7 @@ class TestTx {
     }).Accept(0.90) {
     }.Commit( success => {
     })
-    tx2.ExecuteMain()
-    tx2.PrepareTest()
-    ns.getRange(None, None).foreach(x => println(x))
+    tx2.Execute()
 
     val tx3 = new Tx(100) ({
       List.range(7, 7 + 4).foreach(x => ns.put(KeyRec(x),
@@ -64,20 +62,7 @@ class TestTx {
     }).Accept(0.90) {
     }.Commit( success => {
     })
-    tx3.ExecuteMain()
-    tx3.PrepareTest()
-    ns.getRange(None, None).foreach(x => println(x))
-
-    // Run the commits
-    tx2.CommitTest()
-    println("getrange")
-    ns.getRange(None, None).foreach(x => println(x))
-    tx3.CommitTest()
-    println("getrange")
-    ns.getRange(None, None).foreach(x => println(x))
-    tx1.CommitTest()
-    println("getrange")
-    ns.getRange(None, None).foreach(x => println(x))
+    tx3.Execute()
 
     // Delete something
     println("delete 1")
@@ -91,9 +76,7 @@ class TestTx {
     }).Accept(0.90) {
     }.Commit( success => {
     })
-    tx4.ExecuteMain()
-    tx4.PrepareTest()
-    tx4.CommitTest()
+    tx4.Execute()
 
     println("    get 1")
     println(ns.get(KeyRec(1)))

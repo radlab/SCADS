@@ -10,4 +10,7 @@ object ThreadLocalStorage {
 
   // Records read from within the tx.
   val txReadList = new DynamicVariable[Option[ReadList]](None)
+
+  // Holds all protocols for all namespaces in the tx.
+  val protocolMap = new DynamicVariable[Option[ProtocolMap]](None)
 }
