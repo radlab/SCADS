@@ -36,50 +36,51 @@ object ScadsBuild extends Build {
   lazy val scads = Project("scads", file("."), settings=buildSettings) aggregate (config, avroPlugin, comm, deploylib, scalaEngine, piql, scadr, tpcw, modeling)
 
   /* Avro Scala Compiler Plugin */
-  lazy val avroPlugin = Project("avro-plugin", file("avro"), settings=buildSettings ++ Seq(libraryDependencies := avroPluginDeps))
+  lazy val avroPlugin = Project("avro-plugin", file("avro"), settings=buildSettings ++ Seq(libraryDependencies ++= avroPluginDeps))
 
   /* SCADS Core Projects */
   lazy val config = Project(
     "config", 
     file("config"), 
-    settings=buildSettings ++ Seq(libraryDependencies := configDeps))
+    settings=buildSettings ++ Seq(libraryDependencies ++= configDeps))
 
   lazy val comm = Project(
     "communication",
     file("comm"),
-    settings=buildSettings ++ Seq(libraryDependencies := commDeps)
+    settings=buildSettings ++ Seq(libraryDependencies ++= commDeps)
   ) dependsOn(config)
 
   lazy val optional = Project(
     "optional",
     file("optional"),
-    settings=buildSettings ++ Seq(libraryDependencies := Seq(paranamer)))
+    settings=buildSettings ++ Seq(libraryDependencies ++= Seq(paranamer)))
+
   lazy val deploylib = Project(
     "deploylib",
     file("deploylib"),
     settings=deploySettings ++ Seq(
-      libraryDependencies := deploylibDeps)
+      libraryDependencies ++= deploylibDeps)
   ) dependsOn(comm, optional)
   
   lazy val scalaEngine = Project(
     "scala-engine",
     file("scalaengine"),
     settings=deploySettings ++ Seq(
-      libraryDependencies := scalaEngineDeps)
+      libraryDependencies ++= scalaEngineDeps)
   ) dependsOn(config, comm, deploylib)
 
   lazy val piql = Project(
     "piql", file("piql"),
     settings=deploySettings ++ Seq(
-      libraryDependencies := useAvroPlugin)
+      libraryDependencies ++= useAvroPlugin)
   ) dependsOn(config, comm, scalaEngine)
 
   lazy val perf = Project(
     "perf",
     file("perf"),
     settings=deploySettings ++ Seq(
-      libraryDependencies := useAvroPlugin,
-      initialCommands := ("import edu.berkeley.cs._\n" + 
+      libraryDependencies ++= useAvroPlugin,
+      initialCommands += ("import edu.berkeley.cs._\n" +
 			"import edu.berkeley.cs.avro._\n" + 
 			"import edu.berkeley.cs.scads.comm._\n" +
 			"import edu.berkeley.cs.scads.storage._\n" +
@@ -91,7 +92,7 @@ object ScadsBuild extends Build {
     "modeling", 
     file("experiments/modeling"), 
     settings=deploySettings ++ Seq(
-      libraryDependencies := useAvroPlugin,
+      libraryDependencies ++= useAvroPlugin,
       initialCommands in console := (
 	"import edu.berkeley.cs.scads.piql.modeling._\n" +
 	"import edu.berkeley.cs.scads.piql.modeling.Experiments._")
@@ -101,24 +102,24 @@ object ScadsBuild extends Build {
   lazy val scadr = Project(
     "scadr", 
     file("piql/scadr"), 
-    settings=deploySettings ++ Seq(libraryDependencies := useAvroPlugin)
+    settings=deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin)
   ) dependsOn(piql % "compile;test->test", perf)
 
   lazy val tpcw = Project(
     "tpcw",
     file("piql/tpcw"),
-    settings=deploySettings ++ Seq(libraryDependencies := useAvroPlugin)
+    settings=deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin)
   ) dependsOn(piql, perf)
 
   lazy val axer = Project(
     "axer",
     file("axer"),
-    settings=deploySettings ++ Seq(libraryDependencies := useAvroPlugin))
+    settings=deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin))
 
   lazy val matheron = Project(
     "matheron",
     file("matheron"),
-    settings=deploySettings ++ Seq(libraryDependencies := useAvroPlugin)
+    settings=deploySettings ++ Seq(libraryDependencies ++= useAvroPlugin)
   ) dependsOn(config, comm, scalaEngine)
 
   /**
