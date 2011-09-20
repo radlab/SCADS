@@ -11,25 +11,25 @@ abstract class TrxManager(manager: StorageManager) {
 
 }
 
-class Protocol2PC(manager: StorageManager)  extends TrxManager(manager) {
+class Protocol2PCManager(manager: StorageManager)  extends TrxManager(manager) {
 
    def process(src: Option[RemoteActorProxy], msg : TrxMessage)(implicit sender: RemoteActorProxy) = {
      def reply(body: MessageBody) = src.foreach(_ ! body)
      msg match {
        case PrepareRequest(xid, updates) => {
-          val success = manager.accept(xid, updates).isDefined
-          reply(PrepareResponse(success))
-        }
-        case CommitRequest(xid, updates, commit) => {
-          var success = true
-          if (commit) {
-            success = manager.commit(xid, updates)
-          } else {
-            // Abort
-            manager.abort(xid)
-          }
-          reply(CommitResponse(success))
-        }
+         val success = manager.accept(xid, updates).isDefined
+         reply(PrepareResponse(success))
+       }
+       case CommitRequest(xid, updates, commit) => {
+         var success = true
+         if (commit) {
+           success = manager.commit(xid, updates)
+         } else {
+           // Abort
+           manager.abort(xid)
+         }
+         reply(CommitResponse(success))
+       }
      }
    }
 }

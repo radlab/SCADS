@@ -155,7 +155,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
     private def makeTrxMgr(trxMgrType : String, storageMgr : StorageManager) : TrxManager = {
       //TODO The protocol should be a singleton per namespace not partitonHandler
     trxMgrType match {
-      case "2PC" => new Protocol2PC(storageMgr)
+      case "2PC" => new Protocol2PCManager(storageMgr)
       case _ => throw new RuntimeException("Found Unsupported Transaction Support")
     }
   }
