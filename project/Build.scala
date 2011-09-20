@@ -4,12 +4,14 @@ import Keys._
 object ScadsBuild extends Build {
   val buildVersion      = "2.1.2-SNAPSHOT"
   val defaultScalaVersion = "2.9.1"
-  val buildSettings = Defaults.defaultSettings ++ Seq (
+    
+  val buildSettings = Defaults.defaultSettings ++ GhPages.ghpages.settings ++ Seq (
     organization := "edu.berkeley.cs",
     scalaVersion := defaultScalaVersion,
     version      := buildVersion,
     shellPrompt  := ShellPrompt.buildShellPrompt,
     resolvers    := Seq(radlabRepo, localMaven),
+    GhPages.ghpages.gitRemoteRepo := "git@github.com:radlab/SCADS.git",
     parallelExecution in Test := false,
     libraryDependencies += "org.scala-tools.sxr" %% "sxr" % "0.2.8-SNAPSHOT" % "plugin",
     publishTo <<= (version) { version: String =>
