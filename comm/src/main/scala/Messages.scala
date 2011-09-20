@@ -117,8 +117,10 @@ case class ScadsXid(var tid: Long, var bid: Long) extends AvroRecord {
 
 case class Transaction(var xid: ScadsXid, var updates: Seq[RecordUpdate])  extends AvroRecord
 
+sealed trait TrxMessage extends KeyValueStoreOperation
+
 /* Transaction MDCC Paxos */
-sealed trait MDCCProtocol extends KeyValueStoreOperation
+sealed trait MDCCProtocol extends TrxMessage
 
 case class Propose(var trx: Transaction) extends AvroRecord with MDCCProtocol
 
@@ -135,7 +137,7 @@ case class Phase2bClassic(var ballot: MDCCBallot, var value: CStruct) extends Av
 case class Phase2bFast(var ballot: MDCCBallot, var value: CStruct) extends AvroRecord with MDCCProtocol
 
 /* Transaction KVStore Operations */
-sealed trait TxProtocol2pc extends KeyValueStoreOperation
+sealed trait TxProtocol2pc extends TrxMessage
 case class PrepareRequest(var xid: ScadsXid, var updates: Seq[RecordUpdate]) extends AvroRecord with TxProtocol2pc
 //case class PrepareRequest(var xid: ScadsXid, var updates: Seq[PutRequest]) extends AvroRecord with TxProtocol2pc
 case class PrepareResponse(var success: Boolean) extends AvroRecord with TxProtocol2pc
@@ -145,7 +147,7 @@ case class CommitResponse(var success: Boolean) extends AvroRecord with TxProtoc
 
 /* Storage Handler Operations */
 sealed trait StorageServiceOperation extends MessageBody
-case class CreatePartitionRequest(var namespace: String, var partitionType:String, var startKey: Option[Array[Byte]] = None, var endKey: Option[Array[Byte]] = None) extends AvroRecord with StorageServiceOperation
+case class CreatePartitionRequest(var namespace: String, var partitionType:String, var startKey: Option[Array[Byte]] = None, var endKey: Option[Array[Byte]] = None, var trxProtocol : String = "2PC") extends AvroRecord with StorageServiceOperation
 case class CreatePartitionResponse(var partitionActor: PartitionService) extends AvroRecord with StorageServiceOperation
 
 case class DeletePartitionRequest(var partitionId: String) extends AvroRecord with StorageServiceOperation

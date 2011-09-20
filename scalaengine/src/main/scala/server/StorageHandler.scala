@@ -137,18 +137,28 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
    */
   private def makeBdbPartitionHandler(
       database: Database, namespace: String, partitionIdLock: ZooKeeperProxy#ZooKeeperNode,
-      startKey: Option[Array[Byte]], endKey: Option[Array[Byte]]) = {
+      startKey: Option[Array[Byte]], endKey: Option[Array[Byte]], trxMgrType : String) = {
     val schemasvc = schemasAndValueClassFor(namespace)
-    new PartitionHandler(new BdbStorageManager(database, partitionIdLock, startKey, endKey, getNamespaceRoot(namespace), schemasvc._1, schemasvc._2))
+    val storageMgr = new BdbStorageManager(database, partitionIdLock, startKey, endKey, getNamespaceRoot(namespace), schemasvc._1, schemasvc._2)
+    new PartitionHandler(storageMgr, makeTrxMgr(trxMgrType, storageMgr))
   }
+
 
   private def makeInMemPartitionHandler
     (namespace:String,partitionIdLock:ZooKeeperProxy#ZooKeeperNode,
-     startKey:Option[Array[Byte]], endKey:Option[Array[Byte]]) = {
+     startKey:Option[Array[Byte]], endKey:Option[Array[Byte]], trxMgrType : String) = {
     val schemasvc = schemasAndValueClassFor(namespace)
-    new PartitionHandler(new InMemStorageManager(partitionIdLock, startKey, endKey, getNamespaceRoot(namespace),schemasvc._1, schemasvc._2, schemasvc._3))
+    val storageMgr = new InMemStorageManager(partitionIdLock, startKey, endKey, getNamespaceRoot(namespace),schemasvc._1, schemasvc._2, schemasvc._3)
+    new PartitionHandler(storageMgr, makeTrxMgr(trxMgrType, storageMgr) )
   }
-                                        
+
+    private def makeTrxMgr(trxMgrType : String, storageMgr : StorageManager) : TrxManager = {
+      //TODO The protocol should be a singleton per namespace not partitonHandler
+    trxMgrType match {
+      case "2PC" => new Protocol2PC(storageMgr)
+      case _ => throw new RuntimeException("Found Unsupported Transaction Support")
+    }
+  }
 
   /** Iterator scans the entire cursor and does not close it */
   private implicit def cursorToIterator(cursor: Cursor): Iterator[(DatabaseEntry, DatabaseEntry)]
@@ -217,7 +227,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
 
       /* Make partition handler */
       val db      = makeDatabase(request.namespace, keySchemaFor(request.namespace), None)
-      val handler = makeBdbPartitionHandler(db, request.namespace, partitionIdLock, request.startKey, request.endKey)
+      val handler = makeBdbPartitionHandler(db, request.namespace, partitionIdLock, request.startKey, request.endKey, "2PC")  //TODO we need to store the trx protocol type
 			//val handler = makePartitionHandlerWithAC(db, acdb, request.namespace, partitionIdLock, request.startKey, request.endKey)
 
       /* Add to our list of open partitions */
@@ -281,7 +291,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
     def reply(msg: MessageBody) = src.foreach(_ ! msg)
 
     msg match {
-      case createRequest @ CreatePartitionRequest(namespace, partitionType, startKey, endKey) => {
+      case createRequest @ CreatePartitionRequest(namespace, partitionType, startKey, endKey, trxProtocol) => {
         logger.info("[%s] CreatePartitionRequest for namespace %s, [%s, %s)", this, namespace, JArrays.toString(startKey.orNull), JArrays.toString(endKey.orNull))
 
         /* Grab root to namespace from ZooKeeper */
@@ -311,7 +321,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
                 val txn = env.beginTransaction(null, null)
                 partitionDb.put(txn, new DatabaseEntry(partitionId.getBytes), new DatabaseEntry(createRequest.toBytes))
                 txn.commit()
-                makeInMemPartitionHandler(namespace,partitionIdLock, startKey, endKey)
+                makeInMemPartitionHandler(namespace,partitionIdLock, startKey, endKey, trxProtocol)
               }
               case "bdb" => {
                 /* Start a new transaction to atomically make both the namespace DB,
@@ -331,7 +341,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode, v
                 txn.commit()
                 
                 /* Make partition handler from request */
-                makeBdbPartitionHandler(newDb, namespace, partitionIdLock, startKey, endKey)
+                makeBdbPartitionHandler(newDb, namespace, partitionIdLock, startKey, endKey, trxProtocol)
 	        //val handler = makePartitionHandlerWithAC(newDb, acDb, namespace, partitionIdLock, startKey, endKey)
               }
               case _ => throw new RuntimeException("Invalid partition type specified in create partition request: "+partitionType)
