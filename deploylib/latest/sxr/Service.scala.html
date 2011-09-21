@@ -15,22 +15,22 @@
 <span class="comment">/**
  * Provides a framework for deploying and managing services.
  */</span>
-<span class="keyword">abstract</span> <span class="keyword">class</span> <a title="class Service extends java.lang.Object with ScalaObject" id="9499">Service</a><a href="#9499" title="ScalaObject" class="delimiter">(</a><a title="deploylib.RemoteMachine" id="36727">remoteMachine</a>: <a href="RemoteMachine.scala.html#9495" title="deploylib.RemoteMachine">RemoteMachine</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+<span class="keyword">abstract</span> <span class="keyword">class</span> <a title="class Service extends java.lang.Object with ScalaObject" id="9491">Service</a><a href="#9491" title="ScalaObject" class="delimiter">(</a><a title="deploylib.RemoteMachine" id="36729">remoteMachine</a>: <a href="RemoteMachine.scala.html#9487" title="deploylib.RemoteMachine">RemoteMachine</a><span class="delimiter">)</span> <span class="delimiter">{</span>
 
   <span class="comment">/**
    * Dependency management because services can depend on other services.
    */</span>
-  <span class="keyword">def</span> <a title="(service: deploylib.Service)Unit" id="29503">addDependency</a><span class="delimiter">(</span><a title="deploylib.Service" id="36728">service</a>: <a href="#9499" title="deploylib.Service">Service</a><span class="delimiter">)</span>: <span title="Unit">Unit</span>
+  <span class="keyword">def</span> <a title="(service: deploylib.Service)Unit" id="29505">addDependency</a><span class="delimiter">(</span><a title="deploylib.Service" id="36730">service</a>: <a href="#9491" title="deploylib.Service">Service</a><span class="delimiter">)</span>: <span title="Unit">Unit</span>
 
   <span class="comment">/**
    * Deploys and starts the service.
    */</span>
-  <span class="keyword">def</span> <a title="=&gt; Unit" id="29504">start</a>: <span title="Unit">Unit</span>
+  <span class="keyword">def</span> <a title="=&gt; Unit" id="29506">start</a>: <span title="Unit">Unit</span>
 
   <span class="comment">/**
    * Shuts down the service.
    */</span>
-  <span class="keyword">def</span> <a title="=&gt; Unit" id="29505">stop</a>: <span title="Unit">Unit</span>
+  <span class="keyword">def</span> <a title="=&gt; Unit" id="29507">stop</a>: <span title="Unit">Unit</span>
 
 <span class="delimiter">}</span>
 
