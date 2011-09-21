@@ -1,0 +1,132 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html>
+        <head>
+          <title>edu.berkeley.cs.scads.perf.intkey</title>
+          <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+          
+      <link type="text/css" media="screen" rel="stylesheet" href="../../../../../../lib/template.css" />
+      <script type="text/javascript" src="../../../../../../lib/jquery.js"></script>
+      <script type="text/javascript" src="../../../../../../lib/jquery-ui.js"></script>
+      <script type="text/javascript" src="../../../../../../lib/template.js"></script>
+      <script type="text/javascript" src="../../../../../../lib/tools.tooltip.js"></script>
+    
+        </head>
+        <body class="value">
+      <div id="definition">
+        <img src="../../../../../../lib/package_big.png" />
+        <p id="owner"><a name="edu" class="extype" href="../../../../../package.html">edu</a>.<a name="edu.berkeley" class="extype" href="../../../../package.html">berkeley</a>.<a name="edu.berkeley.cs" class="extype" href="../../../package.html">cs</a>.<a name="edu.berkeley.cs.scads" class="extype" href="../../package.html">scads</a>.<a name="edu.berkeley.cs.scads.perf" class="extype" href="../package.html">perf</a></p>
+        <h1>intkey</h1>
+      </div>
+
+      <h4 class="signature" id="signature">
+      <span class="kind">package</span>
+      <span class="symbol"> 
+        <span class="name">intkey</span>
+        
+        
+      </span>
+      </h4>
+      
+          <div class="fullcommenttop" id="comment"></div>
+        
+
+      <div id="template">
+
+        <div id="mbrsel">
+          <div id="textfilter"><span class="pre"></span><span class="input"><input accesskey="/" type="text" /></span><span class="post"></span></div>
+          
+          
+          <div id="visbl">
+              <span class="filtertype">Visibility</span>
+              <ol><li class="public in"><span>Public</span></li><li class="all out"><span>All</span></li></ol>
+            </div>
+        </div>
+
+        
+
+        <div class="types members" id="types">
+              <h3>Type Members</h3>
+              <ol><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.DataLoader" data-isabs="false">
+      <a id="DataLoader:DataLoader"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="DataLoader.html"><span class="name">DataLoader</span></a>
+        
+        <span class="params">(<span name="numServers">numServers: Int</span>, <span name="numLoaders">numLoaders: Int</span>, <span name="recsPerServer">recsPerServer: Int</span>)</span><span class="result"> extends DataLoadingTask with AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.LoadClient" data-isabs="false">
+      <a id="LoadClient:LoadClient"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="LoadClient.html"><span class="name">LoadClient</span></a>
+        
+        <span class="params">(<span name="cluster">cluster: String</span>, <span name="clientId">clientId: Int</span>, <span name="threadId">threadId: Int</span>, <span name="iteration">iteration: Int</span>)</span><span class="result"> extends AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.LoadPerfResult" data-isabs="false">
+      <a id="LoadPerfResult:LoadPerfResult"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="LoadPerfResult.html"><span class="name">LoadPerfResult</span></a>
+        
+        <span class="params">(<span name="startTime">startTime: Long</span>, <span name="endTime">endTime: Long</span>, <span name="getTimes">getTimes: Histogram</span>, <span name="putTimes">putTimes: Histogram</span>)</span><span class="result"> extends AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.RandomLoadClient" data-isabs="false">
+      <a id="RandomLoadClient:RandomLoadClient"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="RandomLoadClient.html"><span class="name">RandomLoadClient</span></a>
+        
+        <span class="params">(<span name="numClients">numClients: Int</span>, <span name="numIterations">numIterations: Int</span>, <span name="clusterAddress">clusterAddress: String</span>, <span name="loadCount">loadCount: Int</span>, <span name="loadThreads">loadThreads: Int</span>, <span name="readPercentage">readPercentage: Double</span>)</span><span class="result"> extends ReplicatedExperimentTask with AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.WriteClient" data-isabs="false">
+      <a id="WriteClient:WriteClient"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="WriteClient.html"><span class="name">WriteClient</span></a>
+        
+        <span class="params">(<span name="cluster">cluster: String</span>, <span name="clientId">clientId: Int</span>)</span><span class="result"> extends AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.WritePerfResult" data-isabs="false">
+      <a id="WritePerfResult:WritePerfResult"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="WritePerfResult.html"><span class="name">WritePerfResult</span></a>
+        
+        <span class="params">(<span name="numKeys">numKeys: Int</span>, <span name="startTime">startTime: Long</span>, <span name="endTime">endTime: Long</span>)</span><span class="result"> extends AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li></ol>
+            </div>
+        
+        
+
+        
+
+        
+
+        
+
+      </div>
+      
+      <div id="tooltip"></div>
+      
+    </body>
+      </html>
