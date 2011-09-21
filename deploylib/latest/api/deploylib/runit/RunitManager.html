@@ -72,7 +72,7 @@
         <span class="params">(<span name="total">total: Int</span>, <span name="used">used: Int</span>, <span name="free">free: Int</span>, <span name="shared">shared: Int</span>, <span name="buffers">buffers: Int</span>, <span name="cached">cached: Int</span>)</span><span class="result"> extends Product with Serializable</span>
       </span>
       </h4>
-      <p class="comment cmt">returns the result of the command free.</p>
+      
     </li><li visbl="pub" name="deploylib.RemoteMachine.RemoteFile" data-isabs="false">
       <a id="RemoteFile:RemoteFile"></a>
       <h4 class="signature">
@@ -224,7 +224,8 @@
         <span class="params">(<span name="cmd">cmd: String</span>)</span><span class="result">: String</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+      <p class="shortcomment cmt">Execute a command on the remote machine and return stdout as a string.</p><div class="fullcomment"><div class="comment cmt"><p>Execute a command on the remote machine and return stdout as a string.  Throws an exception if the command doesn't exit with status code 0.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef###" data-isabs="false">
       <a id="##():Int"></a>
       <h4 class="signature">
@@ -314,7 +315,8 @@
         <span class="params">(<span name="file">file: <span name="java.io.File" class="extype">File</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+      <p class="shortcomment cmt">Block until the specified file is created on the remote machine.</p><div class="fullcomment"><div class="comment cmt"><p>Block until the specified file is created on the remote machine.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.RemoteMachine#blockTillPortOpen" data-isabs="false">
       <a id="blockTillPortOpen(Int):Unit"></a>
       <h4 class="signature">
@@ -325,7 +327,8 @@
         <span class="params">(<span name="port">port: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+      <p class="shortcomment cmt">Block until we can make a connection to the given port, checking every 5 seconds.</p><div class="fullcomment"><div class="comment cmt"><p>Block until we can make a connection to the given port, checking every 5 seconds.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.RemoteMachine#catFile" data-isabs="false">
       <a id="catFile(File):String"></a>
       <h4 class="signature">
@@ -336,7 +339,8 @@
         <span class="params">(<span name="remoteFile">remoteFile: <span name="java.io.File" class="extype">File</span></span>)</span><span class="result">: String</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+      <p class="shortcomment cmt">Return the contents of the remote file as a string.</p><div class="fullcomment"><div class="comment cmt"><p>Return the contents of the remote file as a string.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.runit.RunitManager#clearAll" data-isabs="false">
       <a id="clearAll:Unit"></a>
       <h4 class="signature">
@@ -471,7 +475,10 @@ and return the result as an ExecuteResponse
         <span class="result">: <a name="deploylib.RemoteMachine.FreeStats" class="extype" href="../RemoteMachine$FreeStats.html">FreeStats</a></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+      <p class="shortcomment cmt">Returns the result of the command free.</p><div class="fullcomment"><div class="comment cmt"><p>Returns the result of the command free.</p><p>Parsed as:
+total       used       free     shared    buffers     cached
+Mem:       7864548    4332752    3531796          0      78112    2640248
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.RemoteMachine#freeResponse" data-isabs="false">
       <a id="freeResponse:Regex"></a>
       <h4 class="signature">
@@ -526,7 +533,8 @@ and return the result as an ExecuteResponse
         <span class="params">(<span name="port">port: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+      <p class="shortcomment cmt">Use netstat to check if a port is currently bound to a listening socket on the remote machine.</p><div class="fullcomment"><div class="comment cmt"><p>Use netstat to check if a port is currently bound to a listening socket on the remote machine.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.RemoteMachine#jps" data-isabs="false">
       <a id="jps:Seq[RemoteJavaProcess]"></a>
       <h4 class="signature">
@@ -537,7 +545,8 @@ and return the result as an ExecuteResponse
         <span class="result">: Seq[<a name="deploylib.RemoteMachine.RemoteJavaProcess" class="extype" href="../RemoteMachine$RemoteJavaProcess.html">RemoteJavaProcess</a>]</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+      <p class="shortcomment cmt">Return a list of all the java processes running on the remote machine.</p><div class="fullcomment"><div class="comment cmt"><p>Return a list of all the java processes running on the remote machine.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.RemoteMachine#logger" data-isabs="false">
       <a id="logger:Logger"></a>
       <h4 class="signature">
@@ -559,7 +568,8 @@ and return the result as an ExecuteResponse
         <span class="params">(<span name="dir">dir: <span name="java.io.File" class="extype">File</span></span>)</span><span class="result">: Seq[<a name="deploylib.RemoteMachine.RemoteFile" class="extype" href="../RemoteMachine$RemoteFile.html">RemoteFile</a>]</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+      <p class="shortcomment cmt">Return a list of RemoteFiles found in dir on the remote machine.</p><div class="fullcomment"><div class="comment cmt"><p>Return a list of RemoteFiles found in dir on the remote machine.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.RemoteMachine#md5" data-isabs="false">
       <a id="md5(File):String"></a>
       <h4 class="signature">
@@ -570,7 +580,9 @@ and return the result as an ExecuteResponse
         <span class="params">(<span name="remoteFile">remoteFile: <span name="java.io.File" class="extype">File</span></span>)</span><span class="result">: String</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+      <p class="shortcomment cmt">returns an md5 hash of the specified remote file
+</p><div class="fullcomment"><div class="comment cmt"><p>returns an md5 hash of the specified remote file
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.RemoteMachine#mkdir" data-isabs="false">
       <a id="mkdir(File):Unit"></a>
       <h4 class="signature">
@@ -581,7 +593,8 @@ and return the result as an ExecuteResponse
         <span class="params">(<span name="remoteDir">remoteDir: <span name="java.io.File" class="extype">File</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+      <p class="shortcomment cmt">create directories on the remote machine.</p><div class="fullcomment"><div class="comment cmt"><p>create directories on the remote machine.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef#ne" data-isabs="false">
       <a id="ne(AnyRef):Boolean"></a>
       <h4 class="signature">
@@ -686,7 +699,8 @@ root         1  0.0  0.0  23708  1952 ?        Ss   01:00   0:00 /sbin/init
         <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+      <p class="shortcomment cmt">Kill all processes currently tailing a file.</p><div class="fullcomment"><div class="comment cmt"><p>Kill all processes currently tailing a file.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.RemoteMachine#svCmd" data-isabs="false">
       <a id="svCmd:File"></a>
       <h4 class="signature">
@@ -730,7 +744,9 @@ root         1  0.0  0.0  23708  1952 ?        Ss   01:00   0:00 /sbin/init
         <span class="params">(<span name="remoteFile">remoteFile: <span name="java.io.File" class="extype">File</span></span>, <span name="numLines">numLines: <span name="scala.Int" class="extype">Int</span> = <span class="symbol">20</span></span>)</span><span class="result">: String</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+      <p class="shortcomment cmt">return the last numLines from the specified file
+</p><div class="fullcomment"><div class="comment cmt"><p>return the last numLines from the specified file
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="pub" name="deploylib.RemoteMachine#toOption" data-isabs="false">
       <a id="toOption[A](A):Option[A]"></a>
       <h4 class="signature">
@@ -763,7 +779,7 @@ root         1  0.0  0.0  23708  1952 ?        Ss   01:00   0:00 /sbin/init
         <span class="params">(<span name="localFile">localFile: <span name="java.io.File" class="extype">File</span></span>, <span name="remoteDirectory">remoteDirectory: <span name="java.io.File" class="extype">File</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
-      <p class="shortcomment cmt">Upload a file to the remote machine.</p><div class="fullcomment"><div class="comment cmt"><p>Upload a file to the remote machine.  Before peforming the transfer check the md5hash of the local file and any existing file to ensure we don't waste bandwidth.
+      <p class="shortcomment cmt">Upload a file to the remote machine.</p><div class="fullcomment"><div class="comment cmt"><p>Upload a file to the remote machine.  Before performing the transfer check the md5hash of the local file and any existing file to ensure we don't waste bandwidth.
 </p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li><li visbl="prt" name="deploylib.RemoteMachine#useConnection" data-isabs="false">
       <a id="useConnection[ReturnType]((Connection) ⇒ ReturnType,Int):ReturnType"></a>
@@ -829,7 +845,8 @@ root         1  0.0  0.0  23708  1952 ?        Ss   01:00   0:00 /sbin/init
         <span class="params">(<span name="remoteFile">remoteFile: <span name="java.io.File" class="extype">File</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+      <p class="shortcomment cmt">run tail -F on the specifed file in a seperate thread.</p><div class="fullcomment"><div class="comment cmt"><p>run tail -F on the specifed file in a seperate thread.  all ouput is printed on local stdout.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
     </li></ol>
             </div>
 
