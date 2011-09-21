@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>ec2/sns.scala</title>
+        <script type="text/javascript" src="../jquery-all.js"></script>
+        <script type="text/javascript" src="../linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="../style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> deploylib
+<span class="keyword">package</span> ec2
+
+<span class="keyword">import</span> com.amazonaws.services.sns._
+<span class="keyword">import</span> com.amazonaws.services.sns.model._
+
+<span class="keyword">object</span> <a title="object deploylib.ec2.ExperimentNotification" id="9564">ExperimentNotification</a> <span title="ScalaObject" class="keyword">extends</span> <a href="aws.scala.html#9530" title="deploylib.ec2.AWSConnection">AWSConnection</a> <span class="delimiter">{</span>
+  <span class="keyword">val</span> <a title="com.amazonaws.services.sns.AmazonSNSClient" id="51463">snsClient</a> = <span title="com.amazonaws.services.sns.AmazonSNSClient" class="keyword">new</span> <span title="com.amazonaws.services.sns.AmazonSNSClient">AmazonSNSClient</span><span class="delimiter">(</span><a href="aws.scala.html#39123" title="=&gt; com.amazonaws.auth.BasicAWSCredentials">credentials</a><span class="delimiter">)</span>
+
+  <span class="keyword">protected</span> <span class="keyword">class</span> <a title="class Topic extends java.lang.Object with ScalaObject" id="51465">Topic</a><a href="#51465" title="ScalaObject" class="delimiter">(</a><a title="String" id="51571">topicText</a>: <span title="String">String</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+    <span class="keyword">val</span> <a title="java.lang.String" id="51547">topicArn</a> = <a href="#51463" title="=&gt; com.amazonaws.services.sns.AmazonSNSClient">snsClient</a>.<span title="(x$1: com.amazonaws.services.sns.model.CreateTopicRequest)com.amazonaws.services.sns.model.CreateTopicResult">createTopic</span><span class="delimiter">(</span><span title="(x$1: java.lang.String)com.amazonaws.services.sns.model.CreateTopicRequest" class="keyword">new</span> <span title="com.amazonaws.services.sns.model.CreateTopicRequest">CreateTopicRequest</span><span class="delimiter">(</span><a href="#51571" title="String">topicText</a><span class="delimiter">)</span><span class="delimiter">)</span>.<span title="()java.lang.String">getTopicArn</span>
+
+    <span class="keyword">def</span> <a title="(emailAddress: String)Unit" id="51549">subscribeViaEmail</a><span class="delimiter">(</span><a title="String" id="51572">emailAddress</a>: <span title="String">String</span><span class="delimiter">)</span>: <span title="Unit">Unit</span> =
+      <a href="#51463" title="=&gt; com.amazonaws.services.sns.AmazonSNSClient">snsClient</a>.<span title="(x$1: com.amazonaws.services.sns.model.SubscribeRequest)com.amazonaws.services.sns.model.SubscribeResult">subscribe</span><span title="Unit" class="delimiter">(</span><span title="(x$1: java.lang.String, x$2: java.lang.String, x$3: java.lang.String)com.amazonaws.services.sns.model.SubscribeRequest" class="keyword">new</span> <span title="com.amazonaws.services.sns.model.SubscribeRequest">SubscribeRequest</span><span class="delimiter">(</span><a href="#51547" title="=&gt; java.lang.String">topicArn</a>, <span title="java.lang.String(&quot;email&quot;)" class="string">&quot;email&quot;</span>, <a href="#51572" title="String">emailAddress</a><span class="delimiter">)</span><span class="delimiter">)</span>
+
+    <span class="keyword">def</span> <a title="(subject: String, message: String)Unit" id="51550">publish</a><span class="delimiter">(</span><a title="String" id="51604">subject</a>: <span title="String">String</span>, <a title="String" id="51605">message</a>: <span title="String">String</span><span class="delimiter">)</span>: <span title="Unit">Unit</span> =
+      <a href="#51463" title="=&gt; com.amazonaws.services.sns.AmazonSNSClient">snsClient</a>.<span title="(x$1: com.amazonaws.services.sns.model.PublishRequest)com.amazonaws.services.sns.model.PublishResult">publish</span><span title="Unit" class="delimiter">(</span><span title="(x$1: java.lang.String, x$2: java.lang.String, x$3: java.lang.String)com.amazonaws.services.sns.model.PublishRequest" class="keyword">new</span> <span title="com.amazonaws.services.sns.model.PublishRequest">PublishRequest</span><span class="delimiter">(</span><a href="#51547" title="=&gt; java.lang.String">topicArn</a>, <a href="#51605" title="String">message</a>, <a href="#51604" title="String">subject</a><span class="delimiter">)</span><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">object</span> <a title="object deploylib.ec2.ExperimentNotification.completions" id="51466">completions</a> <span title="ScalaObject" class="keyword">extends</span> <a href="#51465" title="deploylib.ec2.ExperimentNotification.Topic">Topic</a><span class="delimiter">(</span><span title="java.lang.String(&quot;completions&quot;)" class="string">&quot;completions&quot;</span><span class="delimiter">)</span>
+  <span class="keyword">object</span> <a title="object deploylib.ec2.ExperimentNotification.failures" id="51468">failures</a> <span title="ScalaObject" class="keyword">extends</span> <a href="#51465" title="deploylib.ec2.ExperimentNotification.Topic">Topic</a><span class="delimiter">(</span><span title="java.lang.String(&quot;failures&quot;)" class="string">&quot;failures&quot;</span><span class="delimiter">)</span>
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>

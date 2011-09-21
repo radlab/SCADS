@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>ec2/aws.scala</title>
+        <script type="text/javascript" src="../jquery-all.js"></script>
+        <script type="text/javascript" src="../linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="../style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> deploylib.ec2
+
+<span class="keyword">import</span> java.io.File
+<span class="keyword">import</span> com.amazonaws.services.ec2._
+<span class="keyword">import</span> com.amazonaws.ClientConfiguration
+<span class="keyword">import</span> com.amazonaws.auth.BasicAWSCredentials
+
+<span class="comment">/**
+ * Abstract class that is used to get the the accessKeyId and the secretAcccess key from the environmental variables &lt;code&gt;AWS_ACCESS_KEY_ID&lt;/code&gt; and &lt;code&gt;AWS_SECRET_ACCESS_KEY&lt;/code&gt; respectively.
+ * It is used by the EC2Instance object and S3Cache.
+ */</span>
+<span class="keyword">trait</span> <a title="trait AWSConnection extends java.lang.Object with ScalaObject" id="9530">AWSConnection</a> <span title="ScalaObject" class="delimiter">{</span>
+  <span class="keyword">protected</span> <span class="keyword">val</span> <a title="java.lang.String" id="39114">accessKeyId</a> = <span title="object java.lang.System">System</span>.<span title="(x$1: java.lang.String)java.lang.String">getenv</span><span class="delimiter">(</span><span title="java.lang.String(&quot;AWS_ACCESS_KEY_ID&quot;)" class="string">&quot;AWS_ACCESS_KEY_ID&quot;</span><span class="delimiter">)</span>
+  <span class="keyword">protected</span> <span class="keyword">val</span> <a title="java.lang.String" id="39116">secretAccessKey</a> = <span title="object java.lang.System">System</span>.<span title="(x$1: java.lang.String)java.lang.String">getenv</span><span class="delimiter">(</span><span title="java.lang.String(&quot;AWS_SECRET_ACCESS_KEY&quot;)" class="string">&quot;AWS_SECRET_ACCESS_KEY&quot;</span><span class="delimiter">)</span>
+  <span class="keyword">protected</span> <span class="keyword">def</span> <a title="=&gt; java.io.File" id="39118">ec2PrivateKey</a> = <span title="java.io.File" class="keyword">new</span> <span title="java.io.File">File</span><span class="delimiter">(</span><span title="object java.lang.System">System</span>.<span title="(x$1: java.lang.String)java.lang.String">getenv</span><span class="delimiter">(</span><span title="java.lang.String(&quot;EC2_PRIVATE_KEY&quot;)" class="string">&quot;EC2_PRIVATE_KEY&quot;</span><span class="delimiter">)</span><span class="delimiter">)</span>
+  <span class="keyword">protected</span> <span class="keyword">def</span> <a title="=&gt; java.io.File" id="39119">ec2Cert</a> = <span title="java.io.File" class="keyword">new</span> <span title="java.io.File">File</span><span class="delimiter">(</span><span title="object java.lang.System">System</span>.<span title="(x$1: java.lang.String)java.lang.String">getenv</span><span class="delimiter">(</span><span title="java.lang.String(&quot;EC2_CERT&quot;)" class="string">&quot;EC2_CERT&quot;</span><span class="delimiter">)</span><span class="delimiter">)</span>
+  <span class="keyword">protected</span> <span class="keyword">def</span> <a title="=&gt; java.lang.String" id="39120">userID</a> = <span title="object java.lang.System">System</span>.<span title="(x$1: java.lang.String)java.lang.String">getenv</span><span class="delimiter">(</span><span title="java.lang.String(&quot;AWS_USER_ID&quot;)" class="string">&quot;AWS_USER_ID&quot;</span><span class="delimiter">)</span>
+
+  <span class="keyword">protected</span> <span class="keyword">val</span> <a title="com.amazonaws.ClientConfiguration" id="39121">config</a> = <span title="com.amazonaws.ClientConfiguration" class="keyword">new</span> <span title="com.amazonaws.ClientConfiguration">ClientConfiguration</span><span class="delimiter">(</span><span class="delimiter">)</span>
+  <span class="keyword">protected</span> <span class="keyword">val</span> <a title="com.amazonaws.auth.BasicAWSCredentials" id="39123">credentials</a> = <span title="com.amazonaws.auth.BasicAWSCredentials" class="keyword">new</span> <span title="com.amazonaws.auth.BasicAWSCredentials">BasicAWSCredentials</span><span class="delimiter">(</span><a href="#39114" title="=&gt; java.lang.String">accessKeyId</a>, <a href="#39116" title="=&gt; java.lang.String">secretAccessKey</a><span class="delimiter">)</span>
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>
