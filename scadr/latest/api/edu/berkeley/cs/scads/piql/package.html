@@ -1,0 +1,278 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html>
+        <head>
+          <title>edu.berkeley.cs.scads.piql</title>
+          <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+          
+      <link type="text/css" media="screen" rel="stylesheet" href="../../../../../lib/template.css" />
+      <script type="text/javascript" src="../../../../../lib/jquery.js"></script>
+      <script type="text/javascript" src="../../../../../lib/jquery-ui.js"></script>
+      <script type="text/javascript" src="../../../../../lib/template.js"></script>
+      <script type="text/javascript" src="../../../../../lib/tools.tooltip.js"></script>
+    
+        </head>
+        <body class="value">
+      <div id="definition">
+        <img src="../../../../../lib/package_big.png" />
+        <p id="owner"><a name="edu" class="extype" href="../../../../package.html">edu</a>.<a name="edu.berkeley" class="extype" href="../../../package.html">berkeley</a>.<a name="edu.berkeley.cs" class="extype" href="../../package.html">cs</a>.<a name="edu.berkeley.cs.scads" class="extype" href="../package.html">scads</a></p>
+        <h1>piql</h1>
+      </div>
+
+      <h4 class="signature" id="signature">
+      <span class="kind">package</span>
+      <span class="symbol"> 
+        <span class="name">piql</span>
+        
+        
+      </span>
+      </h4>
+      
+          <div class="fullcommenttop" id="comment"></div>
+        
+
+      <div id="template">
+
+        <div id="mbrsel">
+          <div id="textfilter"><span class="pre"></span><span class="input"><input accesskey="/" type="text" /></span><span class="post"></span></div>
+          
+          
+          <div id="visbl">
+              <span class="filtertype">Visibility</span>
+              <ol><li class="public in"><span>Public</span></li><li class="all out"><span>All</span></li></ol>
+            </div>
+        </div>
+
+        
+
+        <div class="types members" id="types">
+              <h3>Type Members</h3>
+              <ol><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#CursorPosition" data-isabs="false">
+      <a id="CursorPosition:CursorPosition"></a>
+      <h4 class="signature">
+      <span class="kind">type</span>
+      <span class="symbol"> 
+        <span class="name">CursorPosition</span>
+        
+        <span class="result"> = <span name="scala.collection.Seq" class="extype">Seq</span>[<span name="scala.Any" class="extype">Any</span>]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>package</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#IndexedNamespace" data-isabs="false">
+      <a id="IndexedNamespace:IndexedNamespace"></a>
+      <h4 class="signature">
+      <span class="kind">type</span>
+      <span class="symbol"> 
+        <span class="name">IndexedNamespace</span>
+        
+        <span class="result"> = <span name="edu.berkeley.cs.scads.storage.Namespace" class="extype">Namespace</span> with <span name="edu.berkeley.cs.scads.storage.RecordStore" class="extype">RecordStore</span>[<span name="edu.berkeley.cs.avro.marker.AvroPair" class="extype">AvroPair</span>] with <span name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="extype">GlobalMetadata</span> with <span name="edu.berkeley.cs.scads.storage.IndexManager" class="extype">IndexManager</span>[<span name="edu.berkeley.cs.avro.marker.AvroPair" class="extype">AvroPair</span>]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>package</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#Key" data-isabs="false">
+      <a id="Key:Key"></a>
+      <h4 class="signature">
+      <span class="kind">type</span>
+      <span class="symbol"> 
+        <span class="name">Key</span>
+        
+        <span class="result"> = <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>package</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#KeyGenerator" data-isabs="false">
+      <a id="KeyGenerator:KeyGenerator"></a>
+      <h4 class="signature">
+      <span class="kind">type</span>
+      <span class="symbol"> 
+        <span class="name">KeyGenerator</span>
+        
+        <span class="result"> = <span name="scala.collection.Seq" class="extype">Seq</span>[<span name="edu.berkeley.cs.scads.piql.Value" class="extype">Value</span>]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>package</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#Namespace" data-isabs="false">
+      <a id="Namespace:Namespace"></a>
+      <h4 class="signature">
+      <span class="kind">type</span>
+      <span class="symbol"> 
+        <span class="name">Namespace</span>
+        
+        <span class="result"> = <span name="edu.berkeley.cs.scads.storage.Namespace" class="extype">Namespace</span> with <span name="edu.berkeley.cs.scads.storage.RecordStore" class="extype">RecordStore</span>[<span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span>] with <span name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="extype">GlobalMetadata</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>package</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#QueryResult" data-isabs="false">
+      <a id="QueryResult:QueryResult"></a>
+      <h4 class="signature">
+      <span class="kind">type</span>
+      <span class="symbol"> 
+        <span class="name">QueryResult</span>
+        
+        <span class="result"> = <span name="scala.collection.Seq" class="extype">Seq</span>[Tuple]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>package</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#Record" data-isabs="false">
+      <a id="Record:Record"></a>
+      <h4 class="signature">
+      <span class="kind">type</span>
+      <span class="symbol"> 
+        <span class="name">Record</span>
+        
+        <span class="result"> = <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>package</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#Tuple" data-isabs="false">
+      <a id="Tuple:Tuple"></a>
+      <h4 class="signature">
+      <span class="kind">type</span>
+      <span class="symbol"> 
+        <span class="name">Tuple</span>
+        
+        <span class="result"> = <span name="scala.collection.IndexedSeq" class="extype">IndexedSeq</span>[Record]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>package</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#TupleSchema" data-isabs="false">
+      <a id="TupleSchema:TupleSchema"></a>
+      <h4 class="signature">
+      <span class="kind">type</span>
+      <span class="symbol"> 
+        <span class="name">TupleSchema</span>
+        
+        <span class="result"> = <span name="scala.collection.Seq" class="extype">Seq</span>[Namespace]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>package</dd></dl></div>
+    </li></ol>
+            </div>
+        
+        
+
+        <div class="values members" id="values">
+              <h3>Value Members</h3>
+              <ol><li visbl="prt" name="edu.berkeley.cs.scads.piql.package#logger" data-isabs="false">
+      <a id="logger:Logger"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">logger</span>
+        
+        <span class="result">: <span name="net.lag.logging.Logger" class="extype">Logger</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd>package</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#namespaceToRelation" data-isabs="false">
+      <a id="namespaceToRelation[T&lt;:AvroPair](PairNamespace[T]):Relation"></a>
+      <h4 class="signature">
+      <span class="kind">implicit def</span>
+      <span class="symbol"> 
+        <span class="name">namespaceToRelation</span>
+        <span class="tparams">[<span name="T">T &lt;: <span name="edu.berkeley.cs.avro.marker.AvroPair" class="extype">AvroPair</span></span>]</span>
+        <span class="params">(<span name="ns">ns: <span name="edu.berkeley.cs.scads.storage.PairNamespace" class="extype">PairNamespace</span>[T]</span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.piql.Relation" class="extype">Relation</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd>package</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#pairToNamespace" data-isabs="false">
+      <a id="pairToNamespace[T&lt;:AvroPair](PairNamespace[T]):Namespace"></a>
+      <h4 class="signature">
+      <span class="kind">implicit def</span>
+      <span class="symbol"> 
+        <span class="name">pairToNamespace</span>
+        <span class="tparams">[<span name="T">T &lt;: <span name="edu.berkeley.cs.avro.marker.AvroPair" class="extype">AvroPair</span></span>]</span>
+        <span class="params">(<span name="ns">ns: <span name="edu.berkeley.cs.scads.storage.PairNamespace" class="extype">PairNamespace</span>[T]</span>)</span><span class="result">: Namespace</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd>package</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.scadr" data-isabs="false">
+      <a id="scadr:scadr"></a>
+      <h4 class="signature">
+      <span class="kind">package</span>
+      <span class="symbol"> 
+        <a href="scadr/package.html"><span class="name">scadr</span></a>
+        
+        
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#toAttr" data-isabs="false">
+      <a id="toAttr(String):AnyRef { def a: edu.berkeley.cs.scads.piql.UnboundAttributeValue }"></a>
+      <h4 class="signature">
+      <span class="kind">implicit def</span>
+      <span class="symbol"> 
+        <span class="name">toAttr</span>
+        
+        <span class="params">(<span name="s">s: String</span>)</span><span class="result">: AnyRef { def a: edu.berkeley.cs.scads.piql.UnboundAttributeValue }</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd>package</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#toConstantValue" data-isabs="false">
+      <a id="toConstantValue(Any):ConstantValue"></a>
+      <h4 class="signature">
+      <span class="kind">implicit def</span>
+      <span class="symbol"> 
+        <span class="name">toConstantValue</span>
+        
+        <span class="params">(<span name="a">a: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.piql.ConstantValue" class="extype">ConstantValue</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd>package</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#toOption" data-isabs="false">
+      <a id="toOption[A](A):Option[A]"></a>
+      <h4 class="signature">
+      <span class="kind">implicit def</span>
+      <span class="symbol"> 
+        <span class="name">toOption</span>
+        <span class="tparams">[<span name="A">A</span>]</span>
+        <span class="params">(<span name="a">a: A</span>)</span><span class="result">: <span name="scala.Option" class="extype">Option</span>[A]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd>package</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#toParameter" data-isabs="false">
+      <a id="toParameter(Double):AnyRef { def ?: edu.berkeley.cs.scads.piql.ParameterValue }"></a>
+      <h4 class="signature">
+      <span class="kind">implicit def</span>
+      <span class="symbol"> 
+        <span class="name">toParameter</span>
+        
+        <span class="params">(<span name="o">o: <span name="scala.Double" class="extype">Double</span></span>)</span><span class="result">: AnyRef { def ?: edu.berkeley.cs.scads.piql.ParameterValue }</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd>package</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#toPiql" data-isabs="false">
+      <a id="toPiql(Queryable)(QueryExecutor):AnyRef { ... /* 2 definitions in type refinement */ }"></a>
+      <h4 class="signature">
+      <span class="kind">implicit def</span>
+      <span class="symbol"> 
+        <span class="name">toPiql</span>
+        
+        <span class="params">(<span name="logicalPlan">logicalPlan: <span name="edu.berkeley.cs.scads.piql.Queryable" class="extype">Queryable</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="executor">executor: <span name="edu.berkeley.cs.scads.piql.QueryExecutor" class="extype">QueryExecutor</span></span>)</span><span class="result">: AnyRef { ... /* 2 definitions in type refinement */ }</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd>package</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#toRichTuple" data-isabs="false">
+      <a id="toRichTuple(Tuple):RichTuple"></a>
+      <h4 class="signature">
+      <span class="kind">implicit def</span>
+      <span class="symbol"> 
+        <span class="name">toRichTuple</span>
+        
+        <span class="params">(<span name="t">t: Tuple</span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.piql.RichTuple" class="extype">RichTuple</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd>package</dd></dl></div>
+    </li></ol>
+            </div>
+
+        
+
+        
+
+      </div>
+      
+      <div id="tooltip"></div>
+      
+    </body>
+      </html>
