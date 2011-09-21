@@ -6,21 +6,21 @@ SCADS is composed of the following sub-projects:
 
 SCADS Core
 ----------
-* [config](https://github.com/radlab/SCADS/wiki/SCADS-Config) - Configuration file parsing.
-* [avro-plugin](https://github.com/radlab/SCADS/wiki/Avro-Plugin) - A scala compiler plugin allowing case classes to be efficiently serialized using [Avro](http://avro.apache.org/) encoding.
-* [deploylib](https://github.com/radlab/SCADS/wiki/Deploylib) - A parallel ssh library for deploying jvm-based experiments on remote servers and EC2.
-* communication - [Netty](http://www.jboss.org/netty)-based message passing of Avro encoded messages.  Scala library for using [Apache ZooKeeper](http://zookeeper.apache.org/).
-* scala-engine - K/V storage optionally using [BDB](http://www.oracle.com/technetwork/database/berkeleydb/overview/index.html) for persistence.
-* [piql](https://github.com/radlab/SCADS/wiki/PIQL) - The performance-insightful query language (PIQL) and scale-independent relational optimizer.
-* perf - A library of helpers for writing SCADS performance tests using deploylib.
+* [config](https://github.com/radlab/SCADS/wiki/SCADS-Config) - Configuration file parsing. [scaladoc](http://radlab.github.com/SCADS/config/latest/api/)
+* [avro-plugin](https://github.com/radlab/SCADS/wiki/Avro-Plugin) - A scala compiler plugin allowing case classes to be efficiently serialized using [Avro](http://avro.apache.org/) encoding. [scaladoc](http://radlab.github.com/SCADS/avro-plugin/latest/api/)
+* [deploylib](https://github.com/radlab/SCADS/wiki/Deploylib) - A parallel ssh library for deploying jvm-based experiments on remote servers and EC2. [scaladoc](http://radlab.github.com/SCADS/deploylib/latest/api/)
+* communication - [Netty](http://www.jboss.org/netty)-based message passing of Avro encoded messages.  Scala library for using [Apache ZooKeeper](http://zookeeper.apache.org/). [scaladoc](http://radlab.github.com/SCADS/modeling/latest/api/)
+* scala-engine - K/V storage optionally using [BDB](http://www.oracle.com/technetwork/database/berkeleydb/overview/index.html) for persistence. [scaladoc](http://radlab.github.com/SCADS/scala-engine/latest/api/)
+* [piql](https://github.com/radlab/SCADS/wiki/PIQL) - The performance-insightful query language (PIQL) and scale-independent relational optimizer. [scaladoc](http://radlab.github.com/SCADS/piql/latest/api/)
+* perf - A library of helpers for writing SCADS performance tests using deploylib. [scaladoc](http://radlab.github.com/SCADS/perf/latest/api/)
 
 Other Experiments
 -----------------
-* scadr - PIQL queries for a clone of [Twitter](http://www.twitter.com).
-* matheon
-* tpcw - PIQL queries for the [TPC-W](http://www.tpc.org/tpcw/) benchmark.
-* axer - Alternate Avro encoding optimized for random field access.
-* modeling - experiments to characterize the performance of PIQL queries.
+* scadr - PIQL queries for a clone of [Twitter](http://www.twitter.com). [scaladoc](http://radlab.github.com/SCADS/scadr/latest//api/)
+* matheon = [scaladoc](http://radlab.github.com/SCADS/matheon/latest/api/)
+* tpcw - PIQL queries for the [TPC-W](http://www.tpc.org/tpcw/) benchmark. [scaladoc](http://radlab.github.com/SCADS/tpcw/latest/api/)
+* axer - Alternate Avro encoding optimized for random field access. [scaladoc](http://radlab.github.com/SCADS/axer/latest/api/)
+* modeling - experiments to characterize the performance of PIQL queries. [scaladoc](http://radlab.github.com/SCADS/modeling/latest/api/)
 
 Deprecated Projects
 -------------------
