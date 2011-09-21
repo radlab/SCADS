@@ -1,3 +1,5 @@
+resolvers += "Radlab Repository" at "http://scads.knowsql.org/nexus/content/groups/public/"
+
 //Experimental support for eclipse
 resolvers += Classpaths.typesafeResolver
 
