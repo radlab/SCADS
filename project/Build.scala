@@ -193,7 +193,7 @@ object ShellPrompt {
 
   val buildShellPrompt = {
     (state: State) => {
-      val currBranch = current findFirstMatchIn gitBranches map (_ group(1)) getOrElse "-"
+      val currBranch = try current findFirstMatchIn gitBranches map (_ group(1)) getOrElse "-" catch {case e => "noBranch"}
       val currProject = Project.extract (state).currentProject.id
       "%s:%s> ".format (currProject, currBranch)
     }
