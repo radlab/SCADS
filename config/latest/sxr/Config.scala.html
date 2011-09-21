@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>Config.scala</title>
+        <script type="text/javascript" src="jquery-all.js"></script>
+        <script type="text/javascript" src="linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.scads
+<span class="keyword">package</span> config
+
+<span class="keyword">import</span> java.io.File
+
+<span class="keyword">import</span> net.lag.<span class="delimiter">{</span> configgy, logging <span class="delimiter">}</span>
+<span class="keyword">import</span> configgy.<span class="delimiter">{</span> Config =&gt; CConfig, Configgy <span class="delimiter">}</span>
+<span class="keyword">import</span> logging.Logger
+
+<span class="keyword">import</span> scala.util.Properties
+
+<span class="keyword">object</span> <a title="object edu.berkeley.cs.scads.config.Config" id="9464">Config</a> <span title="ScalaObject" class="delimiter">{</span>
+
+  <span class="comment">/**
+   * The SCADS Configuration instance
+   * Is lazily loaded once
+   */</span>
+  <span class="keyword">lazy</span> <span class="keyword">val</span> <a title="net.lag.configgy.Config" id="10291">config</a> =
+    <a href="#10292" title="()net.lag.configgy.Config">getConfig</a><span class="delimiter">(</span><span class="delimiter">)</span>
+
+  <span class="keyword">private</span> <span class="keyword">def</span> <a title="()net.lag.configgy.Config" id="10292">getConfig</a><span class="delimiter">(</span><span class="delimiter">)</span>: <span title="net.lag.configgy.Config">CConfig</span> = <span class="delimiter">{</span>
+    <span class="comment">// 1) check $SCADS_CONFIG</span>
+    <span class="comment">// 2) check -Dscads.config</span>
+    <span class="keyword">val</span> <a title="Option[java.lang.String]" id="12501">filePath0</a> = 
+      <span title="object scala.util.Properties">Properties</span>
+        .<span title="(name: String)Option[java.lang.String]">envOrNone</span><span class="delimiter">(</span><span title="java.lang.String(&quot;SCADS_CONFIG&quot;)" class="string">&quot;SCADS_CONFIG&quot;</span><span class="delimiter">)</span>
+        .<span title="(alternative: =&gt; Option[java.lang.String])Option[java.lang.String]">orElse</span><span class="delimiter">(</span>
+            <span title="object scala.util.Properties">Properties</span>.<span title="(name: String)Option[java.lang.String]">propOrNone</span><span class="delimiter">(</span><span title="java.lang.String(&quot;scads.config&quot;)" class="string">&quot;scads.config&quot;</span><span class="delimiter">)</span><span class="delimiter">)</span>
+
+    <span title="Unit" class="keyword">if</span> <span class="delimiter">(</span><a href="#12501" title="Option[java.lang.String]">filePath0</a>.<span title="=&gt; Boolean">isEmpty</span><span class="delimiter">)</span>
+      <span title="object Console">Console</span>.<span title="=&gt; java.io.PrintStream">err</span>.<span title="(x$1: java.lang.String)Unit">println</span><span class="delimiter">(</span><span title="implicit scala.Predef.augmentString : (x: String)scala.collection.immutable.StringOps" class="string">&quot;&quot;&quot;
+      | WARNING: Could not find SCADS configuration file to load. 
+      | Options are:
+      |   (1) Set environmental variable SCADS_CONFIG to the config file path
+      |   (2) Set system property scads.config to the config file path
+      | Using default values for config.
+      &quot;&quot;&quot;</span>.<span title="=&gt; String">stripMargin</span><span class="delimiter">)</span>
+
+    <span class="keyword">val</span> <a title="Option[java.lang.String]" id="12502">filePath</a> =
+      <a href="#12501" title="Option[java.lang.String]">filePath0</a>.<span title="(f: java.lang.String =&gt; Option[java.lang.String])Option[java.lang.String]">flatMap</span><span class="delimiter">(</span><a title="java.lang.String" id="21030">fp</a> =&gt; <span class="delimiter">{</span>
+        <span class="keyword">val</span> <a title="java.io.File" id="21031">f</a> = <span title="java.io.File" class="keyword">new</span> <span title="java.io.File">File</span><span class="delimiter">(</span><a href="#21030" title="java.lang.String">fp</a><span class="delimiter">)</span>
+        <span title="Option[java.lang.String]" class="keyword">if</span> <span class="delimiter">(</span><span title="=&gt; Boolean">!</span><a href="#21031" title="java.io.File">f</a>.<span title="()Boolean">isFile</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+          <span title="object Console">Console</span>.<span title="=&gt; java.io.PrintStream">err</span>.<span title="(x$1: java.lang.String)Unit">println</span><span class="delimiter">(</span><span title="implicit scala.Predef.augmentString : (x: String)scala.collection.immutable.StringOps" class="string">&quot;&quot;&quot;
+          | WARNING: File '%s' is not a valid file path
+          | Using default values for config
+          &quot;&quot;&quot;</span>.<span title="(args: Any*)String">format</span><span title="implicit scala.Predef.augmentString : (x: String)scala.collection.immutable.StringOps" class="delimiter">(</span><a href="#21030" title="java.lang.String">fp</a><span class="delimiter">)</span>.<span title="=&gt; String">stripMargin</span><span class="delimiter">)</span>
+          <span title="object None">None</span>
+        <span class="delimiter">}</span> <span class="keyword">else</span> <span title="(x: java.lang.String)Some[java.lang.String]">Some</span><span class="delimiter">(</span><a href="#21030" title="java.lang.String">fp</a><span class="delimiter">)</span>
+      <span class="delimiter">}</span><span class="delimiter">)</span>
+
+    <a href="#12502" title="Option[java.lang.String]">filePath</a>.<span title="(f: java.lang.String =&gt; net.lag.configgy.Config)Option[net.lag.configgy.Config]">map</span><span class="delimiter">(</span><a title="java.lang.String" id="21336">fp</a> =&gt; <span class="delimiter">{</span> <span title="object net.lag.configgy.Configgy">Configgy</span>.<span title="(filename: String)Unit">configure</span><span class="delimiter">(</span><a href="#21336" title="java.lang.String">fp</a><span class="delimiter">)</span>; <span title="object net.lag.configgy.Configgy">Configgy</span>.<span title="=&gt; net.lag.configgy.Config">config</span> <span class="delimiter">}</span><span class="delimiter">)</span>.<span title="(default: =&gt; net.lag.configgy.Config)net.lag.configgy.Config">getOrElse</span><span class="delimiter">(</span><span title="net.lag.configgy.Config" class="keyword">new</span> <span title="net.lag.configgy.Config">CConfig</span><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+
+  <span class="comment">/**
+   * Get Logger for name
+   */</span>
+  <span class="keyword">def</span> <a title="(name: String)net.lag.logging.Logger" id="10293">getLog</a><span class="delimiter">(</span><a title="String" id="21487">name</a>: <span title="String">String</span><span class="delimiter">)</span>: <span title="net.lag.logging.Logger">Logger</span> = 
+    <span title="object net.lag.logging.Logger">Logger</span>.<span title="(name: String)net.lag.logging.Logger">get</span><span class="delimiter">(</span><a href="#21487" title="String">name</a><span class="delimiter">)</span>
+
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>
