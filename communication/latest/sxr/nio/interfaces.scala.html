@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>nio/interfaces.scala</title>
+        <script type="text/javascript" src="../jquery-all.js"></script>
+        <script type="text/javascript" src="../linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="../style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.scads.comm
+
+<span class="keyword">import</span> java.nio.channels.SocketChannel
+
+<span class="keyword">trait</span> <a title="trait WriteCallback extends java.lang.Object" id="9950">WriteCallback</a> <span title="java.lang.Object" class="delimiter">{</span>
+    <span class="keyword">def</span> <a title="=&gt; Unit" id="59342">writeFinished</a>
+<span class="delimiter">}</span>
+
+<span class="keyword">trait</span> <a title="trait ChannelHandler extends java.lang.Object" id="9951">ChannelHandler</a> <span title="java.lang.Object" class="delimiter">{</span>
+    <span class="keyword">def</span> <a title="(socket: java.nio.channels.SocketChannel, data: Array[Byte], count: Int)Unit" id="28246">processData</a><span class="delimiter">(</span><a title="java.nio.channels.SocketChannel" id="60987">socket</a>: <span title="java.nio.channels.SocketChannel">SocketChannel</span>, <a title="Array[Byte]" id="60988">data</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span>, <a title="Int" id="60989">count</a>: <span title="Int">Int</span><span class="delimiter">)</span>
+    <span class="keyword">def</span> <a title="(exception: Exception)Unit" id="28247">handleException</a><span class="delimiter">(</span><a title="Exception" id="60059">exception</a>: <span title="Exception">Exception</span><span class="delimiter">)</span>
+<span class="delimiter">}</span>
+
+<span class="keyword">trait</span> <a title="trait NioAcceptEventHandler extends java.lang.Object" id="9952">NioAcceptEventHandler</a> <span title="java.lang.Object" class="delimiter">{</span>
+    <span class="keyword">def</span> <a title="(channel: java.nio.channels.SocketChannel)Unit" id="58307">acceptEvent</a><span class="delimiter">(</span><a title="java.nio.channels.SocketChannel" id="60744">channel</a>: <span title="java.nio.channels.SocketChannel">SocketChannel</span><span class="delimiter">)</span>
+<span class="delimiter">}</span>
+
+<span class="keyword">trait</span> <a title="trait NioConnectEventHandler extends java.lang.Object" id="9953">NioConnectEventHandler</a> <span title="java.lang.Object" class="delimiter">{</span>
+    <span class="keyword">def</span> <a title="(channel: java.nio.channels.SocketChannel)Unit" id="58309">connectEvent</a><span class="delimiter">(</span><a title="java.nio.channels.SocketChannel" id="60772">channel</a>: <span title="java.nio.channels.SocketChannel">SocketChannel</span><span class="delimiter">)</span>
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>

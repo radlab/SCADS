@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>perf/EncodeTest.scala</title>
+        <script type="text/javascript" src="../jquery-all.js"></script>
+        <script type="text/javascript" src="../linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="../style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.scads.comm
+
+<span class="keyword">import</span> java.nio.ByteBuffer
+
+<span class="keyword">object</span> <a title="object edu.berkeley.cs.scads.comm.EncoderTest" id="9982">EncoderTest</a> <span title="ScalaObject" class="delimiter">{</span>
+
+    <span class="keyword">def</span> <a title="(data: java.nio.ByteBuffer)java.nio.ByteBuffer" id="63574">encodeByteBuffer1</a><span class="delimiter">(</span><a title="java.nio.ByteBuffer" id="63578">data</a>: <span title="java.nio.ByteBuffer">ByteBuffer</span><span class="delimiter">)</span>: <span title="java.nio.ByteBuffer">ByteBuffer</span> = <span class="delimiter">{</span>
+        <span class="keyword">val</span> <a title="java.nio.ByteBuffer" id="63580">newBuffer</a> = <span title="object java.nio.ByteBuffer">ByteBuffer</span>.<span title="(x$1: Int)java.nio.ByteBuffer">allocate</span><span class="delimiter">(</span><span title="Int(4)" class="int">4</span> <span title="(x: Int)Int">+</span> <a href="#63578" title="java.nio.ByteBuffer">data</a>.<span title="()Int">remaining</span><span class="delimiter">)</span>
+        <a href="#63580" title="java.nio.ByteBuffer">newBuffer</a>.<span title="(x$1: Int)java.nio.ByteBuffer">putInt</span><span class="delimiter">(</span><a href="#63578" title="java.nio.ByteBuffer">data</a>.<span title="()Int">remaining</span><span class="delimiter">)</span>
+        <a href="#63580" title="java.nio.ByteBuffer">newBuffer</a>.<span title="(x$1: java.nio.ByteBuffer)java.nio.ByteBuffer">put</span><span class="delimiter">(</span><a href="#63578" title="java.nio.ByteBuffer">data</a><span class="delimiter">)</span>
+        <a href="#63580" title="java.nio.ByteBuffer">newBuffer</a>.<span title="()java.nio.Buffer">rewind</span>
+        <a href="#63580" title="java.nio.ByteBuffer">newBuffer</a>
+    <span class="delimiter">}</span>
+
+    <span class="keyword">def</span> <a title="(data: java.nio.ByteBuffer)java.nio.ByteBuffer" id="63575">encodeByteBuffer2</a><span class="delimiter">(</span><a title="java.nio.ByteBuffer" id="63592">data</a>: <span title="java.nio.ByteBuffer">ByteBuffer</span><span class="delimiter">)</span>: <span title="java.nio.ByteBuffer">ByteBuffer</span> = <span class="delimiter">{</span>
+        <span class="keyword">val</span> <a title="Array[Byte]" id="63594">buf</a> = <span title="Array[Byte]" class="keyword">new</span> <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">(</span><span title="Int(4)" class="int">4</span> <span title="(x: Int)Int">+</span> <a href="#63592" title="java.nio.ByteBuffer">data</a>.<span title="()Int">remaining</span><span class="delimiter">)</span>
+        <a href="#63594" title="(i: Int, x: Byte)Unit">buf</a><span class="delimiter">(</span><span title="Int(0)" class="int">0</span><span class="delimiter">)</span> = <span class="delimiter">(</span><span class="delimiter">(</span><a href="#63592" title="java.nio.ByteBuffer">data</a>.<span title="()Int">remaining</span> <span title="(x: Int)Int">&gt;&gt;</span> <span title="Int(24)" class="int">24</span><span class="delimiter">)</span> <span title="(x: Int)Int">&amp;</span> <span title="Int(255)" class="int">0xFF</span><span class="delimiter">)</span>.<span title="=&gt; Byte">toByte</span>
+        <a href="#63594" title="(i: Int, x: Byte)Unit">buf</a><span class="delimiter">(</span><span title="Int(1)" class="int">1</span><span class="delimiter">)</span> = <span class="delimiter">(</span><span class="delimiter">(</span><a href="#63592" title="java.nio.ByteBuffer">data</a>.<span title="()Int">remaining</span> <span title="(x: Int)Int">&gt;&gt;</span> <span title="Int(16)" class="int">16</span><span class="delimiter">)</span> <span title="(x: Int)Int">&amp;</span> <span title="Int(255)" class="int">0xFF</span><span class="delimiter">)</span>.<span title="=&gt; Byte">toByte</span>
+        <a href="#63594" title="(i: Int, x: Byte)Unit">buf</a><span class="delimiter">(</span><span title="Int(2)" class="int">2</span><span class="delimiter">)</span> = <span class="delimiter">(</span><span class="delimiter">(</span><a href="#63592" title="java.nio.ByteBuffer">data</a>.<span title="()Int">remaining</span> <span title="(x: Int)Int">&gt;&gt;</span> <span title="Int(8)" class="int">8</span><span class="delimiter">)</span> <span title="(x: Int)Int">&amp;</span> <span title="Int(255)" class="int">0xFF</span><span class="delimiter">)</span>.<span title="=&gt; Byte">toByte</span>
+        <a href="#63594" title="(i: Int, x: Byte)Unit">buf</a><span class="delimiter">(</span><span title="Int(3)" class="int">3</span><span class="delimiter">)</span> = <span class="delimiter">(</span><a href="#63592" title="java.nio.ByteBuffer">data</a>.<span title="()Int">remaining</span> <span title="(x: Int)Int">&amp;</span> <span title="Int(255)" class="int">0xFF</span><span class="delimiter">)</span>.<span title="=&gt; Byte">toByte</span>
+        <a href="#63592" title="java.nio.ByteBuffer">data</a>.<span title="(x$1: Array[Byte], x$2: Int, x$3: Int)java.nio.ByteBuffer">get</span><span class="delimiter">(</span><a href="#63594" title="Array[Byte]">buf</a>, <span title="Int(4)" class="int">4</span>, <a href="#63592" title="java.nio.ByteBuffer">data</a>.<span title="()Int">remaining</span><span class="delimiter">)</span>
+        <span title="object java.nio.ByteBuffer">ByteBuffer</span>.<span title="(x$1: Array[Byte])java.nio.ByteBuffer">wrap</span><span class="delimiter">(</span><a href="#63594" title="Array[Byte]">buf</a><span class="delimiter">)</span>
+    <span class="delimiter">}</span>
+
+    <span class="keyword">def</span> <a title="(args: Array[String])Unit" id="63576">main</a><span class="delimiter">(</span><a title="Array[String]" id="63635">args</a>: <span title="Array[String]">Array</span><span class="delimiter">[</span>String<span class="delimiter">]</span><span class="delimiter">)</span>:<span title="Unit">Unit</span> = <span class="delimiter">{</span>
+        <span class="keyword">val</span> <a title="Long" id="63637">start1</a> = <span title="object java.lang.System">System</span>.<span title="()Long">currentTimeMillis</span>
+        <span class="delimiter">(</span><span title="implicit scala.LowPriorityImplicits.intWrapper : (x: Int)scala.runtime.RichInt" class="int">1</span> <span title="(end: Int)scala.collection.immutable.Range.Inclusive">to</span> <span title="Int(1000000)" class="int">1000000</span><span class="delimiter">)</span>.<span title="(f: Int =&gt; java.nio.ByteBuffer)Unit">foreach</span><span class="delimiter">(</span> <a title="Int" id="63786">i</a> =&gt; <span class="delimiter">{</span>
+            <span class="keyword">val</span> <a title="java.nio.ByteBuffer" id="63787">b</a> = <span title="object java.nio.ByteBuffer">ByteBuffer</span>.<span title="(x$1: Int)java.nio.ByteBuffer">allocate</span><span class="delimiter">(</span><span title="Int(24)" class="int">24</span><span class="delimiter">)</span>
+            <a href="#63787" title="java.nio.ByteBuffer">b</a>.<span title="(x$1: Array[Byte])java.nio.ByteBuffer">put</span><span class="delimiter">(</span><span title="Array[Byte]" class="keyword">new</span> <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">(</span><span title="Int(24)" class="int">24</span><span class="delimiter">)</span><span class="delimiter">)</span>
+            <a href="#63787" title="java.nio.ByteBuffer">b</a>.<span title="()java.nio.Buffer">rewind</span>
+            <a href="#63574" title="(data: java.nio.ByteBuffer)java.nio.ByteBuffer">encodeByteBuffer1</a><span class="delimiter">(</span><a href="#63787" title="java.nio.ByteBuffer">b</a><span class="delimiter">)</span>
+        <span class="delimiter">}</span><span class="delimiter">)</span>
+        <span class="keyword">val</span> <a title="Long" id="63638">end1</a> = <span title="object java.lang.System">System</span>.<span title="()Long">currentTimeMillis</span>
+
+        <span class="keyword">val</span> <a title="Long" id="63639">start2</a> = <span title="object java.lang.System">System</span>.<span title="()Long">currentTimeMillis</span>
+        <span class="delimiter">(</span><span title="implicit scala.LowPriorityImplicits.intWrapper : (x: Int)scala.runtime.RichInt" class="int">1</span> <span title="(end: Int)scala.collection.immutable.Range.Inclusive">to</span> <span title="Int(1000000)" class="int">1000000</span><span class="delimiter">)</span>.<span title="(f: Int =&gt; java.nio.ByteBuffer)Unit">foreach</span><span class="delimiter">(</span> <a title="Int" id="63907">i</a> =&gt; <span class="delimiter">{</span>
+            <span class="keyword">val</span> <a title="java.nio.ByteBuffer" id="63908">b</a> = <span title="object java.nio.ByteBuffer">ByteBuffer</span>.<span title="(x$1: Int)java.nio.ByteBuffer">allocate</span><span class="delimiter">(</span><span title="Int(24)" class="int">24</span><span class="delimiter">)</span>
+            <a href="#63908" title="java.nio.ByteBuffer">b</a>.<span title="(x$1: Array[Byte])java.nio.ByteBuffer">put</span><span class="delimiter">(</span><span title="Array[Byte]" class="keyword">new</span> <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">(</span><span title="Int(24)" class="int">24</span><span class="delimiter">)</span><span class="delimiter">)</span>
+            <a href="#63908" title="java.nio.ByteBuffer">b</a>.<span title="()java.nio.Buffer">rewind</span>
+            <a href="#63575" title="(data: java.nio.ByteBuffer)java.nio.ByteBuffer">encodeByteBuffer2</a><span class="delimiter">(</span><a href="#63908" title="java.nio.ByteBuffer">b</a><span class="delimiter">)</span>
+        <span class="delimiter">}</span><span class="delimiter">)</span>
+        <span class="keyword">val</span> <a title="Long" id="63640">end2</a> = <span title="object java.lang.System">System</span>.<span title="()Long">currentTimeMillis</span>
+
+        <span title="(x: Any)Unit">println</span><span class="delimiter">(</span><span title="java.lang.String(&quot;TIME 1: &quot;)" class="string">&quot;TIME 1: &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <span class="delimiter">(</span><a href="#63638" title="Long">end1</a><span title="(x: Long)Long">-</span><a href="#63637" title="Long">start1</a><span class="delimiter">)</span><span class="delimiter">)</span>
+        <span title="(x: Any)Unit">println</span><span class="delimiter">(</span><span title="java.lang.String(&quot;TIME 2: &quot;)" class="string">&quot;TIME 2: &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <span class="delimiter">(</span><a href="#63640" title="Long">end2</a><span title="(x: Long)Long">-</span><a href="#63639" title="Long">start2</a><span class="delimiter">)</span><span class="delimiter">)</span>
+    <span class="delimiter">}</span>
+
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>

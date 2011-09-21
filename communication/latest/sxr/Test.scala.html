@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>Test.scala</title>
+        <script type="text/javascript" src="jquery-all.js"></script>
+        <script type="text/javascript" src="linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.scads.comm
+
+<span class="keyword">import</span> net.lag.logging.Logger
+
+<span class="keyword">object</span> <a title="object edu.berkeley.cs.scads.comm.EchoActor" id="9808">EchoActor</a> <span title="ScalaObject" class="keyword">extends</span> <a href="MessageReceiver.scala.html#9593" title="edu.berkeley.cs.scads.comm.MessageReceiver">MessageReceiver</a> <span class="delimiter">{</span>
+  <span class="keyword">implicit</span> <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.comm.RemoteActor" id="44362">remoteActor</a> = <a href="MessageHandler.scala.html#9565" title="object edu.berkeley.cs.scads.comm.MessageHandler">MessageHandler</a>.<a href="MessageHandler.scala.html#14343" title="(service: edu.berkeley.cs.scads.comm.MessageReceiver)edu.berkeley.cs.scads.comm.RemoteActor">registerService</a><span class="delimiter">(</span><span class="keyword">this</span><span class="delimiter">)</span>
+  <span class="keyword">protected</span> <span class="keyword">val</span> <a title="net.lag.logging.Logger" id="44364">logger</a> = <span title="()net.lag.logging.Logger">Logger</span><span class="delimiter">(</span><span class="delimiter">)</span>
+
+  <span class="keyword">def</span> <a title="(src: Option[edu.berkeley.cs.scads.comm.RemoteActorProxy], msg: edu.berkeley.cs.scads.comm.MessageBody)Unit" id="44366">receiveMessage</a><span class="delimiter">(</span><a title="Option[edu.berkeley.cs.scads.comm.RemoteActorProxy]" id="44459">src</a>: <span title="Option[edu.berkeley.cs.scads.comm.RemoteActorProxy]">Option</span><span class="delimiter">[</span>RemoteActorProxy<span class="delimiter">]</span>, <a title="edu.berkeley.cs.scads.comm.MessageBody" id="44460">msg</a>: <a href="Messages.scala.html#9603" title="edu.berkeley.cs.scads.comm.MessageBody">MessageBody</a><span class="delimiter">)</span>: <span title="Unit">Unit</span> = <span class="delimiter">{</span>
+    <a href="#44364" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">info</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Received message: &quot;)" class="string">&quot;Received message: &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#44459" title="Option[edu.berkeley.cs.scads.comm.RemoteActorProxy]">src</a> <span title="(x$1: Any)java.lang.String">+</span> <span title="java.lang.String(&quot; &quot;)" class="string">&quot; &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#44460" title="edu.berkeley.cs.scads.comm.MessageBody">msg</a><span class="delimiter">)</span>
+    <a href="#44459" title="Option[edu.berkeley.cs.scads.comm.RemoteActorProxy]">src</a>.<span title="(f: edu.berkeley.cs.scads.comm.RemoteActorProxy =&gt; Unit)Unit">foreach</span><span class="delimiter">(</span><a href="#44468" title="edu.berkeley.cs.scads.comm.RemoteActorProxy">_</a> <a href="Actors.scala.html#14722" title="(body: edu.berkeley.cs.scads.comm.MessageBody)(implicit sender: edu.berkeley.cs.scads.comm.RemoteActorProxy)Unit">!</a> <a href="#44460" title="edu.berkeley.cs.scads.comm.MessageBody">msg</a><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">def</span> <a title="(args: Array[String])Unit" id="44367">main</a><span class="delimiter">(</span><a title="Array[String]" id="44471">args</a>: <span title="Array[String]">Array</span><span class="delimiter">[</span>String<span class="delimiter">]</span><span class="delimiter">)</span>: <span title="Unit">Unit</span> = <span class="delimiter">{</span>
+    <a href="#44364" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">info</span><span class="delimiter">(</span><span title="java.lang.String(&quot;EchoActor running at: &quot;)" class="string">&quot;EchoActor running at: &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#44362" title="=&gt; edu.berkeley.cs.scads.comm.RemoteActor">remoteActor</a><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>

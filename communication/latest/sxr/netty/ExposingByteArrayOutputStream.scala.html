@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>netty/ExposingByteArrayOutputStream.scala</title>
+        <script type="text/javascript" src="../jquery-all.js"></script>
+        <script type="text/javascript" src="../linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="../style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.scads.comm
+<span class="keyword">package</span> netty
+
+<span class="keyword">import</span> java.io._
+
+<span class="comment">/**
+ * Lets us get access to the underlying buffer without a copy
+ */</span>
+<span class="keyword">class</span> <a title="class ExposingByteArrayOutputStream extends java.io.ByteArrayOutputStream with ScalaObject" id="9878">ExposingByteArrayOutputStream</a><a href="#9878" title="ScalaObject" class="delimiter">(</a><a title="Int" id="55500">size</a>: <span title="Int">Int</span><span class="delimiter">)</span> 
+  <span class="keyword">extends</span> <span title="java.io.ByteArrayOutputStream">ByteArrayOutputStream</span><span class="delimiter">(</span><a href="#55500" title="Int">size</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+  <span class="keyword">def</span> <a title="()edu.berkeley.cs.scads.comm.netty.ExposingByteArrayOutputStream" id="55496" class="keyword">this</a><span class="delimiter">(</span><span class="delimiter">)</span> = <a href="#9878" title="ExposingByteArrayOutputStream.this.type" class="keyword">this</a><span class="delimiter">(</span><span title="Int(32)" class="int">32</span><span class="delimiter">)</span>
+  <span class="keyword">def</span> <a title="=&gt; Array[Byte]" id="55497">getUnderlying</a> = <a href="#9878" title="Array[Byte]">buf</a>
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>

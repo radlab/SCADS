@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>netty/AvroSpecificDecoder.scala</title>
+        <script type="text/javascript" src="../jquery-all.js"></script>
+        <script type="text/javascript" src="../linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="../style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs
+<span class="keyword">package</span> scads
+<span class="keyword">package</span> comm
+<span class="keyword">package</span> netty
+
+<span class="keyword">import</span> org.jboss.netty._
+<span class="keyword">import</span> buffer._
+<span class="keyword">import</span> channel._
+<span class="keyword">import</span> handler._
+
+<span class="keyword">import</span> codec.frame._
+<span class="keyword">import</span> codec.oneone._
+
+<span class="keyword">import</span> org.apache.avro._
+<span class="keyword">import</span> io._
+<span class="keyword">import</span> specific._
+<span class="keyword">import</span> avro.runtime._
+
+<span class="keyword">import</span> net.lag.logging.Logger
+
+<span class="keyword">class</span> <a title="class AvroSpecificDecoder[M &lt;: org.apache.avro.specific.SpecificRecord] extends org.jboss.netty.handler.codec.oneone.OneToOneDecoder with ScalaObject" id="9856">AvroSpecificDecoder</a><span class="delimiter">[</span><a title="&gt;: Nothing &lt;: org.apache.avro.specific.SpecificRecord" id="9857">M</a> &lt;: SpecificRecord<span class="delimiter">]</span><a href="#9856" title="ScalaObject" class="delimiter">(</a><span class="keyword">implicit</span> <a title="Manifest[M]" id="54688">m</a>: <span title="Manifest[M]">Manifest</span><span class="delimiter">[</span>M<span class="delimiter">]</span><span class="delimiter">)</span>
+  <span class="keyword">extends</span> <span title="org.jboss.netty.handler.codec.oneone.OneToOneDecoder">OneToOneDecoder</span> <span class="delimiter">{</span>
+
+  <span class="keyword">private</span> <span class="keyword">val</span> <a title="Class[M]" id="53853">msgClass</a> = <a href="#54688" title="Manifest[M]">m</a>.<span title="=&gt; java.lang.Class[_]">erasure</span>.<span title="[T0]=&gt; T0">asInstanceOf</span><span title="Class[M]" class="delimiter">[</span><span title="Class[M]">Class</span><span class="delimiter">[</span>M<span class="delimiter">]</span><span class="delimiter">]</span>
+
+  <span class="keyword">private</span> <span class="keyword">val</span> <a title="org.apache.avro.Schema" id="53855">schema</a> = <a href="#53853" title="=&gt; Class[M]">msgClass</a>.<span title="()M">newInstance</span>.<span title="()org.apache.avro.Schema">getSchema</span>
+
+  <span class="keyword">private</span> <span class="keyword">val</span> <a title="org.apache.avro.specific.SpecificDatumReader[M]" id="53857">msgReader</a> = <span title="(x$1: org.apache.avro.Schema, x$2: org.apache.avro.Schema, x$3: org.apache.avro.specific.SpecificData)org.apache.avro.specific.SpecificDatumReader[M]" class="keyword">new</span> <span title="org.apache.avro.specific.SpecificDatumReader[M]">SpecificDatumReader</span><span class="delimiter">[</span>M<span class="delimiter">]</span><span class="delimiter">(</span><a href="#53855" title="=&gt; org.apache.avro.Schema">schema</a>, <a href="#53855" title="=&gt; org.apache.avro.Schema">schema</a>, <span title="(x$1: java.lang.ClassLoader)org.apache.avro.specific.SpecificData" class="keyword">new</span> <span title="org.apache.avro.specific.SpecificData">SpecificData</span><span class="delimiter">(</span><a href="#53853" title="=&gt; Class[M]">msgClass</a>.<span title="()java.lang.ClassLoader">getClassLoader</span><span class="delimiter">)</span><span class="delimiter">)</span>
+
+  <span class="keyword">private</span> <span class="keyword">val</span> <a title="net.lag.logging.Logger" id="53859">logger</a> = <span title="()net.lag.logging.Logger">Logger</span><span class="delimiter">(</span><span class="delimiter">)</span>
+
+  <span class="keyword">override</span> <span class="keyword">def</span> <a title="(ctx: org.jboss.netty.channel.ChannelHandlerContext, chan: org.jboss.netty.channel.Channel, msg: AnyRef)java.lang.Object" id="53861">decode</a><span class="delimiter">(</span><a title="org.jboss.netty.channel.ChannelHandlerContext" id="54689">ctx</a>: <span title="org.jboss.netty.channel.ChannelHandlerContext">ChannelHandlerContext</span>, <a title="org.jboss.netty.channel.Channel" id="54690">chan</a>: <span title="org.jboss.netty.channel.Channel">Channel</span>, <a title="AnyRef" id="54691">msg</a>: <span title="AnyRef">AnyRef</span><span class="delimiter">)</span> = <a href="#54691" title="AnyRef">msg</a> <span title="java.lang.Object" class="keyword">match</span> <span class="delimiter">{</span>
+    <span class="keyword">case</span> <a title="M" id="54741">cbuf</a>: <span title="org.jboss.netty.buffer.ChannelBuffer">ChannelBuffer</span> =&gt;
+      <span class="keyword">val</span> <a title="org.jboss.netty.buffer.ChannelBufferInputStream" id="55040">is</a>  = <span title="org.jboss.netty.buffer.ChannelBufferInputStream" class="keyword">new</span> <span title="org.jboss.netty.buffer.ChannelBufferInputStream">ChannelBufferInputStream</span><span class="delimiter">(</span><a href="#54741" title="org.jboss.netty.buffer.ChannelBuffer">cbuf</a><span class="delimiter">)</span>
+      <span class="keyword">val</span> <a title="org.apache.avro.io.BinaryDecoder" id="55041">dec</a> = <span title="object org.apache.avro.io.DecoderFactory">DecoderFactory</span>.<span title="()org.apache.avro.io.DecoderFactory">get</span><span class="delimiter">(</span><span class="delimiter">)</span>.<span title="(x$1: java.io.InputStream, x$2: org.apache.avro.io.BinaryDecoder)org.apache.avro.io.BinaryDecoder">directBinaryDecoder</span><span class="delimiter">(</span><a href="#55040" title="org.jboss.netty.buffer.ChannelBufferInputStream">is</a>, <span title="Null(null)" class="keyword">null</span><span class="delimiter">)</span>
+      <span class="keyword">val</span> <a title="M" id="55042">msg</a> = <a href="#53853" title="=&gt; Class[M]">msgClass</a>.<span title="()M">newInstance</span>
+      <a href="#53857" title="=&gt; org.apache.avro.specific.SpecificDatumReader[M]">msgReader</a>.<span title="(x$1: M, x$2: org.apache.avro.io.Decoder)M">read</span><span class="delimiter">(</span><a href="#55042" title="M">msg</a>, <a href="#55041" title="org.apache.avro.io.BinaryDecoder">dec</a><span class="delimiter">)</span>
+    <span class="keyword">case</span> <span title="AnyRef">_</span> =&gt; 
+      <a href="#53859" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">warning</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Failed to decode message of unsuported type: %s&quot;)" class="string">&quot;Failed to decode message of unsuported type: %s&quot;</span>, <a href="#54691" title="AnyRef">msg</a><span class="delimiter">)</span>
+      <a href="#54691" title="AnyRef">msg</a>
+  <span class="delimiter">}</span>
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>
