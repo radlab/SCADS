@@ -18,18 +18,18 @@
 <span class="comment">/**
  * Requires preAlloc be less than initSize
  */</span>
-<span class="keyword">class</span> <a title="class PreallocByteArrayOutputStream extends java.io.ByteArrayOutputStream with ScalaObject" id="9977">PreallocByteArrayOutputStream</a><a href="#9977" title="ScalaObject" class="delimiter">(</a><a title="Int" id="62350">preAlloc</a>: <span title="Int">Int</span>, <a title="Int" id="62351">initSize</a>: <span title="Int">Int</span><span class="delimiter">)</span>
-  <span class="keyword">extends</span> <span title="java.io.ByteArrayOutputStream">ByteArrayOutputStream</span><span class="delimiter">(</span><a href="#62351" title="Int">initSize</a><span class="delimiter">)</span> <span class="delimiter">{</span>
-  <span title="(requirement: Boolean)Unit">require</span><span class="delimiter">(</span><a href="#62350" title="Int">preAlloc</a> <span title="(x: Int)Boolean">&gt;=</span> <span title="Int(0)" class="int">0</span> <span title="(x: Boolean)Boolean">&amp;&amp;</span> <a href="#62350" title="Int">preAlloc</a> <span title="(x: Int)Boolean">&lt;</span> <a href="#62351" title="Int">initSize</a><span class="delimiter">)</span>
-  <a href="#9977" title="Int">count</a> = <a href="#62350" title="Int">preAlloc</a> <span class="comment">/* Do the pre-allocation */</span>
+<span class="keyword">class</span> <a title="class PreallocByteArrayOutputStream extends java.io.ByteArrayOutputStream with ScalaObject" id="9979">PreallocByteArrayOutputStream</a><a href="#9979" title="ScalaObject" class="delimiter">(</a><a title="Int" id="62356">preAlloc</a>: <span title="Int">Int</span>, <a title="Int" id="62357">initSize</a>: <span title="Int">Int</span><span class="delimiter">)</span>
+  <span class="keyword">extends</span> <span title="java.io.ByteArrayOutputStream">ByteArrayOutputStream</span><span class="delimiter">(</span><a href="#62357" title="Int">initSize</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+  <span title="(requirement: Boolean)Unit">require</span><span class="delimiter">(</span><a href="#62356" title="Int">preAlloc</a> <span title="(x: Int)Boolean">&gt;=</span> <span title="Int(0)" class="int">0</span> <span title="(x: Boolean)Boolean">&amp;&amp;</span> <a href="#62356" title="Int">preAlloc</a> <span title="(x: Int)Boolean">&lt;</span> <a href="#62357" title="Int">initSize</a><span class="delimiter">)</span>
+  <a href="#9979" title="Int">count</a> = <a href="#62356" title="Int">preAlloc</a> <span class="comment">/* Do the pre-allocation */</span>
 
-  <span class="keyword">def</span> <a title="(preAlloc: Int)edu.berkeley.cs.scads.comm.oio.PreallocByteArrayOutputStream" id="62340" class="keyword">this</a><span class="delimiter">(</span><a title="Int" id="62346">preAlloc</a>: <span title="Int">Int</span><span class="delimiter">)</span> = <a href="#9977" title="PreallocByteArrayOutputStream.this.type" class="keyword">this</a><span class="delimiter">(</span><a href="#62346" title="Int">preAlloc</a>, <a href="#62346" title="Int">preAlloc</a> <span title="(x: Int)Int">+</span> <span title="Int(32)" class="int">32</span><span class="delimiter">)</span>
+  <span class="keyword">def</span> <a title="(preAlloc: Int)edu.berkeley.cs.scads.comm.oio.PreallocByteArrayOutputStream" id="62346" class="keyword">this</a><span class="delimiter">(</span><a title="Int" id="62352">preAlloc</a>: <span title="Int">Int</span><span class="delimiter">)</span> = <a href="#9979" title="PreallocByteArrayOutputStream.this.type" class="keyword">this</a><span class="delimiter">(</span><a href="#62352" title="Int">preAlloc</a>, <a href="#62352" title="Int">preAlloc</a> <span title="(x: Int)Int">+</span> <span title="Int(32)" class="int">32</span><span class="delimiter">)</span>
 
-  <span class="keyword">def</span> <a title="=&gt; Int" id="62341">numPreAllocBytes</a> = <a href="#62350" title="Int">preAlloc</a>
+  <span class="keyword">def</span> <a title="=&gt; Int" id="62347">numPreAllocBytes</a> = <a href="#62356" title="Int">preAlloc</a>
 
-  <span class="keyword">def</span> <a title="=&gt; Int" id="62342">effectiveSize</a> = <a href="#9977" title="()Int">size</a> <span title="(x: Int)Int">-</span> <a href="#62350" title="Int">preAlloc</a>
+  <span class="keyword">def</span> <a title="=&gt; Int" id="62348">effectiveSize</a> = <a href="#9979" title="()Int">size</a> <span title="(x: Int)Int">-</span> <a href="#62356" title="Int">preAlloc</a>
 
-  <span class="keyword">def</span> <a title="=&gt; Array[Byte]" id="62343">underlyingBuffer</a> = <a href="#9977" title="Array[Byte]">buf</a>
+  <span class="keyword">def</span> <a title="=&gt; Array[Byte]" id="62349">underlyingBuffer</a> = <a href="#9979" title="Array[Byte]">buf</a>
 <span class="delimiter">}</span>
 
         </pre>
