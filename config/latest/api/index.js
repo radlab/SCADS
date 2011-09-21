@@ -1,0 +1,1 @@
+Index.PACKAGES = {"edu.berkeley.cs.scads" : [], "edu" : [], "edu.berkeley.cs.scads.config" : [{"object" : "edu\/berkeley\/cs\/scads\/config\/Config$.html", "name" : "edu.berkeley.cs.scads.config.Config"}], "edu.berkeley.cs" : [], "edu.berkeley" : []};
