@@ -1,0 +1,300 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html>
+        <head>
+          <title>deploylib.mesos</title>
+          <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+          
+      <link type="text/css" media="screen" rel="stylesheet" href="../../lib/template.css" />
+      <script type="text/javascript" src="../../lib/jquery.js"></script>
+      <script type="text/javascript" src="../../lib/jquery-ui.js"></script>
+      <script type="text/javascript" src="../../lib/template.js"></script>
+      <script type="text/javascript" src="../../lib/tools.tooltip.js"></script>
+    
+        </head>
+        <body class="value">
+      <div id="definition">
+        <img src="../../lib/package_big.png" />
+        <p id="owner"><a name="deploylib" class="extype" href="../package.html">deploylib</a></p>
+        <h1>mesos</h1>
+      </div>
+
+      <h4 class="signature" id="signature">
+      <span class="kind">package</span>
+      <span class="symbol"> 
+        <span class="name">mesos</span>
+        
+        
+      </span>
+      </h4>
+      
+          <div class="fullcommenttop" id="comment"></div>
+        
+
+      <div id="template">
+
+        <div id="mbrsel">
+          <div id="textfilter"><span class="pre"></span><span class="input"><input accesskey="/" type="text" /></span><span class="post"></span></div>
+          
+          
+          <div id="visbl">
+              <span class="filtertype">Visibility</span>
+              <ol><li class="public in"><span>Public</span></li><li class="all out"><span>All</span></li></ol>
+            </div>
+        </div>
+
+        
+
+        <div class="types members" id="types">
+              <h3>Type Members</h3>
+              <ol><li visbl="pub" name="deploylib.mesos.AvroTask" data-isabs="true">
+      <a id="AvroTask:AvroTask"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="AvroTask.html"><span class="name">AvroTask</span></a>
+        
+        <span class="result"> extends IndexedRecord with Runnable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.Cluster" data-isabs="false">
+      <a id="Cluster:Cluster"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="Cluster.html"><span class="name">Cluster</span></a>
+        
+        <span class="result"> extends ConfigurationActions</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Functions to help maintain a mesos cluster on EC2.</p>
+    </li><li visbl="pub" name="deploylib.mesos.ExperimentScheduler" data-isabs="true">
+      <a id="ExperimentScheduler:ExperimentScheduler"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="ExperimentScheduler.html"><span class="name">ExperimentScheduler</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.JavaExecutor" data-isabs="false">
+      <a id="JavaExecutor:JavaExecutor"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="JavaExecutor.html"><span class="name">JavaExecutor</span></a>
+        
+        <span class="result"> extends Executor</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.LocalExperimentScheduler" data-isabs="false">
+      <a id="LocalExperimentScheduler:LocalExperimentScheduler"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="LocalExperimentScheduler.html"><span class="name">LocalExperimentScheduler</span></a>
+        
+        <span class="result"> extends Scheduler with ExperimentScheduler</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.RemoteServiceScheduler" data-isabs="false">
+      <a id="RemoteServiceScheduler:RemoteServiceScheduler"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="RemoteServiceScheduler.html"><span class="name">RemoteServiceScheduler</span></a>
+        
+        <span class="params">(<span name="host">host: String</span>, <span name="port">port: Int</span>, <span name="id">id: ActorId</span>)</span><span class="result"> extends AvroRecord with ExperimentScheduler with RemoteActorProxy with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.ServiceScheduler" data-isabs="false">
+      <a id="ServiceScheduler:ServiceScheduler"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="ServiceScheduler.html"><span class="name">ServiceScheduler</span></a>
+        
+        <span class="result"> extends LocalExperimentScheduler with ServiceHandler[ExperimentOperation]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.StreamTailer" data-isabs="false">
+      <a id="StreamTailer:StreamTailer"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="StreamTailer.html"><span class="name">StreamTailer</span></a>
+        
+        <span class="result"> extends Runnable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler" data-isabs="false">
+      <a id="WebAppScheduler:WebAppScheduler"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="WebAppScheduler.html"><span class="name">WebAppScheduler</span></a>
+        
+        <span class="result"> extends Scheduler</span>
+      </span>
+      </h4>
+      
+    </li></ol>
+            </div>
+        
+        
+
+        <div class="values members" id="values">
+              <h3>Value Members</h3>
+              <ol><li visbl="pub" name="deploylib.mesos.AvroTaskMain" data-isabs="false">
+      <a id="AvroTaskMain:AvroTaskMain"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="AvroTaskMain$.html"><span class="name">AvroTaskMain</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.JavaExecutor" data-isabs="false">
+      <a id="JavaExecutor:JavaExecutor"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="JavaExecutor$.html"><span class="name">JavaExecutor</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.JvmTask" data-isabs="false">
+      <a id="JvmTask:JvmTask"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="JvmTask$.html"><span class="name">JvmTask</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.LocalExperimentScheduler" data-isabs="false">
+      <a id="LocalExperimentScheduler:LocalExperimentScheduler"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="LocalExperimentScheduler$.html"><span class="name">LocalExperimentScheduler</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.MesosCluster" data-isabs="false">
+      <a id="MesosCluster:MesosCluster"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="MesosCluster$.html"><span class="name">MesosCluster</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.ServiceSchedulerDaemon" data-isabs="false">
+      <a id="ServiceSchedulerDaemon:ServiceSchedulerDaemon"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="ServiceSchedulerDaemon$.html"><span class="name">ServiceSchedulerDaemon</span></a>
+        
+        <span class="result"> extends Application</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler" data-isabs="false">
+      <a id="WebAppScheduler:WebAppScheduler"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="WebAppScheduler$.html"><span class="name">WebAppScheduler</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.package#classpath" data-isabs="false">
+      <a id="classpath:Array[String]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">classpath</span>
+        
+        <span class="result">: <span name="scala.Array" class="extype">Array</span>[<span name="java.lang.String" class="extype">String</span>]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.package" class="extype" href="package$.html">package</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.package#codeS3Classpath" data-isabs="false">
+      <a id="codeS3Classpath:String"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">codeS3Classpath</span>
+        
+        <span class="result">: String</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.package" class="extype" href="package$.html">package</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.package#s3Classpath" data-isabs="false">
+      <a id="s3Classpath:Seq[S3CachedJar]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">s3Classpath</span>
+        
+        <span class="result">: <span name="scala.collection.Seq" class="extype">Seq</span>[<span name="edu.berkeley.cs.scads.comm.S3CachedJar" class="extype">S3CachedJar</span>]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.package" class="extype" href="package$.html">package</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.package#toFile" data-isabs="false">
+      <a id="toFile(String):File"></a>
+      <h4 class="signature">
+      <span class="kind">implicit def</span>
+      <span class="symbol"> 
+        <span class="name">toFile</span>
+        
+        <span class="params">(<span name="str">str: String</span>)</span><span class="result">: <span name="java.io.File" class="extype">File</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd><a name="deploylib.mesos.package" class="extype" href="package$.html">package</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.package#workClasspath" data-isabs="false">
+      <a id="workClasspath:Seq[ServerSideJar]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">workClasspath</span>
+        
+        <span class="result">: <span name="scala.collection.Seq" class="extype">Seq</span>[<span name="edu.berkeley.cs.scads.comm.ServerSideJar" class="extype">ServerSideJar</span>]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.package" class="extype" href="package$.html">package</a></dd></dl></div>
+    </li></ol>
+            </div>
+
+        
+
+        
+
+      </div>
+      
+      <div id="tooltip"></div>
+      
+    </body>
+      </html>

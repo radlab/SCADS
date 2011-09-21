@@ -1,0 +1,870 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html>
+        <head>
+          <title>deploylib.rcluster.r10</title>
+          <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+          
+      <link type="text/css" media="screen" rel="stylesheet" href="../../lib/template.css" />
+      <script type="text/javascript" src="../../lib/jquery.js"></script>
+      <script type="text/javascript" src="../../lib/jquery-ui.js"></script>
+      <script type="text/javascript" src="../../lib/template.js"></script>
+      <script type="text/javascript" src="../../lib/tools.tooltip.js"></script>
+    
+        </head>
+        <body class="value">
+      <div id="definition">
+        <img src="../../lib/object_big.png" />
+        <p id="owner"><a name="deploylib" class="extype" href="../package.html">deploylib</a>.<a name="deploylib.rcluster" class="extype" href="package.html">rcluster</a></p>
+        <h1>r10</h1>
+      </div>
+
+      <h4 class="signature" id="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <span class="name">r10</span>
+        
+        <span class="result"> extends <a name="deploylib.rcluster.RClusterNode" class="extype" href="RClusterNode.html">RClusterNode</a></span>
+      </span>
+      </h4>
+      
+          <div class="fullcommenttop" id="comment"><div class="toggleContainer block">
+          <span class="toggle">Linear Supertypes</span>
+          <div class="superTypes hiddenContent"><a name="deploylib.rcluster.RClusterNode" class="extype" href="RClusterNode.html">RClusterNode</a>, <a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a>, <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
+        </div></div>
+        
+
+      <div id="template">
+
+        <div id="mbrsel">
+          <div id="textfilter"><span class="pre"></span><span class="input"><input accesskey="/" type="text" /></span><span class="post"></span></div>
+          <div id="order">
+                <span class="filtertype">Ordering</span>
+                <ol><li class="alpha in"><span>Alphabetic</span></li><li class="inherit out"><span>By inheritance</span></li></ol>
+              </div>
+          <div id="ancestors">
+                <span class="filtertype">Inherited</span>
+                <ol><li class="hideall out"><span>Hide All</span></li>
+                <li class="showall in"><span>Show all</span></li></ol>
+                <ol id="linearization"><li name="deploylib.rcluster.r10" class="in"><span>r10</span></li><li name="deploylib.rcluster.RClusterNode" class="in"><span>RClusterNode</span></li><li name="deploylib.runit.RunitManager" class="in"><span>RunitManager</span></li><li name="deploylib.RemoteMachine" class="in"><span>RemoteMachine</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
+              </div>
+          <div id="visbl">
+              <span class="filtertype">Visibility</span>
+              <ol><li class="public in"><span>Public</span></li><li class="all out"><span>All</span></li></ol>
+            </div>
+        </div>
+
+        
+
+        <div class="types members" id="types">
+              <h3>Type Members</h3>
+              <ol><li visbl="pub" name="deploylib.RemoteMachine.FreeStats" data-isabs="false">
+      <a id="FreeStats:FreeStats"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="../RemoteMachine$FreeStats.html"><span class="name">FreeStats</span></a>
+        
+        <span class="params">(<span name="total">total: Int</span>, <span name="used">used: Int</span>, <span name="free">free: Int</span>, <span name="shared">shared: Int</span>, <span name="buffers">buffers: Int</span>, <span name="cached">cached: Int</span>)</span><span class="result"> extends Product with Serializable</span>
+      </span>
+      </h4>
+      <p class="comment cmt">returns the result of the command free.</p>
+    </li><li visbl="pub" name="deploylib.RemoteMachine.RemoteFile" data-isabs="false">
+      <a id="RemoteFile:RemoteFile"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="../RemoteMachine$RemoteFile.html"><span class="name">RemoteFile</span></a>
+        
+        <span class="params">(<span name="name">name: String</span>, <span name="owner">owner: String</span>, <span name="permissions">permissions: String</span>, <span name="modDate">modDate: String</span>, <span name="size">size: String</span>)</span><span class="result"> extends Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.RemoteMachine.RemoteJavaProcess" data-isabs="false">
+      <a id="RemoteJavaProcess:RemoteJavaProcess"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="../RemoteMachine$RemoteJavaProcess.html"><span class="name">RemoteJavaProcess</span></a>
+        
+        <span class="params">(<span name="pid">pid: Int</span>, <span name="main">main: String</span>)</span><span class="result"> extends Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.RemoteMachine.RemoteProcess" data-isabs="false">
+      <a id="RemoteProcess:RemoteProcess"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="../RemoteMachine$RemoteProcess.html"><span class="name">RemoteProcess</span></a>
+        
+        <span class="params">(<span name="user">user: String</span>, <span name="pid">pid: Int</span>, <span name="cpu">cpu: Float</span>, <span name="mem">mem: Float</span>, <span name="vsz">vsz: Int</span>, <span name="rss">rss: Int</span>, <span name="tty">tty: String</span>, <span name="stat">stat: String</span>, <span name="start">start: String</span>, <span name="time">time: String</span>, <span name="command">command: String</span>)</span><span class="result"> extends Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li></ol>
+            </div>
+        
+        
+
+        <div class="values members" id="values">
+              <h3>Value Members</h3>
+              <ol><li visbl="pub" name="deploylib.RemoteMachine#!" data-isabs="false">
+      <a id="!(String):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">!</span>
+        
+        <span class="params">(<span name="cmd">cmd: String</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Executes a command and throw an error if it doesn't return 0
+</p><div class="fullcomment"><div class="comment cmt"><p>Executes a command and throw an error if it doesn't return 0
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#!=" data-isabs="false">
+      <a id="!=(AnyRef):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">!=</span>
+        
+        <span class="params">(<span name="arg0">arg0: AnyRef</span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="scala.Any#!=" data-isabs="false">
+      <a id="!=(Any):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">!=</span>
+        
+        <span class="params">(<span name="arg0">arg0: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#!?" data-isabs="false">
+      <a id="!?(String):String"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">!?</span>
+        
+        <span class="params">(<span name="cmd">cmd: String</span>)</span><span class="result">: String</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef###" data-isabs="false">
+      <a id="##():Int"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">##</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#==" data-isabs="false">
+      <a id="==(AnyRef):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">==</span>
+        
+        <span class="params">(<span name="arg0">arg0: AnyRef</span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="scala.Any#==" data-isabs="false">
+      <a id="==(Any):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">==</span>
+        
+        <span class="params">(<span name="arg0">arg0: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#addService" data-isabs="false">
+      <a id="addService(Service):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">addService</span>
+        
+        <span class="params">(<span name="service">service: <a name="deploylib.Service" class="extype" href="../Service.html">Service</a></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#appendFile" data-isabs="false">
+      <a id="appendFile(File,String):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">appendFile</span>
+        
+        <span class="params">(<span name="file">file: <span name="java.io.File" class="extype">File</span></span>, <span name="contents">contents: String</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Append to file on the remote machine with the given contents</p><div class="fullcomment"><div class="comment cmt"><p>Append to file on the remote machine with the given contents</p></div><dl class="paramcmts block"><dt class="param">file</dt><dd class="cmt"><p>- The desired path of the file. If the given path is relative, the file will be created in the rootDirectory</p></dd><dt class="param">contents</dt><dd class="cmt"><p>- A string to be appended to the file
+</p></dd></dl><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="scala.Any#asInstanceOf" data-isabs="false">
+      <a id="asInstanceOf[T0]:T0"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">asInstanceOf</span>
+        <span class="tparams">[<span name="T0">T0</span>]</span>
+        <span class="result">: T0</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li visbl="prt" name="deploylib.RemoteMachine#assignedServices" data-isabs="false">
+      <a id="assignedServices:Set[Service]"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">assignedServices</span>
+        
+        <span class="result">: Set[<a name="deploylib.Service" class="extype" href="../Service.html">Service</a>]</span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">The services that are assigned to be deployed to this remote machine.</p><div class="fullcomment"><div class="comment cmt"><p>The services that are assigned to be deployed to this remote machine.
+</p></div><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#blockTillFileCreated" data-isabs="false">
+      <a id="blockTillFileCreated(File):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">blockTillFileCreated</span>
+        
+        <span class="params">(<span name="file">file: <span name="java.io.File" class="extype">File</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#blockTillPortOpen" data-isabs="false">
+      <a id="blockTillPortOpen(Int):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">blockTillPortOpen</span>
+        
+        <span class="params">(<span name="port">port: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.rcluster.RClusterNode#cacheFile" data-isabs="false">
+      <a id="cacheFile(File):File"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">cacheFile</span>
+        
+        <span class="params">(<span name="localFile">localFile: <span name="java.io.File" class="extype">File</span></span>)</span><span class="result">: <span name="java.io.File" class="extype">File</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.rcluster.RClusterNode" class="extype" href="RClusterNode.html">RClusterNode</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#catFile" data-isabs="false">
+      <a id="catFile(File):String"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">catFile</span>
+        
+        <span class="params">(<span name="remoteFile">remoteFile: <span name="java.io.File" class="extype">File</span></span>)</span><span class="result">: String</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.runit.RunitManager#clearAll" data-isabs="false">
+      <a id="clearAll:Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">clearAll</span>
+        
+        <span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a></dd></dl></div>
+    </li><li visbl="prt" name="scala.AnyRef#clone" data-isabs="false">
+      <a id="clone():AnyRef"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">clone</span>
+        
+        <span class="params">()</span><span class="result">: AnyRef</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected[<a name="java.lang" class="extype" href="../../java/lang/package.html">lang</a>] </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
+                <span class="name">@throws</span><span class="args">()</span>
+              
+        </dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#createFile" data-isabs="false">
+      <a id="createFile(File,String):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">createFile</span>
+        
+        <span class="params">(<span name="file">file: <span name="java.io.File" class="extype">File</span></span>, <span name="contents">contents: String</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Create a file on the remote machine with the given contents</p><div class="fullcomment"><div class="comment cmt"><p>Create a file on the remote machine with the given contents</p></div><dl class="paramcmts block"><dt class="param">file</dt><dd class="cmt"><p>- The desired path of the file. If the given path is relative, the file will be created in the rootDirectory</p></dd><dt class="param">contents</dt><dd class="cmt"><p>- A string with the desired contents of the file
+</p></dd></dl><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#download" data-isabs="false">
+      <a id="download(File,File):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">download</span>
+        
+        <span class="params">(<span name="remoteFile">remoteFile: <span name="java.io.File" class="extype">File</span></span>, <span name="localDirectory">localDirectory: <span name="java.io.File" class="extype">File</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Downloads a file from the remote machine.</p><div class="fullcomment"><div class="comment cmt"><p>Downloads a file from the remote machine.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#eq" data-isabs="false">
+      <a id="eq(AnyRef):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">eq</span>
+        
+        <span class="params">(<span name="arg0">arg0: AnyRef</span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#equals" data-isabs="false">
+      <a id="equals(Any):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">equals</span>
+        
+        <span class="params">(<span name="arg0">arg0: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#executeCommand" data-isabs="false">
+      <a id="executeCommand(String,Long):ExecuteResponse"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">executeCommand</span>
+        
+        <span class="params">(<span name="cmd">cmd: String</span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span></span>)</span><span class="result">: <a name="deploylib.ExecuteResponse" class="extype" href="../ExecuteResponse.html">ExecuteResponse</a></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Execute a command sync with a maximum timeout to wait for result
+and return the result as an ExecuteResponse
+</p><div class="fullcomment"><div class="comment cmt"><p>Execute a command sync with a maximum timeout to wait for result
+and return the result as an ExecuteResponse
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#executeCommand" data-isabs="false">
+      <a id="executeCommand(String):ExecuteResponse"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">executeCommand</span>
+        
+        <span class="params">(<span name="cmd">cmd: String</span>)</span><span class="result">: <a name="deploylib.ExecuteResponse" class="extype" href="../ExecuteResponse.html">ExecuteResponse</a></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Execute a command sync and return the result as an ExecuteResponse
+</p><div class="fullcomment"><div class="comment cmt"><p>Execute a command sync and return the result as an ExecuteResponse
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="prt" name="scala.AnyRef#finalize" data-isabs="false">
+      <a id="finalize():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">finalize</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected[<a name="java.lang" class="extype" href="../../java/lang/package.html">lang</a>] </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
+                <span class="name">@throws</span><span class="args">()</span>
+              
+        </dd></dl></div>
+    </li><li visbl="prt" name="deploylib.RemoteMachine#findPrivateKey" data-isabs="false">
+      <a id="findPrivateKey:File"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">findPrivateKey</span>
+        
+        <span class="result">: <span name="java.io.File" class="extype">File</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#free" data-isabs="false">
+      <a id="free:FreeStats"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">free</span>
+        
+        <span class="result">: <a name="deploylib.RemoteMachine.FreeStats" class="extype" href="../RemoteMachine$FreeStats.html">FreeStats</a></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#freeResponse" data-isabs="false">
+      <a id="freeResponse:Regex"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">freeResponse</span>
+        
+        <span class="result">: <span name="scala.util.matching.Regex" class="extype">Regex</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#getClass" data-isabs="false">
+      <a id="getClass():java.lang.Class[_]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">getClass</span>
+        
+        <span class="params">()</span><span class="result">: java.lang.Class[_]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#hashCode" data-isabs="false">
+      <a id="hashCode():Int"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">hashCode</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.rcluster.RClusterNode#hostname" data-isabs="false">
+      <a id="hostname:String"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">hostname</span>
+        
+        <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">The hostname that the ssh connection is established with
+</p><div class="fullcomment"><div class="comment cmt"><p>The hostname that the ssh connection is established with
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.rcluster.RClusterNode" class="extype" href="RClusterNode.html">RClusterNode</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="scala.Any#isInstanceOf" data-isabs="false">
+      <a id="isInstanceOf[T0]:Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">isInstanceOf</span>
+        <span class="tparams">[<span name="T0">T0</span>]</span>
+        <span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#isPortAvailableToListen" data-isabs="false">
+      <a id="isPortAvailableToListen(Int):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">isPortAvailableToListen</span>
+        
+        <span class="params">(<span name="port">port: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.rcluster.RClusterNode#javaCmd" data-isabs="false">
+      <a id="javaCmd:File"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">javaCmd</span>
+        
+        <span class="result">: <span name="java.io.File" class="extype">File</span></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">The location of the java command on the remote machine
+</p><div class="fullcomment"><div class="comment cmt"><p>The location of the java command on the remote machine
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.rcluster.RClusterNode" class="extype" href="RClusterNode.html">RClusterNode</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#jps" data-isabs="false">
+      <a id="jps:Seq[RemoteJavaProcess]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">jps</span>
+        
+        <span class="result">: Seq[<a name="deploylib.RemoteMachine.RemoteJavaProcess" class="extype" href="../RemoteMachine$RemoteJavaProcess.html">RemoteJavaProcess</a>]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#logger" data-isabs="false">
+      <a id="logger:Logger"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">logger</span>
+        
+        <span class="result">: <span name="net.lag.logging.Logger" class="extype">Logger</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#ls" data-isabs="false">
+      <a id="ls(File):Seq[RemoteFile]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">ls</span>
+        
+        <span class="params">(<span name="dir">dir: <span name="java.io.File" class="extype">File</span></span>)</span><span class="result">: Seq[<a name="deploylib.RemoteMachine.RemoteFile" class="extype" href="../RemoteMachine$RemoteFile.html">RemoteFile</a>]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#md5" data-isabs="false">
+      <a id="md5(File):String"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">md5</span>
+        
+        <span class="params">(<span name="remoteFile">remoteFile: <span name="java.io.File" class="extype">File</span></span>)</span><span class="result">: String</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#mkdir" data-isabs="false">
+      <a id="mkdir(File):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">mkdir</span>
+        
+        <span class="params">(<span name="remoteDir">remoteDir: <span name="java.io.File" class="extype">File</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#ne" data-isabs="false">
+      <a id="ne(AnyRef):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">ne</span>
+        
+        <span class="params">(<span name="arg0">arg0: AnyRef</span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#notify" data-isabs="false">
+      <a id="notify():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">notify</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#notifyAll" data-isabs="false">
+      <a id="notifyAll():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">notifyAll</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#privateKey" data-isabs="false">
+      <a id="privateKey:File"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">privateKey</span>
+        
+        <span class="result">: <span name="java.io.File" class="extype">File</span></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">The private key used to authenticate with the remote ssh server
+</p><div class="fullcomment"><div class="comment cmt"><p>The private key used to authenticate with the remote ssh server
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#ps" data-isabs="false">
+      <a id="ps:Seq[RemoteProcess]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">ps</span>
+        
+        <span class="result">: Seq[<a name="deploylib.RemoteMachine.RemoteProcess" class="extype" href="../RemoteMachine$RemoteProcess.html">RemoteProcess</a>]</span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">lists the processes running on the remote machine.</p><div class="fullcomment"><div class="comment cmt"><p>lists the processes running on the remote machine.
+Expects:
+USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root         1  0.0  0.0  23708  1952 ?        Ss   01:00   0:00 /sbin/init
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.rcluster.RClusterNode#rootDirectory" data-isabs="false">
+      <a id="rootDirectory:File"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">rootDirectory</span>
+        
+        <span class="result">: <span name="java.io.File" class="extype">File</span></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">The default root directory for operations (The user should have read write permissions to this directory)
+</p><div class="fullcomment"><div class="comment cmt"><p>The default root directory for operations (The user should have read write permissions to this directory)
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.rcluster.RClusterNode" class="extype" href="RClusterNode.html">RClusterNode</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.rcluster.RClusterNode#runitBinaryPath" data-isabs="false">
+      <a id="runitBinaryPath:File"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">runitBinaryPath</span>
+        
+        <span class="result">: <span name="java.io.File" class="extype">File</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.rcluster.RClusterNode" class="extype" href="RClusterNode.html">RClusterNode</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#runsvdirCmd" data-isabs="false">
+      <a id="runsvdirCmd:File"></a>
+      <h4 class="signature">
+      <span class="kind">lazy val</span>
+      <span class="symbol"> 
+        <span class="name">runsvdirCmd</span>
+        
+        <span class="result">: <span name="java.io.File" class="extype">File</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#serviceRoot" data-isabs="false">
+      <a id="serviceRoot:File"></a>
+      <h4 class="signature">
+      <span class="kind">lazy val</span>
+      <span class="symbol"> 
+        <span class="name">serviceRoot</span>
+        
+        <span class="result">: <span name="java.io.File" class="extype">File</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.runit.RunitManager#services" data-isabs="false">
+      <a id="services:List[RunitService]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">services</span>
+        
+        <span class="result">: List[<a name="deploylib.runit.RunitService" class="extype" href="../runit/RunitService.html">RunitService</a>]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.rcluster.RClusterNode#setupRunit" data-isabs="false">
+      <a id="setupRunit():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">setupRunit</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.rcluster.RClusterNode" class="extype" href="RClusterNode.html">RClusterNode</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#stopWatches" data-isabs="false">
+      <a id="stopWatches():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">stopWatches</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#svCmd" data-isabs="false">
+      <a id="svCmd:File"></a>
+      <h4 class="signature">
+      <span class="kind">lazy val</span>
+      <span class="symbol"> 
+        <span class="name">svCmd</span>
+        
+        <span class="result">: <span name="java.io.File" class="extype">File</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#svlogdCmd" data-isabs="false">
+      <a id="svlogdCmd:File"></a>
+      <h4 class="signature">
+      <span class="kind">lazy val</span>
+      <span class="symbol"> 
+        <span class="name">svlogdCmd</span>
+        
+        <span class="result">: <span name="java.io.File" class="extype">File</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#synchronized" data-isabs="false">
+      <a id="synchronized[T0](⇒ T0):T0"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">synchronized</span>
+        <span class="tparams">[<span name="T0">T0</span>]</span>
+        <span class="params">(<span name="arg0">arg0: ⇒ T0</span>)</span><span class="result">: T0</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#tail" data-isabs="false">
+      <a id="tail(File,Int):String"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">tail</span>
+        
+        <span class="params">(<span name="remoteFile">remoteFile: <span name="java.io.File" class="extype">File</span></span>, <span name="numLines">numLines: <span name="scala.Int" class="extype">Int</span> = <span class="symbol">20</span></span>)</span><span class="result">: String</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#toOption" data-isabs="false">
+      <a id="toOption[A](A):Option[A]"></a>
+      <h4 class="signature">
+      <span class="kind">implicit def</span>
+      <span class="symbol"> 
+        <span class="name">toOption</span>
+        <span class="tparams">[<span name="A">A</span>]</span>
+        <span class="params">(<span name="a">a: A</span>)</span><span class="result">: <span name="scala.Option" class="extype">Option</span>[A]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#toString" data-isabs="false">
+      <a id="toString():String"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">toString</span>
+        
+        <span class="params">()</span><span class="result">: String</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a> → AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.rcluster.RClusterNode#upload" data-isabs="false">
+      <a id="upload(File,File):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">upload</span>
+        
+        <span class="params">(<span name="localFile">localFile: <span name="java.io.File" class="extype">File</span></span>, <span name="remoteDirectory">remoteDirectory: <span name="java.io.File" class="extype">File</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Upload a file to the remote machine.</p><div class="fullcomment"><div class="comment cmt"><p>Upload a file to the remote machine.  Before peforming the transfer check the md5hash of the local file and any existing file to ensure we don't waste bandwidth.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.rcluster.RClusterNode" class="extype" href="RClusterNode.html">RClusterNode</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="prt" name="deploylib.RemoteMachine#useConnection" data-isabs="false">
+      <a id="useConnection[ReturnType]((Connection) ⇒ ReturnType,Int):ReturnType"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">useConnection</span>
+        <span class="tparams">[<span name="ReturnType">ReturnType</span>]</span>
+        <span class="params">(<span name="func">func: (<span name="ch.ethz.ssh2.Connection" class="extype">Connection</span>) ⇒ ReturnType</span>, <span name="numTries">numTries: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: ReturnType</span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Provide an ssh connection to the server.</p><div class="fullcomment"><div class="comment cmt"><p>Provide an ssh connection to the server.  If one is not already available or has been disconnected, create one.
+</p></div><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="deploylib.rcluster.RClusterNode#username" data-isabs="false">
+      <a id="username:String"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">username</span>
+        
+        <span class="result">: String</span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">The username used to authenticate with the remote ssh server
+</p><div class="fullcomment"><div class="comment cmt"><p>The username used to authenticate with the remote ssh server
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.rcluster.RClusterNode" class="extype" href="RClusterNode.html">RClusterNode</a> → <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#wait" data-isabs="false">
+      <a id="wait():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">wait</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
+                <span class="name">@throws</span><span class="args">()</span>
+              
+        </dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#wait" data-isabs="false">
+      <a id="wait(Long,Int):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">wait</span>
+        
+        <span class="params">(<span name="arg0">arg0: <span name="scala.Long" class="extype">Long</span></span>, <span name="arg1">arg1: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
+                <span class="name">@throws</span><span class="args">()</span>
+              
+        </dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#wait" data-isabs="false">
+      <a id="wait(Long):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">wait</span>
+        
+        <span class="params">(<span name="arg0">arg0: <span name="scala.Long" class="extype">Long</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
+                <span class="name">@throws</span><span class="args">()</span>
+              
+        </dd></dl></div>
+    </li><li visbl="pub" name="deploylib.RemoteMachine#watch" data-isabs="false">
+      <a id="watch(File):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">watch</span>
+        
+        <span class="params">(<span name="remoteFile">remoteFile: <span name="java.io.File" class="extype">File</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></dd></dl></div>
+    </li></ol>
+            </div>
+
+        
+
+        <div name="deploylib.rcluster.RClusterNode" class="parent">
+              <h3>Inherited from <a name="deploylib.rcluster.RClusterNode" class="extype" href="RClusterNode.html">RClusterNode</a></h3>
+            </div><div name="deploylib.runit.RunitManager" class="parent">
+              <h3>Inherited from <a name="deploylib.runit.RunitManager" class="extype" href="../runit/RunitManager.html">RunitManager</a></h3>
+            </div><div name="deploylib.RemoteMachine" class="parent">
+              <h3>Inherited from <a name="deploylib.RemoteMachine" class="extype" href="../RemoteMachine.html">RemoteMachine</a></h3>
+            </div><div name="scala.AnyRef" class="parent">
+              <h3>Inherited from AnyRef</h3>
+            </div><div name="scala.Any" class="parent">
+              <h3>Inherited from <span name="scala.Any" class="extype">Any</span></h3>
+            </div>
+
+      </div>
+      
+      <div id="tooltip"></div>
+      
+    </body>
+      </html>

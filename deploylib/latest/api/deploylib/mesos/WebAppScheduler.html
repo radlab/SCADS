@@ -1,0 +1,744 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html>
+        <head>
+          <title>deploylib.mesos.WebAppScheduler</title>
+          <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+          
+      <link type="text/css" media="screen" rel="stylesheet" href="../../lib/template.css" />
+      <script type="text/javascript" src="../../lib/jquery.js"></script>
+      <script type="text/javascript" src="../../lib/jquery-ui.js"></script>
+      <script type="text/javascript" src="../../lib/template.js"></script>
+      <script type="text/javascript" src="../../lib/tools.tooltip.js"></script>
+    
+        </head>
+        <body class="type">
+      <div id="definition">
+        <a title="Go to companion" href="WebAppScheduler$.html"><img src="../../lib/class_to_object_big.png" /></a>
+        <p id="owner"><a name="deploylib" class="extype" href="../package.html">deploylib</a>.<a name="deploylib.mesos" class="extype" href="package.html">mesos</a></p>
+        <h1><a title="Go to companion" href="WebAppScheduler$.html">WebAppScheduler</a></h1>
+      </div>
+
+      <h4 class="signature" id="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <span class="name">WebAppScheduler</span>
+        
+        <span class="result"> extends <span name="org.apache.mesos.Scheduler" class="extype">Scheduler</span></span>
+      </span>
+      </h4>
+      
+          <div class="fullcommenttop" id="comment"><dl class="attributes block"> <dt>Self Type</dt><dd><a name="deploylib.mesos.WebAppScheduler" class="extype" href="">WebAppScheduler</a></dd></dl><div class="toggleContainer block">
+          <span class="toggle">Linear Supertypes</span>
+          <div class="superTypes hiddenContent"><span name="org.apache.mesos.Scheduler" class="extype">Scheduler</span>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
+        </div></div>
+        
+
+      <div id="template">
+
+        <div id="mbrsel">
+          <div id="textfilter"><span class="pre"></span><span class="input"><input accesskey="/" type="text" /></span><span class="post"></span></div>
+          <div id="order">
+                <span class="filtertype">Ordering</span>
+                <ol><li class="alpha in"><span>Alphabetic</span></li><li class="inherit out"><span>By inheritance</span></li></ol>
+              </div>
+          <div id="ancestors">
+                <span class="filtertype">Inherited</span>
+                <ol><li class="hideall out"><span>Hide All</span></li>
+                <li class="showall in"><span>Show all</span></li></ol>
+                <ol id="linearization"><li name="deploylib.mesos.WebAppScheduler" class="in"><span>WebAppScheduler</span></li><li name="org.apache.mesos.Scheduler" class="in"><span>Scheduler</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
+              </div>
+          <div id="visbl">
+              <span class="filtertype">Visibility</span>
+              <ol><li class="public in"><span>Public</span></li><li class="all out"><span>All</span></li></ol>
+            </div>
+        </div>
+
+        <div class="members" id="constructors">
+              <h3>Instance Constructors</h3>
+              <ol><li visbl="prt" name="deploylib.mesos.WebAppScheduler#this" data-isabs="false">
+      <a id="this:WebAppScheduler"></a>
+      <h4 class="signature">
+      <span class="kind">new</span>
+      <span class="symbol"> 
+        <span class="name">WebAppScheduler</span>
+        
+        <span class="params">(<span name="name">name: String</span>, <span name="mesosMaster">mesosMaster: String</span>, <span name="executor">executor: String</span>, <span name="warFile">warFile: <span name="edu.berkeley.cs.scads.comm.ClassSource" class="extype">ClassSource</span></span>, <span name="properties">properties: Map[String, String]</span>, <span name="zkWebServerListRoot">zkWebServerListRoot: String</span>, <span name="serverCapacity">serverCapacity: <span name="scala.Int" class="extype">Int</span></span>, <span name="minServers">minServers: <span name="scala.Int" class="extype">Int</span></span>, <span name="statsServer">statsServer: <span name="scala.Option" class="extype">Option</span>[String]</span>)</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
+    </li></ol>
+            </div>
+
+        <div class="types members" id="types">
+              <h3>Type Members</h3>
+              <ol><li visbl="pub" name="deploylib.mesos.WebAppScheduler.WebAppPrimerThread" data-isabs="false">
+      <a id="WebAppPrimerThread:WebAppPrimerThread"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="WebAppScheduler$WebAppPrimerThread.html"><span class="name">WebAppPrimerThread</span></a>
+        
+        <span class="result"> extends Runnable</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Periodically sends an http GET request to a server until it responds
+with a status 200 or until a timeout.</p>
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler.monitorThread" data-isabs="false">
+      <a id="monitorThread:monitorThread"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="WebAppScheduler$monitorThread.html"><span class="name">monitorThread</span></a>
+        
+        <span class="result"> extends Runnable</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Periodically query all of the webapp servers currently thought
+to be alive (i.</p>
+    </li></ol>
+            </div>
+        
+        
+
+        <div class="values members" id="values">
+              <h3>Value Members</h3>
+              <ol><li visbl="pub" name="scala.AnyRef#!=" data-isabs="false">
+      <a id="!=(AnyRef):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">!=</span>
+        
+        <span class="params">(<span name="arg0">arg0: AnyRef</span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="scala.Any#!=" data-isabs="false">
+      <a id="!=(Any):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">!=</span>
+        
+        <span class="params">(<span name="arg0">arg0: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef###" data-isabs="false">
+      <a id="##():Int"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">##</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#==" data-isabs="false">
+      <a id="==(AnyRef):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">==</span>
+        
+        <span class="params">(<span name="arg0">arg0: AnyRef</span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="scala.Any#==" data-isabs="false">
+      <a id="==(Any):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">==</span>
+        
+        <span class="params">(<span name="arg0">arg0: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li visbl="pub" name="scala.Any#asInstanceOf" data-isabs="false">
+      <a id="asInstanceOf[T0]:T0"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">asInstanceOf</span>
+        <span class="tparams">[<span name="T0">T0</span>]</span>
+        <span class="result">: T0</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li visbl="prt" name="scala.AnyRef#clone" data-isabs="false">
+      <a id="clone():AnyRef"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">clone</span>
+        
+        <span class="params">()</span><span class="result">: AnyRef</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected[<a name="java.lang" class="extype" href="../../java/lang/package.html">lang</a>] </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
+                <span class="name">@throws</span><span class="args">()</span>
+              
+        </dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#driver" data-isabs="false">
+      <a id="driver:MesosSchedulerDriver"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">driver</span>
+        
+        <span class="result">: <span name="org.apache.mesos.MesosSchedulerDriver" class="extype">MesosSchedulerDriver</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#driverThread" data-isabs="false">
+      <a id="driverThread:Thread"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">driverThread</span>
+        
+        <span class="result">: <span name="java.lang.Thread" class="extype">Thread</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="scala.AnyRef#eq" data-isabs="false">
+      <a id="eq(AnyRef):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">eq</span>
+        
+        <span class="params">(<span name="arg0">arg0: AnyRef</span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#equals" data-isabs="false">
+      <a id="equals(Any):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">equals</span>
+        
+        <span class="params">(<span name="arg0">arg0: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#error" data-isabs="false">
+      <a id="error(SchedulerDriver,Int,String):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">error</span>
+        
+        <span class="params">(<span name="driver">driver: <span name="org.apache.mesos.SchedulerDriver" class="extype">SchedulerDriver</span></span>, <span name="code">code: <span name="scala.Int" class="extype">Int</span></span>, <span name="message">message: String</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.WebAppScheduler" class="extype" href="">WebAppScheduler</a> → Scheduler</dd></dl></div>
+    </li><li visbl="prt" name="scala.AnyRef#finalize" data-isabs="false">
+      <a id="finalize():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">finalize</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected[<a name="java.lang" class="extype" href="../../java/lang/package.html">lang</a>] </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
+                <span class="name">@throws</span><span class="args">()</span>
+              
+        </dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#frameworkMessage" data-isabs="false">
+      <a id="frameworkMessage(SchedulerDriver,SlaveID,ExecutorID,Array[Byte]):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">frameworkMessage</span>
+        
+        <span class="params">(<span name="driver">driver: <span name="org.apache.mesos.SchedulerDriver" class="extype">SchedulerDriver</span></span>, <span name="slaveId">slaveId: <span name="org.apache.mesos.Protos.SlaveID" class="extype">SlaveID</span></span>, <span name="executor">executor: <span name="org.apache.mesos.Protos.ExecutorID" class="extype">ExecutorID</span></span>, <span name="data">data: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.WebAppScheduler" class="extype" href="">WebAppScheduler</a> → Scheduler</dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#getClass" data-isabs="false">
+      <a id="getClass():java.lang.Class[_]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">getClass</span>
+        
+        <span class="params">()</span><span class="result">: java.lang.Class[_]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#getExecutorInfo" data-isabs="false">
+      <a id="getExecutorInfo(SchedulerDriver):ExecutorInfo"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">getExecutorInfo</span>
+        
+        <span class="params">(<span name="d">d: <span name="org.apache.mesos.SchedulerDriver" class="extype">SchedulerDriver</span></span>)</span><span class="result">: <span name="org.apache.mesos.Protos.ExecutorInfo" class="extype">ExecutorInfo</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.WebAppScheduler" class="extype" href="">WebAppScheduler</a> → Scheduler</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#getFrameworkName" data-isabs="false">
+      <a id="getFrameworkName(SchedulerDriver):String"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">getFrameworkName</span>
+        
+        <span class="params">(<span name="d">d: <span name="org.apache.mesos.SchedulerDriver" class="extype">SchedulerDriver</span></span>)</span><span class="result">: String</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.WebAppScheduler" class="extype" href="">WebAppScheduler</a> → Scheduler</dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#hashCode" data-isabs="false">
+      <a id="hashCode():Int"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">hashCode</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="scala.Any#isInstanceOf" data-isabs="false">
+      <a id="isInstanceOf[T0]:Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">isInstanceOf</span>
+        <span class="tparams">[<span name="T0">T0</span>]</span>
+        <span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#kill" data-isabs="false">
+      <a id="kill:Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">kill</span>
+        
+        <span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#killTasks" data-isabs="false">
+      <a id="killTasks(Int):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">killTasks</span>
+        
+        <span class="params">(<span name="numServers">numServers: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#killTimer" data-isabs="false">
+      <a id="killTimer:Int"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">killTimer</span>
+        
+        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#listeners" data-isabs="false">
+      <a id="listeners:List[(String) ⇒ Unit]"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">listeners</span>
+        
+        <span class="result">: List[(String) ⇒ <span name="scala.Unit" class="extype">Unit</span>]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#logger" data-isabs="false">
+      <a id="logger:Logger"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">logger</span>
+        
+        <span class="result">: <span name="net.lag.logging.Logger" class="extype">Logger</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#minServers" data-isabs="false">
+      <a id="minServers:Int"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">minServers</span>
+        
+        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#monitoringThread" data-isabs="false">
+      <a id="monitoringThread:Thread"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">monitoringThread</span>
+        
+        <span class="result">: <span name="java.lang.Thread" class="extype">Thread</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="scala.AnyRef#ne" data-isabs="false">
+      <a id="ne(AnyRef):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">ne</span>
+        
+        <span class="params">(<span name="arg0">arg0: AnyRef</span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#notify" data-isabs="false">
+      <a id="notify():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">notify</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#notifyAll" data-isabs="false">
+      <a id="notifyAll():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">notifyAll</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#numToKill" data-isabs="false">
+      <a id="numToKill:Int"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">numToKill</span>
+        
+        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#offerRescinded" data-isabs="false">
+      <a id="offerRescinded(SchedulerDriver,OfferID):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">offerRescinded</span>
+        
+        <span class="params">(<span name="driver">driver: <span name="org.apache.mesos.SchedulerDriver" class="extype">SchedulerDriver</span></span>, <span name="oid">oid: <span name="org.apache.mesos.Protos.OfferID" class="extype">OfferID</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.WebAppScheduler" class="extype" href="">WebAppScheduler</a> → Scheduler</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#pendingServers" data-isabs="false">
+      <a id="pendingServers:HashMap[TaskID, String]"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">pendingServers</span>
+        
+        <span class="result">: <span name="scala.collection.immutable.HashMap" class="extype">HashMap</span>[<span name="org.apache.mesos.Protos.TaskID" class="extype">TaskID</span>, String]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#port" data-isabs="false">
+      <a id="port:Int"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">port</span>
+        
+        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="prt" name="deploylib.mesos.WebAppScheduler#recordAction" data-isabs="false">
+      <a id="recordAction(String):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">recordAction</span>
+        
+        <span class="params">(<span name="action">action: String</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#registerActionListener" data-isabs="false">
+      <a id="registerActionListener((String) ⇒ Unit):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">registerActionListener</span>
+        
+        <span class="params">(<span name="func">func: (String) ⇒ <span name="scala.Unit" class="extype">Unit</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#registered" data-isabs="false">
+      <a id="registered(SchedulerDriver,FrameworkID):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">registered</span>
+        
+        <span class="params">(<span name="d">d: <span name="org.apache.mesos.SchedulerDriver" class="extype">SchedulerDriver</span></span>, <span name="fid">fid: <span name="org.apache.mesos.Protos.FrameworkID" class="extype">FrameworkID</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.WebAppScheduler" class="extype" href="">WebAppScheduler</a> → Scheduler</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#resourceOffer" data-isabs="false">
+      <a id="resourceOffer(SchedulerDriver,OfferID,List[SlaveOffer]):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">resourceOffer</span>
+        
+        <span class="params">(<span name="driver">driver: <span name="org.apache.mesos.SchedulerDriver" class="extype">SchedulerDriver</span></span>, <span name="oid">oid: <span name="org.apache.mesos.Protos.OfferID" class="extype">OfferID</span></span>, <span name="offers">offers: <span name="java.util.List" class="extype">List</span>[<span name="org.apache.mesos.Protos.SlaveOffer" class="extype">SlaveOffer</span>]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.WebAppScheduler" class="extype" href="">WebAppScheduler</a> → Scheduler</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#runMonitorThread" data-isabs="false">
+      <a id="runMonitorThread:Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">runMonitorThread</span>
+        
+        <span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#servers" data-isabs="false">
+      <a id="servers:HashMap[TaskID, String]"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">servers</span>
+        
+        <span class="result">: <span name="scala.collection.immutable.HashMap" class="extype">HashMap</span>[<span name="org.apache.mesos.Protos.TaskID" class="extype">TaskID</span>, String]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#slaveLost" data-isabs="false">
+      <a id="slaveLost(SchedulerDriver,SlaveID):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">slaveLost</span>
+        
+        <span class="params">(<span name="driver">driver: <span name="org.apache.mesos.SchedulerDriver" class="extype">SchedulerDriver</span></span>, <span name="slaveId">slaveId: <span name="org.apache.mesos.Protos.SlaveID" class="extype">SlaveID</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.WebAppScheduler" class="extype" href="">WebAppScheduler</a> → Scheduler</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#smoothedUtilization" data-isabs="false">
+      <a id="smoothedUtilization:Double"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">smoothedUtilization</span>
+        
+        <span class="result">: <span name="scala.Double" class="extype">Double</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#smoothedWorkload" data-isabs="false">
+      <a id="smoothedWorkload:Double"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">smoothedWorkload</span>
+        
+        <span class="result">: <span name="scala.Double" class="extype">Double</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#statement" data-isabs="false">
+      <a id="statement:Option[Option[Statement]]"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">statement</span>
+        
+        <span class="result">: <span name="scala.Option" class="extype">Option</span>[<span name="scala.Option" class="extype">Option</span>[<span name="java.sql.Statement" class="extype">Statement</span>]]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#statusUpdate" data-isabs="false">
+      <a id="statusUpdate(SchedulerDriver,TaskStatus):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">statusUpdate</span>
+        
+        <span class="params">(<span name="d">d: <span name="org.apache.mesos.SchedulerDriver" class="extype">SchedulerDriver</span></span>, <span name="status">status: <span name="org.apache.mesos.Protos.TaskStatus" class="extype">TaskStatus</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="deploylib.mesos.WebAppScheduler" class="extype" href="">WebAppScheduler</a> → Scheduler</dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#synchronized" data-isabs="false">
+      <a id="synchronized[T0](⇒ T0):T0"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">synchronized</span>
+        <span class="tparams">[<span name="T0">T0</span>]</span>
+        <span class="params">(<span name="arg0">arg0: ⇒ T0</span>)</span><span class="result">: T0</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#targetNumServers" data-isabs="false">
+      <a id="targetNumServers:Int"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">targetNumServers</span>
+        
+        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#taskIdCounter" data-isabs="false">
+      <a id="taskIdCounter:Int"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">taskIdCounter</span>
+        
+        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="scala.AnyRef#toString" data-isabs="false">
+      <a id="toString():String"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">toString</span>
+        
+        <span class="params">()</span><span class="result">: <span name="java.lang.String" class="extype">String</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#unresponsiveServers" data-isabs="false">
+      <a id="unresponsiveServers:HashMap[TaskID, Int]"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">unresponsiveServers</span>
+        
+        <span class="result">: <span name="scala.collection.immutable.HashMap" class="extype">HashMap</span>[<span name="org.apache.mesos.Protos.TaskID" class="extype">TaskID</span>, <span name="scala.Int" class="extype">Int</span>]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#updateZooWebServerList" data-isabs="false">
+      <a id="updateZooWebServerList():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">updateZooWebServerList</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="scala.AnyRef#wait" data-isabs="false">
+      <a id="wait():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">wait</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
+                <span class="name">@throws</span><span class="args">()</span>
+              
+        </dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#wait" data-isabs="false">
+      <a id="wait(Long,Int):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">wait</span>
+        
+        <span class="params">(<span name="arg0">arg0: <span name="scala.Long" class="extype">Long</span></span>, <span name="arg1">arg1: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
+                <span class="name">@throws</span><span class="args">()</span>
+              
+        </dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#wait" data-isabs="false">
+      <a id="wait(Long):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">wait</span>
+        
+        <span class="params">(<span name="arg0">arg0: <span name="scala.Long" class="extype">Long</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
+                <span class="name">@throws</span><span class="args">()</span>
+              
+        </dd></dl></div>
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#webAppTask" data-isabs="false">
+      <a id="webAppTask:JvmWebAppTask"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">webAppTask</span>
+        
+        <span class="result">: <span name="edu.berkeley.cs.scads.comm.JvmWebAppTask" class="extype">JvmWebAppTask</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos.WebAppScheduler#zkWebServerList" data-isabs="false">
+      <a id="zkWebServerList:ZooKeeperNode"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">zkWebServerList</span>
+        
+        <span class="result">: <span name="edu.berkeley.cs.scads.comm.ZooKeeperProxy.ZooKeeperNode" class="extype">ZooKeeperNode</span></span>
+      </span>
+      </h4>
+      
+    </li></ol>
+            </div>
+
+        
+
+        <div name="org.apache.mesos.Scheduler" class="parent">
+              <h3>Inherited from <span name="org.apache.mesos.Scheduler" class="extype">Scheduler</span></h3>
+            </div><div name="scala.AnyRef" class="parent">
+              <h3>Inherited from AnyRef</h3>
+            </div><div name="scala.Any" class="parent">
+              <h3>Inherited from <span name="scala.Any" class="extype">Any</span></h3>
+            </div>
+
+      </div>
+      
+      <div id="tooltip"></div>
+      
+    </body>
+      </html>

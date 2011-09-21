@@ -1,0 +1,291 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html>
+        <head>
+          <title>deploylib</title>
+          <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+          
+      <link type="text/css" media="screen" rel="stylesheet" href="../lib/template.css" />
+      <script type="text/javascript" src="../lib/jquery.js"></script>
+      <script type="text/javascript" src="../lib/jquery-ui.js"></script>
+      <script type="text/javascript" src="../lib/template.js"></script>
+      <script type="text/javascript" src="../lib/tools.tooltip.js"></script>
+    
+        </head>
+        <body class="value">
+      <div id="definition">
+        <img src="../lib/package_big.png" />
+        
+        <h1>deploylib</h1>
+      </div>
+
+      <h4 class="signature" id="signature">
+      <span class="kind">package</span>
+      <span class="symbol"> 
+        <span class="name">deploylib</span>
+        
+        
+      </span>
+      </h4>
+      
+          <div class="fullcommenttop" id="comment"></div>
+        
+
+      <div id="template">
+
+        <div id="mbrsel">
+          <div id="textfilter"><span class="pre"></span><span class="input"><input accesskey="/" type="text" /></span><span class="post"></span></div>
+          
+          
+          <div id="visbl">
+              <span class="filtertype">Visibility</span>
+              <ol><li class="public in"><span>Public</span></li><li class="all out"><span>All</span></li></ol>
+            </div>
+        </div>
+
+        
+
+        <div class="types members" id="types">
+              <h3>Type Members</h3>
+              <ol><li visbl="pub" name="deploylib.CachedValue" data-isabs="false">
+      <a id="CachedValue:CachedValue[A]"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="CachedValue.html"><span class="name">CachedValue</span></a>
+        <span class="tparams">[<span name="A">A</span>]</span>
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.CanceledException" data-isabs="false">
+      <a id="CanceledException:CanceledException"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="CanceledException.html"><span class="name">CanceledException</span></a>
+        
+        <span class="result"> extends Exception</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.ExecuteResponse" data-isabs="false">
+      <a id="ExecuteResponse:ExecuteResponse"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="ExecuteResponse.html"><span class="name">ExecuteResponse</span></a>
+        
+        <span class="params">(<span name="status">status: Option[Int]</span>, <span name="stdout">stdout: String</span>, <span name="stderr">stderr: String</span>)</span><span class="result"> extends Product with Serializable</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Holds the results of the execution of a command on the remote machine.</p>
+    </li><li visbl="pub" name="deploylib.Future" data-isabs="false">
+      <a id="Future:Future[A]"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="Future.html"><span class="name">Future</span></a>
+        <span class="tparams">[<span name="A">A</span>]</span>
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.ParallelSeq" data-isabs="false">
+      <a id="ParallelSeq:ParallelSeq[A]"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="ParallelSeq.html"><span class="name">ParallelSeq</span></a>
+        <span class="tparams">[<span name="A">A</span>]</span>
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Parallel version of seq that run the command for each item in its own thread
+</p>
+    </li><li visbl="pub" name="deploylib.RemoteMachine" data-isabs="true">
+      <a id="RemoteMachine:RemoteMachine"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="RemoteMachine.html"><span class="name">RemoteMachine</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Provides a framework for interacting (running commands, uploading/downloading files, etc) with a generic remote machine.</p>
+    </li><li visbl="pub" name="deploylib.RetryableException" data-isabs="true">
+      <a id="RetryableException:RetryableException"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="RetryableException.html"><span class="name">RetryableException</span></a>
+        
+        <span class="result"> extends Exception</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd></dl></div>
+    </li><li visbl="pub" name="deploylib.Service" data-isabs="true">
+      <a id="Service:Service"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="Service.html"><span class="name">Service</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Provides a framework for deploying and managing services.</p>
+    </li><li visbl="pub" name="deploylib.Taggable" data-isabs="true">
+      <a id="Taggable:Taggable"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="Taggable.html"><span class="name">Taggable</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      <p class="comment cmt">A trait that allows remote machine to maintain a list of 'tags' that are stored
+in a file in the user home directory on the remote machine.</p>
+    </li><li visbl="pub" name="deploylib.UnknownResponse" data-isabs="false">
+      <a id="UnknownResponse:UnknownResponse"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="UnknownResponse.html"><span class="name">UnknownResponse</span></a>
+        
+        <span class="params">(<span name="er">er: ExecuteResponse</span>)</span><span class="result"> extends Exception with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li></ol>
+            </div>
+        
+        
+
+        <div class="values members" id="values">
+              <h3>Value Members</h3>
+              <ol><li visbl="pub" name="deploylib.CachedValue" data-isabs="false">
+      <a id="CachedValue:CachedValue"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="CachedValue$.html"><span class="name">CachedValue</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.package.Config" data-isabs="false">
+      <a id="Config:Config"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="package$$Config$.html"><span class="name">Config</span></a>
+        
+        <span class="result"> extends Config</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.Future" data-isabs="false">
+      <a id="Future:Future"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="Future$.html"><span class="name">Future</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.Util" data-isabs="false">
+      <a id="Util:Util"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="Util$.html"><span class="name">Util</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      <p class="comment cmt">A set of utility functions for reliably running experiments.</p>
+    </li><li visbl="pub" name="deploylib.config" data-isabs="false">
+      <a id="config:config"></a>
+      <h4 class="signature">
+      <span class="kind">package</span>
+      <span class="symbol"> 
+        <a href="config/package.html"><span class="name">config</span></a>
+        
+        
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.ec2" data-isabs="false">
+      <a id="ec2:ec2"></a>
+      <h4 class="signature">
+      <span class="kind">package</span>
+      <span class="symbol"> 
+        <a href="ec2/package.html"><span class="name">ec2</span></a>
+        
+        
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.mesos" data-isabs="false">
+      <a id="mesos:mesos"></a>
+      <h4 class="signature">
+      <span class="kind">package</span>
+      <span class="symbol"> 
+        <a href="mesos/package.html"><span class="name">mesos</span></a>
+        
+        
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.rcluster" data-isabs="false">
+      <a id="rcluster:rcluster"></a>
+      <h4 class="signature">
+      <span class="kind">package</span>
+      <span class="symbol"> 
+        <a href="rcluster/package.html"><span class="name">rcluster</span></a>
+        
+        
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.runit" data-isabs="false">
+      <a id="runit:runit"></a>
+      <h4 class="signature">
+      <span class="kind">package</span>
+      <span class="symbol"> 
+        <a href="runit/package.html"><span class="name">runit</span></a>
+        
+        
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="deploylib.package#toParallelSeq" data-isabs="false">
+      <a id="toParallelSeq[A](Iterable[A]):ParallelSeq[A]"></a>
+      <h4 class="signature">
+      <span class="kind">implicit def</span>
+      <span class="symbol"> 
+        <span class="name">toParallelSeq</span>
+        <span class="tparams">[<span name="A">A</span>]</span>
+        <span class="params">(<span name="itr">itr: Iterable[A]</span>)</span><span class="result">: <a name="deploylib.ParallelSeq" class="extype" href="ParallelSeq.html">ParallelSeq</a>[A]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd><a name="deploylib.package" class="extype" href="package$.html">package</a></dd></dl></div>
+    </li></ol>
+            </div>
+
+        
+
+        
+
+      </div>
+      
+      <div id="tooltip"></div>
+      
+    </body>
+      </html>
