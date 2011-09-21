@@ -1,8 +1,8 @@
 package deploylib
 
-import java.io.{ File, BufferedReader, InputStreamReader }
+import java.io.{File, BufferedReader, InputStreamReader}
 import net.lag.logging.Logger
-import ch.ethz.ssh2.{ Connection, Session, ChannelCondition, SCPClient }
+import ch.ethz.ssh2.{Connection, Session, ChannelCondition, SCPClient}
 
 import scala.collection.generic.SeqForwarder
 
@@ -15,7 +15,6 @@ import scala.collection.generic.SeqForwarder
 case class ExecuteResponse(status: Option[Int], stdout: String, stderr: String)
 
 case class UnknownResponse(er: ExecuteResponse) extends Exception
-
 
 /**
  * A trait that allows remote machine to maintain a list of 'tags' that are stored
@@ -32,7 +31,7 @@ trait Taggable {
       catFile(tagFile).split("\n").filterNot(_ equals "")
     }
 
-    private def setTags(tags: Set[String]):Unit =
+    private def setTags(tags: Set[String]): Unit =
       createFile(tagFile, tags.mkString("\n"))
 
     def underlying = getTags
@@ -43,6 +42,7 @@ trait Taggable {
     def -=(tag: String): Unit =
       setTags(getTags.filterNot(_ equals tag).toSet)
   }
+
 }
 
 /**
@@ -123,21 +123,21 @@ abstract class RemoteMachine {
     def onFailure(e: Exception) = {
       connection = null
       logger.warning("Connection to " + hostname + " failed: %s", e)
-      if(numTries <= 1)
-	throw new RuntimeException("Number of tries exceeded" + e)
+      if (numTries <= 1)
+        throw new RuntimeException("Number of tries exceeded" + e)
       Thread.sleep(30 * 1000)
       useConnection(func, numTries - 1)
     }
 
     try {
       if (connection == null) synchronized {
-	if(connection == null) {
-	  connection = new Connection(hostname)
-	  logger.info("Connecting to " + hostname)
-	  connection.connect()
-	  logger.info("Authenticating with username " + username + " privateKey " + privateKey)
-	  connection.authenticateWithPublicKey(username, privateKey, "")
-	}
+        if (connection == null) {
+          connection = new Connection(hostname)
+          logger.info("Connecting to " + hostname)
+          connection.connect()
+          logger.info("Authenticating with username " + username + " privateKey " + privateKey)
+          connection.authenticateWithPublicKey(username, privateKey, "")
+        }
       }
       func(connection)
     } catch {
@@ -158,6 +158,9 @@ abstract class RemoteMachine {
     }
   }
 
+  /**
+   * Execute a command on the remote machine and return stdout as a string.  Throws an exception if the command doesn't exit with status code 0.
+   */
   def !?(cmd: String) = executeCommand(cmd) match {
     case ExecuteResponse(Some(0), stdout, "") => stdout
     case err => throw new UnknownResponse(err)
@@ -274,7 +277,7 @@ abstract class RemoteMachine {
 
 
   /**
-   * Upload a file to the remote machine.  Before peforming the transfer check the md5hash of the local file and any existing file to ensure we don't waste bandwidth.
+   * Upload a file to the remote machine.  Before performing the transfer check the md5hash of the local file and any existing file to ensure we don't waste bandwidth.
    */
   def upload(localFile: File, remoteDirectory: File): Unit = {
     if (Util.md5(localFile) == md5(new File(remoteDirectory, localFile.getName)))
@@ -298,6 +301,9 @@ abstract class RemoteMachine {
     logger.debug("Transfer of " + remoteFile + " complete")
   }
 
+  /**
+   * returns an md5 hash of the specified remote file
+   */
   def md5(remoteFile: File): String = {
     val failureResponse = "md5sum: " + remoteFile + ": No such file or directory"
     executeCommand("md5sum " + remoteFile) match {
@@ -317,6 +323,9 @@ abstract class RemoteMachine {
     }
   }
 
+  /**
+   * Return the contents of the remote file as a string.
+   */
   def catFile(remoteFile: File): String = {
     executeCommand("cat " + remoteFile) match {
       case ExecuteResponse(Some(0), data, "") => data
@@ -327,6 +336,9 @@ abstract class RemoteMachine {
     }
   }
 
+  /**
+   * return the last numLines from the specified file
+   */
   def tail(remoteFile: File, numLines: Int = 20): String = {
     executeCommand("tail -n %d ".format(numLines) + remoteFile) match {
       case ExecuteResponse(Some(0), logTail, "") => logTail
@@ -337,6 +349,9 @@ abstract class RemoteMachine {
     }
   }
 
+  /**
+   * create directories on the remote machine.
+   */
   def mkdir(remoteDir: File): Unit = {
     executeCommand("mkdir -p " + remoteDir) match {
       case ExecuteResponse(Some(0), _, _) => true
@@ -344,6 +359,9 @@ abstract class RemoteMachine {
     }
   }
 
+  /**
+   * run tail -F on the specifed file in a seperate thread.  all ouput is printed on local stdout.
+   */
   def watch(remoteFile: File): Unit = {
     useConnection((c) => {
       val session = connection.openSession
@@ -367,6 +385,9 @@ abstract class RemoteMachine {
     })
   }
 
+  /**
+   * Block until the specified file is created on the remote machine.
+   */
   def blockTillFileCreated(file: File): Unit = {
     useConnection((c) => {
       val session = connection.openSession
@@ -391,6 +412,9 @@ abstract class RemoteMachine {
     })
   }
 
+  /**
+   * Block until we can make a connection to the given port, checking every 5 seconds.
+   */
   def blockTillPortOpen(port: Int): Unit = {
     var connected = false
 
@@ -407,6 +431,9 @@ abstract class RemoteMachine {
     }
   }
 
+  /**
+   * Use netstat to check if a port is currently bound to a listening socket on the remote machine.
+   */
   def isPortAvailableToListen(port: Int): Boolean = {
     executeCommand("netstat -aln | grep -v unix | grep LISTEN | egrep '\\b" + port + "\\b'") match {
       case ExecuteResponse(Some(_), result, "") => {
@@ -419,16 +446,26 @@ abstract class RemoteMachine {
     }
   }
 
+  /**
+   * Kill all processes currently tailing a file.
+   */
   def stopWatches(): Unit = {
     executeCommand("killall tail")
   }
 
   case class RemoteFile(name: String, owner: String, permissions: String, modDate: String, size: String)
+
+  /**
+   * Return a list of RemoteFiles found in dir on the remote machine.
+   */
   def ls(dir: File): Seq[RemoteFile] = {
     executeCommand("ls -lh " + dir) match {
       case ExecuteResponse(Some(0), data, "") => {
         data.split("\n").drop(1).map(l => {
-          val parts = l.split(" ").flatMap { case "" => Nil; case x => Some(x) }
+          val parts = l.split(" ").flatMap {
+            case "" => Nil;
+            case x => Some(x)
+          }
           RemoteFile(parts(7), parts(2), parts(0), parts(5) + parts(6), parts(4))
         })
       }
@@ -438,15 +475,22 @@ abstract class RemoteMachine {
 
   case class RemoteJavaProcess(pid: Int, main: String) {
     val remoteMachine = self
+
+    /**
+     * Return a string containing a stack dump for all the threads.
+     */
     def stack = self !? ("jstack " + pid)
   }
 
+  /**
+   * Return a list of all the java processes running on the remote machine.
+   */
   def jps: Seq[RemoteJavaProcess] = {
     val javaProcessRegEx = """(\d+) (\S+)""".r
     executeCommand("jps") match {
       case ExecuteResponse(Some(0), out, "") => {
         out.split("\n").flatMap {
-	  case javaProcessRegEx(pid, "jps") => None
+          case javaProcessRegEx(pid, "jps") => None
           case javaProcessRegEx(pid, main) => Some(new RemoteJavaProcess(pid.toInt, main))
         }
       }
@@ -454,7 +498,8 @@ abstract class RemoteMachine {
     }
   }
 
-  case class RemoteProcess(user: String, pid: Int, cpu: Float, mem: Float, vsz:Int, rss: Int, tty: String, stat: String, start: String, time: String, command: String)
+  case class RemoteProcess(user: String, pid: Int, cpu: Float, mem: Float, vsz: Int, rss: Int, tty: String, stat: String, start: String, time: String, command: String)
+
   /**
    * lists the processes running on the remote machine.
    * Expects:
@@ -463,37 +508,36 @@ abstract class RemoteMachine {
    */
   def ps: Seq[RemoteProcess] =
     (this !? "ps aux").split("\n").drop(1)
-		      .map(_.split("\\s+"))
-		      .map(rp => RemoteProcess(rp(0),
-					       rp(1).toInt,
-					       rp(2).toFloat,
-					       rp(3).toFloat,
-					       rp(4).toInt,
-					       rp(5).toInt,
-					       rp(6),
-					       rp(7),
-					       rp(8),
-					       rp(9),
-					       rp(10)))
+      .map(_.split("\\s+"))
+      .map(rp => RemoteProcess(rp(0),
+      rp(1).toInt,
+      rp(2).toFloat,
+      rp(3).toFloat,
+      rp(4).toInt,
+      rp(5).toInt,
+      rp(6),
+      rp(7),
+      rp(8),
+      rp(9),
+      rp(10)))
 
 
 
-
+  case class FreeStats(total: Int, used: Int, free: Int, shared: Int, buffers: Int, cached: Int)
+  val freeResponse = """.*Mem:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+).*""".r
   /**
-   * returns the result of the command free.
-   * 
+   * Returns the result of the command free.
+   *
    * Parsed as:
    * total       used       free     shared    buffers     cached
    * Mem:       7864548    4332752    3531796          0      78112    2640248
    */
-  case class FreeStats(total: Int, used: Int, free: Int, shared: Int, buffers: Int, cached: Int)
-  val freeResponse = """.*Mem:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+).*""".r
   def free = (this !? "free -m").split("\n").flatMap {
     case freeResponse(total, used, freeMem, shared, buffers, cached) =>
       FreeStats(total.toInt, used.toInt, freeMem.toInt, shared.toInt, buffers.toInt, cached.toInt) :: Nil
     case _ => Nil
   }.head
-    
+
 
   override def toString(): String = "<RemoteMachine " + username + "@" + hostname + ">"
 }
