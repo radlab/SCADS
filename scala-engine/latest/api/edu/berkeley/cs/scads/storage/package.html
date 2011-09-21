@@ -1,0 +1,1025 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html>
+        <head>
+          <title>edu.berkeley.cs.scads.storage</title>
+          <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+          
+      <link type="text/css" media="screen" rel="stylesheet" href="../../../../../lib/template.css" />
+      <script type="text/javascript" src="../../../../../lib/jquery.js"></script>
+      <script type="text/javascript" src="../../../../../lib/jquery-ui.js"></script>
+      <script type="text/javascript" src="../../../../../lib/template.js"></script>
+      <script type="text/javascript" src="../../../../../lib/tools.tooltip.js"></script>
+    
+        </head>
+        <body class="value">
+      <div id="definition">
+        <img src="../../../../../lib/package_big.png" />
+        <p id="owner"><a name="edu" class="extype" href="../../../../package.html">edu</a>.<a name="edu.berkeley" class="extype" href="../../../package.html">berkeley</a>.<a name="edu.berkeley.cs" class="extype" href="../../package.html">cs</a>.<a name="edu.berkeley.cs.scads" class="extype" href="../package.html">scads</a></p>
+        <h1>storage</h1>
+      </div>
+
+      <h4 class="signature" id="signature">
+      <span class="kind">package</span>
+      <span class="symbol"> 
+        <span class="name">storage</span>
+        
+        
+      </span>
+      </h4>
+      
+          <div class="fullcommenttop" id="comment"></div>
+        
+
+      <div id="template">
+
+        <div id="mbrsel">
+          <div id="textfilter"><span class="pre"></span><span class="input"><input accesskey="/" type="text" /></span><span class="post"></span></div>
+          
+          
+          <div id="visbl">
+              <span class="filtertype">Visibility</span>
+              <ol><li class="public in"><span>Public</span></li><li class="all out"><span>All</span></li></ol>
+            </div>
+        </div>
+
+        
+
+        <div class="types members" id="types">
+              <h3>Type Members</h3>
+              <ol><li visbl="pub" name="edu.berkeley.cs.scads.storage.ActorlessPartitionIterator" data-isabs="false">
+      <a id="ActorlessPartitionIterator:ActorlessPartitionIterator"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="ActorlessPartitionIterator.html"><span class="name">ActorlessPartitionIterator</span></a>
+        
+        <span class="result"> extends FutureBasedIterator</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AnalyticsProtocol" data-isabs="true">
+      <a id="AnalyticsProtocol:AnalyticsProtocol"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="AnalyticsProtocol.html"><span class="name">AnalyticsProtocol</span></a>
+        
+        <span class="result"> extends QuorumProtocol with KeyRangeRoutable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AttributeIndex" data-isabs="false">
+      <a id="AttributeIndex:AttributeIndex"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="AttributeIndex.html"><span class="name">AttributeIndex</span></a>
+        
+        <span class="params">(<span name="fieldName">fieldName: String</span>)</span><span class="result"> extends AvroRecord with IndexType with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AvroBdbComparator" data-isabs="false">
+      <a id="AvroBdbComparator:AvroBdbComparator"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="AvroBdbComparator.html"><span class="name">AvroBdbComparator</span></a>
+        
+        <span class="result"> extends AvroComparator with Serializable</span>
+      </span>
+      </h4>
+      <p class="comment cmt">The json string has to be stored since schemas are not serializable, which
+is a requirement of Comparators for BDB
+</p>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AvroComparator" data-isabs="true">
+      <a id="AvroComparator:AvroComparator"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="AvroComparator.html"><span class="name">AvroComparator</span></a>
+        
+        <span class="result"> extends Comparator[Array[Byte]]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AvroGenericKeyValueSerializer" data-isabs="true">
+      <a id="AvroGenericKeyValueSerializer:AvroGenericKeyValueSerializer"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="AvroGenericKeyValueSerializer.html"><span class="name">AvroGenericKeyValueSerializer</span></a>
+        
+        <span class="result"> extends AvroKeyValueSerializerLike[GenericRecord, GenericRecord]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AvroGenericReaderWriter" data-isabs="false">
+      <a id="AvroGenericReaderWriter:AvroGenericReaderWriter[T]"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="AvroGenericReaderWriter.html"><span class="name">AvroGenericReaderWriter</span></a>
+        <span class="tparams">[<span name="T">T &gt;: GenericRecord &lt;: IndexedRecord</span>]</span>
+        <span class="result"> extends AvroReaderWriter[T]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AvroIndexedKeyValueSerializer" data-isabs="true">
+      <a id="AvroIndexedKeyValueSerializer:AvroIndexedKeyValueSerializer"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="AvroIndexedKeyValueSerializer.html"><span class="name">AvroIndexedKeyValueSerializer</span></a>
+        
+        <span class="result"> extends AvroKeyValueSerializerLike[IndexedRecord, IndexedRecord]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AvroKeyValueSerializerLike" data-isabs="true">
+      <a id="AvroKeyValueSerializerLike:AvroKeyValueSerializerLike[K, V]"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="AvroKeyValueSerializerLike.html"><span class="name">AvroKeyValueSerializerLike</span></a>
+        <span class="tparams">[<span name="K">K &lt;: IndexedRecord</span>, <span name="V">V &lt;: IndexedRecord</span>]</span>
+        <span class="result"> extends KeyValueSerializer[K, V] with GlobalMetadata</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AvroPairSerializer" data-isabs="true">
+      <a id="AvroPairSerializer:AvroPairSerializer[P]"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="AvroPairSerializer.html"><span class="name">AvroPairSerializer</span></a>
+        <span class="tparams">[<span name="P">P &lt;: AvroPair</span>]</span>
+        <span class="result"> extends PairSerializer[P] with PairGlobalMetadata</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AvroReaderWriter" data-isabs="true">
+      <a id="AvroReaderWriter:AvroReaderWriter[T]"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="AvroReaderWriter.html"><span class="name">AvroReaderWriter</span></a>
+        <span class="tparams">[<span name="T">T &lt;: IndexedRecord</span>]</span>
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AvroSpecificKeyValueSerializer" data-isabs="true">
+      <a id="AvroSpecificKeyValueSerializer:AvroSpecificKeyValueSerializer[K, V]"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="AvroSpecificKeyValueSerializer.html"><span class="name">AvroSpecificKeyValueSerializer</span></a>
+        <span class="tparams">[<span name="K">K &lt;: SpecificRecord</span>, <span name="V">V &lt;: SpecificRecord</span>]</span>
+        <span class="result"> extends AvroKeyValueSerializerLike[K, V]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AvroSpecificReaderWriter" data-isabs="false">
+      <a id="AvroSpecificReaderWriter:AvroSpecificReaderWriter[T]"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="AvroSpecificReaderWriter.html"><span class="name">AvroSpecificReaderWriter</span></a>
+        <span class="tparams">[<span name="T">T &lt;: SpecificRecord</span>]</span>
+        <span class="result"> extends AvroReaderWriter[T]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.BaseKeyValueStoreImpl" data-isabs="true">
+      <a id="BaseKeyValueStoreImpl:BaseKeyValueStoreImpl[K, V, B]"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="BaseKeyValueStoreImpl.html"><span class="name">BaseKeyValueStoreImpl</span></a>
+        <span class="tparams">[<span name="K">K &lt;: IndexedRecord</span>, <span name="V">V &lt;: IndexedRecord</span>, <span name="B">B</span>]</span>
+        <span class="result"> extends KeyValueStoreLike[K, V, B] with Serializer[K, V, B] with Protocol</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.BaseRangeKeyValueStoreImpl" data-isabs="true">
+      <a id="BaseRangeKeyValueStoreImpl:BaseRangeKeyValueStoreImpl[K, V, B]"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="BaseRangeKeyValueStoreImpl.html"><span class="name">BaseRangeKeyValueStoreImpl</span></a>
+        <span class="tparams">[<span name="K">K &lt;: IndexedRecord</span>, <span name="V">V &lt;: IndexedRecord</span>, <span name="B">B</span>]</span>
+        <span class="result"> extends RangeKeyValueStoreLike[K, V, B] with BaseKeyValueStoreImpl[K, V, B] with RangeProtocol</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.BdbStorageManager" data-isabs="false">
+      <a id="BdbStorageManager:BdbStorageManager"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="BdbStorageManager.html"><span class="name">BdbStorageManager</span></a>
+        
+        <span class="result"> extends StorageManager with AvroComparator</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Handles a partition from [startKey, endKey).</p>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.BoundedSlice" data-isabs="false">
+      <a id="BoundedSlice:BoundedSlice[A]"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="BoundedSlice.html"><span class="name">BoundedSlice</span></a>
+        <span class="tparams">[<span name="A">A</span>]</span>
+        <span class="params">(<span name="startKey">startKey: A</span>, <span name="endKey">endKey: A</span>, <span name="evidence$8">evidence$8: (A) ⇒ Ordered[A]</span>)</span><span class="result"> extends CustomSlice[A] with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.CompositeSlice" data-isabs="false">
+      <a id="CompositeSlice:CompositeSlice[A]"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="CompositeSlice.html"><span class="name">CompositeSlice</span></a>
+        <span class="tparams">[<span name="A">A</span>]</span>
+        <span class="params">(<span name="slices">slices: List[Slice[A]]</span>, <span name="evidence$9">evidence$9: (A) ⇒ Ordered[A]</span>)</span><span class="result"> extends CustomSlice[A] with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.CursorBasedPartitionIterator" data-isabs="false">
+      <a id="CursorBasedPartitionIterator:CursorBasedPartitionIterator"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="CursorBasedPartitionIterator.html"><span class="name">CursorBasedPartitionIterator</span></a>
+        
+        <span class="result"> extends FutureBasedIterator</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.CustomSlice" data-isabs="true">
+      <a id="CustomSlice:CustomSlice[A]"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="CustomSlice.html"><span class="name">CustomSlice</span></a>
+        <span class="tparams">[<span name="A">A</span>]</span>
+        <span class="result"> extends Slice[A]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>sealed abstract </dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.DebuggingClient" data-isabs="true">
+      <a id="DebuggingClient:DebuggingClient"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="DebuggingClient.html"><span class="name">DebuggingClient</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.DefaultHashKeyRoutable" data-isabs="true">
+      <a id="DefaultHashKeyRoutable:DefaultHashKeyRoutable"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="DefaultHashKeyRoutable.html"><span class="name">DefaultHashKeyRoutable</span></a>
+        
+        <span class="result"> extends DefaultKeyRoutableLike</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.DefaultKeyRangeRoutable" data-isabs="true">
+      <a id="DefaultKeyRangeRoutable:DefaultKeyRangeRoutable"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="DefaultKeyRangeRoutable.html"><span class="name">DefaultKeyRangeRoutable</span></a>
+        
+        <span class="result"> extends DefaultKeyRoutable with KeyRangeRoutable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.DefaultKeyRoutable" data-isabs="true">
+      <a id="DefaultKeyRoutable:DefaultKeyRoutable"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="DefaultKeyRoutable.html"><span class="name">DefaultKeyRoutable</span></a>
+        
+        <span class="result"> extends DefaultKeyRoutableLike</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike" data-isabs="true">
+      <a id="DefaultKeyRoutableLike:DefaultKeyRoutableLike"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="DefaultKeyRoutableLike.html"><span class="name">DefaultKeyRoutableLike</span></a>
+        
+        <span class="result"> extends KeyRoutable with KeyPartitionable with Namespace with GlobalMetadata with RecordMetadata with ParFuture</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.EmptyRange" data-isabs="false">
+      <a id="EmptyRange:EmptyRange[A]"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="EmptyRange.html"><span class="name">EmptyRange</span></a>
+        <span class="tparams">[<span name="A">A</span>]</span>
+        <span class="params">(<span class="implicit">implicit </span><span name="evidence$4">evidence$4: (A) ⇒ Ordered[A]</span>)</span><span class="result"> extends Slice[A] with Product with Serializable</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Not an object so we can capture implicit evidence for view bound on A
+</p>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.EntireRange" data-isabs="false">
+      <a id="EntireRange:EntireRange[A]"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="EntireRange.html"><span class="name">EntireRange</span></a>
+        <span class="tparams">[<span name="A">A</span>]</span>
+        <span class="params">(<span class="implicit">implicit </span><span name="evidence$3">evidence$3: (A) ⇒ Ordered[A]</span>)</span><span class="result"> extends Slice[A] with Product with Serializable</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Not an object so we can capture implicit evidence for view bound on A
+</p>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.FromLeft" data-isabs="false">
+      <a id="FromLeft:FromLeft[A]"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="FromLeft.html"><span class="name">FromLeft</span></a>
+        <span class="tparams">[<span name="A">A</span>]</span>
+        <span class="params">(<span name="endKey">endKey: A</span>, <span name="evidence$6">evidence$6: (A) ⇒ Ordered[A]</span>)</span><span class="result"> extends CustomSlice[A] with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.FutureBasedIterator" data-isabs="true">
+      <a id="FutureBasedIterator:FutureBasedIterator"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="FutureBasedIterator.html"><span class="name">FutureBasedIterator</span></a>
+        
+        <span class="result"> extends Iterator[Record]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GenericHashNamespace" data-isabs="false">
+      <a id="GenericHashNamespace:GenericHashNamespace"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="GenericHashNamespace.html"><span class="name">GenericHashNamespace</span></a>
+        
+        <span class="result"> extends Namespace with SimpleRecordMetadata with ZooKeeperGlobalMetadata with DefaultHashKeyRoutable with QuorumProtocol with AvroGenericKeyValueSerializer with KeyValueStore[GenericRecord, GenericRecord]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GenericNamespace" data-isabs="false">
+      <a id="GenericNamespace:GenericNamespace"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="GenericNamespace.html"><span class="name">GenericNamespace</span></a>
+        
+        <span class="result"> extends Namespace with SimpleRecordMetadata with ZooKeeperGlobalMetadata with DefaultKeyRangeRoutable with QuorumRangeProtocol with AvroGenericKeyValueSerializer with RangeKeyValueStore[GenericRecord, GenericRecord]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GlobalMetadata" data-isabs="true">
+      <a id="GlobalMetadata:GlobalMetadata"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="GlobalMetadata.html"><span class="name">GlobalMetadata</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.InMemStorageManager" data-isabs="false">
+      <a id="InMemStorageManager:InMemStorageManager"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="InMemStorageManager.html"><span class="name">InMemStorageManager</span></a>
+        
+        <span class="result"> extends StorageManager with AvroComparator with SimpleRecordMetadataExtractor</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.IndexDefinition" data-isabs="false">
+      <a id="IndexDefinition:IndexDefinition"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="IndexDefinition.html"><span class="name">IndexDefinition</span></a>
+        
+        <span class="params">(<span name="fields">fields: Seq[IndexType]</span>)</span><span class="result"> extends AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.IndexManager" data-isabs="true">
+      <a id="IndexManager:IndexManager[BulkType]"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="IndexManager.html"><span class="name">IndexManager</span></a>
+        <span class="tparams">[<span name="BulkType">BulkType &lt;: AvroPair</span>]</span>
+        <span class="result"> extends Namespace with Protocol with RangeKeyValueStoreLike[IndexedRecord, IndexedRecord, BulkType] with Serializer[IndexedRecord, IndexedRecord, BulkType] with ZooKeeperGlobalMetadata with RecordStore[BulkType]</span>
+      </span>
+      </h4>
+      <p class="comment cmt">An IndexManager is intended to provide index maintainence for AvroPair
+namespaces.</p>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.IndexNamespace" data-isabs="false">
+      <a id="IndexNamespace:IndexNamespace"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="IndexNamespace.html"><span class="name">IndexNamespace</span></a>
+        
+        <span class="result"> extends Namespace with SimpleRecordMetadata with ZooKeeperGlobalMetadata with QuorumRangeProtocol with DefaultKeyRangeRoutable with RecordStore[IndexedRecord] with Serializer[IndexedRecord, IndexedRecord, IndexedRecord] with NamespaceIterator[IndexedRecord] with DebuggingClient</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.IndexType" data-isabs="true">
+      <a id="IndexType:IndexType"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="IndexType.html"><span class="name">IndexType</span></a>
+        
+        <span class="result"> extends AvroUnion</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>sealed </dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.KeyPartitionable" data-isabs="true">
+      <a id="KeyPartitionable:KeyPartitionable"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="KeyPartitionable.html"><span class="name">KeyPartitionable</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.KeyRangeRoutable" data-isabs="true">
+      <a id="KeyRangeRoutable:KeyRangeRoutable"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="KeyRangeRoutable.html"><span class="name">KeyRangeRoutable</span></a>
+        
+        <span class="result"> extends KeyRoutable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.KeyRoutable" data-isabs="true">
+      <a id="KeyRoutable:KeyRoutable"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="KeyRoutable.html"><span class="name">KeyRoutable</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.KeyValueSerializer" data-isabs="true">
+      <a id="KeyValueSerializer:KeyValueSerializer[KeyType, ValueType]"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="KeyValueSerializer.html"><span class="name">KeyValueSerializer</span></a>
+        <span class="tparams">[<span name="KeyType">KeyType &lt;: IndexedRecord</span>, <span name="ValueType">ValueType &lt;: IndexedRecord</span>]</span>
+        <span class="result"> extends Serializer[KeyType, ValueType, (KeyType, ValueType)]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.KeyValueStore" data-isabs="true">
+      <a id="KeyValueStore:KeyValueStore[K, V]"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="KeyValueStore.html"><span class="name">KeyValueStore</span></a>
+        <span class="tparams">[<span name="K">K &lt;: IndexedRecord</span>, <span name="V">V &lt;: IndexedRecord</span>]</span>
+        <span class="result"> extends BaseKeyValueStoreImpl[K, V, (K, V)] with KeyValueSerializer[K, V]</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Hash partition</p>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.KeyValueStoreLike" data-isabs="true">
+      <a id="KeyValueStoreLike:KeyValueStoreLike[KeyType, ValueType, BulkPutType]"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="KeyValueStoreLike.html"><span class="name">KeyValueStoreLike</span></a>
+        <span class="tparams">[<span name="KeyType">KeyType &lt;: IndexedRecord</span>, <span name="ValueType">ValueType &lt;: IndexedRecord</span>, <span name="BulkPutType">BulkPutType</span>]</span>
+        <span class="result"> extends PersistentStore[BulkPutType]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.ManagedScadsCluster" data-isabs="false">
+      <a id="ManagedScadsCluster:ManagedScadsCluster"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="ManagedScadsCluster.html"><span class="name">ManagedScadsCluster</span></a>
+        
+        <span class="result"> extends ScadsCluster</span>
+      </span>
+      </h4>
+      <p class="comment cmt">A ScadsCluster which manages a set of storage nodes.</p>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.Namespace" data-isabs="true">
+      <a id="Namespace:Namespace"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="Namespace.html"><span class="name">Namespace</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.NamespaceIterator" data-isabs="true">
+      <a id="NamespaceIterator:NamespaceIterator[BulkType]"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="NamespaceIterator.html"><span class="name">NamespaceIterator</span></a>
+        <span class="tparams">[<span name="BulkType">BulkType</span>]</span>
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.PairGlobalMetadata" data-isabs="true">
+      <a id="PairGlobalMetadata:PairGlobalMetadata"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="PairGlobalMetadata.html"><span class="name">PairGlobalMetadata</span></a>
+        
+        <span class="result"> extends GlobalMetadata</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.PairNamespace" data-isabs="false">
+      <a id="PairNamespace:PairNamespace[Pair]"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="PairNamespace.html"><span class="name">PairNamespace</span></a>
+        <span class="tparams">[<span name="Pair">Pair &lt;: AvroPair</span>]</span>
+        <span class="result"> extends Namespace with SimpleRecordMetadata with ZooKeeperGlobalMetadata with DefaultKeyRangeRoutable with QuorumRangeProtocol with AvroPairSerializer[Pair] with RecordStore[Pair] with IndexManager[Pair] with DebuggingClient with NamespaceIterator[Pair]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.PairSerializer" data-isabs="true">
+      <a id="PairSerializer:PairSerializer[PairType]"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="PairSerializer.html"><span class="name">PairSerializer</span></a>
+        <span class="tparams">[<span name="PairType">PairType &lt;: AvroPair</span>]</span>
+        <span class="result"> extends Serializer[IndexedRecord, IndexedRecord, PairType]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.ParFuture" data-isabs="true">
+      <a id="ParFuture:ParFuture"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="ParFuture.html"><span class="name">ParFuture</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Simple helper trait for parallel future handling
+</p>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.PartitionHandler" data-isabs="false">
+      <a id="PartitionHandler:PartitionHandler"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="PartitionHandler.html"><span class="name">PartitionHandler</span></a>
+        
+        <span class="params">(<span name="manager">manager: StorageManager</span>)</span><span class="result"> extends ServiceHandler[PartitionServiceOperation] with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.PartitionIterator" data-isabs="false">
+      <a id="PartitionIterator:PartitionIterator"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="PartitionIterator.html"><span class="name">PartitionIterator</span></a>
+        
+        <span class="result"> extends Iterator[Record]</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Iterator that makes succesive GetRange requests to the specified partitionService to retrieve all values [minKey, maxKey).</p>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.PartitionWorkloadStats" data-isabs="false">
+      <a id="PartitionWorkloadStats:PartitionWorkloadStats"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="PartitionWorkloadStats.html"><span class="name">PartitionWorkloadStats</span></a>
+        
+        <span class="params">(<span name="gets">gets: Int</span>, <span name="puts">puts: Int</span>)</span><span class="result"> extends Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.PersistentStore" data-isabs="true">
+      <a id="PersistentStore:PersistentStore[BulkPutType]"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="PersistentStore.html"><span class="name">PersistentStore</span></a>
+        <span class="tparams">[<span name="BulkPutType">BulkPutType</span>]</span>
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.Protocol" data-isabs="true">
+      <a id="Protocol:Protocol"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="Protocol.html"><span class="name">Protocol</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.QuorumProtocol" data-isabs="true">
+      <a id="QuorumProtocol:QuorumProtocol"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="QuorumProtocol.html"><span class="name">QuorumProtocol</span></a>
+        
+        <span class="result"> extends Protocol with Namespace with KeyRoutable with RecordMetadata with GlobalMetadata with ParFuture</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.QuorumRangeProtocol" data-isabs="true">
+      <a id="QuorumRangeProtocol:QuorumRangeProtocol"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="QuorumRangeProtocol.html"><span class="name">QuorumRangeProtocol</span></a>
+        
+        <span class="result"> extends RangeProtocol with QuorumProtocol with KeyRangeRoutable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.RangeDesc" data-isabs="false">
+      <a id="RangeDesc:RangeDesc"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="RangeDesc.html"><span class="name">RangeDesc</span></a>
+        
+        <span class="params">(<span name="startKey">startKey: Option[Array[Byte]]</span>, <span name="endKey">endKey: Option[Array[Byte]]</span>, <span name="servers">servers: Seq[PartitionService]</span>)</span><span class="result"> extends Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.RangeKeyValueStore" data-isabs="true">
+      <a id="RangeKeyValueStore:RangeKeyValueStore[K, V]"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="RangeKeyValueStore.html"><span class="name">RangeKeyValueStore</span></a>
+        <span class="tparams">[<span name="K">K &lt;: IndexedRecord</span>, <span name="V">V &lt;: IndexedRecord</span>]</span>
+        <span class="result"> extends BaseRangeKeyValueStoreImpl[K, V, (K, V)] with KeyValueSerializer[K, V]</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Range partition</p>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.RangeKeyValueStoreLike" data-isabs="true">
+      <a id="RangeKeyValueStoreLike:RangeKeyValueStoreLike[KeyType, ValueType, RangeType]"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="RangeKeyValueStoreLike.html"><span class="name">RangeKeyValueStoreLike</span></a>
+        <span class="tparams">[<span name="KeyType">KeyType &lt;: IndexedRecord</span>, <span name="ValueType">ValueType &lt;: IndexedRecord</span>, <span name="RangeType">RangeType</span>]</span>
+        <span class="result"> extends KeyValueStoreLike[KeyType, ValueType, RangeType]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.RangeProtocol" data-isabs="true">
+      <a id="RangeProtocol:RangeProtocol"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="RangeProtocol.html"><span class="name">RangeProtocol</span></a>
+        
+        <span class="result"> extends Protocol</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.RecParser" data-isabs="true">
+      <a id="RecParser:RecParser"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="RecParser.html"><span class="name">RecParser</span></a>
+        
+        <span class="result"> extends Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.RecordMetadata" data-isabs="true">
+      <a id="RecordMetadata:RecordMetadata"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="RecordMetadata.html"><span class="name">RecordMetadata</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.RecordStore" data-isabs="true">
+      <a id="RecordStore:RecordStore[RecType]"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="RecordStore.html"><span class="name">RecordStore</span></a>
+        <span class="tparams">[<span name="RecType">RecType &lt;: IndexedRecord</span>]</span>
+        <span class="result"> extends Namespace with KeyPartitionable with GlobalMetadata with BaseRangeKeyValueStoreImpl[IndexedRecord, IndexedRecord, RecType]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.RequestRejectedException" data-isabs="false">
+      <a id="RequestRejectedException:RequestRejectedException"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="RequestRejectedException.html"><span class="name">RequestRejectedException</span></a>
+        
+        <span class="result"> extends Exception</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.ScadsCluster" data-isabs="false">
+      <a id="ScadsCluster:ScadsCluster"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="ScadsCluster.html"><span class="name">ScadsCluster</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Class for creating/accessing/managing namespaces for a set of scads storage nodes with a given zookeeper root.</p>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.ScalaEngineTask" data-isabs="false">
+      <a id="ScalaEngineTask:ScalaEngineTask"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="ScalaEngineTask.html"><span class="name">ScalaEngineTask</span></a>
+        
+        <span class="params">(<span name="clusterAddress">clusterAddress: String</span>, <span name="dbDir">dbDir: Option[String]</span>, <span name="cachePercentage">cachePercentage: Option[Int]</span>, <span name="name">name: Option[String]</span>)</span><span class="result"> extends AvroTask with AvroRecord with Product with Serializable</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Task for running scads storage engine on mesos
+</p>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.Serializer" data-isabs="true">
+      <a id="Serializer:Serializer[KeyType, ValueType, BulkType]"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="Serializer.html"><span class="name">Serializer</span></a>
+        <span class="tparams">[<span name="KeyType">KeyType &lt;: IndexedRecord</span>, <span name="ValueType">ValueType &lt;: IndexedRecord</span>, <span name="BulkType">BulkType</span>]</span>
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.SimpleRecordMetadata" data-isabs="true">
+      <a id="SimpleRecordMetadata:SimpleRecordMetadata"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="SimpleRecordMetadata.html"><span class="name">SimpleRecordMetadata</span></a>
+        
+        <span class="result"> extends RecordMetadata with SimpleRecordMetadataExtractor with GlobalMetadata</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.SimpleRecordMetadataExtractor" data-isabs="true">
+      <a id="SimpleRecordMetadataExtractor:SimpleRecordMetadataExtractor"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="SimpleRecordMetadataExtractor.html"><span class="name">SimpleRecordMetadataExtractor</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.Slice" data-isabs="true">
+      <a id="Slice:Slice[A]"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="Slice.html"><span class="name">Slice</span></a>
+        <span class="tparams">[<span name="A">A</span>]</span>
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>sealed abstract </dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.SpecificHashNamespace" data-isabs="false">
+      <a id="SpecificHashNamespace:SpecificHashNamespace[Key, Value]"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="SpecificHashNamespace.html"><span class="name">SpecificHashNamespace</span></a>
+        <span class="tparams">[<span name="Key">Key &lt;: SpecificRecord</span>, <span name="Value">Value &lt;: SpecificRecord</span>]</span>
+        <span class="result"> extends Namespace with SimpleRecordMetadata with ZooKeeperGlobalMetadata with DefaultHashKeyRoutable with QuorumProtocol with AvroSpecificKeyValueSerializer[Key, Value] with KeyValueStore[Key, Value]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.SpecificInMemoryNamespace" data-isabs="false">
+      <a id="SpecificInMemoryNamespace:SpecificInMemoryNamespace[Key, Value]"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="SpecificInMemoryNamespace.html"><span class="name">SpecificInMemoryNamespace</span></a>
+        <span class="tparams">[<span name="Key">Key &lt;: SpecificRecord</span>, <span name="Value">Value &lt;: SpecificRecord</span>]</span>
+        <span class="result"> extends SpecificNamespace[Key, Value]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.SpecificNamespace" data-isabs="false">
+      <a id="SpecificNamespace:SpecificNamespace[Key, Value]"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="SpecificNamespace.html"><span class="name">SpecificNamespace</span></a>
+        <span class="tparams">[<span name="Key">Key &lt;: SpecificRecord</span>, <span name="Value">Value &lt;: SpecificRecord</span>]</span>
+        <span class="result"> extends Namespace with SimpleRecordMetadata with ZooKeeperGlobalMetadata with DefaultKeyRangeRoutable with QuorumRangeProtocol with AnalyticsProtocol with AvroSpecificKeyValueSerializer[Key, Value] with RangeKeyValueStore[Key, Value]</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.StorageHandler" data-isabs="false">
+      <a id="StorageHandler:StorageHandler"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="StorageHandler.html"><span class="name">StorageHandler</span></a>
+        
+        <span class="result"> extends ServiceHandler[StorageServiceOperation]</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Basic implementation of a storage handler using BDB as a backend.</p>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.StorageManager" data-isabs="true">
+      <a id="StorageManager:StorageManager"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="StorageManager.html"><span class="name">StorageManager</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.TimeoutCounter" data-isabs="false">
+      <a id="TimeoutCounter:TimeoutCounter"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="TimeoutCounter.html"><span class="name">TimeoutCounter</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.ToRight" data-isabs="false">
+      <a id="ToRight:ToRight[A]"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="ToRight.html"><span class="name">ToRight</span></a>
+        <span class="tparams">[<span name="A">A</span>]</span>
+        <span class="params">(<span name="startKey">startKey: A</span>, <span name="evidence$7">evidence$7: (A) ⇒ Ordered[A]</span>)</span><span class="result"> extends CustomSlice[A] with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.TokenIndex" data-isabs="false">
+      <a id="TokenIndex:TokenIndex"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="TokenIndex.html"><span class="name">TokenIndex</span></a>
+        
+        <span class="params">(<span name="fieldNames">fieldNames: Seq[String]</span>)</span><span class="result"> extends AvroRecord with IndexType with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.ZooKeeperGlobalMetadata" data-isabs="true">
+      <a id="ZooKeeperGlobalMetadata:ZooKeeperGlobalMetadata"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="ZooKeeperGlobalMetadata.html"><span class="name">ZooKeeperGlobalMetadata</span></a>
+        
+        <span class="result"> extends GlobalMetadata with Namespace with KeyRoutable</span>
+      </span>
+      </h4>
+      
+    </li></ol>
+            </div>
+        
+        
+
+        <div class="values members" id="values">
+              <h3>Value Members</h3>
+              <ol><li visbl="pub" name="edu.berkeley.cs.scads.storage.Collections" data-isabs="false">
+      <a id="Collections:Collections"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="Collections$.html"><span class="name">Collections</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Provides a set of implicit conversions on namespaces to be used
+as scala collections
+</p>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.ScalaEngine" data-isabs="false">
+      <a id="ScalaEngine:ScalaEngine"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="ScalaEngine$.html"><span class="name">ScalaEngine</span></a>
+        
+        <span class="result"> extends Application</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Application for starting up a standalone scads storage engine
+</p>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.Slice" data-isabs="false">
+      <a id="Slice:Slice"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="Slice$.html"><span class="name">Slice</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.StorageHandler" data-isabs="false">
+      <a id="StorageHandler:StorageHandler"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="StorageHandler$.html"><span class="name">StorageHandler</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.TestScalaEngine" data-isabs="false">
+      <a id="TestScalaEngine:TestScalaEngine"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="TestScalaEngine$.html"><span class="name">TestScalaEngine</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Usage of TestScalaEngine has been simplified.</p>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.examples" data-isabs="false">
+      <a id="examples:examples"></a>
+      <h4 class="signature">
+      <span class="kind">package</span>
+      <span class="symbol"> 
+        <a href="examples/package.html"><span class="name">examples</span></a>
+        
+        
+      </span>
+      </h4>
+      
+    </li></ol>
+            </div>
+
+        
+
+        
+
+      </div>
+      
+      <div id="tooltip"></div>
+      
+    </body>
+      </html>

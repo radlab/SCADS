@@ -1,0 +1,892 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html>
+        <head>
+          <title>edu.berkeley.cs.scads.storage.DefaultKeyRoutable</title>
+          <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+          
+      <link type="text/css" media="screen" rel="stylesheet" href="../../../../../lib/template.css" />
+      <script type="text/javascript" src="../../../../../lib/jquery.js"></script>
+      <script type="text/javascript" src="../../../../../lib/jquery-ui.js"></script>
+      <script type="text/javascript" src="../../../../../lib/template.js"></script>
+      <script type="text/javascript" src="../../../../../lib/tools.tooltip.js"></script>
+    
+        </head>
+        <body class="type">
+      <div id="definition">
+        <img src="../../../../../lib/trait_big.png" />
+        <p id="owner"><a name="edu" class="extype" href="../../../../package.html">edu</a>.<a name="edu.berkeley" class="extype" href="../../../package.html">berkeley</a>.<a name="edu.berkeley.cs" class="extype" href="../../package.html">cs</a>.<a name="edu.berkeley.cs.scads" class="extype" href="../package.html">scads</a>.<a name="edu.berkeley.cs.scads.storage" class="extype" href="package.html">storage</a></p>
+        <h1>DefaultKeyRoutable</h1>
+      </div>
+
+      <h4 class="signature" id="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <span class="name">DefaultKeyRoutable</span>
+        
+        <span class="result"> extends <a name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike" class="extype" href="DefaultKeyRoutableLike.html">DefaultKeyRoutableLike</a></span>
+      </span>
+      </h4>
+      
+          <div class="fullcommenttop" id="comment"><div class="toggleContainer block">
+          <span class="toggle">Linear Supertypes</span>
+          <div class="superTypes hiddenContent"><a name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike" class="extype" href="DefaultKeyRoutableLike.html">DefaultKeyRoutableLike</a>, <a name="edu.berkeley.cs.scads.storage.ParFuture" class="extype" href="ParFuture.html">ParFuture</a>, <a name="edu.berkeley.cs.scads.storage.RecordMetadata" class="extype" href="RecordMetadata.html">RecordMetadata</a>, <a name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="extype" href="GlobalMetadata.html">GlobalMetadata</a>, <a name="edu.berkeley.cs.scads.storage.Namespace" class="extype" href="Namespace.html">Namespace</a>, <a name="edu.berkeley.cs.scads.storage.KeyPartitionable" class="extype" href="KeyPartitionable.html">KeyPartitionable</a>, <a name="edu.berkeley.cs.scads.storage.KeyRoutable" class="extype" href="KeyRoutable.html">KeyRoutable</a>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
+        </div><div class="toggleContainer block">
+          <span class="toggle">Known Subclasses</span>
+          <div class="subClasses hiddenContent"><a name="edu.berkeley.cs.scads.storage.DefaultKeyRangeRoutable" class="extype" href="DefaultKeyRangeRoutable.html">DefaultKeyRangeRoutable</a>, <a name="edu.berkeley.cs.scads.storage.GenericNamespace" class="extype" href="GenericNamespace.html">GenericNamespace</a>, <a name="edu.berkeley.cs.scads.storage.IndexNamespace" class="extype" href="IndexNamespace.html">IndexNamespace</a>, <a name="edu.berkeley.cs.scads.storage.PairNamespace" class="extype" href="PairNamespace.html">PairNamespace</a>, <a name="edu.berkeley.cs.scads.storage.SpecificInMemoryNamespace" class="extype" href="SpecificInMemoryNamespace.html">SpecificInMemoryNamespace</a>, <a name="edu.berkeley.cs.scads.storage.SpecificNamespace" class="extype" href="SpecificNamespace.html">SpecificNamespace</a></div>
+        </div></div>
+        
+
+      <div id="template">
+
+        <div id="mbrsel">
+          <div id="textfilter"><span class="pre"></span><span class="input"><input accesskey="/" type="text" /></span><span class="post"></span></div>
+          <div id="order">
+                <span class="filtertype">Ordering</span>
+                <ol><li class="alpha in"><span>Alphabetic</span></li><li class="inherit out"><span>By inheritance</span></li></ol>
+              </div>
+          <div id="ancestors">
+                <span class="filtertype">Inherited</span>
+                <ol><li class="hideall out"><span>Hide All</span></li>
+                <li class="showall in"><span>Show all</span></li></ol>
+                <ol id="linearization"><li name="edu.berkeley.cs.scads.storage.DefaultKeyRoutable" class="in"><span>DefaultKeyRoutable</span></li><li name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike" class="in"><span>DefaultKeyRoutableLike</span></li><li name="edu.berkeley.cs.scads.storage.ParFuture" class="in"><span>ParFuture</span></li><li name="edu.berkeley.cs.scads.storage.RecordMetadata" class="in"><span>RecordMetadata</span></li><li name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="in"><span>GlobalMetadata</span></li><li name="edu.berkeley.cs.scads.storage.Namespace" class="in"><span>Namespace</span></li><li name="edu.berkeley.cs.scads.storage.KeyPartitionable" class="in"><span>KeyPartitionable</span></li><li name="edu.berkeley.cs.scads.storage.KeyRoutable" class="in"><span>KeyRoutable</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
+              </div>
+          <div id="visbl">
+              <span class="filtertype">Visibility</span>
+              <ol><li class="public in"><span>Public</span></li><li class="all out"><span>All</span></li></ol>
+            </div>
+        </div>
+
+        
+
+        <div class="types members" id="types">
+              <h3>Type Members</h3>
+              <ol><li visbl="pub" name="edu.berkeley.cs.scads.storage.Namespace.CallbackHandler" data-isabs="false">
+      <a id="CallbackHandler:CallbackHandler"></a>
+      <h4 class="signature">
+      <span class="kind">class</span>
+      <span class="symbol"> 
+        <a href="Namespace$CallbackHandler.html"><span class="name">CallbackHandler</span></a>
+        
+        <span class="result"> extends Execable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.Namespace.Execable" data-isabs="true">
+      <a id="Execable:Execable"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="Namespace$Execable.html"><span class="name">Execable</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.Namespace.PassableCallbackHandler" data-isabs="true">
+      <a id="PassableCallbackHandler:PassableCallbackHandler[A]"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="Namespace$PassableCallbackHandler.html"><span class="name">PassableCallbackHandler</span></a>
+        <span class="tparams">[<span name="A">A</span>]</span>
+        <span class="result"> extends Execable</span>
+      </span>
+      </h4>
+      
+    </li></ol>
+            </div>
+        
+        <div class="values members" id="values">
+              <h3>Abstract Value Members</h3>
+              <ol><li visbl="pub" name="edu.berkeley.cs.scads.storage.Namespace#cluster" data-isabs="true">
+      <a id="cluster:ScadsCluster"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">cluster</span>
+        
+        <span class="result">: <a name="edu.berkeley.cs.scads.storage.ScadsCluster" class="extype" href="ScadsCluster.html">ScadsCluster</a></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.Namespace" class="extype" href="Namespace.html">Namespace</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.RecordMetadata#compareKey" data-isabs="true">
+      <a id="compareKey(Array[Byte],Array[Byte]):Int"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">compareKey</span>
+        
+        <span class="params">(<span name="x">x: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>, <span name="y">y: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.RecordMetadata" class="extype" href="RecordMetadata.html">RecordMetadata</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.RecordMetadata#compareMetadata" data-isabs="true">
+      <a id="compareMetadata(Array[Byte],Array[Byte]):Int"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">compareMetadata</span>
+        
+        <span class="params">(<span name="lhs">lhs: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>, <span name="rhs">rhs: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Compare 2 values based on metadata</p><div class="fullcomment"><div class="comment cmt"><p>Compare 2 values based on metadata</p></div><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.RecordMetadata" class="extype" href="RecordMetadata.html">RecordMetadata</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.RecordMetadata#createMetadata" data-isabs="true">
+      <a id="createMetadata(Array[Byte]):Array[Byte]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">createMetadata</span>
+        
+        <span class="params">(<span name="rec">rec: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Create a value w/ metadata prepended</p><div class="fullcomment"><div class="comment cmt"><p>Create a value w/ metadata prepended</p></div><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.RecordMetadata" class="extype" href="RecordMetadata.html">RecordMetadata</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GlobalMetadata#deleteMetadata" data-isabs="true">
+      <a id="deleteMetadata(String):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">deleteMetadata</span>
+        
+        <span class="params">(<span name="key">key: String</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="extype" href="GlobalMetadata.html">GlobalMetadata</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.RecordMetadata#extractMetadataAndRecordFromValue" data-isabs="true">
+      <a id="extractMetadataAndRecordFromValue(Array[Byte]):(Array[Byte], Array[Byte])"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">extractMetadataAndRecordFromValue</span>
+        
+        <span class="params">(<span name="value">value: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: (<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>], <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>])</span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Given a byte string which contains both value and metadata, extracts
+this information and returns a tuple of (metadata, value)</p><div class="fullcomment"><div class="comment cmt"><p>Given a byte string which contains both value and metadata, extracts
+this information and returns a tuple of (metadata, value)</p></div><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.RecordMetadata" class="extype" href="RecordMetadata.html">RecordMetadata</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.RecordMetadata#extractRecordFromValue" data-isabs="true">
+      <a id="extractRecordFromValue(Array[Byte]):Array[Byte]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">extractRecordFromValue</span>
+        
+        <span class="params">(<span name="value">value: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">strips out the metadata from the value.</p><div class="fullcomment"><div class="comment cmt"><p>strips out the metadata from the value. exists for performance
+   reasons (is NOT implemented as extractMetadataAndRecordFromValue(value)._2)</p></div><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.RecordMetadata" class="extype" href="RecordMetadata.html">RecordMetadata</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GlobalMetadata#getMetadata" data-isabs="true">
+      <a id="getMetadata(String):Option[Array[Byte]]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">getMetadata</span>
+        
+        <span class="params">(<span name="key">key: String</span>)</span><span class="result">: <span name="scala.Option" class="extype">Option</span>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="extype" href="GlobalMetadata.html">GlobalMetadata</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.RecordMetadata#hashKey" data-isabs="true">
+      <a id="hashKey(Array[Byte]):Int"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">hashKey</span>
+        
+        <span class="params">(<span name="x">x: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.RecordMetadata" class="extype" href="RecordMetadata.html">RecordMetadata</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GlobalMetadata#keySchema" data-isabs="true">
+      <a id="keySchema:Schema"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">keySchema</span>
+        
+        <span class="result">: <span name="org.apache.avro.Schema" class="extype">Schema</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="extype" href="GlobalMetadata.html">GlobalMetadata</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GlobalMetadata#name" data-isabs="true">
+      <a id="name:String"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">name</span>
+        
+        <span class="result">: String</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="extype" href="GlobalMetadata.html">GlobalMetadata</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GlobalMetadata#putMetadata" data-isabs="true">
+      <a id="putMetadata(String,Array[Byte]):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">putMetadata</span>
+        
+        <span class="params">(<span name="key">key: String</span>, <span name="value">value: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="extype" href="GlobalMetadata.html">GlobalMetadata</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GlobalMetadata#remoteKeySchema" data-isabs="true">
+      <a id="remoteKeySchema:Schema"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">remoteKeySchema</span>
+        
+        <span class="result">: <span name="org.apache.avro.Schema" class="extype">Schema</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="extype" href="GlobalMetadata.html">GlobalMetadata</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GlobalMetadata#remoteValueSchema" data-isabs="true">
+      <a id="remoteValueSchema:Schema"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">remoteValueSchema</span>
+        
+        <span class="result">: <span name="org.apache.avro.Schema" class="extype">Schema</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="extype" href="GlobalMetadata.html">GlobalMetadata</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GlobalMetadata#valueClass" data-isabs="true">
+      <a id="valueClass:String"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">valueClass</span>
+        
+        <span class="result">: String</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="extype" href="GlobalMetadata.html">GlobalMetadata</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GlobalMetadata#valueSchema" data-isabs="true">
+      <a id="valueSchema:Schema"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">valueSchema</span>
+        
+        <span class="result">: <span name="org.apache.avro.Schema" class="extype">Schema</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="extype" href="GlobalMetadata.html">GlobalMetadata</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GlobalMetadata#waitUntilMetadataPropagated" data-isabs="true">
+      <a id="waitUntilMetadataPropagated():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">waitUntilMetadataPropagated</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="extype" href="GlobalMetadata.html">GlobalMetadata</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.GlobalMetadata#watchMetadata" data-isabs="true">
+      <a id="watchMetadata(String,() ⇒ Unit):Array[Byte]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">watchMetadata</span>
+        
+        <span class="params">(<span name="key">key: String</span>, <span name="func">func: () ⇒ <span name="scala.Unit" class="extype">Unit</span></span>)</span><span class="result">: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">The GlobalMetadata catalogue is implementation agnostic, but must
+support a simple persistent key/value configuration map (string -&gt; byte array)</p><div class="fullcomment"><div class="comment cmt"><p>The GlobalMetadata catalogue is implementation agnostic, but must
+support a simple persistent key/value configuration map (string -&gt; byte array)</p></div><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="extype" href="GlobalMetadata.html">GlobalMetadata</a></dd></dl></div>
+    </li></ol>
+            </div>
+
+        <div class="values members" id="values">
+              <h3>Concrete Value Members</h3>
+              <ol><li visbl="pub" name="scala.AnyRef#!=" data-isabs="false">
+      <a id="!=(AnyRef):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">!=</span>
+        
+        <span class="params">(<span name="arg0">arg0: AnyRef</span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="scala.Any#!=" data-isabs="false">
+      <a id="!=(Any):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">!=</span>
+        
+        <span class="params">(<span name="arg0">arg0: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef###" data-isabs="false">
+      <a id="##():Int"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">##</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#==" data-isabs="false">
+      <a id="==(AnyRef):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">==</span>
+        
+        <span class="params">(<span name="arg0">arg0: AnyRef</span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="scala.Any#==" data-isabs="false">
+      <a id="==(Any):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">==</span>
+        
+        <span class="params">(<span name="arg0">arg0: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li visbl="prt" name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike#_routingTable" data-isabs="false">
+      <a id="_routingTable:RangeTable[Array[Byte], PartitionService]"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">_routingTable</span>
+        
+        <span class="result">: <a name="edu.berkeley.cs.scads.util.RangeTable" class="extype" href="../util/RangeTable.html">RangeTable</a>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>], <span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span>]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike" class="extype" href="DefaultKeyRoutableLike.html">DefaultKeyRoutableLike</a></dd></dl></div>
+    </li><li visbl="pub" name="scala.Any#asInstanceOf" data-isabs="false">
+      <a id="asInstanceOf[T0]:T0"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">asInstanceOf</span>
+        <span class="tparams">[<span name="T0">T0</span>]</span>
+        <span class="result">: T0</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li visbl="prt" name="scala.AnyRef#clone" data-isabs="false">
+      <a id="clone():AnyRef"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">clone</span>
+        
+        <span class="params">()</span><span class="result">: AnyRef</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected[<a name="java.lang" class="extype" href="../../../../../java/lang/package.html">lang</a>] </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
+                <span class="name">@throws</span><span class="args">()</span>
+              
+        </dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.Namespace#close" data-isabs="false">
+      <a id="close():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">close</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.Namespace" class="extype" href="Namespace.html">Namespace</a></dd></dl></div>
+    </li><li visbl="prt" name="edu.berkeley.cs.scads.storage.DefaultKeyRoutable#convertToRoutingKey" data-isabs="false">
+      <a id="convertToRoutingKey(Array[Byte]):Array[Byte]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">convertToRoutingKey</span>
+        
+        <span class="params">(<span name="key">key: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">No op - the key is its own routing key</p><div class="fullcomment"><div class="comment cmt"><p>No op - the key is its own routing key</p></div><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.DefaultKeyRoutable" class="extype" href="">DefaultKeyRoutable</a> → <a name="edu.berkeley.cs.scads.storage.KeyRoutable" class="extype" href="KeyRoutable.html">KeyRoutable</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.Namespace#create" data-isabs="false">
+      <a id="create():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">create</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.Namespace" class="extype" href="Namespace.html">Namespace</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.Namespace#delete" data-isabs="false">
+      <a id="delete():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">delete</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.Namespace" class="extype" href="Namespace.html">Namespace</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike#deletePartitions" data-isabs="false">
+      <a id="deletePartitions(Seq[PartitionService]):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">deletePartitions</span>
+        
+        <span class="params">(<span name="partitionHandlers">partitionHandlers: Seq[<span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span>]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike" class="extype" href="DefaultKeyRoutableLike.html">DefaultKeyRoutableLike</a> → <a name="edu.berkeley.cs.scads.storage.KeyPartitionable" class="extype" href="KeyPartitionable.html">KeyPartitionable</a></dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#eq" data-isabs="false">
+      <a id="eq(AnyRef):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">eq</span>
+        
+        <span class="params">(<span name="arg0">arg0: AnyRef</span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#equals" data-isabs="false">
+      <a id="equals(Any):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">equals</span>
+        
+        <span class="params">(<span name="arg0">arg0: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li visbl="prt" name="scala.AnyRef#finalize" data-isabs="false">
+      <a id="finalize():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">finalize</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected[<a name="java.lang" class="extype" href="../../../../../java/lang/package.html">lang</a>] </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
+                <span class="name">@throws</span><span class="args">()</span>
+              
+        </dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#getClass" data-isabs="false">
+      <a id="getClass():java.lang.Class[_]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">getClass</span>
+        
+        <span class="params">()</span><span class="result">: java.lang.Class[_]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#hashCode" data-isabs="false">
+      <a id="hashCode():Int"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">hashCode</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="scala.Any#isInstanceOf" data-isabs="false">
+      <a id="isInstanceOf[T0]:Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">isInstanceOf</span>
+        <span class="tparams">[<span name="T0">T0</span>]</span>
+        <span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li visbl="prt" name="edu.berkeley.cs.scads.storage.Namespace#logger" data-isabs="false">
+      <a id="logger:Logger"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">logger</span>
+        
+        <span class="result">: <span name="net.lag.logging.Logger" class="extype">Logger</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.Namespace" class="extype" href="Namespace.html">Namespace</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike#mergePartition" data-isabs="false">
+      <a id="mergePartition(Seq[Array[Byte]]):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">mergePartition</span>
+        
+        <span class="params">(<span name="mergeKeys">mergeKeys: Seq[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike" class="extype" href="DefaultKeyRoutableLike.html">DefaultKeyRoutableLike</a> → <a name="edu.berkeley.cs.scads.storage.KeyPartitionable" class="extype" href="KeyPartitionable.html">KeyPartitionable</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.Namespace#namespace" data-isabs="false">
+      <a id="namespace:String"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">namespace</span>
+        
+        <span class="result">: String</span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Alias for name</p><div class="fullcomment"><div class="comment cmt"><p>Alias for name</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.Namespace" class="extype" href="Namespace.html">Namespace</a></dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#ne" data-isabs="false">
+      <a id="ne(AnyRef):Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">ne</span>
+        
+        <span class="params">(<span name="arg0">arg0: AnyRef</span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#notify" data-isabs="false">
+      <a id="notify():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">notify</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#notifyAll" data-isabs="false">
+      <a id="notifyAll():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">notifyAll</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="prt" name="edu.berkeley.cs.scads.storage.Namespace#onClose" data-isabs="false">
+      <a id="onClose(⇒ Unit):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">onClose</span>
+        
+        <span class="params">(<span name="f">f: ⇒ <span name="scala.Unit" class="extype">Unit</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.Namespace" class="extype" href="Namespace.html">Namespace</a></dd></dl></div>
+    </li><li visbl="prt" name="edu.berkeley.cs.scads.storage.Namespace#onCreate" data-isabs="false">
+      <a id="onCreate(⇒ Unit):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">onCreate</span>
+        
+        <span class="params">(<span name="f">f: ⇒ <span name="scala.Unit" class="extype">Unit</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.Namespace" class="extype" href="Namespace.html">Namespace</a></dd></dl></div>
+    </li><li visbl="prt" name="edu.berkeley.cs.scads.storage.Namespace#onCreateFinished" data-isabs="false">
+      <a id="onCreateFinished(⇒ Unit):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">onCreateFinished</span>
+        
+        <span class="params">(<span name="f">f: ⇒ <span name="scala.Unit" class="extype">Unit</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.Namespace" class="extype" href="Namespace.html">Namespace</a></dd></dl></div>
+    </li><li visbl="prt" name="edu.berkeley.cs.scads.storage.Namespace#onDelete" data-isabs="false">
+      <a id="onDelete(⇒ Unit):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">onDelete</span>
+        
+        <span class="params">(<span name="f">f: ⇒ <span name="scala.Unit" class="extype">Unit</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.Namespace" class="extype" href="Namespace.html">Namespace</a></dd></dl></div>
+    </li><li visbl="prt" name="edu.berkeley.cs.scads.storage.Namespace#onOpen" data-isabs="false">
+      <a id="onOpen((Boolean) ⇒ Boolean):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">onOpen</span>
+        
+        <span class="params">(<span name="f">f: (<span name="scala.Boolean" class="extype">Boolean</span>) ⇒ <span name="scala.Boolean" class="extype">Boolean</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.Namespace" class="extype" href="Namespace.html">Namespace</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike#onRoutingTableChanged" data-isabs="false">
+      <a id="onRoutingTableChanged(Array[Byte]):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">onRoutingTableChanged</span>
+        
+        <span class="params">(<span name="newTable">newTable: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike" class="extype" href="DefaultKeyRoutableLike.html">DefaultKeyRoutableLike</a> → <a name="edu.berkeley.cs.scads.storage.KeyRoutable" class="extype" href="KeyRoutable.html">KeyRoutable</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.Namespace#open" data-isabs="false">
+      <a id="open():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">open</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.Namespace" class="extype" href="Namespace.html">Namespace</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.Namespace#partitionType" data-isabs="false">
+      <a id="partitionType:String"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">partitionType</span>
+        
+        <span class="result">: String</span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Default to building bdb namespaces.</p><div class="fullcomment"><div class="comment cmt"><p>Default to building bdb namespaces.  Subclasses can override this
+* for other types if they want</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.Namespace" class="extype" href="Namespace.html">Namespace</a></dd></dl></div>
+    </li><li visbl="prt" name="edu.berkeley.cs.scads.storage.Namespace#protToString" data-isabs="false">
+      <a id="protToString:String"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">protToString</span>
+        
+        <span class="result">: String</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.Namespace" class="extype" href="Namespace.html">Namespace</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike#replicatePartitions" data-isabs="false">
+      <a id="replicatePartitions(Seq[(PartitionService, StorageService)]):Seq[PartitionService]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">replicatePartitions</span>
+        
+        <span class="params">(<span name="targets">targets: Seq[(<span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span>, <span name="edu.berkeley.cs.scads.comm.StorageService" class="extype">StorageService</span>)]</span>)</span><span class="result">: Seq[<span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span>]</span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">For each target, replace the PartitionService on the StorageService</p><div class="fullcomment"><div class="comment cmt"><p>For each target, replace the PartitionService on the StorageService</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike" class="extype" href="DefaultKeyRoutableLike.html">DefaultKeyRoutableLike</a> → <a name="edu.berkeley.cs.scads.storage.KeyPartitionable" class="extype" href="KeyPartitionable.html">KeyPartitionable</a></dd></dl></div>
+    </li><li visbl="prt" name="edu.berkeley.cs.scads.storage.DefaultKeyRoutable#routingKeyComp" data-isabs="false">
+      <a id="routingKeyComp:(Array[Byte], Array[Byte]) ⇒ Int"></a>
+      <h4 class="signature">
+      <span class="kind">val</span>
+      <span class="symbol"> 
+        <span class="name">routingKeyComp</span>
+        
+        <span class="result">: (<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>], <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]) ⇒ <span name="scala.Int" class="extype">Int</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.DefaultKeyRoutable" class="extype" href="">DefaultKeyRoutable</a> → <a name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike" class="extype" href="DefaultKeyRoutableLike.html">DefaultKeyRoutableLike</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike#routingTable" data-isabs="false">
+      <a id="routingTable:RangeTable[Array[Byte], PartitionService]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">routingTable</span>
+        
+        <span class="result">: <a name="edu.berkeley.cs.scads.util.RangeTable" class="extype" href="../util/RangeTable.html">RangeTable</a>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>], <span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span>]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike" class="extype" href="DefaultKeyRoutableLike.html">DefaultKeyRoutableLike</a> → <a name="edu.berkeley.cs.scads.storage.KeyPartitionable" class="extype" href="KeyPartitionable.html">KeyPartitionable</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike#serversForKey" data-isabs="false">
+      <a id="serversForKey(Array[Byte]):Seq[PartitionService]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">serversForKey</span>
+        
+        <span class="params">(<span name="key">key: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: Seq[<span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span>]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike" class="extype" href="DefaultKeyRoutableLike.html">DefaultKeyRoutableLike</a> → <a name="edu.berkeley.cs.scads.storage.KeyRoutable" class="extype" href="KeyRoutable.html">KeyRoutable</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike#setPartitionScheme" data-isabs="false">
+      <a id="setPartitionScheme(Seq[(Option[Array[Byte]], Seq[StorageService])]):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">setPartitionScheme</span>
+        
+        <span class="params">(<span name="scheme">scheme: Seq[(<span name="scala.Option" class="extype">Option</span>[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]], Seq[<span name="edu.berkeley.cs.scads.comm.StorageService" class="extype">StorageService</span>])]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">sets the partition scheme to be exactly that which is represented by the input.</p><div class="fullcomment"><div class="comment cmt"><p>sets the partition scheme to be exactly that which is represented by the input.
+any previously existing partitions are thrown away. it is required that
+length of (scheme) &gt;= 1 and that the 1st split key is None</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike" class="extype" href="DefaultKeyRoutableLike.html">DefaultKeyRoutableLike</a> → <a name="edu.berkeley.cs.scads.storage.KeyPartitionable" class="extype" href="KeyPartitionable.html">KeyPartitionable</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike#splitPartition" data-isabs="false">
+      <a id="splitPartition(Seq[Array[Byte]]):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">splitPartition</span>
+        
+        <span class="params">(<span name="splitKeys">splitKeys: Seq[<span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]]</span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Keys are input as regular keys.</p><div class="fullcomment"><div class="comment cmt"><p>Keys are input as regular keys. the method will convert them to routing
+table keys</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike" class="extype" href="DefaultKeyRoutableLike.html">DefaultKeyRoutableLike</a> → <a name="edu.berkeley.cs.scads.storage.KeyPartitionable" class="extype" href="KeyPartitionable.html">KeyPartitionable</a></dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#synchronized" data-isabs="false">
+      <a id="synchronized[T0](⇒ T0):T0"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">synchronized</span>
+        <span class="tparams">[<span name="T0">T0</span>]</span>
+        <span class="params">(<span name="arg0">arg0: ⇒ T0</span>)</span><span class="result">: T0</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.Namespace#toString" data-isabs="false">
+      <a id="toString():String"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">toString</span>
+        
+        <span class="params">()</span><span class="result">: String</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.Namespace" class="extype" href="Namespace.html">Namespace</a> → AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike#validateRoutingTable" data-isabs="false">
+      <a id="validateRoutingTable():Boolean"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">validateRoutingTable</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">This function tests if the routing table is in a good state.</p><div class="fullcomment"><div class="comment cmt"><p>This function tests if the routing table is in a good state.
+Thus, all partitions in the routing table must react and all boundaries must be correct
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike" class="extype" href="DefaultKeyRoutableLike.html">DefaultKeyRoutableLike</a></dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#wait" data-isabs="false">
+      <a id="wait():Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">wait</span>
+        
+        <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
+                <span class="name">@throws</span><span class="args">()</span>
+              
+        </dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#wait" data-isabs="false">
+      <a id="wait(Long,Int):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">wait</span>
+        
+        <span class="params">(<span name="arg0">arg0: <span name="scala.Long" class="extype">Long</span></span>, <span name="arg1">arg1: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
+                <span class="name">@throws</span><span class="args">()</span>
+              
+        </dd></dl></div>
+    </li><li visbl="pub" name="scala.AnyRef#wait" data-isabs="false">
+      <a id="wait(Long):Unit"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">wait</span>
+        
+        <span class="params">(<span name="arg0">arg0: <span name="scala.Long" class="extype">Long</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
+                <span class="name">@throws</span><span class="args">()</span>
+              
+        </dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.ParFuture#waitFor" data-isabs="false">
+      <a id="waitFor[Data, T](Seq[(MessageFuture, Data)],Long)(PartialFunction[(MessageBody, Data), T]):Seq[Either[Throwable, T]]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">waitFor</span>
+        <span class="tparams">[<span name="Data">Data</span>, <span name="T">T</span>]</span>
+        <span class="params">(<span name="futures">futures: Seq[(<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>, Data)]</span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span></span>)</span><span class="params">(<span name="f">f: <span name="scala.PartialFunction" class="extype">PartialFunction</span>[(<span name="edu.berkeley.cs.scads.comm.MessageBody" class="extype">MessageBody</span>, Data), T]</span>)</span><span class="result">: Seq[<span name="scala.Either" class="extype">Either</span>[Throwable, T]]</span>
+      </span>
+      </h4>
+      <p class="shortcomment cmt">Blocks until each future in futures has been collected.</p><div class="fullcomment"><div class="comment cmt"><p>Blocks until each future in futures has been collected. Upon collection,
+the result of the future is applied to f, and the results are collected
+and returned.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.ParFuture" class="extype" href="ParFuture.html">ParFuture</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.ParFuture#waitForAndThrowException" data-isabs="false">
+      <a id="waitForAndThrowException[Data, T](Seq[(MessageFuture, Data)],Long)(PartialFunction[(MessageBody, Data), T]):Seq[T]"></a>
+      <h4 class="signature">
+      <span class="kind">def</span>
+      <span class="symbol"> 
+        <span class="name">waitForAndThrowException</span>
+        <span class="tparams">[<span name="Data">Data</span>, <span name="T">T</span>]</span>
+        <span class="params">(<span name="futures">futures: Seq[(<span name="edu.berkeley.cs.scads.comm.MessageFuture" class="extype">MessageFuture</span>, Data)]</span>, <span name="timeout">timeout: <span name="scala.Long" class="extype">Long</span></span>)</span><span class="params">(<span name="f">f: <span name="scala.PartialFunction" class="extype">PartialFunction</span>[(<span name="edu.berkeley.cs.scads.comm.MessageBody" class="extype">MessageBody</span>, Data), T]</span>)</span><span class="result">: Seq[T]</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.ParFuture" class="extype" href="ParFuture.html">ParFuture</a></dd></dl></div>
+    </li></ol>
+            </div>
+
+        
+
+        <div name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike" class="parent">
+              <h3>Inherited from <a name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike" class="extype" href="DefaultKeyRoutableLike.html">DefaultKeyRoutableLike</a></h3>
+            </div><div name="edu.berkeley.cs.scads.storage.ParFuture" class="parent">
+              <h3>Inherited from <a name="edu.berkeley.cs.scads.storage.ParFuture" class="extype" href="ParFuture.html">ParFuture</a></h3>
+            </div><div name="edu.berkeley.cs.scads.storage.RecordMetadata" class="parent">
+              <h3>Inherited from <a name="edu.berkeley.cs.scads.storage.RecordMetadata" class="extype" href="RecordMetadata.html">RecordMetadata</a></h3>
+            </div><div name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="parent">
+              <h3>Inherited from <a name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="extype" href="GlobalMetadata.html">GlobalMetadata</a></h3>
+            </div><div name="edu.berkeley.cs.scads.storage.Namespace" class="parent">
+              <h3>Inherited from <a name="edu.berkeley.cs.scads.storage.Namespace" class="extype" href="Namespace.html">Namespace</a></h3>
+            </div><div name="edu.berkeley.cs.scads.storage.KeyPartitionable" class="parent">
+              <h3>Inherited from <a name="edu.berkeley.cs.scads.storage.KeyPartitionable" class="extype" href="KeyPartitionable.html">KeyPartitionable</a></h3>
+            </div><div name="edu.berkeley.cs.scads.storage.KeyRoutable" class="parent">
+              <h3>Inherited from <a name="edu.berkeley.cs.scads.storage.KeyRoutable" class="extype" href="KeyRoutable.html">KeyRoutable</a></h3>
+            </div><div name="scala.AnyRef" class="parent">
+              <h3>Inherited from AnyRef</h3>
+            </div><div name="scala.Any" class="parent">
+              <h3>Inherited from <span name="scala.Any" class="extype">Any</span></h3>
+            </div>
+
+      </div>
+      
+      <div id="tooltip"></div>
+      
+    </body>
+      </html>
