@@ -19,47 +19,47 @@
  *
  * Note: Assumes iterator has not been open yet
  */</span>
-<span class="keyword">class</span> <a title="class PageResult extends java.lang.Object with Iterator[edu.berkeley.cs.scads.piql.package.QueryResult] with ScalaObject" id="9572">PageResult</a><a href="#9572" title="ScalaObject" class="delimiter">(</a><span class="keyword">private</span> <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.piql.QueryIterator" id="50439">iterator</a>: <a href="Iterators.scala.html#9522" title="edu.berkeley.cs.scads.piql.QueryIterator">QueryIterator</a>, <span class="keyword">val</span> <a title="Int" id="50440">elemsPerPage</a>: <span title="Int">Int</span><span class="delimiter">)</span> <span class="keyword">extends</span> <span title="Iterator[edu.berkeley.cs.scads.piql.package.QueryResult]">Iterator</span><span class="delimiter">[</span>QueryResult<span class="delimiter">]</span> <span class="delimiter">{</span>
-  <span title="(assertion: Boolean)Unit">assert</span><span class="delimiter">(</span><a href="#50440" title="=&gt; Int">elemsPerPage</a> <span title="(x: Int)Boolean">&gt;</span> <span title="Int(0)" class="int">0</span><span class="delimiter">)</span>
+<span class="keyword">class</span> <a title="class PageResult extends java.lang.Object with Iterator[edu.berkeley.cs.scads.piql.package.QueryResult] with ScalaObject" id="9574">PageResult</a><a href="#9574" title="ScalaObject" class="delimiter">(</a><span class="keyword">private</span> <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.piql.QueryIterator" id="50443">iterator</a>: <a href="Iterators.scala.html#9524" title="edu.berkeley.cs.scads.piql.QueryIterator">QueryIterator</a>, <span class="keyword">val</span> <a title="Int" id="50444">elemsPerPage</a>: <span title="Int">Int</span><span class="delimiter">)</span> <span class="keyword">extends</span> <span title="Iterator[edu.berkeley.cs.scads.piql.package.QueryResult]">Iterator</span><span class="delimiter">[</span>QueryResult<span class="delimiter">]</span> <span class="delimiter">{</span>
+  <span title="(assertion: Boolean)Unit">assert</span><span class="delimiter">(</span><a href="#50444" title="=&gt; Int">elemsPerPage</a> <span title="(x: Int)Boolean">&gt;</span> <span title="Int(0)" class="int">0</span><span class="delimiter">)</span>
 
-  <span class="keyword">var</span> <a title="Boolean" id="50424">limitReached</a> = <span title="Boolean(false)" class="keyword">false</span>
-  <span class="keyword">var</span> <a title="edu.berkeley.cs.scads.piql.package.QueryResult" id="50427">curBuf</a>: <span title="edu.berkeley.cs.scads.piql.package.QueryResult">QueryResult</span> = <span title="Null(null)" class="keyword">null</span>
+  <span class="keyword">var</span> <a title="Boolean" id="50428">limitReached</a> = <span title="Boolean(false)" class="keyword">false</span>
+  <span class="keyword">var</span> <a title="edu.berkeley.cs.scads.piql.package.QueryResult" id="50431">curBuf</a>: <span title="edu.berkeley.cs.scads.piql.package.QueryResult">QueryResult</span> = <span title="Null(null)" class="keyword">null</span>
 
-  <span class="keyword">def</span> <a title="=&gt; Unit" id="50429">open</a>: <span title="Unit">Unit</span> = <span class="delimiter">{</span>
-    <a href="#50439" title="=&gt; edu.berkeley.cs.scads.piql.QueryIterator">iterator</a>.<a href="Iterators.scala.html#28844" title="=&gt; Unit">open</a>
+  <span class="keyword">def</span> <a title="=&gt; Unit" id="50433">open</a>: <span title="Unit">Unit</span> = <span class="delimiter">{</span>
+    <a href="#50443" title="=&gt; edu.berkeley.cs.scads.piql.QueryIterator">iterator</a>.<a href="Iterators.scala.html#28848" title="=&gt; Unit">open</a>
   <span class="delimiter">}</span>
 
-  <span class="keyword">def</span> <a title="=&gt; Boolean" id="50430">hasAnotherPage</a>: <span title="Boolean">Boolean</span> = <a href="#50432" title="=&gt; Boolean">hasNext</a>
+  <span class="keyword">def</span> <a title="=&gt; Boolean" id="50434">hasAnotherPage</a>: <span title="Boolean">Boolean</span> = <a href="#50436" title="=&gt; Boolean">hasNext</a>
 
-  <span class="keyword">def</span> <a title="=&gt; edu.berkeley.cs.scads.piql.package.QueryResult" id="50431">nextPage</a>: <span title="edu.berkeley.cs.scads.piql.package.QueryResult">QueryResult</span> = <a href="#50433" title="()edu.berkeley.cs.scads.piql.package.QueryResult">next</a>
+  <span class="keyword">def</span> <a title="=&gt; edu.berkeley.cs.scads.piql.package.QueryResult" id="50435">nextPage</a>: <span title="edu.berkeley.cs.scads.piql.package.QueryResult">QueryResult</span> = <a href="#50437" title="()edu.berkeley.cs.scads.piql.package.QueryResult">next</a>
 
-  <span class="keyword">def</span> <a title="=&gt; Boolean" id="50432">hasNext</a> = <span class="delimiter">{</span>
-    <span title="Boolean" class="keyword">if</span> <span class="delimiter">(</span><a href="#50427" title="=&gt; edu.berkeley.cs.scads.piql.package.QueryResult">curBuf</a> <span title="(x$1: AnyRef)Boolean">ne</span> <span title="Null(null)" class="keyword">null</span><span class="delimiter">)</span> <span title="Boolean(true)" class="keyword">true</span>
-    <span class="keyword">else</span> <span title="Boolean" class="keyword">if</span> <span class="delimiter">(</span><a href="#50424" title="=&gt; Boolean">limitReached</a><span class="delimiter">)</span> <span title="Boolean(false)" class="keyword">false</span>
+  <span class="keyword">def</span> <a title="=&gt; Boolean" id="50436">hasNext</a> = <span class="delimiter">{</span>
+    <span title="Boolean" class="keyword">if</span> <span class="delimiter">(</span><a href="#50431" title="=&gt; edu.berkeley.cs.scads.piql.package.QueryResult">curBuf</a> <span title="(x$1: AnyRef)Boolean">ne</span> <span title="Null(null)" class="keyword">null</span><span class="delimiter">)</span> <span title="Boolean(true)" class="keyword">true</span>
+    <span class="keyword">else</span> <span title="Boolean" class="keyword">if</span> <span class="delimiter">(</span><a href="#50428" title="=&gt; Boolean">limitReached</a><span class="delimiter">)</span> <span title="Boolean(false)" class="keyword">false</span>
     <span class="keyword">else</span> <span class="delimiter">{</span>
-      <span class="keyword">val</span> <a title="scala.collection.mutable.Builder[edu.berkeley.cs.scads.piql.package.Tuple,Seq[edu.berkeley.cs.scads.piql.package.Tuple]]" id="50454">builder</a> = <span title="object Seq">Seq</span>.<span title="[A]=&gt; scala.collection.mutable.Builder[A,Seq[A]]">newBuilder</span><span title="scala.collection.mutable.Builder[edu.berkeley.cs.scads.piql.package.Tuple,Seq[edu.berkeley.cs.scads.piql.package.Tuple]]" class="delimiter">[</span><span title="edu.berkeley.cs.scads.piql.package.Tuple">Tuple</span><span class="delimiter">]</span>
-      <span class="keyword">var</span> <a title="Int" id="50455">cnt</a> = <span title="Int(0)" class="int">0</span>
-      <span title="Unit" class="keyword">while</span> <span class="delimiter">(</span><a href="#50455" title="Int">cnt</a> <span title="(x: Int)Boolean">&lt;</span> <a href="#50440" title="=&gt; Int">elemsPerPage</a> <span title="(x: Boolean)Boolean">&amp;&amp;</span> <a href="#50439" title="=&gt; edu.berkeley.cs.scads.piql.QueryIterator">iterator</a>.<span title="=&gt; Boolean">hasNext</span><span class="delimiter">)</span> <a href="#50456" title="()Unit" class="delimiter">{</a>
-        <a href="#50454" title="scala.collection.mutable.Builder[edu.berkeley.cs.scads.piql.package.Tuple,Seq[edu.berkeley.cs.scads.piql.package.Tuple]]">builder</a> <span title="(elem: edu.berkeley.cs.scads.piql.package.Tuple)builder.type">+=</span> <a href="#50439" title="=&gt; edu.berkeley.cs.scads.piql.QueryIterator">iterator</a>.<span title="()edu.berkeley.cs.scads.piql.package.Tuple">next</span>
-        <a href="#50455" title="Int">cnt</a> <span title="(x: Int)Int">+=</span> <span title="Int(1)" class="int">1</span>
+      <span class="keyword">val</span> <a title="scala.collection.mutable.Builder[edu.berkeley.cs.scads.piql.package.Tuple,Seq[edu.berkeley.cs.scads.piql.package.Tuple]]" id="50458">builder</a> = <span title="object Seq">Seq</span>.<span title="[A]=&gt; scala.collection.mutable.Builder[A,Seq[A]]">newBuilder</span><span title="scala.collection.mutable.Builder[edu.berkeley.cs.scads.piql.package.Tuple,Seq[edu.berkeley.cs.scads.piql.package.Tuple]]" class="delimiter">[</span><span title="edu.berkeley.cs.scads.piql.package.Tuple">Tuple</span><span class="delimiter">]</span>
+      <span class="keyword">var</span> <a title="Int" id="50459">cnt</a> = <span title="Int(0)" class="int">0</span>
+      <span title="Unit" class="keyword">while</span> <span class="delimiter">(</span><a href="#50459" title="Int">cnt</a> <span title="(x: Int)Boolean">&lt;</span> <a href="#50444" title="=&gt; Int">elemsPerPage</a> <span title="(x: Boolean)Boolean">&amp;&amp;</span> <a href="#50443" title="=&gt; edu.berkeley.cs.scads.piql.QueryIterator">iterator</a>.<span title="=&gt; Boolean">hasNext</span><span class="delimiter">)</span> <a href="#50460" title="()Unit" class="delimiter">{</a>
+        <a href="#50458" title="scala.collection.mutable.Builder[edu.berkeley.cs.scads.piql.package.Tuple,Seq[edu.berkeley.cs.scads.piql.package.Tuple]]">builder</a> <span title="(elem: edu.berkeley.cs.scads.piql.package.Tuple)builder.type">+=</span> <a href="#50443" title="=&gt; edu.berkeley.cs.scads.piql.QueryIterator">iterator</a>.<span title="()edu.berkeley.cs.scads.piql.package.Tuple">next</span>
+        <a href="#50459" title="Int">cnt</a> <span title="(x: Int)Int">+=</span> <span title="Int(1)" class="int">1</span>
       <span class="delimiter">}</span>
-      <span title="Boolean" class="keyword">if</span> <span class="delimiter">(</span><a href="#50455" title="Int">cnt</a> <span title="(x: Int)Boolean">==</span> <span title="Int(0)" class="int">0</span><span class="delimiter">)</span> <span class="delimiter">{</span>
-        <a href="#50424" title="(x$1: Boolean)Unit">limitReached</a> = <span title="Boolean(true)" class="keyword">true</span>
+      <span title="Boolean" class="keyword">if</span> <span class="delimiter">(</span><a href="#50459" title="Int">cnt</a> <span title="(x: Int)Boolean">==</span> <span title="Int(0)" class="int">0</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+        <a href="#50428" title="(x$1: Boolean)Unit">limitReached</a> = <span title="Boolean(true)" class="keyword">true</span>
         <span class="comment">//iterator.close</span>
         <span title="Boolean(false)" class="keyword">false</span>
       <span class="delimiter">}</span> <span class="keyword">else</span> <span class="delimiter">{</span>
-        <a href="#50427" title="(x$1: edu.berkeley.cs.scads.piql.package.QueryResult)Unit">curBuf</a> = <a href="#50454" title="scala.collection.mutable.Builder[edu.berkeley.cs.scads.piql.package.Tuple,Seq[edu.berkeley.cs.scads.piql.package.Tuple]]">builder</a>.<span title="()Seq[edu.berkeley.cs.scads.piql.package.Tuple]">result</span>
+        <a href="#50431" title="(x$1: edu.berkeley.cs.scads.piql.package.QueryResult)Unit">curBuf</a> = <a href="#50458" title="scala.collection.mutable.Builder[edu.berkeley.cs.scads.piql.package.Tuple,Seq[edu.berkeley.cs.scads.piql.package.Tuple]]">builder</a>.<span title="()Seq[edu.berkeley.cs.scads.piql.package.Tuple]">result</span>
         <span title="Boolean(true)" class="keyword">true</span>
       <span class="delimiter">}</span>
     <span class="delimiter">}</span>
   <span class="delimiter">}</span>
 
-  <span class="keyword">def</span> <a title="()edu.berkeley.cs.scads.piql.package.QueryResult" id="50433">next</a> = <span class="delimiter">{</span>
-    <span title="Unit" class="keyword">if</span> <span class="delimiter">(</span><span title="=&gt; Boolean">!</span><a href="#50432" title="=&gt; Boolean">hasNext</a><span class="delimiter">)</span> <span class="comment">// pages in the next page if one exists</span>
+  <span class="keyword">def</span> <a title="()edu.berkeley.cs.scads.piql.package.QueryResult" id="50437">next</a> = <span class="delimiter">{</span>
+    <span title="Unit" class="keyword">if</span> <span class="delimiter">(</span><span title="=&gt; Boolean">!</span><a href="#50436" title="=&gt; Boolean">hasNext</a><span class="delimiter">)</span> <span class="comment">// pages in the next page if one exists</span>
       <span title="Nothing" class="keyword">throw</span> <span title="(x$1: java.lang.String)java.util.NoSuchElementException" class="keyword">new</span> ju.<span title="java.util.NoSuchElementException">NoSuchElementException</span><span class="delimiter">(</span><span title="java.lang.String(&quot;No results left&quot;)" class="string">&quot;No results left&quot;</span><span class="delimiter">)</span>
-    <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.piql.package.QueryResult" id="50484">res</a> = <a href="#50427" title="=&gt; edu.berkeley.cs.scads.piql.package.QueryResult">curBuf</a>
-    <a href="#50427" title="(x$1: edu.berkeley.cs.scads.piql.package.QueryResult)Unit">curBuf</a> = <span title="Null(null)" class="keyword">null</span>
-    <a href="#50484" title="edu.berkeley.cs.scads.piql.package.QueryResult">res</a>
+    <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.piql.package.QueryResult" id="50488">res</a> = <a href="#50431" title="=&gt; edu.berkeley.cs.scads.piql.package.QueryResult">curBuf</a>
+    <a href="#50431" title="(x$1: edu.berkeley.cs.scads.piql.package.QueryResult)Unit">curBuf</a> = <span title="Null(null)" class="keyword">null</span>
+    <a href="#50488" title="edu.berkeley.cs.scads.piql.package.QueryResult">res</a>
   <span class="delimiter">}</span>
 <span class="delimiter">}</span>
 
