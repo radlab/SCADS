@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>TpcwScale.scala</title>
+        <script type="text/javascript" src="jquery-all.js"></script>
+        <script type="text/javascript" src="linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs
+<span class="keyword">package</span> scads
+<span class="keyword">package</span> piql
+<span class="keyword">package</span> tpcw
+<span class="keyword">package</span> scale
+
+<span class="keyword">import</span> comm._
+<span class="keyword">import</span> perf._
+<span class="keyword">import</span> storage._
+<span class="keyword">import</span> avro.runtime._
+<span class="keyword">import</span> avro.marker._
+
+<span class="keyword">import</span> deploylib._
+<span class="keyword">import</span> deploylib.mesos._
+<span class="keyword">import</span> deploylib.ec2._
+
+<span class="keyword">import</span> scala.util.Random
+<span class="keyword">import</span> scala.collection.<span class="delimiter">{</span> mutable =&gt; mu <span class="delimiter">}</span>
+
+case <span class="keyword">class</span> <a title="class Result extends org.apache.avro.specific.SpecificRecordBase with edu.berkeley.cs.avro.runtime.HasAvroConversions with edu.berkeley.cs.avro.marker.AvroPair with ScalaObject with Product with Serializable" id="50210">Result</a><a href="#50210" title="ScalaObject" class="delimiter">(</a><a href="#50210" title="()edu.berkeley.cs.scads.piql.tpcw.scale.Result" id="60581" class="keyword">var</a> <a title="edu.berkeley.cs.scads.piql.tpcw.scale.TpcwWorkflowTask" id="50006">clientConfig</a>: <a href="#50206" title="edu.berkeley.cs.scads.piql.tpcw.scale.TpcwWorkflowTask">TpcwWorkflowTask</a>,
+                  <span class="keyword">var</span> <a title="edu.berkeley.cs.scads.piql.tpcw.TpcwLoaderTask" id="50007">loaderConfig</a>: <a href="TpcwLoaderTask.scala.html#10184" title="edu.berkeley.cs.scads.piql.tpcw.TpcwLoaderTask">TpcwLoaderTask</a>,
+                  <span class="keyword">var</span> <a title="String" id="50008">clusterAddress</a>: <span title="String">String</span>,
+                  <span class="keyword">var</span> <a title="Int" id="50009">clientId</a>: <span title="Int">Int</span>,
+                  <span class="keyword">var</span> <a title="Int" id="50010">iteration</a>: <span title="Int">Int</span>,
+                  <span class="keyword">var</span> <a title="Int" id="50011">threadId</a>: <span title="Int">Int</span><span class="delimiter">)</span> <span class="keyword">extends</span> <span title="edu.berkeley.cs.avro.marker.AvroPair">AvroPair</span> <span class="delimiter">{</span>
+  <span class="keyword">var</span> <a title="Long" id="46612">totalElaspedTime</a>: <span title="Long">Long</span> = _ <span class="comment">/* in ms */</span>
+  <span class="keyword">var</span> <a title="edu.berkeley.cs.scads.perf.Histogram" id="46615">times</a>: <span title="edu.berkeley.cs.scads.perf.Histogram">Histogram</span> = <span title="Null(null)" class="keyword">null</span>
+  <span class="keyword">var</span> <a title="Int" id="46618">skips</a>: <span title="Int">Int</span> = _
+  <span class="keyword">var</span> <a title="Int" id="46621">failures</a>: <span title="Int">Int</span> = _
+<span class="delimiter">}</span>
+
+case <span class="keyword">class</span> <a href="#63528" title="class TpcwWorkflowTask extends org.apache.avro.specific.SpecificRecordBase with edu.berkeley.cs.avro.runtime.HasAvroConversions with edu.berkeley.cs.avro.marker.AvroRecord with edu.berkeley.cs.scads.perf.ReplicatedExperimentTask with ScalaObject with Product with Serializable" id="50206">TpcwWorkflowTask</a><a href="#50206" title="ScalaObject" class="delimiter">(</a><a href="#50206" title="()edu.berkeley.cs.scads.piql.tpcw.scale.TpcwWorkflowTask" id="60591" class="keyword">var</a> <a title="Int" id="50186">numClients</a>: <span title="Int">Int</span>,
+                            <span class="keyword">var</span> <a title="String" id="50187">executorClass</a>: <span title="String">String</span>,
+                            <span class="keyword">var</span> <a title="Int" id="50197">numThreads</a>: <span title="Int">Int</span> = <span title="Int(10)" class="int">10</span>,
+                            <span class="keyword">var</span> <a title="Int" id="50198">iterations</a>: <span title="Int">Int</span> = <span title="Int(3)" class="int">3</span>,
+                            <span class="keyword">var</span> <a title="Int" id="50199">runLengthMin</a>: <span title="Int">Int</span> = <span title="Int(5)" class="int">5</span><span class="delimiter">)</span> <span class="keyword">extends</span> <span title="edu.berkeley.cs.avro.marker.AvroRecord">AvroRecord</span> <span class="keyword">with</span> <span title="edu.berkeley.cs.scads.perf.ReplicatedExperimentTask">ReplicatedExperimentTask</span> <span class="delimiter">{</span>
+
+  <span class="keyword">var</span> <a title="String" id="46687">experimentAddress</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="String" id="46690">clusterAddress</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="String" id="46693">resultClusterAddress</a>: <span title="String">String</span> = _
+
+  <span class="keyword">def</span> <a title="()Unit" id="46695">run</a><span class="delimiter">(</span><span class="delimiter">)</span>: <span title="Unit">Unit</span> = <span class="delimiter">{</span>
+
+    <span class="keyword">val</span> <a title="Int" id="46920">clientId</a> = <a href="#50206" title="=&gt; edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">coordination</a>.<span title="(barrierName: String, count: Int, timeout: Long, unit: java.util.concurrent.TimeUnit)Int">registerAndAwait</span><span class="delimiter">(</span><span title="java.lang.String(&quot;clientStart&quot;)" class="string">&quot;clientStart&quot;</span>, <a href="#50186" title="=&gt; Int">numClients</a>, timeout=<span class="int">60</span>*<span class="int">60</span><span title="Long(3600000L)">*</span><span class="int">1000</span><span class="delimiter">)</span>
+
+    <a href="#50206" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">info</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Waiting for cluster to be ready&quot;)" class="string">&quot;Waiting for cluster to be ready&quot;</span><span class="delimiter">)</span>
+    <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode" id="46921">clusterConfig</a> = <a href="#50206" title="=&gt; edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">clusterRoot</a>.<span title="(name: String, seqNumber: Option[Int], timeout: Long, unit: java.util.concurrent.TimeUnit)edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">awaitChild</span><span class="delimiter">(</span><span title="java.lang.String(&quot;clusterReady&quot;)" class="string">&quot;clusterReady&quot;</span><span class="delimiter">)</span>
+    <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.piql.tpcw.TpcwLoaderTask" id="46922">loaderConfig</a> = classOf<span title="java.lang.Class[edu.berkeley.cs.scads.piql.tpcw.TpcwLoaderTask](classOf[edu.berkeley.cs.scads.piql.tpcw.TpcwLoaderTask])" class="delimiter">[</span>TpcwLoaderTask<span class="delimiter">]</span>.<span title="()edu.berkeley.cs.scads.piql.tpcw.TpcwLoaderTask">newInstance</span>.<span title="(data: Array[Byte])edu.berkeley.cs.scads.piql.tpcw.TpcwLoaderTask">parse</span><span class="delimiter">(</span><a href="#46921" title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">clusterConfig</a>.<span title="=&gt; Array[Byte]">data</span><span class="delimiter">)</span>
+
+    <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.storage.PairNamespace[edu.berkeley.cs.scads.piql.tpcw.scale.Result]" id="46923">results</a> = <a href="#50206" title="=&gt; edu.berkeley.cs.scads.storage.ScadsCluster">resultCluster</a>.<span title="[PairType &lt;: edu.berkeley.cs.avro.marker.AvroPair](ns: String)(implicit evidence$7: Manifest[PairType])edu.berkeley.cs.scads.storage.PairNamespace[PairType]">getNamespace</span><span title="(ns: String)(implicit evidence$7: Manifest[edu.berkeley.cs.scads.piql.tpcw.scale.Result])edu.berkeley.cs.scads.storage.PairNamespace[edu.berkeley.cs.scads.piql.tpcw.scale.Result]" class="delimiter">[</span><a href="#50210" title="edu.berkeley.cs.scads.piql.tpcw.scale.Result">Result</a><span class="delimiter">]</span><span title="(clazz: Class[_])scala.reflect.Manifest[edu.berkeley.cs.scads.piql.tpcw.scale.Result]" class="delimiter">(</span><span title="java.lang.String(&quot;tpcwScaleResults&quot;)" class="string">&quot;tpcwScaleResults&quot;</span><span class="delimiter">)</span>
+    <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.piql.QueryExecutor" id="46924">executor</a> = <span title="object java.lang.Class">Class</span>.<span title="(x$1: java.lang.String)java.lang.Class[_]">forName</span><span class="delimiter">(</span><a href="#50187" title="=&gt; String">executorClass</a><span class="delimiter">)</span>.<span title="()?0">newInstance</span>.<span title="[T0]=&gt; T0">asInstanceOf</span><span title="edu.berkeley.cs.scads.piql.QueryExecutor" class="delimiter">[</span><span title="edu.berkeley.cs.scads.piql.QueryExecutor">QueryExecutor</span><span class="delimiter">]</span>
+    <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.piql.tpcw.TpcwClient" id="46925">tpcwClient</a> = <span title="edu.berkeley.cs.scads.piql.tpcw.TpcwClient" class="keyword">new</span> <a href="TpcwClient.scala.html#10156" title="edu.berkeley.cs.scads.piql.tpcw.TpcwClient">TpcwClient</a><span class="delimiter">(</span><a href="#50206" title="=&gt; edu.berkeley.cs.scads.storage.ScadsCluster">cluster</a>, <a href="#46924" title="edu.berkeley.cs.scads.piql.QueryExecutor">executor</a><span class="delimiter">)</span>
+
+    <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.piql.tpcw.TpcwLoader" id="46926">loader</a> = <span title="edu.berkeley.cs.scads.piql.tpcw.TpcwLoader" class="keyword">new</span> <a href="TpcwLoader.scala.html#10172" title="edu.berkeley.cs.scads.piql.tpcw.TpcwLoader">TpcwLoader</a><span class="delimiter">(</span>
+      numEBs = <a href="#46922" title="edu.berkeley.cs.scads.piql.tpcw.TpcwLoaderTask">loaderConfig</a>.<a href="TpcwLoaderTask.scala.html#45520" title="=&gt; Double">numEBs</a>,
+      numItems = <a href="#46922" title="edu.berkeley.cs.scads.piql.tpcw.TpcwLoaderTask">loaderConfig</a>.<a href="TpcwLoaderTask.scala.html#45523" title="=&gt; Int">numItems</a><span class="delimiter">)</span>
+
+    <span class="keyword">for</span><span class="delimiter">(</span><a title="Int" id="47847">iteration</a> &lt;- <span class="delimiter">(</span><span title="implicit scala.LowPriorityImplicits.intWrapper : (x: Int)scala.runtime.RichInt" class="int">1</span> <span title="(f: Int =&gt; Int)Unit">to</span> <a href="#50198" title="=&gt; Int">iterations</a><span class="delimiter">)</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+      <a href="#50206" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">info</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Begining iteration %d&quot;)" class="string">&quot;Begining iteration %d&quot;</span>, <a href="#47847" title="Int">iteration</a><span class="delimiter">)</span>
+      <a href="#46923" title="edu.berkeley.cs.scads.storage.PairNamespace[edu.berkeley.cs.scads.piql.tpcw.scale.Result]">results</a> <span title="(that: TraversableOnce[edu.berkeley.cs.scads.piql.tpcw.scale.Result])Unit">++=</span> <span class="delimiter">(</span><span title="implicit scala.LowPriorityImplicits.intWrapper : (x: Int)scala.runtime.RichInt" class="int">1</span> <span title="(itr: Iterable[Int])deploylib.ParallelSeq[Int]">to</span> <a href="#50197" title="=&gt; Int">numThreads</a><span class="delimiter">)</span>.<span title="(f: Int =&gt; edu.berkeley.cs.scads.piql.tpcw.scale.Result)List[edu.berkeley.cs.scads.piql.tpcw.scale.Result]">pmap</span><span class="delimiter">(</span><a title="Int" id="47976">threadId</a> =&gt; <span class="delimiter">{</span>
+        <span class="keyword">def</span> <a title="=&gt; Long" id="47977">getTime</a> = <span title="object java.lang.System">System</span>.<span title="()Long">nanoTime</span> <span title="(x: Int)Long">/</span> <span title="Int(1000000)" class="int">1000000</span>
+        <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.perf.Histogram" id="47978">histogram</a> = <span title="(bucketSize: Int, bucketCount: Int)edu.berkeley.cs.scads.perf.Histogram">Histogram</span><span class="delimiter">(</span><span title="Int(1)" class="int">1</span>, <span title="Int(5000)" class="int">5000</span><span class="delimiter">)</span>
+        <span class="keyword">val</span> <a title="Long" id="47979">runTime</a> = <a href="#50199" title="=&gt; Int">runLengthMin</a> <span title="(x: Int)Int">*</span> <span title="Int(60)" class="int">60</span> <span title="(x: Long)Long">*</span> <span title="Long(1000L)" class="long">1000L</span>
+        <span class="keyword">val</span> <a title="Long" id="47980">iterationStartTime</a> = <a href="#47977" title="=&gt; Long">getTime</a>
+        <span class="keyword">var</span> <a title="Long" id="47981">endTime</a> = <a href="#47980" title="Long">iterationStartTime</a>
+        <span class="keyword">var</span> <a title="Int" id="47982">skips</a> = <span title="Int(0)" class="int">0</span>
+        <span class="keyword">var</span> <a title="Int" id="47983">failures</a> = <span title="Int(0)" class="int">0</span>
+
+        <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.piql.tpcw.TpcwWorkflow" id="47984">workflow</a> = <a href="TpcwWorkflow.scala.html#48938" title="edu.berkeley.cs.scads.piql.tpcw.TpcwWorkflow" class="keyword">new</a> <a href="TpcwWorkflow.scala.html#10262" title="edu.berkeley.cs.scads.piql.tpcw.TpcwWorkflow">TpcwWorkflow</a><span class="delimiter">(</span><a href="#46925" title="edu.berkeley.cs.scads.piql.tpcw.TpcwClient">tpcwClient</a>, <a href="#46926" title="edu.berkeley.cs.scads.piql.tpcw.TpcwLoader">loader</a><span class="delimiter">)</span>
+
+        <span title="Unit" class="keyword">while</span><span class="delimiter">(</span><a href="#47981" title="Long">endTime</a> <span title="(x: Long)Long">-</span> <a href="#47980" title="Long">iterationStartTime</a> <span title="(x: Long)Boolean">&lt;</span> <a href="#47979" title="Long">runTime</a><span class="delimiter">)</span> <a href="#47986" title="()Unit" class="delimiter">{</a>
+          <span class="keyword">val</span> <a title="Long" id="49888">startTime</a> = <a href="#47977" title="=&gt; Long">getTime</a>
+          <span class="keyword">try</span> <span class="delimiter">{</span>
+            <span class="keyword">val</span> <a title="Boolean" id="49889">wasExecuted</a> = <a href="#47984" title="edu.berkeley.cs.scads.piql.tpcw.TpcwWorkflow">workflow</a>.<a href="TpcwWorkflow.scala.html#48933" title="()Boolean">executeMix</a><span class="delimiter">(</span><span class="delimiter">)</span>
+            <a href="#47981" title="Long">endTime</a> = <a href="#47977" title="=&gt; Long">getTime</a>
+            <span class="keyword">val</span> <a title="Long" id="49890">elapsedTime</a> = <a href="#47981" title="Long">endTime</a> <span title="(x: Long)Long">-</span> <a href="#49888" title="Long">startTime</a>
+            <span title="Unit" class="keyword">if</span> <span class="delimiter">(</span><a href="#49889" title="Boolean">wasExecuted</a><span class="delimiter">)</span> <span class="delimiter">{</span> <span class="comment">// we actually ran the query</span>
+              <a href="#47978" title="edu.berkeley.cs.scads.perf.Histogram">histogram</a> <span title="(value: Long)Unit">+=</span> <a href="#49890" title="Long">elapsedTime</a>
+            <span class="delimiter">}</span> <span class="keyword">else</span> <span class="comment">// we punted the query</span>
+              <a href="#47982" title="Int">skips</a> <span title="(x: Int)Int">+=</span> <span title="Int(1)" class="int">1</span>
+          <span class="delimiter">}</span> <span class="keyword">catch</span> <span class="delimiter">{</span>
+            <span class="keyword">case</span> <a title="Unit" id="49993">e</a> =&gt; <span class="delimiter">{</span>
+              <a href="#50206" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(thrown: Throwable, msg: String, items: Any*)Unit">warning</span><span class="delimiter">(</span><a href="#49993" title="java.lang.Throwable">e</a>, <span title="java.lang.String(&quot;Execepting generating page&quot;)" class="string">&quot;Execepting generating page&quot;</span><span class="delimiter">)</span>
+              <a href="#47983" title="Int">failures</a> <span title="(x: Int)Int">+=</span> <span title="Int(1)" class="int">1</span>
+            <span class="delimiter">}</span>
+          <span class="delimiter">}</span>
+        <span class="delimiter">}</span>
+
+        <a href="#50206" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">info</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Thread %d stats 50th: %dms, 90th: %dms, 99th: %dms, avg: %fms, stddev: %fms&quot;)" class="string">&quot;Thread %d stats 50th: %dms, 90th: %dms, 99th: %dms, avg: %fms, stddev: %fms&quot;</span>,
+            <a href="#47976" title="Int">threadId</a>, <a href="#47978" title="edu.berkeley.cs.scads.perf.Histogram">histogram</a>.<span title="(fraction: Double)Int">quantile</span><span class="delimiter">(</span><span title="Double(0.5)" class="double">0.50</span><span class="delimiter">)</span>, <a href="#47978" title="edu.berkeley.cs.scads.perf.Histogram">histogram</a>.<span title="(fraction: Double)Int">quantile</span><span class="delimiter">(</span><span title="Double(0.9)" class="double">0.90</span><span class="delimiter">)</span>, <a href="#47978" title="edu.berkeley.cs.scads.perf.Histogram">histogram</a>.<span title="(fraction: Double)Int">quantile</span><span class="delimiter">(</span><span title="Double(0.99)" class="double">0.99</span><span class="delimiter">)</span>, <a href="#47978" title="edu.berkeley.cs.scads.perf.Histogram">histogram</a>.<span title="=&gt; Double">average</span>, <a href="#47978" title="edu.berkeley.cs.scads.perf.Histogram">histogram</a>.<span title="=&gt; Double">stddev</span><span class="delimiter">)</span>
+        <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.piql.tpcw.scale.Result" id="47985">res</a> = <a href="#50210" title="(clientConfig: edu.berkeley.cs.scads.piql.tpcw.scale.TpcwWorkflowTask, loaderConfig: edu.berkeley.cs.scads.piql.tpcw.TpcwLoaderTask, clusterAddress: String, clientId: Int, iteration: Int, threadId: Int)edu.berkeley.cs.scads.piql.tpcw.scale.Result">Result</a><span class="delimiter">(</span><a href="#50206" title="edu.berkeley.cs.scads.piql.tpcw.scale.TpcwWorkflowTask" class="keyword">this</a>, <a href="#46922" title="edu.berkeley.cs.scads.piql.tpcw.TpcwLoaderTask">loaderConfig</a>, <a href="#50206" title="=&gt; edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">clusterRoot</a>.<span title="=&gt; java.lang.String">canonicalAddress</span>, <a href="#46920" title="Int">clientId</a>, <a href="#47847" title="Int">iteration</a>, <a href="#47976" title="Int">threadId</a><span class="delimiter">)</span>
+        <a href="#47985" title="edu.berkeley.cs.scads.piql.tpcw.scale.Result">res</a>.<a href="#46612" title="(x$1: Long)Unit">totalElaspedTime</a> =  <a href="#47981" title="Long">endTime</a> <span title="(x: Long)Long">-</span> <a href="#47980" title="Long">iterationStartTime</a>
+        <a href="#47985" title="edu.berkeley.cs.scads.piql.tpcw.scale.Result">res</a>.<a href="#46615" title="(x$1: edu.berkeley.cs.scads.perf.Histogram)Unit">times</a> = <a href="#47978" title="edu.berkeley.cs.scads.perf.Histogram">histogram</a>
+        <a href="#47985" title="edu.berkeley.cs.scads.piql.tpcw.scale.Result">res</a>.<a href="#46621" title="(x$1: Int)Unit">failures</a> = <a href="#47983" title="Int">failures</a>
+        <a href="#47985" title="edu.berkeley.cs.scads.piql.tpcw.scale.Result">res</a>.<a href="#46618" title="(x$1: Int)Unit">skips</a> = <a href="#47982" title="Int">skips</a>
+
+        <a href="#47985" title="edu.berkeley.cs.scads.piql.tpcw.scale.Result">res</a>
+      <span class="delimiter">}</span><span class="delimiter">)</span>
+
+      <a href="#50206" title="=&gt; edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">coordination</a>.<span title="(barrierName: String, count: Int, timeout: Long, unit: java.util.concurrent.TimeUnit)Int">registerAndAwait</span><span class="delimiter">(</span><span title="java.lang.String(&quot;iteration&quot;)" class="string">&quot;iteration&quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#47847" title="Int">iteration</a>, <a href="#50186" title="=&gt; Int">numClients</a><span class="delimiter">)</span>
+    <span class="delimiter">}</span>
+
+    <span title="Unit" class="keyword">if</span><span class="delimiter">(</span><a href="#46920" title="Int">clientId</a> <span title="(x: Int)Boolean">==</span> <span title="Int(0)" class="int">0</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+      <span title="object deploylib.ec2.ExperimentNotification">ExperimentNotification</span>.<span title="object deploylib.ec2.ExperimentNotification.completions">completions</span>.<span title="(subject: String, message: String)Unit">publish</span><span class="delimiter">(</span><span title="java.lang.String(&quot;TPCW Scale Complete&quot;)" class="string">&quot;TPCW Scale Complete&quot;</span>, <a href="#50206" title="(record: edu.berkeley.cs.scads.piql.tpcw.scale.TpcwWorkflowTask)edu.berkeley.cs.avro.runtime.RichIndexedRecord[edu.berkeley.cs.scads.piql.tpcw.scale.TpcwWorkflowTask]" class="keyword">this</a>.<span title="=&gt; String">toJson</span><span class="delimiter">)</span>
+      <a href="#50206" title="=&gt; edu.berkeley.cs.scads.storage.ScadsCluster">cluster</a>.<span title="=&gt; Unit">shutdown</span>
+    <span class="delimiter">}</span>
+  <span class="delimiter">}</span>
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>

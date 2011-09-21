@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>OrderTO.java</title>
+        <script type="text/javascript" src="jquery-all.js"></script>
+        <script type="text/javascript" src="linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> ch.ethz.systems.tpcw.populate.data.objects;
+
+public <span class="keyword">class</span> <a title="object ch.ethz.systems.tpcw.populate.data.objects.OrderTO" id="9178">OrderTO</a> <span class="keyword">extends</span> <a href="AbstractTO.java.html#9146" title="ch.ethz.systems.tpcw.populate.data.objects.AbstractTO">AbstractTO</a> <span class="delimiter">{</span>
+
+	<span class="keyword">private</span> int <a title="Int" id="44359">o_id</a>;
+	<span class="keyword">private</span> int <a title="Int" id="44360">o_c_id</a>;
+	<span class="keyword">private</span> long <a title="Long" id="44361">o_date</a>;
+	<span class="keyword">private</span> double <a title="Double" id="44362">o_sub_total</a>;
+	<span class="keyword">private</span> double <a title="Double" id="44363">o_tax</a>;
+	<span class="keyword">private</span> double <a title="Double" id="44364">o_total</a>;
+	<span class="keyword">private</span> String <a title="java.lang.String" id="44365">o_ship_type</a>;
+	<span class="keyword">private</span> long <a title="Long" id="44366">o_ship_date</a>;
+	<span class="keyword">private</span> int <a title="Int" id="44367">o_bill_addr_id</a>;
+	<span class="keyword">private</span> int <a title="Int" id="44368">o_ship_addr_id</a>;
+	<span class="keyword">private</span> String <a title="java.lang.String" id="44369">o_status</a>;
+
+	public int <a title="()Int" id="44370">getO_id</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> o_id;
+	<span class="delimiter">}</span>
+	public void <a title="(o_id: Int)Unit" id="44371">setO_id</a><span class="delimiter">(</span>int <a title="Int" id="88332">o_id</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.o_id = o_id;
+	<span class="delimiter">}</span>
+	public int <a title="()Int" id="44372">getO_c_id</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> o_c_id;
+	<span class="delimiter">}</span>
+	public void <a title="(o_c_id: Int)Unit" id="44373">setO_c_id</a><span class="delimiter">(</span>int <a title="Int" id="88333">o_c_id</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.o_c_id = o_c_id;
+	<span class="delimiter">}</span>
+	public long <a title="()Long" id="44374">getO_date</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> o_date;
+	<span class="delimiter">}</span>
+	public void <a title="(o_date: Long)Unit" id="44375">setO_date</a><span class="delimiter">(</span>long <a title="Long" id="88334">o_date</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.o_date = o_date;
+	<span class="delimiter">}</span>
+	public double <a title="()Double" id="44376">getO_sub_total</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> o_sub_total;
+	<span class="delimiter">}</span>
+	public void <a title="(o_sub_total: Double)Unit" id="44377">setO_sub_total</a><span class="delimiter">(</span>double <a title="Double" id="88335">o_sub_total</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.o_sub_total = o_sub_total;
+	<span class="delimiter">}</span>
+	public double <a title="()Double" id="44378">getO_tax</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> o_tax;
+	<span class="delimiter">}</span>
+	public void <a title="(o_tax: Double)Unit" id="44379">setO_tax</a><span class="delimiter">(</span>double <a title="Double" id="88336">o_tax</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.o_tax = o_tax;
+	<span class="delimiter">}</span>
+	public double <a title="()Double" id="44380">getO_total</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> o_total;
+	<span class="delimiter">}</span>
+	public void <a title="(o_total: Double)Unit" id="44381">setO_total</a><span class="delimiter">(</span>double <a title="Double" id="88337">o_total</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.o_total = o_total;
+	<span class="delimiter">}</span>
+	public String <a title="()java.lang.String" id="44382">getO_ship_type</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> o_ship_type;
+	<span class="delimiter">}</span>
+	public void <a title="(o_ship_type: java.lang.String)Unit" id="44383">setO_ship_type</a><span class="delimiter">(</span>String <a title="java.lang.String" id="88338">o_ship_type</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.o_ship_type = o_ship_type;
+	<span class="delimiter">}</span>
+	public long <a title="()Long" id="44384">getO_ship_date</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> o_ship_date;
+	<span class="delimiter">}</span>
+	public void <a title="(o_ship_date: Long)Unit" id="44385">setO_ship_date</a><span class="delimiter">(</span>long <a title="Long" id="88339">o_ship_date</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.o_ship_date = o_ship_date;
+	<span class="delimiter">}</span>
+	public int <a title="()Int" id="44386">getO_bill_addr_id</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> o_bill_addr_id;
+	<span class="delimiter">}</span>
+	public void <a title="(o_bill_addr_id: Int)Unit" id="44387">setO_bill_addr_id</a><span class="delimiter">(</span>int <a title="Int" id="88340">o_bill_addr_id</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.o_bill_addr_id = o_bill_addr_id;
+	<span class="delimiter">}</span>
+	public int <a title="()Int" id="44388">getO_ship_addr_id</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> o_ship_addr_id;
+	<span class="delimiter">}</span>
+	public void <a title="(o_ship_addr_id: Int)Unit" id="44389">setO_ship_addr_id</a><span class="delimiter">(</span>int <a title="Int" id="88341">o_ship_addr_id</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.o_ship_addr_id = o_ship_addr_id;
+	<span class="delimiter">}</span>
+	public String <a title="()java.lang.String" id="44390">getO_status</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> o_status;
+	<span class="delimiter">}</span>
+	public void <a title="(o_status: java.lang.String)Unit" id="44391">setO_status</a><span class="delimiter">(</span>String <a title="java.lang.String" id="88342">o_status</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.o_status = o_status;
+	<span class="delimiter">}</span>
+
+
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>

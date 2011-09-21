@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>TpcwSchema.scala</title>
+        <script type="text/javascript" src="jquery-all.js"></script>
+        <script type="text/javascript" src="linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs
+<span class="keyword">package</span> scads
+<span class="keyword">package</span> piql
+<span class="keyword">package</span> tpcw
+
+<span class="keyword">import</span> edu.berkeley.cs.scads.storage._
+<span class="keyword">import</span> edu.berkeley.cs.avro.marker._
+
+<span class="keyword">import</span> org.apache.avro.util._
+
+case <span class="keyword">class</span> <a title="class Item extends org.apache.avro.specific.SpecificRecordBase with edu.berkeley.cs.avro.runtime.HasAvroConversions with edu.berkeley.cs.avro.marker.AvroPair with ScalaObject with Product with Serializable" id="50679">Item</a><a href="#50679" title="ScalaObject" class="delimiter">(</a><a href="#50679" title="()edu.berkeley.cs.scads.piql.tpcw.Item" id="60604" class="keyword">var</a> <a title="String" id="44105">I_ID</a>: <span title="String">String</span><span class="delimiter">)</span> <span class="keyword">extends</span> <span title="edu.berkeley.cs.avro.marker.AvroPair">AvroPair</span> <span class="delimiter">{</span>
+  <span class="keyword">var</span> <a title="String" id="21488">I_TITLE</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="String" id="21491">I_A_ID</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="Long" id="21494">I_PUB_DATE</a>: <span title="Long">Long</span> = _
+  <span class="keyword">var</span> <a title="String" id="21497">I_PUBLISHER</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="String" id="21500">I_SUBJECT</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="String" id="21503">I_DESC</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="Int" id="21506">I_RELATED1</a>: <span title="Int">Int</span> = _
+  <span class="keyword">var</span> <a title="Int" id="21509">I_RELATED2</a>: <span title="Int">Int</span> = _
+  <span class="keyword">var</span> <a title="Int" id="21512">I_RELATED3</a>: <span title="Int">Int</span> = _
+  <span class="keyword">var</span> <a title="Int" id="21515">I_RELATED4</a>: <span title="Int">Int</span> = _
+  <span class="keyword">var</span> <a title="Int" id="21518">I_RELATED5</a>: <span title="Int">Int</span> = _
+  <span class="keyword">var</span> <a title="String" id="21521">I_THUMBNAIL</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="String" id="21524">I_IMAGE</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="Double" id="21527">I_SRP</a>: <span title="Double">Double</span> = _
+  <span class="keyword">var</span> <a title="Double" id="21530">I_COST</a>: <span title="Double">Double</span> = _
+  <span class="keyword">var</span> <a title="Long" id="21533">I_AVAIL</a>: <span title="Long">Long</span> = _
+  <span class="keyword">var</span> <a title="Int" id="21536">I_STOCK</a>: <span title="Int">Int</span> = _
+  <span class="keyword">var</span> <a title="String" id="21539">ISBN</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="Int" id="21542">I_PAGE</a>: <span title="Int">Int</span> = _
+  <span class="keyword">var</span> <a title="String" id="21545">I_BACKING</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="String" id="21548">I_DIMENSION</a>: <span title="String">String</span> = _
+<span class="delimiter">}</span>
+
+case <span class="keyword">class</span> <a title="class Country extends org.apache.avro.specific.SpecificRecordBase with edu.berkeley.cs.avro.runtime.HasAvroConversions with edu.berkeley.cs.avro.marker.AvroPair with ScalaObject with Product with Serializable" id="50675">Country</a><a href="#50675" title="ScalaObject" class="delimiter">(</a><a href="#50675" title="()edu.berkeley.cs.scads.piql.tpcw.Country" id="60614" class="keyword">var</a> <a title="Int" id="44150">CO_ID</a>: <span title="Int">Int</span><span class="delimiter">)</span> <span class="keyword">extends</span> <span title="edu.berkeley.cs.avro.marker.AvroPair">AvroPair</span> <span class="delimiter">{</span>
+  <span class="keyword">var</span> <a title="String" id="21396">CO_NAME</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="Double" id="21399">CO_EXCHANGE</a>: <span title="Double">Double</span> = _
+  <span class="keyword">var</span> <a title="String" id="21402">CO_CURRENCY</a>: <span title="String">String</span> = _
+<span class="delimiter">}</span>
+
+case <span class="keyword">class</span> <a title="class Author extends org.apache.avro.specific.SpecificRecordBase with edu.berkeley.cs.avro.runtime.HasAvroConversions with edu.berkeley.cs.avro.marker.AvroPair with ScalaObject with Product with Serializable" id="50671">Author</a><a href="#50671" title="ScalaObject" class="delimiter">(</a><a href="#50671" title="()edu.berkeley.cs.scads.piql.tpcw.Author" id="60624" class="keyword">var</a> <a title="String" id="44217">A_ID</a>: <span title="String">String</span><span class="delimiter">)</span> <span class="keyword">extends</span> <span title="edu.berkeley.cs.avro.marker.AvroPair">AvroPair</span> <span class="delimiter">{</span>
+  <span class="keyword">var</span> <a title="String" id="21319">A_FNAME</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="String" id="21322">A_LNAME</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="String" id="21325">A_MNAME</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="Long" id="21328">A_DOB</a>: <span title="Long">Long</span> = _
+  <span class="keyword">var</span> <a title="String" id="21331">A_BIO</a>: <span title="String">String</span> = _
+<span class="delimiter">}</span>
+
+<span class="comment">//Different PK</span>
+case <span class="keyword">class</span> <a title="class Customer extends org.apache.avro.specific.SpecificRecordBase with edu.berkeley.cs.avro.runtime.HasAvroConversions with edu.berkeley.cs.avro.marker.AvroPair with ScalaObject with Product with Serializable" id="50667">Customer</a><a href="#50667" title="ScalaObject" class="delimiter">(</a><a href="#50667" title="()edu.berkeley.cs.scads.piql.tpcw.Customer" id="60634" class="keyword">var</a> <a title="String" id="44327">C_UNAME</a>: <span title="String">String</span><span class="delimiter">)</span> <span class="keyword">extends</span> <span title="edu.berkeley.cs.avro.marker.AvroPair">AvroPair</span> <span class="delimiter">{</span>
+  <span class="keyword">var</span> <a title="String" id="21424">C_PASSWD</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="String" id="21427">C_FNAME</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="String" id="21430">C_LNAME</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="String" id="21433">C_ADDR_ID</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="String" id="21436">C_PHONE</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="String" id="21439">C_EMAIL</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="Long" id="21442">C_SINCE</a>: <span title="Long">Long</span> = _
+  <span class="keyword">var</span> <a title="Long" id="21445">C_LAST_VISIT</a>: <span title="Long">Long</span> = _
+  <span class="keyword">var</span> <a title="Long" id="21448">C_LOGIN</a>: <span title="Long">Long</span> = _
+  <span class="keyword">var</span> <a title="Long" id="21451">C_EXPIRATION</a>: <span title="Long">Long</span> = _
+  <span class="keyword">var</span> <a title="Double" id="21454">C_DISCOUNT</a>: <span title="Double">Double</span> = _
+  <span class="keyword">var</span> <a title="Double" id="21457">C_BALANCE</a>: <span title="Double">Double</span> = _
+  <span class="keyword">var</span> <a title="Double" id="21460">C_YTD_PMT</a>: <span title="Double">Double</span> = _
+  <span class="keyword">var</span> <a title="Long" id="21463">C_BIRTHDATE</a>: <span title="Long">Long</span> = _
+  <span class="keyword">var</span> <a title="String" id="21466">C_DATA</a>: <span title="String">String</span> = _
+<span class="delimiter">}</span>
+
+case <span class="keyword">class</span> <a title="class Order extends org.apache.avro.specific.SpecificRecordBase with edu.berkeley.cs.avro.runtime.HasAvroConversions with edu.berkeley.cs.avro.marker.AvroPair with ScalaObject with Product with Serializable" id="50663">Order</a><a href="#50663" title="ScalaObject" class="delimiter">(</a><a href="#50663" title="()edu.berkeley.cs.scads.piql.tpcw.Order" id="60644" class="keyword">var</a> <a title="String" id="35896">O_ID</a>: <span title="String">String</span><span class="delimiter">)</span> <span class="keyword">extends</span> <span title="edu.berkeley.cs.avro.marker.AvroPair">AvroPair</span> <span class="delimiter">{</span>
+  <span class="keyword">var</span> <a title="String" id="21605">O_C_UNAME</a>: <span title="String">String</span> = _ <span class="comment">// NOTE: replaces O_C_ID</span>
+  <span class="keyword">var</span> <a title="Long" id="21608">O_DATE_Time</a>: <span title="Long">Long</span> = _ <span class="comment">//Change: Stores date and time</span>
+  <span class="keyword">var</span> <a title="Double" id="21611">O_SUB_TOTAL</a>: <span title="Double">Double</span> = _
+  <span class="keyword">var</span> <a title="Double" id="21614">O_TAX</a>: <span title="Double">Double</span> = _
+  <span class="keyword">var</span> <a title="Double" id="21617">O_TOTAL</a>: <span title="Double">Double</span> = _
+  <span class="keyword">var</span> <a title="String" id="21620">O_SHIP_TYPE</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="Long" id="21623">O_SHIP_DATE</a>: <span title="Long">Long</span> = _
+  <span class="keyword">var</span> <a title="String" id="21626">O_BILL_ADDR_ID</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="String" id="21629">O_SHIP_ADDR_ID</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="String" id="21632">O_STATUS</a>: <span title="String">String</span> = _
+<span class="delimiter">}</span>
+
+case <span class="keyword">class</span> <a title="class OrderLine extends org.apache.avro.specific.SpecificRecordBase with edu.berkeley.cs.avro.runtime.HasAvroConversions with edu.berkeley.cs.avro.marker.AvroPair with ScalaObject with Product with Serializable" id="50659">OrderLine</a><a href="#50659" title="ScalaObject" class="delimiter">(</a><a href="#50659" title="()edu.berkeley.cs.scads.piql.tpcw.OrderLine" id="60654" class="keyword">var</a> <a title="String" id="44640">OL_O_ID</a>: <span title="String">String</span>, <span class="keyword">var</span> <a title="Int" id="44641">OL_ID</a>: <span title="Int">Int</span><span class="delimiter">)</span> <span class="keyword">extends</span> <span title="edu.berkeley.cs.avro.marker.AvroPair">AvroPair</span> <span class="delimiter">{</span>
+  <span class="keyword">var</span> <a title="String" id="21574">OL_I_ID</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="Int" id="21577">OL_QTY</a>: <span title="Int">Int</span> = _
+  <span class="keyword">var</span> <a title="Double" id="21580">OL_DISCOUNT</a>: <span title="Double">Double</span> = _
+  <span class="keyword">var</span> <a title="String" id="21583">OL_COMMENT</a>: <span title="String">String</span> = _
+<span class="delimiter">}</span>
+
+case <span class="keyword">class</span> <a title="class CcXact extends org.apache.avro.specific.SpecificRecordBase with edu.berkeley.cs.avro.runtime.HasAvroConversions with edu.berkeley.cs.avro.marker.AvroPair with ScalaObject with Product with Serializable" id="50655">CcXact</a><a href="#50655" title="ScalaObject" class="delimiter">(</a><a href="#50655" title="()edu.berkeley.cs.scads.piql.tpcw.CcXact" id="60664" class="keyword">var</a> <a title="String" id="36412">CX_O_ID</a>: <span title="String">String</span><span class="delimiter">)</span> <span class="keyword">extends</span> <span title="edu.berkeley.cs.avro.marker.AvroPair">AvroPair</span> <span class="delimiter">{</span>
+  <span class="keyword">var</span> <a title="String" id="21353">CX_TYPE</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="Int" id="21356">CX_NUM</a>: <span title="Int">Int</span> = _
+  <span class="keyword">var</span> <a title="String" id="21359">CX_NAME</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="Long" id="21362">CX_EXPIRY</a>: <span title="Long">Long</span> = _
+  <span class="keyword">var</span> <a title="String" id="21365">CX_AUTH_ID</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="Double" id="21368">CX_XACT_AMT</a>: <span title="Double">Double</span> = _
+  <span class="keyword">var</span> <a title="Long" id="21371">CX_XACT_DATE</a>: <span title="Long">Long</span> = _
+  <span class="keyword">var</span> <a title="Int" id="21374">CX_CO_ID</a>: <span title="Int">Int</span> = _
+<span class="delimiter">}</span>
+
+case <span class="keyword">class</span> <a title="class Address extends org.apache.avro.specific.SpecificRecordBase with edu.berkeley.cs.avro.runtime.HasAvroConversions with edu.berkeley.cs.avro.marker.AvroPair with ScalaObject with Product with Serializable" id="50651">Address</a><a href="#50651" title="ScalaObject" class="delimiter">(</a><a href="#50651" title="()edu.berkeley.cs.scads.piql.tpcw.Address" id="60674" class="keyword">var</a> <a title="String" id="44256">ADDR_ID</a>: <span title="String">String</span><span class="delimiter">)</span> <span class="keyword">extends</span> <span title="edu.berkeley.cs.avro.marker.AvroPair">AvroPair</span> <span class="delimiter">{</span>
+  <span class="keyword">var</span> <a title="String" id="17226">ADDR_STREET1</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="String" id="17229">ADDR_STREET2</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="String" id="17232">ADDR_CITY</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="String" id="17235">ADDR_STATE</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="String" id="17238">ADDR_ZIP</a>: <span title="String">String</span> = _
+  <span class="keyword">var</span> <a title="Int" id="17241">ADDR_CO_ID</a>: <span title="Int">Int</span> = _
+<span class="delimiter">}</span>
+
+<span class="comment">/**
+ * A shopping cart item is keyed on a (C_UNAME, SCL_I_ID). this means a single
+ * user can only have one active shopping cart at a time
+ *
+ * Note: This is slightly different than the SHOPPING_ID specified by the spec
+ */</span>
+case <span class="keyword">class</span> <a title="class ShoppingCartItem extends org.apache.avro.specific.SpecificRecordBase with edu.berkeley.cs.avro.runtime.HasAvroConversions with edu.berkeley.cs.avro.marker.AvroPair with ScalaObject with Product with Serializable" id="50647">ShoppingCartItem</a><a href="#50647" title="ScalaObject" class="delimiter">(</a><a href="#50647" title="()edu.berkeley.cs.scads.piql.tpcw.ShoppingCartItem" id="60684" class="keyword">var</a> <a title="String" id="42162">SCL_C_UNAME</a>: <span title="String">String</span>, <span class="keyword">var</span> <a title="String" id="42163">SCL_I_ID</a>: <span title="String">String</span><span class="delimiter">)</span> <span class="keyword">extends</span> <span title="edu.berkeley.cs.avro.marker.AvroPair">AvroPair</span> <span class="delimiter">{</span>
+  <span class="keyword">var</span> <a title="Int" id="21658">SCL_QTY</a>: <span title="Int">Int</span> = _
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>

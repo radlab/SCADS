@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>ItemTO.java</title>
+        <script type="text/javascript" src="jquery-all.js"></script>
+        <script type="text/javascript" src="linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> ch.ethz.systems.tpcw.populate.data.objects;
+
+public <span class="keyword">class</span> <a title="object ch.ethz.systems.tpcw.populate.data.objects.ItemTO" id="9170">ItemTO</a> <span class="keyword">extends</span> <a href="AbstractTO.java.html#9146" title="ch.ethz.systems.tpcw.populate.data.objects.AbstractTO">AbstractTO</a> <span class="delimiter">{</span>
+
+	<span class="keyword">private</span> int <a title="Int" id="44039">i_id</a>;
+	<span class="keyword">private</span> String <a title="java.lang.String" id="44040">i_title</a>;
+	<span class="keyword">private</span> int <a title="Int" id="44041">i_a_id</a>;
+	<span class="keyword">private</span> long <a title="Long" id="44042">i_pub_date</a>;
+	<span class="keyword">private</span> String <a title="java.lang.String" id="44043">i_publisher</a>;
+	<span class="keyword">private</span> String <a title="java.lang.String" id="44044">i_subject</a>;
+	<span class="keyword">private</span> String <a title="java.lang.String" id="44045">i_desc</a>;
+	<span class="keyword">private</span> int <a title="Int" id="44046">i_related1</a>;
+	<span class="keyword">private</span> int <a title="Int" id="44047">i_related2</a>;
+	<span class="keyword">private</span> int <a title="Int" id="44048">i_related3</a>;
+	<span class="keyword">private</span> int <a title="Int" id="44049">i_related4</a>;
+	<span class="keyword">private</span> int <a title="Int" id="44050">i_related5</a>;
+	<span class="keyword">private</span> String <a title="java.lang.String" id="44051">i_thumbnail</a>;
+	<span class="keyword">private</span> String <a title="java.lang.String" id="44052">i_image</a>;
+	<span class="keyword">private</span> double <a title="Double" id="44053">i_srp</a>;
+	<span class="keyword">private</span> double <a title="Double" id="44054">i_cost</a>;
+	<span class="keyword">private</span> long <a title="Long" id="44055">i_avail</a>;
+	<span class="keyword">private</span> int <a title="Int" id="44056">i_stock</a>;
+	<span class="keyword">private</span> String <a title="java.lang.String" id="44057">i_isbn</a>;
+	<span class="keyword">private</span> int <a title="Int" id="44058">i_page</a>;
+	<span class="keyword">private</span> String <a title="java.lang.String" id="44059">i_backing</a>;
+	<span class="keyword">private</span> String <a title="java.lang.String" id="44060">i_dimensions</a>;
+
+	public int <a title="()Int" id="44061">getI_id</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_id;
+	<span class="delimiter">}</span>
+	public void <a title="(i_id: Int)Unit" id="44062">setI_id</a><span class="delimiter">(</span>int <a title="Int" id="88303">i_id</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_id = i_id;
+	<span class="delimiter">}</span>
+	public String <a title="()java.lang.String" id="44063">getI_title</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_title;
+	<span class="delimiter">}</span>
+	public void <a title="(i_title: java.lang.String)Unit" id="44064">setI_title</a><span class="delimiter">(</span>String <a title="java.lang.String" id="88304">i_title</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_title = i_title;
+	<span class="delimiter">}</span>
+	public int <a title="()Int" id="44065">getI_a_id</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_a_id;
+	<span class="delimiter">}</span>
+	public void <a title="(i_a_id: Int)Unit" id="44066">setI_a_id</a><span class="delimiter">(</span>int <a title="Int" id="88305">i_a_id</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_a_id = i_a_id;
+	<span class="delimiter">}</span>
+	public long <a title="()Long" id="44067">getI_pub_date</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_pub_date;
+	<span class="delimiter">}</span>
+	public void <a title="(i_oub_date: Long)Unit" id="44068">setI_pub_date</a><span class="delimiter">(</span>long <a title="Long" id="88306">i_oub_date</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_pub_date = i_oub_date;
+	<span class="delimiter">}</span>
+	public String <a title="()java.lang.String" id="44069">getI_publisher</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_publisher;
+	<span class="delimiter">}</span>
+	public void <a title="(i_publisher: java.lang.String)Unit" id="44070">setI_publisher</a><span class="delimiter">(</span>String <a title="java.lang.String" id="88307">i_publisher</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_publisher = i_publisher;
+	<span class="delimiter">}</span>
+	public String <a title="()java.lang.String" id="44071">getI_subject</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_subject;
+	<span class="delimiter">}</span>
+	public void <a title="(i_subject: java.lang.String)Unit" id="44072">setI_subject</a><span class="delimiter">(</span>String <a title="java.lang.String" id="88308">i_subject</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_subject = i_subject;
+	<span class="delimiter">}</span>
+	public String <a title="()java.lang.String" id="44073">getI_desc</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_desc;
+	<span class="delimiter">}</span>
+	public void <a title="(i_desc: java.lang.String)Unit" id="44074">setI_desc</a><span class="delimiter">(</span>String <a title="java.lang.String" id="88309">i_desc</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_desc = i_desc;
+	<span class="delimiter">}</span>
+	public int <a title="()Int" id="44075">getI_related1</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_related1;
+	<span class="delimiter">}</span>
+	public void <a title="(i_related1: Int)Unit" id="44076">setI_related1</a><span class="delimiter">(</span>int <a title="Int" id="88310">i_related1</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_related1 = i_related1;
+	<span class="delimiter">}</span>
+	public int <a title="()Int" id="44077">getI_related2</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_related2;
+	<span class="delimiter">}</span>
+	public void <a title="(i_related2: Int)Unit" id="44078">setI_related2</a><span class="delimiter">(</span>int <a title="Int" id="88311">i_related2</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_related2 = i_related2;
+	<span class="delimiter">}</span>
+	public int <a title="()Int" id="44079">getI_related3</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_related3;
+	<span class="delimiter">}</span>
+	public void <a title="(i_related3: Int)Unit" id="44080">setI_related3</a><span class="delimiter">(</span>int <a title="Int" id="88312">i_related3</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_related3 = i_related3;
+	<span class="delimiter">}</span>
+	public int <a title="()Int" id="44081">getI_related4</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_related4;
+	<span class="delimiter">}</span>
+	public void <a title="(i_related4: Int)Unit" id="44082">setI_related4</a><span class="delimiter">(</span>int <a title="Int" id="88313">i_related4</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_related4 = i_related4;
+	<span class="delimiter">}</span>
+	public int <a title="()Int" id="44083">getI_related5</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_related5;
+	<span class="delimiter">}</span>
+	public void <a title="(i_related5: Int)Unit" id="44084">setI_related5</a><span class="delimiter">(</span>int <a title="Int" id="88314">i_related5</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_related5 = i_related5;
+	<span class="delimiter">}</span>
+	public String <a title="()java.lang.String" id="44085">getI_thumbnail</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_thumbnail;
+	<span class="delimiter">}</span>
+	public void <a title="(i_thumbnail: java.lang.String)Unit" id="44086">setI_thumbnail</a><span class="delimiter">(</span>String <a title="java.lang.String" id="88315">i_thumbnail</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_thumbnail = i_thumbnail;
+	<span class="delimiter">}</span>
+	public String <a title="()java.lang.String" id="44087">getI_image</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_image;
+	<span class="delimiter">}</span>
+	public void <a title="(i_image: java.lang.String)Unit" id="44088">setI_image</a><span class="delimiter">(</span>String <a title="java.lang.String" id="88316">i_image</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_image = i_image;
+	<span class="delimiter">}</span>
+	public double <a title="()Double" id="44089">getI_srp</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_srp;
+	<span class="delimiter">}</span>
+	public void <a title="(i_srp: Double)Unit" id="44090">setI_srp</a><span class="delimiter">(</span>double <a title="Double" id="88317">i_srp</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_srp = i_srp;
+	<span class="delimiter">}</span>
+	public double <a title="()Double" id="44091">getI_cost</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_cost;
+	<span class="delimiter">}</span>
+	public void <a title="(i_cost: Double)Unit" id="44092">setI_cost</a><span class="delimiter">(</span>double <a title="Double" id="88318">i_cost</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_cost = i_cost;
+	<span class="delimiter">}</span>
+	public long <a title="()Long" id="44093">getI_avail</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_avail;
+	<span class="delimiter">}</span>
+	public void <a title="(i_avail: Long)Unit" id="44094">setI_avail</a><span class="delimiter">(</span>long <a title="Long" id="88319">i_avail</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_avail = i_avail;
+	<span class="delimiter">}</span>
+	public int <a title="()Int" id="44095">getI_stock</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_stock;
+	<span class="delimiter">}</span>
+	public void <a title="(i_stock: Int)Unit" id="44096">setI_stock</a><span class="delimiter">(</span>int <a title="Int" id="88320">i_stock</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_stock = i_stock;
+	<span class="delimiter">}</span>
+	public String <a title="()java.lang.String" id="44097">getI_isbn</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_isbn;
+	<span class="delimiter">}</span>
+	public void <a title="(i_isbn: java.lang.String)Unit" id="44098">setI_isbn</a><span class="delimiter">(</span>String <a title="java.lang.String" id="88321">i_isbn</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_isbn = i_isbn;
+	<span class="delimiter">}</span>
+	public int <a title="()Int" id="44099">getI_page</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_page;
+	<span class="delimiter">}</span>
+	public void <a title="(i_page: Int)Unit" id="44100">setI_page</a><span class="delimiter">(</span>int <a title="Int" id="88322">i_page</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_page = i_page;
+	<span class="delimiter">}</span>
+	public String <a title="()java.lang.String" id="44101">getI_backing</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_backing;
+	<span class="delimiter">}</span>
+	public void <a title="(i_backing: java.lang.String)Unit" id="44102">setI_backing</a><span class="delimiter">(</span>String <a title="java.lang.String" id="88323">i_backing</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_backing = i_backing;
+	<span class="delimiter">}</span>
+	public String <a title="()java.lang.String" id="44103">getI_dimensions</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> i_dimensions;
+	<span class="delimiter">}</span>
+	public void <a title="(i_dimensions: java.lang.String)Unit" id="44104">setI_dimensions</a><span class="delimiter">(</span>String <a title="java.lang.String" id="88324">i_dimensions</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.i_dimensions = i_dimensions;
+	<span class="delimiter">}</span>
+
+
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>

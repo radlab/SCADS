@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>AddressTO.java</title>
+        <script type="text/javascript" src="jquery-all.js"></script>
+        <script type="text/javascript" src="linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> ch.ethz.systems.tpcw.populate.data.objects;
+
+public <span class="keyword">class</span> <a title="object ch.ethz.systems.tpcw.populate.data.objects.AddressTO" id="9150">AddressTO</a> <span class="keyword">extends</span> <a href="AbstractTO.java.html#9146" title="ch.ethz.systems.tpcw.populate.data.objects.AbstractTO">AbstractTO</a> <span class="delimiter">{</span>
+
+	<span class="keyword">private</span> int <a title="Int" id="44231">addr_id</a>;
+	<span class="keyword">private</span> String <a title="java.lang.String" id="44232">addr_street_1</a>;
+	<span class="keyword">private</span> String <a title="java.lang.String" id="44233">addr_street_2</a>;
+	<span class="keyword">private</span> String <a title="java.lang.String" id="44234">addr_state</a>;
+	<span class="keyword">private</span> String <a title="java.lang.String" id="44235">addr_city</a>;
+	<span class="keyword">private</span> String <a title="java.lang.String" id="44236">addr_zip</a>;
+	<span class="keyword">private</span> int <a title="Int" id="44237">addr_co_id</a>;
+
+	public int <a title="()Int" id="44238">getAddr_id</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> addr_id;
+	<span class="delimiter">}</span>
+	public void <a title="(addr_id: Int)Unit" id="44239">setAddr_id</a><span class="delimiter">(</span>int <a title="Int" id="88255">addr_id</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.addr_id = addr_id;
+	<span class="delimiter">}</span>
+	public String <a title="()java.lang.String" id="44240">getAddr_street_1</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> addr_street_1;
+	<span class="delimiter">}</span>
+	public void <a title="(addr_street_1: java.lang.String)Unit" id="44241">setAddr_street_1</a><span class="delimiter">(</span>String <a title="java.lang.String" id="88256">addr_street_1</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.addr_street_1 = addr_street_1;
+	<span class="delimiter">}</span>
+	public String <a title="()java.lang.String" id="44242">getAddr_street_2</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> addr_street_2;
+	<span class="delimiter">}</span>
+	public void <a title="(addr_street_2: java.lang.String)Unit" id="44243">setAddr_street_2</a><span class="delimiter">(</span>String <a title="java.lang.String" id="88257">addr_street_2</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.addr_street_2 = addr_street_2;
+	<span class="delimiter">}</span>
+	public String <a title="()java.lang.String" id="44244">getAddr_city</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> addr_city;
+	<span class="delimiter">}</span>
+	public void <a title="(addr_city: java.lang.String)Unit" id="44245">setAddr_city</a><span class="delimiter">(</span>String <a title="java.lang.String" id="88258">addr_city</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.addr_city = addr_city;
+	<span class="delimiter">}</span>
+	public String <a title="()java.lang.String" id="44246">getAddr_zip</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> addr_zip;
+	<span class="delimiter">}</span>
+	public void <a title="(addr_zip: java.lang.String)Unit" id="44247">setAddr_zip</a><span class="delimiter">(</span>String <a title="java.lang.String" id="88259">addr_zip</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.addr_zip = addr_zip;
+	<span class="delimiter">}</span>
+	public int <a title="()Int" id="44248">getAddr_co_id</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> addr_co_id;
+	<span class="delimiter">}</span>
+	public void <a title="(addr_co_id: Int)Unit" id="44249">setAddr_co_id</a><span class="delimiter">(</span>int <a title="Int" id="88260">addr_co_id</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.addr_co_id = addr_co_id;
+	<span class="delimiter">}</span>
+	public String <a title="()java.lang.String" id="44250">getAddr_state</a><span class="delimiter">(</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">return</span> addr_state;
+	<span class="delimiter">}</span>
+	public void <a title="(addr_state: java.lang.String)Unit" id="44251">setAddr_state</a><span class="delimiter">(</span>String <a title="java.lang.String" id="88261">addr_state</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+		<span class="keyword">this</span>.addr_state = addr_state;
+	<span class="delimiter">}</span>
+
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>

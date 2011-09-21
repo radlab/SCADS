@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>Generator.java</title>
+        <script type="text/javascript" src="jquery-all.js"></script>
+        <script type="text/javascript" src="linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> ch.ethz.systems.tpcw.populate.data;
+
+<span class="keyword">import</span> java.util.Calendar;
+<span class="keyword">import</span> java.util.GregorianCalendar;
+
+<span class="keyword">import</span> ch.ethz.systems.tpcw.populate.data.objects.AbstractTO;
+<span class="keyword">import</span> ch.ethz.systems.tpcw.populate.data.objects.AddressTO;
+<span class="keyword">import</span> ch.ethz.systems.tpcw.populate.data.objects.AuthorTO;
+<span class="keyword">import</span> ch.ethz.systems.tpcw.populate.data.objects.CCXactsTO;
+<span class="keyword">import</span> ch.ethz.systems.tpcw.populate.data.objects.CountryTO;
+<span class="keyword">import</span> ch.ethz.systems.tpcw.populate.data.objects.CustomerTO;
+<span class="keyword">import</span> ch.ethz.systems.tpcw.populate.data.objects.ItemTO;
+<span class="keyword">import</span> ch.ethz.systems.tpcw.populate.data.objects.OrderTO;
+<span class="keyword">import</span> ch.ethz.systems.tpcw.populate.data.objects.OrderLineTO;
+
+public <span class="keyword">class</span> <a title="object ch.ethz.systems.tpcw.populate.data.Generator" id="9134">Generator</a> <span class="delimiter">{</span>
+
+
+	public static AbstractTO <a title="(addrId: Int)ch.ethz.systems.tpcw.populate.data.objects.AbstractTO" id="44026">generateAddress</a><span class="delimiter">(</span>int <a title="Int" id="44228">addrId</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+
+		AddressTO address = <span class="keyword">new</span> AddressTO<span class="delimiter">(</span><span class="delimiter">)</span>;
+
+		address.setAddr_id<span class="delimiter">(</span>addrId<span class="delimiter">)</span>;
+		address.setAddr_street_1<span class="delimiter">(</span>Utils.getRandomAString<span class="delimiter">(</span><span class="int">15</span>, <span class="int">40</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		address.setAddr_street_2<span class="delimiter">(</span>Utils.getRandomAString<span class="delimiter">(</span><span class="int">15</span>, <span class="int">40</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		address.setAddr_city<span class="delimiter">(</span>Utils.getRandomAString<span class="delimiter">(</span><span class="int">4</span>, <span class="int">30</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		address.setAddr_state<span class="delimiter">(</span>Utils.getRandomAString<span class="delimiter">(</span><span class="int">2</span>, <span class="int">20</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		address.setAddr_zip<span class="delimiter">(</span>Utils.getRandomAString<span class="delimiter">(</span><span class="int">5</span>, <span class="int">10</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		address.setAddr_co_id<span class="delimiter">(</span>Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, <span class="int">92</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+
+		<span class="keyword">return</span> address;
+	<span class="delimiter">}</span>
+
+
+	public static AbstractTO <a title="(aId: Int)ch.ethz.systems.tpcw.populate.data.objects.AbstractTO" id="44027">generateAuthor</a><span class="delimiter">(</span>int <a title="Int" id="44192">aId</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+
+		AuthorTO author = <span class="keyword">new</span> AuthorTO<span class="delimiter">(</span><span class="delimiter">)</span>;
+
+		int year = Utils.getRandomInt<span class="delimiter">(</span><span class="int">1800</span>, <span class="int">1990</span><span class="delimiter">)</span>;
+		int month = Utils.getRandomInt<span class="delimiter">(</span><span class="int">0</span>, <span class="int">11</span><span class="delimiter">)</span>;
+		long date = Utils.getRandomDate<span class="delimiter">(</span>year, month<span class="delimiter">)</span>;
+
+		author.setA_id<span class="delimiter">(</span>aId<span class="delimiter">)</span>;
+		author.setA_fname<span class="delimiter">(</span>Utils.getRandomAString<span class="delimiter">(</span><span class="int">3</span>, <span class="int">20</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		author.setA_mname<span class="delimiter">(</span>Utils.getRandomAString<span class="delimiter">(</span><span class="int">1</span>, <span class="int">20</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		author.setA_lname<span class="delimiter">(</span>Utils.getRandomAString<span class="delimiter">(</span><span class="int">1</span>, <span class="int">20</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		author.setA_dob<span class="delimiter">(</span>date<span class="delimiter">)</span>;
+		author.setA_bio<span class="delimiter">(</span>Utils.getRandomAString<span class="delimiter">(</span><span class="int">125</span>, <span class="int">500</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+
+		<span class="keyword">return</span> author;
+	<span class="delimiter">}</span>
+
+
+	public static AbstractTO <a title="(i: Int, numCustomers: Int)ch.ethz.systems.tpcw.populate.data.objects.AbstractTO" id="44028">generateCustomer</a><span class="delimiter">(</span>int <a title="Int" id="44268">i</a>, int <a title="Int" id="44269">numCustomers</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+
+		CustomerTO customer = <span class="keyword">new</span> CustomerTO<span class="delimiter">(</span><span class="delimiter">)</span>;
+
+		customer.setC_id<span class="delimiter">(</span>i<span class="delimiter">)</span>;
+		customer.setC_uname<span class="delimiter">(</span>Utils.DigSyl<span class="delimiter">(</span>i, <span class="int">0</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		customer.setC_passwd<span class="delimiter">(</span>customer.getC_uname<span class="delimiter">(</span><span class="delimiter">)</span>.toLowerCase<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		customer.setC_lname<span class="delimiter">(</span>Utils.getRandomAString<span class="delimiter">(</span><span class="int">8</span>, <span class="int">15</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		customer.setC_fname<span class="delimiter">(</span>Utils.getRandomAString<span class="delimiter">(</span><span class="int">8</span>, <span class="int">15</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		customer.setC_addr_id<span class="delimiter">(</span>Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, <span class="int">2</span> * numCustomers<span class="delimiter">)</span><span class="delimiter">)</span>;
+		customer.setC_phone<span class="delimiter">(</span>Utils.getRandomNString<span class="delimiter">(</span><span class="int">9</span>, <span class="int">16</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		customer.setC_email<span class="delimiter">(</span>customer.getC_uname<span class="delimiter">(</span><span class="delimiter">)</span> + <span class="string">&quot;@&quot;</span> + Utils.getRandomAString<span class="delimiter">(</span><span class="int">2</span>, <span class="int">9</span><span class="delimiter">)</span> + <span class="string">&quot;.com&quot;</span><span class="delimiter">)</span>;
+
+		GregorianCalendar cal = Utils.getCalendar<span class="delimiter">(</span><span class="delimiter">)</span>;
+		cal.add<span class="delimiter">(</span>Calendar.DAY_OF_YEAR, -<span class="int">1</span> * Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, <span class="int">730</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+
+		customer.setC_since<span class="delimiter">(</span>cal.getTime<span class="delimiter">(</span><span class="delimiter">)</span>.getTime<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+
+		cal.add<span class="delimiter">(</span>Calendar.DAY_OF_YEAR, Utils.getRandomInt<span class="delimiter">(</span><span class="int">0</span>, <span class="int">60</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		<span class="keyword">if</span> <span class="delimiter">(</span>cal.after<span class="delimiter">(</span>Utils.getCalendar<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">)</span><span class="delimiter">)</span>
+			cal = Utils.getCalendar<span class="delimiter">(</span><span class="delimiter">)</span>;
+
+		customer.setC_last_visit<span class="delimiter">(</span>cal.getTime<span class="delimiter">(</span><span class="delimiter">)</span>.getTime<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		customer.setC_login<span class="delimiter">(</span>System.currentTimeMillis<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+
+		cal = Utils.getCalendar<span class="delimiter">(</span><span class="delimiter">)</span>;
+		cal.add<span class="delimiter">(</span>Calendar.HOUR, <span class="int">2</span><span class="delimiter">)</span>;
+
+		customer.setC_expiration<span class="delimiter">(</span>cal.getTime<span class="delimiter">(</span><span class="delimiter">)</span>.getTime<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		customer.setC_discount<span class="delimiter">(</span><span class="delimiter">(</span>double<span class="delimiter">)</span> Utils.getRandomInt<span class="delimiter">(</span><span class="int">0</span>, <span class="int">50</span><span class="delimiter">)</span> / <span class="double">100.0</span><span class="delimiter">)</span>;
+		customer.setC_balance<span class="delimiter">(</span><span class="double">0.00</span><span class="delimiter">)</span>;
+		customer.setC_ytd_pmt<span class="delimiter">(</span><span class="delimiter">(</span>double<span class="delimiter">)</span> Utils.getRandomInt<span class="delimiter">(</span><span class="int">0</span>, <span class="int">99999</span><span class="delimiter">)</span> / <span class="double">100.0</span><span class="delimiter">)</span>;
+
+		int year = Utils.getRandomInt<span class="delimiter">(</span><span class="int">1880</span>, <span class="int">2000</span><span class="delimiter">)</span>;
+		int month = Utils.getRandomInt<span class="delimiter">(</span><span class="int">0</span>, <span class="int">11</span><span class="delimiter">)</span>;
+		long birthdate = Utils.getRandomDate<span class="delimiter">(</span>year, month<span class="delimiter">)</span>;
+
+		customer.setC_birthday<span class="delimiter">(</span>birthdate<span class="delimiter">)</span>;
+		customer.setC_data<span class="delimiter">(</span>Utils.getRandomAString<span class="delimiter">(</span><span class="int">100</span>, <span class="int">500</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+
+		<span class="keyword">return</span> customer;
+	<span class="delimiter">}</span>
+
+
+	public static AbstractTO <a title="(i: Int)ch.ethz.systems.tpcw.populate.data.objects.AbstractTO" id="44029">generateCountry</a><span class="delimiter">(</span>int <a title="Int" id="44131">i</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+
+		CountryTO country = <span class="keyword">new</span> CountryTO<span class="delimiter">(</span><span class="delimiter">)</span>;
+
+		country.setCo_id<span class="delimiter">(</span>i<span class="delimiter">)</span>;
+		country.setCo_name<span class="delimiter">(</span>Utils.getCountries<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">[</span>i-<span class="int">1</span><span class="delimiter">]</span><span class="delimiter">)</span>;
+		country.setCo_exchange<span class="delimiter">(</span>Utils.getExchanges<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">[</span>i-<span class="int">1</span><span class="delimiter">]</span><span class="delimiter">)</span>;
+		country.setCo_currency<span class="delimiter">(</span>Utils.getCurrencies<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">[</span>i-<span class="int">1</span><span class="delimiter">]</span><span class="delimiter">)</span>;
+
+		<span class="keyword">return</span> country;
+	<span class="delimiter">}</span>
+
+	public static AbstractTO <a title="(i: Int, numItems: Int)ch.ethz.systems.tpcw.populate.data.objects.AbstractTO" id="44030">generateItem</a><span class="delimiter">(</span>int <a title="Int" id="44034">i</a>, int <a title="Int" id="44035">numItems</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+
+		ItemTO item = <span class="keyword">new</span> ItemTO<span class="delimiter">(</span><span class="delimiter">)</span>;
+
+		item.setI_id<span class="delimiter">(</span>i<span class="delimiter">)</span>;
+		item.setI_title<span class="delimiter">(</span>Utils.getRandomAString<span class="delimiter">(</span><span class="int">14</span>, <span class="int">60</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+
+		<span class="keyword">if</span> <span class="delimiter">(</span>i &lt;= <span class="delimiter">(</span>numItems / <span class="int">4</span><span class="delimiter">)</span><span class="delimiter">)</span>
+			item.setI_a_id<span class="delimiter">(</span>i<span class="delimiter">)</span>;
+		<span class="keyword">else</span>
+			item.setI_a_id<span class="delimiter">(</span>Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, numItems / <span class="int">4</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+
+		int year = Utils.getRandomInt<span class="delimiter">(</span><span class="int">1930</span>, <span class="int">2000</span><span class="delimiter">)</span>;
+		int month = Utils.getRandomInt<span class="delimiter">(</span><span class="int">0</span>, <span class="int">11</span><span class="delimiter">)</span>;
+
+		item.setI_pub_date<span class="delimiter">(</span>Utils.getRandomDate<span class="delimiter">(</span>year, month<span class="delimiter">)</span><span class="delimiter">)</span>;
+		item.setI_publisher<span class="delimiter">(</span>Utils.getRandomAString<span class="delimiter">(</span><span class="int">14</span>, <span class="int">60</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		item.setI_subject<span class="delimiter">(</span>Utils.getSubjects<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">[</span>Utils.getRandomInt<span class="delimiter">(</span><span class="int">0</span>, Utils.getSubjects<span class="delimiter">(</span><span class="delimiter">)</span>.length - <span class="int">1</span><span class="delimiter">)</span><span class="delimiter">]</span><span class="delimiter">)</span>;
+		item.setI_desc<span class="delimiter">(</span>Utils.getRandomAString<span class="delimiter">(</span><span class="int">100</span>, <span class="int">500</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+
+		item.setI_related1<span class="delimiter">(</span>Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, numItems<span class="delimiter">)</span><span class="delimiter">)</span>;
+		<span class="keyword">do</span> <span class="delimiter">{</span>
+			item.setI_related2<span class="delimiter">(</span>Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, numItems<span class="delimiter">)</span><span class="delimiter">)</span>;
+		<span class="delimiter">}</span> <span class="keyword">while</span> <span class="delimiter">(</span>item.getI_related1<span class="delimiter">(</span><span class="delimiter">)</span> == item.getI_related2<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		<span class="keyword">do</span> <span class="delimiter">{</span>
+			item.setI_related3<span class="delimiter">(</span>Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, numItems<span class="delimiter">)</span><span class="delimiter">)</span>;
+		<span class="delimiter">}</span> <span class="keyword">while</span> <span class="delimiter">(</span>item.getI_related3<span class="delimiter">(</span><span class="delimiter">)</span> == item.getI_related1<span class="delimiter">(</span><span class="delimiter">)</span> || item.getI_related3<span class="delimiter">(</span><span class="delimiter">)</span> == item.getI_related2<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		<span class="keyword">do</span> <span class="delimiter">{</span>
+			item.setI_related4<span class="delimiter">(</span>Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, numItems<span class="delimiter">)</span><span class="delimiter">)</span>;
+		<span class="delimiter">}</span> <span class="keyword">while</span> <span class="delimiter">(</span>item.getI_related4<span class="delimiter">(</span><span class="delimiter">)</span> == item.getI_related3<span class="delimiter">(</span><span class="delimiter">)</span> || item.getI_related4<span class="delimiter">(</span><span class="delimiter">)</span> == item.getI_related2<span class="delimiter">(</span><span class="delimiter">)</span>
+				|| item.getI_related4<span class="delimiter">(</span><span class="delimiter">)</span> == item.getI_related1<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		<span class="keyword">do</span> <span class="delimiter">{</span>
+			item.setI_related5<span class="delimiter">(</span>Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, numItems<span class="delimiter">)</span><span class="delimiter">)</span>;
+		<span class="delimiter">}</span> <span class="keyword">while</span> <span class="delimiter">(</span>item.getI_related5<span class="delimiter">(</span><span class="delimiter">)</span> == item.getI_related4<span class="delimiter">(</span><span class="delimiter">)</span> || item.getI_related5<span class="delimiter">(</span><span class="delimiter">)</span> == item.getI_related3<span class="delimiter">(</span><span class="delimiter">)</span>
+				|| item.getI_related5<span class="delimiter">(</span><span class="delimiter">)</span> == item.getI_related2<span class="delimiter">(</span><span class="delimiter">)</span> || item.getI_related5<span class="delimiter">(</span><span class="delimiter">)</span> == item.getI_related1<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+
+		i = i / <span class="int">2</span>;
+		<span class="keyword">if</span><span class="delimiter">(</span>i == <span class="int">0</span><span class="delimiter">)</span> i++;
+
+		item.setI_thumbnail<span class="delimiter">(</span><span class="keyword">new</span> String<span class="delimiter">(</span><span class="string">&quot;img&quot;</span> + i % <span class="int">100</span> + <span class="string">&quot;/thumb_&quot;</span> + i + <span class="string">&quot;.gif&quot;</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		item.setI_image<span class="delimiter">(</span><span class="keyword">new</span> String<span class="delimiter">(</span><span class="string">&quot;img&quot;</span> + i % <span class="int">100</span> + <span class="string">&quot;/image_&quot;</span> + i + <span class="string">&quot;.gif&quot;</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		item.setI_srp<span class="delimiter">(</span><span class="delimiter">(</span><span class="delimiter">(</span>double<span class="delimiter">)</span> Utils.getRandomInt<span class="delimiter">(</span><span class="int">100</span>, <span class="int">99999</span><span class="delimiter">)</span><span class="delimiter">)</span>/<span class="double">100.0</span><span class="delimiter">)</span>;
+		item.setI_cost<span class="delimiter">(</span>item.getI_srp<span class="delimiter">(</span><span class="delimiter">)</span> - <span class="delimiter">(</span><span class="delimiter">(</span><span class="delimiter">(</span><span class="delimiter">(</span>double<span class="delimiter">)</span> Utils.getRandomInt<span class="delimiter">(</span><span class="int">0</span>, <span class="int">50</span><span class="delimiter">)</span> / <span class="double">100.0</span><span class="delimiter">)</span><span class="delimiter">)</span> * item.getI_srp<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+
+		GregorianCalendar cal = Utils.getCalendar<span class="delimiter">(</span><span class="delimiter">)</span>;
+		cal.add<span class="delimiter">(</span>Calendar.DAY_OF_YEAR, Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, <span class="int">30</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+
+
+		item.setI_avail<span class="delimiter">(</span>cal.getTime<span class="delimiter">(</span><span class="delimiter">)</span>.getTime<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		item.setI_stock<span class="delimiter">(</span>Utils.getRandomInt<span class="delimiter">(</span><span class="int">10</span>, <span class="int">30</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		item.setI_isbn<span class="delimiter">(</span>Utils.getRandomAString<span class="delimiter">(</span><span class="int">13</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		item.setI_page<span class="delimiter">(</span>Utils.getRandomInt<span class="delimiter">(</span><span class="int">20</span>, <span class="int">9999</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		item.setI_backing<span class="delimiter">(</span>Utils.getBackings<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">[</span>Utils.getRandomInt<span class="delimiter">(</span><span class="int">0</span>, Utils.getBackings<span class="delimiter">(</span><span class="delimiter">)</span>.length - <span class="int">1</span><span class="delimiter">)</span><span class="delimiter">]</span><span class="delimiter">)</span>;
+		item.setI_dimensions<span class="delimiter">(</span><span class="delimiter">(</span><span class="delimiter">(</span>double<span class="delimiter">)</span> Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, <span class="int">9999</span><span class="delimiter">)</span> / <span class="double">100.0</span><span class="delimiter">)</span> + <span class="string">&quot;x&quot;</span>
+				+ <span class="delimiter">(</span><span class="delimiter">(</span>double<span class="delimiter">)</span> Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, <span class="int">9999</span><span class="delimiter">)</span> / <span class="double">100.0</span><span class="delimiter">)</span> + <span class="string">&quot;x&quot;</span>
+				+ <span class="delimiter">(</span><span class="delimiter">(</span>double<span class="delimiter">)</span> Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, <span class="int">9999</span><span class="delimiter">)</span> / <span class="double">100.0</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+
+		<span class="keyword">return</span> item;
+	<span class="delimiter">}</span>
+
+
+	public static AbstractTO <a title="(i: Int, numCustomers: Int, numItemLines: Int)ch.ethz.systems.tpcw.populate.data.objects.AbstractTO" id="44031">generateOrder</a><span class="delimiter">(</span>int <a title="Int" id="44348">i</a>, int <a title="Int" id="44349">numCustomers</a>, int <a title="Int" id="44350">numItemLines</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+
+		OrderTO order = <span class="keyword">new</span> OrderTO<span class="delimiter">(</span><span class="delimiter">)</span>;
+
+		order.setO_id<span class="delimiter">(</span>i<span class="delimiter">)</span>;
+		order.setO_c_id<span class="delimiter">(</span>Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, numCustomers<span class="delimiter">)</span><span class="delimiter">)</span>;
+
+		GregorianCalendar cal = Utils.getCalendar<span class="delimiter">(</span><span class="delimiter">)</span>;
+		cal.add<span class="delimiter">(</span>Calendar.DAY_OF_YEAR, -<span class="int">1</span> * Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, <span class="int">59</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		cal.add<span class="delimiter">(</span>Calendar.HOUR_OF_DAY, -<span class="int">1</span> * Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, <span class="int">23</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		cal.add<span class="delimiter">(</span>Calendar.MINUTE, -<span class="int">1</span> * Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, <span class="int">59</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		cal.add<span class="delimiter">(</span>Calendar.SECOND, -<span class="int">1</span> * Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, <span class="int">59</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		cal.add<span class="delimiter">(</span>Calendar.MILLISECOND, -<span class="int">1</span> * Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, <span class="int">999</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+
+		order.setO_date<span class="delimiter">(</span>cal.getTime<span class="delimiter">(</span><span class="delimiter">)</span>.getTime<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		order.setO_sub_total<span class="delimiter">(</span><span class="delimiter">(</span>double<span class="delimiter">)</span> Utils.getRandomInt<span class="delimiter">(</span><span class="int">1000</span>, <span class="int">999999</span><span class="delimiter">)</span> / <span class="int">100</span><span class="delimiter">)</span>;
+		order.setO_tax<span class="delimiter">(</span>order.getO_sub_total<span class="delimiter">(</span><span class="delimiter">)</span> * <span class="double">0.0825</span><span class="delimiter">)</span>;
+		order.setO_total<span class="delimiter">(</span>order.getO_sub_total<span class="delimiter">(</span><span class="delimiter">)</span> + order.getO_tax<span class="delimiter">(</span><span class="delimiter">)</span> + <span class="double">3.00</span> + numItemLines<span class="delimiter">)</span>;
+		order.setO_ship_type<span class="delimiter">(</span>Utils.getShipTypes<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">[</span>Utils.getRandomInt<span class="delimiter">(</span><span class="int">0</span>, Utils.getShipTypes<span class="delimiter">(</span><span class="delimiter">)</span>.length - <span class="int">1</span><span class="delimiter">)</span><span class="delimiter">]</span><span class="delimiter">)</span>;
+
+		cal.add<span class="delimiter">(</span>Calendar.DAY_OF_YEAR, Utils.getRandomInt<span class="delimiter">(</span><span class="int">0</span>, <span class="int">7</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+
+
+		order.setO_ship_date<span class="delimiter">(</span>cal.getTime<span class="delimiter">(</span><span class="delimiter">)</span>.getTime<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		order.setO_bill_addr_id<span class="delimiter">(</span>Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, <span class="int">2</span> * numCustomers<span class="delimiter">)</span><span class="delimiter">)</span>;
+		order.setO_ship_addr_id<span class="delimiter">(</span>Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, <span class="int">2</span> * numCustomers<span class="delimiter">)</span><span class="delimiter">)</span>;
+		order.setO_status<span class="delimiter">(</span>Utils.getStatusTypes<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">[</span>Utils.getRandomInt<span class="delimiter">(</span><span class="int">0</span>, Utils.getStatusTypes<span class="delimiter">(</span><span class="delimiter">)</span>.length - <span class="int">1</span><span class="delimiter">)</span><span class="delimiter">]</span><span class="delimiter">)</span>;
+
+		<span class="keyword">return</span> order;
+	<span class="delimiter">}</span>
+
+
+	public static AbstractTO <a title="(orderLineId: Int, orderId: Int, numItems: Int)ch.ethz.systems.tpcw.populate.data.objects.AbstractTO" id="44032">generateOrderLine</a><span class="delimiter">(</span>int <a title="Int" id="44505">orderLineId</a>, int <a title="Int" id="44506">orderId</a>, int <a title="Int" id="44507">numItems</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+
+		OrderLineTO orderline = <span class="keyword">new</span> OrderLineTO<span class="delimiter">(</span><span class="delimiter">)</span>;
+
+		orderline.setOl_id<span class="delimiter">(</span>orderLineId<span class="delimiter">)</span>;
+		orderline.setOl_o_id<span class="delimiter">(</span>orderId<span class="delimiter">)</span>;
+		orderline.setOl_i_id<span class="delimiter">(</span>Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, numItems<span class="delimiter">)</span><span class="delimiter">)</span>;
+		orderline.setOl_qty<span class="delimiter">(</span>Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, <span class="int">300</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		orderline.setOl_discount<span class="delimiter">(</span><span class="delimiter">(</span>double<span class="delimiter">)</span> Utils.getRandomInt<span class="delimiter">(</span><span class="int">0</span>, <span class="int">30</span><span class="delimiter">)</span> / <span class="int">100</span><span class="delimiter">)</span>;
+		orderline.setOl_comments<span class="delimiter">(</span>Utils.getRandomAString<span class="delimiter">(</span><span class="int">20</span>, <span class="int">100</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+
+		<span class="keyword">return</span> orderline;
+	<span class="delimiter">}</span>
+
+
+	public static AbstractTO <a title="(i: Int)ch.ethz.systems.tpcw.populate.data.objects.AbstractTO" id="44033">generateCCXacts</a><span class="delimiter">(</span>int <a title="Int" id="44159">i</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+
+		CCXactsTO ccxacts = <span class="keyword">new</span> CCXactsTO<span class="delimiter">(</span><span class="delimiter">)</span>;
+
+		ccxacts.setCx_o_id<span class="delimiter">(</span>i<span class="delimiter">)</span>;
+		ccxacts.setCx_type<span class="delimiter">(</span>Utils.getCreditCards<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">[</span>Utils.getRandomInt<span class="delimiter">(</span><span class="int">0</span>, Utils.getCreditCards<span class="delimiter">(</span><span class="delimiter">)</span>.length - <span class="int">1</span><span class="delimiter">)</span><span class="delimiter">]</span><span class="delimiter">)</span>;
+		ccxacts.setCx_num<span class="delimiter">(</span>Utils.getRandomNString<span class="delimiter">(</span><span class="int">16</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		ccxacts.setCx_name<span class="delimiter">(</span>Utils.getRandomAString<span class="delimiter">(</span><span class="int">14</span>, <span class="int">30</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+
+		GregorianCalendar cal = Utils.getCalendar<span class="delimiter">(</span><span class="delimiter">)</span>;
+		cal.add<span class="delimiter">(</span>Calendar.DAY_OF_YEAR, Utils.getRandomInt<span class="delimiter">(</span><span class="int">10</span>, <span class="int">730</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+
+		ccxacts.setCs_expiry<span class="delimiter">(</span>cal.getTime<span class="delimiter">(</span><span class="delimiter">)</span>.getTime<span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		ccxacts.setCx_auth_id<span class="delimiter">(</span>Utils.getRandomAString<span class="delimiter">(</span><span class="int">15</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+		ccxacts.setCx_co_id<span class="delimiter">(</span>Utils.getRandomInt<span class="delimiter">(</span><span class="int">1</span>, <span class="int">92</span><span class="delimiter">)</span><span class="delimiter">)</span>;
+
+		<span class="keyword">return</span> ccxacts;
+	<span class="delimiter">}</span>
+
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>
