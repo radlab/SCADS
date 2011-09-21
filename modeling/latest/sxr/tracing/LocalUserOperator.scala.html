@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>tracing/LocalUserOperator.scala</title>
+        <script type="text/javascript" src="../jquery-all.js"></script>
+        <script type="text/javascript" src="../linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="../style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs
+<span class="keyword">package</span> scads
+<span class="keyword">package</span> piql
+<span class="keyword">package</span> modeling
+
+<span class="keyword">import</span> scadr._
+
+<span class="keyword">import</span> collection.mutable.ArrayBuffer
+
+case <span class="keyword">class</span> <a title="class LocalUserOperator extends edu.berkeley.cs.scads.piql.QueryPlan with ScalaObject with Product with Serializable" id="78799">LocalUserOperator</a><a href="#78799" title="ScalaObject" class="delimiter">(</a><span class="delimiter">)</span> <span class="keyword">extends</span> <span title="edu.berkeley.cs.scads.piql.QueryPlan">QueryPlan</span>
+
+<span class="keyword">class</span> <a title="class LocalUserExecutor extends edu.berkeley.cs.scads.piql.ParallelExecutor with ScalaObject" id="10301">LocalUserExecutor</a> <a href="#10301" title="ScalaObject" class="keyword">extends</a> <span title="edu.berkeley.cs.scads.piql.ParallelExecutor">ParallelExecutor</span> <span class="delimiter">{</span>
+  <span class="keyword">override</span> <span class="keyword">def</span> <a title="(plan: edu.berkeley.cs.scads.piql.QueryPlan)(implicit ctx: edu.berkeley.cs.scads.piql.Context)edu.berkeley.cs.scads.piql.QueryIterator" id="78039">apply</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.piql.QueryPlan" id="78041">plan</a>: <span title="edu.berkeley.cs.scads.piql.QueryPlan">QueryPlan</span><span class="delimiter">)</span><span class="delimiter">(</span><span class="keyword">implicit</span> <a title="edu.berkeley.cs.scads.piql.Context" id="78042">ctx</a>: <span title="edu.berkeley.cs.scads.piql.Context">Context</span><span class="delimiter">)</span>: <span title="edu.berkeley.cs.scads.piql.QueryIterator">QueryIterator</span> = <a href="#78041" title="edu.berkeley.cs.scads.piql.QueryPlan">plan</a> <span title="edu.berkeley.cs.scads.piql.QueryIterator" class="keyword">match</span> <span class="delimiter">{</span>
+    <span class="keyword">case</span> <span title="edu.berkeley.cs.scads.piql.QueryIterator{}">LocalUserOperator</span><span class="delimiter">(</span><span class="delimiter">)</span> =&gt; <span class="delimiter">{</span>
+      <a href="#78079" title="edu.berkeley.cs.scads.piql.QueryIterator{}" class="keyword">new</a> <a title="anonymous class $anon extends edu.berkeley.cs.scads.piql.QueryIterator" id="78079">QueryIterator</a> <span class="delimiter">{</span>
+        <span class="keyword">val</span> <a title="java.lang.String" id="78524">name</a> = <span title="java.lang.String(&quot;LocalUserOperator&quot;)" class="string">&quot;LocalUserOperator&quot;</span>
+	      <span class="keyword">private</span> <span class="keyword">var</span> <a title="Iterator[edu.berkeley.cs.scads.piql.package.Tuple]" id="78527">iterator</a>: <span title="Iterator[edu.berkeley.cs.scads.piql.package.Tuple]">Iterator</span><span class="delimiter">[</span>Tuple<span class="delimiter">]</span> = <span title="Null(null)" class="keyword">null</span>
+
+	      <span class="keyword">private</span> <span class="keyword">def</span> <a title="(idx: Int)scala.collection.mutable.ArrayBuffer[edu.berkeley.cs.scads.piql.scadr.User]" id="78529">toUser</a><span class="delimiter">(</span><a title="Int" id="78537">idx</a>: <span title="Int">Int</span><span class="delimiter">)</span> = <span title="(elems: edu.berkeley.cs.scads.piql.scadr.User*)scala.collection.mutable.ArrayBuffer[edu.berkeley.cs.scads.piql.scadr.User]">ArrayBuffer</span><span class="delimiter">(</span><span title="edu.berkeley.cs.scads.piql.scadr.User" class="keyword">new</span> <span title="edu.berkeley.cs.scads.piql.scadr.User">User</span><span class="delimiter">(</span><span title="implicit scala.Predef.augmentString : (x: String)scala.collection.immutable.StringOps" class="string">&quot;User%010d&quot;</span>.<span title="(args: Any*)String">format</span><span class="delimiter">(</span><a href="#78537" title="Int">idx</a><span class="delimiter">)</span><span class="delimiter">)</span><span class="delimiter">)</span>
+	      <span class="keyword">private</span> <span class="keyword">def</span> <a title="(numUsers: Int)scala.collection.mutable.ArrayBuffer[edu.berkeley.cs.scads.piql.scadr.User]" id="78530">randomUser</a><span class="delimiter">(</span><a title="Int" id="78548">numUsers</a>: <span title="Int">Int</span><span class="delimiter">)</span> = <a href="#78529" title="(idx: Int)scala.collection.mutable.ArrayBuffer[edu.berkeley.cs.scads.piql.scadr.User]">toUser</a><span class="delimiter">(</span>scala.util.<span title="object scala.util.Random">Random</span>.<span title="(n: Int)Int">nextInt</span><span class="delimiter">(</span><a href="#78548" title="Int">numUsers</a><span class="delimiter">)</span> <span title="(x: Int)Int">+</span> <span title="Int(1)" class="int">1</span><span class="delimiter">)</span>
+
+        <span class="keyword">def</span> <a title="=&gt; Unit" id="78531">open</a>: <span title="Unit">Unit</span> = <span class="delimiter">{</span>
+	        <span class="keyword">val</span> <a title="Int" id="78555">numTuples</a> = <a href="#78042" title="edu.berkeley.cs.scads.piql.Context">ctx</a>.<span title="(idx: Int)Any">parameters</span><span class="delimiter">(</span><span title="Int(0)" class="int">0</span><span class="delimiter">)</span>.<span title="[T0]=&gt; T0">asInstanceOf</span><span title="Int" class="delimiter">[</span><span title="Int">Int</span><span class="delimiter">]</span>
+	        <span class="keyword">val</span> <a title="Int" id="78556">maxUserId</a> = <a href="#78042" title="edu.berkeley.cs.scads.piql.Context">ctx</a>.<span title="(idx: Int)Any">parameters</span><span class="delimiter">(</span><span title="Int(1)" class="int">1</span><span class="delimiter">)</span>.<span title="[T0]=&gt; T0">asInstanceOf</span><span title="Int" class="delimiter">[</span><span title="Int">Int</span><span class="delimiter">]</span>
+	        <a href="#78527" title="(x$1: Iterator[edu.berkeley.cs.scads.piql.package.Tuple])Unit">iterator</a> = <span title="object Array">Array</span>.<span title="(n: Int)(elem: =&gt; scala.collection.mutable.ArrayBuffer[edu.berkeley.cs.scads.piql.scadr.User])(implicit evidence$9: scala.reflect.ClassManifest[scala.collection.mutable.ArrayBuffer[edu.berkeley.cs.scads.piql.scadr.User]])Array[scala.collection.mutable.ArrayBuffer[edu.berkeley.cs.scads.piql.scadr.User]]">fill</span><span class="delimiter">(</span><a href="#78555" title="Int">numTuples</a><span class="delimiter">)</span><span title="(xs: Array[scala.collection.mutable.ArrayBuffer[edu.berkeley.cs.scads.piql.scadr.User]])scala.collection.mutable.ArrayOps[scala.collection.mutable.ArrayBuffer[edu.berkeley.cs.scads.piql.scadr.User]]" class="delimiter">(</span><a href="#78530" title="(numUsers: Int)scala.collection.mutable.ArrayBuffer[edu.berkeley.cs.scads.piql.scadr.User]">randomUser</a><span class="delimiter">(</span><a href="#78556" title="Int">maxUserId</a><span class="delimiter">)</span><span class="delimiter">)</span>.<span title="=&gt; Iterator[scala.collection.mutable.ArrayBuffer[edu.berkeley.cs.scads.piql.scadr.User]]">iterator</span>
+        <span class="delimiter">}</span>
+        <span class="keyword">def</span> <a title="=&gt; Unit" id="78532">close</a>: <span title="Unit">Unit</span> =
+          <a href="#78527" title="(x$1: Iterator[edu.berkeley.cs.scads.piql.package.Tuple])Unit">iterator</a> = <span title="Null(null)" class="keyword">null</span>
+
+        <span class="keyword">def</span> <a title="=&gt; Boolean" id="78533">hasNext</a> = <a href="#78527" title="=&gt; Iterator[edu.berkeley.cs.scads.piql.package.Tuple]">iterator</a>.<span title="=&gt; Boolean">hasNext</span>
+        <span class="keyword">def</span> <a title="()edu.berkeley.cs.scads.piql.package.Tuple" id="78534">next</a> = <a href="#78527" title="=&gt; Iterator[edu.berkeley.cs.scads.piql.package.Tuple]">iterator</a>.<span title="()edu.berkeley.cs.scads.piql.package.Tuple">next</span>
+      <span class="delimiter">}</span>
+    <span class="delimiter">}</span>
+    <span class="keyword">case</span> <a title="edu.berkeley.cs.scads.piql.QueryIterator" id="78789">otherPlan</a> =&gt; <a href="#10301" title="edu.berkeley.cs.scads.piql.modeling.LocalUserExecutor" class="keyword">super</a>.<span title="(plan: edu.berkeley.cs.scads.piql.QueryPlan)(implicit ctx: edu.berkeley.cs.scads.piql.Context)edu.berkeley.cs.scads.piql.QueryIterator">apply</span><a href="#78042" title="edu.berkeley.cs.scads.piql.Context" class="delimiter">(</a><a href="#78789" title="edu.berkeley.cs.scads.piql.QueryPlan">otherPlan</a><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>
