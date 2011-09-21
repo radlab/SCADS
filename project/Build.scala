@@ -248,7 +248,6 @@ object DeployConsole extends BuildCommon {
 
         (new Console(cs.scalac))(Build.data(cp), options, cmds, s.log).foreach(msg => error(msg))
         println()
-
       }
     }
   )
