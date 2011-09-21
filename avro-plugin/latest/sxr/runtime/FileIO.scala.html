@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>runtime/FileIO.scala</title>
+        <script type="text/javascript" src="../jquery-all.js"></script>
+        <script type="text/javascript" src="../linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="../style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.avro
+<span class="keyword">package</span> runtime
+
+<span class="keyword">import</span> java.io.File
+<span class="keyword">import</span> org.apache.avro.generic.GenericContainer
+<span class="keyword">import</span> org.apache.avro.specific.<span class="delimiter">{</span>SpecificDatumReader, SpecificDatumWriter<span class="delimiter">}</span>
+<span class="keyword">import</span> org.apache.avro.file.<span class="delimiter">{</span>DataFileReader, DataFileWriter, CodecFactory<span class="delimiter">}</span>
+
+<span class="keyword">object</span> <a title="object edu.berkeley.cs.avro.runtime.AvroInFile" id="9670">AvroInFile</a> <span title="ScalaObject" class="delimiter">{</span>
+  <span class="keyword">def</span> <a title="[RecordType &lt;: org.apache.avro.generic.GenericContainer](file: java.io.File)(implicit schema: edu.berkeley.cs.avro.runtime.package.TypedSchema[RecordType])org.apache.avro.file.DataFileReader[RecordType] with Iterator[RecordType]" id="69522">apply</a><span class="delimiter">[</span><a title="&gt;: Nothing &lt;: org.apache.avro.generic.GenericContainer" id="69524">RecordType</a> &lt;: GenericContainer<span class="delimiter">]</span><span class="delimiter">(</span><a title="java.io.File" id="69526">file</a>: <span title="java.io.File">File</span><span class="delimiter">)</span><span class="delimiter">(</span><span class="keyword">implicit</span> <a title="edu.berkeley.cs.avro.runtime.package.TypedSchema[RecordType]" id="69527">schema</a>: <a href="package.scala.html#9772" title="edu.berkeley.cs.avro.runtime.package.TypedSchema[RecordType]">TypedSchema</a><span class="delimiter">[</span>RecordType<span class="delimiter">]</span><span class="delimiter">)</span>: <a href="#69764" title="AvroInFile extends org.apache.avro.file.DataFileReader[RecordType] with Iterator[RecordType]">DataFileReader</a><span class="delimiter">[</span>RecordType<span class="delimiter">]</span> <span class="keyword">with</span> Iterator<span class="delimiter">[</span>RecordType<span class="delimiter">]</span> = <span class="delimiter">{</span>
+    <a href="#69861" title="org.apache.avro.file.DataFileReader[RecordType] with Iterator[RecordType]" class="keyword">new</a> <a title="anonymous class $anon extends org.apache.avro.file.DataFileReader[RecordType] with Iterator[RecordType]" id="69861">DataFileReader</a><span class="delimiter">[</span>RecordType<span class="delimiter">]</span><span class="delimiter">(</span><a href="#69526" title="java.io.File">file</a>, <span title="(x$1: org.apache.avro.Schema)org.apache.avro.specific.SpecificDatumReader[RecordType]" class="keyword">new</span> <span title="org.apache.avro.specific.SpecificDatumReader[RecordType]">SpecificDatumReader</span><span class="delimiter">[</span>RecordType<span class="delimiter">]</span><span class="delimiter">(</span><a href="package.scala.html#9774" title="(t: edu.berkeley.cs.avro.runtime.package#TypedSchema[RecordType])org.apache.avro.Schema">schema</a><span class="delimiter">)</span><span class="delimiter">)</span> <span class="keyword">with</span> <span title="Iterator[RecordType]">Iterator</span><span class="delimiter">[</span>RecordType<span class="delimiter">]</span>
+  <span class="delimiter">}</span>
+<span class="delimiter">}</span>
+
+<span class="keyword">object</span> <a title="object edu.berkeley.cs.avro.runtime.AvroOutFile" id="9672">AvroOutFile</a> <span title="ScalaObject" class="delimiter">{</span>
+  <span class="keyword">def</span> <a title="[RecordType &lt;: org.apache.avro.generic.GenericContainer](file: java.io.File, codec: Option[org.apache.avro.file.CodecFactory])(implicit schema: edu.berkeley.cs.avro.runtime.package.TypedSchema[RecordType])org.apache.avro.file.DataFileWriter[RecordType]" id="70326">apply</a><span class="delimiter">[</span><a title="&gt;: Nothing &lt;: org.apache.avro.generic.GenericContainer" id="70407">RecordType</a> &lt;: GenericContainer<span class="delimiter">]</span><span class="delimiter">(</span><a title="java.io.File" id="70330">file</a>: <span title="java.io.File">File</span>, <a title="Option[org.apache.avro.file.CodecFactory]" id="70405">codec</a>: <span title="Option[org.apache.avro.file.CodecFactory]">Option</span><span class="delimiter">[</span>CodecFactory<span class="delimiter">]</span> = <span title="object None">None</span><span class="delimiter">)</span><span class="delimiter">(</span><span class="keyword">implicit</span> <a title="edu.berkeley.cs.avro.runtime.package.TypedSchema[RecordType]" id="70332">schema</a>: <a href="package.scala.html#9772" title="edu.berkeley.cs.avro.runtime.package.TypedSchema[RecordType]">TypedSchema</a><span class="delimiter">[</span>RecordType<span class="delimiter">]</span><span class="delimiter">)</span>: <span title="org.apache.avro.file.DataFileWriter[RecordType]">DataFileWriter</span><span class="delimiter">[</span>RecordType<span class="delimiter">]</span> = <span class="delimiter">{</span>
+    <span class="keyword">val</span> <a title="org.apache.avro.file.DataFileWriter[RecordType]" id="70422">writer</a> = <span title="org.apache.avro.file.DataFileWriter[RecordType]" class="keyword">new</span> <span title="org.apache.avro.file.DataFileWriter[RecordType]">DataFileWriter</span><span class="delimiter">(</span><span title="(x$1: org.apache.avro.Schema)org.apache.avro.specific.SpecificDatumWriter[RecordType]" class="keyword">new</span> <span title="org.apache.avro.specific.SpecificDatumWriter[RecordType]">SpecificDatumWriter</span><span class="delimiter">[</span>RecordType<span class="delimiter">]</span><span class="delimiter">(</span><a href="package.scala.html#9774" title="(t: edu.berkeley.cs.avro.runtime.package#TypedSchema[RecordType])org.apache.avro.Schema">schema</a><span class="delimiter">)</span><span class="delimiter">)</span>
+    <a href="#70405" title="Option[org.apache.avro.file.CodecFactory]">codec</a>.<span title="(f: org.apache.avro.file.CodecFactory =&gt; org.apache.avro.file.DataFileWriter[RecordType])Unit">foreach</span><span class="delimiter">(</span><a href="#70422" title="org.apache.avro.file.DataFileWriter[RecordType]">writer</a>.<a href="#70538" title="(x$1: org.apache.avro.file.CodecFactory)org.apache.avro.file.DataFileWriter[RecordType]">setCodec</a><span class="delimiter">)</span>
+    <a href="#70422" title="org.apache.avro.file.DataFileWriter[RecordType]">writer</a>.<span title="(x$1: org.apache.avro.Schema, x$2: java.io.File)org.apache.avro.file.DataFileWriter[RecordType]">create</span><span class="delimiter">(</span><a href="package.scala.html#9774" title="(t: edu.berkeley.cs.avro.runtime.package#TypedSchema[RecordType])org.apache.avro.Schema">schema</a>, <a href="#70330" title="java.io.File">file</a><span class="delimiter">)</span>
+    <span title="Nothing" class="keyword">return</span> <a href="#70422" title="org.apache.avro.file.DataFileWriter[RecordType]">writer</a>
+  <span class="delimiter">}</span>
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>plugin/Exceptions.scala</title>
+        <script type="text/javascript" src="../jquery-all.js"></script>
+        <script type="text/javascript" src="../linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="../style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.avro
+<span class="keyword">package</span> plugin
+
+<span class="keyword">abstract</span> <span class="keyword">class</span> <a title="class ScalaAvroCompilationException extends java.lang.RuntimeException with ScalaObject" id="9505">ScalaAvroCompilationException</a><a href="#9505" title="ScalaObject" class="delimiter">(</a><a title="String" id="39661">msg</a>: <span title="String">String</span><span class="delimiter">)</span> <span class="keyword">extends</span> <span title="java.lang.RuntimeException">RuntimeException</span><span class="delimiter">(</span><a href="#39661" title="String">msg</a><span class="delimiter">)</span>
+
+<span class="keyword">class</span> <a title="class NonCaseClassException extends edu.berkeley.cs.avro.plugin.ScalaAvroCompilationException with ScalaObject" id="9506">NonCaseClassException</a><a href="#9506" title="ScalaObject" class="delimiter">(</a><a title="String" id="39672">recordName</a>: <span title="String">String</span><span class="delimiter">)</span> <span class="keyword">extends</span> <a href="#9505" title="edu.berkeley.cs.avro.plugin.ScalaAvroCompilationException">ScalaAvroCompilationException</a><span class="delimiter">(</span>
+        <span title="java.lang.String(&quot;Implementation limitation: @AvroRecord classes must be case classes: &quot;)" class="string">&quot;Implementation limitation: @AvroRecord classes must be case classes: &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#39672" title="String">recordName</a><span class="delimiter">)</span> 
+
+<span class="keyword">class</span> <a title="class NonSealedClassException extends edu.berkeley.cs.avro.plugin.ScalaAvroCompilationException with ScalaObject" id="9507">NonSealedClassException</a><a href="#9507" title="ScalaObject" class="delimiter">(</a><a title="String" id="39678">recordName</a>: <span title="String">String</span><span class="delimiter">)</span> <span class="keyword">extends</span> <a href="#9505" title="edu.berkeley.cs.avro.plugin.ScalaAvroCompilationException">ScalaAvroCompilationException</a><span class="delimiter">(</span>
+        <span title="java.lang.String(&quot;@AvroUnion interfaces must be sealed: &quot;)" class="string">&quot;@AvroUnion interfaces must be sealed: &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#39678" title="String">recordName</a><span class="delimiter">)</span>
+
+<span class="keyword">class</span> <a title="class ImmutableFieldException extends edu.berkeley.cs.avro.plugin.ScalaAvroCompilationException with ScalaObject" id="9508">ImmutableFieldException</a><a href="#9508" title="ScalaObject" class="delimiter">(</a><a title="String" id="39684">fieldName</a>: <span title="String">String</span><span class="delimiter">)</span> <span class="keyword">extends</span> <a href="#9505" title="edu.berkeley.cs.avro.plugin.ScalaAvroCompilationException">ScalaAvroCompilationException</a><span class="delimiter">(</span>
+        <span title="java.lang.String(&quot;Implemenation limitation: @AvroRecord classes must have mutable fields: &quot;)" class="string">&quot;Implemenation limitation: @AvroRecord classes must have mutable fields: &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#39684" title="String">fieldName</a><span class="delimiter">)</span>
+
+        </pre>
+    </body>
+</html>

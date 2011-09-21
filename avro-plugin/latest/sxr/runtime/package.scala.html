@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>runtime/package.scala</title>
+        <script type="text/javascript" src="../jquery-all.js"></script>
+        <script type="text/javascript" src="../linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="../style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.avro
+
+<span class="keyword">import</span> org.apache.avro.Schema
+<span class="keyword">import</span> org.apache.avro.generic.<span class="delimiter">{</span>GenericContainer, IndexedRecord<span class="delimiter">}</span>
+
+<span class="keyword">package</span> <span class="keyword">object</span> <a title="object edu.berkeley.cs.avro.runtime.package" id="9733">runtime</a> <span title="ScalaObject" class="delimiter">{</span>
+  <span class="keyword">implicit</span> <span class="keyword">def</span> <a title="[C &lt;: org.apache.avro.generic.GenericContainer](implicit r: Manifest[C])edu.berkeley.cs.avro.runtime.package.TypedSchema[C]" id="9762">genericContainerSchema</a><span class="delimiter">[</span><a title="&gt;: Nothing &lt;: org.apache.avro.generic.GenericContainer" id="9764">C</a> &lt;: GenericContainer<span class="delimiter">]</span><span class="delimiter">(</span><span class="keyword">implicit</span> <a title="Manifest[C]" id="61662">r</a>: <span title="Manifest[C]">Manifest</span><span class="delimiter">[</span>C<span class="delimiter">]</span><span class="delimiter">)</span>: <a href="#9772" title="edu.berkeley.cs.avro.runtime.package.TypedSchema[C]">TypedSchema</a><span class="delimiter">[</span>C<span class="delimiter">]</span> = <span class="delimiter">{</span>
+    <span class="keyword">val</span> <a title="org.apache.avro.Schema" id="76867">schema</a> = <a href="TypedSchemas.scala.html#9726" title="object edu.berkeley.cs.avro.runtime.TypedSchemas">TypedSchemas</a>.<a href="TypedSchemas.scala.html#76828" title="[C &lt;: org.apache.avro.generic.GenericContainer](implicit r: Manifest[C])org.apache.avro.Schema">findSchema</a><a href="#61662" title="(implicit r: Manifest[C])org.apache.avro.Schema" class="delimiter">[</a><a href="#9764" title="C">C</a><span class="delimiter">]</span>
+    <span title="edu.berkeley.cs.avro.runtime.package.TypedSchema[C]" class="keyword">new</span> <a href="#9772" title="edu.berkeley.cs.avro.runtime.package.TypedSchema[C]">TypedSchema</a><span class="delimiter">[</span>C<span class="delimiter">]</span><span class="delimiter">(</span><a href="#76867" title="org.apache.avro.Schema">schema</a><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">implicit</span> <span class="keyword">def</span> <a title="[RecType &lt;: org.apache.avro.generic.IndexedRecord](record: RecType)edu.berkeley.cs.avro.runtime.RichIndexedRecord[RecType]" id="9765">toRichIndexedRecord</a><span class="delimiter">[</span><a title="&gt;: Nothing &lt;: org.apache.avro.generic.IndexedRecord" id="9767">RecType</a> &lt;: IndexedRecord<span class="delimiter">]</span><span class="delimiter">(</span><a title="RecType" id="61634">record</a>: <a href="#9767" title="RecType">RecType</a><span class="delimiter">)</span> = <span title="edu.berkeley.cs.avro.runtime.RichIndexedRecord[RecType]" class="keyword">new</span> <a href="RichIndexedRecord.scala.html#9695" title="edu.berkeley.cs.avro.runtime.RichIndexedRecord[RecType]">RichIndexedRecord</a><span class="delimiter">(</span><a href="#61634" title="RecType">record</a><span class="delimiter">)</span>
+  <span class="keyword">implicit</span> <span class="keyword">def</span> <a title="implicit edu.berkeley.cs.avro.runtime.package.toJsonObject : (json: String)edu.berkeley.cs.avro.runtime.JsonObject" id="9768">toJsonObject</a><span class="delimiter">(</span><a title="String" id="61617">json</a>: <span title="String">String</span><span class="delimiter">)</span> = <span title="edu.berkeley.cs.avro.runtime.JsonObject" class="keyword">new</span> <a href="JsonParser.scala.html#9686" title="edu.berkeley.cs.avro.runtime.JsonObject">JsonObject</a><span class="delimiter">(</span><a href="#61617" title="String">json</a><span class="delimiter">)</span>
+  <span class="keyword">implicit</span> <span class="keyword">def</span> <a title="[A](a: A)Option[A]" id="9769">toOption</a><span class="delimiter">[</span><a title="&gt;: Nothing &lt;: Any" id="9771">A</a><span class="delimiter">]</span><span class="delimiter">(</span><a title="A" id="61610">a</a>: <a href="#9771" title="A">A</a><span class="delimiter">)</span> = <span title="(x: A)Option[A]">Option</span><span class="delimiter">(</span><a href="#61610" title="A">a</a><span class="delimiter">)</span>
+
+  <span class="comment">/**
+   * Type Parameterized Schema wrapper
+   */</span>
+  <span class="keyword">class</span> <a title="class TypedSchema[T] extends java.lang.Object with ScalaObject" id="9772">TypedSchema</a><span class="delimiter">[</span><a title="&gt;: Nothing &lt;: Any" id="9773">T</a><span class="delimiter">]</span><a href="#9772" title="ScalaObject" class="delimiter">(</a><span class="keyword">val</span> <a title="org.apache.avro.Schema" id="76872">impl</a>: <span title="org.apache.avro.Schema">Schema</span><span class="delimiter">)</span>
+
+  <span class="comment">/* implicit to unwrap typed schemas */</span>
+  <span class="keyword">implicit</span> <span class="keyword">def</span> <a title="[A](t: edu.berkeley.cs.avro.runtime.package.TypedSchema[A])org.apache.avro.Schema" id="9774">untypeSchema</a><span class="delimiter">[</span><a title="&gt;: Nothing &lt;: Any" id="9776">A</a><span class="delimiter">]</span><span class="delimiter">(</span><a title="edu.berkeley.cs.avro.runtime.package.TypedSchema[A]" id="61607">t</a>: <a href="#9772" title="edu.berkeley.cs.avro.runtime.package.TypedSchema[A]">TypedSchema</a><span class="delimiter">[</span>A<span class="delimiter">]</span><span class="delimiter">)</span>: <span title="org.apache.avro.Schema">Schema</span> = <a href="#61607" title="edu.berkeley.cs.avro.runtime.package.TypedSchema[A]">t</a>.<a href="#76872" title="=&gt; org.apache.avro.Schema">impl</a>
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>

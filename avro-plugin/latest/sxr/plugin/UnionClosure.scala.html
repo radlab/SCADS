@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>plugin/UnionClosure.scala</title>
+        <script type="text/javascript" src="../jquery-all.js"></script>
+        <script type="text/javascript" src="../linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="../style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.avro
+<span class="keyword">package</span> plugin
+
+<span class="keyword">import</span> scala.tools.nsc._
+
+<span class="keyword">import</span> org.apache.avro.Schema
+
+<span class="keyword">trait</span> <a title="trait UnionClosure extends scala.tools.nsc.plugins.PluginComponent with edu.berkeley.cs.avro.plugin.ScalaAvroPluginComponent with ScalaObject" id="9621">UnionClosure</a> <span title="ScalaObject" class="keyword">extends</span> <a href="ScalaAvroPlugin.scala.html#9582" title="edu.berkeley.cs.avro.plugin.ScalaAvroPluginComponent">ScalaAvroPluginComponent</a> <span class="delimiter">{</span>
+  <span class="keyword">import</span> <a href="#9621" title="=&gt; scala.tools.nsc.Global">global</a>._
+
+  <span class="keyword">val</span> <a title="List[String]" id="57878">runsAfter</a> = <span title="[A](xs: A*)List[A]">List</span><span title="(xs: String*)List[String]" class="delimiter">[</span><span title="String">String</span><span class="delimiter">]</span><span class="delimiter">(</span><span title="java.lang.String(&quot;uniondiscover&quot;)" class="string">&quot;uniondiscover&quot;</span><span class="delimiter">)</span>
+  <span class="keyword">override</span> <span class="keyword">val</span> <a title="Some[java.lang.String]" id="57880">runsRightAfter</a> = <span title="(x: java.lang.String)Some[java.lang.String]">Some</span><span class="delimiter">(</span><span title="java.lang.String(&quot;uniondiscover&quot;)" class="string">&quot;uniondiscover&quot;</span><span class="delimiter">)</span>
+  <span class="keyword">val</span> <a title="java.lang.String" id="57882">phaseName</a> = <span title="java.lang.String(&quot;unionclosure&quot;)" class="string">&quot;unionclosure&quot;</span>
+
+  <span class="keyword">def</span> <a title="(prev: scala.tools.nsc.Phase)scala.tools.nsc.Phase" id="57884">newPhase</a><span class="delimiter">(</span><a title="scala.tools.nsc.Phase" id="60654">prev</a>: <span title="scala.tools.nsc.Phase">Phase</span><span class="delimiter">)</span>: <span title="scala.tools.nsc.Phase">Phase</span> = <span title="UnionClosure.this.TraverserPhase" class="keyword">new</span> <a href="#57885" title="UnionClosure.this.TraverserPhase">TraverserPhase</a><span class="delimiter">(</span><a href="#60654" title="scala.tools.nsc.Phase">prev</a><span class="delimiter">)</span>
+
+  <span class="keyword">class</span> <a title="class TraverserPhase extends UnionClosure.this.StdPhase with ScalaObject" id="57885">TraverserPhase</a><a href="#57885" title="ScalaObject" class="delimiter">(</a><a title="scala.tools.nsc.Phase" id="60665">prev</a>: <span title="scala.tools.nsc.Phase">Phase</span><span class="delimiter">)</span> <span class="keyword">extends</span> <a href="#9621" title="UnionClosure.this.StdPhase">StdPhase</a><span class="delimiter">(</span><a href="#60665" title="scala.tools.nsc.Phase">prev</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+    <span class="keyword">var</span> <a title="UnionClosure.this.global.CompilationUnit" id="60660">unit</a>: <span title="UnionClosure.this.global.CompilationUnit">CompilationUnit</span> = _
+    <span class="keyword">def</span> <a title="(_unit: UnionClosure.this.global.CompilationUnit)Unit" id="60662">apply</a><span class="delimiter">(</span><a title="UnionClosure.this.global.CompilationUnit" id="60669">_unit</a>: <span title="UnionClosure.this.global.CompilationUnit">CompilationUnit</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+      <a href="#60660" title="(x$1: UnionClosure.this.global.CompilationUnit)Unit">unit</a> = <a href="#60669" title="UnionClosure.this.global.CompilationUnit">_unit</a>
+      <a href="ScalaAvroPlugin.scala.html#21648" title="(a: AnyRef)Unit">debug</a><span class="delimiter">(</span><span title="java.lang.String(&quot;Union for comp unit: &quot;)" class="string">&quot;Union for comp unit: &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#60660" title="=&gt; UnionClosure.this.global.CompilationUnit">unit</a><span class="delimiter">)</span>
+      <a href="ScalaAvroPlugin.scala.html#21648" title="(a: AnyRef)Unit">debug</a><span class="delimiter">(</span><a href="ScalaAvroPlugin.scala.html#21709" title="(unit: UnionClosure.this.global.CompilationUnit)List[UnionClosure.this.global.Symbol]">retrieveUnions</a><span class="delimiter">(</span><a href="#60660" title="=&gt; UnionClosure.this.global.CompilationUnit">unit</a><span class="delimiter">)</span><span class="delimiter">)</span>
+      <a href="#60663" title="()UnionClosure.this.global.Traverser">newTraverser</a><span class="delimiter">(</span><span class="delimiter">)</span>.<span title="(tree: UnionClosure.this.global.Tree)Unit">traverse</span><span class="delimiter">(</span><a href="#60660" title="=&gt; UnionClosure.this.global.CompilationUnit">unit</a>.<span title="=&gt; UnionClosure.this.global.Tree">body</span><span class="delimiter">)</span>
+    <span class="delimiter">}</span>   
+
+    <span class="keyword">def</span> <a title="()UnionClosure.this.global.Traverser" id="60663">newTraverser</a><span class="delimiter">(</span><span class="delimiter">)</span>: <span title="UnionClosure.this.global.Traverser">Traverser</span> = <span title="UnionClosure.this.global.ForeachTreeTraverser" class="keyword">new</span> <a href="#9621" title="UnionClosure.this.global.ForeachTreeTraverser">ForeachTreeTraverser</a><span class="delimiter">(</span><a href="#60664" title="(tree: UnionClosure.this.global.Tree)Unit">check</a><span class="delimiter">)</span>
+
+    <span class="keyword">def</span> <a title="(tree: UnionClosure.this.global.Tree)Unit" id="60664">check</a><span class="delimiter">(</span><a title="UnionClosure.this.global.Tree" id="60680">tree</a>: <span title="UnionClosure.this.global.Tree">Tree</span><span class="delimiter">)</span>: <span title="Unit">Unit</span> = <a href="#60680" title="UnionClosure.this.global.Tree">tree</a> <span title="Unit" class="keyword">match</span> <span class="delimiter">{</span>
+      <span class="keyword">case</span> <a title="Unit" id="60684">cd</a> @ ClassDef<span class="delimiter">(</span>_, _, _, _<span class="delimiter">)</span> <span class="keyword">if</span> <span class="delimiter">(</span><a href="#60684" title="UnionClosure.this.global.ClassDef">cd</a>.<span title="=&gt; UnionClosure.this.global.Symbol">symbol</span>.<span title="=&gt; UnionClosure.this.global.Type">tpe</span>.<span title="=&gt; List[UnionClosure.this.global.Type]">parents</span>.<span title="(elem: Any)Boolean">contains</span><span class="delimiter">(</span><a href="ScalaAvroPlugin.scala.html#21659" title="=&gt; UnionClosure.this.global.Symbol">avroRecordTrait</a>.<span title="=&gt; UnionClosure.this.global.Type">tpe</span><span class="delimiter">)</span><span class="delimiter">)</span> =&gt;
+        <a href="ScalaAvroPlugin.scala.html#21648" title="(a: AnyRef)Unit">debug</a><span class="delimiter">(</span><span title="java.lang.String(&quot;Running union closure on class: &quot;)" class="string">&quot;Running union closure on class: &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#60684" title="UnionClosure.this.global.ClassDef">cd</a>.<span title="=&gt; UnionClosure.this.global.Symbol">symbol</span>.<span title="=&gt; String">fullName</span><span class="delimiter">)</span>
+        <span class="keyword">val</span> <a title="List[UnionClosure.this.global.Symbol]" id="60700">unitUnions</a> = <a href="ScalaAvroPlugin.scala.html#21709" title="(unit: UnionClosure.this.global.CompilationUnit)List[UnionClosure.this.global.Symbol]">retrieveUnions</a><span class="delimiter">(</span><a href="#60660" title="=&gt; UnionClosure.this.global.CompilationUnit">unit</a><span class="delimiter">)</span>
+        <a href="#60700" title="List[UnionClosure.this.global.Symbol]">unitUnions</a>.
+          <span title="(p: UnionClosure.this.global.Symbol =&gt; Boolean)List[UnionClosure.this.global.Symbol]">filter</span><span class="delimiter">(</span><a title="UnionClosure.this.global.Symbol" id="60706">unionSym</a> =&gt; <span class="delimiter">{</span>
+            <a href="ScalaAvroPlugin.scala.html#21648" title="(a: AnyRef)Unit">debug</a><span class="delimiter">(</span><span title="java.lang.String(&quot;Comparing cd.symbol.tpe &quot;)" class="string">&quot;Comparing cd.symbol.tpe &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#60684" title="UnionClosure.this.global.ClassDef">cd</a>.<span title="=&gt; UnionClosure.this.global.Symbol">symbol</span>.<span title="=&gt; UnionClosure.this.global.Type">tpe</span> <span title="(x$1: Any)java.lang.String">+</span> <span title="java.lang.String(&quot; to &quot;)" class="string">&quot; to &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#60706" title="UnionClosure.this.global.Symbol">unionSym</a>.<span title="=&gt; UnionClosure.this.global.Type">tpe</span><span class="delimiter">)</span>
+            <a href="#60684" title="UnionClosure.this.global.ClassDef">cd</a>.<span title="=&gt; UnionClosure.this.global.Symbol">symbol</span>.<span title="=&gt; UnionClosure.this.global.Type">tpe</span> <span title="(that: UnionClosure.this.global.Type)Boolean">&lt;:&lt;</span> <a href="#60706" title="UnionClosure.this.global.Symbol">unionSym</a>.<span title="=&gt; UnionClosure.this.global.Type">tpe</span> <span class="delimiter">}</span><span class="delimiter">)</span>.
+          <span title="(f: UnionClosure.this.global.Symbol =&gt; Unit)Unit">foreach</span><span class="delimiter">(</span><a title="UnionClosure.this.global.Symbol" id="60737">unionSym</a> =&gt; <a href="ScalaAvroPlugin.scala.html#21705" title="(name: UnionClosure.this.global.Symbol, schema: UnionClosure.this.global.Symbol)Unit">addUnionRecord</a><span class="delimiter">(</span><a href="#60737" title="UnionClosure.this.global.Symbol">unionSym</a>, <a href="#60684" title="UnionClosure.this.global.ClassDef">cd</a>.<span title="=&gt; UnionClosure.this.global.Symbol">symbol</span><span class="delimiter">)</span><span class="delimiter">)</span>
+      <span class="keyword">case</span> <a title="Unit" id="60741">cd</a> @ ClassDef<span class="delimiter">(</span><a title="UnionClosure.this.global.Modifiers" id="60748">mods</a>,_,_,_<span class="delimiter">)</span> =&gt;
+        <a href="ScalaAvroPlugin.scala.html#21648" title="(a: AnyRef)Unit">debug</a><span class="delimiter">(</span><span title="java.lang.String(&quot;Skipped class: &quot;)" class="string">&quot;Skipped class: &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#60741" title="UnionClosure.this.global.ClassDef">cd</a>.<span title="=&gt; UnionClosure.this.global.Symbol">symbol</span>.<span title="=&gt; String">fullName</span><span class="delimiter">)</span>
+      <span class="keyword">case</span> <span title="Unit">_</span> =&gt; <span title="Unit" class="delimiter">(</span><span class="delimiter">)</span>
+    <span class="delimiter">}</span>
+  <span class="delimiter">}</span>
+
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>

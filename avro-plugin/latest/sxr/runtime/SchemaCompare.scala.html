@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>runtime/SchemaCompare.scala</title>
+        <script type="text/javascript" src="../jquery-all.js"></script>
+        <script type="text/javascript" src="../linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="../style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.avro
+<span class="keyword">package</span> runtime
+
+<span class="keyword">import</span> org.apache.avro.Schema
+<span class="keyword">import</span> collection.<span title="object scala.collection.JavaConversions">JavaConversions</span>._
+
+<span class="keyword">object</span> <a title="object edu.berkeley.cs.avro.runtime.SchemaCompare" id="9717">SchemaCompare</a> <span title="ScalaObject" class="delimiter">{</span>
+  <span class="keyword">def</span> <a title="(s1: org.apache.avro.Schema, s2: org.apache.avro.Schema)Boolean" id="75434">typesEqual</a><span class="delimiter">(</span><a title="org.apache.avro.Schema" id="75436">s1</a>:<span title="org.apache.avro.Schema">Schema</span>,<a title="org.apache.avro.Schema" id="75437">s2</a>:<span title="org.apache.avro.Schema">Schema</span><span class="delimiter">)</span>:<span title="Boolean">Boolean</span> = <span class="delimiter">{</span>
+    <span title="Boolean" class="keyword">if</span> <span class="delimiter">(</span><a href="#75436" title="org.apache.avro.Schema">s1</a>.<span title="()org.apache.avro.Schema.Type">getType</span> <span title="(x$1: AnyRef)Boolean">!=</span> <a href="#75437" title="org.apache.avro.Schema">s2</a>.<span title="()org.apache.avro.Schema.Type">getType</span><span class="delimiter">)</span>
+      <span title="Boolean(false)" class="keyword">false</span>
+    <span class="keyword">else</span> <span class="delimiter">{</span>
+      <a href="#75436" title="org.apache.avro.Schema">s1</a>.<span title="()org.apache.avro.Schema.Type">getType</span> <span title="Boolean" class="keyword">match</span> <span class="delimiter">{</span>
+        <span class="keyword">case</span> <span title="Boolean">Schema</span>.Type.<span title="org.apache.avro.Schema.Type(value RECORD)">RECORD</span> =&gt; <span class="delimiter">{</span>
+          <span class="keyword">val</span> <a title="java.util.List[org.apache.avro.Schema.Field]" id="75444">f1</a> = <a href="#75436" title="org.apache.avro.Schema">s1</a>.<span title="()java.util.List[org.apache.avro.Schema.Field]">getFields</span>
+          <span class="keyword">val</span> <a title="java.util.List[org.apache.avro.Schema.Field]" id="75445">f2</a> = <a href="#75437" title="org.apache.avro.Schema">s2</a>.<span title="()java.util.List[org.apache.avro.Schema.Field]">getFields</span>
+          <span title="Unit" class="keyword">if</span> <span class="delimiter">(</span><a href="#75444" title="(l: java.util.List[org.apache.avro.Schema.Field])scala.collection.mutable.Buffer[org.apache.avro.Schema.Field]">f1</a>.<span title="=&gt; Int">length</span> <span title="(x: Int)Boolean">!=</span> <a href="#75445" title="(l: java.util.List[org.apache.avro.Schema.Field])scala.collection.mutable.Buffer[org.apache.avro.Schema.Field]">f2</a>.<span title="=&gt; Int">length</span><span class="delimiter">)</span> <span title="Nothing" class="keyword">return</span> <span title="Boolean(false)" class="keyword">false</span>
+          <a href="#75444" title="(l: java.util.List[org.apache.avro.Schema.Field])scala.collection.mutable.Buffer[org.apache.avro.Schema.Field]">f1</a>.<span title="(that: scala.collection.GenIterable[org.apache.avro.Schema.Field])(implicit bf: scala.collection.generic.CanBuildFrom[scala.collection.mutable.Buffer[org.apache.avro.Schema.Field],(org.apache.avro.Schema.Field, org.apache.avro.Schema.Field),scala.collection.mutable.Buffer[(org.apache.avro.Schema.Field, org.apache.avro.Schema.Field)]])scala.collection.mutable.Buffer[(org.apache.avro.Schema.Field, org.apache.avro.Schema.Field)]">zip</span><span title="scala.collection.generic.CanBuildFrom[scala.collection.mutable.Buffer.Coll,(org.apache.avro.Schema.Field, org.apache.avro.Schema.Field),scala.collection.mutable.Buffer[(org.apache.avro.Schema.Field, org.apache.avro.Schema.Field)]]" class="delimiter">(</span><a href="#75445" title="(l: java.util.List[org.apache.avro.Schema.Field])scala.collection.mutable.Buffer[org.apache.avro.Schema.Field]">f2</a><span class="delimiter">)</span> <span title="(f: (org.apache.avro.Schema.Field, org.apache.avro.Schema.Field) =&gt; Unit)Unit">foreach</span><span class="delimiter">(</span><a title="(org.apache.avro.Schema.Field, org.apache.avro.Schema.Field)" id="76058">fields</a> =&gt; <span class="delimiter">{</span>
+            <span title="Unit" class="keyword">if</span> <span class="delimiter">(</span><span title="=&gt; Boolean">!</span><a href="#75434" title="(s1: org.apache.avro.Schema, s2: org.apache.avro.Schema)Boolean">typesEqual</a><span class="delimiter">(</span><a href="#76058" title="(org.apache.avro.Schema.Field, org.apache.avro.Schema.Field)">fields</a>.<span title="=&gt; org.apache.avro.Schema.Field">_1</span>.<span title="()org.apache.avro.Schema">schema</span>,<a href="#76058" title="(org.apache.avro.Schema.Field, org.apache.avro.Schema.Field)">fields</a>.<span title="=&gt; org.apache.avro.Schema.Field">_2</span>.<span title="()org.apache.avro.Schema">schema</span><span class="delimiter">)</span><span class="delimiter">)</span>
+              <span title="Nothing" class="keyword">return</span> <span title="Boolean(false)" class="keyword">false</span>
+          <span class="delimiter">}</span><span class="delimiter">)</span>
+          <span title="Boolean(true)" class="keyword">true</span>
+        <span class="delimiter">}</span>
+        <span class="keyword">case</span> <span title="Boolean">Schema</span>.Type.<span title="org.apache.avro.Schema.Type(value UNION)">UNION</span> =&gt; <span class="delimiter">{</span>
+          <a href="#75436" title="org.apache.avro.Schema">s1</a>.<span title="(l: java.util.List[org.apache.avro.Schema])scala.collection.mutable.Buffer[org.apache.avro.Schema]">getTypes</span>.<span title="(that: scala.collection.GenIterable[org.apache.avro.Schema])(implicit bf: scala.collection.generic.CanBuildFrom[scala.collection.mutable.Buffer[org.apache.avro.Schema],(org.apache.avro.Schema, org.apache.avro.Schema),scala.collection.mutable.Buffer[(org.apache.avro.Schema, org.apache.avro.Schema)]])scala.collection.mutable.Buffer[(org.apache.avro.Schema, org.apache.avro.Schema)]">zip</span><span title="scala.collection.generic.CanBuildFrom[scala.collection.mutable.Buffer.Coll,(org.apache.avro.Schema, org.apache.avro.Schema),scala.collection.mutable.Buffer[(org.apache.avro.Schema, org.apache.avro.Schema)]]" class="delimiter">(</span><a href="#75437" title="org.apache.avro.Schema">s2</a>.<span title="(l: java.util.List[org.apache.avro.Schema])scala.collection.mutable.Buffer[org.apache.avro.Schema]">getTypes</span><span class="delimiter">)</span> <span title="(f: (org.apache.avro.Schema, org.apache.avro.Schema) =&gt; Unit)Unit">foreach</span><span class="delimiter">(</span><a title="(org.apache.avro.Schema, org.apache.avro.Schema)" id="76443">types</a> =&gt; <span class="delimiter">{</span>
+            <span title="Unit" class="keyword">if</span> <span class="delimiter">(</span><span title="=&gt; Boolean">!</span><a href="#75434" title="(s1: org.apache.avro.Schema, s2: org.apache.avro.Schema)Boolean">typesEqual</a><span class="delimiter">(</span><a href="#76443" title="(org.apache.avro.Schema, org.apache.avro.Schema)">types</a>.<span title="=&gt; org.apache.avro.Schema">_1</span>,<a href="#76443" title="(org.apache.avro.Schema, org.apache.avro.Schema)">types</a>.<span title="=&gt; org.apache.avro.Schema">_2</span><span class="delimiter">)</span><span class="delimiter">)</span>
+              <span title="Nothing" class="keyword">return</span> <span title="Boolean(false)" class="keyword">false</span>
+          <span class="delimiter">}</span><span class="delimiter">)</span>
+          <span title="Boolean(true)" class="keyword">true</span>
+        <span class="delimiter">}</span>
+        <span class="keyword">case</span> <span title="Boolean">Schema</span>.Type.<span title="org.apache.avro.Schema.Type(value ENUM)">ENUM</span> =&gt; <span class="delimiter">{</span>
+          <a href="#75436" title="org.apache.avro.Schema">s1</a>.<span title="(l: java.util.List[java.lang.String])scala.collection.mutable.Buffer[java.lang.String]">getEnumSymbols</span>.<span title="(that: scala.collection.GenIterable[java.lang.String])(implicit bf: scala.collection.generic.CanBuildFrom[scala.collection.mutable.Buffer[java.lang.String],(java.lang.String, java.lang.String),scala.collection.mutable.Buffer[(java.lang.String, java.lang.String)]])scala.collection.mutable.Buffer[(java.lang.String, java.lang.String)]">zip</span><span title="scala.collection.generic.CanBuildFrom[scala.collection.mutable.Buffer.Coll,(java.lang.String, java.lang.String),scala.collection.mutable.Buffer[(java.lang.String, java.lang.String)]]" class="delimiter">(</span><a href="#75437" title="org.apache.avro.Schema">s2</a>.<span title="(l: java.util.List[java.lang.String])scala.collection.mutable.Buffer[java.lang.String]">getEnumSymbols</span><span class="delimiter">)</span> <span title="(f: (java.lang.String, java.lang.String) =&gt; Unit)Unit">foreach</span><span class="delimiter">(</span><a title="(java.lang.String, java.lang.String)" id="76817">symbols</a> =&gt; <span class="delimiter">{</span>
+            <span title="Unit" class="keyword">if</span> <span class="delimiter">(</span><span title="=&gt; Boolean">!</span><a href="#76817" title="(java.lang.String, java.lang.String)">symbols</a>.<span title="=&gt; java.lang.String">_1</span>.<span title="(x$1: Any)Boolean">equals</span><span class="delimiter">(</span><a href="#76817" title="(java.lang.String, java.lang.String)">symbols</a>.<span title="=&gt; java.lang.String">_2</span><span class="delimiter">)</span><span class="delimiter">)</span>
+              <span title="Nothing" class="keyword">return</span> <span title="Boolean(false)" class="keyword">false</span>
+          <span class="delimiter">}</span><span class="delimiter">)</span>
+          <span title="Boolean(true)" class="keyword">true</span>
+        <span class="delimiter">}</span>
+        <span class="keyword">case</span> <span title="Boolean">Schema</span>.Type.<span title="org.apache.avro.Schema.Type(value ARRAY)">ARRAY</span> =&gt; 
+          <a href="#75434" title="(s1: org.apache.avro.Schema, s2: org.apache.avro.Schema)Boolean">typesEqual</a><span class="delimiter">(</span><a href="#75436" title="org.apache.avro.Schema">s1</a>.<span title="()org.apache.avro.Schema">getElementType</span>,<a href="#75437" title="org.apache.avro.Schema">s2</a>.<span title="()org.apache.avro.Schema">getElementType</span><span class="delimiter">)</span>
+        <span class="keyword">case</span> <span title="Boolean">Schema</span>.Type.<span title="org.apache.avro.Schema.Type(value MAP)">MAP</span> =&gt;
+          <a href="#75434" title="(s1: org.apache.avro.Schema, s2: org.apache.avro.Schema)Boolean">typesEqual</a><span class="delimiter">(</span><a href="#75436" title="org.apache.avro.Schema">s1</a>.<span title="()org.apache.avro.Schema">getValueType</span>,<a href="#75437" title="org.apache.avro.Schema">s2</a>.<span title="()org.apache.avro.Schema">getValueType</span><span class="delimiter">)</span>
+        <span class="keyword">case</span> <span title="Boolean">Schema</span>.Type.<span title="org.apache.avro.Schema.Type(value FIXED)">FIXED</span> =&gt;
+          <a href="#75436" title="org.apache.avro.Schema">s1</a>.<span title="()Int">getFixedSize</span> <span title="(x: Int)Boolean">==</span> <a href="#75437" title="org.apache.avro.Schema">s2</a>.<span title="()Int">getFixedSize</span>
+        <span class="keyword">case</span> <span title="Boolean(true)">_</span> =&gt; <span title="Boolean(true)" class="keyword">true</span>
+      <span class="delimiter">}</span>
+    <span class="delimiter">}</span>
+  <span class="delimiter">}</span>
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>
