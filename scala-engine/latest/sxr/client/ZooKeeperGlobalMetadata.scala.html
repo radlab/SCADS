@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>client/ZooKeeperGlobalMetadata.scala</title>
+        <script type="text/javascript" src="../jquery-all.js"></script>
+        <script type="text/javascript" src="../linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="../style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.scads.storage
+
+<span class="keyword">import</span> edu.berkeley.cs.scads.comm._
+
+<span class="keyword">import</span> org.apache.avro._ 
+<span class="keyword">import</span> generic._
+
+<span class="keyword">import</span> org.apache.zookeeper._
+
+<span class="keyword">trait</span> <a title="trait ZooKeeperGlobalMetadata extends java.lang.Object with edu.berkeley.cs.scads.storage.GlobalMetadata with edu.berkeley.cs.scads.storage.Namespace with edu.berkeley.cs.scads.storage.KeyRoutable with ScalaObject" id="9732">ZooKeeperGlobalMetadata</a> <span title="ScalaObject" class="keyword">extends</span> <a href="Interfaces.scala.html#9618" title="edu.berkeley.cs.scads.storage.GlobalMetadata">GlobalMetadata</a> <span class="keyword">with</span> <a href="Namespace.scala.html#9625" title="edu.berkeley.cs.scads.storage.Namespace">Namespace</a> <span class="keyword">with</span> <a href="Interfaces.scala.html#9612" title="edu.berkeley.cs.scads.storage.KeyRoutable">KeyRoutable</a> <span class="delimiter">{</span>
+  <span class="keyword">val</span> <a title="=&gt; edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode" id="37950">root</a>: ZooKeeperProxy#<span title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">ZooKeeperNode</span>
+  <span class="keyword">val</span> <a title="=&gt; String" id="37951">name</a>: <span title="String">String</span>
+
+  @volatile <span class="keyword">var</span> <a title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode" id="37953">nsRoot</a>: ZooKeeperProxy#<span title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">ZooKeeperNode</span> = _
+  <a href="Namespace.scala.html#13589" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">debug</span><span class="delimiter">(</span><span title="java.lang.String(&quot;ZooKeeperGlobalMetadata Constructor: %s&quot;)" class="string">&quot;ZooKeeperGlobalMetadata Constructor: %s&quot;</span>, <a href="Namespace.scala.html#13587" title="=&gt; String">namespace</a><span class="delimiter">)</span>
+
+  <span class="keyword">private</span> <span class="keyword">def</span> <a title="(node: edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode)Unit" id="37955">initRoot</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode" id="65237">node</a>: ZooKeeperProxy#<span title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">ZooKeeperNode</span><span class="delimiter">)</span>: <span title="Unit">Unit</span> = <span class="delimiter">{</span>
+    <a href="#65237" title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">node</a>.<span title="(rpath: java.lang.String, tries: Int)edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">getOrCreate</span><span class="delimiter">(</span><span title="java.lang.String(&quot;partitions&quot;)" class="string">&quot;partitions&quot;</span><span class="delimiter">)</span>
+    <a href="#65237" title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">node</a>.<span title="(name: java.lang.String, data: Array[Byte], mode: org.apache.zookeeper.CreateMode)edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">createChild</span><span class="delimiter">(</span><span title="java.lang.String(&quot;keySchema&quot;)" class="string">&quot;keySchema&quot;</span>, <a href="Interfaces.scala.html#13627" title="=&gt; org.apache.avro.Schema">keySchema</a>.<span title="()java.lang.String">toString</span>.<span title="()Array[Byte]">getBytes</span>, CreateMode.<span title="org.apache.zookeeper.CreateMode(value PERSISTENT)">PERSISTENT</span><span class="delimiter">)</span>
+    <a href="#65237" title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">node</a>.<span title="(name: java.lang.String, data: Array[Byte], mode: org.apache.zookeeper.CreateMode)edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">createChild</span><span class="delimiter">(</span><span title="java.lang.String(&quot;valueSchema&quot;)" class="string">&quot;valueSchema&quot;</span>, <a href="Interfaces.scala.html#13628" title="=&gt; org.apache.avro.Schema">valueSchema</a>.<span title="()java.lang.String">toString</span>.<span title="()Array[Byte]">getBytes</span>, CreateMode.<span title="org.apache.zookeeper.CreateMode(value PERSISTENT)">PERSISTENT</span><span class="delimiter">)</span>
+    <a href="#65237" title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">node</a>.<span title="(name: java.lang.String, data: Array[Byte], mode: org.apache.zookeeper.CreateMode)edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">createChild</span><span title="Unit" class="delimiter">(</span><span title="java.lang.String(&quot;valueClass&quot;)" class="string">&quot;valueClass&quot;</span>, <a href="Interfaces.scala.html#13629" title="=&gt; String">valueClass</a>.<span title="()Array[Byte]">getBytes</span>, CreateMode.<span title="org.apache.zookeeper.CreateMode(value PERSISTENT)">PERSISTENT</span><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+
+  <span class="comment">// NS must NOT exist or exception is thrown</span>
+  <a href="Namespace.scala.html#13605" title="(f: =&gt; Unit)Unit">onCreate</a> <span class="delimiter">{</span>
+    <a href="Namespace.scala.html#13589" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">debug</span><span class="delimiter">(</span><span title="java.lang.String(&quot;ZooKeeperGlobalMetadata create(): &quot;)" class="string">&quot;ZooKeeperGlobalMetadata create(): &quot;</span><span class="delimiter">)</span>
+    <a href="Namespace.scala.html#13589" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">debug</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Creating nsRoot for namespace: &quot;)" class="string">&quot;Creating nsRoot for namespace: &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#37951" title="=&gt; String">name</a><span class="delimiter">)</span>
+
+    <a href="#37953" title="(x$1: edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode)Unit">nsRoot</a> = <a href="#37950" title="=&gt; edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">root</a>.<span title="(rpath: java.lang.String, tries: Int)edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">getOrCreate</span><span class="delimiter">(</span><a href="#37951" title="=&gt; String">name</a><span class="delimiter">)</span>
+    <span class="comment">/* Grab a lock so we are the only one creating the namespace */</span>
+    <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode" id="65264">createLock</a> = <a href="#37953" title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode" id="65278">nsRoot</a>.<a href="#65278" title="Array[Byte]" id="65281">createChild</a><span class="delimiter">(</span><a title="java.lang.String(&quot;createLock&quot;)" id="65279" class="string">&quot;createLock&quot;</a>, mode=CreateMode.<a title="org.apache.zookeeper.CreateMode(value EPHEMERAL)" id="65280">EPHEMERAL</a><span class="delimiter">)</span>
+    <a href="Namespace.scala.html#13589" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">info</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Aquired create lock for %s: %s&quot;)" class="string">&quot;Aquired create lock for %s: %s&quot;</span>, <a href="#37951" title="=&gt; String">name</a>, <a href="#65264" title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">createLock</a>.<span title="=&gt; java.lang.String">canonicalAddress</span><span class="delimiter">)</span>
+    <a href="#37955" title="(node: edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode)Unit">initRoot</a><span class="delimiter">(</span><a href="#37953" title="=&gt; edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">nsRoot</a><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+
+  <a href="Namespace.scala.html#13606" title="(f: =&gt; Unit)Unit">onCreateFinished</a> <span class="delimiter">{</span>
+    <a href="Namespace.scala.html#13589" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">info</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Creation of ns %s completed&quot;)" class="string">&quot;Creation of ns %s completed&quot;</span>, <a href="#37951" title="=&gt; String">name</a><span class="delimiter">)</span>
+    <a href="#37953" title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode" id="65290">nsRoot</a>.<a href="#65290" title="Array[Byte]" id="65293">createChild</a><span class="delimiter">(</span><a title="java.lang.String(&quot;initialized&quot;)" id="65291" class="string">&quot;initialized&quot;</a><span class="delimiter">)</span>
+    <a href="#37953" title="(rpath: java.lang.String)edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">nsRoot</a><span class="delimiter">(</span><span title="java.lang.String(&quot;createLock&quot;)" class="string">&quot;createLock&quot;</span><span class="delimiter">)</span>.<span title="()Unit">delete</span><span class="delimiter">(</span><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+
+  <span class="comment">// if NS exists, uses that data, otherwise creates a new one</span>
+  <span class="comment">// TODO: make allow create a parameter</span>
+  <a href="Namespace.scala.html#13607" title="(f: Boolean =&gt; Boolean)Unit">onOpen</a> <span class="delimiter">{</span> <a title="Boolean" id="65295">_</a> =&gt;
+    <a href="Namespace.scala.html#13589" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">debug</span><span class="delimiter">(</span><span title="java.lang.String(&quot;ZooKeeperGlobalMetadata open(): &quot;)" class="string">&quot;ZooKeeperGlobalMetadata open(): &quot;</span><span class="delimiter">)</span>
+    <a href="#37953" title="(x$1: edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode)Unit">nsRoot</a> = <a href="#37950" title="=&gt; edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">root</a>.<span title="(rpath: java.lang.String, tries: Int)edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">getOrCreate</span><span class="delimiter">(</span><a href="#37951" title="=&gt; String">name</a><span class="delimiter">)</span>
+    
+    <span class="comment">/* Check to see if the cluster metadata has been created, otherwise create it */</span>
+    <span class="keyword">val</span> <a title="Boolean" id="65296">isNew</a> = <span title="Boolean" class="keyword">if</span><span class="delimiter">(</span><span title="=&gt; Boolean">!</span><a href="#37953" title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode" id="65303">nsRoot</a>.<a href="#65303" title="Int" id="65305">get</a><span class="delimiter">(</span><a title="java.lang.String(&quot;initialized&quot;)" id="65304" class="string">&quot;initialized&quot;</a><span class="delimiter">)</span>.<span title="=&gt; Boolean">isDefined</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+      <span class="keyword">try</span> <span class="delimiter">{</span>
+        <a href="Namespace.scala.html#13610" title="()Unit">create</a><span class="delimiter">(</span><span class="delimiter">)</span>
+        <span title="Boolean(false)" class="keyword">false</span>
+      <span class="delimiter">}</span> <span class="keyword">catch</span> <span class="delimiter">{</span>
+        <span class="comment">/* Someone else has the create lock, so we should wait until they finish */</span>
+        <span class="keyword">case</span> <a title="Boolean" id="65306">e</a>: <span title="org.apache.zookeeper.KeeperException">KeeperException</span> <span class="keyword">if</span> <a href="#65306" title="org.apache.zookeeper.KeeperException">e</a>.<span title="()org.apache.zookeeper.KeeperException.Code">code</span> <span title="(x$1: AnyRef)Boolean">==</span> KeeperException.Code.<span title="org.apache.zookeeper.KeeperException.Code(value NODEEXISTS)">NODEEXISTS</span> =&gt; <span class="delimiter">{</span>
+          <a href="Namespace.scala.html#13589" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">info</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Failed to grab create lock. Waiting for creation for finish.&quot;)" class="string">&quot;Failed to grab create lock. Waiting for creation for finish.&quot;</span><span class="delimiter">)</span>
+          <a href="#37953" title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode" id="65453">nsRoot</a>.<a href="#65453" title="Option[Int]" id="65462">awaitChild</a><span class="delimiter">(</span><a title="java.lang.String(&quot;initialized&quot;)" id="65459" class="string">&quot;initialized&quot;</a>, timeout=<span class="int">5</span> <a title="Long(5000L)" id="65460">*</a> <span class="int">1000</span><span class="delimiter">)</span>
+          <span title="Boolean(false)" class="keyword">false</span>
+        <span class="delimiter">}</span>
+      <span class="delimiter">}</span>
+    <span class="delimiter">}</span>
+    <span class="keyword">else</span> <span class="delimiter">{</span>
+      <a href="#37953" title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode" id="65463">nsRoot</a>.<a href="#65463" title="Option[Int]" id="65471">awaitChild</a><span class="delimiter">(</span><a title="java.lang.String(&quot;initialized&quot;)" id="65468" class="string">&quot;initialized&quot;</a>, timeout=<span class="int">5</span><a title="Long(5000L)" id="65469">*</a> <span class="int">1000</span><span class="delimiter">)</span>
+      <span title="Boolean(false)" class="keyword">false</span>
+    <span class="delimiter">}</span>
+
+    <span title="(assertion: Boolean, message: =&gt; Any)Unit">assert</span><span class="delimiter">(</span><a href="#37953" title="=&gt; edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">nsRoot</a> <span title="(x$1: AnyRef)Boolean">ne</span> <span title="Null(null)" class="keyword">null</span>, <span title="java.lang.String(&quot;nsRoot should not be null after open&quot;)" class="string">&quot;nsRoot should not be null after open&quot;</span><span class="delimiter">)</span>
+    <a href="#65296" title="Boolean">isNew</a>
+  <span class="delimiter">}</span>
+
+  <a href="Namespace.scala.html#13609" title="(f: =&gt; Unit)Unit">onDelete</a> <span class="delimiter">{</span>
+    <a href="Namespace.scala.html#13589" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">info</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Deleting zookeeper metadata for namespace %s&quot;)" class="string">&quot;Deleting zookeeper metadata for namespace %s&quot;</span>, <a href="#37951" title="=&gt; String">name</a><span class="delimiter">)</span>
+
+    <span title="(assertion: Boolean, message: =&gt; Any)Unit">assert</span><span class="delimiter">(</span><a href="#37953" title="=&gt; edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">nsRoot</a> <span title="(x$1: AnyRef)Boolean">ne</span> <span title="Null(null)" class="keyword">null</span>, <span title="java.lang.String(&quot;nsRoot is null&quot;)" class="string">&quot;nsRoot is null&quot;</span><span class="delimiter">)</span>
+    <a href="#37953" title="=&gt; edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">nsRoot</a>.<span title="()Unit">deleteRecursive</span>
+    <a href="#37953" title="(x$1: edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode)Unit">nsRoot</a> = <span title="Null(null)" class="keyword">null</span>
+  <span class="delimiter">}</span>
+
+  <a href="Namespace.scala.html#13608" title="(f: =&gt; Unit)Unit">onClose</a> <span class="delimiter">{</span>
+    <a href="#37953" title="(x$1: edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode)Unit">nsRoot</a> = <span title="Null(null)" class="keyword">null</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">override</span> <span class="keyword">lazy</span> <span class="keyword">val</span> <a title="org.apache.avro.Schema" id="37957">remoteKeySchema</a>: <span title="org.apache.avro.Schema">Schema</span> =
+    <span title="org.apache.avro.Schema.Parser" class="keyword">new</span> <span title="object org.apache.avro.Schema">Schema</span>.<span title="org.apache.avro.Schema.Parser">Parser</span><span class="delimiter">(</span><span class="delimiter">)</span>.<span title="(x$1: java.lang.String)org.apache.avro.Schema">parse</span><span class="delimiter">(</span><span title="(x$1: Array[Byte])java.lang.String" class="keyword">new</span> <span title="java.lang.String">String</span><span class="delimiter">(</span><a href="#37953" title="(rpath: java.lang.String)edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">nsRoot</a><span class="delimiter">(</span><span title="java.lang.String(&quot;keySchema&quot;)" class="string">&quot;keySchema&quot;</span><span class="delimiter">)</span>.<span title="=&gt; Array[Byte]">data</span><span class="delimiter">)</span><span class="delimiter">)</span>
+  <span class="keyword">override</span> <span class="keyword">lazy</span> <span class="keyword">val</span> <a title="org.apache.avro.Schema" id="37959">remoteValueSchema</a>: <span title="org.apache.avro.Schema">Schema</span> =
+    <span title="org.apache.avro.Schema.Parser" class="keyword">new</span> <span title="object org.apache.avro.Schema">Schema</span>.<span title="org.apache.avro.Schema.Parser">Parser</span><span class="delimiter">(</span><span class="delimiter">)</span>.<span title="(x$1: java.lang.String)org.apache.avro.Schema">parse</span><span class="delimiter">(</span><span title="(x$1: Array[Byte])java.lang.String" class="keyword">new</span> <span title="java.lang.String">String</span><span class="delimiter">(</span><a href="#37953" title="(rpath: java.lang.String)edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">nsRoot</a><span class="delimiter">(</span><span title="java.lang.String(&quot;valueSchema&quot;)" class="string">&quot;valueSchema&quot;</span><span class="delimiter">)</span>.<span title="=&gt; Array[Byte]">data</span><span class="delimiter">)</span><span class="delimiter">)</span>
+
+  <span class="keyword">override</span> <span class="keyword">def</span> <a title="(key: String, func: () =&gt; Unit)Array[Byte]" id="37960">watchMetadata</a><span class="delimiter">(</span><a title="String" id="65496">key</a>: <span title="String">String</span>, <a title="() =&gt; Unit" id="65497">func</a>: <span class="delimiter">(</span><span class="delimiter">)</span> =&gt; Unit<span class="delimiter">)</span>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span> = <span class="delimiter">{</span>
+    <a href="Namespace.scala.html#13589" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">info</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Watching metadata %s for %s&quot;)" class="string">&quot;Watching metadata %s for %s&quot;</span>, <a href="#65496" title="String">key</a>, <a href="Namespace.scala.html#13587" title="=&gt; String">namespace</a><span class="delimiter">)</span>
+    <a href="#37953" title="(rpath: java.lang.String)edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">nsRoot</a><span class="delimiter">(</span><a href="#65496" title="String">key</a><span class="delimiter">)</span>.<span title="(func: () =&gt; Unit)Array[Byte]">onDataChange</span><span class="delimiter">(</span><a href="#65497" title="() =&gt; Unit">func</a><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">override</span> <span class="keyword">def</span> <a title="(key: String)Option[Array[Byte]]" id="37961">getMetadata</a><span class="delimiter">(</span><a title="String" id="45327">key</a>: <span title="String">String</span><span class="delimiter">)</span>: <span title="Option[Array[Byte]]">Option</span><span class="delimiter">[</span>Array<span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">]</span> = <span class="delimiter">{</span>
+    <a href="Namespace.scala.html#13589" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">info</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Updating metadata %s for namespace %s&quot;)" class="string">&quot;Updating metadata %s for namespace %s&quot;</span>, <a href="#45327" title="String">key</a>, <a href="Namespace.scala.html#13587" title="=&gt; String">namespace</a><span class="delimiter">)</span>
+    <a href="#37953" title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode" id="65507">nsRoot</a>.<a href="#65507" title="Int" id="65509">get</a><span class="delimiter">(</span><a href="#45327" title="String" id="65508">key</a><span class="delimiter">)</span>.<span title="(f: edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode =&gt; Array[Byte])Option[Array[Byte]]">map</span><span class="delimiter">(</span><a href="#65514" title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">_</a>.<span title="=&gt; Array[Byte]">data</span><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">override</span> <span class="keyword">def</span> <a title="(key: String, value: Array[Byte])Unit" id="37962">putMetadata</a><span class="delimiter">(</span><a title="String" id="46808">key</a>: <span title="String">String</span>, <a title="Array[Byte]" id="46809">value</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">)</span>: <span title="Unit">Unit</span> = <span class="delimiter">{</span>
+    <a href="Namespace.scala.html#13589" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">info</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Setting metadata %s in namespace %s&quot;)" class="string">&quot;Setting metadata %s in namespace %s&quot;</span>, <a href="#46808" title="String">key</a>, <a href="Namespace.scala.html#13587" title="=&gt; String">namespace</a><span class="delimiter">)</span>
+    <a href="#37953" title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode" id="65524">nsRoot</a>.<a href="#65524" title="Int" id="65526">getOrCreate</a><span class="delimiter">(</span><a href="#46808" title="String" id="65525">key</a><span class="delimiter">)</span>.<span title="(d: Array[Byte])Unit">data</span> = <a href="#46809" title="Array[Byte]">value</a>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">override</span> <span class="keyword">def</span> <a title="(key: String)Unit" id="37963">deleteMetadata</a><span class="delimiter">(</span><a title="String" id="65527">key</a>: <span title="String">String</span><span class="delimiter">)</span>: <span title="Unit">Unit</span> = <span class="delimiter">{</span>
+    <span title="Unit" class="keyword">if</span> <span class="delimiter">(</span><a href="#37953" title="=&gt; edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">nsRoot</a> <span title="(x$1: AnyRef)Boolean">!=</span> <span title="Null(null)" class="keyword">null</span><span class="delimiter">)</span> <span class="comment">// might be null if we already destroyed the whole partition</span>
+      <a href="#37953" title="=&gt; edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">nsRoot</a>.<span title="(name: String)Unit">deleteChild</span><span class="delimiter">(</span><a href="#65527" title="String">key</a><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">override</span> <span class="keyword">def</span> <a title="()Unit" id="37964">waitUntilMetadataPropagated</a><span class="delimiter">(</span><span class="delimiter">)</span>: <span title="Unit">Unit</span> =
+    <a href="#37953" title="=&gt; edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">nsRoot</a>.<span title="()Unit">waitUntilPropagated</span><span class="delimiter">(</span><span class="delimiter">)</span>
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>

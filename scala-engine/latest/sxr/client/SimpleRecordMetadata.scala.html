@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>client/SimpleRecordMetadata.scala</title>
+        <script type="text/javascript" src="../jquery-all.js"></script>
+        <script type="text/javascript" src="../linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="../style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.scads.storage
+
+<span class="keyword">import</span> java.io.ByteArrayInputStream
+<span class="keyword">import</span> java.nio._
+
+<span class="keyword">import</span> org.apache.avro._ 
+<span class="keyword">import</span> generic._
+<span class="keyword">import</span> io._
+<span class="keyword">import</span> specific._
+
+<span class="keyword">trait</span> <a title="trait SimpleRecordMetadataExtractor extends java.lang.Object with ScalaObject" id="9692">SimpleRecordMetadataExtractor</a> <span title="ScalaObject" class="delimiter">{</span>
+  <span class="keyword">def</span> <a title="(value: Array[Byte])(Array[Byte], Array[Byte])" id="37945">extractMetadataAndRecordFromValue</a><span class="delimiter">(</span><a title="Array[Byte]" id="63529">value</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">)</span>: <span title="(Array[Byte], Array[Byte])" class="delimiter">(</span>Array<span class="delimiter">[</span>Byte<span class="delimiter">]</span>, Array<span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">)</span> = <span class="delimiter">{</span>
+    <span title="(assertion: Boolean, message: =&gt; Any)Unit">assert</span><span class="delimiter">(</span><a href="#63529" title="Array[Byte]">value</a>.<span title="=&gt; Int">length</span> <span title="(x: Int)Boolean">&gt;=</span> <span title="Int(16)" class="int">16</span>, <span title="java.lang.String(&quot;value array is too small to be valid&quot;)" class="string">&quot;value array is too small to be valid&quot;</span><span class="delimiter">)</span>
+    <span class="comment">// be explicit for performance reasons</span>
+    <span class="keyword">val</span> <a title="Int" id="63531">rhs_len</a> = <a href="#63529" title="Array[Byte]">value</a>.<span title="=&gt; Int">length</span> <span title="(x: Int)Int">-</span> <span title="Int(16)" class="int">16</span>
+    <span class="keyword">val</span> <a title="Array[Byte]" id="63532">lhs</a> = <span title="Array[Byte]" class="keyword">new</span> <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">(</span><span title="Int(16)" class="int">16</span><span class="delimiter">)</span>
+    <span class="keyword">val</span> <a title="Array[Byte]" id="63533">rhs</a> = <span title="Array[Byte]" class="keyword">new</span> <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">(</span><a href="#63531" title="Int">rhs_len</a><span class="delimiter">)</span>
+    <span title="object java.lang.System">System</span>.<span title="(x$1: Any, x$2: Int, x$3: Any, x$4: Int, x$5: Int)Unit">arraycopy</span><span class="delimiter">(</span><a href="#63529" title="Array[Byte]">value</a>, <span title="Int(0)" class="int">0</span>, <a href="#63532" title="Array[Byte]">lhs</a>, <span title="Int(0)" class="int">0</span>, <span title="Int(16)" class="int">16</span><span class="delimiter">)</span>
+    <span title="object java.lang.System">System</span>.<span title="(x$1: Any, x$2: Int, x$3: Any, x$4: Int, x$5: Int)Unit">arraycopy</span><span class="delimiter">(</span><a href="#63529" title="Array[Byte]">value</a>, <span title="Int(16)" class="int">16</span>, <a href="#63533" title="Array[Byte]">rhs</a>, <span title="Int(0)" class="int">0</span>, <a href="#63531" title="Int">rhs_len</a><span class="delimiter">)</span>
+    <span title="(_1: Array[Byte], _2: Array[Byte])(Array[Byte], Array[Byte])" class="delimiter">(</span><a href="#63532" title="Array[Byte]">lhs</a>, <a href="#63533" title="Array[Byte]">rhs</a><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">def</span> <a title="(value: Array[Byte])Array[Byte]" id="37946">extractRecordFromValue</a><span class="delimiter">(</span><a title="Array[Byte]" id="63555">value</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">)</span>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span> = <span class="delimiter">{</span>
+    <span title="(assertion: Boolean, message: =&gt; Any)Unit">assert</span><span class="delimiter">(</span><a href="#63555" title="Array[Byte]">value</a>.<span title="=&gt; Int">length</span> <span title="(x: Int)Boolean">&gt;=</span> <span title="Int(16)" class="int">16</span>, <span title="java.lang.String(&quot;value array is too small to be valid&quot;)" class="string">&quot;value array is too small to be valid&quot;</span><span class="delimiter">)</span>
+    <span class="keyword">val</span> <a title="Int" id="63557">rhs_len</a> = <a href="#63555" title="Array[Byte]">value</a>.<span title="=&gt; Int">length</span> <span title="(x: Int)Int">-</span> <span title="Int(16)" class="int">16</span>
+    <span class="keyword">val</span> <a title="Array[Byte]" id="63558">rhs</a> = <span title="Array[Byte]" class="keyword">new</span> <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">(</span><a href="#63557" title="Int">rhs_len</a><span class="delimiter">)</span>
+    <span title="object java.lang.System">System</span>.<span title="(x$1: Any, x$2: Int, x$3: Any, x$4: Int, x$5: Int)Unit">arraycopy</span><span class="delimiter">(</span><a href="#63555" title="Array[Byte]">value</a>, <span title="Int(16)" class="int">16</span>, <a href="#63558" title="Array[Byte]">rhs</a>, <span title="Int(0)" class="int">0</span>, <a href="#63557" title="Int">rhs_len</a><span class="delimiter">)</span>
+    <a href="#63558" title="Array[Byte]">rhs</a>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">def</span> <a title="(value: Array[Byte])Array[Byte]" id="37947">extractMetadataFromValue</a><span class="delimiter">(</span><a title="Array[Byte]" id="63571">value</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">)</span>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span> = <span class="delimiter">{</span>
+    <span title="(assertion: Boolean, message: =&gt; Any)Unit">assert</span><span class="delimiter">(</span><a href="#63571" title="Array[Byte]">value</a>.<span title="=&gt; Int">length</span> <span title="(x: Int)Boolean">&gt;=</span> <span title="Int(16)" class="int">16</span>, <span title="java.lang.String(&quot;value array is too small to be valid&quot;)" class="string">&quot;value array is too small to be valid&quot;</span><span class="delimiter">)</span>
+    <span class="keyword">val</span> <a title="Array[Byte]" id="63573">mdarray</a> = <span title="Array[Byte]" class="keyword">new</span> <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">(</span><span title="Int(16)" class="int">16</span><span class="delimiter">)</span>
+    <span title="object java.lang.System">System</span>.<span title="(x$1: Any, x$2: Int, x$3: Any, x$4: Int, x$5: Int)Unit">arraycopy</span><span class="delimiter">(</span><a href="#63571" title="Array[Byte]">value</a>, <span title="Int(0)" class="int">0</span>, <a href="#63573" title="Array[Byte]">mdarray</a>, <span title="Int(0)" class="int">0</span>, <span title="Int(16)" class="int">16</span><span class="delimiter">)</span>
+    <a href="#63573" title="Array[Byte]">mdarray</a>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">def</span> <a title="(value: Array[Byte])java.io.ByteArrayInputStream" id="37948">getRecordInputStreamFromValue</a><span class="delimiter">(</span><a title="Array[Byte]" id="63582">value</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">)</span>: <span title="java.io.ByteArrayInputStream">ByteArrayInputStream</span> = <span class="delimiter">{</span>
+    <span title="(assertion: Boolean, message: =&gt; Any)Unit">assert</span><span class="delimiter">(</span><a href="#63582" title="Array[Byte]">value</a>.<span title="=&gt; Int">length</span> <span title="(x: Int)Boolean">&gt;=</span> <span title="Int(16)" class="int">16</span>, <span title="java.lang.String(&quot;value array is too small to be valid&quot;)" class="string">&quot;value array is too small to be valid&quot;</span><span class="delimiter">)</span>
+    <span title="(x$1: Array[Byte], x$2: Int, x$3: Int)java.io.ByteArrayInputStream" class="keyword">new</span> <span title="java.io.ByteArrayInputStream">ByteArrayInputStream</span><span class="delimiter">(</span><a href="#63582" title="Array[Byte]">value</a>,<span title="Int(16)" class="int">16</span>,<span class="delimiter">(</span><a href="#63582" title="Array[Byte]">value</a>.<span title="=&gt; Int">length</span><span title="(x: Int)Int">-</span><span title="Int(16)" class="int">16</span><span class="delimiter">)</span><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+<span class="delimiter">}</span>
+
+<span class="keyword">trait</span> <a title="trait SimpleRecordMetadata extends java.lang.Object with edu.berkeley.cs.scads.storage.RecordMetadata with edu.berkeley.cs.scads.storage.SimpleRecordMetadataExtractor with edu.berkeley.cs.scads.storage.GlobalMetadata with ScalaObject" id="9693">SimpleRecordMetadata</a> <span title="ScalaObject" class="keyword">extends</span> <a href="Interfaces.scala.html#9620" title="edu.berkeley.cs.scads.storage.RecordMetadata">RecordMetadata</a>
+  <span class="keyword">with</span> <a href="#9692" title="edu.berkeley.cs.scads.storage.SimpleRecordMetadataExtractor">SimpleRecordMetadataExtractor</a>
+  <span class="keyword">with</span> <a href="Interfaces.scala.html#9618" title="edu.berkeley.cs.scads.storage.GlobalMetadata">GlobalMetadata</a> <span class="delimiter">{</span>
+
+  <span class="keyword">val</span> <a title="=&gt; edu.berkeley.cs.scads.storage.ScadsCluster" id="37939">cluster</a>: <a href="ScadsCluster.scala.html#9681" title="edu.berkeley.cs.scads.storage.ScadsCluster">ScadsCluster</a>
+
+  <span class="keyword">override</span> <span class="keyword">def</span> <a title="(x: Array[Byte], y: Array[Byte])Int" id="37940">compareKey</a><span class="delimiter">(</span><a title="Array[Byte]" id="63598">x</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span>, <a title="Array[Byte]" id="63599">y</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">)</span>: <span title="Int">Int</span> = 
+    <span title="object org.apache.avro.io.BinaryData">BinaryData</span>.<span title="(x$1: Array[Byte], x$2: Int, x$3: Array[Byte], x$4: Int, x$5: org.apache.avro.Schema)Int">compare</span><span class="delimiter">(</span><a href="#63598" title="Array[Byte]">x</a>, <span title="Int(0)" class="int">0</span>, <a href="#63599" title="Array[Byte]">y</a>, <span title="Int(0)" class="int">0</span>, <a href="Interfaces.scala.html#13627" title="=&gt; org.apache.avro.Schema">keySchema</a><span class="delimiter">)</span>
+ 
+  <span class="keyword">override</span> <span class="keyword">def</span> <a title="(x: Array[Byte])Int" id="37941">hashKey</a><span class="delimiter">(</span><a title="Array[Byte]" id="63659">x</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">)</span>: <span title="Int">Int</span> = <span class="delimiter">{</span>
+    <span class="comment">// TODO: use some more awesome hash function</span>
+
+    <span class="comment">// same hash function as java String for now</span>
+    <span class="keyword">var</span> <a title="Int" id="63661">hash</a> = <span title="Int(0)" class="int">0</span>
+    <span class="keyword">var</span> <a title="Int" id="63662">idx</a> = <span title="Int(0)" class="int">0</span>
+    <span class="keyword">val</span> <a title="Int" id="63663">len</a> = <a href="#63659" title="Array[Byte]">x</a>.<span title="=&gt; Int">length</span>
+    <span title="Unit" class="keyword">while</span> <span class="delimiter">(</span><a href="#63662" title="Int">idx</a> <span title="(x: Int)Boolean">&lt;</span> <a href="#63663" title="Int">len</a><span class="delimiter">)</span> <a href="#63664" title="()Unit" class="delimiter">{</a>
+      <a href="#63661" title="Int">hash</a> = <span title="Int(31)" class="int">31</span> <span title="(x: Int)Int">*</span> <a href="#63661" title="Int">hash</a> <span title="(x: Byte)Int">+</span> <a href="#63659" title="(i: Int)Byte">x</a><span class="delimiter">(</span><a href="#63662" title="Int">idx</a><span class="delimiter">)</span>
+      <a href="#63662" title="Int">idx</a> <span title="(x: Int)Int">+=</span> <span title="Int(1)" class="int">1</span>
+    <span class="delimiter">}</span>
+    <a href="#63661" title="Int">hash</a>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">override</span> <span class="keyword">def</span> <a title="(rec: Array[Byte])Array[Byte]" id="37942">createMetadata</a><span class="delimiter">(</span><a title="Array[Byte]" id="63681">rec</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">)</span>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span> = <span class="delimiter">{</span>
+    <span class="keyword">val</span> <a title="java.nio.ByteBuffer" id="63683">buffer</a> = <span title="object java.nio.ByteBuffer">ByteBuffer</span>.<span title="(x$1: Int)java.nio.ByteBuffer">allocate</span><span class="delimiter">(</span><a href="#63681" title="Array[Byte]">rec</a>.<span title="=&gt; Int">length</span> <span title="(x: Int)Int">+</span> <span title="Int(16)" class="int">16</span><span class="delimiter">)</span>
+    <a href="#63683" title="java.nio.ByteBuffer">buffer</a>.<span title="(x$1: Long)java.nio.ByteBuffer">putLong</span><span class="delimiter">(</span><span title="object java.lang.System">System</span>.<span title="()Long">currentTimeMillis</span><span class="delimiter">)</span>
+    <a href="#63683" title="java.nio.ByteBuffer">buffer</a>.<span title="(x$1: Long)java.nio.ByteBuffer">putLong</span><span class="delimiter">(</span><a href="#37939" title="=&gt; edu.berkeley.cs.scads.storage.ScadsCluster">cluster</a>.<a href="ScadsCluster.scala.html#38029" title="=&gt; Long">clientID</a><span class="delimiter">)</span>
+    <a href="#63683" title="java.nio.ByteBuffer">buffer</a>.<span title="(x$1: Array[Byte])java.nio.ByteBuffer">put</span><span class="delimiter">(</span><a href="#63681" title="Array[Byte]">rec</a><span class="delimiter">)</span>
+    <a href="#63683" title="java.nio.ByteBuffer">buffer</a>.<span title="()Array[Byte]">array</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">override</span> <span class="keyword">def</span> <a title="(lhs: Array[Byte], rhs: Array[Byte])Int" id="37943">compareMetadata</a><span class="delimiter">(</span><a title="Array[Byte]" id="63696">lhs</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span>, <a title="Array[Byte]" id="63697">rhs</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">)</span>: <span title="Int">Int</span> = <span class="delimiter">{</span>
+    <span class="keyword">var</span> <a title="Int" id="63699">idx</a> = <span title="Int(0)" class="int">0</span>
+    <span title="Unit" class="keyword">while</span> <span class="delimiter">(</span><a href="#63699" title="Int">idx</a> <span title="(x: Int)Boolean">&lt;</span> <span title="Int(16)" class="int">16</span><span class="delimiter">)</span> <a href="#63700" title="()Unit" class="delimiter">{</a>
+      <span title="Unit" class="keyword">if</span> <span class="delimiter">(</span><a href="#63696" title="(i: Int)Byte">lhs</a><span class="delimiter">(</span><a href="#63699" title="Int">idx</a><span class="delimiter">)</span> <span title="(x: Byte)Boolean">==</span> <a href="#63697" title="(i: Int)Byte">rhs</a><span class="delimiter">(</span><a href="#63699" title="Int">idx</a><span class="delimiter">)</span><span class="delimiter">)</span> <span title="Unit" class="delimiter">{</span><span class="delimiter">}</span> <span class="comment">// common case</span>
+      <span class="keyword">else</span> <span title="Nothing" class="keyword">if</span> <span class="delimiter">(</span><span class="delimiter">(</span><a href="#63696" title="(i: Int)Byte">lhs</a><span class="delimiter">(</span><a href="#63699" title="Int">idx</a><span class="delimiter">)</span> <span title="(x: Byte)Boolean">&lt;</span> <a href="#63697" title="(i: Int)Byte">rhs</a><span class="delimiter">(</span><a href="#63699" title="Int">idx</a><span class="delimiter">)</span><span class="delimiter">)</span> <span title="(x: Boolean)Boolean">^</span> <span class="delimiter">(</span><span class="delimiter">(</span><a href="#63696" title="(i: Int)Byte">lhs</a><span class="delimiter">(</span><a href="#63699" title="Int">idx</a><span class="delimiter">)</span> <span title="(x: Int)Boolean">&lt;</span> <span title="Int(0)" class="int">0</span><span class="delimiter">)</span> <span title="(x: Boolean)Boolean">!=</span> <span class="delimiter">(</span><a href="#63697" title="(i: Int)Byte">rhs</a><span class="delimiter">(</span><a href="#63699" title="Int">idx</a><span class="delimiter">)</span> <span title="(x: Int)Boolean">&lt;</span> <span title="Int(0)" class="int">0</span><span class="delimiter">)</span><span class="delimiter">)</span><span class="delimiter">)</span> <span class="comment">//bitwise comparison for unsigned Bytes</span>
+        <span title="Nothing" class="keyword">return</span> -<span title="Int(-1)" class="int">1</span>
+      <span class="keyword">else</span>
+        <span title="Nothing" class="keyword">return</span> <span title="Int(1)" class="int">1</span>
+      <a href="#63699" title="Int">idx</a> <span title="(x: Int)Int">+=</span> <span title="Int(1)" class="int">1</span>
+    <span class="delimiter">}</span>
+    <span title="Nothing" class="keyword">return</span> <span title="Int(0)" class="int">0</span>
+  <span class="delimiter">}</span>
+
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>

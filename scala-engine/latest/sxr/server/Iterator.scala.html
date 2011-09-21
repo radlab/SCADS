@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>server/Iterator.scala</title>
+        <script type="text/javascript" src="../jquery-all.js"></script>
+        <script type="text/javascript" src="../linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="../style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.scads.storage
+
+<span class="keyword">import</span> java.util.concurrent.ArrayBlockingQueue
+
+<span class="keyword">import</span> scala.actors._
+<span class="keyword">import</span> scala.actors.<span title="object scala.actors.Actor">Actor</span>._
+
+<span class="keyword">import</span> net.lag.logging.Logger
+
+<span class="keyword">import</span> edu.berkeley.cs.scads.comm._
+
+<span class="keyword">abstract</span> <span class="keyword">class</span> <a title="class FutureBasedIterator extends java.lang.Object with Iterator[edu.berkeley.cs.scads.comm.Record] with ScalaObject" id="9782">FutureBasedIterator</a><a href="#9782" title="ScalaObject" class="delimiter">(</a><a title="edu.berkeley.cs.scads.comm.PartitionService" id="76929">partitionService</a>: <span title="edu.berkeley.cs.scads.comm.PartitionService">PartitionService</span>, <a title="Option[Array[Byte]]" id="76930">minKey</a>: <span title="Option[Array[Byte]]">Option</span><span class="delimiter">[</span>Array<span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">]</span>, <a title="Option[Array[Byte]]" id="76931">maxKey</a>: <span title="Option[Array[Byte]]">Option</span><span class="delimiter">[</span>Array<span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">]</span>, <a title="Int" id="76933">recsPerMessage</a>: <span title="Int">Int</span> = <span title="Int(1024)" class="int">1024</span><span class="delimiter">)</span> <span class="keyword">extends</span> <span title="Iterator[edu.berkeley.cs.scads.comm.Record]">Iterator</span><span class="delimiter">[</span>Record<span class="delimiter">]</span> <span class="delimiter">{</span>
+  <span title="(requirement: Boolean)Unit">require</span><span class="delimiter">(</span><a href="#76933" title="Int">recsPerMessage</a> <span title="(x: Int)Boolean">&gt;</span> <span title="Int(0)" class="int">0</span><span class="delimiter">)</span>
+
+  <span class="keyword">private</span> <span class="keyword">val</span> <a title="Int" id="50741">recsPerMessageDiv2</a> = <a href="#76933" title="Int">recsPerMessage</a> <span title="(x: Int)Int">/</span> <span title="Int(2)" class="int">2</span>
+
+  <span class="keyword">private</span> <span class="keyword">var</span> <a title="Boolean" id="50744">isDone</a> = <span title="Boolean(false)" class="keyword">false</span>
+
+  <span class="keyword">private</span> <span class="keyword">var</span> <a title="IndexedSeq[edu.berkeley.cs.scads.comm.Record]" id="50747">currentBuffer</a>: <span title="IndexedSeq[edu.berkeley.cs.scads.comm.Record]">IndexedSeq</span><span class="delimiter">[</span>Record<span class="delimiter">]</span> = <span title="=&gt; collection.immutable.Vector.type">Vector</span>.<span title="scala.collection.immutable.Vector[Nothing]">empty</span>
+  <span class="keyword">private</span> <span class="keyword">var</span> <a title="Int" id="50750">currentIdx</a> = <span title="Int(0)" class="int">0</span>
+
+  <span class="keyword">private</span> <span class="keyword">var</span> <a title="edu.berkeley.cs.scads.comm.MessageFuture" id="50753">activeFuture</a>: <span title="edu.berkeley.cs.scads.comm.MessageFuture">MessageFuture</span> = _
+
+  <span class="keyword">def</span> <a title="()edu.berkeley.cs.scads.comm.Record" id="50755">next</a>: <span title="edu.berkeley.cs.scads.comm.Record">Record</span> = <span class="delimiter">{</span>
+    <span title="Unit" class="keyword">if</span> <span class="delimiter">(</span><span title="=&gt; Boolean">!</span><a href="#50759" title="=&gt; Boolean">hasNext</a><span class="delimiter">)</span>
+      <span title="Nothing" class="keyword">throw</span> <span title="(x$1: java.lang.String)java.lang.UnsupportedOperationException" class="keyword">new</span> <span title="java.lang.UnsupportedOperationException">UnsupportedOperationException</span><span class="delimiter">(</span><span title="java.lang.String(&quot;next on empty iterator&quot;)" class="string">&quot;next on empty iterator&quot;</span><span class="delimiter">)</span>
+    <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.comm.Record" id="77208">res</a> = <a href="#50747" title="(idx: Int)edu.berkeley.cs.scads.comm.Record">currentBuffer</a><span class="delimiter">(</span><a href="#50750" title="=&gt; Int">currentIdx</a><span class="delimiter">)</span>
+    <a href="#50750" title="(x$1: Int)Unit">currentIdx</a> <span title="(x: Int)Int">+=</span> <span title="Int(1)" class="int">1</span>
+    <span title="Unit" class="keyword">if</span> <span class="delimiter">(</span><a href="#50750" title="=&gt; Int">currentIdx</a> <span title="(x: Int)Boolean">&gt;=</span> <a href="#50741" title="=&gt; Int">recsPerMessageDiv2</a> <span title="(x: Boolean)Boolean">&amp;&amp;</span> <span class="delimiter">(</span><a href="#50753" title="=&gt; edu.berkeley.cs.scads.comm.MessageFuture">activeFuture</a> <span title="(x$1: AnyRef)Boolean">eq</span> <span title="Null(null)" class="keyword">null</span><span class="delimiter">)</span> <span title="(x: Boolean)Boolean">&amp;&amp;</span> <a href="#50757" title="=&gt; Boolean">canRequestMore</a><span class="delimiter">)</span>
+      <a href="#50753" title="(x$1: edu.berkeley.cs.scads.comm.MessageFuture)Unit">activeFuture</a> = <a href="#50756" title="()edu.berkeley.cs.scads.comm.MessageFuture">issueNextRequest</a><span class="delimiter">(</span><span class="delimiter">)</span>
+    <a href="#77208" title="edu.berkeley.cs.scads.comm.Record">res</a>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">protected</span> <span class="keyword">def</span> <a title="()edu.berkeley.cs.scads.comm.MessageFuture" id="50756">issueNextRequest</a><span class="delimiter">(</span><span class="delimiter">)</span>: <span title="edu.berkeley.cs.scads.comm.MessageFuture">MessageFuture</span>
+  <span class="keyword">protected</span> <span class="keyword">def</span> <a title="=&gt; Boolean" id="50757">canRequestMore</a>: <span title="Boolean">Boolean</span>
+  <span class="keyword">protected</span> <span class="keyword">def</span> <a title="(ftch: edu.berkeley.cs.scads.comm.MessageFuture)IndexedSeq[edu.berkeley.cs.scads.comm.Record]" id="50758">getRecordsFromFuture</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.comm.MessageFuture" id="77280">ftch</a>: <span title="edu.berkeley.cs.scads.comm.MessageFuture">MessageFuture</span><span class="delimiter">)</span>: <span title="IndexedSeq[edu.berkeley.cs.scads.comm.Record]">IndexedSeq</span><span class="delimiter">[</span>Record<span class="delimiter">]</span>
+
+  <span class="keyword">def</span> <a title="=&gt; Boolean" id="50759">hasNext</a>: <span title="Boolean">Boolean</span> =
+    <span title="Boolean" class="keyword">if</span> <span class="delimiter">(</span><a href="#50744" title="=&gt; Boolean">isDone</a><span class="delimiter">)</span> <span title="Boolean(false)" class="keyword">false</span> 
+    <span class="keyword">else</span> <span title="Boolean" class="keyword">if</span> <span class="delimiter">(</span><a href="#50750" title="=&gt; Int">currentIdx</a> <span title="(x: Int)Boolean">&lt;</span> <a href="#50747" title="=&gt; IndexedSeq[edu.berkeley.cs.scads.comm.Record]">currentBuffer</a>.<span title="=&gt; Int">size</span><span class="delimiter">)</span> <span title="Boolean(true)" class="keyword">true</span>
+    <span class="keyword">else</span> <span title="Boolean" class="keyword">if</span> <span class="delimiter">(</span><a href="#50753" title="=&gt; edu.berkeley.cs.scads.comm.MessageFuture">activeFuture</a> <span title="(x$1: AnyRef)Boolean">ne</span> <span title="Null(null)" class="keyword">null</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+      <a href="#50747" title="(x$1: IndexedSeq[edu.berkeley.cs.scads.comm.Record])Unit">currentBuffer</a> = <a href="#50758" title="(ftch: edu.berkeley.cs.scads.comm.MessageFuture)IndexedSeq[edu.berkeley.cs.scads.comm.Record]">getRecordsFromFuture</a><span class="delimiter">(</span><a href="#50753" title="=&gt; edu.berkeley.cs.scads.comm.MessageFuture">activeFuture</a><span class="delimiter">)</span>
+      <a href="#50750" title="(x$1: Int)Unit">currentIdx</a> = <span title="Int(0)" class="int">0</span>
+      <a href="#50753" title="(x$1: edu.berkeley.cs.scads.comm.MessageFuture)Unit">activeFuture</a> = <span title="Null(null)" class="keyword">null</span>
+      <a href="#50759" title="=&gt; Boolean">hasNext</a>
+    <span class="delimiter">}</span> <span class="keyword">else</span> <span title="Boolean" class="keyword">if</span> <span class="delimiter">(</span><a href="#50757" title="=&gt; Boolean">canRequestMore</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+      <span title="(assertion: Boolean)Unit">assert</span><span class="delimiter">(</span><a href="#50753" title="=&gt; edu.berkeley.cs.scads.comm.MessageFuture">activeFuture</a> <span title="(x$1: AnyRef)Boolean">eq</span> <span title="Null(null)" class="keyword">null</span><span class="delimiter">)</span>
+      <a href="#50753" title="(x$1: edu.berkeley.cs.scads.comm.MessageFuture)Unit">activeFuture</a> = <a href="#50756" title="()edu.berkeley.cs.scads.comm.MessageFuture">issueNextRequest</a><span class="delimiter">(</span><span class="delimiter">)</span>
+      <a href="#50759" title="=&gt; Boolean">hasNext</a>
+    <span class="delimiter">}</span> <span class="keyword">else</span> <span class="delimiter">{</span>
+      <a href="#50744" title="(x$1: Boolean)Unit">isDone</a> = <span title="Boolean(true)" class="keyword">true</span>
+      <span title="Boolean(false)" class="keyword">false</span>
+    <span class="delimiter">}</span>
+<span class="delimiter">}</span>
+
+<span class="keyword">class</span> <a title="class ActorlessPartitionIterator extends edu.berkeley.cs.scads.storage.FutureBasedIterator with ScalaObject" id="9785">ActorlessPartitionIterator</a><a href="#9785" title="ScalaObject" class="delimiter">(</a><a title="edu.berkeley.cs.scads.comm.PartitionService" id="50778">partitionService</a>: <span title="edu.berkeley.cs.scads.comm.PartitionService">PartitionService</span>, <a title="Option[Array[Byte]]" id="50779">minKey</a>: <span title="Option[Array[Byte]]">Option</span><span class="delimiter">[</span>Array<span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">]</span>, <a title="Option[Array[Byte]]" id="50780">maxKey</a>: <span title="Option[Array[Byte]]">Option</span><span class="delimiter">[</span>Array<span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">]</span>, <a title="Int" id="50783">recsPerMessage</a>: <span title="Int">Int</span> = <span title="Int(1024)" class="int">1024</span><span class="delimiter">)</span> 
+  <span class="keyword">extends</span> <a href="#9782" title="edu.berkeley.cs.scads.storage.FutureBasedIterator">FutureBasedIterator</a><span class="delimiter">(</span><a href="#50778" title="edu.berkeley.cs.scads.comm.PartitionService">partitionService</a>, <a href="#50779" title="Option[Array[Byte]]">minKey</a>, <a href="#50780" title="Option[Array[Byte]]">maxKey</a>, <a href="#50783" title="Int">recsPerMessage</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+
+  <span class="keyword">private</span> <span class="keyword">var</span> <a title="Option[Array[Byte]]" id="50770">lastRecvKey</a>: <span title="Option[Array[Byte]]">Option</span><span class="delimiter">[</span>Array<span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">]</span> = <span title="object None">None</span>
+  <span class="keyword">private</span> <span class="keyword">var</span> <a title="Int" id="50773">lastSizeReturned</a> = <a href="#50783" title="Int">recsPerMessage</a>
+
+  <span class="keyword">protected</span> <span class="keyword">def</span> <a title="()edu.berkeley.cs.scads.comm.MessageFuture" id="50775">issueNextRequest</a><span class="delimiter">(</span><span class="delimiter">)</span>: <span title="edu.berkeley.cs.scads.comm.MessageFuture">MessageFuture</span> = <span class="delimiter">{</span>
+    <span class="comment">// dispatch new request</span>
+    <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.comm.GetRangeRequest" id="77297">req</a> = 
+      <a href="#50770" title="=&gt; Option[Array[Byte]]">lastRecvKey</a>.<span title="(f: Array[Byte] =&gt; edu.berkeley.cs.scads.comm.GetRangeRequest)Option[edu.berkeley.cs.scads.comm.GetRangeRequest]">map</span><span class="delimiter">(</span><a title="Array[Byte]" id="77302">sk</a> =&gt; <span title="(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], limit: Option[Int], offset: Option[Int], ascending: Boolean)edu.berkeley.cs.scads.comm.GetRangeRequest">GetRangeRequest</span><span class="delimiter">(</span><span title="(x: Array[Byte])Some[Array[Byte]]">Some</span><span class="delimiter">(</span><a href="#77302" title="Array[Byte]">sk</a><span class="delimiter">)</span>, <a href="#50780" title="Option[Array[Byte]]">maxKey</a>, limit=<span title="(x: Int)Some[Int]">Some</span><span class="delimiter">(</span><a href="#50783" title="Int">recsPerMessage</a><span class="delimiter">)</span>, offset=<span title="(x: Int)Some[Int]">Some</span><span class="delimiter">(</span><span title="Int(1)" class="int">1</span><span class="delimiter">)</span><span class="delimiter">)</span><span class="delimiter">)</span>.<span title="(default: =&gt; edu.berkeley.cs.scads.comm.GetRangeRequest)edu.berkeley.cs.scads.comm.GetRangeRequest">getOrElse</span><span class="delimiter">(</span><span title="(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], limit: Option[Int], offset: Option[Int], ascending: Boolean)edu.berkeley.cs.scads.comm.GetRangeRequest">GetRangeRequest</span><span class="delimiter">(</span><a href="#50779" title="Option[Array[Byte]]">minKey</a>, <a href="#50780" title="Option[Array[Byte]]">maxKey</a>, limit=<span title="(x: Int)Some[Int]">Some</span><span class="delimiter">(</span><a href="#50783" title="Int">recsPerMessage</a><span class="delimiter">)</span><span class="delimiter">)</span><span class="delimiter">)</span>
+    <a href="#50778" title="edu.berkeley.cs.scads.comm.PartitionService">partitionService</a> <span title="(body: edu.berkeley.cs.scads.comm.MessageBody)edu.berkeley.cs.scads.comm.MessageFuture">!!</span> <a href="#77297" title="edu.berkeley.cs.scads.comm.GetRangeRequest">req</a>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">protected</span> <span class="keyword">def</span> <a title="=&gt; Boolean" id="50776">canRequestMore</a> = <a href="#50773" title="=&gt; Int">lastSizeReturned</a> <span title="(x: Int)Boolean">==</span> <a href="#50783" title="Int">recsPerMessage</a>
+
+  <span class="keyword">protected</span> <span class="keyword">def</span> <a title="(ftch: edu.berkeley.cs.scads.comm.MessageFuture)IndexedSeq[edu.berkeley.cs.scads.comm.Record]" id="50777">getRecordsFromFuture</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.comm.MessageFuture" id="77349">ftch</a>: <span title="edu.berkeley.cs.scads.comm.MessageFuture">MessageFuture</span><span class="delimiter">)</span> =
+    <a href="#77349" title="edu.berkeley.cs.scads.comm.MessageFuture">ftch</a>.<span title="(timeout: Long)Option[edu.berkeley.cs.scads.comm.MessageBody]">get</span><span class="delimiter">(</span><span class="int">10</span> * <span class="int">60</span> <span title="Long(600000L)">*</span> <span class="int">1000</span><span class="delimiter">)</span>.<span title="(default: =&gt; edu.berkeley.cs.scads.comm.MessageBody)edu.berkeley.cs.scads.comm.MessageBody">getOrElse</span><span class="delimiter">(</span><span title="Nothing" class="keyword">throw</span> <span title="(x$1: java.lang.String)java.lang.RuntimeException" class="keyword">new</span> <span title="java.lang.RuntimeException">RuntimeException</span><span class="delimiter">(</span><span title="java.lang.String(&quot;GetRangeRequest timedout&quot;)" class="string">&quot;GetRangeRequest timedout&quot;</span><span class="delimiter">)</span><span class="delimiter">)</span> <span title="IndexedSeq[edu.berkeley.cs.scads.comm.Record]" class="keyword">match</span> <span class="delimiter">{</span>
+      <span class="keyword">case</span> <span title="scala.collection.immutable.IndexedSeq[edu.berkeley.cs.scads.comm.Record]">GetRangeResponse</span><span class="delimiter">(</span><a title="Seq[edu.berkeley.cs.scads.comm.Record]" id="77378">recs</a><span class="delimiter">)</span> =&gt; 
+        <a href="#50773" title="(x$1: Int)Unit">lastSizeReturned</a> = <a href="#77378" title="Seq[edu.berkeley.cs.scads.comm.Record]">recs</a>.<span title="=&gt; Int">size</span>
+        <a href="#50770" title="(x$1: Option[Array[Byte]])Unit">lastRecvKey</a> = <a href="#77378" title="Seq[edu.berkeley.cs.scads.comm.Record]">recs</a>.<span title="=&gt; Option[edu.berkeley.cs.scads.comm.Record]">lastOption</span>.<span title="(f: edu.berkeley.cs.scads.comm.Record =&gt; Array[Byte])Option[Array[Byte]]">map</span><span class="delimiter">(</span><a href="#77383" title="edu.berkeley.cs.scads.comm.Record">_</a>.<span title="=&gt; Array[Byte]">key</span><span class="delimiter">)</span> 
+        <a href="#77378" title="Seq[edu.berkeley.cs.scads.comm.Record]">recs</a>.<span title="scala.collection.immutable.IndexedSeq[edu.berkeley.cs.scads.comm.Record]">toIndexedSeq</span>
+      <span class="keyword">case</span> <a title="Nothing" id="77393">e</a> =&gt; <span title="Nothing" class="keyword">throw</span> <span title="(x$1: java.lang.String)java.lang.RuntimeException" class="keyword">new</span> <span title="java.lang.RuntimeException">RuntimeException</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Invalid response to a GetRangeRequest: &quot;)" class="string">&quot;Invalid response to a GetRangeRequest: &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#77393" title="edu.berkeley.cs.scads.comm.MessageBody">e</a><span class="delimiter">)</span>
+    <span class="delimiter">}</span>
+<span class="delimiter">}</span>
+
+<span class="keyword">class</span> <a title="class CursorBasedPartitionIterator extends edu.berkeley.cs.scads.storage.FutureBasedIterator with ScalaObject" id="9788">CursorBasedPartitionIterator</a><a href="#9788" title="ScalaObject" class="delimiter">(</a><a title="edu.berkeley.cs.scads.comm.PartitionService" id="67000">partitionService</a>: <span title="edu.berkeley.cs.scads.comm.PartitionService">PartitionService</span>, <a title="Option[Array[Byte]]" id="67001">minKey</a>: <span title="Option[Array[Byte]]">Option</span><span class="delimiter">[</span>Array<span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">]</span>, <a title="Option[Array[Byte]]" id="67002">maxKey</a>: <span title="Option[Array[Byte]]">Option</span><span class="delimiter">[</span>Array<span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">]</span>, <a title="Int" id="67005">recsPerMessage</a>: <span title="Int">Int</span> = <span title="Int(8192)" class="int">8192</span><span class="delimiter">)</span> 
+  <span class="keyword">extends</span> <a href="#9782" title="edu.berkeley.cs.scads.storage.FutureBasedIterator">FutureBasedIterator</a><span class="delimiter">(</span><a href="#67000" title="edu.berkeley.cs.scads.comm.PartitionService">partitionService</a>, <a href="#67001" title="Option[Array[Byte]]">minKey</a>, <a href="#67002" title="Option[Array[Byte]]">maxKey</a>, <a href="#67005" title="Int">recsPerMessage</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+
+  <span class="keyword">private</span> <span class="keyword">var</span> <a title="Option[Int]" id="66992">cursorId</a>: <span title="Option[Int]">Option</span><span class="delimiter">[</span>Int<span class="delimiter">]</span> = <span title="object None">None</span>
+  <span class="keyword">private</span> <span class="keyword">var</span> <a title="Boolean" id="66995">isServerDone</a> = <span title="Boolean(false)" class="keyword">false</span>
+
+  <span class="keyword">protected</span> <span class="keyword">def</span> <a title="()edu.berkeley.cs.scads.comm.MessageFuture" id="66997">issueNextRequest</a><span class="delimiter">(</span><span class="delimiter">)</span>: <span title="edu.berkeley.cs.scads.comm.MessageFuture">MessageFuture</span> = <span class="delimiter">{</span>
+    <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.comm.CursorScanRequest" id="77406">rec</a> = <span title="(cursorId: Option[Int], recsPerRequest: Int)edu.berkeley.cs.scads.comm.CursorScanRequest">CursorScanRequest</span><span class="delimiter">(</span><a href="#66992" title="=&gt; Option[Int]">cursorId</a>, <a href="#67005" title="Int">recsPerMessage</a><span class="delimiter">)</span>
+    <a href="#67000" title="edu.berkeley.cs.scads.comm.PartitionService">partitionService</a> <span title="(body: edu.berkeley.cs.scads.comm.MessageBody)edu.berkeley.cs.scads.comm.MessageFuture">!!</span> <a href="#77406" title="edu.berkeley.cs.scads.comm.CursorScanRequest">rec</a>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">protected</span> <span class="keyword">def</span> <a title="=&gt; Boolean" id="66998">canRequestMore</a> = <span title="=&gt; Boolean">!</span><a href="#66995" title="=&gt; Boolean">isServerDone</a> 
+  <span class="keyword">protected</span> <span class="keyword">def</span> <a title="(ftch: edu.berkeley.cs.scads.comm.MessageFuture)IndexedSeq[edu.berkeley.cs.scads.comm.Record]" id="66999">getRecordsFromFuture</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.comm.MessageFuture" id="77457">ftch</a>: <span title="edu.berkeley.cs.scads.comm.MessageFuture">MessageFuture</span><span class="delimiter">)</span> =
+    <a href="#77457" title="edu.berkeley.cs.scads.comm.MessageFuture">ftch</a>.<span title="(timeout: Long)Option[edu.berkeley.cs.scads.comm.MessageBody]">get</span><span class="delimiter">(</span><span class="int">3</span> * <span class="int">60</span> <span title="Long(180000L)">*</span> <span class="int">1000</span><span class="delimiter">)</span>.<span title="(default: =&gt; edu.berkeley.cs.scads.comm.MessageBody)edu.berkeley.cs.scads.comm.MessageBody">getOrElse</span><span class="delimiter">(</span><span title="Nothing" class="keyword">throw</span> <span title="(x$1: java.lang.String)java.lang.RuntimeException" class="keyword">new</span> <span title="java.lang.RuntimeException">RuntimeException</span><span class="delimiter">(</span><span title="java.lang.String(&quot;CursorScanRequest timedout&quot;)" class="string">&quot;CursorScanRequest timedout&quot;</span><span class="delimiter">)</span><span class="delimiter">)</span> <span title="IndexedSeq[edu.berkeley.cs.scads.comm.Record]" class="keyword">match</span> <span class="delimiter">{</span>
+      <span class="keyword">case</span> <span title="IndexedSeq[edu.berkeley.cs.scads.comm.Record]">CursorScanResponse</span><span class="delimiter">(</span><a title="Option[Int]" id="77525">id</a>, <a title="IndexedSeq[edu.berkeley.cs.scads.comm.Record]" id="77526">recs</a><span class="delimiter">)</span> =&gt;
+        <a href="#66992" title="(x$1: Option[Int])Unit">cursorId</a> = <a href="#77525" title="Option[Int]">id</a>
+        <a href="#66995" title="(x$1: Boolean)Unit">isServerDone</a> = <a href="#77525" title="Option[Int]">id</a>.<span title="=&gt; Boolean">isEmpty</span>
+        <span title="(assertion: Boolean)Unit">assert</span><span class="delimiter">(</span><a href="#66995" title="=&gt; Boolean">isServerDone</a> <span title="(x: Boolean)Boolean">||</span> <a href="#77526" title="IndexedSeq[edu.berkeley.cs.scads.comm.Record]">recs</a>.<span title="=&gt; Int">size</span> <span title="(x: Int)Boolean">==</span> <a href="#67005" title="Int">recsPerMessage</a><span class="delimiter">)</span>
+        <a href="#77526" title="IndexedSeq[edu.berkeley.cs.scads.comm.Record]">recs</a>
+      <span class="keyword">case</span> <a title="Nothing" id="77534">e</a> =&gt; <span title="Nothing" class="keyword">throw</span> <span title="(x$1: java.lang.String)java.lang.RuntimeException" class="keyword">new</span> <span title="java.lang.RuntimeException">RuntimeException</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Invalid response to a CursorScanRequest: &quot;)" class="string">&quot;Invalid response to a CursorScanRequest: &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#77534" title="edu.berkeley.cs.scads.comm.MessageBody">e</a><span class="delimiter">)</span>
+    <span class="delimiter">}</span>
+<span class="delimiter">}</span>
+
+<span class="comment">/**
+ * Iterator that makes succesive GetRange requests to the specified partitionService to retrieve all values [minKey, maxKey).
+ * Records are retrieved in batches of size recsPerMessage by an async Actor and are buffered upto bufferSize.
+ * Note, this iterator is not threadsafe.
+ */</span>
+<span class="keyword">class</span> <a title="class PartitionIterator extends java.lang.Object with Iterator[edu.berkeley.cs.scads.comm.Record] with ScalaObject" id="9791">PartitionIterator</a><a href="#9791" title="ScalaObject" class="delimiter">(</a><a title="edu.berkeley.cs.scads.comm.PartitionService" id="67058">partitionService</a>: <span title="edu.berkeley.cs.scads.comm.PartitionService">PartitionService</span>, <a title="Option[Array[Byte]]" id="67059">minKey</a>: <span title="Option[Array[Byte]]">Option</span><span class="delimiter">[</span>Array<span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">]</span>, <a title="Option[Array[Byte]]" id="67060">maxKey</a>: <span title="Option[Array[Byte]]">Option</span><span class="delimiter">[</span>Array<span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">]</span>, <a title="Int" id="67064">recsPerMessage</a>: <span title="Int">Int</span> = <span title="Int(1000)" class="int">1000</span>, <a title="Int" id="67065">bufferSize</a>: <span title="Int">Int</span> = <span title="Int(5)" class="int">5</span><span class="delimiter">)</span> <span class="keyword">extends</span> <span title="Iterator[edu.berkeley.cs.scads.comm.Record]">Iterator</span><span class="delimiter">[</span>Record<span class="delimiter">]</span> <span class="delimiter">{</span>
+  <span class="keyword">val</span> <a title="net.lag.logging.Logger" id="67038">logger</a> = <span title="()net.lag.logging.Logger">Logger</span><span class="delimiter">(</span><span class="delimiter">)</span>
+
+  <span class="comment">/**
+   * Queue used to exchange record sets between the actor and the consumer of the iterator
+   * Each time a recordset is retrieved a RecordSetTaken message should be sent to the iterActor
+   */</span>
+  <span class="keyword">protected</span> <span class="keyword">val</span> <a title="java.util.concurrent.ArrayBlockingQueue[Seq[edu.berkeley.cs.scads.comm.Record]]" id="67040">availableRecordSets</a> = <span title="java.util.concurrent.ArrayBlockingQueue[Seq[edu.berkeley.cs.scads.comm.Record]]" class="keyword">new</span> <span title="java.util.concurrent.ArrayBlockingQueue[Seq[edu.berkeley.cs.scads.comm.Record]]">ArrayBlockingQueue</span><span class="delimiter">[</span>Seq<span class="delimiter">[</span>Record<span class="delimiter">]</span><span class="delimiter">]</span><span class="delimiter">(</span><a href="#67065" title="Int">bufferSize</a><span class="delimiter">)</span>
+  <span class="comment">/**
+   * The current record set being iterated over.
+   * Note it is the responsibility of the taker of the last record to set
+   * this back to None so that subsuquent calls to next/hasNext will retrieve a new RecordSet
+   * from the queue.
+   * A recordset with 0 or 1 items denotes the end of the iterator.
+   */</span>
+  <span class="keyword">var</span> <a title="Option[Seq[edu.berkeley.cs.scads.comm.Record]]" id="67043">currentRecordSet</a>: <span title="Option[Seq[edu.berkeley.cs.scads.comm.Record]]">Option</span><span class="delimiter">[</span>Seq<span class="delimiter">[</span>Record<span class="delimiter">]</span><span class="delimiter">]</span> = <span title="object None">None</span>
+  <span class="keyword">protected</span> <span class="keyword">var</span> <a title="Int" id="67046">positionInRecordSet</a> = <span title="Int(0)" class="int">0</span>
+  <span class="keyword">protected</span> <span class="keyword">var</span> <a title="Boolean" id="67049">done</a> = <span title="Boolean(false)" class="keyword">false</span>
+
+  <span class="keyword">protected</span> <span class="keyword">object</span> <a title="object PartitionIterator.this.RecordSetTaken" id="67051">RecordSetTaken</a>
+  <span class="keyword">protected</span> <span class="keyword">val</span> <a title="scala.actors.Actor" id="67053">iterActor</a> = <span title="(body: =&gt; Unit)scala.actors.Actor">actor</span> <span class="delimiter">{</span>
+    <span class="keyword">implicit</span> <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.comm.RemoteActorProxy" id="77836">remoteActor</a> = <span title="object edu.berkeley.cs.scads.comm.MessageHandler">MessageHandler</span>.<span title="(a: scala.actors.Actor)edu.berkeley.cs.scads.comm.RemoteActorProxy">registerActor</span><span class="delimiter">(</span><span title="=&gt; scala.actors.Actor">self</span><span class="delimiter">)</span>
+    <span class="keyword">var</span> <a title="Option[Array[Byte]]" id="77837">currentKey</a> = <a href="#67059" title="Option[Array[Byte]]">minKey</a>
+    <span class="keyword">var</span> <a title="Int" id="77838">outstandingRecordSets</a> = <span title="Int(0)" class="int">0</span>
+    <span class="keyword">var</span> <a title="Boolean" id="77839">done</a> = <span title="Boolean(false)" class="keyword">false</span>
+
+
+    <span title="(body: =&gt; Unit)Unit">loop</span> <span class="delimiter">{</span>
+      <span title="Unit" class="keyword">if</span><span class="delimiter">(</span><span title="=&gt; Boolean">!</span><a href="#77839" title="Boolean">done</a> <span title="(x: Boolean)Boolean">&amp;&amp;</span> <a href="#77838" title="Int">outstandingRecordSets</a> <span title="(x: Int)Boolean">&lt;</span> <a href="#67065" title="Int">bufferSize</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+        <a href="#67058" title="edu.berkeley.cs.scads.comm.PartitionService">partitionService</a>.<span title="(body: edu.berkeley.cs.scads.comm.MessageBody)(implicit sender: edu.berkeley.cs.scads.comm.RemoteActorProxy)Unit">!</span><a href="#77836" title="edu.berkeley.cs.scads.comm.RemoteActorProxy" class="delimiter">(</a><span title="(minKey: Option[Array[Byte]], maxKey: Option[Array[Byte]], limit: Option[Int], offset: Option[Int], ascending: Boolean)edu.berkeley.cs.scads.comm.GetRangeRequest">GetRangeRequest</span><span class="delimiter">(</span><a href="#77837" title="Option[Array[Byte]]">currentKey</a>, <a href="#67060" title="Option[Array[Byte]]">maxKey</a>, limit=<span title="(x: Int)Some[Int]">Some</span><span class="delimiter">(</span><a href="#67064" title="Int">recsPerMessage</a><span class="delimiter">)</span><span class="delimiter">)</span><span class="delimiter">)</span>
+
+        <span title="(f: PartialFunction[Any,Unit])Nothing">react</span> <a href="#77935" title="Unit" class="delimiter">{</a>
+          <span class="keyword">case</span> <span title="Unit">GetRangeResponse</span><span class="delimiter">(</span><a title="Seq[edu.berkeley.cs.scads.comm.Record]" id="77937">recs</a><span class="delimiter">)</span> =&gt; <span class="delimiter">{</span>
+            <a href="#77838" title="Int">outstandingRecordSets</a> <span title="(x: Int)Int">+=</span> <span title="Int(1)" class="int">1</span>
+            <span title="Unit" class="keyword">if</span><span class="delimiter">(</span><a href="#77937" title="Seq[edu.berkeley.cs.scads.comm.Record]">recs</a>.<span title="=&gt; Int">size</span> <span title="(x: Int)Boolean">&lt;=</span> <span title="Int(1)" class="int">1</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+              <span title="object edu.berkeley.cs.scads.comm.MessageHandler">MessageHandler</span>.<span title="(ra: edu.berkeley.cs.scads.comm.RemoteActorProxy)Unit">unregisterActor</span><span class="delimiter">(</span><a href="#77836" title="edu.berkeley.cs.scads.comm.RemoteActorProxy">remoteActor</a><span class="delimiter">)</span>
+              <a href="#67040" title="=&gt; java.util.concurrent.ArrayBlockingQueue[Seq[edu.berkeley.cs.scads.comm.Record]]">availableRecordSets</a>.<span title="(x$1: Seq[edu.berkeley.cs.scads.comm.Record])Boolean">offer</span><span class="delimiter">(</span><a href="#77937" title="Seq[edu.berkeley.cs.scads.comm.Record]">recs</a><span class="delimiter">)</span>
+              <a href="#77839" title="Boolean">done</a> = <span title="Boolean(true)" class="keyword">true</span>
+            <span class="delimiter">}</span>
+            <span class="keyword">else</span> <span class="delimiter">{</span>
+              <a href="#67040" title="=&gt; java.util.concurrent.ArrayBlockingQueue[Seq[edu.berkeley.cs.scads.comm.Record]]">availableRecordSets</a>.<span title="(x$1: Seq[edu.berkeley.cs.scads.comm.Record])Boolean">offer</span><span class="delimiter">(</span><a href="#77937" title="Seq[edu.berkeley.cs.scads.comm.Record]">recs</a>.<span title="(n: Int)Seq[edu.berkeley.cs.scads.comm.Record]">dropRight</span><span class="delimiter">(</span><span title="Int(1)" class="int">1</span><span class="delimiter">)</span><span class="delimiter">)</span>
+              <a href="#77837" title="Option[Array[Byte]]">currentKey</a> = <span title="(x: Array[Byte])Some[Array[Byte]]">Some</span><span class="delimiter">(</span><a href="#77937" title="Seq[edu.berkeley.cs.scads.comm.Record]">recs</a>.<span title="=&gt; edu.berkeley.cs.scads.comm.Record">last</span>.<span title="=&gt; Array[Byte]">key</span><span class="delimiter">)</span>
+            <span class="delimiter">}</span>
+          <span class="delimiter">}</span>
+        <span class="delimiter">}</span>
+      <span class="delimiter">}</span>
+      <span class="keyword">else</span> <span class="delimiter">{</span>
+        <span title="(f: PartialFunction[Any,Unit])Nothing">react</span> <a href="#77973" title="Unit" class="delimiter">{</a>
+          <span class="keyword">case</span> <a href="#67051" title="Unit">RecordSetTaken</a> =&gt; <a href="#77838" title="Int">outstandingRecordSets</a> <span title="(x: Int)Int">-=</span> <span title="Int(1)" class="int">1</span>
+        <span class="delimiter">}</span>
+      <span class="delimiter">}</span>
+    <span class="delimiter">}</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">protected</span> <span class="keyword">def</span> <a title="=&gt; Seq[edu.berkeley.cs.scads.comm.Record]" id="67055">getCurrentRecordSet</a>: <span title="Seq[edu.berkeley.cs.scads.comm.Record]">Seq</span><span class="delimiter">[</span>Record<span class="delimiter">]</span> = <span class="delimiter">{</span>
+    <a href="#67043" title="=&gt; Option[Seq[edu.berkeley.cs.scads.comm.Record]]">currentRecordSet</a>.<span title="(default: =&gt; Seq[edu.berkeley.cs.scads.comm.Record])Seq[edu.berkeley.cs.scads.comm.Record]">getOrElse</span> <span class="delimiter">{</span>
+      <a href="#67043" title="(x$1: Option[Seq[edu.berkeley.cs.scads.comm.Record]])Unit">currentRecordSet</a> = <span title="(x: Seq[edu.berkeley.cs.scads.comm.Record])Some[Seq[edu.berkeley.cs.scads.comm.Record]]">Some</span><span class="delimiter">(</span><a href="#67040" title="=&gt; java.util.concurrent.ArrayBlockingQueue[Seq[edu.berkeley.cs.scads.comm.Record]]">availableRecordSets</a>.<span title="()Seq[edu.berkeley.cs.scads.comm.Record]">take</span><span class="delimiter">)</span>
+      <a href="#67046" title="(x$1: Int)Unit">positionInRecordSet</a> = <span title="Int(0)" class="int">0</span>
+      <a href="#67053" title="=&gt; scala.actors.Actor">iterActor</a> <span title="(msg: Any)Unit">!</span> <a href="#67051" title="object PartitionIterator.this.RecordSetTaken">RecordSetTaken</a>
+      <a href="#67043" title="=&gt; Option[Seq[edu.berkeley.cs.scads.comm.Record]]">currentRecordSet</a>.<span title="=&gt; Seq[edu.berkeley.cs.scads.comm.Record]">get</span>
+    <span class="delimiter">}</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">def</span> <a title="()edu.berkeley.cs.scads.comm.Record" id="67056">next</a>: <span title="edu.berkeley.cs.scads.comm.Record">Record</span> = <span class="delimiter">{</span>
+    <span class="keyword">val</span> <a title="Seq[edu.berkeley.cs.scads.comm.Record]" id="78002">set</a> = <a href="#67055" title="=&gt; Seq[edu.berkeley.cs.scads.comm.Record]">getCurrentRecordSet</a>
+    <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.comm.Record" id="78003">result</a> = <a href="#78002" title="(idx: Int)edu.berkeley.cs.scads.comm.Record">set</a><span class="delimiter">(</span><a href="#67046" title="=&gt; Int">positionInRecordSet</a><span class="delimiter">)</span>
+    <a href="#67046" title="(x$1: Int)Unit">positionInRecordSet</a> <span title="(x: Int)Int">+=</span> <span title="Int(1)" class="int">1</span>
+    <span title="Unit" class="keyword">if</span><span class="delimiter">(</span><a href="#67046" title="=&gt; Int">positionInRecordSet</a> <span title="(x: Int)Boolean">&gt;=</span> <a href="#78002" title="Seq[edu.berkeley.cs.scads.comm.Record]">set</a>.<span title="=&gt; Int">size</span> <span title="(x: Boolean)Boolean">&amp;&amp;</span> <a href="#78002" title="Seq[edu.berkeley.cs.scads.comm.Record]">set</a>.<span title="=&gt; Int">size</span> <span title="(x: Int)Boolean">&gt;</span> <span title="Int(1)" class="int">1</span><span class="delimiter">)</span>
+      <a href="#67043" title="(x$1: Option[Seq[edu.berkeley.cs.scads.comm.Record]])Unit">currentRecordSet</a> = <span title="object None">None</span>
+    <a href="#78003" title="edu.berkeley.cs.scads.comm.Record">result</a>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">def</span> <a title="=&gt; Boolean" id="67057">hasNext</a>: <span title="Boolean">Boolean</span> = <a href="#67055" title="=&gt; Seq[edu.berkeley.cs.scads.comm.Record]">getCurrentRecordSet</a>.<span title="=&gt; Int">size</span> <span title="(x: Int)Boolean">&gt;</span> <a href="#67046" title="=&gt; Int">positionInRecordSet</a>
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>

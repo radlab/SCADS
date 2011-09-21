@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>server/KeyComparison.scala</title>
+        <script type="text/javascript" src="../jquery-all.js"></script>
+        <script type="text/javascript" src="../linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="../style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.scads.storage
+
+<span class="keyword">import</span> java.util.Comparator
+<span class="keyword">import</span> org.apache.avro.Schema
+<span class="keyword">import</span> java.nio.ByteBuffer
+
+<span class="keyword">trait</span> <a title="trait AvroComparator extends java.lang.Object with java.util.Comparator[Array[Byte]] with ScalaObject" id="9799">AvroComparator</a> <span title="ScalaObject" class="keyword">extends</span> <span title="java.util.Comparator[Array[Byte]]">Comparator</span><span class="delimiter">[</span>Array<span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">]</span>  <span class="delimiter">{</span>
+  <span class="keyword">val</span> <a title="=&gt; org.apache.avro.Schema" id="65840">keySchema</a>: <span title="org.apache.avro.Schema">Schema</span>
+
+  <span class="keyword">def</span> <a title="(o1: Array[Byte], o2: Array[Byte])Int" id="65841">compare</a><span class="delimiter">(</span><a title="Array[Byte]" id="69787">o1</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span>, <a title="Array[Byte]" id="69788">o2</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">)</span>: <span title="Int">Int</span> = <span class="delimiter">{</span>
+    org.apache.avro.io.<span title="object org.apache.avro.io.BinaryData">BinaryData</span>.<span title="(x$1: Array[Byte], x$2: Int, x$3: Array[Byte], x$4: Int, x$5: org.apache.avro.Schema)Int">compare</span><span class="delimiter">(</span><a href="#69787" title="Array[Byte]">o1</a>, <span title="Int(0)" class="int">0</span>, <a href="#69788" title="Array[Byte]">o2</a>, <span title="Int(0)" class="int">0</span>, <a href="#65840" title="=&gt; org.apache.avro.Schema">keySchema</a><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">def</span> <a title="(o1: java.nio.ByteBuffer, o2: Array[Byte])Int" id="65842">compare</a><span class="delimiter">(</span><a title="java.nio.ByteBuffer" id="69799">o1</a>: <span title="java.nio.ByteBuffer">ByteBuffer</span>, <a title="Array[Byte]" id="69800">o2</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span><span class="delimiter">)</span>: <span title="Int">Int</span> = <span class="delimiter">{</span>
+    <span title="Unit" class="keyword">if</span> <span class="delimiter">(</span><span title="=&gt; Boolean">!</span><a href="#69799" title="java.nio.ByteBuffer">o1</a>.<span title="()Boolean">hasArray</span><span class="delimiter">)</span>
+      <span title="Nothing" class="keyword">throw</span> <span title="(x$1: java.lang.String)java.lang.Exception" class="keyword">new</span> <span title="java.lang.Exception">Exception</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Can\'t compare without backing array&quot;)" class="string">&quot;Can't compare without backing array&quot;</span><span class="delimiter">)</span>
+    org.apache.avro.io.<span title="object org.apache.avro.io.BinaryData">BinaryData</span>.<span title="(x$1: Array[Byte], x$2: Int, x$3: Array[Byte], x$4: Int, x$5: org.apache.avro.Schema)Int">compare</span><span class="delimiter">(</span><a href="#69799" title="java.nio.ByteBuffer">o1</a>.<span title="()Array[Byte]">array</span><span class="delimiter">(</span><span class="delimiter">)</span>, <a href="#69799" title="java.nio.ByteBuffer">o1</a>.<span title="()Int">position</span>, <a href="#69800" title="Array[Byte]">o2</a>, <span title="Int(0)" class="int">0</span>, <a href="#65840" title="=&gt; org.apache.avro.Schema">keySchema</a><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">def</span> <a title="(o1: Array[Byte], o2: java.nio.ByteBuffer)Int" id="65843">compare</a><span class="delimiter">(</span><a title="Array[Byte]" id="69796">o1</a>: <span title="Array[Byte]">Array</span><span class="delimiter">[</span>Byte<span class="delimiter">]</span>, <a title="java.nio.ByteBuffer" id="69797">o2</a>: <span title="java.nio.ByteBuffer">ByteBuffer</span><span class="delimiter">)</span>: <span title="Int">Int</span> = <span class="delimiter">{</span>
+    <span title="Unit" class="keyword">if</span> <span class="delimiter">(</span><span title="=&gt; Boolean">!</span><a href="#69797" title="java.nio.ByteBuffer">o2</a>.<span title="()Boolean">hasArray</span><span class="delimiter">)</span>
+      <span title="Nothing" class="keyword">throw</span> <span title="(x$1: java.lang.String)java.lang.Exception" class="keyword">new</span> <span title="java.lang.Exception">Exception</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Can\'t compare without backing array&quot;)" class="string">&quot;Can't compare without backing array&quot;</span><span class="delimiter">)</span>
+    org.apache.avro.io.<span title="object org.apache.avro.io.BinaryData">BinaryData</span>.<span title="(x$1: Array[Byte], x$2: Int, x$3: Array[Byte], x$4: Int, x$5: org.apache.avro.Schema)Int">compare</span><span class="delimiter">(</span><a href="#69796" title="Array[Byte]">o1</a>, <span title="Int(0)" class="int">0</span>, <a href="#69797" title="java.nio.ByteBuffer">o2</a>.<span title="()Array[Byte]">array</span>, <a href="#69797" title="java.nio.ByteBuffer">o2</a>.<span title="()Int">position</span>, <a href="#65840" title="=&gt; org.apache.avro.Schema">keySchema</a><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+
+  <span class="keyword">override</span> <span class="keyword">def</span> <a title="(other: Any)Boolean" id="65844">equals</a><span class="delimiter">(</span><a title="Any" id="78073">other</a>: <span title="Any">Any</span><span class="delimiter">)</span>: <span title="Boolean">Boolean</span> = <a href="#78073" title="Any">other</a> <span title="Boolean" class="keyword">match</span> <span class="delimiter">{</span>
+    <span class="keyword">case</span> <a title="Boolean" id="78075">ac</a>: <a href="#9799" title="edu.berkeley.cs.scads.storage.AvroComparator">AvroComparator</a> =&gt; <a href="#65840" title="=&gt; org.apache.avro.Schema">keySchema</a> <span title="(x$1: Any)Boolean">equals</span> <a href="#78075" title="edu.berkeley.cs.scads.storage.AvroComparator">ac</a>.<a href="#65840" title="=&gt; org.apache.avro.Schema">keySchema</a>
+    <span class="keyword">case</span> <span title="Boolean(false)">_</span> =&gt; <span title="Boolean(false)" class="keyword">false</span>
+  <span class="delimiter">}</span>
+<span class="delimiter">}</span>
+
+<span class="comment">/**
+ * The json string has to be stored since schemas are not serializable, which
+ * is a requirement of Comparators for BDB
+ */</span>
+<span class="keyword">class</span> <a title="class AvroBdbComparator extends java.lang.Object with edu.berkeley.cs.scads.storage.AvroComparator with Serializable with ScalaObject" id="9800">AvroBdbComparator</a><a href="#9800" title="ScalaObject" class="delimiter">(</a><span class="keyword">val</span> <a title="String" id="78090">json</a>: <span title="String">String</span><span class="delimiter">)</span> <span class="keyword">extends</span> <a href="#9799" title="edu.berkeley.cs.scads.storage.AvroComparator">AvroComparator</a> <span class="keyword">with</span> <span title="Serializable">Serializable</span> <span class="delimiter">{</span>
+  <span class="keyword">def</span> <a title="(schema: org.apache.avro.Schema)edu.berkeley.cs.scads.storage.AvroBdbComparator" id="78080" class="keyword">this</a><span class="delimiter">(</span><a title="org.apache.avro.Schema" id="78094">schema</a>: <span title="org.apache.avro.Schema">Schema</span><span class="delimiter">)</span> = <a href="#9800" title="AvroBdbComparator.this.type" class="keyword">this</a><span class="delimiter">(</span><a href="#78094" title="org.apache.avro.Schema">schema</a>.<span title="()java.lang.String">toString</span><span class="delimiter">)</span>
+  @transient
+  <span class="keyword">lazy</span> <span class="keyword">val</span> <a title="org.apache.avro.Schema" id="78082">keySchema</a> = <span title="org.apache.avro.Schema.Parser" class="keyword">new</span> <span title="object org.apache.avro.Schema">Schema</span>.<span title="org.apache.avro.Schema.Parser">Parser</span><span class="delimiter">(</span><span class="delimiter">)</span>.<span title="(x$1: java.lang.String)org.apache.avro.Schema">parse</span><span class="delimiter">(</span><a href="#78090" title="=&gt; String">json</a><span class="delimiter">)</span>
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>

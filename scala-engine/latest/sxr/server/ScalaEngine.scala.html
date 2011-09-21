@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>server/ScalaEngine.scala</title>
+        <script type="text/javascript" src="../jquery-all.js"></script>
+        <script type="text/javascript" src="../linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="../style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs
+<span class="keyword">package</span> scads
+<span class="keyword">package</span> storage
+
+<span class="keyword">import</span> com.sleepycat.je.Environment
+<span class="keyword">import</span> com.sleepycat.je.EnvironmentConfig
+<span class="keyword">import</span> com.sleepycat.je.jmx.JEMonitor
+
+<span class="keyword">import</span> net.lag.logging.Logger
+<span class="keyword">import</span> java.io.File
+
+<span class="keyword">import</span> comm._
+<span class="keyword">import</span> storage._
+<span class="keyword">import</span> avro.marker._
+<span class="keyword">import</span> deploylib.mesos._
+
+<span class="comment">/**
+ * Application for starting up a standalone scads storage engine
+ */</span>
+<span class="keyword">object</span> <a title="object edu.berkeley.cs.scads.storage.ScalaEngine" id="9830">ScalaEngine</a> <span title="ScalaObject" class="keyword">extends</span> optional.<span title="optional.Application">Application</span> <span class="delimiter">{</span>
+  <span class="keyword">private</span> <span class="keyword">val</span> <a title="net.lag.logging.Logger" id="80000">logger</a> = <span title="()net.lag.logging.Logger">Logger</span><span class="delimiter">(</span><span class="delimiter">)</span>
+  <span class="keyword">def</span> <a title="(clusterAddress: Option[String], dbDir: Option[java.io.File], cachePercentage: Option[Int], verbose: Boolean, name: Option[String])edu.berkeley.cs.scads.storage.StorageHandler" id="80002">main</a><span class="delimiter">(</span><a title="Option[String]" id="80092">clusterAddress</a>: <span title="Option[String]">Option</span><span class="delimiter">[</span>String<span class="delimiter">]</span>, <a title="Option[java.io.File]" id="80093">dbDir</a>: <span title="Option[java.io.File]">Option</span><span class="delimiter">[</span>java.io.File<span class="delimiter">]</span>, <a title="Option[Int]" id="80094">cachePercentage</a>: <span title="Option[Int]">Option</span><span class="delimiter">[</span>Int<span class="delimiter">]</span>, <a title="Boolean" id="80095">verbose</a>: <span title="Boolean">Boolean</span>, <a title="Option[String]" id="80098">name</a>: <span title="Option[String]">Option</span><span class="delimiter">[</span>String<span class="delimiter">]</span> = <span title="object None">None</span><span class="delimiter">)</span> : <a href="StorageHandler.scala.html#9853" title="edu.berkeley.cs.scads.storage.StorageHandler">StorageHandler</a> = <span class="delimiter">{</span>
+    <span title="Unit" class="keyword">if</span><span class="delimiter">(</span><a href="#80095" title="Boolean">verbose</a><span class="delimiter">)</span>
+      org.apache.log4j.<span title="object org.apache.log4j.BasicConfigurator">BasicConfigurator</span>.<span title="()Unit">configure</span><span class="delimiter">(</span><span class="delimiter">)</span>
+
+    <span class="keyword">val</span> <a title="com.sleepycat.je.EnvironmentConfig" id="80099">config</a> = <span title="com.sleepycat.je.EnvironmentConfig" class="keyword">new</span> <span title="com.sleepycat.je.EnvironmentConfig">EnvironmentConfig</span><span class="delimiter">(</span><span class="delimiter">)</span>
+    <a href="#80099" title="com.sleepycat.je.EnvironmentConfig">config</a>.<span title="(x$1: Boolean)com.sleepycat.je.EnvironmentConfig">setAllowCreate</span><span class="delimiter">(</span><span title="Boolean(true)" class="keyword">true</span><span class="delimiter">)</span>
+    <a href="#80099" title="com.sleepycat.je.EnvironmentConfig">config</a>.<span title="(x$1: Boolean)com.sleepycat.je.EnvironmentConfig">setTransactional</span><span class="delimiter">(</span><span title="Boolean(true)" class="keyword">true</span><span class="delimiter">)</span>
+    <a href="#80099" title="com.sleepycat.je.EnvironmentConfig">config</a>.<span title="(x$1: Int)com.sleepycat.je.EnvironmentMutableConfig">setCachePercent</span><span class="delimiter">(</span><a href="#80094" title="Option[Int]">cachePercentage</a>.<span title="(default: =&gt; Int)Int">getOrElse</span><span class="delimiter">(</span><span title="Int(80)" class="int">80</span><span class="delimiter">)</span><span class="delimiter">)</span>
+
+    <span class="keyword">val</span> <a title="java.io.File" id="80100">dir</a> = <a href="#80093" title="Option[java.io.File]">dbDir</a>.<span title="(default: =&gt; java.io.File)java.io.File">getOrElse</span><span class="delimiter">(</span><span title="java.io.File" class="keyword">new</span> java.io.<span title="java.io.File">File</span><span class="delimiter">(</span><span title="java.lang.String(&quot;db&quot;)" class="string">&quot;db&quot;</span><span class="delimiter">)</span><span class="delimiter">)</span>
+    <span title="AnyVal" class="keyword">if</span><span class="delimiter">(</span><span title="=&gt; Boolean">!</span><a href="#80100" title="java.io.File">dir</a>.<span title="()Boolean">exists</span><span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+      <a href="#80100" title="java.io.File">dir</a>.<span title="()Boolean">mkdir</span>
+    <span class="delimiter">}</span>
+
+    <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode" id="80101">zooRoot</a> = <a href="#80092" title="Option[String]">clusterAddress</a>.<span title="(f: String =&gt; edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode)Option[edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode]">map</span><span class="delimiter">(</span><a title="String" id="80480">p</a> =&gt; <span title="(uri: String)edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">ZooKeeperNode</span><span class="delimiter">(</span><a href="#80480" title="String">p</a><span class="delimiter">)</span><span class="delimiter">)</span>.<span title="(default: =&gt; edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode)edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">getOrElse</span><span class="delimiter">(</span><span title="object edu.berkeley.cs.scads.comm.ZooKeeperHelper">ZooKeeperHelper</span>.<a title="edu.berkeley.cs.scads.comm.ZooKeeperHelper.testZooKeeper.ZooKeeperNode" id="80504">getTestZooKeeper</a>.<a href="#80504" title="Int" id="80506">getOrCreate</a><span class="delimiter">(</span><a title="java.lang.String(&quot;scads&quot;)" id="80505" class="string">&quot;scads&quot;</a><span class="delimiter">)</span><span class="delimiter">)</span>
+
+    <a href="#80000" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">info</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Opening BDB Environment: &quot;)" class="string">&quot;Opening BDB Environment: &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#80100" title="java.io.File">dir</a> <span title="(x$1: Any)java.lang.String">+</span> <span title="java.lang.String(&quot;, &quot;)" class="string">&quot;, &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#80099" title="com.sleepycat.je.EnvironmentConfig">config</a><span class="delimiter">)</span>
+    <span class="keyword">val</span> <a title="com.sleepycat.je.Environment" id="80102">env</a> = <span title="com.sleepycat.je.Environment" class="keyword">new</span> <span title="com.sleepycat.je.Environment">Environment</span><span class="delimiter">(</span><a href="#80100" title="java.io.File">dir</a>, <a href="#80099" title="com.sleepycat.je.EnvironmentConfig">config</a><span class="delimiter">)</span>
+    <span title="Nothing" class="keyword">return</span> <span title="edu.berkeley.cs.scads.storage.StorageHandler" class="keyword">new</span> <a href="StorageHandler.scala.html#9853" title="edu.berkeley.cs.scads.storage.StorageHandler">StorageHandler</a><span class="delimiter">(</span><a href="#80102" title="com.sleepycat.je.Environment">env</a>, <a href="#80101" title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">zooRoot</a>,<a href="#80098" title="Option[String]">name</a><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+<span class="delimiter">}</span>
+
+<span class="comment">/**
+ * Task for running scads storage engine on mesos
+ */</span>
+case <span class="keyword">class</span> <a href="#113411" title="class ScalaEngineTask extends org.apache.avro.specific.SpecificRecordBase with edu.berkeley.cs.avro.runtime.HasAvroConversions with deploylib.mesos.AvroTask with edu.berkeley.cs.avro.marker.AvroRecord with ScalaObject with Product with Serializable" id="80809">ScalaEngineTask</a><a href="#80809" title="ScalaObject" class="delimiter">(</a><a href="#80809" title="()edu.berkeley.cs.scads.storage.ScalaEngineTask" id="108877" class="keyword">var</a> <a title="String" id="80791">clusterAddress</a>: <span title="String">String</span>, <span class="keyword">var</span> <a title="Option[String]" id="80800">dbDir</a>: <span title="Option[String]">Option</span><span class="delimiter">[</span>String<span class="delimiter">]</span> = <span title="object None">None</span>, <span class="keyword">var</span> <a title="Option[Int]" id="80801">cachePercentage</a>: <span title="Option[Int]">Option</span><span class="delimiter">[</span>Int<span class="delimiter">]</span> = <span title="object None">None</span>, <span class="keyword">var</span> <a title="Option[String]" id="80802">name</a>: <span title="Option[String]">Option</span><span class="delimiter">[</span>String<span class="delimiter">]</span> = <span title="object None">None</span><span class="delimiter">)</span> <span class="keyword">extends</span> <span title="deploylib.mesos.AvroTask">AvroTask</span> <span class="keyword">with</span> <span title="edu.berkeley.cs.avro.marker.AvroRecord">AvroRecord</span> <span class="delimiter">{</span>
+  <span class="keyword">def</span> <a title="()Unit" id="80538">run</a><span class="delimiter">(</span><span class="delimiter">)</span>: <span title="Unit">Unit</span> = <span class="delimiter">{</span>
+    <span class="keyword">val</span> <a title="net.lag.logging.Logger" id="80561">logger</a> = <span title="()net.lag.logging.Logger">Logger</span><span class="delimiter">(</span><span class="delimiter">)</span>
+    <span class="keyword">val</span> <a title="com.sleepycat.je.EnvironmentConfig" id="80562">config</a> = <span title="com.sleepycat.je.EnvironmentConfig" class="keyword">new</span> <span title="com.sleepycat.je.EnvironmentConfig">EnvironmentConfig</span><span class="delimiter">(</span><span class="delimiter">)</span>
+    <a href="#80562" title="com.sleepycat.je.EnvironmentConfig">config</a>.<span title="(x$1: Boolean)com.sleepycat.je.EnvironmentConfig">setAllowCreate</span><span class="delimiter">(</span><span title="Boolean(true)" class="keyword">true</span><span class="delimiter">)</span>
+    <a href="#80562" title="com.sleepycat.je.EnvironmentConfig">config</a>.<span title="(x$1: Boolean)com.sleepycat.je.EnvironmentConfig">setTransactional</span><span class="delimiter">(</span><span title="Boolean(true)" class="keyword">true</span><span class="delimiter">)</span>
+    <a href="#80562" title="com.sleepycat.je.EnvironmentConfig">config</a>.<span title="(x$1: Int)com.sleepycat.je.EnvironmentMutableConfig">setCachePercent</span><span class="delimiter">(</span><a href="#80801" title="=&gt; Option[Int]">cachePercentage</a>.<span title="(default: =&gt; Int)Int">getOrElse</span><span class="delimiter">(</span><span title="Int(60)" class="int">60</span><span class="delimiter">)</span><span class="delimiter">)</span>
+
+    <span class="keyword">val</span> <a title="java.io.File" id="80563">dir</a> = <a href="#80800" title="=&gt; Option[String]">dbDir</a>.<span title="(f: String =&gt; java.io.File)Option[java.io.File]">map</span><span class="delimiter">(</span><span title="java.io.File" class="keyword">new</span> <span title="java.io.File">File</span><span class="delimiter">(</span><a href="#80665" title="String">_</a><span class="delimiter">)</span><span class="delimiter">)</span>.<span title="(default: =&gt; java.io.File)java.io.File">getOrElse</span><span class="delimiter">(</span><span title="java.io.File" class="keyword">new</span> <span title="java.io.File">File</span><span class="delimiter">(</span><span title="java.lang.String(&quot;db&quot;)" class="string">&quot;db&quot;</span><span class="delimiter">)</span><span class="delimiter">)</span>
+    <span title="AnyVal" class="keyword">if</span><span class="delimiter">(</span><span title="=&gt; Boolean">!</span><a href="#80563" title="java.io.File">dir</a>.<span title="()Boolean">exists</span><span class="delimiter">(</span><span class="delimiter">)</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+      <a href="#80563" title="java.io.File">dir</a>.<span title="()Boolean">mkdir</span>
+    <span class="delimiter">}</span>
+
+    <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode" id="80564">zooRoot</a> = <span title="(uri: String)edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">ZooKeeperNode</span><span class="delimiter">(</span><a href="#80791" title="=&gt; String">clusterAddress</a><span class="delimiter">)</span>
+
+    <a href="#80561" title="net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">info</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Opening BDB Environment: &quot;)" class="string">&quot;Opening BDB Environment: &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#80563" title="java.io.File">dir</a> <span title="(x$1: Any)java.lang.String">+</span> <span title="java.lang.String(&quot;, &quot;)" class="string">&quot;, &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#80562" title="com.sleepycat.je.EnvironmentConfig">config</a><span class="delimiter">)</span>
+    <span class="keyword">val</span> <a title="com.sleepycat.je.Environment" id="80565">env</a> = <span title="com.sleepycat.je.Environment" class="keyword">new</span> <span title="com.sleepycat.je.Environment">Environment</span><span class="delimiter">(</span><a href="#80563" title="java.io.File">dir</a>, <a href="#80562" title="com.sleepycat.je.EnvironmentConfig">config</a><span class="delimiter">)</span>
+    <span class="keyword">val</span> <a title="edu.berkeley.cs.scads.storage.StorageHandler" id="80566">handler</a> = <span title="edu.berkeley.cs.scads.storage.StorageHandler" class="keyword">new</span> <a href="StorageHandler.scala.html#9853" title="edu.berkeley.cs.scads.storage.StorageHandler">StorageHandler</a><span class="delimiter">(</span><a href="#80565" title="com.sleepycat.je.Environment">env</a>, <a href="#80564" title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">zooRoot</a>,<a href="#80802" title="=&gt; Option[String]">name</a><span class="delimiter">)</span>
+
+    <span class="comment">//HACK</span>
+    <span title="Unit" class="keyword">while</span><span class="delimiter">(</span><span title="Boolean(true)" class="keyword">true</span><span class="delimiter">)</span>
+      <span title="object java.lang.Thread">Thread</span>.<span title="(x$1: Long)Unit">sleep</span><a href="#80697" title="()Unit" class="delimiter">(</a><span title="Long(100000L)" class="int">100000</span><span class="delimiter">)</span>
+  <span class="delimiter">}</span>
+<span class="delimiter">}</span>
+
+
+        </pre>
+    </body>
+</html>
