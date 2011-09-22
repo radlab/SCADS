@@ -47,40 +47,7 @@
 
         <div class="types members" id="types">
               <h3>Type Members</h3>
-              <ol><li visbl="pub" name="edu.berkeley.cs.scads.piql.AttributeValue" data-isabs="false">
-      <a id="AttributeValue:AttributeValue"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="AttributeValue.html"><span class="name">AttributeValue</span></a>
-        
-        <span class="params">(<span name="recordPosition">recordPosition: Int</span>, <span name="fieldPosition">fieldPosition: Int</span>)</span><span class="result"> extends Value with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.ConstantValue" data-isabs="false">
-      <a id="ConstantValue:ConstantValue"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="ConstantValue.html"><span class="name">ConstantValue</span></a>
-        
-        <span class="params">(<span name="v">v: Any</span>)</span><span class="result"> extends FixedValue with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.Context" data-isabs="false">
-      <a id="Context:Context"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="Context.html"><span class="name">Context</span></a>
-        
-        <span class="params">(<span name="parameters">parameters: IndexedSeq[Any]</span>, <span name="state">state: Option[List[Any]]</span>)</span><span class="result"> extends Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#CursorPosition" data-isabs="false">
+              <ol><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#CursorPosition" data-isabs="false">
       <a id="CursorPosition:CursorPosition"></a>
       <h4 class="signature">
       <span class="kind">type</span>
@@ -91,138 +58,6 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.package" class="extype" href="package$.html">package</a></dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.DataStopAfter" data-isabs="false">
-      <a id="DataStopAfter:DataStopAfter"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="DataStopAfter.html"><span class="name">DataStopAfter</span></a>
-        
-        <span class="params">(<span name="count">count: Limit</span>, <span name="child">child: Queryable</span>)</span><span class="result"> extends Queryable with StopOperator with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.DebugExecutor" data-isabs="true">
-      <a id="DebugExecutor:DebugExecutor"></a>
-      <h4 class="signature">
-      <span class="kind">trait</span>
-      <span class="symbol"> 
-        <a href="DebugExecutor.html"><span class="name">DebugExecutor</span></a>
-        
-        <span class="result"> extends QueryExecutor</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.EqualityPredicate" data-isabs="false">
-      <a id="EqualityPredicate:EqualityPredicate"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="EqualityPredicate.html"><span class="name">EqualityPredicate</span></a>
-        
-        <span class="params">(<span name="v1">v1: Value</span>, <span name="v2">v2: Value</span>)</span><span class="result"> extends Predicate with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.FixedLimit" data-isabs="false">
-      <a id="FixedLimit:FixedLimit"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="FixedLimit.html"><span class="name">FixedLimit</span></a>
-        
-        <span class="params">(<span name="count">count: Int</span>)</span><span class="result"> extends Limit with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.FixedValue" data-isabs="true">
-      <a id="FixedValue:FixedValue"></a>
-      <h4 class="signature">
-      <span class="kind">class</span>
-      <span class="symbol"> 
-        <a href="FixedValue.html"><span class="name">FixedValue</span></a>
-        
-        <span class="result"> extends Value</span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.ImplementationLimitation" data-isabs="false">
-      <a id="ImplementationLimitation:ImplementationLimitation"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="ImplementationLimitation.html"><span class="name">ImplementationLimitation</span></a>
-        
-        <span class="params">(<span name="desc">desc: String</span>)</span><span class="result"> extends Exception with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.InPredicate" data-isabs="false">
-      <a id="InPredicate:InPredicate"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="InPredicate.html"><span class="name">InPredicate</span></a>
-        
-        <span class="params">(<span name="v1">v1: Value</span>, <span name="v2">v2: Value</span>)</span><span class="result"> extends Predicate with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.IndexLookup" data-isabs="false">
-      <a id="IndexLookup:IndexLookup"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="IndexLookup.html"><span class="name">IndexLookup</span></a>
-        
-        <span class="params">(<span name="namespace">namespace: Namespace</span>, <span name="key">key: KeyGenerator</span>)</span><span class="result"> extends QueryPlan with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.IndexLookupJoin" data-isabs="false">
-      <a id="IndexLookupJoin:IndexLookupJoin"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="IndexLookupJoin.html"><span class="name">IndexLookupJoin</span></a>
-        
-        <span class="params">(<span name="namespace">namespace: Namespace</span>, <span name="key">key: KeyGenerator</span>, <span name="child">child: QueryPlan</span>)</span><span class="result"> extends RemotePlan with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.IndexMergeJoin" data-isabs="false">
-      <a id="IndexMergeJoin:IndexMergeJoin"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="IndexMergeJoin.html"><span class="name">IndexMergeJoin</span></a>
-        
-        <span class="params">(<span name="namespace">namespace: Namespace</span>, <span name="keyPrefix">keyPrefix: KeyGenerator</span>, <span name="sortFields">sortFields: Seq[Value]</span>, <span name="limit">limit: Limit</span>, <span name="ascending">ascending: Boolean</span>, <span name="child">child: QueryPlan</span>)</span><span class="result"> extends RemotePlan with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.IndexScan" data-isabs="false">
-      <a id="IndexScan:IndexScan"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="IndexScan.html"><span class="name">IndexScan</span></a>
-        
-        <span class="params">(<span name="namespace">namespace: Namespace</span>, <span name="keyPrefix">keyPrefix: KeyGenerator</span>, <span name="limit">limit: Limit</span>, <span name="ascending">ascending: Boolean</span>)</span><span class="result"> extends RemotePlan with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.IndexScanJoin" data-isabs="false">
-      <a id="IndexScanJoin:IndexScanJoin"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="IndexScanJoin.html"><span class="name">IndexScanJoin</span></a>
-        
-        <span class="params">(<span name="namespace">namespace: Namespace</span>, <span name="keyPrefix">keyPrefix: KeyGenerator</span>, <span name="limit">limit: Limit</span>, <span name="ascending">ascending: Boolean</span>, <span name="child">child: QueryPlan</span>)</span><span class="result"> extends RemotePlan with Product with Serializable</span>
-      </span>
-      </h4>
-      
     </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#IndexedNamespace" data-isabs="false">
       <a id="IndexedNamespace:IndexedNamespace"></a>
       <h4 class="signature">
@@ -230,32 +65,10 @@
       <span class="symbol"> 
         <span class="name">IndexedNamespace</span>
         
-        <span class="result"> = <span name="edu.berkeley.cs.scads.storage.Namespace" class="extype">Namespace</span> with <span name="edu.berkeley.cs.scads.storage.RecordStore" class="extype">RecordStore</span>[<span name="edu.berkeley.cs.avro.marker.AvroPair" class="extype">AvroPair</span>] with <span name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="extype">GlobalMetadata</span> with <span name="edu.berkeley.cs.scads.storage.IndexManager" class="extype">IndexManager</span>[<span name="edu.berkeley.cs.avro.marker.AvroPair" class="extype">AvroPair</span>]</span>
+        <span class="result"> = <span name="edu.berkeley.cs.scads.storage.Namespace" class="extype">Namespace</span> with <span name="edu.berkeley.cs.scads.storage.RecordStore" class="extype">RecordStore</span>[<span name="edu.berkeley.cs.avro.marker.AvroPair" class="extype">AvroPair</span>] with <span name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="extype">GlobalMetadata</span> with <span name="edu.berkeley.cs.scads.storage.client.index.IndexManager" class="extype">IndexManager</span>[<span name="edu.berkeley.cs.avro.marker.AvroPair" class="extype">AvroPair</span>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.package" class="extype" href="package$.html">package</a></dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.InnerNode" data-isabs="true">
-      <a id="InnerNode:InnerNode"></a>
-      <h4 class="signature">
-      <span class="kind">trait</span>
-      <span class="symbol"> 
-        <a href="InnerNode.html"><span class="name">InnerNode</span></a>
-        
-        <span class="result"> extends AnyRef</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.Join" data-isabs="false">
-      <a id="Join:Join"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="Join.html"><span class="name">Join</span></a>
-        
-        <span class="params">(<span name="left">left: Queryable</span>, <span name="right">right: Queryable</span>)</span><span class="result"> extends Queryable with Product with Serializable</span>
-      </span>
-      </h4>
-      
     </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#Key" data-isabs="false">
       <a id="Key:Key"></a>
       <h4 class="signature">
@@ -274,87 +87,10 @@
       <span class="symbol"> 
         <span class="name">KeyGenerator</span>
         
-        <span class="result"> = <span name="scala.collection.Seq" class="extype">Seq</span>[<a name="edu.berkeley.cs.scads.piql.Value" class="extype" href="Value.html">Value</a>]</span>
+        <span class="result"> = <span name="scala.collection.Seq" class="extype">Seq</span>[<a name="edu.berkeley.cs.scads.piql.plans.Value" class="extype" href="plans/Value.html">Value</a>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.package" class="extype" href="package$.html">package</a></dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.LazyExecutor" data-isabs="false">
-      <a id="LazyExecutor:LazyExecutor"></a>
-      <h4 class="signature">
-      <span class="kind">class</span>
-      <span class="symbol"> 
-        <a href="LazyExecutor.html"><span class="name">LazyExecutor</span></a>
-        
-        <span class="result"> extends SimpleExecutor</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.LikePredicate" data-isabs="false">
-      <a id="LikePredicate:LikePredicate"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="LikePredicate.html"><span class="name">LikePredicate</span></a>
-        
-        <span class="params">(<span name="v1">v1: Value</span>, <span name="v2">v2: Value</span>)</span><span class="result"> extends Predicate with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.Limit" data-isabs="true">
-      <a id="Limit:Limit"></a>
-      <h4 class="signature">
-      <span class="kind">class</span>
-      <span class="symbol"> 
-        <a href="Limit.html"><span class="name">Limit</span></a>
-        
-        <span class="result"> extends AnyRef</span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.LocalIterator" data-isabs="false">
-      <a id="LocalIterator:LocalIterator"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="LocalIterator.html"><span class="name">LocalIterator</span></a>
-        
-        <span class="params">(<span name="parameterOrdinal">parameterOrdinal: Int</span>, <span name="wrap">wrap: Boolean</span>)</span><span class="result"> extends QueryPlan with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.LocalSelection" data-isabs="false">
-      <a id="LocalSelection:LocalSelection"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="LocalSelection.html"><span class="name">LocalSelection</span></a>
-        
-        <span class="params">(<span name="predicate">predicate: Predicate</span>, <span name="child">child: QueryPlan</span>)</span><span class="result"> extends QueryPlan with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.LocalSort" data-isabs="false">
-      <a id="LocalSort:LocalSort"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="LocalSort.html"><span class="name">LocalSort</span></a>
-        
-        <span class="params">(<span name="sortFields">sortFields: Seq[Value]</span>, <span name="ascending">ascending: Boolean</span>, <span name="child">child: QueryPlan</span>)</span><span class="result"> extends QueryPlan with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.LocalStopAfter" data-isabs="false">
-      <a id="LocalStopAfter:LocalStopAfter"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="LocalStopAfter.html"><span class="name">LocalStopAfter</span></a>
-        
-        <span class="params">(<span name="count">count: Limit</span>, <span name="child">child: QueryPlan</span>)</span><span class="result"> extends QueryPlan with Product with Serializable</span>
-      </span>
-      </h4>
-      
     </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#Namespace" data-isabs="false">
       <a id="Namespace:Namespace"></a>
       <h4 class="signature">
@@ -366,105 +102,39 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.package" class="extype" href="package$.html">package</a></dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.OptimizedQuery" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#OptimizedQuery" data-isabs="false">
       <a id="OptimizedQuery:OptimizedQuery"></a>
       <h4 class="signature">
-      <span class="kind">class</span>
+      <span class="kind">type</span>
       <span class="symbol"> 
-        <a href="OptimizedQuery.html"><span class="name">OptimizedQuery</span></a>
+        <span class="name">OptimizedQuery</span>
         
-        <span class="result"> extends AnyRef</span>
+        <span class="result"> = <a name="edu.berkeley.cs.scads.piql.opt.OptimizedQuery" class="extype" href="opt/OptimizedQuery.html">OptimizedQuery</a></span>
       </span>
       </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.PageResult" data-isabs="false">
-      <a id="PageResult:PageResult"></a>
-      <h4 class="signature">
-      <span class="kind">class</span>
-      <span class="symbol"> 
-        <a href="PageResult.html"><span class="name">PageResult</span></a>
-        
-        <span class="result"> extends Iterator[QueryResult]</span>
-      </span>
-      </h4>
-      <p class="comment cmt">A PageResult is returned for a paginated query.</p>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.ParallelExecutor" data-isabs="false">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.package" class="extype" href="package$.html">package</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#ParallelExecutor" data-isabs="false">
       <a id="ParallelExecutor:ParallelExecutor"></a>
       <h4 class="signature">
-      <span class="kind">class</span>
+      <span class="kind">type</span>
       <span class="symbol"> 
-        <a href="ParallelExecutor.html"><span class="name">ParallelExecutor</span></a>
+        <span class="name">ParallelExecutor</span>
         
-        <span class="result"> extends SimpleExecutor</span>
+        <span class="result"> = <a name="edu.berkeley.cs.scads.piql.exec.ParallelExecutor" class="extype" href="exec/ParallelExecutor.html">ParallelExecutor</a></span>
       </span>
       </h4>
-      <p class="comment cmt">TODO: Should abstract out the common parts between the query iterators.</p>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.ParameterLimit" data-isabs="false">
-      <a id="ParameterLimit:ParameterLimit"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="ParameterLimit.html"><span class="name">ParameterLimit</span></a>
-        
-        <span class="params">(<span name="ordinal">ordinal: Int</span>, <span name="max">max: Int</span>)</span><span class="result"> extends Limit with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.ParameterValue" data-isabs="false">
-      <a id="ParameterValue:ParameterValue"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="ParameterValue.html"><span class="name">ParameterValue</span></a>
-        
-        <span class="params">(<span name="ordinal">ordinal: Int</span>)</span><span class="result"> extends FixedValue with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.Predicate" data-isabs="true">
-      <a id="Predicate:Predicate"></a>
-      <h4 class="signature">
-      <span class="kind">trait</span>
-      <span class="symbol"> 
-        <a href="Predicate.html"><span class="name">Predicate</span></a>
-        
-        <span class="result"> extends AnyRef</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.QueryExecutor" data-isabs="true">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.package" class="extype" href="package$.html">package</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#QueryExecutor" data-isabs="false">
       <a id="QueryExecutor:QueryExecutor"></a>
       <h4 class="signature">
-      <span class="kind">trait</span>
+      <span class="kind">type</span>
       <span class="symbol"> 
-        <a href="QueryExecutor.html"><span class="name">QueryExecutor</span></a>
+        <span class="name">QueryExecutor</span>
         
-        <span class="result"> extends AnyRef</span>
+        <span class="result"> = <a name="edu.berkeley.cs.scads.piql.exec.QueryExecutor" class="extype" href="exec/QueryExecutor.html">QueryExecutor</a></span>
       </span>
       </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.QueryIterator" data-isabs="true">
-      <a id="QueryIterator:QueryIterator"></a>
-      <h4 class="signature">
-      <span class="kind">class</span>
-      <span class="symbol"> 
-        <a href="QueryIterator.html"><span class="name">QueryIterator</span></a>
-        
-        <span class="result"> extends Iterator[Tuple]</span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.QueryPlan" data-isabs="true">
-      <a id="QueryPlan:QueryPlan"></a>
-      <h4 class="signature">
-      <span class="kind">class</span>
-      <span class="symbol"> 
-        <a href="QueryPlan.html"><span class="name">QueryPlan</span></a>
-        
-        <span class="result"> extends AnyRef</span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.package" class="extype" href="package$.html">package</a></dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#QueryResult" data-isabs="false">
       <a id="QueryResult:QueryResult"></a>
       <h4 class="signature">
@@ -476,17 +146,6 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.package" class="extype" href="package$.html">package</a></dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.Queryable" data-isabs="true">
-      <a id="Queryable:Queryable"></a>
-      <h4 class="signature">
-      <span class="kind">trait</span>
-      <span class="symbol"> 
-        <a href="Queryable.html"><span class="name">Queryable</span></a>
-        
-        <span class="result"> extends AnyRef</span>
-      </span>
-      </h4>
-      
     </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#Record" data-isabs="false">
       <a id="Record:Record"></a>
       <h4 class="signature">
@@ -498,94 +157,6 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.package" class="extype" href="package$.html">package</a></dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.Relation" data-isabs="false">
-      <a id="Relation:Relation"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="Relation.html"><span class="name">Relation</span></a>
-        
-        <span class="params">(<span name="ns">ns: Namespace</span>)</span><span class="result"> extends Queryable with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.RemotePlan" data-isabs="true">
-      <a id="RemotePlan:RemotePlan"></a>
-      <h4 class="signature">
-      <span class="kind">class</span>
-      <span class="symbol"> 
-        <a href="RemotePlan.html"><span class="name">RemotePlan</span></a>
-        
-        <span class="result"> extends QueryPlan</span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.RichTuple" data-isabs="false">
-      <a id="RichTuple:RichTuple"></a>
-      <h4 class="signature">
-      <span class="kind">class</span>
-      <span class="symbol"> 
-        <a href="RichTuple.html"><span class="name">RichTuple</span></a>
-        
-        <span class="result"> extends AnyRef</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.Selection" data-isabs="false">
-      <a id="Selection:Selection"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="Selection.html"><span class="name">Selection</span></a>
-        
-        <span class="params">(<span name="predicate">predicate: Predicate</span>, <span name="child">child: Queryable</span>)</span><span class="result"> extends Queryable with InnerNode with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.SimpleExecutor" data-isabs="false">
-      <a id="SimpleExecutor:SimpleExecutor"></a>
-      <h4 class="signature">
-      <span class="kind">class</span>
-      <span class="symbol"> 
-        <a href="SimpleExecutor.html"><span class="name">SimpleExecutor</span></a>
-        
-        <span class="result"> extends QueryExecutor</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.Sort" data-isabs="false">
-      <a id="Sort:Sort"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="Sort.html"><span class="name">Sort</span></a>
-        
-        <span class="params">(<span name="attributes">attributes: Seq[Value]</span>, <span name="ascending">ascending: Boolean</span>, <span name="child">child: Queryable</span>)</span><span class="result"> extends Queryable with InnerNode with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.StopAfter" data-isabs="false">
-      <a id="StopAfter:StopAfter"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="StopAfter.html"><span class="name">StopAfter</span></a>
-        
-        <span class="params">(<span name="count">count: Limit</span>, <span name="child">child: Queryable</span>)</span><span class="result"> extends Queryable with StopOperator with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.StopOperator" data-isabs="true">
-      <a id="StopOperator:StopOperator"></a>
-      <h4 class="signature">
-      <span class="kind">trait</span>
-      <span class="symbol"> 
-        <a href="StopOperator.html"><span class="name">StopOperator</span></a>
-        
-        <span class="result"> extends InnerNode</span>
-      </span>
-      </h4>
-      
     </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#Tuple" data-isabs="false">
       <a id="Tuple:Tuple"></a>
       <h4 class="signature">
@@ -608,39 +179,6 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.package" class="extype" href="package$.html">package</a></dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.UnboundAttributeValue" data-isabs="false">
-      <a id="UnboundAttributeValue:UnboundAttributeValue"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="UnboundAttributeValue.html"><span class="name">UnboundAttributeValue</span></a>
-        
-        <span class="params">(<span name="name">name: String</span>)</span><span class="result"> extends Value with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.Union" data-isabs="false">
-      <a id="Union:Union"></a>
-      <h4 class="signature">
-      <span class="kind">case class</span>
-      <span class="symbol"> 
-        <a href="Union.html"><span class="name">Union</span></a>
-        
-        <span class="params">(<span name="child1">child1: QueryPlan</span>, <span name="child2">child2: QueryPlan</span>, <span name="eqField">eqField: AttributeValue</span>)</span><span class="result"> extends QueryPlan with Product with Serializable</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.Value" data-isabs="true">
-      <a id="Value:Value"></a>
-      <h4 class="signature">
-      <span class="kind">class</span>
-      <span class="symbol"> 
-        <a href="Value.html"><span class="name">Value</span></a>
-        
-        <span class="result"> extends AnyRef</span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>abstract </dd></dl></div>
     </li></ol>
             </div>
         
@@ -658,26 +196,38 @@
         <span class="result"> extends AnyRef</span>
       </span>
       </h4>
-      <p class="comment cmt">Created by IntelliJ IDEA.</p>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.OptimizedQuery" data-isabs="false">
-      <a id="OptimizedQuery:OptimizedQuery"></a>
+      <p class="comment cmt">Helper functions for generating test data
+</p>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.debug" data-isabs="false">
+      <a id="debug:debug"></a>
       <h4 class="signature">
-      <span class="kind">object</span>
+      <span class="kind">package</span>
       <span class="symbol"> 
-        <a href="OptimizedQuery$.html"><span class="name">OptimizedQuery</span></a>
+        <a href="debug/package.html"><span class="name">debug</span></a>
         
-        <span class="result"> extends AnyRef</span>
+        
       </span>
       </h4>
       
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.Optimizer" data-isabs="false">
-      <a id="Optimizer:Optimizer"></a>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.exec" data-isabs="false">
+      <a id="exec:exec"></a>
       <h4 class="signature">
-      <span class="kind">object</span>
+      <span class="kind">package</span>
       <span class="symbol"> 
-        <a href="Optimizer$.html"><span class="name">Optimizer</span></a>
+        <a href="exec/package.html"><span class="name">exec</span></a>
         
-        <span class="result"> extends AnyRef</span>
+        
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.language" data-isabs="false">
+      <a id="language:language"></a>
+      <h4 class="signature">
+      <span class="kind">package</span>
+      <span class="symbol"> 
+        <a href="language/package.html"><span class="name">language</span></a>
+        
+        
       </span>
       </h4>
       
@@ -699,10 +249,21 @@
       <span class="symbol"> 
         <span class="name">namespaceToRelation</span>
         <span class="tparams">[<span name="T">T &lt;: <span name="edu.berkeley.cs.avro.marker.AvroPair" class="extype">AvroPair</span></span>]</span>
-        <span class="params">(<span name="ns">ns: <span name="edu.berkeley.cs.scads.storage.PairNamespace" class="extype">PairNamespace</span>[T]</span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.piql.Relation" class="extype" href="Relation.html">Relation</a></span>
+        <span class="params">(<span name="ns">ns: <span name="edu.berkeley.cs.scads.storage.PairNamespace" class="extype">PairNamespace</span>[T]</span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.piql.plans.Relation" class="extype" href="plans/Relation.html">Relation</a></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.package" class="extype" href="package$.html">package</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.opt" data-isabs="false">
+      <a id="opt:opt"></a>
+      <h4 class="signature">
+      <span class="kind">package</span>
+      <span class="symbol"> 
+        <a href="opt/package.html"><span class="name">opt</span></a>
+        
+        
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#pairToNamespace" data-isabs="false">
       <a id="pairToNamespace[T&lt;:AvroPair](PairNamespace[T]):Namespace"></a>
       <h4 class="signature">
@@ -714,6 +275,17 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.package" class="extype" href="package$.html">package</a></dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.plans" data-isabs="false">
+      <a id="plans:plans"></a>
+      <h4 class="signature">
+      <span class="kind">package</span>
+      <span class="symbol"> 
+        <a href="plans/package.html"><span class="name">plans</span></a>
+        
+        
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.test" data-isabs="false">
       <a id="test:test"></a>
       <h4 class="signature">
@@ -726,13 +298,13 @@
       </h4>
       
     </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#toAttr" data-isabs="false">
-      <a id="toAttr(String):AnyRef { def a: edu.berkeley.cs.scads.piql.UnboundAttributeValue }"></a>
+      <a id="toAttr(String):AnyRef { def a: edu.berkeley.cs.scads.piql.plans.UnboundAttributeValue }"></a>
       <h4 class="signature">
       <span class="kind">implicit def</span>
       <span class="symbol"> 
         <span class="name">toAttr</span>
         
-        <span class="params">(<span name="s">s: String</span>)</span><span class="result">: AnyRef { def a: edu.berkeley.cs.scads.piql.UnboundAttributeValue }</span>
+        <span class="params">(<span name="s">s: String</span>)</span><span class="result">: AnyRef { def a: edu.berkeley.cs.scads.piql.plans.UnboundAttributeValue }</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.package" class="extype" href="package$.html">package</a></dd></dl></div>
@@ -743,7 +315,7 @@
       <span class="symbol"> 
         <span class="name">toConstantValue</span>
         
-        <span class="params">(<span name="a">a: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.piql.ConstantValue" class="extype" href="ConstantValue.html">ConstantValue</a></span>
+        <span class="params">(<span name="a">a: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.piql.plans.ConstantValue" class="extype" href="plans/ConstantValue.html">ConstantValue</a></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.package" class="extype" href="package$.html">package</a></dd></dl></div>
@@ -759,24 +331,24 @@
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.package" class="extype" href="package$.html">package</a></dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#toParameter" data-isabs="false">
-      <a id="toParameter(Double):AnyRef { def ?: edu.berkeley.cs.scads.piql.ParameterValue }"></a>
+      <a id="toParameter(Double):AnyRef { def ?: edu.berkeley.cs.scads.piql.plans.ParameterValue }"></a>
       <h4 class="signature">
       <span class="kind">implicit def</span>
       <span class="symbol"> 
         <span class="name">toParameter</span>
         
-        <span class="params">(<span name="o">o: <span name="scala.Double" class="extype">Double</span></span>)</span><span class="result">: AnyRef { def ?: edu.berkeley.cs.scads.piql.ParameterValue }</span>
+        <span class="params">(<span name="o">o: <span name="scala.Double" class="extype">Double</span></span>)</span><span class="result">: AnyRef { def ?: edu.berkeley.cs.scads.piql.plans.ParameterValue }</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.package" class="extype" href="package$.html">package</a></dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#toPiql" data-isabs="false">
-      <a id="toPiql(Queryable)(QueryExecutor):AnyRef { ... /* 2 definitions in type refinement */ }"></a>
+      <a id="toPiql(LogicalPlan)(QueryExecutor):AnyRef { ... /* 2 definitions in type refinement */ }"></a>
       <h4 class="signature">
       <span class="kind">implicit def</span>
       <span class="symbol"> 
         <span class="name">toPiql</span>
         
-        <span class="params">(<span name="logicalPlan">logicalPlan: <a name="edu.berkeley.cs.scads.piql.Queryable" class="extype" href="Queryable.html">Queryable</a></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="executor">executor: <a name="edu.berkeley.cs.scads.piql.QueryExecutor" class="extype" href="QueryExecutor.html">QueryExecutor</a></span>)</span><span class="result">: AnyRef { ... /* 2 definitions in type refinement */ }</span>
+        <span class="params">(<span name="logicalPlan">logicalPlan: <a name="edu.berkeley.cs.scads.piql.plans.LogicalPlan" class="extype" href="plans/LogicalPlan.html">LogicalPlan</a></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="executor">executor: QueryExecutor</span>)</span><span class="result">: AnyRef { ... /* 2 definitions in type refinement */ }</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.package" class="extype" href="package$.html">package</a></dd></dl></div>
@@ -787,7 +359,7 @@
       <span class="symbol"> 
         <span class="name">toRichTuple</span>
         
-        <span class="params">(<span name="t">t: Tuple</span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.piql.RichTuple" class="extype" href="RichTuple.html">RichTuple</a></span>
+        <span class="params">(<span name="t">t: Tuple</span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.piql.debug.RichTuple" class="extype" href="debug/RichTuple.html">RichTuple</a></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.package" class="extype" href="package$.html">package</a></dd></dl></div>

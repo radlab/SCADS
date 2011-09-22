@@ -15,79 +15,75 @@
 
 <span class="keyword">import</span> scala.collection.mutable.HashSet
 
-
 <span class="comment">/**
- * Created by IntelliJ IDEA.
- * User: tim
- * Date: Oct 11, 2010
- * Time: 11:11:16 AM
- * To change this template use File | Settings | File Templates.
+ * Helper functions for generating test data
  */</span>
-
-<span class="keyword">object</span> <a title="object edu.berkeley.cs.scads.piql.DataGenerator" id="9503">DataGenerator</a><span title="ScalaObject" class="delimiter">{</span>
+<span class="keyword">object</span> <a title="object edu.berkeley.cs.scads.piql.DataGenerator" id="9503">DataGenerator</a> <span title="ScalaObject" class="delimiter">{</span>
 
   <span class="comment">/**
    * Generates count random numbers from [0, maxInt)
    */</span>
-  <span class="keyword">def</span> <a title="(seed: Int, maxInt: Int, count: Int)Array[Int]" id="13768">randomInts</a><span class="delimiter">(</span><a title="Int" id="15826">seed</a>: <span title="Int">Int</span>, <a title="Int" id="15827">maxInt</a>: <span title="Int">Int</span>, <a title="Int" id="15828">count</a>: <span title="Int">Int</span><span class="delimiter">)</span>: <span title="Array[Int]">Array</span><span class="delimiter">[</span>Int<span class="delimiter">]</span> = <span class="delimiter">{</span>
-    <span title="(requirement: Boolean)Unit">require</span><span class="delimiter">(</span><a href="#15827" title="Int">maxInt</a> <span title="(x: Int)Boolean">&gt;=</span> <span title="Int(0)" class="int">0</span><span class="delimiter">)</span>
-    <span title="(requirement: Boolean)Unit">require</span><span class="delimiter">(</span><a href="#15828" title="Int">count</a> <span title="(x: Int)Boolean">&gt;=</span> <span title="Int(0)" class="int">0</span><span class="delimiter">)</span>
-    <span title="(requirement: Boolean)Unit">require</span><span class="delimiter">(</span><a href="#15827" title="Int">maxInt</a> <span title="(x: Int)Boolean">&gt;</span> <a href="#15828" title="Int">count</a><span class="delimiter">)</span>
+  <span class="keyword">def</span> <a title="(seed: Int, maxInt: Int, count: Int)Array[Int]" id="13639">randomInts</a><span class="delimiter">(</span><a title="Int" id="15697">seed</a>: <span title="Int">Int</span>, <a title="Int" id="15698">maxInt</a>: <span title="Int">Int</span>, <a title="Int" id="15699">count</a>: <span title="Int">Int</span><span class="delimiter">)</span>: <span title="Array[Int]">Array</span><span class="delimiter">[</span>Int<span class="delimiter">]</span> = <span class="delimiter">{</span>
+    <span title="(requirement: Boolean)Unit">require</span><span class="delimiter">(</span><a href="#15698" title="Int">maxInt</a> <span title="(x: Int)Boolean">&gt;=</span> <span title="Int(0)" class="int">0</span><span class="delimiter">)</span>
+    <span title="(requirement: Boolean)Unit">require</span><span class="delimiter">(</span><a href="#15699" title="Int">count</a> <span title="(x: Int)Boolean">&gt;=</span> <span title="Int(0)" class="int">0</span><span class="delimiter">)</span>
+    <span title="(requirement: Boolean)Unit">require</span><span class="delimiter">(</span><a href="#15698" title="Int">maxInt</a> <span title="(x: Int)Boolean">&gt;</span> <a href="#15699" title="Int">count</a><span class="delimiter">)</span>
 
-    <span class="keyword">val</span> <a title="scala.util.Random" id="16112">rand</a> = <span title="(seed: Int)scala.util.Random" class="keyword">new</span> scala.util.<span title="scala.util.Random">Random</span><span class="delimiter">(</span><a href="#15826" title="Int">seed</a><span class="delimiter">)</span>
-    <span class="keyword">val</span> <a title="Array[Int]" id="16113">nums</a> = <span title="Array[Int]" class="keyword">new</span> <span title="Array[Int]">Array</span><span class="delimiter">[</span>Int<span class="delimiter">]</span><span class="delimiter">(</span><a href="#15828" title="Int">count</a><span class="delimiter">)</span>
-    <span class="keyword">var</span> <a title="Int" id="16114">pos</a> = <span title="Int(0)" class="int">0</span>
+    <span class="keyword">val</span> <a title="scala.util.Random" id="15983">rand</a> = <span title="(seed: Int)scala.util.Random" class="keyword">new</span> scala.util.<span title="scala.util.Random">Random</span><span class="delimiter">(</span><a href="#15697" title="Int">seed</a><span class="delimiter">)</span>
+    <span class="keyword">val</span> <a title="Array[Int]" id="15984">nums</a> = <span title="Array[Int]" class="keyword">new</span> <span title="Array[Int]">Array</span><span class="delimiter">[</span>Int<span class="delimiter">]</span><span class="delimiter">(</span><a href="#15699" title="Int">count</a><span class="delimiter">)</span>
+    <span class="keyword">var</span> <a title="Int" id="15985">pos</a> = <span title="Int(0)" class="int">0</span>
 
-    <span title="Unit" class="keyword">while</span><span class="delimiter">(</span><a href="#16114" title="Int">pos</a> <span title="(x: Int)Boolean">&lt;</span> <a href="#15828" title="Int">count</a><span class="delimiter">)</span> <a href="#16115" title="()Unit" class="delimiter">{</a>
-      <span class="keyword">val</span> <a title="Int" id="17590">randNum</a> = <a href="#16112" title="scala.util.Random">rand</a>.<span title="(n: Int)Int">nextInt</span><span class="delimiter">(</span><a href="#15827" title="Int">maxInt</a><span class="delimiter">)</span>
-      <span title="Unit" class="keyword">if</span><span class="delimiter">(</span><span title="=&gt; Boolean">!</span><span class="delimiter">(</span><a href="#16113" title="implicit scala.Predef.intArrayOps : (xs: Array[Int])scala.collection.mutable.ArrayOps[Int]">nums</a> <span title="(elem: Any)Boolean">contains</span> <a href="#17590" title="Int">randNum</a><span class="delimiter">)</span><span class="delimiter">)</span> <span class="delimiter">{</span> <span class="comment">// TODO: use a set here</span>
-        <a href="#16113" title="(i: Int, x: Int)Unit">nums</a><span class="delimiter">(</span><a href="#16114" title="Int">pos</a><span class="delimiter">)</span> = <a href="#17590" title="Int">randNum</a>
-        <a href="#16114" title="Int">pos</a> <span title="(x: Int)Int">+=</span> <span title="Int(1)" class="int">1</span>
+    <span title="Unit" class="keyword">while</span> <span class="delimiter">(</span><a href="#15985" title="Int">pos</a> <span title="(x: Int)Boolean">&lt;</span> <a href="#15699" title="Int">count</a><span class="delimiter">)</span> <a href="#15986" title="()Unit" class="delimiter">{</a>
+      <span class="keyword">val</span> <a title="Int" id="17461">randNum</a> = <a href="#15983" title="scala.util.Random">rand</a>.<span title="(n: Int)Int">nextInt</span><span class="delimiter">(</span><a href="#15698" title="Int">maxInt</a><span class="delimiter">)</span>
+      <span title="Unit" class="keyword">if</span> <span class="delimiter">(</span><span title="=&gt; Boolean">!</span><span class="delimiter">(</span><a href="#15984" title="implicit scala.Predef.intArrayOps : (xs: Array[Int])scala.collection.mutable.ArrayOps[Int]">nums</a> <span title="(elem: Any)Boolean">contains</span> <a href="#17461" title="Int">randNum</a><span class="delimiter">)</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+        <span class="comment">// TODO: use a set here</span>
+        <a href="#15984" title="(i: Int, x: Int)Unit">nums</a><span class="delimiter">(</span><a href="#15985" title="Int">pos</a><span class="delimiter">)</span> = <a href="#17461" title="Int">randNum</a>
+        <a href="#15985" title="Int">pos</a> <span title="(x: Int)Int">+=</span> <span title="Int(1)" class="int">1</span>
       <span class="delimiter">}</span>
     <span class="delimiter">}</span>
-    <a href="#16113" title="Array[Int]">nums</a>
+    <a href="#15984" title="Array[Int]">nums</a>
   <span class="delimiter">}</span>
-    <span class="comment">/**
+
+  <span class="comment">/**
    * Generates count random strings
    */</span>
-  <span class="keyword">def</span> <a title="(seed: Int, count: Int)Array[String]" id="13769">randomStrings</a><span class="delimiter">(</span><a title="Int" id="26664">seed</a>: <span title="Int">Int</span>, <a title="Int" id="26665">count</a>: <span title="Int">Int</span><span class="delimiter">)</span>: <span title="Array[String]">Array</span><span class="delimiter">[</span>String<span class="delimiter">]</span> = <span class="delimiter">{</span>
-    <span title="(requirement: Boolean)Unit">require</span><span class="delimiter">(</span><a href="#26665" title="Int">count</a> <span title="(x: Int)Boolean">&gt;=</span> <span title="Int(0)" class="int">0</span><span class="delimiter">)</span>
+  <span class="keyword">def</span> <a title="(seed: Int, count: Int)Array[String]" id="13640">randomStrings</a><span class="delimiter">(</span><a title="Int" id="26678">seed</a>: <span title="Int">Int</span>, <a title="Int" id="26679">count</a>: <span title="Int">Int</span><span class="delimiter">)</span>: <span title="Array[String]">Array</span><span class="delimiter">[</span>String<span class="delimiter">]</span> = <span class="delimiter">{</span>
+    <span title="(requirement: Boolean)Unit">require</span><span class="delimiter">(</span><a href="#26679" title="Int">count</a> <span title="(x: Int)Boolean">&gt;=</span> <span title="Int(0)" class="int">0</span><span class="delimiter">)</span>
 
-    <span class="keyword">val</span> <a title="Int" id="26667">strlen</a> = <a href="#13770" title="(num: Int)Int">stringSize</a><span class="delimiter">(</span><a href="#26665" title="Int">count</a><span class="delimiter">)</span>
+    <span class="keyword">val</span> <a title="Int" id="26681">strlen</a> = <a href="#13641" title="(num: Int)Int">stringSize</a><span class="delimiter">(</span><a href="#26679" title="Int">count</a><span class="delimiter">)</span>
 
-    <span class="keyword">val</span> <a title="scala.util.Random" id="26668">rand</a> = <span title="(seed: Int)scala.util.Random" class="keyword">new</span> scala.util.<span title="scala.util.Random">Random</span><span class="delimiter">(</span><a href="#26664" title="Int">seed</a><span class="delimiter">)</span>
+    <span class="keyword">val</span> <a title="scala.util.Random" id="26682">rand</a> = <span title="(seed: Int)scala.util.Random" class="keyword">new</span> scala.util.<span title="scala.util.Random">Random</span><span class="delimiter">(</span><a href="#26678" title="Int">seed</a><span class="delimiter">)</span>
 
-    <span class="keyword">val</span> <a title="Array[String]" id="26669">ret</a> = <span title="Array[String]" class="keyword">new</span> <span title="Array[String]">Array</span><span class="delimiter">[</span>String<span class="delimiter">]</span><span class="delimiter">(</span><a href="#26665" title="Int">count</a><span class="delimiter">)</span>
-    <span class="keyword">val</span> <a title="scala.collection.mutable.HashSet[String]" id="26670">seenBefore</a> = <span title="()scala.collection.mutable.HashSet[String]" class="keyword">new</span> <span title="scala.collection.mutable.HashSet[String]">HashSet</span><span class="delimiter">[</span>String<span class="delimiter">]</span>
-    <span class="keyword">var</span> <a title="Int" id="26671">pos</a> = <span title="Int(0)" class="int">0</span>
+    <span class="keyword">val</span> <a title="Array[String]" id="26683">ret</a> = <span title="Array[String]" class="keyword">new</span> <span title="Array[String]">Array</span><span class="delimiter">[</span>String<span class="delimiter">]</span><span class="delimiter">(</span><a href="#26679" title="Int">count</a><span class="delimiter">)</span>
+    <span class="keyword">val</span> <a title="scala.collection.mutable.HashSet[String]" id="26684">seenBefore</a> = <span title="()scala.collection.mutable.HashSet[String]" class="keyword">new</span> <span title="scala.collection.mutable.HashSet[String]">HashSet</span><span class="delimiter">[</span>String<span class="delimiter">]</span>
+    <span class="keyword">var</span> <a title="Int" id="26685">pos</a> = <span title="Int(0)" class="int">0</span>
 
-    <span title="Unit" class="keyword">while</span> <span class="delimiter">(</span><a href="#26671" title="Int">pos</a> <span title="(x: Int)Boolean">&lt;</span> <a href="#26665" title="Int">count</a><span class="delimiter">)</span> <a href="#26672" title="()Unit" class="delimiter">{</a>
-      <span class="keyword">val</span> <a title="Array[Char]" id="27294">chArray</a> = <span title="Array[Char]" class="keyword">new</span> <span title="Array[Char]">Array</span><span class="delimiter">[</span>Char<span class="delimiter">]</span><span class="delimiter">(</span><a href="#26667" title="Int">strlen</a><span class="delimiter">)</span>
-      <span class="keyword">var</span> <a title="Int" id="27295">i</a> = <span title="Int(0)" class="int">0</span>
-      <span title="Unit" class="keyword">while</span> <span class="delimiter">(</span><a href="#27295" title="Int">i</a> <span title="(x: Int)Boolean">&lt;</span> <a href="#26667" title="Int">strlen</a><span class="delimiter">)</span> <a href="#27297" title="()Unit" class="delimiter">{</a>
+    <span title="Unit" class="keyword">while</span> <span class="delimiter">(</span><a href="#26685" title="Int">pos</a> <span title="(x: Int)Boolean">&lt;</span> <a href="#26679" title="Int">count</a><span class="delimiter">)</span> <a href="#26686" title="()Unit" class="delimiter">{</a>
+      <span class="keyword">val</span> <a title="Array[Char]" id="27308">chArray</a> = <span title="Array[Char]" class="keyword">new</span> <span title="Array[Char]">Array</span><span class="delimiter">[</span>Char<span class="delimiter">]</span><span class="delimiter">(</span><a href="#26681" title="Int">strlen</a><span class="delimiter">)</span>
+      <span class="keyword">var</span> <a title="Int" id="27309">i</a> = <span title="Int(0)" class="int">0</span>
+      <span title="Unit" class="keyword">while</span> <span class="delimiter">(</span><a href="#27309" title="Int">i</a> <span title="(x: Int)Boolean">&lt;</span> <a href="#26681" title="Int">strlen</a><span class="delimiter">)</span> <a href="#27311" title="()Unit" class="delimiter">{</a>
         <span class="comment">//chArray(i) = rand.nextInt(256).toChar</span>
-        <a href="#27294" title="(i: Int, x: Char)Unit">chArray</a><span class="delimiter">(</span><a href="#27295" title="Int">i</a><span class="delimiter">)</span> = <a href="#26668" title="scala.util.Random">rand</a>.<span title="()Char">nextPrintableChar</span><span class="delimiter">(</span><span class="delimiter">)</span> <span class="comment">// easier to debug for now</span>
-        <a href="#27295" title="Int">i</a> <span title="(x: Int)Int">+=</span> <span title="Int(1)" class="int">1</span>
+        <a href="#27308" title="(i: Int, x: Char)Unit">chArray</a><span class="delimiter">(</span><a href="#27309" title="Int">i</a><span class="delimiter">)</span> = <a href="#26682" title="scala.util.Random">rand</a>.<span title="()Char">nextPrintableChar</span><span class="delimiter">(</span><span class="delimiter">)</span> <span class="comment">// easier to debug for now</span>
+        <a href="#27309" title="Int">i</a> <span title="(x: Int)Int">+=</span> <span title="Int(1)" class="int">1</span>
       <span class="delimiter">}</span>
-      <span class="keyword">val</span> <a title="java.lang.String" id="27296">str</a> = <span title="(x$1: Array[Char])java.lang.String" class="keyword">new</span> <span title="java.lang.String">String</span><span class="delimiter">(</span><a href="#27294" title="Array[Char]">chArray</a><span class="delimiter">)</span>
-      <span title="Unit" class="keyword">if</span> <span class="delimiter">(</span><span title="=&gt; Boolean">!</span><span class="delimiter">(</span><a href="#26670" title="scala.collection.mutable.HashSet[String]">seenBefore</a> <span title="(elem: String)Boolean">contains</span> <a href="#27296" title="java.lang.String">str</a><span class="delimiter">)</span><span class="delimiter">)</span> <span class="delimiter">{</span>
-        <a href="#26670" title="scala.collection.mutable.HashSet[String]">seenBefore</a> <span title="(elem: String)seenBefore.type">+=</span> <a href="#27296" title="java.lang.String">str</a>
-        <a href="#26669" title="(i: Int, x: String)Unit">ret</a><span class="delimiter">(</span><a href="#26671" title="Int">pos</a><span class="delimiter">)</span> = <a href="#27296" title="java.lang.String">str</a>
-        <a href="#26671" title="Int">pos</a> <span title="(x: Int)Int">+=</span> <span title="Int(1)" class="int">1</span>
+      <span class="keyword">val</span> <a title="java.lang.String" id="27310">str</a> = <span title="(x$1: Array[Char])java.lang.String" class="keyword">new</span> <span title="java.lang.String">String</span><span class="delimiter">(</span><a href="#27308" title="Array[Char]">chArray</a><span class="delimiter">)</span>
+      <span title="Unit" class="keyword">if</span> <span class="delimiter">(</span><span title="=&gt; Boolean">!</span><span class="delimiter">(</span><a href="#26684" title="scala.collection.mutable.HashSet[String]">seenBefore</a> <span title="(elem: String)Boolean">contains</span> <a href="#27310" title="java.lang.String">str</a><span class="delimiter">)</span><span class="delimiter">)</span> <span class="delimiter">{</span>
+        <a href="#26684" title="scala.collection.mutable.HashSet[String]">seenBefore</a> <span title="(elem: String)seenBefore.type">+=</span> <a href="#27310" title="java.lang.String">str</a>
+        <a href="#26683" title="(i: Int, x: String)Unit">ret</a><span class="delimiter">(</span><a href="#26685" title="Int">pos</a><span class="delimiter">)</span> = <a href="#27310" title="java.lang.String">str</a>
+        <a href="#26685" title="Int">pos</a> <span title="(x: Int)Int">+=</span> <span title="Int(1)" class="int">1</span>
       <span class="delimiter">}</span>
     <span class="delimiter">}</span>
 
-    <a href="#26669" title="Array[String]">ret</a>
+    <a href="#26683" title="Array[String]">ret</a>
   <span class="delimiter">}</span>
 
-  <span class="keyword">def</span> <a title="(num: Int)Int" id="13770">stringSize</a><span class="delimiter">(</span><a title="Int" id="26679">num</a>: <span title="Int">Int</span><span class="delimiter">)</span>: <span title="Int">Int</span> = <span class="delimiter">{</span>
-    <span class="keyword">var</span> <a title="Int" id="27998">size</a> = <span title="Int(256)" class="int">256</span>
-    <span class="keyword">var</span> <a title="Int" id="27999">length</a> = <span title="Int(1)" class="int">1</span>
-    <span title="Unit" class="keyword">while</span> <span class="delimiter">(</span><a href="#27998" title="Int">size</a> <span title="(x: Int)Boolean">&lt;</span> <a href="#26679" title="Int">num</a><span class="delimiter">)</span> <a href="#28000" title="()Unit" class="delimiter">{</a>
-      <a href="#27998" title="Int">size</a> = <a href="#27998" title="Int">size</a> <span title="(x: Int)Int">*</span> <span title="Int(256)" class="int">256</span>
-      <a href="#27999" title="Int">length</a> <span title="(x: Int)Int">+=</span> <span title="Int(1)" class="int">1</span>
+  <span class="keyword">def</span> <a title="(num: Int)Int" id="13641">stringSize</a><span class="delimiter">(</span><a title="Int" id="26693">num</a>: <span title="Int">Int</span><span class="delimiter">)</span>: <span title="Int">Int</span> = <span class="delimiter">{</span>
+    <span class="keyword">var</span> <a title="Int" id="28012">size</a> = <span title="Int(256)" class="int">256</span>
+    <span class="keyword">var</span> <a title="Int" id="28013">length</a> = <span title="Int(1)" class="int">1</span>
+    <span title="Unit" class="keyword">while</span> <span class="delimiter">(</span><a href="#28012" title="Int">size</a> <span title="(x: Int)Boolean">&lt;</span> <a href="#26693" title="Int">num</a><span class="delimiter">)</span> <a href="#28014" title="()Unit" class="delimiter">{</a>
+      <a href="#28012" title="Int">size</a> = <a href="#28012" title="Int">size</a> <span title="(x: Int)Int">*</span> <span title="Int(256)" class="int">256</span>
+      <a href="#28013" title="Int">length</a> <span title="(x: Int)Int">+=</span> <span title="Int(1)" class="int">1</span>
     <span class="delimiter">}</span>
-    <a href="#27999" title="Int">length</a>
+    <a href="#28013" title="Int">length</a>
   <span class="delimiter">}</span>
 
 <span class="delimiter">}</span>

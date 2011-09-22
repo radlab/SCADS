@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>Language.scala</title>
+        <script type="text/javascript" src="jquery-all.js"></script>
+        <script type="text/javascript" src="linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.scads.piql
+<span class="keyword">package</span> language
+
+<span class="keyword">import</span> plans._
+
+<span class="comment">/**
+ * Queryable is the base trait for all objects that can be queried using LINQ style expressions in scala.
+ */</span>
+<span class="keyword">trait</span> <a title="trait Queryable extends java.lang.Object with ScalaObject" id="9542">Queryable</a> <span title="ScalaObject" class="delimiter">{</span>
+  self: LogicalPlan =&gt;
+
+  <span class="keyword">def</span> <a title="(predicate: edu.berkeley.cs.scads.piql.plans.Predicate)edu.berkeley.cs.scads.piql.plans.Selection" id="23793">where</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.piql.plans.Predicate" id="43644">predicate</a>: <a href="QueryPlan.scala.html#9620" title="edu.berkeley.cs.scads.piql.plans.Predicate">Predicate</a><span class="delimiter">)</span> = <a href="LogicalPlan.scala.html#43649" title="(predicate: edu.berkeley.cs.scads.piql.plans.Predicate, child: edu.berkeley.cs.scads.piql.plans.LogicalPlan)edu.berkeley.cs.scads.piql.plans.Selection">Selection</a><span class="delimiter">(</span><a href="#43644" title="edu.berkeley.cs.scads.piql.plans.Predicate">predicate</a>, <a href="#9542" title="edu.berkeley.cs.scads.piql.plans.LogicalPlan" class="keyword">this</a><span class="delimiter">)</span>
+
+  <span class="keyword">def</span> <a title="(inner: edu.berkeley.cs.scads.piql.plans.LogicalPlan)edu.berkeley.cs.scads.piql.plans.Join" id="23794">join</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.piql.plans.LogicalPlan" id="43669">inner</a>: <a href="LogicalPlan.scala.html#9549" title="edu.berkeley.cs.scads.piql.plans.LogicalPlan">LogicalPlan</a><span class="delimiter">)</span> = <a href="LogicalPlan.scala.html#43674" title="(left: edu.berkeley.cs.scads.piql.plans.LogicalPlan, right: edu.berkeley.cs.scads.piql.plans.LogicalPlan)edu.berkeley.cs.scads.piql.plans.Join">Join</a><span class="delimiter">(</span><a href="#9542" title="edu.berkeley.cs.scads.piql.plans.LogicalPlan" class="keyword">this</a>, <a href="#43669" title="edu.berkeley.cs.scads.piql.plans.LogicalPlan">inner</a><span class="delimiter">)</span>
+
+  <span class="keyword">def</span> <a title="(count: Int)edu.berkeley.cs.scads.piql.plans.StopAfter" id="23795">limit</a><span class="delimiter">(</span><a title="Int" id="43693">count</a>: <span title="Int">Int</span><span class="delimiter">)</span> = <a href="LogicalPlan.scala.html#43698" title="(count: edu.berkeley.cs.scads.piql.plans.Limit, child: edu.berkeley.cs.scads.piql.plans.LogicalPlan)edu.berkeley.cs.scads.piql.plans.StopAfter">StopAfter</a><span class="delimiter">(</span><a href="QueryPlan.scala.html#31667" title="(count: Int)edu.berkeley.cs.scads.piql.plans.FixedLimit">FixedLimit</a><span class="delimiter">(</span><a href="#43693" title="Int">count</a><span class="delimiter">)</span>, <a href="#9542" title="edu.berkeley.cs.scads.piql.plans.LogicalPlan" class="keyword">this</a><span class="delimiter">)</span>
+
+  <span class="keyword">def</span> <a title="(parameter: edu.berkeley.cs.scads.piql.plans.ParameterValue, max: Int)edu.berkeley.cs.scads.piql.plans.StopAfter" id="23796">limit</a><span class="delimiter">(</span><a title="edu.berkeley.cs.scads.piql.plans.ParameterValue" id="43723">parameter</a>: <a href="QueryPlan.scala.html#9604" title="edu.berkeley.cs.scads.piql.plans.ParameterValue">ParameterValue</a>, <a title="Int" id="43724">max</a>: <span title="Int">Int</span><span class="delimiter">)</span> = <a href="LogicalPlan.scala.html#43698" title="(count: edu.berkeley.cs.scads.piql.plans.Limit, child: edu.berkeley.cs.scads.piql.plans.LogicalPlan)edu.berkeley.cs.scads.piql.plans.StopAfter">StopAfter</a><span class="delimiter">(</span><a href="QueryPlan.scala.html#31695" title="(ordinal: Int, max: Int)edu.berkeley.cs.scads.piql.plans.ParameterLimit">ParameterLimit</a><span class="delimiter">(</span><a href="#43723" title="edu.berkeley.cs.scads.piql.plans.ParameterValue">parameter</a>.<a href="QueryPlan.scala.html#25028" title="=&gt; Int">ordinal</a>, <a href="#43724" title="Int">max</a><span class="delimiter">)</span>, <a href="#9542" title="edu.berkeley.cs.scads.piql.plans.LogicalPlan" class="keyword">this</a><span class="delimiter">)</span>
+
+  <span class="keyword">def</span> <a title="(count: Int)edu.berkeley.cs.scads.piql.plans.DataStopAfter" id="23797">dataLimit</a><span class="delimiter">(</span><a title="Int" id="43740">count</a>: <span title="Int">Int</span><span class="delimiter">)</span> = <a href="LogicalPlan.scala.html#43745" title="(count: edu.berkeley.cs.scads.piql.plans.Limit, child: edu.berkeley.cs.scads.piql.plans.LogicalPlan)edu.berkeley.cs.scads.piql.plans.DataStopAfter">DataStopAfter</a><span class="delimiter">(</span><a href="QueryPlan.scala.html#31667" title="(count: Int)edu.berkeley.cs.scads.piql.plans.FixedLimit">FixedLimit</a><span class="delimiter">(</span><a href="#43740" title="Int">count</a><span class="delimiter">)</span>, <a href="#9542" title="edu.berkeley.cs.scads.piql.plans.LogicalPlan" class="keyword">this</a><span class="delimiter">)</span>
+
+  <span class="keyword">def</span> <a title="(attributes: Seq[edu.berkeley.cs.scads.piql.plans.Value], ascending: Boolean)edu.berkeley.cs.scads.piql.plans.Sort" id="23798">sort</a><span class="delimiter">(</span><a title="Seq[edu.berkeley.cs.scads.piql.plans.Value]" id="43766">attributes</a>: <span title="Seq[edu.berkeley.cs.scads.piql.plans.Value]">Seq</span><span class="delimiter">[</span>Value<span class="delimiter">]</span>, <a title="Boolean" id="43770">ascending</a>: <span title="Boolean">Boolean</span> = <span title="Boolean(true)" class="keyword">true</span><span class="delimiter">)</span> = <a href="LogicalPlan.scala.html#43773" title="(attributes: Seq[edu.berkeley.cs.scads.piql.plans.Value], ascending: Boolean, child: edu.berkeley.cs.scads.piql.plans.LogicalPlan)edu.berkeley.cs.scads.piql.plans.Sort">Sort</a><span class="delimiter">(</span><a href="#43766" title="Seq[edu.berkeley.cs.scads.piql.plans.Value]">attributes</a>, <a href="#43770" title="Boolean">ascending</a>, <a href="#9542" title="edu.berkeley.cs.scads.piql.plans.LogicalPlan" class="keyword">this</a><span class="delimiter">)</span>
+
+
+<span class="delimiter">}</span>
+        </pre>
+    </body>
+</html>
