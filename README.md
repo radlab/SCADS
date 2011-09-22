@@ -12,7 +12,7 @@ SCADS Core
 * communication - [Netty](http://www.jboss.org/netty)-based message passing of Avro encoded messages.  Scala library for using [Apache ZooKeeper](http://zookeeper.apache.org/). [scaladoc](http://radlab.github.com/SCADS/modeling/latest/api/) [source](http://radlab.github.com/SCADS/modeling/latest/sxr/)
 * scala-engine - K/V storage optionally using [BDB](http://www.oracle.com/technetwork/database/berkeleydb/overview/index.html) for persistence. [scaladoc](http://radlab.github.com/SCADS/scala-engine/latest/api/) [source](http://radlab.github.com/SCADS/scala-engine/latest/sxr/)
 * [piql](https://github.com/radlab/SCADS/wiki/PIQL) - The performance-insightful query language (PIQL) and scale-independent relational optimizer. [scaladoc](http://radlab.github.com/SCADS/piql/latest/api/) [source](http://radlab.github.com/SCADS/piql/latest/sxr/)
-* perf - A library of helpers for writing SCADS performance tests using deploylib. [scaladoc](http://radlab.github.com/SCADS/perf/latest/api/)
+* perf - A library of helpers for writing SCADS performance tests using deploylib. [scaladoc](http://radlab.github.com/SCADS/perf/latest/api/) [source](http://radlab.github.com/SCADS/perf/latest/sxr/)
 
 Other Experiments
 -----------------
