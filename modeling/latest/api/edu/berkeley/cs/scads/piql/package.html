@@ -65,7 +65,7 @@
       <span class="symbol"> 
         <span class="name">IndexedNamespace</span>
         
-        <span class="result"> = <span name="edu.berkeley.cs.scads.storage.Namespace" class="extype">Namespace</span> with <span name="edu.berkeley.cs.scads.storage.RecordStore" class="extype">RecordStore</span>[<span name="edu.berkeley.cs.avro.marker.AvroPair" class="extype">AvroPair</span>] with <span name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="extype">GlobalMetadata</span> with <span name="edu.berkeley.cs.scads.storage.IndexManager" class="extype">IndexManager</span>[<span name="edu.berkeley.cs.avro.marker.AvroPair" class="extype">AvroPair</span>]</span>
+        <span class="result"> = <span name="edu.berkeley.cs.scads.storage.Namespace" class="extype">Namespace</span> with <span name="edu.berkeley.cs.scads.storage.RecordStore" class="extype">RecordStore</span>[<span name="edu.berkeley.cs.avro.marker.AvroPair" class="extype">AvroPair</span>] with <span name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="extype">GlobalMetadata</span> with <span name="edu.berkeley.cs.scads.storage.client.index.IndexManager" class="extype">IndexManager</span>[<span name="edu.berkeley.cs.avro.marker.AvroPair" class="extype">AvroPair</span>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>package</dd></dl></div>
@@ -87,7 +87,7 @@
       <span class="symbol"> 
         <span class="name">KeyGenerator</span>
         
-        <span class="result"> = <span name="scala.collection.Seq" class="extype">Seq</span>[<span name="edu.berkeley.cs.scads.piql.Value" class="extype">Value</span>]</span>
+        <span class="result"> = <span name="scala.collection.Seq" class="extype">Seq</span>[<span name="edu.berkeley.cs.scads.piql.plans.Value" class="extype">Value</span>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>package</dd></dl></div>
@@ -99,6 +99,39 @@
         <span class="name">Namespace</span>
         
         <span class="result"> = <span name="edu.berkeley.cs.scads.storage.Namespace" class="extype">Namespace</span> with <span name="edu.berkeley.cs.scads.storage.RecordStore" class="extype">RecordStore</span>[<span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span>] with <span name="edu.berkeley.cs.scads.storage.GlobalMetadata" class="extype">GlobalMetadata</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>package</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#OptimizedQuery" data-isabs="false">
+      <a id="OptimizedQuery:OptimizedQuery"></a>
+      <h4 class="signature">
+      <span class="kind">type</span>
+      <span class="symbol"> 
+        <span class="name">OptimizedQuery</span>
+        
+        <span class="result"> = <span name="edu.berkeley.cs.scads.piql.opt.OptimizedQuery" class="extype">OptimizedQuery</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>package</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#ParallelExecutor" data-isabs="false">
+      <a id="ParallelExecutor:ParallelExecutor"></a>
+      <h4 class="signature">
+      <span class="kind">type</span>
+      <span class="symbol"> 
+        <span class="name">ParallelExecutor</span>
+        
+        <span class="result"> = <span name="edu.berkeley.cs.scads.piql.exec.ParallelExecutor" class="extype">ParallelExecutor</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>package</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#QueryExecutor" data-isabs="false">
+      <a id="QueryExecutor:QueryExecutor"></a>
+      <h4 class="signature">
+      <span class="kind">type</span>
+      <span class="symbol"> 
+        <span class="name">QueryExecutor</span>
+        
+        <span class="result"> = <span name="edu.berkeley.cs.scads.piql.exec.QueryExecutor" class="extype">QueryExecutor</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>package</dd></dl></div>
@@ -182,7 +215,7 @@
       <span class="symbol"> 
         <span class="name">namespaceToRelation</span>
         <span class="tparams">[<span name="T">T &lt;: <span name="edu.berkeley.cs.avro.marker.AvroPair" class="extype">AvroPair</span></span>]</span>
-        <span class="params">(<span name="ns">ns: <span name="edu.berkeley.cs.scads.storage.PairNamespace" class="extype">PairNamespace</span>[T]</span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.piql.Relation" class="extype">Relation</span></span>
+        <span class="params">(<span name="ns">ns: <span name="edu.berkeley.cs.scads.storage.PairNamespace" class="extype">PairNamespace</span>[T]</span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.piql.plans.Relation" class="extype">Relation</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd>package</dd></dl></div>
@@ -198,13 +231,13 @@
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd>package</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#toAttr" data-isabs="false">
-      <a id="toAttr(String):AnyRef { def a: edu.berkeley.cs.scads.piql.UnboundAttributeValue }"></a>
+      <a id="toAttr(String):AnyRef { def a: edu.berkeley.cs.scads.piql.plans.UnboundAttributeValue }"></a>
       <h4 class="signature">
       <span class="kind">implicit def</span>
       <span class="symbol"> 
         <span class="name">toAttr</span>
         
-        <span class="params">(<span name="s">s: String</span>)</span><span class="result">: AnyRef { def a: edu.berkeley.cs.scads.piql.UnboundAttributeValue }</span>
+        <span class="params">(<span name="s">s: String</span>)</span><span class="result">: AnyRef { def a: edu.berkeley.cs.scads.piql.plans.UnboundAttributeValue }</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd>package</dd></dl></div>
@@ -215,7 +248,7 @@
       <span class="symbol"> 
         <span class="name">toConstantValue</span>
         
-        <span class="params">(<span name="a">a: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.piql.ConstantValue" class="extype">ConstantValue</span></span>
+        <span class="params">(<span name="a">a: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.piql.plans.ConstantValue" class="extype">ConstantValue</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd>package</dd></dl></div>
@@ -231,24 +264,24 @@
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd>package</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#toParameter" data-isabs="false">
-      <a id="toParameter(Double):AnyRef { def ?: edu.berkeley.cs.scads.piql.ParameterValue }"></a>
+      <a id="toParameter(Double):AnyRef { def ?: edu.berkeley.cs.scads.piql.plans.ParameterValue }"></a>
       <h4 class="signature">
       <span class="kind">implicit def</span>
       <span class="symbol"> 
         <span class="name">toParameter</span>
         
-        <span class="params">(<span name="o">o: <span name="scala.Double" class="extype">Double</span></span>)</span><span class="result">: AnyRef { def ?: edu.berkeley.cs.scads.piql.ParameterValue }</span>
+        <span class="params">(<span name="o">o: <span name="scala.Double" class="extype">Double</span></span>)</span><span class="result">: AnyRef { def ?: edu.berkeley.cs.scads.piql.plans.ParameterValue }</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd>package</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.package#toPiql" data-isabs="false">
-      <a id="toPiql(Queryable)(QueryExecutor):AnyRef { ... /* 2 definitions in type refinement */ }"></a>
+      <a id="toPiql(LogicalPlan)(QueryExecutor):AnyRef { ... /* 2 definitions in type refinement */ }"></a>
       <h4 class="signature">
       <span class="kind">implicit def</span>
       <span class="symbol"> 
         <span class="name">toPiql</span>
         
-        <span class="params">(<span name="logicalPlan">logicalPlan: <span name="edu.berkeley.cs.scads.piql.Queryable" class="extype">Queryable</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="executor">executor: <span name="edu.berkeley.cs.scads.piql.QueryExecutor" class="extype">QueryExecutor</span></span>)</span><span class="result">: AnyRef { ... /* 2 definitions in type refinement */ }</span>
+        <span class="params">(<span name="logicalPlan">logicalPlan: <span name="edu.berkeley.cs.scads.piql.plans.LogicalPlan" class="extype">LogicalPlan</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="executor">executor: QueryExecutor</span>)</span><span class="result">: AnyRef { ... /* 2 definitions in type refinement */ }</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd>package</dd></dl></div>
@@ -259,7 +292,7 @@
       <span class="symbol"> 
         <span class="name">toRichTuple</span>
         
-        <span class="params">(<span name="t">t: Tuple</span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.piql.RichTuple" class="extype">RichTuple</span></span>
+        <span class="params">(<span name="t">t: Tuple</span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.piql.debug.RichTuple" class="extype">RichTuple</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>implicit </dd><dt>Definition Classes</dt><dd>package</dd></dl></div>

@@ -24,13 +24,13 @@
       <span class="symbol"> 
         <span class="name">LocalUserExecutor</span>
         
-        <span class="result"> extends <span name="edu.berkeley.cs.scads.piql.ParallelExecutor" class="extype">ParallelExecutor</span></span>
+        <span class="result"> extends <span name="edu.berkeley.cs.scads.piql.exec.ParallelExecutor" class="extype">ParallelExecutor</span></span>
       </span>
       </h4>
       
           <div class="fullcommenttop" id="comment"><div class="toggleContainer block">
           <span class="toggle">Linear Supertypes</span>
-          <div class="superTypes hiddenContent"><span name="edu.berkeley.cs.scads.piql.ParallelExecutor" class="extype">ParallelExecutor</span>, <span name="edu.berkeley.cs.scads.piql.SimpleExecutor" class="extype">SimpleExecutor</span>, <span name="edu.berkeley.cs.scads.piql.QueryExecutor" class="extype">QueryExecutor</span>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
+          <div class="superTypes hiddenContent"><span name="edu.berkeley.cs.scads.piql.exec.ParallelExecutor" class="extype">ParallelExecutor</span>, <span name="edu.berkeley.cs.scads.piql.exec.SimpleExecutor" class="extype">SimpleExecutor</span>, <span name="edu.berkeley.cs.scads.piql.exec.QueryExecutor" class="extype">QueryExecutor</span>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
         </div></div>
         
 
@@ -46,7 +46,7 @@
                 <span class="filtertype">Inherited</span>
                 <ol><li class="hideall out"><span>Hide All</span></li>
                 <li class="showall in"><span>Show all</span></li></ol>
-                <ol id="linearization"><li name="edu.berkeley.cs.scads.piql.modeling.LocalUserExecutor" class="in"><span>LocalUserExecutor</span></li><li name="edu.berkeley.cs.scads.piql.ParallelExecutor" class="in"><span>ParallelExecutor</span></li><li name="edu.berkeley.cs.scads.piql.SimpleExecutor" class="in"><span>SimpleExecutor</span></li><li name="edu.berkeley.cs.scads.piql.QueryExecutor" class="in"><span>QueryExecutor</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
+                <ol id="linearization"><li name="edu.berkeley.cs.scads.piql.modeling.LocalUserExecutor" class="in"><span>LocalUserExecutor</span></li><li name="edu.berkeley.cs.scads.piql.exec.ParallelExecutor" class="in"><span>ParallelExecutor</span></li><li name="edu.berkeley.cs.scads.piql.exec.SimpleExecutor" class="in"><span>SimpleExecutor</span></li><li name="edu.berkeley.cs.scads.piql.exec.QueryExecutor" class="in"><span>QueryExecutor</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
               </div>
           <div id="visbl">
               <span class="filtertype">Visibility</span>
@@ -138,18 +138,18 @@
       <span class="symbol"> 
         <span class="name">apply</span>
         
-        <span class="params">(<span name="plan">plan: <span name="edu.berkeley.cs.scads.piql.QueryPlan" class="extype">QueryPlan</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="ctx">ctx: <span name="edu.berkeley.cs.scads.piql.Context" class="extype">Context</span></span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.piql.QueryIterator" class="extype">QueryIterator</span></span>
+        <span class="params">(<span name="plan">plan: <span name="edu.berkeley.cs.scads.piql.plans.QueryPlan" class="extype">QueryPlan</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="ctx">ctx: <span name="edu.berkeley.cs.scads.piql.exec.Context" class="extype">Context</span></span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.piql.exec.QueryIterator" class="extype">QueryIterator</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.piql.modeling.LocalUserExecutor" class="extype" href="">LocalUserExecutor</a> → ParallelExecutor → SimpleExecutor → QueryExecutor</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.QueryExecutor#apply" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.exec.QueryExecutor#apply" data-isabs="false">
       <a id="apply(QueryPlan,Any*):QueryIterator"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">apply</span>
         
-        <span class="params">(<span name="plan">plan: <span name="edu.berkeley.cs.scads.piql.QueryPlan" class="extype">QueryPlan</span></span>, <span name="args">args: <span name="scala.Any" class="extype">Any</span>*</span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.piql.QueryIterator" class="extype">QueryIterator</span></span>
+        <span class="params">(<span name="plan">plan: <span name="edu.berkeley.cs.scads.piql.plans.QueryPlan" class="extype">QueryPlan</span></span>, <span name="args">args: <span name="scala.Any" class="extype">Any</span>*</span>)</span><span class="result">: <span name="edu.berkeley.cs.scads.piql.exec.QueryIterator" class="extype">QueryIterator</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>QueryExecutor</dd></dl></div>
@@ -164,36 +164,36 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
-    </li><li visbl="prt" name="edu.berkeley.cs.scads.piql.QueryExecutor#bindKey" data-isabs="false">
+    </li><li visbl="prt" name="edu.berkeley.cs.scads.piql.exec.QueryExecutor#bindKey" data-isabs="false">
       <a id="bindKey(Namespace,KeyGenerator,Tuple)(Context):Key"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">bindKey</span>
         
-        <span class="params">(<span name="ns">ns: Namespace</span>, <span name="key">key: KeyGenerator</span>, <span name="currentTuple">currentTuple: Tuple</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="ctx">ctx: <span name="edu.berkeley.cs.scads.piql.Context" class="extype">Context</span></span>)</span><span class="result">: Key</span>
+        <span class="params">(<span name="ns">ns: Namespace</span>, <span name="key">key: KeyGenerator</span>, <span name="currentTuple">currentTuple: Tuple</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="ctx">ctx: <span name="edu.berkeley.cs.scads.piql.exec.Context" class="extype">Context</span></span>)</span><span class="result">: Key</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected final </dd><dt>Definition Classes</dt><dd>QueryExecutor</dd></dl></div>
-    </li><li visbl="prt" name="edu.berkeley.cs.scads.piql.QueryExecutor#bindLimit" data-isabs="false">
+    </li><li visbl="prt" name="edu.berkeley.cs.scads.piql.exec.QueryExecutor#bindLimit" data-isabs="false">
       <a id="bindLimit(Limit)(Context):Int"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">bindLimit</span>
         
-        <span class="params">(<span name="limit">limit: <span name="edu.berkeley.cs.scads.piql.Limit" class="extype">Limit</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="ctx">ctx: <span name="edu.berkeley.cs.scads.piql.Context" class="extype">Context</span></span>)</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+        <span class="params">(<span name="limit">limit: <span name="edu.berkeley.cs.scads.piql.plans.Limit" class="extype">Limit</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="ctx">ctx: <span name="edu.berkeley.cs.scads.piql.exec.Context" class="extype">Context</span></span>)</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected final </dd><dt>Definition Classes</dt><dd>QueryExecutor</dd></dl></div>
-    </li><li visbl="prt" name="edu.berkeley.cs.scads.piql.QueryExecutor#bindValue" data-isabs="false">
+    </li><li visbl="prt" name="edu.berkeley.cs.scads.piql.exec.QueryExecutor#bindValue" data-isabs="false">
       <a id="bindValue(Value,Tuple)(Context):Any"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">bindValue</span>
         
-        <span class="params">(<span name="value">value: <span name="edu.berkeley.cs.scads.piql.Value" class="extype">Value</span></span>, <span name="currentTuple">currentTuple: Tuple</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="ctx">ctx: <span name="edu.berkeley.cs.scads.piql.Context" class="extype">Context</span></span>)</span><span class="result">: <span name="scala.Any" class="extype">Any</span></span>
+        <span class="params">(<span name="value">value: <span name="edu.berkeley.cs.scads.piql.plans.Value" class="extype">Value</span></span>, <span name="currentTuple">currentTuple: Tuple</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="ctx">ctx: <span name="edu.berkeley.cs.scads.piql.exec.Context" class="extype">Context</span></span>)</span><span class="result">: <span name="scala.Any" class="extype">Any</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected final </dd><dt>Definition Classes</dt><dd>QueryExecutor</dd></dl></div>
@@ -211,7 +211,7 @@
                 <span class="name">@throws</span><span class="args">()</span>
               
         </dd></dl></div>
-    </li><li visbl="prt" name="edu.berkeley.cs.scads.piql.QueryExecutor#compareAny" data-isabs="false">
+    </li><li visbl="prt" name="edu.berkeley.cs.scads.piql.exec.QueryExecutor#compareAny" data-isabs="false">
       <a id="compareAny(Any,Any):Int"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -222,14 +222,14 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected final </dd><dt>Definition Classes</dt><dd>QueryExecutor</dd></dl></div>
-    </li><li visbl="prt" name="edu.berkeley.cs.scads.piql.QueryExecutor#compareTuples" data-isabs="false">
+    </li><li visbl="prt" name="edu.berkeley.cs.scads.piql.exec.QueryExecutor#compareTuples" data-isabs="false">
       <a id="compareTuples(Tuple,Tuple,Seq[Value])(Context):Int"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">compareTuples</span>
         
-        <span class="params">(<span name="left">left: Tuple</span>, <span name="right">right: Tuple</span>, <span name="attributes">attributes: Seq[<span name="edu.berkeley.cs.scads.piql.Value" class="extype">Value</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="ctx">ctx: <span name="edu.berkeley.cs.scads.piql.Context" class="extype">Context</span></span>)</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+        <span class="params">(<span name="left">left: Tuple</span>, <span name="right">right: Tuple</span>, <span name="attributes">attributes: Seq[<span name="edu.berkeley.cs.scads.piql.plans.Value" class="extype">Value</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="ctx">ctx: <span name="edu.berkeley.cs.scads.piql.exec.Context" class="extype">Context</span></span>)</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected final </dd><dt>Definition Classes</dt><dd>QueryExecutor</dd></dl></div>
@@ -255,14 +255,14 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
-    </li><li visbl="prt" name="edu.berkeley.cs.scads.piql.QueryExecutor#evalPredicate" data-isabs="false">
+    </li><li visbl="prt" name="edu.berkeley.cs.scads.piql.exec.QueryExecutor#evalPredicate" data-isabs="false">
       <a id="evalPredicate(Predicate,Tuple)(Context):Boolean"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">evalPredicate</span>
         
-        <span class="params">(<span name="predicate">predicate: <span name="edu.berkeley.cs.scads.piql.Predicate" class="extype">Predicate</span></span>, <span name="tuple">tuple: Tuple</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="ctx">ctx: <span name="edu.berkeley.cs.scads.piql.Context" class="extype">Context</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+        <span class="params">(<span name="predicate">predicate: <span name="edu.berkeley.cs.scads.piql.plans.Predicate" class="extype">Predicate</span></span>, <span name="tuple">tuple: Tuple</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="ctx">ctx: <span name="edu.berkeley.cs.scads.piql.exec.Context" class="extype">Context</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected final </dd><dt>Definition Classes</dt><dd>QueryExecutor</dd></dl></div>
@@ -313,7 +313,7 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
-    </li><li visbl="prt" name="edu.berkeley.cs.scads.piql.QueryExecutor#logger" data-isabs="false">
+    </li><li visbl="prt" name="edu.berkeley.cs.scads.piql.exec.QueryExecutor#logger" data-isabs="false">
       <a id="logger:Logger"></a>
       <h4 class="signature">
       <span class="kind">val</span>
@@ -368,7 +368,7 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.SimpleExecutor#toOption" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.piql.exec.SimpleExecutor#toOption" data-isabs="false">
       <a id="toOption[A](A):Option[A]"></a>
       <h4 class="signature">
       <span class="kind">implicit def</span>
@@ -437,12 +437,12 @@
 
         
 
-        <div name="edu.berkeley.cs.scads.piql.ParallelExecutor" class="parent">
-              <h3>Inherited from <span name="edu.berkeley.cs.scads.piql.ParallelExecutor" class="extype">ParallelExecutor</span></h3>
-            </div><div name="edu.berkeley.cs.scads.piql.SimpleExecutor" class="parent">
-              <h3>Inherited from <span name="edu.berkeley.cs.scads.piql.SimpleExecutor" class="extype">SimpleExecutor</span></h3>
-            </div><div name="edu.berkeley.cs.scads.piql.QueryExecutor" class="parent">
-              <h3>Inherited from <span name="edu.berkeley.cs.scads.piql.QueryExecutor" class="extype">QueryExecutor</span></h3>
+        <div name="edu.berkeley.cs.scads.piql.exec.ParallelExecutor" class="parent">
+              <h3>Inherited from <span name="edu.berkeley.cs.scads.piql.exec.ParallelExecutor" class="extype">ParallelExecutor</span></h3>
+            </div><div name="edu.berkeley.cs.scads.piql.exec.SimpleExecutor" class="parent">
+              <h3>Inherited from <span name="edu.berkeley.cs.scads.piql.exec.SimpleExecutor" class="extype">SimpleExecutor</span></h3>
+            </div><div name="edu.berkeley.cs.scads.piql.exec.QueryExecutor" class="parent">
+              <h3>Inherited from <span name="edu.berkeley.cs.scads.piql.exec.QueryExecutor" class="extype">QueryExecutor</span></h3>
             </div><div name="scala.AnyRef" class="parent">
               <h3>Inherited from AnyRef</h3>
             </div><div name="scala.Any" class="parent">
