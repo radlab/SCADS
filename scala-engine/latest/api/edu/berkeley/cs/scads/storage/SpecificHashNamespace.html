@@ -83,19 +83,6 @@
       </span>
       </h4>
       
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.QuorumProtocol.DefaultManagedBlocker" data-isabs="false">
-      <a id="DefaultManagedBlocker:DefaultManagedBlocker"></a>
-      <h4 class="signature">
-      <span class="kind">class</span>
-      <span class="symbol"> 
-        <a href="QuorumProtocol$DefaultManagedBlocker.html"><span class="name">DefaultManagedBlocker</span></a>
-        
-        <span class="result"> extends ManagedBlocker</span>
-      </span>
-      </h4>
-      <p class="comment cmt">Default ManagedBlocker for a function which has no means to query
-progress
-</p>
     </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.Namespace.Execable" data-isabs="true">
       <a id="Execable:Execable"></a>
       <h4 class="signature">
@@ -114,7 +101,7 @@ progress
       <span class="symbol"> 
         <a href="QuorumProtocol$GetHandler.html"><span class="name">GetHandler</span></a>
         
-        <span class="result"> extends AnyRef</span>
+        <span class="result"> extends RequestHandler</span>
       </span>
       </h4>
       
@@ -213,21 +200,6 @@ progress
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.QuorumProtocol.ReadRepairer" data-isabs="false">
-      <a id="ReadRepairer:ReadRepairer"></a>
-      <h4 class="signature">
-      <span class="kind">object</span>
-      <span class="symbol"> 
-        <a href="QuorumProtocol$ReadRepairer$.html"><span class="name">ReadRepairer</span></a>
-        
-        <span class="result"> extends Actor</span>
-      </span>
-      </h4>
-      <p class="comment cmt">ReadRepairer actor - calls to processRest() run in a managed blocker, so that
-the ForkJoinPool does not starve
-TODO: Consider replacing this read repair actor with just a standard
-thread pool
-</p>
     </li><li visbl="prt" name="edu.berkeley.cs.scads.storage.DefaultKeyRoutableLike#_routingTable" data-isabs="false">
       <a id="_routingTable:RangeTable[Array[Byte], PartitionService]"></a>
       <h4 class="signature">
@@ -1004,28 +976,6 @@ is blocked forever. Use with timeouts is recommended.</p><p>NOTE: The returned f
         <span class="name">readQuorumForKey</span>
         
         <span class="params">(<span name="key">key: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: (Seq[<span name="edu.berkeley.cs.scads.comm.PartitionService" class="extype">PartitionService</span>], <span name="scala.Int" class="extype">Int</span>)</span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.QuorumProtocol" class="extype" href="QuorumProtocol.html">QuorumProtocol</a></dd></dl></div>
-    </li><li visbl="prt" name="edu.berkeley.cs.scads.storage.QuorumProtocol#readRepairManagedBlock" data-isabs="false">
-      <a id="readRepairManagedBlock(⇒ Unit):Unit"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">readRepairManagedBlock</span>
-        
-        <span class="params">(<span name="f">f: ⇒ <span name="scala.Unit" class="extype">Unit</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
-      </span>
-      </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.QuorumProtocol" class="extype" href="QuorumProtocol.html">QuorumProtocol</a></dd></dl></div>
-    </li><li visbl="prt" name="edu.berkeley.cs.scads.storage.QuorumProtocol#readRepairPF" data-isabs="false">
-      <a id="readRepairPF:PartialFunction[Any, Unit]"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">readRepairPF</span>
-        
-        <span class="result">: <span name="scala.PartialFunction" class="extype">PartialFunction</span>[<span name="scala.Any" class="extype">Any</span>, <span name="scala.Unit" class="extype">Unit</span>]</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.QuorumProtocol" class="extype" href="QuorumProtocol.html">QuorumProtocol</a></dd></dl></div>

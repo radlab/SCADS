@@ -2,35 +2,35 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <html>
         <head>
-          <title>edu.berkeley.cs.scads.storage.AttributeIndex</title>
+          <title>edu.berkeley.cs.scads.storage.client.index.TokenIndex</title>
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
-      <link type="text/css" media="screen" rel="stylesheet" href="../../../../../lib/template.css" />
-      <script type="text/javascript" src="../../../../../lib/jquery.js"></script>
-      <script type="text/javascript" src="../../../../../lib/jquery-ui.js"></script>
-      <script type="text/javascript" src="../../../../../lib/template.js"></script>
-      <script type="text/javascript" src="../../../../../lib/tools.tooltip.js"></script>
+      <link type="text/css" media="screen" rel="stylesheet" href="../../../../../../../lib/template.css" />
+      <script type="text/javascript" src="../../../../../../../lib/jquery.js"></script>
+      <script type="text/javascript" src="../../../../../../../lib/jquery-ui.js"></script>
+      <script type="text/javascript" src="../../../../../../../lib/template.js"></script>
+      <script type="text/javascript" src="../../../../../../../lib/tools.tooltip.js"></script>
     
         </head>
         <body class="type">
       <div id="definition">
-        <img src="../../../../../lib/class_big.png" />
-        <p id="owner"><a name="edu" class="extype" href="../../../../package.html">edu</a>.<a name="edu.berkeley" class="extype" href="../../../package.html">berkeley</a>.<a name="edu.berkeley.cs" class="extype" href="../../package.html">cs</a>.<a name="edu.berkeley.cs.scads" class="extype" href="../package.html">scads</a>.<a name="edu.berkeley.cs.scads.storage" class="extype" href="package.html">storage</a></p>
-        <h1>AttributeIndex</h1>
+        <img src="../../../../../../../lib/class_big.png" />
+        <p id="owner"><a name="edu" class="extype" href="../../../../../../package.html">edu</a>.<a name="edu.berkeley" class="extype" href="../../../../../package.html">berkeley</a>.<a name="edu.berkeley.cs" class="extype" href="../../../../package.html">cs</a>.<a name="edu.berkeley.cs.scads" class="extype" href="../../../package.html">scads</a>.<a name="edu.berkeley.cs.scads.storage" class="extype" href="../../package.html">storage</a>.<a name="edu.berkeley.cs.scads.storage.client" class="extype" href="../package.html">client</a>.<a name="edu.berkeley.cs.scads.storage.client.index" class="extype" href="package.html">index</a></p>
+        <h1>TokenIndex</h1>
       </div>
 
       <h4 class="signature" id="signature">
       <span class="kind">case class</span>
       <span class="symbol"> 
-        <span class="name">AttributeIndex</span>
+        <span class="name">TokenIndex</span>
         
-        <span class="params">(<span name="fieldName">fieldName: String</span>)</span><span class="result"> extends <span name="edu.berkeley.cs.avro.marker.AvroRecord" class="extype">AvroRecord</span> with <a name="edu.berkeley.cs.scads.storage.IndexType" class="extype" href="IndexType.html">IndexType</a> with <span name="scala.Product" class="extype">Product</span> with <span name="scala.Serializable" class="extype">Serializable</span></span>
+        <span class="params">(<span name="fieldNames">fieldNames: Seq[String]</span>)</span><span class="result"> extends <span name="edu.berkeley.cs.avro.marker.AvroRecord" class="extype">AvroRecord</span> with <a name="edu.berkeley.cs.scads.storage.client.index.IndexType" class="extype" href="IndexType.html">IndexType</a> with <span name="scala.Product" class="extype">Product</span> with <span name="scala.Serializable" class="extype">Serializable</span></span>
       </span>
       </h4>
       
           <div class="fullcommenttop" id="comment"><div class="toggleContainer block">
           <span class="toggle">Linear Supertypes</span>
-          <div class="superTypes hiddenContent"><span name="scala.Serializable" class="extype">Serializable</span>, <span name="java.io.Serializable" class="extype">Serializable</span>, <span name="scala.Product" class="extype">Product</span>, <span name="scala.Equals" class="extype">Equals</span>, <a name="edu.berkeley.cs.scads.storage.IndexType" class="extype" href="IndexType.html">IndexType</a>, <span name="edu.berkeley.cs.avro.marker.AvroUnion" class="extype">AvroUnion</span>, <span name="edu.berkeley.cs.avro.marker.AvroRecord" class="extype">AvroRecord</span>, <span name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord" class="extype">ScalaSpecificRecord</span>, <span name="org.apache.avro.specific.SpecificRecord" class="extype">SpecificRecord</span>, <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span>, <span name="org.apache.avro.generic.GenericContainer" class="extype">GenericContainer</span>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
+          <div class="superTypes hiddenContent"><span name="scala.Serializable" class="extype">Serializable</span>, <span name="java.io.Serializable" class="extype">Serializable</span>, <span name="scala.Product" class="extype">Product</span>, <span name="scala.Equals" class="extype">Equals</span>, <a name="edu.berkeley.cs.scads.storage.client.index.IndexType" class="extype" href="IndexType.html">IndexType</a>, <span name="edu.berkeley.cs.avro.marker.AvroUnion" class="extype">AvroUnion</span>, <span name="edu.berkeley.cs.avro.marker.AvroRecord" class="extype">AvroRecord</span>, <span name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord" class="extype">ScalaSpecificRecord</span>, <span name="org.apache.avro.specific.SpecificRecord" class="extype">SpecificRecord</span>, <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span>, <span name="org.apache.avro.generic.GenericContainer" class="extype">GenericContainer</span>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
         </div></div>
         
 
@@ -46,7 +46,7 @@
                 <span class="filtertype">Inherited</span>
                 <ol><li class="hideall out"><span>Hide All</span></li>
                 <li class="showall in"><span>Show all</span></li></ol>
-                <ol id="linearization"><li name="edu.berkeley.cs.scads.storage.AttributeIndex" class="in"><span>AttributeIndex</span></li><li name="scala.Serializable" class="in"><span>Serializable</span></li><li name="java.io.Serializable" class="in"><span>Serializable</span></li><li name="scala.Product" class="in"><span>Product</span></li><li name="scala.Equals" class="in"><span>Equals</span></li><li name="edu.berkeley.cs.scads.storage.IndexType" class="in"><span>IndexType</span></li><li name="edu.berkeley.cs.avro.marker.AvroUnion" class="in"><span>AvroUnion</span></li><li name="edu.berkeley.cs.avro.marker.AvroRecord" class="in"><span>AvroRecord</span></li><li name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord" class="in"><span>ScalaSpecificRecord</span></li><li name="org.apache.avro.specific.SpecificRecord" class="in"><span>SpecificRecord</span></li><li name="org.apache.avro.generic.IndexedRecord" class="in"><span>IndexedRecord</span></li><li name="org.apache.avro.generic.GenericContainer" class="in"><span>GenericContainer</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
+                <ol id="linearization"><li name="edu.berkeley.cs.scads.storage.client.index.TokenIndex" class="in"><span>TokenIndex</span></li><li name="scala.Serializable" class="in"><span>Serializable</span></li><li name="java.io.Serializable" class="in"><span>Serializable</span></li><li name="scala.Product" class="in"><span>Product</span></li><li name="scala.Equals" class="in"><span>Equals</span></li><li name="edu.berkeley.cs.scads.storage.client.index.IndexType" class="in"><span>IndexType</span></li><li name="edu.berkeley.cs.avro.marker.AvroUnion" class="in"><span>AvroUnion</span></li><li name="edu.berkeley.cs.avro.marker.AvroRecord" class="in"><span>AvroRecord</span></li><li name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord" class="in"><span>ScalaSpecificRecord</span></li><li name="org.apache.avro.specific.SpecificRecord" class="in"><span>SpecificRecord</span></li><li name="org.apache.avro.generic.IndexedRecord" class="in"><span>IndexedRecord</span></li><li name="org.apache.avro.generic.GenericContainer" class="in"><span>GenericContainer</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
               </div>
           <div id="visbl">
               <span class="filtertype">Visibility</span>
@@ -56,14 +56,14 @@
 
         <div class="members" id="constructors">
               <h3>Instance Constructors</h3>
-              <ol><li visbl="pub" name="edu.berkeley.cs.scads.storage.AttributeIndex#this" data-isabs="false">
-      <a id="this:AttributeIndex"></a>
+              <ol><li visbl="pub" name="edu.berkeley.cs.scads.storage.client.index.TokenIndex#this" data-isabs="false">
+      <a id="this:TokenIndex"></a>
       <h4 class="signature">
       <span class="kind">new</span>
       <span class="symbol"> 
-        <span class="name">AttributeIndex</span>
+        <span class="name">TokenIndex</span>
         
-        <span class="params">(<span name="fieldName">fieldName: String</span>)</span>
+        <span class="params">(<span name="fieldNames">fieldNames: Seq[String]</span>)</span>
       </span>
       </h4>
       
@@ -142,7 +142,7 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AttributeIndex#canEqual" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.client.index.TokenIndex#canEqual" data-isabs="false">
       <a id="canEqual(Any):Boolean"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -152,7 +152,7 @@
         <span class="params">(<span name="arg0">arg0: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.AttributeIndex" class="extype" href="">AttributeIndex</a> → Equals</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.client.index.TokenIndex" class="extype" href="">TokenIndex</a> → Equals</dd></dl></div>
     </li><li visbl="prt" name="scala.AnyRef#clone" data-isabs="false">
       <a id="clone():AnyRef"></a>
       <h4 class="signature">
@@ -163,7 +163,7 @@
         <span class="params">()</span><span class="result">: AnyRef</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected[<a name="java.lang" class="extype" href="../../../../../java/lang/package.html">lang</a>] </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected[<a name="java.lang" class="extype" href="../../../../../../../java/lang/package.html">lang</a>] </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
                 <span class="name">@throws</span><span class="args">()</span>
               
         </dd></dl></div>
@@ -178,7 +178,7 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AttributeIndex#equals" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.client.index.TokenIndex#equals" data-isabs="false">
       <a id="equals(Any):Boolean"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -188,15 +188,15 @@
         <span class="params">(<span name="arg0">arg0: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.AttributeIndex" class="extype" href="">AttributeIndex</a> → Equals → AnyRef → Any</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AttributeIndex#fieldName" data-isabs="false">
-      <a id="fieldName:String"></a>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.client.index.TokenIndex" class="extype" href="">TokenIndex</a> → Equals → AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.client.index.TokenIndex#fieldNames" data-isabs="false">
+      <a id="fieldNames:Seq[String]"></a>
       <h4 class="signature">
       <span class="kind">var</span>
       <span class="symbol"> 
-        <span class="name">fieldName</span>
+        <span class="name">fieldNames</span>
         
-        <span class="result">: String</span>
+        <span class="result">: Seq[String]</span>
       </span>
       </h4>
       
@@ -210,18 +210,18 @@
         <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected[<a name="java.lang" class="extype" href="../../../../../java/lang/package.html">lang</a>] </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected[<a name="java.lang" class="extype" href="../../../../../../../java/lang/package.html">lang</a>] </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
                 <span class="name">@throws</span><span class="args">()</span>
               
         </dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord#fromGenericRecord" data-isabs="false">
-      <a id="fromGenericRecord(Record):AttributeIndex.this.type"></a>
+      <a id="fromGenericRecord(Record):TokenIndex.this.type"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">fromGenericRecord</span>
         
-        <span class="params">(<span name="generic">generic: <span name="org.apache.avro.generic.GenericData.Record" class="extype">Record</span></span>)</span><span class="result">: AttributeIndex.this.type</span>
+        <span class="params">(<span name="generic">generic: <span name="org.apache.avro.generic.GenericData.Record" class="extype">Record</span></span>)</span><span class="result">: TokenIndex.this.type</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ScalaSpecificRecord</dd></dl></div>
@@ -258,7 +258,7 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AvroRecord → GenericContainer</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AttributeIndex#hashCode" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.client.index.TokenIndex#hashCode" data-isabs="false">
       <a id="hashCode():Int"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -268,7 +268,7 @@
         <span class="params">()</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.AttributeIndex" class="extype" href="">AttributeIndex</a> → AnyRef → Any</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.client.index.TokenIndex" class="extype" href="">TokenIndex</a> → AnyRef → Any</dd></dl></div>
     </li><li visbl="pub" name="scala.Any#isInstanceOf" data-isabs="false">
       <a id="isInstanceOf[T0]:Boolean"></a>
       <h4 class="signature">
@@ -314,28 +314,28 @@
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord#parse" data-isabs="false">
-      <a id="parse(InputStream):AttributeIndex.this.type"></a>
+      <a id="parse(InputStream):TokenIndex.this.type"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">parse</span>
         
-        <span class="params">(<span name="inputStream">inputStream: <span name="java.io.InputStream" class="extype">InputStream</span></span>)</span><span class="result">: AttributeIndex.this.type</span>
+        <span class="params">(<span name="inputStream">inputStream: <span name="java.io.InputStream" class="extype">InputStream</span></span>)</span><span class="result">: TokenIndex.this.type</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ScalaSpecificRecord</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord#parse" data-isabs="false">
-      <a id="parse(Array[Byte]):AttributeIndex.this.type"></a>
+      <a id="parse(Array[Byte]):TokenIndex.this.type"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">parse</span>
         
-        <span class="params">(<span name="data">data: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: AttributeIndex.this.type</span>
+        <span class="params">(<span name="data">data: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: TokenIndex.this.type</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ScalaSpecificRecord</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AttributeIndex#productArity" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.client.index.TokenIndex#productArity" data-isabs="false">
       <a id="productArity:Int"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -345,8 +345,8 @@
         <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.AttributeIndex" class="extype" href="">AttributeIndex</a> → Product</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AttributeIndex#productElement" data-isabs="false">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.client.index.TokenIndex" class="extype" href="">TokenIndex</a> → Product</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.client.index.TokenIndex#productElement" data-isabs="false">
       <a id="productElement(Int):Any"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -356,7 +356,7 @@
         <span class="params">(<span name="arg0">arg0: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.Any" class="extype">Any</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.AttributeIndex" class="extype" href="">AttributeIndex</a> → Product</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.client.index.TokenIndex" class="extype" href="">TokenIndex</a> → Product</dd></dl></div>
     </li><li visbl="pub" name="scala.Product#productIterator" data-isabs="false">
       <a id="productIterator:Iterator[Any]"></a>
       <h4 class="signature">
@@ -368,7 +368,7 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Product</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AttributeIndex#productPrefix" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.client.index.TokenIndex#productPrefix" data-isabs="false">
       <a id="productPrefix:String"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -378,7 +378,7 @@
         <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.AttributeIndex" class="extype" href="">AttributeIndex</a> → Product</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.client.index.TokenIndex" class="extype" href="">TokenIndex</a> → Product</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.avro.marker.AvroRecord#put" data-isabs="false">
       <a id="put(Int,Any):Unit"></a>
       <h4 class="signature">
@@ -423,7 +423,7 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ScalaSpecificRecord</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.AttributeIndex#toString" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.storage.client.index.TokenIndex#toString" data-isabs="false">
       <a id="toString():String"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -433,7 +433,7 @@
         <span class="params">()</span><span class="result">: String</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.AttributeIndex" class="extype" href="">AttributeIndex</a> → AnyRef → Any</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.storage.client.index.TokenIndex" class="extype" href="">TokenIndex</a> → AnyRef → Any</dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef#wait" data-isabs="false">
       <a id="wait():Unit"></a>
       <h4 class="signature">
@@ -506,8 +506,8 @@
               <h3>Inherited from <span name="scala.Product" class="extype">Product</span></h3>
             </div><div name="scala.Equals" class="parent">
               <h3>Inherited from <span name="scala.Equals" class="extype">Equals</span></h3>
-            </div><div name="edu.berkeley.cs.scads.storage.IndexType" class="parent">
-              <h3>Inherited from <a name="edu.berkeley.cs.scads.storage.IndexType" class="extype" href="IndexType.html">IndexType</a></h3>
+            </div><div name="edu.berkeley.cs.scads.storage.client.index.IndexType" class="parent">
+              <h3>Inherited from <a name="edu.berkeley.cs.scads.storage.client.index.IndexType" class="extype" href="IndexType.html">IndexType</a></h3>
             </div><div name="edu.berkeley.cs.avro.marker.AvroUnion" class="parent">
               <h3>Inherited from <span name="edu.berkeley.cs.avro.marker.AvroUnion" class="extype">AvroUnion</span></h3>
             </div><div name="edu.berkeley.cs.avro.marker.AvroRecord" class="parent">
