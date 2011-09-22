@@ -9,69 +9,69 @@
  38479 term deploylib.runit.RunitManager.services(e3e7ad2b5398849129a6721e648016bfa6c87d54)
  38480 term deploylib.runit.RunitManager.clearAll(daa10c302f01ae891ab5ff7d9d7f177c59c78afc)
 [mesos/ServiceScheduler.scala]
- 72211 term deploylib.mesos.LocalExperimentScheduler.apply$default$3(9e007beb9564863079edb4f4d08612e42b09589d)
- 72393 term deploylib.mesos.LocalExperimentScheduler.Experiment.apply(bf57d32e159692e0383ed0cc1c363602206182ea)
+ 73679 term deploylib.mesos.LocalExperimentScheduler.apply$default$3(9e007beb9564863079edb4f4d08612e42b09589d)
+ 73861 term deploylib.mesos.LocalExperimentScheduler.Experiment.apply(bf57d32e159692e0383ed0cc1c363602206182ea)
  57947 term deploylib.mesos.LocalExperimentScheduler.outstandingExperiments(33db8ce557db466b858f7ecb669e74e8c9e5abab)
- 72393 term deploylib.mesos.LocalExperimentScheduler.Experiment.hashCode(c663c7b3bae9762feb0455bde7533db4239310c8)
+ 73861 term deploylib.mesos.LocalExperimentScheduler.Experiment.hashCode(c663c7b3bae9762feb0455bde7533db4239310c8)
  57941 term deploylib.mesos.LocalExperimentScheduler.driver(8a5e4026cbe71077075cc959631026754fe0397c)
  57953 term deploylib.mesos.LocalExperimentScheduler.taskIds_$eq(20b73fd87783f857ff1a9bedf021ccf34b073ec2)
- 72393 term deploylib.mesos.LocalExperimentScheduler.Experiment.equals(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
- 72393 term deploylib.mesos.LocalExperimentScheduler.Experiment.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
+ 73861 term deploylib.mesos.LocalExperimentScheduler.Experiment.equals(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
+ 73861 term deploylib.mesos.LocalExperimentScheduler.Experiment.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
  57950 term deploylib.mesos.LocalExperimentScheduler.awaitingSiblings_$eq(947bf675d520ed90830346d1f1b9347135b4a29b)
  57938 term deploylib.mesos.LocalExperimentScheduler.taskId
  9647 term deploylib.mesos.LocalExperimentScheduler
  9649 type deploylib.mesos.ExperimentScheduler
- 72393 term deploylib.mesos.LocalExperimentScheduler.Experiment
+ 73861 term deploylib.mesos.LocalExperimentScheduler.Experiment
  57962 term deploylib.mesos.LocalExperimentScheduler.executorId(529b2a72598a29c547c44baf32b91130d027f8f1)
  57931 term deploylib.mesos.LocalExperimentScheduler.name
  57967 term deploylib.mesos.LocalExperimentScheduler.resourceOffer(775022b82b01435f33e6c49012e773bf6007d213)
  57933 term deploylib.mesos.LocalExperimentScheduler.executor
- 74247 term deploylib.mesos.LocalExperimentScheduler.Experiment.processes(f3b28020e2e163a85e04de15b97e87d0b477eb9c)
+ 75717 term deploylib.mesos.LocalExperimentScheduler.Experiment.processes(f3b28020e2e163a85e04de15b97e87d0b477eb9c)
  57932 term deploylib.mesos.LocalExperimentScheduler.mesosMaster
  9650 type deploylib.mesos.LocalExperimentScheduler
  57938 term deploylib.mesos.LocalExperimentScheduler.taskId(f94e34279774a33b0e784d726d315f41bbfccb90)
- 72393 term deploylib.mesos.LocalExperimentScheduler.Experiment.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
+ 73861 term deploylib.mesos.LocalExperimentScheduler.Experiment.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
  57970 term deploylib.mesos.LocalExperimentScheduler.error(43d0e1100b11a2f6e3d415342be454197a85a45e)
- 74247 term deploylib.mesos.LocalExperimentScheduler.Experiment.processes_$eq(2b5286ad9a393ca854c24276108cc19d6d144e5c)
+ 75717 term deploylib.mesos.LocalExperimentScheduler.Experiment.processes_$eq(2b5286ad9a393ca854c24276108cc19d6d144e5c)
  57972 term deploylib.mesos.LocalExperimentScheduler.frameworkMessage(3de01e2de39a8450091c9d34f8dc01d623cb1269)
  57935 term deploylib.mesos.LocalExperimentScheduler.logger(f69e82722f9a2bcfce3670b21c06b81418c80577)
  57956 term deploylib.mesos.LocalExperimentScheduler.scheduledExperiments_$eq(c40110be1d1e55e382f28b1e396f427a23ec74f0)
  57969 term deploylib.mesos.LocalExperimentScheduler.stopDriver(f94e34279774a33b0e784d726d315f41bbfccb90)
- 72393 type deploylib.mesos.LocalExperimentScheduler.Experiment
+ 73861 type deploylib.mesos.LocalExperimentScheduler.Experiment
  57965 term deploylib.mesos.LocalExperimentScheduler.registered(d3a68d008e4ca7d235b1498244f52bcfc9fafc7d)
  57968 term deploylib.mesos.LocalExperimentScheduler.statusUpdate(667eaf6995f736bd27ddadb8475a46ae205a9d2f)
  57961 term deploylib.mesos.LocalExperimentScheduler.getFrameworkName(5aac441eba91c09ebeb780396ce1393b150ebb8c)
  57938 term deploylib.mesos.LocalExperimentScheduler.taskId_$eq(50e0407b147ffae2134d6ee815ea88c53958eac2)
  57935 term deploylib.mesos.LocalExperimentScheduler.logger
- 72393 term deploylib.mesos.LocalExperimentScheduler.Experiment.toString(612e55791800ba754104ae1f138b554bae5d18c7)
- 74247 term deploylib.mesos.LocalExperimentScheduler.Experiment.processes
+ 73861 term deploylib.mesos.LocalExperimentScheduler.Experiment.toString(612e55791800ba754104ae1f138b554bae5d18c7)
+ 75717 term deploylib.mesos.LocalExperimentScheduler.Experiment.processes
  57735 term deploylib.mesos.ExperimentScheduler.scheduleExperiment(dec5e3cc515bcec1c3893dd524121b973116b8c9)
- 72393 term deploylib.mesos.LocalExperimentScheduler.Experiment.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
+ 73861 term deploylib.mesos.LocalExperimentScheduler.Experiment.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
  57960 term deploylib.mesos.LocalExperimentScheduler.scheduleExperiment(dec5e3cc515bcec1c3893dd524121b973116b8c9)
  57958 term deploylib.mesos.LocalExperimentScheduler.driverThread(3f935366242b7619fbe72ec8112ad5038f3380f4)
- 72210 term deploylib.mesos.LocalExperimentScheduler.apply$default$2(9e007beb9564863079edb4f4d08612e42b09589d)
+ 73678 term deploylib.mesos.LocalExperimentScheduler.apply$default$2(9e007beb9564863079edb4f4d08612e42b09589d)
  57958 term deploylib.mesos.LocalExperimentScheduler.driverThread
  57966 term deploylib.mesos.LocalExperimentScheduler.taskDescription(e7afcb36e5611dc5f4f9bf94c6dde59dea3eabc9)
  57950 term deploylib.mesos.LocalExperimentScheduler.awaitingSiblings
  57973 term deploylib.mesos.LocalExperimentScheduler.offerRescinded(b790572600163387ff790b10c392a98096003d82)
  57956 term deploylib.mesos.LocalExperimentScheduler.scheduledExperiments(d5ee076f05bd49422189d32f2ac8c5de8f3848e5)
  57971 term deploylib.mesos.LocalExperimentScheduler.slaveLost(3df0045a721935ba2c5cf7caeb6e137606de4fbc)
- 72462 term deploylib.mesos.LocalExperimentScheduler.$anon.run(aa97cb1b3d57631c4e100d9db6c6b1f1fafcdd7b)
- 72393 term deploylib.mesos.LocalExperimentScheduler.Experiment.copy(bf57d32e159692e0383ed0cc1c363602206182ea)
+ 73930 term deploylib.mesos.LocalExperimentScheduler.$anon.run(aa97cb1b3d57631c4e100d9db6c6b1f1fafcdd7b)
+ 73861 term deploylib.mesos.LocalExperimentScheduler.Experiment.copy(bf57d32e159692e0383ed0cc1c363602206182ea)
  57947 term deploylib.mesos.LocalExperimentScheduler.outstandingExperiments
- 72393 term deploylib.mesos.LocalExperimentScheduler.Experiment.unapply(8b42531935065056d2d1c4cfca56ece1925a9a18)
+ 73861 term deploylib.mesos.LocalExperimentScheduler.Experiment.unapply(8b42531935065056d2d1c4cfca56ece1925a9a18)
  57956 term deploylib.mesos.LocalExperimentScheduler.scheduledExperiments
  57962 term deploylib.mesos.LocalExperimentScheduler.executorId
  57947 term deploylib.mesos.LocalExperimentScheduler.outstandingExperiments_$eq(cbbd02f4d12b44586c3ccd16d4de39fcc0091dd5)
  57950 term deploylib.mesos.LocalExperimentScheduler.awaitingSiblings(f2b1d9a285045e6c29b419ea91a3afe011de93b1)
  57941 term deploylib.mesos.LocalExperimentScheduler.driver_$eq(6c5f2a881987b5decd309e58c9bd53ba2ebaed89)
  57953 term deploylib.mesos.LocalExperimentScheduler.taskIds(ac8826720af14d01c3d3f33e2f0c67a3a5b99faf)
- 72203 term deploylib.mesos.LocalExperimentScheduler.apply(763a9c0b0c3ba45ba7df3e43acd438cfce5bedd9)
+ 73671 term deploylib.mesos.LocalExperimentScheduler.apply(763a9c0b0c3ba45ba7df3e43acd438cfce5bedd9)
  57941 term deploylib.mesos.LocalExperimentScheduler.driver
- 74247 term deploylib.mesos.LocalExperimentScheduler.Experiment.copy$default$1(0ddfe939f67b420957f3b286c9b2c10a029c51f9)
+ 75717 term deploylib.mesos.LocalExperimentScheduler.Experiment.copy$default$1(0ddfe939f67b420957f3b286c9b2c10a029c51f9)
  57953 term deploylib.mesos.LocalExperimentScheduler.taskIds
- 72393 term deploylib.mesos.LocalExperimentScheduler.Experiment.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
- 72393 term deploylib.mesos.LocalExperimentScheduler.Experiment.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
+ 73861 term deploylib.mesos.LocalExperimentScheduler.Experiment.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
+ 73861 term deploylib.mesos.LocalExperimentScheduler.Experiment.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
  57964 term deploylib.mesos.LocalExperimentScheduler.getExecutorInfo(2c7dd1e191934b56e5371a83c547b5a2d7f6a1fe)
 [Util.scala]
  38312 term deploylib.Util.CachedMd5.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
@@ -393,7 +393,7 @@
  57977 term deploylib.mesos.ServiceScheduler.executor
  59185 term deploylib.mesos.RemoteServiceScheduler.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
  59185 term deploylib.mesos.RemoteServiceScheduler.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
- 100741 term deploylib.mesos.RemoteServiceScheduler.<init>(f978b90f724d6d5a8386398752308739b40f9207)
+ 101110 term deploylib.mesos.RemoteServiceScheduler.<init>(f978b90f724d6d5a8386398752308739b40f9207)
  59178 term deploylib.mesos.RemoteServiceScheduler.host_$eq(d969c1dba768dd5e3cff1840e18fde800981922c)
  59180 term deploylib.mesos.RemoteServiceScheduler.id(bc8e44c165937ce1208bc283462d18973aa110c0)
  59178 term deploylib.mesos.RemoteServiceScheduler.host(3bf7c90be758f5b946ae171b872e4a2ff5affba6)
@@ -409,140 +409,140 @@
  59185 term deploylib.mesos.RemoteServiceScheduler.get(7f10f9171eb6c7ff3e772efe79e283699bf1df4a)
  57976 term deploylib.mesos.ServiceScheduler.mesosMaster
 [rcluster/RCluster.scala]
- 81956 term deploylib.rcluster.RClusterNode.username(3bf7c90be758f5b946ae171b872e4a2ff5affba6)
- 81954 term deploylib.rcluster.RClusterNode.hostname
- 81960 term deploylib.rcluster.RClusterNode.runitBinaryPath(eda89debba054e55d4619ae47599293b0fe44eb5)
+ 82325 term deploylib.rcluster.RClusterNode.username(3bf7c90be758f5b946ae171b872e4a2ff5affba6)
+ 82323 term deploylib.rcluster.RClusterNode.hostname
+ 82329 term deploylib.rcluster.RClusterNode.runitBinaryPath(eda89debba054e55d4619ae47599293b0fe44eb5)
  9792 term deploylib.rcluster.RCluster
- 81956 term deploylib.rcluster.RClusterNode.username
- 82234 term deploylib.rcluster.RCluster.activeNodes(7505ade047d602ec5c6d87f40c5ee9dae404aa08)
- 82232 term deploylib.rcluster.RCluster.nodes
- 82437 term deploylib.rcluster.RCluster.activeNodes$default$1(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
+ 82325 term deploylib.rcluster.RClusterNode.username
+ 82603 term deploylib.rcluster.RCluster.activeNodes(7505ade047d602ec5c6d87f40c5ee9dae404aa08)
+ 82601 term deploylib.rcluster.RCluster.nodes
+ 82806 term deploylib.rcluster.RCluster.activeNodes$default$1(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
  9794 type deploylib.rcluster.RClusterNode
- 81965 term deploylib.rcluster.RClusterNode.cacheFile(882d70ca641e113a7d0791d9a7946a6271fc942f)
- 81960 term deploylib.rcluster.RClusterNode.runitBinaryPath
- 81952 term deploylib.rcluster.RClusterNode.num
- 81958 term deploylib.rcluster.RClusterNode.rootDirectory(eda89debba054e55d4619ae47599293b0fe44eb5)
- 81958 term deploylib.rcluster.RClusterNode.rootDirectory
- 82232 term deploylib.rcluster.RCluster.nodes(165cffaa4c7e82c125c484acef4b749697d3b908)
- 81962 term deploylib.rcluster.RClusterNode.javaCmd(eda89debba054e55d4619ae47599293b0fe44eb5)
- 81964 term deploylib.rcluster.RClusterNode.setupRunit(aa97cb1b3d57631c4e100d9db6c6b1f1fafcdd7b)
- 81954 term deploylib.rcluster.RClusterNode.hostname(e30a80d2b4700276248ce5925d94ebb97783d05d)
- 81962 term deploylib.rcluster.RClusterNode.javaCmd
- 81966 term deploylib.rcluster.RClusterNode.upload(d2c1fbdf7d166468329a1b988f5c728ea0fa31bc)
+ 82334 term deploylib.rcluster.RClusterNode.cacheFile(882d70ca641e113a7d0791d9a7946a6271fc942f)
+ 82329 term deploylib.rcluster.RClusterNode.runitBinaryPath
+ 82321 term deploylib.rcluster.RClusterNode.num
+ 82327 term deploylib.rcluster.RClusterNode.rootDirectory(eda89debba054e55d4619ae47599293b0fe44eb5)
+ 82327 term deploylib.rcluster.RClusterNode.rootDirectory
+ 82601 term deploylib.rcluster.RCluster.nodes(165cffaa4c7e82c125c484acef4b749697d3b908)
+ 82331 term deploylib.rcluster.RClusterNode.javaCmd(eda89debba054e55d4619ae47599293b0fe44eb5)
+ 82333 term deploylib.rcluster.RClusterNode.setupRunit(aa97cb1b3d57631c4e100d9db6c6b1f1fafcdd7b)
+ 82323 term deploylib.rcluster.RClusterNode.hostname(e30a80d2b4700276248ce5925d94ebb97783d05d)
+ 82331 term deploylib.rcluster.RClusterNode.javaCmd
+ 82335 term deploylib.rcluster.RClusterNode.upload(d2c1fbdf7d166468329a1b988f5c728ea0fa31bc)
 [mesos/WebAppScheduler.scala]
- 77032 term deploylib.mesos.WebAppScheduler.monitorThread.period
- 79686 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.httpClient
- 77036 term deploylib.mesos.WebAppScheduler.monitorThread.init$default$5(73d17a9a865a44969e354033bcc7fa6ba52fa126)
- 79705 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.timeout
- 75754 term deploylib.mesos.WebAppScheduler.monitoringThread(3f935366242b7619fbe72ec8112ad5038f3380f4)
- 75711 term deploylib.mesos.WebAppScheduler.driver
- 77038 term deploylib.mesos.WebAppScheduler.monitorThread.utilizationThreshold
- 79686 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.httpClient(5dbc760f831746fd45fc1e0e5656ed88522cd48d)
- 77034 term deploylib.mesos.WebAppScheduler.monitorThread.rampUpWorkloadWeight
- 79680 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.taskId
- 79704 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.sleepPeriod
- 75693 term deploylib.mesos.WebAppScheduler.name
- 75705 term deploylib.mesos.WebAppScheduler.logger(f69e82722f9a2bcfce3670b21c06b81418c80577)
- 75739 term deploylib.mesos.WebAppScheduler.smoothedUtilization(7bc43a12dd2725d083ceb1af36c8e6716a9efa28)
- 75724 term deploylib.mesos.WebAppScheduler.runMonitorThread
- 75773 term deploylib.mesos.WebAppScheduler.frameworkMessage(3de01e2de39a8450091c9d34f8dc01d623cb1269)
- 75736 term deploylib.mesos.WebAppScheduler.smoothedWorkload(7bc43a12dd2725d083ceb1af36c8e6716a9efa28)
- 75727 term deploylib.mesos.WebAppScheduler.numToKill
- 75782 term deploylib.mesos.WebAppScheduler.minServers
- 75742 term deploylib.mesos.WebAppScheduler.servers_$eq(305085aa8b25290c0894a6f03f1fa57b2ea4c028)
- 75715 term deploylib.mesos.WebAppScheduler.statement
- 75695 term deploylib.mesos.WebAppScheduler.executor
- 77033 term deploylib.mesos.WebAppScheduler.monitorThread.unresponsiveRequestLimit
- 75751 type deploylib.mesos.WebAppScheduler.monitorThread
- 77035 term deploylib.mesos.WebAppScheduler.monitorThread.init$default$4(73d17a9a865a44969e354033bcc7fa6ba52fa126)
- 75736 term deploylib.mesos.WebAppScheduler.smoothedWorkload
- 79705 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.init$default$5(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
- 75711 term deploylib.mesos.WebAppScheduler.driver(8a5e4026cbe71077075cc959631026754fe0397c)
- 75733 term deploylib.mesos.WebAppScheduler.targetNumServers(f94e34279774a33b0e784d726d315f41bbfccb90)
- 75782 term deploylib.mesos.WebAppScheduler.minServers_$eq(50e0407b147ffae2134d6ee815ea88c53958eac2)
- 75769 term deploylib.mesos.WebAppScheduler.updateZooWebServerList(aa97cb1b3d57631c4e100d9db6c6b1f1fafcdd7b)
- 75765 term deploylib.mesos.WebAppScheduler.taskIdCounter
- 75733 term deploylib.mesos.WebAppScheduler.targetNumServers_$eq(50e0407b147ffae2134d6ee815ea88c53958eac2)
- 77038 term deploylib.mesos.WebAppScheduler.monitorThread.init$default$7(73d17a9a865a44969e354033bcc7fa6ba52fa126)
- 75697 term deploylib.mesos.WebAppScheduler.properties
- 75730 term deploylib.mesos.WebAppScheduler.killTimer(f94e34279774a33b0e784d726d315f41bbfccb90)
- 75708 term deploylib.mesos.WebAppScheduler.listeners(1e97686dcd70eb11bf968e64e93377394da6e7e3)
- 75717 term deploylib.mesos.WebAppScheduler.registerActionListener(c187a57436a55a4b6b08c144433c5ee766acd76d)
- 75739 term deploylib.mesos.WebAppScheduler.smoothedUtilization
- 75745 term deploylib.mesos.WebAppScheduler.pendingServers
- 75698 term deploylib.mesos.WebAppScheduler.zkWebServerListRoot
- 75761 term deploylib.mesos.WebAppScheduler.registered(d3a68d008e4ca7d235b1498244f52bcfc9fafc7d)
- 75765 term deploylib.mesos.WebAppScheduler.taskIdCounter(f94e34279774a33b0e784d726d315f41bbfccb90)
- 75754 term deploylib.mesos.WebAppScheduler.monitoringThread
- 75748 term deploylib.mesos.WebAppScheduler.unresponsiveServers(995f89df69209a3a0040b6c903d0f3d52c52f55f)
- 75713 term deploylib.mesos.WebAppScheduler.driverThread(3f935366242b7619fbe72ec8112ad5038f3380f4)
- 75760 term deploylib.mesos.WebAppScheduler.getExecutorInfo(2c7dd1e191934b56e5371a83c547b5a2d7f6a1fe)
- 75715 term deploylib.mesos.WebAppScheduler.statement(285b454036c7220532d10ae9b4c33c4c4c579171)
- 75724 term deploylib.mesos.WebAppScheduler.runMonitorThread_$eq(2155cd0a04e0a6925f4c5f7257b9111cffbba979)
- 75736 term deploylib.mesos.WebAppScheduler.smoothedWorkload_$eq(6c6fb347a2d0b2c274e0e88fd9a9719acb970565)
- 75783 term deploylib.mesos.WebAppScheduler.statsServer
- 75699 term deploylib.mesos.WebAppScheduler.serverCapacity
- 77032 term deploylib.mesos.WebAppScheduler.monitorThread.init$default$1(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
- 75759 term deploylib.mesos.WebAppScheduler.getFrameworkName(5aac441eba91c09ebeb780396ce1393b150ebb8c)
- 75774 term deploylib.mesos.WebAppScheduler.offerRescinded(b790572600163387ff790b10c392a98096003d82)
- 75762 term deploylib.mesos.WebAppScheduler.webAppTask(fb520360750e575b04e3103f87a2b6575ad5f664)
- 75765 term deploylib.mesos.WebAppScheduler.taskIdCounter_$eq(50e0407b147ffae2134d6ee815ea88c53958eac2)
- 75724 term deploylib.mesos.WebAppScheduler.runMonitorThread(2a880db3f601502d34dbcee48bf223ebec428d3c)
- 75742 term deploylib.mesos.WebAppScheduler.servers(213a7b78f1b9e5267f5a21f621d2e1b7b700e890)
- 77037 term deploylib.mesos.WebAppScheduler.monitorThread.init$default$6(73d17a9a865a44969e354033bcc7fa6ba52fa126)
- 75768 term deploylib.mesos.WebAppScheduler.statusUpdate(667eaf6995f736bd27ddadb8475a46ae205a9d2f)
- 75767 term deploylib.mesos.WebAppScheduler.resourceOffer(5df84dd26e2cf9dac5742e193a8d8e3970aef56b)
- 75727 term deploylib.mesos.WebAppScheduler.numToKill_$eq(50e0407b147ffae2134d6ee815ea88c53958eac2)
- 77037 term deploylib.mesos.WebAppScheduler.monitorThread.rampDownUtilizationWeight
- 75730 term deploylib.mesos.WebAppScheduler.killTimer_$eq(50e0407b147ffae2134d6ee815ea88c53958eac2)
- 75694 term deploylib.mesos.WebAppScheduler.mesosMaster
- 75748 term deploylib.mesos.WebAppScheduler.unresponsiveServers_$eq(a4f73f7cde635c8999dcf2c305dbb90b8a11dd59)
- 79681 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.serverHostname
- 79688 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.run(aa97cb1b3d57631c4e100d9db6c6b1f1fafcdd7b)
- 75757 type deploylib.mesos.WebAppScheduler.WebAppPrimerThread
- 75772 term deploylib.mesos.WebAppScheduler.slaveLost(3df0045a721935ba2c5cf7caeb6e137606de4fbc)
- 77036 term deploylib.mesos.WebAppScheduler.monitorThread.rampUpUtilizationWeight
- 75719 term deploylib.mesos.WebAppScheduler.port(f94e34279774a33b0e784d726d315f41bbfccb90)
- 75745 term deploylib.mesos.WebAppScheduler.pendingServers(213a7b78f1b9e5267f5a21f621d2e1b7b700e890)
- 75708 term deploylib.mesos.WebAppScheduler.listeners
- 77021 term deploylib.mesos.WebAppScheduler.monitorThread.httpClient(5dbc760f831746fd45fc1e0e5656ed88522cd48d)
- 75705 term deploylib.mesos.WebAppScheduler.logger
- 77023 term deploylib.mesos.WebAppScheduler.monitorThread.run(aa97cb1b3d57631c4e100d9db6c6b1f1fafcdd7b)
- 75782 term deploylib.mesos.WebAppScheduler.minServers(f94e34279774a33b0e784d726d315f41bbfccb90)
- 75757 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread
- 75708 term deploylib.mesos.WebAppScheduler.listeners_$eq(80c8b59155b9052bbf7228b14aabe7e6396a6b50)
- 75711 term deploylib.mesos.WebAppScheduler.driver_$eq(6c5f2a881987b5decd309e58c9bd53ba2ebaed89)
- 77034 term deploylib.mesos.WebAppScheduler.monitorThread.init$default$3(73d17a9a865a44969e354033bcc7fa6ba52fa126)
- 79703 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.numSuccessRequired
- 75748 term deploylib.mesos.WebAppScheduler.unresponsiveServers
- 77021 term deploylib.mesos.WebAppScheduler.monitorThread.httpClient
- 75745 term deploylib.mesos.WebAppScheduler.pendingServers_$eq(305085aa8b25290c0894a6f03f1fa57b2ea4c028)
- 75721 term deploylib.mesos.WebAppScheduler.zkWebServerList
+ 78502 term deploylib.mesos.WebAppScheduler.monitorThread.period
+ 80055 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.httpClient
+ 78506 term deploylib.mesos.WebAppScheduler.monitorThread.init$default$5(73d17a9a865a44969e354033bcc7fa6ba52fa126)
+ 80074 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.timeout
+ 77224 term deploylib.mesos.WebAppScheduler.monitoringThread(3f935366242b7619fbe72ec8112ad5038f3380f4)
+ 77181 term deploylib.mesos.WebAppScheduler.driver
+ 78508 term deploylib.mesos.WebAppScheduler.monitorThread.utilizationThreshold
+ 80055 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.httpClient(5dbc760f831746fd45fc1e0e5656ed88522cd48d)
+ 78504 term deploylib.mesos.WebAppScheduler.monitorThread.rampUpWorkloadWeight
+ 80049 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.taskId
+ 80073 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.sleepPeriod
+ 77163 term deploylib.mesos.WebAppScheduler.name
+ 77175 term deploylib.mesos.WebAppScheduler.logger(f69e82722f9a2bcfce3670b21c06b81418c80577)
+ 77209 term deploylib.mesos.WebAppScheduler.smoothedUtilization(7bc43a12dd2725d083ceb1af36c8e6716a9efa28)
+ 77194 term deploylib.mesos.WebAppScheduler.runMonitorThread
+ 77243 term deploylib.mesos.WebAppScheduler.frameworkMessage(3de01e2de39a8450091c9d34f8dc01d623cb1269)
+ 77206 term deploylib.mesos.WebAppScheduler.smoothedWorkload(7bc43a12dd2725d083ceb1af36c8e6716a9efa28)
+ 77197 term deploylib.mesos.WebAppScheduler.numToKill
+ 77252 term deploylib.mesos.WebAppScheduler.minServers
+ 77212 term deploylib.mesos.WebAppScheduler.servers_$eq(305085aa8b25290c0894a6f03f1fa57b2ea4c028)
+ 77185 term deploylib.mesos.WebAppScheduler.statement
+ 77165 term deploylib.mesos.WebAppScheduler.executor
+ 78503 term deploylib.mesos.WebAppScheduler.monitorThread.unresponsiveRequestLimit
+ 77221 type deploylib.mesos.WebAppScheduler.monitorThread
+ 78505 term deploylib.mesos.WebAppScheduler.monitorThread.init$default$4(73d17a9a865a44969e354033bcc7fa6ba52fa126)
+ 77206 term deploylib.mesos.WebAppScheduler.smoothedWorkload
+ 80074 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.init$default$5(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
+ 77181 term deploylib.mesos.WebAppScheduler.driver(8a5e4026cbe71077075cc959631026754fe0397c)
+ 77203 term deploylib.mesos.WebAppScheduler.targetNumServers(f94e34279774a33b0e784d726d315f41bbfccb90)
+ 77252 term deploylib.mesos.WebAppScheduler.minServers_$eq(50e0407b147ffae2134d6ee815ea88c53958eac2)
+ 77239 term deploylib.mesos.WebAppScheduler.updateZooWebServerList(aa97cb1b3d57631c4e100d9db6c6b1f1fafcdd7b)
+ 77235 term deploylib.mesos.WebAppScheduler.taskIdCounter
+ 77203 term deploylib.mesos.WebAppScheduler.targetNumServers_$eq(50e0407b147ffae2134d6ee815ea88c53958eac2)
+ 78508 term deploylib.mesos.WebAppScheduler.monitorThread.init$default$7(73d17a9a865a44969e354033bcc7fa6ba52fa126)
+ 77167 term deploylib.mesos.WebAppScheduler.properties
+ 77200 term deploylib.mesos.WebAppScheduler.killTimer(f94e34279774a33b0e784d726d315f41bbfccb90)
+ 77178 term deploylib.mesos.WebAppScheduler.listeners(1e97686dcd70eb11bf968e64e93377394da6e7e3)
+ 77187 term deploylib.mesos.WebAppScheduler.registerActionListener(c187a57436a55a4b6b08c144433c5ee766acd76d)
+ 77209 term deploylib.mesos.WebAppScheduler.smoothedUtilization
+ 77215 term deploylib.mesos.WebAppScheduler.pendingServers
+ 77168 term deploylib.mesos.WebAppScheduler.zkWebServerListRoot
+ 77231 term deploylib.mesos.WebAppScheduler.registered(d3a68d008e4ca7d235b1498244f52bcfc9fafc7d)
+ 77235 term deploylib.mesos.WebAppScheduler.taskIdCounter(f94e34279774a33b0e784d726d315f41bbfccb90)
+ 77224 term deploylib.mesos.WebAppScheduler.monitoringThread
+ 77218 term deploylib.mesos.WebAppScheduler.unresponsiveServers(995f89df69209a3a0040b6c903d0f3d52c52f55f)
+ 77183 term deploylib.mesos.WebAppScheduler.driverThread(3f935366242b7619fbe72ec8112ad5038f3380f4)
+ 77230 term deploylib.mesos.WebAppScheduler.getExecutorInfo(2c7dd1e191934b56e5371a83c547b5a2d7f6a1fe)
+ 77185 term deploylib.mesos.WebAppScheduler.statement(285b454036c7220532d10ae9b4c33c4c4c579171)
+ 77194 term deploylib.mesos.WebAppScheduler.runMonitorThread_$eq(2155cd0a04e0a6925f4c5f7257b9111cffbba979)
+ 77206 term deploylib.mesos.WebAppScheduler.smoothedWorkload_$eq(6c6fb347a2d0b2c274e0e88fd9a9719acb970565)
+ 77253 term deploylib.mesos.WebAppScheduler.statsServer
+ 77169 term deploylib.mesos.WebAppScheduler.serverCapacity
+ 78502 term deploylib.mesos.WebAppScheduler.monitorThread.init$default$1(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
+ 77229 term deploylib.mesos.WebAppScheduler.getFrameworkName(5aac441eba91c09ebeb780396ce1393b150ebb8c)
+ 77244 term deploylib.mesos.WebAppScheduler.offerRescinded(b790572600163387ff790b10c392a98096003d82)
+ 77232 term deploylib.mesos.WebAppScheduler.webAppTask(fb520360750e575b04e3103f87a2b6575ad5f664)
+ 77235 term deploylib.mesos.WebAppScheduler.taskIdCounter_$eq(50e0407b147ffae2134d6ee815ea88c53958eac2)
+ 77194 term deploylib.mesos.WebAppScheduler.runMonitorThread(2a880db3f601502d34dbcee48bf223ebec428d3c)
+ 77212 term deploylib.mesos.WebAppScheduler.servers(213a7b78f1b9e5267f5a21f621d2e1b7b700e890)
+ 78507 term deploylib.mesos.WebAppScheduler.monitorThread.init$default$6(73d17a9a865a44969e354033bcc7fa6ba52fa126)
+ 77238 term deploylib.mesos.WebAppScheduler.statusUpdate(667eaf6995f736bd27ddadb8475a46ae205a9d2f)
+ 77237 term deploylib.mesos.WebAppScheduler.resourceOffer(5df84dd26e2cf9dac5742e193a8d8e3970aef56b)
+ 77197 term deploylib.mesos.WebAppScheduler.numToKill_$eq(50e0407b147ffae2134d6ee815ea88c53958eac2)
+ 78507 term deploylib.mesos.WebAppScheduler.monitorThread.rampDownUtilizationWeight
+ 77200 term deploylib.mesos.WebAppScheduler.killTimer_$eq(50e0407b147ffae2134d6ee815ea88c53958eac2)
+ 77164 term deploylib.mesos.WebAppScheduler.mesosMaster
+ 77218 term deploylib.mesos.WebAppScheduler.unresponsiveServers_$eq(a4f73f7cde635c8999dcf2c305dbb90b8a11dd59)
+ 80050 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.serverHostname
+ 80057 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.run(aa97cb1b3d57631c4e100d9db6c6b1f1fafcdd7b)
+ 77227 type deploylib.mesos.WebAppScheduler.WebAppPrimerThread
+ 77242 term deploylib.mesos.WebAppScheduler.slaveLost(3df0045a721935ba2c5cf7caeb6e137606de4fbc)
+ 78506 term deploylib.mesos.WebAppScheduler.monitorThread.rampUpUtilizationWeight
+ 77189 term deploylib.mesos.WebAppScheduler.port(f94e34279774a33b0e784d726d315f41bbfccb90)
+ 77215 term deploylib.mesos.WebAppScheduler.pendingServers(213a7b78f1b9e5267f5a21f621d2e1b7b700e890)
+ 77178 term deploylib.mesos.WebAppScheduler.listeners
+ 78491 term deploylib.mesos.WebAppScheduler.monitorThread.httpClient(5dbc760f831746fd45fc1e0e5656ed88522cd48d)
+ 77175 term deploylib.mesos.WebAppScheduler.logger
+ 78493 term deploylib.mesos.WebAppScheduler.monitorThread.run(aa97cb1b3d57631c4e100d9db6c6b1f1fafcdd7b)
+ 77252 term deploylib.mesos.WebAppScheduler.minServers(f94e34279774a33b0e784d726d315f41bbfccb90)
+ 77227 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread
+ 77178 term deploylib.mesos.WebAppScheduler.listeners_$eq(80c8b59155b9052bbf7228b14aabe7e6396a6b50)
+ 77181 term deploylib.mesos.WebAppScheduler.driver_$eq(6c5f2a881987b5decd309e58c9bd53ba2ebaed89)
+ 78504 term deploylib.mesos.WebAppScheduler.monitorThread.init$default$3(73d17a9a865a44969e354033bcc7fa6ba52fa126)
+ 80072 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.numSuccessRequired
+ 77218 term deploylib.mesos.WebAppScheduler.unresponsiveServers
+ 78491 term deploylib.mesos.WebAppScheduler.monitorThread.httpClient
+ 77215 term deploylib.mesos.WebAppScheduler.pendingServers_$eq(305085aa8b25290c0894a6f03f1fa57b2ea4c028)
+ 77191 term deploylib.mesos.WebAppScheduler.zkWebServerList
  9684 type deploylib.mesos.WebAppScheduler
- 75753 term deploylib.mesos.WebAppScheduler.killTasks(8397774fa17c954242b29cf1ea9136dadfb5ce10)
- 75770 term deploylib.mesos.WebAppScheduler.kill(daa10c302f01ae891ab5ff7d9d7f177c59c78afc)
+ 77223 term deploylib.mesos.WebAppScheduler.killTasks(8397774fa17c954242b29cf1ea9136dadfb5ce10)
+ 77240 term deploylib.mesos.WebAppScheduler.kill(daa10c302f01ae891ab5ff7d9d7f177c59c78afc)
  9682 term deploylib.mesos.WebAppScheduler
- 75713 term deploylib.mesos.WebAppScheduler.driverThread
- 77019 term deploylib.mesos.WebAppScheduler.monitorThread.params
- 75733 term deploylib.mesos.WebAppScheduler.targetNumServers
- 75751 term deploylib.mesos.WebAppScheduler.monitorThread
- 75727 term deploylib.mesos.WebAppScheduler.numToKill(f94e34279774a33b0e784d726d315f41bbfccb90)
- 79704 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.init$default$4(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
- 77035 term deploylib.mesos.WebAppScheduler.monitorThread.rampDownWorkloadWeight
- 75894 term deploylib.mesos.WebAppScheduler.$anon.run(aa97cb1b3d57631c4e100d9db6c6b1f1fafcdd7b)
- 75718 term deploylib.mesos.WebAppScheduler.recordAction(3329045129dda27c0369ee21196054dddadc9d90)
- 75721 term deploylib.mesos.WebAppScheduler.zkWebServerList(af4872c93bc57fffdf68e4e84c9138d257210b57)
- 75762 term deploylib.mesos.WebAppScheduler.webAppTask
- 75742 term deploylib.mesos.WebAppScheduler.servers
- 77019 term deploylib.mesos.WebAppScheduler.monitorThread.params(b0f0ef043cc682e7561f77ebdf98ba241ba81e76)
- 75783 term deploylib.mesos.WebAppScheduler.init$default$9(b053ae59a81ceca62e8e69ade9e48dea8b1d6a93)
- 79703 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.init$default$3(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
- 75739 term deploylib.mesos.WebAppScheduler.smoothedUtilization_$eq(6c6fb347a2d0b2c274e0e88fd9a9719acb970565)
- 75696 term deploylib.mesos.WebAppScheduler.warFile
- 75719 term deploylib.mesos.WebAppScheduler.port
- 75771 term deploylib.mesos.WebAppScheduler.error(43d0e1100b11a2f6e3d415342be454197a85a45e)
- 77033 term deploylib.mesos.WebAppScheduler.monitorThread.init$default$2(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
- 75730 term deploylib.mesos.WebAppScheduler.killTimer
+ 77183 term deploylib.mesos.WebAppScheduler.driverThread
+ 78489 term deploylib.mesos.WebAppScheduler.monitorThread.params
+ 77203 term deploylib.mesos.WebAppScheduler.targetNumServers
+ 77221 term deploylib.mesos.WebAppScheduler.monitorThread
+ 77197 term deploylib.mesos.WebAppScheduler.numToKill(f94e34279774a33b0e784d726d315f41bbfccb90)
+ 80073 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.init$default$4(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
+ 78505 term deploylib.mesos.WebAppScheduler.monitorThread.rampDownWorkloadWeight
+ 77364 term deploylib.mesos.WebAppScheduler.$anon.run(aa97cb1b3d57631c4e100d9db6c6b1f1fafcdd7b)
+ 77188 term deploylib.mesos.WebAppScheduler.recordAction(3329045129dda27c0369ee21196054dddadc9d90)
+ 77191 term deploylib.mesos.WebAppScheduler.zkWebServerList(af4872c93bc57fffdf68e4e84c9138d257210b57)
+ 77232 term deploylib.mesos.WebAppScheduler.webAppTask
+ 77212 term deploylib.mesos.WebAppScheduler.servers
+ 78489 term deploylib.mesos.WebAppScheduler.monitorThread.params(b0f0ef043cc682e7561f77ebdf98ba241ba81e76)
+ 77253 term deploylib.mesos.WebAppScheduler.init$default$9(b053ae59a81ceca62e8e69ade9e48dea8b1d6a93)
+ 80072 term deploylib.mesos.WebAppScheduler.WebAppPrimerThread.init$default$3(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
+ 77209 term deploylib.mesos.WebAppScheduler.smoothedUtilization_$eq(6c6fb347a2d0b2c274e0e88fd9a9719acb970565)
+ 77166 term deploylib.mesos.WebAppScheduler.warFile
+ 77189 term deploylib.mesos.WebAppScheduler.port
+ 77241 term deploylib.mesos.WebAppScheduler.error(43d0e1100b11a2f6e3d415342be454197a85a45e)
+ 78503 term deploylib.mesos.WebAppScheduler.monitorThread.init$default$2(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
+ 77200 term deploylib.mesos.WebAppScheduler.killTimer
 [mesos/package.scala]
  9692 term deploylib.mesos.package
  9824 term deploylib.mesos.package.s3Classpath(0cd6aae74f0f57e22a67b9dbf14af83001ee06d7)
@@ -632,106 +632,106 @@
  51469 term deploylib.ec2.ExperimentNotification.snsClient
 [runit/RunitService.scala]
  38518 term deploylib.runit.RunitService.tailLog(3bf7c90be758f5b946ae171b872e4a2ff5affba6)
- 83380 term deploylib.runit.RunitService.unapply(cd74cfb027986adf07e282728c65121d12271188)
+ 83749 term deploylib.runit.RunitService.unapply(cd74cfb027986adf07e282728c65121d12271188)
  38506 term deploylib.runit.RunitService.start(daa10c302f01ae891ab5ff7d9d7f177c59c78afc)
- 83384 term deploylib.runit.UnsucessfulSvCmdException.resp(b969d199d26c3f2cb9ef9ba93173268a377ee173)
+ 83753 term deploylib.runit.UnsucessfulSvCmdException.resp(b969d199d26c3f2cb9ef9ba93173268a377ee173)
  38490 term deploylib.runit.RunitService.serviceDir
- 83380 term deploylib.runit.RunitService.readResolve(4bd7809a6ae8a67ae4d3e011f542aec660ffea74)
- 83251 term deploylib.runit.RunitStatus.pid
+ 83749 term deploylib.runit.RunitService.readResolve(4bd7809a6ae8a67ae4d3e011f542aec660ffea74)
+ 83620 term deploylib.runit.RunitStatus.pid
  38516 term deploylib.runit.RunitService.clearFailures(daa10c302f01ae891ab5ff7d9d7f177c59c78afc)
  38505 term deploylib.runit.RunitService.once(daa10c302f01ae891ab5ff7d9d7f177c59c78afc)
  38502 term deploylib.runit.RunitService.failureFile
  38517 term deploylib.runit.RunitService.clearLog(daa10c302f01ae891ab5ff7d9d7f177c59c78afc)
- 83375 term deploylib.runit.RunitService.copy$default$1(94b59c45e57ed64257ae988b885a869d06bd8cec)
+ 83744 term deploylib.runit.RunitService.copy$default$1(94b59c45e57ed64257ae988b885a869d06bd8cec)
  38492 term deploylib.runit.RunitService.superviseDir
- 83384 term deploylib.runit.UnsucessfulSvCmdException.copy$default$1(789dc3cc41b6b708dbf4703c8a3700ec54d936a9)
- 83250 term deploylib.runit.RunitStatus.status(3bf7c90be758f5b946ae171b872e4a2ff5affba6)
- 83250 term deploylib.runit.RunitStatus.copy$default$1(9e007beb9564863079edb4f4d08612e42b09589d)
- 83055 term deploylib.runit.BadStatus
- 83391 term deploylib.runit.RunitStatus.hashCode(c663c7b3bae9762feb0455bde7533db4239310c8)
+ 83753 term deploylib.runit.UnsucessfulSvCmdException.copy$default$1(789dc3cc41b6b708dbf4703c8a3700ec54d936a9)
+ 83619 term deploylib.runit.RunitStatus.status(3bf7c90be758f5b946ae171b872e4a2ff5affba6)
+ 83619 term deploylib.runit.RunitStatus.copy$default$1(9e007beb9564863079edb4f4d08612e42b09589d)
+ 83424 term deploylib.runit.BadStatus
+ 83760 term deploylib.runit.RunitStatus.hashCode(c663c7b3bae9762feb0455bde7533db4239310c8)
  38514 term deploylib.runit.RunitService.blockTillUpFor(87d6adeef165551608b4f7af61a90c586e59133d)
- 83391 term deploylib.runit.RunitStatus.readResolve(4bd7809a6ae8a67ae4d3e011f542aec660ffea74)
+ 83760 term deploylib.runit.RunitStatus.readResolve(4bd7809a6ae8a67ae4d3e011f542aec660ffea74)
  38496 term deploylib.runit.RunitService.controlFile(eda89debba054e55d4619ae47599293b0fe44eb5)
- 83387 term deploylib.runit.UnsucessfulSvCmdException.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
- 83391 term deploylib.runit.RunitStatus.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
+ 83756 term deploylib.runit.UnsucessfulSvCmdException.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
+ 83760 term deploylib.runit.RunitStatus.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
  38488 term deploylib.runit.RunitService.logger
- 83380 term deploylib.runit.RunitService.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
- 83380 term deploylib.runit.RunitService.equals(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
- 83387 term deploylib.runit.UnsucessfulSvCmdException.equals(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
- 83252 term deploylib.runit.RunitStatus.upTime(f94e34279774a33b0e784d726d315f41bbfccb90)
+ 83749 term deploylib.runit.RunitService.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
+ 83749 term deploylib.runit.RunitService.equals(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
+ 83756 term deploylib.runit.UnsucessfulSvCmdException.equals(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
+ 83621 term deploylib.runit.RunitStatus.upTime(f94e34279774a33b0e784d726d315f41bbfccb90)
  38509 term deploylib.runit.RunitService.downRegex(10b770f77e6c1b7b5acbd710b159ca5dff092f0c)
- 83391 type deploylib.runit.RunitStatus
- 83252 term deploylib.runit.RunitStatus.copy$default$3(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
- 83387 term deploylib.runit.UnsucessfulSvCmdException.readResolve(4bd7809a6ae8a67ae4d3e011f542aec660ffea74)
- 83376 term deploylib.runit.RunitService.name
+ 83760 type deploylib.runit.RunitStatus
+ 83621 term deploylib.runit.RunitStatus.copy$default$3(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
+ 83756 term deploylib.runit.UnsucessfulSvCmdException.readResolve(4bd7809a6ae8a67ae4d3e011f542aec660ffea74)
+ 83745 term deploylib.runit.RunitService.name
  38507 term deploylib.runit.RunitService.stop(daa10c302f01ae891ab5ff7d9d7f177c59c78afc)
  38509 term deploylib.runit.RunitService.downRegex
  38500 term deploylib.runit.RunitService.logFile(eda89debba054e55d4619ae47599293b0fe44eb5)
  38490 term deploylib.runit.RunitService.serviceDir(eda89debba054e55d4619ae47599293b0fe44eb5)
- 83252 term deploylib.runit.RunitStatus.upTime
- 83391 term deploylib.runit.RunitStatus.toString(612e55791800ba754104ae1f138b554bae5d18c7)
+ 83621 term deploylib.runit.RunitStatus.upTime
+ 83760 term deploylib.runit.RunitStatus.toString(612e55791800ba754104ae1f138b554bae5d18c7)
  38500 term deploylib.runit.RunitService.logFile
- 83376 term deploylib.runit.RunitService.name(3bf7c90be758f5b946ae171b872e4a2ff5affba6)
- 83380 term deploylib.runit.RunitService.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
+ 83745 term deploylib.runit.RunitService.name(3bf7c90be758f5b946ae171b872e4a2ff5affba6)
+ 83749 term deploylib.runit.RunitService.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
  38498 term deploylib.runit.RunitService.logDir
  38511 term deploylib.runit.RunitService.runRegex
  38511 term deploylib.runit.RunitService.runRegex(10b770f77e6c1b7b5acbd710b159ca5dff092f0c)
- 83380 term deploylib.runit.RunitService.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
- 83055 term deploylib.runit.BadStatus.readResolve(4bd7809a6ae8a67ae4d3e011f542aec660ffea74)
- 83387 term deploylib.runit.UnsucessfulSvCmdException.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
- 83387 term deploylib.runit.UnsucessfulSvCmdException
- 83387 type deploylib.runit.UnsucessfulSvCmdException
- 83391 term deploylib.runit.RunitStatus.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
- 83387 term deploylib.runit.UnsucessfulSvCmdException.hashCode(c663c7b3bae9762feb0455bde7533db4239310c8)
- 83391 term deploylib.runit.RunitStatus.copy(bc51f0b4efab76db0bbe33deb1b6158730e30aea)
+ 83749 term deploylib.runit.RunitService.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
+ 83424 term deploylib.runit.BadStatus.readResolve(4bd7809a6ae8a67ae4d3e011f542aec660ffea74)
+ 83756 term deploylib.runit.UnsucessfulSvCmdException.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
+ 83756 term deploylib.runit.UnsucessfulSvCmdException
+ 83756 type deploylib.runit.UnsucessfulSvCmdException
+ 83760 term deploylib.runit.RunitStatus.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
+ 83756 term deploylib.runit.UnsucessfulSvCmdException.hashCode(c663c7b3bae9762feb0455bde7533db4239310c8)
+ 83760 term deploylib.runit.RunitStatus.copy(bc51f0b4efab76db0bbe33deb1b6158730e30aea)
  38492 term deploylib.runit.RunitService.superviseDir(eda89debba054e55d4619ae47599293b0fe44eb5)
  38504 term deploylib.runit.RunitService.svCmd(154448d61d124da5c88b3c4b0581092428095221)
- 83391 term deploylib.runit.RunitStatus.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
- 83380 term deploylib.runit.RunitService.copy(ee6b416896fcc71693e055f8f99b8e5870444137)
- 83251 term deploylib.runit.RunitStatus.pid(f94e34279774a33b0e784d726d315f41bbfccb90)
- 83380 type deploylib.runit.RunitService
+ 83760 term deploylib.runit.RunitStatus.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
+ 83749 term deploylib.runit.RunitService.copy(ee6b416896fcc71693e055f8f99b8e5870444137)
+ 83620 term deploylib.runit.RunitStatus.pid(f94e34279774a33b0e784d726d315f41bbfccb90)
+ 83749 type deploylib.runit.RunitService
  38513 term deploylib.runit.RunitService.status(c3c557c119baadfe321c54c57ea861f065f3fd17)
- 83380 term deploylib.runit.RunitService.apply(ee6b416896fcc71693e055f8f99b8e5870444137)
- 83391 term deploylib.runit.RunitStatus
- 83375 term deploylib.runit.RunitService.manager(5884c4ae5de4383fe0d422fda5eaaf7af98bf0ac)
- 83380 term deploylib.runit.RunitService.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
- 83380 term deploylib.runit.RunitService
- 83387 term deploylib.runit.UnsucessfulSvCmdException.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
- 83376 term deploylib.runit.RunitService.copy$default$2(9e007beb9564863079edb4f4d08612e42b09589d)
- 83384 term deploylib.runit.UnsucessfulSvCmdException.resp
- 83380 term deploylib.runit.RunitService.toString(612e55791800ba754104ae1f138b554bae5d18c7)
+ 83749 term deploylib.runit.RunitService.apply(ee6b416896fcc71693e055f8f99b8e5870444137)
+ 83760 term deploylib.runit.RunitStatus
+ 83744 term deploylib.runit.RunitService.manager(5884c4ae5de4383fe0d422fda5eaaf7af98bf0ac)
+ 83749 term deploylib.runit.RunitService.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
+ 83749 term deploylib.runit.RunitService
+ 83756 term deploylib.runit.UnsucessfulSvCmdException.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
+ 83745 term deploylib.runit.RunitService.copy$default$2(9e007beb9564863079edb4f4d08612e42b09589d)
+ 83753 term deploylib.runit.UnsucessfulSvCmdException.resp
+ 83749 term deploylib.runit.RunitService.toString(612e55791800ba754104ae1f138b554bae5d18c7)
  38494 term deploylib.runit.RunitService.statFile(eda89debba054e55d4619ae47599293b0fe44eb5)
  38515 term deploylib.runit.RunitService.blockTillDown(daa10c302f01ae891ab5ff7d9d7f177c59c78afc)
- 83250 term deploylib.runit.RunitStatus.status
+ 83619 term deploylib.runit.RunitStatus.status
  38498 term deploylib.runit.RunitService.logDir(eda89debba054e55d4619ae47599293b0fe44eb5)
  38502 term deploylib.runit.RunitService.failureFile(eda89debba054e55d4619ae47599293b0fe44eb5)
- 83391 term deploylib.runit.RunitStatus.apply(bc51f0b4efab76db0bbe33deb1b6158730e30aea)
+ 83760 term deploylib.runit.RunitStatus.apply(bc51f0b4efab76db0bbe33deb1b6158730e30aea)
  38508 term deploylib.runit.RunitService.exit(daa10c302f01ae891ab5ff7d9d7f177c59c78afc)
- 83380 term deploylib.runit.RunitService.hashCode(c663c7b3bae9762feb0455bde7533db4239310c8)
+ 83749 term deploylib.runit.RunitService.hashCode(c663c7b3bae9762feb0455bde7533db4239310c8)
  38496 term deploylib.runit.RunitService.controlFile
- 83387 term deploylib.runit.UnsucessfulSvCmdException.apply(e735c42d921031a4457383f9c03a104016329d46)
+ 83756 term deploylib.runit.UnsucessfulSvCmdException.apply(e735c42d921031a4457383f9c03a104016329d46)
  38519 term deploylib.runit.RunitService.watchLog(daa10c302f01ae891ab5ff7d9d7f177c59c78afc)
- 83391 term deploylib.runit.RunitStatus.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
+ 83760 term deploylib.runit.RunitStatus.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
  38494 term deploylib.runit.RunitService.statFile
- 83387 term deploylib.runit.UnsucessfulSvCmdException.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
- 83387 term deploylib.runit.UnsucessfulSvCmdException.copy(e735c42d921031a4457383f9c03a104016329d46)
- 83391 term deploylib.runit.RunitStatus.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
- 83391 term deploylib.runit.RunitStatus.unapply(c32f71859d310f648c2b266536c2cd1a8a591afa)
- 83380 term deploylib.runit.RunitService.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
- 83375 term deploylib.runit.RunitService.manager
+ 83756 term deploylib.runit.UnsucessfulSvCmdException.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
+ 83756 term deploylib.runit.UnsucessfulSvCmdException.copy(e735c42d921031a4457383f9c03a104016329d46)
+ 83760 term deploylib.runit.RunitStatus.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
+ 83760 term deploylib.runit.RunitStatus.unapply(c32f71859d310f648c2b266536c2cd1a8a591afa)
+ 83749 term deploylib.runit.RunitService.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
+ 83744 term deploylib.runit.RunitService.manager
  38488 term deploylib.runit.RunitService.logger(f69e82722f9a2bcfce3670b21c06b81418c80577)
- 83387 term deploylib.runit.UnsucessfulSvCmdException.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
- 83391 term deploylib.runit.RunitStatus.equals(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
- 83251 term deploylib.runit.RunitStatus.copy$default$2(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
+ 83756 term deploylib.runit.UnsucessfulSvCmdException.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
+ 83760 term deploylib.runit.RunitStatus.equals(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
+ 83620 term deploylib.runit.RunitStatus.copy$default$2(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
  38520 term deploylib.runit.RunitService.watchFailures(daa10c302f01ae891ab5ff7d9d7f177c59c78afc)
- 83387 term deploylib.runit.UnsucessfulSvCmdException.unapply(bdc4ccb9f91a4f94f5f7326c3c5d54c3c239b7e1)
+ 83756 term deploylib.runit.UnsucessfulSvCmdException.unapply(bdc4ccb9f91a4f94f5f7326c3c5d54c3c239b7e1)
 [mesos/MesosEC2.scala]
  68351 term deploylib.mesos.Cluster.conffile(eda89debba054e55d4619ae47599293b0fe44eb5)
  68337 term deploylib.mesos.Cluster.setupZooKeeper(8397774fa17c954242b29cf1ea9136dadfb5ce10)
  68332 term deploylib.mesos.Cluster.slaves(f38e5092011b618e1516820a363504aff2ec2711)
  67935 term deploylib.mesos.ServiceSchedulerDaemon.javaExecutorPath(e30a80d2b4700276248ce5925d94ebb97783d05d)
  9629 term deploylib.mesos.ServiceSchedulerDaemon
- 69454 term deploylib.mesos.Cluster.setupMesosMaster$default$1(9e007beb9564863079edb4f4d08612e42b09589d)
+ 69455 term deploylib.mesos.Cluster.setupMesosMaster$default$1(9e007beb9564863079edb4f4d08612e42b09589d)
  68340 term deploylib.mesos.Cluster.clusterUrl(3bf7c90be758f5b946ae171b872e4a2ff5affba6)
  68336 term deploylib.mesos.Cluster.zooKeeperRoot(af4872c93bc57fffdf68e4e84c9138d257210b57)
  68342 term deploylib.mesos.Cluster.restartMasters(aa97cb1b3d57631c4e100d9db6c6b1f1fafcdd7b)
@@ -744,47 +744,48 @@
  9631 term deploylib.mesos.MesosCluster
  68322 term deploylib.mesos.Cluster.defaultZone
  68357 term deploylib.mesos.Cluster.authorizeMaster(daa10c302f01ae891ab5ff7d9d7f177c59c78afc)
- 71213 term deploylib.mesos.Cluster.updateConf$default$1(3fa6e9b84a46537ea8597832d2a45a743b3f70c8)
- 69491 term deploylib.mesos.Cluster.addSlaves$default$4(6397f342cae83281c8bb3499aecea18d20ad1cfd)
+ 71266 term deploylib.mesos.Cluster.updateConf$default$1(3fa6e9b84a46537ea8597832d2a45a743b3f70c8)
+ 69492 term deploylib.mesos.Cluster.addSlaves$default$4(6397f342cae83281c8bb3499aecea18d20ad1cfd)
  68334 term deploylib.mesos.Cluster.zooKeepers(f38e5092011b618e1516820a363504aff2ec2711)
  9634 term deploylib.mesos.Cluster
  68354 term deploylib.mesos.Cluster.updateMasterConf(daa10c302f01ae891ab5ff7d9d7f177c59c78afc)
  68341 term deploylib.mesos.Cluster.restartSlaves(aa97cb1b3d57631c4e100d9db6c6b1f1fafcdd7b)
  68325 term deploylib.mesos.Cluster.serviceScheduler(831038b7645f7bda25c3211cb983fc2db00ed6f0)
  68324 term deploylib.mesos.Cluster.serviceSchedulerNode(af4872c93bc57fffdf68e4e84c9138d257210b57)
- 69455 term deploylib.mesos.Cluster.setupMesosMaster$default$2(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
+ 69456 term deploylib.mesos.Cluster.setupMesosMaster$default$2(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
  68328 term deploylib.mesos.Cluster.setup(fe890ce4603a13e4890bb619599a17825cb47f44)
  68335 term deploylib.mesos.Cluster.zooKeeperAddress(3bf7c90be758f5b946ae171b872e4a2ff5affba6)
- 69446 term deploylib.mesos.Cluster.setup$default$1(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
+ 69447 term deploylib.mesos.Cluster.setup$default$1(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
  68318 term deploylib.mesos.Cluster.rootDir
  68318 term deploylib.mesos.Cluster.rootDir(eda89debba054e55d4619ae47599293b0fe44eb5)
  68311 term deploylib.mesos.MesosCluster.jarFiles_$eq(678b2f0ef3eebb4ff529c7662983948718bc6730)
  68347 term deploylib.mesos.Cluster.baseConf(f4166ef12758e51ed8eb323c0b70e4732d09a9e5)
  68327 term deploylib.mesos.Cluster.stopAllInstances(aa97cb1b3d57631c4e100d9db6c6b1f1fafcdd7b)
  67937 term deploylib.mesos.ServiceSchedulerDaemon.main(a9ba0dbc0cb7971129b4e1b342e2db50b94fa9e6)
- 69670 term deploylib.mesos.Cluster.updateDeploylib$default$1(3fa6e9b84a46537ea8597832d2a45a743b3f70c8)
- 68394 term deploylib.mesos.Cluster.useFT
+ 69671 term deploylib.mesos.Cluster.updateDeploylib$default$1(3fa6e9b84a46537ea8597832d2a45a743b3f70c8)
+ 68395 term deploylib.mesos.Cluster.useFT
  68329 term deploylib.mesos.Cluster.updateDeploylib(018121fbb6a968e84d6de2b07b02e481c65cffd8)
- 70345 term deploylib.mesos.Cluster.startMasters$default$3(9e007beb9564863079edb4f4d08612e42b09589d)
- 69489 term deploylib.mesos.Cluster.addSlaves$default$2(9e007beb9564863079edb4f4d08612e42b09589d)
+ 70398 term deploylib.mesos.Cluster.startMasters$default$3(9e007beb9564863079edb4f4d08612e42b09589d)
+ 69490 term deploylib.mesos.Cluster.addSlaves$default$2(9e007beb9564863079edb4f4d08612e42b09589d)
  67935 term deploylib.mesos.ServiceSchedulerDaemon.javaExecutorPath
  68339 term deploylib.mesos.Cluster.updateMesos(daa10c302f01ae891ab5ff7d9d7f177c59c78afc)
- 68394 term deploylib.mesos.Cluster.init$default$1(6397f342cae83281c8bb3499aecea18d20ad1cfd)
- 69490 term deploylib.mesos.Cluster.addSlaves$default$3(9e007beb9564863079edb4f4d08612e42b09589d)
+ 68395 term deploylib.mesos.Cluster.init$default$1(6397f342cae83281c8bb3499aecea18d20ad1cfd)
+ 69491 term deploylib.mesos.Cluster.addSlaves$default$3(9e007beb9564863079edb4f4d08612e42b09589d)
  68338 term deploylib.mesos.Cluster.firstMaster(661dba82895332994263441d5e89e55dc53a0f8f)
  68346 term deploylib.mesos.Cluster.addSlaves(1014cf3de3a382831daf1779150c331aa3a85a39)
- 70344 term deploylib.mesos.Cluster.startMasters$default$2(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
+ 70397 term deploylib.mesos.Cluster.startMasters$default$2(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
  68330 term deploylib.mesos.Cluster.setupMesosMaster(1ce2d6e176b8af93fd5dbb8e4c07323b729565e9)
- 69469 term deploylib.mesos.Cluster.setupZooKeeper$default$1(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
+ 69470 term deploylib.mesos.Cluster.setupZooKeeper$default$1(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
  68320 term deploylib.mesos.Cluster.mesosAmi
  68356 term deploylib.mesos.Cluster.pushJars(4625f82e873b305fd8b0e57447fef5a40b3f9c50)
  68333 term deploylib.mesos.Cluster.masters(f38e5092011b618e1516820a363504aff2ec2711)
  68331 term deploylib.mesos.Cluster.restartServiceScheduler(daa10c302f01ae891ab5ff7d9d7f177c59c78afc)
  68351 term deploylib.mesos.Cluster.conffile
- 70343 term deploylib.mesos.Cluster.startMasters$default$1(9e007beb9564863079edb4f4d08612e42b09589d)
- 69456 term deploylib.mesos.Cluster.setupMesosMaster$default$3(b053ae59a81ceca62e8e69ade9e48dea8b1d6a93)
+ 70396 term deploylib.mesos.Cluster.startMasters$default$1(9e007beb9564863079edb4f4d08612e42b09589d)
+ 69457 term deploylib.mesos.Cluster.setupMesosMaster$default$3(b053ae59a81ceca62e8e69ade9e48dea8b1d6a93)
  68350 term deploylib.mesos.Cluster.slaveConf(1c0d0510a90652bfa0461205464f488bf70d170e)
  68353 term deploylib.mesos.Cluster.updateConf(018121fbb6a968e84d6de2b07b02e481c65cffd8)
+ 68358 term deploylib.mesos.Cluster.tailSlaveLogs(daa10c302f01ae891ab5ff7d9d7f177c59c78afc)
  68322 term deploylib.mesos.Cluster.defaultZone(e30a80d2b4700276248ce5925d94ebb97783d05d)
  68349 term deploylib.mesos.Cluster.confWithUrl(f4166ef12758e51ed8eb323c0b70e4732d09a9e5)
  68343 term deploylib.mesos.Cluster.restart(aa97cb1b3d57631c4e100d9db6c6b1f1fafcdd7b)
