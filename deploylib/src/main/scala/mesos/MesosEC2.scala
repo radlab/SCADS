@@ -33,14 +33,14 @@ object MesosCluster {
 /**
  * Functions to help maintain a mesos cluster on EC2.
  */
-class Cluster(useFT: Boolean = false) extends ConfigurationActions {
+class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) extends ConfigurationActions {
   val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
 
   val mesosAmi =
-    if (EC2Instance.endpoint contains "west") "ami-2b6b386e" else "ami-2d60a144"
+    if (region.endpoint contains "west") "ami-2b6b386e" else "ami-2d60a144"
 
   val defaultZone =
-    if (EC2Instance.endpoint contains "west") "us-west-1a" else "us-east-1b"
+    if (region.endpoint contains "west") "us-west-1a" else "us-east-1b"
 
   def serviceSchedulerNode = zooKeeperRoot.getOrCreate("serviceScheduler")
 
@@ -105,32 +105,32 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
   }
 
   def slaves = {
-    EC2Instance.update()
-    EC2Instance.client.describeTags().getTags()
+    region.update()
+    region.client.describeTags().getTags()
       .filter(_.getResourceType equals "instance")
       .filter(_.getKey equals "mesos")
       .filter(_.getValue equals "slave")
-      .map(t => EC2Instance.getInstance(t.getResourceId))
+      .map(t => region.getInstance(t.getResourceId))
       .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
   }
 
   def masters = {
-    EC2Instance.update()
-    EC2Instance.client.describeTags().getTags()
+    region.update()
+    region.client.describeTags().getTags()
       .filter(_.getResourceType equals "instance")
       .filter(_.getKey equals "mesos")
       .filter(_.getValue equals "master")
-      .map(t => EC2Instance.getInstance(t.getResourceId))
+      .map(t => region.getInstance(t.getResourceId))
       .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
   }
 
   def zooKeepers = {
-    EC2Instance.update()
-    EC2Instance.client.describeTags().getTags()
+    region.update()
+    region.client.describeTags().getTags()
       .filter(_.getResourceType equals "instance")
       .filter(_.getKey equals "mesos")
       .filter(_.getValue equals "zoo")
-      .map(t => EC2Instance.getInstance(t.getResourceId))
+      .map(t => region.getInstance(t.getResourceId))
       .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
   }
 
@@ -141,11 +141,11 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     val missingServers = numServers - zooKeepers.size
 
     if(missingServers > 0) {
-    val ret = EC2Instance.runInstances(
+    val ret = region.runInstances(
       mesosAmi,
       missingServers,
       missingServers,
-      EC2Instance.keyName,
+      region.keyName,
       "m1.large",
       defaultZone,
       None)
@@ -228,11 +228,11 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
   }
 
   def startMasters(zone: String = defaultZone, count: Int = 1, ami: String = mesosAmi): Seq[EC2Instance] = {
-    val ret = EC2Instance.runInstances(
+    val ret = region.runInstances(
       ami,
       count,
       count,
-      EC2Instance.keyName,
+      region.keyName,
       "m1.large",
       zone,
       None)
@@ -261,11 +261,11 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
             None
         }
 
-    val instances = EC2Instance.runInstances(
+    val instances = region.runInstances(
       ami,
       count,
       count,
-      EC2Instance.keyName,
+      region.keyName,
       "m1.large",
       zone,
       userData)
