@@ -2,35 +2,35 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <html>
         <head>
-          <title>edu.berkeley.cs.scads.perf.Histogram</title>
+          <title>edu.berkeley.cs.scads.perf.intkey.singlenode.Result</title>
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
-      <link type="text/css" media="screen" rel="stylesheet" href="../../../../../lib/template.css" />
-      <script type="text/javascript" src="../../../../../lib/jquery.js"></script>
-      <script type="text/javascript" src="../../../../../lib/jquery-ui.js"></script>
-      <script type="text/javascript" src="../../../../../lib/template.js"></script>
-      <script type="text/javascript" src="../../../../../lib/tools.tooltip.js"></script>
+      <link type="text/css" media="screen" rel="stylesheet" href="../../../../../../../lib/template.css" />
+      <script type="text/javascript" src="../../../../../../../lib/jquery.js"></script>
+      <script type="text/javascript" src="../../../../../../../lib/jquery-ui.js"></script>
+      <script type="text/javascript" src="../../../../../../../lib/template.js"></script>
+      <script type="text/javascript" src="../../../../../../../lib/tools.tooltip.js"></script>
     
         </head>
         <body class="type">
       <div id="definition">
-        <a title="Go to companion" href="Histogram$.html"><img src="../../../../../lib/class_to_object_big.png" /></a>
-        <p id="owner"><a name="edu" class="extype" href="../../../../package.html">edu</a>.<a name="edu.berkeley" class="extype" href="../../../package.html">berkeley</a>.<a name="edu.berkeley.cs" class="extype" href="../../package.html">cs</a>.<a name="edu.berkeley.cs.scads" class="extype" href="../package.html">scads</a>.<a name="edu.berkeley.cs.scads.perf" class="extype" href="package.html">perf</a></p>
-        <h1><a title="Go to companion" href="Histogram$.html">Histogram</a></h1>
+        <img src="../../../../../../../lib/class_big.png" />
+        <p id="owner"><a name="edu" class="extype" href="../../../../../../package.html">edu</a>.<a name="edu.berkeley" class="extype" href="../../../../../package.html">berkeley</a>.<a name="edu.berkeley.cs" class="extype" href="../../../../package.html">cs</a>.<a name="edu.berkeley.cs.scads" class="extype" href="../../../package.html">scads</a>.<a name="edu.berkeley.cs.scads.perf" class="extype" href="../../package.html">perf</a>.<a name="edu.berkeley.cs.scads.perf.intkey" class="extype" href="../package.html">intkey</a>.<a name="edu.berkeley.cs.scads.perf.intkey.singlenode" class="extype" href="package.html">singlenode</a></p>
+        <h1>Result</h1>
       </div>
 
       <h4 class="signature" id="signature">
       <span class="kind">case class</span>
       <span class="symbol"> 
-        <span class="name">Histogram</span>
+        <span class="name">Result</span>
         
-        <span class="params">(<span name="bucketSize">bucketSize: <span name="scala.Int" class="extype">Int</span></span>, <span name="buckets">buckets: <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<span name="scala.Long" class="extype">Long</span>]</span>, <span name="negative">negative: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result"> extends <span name="edu.berkeley.cs.avro.marker.AvroRecord" class="extype">AvroRecord</span> with <span name="scala.Product" class="extype">Product</span> with <span name="scala.Serializable" class="extype">Serializable</span></span>
+        <span class="params">(<span name="hostname">hostname: String</span>, <span name="timestamp">timestamp: <span name="scala.Long" class="extype">Long</span></span>, <span name="iteration">iteration: <span name="scala.Int" class="extype">Int</span></span>, <span name="dataSize">dataSize: <span name="scala.Int" class="extype">Int</span></span>, <span name="recordCount">recordCount: <span name="scala.Int" class="extype">Int</span></span>, <span name="threadCount">threadCount: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result"> extends <span name="edu.berkeley.cs.avro.marker.AvroPair" class="extype">AvroPair</span> with <span name="scala.Product" class="extype">Product</span> with <span name="scala.Serializable" class="extype">Serializable</span></span>
       </span>
       </h4>
       
           <div class="fullcommenttop" id="comment"><div class="toggleContainer block">
           <span class="toggle">Linear Supertypes</span>
-          <div class="superTypes hiddenContent"><span name="scala.Serializable" class="extype">Serializable</span>, <span name="java.io.Serializable" class="extype">Serializable</span>, <span name="scala.Product" class="extype">Product</span>, <span name="scala.Equals" class="extype">Equals</span>, <span name="edu.berkeley.cs.avro.marker.AvroRecord" class="extype">AvroRecord</span>, <span name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord" class="extype">ScalaSpecificRecord</span>, <span name="org.apache.avro.specific.SpecificRecord" class="extype">SpecificRecord</span>, <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span>, <span name="org.apache.avro.generic.GenericContainer" class="extype">GenericContainer</span>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
+          <div class="superTypes hiddenContent"><span name="scala.Serializable" class="extype">Serializable</span>, <span name="java.io.Serializable" class="extype">Serializable</span>, <span name="scala.Product" class="extype">Product</span>, <span name="scala.Equals" class="extype">Equals</span>, <span name="edu.berkeley.cs.avro.marker.AvroPair" class="extype">AvroPair</span>, <span name="edu.berkeley.cs.avro.marker.AvroRecord" class="extype">AvroRecord</span>, <span name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord" class="extype">ScalaSpecificRecord</span>, <span name="org.apache.avro.specific.SpecificRecord" class="extype">SpecificRecord</span>, <span name="org.apache.avro.generic.IndexedRecord" class="extype">IndexedRecord</span>, <span name="org.apache.avro.generic.GenericContainer" class="extype">GenericContainer</span>, AnyRef, <span name="scala.Any" class="extype">Any</span></div>
         </div></div>
         
 
@@ -46,7 +46,7 @@
                 <span class="filtertype">Inherited</span>
                 <ol><li class="hideall out"><span>Hide All</span></li>
                 <li class="showall in"><span>Show all</span></li></ol>
-                <ol id="linearization"><li name="edu.berkeley.cs.scads.perf.Histogram" class="in"><span>Histogram</span></li><li name="scala.Serializable" class="in"><span>Serializable</span></li><li name="java.io.Serializable" class="in"><span>Serializable</span></li><li name="scala.Product" class="in"><span>Product</span></li><li name="scala.Equals" class="in"><span>Equals</span></li><li name="edu.berkeley.cs.avro.marker.AvroRecord" class="in"><span>AvroRecord</span></li><li name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord" class="in"><span>ScalaSpecificRecord</span></li><li name="org.apache.avro.specific.SpecificRecord" class="in"><span>SpecificRecord</span></li><li name="org.apache.avro.generic.IndexedRecord" class="in"><span>IndexedRecord</span></li><li name="org.apache.avro.generic.GenericContainer" class="in"><span>GenericContainer</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
+                <ol id="linearization"><li name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result" class="in"><span>Result</span></li><li name="scala.Serializable" class="in"><span>Serializable</span></li><li name="java.io.Serializable" class="in"><span>Serializable</span></li><li name="scala.Product" class="in"><span>Product</span></li><li name="scala.Equals" class="in"><span>Equals</span></li><li name="edu.berkeley.cs.avro.marker.AvroPair" class="in"><span>AvroPair</span></li><li name="edu.berkeley.cs.avro.marker.AvroRecord" class="in"><span>AvroRecord</span></li><li name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord" class="in"><span>ScalaSpecificRecord</span></li><li name="org.apache.avro.specific.SpecificRecord" class="in"><span>SpecificRecord</span></li><li name="org.apache.avro.generic.IndexedRecord" class="in"><span>IndexedRecord</span></li><li name="org.apache.avro.generic.GenericContainer" class="in"><span>GenericContainer</span></li><li name="scala.AnyRef" class="in"><span>AnyRef</span></li><li name="scala.Any" class="in"><span>Any</span></li></ol>
               </div>
           <div id="visbl">
               <span class="filtertype">Visibility</span>
@@ -56,14 +56,14 @@
 
         <div class="members" id="constructors">
               <h3>Instance Constructors</h3>
-              <ol><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#this" data-isabs="false">
-      <a id="this:Histogram"></a>
+              <ol><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result#this" data-isabs="false">
+      <a id="this:Result"></a>
       <h4 class="signature">
       <span class="kind">new</span>
       <span class="symbol"> 
-        <span class="name">Histogram</span>
+        <span class="name">Result</span>
         
-        <span class="params">(<span name="bucketSize">bucketSize: <span name="scala.Int" class="extype">Int</span></span>, <span name="buckets">buckets: <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<span name="scala.Long" class="extype">Long</span>]</span>, <span name="negative">negative: <span name="scala.Int" class="extype">Int</span></span>)</span>
+        <span class="params">(<span name="hostname">hostname: String</span>, <span name="timestamp">timestamp: <span name="scala.Long" class="extype">Long</span></span>, <span name="iteration">iteration: <span name="scala.Int" class="extype">Int</span></span>, <span name="dataSize">dataSize: <span name="scala.Int" class="extype">Int</span></span>, <span name="recordCount">recordCount: <span name="scala.Int" class="extype">Int</span></span>, <span name="threadCount">threadCount: <span name="scala.Int" class="extype">Int</span></span>)</span>
       </span>
       </h4>
       
@@ -109,28 +109,6 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#+" data-isabs="false">
-      <a id="+(Histogram):Histogram"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">+</span>
-        
-        <span class="params">(<span name="left">left: <a name="edu.berkeley.cs.scads.perf.Histogram" class="extype" href="">Histogram</a></span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.perf.Histogram" class="extype" href="">Histogram</a></span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#+=" data-isabs="false">
-      <a id="+=(Long):Unit"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">+=</span>
-        
-        <span class="params">(<span name="value">value: <span name="scala.Long" class="extype">Long</span></span>)</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
-      </span>
-      </h4>
-      
     </li><li visbl="pub" name="scala.AnyRef#==" data-isabs="false">
       <a id="==(AnyRef):Boolean"></a>
       <h4 class="signature">
@@ -153,17 +131,6 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#add" data-isabs="false">
-      <a id="add(Long):Histogram"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">add</span>
-        
-        <span class="params">(<span name="value">value: <span name="scala.Long" class="extype">Long</span></span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.perf.Histogram" class="extype" href="">Histogram</a></span>
-      </span>
-      </h4>
-      
     </li><li visbl="pub" name="scala.Any#asInstanceOf" data-isabs="false">
       <a id="asInstanceOf[T0]:T0"></a>
       <h4 class="signature">
@@ -175,40 +142,7 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#average" data-isabs="false">
-      <a id="average:Double"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">average</span>
-        
-        <span class="result">: <span name="scala.Double" class="extype">Double</span></span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#bucketSize" data-isabs="false">
-      <a id="bucketSize:Int"></a>
-      <h4 class="signature">
-      <span class="kind">var</span>
-      <span class="symbol"> 
-        <span class="name">bucketSize</span>
-        
-        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#buckets" data-isabs="false">
-      <a id="buckets:ArrayBuffer[Long]"></a>
-      <h4 class="signature">
-      <span class="kind">var</span>
-      <span class="symbol"> 
-        <span class="name">buckets</span>
-        
-        <span class="result">: <span name="scala.collection.mutable.ArrayBuffer" class="extype">ArrayBuffer</span>[<span name="scala.Long" class="extype">Long</span>]</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#canEqual" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result#canEqual" data-isabs="false">
       <a id="canEqual(Any):Boolean"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -218,7 +152,7 @@
         <span class="params">(<span name="arg0">arg0: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.perf.Histogram" class="extype" href="">Histogram</a> → Equals</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result" class="extype" href="">Result</a> → Equals</dd></dl></div>
     </li><li visbl="prt" name="scala.AnyRef#clone" data-isabs="false">
       <a id="clone():AnyRef"></a>
       <h4 class="signature">
@@ -229,29 +163,18 @@
         <span class="params">()</span><span class="result">: AnyRef</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected[<a name="java.lang" class="extype" href="../../../../../java/lang/package.html">lang</a>] </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected[<a name="java.lang" class="extype" href="../../../../../../../java/lang/package.html">lang</a>] </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
                 <span class="name">@throws</span><span class="args">()</span>
               
         </dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#collapseHist" data-isabs="false">
-      <a id="collapseHist(Int):Histogram"></a>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result#dataSize" data-isabs="false">
+      <a id="dataSize:Int"></a>
       <h4 class="signature">
-      <span class="kind">def</span>
+      <span class="kind">var</span>
       <span class="symbol"> 
-        <span class="name">collapseHist</span>
+        <span class="name">dataSize</span>
         
-        <span class="params">(<span name="newBucketCount">newBucketCount: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.perf.Histogram" class="extype" href="">Histogram</a></span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#convolveWith" data-isabs="false">
-      <a id="convolveWith(Histogram):Histogram"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">convolveWith</span>
-        
-        <span class="params">(<span name="that">that: <a name="edu.berkeley.cs.scads.perf.Histogram" class="extype" href="">Histogram</a></span>)</span><span class="result">: <a name="edu.berkeley.cs.scads.perf.Histogram" class="extype" href="">Histogram</a></span>
+        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
       </span>
       </h4>
       
@@ -266,7 +189,7 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#equals" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result#equals" data-isabs="false">
       <a id="equals(Any):Boolean"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -276,7 +199,18 @@
         <span class="params">(<span name="arg0">arg0: <span name="scala.Any" class="extype">Any</span></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.perf.Histogram" class="extype" href="">Histogram</a> → Equals → AnyRef → Any</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result" class="extype" href="">Result</a> → Equals → AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result#failures" data-isabs="false">
+      <a id="failures:Int"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">failures</span>
+        
+        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+      </span>
+      </h4>
+      
     </li><li visbl="prt" name="scala.AnyRef#finalize" data-isabs="false">
       <a id="finalize():Unit"></a>
       <h4 class="signature">
@@ -287,18 +221,18 @@
         <span class="params">()</span><span class="result">: <span name="scala.Unit" class="extype">Unit</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected[<a name="java.lang" class="extype" href="../../../../../java/lang/package.html">lang</a>] </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected[<a name="java.lang" class="extype" href="../../../../../../../java/lang/package.html">lang</a>] </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd>
                 <span class="name">@throws</span><span class="args">()</span>
               
         </dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord#fromGenericRecord" data-isabs="false">
-      <a id="fromGenericRecord(Record):Histogram.this.type"></a>
+      <a id="fromGenericRecord(Record):Result.this.type"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">fromGenericRecord</span>
         
-        <span class="params">(<span name="generic">generic: <span name="org.apache.avro.generic.GenericData.Record" class="extype">Record</span></span>)</span><span class="result">: Histogram.this.type</span>
+        <span class="params">(<span name="generic">generic: <span name="org.apache.avro.generic.GenericData.Record" class="extype">Record</span></span>)</span><span class="result">: Result.this.type</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ScalaSpecificRecord</dd></dl></div>
@@ -313,28 +247,6 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AvroRecord → IndexedRecord</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#getBucketCounts" data-isabs="false">
-      <a id="getBucketCounts:String"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">getBucketCounts</span>
-        
-        <span class="result">: String</span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#getBucketEndpoints" data-isabs="false">
-      <a id="getBucketEndpoints:String"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">getBucketEndpoints</span>
-        
-        <span class="result">: String</span>
-      </span>
-      </h4>
-      
     </li><li visbl="pub" name="scala.AnyRef#getClass" data-isabs="false">
       <a id="getClass():java.lang.Class[_]"></a>
       <h4 class="signature">
@@ -357,7 +269,7 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AvroRecord → GenericContainer</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#hashCode" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result#hashCode" data-isabs="false">
       <a id="hashCode():Int"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -367,15 +279,15 @@
         <span class="params">()</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.perf.Histogram" class="extype" href="">Histogram</a> → AnyRef → Any</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#histToCDF" data-isabs="false">
-      <a id="histToCDF():Histogram"></a>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result" class="extype" href="">Result</a> → AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result#hostname" data-isabs="false">
+      <a id="hostname:String"></a>
       <h4 class="signature">
-      <span class="kind">def</span>
+      <span class="kind">var</span>
       <span class="symbol"> 
-        <span class="name">histToCDF</span>
+        <span class="name">hostname</span>
         
-        <span class="params">()</span><span class="result">: <a name="edu.berkeley.cs.scads.perf.Histogram" class="extype" href="">Histogram</a></span>
+        <span class="result">: String</span>
       </span>
       </h4>
       
@@ -390,14 +302,58 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>Any</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#median" data-isabs="false">
-      <a id="median:Int"></a>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result#iteration" data-isabs="false">
+      <a id="iteration:Int"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">iteration</span>
+        
+        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.avro.marker.AvroPair#key" data-isabs="false">
+      <a id="key:GenericRecord"></a>
+      <h4 class="signature">
+      <span class="kind">lazy val</span>
+      <span class="symbol"> 
+        <span class="name">key</span>
+        
+        <span class="result">: <span name="org.apache.avro.generic.GenericRecord" class="extype">GenericRecord</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AvroPair</dd></dl></div>
+    </li><li visbl="prt" name="edu.berkeley.cs.avro.marker.AvroPair#keyImpl" data-isabs="false">
+      <a id="keyImpl:GenericRecord"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
-        <span class="name">median</span>
+        <span class="name">keyImpl</span>
+        
+        <span class="result">: <span name="org.apache.avro.generic.GenericRecord" class="extype">GenericRecord</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd>AvroPair</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result#lastCount" data-isabs="false">
+      <a id="lastCount:Int"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">lastCount</span>
         
         <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result#loadTimeMs" data-isabs="false">
+      <a id="loadTimeMs:Long"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">loadTimeMs</span>
+        
+        <span class="result">: <span name="scala.Long" class="extype">Long</span></span>
       </span>
       </h4>
       
@@ -412,17 +368,6 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#negative" data-isabs="false">
-      <a id="negative:Int"></a>
-      <h4 class="signature">
-      <span class="kind">var</span>
-      <span class="symbol"> 
-        <span class="name">negative</span>
-        
-        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
-      </span>
-      </h4>
-      
     </li><li visbl="pub" name="scala.AnyRef#notify" data-isabs="false">
       <a id="notify():Unit"></a>
       <h4 class="signature">
@@ -446,28 +391,28 @@
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord#parse" data-isabs="false">
-      <a id="parse(InputStream):Histogram.this.type"></a>
+      <a id="parse(InputStream):Result.this.type"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">parse</span>
         
-        <span class="params">(<span name="inputStream">inputStream: <span name="java.io.InputStream" class="extype">InputStream</span></span>)</span><span class="result">: Histogram.this.type</span>
+        <span class="params">(<span name="inputStream">inputStream: <span name="java.io.InputStream" class="extype">InputStream</span></span>)</span><span class="result">: Result.this.type</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ScalaSpecificRecord</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord#parse" data-isabs="false">
-      <a id="parse(Array[Byte]):Histogram.this.type"></a>
+      <a id="parse(Array[Byte]):Result.this.type"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
         <span class="name">parse</span>
         
-        <span class="params">(<span name="data">data: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: Histogram.this.type</span>
+        <span class="params">(<span name="data">data: <span name="scala.Array" class="extype">Array</span>[<span name="scala.Byte" class="extype">Byte</span>]</span>)</span><span class="result">: Result.this.type</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ScalaSpecificRecord</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#productArity" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result#productArity" data-isabs="false">
       <a id="productArity:Int"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -477,8 +422,8 @@
         <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.perf.Histogram" class="extype" href="">Histogram</a> → Product</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#productElement" data-isabs="false">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result" class="extype" href="">Result</a> → Product</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result#productElement" data-isabs="false">
       <a id="productElement(Int):Any"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -488,7 +433,7 @@
         <span class="params">(<span name="arg0">arg0: <span name="scala.Int" class="extype">Int</span></span>)</span><span class="result">: <span name="scala.Any" class="extype">Any</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.perf.Histogram" class="extype" href="">Histogram</a> → Product</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result" class="extype" href="">Result</a> → Product</dd></dl></div>
     </li><li visbl="pub" name="scala.Product#productIterator" data-isabs="false">
       <a id="productIterator:Iterator[Any]"></a>
       <h4 class="signature">
@@ -500,7 +445,7 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Product</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#productPrefix" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result#productPrefix" data-isabs="false">
       <a id="productPrefix:String"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -510,7 +455,7 @@
         <span class="result">: <span name="java.lang.String" class="extype">String</span></span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.perf.Histogram" class="extype" href="">Histogram</a> → Product</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result" class="extype" href="">Result</a> → Product</dd></dl></div>
     </li><li visbl="pub" name="edu.berkeley.cs.avro.marker.AvroRecord#put" data-isabs="false">
       <a id="put(Int,Any):Unit"></a>
       <h4 class="signature">
@@ -522,51 +467,39 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AvroRecord → IndexedRecord</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#quantile" data-isabs="false">
-      <a id="quantile(Double):Int"></a>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result#recordCount" data-isabs="false">
+      <a id="recordCount:Int"></a>
       <h4 class="signature">
-      <span class="kind">def</span>
+      <span class="kind">var</span>
       <span class="symbol"> 
-        <span class="name">quantile</span>
+        <span class="name">recordCount</span>
         
-        <span class="params">(<span name="fraction">fraction: <span name="scala.Double" class="extype">Double</span></span>)</span><span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
       </span>
       </h4>
       
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#reset" data-isabs="false">
-      <a id="reset():Histogram"></a>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result#responseTimes" data-isabs="false">
+      <a id="responseTimes:Histogram"></a>
       <h4 class="signature">
-      <span class="kind">def</span>
+      <span class="kind">var</span>
       <span class="symbol"> 
-        <span class="name">reset</span>
+        <span class="name">responseTimes</span>
         
-        <span class="params">()</span><span class="result">: <a name="edu.berkeley.cs.scads.perf.Histogram" class="extype" href="">Histogram</a></span>
+        <span class="result">: <a name="edu.berkeley.cs.scads.perf.Histogram" class="extype" href="../../Histogram.html">Histogram</a></span>
       </span>
       </h4>
       
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#sameLength" data-isabs="false">
-      <a id="sameLength(Histogram):Boolean"></a>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result#runTimeMs" data-isabs="false">
+      <a id="runTimeMs:Long"></a>
       <h4 class="signature">
-      <span class="kind">def</span>
+      <span class="kind">var</span>
       <span class="symbol"> 
-        <span class="name">sameLength</span>
+        <span class="name">runTimeMs</span>
         
-        <span class="params">(<span name="that">that: <a name="edu.berkeley.cs.scads.perf.Histogram" class="extype" href="">Histogram</a></span>)</span><span class="result">: <span name="scala.Boolean" class="extype">Boolean</span></span>
+        <span class="result">: <span name="scala.Long" class="extype">Long</span></span>
       </span>
       </h4>
       
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#stddev" data-isabs="false">
-      <a id="stddev:Double"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">stddev</span>
-        
-        <span class="result">: <span name="scala.Double" class="extype">Double</span></span>
-      </span>
-      </h4>
-      <p class="shortcomment cmt">Sample standard deviation based off of sqrt(1/(N-1)*sum((Xi-mean(X))^2))
-</p>
     </li><li visbl="pub" name="scala.AnyRef#synchronized" data-isabs="false">
       <a id="synchronized[T0](⇒ T0):T0"></a>
       <h4 class="signature">
@@ -578,6 +511,28 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>final </dd><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result#threadCount" data-isabs="false">
+      <a id="threadCount:Int"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">threadCount</span>
+        
+        <span class="result">: <span name="scala.Int" class="extype">Int</span></span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result#timestamp" data-isabs="false">
+      <a id="timestamp:Long"></a>
+      <h4 class="signature">
+      <span class="kind">var</span>
+      <span class="symbol"> 
+        <span class="name">timestamp</span>
+        
+        <span class="result">: <span name="scala.Long" class="extype">Long</span></span>
+      </span>
+      </h4>
+      
     </li><li visbl="pub" name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord#toBytes" data-isabs="false">
       <a id="toBytes(OutputStream):Unit"></a>
       <h4 class="signature">
@@ -600,18 +555,7 @@
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ScalaSpecificRecord</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#toHtml" data-isabs="false">
-      <a id="toHtml:NodeSeq"></a>
-      <h4 class="signature">
-      <span class="kind">def</span>
-      <span class="symbol"> 
-        <span class="name">toHtml</span>
-        
-        <span class="result">: <span name="scala.xml.NodeSeq" class="extype">NodeSeq</span></span>
-      </span>
-      </h4>
-      
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#toString" data-isabs="false">
+    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result#toString" data-isabs="false">
       <a id="toString():String"></a>
       <h4 class="signature">
       <span class="kind">def</span>
@@ -621,18 +565,29 @@
         <span class="params">()</span><span class="result">: String</span>
       </span>
       </h4>
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.perf.Histogram" class="extype" href="">Histogram</a> → AnyRef → Any</dd></dl></div>
-    </li><li visbl="pub" name="edu.berkeley.cs.scads.perf.Histogram#totalRequests" data-isabs="false">
-      <a id="totalRequests:Long"></a>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a name="edu.berkeley.cs.scads.perf.intkey.singlenode.Result" class="extype" href="">Result</a> → AnyRef → Any</dd></dl></div>
+    </li><li visbl="pub" name="edu.berkeley.cs.avro.marker.AvroPair#value" data-isabs="false">
+      <a id="value:GenericRecord"></a>
+      <h4 class="signature">
+      <span class="kind">lazy val</span>
+      <span class="symbol"> 
+        <span class="name">value</span>
+        
+        <span class="result">: <span name="org.apache.avro.generic.GenericRecord" class="extype">GenericRecord</span></span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AvroPair</dd></dl></div>
+    </li><li visbl="prt" name="edu.berkeley.cs.avro.marker.AvroPair#valueImpl" data-isabs="false">
+      <a id="valueImpl:GenericRecord"></a>
       <h4 class="signature">
       <span class="kind">def</span>
       <span class="symbol"> 
-        <span class="name">totalRequests</span>
+        <span class="name">valueImpl</span>
         
-        <span class="result">: <span name="scala.Long" class="extype">Long</span></span>
+        <span class="result">: <span name="org.apache.avro.generic.GenericRecord" class="extype">GenericRecord</span></span>
       </span>
       </h4>
-      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd>AvroPair</dd></dl></div>
     </li><li visbl="pub" name="scala.AnyRef#wait" data-isabs="false">
       <a id="wait():Unit"></a>
       <h4 class="signature">
@@ -705,6 +660,8 @@
               <h3>Inherited from <span name="scala.Product" class="extype">Product</span></h3>
             </div><div name="scala.Equals" class="parent">
               <h3>Inherited from <span name="scala.Equals" class="extype">Equals</span></h3>
+            </div><div name="edu.berkeley.cs.avro.marker.AvroPair" class="parent">
+              <h3>Inherited from <span name="edu.berkeley.cs.avro.marker.AvroPair" class="extype">AvroPair</span></h3>
             </div><div name="edu.berkeley.cs.avro.marker.AvroRecord" class="parent">
               <h3>Inherited from <span name="edu.berkeley.cs.avro.marker.AvroRecord" class="extype">AvroRecord</span></h3>
             </div><div name="edu.berkeley.cs.avro.runtime.ScalaSpecificRecord" class="parent">
