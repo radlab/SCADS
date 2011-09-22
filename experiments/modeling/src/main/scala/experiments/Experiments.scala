@@ -8,6 +8,7 @@ import storage._
 import perf._
 import deploylib.ec2._
 import deploylib.mesos._
+import piql.debug._
 import piql.scadr._
 import perf.scadr._
 import avro.marker._

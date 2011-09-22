@@ -1,5 +1,8 @@
 package edu.berkeley.cs.scads
 package piql
+package exec
+
+import plans._
 
 import net.lag.logging.Logger
 import org.apache.avro.util.Utf8

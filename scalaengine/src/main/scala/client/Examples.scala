@@ -1,4 +1,8 @@
-package edu.berkeley.cs.scads.storage
+package edu.berkeley.cs
+package scads
+package storage
+
+import client._
 
 import edu.berkeley.cs.avro.marker._
 
@@ -151,7 +155,7 @@ class PairNamespace[Pair <: AvroPair : Manifest](
   with QuorumRangeProtocol
   with AvroPairSerializer[Pair]
   with RecordStore[Pair]
-  with IndexManager[Pair]
+  with index.IndexManager[Pair]
   with DebuggingClient 
   with NamespaceIterator[Pair] {
   

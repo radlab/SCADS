@@ -42,7 +42,7 @@ case class ScadrLoaderTask(var numServers: Int,
       cluster.blockUntilReady(numServers)
       retry() {
         loader.createNamespaces(cluster)
-        val scadrClient = new ScadrClient(cluster, new SimpleExecutor)
+        val scadrClient = new ScadrClient(cluster, new ParallelExecutor)
         scadrClient.users.setReadWriteQuorum(0.33, 0.67)
         scadrClient.thoughts.setReadWriteQuorum(0.33, 0.67)
         scadrClient.subscriptions.setReadWriteQuorum(0.33, 0.67)
@@ -50,7 +50,7 @@ case class ScadrLoaderTask(var numServers: Int,
     }
 
     coordination.registerAndAwait("namespacesReady", numLoaders)
-    val scadrClient = new ScadrClient(cluster, new SimpleExecutor)
+    val scadrClient = new ScadrClient(cluster, new ParallelExecutor)
 
     coordination.registerAndAwait("startBulkLoad", numLoaders)
     logger.info("Begining bulk loading of data")

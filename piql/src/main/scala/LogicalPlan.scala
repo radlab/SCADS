@@ -1,6 +1,7 @@
 package edu.berkeley.cs
 package scads
 package piql
+package plans
 
 trait Queryable {
   def where(predicate: Predicate) = Selection(predicate, this)

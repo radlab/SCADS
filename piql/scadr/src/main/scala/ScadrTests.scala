@@ -7,7 +7,7 @@ import storage.TestScalaEngine
 
 object TestScadr {
   def main(args: Array[String]): Unit = {
-    val client = new ScadrClient(TestScalaEngine.newScadsCluster(), new SimpleExecutor)
+    val client = new ScadrClient(TestScalaEngine.newScadsCluster(), new ParallelExecutor)
 
     val user = new User("marmbrus")
     user.homeTown = "Berkeley"

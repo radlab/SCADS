@@ -4,6 +4,8 @@ package piql
 package modeling
 
 import storage._
+import piql.opt._
+import piql.plans._
 import piql.scadr._
 import perf.scadr._
 

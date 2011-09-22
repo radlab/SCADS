@@ -1,4 +1,5 @@
 package edu.berkeley.cs.scads.piql
+package plans
 
 import org.apache.avro.generic.{GenericData, IndexedRecord}
 

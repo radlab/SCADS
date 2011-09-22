@@ -6,6 +6,7 @@ package modeling
 import deploylib.mesos._
 import perf._
 import comm._
+import piql.plans._
 import storage._
 import avro.runtime._
 import avro.marker._

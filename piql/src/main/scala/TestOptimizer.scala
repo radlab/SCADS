@@ -3,6 +3,9 @@ package scads
 package piql
 package test
 
+import exec._
+import debug._
+
 import avro.marker._
 import storage.TestScalaEngine
 

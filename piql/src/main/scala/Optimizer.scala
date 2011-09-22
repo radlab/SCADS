@@ -1,8 +1,10 @@
 package edu.berkeley.cs
 package scads
 package piql
+package opt
 
-import storage._
+import plans._
+import storage.client.index._
 
 import org.apache.avro.Schema
 import org.apache.avro.Schema.Field

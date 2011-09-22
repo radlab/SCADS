@@ -1,4 +1,8 @@
 package edu.berkeley.cs.scads.piql
+package debug
+
+import exec._
+import plans._
 
 import net.lag.logging.Logger
 

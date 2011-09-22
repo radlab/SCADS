@@ -3,7 +3,8 @@ package scads
 package piql
 package modeling
 
-import comm._
+import piql.exec._
+import piql.plans._
 
 abstract trait TracingExecutor extends QueryExecutor {
   val sink: FileTraceSink
