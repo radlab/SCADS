@@ -129,7 +129,7 @@
  27937 term edu.berkeley.cs.scads.comm.RemoteActor.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
  27915 term edu.berkeley.cs.scads.comm.PartitionService.put(0cd250bbce9109eb78eecf184a7674bd7e6f99e6)
  27930 term edu.berkeley.cs.scads.comm.RemoteActor.host_$eq(d969c1dba768dd5e3cff1840e18fde800981922c)
- 65069 term edu.berkeley.cs.scads.comm.PartitionService.<init>(6f5e7db960bd92155f621b202f6ff77cb3b3e599)
+ 65071 term edu.berkeley.cs.scads.comm.PartitionService.<init>(6f5e7db960bd92155f621b202f6ff77cb3b3e599)
  27921 term edu.berkeley.cs.scads.comm.StorageService.id
  27937 term edu.berkeley.cs.scads.comm.RemoteActor.apply(8f215c42f13decb945615219e4e447c331edf56a)
  14719 term edu.berkeley.cs.scads.comm.RemoteActorProxy.host_$eq(d969c1dba768dd5e3cff1840e18fde800981922c)
@@ -206,7 +206,7 @@
  14736 term edu.berkeley.cs.scads.comm.RemoteActorProxy.toPartitionService(56172ab51afb2ed716bfcf17ae2774d6120aefd0)
  14721 term edu.berkeley.cs.scads.comm.RemoteActorProxy.port(f94e34279774a33b0e784d726d315f41bbfccb90)
  9497 type edu.berkeley.cs.scads.comm.RemoteActorProxy
- 65059 term edu.berkeley.cs.scads.comm.StorageService.<init>(4861cafe7a4ef66776eb770b33d66859084edf27)
+ 65061 term edu.berkeley.cs.scads.comm.StorageService.<init>(4861cafe7a4ef66776eb770b33d66859084edf27)
  27931 term edu.berkeley.cs.scads.comm.RemoteActor.copy$default$2(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
  27926 term edu.berkeley.cs.scads.comm.StorageService.equals(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
  27937 term edu.berkeley.cs.scads.comm.RemoteActor
@@ -255,7 +255,7 @@
  27920 term edu.berkeley.cs.scads.comm.StorageService.port(f94e34279774a33b0e784d726d315f41bbfccb90)
  27900 term edu.berkeley.cs.scads.comm.TimeoutException.apply(f677babc547f5a24eeaaa9bf4f189e842546f4fb)
  14727 term edu.berkeley.cs.scads.comm.RemoteActorProxy.outputChannel(cf2c25083ca7a5f70a4b52c06223a5f2980d9f14)
- 65049 term edu.berkeley.cs.scads.comm.RemoteActor.<init>(b1e3e6baf028a7aa7c9f98294569c759bfd4d6ff)
+ 65051 term edu.berkeley.cs.scads.comm.RemoteActor.<init>(b1e3e6baf028a7aa7c9f98294569c759bfd4d6ff)
  27937 term edu.berkeley.cs.scads.comm.RemoteActor.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
  27907 term edu.berkeley.cs.scads.comm.PartitionService.partitionId_$eq(d969c1dba768dd5e3cff1840e18fde800981922c)
  27926 term edu.berkeley.cs.scads.comm.StorageService.get(7f10f9171eb6c7ff3e772efe79e283699bf1df4a)
@@ -972,7 +972,7 @@
 [Messages.scala]
  44359 term edu.berkeley.cs.scads.comm.ActorName.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
  43786 term edu.berkeley.cs.scads.comm.PairRec.username_$eq(d969c1dba768dd5e3cff1840e18fde800981922c)
- 65357 term edu.berkeley.cs.scads.comm.AggRequest.<init>(c4eab1bc41e6647ca92bc1ecc2704d15de7299fd)
+ 65359 term edu.berkeley.cs.scads.comm.AggRequest.<init>(c4eab1bc41e6647ca92bc1ecc2704d15de7299fd)
  44271 term edu.berkeley.cs.scads.comm.GetRangeRequest
  43876 term edu.berkeley.cs.scads.comm.RunExperimentRequest.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
  44271 term edu.berkeley.cs.scads.comm.GetRangeRequest.readResolve(4bd7809a6ae8a67ae4d3e011f542aec660ffea74)
@@ -995,7 +995,7 @@
  44163 term edu.berkeley.cs.scads.comm.GetWorkloadStatsResponse.schema
  44351 term edu.berkeley.cs.scads.comm.Record.apply(554e203c2560de7b92171324f538ae8c2059ebd7)
  43818 term edu.berkeley.cs.scads.comm.StringRec2.put(0cd250bbce9109eb78eecf184a7674bd7e6f99e6)
- 65117 term edu.berkeley.cs.scads.comm.Message.<init>(640b4e4e8fddbac4aba0f8843a54ba795554ef65)
+ 65119 term edu.berkeley.cs.scads.comm.Message.<init>(640b4e4e8fddbac4aba0f8843a54ba795554ef65)
  43995 term edu.berkeley.cs.scads.comm.S3CachedJar.apply(23aa1436f48fb34a17558f8e8716256f316272ba)
  44363 term edu.berkeley.cs.scads.comm.ActorNumber
  44108 term edu.berkeley.cs.scads.comm.AggReply.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
@@ -1011,11 +1011,11 @@
  44011 term edu.berkeley.cs.scads.comm.GetResponsibilityResponse.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
  44132 term edu.berkeley.cs.scads.comm.AggRequest.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
  44193 term edu.berkeley.cs.scads.comm.CountRangeResponse.schema(f655ca5853375c8374f865779eac004d60ed315d)
- 65177 term edu.berkeley.cs.scads.comm.GetRequest.<init>(039b531661034cfc6637b7f9c90ac5ecd71b4159)
+ 65179 term edu.berkeley.cs.scads.comm.GetRequest.<init>(039b531661034cfc6637b7f9c90ac5ecd71b4159)
  44234 term edu.berkeley.cs.scads.comm.CursorScanRequest.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
  44179 term edu.berkeley.cs.scads.comm.TestSetRequest.copy$default$1(0cb229d8dd78a24a02cfa0b6afa663fad9a13cd1)
  44313 term edu.berkeley.cs.scads.comm.GetResponse.schema
- 65167 term edu.berkeley.cs.scads.comm.InvalidNamespace.<init>(b00a132662d969c91b9d70e598d112e41d48fccf)
+ 65169 term edu.berkeley.cs.scads.comm.InvalidNamespace.<init>(b00a132662d969c91b9d70e598d112e41d48fccf)
  44064 type edu.berkeley.cs.scads.comm.DeletePartitionResponse
  44234 term edu.berkeley.cs.scads.comm.CursorScanRequest.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
  44132 term edu.berkeley.cs.scads.comm.AggRequest.schema(f655ca5853375c8374f865779eac004d60ed315d)
@@ -1054,12 +1054,12 @@
  44342 term edu.berkeley.cs.scads.comm.ProcessingException
  44276 term edu.berkeley.cs.scads.comm.BulkPutResponse.toString(612e55791800ba754104ae1f138b554bae5d18c7)
  43873 term edu.berkeley.cs.scads.comm.RunExperimentRequest.copy$default$1(0ddfe939f67b420957f3b286c9b2c10a029c51f9)
- 65617 term edu.berkeley.cs.scads.comm.RoutingTableMessage.<init>(6210ff2f197e29c2a818adfcd1792113ec994d99)
+ 65619 term edu.berkeley.cs.scads.comm.RoutingTableMessage.<init>(6210ff2f197e29c2a818adfcd1792113ec994d99)
  44026 term edu.berkeley.cs.scads.comm.CopyDataRequest.copy$default$2(6397f342cae83281c8bb3499aecea18d20ad1cfd)
  44030 term edu.berkeley.cs.scads.comm.CopyDataRequest.hashCode(c663c7b3bae9762feb0455bde7533db4239310c8)
  44234 term edu.berkeley.cs.scads.comm.CursorScanRequest.hashCode(c663c7b3bae9762feb0455bde7533db4239310c8)
  43802 term edu.berkeley.cs.scads.comm.StringRec3.copy$default$1(9e007beb9564863079edb4f4d08612e42b09589d)
- 65457 term edu.berkeley.cs.scads.comm.ServerSideJar.<init>(d5584f28deec16aa0ae11d42dace5132f86a9766)
+ 65459 term edu.berkeley.cs.scads.comm.ServerSideJar.<init>(d5584f28deec16aa0ae11d42dace5132f86a9766)
  44276 term edu.berkeley.cs.scads.comm.BulkPutResponse.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
  44359 term edu.berkeley.cs.scads.comm.ActorName.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
  44071 term edu.berkeley.cs.scads.comm.DeletePartitionRequest.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
@@ -1077,13 +1077,13 @@
  37011 term edu.berkeley.cs.scads.comm.ActorName.name_$eq(d969c1dba768dd5e3cff1840e18fde800981922c)
  44095 term edu.berkeley.cs.scads.comm.CreatePartitionRequest.startKey
  44163 term edu.berkeley.cs.scads.comm.GetWorkloadStatsResponse.hashCode(c663c7b3bae9762feb0455bde7533db4239310c8)
- 65277 term edu.berkeley.cs.scads.comm.BatchResponse.<init>(0a74ae6f3b0325b84fb0061f0cdb9b5cf21d6d4e)
+ 65279 term edu.berkeley.cs.scads.comm.BatchResponse.<init>(0a74ae6f3b0325b84fb0061f0cdb9b5cf21d6d4e)
  43768 term edu.berkeley.cs.scads.comm.KeyRange.startKey
  44064 term edu.berkeley.cs.scads.comm.DeletePartitionResponse.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
  44313 term edu.berkeley.cs.scads.comm.GetResponse.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
- 65447 term edu.berkeley.cs.scads.comm.GetResponsibilityResponse.<init>(4e5f1f41953ac71f8e5cac54a4233565997ebf9d)
+ 65449 term edu.berkeley.cs.scads.comm.GetResponsibilityResponse.<init>(4e5f1f41953ac71f8e5cac54a4233565997ebf9d)
  43984 term edu.berkeley.cs.scads.comm.JvmWebAppTask.copy$default$2(7329206bc15bf86fb75d678777626f4ad75ca577)
- 65237 term edu.berkeley.cs.scads.comm.GetRangeResponse.<init>(7e0e39a3a8050135d9d4dd659a16e39c3c7be042)
+ 65239 term edu.berkeley.cs.scads.comm.GetRangeResponse.<init>(7e0e39a3a8050135d9d4dd659a16e39c3c7be042)
  43857 term edu.berkeley.cs.scads.comm.KillTaskResponse.toString(612e55791800ba754104ae1f138b554bae5d18c7)
  44238 term edu.berkeley.cs.scads.comm.GetRangeResponse.copy$default$1(d8e8b4444d4e98a3af5aa18d1faae25378d11d23)
  44145 term edu.berkeley.cs.scads.comm.AggOp.unapply(1e1b4ccc171e3643d7e4728d84000145649c8bb7)
@@ -1116,7 +1116,7 @@
  43836 term edu.berkeley.cs.scads.comm.IntRec3
  44234 type edu.berkeley.cs.scads.comm.CursorScanRequest
  43782 term edu.berkeley.cs.scads.comm.QuorumProtocolConfig.equals(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
- 65397 term edu.berkeley.cs.scads.comm.CreatePartitionResponse.<init>(44cf9b487fe66b4de352fc8821c2dff1929e6f63)
+ 65399 term edu.berkeley.cs.scads.comm.CreatePartitionResponse.<init>(44cf9b487fe66b4de352fc8821c2dff1929e6f63)
  44021 term edu.berkeley.cs.scads.comm.CopyDataResponse.put(0cd250bbce9109eb78eecf184a7674bd7e6f99e6)
  43789 term edu.berkeley.cs.scads.comm.PairRec.keySchema
  44136 term edu.berkeley.cs.scads.comm.AggOp.copy$default$1(9e007beb9564863079edb4f4d08612e42b09589d)
@@ -1131,7 +1131,7 @@
  43857 term edu.berkeley.cs.scads.comm.KillTaskResponse.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
  43912 term edu.berkeley.cs.scads.comm.JvmMainTask.copy$default$3(9b9a70e4cd09584a1f07e548b01ac873a0722e0d)
  44047 term edu.berkeley.cs.scads.comm.DeleteNamespaceRequest.apply(665f3fbf1137fa8a0b9104e7fac9703577bfe4e2)
- 65377 term edu.berkeley.cs.scads.comm.AggReply.<init>(ebb11b340ab6f5116fbedd40276261d262e7b15a)
+ 65379 term edu.berkeley.cs.scads.comm.AggReply.<init>(ebb11b340ab6f5116fbedd40276261d262e7b15a)
  44320 term edu.berkeley.cs.scads.comm.GetRequest.readResolve(4bd7809a6ae8a67ae4d3e011f542aec660ffea74)
  44202 term edu.berkeley.cs.scads.comm.CountRangeRequest.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
  44068 term edu.berkeley.cs.scads.comm.DeletePartitionRequest.partitionId(3bf7c90be758f5b946ae171b872e4a2ff5affba6)
@@ -1148,7 +1148,7 @@
  44011 term edu.berkeley.cs.scads.comm.GetResponsibilityResponse.hashCode(c663c7b3bae9762feb0455bde7533db4239310c8)
  43773 term edu.berkeley.cs.scads.comm.KeyRange.unapply(7f0be266a4775b83c64c4523ea59aa5bb0b49ab8)
  44271 term edu.berkeley.cs.scads.comm.GetRangeRequest.schema
- 65157 term edu.berkeley.cs.scads.comm.InvalidPartition.<init>(6797261d6bffaba187829ec5c8b5a09e4bf27db0)
+ 65159 term edu.berkeley.cs.scads.comm.InvalidPartition.<init>(6797261d6bffaba187829ec5c8b5a09e4bf27db0)
  43764 term edu.berkeley.cs.scads.comm.RoutingTableMessage
  44011 term edu.berkeley.cs.scads.comm.GetResponsibilityResponse.toString(612e55791800ba754104ae1f138b554bae5d18c7)
  44206 term edu.berkeley.cs.scads.comm.BatchResponse.ranges(83555bf7f21ac3b665161701412be5528ad8087f)
@@ -1165,7 +1165,7 @@
  44306 term edu.berkeley.cs.scads.comm.PutRequest.put(0cd250bbce9109eb78eecf184a7674bd7e6f99e6)
  43769 term edu.berkeley.cs.scads.comm.KeyRange.servers(c49917615ff19537d92fabbd456de5af584519a5)
  44138 term edu.berkeley.cs.scads.comm.AggOp.obj_$eq(aa95e07846cbcc2eda45bf8bbf7bff0d85bb9eb9)
- 65347 term edu.berkeley.cs.scads.comm.AggOp.<init>(535d347e41f3412a779c5755a5df482eb23f23f1)
+ 65349 term edu.berkeley.cs.scads.comm.AggOp.<init>(535d347e41f3412a779c5755a5df482eb23f23f1)
  44175 term edu.berkeley.cs.scads.comm.TestSetResponse.apply(fadcdf98c928a3645d6e66498d0042d1561a7da7)
  43852 term edu.berkeley.cs.scads.comm.IntRec.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
  44363 term edu.berkeley.cs.scads.comm.ActorNumber.toString(612e55791800ba754104ae1f138b554bae5d18c7)
@@ -1225,7 +1225,7 @@
  43979 term edu.berkeley.cs.scads.comm.JvmMainTask.apply(0c64f39f11dd9c430d8437909a84dcc4a0ef20a1)
  44040 term edu.berkeley.cs.scads.comm.DeleteNamespaceResponse.schema(f655ca5853375c8374f865779eac004d60ed315d)
  43814 term edu.berkeley.cs.scads.comm.StringRec2.copy$default$2(9e007beb9564863079edb4f4d08612e42b09589d)
- 65207 term edu.berkeley.cs.scads.comm.BulkUrlPutReqest.<init>(eef56958c395e333067d6feb8e2e7d3a54fa5966)
+ 65209 term edu.berkeley.cs.scads.comm.BulkUrlPutReqest.<init>(eef56958c395e333067d6feb8e2e7d3a54fa5966)
  44359 term edu.berkeley.cs.scads.comm.ActorName.unapply(7c8446409f78faa4783eb8de43f461dcb6ef86f4)
  43789 term edu.berkeley.cs.scads.comm.PairRec.valueSchema
  43922 term edu.berkeley.cs.scads.comm.JvmMainTask.env(53dc0084404801ff1551e1f01286e48f5ca54a18)
@@ -1244,7 +1244,7 @@
  44306 term edu.berkeley.cs.scads.comm.PutRequest.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
  44334 term edu.berkeley.cs.scads.comm.InvalidPartition.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
  44327 term edu.berkeley.cs.scads.comm.InvalidNamespace.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
- 65517 term edu.berkeley.cs.scads.comm.IntRec.<init>(5d0e30912a75df376961603765a1086ca56b942c)
+ 65519 term edu.berkeley.cs.scads.comm.IntRec.<init>(5d0e30912a75df376961603765a1086ca56b942c)
  44262 term edu.berkeley.cs.scads.comm.GetRangeRequest.copy$default$3(be8266d75949c3368d912ee4d23b10aad12167f4)
  44105 term edu.berkeley.cs.scads.comm.AggReply.copy$default$1(feb119a7a2910aed05496888a6acac5abdb7c282)
  44101 term edu.berkeley.cs.scads.comm.CreatePartitionRequest.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
@@ -1264,7 +1264,7 @@
  44342 term edu.berkeley.cs.scads.comm.ProcessingException.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
  44359 term edu.berkeley.cs.scads.comm.ActorName
  44363 term edu.berkeley.cs.scads.comm.ActorNumber.schema
- 65507 term edu.berkeley.cs.scads.comm.KillTaskRequest.<init>(c3431295055cc67ee0c97fc2e57c9a39f747578d)
+ 65509 term edu.berkeley.cs.scads.comm.KillTaskRequest.<init>(c3431295055cc67ee0c97fc2e57c9a39f747578d)
  44071 term edu.berkeley.cs.scads.comm.DeletePartitionRequest.get(7f10f9171eb6c7ff3e772efe79e283699bf1df4a)
  36977 term edu.berkeley.cs.scads.comm.ActorNumber.num
  43869 term edu.berkeley.cs.scads.comm.RunExperimentResponse.schema(f655ca5853375c8374f865779eac004d60ed315d)
@@ -1295,7 +1295,7 @@
  44327 term edu.berkeley.cs.scads.comm.InvalidNamespace.hashCode(c663c7b3bae9762feb0455bde7533db4239310c8)
  43773 term edu.berkeley.cs.scads.comm.KeyRange.apply(ac22c42db3310fa85909a743737565ffaa8ebdf4)
  44117 term edu.berkeley.cs.scads.comm.GroupedAgg.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
- 65147 term edu.berkeley.cs.scads.comm.RequestRejected.<init>(6723b8410e1bd0ce43b5d68522b1891f7176dd79)
+ 65149 term edu.berkeley.cs.scads.comm.RequestRejected.<init>(6723b8410e1bd0ce43b5d68522b1891f7176dd79)
  44320 term edu.berkeley.cs.scads.comm.GetRequest.toString(612e55791800ba754104ae1f138b554bae5d18c7)
  43857 term edu.berkeley.cs.scads.comm.KillTaskResponse.get(7f10f9171eb6c7ff3e772efe79e283699bf1df4a)
  44181 term edu.berkeley.cs.scads.comm.TestSetRequest.expectedValue(85600035ca87495355b1d0bd2e33e50b54d99caf)
@@ -1306,14 +1306,14 @@
  44193 term edu.berkeley.cs.scads.comm.CountRangeResponse.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
  44101 term edu.berkeley.cs.scads.comm.CreatePartitionRequest.schema(f655ca5853375c8374f865779eac004d60ed315d)
  43910 term edu.berkeley.cs.scads.comm.JvmMainTask.copy$default$1(86f645995f3930b1dc6914587b730b1aba0ae5f5)
- 65107 term edu.berkeley.cs.scads.comm.ActorName.<init>(53e6e4fe558aba756ada93eeca202aeecfc5786c)
- 95145 type edu.berkeley.cs.scads.comm.JvmTask
+ 65109 term edu.berkeley.cs.scads.comm.ActorName.<init>(53e6e4fe558aba756ada93eeca202aeecfc5786c)
+ 95147 type edu.berkeley.cs.scads.comm.JvmTask
  43764 term edu.berkeley.cs.scads.comm.RoutingTableMessage.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
  43852 term edu.berkeley.cs.scads.comm.IntRec.hashCode(c663c7b3bae9762feb0455bde7533db4239310c8)
  43789 term edu.berkeley.cs.scads.comm.PairRec.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
  9729 type edu.berkeley.cs.scads.comm.PartitionServiceOperation
  44002 term edu.berkeley.cs.scads.comm.ServerSideJar.apply(56d32438c97154295293806bb230edd936da091a)
- 65437 term edu.berkeley.cs.scads.comm.CopyDataRequest.<init>(9caac525895134c9f24da9225f49200294e09862)
+ 65439 term edu.berkeley.cs.scads.comm.CopyDataRequest.<init>(9caac525895134c9f24da9225f49200294e09862)
  44234 term edu.berkeley.cs.scads.comm.CursorScanRequest.toString(612e55791800ba754104ae1f138b554bae5d18c7)
  44139 term edu.berkeley.cs.scads.comm.AggOp.raw
  44007 term edu.berkeley.cs.scads.comm.GetResponsibilityResponse.endKey
@@ -1394,10 +1394,10 @@
  29854 term edu.berkeley.cs.scads.comm.ProcessingException.cause
  44054 term edu.berkeley.cs.scads.comm.GetPartitionsResponse.put(0cd250bbce9109eb78eecf184a7674bd7e6f99e6)
  43818 term edu.berkeley.cs.scads.comm.StringRec2.get(7f10f9171eb6c7ff3e772efe79e283699bf1df4a)
- 65497 term edu.berkeley.cs.scads.comm.RunExperimentRequest.<init>(6c3c237672535e7baf6bb589ebe6d9300dd37493)
+ 65499 term edu.berkeley.cs.scads.comm.RunExperimentRequest.<init>(6c3c237672535e7baf6bb589ebe6d9300dd37493)
  43825 term edu.berkeley.cs.scads.comm.StringRec.readResolve(4bd7809a6ae8a67ae4d3e011f542aec660ffea74)
  38747 term edu.berkeley.cs.scads.comm.RequestRejected.req
- 65487 term edu.berkeley.cs.scads.comm.JvmMainTask.<init>(49c0434776adab66099604e633a2eea0b3cae671)
+ 65489 term edu.berkeley.cs.scads.comm.JvmMainTask.<init>(49c0434776adab66099604e633a2eea0b3cae671)
  44193 term edu.berkeley.cs.scads.comm.CountRangeResponse.apply(9eee350b6c0d358372f4677c557c73924541d828)
  44363 term edu.berkeley.cs.scads.comm.ActorNumber.unapply(ce1f3f75c5620c9f7d170ba19a26b4fb81fffc72)
  44355 term edu.berkeley.cs.scads.comm.Message.equals(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
@@ -1492,7 +1492,7 @@
  43773 term edu.berkeley.cs.scads.comm.KeyRange
  44125 term edu.berkeley.cs.scads.comm.AggRequest.copy$default$5(41793dd73ab563e9c98fb0dd3fdd28157f547dcd)
  44209 term edu.berkeley.cs.scads.comm.BatchResponse.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
- 95145 term edu.berkeley.cs.scads.comm.JvmTask.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
+ 95147 term edu.berkeley.cs.scads.comm.JvmTask.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
  43921 term edu.berkeley.cs.scads.comm.JvmMainTask.apply$default$4(7329206bc15bf86fb75d678777626f4ad75ca577)
  44078 term edu.berkeley.cs.scads.comm.CreatePartitionResponse.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
  43818 term edu.berkeley.cs.scads.comm.StringRec2.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
@@ -1507,7 +1507,7 @@
  44172 term edu.berkeley.cs.scads.comm.TestSetResponse.success(2a880db3f601502d34dbcee48bf223ebec428d3c)
  44059 term edu.berkeley.cs.scads.comm.GetPartitionsRequest.readResolve(4bd7809a6ae8a67ae4d3e011f542aec660ffea74)
  44175 term edu.berkeley.cs.scads.comm.TestSetResponse.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
- 65407 term edu.berkeley.cs.scads.comm.DeletePartitionRequest.<init>(c5da5ea4c1377db562e0e1812a3be7cd7366552d)
+ 65409 term edu.berkeley.cs.scads.comm.DeletePartitionRequest.<init>(c5da5ea4c1377db562e0e1812a3be7cd7366552d)
  44262 term edu.berkeley.cs.scads.comm.GetRangeRequest.limit_$eq(f4923e92761b821b21f6203c3edcca41f349b5c4)
  44283 term edu.berkeley.cs.scads.comm.BulkPutRequest.unapply(445b6d9b0c95b668947e74a4663e49fbf0ce2307)
  44342 term edu.berkeley.cs.scads.comm.ProcessingException.copy(6209faa18231c5082871c5dec1be9ebbed2fdcaa)
@@ -1521,7 +1521,7 @@
  43876 term edu.berkeley.cs.scads.comm.RunExperimentRequest
  43852 term edu.berkeley.cs.scads.comm.IntRec.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
  44355 term edu.berkeley.cs.scads.comm.Message.schema
- 65577 term edu.berkeley.cs.scads.comm.CompIntStringRec.<init>(36a44af063103fece97b6bce1a270588224c997b)
+ 65579 term edu.berkeley.cs.scads.comm.CompIntStringRec.<init>(36a44af063103fece97b6bce1a270588224c997b)
  44180 term edu.berkeley.cs.scads.comm.TestSetRequest.value(85600035ca87495355b1d0bd2e33e50b54d99caf)
  43778 term edu.berkeley.cs.scads.comm.QuorumProtocolConfig.writeQuorum
  43983 term edu.berkeley.cs.scads.comm.JvmWebAppTask.warFile_$eq(6f2ce5d58582eaeb1a50d0e5ae1053d526327a10)
@@ -1615,7 +1615,7 @@
  44021 term edu.berkeley.cs.scads.comm.CopyDataResponse.unapply(2bd0736c8e7845ffe23525615eb0d64cd30ab8ad)
  43849 term edu.berkeley.cs.scads.comm.IntRec.copy$default$1(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
  43825 term edu.berkeley.cs.scads.comm.StringRec
- 65217 term edu.berkeley.cs.scads.comm.BulkPutRequest.<init>(4ddc19647c0baccb0ecf92bfee4021d16bef17f0)
+ 65219 term edu.berkeley.cs.scads.comm.BulkPutRequest.<init>(4ddc19647c0baccb0ecf92bfee4021d16bef17f0)
  44334 term edu.berkeley.cs.scads.comm.InvalidPartition.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
  44145 term edu.berkeley.cs.scads.comm.AggOp.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
  43876 type edu.berkeley.cs.scads.comm.RunExperimentRequest
@@ -1626,7 +1626,7 @@
  44163 term edu.berkeley.cs.scads.comm.GetWorkloadStatsResponse.equals(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
  44301 term edu.berkeley.cs.scads.comm.PutRequest.key
  43876 term edu.berkeley.cs.scads.comm.RunExperimentRequest.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
- 65587 term edu.berkeley.cs.scads.comm.PairRec.<init>(87614cf8d7accbed52794de621b5f364baa8055d)
+ 65589 term edu.berkeley.cs.scads.comm.PairRec.<init>(87614cf8d7accbed52794de621b5f364baa8055d)
  44355 term edu.berkeley.cs.scads.comm.Message.toString(612e55791800ba754104ae1f138b554bae5d18c7)
  44338 term edu.berkeley.cs.scads.comm.RequestRejected.schema(f655ca5853375c8374f865779eac004d60ed315d)
  44297 term edu.berkeley.cs.scads.comm.PutResponse.unapply(4ea6988b2d71cf52c3e2ef26cc109ddd4ecab2ea)
@@ -1643,9 +1643,9 @@
  43789 term edu.berkeley.cs.scads.comm.PairRec.keyImpl(e11bdaa08250d378dbacee5ac37924328a8b1277)
  44190 term edu.berkeley.cs.scads.comm.CountRangeResponse.count_$eq(50e0407b147ffae2134d6ee815ea88c53958eac2)
  44186 term edu.berkeley.cs.scads.comm.TestSetRequest.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
- 65317 term edu.berkeley.cs.scads.comm.TestSetResponse.<init>(f03e7ee6951a626bbdccfa34da074dc1b41b0b20)
+ 65319 term edu.berkeley.cs.scads.comm.TestSetResponse.<init>(f03e7ee6951a626bbdccfa34da074dc1b41b0b20)
  43840 term edu.berkeley.cs.scads.comm.IntRec2.f1_$eq(50e0407b147ffae2134d6ee815ea88c53958eac2)
- 65197 term edu.berkeley.cs.scads.comm.PutRequest.<init>(944989dff540fb135ad16a38bf9ae9bb34b449ea)
+ 65199 term edu.berkeley.cs.scads.comm.PutRequest.<init>(944989dff540fb135ad16a38bf9ae9bb34b449ea)
  44152 term edu.berkeley.cs.scads.comm.AggFilter.schema
  44334 term edu.berkeley.cs.scads.comm.InvalidPartition.get(7f10f9171eb6c7ff3e772efe79e283699bf1df4a)
  44059 term edu.berkeley.cs.scads.comm.GetPartitionsRequest.schema(f655ca5853375c8374f865779eac004d60ed315d)
@@ -1666,8 +1666,8 @@
  43818 term edu.berkeley.cs.scads.comm.StringRec2
  44338 term edu.berkeley.cs.scads.comm.RequestRejected.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
  43764 term edu.berkeley.cs.scads.comm.RoutingTableMessage.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
- 65287 term edu.berkeley.cs.scads.comm.CountRangeRequest.<init>(30eb63b1a07d7f8939590b0541d89ef7cce6ee0d)
- 70329 term edu.berkeley.cs.scads.comm.MessageBody.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
+ 65289 term edu.berkeley.cs.scads.comm.CountRangeRequest.<init>(30eb63b1a07d7f8939590b0541d89ef7cce6ee0d)
+ 70331 term edu.berkeley.cs.scads.comm.MessageBody.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
  44327 term edu.berkeley.cs.scads.comm.InvalidNamespace.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
  44202 term edu.berkeley.cs.scads.comm.CountRangeRequest.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
  43992 term edu.berkeley.cs.scads.comm.S3CachedJar.copy$default$1(9e007beb9564863079edb4f4d08612e42b09589d)
@@ -1676,7 +1676,7 @@
  44193 term edu.berkeley.cs.scads.comm.CountRangeResponse.readResolve(4bd7809a6ae8a67ae4d3e011f542aec660ffea74)
  43869 term edu.berkeley.cs.scads.comm.RunExperimentResponse.apply(3edbed98aa41c3e1aa5825203f77b77d81acae4d)
  44213 term edu.berkeley.cs.scads.comm.BatchRequest.ranges_$eq(87e3888467a8c51131d6f4d00f2b901ac81333c9)
- 65367 term edu.berkeley.cs.scads.comm.GroupedAgg.<init>(dc69bd75afa6aefaa317bbda5c4d184e4e40dbfa)
+ 65369 term edu.berkeley.cs.scads.comm.GroupedAgg.<init>(dc69bd75afa6aefaa317bbda5c4d184e4e40dbfa)
  44011 term edu.berkeley.cs.scads.comm.GetResponsibilityResponse.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
  44292 term edu.berkeley.cs.scads.comm.BulkUrlPutReqest.schema(f655ca5853375c8374f865779eac004d60ed315d)
  44355 term edu.berkeley.cs.scads.comm.Message.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
@@ -1684,7 +1684,7 @@
  44241 term edu.berkeley.cs.scads.comm.GetRangeResponse.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
  44338 term edu.berkeley.cs.scads.comm.RequestRejected.readResolve(4bd7809a6ae8a67ae4d3e011f542aec660ffea74)
  43845 term edu.berkeley.cs.scads.comm.IntRec2
- 65097 term edu.berkeley.cs.scads.comm.ActorNumber.<init>(691fa6d8a454869653ea2e470a95453a13945f7a)
+ 65099 term edu.berkeley.cs.scads.comm.ActorNumber.<init>(691fa6d8a454869653ea2e470a95453a13945f7a)
  24136 term edu.berkeley.cs.scads.comm.Message.src
  44297 term edu.berkeley.cs.scads.comm.PutResponse.schema
  43864 term edu.berkeley.cs.scads.comm.KillTaskRequest.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
@@ -1712,7 +1712,7 @@
  44347 term edu.berkeley.cs.scads.comm.Record.value(85600035ca87495355b1d0bd2e33e50b54d99caf)
  44264 term edu.berkeley.cs.scads.comm.GetRangeRequest.copy$default$5(6397f342cae83281c8bb3499aecea18d20ad1cfd)
  44334 term edu.berkeley.cs.scads.comm.InvalidPartition.copy(5a289198d3618f79c3cb481146fcc6ba69d3093b)
- 94520 type edu.berkeley.cs.scads.comm.ClassSource
+ 94522 type edu.berkeley.cs.scads.comm.ClassSource
  44108 term edu.berkeley.cs.scads.comm.AggReply.copy(84d65f83c572df1e515a3028b83662cf046de2fa)
  44355 term edu.berkeley.cs.scads.comm.Message.copy(ccd9e9f71bc6227fb7182e11f375b48bbb3a8002)
  43809 term edu.berkeley.cs.scads.comm.StringRec3.toString(612e55791800ba754104ae1f138b554bae5d18c7)
@@ -1746,7 +1746,7 @@
  44059 term edu.berkeley.cs.scads.comm.GetPartitionsRequest.hashCode(c663c7b3bae9762feb0455bde7533db4239310c8)
  44047 term edu.berkeley.cs.scads.comm.DeleteNamespaceRequest.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
  44030 term edu.berkeley.cs.scads.comm.CopyDataRequest.equals(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
- 65467 term edu.berkeley.cs.scads.comm.S3CachedJar.<init>(a772ce40145745868cdad79198ecb0212e912840)
+ 65469 term edu.berkeley.cs.scads.comm.S3CachedJar.<init>(a772ce40145745868cdad79198ecb0212e912840)
  44302 term edu.berkeley.cs.scads.comm.PutRequest.value_$eq(000e271ea73846aa878fe44f86f4fd914b5621d3)
  44241 term edu.berkeley.cs.scads.comm.GetRangeResponse.toString(612e55791800ba754104ae1f138b554bae5d18c7)
  43764 term edu.berkeley.cs.scads.comm.RoutingTableMessage.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
@@ -1891,7 +1891,7 @@
  44117 term edu.berkeley.cs.scads.comm.GroupedAgg.get(7f10f9171eb6c7ff3e772efe79e283699bf1df4a)
  43852 term edu.berkeley.cs.scads.comm.IntRec.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
  43864 term edu.berkeley.cs.scads.comm.KillTaskRequest.schema
- 65337 term edu.berkeley.cs.scads.comm.AggFilter.<init>(52016935ebd0842af00d925f5d382cfeda873b9d)
+ 65339 term edu.berkeley.cs.scads.comm.AggFilter.<init>(52016935ebd0842af00d925f5d382cfeda873b9d)
  44059 term edu.berkeley.cs.scads.comm.GetPartitionsRequest.unapply(957d7106d5d44d555dcf835c7a2249a2df813791)
  44016 term edu.berkeley.cs.scads.comm.GetResponsibilityRequest
  43910 term edu.berkeley.cs.scads.comm.JvmMainTask.classpath_$eq(075e84339fab24236aef660ab2b9903b08db18bf)
@@ -1905,7 +1905,7 @@
  44132 term edu.berkeley.cs.scads.comm.AggRequest.get(7f10f9171eb6c7ff3e772efe79e283699bf1df4a)
  44086 term edu.berkeley.cs.scads.comm.CreatePartitionRequest.copy$default$1(9e007beb9564863079edb4f4d08612e42b09589d)
  44108 term edu.berkeley.cs.scads.comm.AggReply.schema
- 65187 term edu.berkeley.cs.scads.comm.GetResponse.<init>(0b4e655b325beebfff98626f5d5ce96e72f11e81)
+ 65189 term edu.berkeley.cs.scads.comm.GetResponse.<init>(0b4e655b325beebfff98626f5d5ce96e72f11e81)
  44101 term edu.berkeley.cs.scads.comm.CreatePartitionRequest.copy(758012bd8966054ad79de54546e95e8f52e9ea68)
  44301 term edu.berkeley.cs.scads.comm.PutRequest.key(1ade17d3d9b4b783a47325af120854d80330ce03)
  44030 term edu.berkeley.cs.scads.comm.CopyDataRequest.schema(f655ca5853375c8374f865779eac004d60ed315d)
@@ -1959,7 +1959,7 @@
  44152 term edu.berkeley.cs.scads.comm.AggFilter.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
  44168 term edu.berkeley.cs.scads.comm.GetWorkloadStats.apply(44384745c7e275aca7b4d31c9d4f94bf55ba3e7d)
  44202 term edu.berkeley.cs.scads.comm.CountRangeRequest.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
- 65247 term edu.berkeley.cs.scads.comm.CursorScanRequest.<init>(36f0831adf26a4f5acbd56eeddeb69236a9ff9c2)
+ 65249 term edu.berkeley.cs.scads.comm.CursorScanRequest.<init>(36f0831adf26a4f5acbd56eeddeb69236a9ff9c2)
  43876 term edu.berkeley.cs.scads.comm.RunExperimentRequest.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
  44338 term edu.berkeley.cs.scads.comm.RequestRejected.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
  44086 term edu.berkeley.cs.scads.comm.CreatePartitionRequest.namespace(3bf7c90be758f5b946ae171b872e4a2ff5affba6)
@@ -1970,7 +1970,7 @@
  44011 term edu.berkeley.cs.scads.comm.GetResponsibilityResponse.schema(f655ca5853375c8374f865779eac004d60ed315d)
  43979 term edu.berkeley.cs.scads.comm.JvmMainTask.hashCode(c663c7b3bae9762feb0455bde7533db4239310c8)
  44047 term edu.berkeley.cs.scads.comm.DeleteNamespaceRequest.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
- 65607 term edu.berkeley.cs.scads.comm.KeyRange.<init>(3e17da20ccb253b56d2030e66379ac308eb4742c)
+ 65609 term edu.berkeley.cs.scads.comm.KeyRange.<init>(3e17da20ccb253b56d2030e66379ac308eb4742c)
  44251 term edu.berkeley.cs.scads.comm.GetRangeRequest.copy$default$1(5be667aade9fd358e3780818b76fc169e6f57af9)
  44292 term edu.berkeley.cs.scads.comm.BulkUrlPutReqest.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
  44351 term edu.berkeley.cs.scads.comm.Record.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
@@ -1978,7 +1978,7 @@
  44149 term edu.berkeley.cs.scads.comm.AggFilter.copy$default$1(0cb229d8dd78a24a02cfa0b6afa663fad9a13cd1)
  44101 term edu.berkeley.cs.scads.comm.CreatePartitionRequest.toString(612e55791800ba754104ae1f138b554bae5d18c7)
  44101 term edu.berkeley.cs.scads.comm.CreatePartitionRequest.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
- 70330 term edu.berkeley.cs.scads.comm.ActorId.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
+ 70332 term edu.berkeley.cs.scads.comm.ActorId.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
  44313 term edu.berkeley.cs.scads.comm.GetResponse.apply(da3b4bd73d1e8d50cbb6bedd10bac8dd65416b5e)
  43845 term edu.berkeley.cs.scads.comm.IntRec2.hashCode(c663c7b3bae9762feb0455bde7533db4239310c8)
  43988 term edu.berkeley.cs.scads.comm.JvmWebAppTask
@@ -1994,9 +1994,9 @@
  44054 term edu.berkeley.cs.scads.comm.GetPartitionsResponse.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
  44078 term edu.berkeley.cs.scads.comm.CreatePartitionResponse.readResolve(4bd7809a6ae8a67ae4d3e011f542aec660ffea74)
  44064 term edu.berkeley.cs.scads.comm.DeletePartitionResponse.readResolve(4bd7809a6ae8a67ae4d3e011f542aec660ffea74)
- 65477 term edu.berkeley.cs.scads.comm.JvmWebAppTask.<init>(bb0aa8f2502f80538f0e3c14920563f02b3189d1)
+ 65479 term edu.berkeley.cs.scads.comm.JvmWebAppTask.<init>(bb0aa8f2502f80538f0e3c14920563f02b3189d1)
  43773 term edu.berkeley.cs.scads.comm.KeyRange.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
- 65127 term edu.berkeley.cs.scads.comm.Record.<init>(f1ab6924dfdb3adfab3dcd9d814dd9d4eba086af)
+ 65129 term edu.berkeley.cs.scads.comm.Record.<init>(f1ab6924dfdb3adfab3dcd9d814dd9d4eba086af)
  44152 term edu.berkeley.cs.scads.comm.AggFilter.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
  43849 term edu.berkeley.cs.scads.comm.IntRec.f1
  44355 term edu.berkeley.cs.scads.comm.Message.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
@@ -2004,7 +2004,7 @@
  44117 term edu.berkeley.cs.scads.comm.GroupedAgg.schema
  44071 term edu.berkeley.cs.scads.comm.DeletePartitionRequest.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
  43864 term edu.berkeley.cs.scads.comm.KillTaskRequest.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
- 70330 type edu.berkeley.cs.scads.comm.ActorId
+ 70332 type edu.berkeley.cs.scads.comm.ActorId
  44327 type edu.berkeley.cs.scads.comm.InvalidNamespace
  44117 term edu.berkeley.cs.scads.comm.GroupedAgg.apply(4389b51925cf4440b2bd252e5bad7052d7e8a1a4)
  43845 term edu.berkeley.cs.scads.comm.IntRec2.unapply(5a60a4725c17f9ee3d292207d79c4244fb97b017)
@@ -2042,7 +2042,7 @@
  44355 term edu.berkeley.cs.scads.comm.Message.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
  44145 term edu.berkeley.cs.scads.comm.AggOp.schema
  43773 term edu.berkeley.cs.scads.comm.KeyRange.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
- 65257 term edu.berkeley.cs.scads.comm.CursorScanResponse.<init>(c83d1744c81c9f1586abd639afca3affdc95c515)
+ 65259 term edu.berkeley.cs.scads.comm.CursorScanResponse.<init>(c83d1744c81c9f1586abd639afca3affdc95c515)
  43789 type edu.berkeley.cs.scads.comm.PairRec
  44156 term edu.berkeley.cs.scads.comm.GetWorkloadStatsResponse.copy$default$1(d8f5b6e0f1030bf29187ea3117449c9d0bfb5b52)
  43769 term edu.berkeley.cs.scads.comm.KeyRange.servers_$eq(cbcc5e0b91d12020efc75519a993ab196225bef1)
@@ -2081,7 +2081,7 @@
  44108 term edu.berkeley.cs.scads.comm.AggReply.schema(f655ca5853375c8374f865779eac004d60ed315d)
  43988 term edu.berkeley.cs.scads.comm.JvmWebAppTask.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
  44064 term edu.berkeley.cs.scads.comm.DeletePartitionResponse.unapply(8740a2b8a429ce9ee94a587e918db8b811eb2272)
- 65427 term edu.berkeley.cs.scads.comm.DeleteNamespaceRequest.<init>(145f0441779bc0fa373d64b5cddeda8aa38e933e)
+ 65429 term edu.berkeley.cs.scads.comm.DeleteNamespaceRequest.<init>(145f0441779bc0fa373d64b5cddeda8aa38e933e)
  44030 term edu.berkeley.cs.scads.comm.CopyDataRequest.put(0cd250bbce9109eb78eecf184a7674bd7e6f99e6)
  43979 term edu.berkeley.cs.scads.comm.JvmMainTask.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
  43809 term edu.berkeley.cs.scads.comm.StringRec3.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
@@ -2108,7 +2108,7 @@
  43840 term edu.berkeley.cs.scads.comm.IntRec2.f1
  43979 term edu.berkeley.cs.scads.comm.JvmMainTask.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
  44075 term edu.berkeley.cs.scads.comm.CreatePartitionResponse.partitionActor_$eq(59d2fbfc1789567c723e6fa2db8665c0207386cf)
- 65547 term edu.berkeley.cs.scads.comm.StringRec.<init>(e6b554a09113f7731c502e6c330fd5da5bb276f7)
+ 65549 term edu.berkeley.cs.scads.comm.StringRec.<init>(e6b554a09113f7731c502e6c330fd5da5bb276f7)
  44359 term edu.berkeley.cs.scads.comm.ActorName.apply(0d74eae80a88554b5ce161dc6133209e21dce2a9)
  44313 term edu.berkeley.cs.scads.comm.GetResponse.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
  44145 term edu.berkeley.cs.scads.comm.AggOp.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
@@ -2116,7 +2116,7 @@
  43849 term edu.berkeley.cs.scads.comm.IntRec.f1_$eq(50e0407b147ffae2134d6ee815ea88c53958eac2)
  43809 term edu.berkeley.cs.scads.comm.StringRec3.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
  44011 term edu.berkeley.cs.scads.comm.GetResponsibilityResponse.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
- 65527 term edu.berkeley.cs.scads.comm.IntRec2.<init>(8c546cd3214e1be5742e0b6688199e9265e329ef)
+ 65529 term edu.berkeley.cs.scads.comm.IntRec2.<init>(8c546cd3214e1be5742e0b6688199e9265e329ef)
  43794 term edu.berkeley.cs.scads.comm.CompIntStringRec.stringRec
  24138 term edu.berkeley.cs.scads.comm.Message.id_$eq(5b39db1debd68387c103775ae721493f0d01e142)
  44132 term edu.berkeley.cs.scads.comm.AggRequest.unapply(c832744965fc902cd40810814d31d5c85a9e273a)
@@ -2132,7 +2132,7 @@
  43782 term edu.berkeley.cs.scads.comm.QuorumProtocolConfig.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
  44145 term edu.berkeley.cs.scads.comm.AggOp.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
  44168 term edu.berkeley.cs.scads.comm.GetWorkloadStats.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
- 65307 term edu.berkeley.cs.scads.comm.TestSetRequest.<init>(13e9690b8eed7bb3c844f0f164968974d9a3a8c3)
+ 65309 term edu.berkeley.cs.scads.comm.TestSetRequest.<init>(13e9690b8eed7bb3c844f0f164968974d9a3a8c3)
  44355 term edu.berkeley.cs.scads.comm.Message.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
  44047 term edu.berkeley.cs.scads.comm.DeleteNamespaceRequest.hashCode(c663c7b3bae9762feb0455bde7533db4239310c8)
  44122 term edu.berkeley.cs.scads.comm.AggRequest.keyType
@@ -2194,7 +2194,7 @@
  43912 term edu.berkeley.cs.scads.comm.JvmMainTask.args
  44280 term edu.berkeley.cs.scads.comm.BulkPutRequest.records
  43773 term edu.berkeley.cs.scads.comm.KeyRange.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
- 65297 term edu.berkeley.cs.scads.comm.CountRangeResponse.<init>(66bba80e9e87b05b5e838280de50ba72f42ce938)
+ 65299 term edu.berkeley.cs.scads.comm.CountRangeResponse.<init>(66bba80e9e87b05b5e838280de50ba72f42ce938)
  44122 term edu.berkeley.cs.scads.comm.AggRequest.keyType_$eq(d969c1dba768dd5e3cff1840e18fde800981922c)
  44078 term edu.berkeley.cs.scads.comm.CreatePartitionResponse.schema
  44054 term edu.berkeley.cs.scads.comm.GetPartitionsResponse.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
@@ -2235,7 +2235,7 @@
  44225 term edu.berkeley.cs.scads.comm.CursorScanResponse.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
  44213 term edu.berkeley.cs.scads.comm.BatchRequest.ranges
  43852 term edu.berkeley.cs.scads.comm.IntRec.get(7f10f9171eb6c7ff3e772efe79e283699bf1df4a)
- 65137 term edu.berkeley.cs.scads.comm.ProcessingException.<init>(ac4fe32dce72f388ccdcea3295a55975d01bdf25)
+ 65139 term edu.berkeley.cs.scads.comm.ProcessingException.<init>(ac4fe32dce72f388ccdcea3295a55975d01bdf25)
  43988 term edu.berkeley.cs.scads.comm.JvmWebAppTask.hashCode(c663c7b3bae9762feb0455bde7533db4239310c8)
  44071 term edu.berkeley.cs.scads.comm.DeletePartitionRequest.equals(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
  9615 type edu.berkeley.cs.scads.comm.RemoteException
@@ -2245,7 +2245,7 @@
  44180 term edu.berkeley.cs.scads.comm.TestSetRequest.value_$eq(000e271ea73846aa878fe44f86f4fd914b5621d3)
  44163 term edu.berkeley.cs.scads.comm.GetWorkloadStatsResponse
  44216 term edu.berkeley.cs.scads.comm.BatchRequest.equals(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
- 65267 term edu.berkeley.cs.scads.comm.BatchRequest.<init>(b4dfbce9f8edbbe98d2eafceafbd674ecd8bddbd)
+ 65269 term edu.berkeley.cs.scads.comm.BatchRequest.<init>(b4dfbce9f8edbbe98d2eafceafbd674ecd8bddbd)
  43803 term edu.berkeley.cs.scads.comm.StringRec3.f2(3bf7c90be758f5b946ae171b872e4a2ff5affba6)
  44145 term edu.berkeley.cs.scads.comm.AggOp.hashCode(c663c7b3bae9762feb0455bde7533db4239310c8)
  44342 term edu.berkeley.cs.scads.comm.ProcessingException.get(7f10f9171eb6c7ff3e772efe79e283699bf1df4a)
@@ -2275,7 +2275,7 @@
  43988 term edu.berkeley.cs.scads.comm.JvmWebAppTask.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
  44186 term edu.berkeley.cs.scads.comm.TestSetRequest.equals(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
  43782 term edu.berkeley.cs.scads.comm.QuorumProtocolConfig.toString(612e55791800ba754104ae1f138b554bae5d18c7)
- 70329 type edu.berkeley.cs.scads.comm.MessageBody
+ 70331 type edu.berkeley.cs.scads.comm.MessageBody
  43809 term edu.berkeley.cs.scads.comm.StringRec3.put(0cd250bbce9109eb78eecf184a7674bd7e6f99e6)
  44234 term edu.berkeley.cs.scads.comm.CursorScanRequest.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
  44327 term edu.berkeley.cs.scads.comm.InvalidNamespace.get(7f10f9171eb6c7ff3e772efe79e283699bf1df4a)
@@ -2287,12 +2287,12 @@
  44342 term edu.berkeley.cs.scads.comm.ProcessingException.productArity(f94e34279774a33b0e784d726d315f41bbfccb90)
  43789 term edu.berkeley.cs.scads.comm.PairRec.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
  44355 term edu.berkeley.cs.scads.comm.Message.apply(ccd9e9f71bc6227fb7182e11f375b48bbb3a8002)
- 65597 term edu.berkeley.cs.scads.comm.QuorumProtocolConfig.<init>(172d239a6c90edaab96b90c6a13e212c2002073a)
+ 65599 term edu.berkeley.cs.scads.comm.QuorumProtocolConfig.<init>(172d239a6c90edaab96b90c6a13e212c2002073a)
  43809 term edu.berkeley.cs.scads.comm.StringRec3.schema(f655ca5853375c8374f865779eac004d60ed315d)
  43979 term edu.berkeley.cs.scads.comm.JvmMainTask.put(0cd250bbce9109eb78eecf184a7674bd7e6f99e6)
  44324 term edu.berkeley.cs.scads.comm.InvalidNamespace.namespace_$eq(d969c1dba768dd5e3cff1840e18fde800981922c)
  44152 term edu.berkeley.cs.scads.comm.AggFilter.readResolve(4bd7809a6ae8a67ae4d3e011f542aec660ffea74)
- 65327 term edu.berkeley.cs.scads.comm.GetWorkloadStatsResponse.<init>(7661eff5ca3bd053dd9efdd9a9d4451060cfbee0)
+ 65329 term edu.berkeley.cs.scads.comm.GetWorkloadStatsResponse.<init>(7661eff5ca3bd053dd9efdd9a9d4451060cfbee0)
  43793 term edu.berkeley.cs.scads.comm.CompIntStringRec.intRec(585454f2f8c4db6a69ed4087571511a065f1cc9e)
  44363 term edu.berkeley.cs.scads.comm.ActorNumber.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
  44262 term edu.berkeley.cs.scads.comm.GetRangeRequest.init$default$3(be8266d75949c3368d912ee4d23b10aad12167f4)
@@ -2331,7 +2331,7 @@
  44351 term edu.berkeley.cs.scads.comm.Record.schema(f655ca5853375c8374f865779eac004d60ed315d)
  24136 term edu.berkeley.cs.scads.comm.Message.copy$default$1(0f3a1032264edff80100c75cdbf467835915c5e7)
  44241 term edu.berkeley.cs.scads.comm.GetRangeResponse.schema
- 94520 term edu.berkeley.cs.scads.comm.ClassSource.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
+ 94522 term edu.berkeley.cs.scads.comm.ClassSource.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
  44101 term edu.berkeley.cs.scads.comm.CreatePartitionRequest.readResolve(4bd7809a6ae8a67ae4d3e011f542aec660ffea74)
  44078 term edu.berkeley.cs.scads.comm.CreatePartitionResponse.unapply(5cbfd4aea1532210ea4f9d019322582858fb5b40)
  44342 term edu.berkeley.cs.scads.comm.ProcessingException.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
@@ -2342,8 +2342,8 @@
  44078 term edu.berkeley.cs.scads.comm.CreatePartitionResponse.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
  44241 term edu.berkeley.cs.scads.comm.GetRangeResponse.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
  44054 term edu.berkeley.cs.scads.comm.GetPartitionsResponse.copy(310b3ff94f348fb56db78943210f9aaa06d4f703)
- 65567 term edu.berkeley.cs.scads.comm.StringRec3.<init>(7773ade4d538f2a193a4d8d5dc7a302f578a7b97)
- 65227 term edu.berkeley.cs.scads.comm.GetRangeRequest.<init>(20f170f09ae58e0b6ac02ca8c8eb49cc8a870886)
+ 65569 term edu.berkeley.cs.scads.comm.StringRec3.<init>(7773ade4d538f2a193a4d8d5dc7a302f578a7b97)
+ 65229 term edu.berkeley.cs.scads.comm.GetRangeRequest.<init>(20f170f09ae58e0b6ac02ca8c8eb49cc8a870886)
  43988 term edu.berkeley.cs.scads.comm.JvmWebAppTask.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
  44327 term edu.berkeley.cs.scads.comm.InvalidNamespace.schema
  44117 term edu.berkeley.cs.scads.comm.GroupedAgg.toString(612e55791800ba754104ae1f138b554bae5d18c7)
@@ -2401,7 +2401,7 @@
  44117 term edu.berkeley.cs.scads.comm.GroupedAgg.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
  44213 term edu.berkeley.cs.scads.comm.BatchRequest.ranges(83555bf7f21ac3b665161701412be5528ad8087f)
  44087 term edu.berkeley.cs.scads.comm.CreatePartitionRequest.partitionType_$eq(d969c1dba768dd5e3cff1840e18fde800981922c)
- 65537 term edu.berkeley.cs.scads.comm.IntRec3.<init>(b9eda7944801c7be2acb74eb3d971d00a6f4fdfb)
+ 65539 term edu.berkeley.cs.scads.comm.IntRec3.<init>(b9eda7944801c7be2acb74eb3d971d00a6f4fdfb)
  44175 term edu.berkeley.cs.scads.comm.TestSetResponse.getSchema(f655ca5853375c8374f865779eac004d60ed315d)
  44071 term edu.berkeley.cs.scads.comm.DeletePartitionRequest.schema(f655ca5853375c8374f865779eac004d60ed315d)
  43995 term edu.berkeley.cs.scads.comm.S3CachedJar.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
@@ -2508,7 +2508,7 @@
  44363 type edu.berkeley.cs.scads.comm.ActorNumber
  43836 term edu.berkeley.cs.scads.comm.IntRec3.copy(e4eda417a51d13ac1279a3b976cfd7ae7ffa5506)
  44059 term edu.berkeley.cs.scads.comm.GetPartitionsRequest.productElement(5b2b4cddffd76808b0bace3aae3e212e44a7e4d8)
- 65557 term edu.berkeley.cs.scads.comm.StringRec2.<init>(1ed264e05b2d5ae0986aab75b53603c4871be928)
+ 65559 term edu.berkeley.cs.scads.comm.StringRec2.<init>(1ed264e05b2d5ae0986aab75b53603c4871be928)
  44225 term edu.berkeley.cs.scads.comm.CursorScanResponse
  43995 term edu.berkeley.cs.scads.comm.S3CachedJar.copy(23aa1436f48fb34a17558f8e8716256f316272ba)
  44152 term edu.berkeley.cs.scads.comm.AggFilter.unapply(4dfe4ec7ed2c2832f506d708c4660ba27a8cffdf)
@@ -2615,7 +2615,7 @@
  43845 term edu.berkeley.cs.scads.comm.IntRec2.productPrefix(e30a80d2b4700276248ce5925d94ebb97783d05d)
  43873 term edu.berkeley.cs.scads.comm.RunExperimentRequest.processes
  43864 term edu.berkeley.cs.scads.comm.KillTaskRequest.canEqual(65b13bc174ccce50a3050720fb1f6f6ecc7a67db)
- 65417 term edu.berkeley.cs.scads.comm.GetPartitionsResponse.<init>(e6cf364d58b80507a348e45ded379dba97aa797b)
+ 65419 term edu.berkeley.cs.scads.comm.GetPartitionsResponse.<init>(e6cf364d58b80507a348e45ded379dba97aa797b)
  38746 term edu.berkeley.cs.scads.comm.RequestRejected.reason(3bf7c90be758f5b946ae171b872e4a2ff5affba6)
  44016 term edu.berkeley.cs.scads.comm.GetResponsibilityRequest.toString(539469ac734089a39f5bb97705d0b9459fb6b087)
  44006 term edu.berkeley.cs.scads.comm.GetResponsibilityResponse.startKey(85600035ca87495355b1d0bd2e33e50b54d99caf)
@@ -2627,7 +2627,7 @@
  43769 term edu.berkeley.cs.scads.comm.KeyRange.servers
  44035 term edu.berkeley.cs.scads.comm.ShutdownStorageHandler.get(7f10f9171eb6c7ff3e772efe79e283699bf1df4a)
  44054 term edu.berkeley.cs.scads.comm.GetPartitionsResponse.hashCode(c663c7b3bae9762feb0455bde7533db4239310c8)
- 65387 term edu.berkeley.cs.scads.comm.CreatePartitionRequest.<init>(8af40ebb804b482efece6f7d0074d2566ed23e7c)
+ 65389 term edu.berkeley.cs.scads.comm.CreatePartitionRequest.<init>(8af40ebb804b482efece6f7d0074d2566ed23e7c)
  44172 term edu.berkeley.cs.scads.comm.TestSetResponse.success_$eq(2155cd0a04e0a6925f4c5f7257b9111cffbba979)
  43782 term edu.berkeley.cs.scads.comm.QuorumProtocolConfig.unapply(6c93136dc926656130befb5f993586536c072f58)
  44181 term edu.berkeley.cs.scads.comm.TestSetRequest.expectedValue
