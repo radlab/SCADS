@@ -10,9 +10,10 @@ import storage.client._
 
 
 package object piql {
-  import plans._
+  import language._
   import exec._
   import opt._
+  import plans._
 
   protected val logger = Logger()
 
@@ -54,7 +55,7 @@ package object piql {
 
   implicit def toOption[A](a: A) = Option(a)
 
-  implicit def toPiql(logicalPlan: Queryable)(implicit executor: QueryExecutor) = new {
+  implicit def toPiql(logicalPlan: LogicalPlan)(implicit executor: QueryExecutor) = new {
     def toPiql(queryName: Option[String] = None) = {
       logger.info("Begining Optimization of query %s: %s", queryName, logicalPlan)
       val physicalPlan = Optimizer(logicalPlan).physicalPlan

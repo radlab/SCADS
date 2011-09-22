@@ -32,7 +32,9 @@ class OptimizedQuery(val name: Option[String], val physicalPlan: QueryPlan, exec
   }
 
   def toHtml: xml.NodeSeq = {
-    <b>{physicalPlan}</b>
+    <b>
+      {physicalPlan}
+    </b>
   }
 }
 
@@ -42,7 +44,7 @@ object Optimizer {
 
   case class OptimizedSubPlan(physicalPlan: QueryPlan, schema: TupleSchema)
 
-  def apply(logicalPlan: Queryable): OptimizedSubPlan = {
+  def apply(logicalPlan: LogicalPlan): OptimizedSubPlan = {
     logger.info("Optimizing subplan: %s", logicalPlan)
 
     logicalPlan match {
@@ -81,8 +83,8 @@ object Optimizer {
       }
       case IndexRange(equalityPreds, bound, Some(Ordering(attrs, asc)), Relation(ns)) => {
         val limitHint = bound.map(_.count).getOrElse {
-            logger.warning("UnboundedPlan %s: %s", ns, logicalPlan)
-            FixedLimit(defaultFetchSize)
+          logger.warning("UnboundedPlan %s: %s", ns, logicalPlan)
+          FixedLimit(defaultFetchSize)
         }
         val isDataStop = bound.map(_.isDataStop).getOrElse(true)
         val prefixAttrs = equalityPreds.map(_.attribute.unqualifiedName) ++ attrs.map(_.unqualifiedName)
@@ -92,7 +94,7 @@ object Optimizer {
             (IndexScan(ns, makeKeyGenerator(ns, tupleSchema, equalityPreds), limitHint, asc), tupleSchema)
           }
           else {
-	    logger.debug("Creating index for attributes: %s", prefixAttrs)
+            logger.debug("Creating index for attributes: %s", prefixAttrs)
             val idx = ns.asInstanceOf[IndexedNamespace].getOrCreateIndex(prefixAttrs.map(p => AttributeIndex(p)))
             val tupleSchema = idx :: ns :: Nil
             (derefPlan(ns,
@@ -124,7 +126,7 @@ object Optimizer {
         val (joinPlan, tupleSchema) =
           if (isPrefix(prefixAttrs, ns)) {
             val tupleSchema = optChild.schema :+ ns
-	    logger.debug("Using index special orders for %s", attrs)
+            logger.debug("Using index special orders for %s", attrs)
 
             (IndexMergeJoin(ns,
               makeKeyGenerator(ns, tupleSchema, equalityPreds),
@@ -237,7 +239,7 @@ object Optimizer {
    * single get operations against the key value store
    */
   protected object IndexRange {
-    def unapply(logicalPlan: Queryable): Option[(Seq[AttributeEquality], Option[TupleLimit], Option[Ordering], Queryable)] = {
+    def unapply(logicalPlan: LogicalPlan): Option[(Seq[AttributeEquality], Option[TupleLimit], Option[Ordering], LogicalPlan)] = {
       val (limit, planWithoutStop) = logicalPlan match {
         case StopAfter(count, child) => (Some(TupleLimit(count, false)), child)
         case DataStopAfter(count, child) => (Some(TupleLimit(count, true)), child)
@@ -273,13 +275,13 @@ object Optimizer {
       val fields = getFields(ns)
 
       val idxEqPreds = predicates.map {
-        case EqualityPredicate(v: Value, u @ UnboundAttributeValue(qualifiedAttribute(relName, attrName))) if relName.equals(ns.namespace) && fields.map(_.name).contains(attrName) =>
+        case EqualityPredicate(v: Value, u@UnboundAttributeValue(qualifiedAttribute(relName, attrName))) if relName.equals(ns.namespace) && fields.map(_.name).contains(attrName) =>
           AttributeEquality(u, v)
-        case EqualityPredicate(u @ UnboundAttributeValue(qualifiedAttribute(relName, attrName)), v: Value) if relName.equals(ns.namespace) && fields.map(_.name).contains(attrName) =>
+        case EqualityPredicate(u@UnboundAttributeValue(qualifiedAttribute(relName, attrName)), v: Value) if relName.equals(ns.namespace) && fields.map(_.name).contains(attrName) =>
           AttributeEquality(u, v)
-        case EqualityPredicate(v: Value, u @ UnboundAttributeValue(attrName)) if fields.map(_.name).contains(attrName) =>
+        case EqualityPredicate(v: Value, u@UnboundAttributeValue(attrName)) if fields.map(_.name).contains(attrName) =>
           AttributeEquality(u, v)
-        case EqualityPredicate(u @ UnboundAttributeValue(attrName), v: Value) if fields.map(_.name).contains(attrName) =>
+        case EqualityPredicate(u@UnboundAttributeValue(attrName), v: Value) if fields.map(_.name).contains(attrName) =>
           AttributeEquality(u, v)
         case otherPred => {
           logger.info("IndexScan match failed.  Can't apply %s to index scan of %s.{%s}", otherPred, ns.namespace, ns.keySchema.getFields.map(_.name))
@@ -292,4 +294,5 @@ object Optimizer {
       Some(getOp)
     }
   }
+
 }

@@ -6,6 +6,9 @@ import plans._
 
 import net.lag.logging.Logger
 
+/**
+ * Wrapper to add functions to piql tuples.
+ */
 class RichTuple(t: Tuple) {
   def get(aliasPrefix: String, fieldName: String): Any = {
     val rec = t.find(r => (r.getSchema.getName startsWith aliasPrefix) && (r.getSchema.getField(fieldName) != null)).getOrElse(
@@ -16,7 +19,9 @@ class RichTuple(t: Tuple) {
 }
 
 
-
+/**
+ * Mix-in executor that interposes debugging statements in between all iterator operations.
+ */
 trait DebugExecutor extends QueryExecutor {
 
   abstract override def apply(plan: QueryPlan)(implicit ctx: Context): QueryIterator = {

@@ -14,6 +14,11 @@ import java.{ util => ju }
 import scala.collection.mutable.Queue
 import scala.collection.mutable.ArrayBuffer
 
+/**
+ * The contex for a query plan to be executed in.
+ * @param parameters - any runtime parameters for the query
+ * @param state - the serialized state if resuming the query from a previous execution.
+ */
 case class Context(parameters: IndexedSeq[Any], state: Option[List[Any]])
 
 abstract class QueryIterator extends Iterator[Tuple] {
@@ -22,6 +27,10 @@ abstract class QueryIterator extends Iterator[Tuple] {
   def close: Unit
 }
 
+/**
+ * A query executor takes a physical query plan and produces and iterator tree that will execute the query with
+ * a given strategy.
+ */
 trait QueryExecutor {
   protected val logger = Logger("edu.berkeley.cs.scads.piql.QueryExecutor")
 
@@ -91,6 +100,9 @@ trait QueryExecutor {
   }
 }
 
+/**
+ * The simple executor issues requests to the key/value store serially.
+ */
 class SimpleExecutor extends QueryExecutor {
 
   implicit def toOption[A](a: A): Option[A] = Option(a)
@@ -359,6 +371,7 @@ class SimpleExecutor extends QueryExecutor {
 }
 
 /**
+ * The parallel executor issues all requests to the key/value store in parallel.
  * TODO: Should abstract out the common parts between the query iterators.
  */
 class ParallelExecutor extends SimpleExecutor {
@@ -608,6 +621,9 @@ class ParallelExecutor extends SimpleExecutor {
   }
 }
 
+/**
+ * The lazy executor retrieves tuples from the key/value store on demand, one at a time.
+ */
 class LazyExecutor extends SimpleExecutor {
 
   override def apply(plan: QueryPlan)(implicit ctx: Context): QueryIterator = plan match {

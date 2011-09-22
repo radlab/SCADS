@@ -3,31 +3,29 @@ package scads
 package piql
 package plans
 
-trait Queryable {
-  def where(predicate: Predicate) = Selection(predicate, this)
-  def join(inner: Queryable) = Join(this, inner)
-  def limit(count: Int) = StopAfter(FixedLimit(count), this)
-  def limit(parameter: ParameterValue, max: Int) = StopAfter(ParameterLimit(parameter.ordinal, max), this)
-  def dataLimit(count: Int) = DataStopAfter(FixedLimit(count), this)
-  def sort(attributes: Seq[Value], ascending: Boolean = true) = Sort(attributes, ascending, this)
+import language.Queryable
 
-  def walkPlan[A](f: Queryable => A): A = {
+/**
+ * A node in a logical query plan.
+ */
+abstract class LogicalPlan extends Queryable {
+  def walkPlan[A](f: LogicalPlan => A): A = {
     this match {
       case in: InnerNode => {
-	f(this)
-	in.child.walkPlan(f)
+        f(this)
+        in.child.walkPlan(f)
       }
       case leaf => f(leaf)
     }
   }
 
-  def gatherUntil[A](f: PartialFunction[Queryable, A]): (Seq[A], Option[Queryable]) = {
-    if(f.isDefinedAt(this) == false)
+  def gatherUntil[A](f: PartialFunction[LogicalPlan, A]): (Seq[A], Option[LogicalPlan]) = {
+    if (f.isDefinedAt(this) == false)
       return (Nil, Some(this))
 
     this match {
       case in: InnerNode => {
-	val childRes = in.child.gatherUntil(f)
+        val childRes = in.child.gatherUntil(f)
         (f(this) +: childRes._1, childRes._2)
       }
       case leaf => (f(leaf) :: Nil, None)
@@ -35,19 +33,46 @@ trait Queryable {
   }
 }
 
+/**
+ * An non-leaf node of a query plan, guaranteed to have a child.
+ */
 abstract trait InnerNode {
-  val child: Queryable
+  val child: LogicalPlan
 }
 
-case class Selection(predicate: Predicate, child: Queryable) extends Queryable with InnerNode
-case class Sort(attributes: Seq[Value], ascending: Boolean, child: Queryable) extends Queryable with InnerNode
+/**
+ * Filters child by predicate.
+ */
+case class Selection(predicate: Predicate, child: LogicalPlan) extends LogicalPlan with InnerNode
 
+/**
+ * Sorts child by the values specified in attributes.
+ */
+case class Sort(attributes: Seq[Value], ascending: Boolean, child: LogicalPlan) extends LogicalPlan with InnerNode
+
+/**
+ * An operator that returns no more than count tuples
+ */
 trait StopOperator extends InnerNode {
   val count: Limit
 }
-case class StopAfter(count: Limit, child: Queryable) extends Queryable with StopOperator
-case class DataStopAfter(count: Limit, child: Queryable) extends Queryable with StopOperator
 
-case class Join(left: Queryable, right: Queryable) extends Queryable
+/**
+ * Returns the first count tuples from child.
+ */
+case class StopAfter(count: Limit, child: LogicalPlan) extends LogicalPlan with StopOperator
 
-case class Relation(ns: Namespace) extends Queryable
+/**
+ * A promise (i.e. due to external relationship cardinality constraints) that child will return no more than count tuples.
+ */
+case class DataStopAfter(count: Limit, child: LogicalPlan) extends LogicalPlan with StopOperator
+
+/**
+ * Compute the join of the two child query plans.
+ */
+case class Join(left: LogicalPlan, right: LogicalPlan) extends LogicalPlan
+
+/**
+ * A source of tuples.
+ */
+case class Relation(ns: Namespace) extends LogicalPlan
