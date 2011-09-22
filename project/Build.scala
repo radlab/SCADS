@@ -14,13 +14,6 @@ object ScadsBuild extends Build {
     GhPages.ghpages.gitRemoteRepo := "git@github.com:radlab/SCADS.git",
     parallelExecution in Test := false,
     libraryDependencies += "org.scala-tools.sxr" %% "sxr" % "0.2.8-SNAPSHOT" % "plugin",
-    publishTo <<= (version) {
-      version: String =>
-        val nexus = "http://scads.knowsql.org/nexus/content/repositories/"
-        if (version.trim.endsWith("SNAPSHOT")) Some("snapshots" at nexus + "snapshots/")
-        else Some("releases" at nexus + "releases/")
-    },
-    credentials += Credentials(Path.userHome / ".ivy2" / "credentials"),
     ivyConfigurations += Configurations.CompilerPlugin,
     /* HACK work around due to bugs in sbt compiler plugin handling code */
     scalacOptions <++= (update, scalaSource in Compile) map {
