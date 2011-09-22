@@ -6,6 +6,8 @@ package modeling
 import storage._
 import perf._
 import comm._
+import piql.plans._
+import piql.opt._
 import piql.scadr._
 import perf.scadr._
 import deploylib.ec2._

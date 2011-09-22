@@ -11,12 +11,12 @@ object Histogram {
     new Histogram(bucketSize, ArrayBuffer.fill(bucketCount)(0L))
 }
 
-case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Long]) extends AvroRecord {
+case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Long], var negative: Int = 0) extends AvroRecord {
   def +(left: Histogram): Histogram = {
     require(bucketSize == left.bucketSize)
     require(buckets.size == left.buckets.size)
 
-    Histogram(bucketSize, buckets.zip(left.buckets).map { case (a, b) => a + b })
+    Histogram(bucketSize, buckets.zip(left.buckets).map { case (a, b) => a + b }, negative + left.negative)
   }
 
   def reset(): Histogram = synchronized {
@@ -30,12 +30,15 @@ case class Histogram(var bucketSize: Int, var buckets: ArrayBuffer[Long]) extend
   }
 
   def add(value: Long): Histogram = synchronized {
-    val bucket = (value / bucketSize).toInt
-    if (bucket >= buckets.length)
-      buckets(buckets.length - 1) += 1
-    else
-      buckets(bucket) += 1
-
+    if(value < 0)
+      negative += 1
+    else {
+      val bucket = (value / bucketSize).toInt
+      if (bucket >= buckets.length)
+	buckets(buckets.length - 1) += 1
+      else
+	buckets(bucket) += 1
+    }
     this
   }
 

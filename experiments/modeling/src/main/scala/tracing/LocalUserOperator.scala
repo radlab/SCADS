@@ -3,6 +3,8 @@ package scads
 package piql
 package modeling
 
+import piql.exec._
+import piql.plans._
 import scadr._
 
 import collection.mutable.ArrayBuffer

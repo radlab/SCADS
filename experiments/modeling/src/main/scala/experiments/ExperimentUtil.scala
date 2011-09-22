@@ -171,7 +171,7 @@ object ExperimentUtil {
 	    )
 	    
 	    val num = i._2 match {
-	      case a: Option[Any] => a.get
+	      case a: Option[_] => a.get
 	      case b: Any => b
 	      case _ =>
 	    }

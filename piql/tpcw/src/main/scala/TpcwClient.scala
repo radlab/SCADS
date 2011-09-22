@@ -5,16 +5,13 @@ package tpcw
 
 import net.lag.logging.Logger
 
-import scads.comm._
-import scads.storage._
-import avro.marker._
-import avro.runtime._
+import opt._
+import plans._
+import comm._
+import storage._
+import storage.client.index._
 
 import ch.ethz.systems.tpcw.populate.data.Utils
-
-import org.apache.avro.util._
-import scala.util.Random
-import scala.collection.mutable.{ Map => MMap }
 
 import java.util.UUID
 

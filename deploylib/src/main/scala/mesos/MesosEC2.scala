@@ -37,7 +37,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
   val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
 
   val mesosAmi =
-    if (EC2Instance.endpoint contains "west") "ami-2b6b386e" else "ami-5af60d33"
+    if (EC2Instance.endpoint contains "west") "ami-2b6b386e" else "ami-2d60a144"
 
   val defaultZone =
     if (EC2Instance.endpoint contains "west") "us-west-1a" else "us-east-1b"
@@ -53,7 +53,7 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
                                    Future {setupZooKeeper()} ::
                                    Future {if(slaves.size < numSlaves) addSlaves(numSlaves - slaves.size)} :: Nil).map(_())
 	
-  def updateDeploylib(instances: Seq[EC2Instance] = slaves): Unit = {
+  def updateDeploylib(instances: Seq[EC2Instance] = (slaves ++ masters)): Unit = {
     instances.pforeach(inst => {
       val executorScript = Util.readFile(new File("deploylib/src/main/resources/java_executor"))
         .split("\n")
@@ -137,8 +137,8 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
   def zooKeeperAddress = "zk://%s/".format(zooKeepers.map(_.publicDnsName + ":2181").mkString(","))
   def zooKeeperRoot = ZooKeeperNode(zooKeeperAddress)
 
-  def setupZooKeeper(): Unit = {
-    val missingServers = 3 - zooKeepers.size
+  def setupZooKeeper(numServers: Int = 1): Unit = {
+    val missingServers = numServers - zooKeepers.size
 
     if(missingServers > 0) {
     val ret = EC2Instance.runInstances(
@@ -156,14 +156,15 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
 
     val servers = zooKeepers.zipWithIndex
 
+    val serverList = servers.map {case (server, id: Int) => "server.%d=%s:3181:3182".format(id + 1, server.privateDnsName)}.toList
+
     val cnf =
-      (servers.map {case (server, id: Int) => "server.%d=%s:3181:3182".format(id + 1, server.privateDnsName)} ++
-      ("webui_port=8080" ::
-      "dataDir=/mnt/zookeeper" ::
-      "clientPort=2181" ::
-      "tickTime=1000" ::
-      "initLimit=60"::
-      "syncLimit=30" :: Nil )).mkString("\n")
+      ("dataDir=/mnt/zookeeper" ::
+       "clientPort=2181" ::
+       "tickTime=1000" ::
+       "initLimit=60"::
+       "syncLimit=30" :: 
+       (if(servers.size > 1) serverList else Nil)).mkString("\n")
 
     val startScript =
       ("#!/bin/bash" ::
@@ -289,21 +290,27 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     instances
   }
 
-  val baseConf = ("work_dir=/mnt" ::
+  val baseConf = (
+      "webui_port=8080" ::
+      "work_dir=/mnt" ::
       "log_dir=/mnt" ::
       "switch_user=0" ::
       "shares_interval=30" :: Nil)
-  def slaveConf = (baseConf :+ ("url=" + clusterUrl)).mkString("\n")
+
+  def confWithUrl = ("master=" + clusterUrl) :: baseConf
+  def slaveConf(instance: EC2Instance) = (("mem=" + (instance.free.total - 1024)) ::
+					  confWithUrl).mkString("\n")
+
   val conffile = new File("/usr/local/mesos/conf/mesos.conf")
 
   def updateConf(instances: Seq[EC2Instance] = slaves): Unit = {
-    instances.pforeach(_.createFile(conffile, slaveConf))
+    instances.pforeach(i => i.createFile(conffile, slaveConf(i)))
   }
 
   def updateMasterConf: Unit = {
     val masterConf =
       if(useFT)
-        slaveConf
+        confWithUrl.mkString("\n")
       else
         baseConf.mkString("\n")
 
@@ -344,5 +351,15 @@ class Cluster(useFT: Boolean = false) extends ConfigurationActions {
     }
 
     slaves.pforeach(_.appendFile(new File("/root/.ssh/authorized_keys"), key))
+  }
+
+  //HACK to work around still broken webui
+  def tailSlaveLogs: Unit = {
+    val workDir = new File("/mnt/work")
+    slaves.pmap(s => {
+      val currentSlaveDir = new File(workDir, s.ls(workDir).sortBy(_.modDate).last.name)
+      val currentFrameworkDir = new File(currentSlaveDir, s.ls(currentSlaveDir).head.name)
+      (s, new File(currentFrameworkDir, "0/stdout"))
+    }).foreach {case (s,l) => s.watch(l)}
   }
 }

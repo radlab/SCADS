@@ -5,6 +5,8 @@ package modeling
 
 import avro.marker._
 import avro.runtime._
+import piql.opt._
+import piql.plans._
 import storage._
 import perf._
 import comm._

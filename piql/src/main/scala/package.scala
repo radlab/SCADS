@@ -1,19 +1,24 @@
 package edu.berkeley.cs
 package scads
 
-import org.apache.avro.Schema
-import org.apache.avro.generic.{ IndexedRecord, GenericRecord }
-import org.apache.avro.util.Utf8
+import org.apache.avro.generic.IndexedRecord
 import net.lag.logging.Logger
 
 import avro.marker._
 import storage._
+import storage.client._
+
 
 package object piql {
+  import language._
+  import exec._
+  import opt._
+  import plans._
+
   protected val logger = Logger()
 
   type Namespace = storage.Namespace with RecordStore[IndexedRecord] with GlobalMetadata
-  type IndexedNamespace = storage.Namespace with RecordStore[AvroPair] with GlobalMetadata with IndexManager[AvroPair]
+  type IndexedNamespace = storage.Namespace with RecordStore[AvroPair] with GlobalMetadata with index.IndexManager[AvroPair]
 
   type KeyGenerator = Seq[Value]
 
@@ -23,11 +28,14 @@ package object piql {
   type TupleSchema = Seq[Namespace]
 
   type QueryResult = Seq[Tuple]
+  type OptimizedQuery = opt.OptimizedQuery
+  type QueryExecutor = exec.QueryExecutor
+  type ParallelExecutor = exec.ParallelExecutor
 
   //Query State Serailization
   type CursorPosition = Seq[Any]
 
-  implicit def toRichTuple(t: Tuple) = new RichTuple(t)
+  implicit def toRichTuple(t: Tuple) = new debug.RichTuple(t)
 
   //TODO: Remove hack
   //HACK: to deal with problem in namespace variance
@@ -47,7 +55,7 @@ package object piql {
 
   implicit def toOption[A](a: A) = Option(a)
 
-  implicit def toPiql(logicalPlan: Queryable)(implicit executor: QueryExecutor) = new {
+  implicit def toPiql(logicalPlan: LogicalPlan)(implicit executor: QueryExecutor) = new {
     def toPiql(queryName: Option[String] = None) = {
       logger.info("Begining Optimization of query %s: %s", queryName, logicalPlan)
       val physicalPlan = Optimizer(logicalPlan).physicalPlan

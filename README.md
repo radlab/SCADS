@@ -6,21 +6,21 @@ SCADS is composed of the following sub-projects:
 
 SCADS Core
 ----------
-* [config](https://github.com/radlab/SCADS/wiki/SCADS-Config) - Configuration file parsing.
-* [avro-plugin](https://github.com/radlab/SCADS/wiki/Avro-Plugin) - A scala compiler plugin allowing case classes to be efficiently serialized using [Avro](http://avro.apache.org/) encoding.
-* [deploylib](https://github.com/radlab/SCADS/wiki/Deploylib) - A parallel ssh library for deploying jvm-based experiments on remote servers and EC2.
-* communication - [Netty](http://www.jboss.org/netty)-based message passing of Avro encoded messages.  Scala library for using [Apache ZooKeeper](http://zookeeper.apache.org/).
-* scala-engine - K/V storage optionally using [BDB](http://www.oracle.com/technetwork/database/berkeleydb/overview/index.html) for persistence.
-* [piql](https://github.com/radlab/SCADS/wiki/PIQL) - The performance-insightful query language (PIQL) and scale-independent relational optimizer.
-* perf - A library of helpers for writing SCADS performance tests using deploylib.
+* [config](https://github.com/radlab/SCADS/wiki/SCADS-Config) - Configuration file parsing. [scaladoc](http://radlab.github.com/SCADS/config/latest/api/) [source](http://radlab.github.com/SCADS/config/latest/sxr/)
+* [avro-plugin](https://github.com/radlab/SCADS/wiki/Avro-Plugin) - A scala compiler plugin allowing case classes to be efficiently serialized using [Avro](http://avro.apache.org/) encoding. [scaladoc](http://radlab.github.com/SCADS/avro-plugin/latest/api/) [source](http://radlab.github.com/SCADS/avro-plugin/latest/sxr/)
+* [deploylib](https://github.com/radlab/SCADS/wiki/Deploylib) - A parallel ssh library for deploying jvm-based experiments on remote servers and EC2. [scaladoc](http://radlab.github.com/SCADS/deploylib/latest/api/) [source](http://radlab.github.com/SCADS/deploylib/latest/sxr/)
+* communication - [Netty](http://www.jboss.org/netty)-based message passing of Avro encoded messages.  Scala library for using [Apache ZooKeeper](http://zookeeper.apache.org/). [scaladoc](http://radlab.github.com/SCADS/modeling/latest/api/) [source](http://radlab.github.com/SCADS/modeling/latest/sxr/)
+* scala-engine - K/V storage optionally using [BDB](http://www.oracle.com/technetwork/database/berkeleydb/overview/index.html) for persistence. [scaladoc](http://radlab.github.com/SCADS/scala-engine/latest/api/) [source](http://radlab.github.com/SCADS/scala-engine/latest/sxr/)
+* [piql](https://github.com/radlab/SCADS/wiki/PIQL) - The performance-insightful query language (PIQL) and scale-independent relational optimizer. [scaladoc](http://radlab.github.com/SCADS/piql/latest/api/) [source](http://radlab.github.com/SCADS/piql/latest/sxr/)
+* perf - A library of helpers for writing SCADS performance tests using deploylib. [scaladoc](http://radlab.github.com/SCADS/perf/latest/api/) [source](http://radlab.github.com/SCADS/perf/latest/sxr/)
 
 Other Experiments
 -----------------
-* scadr - PIQL queries for a clone of [Twitter](http://www.twitter.com).
-* matheon
-* tpcw - PIQL queries for the [TPC-W](http://www.tpc.org/tpcw/) benchmark.
-* axer - Alternate Avro encoding optimized for random field access.
-* modeling - experiments to characterize the performance of PIQL queries.
+* scadr - PIQL queries for a clone of [Twitter](http://www.twitter.com). [scaladoc](http://radlab.github.com/SCADS/scadr/latest/api/) [source](http://radlab.github.com/SCADS/scadr/latest/sxr/)
+* matheon = [scaladoc](http://radlab.github.com/SCADS/matheon/latest/api/) [source](http://radlab.github.com/SCADS/matheon/latest/sxr/)
+* tpcw - PIQL queries for the [TPC-W](http://www.tpc.org/tpcw/) benchmark. [scaladoc](http://radlab.github.com/SCADS/tpcw/latest/api/) [source](http://radlab.github.com/SCADS/tpcw/latest/sxr/)
+* axer - Alternate Avro encoding optimized for random field access. [scaladoc](http://radlab.github.com/SCADS/axer/latest/api/) [source](http://radlab.github.com/SCADS/axer/latest/sxr/)
+* modeling - experiments to characterize the performance of PIQL queries. [scaladoc](http://radlab.github.com/SCADS/modeling/latest/api/) [source](http://radlab.github.com/SCADS/modeling/latest/sxr/)
 
 Deprecated Projects
 -------------------
@@ -59,7 +59,9 @@ Useful Command Reference
 ------------------------
 * `clean` - delete generated files
 * `compile` - build the current project and all its dependencies
-* `doc` - compile scaladoc
+* `doc` - compile scalado
+* `gen-idea` - build a project for use in [InteliJ](http://www.jetbrains.com/idea/)
+* `ghpages:push-api-doc` - update the api documentation hosted on github pages
 * `package` - create the jar or war file for the current project
 * `project <subproject name>` - switch to the specified sub-project; subsequent commands will be run only on this project and its dependencies
 * `projects` - list all of the available sub-projects

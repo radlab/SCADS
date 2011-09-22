@@ -5,6 +5,7 @@ package scadr
 
 import comm._
 import storage._
+import storage.client.index._
 import avro.marker._
 
 import org.apache.avro.util._

@@ -1,10 +1,14 @@
-package edu.berkeley.cs.scads.test
-import edu.berkeley.cs.scads.storage.{ScadsCluster, SpecificNamespace, TestScalaEngine}
+package edu.berkeley.cs.scads
+package storage
+package test
+
+import comm._
+
+
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.{ BeforeAndAfterAll, WordSpec }
-import edu.berkeley.cs.scads.comm._
 
 import net.lag.logging.Logger
 import java.util.concurrent.ConcurrentHashMap
@@ -151,7 +155,7 @@ class QuorumProtSpec extends WordSpec with ShouldMatchers with BeforeAndAfterAll
         values should contain(1)
         values should contain(2)
         ns.get(IntRec(1)) //should trigger read repair
-        Thread.sleep(1000)      
+	QuorumProtocol.flushReadRepair
         values = getAllVersions(ns, 1)
         values should have length (3)
         values should (contain (2) and not contain (1))

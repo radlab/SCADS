@@ -3,16 +3,10 @@ package edu.berkeley.cs.scads.piql
 
 import scala.collection.mutable.HashSet
 
-
 /**
- * Created by IntelliJ IDEA.
- * User: tim
- * Date: Oct 11, 2010
- * Time: 11:11:16 AM
- * To change this template use File | Settings | File Templates.
+ * Helper functions for generating test data
  */
-
-object DataGenerator{
+object DataGenerator {
 
   /**
    * Generates count random numbers from [0, maxInt)
@@ -26,16 +20,18 @@ object DataGenerator{
     val nums = new Array[Int](count)
     var pos = 0
 
-    while(pos < count) {
+    while (pos < count) {
       val randNum = rand.nextInt(maxInt)
-      if(!(nums contains randNum)) { // TODO: use a set here
+      if (!(nums contains randNum)) {
+        // TODO: use a set here
         nums(pos) = randNum
         pos += 1
       }
     }
     nums
   }
-    /**
+
+  /**
    * Generates count random strings
    */
   def randomStrings(seed: Int, count: Int): Array[String] = {

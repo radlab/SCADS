@@ -4,6 +4,9 @@ package piql
 package modeling
 
 import storage._
+import storage.client.index._
+import piql.opt._
+import piql.plans._
 import piql.tpcw._
 
 import ch.ethz.systems.tpcw.populate.data._

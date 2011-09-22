@@ -33,7 +33,7 @@ case class TpcwLoaderTask(var numServers: Int,
     if (clientId == 0) retry(5) {
       logger.info("Awaiting scads cluster startup")
       cluster.blockUntilReady(numServers)
-      val client = new TpcwClient(cluster, new SimpleExecutor)
+      val client = new TpcwClient(cluster, new ParallelExecutor)
       loader.createNamespaces(client, replicationFactor)
       import client._
       List(addresses,
@@ -47,7 +47,7 @@ case class TpcwLoaderTask(var numServers: Int,
     }
     coordination.registerAndAwait("namespacesReady", numLoaders)
 
-    val tpcwClient = new TpcwClient(cluster, new SimpleExecutor)
+    val tpcwClient = new TpcwClient(cluster, new ParallelExecutor)
     coordination.registerAndAwait("startBulkLoad", numLoaders)
     logger.info("Begining bulk loading of data")
     loader.namespaces(tpcwClient).foreach(_.load(clientId, numLoaders))

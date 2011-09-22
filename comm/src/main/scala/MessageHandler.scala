@@ -32,7 +32,7 @@ object MessageHandler extends AvroChannelManager[Message, Message] {
       java.net.InetAddress.getLocalHost.getCanonicalHostName()
     else {
       val httpClient = new HttpClient()
-      val getMethod = new GetMethod("http://instance-data.ec2.internal/latest/meta-data/public-hostname")
+      val getMethod = new GetMethod("http://instance-data/latest/meta-data/public-hostname")
       httpClient.executeMethod(getMethod)
       getMethod.getResponseBodyAsString
     }
