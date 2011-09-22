@@ -63,7 +63,7 @@
       <span class="symbol"> 
         <span class="name">TpcwClient</span>
         
-        <span class="params">(<span name="cluster">cluster: <span name="edu.berkeley.cs.scads.storage.ScadsCluster" class="extype">ScadsCluster</span></span>, <span name="executor">executor: <span name="edu.berkeley.cs.scads.piql.QueryExecutor" class="extype">QueryExecutor</span></span>)</span>
+        <span class="params">(<span name="cluster">cluster: <span name="edu.berkeley.cs.scads.storage.ScadsCluster" class="extype">ScadsCluster</span></span>, <span name="executor">executor: QueryExecutor</span>)</span>
       </span>
       </h4>
       
@@ -149,7 +149,7 @@
       <span class="symbol"> 
         <span class="name">adminRequestWI</span>
         
-        <span class="result">: <span name="edu.berkeley.cs.scads.piql.OptimizedQuery" class="extype">OptimizedQuery</span></span>
+        <span class="result">: <span name="edu.berkeley.cs.scads.piql.opt.OptimizedQuery" class="extype">OptimizedQuery</span></span>
       </span>
       </h4>
       
@@ -221,7 +221,7 @@ values(@O_ID,@O_CC_TYPE,@O_CC_EXP,@O_CC_AUTH,@O_TOTAL,getdate(),@CO_ID)
       <span class="symbol"> 
         <span class="name">buyRequestExistingCustomerWI</span>
         
-        <span class="result">: <span name="edu.berkeley.cs.scads.piql.OptimizedQuery" class="extype">OptimizedQuery</span></span>
+        <span class="result">: <span name="edu.berkeley.cs.scads.piql.opt.OptimizedQuery" class="extype">OptimizedQuery</span></span>
       </span>
       </h4>
       <p class="shortcomment cmt">Buy Request web interaction (Existing Customer)</p><div class="fullcomment"><div class="comment cmt"><p>Buy Request web interaction (Existing Customer)</p><p>select C_ID from CUSTOMER where C_UNAME=@C_UNAME and
@@ -307,7 +307,7 @@ where C_ADDR_ID=ADDR_ID and ADDR_CO_ID=CO_ID and C_ID = @C_ID
       <span class="symbol"> 
         <span class="name">exec</span>
         
-        <span class="result">: <span name="edu.berkeley.cs.scads.piql.QueryExecutor" class="extype">QueryExecutor</span></span>
+        <span class="result">: QueryExecutor</span>
       </span>
       </h4>
       <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected implicit </dd></dl></div>
@@ -318,7 +318,7 @@ where C_ADDR_ID=ADDR_ID and ADDR_CO_ID=CO_ID and C_ID = @C_ID
       <span class="symbol"> 
         <span class="name">executor</span>
         
-        <span class="result">: <span name="edu.berkeley.cs.scads.piql.QueryExecutor" class="extype">QueryExecutor</span></span>
+        <span class="result">: QueryExecutor</span>
       </span>
       </h4>
       
@@ -365,7 +365,7 @@ where C_ADDR_ID=ADDR_ID and ADDR_CO_ID=CO_ID and C_ID = @C_ID
       <span class="symbol"> 
         <span class="name">homeWI</span>
         
-        <span class="result">: <span name="edu.berkeley.cs.scads.piql.OptimizedQuery" class="extype">OptimizedQuery</span></span>
+        <span class="result">: <span name="edu.berkeley.cs.scads.piql.opt.OptimizedQuery" class="extype">OptimizedQuery</span></span>
       </span>
       </h4>
       <p class="shortcomment cmt">Home web interaction</p><div class="fullcomment"><div class="comment cmt"><p>Home web interaction</p><p>Select DISTINCT C_FNAME,C_LNAME
@@ -456,7 +456,7 @@ where C_UNAME=@C_UNAME
       <span class="symbol"> 
         <span class="name">newProductWI</span>
         
-        <span class="result">: <span name="edu.berkeley.cs.scads.piql.OptimizedQuery" class="extype">OptimizedQuery</span></span>
+        <span class="result">: <span name="edu.berkeley.cs.scads.piql.opt.OptimizedQuery" class="extype">OptimizedQuery</span></span>
       </span>
       </h4>
       <p class="shortcomment cmt">New Products web interaction</p><div class="fullcomment"><div class="comment cmt"><p>New Products web interaction</p><p>select top 50 I_ID,I_TITLE,A_FNAME,A_LNAME
@@ -494,7 +494,7 @@ order by I_PUB_DATE desc,I_TITLE
       <span class="symbol"> 
         <span class="name">orderDisplayGetCustomer</span>
         
-        <span class="result">: <span name="edu.berkeley.cs.scads.piql.OptimizedQuery" class="extype">OptimizedQuery</span></span>
+        <span class="result">: <span name="edu.berkeley.cs.scads.piql.opt.OptimizedQuery" class="extype">OptimizedQuery</span></span>
       </span>
       </h4>
       <p class="shortcomment cmt">Order Display web interaction</p><div class="fullcomment"><div class="comment cmt"><p>Order Display web interaction</p><p>FirstQuery:
@@ -526,7 +526,7 @@ OL_I_ID=I_ID and OL_O_ID=@O_I
       <span class="symbol"> 
         <span class="name">orderDisplayGetLastOrder</span>
         
-        <span class="result">: <span name="edu.berkeley.cs.scads.piql.OptimizedQuery" class="extype">OptimizedQuery</span></span>
+        <span class="result">: <span name="edu.berkeley.cs.scads.piql.opt.OptimizedQuery" class="extype">OptimizedQuery</span></span>
       </span>
       </h4>
       
@@ -537,7 +537,7 @@ OL_I_ID=I_ID and OL_O_ID=@O_I
       <span class="symbol"> 
         <span class="name">orderDisplayGetOrderLines</span>
         
-        <span class="result">: <span name="edu.berkeley.cs.scads.piql.OptimizedQuery" class="extype">OptimizedQuery</span></span>
+        <span class="result">: <span name="edu.berkeley.cs.scads.piql.opt.OptimizedQuery" class="extype">OptimizedQuery</span></span>
       </span>
       </h4>
       
@@ -581,7 +581,7 @@ OL_I_ID=I_ID and OL_O_ID=@O_I
       <span class="symbol"> 
         <span class="name">productDetailWI</span>
         
-        <span class="result">: <span name="edu.berkeley.cs.scads.piql.OptimizedQuery" class="extype">OptimizedQuery</span></span>
+        <span class="result">: <span name="edu.berkeley.cs.scads.piql.opt.OptimizedQuery" class="extype">OptimizedQuery</span></span>
       </span>
       </h4>
       <p class="shortcomment cmt">Product Detail web interaction</p><div class="fullcomment"><div class="comment cmt"><p>Product Detail web interaction</p><p>SELECT DISTINCT * FROM ITEM,AUTHOR
@@ -594,7 +594,7 @@ WHERE AUTHOR.A_ID = ITEM.I_A_ID AND ITEM.I_ID = @BookID
       <span class="symbol"> 
         <span class="name">retrieveShoppingCart</span>
         
-        <span class="result">: <span name="edu.berkeley.cs.scads.piql.OptimizedQuery" class="extype">OptimizedQuery</span></span>
+        <span class="result">: <span name="edu.berkeley.cs.scads.piql.opt.OptimizedQuery" class="extype">OptimizedQuery</span></span>
       </span>
       </h4>
       <p class="shortcomment cmt">Shopping Cart Interations</p><div class="fullcomment"><div class="comment cmt"><p>Shopping Cart Interations</p><p>Add to cart
@@ -609,7 +609,7 @@ Delete from SHOPPING_CART where SC_ID=@UserID and SC_I_ID=@BookID
       <span class="symbol"> 
         <span class="name">searchByAuthorWI</span>
         
-        <span class="result">: <span name="edu.berkeley.cs.scads.piql.OptimizedQuery" class="extype">OptimizedQuery</span></span>
+        <span class="result">: <span name="edu.berkeley.cs.scads.piql.opt.OptimizedQuery" class="extype">OptimizedQuery</span></span>
       </span>
       </h4>
       <p class="shortcomment cmt">Search Result web interaction (by Author)</p><div class="fullcomment"><div class="comment cmt"><p>Search Result web interaction (by Author)</p><p>SELECT top 50 I_TITLE,I_ID,A_FNAME, A_LNAME
@@ -625,7 +625,7 @@ order by I_TITLE
       <span class="symbol"> 
         <span class="name">searchBySubjectWI</span>
         
-        <span class="result">: <span name="edu.berkeley.cs.scads.piql.OptimizedQuery" class="extype">OptimizedQuery</span></span>
+        <span class="result">: <span name="edu.berkeley.cs.scads.piql.opt.OptimizedQuery" class="extype">OptimizedQuery</span></span>
       </span>
       </h4>
       <p class="shortcomment cmt">Search Result web interaction (by Subject)</p><div class="fullcomment"><div class="comment cmt"><p>Search Result web interaction (by Subject)</p><p>SELECT TOP 50 I_TITLE,I_ID, A_FNAME, A_LNAME
@@ -640,7 +640,7 @@ order by I_TITLE
       <span class="symbol"> 
         <span class="name">searchByTitleWI</span>
         
-        <span class="result">: <span name="edu.berkeley.cs.scads.piql.OptimizedQuery" class="extype">OptimizedQuery</span></span>
+        <span class="result">: <span name="edu.berkeley.cs.scads.piql.opt.OptimizedQuery" class="extype">OptimizedQuery</span></span>
       </span>
       </h4>
       <p class="shortcomment cmt">Search Result web interaction (by Title)</p><div class="fullcomment"><div class="comment cmt"><p>Search Result web interaction (by Title)</p><p>SELECT TOP 50 I_TITLE, I_ID, A_FNAME, A_LNAME
