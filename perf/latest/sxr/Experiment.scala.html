@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" ></meta>
+        <title>Experiment.scala</title>
+        <script type="text/javascript" src="jquery-all.js"></script>
+        <script type="text/javascript" src="linked.js"></script>
+        <link rel="stylesheet" type="text/css" href="style.css" title="Style"></link>
+    </head>
+    <body>
+        <pre>
+<span class="keyword">package</span> edu.berkeley.cs.scads.perf
+
+<span class="keyword">import</span> deploylib.ec2._
+<span class="keyword">import</span> deploylib.mesos._
+<span class="keyword">import</span> edu.berkeley.cs.scads.comm._
+<span class="keyword">import</span> edu.berkeley.cs.scads.config._
+<span class="keyword">import</span> edu.berkeley.cs.scads.storage._
+<span class="keyword">import</span> edu.berkeley.cs.avro.runtime._
+<span class="keyword">import</span> edu.berkeley.cs.avro.marker._
+
+<span class="keyword">import</span> org.apache.zookeeper.CreateMode
+
+<span class="keyword">import</span> java.io.File
+<span class="keyword">import</span> net.lag.logging.Logger
+
+<span class="keyword">class</span> <a title="class ExperimentalScadsCluster extends edu.berkeley.cs.scads.storage.ScadsCluster with ScalaObject" id="9518">ExperimentalScadsCluster</a><a href="#9518" title="ScalaObject" class="delimiter">(</a><a title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode" id="30891">root</a>: ZooKeeperProxy#<span title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">ZooKeeperNode</span><span class="delimiter">)</span> <span class="keyword">extends</span> <span title="edu.berkeley.cs.scads.storage.ScadsCluster">ScadsCluster</span><span class="delimiter">(</span><a href="#30891" title="edu.berkeley.cs.scads.comm.ZooKeeperProxy#ZooKeeperNode">root</a><span class="delimiter">)</span> <span class="delimiter">{</span>
+  <span class="keyword">def</span> <a title="(clusterSize: Int)Unit" id="30884">blockUntilReady</a><span class="delimiter">(</span><a title="Int" id="30896">clusterSize</a>: <span title="Int">Int</span><span class="delimiter">)</span>: <span title="Unit">Unit</span> = <span class="delimiter">{</span>
+    <span title="Unit" class="keyword">while</span><span class="delimiter">(</span><a href="#9518" title="()List[edu.berkeley.cs.scads.comm.StorageService]">getAvailableServers</a>.<span title="=&gt; Int">size</span> <span title="(x: Int)Boolean">&lt;</span> <a href="#30896" title="Int">clusterSize</a><span class="delimiter">)</span> <a href="#30898" title="()Unit" class="delimiter">{</a>
+      <a href="#9518" title="=&gt; net.lag.logging.Logger">logger</a>.<span title="(msg: String, items: Any*)Unit">info</span><span class="delimiter">(</span><span title="java.lang.String(&quot;Waiting for cluster to start &quot;)" class="string">&quot;Waiting for cluster to start &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#9518" title="=&gt; edu.berkeley.cs.scads.storage.ScadsCluster">cluster</a>.<span title="()List[edu.berkeley.cs.scads.comm.StorageService]">getAvailableServers</span>.<span title="=&gt; Int">size</span> <span title="(x$1: Any)java.lang.String">+</span> <span title="java.lang.String(&quot; of &quot;)" class="string">&quot; of &quot;</span> <span title="(x$1: Any)java.lang.String">+</span> <a href="#30896" title="Int">clusterSize</a> <span title="(x$1: Any)java.lang.String">+</span> <span title="java.lang.String(&quot; ready.&quot;)" class="string">&quot; ready.&quot;</span><span class="delimiter">)</span>
+      <span title="object java.lang.Thread">Thread</span>.<span title="(x$1: Long)Unit">sleep</span><span class="delimiter">(</span><span title="Long(1000L)" class="int">1000</span><span class="delimiter">)</span>
+    <span class="delimiter">}</span>
+  <span class="delimiter">}</span>
+<span class="delimiter">}</span>
+
+        </pre>
+    </body>
+</html>
