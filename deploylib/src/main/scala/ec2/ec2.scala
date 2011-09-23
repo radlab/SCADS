@@ -213,15 +213,17 @@ class EC2Region(val endpoint: String) extends AWSConnection {
       val headers = "#!/bin/bash" ::
         "JAVA=/usr/bin/java" ::
         "CLASSPATH=\"-cp " + classpath + "\"" ::
-        "MESOS=-Djava.library.path=/usr/local/mesos/lib/java" :: Nil
+        "MESOS=-Djava.library.path=/usr/local/mesos/lib/java" :: Nil //TODO: this shouldn't be here...
 
-      createFile(new File("/root/console"),
+      createFile(
+        new File("$HOME/console"),
         (headers :+ "$JAVA $CLASSPATH $MESOS scala.tools.nsc.MainGenericRunner $CLASSPATH -i jars/classsource.scala $@").mkString("\n"))
-      this ! "chmod 755 /root/console"
+      this ! "chmod 755 $HOME/console"
 
-      createFile(new File("/root/jrun"),
+      createFile(
+        new File("$HOME/jrun"),
         (headers :+ "$JAVA $CLASSPATH $MESOS $@").mkString("\n"))
-      this ! "chmod 755 /root/jrun"
+      this ! "chmod 755 $HOME/jrun"
 
       cachedJars
     }
@@ -344,4 +346,5 @@ class EC2Region(val endpoint: String) extends AWSConnection {
 
     override def toString(): String = "<EC2Instance " + instanceId + ">"
   }
+
 }
