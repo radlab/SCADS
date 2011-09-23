@@ -25,6 +25,9 @@ object ServiceSchedulerDaemon extends optional.Application {
   }
 }
 
+/**
+ * Global state for setting which jars are deployed to ec2.
+ */
 object MesosCluster {
   //HACK
   var jarFiles: Seq[java.io.File] = _
@@ -34,25 +37,55 @@ object MesosCluster {
  * Functions to help maintain a mesos cluster on EC2.
  */
 class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) extends ConfigurationActions {
+  /**
+   * Location of the deploylib framework on the remote instances
+   */
   val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
 
+  /**
+   * The ami used when launching new instances
+   */
   val mesosAmi =
     if (region.endpoint contains "west") "ami-2b6b386e" else "ami-2d60a144"
 
+  /**
+   * The default availability zone used when launching new instances.
+   */
   val defaultZone =
     if (region.endpoint contains "west") "us-west-1a" else "us-east-1b"
 
+  /**
+   * The zookeeper node where the service scheduler registers itself
+   */
   def serviceSchedulerNode = zooKeeperRoot.getOrCreate("serviceScheduler")
 
+  /**
+   * A handle to the service scheduler for the cluster
+   */
   def serviceScheduler = classOf[RemoteServiceScheduler].newInstance.parse(serviceSchedulerNode.data)
+
+  /**
+   * The contents of the service scheduler log for debugging.
+   */
   def serviceSchedulerLog = firstMaster.catFile("/root/serviceScheduler.log")
 
+  /**
+   * Kills all instances running on EC2 for this mesos cluster cluster (masters, slaves, zookeepers)
+   */
   def stopAllInstances() = (masters ++ slaves ++ zooKeepers).pforeach(_.halt)
 
-  def setup(numSlaves: Int = 1) = (Future {setupMesosMaster()} ::
-                                   Future {setupZooKeeper()} ::
-                                   Future {if(slaves.size < numSlaves) addSlaves(numSlaves - slaves.size)} :: Nil).map(_())
-	
+  /**
+   * Start and configure the mesos master, at least numSlaves mesos slaves, and zookeeper in parallel.
+   */
+  def setup(numSlaves: Int = 1) = Seq(
+    Future(setupMesosMaster()),
+    Future(setupZooKeeper()),
+    Future(if (slaves.size < numSlaves) addSlaves(numSlaves - slaves.size))
+  ).map(_())
+
+  /**
+   * Update the jars and scripts for deploylib on the specified instances (default: all masters + slaves) using the current classSource
+   */
   def updateDeploylib(instances: Seq[EC2Instance] = (slaves ++ masters)): Unit = {
     instances.pforeach(inst => {
       val executorScript = Util.readFile(new File("deploylib/src/main/resources/java_executor"))
@@ -68,6 +101,9 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
     })
   }
 
+  /**
+   * Configure the mesos master, starting instances if needed.
+   */
   def setupMesosMaster(zone: String = defaultZone, numMasters: Int = 1, mesosAmi: Option[String] = None): Unit = {
     if (masters.size < numMasters) {
       mesosAmi match {
@@ -87,6 +123,10 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
     restartServiceScheduler
   }
 
+  /**
+   * Restart the service scheduler daemon running on the mesos master.
+   * NOTE: this will kill any other java procs running on the master.
+   */
   def restartServiceScheduler: Unit = {
 
     zooKeepers.foreach(_.blockUntilRunning)
@@ -104,6 +144,9 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
     firstMaster ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/serviceScheduler.pid --exec /root/serviceScheduler"
   }
 
+  /**
+   * Returns a list of EC2Instances for all the slaves in the cluster
+   */
   def slaves = {
     region.update()
     region.client.describeTags().getTags()
@@ -114,6 +157,9 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
       .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
   }
 
+  /**
+   * Returns a list of EC2Instances for all the masters in the cluster
+   */
   def masters = {
     region.update()
     region.client.describeTags().getTags()
@@ -124,6 +170,9 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
       .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
   }
 
+  /**
+   * Returns a list of EC2Instances for all the zookeepers in the clsuter
+   */
   def zooKeepers = {
     region.update()
     region.client.describeTags().getTags()
@@ -134,21 +183,32 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
       .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
   }
 
+  /**
+   * Returns he canonical address for the zookeeper quorum for this cluster
+   */
   def zooKeeperAddress = "zk://%s/".format(zooKeepers.map(_.publicDnsName + ":2181").mkString(","))
+
+  /**
+   * Returns a handle to the root of the the zookeeper quorum for this cluster
+   */
   def zooKeeperRoot = ZooKeeperNode(zooKeeperAddress)
 
+  /**
+   * Configure all zookepers running to operate in a quorum.
+   * Starts at at least numServers if they aren't already running.
+   */
   def setupZooKeeper(numServers: Int = 1): Unit = {
     val missingServers = numServers - zooKeepers.size
 
-    if(missingServers > 0) {
-    val ret = region.runInstances(
-      mesosAmi,
-      missingServers,
-      missingServers,
-      region.keyName,
-      "m1.large",
-      defaultZone,
-      None)
+    if (missingServers > 0) {
+      val ret = region.runInstances(
+        mesosAmi,
+        missingServers,
+        missingServers,
+        region.keyName,
+        "m1.large",
+        defaultZone,
+        None)
 
       ret.foreach(_.tags += ("mesos", "zoo"))
       ret.foreach(_.blockUntilRunning)
@@ -156,19 +216,21 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
 
     val servers = zooKeepers.zipWithIndex
 
-    val serverList = servers.map {case (server, id: Int) => "server.%d=%s:3181:3182".format(id + 1, server.privateDnsName)}.toList
+    val serverList = servers.map {
+      case (server, id: Int) => "server.%d=%s:3181:3182".format(id + 1, server.privateDnsName)
+    }.toList
 
     val cnf =
       ("dataDir=/mnt/zookeeper" ::
-       "clientPort=2181" ::
-       "tickTime=1000" ::
-       "initLimit=60"::
-       "syncLimit=30" :: 
-       (if(servers.size > 1) serverList else Nil)).mkString("\n")
+        "clientPort=2181" ::
+        "tickTime=1000" ::
+        "initLimit=60" ::
+        "syncLimit=30" ::
+        (if (servers.size > 1) serverList else Nil)).mkString("\n")
 
     val startScript =
       ("#!/bin/bash" ::
-      "/root/jrun org.apache.zookeeper.server.quorum.QuorumPeerMain /mnt/zookeeper.cnf" :: Nil).mkString("\n")
+        "/root/jrun org.apache.zookeeper.server.quorum.QuorumPeerMain /mnt/zookeeper.cnf" :: Nil).mkString("\n")
 
     servers.pforeach {
       case (server, id: Int) =>
@@ -186,22 +248,40 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
     println(cnf)
   }
 
+  /**
+   * Returns the EC2Instance for the first mesos master
+   */
   def firstMaster = masters.head
 
+  /**
+   * Copy the mesos binaries from the master to all slaves
+   */
   def updateMesos =
     slaves.pforeach(s =>
       firstMaster ! "rsync -e 'ssh -o StrictHostKeyChecking=no' -av /usr/local/mesos root@%s:/usr/local/mesos".format(s.publicDnsName))
 
+  /**
+   * Returns the mesos cluster url
+   */
   def clusterUrl: String =
-    if(useFT)
+    if (useFT)
       "zoo://" + zooKeeperRoot.proxy.servers.mkString(",") + zooKeeperRoot.getOrCreate("mesos").path
     else
       "master@" + firstMaster.publicDnsName + ":5050"
 
+  /**
+   * Restart the mesos-slave process for all slaves
+   */
   def restartSlaves(): Unit = {
-    slaves.pforeach(i => {i ! "service mesos-slave stop"; i ! "service mesos-slave start"})
+    slaves.pforeach(i => {
+      i ! "service mesos-slave stop";
+      i ! "service mesos-slave start"
+    })
   }
 
+  /**
+   * Restart the mesos-master process for all masters
+   */
   def restartMasters(): Unit = {
     masters.foreach {
       master =>
@@ -210,6 +290,9 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
     }
   }
 
+  /**
+   * Restart masters, slaves, and the service scheduler.  Also kills any java procs running on slaves.
+   */
   def restart(): Unit = {
     restartMasters
     restartSlaves
@@ -217,6 +300,10 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
     slaves.pforeach(_.executeCommand("killall java"))
   }
 
+  /**
+   * Update the slaves file for the mesos scripts located in /root/mesos-ec2
+   */
+  @deprecated("don't use the mesos scripts anymore", "v2.1.2")
   def updateSlavesFile: Unit = {
     val location = new File("/root/mesos-ec2/slaves")
     val contents = slaves.map(_.privateDnsName).mkString("\n")
@@ -227,6 +314,9 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
     }
   }
 
+  /**
+   * Start and configure the specified number of masters.
+   */
   def startMasters(zone: String = defaultZone, count: Int = 1, ami: String = mesosAmi): Seq[EC2Instance] = {
     val ret = region.runInstances(
       ami,
@@ -240,22 +330,25 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
     ret.pforeach(i => {
       i.tags += ("mesos", "master")
       i.blockUntilRunning
-      updateConf(i :: Nil)
+      updateSlaveConf(i :: Nil)
     })
 
     restartMasters
     ret
   }
 
+  /**
+   * Add slaves to the cluster
+   */
   def addSlaves(count: Int, zone: String = defaultZone, ami: String = mesosAmi, updateDeploylibOnStart: Boolean = true): Seq[EC2Instance] = {
     val userData =
       if (updateDeploylibOnStart)
         None
       else
         try {
-	      masters.foreach(_.blockUntilRunning)
-          Some("url=" + clusterUrl) 
-		} catch {
+          masters.foreach(_.blockUntilRunning)
+          Some("url=" + clusterUrl)
+        } catch {
           case noMaster: java.util.NoSuchElementException =>
             logger.warning("No master found. Starting without userdata")
             None
@@ -269,7 +362,7 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
       "m1.large",
       zone,
       userData)
-	instances.foreach(_.tags += ("mesos", "slave"))
+    instances.foreach(_.tags += ("mesos", "slave"))
 
     if (updateDeploylibOnStart) {
       //Hack to avoid race condition where there are no masters yet because they haven't been tagged.
@@ -280,7 +373,7 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
       instances.pforeach(i => try {
         i.blockUntilRunning
         updateDeploylib(i :: Nil)
-        updateConf(i :: Nil)
+        updateSlaveConf(i :: Nil)
         i ! "service mesos-slave restart"
       } catch {
         case e => logger.error(e, "Failed to start slave on instance %s:%s", i.instanceId, i.publicDnsName)
@@ -290,34 +383,50 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
     instances
   }
 
-  val baseConf = (
-      "webui_port=8080" ::
+  protected val baseConf = (
+    "webui_port=8080" ::
       "work_dir=/mnt" ::
       "log_dir=/mnt" ::
       "switch_user=0" ::
       "shares_interval=30" :: Nil)
 
-  def confWithUrl = ("master=" + clusterUrl) :: baseConf
+  protected def confWithUrl = ("master=" + clusterUrl) :: baseConf
+
+  /**
+   * Returns the contents of the mesos slave configuration file.
+   */
   def slaveConf(instance: EC2Instance) = (("mem=" + (instance.free.total - 1024)) ::
-					  confWithUrl).mkString("\n")
+    confWithUrl).mkString("\n")
 
-  val conffile = new File("/usr/local/mesos/conf/mesos.conf")
+  /**
+   * the location of the configuration file for both masters and slaves on the remote machine
+   */
+  val confFile = new File("/usr/local/mesos/conf/mesos.conf")
 
-  def updateConf(instances: Seq[EC2Instance] = slaves): Unit = {
-    instances.pforeach(i => i.createFile(conffile, slaveConf(i)))
+
+  /**
+   * Updates the slave configuration file on the specified instances (default all slaves)
+   */
+  def updateSlaveConf(instances: Seq[EC2Instance] = slaves): Unit = {
+    instances.pforeach(i => i.createFile(confFile, slaveConf(i)))
   }
 
+  /**
+   * Updates the master configuration file on all masters.
+   */
   def updateMasterConf: Unit = {
     val masterConf =
-      if(useFT)
+      if (useFT)
         confWithUrl.mkString("\n")
       else
         baseConf.mkString("\n")
 
-    masters.pforeach(_.createFile(conffile, masterConf))
+    masters.pforeach(_.createFile(confFile, masterConf))
   }
 
-  //TODO: Doesn't handle non s3 cached jars
+  /**
+   * Returns S3 Cached jars for all jar files specified in MesosCluster.jarFiles.  This will upload any jar files that don't already exist
+   */
   def classSource: Seq[S3CachedJar] =
     if (System.getProperty("deploylib.classSource") == null)
       pushJars.map(_.getName)
@@ -353,13 +462,18 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
     slaves.pforeach(_.appendFile(new File("/root/.ssh/authorized_keys"), key))
   }
 
-  //HACK to work around still broken webui
+  /**
+   * Tail stdout of the most recently started framework on all slaves and print the output to stdout of the local machine.
+   * Used for debugging.
+   */
   def tailSlaveLogs: Unit = {
     val workDir = new File("/mnt/work")
     slaves.pmap(s => {
       val currentSlaveDir = new File(workDir, s.ls(workDir).sortBy(_.modDate).last.name)
       val currentFrameworkDir = new File(currentSlaveDir, s.ls(currentSlaveDir).head.name)
       (s, new File(currentFrameworkDir, "0/stdout"))
-    }).foreach {case (s,l) => s.watch(l)}
+    }).foreach {
+      case (s, l) => s.watch(l)
+    }
   }
 }
