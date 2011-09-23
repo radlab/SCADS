@@ -57,14 +57,53 @@ trait PendingUpdates extends DBRecords {
   def setICs(ics: FieldICList)
 }
 
-abstract class ConflictResolver {
-  def getLUB(sequences: Array[CStruct]): CStruct
+class ConflictResolver(val valueSchema: Schema, val ics: FieldICList) {
+//  def getLUB(cstructs: Array[CStruct]): CStruct
+//  def getGLB(cstructs: Array[CStruct]): CStruct
 
-  def getGLB(sequences: Array[CStruct]): CStruct
+  def isCompatible(cstructs: Seq[CStruct]): Boolean = {
+    if (cstructs.length <= 1) {
+      true
+    } else {
+      val commandsList = cstructs.map(x => x.commands)
+      val head = commandsList.head
+      val tail = commandsList.tail
+      tail.foldLeft[Boolean](true)(foldCommands(head))
+    }
+  }
 
-  def isCompatible(commands: Seq[CStructCommand],
-                   dbValue: Option[MDCCRecord],
-                   newUpdate: RecordUpdate): Boolean
+  private def compareCommands(c1: Seq[CStructCommand],
+                              c2: Seq[CStructCommand]) = {
+    val zipped = c1.zipAll(c2, null, null)
+    var success = true
+
+    // TODO: take care of more complicated situations, like logical updates,
+    //       and multiple physical updates.
+    zipped.foreach(t => {
+      if (success) {
+        t match {
+          case (CStructCommand(id1, up1: PhysicalUpdate, _),
+                CStructCommand(id2, up2: PhysicalUpdate, _)) =>
+                  success = id1 == id2
+          case (CStructCommand(id1, up1: LogicalUpdate, _),
+                CStructCommand(id2, up2: LogicalUpdate, _)) =>
+                  success = true
+          case (_, _) => success = false
+        }
+      }
+    })
+    success
+  }
+
+  private def foldCommands(head: Seq[CStructCommand])(valid: Boolean, commands: Seq[CStructCommand]) = {
+    if (!valid) {
+      !valid
+    } else {
+      val pendingHead = head.filter(_.pending)
+      val pendingCommands = commands.filter(_.pending)
+      compareCommands(pendingHead, pendingCommands)
+    }
+  }
 }
 
 // Status of a transaction.  Stores all the updates in the transaction.
@@ -84,12 +123,13 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
     factory.getNewDB[Array[Byte], ArrayBuffer[CStructCommand]](db.getName + ".pendingcstructs")
 
   // Detects conflicts for new updates.
-  private val conflictResolver = new SimpleConflictResolver(keySchema, valueSchema)
+  private var conflictResolver = new NewUpdateResolver(keySchema, valueSchema, valueICs)
 
   private var valueICs: FieldICList = null
 
   def setICs(ics: FieldICList) = {
     valueICs = ics
+    conflictResolver = new NewUpdateResolver(keySchema, valueSchema, valueICs)
     println("ics: " + valueICs)
   }
 
@@ -262,15 +302,8 @@ class PendingUpdatesController(override val db: TxDB[Array[Byte], Array[Byte]],
   }
 }
 
-class SimpleConflictResolver(val keySchema: Schema, val valueSchema: Schema) {
-  def getLUB(sequences: Array[CStruct]): CStruct = {
-    null
-  }
-
-  def getGLB(sequences: Array[CStruct]): CStruct = {
-    null
-  }
-
+class NewUpdateResolver(val keySchema: Schema, val valueSchema: Schema,
+                        val ics: FieldICList) {
   def isCompatible(commands: Seq[CStructCommand],
                    dbValue: Option[MDCCRecord],
                    newUpdate: RecordUpdate): Boolean = {
@@ -303,6 +336,8 @@ class SimpleConflictResolver(val keySchema: Schema, val valueSchema: Schema) {
           }
         } else {
           // There exists a pending command.  Value update is not compatible.
+          // TODO: in a fast round, multiple physical updates are sometimes
+          //       compatible.
           false
         }
       }
@@ -318,6 +353,8 @@ class SimpleConflictResolver(val keySchema: Schema, val valueSchema: Schema) {
           }
         } else {
           // There exists a pending command.  Version update is not compatible.
+          // TODO: in a fast round, multiple physical updates are sometimes
+          //       compatible.
           false
         }
       }
