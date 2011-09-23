@@ -88,11 +88,24 @@ class EC2Region(val endpoint: String) extends AWSConnection {
   def runInstance(): EC2Instance =
     runInstances(1)(0)
 
+  protected def defaultAMI =
+    if (endpoint contains "west")
+      "ami-0b6f3c4e"
+    else
+      "ami-68ad5201"
+
+  protected def defaultZone =
+    if (endpoint contains "west")
+      "us-west-1a"
+    else
+      "us-east-1a"
+
+
   /**
    * Launches the specified number of golden image instances with the default configuration.
    */
   def runInstances(num: Int): Seq[EC2Instance] =
-    runInstances("ami-e7a2448e", num, num, keyName, "m1.small", "us-east-1a")
+    runInstances(defaultAMI, num, num, keyName, "m1.large", defaultZone)
 
   /**
    * Launches a set of instances with the given parameters
