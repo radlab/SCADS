@@ -31,6 +31,39 @@ object ServiceSchedulerDaemon extends optional.Application {
 object MesosCluster {
   //HACK
   var jarFiles: Seq[java.io.File] = _
+
+  def buildNewAmi(region: EC2Region = EC2West): String = {
+//    val inst = region.runInstances(1).head
+    val inst = region.activeInstances.last
+    inst.blockUntilRunning()
+
+    val aptSourcesFile = new File("/etc/apt/sources.list")
+    val aptSources =
+"""###### Ubuntu Main Repos
+deb http://us.archive.ubuntu.com/ubuntu/ natty main restricted universe multiverse partner
+deb-src http://us.archive.ubuntu.com/ubuntu/ natty main restricted universe multiverse partner
+
+###### Ubuntu Update Repos
+deb http://us.archive.ubuntu.com/ubuntu/ natty-security main restricted universe multiverse
+deb http://us.archive.ubuntu.com/ubuntu/ natty-updates main restricted universe multiverse
+deb-src http://us.archive.ubuntu.com/ubuntu/ natty-security main restricted universe multiverse
+deb-src http://us.archive.ubuntu.com/ubuntu/ natty-updates main restricted universe multiverse"""
+
+    inst.createFile(aptSourcesFile, aptSources)
+    inst ! "add-apt-repository ppa:ferramroberto/java"
+    inst ! "echo sun-java6-jdk shared/accepted-sun-dlj-v1-1 select true | /usr/bin/debconf-set-selections"
+    inst ! "apt-get update"
+    inst ! "yes | apt-get install -y sun-java6-jdk"
+    inst ! "apt-get install -y build-essential"
+    inst ! "apt-get install -y git-core"
+    inst ! "apt-get install -y python2.7-dev"
+    inst ! "apt-get install -y autoconf"
+  //  inst ! "cd mesos; ./configure.template.ubuntu-natty-64; make; make install"
+
+
+    //inst.bundleNewAMI("deploylib" + region.getClass.getName.dropRight(1))
+    inst.publicDnsName
+  }
 }
 
 /**
@@ -128,7 +161,6 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
    * NOTE: this will kill any other java procs running on the master.
    */
   def restartServiceScheduler: Unit = {
-
     zooKeepers.foreach(_.blockUntilRunning)
     masters.pforeach(_.executeCommand("killall java"))
     val serviceSchedulerScript = (
@@ -285,8 +317,9 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
   def restartMasters(): Unit = {
     masters.foreach {
       master =>
-        master ! "service mesos-master stop"
-        master ! "service mesos-master start"
+        val svc = master.getService("mesos-master", "/usr/local/mesos/bin/mesos-master")
+        svc.stop
+        svc.start
     }
   }
 

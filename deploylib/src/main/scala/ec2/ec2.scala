@@ -132,9 +132,9 @@ class EC2Region(val endpoint: String) extends AWSConnection {
    * A specific RemoteMachine used to control a single 
    * Instances of this class can be obtained by instanceId from the static method getInstance
    */
-  class EC2Instance (val instanceId: String) extends RemoteMachine with RunitManager with AWSConnection {
+  class EC2Instance(val instanceId: String) extends RemoteMachine with RunitManager with Sudo with ServiceManager {
     lazy val hostname: String = getHostname()
-    val username: String = "root"
+    val username: String = "ubuntu"
     val rootDirectory: File = new File("/mnt/")
     val runitBinaryPath: File = new File("/usr/bin")
     val javaCmd: File = new File("/usr/bin/java")
