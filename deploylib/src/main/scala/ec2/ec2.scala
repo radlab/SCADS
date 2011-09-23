@@ -8,14 +8,12 @@ import com.amazonaws.services.ec2.model._
 import net.lag.logging.Logger
 import java.io.File
 import java.net.URL
-import edu.berkeley.cs.scads.comm._
 
 import scala.collection.JavaConversions._
-import scala.collection.immutable.TreeMap
 
-object EC2East extends EC2Region("https://ec2.us-east-1.amazonaws.com")
+case object EC2East extends EC2Region("https://ec2.us-east-1.amazonaws.com")
 
-object EC2West extends EC2Region("https://ec2.us-west-1.amazonaws.com")
+case object EC2West extends EC2Region("https://ec2.us-west-1.amazonaws.com")
 
 /**
  * Provides methods for interacting with nodes in a given ec2 region.
