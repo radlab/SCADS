@@ -7,10 +7,8 @@ import config._
 import edu.berkeley.cs.scads.comm._
 
 import java.io.File
-import java.net.InetAddress
 import collection.JavaConversions._
-import com.amazonaws.services.ec2.model._
-
+import net.lag.logging.Logger
 object ServiceSchedulerDaemon extends optional.Application {
   val javaExecutorPath = "/usr/local/mesos/frameworks/deploylib/java_executor"
 
@@ -26,43 +24,61 @@ object ServiceSchedulerDaemon extends optional.Application {
 }
 
 /**
- * Global state for setting which jars are deployed to ec2.
+ * Global state for setting and methods for running mesos on EC2.
  */
 object MesosCluster {
+  val logger = Logger()
+
   //HACK
   var jarFiles: Seq[java.io.File] = _
 
+  /**
+   * Start a new plain ubuntu ami, install java/mesos on it, bundle it as a new AMI.
+   */
   def buildNewAmi(region: EC2Region = EC2West): String = {
-//    val inst = region.runInstances(1).head
-    val inst = region.activeInstances.last
+    region.update()
+    val oldInst = region.client.describeTags().getTags()
+      .filter(_.getResourceType equals "instance")
+      .filter(_.getKey equals "mesos")
+      .filter(_.getValue equals "ami")
+      .map(t => region.getInstance(t.getResourceId))
+      .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
+
+    val inst =
+      if(oldInst.size == 0)
+        region.runInstances(1).head
+      else
+        oldInst.head
+
+    inst.tags += ("mesos", "ami")
     inst.blockUntilRunning()
 
-    val aptSourcesFile = new File("/etc/apt/sources.list")
-    val aptSources =
-"""###### Ubuntu Main Repos
-deb http://us.archive.ubuntu.com/ubuntu/ natty main restricted universe multiverse partner
-deb-src http://us.archive.ubuntu.com/ubuntu/ natty main restricted universe multiverse partner
-
-###### Ubuntu Update Repos
-deb http://us.archive.ubuntu.com/ubuntu/ natty-security main restricted universe multiverse
-deb http://us.archive.ubuntu.com/ubuntu/ natty-updates main restricted universe multiverse
-deb-src http://us.archive.ubuntu.com/ubuntu/ natty-security main restricted universe multiverse
-deb-src http://us.archive.ubuntu.com/ubuntu/ natty-updates main restricted universe multiverse"""
-
-    inst.createFile(aptSourcesFile, aptSources)
-    inst ! "add-apt-repository ppa:ferramroberto/java"
+    /*logger.info("updating apt...")
+    inst ! "add-apt-repository \"deb http://archive.canonical.com/ubuntu lucid partner\""
     inst ! "echo sun-java6-jdk shared/accepted-sun-dlj-v1-1 select true | /usr/bin/debconf-set-selections"
     inst ! "apt-get update"
+    logger.info("installing java...")
     inst ! "yes | apt-get install -y sun-java6-jdk"
+    logger.info("installing build env...")
     inst ! "apt-get install -y build-essential"
+    logger.info("installing git...")
     inst ! "apt-get install -y git-core"
-    inst ! "apt-get install -y python2.7-dev"
+    logger.info("installing python...")
+    inst ! "apt-get install -y python2.6-dev"
+    logger.info("installing swig...")
+    inst ! "apt-get install -y swig"
+    logger.info("installing autoconf...")
     inst ! "apt-get install -y autoconf"
-  //  inst ! "cd mesos; ./configure.template.ubuntu-natty-64; make; make install"
+    logger.info("cloning mesos")
+    inst ! "git clone https://github.com/mesos/mesos.git"
+    logger.info("building and installing mesos...")
+    inst ! "cd mesos; ./configure --with-python-headers=/usr/include/python2.6 --with-java-home=/usr/lib/jvm/java-6-sun --with-webui --with-included-zookeeper; make; make install"*/
 
-
-    //inst.bundleNewAMI("deploylib" + region.getClass.getName.dropRight(1))
-    inst.publicDnsName
+    val bucketName = (region.getClass.getName.dropRight(1) + System.currentTimeMillis).toLowerCase.replaceAll("\\.", "")
+    logger.info("bundling ami as %s...", bucketName)
+    val ami = inst.bundleNewAMI(bucketName)
+    //inst.halt
+    ami
   }
 }
 
@@ -79,7 +95,7 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
    * The ami used when launching new instances
    */
   val mesosAmi =
-    if (region.endpoint contains "west") "ami-2b6b386e" else "ami-2d60a144"
+    if (region.endpoint contains "west") "ami-2b6b386e" else "ami-d373b1ba"
 
   /**
    * The default availability zone used when launching new instances.

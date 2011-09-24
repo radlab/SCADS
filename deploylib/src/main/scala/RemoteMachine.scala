@@ -52,7 +52,7 @@ trait Sudo extends RemoteMachine {
 trait ServiceManager extends RemoteMachine {
   self =>
 
-  val serviceDir = new File("deploylib/services")
+  val serviceDir = new File("$HOME/deploylib/services")
   case class RemoteService(name: String) {
     val runScript = new java.io.File(serviceDir, name + ".sh")
     val pidFile = new java.io.File(serviceDir, name + ".pid")
@@ -61,7 +61,7 @@ trait ServiceManager extends RemoteMachine {
       mkdir(serviceDir)
       val serviceScript = "#!/bin/bash\n" + cmd
       createFile(runScript, serviceScript)
-      //self ! ("chmod 755 " + runScript)
+      self ! ("chmod 755 " + runScript)
       this
     }
 
