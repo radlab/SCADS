@@ -132,20 +132,21 @@ abstract class RemoteMachine {
    */
   protected var assignedServices: Set[Service] = Set()
 
+  @deprecated("use getService", "v2.1.2")
   def addService(service: Service): Unit = {
     assignedServices += service
   }
 
-  val runitBinaryPath: File
-  lazy val runsvdirCmd: File = new File(runitBinaryPath, "runsvdir")
-  lazy val svCmd: File = new File(runitBinaryPath, "sv")
-  lazy val svlogdCmd: File = new File(runitBinaryPath, "svlogd")
-  lazy val serviceRoot = new File(rootDirectory, "services")
+  protected val runitBinaryPath: File
+  protected lazy val runsvdirCmd: File = new File(runitBinaryPath, "runsvdir")
+  protected lazy val svCmd: File = new File(runitBinaryPath, "sv")
+  protected lazy val svlogdCmd: File = new File(runitBinaryPath, "svlogd")
+  protected lazy val serviceRoot = new File(rootDirectory, "services")
 
   val logger = Logger()
   private var connection: Connection = null
 
-  implicit def toOption[A](a: A) = Option(a)
+  protected implicit def toOption[A](a: A) = Option(a)
 
   protected def prepareCommand(cmd: String) = cmd
 
