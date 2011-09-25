@@ -33,6 +33,11 @@ class EC2Region(val endpoint: String) extends AWSConnection {
     case nameRegEx(name) => name
   }
 
+  val location = name match {
+    case "us-east-1" => "US"
+    case "us-west-1" => "us-west-1"
+  }
+
   val ubuntuRepo = "http://%s.ec2.archive.ubuntu.com/ubuntu/".format(name)
 
   var instanceData: Map[String, Instance] = Map[String, Instance]()
@@ -332,8 +337,9 @@ class EC2Region(val endpoint: String) extends AWSConnection {
       //this ! "add-apt-repository \"deb %s lucid multiverse\"".format(ubuntuRepo)
       //this ! "apt-get update"
       //this ! "apt-get install -y ec2-ami-tools"
-
-      this ! "apt-get install unzip"
+      this ! "apt-get install -y ruby"
+      this ! "apt-get install -y libopenssl-ruby"
+      this ! "apt-get install -y unzip"
       this ! "cd /tmp; wget http://s3.amazonaws.com/ec2-downloads/ec2-ami-tools.zip"
       this ! "cd /tmp; unzip -o ec2-ami-tools.zip"
       val version = ls(new File("/tmp")).filter(_.name contains "ec2-ami-tools-").head.name
@@ -346,7 +352,7 @@ class EC2Region(val endpoint: String) extends AWSConnection {
       this ! "%s/ec2-bundle-vol -c /tmp/%s -k /tmp/%s -u %s --arch %s -e /mnt,/root/.ssh".format(header, ec2Cert.getName, ec2PrivateKey.getName, userID, "x86_64")
 
       logger.info("Running ec2-upload-bundle.")
-      this ! "%s/ec2-upload-bundle -b %s -m %s -a %s -s %s".format(header, bucketName, "/tmp/image.manifest.xml", accessKeyId, secretAccessKey)
+      this ! "%s/ec2-upload-bundle -b %s --location %s -m %s -a %s -s %s".format(header, bucketName, location, "/tmp/image.manifest.xml", accessKeyId, secretAccessKey)
 
       logger.info("Registering the new image with Amazon to be assigned an AMI ID#.")
       val registerRequest = new RegisterImageRequest(bucketName + "/image.manifest.xml")

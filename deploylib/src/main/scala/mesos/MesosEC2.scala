@@ -53,7 +53,7 @@ object MesosCluster {
     inst.tags += ("mesos", "ami")
     inst.blockUntilRunning()
 
-    /*logger.info("updating apt...")
+    logger.info("updating apt...")
     inst ! "add-apt-repository \"deb http://archive.canonical.com/ubuntu lucid partner\""
     inst ! "echo sun-java6-jdk shared/accepted-sun-dlj-v1-1 select true | /usr/bin/debconf-set-selections"
     inst ! "apt-get update"
@@ -72,7 +72,7 @@ object MesosCluster {
     logger.info("cloning mesos")
     inst ! "git clone https://github.com/mesos/mesos.git"
     logger.info("building and installing mesos...")
-    inst ! "cd mesos; ./configure --with-python-headers=/usr/include/python2.6 --with-java-home=/usr/lib/jvm/java-6-sun --with-webui --with-included-zookeeper; make; make install"*/
+    inst ! "cd mesos; ./configure --with-python-headers=/usr/include/python2.6 --with-java-home=/usr/lib/jvm/java-6-sun --with-webui --with-included-zookeeper; make; make install"
 
     val bucketName = (region.getClass.getName.dropRight(1) + System.currentTimeMillis).toLowerCase.replaceAll("\\.", "")
     logger.info("bundling ami as %s...", bucketName)
@@ -87,15 +87,22 @@ object MesosCluster {
  */
 class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) extends ConfigurationActions {
   /**
+   * The location of mesos on the remote machine
+   */
+  val mesosDir = new File("/usr/local/mesos")
+
+  /**
    * Location of the deploylib framework on the remote instances
    */
-  val rootDir = new File("/usr/local/mesos/frameworks/deploylib")
+  val frameworkDir = new File(mesosDir, "frameworks/deploylib")
+
+  val binDir = new File(mesosDir, "bin")
 
   /**
    * The ami used when launching new instances
    */
   val mesosAmi =
-    if (region.endpoint contains "west") "ami-2b6b386e" else "ami-d373b1ba"
+    if (region.endpoint contains "west") "ami-1f08545a" else "ami-d373b1ba"
 
   /**
    * The default availability zone used when launching new instances.
@@ -112,11 +119,6 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
    * A handle to the service scheduler for the cluster
    */
   def serviceScheduler = classOf[RemoteServiceScheduler].newInstance.parse(serviceSchedulerNode.data)
-
-  /**
-   * The contents of the service scheduler log for debugging.
-   */
-  def serviceSchedulerLog = firstMaster.catFile("/root/serviceScheduler.log")
 
   /**
    * Kills all instances running on EC2 for this mesos cluster cluster (masters, slaves, zookeepers)
@@ -144,9 +146,9 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
         case s => s
       }.mkString("\n")
 
-      createDirectory(inst, rootDir)
-      uploadFile(inst, new File("deploylib/src/main/resources/config"), rootDir)
-      createFile(inst, new File(rootDir, "java_executor"), executorScript, "755")
+      createDirectory(inst, frameworkDir)
+      uploadFile(inst, new File("deploylib/src/main/resources/config"), frameworkDir)
+      createFile(inst, new File(frameworkDir, "java_executor"), executorScript, "755")
     })
   }
 
@@ -179,18 +181,16 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
   def restartServiceScheduler: Unit = {
     zooKeepers.foreach(_.blockUntilRunning)
     masters.pforeach(_.executeCommand("killall java"))
-    val serviceSchedulerScript = (
-      "#!/bin/bash\n" +
-        "/root/jrun -Dscads.comm.externalip=true deploylib.mesos.ServiceSchedulerDaemon " +
+    val serviceSchedulerCmd =
+        "/$HOME/jrun -Dscads.comm.externalip=true deploylib.mesos.ServiceSchedulerDaemon " +
         "--mesosMaster " + clusterUrl + " " +
-        "--zooKeeperAddress " + serviceSchedulerNode.canonicalAddress +
-        " >> /root/serviceScheduler.log 2>&1")
+        "--zooKeeperAddress " + serviceSchedulerNode.canonicalAddress
 
-    // Start service scheduler on only the first master
-    firstMaster.createFile(new java.io.File("/root/serviceScheduler"), serviceSchedulerScript)
-    firstMaster ! "chmod 755 /root/serviceScheduler"
-    firstMaster ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/serviceScheduler.pid --exec /root/serviceScheduler"
+    firstMaster.getService("service-scheduler", serviceSchedulerCmd).restart
   }
+
+  protected def slaveService(inst: EC2Instance): ServiceManager#RemoteService = inst.getService("mesos-slave", new File(binDir, "mesos-slave").getCanonicalPath)
+  def slaveServices = slaves.map(slaveService)
 
   /**
    * Returns a list of EC2Instances for all the slaves in the cluster
@@ -204,6 +204,8 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
       .map(t => region.getInstance(t.getResourceId))
       .filter(i => (i.instanceState equals "running") || (i.instanceState equals "pending"))
   }
+
+  def masterServices = masters.map(_.getService("mesos-master", new File(binDir, "mesos-master").getCanonicalPath))
 
   /**
    * Returns a list of EC2Instances for all the masters in the cluster
@@ -276,21 +278,19 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
         "syncLimit=30" ::
         (if (servers.size > 1) serverList else Nil)).mkString("\n")
 
-    val startScript =
-      ("#!/bin/bash" ::
-        "/root/jrun org.apache.zookeeper.server.quorum.QuorumPeerMain /mnt/zookeeper.cnf" :: Nil).mkString("\n")
+    val startCommand = "/$HOME/jrun org.apache.zookeeper.server.quorum.QuorumPeerMain /mnt/zookeeper.cnf"
 
     servers.pforeach {
       case (server, id: Int) =>
         server ! "mkdir -p /mnt/zookeeper"
         server.createFile(new File("/mnt/zookeeper.cnf"), cnf)
         server.createFile(new File("/mnt/zookeeper/myid"), (id + 1).toString)
-        server.createFile(new File("/mnt/startZookeeper"), startScript)
-        server ! "chmod 755 /mnt/startZookeeper"
+
+        val zooService = server.getService("zookeeper", startCommand)
 
         server.pushJars(MesosCluster.jarFiles)
         server.executeCommand("killall java")
-        server ! "start-stop-daemon --make-pidfile --start --background --pidfile /var/run/zookeeper.pid --exec /mnt/startZookeeper"
+        zooService.start
     }
 
     println(cnf)
@@ -320,24 +320,12 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
   /**
    * Restart the mesos-slave process for all slaves
    */
-  def restartSlaves(): Unit = {
-    slaves.pforeach(i => {
-      i ! "service mesos-slave stop";
-      i ! "service mesos-slave start"
-    })
-  }
+  def restartSlaves(): Unit = slaveServices.pforeach(_.restart)
 
   /**
    * Restart the mesos-master process for all masters
    */
-  def restartMasters(): Unit = {
-    masters.foreach {
-      master =>
-        val svc = master.getService("mesos-master", "/usr/local/mesos/bin/mesos-master")
-        svc.stop
-        svc.start
-    }
-  }
+  def restartMasters(): Unit = masterServices.pforeach(_.restart)
 
   /**
    * Restart masters, slaves, and the service scheduler.  Also kills any java procs running on slaves.
@@ -423,7 +411,7 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
         i.blockUntilRunning
         updateDeploylib(i :: Nil)
         updateSlaveConf(i :: Nil)
-        i ! "service mesos-slave restart"
+        slaveService(i).start
       } catch {
         case e => logger.error(e, "Failed to start slave on instance %s:%s", i.instanceId, i.publicDnsName)
       })
@@ -500,15 +488,15 @@ class Cluster(val region: EC2Region = EC2East, val useFT: Boolean = false) exten
    * TODO: Dedup keys
    */
   def authorizeMaster: Unit = {
-    val getKeyCommand = "cat /root/.ssh/id_rsa.pub"
+    val getKeyCommand = "cat /$HOME/.ssh/id_rsa.pub"
     val key = try (firstMaster !? getKeyCommand) catch {
       case u: UnknownResponse => {
-        firstMaster ! "ssh-keygen -t rsa -f /root/.ssh/id_rsa -N \"\""
+        firstMaster ! "ssh-keygen -t rsa -f /$HOME/.ssh/id_rsa -N \"\""
         firstMaster !? getKeyCommand
       }
     }
 
-    slaves.pforeach(_.appendFile(new File("/root/.ssh/authorized_keys"), key))
+    slaves.pforeach(_.appendFile(new File("/$HOME/.ssh/authorized_keys"), key))
   }
 
   /**

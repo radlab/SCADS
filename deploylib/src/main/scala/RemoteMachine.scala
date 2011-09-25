@@ -53,20 +53,25 @@ trait ServiceManager extends RemoteMachine {
   self =>
 
   val serviceDir = new File("$HOME/deploylib/services")
+  val logDir = new File("$HOME/deploylib/logs")
+
   case class RemoteService(name: String) {
     val runScript = new java.io.File(serviceDir, name + ".sh")
     val pidFile = new java.io.File(serviceDir, name + ".pid")
+    val logFile = new java.io.File(logDir, name + ".log")
 
     def setCmd(cmd: String): this.type = {
       mkdir(serviceDir)
+      mkdir(logDir)
       val serviceScript = "#!/bin/bash\n" + cmd
       createFile(runScript, serviceScript)
       self ! ("chmod 755 " + runScript)
       this
     }
 
-    def start = self ! "start-stop-daemon --make-pidfile --start --background --pidfile %s --exec %s".format(pidFile, runScript)
+    def start = self ! "start-stop-daemon --make-pidfile --start --background --pidfile %s --exec %s >> %s 2>&1".format(pidFile, runScript, logFile)
     def stop = self.executeCommand("start-stop-daemon --stop --pidfile %s".format(pidFile))
+    def restart = {stop; start}
   }
   def getService(name: String, cmd: String) = RemoteService(name).setCmd(cmd)
 }
