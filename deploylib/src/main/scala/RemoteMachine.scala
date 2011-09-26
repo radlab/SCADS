@@ -137,12 +137,6 @@ abstract class RemoteMachine {
     assignedServices += service
   }
 
-  protected val runitBinaryPath: File
-  protected lazy val runsvdirCmd: File = new File(runitBinaryPath, "runsvdir")
-  protected lazy val svCmd: File = new File(runitBinaryPath, "sv")
-  protected lazy val svlogdCmd: File = new File(runitBinaryPath, "svlogd")
-  protected lazy val serviceRoot = new File(rootDirectory, "services")
-
   val logger = Logger()
   private var connection: Connection = null
 
